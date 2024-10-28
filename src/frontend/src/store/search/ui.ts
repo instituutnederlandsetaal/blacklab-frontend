@@ -1319,7 +1319,15 @@ const corpusCustomizations = {
 					// (groupId will be set automatically when creating the custom tabs)
 				};
 			},
-		}
+		},
+
+		grouping: {
+			addSpanAttributeCategory(categoryName: string, spans: [string, string, string][]) {
+				spans.forEach(([displayName, spanName, attrName]) => {
+					console.log(`Adding span attribute category: ${categoryName} - ${displayName} (${spanName}:${attrName})`);
+				});
+			},
+		},
 	},
 
 	results: {
