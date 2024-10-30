@@ -465,7 +465,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			const withinClauses = PatternStore.getState().extended.withinClauses;
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
-			const newValueRegex = newValueWildcard ? escapeRegex(newValueWildcard, true) : newValueWildcard;
+			const newValueRegex = newValueWildcard ? escapeRegex(newValueWildcard, { escapeWildcards: false }) : newValueWildcard;
 			const current = { ...(withinClauses[name] || {}) };
 			if (newValueRegex)
 				current[attribute] = newValueRegex;
@@ -495,7 +495,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			const withinClauses = PatternStore.getState().extended.withinClauses;
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
-			const newValuesRegex = newValuesWildcard ? newValuesWildcard.map(v => escapeRegex(v, true)) : newValuesWildcard;
+			const newValuesRegex = newValuesWildcard ? newValuesWildcard.map(v => escapeRegex(v, { escapeWildcards: false })) : newValuesWildcard;
 			const current = { ...(withinClauses[name] || {}) };
 			if (newValuesRegex)
 				current[attribute] = newValuesRegex.join("|");

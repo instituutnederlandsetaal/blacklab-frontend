@@ -149,7 +149,7 @@ const actions = {
 			// For each attribute in this clause...
 			Object.entries(attr ?? {}).forEach( ([attrName, attrValue]) => {
 				// If it's a regex, convert it to wildcard form (pipes for multiple values are unaffected)
-				const widgetValue = typeof attrValue === 'string' ? unescapeRegex(attrValue, true) : attrValue;
+				const widgetValue = typeof attrValue === 'string' ? unescapeRegex(attrValue, { escapeWildcards: false }) : attrValue;
 				// Find the matching filter and set the value
 				Object.values(state.filters)
 					.filter(f => f.isSpanFilter && f.metadata.name === el && f.metadata.attribute === attrName)

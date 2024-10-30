@@ -118,8 +118,7 @@ export default Vue.extend({
 			return result;
 		},
 		filterMap(): Record<string, FilterStore.FullFilterState> {
-			const metadataFilters = FilterStore.getState().filters;
-			return { ...metadataFilters };
+			return FilterStore.getState().filters;
 		},
 		useTabs(): boolean { return this.tabs.length > 1 || this.tabs.length > 0 && this.tabs[0].subtabs.length > 1; },
 		activeFiltersMap(): Record<string, number> {
