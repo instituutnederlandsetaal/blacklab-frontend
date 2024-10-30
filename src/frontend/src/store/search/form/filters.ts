@@ -127,7 +127,7 @@ const actions = {
 		//@ts-ignore
 		filter.defaultDisplayName = filter.defaultDisplayName || filter.displayName;
 		//@ts-ignore
-		filter.defaultDisplayName = filter.defaultDescription || filter.description;
+		filter.defaultDescription = filter.defaultDescription || filter.description;
 
 		Vue.set<FullFilterState>(state.filters, filter.id, {...filter, value: null});
 	}, 'registerFilter'),

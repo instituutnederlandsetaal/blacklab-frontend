@@ -5,6 +5,8 @@
 				active: index === modelValue.index,
 				tab: true,
 				disabled: tab.disabled,
+				'text-primary': index !== modelValue.index,
+				'text-body': index === modelValue.index,
 				...(function() {
 					if (typeof tab.class === 'string') return {[tab.class]: true}
 					else return tab.class
@@ -228,7 +230,7 @@ $radius: 4px;
 
 		> .tab {
 			// border-top: 0;
-			&:first-child { border-left: 0; }
+			// &:first-child { border-left: 0; }
 			&:last-child { margin-right: -1px; } // collapse border with container.
 
 			border-top-left-radius: $radius;

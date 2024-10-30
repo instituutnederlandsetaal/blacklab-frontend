@@ -12,6 +12,7 @@
 		</div>
 
 		<Tabs v-if="tabs.length"
+			style="margin-top: 6px; padding: 0 0.5em;"
 			:tabs="tabs"
 
 			wrap
@@ -36,7 +37,7 @@
 				<span v-if="isParallel">{{ $t('results.groupBy.parallelCorpusVersion') }}</span>
 				<SelectPicker v-if="isParallel"
 						:options="parallelVersionOptions"
-						v-model="targetField"
+						v-model="selectedCriterium.fieldName"
 						allowUnknownValues
 						data-width="auto"
 						data-menu-width="auto"
@@ -76,6 +77,7 @@
 						searchable
 						hideEmpty
 						:options="annotations"
+						allowHtml
 						v-model="selectedCriterium.annotation"
 					/></template>
 				</i18n>
@@ -136,8 +138,15 @@
 					:options="metadata"
 				/>
 
-				<br>
-				<label><input type="checkbox" v-model="selectedCriterium.caseSensitive"> {{ $t('results.groupBy.caseSensitive') }}</label>
+				<!-- mimic style of annotation box. -->
+				<form class="case-and-context">
+					<div class="labels">
+						<label for="group-case-sensitive">{{ $t('results.groupBy.caseSensitive') }}: </label>
+					</div>
+					<div class="inputs">
+						<input id="group-case-sensitive" type="checkbox" v-model="selectedCriterium.caseSensitive">
+					</div>
+				</form>
 			</template>
 			<template v-else-if="selectedCriterium?.type === 'custom'">
 				{{selectedCriterium.value}}
@@ -191,7 +200,7 @@ import { blacklab } from '@/api';
 
 import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults} from '@/types/blacklabtypes';
 
-import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel} from '@/utils/grouping';
+import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel, humanizeGroupBy as summarizeGroup} from '@/utils/grouping';
 
 import debug from '@/utils/debug';
 
@@ -227,17 +236,22 @@ export default Vue.extend({
 		/** micro optimization: whether to skip next parse since the new value came from us anyway. */
 		storeValueUpdateIsOurs: false,
 
+		/** For the preview. Results from props can also be grouped, so we need to request these ourselves. */
 		hits: undefined as undefined|BLHitResults,
 
 		active: false
 	}),
 	computed: {
+		metadataGroups() { return CorpusStore.get.metadataGroups() },
+		metadataFieldsMap() { return CorpusStore.get.allMetadataFieldsMap() },
+		annotationGroups() { return CorpusStore.get.annotationGroups() },
+		annotationsMap() { return CorpusStore.get.allAnnotationsMap() },
+
 		tabs(): Option[] {
 			return this.addedCriteria.map((c, i) => ({
-				label: this.humanizeGroupBy(c),
+				label: summarizeGroup(this, c, this.annotationsMap, this.metadataFieldsMap),
 				value: i.toString(),
 				class: isValidGroupBy(c) ? '' : 'text-muted',
-				style: isValidGroupBy(c) ? {} : {'font-style': 'italic'}
 			}));
 		},
 		defaultAnnotation(): string {
@@ -268,8 +282,8 @@ export default Vue.extend({
 		annotations(): Options {
 			return getAnnotationSubset(
 				UIStore.getState().results.shared.groupAnnotationIds,
-				CorpusStore.get.annotationGroups(),
-				CorpusStore.get.allAnnotationsMap(),
+				this.annotationGroups,
+				this.annotationsMap,
 				'Search',
 				this,
 				CorpusStore.get.textDirection(),
@@ -280,8 +294,8 @@ export default Vue.extend({
 		metadata(): Options {
 			const r = getMetadataSubset(
 				UIStore.getState().results.shared.groupMetadataIds,
-				CorpusStore.get.metadataGroups(),
-				CorpusStore.get.allMetadataFieldsMap(),
+				this.metadataGroups,
+				this.metadataFieldsMap,
 				'Group',
 				this,
 				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
@@ -339,17 +353,7 @@ export default Vue.extend({
 		},
 
 		mainSearchField(): string {
-			return this.hits?.summary.pattern?.fieldName ?? '';
-		},
-		targetField: {
-			get(): string {
-				return this.selectedCriteriumAsPositional?.fieldName ?? '';
-			},
-			set(v: string) {
-				if (this.selectedCriteriumAsPositional) {
-					this.selectedCriteriumAsPositional.fieldName = v;
-				}
-			},
+			return this.results?.summary.pattern?.fieldName ?? '';
 		},
 
 		colors(): Record<string, TokenHighlight> {
@@ -558,10 +562,6 @@ export default Vue.extend({
 		},
 
 
-		humanized(): string[] {
-			return this.addedCriteria.map(g => this.humanizeGroupBy(g));
-		},
-
 		isParallel(): boolean { return CorpusStore.get.isParallelCorpus() ?? false; },
 
 		parallelVersionOptions(): Option[] {
@@ -586,35 +586,6 @@ export default Vue.extend({
 			this.storeValueUpdateIsOurs = true;
 			this.storeModule.actions.groupBy(serializeGroupBy(this.addedCriteria.filter(isValidGroupBy)));
 			this.selectedCriteriumIndex = -1;
-		},
-		humanizeGroupBy(g: GroupBy): string {
-			if (g.type === 'context') {
-				if (!g.annotation) return this.$t('results.groupBy.specify').toString();
-
-				// when using capture label or relation, done.
-				if (g.context.type === 'label') {
-					return this.$t('results.groupBy.label', {
-						label: g.context.label,
-						annotation: g.annotation
-					}).toString();
-				}
-
-				const position = (g.context.position === 'H' || g.context.position === 'E') ? 'in' : g.context.position === 'B' ? 'before' : 'after';
-
-				let wordCount: string;
-
-				if (g.context.whichTokens === 'all') wordCount = 'all';
-				else if (g.context.whichTokens === 'first') wordCount = 'first';
-				else if (g.context.start === g.context.end) wordCount = g.context.start + '';
-				else wordCount =`${g.context.start}-${g.context.end}`;
-
-				return `${g.annotation}${wordCount ? ` (${wordCount})` : ''} ${position + ' hit'}`;
-			} else if (g.type === 'metadata') {
-				if (!g.field) return this.$t('results.groupBy.specify').toString();
-				return `document ${this.$tMetaDisplayName(CorpusStore.get.allMetadataFieldsMap()[g.field])}`;
-			} else {
-				return g.value;
-			}
 		},
 
 		isEmptyGroup(group: GroupBy) { return (group.type === 'context' && !group.annotation) || (group.type === 'metadata' && !group.field); },
@@ -716,7 +687,7 @@ export default Vue.extend({
 	flex-direction: row;
 	justify-content: space-between;
 	align-items: center;
-	padding: 10px 0;
+	padding: 10px 0 0 0;
 
 	> .labels {
 		padding-right: 10px;

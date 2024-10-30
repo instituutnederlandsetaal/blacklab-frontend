@@ -28,10 +28,10 @@
 					</div>
 				</div>
 				<div class="form-group">
-					<label class="col-xs-4 col-md-2" for="corpora-display-mode">{{$t('explore.corpora.showAs')}}</label>
+					<label class="col-xs-4 col-md-2" for="corpora-display-mode">{{$t('explore.corpora.showAs.heading')}}</label>
 					<div class="col-xs-8">
 						<SelectPicker
-							placeholder="Show as"
+							:placeholder="$t('explore.corpora.showAs.heading')"
 							data-id="corpora-display-mode"
 							data-width="100%"
 							style="max-width: 400px;"
@@ -72,6 +72,7 @@
 
 							data-width="100%"
 							hideEmpty
+							allowHtml
 
 							:options="annotationGroupByOptions"
 
@@ -91,6 +92,7 @@
 							:value="token.id"
 							placeholder="Property"
 							hideEmpty
+							allowHtml
 
 							@change="updateTokenAnnotation(index, $event /* custom component - custom event values */)"
 						/>
@@ -145,6 +147,7 @@
 
 						data-width="100%"
 						hideEmpty
+						allowHtml
 
 						:options="annotationGroupByOptions"
 
@@ -227,7 +230,9 @@ export default Vue.extend({
 				CorpusStore.get.allAnnotationsMap(),
 				'Search',
 				this,
-				CorpusStore.get.textDirection()
+				CorpusStore.get.textDirection(),
+				debug.debug,
+				false
 			);
 			return optGroups.length > 1 ? optGroups : optGroups.flatMap(g => g.options as Option[]);
 		},
@@ -238,7 +243,9 @@ export default Vue.extend({
 				CorpusStore.get.allAnnotationsMap(),
 				'Search', // we don't want the before hit/after hit context options, just do search mode, it'll be fine
 				this,
-				CorpusStore.get.textDirection()
+				CorpusStore.get.textDirection(),
+				debug.debug,
+				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible
 			);
 			return optGroups.length > 1 ? optGroups : optGroups.flatMap(g => g.options as Option[]);
 		},
@@ -255,14 +262,25 @@ export default Vue.extend({
 				CorpusStore.get.metadataGroups(),
 				CorpusStore.get.allMetadataFieldsMap(),
 				'Group',
-				this
+				this,
+				debug.debug,
+				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible
 			);
 			optGroups.forEach(fix);
 			return optGroups;
 		},
-		corporaGroupDisplayModeOptions(): string[] {
+		corporaGroupDisplayModeOptions(): Option[] {
 			// TODO
-			return ['table', 'docs', 'tokens'];
+			return [{
+				value: 'table',
+				label: this.$t('explore.corpora.showAs.table').toString(),
+			}, {
+				value: 'docs',
+				label: this.$t('explore.corpora.showAs.docs').toString(),
+			}, {
+				value: 'tokens',
+				label: this.$t('explore.corpora.showAs.tokens').toString(),
+			}];
 		},
 
 		mainTokenTextDirection: CorpusStore.get.textDirection,
@@ -285,7 +303,7 @@ export default Vue.extend({
 		}
 	},
 	created() {
-		this.corporaGroupDisplayMode = this.corporaGroupDisplayModeOptions[0];
+		this.corporaGroupDisplayMode = this.corporaGroupDisplayModeOptions[0].value;
 	}
 });
 </script>

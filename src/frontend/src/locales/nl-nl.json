@@ -73,7 +73,7 @@
 			"importQuery": "Importeer zoekvraag",
 			"importQueryTitle": "Importeer een eerder gedownloade zoekvraag",
 			"gapFilling": "Gap-filling",
-			"gapFillingTitle": "Upload a tab-separated list of values to substitute for gap values ('@@' in your query).",
+			"gapFillingTitle": "Upload een lijst waardes gescheiden door tabs om in de query te gebruiken (op de plaats van '@@').",
 			"clearGapValues": "Gap-waarden wissen"
 		},
 		"parallel": {
@@ -90,7 +90,15 @@
 		"heading": "Filter zoekopdracht op …",
 		"noFilter": {
 			"title": "Geen filters beschikbaar",
-			"content": "This corpus does not contain metadata, or the author has chosen not to allow filtering on metadata."
+			"content": "Dit corpus bevat geen metadata, of de auteur staat het niet toe om te filteren op metadata."
+		},
+		"range": {
+			"from": "Van",
+			"to": "Tot",
+			"permissive": "Gedeeltelijke overlap",
+			"permissiveDescription": "Toon documenten die gedeeltelijk of volledig binnen het ingevoerde bereik vallen",
+			"strict": "Volledige overlap",
+			"strictDescription": "Toon documenten die volledig binnen het ingevoerde berijk vallen"
 		}
 	},
 	"explore": {
@@ -98,7 +106,12 @@
 		"corpora": {
 			"heading": "Documenten",
 			"groupBy": "Groepeer documenten op metadata",
-			"showAs": "Groepen weergeven als"
+			"showAs": {
+				"heading": "Groepen weergeven als",
+				"table": "Tabel",
+				"docs": "Documenten",
+				"tokens": "Tokens"
+			}
 		},
 		"ngram": {
 			"heading": "N-grammen",
@@ -113,7 +126,10 @@
 	"setting": {
 		"heading": "Globale instellingen",
 		"resultsPerPage": "Resultaten per pagina",
+		"resultsPerPageOption": "{n} per pagina",
 		"sampleSize": "Steekproefgrootte",
+		"sampleSizeCount": "aantal",
+		"sampleSizePercentage": "percentage",
 		"sampleSeed": "Steekproef-seed",
 		"context": "Contextgrootte",
 		"wideView": "Breedbeeld",
@@ -177,8 +193,8 @@
 			"groupNameWithoutValue": "[geen waarde]",
 
 			"groupResults": "Groeperen",
-			"clear": "Wissen",
 			"close": "Sluiten",
+			"clear": "Wissen",
 			"apply": "Groeperen",
 			"invalidGrouping": "Deze groepering is niet geldig.",
 
@@ -208,12 +224,25 @@
 			"caseSensitive": "Hoofdlettergevoelig",
 			"chooseWordPositions": "Kies hier de <strong>specifieke woorden</strong> om op te groeperen, in het voorbeeld hieronder ziet u welke woorden zijn geselecteerd.",
 			"selectDocumentMetadata": "Kies de documentwaarde om op te groeperen.",
-			"clickButtonsToStart": "Hier kunt u een groepering toepassen op de resultaten. Gebruik de knoppen hieronder om een groepeercriterium te maken.",
+			"clickButtonsToStart": "Hier kunt u een groepering toepassen op de resultaten. Klik op de knoppen Metadata of Annotatie om groepeercriteria te definiëren.",
 			"metadata": "Metadata",
 			"annotation": "Annotatie",
 			"specify": "Specificeer",
-			"label": "{label} ({annotation})",
-			"document": "document"
+
+			"summary": {
+				"indexedWord": "{field} [{index}] {position}",
+				"firstWord": "eerste {field} {position}",
+				"allWords": "{field} {position}",
+				"labelledWord": "label {label} op {field}",
+				"metadata": "Document {field}",
+
+				"position": {
+					"before": "voor hit",
+					"hit": "in hit",
+					"after": "na hit",
+					"end": "in hit"
+				}
+			}
 		},
 		"table": {
 			"showFullSentence": "Toon complete zin",
@@ -257,7 +286,16 @@
 			"documentsWhere": "documenten waar"
 		},
 		"resultsView": {
-			"backToGroupOverview": "Terug naar groepen",
+			"navigation": {
+				"backToGroupedResults": "Terug naar gegroepeerde resultaten",
+				"backToUngroupedResults": "Terug naar niet-gegroepeerde resultaten",
+				"hits": "Hits",
+				"documents": "Documenten",
+				"viewingGroup": "In groep {group}",
+				"groupedBy": "Gegroepeerd op {group}",
+				"randomSample": "Steekproef ({sample})"
+			},
+
 			"noResultsFound": "Geen resultaten gevonden.",
 			"inactiveView": "Deze weergave is niet actief omdat er niet naar woorden gezocht is.",
 			"tryAgainTitle": "Probeer opnieuw met huidige parameters",

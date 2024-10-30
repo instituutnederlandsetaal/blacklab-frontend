@@ -90,6 +90,14 @@
 		"noFilter": {
 			"title": "No filters available",
 			"content": "This corpus does not contain metadata, or the author has chosen not to allow filtering on metadata."
+		},
+		"range": {
+			"from": "From",
+			"to": "To",
+			"permissive": "Permissive",
+			"permissiveDescription": "Matches documents that are partially contained within the entered range",
+			"strict": "Strict",
+			"strictDescription": "Matches documents that are completely contained within the entered range"
 		}
 	},
 	"explore": {
@@ -97,7 +105,12 @@
 		"corpora": {
 			"heading": "Documents",
 			"groupBy": "Group documents by metadata",
-			"showAs": "Show groups as"
+			"showAs": {
+				"heading": "Show groups as",
+				"table": "Table",
+				"docs": "Docs",
+				"tokens": "Tokens"
+			}
 		},
 		"ngram": {
 			"heading": "N-grams",
@@ -112,7 +125,10 @@
 	"setting": {
 		"heading": "Global settings",
 		"resultsPerPage": "Results per page",
+		"resultsPerPageOption": "{n} results per page",
 		"sampleSize": "Sample size",
+		"sampleSizeCount": "count",
+		"sampleSizePercentage": "percentage",
 		"sampleSeed": "Seed",
 		"context": "Context size",
 		"wideView": " Wide View",
@@ -212,8 +228,21 @@
 			"metadata": "Metadata",
 			"annotation": "Annotation",
 			"specify": "Specify",
-			"label": "label {label} ({annotation})",
-			"document": "document"
+
+			"summary": {
+				"indexedWord": "{field} [{index}] {position}",
+				"firstWord": "first {field} {position}",
+				"allWords": "{field} {position}",
+				"labelledWord": "label {label} on {field}",
+				"metadata": "Document {field}",
+
+				"position": {
+					"before": "before hit",
+					"hit": "within hit",
+					"after": "after hit",
+					"end": "within hit"
+				}
+			}
 		},
 		"table": {
 			"showFullSentence": "Show full sentence",
@@ -257,7 +286,16 @@
 			"documentsWhere": "documents where"
 		},
 		"resultsView": {
-			"backToGroupOverview": "Back to group overview",
+			"navigation": {
+				"backToGroupedResults": "Go back to grouped results",
+				"backToUngroupedResults": "Go vack to ungrouped results",
+				"hits": "Hits",
+				"documents": "Documents",
+				"viewingGroup": "Viewing group {group}",
+				"groupedBy": "Grouped by {group}",
+				"randomSample": "Random sample ({sample})"
+			},
+
 			"noResultsFound": "No results found.",
 			"inactiveView": "This view is inactive because no search criteria for words were specified.",
 			"tryAgainTitle": "Try again with current search settings",

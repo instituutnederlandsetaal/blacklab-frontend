@@ -1,7 +1,7 @@
 <template>
 	<div :class="{'form-group': true, 'form-group-lg': lg}">
 		<label :class="{'col-xs-12': !block, 'col-md-3': !block, 'control-label': block}">{{ $t('search.parallel.alignBy') }}</label>
-		<div class="btn-group clearfix" :class="{'visible-lg-block': block, 'col-xs-12': !block, 'col-md-9': !block}">
+		<div class="btn-group clearfix" style="display: block;" :class="{'col-xs-12': !block, 'col-md-9': !block}">
 			<button v-for="option in alignByOptions"
 				type="button"
 				:class="['btn', alignBy === option.value ? 'active btn-primary' : 'btn-default']"

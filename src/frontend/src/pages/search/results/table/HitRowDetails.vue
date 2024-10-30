@@ -209,16 +209,27 @@ export default Vue.extend({
 				);
 
 				// Run plugins defined for this corpus (e.g. a copy to clipboard button, or an audio player/text to speech button)
-				this.addons = addons.map(a => a({
-					docId: this.data.doc.docPid,
-					corpus: INDEX_ID,
-					document: this.data.doc.docInfo,
-					documentUrl: this.data.href || '',
-					wordAnnotationId: this.mainAnnotation.id,
-					dir: this.dir,
-					citation: s
-				}))
-				.filter(a => a != null);
+				this.addons = addons
+					.map((a, i) => {
+						try {
+							return a({
+								docId: this.data.doc.docPid,
+								corpus: INDEX_ID,
+								document: this.data.doc.docInfo,
+								documentUrl: this.data.href || '',
+								wordAnnotationId: this.mainAnnotation.id,
+								dir: this.dir,
+								citation: s
+							});
+						} catch (e) {
+							console.error(e);
+							return {
+								name: 'error-' + i,
+								content: `<pre class="text-danger">Error in addon: ${e}</pre>`
+							}
+						}
+					})
+					.filter(a => a != null);
 			})
 			.catch((err: Api.ApiError) => {
 				this.error = formatError(err, 'snippet');

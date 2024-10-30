@@ -280,7 +280,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			cql.tokens.find(t =>
 				t.leadingXmlTag != null ||
 				t.trailingXmlTag != null ||
-				t.repeats != null ||
+				(t.repeats != null && (t.repeats.min !== 1 || t.repeats.max !== 1)) ||
 				t.optional ||
 				(t.expression != null && (t.expression.type !== 'attribute' || t.expression.operator !== '='))
 			) != null
@@ -479,7 +479,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		}
 
 		const result = {
-			source: this.getString('field', CorpusModule.get.parallelAnnotatedFields()[0]?.id),
+			source: sourceFromUrl,
 			targets: this._parsedCql ? this._parsedCql.slice(1).map(result => result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '') : [],
 			alignBy: (this._parsedCql ? this._parsedCql[1]?.relationType : defaultAlignBy) ?? defaultAlignBy,
 		};

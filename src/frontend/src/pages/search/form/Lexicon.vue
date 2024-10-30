@@ -66,9 +66,9 @@ import { debounceTime, switchMap, mergeMap, map, toArray, catchError, mapTo, dis
 import * as CorpusStore from '@/store/search/corpus';
 import * as UIStore from '@/store/search/ui';
 import * as api from '@/api';
-import SelectPicker, { Option } from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 import UID from '@/mixins/uid';
-import { escapeRegex, filterDuplicates, mapReduce, getAnnotationPatternString } from '@/utils';
+import { escapeRegex, filterDuplicates, mapReduce } from '@/utils';
 
 type LexiconParams1 = {lemma: string}|{wordform: string}
 type LexiconParams = LexiconParams1&{
@@ -274,7 +274,7 @@ export default Vue.extend({
 			// We need to discern changed checkbox availability from actual changes
 			// Take care not to remove user-input value when an empty batch of alternatives comes in.
 			if (v.length !== prev.length && this.wordOptions && this.wordOptions.length > 0) {
-				this.modelValue = v.map(w => w.word.replace(/\|"/g, '\\$1')).map(w => w.includes(' ') ? '"'+w+'"' : w).join('|');
+				this.modelValue = v.map(w => escapeRegex(w.word)).map(w => w.includes(' ') ? '"'+w+'"' : w).join('|');
 			}
 		},
 		posOptions: {

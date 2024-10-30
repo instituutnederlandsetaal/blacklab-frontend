@@ -82,12 +82,18 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, Object
 const getState = b.state();
 
 const get = {
+	/**
+	 * Return the sourceField of the query.
+	 * We only return a value here for parallel corpora.
+	 * In all other cases, we let BlackLab decide the main search field.
+	 * (In practice it will be the mainAnnotatedField)
+	 */
 	annotatedFieldName: b.read((state): string|undefined => {
-		if (!state.form) { return undefined; }
-		if (state.form !== 'explore') {
-			return (state as ModuleRootStateSearch<keyof PatternModule.ModuleRootState>).parallelFields.source || undefined;
+		switch (state.form) {
+			case 'search': return state.parallelFields.source || undefined;
+			case 'explore': return undefined; // always use default field.
+			default: return undefined;
 		}
-		return CorpusModule.get.mainAnnotatedField();
 	}, 'annotatedFieldName'),
 	patternString: b.read((state, getters, rootState): string|undefined => {
 		if (!state.subForm) return undefined;

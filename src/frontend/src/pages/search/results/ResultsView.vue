@@ -31,7 +31,7 @@
 				:results="results"
 				:disabled="!!request"
 			/>
-			<button v-else slot="groupBy" class="btn btn-sm btn-primary" @click="leaveViewgroup"><span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.backToGroupOverview') }}</button>
+			<button v-else slot="groupBy" class="btn btn-sm btn-primary" @click="leaveViewgroup"><span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}</button>
 
 			<div slot="annotation-switcher" v-if="concordanceAnnotationOptions.length > 1">
 				<label>{{$t('results.resultsView.selectAnnotation')}}: </label>
@@ -122,7 +122,8 @@ import debug, { debugLog } from '@/utils/debug';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedIndex } from '@/types/apptypes';
-import { parseGroupBy, serializeGroupBy } from '@/utils/grouping';
+import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
+import { TranslateResult } from 'vue-i18n';
 
 export default Vue.extend({
 	components: {
@@ -300,6 +301,7 @@ export default Vue.extend({
 		},
 
 		corpus(): NormalizedIndex { return CorpusStore.getState().corpus!; },
+
 		concordanceAnnotationOptions(): CorpusStore.NormalizedAnnotation[] { return UIStore.getState().results.shared.concordanceAnnotationIdOptions.map(id => CorpusStore.get.allAnnotationsMap()[id]); },
 		concordanceAnnotationId: {
 			get(): string { return UIStore.getState().results.shared.concordanceAnnotationId; },
@@ -386,19 +388,27 @@ export default Vue.extend({
 
 		viewGroupName(): string {
 			if (this.viewGroup == null) { return ''; }
-			return this._viewGroupName?.substring(this.viewGroup.indexOf(':')+1) ?? this.$t('results.groupBy.groupNameWithoutValue').toString();
+			return this._viewGroupName ?? this.viewGroup.substring(this.viewGroup.indexOf(':')+1) ?? this.$t('results.groupBy.groupNameWithoutValue').toString();
 		},
 
 		breadCrumbs(): Array<{
-			label: string,
-			title: string,
+			label: TranslateResult,
+			title: TranslateResult,
 			active: boolean,
 			onClick: () => void
 		}> {
+			// Labels and titles might look confusing
+			// but, the label is what the uses is currently looking at
+			// the title is what they will look at if they click the link
+			// e.g. hits -> grouped by -> specific group -> sample
+			// if clicking hits -> go to hits
+			// if clicking grouped by -> go to grouped results
+			// if clicking specific group -> go to specific group
+
 			const r = [];
 			r.push({
-				label: this.id === 'hits' ? 'Hits' : 'Documents',
-				title: 'Go back to ungrouped results',
+				label: this.id === 'hits' ? this.$t('results.resultsView.navigation.hits') : this.$t('results.resultsView.navigation.documents'),
+				title: this.$t('results.resultsView.navigation.backToUngroupedResults').toString(),
 				active: false,
 				onClick: () => {
 					this.groupBy = [];
@@ -406,10 +416,11 @@ export default Vue.extend({
 				}
 			});
 			if (this.groupBy.length > 0) {
+				const groupByLabel = parseGroupBy(this.groupBy).map(g => humanizeGroupBy(this, g, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap())).join(', ')
 				r.push({
-					label: 'Grouped by ' + this.groupBy.toString(),
-					title: 'Go back to grouped results',
-					active: false, //this.viewGroup == null,
+					label: this.$t('results.resultsView.navigation.groupedBy', {group: groupByLabel}),
+					title: this.$t('results.resultsView.navigation.backToGroupedResults'),
+					active: false,
 					onClick: () => {
 						this.leaveViewgroup();
 						GlobalStore.actions.sampleSize(null);
@@ -418,7 +429,7 @@ export default Vue.extend({
 			}
 			if (this.viewGroup != null) {
 				r.push({
-					label: 'Viewing group ' + this.viewGroupName,
+					label: this.$t('results.resultsView.navigation.viewingGroup', {group: this.viewGroupName}),
 					title: '',
 					active: false,
 					onClick: () => GlobalStore.actions.sampleSize(null)
@@ -427,8 +438,8 @@ export default Vue.extend({
 			const {sampleMode, sampleSize} = GlobalStore.getState();
 			if (sampleSize != null) {
 				r.push({
-					label: `Random sample (${sampleSize}${sampleMode === 'percentage' ? '%' : ''})`,
-					title: `Showing only some (${sampleSize}${sampleMode === 'percentage' ? '%' : ''}) results`,
+					label: this.$t('results.resultsView.navigation.randomSample', {sample: `${sampleSize}${sampleMode === 'percentage' ? '%' : ''}`}),
+					title: '',
 					active: false,
 					onClick: () => {
 						$('#settings').modal('show')

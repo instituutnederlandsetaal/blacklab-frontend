@@ -8,6 +8,7 @@
 						data-id="resultsPerPage"
 						data-name="resultsPerPage"
 						hideEmpty
+						allowUnknownValues
 
 						:options="pageSizeOptions"
 
@@ -81,8 +82,6 @@ export default Vue.extend({
 		Modal
 	},
 	data: () => ({
-		sampleModeOptions: ['percentage', 'count'] as Array<GlobalViewSettings.ModuleRootState['sampleMode']>,
-		pageSizeOptions: ['20','50','100','200'].map(value => ({value, label: `${value} results`})) as Option[],
 		debug,
 		wideView: localStorageSynced('cf/wideView', false),
 	}),
@@ -95,12 +94,27 @@ export default Vue.extend({
 				ResultsViewSettings.actions.resetPage();
 			}
 		},
+		pageSizeOptions(): Option[] {
+			return ['20','50','100','200'].map(value => ({
+				value,
+				label: this.$t('setting.resultsPerPageOption', { n: value }).toString()
+			}));
+		},
 		sampleMode: {
 			get() { return GlobalViewSettings.getState().sampleMode; },
 			set(v: GlobalViewSettings.ModuleRootState['sampleMode']) {
 				GlobalViewSettings.actions.sampleMode(v);
 				ResultsViewSettings.actions.resetPage();
 			}
+		},
+		sampleModeOptions(): Option[] {
+			return [{
+				value: 'percentage',
+				label: this.$t('setting.sampleSizePercentage').toString(),
+			}, {
+				value: 'count',
+				label: this.$t('setting.sampleSizeCount').toString(),
+			}]
 		},
 		sampleSize: {
 			get(): string { return this.itoa(GlobalViewSettings.getState().sampleSize); },

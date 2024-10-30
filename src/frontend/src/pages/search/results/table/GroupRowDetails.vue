@@ -165,7 +165,7 @@ export default Vue.extend({
 	},
 	watch: {
 		open() {
-			if (this.open && !this.concordances.done) this.concordances.next();
+			if (this.open && !this.concordances.done && !this.concordances.loading && !this.concordances.results.length) this.concordances.next();
 		}
 	}
 });

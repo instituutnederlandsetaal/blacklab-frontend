@@ -102,8 +102,6 @@ export default Vue.extend ( {
 	}),
 
 	methods : {
-		alert,
-
 		getConceptAutocompletes(prefix: string): Promise<string[]> {
 			if (!prefix) return Promise.resolve([]);
 

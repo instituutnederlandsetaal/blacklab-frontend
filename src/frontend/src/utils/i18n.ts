@@ -5,9 +5,24 @@ import { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGro
 import SelectPicker from '@/components/SelectPicker.vue';
 import { localStorageSynced } from '@/utils/localstore';
 
+// This is some cool typescript magic to get the paths of the keys in the i18n json files.
+// This way we can typecheck the keys in the code and get autocompletion.
+// However we can't use this yet because it's currently not possible to
+// overwrite the $t function in the Vue prototype with the correct types.
+// For that we'd need to overwrite the declaration in the vue-i18n package
+// but that's not supported by typescript currently.
+// See https://github.com/microsoft/TypeScript/issues/36146
+// type Path<T> = {
+// [K in keyof T]: K extends string ? T[K] extends object
+// 	? `${K}.${Path<T[K]>}`
+// 	: K
+// 	: never;
+// }[keyof T];
+// type ValidPaths = Path<typeof import('@/locales/en-us.json')>;
 
 Vue.use(VueI18n);
-const defaultLocale = 'en-us';
+const defaultFallbackLocale = 'en-us';
+const defaultLocale = navigator.language.toLowerCase();
 const locale = localStorageSynced('cf/locale', defaultLocale, true);
 const availableLocales: Option[] = Vue.observable([]);
 
@@ -23,11 +38,24 @@ function removeLocale(locale: string) {
 
 const i18n = new VueI18n({
 	locale: locale.value,
-	fallbackLocale: defaultLocale,
+	fallbackLocale: defaultFallbackLocale,
 	messages: {},
 });
 
+function setFallbackLocale(locale: string) {
+	if (availableLocales.some(l => l.value === locale))
+		i18n.fallbackLocale = locale;
+	else
+		console.warn(`Fallback locale ${locale} is not in the list of available locales!`);
+}
+
+function setDefaultLocale(defaultLocale: string) {
+	// If there is no explicit locale stored, set the locale to the value.
+	if (!locale.isFromStorage) locale.value = defaultLocale;
+}
+
 async function loadLocaleMessages(locale: string) {
+	if (!locale) return;
 	// also allow loading locales not defined in the availableLocales.
 	// This is useful for loading overrides for locales that are not available in the UI.
 	// Also, because the UI list can be updated asynchronously (from customjs), we might have a locale in localStorage that is not in the list yet.
@@ -39,7 +67,7 @@ async function loadLocaleMessages(locale: string) {
 	try { messages = await import(`@/locales/${locale}.json`); }
 	catch (e) { console.info(`Failed to load builtin locale messages for ${locale}: ${e}`); }
 
-	overrides = await fetch(`${CONTEXT_URL}/${INDEX_ID}/static/locales/${locale}.json`)
+	overrides =  await fetch(`${CONTEXT_URL}${INDEX_ID ? `/${INDEX_ID}` : ''}/static/locales/${locale}.json`)
 		.then(r => {
 			if (!r.ok) {
 				// If the file doesn't exist, that's fine, we just won't have any overrides.
@@ -63,9 +91,9 @@ async function loadLocaleMessages(locale: string) {
 	}
 }
 
-registerLocale('en-us', '🇺🇸 English')
-registerLocale('zh-cn', '🇨🇳 中文')
-registerLocale('nl-nl', '🇳🇱 Nederlands')
+registerLocale('en-us', 'English')
+registerLocale('zh-cn', '中文')
+registerLocale('nl-nl', 'Nederlands')
 
 const LocaleSelector = Vue.extend({
 	i18n,
@@ -96,7 +124,7 @@ const LocaleSelector = Vue.extend({
 				this.loading = false
 			}
 			this.$i18n.locale = locale.value
-		}
+		},
 	},
 	async created() {
 		await loadLocaleMessages(defaultLocale);
@@ -104,7 +132,9 @@ const LocaleSelector = Vue.extend({
 			await loadLocaleMessages(locale.value);
 	}
 });
-new LocaleSelector().$mount('#locale-selector');
+const localeSelectorInstance = new LocaleSelector().$mount('#locale-selector');
+
+
 
 /** Get the i18n text or fall back to a default value if the key doesn't exist.
  *  Useful for dynamic key values such as field names.
@@ -120,7 +150,9 @@ function textOrDefault<T extends string|null|undefined>(i18n: VueI18n, key: stri
 // (filters are technically not directly equal to metadata objects, but for translation purposes we use the same keys)
 const i18nExtensionFunctions = {
 	$td<T extends string|null|undefined>(this: Vue, key: string, defaultText: T): T|string {
-		return this.$te(key) ? this.$t(key).toString() : (this.$i18n.locale !== defaultLocale && this.$te(key, defaultLocale)) ? this.$t(key, defaultLocale).toString() : defaultText;
+		if (this.$te(key)) return this.$t(key).toString();
+		if (this.$i18n.locale !== this.$i18n.fallbackLocale && this.$te(key, this.$i18n.fallbackLocale as string)) return this.$t(key, this.$i18n.fallbackLocale as string).toString();
+		return defaultText;
 	},
 	/** Get the localized display name for an annotated field or the default value.
 	 * Note that the field ID should be *including* the parallel suffix. So just e.g. "contents__en" for a parallel field. */
@@ -196,7 +228,10 @@ export {
 window.i18n = {
 	registerLocale,
 	removeLocale,
+	setFallbackLocale,
+	setDefaultLocale,
 	setLocale(locale: string) {
 		i18n.locale = locale;
-	}
+	},
+	i18n
 }

@@ -33,7 +33,9 @@ type CustomView = {
 type ModuleRootState = {
 	search: {
 		// future use
-		simple: {};
+		simple: {
+			searchAnnotationId: string;
+		};
 		extended: {
 			/** Available annotation inputs in the extended search */
 			searchAnnotationIds: string[],
@@ -253,7 +255,9 @@ type ModuleRootState = {
 // Then is used to initialize the live store again
 const initialState: ModuleRootState = {
 	search: {
-		simple: {},
+		simple: {
+			searchAnnotationId: '',
+		},
 		extended: {
 			searchAnnotationIds: [],
 			splitBatch: {
@@ -395,7 +399,11 @@ const privateActions = {
 
 const actions = {
 	search: {
-		simple: {},
+		simple: {
+			searchAnnotationId: b.commit((state, id: string) => validateAnnotations([id], id => `Trying to display Annotation ${id} in the simple search, but it does not exist`, _ => true, _ => '', r => {
+				state.search.simple.searchAnnotationId = r[0];
+			}), 'search_simple_searchAnnotationId'),
+		},
 		extended: {
 			searchAnnotationIds: b.commit((state, ids: string[]) => validateAnnotations(ids,
 				id => `Trying to display Annotation ${id} in the extended search, but it does not exist`,
@@ -819,6 +827,10 @@ const init = () => {
 	// Always remove any possible bogus annotations set by invalid configs
 	// And then replace with default values if not configured
 	// The setters have builtin validation. So call them, then check if a valid was set, and if not, replace with default.
+	if (initialState.search.simple.searchAnnotationId)
+		actions.search.simple.searchAnnotationId(initialState.search.simple.searchAnnotationId);
+	if (!getState().search.simple.searchAnnotationId) actions.search.simple.searchAnnotationId(mainAnnotation.id);
+
 	actions.search.extended.searchAnnotationIds(initialState.search.extended.searchAnnotationIds);
 	if (!getState().search.extended.searchAnnotationIds.length) actions.search.extended.searchAnnotationIds(defaultAnnotationsToShow);
 

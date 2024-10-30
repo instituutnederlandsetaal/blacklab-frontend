@@ -1,3 +1,5 @@
+import { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes";
+
 /** Group by some tokens at a fixed position in the hit. */
 export type ContextPositional = {
 	type: 'positional';
@@ -238,4 +240,39 @@ export function isValidGroupBy(g: GroupBy): boolean {
 		if (g.context.type === 'positional' && g.context.whichTokens === 'specific' && (!g.context.start || !g.context.end)) return false;
 	}
 	return true;
+}
+
+export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<string, NormalizedAnnotation>, metadata: Record<string, NormalizedMetadataField>): string {
+	if (g.type === 'context') {
+		if (!g.annotation) return i18n.$t('results.groupBy.specify').toString();
+		const field = i18n.$tAnnotDisplayName(annotations[g.annotation]);
+		
+		if (g.context.type === 'label') return i18n.$t('results.groupBy.summary.labelledWord', {field, label: g.context.label}).toString();
+		
+		let positionDisplay: string;
+		switch (g.context.position) {
+			case 'A': positionDisplay = i18n.$t('results.groupBy.summary.position.after').toString(); break;
+			case 'B': positionDisplay = i18n.$t('results.groupBy.summary.position.before').toString(); break;
+			case 'H': positionDisplay = i18n.$t('results.groupBy.summary.position.hit').toString(); break;
+			case 'E': positionDisplay = i18n.$t('results.groupBy.summary.position.end').toString(); break;
+			default: positionDisplay = g.context.position;
+		}
+
+		switch (g.context.whichTokens) {
+			case 'all': return i18n.$t('results.groupBy.summary.allWords', {field: field, position: positionDisplay}).toString();
+			case 'first': return i18n.$t('results.groupBy.summary.firstWord', {field: field, position: positionDisplay}).toString();
+			case 'specific': return i18n.$t('results.groupBy.summary.indexedWord', {
+				field: field, 
+				position: positionDisplay, 
+				index: g.context.start !== g.context.end ? g.context.position === 'E' ?  `${g.context.end}-${g.context.start}` : `${g.context.start}-${g.context.end}` : g.context.start
+			}).toString();
+			default: return i18n.$t('results.groupBy.specify').toString();
+		}
+	} else if (g.type === 'metadata') {
+		if (!g.field) return i18n.$t('results.groupBy.specify').toString();
+		return i18n.$t('results.groupBy.summary.metadata', {field: i18n.$tMetaDisplayName(metadata[g.field])}).toString();
+	} else {
+		// Unknown.
+		return g.value;
+	}
 }

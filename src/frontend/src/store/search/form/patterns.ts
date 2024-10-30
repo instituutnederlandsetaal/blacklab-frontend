@@ -114,7 +114,7 @@ const privateActions = {
 const setTargetFields = (state: ModuleRootState, payload: string[]): string[] => {
 	// sanity check:
 	if (payload.find(annotatedFieldId => !CorpusStore.get.parallelAnnotatedFieldsMap()[annotatedFieldId])) {
-		alert('Tried to set target fields to non-existent annotated field, maybe mixup between version and annotatedField');
+		console.error('Tried to set target fields to non-existent annotated field, maybe mixup between version and annotatedField');
 		return state.parallelFields.targets;
 	}
 
@@ -133,7 +133,7 @@ const actions = {
 	parallelFields: {
 		sourceField: b.commit((state, payload: string|null) => {
 			if (payload && !CorpusStore.get.parallelAnnotatedFieldsMap()[payload]) {
-				alert('Tried to set source version to non-existent annotated field');
+				console.error('Tried to set source version to non-existent annotated field. Ignoring');
 				return;
 			}
 			return (state.parallelFields.source = payload);
@@ -149,7 +149,7 @@ const actions = {
 		}, 'parallelFields_addTarget'),
 		removeTarget: b.commit((state, version: string) => {
 			if (!CorpusStore.get.parallelAnnotatedFieldsMap()[version]) {
-				alert('tried to remove non-existent target version');
+				console.error('Tried to remove non-existent target version');
 				return;
 			}
 

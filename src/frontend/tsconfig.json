@@ -50,7 +50,7 @@
 		"lib": [
 			"dom",
 			"dom.iterable",
-			"ES2019"
+			"ES2021"
 		],
 
 		// Enable importing source files by their absolute path by prefixing with "@/"

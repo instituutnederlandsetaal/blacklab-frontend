@@ -1,5 +1,5 @@
 <template>
-	<Modal :title="$tAnnotDisplayName(annotation)" :confirmMessage="$t('partOfSpeech.submit')" @confirm="submit(); $emit('close');" @close="$emit('close')" lg>
+	<Modal v-if="open" :title="$tAnnotDisplayName(annotation)" :confirmMessage="$t('partOfSpeech.submit')" @confirm="submit(); $emit('close');" lg :close="false">
 		<template v-if="isValidTagset">
 
 			<div class="list-group-container" >
@@ -36,8 +36,10 @@
 					<em v-if="annotationValue.subAnnotationIds.length === 0">{{$t('partOfSpeech.noOptions')}}</em>
 				</div>
 			</div>
-			<hr>
-			<div>{{query}}</div>
+			<template v-if="query">
+				<hr>
+				<div>{{query}}</div>
+			</template>
 		</template>
 		<div v-else class="alert alert-danger">
 			{{errorMessage}}
@@ -66,6 +68,7 @@ export default Vue.extend({
 	},
 	props: {
 		annotation: Object as () => CorpusStore.NormalizedAnnotation,
+		open: { default: true }
 	},
 	data: () => ({
 		annotationValue: null as null|Tagset['values'][string],
@@ -78,19 +81,18 @@ export default Vue.extend({
 		errorMessage(): string { return this.isValidTagset ? '' : TagsetStore.getState().message; },
 		query(): string {
 			if (this.annotationValue == null) { return ''; }
-			const mainValue = escapeRegex(this.annotationValue.value, false).replace(/("|\|)/g, '\\$1');
 
-			const subAnnots = this.annotationValue.subAnnotationIds.map(id => ({
-				id,
-				values: this.tagset.subAnnotations[id].values
-					.filter(v => this.selected[`${this.annotationValue!.value}/${id}/${v.value}`])
-					.map(v => escapeRegex(v.value, false).replace(/("|\|)/g, '\\$1'))
-			}))
-			.filter(v => v.values.length > 0);
+			return [
+				`${this.annotation.id}="${escapeRegex(this.annotationValue.value)}"`,
+				...this.annotationValue.subAnnotationIds.map(subAnnot => {
+					const {values} = this.tagset.subAnnotations[subAnnot];
+					const selected = values.filter(v => this.selected[`${this.annotationValue!.value}/${subAnnot}/${v.value}`]);
 
-			const subAnnotStrings = subAnnots.map(({id, values}) => `${id}="${values.join('|')}"`);
-
-			return [`${this.annotation.id}="${mainValue}"`].concat(subAnnotStrings).join('&');
+					return {subAnnot, escapedValues: selected.map(v => escapeRegex(v.value))};
+				})
+				.filter(({escapedValues}) => escapedValues.length > 0)
+				.map(({subAnnot, escapedValues}) => `${subAnnot}="${escapedValues.join('|')}"`)
+			].join('&');
 		},
 	},
 	methods: {
@@ -99,32 +101,7 @@ export default Vue.extend({
 			this.annotationValue = null;
 		},
 		submit() {
-			if (this.annotationValue == null) {
-				this.$emit('submit', {
-					query: '',
-				});
-				return;
-			}
-
-			const mainValue = escapeRegex(this.annotationValue.value, false).replace(/("|\|)/g, '\\$1');
-			const subAnnots = this.annotationValue.subAnnotationIds.map(id => ({
-				id,
-				values: this.tagset.subAnnotations[id].values
-					.filter(v => this.selected[`${this.annotationValue!.value}/${id}/${v.value}`])
-					.map(v => escapeRegex(v.value, false).replace(/("|\|)/g, '\\$1'))
-			}))
-			.filter(v => v.values.length > 0);
-
-			this.$emit('submit', {
-				queryString: this.query,
-				value: {
-					[this.annotation.id]: mainValue,
-					...subAnnots.reduce((acc, cur) => {
-						acc[cur.id] = cur.values.join('|');
-						return acc;
-					}, {} as {[key: string]: string})
-				}
-			});
+			this.$emit('submit', this.query);
 		}
 	},
 	created() {

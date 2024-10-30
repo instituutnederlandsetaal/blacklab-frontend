@@ -8,7 +8,7 @@
 		<Debug v-else><label>(id: {{id}})</label></Debug>
 		<div class="col-xs-4">
 			<input type="text"
-				placeholder="From"
+				:placeholder="$t('filter.range.from')"
 				class="form-control"
 				autocomplete="off"
 
@@ -20,7 +20,7 @@
 		</div>
 		<div class="col-xs-4">
 			<input type="text"
-				placeholder="To"
+				:placeholder="$t('filter.range.to')"
 				class="form-control"
 				autocomplete="off"
 

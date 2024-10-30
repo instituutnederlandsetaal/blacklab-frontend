@@ -98,6 +98,28 @@ public class ArticleUtil {
     }
 
     /**
+     * Every time we run an xslt transformation, we need to add some standard parameters.
+     * These are defined and documented in the builtin search.xml 
+     * The user can add their own parameters there.
+     * Take care to update the search.xml file if you add new parameters here.
+     * @param trans
+     * @param config
+     * @param corpus
+     */
+    private void addStandardXsltParameters(XslTransformer trans, GlobalConfig config, WebsiteConfig corpus) {
+        String baseUrl = config.get(Keys.CF_URL_ON_CLIENT);
+        String corpusId = corpus.getCorpusId().orElseThrow();
+        String corpusUrl = baseUrl + "/" + corpus.getCorpusId().orElseThrow();
+
+        // contextRoot is deprecated, but still used in some stylesheets.
+        trans.addParameter("contextRoot", baseUrl);
+        trans.addParameter("contextPath", baseUrl);
+        trans.addParameter("corpusId", corpusId);
+        trans.addParameter("corpusPath", corpusUrl);
+        corpus.getXsltParameters().forEach(trans::addParameter);
+    }
+
+    /**
      *
      * @param corpus required for page size
      * @param corpusMetadata required for page size
@@ -144,10 +166,7 @@ public class ArticleUtil {
             // we managed to get the contents, and they're definitely xml.
             // Load the transformer.
             return servlet.getStylesheet(corpusMetadata, "article", request, response)
-                    .tap(trans -> {
-                        trans.addParameter("contextRoot", config.get(Keys.CF_URL_ON_CLIENT));
-                        corpus.getXsltParameters().forEach(trans::addParameter);
-                    })
+                    .tap(trans -> this.addStandardXsltParameters(trans, config, corpus))
                     .mapWithErrorHandling(trans -> trans.transform(c))
                     .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred while transforming document contents: \n" + e.getMessage() + "\n" + ExceptionUtils.getStackTrace(e)));
         });
@@ -156,10 +175,7 @@ public class ArticleUtil {
     public Result<String, QueryException> transformMetadata(CorpusConfig corpus, WebsiteConfig corpusConfig, GlobalConfig config, Result<String, QueryException> metadata) {
         return metadata.flatMap(md ->
             servlet.getStylesheet(corpus,"meta",request, response)
-            .tap(trans -> {
-                trans.addParameter("contextRoot", config.get(Keys.CF_URL_ON_CLIENT));
-                corpusConfig.getXsltParameters().forEach(trans::addParameter);
-            })
+            .tap(trans -> this.addStandardXsltParameters(trans, config, corpusConfig))
             .mapWithErrorHandling(trans -> trans.transform(md))
             .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred while transforming document metadata contents: \n" + e.getMessage() + "\n" + ExceptionUtils.getStackTrace(e)))
         );

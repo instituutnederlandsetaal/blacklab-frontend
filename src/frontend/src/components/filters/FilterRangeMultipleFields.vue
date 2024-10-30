@@ -8,7 +8,7 @@
 		<Debug v-else><label class="col-xs-12">(id: {{id}} [{{fields.low}} - {{fields.high}}])</label></Debug>
 		<div class="col-xs-4">
 			<input type="number"
-				placeholder="From"
+				:placeholder="$t('filter.range.from')"
 				class="form-control"
 				autocomplete="off"
 
@@ -20,7 +20,7 @@
 		</div>
 		<div class="col-xs-4">
 			<input type="number"
-				placeholder="To"
+				:placeholder="$t('filter.range.to')"
 				class="form-control"
 				autocomplete="off"
 
@@ -54,15 +54,11 @@ export const modes = {
 	permissive: {
 		id: 'permissive',
 		operator: 'OR',
-		displayName: 'Permissive',
-		description: 'Matches documents that are partially contained within the entered range'
 	},
 
 	strict: {
 		id: 'strict',
 		operator: 'AND',
-		displayName: 'Strict',
-		description: 'Matches documents that are completely contained within the entered range'
 	}
 };
 
@@ -89,11 +85,11 @@ export default BaseFilter.extend({
 	computed: {
 		fields(): { low: string, high: string, mode?: keyof typeof modes } { return this.definition.metadata; },
 		modes(): Option[] {
-			return Object.values(modes).map(m => ({
-				label: m.displayName,
-				title: m.description,
-				value: m.id
-			}));
+			return Object.values(modes).map<Option>(m => ({
+				value: m.id,
+				label: this.$td(`filter.range.${m.id}`, m.id),
+				title: this.$td(`filter.range.${m.id}_description`, m.id)
+			}))
 		},
 	}
 });

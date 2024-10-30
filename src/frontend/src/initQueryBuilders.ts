@@ -4,7 +4,7 @@
 
 import $ from 'jquery';
 
-import {QueryBuilder, AttributeDef as QueryBuilderAttributeDef} from '@/modules/cql_querybuilder';
+import {QueryBuilder, AttributeDef as QueryBuilderAttributeDef, QueryBuilderOptions} from '@/modules/cql_querybuilder';
 import * as RootStore from '@/store/search/';
 import * as CorpusStore from '@/store/search/corpus';
 import * as UIStore from '@/store/search/ui';
@@ -13,138 +13,96 @@ import debug, {debugLog} from '@/utils/debug';
 
 import { getAnnotationSubset } from '@/utils';
 import { Option } from './types/apptypes';
+import { RootState } from './store/article';
 
-// Init the querybuilder with the supported attributes/properties
-export async function initQueryBuilders(i18n: Vue): Promise<QueryBuilder[]> {
-	debugLog('Begin initializing querybuilder(s)');
 
-	const first = getAnnotationSubset(
+function getSettings(i18n: Vue): QueryBuilderOptions {
+	const annotationGroups = getAnnotationSubset(
 		UIStore.getState().search.advanced.searchAnnotationIds,
 		CorpusStore.get.annotationGroups(),
 		CorpusStore.get.allAnnotationsMap(),
 		'Search',
 		i18n,
 		CorpusStore.get.textDirection(),
-		debug.debug
-	);
-
-	const annotationGroups = first.map(g => ({
+		false,
+		false
+	).map(g => ({
 		groupname: g.label!,
 		options: (g.options as Option[]).map<QueryBuilderAttributeDef>(({value: annotationId, label: localizedAnnotationDisplayName, title: localizedAnnotationDescription}, i) => ({
 			attribute: annotationId,
 			caseSensitive: g.entries[i].caseSensitive,
-			label: localizedAnnotationDisplayName || annotationId,
+			label: (localizedAnnotationDisplayName || annotationId) + (debug.debug ? ` [id: ${annotationId}]` : ''),
 			textDirection: CorpusStore.get.textDirection(),
 			values: g.entries[i].values
 		}))
 	}));
 
 	const withinSelectOptions = UIStore.getState().search.shared.within.elements
-			.filter(UIStore.corpusCustomizations.search.within.include)
-			.map(opt => ({
-				...opt,
-				label: i18n.$tWithinDisplayName(opt) || 'document',
-			}));
+		.filter(UIStore.corpusCustomizations.search.within.include)
+		.map(opt => ({
+			...opt,
+			label: i18n.$tWithinDisplayName(opt) || 'document',
+		}));
+
+
+	return {
+		queryBuilder: { view: { withinSelectOptions } },
+		attribute: {
+			view: {
+				// Pass the available properties of tokens in this corpus (PoS, Lemma, Word, etc..) to the querybuilder
+				attributes: annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options),
+				defaultAttribute: UIStore.getState().search.advanced.defaultSearchAnnotationId
+			}
+		}
+	};
+}
+
+
+async function updateOrCreateBuilder(el: HTMLElement, i18n: Vue, getState: (state: RootStore.RootState) => string|null, setState: (v: string|null) => void) {
+	let instance = $(el).data('builder') as QueryBuilder;
+	if (instance) {
+		await instance.refresh(getSettings(i18n));
+	} else {
+		instance = new QueryBuilder($(el), getSettings(i18n), i18n);
+		
+		// When store updates - put in builder.
+		RootStore.store.watch(getState, v => {
+			const pattern = instance.getCql();
+			if (v !== pattern) instance.parse(v);
+		});
+
+		// Initial value.
+		if (getState(RootStore.getState())) {
+			instance.parse(getState(RootStore.getState()));
+		} else {
+			setState(instance.getCql());
+		}
+	}
+	
+	// When builder updates - put in store
+	// Always do this, instance.element is replaced on refresh() TODO: fix that.
+	instance.element.on('cql:modified', () => {
+		const pattern = instance.getCql();
+		setState(pattern);
+	});
+}
+
+/** Create or update the querybuilders. */
+export async function initQueryBuilders(i18n: Vue) {
+	debugLog('Begin initializing querybuilder(s)');
 
 	// Initialize configuration
-	const queryBuilderElements = $('.querybuilder');
-	const queryBuilders: QueryBuilder[] = [];
-	for (let i = 0; i < queryBuilderElements.length; i++) {
-		const el = queryBuilderElements[i];
-		queryBuilders.push(await initQueryBuilder(el, i)); // see below
-	}
-	debugLog('Finished initializing querybuilder');
-	return queryBuilders;
+	$('.querybuilder').toArray().forEach(async (el, i) => {
+		// Index 0 is the source query, the rest are target queries
+		// They're all stored in the same store, but the first one is stored in a different field
+		// Abstract that away here.
+		const getStateValue = 
+			i === 0 ? (state: RootStore.RootState) => (state.patterns.advanced.query || '') : 
+			(state: RootStore.RootState) => (state.patterns.advanced.targetQueries[i - 1] || '');
+		const setStateValue = i === 0 ? PatternStore.actions.advanced.query : 
+			(v: string) => PatternStore.actions.advanced.changeTargetQuery({ index: i - 1, value: v });
 
-	async function initQueryBuilder(el: HTMLElement, i: number): Promise<QueryBuilder> {
-		if (el.classList.contains('bl-querybuilder-root')) {
-			const existing = $(el).data('builder') as QueryBuilder;
-			existing.refresh();
-			return existing;
-		}
-
-		const instance = new QueryBuilder($(el), {
-			queryBuilder: {
-				view: {
-					withinSelectOptions
-				}
-			},
-			attribute: {
-				view: {
-					// Pass the available properties of tokens in this corpus (PoS, Lemma, Word, etc..) to the querybuilder
-					attributes: annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options),
-					defaultAttribute: UIStore.getState().search.advanced.defaultSearchAnnotationId
-				}
-			}
-		}, i18n);
-
-		if (i == 0) {
-			// SOURCE
-
-			// Set initial value
-			let lastPattern: string|null = null;
-			if (PatternStore.getState().advanced.query == null) {
-				// not initialized in store, set to default from querybuilder
-				lastPattern = instance.getCql();
-				PatternStore.actions.advanced.query(lastPattern);
-			} else {
-				// already something in store - copy to querybuilder.
-				lastPattern = PatternStore.getState().advanced.query;
-				const success = await instance.parse(lastPattern);
-				if (!success) {
-					// Apparently it's invalid? reset to default.
-					PatternStore.actions.advanced.query(instance.getCql());
-				}
-			}
-
-			// Enable two-way binding.
-			RootStore.store.watch(state => state.patterns.advanced.query, v => {
-				if (v !== lastPattern) {
-					lastPattern = v;
-					instance.parse(v);
-				}
-			});
-			instance.element.on('cql:modified', () => {
-				const pattern = instance.getCql();
-				lastPattern = pattern;
-				PatternStore.actions.advanced.query(pattern);
-			});
-		} else {
-			// TARGET
-			const targetIndex = i - 1;
-
-			// Set initial value
-			let lastPattern: string|null = null;
-			if (PatternStore.getState().advanced.targetQueries[targetIndex] == null) {
-				// not initialized in store, set to default from querybuilder
-				lastPattern = instance.getCql();
-				PatternStore.actions.advanced.changeTargetQuery({ index: targetIndex, value: lastPattern || '' });
-			} else {
-				// already something in store - copy to querybuilder.
-				lastPattern = PatternStore.getState().advanced.targetQueries[targetIndex];
-				const success = await instance.parse(lastPattern);
-				if (!success) {
-					// Apparently it's invalid? reset to default.
-					PatternStore.actions.advanced.changeTargetQuery({ index: targetIndex, value: instance.getCql() || '' });
-				}
-			}
-
-			// Enable two-way binding.
-			RootStore.store.watch(state => state.patterns.advanced.targetQueries[targetIndex], v => {
-				if (v !== lastPattern) {
-					lastPattern = v;
-					instance.parse(v);
-				}
-			});
-			instance.element.on('cql:modified', () => {
-				const pattern = instance.getCql();
-				lastPattern = pattern;
-				PatternStore.actions.advanced.changeTargetQuery({ index: targetIndex, value: pattern || '' });
-			});
-
-		}
-
-		return instance;
-	}
+		await updateOrCreateBuilder(el, i18n, getStateValue, setStateValue);
+	})
 }
 

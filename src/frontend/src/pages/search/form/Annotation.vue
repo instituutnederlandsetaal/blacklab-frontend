@@ -60,11 +60,12 @@
 				</div>
 			</div>
 			<template v-if="annotation.uiType === 'pos'">
-				<PartOfSpeech v-if="posOpen" @close="posOpen = false"
+				<!-- Use a v-show here, the component keeps some state. If we destroy it when it closes the user must re-enter their query every time. -->
+				<PartOfSpeech :open="posOpen" @close="posOpen = false"
 					:id="`pos_editor${uid}`"
 					:annotation="annotation"
 
-					@submit="value = $event.queryString"
+					@submit="value = $event"
 
 					ref="reset"
 				/>

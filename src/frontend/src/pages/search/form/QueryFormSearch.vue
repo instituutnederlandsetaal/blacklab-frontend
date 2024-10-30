@@ -14,20 +14,20 @@
 				<!-- TODO render the full annotation instance? requires some changes to bind to store correctly and apply appropriate classes though -->
 				<div class="form-group form-group-lg">
 					<label class="control-label"
-						:for="firstMainAnnotation.id + '_' + uid"
-						:title="$tAnnotDescription(firstMainAnnotation)"
-					>{{$tAnnotDisplayName(firstMainAnnotation)}}
+						:for="simpleSearchAnnotation.id + '_' + uid"
+						:title="$tAnnotDescription(simpleSearchAnnotation)"
+					>{{$tAnnotDisplayName(simpleSearchAnnotation)}}
 					</label>
 
-					<div v-if="customAnnotations[firstMainAnnotation.id]"
-						:data-custom-annotation-root="firstMainAnnotation.id"
+					<div v-if="customAnnotations[simpleSearchAnnotation.id]"
+						:data-custom-annotation-root="simpleSearchAnnotation.id"
 						data-is-simple="true"
 						ref="_simple"
 					></div>
 					<Annotation v-else
-						:key="'simple/' + firstMainAnnotation.annotatedFieldId + '/' + firstMainAnnotation.id"
-						:htmlId="'simple/' + firstMainAnnotation.annotatedFieldId + '/' + firstMainAnnotation.id"
-						:annotation="firstMainAnnotation"
+						:key="'simple/' + simpleSearchAnnotation.annotatedFieldId + '/' + simpleSearchAnnotation.id"
+						:htmlId="'simple/' + simpleSearchAnnotation.annotatedFieldId + '/' + simpleSearchAnnotation.id"
+						:annotation="simpleSearchAnnotation"
 						bare
 						simple
 					/>
@@ -212,8 +212,11 @@ export default ParallelFields.extend({
 		allAnnotations(): AppTypes.NormalizedAnnotation[] {
 			return this.tabs.flatMap(tab => tab.entries);
 		},
-		firstMainAnnotation: CorpusStore.get.firstMainAnnotation,
-		firstMainAnnotationACUrl(): string { return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.firstMainAnnotation.annotatedFieldId, this.firstMainAnnotation.id); },
+		simpleSearchAnnotation(): AppTypes.NormalizedAnnotation {
+			const id = UIStore.getState().search.simple.searchAnnotationId;
+			return CorpusStore.get.allAnnotationsMap()[id] || CorpusStore.get.firstMainAnnotation();
+		},
+		simpleSearchAnnoationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
 		textDirection: CorpusStore.get.textDirection,
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;

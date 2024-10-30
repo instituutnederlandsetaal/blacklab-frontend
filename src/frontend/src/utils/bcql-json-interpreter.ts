@@ -86,11 +86,21 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	}
 
 	function _boolean(type: string, clauses: any[]): BinaryOp {
+		if (clauses.length === 2) {
+			return {
+				type: 'binaryOp',
+				operator: type === 'and' ? '&' : '|',
+				left: _tokenExpression(clauses[0]),
+				right: _tokenExpression(clauses[1])
+			};
+		}
+
+		// More than 2 clauses, create a recursive structure
 		return {
 			type: 'binaryOp',
 			operator: type === 'and' ? '&' : '|',
 			left: _tokenExpression(clauses[0]),
-			right: _tokenExpression(clauses[1])
+			right: _boolean(type, clauses.slice(1))
 		};
 	}
 

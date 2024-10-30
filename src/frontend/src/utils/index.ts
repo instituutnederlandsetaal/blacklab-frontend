@@ -6,32 +6,108 @@ import URI from 'urijs';
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 
-export function escapeRegex(original: string, wildcardSupport: boolean) {
-	original = original.replace(/([\^$\-\\.(){}[\]+])/g, '\\$1'); // add slashes for regex characters
 
-	if (wildcardSupport) {
-		return original
-			.replace(/\*/g, '.*') // * -> .*
-			.replace(/\?/g, '.'); // ? -> .
-	} else {
-		return original
-			.replace(/([\*\?])/g, '\\$1');
+const defaultRegexEscapeOptions = {
+	/**
+	 * In our inputs, wildcards are special characters that can be used to match any character or sequence of characters.
+	 * Are wildcards supposed to be supported in the input? If so, set this to false.
+	 *
+	 * Defaults to true.
+	 * If true, wildcards are escaped:
+	 * - * is replaced with \*
+	 * - ? is replaced with \?
+	 * If false, wildcards are activated:
+	 * - * is replaced with .*
+	 * - ? is replaced with .
+	 */
+	escapeWildcards: true,
+	/** Default to true. If true, escape | to \|. If false, leave alone. */
+	escapePipes: true,
+	/** Defaults to true. If true, escape " to \". If false, leave alone. */
+	escapeQuotes: true
+}
+type RegexEscapeOptions = Partial<typeof defaultRegexEscapeOptions>;
+export function escapeRegex(value: string, settings: RegexEscapeOptions = {}) {
+	settings = {...defaultRegexEscapeOptions, ...settings};
+
+
+	// NOTE: take special care for characters we might let through.
+	// We want to be able to also let the user search for those characters verbatim.
+	// In which case they will have to escape them using a backslash.
+	// We must make sure that we do not double escape these already-present backslashes (but only when they're meaningful.)
+	// There might be a better way to accomplish this, but for now we'll just replace them with a placeholder and replace them back afterwards.
+
+	const specialEscapeSequences = [
+		{ input: '\\|', output: '__PIPE__', active: !settings.escapePipes},
+		{ input: '\\*', output: '__STAR__', active: !settings.escapeWildcards},
+		{ input: '\\?', output: '__QUESTION__', active: !settings.escapeWildcards},
+		{ input: '\\"', output: '__QUOTE__', active: !settings.escapeQuotes}
+	];
+	for (const {input, output, active} of specialEscapeSequences) {
+		if (active) value = value.replaceAll(input, output);
 	}
+
+	const escapeBase = (s: string) => s.replace(/([\\^$#@&+.(){}[\]])/g, '\\$1');
+	const escapeWildcards = (s: string) => s.replace(/([*?])/g, '\\$1');
+	const activateWildcards = (s: string) => s.replace(/\*/g, '.*').replace(/\?/g, '.');
+	const escapePipes = (s: string) => s.replace(/\|/g, '\\|');
+	const escapeQuotes = (s: string) => s.replace(/"/g, '\\"');
+	const identity = (s: string) => s;
+
+	const operations = [
+		escapeBase,
+		settings.escapeWildcards ? escapeWildcards : activateWildcards,
+		settings.escapePipes ? escapePipes : identity,
+		settings.escapeQuotes ? escapeQuotes : identity
+	]
+
+	value = operations.reduce((acc, op) => op(acc), value);
+	// Unescape the special escape sequences
+	for (const {input, output, active} of specialEscapeSequences) {
+		if (active) value = value.replaceAll(output, input);
+	}
+	return value;
 }
 
-export function unescapeRegex(original: string, wildcardSupport: boolean) {
-	original = original.replace(/\\([\^$\-\\(){}[\]+])/g, '$1'); // remove most slashes
+export function unescapeRegex(value: string, settings: RegexEscapeOptions = {}) {
+	settings = {...defaultRegexEscapeOptions, ...settings};
 
-	if (wildcardSupport) {
-		return original
-		.replace(/\\\./g, '_ESC_PERIOD_') // escape \.
-		.replace(/\.\*/g, '*') // restore *
-		.replace(/\./g, '?') // restore ?
-		.replace(/_ESC_PERIOD_/g, '.'); // unescape \. to .
-	} else {
-		return original
-		.replace(/\\([\.\?\*])/g, '$1'); // restore . ? *
+	// NOTE: take special care for characters we might let through.
+	// We want to be able to also let the user search for those characters verbatim.
+	// In which case they will have to escape them using a backslash.
+	// We must make sure that we do not remove these already-present backslashes (but only when they're meaningful.)
+	// There might be a better way to accomplish this, but for now we'll just replace them with a placeholder and replace them back afterwards.
+	const specialEscapeSequences = [
+		{ input: '\\|', output: '__PIPE__', active: !settings.escapePipes},
+		{ input: '\\*', output: '__STAR__', active: !settings.escapeWildcards},
+		{ input: '\\?', output: '__QUESTION__', active: !settings.escapeWildcards},
+		{ input: '\\"', output: '__QUOTE__', active: !settings.escapeQuotes}
+	];
+	for (const {input, output, active} of specialEscapeSequences) {
+		if (active) value = value.replaceAll(input, output);
 	}
+
+	const unescapeBase = (s: string) => s.replace(/\\([\\^$#@&+.(){}[\]])/g, '$1');
+	const unescapeWildcards = (s: string) => s.replace(/\\([*?])/g, '$1');
+	const deactivateWildcards = (s: string) => s.replace(/\.\*/g, '*').replace(/\./g, '?');
+	const unescapePipes = (s: string) => s.replace(/\\[|]/g, '|');
+	const unescapeQuotes = (s: string) => s.replace(/\\"/g, '"');
+	const identity = (s: string) => s;
+
+	// in reverse order, otherwise the base unescape could produce something that looks like a wildcard
+	const operations = [
+		settings.escapeQuotes ? unescapeQuotes : identity,
+		settings.escapePipes ? unescapePipes : identity,
+		settings.escapeWildcards ? unescapeWildcards : deactivateWildcards,
+		unescapeBase
+	]
+
+	value = operations.reduce((acc, op) => op(acc), value);
+	// Unescape the special escape sequences
+	for (const {input, output, active} of specialEscapeSequences) {
+		if (active) value = value.replaceAll(output, input);
+	}
+	return value;
 }
 
 /**
@@ -99,7 +175,7 @@ export const decodeAnnotationValue = (value: string|string[], type: Required<App
 					v = stripCase(v);
 					caseSensitive = true;
 				}
-				v = unescapeRegex(v, true).replace(/\\"/g, '"');
+				v = unescapeRegex(v, {escapePipes: false, escapeWildcards: false});
 				// Only surround with quotes when we're joining multiple values into one string and this sub-value contains whitespace
 				return Array.isArray(value) && v.match(/\s+/) ? `"${v}"` : v;
 			}).join(' ');
@@ -113,7 +189,7 @@ export const decodeAnnotationValue = (value: string|string[], type: Required<App
 			value = Array.isArray(value) ? value[0] : value;
 			const caseSensitive = isCase(value);
 			value = caseSensitive ? stripCase(value) : value;
-			value = unescapeRegex(value, false).replace(/\\"/g, '"');
+			value = unescapeRegex(value);
 			return {
 				case: caseSensitive,
 				value
@@ -137,12 +213,12 @@ export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue)
 			// already valid cql, no escaping or wildcard substitution.
 			return [value];
 		case 'select':
-			return [`${id}="${escapeRegex(value.trim(), false).replace(/"/g, '\\"')}"`];
+			return [`${id}="${escapeRegex(value.trim())}"`];
 		case 'text':
 		case 'lexicon':
 		case 'combobox': {
 			// if multiple tokens, split on quotes (removing them), and whitespace outside quotes, and then transform the values individually
-			let resultParts = splitIntoTerms(value, true).map(v => escapeRegex(v.value, true));
+			let resultParts = splitIntoTerms(value, true).map(v => escapeRegex(v.value, {escapePipes: false, escapeWildcards: false}));
 			if (caseSensitive) {
 				resultParts = resultParts.map(v => `(?-i)${v}`);
 			}
@@ -631,7 +707,7 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
  * @param operation What section of the interface to generate the options list for: 'Search' will output every annotation only once per group, 'Sort' will generate additional entries to sort in reverse order, and 'Group' is just to generate appropriate option labels "Group by ...".
  * @param corpusTextDirection important for the order of left/right context sorting
  * @param debug is debug mode enabled? print raw annotation IDS in labels
- * @param showGroupLabels show little group name headers between options?
+ * @param showGroupLabels show little group name suffixes at the end of options?
  */
 export function getAnnotationSubset(
 	ids: string[],
@@ -641,8 +717,7 @@ export function getAnnotationSubset(
 	i18n: Vue,
 	corpusTextDirection: 'rtl'|'ltr' = 'ltr',
 	debug = false,
-	/* show the <small/> labels at the end of options labels? */
-	showGroupLabels = true
+	showGroupLabels = false
 ): Array<AppTypes.OptGroup&{entries: AppTypes.NormalizedAnnotation[]}> {
 	function findAnnotatedFieldId(groupId: string) {
 		return groups.find(g => g.id === groupId)?.annotatedFieldId || groups[0].annotatedFieldId;
@@ -650,17 +725,27 @@ export function getAnnotationSubset(
 
 	const subset = fieldSubset(ids, groups, annotations, operation !== 'Search' ? 'Other' : undefined);
 	if (operation === 'Search')	{
-		return subset.map(group => ({
-			entries: group.entries,
-			options: group.entries.map(a => ({
-				value: a.id,
-				label: i18n.$tAnnotDisplayName(a) + (debug ? ` (id: ${a.id})` : ''),
-				title: i18n.$tAnnotDescription(a)
-			})),
-			// hack, when using a default group we need to come up with an annotated field
-			// So just use the first annotated field we come across.
-			label: i18n.$tAnnotGroupName({id: group.id, annotatedFieldId: findAnnotatedFieldId(group.id), entries: [], isRemainderGroup: false}),
-		}));
+		return subset.map(group => {
+			const annotationGroupMock: AppTypes.NormalizedAnnotationGroup = {
+				annotatedFieldId: findAnnotatedFieldId(group.id),
+				entries: [],
+				id: group.id,
+				isRemainderGroup: false
+			}
+			const groupNameLocalized = i18n.$tAnnotGroupName(annotationGroupMock);
+
+			return {
+				entries: group.entries,
+				options: group.entries.map(a => ({
+					value: a.id,
+					label: i18n.$tAnnotDisplayName(a) + (showGroupLabels ? ` <small class="text-muted">${groupNameLocalized}</small>` : '') + (debug ? ` <small><strong>[id: ${a.id}]</strong></small>` : ''),
+					title: i18n.$tAnnotDescription(a)
+				})),
+				// hack, when using a default group we need to come up with an annotated field
+				// So just use the first annotated field we come across.
+				label: i18n.$tAnnotGroupName({id: group.id, annotatedFieldId: findAnnotatedFieldId(group.id), entries: [], isRemainderGroup: false}),
+			}
+		});
 	} else {
 		// Generate options for sorting by annotation.
 		// I.e. 6 options per annotation. 3 for each position: before, hit, after
@@ -677,7 +762,7 @@ export function getAnnotationSubset(
 				// in debug mode - show IDs
 				const displayIdHtml = debug ? `<small><strong>[id: ${id}]</strong></small>` : '';
 				const displayNameHtml = i18n.$tAnnotDisplayName(annotations[id]);
-				const displaySuffixHtml = showGroupLabels && suffix ? `<small class="text-muted">${suffix}</small>` : '';
+				const displaySuffixHtml = (showGroupLabels && suffix) ? `<small class="text-muted">${suffix}</small>` : '';
 
 				return [{
 					label: i18n.$t('results.table.sortBy', {field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`}).toString(),
@@ -756,7 +841,11 @@ export function getPatternStringExplore(
 					const tokenType = annots[token.id].uiType;
 					const correctedType = getCorrectUiType(uiTypeSupport.explore.ngram, tokenType);
 
-					return token.value ? `[${token.id}="${escapeRegex(token.value, correctedType !== 'select').replace(/"/g, '\\"')}"]` : '[]';
+					const escapeSettings: RegexEscapeOptions = {
+						escapePipes: correctedType === 'select',
+						escapeWildcards: correctedType === 'select',
+					}
+					return token.value ? `[${token.id}="${escapeRegex(token.value, escapeSettings)}"]` : '[]';
 				})
 				.join('');
 		default: throw new Error('Unknown submitted form - cannot generate cql query');

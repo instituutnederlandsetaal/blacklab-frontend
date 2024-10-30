@@ -424,9 +424,7 @@ const DEFAULTS = {
 	}
 };
 
-type QueryBuilderOptions = RecursivePartial<typeof DEFAULTS>;
-// so not everything is optional and extracting types from nested properties works
-export type QueryBuilderOptionsDef = typeof DEFAULTS;
+export type QueryBuilderOptions = RecursivePartial<typeof DEFAULTS>;
 
 // -------------------
 // Class Querybuilder
@@ -560,13 +558,14 @@ export class QueryBuilder {
 	}
 
 	/** Rerender this querybuilder, for example when selected locale has changed. */
-	public refresh() {
+	public refresh(settings?: QueryBuilderOptions) {
 		const cur = this.getCql();
 		const newRoot = $('<div></div>');
 		const currentClasses = this.element[0].classList;
 		currentClasses.forEach(c => newRoot[0].classList.add(c));
-
 		this.element.replaceWith(newRoot);
+		this.settings = $.extendext(true, 'replace', {}, this.settings, settings);
+
 		this._prepareElement(newRoot);
 		this.parse(cur);
 	}
@@ -1113,7 +1112,7 @@ export class Attribute {
 			const $input = $optionsContainer.find('[data-attribute-role="value"]');
 			const rawValue = [$input.val() as string|string[]].flat(2); // transform to array if it isn't
 			// if we're a dropdown we need to regex-escape, since they're exact values, but are interpreted as if they're regex
-			values = $input.is('select') ? rawValue.map(v => escapeRegex(v, false).replace(/([|"])/g, '\\$1')) : rawValue;
+			values = $input.is('select') ? rawValue.map(v => escapeRegex(v)) : rawValue;
 		}
 
 		const callback = this.builder.settings.attribute.getCql;

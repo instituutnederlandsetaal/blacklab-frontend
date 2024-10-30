@@ -90,6 +90,14 @@
 		"noFilter": {
 			"title": "没有可用的筛选器",
 			"content": "该语料库不包含元数据，或者作者选择不允许对元数据进行筛选。"
+		},
+		"range": {
+			"from": "从",
+			"to": "到",
+			"permissive": "宽松",
+			"permissiveDescription": "匹配部分包含在输入范围内的文档",
+			"strict": "严格",
+			"strictDescription": "匹配完全包含在输入范围内的文档"
 		}
 	},
 	"explore": {
@@ -97,7 +105,12 @@
 		"corpora": {
 			"heading": "文档",
 			"groupBy": "按元数据分组文档",
-			"showAs": "显示分组方式"
+			"showAs": {
+				"heading": "显示分组方式",
+				"table": "表格",
+				"docs": "文档",
+				"tokens": "tokens"
+			}
 		},
 		"ngram": {
 			"heading": "N元组",
@@ -112,7 +125,10 @@
 	"setting": {
 		"heading": "全局设置",
 		"resultsPerPage": "每页结果数",
+		"resultsPerPageOption": "{n} 个结果",
 		"sampleSize": "样本大小",
+		"sampleSizeCount": "数字",
+		"sampleSizePercentage": "百分比",
 		"sampleSeed": "种子",
 		"context": "上下文大小",
 		"wideView": "宽视图",
@@ -176,6 +192,7 @@
 			"groupNameWithoutValue": "[无值]",
 
 			"groupResults": "分组结果",
+			"close": "关闭",
 			"clear": "清除",
 			"apply": "应用",
 			"invalidGrouping": "此分组无效。",
@@ -209,9 +226,7 @@
 			"clickButtonsToStart": "在此窗口中，您可以对结果应用分组。单击左侧的按钮创建分组标准以开始。",
 			"metadata": "元数据",
 			"annotation": "标注",
-			"specify": "待填",
-			"label": "标签{label} ({annotation})",
-			"document": "文档"
+			"specify": "待填"
 		},
 		"table": {
 			"showFullSentence": "显示整个句子",
@@ -255,6 +270,16 @@
 			"documentsWhere": "文件筛选于"
 		},
 		"resultsView": {
+			"navigation": {
+				"backToGroupedResults": "返回分组结果",
+				"backToUngroupedResults": "返回未分组结果",
+				"hits": "命中",
+				"documents": "文档",
+				"viewingGroup": "查看组 {group}",
+				"groupedBy": "按 {group} 分组",
+				"randomSample": "随机样本 ({sample})"
+			},
+
 			"backToGroupOverview": "返回分组概览",
 			"noResultsFound": "未找到结果。",
 			"inactiveView": "此视图不活跃，因为未指定单词的搜索条件。",
@@ -274,7 +299,7 @@
 			"continue": "继续",
 			"hits": "命中",
 			"documents": "文档",
-			"tokens": "tokens"
+			"tokens": "Tokens"
 		},
 		"sort": {
 			"sortBy": "分类依据"

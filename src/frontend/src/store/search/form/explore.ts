@@ -81,7 +81,7 @@ const get = {
 		groupBy: b.read(state => `hit:${state.ngram.groupAnnotationId}`, 'ngram_groupBy'),
 		patternString: b.read(state => state.ngram.tokens
 			.slice(0, state.ngram.size)
-			.map(({id, value}) => id && value ? `[${id}="${escapeRegex(value, false)}"]` : '[]')
+			.map(({id, value}) => id && value ? `[${id}="${escapeRegex(value, {escapePipes: false, escapeWildcards: false})}"]` : '[]')
 			.join('')
 		, 'ngram_patternString')
 	},
