@@ -331,18 +331,13 @@ export default Vue.extend({
 			Object.entries(mi|| {})
 				.filter(([k, v]) => v.type === 'relation')
 				.forEach(([k,v]) => {
-					if (!v.fieldName || v.fieldName === this.selectedCriteriumAsPositional?.fieldName) {
+					const sourceInThisField = !v.fieldName || v.fieldName === this.selectedCriteriumAsPositional?.fieldName;
+					const targetInThisField = !v.fieldName || v.targetField === this.selectedCriteriumAsPositional?.fieldName;
+					if (sourceInThisField || targetInThisField) {
 						result.push({
 							label: k,
-							name: `${k}@source`,
-							targetField: v.fieldName ?? '',
-						});
-					}
-					if (!v.fieldName || v.targetField === this.selectedCriteriumAsPositional?.fieldName) {
-						result.push({
-							label: k,
-							name: `${k}@target`,
-							targetField: v.targetField ?? '',
+							name: `${k}`,
+							targetField: this.selectedCriteriumAsPositional?.fieldName ?? '',
 						});
 					}
 				});
