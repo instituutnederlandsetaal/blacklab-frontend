@@ -214,10 +214,17 @@
 				"fromTheEnd": "from the end of the hit"
 			},
 
-			"relationPartLabel": "Relation part",
-			"relationSource": "head",
-			"relationTarget": "dependent",
-			"relationBoth": "both",
+			"relationPartByClass": {
+				"default": {
+					"label": "Relation part",
+					"source": "source",
+					"target": "target"
+				},
+				"dep": {
+					"source": "head",
+					"target": "dependent"
+				}
+			},
 
 			"tipClickOnHighlightedWords": "Tip: click on highlighted words for syntactic grouping.",
 

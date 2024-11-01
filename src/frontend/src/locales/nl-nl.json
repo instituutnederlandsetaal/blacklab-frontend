@@ -215,10 +215,20 @@
 				"fromTheEnd": "vanaf het einde van het resultaat"
 			},
 
-			"relationPartLabel": "Deel van relatie",
-			"relationSource": "hoofd",
-			"relationTarget": "afhankelijke",
-			"relationBoth": "beide",
+
+
+			"relationPartByClass": {
+				"default": {
+					"label": "Deel van relatie",
+					"source": "bron",
+					"target": "doel"
+				},
+				"dep": {
+					"source": "hoofd",
+					"target": "afhankelijke"
+				}
+			},
+
 			"tipClickOnHighlightedWords": "Tip: klik op uitgelichte woorden om te groeperen op syntactische relaties.",
 
 			"caseSensitive": "Hoofdlettergevoelig",

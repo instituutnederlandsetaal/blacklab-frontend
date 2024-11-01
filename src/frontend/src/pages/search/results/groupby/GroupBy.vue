@@ -86,7 +86,7 @@
 				<form class="case-and-context">
 					<div class="labels">
 						<label for="group-case-sensitive">{{ $t('results.groupBy.caseSensitive') }}: </label>
-						<label v-if="selectedCriterium.context.type === 'label' && relationNames?.includes(selectedCriterium.context.label)" for="group-relation">{{ $t('results.groupBy.relationPartLabel') }}:</label>
+						<label v-if="selectedCriterium.context.type === 'label' && relationNames?.includes(selectedCriterium.context.label)" for="group-relation">{{ relationPartByClass('label') }}:</label>
 					</div>
 					<div class="inputs">
 						<input id="group-case-sensitive" type="checkbox" v-model="selectedCriterium.caseSensitive">
@@ -95,18 +95,18 @@
 								class="btn btn-default btn-sm"
 								:class="{active: selectedCriterium.context.relation === 'target'}"
 								@click="selectedCriterium.context.relation = 'target'"
-								>{{$t('results.groupBy.relationTarget')}}</button>
+								>{{relationPartByClass('target')}}</button>
 							<button type="button"
 								class="btn btn-default btn-sm"
 								:class="{active: selectedCriterium.context.relation === 'source'}"
 								@click="selectedCriterium.context.relation = 'source'"
-							>{{$t('results.groupBy.relationSource')}}</button>
+							>{{relationPartByClass('source')}}</button>
 							<!-- Never want to group on things in between source and target of a relation apparently. So don't show this button. -->
 							<!-- <button type="button"
 								class="btn btn-default btn-sm"
 								:class="{active: current.context.relation === 'full' || !current.context.relation}"
 								@click="current.context.relation = 'full'"
-							>{{$t('results.groupBy.relationBoth')}}</button> -->
+							>both</button> -->
 						</div>
 					</div>
 				</form>
@@ -198,7 +198,7 @@ import * as SearchModule from '@/store/search/index';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { blacklab } from '@/api';
 
-import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults} from '@/types/blacklabtypes';
+import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation} from '@/types/blacklabtypes';
 
 import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel, humanizeGroupBy as summarizeGroup} from '@/utils/grouping';
 
@@ -644,6 +644,20 @@ export default Vue.extend({
 				label: relation.key,
 				relation: relation.isSource ? 'source' : relation.isTarget ? 'target' : undefined,
 			}
+		},
+		relationPartByClass(part: 'source'|'target'|'label'): string {
+			const relName = this.selectedCriteriumAsLabel?.context.label;
+			const relation = relName ? this.hits?.hits[0].matchInfos?.[relName] as BLMatchInfoRelation : null;
+			const relClass = relation?.relClass ?? null;
+			if (relClass) {
+				// Get the specific name for this relClass;
+				// i.e. 'head' instead of 'source' for the 'dep' relationClass (dependency relations)
+				const key = `results.groupBy.relationPartByClass.${relClass}.${part}`;
+				if (this.$te(key))
+					return this.$t(key).toString();
+			}
+			// No specific name for this relation class; fall back to the default relation part name.
+			return this.$t(`results.groupBy.relationPartByClass.default.${part}`).toString();
 		},
 	},
 	watch: {

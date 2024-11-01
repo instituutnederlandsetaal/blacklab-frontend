@@ -214,10 +214,18 @@
 				"fromTheEnd": "从命中结束"
 			},
 
-			"relationPartLabel": "关系部分",
-			"relationSource": "中心词",
-			"relationTarget": "依存词",
-			"relationBoth": "两者",
+			"relationPartByClass": {
+				"default": {
+					"label": "关系部分",
+					"source": "源",
+					"target": "目标"
+				},
+				"dep": {
+					"source": "中心词",
+					"target": "依存词"
+				}
+			},
+
 			"tipClickOnHighlightedWords": "提示：点击高亮的词语进行句法分组。",
 
 			"caseSensitive": "区分大小写",
