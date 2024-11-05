@@ -13,6 +13,7 @@
 
 		<HitContextComponent tag="td" :annotation="a.id" :data="data.context" :html="html" :dir="dir" :key="a.id" :highlight="false" v-for="a in otherAnnotations"
 			:hoverMatchInfos="hoverMatchInfos"
+			:punct="false"
 			@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)"/>
 
 		<td v-for="field in data.gloss_fields" :key="field.fieldName" style="overflow: visible;">
