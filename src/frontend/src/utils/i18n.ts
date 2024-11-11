@@ -61,6 +61,8 @@ async function loadLocaleMessages(locale: string) {
 	// Also, because the UI list can be updated asynchronously (from customjs), we might have a locale in localStorage that is not in the list yet.
 	// if it errors, you'll just see the fallbackLocale and a bunch of warnings.
 
+	if (i18n.availableLocales.includes(locale)) return;
+
 	let messages: LocaleMessageObject|null = null;
 	let overrides: LocaleMessageObject|null = null;
 
@@ -127,9 +129,9 @@ const LocaleSelector = Vue.extend({
 		},
 	},
 	async created() {
-		await loadLocaleMessages(defaultLocale);
-		if (locale.value !== defaultLocale)
-			await loadLocaleMessages(locale.value);
+		loadLocaleMessages(defaultFallbackLocale);
+		loadLocaleMessages(defaultLocale);
+		loadLocaleMessages(locale.value);
 	}
 });
 const localeSelectorInstance = new LocaleSelector().$mount('#locale-selector');

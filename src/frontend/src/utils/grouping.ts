@@ -1,4 +1,5 @@
 import { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes";
+import { BLHitResults, BLSearchResult } from '@/types/blacklabtypes';
 
 /** Group by some tokens at a fixed position in the hit. */
 export type ContextPositional = {
@@ -49,7 +50,7 @@ export type GroupBy = GroupByContext|GroupByMetadata|GroupByCustom;
  * Parse a GroupBy string. It should be pre-separated on comma's.
  * https://inl.github.io/BlackLab/server/rest-api/corpus/hits/get.html#criteria-for-sorting-grouping-and-faceting
  */
-export function parseGroupBy(groupBy: string[]): GroupBy[] {
+export function parseGroupBy(groupBy: string[], results?: BLSearchResult): GroupBy[] {
 	const cast = <T>(x: T): T => x;
 	return groupBy.map<GroupBy>(part => {
 		const parts = part.split(':');
@@ -67,21 +68,33 @@ export function parseGroupBy(groupBy: string[]): GroupBy[] {
 				field: parts[1],
 				caseSensitive: parts[2] === 's'
 			};
-			case 'capture': return cast<GroupByContext>({
-				type: 'context',
-				fieldName: optFieldName,
-				annotation: optAnnotName,
-				caseSensitive: parts[2] === 's',
-				context: {
-					type: 'label',
-					// label can be either a capture label (a:"word") or a relation (whether explicitly captured or not, e.g. _ a:--> _).
-					// but for the relation, all tokens between source and target are used for the grouping
-					// so not what we want. Will need new BlackLab feature to support this.
-					// probably want to group on the VALUE of the relation itself, not the tokens.
-					label: parts[3],
-					relation: parts[4] as 'source'|'target'|'full'|undefined
-				}
-			})
+			case 'capture':
+				const [_, __, sensitivity, label, relationPart] = parts;
+				const determineRelationPartField = (label: string, relationPart: string|undefined, overriddenFieldName: string|undefined) => {
+					const defaultFieldName = overriddenFieldName ?? results?.summary.pattern?.fieldName;
+					const matchInfoDef = results?.summary.pattern?.matchInfos?.[label];
+					if (matchInfoDef) {
+						// Make sure we return the correct field if we're referencing a crossfield relation target
+						if (relationPart === 'target')
+							return matchInfoDef.targetField ?? defaultFieldName;
+						else
+							return matchInfoDef.fieldName ?? defaultFieldName;
+					}
+					return defaultFieldName;
+				};
+				const actualFieldName = determineRelationPartField(label, relationPart, optFieldName)
+				return cast<GroupByContext>({
+					type: 'context',
+					fieldName: actualFieldName,
+					annotation: optAnnotName,
+					caseSensitive: sensitivity === 's',
+					context: {
+						type: 'label',
+						// label can be either a capture label (a:"word") or a relation (whether explicitly captured or not, e.g. _ a:--> _).
+						label,
+						relation: relationPart as 'source'|'target'|'full'|undefined
+					}
+				});
 			case 'hit':
 				return cast<GroupByContext>({
 					type: 'context',
@@ -246,9 +259,9 @@ export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<strin
 	if (g.type === 'context') {
 		if (!g.annotation) return i18n.$t('results.groupBy.specify').toString();
 		const field = i18n.$tAnnotDisplayName(annotations[g.annotation]);
-		
+
 		if (g.context.type === 'label') return i18n.$t('results.groupBy.summary.labelledWord', {field, label: g.context.label}).toString();
-		
+
 		let positionDisplay: string;
 		switch (g.context.position) {
 			case 'A': positionDisplay = i18n.$t('results.groupBy.summary.position.after').toString(); break;
@@ -262,8 +275,8 @@ export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<strin
 			case 'all': return i18n.$t('results.groupBy.summary.allWords', {field: field, position: positionDisplay}).toString();
 			case 'first': return i18n.$t('results.groupBy.summary.firstWord', {field: field, position: positionDisplay}).toString();
 			case 'specific': return i18n.$t('results.groupBy.summary.indexedWord', {
-				field: field, 
-				position: positionDisplay, 
+				field: field,
+				position: positionDisplay,
 				index: g.context.start !== g.context.end ? g.context.position === 'E' ?  `${g.context.end}-${g.context.start}` : `${g.context.start}-${g.context.end}` : g.context.start
 			}).toString();
 			default: return i18n.$t('results.groupBy.specify').toString();

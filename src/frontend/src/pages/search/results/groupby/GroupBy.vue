@@ -37,7 +37,7 @@
 				<span v-if="isParallel">{{ $t('results.groupBy.parallelCorpusVersion') }}</span>
 				<SelectPicker v-if="isParallel"
 						:options="parallelVersionOptions"
-						v-model="selectedCriterium.fieldName"
+						v-model="fieldName"
 						allowUnknownValues
 						data-width="auto"
 						data-menu-width="auto"
@@ -86,21 +86,23 @@
 				<form class="case-and-context">
 					<div class="labels">
 						<label for="group-case-sensitive">{{ $t('results.groupBy.caseSensitive') }}: </label>
-						<label v-if="selectedCriterium.context.type === 'label' && relationNames?.includes(selectedCriterium.context.label)" for="group-relation">{{ relationPartByClass('label') }}:</label>
+						<label v-if="showRelationPartWidget" for="group-relation">{{ relationPartByClass('label') }}:</label>
 					</div>
 					<div class="inputs">
 						<input id="group-case-sensitive" type="checkbox" v-model="selectedCriterium.caseSensitive">
-						<div v-if="selectedCriterium.context.type === 'label' && relationNames?.includes(selectedCriterium.context.label)" class="btn-group">
+						<div v-if="showRelationPartWidget" class="btn-group">
 							<button type="button"
+								v-if="relationSourceInThisField(relationMatchInfoDefByLabel(selectedCriteriumAsLabel ? selectedCriteriumAsLabel.context.label : ''))"
 								class="btn btn-default btn-sm"
-								:class="{active: selectedCriterium.context.relation === 'target'}"
-								@click="selectedCriterium.context.relation = 'target'"
-								>{{relationPartByClass('target')}}</button>
-							<button type="button"
-								class="btn btn-default btn-sm"
-								:class="{active: selectedCriterium.context.relation === 'source'}"
+								:class="{active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'source'}"
 								@click="selectedCriterium.context.relation = 'source'"
 							>{{relationPartByClass('source')}}</button>
+							<button type="button"
+								v-if="relationTargetInThisField(relationMatchInfoDefByLabel(selectedCriteriumAsLabel ? selectedCriteriumAsLabel.context.label : ''))"
+								class="btn btn-default btn-sm"
+								:class="{active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'target'}"
+								@click="selectedCriterium.context.relation = 'target'"
+								>{{relationPartByClass('target')}}</button>
 							<!-- Never want to group on things in between source and target of a relation apparently. So don't show this button. -->
 							<!-- <button type="button"
 								class="btn btn-default btn-sm"
@@ -198,7 +200,7 @@ import * as SearchModule from '@/store/search/index';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { blacklab } from '@/api';
 
-import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation} from '@/types/blacklabtypes';
+import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, BLHitInOtherField, BLMatchInfo} from '@/types/blacklabtypes';
 
 import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel, humanizeGroupBy as summarizeGroup} from '@/utils/grouping';
 
@@ -210,7 +212,7 @@ import 'vue-slider-component/theme/default.css'
 import jsonStableStringify from 'json-stable-stringify';
 
 import SelectPicker, { Options } from '@/components/SelectPicker.vue';
-import { getHighlightColors, snippetParts } from '@/utils/hit-highlighting';
+import { getHighlightColors, mergeMatchInfos, snippetParts } from '@/utils/hit-highlighting';
 import { CaptureAndRelation, HitToken, Option, TokenHighlight } from '@/types/apptypes';
 
 
@@ -329,10 +331,10 @@ export default Vue.extend({
 			const mi = this.hits?.summary?.pattern?.matchInfos;
 			const result: { name: string, label: string, targetField: string }[] = [];
 			Object.entries(mi|| {})
-				.filter(([k, v]) => v.type === 'relation')
+				.filter(([k, v]) => v.type === 'relation' || v.type === 'list')
 				.forEach(([k,v]) => {
-					const sourceInThisField = !v.fieldName || v.fieldName === this.selectedCriteriumAsPositional?.fieldName;
-					const targetInThisField = !v.fieldName || v.targetField === this.selectedCriteriumAsPositional?.fieldName;
+					const sourceInThisField = this.relationSourceInThisField(v);
+					const targetInThisField = this.relationTargetInThisField(v);
 					if (sourceInThisField || targetInThisField) {
 						result.push({
 							label: k,
@@ -345,6 +347,11 @@ export default Vue.extend({
 		},
 		relationNames(): string[] {
 			return this.relations.map(c => c.name);
+		},
+		showRelationPartWidget(): boolean {
+			return this.selectedCriterium?.type === 'context' &&
+				this.selectedCriterium.context.type === 'label' &&
+				this.relationNames.includes(this.selectedCriterium.context.label)
 		},
 
 		mainSearchField(): string {
@@ -359,6 +366,10 @@ export default Vue.extend({
 		// Some utils to cast the current group to a specific type.
 		// so we can use it in computeds for the template.
 		/** When grouping on either: capture group, or relation source/target. */
+		selectedCriteriumAsContext(): undefined|GroupByContext<ContextLabel|ContextPositional> {
+			if (this.selectedCriterium?.type === 'context')
+				return this.selectedCriterium as GroupByContext<ContextLabel|ContextPositional>;
+		},
 		selectedCriteriumAsLabel(): undefined|GroupByContext<ContextLabel> {
 			if (this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'label')
 				return this.selectedCriterium as GroupByContext<ContextLabel>;
@@ -393,11 +404,15 @@ export default Vue.extend({
 			style: object;
 			captureAndRelation: CaptureAndRelation[]|undefined;
 		}[][] {
-			if (this.selectedCriterium?.type !== 'context' || !isHitResults(this.hits) || !this.hits.hits.length) return [];
+			if (this.selectedCriterium?.type !== 'context' ||
+				!isHitResults(this.hits) ||
+				!this.hits.hits.length) {
+					return [];
+			}
 
 			const wordAnnotation = UIStore.getState().results.shared.concordanceAnnotationId;
 			const firstHit = this.hits.hits[0];
-			const targetField = this.selectedCriteriumAsPositional?.fieldName;
+			const targetField = this.selectedCriterium?.fieldName;
 			const hitInField = targetField && targetField.length > 0 && targetField !== this.mainSearchField && firstHit.otherFields ? firstHit.otherFields[targetField] : firstHit;
 			const {annotation, context} = this.selectedCriterium;
 
@@ -498,6 +513,23 @@ export default Vue.extend({
 				]
 			}];
 		},
+		fieldName: {
+			get(): string { return this.selectedCriteriumAsContext?.fieldName ?? this.mainSearchField; },
+			set(v: string) {
+				if (this.selectedCriteriumAsContext) {
+					this.selectedCriteriumAsContext.fieldName = v;
+					if (this.selectedCriteriumAsContext.context.type === 'label') {
+						const contextLabel = this.selectedCriteriumAsContext.context as ContextLabel;
+						const label = contextLabel.label;
+						const relPart = this.getInitialRelationPartValue(label);
+						if (relPart) {
+							// There's only one relation part in the selected field; so set it.
+							contextLabel.relation = relPart;
+						}
+					}
+				}
+			}
+		},
 		contextValue: {
 			/** The string value is when grouping on a capture group or relation. */
 			get(): 'first'|'all'|'context'|string {
@@ -532,8 +564,9 @@ export default Vue.extend({
 					this.selectedCriterium.context = {
 						type: 'label',
 						label: v,
-						relation: this.relationNames?.includes(v) ? 'target' : undefined
+						relation: this.relationNames?.includes(v) ? this.getInitialRelationPartValue(v) : undefined
 					}
+					console.log(this.selectedCriterium.context);
 				}
 			},
 		},
@@ -580,7 +613,12 @@ export default Vue.extend({
 		apply() {
 			this.storeValueUpdateIsOurs = true;
 			this.storeModule.actions.groupBy(serializeGroupBy(this.addedCriteria.filter(isValidGroupBy)));
-			this.selectedCriteriumIndex = -1;
+
+			// JN disabled next line; a tabbed interface with no tab selected is
+			//    normally impossible in a GUI and looks confusing/broken.
+			//    (maybe this was done to show that the search is being carried out?
+			//     maybe figure a better way of signalling this, i.e. scroll to results?)
+			//this.selectedCriteriumIndex = -1;
 		},
 
 		isEmptyGroup(group: GroupBy) { return (group.type === 'context' && !group.annotation) || (group.type === 'metadata' && !group.field); },
@@ -659,6 +697,26 @@ export default Vue.extend({
 			// No specific name for this relation class; fall back to the default relation part name.
 			return this.$t(`results.groupBy.relationPartByClass.default.${part}`).toString();
 		},
+		relationSourceInThisField(v: BLSummaryMatchInfo) {
+			const field = v.fieldName ?? this.mainSearchField;
+			return field === this.selectedCriteriumAsContext?.fieldName;
+		},
+		relationTargetInThisField(v: BLSummaryMatchInfo) {
+			const field = v.targetField ?? this.mainSearchField;
+			return field === this.selectedCriteriumAsContext?.fieldName;
+		},
+		relationMatchInfoDefByLabel(label: string): BLSummaryMatchInfo {
+			const mi = this.hits?.summary?.pattern?.matchInfos ?? {};
+			return mi[label] ?? { type: 'span' };
+		},
+		// If relation only has source or target in this field, select that by default
+		getInitialRelationPartValue(relationName: string) {
+			const matchInfoDef = this.relationMatchInfoDefByLabel(relationName);
+			const source = this.relationSourceInThisField(matchInfoDef);
+			const target = this.relationTargetInThisField(matchInfoDef);
+			return source == target ? undefined : (source ? 'source' : 'target');
+		},
+
 	},
 	watch: {
 		storeValue: {
@@ -668,7 +726,7 @@ export default Vue.extend({
 					this.storeValueUpdateIsOurs = false;
 					return;
 				}
-				this.addedCriteria = parseGroupBy(this.storeValue);
+				this.addedCriteria = parseGroupBy(this.storeValue, this.results);
 				this.active = this.active || this.addedCriteria.length > 0;
 				if (this.selectedCriteriumIndex >= this.addedCriteria.length) {
 					this.selectedCriteriumIndex = this.addedCriteria.length - 1;
@@ -681,7 +739,14 @@ export default Vue.extend({
 			handler() {
 				this.hits = undefined;
 				if (this.firstHitPreviewQuery) {
-					blacklab.getHits(INDEX_ID, this.firstHitPreviewQuery).request.then(r => this.hits = r as BLHitResults);
+					blacklab.getHits(INDEX_ID, this.firstHitPreviewQuery).request.then(r => {
+						const data = r as BLHitResults;
+						if (isHitResults(data)) {
+							// Make sure the target hits (otherFields) 'know' they are the target of a relation.
+							mergeMatchInfos(data);
+						}
+						this.hits = data;
+					});
 				}
 			}
 		},

@@ -124,6 +124,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedIndex } from '@/types/apptypes';
 import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
+import { mergeMatchInfos } from '@/utils/hit-highlighting';
 
 export default Vue.extend({
 	components: {
@@ -231,7 +232,7 @@ export default Vue.extend({
 						if (e.title === 'UNKNOWN_MATCH_INFO' && this.groupBy.length > 0) {
 							// remove the group on label.
 							debugLog('grouping failed, clearing groupBy');
-							const okayGroups = parseGroupBy(this.groupBy).filter(g => !(g.type === 'context' && g.context.type === 'label'));
+							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined).filter(g => !(g.type === 'context' && g.context.type === 'label'));
 							const newGroupBy = serializeGroupBy(okayGroups);
 							this.groupBy = newGroupBy;
 						}
@@ -243,17 +244,23 @@ export default Vue.extend({
 		},
 		setSuccess(data: BLTypes.BLSearchResult) {
 			debugLog('search results', data);
-			this.results = data;
-			this.paginationResults = data;
 			this.error = null;
 			this.request = null;
 			this.cancel = null;
+
+			if (BLTypes.isHitResults(data)) {
+				// Make sure the target hits (otherFields) 'know' they are the target of a relation.
+				mergeMatchInfos(data);
+			}
 
 			// Jesse (glosses): hier ook een keer de page hits in de gloss store updaten
 			const get_hit_id = GlossModule.get.settings()?.get_hit_id;
 			if (BLTypes.isHitResults(data) && get_hit_id) {
 				GlossModule.actions.setCurrentPage(data.hits.map(get_hit_id));
 			}
+
+			this.results = data;
+			this.paginationResults = data;
 		},
 		setError(data: Api.ApiError, isGrouped?: boolean) {
 			if (data.title !== 'Request cancelled') { // TODO
@@ -416,7 +423,7 @@ export default Vue.extend({
 				}
 			});
 			if (this.groupBy.length > 0) {
-				const groupByLabel = parseGroupBy(this.groupBy).map(g => humanizeGroupBy(this, g, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap())).join(', ')
+				const groupByLabel = parseGroupBy(this.groupBy, this.results ?? undefined).map(g => humanizeGroupBy(this, g, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap())).join(', ')
 				r.push({
 					label: this.$t('results.resultsView.navigation.groupedBy', {group: groupByLabel}),
 					title: this.$t('results.resultsView.navigation.backToGroupedResults'),

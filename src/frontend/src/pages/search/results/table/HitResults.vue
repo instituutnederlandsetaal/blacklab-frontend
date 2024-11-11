@@ -56,7 +56,7 @@ import * as GlossModule from '@/store/search/form/glossStore' // Jesse
 import * as UIStore from '@/store/search/ui';
 import { getDocumentUrl } from '@/utils';
 
-import { BLDocFields, BLDocInfo, BLHit, BLHitResults, BLHitSnippet, BLMatchInfo, BLMatchInfoRelation, hitHasParallelinfo } from '@/types/blacklabtypes';
+import { BLDocFields, BLDocInfo, BLHit, BLHitInOtherField, BLHitResults, BLHitSnippet, BLMatchInfo, BLMatchInfoRelation, hitHasParallelInfo } from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 
 import GlossField from '@/pages/search//form/concept/GlossField.vue' // Jesse
@@ -65,70 +65,6 @@ import {DocRowData} from './DocRow.vue';
 
 import HitsTable, {HitRows} from './HitsTable.vue';
 import { getHighlightColors, snippetParts } from '@/utils/hit-highlighting';
-
-/**
- * For hits with parallel information (e.g. hit in english with dutch alignments from other fields).
- * Enrich the hit in the target with match/relation info.
- * This is required because BlackLab only includes the relation info at the source, not at the target.
- * But we want that info in the target as well, so we can highlight it.
- */
-function mergeMatchInfos(
-	fieldName: string,
-	hit: Required<BLHit>['otherFields'][string],
-	mainHitMatchInfos: Record<string, BLMatchInfo>
-): Required<BLHit>['otherFields'][string] {
-	if (Object.keys(mainHitMatchInfos).length === 0) {
-		// Nothing to merge
-		return hit;
-	}
-
-	/** Does the given matchInfo's targetField point to us?
-	 * If it's a list, do any of the list's elements target us?
-	 */
-	function matchInfoHasUsAsTargets([name, matchInfo]: [string, BLMatchInfo]): boolean {
-		if ('targetField' in matchInfo && matchInfo.targetField === fieldName)
-			return true;
-		if (matchInfo.type === 'list') {
-			const infos = matchInfo.infos as BLMatchInfo[];
-			if (infos.some(l => 'targetField' in l && l.targetField === fieldName))
-				return true;
-		}
-		return false;
-	};
-
-	// Mark targetField as __THIS__ so we'll know it is us later
-	function markTargetField(matchInfo: BLMatchInfo) {
-		return 'targetField' in matchInfo ? ({ ...matchInfo, targetField: '__THIS__'}) : matchInfo;
-	}
-
-	// Keep only relations with us as the target field (and mark it, see above)
-	const toMerge = Object.entries(mainHitMatchInfos)
-		.filter(matchInfoHasUsAsTargets)
-		.reduce((acc, [name, matchInfo]) => {
-			if ('infos' in matchInfo) {
-				acc[name] = acc[name] = {
-					...matchInfo,
-					infos: matchInfo.infos.map(markTargetField) as BLMatchInfoRelation[]
-				};
-			} else {
-				acc[name] = markTargetField(matchInfo);
-			}
-			return acc;
-		}, {} as Record<string, BLMatchInfo>);
-
-	if (!hit.matchInfos || Object.keys(hit.matchInfos).length === 0) {
-		// Hit has no matchInfos of its own; just use the infos from the main hit
-		return {
-			...hit,
-			matchInfos: toMerge
-		};
-	}
-
-	// Construct a new hit with matchInfos merged together
-	const newHit = {...hit};
-	newHit.matchInfos = {...toMerge, ...hit.matchInfos};
-	return newHit;
-}
 
 export default Vue.extend({
 	components: {
@@ -211,11 +147,12 @@ export default Vue.extend({
 				});
 
 				// If this hit has parallel information, render a row for each target field
-				if (!hitHasParallelinfo(hit)) return rows;
+				if (!hitHasParallelInfo(hit))
+					return rows;
 
 				// For every target field, create a row for the hit in that field.
 				this.targetFields.forEach(field => {
-					const hitForField = mergeMatchInfos(field.id, hit.otherFields[field.id], hit.matchInfos);
+					const hitForField = hit.otherFields[field.id];
 					this.transformSnippets?.(hitForField);
 					hitRow.rows.push({
 						hit: hitForField,

@@ -344,6 +344,13 @@ export type BLSearchSummarySampleSettings = {} | {
 	sampleSize: number;
 };
 
+/** Match info definition in summary */
+export type BLSummaryMatchInfo = {
+	type: 'span'|'tag'|'relation'|'list';
+	fieldName?: string;     // field this capture is in (if not default field)
+	targetField?: string;   // field the relation target is in (if not default field)
+};
+
 // TODO - incomplete
 export type BLSearchSummary = {
 	actualWindowSize: number;
@@ -371,11 +378,7 @@ export type BLSearchSummary = {
 		json?: any;
 		/* MatchInfos only available when hits are returned (i.e. not a docs request, not grouped) */
 		matchInfos?: {
-			[key: string]: {
-				type: 'span'|'tag'|'relation'|'list';
-				fieldName?: string;     // field this capture is in (if not default field)
-				targetField?: string;   // field the relation target is in (if not default field)
-			}
+			[key: string]: BLSummaryMatchInfo;
 		}
 	}
 } & BLSearchSummarySampleSettings;
@@ -569,6 +572,9 @@ export interface BLMatchInfoList {
 
 export type BLMatchInfo = BLMatchInfoSpan|BLMatchInfoRelation|BLMatchInfoTag|BLMatchInfoList;
 
+/** One of the otherFields hits (parallel corpus query, hit in one of the target fields) */
+export type BLHitInOtherField = Omit<BLHit, 'otherFields'|'docPid'>;
+
 /** A hit in the BlackLab hits response. */
 export type BLHit = BLHitSnippet&{
 	start: number;
@@ -593,10 +599,10 @@ export type BLHit = BLHitSnippet&{
 	matchInfos?: Record<string, BLMatchInfo>;
 	docPid: string;
 	/** parallel corpus: aligned hits in other (requested) versions. Keyed by te full id of the annotatedField e.g. "contents__en" */
-	otherFields?: Record<string, Omit<BLHit, 'otherFields'|'docPid'>>; //
+	otherFields?: Record<string, BLHitInOtherField>; //
 };
 
-export function hitHasParallelinfo(h: BLHit|BLHitSnippet): h is Required<BLHit> {
+export function hitHasParallelInfo(h: BLHit|BLHitSnippet): h is Required<BLHit> {
 	return !!(h as BLHit).matchInfos && !!(h as BLHit).otherFields;
 }
 
