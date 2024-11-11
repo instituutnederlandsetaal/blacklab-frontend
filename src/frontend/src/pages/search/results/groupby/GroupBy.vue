@@ -273,7 +273,7 @@ export default Vue.extend({
 			delete params.listvalues;
 			params.listmetadatavalues = '__nothing__';
 			params.first = 0;
-			params.number = 1;
+			params.number = 10; // not 1 but 10 because for parallel corpus we need a hit with otherFields (hopefully we'll get one)
 			params.waitfortotal = false;
 			return params;
 		},
@@ -331,7 +331,7 @@ export default Vue.extend({
 			const mi = this.hits?.summary?.pattern?.matchInfos;
 			const result: { name: string, label: string, targetField: string }[] = [];
 			Object.entries(mi|| {})
-				.filter(([k, v]) => v.type === 'relation' || v.type === 'list')
+				.filter(([k, v]) => v.type === 'relation')
 				.forEach(([k,v]) => {
 					const sourceInThisField = this.relationSourceInThisField(v);
 					const targetInThisField = this.relationTargetInThisField(v);
@@ -411,12 +411,19 @@ export default Vue.extend({
 			}
 
 			const wordAnnotation = UIStore.getState().results.shared.concordanceAnnotationId;
-			const firstHit = this.hits.hits[0];
+			const firstHit = this.hits.hits.find(v => !!v.otherFields) ?? this.hits.hits[0];
 			const targetField = this.selectedCriterium?.fieldName;
 			const hitInField = targetField && targetField.length > 0 && targetField !== this.mainSearchField && firstHit.otherFields ? firstHit.otherFields[targetField] : firstHit;
 			const {annotation, context} = this.selectedCriterium;
 
 			const snippet = snippetParts(hitInField, wordAnnotation, CorpusStore.get.textDirection(), this.colors)
+
+			// Don't highlight the list of relations matchInfo; it doesn't make sense to group on those
+			const removeListMatchInfo = (t: HitToken) => t.captureAndRelation = t.captureAndRelation?.filter(c => c.key.indexOf('[') < 0);
+			snippet.before.forEach(removeListMatchInfo);
+			snippet.match.forEach(removeListMatchInfo);
+				snippet.after.forEach(removeListMatchInfo);
+
 			const position = context.type === 'positional' ? context.position : undefined;
 
 			// Now extract the indices of the tokens that are active (i.e. being grouped on).
