@@ -52,17 +52,17 @@ import Vue from 'vue';
 import frac2Percent from '@/mixins/fractionalToPercent';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import {blacklab} from '@/api';
-import { BLSearchParameters, BLHitResults, BLDocResults } from '@/types/blacklabtypes';
+import { BLSearchParameters, BLHitResults, BLDocResults, BLHit, hitHasParallelInfo } from '@/types/blacklabtypes';
 
-import HitsTable, {HitRows} from '@/pages/search/results/table/HitsTable.vue'
+import HitsTable, {HitRowData, HitRows} from '@/pages/search/results/table/HitsTable.vue'
 import DocsTable, {DocRowData} from '@/pages/search/results/table/DocsTable.vue';
-import { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
+import { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 import { GroupRowData } from '@/pages/search/results/table/GroupTable.vue';
 
 import * as UIStore from '@/store/search/ui';
 import * as CorpusStore from '@/store/search/corpus';
 import { getDocumentUrl } from '@/utils';
-import { getHighlightColors, snippetParts } from '@/utils/hit-highlighting';
+import { getHighlightColors, mergeMatchInfos, snippetParts } from '@/utils/hit-highlighting';
 
 
 export default Vue.extend({
@@ -87,6 +87,9 @@ export default Vue.extend({
 	data: () => ({
 		concordances: null as any as PaginatedGetter<HitRows|DocRowData>,
 	}),
+	computed: {
+		concordanceAnnotationId(): string { return UIStore.getState().results.shared.concordanceAnnotationId; },
+	},
 	methods: {
 		frac2Percent
 	},
@@ -110,38 +113,75 @@ export default Vue.extend({
 				return {
 					cancel,
 					request: request.then((r: BLHitResults) => {
+						// For parallel corpora, make sure the target hits (otherFields)
+						// 'know' they are the target of a relation.
+						mergeMatchInfos(r);
+
 						const colors = getHighlightColors(r.summary);
-						return r.hits.map<HitRows>(h => {
-							UIStore.getState().results.shared.transformSnippets?.(h);
-							return  {
-								type: 'hit',
-								doc: {docInfo: r.docInfos[h.docPid], docPid: h.docPid},
-								rows: [{
-									// Don't bother with parallel results when expanding a group.
-									// When the user wants to see them, they can open the full concordances.
-									annotatedField: undefined,
+
+						const sourceField = CorpusStore.get.allAnnotatedFieldsMap()[r.summary.pattern!.fieldName] ?? '';
+						const targetFields = r.summary.pattern?.otherFields?.map(f => CorpusStore.get.allAnnotatedFieldsMap()[f]).filter(f => f) ?? [];
+
+						const convertBLHitToHitRows = (hit: BLHit): HitRows => {
+							const pid = hit.docPid;
+							const docInfo = r.docInfos[pid];
+							const doc = { docInfo, docPid: pid };
+
+							UIStore.getState().results.shared.transformSnippets?.(hit);
+
+							// TODO?
+							// // ids of the hit, if gloss module is enabled.
+							// const {startid, endid} = GlossModule.get.settings()?.get_hit_range_id(hit) ?? {startid: '', endid: ''};
+
+							const rows: HitRowData[] = [
+								// Create the row for the main hit. This is the hit in the source field.
+								{
+									hit,
+									doc,
+									context: snippetParts(hit, this.concordanceAnnotationId, this.dir, colors),
+									href: getDocumentUrl(pid, this.query.field ?? '', undefined, this.query.patt, this.query.pattgapdata, hit.start),
+									annotatedField: sourceField,
 									isForeign: false,
-									hit: h,
-									context: snippetParts(h, this.mainAnnotation.id, this.dir, colors),
-									href: getDocumentUrl(
-										h.docPid,
-										this.query.field ?? '',
-										undefined,
-										this.query.patt || undefined,
-										this.query.pattgapdata || undefined,
-										h.start
-									),
-									doc: {
-										docInfo: r.docInfos[h.docPid],
-										docPid: h.docPid,
-									},
+
 									gloss_fields: [],
 									hit_first_word_id: '',
 									hit_id: '',
 									hit_last_word_id: '',
-								}]
+								}
+							];
+
+							// If this hit has parallel information, render a row for each target field
+							if (hitHasParallelInfo(hit)) {
+								// For every target field, create a row for the hit in that field.
+								targetFields.forEach(field => {
+									const hitForField = hit.otherFields[field.id];
+									UIStore.getState().results.shared.transformSnippets?.(hit);
+									rows.push({
+										hit: hitForField,
+										doc,
+										context: snippetParts(hitForField, this.concordanceAnnotationId, this.dir, colors),
+										href: getDocumentUrl(pid, field.id, undefined, this.query.patt, this.query.pattgapdata, hitForField.start), // link to the hit in the target field
+										annotatedField: field, // this is the hit in the target field.
+										isForeign: true,
+
+										// Don't do glossing for hits in parallel target fields.
+										gloss_fields: [],
+										hit_first_word_id: '',
+										hit_id: '',
+										hit_last_word_id: ''
+									});
+								});
 							}
-						})
+
+
+							return  {
+								type: 'hit',
+								doc,
+								rows
+							};
+						}
+
+						return r.hits.map(convertBLHitToHitRows);
 					})
 				}
 			} else {
