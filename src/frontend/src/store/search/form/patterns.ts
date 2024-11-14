@@ -23,6 +23,10 @@ type ModuleRootState = {
 		/** Ids of the annotated fields that we're comparing to */
 		targets: string[],
 		alignBy: string|null,
+
+		// (NOTHING TO DO WITH PARALLEL; RENAME PARENT KEY TO shared OR SOMETHING?)
+		/** Any span filters selected that should generate within clauses. */
+		withinClauses: Record<string, Record<string, any>>,
 	},
 	simple: {
 		annotationValue: AnnotationValue
@@ -33,8 +37,6 @@ type ModuleRootState = {
 				[annotationId: string]: AnnotationValue
 			// }
 		},
-
-		withinClauses: Record<string, Record<string, any>>,
 
 		splitBatch: boolean,
 	},
@@ -59,13 +61,13 @@ const defaults: ModuleRootState = {
 		source: null,
 		targets: [],
 		alignBy: null,
+		withinClauses: {},
 	},
 	simple: {
 		annotationValue: {case: false, id: '', value: '', type: 'text'}
 	},
 	extended: {
 		annotationValues: {},
-		withinClauses: {},
 		splitBatch: false,
 	},
 	advanced: {
@@ -169,6 +171,9 @@ const actions = {
 		alignBy: b.commit((state, payload: string|null) => {
 			return (state.parallelFields.alignBy = payload == null ? UIStore.getState().search.shared.alignBy.defaultValue : payload);
 		}, 'parallelFields_align_by'),
+		withinClauses: b.commit((state, payload: Record<string, Record<string, any>>) => {
+			state.parallelFields.withinClauses = payload;
+		}, 'extended_within_clauses'),
 		reset: b.commit(state => {
 			const defaultSourceField = CorpusStore.get.parallelAnnotatedFields()[0]?.id;
 			debugLogCat('parallel', `parallelFields.reset: Selecting default source version ${defaultSourceField}`);
@@ -193,16 +198,13 @@ const actions = {
 			// Never overwrite annotatedFieldId or type, even when they're submitted through here.
 			Object.assign(state.extended.annotationValues[id], safeValues);
 		}, 'extended_annotation'),
-		withinClauses: b.commit((state, payload: Record<string, Record<string, any>>) => {
-			state.extended.withinClauses = payload;
-		}, 'extended_within_clauses'),
 		splitBatch: b.commit((state, payload: boolean) => state.extended.splitBatch = payload, 'extended_split_batch'),
 		reset: b.commit(state => {
 			Object.values(state.extended.annotationValues).forEach(annot => {
 				annot.value = '';
 				annot.case = false;
 			});
-			state.extended.withinClauses = {};
+			state.parallelFields.withinClauses = {};
 			state.extended.splitBatch = false;
 		}, 'extended_reset'),
 	},
@@ -261,12 +263,12 @@ const actions = {
 		actions.parallelFields.alignBy(payload.parallelFields.alignBy);
 		actions.parallelFields.sourceField(payload.parallelFields.source);
 		actions.parallelFields.targetFields(payload.parallelFields.targets);
+		actions.parallelFields.withinClauses(payload.parallelFields.withinClauses);
 
 		actions.simple.reset();
 		actions.simple.annotation(payload.simple.annotationValue);
 
 		actions.extended.reset();
-		actions.extended.withinClauses(payload.extended.withinClauses);
 		state.extended.splitBatch = payload.extended.splitBatch;
 		Object.values(payload.extended.annotationValues).forEach(actions.extended.annotation);
 
@@ -293,6 +295,7 @@ const init = () => {
 		source: defaultParallelVersion,
 		targets: [],
 		alignBy: null,
+		withinClauses: {},
 	})
 	CorpusStore.get.allAnnotations().forEach(({id, uiType}) =>
 		privateActions.initExtendedAnnotation({

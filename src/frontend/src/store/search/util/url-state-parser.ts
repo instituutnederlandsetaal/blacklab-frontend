@@ -482,6 +482,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			source: sourceFromUrl,
 			targets: this._parsedCql ? this._parsedCql.slice(1).map(result => result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '') : [],
 			alignBy: (this._parsedCql ? this._parsedCql[1]?.relationType : defaultAlignBy) ?? defaultAlignBy,
+			withinClauses: this.withinClauses,
 		};
 		return result;
 	}
@@ -507,8 +508,6 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 		return {
 			annotationValues: parsedAnnotationValues,
-
-			withinClauses: this.withinClauses,
 
 			// This is always false, it's just a checkbox that will split up the query when it's submitted, then untick itself
 			splitBatch: false

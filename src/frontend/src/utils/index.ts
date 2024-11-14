@@ -884,16 +884,16 @@ export function getPatternStringSearch(
 					...annot,
 					type: getCorrectUiType(uiTypeSupport.search.extended, annot.type!)
 				}));
-			return r.length || Object.keys(state.extended.withinClauses).length > 0 ?
-				getPatternString(r, state.extended.withinClauses, targets, alignBy) :
+			return r.length || Object.keys(state.parallelFields.withinClauses).length > 0 ?
+				getPatternString(r, state.parallelFields.withinClauses, targets, alignBy) :
 				undefined;
 		}
 		case 'advanced':
 			if (!state.advanced.query)
 				return undefined;
-			return getPatternStringFromCql(state.advanced.query, state.extended.withinClauses, targets, state.advanced.targetQueries, alignBy);
+			return getPatternStringFromCql(state.advanced.query, state.parallelFields.withinClauses, targets, state.advanced.targetQueries, alignBy);
 		case 'expert':
-			return getPatternStringFromCql(state.expert.query || '', state.extended.withinClauses, targets, state.expert.targetQueries, alignBy);
+			return getPatternStringFromCql(state.expert.query || '', state.parallelFields.withinClauses, targets, state.expert.targetQueries, alignBy);
 		case 'concept': return state.concept?.trim() || undefined;
 		case 'glosses': return state.glosses?.trim() || undefined;
 		default: throw new Error('Unimplemented pattern generation.');
