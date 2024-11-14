@@ -224,7 +224,7 @@ export default ParallelFields.extend({
 		},
 		within(): string|null {
 			// Find active within clause that matches one of the withinOptions (older radiobutton-style within widget)
-			const withinClauses = PatternStore.getState().parallelFields.withinClauses;
+			const withinClauses = PatternStore.getState().shared.withinClauses;
 			return Object.keys(withinClauses).find(w => this.withinOptions.some(o => o.value === w)) || null;
 		},
 		splitBatchEnabled(): boolean {

@@ -462,7 +462,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			return !!value;
 		},
 		onChange(id, filterMetadata, newValueWildcard) {
-			const withinClauses = PatternStore.getState().parallelFields.withinClauses;
+			const withinClauses = PatternStore.getState().shared.withinClauses;
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
 			const newValueRegex = newValueWildcard ? escapeRegex(newValueWildcard, { escapeWildcards: false }) : newValueWildcard;
@@ -492,7 +492,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			return !!(value && value.length > 0);
 		},
 		onChange(id, filterMetadata, newValuesWildcard) {
-			const withinClauses = PatternStore.getState().parallelFields.withinClauses;
+			const withinClauses = PatternStore.getState().shared.withinClauses;
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
 			const newValuesRegex = newValuesWildcard ? newValuesWildcard.map(v => escapeRegex(v, { escapeWildcards: false })) : newValuesWildcard;
@@ -518,7 +518,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			return !!(values && (values.low || values.high));
 		},
 		onChange(id, filterMetadata, newValues) {
-			const withinClauses = PatternStore.getState().parallelFields.withinClauses;
+			const withinClauses = PatternStore.getState().shared.withinClauses;
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
 			const current = { ...(withinClauses[name] || {}) };

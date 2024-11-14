@@ -42,7 +42,7 @@ type ModuleRootStateSearch<K extends keyof PatternModule.ModuleRootState> = {
 	subForm: K;
 
 	formState: PatternModule.ModuleRootState[K];
-	parallelFields: PatternModule.ModuleRootState['parallelFields'];
+	shared: PatternModule.ModuleRootState['shared'];
 	filters: FilterModule.ModuleRootState;
 	gap: GapModule.ModuleRootState;
 };
@@ -52,7 +52,7 @@ type ModuleRootStateExplore<K extends keyof ExploreModule.ModuleRootState> = {
 	subForm: K;
 
 	formState: ExploreModule.ModuleRootState[K];
-	parallelFields: PatternModule.ModuleRootState['parallelFields'];
+	shared: PatternModule.ModuleRootState['shared'];
 	filters: FilterModule.ModuleRootState;
 	gap: GapModule.ModuleRootState;
 };
@@ -61,7 +61,7 @@ type ModuleRootStateNone = {
 	form: null;
 	subForm: null;
 	formState: null;
-	parallelFields: null;
+	shared: null;
 	filters: null;
 	gap: null;
 };
@@ -72,7 +72,7 @@ const initialState: ModuleRootStateNone = {
 	form: null,
 	subForm: null,
 	formState: null,
-	parallelFields: null,
+	shared: null,
 	filters: null,
 	gap: null
 };
@@ -90,7 +90,7 @@ const get = {
 	 */
 	annotatedFieldName: b.read((state): string|undefined => {
 		switch (state.form) {
-			case 'search': return state.parallelFields.source || undefined;
+			case 'search': return state.shared.source || undefined;
 			case 'explore': return undefined; // always use default field.
 			default: return undefined;
 		}
@@ -100,7 +100,7 @@ const get = {
 
 		const formState = {
 			[state.subForm as string]: state.formState,
-			parallelFields: state.parallelFields,
+			shared: state.shared,
 		} as Partial<ModuleRootStateSearch<keyof PatternModule.ModuleRootState>>; /** egh, feel free to refactor */
 		const annotations = CorpusModule.get.allAnnotationsMap();
 		switch (state.form) {
@@ -117,7 +117,7 @@ const get = {
 	patternSummary: b.read((state, getters, rootState): string|undefined => {
 		const formState = {
 			[state.subForm as string]: state.formState,
-			parallelFields: state.parallelFields,
+			shared: state.shared,
 		} as any; /** egh, feel free to refactor */
 		switch (state.form) {
 		case 'search':

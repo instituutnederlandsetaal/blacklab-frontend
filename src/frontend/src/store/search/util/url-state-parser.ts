@@ -310,7 +310,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	private get patterns(): PatternModule.ModuleRootState {
 		return {
-			parallelFields: this.parallelFields,
+			shared: this.shared,
 			simple: this.simplePattern,
 			extended: this.extendedPattern,
 			advanced: this.advancedPattern,
@@ -457,7 +457,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	}
 
 	@memoize
-	private get parallelFields() {
+	private get shared() {
 		// The query typically doesn't contain the entire parallel field name.
 		// BlackLab allows passing just "en" instead of "contents__en" in some spots
 		// So we need to reconstruct the full field name from the query here.

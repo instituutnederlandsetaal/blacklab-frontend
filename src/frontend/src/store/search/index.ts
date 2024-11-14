@@ -183,7 +183,7 @@ const actions = {
 					// Also cast back into correct type after parsing/stringifying so we don't lose type-safety (parse returns any)
 					filters: get.filtersActive() ? cloneDeep(FilterModule.get.activeFiltersMap()) as ReturnType<typeof FilterModule['get']['activeFiltersMap']> : {},
 					formState: cloneDeep(ExploreModule.getState()[exploreMode]) as ExploreModule.ModuleRootState[typeof exploreMode],
-					parallelFields: cloneDeep(PatternModule.get.parallelAnnotatedFields()) as PatternModule.ModuleRootState['parallelFields'],
+					shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
 					gap: get.gapFillingActive() ? GapModule.getState() : GapModule.defaults,
 				};
 				break;
@@ -197,7 +197,7 @@ const actions = {
 					// Also cast back into correct type after parsing/stringifying so we don't lose type-safety (parse returns any)
 					filters: get.filtersActive() ? cloneDeep(FilterModule.get.activeFiltersMap()) as ReturnType<typeof FilterModule['get']['activeFiltersMap']> : {},
 					formState: cloneDeep(PatternModule.getState()[patternMode]) as PatternModule.ModuleRootState[typeof patternMode],
-					parallelFields: cloneDeep(PatternModule.get.parallelAnnotatedFields()) as PatternModule.ModuleRootState['parallelFields'],
+					shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
 					gap: get.gapFillingActive() ? GapModule.getState() : GapModule.defaults,
 				};
 				break;
@@ -277,20 +277,20 @@ const actions = {
 						query: null,
 						targetQueries: [],
 					},
-					parallelFields: PatternModule.getState().parallelFields, // <-- is this ok?
+					shared: PatternModule.getState().shared, // <-- is this ok?
 					simple: PatternModule.getState().simple,
 					extended: {
 						annotationValues: {
 							[a.id]: a
 						},
 						splitBatch: false,
-						withinClauses: state.patterns.parallelFields.withinClauses,
+						withinClauses: state.patterns.shared.withinClauses,
 					}
 				}
 			},
-			pattern: getPatternString([a], state.patterns.parallelFields.withinClauses,
-				state.patterns.parallelFields.targets,
-				state.patterns.parallelFields.alignBy || state.ui.search.shared.alignBy.defaultValue),
+			pattern: getPatternString([a], state.patterns.shared.withinClauses,
+				state.patterns.shared.targets,
+				state.patterns.shared.alignBy || state.ui.search.shared.alignBy.defaultValue),
 			// TODO :( url generation is too encapsulated to completely repro here
 			url: ''
 		}))

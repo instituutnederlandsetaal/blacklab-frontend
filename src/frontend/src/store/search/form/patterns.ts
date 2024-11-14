@@ -17,7 +17,7 @@ import { AnnotationValue, Option } from '@/types/apptypes';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
-	parallelFields: {
+	shared: {
 		/** Id of the annotated field that is the source we're searching in */
 		source: string|null,
 		/** Ids of the annotated fields that we're comparing to */
@@ -57,7 +57,7 @@ type ModuleRootState = {
 // Then: the basic state shape with the appropriate annotation and filters created
 // Finally: the values initialized from the page's url on first load.
 const defaults: ModuleRootState = {
-	parallelFields: {
+	shared: {
 		source: null,
 		targets: [],
 		alignBy: null,
@@ -99,7 +99,7 @@ const get = {
 	simple: b.read(state => state.simple, 'simple'),
 
 	/** Selected parallel source and target versions. Note that these are the full ids of the annotatedFields (e.g. "contents__nl") */
-	parallelAnnotatedFields: b.read(state => state.parallelFields, 'parallelFields'),
+	shared: b.read(state => state.shared, 'shared'),
 };
 
 const privateActions = {
@@ -109,15 +109,15 @@ const privateActions = {
 			Vue.set(state.extended.annotationValues, payload.id, payload), 'annotation_init_extended'),
 	initSimpleAnnotation: b.commit((state, payload: ModuleRootState['simple']) => Object.assign<ModuleRootState['simple'],
 			ModuleRootState['simple']>(state.simple, payload), 'annotation_init_simple'),
-	initParallel: b.commit((state, payload: ModuleRootState['parallelFields']) => Object.assign<ModuleRootState['parallelFields'],
-			ModuleRootState['parallelFields']>(state.parallelFields, payload), 'parallelFiels_init'),
+	initParallel: b.commit((state, payload: ModuleRootState['shared']) => Object.assign<ModuleRootState['shared'],
+			ModuleRootState['shared']>(state.shared, payload), 'parallelFiels_init'),
 };
 
 const setTargetFields = (state: ModuleRootState, payload: string[]): string[] => {
 	// sanity check:
 	if (payload.find(annotatedFieldId => !CorpusStore.get.parallelAnnotatedFieldsMap()[annotatedFieldId])) {
 		console.error('Tried to set target fields to non-existent annotated field, maybe mixup between version and annotatedField');
-		return state.parallelFields.targets;
+		return state.shared.targets;
 	}
 
 	if (payload && payload.length > 0) {
@@ -128,27 +128,27 @@ const setTargetFields = (state: ModuleRootState, payload: string[]): string[] =>
 			state.expert.targetQueries.push('');
 		}
 	}
-	return Vue.set(state.parallelFields, 'targets', payload);
+	return Vue.set(state.shared, 'targets', payload);
 };
 
 const actions = {
-	parallelFields: {
+	shared: {
 		sourceField: b.commit((state, payload: string|null) => {
 			if (payload && !CorpusStore.get.parallelAnnotatedFieldsMap()[payload]) {
 				console.error('Tried to set source version to non-existent annotated field. Ignoring');
 				return;
 			}
-			return (state.parallelFields.source = payload);
-		}, 'parallelFields_source_version'),
+			return (state.shared.source = payload);
+		}, 'shared_source_version'),
 		addTarget: b.commit((state, version: string) => {
-			debugLogCat('parallel', `parallelFields.addTargetVersion: Adding ${version}`);
+			debugLogCat('parallel', `shared.addTargetVersion: Adding ${version}`);
 			if (!version) {
 				console.warn('tried to add null target version');
 				return;
 			}
-			const payload = state.parallelFields.targets.concat([version]);
+			const payload = state.shared.targets.concat([version]);
 			return setTargetFields(state, payload);
-		}, 'parallelFields_addTarget'),
+		}, 'shared_addTarget'),
 		removeTarget: b.commit((state, version: string) => {
 			if (!CorpusStore.get.parallelAnnotatedFieldsMap()[version]) {
 				console.error('Tried to remove non-existent target version');
@@ -156,12 +156,12 @@ const actions = {
 			}
 
 			debugLogCat('parallel', `parallelFields.removeTargetVersion: Removing ${version}`);
-			const index = state.parallelFields.targets.indexOf(version);
+			const index = state.shared.targets.indexOf(version);
 			if (index < 0) {
 				console.warn('tried to remove non-existent target version');
 				return;
 			}
-			state.parallelFields.targets.splice(index, 1);
+			state.shared.targets.splice(index, 1);
 			if (state.advanced.targetQueries.length > index)
 				state.advanced.targetQueries.splice(index, 1);
 			if (state.expert.targetQueries.length > index)
@@ -169,19 +169,20 @@ const actions = {
 		}, 'parallelFields_removeTarget'),
 		targetFields: b.commit(setTargetFields, 'parallelFields_targets'),
 		alignBy: b.commit((state, payload: string|null) => {
-			return (state.parallelFields.alignBy = payload == null ? UIStore.getState().search.shared.alignBy.defaultValue : payload);
-		}, 'parallelFields_align_by'),
+			return (state.shared.alignBy = payload == null ? UIStore.getState().search.shared.alignBy.defaultValue : payload);
+		}, 'shared_align_by'),
 		withinClauses: b.commit((state, payload: Record<string, Record<string, any>>) => {
-			state.parallelFields.withinClauses = payload;
-		}, 'extended_within_clauses'),
+			state.shared.withinClauses = payload;
+		}, 'shared_within_clauses'),
 		reset: b.commit(state => {
 			const defaultSourceField = CorpusStore.get.parallelAnnotatedFields()[0]?.id;
-			debugLogCat('parallel', `parallelFields.reset: Selecting default source version ${defaultSourceField}`);
-			state.parallelFields.source = defaultSourceField;
-			state.parallelFields.targets = [];
+			debugLogCat('shared', `shared.reset: Selecting default source version ${defaultSourceField}`);
+			state.shared.source = defaultSourceField;
+			state.shared.targets = [];
 			const v = UIStore.getState().search.shared.alignBy.defaultValue;
-			state.parallelFields.alignBy = v;
-		}, 'parallelFields_reset'),
+			state.shared.alignBy = v;
+			state.shared.withinClauses = {};
+		}, 'shared_reset'),
 	},
 	simple: {
 		annotation: b.commit((state, {id, type, ...safeValues}: Partial<AnnotationValue>&{id: string}) => {
@@ -204,7 +205,6 @@ const actions = {
 				annot.value = '';
 				annot.case = false;
 			});
-			state.parallelFields.withinClauses = {};
 			state.extended.splitBatch = false;
 		}, 'extended_reset'),
 	},
@@ -259,11 +259,11 @@ const actions = {
 	}, 'reset'),
 
 	replace: b.commit((state, payload: ModuleRootState) => {
-		actions.parallelFields.reset();
-		actions.parallelFields.alignBy(payload.parallelFields.alignBy);
-		actions.parallelFields.sourceField(payload.parallelFields.source);
-		actions.parallelFields.targetFields(payload.parallelFields.targets);
-		actions.parallelFields.withinClauses(payload.parallelFields.withinClauses);
+		actions.shared.reset();
+		actions.shared.alignBy(payload.shared.alignBy);
+		actions.shared.sourceField(payload.shared.source);
+		actions.shared.targetFields(payload.shared.targets);
+		actions.shared.withinClauses(payload.shared.withinClauses);
 
 		actions.simple.reset();
 		actions.simple.annotation(payload.simple.annotationValue);

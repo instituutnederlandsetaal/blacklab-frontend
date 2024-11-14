@@ -33,9 +33,9 @@ export default Vue.extend({
 			}));
 		},
 		alignBy: {
-			get(): string { return PatternStore.get.parallelAnnotatedFields().alignBy || UIStore.getState().search.shared.alignBy.defaultValue; },
+			get(): string { return PatternStore.get.shared().alignBy || UIStore.getState().search.shared.alignBy.defaultValue; },
 			set(value: string) {
-				PatternStore.actions.parallelFields.alignBy(value === '' ? null : value);
+				PatternStore.actions.shared.alignBy(value === '' ? null : value);
 			},
 		}
 	},

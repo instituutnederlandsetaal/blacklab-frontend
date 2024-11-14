@@ -402,9 +402,8 @@ function parenQueryPart(query: string, exceptions: string[] = []) {
 export function unparenQueryPart(query?: string) {
 	if (query) {
 		query = query.trim();
-		if (query.match(/^\([^)]+\)$/)) {
-			const result = query.substring(1, query.length - 1);
-			return result;
+		while (query.startsWith('(') && query.endsWith(')')) {
+			query = query.substring(1, query.length - 1);
 		}
 	}
 	return query;
@@ -456,7 +455,6 @@ function applyWithinClauses(query: string, withinClauses: Record<string, Record<
 					})
 					.join('')
 				: '';
-			console.log('within', within, 'attr', attr);
 			const tags = `<${within}${attr}/>`;
 			if (queryGiven) {
 				// Actual within
@@ -869,8 +867,8 @@ export function getPatternStringSearch(
 	// For the normal search form,
 	// the simple and extended views require the values to be processed before converting them to cql.
 	// The advanced and expert views already contain a good-to-go cql query. We only need to take care not to emit an empty string.
-	const alignBy = state.parallelFields.alignBy || defaultAlignBy;
-	const targets = state.parallelFields.targets || [];
+	const alignBy = state.shared.alignBy || defaultAlignBy;
+	const targets = state.shared.targets || [];
 	switch (subForm) {
 		case 'simple':
 			const q = state.simple.annotationValue.value ? [state.simple.annotationValue] : [];
@@ -884,16 +882,16 @@ export function getPatternStringSearch(
 					...annot,
 					type: getCorrectUiType(uiTypeSupport.search.extended, annot.type!)
 				}));
-			return r.length || Object.keys(state.parallelFields.withinClauses).length > 0 ?
-				getPatternString(r, state.parallelFields.withinClauses, targets, alignBy) :
+			return r.length || Object.keys(state.shared.withinClauses).length > 0 ?
+				getPatternString(r, state.shared.withinClauses, targets, alignBy) :
 				undefined;
 		}
 		case 'advanced':
 			if (!state.advanced.query)
 				return undefined;
-			return getPatternStringFromCql(state.advanced.query, state.parallelFields.withinClauses, targets, state.advanced.targetQueries, alignBy);
+			return getPatternStringFromCql(state.advanced.query, state.shared.withinClauses, targets, state.advanced.targetQueries, alignBy);
 		case 'expert':
-			return getPatternStringFromCql(state.expert.query || '', state.parallelFields.withinClauses, targets, state.expert.targetQueries, alignBy);
+			return getPatternStringFromCql(state.expert.query || '', state.shared.withinClauses, targets, state.expert.targetQueries, alignBy);
 		case 'concept': return state.concept?.trim() || undefined;
 		case 'glosses': return state.glosses?.trim() || undefined;
 		default: throw new Error('Unimplemented pattern generation.');
