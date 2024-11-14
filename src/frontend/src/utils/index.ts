@@ -427,7 +427,19 @@ export const getPatternString = (
 	}));
 
 	let query = tokens.map(t => `[${t.join('&')}]`).join('');
+	query = applyWithinClauses(query, withinClauses);
+
+	if (parallelTargetFields.length > 0) {
+		const relationType = alignBy ?? '';
+		query = `${parenQueryPart(query, ['[]*', '_'])}` + parallelTargetFields.map(v => ` =${relationType}=>${getParallelFieldParts(v).version}? _`).join(' ; ');
+	}
+
+	return query || undefined;
+};
+
+function applyWithinClauses(query: string, withinClauses: Record<string, Record<string, any>>) {
 	const queryGiven = query.length > 0;
+	console.log('withinClauses', withinClauses);
 	if (Object.keys(withinClauses).length > 0) {
 		for (const [within, withinAttributes] of Object.entries(withinClauses)) {
 			const attr = withinAttributes ?
@@ -444,6 +456,7 @@ export const getPatternString = (
 					})
 					.join('')
 				: '';
+			console.log('within', within, 'attr', attr);
 			const tags = `<${within}${attr}/>`;
 			if (queryGiven) {
 				// Actual within
@@ -457,32 +470,28 @@ export const getPatternString = (
 			}
 		}
 	}
-
-	if (parallelTargetFields.length > 0) {
-		const relationType = alignBy ?? '';
-		query = `${parenQueryPart(query, ['[]*', '_'])}` + parallelTargetFields.map(v => ` =${relationType}=>${getParallelFieldParts(v).version}? _`).join(' ; ');
-	}
-
-	return query || undefined;
-};
+	return query;
+}
 
 function parenQueryPartParallel(query: string) {
 	const parenExceptions = ['[]*', '_'];
 	return parenQueryPart(query === '[]*' ? '_' : query, parenExceptions);
 }
 
-export const getPatternStringFromCql = (sourceCql: string, targetVersions: string[], targetCql: string[], alignBy?: string) => {
+export const getPatternStringFromCql = (sourceCql: string, withinClauses: Record<string, Record<string, any>>,
+		targetVersions: string[], targetCql: string[], alignBy?: string) => {
 	if (targetVersions.length > targetCql.length) {
 		console.error('There must be a CQL query for each selected parallel version!', targetVersions, targetCql);
 		throw new Error(`There must be a CQL query for each selected parallel version!`);
 	}
 
 	if (targetVersions.length === 0) {
-		return sourceCql;
+		return applyWithinClauses(sourceCql, withinClauses);
 	}
 
 	const defaultSourceQuery = targetVersions.length > 0 ? '_': '';
-	const queryParts = [parenQueryPartParallel(sourceCql.trim() || defaultSourceQuery)];
+	const sourceQuery = applyWithinClauses(sourceCql.trim() || defaultSourceQuery, withinClauses);
+	const queryParts = [parenQueryPartParallel(sourceQuery)];
 	const relationType = alignBy ?? '';
 	for (let i = 0; i < targetVersions.length; i++) {
 		if (i > 0)
@@ -856,6 +865,7 @@ export function getPatternStringSearch(
 	state: ModuleRootStateSearch,
 	defaultAlignBy: string,
 ): string|undefined {
+	console.log(state);
 	// For the normal search form,
 	// the simple and extended views require the values to be processed before converting them to cql.
 	// The advanced and expert views already contain a good-to-go cql query. We only need to take care not to emit an empty string.
@@ -881,9 +891,9 @@ export function getPatternStringSearch(
 		case 'advanced':
 			if (!state.advanced.query)
 				return undefined;
-			return getPatternStringFromCql(state.advanced.query, targets, state.advanced.targetQueries, alignBy);
+			return getPatternStringFromCql(state.advanced.query, state.extended.withinClauses, targets, state.advanced.targetQueries, alignBy);
 		case 'expert':
-			return getPatternStringFromCql(state.expert.query || '', targets, state.expert.targetQueries, alignBy);
+			return getPatternStringFromCql(state.expert.query || '', state.extended.withinClauses, targets, state.expert.targetQueries, alignBy);
 		case 'concept': return state.concept?.trim() || undefined;
 		case 'glosses': return state.glosses?.trim() || undefined;
 		default: throw new Error('Unimplemented pattern generation.');
