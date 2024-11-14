@@ -42,8 +42,6 @@ import { BLSearchParameters } from '@/types/blacklabtypes';
 import HitRow, {HitRows} from '@/pages/search/results/table/HitRow.vue'
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue'
 
-export {HitRows as HitRowData} from '@/pages/search/results/table/HitRow.vue';
-
 
 /**
  * TODO maybe move transformation of blacklab results -> hit row into this component?
