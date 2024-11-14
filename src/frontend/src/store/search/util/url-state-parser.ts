@@ -537,8 +537,17 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		const isParallel = (this._parsedCql?.length ?? 0) > 1;
 		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*') ? '' : q;
 
+		// Strip any withinClauses from the end of the CQL query
+		function stripWithins(q: string) {
+			// TODO: actually only strip those with a GUI widget..?
+			return q.replace(/( within <[^\/]+\/>)+$/g, '');
+		}
+
+		const hasWithinClauses = this._parsedCql && this._parsedCql[0].withinClauses && Object.keys(this._parsedCql[0].withinClauses).length > 0;
+		const query = unparenQueryPart(hasWithinClauses ? stripWithins(this._parsedCql![0].query ?? '') : this._parsedCql?.[0].query ?? '');
+
 		return {
-			query: this._parsedCql ? optEmpty(unparenQueryPart(this._parsedCql[0].query)) || null : null,
+			query: this._parsedCql ? optEmpty(unparenQueryPart(query)) || null : null,
 			targetQueries: this._parsedCql ? this._parsedCql.slice(1).map(r => optEmpty(unparenQueryPart(r.query)) || '') : [],
 		};
 	}
