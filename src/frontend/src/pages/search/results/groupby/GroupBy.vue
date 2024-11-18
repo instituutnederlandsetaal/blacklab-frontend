@@ -362,11 +362,13 @@ export default Vue.extend({
 						const spanInfo = CorpusStore.getState().corpus!.relations.spans![k];
 						const attr = Object.keys(spanInfo.attributes);
 						attr.forEach(a => {
-							result.push({
-								label: `Tag ${k}, attribuut ${a}`,
-								value: `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([k,a])}`,
-								title: `Tag ${k}, attribuut ${a}`
-							});
+							if (UIStore.corpusCustomizations.grouping.includeSpanAttribute(k, a)) {
+								result.push({
+									label: `Tag ${k}, attribuut ${a}`,
+									value: `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([k,a])}`,
+									title: `Tag ${k}, attribuut ${a}`
+								});
+							}
 						});
 					}
 				});

@@ -1332,20 +1332,18 @@ const corpusCustomizations = {
 				};
 			},
 		},
-
-		grouping: {
-			addSpanAttributeCategory(categoryName: string, spans: [string, string, string][]) {
-				spans.forEach(([displayName, spanName, attrName]) => {
-					console.log(`Adding span attribute category: ${categoryName} - ${displayName} (${spanName}:${attrName})`);
-				});
-			},
-		},
 	},
 
 	results: {
 		matchInfoHighlightStyle: (matchInfo: HighlightSection): string|null => {
 			return null; // fall back to default behaviour
 		}
+	},
+
+	grouping: {
+		includeSpanAttribute(spanName: string, attrName: string) {
+			return true;
+		},
 	}
 };
 
