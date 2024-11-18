@@ -438,7 +438,6 @@ export const getPatternString = (
 
 function applyWithinClauses(query: string, withinClauses: Record<string, Record<string, any>>) {
 	const queryGiven = query.length > 0;
-	console.log('withinClauses', withinClauses);
 	if (Object.keys(withinClauses).length > 0) {
 		for (const [within, withinAttributes] of Object.entries(withinClauses)) {
 			const attr = withinAttributes ?
@@ -863,7 +862,6 @@ export function getPatternStringSearch(
 	state: ModuleRootStateSearch,
 	defaultAlignBy: string,
 ): string|undefined {
-	console.log(state);
 	// For the normal search form,
 	// the simple and extended views require the values to be processed before converting them to cql.
 	// The advanced and expert views already contain a good-to-go cql query. We only need to take care not to emit an empty string.
