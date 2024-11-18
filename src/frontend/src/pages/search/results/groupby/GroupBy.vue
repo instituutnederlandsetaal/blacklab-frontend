@@ -42,7 +42,7 @@
 						data-width="auto"
 						data-menu-width="auto"
 						hideEmpty />
-				<i18n path="results.groupBy.iWantToGroupOnAnnotation" tag="div">
+				<i18n :path="'results.groupBy.' + (contextValue.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE) ? 'iWantToGroupOnNoAnnotation' : 'iWantToGroupOnAnnotation')" tag="div">
 					<!-- allow unknown values here. If grouping on a capture group/relation, they're not always available immediately (we need the first hit to decode them). -->
 					<template #some_words><SelectPicker
 						:options="contextOptions"
@@ -244,7 +244,9 @@ export default Vue.extend({
 		/** For the preview. Results from props can also be grouped, so we need to request these ourselves. */
 		hits: undefined as undefined|BLHitResults,
 
-		active: false
+		active: false,
+
+		OPT_PREFIX_SPAN_ATTRIBUTE,
 	}),
 	computed: {
 		metadataGroups() { return CorpusStore.get.metadataGroups() },

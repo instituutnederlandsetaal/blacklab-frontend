@@ -199,6 +199,7 @@
 
 			"parallelCorpusVersion": "Looking at version ",
 			"iWantToGroupOnAnnotation": "I want to group on {some_words} {in_this_location_with_text} using annotation {this_annotation}.",
+			"iWantToGroupOnNoAnnotation": "I want to group on {some_words}.",
 			"in_this_location_with_text": "{in_this_location}",
 
 			"some_words": {

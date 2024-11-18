@@ -272,6 +272,8 @@ export function isValidGroupBy(g: GroupBy): boolean {
 	if (!g.type) return false;
 	if (g.type === 'metadata' && !g.field) return false;
 	if (g.type === 'context') {
+		if (g.context.type === 'span-attribute')
+			return !!(g.context.spanName && g.context.attributeName);
 		if (!g.annotation) return false;
 		if (g.context.type === 'label' && !g.context.label) return false;
 		if (g.context.type === 'positional' && !g.context.position) return false;
