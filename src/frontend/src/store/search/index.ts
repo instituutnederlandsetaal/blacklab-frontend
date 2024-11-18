@@ -374,12 +374,17 @@ const init = async () => {
 				privateActions.setLoadingState({loadingState: 'unauthorized', loadingMessage: e.message});
 			} else if (e.httpCode === 404) {
 				// Not found. May not be configured correctly.
-				privateActions.setLoadingState({loadingState: 'error', loadingMessage:
-					'Unable to contact BlackLab Server (or corpus-frontend\'s own server component). ' +
-					'Make sure both .war applications have been deployed, and your properties file ' +
-					'is in the correct location and has the correct name. ' +
-					'Refer to the documentation at https://github.com/INL/corpus-frontend '
-				});
+				if (e.message.indexOf('blacklabResponse') !== -1) {
+					privateActions.setLoadingState({loadingState: 'error', loadingMessage: e.message});
+				} else {
+					// No blacklab response; something isn't configured correctly.
+					privateActions.setLoadingState({loadingState: 'error', loadingMessage:
+						'Unable to contact BlackLab Server (or corpus-frontend\'s own server component). ' +
+						'Make sure both .war applications have been deployed, and your properties file ' +
+						'is in the correct location and has the correct name. ' +
+						'Refer to the documentation at https://github.com/INL/corpus-frontend '
+					});
+				}
 			} else {
 				// Some other API error. Show message.
 				privateActions.setLoadingState({loadingState: 'error', loadingMessage: e.message});
