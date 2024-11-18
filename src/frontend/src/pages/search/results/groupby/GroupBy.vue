@@ -202,7 +202,7 @@ import { blacklab } from '@/api';
 
 import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, BLHitInOtherField, BLMatchInfo} from '@/types/blacklabtypes';
 
-import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel, humanizeGroupBy as summarizeGroup, OPT_PREFIX_TAG_ATTR} from '@/utils/grouping';
+import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel, humanizeGroupBy as summarizeGroup } from '@/utils/grouping';
 
 import debug from '@/utils/debug';
 
@@ -217,6 +217,9 @@ import { CaptureAndRelation, HitToken, Option, TokenHighlight } from '@/types/ap
 
 
 import Tabs from '@/components/Tabs.vue';
+
+// What we prefix the tag attribute grouping option with so we can recognize it
+const OPT_PREFIX_SPAN_ATTRIBUTE = '$TAGATTR:';
 
 export default Vue.extend({
 	components: {
@@ -359,7 +362,7 @@ export default Vue.extend({
 						attr.forEach(a => {
 							result.push({
 								label: `Tag ${k}, attribuut ${a}`,
-								value: `${OPT_PREFIX_TAG_ATTR}${JSON.stringify([k,a])}`,
+								value: `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([k,a])}`,
 								title: `Tag ${k}, attribuut ${a}`
 							});
 						});
@@ -589,7 +592,14 @@ export default Vue.extend({
 			get(): 'first'|'all'|'context'|string {
 				// if grouping on a label: return the label, if grouping on a position: return the position.
 				// Otherwise blank.
-				return this.selectedCriteriumAsLabel?.context.label ?? this.selectedCriteriumAsPositional?.context.whichTokens ?? '';
+				if (this.selectedCriterium?.type !== 'context')
+					return '';
+				else if (this.selectedCriterium.context.type === 'span-attribute')
+					return `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([this.selectedCriterium.context.spanName, this.selectedCriterium.context.attributeName])}`;
+				else if (this.selectedCriterium.context.type === 'label')
+					return this.selectedCriterium.context.label;
+				else
+					return this.selectedCriteriumAsPositional?.context.whichTokens ?? '';
 			},
 			/** The string value is when grouping on a capture group or relation. */
 			set(v: 'first'|'all'|'specific'|string) {
@@ -615,10 +625,21 @@ export default Vue.extend({
 						this.selectedCriteriumAsPositional.context.position = 'H';
 					}
 				} else {
-					this.selectedCriterium.context = {
-						type: 'label',
-						label: v,
-						relation: this.relationNames?.includes(v) ? this.getInitialRelationPartValue(v) : undefined
+					if (v.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE)) {
+						// grouping on a span attribute
+						const [tag, attr] = JSON.parse(v.slice(OPT_PREFIX_SPAN_ATTRIBUTE.length));
+						this.selectedCriterium.context = {
+							type: 'span-attribute',
+							spanName: tag,
+							attributeName: attr
+						};
+					} else {
+						// update context object as we're currently grouping on a label.
+						this.selectedCriterium.context = {
+							type: 'label',
+							label: v,
+							relation: this.relationNames?.includes(v) ? this.getInitialRelationPartValue(v) : undefined
+						}
 					}
 				}
 			},

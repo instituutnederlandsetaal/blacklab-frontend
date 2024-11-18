@@ -244,6 +244,7 @@
 				"firstWord": "eerste {field} {position}",
 				"allWords": "{field} {position}",
 				"labelledWord": "label {label} op {field}",
+				"spanAttribute": "tag {span}, attribuut {attribute}",
 				"metadata": "Document {field}",
 
 				"position": {

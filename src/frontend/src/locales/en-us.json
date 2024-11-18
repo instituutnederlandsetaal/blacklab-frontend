@@ -242,6 +242,7 @@
 				"firstWord": "first {field} {position}",
 				"allWords": "{field} {position}",
 				"labelledWord": "label {label} on {field}",
+				"spanAttribute": "tag {span}, attribute {attribute}",
 				"metadata": "Document {field}",
 
 				"position": {
