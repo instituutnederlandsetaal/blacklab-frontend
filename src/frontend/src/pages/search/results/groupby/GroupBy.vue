@@ -346,6 +346,26 @@ export default Vue.extend({
 				});
 			return result;
 		},
+		tagAttributes() {
+			const mi = this.hits?.summary?.pattern?.matchInfos;
+			const result: { label: string, value: string }[] = [];
+			Object.entries(mi|| {})
+				.filter(([k, v]) => v.type === 'tag')
+				.forEach(([k,v]) => {
+					const sourceInThisField = this.relationSourceInThisField(v);
+					if (sourceInThisField) {
+						const spanInfo = CorpusStore.getState().corpus!.relations.spans![k];
+						const attr = Object.keys(spanInfo.attributes);
+						attr.forEach(a => {
+							result.push({
+								label: `Tag ${k}, attribuut ${a}`,
+								value: `$TAGATTR:${JSON.stringify([k,a])}`
+							});
+						});
+					}
+				});
+			return result;
+		},
 		relationNames(): string[] {
 			return this.relations.map(c => c.name);
 		},
@@ -508,6 +528,9 @@ export default Vue.extend({
 				label: this.$t('results.groupBy.some_words.specificWords').toString(),
 				value: 'specific'
 			}, {
+				label: this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
+				options: this.tagAttributes,
+			}, {
 				label: this.$t('results.groupBy.some_words.captureGroupsLabel').toString(),
 				options: [
 					...this.relations.map(c => ({
@@ -517,7 +540,7 @@ export default Vue.extend({
 					...this.captures.map(c => ({
 						label: `<span class="color-ball" style="background-color: ${this.colors[c.label].color};">&nbsp;</span> capture ${c.name}`,
 						value: c.name
-					}))
+					})),
 				]
 			}];
 		},

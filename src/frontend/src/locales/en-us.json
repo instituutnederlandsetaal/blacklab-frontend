@@ -205,7 +205,8 @@
 				"theFirstWord": "the first word",
 				"allWords": "all words",
 				"specificWords": "specific words",
-				"captureGroupsLabel": "Labels and relations"
+				"captureGroupsLabel": "Labels and relations",
+				"spanFiltersLabel": "Span filters"
 			},
 			"in_this_location": {
 				"beforeTheHit": "before the hit",
