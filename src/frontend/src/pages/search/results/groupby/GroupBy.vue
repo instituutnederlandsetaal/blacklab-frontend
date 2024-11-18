@@ -202,7 +202,7 @@ import { blacklab } from '@/api';
 
 import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, BLHitInOtherField, BLMatchInfo} from '@/types/blacklabtypes';
 
-import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel, humanizeGroupBy as summarizeGroup} from '@/utils/grouping';
+import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel, humanizeGroupBy as summarizeGroup, OPT_PREFIX_TAG_ATTR} from '@/utils/grouping';
 
 import debug from '@/utils/debug';
 
@@ -348,7 +348,7 @@ export default Vue.extend({
 		},
 		tagAttributes() {
 			const mi = this.hits?.summary?.pattern?.matchInfos;
-			const result: { label: string, value: string }[] = [];
+			const result: { label?: string, value: string, title?: string }[] = [];
 			Object.entries(mi|| {})
 				.filter(([k, v]) => v.type === 'tag')
 				.forEach(([k,v]) => {
@@ -359,7 +359,8 @@ export default Vue.extend({
 						attr.forEach(a => {
 							result.push({
 								label: `Tag ${k}, attribuut ${a}`,
-								value: `$TAGATTR:${JSON.stringify([k,a])}`
+								value: `${OPT_PREFIX_TAG_ATTR}${JSON.stringify([k,a])}`,
+								title: `Tag ${k}, attribuut ${a}`
 							});
 						});
 					}

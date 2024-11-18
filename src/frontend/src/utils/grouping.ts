@@ -1,5 +1,6 @@
 import { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes";
 import { BLHitResults, BLSearchResult } from '@/types/blacklabtypes';
+import { attr } from 'highcharts';
 
 /** Group by some tokens at a fixed position in the hit. */
 export type ContextPositional = {
@@ -255,12 +256,21 @@ export function isValidGroupBy(g: GroupBy): boolean {
 	return true;
 }
 
+// What we prefix the tag attribute grouping option with so we can recognize it
+export const OPT_PREFIX_TAG_ATTR = '$TAGATTR:';
+
 export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<string, NormalizedAnnotation>, metadata: Record<string, NormalizedMetadataField>): string {
 	if (g.type === 'context') {
 		if (!g.annotation) return i18n.$t('results.groupBy.specify').toString();
 		const field = i18n.$tAnnotDisplayName(annotations[g.annotation]);
 
-		if (g.context.type === 'label') return i18n.$t('results.groupBy.summary.labelledWord', {field, label: g.context.label}).toString();
+		if (g.context.type === 'label' && g.context.label.startsWith(OPT_PREFIX_TAG_ATTR)) {
+			const [tagName, attributeName] = JSON.parse(g.context.label.substring(OPT_PREFIX_TAG_ATTR.length));
+			return `Tag ${tagName}, attribute ${attributeName}`;
+		}
+
+		if (g.context.type === 'label')
+			return i18n.$t('results.groupBy.summary.labelledWord', {field, label: g.context.label}).toString();
 
 		let positionDisplay: string;
 		switch (g.context.position) {
