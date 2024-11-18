@@ -199,6 +199,7 @@
 
 			"parallelCorpusVersion": "查看版本",
 			"iWantToGroupOnAnnotation": "我想使用注释 {this_annotation} 对 {in_this_location_with_text} {some_words} 进行分组.",
+			"iWantToGroupOnNoAnnotation": "对 {some_words} 进行分组.",
 			"in_this_location_with_text": "{in_this_location} 的",
 
 			"some_words": {
