@@ -950,6 +950,12 @@ export function getParallelFieldName(prefix: string, version: string) {
 	return `${prefix}${PARALLEL_FIELD_SEPARATOR}${version}`;
 }
 
+/** Does the specified field name denote a field in a parallel corpus? */
 export function isParallelField(fieldName: string) {
 	return fieldName.includes(PARALLEL_FIELD_SEPARATOR);
+}
+
+/** Are these valid parameters with a pattern that will yield results with hits? */
+export function isHitParams(params: BLTypes.BLSearchParameters|null|undefined) {
+	return params && (params.patt || params.pattSpanFilters);
 }

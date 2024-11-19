@@ -197,7 +197,7 @@ import * as ResultsStore from '@/store/search/results/views';
 import * as GlobalSearchSettingsStore from '@/store/search/results/global';
 import * as SearchModule from '@/store/search/index';
 
-import { getAnnotationSubset, getMetadataSubset } from '@/utils';
+import { getAnnotationSubset, getMetadataSubset, isHitParams } from '@/utils';
 import { blacklab } from '@/api';
 
 import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, BLHitInOtherField, BLMatchInfo} from '@/types/blacklabtypes';
@@ -269,7 +269,8 @@ export default Vue.extend({
 		storeValue(): string[] { return this.storeModule.getState().groupBy; },
 		firstHitPreviewQuery(): BLSearchParameters|undefined {
 			let params = SearchModule.get.blacklabParameters();
-			if (!params || !params.patt) return undefined; // can't get hits without a query
+			if (!params || !isHitParams(params))
+				return undefined; // can't get hits without a query
 
 			params = {...params}; // make a copy before modifying
 			if (!params.viewgroup)
