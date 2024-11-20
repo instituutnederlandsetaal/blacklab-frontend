@@ -401,9 +401,10 @@ function parenQueryPart(query: string, exceptions: string[] = []) {
 /** Remove parentheses from a BCQL query part if it's parenthesized */
 export function unparenQueryPart(query?: string) {
 	if (query) {
+
 		query = query.trim();
-		while (query.startsWith('(') && query.endsWith(')')) {
-			query = query.substring(1, query.length - 1);
+		while (query.match(/^\([^\(\)]*\)$/)) {
+			query = query.substring(1, query.length - 1).trim();
 		}
 	}
 	return query;
