@@ -290,7 +290,12 @@ urlInputParameters$.pipe(
 .subscribe(v => {
 	if (showDebugCat('history'))
 		debugLog('Adding/updating query in query history, adding browser history entry, and reporting to ga', v.url, v.entry);
-	HistoryStore.actions.addEntry({entry: v.entry, pattern: v.params && v.params.patt, url: v.url});
+	HistoryStore.actions.addEntry({
+		entry: v.entry,
+		pattern: v.params && v.params.patt,
+		patternSpanFilters: v.params && v.params.pattSpanFilters,
+		url: v.url
+	});
 	debugLogCat('history', `Calling pushState with entry: ${JSON.stringify(v.entry)} and url: ${v.url}`);
 	history.pushState(v.entry, '', v.url);
 

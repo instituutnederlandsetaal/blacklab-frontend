@@ -54,6 +54,14 @@ type HistoryEntry = {
 	glosses: GlossModule.HistoryState;
 };
 
+/** Intermediate type between HistoryEntry and FullHistoryEntry used in a few places */
+export type HistoryEntryPatternAndUrl = {
+	entry: HistoryEntry;
+	pattern?: string;
+	patternSpanFilters?: Record<string, Record<string, string>>;
+	url: string;
+};
+
 type FullHistoryEntry = HistoryEntry&{
 	/** String representations of the query, for simpler displaying of the entry in UI */
 	displayValues: {
@@ -143,7 +151,7 @@ const internalActions = {
 };
 
 const actions = {
-	addEntry: b.commit((state, {entry, pattern, url}: {entry: HistoryEntry; pattern?: string; url: string;}) => {
+	addEntry: b.commit((state, {entry, pattern, patternSpanFilters, url}: HistoryEntryPatternAndUrl) => {
 		// history is updated together with page url, so we don't always receive a state we need to store.
 		if (entry.interface.viewedResults == null) {
 			return;
@@ -160,10 +168,13 @@ const actions = {
 		// Should only contain items that uniquely identify a query
 		// Normally this would only be the pattern (including gap values) and filters,
 		// but we've agreed that grouping differently constitutes a new query, so we also need to compare those
-		// TODO: does changing source/targetfields also constitute a new query?
+		// Note that changing search field (source field in a parallel corpus) also constitute a new query,
+		//  but target fields become part of the pattern, so don't need to be included here.
 		const hashBase = {
 			filters: entry,
-			pattern,
+			fieldName: entry.patterns.shared.source, // the [source] field we're searching
+			pattern,            // CQL query (doesn't include span filters (if any))
+			patternSpanFilters, // filters on part of the document, e.g. 'within <speech person="Santa"/>'
 			gap: entry.gap,
 			groupBy: entry.view.groupBy.sort((l, r) => l.localeCompare(r)),
 		};

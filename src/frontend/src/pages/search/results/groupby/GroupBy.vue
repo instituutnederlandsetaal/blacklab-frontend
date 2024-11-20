@@ -269,7 +269,7 @@ export default Vue.extend({
 		storeValue(): string[] { return this.storeModule.getState().groupBy; },
 		firstHitPreviewQuery(): BLSearchParameters|undefined {
 			let params = SearchModule.get.blacklabParameters();
-			if (!params || !isHitParams(params))
+			if (!isHitParams(params))
 				return undefined; // can't get hits without a query
 
 			params = {...params}; // make a copy before modifying
@@ -314,7 +314,8 @@ export default Vue.extend({
 
 		contextsize(): number {
 			let params = SearchModule.get.blacklabParameters();
-			if (!params || !params.patt) return 5; // default
+			if (!isHitParams(params))
+				return 5; // default
 			return typeof params.context === 'number' ? params.context as number :  // use actual value from query if set
 			    (typeof GlobalSearchSettingsStore.getState().context === 'number' ?
 			        GlobalSearchSettingsStore.getState().context as number :  // use global default if set

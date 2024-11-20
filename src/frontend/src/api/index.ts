@@ -8,7 +8,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 import { ApiError, NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
 import { Glossing } from '@/store/search/form/glossStore';
 import { AtomicQuery, LexiconEntry } from '@/store/search/form/conceptStore';
-import { uniq } from '@/utils';
+import { isHitParams, uniq } from '@/utils';
 import { User } from 'oidc-client-ts';
 
 type API = ReturnType<typeof createEndpoint>;
@@ -243,7 +243,7 @@ export const blacklab = {
 		let request: Promise<BLTypes.BLHitResults|BLTypes.BLHitGroupResults>;
 		if (!indexId) {
 			request = Promise.reject(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
-		} else if (!params.patt) {
+		} else if (!isHitParams(params)) {
 			request = Promise.reject(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
 		} else {
 			request = endpoints.blacklab.getOrPost(blacklabPaths.hits(indexId), params, { ...requestParameters, cancelToken });
@@ -266,7 +266,7 @@ export const blacklab = {
 		let request: Promise<Blob>;
 		if (!indexId) {
 			request = Promise.reject(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
-		} else if (!params.patt) {
+		} else if (!isHitParams(params)) {
 			request = Promise.reject(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
 		} else {
 			request = endpoints.blacklab.getOrPost(blacklabPaths.hitsCsv(indexId), csvParams, {

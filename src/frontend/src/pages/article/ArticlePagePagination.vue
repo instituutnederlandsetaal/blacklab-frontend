@@ -205,8 +205,9 @@ export default Vue.extend({
 
 		// Load all hits in the document (also those outside this page)
 		// @ts-ignore
-		const { query, field, searchfield }: {
+		const { query, querySpanFilters, field, searchfield }: {
 			query: string|undefined,
+			querySpanFilters: string|undefined,
 			field: string|undefined,
 			searchfield: string|undefined, // override in parallel corpus (e.g. show contents from field a; search starts from field B)
 		} = new URI().search(true);

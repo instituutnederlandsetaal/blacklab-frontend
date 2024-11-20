@@ -259,11 +259,7 @@ const actions = {
 		const submittedFormStates = annotations
 		.filter(a => a.type !== 'pos')
 		.flatMap(a => a.value.split('|').map(value => ({...a,value})))
-		.map<{
-			entry: HistoryModule.HistoryEntry,
-			pattern?: string,
-			url: string
-		}>(a => ({
+		.map<HistoryModule.HistoryEntryPatternAndUrl>(a => ({
 			entry: {
 				...sharedBatchState,
 				patterns: {
@@ -291,6 +287,7 @@ const actions = {
 			pattern: getPatternString([a], state.patterns.shared.withinClauses,
 				state.patterns.shared.targets,
 				state.patterns.shared.alignBy || state.ui.search.shared.alignBy.defaultValue),
+			patternSpanFilters: state.patterns.shared.withinClauses,
 			// TODO :( url generation is too encapsulated to completely repro here
 			url: ''
 		}))
