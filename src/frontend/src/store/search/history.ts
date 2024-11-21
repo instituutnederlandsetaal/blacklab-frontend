@@ -58,7 +58,6 @@ type HistoryEntry = {
 export type HistoryEntryPatternAndUrl = {
 	entry: HistoryEntry;
 	pattern?: string;
-	patternSpanFilters?: Record<string, Record<string, string>>;
 	url: string;
 };
 
@@ -151,7 +150,7 @@ const internalActions = {
 };
 
 const actions = {
-	addEntry: b.commit((state, {entry, pattern, patternSpanFilters, url}: HistoryEntryPatternAndUrl) => {
+	addEntry: b.commit((state, {entry, pattern, url}: HistoryEntryPatternAndUrl) => {
 		// history is updated together with page url, so we don't always receive a state we need to store.
 		if (entry.interface.viewedResults == null) {
 			return;
@@ -174,7 +173,6 @@ const actions = {
 			filters: entry,
 			fieldName: entry.patterns.shared.source, // the [source] field we're searching
 			pattern,            // CQL query (doesn't include span filters (if any))
-			patternSpanFilters, // filters on part of the document, e.g. 'within <speech person="Santa"/>'
 			gap: entry.gap,
 			groupBy: entry.view.groupBy.sort((l, r) => l.localeCompare(r)),
 		};

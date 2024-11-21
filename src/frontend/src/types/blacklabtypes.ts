@@ -25,16 +25,6 @@ export type BLSearchParameters = {
 	/** CQL query */
 	patt?: string;
 	/**
-	 * spanFilters such as " within <speech speaker='Jan'/>"
-	 * stored as a map of the span name to a map of the attribute values, if any.
-	 * These are not actually BLS parameters, but they will be combined with
-	 * patt to a single CQL query before being sent to BlackLab.
-	 * The reason for this is to keep track of the user interface state without
-	 * too much complex parsing (and in Expert, the user can type any CQL, so we
-	 * can never know what came from where)
-	 */
-	pattSpanFilters?: Record<string, Record<string, string>>;
-	/**
 	 * CQL query gap-filling values, contents of a tsv file in string form.
 	 *
 	 * See http://inl.github.io/BlackLab/blacklab-server-overview.html#requests

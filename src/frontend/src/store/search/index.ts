@@ -287,7 +287,6 @@ const actions = {
 			pattern: getPatternString([a], state.patterns.shared.withinClauses,
 				state.patterns.shared.targets,
 				state.patterns.shared.alignBy || state.ui.search.shared.alignBy.defaultValue),
-			patternSpanFilters: state.patterns.shared.withinClauses,
 			// TODO :( url generation is too encapsulated to completely repro here
 			url: ''
 		}))

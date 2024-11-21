@@ -958,5 +958,5 @@ export function isParallelField(fieldName: string) {
 
 /** Are these valid parameters with a pattern that will yield results with hits? */
 export function isHitParams(params: BLTypes.BLSearchParameters|null|undefined): params is BLTypes.BLSearchParameters {
-	return !! (params && (params.patt || params.pattSpanFilters));
+	return !! (params && params.patt);
 }

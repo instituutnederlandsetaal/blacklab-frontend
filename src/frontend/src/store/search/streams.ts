@@ -293,7 +293,6 @@ urlInputParameters$.pipe(
 	HistoryStore.actions.addEntry({
 		entry: v.entry,
 		pattern: v.params && v.params.patt,
-		patternSpanFilters: v.params && v.params.pattSpanFilters,
 		url: v.url
 	});
 	debugLogCat('history', `Calling pushState with entry: ${JSON.stringify(v.entry)} and url: ${v.url}`);
