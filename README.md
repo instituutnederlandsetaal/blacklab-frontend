@@ -107,11 +107,15 @@ The application will normally look for this file in the same places as BlackLab.
 
 The file name must be the same as the `context path` of the corpus-frontend application.
 That's the URL under which the corpus-frontend is reachable in the browser.
-Unless you changed it, it's just the name of the `.war` file.
-For example: 
+Often, if you don't configure the `context path`, the `context path` will be the name of the `.war` file.  
+
+Examples:
 - for `corpus-frontend.war` -> `/corpus-frontend` in browser -> `corpus-frontend.properties` in any of the above locations
 - for `my-frontend.war` -> `/my-frontend` in browser -> `my-frontend.properties` file name
 - for `/test/corpus-frontend` in browser, the file should be in the `test/corpus-frontend.properties` dir in above locations.
+- when you are behind a proxy, use the `context path` of proxied application, for example
+    - `ProxyPass "/frisian-corpora" "http://host:port/TEST/corpus-frontend"`
+        - `/frisian-corpora` in browser -> proxied to `/TEST/corpus-frontend` -> use `TEST/corpus-frontend.properties`
 
 Example file (most values shown here are the default values):
 

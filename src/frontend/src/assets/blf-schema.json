@@ -4113,7 +4113,7 @@
                   },
                   "addRemainingFields": {
                     "type": "boolean",
-                    "description": "Add all fields not in any other group. Only one group should have this. Defaults to false."
+                    "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
                   }
                 },
                 "required": [
@@ -4133,16 +4133,19 @@
                   "type": "object",
                   "properties": {
                     "name": {
-                      "type": "string"
+                      "type": "string",
+                      "description": "Group name"
                     },
                     "annotations": {
                       "type": "array",
                       "items": {
                         "type": "string"
-                      }
+                      },
+                      "description": "IDs of annotations in this group."
                     },
                     "addRemainingAnnotations": {
-                      "type": "boolean"
+                      "type": "boolean",
+                      "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
                     }
                   },
                   "required": [

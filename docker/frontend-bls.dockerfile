@@ -1,5 +1,5 @@
 # Base image of BlackLab to use.
-ARG IMAGE_VERSION=latest
+ARG BLACKLAB_IMAGE_VERSION=latest
 
 # Stage "builder": build the WAR file
 #--------------------------------------
@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/root/.m2  \
 # Tomcat container with the WAR file
 #--------------------------------------
 
-FROM instituutnederlandsetaal/blacklab:$IMAGE_VERSION
+FROM instituutnederlandsetaal/blacklab:$BLACKLAB_IMAGE_VERSION
 
 # Where corpus-frontend.properties can be found. Can be overridden.
 ARG CONFIG_ROOT=docker/config

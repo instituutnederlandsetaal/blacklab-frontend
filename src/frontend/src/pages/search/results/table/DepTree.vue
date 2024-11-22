@@ -180,7 +180,7 @@ export default Vue.extend({
 				if (this.otherAnnotations.upos)  row.push(token[this.otherAnnotations.upos.id]);  else row.push('_'); // upos
 				if (this.otherAnnotations.xpos)  row.push(token[this.otherAnnotations.xpos.id]);  else row.push('_'); // xpos
 				if (this.otherAnnotations.feats) row.push(token[this.otherAnnotations.feats.id]); else row.push('_'); // feats
-				row.push(rel && rel.parentIndex < this.sensibleArray!.length  ? (rel.parentIndex + 1).toString() : '_'); // head
+				row.push((rel && rel.parentIndex < this.sensibleArray!.length) ? (rel.parentIndex + 1).toString() : '_'); // head
 				row.push(rel ? rel.label : '_'); // deprel
 				row.push('_'); // deps
 				row.push('_'); // highlight.

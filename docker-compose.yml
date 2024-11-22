@@ -1,15 +1,13 @@
 # Run a container with both BlackLab Frontend and Server
-version: '3.9'
 
 services:
-
   frontend:
-    image: instituutnederlandsetaal/blacklab-frontend:${IMAGE_VERSION}
+    image: instituutnederlandsetaal/blacklab-frontend:${IMAGE_VERSION:-latest}
     build:
       context: .
       dockerfile: docker/frontend-bls.dockerfile
       args:
-        IMAGE_VERSION: ${IMAGE_VERSION}
+        BLACKLAB_IMAGE_VERSION: ${BLACKLAB_IMAGE_VERSION:-latest}
     ports:
       - "8080:8080" # frontend and BLS will both be available on 8080
     volumes:
@@ -18,11 +16,11 @@ services:
 
   frontend-proxy:
     profiles: [ "proxy" ] # don't start this by default
-    image: instituutnederlandsetaal/blacklab-frontend-proxy:${IMAGE_VERSION}
+    image: instituutnederlandsetaal/blacklab-frontend-proxy:${IMAGE_VERSION:-latest}
     build:
       context: .
       dockerfile: docker/frontend-proxy.dockerfile
       args:
-        IMAGE_VERSION: ${IMAGE_VERSION}
+        BLACKLAB_IMAGE_VERSION: ${BLACKLAB_IMAGE_VERSION:-latest}	
     ports:
       - "8080:8080" # frontend and BLS will both be available on 8080
