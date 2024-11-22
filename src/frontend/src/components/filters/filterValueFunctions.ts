@@ -461,20 +461,20 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return !!value;
 		},
-		onChange(id, filterMetadata, newValueWildcard) {
+		onChange(id, filterMetadata, newAttrValueWildcard) {
 			const withinClauses = PatternStore.getState().shared.withinClauses;
-			const name = filterMetadata['name'] || 'span';
-			const attribute = filterMetadata['attribute'] || 'value';
-			const newValueRegex = newValueWildcard ? escapeRegex(newValueWildcard, { escapeWildcards: false }) : newValueWildcard;
-			const current = { ...(withinClauses[name] || {}) };
-			if (newValueRegex)
-				current[attribute] = newValueRegex;
+			const elName = filterMetadata['name'] || 'span';
+			const attributeName = filterMetadata['attribute'] || 'value';
+			const newAttrValueRegex = newAttrValueWildcard ? escapeRegex(newAttrValueWildcard, { escapeWildcards: false }) : newAttrValueWildcard;
+			const attributes = { ...(withinClauses[elName] || {}) };
+			if (newAttrValueRegex)
+				attributes[attributeName] = newAttrValueRegex;
 			else
-				delete current[attribute];
-			if (Object.keys(current).length > 0)
-				Vue.set(withinClauses, name, current);
+				delete attributes[attributeName];
+			if (Object.keys(attributes).length > 0)
+				Vue.set(withinClauses, elName, attributes);
 			else
-				Vue.delete(withinClauses, name);
+				Vue.delete(withinClauses, elName);
 		}
 	}),
 	'span-select': cast<FilterValueFunctions<any, string[]>>({
