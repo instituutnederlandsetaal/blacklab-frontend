@@ -15,6 +15,7 @@ import * as TagsetModule from '@/store/search/tagset';
 import * as QueryModule from '@/store/search/query';
 import * as ConceptModule from '@/store/search/form/conceptStore';
 import * as GlossModule from '@/store/search/form/glossStore';
+import * as UIStore from '@/store/search/ui';
 
 // Form
 import * as FilterModule from '@/store/search/form/filters';
@@ -30,7 +31,7 @@ import * as GlobalResultsModule from '@/store/search/results/global';
 import {FilterValue, AnnotationValue} from '@/types/apptypes';
 
 import cloneDeep from 'clone-deep';
-import { getValueFunctions, valueFunctions } from '@/components/filters/filterValueFunctions';
+import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -86,11 +87,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		}
 
 		try {
-			const luceneQueryAST = LuceneQueryParser.parse(luceneString);
-			const parsedQuery: Record<string, FilterValue> = mapReduce(parseLucene(luceneString), 'id');
-
-			const parsedCqlQuery = this._parsedCql;
-
+			// FIXME: code below claims to be important but is never used!?
 			const metadataFields = CorpusModule.get.allMetadataFieldsMap();
 			const filterDefinitions = FilterModule.getState().filters;
 			const allFilters = Object
@@ -100,8 +97,9 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 			const filterValues: Record<string, FilterModule.FullFilterState> = {};
 
-			Object.values(FilterModule.getState().filters)
-			.forEach(filterDefinition => {
+			const luceneQueryAST = LuceneQueryParser.parse(luceneString);
+			const parsedQuery: Record<string, FilterValue> = mapReduce(parseLucene(luceneString), 'id');
+			Object.values(FilterModule.getState().filters).forEach(filterDefinition => {
 				const valueFuncs = getValueFunctions(filterDefinition);
 				let value: unknown = valueFuncs.decodeInitialState ? valueFuncs.decodeInitialState(
 					filterDefinition.id,
@@ -457,34 +455,82 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	}
 
 	@memoize
+	private get withinElementName(): string|null {
+		// Determine selected option in within widget from within clauses in the query
+		const withinUi = UIStore.getState().search.shared.within;
+		const withinOptions = withinUi.enabled ? withinUi.elements.filter(UIModule.corpusCustomizations.search.within.include) : [];
+		const within = Object.keys(this.withinClauses)
+				.map(elName => withinOptions.find(w => w.value === elName))
+				.find(w => !!w)?.value ?? null;
+		return within;
+	}
+
+	@memoize
+	private get withinAttributes(): Record<string, any> {
+		// Find any attributes for the within widget
+		const within = this.withinElementName;
+		const allAttributes = within ? this.withinClauses[within] ?? {} : {};
+		const attributesAcceptedByWithinWidget = within ? UIModule.corpusCustomizations.search.within.attributes(within)
+			.map(el => typeof el === 'string' ? { value: el } : el) : [];
+		const withinAttributes = Object.fromEntries(Object.entries(allAttributes)
+			.filter(([attrName, attrValue]) => {
+				return !!attributesAcceptedByWithinWidget.find(w => w.value === attrName);
+			}));
+		return withinAttributes;
+	}
+
+	@memoize
+	private get withinClausesWithoutWithinWidget(): Record<string, Record<string, any>> {
+		// Remove whatever goes into the within widget from the withinClauses.
+		const within = this.withinElementName;
+		const withinAttributes = this.withinAttributes;
+		return Object.fromEntries(Object.entries(this.withinClauses)
+			.map(([el, attr]) => {
+				if (el === within) {
+					// Remove attributes that are already in the within widget
+					Object.keys(withinAttributes).forEach(attrName => delete attr[attrName]);
+				}
+				return [el, attr];
+			})
+			// only keep if there are any attributes left
+			.filter(([el, attr]) => Object.entries(attr).length > 0)) as Record<string, Record<string, any>>;
+	}
+
+	@memoize
 	private get shared() {
 		// The query typically doesn't contain the entire parallel field name.
 		// BlackLab allows passing just "en" instead of "contents__en" in some spots
 		// So we need to reconstruct the full field name from the query here.
 		const prefix = CorpusModule.get.parallelFieldPrefix();
-		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
 
 		const parallelFieldsMap = CorpusModule.get.parallelAnnotatedFieldsMap();
 
 		// It used to be that sourceField was only the version suffix, but now it's the full field name
 		// So we need to check if the source field is a valid parallel field name, and if not, try to find the correct one
 		// For interop with legacy urls (which shouldn't be in production, but might be floating around in test docs).
-		let sourceFromUrl = this.getString('field', null, v => v ? v : null);
-		if (sourceFromUrl && !parallelFieldsMap[sourceFromUrl]) {
-			sourceFromUrl = getParallelFieldName(prefix, sourceFromUrl);
-			if (!parallelFieldsMap[sourceFromUrl]) {
+		let source = this.getString('field', null, v => v ? v : null);
+		if (source && !parallelFieldsMap[source]) {
+			source = getParallelFieldName(prefix, source);
+			if (!parallelFieldsMap[source]) {
 				console.info(`Invalid parallel source field name in url (${this.getString('field')}), ignoring`);
-				sourceFromUrl = null;
+				source = null;
 			}
 		}
+		const targets = this._parsedCql ? this._parsedCql.slice(1)
+			.map(result => result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '') : [];
 
-		const result = {
-			source: sourceFromUrl,
-			targets: this._parsedCql ? this._parsedCql.slice(1).map(result => result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '') : [],
-			alignBy: (this._parsedCql ? this._parsedCql[1]?.relationType : defaultAlignBy) ?? defaultAlignBy,
-			withinClauses: this.withinClauses,
+		// Determine align by (relation type in BCQL query, e.g. for "the" -word-alignment->nl _ it would be "word-alignment")
+		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
+		const alignBy = (this._parsedCql ? this._parsedCql[1]?.relationType : defaultAlignBy) ?? defaultAlignBy;
+
+		return {
+			source,
+			targets,
+			alignBy,
+			within: this.withinElementName,
+			withinAttributes: this.withinAttributes,
+			withinClauses: this.withinClausesWithoutWithinWidget,
 		};
-		return result;
 	}
 
 	@memoize
@@ -538,8 +584,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*') ? '' : q;
 
 		// Strip any withinClauses from the end of the CQL query
+		// @@@ JN TODO actually only strip those with a GUI widget; leave the rest
 		function stripWithins(q: string) {
-			// TODO: actually only strip those with a GUI widget..?
 			return q.replace(/( within <[^\/]+\/>)+$/g, '');
 		}
 
@@ -603,7 +649,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	// TODO these might become dynamic in the future, then we need extra manual checking to see if the value is even supported in this corpus
 	@memoize
 	private get withinClauses(): Record<string, Record<string, any>> {
-		return this._parsedCql ? this._parsedCql[0].withinClauses || {} : {};
+		return this._parsedCql?.[0].withinClauses ?? {};
 	}
 
 	@memoize

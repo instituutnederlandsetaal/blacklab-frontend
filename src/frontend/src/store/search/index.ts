@@ -273,14 +273,13 @@ const actions = {
 						query: null,
 						targetQueries: [],
 					},
-					shared: PatternModule.getState().shared, // <-- is this ok?
+					shared: PatternModule.getState().shared,
 					simple: PatternModule.getState().simple,
 					extended: {
 						annotationValues: {
 							[a.id]: a
 						},
 						splitBatch: false,
-						withinClauses: state.patterns.shared.withinClauses,
 					}
 				}
 			},

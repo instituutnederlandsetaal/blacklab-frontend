@@ -8,6 +8,7 @@ import * as PatternStore from '@/store/search/form/patterns';
 import Vue from 'vue';
 import { debugLog } from '@/utils/debug';
 import { Result } from '@/utils/bcql-json-interpreter';
+import { attr } from 'highcharts';
 
 
 /** month (m) and day (d) may be empty strings. Month field starts at 1 instead of javascript Date's 0. */
@@ -451,7 +452,12 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			return this.luceneQuery(id, filterMetadata, value) !== null;
 		}
 	}),
-	'span-text': cast<FilterValueFunctions<never, string>>({
+	'span-text': cast<FilterValueFunctions<{name?: string, attribute?: string}, string>>({
+		decodeInitialState(id, filterMetadata, filterValues) {
+			const name = filterMetadata['name'] || 'span';
+			const attribute = filterMetadata['attribute'] || 'value';
+			return filterValues[`${name}-${attribute}`]?.values[0] || null; // @@@ JN is this correct..?
+		},
 		luceneQuery(id, filterMetadata, value) {
 			return null; // not a document level filter
 		},
@@ -477,12 +483,19 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 				Vue.delete(withinClauses, elName);
 		}
 	}),
-	'span-select': cast<FilterValueFunctions<any, string[]>>({
+	'span-select': cast<FilterValueFunctions<{name?: string, attribute?: string, options: Option[]}|Option[], string[]>>({
+		decodeInitialState(id, filterMetadata, filterValues) {
+			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
+			const name = filterMetadata['name'] || 'span';
+			const attribute = filterMetadata['attribute'] || 'value';
+			return (filterValues[`${name}-${attribute}`]?.values) || null; // @@@ JN correct..?
+		},
 		luceneQuery(id, filterMetadata, value) {
 			return null; // not a document level filter
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
-			const options: Option[] = filterMetadata.options || filterMetadata;
+			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
+			const options: Option[] = filterMetadata.options;
 			const asDisplayValues = (value || []).map(v => {
 				return options.find(option => option.value === v)?.label || v;
 			});
@@ -492,10 +505,11 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			return !!(value && value.length > 0);
 		},
 		onChange(id, filterMetadata, newValuesWildcard) {
-			const withinClauses = PatternStore.getState().shared.withinClauses;
+			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
 			const newValuesRegex = newValuesWildcard ? newValuesWildcard.map(v => escapeRegex(v, { escapeWildcards: false })) : newValuesWildcard;
+			const withinClauses = PatternStore.getState().shared.withinClauses;
 			const current = { ...(withinClauses[name] || {}) };
 			if (newValuesRegex)
 				current[attribute] = newValuesRegex.join("|");
@@ -507,7 +521,12 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 				Vue.delete(withinClauses, name);
 		}
 	}),
-	'span-range': cast<FilterValueFunctions<never, { low: number|null, high: number|null }>>({
+	'span-range': cast<FilterValueFunctions<{name?: string, attribute?: string}, { low: number|null, high: number|null }>>({
+		decodeInitialState(id, filterMetadata, filterValues) {
+			const name = filterMetadata['name'] || 'span';
+			const attribute = filterMetadata['attribute'] || 'value';
+			return { low: 0, high: 0 };  // @@@ JN how the ... do we decode this from the regex..?
+		},
 		luceneQuery(id, filterMetadata, value) {
 			return null; // not a document level filter
 		},

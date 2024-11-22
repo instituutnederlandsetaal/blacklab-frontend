@@ -143,6 +143,7 @@ const actions = {
 		return (filterObj.value = value != null ? value : null);
 	}, 'filter_value'),
 
+	// @@@ JN TO BE REMOVED
 	setFiltersFromWithinClauses: b.commit((state, withinClauses: Record<string, Record<string, any>>) => {
 		// For each within clause...
 		Object.entries(withinClauses).forEach( ([el, attr]) => {

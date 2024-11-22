@@ -1248,7 +1248,7 @@ const corpusCustomizations = {
 			},
 
 			/** Which, if any, attribute filter fields should be displayed for this element? */
-			attributes(element: Option): string[]|Option[] {
+			attributes(elementName: string): string[]|Option[] {
 				return [];
 			},
 

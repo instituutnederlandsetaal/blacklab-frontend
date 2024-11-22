@@ -427,6 +427,9 @@ export const getPatternString = (
 	}));
 
 	let query = tokens.map(t => `[${t.join('&')}]`).join('');
+
+	// @@@ JN TODO actually get within clauses from within/withinAttributes and filter values
+	//   (don't use withinClauses anymore, we want to remove that)
 	query = applyWithinClauses(query, withinClauses);
 
 	if (parallelTargetFields.length > 0) {
@@ -484,10 +487,12 @@ export const getPatternStringFromCql = (sourceCql: string, withinClauses: Record
 	}
 
 	if (targetVersions.length === 0) {
+		// @@@ JN TODO see above, same
 		return applyWithinClauses(sourceCql, withinClauses);
 	}
 
 	const defaultSourceQuery = targetVersions.length > 0 ? '_': '';
+	// @@@ JN TODO same
 	const sourceQuery = applyWithinClauses(sourceCql.trim() || defaultSourceQuery, withinClauses);
 	const queryParts = [parenQueryPartParallel(sourceQuery)];
 	const relationType = alignBy ?? '';
@@ -881,6 +886,8 @@ export function getPatternStringSearch(
 					...annot,
 					type: getCorrectUiType(uiTypeSupport.search.extended, annot.type!)
 				}));
+			// @@@ JN TODO: get withinClauses from within/withinAttribute and filters here too
+			//    (same in rest of this method)
 			return r.length || Object.keys(state.shared.withinClauses).length > 0 ?
 				getPatternString(r, state.shared.withinClauses, targets, alignBy) :
 				undefined;

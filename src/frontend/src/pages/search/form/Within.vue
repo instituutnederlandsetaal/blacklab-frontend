@@ -39,25 +39,10 @@ export default Vue.extend({
 		},
 		within: {
 			get(): string|null {
-				const withinClauses = PatternStore.getState().shared.withinClauses;
-				return Object.keys(withinClauses).find(w => this.withinOptions.some(o => o.value === w)) || null;
+				return PatternStore.getState().shared.within;
 			},
 			set(v: string|null) {
-				if (v === null)
-					return;
-				// Ensure only the active within element is part of withinClauses; remove the rest
-				const withinClauses = PatternStore.getState().shared.withinClauses;
-				this.withinOptions.forEach(o => {
-					const isActive = o.value === v;
-					if (isActive) {
-						// Add within clause for selected option
-						if (o.value !== '') // ("entire document" option doesn't generate a within clause)
-							Vue.set(withinClauses, o.value, {});
-					} else {
-						// Clear within clause for unselected option
-						Vue.delete(withinClauses, o.value);
-					}
-				});
+				Vue.set(PatternStore.getState().shared, 'within', v);
 			}
 		},
 	},
@@ -69,13 +54,13 @@ export default Vue.extend({
 			const option = this.withinOptions.find(o => o.value === within);
 			if (!option) return [];
 
-			return (corpusCustomizations.search.within.attributes(option) || [])
+			return (corpusCustomizations.search.within.attributes(option.value) || [])
 				.map(el => typeof el === 'string' ? { value: el } : el);
 		},
 		withinAttributeValue(option: Option) {
 			if (this.within === null)
 			 	return '';
-			const within = PatternStore.getState().shared.withinClauses[this.within];
+			const within = PatternStore.getState().shared.withinAttributes;
 			return within ? within[option.value] ?? '' : '';
 		},
 		changeWithinAttribute(option: Option, event: Event) {
@@ -83,9 +68,9 @@ export default Vue.extend({
 			if (spanName === null)
 				return;
 			const el = event.target as HTMLInputElement;
-			const curVal = PatternStore.getState().shared.withinClauses[spanName] || {};
+			const curVal = PatternStore.getState().shared.withinAttributes || {};
 			curVal[option.value] = el.value;
-			Vue.set(PatternStore.getState().shared.withinClauses, spanName, curVal);
+			Vue.set(PatternStore.getState().shared, 'withinAttributes', curVal);
 		},
 	},
 })

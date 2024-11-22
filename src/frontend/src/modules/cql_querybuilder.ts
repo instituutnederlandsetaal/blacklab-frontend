@@ -1296,9 +1296,8 @@ function populateQueryBuilder(queryBuilder: QueryBuilder, parsedCql: Result): bo
 			// only clear the querybuilder when we're putting something back in
 			queryBuilder.getTokens().forEach(token => token.element.remove());
 		}
-		if (within) {
+		if (within)
 			queryBuilder.set('within', within);
-		}
 
 		tokens.forEach(token => {
 			const tokenInstance = queryBuilder.createToken();

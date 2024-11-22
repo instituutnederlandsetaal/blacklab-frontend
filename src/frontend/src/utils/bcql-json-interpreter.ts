@@ -278,7 +278,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		case 'overlapping':
 			// "show me the overlaps of these tags" (no query given)
 			return {
-				withinClauses: Object.fromEntries(input.clauses.filter( (c: any) => c.type === 'tags').map((c: any) => [c.name, c.attributes])),
+				withinClauses: Object.fromEntries(input.clauses.filter( (c: any) => c.type === 'tags').map((c: any) => [c.name, interpretTagsAttributes(c.attributes)])),
 			};
 
 		default:
