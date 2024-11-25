@@ -3,7 +3,7 @@ import memoize from 'memoize-decorator';
 import BaseUrlStateParser from '@/store/util/url-state-parser-base';
 import LuceneQueryParser from 'lucene-query-parser';
 
-import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName} from '@/utils';
+import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses} from '@/utils';
 import {parseBcql, Attribute, Result, Token} from '@/utils/bcql-json-interpreter';
 import parseLucene from '@/utils/luceneparser';
 import {debugLog} from '@/utils/debug';
@@ -79,18 +79,46 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		};
 	}
 
-	@memoize get spanFilters(): Record<string, FilterValue> {
+	/** Within clauses that can be added to a span filter widget (on the right)
+	 *  (and are not already in the within widget on the left)
+	 */
+	@memoize
+	get spanFilters(): Record<string, FilterValue> {
 		const result: Record<string, FilterValue> = {};
-		Object.entries(this.withinClausesWithoutWithinWidget).forEach(([elName, attrs]) => {
-			Object.entries(attrs).forEach(([attrName, attrValue]) => {
-				const obj: FilterValue = {
-					id: `${elName}-${attrName}`,
-					values: attrValue.low || attrValue.high ?
-						[attrValue.low || '', attrValue.high || ''] :
-						[attrValue]
-				};
-				result[obj.id] = obj;
-			});
+		Object.entries(this.withinClausesWithoutWithinWidget)
+			.forEach(([elName, attrs]) => {
+				Object.entries(attrs)
+					.forEach(([attrName, attrValue]) => {
+					const id = `${elName}-${attrName}`;
+					if (FilterModule.getState().filters[id]?.isSpanFilter) {
+						const obj: FilterValue = {
+							id,
+							values: attrValue.low || attrValue.high ?
+								[attrValue.low || '', attrValue.high || ''] :
+								[attrValue]
+						};
+						result[id] = obj;
+					}
+				});
+		});
+		return result;
+	}
+
+	/** Within clauses that don't fit into a widget, so must remain part of the Expert query */
+	@memoize
+	get expertWithinClauses(): Record<string, Record<string, any>> {
+		const result: Record<string, Record<string, any>> = {};
+		Object.entries(this.withinClausesWithoutWithinWidget)
+			.forEach(([elName, attrs]) => {
+				Object.entries(attrs)
+					.forEach(([attrName, attrValue]) => {
+					const id = `${elName}-${attrName}`;
+					if (!(FilterModule.getState().filters[id]?.isSpanFilter)) {
+						// Must be part of the expert query
+						result[elName] = result[elName] || {};
+						result[elName][attrName] = attrValue;
+					}
+				});
 		});
 		return result;
 	}
@@ -604,16 +632,19 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*') ? '' : q;
 
 		// Strip any withinClauses from the end of the CQL query
-		// @@@ JN TODO actually only strip those with a GUI widget; leave the rest
+		// (we'll add back those that we cannot place into a widget)
 		function stripWithins(q: string) {
 			return q.replace(/( within <[^\/]+\/>)+$/g, '');
 		}
 
 		const hasWithinClauses = this._parsedCql && this._parsedCql[0].withinClauses && Object.keys(this._parsedCql[0].withinClauses).length > 0;
 		const query = unparenQueryPart(hasWithinClauses ? stripWithins(this._parsedCql![0].query ?? '') : this._parsedCql?.[0].query ?? '');
+		const reapplyWithins = this.expertWithinClauses;
+		console.log('reapplyWithins', reapplyWithins);
+		const finalQuery = Object.keys(reapplyWithins).length > 0 ? applyWithinClauses(query ?? '', reapplyWithins) : query;
 
 		return {
-			query: this._parsedCql ? optEmpty(unparenQueryPart(query)) || null : null,
+			query: this._parsedCql ? optEmpty(unparenQueryPart(finalQuery)) || null : null,
 			targetQueries: this._parsedCql ? this._parsedCql.slice(1).map(r => optEmpty(unparenQueryPart(r.query)) || '') : [],
 		};
 	}

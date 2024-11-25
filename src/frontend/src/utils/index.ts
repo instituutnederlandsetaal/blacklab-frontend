@@ -440,7 +440,7 @@ export const getPatternString = (
 	return query || undefined;
 };
 
-function applyWithinClauses(query: string, withinClauses: Record<string, Record<string, any>>) {
+export function applyWithinClauses(query: string, withinClauses: Record<string, Record<string, any>>) {
 	const queryGiven = query.length > 0;
 	if (Object.keys(withinClauses).length > 0) {
 		for (const [within, withinAttributes] of Object.entries(withinClauses)) {
