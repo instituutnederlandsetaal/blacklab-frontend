@@ -7,8 +7,6 @@ import { FullFilterState } from '@/store/search/form/filters';
 import * as PatternStore from '@/store/search/form/patterns';
 import Vue from 'vue';
 import { debugLog } from '@/utils/debug';
-import { Result } from '@/utils/bcql-json-interpreter';
-import { attr } from 'highcharts';
 
 
 /** month (m) and day (d) may be empty strings. Month field starts at 1 instead of javascript Date's 0. */
@@ -47,7 +45,7 @@ type FilterValueFunctions<M, V> = {
 	 * If a custom filter wants to take "ownership" of a decoded filter value, it should delete the value from the map, to prevent
 	 * later (inbuilt) filters from decoding it.
 	 */
-	decodeInitialState?(id: string, filterMetadata: M, filterValues: Record<string, FilterValue|undefined>, ast: ASTNode): V|null,
+	decodeInitialState?(id: string, filterMetadata: M, filterValues: Record<string, FilterValue|undefined>, ast: ASTNode|null): V|null,
 	/** For document-level filters: return the Lucene filter query */
 	luceneQuery(id: string, filterMetadata: M, value: V|null): string|null;
 	/** For all filter types: summarize what filter will be applied */
@@ -84,7 +82,7 @@ type FilterValueFunctions<M, V> = {
  * }
  * ```
  */
-function getFieldValues(ast: ASTNode, field1: string, field2: string): {
+function getFieldValues(ast: ASTNode|null, field1: string, field2: string): {
 	field1: {
 		low: string,
 		high: string,
@@ -95,6 +93,9 @@ function getFieldValues(ast: ASTNode, field1: string, field2: string): {
 	},
 	mode: 'permissive'|'strict';
 }|null {
+	if (ast === null)
+		return null;
+
 	function isRange(n: any): n is ASTRange {
 		return  !!(n && 'field' in n && 'term_min' in n);
 	}
@@ -456,7 +457,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
-			return filterValues[`${name}-${attribute}`]?.values[0] || null; // @@@ JN is this correct..?
+			return filterValues[`${name}-${attribute}`]?.values[0] || null;
 		},
 		luceneQuery(id, filterMetadata, value) {
 			return null; // not a document level filter
@@ -488,7 +489,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
-			return (filterValues[`${name}-${attribute}`]?.values) || null; // @@@ JN correct..?
+			return (filterValues[`${name}-${attribute}`]?.values) || null;
 		},
 		luceneQuery(id, filterMetadata, value) {
 			return null; // not a document level filter
@@ -525,7 +526,12 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
-			return { low: 0, high: 0 };  // @@@ JN how the ... do we decode this from the regex..?
+			const key = `${name}-${attribute}`;
+			const v = filterValues[key]?.values ?? [null, null];
+			return {
+				low: v[0] ? parseInt(v[0]) : null,
+				high: v[1] ? parseInt(v[1]) : null
+			};
 		},
 		luceneQuery(id, filterMetadata, value) {
 			return null; // not a document level filter

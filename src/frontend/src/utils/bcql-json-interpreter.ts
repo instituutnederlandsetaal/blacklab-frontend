@@ -146,10 +146,10 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	function interpretTagsAttributes(attributes: Record<string, any>): Record<string, any> {
 		if (!attributes)
 			return {};
-		// Recognize range query (e.g. { low: 10, high: 20 })
+		// Recognize range query (e.g. { min: 10, max: 20 })
 		return Object.fromEntries(Object.entries(attributes).map(([k, v]) => {
 			if (v.min || v.max) {
-				return [k, { low: v.min == 0 ? '' : v.min, high: v.max == 9999 ? '' : v.max }];
+				return [k, { low: v.min == 0 ? '' : v.min.toString(), high: v.max == 9999 ? '' : v.max.toString() }];
 			}
 			return [k, v];
 		}));

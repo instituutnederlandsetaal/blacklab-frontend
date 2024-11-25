@@ -79,10 +79,27 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		};
 	}
 
+	@memoize get spanFilters(): Record<string, FilterValue> {
+		const result: Record<string, FilterValue> = {};
+		Object.entries(this.withinClausesWithoutWithinWidget).forEach(([elName, attrs]) => {
+			Object.entries(attrs).forEach(([attrName, attrValue]) => {
+				const obj: FilterValue = {
+					id: `${elName}-${attrName}`,
+					values: attrValue.low || attrValue.high ?
+						[attrValue.low || '', attrValue.high || ''] :
+						[attrValue]
+				};
+				result[obj.id] = obj;
+			});
+		});
+		return result;
+	}
+
 	@memoize
 	private get filters(): FilterModule.ModuleRootState {
 		const luceneString = this.getString('filter', null, v=>v?v:null);
-		if (luceneString == null) {
+		const spanFilters = this.spanFilters;
+		if (luceneString == null && Object.keys(spanFilters).length === 0) {
 			return {};
 		}
 
@@ -97,8 +114,11 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 			const filterValues: Record<string, FilterModule.FullFilterState> = {};
 
-			const luceneQueryAST = LuceneQueryParser.parse(luceneString);
-			const parsedQuery: Record<string, FilterValue> = mapReduce(parseLucene(luceneString), 'id');
+			const luceneQueryAST = luceneString ? LuceneQueryParser.parse(luceneString) : null;
+			const parsedQuery: Record<string, FilterValue> = {
+				...(luceneString ? mapReduce(parseLucene(luceneString), 'id') : {}),
+				...this.spanFilters  // also include span filters like "within <speech person='Einstein'/>"
+			};
 			Object.values(FilterModule.getState().filters).forEach(filterDefinition => {
 				const valueFuncs = getValueFunctions(filterDefinition);
 				let value: unknown = valueFuncs.decodeInitialState ? valueFuncs.decodeInitialState(
@@ -493,7 +513,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 				return [el, attr];
 			})
 			// only keep if there are any attributes left
-			.filter(([el, attr]) => Object.entries(attr).length > 0)) as Record<string, Record<string, any>>;
+			.filter(([el, attr]) => Object.keys(attr).length > 0)) as Record<string, Record<string, any>>;
 	}
 
 	@memoize
