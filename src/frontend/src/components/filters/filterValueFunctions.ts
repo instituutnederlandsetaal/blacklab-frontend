@@ -52,8 +52,6 @@ type FilterValueFunctions<M, V> = {
 	luceneQuerySummary(id: string, filterMetadata: M, value: V|null): string|null;
 	/** Is this filter currently active? */
 	isActive(id: string, filterMetadata: M, value: V|null): boolean;
-	/** Triggered when the filter values change. Used for span filters, to update withinClauses. */
-	onChange?(id: string, filterMetadata: M, newValue: V|null): void;
 };
 
 /**
@@ -468,21 +466,6 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return !!value;
 		},
-		onChange(id, filterMetadata, newAttrValueWildcard) {
-			const withinClauses = PatternStore.getState().shared.withinClauses;
-			const elName = filterMetadata['name'] || 'span';
-			const attributeName = filterMetadata['attribute'] || 'value';
-			const newAttrValueRegex = newAttrValueWildcard ? escapeRegex(newAttrValueWildcard, { escapeWildcards: false }) : newAttrValueWildcard;
-			const attributes = { ...(withinClauses[elName] || {}) };
-			if (newAttrValueRegex)
-				attributes[attributeName] = newAttrValueRegex;
-			else
-				delete attributes[attributeName];
-			if (Object.keys(attributes).length > 0)
-				Vue.set(withinClauses, elName, attributes);
-			else
-				Vue.delete(withinClauses, elName);
-		}
 	}),
 	'span-select': cast<FilterValueFunctions<{name?: string, attribute?: string, options: Option[]}|Option[], string[]>>({
 		decodeInitialState(id, filterMetadata, filterValues) {
@@ -505,22 +488,6 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return !!(value && value.length > 0);
 		},
-		onChange(id, filterMetadata, newValuesWildcard) {
-			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
-			const name = filterMetadata['name'] || 'span';
-			const attribute = filterMetadata['attribute'] || 'value';
-			const newValuesRegex = newValuesWildcard ? newValuesWildcard.map(v => escapeRegex(v, { escapeWildcards: false })) : newValuesWildcard;
-			const withinClauses = PatternStore.getState().shared.withinClauses;
-			const current = { ...(withinClauses[name] || {}) };
-			if (newValuesRegex)
-				current[attribute] = newValuesRegex.join("|");
-			else
-				delete current[attribute];
-			if (Object.keys(current).length > 0)
-				Vue.set(withinClauses, name, current);
-			else
-				Vue.delete(withinClauses, name);
-		}
 	}),
 	'span-range': cast<FilterValueFunctions<{name?: string, attribute?: string}, { low: number|null, high: number|null }>>({
 		decodeInitialState(id, filterMetadata, filterValues) {
@@ -542,20 +509,6 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, values) {
 			return !!(values && (values.low || values.high));
 		},
-		onChange(id, filterMetadata, newValues) {
-			const withinClauses = PatternStore.getState().shared.withinClauses;
-			const name = filterMetadata['name'] || 'span';
-			const attribute = filterMetadata['attribute'] || 'value';
-			const current = { ...(withinClauses[name] || {}) };
-			if (newValues && (newValues.low || newValues.high))
-				current[attribute] = { low: newValues.low ?? 0, high: newValues.high ?? 9999 };
-			else
-				delete current[attribute];
-			if (Object.keys(current).length > 0)
-				Vue.set(withinClauses, name, current);
-			else
-				Vue.delete(withinClauses, name);
-		}
 	}),
 };
 

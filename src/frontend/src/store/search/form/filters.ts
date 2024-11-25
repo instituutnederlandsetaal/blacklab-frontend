@@ -137,30 +137,8 @@ const actions = {
 		if (!filterObj) {
 			console.error(`Filter ${id} does not exist`);
 		}
-		const funcs = getValueFunctions(filterObj);
-		if (funcs.onChange)
-			funcs.onChange(id, filterObj.metadata, value);
 		return (filterObj.value = value != null ? value : null);
 	}, 'filter_value'),
-
-	// @@@ JN TO BE REMOVED
-	setFiltersFromWithinClauses: b.commit((state, withinClauses: Record<string, Record<string, any>>) => {
-		// For each within clause...
-		Object.entries(withinClauses).forEach( ([el, attr]) => {
-			// For each attribute in this clause...
-			Object.entries(attr ?? {}).forEach( ([attrName, attrValue]) => {
-				// If it's a regex, convert it to wildcard form (pipes for multiple values are unaffected)
-				const widgetValue = typeof attrValue === 'string' ? unescapeRegex(attrValue, { escapeWildcards: false }) : attrValue;
-				// Find the matching filter and set the value
-				Object.values(state.filters)
-					.filter(f => f.isSpanFilter && f.metadata.name === el && f.metadata.attribute === attrName)
-					.forEach(f => {
-						f.value = typeof widgetValue === 'string' && f.componentName === 'filter-select' ?
-								widgetValue.split('|') : widgetValue;
-					});
-			});
-		});
-	}, 'set_filters_from_within_clauses'),
 
 	// filterLucene: b.commit((state, {id, lucene}: Pick<FullFilterState, 'id'|'lucene'>) => state.filters[id].lucene = lucene || null , 'filter_lucene'),
 	// filterSummary: b.commit((state, {id, summary}: Pick<FullFilterState, 'id'|'summary'>) => state.filters[id].summary = summary || null, 'filter_summary'),

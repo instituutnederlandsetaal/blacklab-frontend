@@ -439,9 +439,6 @@ export const getPatternString = (
 	}));
 
 	let query = tokens.map(t => `[${t.join('&')}]`).join('');
-
-	// @@@ JN TODO actually get within clauses from within/withinAttributes and filter values
-	//   (don't use withinClauses anymore, we want to remove that)
 	query = applyWithinClauses(query, withinClauses);
 
 	if (parallelTargetFields.length > 0) {
@@ -499,12 +496,10 @@ export const getPatternStringFromCql = (sourceCql: string, withinClauses: Record
 	}
 
 	if (targetVersions.length === 0) {
-		// @@@ JN TODO see above, same
 		return applyWithinClauses(sourceCql, withinClauses);
 	}
 
 	const defaultSourceQuery = targetVersions.length > 0 ? '_': '';
-	// @@@ JN TODO same
 	const sourceQuery = applyWithinClauses(sourceCql.trim() || defaultSourceQuery, withinClauses);
 	const queryParts = [parenQueryPartParallel(sourceQuery)];
 	const relationType = alignBy ?? '';
@@ -889,17 +884,7 @@ export function getPatternStringSearch(
 	const targets = state.shared.targets || [];
 
 	// Derive within clauses from filters
-	const withinClauses: Record<string, Record<string, any>> = {};
-	Object.entries(filtersState).forEach(([k, v]) => {
-		if (v.isSpanFilter) {
-			const [ elName, attrName ] = k.split('-');
-			withinClauses[elName] = withinClauses[elName] || {};
-			const value = typeof v.value === 'string' ?
-				escapeRegex(v.value, { escapeWildcards: false }) :
-				v.value;
-			withinClauses[elName][attrName] = value;
-		}
-	});
+	const withinClauses = getWithinClausesFromFilters(filtersState);
 
 	switch (subForm) {
 		case 'simple':
@@ -950,6 +935,22 @@ export function getPatternSummarySearch<K extends keyof ModuleRootStatePatterns>
 ) {
 	const patt = getPatternStringSearch(subForm, state, defaultAlignBy, filterState);
 	return patt?.replace(/\\(.)/g, '$1') || '';
+}
+
+export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters) {
+	// Derive within clauses from filters
+	const withinClauses: Record<string, Record<string, any>> = {};
+	Object.entries(filtersState).forEach(([k, v]) => {
+		if (v.isSpanFilter) {
+			const [ elName, attrName ] = k.split('-');
+			withinClauses[elName] = withinClauses[elName] || {};
+			const value = typeof v.value === 'string' ?
+				escapeRegex(v.value, { escapeWildcards: false }) :
+				v.value;
+			withinClauses[elName][attrName] = value;
+		}
+	});
+	return withinClauses;
 }
 
 // Must be here to avoid recursive dependencies

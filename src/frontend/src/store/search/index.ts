@@ -25,7 +25,7 @@ import * as ViewModule from '@/store/search/results/views';
 import * as GlobalResultsModule from '@/store/search/results/global';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { getPatternString } from '@/utils';
+import { getPatternString, getWithinClausesFromFilters } from '@/utils';
 import { ApiError } from '@/api';
 
 Vue.use(Vuex);
@@ -256,6 +256,7 @@ const actions = {
 		};
 
 		const annotations = PatternModule.get.activeAnnotations();
+		const withinClauses = getWithinClausesFromFilters(state.filters.filters);
 		const submittedFormStates = annotations
 		.filter(a => a.type !== 'pos')
 		.flatMap(a => a.value.split('|').map(value => ({...a,value})))
@@ -283,7 +284,7 @@ const actions = {
 					}
 				}
 			},
-			pattern: getPatternString([a], state.patterns.shared.withinClauses,
+			pattern: getPatternString([a], withinClauses,
 				state.patterns.shared.targets,
 				state.patterns.shared.alignBy || state.ui.search.shared.alignBy.defaultValue),
 			// TODO :( url generation is too encapsulated to completely repro here

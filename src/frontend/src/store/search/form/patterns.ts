@@ -29,12 +29,6 @@ type ModuleRootState = {
 
 		/** Attribute values entered in Within widget, if any (extended/advanced) */
 		withinAttributes: Record<string, string>,
-
-		/** Any span filters selected that should generate within clauses.
-		 * @@@ JN TO BE REMOVED: instead we'll use the values from the filter store
-		 *  to generate the query (including withins) when we need it.
-		 */
-		withinClauses: Record<string, Record<string, any>>,
 	},
 	simple: {
 		annotationValue: AnnotationValue
@@ -71,7 +65,6 @@ const defaults: ModuleRootState = {
 		alignBy: null,
 		within: null,
 		withinAttributes: {},
-		withinClauses: {},
 	},
 	simple: {
 		annotationValue: {case: false, id: '', value: '', type: 'text'}
@@ -181,10 +174,6 @@ const actions = {
 		alignBy: b.commit((state, payload: string|null) => {
 			return (state.shared.alignBy = payload == null ? UIStore.getState().search.shared.alignBy.defaultValue : payload);
 		}, 'shared_align_by'),
-		// @@@ JN TO BE REMOVED
-		withinClauses: b.commit((state, payload: Record<string, Record<string, any>>) => {
-			state.shared.withinClauses = payload;
-		}, 'shared_within_clauses'),
 		reset: b.commit(state => {
 			const defaultSourceField = CorpusStore.get.parallelAnnotatedFields()[0]?.id;
 			debugLogCat('shared', `shared.reset: Selecting default source version ${defaultSourceField}`);
@@ -194,7 +183,6 @@ const actions = {
 			state.shared.alignBy = v;
 			state.shared.within = null;
 			state.shared.withinAttributes = {};
-			state.shared.withinClauses = {};
 		}, 'shared_reset'),
 	},
 	simple: {
@@ -278,7 +266,6 @@ const actions = {
 		actions.shared.targetFields(payload.shared.targets);
 		state.shared.within = payload.shared.within;
 		state.shared.withinAttributes = payload.shared.withinAttributes;
-		actions.shared.withinClauses(payload.shared.withinClauses);
 
 		actions.simple.reset();
 		actions.simple.annotation(payload.simple.annotationValue);
@@ -312,7 +299,6 @@ const init = () => {
 		alignBy: null,
 		within: null,
 		withinAttributes: {},
-		withinClauses: {},
 	})
 	CorpusStore.get.allAnnotations().forEach(({id, uiType}) =>
 		privateActions.initExtendedAnnotation({
