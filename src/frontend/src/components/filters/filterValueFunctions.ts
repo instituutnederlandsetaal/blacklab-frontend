@@ -512,6 +512,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 	}),
 };
 
+/** Get the right set of functions for a filter, based on its
+ *  behaviourName, or if that's not set, its componentName. */
 export function getValueFunctions(filter: FullFilterState): FilterValueFunctions<any, any> {
 	const name = filter.behaviourName ?? filter.componentName;
 	const func = valueFunctions[name];

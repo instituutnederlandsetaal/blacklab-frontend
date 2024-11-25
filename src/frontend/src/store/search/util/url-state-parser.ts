@@ -578,8 +578,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			targets,
 			alignBy,
 			within: this.withinElementName,
-			withinAttributes: this.withinAttributes,
-			withinClauses: this.withinClausesWithoutWithinWidget,
+			withinAttributes: this.withinAttributes
 		};
 	}
 
@@ -633,12 +632,11 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		const isParallel = (this._parsedCql?.length ?? 0) > 1;
 		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*') ? '' : q;
 
-		// Strip any withinClauses from the end of the CQL query
-		// (we'll add back those that we cannot place into a widget)
+		// Strip any withinClauses from the end of the CQL query,
+		// then add back only those that we cannot place into a widget.
 		function stripWithins(q: string) {
 			return q.replace(/( within <[^\/]+\/>)+$/g, '');
 		}
-
 		const hasWithinClauses = this._parsedCql && this._parsedCql[0].withinClauses && Object.keys(this._parsedCql[0].withinClauses).length > 0;
 		const query = unparenQueryPart(hasWithinClauses ? stripWithins(this._parsedCql![0].query ?? '') : this._parsedCql?.[0].query ?? '');
 		const reapplyWithins = this.expertWithinClauses;

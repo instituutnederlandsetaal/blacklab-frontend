@@ -67,7 +67,7 @@ import * as FilterStore from '@/store/search/form/filters';
 import FilterOverview from '@/pages/search/form/FilterOverview.vue';
 import { mapReduce } from '@/utils';
 
-import { getValueFunctions, valueFunctions } from '@/components/filters/filterValueFunctions';
+import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 
 import * as RootStore from '@/store/search';
 

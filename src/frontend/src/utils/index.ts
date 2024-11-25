@@ -398,19 +398,9 @@ function parenQueryPart(query: string, exceptions: string[] = []) {
 	return `(${query})`;
 }
 
-/** Remove parentheses from a BCQL query part if it's parenthesized */
-export function unparenQueryPartIfNotNested(query?: string) {
-	if (query) {
-
-		query = query.trim();
-		while (query.match(/^\([^\(\)]*\)$/)) {
-			query = query.substring(1, query.length - 1).trim();
-		}
-	}
-	return query;
-}
-
-/** Remove parentheses from a BCQL query part if it's parenthesized */
+/** Remove parentheses from a BCQL query part if it's parenthesized and doesn't
+ *  contain nested parens.
+ */
 export function unparenQueryPart(query?: string) {
 	if (query) {
 
