@@ -3,7 +3,7 @@ import memoize from 'memoize-decorator';
 import BaseUrlStateParser from '@/store/util/url-state-parser-base';
 import LuceneQueryParser from 'lucene-query-parser';
 
-import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses} from '@/utils';
+import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex} from '@/utils';
 import {parseBcql, Attribute, Result, Token} from '@/utils/bcql-json-interpreter';
 import parseLucene from '@/utils/luceneparser';
 import {debugLog} from '@/utils/debug';
@@ -91,13 +91,15 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 					.forEach(([attrName, attrValue]) => {
 					const id = `${elName}-${attrName}`;
 					if (FilterModule.getState().filters[id]?.isSpanFilter) {
-						const obj: FilterValue = {
-							id,
-							values: attrValue.low || attrValue.high ?
-								[attrValue.low || '', attrValue.high || ''] :
-								[attrValue]
-						};
-						result[id] = obj;
+						let values;
+						if (typeof attrValue === 'string') {
+							values = [ unescapeRegex(attrValue, { escapeWildcards: false }) ];
+						} else if (attrValue.low || attrValue.high) {
+							values = [attrValue.low || '', attrValue.high || ''];
+						} else {
+							values = [ attrValue ];
+						}
+						result[id] = { id, values };
 					}
 				});
 		});

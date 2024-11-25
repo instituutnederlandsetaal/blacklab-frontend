@@ -160,7 +160,7 @@ const actions = {
 		const filterSummary: string|undefined = getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
 		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
 		const patternSummary: string|undefined =
-			entry.interface.form === 'search' ? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy) :
+			entry.interface.form === 'search' ? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy, entry.filters) :
 			entry.interface.form === 'explore' ? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, CorpusModule.get.allAnnotationsMap()) :
 			undefined;
 

@@ -133,9 +133,6 @@ $(document).ready(async () => {
 			const stateFromUrl = await new UrlStateParser(FilterStore.getState().filters).get();
 			RootStore.actions.replace(stateFromUrl);
 
-			// @@@ JN TODO stateFromUrl should already contain the correct filter values, making this call unnecessary
-			FilterStore.actions.setFiltersFromWithinClauses(stateFromUrl.patterns.shared.withinClauses);
-
 			// Don't do this before the url is parsed, as it controls the page url (among other things derived from the state).
 			connectStreamsToVuex();
 		},

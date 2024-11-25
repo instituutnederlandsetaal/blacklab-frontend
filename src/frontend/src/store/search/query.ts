@@ -105,7 +105,7 @@ const get = {
 		const annotations = CorpusModule.get.allAnnotationsMap();
 		switch (state.form) {
 		case 'search':
-			return getPatternStringSearch(state.subForm, formState as any, rootState.ui.search.shared.alignBy.defaultValue);
+			return getPatternStringSearch(state.subForm, formState as any, rootState.ui.search.shared.alignBy.defaultValue, state.filters);
 		case 'explore':
 			return getPatternStringExplore(state.subForm, formState as any, annotations);
 		default:
@@ -121,7 +121,7 @@ const get = {
 		} as any; /** egh, feel free to refactor */
 		switch (state.form) {
 		case 'search':
-			return getPatternSummarySearch(state.subForm, formState, rootState.ui.search.shared.alignBy.defaultValue);
+			return getPatternSummarySearch(state.subForm, formState, rootState.ui.search.shared.alignBy.defaultValue, state.filters);
 		case 'explore':
 			return getPatternSummaryExplore(state.subForm, formState, CorpusModule.get.allAnnotationsMap());
 		default:

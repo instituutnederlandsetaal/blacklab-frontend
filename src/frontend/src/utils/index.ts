@@ -399,6 +399,18 @@ function parenQueryPart(query: string, exceptions: string[] = []) {
 }
 
 /** Remove parentheses from a BCQL query part if it's parenthesized */
+export function unparenQueryPartIfNotNested(query?: string) {
+	if (query) {
+
+		query = query.trim();
+		while (query.match(/^\([^\(\)]*\)$/)) {
+			query = query.substring(1, query.length - 1).trim();
+		}
+	}
+	return query;
+}
+
+/** Remove parentheses from a BCQL query part if it's parenthesized */
 export function unparenQueryPart(query?: string) {
 	if (query) {
 
@@ -835,7 +847,8 @@ export function getCorrectUiType<T extends AppTypes.NormalizedAnnotation['uiType
 }
 
 import type {ModuleRootState as ModuleRootStateExplore} from '@/store/search/form/explore';
-import type {ModuleRootState as ModuleRootStateSearch} from '@/store/search/form/patterns';
+import type {ModuleRootState as ModuleRootStatePatterns} from '@/store/search/form/patterns';
+import type {ModuleRootState as ModuleRootStateFilters} from '@/store/search/form/filters';
 import cloneDeep from 'clone-deep';
 
 export function getPatternStringExplore(
@@ -864,15 +877,30 @@ export function getPatternStringExplore(
 	}
 }
 export function getPatternStringSearch(
-	subForm: keyof ModuleRootStateSearch,
-	state: ModuleRootStateSearch,
+	subForm: keyof ModuleRootStatePatterns,
+	state: ModuleRootStatePatterns,
 	defaultAlignBy: string,
+	filtersState: ModuleRootStateFilters,
 ): string|undefined {
 	// For the normal search form,
 	// the simple and extended views require the values to be processed before converting them to cql.
 	// The advanced and expert views already contain a good-to-go cql query. We only need to take care not to emit an empty string.
 	const alignBy = state.shared.alignBy || defaultAlignBy;
 	const targets = state.shared.targets || [];
+
+	// Derive within clauses from filters
+	const withinClauses: Record<string, Record<string, any>> = {};
+	Object.entries(filtersState).forEach(([k, v]) => {
+		if (v.isSpanFilter) {
+			const [ elName, attrName ] = k.split('-');
+			withinClauses[elName] = withinClauses[elName] || {};
+			const value = typeof v.value === 'string' ?
+				escapeRegex(v.value, { escapeWildcards: false }) :
+				v.value;
+			withinClauses[elName][attrName] = value;
+		}
+	});
+
 	switch (subForm) {
 		case 'simple':
 			const q = state.simple.annotationValue.value ? [state.simple.annotationValue] : [];
@@ -886,18 +914,16 @@ export function getPatternStringSearch(
 					...annot,
 					type: getCorrectUiType(uiTypeSupport.search.extended, annot.type!)
 				}));
-			// @@@ JN TODO: get withinClauses from within/withinAttribute and filters here too
-			//    (same in rest of this method)
-			return r.length || Object.keys(state.shared.withinClauses).length > 0 ?
-				getPatternString(r, state.shared.withinClauses, targets, alignBy) :
+			return r.length || Object.keys(withinClauses).length > 0 ?
+				getPatternString(r, withinClauses, targets, alignBy) :
 				undefined;
 		}
 		case 'advanced':
 			if (!state.advanced.query)
 				return undefined;
-			return getPatternStringFromCql(state.advanced.query, state.shared.withinClauses, targets, state.advanced.targetQueries, alignBy);
+			return getPatternStringFromCql(state.advanced.query, withinClauses, targets, state.advanced.targetQueries, alignBy);
 		case 'expert':
-			return getPatternStringFromCql(state.expert.query || '', state.shared.withinClauses, targets, state.expert.targetQueries, alignBy);
+			return getPatternStringFromCql(state.expert.query || '', withinClauses, targets, state.expert.targetQueries, alignBy);
 		case 'concept': return state.concept?.trim() || undefined;
 		case 'glosses': return state.glosses?.trim() || undefined;
 		default: throw new Error('Unimplemented pattern generation.');
@@ -916,12 +942,13 @@ export function getPatternSummaryExplore<K extends keyof ModuleRootStateExplore>
 		default: return undefined;
 	}
 }
-export function getPatternSummarySearch<K extends keyof ModuleRootStateSearch>(
+export function getPatternSummarySearch<K extends keyof ModuleRootStatePatterns>(
 	subForm: K,
-	state: ModuleRootStateSearch,
+	state: ModuleRootStatePatterns,
 	defaultAlignBy: string,
+	filterState: ModuleRootStateFilters
 ) {
-	const patt = getPatternStringSearch(subForm, state, defaultAlignBy);
+	const patt = getPatternStringSearch(subForm, state, defaultAlignBy, filterState);
 	return patt?.replace(/\\(.)/g, '$1') || '';
 }
 
