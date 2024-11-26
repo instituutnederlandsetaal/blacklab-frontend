@@ -440,37 +440,27 @@ export const getPatternString = (
 };
 
 export function applyWithinClauses(query: string, withinClauses: Record<string, Record<string, any>>) {
-	const queryGiven = query.length > 0;
-	if (Object.keys(withinClauses).length > 0) {
-		for (const [within, withinAttributes] of Object.entries(withinClauses)) {
-			const attr = withinAttributes ?
-				Object.entries(withinAttributes).filter(([k, v]) => !!v)
-					.map(([k, v]) => {
-						if (typeof v === 'string') {
-							// Regex query
-							return ` ${k}="${v.replace(/"/g, '\\"')}"`;
-						} else if (v.low || v.high) {
-							// Range query
-							return ` ${k}=in[${v.low || 0},${v.high || 9999}]`;
-						} else
-							return '';
-					})
-					.join('')
-				: '';
-			const tags = `<${within}${attr}/>`;
-			if (queryGiven) {
-				// Actual within
-				query = `(${query}) within ${tags}`;
-			} else {
-				// No query given; just find the tags themselves
-				if (query.length > 0)
-					query = `${query} overlap ${tags}`;
-				else
-					query = tags;
-			}
-		}
-	}
-	return query;
+	const overlapClauses = Object.entries(withinClauses)
+		.map(([elName, attributes]) => {
+			const attr = attributes ?
+			Object.entries(attributes).filter(([k, v]) => !!v)
+				.map(([k, v]) => {
+					if (typeof v === 'string') {
+						// Regex query
+						return ` ${k}="${v.replace(/"/g, '\\"')}"`;
+					} else if (v.low || v.high) {
+						// Range query
+						return ` ${k}=in[${v.low || 0},${v.high || 9999}]`;
+					} else
+						return '';
+				})
+				.join('') : '';
+			return `<${elName}${attr}/>`;
+		})
+		.join(' overlap ');
+	if (query.length > 0 && overlapClauses.length > 0)
+		return `${query} within ${overlapClauses}`;
+	return query.length > 0 ? query : overlapClauses;
 }
 
 function parenQueryPartParallel(query: string) {

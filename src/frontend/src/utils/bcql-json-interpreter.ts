@@ -158,13 +158,23 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	function _posFilter(producer: any, operation: string, filter: any): Result {
 		if (operation !== 'within')
 			throw new Error('Unknown posfilter operation: ' + operation);
-		if (filter.type !== 'tags')
+		if (filter.type !== 'tags' && filter.type !== 'overlapping')
 			throw new Error('Unknown posfilter filter type: ' + filter.type);
 		const query = _query(producer);
 
 		query.withinClauses = query.withinClauses ?? {};
 
-		query.withinClauses[filter.name.toString()] = interpretTagsAttributes(filter.attributes);
+		if (filter.type === 'tags') {
+			query.withinClauses[filter.name.toString()] = interpretTagsAttributes(filter.attributes);
+		} else if (filter.type === 'overlapping') {
+			if (filter.operation !== 'overlap')
+				throw new Error('Unknown overlapping operation: ' + operation);
+			filter.clauses.forEach((c: any) => {
+				if (c.type !== 'tags')
+					throw new Error('Unsupported overlapping clause type: ' + c.type);
+				query.withinClauses![c.name.toString()] = interpretTagsAttributes(c.attributes);
+			});
+		}
 
 		return query;
 	}
