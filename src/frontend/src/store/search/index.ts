@@ -370,7 +370,17 @@ const init = async () => {
 				privateActions.setLoadingState({loadingState: 'unauthorized', loadingMessage: e.message});
 			} else if (e.httpCode === 404) {
 				// Not found. May not be configured correctly.
-				if (e.message.indexOf('blacklabResponse') !== -1) {
+				console.log(`ApiError: ${JSON.stringify(e)}`);
+				if (e.title === 'CANNOT_OPEN_INDEX' || e.message.indexOf('CANNOT_OPEN_INDEX') !== -1) {
+					// Corpus not found
+					privateActions.setLoadingState({loadingState: 'error', loadingMessage:
+						`Corpus not found. Please check the spelling, or delete the corpus` +
+						'name from the URL to get a list of available corpora. ' +
+						'If it\'s not there, refer to the documentation at https://github.com/INL/corpus-frontend '+
+						'and check your configuration.'
+					});
+				} else if (e.message.indexOf('blacklabResponse') !== -1) {
+					// Some other blacklab error.
 					privateActions.setLoadingState({loadingState: 'error', loadingMessage: e.message});
 				} else {
 					// No blacklab response; something isn't configured correctly.
