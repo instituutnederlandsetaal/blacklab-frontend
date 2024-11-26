@@ -85,7 +85,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	get spanFilters(): Record<string, FilterValue> {
 		const result: Record<string, FilterValue> = {};
-		Object.entries(this.withinClausesWithoutWithinWidget)
+		Object.entries(this.withinClauses)
 			.forEach(([elName, attrs]) => {
 				Object.entries(attrs)
 					.forEach(([attrName, attrValue]) => {
@@ -108,21 +108,28 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 	/** Within clauses that don't fit into a widget, so must remain part of the Expert query */
 	@memoize
-	get expertWithinClauses(): Record<string, Record<string, any>> {
-		const result: Record<string, Record<string, any>> = {};
-		Object.entries(this.withinClausesWithoutWithinWidget)
-			.forEach(([elName, attrs]) => {
-				Object.entries(attrs)
-					.forEach(([attrName, attrValue]) => {
-					const id = `${elName}-${attrName}`;
-					if (!(FilterModule.getState().filters[id]?.isSpanFilter)) {
-						// Must be part of the expert query
-						result[elName] = result[elName] || {};
-						result[elName][attrName] = attrValue;
+	get withinClausesWithoutSpanFilters(): Record<string, Record<string, any>> {
+		// Only keep within clauses that are not span filters
+		return Object.fromEntries(Object.entries(this.withinClauses)
+			.map(([elName, attrs]: [string, Record<string, any>]) => {
+				if (Object.keys(attrs).length === 0) {
+					// No attributes, so this might be the within widget selection.
+					return [elName, { '_MAYBE_WITHIN_': true } as Record<string, any>];
+				} else {
+					const filters = FilterModule.getState().filters;
+					const filteredAttrs = Object.fromEntries(Object.entries(attrs)
+						.filter(e => !filters[`${elName}-${e[0]}`]?.isSpanFilter));
+					if (Object.keys(attrs).length > 0 && Object.keys(filteredAttrs).length === 0) {
+						// All attributes were placed in span filters, so we probably don't want this
+						// to be the within widget selection.
+						return [elName, { } as Record<string, any>];
+					} else {
+						return [elName, filteredAttrs as Record<string, any>];
 					}
-				});
-		});
-		return result;
+				}
+			})
+			.filter(([elName, attrs]: [string, Record<string, any>]) => Object.keys(attrs).length > 0)
+			.map(([elName, attrs]: [string, Record<string, any>]) => [elName, attrs['_MAYBE_WITHIN_'] ? {} : attrs])) as Record<string, Record<string, any>>;
 	}
 
 	@memoize
@@ -516,14 +523,14 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		// Complex additional logic might improve this slightly, but the real fix is to change the URL to describe
 		// the frontend's interface state, not the query we send to BLS.
 		const withinOptions = withinUi.enabled ? withinUi.elements.filter(UIModule.corpusCustomizations.search.within.include) : [];
-		return withinOptions.find(opt => !!this.withinClauses[opt.value])?.value ?? null;
+		return withinOptions.find(opt => !!this.withinClausesWithoutSpanFilters[opt.value])?.value ?? null;
 	}
 
 	@memoize
 	private get withinAttributes(): Record<string, any> {
 		// Find any attributes for the within widget
 		const within = this.withinElementName;
-		const allAttributes = within ? this.withinClauses[within] ?? {} : {};
+		const allAttributes = within ? this.withinClausesWithoutSpanFilters[within] ?? {} : {};
 		const attributesAcceptedByWithinWidget = within ? UIModule.corpusCustomizations.search.within.attributes(within)
 			.map(el => typeof el === 'string' ? { value: el } : el) : [];
 		const withinAttributes = Object.fromEntries(Object.entries(allAttributes)
@@ -534,20 +541,18 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	}
 
 	@memoize
-	private get withinClausesWithoutWithinWidget(): Record<string, Record<string, any>> {
+	private get expertWithinClauses(): Record<string, Record<string, any>> {
 		// Remove whatever goes into the within widget from the withinClauses.
 		const within = this.withinElementName;
 		const withinAttributes = this.withinAttributes;
-		return Object.fromEntries(Object.entries(this.withinClauses)
+		return Object.fromEntries(Object.entries(this.withinClausesWithoutSpanFilters)
 			.map(([el, attr]) => {
 				if (el === within) {
 					// Remove attributes that are already in the within widget
 					Object.keys(withinAttributes).forEach(attrName => delete attr[attrName]);
 				}
 				return [el, attr];
-			})
-			// only keep if there are any attributes left
-			.filter(([el, attr]) => Object.keys(attr).length > 0)) as Record<string, Record<string, any>>;
+			})) as Record<string, Record<string, any>>;
 	}
 
 	@memoize
