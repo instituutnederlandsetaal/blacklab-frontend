@@ -104,7 +104,10 @@ const get = {
 };
 
 const privateActions = {
-	setLoadingState: b.commit((state, newState: Pick<RootState, 'loadingState'|'loadingMessage'>) => Object.assign(state, newState), 'setLoadingState'),
+	setLoadingState: b.commit((state, newState: Pick<RootState, 'loadingState'|'loadingMessage'>) => {
+		console.log(`Setting loading state to ${newState.loadingState} with message: ${newState.loadingMessage}`);
+		return Object.assign(state, newState);
+	}, 'setLoadingState'),
 }
 
 const actions = {
@@ -363,6 +366,7 @@ const init = async () => {
 
 		return true;
 	} catch (e: any) {
+		console.log(e);
 		if (e instanceof ApiError) {
 			if (e.httpCode === 401) {
 				privateActions.setLoadingState({loadingState: 'requiresLogin', loadingMessage: e.message});
