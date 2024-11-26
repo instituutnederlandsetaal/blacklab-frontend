@@ -207,7 +207,8 @@
 				"allWords": "all words",
 				"specificWords": "specific words",
 				"captureGroupsLabel": "Labels and relations",
-				"spanFiltersLabel": "Span filters"
+				"spanFiltersLabel": "Span filters",
+				"spanFiltersTagAttribute": "Tag {tag}, attribute {attribute}"
 			},
 			"in_this_location": {
 				"beforeTheHit": "before the hit",

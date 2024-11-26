@@ -346,7 +346,7 @@ export default Vue.extend({
 					if (sourceInThisField || targetInThisField) {
 						result.push({
 							label: k,
-							name: `${k}`,
+							name: k,
 							targetField: this.selectedCriteriumAsPositional?.fieldName,
 						});
 					}
@@ -366,9 +366,8 @@ export default Vue.extend({
 						attr.forEach(a => {
 							if (UIStore.corpusCustomizations.grouping.includeSpanAttribute(k, a)) {
 								result.push({
-									label: `Tag ${k}, attribuut ${a}`,
-									value: `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([k,a])}`,
-									title: `Tag ${k}, attribuut ${a}`
+									label: this.$t('results.groupBy.some_words.spanFiltersTagAttribute', { tag: k, attribute: a }).toString(),
+									value: `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([k,a])}`
 								});
 							}
 						});

@@ -207,7 +207,9 @@
 				"theFirstWord": "het eerste woord",
 				"allWords": "alle woorden",
 				"specificWords": "specifieke woorden",
-				"captureGroupsLabel": "Labels en relaties"
+				"captureGroupsLabel": "Labels en relaties",
+				"spanFiltersLabel": "Span filters",
+				"spanFiltersTagAttribute": "Tag {tag}, attribuut {attribute}"
 			},
 			"in_this_location": {
 				"beforeTheHit": "voor het resultaat",
