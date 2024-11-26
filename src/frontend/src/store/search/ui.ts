@@ -1289,7 +1289,7 @@ const corpusCustomizations = {
 				const corpus = CorpusStore.getState().corpus;
 				if (!metadata.options && corpus && corpus.relations.spans) {
 					const span: BLTypes.BLSpanInfo = corpus.relations.spans[spanName] ?? {};
-					const attr = span.attributes[attrName] ?? { values: {}, valueListComplete: false };
+					const attr = span.attributes?.[attrName] ?? { values: {}, valueListComplete: false };
 					if (attr?.valueListComplete) {
 						optionsFromCorpus = Object.keys(attr.values).map((value: string) => ({ value }));
 					}
