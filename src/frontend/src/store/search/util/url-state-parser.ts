@@ -508,11 +508,15 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	private get withinElementName(): string|null {
 		// Determine selected option in within widget from within clauses in the query
 		const withinUi = UIStore.getState().search.shared.within;
+		// Note that the first withinOption we find that is in withinClauses is assumed to be the
+		// selected within option.
+		// FIXME: It's possible that we select the wrong withinOption this way. If we do, and there's
+		// no span filter widget to populate with what would have been the correct within option, that
+		// part of the query gets dropped on page reload, breaking the user's query...
+		// Complex additional logic might improve this slightly, but the real fix is to change the URL to describe
+		// the frontend's interface state, not the query we send to BLS.
 		const withinOptions = withinUi.enabled ? withinUi.elements.filter(UIModule.corpusCustomizations.search.within.include) : [];
-		const within = Object.keys(this.withinClauses)
-				.map(elName => withinOptions.find(w => w.value === elName))
-				.find(w => !!w)?.value ?? null;
-		return within;
+		return withinOptions.find(opt => !!this.withinClauses[opt.value])?.value ?? null;
 	}
 
 	@memoize

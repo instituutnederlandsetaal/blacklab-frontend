@@ -874,7 +874,7 @@ export function getPatternStringSearch(
 	const targets = state.shared.targets || [];
 
 	// Derive within clauses from filters
-	const withinClauses = getWithinClausesFromFilters(filtersState);
+	const withinClauses = getWithinClausesFromFilters(filtersState, state);
 
 	switch (subForm) {
 		case 'simple':
@@ -927,8 +927,8 @@ export function getPatternSummarySearch<K extends keyof ModuleRootStatePatterns>
 	return patt?.replace(/\\(.)/g, '$1') || '';
 }
 
-export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters) {
-	// Derive within clauses from filters
+/** Derive within clauses from filters and the within widget (on the left), if any */
+export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters, patternState: ModuleRootStatePatterns) {
 	const withinClauses: Record<string, Record<string, any>> = {};
 	Object.entries(filtersState).forEach(([k, v]) => {
 		if (v.isSpanFilter) {
@@ -940,6 +940,14 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
 			withinClauses[elName][attrName] = value;
 		}
 	});
+	const withinEl = patternState.shared.within;
+	if (withinEl) {
+		// Add within clause plus any attribute from the within widget as well.
+		withinClauses[withinEl] = {
+			...withinClauses[withinEl] || {},
+			...patternState.shared.withinAttributes
+		};
+	}
 	return withinClauses;
 }
 
