@@ -651,7 +651,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		// Strip any withinClauses from the end of the CQL query,
 		// then add back only those that we cannot place into a widget.
 		function stripWithins(q: string) {
-			return q.replace(/( within <[^\/]+\/>)+$/g, '');
+			return q.replace(/(?:\s*(?:within|overlap)?\s*<[^\/]+\/>)+$/g, '');
 		}
 		const hasWithinClauses = this._parsedCql && this._parsedCql[0].withinClauses && Object.keys(this._parsedCql[0].withinClauses).length > 0;
 		const query = unparenQueryPart(hasWithinClauses ? stripWithins(this._parsedCql![0].query ?? '') : this._parsedCql?.[0].query ?? '');

@@ -207,8 +207,7 @@
 				"allWords": "所有词",
 				"specificWords": "特定词",
 				"captureGroupsLabel": "标签和关系",
-				"spanFiltersLabel": "Span filters",
-				"spanFiltersTagAttribute": "Tag {tag}, attribute {attribute}"
+				"spanFiltersLabel": "Span filters"
 			},
 			"in_this_location": {
 				"beforeTheHit": "命中前",

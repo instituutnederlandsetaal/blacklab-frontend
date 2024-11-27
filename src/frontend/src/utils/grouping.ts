@@ -1,6 +1,8 @@
 import { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes";
 import { BLHitResults, BLSearchResult } from '@/types/blacklabtypes';
+import { spanFilterId } from '@/utils';
 import { attr } from 'highcharts';
+import * as FilterModule from '@/store/search/form/filters';
 
 /** Group by some tokens at a fixed position in the hit. */
 export type ContextPositional = {
@@ -284,9 +286,13 @@ export function isValidGroupBy(g: GroupBy): boolean {
 
 export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<string, NormalizedAnnotation>, metadata: Record<string, NormalizedMetadataField>): string {
 	if (g.type === 'context') {
-		if (g.context.type === 'span-attribute')
-			return i18n.$t('results.groupBy.summary.spanAttribute', { span: g.context.spanName, attribute: g.context.attributeName}).toString();
-
+		if (g.context.type === 'span-attribute') {
+			const filterId = spanFilterId(g.context.spanName, g.context.attributeName);
+			const filter = FilterModule.getState().filters[filterId];
+			return filter ?
+				i18n.$tMetaDisplayName(filter).toString() :
+				i18n.$t('results.groupBy.summary.spanAttribute', { span: g.context.spanName, attribute: g.context.attributeName}).toString();
+		}
 		if (!g.annotation)
 			return i18n.$t('results.groupBy.specify').toString();
 		const field = i18n.$tAnnotDisplayName(annotations[g.annotation]);

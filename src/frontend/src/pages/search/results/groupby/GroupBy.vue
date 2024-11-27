@@ -196,8 +196,9 @@ import * as UIStore from '@/store/search/ui';
 import * as ResultsStore from '@/store/search/results/views';
 import * as GlobalSearchSettingsStore from '@/store/search/results/global';
 import * as SearchModule from '@/store/search/index';
+import * as FilterModule from '@/store/search/form/filters';
 
-import { getAnnotationSubset, getMetadataSubset, isHitParams } from '@/utils';
+import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 import { blacklab } from '@/api';
 
 import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, BLHitInOtherField, BLMatchInfo} from '@/types/blacklabtypes';
@@ -354,23 +355,27 @@ export default Vue.extend({
 			return result;
 		},
 		tagAttributes() {
-			const mi = this.hits?.summary?.pattern?.matchInfos;
+			const matchInfos = this.hits?.summary?.pattern?.matchInfos || {};
 			const result: { label?: string, value: string, title?: string }[] = [];
-			Object.entries(mi|| {})
-				.filter(([k, v]) => v.type === 'tag')
-				.forEach(([k,v]) => {
-					const sourceInThisField = this.relationSourceInThisField(v);
+			Object.entries(matchInfos)
+				.filter(([_, matchInfo]) => matchInfo.type === 'tag')
+				.forEach(([matchInfoName, matchInfo]) => {
+					const sourceInThisField = this.relationSourceInThisField(matchInfo);
 					if (sourceInThisField) {
-						const spanInfo = CorpusStore.getState().corpus!.relations.spans![k];
+						const spanInfo = CorpusStore.getState().corpus!.relations.spans![matchInfoName];
 						if (!spanInfo)
-							console.log('No span info for', k);
+							console.log('No span info for', matchInfoName);
 						const attr = Object.keys(spanInfo?.attributes ?? {});
-						attr.forEach(a => {
-							if (UIStore.corpusCustomizations.grouping.includeSpanAttribute(k, a)) {
-								result.push({
-									label: this.$t('results.groupBy.some_words.spanFiltersTagAttribute', { tag: k, attribute: a }).toString(),
-									value: `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([k,a])}`
-								});
+						attr.forEach(attributeName => {
+							if (UIStore.corpusCustomizations.grouping.includeSpanAttribute(matchInfoName, attributeName)) {
+								const filterId = spanFilterId(matchInfoName, attributeName);
+								const filter = FilterModule.getState().filters[filterId];
+								if (filter?.isSpanFilter) {
+									result.push({
+										label: this.$tMetaDisplayName(filter),
+										value: `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([matchInfoName,attributeName])}`
+									});
+								}
 							}
 						});
 					}

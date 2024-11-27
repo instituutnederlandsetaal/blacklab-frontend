@@ -208,8 +208,7 @@
 				"allWords": "alle woorden",
 				"specificWords": "specifieke woorden",
 				"captureGroupsLabel": "Labels en relaties",
-				"spanFiltersLabel": "Span filters",
-				"spanFiltersTagAttribute": "Tag {tag}, attribuut {attribute}"
+				"spanFiltersLabel": "Span filters"
 			},
 			"in_this_location": {
 				"beforeTheHit": "voor het resultaat",
