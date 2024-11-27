@@ -864,7 +864,7 @@ export function getPatternStringSearch(
 	const targets = state.shared.targets || [];
 
 	// Derive within clauses from filters
-	const withinClauses = getWithinClausesFromFilters(filtersState, state);
+	const [withinClauses, withinClausesNoWithinWidget] = getWithinClausesFromFilters(filtersState, state);
 
 	switch (subForm) {
 		case 'simple':
@@ -888,7 +888,7 @@ export function getPatternStringSearch(
 				return undefined;
 			return getPatternStringFromCql(state.advanced.query, withinClauses, targets, state.advanced.targetQueries, alignBy);
 		case 'expert':
-			return getPatternStringFromCql(state.expert.query || '', withinClauses, targets, state.expert.targetQueries, alignBy);
+			return getPatternStringFromCql(state.expert.query || '', withinClausesNoWithinWidget, targets, state.expert.targetQueries, alignBy);
 		case 'concept': return state.concept?.trim() || undefined;
 		case 'glosses': return state.glosses?.trim() || undefined;
 		default: throw new Error('Unimplemented pattern generation.');
@@ -920,16 +920,19 @@ export function getPatternSummarySearch<K extends keyof ModuleRootStatePatterns>
 /** Derive within clauses from filters and the within widget (on the left), if any */
 export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters, patternState: ModuleRootStatePatterns) {
 	const withinClauses: Record<string, Record<string, any>> = {};
-	Object.entries(filtersState).forEach(([k, v]) => {
-		if (v.isSpanFilter) {
-			const [ elName, attrName ] = k.split('-');
+	Object.entries(filtersState).forEach(([id, filterState]) => {
+		if (filterState.isSpanFilter) {
+			const [ elName, attrName ] = elementAndAttributeNameFromFilterId(id);
 			withinClauses[elName] = withinClauses[elName] || {};
-			const value = typeof v.value === 'string' ?
-				escapeRegex(v.value, { escapeWildcards: false }) :
-				v.value;
+			const value = typeof filterState.value === 'string' ?
+				escapeRegex(filterState.value, { escapeWildcards: false }) :
+				(Array.isArray(filterState.value) ?
+					filterState.value.map(v => escapeRegex(v, { escapeWildcards: false })).join('|') :
+					filterState.value);
 			withinClauses[elName][attrName] = value;
 		}
 	});
+	//const withinClausesNoWithinWidget = cloneDeep(withinClauses);
 	const withinEl = patternState.shared.within;
 	if (withinEl) {
 		// Add within clause plus any attribute from the within widget as well.
@@ -938,7 +941,8 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
 			...patternState.shared.withinAttributes
 		};
 	}
-	return withinClauses;
+	console.log('withinClauses', withinClauses)
+	return [withinClauses, withinClauses];//NoWithinWidget];
 }
 
 // Must be here to avoid recursive dependencies
@@ -982,4 +986,17 @@ export function isParallelField(fieldName: string) {
 /** Are these valid parameters with a pattern that will yield results with hits? */
 export function isHitParams(params: BLTypes.BLSearchParameters|null|undefined): params is BLTypes.BLSearchParameters {
 	return !! (params && params.patt);
+}
+
+/** ID of span filter, given its element and attribute names.
+ *
+ * So a span filter for element <named-entity type="..."/> would have the name "span-named-entity-type".
+ */
+export function spanFilterId(elName: string, attributeName: string): string {
+	return `span-${elName}-${attributeName}`;
+}
+
+function elementAndAttributeNameFromFilterId(filterId: string): [string, string] {
+	const [_, elName, attrName] = filterId.split('-');
+	return [elName, attrName];
 }

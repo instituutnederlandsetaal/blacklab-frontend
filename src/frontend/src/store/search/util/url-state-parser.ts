@@ -3,7 +3,7 @@ import memoize from 'memoize-decorator';
 import BaseUrlStateParser from '@/store/util/url-state-parser-base';
 import LuceneQueryParser from 'lucene-query-parser';
 
-import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex} from '@/utils';
+import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex, spanFilterId} from '@/utils';
 import {parseBcql, Attribute, Result, Token} from '@/utils/bcql-json-interpreter';
 import parseLucene from '@/utils/luceneparser';
 import {debugLog} from '@/utils/debug';
@@ -89,11 +89,18 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			.forEach(([elName, attrs]) => {
 				Object.entries(attrs)
 					.forEach(([attrName, attrValue]) => {
-					const id = `${elName}-${attrName}`;
-					if (FilterModule.getState().filters[id]?.isSpanFilter) {
-						let values;
+					const id = spanFilterId(elName, attrName);
+					const filter = FilterModule.getState().filters[id];
+					if (filter?.isSpanFilter) {
+						let values: string[];
 						if (typeof attrValue === 'string') {
-							values = [ unescapeRegex(attrValue, { escapeWildcards: false }) ];
+							if (filter.componentName === 'filter-select') {
+								// select, decode options
+								values = attrValue.split('|').map(v => unescapeRegex(v, { escapeWildcards: false }));
+							} else {
+								// text
+								values = [ unescapeRegex(attrValue, { escapeWildcards: false }) ];
+							}
 						} else if (attrValue.low || attrValue.high) {
 							values = [attrValue.low || '', attrValue.high || ''];
 						} else {
@@ -118,7 +125,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 				} else {
 					const filters = FilterModule.getState().filters;
 					const filteredAttrs = Object.fromEntries(Object.entries(attrs)
-						.filter(e => !filters[`${elName}-${e[0]}`]?.isSpanFilter));
+						.filter(e => !filters[spanFilterId(elName, e[0])]?.isSpanFilter));
 					if (Object.keys(attrs).length > 0 && Object.keys(filteredAttrs).length === 0) {
 						// All attributes were placed in span filters, so we probably don't want this
 						// to be the within widget selection.

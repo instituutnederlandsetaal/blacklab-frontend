@@ -1,13 +1,10 @@
-import { unescapeLucene, escapeLucene, splitIntoTerms, mapReduce, cast, escapeRegex } from '@/utils';
+import { unescapeLucene, escapeLucene, splitIntoTerms, mapReduce, cast, spanFilterId } from '@/utils';
 import { FilterValue, Option } from '@/types/apptypes';
 import { ASTNode, ASTRange } from 'lucene-query-parser';
 // @ts-ignore - weird this doesn't work during builds
 import { modes } from './FilterRangeMultipleFields.vue';
 import { FullFilterState } from '@/store/search/form/filters';
-import * as PatternStore from '@/store/search/form/patterns';
-import Vue from 'vue';
 import { debugLog } from '@/utils/debug';
-
 
 /** month (m) and day (d) may be empty strings. Month field starts at 1 instead of javascript Date's 0. */
 export type DateValue = {
@@ -455,7 +452,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
-			return filterValues[`${name}-${attribute}`]?.values[0] || null;
+			return filterValues[spanFilterId(name, attribute)]?.values[0] || null;
 		},
 		luceneQuery(id, filterMetadata, value) {
 			return null; // not a document level filter
@@ -472,7 +469,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
-			return (filterValues[`${name}-${attribute}`]?.values) || null;
+			return (filterValues[spanFilterId(name, attribute)]?.values) || null;
 		},
 		luceneQuery(id, filterMetadata, value) {
 			return null; // not a document level filter
@@ -493,7 +490,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			const name = filterMetadata['name'] || 'span';
 			const attribute = filterMetadata['attribute'] || 'value';
-			const key = `${name}-${attribute}`;
+			const key = spanFilterId(name, attribute);
 			const v = filterValues[key]?.values ?? [null, null];
 			return {
 				low: v[0] ? parseInt(v[0]) : null,

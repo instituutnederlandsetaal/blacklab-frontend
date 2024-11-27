@@ -362,7 +362,9 @@ export default Vue.extend({
 					const sourceInThisField = this.relationSourceInThisField(v);
 					if (sourceInThisField) {
 						const spanInfo = CorpusStore.getState().corpus!.relations.spans![k];
-						const attr = Object.keys(spanInfo.attributes);
+						if (!spanInfo)
+							console.log('No span info for', k);
+						const attr = Object.keys(spanInfo?.attributes ?? {});
 						attr.forEach(a => {
 							if (UIStore.corpusCustomizations.grouping.includeSpanAttribute(k, a)) {
 								result.push({

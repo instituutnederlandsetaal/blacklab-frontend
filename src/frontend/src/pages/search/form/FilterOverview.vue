@@ -1,7 +1,7 @@
 <template>
 	<div class="filter-overview">
 		<div v-for="filter in activeFilters" :key="filter.id">
-			{{filter.defaultDisplayName}}<small v-if="filter.groupId"> ({{filter.groupId}})</small>: <i>{{summaryMap[filter.id]}}</i>
+			{{$tMetaDisplayName(filter)}}<small v-if="filter.groupId"> ({{filter.groupId}})</small>: <i>{{summaryMap[filter.id]}}</i>
 		</div>
 		<!-- <div v-for="filter in activeFilters" :key="filter.id + '_lucene'">{{filter.displayName}}: <i>{{filter.lucene}}</i></div> -->
 

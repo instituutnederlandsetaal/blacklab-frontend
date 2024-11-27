@@ -14,11 +14,11 @@ import { stripIndent, html } from 'common-tags';
 import { RootState } from '@/store/search/';
 import * as CorpusStore from '@/store/search/corpus';
 import * as ViewsStore from '@/store/search/results/views';
-import * as FilterStore from '@/store/search/form/filters';
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 import { Option } from '@/types/apptypes';
 import { HighlightSection } from '@/utils/hit-highlighting';
+import { spanFilterId } from '@/utils';
 
 type CustomView = {
 	id: string;
@@ -1282,7 +1282,7 @@ const corpusCustomizations = {
 			},
 
 			// Create a span filter for corpus.search.metadata.customTabs
-			createSpanFilter(displayName: string, spanName: string, attrName: string, widget: string = 'auto', metadata: any = {}): AppTypes.FilterDefinition {
+			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: any = {}): AppTypes.FilterDefinition {
 
 				// No options specified; try to get them from the corpus.
 				let optionsFromCorpus;
@@ -1317,7 +1317,7 @@ const corpusCustomizations = {
 				const behaviourName = widget === 'select' || widget === 'range' ? `span-${widget}` : 'span-text';
 
 				return {
-					id: `${spanName}-${attrName}`,
+					id: spanFilterId(spanName, attrName),
 					componentName: `filter-${widget}`,
 					behaviourName, // i.e. generate a "within ..." BCQL query
 					isSpanFilter: true,

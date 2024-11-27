@@ -259,7 +259,7 @@ const actions = {
 		};
 
 		const annotations = PatternModule.get.activeAnnotations();
-		const withinClauses = getWithinClausesFromFilters(state.filters.filters, state.patterns);
+		const [withinClauses] = getWithinClausesFromFilters(state.filters.filters, state.patterns);
 		const submittedFormStates = annotations
 		.filter(a => a.type !== 'pos')
 		.flatMap(a => a.value.split('|').map(value => ({...a,value})))
