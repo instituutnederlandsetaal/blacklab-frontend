@@ -45,7 +45,7 @@ type FilterValueFunctions<M, V> = {
 	 * If a custom filter wants to take "ownership" of a decoded filter value, it should delete the value from the map, to prevent
 	 * later (inbuilt) filters from decoding it.
 	 */
-	decodeInitialState?(id: string, filterMetadata: M, filterValues: Record<string, FilterValue|undefined>, ast: ASTNode|null): V|null,
+	decodeInitialState(id: string, filterMetadata: M, filterValues: Record<string, FilterValue|undefined>, ast: ASTNode|null): V|null,
 	/** For document-level filters: return the Lucene filter query */
 	luceneQuery(id: string, filterMetadata: M, value: V|null): string|null;
 	/** For all filter types: summarize what filter will be applied */
@@ -522,6 +522,7 @@ export function getValueFunctions(filter: FullFilterState): FilterValueFunctions
 	// Referencing nonexistent filter functions; report and return a dummy value
 	console.error(`No value functions for filter ${name}; returning dummy`);
 	return {
+		decodeInitialState: () => null,
 		luceneQuery: () => null,
 		luceneQuerySummary: () => null,
 		isActive: () => false
