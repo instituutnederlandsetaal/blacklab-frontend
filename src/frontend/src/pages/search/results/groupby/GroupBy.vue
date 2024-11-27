@@ -367,15 +367,21 @@ export default Vue.extend({
 							console.log('No span info for', matchInfoName);
 						const attr = Object.keys(spanInfo?.attributes ?? {});
 						attr.forEach(attributeName => {
-							if (UIStore.corpusCustomizations.grouping.includeSpanAttribute(matchInfoName, attributeName)) {
-								const filterId = spanFilterId(matchInfoName, attributeName);
-								const filter = FilterModule.getState().filters[filterId];
-								if (filter?.isSpanFilter) {
-									result.push({
-										label: this.$tMetaDisplayName(filter),
-										value: `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([matchInfoName,attributeName])}`
-									});
-								}
+							// Check custom method to see if we should include this attribute
+							// (or if that returns null, we will fall back to default behaviour)
+							let shouldInclude = UIStore.corpusCustomizations.grouping.includeSpanAttribute(matchInfoName, attributeName);
+							const filterId = spanFilterId(matchInfoName, attributeName);
+							const filter = FilterModule.getState().filters[filterId];
+							if (shouldInclude === null) {
+								// By default, you may group on any span attribute for which a
+								// span filter exists.
+								shouldInclude = filter?.isSpanFilter ?? false;
+							}
+							if (shouldInclude) {
+								result.push({
+									label: filter ? this.$tMetaDisplayName(filter) : filterId,
+									value: `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([matchInfoName,attributeName])}`
+								});
 							}
 						});
 					}

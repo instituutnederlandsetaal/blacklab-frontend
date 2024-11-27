@@ -14,6 +14,7 @@ import { stripIndent, html } from 'common-tags';
 import { RootState } from '@/store/search/';
 import * as CorpusStore from '@/store/search/corpus';
 import * as ViewsStore from '@/store/search/results/views';
+import * as FilterModule from '@/store/search/form/filters';
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 import { Option } from '@/types/apptypes';
@@ -1340,8 +1341,11 @@ const corpusCustomizations = {
 	},
 
 	grouping: {
-		includeSpanAttribute(spanName: string, attrName: string) {
-			return true;
+		/** Should this span attribute be included in group by?
+		 *  (return null to fall back to default: "only if there's a span filter defined for it")
+		 */
+		includeSpanAttribute(spanName: string, attrName: string): boolean|null {
+			return null; // fall back to default behaviour
 		},
 	}
 };
