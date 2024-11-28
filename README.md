@@ -1259,6 +1259,41 @@ Enabling any of these will show a new `Statistics` tab next to the default `Cont
 
   </details>
 
+#### Experimental new customizations API 
+
+As an experiment, we're trying out a different approach for some new customizations. In your `custom.js` file(s), you can now use code like the following:
+
+```js
+frontend.customize((corpus) => {
+    // Hide the field 'badField' from the metadata;
+    corpus.search.metadata.show = function (fieldName) {
+        if (fieldName === 'badField')
+            return false;
+        return null;
+    };
+});
+```
+
+This code will be called while your corpus is initializing.
+
+The `corpus` object represents a more abstract customization API for your corpus. Here's a list of the available properties and methods:
+
+- **corpus**
+  - **search**
+    - **metadata**
+      - **show**: set to a method that takes `fieldName` as a parameter. Return `null` for the default behavior ("show all") or a boolean to explicitly show/hide the field.
+      - **addCustomTab(name, fields)**: call to create a custom metadata tab. You can add span filter fields this way (fields that filter on parts of documents, e.g. `within <person name='Einstein'/>`).
+      - **createSpanFilter(name, attrName\[, widget='auto', displayName, metadata\])**: call to create a span filter for use with `addCustomTab`. `widget` can be `'auto'` (choose `text` or `select` based on number of unique values), `'text'`, `'select'`, `'range'`.
+    - **within**
+      - **include**: set to a method that takes an span name. Return `null` for the default behavior ("include all") or a boolean to explicitly include/exclude the element.
+      - **includeAttribute**: set to a method that takes a span and an attribute name. Return `null` for the default behavior ("show none") or a boolean to explicitly include/exclude the attribute.
+  - **grouping**
+    - **includeSpanAttribute**: Determines what, if any, span attributes in the results can be grouped on (e.g. can we group on `<named-entity type='...'/>` if there are named entities in our results?). Set to a method that takes a span name and an attribute name. Return `null` for the default behavior ("only attributes for which a span filter was created") or a boolean to explicitly include/exclude the attribute.
+  - **results**
+    - **matchInfoHighlightStyle**: set to a method that takes a match info object. Return `null` for the default behavior; `'none'` for no highlighting; `'static'` for permanent highlighting; `'hover'` to only highlight on hover.
+
+
+
 ### **Custom CSS**
 
 We have included a template [SASS](https://sass-lang.com/) file [here](src/frontend/src/style-template.scss) to allow you to customize your page's color theme easily.
@@ -1341,6 +1376,44 @@ If you want to help add translation keys, look for e.g. `{{ $t('search.simple.he
 If you want to help translate the app to a new language, you can do so by adding a new language file in the `src/frontend/src/locales` directory. This is where the default translation files live. Copy one of the files (e.g. `en.json`) and name it for the new locale (e.g. `fr.json` for French). Then you can start translating the strings.
 
 You can also override some default translations per corpus by creating a directory named `locales` in the `static` directory of the corpus' interface data dir (see the `corporaInterfaceDataDir` setting) and create a file with the same name as above (e.g. `fr.json` for French) with the desired overrides. The file should be read automatically by the app.
+
+#### Translating names of annotations, metadata, etc.
+
+In the override file(s) in the `static/locales` directory for your corpus, you can set names for annotations, metadata fields, etc. in your corpus.
+
+For example in `$corporaInterfaceDataDir/YOUR_CORPUS/static/locales/en-us.json`
+```json
+{
+	"index": {
+		"annotations": {
+          "pos": "Part of speech"
+		},
+      
+		"annotationGroups": {
+		  "simple": "Basic annotations",
+		  "advanced": "Advanced annotations"
+		},
+
+		"metadata": {
+			"spanFilters": {
+				"name": {
+					"type": "Named entity type"
+				}
+			}
+		},
+      
+		"metadataGroups": {
+          "author": "Author-related fields", 
+          "date": "Date-related fields"
+		},
+
+		"within": {
+            "name": "Named entity"
+		}
+	}
+}
+
+```
 
 ### **Development tips**
 
