@@ -1265,33 +1265,125 @@ As an experiment, we're trying out a different approach for some new customizati
 
 ```js
 frontend.customize((corpus) => {
-    // Hide the field 'badField' from the metadata;
+    // Your customizations follow here.
+    
+    // For example:
+    // Hide the field 'bad-field' from the metadata;
     corpus.search.metadata.show = function (fieldName) {
-        if (fieldName === 'badField')
+        if (fieldName === 'bad-field')
             return false;
         return null;
     };
+    // Etc.
+    
 });
 ```
 
 This code will be called while your corpus is initializing.
 
-The `corpus` object represents a more abstract customization API for your corpus. Here's a list of the available properties and methods:
+The `corpus` object represents a more abstract customization API for your corpus. Here's a list of the current customization mechanisms.
 
-- **corpus**
-  - **search**
-    - **metadata**
-      - **show**: set to a method that takes `fieldName` as a parameter. Return `null` for the default behavior ("show all") or a boolean to explicitly show/hide the field.
-      - **addCustomTab(name, fields)**: call to create a custom metadata tab. You can add span filter fields this way (fields that filter on parts of documents, e.g. `within <person name='Einstein'/>`).
-      - **createSpanFilter(name, attrName\[, widget='auto', displayName, metadata\])**: call to create a span filter for use with `addCustomTab`. `widget` can be `'auto'` (choose `text` or `select` based on number of unique values), `'text'`, `'select'`, `'range'`.
-    - **within**
-      - **include**: set to a method that takes an span name. Return `null` for the default behavior ("include all") or a boolean to explicitly include/exclude the element.
-      - **includeAttribute**: set to a method that takes a span and an attribute name. Return `null` for the default behavior ("show none") or a boolean to explicitly include/exclude the attribute.
-  - **grouping**
-    - **includeSpanAttribute**: Determines what, if any, span attributes in the results can be grouped on (e.g. can we group on `<named-entity type='...'/>` if there are named entities in our results?). Set to a method that takes a span name and an attribute name. Return `null` for the default behavior ("only attributes for which a span filter was created") or a boolean to explicitly include/exclude the attribute.
-  - **results**
-    - **matchInfoHighlightStyle**: set to a method that takes a match info object. Return `null` for the default behavior; `'none'` for no highlighting; `'static'` for permanent highlighting; `'hover'` to only highlight on hover.
+- <details>
+    <summary>Hide metadata fields</summary>
 
+    Normally all metadata fields are shown. If you wish to hide some, you can use the following code:
+
+    ```js
+    corpus.search.metadata.showField = function (name) {
+        if (name === 'bad-field')
+            return false; // hide this field
+        return null; // default behaviour
+    };
+    ```
+</details>
+
+- <details>
+    <summary>Add span filters (to filter by part of documents)</summary>
+
+    To add an extra tab where you can filter by part of the document, such as only searching in certain types of named entity, or speech by one person:
+
+    ```js
+    const m = corpus.search.metadata;
+    m.addCustomTab(
+        'Span filters',
+        [
+            m.createSpanFilter('named-entity', 'type'),
+            m.createSpanFilter('speech', 'person'),
+        ]
+    );
+    ```
+
+    Parameters for `createSpanFilter`:
+
+    - Span name (e.g. `named-entity`)
+    - Attribute name (e.g. `type`)
+    - Widget to use. Can be `'auto'`, `'text'`, `'select'`, or `'range'`. `'auto'` is the default and will choose between `text` and `select` based on the number of unique values.
+    - Display name of the filter (optional). See also [internationalization](#internationalization).
+    - Metadata object (optional). You can override the options for a select widget here (default are all the actual values in the corpus).
+
+</details>
+
+- <details>
+    <summary>Customize what span attributes we can group on</summary>
+
+    ```js
+    corpus.grouping.includeSpanAttribute = function (name, attrName) {
+        if (name === 'weird-span')
+            return false; // no grouping on any of this span's attributes
+        if (name === 'awesome-span' && attrName === 'bad-attribute')
+            return false; // don't offer grouping on this attribute
+        return null; // default behaviour (any attribute with a span filter)
+    };
+    ```
+</details>
+
+- <details>
+    <summary>Customize the within widget</summary>
+  
+    ```js
+    // Customize which spans are shown in the within widget
+    corpus.search.within.includeSpan = function (name) {
+        if (name === 'ninja-span')
+            return false; // hide this span
+        return null; // default behaviour (all spans)
+    };
+    // Customize if fields for any attributes are shown in
+    // the within widget when selecting certain spans 
+    corpus.search.within.includeAttribute = function (name, attrName) {
+        if (name === 'fun-span') {
+            // show this attribute
+            return attrName === 'great-attribute';
+        }
+        return null; // default behaviour (no attributes)
+    };
+    ```
+</details>
+
+- <details>
+    <summary>Customize match info higlight style</summary>
+
+    Match info is any explicit captures (e.g. `A:[] "cow"`), spans (e.g. `<named-entity type='loc' />`), or relations (`_ -nsubj-> _`) that were encountered while resolving your query.
+
+    ```js
+    corpus.results.matchInfoHighlightStyle = function (matchInfo) {
+        if (matchInfo.isRelation) {
+            // Show hover highlight for words
+            if (matchInfo.relType === 'word-alignment')
+              return 'hover';
+            // Don't show other relations
+            return 'none';
+        }
+        // Always highlight any named entities captured by our query
+        // (e.g. <named-entity/> containing "dog")
+        if (matchInfo.key === 'named-entity')
+            return 'static';
+  
+        // Default highlighting behaviour
+        // ("highlight non-relations if there's explicit captures in the query")
+        return null;
+    };
+    ```
+</details>
 
 
 ### **Custom CSS**

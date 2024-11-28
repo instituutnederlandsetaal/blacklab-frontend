@@ -38,7 +38,7 @@ function getSettings(i18n: Vue): QueryBuilderOptions {
 	}));
 
 	const withinSelectOptions = UIStore.getState().search.shared.within.elements
-		.filter(element => UIStore.corpusCustomizations.search.within.include(element.value))
+		.filter(element => UIStore.corpusCustomizations.search.within.includeSpan(element.value))
 		.map(opt => ({
 			...opt,
 			label: i18n.$tWithinDisplayName(opt) || 'document',

@@ -530,7 +530,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		// Complex additional logic might improve this slightly, but the real fix is to change the URL to describe
 		// the frontend's interface state, not the query we send to BLS.
 		const withinOptions = withinUi.enabled ?
-			withinUi.elements.filter(element => UIModule.corpusCustomizations.search.within.include(element.value)) : [];
+			withinUi.elements.filter(element => UIModule.corpusCustomizations.search.within.includeSpan(element.value)) : [];
 		return withinOptions.find(opt => !!this.withinClausesWithoutSpanFilters[opt.value])?.value ?? null;
 	}
 

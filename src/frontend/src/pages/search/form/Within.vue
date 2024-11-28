@@ -36,7 +36,7 @@ export default Vue.extend({
 	computed: {
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
-			return enabled ? elements.filter(element => corpusCustomizations.search.within.include(element.value)) : [];
+			return enabled ? elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
 		},
 		within: {
 			get(): string|null {

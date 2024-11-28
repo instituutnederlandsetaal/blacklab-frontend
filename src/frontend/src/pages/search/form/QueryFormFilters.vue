@@ -107,7 +107,7 @@ export default Vue.extend({
 						.map(subtab => ({
 							tabname: this.$tMetaGroupName(subtab.tabname)?.toString(),
 							fields: subtab.fields.filter(id => {
-								const showField = UIStore.corpusCustomizations.search.metadata.show(id);
+								const showField = UIStore.corpusCustomizations.search.metadata.showField(id);
 								return showField === true || (showField === null && allIdsToShow.has(id));
 							})
 						}))

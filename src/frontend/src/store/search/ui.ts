@@ -1244,7 +1244,7 @@ const corpusCustomizations = {
 	search: {
 		within: {
 			/** Should we include this span in the within widget? (default: all) */
-			include(spanName: string) {
+			includeSpan(spanName: string) {
 				return true;
 			},
 
@@ -1258,28 +1258,27 @@ const corpusCustomizations = {
 			 */
 			_attributes(spanName: string): string[]|Option[]|null {
 				const availableAttr = Object.keys(CorpusStore.getState().corpus?.relations.spans?.[spanName].attributes ?? {});
-				return availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(spanName, attrName))
+				return availableAttr.filter(attrName => this.includeAttribute(spanName, attrName))
 					.map(a => ({ value: a }));
 			},
 		},
 
 		metadata: {
-			/** Show this metadata search field? (return null for default behaviour) */
-			show(name: string): boolean|null {
+			/** Show this metadata search field? */
+			showField(filterId: string): boolean|null {
 				return null;
 			},
 
-			/** Any custom metadata tabs to add */
-			customTabs: [] as any[],
+			/** Any custom metadata tabs to add (INTERNAL) */
+			_customTabs: [] as any[],
 
 			/** Add a custom tab with some (span) filter fields */
 			addCustomTab(name: string, fields: any[]) {
-				this.customTabs.push({ name, fields });
+				this._customTabs.push({ name, fields });
 			},
 
 			// Create a span filter for corpus.search.metadata.customTabs
 			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: any = {}): AppTypes.FilterDefinition {
-
 				// No options specified; try to get them from the corpus.
 				let optionsFromCorpus;
 				const corpus = CorpusStore.getState().corpus;
@@ -1353,7 +1352,7 @@ const corpusCustomizations = {
   * Example of a simple custom.js file using this:
   * <code>
   * frontend.customize((corpus) => {
-  *   corpus.search.within.include = (elementName) => elementName === 'p';
+  *   corpus.search.within.includeSpan = (elementName) => elementName === 'p';
   * });
   * </code>
   */
