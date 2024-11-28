@@ -529,7 +529,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		// part of the query gets dropped on page reload, breaking the user's query...
 		// Complex additional logic might improve this slightly, but the real fix is to change the URL to describe
 		// the frontend's interface state, not the query we send to BLS.
-		const withinOptions = withinUi.enabled ? withinUi.elements.filter(UIModule.corpusCustomizations.search.within.include) : [];
+		const withinOptions = withinUi.enabled ?
+			withinUi.elements.filter(element => UIModule.corpusCustomizations.search.within.include(element.value)) : [];
 		return withinOptions.find(opt => !!this.withinClausesWithoutSpanFilters[opt.value])?.value ?? null;
 	}
 
@@ -538,7 +539,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		// Find any attributes for the within widget
 		const within = this.withinElementName;
 		const allAttributes = within ? this.withinClausesWithoutSpanFilters[within] ?? {} : {};
-		const attributesAcceptedByWithinWidget = within ? UIModule.corpusCustomizations.search.within.attributes(within)
+		const attributesAcceptedByWithinWidget = within ?
+			(UIModule.corpusCustomizations.search.within._attributes(within) || [])
 			.map(el => typeof el === 'string' ? { value: el } : el) : [];
 		const withinAttributes = Object.fromEntries(Object.entries(allAttributes)
 			.filter(([attrName, attrValue]) => {

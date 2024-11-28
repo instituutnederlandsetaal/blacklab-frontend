@@ -1238,34 +1238,29 @@ function printCustomizations() {
  *  It defines defaults that can be overridden from custom JS file(s); see below.
  */
 const corpusCustomizations = {
-	// Customize function, to be called once the corpus info has been loaded
-	customize: () => {},
+	// Registered customize function(s), to be called once the corpus info has been loaded
+	customizeFunctions: [] as ((corpus: any) => void)[],
 
 	search: {
 		within: {
-			/** Customize which element(s) to include */
-			include(element: Option) {
+			/** Should we include this span in the within widget? (default: all) */
+			include(spanName: string) {
 				return true;
 			},
 
-			/** Which, if any, attribute filter fields should be displayed for this element? */
-			attributes(elementName: string): string[]|Option[] {
-				return [];
+			/** Should we include this span attribute in the within widget? (default: none) */
+			includeAttribute(spanName: string, attrName: string) {
+				return null;
 			},
 
-			/*
-			// Alternative approach: allow direct access to the elements array, so custom JS
-			// can change that. But this relies on the corpus being loaded before the custom JS
-			// (currently not the case), and might run into issues with reactivity(?)
-
-			get elements(): Option[] {
-				return getState().search.shared.within.elements;
+			/** Which, if any, attribute filter fields should be displayed for this element?
+			 * (INTERNAL; use includeAttribute to customize, works more consistently like other methods)
+			 */
+			_attributes(spanName: string): string[]|Option[]|null {
+				const availableAttr = Object.keys(CorpusStore.getState().corpus?.relations.spans?.[spanName].attributes ?? {});
+				return availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(spanName, attrName))
+					.map(a => ({ value: a }));
 			},
-
-			set elements(elements: { value: string, title: string|null, label?: string }[]) {
-				actions.search.shared.within.elements(elements);
-			}
-			*/
 		},
 
 		metadata: {
@@ -1358,14 +1353,13 @@ const corpusCustomizations = {
   * Example of a simple custom.js file using this:
   * <code>
   * frontend.customize((corpus) => {
-  *   corpus.search.within.include = (element) => element.value === 'p';
-  *   corpus.search.within.displayName = (element) => element.value === 'p' ? 'Paragraph' : null;
+  *   corpus.search.within.include = (elementName) => elementName === 'p';
   * });
   * </code>
   */
 (window as any).frontend = {
 	customize(callback: ((corpus: any) => void)) {
-		corpusCustomizations.customize = () => callback(corpusCustomizations);
+		corpusCustomizations.customizeFunctions.push(callback);
 	},
 
 };

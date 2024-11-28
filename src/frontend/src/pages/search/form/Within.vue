@@ -27,6 +27,7 @@ import Vue from 'vue';
 
 import * as UIStore from '@/store/search/ui';
 import * as PatternStore from '@/store/search/form/patterns';
+import * as CorpusStore from '@/store/search/corpus';
 
 import { Option } from '@/components/SelectPicker.vue';
 import { corpusCustomizations } from '@/store/search/ui';
@@ -35,7 +36,7 @@ export default Vue.extend({
 	computed: {
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
-			return enabled ? elements.filter(corpusCustomizations.search.within.include) : [];
+			return enabled ? elements.filter(element => corpusCustomizations.search.within.include(element.value)) : [];
 		},
 		within: {
 			get(): string|null {
@@ -54,7 +55,7 @@ export default Vue.extend({
 			const option = this.withinOptions.find(o => o.value === within);
 			if (!option) return [];
 
-			return (corpusCustomizations.search.within.attributes(option.value) || [])
+			return (corpusCustomizations.search.within._attributes(option.value) || [])
 				.map(el => typeof el === 'string' ? { value: el } : el);
 		},
 		withinAttributeValue(option: Option) {

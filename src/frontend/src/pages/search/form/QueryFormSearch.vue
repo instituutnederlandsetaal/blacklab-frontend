@@ -220,7 +220,7 @@ export default ParallelFields.extend({
 		textDirection: CorpusStore.get.textDirection,
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
-			return enabled ? elements.filter(corpusCustomizations.search.within.include) : [];
+			return enabled ? elements.filter(element => corpusCustomizations.search.within.include(element.value)) : [];
 		},
 		within(): string|null {
 			return PatternStore.getState().shared.within;

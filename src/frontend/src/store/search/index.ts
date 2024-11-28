@@ -347,8 +347,8 @@ const init = async () => {
 	try {
 		await CorpusModule.init();
 
-		// Call the customize function defined in custom.js (if any)
-		UIModule.corpusCustomizations.customize();
+		// Call the customize function(s) defined in custom.js (if any)
+		UIModule.corpusCustomizations.customizeFunctions.forEach(f => f(UIModule.corpusCustomizations));
 
 		// This is user-customizable data, it can be used to override various defaults from other modules,
 		// It needs to determine fallbacks and defaults for settings that haven't been configured,
