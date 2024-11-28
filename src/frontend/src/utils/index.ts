@@ -988,8 +988,10 @@ export function isHitParams(params: BLTypes.BLSearchParameters|null|undefined): 
 	return !! (params && params.patt);
 }
 
+/** Span filter ids always start with this */
 const SPAN_FILTER_PREFIX = 'span';
 
+/** Separator for span filter id parts */
 const SPAN_FILTER_SEPARATOR = ':';
 
 /** ID of span filter, given its element and attribute names. */
@@ -998,7 +1000,7 @@ export function spanFilterId(elName: string, attributeName: string): string {
 }
 
 /** Get element name and attribute name from a span filter id. */
-function elementAndAttributeNameFromFilterId(filterId: string): [string, string] {
+export function elementAndAttributeNameFromFilterId(filterId: string): [string, string] {
 	const filterIdParts = filterId.split(SPAN_FILTER_SEPARATOR);
 	if (filterIdParts.length !== 3 || filterIdParts[0] !== SPAN_FILTER_PREFIX) {
 		throw new Error(`Not a valid span filter ID: ${filterId}`);

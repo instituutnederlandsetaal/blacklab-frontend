@@ -4,6 +4,7 @@ import { merge } from 'ts-deepmerge';
 import { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, NormalizedMetadataGroup, Option } from '@/types/apptypes';
 import SelectPicker from '@/components/SelectPicker.vue';
 import { localStorageSynced } from '@/utils/localstore';
+import { elementAndAttributeNameFromFilterId } from '@/utils';
 
 // This is some cool typescript magic to get the paths of the keys in the i18n json files.
 // This way we can typecheck the keys in the code and get autocompletion.
@@ -182,8 +183,10 @@ const i18nExtensionFunctions = {
 		return this.$td(`index.annotationGroups.${g.id}`, g.id);
 	},
 	/** Get the localized display name for a metadata field or the default value */
-	$tMetaDisplayName(this: Vue, m: {id: string, defaultDisplayName?: string}) {
-		return this.$td(`index.metadata.${m.id}`, m.defaultDisplayName || m.id);
+	$tMetaDisplayName(this: Vue, m: {id: string, defaultDisplayName?: string, isSpanFilter?: boolean}) {
+		const subKey = !m.isSpanFilter ? m.id :
+			`spanFilters.${elementAndAttributeNameFromFilterId(m.id).join('.')}`;
+		return this.$td(`index.metadata.${subKey}`, m.defaultDisplayName || m.id);
 	},
 	/** Get the localized description for a metadata field or the default value */
 	$tMetaDescription(this: Vue, m: {id: string, defaultDescription?: string;}) {
