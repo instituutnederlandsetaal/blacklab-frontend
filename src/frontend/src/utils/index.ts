@@ -988,15 +988,22 @@ export function isHitParams(params: BLTypes.BLSearchParameters|null|undefined): 
 	return !! (params && params.patt);
 }
 
-/** ID of span filter, given its element and attribute names.
- *
- * So a span filter for element <named-entity type="..."/> would have the name "span-named-entity-type".
- */
+const SPAN_FILTER_PREFIX = 'span';
+
+const SPAN_FILTER_SEPARATOR = ':';
+
+/** ID of span filter, given its element and attribute names. */
 export function spanFilterId(elName: string, attributeName: string): string {
-	return `span-${elName}-${attributeName}`;
+	return [SPAN_FILTER_PREFIX, elName, attributeName].join(SPAN_FILTER_SEPARATOR);
 }
 
+/** Get element name and attribute name from a span filter id. */
 function elementAndAttributeNameFromFilterId(filterId: string): [string, string] {
-	const [_, elName, attrName] = filterId.split('-');
+	const filterIdParts = filterId.split(SPAN_FILTER_SEPARATOR);
+	if (filterIdParts.length !== 3 || filterIdParts[0] !== SPAN_FILTER_PREFIX) {
+		throw new Error(`Not a valid span filter ID: ${filterId}`);
+	}
+	const elName = filterIdParts[1];
+	const attrName = filterIdParts[2];
 	return [elName, attrName];
 }
