@@ -1328,9 +1328,9 @@ The `corpus` object represents a more abstract customization API for your corpus
 
     ```js
     corpus.grouping.includeSpanAttribute = function (name, attrName) {
-        if (name === 'weird-span')
+        if (name === 'boring-span')
             return false; // no grouping on any of this span's attributes
-        if (name === 'awesome-span' && attrName === 'bad-attribute')
+        if (name === 'named-entity' && attrName === 'id')
             return false; // don't offer grouping on this attribute
         return null; // default behaviour (any attribute with a span filter)
     };
@@ -1343,16 +1343,16 @@ The `corpus` object represents a more abstract customization API for your corpus
     ```js
     // Customize which spans are shown in the within widget
     corpus.search.within.includeSpan = function (name) {
-        if (name === 'ninja-span')
+        if (name === 'boring-span')
             return false; // hide this span
         return null; // default behaviour (all spans)
     };
     // Customize if fields for any attributes are shown in
     // the within widget when selecting certain spans 
     corpus.search.within.includeAttribute = function (name, attrName) {
-        if (name === 'fun-span') {
+        if (name === 'chapter') {
             // show this attribute
-            return attrName === 'great-attribute';
+            return attrName === 'number';
         }
         return null; // default behaviour (no attributes)
     };
