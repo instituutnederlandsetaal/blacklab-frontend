@@ -255,10 +255,6 @@ export type FilterDefinition<MetadataType = any, ValueType = any> = {
 	 */
 	behaviourName?: string;
 
-	/** Is this a span-based filter, i.e. selecting parts documents instead of entire documents?
-	 *  (i.e. filter on speaker in documents with multiple speakers; done using a "within" BCQL query) */
-	isSpanFilter?: boolean;
-
 	/** The group this filter is part of, only for ui purposes. */
 	groupId?: string;
 

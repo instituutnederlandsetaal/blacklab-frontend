@@ -218,6 +218,7 @@ import { CaptureAndRelation, HitToken, Option, TokenHighlight } from '@/types/ap
 
 
 import Tabs from '@/components/Tabs.vue';
+import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 
 // What we prefix the tag attribute grouping option with so we can recognize it
 const OPT_PREFIX_SPAN_ATTRIBUTE = '$TAGATTR:';
@@ -375,7 +376,8 @@ export default Vue.extend({
 							if (shouldInclude === null) {
 								// By default, you may group on any span attribute for which a
 								// span filter exists.
-								shouldInclude = filter?.isSpanFilter ?? false;
+								const vf = filter ? getValueFunctions(filter) : undefined;
+								shouldInclude = vf?.isSpanFilter ?? false;
 							}
 							if (shouldInclude) {
 								result.push({

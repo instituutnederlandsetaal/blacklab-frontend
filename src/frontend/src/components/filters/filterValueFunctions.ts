@@ -49,6 +49,9 @@ type FilterValueFunctions<M, V> = {
 	luceneQuerySummary(id: string, filterMetadata: M, value: V|null): string|null;
 	/** Is this filter currently active? */
 	isActive(id: string, filterMetadata: M, value: V|null): boolean;
+	/** Is this a span-based filter, i.e. selecting parts documents instead of entire documents?
+	 *  (i.e. filter on speaker in documents with multiple speakers; done using a "within" BCQL query) */
+	isSpanFilter?: boolean;
 };
 
 /**
@@ -463,6 +466,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return !!value;
 		},
+		isSpanFilter: true
 	}),
 	'span-select': cast<FilterValueFunctions<{name?: string, attribute?: string, options: Option[]}|Option[], string[]>>({
 		decodeInitialState(id, filterMetadata, filterValues) {
@@ -485,6 +489,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return !!(value && value.length > 0);
 		},
+		isSpanFilter: true
 	}),
 	'span-range': cast<FilterValueFunctions<{name?: string, attribute?: string}, { low: number|null, high: number|null }>>({
 		decodeInitialState(id, filterMetadata, filterValues) {
@@ -506,13 +511,14 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, values) {
 			return !!(values && (values.low || values.high));
 		},
+		isSpanFilter: true
 	}),
 };
 
 /** Get the right set of functions for a filter, based on its
  *  behaviourName, or if that's not set, its componentName. */
-export function getValueFunctions(filter: FullFilterState): FilterValueFunctions<any, any> {
-	const name = filter.behaviourName ?? filter.componentName;
+export function getValueFunctions(filter: { behaviourName?: string, componentName?: string }): FilterValueFunctions<any, any> {
+	const name = filter.behaviourName ?? filter.componentName ?? 'ERROR';
 	const func = valueFunctions[name];
 	if (func)
 		return func;
@@ -542,15 +548,16 @@ export function getValueFunctions(filter: FullFilterState): FilterValueFunctions
  */
 export function getFilterString(filters: FullFilterState[]): string|undefined {
 	return filters
-		.filter(f => !f.isSpanFilter)
 		.map(f => getValueFunctions(f).luceneQuery(f.id, f.metadata, f.value))
 		.filter(lucene => !!lucene).join(' AND ') || undefined;
 }
 
 // NOTE: range filter has hidden defaults for unset field (min, max), see https://github.com/INL/corpus-frontend/issues/234
 export const getFilterSummary = (filters: FullFilterState[]): string|undefined => filters
-	.filter( f => !f.isSpanFilter)
-	.map(f => ({f, summary: getValueFunctions(f).luceneQuerySummary(f.id, f.metadata, f.value)}))
+	.map(f => {
+		const vf = getValueFunctions(f);
+		return ({f, summary: vf.isSpanFilter ? null : vf.luceneQuerySummary(f.id, f.metadata, f.value)})
+	})
 	.filter(f => !!f.summary)
 	.map(f => `${f.f.defaultDisplayName}: ${f.summary}`)
 	.join(', ') || undefined;

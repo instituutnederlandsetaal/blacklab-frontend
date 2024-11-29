@@ -27,7 +27,7 @@ import UrlStateParser from '@/store/search/util/url-state-parser';
 import { NormalizedIndex } from '@/types/apptypes';
 import { debugLog } from '@/utils/debug';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
-import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils';
+import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.

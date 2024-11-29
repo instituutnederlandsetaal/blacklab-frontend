@@ -25,8 +25,8 @@ import * as ViewModule from '@/store/search/results/views';
 import * as GlobalResultsModule from '@/store/search/results/global';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { getPatternString, getWithinClausesFromFilters } from '@/utils';
 import { ApiError } from '@/api';
+import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
 
 Vue.use(Vuex);
 

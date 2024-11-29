@@ -1315,7 +1315,6 @@ const corpusCustomizations = {
 					id: spanFilterId(spanName, attrName),
 					componentName: `filter-${widget}`,
 					behaviourName, // i.e. generate a "within ..." BCQL query
-					isSpanFilter: true,
 					defaultDisplayName: displayName ?? `tag ${spanName}, attribute ${attrName}`,
 					metadata: {
 						name: spanName,

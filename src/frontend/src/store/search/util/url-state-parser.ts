@@ -91,7 +91,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 					.forEach(([attrName, attrValue]) => {
 					const id = spanFilterId(elName, attrName);
 					const filter = FilterModule.getState().filters[id];
-					if (filter?.isSpanFilter) {
+					const vf = filter ? getValueFunctions(filter) : undefined;
+					if (vf?.isSpanFilter) {
 						let values: string[];
 						if (typeof attrValue === 'string') {
 							if (filter.componentName === 'filter-select') {
@@ -118,20 +119,24 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	get withinClausesWithoutSpanFilters(): Record<string, Record<string, any>> {
 		// Only keep within clauses that are not span filters
 		return Object.fromEntries(Object.entries(this.withinClauses)
-			.map(([elName, attrs]: [string, Record<string, any>]) => {
+			.map(([spanName, attrs]: [string, Record<string, any>]) => {
 				if (Object.keys(attrs).length === 0) {
 					// No attributes, so this might be the within widget selection.
-					return [elName, { '_MAYBE_WITHIN_': true } as Record<string, any>];
+					return [spanName, { '_MAYBE_WITHIN_': true } as Record<string, any>];
 				} else {
 					const filters = FilterModule.getState().filters;
 					const filteredAttrs = Object.fromEntries(Object.entries(attrs)
-						.filter(e => !filters[spanFilterId(elName, e[0])]?.isSpanFilter));
+						.filter(entry => {
+							const filter = filters[spanFilterId(spanName, entry[0])];
+							const vf = filter ? getValueFunctions(filter) : undefined;
+							return !vf?.isSpanFilter;
+						}));
 					if (Object.keys(attrs).length > 0 && Object.keys(filteredAttrs).length === 0) {
 						// All attributes were placed in span filters, so we probably don't want this
 						// to be the within widget selection.
-						return [elName, { } as Record<string, any>];
+						return [spanName, { } as Record<string, any>];
 					} else {
-						return [elName, filteredAttrs as Record<string, any>];
+						return [spanName, filteredAttrs as Record<string, any>];
 					}
 				}
 			})

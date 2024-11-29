@@ -5,6 +5,7 @@ import { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGro
 import SelectPicker from '@/components/SelectPicker.vue';
 import { localStorageSynced } from '@/utils/localstore';
 import { elementAndAttributeNameFromFilterId } from '@/utils';
+import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 
 // This is some cool typescript magic to get the paths of the keys in the i18n json files.
 // This way we can typecheck the keys in the code and get autocompletion.
@@ -183,9 +184,9 @@ const i18nExtensionFunctions = {
 		return this.$td(`index.annotationGroups.${g.id}`, g.id);
 	},
 	/** Get the localized display name for a metadata field or the default value */
-	$tMetaDisplayName(this: Vue, m: {id: string, defaultDisplayName?: string, isSpanFilter?: boolean}) {
-		const subKey = !m.isSpanFilter ? m.id :
-			`spanFilters.${elementAndAttributeNameFromFilterId(m.id).join('.')}`;
+	$tMetaDisplayName(this: Vue, m: {id: string, defaultDisplayName?: string, componentName?: string, behaviourName?: string }) {
+		const vf = m.componentName ? getValueFunctions(m) : undefined;
+		const subKey = vf?.isSpanFilter ? `spanFilters.${elementAndAttributeNameFromFilterId(m.id).join('.')}` : m.id;
 		return this.$td(`index.metadata.${subKey}`, m.defaultDisplayName || m.id);
 	},
 	/** Get the localized description for a metadata field or the default value */

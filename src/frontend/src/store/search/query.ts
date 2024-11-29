@@ -30,7 +30,7 @@ import * as FilterModule from '@/store/search/form/filters';
 import * as ExploreModule from '@/store/search/form/explore';
 import * as GapModule from '@/store/search/form/gap';
 import { getFilterSummary, getFilterString } from '@/components/filters/filterValueFunctions';
-import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils';
+import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
 
 // todo migrate these weirdo state shapes to mapped types?
 // might be a cleaner way of doing this...
