@@ -42,7 +42,7 @@
 						data-width="auto"
 						data-menu-width="auto"
 						hideEmpty />
-				<i18n :path="'results.groupBy.' + (contextValue.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE) ? 'iWantToGroupOnNoAnnotation' : 'iWantToGroupOnAnnotation')" tag="div">
+				<i18n :path="(contextValue.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE) ? 'results.groupBy.iWantToGroupOnNoAnnotation' : 'results.groupBy.iWantToGroupOnAnnotation')" tag="div">
 					<!-- allow unknown values here. If grouping on a capture group/relation, they're not always available immediately (we need the first hit to decode them). -->
 					<template #some_words><SelectPicker
 						:options="contextOptions"
