@@ -213,9 +213,11 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
 	const withinEl = patternState.shared.within;
 	if (withinEl) {
 		// Add within clause plus any attribute from the within widget as well.
+		const withinAttr = Object.fromEntries(Object.entries(patternState.shared.withinAttributes)
+			.map(([k, v]) => [k, escapeRegex(v, { escapeWildcards: false })])); // wildcards->regex
 		withinClauses[withinEl] = {
 			...withinClauses[withinEl] || {},
-			...patternState.shared.withinAttributes
+			...withinAttr
 		};
 	}
 	console.log('withinClauses', withinClauses)

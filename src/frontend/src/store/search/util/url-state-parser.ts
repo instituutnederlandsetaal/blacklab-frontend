@@ -550,7 +550,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		const withinAttributes = Object.fromEntries(Object.entries(allAttributes)
 			.filter(([attrName, attrValue]) => {
 				return !!attributesAcceptedByWithinWidget.find(w => w.value === attrName);
-			}));
+			})
+			.map(([attrName, attrValue]) => [attrName, unescapeRegex(attrValue, { escapeWildcards: false })]));
 		return withinAttributes;
 	}
 
