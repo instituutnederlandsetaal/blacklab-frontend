@@ -174,6 +174,12 @@ const actions = {
 		alignBy: b.commit((state, payload: string|null) => {
 			return (state.shared.alignBy = payload == null ? UIStore.getState().search.shared.alignBy.defaultValue : payload);
 		}, 'shared_align_by'),
+		within: b.commit((state, payload: string|null) => {
+			return (state.shared.within = payload);
+		}, 'shared_within'),
+		withinAttributes: b.commit((state, payload: Record<string, string>) => {
+			return (state.shared.withinAttributes = payload);
+		}, 'shared_within_attributes'),
 		reset: b.commit(state => {
 			const defaultSourceField = CorpusStore.get.parallelAnnotatedFields()[0]?.id;
 			debugLogCat('shared', `shared.reset: Selecting default source version ${defaultSourceField}`);

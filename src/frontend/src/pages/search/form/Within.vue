@@ -43,7 +43,7 @@ export default Vue.extend({
 				return PatternStore.getState().shared.within;
 			},
 			set(v: string|null) {
-				Vue.set(PatternStore.getState().shared, 'within', v);
+				PatternStore.actions.shared.within(v);;
 			}
 		},
 	},
@@ -71,7 +71,7 @@ export default Vue.extend({
 			const el = event.target as HTMLInputElement;
 			const curVal = PatternStore.getState().shared.withinAttributes || {};
 			curVal[option.value] = el.value;
-			Vue.set(PatternStore.getState().shared, 'withinAttributes', curVal);
+			PatternStore.actions.shared.withinAttributes(curVal);
 		},
 	},
 })
