@@ -1,4 +1,4 @@
-// TODO split this file into patternUtils, groupUtils and generic utils.
+// TODO split this file into patternUtils (DONE - JN), groupUtils and generic utils.
 
 
 import URI from 'urijs';
