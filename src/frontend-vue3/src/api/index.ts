@@ -55,6 +55,7 @@ export const frontendPaths = {
 
 	// The following paths are only for use with the api endpoint (they don't contain the context url - the endpoint will add it)
 	indexInfo: () => `${INDEX_ID}/api/info`,
+	indexConfig: () => `${INDEX_ID}/api/config`,
 	documentContents: (pid: string) => `${INDEX_ID}/docs/${pid}/contents`,
 	documentMetadata: (pid: string) => `${INDEX_ID}/docs/${pid}`,
 }
@@ -393,6 +394,8 @@ export const frontend = {
 
 	getDocumentMetadata: (pid: string) => endpoints.cf
 		.get<BLTypes.BLDocument>(frontendPaths.documentMetadata(pid)),
+
+	getCustomizations: () => endpoints.cf.get<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo()),
 }
 
 export const glossPaths = {

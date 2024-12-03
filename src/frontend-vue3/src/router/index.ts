@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import CorporaView from '@/views/corpora/CorporaView.vue'
-
+import Spinner from 'int-components';
 /** Base url of the app on the client. Never ends in '/' */
 declare const CONTEXT_URL: string;
 
@@ -10,7 +9,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'corpora',
-      component: CorporaView
+      component: () => import('../views/corpora/CorporaView.vue')
     },
     {
       path: '/about',
@@ -19,6 +18,17 @@ const router = createRouter({
       // this generates a separate chunk (About.[hash].js) for this route
       // which is lazy-loaded when the route is visited.
       component: () => import('../views/AboutView.vue')
+    },
+    {
+      name: 'corpus',
+      path: '/:corpus/',
+      component: () => import('../views/corpus/CorpusView.vue'),
+      children: [{
+        path: 'search',
+        name: '/:corpus/search',
+        component: () => import('../views/corpus/search/SearchView.vue'),
+      }],
+      
     }
   ]
 })

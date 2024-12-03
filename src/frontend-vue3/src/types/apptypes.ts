@@ -364,3 +364,19 @@ export type OptGroup = {
 	disabled?: boolean;
 	options: Array<string|Option>;
 };
+
+
+export type Pages = 'search'|'article'|'corpora'|'about'|'help'|'error'|'notfound';
+export type Config = {
+	displayName: string;
+	// need more stuff here.
+	links: Array<{href: string, blank: boolean, label: string}>;
+	customCss: Record<Pages, Array<{
+		href: string;
+		attributes: Record<string, string>;
+	}>>;
+	customJs: Record<Pages, Array<{
+		href: string;
+		attributes: Record<string, string>;
+	}>>;
+}

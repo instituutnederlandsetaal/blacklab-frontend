@@ -3,8 +3,8 @@ import { RouterLink, RouterView } from 'vue-router'
 
 import {NavBar, Spinner} from 'int-components';
 // import 'my-overrides.scss';
-import 'int-components/dist/lib/base.css';
-import 'int-components/dist/lib/int.css';
+import 'int-components/dist/lib/css-base.css';
+import 'int-components/dist/lib/css-int.css';
 
 import * as Api from '@/api';
 import { ref } from 'vue';

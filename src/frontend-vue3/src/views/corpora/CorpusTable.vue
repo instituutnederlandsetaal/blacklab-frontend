@@ -29,7 +29,7 @@
 				</tr>
 				<tr v-if="details[corpus.id]">
 					<td :colspan="isPrivate ? 7 : 4">
-						<table>
+						<table><tbody>
 							<tr :title="corpus.timeModifiedFull">
 								<th>Last modified</th>
 								<td>{{corpus.timeModified}}</td>
@@ -51,7 +51,7 @@
 								<th>Tokens</th>
 								<td>{{corpus.tokenCount.toLocaleString()}}</td>
 							</tr>
-						</table>
+						</tbody></table>
 					</td>
 				</tr>
 			</template></tbody>

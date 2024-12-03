@@ -13,6 +13,8 @@ import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import javax.xml.xpath.XPathFactoryConfigurationException;
 
+import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
 import net.sf.saxon.dom.DocumentBuilderImpl;
 import net.sf.saxon.s9api.*;
 import org.w3c.dom.Document;
@@ -24,7 +26,6 @@ import net.sf.saxon.xpath.XPathFactoryImpl;
 
 /** Represents BlackLab index metadata */
 public class CorpusConfig {
-
     private final String jsonUnescaped;
 
     private final String corpusId;

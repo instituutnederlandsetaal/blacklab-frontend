@@ -1,15 +1,14 @@
 package nl.inl.corpuswebsite.response;
 
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
 
 import javax.servlet.http.HttpServletResponse;
 
+import com.google.gson.Gson;
 import nl.inl.corpuswebsite.BaseResponse;
-import nl.inl.corpuswebsite.utils.ArticleUtil;
-import nl.inl.corpuswebsite.utils.CorpusConfig;
-import nl.inl.corpuswebsite.utils.QueryException;
-import nl.inl.corpuswebsite.utils.Result;
+import nl.inl.corpuswebsite.utils.*;
 
 /**
  * We need a rudimentary API for some of the content that needs to processed serverside.
@@ -42,6 +41,8 @@ public class ApiResponse extends BaseResponse {
             else documentMetadata(document);
         } else if (operation.equalsIgnoreCase("info")) {
             indexMetadata();
+        } else if (operation.equalsIgnoreCase("config")) {
+            indexConfig();
         } else throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint " + operation);
     }
 
@@ -71,6 +72,28 @@ public class ApiResponse extends BaseResponse {
             .mapError(QueryException::wrap)
             .map(CorpusConfig::getJsonUnescaped)
             .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
+    }
+
+    public void indexConfig() {
+        this.sendResult(
+            Result.attempt(() -> new Gson().toJson(new WebsiteConfig.WebsiteConfigRepresentation(servlet.getWebsiteConfig(corpus))))
+        );
+
+
+
+        try (OutputStreamWriter osw = new OutputStreamWriter(response.getOutputStream(), OUTPUT_ENCODING)) {
+            osw.append());
+            osw.flush();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+
+        response.setCharacterEncoding(OUTPUT_ENCODING);
+        response.setContentType("application/json");
+
+        // Merge context into the page template and write to output stream
+
     }
 
     protected void sendResult(Result<String, QueryException> r, String contentType) {

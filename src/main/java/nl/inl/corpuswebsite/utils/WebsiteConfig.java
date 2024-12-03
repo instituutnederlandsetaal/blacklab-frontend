@@ -6,6 +6,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.gson.annotations.Expose;
+import com.google.gson.annotations.SerializedName;
 import org.apache.commons.configuration2.XMLConfiguration;
 import org.apache.commons.configuration2.builder.ConfigurationBuilder;
 import org.apache.commons.configuration2.builder.FileBasedConfigurationBuilder;
@@ -19,10 +21,51 @@ import org.apache.commons.lang3.StringUtils;
  * Configuration read from the Search.xml config file specific to a corpus.
  */
 public class WebsiteConfig {
+    public static class WebsiteConfigRepresentation {
+        @Expose(serialize = false, deserialize = false)
+        private final WebsiteConfig config;
+        public WebsiteConfigRepresentation(WebsiteConfig config) {
+            this.config = config;
+        }
+
+        /** Usually set, but null for the generic config. */
+        @SerializedName("id")
+        public String getId() { return config.corpusId.orElse(null); }
+        @SerializedName("displayName")
+        public String getDisplayName() { return config.getDisplayName(); }
+        @SerializedName("owner")
+        public String getOwner() { return config.getCorpusOwner().orElse(null); }
+        @SerializedName("pathToFaviconDir")
+        public String getPathToFaviconDir() { return config.getPathToFaviconDir(); }
+        @SerializedName("pagination")
+        public boolean getPagination() { return config.pagination; }
+        @SerializedName("pageSize")
+        public int getPageSize() { return config.pageSize; }
+        @SerializedName("analytics")
+        public Map<String, Map<String, String>> getAnalytics() {
+            return Map.of(
+                "google", Map.of(
+                    "key", config.analyticsKey.orElse(null)),
+                "plausible", Map.of(
+                    "domain", config.plausibleDomain.orElse(null),
+                    "apiHost", config.plausibleApiHost.orElse(null))
+            );
+        }
+        @SerializedName("links")
+        public List<LinkInTopBar> getLinks() { return config.getLinks(); }
+        @SerializedName("js")
+        public List<CustomJs> getJs() { return config.getCustomJS(""); }
+        @SerializedName("css")
+        public List<String> getCss() { return config.getCustomCSS(""); }
+    }
+
     /** One of the links shown in the top bar */
     public static class LinkInTopBar {
+        @SerializedName("label")
         private final String label;
+        @SerializedName("href")
         private final String href;
+        @SerializedName("openInNewWindow")
         private final boolean openInNewWindow;
 
         /**
@@ -58,8 +101,11 @@ public class WebsiteConfig {
     }
 
     public static class CustomJs implements Comparable<CustomJs> {
+        @SerializedName("href")
         private final String url;
+        @SerializedName("attributes")
         private final Map<String, String> attributes = new HashMap<>();
+        @Expose(serialize = false)
         private final int index;
 
         public CustomJs(String url, int index) {
