@@ -15,7 +15,46 @@
 		},
 		"advanced": {
 			"heading": "提高级",
-			"copyAdvancedQuery": "复制到CQL编辑器"
+			"copyAdvancedQuery": "复制到CQL编辑器",
+
+			"queryBuilder": {
+				"$comment": "we use underscores here because mustachejs keys cannot contain dots",
+
+				"createTokenButton_label": "插入另一个标记",
+
+				"modalEditor_title": "编辑",
+				"modalEditor_clear": "清除",
+				"modalEditor_cancel": "取消",
+				"modalEditor_save": "保存更改",
+
+				"withinSelect_label": "范围:",
+
+				"token_head_handle_title": "拖动此处移动此标记",
+				"token_head_deleteButton_title": "删除标记",
+
+				"body_tab_header_search": "搜索",
+				"body_tab_header_properties": "上下文",
+
+				"body_tab_properties_optional": "可选",
+				"body_tab_properties_optional_title": "标记是可选的",
+				"body_tab_properties_beginOfSentence": "句首",
+				"body_tab_properties_beginOfSentence_title": "标记必须出现在句子的开头",
+				"body_tab_properties_endOfSentence": "句尾",
+				"body_tab_properties_endOfSentence_title": "标记必须出现在句子的结尾",
+
+				"body_tab_properties_repeats_label": "重复",
+				"body_tab_properties_repeats_to": "到",
+				"body_tab_properties_repeats_times": "次",
+
+				"attribute_caseAndDiacriticsSensitive": "区分大小写和变音符号",
+				"attribute_delete_attribute_button_title": "删除此属性",
+
+				"attribute_file_upload_button_title": "上传值列表",
+				"attribute_file_upload_edit_button_title": "编辑上传的值",
+				"attribute_file_upload_clear_button_title": "清除上传的值",
+
+				"attribute_create_button_title": "添加另一个属性"
+			}
 		},
 		"concept": {
 			"heading": "概念",
@@ -37,13 +76,13 @@
 			"clearGapValues": "清除分割"
 		},
 		"parallel": {
-			"alignBy": "Align by",
-			"inSourceVersion": "in source version",
-			"queryFor": "Query for",
-			"sourceVersion": "source version",
-			"targetVersion": "target version",
-			"andCompareWithTargetVersions": "and compare with target version(s)",
-			"addTargetVersion": "Add a target version"
+			"alignBy": "对齐方式",
+			"inSourceVersion": "在源版本中",
+			"andCompareWithTargetVersions": "并与目标版本进行比较",
+			"queryForSourceVersion": "源版本查询",
+			"queryForTargetVersion": "目标版本查询",
+			"chooseTargetVersion": "选择目标版本",
+			"addTargetVersion": "添加另一个目标版本"
 		}
 	},
 	"filter": {
@@ -51,6 +90,14 @@
 		"noFilter": {
 			"title": "没有可用的筛选器",
 			"content": "该语料库不包含元数据，或者作者选择不允许对元数据进行筛选。"
+		},
+		"range": {
+			"from": "从",
+			"to": "到",
+			"permissive": "宽松",
+			"permissiveDescription": "匹配部分包含在输入范围内的文档",
+			"strict": "严格",
+			"strictDescription": "匹配完全包含在输入范围内的文档"
 		}
 	},
 	"explore": {
@@ -58,7 +105,12 @@
 		"corpora": {
 			"heading": "文档",
 			"groupBy": "按元数据分组文档",
-			"showAs": "显示分组方式"
+			"showAs": {
+				"heading": "显示分组方式",
+				"table": "表格",
+				"docs": "文档",
+				"tokens": "tokens"
+			}
 		},
 		"ngram": {
 			"heading": "N元组",
@@ -73,7 +125,10 @@
 	"setting": {
 		"heading": "全局设置",
 		"resultsPerPage": "每页结果数",
+		"resultsPerPageOption": "{n} 个结果",
 		"sampleSize": "样本大小",
+		"sampleSizeCount": "数字",
+		"sampleSizePercentage": "百分比",
 		"sampleSeed": "种子",
 		"context": "上下文大小",
 		"wideView": "宽视图",
@@ -134,12 +189,15 @@
 	},
 	"results": {
 		"groupBy": {
+			"groupNameWithoutValue": "[无值]",
+
 			"groupResults": "分组结果",
+			"close": "关闭",
 			"clear": "清除",
 			"apply": "应用",
 			"invalidGrouping": "此分组无效。",
 
-			"parallelCorpusVersion": "Looking at version ",
+			"parallelCorpusVersion": "查看版本",
 			"iWantToGroupOnAnnotation": "我想使用注释 {this_annotation} 对 {in_this_location_with_text} {some_words} 进行分组.",
 			"in_this_location_with_text": "{in_this_location} 的",
 
@@ -156,10 +214,18 @@
 				"fromTheEnd": "从命中结束"
 			},
 
-			"relationPartLabel": "关系部分",
-			"relationSource": "中心词",
-			"relationTarget": "依存词",
-			"relationBoth": "两者",
+			"relationPartByClass": {
+				"default": {
+					"label": "关系部分",
+					"source": "源",
+					"target": "目标"
+				},
+				"dep": {
+					"source": "中心词",
+					"target": "依存词"
+				}
+			},
+
 			"tipClickOnHighlightedWords": "提示：点击高亮的词语进行句法分组。",
 
 			"caseSensitive": "区分大小写",
@@ -168,9 +234,7 @@
 			"clickButtonsToStart": "在此窗口中，您可以对结果应用分组。单击左侧的按钮创建分组标准以开始。",
 			"metadata": "元数据",
 			"annotation": "标注",
-			"specify": "待填",
-			"label": "标签{label} ({annotation})",
-			"document": "文档"
+			"specify": "待填"
 		},
 		"table": {
 			"showFullSentence": "显示整个句子",
@@ -181,8 +245,12 @@
 			"hideHits": "隐藏命中",
 			"document": "文件",
 			"hits": "命中",
-			"hit": "命中",
-			"sortBy": "分类依据：",
+			"columnLabelBeforeHit": "之前 命中",
+			"columnLabelHit": "命中",
+			"columnLabelAfterHit": "之后 命中",
+			"sortBy": "分类依据：{field}",
+			"sortByDescending": "分类依据：{field} (降序)",
+			"groupBy": "分组依据：{field}",
 			"sortByDocument": "分类依据：文章标题",
 			"sortByHits": "分类依据：命中数",
 			"moreHiddenHits": "更多隐藏的命中",
@@ -194,10 +262,7 @@
 			"property": "属性",
 			"value": "值",
 			"noContext": "没有可用的文本",
-			"after": "之后",
-			"before": "之前",
-			"After": "之后",
-			"Before": "之前"
+			"parallelVersion": "Version"
 		},
 		"export": {
 			"downloading": "下载中...",
@@ -213,6 +278,16 @@
 			"documentsWhere": "文件筛选于"
 		},
 		"resultsView": {
+			"navigation": {
+				"backToGroupedResults": "返回分组结果",
+				"backToUngroupedResults": "返回未分组结果",
+				"hits": "命中",
+				"documents": "文档",
+				"viewingGroup": "查看组 {group}",
+				"groupedBy": "按 {group} 分组",
+				"randomSample": "随机样本 ({sample})"
+			},
+
 			"backToGroupOverview": "返回分组概览",
 			"noResultsFound": "未找到结果。",
 			"inactiveView": "此视图不活跃，因为未指定单词的搜索条件。",
@@ -232,7 +307,7 @@
 			"continue": "继续",
 			"hits": "命中",
 			"documents": "文档",
-			"tokens": "tokens"
+			"tokens": "Tokens"
 		},
 		"sort": {
 			"sortBy": "分类依据"

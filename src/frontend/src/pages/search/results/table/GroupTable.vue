@@ -92,7 +92,6 @@ export default Vue.extend({
 		data: Array as () => GroupRowData[],
 		maxima: Object as () => Record<keyof GroupRowData, number>,
 
-		/** Required to render group contents if they're hits */
 		mainAnnotation: Object as () => NormalizedAnnotation,
 		/** Required to render group contents if they're hits, optional */
 		otherAnnotations: Array as () => NormalizedAnnotation[]|undefined,

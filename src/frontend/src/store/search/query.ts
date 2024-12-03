@@ -29,7 +29,6 @@ import * as PatternModule from '@/store/search/form/patterns';
 import * as FilterModule from '@/store/search/form/filters';
 import * as ExploreModule from '@/store/search/form/explore';
 import * as GapModule from '@/store/search/form/gap';
-import * as UIModule from '@/store/search/ui';
 import { getFilterSummary, getFilterString } from '@/components/filters/filterValueFunctions';
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils';
 
@@ -43,7 +42,7 @@ type ModuleRootStateSearch<K extends keyof PatternModule.ModuleRootState> = {
 	subForm: K;
 
 	formState: PatternModule.ModuleRootState[K];
-	parallelVersions: PatternModule.ModuleRootState['parallelVersions'];
+	parallelFields: PatternModule.ModuleRootState['parallelFields'];
 	filters: FilterModule.ModuleRootState;
 	gap: GapModule.ModuleRootState;
 };
@@ -53,7 +52,7 @@ type ModuleRootStateExplore<K extends keyof ExploreModule.ModuleRootState> = {
 	subForm: K;
 
 	formState: ExploreModule.ModuleRootState[K];
-	parallelVersions: PatternModule.ModuleRootState['parallelVersions'];
+	parallelFields: PatternModule.ModuleRootState['parallelFields'];
 	filters: FilterModule.ModuleRootState;
 	gap: GapModule.ModuleRootState;
 };
@@ -62,7 +61,7 @@ type ModuleRootStateNone = {
 	form: null;
 	subForm: null;
 	formState: null;
-	parallelVersions: null;
+	parallelFields: null;
 	filters: null;
 	gap: null;
 };
@@ -73,7 +72,7 @@ const initialState: ModuleRootStateNone = {
 	form: null,
 	subForm: null,
 	formState: null,
-	parallelVersions: null,
+	parallelFields: null,
 	filters: null,
 	gap: null
 };
@@ -83,24 +82,32 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, Object
 const getState = b.state();
 
 const get = {
+	/**
+	 * Return the sourceField of the query.
+	 * We only return a value here for parallel corpora.
+	 * In all other cases, we let BlackLab decide the main search field.
+	 * (In practice it will be the mainAnnotatedField)
+	 */
 	annotatedFieldName: b.read((state): string|undefined => {
-		if (!state.form) { return undefined; }
-		if (state.form !== 'explore') {
-			return (state as ModuleRootStateSearch<keyof PatternModule.ModuleRootState>).parallelVersions.source || undefined;
+		switch (state.form) {
+			case 'search': return state.parallelFields.source || undefined;
+			case 'explore': return undefined; // always use default field.
+			default: return undefined;
 		}
-		return CorpusModule.get.mainAnnotatedField();
 	}, 'annotatedFieldName'),
 	patternString: b.read((state, getters, rootState): string|undefined => {
+		if (!state.subForm) return undefined;
+
 		const formState = {
 			[state.subForm as string]: state.formState,
-			parallelVersions: state.parallelVersions,
-		} as any; /** egh, feel free to refactor */
+			parallelFields: state.parallelFields,
+		} as Partial<ModuleRootStateSearch<keyof PatternModule.ModuleRootState>>; /** egh, feel free to refactor */
 		const annotations = CorpusModule.get.allAnnotationsMap();
 		switch (state.form) {
 		case 'search':
-			return getPatternStringSearch(state.subForm, formState, rootState.ui.search.shared.alignBy.defaultValue);
+			return getPatternStringSearch(state.subForm, formState as any, rootState.ui.search.shared.alignBy.defaultValue);
 		case 'explore':
-			return getPatternStringExplore(state.subForm, formState, annotations);
+			return getPatternStringExplore(state.subForm, formState as any, annotations);
 		default:
 			return undefined;
 		}
@@ -110,7 +117,7 @@ const get = {
 	patternSummary: b.read((state, getters, rootState): string|undefined => {
 		const formState = {
 			[state.subForm as string]: state.formState,
-			parallelVersions: state.parallelVersions,
+			parallelFields: state.parallelFields,
 		} as any; /** egh, feel free to refactor */
 		switch (state.form) {
 		case 'search':

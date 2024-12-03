@@ -44,7 +44,7 @@ export async function handleError(error: AxiosError): Promise<never> {
 	if (!response) {
 		return Promise.reject(new ApiError(
 			error.message,
-			'Could not connect to server at ' + error.config.url,
+			'Could not connect to server at ' + new URL(error.config.url || '', error.config.baseURL),
 			'Server Offline',
 			undefined
 		));
@@ -119,7 +119,17 @@ export function createEndpoint(options: AxiosRequestConfig) {
 	return {
 		...endpoint,
 		get<T>(url: string, queryParams?: Record<string, string|number|boolean|Record<string, any>>, config?: AxiosRequestConfig) {
-			return endpoint.get<T>(url, {...config, params: queryParams})
+			let qp: Record<string, string|number|boolean|Record<string, any>> = {};
+			if (queryParams) {
+				// Skip empty parameters, BlackLab uses a default value for those
+				// and they make it harder to read URLs in the console.
+				for (const key of Object.keys(queryParams)) {
+					if (queryParams[key] !== "" && queryParams[key] !== undefined && queryParams[key] !== null) {
+						qp[key] = queryParams[key];
+					}
+				}
+			}
+			return endpoint.get<T>(url, {...config, params: qp})
 			.then(delayResponse, delayError)
 			.then(r => r.data, handleError);
 		},

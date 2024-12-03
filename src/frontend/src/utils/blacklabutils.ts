@@ -1,6 +1,6 @@
-import {NormalizedIndex, NormalizedAnnotation, NormalizedAnnotatedField, NormalizedMetadataField, NormalizedFormat, NormalizedMetadataGroup, NormalizedAnnotationGroup, NormalizedIndexBase} from '@/types/apptypes';
+import type {NormalizedIndex, NormalizedAnnotation, NormalizedAnnotatedField, NormalizedMetadataField, NormalizedFormat, NormalizedMetadataGroup, NormalizedAnnotationGroup, NormalizedIndexBase} from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
-import { mapReduce } from '@/utils';
+import { getParallelFieldParts, mapReduce, PARALLEL_FIELD_SEPARATOR } from '@/utils';
 
 /** Find the annotation that contains annotationId as on of its subAnnotations. */
 function findParentAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string): string|undefined {
@@ -62,8 +62,8 @@ function normalizeAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotatio
 	return {
 		annotatedFieldId,
 		caseSensitive: annotation.sensitivity === 'SENSITIVE_AND_INSENSITIVE',
-		description: annotation.description,
-		displayName: annotation.displayName || annotationId,
+		defaultDescription: annotation.description,
+		defaultDisplayName: annotation.displayName || annotationId,
 		hasForwardIndex: annotation.hasForwardIndex,
 		id: annotationId,
 		isInternal: annotation.isInternal,
@@ -78,8 +78,8 @@ function normalizeAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotatio
 
 function normalizeMetadata(field: BLTypes.BLMetadataField): NormalizedMetadataField {
 	return {
-		description: field.description,
-		displayName: field.displayName || field.fieldName,
+		defaultDescription: field.description,
+		defaultDisplayName: field.displayName || field.fieldName,
 		id: field.fieldName,
 		uiType: normalizeMetadataUIType(field),
 		values: ['select', 'checkbox', 'radio'].includes(normalizeMetadataUIType(field)) ? Object.keys(field.fieldValues).map(value => {
@@ -96,23 +96,27 @@ function normalizeAnnotatedField(field: BLTypes.BLAnnotatedField): NormalizedAnn
 	const annotations: Array<[string, BLTypes.BLAnnotation]> = BLTypes.isAnnotatedFieldV1(field) ? Object.entries(field.properties) : Object.entries(field.annotations);
 	const mainAnnotationId: string = BLTypes.isAnnotatedFieldV1(field) ? field.mainProperty : field.mainAnnotation;
 
+	const isParallel = field.fieldName.includes(PARALLEL_FIELD_SEPARATOR);
+	const parallelFieldParts = getParallelFieldParts(field.fieldName);
 	return {
 		annotations: mapReduce(annotations.map(([id, annot]) => normalizeAnnotation(field, id, annot)), 'id'),
-		description: field.description,
-		displayName: field.displayName,
-		// displayOrder: Object.keys(annotations).sort((a, b) => annotationDisplayOrder[field.fieldName][a] - annotationDisplayOrder[field.fieldName][b]),
+		defaultDescription: field.description,
+		defaultDisplayName: field.displayName,
 		hasContentStore: field.hasContentStore,
 		hasLengthTokens: field.hasLengthTokens,
 		hasXmlTags: field.hasXmlTags,
 		id: field.fieldName,
 		isAnnotatedField: field.isAnnotatedField,
 		mainAnnotationId,
+		isParallel,
+		prefix: parallelFieldParts.prefix,
+		version: parallelFieldParts.version,
 	};
 }
 
 function normalizeAnnotationGroups(blIndex: BLTypes.BLIndexMetadata): NormalizedAnnotationGroup[] {
 	let annotationGroupsNormalized: NormalizedAnnotationGroup[] = [];
-	const fieldId = blIndex.mainAnnotatedField;
+	const fieldId = blIndex.mainAnnotatedField || Object.keys(blIndex.annotatedFields)[0];
 	const field = blIndex.annotatedFields[fieldId];
 
 	const annotations = BLTypes.isAnnotatedFieldV1(field) ? field.properties : field.annotations;
@@ -246,7 +250,7 @@ export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata, relations: BLTy
 		tokenCount: blIndex.tokenCount || 0,
 		status: blIndex.status,
 		indexProgress: blIndex.indexProgress || null,
-		mainAnnotatedField: blIndex.mainAnnotatedField,
+		mainAnnotatedField: blIndex.mainAnnotatedField || Object.keys(blIndex.annotatedFields)[0],
 		relations
 	};
 }
@@ -274,64 +278,3 @@ export function normalizeFormats(formats: BLTypes.BLFormats): NormalizedFormat[]
 	return Object.entries(formats.supportedInputFormats)
 	.map(([key, value]) => normalizeFormat(key, value));
 }
-
-const PARALLEL_FIELD_SEPARATOR = '__';
-
-/**
- * Given a parallel field name, return the prefix and version parts separately.
- *
- * For example, for field name "contents__en", will return prefix "contents" and
- * version "en".
- *
- * For a non-parallel field name, the version part will be an empty string.
- *
- * @param fieldName parallel field name
- * @returns an object containing the prefix and version.
- */
-export function getParallelFieldParts(fieldName: string) {
-	const parts = fieldName.split(PARALLEL_FIELD_SEPARATOR, 2);
-	if (parts.length === 1) {
-		// non-parallel field; return empty string as version
-		parts.push('');
-	}
-	return {
-		prefix: parts[0],
-		version: parts[1]
-	};
-}
-
-export function getParallelFieldName(prefix: string, version: string) {
-	return `${prefix}${PARALLEL_FIELD_SEPARATOR}${version}`;
-}
-
-export function isParallelField(fieldName: string) {
-	return fieldName.includes(PARALLEL_FIELD_SEPARATOR);
-}
-
-// ---------------------------------------
-// Fixup function for BlackLab 2.0 release
-// ---------------------------------------
-
-// tslint:disable
-/**
- * Remove at blacklab 2.1 release.
- * Blacklab went from sending document metadata as string to sending as string[].
- * We temporarily bridge this by mapping old responses to also be string[].
- * See api/index.ts
- */
-export function fixDocInfo(d: BLTypes.BLDocInfo) {
-	for (const key in d) switch (key) {
-		case 'lengthInTokens':
-		case 'mayView':
-			continue;
-		default: {
-			const v = d[key]
-			if (typeof v === 'string') {
-				d[key] = [v]
-			} else {
-				return;
-			}
-		}
-	}
-}
-// tslint: enable

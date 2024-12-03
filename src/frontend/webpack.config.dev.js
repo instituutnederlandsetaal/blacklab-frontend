@@ -114,7 +114,6 @@ module.exports = {
 		// This is unfortunately required to allow dependencies to augment other dependencies (such as jquery-ui and bootstrap augmenting jquery)
 		// which requires the same instance of jquery to be visible to both the jquery-ui module as our own files
 		// NOTE: the exports of these modules are not made available through the window object in the browser!
-		// To do that, we need to use the expose-loader.
 		new webpack.ProvidePlugin({
 			'window.jQuery':    'jquery',
 			'jQuery':           'jquery',

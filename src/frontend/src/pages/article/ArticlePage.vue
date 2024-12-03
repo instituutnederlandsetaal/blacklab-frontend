@@ -4,7 +4,7 @@
 		<div v-else-if="error" class="text-center">
 			<h3 class="text-danger"><em>{{error.message}}</em></h3>
 			<br>
-			<button type="button" class="btn btn-lg btn-default" @click="fetch">Retry</button>
+			<button type="button" class="btn btn-lg btn-default" @click="error = null; load()">Retry</button>
 		</div>
 		<h4 v-else-if="!isEnabled" class="text-muted text-center">
 			<em>No statistics have been configured for this corpus.</em>
@@ -105,7 +105,7 @@ export default Vue.extend({
 				return;
 			}
 
-			const annotatedFieldName = ''; //@@@ TODO PARALLEL use the correct field
+			const annotatedFieldName = RootStore.getState().field || undefined;
 			this.request = blacklab.getSnippet(RootStore.getState().indexId, RootStore.getState().docId, annotatedFieldName, 0, this.document!.docInfo.lengthInTokens, 0)
 			.then(snippet => this.snippet = snippet)
 			.catch(error => this.error = error)

@@ -54,7 +54,7 @@
 			<div v-else-if="!error">
 				<h3 class="text-center">{{actionTitle}}</h3>
 				<div class="progress">
-					<div class="progress-bar progress-bar-striped" :style="{width: this.progress + '%'}">
+					<div class="progress-bar progress-bar-striped" :style="{width: progress + '%'}">
 						{{action}}
 					</div>
 				</div>
@@ -148,7 +148,7 @@ export default Vue.extend({
 	},
 
 	methods: {
-		log() { console.log(...arguments); },
+		log(...args: any[]) { console.log(...args); },
 
 		init() {
 

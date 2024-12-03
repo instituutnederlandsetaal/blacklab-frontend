@@ -147,6 +147,9 @@ public abstract class BaseResponse {
         model.put("OIDC_METADATA_URL", globalCfg.get(Keys.OIDC_METADATA_URL));
         model.put("OIDC_CLIENT_ID", globalCfg.get(Keys.OIDC_CLIENT_ID));
 
+        model.put("displayName", cfg.getDisplayName());
+        model.put("displayNameIsFallback", cfg.displayNameIsFallback());
+
         // HTML-escape all data written into the velocity templates by default
         // Only allow access to the raw string if the expression contains the word "unescaped"
         EventCartridge cartridge = model.getEventCartridge();

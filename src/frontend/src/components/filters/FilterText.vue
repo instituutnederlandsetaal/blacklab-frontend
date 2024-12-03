@@ -18,6 +18,7 @@
 
 				@input="e_input($event.target.value)"
 			/>
+			<small v-if="description" class="text-muted description"><em>{{ description }}</em></small>
 		</div>
 	</div>
 </template>

@@ -7,10 +7,10 @@ import java.util.regex.Pattern;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import nl.inl.corpuswebsite.MainServlet;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
+import nl.inl.corpuswebsite.MainServlet;
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
 /**
@@ -56,11 +56,21 @@ public class ArticleUtil {
     }
 
     public Result<String, QueryException> getDocumentContent(WebsiteConfig corpusConfig, GlobalConfig config, String docId, PaginationInfo page) {
+
+        // Search a different field than the one we're displaying content from?
+        // (used for parallel corpora, where a query can return hits from a different field than the one that was searched,
+        //  e.g. search the contents__en field using query rfield('the' -->nl _, 'nl') to find the Dutch translation of 'the')
+        Optional<String> fieldToShow = getParameter("field", request); // required
+        Optional<String> fieldToSearch = getParameter("searchfield", request); // optional, only if different
+        Optional<String> queryTargetField = fieldToSearch.isPresent() ? fieldToShow : Optional.empty();
+
         return new BlackLabApi(request, response, config)
             .getDocumentContents(
                     corpusConfig.getCorpusId().orElseThrow(),
                     docId,
-                    getParameter("query", request),
+                    fieldToShow,
+                    fieldToSearch,
+                    optTargetField(getParameter("query", request), queryTargetField),
                     getParameter("pattgapdata", request),
                     page.blacklabPageStart,
                     page.blacklabPageEnd
@@ -72,6 +82,41 @@ public class ArticleUtil {
                 if (e.getHttpStatusCode() == HttpServletResponse.SC_FORBIDDEN) return new QueryException(HttpServletResponse.SC_FORBIDDEN, "Documents in this corpus cannot be displayed, because the owner has disabled this feature.");
                 else return new QueryException(e.getHttpStatusCode(), "An error occurred while retrieving document contents from BlackLab: \n" + e.getMessage());
             });
+    }
+
+    /**
+     * Optionally request hits from a specific target field (parallel corpora).
+     *
+     * This is done by adding <code>rfield(..., targetField)</code> to the query.
+     */
+    private Optional<String> optTargetField(Optional<String> query, Optional<String> targetfield) {
+        if (query.isPresent() && targetfield.isPresent()) {
+            String f = targetfield.get().replaceAll("'", "\\'");
+            return Optional.of("rfield(" + query.get() + ", '" + f + "')");
+        }
+        return query;
+    }
+
+    /**
+     * Every time we run an xslt transformation, we need to add some standard parameters.
+     * These are defined and documented in the builtin search.xml 
+     * The user can add their own parameters there.
+     * Take care to update the search.xml file if you add new parameters here.
+     * @param trans
+     * @param config
+     * @param corpus
+     */
+    private void addStandardXsltParameters(XslTransformer trans, GlobalConfig config, WebsiteConfig corpus) {
+        String baseUrl = config.get(Keys.CF_URL_ON_CLIENT);
+        String corpusId = corpus.getCorpusId().orElseThrow();
+        String corpusUrl = baseUrl + "/" + corpus.getCorpusId().orElseThrow();
+
+        // contextRoot is deprecated, but still used in some stylesheets.
+        trans.addParameter("contextRoot", baseUrl);
+        trans.addParameter("contextPath", baseUrl);
+        trans.addParameter("corpusId", corpusId);
+        trans.addParameter("corpusPath", corpusUrl);
+        corpus.getXsltParameters().forEach(trans::addParameter);
     }
 
     /**
@@ -121,10 +166,7 @@ public class ArticleUtil {
             // we managed to get the contents, and they're definitely xml.
             // Load the transformer.
             return servlet.getStylesheet(corpusMetadata, "article", request, response)
-                    .tap(trans -> {
-                        trans.addParameter("contextRoot", config.get(Keys.CF_URL_ON_CLIENT));
-                        corpus.getXsltParameters().forEach(trans::addParameter);
-                    })
+                    .tap(trans -> this.addStandardXsltParameters(trans, config, corpus))
                     .mapWithErrorHandling(trans -> trans.transform(c))
                     .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred while transforming document contents: \n" + e.getMessage() + "\n" + ExceptionUtils.getStackTrace(e)));
         });
@@ -133,10 +175,7 @@ public class ArticleUtil {
     public Result<String, QueryException> transformMetadata(CorpusConfig corpus, WebsiteConfig corpusConfig, GlobalConfig config, Result<String, QueryException> metadata) {
         return metadata.flatMap(md ->
             servlet.getStylesheet(corpus,"meta",request, response)
-            .tap(trans -> {
-                trans.addParameter("contextRoot", config.get(Keys.CF_URL_ON_CLIENT));
-                corpusConfig.getXsltParameters().forEach(trans::addParameter);
-            })
+            .tap(trans -> this.addStandardXsltParameters(trans, config, corpusConfig))
             .mapWithErrorHandling(trans -> trans.transform(md))
             .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred while transforming document metadata contents: \n" + e.getMessage() + "\n" + ExceptionUtils.getStackTrace(e)))
         );
@@ -161,7 +200,8 @@ public class ArticleUtil {
         Optional<Integer> pageSize = corpusConfig.getPageSize();
         Optional<Integer> pageStart = getIntParameter("wordstart", request);
         Optional<Integer> pageEnd = getIntParameter("wordend", request);
-        Optional<Integer> hitStart = getIntParameter("findHit", request);
-        return new PaginationInfo(pageSize, documentMetadata, pageStart, pageEnd, hitStart);
+        Optional<Integer> hitStart = getIntParameter("findhit", request);
+        String field = getParameter("field", request).orElse(null);
+        return new PaginationInfo(pageSize, documentMetadata, pageStart, pageEnd, hitStart, field);
     }
 }

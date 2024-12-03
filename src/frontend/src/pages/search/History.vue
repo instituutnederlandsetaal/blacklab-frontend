@@ -1,92 +1,84 @@
 <template>
-	<div class="modal fade modal-fullwidth" tabindex="-1" ref="modal">
-		<div class="modal-dialog" role="document">
-			<div class="modal-content">
-				<div class="modal-header">
-					<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-					<h4 class="modal-title">{{ $t('history.heading') }}</h4>
-				</div>
-				<div class="modal-body">
-					<table class="table table-hover history-table">
-						<thead>
-							<tr>
-								<th width="30px;">#</th>
-								<th width="70px;"></th>
-								<th width="90px;">{{ $t('history.results') }}</th>
-								<th>{{ $t('history.pattern') }}</th>
-								<th>{{ $t('history.filters') }}</th>
-								<th>{{ $t('history.grouping') }}</th>
-								<th width="115px"></th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr v-for="(entry, index) in recentHistory" :key="entry.hash + entry.interface.viewedResults">
-								<td><strong>{{index + 1}}.</strong></td>
-								<td class="text-muted" style="padding-left:0;"><small>{{new Date(entry.timestamp).toLocaleString('nl-NL', {
-									hour12: false,
-									//year: '2-digit',
-									month: '2-digit',
-									day: '2-digit',
-									hour: 'numeric',
-									minute: 'numeric'
-								})}}</small></td>
-								<td>{{
-									entry.interface.viewedResults === 'hits' ? 'Hits' :
-									entry.interface.viewedResults === 'docs' ? 'Documents' :
-									entry.interface.viewedResults
-								}}</td>
-								<td class="history-table-contain-text" :title="entry.displayValues.pattern.substring(0,1000) || undefined">{{entry.displayValues.pattern}}</td>
-								<td class="history-table-contain-text" :title="entry.displayValues.filters.substring(0,1000) || undefined">{{entry.displayValues.filters}}</td>
-								<td class="history-table-contain-text" :title="entry.view.groupBy.join(' ') || '-'">{{entry.view.groupBy.join(' ') || '-'}}</td>
-								<td>
-									<div class="btn-group">
-										<button type="button" class="btn btn-default" @click="load(entry)">{{ $t('history.search') }}</button>
-										<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"/></button>
-										<ul class="dropdown-menu dropdown-menu-right">
-											<li><a role="button" @click.prevent="openShareUrl(entry)">{{ $t('history.copyAsLink') }}</a></li>
-											<li><a role="button" @click.prevent="downloadAsFile(entry)">{{ $t('history.downloadAsFile') }}</a></li>
-											<li><a role="button" @click.prevent="remove(index)">{{ $t('history.delete') }}</a></li>
-											<li><a role="button" @click.prevent="clearHistoryVisible = true">{{ $t('history.deleteAll') }}</a></li>
-										</ul>
-									</div>
-								</td>
-							</tr>
-						</tbody>
-					</table>
-					<button v-if="recentHistory.length < history.length" type="button" class="btn btn-default" @click="shownOlderEntries+=5">{{ $t('history.loadMore') }}</button>
-				</div>
-				<div class="modal-footer">
-					<form v-if="importUrlVisible" @submit.prevent.stop="importFromUrl" :name="`${uid}_import`" class="history-table-import-url">
-						<div class="input-group" style="width: 100%;">
-							<input type="url" class="form-control" autocomplete="off" autofocus :placeholder="$t('history.copyUrlHere')" ref="importUrlInput"/>
-							<span class="input-group-btn"><button type="submit" class="btn btn-primary">{{ $t('history.importUrl') }}</button></span>
-						</div>
-						<div v-if="importUrlError" class="text-danger">{{importUrlError}}</div>
-					</form>
-					<button v-else class="btn btn-link btn-open-import" @click="importUrlVisible = !importUrlVisible"><span class="fa fa-lg fa-plus"></span> {{ $t('history.importFromLink') }}</button>
-					<button type="button" name="closeSettings" class="btn btn-primary" data-dismiss="modal">{{ $t('history.close') }}</button>
-				</div>
-			</div>
-		</div>
+	<Modal :title="$t('history.heading')" :closeMessage="$t('history.close')" :confirm="false" @close="$emit('close')" auto>
+		<template #body>
+			<table class="table table-hover history-table">
+				<thead>
+					<tr>
+						<th width="30px">#</th>
+						<th width="80px"></th>
+						<th width="80px">{{ $t('history.results') }}</th>
+						<th>{{ $t('history.pattern') }}</th>
+						<th>{{ $t('history.filters') }}</th>
+						<th>{{ $t('history.grouping') }}</th>
+						<th width="115px"></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr v-for="(entry, index) in recentHistory" :key="entry.hash + entry.interface.viewedResults">
+						<td><strong>{{index + 1}}.</strong></td>
+						<td class="text-muted" style="padding-left:0;"><small>{{new Date(entry.timestamp).toLocaleString('nl-NL', {
+							hour12: false,
+							//year: '2-digit',
+							month: '2-digit',
+							day: '2-digit',
+							hour: 'numeric',
+							minute: 'numeric'
+						})}}</small></td>
+						<td>{{
+							entry.interface.viewedResults === 'hits' ? 'Hits' :
+							entry.interface.viewedResults === 'docs' ? 'Documents' :
+							entry.interface.viewedResults
+						}}</td>
+						<td class="history-table-contain-text" :title="entry.displayValues.pattern.substring(0,1000) || undefined">{{entry.displayValues.pattern}}</td>
+						<td class="history-table-contain-text" :title="entry.displayValues.filters.substring(0,1000) || undefined">{{entry.displayValues.filters}}</td>
+						<td class="history-table-contain-text" :title="entry.view.groupBy.join(' ') || '-'">{{entry.view.groupBy.join(' ') || '-'}}</td>
+						<td>
+							<div class="btn-group">
+								<button type="button" class="btn btn-default" @click="load(entry)">{{ $t('history.search') }}</button>
+								<button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"/></button>
+								<ul class="dropdown-menu dropdown-menu-right">
+									<li><a role="button" @click.prevent="openShareUrl(entry)">{{ $t('history.copyAsLink') }}</a></li>
+									<li><a role="button" @click.prevent="downloadAsFile(entry)">{{ $t('history.downloadAsFile') }}</a></li>
+									<li><a role="button" @click.prevent="remove(index)">{{ $t('history.delete') }}</a></li>
+									<li><a role="button" @click.prevent="clearHistoryVisible = true">{{ $t('history.deleteAll') }}</a></li>
+								</ul>
+							</div>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+			<button v-if="recentHistory.length < history.length" type="button" class="btn btn-default" @click="shownOlderEntries+=5">{{ $t('history.loadMore') }}</button>
 
-		<form v-if="isSharingUrl" class="history-popup" @click.self="closeShareUrl">
-			<div class="history-popup-content modal-content">
-				<input type="text" class="form-control" :value="sharingUrl" autocomplete="off" autofocus readonly ref="shareUrlInput"/>
-			</div>
-		</form>
-		<form v-if="clearHistoryVisible" class="history-popup" @click.self="clearHistoryVisible = false">
-			<div class="history-popup-content modal-content">
-				<div class="modal-header"><h4 class="modal-title">{{ $t('history.clearSearchHistory') }}</h4></div>
-				<div class="modal-body">
-					{{ $t('history.clearSearchHistoryConfirmation') }}
+
+			<form v-if="isSharingUrl" class="history-popup" @click.self="closeShareUrl">
+				<div class="history-popup-content modal-content">
+					<input type="text" class="form-control" :value="sharingUrl" autocomplete="off" autofocus readonly ref="shareUrlInput"/>
 				</div>
-				<div class="modal-footer" style="justify-content: flex-end">
-					<button type="button" class="btn btn-primary" @click="clearHistory">{{ $t('history.clear') }}</button>
-					<button type="button" class="btn btn-default" @click="clearHistoryVisible = false">{{ $t('history.cancel') }}</button>
+			</form>
+
+			<Modal v-if="clearHistoryVisible"
+				:title="$t('history.clearSearchHistory')"
+				:closeMessage="$t('history.cancel')"
+				:confirmMessage="$t('history.clear')"
+				@confirm="clearHistory"
+				@close="clearHistoryVisible=false"
+				auto
+			>
+				{{ $t('history.clearSearchHistoryConfirmation') }}
+			</Modal>
+		</template>
+		<template #footer>
+			<form v-if="importUrlVisible" @submit.prevent.stop="importFromUrl" :name="`${uid}_import`" class="history-table-import-url">
+				<div class="input-group" style="width: 100%;">
+					<input type="url" class="form-control" autocomplete="off" autofocus :placeholder="$t('history.copyUrlHere')" ref="importUrlInput"/>
+					<span class="input-group-btn"><button type="submit" class="btn btn-primary">{{ $t('history.importUrl') }}</button></span>
 				</div>
-			</div>
-		</form>
-	</div>
+				<div v-if="importUrlError" class="text-danger">{{importUrlError}}</div>
+			</form>
+			<button v-else class="btn btn-link btn-open-import" @click="importUrlVisible = !importUrlVisible"><span class="fa fa-lg fa-plus"></span> {{ $t('history.importFromLink') }}</button>
+
+		</template>
+	</Modal>
 </template>
 
 <script lang="ts">
@@ -102,17 +94,22 @@ import * as FilterStore from '@/store/search/form/filters';
 
 import UrlStateParser from '@/store/search/util/url-state-parser';
 
-import UID from '@/mixins/uid';
+import Modal from '@/components/Modal.vue';
+
+import uid from '@/mixins/uid';
 
 export default Vue.extend({
-	mixins: [UID] as any,
+	components: {
+		Modal,
+	},
 	data: () => ({
 		sessionStart: new Date().getTime(),
 		shownOlderEntries: 0,
 		sharingUrl: null as null|string,
 		importUrlError: null as null|string,
 		importUrlVisible: false,
-		clearHistoryVisible: false
+		clearHistoryVisible: false,
+		uid: uid()
 	}),
 	computed: {
 		history(): HistoryStore.ModuleRootState { return HistoryStore.getState() },
@@ -184,31 +181,22 @@ export default Vue.extend({
 <style lang="scss">
 
 #history {
-	.modal-content {
-		display: flex;
-		flex-direction: column;
-		max-height: calc(100vh - 60px);
-		min-height: 300px;
-	}
 
-	.modal-header {
-		flex: none;
-	}
-	.modal-body {
-		flex: 1 1 auto;
-		overflow: auto;
-		padding-bottom: 110px;
-	}
 	.modal-footer {
-		flex: none;
 		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
+
+		justify-content: flex-end;
+		// align-items: flex-start;
+		// justify-content: space-between;
 
 		.history-table-import-url {
 			flex-grow: 1;
 			margin-right: 25px;
 		}
+	}
+
+	.modal-body {
+		padding-bottom: 110px; // space for dropdown menu
 	}
 }
 

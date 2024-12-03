@@ -15,7 +15,47 @@
 		},
 		"advanced": {
 			"heading": "Geavanceerd",
-			"copyAdvancedQuery": "Kopiëren naar CQL-editor"
+			"copyAdvancedQuery": "Kopiëren naar CQL-editor",
+
+
+			"queryBuilder": {
+				"$comment": "we use underscores here because mustachejs keys cannot contain dots",
+
+				"createTokenButton_label": "Voeg een woord toe",
+
+				"modalEditor_title": "Bewerken",
+				"modalEditor_clear": "Wissen",
+				"modalEditor_cancel": "Annuleren",
+				"modalEditor_save": "Wijzigingen opslaan",
+
+				"withinSelect_label": "Binnen:",
+
+				"token_head_handle_title": "Sleep hier om dit woord te verplaatsen",
+				"token_head_deleteButton_title": "Verwijder woord",
+
+				"body_tab_header_search": "Zoeken",
+				"body_tab_header_properties": "Context",
+
+				"body_tab_properties_optional": "Optioneel",
+				"body_tab_properties_optional_title": "Woord is optioneel",
+				"body_tab_properties_beginOfSentence": "Begin van zin",
+				"body_tab_properties_beginOfSentence_title": "Woord moet aan het begin van een zin staan",
+				"body_tab_properties_endOfSentence": "Einde van zin",
+				"body_tab_properties_endOfSentence_title": "Woord moet aan het einde van een zin staan",
+
+				"body_tab_properties_repeats_label": "herhalingen",
+				"body_tab_properties_repeats_to": "tot",
+				"body_tab_properties_repeats_times": "keer",
+
+				"attribute_caseAndDiacriticsSensitive": "Hoofdletter-\u00a0en\u00a0diakrietgevoelig",
+				"attribute_delete_attribute_button_title": "Verwijder dit attribuut",
+
+				"attribute_file_upload_button_title": "Upload een lijst met waarden",
+				"attribute_file_upload_edit_button_title": "Bewerk uw geüploade waarden",
+				"attribute_file_upload_clear_button_title": "Geüploade waarden wissen",
+
+				"attribute_create_button_title": "Voeg een attribuut toe"
+			}
 		},
 		"concept": {
 			"heading": "Concepten",
@@ -33,15 +73,15 @@
 			"importQuery": "Importeer zoekvraag",
 			"importQueryTitle": "Importeer een eerder gedownloade zoekvraag",
 			"gapFilling": "Gap-filling",
-			"gapFillingTitle": "Upload a tab-separated list of values to substitute for gap values ('@@' in your query).",
+			"gapFillingTitle": "Upload een lijst waardes gescheiden door tabs om in de query te gebruiken (op de plaats van '@@').",
 			"clearGapValues": "Gap-waarden wissen"
 		},
 		"parallel": {
 			"alignBy": "Aligneer op",
-			"inSourceVersion": "in bronversie",
-			"andCompareWithTargetVersions": "en vergelijk met doelversie(s)",
-			"sourceVersion": "Bronversie",
-			"targetVersion": "Doelversie",
+			"inSourceVersion": "In bronversie",
+			"andCompareWithTargetVersions": "En vergelijk met doelversie(s)",
+			"queryForSourceVersion": "Bronversie",
+			"queryForTargetVersion": "Doelversie",
 			"chooseTargetVersion": "Kies een doelversie",
 			"addTargetVersion": "Voeg nog een doelversie toe"
 		}
@@ -50,7 +90,15 @@
 		"heading": "Filter zoekopdracht op …",
 		"noFilter": {
 			"title": "Geen filters beschikbaar",
-			"content": "This corpus does not contain metadata, or the author has chosen not to allow filtering on metadata."
+			"content": "Dit corpus bevat geen metadata, of de auteur staat het niet toe om te filteren op metadata."
+		},
+		"range": {
+			"from": "Van",
+			"to": "Tot",
+			"permissive": "Gedeeltelijke overlap",
+			"permissiveDescription": "Toon documenten die gedeeltelijk of volledig binnen het ingevoerde bereik vallen",
+			"strict": "Volledige overlap",
+			"strictDescription": "Toon documenten die volledig binnen het ingevoerde berijk vallen"
 		}
 	},
 	"explore": {
@@ -58,7 +106,12 @@
 		"corpora": {
 			"heading": "Documenten",
 			"groupBy": "Groepeer documenten op metadata",
-			"showAs": "Groepen weergeven als"
+			"showAs": {
+				"heading": "Groepen weergeven als",
+				"table": "Tabel",
+				"docs": "Documenten",
+				"tokens": "Tokens"
+			}
 		},
 		"ngram": {
 			"heading": "N-grammen",
@@ -73,7 +126,10 @@
 	"setting": {
 		"heading": "Globale instellingen",
 		"resultsPerPage": "Resultaten per pagina",
+		"resultsPerPageOption": "{n} per pagina",
 		"sampleSize": "Steekproefgrootte",
+		"sampleSizeCount": "aantal",
+		"sampleSizePercentage": "percentage",
 		"sampleSeed": "Steekproef-seed",
 		"context": "Contextgrootte",
 		"wideView": "Breedbeeld",
@@ -134,9 +190,12 @@
 	},
 	"results": {
 		"groupBy": {
+			"groupNameWithoutValue": "[geen waarde]",
+
 			"groupResults": "Groeperen",
+			"close": "Sluiten",
 			"clear": "Wissen",
-			"apply": "Toepassen",
+			"apply": "Groeperen",
 			"invalidGrouping": "Deze groepering is niet geldig.",
 
 			"parallelCorpusVersion": "Kijkend naar versie ",
@@ -156,21 +215,44 @@
 				"fromTheEnd": "vanaf het einde van het resultaat"
 			},
 
-			"relationPartLabel": "Deel van relatie",
-			"relationSource": "hoofd",
-			"relationTarget": "afhankelijke",
-			"relationBoth": "beide",
+
+
+			"relationPartByClass": {
+				"default": {
+					"label": "Deel van relatie",
+					"source": "bron",
+					"target": "doel"
+				},
+				"dep": {
+					"source": "hoofd",
+					"target": "afhankelijke"
+				}
+			},
+
 			"tipClickOnHighlightedWords": "Tip: klik op uitgelichte woorden om te groeperen op syntactische relaties.",
 
 			"caseSensitive": "Hoofdlettergevoelig",
 			"chooseWordPositions": "Kies hier de <strong>specifieke woorden</strong> om op te groeperen, in het voorbeeld hieronder ziet u welke woorden zijn geselecteerd.",
-			"selectDocumentMetadata": "Select the document metadata to group on.",
-			"clickButtonsToStart": "Hier kunt u een groepering toepassen op de resultaten. Gebruik de knoppen links om een groepeercriterium te maken.",
+			"selectDocumentMetadata": "Kies de documentwaarde om op te groeperen.",
+			"clickButtonsToStart": "Hier kunt u een groepering toepassen op de resultaten. Klik op de knoppen Metadata of Annotatie om groepeercriteria te definiëren.",
 			"metadata": "Metadata",
 			"annotation": "Annotatie",
 			"specify": "Specificeer",
-			"label": "{label} ({annotation})",
-			"document": "document"
+
+			"summary": {
+				"indexedWord": "{field} [{index}] {position}",
+				"firstWord": "eerste {field} {position}",
+				"allWords": "{field} {position}",
+				"labelledWord": "label {label} op {field}",
+				"metadata": "Document {field}",
+
+				"position": {
+					"before": "voor hit",
+					"hit": "in hit",
+					"after": "na hit",
+					"end": "in hit"
+				}
+			}
 		},
 		"table": {
 			"showFullSentence": "Toon complete zin",
@@ -181,8 +263,12 @@
 			"hideHits": "Verberg Hits",
 			"document": "Document",
 			"hits": "Hits",
-			"hit": "Hit",
-			"sortBy": "Sorteer op",
+			"columnLabelBeforeHit": "Voor Hit",
+			"columnLabelHit": "Hit",
+			"columnLabelAfterHit": "Na Hit",
+			"sortBy": "Sorteer op {field}",
+			"sortByDescending": "Sorteer op {field} aflopend",
+			"groupBy": "Groeperen op {field}",
 			"sortByDocument": "Sorteer op documenttitel",
 			"sortByHits": "Sorteer op aantal hits",
 			"moreHiddenHits": "meer verborgen hits",
@@ -194,10 +280,7 @@
 			"property": "Eigenschap",
 			"value": "waarde",
 			"noContext": "Geen context beschikbaar.",
-			"after": "na",
-			"before": "voor",
-			"After": "Na",
-			"Before": "Voor"
+			"parallelVersion": "Versie"
 		},
 		"export": {
 			"downloading": "Downloaden...",
@@ -213,7 +296,16 @@
 			"documentsWhere": "documenten waar"
 		},
 		"resultsView": {
-			"backToGroupOverview": "Terug naar groepen",
+			"navigation": {
+				"backToGroupedResults": "Terug naar gegroepeerde resultaten",
+				"backToUngroupedResults": "Terug naar niet-gegroepeerde resultaten",
+				"hits": "Hits",
+				"documents": "Documenten",
+				"viewingGroup": "In groep {group}",
+				"groupedBy": "Gegroepeerd op {group}",
+				"randomSample": "Steekproef ({sample})"
+			},
+
 			"noResultsFound": "Geen resultaten gevonden.",
 			"inactiveView": "Deze weergave is niet actief omdat er niet naar woorden gezocht is.",
 			"tryAgainTitle": "Probeer opnieuw met huidige parameters",

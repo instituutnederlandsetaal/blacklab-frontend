@@ -9,7 +9,7 @@
 		<div class="col-xs-12">
 			<div class="checkbox" v-for="(option, index) in options" :key="index">
 				<!-- TODO optimize this, currently rewriting all values, ergo rerendering all checkboxes every time one changes -->
-				<label :for="inputId+'_'+index" :title="option.title"><input
+				<label :for="inputId+'_'+index" :title="option.title || ''"><input
 					type="checkbox"
 
 					:value="option.value"
@@ -21,13 +21,15 @@
 				> {{option.label || option.value}}</label>
 			</div>
 		</div>
+		<div class="col-xs-12" v-if="description">
+			<small class="text-muted description"><em>{{ description }}</em></small>
+		</div>
 	</div>
 </template>
 
 
 <script lang="ts">
 import BaseFilter from '@/components/filters/Filter';
-import { Option } from '@/components/SelectPicker.vue';
 
 export default BaseFilter.extend({
 	props: {
@@ -38,9 +40,6 @@ export default BaseFilter.extend({
 			required: true,
 			default: () => ({})
 		}
-	},
-	computed: {
-		options(): Option[] { return this.definition.metadata; },
 	},
 	methods: {
 		toggleCheckbox(value: string, checked: boolean) {

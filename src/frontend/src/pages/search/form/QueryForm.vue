@@ -40,14 +40,13 @@
 				<hr/>
 				<button type="submit" class="btn btn-primary btn-lg">{{$t('queryForm.search')}}</button>
 				<button type="reset" class="btn btn-default btn-lg" title="Start a new search">{{$t('queryForm.reset')}}</button>
-				<button type="button" class="btn btn-lg btn-default" data-toggle="modal" data-target="#history">{{$t('queryForm.history')}}</button>
-				<button type="button" class="btn btn-lg btn-default" data-toggle="modal" data-target="#settings"><span class="glyphicon glyphicon-cog" style="vertical-align:text-top;"></span></button>
+				<button type="button" class="btn btn-lg btn-default" @click="historyOpen = true">{{$t('queryForm.history')}}</button>
+				<button type="button" class="btn btn-lg btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align:text-top;"></span></button>
 			</div>
 		</form>
-		<QueryFormSettings id="settings"/>
-		<History id="history"/>
+		<QueryFormSettings v-if="settingsOpen" id="settings" @close="settingsOpen=false"/>
+		<History v-if="historyOpen" id="history" @close="historyOpen=false"/>
 	</div>
-
 </template>
 
 <script lang="ts">
@@ -82,6 +81,10 @@ export default Vue.extend({
 		subscriptions: [] as Subscription[],
 		subCorpusStats: null as null|BLTypes.BLDocResults,
 		error: null as null|ApiError,
+
+		settingsOpen: false,
+		historyOpen: false,
+
 	}),
 	computed: {
 		queryBuilderVisible(): boolean { return RootStore.get.queryBuilderActive(); },

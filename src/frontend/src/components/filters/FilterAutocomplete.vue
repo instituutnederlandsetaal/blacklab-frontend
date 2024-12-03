@@ -21,6 +21,9 @@
 				v-model="modelvalue"
 			/>
 		</div>
+		<div class="col-xs-12" v-if="description">
+			<small class="text-muted description"><em>{{ description }}</em></small>
+		</div>
 	</div>
 </template>
 

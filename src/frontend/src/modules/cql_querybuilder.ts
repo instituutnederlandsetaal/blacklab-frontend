@@ -11,7 +11,7 @@ import {debugLog} from '@/utils/debug';
 import {RecursivePartial} from '@/types/helpers';
 
 import '@/modules/cql_querybuilder.scss';
-import { unescapeRegex, escapeRegex } from '@/utils';
+import { escapeRegex } from '@/utils';
 
 /**
  * The querybuilder is a visual editor for CQL queries (see http://inl.github.io/BlackLab/corpus-query-language.html#supported-features for an introduction to CQL)
@@ -65,7 +65,7 @@ const templates = {
 
 		partials: {
 			createTokenButton: `
-				<button type="button" class="btn btn-primary bl-token-create bl-prevent-sort" title="Insert another token"><span class="glyphicon glyphicon-plus"></span></button>
+				<button type="button" class="btn btn-primary bl-token-create bl-prevent-sort" title="{{i18n:createTokenButton_label}}"><span class="glyphicon glyphicon-plus"></span></button>
 			`,
 
 			modalEditor: `
@@ -74,15 +74,15 @@ const templates = {
 						<div class="modal-content">
 							<div class="modal-header">
 								<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-								<h4 class="modal-title">Edit</h4>
+								<h4 class="modal-title">{{i18n:modalEditor_title}}</h4>
 							</div>
 							<div class="modal-body">
 								<textarea class="form-control" rows="10" style="width:100%;overflow:auto;resize:none;white-space:pre;"></textarea>
 							</div>
 							<div class="modal-footer">
-								<button type="button" class="btn btn-primary pull-left" data-dismiss="modal" data-discard-value>Clear</button>
-								<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
-								<button type="button" class="btn btn-primary" data-dismiss="modal" data-save-edits>Save changes</button>
+								<button type="button" class="btn btn-primary pull-left" data-dismiss="modal" data-discard-value>{{i18n:modalEditor_clear}}</button>
+								<button type="button" class="btn btn-default" data-dismiss="modal">{{i18n:modalEditor_cancel}}</button>
+								<button type="button" class="btn btn-primary" data-dismiss="modal" data-save-edits>{{i18n:modalEditor_save}}</button>
 							</div>
 						</div>
 					</div>
@@ -91,7 +91,7 @@ const templates = {
 
 			withinSelect: `
 				{{#withinSelectOptions.0}}
-				<label>Within:</label>
+				<label>{{i18n:withinSelect_label}}</label>
 				<div class="btn-group bl-within-select clearfix" data-toggle="buttons" style="display:block;">
 				{{/withinSelectOptions.0}}
 					{{#withinSelectOptions}}
@@ -123,10 +123,10 @@ const templates = {
 				</div>
 			`,
 			head_handle: `
-				<span class="glyphicon glyphicon-resize-horizontal bl-sort-handle" style="margin-right:5px;" title="Drag here to move this token"></span>
+				<span class="glyphicon glyphicon-resize-horizontal bl-sort-handle" style="margin-right:5px;" title="{{i18n:token_head_handle_title}}"></span>
 			`,
 			head_deleteButton: `
-				<button type="button" class="close" area-label="delete" title="remove token"><span aria-hidden="true">&times;</span></button>
+				<button type="button" class="close" area-label="delete" title="{{i18n:token_head_deleteButton_title}}"><span aria-hidden="true">&times;</span></button>
 			`,
 
 			head_cqlPreview: `
@@ -142,8 +142,8 @@ const templates = {
 
 			body_tab_header: `
 				<ul class="nav nav-tabs">
-					<li class="active"><a data-toggle="tab" href="#{{currentId}}_tab_attributes">search</a></li>
-					<li><a data-toggle="tab" href="#{{currentId}}_tab_properties">options</a></li>
+					<li class="active"><a data-toggle="tab" href="#{{currentId}}_tab_attributes">{{i18n:body_tab_header_search}}</a></li>
+					<li><a data-toggle="tab" href="#{{currentId}}_tab_properties">{{i18n:body_tab_header_properties}}</a></li>
 				</ul>
 			`,
 			body_tab_container: `
@@ -161,20 +161,20 @@ const templates = {
 			body_tab_properties: `
 				<div id="{{currentId}}_tab_properties" class="tab-pane" style="padding: 10px 15px 25px 15px;">
 					<div class="checkbox">
-						<label title="Token is optional"><input type="checkbox" id="{{currentId}}_property_optional">Optional</label>
+						<label title="{{i18n:body_tab_properties_optional_title}}"><input type="checkbox" id="{{currentId}}_property_optional">{{i18n:body_tab_properties_optional}}</label>
 					</div>
 					<div class="checkbox">
-						<label title="Token must occur at beginning of sentence"><input type="checkbox" id="{{currentId}}_property_sentence_start">Begin of sentence</label>
+						<label title="{{i18n:body_tab_properties_beginOfSentence_title}}"><input type="checkbox" id="{{currentId}}_property_sentence_start">{{i18n:body_tab_properties_beginOfSentence}}</label>
 					</div>
 					<div class="checkbox">
-						<label title="Token must occur at end of sentence"><input type="checkbox" id="{{currentId}}_property_sentence_end">End of sentence</label>
+						<label title="{{i18n:body_tab_properties_endOfSentence_title}}"><input type="checkbox" id="{{currentId}}_property_sentence_end">{{i18n:body_tab_properties_endOfSentence}}</label>
 					</div>
 					<div class="input-group" style="width:318px;">
-						<span class="input-group-addon">repeats</span>
+						<span class="input-group-addon">{{i18n:body_tab_properties_repeats_label}}</span>
 						<input type="text" class="form-control" value="1" id="{{currentId}}_property_repeats_min">
-						<span class="input-group-addon" style="border-left-width:0px; border-right-width:0px;">to</span>
+						<span class="input-group-addon" style="border-left-width:0px; border-right-width:0px;">{{i18n:body_tab_properties_repeats_to}}</span>
 						<input type="text" class="form-control" value="1" id="{{currentId}}_property_repeats_max">
-						<span class="input-group-addon">times</span>
+						<span class="input-group-addon">{{i18n:body_tab_properties_repeats_times}}</span>
 					</div>
 				</div>
 			`,
@@ -226,7 +226,7 @@ const templates = {
 					<div class="checkbox">
 						<label>
 							<input data-attribute-role="case" type="checkbox">
-							Case&nbsp;and&nbsp;diacritics&nbsp;sensitive
+							{{i18n:attribute_caseAndDiacriticsSensitive}}
 						</label>
 					</div>
 				</div>
@@ -236,7 +236,7 @@ const templates = {
 
 		partials: {
 			delete_attribute_button: `
-				<span data-attribute-role="delete" class="glyphicon glyphicon-remove text-primary" style="flex-grow:0;cursor:pointer;" title="Remove this attribute"></span>
+				<span data-attribute-role="delete" class="glyphicon glyphicon-remove text-primary" style="flex-grow:0;cursor:pointer;" title="{{i18n:attribute_delete_attribute_button_title}}"></span>
 			`,
 
 			main_input: `
@@ -261,13 +261,13 @@ const templates = {
 			`,
 
 			main_input_file_controls: `
-				<label class="bl-has-file-hidden btn btn-sm btn-default bl-no-border-radius bl-input-upload-button" title="Upload a list of values">
-					<input data-attribute-role="file" type="file" accept="text/*" class="bl-input-upload" title="Upload a list of values">
+				<label class="bl-has-file-hidden btn btn-sm btn-default bl-no-border-radius bl-input-upload-button" title="{{i18n:attribute_file_upload_button_title}}">
+					<input data-attribute-role="file" type="file" accept="text/*" class="bl-input-upload" title="{{i18n:attribute_file_upload_button_title}}">
 					<span class="glyphicon glyphicon-open"></span>
 				</label>
 
-				<button data-attribute-role="edit"  type="button" class="bl-has-file-shown btn btn-sm btn-default bl-no-border-radius" title="Edit your uploaded values" style="background-color:#ffa;">loading...</button>
-				<button data-attribute-role="clear" type="button" class="bl-has-file-shown btn btn-sm btn-default bl-no-border-radius" title="Clear uploaded values" style="border-left:none;"><span class="fa fa-times"></span></button>
+				<button data-attribute-role="edit"  type="button" class="bl-has-file-shown btn btn-sm btn-default bl-no-border-radius" title="{{i18n:attribute_file_upload_edit_button_title}}" style="background-color:#ffa;">loading...</button>
+				<button data-attribute-role="clear" type="button" class="bl-has-file-shown btn btn-sm btn-default bl-no-border-radius" title="{{i18n:attribute_file_upload_clear_button_title}}" style="border-left:none;"><span class="fa fa-times"></span></button>
 			`,
 
 			main_input_original: `
@@ -305,7 +305,7 @@ const templates = {
 		partials: {
 			create_attribute_dropdown: `
 				<div class="dropup bl-create-attribute-dropdown">
-					<button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown" title="Add another attribute"><span class="glyphicon glyphicon-plus"></span>&#8203;</button>
+					<button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown" title="{{i18n:attribute_create_button_title}}"><span class="glyphicon glyphicon-plus"></span>&#8203;</button>
 					<ul class="dropdown-menu">
 						{{#operators}}
 						<li><a href="#" onclick="$(this).trigger('cql:attribute:create', { operator: '{{operator}}', operatorLabel: '{{label}}' }); return false;">
@@ -424,13 +424,27 @@ const DEFAULTS = {
 	}
 };
 
-type QueryBuilderOptions = RecursivePartial<typeof DEFAULTS>;
-// so not everything is optional and extracting types from nested properties works
-export type QueryBuilderOptionsDef = typeof DEFAULTS;
+export type QueryBuilderOptions = RecursivePartial<typeof DEFAULTS>;
 
 // -------------------
 // Class Querybuilder
 // -------------------
+
+function renderI18n(template: string, view: any, partials: any, i18n: Vue) {
+	const i18nView = new Proxy(view, {
+		get(target, prop) {
+			if (typeof prop === 'string' && prop.startsWith('i18n:')) {
+				// dots are hardcoded to be separators in mustache, so use underscores in the i18n keys
+				const key = prop.slice(5);
+				return i18n.$t(`search.advanced.queryBuilder.${key}`).toString();
+			}
+			return target[prop];
+		}
+	})
+
+	return Mustache.render(template, i18nView, partials);
+}
+
 
 export class QueryBuilder {
 	public settings: typeof DEFAULTS;
@@ -438,8 +452,10 @@ export class QueryBuilder {
 	private createTokenButton: JQuery<HTMLElement>;
 	public modalEditor: JQuery<HTMLElement>;
 	private withinSelect: JQuery<HTMLElement>;
+	public i18n: Vue;
 
-	constructor($rootElement: JQuery<HTMLElement>, options: QueryBuilderOptions) {
+	constructor($rootElement: JQuery<HTMLElement>, options: QueryBuilderOptions, i18n: Vue) {
+		this.i18n = i18n;
 		// Use extendext so arrays in the defaults are replaced instead of merged with those in options
 		this.settings = $.extendext(true, 'replace', {}, DEFAULTS, options);
 		this._prepareElement($rootElement);
@@ -454,7 +470,7 @@ export class QueryBuilder {
 
 	private _prepareElement($element: JQuery<HTMLElement>) {
 		$element
-			.html(Mustache.render(templates.queryBuilder.template, this.settings.queryBuilder.view, templates.queryBuilder.partials))
+			.html(renderI18n(templates.queryBuilder.template, this.settings.queryBuilder.view, templates.queryBuilder.partials, this.i18n))
 			.data('builder', this)
 			.addClass('bl-querybuilder-root');
 
@@ -483,6 +499,11 @@ export class QueryBuilder {
 			.find('input').first().attr('checked', 'checked')
 			.parent().addClass('active');
 
+		this.element = $element;
+		this.createTokenButton = $element.find('.bl-token-create');
+		this.modalEditor = this.element.find('.bl-modal-editor');
+		this.withinSelect = this.element.find('.bl-within-select');
+
 		return $element;
 	}
 
@@ -496,7 +517,7 @@ export class QueryBuilder {
 		return token;
 	}
 
-	public getTokens() {
+	public getTokens(): Token[] {
 		return this.element.children('.bl-token-container').children('.bl-token').map(function(i, elem) {
 			return $(elem).data('token');
 		}).get();
@@ -534,6 +555,19 @@ export class QueryBuilder {
 		this.element.find('.bl-token').remove();
 		this.createToken();
 		this.withinSelect.find('input').first().parent().button('toggle');
+	}
+
+	/** Rerender this querybuilder, for example when selected locale has changed. */
+	public refresh(settings?: QueryBuilderOptions) {
+		const cur = this.getCql();
+		const newRoot = $('<div></div>');
+		const currentClasses = this.element[0].classList;
+		currentClasses.forEach(c => newRoot[0].classList.add(c));
+		this.element.replaceWith(newRoot);
+		this.settings = $.extendext(true, 'replace', {}, this.settings, settings);
+
+		this._prepareElement(newRoot);
+		this.parse(cur);
 	}
 
 	public async parse(cql: string|null): Promise<boolean> {
@@ -585,7 +619,7 @@ export class Token {
 
 	private _createElement() {
 		const view = $.extend({}, this.builder.settings.token.view, { currentId: this.id });
-		const $element = $(Mustache.render(templates.token.template, view, templates.token.partials));
+		const $element = $(renderI18n(templates.token.template, view, templates.token.partials, this.builder.i18n));
 
 		$element.data('token', this);
 		$element.find('input, textarea').on('change', function() {
@@ -722,7 +756,7 @@ export class AttributeGroup {
 		const view = $.extend({}, this.builder.settings.shared.view, this.builder.settings.attributeGroup.view, { currentId: id });
 		const partials = $.extend({}, templates.shared.partials, templates.attributeGroup.partials);
 
-		const $element = $(Mustache.render(templates.attributeGroup.template, view, partials));
+		const $element = $(renderI18n(templates.attributeGroup.template, view, partials, this.builder.i18n));
 		this._prepareElement($element);
 		return $element;
 	}
@@ -823,7 +857,7 @@ export class AttributeGroup {
 
 		const self = this;
 		this.element.children('.bl-token-attribute, .bl-token-attribute-group').each(function(index, element) {
-			const $newLabel = $(Mustache.render(templates.operatorLabel.template, {label: self.operatorLabel}, templates.operatorLabel.partials));
+			const $newLabel = $(renderI18n(templates.operatorLabel.template, {label: self.operatorLabel}, templates.operatorLabel.partials, self.builder.i18n));
 			$newLabel.insertAfter(element);
 		});
 		this.element.children('.bl-token-attribute-group-label').last().remove();
@@ -932,7 +966,7 @@ export class Attribute {
 		const view = $.extend({}, this.builder.settings.shared.view, this.builder.settings.attribute.view, { currentId: this.id });
 		const partials = $.extend({}, templates.shared.partials, templates.attribute.partials);
 
-		const $element = $(Mustache.render(templates.attribute.template, view, partials));
+		const $element = $(renderI18n(templates.attribute.template, view, partials, this.builder.i18n));
 		this._prepareElement($element);
 		return $element;
 	}
@@ -1078,7 +1112,7 @@ export class Attribute {
 			const $input = $optionsContainer.find('[data-attribute-role="value"]');
 			const rawValue = [$input.val() as string|string[]].flat(2); // transform to array if it isn't
 			// if we're a dropdown we need to regex-escape, since they're exact values, but are interpreted as if they're regex
-			values = $input.is('select') ? rawValue.map(v => escapeRegex(v, false).replace(/([|"])/g, '\\$1')) : rawValue;
+			values = $input.is('select') ? rawValue.map(v => escapeRegex(v)) : rawValue;
 		}
 
 		const callback = this.builder.settings.attribute.getCql;

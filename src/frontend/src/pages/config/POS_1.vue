@@ -17,9 +17,8 @@ export const value = 'Choose main'
 export const label = value;
 export const title = 'Select annotation to use as Part of Speech root';
 
-// export const canActivate = () => true;
 export const defaultAction = (s: StepState): StepState => {
-	let defaultPosAnnot = s.annotations.find(a => a.uiType === 'pos') || s.annotations.find(a => a.id.toLowerCase() === 'pos' || a.displayName.toLowerCase() === 'part of speech');
+	let defaultPosAnnot = s.annotations.find(a => a.uiType === 'pos') || s.annotations.find(a => a.id.toLowerCase() === 'pos' || a.defaultDisplayName.toLowerCase() === 'part of speech');
 	if (!defaultPosAnnot)
 		throw new Error('Cannot determine default pos annotation');
 
@@ -41,7 +40,7 @@ export const step = Vue.extend({
 		options(): Option[] {
 			return this.value.annotations.map(a => ({
 				value: a.id,
-				label: `${a.id} <small class="text-muted">${a.displayName}</small>`,
+				label: `${a.id} <small class="text-muted">${a.defaultDisplayName}</small>`,
 				// disabled: !a.hasForwardIndex,
 				title: !a.hasForwardIndex ? 'Annotation requires forward index in order to retrieve values' : undefined
 			}));

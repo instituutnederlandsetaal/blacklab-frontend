@@ -4,11 +4,11 @@
         <meta charset="utf-8">
         <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 
-        #if ($websiteConfig.getCorpusDisplayName().isPresent())
-        <meta property="og:description" content="$websiteConfig.getCorpusDisplayName().get() provided by the Dutch Language Institute in Leiden.">
-        <meta name="description" content="$websiteConfig.getCorpusDisplayName().get() search provided by the Dutch Language Institute in Leiden.">
+        #if ($websiteConfig.getCorpusId().isPresent())
+        <meta property="og:description" content="$displayName provided by the Dutch Language Institute in Leiden.">
+        <meta name="description" content="$displayName search provided by the Dutch Language Institute in Leiden.">
         <meta name="referrer" content="no-referrer">
-        <title>$websiteConfig.getCorpusDisplayName().get() search</title>
+        <title>$displayName search</title>
         #else
         <meta property="og:description" content="AutoSearch provided by the Dutch Language Institute in Leiden.">
         <meta name="description" content="AutoSearch, provided by the Dutch Language Institute in Leiden.">
@@ -35,7 +35,7 @@
 
         <script>
             // Might be null if this page is not in a corpus!
-            var INDEX_ID = "$esc.javascript($websiteConfig.getCorpusId().orElse(null))";
+            var INDEX_ID = "$esc.javascript($websiteConfig.getCorpusId().orElse(null))"
             var WITH_CREDENTIALS = $esc.javascript($FRONTEND_WITH_CREDENTIALS);
 
             /** Base url of the corpus-frontend. Guaranteed not to end in '/' */
@@ -69,7 +69,9 @@
                     </div>
 
                     #if($websiteConfig.getCorpusId().isPresent())
-                    <a class='navbar-brand' href='$CF_URL_ON_CLIENT/$websiteConfig.getCorpusId().get()/search/'>$websiteConfig.getCorpusDisplayName().orElse("")</a>
+                    <a class='navbar-brand' href='$CF_URL_ON_CLIENT/$websiteConfig.getCorpusId().get()/search/'
+                        #if($displayNameIsFallback) data-is-fallback #end
+                    >$displayName</a>
                     #else
                     <a class='navbar-brand' href='$CF_URL_ON_CLIENT/'>AutoSearch</a>
                     #end

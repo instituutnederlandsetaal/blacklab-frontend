@@ -1,62 +1,55 @@
 <template>
-	<div class="modal fade modal-fullwidth">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<button type="button" data-dismiss="modal" class="close" title="close">&times;</button>
-					<h3>{{annotationDisplayName || annotationId}}</h3>
-				</div>
-				<div v-if="isValidTagset" class="modal-body">
-					<div class="list-group-container">
-						<div class="list-group main">
-							<button v-for="value in tagset.values"
-								type="button"
-								:key="value.value"
-								:class="{
-									'list-group-item': true,
-									'active': annotationValue === value
-								}"
+	<Modal v-if="open" :title="$tAnnotDisplayName(annotation)" :confirmMessage="$t('partOfSpeech.submit')" @confirm="submit(); $emit('close');" lg :close="false">
+		<template v-if="isValidTagset">
 
-								@click="annotationValue = (annotationValue === value ? null : value)"
-							>
-								{{value.displayName}} <Debug>({{value.value}})</Debug>
-							</button>
-						</div>
+			<div class="list-group-container" >
+				<div class="list-group main">
+					<button v-for="value in tagset.values"
+						type="button"
+						:key="value.value"
+						:class="{
+							'list-group-item': true,
+							'active': annotationValue === value
+						}"
 
-						<div v-if="annotationValue" class="category-container">
-							<ul v-for="subId in annotationValue.subAnnotationIds" class="list-group category">
-								<li class="list-group-item active category-name">{{annotationDisplayNames[subId]}} <Debug>({{subId}})</Debug></li>
-								<!-- debugging -->
-								<!-- :style="{
-									backgroundColor: (!subValue.pos || subValue.pos.includes(annotationValue.value)) ? undefined : 'red'
-								}" -->
-								<li class="list-group-item category-value" v-for="subValue in tagset.subAnnotations[subId].values" :key="subValue.value" v-if="!subValue.pos || subValue.pos.includes(annotationValue.value)">
-									<label>
-										<input type="checkbox" v-model="selected[`${annotationValue.value}/${subId}/${subValue.value}`]"/>
-										{{subValue.displayName}}
-										<Debug>({{subValue.value}})</Debug>
-									</label>
-								</li>
-							</ul>
-							<em v-if="annotationValue.subAnnotationIds.length === 0">{{$t('partOfSpeech.noOptions')}}</em>
-						</div>
-					</div>
-					<hr>
-					<div>{{query}}</div>
+						@click="annotationValue = (annotationValue === value ? null : value)"
+					>
+						{{value.displayName}} <Debug>({{value.value}})</Debug>
+					</button>
 				</div>
-				<div v-else class="modal-body">
-					<div class="alert alert-danger">
-						{{errorMessage}}
-					</div>
-				</div>
-				<div class="modal-footer">
-					<!-- Don't use submit/reset, since these are not in their own form it messes up submitting any parent form using enter key in input -->
-					<button type="button" class="btn btn-primary" @click.prevent="submit" data-dismiss="modal">{{$t('partOfSpeech.submit')}}</button>
-					<button type="button" class="btn btn-default" @click.prevent="reset">{{$t('partOfSpeech.reset')}}</button>
+
+				<div v-if="annotationValue" class="category-container">
+					<ul v-for="subId in annotationValue.subAnnotationIds" class="list-group category">
+						<li class="list-group-item active category-name">
+							{{$tAnnotDisplayName(allAnnotations[subId])}}
+							<Debug>({{subId}})</Debug>
+						</li>
+
+						<li class="list-group-item category-value" v-for="subValue in tagset.subAnnotations[subId].values" :key="subValue.value" v-if="!subValue.pos || subValue.pos.includes(annotationValue.value)">
+							<label>
+								<input type="checkbox" v-model="selected[`${annotationValue.value}/${subId}/${subValue.value}`]"/>
+								{{subValue.displayName}}
+								<Debug>({{subValue.value}})</Debug>
+							</label>
+						</li>
+					</ul>
+					<em v-if="annotationValue.subAnnotationIds.length === 0">{{$t('partOfSpeech.noOptions')}}</em>
 				</div>
 			</div>
+			<template v-if="query">
+				<hr>
+				<div>{{query}}</div>
+			</template>
+		</template>
+		<div v-else class="alert alert-danger">
+			{{errorMessage}}
 		</div>
-	</div>
+
+
+		<template #footer>
+			<button type="button" class="btn btn-default" @click="reset">{{$t('partOfSpeech.reset')}}</button>
+		</template>
+	</Modal>
 </template>
 
 <script lang="ts">
@@ -67,38 +60,39 @@ import * as CorpusStore from '@/store/search/corpus';
 import { Tagset } from '@/types/apptypes';
 import { escapeRegex } from '@/utils';
 
+import Modal from '@/components/Modal.vue';
+
 export default Vue.extend({
+	components: {
+		Modal,
+	},
 	props: {
-		annotationId: {
-			required: true,
-			type: String,
-		},
-		annotationDisplayName: String,
+		annotation: Object as () => CorpusStore.NormalizedAnnotation,
+		open: { default: true }
 	},
 	data: () => ({
 		annotationValue: null as null|Tagset['values'][string],
 		selected: {} as {[key: string]: boolean}
 	}),
 	computed: {
+		allAnnotations: CorpusStore.get.allAnnotationsMap,
 		tagset: TagsetStore.getState,
-		annotationDisplayNames: CorpusStore.get.annotationDisplayNames,
 		isValidTagset(): boolean { return TagsetStore.getState().state === 'loaded'; },
 		errorMessage(): string { return this.isValidTagset ? '' : TagsetStore.getState().message; },
 		query(): string {
 			if (this.annotationValue == null) { return ''; }
-			const mainValue = escapeRegex(this.annotationValue.value, false).replace(/("|\|)/g, '\\$1');
 
-			const subAnnots = this.annotationValue.subAnnotationIds.map(id => ({
-				id,
-				values: this.tagset.subAnnotations[id].values
-					.filter(v => this.selected[`${this.annotationValue!.value}/${id}/${v.value}`])
-					.map(v => escapeRegex(v.value, false).replace(/("|\|)/g, '\\$1'))
-			}))
-			.filter(v => v.values.length > 0);
+			return [
+				`${this.annotation.id}="${escapeRegex(this.annotationValue.value)}"`,
+				...this.annotationValue.subAnnotationIds.map(subAnnot => {
+					const {values} = this.tagset.subAnnotations[subAnnot];
+					const selected = values.filter(v => this.selected[`${this.annotationValue!.value}/${subAnnot}/${v.value}`]);
 
-			const subAnnotStrings = subAnnots.map(({id, values}) => `${id}="${values.join('|')}"`);
-
-			return [`${this.annotationId}="${mainValue}"`].concat(subAnnotStrings).join('&');
+					return {subAnnot, escapedValues: selected.map(v => escapeRegex(v.value))};
+				})
+				.filter(({escapedValues}) => escapedValues.length > 0)
+				.map(({subAnnot, escapedValues}) => `${subAnnot}="${escapedValues.join('|')}"`)
+			].join('&');
 		},
 	},
 	methods: {
@@ -107,32 +101,7 @@ export default Vue.extend({
 			this.annotationValue = null;
 		},
 		submit() {
-			if (this.annotationValue == null) {
-				this.$emit('submit', {
-					query: '',
-				});
-				return;
-			}
-
-			const mainValue = escapeRegex(this.annotationValue.value, false).replace(/("|\|)/g, '\\$1');
-			const subAnnots = this.annotationValue.subAnnotationIds.map(id => ({
-				id,
-				values: this.tagset.subAnnotations[id].values
-					.filter(v => this.selected[`${this.annotationValue!.value}/${id}/${v.value}`])
-					.map(v => escapeRegex(v.value, false).replace(/("|\|)/g, '\\$1'))
-			}))
-			.filter(v => v.values.length > 0);
-
-			this.$emit('submit', {
-				queryString: this.query,
-				value: {
-					[this.annotationId]: mainValue,
-					...subAnnots.reduce((acc, cur) => {
-						acc[cur.id] = cur.values.join('|');
-						return acc;
-					}, {} as {[key: string]: string})
-				}
-			});
+			this.$emit('submit', this.query);
 		}
 	},
 	created() {

@@ -21,8 +21,8 @@ class StorageWatcher {
 		this.listeners.set(e.key, listener);
 	}
 
-	public addListener<T extends object>(storageKey: string, object: T, prop: keyof T) {
-		if (!this.listeners.has(storageKey)) this.listeners.set(storageKey, (newValue: any) => object[prop] = newValue);
+	public addListener<T>(storageKey: string, callback: (newValue: T) => void) {
+		if (!this.listeners.has(storageKey)) this.listeners.set(storageKey, callback);
 		else console.error(`LocalStorageWatcher - Already watching ${storageKey}`);
 	}
 
@@ -46,20 +46,30 @@ const putNewValueInStorage = (key: string) => (newValue: any) => {
 	else localStorage.setItem(key, JSON.stringify(newValue));
 }
 
-export function localStorageSynced<T>(storageKey: string, defaultValue: T, watchStorage = false): {value: T} {
+export function localStorageSynced<T>(storageKey: string, defaultValue: T, watchStorage = false): {value: T, isFromStorage: boolean} {
+	let isFromStorage = false;
 	if (localStorage.getItem(storageKey)) {
-		try { defaultValue = JSON.parse(localStorage.getItem(storageKey) as string); }
+		try { 
+			defaultValue = JSON.parse(localStorage.getItem(storageKey) as string); 
+			isFromStorage = true;
+		}
 		catch { console.error(`Failed to parse stored value for ${storageKey}`); }
 	}
 
-	const v = Vue.observable({value: defaultValue});
+	const v = Vue.observable({
+		value: defaultValue,
+		isFromStorage,
+	});
 	watcher.$watch(() => v.value, putNewValueInStorage(storageKey));
-	if (watchStorage) storageWatcher.addListener(storageKey, v, 'value');
+	if (watchStorage) storageWatcher.addListener<T>(storageKey, newValue => {
+		v.isFromStorage = true;
+		v.value = newValue;
+	});
 
 	return v;
 }
 
-export function syncPropertyWithLocalStorage<T extends object>(storageKey: string, props: T, prop: keyof T, watchStorage = false) {
+export function syncPropertyWithLocalStorage<T extends object, K extends keyof T>(storageKey: string, props: T, prop: K, watchStorage = false) {
 	if (localStorage.getItem(storageKey)) {
 		try { props[prop] = JSON.parse(localStorage.getItem(storageKey) as string); }
 		catch { console.error(`Failed to parse stored value for ${storageKey}`); }
@@ -67,6 +77,6 @@ export function syncPropertyWithLocalStorage<T extends object>(storageKey: strin
 
 	const v = Vue.observable(props);
 	watcher.$watch(() => v[prop], putNewValueInStorage(storageKey));
-	if (watchStorage) storageWatcher.addListener(storageKey, v, prop);
+	if (watchStorage) storageWatcher.addListener<T[K]>(storageKey, newValue => props[prop] = newValue);
 	return v;
 }

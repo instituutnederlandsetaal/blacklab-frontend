@@ -36,24 +36,5 @@
 		"@vue/babel-preset-jsx"
 	],
 	"plugins": [
-		/*
-			This is super useful when on breakpoints - prevents imported variable/function names from being mangled by webpack.
-			It does however require transforming modules (and import statements) into CommonJs format instead of native es6 import/exports.
-			Note that this transforming of imports needs to be performed by this plugin entirely, we need to disable all other import rewriting/transpile steps
-			- by typescript: see tsconfig.json compilerOptions.module option
-			- by other stages in the babel transformation process: see modules = false in preset-env settings above.
-
-			Eventually once this is solved, or reverse-sourcemapping (mapping pretty name in browser console to mangled name in the eval)
-			makes it into browsers, we can start using es6 import/exports again
-			See these issues for progress on the name-mangling part:
-			https://github.com/babel/babel/issues/2596
-			https://github.com/webpack/webpack/issues/3957
-			https://bugs.chromium.org/p/chromium/issues/detail?id=327092
-
-			See: https://github.com/jamietre/babel-plugin-transform-es2015-modules-commonjs-simple#readme
-		*/
-		// ["transform-es2015-modules-commonjs-simple", {
-		// 	"noMangle": true
-		// }]
 	]
 }

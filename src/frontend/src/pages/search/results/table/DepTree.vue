@@ -14,8 +14,9 @@ import Vue from 'vue';
 // @ts-ignore
 import {ReactiveDepTree} from '@/../node_modules/reactive-dep-tree/dist/reactive-dep-tree.umd.js';
 import {HitRowData} from '@/pages/search/results/table/HitRow.vue';
-import { BLHit, BLHitInOtherField, BLHitSnippet, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
+import { BLHit, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
 import Spinner from '@/components/Spinner.vue';
+import { NormalizedAnnotation } from '@/types/apptypes';
 
 
 /* https://universaldependencies.org/format.html
@@ -83,8 +84,8 @@ export default Vue.extend({
 
 		// TODO
 		dir: String as () => 'ltr'|'rtl',
-		mainAnnotation: String,
-		otherAnnotations: Object as () => Record<'lemma'|'upos'|'xpos'|'feats', string>,
+		mainAnnotation: Object as () => NormalizedAnnotation,
+		otherAnnotations: Object as () => Record<'lemma'|'upos'|'xpos'|'feats', NormalizedAnnotation|null>,
 	},
 	data: () => ({
 		renderTree: true,
@@ -96,20 +97,24 @@ export default Vue.extend({
 		},
 
 		// We only need this to know where our hit starts and ends.
-		hit(): BLHit|BLHitInOtherField|undefined { return 'start' in this.data.hit ? this.data.hit : undefined; },
+		hit(): BLHit|undefined { return 'start' in this.data.hit ? this.data.hit : undefined; },
 		// The full sentence is the context in which the hit was found. Unless we don't have the sentence (yet), then it's the same hit ;)
-		context(): BLHit|BLHitInOtherField|undefined { return this.fullSentence || this.hit },
+		context(): BLHit|undefined { return this.fullSentence || this.hit },
 
 		// Make the hit array make sense, since indexing into three non-0 indexed objects is a bit of a pain.
 		// Basically just make an array of key-value maps that contain the annotations for each token. e.g. [{word: 'I', lemma: 'i'}, {word: 'am', lemma: 'be'}, ...]
 		sensibleArray(): undefined|Array<Record<string, string>> {
 			if (!this.context?.matchInfos) return undefined;
 			/** Which annotations are we interested in, punct and the main annotation, but maybe more. */
-			const extract = ['punct', this.mainAnnotation].concat(Object.values(this.otherAnnotations));
+			const extract = ['punct', this.mainAnnotation.id].concat(Object.values(this.otherAnnotations).filter((a): a is NormalizedAnnotation => !!a).map(a => a.id));
 			const {left, match, right} =  this.context;
 			return flatten(left, extract).concat(flatten(match, extract)).concat(flatten(right, extract));
 		},
 
+		/**
+		 * Convert BlackLab's returned relation object into something representing connl-u relations.
+		 * Meaning a list of "tokens" (i.e. positions in the sentence), pointing at their parent ("sourceIndex" property).
+		 */
 		relationInfo(): undefined|Array<undefined|{parentIndex: number; label: string;}> {
 			if (!this.hit || !this.context || !this.sensibleArray) return undefined;
 
@@ -129,10 +134,7 @@ export default Vue.extend({
 					r[targetIndex] = {
 						// might be undefined for root?
 						parentIndex: sourceIndex,
-						//@ts-ignore
 						label: v.relType,
-						// @ts-ignore
-						sourceObject: v
 					}
 				}
 			}
@@ -169,15 +171,15 @@ export default Vue.extend({
 
 				// omit punctuation before first word of sentence.
 				if (i !== 0) header = header + token.punct;
-				header += token[this.mainAnnotation];
+				header += token[this.mainAnnotation.id];
 
 				const row = [] as string[];
 				row.push((1+i).toString()); // index
-				row.push(token[this.mainAnnotation]); // form
-				if (this.otherAnnotations.lemma) row.push(token[this.otherAnnotations.lemma]); else row.push('_'); // lemma
-				if (this.otherAnnotations.upos)  row.push(token[this.otherAnnotations.upos]);  else row.push('_'); // upos
-				if (this.otherAnnotations.xpos)  row.push(token[this.otherAnnotations.xpos]);  else row.push('_'); // xpos
-				if (this.otherAnnotations.feats) row.push(token[this.otherAnnotations.feats]); else row.push('_'); // feats
+				row.push(token[this.mainAnnotation.id]); // form (usually word)
+				if (this.otherAnnotations.lemma) row.push(token[this.otherAnnotations.lemma.id]); else row.push('_'); // lemma
+				if (this.otherAnnotations.upos)  row.push(token[this.otherAnnotations.upos.id]);  else row.push('_'); // upos
+				if (this.otherAnnotations.xpos)  row.push(token[this.otherAnnotations.xpos.id]);  else row.push('_'); // xpos
+				if (this.otherAnnotations.feats) row.push(token[this.otherAnnotations.feats.id]); else row.push('_'); // feats
 				row.push(rel && rel.parentIndex < this.sensibleArray!.length  ? (rel.parentIndex + 1).toString() : '_'); // head
 				row.push(rel ? rel.label : '_'); // deprel
 				row.push('_'); // deps

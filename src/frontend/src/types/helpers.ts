@@ -6,6 +6,13 @@ export type RecursivePartial<T> = {
 		T[P];
 };
 
+export type RecursiveRequired<T> = {
+	[P in keyof T]-?:
+		T[P] extends Array<(infer U)> ? Array<RecursiveRequired<U>> :
+		T[P] extends object ? RecursiveRequired<T[P]> :
+		Required<T>[P];
+}
+
 export type NonNullableObject<T> = {
 	[P in keyof T]: P extends undefined ? P[] : T[P];
 };

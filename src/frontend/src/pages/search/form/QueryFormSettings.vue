@@ -1,76 +1,65 @@
 <template>
-	<div class="modal fade" tabindex="-1">
-		<div class="modal-dialog">
-			<div class="modal-content">
-				<div class="modal-header">
-					<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-					<h4 class="modal-title">{{$t('setting.heading')}}</h4>
+	<Modal :title="$t('setting.heading')" @close="$emit('close')" :confirm="false" :closeMessage="$t('setting.close')" xs>
+		<div class="form-horizontal">
+			<div class="form-group"> <!-- behaves as .row when in .form-horizontal so .row may be omitted -->
+				<label for="resultsPerPage" class="col-xs-3">{{$t('setting.resultsPerPage')}}:</label>
+				<div class="col-xs-9">
+					<SelectPicker
+						data-id="resultsPerPage"
+						data-name="resultsPerPage"
+						hideEmpty
+						allowUnknownValues
+
+						:options="pageSizeOptions"
+
+						v-model="pageSize"
+					/>
 				</div>
-				<div class="modal-body">
-					<div class="form-horizontal">
-						<div class="form-group"> <!-- behaves as .row when in .form-horizontal so .row may be omitted -->
-							<label for="resultsPerPage" class="col-xs-3">{{$t('setting.resultsPerPage')}}:</label>
-							<div class="col-xs-9">
-								<SelectPicker
-									data-id="resultsPerPage"
-									data-name="resultsPerPage"
-									hideEmpty
+			</div>
 
-									:options="pageSizeOptions"
+			<div class="form-group">
+				<label for="sampleSize" class="col-xs-3">{{$t('setting.sampleSize')}}:</label>
+				<div class="col-xs-9">
+					<div class="input-group">
+						<SelectPicker
+							class="input-group-btn"
+							data-id="sampleMode"
+							data-name="sampleMode"
+							data-menu-width="grow"
 
-									v-model="pageSize"
-								/>
-							</div>
-						</div>
+							hideEmpty
+							:options="sampleModeOptions"
 
-						<div class="form-group">
-							<label for="sampleSize" class="col-xs-3">{{$t('setting.sampleSize')}}:</label>
-							<div class="col-xs-9">
-								<div class="input-group">
-									<SelectPicker
-										class="input-group-btn"
-										data-id="sampleMode"
-										data-name="sampleMode"
-										data-menu-width="grow"
+							@input="focusSampleSize"
 
-										hideEmpty
-										:options="sampleModeOptions"
+							v-model="sampleMode"
+						/>
 
-										@input="focusSampleSize"
-
-										v-model="sampleMode"
-									/>
-
-									<input id="sampleSize" name="sampleSize" :placeholder="$t('setting.sampleSize')" type="number" class="form-control" v-model.lazy="sampleSize" ref="sampleSize"/>
-								</div>
-							</div>
-						</div>
-
-						<div class="form-group">
-							<label for="sampleSeed" class="col-xs-3">{{$t('setting.sampleSeed')}}:</label>
-							<div class="col-xs-9">
-								<input id="sampleSeed" name="sampleSeed" :placeholder="$t('setting.sampleSeed')" type="number" class="form-control" v-model.lazy="sampleSeed">
-							</div>
-						</div>
-
-						<div class="form-group">
-							<label for="context" class="col-xs-3">{{$t('setting.context')}}:</label>
-							<div class="col-xs-9">
-								<input id="context" name="context" :placeholder="$t('setting.context')" type="number" class="form-control" v-model.lazy="context">
-							</div>
-						</div>
+						<input id="sampleSize" name="sampleSize" :placeholder="$t('setting.sampleSize')" type="number" class="form-control" v-model.lazy="sampleSize" ref="sampleSize"/>
 					</div>
-					<hr>
-					<div class="checkbox-inline"><label for="wide-view"><input type="checkbox" id="wide-view" name="wide-view" v-model="wideView.value">{{$t('setting.wideView')}}</label></div>
-					<br>
-					<div v-if="debug.debug_visible || debug.debug" class="checkbox-inline"><label for="debug" class="text-muted"><input type="checkbox" id="debug" name="debug" v-model="debug.debug">{{ $t('setting.debug') }}</label></div>
 				</div>
-				<div class="modal-footer">
-					<button type="button" name="closeSettings" class="btn btn-primary" data-dismiss="modal">{{$t('setting.close')}}</button>
+			</div>
+
+			<div class="form-group">
+				<label for="sampleSeed" class="col-xs-3">{{$t('setting.sampleSeed')}}:</label>
+				<div class="col-xs-9">
+					<input id="sampleSeed" name="sampleSeed" :placeholder="$t('setting.sampleSeed')" type="number" class="form-control" v-model.lazy="sampleSeed">
+				</div>
+			</div>
+
+			<div class="form-group">
+				<label for="context" class="col-xs-3">{{$t('setting.context')}}:</label>
+				<div class="col-xs-9">
+					<input id="context" name="context" :placeholder="$t('setting.context')" type="number" class="form-control" v-model.lazy="context">
 				</div>
 			</div>
 		</div>
-	</div>
+		<hr>
+		<div class="checkbox-inline"><label for="wide-view"><input type="checkbox" id="wide-view" name="wide-view" v-model="wideView.value">{{$t('setting.wideView')}}</label></div>
+		<br>
+		<div v-if="debug.debug_visible || debug.debug" class="checkbox-inline"><label for="debug" class="text-muted"><input type="checkbox" id="debug" name="debug" v-model="debug.debug">{{ $t('setting.debug') }}</label></div>
+
+	</Modal>
 
 </template>
 
@@ -82,6 +71,7 @@ import * as GlobalViewSettings from '@/store/search/results/global';
 import * as ResultsViewSettings from '@/store/search/results/views';
 
 import SelectPicker,{ Option } from '@/components/SelectPicker.vue';
+import Modal from '@/components/Modal.vue';
 
 import debug from '@/utils/debug';
 import { localStorageSynced } from '@/utils/localstore';
@@ -89,10 +79,9 @@ import { localStorageSynced } from '@/utils/localstore';
 export default Vue.extend({
 	components: {
 		SelectPicker,
+		Modal
 	},
 	data: () => ({
-		sampleModeOptions: ['percentage', 'count'] as Array<GlobalViewSettings.ModuleRootState['sampleMode']>,
-		pageSizeOptions: ['20','50','100','200'].map(value => ({value, label: `${value} results`})) as Option[],
 		debug,
 		wideView: localStorageSynced('cf/wideView', false),
 	}),
@@ -105,12 +94,27 @@ export default Vue.extend({
 				ResultsViewSettings.actions.resetPage();
 			}
 		},
+		pageSizeOptions(): Option[] {
+			return ['20','50','100','200'].map(value => ({
+				value,
+				label: this.$t('setting.resultsPerPageOption', { n: value }).toString()
+			}));
+		},
 		sampleMode: {
 			get() { return GlobalViewSettings.getState().sampleMode; },
 			set(v: GlobalViewSettings.ModuleRootState['sampleMode']) {
 				GlobalViewSettings.actions.sampleMode(v);
 				ResultsViewSettings.actions.resetPage();
 			}
+		},
+		sampleModeOptions(): Option[] {
+			return [{
+				value: 'percentage',
+				label: this.$t('setting.sampleSizePercentage').toString(),
+			}, {
+				value: 'count',
+				label: this.$t('setting.sampleSizeCount').toString(),
+			}]
 		},
 		sampleSize: {
 			get(): string { return this.itoa(GlobalViewSettings.getState().sampleSize); },

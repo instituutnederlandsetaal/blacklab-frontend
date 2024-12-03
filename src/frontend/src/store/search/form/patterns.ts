@@ -16,9 +16,11 @@ import { debugLog, debugLogCat } from '@/utils/debug';
 import { AnnotationValue } from '@/types/apptypes';
 
 type ModuleRootState = {
-	// Parallel versions (shared between multiple states, e.g. simple, extended, etc.)
-	parallelVersions: {
+	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
+	parallelFields: {
+		/** Id of the annotated field that is the source we're searching in */
 		source: string|null,
+		/** Ids of the annotated fields that we're comparing to */
 		targets: string[],
 		alignBy: string|null,
 	},
@@ -52,7 +54,7 @@ type ModuleRootState = {
 // Then: the basic state shape with the appropriate annotation and filters created
 // Finally: the values initialized from the page's url on first load.
 const defaults: ModuleRootState = {
-	parallelVersions: {
+	parallelFields: {
 		source: null,
 		targets: [],
 		alignBy: null,
@@ -94,26 +96,8 @@ const get = {
 
 	simple: b.read(state => state.simple, 'simple'),
 
-	/** Selected parallel source and target versions */
-	parallelVersions: b.read(state => state.parallelVersions, 'parallelVersions'),
-
-	/** What parallel versions should be shown as source options?
-	 *  (all except already chosen target ones)
-	 */
-	parallelSourceVersionOptions: b.read((state: ModuleRootState): { value: string, label: string }[] => {
-		const targets = state.parallelVersions.targets;
-		return CorpusStore.get.parallelVersionOptions().filter(value => !targets.includes(value.value));
-	}, 'parallelSourceVersionOptions'),
-
-	/** What parallel versions should be shown as target options?
-	 *  (all except already chosen source one; the widget will also filter out already chosen target ones, so we
-	 *  shouldn't do that here)
-	 */
-	parallelTargetVersionOptions: b.read((state: ModuleRootState): { value: string, label: string }[] => {
-		const src = state.parallelVersions.source || '';
-		const targets = state.parallelVersions.targets || [];
-		return CorpusStore.get.parallelVersionOptions().filter(value => value.value !== src);
-	}, 'parallelTargetVersionOptions'),
+	/** Selected parallel source and target versions. Note that these are the full ids of the annotatedFields (e.g. "contents__nl") */
+	parallelAnnotatedFields: b.read(state => state.parallelFields, 'parallelFields'),
 };
 
 const privateActions = {
@@ -123,11 +107,17 @@ const privateActions = {
 			Vue.set(state.extended.annotationValues, payload.id, payload), 'annotation_init_extended'),
 	initSimpleAnnotation: b.commit((state, payload: ModuleRootState['simple']) => Object.assign<ModuleRootState['simple'],
 			ModuleRootState['simple']>(state.simple, payload), 'annotation_init_simple'),
-	initParallelVersions: b.commit((state, payload: ModuleRootState['parallelVersions']) => Object.assign<ModuleRootState['parallelVersions'],
-			ModuleRootState['parallelVersions']>(state.parallelVersions, payload), 'parallelVersions_init'),
+	initParallel: b.commit((state, payload: ModuleRootState['parallelFields']) => Object.assign<ModuleRootState['parallelFields'],
+			ModuleRootState['parallelFields']>(state.parallelFields, payload), 'parallelFiels_init'),
 };
 
-const setTargetVersions = (state: ModuleRootState, payload: string[]): string[] => {
+const setTargetFields = (state: ModuleRootState, payload: string[]): string[] => {
+	// sanity check:
+	if (payload.find(annotatedFieldId => !CorpusStore.get.parallelAnnotatedFieldsMap()[annotatedFieldId])) {
+		console.error('Tried to set target fields to non-existent annotated field, maybe mixup between version and annotatedField');
+		return state.parallelFields.targets;
+	}
+
 	if (payload && payload.length > 0) {
 		while (state.advanced.targetQueries.length < payload.length) {
 			state.advanced.targetQueries.push('');
@@ -136,48 +126,57 @@ const setTargetVersions = (state: ModuleRootState, payload: string[]): string[] 
 			state.expert.targetQueries.push('');
 		}
 	}
-	return Vue.set(state.parallelVersions, 'targets', payload);
+	return Vue.set(state.parallelFields, 'targets', payload);
 };
 
 const actions = {
-	parallelVersions: {
-		sourceVersion: b.commit((state, payload: string|null) => {
-			return (state.parallelVersions.source = payload);
-		}, 'parallelVersions_source_version'),
+	parallelFields: {
+		sourceField: b.commit((state, payload: string|null) => {
+			if (payload && !CorpusStore.get.parallelAnnotatedFieldsMap()[payload]) {
+				console.error('Tried to set source version to non-existent annotated field. Ignoring');
+				return;
+			}
+			return (state.parallelFields.source = payload);
+		}, 'parallelFields_source_version'),
 		addTarget: b.commit((state, version: string) => {
-			debugLogCat('parallel', `parallelVersions.addTargetVersion: Adding ${version}`);
+			debugLogCat('parallel', `parallelFields.addTargetVersion: Adding ${version}`);
 			if (!version) {
 				console.warn('tried to add null target version');
 				return;
 			}
-			const payload = state.parallelVersions.targets.concat([version]);
-			return setTargetVersions(state, payload);
-		}, 'parallelVersions_addTarget'),
+			const payload = state.parallelFields.targets.concat([version]);
+			return setTargetFields(state, payload);
+		}, 'parallelFields_addTarget'),
 		removeTarget: b.commit((state, version: string) => {
-			debugLogCat('parallel', `parallelVersions.removeTargetVersion: Removing ${version}`);
-			const index = state.parallelVersions.targets.indexOf(version);
+			if (!CorpusStore.get.parallelAnnotatedFieldsMap()[version]) {
+				console.error('Tried to remove non-existent target version');
+				return;
+			}
+
+			debugLogCat('parallel', `parallelFields.removeTargetVersion: Removing ${version}`);
+			const index = state.parallelFields.targets.indexOf(version);
 			if (index < 0) {
 				console.warn('tried to remove non-existent target version');
 				return;
 			}
-			state.parallelVersions.targets.splice(index, 1);
+			state.parallelFields.targets.splice(index, 1);
 			if (state.advanced.targetQueries.length > index)
 				state.advanced.targetQueries.splice(index, 1);
 			if (state.expert.targetQueries.length > index)
 				state.expert.targetQueries.splice(index, 1);
-		}, 'parallelVersions_removeTarget'),
-		targetVersions: b.commit(setTargetVersions, 'parallelVersions_targets'),
+		}, 'parallelFields_removeTarget'),
+		targetFields: b.commit(setTargetFields, 'parallelFields_targets'),
 		alignBy: b.commit((state, payload: string|null) => {
-			return (state.parallelVersions.alignBy = payload == null ? UIStore.getState().search.shared.alignBy.defaultValue : payload);
-		}, 'parallelVersions_align_by'),
+			return (state.parallelFields.alignBy = payload == null ? UIStore.getState().search.shared.alignBy.defaultValue : payload);
+		}, 'parallelFields_align_by'),
 		reset: b.commit(state => {
-			const defaultSourceVersion = CorpusStore.get.parallelVersions()[0]?.name;
-			debugLogCat('parallel', `parallelVersions.reset: Selecting default source version ${defaultSourceVersion}`);
-			state.parallelVersions.source = defaultSourceVersion;
-			state.parallelVersions.targets = [];
+			const defaultSourceField = CorpusStore.get.parallelAnnotatedFields()[0]?.id;
+			debugLogCat('parallel', `parallelFields.reset: Selecting default source version ${defaultSourceField}`);
+			state.parallelFields.source = defaultSourceField;
+			state.parallelFields.targets = [];
 			const v = UIStore.getState().search.shared.alignBy.defaultValue;
-			state.parallelVersions.alignBy = v;
-		}, 'parallelVersions_reset'),
+			state.parallelFields.alignBy = v;
+		}, 'parallelFields_reset'),
 	},
 	simple: {
 		annotation: b.commit((state, {id, type, ...safeValues}: Partial<AnnotationValue>&{id: string}) => {
@@ -269,10 +268,10 @@ const actions = {
 	}, 'reset'),
 
 	replace: b.commit((state, payload: ModuleRootState) => {
-		actions.parallelVersions.reset();
-		actions.parallelVersions.alignBy(payload.parallelVersions.alignBy);
-		actions.parallelVersions.sourceVersion(payload.parallelVersions.source);
-		actions.parallelVersions.targetVersions(payload.parallelVersions.targets);
+		actions.parallelFields.reset();
+		actions.parallelFields.alignBy(payload.parallelFields.alignBy);
+		actions.parallelFields.sourceField(payload.parallelFields.source);
+		actions.parallelFields.targetFields(payload.parallelFields.targets);
 
 		actions.simple.reset();
 		actions.simple.annotation(payload.simple.annotationValue);
@@ -298,10 +297,11 @@ const actions = {
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
 const init = () => {
-	const parallelVersions = CorpusStore.get.parallelVersions();
-	const defaultParallelVersion = parallelVersions.length === 0 ? '' : parallelVersions[0].name;
+	const parallelFields = CorpusStore.get.parallelAnnotatedFields();
+
+	const defaultParallelVersion = parallelFields[0]?.id || '';
 	debugLogCat('parallel', `init: Set default parallel version: ${defaultParallelVersion}`);
-	privateActions.initParallelVersions({
+	privateActions.initParallel({
 		source: defaultParallelVersion,
 		targets: [],
 		alignBy: null,

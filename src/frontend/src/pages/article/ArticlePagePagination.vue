@@ -1,20 +1,24 @@
 <template>
 	<div v-if="shouldRender" :class="['article-pagination', ready ? '' : 'loading']" title="Hold to drag">
-		<span v-if="!ready" class="fa fa-spinner fa-spin fa-4x"></span>
-		<template v-else>
-			<div v-if="paginationInfo" class="pagination-container">
+		<template v-if="paginationInfo">
+			<div class="pagination-container">
 				<label style="white-space: nowrap;">Page</label>
 				<div class="pagination-wrapper">
 					<Pagination v-bind="paginationInfo" :editable="false" :showOffsets="false" @change="handlePageNavigation"/><br>
 				</div>
 			</div>
-			<hr v-if="hitInfo && paginationInfo != null">
-			<div v-if="hitInfo" class="pagination-container">
-				<label>Hit</label>
-				<div class="pagination-wrapper">
-					<Pagination v-bind="hitInfo" :editable="false" :showOffsets="false" @change="handleHitNavigation"/><br>
-				</div>
+			<hr v-if="hitInfo || loadingForAwhile">
+		</template>
+
+		<div v-if="hitInfo" class="pagination-container">
+			<label>Hit</label>
+			<div class="pagination-wrapper">
+				<Pagination v-bind="hitInfo" :editable="false" :showOffsets="false" @change="handleHitNavigation"/><br>
 			</div>
+		</div>
+		<template v-else-if="loadingForAwhile">
+			<Spinner size="20"/>
+			<label>Loading hits...</label>
 		</template>
 	</div>
 </template>
@@ -31,6 +35,8 @@ import Pagination from '@/components/Pagination.vue';
 import { debugLogCat } from '@/utils/debug';
 import { binarySearch } from '@/utils';
 
+import Spinner from '@/components/Spinner.vue';
+
 import 'jquery-ui';
 import 'jquery-ui/ui/widgets/draggable';
 
@@ -39,10 +45,11 @@ import 'jquery-ui/ui/widgets/draggable';
 
 // NOTE: this is a ugly piece of code, but hey it works /shrug
 export default Vue.extend({
-	components: { Pagination },
+	components: { Pagination, Spinner },
 	data: () => ({
 		hits: null as null|Array<[number, number]>,
 		hitElements: [...document.querySelectorAll('.hl')] as HTMLElement[],
+		/** Set during init. */
 		currentHitInPage: undefined as number|undefined,
 		loadingForAwhile: false,
 		pageSize: PAGE_SIZE,
@@ -51,10 +58,8 @@ export default Vue.extend({
 		PAGE_END
 	}),
 	computed: {
-		// If we're loading, we will have hits, if the page is not entire document, we have pages
-		// If either is true we are enabled and should perform our computations.
-		shouldRender(): boolean { return this.loadingForAwhile || !!this.hits?.length || (PAGE_END - PAGE_START) < DOCUMENT_LENGTH; },
-		ready(): boolean { return this.hits != null && this.shouldRender; },
+		ready(): boolean { return !!this.hits; },
+		shouldRender(): boolean { return !!(this.loadingForAwhile || this.paginationInfo || this.hitInfo); },
 
 		firstVisibleHitIndex(): number {
 			if (!this.ready) { return 0; }
@@ -71,7 +76,10 @@ export default Vue.extend({
 			disabled: boolean,
 			pageActive: boolean
 		} {
-			if (!this.ready) { return undefined; }
+			// Don't bother if we're showing the entire document
+			if (PAGE_START <= 0 && PAGE_END >= DOCUMENT_LENGTH) {
+				return undefined;
+			}
 
 			// It can happen we're not showing a page as intended, but showing a larger or smaller part.
 			// (if the user edited the url manually for example)
@@ -93,6 +101,7 @@ export default Vue.extend({
 			pageActive: boolean
 		} {
 			if (!this.ready) { return undefined; }
+			if (this.hits!.length <= 1) return undefined;
 
 			const isOnHit = this.currentHitInPage != null;
 			return {
@@ -154,8 +163,11 @@ export default Vue.extend({
 			window.history.replaceState(undefined, '', url);
 		},
 	},
+	mounted() {
+		this.$forceUpdate(); // updated() sometimes not called?
+	},
 	updated() {
-		if (this.$el) {
+		if (this.$el && this.$el.nodeType === 1) { // sometimes it's a comment if our top v-if is false.
 			//@ts-ignore
 			$(this.$el).draggable();
 		}
@@ -186,24 +198,43 @@ export default Vue.extend({
 		}
 
 
-		// now request all hits from blacklab, we need this to solve the second case with the ?findhit parameter, but also so we know whether there are more hits
-		// outside this page (so we can navigate the user there).
+		// case 2: the ?findhit parameter
+		// we need to request all hits from blacklab for this
+		//   (but we need these anyway, so we know how many hits there are and where, for navigating through them)
 
 
 		// Load all hits in the document (also those outside this page)
 		// @ts-ignore
-		const { query }: { query: string|undefined } = new URI().search(true);
+		const { query, field, searchfield }: {
+			query: string|undefined,
+			field: string|undefined,
+			searchfield: string|undefined, // override in parallel corpus (e.g. show contents from field a; search starts from field B)
+		} = new URI().search(true);
 
 		if (!query) { // no hits when no query, abort
 			this.hits = [];
 			return;
 		}
 
+		/**
+		 * Optionally request hits from a specific target field (parallel corpora).
+		 *
+		 * This is done by adding <code>rfield(..., targetField)</code> to the query.
+		 */
+		function optTargetField(query?: string, targetfield?: string) {
+			if (query && targetfield) {
+				const f = targetfield.replace(/'/g, "\\'");
+				return "rfield(" + query + ", '" + f + "')";
+			}
+			return query;
+		}
+
 		const spinnerTimeout = setTimeout(() => this.loadingForAwhile = true, 3000);
 		blacklab
 		.getHits(INDEX_ID, {
 			docpid: DOCUMENT_ID,
-			patt: query,
+			field: searchfield ?? field,
+			patt: optTargetField(query, searchfield ? field : undefined),
 			first: 0,
 			number: Math.pow(2, 31)-1,
 			context: 0,
@@ -253,10 +284,6 @@ export default Vue.extend({
 	border-radius: 3px;
 
 	padding: 5px;
-
-	&.loading {
-		border-radius: 50%;
-	}
 
 	> hr {
 		margin: 5px 0;

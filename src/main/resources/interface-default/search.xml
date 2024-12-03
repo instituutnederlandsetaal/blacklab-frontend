@@ -86,7 +86,15 @@
     <XsltParameters>
     <!--
         The following values are provided automatically:
-        <XsltParameter name="contextRoot" value="${request:contextPath}"/>
+        
+        Typically /corpus-frontend/ or similar. Takes the value of cfUrlExternal from the .properties file.
+        Will not contain a trailing slash.
+        <XsltParameter name="contextPath" value="${request:contextPath}"/>
+        The corpus path, usually /corpus-frontend/${corpus-id}, equal to ${request:contextPath} if not viewing a corpus.
+        Will not contain a trailing slash.
+        <XsltParameter name="corpusPath" value="${request:corpusPath}"/>
+        The corpus ID (including username portion for user corpora), so 'lassy' or 'username:corpus-name', empty if not viewing a corpus.
+        <XsltParameter name="corpusId" value="${request:corpusId}"/>
      -->
     </XsltParameters>
 </SearchInterface>

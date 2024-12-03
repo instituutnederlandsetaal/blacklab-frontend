@@ -56,7 +56,6 @@ export default Vue.extend({
 			type: Array as () => string[],
 			default: () => [],
 		},
-		isParallel: { default: false },
 
 		before: Boolean,
 		after: Boolean,
@@ -76,7 +75,7 @@ export default Vue.extend({
 
 				let style = undefined; // undefined means word is not highlighted or hoverable
 				if (this.highlight && token.captureAndRelation?.length) {
-					if (!this.isParallel && token.captureAndRelation?.some(c => c.showHighlight)) {
+					if (token.captureAndRelation?.some(c => c.showHighlight)) {
 						// Permanent highlight, used for e.g. dependency relations
 						style = {
 							background: `linear-gradient(90deg, ${token.captureAndRelation.filter(c => c.showHighlight).map((c, i) => `${c.highlight.color} ${i / token.captureAndRelation!.length * 100}%, ${c.highlight.color} ${(i + 1) / token.captureAndRelation!.length * 100}%`)})`,

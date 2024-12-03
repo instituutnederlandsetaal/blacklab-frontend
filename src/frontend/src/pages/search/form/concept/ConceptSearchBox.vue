@@ -43,7 +43,7 @@
 						/>
 
 						<div class="input-group-btn">
-							<button @click="insertTerm" :title="$t('formConcept.conceptSearchBox.addToLexicon')" class="btn btn-default">⤿ lexicon</button>
+							<button @click="insertTerm" :title="$t('formConcept.conceptSearchBox.addToLexicon').toString()" class="btn btn-default">⤿ lexicon</button>
 						</div>
 					</div>
 				</td>
@@ -102,8 +102,6 @@ export default Vue.extend ( {
 	}),
 
 	methods : {
-		alert,
-
 		getConceptAutocompletes(prefix: string): Promise<string[]> {
 			if (!prefix) return Promise.resolve([]);
 

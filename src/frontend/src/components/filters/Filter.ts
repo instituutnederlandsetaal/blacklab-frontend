@@ -1,7 +1,7 @@
 import Vue from 'vue';
 
 // just for whatever metadata might be needed here.
-import { FilterDefinition } from '@/types/apptypes';
+import { FilterDefinition, Option } from '@/types/apptypes';
 
 const baseFilter = Vue.extend({
 	props: {
@@ -22,15 +22,17 @@ const baseFilter = Vue.extend({
 		}
 	},
 	methods: {
-		// Implemented as multiple events because our value is a prop
-		// and thus computing lucene is a second event (value out through event -> value in through prop -> lucene out)
 		e_input(value: any) { this.$emit('change-value', value); },
 	},
 	computed: {
 		id(): string { return this.definition.id; },
 		inputId(): string { return `${this.htmlId}_value`; },
-		displayName(): string { return this.definition.displayName || this.definition.id; },
-		description(): string|undefined { return this.definition.description; },
+		displayName(): string { return this.$tMetaDisplayName(this.definition); },
+		description(): string|undefined { return this.$tMetaDescription(this.definition); },
+		/** Return the options but with their localized labels */
+		options(): Option[]|undefined {
+			return Array.isArray(this.definition.metadata) ? this.definition.metadata : undefined;
+		}
 	},
 });
 

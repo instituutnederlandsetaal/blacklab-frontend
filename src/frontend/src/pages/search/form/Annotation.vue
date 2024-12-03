@@ -1,6 +1,6 @@
 <template>
 	<div :class="bare ? '' : 'form-group propertyfield'" :id="htmlId"> <!-- behaves as .row when in .form-horizontal so .row may be omitted -->
-		<label v-if="!bare" :for="inputId" class="col-xs-12 col-md-3" :title="annotation.description || undefined">{{displayName}} <Debug>(id: {{annotation.id}})</Debug></label>
+		<label v-if="!bare" :for="inputId" class="col-xs-12 col-md-3" :title="description">{{displayName}} <Debug>(id: {{annotation.id}})</Debug></label>
 		<div :class="bare ? '' : 'col-xs-12 col-md-9'">
 			<SelectPicker v-if="annotation.uiType === 'select'"
 				data-width="100%"
@@ -42,14 +42,9 @@
 					v-model="value"
 				/>
 				<div v-if="!bare" class="input-group-btn">
-					<a v-if="annotation.uiType === 'pos'"
-						data-toggle="modal"
-						class="btn btn-default"
-
-						:href="`#pos_editor${uid}`"
-					>
-						<span class="fa fa-pencil fa-fw"/>
-					</a>
+					<button v-if="annotation.uiType === 'pos'" class="btn btn-default" type="button" @click="posOpen = true">
+						<span class="fa fa-pencil fa-fw"></span>
+					</button>
 
 					<label class="btn btn-default file-input-button" :for="fileInputId" v-if="annotation.uiType !== 'pos'">
 						<span class="fa fa-upload fa-fw"></span>
@@ -65,12 +60,12 @@
 				</div>
 			</div>
 			<template v-if="annotation.uiType === 'pos'">
-				<PartOfSpeech
+				<!-- Use a v-show here, the component keeps some state. If we destroy it when it closes the user must re-enter their query every time. -->
+				<PartOfSpeech :open="posOpen" @close="posOpen = false"
 					:id="`pos_editor${uid}`"
-					:annotationId="annotation.id"
-					:annotationDisplayName="annotation.displayName"
+					:annotation="annotation"
 
-					@submit="value = $event.queryString"
+					@submit="value = $event"
 
 					ref="reset"
 				/>
@@ -88,6 +83,9 @@
 					{{$t('annotation.caseSensitive')}}
 				</label>
 			</div>
+		</div>
+		<div v-if="!bare && description" :class="bare ? '' : 'col-xs-12 col-md-push-3 col-md-9'">
+			<small class="text-muted"><em>{{ description }}</em></small>
 		</div>
 	</div>
 
@@ -110,7 +108,6 @@ import {blacklabPaths} from '@/api';
 import { AnnotationValue, NormalizedAnnotation } from '@/types/apptypes';
 
 export default Vue.extend({
-	mixins: [UID] as any,
 	components: {
 		SelectPicker,
 		PartOfSpeech,
@@ -128,7 +125,9 @@ export default Vue.extend({
 		simple: Boolean
 	},
 	data: () => ({
+		uid: UID(),
 		subscriptions: [] as Array<() => void>,
+		posOpen: false,
 	}),
 	computed: {
 		stateGetter(): () => AnnotationValue {
@@ -148,7 +147,8 @@ export default Vue.extend({
 		fileInputId(): string { return this.htmlId + '_file'; },
 		caseInputId(): string { return this.htmlId + '_case'; },
 
-		displayName(): string { return this.annotation.displayName; },
+		displayName(): string { return this.$tAnnotDisplayName(this.annotation); },
+		description(): string { return this.$tAnnotDescription(this.annotation); },
 
 		options(): Option[] { return this.annotation.values || []; },
 

@@ -1,7 +1,7 @@
 <template>
 	<div class="filter-overview">
 		<div v-for="filter in activeFilters" :key="filter.id">
-			{{filter.displayName}}<small v-if="filter.groupId"> ({{filter.groupId}})</small>: <i>{{summaryMap[filter.id]}}</i>
+			{{filter.defaultDisplayName}}<small v-if="filter.groupId"> ({{filter.groupId}})</small>: <i>{{summaryMap[filter.id]}}</i>
 		</div>
 		<!-- <div v-for="filter in activeFilters" :key="filter.id + '_lucene'">{{filter.displayName}}: <i>{{filter.lucene}}</i></div> -->
 
@@ -20,8 +20,8 @@
 					 {{subCorpusStats.summary.tokensInMatchingDocuments.toLocaleString()}}
 				</span>
 				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 ({{ subCorpusStats.summary.numberOfDocs / totalCorpusDocs | frac2Percent }})<br>
-					 ({{ subCorpusStats.summary.tokensInMatchingDocuments / totalCorpusTokens | frac2Percent }})
+					 ({{ frac2Percent(subCorpusStats.summary.numberOfDocs / totalCorpusDocs) }})<br>
+					 ({{ frac2Percent(subCorpusStats.summary.tokensInMatchingDocuments / totalCorpusTokens) }})
 				</span>
 			</template>
 			<template v-else>
@@ -49,15 +49,13 @@ import frac2Percent from '@/mixins/fractionalToPercent';
 import { valueFunctions } from '@/components/filters/filterValueFunctions';
 
 import Spinner from '@/components/Spinner.vue';
+import { RecursiveRequired } from '@/types/helpers';
 
 export default Vue.extend({
 	components: {Spinner},
-	filters: {
-		frac2Percent
-	},
 	data: () => ({
 		subscriptions: [] as Subscription[],
-		subCorpusStats: null as null|BLTypes.BLDocResults,
+		subCorpusStats: null as null|RecursiveRequired<BLTypes.BLDocResults>,
 		error: null as null|ApiError,
 	}),
 	computed: {
@@ -73,6 +71,9 @@ export default Vue.extend({
 
 		totalCorpusTokens(): number { return CorpusStore.getState().corpus!.tokenCount; },
 		totalCorpusDocs(): number { return CorpusStore.getState().corpus!.documentCount; }
+	},
+	methods: {
+		frac2Percent
 	},
 	created() {
 		this.subscriptions.push(selectedSubCorpus$.subscribe(v => {

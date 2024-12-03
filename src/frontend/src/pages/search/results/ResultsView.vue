@@ -4,6 +4,7 @@
 		<Spinner v-if="request" overlay size="75"/>
 
 		<!-- i.e. HitResults, DocResults, GroupResults -->
+		<!-- Minor annoyance, all slot components are re-created when we group/ungroup results because this :is changes, causing a complete re-render. -->
 		<component v-if="resultsHaveData"
 			:is="resultComponentName"
 			v-bind="resultComponentData"
@@ -29,9 +30,8 @@
 				:type="id"
 				:results="results"
 				:disabled="!!request"
-				@viewgroupLeave="leaveViewgroup"
 			/>
-			<button v-else slot="groupBy" class="btn btn-sm btn-primary" @click="leaveViewgroup"><span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.backToGroupOverview') }}</button>
+			<button v-else slot="groupBy" class="btn btn-sm btn-primary" @click="leaveViewgroup"><span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}</button>
 
 			<div slot="annotation-switcher" v-if="concordanceAnnotationOptions.length > 1">
 				<label>{{$t('results.resultsView.selectAnnotation')}}: </label>
@@ -39,7 +39,7 @@
 					<button v-for="a in concordanceAnnotationOptions" type="button"
 						class="btn btn-default btn-sm"
 						:class="{active: a.id === concordanceAnnotationId}"
-						@click="concordanceAnnotationId = a.id">{{ a.displayName }}</button>
+						@click="concordanceAnnotationId = a.id">{{ $tAnnotDisplayName(a) }}</button>
 				</div>
 			</div>
 
@@ -84,7 +84,7 @@
 			<span v-html="error"></span>
 			<br>
 			<br>
-			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle')" @click="markDirty();">{{ $t('results.resultsView.tryAgain') }}</button>
+			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty();">{{ $t('results.resultsView.tryAgain') }}</button>
 		</div>
 	</div>
 </template>
@@ -122,7 +122,9 @@ import debug, { debugLog } from '@/utils/debug';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedIndex } from '@/types/apptypes';
-import { parseGroupBy, serializeGroupBy } from '@/utils/grouping';
+import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
+import { TranslateResult } from 'vue-i18n';
+import { mergeMatchInfos } from '@/utils/hit-highlighting';
 
 export default Vue.extend({
 	components: {
@@ -174,7 +176,6 @@ export default Vue.extend({
 		debug
 	}),
 	methods: {
-		log: console.log,
 		markDirty() {
 			this.isDirty = true;
 			if (this.cancel) {
@@ -231,7 +232,7 @@ export default Vue.extend({
 						if (e.title === 'UNKNOWN_MATCH_INFO' && this.groupBy.length > 0) {
 							// remove the group on label.
 							debugLog('grouping failed, clearing groupBy');
-							const okayGroups = parseGroupBy(this.groupBy).filter(g => !(g.type === 'context' && g.context.type === 'label'));
+							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined).filter(g => !(g.type === 'context' && g.context.type === 'label'));
 							const newGroupBy = serializeGroupBy(okayGroups);
 							this.groupBy = newGroupBy;
 						}
@@ -243,17 +244,23 @@ export default Vue.extend({
 		},
 		setSuccess(data: BLTypes.BLSearchResult) {
 			debugLog('search results', data);
-			this.results = data;
-			this.paginationResults = data;
 			this.error = null;
 			this.request = null;
 			this.cancel = null;
+
+			if (BLTypes.isHitResults(data)) {
+				// Make sure the target hits (otherFields) 'know' they are the target of a relation.
+				mergeMatchInfos(data);
+			}
 
 			// Jesse (glosses): hier ook een keer de page hits in de gloss store updaten
 			const get_hit_id = GlossModule.get.settings()?.get_hit_id;
 			if (BLTypes.isHitResults(data) && get_hit_id) {
 				GlossModule.actions.setCurrentPage(data.hits.map(get_hit_id));
 			}
+
+			this.results = data;
+			this.paginationResults = data;
 		},
 		setError(data: Api.ApiError, isGrouped?: boolean) {
 			if (data.title !== 'Request cancelled') { // TODO
@@ -288,8 +295,8 @@ export default Vue.extend({
 			set(v: string[]) { this.store.actions.groupBy(v); }
 		},
 		page: {
-			get(): number { const n = this.store.getState().page; console.log('got page', n); return n; },
-			set(v: number) { this.store.actions.page(v); console.log('set page', v); }
+			get(): number { return this.store.getState().page; },
+			set(v: number) { this.store.actions.page(v);  }
 		},
 		sort: {
 			get(): string|null { return this.store.getState().sort; },
@@ -301,6 +308,7 @@ export default Vue.extend({
 		},
 
 		corpus(): NormalizedIndex { return CorpusStore.getState().corpus!; },
+
 		concordanceAnnotationOptions(): CorpusStore.NormalizedAnnotation[] { return UIStore.getState().results.shared.concordanceAnnotationIdOptions.map(id => CorpusStore.get.allAnnotationsMap()[id]); },
 		concordanceAnnotationId: {
 			get(): string { return UIStore.getState().results.shared.concordanceAnnotationId; },
@@ -387,20 +395,27 @@ export default Vue.extend({
 
 		viewGroupName(): string {
 			if (this.viewGroup == null) { return ''; }
-			return this._viewGroupName ? this._viewGroupName :
-				this.viewGroup.substring(this.viewGroup.indexOf(':')+1) || '[unknown]';
+			return this._viewGroupName ?? this.viewGroup.substring(this.viewGroup.indexOf(':')+1) ?? this.$t('results.groupBy.groupNameWithoutValue').toString();
 		},
 
 		breadCrumbs(): Array<{
-			label: string,
-			title: string,
+			label: TranslateResult,
+			title: TranslateResult,
 			active: boolean,
 			onClick: () => void
 		}> {
+			// Labels and titles might look confusing
+			// but, the label is what the uses is currently looking at
+			// the title is what they will look at if they click the link
+			// e.g. hits -> grouped by -> specific group -> sample
+			// if clicking hits -> go to hits
+			// if clicking grouped by -> go to grouped results
+			// if clicking specific group -> go to specific group
+
 			const r = [];
 			r.push({
-				label: this.id === 'hits' ? 'Hits' : 'Documents',
-				title: 'Go back to ungrouped results',
+				label: this.id === 'hits' ? this.$t('results.resultsView.navigation.hits') : this.$t('results.resultsView.navigation.documents'),
+				title: this.$t('results.resultsView.navigation.backToUngroupedResults').toString(),
 				active: false,
 				onClick: () => {
 					this.groupBy = [];
@@ -408,10 +423,11 @@ export default Vue.extend({
 				}
 			});
 			if (this.groupBy.length > 0) {
+				const groupByLabel = parseGroupBy(this.groupBy, this.results ?? undefined).map(g => humanizeGroupBy(this, g, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap())).join(', ')
 				r.push({
-					label: 'Grouped by ' + this.groupBy.toString(),
-					title: 'Go back to grouped results',
-					active: false, //this.viewGroup == null,
+					label: this.$t('results.resultsView.navigation.groupedBy', {group: groupByLabel}),
+					title: this.$t('results.resultsView.navigation.backToGroupedResults'),
+					active: false,
 					onClick: () => {
 						this.leaveViewgroup();
 						GlobalStore.actions.sampleSize(null);
@@ -420,7 +436,7 @@ export default Vue.extend({
 			}
 			if (this.viewGroup != null) {
 				r.push({
-					label: 'Viewing group ' + this.viewGroupName,
+					label: this.$t('results.resultsView.navigation.viewingGroup', {group: this.viewGroupName}),
 					title: '',
 					active: false,
 					onClick: () => GlobalStore.actions.sampleSize(null)
@@ -429,8 +445,8 @@ export default Vue.extend({
 			const {sampleMode, sampleSize} = GlobalStore.getState();
 			if (sampleSize != null) {
 				r.push({
-					label: `Random sample (${sampleSize}${sampleMode === 'percentage' ? '%' : ''})`,
-					title: `Showing only some (${sampleSize}${sampleMode === 'percentage' ? '%' : ''}) results`,
+					label: this.$t('results.resultsView.navigation.randomSample', {sample: `${sampleSize}${sampleMode === 'percentage' ? '%' : ''}`}),
+					title: '',
 					active: false,
 					onClick: () => {
 						$('#settings').modal('show')
@@ -440,7 +456,6 @@ export default Vue.extend({
 			r[r.length -1].active = true;
 			return r;
 		},
-
 
 		resultComponentName(): string {
 			if (this.isGroups) {

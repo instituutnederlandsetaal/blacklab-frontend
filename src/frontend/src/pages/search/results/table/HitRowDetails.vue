@@ -9,7 +9,7 @@
 					<span class="fa fa-exclamation-triangle"></span> <span v-html="error"></span>
 				</p>
 				<template v-else-if="context"> <!-- context is the larger surrounding context of the hit. We don't always have one (when rendering docs we only have the immediate hit) -->
-					<template v-if="hasRelations">
+					<template v-if="hasRelations && !isParallel">
 						<label v-if="sentenceAvailable">
 							<input type="checkbox" v-model="sentenceShown" class="show-sentence-checkbox" />
 							<Spinner v-if="sentenceLoading" inline style="margin-right: 0.5em"/>{{$t('results.table.showFullSentence')}}
@@ -17,14 +17,13 @@
 
 						<!-- Will not render anything if no relation info is available in the passed hit/sentence. -->
 						<DepTree
-						    v-if="!isParallel"
 							:data="data"
 							:fullSentence="sentenceShown ? sentence : undefined"
-							:mainAnnotation="mainAnnotation.id"
+							:mainAnnotation="mainAnnotation"
 							:otherAnnotations="depTreeAnnotations"
 						/>
 					</template>
-					<p>
+					<p :dir="dir">
 						<template v-for="addon in addons">
 							<component v-if="addon.component"
 								:is="addon.component"
@@ -46,29 +45,29 @@
 							/>
 						</template>
 
-						<HitContextComponent tag="span" :dir="dir" :data="context" :html="html" :annotation="mainAnnotation.id" before
-							:isParallel="isParallel" :hoverMatchInfos="hoverMatchInfos"
+						<HitContextComponent tag="span" :dir="dir" :data="context" :html="html" :annotation="mainAnnotation.id" :before="dir === 'ltr'" :after="dir === 'rtl'"
+							:hoverMatchInfos="hoverMatchInfos"
 							@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
 						<HitContextComponent tag="strong" :dir="dir" :data="context" :html="html" :annotation="mainAnnotation.id" bold
-							:isParallel="isParallel" :hoverMatchInfos="hoverMatchInfos"
+							:hoverMatchInfos="hoverMatchInfos"
 							@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
-						<a v-if="href" :href="href" title="Go to hit in document" target="_blank"><sup class="fa fa-link" style="margin-left: -5px;"></sup></a>
-						<HitContextComponent tag="span" :dir="dir" :data="context" :html="html" :annotation="mainAnnotation.id" after
-							:isParallel="isParallel" :hoverMatchInfos="hoverMatchInfos"
+						<a v-if="data.href" :href="data.href" title="Go to hit in document" target="_blank"><sup class="fa fa-link" style="margin-left: -5px;"></sup></a>
+						<HitContextComponent tag="span" :dir="dir" :data="context" :html="html" :annotation="mainAnnotation.id" :after="dir === 'ltr'"  :before="dir === 'rtl'"
+							:hoverMatchInfos="hoverMatchInfos"
 							@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
 					</p>
 					<table v-if="detailedAnnotations?.length" class="concordance-details-table">
 						<thead>
 							<tr>
 								<th>{{$t('results.table.property')}}</th>
-								<th :colspan="data.hit.match.punct.length">{{$t('results.table.value')}}</th>
+								<th :colspan="data.hit.match.punct.length" :style="`text-align: ${dir === 'rtl' ? 'right' : 'left'}`">{{$t('results.table.value')}}</th>
 							</tr>
 						</thead>
 						<tbody>
 							<tr v-for="(annot, index) in detailedAnnotations" :key="annot.id">
-								<th>{{annot.displayName}}</th>
+								<th>{{$tAnnotDisplayName(annot)}}</th>
 								<HitContextComponent v-for="(token, ti) in context.match" tag="td" :data="{match: [token]}" :html="html" :dir="dir" :key="annot.id + ti" :punct="false" :highlight="false" :annotation="annot.id"
-								:isParallel="isParallel" :hoverMatchInfos="hoverMatchInfos"
+									:hoverMatchInfos="hoverMatchInfos"
 								@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
 							</tr>
 						</tbody>
@@ -90,7 +89,6 @@ import * as BLTypes from '@/types/blacklabtypes';
 
 import { HitContext, NormalizedAnnotation, TokenHighlight } from '@/types/apptypes';
 import HitContextComponent from '@/pages/search/results/table/HitContext.vue';
-import { getDocumentUrl } from '@/utils';
 import { snippetParts } from '@/utils/hit-highlighting';
 import { HitRowData } from '@/pages/search/results/table/HitRow.vue';
 import DepTree from '@/pages/search/results/table/DepTree.vue';
@@ -100,7 +98,6 @@ import * as UIStore from '@/store/search/ui';
 import * as CorpusStore from '@/store/search/corpus';
 import * as Api from '@/api';
 import { debugLog } from '@/utils/debug';
-import { isParallelField } from '@/utils/blacklabutils';
 
 /** TODO disconnect from the store? */
 export default Vue.extend({
@@ -111,14 +108,11 @@ export default Vue.extend({
 	},
 	props: {
 		data: Object as () => HitRowData,
-		query: Object as () => BLTypes.BLSearchParameters|undefined,
 
-		annotatedField: {
-			type: String,
-			default: '',
-		},
 		mainAnnotation: Object as () => NormalizedAnnotation,
 		detailedAnnotations: Array as () => NormalizedAnnotation[]|undefined,
+		/** What properties/annotations to show for tokens in the deptree, e.g. lemma, pos, etc. */
+		depTreeAnnotations: Object as () => Record<'lemma'|'upos'|'xpos'|'feats', NormalizedAnnotation|null>,
 
 		html: Boolean,
 		colspan: Number,
@@ -132,7 +126,6 @@ export default Vue.extend({
 			default: () => [],
 		},
 		isParallel: { default: false },
-
 	},
 	data: () => ({
 		loading: false,
@@ -147,19 +140,10 @@ export default Vue.extend({
 		sentence: null as null|BLTypes.BLHit,
 	}),
 	computed: {
-		href(): string|undefined {
-			// we don't always have full-fledged hit objects here.
-			// If we're rendering the hits in a document search response
-			// they won't contain the start/end/parent document.
-			// in that case, don't bother with the url.
-			if (!('start' in this.data.hit)) return;
-			return getDocumentUrl(this.data.doc.docPid, this.query?.patt, this.query?.pattgapdata, this.data.hit.start, PAGE_SIZE, this.data.hit.start);
-		},
 		hasRelations: CorpusStore.get.hasRelations,
 		/** Exact surrounding sentence can only be loaded if we the start location of the current hit, and when the boundery element has been set. */
 		sentenceAvailable(): boolean { return this.hasRelations && !!UIStore.getState().search.shared.within.sentenceElement && 'start' in this.data.hit; },
-		/** What properties/annotations to show for tokens in the deptree, e.g. lemma, pos, etc. */
-		depTreeAnnotations(): Record<'lemma'|'upos'|'xpos'|'feats', string|null> { return UIStore.getState().results.shared.dependencies; }
+
 	},
 	methods: {
 		/**
@@ -180,7 +164,7 @@ export default Vue.extend({
 			Api.blacklab.getSnippet(
 				INDEX_ID,
 				this.data.doc.docPid,
-				this.annotatedField,
+				this.data.annotatedField?.id,
 				this.data.hit.start,
 				this.data.hit.end,
 				context
@@ -204,7 +188,7 @@ export default Vue.extend({
 			const concordanceSize = UIStore.getState().results.shared.concordanceSize;
 
 			Api.blacklab
-			.getSnippet(INDEX_ID, this.data.doc.docPid, this.annotatedField, this.data.hit.start, this.data.hit.end, concordanceSize)
+			.getSnippet(INDEX_ID, this.data.doc.docPid, this.data.annotatedField?.id, this.data.hit.start, this.data.hit.end, concordanceSize)
 			.then(s => {
 				transformSnippets?.(s);
 
@@ -225,16 +209,27 @@ export default Vue.extend({
 				);
 
 				// Run plugins defined for this corpus (e.g. a copy to clipboard button, or an audio player/text to speech button)
-				this.addons = addons.map(a => a({
-					docId: this.data.doc.docPid,
-					corpus: INDEX_ID,
-					document: this.data.doc.docInfo,
-					documentUrl: this.href || '',
-					wordAnnotationId: this.mainAnnotation.id,
-					dir: this.dir,
-					citation: s
-				}))
-				.filter(a => a != null);
+				this.addons = addons
+					.map((a, i) => {
+						try {
+							return a({
+								docId: this.data.doc.docPid,
+								corpus: INDEX_ID,
+								document: this.data.doc.docInfo,
+								documentUrl: this.data.href || '',
+								wordAnnotationId: this.mainAnnotation.id,
+								dir: this.dir,
+								citation: s
+							});
+						} catch (e) {
+							console.error(e);
+							return {
+								name: 'error-' + i,
+								content: `<pre class="text-danger">Error in addon: ${e}</pre>`
+							}
+						}
+					})
+					.filter(a => a != null);
 			})
 			.catch((err: Api.ApiError) => {
 				this.error = formatError(err, 'snippet');
@@ -272,6 +267,11 @@ $screen-lg: 1200px;
 	overflow-x: auto;
 	max-width: calc(100vw - 125px);
 	@media(max-width: ($screen-md - 1px)) { max-width: calc(100vw - 95px); }
+	// overflow-x will clip overflows at the top
+	// which causes the link to the document to be clipped.
+	// This is a bit of a hack, but at least it wille be visible in full.
+	padding-top: 10px;
+	margin-top: -10px;
 }
 .container:not(.container-fluid) .concordance-details-wrapper {
 	// everything below sm is fluid, so no more breakpoints below that.

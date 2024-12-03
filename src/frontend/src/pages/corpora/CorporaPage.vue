@@ -113,7 +113,7 @@ import { normalizeIndexBase } from '@/utils/blacklabutils';
 import Spinner from '@/components/Spinner.vue';
 import CorpusTable from './CorpusTable.vue';
 import FormatsTable from './FormatsTable.vue';
-import Modal from '@/pages/corpora/Modal.vue';
+import Modal from '@/components/Modal.vue';
 import ModalCreateCorpus from '@/pages/corpora/ModalCreateCorpus.vue';
 import ModalCreateFormat from '@/pages/corpora/ModalCreateFormat.vue';
 import ModalUpload from '@/pages/corpora/ModalUpload.vue';
@@ -260,7 +260,9 @@ export default Vue.extend({
 			}
 
 			this.loadingServerInfo = false;
-			this.corpora = Object.entries(this.serverInfo.corpora).map(([id, index]) => normalizeIndexBase(index, id)).sort((a, b) => a.displayName.localeCompare(b.displayName));
+			this.corpora = Object.entries({...this.serverInfo.corpora, ...this.serverInfo.indices})
+				.map(([id, index]) => normalizeIndexBase(index, id))
+				.sort((a, b) => a.displayName.localeCompare(b.displayName));
 			this.loadingCorpora = false;
 			this.refreshFormats();
 		} catch (error) {

@@ -8,7 +8,7 @@
 		}"
 	>
 		<td :colspan="colspan ? colspan - (metadata ? metadata.length : 0) - (data.doc.numberOfHits ? 1 : 0) : undefined" ><a class="doctitle" target="_blank" :href="data.href">{{data.summary}}</a></td>
-		<td v-for="meta in metadata" :key="meta.id">{{(data.doc.docInfo[meta.id] || []).join(', ')}}</td>
+		<td v-for="meta in metadata" :key="meta.id">{{data.doc.docInfo[meta.id]?.join(', ') || ''}}</td>
 		<td v-if="data.doc.numberOfHits">{{data.doc.numberOfHits}}</td>
 	</tr>
 </template>

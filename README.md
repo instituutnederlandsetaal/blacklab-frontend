@@ -272,7 +272,7 @@ etc/projectConfigs/ # the location set in the corporaInterfaceDataDir setting
 Let's perform a simple customization that will take you through the steps, adding a custom javascript file and change the displayed title of your documents.
 1. Follow the steps above to create the config directory for your corpus. I'll assume you left the config directory at its default location of `/etc/projectsconfigs/` and your corpus is called `example` in the following steps. Use your custom paths if necessary.
 2. Copy [the default search.xml](src/main/resources/interface-default/search.xml) into `etc/projectconfigs/example/search.xml`.
-3. Add a config option to include a custom script on the `search` page: `<CustomJs>${request:corpusPath}/static/js/custom.search.js</CustomJs>`
+3. Add a config option to include a custom script on the `search` page: `<CustomJs page="search">${request:corpusPath}/static/js/custom.search.js</CustomJs>`
 4. Create a matching javascript file `/etc/projectconfigs/example/static/js/custom.search.js`
 5. Add the following snippet to your `custom.search.js`
    ```js

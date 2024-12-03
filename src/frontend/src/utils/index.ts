@@ -5,34 +5,109 @@ import URI from 'urijs';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
-import * as UIModule from '@/store/search/ui';
 
-export function escapeRegex(original: string, wildcardSupport: boolean) {
-	original = original.replace(/([\^$\-\\.(){}[\]+])/g, '\\$1'); // add slashes for regex characters
 
-	if (wildcardSupport) {
-		return original
-			.replace(/\*/g, '.*') // * -> .*
-			.replace(/\?/g, '.'); // ? -> .
-	} else {
-		return original
-			.replace(/([\*\?])/g, '\\$1');
+const defaultRegexEscapeOptions = {
+	/**
+	 * In our inputs, wildcards are special characters that can be used to match any character or sequence of characters.
+	 * Are wildcards supposed to be supported in the input? If so, set this to false.
+	 *
+	 * Defaults to true.
+	 * If true, wildcards are escaped:
+	 * - * is replaced with \*
+	 * - ? is replaced with \?
+	 * If false, wildcards are activated:
+	 * - * is replaced with .*
+	 * - ? is replaced with .
+	 */
+	escapeWildcards: true,
+	/** Default to true. If true, escape | to \|. If false, leave alone. */
+	escapePipes: true,
+	/** Defaults to true. If true, escape " to \". If false, leave alone. */
+	escapeQuotes: true
+}
+type RegexEscapeOptions = Partial<typeof defaultRegexEscapeOptions>;
+export function escapeRegex(value: string, settings: RegexEscapeOptions = {}) {
+	settings = {...defaultRegexEscapeOptions, ...settings};
+
+
+	// NOTE: take special care for characters we might let through.
+	// We want to be able to also let the user search for those characters verbatim.
+	// In which case they will have to escape them using a backslash.
+	// We must make sure that we do not double escape these already-present backslashes (but only when they're meaningful.)
+	// There might be a better way to accomplish this, but for now we'll just replace them with a placeholder and replace them back afterwards.
+
+	const specialEscapeSequences = [
+		{ input: '\\|', output: '__PIPE__', active: !settings.escapePipes},
+		{ input: '\\*', output: '__STAR__', active: !settings.escapeWildcards},
+		{ input: '\\?', output: '__QUESTION__', active: !settings.escapeWildcards},
+		{ input: '\\"', output: '__QUOTE__', active: !settings.escapeQuotes}
+	];
+	for (const {input, output, active} of specialEscapeSequences) {
+		if (active) value = value.replaceAll(input, output);
 	}
+
+	const escapeBase = (s: string) => s.replace(/([\\^$#@&+.(){}[\]])/g, '\\$1');
+	const escapeWildcards = (s: string) => s.replace(/([*?])/g, '\\$1');
+	const activateWildcards = (s: string) => s.replace(/\*/g, '.*').replace(/\?/g, '.');
+	const escapePipes = (s: string) => s.replace(/\|/g, '\\|');
+	const escapeQuotes = (s: string) => s.replace(/"/g, '\\"');
+	const identity = (s: string) => s;
+
+	const operations = [
+		escapeBase,
+		settings.escapeWildcards ? escapeWildcards : activateWildcards,
+		settings.escapePipes ? escapePipes : identity,
+		settings.escapeQuotes ? escapeQuotes : identity
+	]
+
+	value = operations.reduce((acc, op) => op(acc), value);
+	// Unescape the special escape sequences
+	for (const {input, output, active} of specialEscapeSequences) {
+		if (active) value = value.replaceAll(output, input);
+	}
+	return value;
 }
 
-export function unescapeRegex(original: string, wildcardSupport: boolean) {
-	original = original.replace(/\\([\^$\-\\(){}[\]+])/g, '$1'); // remove most slashes
+export function unescapeRegex(value: string, settings: RegexEscapeOptions = {}) {
+	settings = {...defaultRegexEscapeOptions, ...settings};
 
-	if (wildcardSupport) {
-		return original
-		.replace(/\\\./g, '_ESC_PERIOD_') // escape \.
-		.replace(/\.\*/g, '*') // restore *
-		.replace(/\./g, '?') // restore ?
-		.replace(/_ESC_PERIOD_/g, '.'); // unescape \. to .
-	} else {
-		return original
-		.replace(/\\([\.\?\*])/g, '$1'); // restore . ? *
+	// NOTE: take special care for characters we might let through.
+	// We want to be able to also let the user search for those characters verbatim.
+	// In which case they will have to escape them using a backslash.
+	// We must make sure that we do not remove these already-present backslashes (but only when they're meaningful.)
+	// There might be a better way to accomplish this, but for now we'll just replace them with a placeholder and replace them back afterwards.
+	const specialEscapeSequences = [
+		{ input: '\\|', output: '__PIPE__', active: !settings.escapePipes},
+		{ input: '\\*', output: '__STAR__', active: !settings.escapeWildcards},
+		{ input: '\\?', output: '__QUESTION__', active: !settings.escapeWildcards},
+		{ input: '\\"', output: '__QUOTE__', active: !settings.escapeQuotes}
+	];
+	for (const {input, output, active} of specialEscapeSequences) {
+		if (active) value = value.replaceAll(input, output);
 	}
+
+	const unescapeBase = (s: string) => s.replace(/\\([\\^$#@&+.(){}[\]])/g, '$1');
+	const unescapeWildcards = (s: string) => s.replace(/\\([*?])/g, '$1');
+	const deactivateWildcards = (s: string) => s.replace(/\.\*/g, '*').replace(/\./g, '?');
+	const unescapePipes = (s: string) => s.replace(/\\[|]/g, '|');
+	const unescapeQuotes = (s: string) => s.replace(/\\"/g, '"');
+	const identity = (s: string) => s;
+
+	// in reverse order, otherwise the base unescape could produce something that looks like a wildcard
+	const operations = [
+		settings.escapeQuotes ? unescapeQuotes : identity,
+		settings.escapePipes ? unescapePipes : identity,
+		settings.escapeWildcards ? unescapeWildcards : deactivateWildcards,
+		unescapeBase
+	]
+
+	value = operations.reduce((acc, op) => op(acc), value);
+	// Unescape the special escape sequences
+	for (const {input, output, active} of specialEscapeSequences) {
+		if (active) value = value.replaceAll(output, input);
+	}
+	return value;
 }
 
 /**
@@ -60,8 +135,6 @@ export function unescapeLucene(original: string) {
 }
 
 export function NaNToNull(n: number) { return isNaN(n) ? null : n; }
-
-
 
 
 /**
@@ -102,7 +175,7 @@ export const decodeAnnotationValue = (value: string|string[], type: Required<App
 					v = stripCase(v);
 					caseSensitive = true;
 				}
-				v = unescapeRegex(v, true).replace(/\\"/g, '"');
+				v = unescapeRegex(v, {escapePipes: false, escapeWildcards: false});
 				// Only surround with quotes when we're joining multiple values into one string and this sub-value contains whitespace
 				return Array.isArray(value) && v.match(/\s+/) ? `"${v}"` : v;
 			}).join(' ');
@@ -116,7 +189,7 @@ export const decodeAnnotationValue = (value: string|string[], type: Required<App
 			value = Array.isArray(value) ? value[0] : value;
 			const caseSensitive = isCase(value);
 			value = caseSensitive ? stripCase(value) : value;
-			value = unescapeRegex(value, false).replace(/\\"/g, '"');
+			value = unescapeRegex(value);
 			return {
 				case: caseSensitive,
 				value
@@ -140,12 +213,12 @@ export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue)
 			// already valid cql, no escaping or wildcard substitution.
 			return [value];
 		case 'select':
-			return [`${id}="${escapeRegex(value.trim(), false).replace(/"/g, '\\"')}"`];
+			return [`${id}="${escapeRegex(value.trim())}"`];
 		case 'text':
 		case 'lexicon':
 		case 'combobox': {
 			// if multiple tokens, split on quotes (removing them), and whitespace outside quotes, and then transform the values individually
-			let resultParts = splitIntoTerms(value, true).map(v => escapeRegex(v.value, true));
+			let resultParts = splitIntoTerms(value, true).map(v => escapeRegex(v.value, {escapePipes: false, escapeWildcards: false}));
 			if (caseSensitive) {
 				resultParts = resultParts.map(v => `(?-i)${v}`);
 			}
@@ -337,9 +410,17 @@ export function unparenQueryPart(query?: string) {
 	return query;
 }
 
-export const getPatternString = (annotations: AppTypes.AnnotationValue[], within: null|string,
-	withinAttributes: null|Record<string, string>, parallelTargetVersions: string[] = [], alignBy?: string) => {
-
+export const getPatternString = (
+	annotations: AppTypes.AnnotationValue[],
+	within: null|string,
+	withinAttributes: null|Record<string, string>,
+	/**
+	 * Ids of the annotated fields the query should target (for parallel corpora).
+	 * Note that the generated query will only contain the version suffix, not the full field id.
+	 */
+	targetParallelVersions: string[] = [],
+	alignBy?: string
+) => {
 	const tokens = [] as string[][];
 
 	annotations.forEach(annot => getAnnotationPatternString(annot).forEach((value, index) => {
@@ -360,9 +441,9 @@ export const getPatternString = (annotations: AppTypes.AnnotationValue[], within
 		}
 	}
 
-	if (parallelTargetVersions.length > 0) {
+	if (targetParallelVersions.length > 0) {
 		const relationType = alignBy ?? '';
-		query = `${parenQueryPart(query, ['[]*', '_'])}` + parallelTargetVersions.map(v => ` =${relationType}=>${v}? _`).join(' ; ');
+		query = `${parenQueryPart(query, ['[]*', '_'])}` + targetParallelVersions.map(v => ` =${relationType}=>${getParallelFieldParts(v).version}? _`).join(' ; ');
 	}
 
 	return query || undefined;
@@ -389,7 +470,7 @@ export const getPatternStringFromCql = (sourceCql: string, targetVersions: strin
 	for (let i = 0; i < targetVersions.length; i++) {
 		if (i > 0)
 			queryParts.push(' ; ');
-		queryParts.push(` =${relationType}=>${targetVersions[i].trim()}? ${parenQueryPartParallel(targetCql[i].trim() || '_')}`)
+		queryParts.push(` =${relationType}=>${getParallelFieldParts(targetVersions[i]).version}? ${parenQueryPartParallel(targetCql[i].trim() || '_')}`)
 	}
 
 	const query = queryParts.join('');
@@ -399,12 +480,14 @@ export const getPatternStringFromCql = (sourceCql: string, targetVersions: strin
 
 export function getDocumentUrl(
 	pid: string,
+	/** Field for which to show the document contents (important when this is a parallel corpus, as there are multiple "copies" of the same document then, e.g. an English and Dutch version) */
+	fieldName: string,
+	/** Field on which the cql query is run. if searchfield differs from field (parallel corpus) */
+	searchField?: string,
 	cql?: string,
 	pattgapdata?: string,
-	wordstart: number = 0,
-	pageSize?: number,
-	/** HACK: Find the hit starting with this word index on the page -- see ArticlePagination.vue */
-	findHit?: number
+	/** HACK: make the backend figure out which page to display based on the start index of the hit -- see ArticlePagination.vue/PaginationInfo.java */
+	findhit?: number
 ) {
 
 	cql = (cql || '').trim();
@@ -418,10 +501,11 @@ export function getDocumentUrl(
 	.segment([CONTEXT_URL, INDEX_ID, 'docs', pid])
 	.search({
 		// parameter 'query' controls the hits that are highlighted in the document when it's opened
+		field: fieldName,
+		searchfield: searchField,
 		query: cql || undefined,
 		pattgapdata: pattgapdata || undefined,
-		wordstart: pageSize != null ? (Math.floor(wordstart / pageSize) * pageSize) || undefined : undefined,
-		findhit: findHit
+		findhit
 	}).toString();
 }
 
@@ -546,11 +630,16 @@ export function fieldSubset<T extends {id: string}>(
 	return ret;
 }
 
-export function getMetadataSubset<T extends {id: string, displayName: string}>(
+// The type of the field objects is a little more generic than a metadata field
+// because this function can also be used with filters. Which do not 100% overlap with metadata fields necessarily.
+// (although in the vast majority of cases, filters are created from metadata fields).
+// (but for example a date range filter has two underlying metadata fields, so it requires a custom id that doesn't exist in the metadata)
+export function getMetadataSubset<T extends {id: string, defaultDisplayName?: string}>(
 	ids: string[],
 	groups: AppTypes.NormalizedMetadataGroup[],
 	metadata: Record<string, T>,
 	operation: 'Sort'|'Group',
+	i18n: Vue,
 	debug = false,
 	/* show the <small/> labels at the end of options labels? */
 	showGroupLabels = true
@@ -558,29 +647,33 @@ export function getMetadataSubset<T extends {id: string, displayName: string}>(
 	const defaultMetadataOptGroupName = 'Metadata';
 	const subset = fieldSubset(ids, groups, metadata);
 
+	// Map a metadata field's id + displayname + group to an option for rendering a groupby or sortby dropdown.
+	// This will map the value to be the string required for blacklab to sort/group by the field
+	// and the label to be the human-readable display name of the field.
 	function mapToOptions(value: string, displayName: string, groupId: string): AppTypes.Option[] {
 		// @ts-ignore
 		const displayIdHtml = debug ? `<small><strong>[id: ${value}]</strong></small>` : '';
 		const displayNameHtml = displayName || value;
 		const displaySuffixHtml = showGroupLabels && groupId ? `<small class="text-muted">${groupId}</small>` : '';
 		const r: AppTypes.Option[] = [];
+		const labelI18nKey = operation === 'Sort' ? 'results.table.sortBy' : 'results.table.groupBy';
 		r.push({
 			value: operation === 'Sort' ? `field:${value}` : value, // groupby prepends field: on its own
-			label: `${operation} by ${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`,
+			label: i18n.$t(labelI18nKey, {field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`}).toString(),
 		});
 		if (operation === 'Sort') {
 			r.push({
 				value: `-field:${value}`,
-				label: `${operation} by ${displayNameHtml} ${displayIdHtml} (descending) ${displaySuffixHtml}`,
+				label: i18n.$t('results.table.sortByDescending', {field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`}).toString(),
 			});
 		}
 		return r;
 	}
 
 	const r = subset.map<AppTypes.OptGroup&{entries: T[]}>(group => ({
-		options: group.entries.flatMap(e => mapToOptions(e.id, e.displayName, group.id)),
+		options: group.entries.flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),
 		entries: group.entries,
-		label: group.id
+		label: i18n.$tMetaGroupName(group.id)
 	}));
 
 	// If there is only one metadata group to display: do not display the group names, instead display only 'Metadata'
@@ -597,67 +690,74 @@ export function getMetadataSubset<T extends {id: string, displayName: string}>(
  * @param operation What section of the interface to generate the options list for: 'Search' will output every annotation only once per group, 'Sort' will generate additional entries to sort in reverse order, and 'Group' is just to generate appropriate option labels "Group by ...".
  * @param corpusTextDirection important for the order of left/right context sorting
  * @param debug is debug mode enabled? print raw annotation IDS in labels
- * @param showGroupLabels show little group name headers between options?
+ * @param showGroupLabels show little group name suffixes at the end of options?
  */
 export function getAnnotationSubset(
 	ids: string[],
 	groups: AppTypes.NormalizedAnnotationGroup[],
 	annotations: Record<string, AppTypes.NormalizedAnnotation>,
-	operation: 'Search'|'Sort'|'Group',
+	operation: 'Search'|'Sort',
+	i18n: Vue,
 	corpusTextDirection: 'rtl'|'ltr' = 'ltr',
 	debug = false,
-	/* show the <small/> labels at the end of options labels? */
-	showGroupLabels = true
+	showGroupLabels = false
 ): Array<AppTypes.OptGroup&{entries: AppTypes.NormalizedAnnotation[]}> {
+	function findAnnotatedFieldId(groupId: string) {
+		return groups.find(g => g.id === groupId)?.annotatedFieldId || groups[0].annotatedFieldId;
+	}
+
 	const subset = fieldSubset(ids, groups, annotations, operation !== 'Search' ? 'Other' : undefined);
 	if (operation === 'Search')	{
-		return subset.map(group => ({
-			entries: group.entries,
-			options: group.entries.map(a => ({
-				value: a.id,
-				label: a.displayName + (debug ? ` (id: ${a.id})` : ''),
-				title: a.description
-			})),
-			label: group.id,
+		return subset.map(group => {
+			const annotationGroupMock: AppTypes.NormalizedAnnotationGroup = {
+				annotatedFieldId: findAnnotatedFieldId(group.id),
+				entries: [],
+				id: group.id,
+				isRemainderGroup: false
+			}
+			const groupNameLocalized = i18n.$tAnnotGroupName(annotationGroupMock);
+
+			return {
+				entries: group.entries,
+				options: group.entries.map(a => ({
+					value: a.id,
+					label: i18n.$tAnnotDisplayName(a) + (showGroupLabels ? ` <small class="text-muted">${groupNameLocalized}</small>` : '') + (debug ? ` <small><strong>[id: ${a.id}]</strong></small>` : ''),
+					title: i18n.$tAnnotDescription(a)
+				})),
+				// hack, when using a default group we need to come up with an annotated field
+				// So just use the first annotated field we come across.
+				label: i18n.$tAnnotGroupName({id: group.id, annotatedFieldId: findAnnotatedFieldId(group.id), entries: [], isRemainderGroup: false}),
+			}
+		});
+	} else {
+		// Generate options for sorting by annotation.
+		// I.e. 6 options per annotation. 3 for each position: before, hit, after
+		// and 2 per postion: ascending and descending.
+		return [
+			['hit:', 'Hit', ''],
+			[corpusTextDirection === 'rtl' ? 'right:' : 'left:', 'Before hit', 'before'],
+			[corpusTextDirection === 'rtl' ? 'left:' : 'right:', 'After hit', 'after']
+		]
+		.map<AppTypes.OptGroup&{entries: AppTypes.NormalizedAnnotation[]}>(([prefix, groupname, suffix]) =>({
+			label: groupname,
+			entries: subset[0].entries,
+			options: ids.flatMap<AppTypes.Option>(id => {
+				// in debug mode - show IDs
+				const displayIdHtml = debug ? `<small><strong>[id: ${id}]</strong></small>` : '';
+				const displayNameHtml = i18n.$tAnnotDisplayName(annotations[id]);
+				const displaySuffixHtml = (showGroupLabels && suffix) ? `<small class="text-muted">${suffix}</small>` : '';
+
+				return [{
+					label: i18n.$t('results.table.sortBy', {field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`}).toString(),
+					value: `${prefix}${id}`
+				}, {
+					label: i18n.$t('results.table.sortByDescending', {field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`}).toString(),
+					value: `-${prefix}${id}`
+				}]
+			})
 		}));
 	}
 
-	// If sorting: do left/right
-	// if grouping: do wordleft/wordright
-	// See https://github.com/INL/corpus-frontend/issues/316#issuecomment-609627245
-	const operations = {
-		left: operation === 'Group' ? 'wordleft:' : 'left:',
-		right: operation === 'Group' ? 'wordright:' : 'right:'
-	};
-
-	return [
-		['hit:', 'Hit', ''],
-		[corpusTextDirection === 'rtl' ? operations.right : operations.left, 'Before hit', 'before'],
-		[corpusTextDirection === 'rtl' ? operations.left : operations.right, 'After hit', 'after']
-	]
-	.map<AppTypes.OptGroup&{entries: AppTypes.NormalizedAnnotation[]}>(([prefix, groupname, suffix]) =>({
-		label: groupname,
-		entries: subset[0].entries,
-		options: ids.flatMap(id => {
-			// @ts-ignore
-			const displayIdHtml = debug ? `<small><strong>[id: ${id}]</strong></small>` : '';
-			const displayNameHtml = annotations[id].displayName || id; // in development mode - show IDs
-			const displaySuffixHtml = showGroupLabels && suffix ? `<small class="text-muted">${suffix}</small>` : '';
-
-			const r: AppTypes.Option[] = [];
-			r.push({
-				label: `${operation} by ${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`,
-				value: `${prefix}${id}`
-			});
-			if (operation === 'Sort') {
-				r.push({
-					label: `${operation} by ${displayNameHtml} ${displayIdHtml} (descending) ${displaySuffixHtml}`,
-					value: `-${prefix}${id}`
-				});
-			}
-			return r;
-		})
-	}));
 }
 
 /**
@@ -708,6 +808,7 @@ export function getCorrectUiType<T extends AppTypes.NormalizedAnnotation['uiType
 import type {ModuleRootState as ModuleRootStateExplore} from '@/store/search/form/explore';
 import type {ModuleRootState as ModuleRootStateSearch} from '@/store/search/form/patterns';
 import cloneDeep from 'clone-deep';
+
 export function getPatternStringExplore(
 	subForm: keyof ModuleRootStateExplore,
 	state: ModuleRootStateExplore,
@@ -723,7 +824,11 @@ export function getPatternStringExplore(
 					const tokenType = annots[token.id].uiType;
 					const correctedType = getCorrectUiType(uiTypeSupport.explore.ngram, tokenType);
 
-					return token.value ? `[${token.id}="${escapeRegex(token.value, correctedType !== 'select').replace(/"/g, '\\"')}"]` : '[]';
+					const escapeSettings: RegexEscapeOptions = {
+						escapePipes: correctedType === 'select',
+						escapeWildcards: correctedType === 'select',
+					}
+					return token.value ? `[${token.id}="${escapeRegex(token.value, escapeSettings)}"]` : '[]';
 				})
 				.join('');
 		default: throw new Error('Unknown submitted form - cannot generate cql query');
@@ -737,8 +842,8 @@ export function getPatternStringSearch(
 	// For the normal search form,
 	// the simple and extended views require the values to be processed before converting them to cql.
 	// The advanced and expert views already contain a good-to-go cql query. We only need to take care not to emit an empty string.
-	const alignBy = state.parallelVersions.alignBy || defaultAlignBy;
-	const targets = state.parallelVersions.targets || [];
+	const alignBy = state.parallelFields.alignBy || defaultAlignBy;
+	const targets = state.parallelFields.targets || [];
 	switch (subForm) {
 		case 'simple':
 			const q = state.simple.annotationValue.value ? [state.simple.annotationValue] : [];
@@ -766,7 +871,6 @@ export function getPatternStringSearch(
 		case 'glosses': return state.glosses?.trim() || undefined;
 		default: throw new Error('Unimplemented pattern generation.');
 	}
-
 }
 
 export function getPatternSummaryExplore<K extends keyof ModuleRootStateExplore>(
@@ -776,8 +880,8 @@ export function getPatternSummaryExplore<K extends keyof ModuleRootStateExplore>
 ): string|undefined {
 	switch (subForm) {
 		case 'corpora': return undefined;
-		case 'frequency': return `${annots[state.frequency.annotationId].displayName} frequency`;
-		case 'ngram': return `${annots[state.ngram.groupAnnotationId].displayName} ${state.ngram.size}-grams`
+		case 'frequency': return `${annots[state.frequency.annotationId].defaultDisplayName} frequency`;
+		case 'ngram': return `${annots[state.ngram.groupAnnotationId].defaultDisplayName} ${state.ngram.size}-grams`
 		default: return undefined;
 	}
 }
@@ -788,27 +892,41 @@ export function getPatternSummarySearch<K extends keyof ModuleRootStateSearch>(
 ) {
 	const patt = getPatternStringSearch(subForm, state, defaultAlignBy);
 	return patt?.replace(/\\(.)/g, '$1') || '';
-
-	// For the normal search form,
-	// the simple and extended views require the values to be processed before converting them to cql.
-	// The advanced and expert views already contain a good-to-go cql query. We only need to take care not to emit an empty string.
-	// switch (subForm) {
-	// 	case 'simple': return state.simple.annotationValue.value || undefined;
-	// 	case 'extended': {
-	// 		const annotations: AppTypes.AnnotationValue[] = cloneDeep(Object.values(state.extended.annotationValues).filter(annot => !!annot.value))
-	// 			.map(annot => ({
-	// 				...annot,
-	// 				type: getCorrectUiType(uiTypeSupport.search.extended, annot.type!)
-	// 			}));
-	// 		if (annotations.length === 0) { return undefined; }
-	// 		// remove escape backslashes as this is just a summary
-	// 		return getPatternString(annotations, state.extended.within, alignBy, state.parallelVersions?.targets || [])?.replace(/\\(.)/g, '$1');
-	// 	}
-	// 	case 'advanced': return state.advanced.query?.trim() || undefined;
-	// 	case 'expert': return state.expert.query?.trim() || undefined;
-	// 	case 'concept': return state.concept || undefined;
-	// 	case 'glosses': return state.glosses || undefined;
-	// 	default: return undefined;
-	// }
 }
 
+// Must be here to avoid recursive dependencies
+export const PARALLEL_FIELD_SEPARATOR = '__';
+
+/**
+ * Given a parallel field name, return the prefix and version parts separately.
+ *
+ * For example, for field name "contents__en", will return prefix "contents" and
+ * version "en".
+ *
+ * For a non-parallel field name, the version part will be an empty string.
+ *
+ * @param fieldName parallel field name
+ * @returns an object containing the prefix and version.
+ */
+export function getParallelFieldParts(fieldName: string) {
+	const parts = fieldName.split(PARALLEL_FIELD_SEPARATOR, 2);
+	if (parts.length === 1) {
+		// non-parallel field; return empty string as version
+		parts.push('');
+	}
+	return {
+		/** The base field, e.g. "contents" */
+		prefix: parts[0],
+		/** The suffix, e.g. "en" or "nl". Empty string when the field is not parallel. */
+		version: parts[1]
+	};
+}
+
+/** Get the full name of a parallel annotatedField, consisting of the base name/prefix and the version (e.g. "en", "nl") */
+export function getParallelFieldName(prefix: string, version: string) {
+	return `${prefix}${PARALLEL_FIELD_SEPARATOR}${version}`;
+}
+
+export function isParallelField(fieldName: string) {
+	return fieldName.includes(PARALLEL_FIELD_SEPARATOR);
+}

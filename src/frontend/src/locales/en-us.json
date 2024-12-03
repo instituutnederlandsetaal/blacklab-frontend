@@ -15,7 +15,46 @@
 		},
 		"advanced": {
 			"heading": "Advanced",
-			"copyAdvancedQuery": "Copy to CQL editor"
+			"copyAdvancedQuery": "Copy to CQL editor",
+
+			"queryBuilder": {
+				"$comment": "we use underscores here because mustachejs keys cannot contain dots",
+
+				"createTokenButton_label": "Insert another token",
+
+				"modalEditor_title": "Edit",
+				"modalEditor_clear": "Clear",
+				"modalEditor_cancel": "Cancel",
+				"modalEditor_save": "Save changes",
+
+				"withinSelect_label": "Within:",
+
+				"token_head_handle_title": "Drag here move this token",
+				"token_head_deleteButton_title": "Remove token",
+
+				"body_tab_header_search": "Search",
+				"body_tab_header_properties": "Context",
+
+				"body_tab_properties_optional": "Optional",
+				"body_tab_properties_optional_title": "Token is optional",
+				"body_tab_properties_beginOfSentence": "Begin of sentence",
+				"body_tab_properties_beginOfSentence_title": "Token must occur at the beginning of a sentence",
+				"body_tab_properties_endOfSentence": "End of sentence",
+				"body_tab_properties_endOfSentence_title": "Token must occur at the end of a sentence",
+
+				"body_tab_properties_repeats_label": "repeats",
+				"body_tab_properties_repeats_to": "to",
+				"body_tab_properties_repeats_times": "times",
+
+				"attribute_caseAndDiacriticsSensitive": "Case-\u00a0and\u00a0diacritics-sensitive",
+				"attribute_delete_attribute_button_title": "Remove this attribute",
+
+				"attribute_file_upload_button_title": "Upload a list of values",
+				"attribute_file_upload_edit_button_title": "Edit your uploaded values",
+				"attribute_file_upload_clear_button_title": "Clear uploaded values",
+
+				"attribute_create_button_title": "Add another attribute"
+			}
 		},
 		"concept": {
 			"heading": "Concepts",
@@ -38,8 +77,8 @@
 		},
 		"parallel": {
 			"alignBy": "Align by",
-			"inSourceVersion": "in source version",
-			"andCompareWithTargetVersions": "and compare with target version(s)",
+			"inSourceVersion": "In source version",
+			"andCompareWithTargetVersions": "And compare with target version(s)",
 			"queryForSourceVersion": "Query for source version",
 			"queryForTargetVersion": "Query for target version",
 			"chooseTargetVersion": "Choose a target version",
@@ -51,6 +90,14 @@
 		"noFilter": {
 			"title": "No filters available",
 			"content": "This corpus does not contain metadata, or the author has chosen not to allow filtering on metadata."
+		},
+		"range": {
+			"from": "From",
+			"to": "To",
+			"permissive": "Permissive",
+			"permissiveDescription": "Matches documents that are partially contained within the entered range",
+			"strict": "Strict",
+			"strictDescription": "Matches documents that are completely contained within the entered range"
 		}
 	},
 	"explore": {
@@ -58,7 +105,12 @@
 		"corpora": {
 			"heading": "Documents",
 			"groupBy": "Group documents by metadata",
-			"showAs": "Show groups as"
+			"showAs": {
+				"heading": "Show groups as",
+				"table": "Table",
+				"docs": "Docs",
+				"tokens": "Tokens"
+			}
 		},
 		"ngram": {
 			"heading": "N-grams",
@@ -73,7 +125,10 @@
 	"setting": {
 		"heading": "Global settings",
 		"resultsPerPage": "Results per page",
+		"resultsPerPageOption": "{n} results per page",
 		"sampleSize": "Sample size",
+		"sampleSizeCount": "count",
+		"sampleSizePercentage": "percentage",
 		"sampleSeed": "Seed",
 		"context": "Context size",
 		"wideView": " Wide View",
@@ -134,9 +189,12 @@
 	},
 	"results": {
 		"groupBy": {
+			"groupNameWithoutValue": "[none]",
+
 			"groupResults": "Group Results",
+			"close": "Close",
 			"clear": "Clear",
-			"apply": "Apply",
+			"apply": "Group",
 			"invalidGrouping": "This grouping is not valid.",
 
 			"parallelCorpusVersion": "Looking at version ",
@@ -156,10 +214,17 @@
 				"fromTheEnd": "from the end of the hit"
 			},
 
-			"relationPartLabel": "Relation part",
-			"relationSource": "head",
-			"relationTarget": "dependent",
-			"relationBoth": "both",
+			"relationPartByClass": {
+				"default": {
+					"label": "Relation part",
+					"source": "source",
+					"target": "target"
+				},
+				"dep": {
+					"source": "head",
+					"target": "dependent"
+				}
+			},
 
 			"tipClickOnHighlightedWords": "Tip: click on highlighted words for syntactic grouping.",
 
@@ -170,8 +235,21 @@
 			"metadata": "Metadata",
 			"annotation": "Annotation",
 			"specify": "Specify",
-			"label": "label {label} ({annotation})",
-			"document": "document"
+
+			"summary": {
+				"indexedWord": "{field} [{index}] {position}",
+				"firstWord": "first {field} {position}",
+				"allWords": "{field} {position}",
+				"labelledWord": "label {label} on {field}",
+				"metadata": "Document {field}",
+
+				"position": {
+					"before": "before hit",
+					"hit": "within hit",
+					"after": "after hit",
+					"end": "within hit"
+				}
+			}
 		},
 		"table": {
 			"showFullSentence": "Show full sentence",
@@ -182,8 +260,12 @@
 			"hideHits": "Hide Hits",
 			"document": "Document",
 			"hits": "Hits",
-			"hit": "Hit",
-			"sortBy": "Sort by",
+			"columnLabelBeforeHit": "Before Hit",
+			"columnLabelHit": "Hit",
+			"columnLabelAfterHit": "After Hit",
+			"sortBy": "Sort by {field}",
+			"groupBy": "Group by {field}",
+			"sortByDescending": "Sort by {field} (descending)",
 			"sortByDocument": "Sort by document title",
 			"sortByHits": "Sort by number of hits",
 			"moreHiddenHits": "more hidden hits",
@@ -195,10 +277,7 @@
 			"property": "Property",
 			"value": "value",
 			"noContext": "No context available.",
-			"after": "after",
-			"before": "before",
-			"After": "After",
-			"Before": "Before"
+			"parallelVersion": "Version"
 		},
 		"export": {
 			"downloading": "Downloading...",
@@ -214,7 +293,16 @@
 			"documentsWhere": "documents where"
 		},
 		"resultsView": {
-			"backToGroupOverview": "Back to group overview",
+			"navigation": {
+				"backToGroupedResults": "Go back to grouped results",
+				"backToUngroupedResults": "Go vack to ungrouped results",
+				"hits": "Hits",
+				"documents": "Documents",
+				"viewingGroup": "Viewing group {group}",
+				"groupedBy": "Grouped by {group}",
+				"randomSample": "Random sample ({sample})"
+			},
+
 			"noResultsFound": "No results found.",
 			"inactiveView": "This view is inactive because no search criteria for words were specified.",
 			"tryAgainTitle": "Try again with current search settings",
@@ -295,5 +383,31 @@
 		"clickGroup": "Click a <code>group</code> to show or hide the <code>hits</code> within that group.",
 		"clickGoBack": "Click here to go back to the normal <code>hits</code> view to see more detailed information for the hits in this group.<br>A small indicator will appear to let you know that you're looking at hits from a specific group only.",
 		"documentInfo": "Information about a <code>document</code>.<br>Click the document's title or the <code>view document info</code> button to open this document in a new window.<br>This functionality is only available when the corpus has not disabled the viewing of documents.<br>"
+	},
+
+	"index": {
+		"annotatedFields": {
+			"$exampleAnnotatedField": "Translated display name for annotated field $exampleAnnotatedField",
+			"$exampleAnnotatedField_description": "Translated description for annotated field $exampleAnnotatedField"
+		},
+		"annotations": {
+			"$exampleAnnotation": "Translated display name for annotation $exampleAnnotation",
+			"$exampleAnnotation_description": "Translated description for annotation $exampleAnnotation"
+		},
+		"annotationGroups": {
+			"$exampleAnnotationGroup": "Translated display name for annotation group $exampleAnnotationGroup"
+		},
+		"metadata": {
+			"$exampleMetadataField": "Translated display name for metadata field $exampleMetadataField"
+		},
+		"metadataGroups": {
+			"$exampleMetadataGroup": "Translated display name for metadata group $exampleMetadataGroup"
+		},
+		"within": {
+			"$exampleWithinValue": "Translated display name for within value $exampleWithinValue"
+		},
+		"alignBy": {
+			"$exampleAlignByValue": "Translated display name for align by relation $exampleAlignByValue"
+		}
 	}
 }

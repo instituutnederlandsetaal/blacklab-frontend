@@ -4,7 +4,7 @@
 			type="button"
 			class="btn btn-default step"
 
-			:title="s.title"
+			:title="s.title || ''"
 			:class="{
 				active: step > i,
 				active2: step === i

@@ -3,7 +3,7 @@ import memoize from 'memoize-decorator';
 import BaseUrlStateParser from '@/store/util/url-state-parser-base';
 import LuceneQueryParser from 'lucene-query-parser';
 
-import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart} from '@/utils';
+import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName} from '@/utils';
 import {parseBcql, Attribute, Result, Token} from '@/utils/bcql-json-interpreter';
 import parseLucene from '@/utils/luceneparser';
 import {debugLog} from '@/utils/debug';
@@ -137,7 +137,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		}
 
 		const annotationId = group.substring(4);
-		if (!CorpusModule.get.annotationDisplayNames().hasOwnProperty(annotationId)) {
+		if (!CorpusModule.get.allAnnotationsMap().hasOwnProperty(annotationId)) {
 			return null;
 		}
 
@@ -277,7 +277,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			cql.tokens.find(t =>
 				t.leadingXmlTag != null ||
 				t.trailingXmlTag != null ||
-				t.repeats != null ||
+				(t.repeats != null && (t.repeats.min !== 1 || t.repeats.max !== 1)) ||
 				t.optional ||
 				(t.expression != null && (t.expression.type !== 'attribute' || t.expression.operator !== '='))
 			) != null
@@ -307,7 +307,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	private get patterns(): PatternModule.ModuleRootState {
 		return {
-			parallelVersions: this.parallelVersions,
+			parallelFields: this.parallelFields,
 			simple: this.simplePattern,
 			extended: this.extendedPattern,
 			advanced: this.advancedPattern,
@@ -356,7 +356,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 		try {
 			/**
-			 * A requirement of the PropertyFields is that there are no gaps in the values
+			 * A requirement of the PropertyFields/Annotations is that there are no gaps in the values
 			 * So a valid config is
 			 * ```
 			 * lemma: [these, are, words]
@@ -454,11 +454,30 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	}
 
 	@memoize
-	private get parallelVersions() {
+	private get parallelFields() {
+		// The query typically doesn't contain the entire parallel field name.
+		// BlackLab allows passing just "en" instead of "contents__en" in some spots
+		// So we need to reconstruct the full field name from the query here.
+		const prefix = CorpusModule.get.parallelFieldPrefix();
 		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
+
+		const parallelFieldsMap = CorpusModule.get.parallelAnnotatedFieldsMap();
+
+		// It used to be that sourceField was only the version suffix, but now it's the full field name
+		// So we need to check if the source field is a valid parallel field name, and if not, try to find the correct one
+		// For interop with legacy urls (which shouldn't be in production, but might be floating around in test docs).
+		let sourceFromUrl = this.getString('field', null, v => v ? v : null);
+		if (sourceFromUrl && !parallelFieldsMap[sourceFromUrl]) {
+			sourceFromUrl = getParallelFieldName(prefix, sourceFromUrl);
+			if (!parallelFieldsMap[sourceFromUrl]) {
+				console.info(`Invalid parallel source field name in url (${this.getString('field')}), ignoring`);
+				sourceFromUrl = null;
+			}
+		}
+
 		const result = {
-			source: this.getString('field', CorpusModule.get.parallelVersions()[0]?.name),
-			targets: this._parsedCql ? this._parsedCql.slice(1).map(result => result.targetVersion || '') : [],
+			source: sourceFromUrl,
+			targets: this._parsedCql ? this._parsedCql.slice(1).map(result => result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '') : [],
 			alignBy: (this._parsedCql ? this._parsedCql[1]?.relationType : defaultAlignBy) ?? defaultAlignBy,
 		};
 		return result;

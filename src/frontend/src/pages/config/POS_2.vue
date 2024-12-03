@@ -9,7 +9,7 @@
 					<li v-for="a in value.subAnnotations" style="display:flex;" :key="a.id">
 						<span style="display: inline-block; flex-grow: 1;">
 							{{a.id}}
-							<small class="text-muted">{{a.displayName}}</small>
+							<small class="text-muted">{{a.defaultDisplayName}}</small>
 						</span>
 						{{' '}}
 						<button type="button" style="flex: 0;"
@@ -29,7 +29,7 @@
 						{{' '}}
 						<span style="display: inline-block; flex-grow: 1;">
 							{{a.id}}
-							<small class="text-muted">{{a.displayName}}</small>
+							<small class="text-muted">{{a.defaultDisplayName}}</small>
 						</span>
 					</li>
 				</ul>

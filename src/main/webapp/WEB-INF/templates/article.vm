@@ -21,27 +21,26 @@
     </ul>
     <div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px;">
          #if(!$article_content_restricted)
-	         <div id="content" class="tab-pane active">
-	            <div id="vue-root-pagination"></div>
-	
-	            #set($unescaped = $article_content) ## see BaseResponse.java
-	            $!unescaped
-	
-	            #if ($article_content_error)
-	                <a class="btn btn-primary" role="button" data-toggle="collapse" href="#content_error" aria-expanded="false" aria-controls="content_error">
-	                  Click here to see errors
-	                </a><br>
-	                <div class="collapse" id="content_error"><div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line;">
-	                   $article_content_error.getMessage()
-	                   #foreach($stack in $article_content_error.getStackTrace())
-	                       $stack.toString()
-	                   #end
-	                </div></div>
-	            #end
-	
-	
-	        </div>
-	   	#end
+             <div id="content" class="tab-pane active">
+                 <div id="vue-root-pagination"></div>
+                 <div id="vue-root-parallel-version"></div><!-- parallel corpus: version name and length -->
+
+                #set($unescaped = $article_content) ## see BaseResponse.java
+                $!unescaped
+
+                #if ($article_content_error)
+                    <a class="btn btn-primary" role="button" data-toggle="collapse" href="#content_error" aria-expanded="false" aria-controls="content_error">
+                      Click here to see errors
+                    </a><br>
+                    <div class="collapse" id="content_error"><div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line;">
+                       $article_content_error.getMessage()
+                       #foreach($stack in $article_content_error.getStackTrace())
+                           $stack.toString()
+                       #end
+                    </div></div>
+                #end
+            </div>
+           #end
 
         <div id="metadata" class="tab-pane #if($article_content_restricted) active #end">
             #set($unescaped = $article_meta) ## see BaseResponse.java

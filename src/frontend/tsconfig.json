@@ -50,7 +50,7 @@
 		"lib": [
 			"dom",
 			"dom.iterable",
-			"ES2019"
+			"ES2021"
 		],
 
 		// Enable importing source files by their absolute path by prefixing with "@/"
@@ -74,9 +74,14 @@
 			"@types/google.analytics",
 			"@types/jquery",
 			"@types/jqueryui"
-		]
+		],
+		"outDir": "dist",
 	},
-	"exclude": ["dist"],
+	// This tsconfig is meant for files that run in the browser. Therefor exclude files that run in nodejs.
+	// (this is basically anything that's used in webpack and linters/compilers).
+	// This is to prevent the typescript compiler from complaining about missing nodejs types.
+	// And likewise, to prevent nodejs global functions/types from being autocompleted/polluting files containing code meant to run in the browser.
+	"exclude": ["dist", "webpack.config.prod.js", "webpack.config.dev.js", "eslint.config.js", ".babelrc"],
 	"vueCompilerOptions": {
 		"target": 2,
 		"extensions": [

@@ -5,6 +5,8 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.StringUtils;
+
 /**
  * Since pagination can be disabled, edited by the user through the url, and BlackLab has some peculiarities with values touching document boundaries,
  * We correct the values.
@@ -34,20 +36,26 @@ public class PaginationInfo {
      * @param requestedPageStart the requested start of the page by the client
      * @param requestedPageEnd the requested end of the page by the client
      * @param hitStart if no (or invalid) requestedPageStart and requestedPageEnd, center around this value based on the page size.
+     * @param field the field the content of which we're paginating through, or null/empty if main annotated field
      */
     public PaginationInfo(
             Optional<Integer> pageSize,
             Result<String, ? extends Exception> documentMetadata,
             Optional<Integer> requestedPageStart,
             Optional<Integer> requestedPageEnd,
-            Optional<Integer> hitStart
+            Optional<Integer> hitStart,
+            String field
     ) {
-        // If we don't know the document length, pretend pagination is disabled.
-        if (pageSize.isEmpty() || !documentMetadata.hasResult()) {
-            // Just set a default if we don't have the doc length here.
-            this.documentLength = documentMetadata.map(PaginationInfo::getDocumentLength).getResult(Integer.MAX_VALUE);
-            this.pageSize = Integer.MAX_VALUE;
-            this.clientPageEnd = Integer.MAX_VALUE;
+
+        // Get doc length for the annotated field
+        this.documentLength = documentMetadata
+                .map(metadata -> PaginationInfo.getDocumentLength(metadata, field))
+                .getResult().orElse(Integer.MAX_VALUE);
+
+        this.pageSize = pageSize.orElse(Integer.MAX_VALUE);
+        if (pageSize.isEmpty()) {
+            // Pagination is disabled.
+            this.clientPageEnd = this.documentLength;
             this.clientPageStart = 0;
             this.blacklabPageEnd = Optional.empty();
             this.blacklabPageStart = Optional.empty();
@@ -55,8 +63,6 @@ public class PaginationInfo {
         }
 
         // Pagination is enabled.
-        this.pageSize = pageSize.get();
-        this.documentLength = documentMetadata.map(PaginationInfo::getDocumentLength).mapError(e -> new RuntimeException("Document metadata not available", e)).getOrThrow();
 
         // if the user wants a specific hit, generate the correct page, and ignore the requested page start and end.
         if (hitStart.isPresent()) {
@@ -85,12 +91,21 @@ public class PaginationInfo {
         this.blacklabPageEnd = end != documentLength ? Optional.of(end) : Optional.empty();
     }
 
-    private static int getDocumentLength(String documentMetadata) {
-        final Matcher m = CAPTURE_DOCLENGTH_PATTERN.matcher(documentMetadata);
-        if (m.find()) {
-            return Integer.parseInt(m.group(1));
+    private static int getDocumentLength(String documentMetadata, String field) {
+        Pattern p;
+        boolean isParallel = !StringUtils.isEmpty(field);
+        if (isParallel) {
+            // Get document length for a specific field (parallel corpora)
+            // (note that field may either be full field name like contents__nl or just a version like nl)
+            p = Pattern.compile("<fieldName>(?:\\w+__)?" + field + "</fieldName>\\s*<tokenCount>\\s*(\\d+)\\s*</tokenCount>");
         } else {
-            throw new RuntimeException("Cannot decode document size. Unsupported BlackLab version?");
+            // Get document length for main annotated field
+            p = CAPTURE_DOCLENGTH_PATTERN;
         }
+        Matcher m = p.matcher(documentMetadata);
+        if (m.find())
+            return Integer.parseInt(m.group(1));
+        else
+            throw new RuntimeException("Cannot decode document size" + (isParallel ? " for field " + field : "") + ". Unsupported BlackLab version?");
     }
 }

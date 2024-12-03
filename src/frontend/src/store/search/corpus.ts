@@ -11,9 +11,9 @@ import * as Api from '@/api';
 
 import {RootState} from '@/store/search/';
 
-import {NormalizedIndex, NormalizedAnnotation, NormalizedMetadataField, NormalizedAnnotatedField, NormalizedMetadataGroup, NormalizedAnnotationGroup} from '@/types/apptypes';
+import {NormalizedIndex, NormalizedAnnotation, NormalizedMetadataField, NormalizedAnnotatedField, NormalizedMetadataGroup, NormalizedAnnotationGroup, NormalizedAnnotatedFieldParallel} from '@/types/apptypes';
 import { mapReduce } from '@/utils';
-import { getParallelFieldParts, isParallelField, normalizeIndex } from '@/utils/blacklabutils';
+import { normalizeIndex } from '@/utils/blacklabutils';
 
 type ModuleRootState = { corpus: NormalizedIndex|null };
 
@@ -38,42 +38,22 @@ const get = {
 
 	/** Is this a parallel corpus? */
 	isParallelCorpus: b.read((state): boolean =>
-		get.allAnnotatedFields().some(f => isParallelField(f.id)), 'isParallelCorpus'),
+		get.allAnnotatedFields().some(f => f.isParallel), 'isParallelCorpus'),
+
+	parallelAnnotatedFields: b.read((state): NormalizedAnnotatedFieldParallel[] => {
+		return get.allAnnotatedFields().filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel);
+	}, 'parallelAnnotatedFields'),
+
+	parallelAnnotatedFieldsMap: b.read((state): Record<string, NormalizedAnnotatedFieldParallel> => {
+		return mapReduce(get.parallelAnnotatedFields(), 'id');
+	}, 'parallelAnnotatedFieldsMap'),
+
 
 	/** If this is a parallel corpus, what's the parallel field prefix?
-	 *  (e.g. "contents" if there's fields "contents__en" and "contents__nl") */
-	parallelFieldPrefix: b.read((state): string => {
-		for (const f of get.allAnnotatedFields()) {
-			const parts = getParallelFieldParts(f.id);
-			if (parts.version !== '') {
-				// Note that we don't support multiple parallel fields in one corpus,
-				// so we just return the first parallel prefix we find.
-				return parts.prefix;
-			}
-		}
-		return '';
-	}, 'parallelFieldPrefix'),
-
-	/** If this is a parallel corpus, what parallel versions does it contain?
-	 *  (e.g. ["en", "nl"] if there's fields "contents__en" and "contents__nl") */
-	parallelVersions: b.read((state): { prefix: string, name: string, displayName: string }[] => {
-		const prefix = get.parallelFieldPrefix();
-		return get.allAnnotatedFields()
-			.filter(f => f.id.startsWith(prefix))
-			.map(f => ({
-				prefix,
-				name: getParallelFieldParts(f.id).version,
-				displayName: f.displayName
-			}));
-	}, 'parallelVersions'),
-
-	/** Return the parallel versions as options with a label (i.e. displayName) and a value. */
-	parallelVersionOptions: b.read((state): { value: string, label: string }[] => {
-		return get.parallelVersions().map((value) => ({
-			value: value.name,
-			label: value.displayName || value.name
-		}));
-	}, 'parallelVersionOptions'),
+	 *  (e.g. "contents" if there's fields "contents__en" and "contents__nl")
+	 *  There is only ever one.
+	 */
+	parallelFieldPrefix: b.read((state): string => { return get.parallelAnnotatedFields()[0]?.prefix ?? ''; }, 'parallelFieldPrefix'),
 
 	/** All annotations, without duplicates and in no specific order */
 	allAnnotations: b.read((state): NormalizedAnnotation[] => Object.values(state.corpus?.annotatedFields[state.corpus.mainAnnotatedField].annotations ?? {}), 'allAnnotations'),
@@ -81,11 +61,6 @@ const get = {
 
 	allMetadataFields: b.read((state): NormalizedMetadataField[] => Object.values(state.corpus?.metadataFields || {}), 'allMetadataFields'),
 	allMetadataFieldsMap: b.read((state): Record<string, NormalizedMetadataField> => state.corpus?.metadataFields ?? {}, 'allMetadataFieldsMap'),
-
-	// TODO might be collisions between multiple annotatedFields, this is an unfinished part in blacklab
-	// like for instance, in a BLHitSnippet, how do we know which of the props comes from which annotatedfield.
-	/** Get all annotation displayNames, including for internal annotations */
-	annotationDisplayNames: b.read((state): Record<string, string> => mapReduce(get.allAnnotations(), 'id', a => a.displayName), 'annotationDisplayNames'),
 
 	// TODO there can be multiple main annotations if there are multiple annotatedFields
 	// the ui needs to respect this (probably render more extensive results?)
@@ -135,8 +110,12 @@ const privateActions = {
 const init = () => Promise.all([Api.frontend.getCorpus(), Api.blacklab.getRelations(INDEX_ID)])
 	.then(([index, relations]) => normalizeIndex(index, relations))
 	.then(corpus => {
-		// TODO we probably need a proper navbar component for this.
-		document.querySelector('.navbar-brand')!.innerHTML = corpus.displayName || corpus.id;
+		// Set displayname in navbar if it's currently a fallback.
+		// (which is when search.xml doesn't specify a displayname)
+		const displayNameInNavbar = document.querySelector('.navbar-brand')!;
+		if (corpus.displayName && displayNameInNavbar.hasAttribute('data-is-fallback')) {
+			displayNameInNavbar.innerHTML = corpus.displayName || corpus.id;
+		}
 
 		// We to finish up some state that might be missing.
 		if (corpus.documentCount === -1) {

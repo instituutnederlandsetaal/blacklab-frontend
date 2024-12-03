@@ -12,7 +12,7 @@
 				:value="option.value"
 				:title="option.title || undefined"
 				@click="within = option.value"
-			>{{withinOptionDisplayName(option)}}</button> <!-- empty value searches across entire documents -->
+			>{{$tWithinDisplayName(option)}}</button> <!-- empty value searches across entire documents -->
 		</div>
 		<div class="btn-group col-xs-12 col-md-9 col-md-push-3 attr form-inline" v-for="attr in withinAttributes()">
 			<label>{{ attr.label || attr.value }}</label>
@@ -32,8 +32,6 @@ import { Option } from '@/components/SelectPicker.vue';
 import { corpusCustomizations } from '@/store/search/ui';
 
 export default Vue.extend({
-	components: {
-	},
 	computed: {
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
@@ -45,9 +43,6 @@ export default Vue.extend({
 		},
 	},
 	methods: {
-		withinOptionDisplayName(option: Option): string {
-			return corpusCustomizations.search.within.displayName(option) || option.label || option.value || 'document';
-		},
 		withinAttributes(): Option[] {
 			const within = this.within;
 			if (!within) return [];

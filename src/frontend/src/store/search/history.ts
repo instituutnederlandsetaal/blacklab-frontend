@@ -160,6 +160,7 @@ const actions = {
 		// Should only contain items that uniquely identify a query
 		// Normally this would only be the pattern (including gap values) and filters,
 		// but we've agreed that grouping differently constitutes a new query, so we also need to compare those
+		// TODO: does changing source/targetfields also constitute a new query?
 		const hashBase = {
 			filters: entry,
 			pattern,

@@ -199,10 +199,12 @@ public class MainServlet extends HttpServlet {
 
         // Contact blacklab-server for the config xml file if we have a corpus
         Function<String, Result<CorpusConfig, Exception>> gen = c -> new BlackLabApi(request, response, this.config).getCorpusConfig(c);
-        return Result
-                .from(corpus)
-                .flatMap(c -> useCache(request) ? configCache.computeIfAbsent(c, gen) : gen.apply(c))
-                .orError(() -> new FileNotFoundException("No corpus specified"));
+        synchronized (configCache) {
+            return Result
+                    .from(corpus)
+                    .flatMap(c -> useCache(request) ? configCache.computeIfAbsent(c, gen) : gen.apply(c))
+                    .orError(() -> new FileNotFoundException("No corpus specified"));
+        }
     }
 
     @Override

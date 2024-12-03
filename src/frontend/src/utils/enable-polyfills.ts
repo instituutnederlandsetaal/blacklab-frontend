@@ -33,6 +33,7 @@ if (!Element.prototype.closest) {
 	};
 }
 
-// DEBUGGING ONLY, this should probably use node.env and be exposed through expose-loader
+// Useful for customjs scripts.
+// NOTE: we will probably remove jquery when we port to vue 3.
 import _$ from 'jquery';
 (window as any).jquery = (window as any).$ = _$;

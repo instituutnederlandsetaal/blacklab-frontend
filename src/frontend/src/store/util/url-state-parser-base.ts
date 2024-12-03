@@ -20,9 +20,7 @@ export default abstract class UrlStateParser<T> {
 		this.params = uri.search(true) || {};
 	}
 
-	public async get(): Promise<T> {
-		throw new Error('Not implemented');
-	}
+	public abstract get(): Promise<T>;
 
 	/**
 	 * Get the parameter by the name of paramname from our query parameters.

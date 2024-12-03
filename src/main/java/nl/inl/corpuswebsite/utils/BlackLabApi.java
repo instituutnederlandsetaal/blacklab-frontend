@@ -65,9 +65,19 @@ public class BlackLabApi {
 				.request(true);
 	}
 
-	public Result<String, QueryException> getDocumentContents(String corpus, String docId, Optional<String> blacklabQuery, Optional<String> pattgapdata, Optional<Integer> pageStart, Optional<Integer> pageEnd) {
+	public Result<String, QueryException> getDocumentContents(
+			String corpus,
+			String docId,
+			Optional<String> field,
+			Optional<String> searchfield,
+			Optional<String> blacklabQuery,
+			Optional<String> pattgapdata,
+			Optional<Integer> pageStart,
+			Optional<Integer> pageEnd) {
 		return authRequest()
 				.url(blsUrl, corpus, "docs", docId, "contents")
+				.query("field", field)
+				.query("searchfield", searchfield)
 				.query("patt", blacklabQuery)
 				.query("pattgapdata", pattgapdata)
 				.query("wordstart", pageStart.map(Object::toString))

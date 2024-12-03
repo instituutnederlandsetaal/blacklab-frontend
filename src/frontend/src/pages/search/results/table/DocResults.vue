@@ -83,7 +83,12 @@ export default Vue.extend({
 			return this.results.docs.map(doc => {
 				return {
 					doc,
-					href: getDocumentUrl(doc.docPid, this.results.summary.searchParam.patt || undefined, this.results.summary.searchParam.pattgapdata || undefined),
+					href: getDocumentUrl(
+						doc.docPid,
+						this.results.summary.pattern?.fieldName ?? '',
+						undefined,
+						this.results.summary.searchParam.patt || undefined,
+						this.results.summary.searchParam.pattgapdata || undefined),
 					summary: getDocumentSummary(doc.docInfo, specialFields),
 					type: 'doc'
 				};

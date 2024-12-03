@@ -179,7 +179,7 @@ public class CorpusFileUtil {
 
     /** User corpora are identified by having a colon in their id separating username:corpusname */
     public static Optional<String> getCorpusName(Optional<String> corpus) {
-        return corpus.map(id -> StringUtils.substringAfter(id, ":")).map(StringUtils::trimToNull).or(() -> corpus);
+        return corpus.map(id -> StringUtils.substringAfter(id, ":")).map(StringUtils::trimToNull).or(() -> corpus).map(StringUtils::capitalize);
     }
 
     /** User corpora are identified by having a colon in their id separating username:corpusname */

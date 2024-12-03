@@ -13,30 +13,26 @@
 			<div :class="['tab-pane form-horizontal', {'active': activePattern==='simple'}]" id="simple">
 				<!-- TODO render the full annotation instance? requires some changes to bind to store correctly and apply appropriate classes though -->
 				<div class="form-group form-group-lg">
-
 					<label class="control-label"
-						:for="firstMainAnnotation.id + '_' + uid"
-						:title="firstMainAnnotation.description || undefined"
-					>{{firstMainAnnotation.displayName}}
+						:for="simpleSearchAnnotation.id + '_' + uid"
+						:title="$tAnnotDescription(simpleSearchAnnotation)"
+					>{{$tAnnotDisplayName(simpleSearchAnnotation)}}
 					</label>
 
-					<div v-if="customAnnotations[firstMainAnnotation.id]"
-						:data-custom-annotation-root="firstMainAnnotation.id"
+					<div v-if="customAnnotations[simpleSearchAnnotation.id]"
+						:data-custom-annotation-root="simpleSearchAnnotation.id"
 						data-is-simple="true"
 						ref="_simple"
-					/>
-
+					></div>
 					<Annotation v-else
-						:key="'simple/' + firstMainAnnotation.annotatedFieldId + '/' + firstMainAnnotation.id"
-						:htmlId="'simple/' + firstMainAnnotation.annotatedFieldId + '/' + firstMainAnnotation.id"
-						:annotation="firstMainAnnotation"
+						:key="'simple/' + simpleSearchAnnotation.annotatedFieldId + '/' + simpleSearchAnnotation.id"
+						:htmlId="'simple/' + simpleSearchAnnotation.annotatedFieldId + '/' + simpleSearchAnnotation.id"
+						:annotation="simpleSearchAnnotation"
 						bare
 						simple
 					/>
-
-					<ParallelSourceAndTargets v-if="isParallelCorpus" />
-
 				</div>
+				<ParallelSourceAndTargets v-if="isParallelCorpus" block lg/>
 			</div>
 			<div :class="['tab-pane form-horizontal', {'active': activePattern==='extended'}]" id="extended">
 				<template v-if="useTabs">
@@ -56,7 +52,7 @@
 									:key="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
 									:data-custom-annotation-root="annotation.id"
 									:ref="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
-								/>
+								></div>
 
 								<Annotation v-else
 									:key="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
@@ -64,7 +60,6 @@
 									:annotation="annotation"
 								/>
 							</template>
-
 						</div>
 					</div>
 				</template>
@@ -82,8 +77,6 @@
 							:annotation="annotation"
 						/>
 					</template>
-
-
 				</template>
 
 				<Within />
@@ -95,7 +88,7 @@
 						</label>
 					</div>
 				</div>
-				<ParallelSourceAndTargets v-if="isParallelCorpus" mode="extended" />
+				<ParallelSourceAndTargets v-if="isParallelCorpus"/>
 
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', {'active': activePattern==='advanced'}]" id="advanced">
@@ -169,22 +162,20 @@ import ParallelSourceAndTargets from '@/pages/search/form/ParallelSourceAndTarge
 import Within from '@/pages/search/form/Within.vue';
 import uid from '@/mixins/uid';
 
-import { QueryBuilder } from '@/modules/cql_querybuilder';
-
 import { blacklabPaths } from '@/api';
 import * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
 
-import SelectPicker, { Option } from '@/components/SelectPicker.vue';
+import { Option } from '@/components/SelectPicker.vue';
 import { corpusCustomizations } from '@/store/search/ui';
 
 function isVue(v: any): v is Vue { return v instanceof Vue; }
 function isJQuery(v: any): v is JQuery { return typeof v !== 'boolean' && v && v.jquery; }
 
-export default Vue.extend({
-	mixins: [uid] as any,
+import ParallelFields from './parallel/ParallelFields';
+
+export default ParallelFields.extend({
 	components: {
-		SelectPicker,
 		ParallelSourceAndTargets,
 		Annotation,
 		SearchAdvanced,
@@ -194,35 +185,13 @@ export default Vue.extend({
 		Within,
 	},
 	data: () => ({
+		uid: uid(),
 		parseQueryError: null as string|null,
 		importQueryError: null as string|null,
 
 		subscriptions: [] as Array<() => void>
 	}),
 	computed: {
-		// Is this a parallel corpus?
-		isParallelCorpus: CorpusStore.get.isParallelCorpus,
-
-		// What parallel versions should be shown as source options?
-		// (all except already chosen target ones)
-		parallelSourceVersionOptions: PatternStore.get.parallelSourceVersionOptions,
-
-		// What parallel versions should be shown as target options?
-		// (all except already chosen source and target ones)
-		parallelTargetVersionOptions: PatternStore.get.parallelTargetVersionOptions,
-
-		// If this is a parallel corpus: the selected source version
-		parallelSourceVersion: {
-			get(): string|null { return PatternStore.get.parallelVersions().source; },
-			set: PatternStore.actions.parallelVersions.sourceVersion
-		},
-
-		// If this is a parallel corpus: the selected target version(s)
-		parallelTargetVersions: {
-			get(): string[]|null { return PatternStore.get.parallelVersions().targets; },
-			set: PatternStore.actions.parallelVersions.targetVersions
-		},
-
 		activePattern: {
 			get(): string { return InterfaceStore.getState().patternMode; },
 			set: InterfaceStore.actions.patternMode,
@@ -236,14 +205,18 @@ export default Vue.extend({
 				CorpusStore.get.annotationGroups(),
 				CorpusStore.get.allAnnotationsMap(),
 				'Search',
+				this,
 				CorpusStore.get.textDirection()
 			);
 		},
 		allAnnotations(): AppTypes.NormalizedAnnotation[] {
 			return this.tabs.flatMap(tab => tab.entries);
 		},
-		firstMainAnnotation: CorpusStore.get.firstMainAnnotation,
-		firstMainAnnotationACUrl(): string { return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.firstMainAnnotation.annotatedFieldId, this.firstMainAnnotation.id); },
+		simpleSearchAnnotation(): AppTypes.NormalizedAnnotation {
+			const id = UIStore.getState().search.simple.searchAnnotationId;
+			return CorpusStore.get.allAnnotationsMap()[id] || CorpusStore.get.firstMainAnnotation();
+		},
+		simpleSearchAnnoationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
 		textDirection: CorpusStore.get.textDirection,
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
@@ -380,9 +353,6 @@ export default Vue.extend({
 				RootStore.store.watch(state => value, (cur, prev) => update(cur, prev, div), {deep: true});
 			}
 		},
-		withinOptionDisplayName(option: Option): string {
-			return corpusCustomizations.search.within.displayName(option) || option.label || option.value || 'document';
-		},
 		withinAttributes(): Option[] {
 			const within = this.within;
 			if (!within) return [];
@@ -473,11 +443,11 @@ export default Vue.extend({
 		margin-bottom: 0;
 		&.bl-querybuilder-root { padding: 0; }
 	}
-
 }
 
-#simple > .form-group {
-	margin: auto;
+#simple .form-group {
+	margin-right: auto;
+	margin-left: auto;
 	max-width: 1170px;
 }
 

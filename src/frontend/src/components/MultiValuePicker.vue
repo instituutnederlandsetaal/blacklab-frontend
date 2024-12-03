@@ -1,6 +1,6 @@
 <template>
 	<div class="multi-value-picker">
-		<div class="selected">
+		<div class="selected" v-if="selected.length">
 			<ul>
 				<li class='option' v-for="v in selected" :key="v ? v.value : 'x'" :data-value="v ? v.value : 'x'" :title="$t('widgets.clickToRemove').toString()" @click="clickLabel($event?.target)">
 					{{ v.label || v.value }}
@@ -100,8 +100,8 @@ export default Vue.extend({
 <style lang="scss" scoped>
 
 div.selected {
-
 	margin-top: 0.5rem;
+	margin-bottom: 0.5rem;
 	max-height: 3cm;
 	overflow: auto;
 
@@ -129,10 +129,6 @@ div.selected {
 			}
 		}
 	}
-}
-
-div.add {
-	margin-top: 0.5rem;
 }
 
 </style>

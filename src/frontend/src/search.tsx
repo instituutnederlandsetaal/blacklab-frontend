@@ -12,32 +12,24 @@ import VuePlausible from 'vue-plausible/lib/esm/vue-plugin.js';
 
 import Filters from '@/components/filters';
 
-import {QueryBuilder, AttributeDef as QueryBuilderAttributeDef} from '@/modules/cql_querybuilder';
 import * as RootStore from '@/store/search/';
-import * as CorpusStore from '@/store/search/corpus';
-import * as UIStore from '@/store/search/ui';
-import * as TagsetStore from '@/store/search/tagset';
-import * as PatternStore from '@/store/search/form/patterns';
 import * as FilterStore from '@/store/search/form/filters';
 import UrlStateParser from '@/store/search/util/url-state-parser';
 
 import connectStreamsToVuex from '@/store/search/streams';
 
-import SearchPageComponent from '@/pages/search/SearchPage.vue';
-import DebugComponent from '@/components/Debug.vue';
 import AudioPlayer from '@/components/AudioPlayer.vue';
+import DebugComponent from '@/components/Debug.vue';
+import SearchPageComponent from '@/pages/search/SearchPage.vue';
 
-import debug, {debugLog} from '@/utils/debug';
 
-import { getAnnotationSubset } from '@/utils';
-import { Option } from './types/apptypes';
 
-import * as loginSystem from '@/utils/loginsystem';
 import { init as initApi } from '@/api';
-import i18n from '@/utils/i18n';
+import {i18n} from '@/utils/i18n';
+import * as loginSystem from '@/utils/loginsystem';
 
 import '@/global.scss';
-import { initQueryBuilders } from '@/initQueryBuilders';
+import { debugLogCat } from '@/utils/debug';
 
 // --------------
 // Initialize vue
@@ -105,27 +97,43 @@ Rethink page initialization
 - then restore state from url
 */
 
-$(document).ready(async () => {
+type Hook = () => void|Promise<any>;
+const isHook = (hook: any): hook is Hook => typeof hook === 'function';
+declare const hooks: {
+	beforeStoreInit?: Hook;
+	beforeStateLoaded?: Hook;
+};
 
+async function runHook(hookName: keyof (typeof hooks)) {
+	const hook = hooks[hookName];
+	if (isHook(hook)) {
+		debugLogCat('init', `Running hook ${hookName}...`);
+		await hook();
+		debugLogCat('init', `Finished running hook ${hookName}`);
+	}
+}
+
+$(document).ready(async () => {
 	// We can render before the tagset loads, the form just won't be populated from the url yet.
 	(window as any).vueRoot = new Vue({
 		i18n,
 		store: RootStore.store,
 		render: h => h(SearchPageComponent),
-		mounted: async () => {
+		async mounted() {
 			// we do this after render, so the user has something to look at while we're loading.
 			const user = await loginSystem.awaitInit(); // LOGIN SYSTEM
 			initApi('blacklab', BLS_URL, user);
 			initApi('cf', CONTEXT_URL, user);
+			await runHook('beforeStoreInit');
 			const success = await RootStore.init();
 			if (!success) {
 				return;
 			}
+			await runHook('beforeStateLoaded')
 			const stateFromUrl = await new UrlStateParser(FilterStore.getState().filters).get();
 			RootStore.actions.replace(stateFromUrl);
 			// Don't do this before the url is parsed, as it controls the page url (among other things derived from the state).
 			connectStreamsToVuex();
-			initQueryBuilders();
 		},
 	}).$mount(document.querySelector('#vue-root')!);
 });

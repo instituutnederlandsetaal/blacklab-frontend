@@ -33,7 +33,9 @@ type CustomView = {
 type ModuleRootState = {
 	search: {
 		// future use
-		simple: {};
+		simple: {
+			searchAnnotationId: string;
+		};
 		extended: {
 			/** Available annotation inputs in the extended search */
 			searchAnnotationIds: string[],
@@ -52,7 +54,6 @@ type ModuleRootState = {
 		shared: {
 			/**
 			 * Fields available in the filters view. Sorted by global metadata order.
-			 * This does not contain custom filters.
 			 * NOTE THAT THIS MAY CONTAIN IDS THAT ARE NOT A METADATA FIELD.
 			 * The reason for this is custom filters.
 			 * We cannot reasonably validate this, so we only output a warning when you're trying to register those.
@@ -254,7 +255,9 @@ type ModuleRootState = {
 // Then is used to initialize the live store again
 const initialState: ModuleRootState = {
 	search: {
-		simple: {},
+		simple: {
+			searchAnnotationId: '',
+		},
 		extended: {
 			searchAnnotationIds: [],
 			splitBatch: {
@@ -396,7 +399,11 @@ const privateActions = {
 
 const actions = {
 	search: {
-		simple: {},
+		simple: {
+			searchAnnotationId: b.commit((state, id: string) => validateAnnotations([id], id => `Trying to display Annotation ${id} in the simple search, but it does not exist`, _ => true, _ => '', r => {
+				state.search.simple.searchAnnotationId = r[0];
+			}), 'search_simple_searchAnnotationId'),
+		},
 		extended: {
 			searchAnnotationIds: b.commit((state, ids: string[]) => validateAnnotations(ids,
 				id => `Trying to display Annotation ${id} in the extended search, but it does not exist`,
@@ -599,7 +606,7 @@ const actions = {
 				id => `Trying to allow grouping by Annotation '${id}', but it does not have the required forward index.`,
 				r => {
 					const defaultId = state.explore.defaultGroupAnnotationId;
-					r = state.results.shared.groupAnnotationIds = r;
+					state.results.shared.groupAnnotationIds = r;
 					if (!r.includes(defaultId)) {
 						if (defaultId) { // don't warn when it was unconfigured before (e.g. '')
 							console.warn(`[results.shared.groupAnnotationIds] - Resetting default selection for explore.defaultGroupAnnotationId from '${defaultId}' to '${r[0]}' because it's not in the configured list ${JSON.stringify(r)}`);
@@ -614,7 +621,7 @@ const actions = {
 				_ => true, _ => '',
 				r => {
 					const defaultId = state.explore.defaultGroupMetadataId;
-					r = state.results.shared.groupMetadataIds = r;
+					state.results.shared.groupMetadataIds = r;
 					if (!r.includes(defaultId)) {
 						if (defaultId) { // don't warn when it was unconfigured before (e.g. '')
 							console.warn(`[results.shared.groupMetadataIds] - Resetting default selection for explore.defaultGroupMetadataId from '${defaultId}' to '${r[0]}' because it's not in the configured list ${JSON.stringify(r)}`);
@@ -820,6 +827,10 @@ const init = () => {
 	// Always remove any possible bogus annotations set by invalid configs
 	// And then replace with default values if not configured
 	// The setters have builtin validation. So call them, then check if a valid was set, and if not, replace with default.
+	if (initialState.search.simple.searchAnnotationId)
+		actions.search.simple.searchAnnotationId(initialState.search.simple.searchAnnotationId);
+	if (!getState().search.simple.searchAnnotationId) actions.search.simple.searchAnnotationId(mainAnnotation.id);
+
 	actions.search.extended.searchAnnotationIds(initialState.search.extended.searchAnnotationIds);
 	if (!getState().search.extended.searchAnnotationIds.length) actions.search.extended.searchAnnotationIds(defaultAnnotationsToShow);
 
@@ -950,6 +961,9 @@ const init = () => {
 
 	// Hits table, nothing shown by default, but call the setter to validate what was set.
 	actions.results.hits.shownMetadataIds(initialState.results.hits.shownMetadataIds);
+	// Docs table: validate shown metadata
+	actions.results.docs.shownMetadataIds(initialState.results.docs.shownMetadataIds);
+
 	// Docs table: Show the date column if it is configured
 	if (!getState().results.docs.shownMetadataIds.length) {
 		const dateField = CorpusStore.getState().corpus!.fieldInfo.dateField;
@@ -1230,11 +1244,6 @@ const corpusCustomizations = {
 				return true;
 			},
 
-			/** Customize display name for a within element (return null for default behaviour) */
-			displayName(element: Option): string|null {
-				return null;
-			},
-
 			/** Which, if any, attribute filter fields should be displayed for this element? */
 			attributes(element: Option): string[]|Option[] {
 				return [];
@@ -1253,11 +1262,18 @@ const corpusCustomizations = {
 				actions.search.shared.within.elements(elements);
 			}
 			*/
+		},
+
+		metadata: {
+			/** Show this metadata search field? (return null for default behaviour) */
+			show(name: string): boolean|null {
+				return null;
+			}
 		}
 	},
 
 	results: {
-		matchInfosToHighlight: (matchInfos: HighlightSection[]) => {
+		matchInfoHighlightStyle: (matchInfo: HighlightSection): string|null => {
 			return null; // fall back to default behaviour
 		}
 	}

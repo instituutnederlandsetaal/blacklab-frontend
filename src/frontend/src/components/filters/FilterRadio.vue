@@ -20,6 +20,9 @@
 				> {{option.label || option.value}}</label>
 			</div>
 		</div>
+		<div class="col-xs-12" v-if="description">
+			<small class="text-muted description"><em>{{ description }}</em></small>
+		</div>
 	</div>
 </template>
 
@@ -34,9 +37,6 @@ export default BaseFilter.extend({
 			required: true,
 			default: ''
 		}
-	},
-	computed: {
-		options(): Option[] { return this.definition.metadata as Option[]; },
 	},
 	methods: {
 		changeValue(event: Event, value: string) {

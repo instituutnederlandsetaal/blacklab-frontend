@@ -37,7 +37,6 @@ import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 import Results from '@/pages/search/results/Results.vue';
 import PageGuide from '@/pages/search/PageGuide.vue';
 import Spinner from '@/components/Spinner.vue';
-import { BLSearchParameters } from '@/types/blacklabtypes';
 
 export default Vue.extend({
 	components: {

@@ -1,4 +1,4 @@
-import { BLHit, BLHitSnippet, BLHitSnippetPart, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummary, BLSearchSummaryTotalsHits } from '@/types/blacklabtypes';
+import { BLHit, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummary, BLSearchSummaryTotalsHits } from '@/types/blacklabtypes';
 import { CaptureAndRelation, HitContext, HitToken, TokenHighlight } from '@/types/apptypes';
 import { mapReduce } from '@/utils';
 import { corpusCustomizations } from '@/store/search/ui';
@@ -71,8 +71,8 @@ function flatten(part: BLHitSnippetPart|undefined, annotationId: string, lastPun
 	const r: HitToken[] = [];
 	const length = part[annotationId].length;
 	for (let i = 0; i < part[annotationId].length; i++) {
-		const word = part[annotationId][i];
-		const punct =  (i === length - 1 ? lastPunctuation : part.punct[i+1]) || ''; // punctuation is the whitespace before the current word. There is always one more punctuation than there are words in a document (fencepost problem).
+		// punctuation is the whitespace before the current word. There is always one more punctuation than there are words in a document (fencepost problem).
+		const punct =  (i === length - 1 ? lastPunctuation : part.punct[i+1]) || '';
 		r.push({punct, annotations: {}});
 	}
 	for (const annotationId in part) {
@@ -134,7 +134,7 @@ function mapCaptureSpan(key: string, span: BLMatchInfoSpan): HighlightSection {
  */
 function getHighlightSections(matchInfos: NonNullable<BLHit['matchInfos']>): HighlightSection[] {
 	let interestingCaptures = Object.entries(matchInfos).flatMap<HighlightSection>(([key, info]) => {
-		// This is when we ask BlackLab to explicitly return all relations in the hit,
+		// captured_rels happens when we ask BlackLab to explicitly return all relations in the hit,
 		// So ignore that, as we'd be highlighting every word in the sentence if we did.
 		// (this happens when requesting context to display in the UI, for example.)
 		// (NOTE: "captured_rels" is the default capture name for rcap() operations,
@@ -157,23 +157,51 @@ function getHighlightSections(matchInfos: NonNullable<BLHit['matchInfos']>): Hig
 
 	// Allow custom script to determine what to highlight for this hit
 	// (i.e. "do (hover)highlight word alignments, but not verse alignments")
-	const result = corpusCustomizations.results.matchInfosToHighlight(interestingCaptures)
-	if (result !== null)
-		return result;
+	/** I.E. are there captures (e.g. a:[]) or only relations? */
+	const hasExplicitCaptures = interestingCaptures.find(c => !c.isRelation) !== undefined;
 
-	// Fall back to default behaviour:
-	// If there's explicit captures, highlight only those.
-	// i.e. when the user selects part of the query to highlight, return only those captures.
-	//
-	// (JN) It might not be obvious to most users why slightly different queries highlight
-	// very different things. Maybe just highlight everything by default..?
-	//
-	if (interestingCaptures.find(c => !c.isRelation)) {
-		return interestingCaptures.map((mi) => ({ ...mi, showHighlight: !mi.isRelation }));
-	}
-	return interestingCaptures;
+	const result: HighlightSection[] = interestingCaptures
+		.map(mi => {
+			// always highlight if the user "captured" (i.e. labelled this token in the query),
+			// OR if this is a relation and there are no explicit captures.
+			// Even if this is false, the highlight will appear up if the user hovers over the hit.
+			// This only controls whether it's always shown.
+			const shouldHighlightByDefault = !mi.isRelation || !hasExplicitCaptures;
+			const shouldHighlightByCustomizations = corpusCustomizations.results.matchInfoHighlightStyle(mi);
+
+			if (shouldHighlightByCustomizations === 'none') {
+				// this capture/relation should never be highlighed.
+				// remove this from the list.
+				return null;
+			} else if (shouldHighlightByCustomizations === 'static') {
+				// true signifies that this should always be highlighted.
+				mi.showHighlight = true;
+			} else if (shouldHighlightByCustomizations === 'hover') {
+				// false signifies that this should only be highlighted on hover.
+				mi.showHighlight = false;
+			} else {
+				// Script returned null or undefined, or something else we don't understand.
+				// Use the default behavior.
+				mi.showHighlight = shouldHighlightByDefault;
+			}
+
+			return mi;
+		})
+		.filter(mi => mi !== null)
+
+	return result;
 }
 
+/**
+ * Given a BlackLab query's results, assign a color to every relation and capture.
+ * The returned colors are keyed by the matchInfos key as reported by BlackLab
+ *
+ * E.g. for a query "_ -obj-> _" the color would be under "obj".
+ * For an anonymous relation e.g. _ --> _ this the color would be under something like "dep" or "rel"
+ * For a capture group, e.g. "a:[] b:[]" this would be the name of the capture group, "a" or "b".
+ *
+ * We use this for highlighting the hits in the UI.
+ */
 export function getHighlightColors(summary: BLSearchSummary): Record<string, TokenHighlight> {
 	return mapReduce(Object.keys(summary.pattern?.matchInfos ?? {}).sort(), (hl, i) => color(hl, i));
 }
@@ -192,8 +220,6 @@ export function getHighlightColors(summary: BLSearchSummary): Record<string, Tok
  * @returns the hit split into before, match, and after parts, with capture and relation info added to the tokens. The punct is to be shown after the word.
  */
 export function snippetParts(hit: BLHit|BLHitSnippet, annotationId: string, dir: 'ltr'|'rtl', colors?: Record<string, TokenHighlight>): HitContext {
-	if (hit === undefined)
-		console.error('hit is undefined');
 	const before = flatten(dir === 'ltr' ? hit.left : hit.right, annotationId, hit.match.punct[0]);
 	const match = flatten(hit.match, annotationId, (dir === 'ltr' ? hit.right : hit.left)?.punct[0]);
 	const after = flatten(dir === 'ltr' ? hit.right : hit.left, annotationId);
@@ -247,4 +273,83 @@ export function snippetParts(hit: BLHit|BLHitSnippet, annotationId: string, dir:
 		match,
 		after
 	};
+}
+
+/**
+ * For hits with parallel information (e.g. hit in english with dutch alignments from other fields).
+ * Enrich the hit in the target with match/relation info.
+ * This is required because BlackLab only includes the relation info at the source, not at the target.
+ * But we want that info in the target as well, so we can highlight it.
+ */
+export function mergeMatchInfos(data: BLHitResults) {
+	// Copy relations to their target field hit, so we can later render that hit as a relation target
+	// (the matchInfo is copied there, with targetField set to the special string __THIS__)
+	data.hits.forEach(hit => {
+		if (hit.matchInfos && hit.otherFields) {
+			hit.otherFields = Object.fromEntries(
+				Object.entries(hit.otherFields).map(([k, v] : [string, BLHitInOtherField]) => {
+					return [k, processHit(k, v, hit.matchInfos!)];
+				})
+			);
+		}
+	});
+
+	// Actually copy the matchInfos to the target field hit from the main hit matchInfos
+	function processHit(
+		targetFieldName: string,
+		targetHit: BLHitInOtherField,
+		sourceHitMatchInfos: Record<string, BLMatchInfo>
+	): BLHitInOtherField {
+		if (Object.keys(sourceHitMatchInfos).length === 0) {
+			// Nothing to merge
+			return targetHit;
+		}
+
+		/** Does the given matchInfo's targetField point to us?
+		 * If it's a list, do any of the list's elements target us?
+		 */
+		function matchInfoHasUsAsTargets([name, matchInfo]: [string, BLMatchInfo]): boolean {
+			if ('targetField' in matchInfo && matchInfo.targetField === targetFieldName)
+				return true;
+			if (matchInfo.type === 'list') {
+				const infos = matchInfo.infos as BLMatchInfo[];
+				if (infos.some(l => 'targetField' in l && l.targetField === targetFieldName))
+					return true;
+			}
+			return false;
+		};
+
+		// Mark targetField as __THIS__ so we'll know it is us later
+		function markTargetField(matchInfo: BLMatchInfo) {
+			return 'targetField' in matchInfo ? ({ ...matchInfo, targetField: '__THIS__'}) : matchInfo;
+		}
+
+		// Keep only relations with us as the target field (and mark it, see above)
+		const toMerge = Object.entries(sourceHitMatchInfos)
+			.filter(matchInfoHasUsAsTargets)
+			.reduce((acc, [name, matchInfo]) => {
+				if ('infos' in matchInfo) {
+					acc[name] = acc[name] = {
+						...matchInfo,
+						infos: matchInfo.infos.map(markTargetField) as BLMatchInfoRelation[]
+					};
+				} else {
+					acc[name] = markTargetField(matchInfo);
+				}
+				return acc;
+			}, {} as Record<string, BLMatchInfo>);
+
+		if (!targetHit.matchInfos || Object.keys(targetHit.matchInfos).length === 0) {
+			// Hit has no matchInfos of its own; just use the infos from the main hit
+			return {
+				...targetHit,
+				matchInfos: toMerge
+			};
+		}
+
+		// Construct a new hit with matchInfos merged together
+		const newHit = {...targetHit};
+		newHit.matchInfos = {...toMerge, ...targetHit.matchInfos};
+		return newHit;
+	}
 }

@@ -2,13 +2,22 @@
 	<table class="docs-table">
 		<thead>
 			<tr class="rounded">
-				<th><a role="button" @click="changeSort(`field:${specialFields.titleField}`)" :class="['sort', {'disabled': disabled}]" :title="$t('results.table.sortByDocument')">{{ $t('results.table.document') }}</a></th>
+				<th><a role="button"
+					@click="changeSort(`field:${specialFields.titleField}`)"
+					:class="['sort', {'disabled': disabled}]"
+					:title="$t('results.table.sortByDocument').toString()">
+					{{ $t('results.table.document') }}
+				</a></th>
 				<th v-for="meta in metadata" :key="meta.id">
-					<a role="button" @click="changeSort(`field:${meta.id}`)" :class="['sort', {'disabled': disabled}]" :title="`${$t('results.table.sortBy')} ${specialMetaDisplayNames[meta.id] || meta.displayName}`">
-						{{specialMetaDisplayNames[meta.id] || meta.displayName}} <Debug>(id: {{meta.id}})</Debug>
+					<a role="button"
+						@click="changeSort(`field:${meta.id}`)"
+						:class="['sort', {'disabled': disabled}]"
+						:title="$t('results.table.sortBy', {field: $tMetaDisplayName(meta)}).toString()"
+					>
+						{{$tMetaDisplayName(meta)}} <Debug>(id: {{meta.id}})</Debug>
 					</a>
 				</th>
-				<th v-if="hasHits"><a role="button" @click="changeSort(`numhits`)" :class="['sort', {'disabled': disabled}]" :title="$t('results.table.sortByHits')">{{ $t('results.table.hits') }}</a></th>
+				<th v-if="hasHits"><a role="button" @click="changeSort(`numhits`)" :class="['sort', {'disabled': disabled}]" :title="$t('results.table.sortByHits').toString()">{{ $t('results.table.hits') }}</a></th>
 			</tr>
 		</thead>
 		<tbody>
@@ -42,12 +51,12 @@ import * as CorpusStore from '@/store/search/corpus';
 import { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 import { BLDocFields } from '@/types/blacklabtypes';
 
-import HitsTable, {HitRowData} from '@/pages/search/results/table/HitsTable.vue';
+import HitsTable from '@/pages/search/results/table/HitsTable.vue';
 import DocRow, {DocRowData} from '@/pages/search/results/table/DocRow.vue';
 import { snippetParts } from '@/utils/hit-highlighting';
 
-export {DocRowData} from '@/pages/search/results/table/DocRow.vue';
-export {HitRowData} from '@/pages/search/results/table/HitsTable.vue';
+import { HitRowData } from '@/pages/search/results/table/HitRow.vue';
+export { DocRowData } from '@/pages/search/results/table/DocRow.vue';
 
 export default Vue.extend({
 	components: {HitsTable, DocRow},
@@ -62,30 +71,21 @@ export default Vue.extend({
 
 		data: Array as () => DocRowData[]
 	},
-computed: {
+	computed: {
 		hasHits(): boolean { return this.data[0]?.doc.numberOfHits != null; },
 		specialFields(): BLDocFields { return CorpusStore.getState().corpus!.fieldInfo; },
-		specialMetaDisplayNames(): { [id: string]: string; } {
-			const specialFields = this.specialFields
-			const ret: {[id: string]: string} = {};
-			Object.entries(specialFields).forEach(([type, fieldId]) => { switch (type as keyof BLDocFields) {
-				case 'authorField': ret[fieldId!] = 'Author'; break;
-				case 'dateField': ret[fieldId!] = 'Date'; break;
-				case 'pidField': ret[fieldId!] = 'ID'; break;
-				case 'titleField': ret[fieldId!] = 'Title'; break;
-			}});
-
-			return ret;
-		},
 	},
 	methods: {
 		changeSort(sort: string) {
 			this.$emit('changeSort', sort)
 		},
 		hitRowsForDoc(docRow: DocRowData): HitRowData[] {
-			return docRow.doc.snippets!.map(s => ({
-				type: 'hit',
+			return docRow.doc.snippets!.map<HitRowData>(s => ({
 				hit: s,
+				annotatedField: undefined,
+				href: '',
+				isForeign: false,
+				// Don't pass color info here. We don't show capture highlights or releation info in doc snippets.
 				context: snippetParts(s, this.mainAnnotation.id, this.dir),
 				doc: docRow.doc,
 				gloss_fields: [],
