@@ -54,7 +54,7 @@
 <script lang="ts">
 import {defineComponent} from 'vue';
 import Modal from './Modal.vue';
-import * as Api from '@/api';
+import * as Api from '@/services/api';
 
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 

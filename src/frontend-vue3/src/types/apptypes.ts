@@ -9,8 +9,8 @@ export type NormalizedAnnotation = {
 	/** id of the field this annotation resides in, usually 'contents' */
 	annotatedFieldId: string;
 	caseSensitive: boolean;
-	description: string;
-	displayName: string;
+	defaultDescription: string;
+	defaultDisplayName: string;
 	hasForwardIndex: boolean;
 	/** 'lemma', 'pos', etc. These are only unique within the same annotatedField */
 	id: string;
@@ -32,14 +32,17 @@ export type NormalizedAnnotation = {
 };
 
 /** A set of annotations that form one data set on a token, usually there is only one of these in an index, called 'content' */
-export type NormalizedAnnotatedField = {
+type NormalizedAnnotatedFieldBase  = {
 	annotations: { [annotationId: string]: NormalizedAnnotation };
-	description: string;
-	displayName: string;
+	defaultDescription: string;
+	defaultDisplayName: string;
 	hasContentStore: boolean;
 	hasLengthTokens: boolean;
 	hasXmlTags: boolean;
-	/** usually 'contents', annotatedFieldId in NormalizedAnnotation refers to this */
+	/**
+	 * usually 'contents', annotatedFieldId in NormalizedAnnotation refers to this.
+	 * In parallel corpora, consists of a prefix (e.g. "contents") and a suffix (e.g. "en").
+	 */
 	id: string;
 	isAnnotatedField: boolean;
 	/**
@@ -50,11 +53,21 @@ export type NormalizedAnnotatedField = {
 	mainAnnotationId: string;
 };
 
+export type NormalizedAnnotatedFieldParallel = NormalizedAnnotatedFieldBase&{
+	isParallel: true;
+	/** The prefix of the parallel field. e.g. "contents" */
+	prefix: string;
+	/** The version of the parallel field. e.g. "nl" or "en" */
+	version: string;
+}
+export type NormalizedAnnotatedFieldNotParallel = NormalizedAnnotatedFieldBase&{
+	isParallel: false;
+}
+export type NormalizedAnnotatedField = NormalizedAnnotatedFieldParallel|NormalizedAnnotatedFieldNotParallel;
+
 export type NormalizedMetadataField = {
-	description: string;
-	displayName: string;
-	// /** Id of the metadataFieldGroup, if part of a group */
-	// groupId?: string;
+	defaultDescription: string;
+	defaultDisplayName: string;
 	id: string;
 	/**
 	 * Based on the uiType of the original metadata field,
@@ -62,7 +75,7 @@ export type NormalizedMetadataField = {
 	 * Unknown types are replaced by 'text'
 	 */
 	uiType: 'select'|'combobox'|'text'|'range'|'checkbox'|'radio'|'date';
-	/** Only when uiType === 'select' */
+	/** Only when uiType === 'select', 'checkbox' or 'radio'. See blacklabutils::normalizeMetadata */
 	values?: Array<{value: string, label: string, title: string|null}>;
 };
 
@@ -89,7 +102,7 @@ export type NormalizedAnnotationGroup = {
 };
 
 export type NormalizedMetadataGroup = {
-	/** Unique within groups with the same annotatedFieldId, treat as a user-friendly name. */
+	/** Unique, treat as a user-friendly name. */
 	id: string;
 	/** Keys in metadataFields */
 	entries: string[];
@@ -127,7 +140,7 @@ export type NormalizedIndexBase = {
 /** Contains information about the internal structure of the index - which fields exist for tokens, which metadata fields exist for documents, etc */
 export type NormalizedIndex = NormalizedIndexBase&{
 	annotatedFields: { [id: string]: NormalizedAnnotatedField; };
-	/** Key info annotatedFields */
+	/** Default Annotated Field that BlackLab searches in, if not explicity overridden in the query. */
 	mainAnnotatedField: string;
 	/**
 	 * If no groups are defined by blacklab itself, all annotations of all annotatedFields are placed in generated groups.
@@ -230,8 +243,10 @@ export type FilterValue = {
 export type FilterDefinition<MetadataType = any, ValueType = any> = {
 	/** Id of the filters, this must be unique */
 	id: string;
-	displayName: string;
-	description?: string;
+	/** Display name to show if there is no localized version in the i18n bundle */
+	defaultDisplayName: string;
+	/** Description to show if there is no localized version in the i18n bundle */
+	defaultDescription?: string;
 	/** Name of the component, for filters generated from the blacklab index metadata, `filter-${uiType}` */
 	componentName: string;
 	/** The group this filter is part of, only for ui purposes. */
@@ -364,19 +379,3 @@ export type OptGroup = {
 	disabled?: boolean;
 	options: Array<string|Option>;
 };
-
-
-export type Pages = 'search'|'article'|'corpora'|'about'|'help'|'error'|'notfound';
-export type Config = {
-	displayName: string;
-	// need more stuff here.
-	links: Array<{href: string, blank: boolean, label: string}>;
-	customCss: Record<Pages, Array<{
-		href: string;
-		attributes: Record<string, string>;
-	}>>;
-	customJs: Record<Pages, Array<{
-		href: string;
-		attributes: Record<string, string>;
-	}>>;
-}

@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import javax.servlet.http.HttpServletResponse;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import nl.inl.corpuswebsite.BaseResponse;
 import nl.inl.corpuswebsite.utils.*;
 
@@ -25,10 +26,9 @@ import nl.inl.corpuswebsite.utils.*;
  */
 public class ApiResponse extends BaseResponse {
     public ApiResponse() {
-        super("api", true);
+        super("api", false);
     }
 
-    // TODO this could probably be cleaned up a little.
     @Override
     protected void completeRequest() throws QueryException {
         if (pathParameters.isEmpty()) throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "No endpoint specified");
@@ -42,11 +42,12 @@ public class ApiResponse extends BaseResponse {
         } else if (operation.equalsIgnoreCase("info")) {
             indexMetadata();
         } else if (operation.equalsIgnoreCase("config")) {
-            indexConfig();
+            siteConfig();
         } else throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint " + operation);
     }
 
     public void documentContents(String docId) throws QueryException {
+        if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
         new ArticleUtil(servlet, request, response).getTransformedDocument(
             servlet.getWebsiteConfig(corpus),
             servlet.getCorpusConfig(corpus, request, response).mapError(QueryException::wrap).getOrThrow(),
@@ -58,6 +59,7 @@ public class ApiResponse extends BaseResponse {
     }
 
     public void documentMetadata(String docId) throws QueryException {
+        if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
         new ArticleUtil(servlet, request, response).getTransformedMetadata(
             servlet.getCorpusConfig(corpus, request, response).mapError(QueryException::wrap).getOrThrow(),
             servlet.getWebsiteConfig(corpus),
@@ -67,33 +69,20 @@ public class ApiResponse extends BaseResponse {
         .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
     }
 
-    public void indexMetadata() {
+    public void indexMetadata() throws QueryException {
+        if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
         servlet.getCorpusConfig(corpus, request, response)
             .mapError(QueryException::wrap)
             .map(CorpusConfig::getJsonUnescaped)
             .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
     }
 
-    public void indexConfig() {
-        this.sendResult(
-            Result.attempt(() -> new Gson().toJson(new WebsiteConfig.WebsiteConfigRepresentation(servlet.getWebsiteConfig(corpus))))
-        );
-
-
-
-        try (OutputStreamWriter osw = new OutputStreamWriter(response.getOutputStream(), OUTPUT_ENCODING)) {
-            osw.append());
-            osw.flush();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-
-        response.setCharacterEncoding(OUTPUT_ENCODING);
-        response.setContentType("application/json");
-
-        // Merge context into the page template and write to output stream
-
+    public void siteConfig() {
+        Result.success(servlet.getWebsiteConfig(corpus))
+            .map(WebsiteConfig.WebsiteConfigRepresentation::new)
+            .map(new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create()::toJson)
+            .mapError(QueryException::wrap)
+            .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
     }
 
     protected void sendResult(Result<String, QueryException> r, String contentType) {

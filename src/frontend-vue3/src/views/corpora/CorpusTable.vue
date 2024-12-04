@@ -17,7 +17,13 @@
 			</thead>
 			<tbody><template v-for="corpus in withExtraInfo">
 				<tr>
-					<td><a :title="`Search the '${corpus.displayName}' corpus`" :class="`icon fa fa-search ${!corpus.canSearch ? 'disabled' : ''}`" :href="corpus.canSearch ? corpus.searchUrl : undefined"></a></td>
+					<td>
+						<RouterLink :title="`Search the '${corpus.displayName}' corpus`" :class="`icon fa fa-search ${!corpus.canSearch ? 'disabled' : ''}`" :to="getRouteTo.search(corpus.id)"/>
+							
+							<!-- corpus.canSearch ? corpus.searchUrl : undefined"></RouterLink> -->
+						<!-- <a :title="`Search the '${corpus.displayName}' corpus`" :class="`icon fa fa-search ${!corpus.canSearch ? 'disabled' : ''}`" :href="corpus.canSearch ? corpus.searchUrl : undefined"></a> -->
+					
+					</td>
 					<td class="corpus-name"><a :title="`Search the '${corpus.displayName}' corpus`" :class="`${!corpus.canSearch ? 'disabled' : ''}`" :href="corpus.canSearch ? corpus.searchUrl : undefined">{{corpus.displayName}} {{corpus.statusText}}</a></td>
 					<td>{{corpus.sizeString}}</td>
 					<template v-if="isPrivate">
@@ -68,6 +74,7 @@
 import {defineComponent} from 'vue';
 import {Spinner} from 'int-components';
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
+import { getRouteTo } from '@/router';
 
 type IndexWithExtraInfo = NormalizedIndexBase&{
 	canSearch: boolean,
@@ -91,7 +98,8 @@ export default defineComponent({
 		loading: Boolean
 	},
 	data: () => ({
-		details: {} as Record<string, boolean>
+		details: {} as Record<string, boolean>,
+		getRouteTo,
 	}),
 	computed: {
 		withExtraInfo(): IndexWithExtraInfo[] {

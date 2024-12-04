@@ -1,7 +1,19 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import Spinner from 'int-components';
-/** Base url of the app on the client. Never ends in '/' */
-declare const CONTEXT_URL: string;
+import { createRouter, createWebHistory, type RouteLocationAsRelativeGeneric } from 'vue-router'
+
+export const getRouteTo = {
+  about: (indexId?: string): RouteLocationAsRelativeGeneric => ({
+    name: indexId ? 'corpus-about' : 'about',
+    params: indexId ? { corpus: indexId } : undefined
+  }),
+  help: (indexId?: string): RouteLocationAsRelativeGeneric => ({
+    name: indexId ? 'corpus-help' : 'help',
+    params: indexId ? { corpus: indexId } : undefined
+  }),
+  search: (indexId: string): RouteLocationAsRelativeGeneric => ({
+    name: 'search',
+    params: { corpus: indexId }
+  }),
+}
 
 const router = createRouter({
   history: createWebHistory(CONTEXT_URL),
@@ -14,10 +26,13 @@ const router = createRouter({
     {
       path: '/about',
       name: 'about',
-      // route level code-splitting
-      // this generates a separate chunk (About.[hash].js) for this route
-      // which is lazy-loaded when the route is visited.
-      component: () => import('../views/AboutView.vue')
+      component: () => import('../views/about/AboutView.vue')
+    },
+    {
+      path: '/help',
+      name: 'help',
+      // TODO make this a generic page where the backend supplies the content.
+      component: () => import ('../views/help/HelpView.vue')
     },
     {
       name: 'corpus',
@@ -25,12 +40,23 @@ const router = createRouter({
       component: () => import('../views/corpus/CorpusView.vue'),
       children: [{
         path: 'search',
-        name: '/:corpus/search',
-        component: () => import('../views/corpus/search/SearchView.vue'),
+        name: 'search',
+        component: () => import('../views/corpus/CorpusSearchView.vue')
+      }, {
+        path: 'about',
+        name: 'corpus-about',
+        component: () => import ('../views/about/AboutView.vue')
+      },
+      {
+        path: 'help',
+        name: 'corpus-help',
+        component: () => import ('../views/help/HelpView.vue')
       }],
       
     }
-  ]
+  ],
 })
+
+router.getRoutes
 
 export default router

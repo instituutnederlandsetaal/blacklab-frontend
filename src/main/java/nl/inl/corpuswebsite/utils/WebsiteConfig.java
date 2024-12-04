@@ -1,6 +1,7 @@
 package nl.inl.corpuswebsite.utils;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -8,6 +9,9 @@ import java.util.stream.Stream;
 
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
+import com.squareup.moshi.JsonAdapter;
+import com.squareup.moshi.JsonReader;
+import com.squareup.moshi.JsonWriter;
 import org.apache.commons.configuration2.XMLConfiguration;
 import org.apache.commons.configuration2.builder.ConfigurationBuilder;
 import org.apache.commons.configuration2.builder.FileBasedConfigurationBuilder;
@@ -21,51 +25,75 @@ import org.apache.commons.lang3.StringUtils;
  * Configuration read from the Search.xml config file specific to a corpus.
  */
 public class WebsiteConfig {
-    public static class WebsiteConfigRepresentation {
-        @Expose(serialize = false, deserialize = false)
-        private final WebsiteConfig config;
-        public WebsiteConfigRepresentation(WebsiteConfig config) {
-            this.config = config;
-        }
+   public static class WebsiteConfigAdapter extends JsonAdapter<WebsiteConfig> {
 
-        /** Usually set, but null for the generic config. */
-        @SerializedName("id")
-        public String getId() { return config.corpusId.orElse(null); }
-        @SerializedName("displayName")
-        public String getDisplayName() { return config.getDisplayName(); }
-        @SerializedName("owner")
-        public String getOwner() { return config.getCorpusOwner().orElse(null); }
-        @SerializedName("pathToFaviconDir")
-        public String getPathToFaviconDir() { return config.getPathToFaviconDir(); }
-        @SerializedName("pagination")
-        public boolean getPagination() { return config.pagination; }
-        @SerializedName("pageSize")
-        public int getPageSize() { return config.pageSize; }
-        @SerializedName("analytics")
-        public Map<String, Map<String, String>> getAnalytics() {
-            return Map.of(
-                "google", Map.of(
-                    "key", config.analyticsKey.orElse(null)),
-                "plausible", Map.of(
-                    "domain", config.plausibleDomain.orElse(null),
-                    "apiHost", config.plausibleApiHost.orElse(null))
-            );
+    @Override
+    public void toJson(JsonWriter writer, WebsiteConfig config) throws IOException {
+        writer.beginObject();
+        writer.name("id").value(config.corpusId.orElse(null));
+        writer.name("displayName").value(config.getDisplayName());
+        writer.name("owner").value(config.getCorpusOwner().orElse(null));
+        writer.name("pathToFaviconDir").value(config.getPathToFaviconDir());
+        writer.name("pagination").value(config.pagination);
+        writer.name("pageSize").value(config.pageSize);
+        writer.name("analytics").beginObject();
+        writer.name("google").beginObject();
+        writer.name("key").value(config.analyticsKey.orElse(null));
+        writer.endObject();
+        writer.name("plausible").beginObject();
+        writer.name("domain").value(config.plausibleDomain.orElse(null));
+        writer.name("apiHost").value(config.plausibleApiHost.orElse(null));
+        writer.endObject();
+        writer.endObject();
+        writer.name("links").beginArray();
+        for (LinkInTopBar link : config.getLinks()) {
+            writer.beginObject();
+            writer.name("label").value(link.getLabel());
+            writer.name("href").value(link.getHref());
+            writer.name("openInNewWindow").value(link.isOpenInNewWindow());
+            writer.endObject();
         }
-        @SerializedName("links")
-        public List<LinkInTopBar> getLinks() { return config.getLinks(); }
-        @SerializedName("js")
-        public List<CustomJs> getJs() { return config.getCustomJS(""); }
-        @SerializedName("css")
-        public List<String> getCss() { return config.getCustomCSS(""); }
+        writer.endArray();
+        writer.name("js").beginObject();
+        for (var e : config.customJS.entrySet()) {
+            writer.name(e.getKey()).beginArray();
+            for (CustomJs js : e.getValue()) {
+                writer.beginObject();
+                writer.name("href").value(js.getUrl());
+                writer.name("attributes").beginObject();
+                for (Map.Entry<String, String> entry : js.getAttributes().entrySet()) {
+                    writer.name(entry.getKey()).value(entry.getValue());
+                }
+                writer.endObject();
+                writer.endObject();
+            }
+            writer.endArray();
+        }
+        writer.endObject();
+
+        writer.name("css").beginObject();
+        for (var e : config.customCSS.entrySet()) {
+            writer.name(e.getKey()).beginArray();
+            for (String url : e.getValue()) {
+                writer.value(url);
+            }
+            writer.endArray();
+        }
+        writer.endObject();
+        writer.endArray();
+        writer.endObject();
     }
+
+    @Override
+    public WebsiteConfig fromJson(JsonReader reader) throws IOException {
+        throw new UnsupportedOperationException("Deserialization is not supported");
+    }
+}
 
     /** One of the links shown in the top bar */
     public static class LinkInTopBar {
-        @SerializedName("label")
         private final String label;
-        @SerializedName("href")
         private final String href;
-        @SerializedName("openInNewWindow")
         private final boolean openInNewWindow;
 
         /**

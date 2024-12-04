@@ -1,17 +1,17 @@
 import axios, {type Canceler, type AxiosRequestConfig, type AxiosProgressEvent} from 'axios';
 
-import {createEndpoint} from '@/api/apiutils';
+import {createEndpoint} from '@/services/api/apiutils';
 import {normalizeIndex, fixDocInfo, normalizeFormat, normalizeIndexBase} from '@/utils/blacklabutils';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { ApiError, type NormalizedIndex, type NormalizedIndexBase } from '@/types/apptypes';
 import { uniq } from '@/utils';
 import { User } from 'oidc-client-ts';
+import type { WebsiteConfig } from '../websiteconfig';
 
 type API = ReturnType<typeof createEndpoint>;
 
 const endpoints = {
-
 	// Communicates with the BlackLab Server instance
 	blacklab: null as any as API,
 
@@ -51,13 +51,13 @@ export function init(which: keyof typeof endpoints, url: string, user: User|null
 // const allMetadataFields = CorpusStore.get.allMetadataFields().map(f => f.id);
 
 export const frontendPaths = {
-	currentCorpus: () => `${CONTEXT_URL}/${INDEX_ID}/search`,
+	currentCorpus: (indexId: string) => `${CONTEXT_URL}/${indexId}/search`,
 
 	// The following paths are only for use with the api endpoint (they don't contain the context url - the endpoint will add it)
-	indexInfo: () => `${INDEX_ID}/api/info`,
-	indexConfig: () => `${INDEX_ID}/api/config`,
-	documentContents: (pid: string) => `${INDEX_ID}/docs/${pid}/contents`,
-	documentMetadata: (pid: string) => `${INDEX_ID}/docs/${pid}`,
+	corpusMetadata: (indexId: string) => `${indexId}/api/info`,
+	corpusConfig: (indexId?: string) => indexId ? `${indexId}/api/config` : '/api/config',
+	documentContents: (indexId: string, pid: string) => `${indexId}/docs/${pid}/contents`,
+	documentMetadata: (indexId: string, pid: string) => `${indexId}/docs/${pid}`,
 }
 
 /** Contains url mappings for different requests to blacklab-server */
@@ -382,20 +382,19 @@ export const blacklab = {
  * API for corpus-frontend's own webservice
  */
 export const frontend = {
-	getCorpus: () => endpoints.cf.get<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo()),
+	getCorpus: (indexId: string) => endpoints.cf.get<BLTypes.BLIndexMetadata>(frontendPaths.corpusMetadata(indexId)),
+	getCorpusConfig: (indexId?: string) => endpoints.cf.get<WebsiteConfig>(frontendPaths.corpusConfig(indexId)),
 
-	getDocumentContents: (pid: string, params: {
+	getDocumentContents: (indexId: string, pid: string, params: {
 		patt?: string,
 		pattgapdata?: string,
 		wordstart?: number,
 		wordend?: number,
 	}) => endpoints.cf
-		.get<string>(frontendPaths.documentContents(pid), params),
+		.get<string>(frontendPaths.documentContents(indexId, pid), params),
 
-	getDocumentMetadata: (pid: string) => endpoints.cf
-		.get<BLTypes.BLDocument>(frontendPaths.documentMetadata(pid)),
-
-	getCustomizations: () => endpoints.cf.get<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo()),
+	getDocumentMetadata: (indexId: string, pid: string) => endpoints.cf
+		.get<BLTypes.BLDocument>(frontendPaths.documentMetadata(indexId, pid)),
 }
 
 export const glossPaths = {

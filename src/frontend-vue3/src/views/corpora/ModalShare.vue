@@ -16,7 +16,7 @@
 import {defineComponent} from 'vue';
 import Modal from './Modal.vue';
 import type { NormalizedIndexBase } from '@/types/apptypes';
-import * as Api from '@/api';
+import * as Api from '@/services/api';
 export default defineComponent({
 	components: {Modal},
 	props: {

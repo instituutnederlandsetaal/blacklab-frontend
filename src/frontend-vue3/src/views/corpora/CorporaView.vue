@@ -107,7 +107,7 @@ import {defineComponent} from 'vue';
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 import type { BLServer } from '@/types/blacklabtypes';
 
-import * as Api from '@/api/index';
+import * as Api from '@/services/api/index';
 import { normalizeIndexBase } from '@/utils/blacklabutils';
 
 

@@ -1,47 +1,31 @@
 package nl.inl.corpuswebsite.response;
 
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 
-import com.google.gson.Gson;
-import com.google.gson.annotations.Expose;
-import com.google.gson.annotations.SerializedName;
-
+import com.squareup.moshi.*;
 import nl.inl.corpuswebsite.BaseResponse;
 import nl.inl.corpuswebsite.utils.GlobalConfig;
-import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
 /** Show the about page. */
 public class ConfigResponse extends BaseResponse {
-
-    private static class PublicConfig {
-        @Expose(serialize = false, deserialize = false)
-        private final GlobalConfig config;
-        public PublicConfig(GlobalConfig config) {
-            this.config = config;
+    public static class PublicConfigAdapter extends JsonAdapter<GlobalConfig> {
+        @Override
+        public GlobalConfig fromJson(JsonReader reader) throws IOException {
+            // Implement deserialization logic if needed
+            return null;
         }
 
-        @SerializedName("BLS_URL")
-        public String getBlsUrl() {
-            // Return url on client (i.e. external). We assume the service consuming this config file is also external.
-            // For example, a localhost (or docker ip) url is not useful for a client.
-            return config.get(GlobalConfig.Keys.BLS_URL_ON_CLIENT);
-        }
-
-        @SerializedName("commit_hash")
-        public String getCommitHash() {
-            return GlobalConfig.commitHash;
-        }
-        @SerializedName("commit_time")
-        public String getCommitTime() {
-            return GlobalConfig.commitTime;
-        }
-        @SerializedName("commit_message")
-        public String getCommitMessage() {
-            return GlobalConfig.commitMessage;
-        }
-        @SerializedName("version")
-        public String getVersion() {
-            return GlobalConfig.version;
+        @Override
+        public void toJson(JsonWriter writer, GlobalConfig value) throws IOException {
+            writer.beginObject();
+            writer.name("BLS_URL").value(value.get(GlobalConfig.Keys.BLS_URL_ON_CLIENT));
+            writer.name("commit_hash").value(GlobalConfig.commitHash);
+            writer.name("commit_time").value(GlobalConfig.commitTime);
+            writer.name("commit_message").value(GlobalConfig.commitMessage);
+            writer.name("version").value(GlobalConfig.version);
+            writer.name("branch").value(GlobalConfig.branch);
+            writer.endObject();
         }
     }
     
@@ -54,11 +38,13 @@ public class ConfigResponse extends BaseResponse {
         response.setCharacterEncoding(OUTPUT_ENCODING);
         response.setContentType("application/json");
 
-        // Merge context into the page template and write to output stream
-        try (OutputStreamWriter osw = new OutputStreamWriter(response.getOutputStream(), OUTPUT_ENCODING)) {   
-            osw.append(new Gson().toJson(new PublicConfig(servlet.getGlobalConfig())));
+        try (OutputStreamWriter osw = new OutputStreamWriter(response.getOutputStream(), OUTPUT_ENCODING)) {
+            GlobalConfig globalConfig = servlet.getGlobalConfig();
+            Moshi moshi = new Moshi.Builder().add(new PublicConfigAdapter()).build();
+            String json = moshi.adapter(GlobalConfig.class).toJson(globalConfig);
+            osw.write(json);
             osw.flush();
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

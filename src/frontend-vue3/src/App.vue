@@ -1,29 +1,85 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import {NavBar, Spinner} from 'int-components';
 // import 'my-overrides.scss';
 import 'int-components/dist/lib/css-base.css';
 import 'int-components/dist/lib/css-int.css';
 
-import * as Api from '@/api';
-import { ref } from 'vue';
-
+import * as Api from '@/services/api';
+import { provide, ref, watch, type InjectionKey, type Ref } from 'vue';
+import type { WebsiteConfig } from './services/websiteconfig';
+import type { NormalizedIndex } from './types/apptypes';
+import { normalizeIndex } from './utils/blacklabutils';
+import { getRouteTo } from './router';
 
 const loaded = ref(false);
 
 Api.init('blacklab', BLS_URL, null);
 Api.init('cf', CONTEXT_URL, null);
 
+const config = ref<WebsiteConfig>();
+const corpus = ref<NormalizedIndex|null>(null);
+const error = ref<Api.ApiError|null>(null);
+const loading = ref<boolean>(false);
+
+const route = useRoute();
+watch(() => route.params.corpus as string|undefined, (cur, prev) => {
+  if (cur != prev) {
+    loading.value = true;
+    Promise.all([
+      // TODO refactor to retrieve additional info in frontend instead of backend
+      cur ? Api.frontend.getCorpus(cur) : undefined,
+      cur ? Api.blacklab.getRelations(cur) : undefined,
+      Api.frontend.getCorpusConfig(cur)
+    ])
+    .then(([corpusResponse, relationsResponse, configResponse]) => {
+      corpus.value = (corpusResponse && relationsResponse) ? normalizeIndex(corpusResponse, relationsResponse) : null;
+      config.value = configResponse;
+    })
+    .catch(e => {
+      console.log(e);
+      error.value = e;
+    })
+    .finally(() => loading.value = false)
+  }
+}, {immediate: true})
+
 loaded.value = true;
+
+const test: InjectionKey<{
+  config: typeof config,
+  corpus: typeof corpus,
+  error: typeof error,
+  loading: typeof loading,
+}> = Symbol('test');
+provide(test, {config, corpus, error, loading});
+
+
 
 </script>
 
 <template>
   <NavBar s title="Autosearch" :int-logo="false">
     <template #links="{className, linkClassName, activeLinkClassName}"><div :class="className">
-      <RouterLink :class="linkClassName" activeClass="active" exactActiveClass="active" to="/">Corpora</RouterLink>
-      <RouterLink :class="linkClassName" activeClass="active" exactActiveClass="active" to="/about">About</RouterLink>
+      <RouterLink v-if="!corpus || corpus.owner" 
+        :class="linkClassName" 
+        activeClass="active" 
+        exactActiveClass="active" 
+        to="/"
+      >Corpora</RouterLink>
+      <RouterLink 
+        :class="linkClassName" 
+        activeClass="active" 
+        exactActiveClass="active" 
+        :to="getRouteTo.about(corpus?.id)"
+      >About</RouterLink>
+      <RouterLink 
+        :class="linkClassName" 
+        activeClass="active" 
+        exactActiveClass="active" 
+        :to="getRouteTo.help(corpus?.id)"
+      >Help</RouterLink>
     </div></template>
     
   </NavBar>

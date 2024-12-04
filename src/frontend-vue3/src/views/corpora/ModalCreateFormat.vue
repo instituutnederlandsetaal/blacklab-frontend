@@ -65,7 +65,7 @@
 import {defineComponent} from 'vue';
 import Modal from './Modal.vue';
 import type { NormalizedFormat, Option } from '@/types/apptypes';
-import * as Api from '@/api';
+import * as Api from '@/services/api';
 import {SelectPicker} from 'int-components';
 // import { Options } from 'int-components';
 
