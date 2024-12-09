@@ -39,18 +39,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.app.Velocity;
 
-import nl.inl.corpuswebsite.response.AboutResponse;
 import nl.inl.corpuswebsite.response.ApiResponse;
-import nl.inl.corpuswebsite.response.ArticleResponse;
 import nl.inl.corpuswebsite.response.ConfigResponse;
-import nl.inl.corpuswebsite.response.ConfigWizardResponse;
 import nl.inl.corpuswebsite.response.CorporaDataResponse;
-import nl.inl.corpuswebsite.response.CorporaResponse;
-import nl.inl.corpuswebsite.response.ErrorResponse;
-import nl.inl.corpuswebsite.response.HelpResponse;
+import nl.inl.corpuswebsite.response.IndexResponse;
 import nl.inl.corpuswebsite.response.OidcCallbackResponse;
-import nl.inl.corpuswebsite.response.RemoteIndexResponse;
-import nl.inl.corpuswebsite.response.SearchResponse;
 import nl.inl.corpuswebsite.utils.BlackLabApi;
 import nl.inl.corpuswebsite.utils.CorpusConfig;
 import nl.inl.corpuswebsite.utils.CorpusFileUtil;
@@ -70,7 +63,7 @@ public class MainServlet extends HttpServlet {
 
     private static final Logger logger = Logger.getLogger(MainServlet.class.getName());
 
-    private static final String DEFAULT_PAGE = "corpora";
+    private static final Class<? extends BaseResponse> DEFAULT_PAGE = IndexResponse.class;
 
     /**
      * Where to find the Velocity properties file
@@ -113,15 +106,9 @@ public class MainServlet extends HttpServlet {
 
             // Map responses, the majority of these can be served for a specific corpus, or as a general autosearch page
             // E.G. the AboutResponse is mapped to /<root>/<corpus>/about and /<root>/about
-            responses.put(DEFAULT_PAGE, CorporaResponse.class);
-            responses.put("about", AboutResponse.class);
-            responses.put("help", HelpResponse.class);
-            responses.put("search", SearchResponse.class);
-            responses.put("docs", ArticleResponse.class);
+            responses.put("", IndexResponse.class);
             responses.put("static", CorporaDataResponse.class);
-            responses.put("upload", RemoteIndexResponse.class);
             responses.put("config", ConfigResponse.class);
-            responses.put("configwizard", ConfigWizardResponse.class);
             responses.put("api", ApiResponse.class);
             responses.put("callback", OidcCallbackResponse.class);
         } catch (ServletException e) {
@@ -263,7 +250,7 @@ public class MainServlet extends HttpServlet {
 
         if (pathParts.isEmpty()) {
             // don't have any path. E.g. /corpus-frontend
-            responseClass = responses.get(DEFAULT_PAGE);
+            responseClass = DEFAULT_PAGE;
             corpus = null;
             pathParameters = new ArrayList<>();
         } else {
@@ -283,7 +270,7 @@ public class MainServlet extends HttpServlet {
                 // Didn't match a page, and there's more parts. This is a corpus, the second part is the page. E.g. /corpus-frontend/corpus/search
                 corpus = part1;
                 String pageOrCorpus = pathParts.remove(0);
-                responseClass = responses.getOrDefault(pageOrCorpus, ErrorResponse.class);
+                responseClass = responses.getOrDefault(pageOrCorpus, IndexResponse.class);
                 pathParameters = new ArrayList<>(pathParts);
             }
         }
