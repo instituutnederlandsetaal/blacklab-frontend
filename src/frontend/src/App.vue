@@ -26,10 +26,12 @@ import connectStreamsToVuex from '@/store/streams';
 
 import router from '@/router';
 import {i18n} from '@/utils/i18n';
+import {store} from '@/store';
 
 export default Vue.extend({
 	router,
 	i18n,
+	store,
 	components: {
 		Spinner
 	},

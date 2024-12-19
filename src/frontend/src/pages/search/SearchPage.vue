@@ -1,5 +1,4 @@
 <template>
-
 	<div class="container">
 		<template v-if="loadingState === 'loaded'">
 			<QueryForm/>
@@ -53,6 +52,12 @@ export default Vue.extend({
 		resultsVisible(): boolean { return InterfaceStore.getState().viewedResults != null; },
 		pageGuideEnabled(): boolean { return UIStore.getState().global.pageGuide.enabled; },
 		debugQuery: RootStore.get.blacklabParameters
+	},
+	created() {
+		console.log('SearchPage created');
+	},
+	mounted() {
+		console.log('SearchPage mounted');
 	},
 });
 </script>

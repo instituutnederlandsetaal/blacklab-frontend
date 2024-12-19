@@ -24,61 +24,66 @@ export default new Router({
 		},
 		{
 			path: '/configwizard/',
-			name: 'global-config',
 			component: () => import('@/pages/config/ConfigPage.vue'),
 			children: [
 				{
 					path: '/',
-					name: 'no_corpus',
+					name: 'global-config',
 					component: () => import('@/pages/config/CorpusPicker.vue'),
 				}
 			]
 		},
 		{
-			path: '/:corpus',
+			path: '/:corpus/',
 			redirect: '/:corpus/search',
-			children: [
-				{
-					path: '/:corpus/search',
-					name: 'search',
-					component: () => import('@/pages/search/SearchPage.vue')
-				},
-				{
-					path: '/:corpus/article',
-					name: 'article',
-					component: () => import('@/pages/article/ArticlePage.vue')
-				},
-				{
-					path: '/:corpus/about',
-					name: 'about',
-					component: () => import('@/pages/about/AboutPage.vue')
-				},
-				{
-					path: '/:corpus/help',
-					name: 'help',
-					component: () => import('@/pages/help/HelpPage.vue')
-				},
-				{
-					path: '/:corpus/configwizard/:tab?/',
-					name: 'corpus',
-					component: () => import('@/pages/config/CorpusConfig.vue'),
-					props: route => ({
-						id: route.params.id,
-						activeTab: route.params.tab,
-						tabs: ['tagset builder', 'interface']
-					}),
-					children: [{
-						path: '/:corpus/configwizard/pos',
-						name: 'tagset builder',
-						component: () => import('@/pages/config/POS.vue')
-					},
-					{
-						path: '/:corpus/configwizard/interface',
-						name: 'interface',
-						component: () => import('@/pages/config/Interface.vue')
-					}]
-				},
-			]
+			beforeEnter: (to, from, next) => {
+				console.log('entering corpus page', to)
+				next();
+			},
 		},
-	]
+		{
+			path: '/:corpus/search/',
+			name: 'search',
+			beforeEnter: (to, from, next) => {
+				console.log('entering search page', to);
+				next();
+			},
+			component: () => import('@/pages/search/SearchPage.vue')
+		},
+		{
+			path: '/:corpus/article',
+			name: 'article',
+			component: () => import('@/pages/article/ArticlePage.vue')
+		},
+		{
+			path: '/:corpus/about',
+			name: 'about',
+			component: () => import('@/pages/about/AboutPage.vue')
+		},
+		{
+			path: '/:corpus/help',
+			name: 'help',
+			component: () => import('@/pages/help/HelpPage.vue')
+		},
+		{
+			path: '/:corpus/configwizard/:tab?/',
+			name: 'corpus',
+			component: () => import('@/pages/config/CorpusConfig.vue'),
+			props: route => ({
+				id: route.params.id,
+				activeTab: route.params.tab,
+				tabs: ['tagset builder', 'interface']
+			}),
+			children: [{
+				path: '/:corpus/configwizard/pos',
+				name: 'tagset builder',
+				component: () => import('@/pages/config/POS.vue')
+			},
+			{
+				path: '/:corpus/configwizard/interface',
+				name: 'interface',
+				component: () => import('@/pages/config/Interface.vue')
+			}]
+		},
+	],
 });
