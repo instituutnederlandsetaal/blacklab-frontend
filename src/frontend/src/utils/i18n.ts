@@ -6,6 +6,12 @@ import SelectPicker from '@/components/SelectPicker.vue';
 import { localStorageSynced } from '@/utils/localstore';
 import { elementAndAttributeNameFromFilterId } from '@/utils';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import stripJsonComments from 'strip-json-comments'
+
+function parseJsonWithComments<T = any>(jsonResponse: Response): Promise<T> {
+	return jsonResponse.text().then(text => JSON.parse(stripJsonComments(text)));
+}
+
 
 // This is some cool typescript magic to get the paths of the keys in the i18n json files.
 // This way we can typecheck the keys in the code and get autocompletion.
@@ -80,7 +86,7 @@ async function loadLocaleMessages(locale: string) {
 				else console.error(`No locale overrides found for ${locale}. It's safe to ignore the 404 error.`)
 				return null;
 			} else {
-				return r.json();
+				return parseJsonWithComments(r);
 			}
 		})
 		.catch(e => {

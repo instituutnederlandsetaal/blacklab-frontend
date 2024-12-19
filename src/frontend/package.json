@@ -72,6 +72,7 @@
     "qs": "^6.5.2",
     "reactive-dep-tree": "^0.5.2",
     "rxjs": "^7.8.1",
+    "strip-json-comments": "^5.0.1",
     "ts-deepmerge": "^7.0.0",
     "urijs": "^1.19.7",
     "v-tooltip": "2.0.2",
