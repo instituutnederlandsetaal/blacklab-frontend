@@ -94,7 +94,7 @@
                     </ul>
                 </div>
 
-                <div class="navbar-buttons">
+                <div class="navbar-buttons navbar-logo-margin">
                     <div id="username"></div>
                     <div id="locale-selector"></div>
 
