@@ -42,7 +42,7 @@ export default new Router({
 			},
 		},
 		{
-			path: '/:corpus/search/',
+			path: '/:corpus/search/*',
 			name: 'search',
 			beforeEnter: (to, from, next) => {
 				console.log('entering search page', to);
@@ -51,7 +51,7 @@ export default new Router({
 			component: () => import('@/pages/search/SearchPage.vue')
 		},
 		{
-			path: '/:corpus/article',
+			path: '/:corpus/docs/*',
 			name: 'article',
 			component: () => import('@/pages/article/ArticlePage.vue')
 		},
