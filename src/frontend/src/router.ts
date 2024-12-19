@@ -1,21 +1,16 @@
 import Vue from 'vue';
 import Router from 'vue-router';
-import CorporaPage from '@/pages/corpora/CorporaPage.vue';
-import ConfigPage from '@/pages/config/ConfigPage.vue';
-import CorpusConfig from '@/pages/config/CorpusConfig.vue';
-import CorpusPicker from '@/pages/config/CorpusPicker.vue';
-import ConfigPOS from '@/pages/config/POS.vue';
-import ConfigInterface from '@/pages/config/Interface.vue';
 
 Vue.use(Router);
 
 export default new Router({
+	base: CONTEXT_URL,
 	mode: 'history',
 	routes: [
 		{
 			path: '/',
 			name: 'corpora',
-			component: CorporaPage
+			component: () => import('@/pages/corpora/CorporaPage.vue')
 		},
 		{
 			path: '/help',
@@ -30,12 +25,12 @@ export default new Router({
 		{
 			path: '/configwizard/',
 			name: 'global-config',
-			component: ConfigPage,
+			component: () => import('@/pages/config/ConfigPage.vue'),
 			children: [
 				{
 					path: '/',
 					name: 'no_corpus',
-					component: CorpusPicker,
+					component: () => import('@/pages/config/CorpusPicker.vue'),
 				}
 			]
 		},
@@ -46,7 +41,7 @@ export default new Router({
 				{
 					path: '/:corpus/search',
 					name: 'search',
-					component: () => import('@/pages/CorpusSearchPage.vue')
+					component: () => import('@/pages/search/SearchPage.vue')
 				},
 				{
 					path: '/:corpus/article',
@@ -66,7 +61,7 @@ export default new Router({
 				{
 					path: '/:corpus/configwizard/:tab?/',
 					name: 'corpus',
-					component: CorpusConfig,
+					component: () => import('@/pages/config/CorpusConfig.vue'),
 					props: route => ({
 						id: route.params.id,
 						activeTab: route.params.tab,
@@ -75,17 +70,15 @@ export default new Router({
 					children: [{
 						path: '/:corpus/configwizard/pos',
 						name: 'tagset builder',
-						component: ConfigPOS
+						component: () => import('@/pages/config/POS.vue')
 					},
 					{
 						path: '/:corpus/configwizard/interface',
 						name: 'interface',
-						component: ConfigInterface
+						component: () => import('@/pages/config/Interface.vue')
 					}]
 				},
 			]
 		},
-
-
 	]
 });
