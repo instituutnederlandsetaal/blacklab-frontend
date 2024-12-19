@@ -8,25 +8,25 @@ import {parseBcql, Attribute, Result, Token} from '@/utils/bcql-json-interpreter
 import parseLucene from '@/utils/luceneparser';
 import {debugLog} from '@/utils/debug';
 
-import * as CorpusModule from '@/store/search/corpus';
-import * as UIModule from '@/store/search/ui';
-import * as HistoryModule from '@/store/search/history';
-import * as TagsetModule from '@/store/search/tagset';
-import * as QueryModule from '@/store/search/query';
-import * as ConceptModule from '@/store/search/form/conceptStore';
-import * as GlossModule from '@/store/search/form/glossStore';
-import * as UIStore from '@/store/search/ui';
+import * as CorpusModule from '@/store/corpus';
+import * as UIModule from '@/store/ui';
+import * as HistoryModule from '@/store/history';
+import * as TagsetModule from '@/store/tagset';
+import * as QueryModule from '@/store/query';
+import * as ConceptModule from '@/store/form/conceptStore';
+import * as GlossModule from '@/store/form/glossStore';
+import * as UIStore from '@/store/ui';
 
 // Form
-import * as FilterModule from '@/store/search/form/filters';
-import * as InterfaceModule from '@/store/search/form/interface';
-import * as PatternModule from '@/store/search/form/patterns';
-import * as ExploreModule from '@/store/search/form/explore';
-import * as GapModule from '@/store/search/form/gap';
+import * as FilterModule from '@/store/form/filters';
+import * as InterfaceModule from '@/store/form/interface';
+import * as PatternModule from '@/store/form/patterns';
+import * as ExploreModule from '@/store/form/explore';
+import * as GapModule from '@/store/form/gap';
 
 // Results
-import * as ViewModule from '@/store/search/results/views';
-import * as GlobalResultsModule from '@/store/search/results/global';
+import * as ViewModule from '@/store/results/views';
+import * as GlobalResultsModule from '@/store/results/global';
 
 import {FilterValue, AnnotationValue} from '@/types/apptypes';
 

@@ -66,9 +66,9 @@
 <script lang="ts">
 import Vue, { watch } from 'vue';
 
-import * as RootStore from '@/store/search/';
-import * as GlobalViewSettings from '@/store/search/results/global';
-import * as ResultsViewSettings from '@/store/search/results/views';
+import * as RootStore from '@/store/';
+import * as GlobalViewSettings from '@/store/results/global';
+import * as ResultsViewSettings from '@/store/results/views';
 
 import SelectPicker,{ Option } from '@/components/SelectPicker.vue';
 import Modal from '@/components/Modal.vue';

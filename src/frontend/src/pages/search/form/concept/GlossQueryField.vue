@@ -15,7 +15,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import * as GlossStore from '@/store/search/form/glossStore';
+import * as GlossStore from '@/store/form/glossStore';
 
 import SelectPicker from '@/components/SelectPicker.vue'
 

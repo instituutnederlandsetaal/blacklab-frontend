@@ -9,7 +9,7 @@ import {getStoreBuilder} from 'vuex-typex';
 
 import * as Api from '@/api';
 
-import {RootState} from '@/store/search/';
+import {RootState} from '@/store/';
 
 import {NormalizedIndex, NormalizedAnnotation, NormalizedMetadataField, NormalizedAnnotatedField, NormalizedMetadataGroup, NormalizedAnnotationGroup, NormalizedAnnotatedFieldParallel} from '@/types/apptypes';
 import { mapReduce } from '@/utils';
@@ -94,7 +94,10 @@ const actions = {
 	// TODO should this just be a part of search.xml? It's such a fundamental part of the page setup.
 	loadTagsetValues: b.commit((state, handler: (state: ModuleRootState) => void) => {
 		handler(state);
-	}, 'loadTagsetValues')
+	}, 'loadTagsetValues'),
+	corpus: b.dispatch(({state, rootState}, corpusId: string) => {
+
+	}, 'corpus')
 	// nothing here yet (probably never, indexmetadata should be considered immutable)
 	// maybe just some things to customize displaynames and the like.
 };
@@ -107,7 +110,7 @@ const privateActions = {
  * Expects the corpus-frontend api to be initialized.
  * Returned promise may contain ApiError if rejected.
  */
-const init = () => Promise.all([Api.frontend.getCorpus(), Api.blacklab.getRelations(INDEX_ID)])
+const init = () => INDEX_ID ? Promise.all([Api.frontend.getCorpus(INDEX_ID), Api.blacklab.getRelations(INDEX_ID)])
 	.then(([index, relations]) => normalizeIndex(index, relations))
 	.then(corpus => {
 		// Set displayname in navbar if it's currently a fallback.
@@ -135,7 +138,7 @@ const init = () => Promise.all([Api.frontend.getCorpus(), Api.blacklab.getRelati
 		corpus.metadataFieldGroups.forEach(g => g.entries = g.entries.filter(id => corpus.metadataFields[id]));
 
 		privateActions.setCorpus({corpus: Object.freeze(corpus)});
-	})
+	}) : Promise.resolve();
 	// can throw ApiError, caught in root store init function.
 
 

@@ -43,8 +43,8 @@
 </template>
 
 <script lang="ts">
-import * as PatternStore from '@/store/search/form/patterns';
-import * as InterfaceStore from '@/store/search/form/interface';
+import * as PatternStore from '@/store/form/patterns';
+import * as InterfaceStore from '@/store/form/interface';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 import MultiValuePicker from '@/components/MultiValuePicker.vue';

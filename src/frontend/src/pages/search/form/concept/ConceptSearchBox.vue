@@ -68,8 +68,8 @@
 import Vue from 'vue';
 
 import Autocomplete from '@/components/Autocomplete.vue';
-import * as CorpusStore from '@/store/search/corpus';
-import * as ConceptStore from '@/store/search/form/conceptStore';
+import * as CorpusStore from '@/store/corpus';
+import * as ConceptStore from '@/store/form/conceptStore';
 import { mapReduce, uniq } from '@/utils'
 
 import SelectPicker from '@/components/SelectPicker.vue';
@@ -248,4 +248,4 @@ tr {
 	background-color: #ae0932 !important;
 }
 </style>
-@/store/search/form/conceptStore
+@/store/form/conceptStore

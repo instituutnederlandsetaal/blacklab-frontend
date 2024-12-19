@@ -127,13 +127,13 @@ import jsonStableStringify from 'json-stable-stringify';
 
 import * as Api from '@/api';
 
-import * as RootStore from '@/store/search/';
-import * as CorpusStore from '@/store/search/corpus';
-import * as ResultsStore from '@/store/search/results/views';
-import * as GlobalStore from '@/store/search/results/global';
-import * as QueryStore from '@/store/search/query';
-import * as UIStore from '@/store/search/ui';
-import * as GlossModule from '@/store/search/form/glossStore' // Jesse
+import * as RootStore from '@/store/';
+import * as CorpusStore from '@/store/corpus';
+import * as ResultsStore from '@/store/results/views';
+import * as GlobalStore from '@/store/results/global';
+import * as QueryStore from '@/store/query';
+import * as UIStore from '@/store/ui';
+import * as GlossModule from '@/store/form/glossStore' // Jesse
 
 import Totals from '@/pages/search/results/ResultTotals.vue';
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';

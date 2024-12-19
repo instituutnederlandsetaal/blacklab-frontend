@@ -8,8 +8,8 @@
 import Axios from 'axios';
 import {getStoreBuilder} from 'vuex-typex';
 
-import {RootState} from '@/store/search/';
-import * as CorpusStore from '@/store/search/corpus';
+import {RootState} from '@/store/';
+import * as CorpusStore from '@/store/corpus';
 
 import { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 

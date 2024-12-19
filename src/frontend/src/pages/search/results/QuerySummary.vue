@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import * as QueryStore from '@/store/search/query';
+import * as QueryStore from '@/store/query';
 
 export default Vue.extend({
 	computed: {

@@ -7,7 +7,7 @@
 import {ModuleBuilder, getStoreBuilder} from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
-import {RootState} from '@/store/search/';
+import {RootState} from '@/store/';
 
 const namespace = 'views';
 

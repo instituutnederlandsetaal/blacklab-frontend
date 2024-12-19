@@ -5,7 +5,7 @@
 
 import {getStoreBuilder} from 'vuex-typex';
 
-import {RootState} from '@/store/search/';
+import {RootState} from '@/store/';
 
 const defaults = {
 	pageSize: 20,

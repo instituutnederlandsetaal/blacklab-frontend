@@ -5,19 +5,19 @@ import { ReplaySubject, Observable, merge, fromEvent, Notification, from, Unsubs
 import { debounceTime, switchMap, map, shareReplay, filter, materialize } from 'rxjs/operators';
 import cloneDeep from 'clone-deep';
 
-import * as RootStore from '@/store/search/';
-import * as CorpusStore from '@/store/search/corpus';
-import * as HistoryStore from '@/store/search/history';
-import * as PatternStore from '@/store/search/form/patterns';
-import * as ExploreStore from '@/store/search/form/explore';
-import * as InterfaceStore from '@/store/search/form/interface';
-import * as FilterStore from '@/store/search/form/filters';
-import * as GapStore from '@/store/search/form/gap';
-import * as QueryStore from '@/store/search/query';
-import * as ConceptStore from '@/store/search/form/conceptStore';
-import * as GlossStore from '@/store/search/form/glossStore';
+import * as RootStore from '@/store/';
+import * as CorpusStore from '@/store/corpus';
+import * as HistoryStore from '@/store/history';
+import * as PatternStore from '@/store/form/patterns';
+import * as ExploreStore from '@/store/form/explore';
+import * as InterfaceStore from '@/store/form/interface';
+import * as FilterStore from '@/store/form/filters';
+import * as GapStore from '@/store/form/gap';
+import * as QueryStore from '@/store/query';
+import * as ConceptStore from '@/store/form/conceptStore';
+import * as GlossStore from '@/store/form/glossStore';
 
-import UrlStateParser from '@/store/search/util/url-state-parser';
+import UrlStateParser from '@/store/util/url-state-parser';
 
 import * as Api from '@/api';
 
@@ -158,7 +158,7 @@ urlInputParameters$.pipe(
 		// If we're not searching, return a bare url pointing to ${root}/${corpus}/search/
 		if (v.params == null) {
 			return {
-				url: Api.frontendPaths.currentCorpus(),
+				url: Api.frontendPaths.currentCorpus(INDEX_ID),
 				isTruncated: false,
 				state: v.state
 			};

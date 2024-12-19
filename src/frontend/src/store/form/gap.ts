@@ -7,7 +7,7 @@ import Vue from 'vue';
 import { getStoreBuilder } from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
-import { RootState } from '@/store/search/';
+import { RootState } from '@/store/';
 
 type ModuleRootState = {
 	value: string|null;

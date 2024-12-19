@@ -5,8 +5,8 @@ import cloneDeep from 'clone-deep';
 
 import { getStoreBuilder } from 'vuex-typex';
 import { BLHit } from '@/types/blacklabtypes';
-import { RootState } from '@/store/search/';
-import * as PatternStore from '@/store/search/form/patterns';
+import { RootState } from '@/store/';
+import * as PatternStore from '@/store/form/patterns';
 
 import {glossApi, init as initGlossEndpoint} from '@/api';
 import Vue from 'vue';

@@ -88,11 +88,11 @@ import $ from 'jquery';
 
 import {saveAs} from 'file-saver';
 
-import * as RootStore from '@/store/search/';
-import * as HistoryStore from '@/store/search/history';
-import * as FilterStore from '@/store/search/form/filters';
+import * as RootStore from '@/store/';
+import * as HistoryStore from '@/store/history';
+import * as FilterStore from '@/store/form/filters';
 
-import UrlStateParser from '@/store/search/util/url-state-parser';
+import UrlStateParser from '@/store/util/url-state-parser';
 
 import Modal from '@/components/Modal.vue';
 

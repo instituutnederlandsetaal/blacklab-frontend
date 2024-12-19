@@ -54,10 +54,10 @@ import Vue from 'vue';
 import {Subscription} from 'rxjs';
 import {stripIndent} from 'common-tags';
 
-import * as RootStore from '@/store/search/';
-import * as InterfaceStore from '@/store/search/form/interface';
+import * as RootStore from '@/store/';
+import * as InterfaceStore from '@/store/form/interface';
 
-import { selectedSubCorpus$ } from '@/store/search/streams';
+import { selectedSubCorpus$ } from '@/store/streams';
 
 import QueryFormSearch from '@/pages/search/form/QueryFormSearch.vue';
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';

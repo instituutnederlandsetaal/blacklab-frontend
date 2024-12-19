@@ -60,16 +60,16 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import * as CorpusStore from '@/store/search/corpus';
-import * as UIStore from '@/store/search/ui';
-import * as FilterStore from '@/store/search/form/filters';
+import * as CorpusStore from '@/store/corpus';
+import * as UIStore from '@/store/ui';
+import * as FilterStore from '@/store/form/filters';
 
 import FilterOverview from '@/pages/search/form/FilterOverview.vue';
 import { mapReduce } from '@/utils';
 
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 
-import * as RootStore from '@/store/search';
+import * as RootStore from '@/store';
 
 export default Vue.extend({
 	components: {

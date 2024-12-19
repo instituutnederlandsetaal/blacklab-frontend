@@ -12,11 +12,11 @@ import VuePlausible from 'vue-plausible/lib/esm/vue-plugin.js';
 
 import Filters from '@/components/filters';
 
-import * as RootStore from '@/store/search/';
-import * as FilterStore from '@/store/search/form/filters';
-import UrlStateParser from '@/store/search/util/url-state-parser';
+import * as RootStore from '@/store/';
+import * as FilterStore from '@/store/form/filters';
+import UrlStateParser from '@/store/util/url-state-parser';
 
-import connectStreamsToVuex from '@/store/search/streams';
+import connectStreamsToVuex from '@/store/streams';
 
 import AudioPlayer from '@/components/AudioPlayer.vue';
 import DebugComponent from '@/components/Debug.vue';

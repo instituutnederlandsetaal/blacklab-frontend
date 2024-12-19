@@ -1,6 +1,6 @@
 import { Observable, pipe, of, empty } from 'rxjs';
 import { switchMap, map, expand } from 'rxjs/operators';
-import * as UIStore from '@/store/search/ui';
+import * as UIStore from '@/store/ui';
 
 import * as Api from '@/api';
 

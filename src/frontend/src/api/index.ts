@@ -6,8 +6,8 @@ import {normalizeIndex, normalizeFormat, normalizeIndexBase} from '@/utils/black
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { ApiError, NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
-import { Glossing } from '@/store/search/form/glossStore';
-import { AtomicQuery, LexiconEntry } from '@/store/search/form/conceptStore';
+import { Glossing } from '@/store/form/glossStore';
+import { AtomicQuery, LexiconEntry } from '@/store/form/conceptStore';
 import { isHitParams, uniq } from '@/utils';
 import { User } from 'oidc-client-ts';
 
@@ -57,12 +57,12 @@ export function init(which: keyof typeof endpoints, url: string, user: User|null
 // const allMetadataFields = CorpusStore.get.allMetadataFields().map(f => f.id);
 
 export const frontendPaths = {
-	currentCorpus: () => `${CONTEXT_URL}/${INDEX_ID}/search`,
+	currentCorpus: (indexId: string) => `${CONTEXT_URL}/${indexId}/search`,
 
 	// The following paths are only for use with the api endpoint (they don't contain the context url - the endpoint will add it)
-	indexInfo: () => `${INDEX_ID}/api/info`,
-	documentContents: (pid: string) => `${INDEX_ID}/docs/${pid}/contents`,
-	documentMetadata: (pid: string) => `${INDEX_ID}/docs/${pid}`,
+	indexInfo: (indexId: string) => `${indexId}/api/info`,
+	documentContents: (indexId: string, pid: string) => `${indexId}/docs/${pid}/contents`,
+	documentMetadata: (indexId: string, pid: string) => `${indexId}/docs/${pid}`,
 }
 
 /** Contains url mappings for different requests to blacklab-server */
@@ -387,18 +387,18 @@ export const blacklab = {
  * API for corpus-frontend's own webservice
  */
 export const frontend = {
-	getCorpus: () => endpoints.cf.get<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo()),
+	getCorpus: (indexId: string) => endpoints.cf.get<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo(indexId)),
 
-	getDocumentContents: (pid: string, params: {
+	getDocumentContents: (indexId: string, pid: string, params: {
 		patt?: string,
 		pattgapdata?: string,
 		wordstart?: number,
 		wordend?: number,
 	}) => endpoints.cf
-		.get<string>(frontendPaths.documentContents(pid), params),
+		.get<string>(frontendPaths.documentContents(indexId, pid), params),
 
-	getDocumentMetadata: (pid: string) => endpoints.cf
-		.get<BLTypes.BLDocument>(frontendPaths.documentMetadata(pid)),
+	getDocumentMetadata: (indexId: string, pid: string) => endpoints.cf
+		.get<BLTypes.BLDocument>(frontendPaths.documentMetadata(indexId, pid)),
 }
 
 export const glossPaths = {

@@ -12,8 +12,8 @@ import HighchartsBoost from 'highcharts/modules/boost';
 //@ts-ignore
 import VuePlausible from 'vue-plausible/lib/esm/vue-plugin.js';
 
-import * as RootStore from '@/store/article';
-import * as UIStore from '@/store/search/ui';
+import * as RootStore from '@/store';
+import * as UIStore from '@/store/ui';
 import ArticlePageComponent from '@/pages/article/ArticlePage.vue';
 import ArticlePagePaginationComponent from '@/pages/article/ArticlePagePagination.vue';
 import ArticlePageParallelComponent from '@/pages/article/ArticlePageParallel.vue';
@@ -76,15 +76,21 @@ $(document).ready(async () => {
 	// The easy way is through a store watcher, since that works even when the variable is outside the store
 	// and even when the store is completely ignored other than that.
 	// And since debug.debug is observable, this works!
-	RootStore.store.watch(store => ({debug: debug.debug, document: store.document}), ({debug, document}) => {
+	RootStore.store.watch(store => ({
+		debug: debug.debug,
+		document: store.article.document,
+		documentId: store.article.docId,
+		pageStart: store.article.pageStart,
+		pageEnd: store.article.pageEnd
+	}), ({debug, document, documentId, pageStart, pageEnd}) => {
 		if (debug && document) {
 			// Add the debug tab
 			const queryParamsForContents = {
-				wordstart: PAGE_START,
-				wordend: PAGE_END,
+				wordstart: pageStart,
+				wordend: pageEnd,
 			} as any;
-			if (!PAGE_START) delete queryParamsForContents.wordstart
-			if (!PAGE_END || PAGE_END === document.docInfo.lengthInTokens) delete queryParamsForContents.wordend;
+			if (!pageStart) delete queryParamsForContents.wordstart
+			if (!pageEnd || pageEnd === document.docInfo.lengthInTokens) delete queryParamsForContents.wordend;
 
 			const queryString = new URLSearchParams(queryParamsForContents).toString();
 
@@ -101,7 +107,7 @@ $(document).ready(async () => {
 					${Object.entries(document.docInfo).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => `<tr><td>${k}</td><td>${JSON.stringify(v)}</td></tr>`).join('')}
 				</table>
 
-				<a href="${BLS_URL}${INDEX_ID}/docs/${DOCUMENT_ID}/contents${queryString && ('?' + queryString)}" target="_blank">Open raw document</a>
+				<a href="${BLS_URL}${INDEX_ID}/docs/${documentId}/contents${queryString && ('?' + queryString)}" target="_blank">Open raw document</a>
 			</div>`
 
 			$('#articleTabs').append(`<li id="debug-tab"><a href="#debug" data-toggle="tab">Debug</a></li>`)

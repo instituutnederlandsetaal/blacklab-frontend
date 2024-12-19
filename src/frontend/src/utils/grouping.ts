@@ -2,8 +2,7 @@ import { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes"
 import { BLHitResults, BLSearchResult } from '@/types/blacklabtypes';
 import { spanFilterId } from '@/utils';
 import { attr } from 'highcharts';
-import * as FilterModule from '@/store/search/form/filters';
-//import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
+import * as FilterModule from '@/store/form/filters';
 
 /** Group by some tokens at a fixed position in the hit. */
 export type ContextPositional = {

@@ -48,7 +48,7 @@ import {Subscription, ReplaySubject} from 'rxjs';
 
 import * as Api from '@/api';
 
-import { submittedSubcorpus$ as subcorpus$ } from '@/store/search/streams';
+import { submittedSubcorpus$ as subcorpus$ } from '@/store/streams';
 import yieldResultCounts, { CounterInput, CounterOutput } from '@/pages/search/results/TotalsCounterStream';
 
 import * as BLTypes from '@/types/blacklabtypes';

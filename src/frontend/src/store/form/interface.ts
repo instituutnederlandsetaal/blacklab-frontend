@@ -7,9 +7,9 @@
 import {getStoreBuilder} from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
-import {RootState} from '@/store/search/';
-import {ModuleRootState as PatternModuleRootState} from '@/store/search/form/patterns';
-import {ModuleRootState as ExploreModuleRootState} from '@/store/search/form/explore';
+import {RootState} from '@/store/';
+import {ModuleRootState as PatternModuleRootState} from '@/store/form/patterns';
+import {ModuleRootState as ExploreModuleRootState} from '@/store/form/explore';
 
 type ModuleRootState = {
 	form: 'search'|'explore';

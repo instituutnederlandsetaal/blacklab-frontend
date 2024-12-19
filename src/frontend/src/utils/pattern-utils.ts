@@ -1,7 +1,7 @@
 import * as AppTypes from '@/types/apptypes';
-import type {ModuleRootState as ModuleRootStateExplore} from '@/store/search/form/explore';
-import type {ModuleRootState as ModuleRootStatePatterns} from '@/store/search/form/patterns';
-import type {ModuleRootState as ModuleRootStateFilters} from '@/store/search/form/filters';
+import type {ModuleRootState as ModuleRootStateExplore} from '@/store/form/explore';
+import type {ModuleRootState as ModuleRootStatePatterns} from '@/store/form/patterns';
+import type {ModuleRootState as ModuleRootStateFilters} from '@/store/form/filters';
 import * as FilterModule from '@/store/search/form/filters';
 import * as UIModule from '@/store/search/ui';
 import cloneDeep from 'clone-deep';

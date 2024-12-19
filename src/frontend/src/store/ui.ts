@@ -11,10 +11,10 @@ import cloneDeep from 'clone-deep';
 import { getStoreBuilder } from 'vuex-typex';
 import { stripIndent, html } from 'common-tags';
 
-import { RootState } from '@/store/search/';
-import * as CorpusStore from '@/store/search/corpus';
-import * as ViewsStore from '@/store/search/results/views';
-import * as FilterModule from '@/store/search/form/filters';
+import { RootState } from '@/store/';
+import * as CorpusStore from '@/store/corpus';
+import * as ViewsStore from '@/store/results/views';
+import * as FilterModule from '@/store/form/filters';
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 import { Option } from '@/types/apptypes';
@@ -333,7 +333,8 @@ const initialState: ModuleRootState = {
 			groupMetadataIds: [],
 			sortAnnotationIds: [],
 			sortMetadataIds: [],
-			pageSize: PAGE_SIZE,
+			// TODO SPA: set page size when changing corpus.
+			pageSize: 1000,
 			exportEnabled: true,
 
 			totalsTimeoutDurationMs: 90_000,
@@ -768,7 +769,9 @@ const actions = {
  *
  */
 const init = () => {
-	if (!CorpusStore.getState().corpus) throw new Error('Cannot initialize UI module before corpus is loaded');
+	if (!CorpusStore.getState().corpus) return ;
+
+	//throw new Error('Cannot initialize UI module before corpus is loaded');
 
 	// Call the customize function(s) defined in custom.js (if any)
 	corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));
@@ -947,21 +950,19 @@ const init = () => {
 	// OR: show based on PROPS_IN_COLUMNS [legacy support] (configured in this corpus's search.xml)
 	actions.results.hits.shownAnnotationIds(initialState.results.hits.shownAnnotationIds);
 	if (!getState().results.hits.shownAnnotationIds.length) {
-		const shownAnnotations = PROPS_IN_COLUMNS.filter(annot => allAnnotationsMap[annot]?.hasForwardIndex && annot !== mainAnnotation.id);
-		if (!shownAnnotations.length) {
-			// These have precedence if they exist.
-			if (allAnnotationsMap.lemma?.hasForwardIndex) { shownAnnotations.push('lemma'); }
-			if (allAnnotationsMap.pos?.hasForwardIndex) { shownAnnotations.push('pos'); }
+		const shownAnnotations = [] as string[];
+		// These have precedence if they exist.
+		if (allAnnotationsMap.lemma?.hasForwardIndex) { shownAnnotations.push('lemma'); }
+		if (allAnnotationsMap.pos?.hasForwardIndex) { shownAnnotations.push('pos'); }
 
-			// Now add other annotations until we hit 3 annotations.
-			defaultAnnotationsToShow
-			.filter(id => id !== mainAnnotation.id && !shownAnnotations.includes(id))
-			.forEach(id => {
-				if (shownAnnotations.length < 3) {
-					shownAnnotations.push(id);
-				}
-			});
-		}
+		// Now add other annotations until we hit 3 annotations.
+		defaultAnnotationsToShow
+		.filter(id => id !== mainAnnotation.id && !shownAnnotations.includes(id))
+		.forEach(id => {
+			if (shownAnnotations.length < 3) {
+				shownAnnotations.push(id);
+			}
+		});
 		actions.results.hits.shownAnnotationIds(shownAnnotations);
 	}
 

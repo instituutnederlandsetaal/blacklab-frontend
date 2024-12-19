@@ -162,10 +162,10 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import * as CorpusStore from '@/store/search/corpus';
-import * as InterfaceStore from '@/store/search/form/interface';
-import * as ExploreStore from '@/store/search/form/explore';
-import * as UIStore from '@/store/search/ui';
+import * as CorpusStore from '@/store/corpus';
+import * as InterfaceStore from '@/store/form/interface';
+import * as ExploreStore from '@/store/form/explore';
+import * as UIStore from '@/store/ui';
 
 import SelectPicker, {Option, OptGroup} from '@/components/SelectPicker.vue';
 import Autocomplete from '@/components/Autocomplete.vue';

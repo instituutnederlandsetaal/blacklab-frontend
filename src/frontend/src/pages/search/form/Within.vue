@@ -25,12 +25,12 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import * as UIStore from '@/store/search/ui';
-import * as PatternStore from '@/store/search/form/patterns';
-import * as CorpusStore from '@/store/search/corpus';
+import * as UIStore from '@/store/ui';
+import * as PatternStore from '@/store/form/patterns';
+import * as CorpusStore from '@/store/corpus';
 
 import { Option } from '@/components/SelectPicker.vue';
-import { corpusCustomizations } from '@/store/search/ui';
+import { corpusCustomizations } from '@/store/ui';
 
 export default Vue.extend({
 	computed: {

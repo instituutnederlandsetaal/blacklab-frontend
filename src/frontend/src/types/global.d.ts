@@ -23,19 +23,19 @@ declare global {
 	// ---------------------------
 	// only valid on the article page (/docs/...)
 	// ---------------------------
-	const DOCUMENT_ID: string;
-	const DOCUMENT_LENGTH: number;
+	// const DOCUMENT_ID: string;
+	// const DOCUMENT_LENGTH: number;
 
 	/** PAGE_SIZE may be undefined on the search page, but is always defined in the document page. */
-	const PAGE_SIZE: number|undefined;
-	const PAGE_START: number;
-	const PAGE_END: number;
+	// const PAGE_SIZE: number|undefined;
+	// const pageStart: number;
+	// const pageEnd: number;
 
 	// ---------------------------
 	// only valid on the search page (/search/...)
 	// ---------------------------
 	// const PAGE_SIZE: number; // also on the article page (but we can only define it once)
-	const PROPS_IN_COLUMNS: string[];
+	// const PROPS_IN_COLUMNS: string[];
 
 	const DEBUG_INFO_VISIBLE: boolean;
 }

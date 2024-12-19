@@ -55,8 +55,13 @@ import { BLSearchParameters, BLHitResults, BLDocResults } from '@/types/blacklab
 
 import { ColumnDefs, DisplaySettingsForRendering, GroupRowData, makeRows, Rows } from '@/pages/search/results/table/table-layout';
 
-import Spinner from '@/components/Spinner.vue';
-export default Vue.component('GroupRowDetails', {
+import * as UIStore from '@/store/ui';
+import * as CorpusStore from '@/store/corpus';
+import { getDocumentUrl } from '@/utils';
+import { getHighlightColors, mergeMatchInfos, snippetParts } from '@/utils/hit-highlighting';
+
+
+export default Vue.extend({
 	components: {
 		Spinner
 	},

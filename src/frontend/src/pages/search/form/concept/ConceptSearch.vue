@@ -1,6 +1,6 @@
 <template>
 	<div v-if="settings" style='text-align: left'>
-		{{ $t('formConcept.conceptSearch.searchIn') }} 
+		{{ $t('formConcept.conceptSearch.searchIn') }}
 		<SelectPicker v-model="element_searched" :options="settings.searchable_elements" hideEmpty/>
 
 		<div class='boxes' style='text-align: center'>
@@ -44,8 +44,8 @@
 
 import Vue from 'vue';
 
-import * as PatternStore from '@/store/search/form/patterns';
-import * as ConceptStore from '@/store/search/form/conceptStore';
+import * as PatternStore from '@/store/form/patterns';
+import * as ConceptStore from '@/store/form/conceptStore';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 import ConceptSearchBox from './ConceptSearchBox.vue'
@@ -122,4 +122,4 @@ img {
 		font-family: Menlo,Monaco,Consolas,"Courier New",monospace;
 }
 </style>
-@/store/search/form/conceptStore
+@/store/form/conceptStore

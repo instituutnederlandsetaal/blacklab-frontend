@@ -191,12 +191,12 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import * as CorpusStore from '@/store/search/corpus';
-import * as UIStore from '@/store/search/ui';
-import * as ResultsStore from '@/store/search/results/views';
-import * as GlobalSearchSettingsStore from '@/store/search/results/global';
-import * as SearchModule from '@/store/search/index';
-import * as FilterModule from '@/store/search/form/filters';
+import * as CorpusStore from '@/store/corpus';
+import * as UIStore from '@/store/ui';
+import * as ResultsStore from '@/store/results/views';
+import * as GlobalSearchSettingsStore from '@/store/results/global';
+import * as SearchModule from '@/store/index';
+import * as FilterModule from '@/store/form/filters';
 
 import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 import { blacklab } from '@/api';

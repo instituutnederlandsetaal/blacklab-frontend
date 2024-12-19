@@ -42,7 +42,6 @@ import Vue from 'vue';
 
 import HitContext from '@/pages/search/results/table/HitContext.vue';
 import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from './table-layout';
-
 import GlossField from '@/pages/search/form/concept/GlossField.vue';
 
 export default Vue.component('HitRow', {

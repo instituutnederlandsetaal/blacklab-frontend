@@ -45,7 +45,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import * as RootStore from '@/store/article';
+import * as ArticleStore from '@/store/article';
 import {blacklab} from '@/api';
 
 import * as BLTypes from '@/types/blacklabtypes';
@@ -71,16 +71,16 @@ export default Vue.extend({
 		error: null as null|AppTypes.ApiError,
 	}),
 	computed: {
-		document: RootStore.get.document,
-		baseColor: RootStore.get.baseColor,
+		document: ArticleStore.get.document,
+		baseColor: ArticleStore.get.baseColor,
 
-		getStatistics: RootStore.get.statisticsTableFn,
+		getStatistics: ArticleStore.get.statisticsTableFn,
 		statisticsTableData(): any {
 			return (this.getStatistics && this.document && this.snippet) ?
 				this.getStatistics(this.document, this.snippet) : null;
 		},
 		distributionData(): any {
-			const data = RootStore.get.distributionAnnotation();
+			const data = ArticleStore.get.distributionAnnotation();
 			return data ? {
 				annotationId: data.id,
 				chartTitle: data.displayName,
@@ -88,7 +88,7 @@ export default Vue.extend({
 			} : null;
 		},
 		growthData(): any {
-			const data = RootStore.get.growthAnnotations();
+			const data = ArticleStore.get.growthAnnotations();
 			return data ? {
 				annotations: data.annotations,
 				chartTitle: data.displayName,
@@ -105,8 +105,8 @@ export default Vue.extend({
 				return;
 			}
 
-			const annotatedFieldName = RootStore.getState().field || undefined;
-			this.request = blacklab.getSnippet(RootStore.getState().indexId, RootStore.getState().docId, annotatedFieldName, 0, this.document!.docInfo.lengthInTokens, 0)
+			const annotatedFieldName = ArticleStore.getState().field || undefined;
+			this.request = blacklab.getSnippet(ArticleStore.getState().indexId, ArticleStore.getState().docId!, annotatedFieldName, 0, this.document!.docInfo.lengthInTokens, 0)
 			.then(snippet => this.snippet = snippet)
 			.catch(error => this.error = error)
 			.finally(() => this.request = null);

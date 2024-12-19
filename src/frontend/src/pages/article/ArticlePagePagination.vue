@@ -37,6 +37,8 @@ import { binarySearch } from '@/utils';
 
 import Spinner from '@/components/Spinner.vue';
 
+import * as ArticleStore from '@/store/article';
+
 import 'jquery-ui';
 import 'jquery-ui/ui/widgets/draggable';
 
@@ -52,22 +54,19 @@ export default Vue.extend({
 		/** Set during init. */
 		currentHitInPage: undefined as number|undefined,
 		loadingForAwhile: false,
-		pageSize: PAGE_SIZE,
-
-		PAGE_START,
-		PAGE_END
 	}),
 	computed: {
+		pageSize(): number { return ArticleStore.get.pageSize(); },
+		pageStart(): number { return ArticleStore.get.pageStart(); },
+		pageEnd(): number { return ArticleStore.get.pageEnd(); },
+		docLength(): number { return ArticleStore.get.documentLength(); },
+
 		ready(): boolean { return !!this.hits; },
 		shouldRender(): boolean { return !!(this.loadingForAwhile || this.paginationInfo || this.hitInfo); },
 
-		firstVisibleHitIndex(): number {
-			if (!this.ready) { return 0; }
-			const firstVisibleHitIndex = this.hits!.findIndex(([start, end]) => start >= PAGE_START);
-			return firstVisibleHitIndex >= 0 ? firstVisibleHitIndex : this.hits!.length - 1;
-		},
-
+		firstVisibleHitIndex(): number { return this.ready ? Math.abs(binarySearch(this.hits!, h => this.pageStart - h[0])) : 0; },
 		currentHitIndex(): number|undefined { return this.currentHitInPage != null ? (this.firstVisibleHitIndex + this.currentHitInPage) : undefined; },
+
 
 		paginationInfo(): undefined|{
 			page: number,
@@ -76,18 +75,21 @@ export default Vue.extend({
 			disabled: boolean,
 			pageActive: boolean
 		} {
+			const docLength = ArticleStore.get.documentLength();
+			const {pageStart, pageEnd} = ArticleStore.getState();
+
 			// Don't bother if we're showing the entire document
-			if (PAGE_START <= 0 && PAGE_END >= DOCUMENT_LENGTH) {
+			if (pageStart <= 0 && pageEnd >= docLength) {
 				return undefined;
 			}
 
 			// It can happen we're not showing a page as intended, but showing a larger or smaller part.
 			// (if the user edited the url manually for example)
 			// We reflect this in the pagination widget
-			const isOnExactPage = (PAGE_START % PAGE_SIZE!) === 0 && (PAGE_END === (PAGE_START + PAGE_SIZE!) || PAGE_END === DOCUMENT_LENGTH)
+			const isOnExactPage = (pageStart % this.pageSize!) === 0 && (pageEnd === (pageStart + this.pageSize!) || pageEnd === docLength)
 			return {
-				page: Math.floor(PAGE_START / PAGE_SIZE!),
-				maxPage: Math.floor(DOCUMENT_LENGTH / PAGE_SIZE!),
+				page: Math.floor(pageStart / this.pageSize!),
+				maxPage: Math.floor(docLength / this.pageSize!),
 				minPage: 0,
 				disabled: false,
 				pageActive: isOnExactPage
@@ -116,10 +118,10 @@ export default Vue.extend({
 	methods: {
 		/** Navigate to the page with specific index. Optionally to a specific hit within the page. (The hit number should be the index of the hit in the new page. I.e 0 for the first hit on that page) */
 		handlePageNavigation(page: number, hit?: number) {
-			let wordstart: number|undefined = page * PAGE_SIZE!;
-			let wordend: number|undefined = (page + 1) * PAGE_SIZE!;
+			let wordstart: number|undefined = page * this.pageSize;
+			let wordend: number|undefined = (page + 1) * this.pageSize;
 			if (wordstart <= 0) { wordstart = undefined; }
-			if (wordend >= DOCUMENT_LENGTH) { wordend = undefined; }
+			if (wordend >= this.docLength) { wordend = undefined; }
 
 			const newUrl = new URI().setSearch({wordstart, wordend, findhit: undefined}).fragment(hit ? hit.toString() : '').toString();
 			debugLogCat('history', `Setting window.location.href to ${newUrl}`);
@@ -128,9 +130,9 @@ export default Vue.extend({
 		handleHitNavigation(index: number) {
 			const indexInThisPage = index - this.firstVisibleHitIndex;
 			if (indexInThisPage >= this.hitElements.length || indexInThisPage < 0) {
-				const pageOfNewHit = Math.floor(this.hits![index][0] / PAGE_SIZE!);
-				const startOfNewPage = pageOfNewHit * PAGE_SIZE!;
-				const endOfNewPage = (pageOfNewHit + 1) * PAGE_SIZE!;
+				const pageOfNewHit = Math.floor(this.hits![index][0] / this.pageSize!);
+				const startOfNewPage = pageOfNewHit * this.pageSize!;
+				const endOfNewPage = (pageOfNewHit + 1) * this.pageSize!;
 
 				// find index in new page
 				let firstHitOnNewPage = Number.MAX_SAFE_INTEGER;
@@ -234,7 +236,7 @@ export default Vue.extend({
 		console.log({ query, field, searchfield, patt });
 		blacklab
 		.getHits(INDEX_ID, {
-			docpid: DOCUMENT_ID,
+			docpid: ArticleStore.getState().docId!,
 			field: searchfield ?? field,
 			patt,
 			first: 0,
@@ -253,7 +255,7 @@ export default Vue.extend({
 				const index = binarySearch(hits, h => findHit - h[0]);
 
 				if (index >= 0) {
-					let firstVisibleHitIndex = Math.abs(binarySearch(hits, h => PAGE_START - h[0]));
+					let firstVisibleHitIndex = Math.abs(binarySearch(hits, h => this.pageStart - h[0]));
 					if (this.currentHitInPage != null) {
 						this.hitElements[this.currentHitInPage].classList.remove('active');
 					}

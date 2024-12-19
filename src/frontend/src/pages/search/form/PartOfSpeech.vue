@@ -54,8 +54,8 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import * as TagsetStore from '@/store/search/tagset';
-import * as CorpusStore from '@/store/search/corpus';
+import * as TagsetStore from '@/store/tagset';
+import * as CorpusStore from '@/store/corpus';
 
 import { Tagset } from '@/types/apptypes';
 import { escapeRegex } from '@/utils';

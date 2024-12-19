@@ -63,8 +63,8 @@ import Axios from 'axios';
 import * as Observable from 'rxjs';
 import { debounceTime, switchMap, mergeMap, map, toArray, catchError, mapTo, distinctUntilChanged, tap, filter } from 'rxjs/operators';
 
-import * as CorpusStore from '@/store/search/corpus';
-import * as UIStore from '@/store/search/ui';
+import * as CorpusStore from '@/store/corpus';
+import * as UIStore from '@/store/ui';
 import * as api from '@/api';
 import SelectPicker from '@/components/SelectPicker.vue';
 import UID from '@/mixins/uid';

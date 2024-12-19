@@ -88,8 +88,8 @@ import { ColumnDefs, DisplaySettingsForRendering, HitRowData, snippetParts } fro
 import DepTree from '@/pages/search/results/table/DepTree.vue';
 import Spinner from '@/components/Spinner.vue';
 
-import * as UIStore from '@/store/search/ui';
-import * as CorpusStore from '@/store/search/corpus';
+import * as UIStore from '@/store/ui';
+import * as CorpusStore from '@/store/corpus';
 import * as Api from '@/api';
 import { debugLog } from '@/utils/debug';
 

@@ -28,9 +28,9 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import * as InterfaceStore from '@/store/search/form/interface';
-import * as UIStore from '@/store/search/ui';
-import * as RootStore from '@/store/search/';
+import * as InterfaceStore from '@/store/form/interface';
+import * as UIStore from '@/store/ui';
+import * as RootStore from '@/store/';
 
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';

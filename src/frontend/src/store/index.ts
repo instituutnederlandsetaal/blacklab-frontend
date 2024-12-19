@@ -4,25 +4,28 @@ import Vuex from 'vuex';
 import cloneDeep from 'clone-deep';
 import {getStoreBuilder} from 'vuex-typex';
 
-import * as CorpusModule from '@/store/search/corpus';
-import * as HistoryModule from '@/store/search/history';
-import * as QueryModule from '@/store/search/query';
-import * as TagsetModule from '@/store/search/tagset';
-import * as UIModule from '@/store/search/ui';
+import * as CorpusModule from '@/store/corpus';
+import * as HistoryModule from '@/store/history';
+import * as QueryModule from '@/store/query';
+import * as TagsetModule from '@/store/tagset';
+import * as UIModule from '@/store/ui';
 
 // Form
-import * as FormManager from '@/store/search/form';
-import * as FilterModule from '@/store/search/form/filters';
-import * as InterfaceModule from '@/store/search/form/interface';
-import * as PatternModule from '@/store/search/form/patterns';
-import * as ExploreModule from '@/store/search/form/explore';
-import * as GapModule from '@/store/search/form/gap';
-import * as GlossModule from '@/store/search/form/glossStore';
-import * as ConceptModule from '@/store/search/form/conceptStore';
+import * as FormManager from '@/store/form';
+import * as FilterModule from '@/store/form/filters';
+import * as InterfaceModule from '@/store/form/interface';
+import * as PatternModule from '@/store/form/patterns';
+import * as ExploreModule from '@/store/form/explore';
+import * as GapModule from '@/store/form/gap';
+import * as GlossModule from '@/store/form/glossStore';
+import * as ConceptModule from '@/store/form/conceptStore';
 
 // Results
-import * as ViewModule from '@/store/search/results/views';
-import * as GlobalResultsModule from '@/store/search/results/global';
+import * as ViewModule from '@/store/results/views';
+import * as GlobalResultsModule from '@/store/results/global';
+
+// Article
+import * as ArticleModule from '@/store/article';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { ApiError } from '@/api';
@@ -44,6 +47,8 @@ type RootState = {
 	ui: UIModule.ModuleRootState;
 	views: ViewModule.ModuleRootState;
 	global: GlobalResultsModule.ModuleRootState;
+
+	article: ArticleModule.ModuleRootState;
 }&FormManager.PartialRootState;
 
 const b = getStoreBuilder<RootState>();
@@ -362,18 +367,22 @@ const init = async () => {
 	try {
 		await CorpusModule.init();
 
-		// This is user-customizable data, it can be used to override various defaults from other modules,
-		// It needs to determine fallbacks and defaults for settings that haven't been configured,
-		// So initialize it before the other modules.
-		await UIModule.init();
+		if (CorpusModule.getState().corpus) {
+			// This is user-customizable data, it can be used to override various defaults from other modules,
+			// It needs to determine fallbacks and defaults for settings that haven't been configured,
+			// So initialize it before the other modules.
+			await UIModule.init();
 
-		await FormManager.init();
-		await ViewModule.init();
-		await GlobalResultsModule.init();
+			await FormManager.init();
+			await ViewModule.init();
+			await GlobalResultsModule.init();
 
-		await TagsetModule.init();
-		await HistoryModule.init();
-		await QueryModule.init();
+			await TagsetModule.init();
+			await HistoryModule.init();
+			await QueryModule.init();
+
+			await ArticleModule.init();
+		}
 		privateActions.setLoadingState({loadingState: 'loaded', loadingMessage: ''});
 
 		// Set the default parallel source field (the first one)
@@ -451,6 +460,7 @@ const init = async () => {
 	interface: InterfaceModule,
 	patterns: PatternModule,
 	gap: GapModule,
+	article: ArticleModule,
 
 	// backwards-compatibility.
 	// docs and hits used to be under results.docs and results.hits. Now they are under views.docs and views.hits

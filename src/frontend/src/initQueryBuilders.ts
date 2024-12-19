@@ -5,16 +5,14 @@
 import $ from 'jquery';
 
 import {QueryBuilder, AttributeDef as QueryBuilderAttributeDef, QueryBuilderOptions} from '@/modules/cql_querybuilder';
-import * as RootStore from '@/store/search/';
-import * as CorpusStore from '@/store/search/corpus';
-import * as UIStore from '@/store/search/ui';
-import * as PatternStore from '@/store/search/form/patterns';
+import * as RootStore from '@/store/';
+import * as CorpusStore from '@/store/corpus';
+import * as UIStore from '@/store/ui';
+import * as PatternStore from '@/store/form/patterns';
 import debug, {debugLog} from '@/utils/debug';
 
 import { getAnnotationSubset } from '@/utils';
 import { Option } from './types/apptypes';
-import { RootState } from './store/article';
-
 
 function getSettings(i18n: Vue): QueryBuilderOptions {
 	const annotationGroups = getAnnotationSubset(

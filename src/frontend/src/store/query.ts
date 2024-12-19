@@ -23,13 +23,13 @@
 import cloneDeep from 'clone-deep';
 import {getStoreBuilder} from 'vuex-typex';
 
-import {RootState} from '@/store/search/';
-import * as CorpusModule from '@/store/search/corpus';
-import * as PatternModule from '@/store/search/form/patterns';
-import * as FilterModule from '@/store/search/form/filters';
-import * as ExploreModule from '@/store/search/form/explore';
-import * as GapModule from '@/store/search/form/gap';
-import { getFilterSummary, getFilterString, getValueFunctions } from '@/components/filters/filterValueFunctions';
+import {RootState} from '@/store/';
+import * as CorpusModule from '@/store/corpus';
+import * as PatternModule from '@/store/form/patterns';
+import * as FilterModule from '@/store/form/filters';
+import * as ExploreModule from '@/store/explore';
+import * as GapModule from '@/store//gap';
+import { getFilterSummary, getFilterString } from '@/components/filters/filterValueFunctions';
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
 import { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
 

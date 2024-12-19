@@ -5,8 +5,8 @@
 import {getStoreBuilder} from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
-import {RootState} from '@/store/search/';
-import * as UIStore from '@/store/search/ui'; // Is initialized before we are.
+import {RootState} from '@/store/';
+import * as UIStore from '@/store/ui'; // Is initialized before we are.
 import {escapeRegex} from '@/utils';
 
 type Token = {

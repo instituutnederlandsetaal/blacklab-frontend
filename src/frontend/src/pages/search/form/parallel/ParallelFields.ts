@@ -1,7 +1,7 @@
 import Vue from 'vue';
 
-import * as CorpusStore from '@/store/search/corpus';
-import * as PatternStore from '@/store/search/form/patterns';
+import * as CorpusStore from '@/store/corpus';
+import * as PatternStore from '@/store/form/patterns';
 import { Option } from '@/types/apptypes';
 
 /** Helper class to factor out some repeated fields and calculations from various parts of the UI that require knowledge of parallel fields (e.g. query input form sections). */

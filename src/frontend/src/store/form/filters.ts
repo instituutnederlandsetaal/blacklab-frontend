@@ -7,10 +7,10 @@
 import Vue from 'vue';
 import { getStoreBuilder } from 'vuex-typex';
 
-import { RootState } from '@/store/search/';
-import * as CorpusModule from '@/store/search/corpus';
-import * as UIStore from '@/store/search/ui';
-import * as FilterStore from '@/store/search/form/filters';
+import { RootState } from '@/store/';
+import * as CorpusModule from '@/store/corpus';
+import * as UIStore from '@/store/ui';
+import * as FilterStore from '@/store/form/filters';
 
 import { FilterDefinition } from '@/types/apptypes';
 

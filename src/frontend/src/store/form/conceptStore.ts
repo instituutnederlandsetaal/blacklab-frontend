@@ -3,8 +3,8 @@
 
 import { getStoreBuilder } from 'vuex-typex';
 
-import { RootState } from '@/store/search/';
-import * as PatternStore from '@/store/search/form/patterns';
+import { RootState } from '@/store/';
+import * as PatternStore from '@/store/form/patterns';
 import { uniq } from '@/utils'
 import cloneDeep from 'clone-deep';
 

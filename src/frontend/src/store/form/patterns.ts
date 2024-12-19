@@ -7,9 +7,9 @@ import Vue from 'vue';
 import { getStoreBuilder } from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
-import { RootState } from '@/store/search/';
-import * as CorpusStore from '@/store/search/corpus';
-import * as UIStore from '@/store/search/ui';
+import { RootState } from '@/store/';
+import * as CorpusStore from '@/store/corpus';
+import * as UIStore from '@/store/ui';
 
 import { debugLog, debugLogCat } from '@/utils/debug';
 

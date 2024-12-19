@@ -19,9 +19,9 @@ import Vue from 'vue';
 
 import ResultsView from '@/pages/search/results/ResultsView.vue';
 
-import * as InterfaceStore from '@/store/search/form/interface';
-import * as UIStore from '@/store/search/ui';
-import * as ViewStore from '@/store/search/results/views';
+import * as InterfaceStore from '@/store/form/interface';
+import * as UIStore from '@/store/ui';
+import * as ViewStore from '@/store/results/views';
 
 export default Vue.extend({
 	components: {

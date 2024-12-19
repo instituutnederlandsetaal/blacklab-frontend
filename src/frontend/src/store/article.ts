@@ -1,6 +1,3 @@
-import Vue from 'vue';
-import Vuex from 'vuex';
-
 import cloneDeep from 'clone-deep';
 import {getStoreBuilder} from 'vuex-typex';
 
@@ -8,11 +5,11 @@ import {blacklab} from '@/api';
 
 import * as BLTypes from '@/types/blacklabtypes';
 
-Vue.use(Vuex);
+import {RootState} from '@/store';
 
-type RootState = {
+type ModuleRootState = {
 	indexId: string;
-	docId: string;
+	docId: string|null;
 	document: null|BLTypes.BLDocument;
 	/**
 	 * Name of the AnnotatedField in which we're viewing the document.
@@ -23,6 +20,13 @@ type RootState = {
 	 * If not supplied/set, we can just omit it in requests to BlackLab and it will use whatever default it has.
 	 */
 	field: string|null;
+
+	/** MAX_SAFE_INTEGER if unset */
+	pageSize: number;
+	/** 0 if unset */
+	pageStart: number;
+	/** MAX_SAFE_INTEGER if unset */
+	pageEnd: number;
 
 	distributionAnnotation: null|{
 		/** Id of the annotation */
@@ -46,18 +50,22 @@ type RootState = {
 	baseColor: string; // TODO make ui store shared.
 };
 
-const initialState: RootState = {
+const initialState: ModuleRootState = {
 	indexId: INDEX_ID,
-	docId: DOCUMENT_ID,
+	docId: null,
 	document: null,
 	field: null,
+	pageStart: 0,
+	pageEnd: Number.MAX_SAFE_INTEGER,
+	pageSize: Number.MAX_SAFE_INTEGER,
 	distributionAnnotation: null,
 	growthAnnotations: null,
 	statisticsTableFn: null,
 	baseColor: '#337ab7' // bootstrap primary
 };
 
-const b = getStoreBuilder<RootState>();
+const namespace = 'article';
+const b = getStoreBuilder<RootState>().module(namespace, cloneDeep(initialState));
 
 const getState = b.state();
 
@@ -66,41 +74,34 @@ const get = {
 	growthAnnotations: b.read(state => state.growthAnnotations, 'growthAnnotations'),
 	statisticsTableFn: b.read(state => state.statisticsTableFn, 'statisticsTableFn'),
 	document: b.read(state => state.document, 'document'),
-	baseColor: b.read(state => state.baseColor, 'baseColor')
+	baseColor: b.read(state => state.baseColor, 'baseColor'),
+	documentLength: b.read(state => state.document?.docInfo.lengthInTokens ?? 0, 'documentLength'),
+	pageSize: b.read(state => state.pageSize, 'pageSize'),
+	pageStart: b.read(state => state.pageStart, 'pageStart'),
+	pageEnd: b.read(state => state.pageEnd, 'pageEnd'),
 };
 
 const actions = {
-	distributionAnnotation: b.commit((state, payload: RootState['distributionAnnotation']) => state.distributionAnnotation = payload, 'distributionAnnotation'),
-	growthAnnotations: b.commit((state, payload: RootState['growthAnnotations']) => state.growthAnnotations = payload, 'growthAnnotations'),
-	statisticsTableFn: b.commit((state, payload: RootState['statisticsTableFn']) => state.statisticsTableFn = payload, 'statisticsTableFn'),
+	distributionAnnotation: b.commit((state, payload: ModuleRootState['distributionAnnotation']) => state.distributionAnnotation = payload, 'distributionAnnotation'),
+	growthAnnotations: b.commit((state, payload: ModuleRootState['growthAnnotations']) => state.growthAnnotations = payload, 'growthAnnotations'),
+	statisticsTableFn: b.commit((state, payload: ModuleRootState['statisticsTableFn']) => state.statisticsTableFn = payload, 'statisticsTableFn'),
 	document: b.commit((state, payload: BLTypes.BLDocument) => state.document = payload, 'document'),
 	baseColor: b.commit((state, payload: string) => state.baseColor = payload, 'baseColor'),
 
-	reset: b.commit(state => Object.assign(state, cloneDeep(initialState)), 'resetRoot'),
-	replace: b.commit((state, payload: RootState) => Object.assign(state, payload), 'replaceRoot'),
-};
+	corpus: b.commit((state, payload: string) => state.indexId = payload, 'corpus'),
+	changeDocument: b.dispatch(async ({state, rootState}, documentId: string|null) => {
+		state.docId = documentId;
+		state.document = state.field = null;
+		if (!documentId || !state.indexId) return;
 
-const internalActions = {
-	field: b.commit((state, payload: string|null) => state.field = payload, 'field')
-}
-
-// shut up typescript, the state we pass here is merged with the modules initial states internally.
-// NOTE: only call this after creating all getters and actions etc.
-// NOTE: process.env is empty at runtime, but webpack inlines all values at compile time, so this check works.
-declare const process: any;
-const store = b.vuexStore({state: cloneDeep(initialState) as RootState, strict: process.env.NODE_ENV === 'development'});
-
-const init = () => {
-	// Get annotated field from URL.
-	// Required to get correct hit counts and statistics.
-	// (note that this may be a full field name or a version name (parallel corpus), see below)
-	const fieldOrVersion = new URLSearchParams(window.location.search).get('field');
-
-	// Fetch document info and determine full annotated field name.
-	blacklab.getDocumentInfo(INDEX_ID, DOCUMENT_ID)
-	.then(document => {
-		// Store document info
+		// Fetch document info and determine full annotated field name.
+		const document = await blacklab.getDocumentInfo(INDEX_ID, documentId)
 		actions.document(document);
+		// Get annotated field from URL.
+		// Required to get correct hit counts and statistics.
+		// (note that this may be a full field name or a version name (parallel corpus), see below)
+		// TODO SPA: pass through setter instead. set field in streams.ts
+		const fieldOrVersion = new URLSearchParams(window.location.search).get('field');
 
 		// If the field name from the URL was just a version (e.g. nl), find the full field name
 		// (e.g. contents__nl) in the document info and set that.
@@ -111,30 +112,27 @@ const init = () => {
 					fieldName.substring(fieldName.length - fieldOrVersion.length - 2) === `__${fieldOrVersion}`;
 			}
 			const fullFieldName = document.docInfo.tokenCounts?.find(matchingFieldName)?.fieldName ?? fieldOrVersion;
-			internalActions.field(fullFieldName);
+			state.field = fullFieldName;
 		}
-	});
+	}, 'changeDocument'),
+	changePage: b.commit((state, payload: {start: number, end: number}) => {
+		state.pageStart = payload.start;
+		state.pageEnd = payload.end;
+	}, 'changePage'),
+
+	reset: b.commit(state => Object.assign(state, cloneDeep(initialState)), 'resetRoot'),
+	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, payload), 'replaceRoot'),
 };
 
-// Debugging helpers.
-(window as any).vuexModules = {
-	root: {
-		store,
-		getState,
-		get,
-		actions,
-		init
-	},
-};
-
-(window as any).vuexStore = store;
+const init = () => {};
 
 export {
-	RootState,
+	ModuleRootState,
 
-	store,
 	getState,
 	get,
 	actions,
 	init,
+
+	namespace
 };
