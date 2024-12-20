@@ -288,14 +288,13 @@ urlInputParameters$.pipe(
 	})
 )
 .subscribe(v => {
-	if (showDebugCat('history'))
-		debugLog('Adding/updating query in query history, adding browser history entry, and reporting to ga', v.url, v.entry);
+	debugLogCat('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', v.url, v.entry);
 	HistoryStore.actions.addEntry({
 		entry: v.entry,
 		pattern: v.params && v.params.patt,
 		url: v.url
 	});
-	debugLogCat('history', `Calling pushState with entry: ${JSON.stringify(v.entry)} and url: ${v.url}`);
+	debugLogCat('history', `Calling pushState with entry:`, v.entry, `and url:`, v.url);
 	history.pushState(v.entry, '', v.url);
 
 	ga('set', v.url);
@@ -304,7 +303,7 @@ urlInputParameters$.pipe(
 
 /** Here we attach listeners to the vuex store, and pump the relevant values into the streams defined above. That in turn runs the listeners on those streams, and we can compute the stuff we need. */
 export default () => {
-	debugLog('Begin attaching store to url and subcorpus calculations.');
+	debugLogCat('init', 'Begin attaching store to url and subcorpus calculations.');
 
 	// Because we use vuex-typex, getters are a little different
 	// It doesn't matter though, they're attached to the same state instance, so just ignore the state argument.
@@ -356,5 +355,5 @@ export default () => {
 	.pipe(map<PopStateEvent, HistoryStore.HistoryEntry>(evt => evt.state ? evt.state : new UrlStateParser(FilterStore.getState().filters).get()))
 	.subscribe(state => RootStore.actions.replace(state));
 
-	debugLog('Finished connecting store to url and subcorpus calculations.');
+	debugLogCat('init', 'Finished connecting store to url and subcorpus calculations.');
 };
