@@ -23,18 +23,24 @@ public class Result<R, E extends Exception> {
     }
 
     /**
-     * A function that may throw a specific type of checked exception.
+     * A function that may throw a checked exception.
      * @param <A> the argument of the function.
      * @param <R> the return type of the function.
-     * @param <E> the type of exception that may be thrown.
      */
-    public interface ThrowableFunction<A, R, E extends Exception> {
-        R apply(A a) throws E;
+    public interface ThrowingFunction<A, R> {
+        R apply(A a) throws Exception;
     }
 
-    private final static Set<Class<? extends Exception>> neverCatch = Set.of(
-            ReturnToClientException.class
+    private final static Set<Class<? extends RuntimeException>> neverCatch = Set.of(
+        ReturnToClientException.class
     );
+
+    /** If the exception is of a type that should never be caught, throw it. */
+    private static  <T extends Exception> void checkThrow(T e) {
+        if (e instanceof RuntimeException) {
+            if (neverCatch.stream().anyMatch(c -> c.isAssignableFrom(e.getClass()))) throw (RuntimeException) e;
+        }
+    }
 
     private final R result;
     private final E error;
@@ -88,7 +94,7 @@ public class Result<R, E extends Exception> {
         try {
             return new Result<>(gen.apply(), null);
         } catch (Exception e) {
-            if (e instanceof ReturnToClientException) throw (ReturnToClientException) e;
+            checkThrow(e);
             if (c.isAssignableFrom(e.getClass())) return Result.error(e);
             else throw new RuntimeException(e);
             // the method threw a different exception than our type.
@@ -109,6 +115,26 @@ public class Result<R, E extends Exception> {
     }
 
     /**
+     * Map the currently held result and/or exception to a new result.
+     * Ecxceptions within the mapper will not be caught.
+     */
+    public <R2> Result<R2, E> mapSelf(Function<Result<R, E>, R2> mapper) {
+        return new Result<>(mapper.apply(this), null);
+    }
+
+    /**
+     * Map the currently held result and/or exception to a new result.
+     * Exceptions within the mapper will be caught.
+     */
+    public <R2> Result<R2, Exception> mapSelfWithErrorHandling(ThrowingFunction<R, R2> mapper) {
+        try { return new Result<>(mapper.apply(this.result), null); }
+        catch (Exception e) {
+            checkThrow(e);
+            return new Result<>(null, e);
+        }
+    }
+
+    /**
      * Map the currently held result, if present, to a new result.
      * Exceptions within the mapper will not be caught.
      */
@@ -119,16 +145,36 @@ public class Result<R, E extends Exception> {
     }
 
     /**
+     * Map the currently held result and/or exception to a new result.
+     * Exceptions within the mapper will not be caught.
+     */
+    public <R2, E2 extends Exception> Result<R2, E2> flatMapSelf(Function<Result<R, E>, Result<R2, E2>> mapper) {
+        return mapper.apply(this);
+    }
+
+    /**
+     * Map the currently held result and/or exception to a new result.
+     * Exceptions within the mapper be caught.
+     */
+    public <R2> Result<R2, Exception> flatMapSelfWithErrorHandling(ThrowingFunction<Result<R, E>, Result<R2, Exception>> mapper) {
+        try { return mapper.apply(this); }
+        catch (Exception e) {
+            checkThrow(e);
+            return new Result<>(null, e);
+        }
+    }
+
+    /**
      * Map the currently held result, if present, to a new result.
      * Exceptions within the mapper will be caught.
      */
     @SuppressWarnings("unchecked")
-    public <R2> Result<R2, Exception> mapWithErrorHandling(ThrowableFunction<R, R2, Exception> mapper) {
+    public <R2> Result<R2, Exception> mapWithErrorHandling(ThrowingFunction<R, R2> mapper) {
         if (this.result != null) {
             try { return new Result<>(mapper.apply(this.result), null); }
             catch (Exception e) {
-                if (e instanceof ReturnToClientException) throw (ReturnToClientException) e;
-                else return new Result<>(null, e);
+                checkThrow(e);
+                return new Result<>(null, e);
             }
         }
         return (Result<R2, Exception>) this;
@@ -139,12 +185,12 @@ public class Result<R, E extends Exception> {
      * Exceptions within the mapper will be caught.
      */
     @SuppressWarnings("unchecked")
-    public <R2> Result<R2, Exception> flatMapWithErrorHandling(ThrowableFunction<R, Result<R2, Exception>, Exception> mapper) {
+    public <R2> Result<R2, Exception> flatMapWithErrorHandling(ThrowingFunction<R, Result<R2, Exception>> mapper) {
         if (this.result != null) {
             try { return mapper.apply(this.result); }
             catch (Exception e) {
-                if (e instanceof ReturnToClientException) throw (ReturnToClientException) e;
-                else return new Result<>(null, e);
+                checkThrow(e);
+                return new Result<>(null, e);
             }
         }
         return (Result<R2, Exception>) this;
@@ -241,12 +287,12 @@ public class Result<R, E extends Exception> {
      * Exceptions within the mapper will be caught.
      */
     @SuppressWarnings("unchecked")
-    public Result<R, Exception> recoverWithErrorHandling(ThrowableFunction<E, R, Exception> mapper) {
+    public Result<R, Exception> recoverWithErrorHandling(ThrowingFunction<E, R> mapper) {
         if (this.error != null) {
             try { return Result.success(mapper.apply(this.error)); }
             catch (Exception e) {
-                if (e instanceof ReturnToClientException) throw (ReturnToClientException) e;
-                else return new Result<>(null, e);
+                checkThrow(e);
+                return new Result<>(null, e);
             }
         }
         return (Result<R, Exception>) this;
@@ -257,12 +303,12 @@ public class Result<R, E extends Exception> {
      * Exceptions within the mapper will be caught.
      */
     @SuppressWarnings("unchecked")
-    public <ErrorClass extends E> Result<R, Exception> recoverWithErrorHandling(Class<ErrorClass> c, ThrowableFunction<ErrorClass, R, Exception> mapper) {
+    public <ErrorClass extends E> Result<R, Exception> recoverWithErrorHandling(Class<ErrorClass> c, ThrowingFunction<ErrorClass, R> mapper) {
         if (this.error != null && c.isAssignableFrom(this.error.getClass())) {
             try { return Result.success(mapper.apply(c.cast(this.error))); }
             catch (Exception e) {
-                if (e instanceof ReturnToClientException) throw (ReturnToClientException) e;
-                else return new Result<>(null, e);
+                checkThrow(e);
+                return new Result<>(null, e);
             }
         }
         return (Result<R, Exception>) this;
@@ -274,20 +320,21 @@ public class Result<R, E extends Exception> {
      * Exceptions within the mapper will be caught.
      */
     @SuppressWarnings("unchecked")
-    public Result<R, Exception> flatRecoverWithErrorHandling(ThrowableFunction<E, Result<R, Exception>, Exception> mapper) {
+    public Result<R, Exception> flatRecoverWithErrorHandling(ThrowingFunction<E, Result<R, Exception>> mapper) {
         if (this.error != null) {
             try { return mapper.apply(this.error); }
             catch (Exception e) {
-                if (e instanceof ReturnToClientException) throw (ReturnToClientException) e;
-                else return new Result<>(null, e);
+                checkThrow(e);
+                return new Result<>(null, e);
             }
         }
         return (Result<R, Exception>) this;
     }
+
     /**
-     * Identical to {@link #flatRecoverWithErrorHandling(ThrowableFunction)}.
-     * @see #flatRecoverWithErrorHandling(ThrowableFunction) */
-    public Result<R, Exception> flatMapErrorWithErrorHandling(ThrowableFunction<E, Result<R, Exception>, Exception> mapper) {
+     * Identical to {@link #flatRecoverWithErrorHandling(ThrowingFunction)}.
+     * @see #flatRecoverWithErrorHandling(ThrowingFunction) */
+    public Result<R, Exception> flatMapErrorWithErrorHandling(ThrowingFunction<E, Result<R, Exception>> mapper) {
         return this.flatRecoverWithErrorHandling(mapper);
     }
 
@@ -298,20 +345,21 @@ public class Result<R, E extends Exception> {
      * and the current result will be returned.
      */
     @SuppressWarnings("unchecked")
-    public <ErrorClass extends E> Result<R, Exception> flatRecoverWithErrorHandling(Class<ErrorClass> c, ThrowableFunction<ErrorClass, Result<R, Exception>, Exception> mapper) {
+    public <ErrorClass extends E> Result<R, Exception> flatRecoverWithErrorHandling(Class<ErrorClass> c, ThrowingFunction<ErrorClass, Result<R, Exception>> mapper) {
         if (this.error != null && c.isAssignableFrom(this.error.getClass())) {
             try { return mapper.apply(c.cast(this.error)); }
             catch (Exception e) {
-                if (e instanceof ReturnToClientException) throw (ReturnToClientException) e;
-                else return new Result<>(null, e);
+                checkThrow(e);
+                return new Result<>(null, e);
             }
         }
         return (Result<R, Exception>) this;
     }
+
     /**
-     * Identical to {@link #flatRecoverWithErrorHandling(Class, ThrowableFunction)}.
-     * @see #flatRecoverWithErrorHandling(Class, ThrowableFunction) */
-    public <ErrorClass extends E> Result<R, Exception> flatMapErrorWithErrorHandling(Class<ErrorClass> c, ThrowableFunction<ErrorClass, Result<R, Exception>, Exception> mapper) {
+     * Identical to {@link #flatRecoverWithErrorHandling(Class, ThrowingFunction)}.
+     * @see #flatRecoverWithErrorHandling(Class, ThrowingFunction) */
+    public <ErrorClass extends E> Result<R, Exception> flatMapErrorWithErrorHandling(Class<ErrorClass> c, ThrowingFunction<ErrorClass, Result<R, Exception>> mapper) {
         return this.flatRecoverWithErrorHandling(c, mapper);
     }
 
@@ -366,12 +414,12 @@ public class Result<R, E extends Exception> {
      * and the current result will be returned.
      */
     @SuppressWarnings("unchecked")
-    public Result<R, Exception> mapErrorWithErrorHandling(ThrowableFunction<E, Exception, Exception> mapper) {
+    public Result<R, Exception> mapErrorWithErrorHandling(ThrowingFunction<E, Exception> mapper) {
         if (this.error != null) {
             try { return Result.error(mapper.apply(this.error)); }
             catch (Exception e) {
-                if (e instanceof ReturnToClientException) throw (ReturnToClientException) e;
-                else return new Result<>(null, e);
+                checkThrow(e);
+                return new Result<>(null, e);
             }
         }
         return (Result<R, Exception>) this;
@@ -384,12 +432,12 @@ public class Result<R, E extends Exception> {
      * and the current result will be returned.
      */
     @SuppressWarnings("unchecked")
-    public <ErrorClass extends E> Result<R, Exception> mapErrorWithErrorHandling(Class<ErrorClass> c, ThrowableFunction<ErrorClass, Exception, Exception> mapper) {
+    public <ErrorClass extends E> Result<R, Exception> mapErrorWithErrorHandling(Class<ErrorClass> c, ThrowingFunction<ErrorClass, Exception> mapper) {
         if (this.error != null && c.isAssignableFrom(this.error.getClass()))  {
             try { return Result.error(mapper.apply(c.cast(this.error))); }
             catch (Exception e) {
-                if (e instanceof ReturnToClientException) throw (ReturnToClientException) e;
-                else return new Result<>(null, e);
+                checkThrow(e);
+                return new Result<>(null, e);
             }
         }
         return (Result<R, Exception>) this;
@@ -408,11 +456,8 @@ public class Result<R, E extends Exception> {
     }
 
     public Optional<E> getError() { return Optional.ofNullable(error); }
-    public Optional<R> getResult() {
-        return Optional.ofNullable(result);
-    }
+    public Optional<R> getResult() { return Optional.ofNullable(result); }
     public R getResult(R defaultValue) { return result == null ? defaultValue : result; }
-
 
     public R getOrThrow() throws E {
         if (this.error != null) throw this.error;
