@@ -4,8 +4,9 @@
 	</div>
 </template>
 
-<script>
+<script lang="ts">
 import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
+import { frontend } from '@/api';
 
 export default {
 	components: {
@@ -14,28 +15,14 @@ export default {
 	data() {
 		return {
 			loading: true,
-			content: null
+			content: null as string|null,
+			error: null as string|null,
 		};
 	},
 	created() {
-		this.fetchContent();
+		frontend.getHelp(INDEX_ID).then(c => this.content = c, e => this.error = e).finally(() => this.loading = false);
 	},
-	methods: {
-		fetchContent() {
-			const cachedContent = localStorage.getItem('cachedContent');
-			if (cachedContent) {
-				this.content = JSON.parse(cachedContent);
-				this.loading = false;
-			} else {
-				// Simulate an API call
-				setTimeout(() => {
-					this.content = 'This is the server-rendered content';
-					localStorage.setItem('cachedContent', JSON.stringify(this.content));
-					this.loading = false;
-				}, 2000);
-			}
-		}
-	}
+
 };
 </script>
 

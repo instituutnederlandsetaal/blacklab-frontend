@@ -1,27 +1,22 @@
 <template>
 	<div>
 		<Spinner v-if="loading" />
-		<div v-else v-html="content"></div>
+		<div v-else-if="content" v-html="content"></div>
+		<div v-else-if="error">{{ error }}</div>
+		<div v-else>Something should be shown here.</div>
 	</div>
 </template>
 
-<script>
+<script lang="ts">
 import Spinner from './Spinner.vue';
 
 export default {
 	name: 'ServerRenderedContentPage',
-	components: {
-		Spinner
-	},
+	components: {Spinner},
 	props: {
-		loading: {
-			type: Boolean,
-			required: true
-		},
-		content: {
-			type: String,
-			required: true
-		}
+		loading: Boolean,
+		content: String,
+		error: String
 	}
 };
 </script>

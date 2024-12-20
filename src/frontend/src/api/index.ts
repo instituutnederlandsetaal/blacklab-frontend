@@ -63,6 +63,9 @@ export const frontendPaths = {
 	indexInfo: (indexId: string) => `${indexId}/api/info`,
 	documentContents: (indexId: string, pid: string) => `${indexId}/docs/${pid}/contents`,
 	documentMetadata: (indexId: string, pid: string) => `${indexId}/docs/${pid}`,
+
+	help: (indexId?: string) => `${indexId ? indexId + '/' : indexId }api/help`,
+	about: (indexId?: string) => `${indexId ? indexId + '/' : indexId }api/about`,
 }
 
 /** Contains url mappings for different requests to blacklab-server */
@@ -399,6 +402,11 @@ export const frontend = {
 
 	getDocumentMetadata: (indexId: string, pid: string) => endpoints.cf
 		.get<BLTypes.BLDocument>(frontendPaths.documentMetadata(indexId, pid)),
+
+	/** Get html content of the help page. */
+	getHelp: (indexId?: string) => endpoints.cf.get<string>(frontendPaths.help(indexId)),
+	/** Get html content of the about page. */
+	getAbout: (indexId?: string) => endpoints.cf.get<string>(frontendPaths.about(indexId)),
 }
 
 export const glossPaths = {

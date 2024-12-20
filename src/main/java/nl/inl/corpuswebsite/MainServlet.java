@@ -11,6 +11,8 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -35,9 +37,14 @@ import javax.servlet.http.HttpServletResponse;
 import javax.xml.transform.TransformerException;
 
 import org.apache.commons.configuration2.ex.ConfigurationException;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.app.Velocity;
+import org.apache.velocity.runtime.RuntimeServices;
+import org.apache.velocity.runtime.RuntimeSingleton;
+import org.apache.velocity.runtime.parser.ParseException;
+import org.apache.velocity.runtime.resource.util.StringResourceRepository;
 
 import nl.inl.corpuswebsite.response.ApiResponse;
 import nl.inl.corpuswebsite.response.ConfigResponse;
@@ -134,6 +141,29 @@ public class MainServlet extends HttpServlet {
         }
         Velocity.init(p);
     }
+
+    public Template parseAsTemplate(InputStream is) {
+        try {
+            String templateContent = IOUtils.toString(new InputStreamReader(is, StandardCharsets.UTF_8));
+            RuntimeServices runtimeServices = RuntimeSingleton.getRuntimeServices();
+            StringReader reader = new StringReader(templateContent);
+            Template template = new Template();
+            template.setRuntimeServices(runtimeServices);
+
+            /*
+             * The following line works for Velocity version up to 1.7
+             * For version 2, replace "Template name" with the variable, template
+             */
+            template.setData(runtimeServices.parse(reader, "__template__"));
+            template.initDocument();
+            return template;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read template content from InputStream", e);
+        } catch (ParseException e) {
+            throw new RuntimeException("Failed to parse template content", e);
+        }
+    }
+
 
     /**
      * Get the velocity template

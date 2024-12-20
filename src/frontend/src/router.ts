@@ -8,23 +8,29 @@ export default new Router({
 	mode: 'history',
 	routes: [
 		{
-			path: '/',
 			name: 'corpora',
+			path: '/',
+			alias: '',
 			component: () => import('@/pages/corpora/CorporaPage.vue')
 		},
 		{
-			path: '/help',
 			name: 'global-help',
+			path: '/help',
+			alias: '/help/*',
 			component: () => import('@/pages/help/HelpPage.vue')
 		},
 		{
-			path: '/about',
 			name: 'global-about',
+			path: '/about',
+			alias: '/about/*',
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
-			path: '/configwizard/',
+			name: 'global-configwizard',
+			path: '/configwizard',
+			alias: '/configwizard/*',
 			component: () => import('@/pages/config/ConfigPage.vue'),
+			// todo make this make sense.
 			children: [
 				{
 					path: '/',
@@ -36,38 +42,33 @@ export default new Router({
 		{
 			path: '/:corpus/',
 			redirect: '/:corpus/search',
-			beforeEnter: (to, from, next) => {
-				console.log('entering corpus page', to)
-				next();
-			},
 		},
 		{
-			path: '/:corpus/search/*',
 			name: 'search',
-			beforeEnter: (to, from, next) => {
-				console.log('entering search page', to);
-				next();
-			},
-			component: () => import('@/pages/search/SearchPage.vue')
+			path: '/:corpus/search',
+			alias: '/:corpus/search/*',
+			component: () => import('@/pages/search/SearchPage.vue'),
 		},
 		{
-			path: '/:corpus/docs/*',
 			name: 'article',
+			path: '/:corpus/docs/*',
 			component: () => import('@/pages/article/ArticlePage.vue')
 		},
 		{
-			path: '/:corpus/about',
 			name: 'about',
+			path: '/:corpus/about',
+			alias: '/:corpus/about/*',
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
-			path: '/:corpus/help',
 			name: 'help',
+			path: '/:corpus/help',
+			alias: '/:corpus/help/*',
 			component: () => import('@/pages/help/HelpPage.vue')
 		},
 		{
+			name: 'configwizard',
 			path: '/:corpus/configwizard/:tab?/',
-			name: 'corpus',
 			component: () => import('@/pages/config/CorpusConfig.vue'),
 			props: route => ({
 				id: route.params.id,
@@ -86,4 +87,5 @@ export default new Router({
 			}]
 		},
 	],
+
 });

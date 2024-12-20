@@ -1,11 +1,18 @@
 package nl.inl.corpuswebsite.response;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
+
 import nl.inl.corpuswebsite.BaseResponse;
+import nl.inl.corpuswebsite.MainServlet;
 import nl.inl.corpuswebsite.utils.ArticleUtil;
 import nl.inl.corpuswebsite.utils.CorpusConfig;
 import nl.inl.corpuswebsite.utils.QueryException;
@@ -34,15 +41,20 @@ public class ApiResponse extends BaseResponse {
     protected void completeRequest() throws QueryException {
         if (pathParameters.isEmpty()) throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "No endpoint specified");
         String operation = pathParameters.get(0);
-        if (operation.equalsIgnoreCase("docs")) {
-            if (pathParameters.size() < 2) throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "No document specified. Expected ${corpus}/docs/${docid}[/contents]");
-            String document = pathParameters.get(1);
-            boolean isContents = pathParameters.size() > 2 && pathParameters.get(2).equalsIgnoreCase("contents");
-            if (isContents) documentContents(document);
-            else documentMetadata(document);
-        } else if (operation.equalsIgnoreCase("info")) {
-            indexMetadata();
-        } else throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint " + operation);
+
+        if (operation.equalsIgnoreCase("docs")) docs();
+        else if (operation.equalsIgnoreCase("info")) indexMetadata();
+        else if (operation.equalsIgnoreCase("help")) help();
+        else if (operation.equalsIgnoreCase("about")) about();
+        else throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint " + operation);
+    }
+
+    public void docs() throws QueryException {
+        if (pathParameters.size() < 2) throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "No document specified. Expected ${corpus}/docs/${docId}[/contents]");
+        String document = pathParameters.get(1);
+        boolean isContents = pathParameters.size() > 2 && pathParameters.get(2).equalsIgnoreCase("contents");
+        if (isContents) documentContents(document);
+        else documentMetadata(document);
     }
 
     public void documentContents(String docId) throws QueryException {
@@ -71,6 +83,30 @@ public class ApiResponse extends BaseResponse {
             .mapError(QueryException::wrap)
             .map(CorpusConfig::getJsonUnescaped)
             .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
+    }
+
+    public void help() {
+        Result.attempt(() -> servlet.getHelpPage(corpus))
+                .mapWithErrorHandling(servlet::parseAsTemplate)
+                .mapWithErrorHandling(template -> {
+                    StringWriter writer = new StringWriter();
+                    template.merge(model, writer);
+                    return writer.toString();
+                })
+                .mapError(QueryException::wrap)
+                .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
+    }
+
+    public void about() {
+        Result.attempt(() -> servlet.getAboutPage(corpus))
+                .mapWithErrorHandling(servlet::parseAsTemplate)
+                .mapWithErrorHandling(template -> {
+                    StringWriter writer = new StringWriter();
+                    template.merge(model, writer);
+                    return writer.toString();
+                })
+                .mapError(QueryException::wrap)
+                .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
     }
 
     protected void sendResult(Result<String, QueryException> r, String contentType) {

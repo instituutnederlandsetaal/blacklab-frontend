@@ -16,25 +16,8 @@ import VuePlausible from 'vue-plausible/lib/esm/vue-plugin.js';
 
 import Filters from '@/components/filters';
 
-import * as RootStore from '@/store/';
-import * as FilterStore from '@/store/form/filters';
-import UrlStateParser from '@/store/util/url-state-parser';
-
-import connectStreamsToVuex from '@/store/streams';
-
 import AudioPlayer from '@/components/AudioPlayer.vue';
 import DebugComponent from '@/components/Debug.vue';
-import SearchPageComponent from '@/pages/search/SearchPage.vue';
-
-
-
-import { init as initApi } from '@/api';
-import {i18n} from '@/utils/i18n';
-import * as loginSystem from '@/utils/loginsystem';
-
-import { debugLogCat } from '@/utils/debug';
-
-import router from '@/router';
 
 // --------------
 // Initialize vue
