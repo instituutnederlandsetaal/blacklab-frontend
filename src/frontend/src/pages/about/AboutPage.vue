@@ -5,24 +5,27 @@
 </template>
 
 <script lang="ts">
+import Vue from 'vue';
 import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
 import { frontend } from '@/api';
 
-export default {
+export default Vue.extend({
 	components: {
 		ServerRenderedComponent
 	},
 	data() {
 		return {
-			loading: true,
+			loading: true as boolean,
 			content: null as string|null,
 			error: null as string|null,
 		};
 	},
 	created() {
-		frontend.getAbout(INDEX_ID).then(c => this.content = c, e => this.error = e).finally(() => this.loading = false);
+		frontend.getAbout(INDEX_ID)
+			.then(c => this.content = c, e => this.error = e)
+			.finally(() => this.loading = false);
 	},
-};
+});
 </script>
 
 <style scoped>
