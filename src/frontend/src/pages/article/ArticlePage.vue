@@ -3,7 +3,7 @@
 		<ul id="articleTabs" class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
 			<li class="active"><a href="#content" data-toggle="tab">Content</a></li>
 			<li><a href="#metadata" data-toggle="tab">Metadata</a></li>
-			<li><a href="#statistics" data-toggle="tab">Statistics</a></li>
+			<li v-if="statisticsEnabled"><a href="#statistics" data-toggle="tab">Statistics</a></li>
 		</ul>
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px;">
 			<div id="content" class="tab-pane active">
@@ -37,7 +37,7 @@
 				</div>
 			</div>
 
-			<div id="statistics" class="tab-pane">
+			<div id="statistics" class="tab-pane" v-if="statisticsEnabled">
 				<ArticlePageStatistics/>
 			</div>
 		</div>
@@ -104,6 +104,7 @@ export default Vue.extend({
 	}),
 	computed: {
 		docIdFromRoute(): string|undefined { return this.$route.params.docId },
+		statisticsEnabled: ArticleStore.get.statisticsEnabled,
 	},
 	watch: {
 		docIdFromRoute: {

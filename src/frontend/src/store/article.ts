@@ -79,6 +79,7 @@ const get = {
 	pageSize: b.read(state => state.pageSize, 'pageSize'),
 	pageStart: b.read(state => state.pageStart, 'pageStart'),
 	pageEnd: b.read(state => state.pageEnd, 'pageEnd'),
+	statisticsEnabled: b.read(state => !!(state.statisticsTableFn || state.distributionAnnotation || state.growthAnnotations), 'statisticsEnabled'),
 };
 
 const actions = {

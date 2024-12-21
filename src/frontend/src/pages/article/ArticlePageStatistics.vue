@@ -83,6 +83,7 @@ export default Vue.extend({
 		error: null as null|AppTypes.ApiError,
 	}),
 	computed: {
+		isEnabled: ArticleStore.get.statisticsEnabled,
 		docIdFromRoute(): string|undefined {
 			return this.$route.params.docId
 		},
@@ -112,7 +113,6 @@ export default Vue.extend({
 			} : null;
 		},
 
-		isEnabled(): boolean { return !!(this.getStatistics || this.distributionData || this.growthData); },
 		isLoading(): boolean { return this.request != null; }
 	},
 	methods: {
@@ -128,29 +128,6 @@ export default Vue.extend({
 			.finally(() => this.request = null);
 		}
 	},
-	watch: {
-		isEnabled: {
-			immediate: true,
-			handler(v: boolean) {
-				const statsTab = (document.querySelector('a[href="#statistics"]') as HTMLAnchorElement);
-				if (v) {
-					statsTab.classList.remove('disabled');
-					statsTab.removeEventListener('click', _preventClicks);
-					statsTab.style.display = ''; // default display
-					statsTab.setAttribute('data-toggle', 'tab');
-				} else {
-					statsTab.classList.add('disabled');
-					statsTab.addEventListener('click', _preventClicks);
-					statsTab.style.display = 'none';
-					statsTab.removeAttribute('data-toggle');
-				}
-			}
-		},
-	},
-	created() {
-		const statsTab = (document.querySelector('a[href="#statistics"]') as HTMLAnchorElement);
-		statsTab.addEventListener('click', () => this.load(), { once: true });
-	}
 });
 
 </script>
