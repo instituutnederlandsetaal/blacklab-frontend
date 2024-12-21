@@ -22,6 +22,7 @@ export default Vue.extend({
 	},
 	created() {
 		frontend.getAbout(INDEX_ID)
+			.promise
 			.then(c => this.content = c, e => this.error = e)
 			.finally(() => this.loading = false);
 	},
