@@ -5,6 +5,9 @@ import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 import javax.servlet.http.HttpServletResponse;
 
@@ -13,6 +16,7 @@ import org.apache.commons.lang.StringUtils;
 
 import nl.inl.corpuswebsite.BaseResponse;
 import nl.inl.corpuswebsite.MainServlet;
+import nl.inl.corpuswebsite.response.ArticleResponse.ArticleContentRestrictedException;
 import nl.inl.corpuswebsite.utils.ArticleUtil;
 import nl.inl.corpuswebsite.utils.CorpusConfig;
 import nl.inl.corpuswebsite.utils.QueryException;
@@ -36,7 +40,6 @@ public class ApiResponse extends BaseResponse {
         super("api", true);
     }
 
-    // TODO this could probably be cleaned up a little.
     @Override
     protected void completeRequest() throws QueryException {
         if (pathParameters.isEmpty()) throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "No endpoint specified");
@@ -131,8 +134,15 @@ public class ApiResponse extends BaseResponse {
     }
 
 
+    private static class TransformationResultDescriptor {
+        public Optional<String> content;
+        public Optional<Exception> exception;
+        public Map<String, Object> meta;
 
-
-
-
+        public TransformationResultDescriptor() {
+            content = Optional.empty();
+            exception = Optional.empty();
+            meta = new HashMap<>();
+        }
+    }
 }

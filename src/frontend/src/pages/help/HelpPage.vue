@@ -1,7 +1,5 @@
 <template>
-	<div>
-		<ServerRenderedComponent :loading="loading" :content="content"/>
-	</div>
+	<ServerRenderedComponent :loading="loading" :content="content"/>
 </template>
 
 <script lang="ts">

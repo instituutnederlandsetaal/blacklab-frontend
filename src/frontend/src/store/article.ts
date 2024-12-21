@@ -1,7 +1,7 @@
 import cloneDeep from 'clone-deep';
 import {getStoreBuilder} from 'vuex-typex';
 
-import {blacklab} from '@/api';
+import {blacklab, frontend} from '@/api';
 
 import * as BLTypes from '@/types/blacklabtypes';
 
@@ -124,7 +124,9 @@ const actions = {
 	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, payload), 'replaceRoot'),
 };
 
-const init = () => {};
+const init = () => {
+
+};
 
 export {
 	ModuleRootState,

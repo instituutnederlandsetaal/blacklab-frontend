@@ -67,6 +67,7 @@ Vue.use(VTooltip, {
 		defaultArrowClass: 'arrow tooltip-arrow',
 	}
 });
+
 Vue.component('Debug', DebugComponent);
 Vue.component('AudioPlayer', AudioPlayer);
 

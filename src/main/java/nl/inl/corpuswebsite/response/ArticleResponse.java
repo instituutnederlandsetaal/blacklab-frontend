@@ -18,7 +18,7 @@ import nl.inl.corpuswebsite.utils.WebsiteConfig;
 
 public class ArticleResponse extends BaseResponse {
 
-	private static class ArticleContentRestrictedException extends Exception {}
+	public static class ArticleContentRestrictedException extends Exception {}
 
     public ArticleResponse() {
         super("article", true);

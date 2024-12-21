@@ -27,7 +27,6 @@ import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
  * </pre>
  */
 public class ArticleUtil {
-
     private static final Logger logger = Logger.getLogger(ArticleUtil.class.getName());
 
     /** Matches xml open/void tags &lt;namespace:tagname attribute="value"/&gt; excluding hl tags, as those are inserted by blacklab and can result in false positives */
@@ -55,6 +54,17 @@ public class ArticleUtil {
                 });
     }
 
+    /**
+     * Retrieve the document contents from BlackLab.
+     * Network errors are caught and returned as a QueryException.
+     * Permission errors are caught and returned as a QueryException.
+     *
+     * @param corpusConfig
+     * @param config
+     * @param docId
+     * @param page
+     * @return
+     */
     public Result<String, QueryException> getDocumentContent(WebsiteConfig corpusConfig, GlobalConfig config, String docId, PaginationInfo page) {
         // Search a different field than the one we're displaying content from?
         // (used for parallel corpora, where a query can return hits from a different field than the one that was searched,
@@ -123,7 +133,13 @@ public class ArticleUtil {
     }
 
     /**
+     * <pre>
+     * Return the document snippet, transformed into html.
+     * Pagination is automatically retrieved from the request.
+     * If everything went well, the transformed document is returned.
+     * If an error occurred at any point, a QueryException is returned. The message contains a formatted error message (containing a stacktrace if useful).
      *
+     *</pre>
      * @param corpus required for page size
      * @param corpusMetadata required for page size
      * @param config required for authenticating with BlackLab
@@ -156,6 +172,10 @@ public class ArticleUtil {
         return transformMetadata(corpus, corpusConfig, config, meta);
     }
 
+    /**
+     * Transform the contents into html.
+     * Errors during transformation are returned as a QueryException containing a formatted error message and stacktrace.
+     */
     private Result<String, QueryException> transformDocument(WebsiteConfig corpus, CorpusConfig corpusMetadata, GlobalConfig config, Result<String, QueryException> contents) {
         return contents.flatMap(c -> {
             // If the document contents aren't xml, don't bother with the transformer.
@@ -175,6 +195,10 @@ public class ArticleUtil {
         });
     }
 
+    /**
+     * Transform the contents into html.
+     * Errors during transformation are returned as a QueryException containing a formatted error message and stacktrace.
+     */
     public Result<String, QueryException> transformMetadata(CorpusConfig corpus, WebsiteConfig corpusConfig, GlobalConfig config, Result<String, QueryException> metadata) {
         return metadata.flatMap(md ->
             servlet.getStylesheet(corpus,"meta",request, response)

@@ -1,44 +1,46 @@
 <template>
-	<div class="row">
-		<span v-if="isLoading" class="fa fa-spinner fa-spin text-center" style="font-size: 60px; display: block; margin: auto;"></span>
-		<div v-else-if="error" class="text-center">
-			<h3 class="text-danger"><em>{{error.message}}</em></h3>
-			<br>
-			<button type="button" class="btn btn-lg btn-default" @click="error = null; load()">Retry</button>
-		</div>
-		<h4 v-else-if="!isEnabled" class="text-muted text-center">
-			<em>No statistics have been configured for this corpus.</em>
-		</h4>
-		<template v-else>
-			<div v-if="statisticsTableData"
-				:class="{
-					'col-xs-12': true,
-					'col-md-6': !!statisticsTableData
-				}"
-			>
-				<table class="table" style="table-layout: auto; width: 100%;">
-					<thead>
-						<tr><th colspan="2" class="text-center">Document Statistics</th></tr>
-					</thead>
-					<tbody>
-						<tr v-for="(value, key) in statisticsTableData" :key="key">
-							<td><strong>{{key}}</strong> </td><td>{{value}}</td>
-						</tr>
-					</tbody>
-				</table>
+	<div class="container article">
+		<ul id="articleTabs" class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
+			<li class="active"><a href="#content" data-toggle="tab">Content</a></li>
+			<li><a href="#metadata" data-toggle="tab">Metadata</a></li>
+			<li><a href="#statistics" data-toggle="tab">Statistics</a></li>
+		</ul>
+		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px;">
+			<div id="content" class="tab-pane active">
+				<ArticlePagePagination/>
+				<ArticlePageParallel/>
+
+				<div v-if="article_content" v-html="article_content"></div>
+				<div v-else-if="article_content_error">
+					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#content_error" aria-expanded="false" aria-controls="content_error">
+						Click here to see errors
+					</a><br>
+					<div class="collapse" id="content_error">
+						<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line;">
+							{{ article_content_error }}
+						</div>
+					</div>
+				</div>
 			</div>
 
-			<AnnotationDistributions v-if="snippet && distributionData"
-				:class="{
-					'col-xs-12': true,
-					'col-md-6': !!statisticsTableData
-				}"
-				:snippet="snippet"
-				v-bind="distributionData"
-			/>
+			<div id="metadata" class="tab-pane #if($article_content_restricted) active #end">
+				<div v-if="metadata_content" v-html="metadata_content"></div>
+				<div v-else-if="metadata_content_error">
+					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#metadata_error" aria-expanded="false" aria-controls="content_error">
+						Click here to see errors
+					</a><br>
+					<div class="collapse" id="metadata_error">
+						<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line;">
+							{{ metadata_content_error }}
+						</div>
+					</div>
+				</div>
+			</div>
 
-			<AnnotationGrowths v-if="snippet && growthData" class="col-xs-12" :snippet="snippet" v-bind="growthData"/>
-		</template>
+			<div id="statistics" class="tab-pane">
+				<ArticlePageStatistics/>
+			</div>
+		</div>
 	</div>
 </template>
 
@@ -46,13 +48,32 @@
 import Vue from 'vue';
 
 import * as ArticleStore from '@/store/article';
-import {blacklab} from '@/api';
+import * as QueryStore from '@/store/query';
+import * as CorpusStore from '@/store/corpus';
+import {blacklab, Canceler, frontend} from '@/api';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 
-import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
-import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
+import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
+import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
+import ArticlePageParallel from '@/pages/article/ArticlePageParallel.vue';
+
+// TODO
+// import initTooltips from '@/modules/expandable-tooltips';
+
+// initTooltips({
+// 	mode: 'attributes',
+// 	contentAttribute: 'data-tooltip-content',
+// 	previewAttribute: 'data-tooltip-preview'
+// });
+
+// initTooltips({
+// 	mode: 'title',
+// 	excludeAttributes: ['toggle', 'tooltip-content', 'tooltip-preview'],
+// 	tooltippableSelector: '.word[data-toggle="tooltip"]'
+// });
+
 
 function _preventClicks(e: Event) {
 	e.preventDefault();
@@ -62,79 +83,83 @@ function _preventClicks(e: Event) {
 
 export default Vue.extend({
 	components: {
-		AnnotationDistributions,
-		AnnotationGrowths,
+		ArticlePageStatistics,
+		ArticlePagePagination,
+		ArticlePageParallel
 	},
 	data: () => ({
-		request: null as null|Promise<BLTypes.BLHitSnippet>,
-		snippet: null as null|BLTypes.BLHitSnippet,
-		error: null as null|AppTypes.ApiError,
+		article_request: null as null|Promise<string>,
+		article_cancel: null as null|Canceler,
+		article_content: '',
+		article_content_error: null as null|string,
+
+		metadata_content: '',
+		metadata_content_error: null as null|string,
+		metadata_request: null as null|Promise<string>,
+		metadata_cancel: null as null|Canceler,
+
+		// TODO: put in store instead of from url
+		wordstart: Number(new URLSearchParams(window.location.search).get('wordstart')) || undefined,
+		wordend: Number(new URLSearchParams(window.location.search).get('wordend')) || undefined,
 	}),
 	computed: {
-		document: ArticleStore.get.document,
-		baseColor: ArticleStore.get.baseColor,
-
-		getStatistics: ArticleStore.get.statisticsTableFn,
-		statisticsTableData(): any {
-			return (this.getStatistics && this.document && this.snippet) ?
-				this.getStatistics(this.document, this.snippet) : null;
-		},
-		distributionData(): any {
-			const data = ArticleStore.get.distributionAnnotation();
-			return data ? {
-				annotationId: data.id,
-				chartTitle: data.displayName,
-				baseColor: this.baseColor
-			} : null;
-		},
-		growthData(): any {
-			const data = ArticleStore.get.growthAnnotations();
-			return data ? {
-				annotations: data.annotations,
-				chartTitle: data.displayName,
-				baseColor: this.baseColor
-			} : null;
-		},
-
-		isEnabled(): boolean { return !!(this.getStatistics || this.distributionData || this.growthData); },
-		isLoading(): boolean { return this.request != null; }
-	},
-	methods: {
-		load(): void {
-			if (this.snippet || this.error || this.request || !this.isEnabled) {
-				return;
-			}
-
-			const annotatedFieldName = ArticleStore.getState().field || undefined;
-			this.request = blacklab.getSnippet(ArticleStore.getState().indexId, ArticleStore.getState().docId!, annotatedFieldName, 0, this.document!.docInfo.lengthInTokens, 0)
-			.then(snippet => this.snippet = snippet)
-			.catch(error => this.error = error)
-			.finally(() => this.request = null);
-		}
+		docIdFromRoute(): string|undefined { return this.$route.params.docId },
 	},
 	watch: {
-		isEnabled: {
-			immediate: true,
-			handler(v: boolean) {
-				const statsTab = (document.querySelector('a[href="#statistics"]') as HTMLAnchorElement);
-				if (v) {
-					statsTab.classList.remove('disabled');
-					statsTab.removeEventListener('click', _preventClicks);
-					statsTab.style.display = ''; // default display
-					statsTab.setAttribute('data-toggle', 'tab');
-				} else {
-					statsTab.classList.add('disabled');
-					statsTab.addEventListener('click', _preventClicks);
-					statsTab.style.display = 'none';
-					statsTab.removeAttribute('data-toggle');
-				}
-			}
-		}
+		docIdFromRoute: {
+			handler (cur, prev) {
+				if (cur === prev) return;
+				if (this.article_cancel) this.article_cancel();
+				if (this.metadata_cancel) this.metadata_cancel();
+				this.article_cancel = null;
+				this.metadata_cancel = null;
+				this.article_request = null;
+				this.metadata_request = null;
+				this.article_content = '';
+				this.article_content_error = null;
+				this.metadata_content = '';
+				this.metadata_content_error = null;
+
+				if (!cur) return;
+
+				const {promise: article_request, cancel: article_cancel} = frontend.getDocumentContents(INDEX_ID, cur, {
+					patt: QueryStore.get.patternString() || undefined,
+					pattgapdata: (QueryStore.get.patternString() && QueryStore.getState().gap?.value) || undefined,
+					wordend: this.wordend,
+					wordstart: this.wordstart,
+					field: CorpusStore.get.mainAnnotatedField(),
+					searchfield: QueryStore.get.annotatedFieldName(),
+				})
+				this.article_request = article_request;
+				this.article_cancel = article_cancel;
+				article_request.then(content => {
+					this.article_content = content;
+				}).catch(error => {
+					this.article_content_error = error.message;
+				}).finally(() => {
+					this.article_request = null;
+					this.article_cancel = null;
+				});
+
+				const {promise: metadata_request, cancel: metadata_cancel} = frontend.getDocumentMetadata(INDEX_ID, cur);
+				this.metadata_request = metadata_request;
+				this.metadata_cancel = metadata_cancel;
+				metadata_request.then(content => {
+					this.metadata_content = content;
+				}).catch(error => {
+					this.metadata_content_error = error.message;
+				}).finally(() => {
+					this.metadata_request = null;
+					this.metadata_cancel = null;
+				});
+			},
+			immediate: true
+		},
 	},
-	created() {
-		const statsTab = (document.querySelector('a[href="#statistics"]') as HTMLAnchorElement);
-		statsTab.addEventListener('click', () => this.load(), { once: true });
-	}
 });
 
 </script>
+
+<style lang="scss">
+
+</style>

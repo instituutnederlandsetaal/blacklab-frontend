@@ -61,8 +61,8 @@ export const frontendPaths = {
 
 	// The following paths are only for use with the api endpoint (they don't contain the context url - the endpoint will add it)
 	indexInfo: (indexId: string) => `${indexId}/api/info`,
-	documentContents: (indexId: string, pid: string) => `${indexId}/docs/${pid}/contents`,
-	documentMetadata: (indexId: string, pid: string) => `${indexId}/docs/${pid}`,
+	documentContents: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}/contents`,
+	documentMetadata: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}`,
 
 	help: (indexId?: string) => `${indexId ? indexId + '/' : indexId }api/help`,
 	about: (indexId?: string) => `${indexId ? indexId + '/' : indexId }api/about`,
@@ -392,21 +392,27 @@ export const blacklab = {
 export const frontend = {
 	getCorpus: (indexId: string) => endpoints.cf.get<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo(indexId)),
 
+	/** Get transformed document contents */
 	getDocumentContents: (indexId: string, pid: string, params: {
 		patt?: string,
 		pattgapdata?: string,
 		wordstart?: number,
 		wordend?: number,
+		/** Annotated field for which to get contents */
+		field: string,
+		/** Annotated field in which to search (for parallel corpora) - only required if different from field */
+		searchfield?: string
 	}) => endpoints.cf
-		.get<string>(frontendPaths.documentContents(indexId, pid), params),
+		.getCancelable<string>(frontendPaths.documentContents(indexId, pid), params),
 
+	/** Get transformed document metadata */
 	getDocumentMetadata: (indexId: string, pid: string) => endpoints.cf
-		.get<BLTypes.BLDocument>(frontendPaths.documentMetadata(indexId, pid)),
+		.getCancelable<string>(frontendPaths.documentMetadata(indexId, pid)),
 
 	/** Get html content of the help page. */
-	getHelp: (indexId?: string) => endpoints.cf.get<string>(frontendPaths.help(indexId)),
+	getHelp: (indexId?: string) => endpoints.cf.getCancelable<string>(frontendPaths.help(indexId)),
 	/** Get html content of the about page. */
-	getAbout: (indexId?: string) => endpoints.cf.get<string>(frontendPaths.about(indexId)),
+	getAbout: (indexId?: string) => endpoints.cf.getCancelable<string>(frontendPaths.about(indexId)),
 }
 
 export const glossPaths = {

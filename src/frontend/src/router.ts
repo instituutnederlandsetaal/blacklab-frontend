@@ -51,7 +51,7 @@ export default new Router({
 		},
 		{
 			name: 'article',
-			path: '/:corpus/docs/*',
+			path: '/:corpus/docs/:docId',
 			component: () => import('@/pages/article/ArticlePage.vue')
 		},
 		{
