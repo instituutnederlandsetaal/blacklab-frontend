@@ -220,9 +220,11 @@ export function getHighlightColors(summary: BLSearchSummary): Record<string, Tok
  * @returns the hit split into before, match, and after parts, with capture and relation info added to the tokens. The punct is to be shown after the word.
  */
 export function snippetParts(hit: BLHit|BLHitSnippet, annotationId: string, dir: 'ltr'|'rtl', colors?: Record<string, TokenHighlight>): HitContext {
-	const before = flatten(dir === 'ltr' ? hit.left : hit.right, annotationId, hit.match.punct[0]);
-	const match = flatten(hit.match, annotationId, (dir === 'ltr' ? hit.right : hit.left)?.punct[0]);
-	const after = flatten(dir === 'ltr' ? hit.right : hit.left, annotationId);
+	// NOTE: the original BLS API was designed before RTL support and uses left/right to mean before/after.
+	//       the new BLS API correctly uses before/after, which makes sense for both LTR and RTL languages.
+	const before = flatten(hit.left, annotationId, hit.match.punct[0]);
+	const match = flatten(hit.match, annotationId, hit.right?.punct[0]);
+	const after = flatten(hit.right, annotationId);
 
 	// Only extract captures if have the necessary info to do so.
 	if (!('start' in hit) || !hit.matchInfos || !colors)
