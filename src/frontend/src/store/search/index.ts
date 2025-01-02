@@ -27,6 +27,7 @@ import * as GlobalResultsModule from '@/store/search/results/global';
 import * as BLTypes from '@/types/blacklabtypes';
 import { ApiError } from '@/api';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
+import debug from '@/utils/debug';
 
 Vue.use(Vuex);
 
@@ -81,7 +82,20 @@ const get = {
 			throw new Error('Should provide a sampleSeed when random sampling, or every new page of results will use a different seed');
 		}
 
+		// These make debugging more convenient
+		const debugParams = debug.debug ? {
+			// Explain how the CQL was converted to a query and rewritten for optimization
+			explain: true,
+			// If you open a BLS request in a new tab and reload, it will default to XML unless this is specified
+			// (CHECK: frontend client doesn't use XML anywhere, does it...?)
+			outputformat: 'json',
+			// Skip the cache so we'll hit our breakpoints
+			usecache: false
+		} : {};
+
 		return {
+			...debugParams,
+
 			filter: QueryModule.get.filterString(),
 			first: state.global.pageSize * activeView.page,
 			group: activeView.groupBy.join(','),
