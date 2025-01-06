@@ -8,25 +8,32 @@ import * as BLTypes from '@/types/blacklabtypes';
 import {RootState} from '@/store';
 
 type ModuleRootState = {
-	indexId: string;
 	docId: string|null;
-	document: null|BLTypes.BLDocument;
 	/**
 	 * Name of the AnnotatedField in which we're viewing the document.
 	 * Relevant for parallel corpora, where a document perhaps has a Dutch and an English version (or perhaps event more).
 	 * When this is a regular corpus with only one version of documents, the field will usually be named 'contents' (but not necessarily).
+	 * If this field is blank, the main annotated field is used.
 	 *
-	 * We retrieve this from the URL (query parameter "field").
-	 * If not supplied/set, we can just omit it in requests to BlackLab and it will use whatever default it has.
+	 * The field that is searched (when viewing documents) can be gotten from the QueryStore (get.annotatedFieldName).
+	 *
+	 * Yes, this is slightly different from how BlackLab represents these parameters in its API, but it makes much more sense for the frontend this way.
+	 * In BlackLab: field is the field to display, whereas searchField is the field to search.
+	 * In the frontend: field is the field to search, whereas viewField is the field to display.
+	 *
+	 * This causes a little wrinkle for url-decoding, as we try to mimic BlackLab there however.
 	 */
-	field: string|null;
+	viewField: string|null;
+	// For searchField, see QueryStore.
 
-	/** MAX_SAFE_INTEGER if unset */
-	pageSize: number;
-	/** 0 if unset */
-	pageStart: number;
-	/** MAX_SAFE_INTEGER if unset */
-	pageEnd: number;
+	/** null if pagination disabled */
+	pageSize: number|null;
+	/** null if pagination disabled */
+	wordstart: number|null;
+	/** null if pagination disabled */
+	wordend: number|null;
+	/** wordstart of the hit to highlight/currently highlighted hit. */
+	findhit: number|null;
 
 	distributionAnnotation: null|{
 		/** Id of the annotation */
@@ -50,14 +57,19 @@ type ModuleRootState = {
 	baseColor: string; // TODO make ui store shared.
 };
 
-const initialState: ModuleRootState = {
-	indexId: INDEX_ID,
+type HistoryState = Pick<ModuleRootState, 'docId'|'viewField'|'wordstart'|'wordend'|'findhit'>;
+const initialHistoryState: HistoryState = {
 	docId: null,
-	document: null,
-	field: null,
-	pageStart: 0,
-	pageEnd: Number.MAX_SAFE_INTEGER,
-	pageSize: Number.MAX_SAFE_INTEGER,
+	viewField: null,
+	wordstart: 0,
+	wordend: Number.MAX_SAFE_INTEGER,
+	findhit: null
+};
+
+const initialState: ModuleRootState = {
+	...initialHistoryState,
+	pageSize: PAGE_SIZE,
+
 	distributionAnnotation: null,
 	growthAnnotations: null,
 	statisticsTableFn: null,
@@ -70,59 +82,42 @@ const b = getStoreBuilder<RootState>().module(namespace, cloneDeep(initialState)
 const getState = b.state();
 
 const get = {
+	baseColor: b.read(state => state.baseColor, 'baseColor'),
 	distributionAnnotation: b.read(state => state.distributionAnnotation, 'distributionAnnotation'),
 	growthAnnotations: b.read(state => state.growthAnnotations, 'growthAnnotations'),
 	statisticsTableFn: b.read(state => state.statisticsTableFn, 'statisticsTableFn'),
-	document: b.read(state => state.document, 'document'),
-	baseColor: b.read(state => state.baseColor, 'baseColor'),
-	documentLength: b.read(state => state.document?.docInfo.lengthInTokens ?? 0, 'documentLength'),
 	pageSize: b.read(state => state.pageSize, 'pageSize'),
-	pageStart: b.read(state => state.pageStart, 'pageStart'),
-	pageEnd: b.read(state => state.pageEnd, 'pageEnd'),
-	statisticsEnabled: b.read(state => !!(state.statisticsTableFn || state.distributionAnnotation || state.growthAnnotations), 'statisticsEnabled'),
+	statisticsEnabled: b.read(state => !!(state.statisticsTableFn || state.growthAnnotations || state.distributionAnnotation), 'statisticsEnabled'),
+	wordstart: b.read(state => state.wordstart, 'wordstart'),
+	wordend: b.read(state => state.wordend, 'wordend'),
+	findhit: b.read(state => state.findhit, 'findhit'),
 };
 
 const actions = {
 	distributionAnnotation: b.commit((state, payload: ModuleRootState['distributionAnnotation']) => state.distributionAnnotation = payload, 'distributionAnnotation'),
 	growthAnnotations: b.commit((state, payload: ModuleRootState['growthAnnotations']) => state.growthAnnotations = payload, 'growthAnnotations'),
 	statisticsTableFn: b.commit((state, payload: ModuleRootState['statisticsTableFn']) => state.statisticsTableFn = payload, 'statisticsTableFn'),
-	document: b.commit((state, payload: BLTypes.BLDocument) => state.document = payload, 'document'),
 	baseColor: b.commit((state, payload: string) => state.baseColor = payload, 'baseColor'),
 
-	corpus: b.commit((state, payload: string) => state.indexId = payload, 'corpus'),
-	changeDocument: b.dispatch(async ({state, rootState}, documentId: string|null) => {
-		state.docId = documentId;
-		state.document = state.field = null;
-		if (!documentId || !state.indexId) return;
+	docId: b.commit((state, payload: string|null) => state.docId = payload, 'docId'),
+	page: b.commit((state, payload: {wordstart: number|null, wordend: number|null}) => {
+		state.wordstart = payload.wordstart ?? null;
+		state.wordend = payload.wordend ?? null;
+	}, 'page'),
+	findhit: b.commit((state, payload: number|null) => {
+		state.wordstart = 0;
+		state.wordend = Number.MAX_SAFE_INTEGER;
+		state.findhit = payload
+	}, 'findhit'),
+	viewField: b.commit((state, payload: string|null) => state.viewField = payload, 'field'),
 
-		// Fetch document info and determine full annotated field name.
-		const document = await blacklab.getDocumentInfo(INDEX_ID, documentId)
-		actions.document(document);
-		// Get annotated field from URL.
-		// Required to get correct hit counts and statistics.
-		// (note that this may be a full field name or a version name (parallel corpus), see below)
-		// TODO SPA: pass through setter instead. set field in streams.ts
-		const fieldOrVersion = new URLSearchParams(window.location.search).get('field');
-
-		// If the field name from the URL was just a version (e.g. nl), find the full field name
-		// (e.g. contents__nl) in the document info and set that.
-		if (fieldOrVersion) {
-			const matchingFieldName = ({ fieldName }: { fieldName: string }) => {
-				return fieldName === fieldOrVersion ||
-					fieldName.length - fieldOrVersion.length - 2 >= 0 &&
-					fieldName.substring(fieldName.length - fieldOrVersion.length - 2) === `__${fieldOrVersion}`;
-			}
-			const fullFieldName = document.docInfo.tokenCounts?.find(matchingFieldName)?.fieldName ?? fieldOrVersion;
-			state.field = fullFieldName;
-		}
-	}, 'changeDocument'),
-	changePage: b.commit((state, payload: {start: number, end: number}) => {
-		state.pageStart = payload.start;
-		state.pageEnd = payload.end;
-	}, 'changePage'),
-
-	reset: b.commit(state => Object.assign(state, cloneDeep(initialState)), 'resetRoot'),
-	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, payload), 'replaceRoot'),
+	reset: b.commit(state => Object.assign(state, cloneDeep(initialState)), 'reset'),
+	replace: b.commit((state, payload: HistoryState) => {
+		actions.docId(payload.docId);
+		actions.page(payload);
+		actions.viewField(payload.viewField);
+		actions.findhit(payload.findhit);
+	}, 'replaceRoot'),
 };
 
 const init = () => {
@@ -131,6 +126,8 @@ const init = () => {
 
 export {
 	ModuleRootState,
+	HistoryState,
+	initialHistoryState,
 
 	getState,
 	get,

@@ -7,34 +7,62 @@
 		</ul>
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px;">
 			<div id="content" class="tab-pane active">
-				<ArticlePagePagination/>
+				<!-- <ArticlePagePagination/> -->
 				<ArticlePageParallel/>
 
-				<div v-if="article_content" v-html="article_content"></div>
-				<div v-else-if="article_content_error">
+				<Spinner v-if="isLoading(contents)" />
+
+				<div v-if="isLoaded(contents)" v-html="contents.value"></div>
+				<div v-else-if="isError(contents)">
 					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#content_error" aria-expanded="false" aria-controls="content_error">
 						Click here to see errors
 					</a><br>
 					<div class="collapse" id="content_error">
 						<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line;">
-							{{ article_content_error }}
+							{{ contents.error.message }}
 						</div>
 					</div>
 				</div>
 			</div>
 
-			<div id="metadata" class="tab-pane #if($article_content_restricted) active #end">
-				<div v-if="metadata_content" v-html="metadata_content"></div>
-				<div v-else-if="metadata_content_error">
-					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#metadata_error" aria-expanded="false" aria-controls="content_error">
+			<div id="metadata" class="tab-pane">
+				<Spinner v-if="isLoading(metadata)" />
+				<div v-if="isError(metadata)">
+					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#metadata_error" aria-expanded="false" aria-controls="metadata_error">
 						Click here to see errors
 					</a><br>
 					<div class="collapse" id="metadata_error">
 						<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line;">
-							{{ metadata_content_error }}
+							{{ metadata.error.message }}
 						</div>
 					</div>
 				</div>
+				<template v-else-if="isLoaded(metadata)">
+					<h2 v-if="metadata.value.docFields.titleField" style="word-break:break-all;">
+						{{ metadata.value.docInfo[metadata.value.docFields.titleField] }}
+						<template v-if="isParallel">{{ viewField ? $tAnnotatedFieldDisplayName(viewField) : 'Error: missing viewfield.' }}</template>
+					</h2>
+
+					<table class="table-striped">
+						<tbody>
+							<!-- TODO: i18n -->
+							<tr v-if="!isEmpty(hits)"><td>Hits in document:</td><td>
+								<Spinner v-if="isLoading(hits)" inline sm/>
+								<template v-else-if="isLoaded(hits)">{{hits.value.length}}</template>
+							</td></tr>
+
+							<template v-for="g in metadataFieldsToShow">
+								<tr><td colspan="2"><b>{{ $tMetaGroupName(g) }} <debug>[{{g}}]</debug>:</b></td></tr>
+								<tr v-for="f in g.entries">
+									<td style="padding-left: 0.5em">{{ $tMetaDisplayName(f) }}<debug> [{{ f.id }}]</debug></td>
+									<td>{{ metadata.value!.docInfo[f.id] }}</td>
+								</tr>
+							</template>
+							<!-- TODO: i18n -->
+							<tr><td>Document length (tokens)</td><td id="docLengthTokens">{{ metadata.value!.docInfo.tokenCounts!.find(tc => tc.fieldName === inputs.viewField)?.tokenCount }}</td></tr>
+						</tbody>
+					</table>
+				</template>
 			</div>
 
 			<div id="statistics" class="tab-pane" v-if="statisticsEnabled">
@@ -45,18 +73,20 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import Vue, { ref } from 'vue';
 
 import * as ArticleStore from '@/store/article';
 import * as QueryStore from '@/store/query';
 import * as CorpusStore from '@/store/corpus';
+import * as UIStore from '@/store/ui';
+
 import {blacklab, Canceler, frontend} from '@/api';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
-import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
+// import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
 import ArticlePageParallel from '@/pages/article/ArticlePageParallel.vue';
 
 // TODO
@@ -75,11 +105,20 @@ import ArticlePageParallel from '@/pages/article/ArticlePageParallel.vue';
 // });
 
 
+// issues with this page:
+// data comes from all manner of places (store, url, etc)
+// Need to fix url-parsing
+
+
 function _preventClicks(e: Event) {
 	e.preventDefault();
 	e.stopPropagation();
 	return false;
 }
+
+import {Empty, isEmpty, Loadable, Loading, metadata$, contents$, input$, hits$, Input, isLoading, isLoaded, isError} from './article';
+import { fieldSubset } from '@/utils';
+import { Subscription } from 'rxjs';
 
 export default Vue.extend({
 	components: {
@@ -88,74 +127,62 @@ export default Vue.extend({
 		ArticlePageParallel
 	},
 	data: () => ({
-		article_request: null as null|Promise<string>,
-		article_cancel: null as null|Canceler,
-		article_content: '',
-		article_content_error: null as null|string,
+		metadata: Empty() as Loadable<BLTypes.BLDocument>,
+		contents: Empty() as Loadable<String>,
+		hits: Empty() as Loadable<[number, number][]>,
 
-		metadata_content: '',
-		metadata_content_error: null as null|string,
-		metadata_request: null as null|Promise<string>,
-		metadata_cancel: null as null|Canceler,
-
-		// TODO: put in store instead of from url
-		wordstart: Number(new URLSearchParams(window.location.search).get('wordstart')) || undefined,
-		wordend: Number(new URLSearchParams(window.location.search).get('wordend')) || undefined,
+		subscriptions: [] as Subscription[]
 	}),
 	computed: {
-		docIdFromRoute(): string|undefined { return this.$route.params.docId },
+		metadataFieldsToShow(): ReturnType<typeof fieldSubset<AppTypes.NormalizedMetadataField>> {
+			return fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(CorpusStore.get.allMetadataFieldsMap), CorpusStore.get.metadataGroups(), CorpusStore.get.allMetadataFieldsMap())
+		},
+
 		statisticsEnabled: ArticleStore.get.statisticsEnabled,
+		isParallel: CorpusStore.get.isParallelCorpus,
+
+		viewField(): AppTypes.NormalizedAnnotatedField|undefined {
+			return CorpusStore.get.allAnnotatedFieldsMap()[this.inputs.viewField!];
+		},
+		inputs(): Input {
+			return {
+				indexId: CorpusStore.getState().corpus?.id,
+				docId: ArticleStore.getState().docId,
+
+				viewField: ArticleStore.getState().viewField,
+				searchField: QueryStore.get.annotatedFieldName() || CorpusStore.get.mainAnnotatedField(),
+
+				wordstart: ArticleStore.get.wordstart(),
+				wordend: ArticleStore.get.wordend(),
+				pageSize: ArticleStore.get.pageSize(),
+				findhit: ArticleStore.get.findhit(),
+				patt: QueryStore.get.patternString(),
+				pattgapdata: QueryStore.getState().gap?.value,
+			}
+		}
+	},
+	methods: {
+		isLoading,
+		isLoaded,
+		isError,
+		isEmpty
 	},
 	watch: {
-		docIdFromRoute: {
-			handler (cur, prev) {
-				if (cur === prev) return;
-				if (this.article_cancel) this.article_cancel();
-				if (this.metadata_cancel) this.metadata_cancel();
-				this.article_cancel = null;
-				this.metadata_cancel = null;
-				this.article_request = null;
-				this.metadata_request = null;
-				this.article_content = '';
-				this.article_content_error = null;
-				this.metadata_content = '';
-				this.metadata_content_error = null;
-
-				if (!cur) return;
-
-				const {promise: article_request, cancel: article_cancel} = frontend.getDocumentContents(INDEX_ID, cur, {
-					patt: QueryStore.get.patternString() || undefined,
-					pattgapdata: (QueryStore.get.patternString() && QueryStore.getState().gap?.value) || undefined,
-					wordend: this.wordend,
-					wordstart: this.wordstart,
-					field: CorpusStore.get.mainAnnotatedField(),
-					searchfield: QueryStore.get.annotatedFieldName(),
-				})
-				this.article_request = article_request;
-				this.article_cancel = article_cancel;
-				article_request.then(content => {
-					this.article_content = content;
-				}).catch(error => {
-					this.article_content_error = error.message;
-				}).finally(() => {
-					this.article_request = null;
-					this.article_cancel = null;
-				});
-
-				const {promise: metadata_request, cancel: metadata_cancel} = frontend.getDocumentMetadata(INDEX_ID, cur);
-				this.metadata_request = metadata_request;
-				this.metadata_cancel = metadata_cancel;
-				metadata_request.then(content => {
-					this.metadata_content = content;
-				}).catch(error => {
-					this.metadata_content_error = error.message;
-				}).finally(() => {
-					this.metadata_request = null;
-					this.metadata_cancel = null;
-				});
-			},
-			immediate: true
+		inputs: {
+			handler: function(v) { input$.next(v); },
+			immediate: true,
+			deep: true
 		},
+	},
+	created() {
+		this.subscriptions.push(
+			metadata$.subscribe({next: v => this.metadata = v}),
+			contents$.subscribe({next: v => this.contents = v}),
+			hits$.subscribe({next: v => this.hits = v}),
+		);
+	},
+	destroyed() {
+		this.subscriptions.forEach(s => s.unsubscribe());
 	},
 });
 

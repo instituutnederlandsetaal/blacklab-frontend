@@ -55,18 +55,32 @@
 <script lang="ts">
 import Vue from 'vue';
 
+export type PaginationInfo = {
+	page: number;
+	pageActive?: boolean;
+	maxPage?: number;
+	minPage?: number;
+	disabled?: boolean;
+	editable?: boolean;
+	showOffsets?: boolean;
+}
+
+
 /** Renders pagination controls, inputs are 0-based, meaning page === 0 will render as 1 on the label */
 export default Vue.extend({
 	props: {
+		/** 0-indexed. The interface will display this number + 1 */
 		page: Number,
 		pageActive: {
 			type: Boolean,
 			default: true
 		},
+		/** 0-indexed. The interface will display this number + 1 */
 		maxPage: {
 			type: Number,
 			default: Number.MAX_VALUE,
 		},
+		/** 0-indexed. The interface will display this number + 1 */
 		minPage: {
 			type: Number,
 			default: 0,

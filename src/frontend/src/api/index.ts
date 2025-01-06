@@ -226,7 +226,7 @@ export const blacklab = {
 		.delete<BLTypes.BLResponse>(blacklabPaths.index(id)),
 
 	getDocumentInfo: (indexId: string, documentId: string, params: { query?: string; } = {}, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.getOrPost<BLTypes.BLDocument>(blacklabPaths.docInfo(indexId, documentId), params, requestParameters),
+		.getOrPostCancelable<BLTypes.BLDocument>(blacklabPaths.docInfo(indexId, documentId), params, requestParameters),
 
 	getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
 		.get<BLTypes.BLRelationInfo>(blacklabPaths.relations(indexId), { limitvalues: RELATIONS_LIMITVALUES }, requestParameters),
@@ -238,7 +238,7 @@ export const blacklab = {
 		} else if (!pattern) {
 			request = Promise.reject(new ApiError('Info', 'Cannot parse without pattern.', 'No results', undefined));
 		} else {
-			request = endpoints.blacklab.getOrPost(blacklabPaths.parsePattern(indexId), { patt: pattern }, { ...requestParameters });
+			request = endpoints.blacklab.getOrPost<any>(blacklabPaths.parsePattern(indexId), { patt: pattern }, { ...requestParameters });
 		}
 		return request;
 	},
@@ -252,7 +252,7 @@ export const blacklab = {
 		} else if (!isHitParams(params)) {
 			request = Promise.reject(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
 		} else {
-			request = endpoints.blacklab.getOrPost(blacklabPaths.hits(indexId), params, { ...requestParameters, cancelToken });
+			request = endpoints.blacklab.getOrPost<T>(blacklabPaths.hits(indexId), params, { ...requestParameters, cancelToken });
 		}
 
 		return {
@@ -262,20 +262,24 @@ export const blacklab = {
 	},
 
 	getHitsCsv: (indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
-		const {token: cancelToken, cancel} = axios.CancelToken.source();
 		const csvParams = Object.assign({}, params, {
 			number: undefined,
 			first: undefined,
 			outputformat: 'csv'
 		});
 
-		let request: Promise<Blob>;
 		if (!indexId) {
-			request = Promise.reject(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
+			return {
+				request: Promise.reject(new ApiError('Error', 'No index specified.', 'Internal error', undefined)),
+				cancel: () => {},
+			} ;
 		} else if (!isHitParams(params)) {
-			request = Promise.reject(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
+			return {
+				request: Promise.reject(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined)),
+				cancel: () => {}
+			}
 		} else {
-			request = endpoints.blacklab.getOrPost(blacklabPaths.hitsCsv(indexId), csvParams, {
+			return endpoints.blacklab.getOrPostCancelable<Blob>(blacklabPaths.hitsCsv(indexId), csvParams, {
 				...requestParameters,
 				headers: {
 					...(requestParameters || {}).headers,
@@ -283,29 +287,24 @@ export const blacklab = {
 				},
 				responseType: 'blob',
 				transformResponse: (data: any) => new Blob([data], {type: 'text/plain;charset=utf-8' }),
-				cancelToken,
 			});
 		}
-
-		return {
-			request,
-			cancel
-		};
 	},
 
 	getDocsCsv(indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig) {
-		const {token: cancelToken, cancel} = axios.CancelToken.source();
 		const csvParams = Object.assign({}, params, {
 			number: undefined,
 			first: undefined,
 			outputformat: 'csv'
 		});
 
-		let request: Promise<Blob>;
 		if (!indexId) {
-			request = Promise.reject(new ApiError('Error', 'No index specified', 'Internal error', undefined));
+			return {
+				request: Promise.reject(new ApiError('Error', 'No index specified', 'Internal error', undefined)),
+				cancel: () => {}
+			}
 		} else {
-			request = endpoints.blacklab.getOrPost<Blob>(blacklabPaths.docsCsv(indexId), csvParams, {
+			return endpoints.blacklab.getOrPostCancelable<Blob>(blacklabPaths.docsCsv(indexId), csvParams, {
 				...requestParameters,
 				headers: {
 					...(requestParameters || {}).headers,
@@ -313,30 +312,19 @@ export const blacklab = {
 				},
 				responseType: 'blob',
 				transformResponse: (data: any) => new Blob([data], {type: 'text/plain;charset=utf-8' }),
-				cancelToken,
 			});
 		}
-
-		return {
-			request,
-			cancel
-		};
 	},
 
 	getDocs: <T extends BLTypes.BLDocResults|BLTypes.BLDocGroupResults = BLTypes.BLDocResults|BLTypes.BLDocGroupResults> (indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
-		const {token: cancelToken, cancel} = axios.CancelToken.source();
-
-		let request: Promise<T>;
 		if (!indexId) {
-			request = Promise.reject(new ApiError('Error', 'No index specified', 'Internal error', undefined));
+			return {
+				request: Promise.reject(new ApiError('Error', 'No index specified', 'Internal error', undefined)),
+				cancel: () => {}
+			}
 		} else {
-			request = endpoints.blacklab.getOrPost<T>(blacklabPaths.docs(indexId), params, { ...requestParameters, cancelToken })
+			return endpoints.blacklab.getOrPostCancelable<T>(blacklabPaths.docs(indexId), params)
 		}
-
-		return {
-			request,
-			cancel
-		};
 	},
 
 	/**

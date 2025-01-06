@@ -45,6 +45,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
+import * as CorpusStore from '@/store/corpus';
 import * as ArticleStore from '@/store/article';
 import {blacklab} from '@/api';
 
@@ -77,6 +78,9 @@ export default Vue.extend({
 		AnnotationDistributions,
 		AnnotationGrowths,
 	},
+	props: {
+		document: Object as () => BLTypes.BLDocument,
+	},
 	data: () => ({
 		request: null as null|Promise<BLTypes.BLHitSnippet>,
 		snippet: null as null|BLTypes.BLHitSnippet,
@@ -87,8 +91,6 @@ export default Vue.extend({
 		docIdFromRoute(): string|undefined {
 			return this.$route.params.docId
 		},
-
-		document: ArticleStore.get.document,
 		baseColor: ArticleStore.get.baseColor,
 
 		getStatistics: ArticleStore.get.statisticsTableFn,
@@ -121,8 +123,8 @@ export default Vue.extend({
 				return;
 			}
 
-			const annotatedFieldName = ArticleStore.getState().field || undefined;
-			this.request = blacklab.getSnippet(ArticleStore.getState().indexId, ArticleStore.getState().docId!, annotatedFieldName, 0, this.document!.docInfo.lengthInTokens, 0)
+			const annotatedFieldName = ArticleStore.getState().viewField || undefined;
+			this.request = blacklab.getSnippet(CorpusStore.getState().corpus!.id, ArticleStore.getState().docId!, annotatedFieldName, 0, this.document!.docInfo.lengthInTokens, 0)
 			.then(snippet => this.snippet = snippet)
 			.catch(error => this.error = error)
 			.finally(() => this.request = null);

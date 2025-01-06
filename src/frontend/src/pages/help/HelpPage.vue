@@ -17,7 +17,7 @@ export default Vue.extend({
 		error: null as string|null,
 	}),
 	created() {
-		frontend.getHelp(INDEX_ID).promise.then(c => this.content = c, e => this.error = e).finally(() => this.loading = false);
+		frontend.getHelp(INDEX_ID).request.then(c => this.content = c, e => this.error = e).finally(() => this.loading = false);
 	},
 });
 </script>

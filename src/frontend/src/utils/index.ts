@@ -539,6 +539,7 @@ export function fieldSubset<T extends {id: string}>(
 	ids: string[],
 	groups: Array<{id: string, entries: string[]}>,
 	fields: Record<string, T>,
+	/** Reduce all groups to a single group with this id. Duplicates are removed. */
 	addAllToOneGroup?: string
 ): Array<{id: string, entries: T[]}> {
 	let ret: Array<{id: string, entries: T[]}> = groups
@@ -815,4 +816,8 @@ export function elementAndAttributeNameFromFilterId(filterId: string): [string, 
 	const elName = filterIdParts[1];
 	const attrName = filterIdParts[2];
 	return [elName, attrName];
+}
+
+export function clamp(value: number, min: number, max: number) {
+	return Math.min(Math.max(value, min), max);
 }

@@ -28,6 +28,9 @@ import * as GapModule from '@/store/form/gap';
 import * as ViewModule from '@/store/results/views';
 import * as GlobalResultsModule from '@/store/results/global';
 
+// Article
+import * as ArticleStore from '@/store/article';
+
 import {FilterValue, AnnotationValue} from '@/types/apptypes';
 
 import cloneDeep from 'clone-deep';
@@ -49,7 +52,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	}
 
 	@memoize
-	public async get(): Promise<HistoryModule.HistoryEntry> {
+	public async get(): Promise<HistoryModule.HistoryEntry&{article: ArticleStore.HistoryState}> {
 
 		// Make sure our parsed cql is up to date (used to be a memoized getter, but we need it to be async)
 		await this.updateParsedCql(this.getString('patt', null, v => v ? v : null));
@@ -66,6 +69,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			global: this.global,
 			concepts: this.concepts,
 			glosses: this.glosses,
+			article: this.article
 			// submitted query not parsed from url: is restored from rest of state later.
 		};
 	}
@@ -570,6 +574,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			})) as Record<string, Record<string, any>>;
 	}
 
+	/** Parallel and within searching. This is global between the simple/extended etc. search forms. */
 	@memoize
 	private get shared() {
 		// The query typically doesn't contain the entire parallel field name.
@@ -579,16 +584,20 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 		const parallelFieldsMap = CorpusModule.get.parallelAnnotatedFieldsMap();
 
-		// It used to be that sourceField was only the version suffix, but now it's the full field name
-		// So we need to check if the source field is a valid parallel field name, and if not, try to find the correct one
-		// For interop with legacy urls (which shouldn't be in production, but might be floating around in test docs).
-		let source = this.getString('field', null, v => v ? v : null);
+
+		/*
+		In our state, "source" is the field we're searching in.
+		The field we're viewing (in article/document view) is "viewField".
+
+		In BlackLab, it can be either "field" or "searchField", where "searchField" overrides "field" if set.
+		We only pass "searchField"  if we're viewing a document in a different parallel version/field than we searched in.
+		Which means that if "searchField" is set, we should use that. If not, we should use "field".
+		See also "viewField" in the article module (which is "field" in BlackLab terms.)
+		*/
+		let source = this.getString('searchField', this.getString('field'), v => v ? v : null);
 		if (source && !parallelFieldsMap[source]) {
-			source = getParallelFieldName(prefix, source);
-			if (!parallelFieldsMap[source]) {
-				console.info(`Invalid parallel source field name in url (${this.getString('field')}), ignoring`);
-				source = null;
-			}
+			console.info(`Invalid parallel source field name in url (${source}), ignoring`);
+			source = null;
 		}
 		const targets = this._parsedCql ? this._parsedCql.slice(1)
 			.map(result => result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '') : [];
@@ -767,10 +776,17 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	}
 
 	@memoize
-	private get caseSensitive(): boolean {
-		const groups = this.groupBy.filter(g => !g.startsWith('context:'));
+	private get article(): ArticleStore.HistoryState {
+		const [index, page, docId] = this.paths;
+		if (!(page === 'docs' && docId)) return ArticleStore.initialHistoryState;
 
-		return groups.length > 0 && groups.every(g => g.endsWith(':s'));
+		return {
+			docId: page === 'docs' && docId ? docId : null,
+			viewField: this.getString('field', null, v => v || null), // See also "searchField" in shared.
+			wordend: this.getNumber('wordend', Number.MAX_SAFE_INTEGER, v => v >= 0 ? v : Number.MAX_SAFE_INTEGER)!,
+			wordstart: this.getNumber('wordstart', 0, v => v >= 0 ? v : 0)!,
+			findhit: this.getNumber('findhit')
+		}
 	}
 
 	/**

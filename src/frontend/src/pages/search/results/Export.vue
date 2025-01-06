@@ -85,6 +85,8 @@ export default Vue.extend({
 			}
 			(params as any).csvdescription = UIStore.corpusCustomizations.results.csvDescription(this.results.summary, fieldDisplayName) || '';
 
+			const apir = apiCall(INDEX_ID, params);
+
 			debugLog('starting csv download', this.type, params);
 			apiCall(INDEX_ID, params).request
 			.then(
