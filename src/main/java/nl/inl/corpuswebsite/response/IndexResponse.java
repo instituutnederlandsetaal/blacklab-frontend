@@ -12,7 +12,7 @@ public class IndexResponse extends BaseResponse {
 
     @Override
     protected void completeRequest() throws IOException {
-        model.put("pageSize", servlet.getWebsiteConfig(corpus).getPageSize().map(Object::toString).orElse("undefined"));
+        model.put("pageSize", servlet.getWebsiteConfig(corpus).getPageSize().map(Object::toString).orElse(Integer.toString(Integer.MAX_VALUE)));
         model.put("debugInfo", servlet.debugInfo());
         
         // display template

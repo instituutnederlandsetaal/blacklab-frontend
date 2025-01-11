@@ -1,15 +1,17 @@
 <template>
 	<div class="row">
-		<span v-if="isLoading" class="fa fa-spinner fa-spin text-center" style="font-size: 60px; display: block; margin: auto;"></span>
-		<div v-else-if="error" class="text-center">
-			<h3 class="text-danger"><em>{{error.message}}</em></h3>
+		<Spinner v-if="isLoading(data)" center size="60px"/>
+		<div v-else-if="isError(data)" class="text-center">
+			<h3 class="text-danger"><em>{{data.error.message}}</em></h3>
 			<br>
-			<button type="button" class="btn btn-lg btn-default" @click="error = null; load()">Retry</button>
+			<!-- TODO retry mechanic -->
+			<!-- <button type="button" class="btn btn-lg btn-default" @click="error = null; load()">Retry</button> -->
 		</div>
 		<h4 v-else-if="!isEnabled" class="text-muted text-center">
+			<!-- TODO i18n -->
 			<em>No statistics have been configured for this corpus.</em>
 		</h4>
-		<template v-else>
+		<template v-else-if="isLoaded(data)">
 			<div v-if="statisticsTableData"
 				:class="{
 					'col-xs-12': true,
@@ -28,16 +30,16 @@
 				</table>
 			</div>
 
-			<AnnotationDistributions v-if="snippet && distributionData"
+			<AnnotationDistributions v-if="distributionData"
 				:class="{
 					'col-xs-12': true,
 					'col-md-6': !!statisticsTableData
 				}"
-				:snippet="snippet"
+				:snippet="data.value[0]"
 				v-bind="distributionData"
 			/>
 
-			<AnnotationGrowths v-if="snippet && growthData" class="col-xs-12" :snippet="snippet" v-bind="growthData"/>
+			<AnnotationGrowths v-if="growthData" class="col-xs-12" :snippet="data.value[0]" v-bind="growthData"/>
 		</template>
 	</div>
 </template>
@@ -45,12 +47,9 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import * as CorpusStore from '@/store/corpus';
 import * as ArticleStore from '@/store/article';
-import {blacklab} from '@/api';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import * as AppTypes from '@/types/apptypes';
 
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
 import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
@@ -60,7 +59,8 @@ import HighchartsVue from 'highcharts-vue';
 import HighchartsExporting from 'highcharts/modules/exporting';
 import HighchartsExportingData from 'highcharts/modules/export-data';
 import HighchartsBoost from 'highcharts/modules/boost';
-
+import { isEmpty, isError, isLoaded, isLoading, Loadable } from '@/utils/loadable-streams';
+import Spinner from '@/components/Spinner.vue';
 
 HighchartsExporting(Highcharts);
 HighchartsExportingData(Highcharts);
@@ -75,17 +75,13 @@ function _preventClicks(e: Event) {
 
 export default Vue.extend({
 	components: {
+		Spinner,
 		AnnotationDistributions,
 		AnnotationGrowths,
 	},
 	props: {
-		document: Object as () => BLTypes.BLDocument,
+		data: Object as () => Loadable<[BLTypes.BLHitSnippet, BLTypes.BLDocument]>,
 	},
-	data: () => ({
-		request: null as null|Promise<BLTypes.BLHitSnippet>,
-		snippet: null as null|BLTypes.BLHitSnippet,
-		error: null as null|AppTypes.ApiError,
-	}),
 	computed: {
 		isEnabled: ArticleStore.get.statisticsEnabled,
 		docIdFromRoute(): string|undefined {
@@ -95,15 +91,14 @@ export default Vue.extend({
 
 		getStatistics: ArticleStore.get.statisticsTableFn,
 		statisticsTableData(): any {
-			return (this.getStatistics && this.document && this.snippet) ?
-				this.getStatistics(this.document, this.snippet) : null;
+			return (this.getStatistics && isLoaded(this.data)) ? this.getStatistics(this.data.value[1], this.data.value[0]) : null;
 		},
 		distributionData(): any {
 			const data = ArticleStore.get.distributionAnnotation();
 			return data ? {
 				annotationId: data.id,
 				chartTitle: data.displayName,
-				baseColor: this.baseColor
+				baseColor: this.baseColor,
 			} : null;
 		},
 		growthData(): any {
@@ -114,22 +109,13 @@ export default Vue.extend({
 				baseColor: this.baseColor
 			} : null;
 		},
-
-		isLoading(): boolean { return this.request != null; }
 	},
 	methods: {
-		load(): void {
-			if (this.snippet || this.error || this.request || !this.isEnabled) {
-				return;
-			}
-
-			const annotatedFieldName = ArticleStore.getState().viewField || undefined;
-			this.request = blacklab.getSnippet(CorpusStore.getState().corpus!.id, ArticleStore.getState().docId!, annotatedFieldName, 0, this.document!.docInfo.lengthInTokens, 0)
-			.then(snippet => this.snippet = snippet)
-			.catch(error => this.error = error)
-			.finally(() => this.request = null);
-		}
-	},
+		isLoading,
+		isLoaded,
+		isError,
+		isEmpty
+	}
 });
 
 </script>

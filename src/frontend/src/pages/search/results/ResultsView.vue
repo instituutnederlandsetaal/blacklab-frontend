@@ -238,10 +238,9 @@ export default Vue.extend({
 
 			const nonce = this.refreshParameters;
 			const params = RootStore.get.blacklabParameters()!;
-			const apiCall = this.id === 'hits' ? Api.blacklab.getHits<BLTypes.BLHitResults|BLTypes.BLHitGroupResults> : Api.blacklab.getDocs<BLTypes.BLDocResults|BLTypes.BLDocGroupResults>;
-			debugLogCat('results', 'starting search', this.id, params);
-
-			const r = apiCall(this.indexId, params, {headers: { 'Cache-Control': 'no-cache' }});
+			const axiosParams = {headers: { 'Cache-Control': 'no-cache' }};
+			debugLog('starting search', this.id, params);
+			const r = this.id === 'hits' ? Api.blacklab.getHits(this.indexId, params, axiosParams) : Api.blacklab.getDocs(this.indexId, params, axiosParams);
 			this.request = r.request;
 			this.cancel = r.cancel;
 

@@ -1,7 +1,7 @@
 import axios, {Canceler, AxiosRequestConfig} from 'axios';
 import * as qs from 'qs';
 
-import {createEndpoint} from '@/api/apiutils';
+import {CancelableRequest, createEndpoint} from '@/api/apiutils';
 import {normalizeIndex, normalizeFormat, normalizeIndexBase} from '@/utils/blacklabutils';
 
 import * as BLTypes from '@/types/blacklabtypes';
@@ -316,10 +316,10 @@ export const blacklab = {
 		}
 	},
 
-	getDocs: <T extends BLTypes.BLDocResults|BLTypes.BLDocGroupResults = BLTypes.BLDocResults|BLTypes.BLDocGroupResults> (indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
+	getDocs: <T extends BLTypes.BLDocResults|BLTypes.BLDocGroupResults = BLTypes.BLDocResults|BLTypes.BLDocGroupResults> (indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig): CancelableRequest<T> => {
 		if (!indexId) {
 			return {
-				request: Promise.reject(new ApiError('Error', 'No index specified', 'Internal error', undefined)),
+				request: Promise.reject(new ApiError('Error', 'No index specified', 'Internal error', undefined)) as Promise<T>,
 				cancel: () => {}
 			}
 		} else {
@@ -339,19 +339,22 @@ export const blacklab = {
 	 * @returns
 	 */
 	getSnippet: (indexId: string, docId: string, field: string|undefined, hitstart: number, hitend: number, context?: string|number, requestParameters?: AxiosRequestConfig) => {
-		return endpoints.blacklab.getOrPost<BLTypes.BLHit>(blacklabPaths.snippet(indexId, docId), {
+		const {request, cancel} = endpoints.blacklab.getOrPostCancelable<BLTypes.BLHit>(blacklabPaths.snippet(indexId, docId), {
 			hitstart,
 			hitend,
 			context,
 			field,
-		}, requestParameters)
-		.then<BLTypes.BLHit>(r => {
-			// BlackLab doesn't always return the left/right/before/after context fields (at document boundaries)
-			// Fill them in with blanks to simplify rendering code.
-			if (!r.left) r.left = Object.entries(r.match).reduce((acc, [key, value]) => { acc[key] = []; return acc; }, {} as BLTypes.BLHitSnippetPart);
-			if (!r.right) r.right = Object.entries(r.match).reduce((acc, [key, value]) => { acc[key] = []; return acc; }, {} as BLTypes.BLHitSnippetPart);
-			return r;
-		});
+		}, requestParameters);
+		return {
+			cancel,
+			request: request.then<BLTypes.BLHit>(r => {
+				// BlackLab doesn't always return the left/right/before/after context fields (at document boundaries)
+				// Fill them in with blanks to simplify rendering code.
+				if (!r.left) r.left = Object.entries(r.match).reduce((acc, [key, value]) => { acc[key] = []; return acc; }, {} as BLTypes.BLHitSnippetPart);
+				if (!r.right) r.right = Object.entries(r.match).reduce((acc, [key, value]) => { acc[key] = []; return acc; }, {} as BLTypes.BLHitSnippetPart);
+				return r;
+			})
+		};
 	},
 
 	getTermFrequencies: (indexId: string, annotationId: string, values?: string[], filter?: string, number = 20, requestParameters?: AxiosRequestConfig) => {

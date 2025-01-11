@@ -167,6 +167,7 @@ export default Vue.component('HitRowDetails', {
 				this.row.hit.end,
 				context
 			)
+			.request
 			// check if hit hasn't changed in the meantime (due to component reuse)
 			.then(r => { if (nonce === this.row.hit) { this.sentence = r; this.sentenceRequest = null; }})
 			.catch(e => { if (nonce === this.row.hit) { this.error = formatError(e, 'snippet'); this.sentenceRequest = null; }})
@@ -187,6 +188,7 @@ export default Vue.component('HitRowDetails', {
 			const nonce = this.row.hit;
 			this.snippetRequest = Api.blacklab
 			.getSnippet(INDEX_ID, this.row.doc.docPid, this.row.annotatedField?.id, this.row.hit.start, this.row.hit.end, concordanceSize)
+			.request
 			.then(s => {
 				if (nonce !== this.row.hit) return; // hit has changed in the meantime.
 

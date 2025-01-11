@@ -1,59 +1,17 @@
-import { ApiError, blacklab, Canceler, frontend } from '@/api';
-import { BLDoc, BLHitResults } from '@/types/blacklabtypes';
+import { blacklab, frontend } from '@/api';
+import { BLDoc, BLDocument, BLHitResults, BLHitSnippet } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
-import jsonStableStringify from 'json-stable-stringify';
-import * as ArticleStore from '@/store/article';
 
-import { BehaviorSubject, combineLatest, distinctUntilChanged, map, merge, mergeMap, Observable, ObservableInput, of, OperatorFunction, partition, ReplaySubject, shareReplay, switchMap, tap } from 'rxjs';
-
+import { combineLoadables, combineLoadablesIncludingEmpty, compareAsSortedJson, Empty, isLoaded, Loadable, mapLoaded, toObservable } from '@/utils/loadable-streams';
+import { combineLatest, distinctUntilChanged, map, merge, Observable, of, partition, ReplaySubject, shareReplay, switchMap, tap } from 'rxjs';
 
 // Define some input/intermediate types and utils.
 
-enum LoadableState {
-	Loading = 'loading',
-	Loaded = 'loaded',
-	Error = 'error',
-	Empty = 'empty'
-}
-
-type Loading<T> = {state: LoadableState.Loading};
-type Loaded<T> = {state: LoadableState.Loaded, value: T};
-type Error<T> = {state: LoadableState.Error, error: ApiError};
-type Empty<T> = {state: LoadableState.Empty};
-type Loadable<T> = Loading<T> | Loaded<T> | Error<T> | Empty<T>;
-
-const Loading = <T>(): Loading<T> => ({state: LoadableState.Loading});
-const Loaded = <T>(value: T): Loaded<T> => ({state: LoadableState.Loaded, value});
-const Error = <T>(error: ApiError): Error<T> => ({state: LoadableState.Error, error});
-const Empty = <T>(): Empty<T> => ({state: LoadableState.Empty});
-
-const isLoaded = <T>(v: Loadable<T>): v is Loaded<T> => v.state === LoadableState.Loaded;
-const isLoading = <T>(v: Loadable<T>): v is Loading<T> => v.state === LoadableState.Loading;
-const isError = <T>(v: Loadable<T>): v is Error<T> => v.state === LoadableState.Error;
-const isEmpty = <T>(v: Loadable<T>): v is Empty<T> => v.state === LoadableState.Empty;
-
-type LoadableTypeFromState<T> = {
-	[LoadableState.Loading]: Loading<T>;
-	[LoadableState.Loaded]: Loaded<T>;
-	[LoadableState.Error]: Error<T>;
-	[LoadableState.Empty]: Empty<T>;
-}
-
-
-function mapLoaded<T, U>(mapper: (v: T) => U): OperatorFunction<Loadable<T>, Loadable<U>> {
-	return map(v => isLoaded(v) ? Loaded(mapper(v.value)) : v);
-}
-
-type CancelableRequest<T> = {
-	cancel: Canceler,
-	request: Promise<T>
-}
-
-type DocInput = {
+export type DocInput = {
 	indexId: string;
 	docId: string;
 }
-type HitsInput = {
+export type HitsInput = {
 	indexId: string;
 	docId: string;
 	searchField: string;
@@ -61,7 +19,7 @@ type HitsInput = {
 	pattgapdata?: string;
 }
 
-type PageInput = {
+export type PageInput = {
 	wordstart: number;
 	wordend: number;
 	findhit?: number;
@@ -70,32 +28,17 @@ type PageInput = {
 }
 
 type _Input = Partial<DocInput & HitsInput & PageInput>
-type Input = { [K in keyof _Input]: _Input[K] | null; }
-
-/** Map the request/canceler into an observable. The observable will never error, but instead emit an error object. */
-const toObservable = <T>({cancel, request}: CancelableRequest<T>) => new Observable<Loadable<T>>(observer => {
-	observer.next(Loading());
-	request.then(v => {
-		observer.next(Loaded(v));
-		observer.complete();
-	}).catch((e: ApiError) => {
-		if (e.title === 'Request cancelled') observer.complete();
-		else observer.next(Error(e));
-	});
-	return () => cancel();
-});
-const compareAsSortedJson = (a: any, b: any) => jsonStableStringify(a) === jsonStableStringify(b);
+export type Input = { [K in keyof _Input]: _Input[K] | null; }
 
 /** The initial input */
-const input$ = new ReplaySubject<Input>(1);
+export const inputsFromStore$ = new ReplaySubject<Input>(1);
 
 
 // Document metadata
-
 const isValidDocInput = (i: Input): i is DocInput => !!i.indexId && i.docId != null;
-const [validMetadataInput$, invalidMetadataInput$] = partition(input$, isValidDocInput);
-const metadata$ =  merge(
-	invalidMetadataInput$.pipe(map(Empty)),
+const [validMetadataInput$, invalidMetadataInput$] = partition(inputsFromStore$, isValidDocInput);
+export const metadata$ =  merge(
+	invalidMetadataInput$.pipe(map(i => Empty<BLDocument>())),
 	validMetadataInput$.pipe(
 		distinctUntilChanged(compareAsSortedJson),
 		switchMap(i => toObservable(blacklab.getDocumentInfo(i.indexId, i.docId))),
@@ -105,9 +48,8 @@ const metadata$ =  merge(
 
 
 // Document hits
-
-const [validHitsInput$, invalidHitsInput$] = partition(input$, (i): i is HitsInput => !!i.indexId && i.docId != null && !!i.patt);
-const hits$ = merge(
+const [validHitsInput$, invalidHitsInput$] = partition(inputsFromStore$, (i): i is HitsInput => !!i.indexId && i.docId != null && !!i.patt);
+export const hits$ = merge(
 	invalidHitsInput$.pipe(map(() => Empty<[number,number][]>())),
 	validHitsInput$.pipe(
 		distinctUntilChanged(compareAsSortedJson),
@@ -124,7 +66,7 @@ const hits$ = merge(
 		mapLoaded(hits => hits.hits.map(h => [h.start, h.end] as [number, number])),
 		shareReplay(1)
 	)
-);
+).pipe(tap(v => console.log('hits', v)));
 
 type ValidPaginationAndDocDisplayParameters = {
 	indexId: string;
@@ -151,30 +93,43 @@ type ValidPaginationAndDocDisplayParameters = {
  * This is only available after the metadata and hits are loaded.
  * It is a guaranteed valid set of pagination parameters.
  */
-const validPaginationParameters$ = combineLatest([input$, metadata$, hits$]).pipe(
-	map(([input, doc, hits]): Loadable<ValidPaginationAndDocDisplayParameters> => {
-		if (!isLoaded(doc)) return doc; // pass doc state (error, empty, loading) through
-		if (isLoading(hits) || isError(hits)) return hits; // pass hits loading/error state through (empty hits are fine)
-		return Loaded(fixInput(input, doc.value, isLoaded(hits) ? hits.value : undefined));
-	}),
-	distinctUntilChanged((a,b) => compareAsSortedJson(a, b)),
+export const validPaginationParameters$ = combineLatest([inputsFromStore$, metadata$, hits$]).pipe(
+	map(([input, doc, hits]) => combineLoadablesIncludingEmpty([input, doc, hits] as const)),
+	mapLoaded(([input, doc, hits]) => fixInput(input, doc!, hits)),
+	distinctUntilChanged((a,b) => compareAsSortedJson(a, b)), // type inference breaks if we pass compareAsSortedJson directly
 	shareReplay(1)
 )
 
-// TODO: This is a side effect. move to init code.
-validPaginationParameters$.subscribe({
-	next: v => {
-		if (!isLoaded(v)) return;
-		const store = ArticleStore.getState();
-		if (v.value.wordstart !== store.wordstart || v.value.wordend !== store.wordend) ArticleStore.actions.page({
-			wordstart: v.value.wordstart,
-			wordend: v.value.wordend
-		})
-		if (v.value.findhit != store.findhit) ArticleStore.actions.findhit(v.value.findhit ?? null);
-	}
-})
+// This observable is used to correct the store when the user enters on or navigates to a page that is out of bounds or otherwise invalid.
+export const correctionsForStore$ = combineLatest([inputsFromStore$, validPaginationParameters$]).pipe(
+	map(combineLoadables),
+	mapLoaded(([input, pagination]) => {
+		const commonKeys = Object.keys(input).filter(k => k in pagination) as Extract<keyof typeof input, keyof typeof pagination>[];
+		// extract those properties that are different
+		const difference = commonKeys.reduce((acc, key) => {
+			if (input[key] !== pagination[key]) acc[key] = input[key] as any;
+			return acc;
+		}, {} as Partial<Pick<Input, typeof commonKeys[number]>>);
 
-const contents$ = validPaginationParameters$.pipe(
+		return difference;
+	}),
+	shareReplay(1)
+)
+
+// // TODO: This is a side effect. move to init code.
+// validPaginationParameters$.subscribe({
+// 	next: v => {
+// 		if (!isLoaded(v)) return;
+// 		const store = ArticleStore.getState();
+// 		if (v.value.wordstart !== store.wordstart || v.value.wordend !== store.wordend) ArticleStore.actions.page({
+// 			wordstart: v.value.wordstart,
+// 			wordend: v.value.wordend
+// 		})
+// 		if (v.value.findhit != store.findhit) ArticleStore.actions.findhit(v.value.findhit ?? null);
+// 	}
+// })
+
+export const contents$ = validPaginationParameters$.pipe(
 	switchMap((v): Observable<Loadable<string>> => {
 		if (!isLoaded(v)) return of(v); // pass doc state (error, empty, loading) through
 		const input = v.value;
@@ -191,35 +146,46 @@ const contents$ = validPaginationParameters$.pipe(
 	mapLoaded(v => {
 		const container = document.createElement('div');
 		container.innerHTML = v;
-		return container.childNodes.length === 1 ? container.firstChild as HTMLElement : container;
-	})
-)
-
-const highlightableHits$ = contents$.pipe(
-	mapLoaded(v => Array.from(v.querySelectorAll('.hl')) as HTMLElement[]),
+		const highlights = Array.from(container.querySelectorAll('.hl')) as HTMLElement[];
+		return { container, highlights }
+	}),
 	shareReplay(1)
 )
 
-type LoadableValues<Input extends readonly Loadable<any>[]> = { [K in keyof Input]: Input[K] extends Loadable<infer L> ? L : never; };
-function mergeLoadables<T extends readonly Loadable<any>[]>(t: T): Loadable<LoadableValues<T>> {
-	const firstNotLoaded = t.find(v => !isLoaded(v));
-	if (firstNotLoaded) return firstNotLoaded;
-	else return Loaded(t.map(v => isLoaded(v) ? v.value : undefined) as any);
-}
-
-const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$, highlightableHits$]).pipe(
-	map(mergeLoadables),
-	mapLoaded(([pagination, hits, elements]) => {
-		if (pagination.findhit == null) return Empty<HTMLElement>();
+export const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$, contents$]).pipe(
+	map(combineLoadables),
+	mapLoaded(([pagination, hits, {container, highlights}]) => {
 		const firstVisibleHitIndex = binarySearch(hits, h => pagination.wordstart - h[0]);
 		const hitIndexToHighlight = binarySearch(hits, h => pagination.findhit! - h[0]);
 		const localHitIndexToHighlight = hitIndexToHighlight - firstVisibleHitIndex;
-		if (hitIndexToHighlight < 0 || hitIndexToHighlight >= elements.length) return Empty<HTMLElement>();
-		return Loaded(elements[localHitIndexToHighlight]);
+		return {
+			totalHits: hits.length,
+			hitIndexToHighlight,
+			firstVisibleHitIndex,
+			localHitIndexToHighlight,
+			hl: highlights[localHitIndexToHighlight] as HTMLElement|undefined, // when out of bounds, this will be undefined
+			container,
+		}
 	}),
 	distinctUntilChanged((a,b) => compareAsSortedJson(a, b)),
 	shareReplay(1)
 );
+
+const snippet$ = validPaginationParameters$.pipe(
+	switchMap(v => {
+		if (!isLoaded(v)) return of(v);
+		const p = v.value;
+		return toObservable(blacklab.getSnippet(
+			p.indexId,
+			p.docId,
+			p.viewField,
+			0, // start
+			p.docLength, // end
+			0 // context
+		))
+	})
+);
+export const snippetAndDocument$ = combineLatest([snippet$, metadata$]).pipe(map(combineLoadables));
 
 /** Given unvalidated pagination parameters and the size of the document, return the validated/fixed pagination parameters. */
 function getDefaultPagination(input: Input, doclength: number): {wordstart: number, wordend: number} {
@@ -285,26 +251,4 @@ function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPag
 		searchField: input.searchField!,
 		viewField: input.viewField!
 	}
-}
-
-export {
-	metadata$,
-	hits$,
-	contents$,
-	validPaginationParameters$,
-	ValidPaginationAndDocDisplayParameters,
-	hitToHighlight$,
-
-	input$,
-	Input,
-
-	Loadable,
-	Loading,
-	isLoading,
-	Loaded,
-	isLoaded,
-	Error,
-	isError,
-	Empty,
-	isEmpty,
 }

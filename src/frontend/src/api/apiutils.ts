@@ -1,8 +1,13 @@
-import axios, {AxiosResponse, AxiosRequestConfig, AxiosError} from 'axios';
+import axios, {AxiosResponse, AxiosRequestConfig, AxiosError, Canceler} from 'axios';
 import qs from 'qs';
 
 import {ApiError} from '@/types/apptypes';
 import {isBLError} from '@/types/blacklabtypes';
+
+export type CancelableRequest<T> = {
+	cancel: Canceler,
+	request: Promise<T>
+}
 
 const settings = {
 	// use a builtin delay to simulate network latency (in ms)
@@ -126,29 +131,29 @@ export function createEndpoint(options: AxiosRequestConfig) {
 
 	return {
 		...endpoint,
-		getCancelable<T>(url: string, queryParams?: Record<string, string|number|boolean|Record<string, any>>, config?: AxiosRequestConfig) {
+		getCancelable<T>(url: string, queryParams?: Record<string, string|number|boolean|Record<string, any>>, config?: AxiosRequestConfig): CancelableRequest<T> {
 			const source = axios.CancelToken.source();
 			const request = endpoint.get<T>(url, {...config, params: queryParams, cancelToken: source.token})
 			.then(delayResponse, delayError)
 			.then(r => r.data, handleError);
 			return {request, cancel: source.cancel};
 		},
-		get<T>(url: string, queryParams?: Record<string, string|number|boolean|Record<string, any>>, config?: AxiosRequestConfig) {
+		get<T>(url: string, queryParams?: Record<string, string|number|boolean|Record<string, any>>, config?: AxiosRequestConfig): Promise<T> {
 			return this.getCancelable<T>(url, queryParams, config).request;
 		},
-		postCancelable<T>(url: string, formData?: any, config?: AxiosRequestConfig) {
+		postCancelable<T>(url: string, formData?: any, config?: AxiosRequestConfig): CancelableRequest<T> {
 			const source = axios.CancelToken.source();
 			const request = endpoint.post<T>(url, formData, {...config, cancelToken: source.token})
 			.then(delayResponse, delayError)
 			.then(r => r.data, handleError);
 			return {request, cancel: source.cancel};
 		},
-		post<T>(url: string, formData?: any, config?: AxiosRequestConfig) {
+		post<T>(url: string, formData?: any, config?: AxiosRequestConfig): Promise<T> {
 			return this.postCancelable<T>(url, formData, config).request;
 		},
 		// Server has issues with long urls in GET requests, so use POST instead when the query string is too long.
 		// (only works with BlackLab currently)
-		getOrPostCancelable<T>(url: string, queryParameters?: any, settings?: AxiosRequestConfig) {
+		getOrPostCancelable<T>(url: string, queryParameters?: any, settings?: AxiosRequestConfig): CancelableRequest<T> {
 			const queryString = queryParameters ? new URLSearchParams(queryParameters).toString() : '';
 			const usePost = queryString.length > 1000;
 			if (usePost) {
@@ -168,10 +173,10 @@ export function createEndpoint(options: AxiosRequestConfig) {
 				return this.getCancelable<T>(url, queryParameters, settings);
 			}
 		},
-		getOrPost<T>(url: string, queryParameters?: any, settings?: AxiosRequestConfig) {
+		getOrPost<T>(url: string, queryParameters?: any, settings?: AxiosRequestConfig): Promise<T> {
 			return this.getOrPostCancelable<T>(url, queryParameters, settings).request;
 		},
-		deleteCancelable<T>(url: string, config?: AxiosRequestConfig) {
+		deleteCancelable<T>(url: string, config?: AxiosRequestConfig): CancelableRequest<T> {
 			const source = axios.CancelToken.source();
 			// Need to use the generic .request function because .delete
 			// returns a void promise by design, yet blacklab sends response bodies
@@ -180,7 +185,7 @@ export function createEndpoint(options: AxiosRequestConfig) {
 			.then(r => r.data, handleError);
 			return {request, cancel: source.cancel};
 		},
-		delete<T>(url: string, config?: AxiosRequestConfig) {
+		delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
 			return this.deleteCancelable<T>(url, config).request;
 		},
 	};
