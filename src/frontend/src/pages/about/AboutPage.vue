@@ -1,31 +1,36 @@
 <template>
-	<div>
-		<ServerRenderedComponent :loading="loading" :content="content"/>
-	</div>
+	<ServerRenderedComponent :content="content"/>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
-import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
+import { pipe, switchMap } from 'rxjs';
+
 import { frontend } from '@/api';
+import * as RootStore from '@/store';
+import { InteractiveLoadable, toObservable } from '@/utils/loadable-streams';
+
+import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
 
 export default Vue.extend({
 	components: {
 		ServerRenderedComponent
 	},
-	data() {
-		return {
-			loading: true as boolean,
-			content: null as string|null,
-			error: null as string|null,
-		};
+	data: () => ({
+		content: new InteractiveLoadable<string, string>(pipe(
+			switchMap(corpusId => toObservable(frontend.getAbout(corpusId))),
+		))
+	}),
+	computed: {
+		corpusId: () => RootStore.getState().corpusId,
 	},
-	created() {
-		frontend.getAbout(INDEX_ID)
-			.request
-			.then(c => this.content = c, e => this.error = e)
-			.finally(() => this.loading = false);
-	},
+	watch: {
+		corpusId: {
+			immediate: true,
+			handler(corpusId: string) { this.content.next(corpusId); }
+		}
+	}
+
 });
 </script>
 

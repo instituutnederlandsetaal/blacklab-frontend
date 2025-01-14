@@ -1,9 +1,9 @@
 import { blacklab, frontend } from '@/api';
-import { BLDoc, BLDocument, BLHitResults, BLHitSnippet } from '@/types/blacklabtypes';
+import { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
 
-import { combineLoadables, combineLoadablesIncludingEmpty, compareAsSortedJson, Empty, isLoaded, Loadable, mapLoaded, toObservable } from '@/utils/loadable-streams';
-import { combineLatest, distinctUntilChanged, map, merge, Observable, of, partition, ReplaySubject, shareReplay, switchMap, tap } from 'rxjs';
+import { combineLoadables, combineLoadablesIncludingEmpty, compareAsSortedJson, Empty, isLoaded, Loadable, Loaded, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
+import { combineLatest, distinctUntilChanged, map, Observable, ReplaySubject, shareReplay, tap } from 'rxjs';
 
 // Define some input/intermediate types and utils.
 
@@ -32,41 +32,35 @@ export type Input = { [K in keyof _Input]: _Input[K] | null; }
 
 /** The initial input */
 export const inputsFromStore$ = new ReplaySubject<Input>(1);
-
+const input$ = inputsFromStore$.pipe(distinctUntilChanged(compareAsSortedJson), shareReplay(1));
 
 // Document metadata
-const isValidDocInput = (i: Input): i is DocInput => !!i.indexId && i.docId != null;
-const [validMetadataInput$, invalidMetadataInput$] = partition(inputsFromStore$, isValidDocInput);
-export const metadata$ =  merge(
-	invalidMetadataInput$.pipe(map(i => Empty<BLDocument>())),
-	validMetadataInput$.pipe(
-		distinctUntilChanged(compareAsSortedJson),
-		switchMap(i => toObservable(blacklab.getDocumentInfo(i.indexId, i.docId))),
-		shareReplay(1)
-	)
+const toDocInput = (i: Input): Loadable<DocInput> => (!!i.indexId && i.docId != null) ? Loaded(i) : Empty();
+export const metadata$ =  input$.pipe(
+	map(toDocInput),
+	switchMapLoaded(i => toObservable(blacklab.getDocumentInfo(i.indexId, i.docId))),
+	shareReplay(1)
 );
 
-
 // Document hits
-const [validHitsInput$, invalidHitsInput$] = partition(inputsFromStore$, (i): i is HitsInput => !!i.indexId && i.docId != null && !!i.patt);
-export const hits$ = merge(
-	invalidHitsInput$.pipe(map(() => Empty<[number,number][]>())),
-	validHitsInput$.pipe(
-		distinctUntilChanged(compareAsSortedJson),
-		switchMap(i => toObservable(blacklab.getHits<BLHitResults>(i.indexId, {
-			docpid: i.docId,
-			field: i.searchField,
-			patt: i.patt,
-			first: 0,
-			number: Math.pow(2, 31)-1, // JAVA BACKEND: max_safe_integer is 2^31-1
-			context: 0,
-			includetokencount: false,
-			listvalues: "__do_not_send_anything__", // we don't need this info
-		}))),
-		mapLoaded(hits => hits.hits.map(h => [h.start, h.end] as [number, number])),
-		shareReplay(1)
-	)
-).pipe(tap(v => console.log('hits', v)));
+const toHitsInput = (i: Input): Loadable<HitsInput> => (!!i.indexId && i.docId != null && !!i.patt) ? Loaded(i) : Empty();
+export const hits$ = input$.pipe(
+	map(toHitsInput),
+	switchMapLoaded(i => toObservable(blacklab.getHits<BLHitResults>(i.indexId, {
+		docpid: i.docId,
+		field: i.searchField,
+		patt: i.patt,
+		first: 0,
+		number: Math.pow(2, 31)-1, // JAVA BACKEND: max_safe_integer is 2^31-1
+		context: 0,
+		includetokencount: false,
+		listvalues: "__do_not_send_anything__", // we don't need this info
+	}))),
+	mapLoaded(hits => hits.hits.map(h => [h.start, h.end] as [number, number])),
+	tap(hits => console.log('hits in article view', hits)),
+	shareReplay(1),
+)
+
 
 type ValidPaginationAndDocDisplayParameters = {
 	indexId: string;
@@ -93,10 +87,10 @@ type ValidPaginationAndDocDisplayParameters = {
  * This is only available after the metadata and hits are loaded.
  * It is a guaranteed valid set of pagination parameters.
  */
-export const validPaginationParameters$ = combineLatest([inputsFromStore$, metadata$, hits$]).pipe(
+export const validPaginationParameters$ = combineLatest([input$, metadata$, hits$]).pipe(
 	map(([input, doc, hits]) => combineLoadablesIncludingEmpty([input, doc, hits] as const)),
 	mapLoaded(([input, doc, hits]) => fixInput(input, doc!, hits)),
-	distinctUntilChanged((a,b) => compareAsSortedJson(a, b)), // type inference breaks if we pass compareAsSortedJson directly
+	distinctUntilChanged(compareAsSortedJson), // type inference breaks if we pass compareAsSortedJson directly
 	shareReplay(1)
 )
 
@@ -116,33 +110,15 @@ export const correctionsForStore$ = combineLatest([inputsFromStore$, validPagina
 	shareReplay(1)
 )
 
-// // TODO: This is a side effect. move to init code.
-// validPaginationParameters$.subscribe({
-// 	next: v => {
-// 		if (!isLoaded(v)) return;
-// 		const store = ArticleStore.getState();
-// 		if (v.value.wordstart !== store.wordstart || v.value.wordend !== store.wordend) ArticleStore.actions.page({
-// 			wordstart: v.value.wordstart,
-// 			wordend: v.value.wordend
-// 		})
-// 		if (v.value.findhit != store.findhit) ArticleStore.actions.findhit(v.value.findhit ?? null);
-// 	}
-// })
-
 export const contents$ = validPaginationParameters$.pipe(
-	switchMap((v): Observable<Loadable<string>> => {
-		if (!isLoaded(v)) return of(v); // pass doc state (error, empty, loading) through
-		const input = v.value;
-
-		return toObservable(frontend.getDocumentContents(input.indexId, input.docId, {
-			patt: input.patt,
-			pattgapdata: input.pattgapdata,
-			wordstart: input.wordstart,
-			wordend: input.wordend,
-			field: input.viewField,
-			searchfield: input.searchField
-		}))
-	}),
+	switchMapLoaded(input => toObservable(frontend.getDocumentContents(input.indexId, input.docId, {
+		patt: input.patt,
+		pattgapdata: input.pattgapdata,
+		wordstart: input.wordstart,
+		wordend: input.wordend,
+		field: input.viewField,
+		searchfield: input.searchField
+	}))),
 	mapLoaded(v => {
 		const container = document.createElement('div');
 		container.innerHTML = v;
@@ -154,6 +130,15 @@ export const contents$ = validPaginationParameters$.pipe(
 
 export const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$, contents$]).pipe(
 	map(combineLoadables),
+	distinctUntilChanged((a, b) => {
+		// Inverted: false === not equivalent === changed
+		if (isLoaded(a) && isLoaded(b)) {
+			const [aParams, aHits, aContents] = a.value;
+			const [bParams, bHits, bContents] = b.value;
+			return aParams.findhit === bParams.findhit && aHits === bHits && aContents === bContents;
+		}
+		return a.state === b.state;
+	}),
 	mapLoaded(([pagination, hits, {container, highlights}]) => {
 		const firstVisibleHitIndex = binarySearch(hits, h => pagination.wordstart - h[0]);
 		const hitIndexToHighlight = binarySearch(hits, h => pagination.findhit! - h[0]);
@@ -167,23 +152,18 @@ export const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$,
 			container,
 		}
 	}),
-	distinctUntilChanged((a,b) => compareAsSortedJson(a, b)),
 	shareReplay(1)
 );
 
 const snippet$ = validPaginationParameters$.pipe(
-	switchMap(v => {
-		if (!isLoaded(v)) return of(v);
-		const p = v.value;
-		return toObservable(blacklab.getSnippet(
-			p.indexId,
-			p.docId,
-			p.viewField,
-			0, // start
-			p.docLength, // end
-			0 // context
-		))
-	})
+	switchMapLoaded(p => toObservable(blacklab.getSnippet(
+		p.indexId,
+		p.docId,
+		p.viewField,
+		0, // start
+		p.docLength, // end
+		0 // context
+	)))
 );
 export const snippetAndDocument$ = combineLatest([snippet$, metadata$]).pipe(map(combineLoadables));
 

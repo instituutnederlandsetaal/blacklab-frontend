@@ -119,22 +119,20 @@
 </template>
 
 <script lang="ts">
-import Vue, { ref } from 'vue';
+import Vue from 'vue';
 
 import * as ArticleStore from '@/store/article';
 import * as QueryStore from '@/store/query';
 import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
 
-import {blacklab, Canceler, frontend} from '@/api';
 
-import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 // import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
 // import ArticlePageParallel from '@/pages/article/ArticlePageParallel.vue';
-import Pagination, {PaginationInfo} from '@/components/Pagination.vue';
+import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 
 
@@ -168,10 +166,12 @@ function _preventClicks(e: Event) {
 	return false;
 }
 
-import {inputsFromStore$, contents$, hitToHighlight$, correctionsForStore$, hits$, metadata$, Input, validPaginationParameters$, snippetAndDocument$} from './article';
+import {inputsFromStore$, contents$, hitToHighlight$, hits$, metadata$, Input, validPaginationParameters$, snippetAndDocument$} from './article';
 import { fieldSubset } from '@/utils';
-import { Observable, Subscription } from 'rxjs';
-import { Empty, isEmpty, isError, isLoadable, isLoaded, isLoading, Loadable, loadableFromObservable, LoadableState, Loaded, LoadingError } from '@/utils/loadable-streams';
+import { Subscription } from 'rxjs';
+import { isEmpty, isError, isLoaded, isLoading, loadableFromObservable } from '@/utils/loadable-streams';
+
+import * as RootStore from '@/store';
 
 export default Vue.extend({
 	components: {
@@ -196,7 +196,7 @@ export default Vue.extend({
 	computed: {
 		inputs(): Input {
 			return {
-				indexId: CorpusStore.getState().corpus?.id,
+				indexId: RootStore.getState().corpusId,
 				docId: ArticleStore.getState().docId,
 
 				viewField: ArticleStore.getState().viewField,
@@ -246,7 +246,6 @@ export default Vue.extend({
 		inputs: {
 			handler: function(v) { inputsFromStore$.next(v); },
 			immediate: true,
-			deep: true
 		},
 		contentAndContainer: {
 			handler: function({content, container}: {content: HTMLElement|undefined, container: HTMLElement|undefined}) {
@@ -265,23 +264,6 @@ export default Vue.extend({
 			$(this.$refs.pagination).draggable();
 		}
 	},
-	// updated() {
-	// },
-	// Corrections maybe don't matter?
-	// created() {
-	// 	this.subs.push(inputsFromStore$.subscribe(v => {
-	// 		const cur = this.inputs;
-	// 		if (v.wordstart || v.wordend) {
-	// 			ArticleStore.actions.page({
-	// 				wordstart: v.wordstart! ?? cur.wordstart!,
-	// 				wordend: v.wordend! ?? cur.wordend!,
-	// 			});
-	// 		}
-	// 		if (v.findhit) ArticleStore.actions.findhit(v.findhit);
-	// 		if (v.)
-
-	// 	}));
-	// },
 	destroyed() {
 		this.subs.forEach(s => s.unsubscribe());
 	},

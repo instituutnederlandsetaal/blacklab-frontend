@@ -1,4 +1,4 @@
-import { map, Observable, OperatorFunction, Subscription } from 'rxjs';
+import { map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subscription, switchMap } from 'rxjs';
 import jsonStableStringify from 'json-stable-stringify';
 import { ApiError, Canceler } from '@/api';
 import { CancelableRequest } from '@/api/apiutils';
@@ -10,11 +10,11 @@ export enum LoadableState {
 	Empty = 'empty'
 }
 
-export type Loading<T> = {state: LoadableState.Loading};
-export type Loaded<T> = {state: LoadableState.Loaded, value: T};
-export type LoadingError<T> = {state: LoadableState.Error, error: ApiError};
-export type Empty<T> = {state: LoadableState.Empty, value: undefined};
-export type Loadable<T> = Loading<T> | Loaded<T> | LoadingError<T> | Empty<T>;
+export type Loading<T> =      {state: LoadableState.Loading, value?: undefined, error?: undefined};
+export type Loaded<T> =       {state: LoadableState.Loaded,  value:  T,         error?: undefined};
+export type LoadingError<T> = {state: LoadableState.Error,   value?: undefined, error:  ApiError};
+export type Empty<T> =        {state: LoadableState.Empty,   value?: undefined, error?: undefined};
+export type Loadable<T> =     Loading<T> | Loaded<T> | LoadingError<T> | Empty<T>;
 
 export const Loading = <T>(): Loading<T> => ({state: LoadableState.Loading});
 export const Loaded = <T>(value: T): Loaded<T> => ({state: LoadableState.Loaded, value});
@@ -24,8 +24,8 @@ export const Empty = <T>(): Empty<T> => ({state: LoadableState.Empty, value: und
 export const isLoadable = <T>(v: any): v is Loadable<T> => {
 	if (!v || typeof v !== 'object' || !('state' in v)) return false;
 	if (!Object.values(LoadableState).includes(v.state)) return false;
-	if (v.state === LoadableState.Loaded && !('value' in v)) return false;
-	if (v.state === LoadableState.Empty && 'value' in v && v.value !== undefined) return false;
+	if (v.state !== LoadableState.Loaded && v.value !== undefined) return false;
+	if (v.state !== LoadableState.Error && v.error !== undefined) return false;
 	return true;
 };
 export const isLoaded = <T>(v: Loadable<T>): v is Loaded<T> => v.state === LoadableState.Loaded;
@@ -33,16 +33,18 @@ export const isLoading = <T>(v: Loadable<T>): v is Loading<T> => v.state === Loa
 export const isError = <T>(v: Loadable<T>): v is LoadingError<T> => v.state === LoadableState.Error;
 export const isEmpty = <T>(v: Loadable<T>): v is Empty<T> => v.state === LoadableState.Empty;
 
-type LoadableTypeFromState<T> = {
-	[LoadableState.Loading]: Loading<T>;
-	[LoadableState.Loaded]: Loaded<T>;
-	[LoadableState.Error]: LoadingError<T>;
-	[LoadableState.Empty]: Empty<T>;
-}
-
 export function mapLoaded<T, U>(mapper: (v: T) => U): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return map(v => isLoaded(v) ? Loaded(mapper(v.value)) : v);
 }
+
+export function mergeMapLoaded<T, U>(mapper: (v: T) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
+	return mergeMap(v => isLoaded(v) ? mapper(v.value) : of(v));
+}
+
+export function switchMapLoaded<T, U>(mapper: (v: T) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
+	return switchMap(v => isLoaded(v) ? mapper(v.value) : of(v));
+}
+
 
 /** Map the request/canceler into an observable. The observable will never error, but instead emit an error object. */
 export const toObservable = <T>({cancel, request}: CancelableRequest<T>) => new Observable<Loadable<T>>(observer => {
@@ -155,10 +157,6 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]>(t: T): 
 	else return Loaded(t.map(v => isLoaded(v) ? v.value : isEmpty(v) ? undefined : v) as any);
 }
 
-const test = [Loaded(1), {a: 2}, Empty<3>()] as const;
-type test2 = ValuesIncludingEmpty<typeof test>; // [number, {a: number}, number]
-
-
 // some sanity checks
 (() => {
 	const apiError: ApiError = {httpCode: 0, message: '', name: '', statusText: '', title: ''};
@@ -185,3 +183,60 @@ type test2 = ValuesIncludingEmpty<typeof test>; // [number, {a: number}, number]
 	if (combined.value[2] !== 1) alertAndLog('combineLoadables failed');
 	if (!isLoadable(combined)) alertAndLog('combineLoadables failed');
 })();
+
+
+export class InteractiveLoadable<I, T> {
+	private i$: ReplaySubject<I> = new ReplaySubject(1);
+	private o$: Observable<Loadable<T>>;
+	private unsub: Subscription;
+
+	public state: LoadableState;
+	public value: T|undefined;
+	public error: ApiError|undefined;
+
+	constructor(processInput: (i$: Observable<I>) => Observable<Loadable<T>>) {
+		this.o$ = processInput(this.i$);
+		this.unsub = this.o$.subscribe({
+			next: v => {
+				this.state = v.state;
+				this.value = isLoaded(v) ? v.value : undefined;
+				this.error = isError(v) ? v.error : undefined;
+			},
+			error: e => {
+				this.state = LoadableState.Error;
+				this.value = undefined;
+				this.error = {
+					httpCode: 0,
+					message: e.message? e.message : 'Unknown error',
+					name: e.name ? e.name : 'Unknown error',
+					statusText: '',
+					title: 'Unknown error'
+				}
+			},
+			complete: () => {
+				this.state = LoadableState.Empty;
+				this.value = this.error = undefined;
+			}
+		});
+	}
+
+	public next(i: I) {
+		this.i$.next(i);
+	}
+	public get isLoading(): boolean {
+		return isLoading(this as Loadable<T>);
+	}
+	public get isError(): boolean {
+		return isError(this as Loadable<T>);
+	}
+	public get isEmpty(): boolean {
+		return isEmpty(this as Loadable<T>);
+	}
+	public get isLoaded(): boolean {
+		return isLoaded(this as Loadable<T>);
+	}
+
+	public dispose() {
+		this.unsub.unsubscribe();
+	}
+}

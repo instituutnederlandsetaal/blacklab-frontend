@@ -1,23 +1,23 @@
 <template>
 	<div>
-		<Spinner v-if="loading" />
-		<div v-else-if="content" v-html="content"></div>
-		<div v-else-if="error">{{ error }}</div>
-		<div v-else>Something should be shown here.</div>
+		<Spinner v-if="isLoading(content)" />
+		<div v-else-if="isError(content)">{{ content.error.message }}</div>
+		<div v-else-if="isLoaded(content)" v-html="content.value"></div>
+		<div v-else>Not applicable.</div>
 	</div>
 </template>
 
 <script lang="ts">
+import { isError, isLoaded, isLoading, Loadable } from '@/utils/loadable-streams';
 import Spinner from './Spinner.vue';
 
 export default {
 	name: 'ServerRenderedContentPage',
 	components: {Spinner},
 	props: {
-		loading: Boolean,
-		content: String,
-		error: String
-	}
+		content: Object as () => Loadable<string>
+	},
+	methods: {isLoading, isError, isLoaded},
 };
 </script>
 
