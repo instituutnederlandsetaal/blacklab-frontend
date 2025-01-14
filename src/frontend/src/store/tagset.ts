@@ -198,7 +198,6 @@ export {
 
 	getState,
 	get,
-	actions,
 	init,
 
 	namespace,

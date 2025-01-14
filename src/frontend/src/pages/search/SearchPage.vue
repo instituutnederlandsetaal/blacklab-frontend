@@ -1,6 +1,21 @@
 <template>
 	<div class="container">
-		<template v-if="loadingState === 'loaded'">
+		<div v-if="isLoading(corpus)">
+			<Spinner center/>
+			<h2>Please wait while we load the corpus...</h2>
+		</div>
+		<div v-else-if="isError(corpus)">
+			<!-- TODO requires login, forbidden states, retry -->
+			<h2>{{ corpus.error.title }}</h2>
+			<p>{{ corpus.error }}</p>
+			<pre v-if="corpus.error.stack">{{ corpus.error.stack }}</pre>
+		</div>
+		<div v-else-if="isEmpty(corpus)">
+			<h2>Strange... there should be a corpus here, but there isn't...</h2>
+			<p>Please report this so we can fix it.</p>
+		</div>
+
+		<template v-else>
 			<QueryForm/>
 			<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary"/>
 			<Debug v-if="resultsVisible">
@@ -14,14 +29,6 @@
 
 			<PageGuide v-if="pageGuideEnabled"/>
 		</template>
-		<div v-else>
-			<h2>
-				<span v-if="loadingState !== 'loading'" class="fa fa-danger fa-4x"></span>
-				{{ loadingMessage }}
-			</h2>
-			<Spinner v-if="loadingState === 'loading'" center/>
-			<button v-else-if="loadingState === 'requiresLogin'" type="button" class="btn btn-lg btn-primary">login (todo)</button>
-		</div>
 	</div>
 </template>
 
@@ -30,12 +37,15 @@ import Vue from 'vue';
 import * as InterfaceStore from '@/store/form/interface';
 import * as UIStore from '@/store/ui';
 import * as RootStore from '@/store/';
+import * as CorpusStore from '@/store/corpus';
 
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 import Results from '@/pages/search/results/Results.vue';
 import PageGuide from '@/pages/search/PageGuide.vue';
 import Spinner from '@/components/Spinner.vue';
+
+import { isLoading, isError, isEmpty, isLoaded } from '@/utils/loadable-streams';
 
 export default Vue.extend({
 	components: {
@@ -46,18 +56,13 @@ export default Vue.extend({
 		Spinner
 	},
 	computed: {
-		loadingState() { return RootStore.get.status().status; },
-		loadingMessage() { return RootStore.get.status().message; },
-
+		corpus() { return CorpusStore.getState(); },
 		resultsVisible(): boolean { return InterfaceStore.getState().viewedResults != null; },
 		pageGuideEnabled(): boolean { return UIStore.getState().global.pageGuide.enabled; },
 		debugQuery: RootStore.get.blacklabParameters
 	},
-	created() {
-		console.log('SearchPage created');
-	},
-	mounted() {
-		console.log('SearchPage mounted');
+	methods:{
+		isLoading, isError, isEmpty, isLoaded
 	},
 });
 </script>

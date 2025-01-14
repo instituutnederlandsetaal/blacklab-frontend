@@ -1,14 +1,5 @@
 <template>
-	<div id="app">
-		<Spinner v-if="isLoading(corpus)"/>
-		<div v-else-if="isError(corpus)">
-			<h2>
-				<span class="fa fa-danger fa-4x"></span>
-				{{ corpus.error }}
-			</h2>
-		</div>
-		<router-view v-else/>
-	</div>
+	<router-view/>
 </template>
 
 <script lang="ts">
@@ -45,7 +36,6 @@ export default Vue.extend({
 		const user = await loginSystem.awaitInit();
 		initApi('blacklab', BLS_URL, user);
 		initApi('cf', CONTEXT_URL, user);
-
 
 		// If we have a corpus: parse the url..
 		// TODO this really shouldn't be here

@@ -35,6 +35,8 @@ import {FilterValue, AnnotationValue} from '@/types/apptypes';
 
 import cloneDeep from 'clone-deep';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { isError, isLoaded, isLoading } from '@/utils/loadable-streams';
+import { isEmpty } from 'rxjs';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -409,23 +411,22 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 	@memoize
 	private get annotationValues(): {[key: string]: AnnotationValue} {
-		// How we parse the cql pattern depends on whether a tagset is available for this corpus, and whether it's enabled in the ui
-		if (!(TagsetModule.getState().state === 'loaded' || TagsetModule.getState().state === 'disabled')) {
-			throw new Error('Attempting to parse url before tagset is loaded or disabled, await tagset.awaitInit() before parsing url.');
-		}
-
-		if (this._parsedCql === null) {
-			return {}; // no query; can't interpret as annotation values
-		}
-
-		const result = this._parsedCql[0];
-		if (result == null || result.tokens === undefined) {
+		const result = this._parsedCql?.[0];
+		// no query; can't interpret as annotation values
+		if (!result || !result.tokens) {
 			return {};
 		}
 
-		const tagsetInfo = TagsetModule.getState().state === 'loaded' ? {
+		// How we parse the cql pattern depends on whether a tagset is available for this corpus, and whether it's enabled in the ui
+		const tagsetState = TagsetModule.getState();
+		if (isLoading(tagsetState))
+			throw new Error('Attempting to parse url before tagset is loaded or disabled, await tagset.awaitInit() before parsing url.');
+		if (isError(tagsetState))
+			throw new Error('Error loading tagset, cannot parse url.');
+
+		const tagsetInfo = isLoaded(tagsetState) ? {
 			mainAnnotations: CorpusModule.get.allAnnotations().filter(a => a.uiType === 'pos').map(a => a.id),
-			subAnnotations: Object.keys(TagsetModule.getState().subAnnotations)
+			subAnnotations: Object.keys(tagsetState.value.subAnnotations)
 		} : null;
 
 		try {

@@ -92,7 +92,7 @@ import * as RootStore from '@/store/';
 import * as HistoryStore from '@/store/history';
 import * as FilterStore from '@/store/form/filters';
 
-import UrlStateParser from '@/store/util/url-state-parser';
+import UrlStateParserSearch from '@/url/url-state-parser-search';
 
 import Modal from '@/components/Modal.vue';
 
@@ -149,7 +149,7 @@ export default Vue.extend({
 			}
 
 			const uri = new URI(importUrl);
-			const state = await new UrlStateParser(FilterStore.getState().filters, uri).get();
+			const state = await new UrlStateParserSearch(FilterStore.getState().filters, uri).get();
 			HistoryStore.actions.addEntry({
 				entry: state,
 				pattern: (uri.query(true) as any).patt,

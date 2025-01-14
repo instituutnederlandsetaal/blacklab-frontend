@@ -1,10 +1,17 @@
 <template>
 	<Modal v-if="open" :title="$tAnnotDisplayName(annotation)" :confirmMessage="$t('partOfSpeech.submit')" @confirm="submit(); $emit('close');" lg :close="false">
-		<template v-if="isValidTagset">
-
+		<Spinner v-if="isLoading(tagset)" center/>
+		<div v-else-if="isError(tagset)" class="alert alert-danger">
+			{{tagset.error.message}}
+		</div>
+		<div v-else-if="isEmpty(tagset)" class="alert alert-warning">
+			<!-- TODO i18n -->
+			No tagset
+		</div>
+		<template v-if="isLoaded(tagset)">
 			<div class="list-group-container" >
 				<div class="list-group main">
-					<button v-for="value in tagset.values"
+					<button v-for="value in tagset.value.values"
 						type="button"
 						:key="value.value"
 						:class="{
@@ -25,7 +32,7 @@
 							<Debug>({{subId}})</Debug>
 						</li>
 
-						<li class="list-group-item category-value" v-for="subValue in tagset.subAnnotations[subId].values" :key="subValue.value" v-if="!subValue.pos || subValue.pos.includes(annotationValue.value)">
+						<li class="list-group-item category-value" v-for="subValue in tagset.value.subAnnotations[subId].values" :key="subValue.value" v-if="!subValue.pos || subValue.pos.includes(annotationValue.value)">
 							<label>
 								<input type="checkbox" v-model="selected[`${annotationValue.value}/${subId}/${subValue.value}`]"/>
 								{{subValue.displayName}}
@@ -41,9 +48,6 @@
 				<div>{{query}}</div>
 			</template>
 		</template>
-		<div v-else class="alert alert-danger">
-			{{errorMessage}}
-		</div>
 
 
 		<template #footer>
@@ -59,6 +63,8 @@ import * as CorpusStore from '@/store/corpus';
 
 import { Tagset } from '@/types/apptypes';
 import { escapeRegex } from '@/utils';
+
+import {isLoaded, isError, isEmpty, isLoading} from '@/utils/loadable-streams';
 
 import Modal from '@/components/Modal.vue';
 
@@ -80,12 +86,12 @@ export default Vue.extend({
 		isValidTagset(): boolean { return TagsetStore.getState().state === 'loaded'; },
 		errorMessage(): string { return this.isValidTagset ? '' : TagsetStore.getState().message; },
 		query(): string {
-			if (this.annotationValue == null) { return ''; }
-
+			if (!isLoaded(this.tagset) || !this.annotationValue) return '';
+			const tagset: Tagset = this.tagset.value;
 			return [
 				`${this.annotation.id}="${escapeRegex(this.annotationValue.value)}"`,
 				...this.annotationValue.subAnnotationIds.map(subAnnot => {
-					const {values} = this.tagset.subAnnotations[subAnnot];
+					const {values} = tagset.subAnnotations[subAnnot];
 					const selected = values.filter(v => this.selected[`${this.annotationValue!.value}/${subAnnot}/${v.value}`]);
 
 					return {subAnnot, escapedValues: selected.map(v => escapeRegex(v.value))};
@@ -96,6 +102,7 @@ export default Vue.extend({
 		},
 	},
 	methods: {
+		isEmpty,isError, isLoading, isLoaded,
 		reset() {
 			Object.keys(this.selected).forEach(k => this.selected[k] = false);
 			this.annotationValue = null;
@@ -104,15 +111,21 @@ export default Vue.extend({
 			this.$emit('submit', this.query);
 		}
 	},
-	created() {
-		Object.values(this.tagset.values).forEach(value => {
-			value.subAnnotationIds.forEach(annotId => {
-				const {values, id} = this.tagset.subAnnotations[annotId];
-				values.forEach(({value: subAnnotValue}) => {
-					Vue.set(this.selected, `${value.value}/${annotId}/${subAnnotValue}`, false);
+	watch: {
+		'tagset.value': {
+			handler(t: Tagset|undefined) {
+				if (!t) return;
+				Object.values(t.values).forEach(value => {
+					value.subAnnotationIds.forEach(annotId => {
+						const {values, id} = t.subAnnotations[annotId];
+						values.forEach(({value: subAnnotValue}) => {
+							Vue.set(this.selected, `${value.value}/${annotId}/${subAnnotValue}`, false);
+						});
+					});
 				});
-			});
-		});
+			},
+			immediate: true
+		}
 	}
 });
 </script>
