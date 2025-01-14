@@ -35,20 +35,16 @@ import debug from '@/utils/debug';
 Vue.use(Vuex);
 
 type RootState = {
-	// NOTE: any non-module properties need to be supplied to the initial state object passed to the b.vuexStore() call
-	// in order to be reactive. (vue needs an initial value to latch on to)
-	loadingState: 'loading'|'error'|'loaded'|'requiresLogin'|'unauthorized';
-	loadingMessage: string;
-
+	corpusId: string|null;
 	corpus: CorpusModule.ModuleRootState;
+	article: ArticleModule.ModuleRootState;
+
 	history: HistoryModule.ModuleRootState;
 	query: QueryModule.ModuleRootState;
 	tagset: TagsetModule.ModuleRootState;
 	ui: UIModule.ModuleRootState;
 	views: ViewModule.ModuleRootState;
 	global: GlobalResultsModule.ModuleRootState;
-
-	article: ArticleModule.ModuleRootState;
 }&FormManager.PartialRootState;
 
 const b = getStoreBuilder<RootState>();
@@ -56,8 +52,6 @@ const b = getStoreBuilder<RootState>();
 const getState = b.state();
 
 const get = {
-	status: b.read(state => ({message: state.loadingMessage, status: state.loadingState}), 'status'),
-
 	viewedResultsSettings: b.read(state => state.views[state.interface.viewedResults!] ?? null, 'getViewedResultsSettings'),
 
 	/** Whether the filters section should be active (as it isn't active when in specific search modes (e.g. simple or explore)) */
@@ -73,16 +67,7 @@ const get = {
 
 	blacklabParameters: b.read((state): BLTypes.BLSearchParameters|undefined => {
 		const activeView = get.viewedResultsSettings();
-		if (activeView == null) {
-			return undefined;
-			// throw new Error('Cannot generate blacklab parameters without knowing what kinds of results are being viewed (hits or docs)');
-		}
-
-		if (state.query == null) {
-			return undefined;
-			// throw new Error('Cannot generate blacklab parameters before search form has been submitted');
-		}
-
+		if (!state.corpusId || !activeView || !state.query) return undefined;
 		if (state.global.sampleSize && state.global.sampleSeed == null) {
 			throw new Error('Should provide a sampleSeed when random sampling, or every new page of results will use a different seed');
 		}
@@ -123,14 +108,30 @@ const get = {
 	}, 'blacklabParameters')
 };
 
-const privateActions = {
-	setLoadingState: b.commit((state, newState: Pick<RootState, 'loadingState'|'loadingMessage'>) => {
-		console.log(`Setting loading state to ${newState.loadingState} with message: ${newState.loadingMessage}`);
-		return Object.assign(state, newState);
-	}, 'setLoadingState'),
-}
-
 const actions = {
+	corpus: b.dispatch(async ({state, rootState}, corpusId: string|null) => {
+		state.corpusId = corpusId;
+		const corpus = await CorpusModule.actions.corpus(corpusId) ?? null;
+
+		UIModule.corpusCustomizations.customizeFunctions.forEach(f => f(UIModule.corpusCustomizations));
+
+		// This is user-customizable data, it can be used to override various defaults from other modules,
+		// It needs to determine fallbacks and defaults for settings that haven't been configured,
+		// So initialize it before the other modules.
+		await UIModule.init(corpus);
+
+		await FormManager.init(corpus);
+		await ViewModule.init(corpus);
+		await GlobalResultsModule.init(corpus);
+
+		await TagsetModule.init(corpus);
+		await HistoryModule.init(corpus);
+		await QueryModule.init(corpus);
+
+		await ArticleModule.init(corpus);
+		return corpus;
+	}, 'corpus'),
+
 	/** Read the form state, build the query, reset the results page/grouping, etc. */
 	searchFromSubmit: b.commit(state => {
 		if (state.interface.form === 'search' && state.interface.patternMode === 'extended' && state.patterns.extended.splitBatch) {
@@ -335,6 +336,8 @@ const actions = {
 		ViewModule.actions.resetAllViews({resetGroupBy: true});
 		QueryModule.actions.reset();
 		ArticleModule.actions.reset();
+		// TODO glosses, concepts, tagset, history, etc.
+
 	}, 'resetRoot'),
 
 	/**
@@ -361,84 +364,12 @@ const actions = {
 // NOTE: process.env is empty at runtime, but webpack inlines all values at compile time, so this check works.
 declare const process: any;
 const store = b.vuexStore({
-	state: {loadingState: 'loading', loadingMessage: 'Please wait while we get the corpus information...'} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
+	state: {corpusId: null} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
 	strict: process.env.NODE_ENV === 'development',
 });
 
-const init = async () => {
-	// Load the corpus data, so we can derive values, fallbacks and defaults in the following modules
-	// This must happen right at the beginning of the app startup
-	try {
-		await CorpusModule.init();
-
-		if (CorpusModule.getState().corpus) {
-			// This is user-customizable data, it can be used to override various defaults from other modules,
-			// It needs to determine fallbacks and defaults for settings that haven't been configured,
-			// So initialize it before the other modules.
-			await UIModule.init();
-
-			await FormManager.init();
-			await ViewModule.init();
-			await GlobalResultsModule.init();
-
-			await TagsetModule.init();
-			await HistoryModule.init();
-			await QueryModule.init();
-
-			await ArticleModule.init();
-		}
-		privateActions.setLoadingState({loadingState: 'loaded', loadingMessage: ''});
-
-		// Set the default parallel source field (the first one)
-		// We need to do this after loading the corpus information
-		// @@@ setTimeout is stupid, but doesn't work otherwise!?
-		setTimeout(() => {
-			const par = CorpusModule.get.parallelAnnotatedFields();
-			if (par.length > 0)
-				PatternModule.getState().shared.source = par[0].id;
-		}, 100);
-
-		return true;
-	} catch (e: any) {
-		console.log(e);
-		if (e instanceof ApiError) {
-			if (e.httpCode === 401) {
-				privateActions.setLoadingState({loadingState: 'requiresLogin', loadingMessage: e.message});
-			} else if (e.httpCode === 403) {
-				privateActions.setLoadingState({loadingState: 'unauthorized', loadingMessage: e.message});
-			} else if (e.httpCode === 404) {
-				// Not found. May not be configured correctly.
-				console.log(`ApiError: ${JSON.stringify(e)}`);
-				if (e.title === 'CANNOT_OPEN_INDEX' || e.message.indexOf('CANNOT_OPEN_INDEX') !== -1) {
-					// Corpus not found
-					privateActions.setLoadingState({loadingState: 'error', loadingMessage:
-						`Corpus not found. Please check the spelling, or delete the corpus` +
-						'name from the URL to get a list of available corpora. ' +
-						'If it\'s not there, refer to the documentation at https://github.com/INL/corpus-frontend '+
-						'and check your configuration.'
-					});
-				} else if (e.message.indexOf('blacklabResponse') !== -1) {
-					// Some other blacklab error.
-					privateActions.setLoadingState({loadingState: 'error', loadingMessage: e.message});
-				} else {
-					// No blacklab response; something isn't configured correctly.
-					privateActions.setLoadingState({loadingState: 'error', loadingMessage:
-						'Unable to contact BlackLab Server (or corpus-frontend\'s own server component). ' +
-						'Make sure both .war applications have been deployed, and your properties file ' +
-						'is in the correct location and has the correct name. ' +
-						'Refer to the documentation at https://github.com/INL/corpus-frontend '
-					});
-				}
-			} else {
-				// Some other API error. Show message.
-				privateActions.setLoadingState({loadingState: 'error', loadingMessage: e.message});
-			}
-		} else {
-			// Non-API error. Show message.
-			privateActions.setLoadingState({loadingState: 'error', loadingMessage: e.message ?? e.toString()});
-		}
-		return false;
-	}
+const init = (corpusId: string|null): Promise<CorpusModule.NormalizedIndex> => {
+	return actions.corpus(corpusId);
 };
 
 // Debugging helpers.

@@ -6,6 +6,7 @@ import {blacklab, frontend} from '@/api';
 import * as BLTypes from '@/types/blacklabtypes';
 
 import {RootState} from '@/store';
+import { NormalizedIndex } from '@/types/apptypes';
 
 type ModuleRootState = {
 	docId: string|null;
@@ -120,8 +121,8 @@ const actions = {
 	}, 'replaceRoot'),
 };
 
-const init = () => {
-
+const init = (corpus: NormalizedIndex|null) => {
+	actions.reset();
 };
 
 export {

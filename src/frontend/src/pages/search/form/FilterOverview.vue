@@ -69,8 +69,8 @@ export default Vue.extend({
 			return r;
 		},
 
-		totalCorpusTokens(): number { return CorpusStore.getState().corpus!.tokenCount; },
-		totalCorpusDocs(): number { return CorpusStore.getState().corpus!.documentCount; }
+		totalCorpusTokens(): number { return CorpusStore.get.corpus()!.tokenCount; },
+		totalCorpusDocs(): number { return CorpusStore.get.corpus()!.documentCount; }
 	},
 	methods: {
 		frac2Percent

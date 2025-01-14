@@ -461,7 +461,7 @@ const actions = {
 			within: {
 				enable: b.commit((state, payload: boolean) => state.search.shared.within.enabled = payload, 'search_shared_within_enable'),
 				elements: b.commit((state, payload: ModuleRootState['search']['shared']['within']['elements']) => {
-					const relations = CorpusStore.getState().corpus!.relations;
+					const relations = CorpusStore.get.corpus().relations;
 					const validElements = payload.filter(v => relations.spans?.[v.value]);
 					if (!validElements.find(v => v.value === '')) {
 						validElements.unshift({
@@ -768,10 +768,9 @@ const actions = {
  *   This is where we are now.
  *
  */
-const init = () => {
-	if (!CorpusStore.getState().corpus) return ;
+const init = (corpus: AppTypes.NormalizedIndex|null) => {
+	if (!corpus) return; // TODO clean slate
 
-	//throw new Error('Cannot initialize UI module before corpus is loaded');
 
 	// Call the customize function(s) defined in custom.js (if any)
 	corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));
@@ -910,7 +909,7 @@ const init = () => {
 		// (dependency, parallel) relations as well. We could get the list of values for this annotation and
 		// decode them, but this makes us depend on implementation details. The new /relations endpoint gives
 		// us the same information in a portable way.
-		const relations = CorpusStore.getState().corpus!.relations;
+		const relations = CorpusStore.get.corpus()!.relations;
 		setValuesForWithin(Object.keys(relations.spans||{}).map(v => ({value: v, label: v, title: null})));
 
 		// Set default sentence boundary element. For use with dependency trees and getting the sentence around a hit.
@@ -973,7 +972,7 @@ const init = () => {
 
 	// Docs table: Show the date column if it is configured
 	if (!getState().results.docs.shownMetadataIds.length) {
-		const dateField = CorpusStore.getState().corpus!.fieldInfo.dateField;
+		const dateField = CorpusStore.get.corpus()!.fieldInfo.dateField;
 		if (dateField) {
 			actions.results.docs.shownMetadataIds([dateField]);
 		}
@@ -1107,7 +1106,7 @@ function validateAnnotations(
 	invalid: (id: string) => string,
 	cb: (ids: string[]) => void
 ) {
-	if (!CorpusStore.getState().corpus) { // not loaded yet
+	if (!CorpusStore.get.corpus()) { // not loaded yet
 		cb(ids);
 		return;
 		// we will re-check this on init()?
@@ -1133,7 +1132,7 @@ function validateMetadata(
 	invalid: (id: string) => string,
 	cb: (ids: string[]) => void
 ) {
-	if (!CorpusStore.getState().corpus) {
+	if (!CorpusStore.get.corpus()) {
 		cb(ids);
 		return;
 		// assume we will re-check this on init()?
@@ -1272,7 +1271,7 @@ const corpusCustomizations = Vue.observable({
 			 * (INTERNAL; use includeAttribute to customize, works more consistently like other methods)
 			 */
 			_attributes(spanName: string): string[]|Option[]|null {
-				const availableAttr = Object.keys(CorpusStore.getState().corpus?.relations.spans?.[spanName].attributes ?? {});
+				const availableAttr = Object.keys(CorpusStore.get.corpus()?.relations.spans?.[spanName].attributes ?? {});
 				return availableAttr.filter(attrName => this.includeAttribute(spanName, attrName))
 					.map(a => ({ value: a }));
 			},
@@ -1296,7 +1295,7 @@ const corpusCustomizations = Vue.observable({
 			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: any = {}): AppTypes.FilterDefinition {
 				// No options specified; try to get them from the corpus.
 				let optionsFromCorpus;
-				const corpus = CorpusStore.getState().corpus;
+				const corpus = CorpusStore.get.corpus();
 				if (!metadata.options && corpus && corpus.relations.spans) {
 					const span: BLTypes.BLSpanInfo = corpus.relations.spans[spanName] ?? {};
 					const attr = span.attributes?.[attrName] ?? { values: {}, valueListComplete: false };

@@ -8,6 +8,7 @@ import { getStoreBuilder } from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
 import { RootState } from '@/store/';
+import { NormalizedIndex } from '@/types/apptypes';
 
 type ModuleRootState = {
 	value: string|null;
@@ -46,7 +47,9 @@ const actions = {
 };
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = () => {/**/};
+const init = (corpus: NormalizedIndex|null) => {
+	actions.reset();
+};
 
 export {
 	ModuleRootState,

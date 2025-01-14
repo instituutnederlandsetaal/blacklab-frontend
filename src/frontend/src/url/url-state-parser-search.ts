@@ -1,6 +1,6 @@
 import memoize from 'memoize-decorator';
 
-import BaseUrlStateParser from '@/store/util/url-state-parser-base';
+import BaseUrlStateParser from './url-state-parser-base';
 import LuceneQueryParser from 'lucene-query-parser';
 
 import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex, spanFilterId} from '@/utils';
@@ -40,7 +40,7 @@ import { getValueFunctions } from '@/components/filters/filterValueFunctions';
  * Decode the current url into a valid page state configuration.
  * Keep everything private except the getters
  */
-export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.HistoryEntry> {
+export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModule.HistoryEntry> {
 	/**
 	 * MetadataFilters here are the interface components to filter a query by document metadata.
 	 * Because these can be fairly complex components, we have decided to implement decoding of the query in the Vue components.

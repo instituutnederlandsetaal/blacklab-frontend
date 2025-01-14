@@ -4,11 +4,6 @@ import qs from 'qs';
 import {ApiError} from '@/types/apptypes';
 import {isBLError} from '@/types/blacklabtypes';
 
-export type CancelableRequest<T> = {
-	cancel: Canceler,
-	request: Promise<T>
-}
-
 const settings = {
 	// use a builtin delay to simulate network latency (in ms)
 	delay: 0,
@@ -41,8 +36,7 @@ export function delayError(e: AxiosError): Promise<AxiosResponse<never>> {
  * For use with axios. Always returns a rejected promise containing the error.
  */
 export async function handleError(error: AxiosError): Promise<never> {
-	// TODO: use axios.isCancel() to check if the request was cancelled
-	if (!error.config) { // is a cancelled request, message containing details
+	if (axios.isCancel(error)) { // is a cancelled request, message containing details
 		return Promise.reject(new ApiError('Request cancelled', `Request was cancelled: ${error}`, '', undefined)); // TODO some logic depends on the exact title to filter out cancelled requests
 	}
 
@@ -123,6 +117,27 @@ export async function handleError(error: AxiosError): Promise<never> {
 	}
 }
 
+new Promise(() => {}).catch
+
+export class CancelableRequest<T> {
+	public request: Promise<T>;
+	public cancel: Canceler;
+	constructor(request: Promise<T>, cancel: Canceler) {
+		this.request = request;
+		this.cancel = cancel;
+	}
+
+	public then<U>(handler: (value: T) => any, errorHandler?: (reason: any) => any): CancelableRequest<U> {
+		return new CancelableRequest(this.request.then(handler, errorHandler), this.cancel);
+	}
+	public catch<U>(handler: (error: any) => U): CancelableRequest<T|U> {
+		return new CancelableRequest(this.request.catch(handler), this.cancel);
+	}
+	public finally(handler: () => void): CancelableRequest<T> {
+		return new CancelableRequest(this.request.finally(handler), this.cancel);
+	}
+}
+
 export function createEndpoint(options: AxiosRequestConfig) {
 	const endpoint = axios.create({
 		withCredentials: settings.withCredentials,
@@ -136,7 +151,7 @@ export function createEndpoint(options: AxiosRequestConfig) {
 			const request = endpoint.get<T>(url, {...config, params: queryParams, cancelToken: source.token})
 			.then(delayResponse, delayError)
 			.then(r => r.data, handleError);
-			return {request, cancel: source.cancel};
+			return new CancelableRequest(request, source.cancel);
 		},
 		get<T>(url: string, queryParams?: Record<string, string|number|boolean|Record<string, any>>, config?: AxiosRequestConfig): Promise<T> {
 			return this.getCancelable<T>(url, queryParams, config).request;
@@ -146,7 +161,7 @@ export function createEndpoint(options: AxiosRequestConfig) {
 			const request = endpoint.post<T>(url, formData, {...config, cancelToken: source.token})
 			.then(delayResponse, delayError)
 			.then(r => r.data, handleError);
-			return {request, cancel: source.cancel};
+			return new CancelableRequest(request, source.cancel);
 		},
 		post<T>(url: string, formData?: any, config?: AxiosRequestConfig): Promise<T> {
 			return this.postCancelable<T>(url, formData, config).request;
@@ -183,7 +198,7 @@ export function createEndpoint(options: AxiosRequestConfig) {
 			const request = endpoint.request<T>({...config,method: 'DELETE',url, cancelToken: source.token})
 			.then(delayResponse, delayError)
 			.then(r => r.data, handleError);
-			return {request, cancel: source.cancel};
+			return new CancelableRequest(request, source.cancel);
 		},
 		delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
 			return this.deleteCancelable<T>(url, config).request;

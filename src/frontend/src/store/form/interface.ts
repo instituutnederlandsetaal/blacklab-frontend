@@ -10,6 +10,7 @@ import cloneDeep from 'clone-deep';
 import {RootState} from '@/store/';
 import {ModuleRootState as PatternModuleRootState} from '@/store/form/patterns';
 import {ModuleRootState as ExploreModuleRootState} from '@/store/form/explore';
+import { NormalizedIndex } from '@/types/apptypes';
 
 type ModuleRootState = {
 	form: 'search'|'explore';
@@ -46,7 +47,9 @@ const actions = {
 	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, payload), 'replace'),
 };
 
-const init = () => {/**/};
+const init = (corpus: NormalizedIndex|null) => {
+	actions.reset();
+};
 
 export {
 	ModuleRootState,

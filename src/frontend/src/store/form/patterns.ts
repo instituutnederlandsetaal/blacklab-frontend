@@ -13,7 +13,7 @@ import * as UIStore from '@/store/ui';
 
 import { debugLog, debugLogCat } from '@/utils/debug';
 
-import { AnnotationValue, Option } from '@/types/apptypes';
+import { AnnotationValue } from '@/types/apptypes';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
@@ -106,6 +106,8 @@ const get = {
 };
 
 const privateActions = {
+	clear: b.commit(state => Object.assign(state, cloneDeep(defaults)), 'clear'),
+
 	// initFilter: b.commit((state, payload: FilterValue) => Vue.set(state.filters, payload.id, payload), 'filter_init'),
 	// NOTE when re-integrating annotatedFieldId this needs to be updated to account.
 	initExtendedAnnotation: b.commit((state, payload: AnnotationValue) =>
@@ -294,10 +296,13 @@ const actions = {
 };
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = () => {
-	const parallelFields = CorpusStore.get.parallelAnnotatedFields();
+const init = (corpus: CorpusStore.NormalizedIndex|null) => {
+	privateActions.clear();
+	if (!corpus) return;
 
+	const parallelFields = CorpusStore.get.parallelAnnotatedFields();
 	const defaultParallelVersion = parallelFields[0]?.id || '';
+
 	debugLogCat('parallel', `init: Set default parallel version: ${defaultParallelVersion}`);
 	privateActions.initShared({
 		source: defaultParallelVersion,

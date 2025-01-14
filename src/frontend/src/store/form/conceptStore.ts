@@ -62,7 +62,7 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneD
 const getState = b.state();
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = () => { /* */ }
+const init = () => { actions.reset(); }
 
 
 

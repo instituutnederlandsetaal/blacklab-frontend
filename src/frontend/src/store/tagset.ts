@@ -14,75 +14,26 @@ import * as CorpusStore from '@/store/corpus';
 import { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import { mapReduce } from '@/utils';
+import { Empty, InteractiveLoadable, isLoadable, isLoaded, isLoading, Loadable, loadableFromObservable, LoadableState, Loaded, promiseFromLoadableStream as promiseFromLoadableStream, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
+import { distinct, distinctUntilChanged, filter, firstValueFrom, map, pipe, ReplaySubject, shareReplay, tap } from 'rxjs';
+import {frontend} from '@/api';
 
-type ModuleRootState = Tagset&{
-	/** Uninitialized before init() or load() action called. loading/loaded during/after load() called. Disabled when load() not called before init(), or loading failed for any reason. */
-	state: 'uninitialized'|'loading'|'loaded'|'disabled';
-	message: string;
-	/**
-	 * Url from which the tagset will be loaded on initialization.
-	 * We must defer initialization because corpus info first has the be downloaded from the server.
-	 * We need that to validate the contents of the tagset (which annotations exist, which values are valid, etc...)
-	 * So that users can't create queries that won't work.
-	 * (we don't _have_ to do that, but it would make creating and debugging a tagset pretty difficult)
-	 */
-	url: string|null;
-};
-
+type ModuleRootState = Loadable<Tagset>;
 const namespace = 'tagset';
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, {
-	state: 'uninitialized',
-	url: null,
-	message: '',
-	subAnnotations: {},
-	values: {}
-});
 
-const getState = b.state();
-
-const get = {
-	isLoaded: b.read(state => state.state === 'loaded', 'tagset_loaded'),
-	isLoading: b.read(state => state.state === 'loading', 'tagset_loading'),
-};
-
-const internalActions = {
-	state: b.commit((state, payload: {state: ModuleRootState['state'], message: string}) => Object.assign(state, payload), 'state'),
-	replace: b.commit((state, payload: Tagset) => Object.assign(state, payload), 'replace')
-};
-
-const actions = {
-	/** Load the tagset from the provided url. This should be called prior to decoding the page url. */
-	load: b.commit((state, url: string) => state.url = url, 'load'),
-};
-
-const init = async () => {
-	const state = getState();
-	if (state.state !== 'uninitialized') {
-		return Promise.resolve();
-	}
-	if (!state.url) {
-		internalActions.state({state: 'disabled', message: 'No tagset loaded.\n Call "vuexModules.tagset.actions.load(CONTEXT_URL + /static/${path_to_tagset.json}) from custom js file before $document.ready()'});
-		return Promise.resolve();
-	}
-
-	// by now the corpus module should be initialized.
-	// the url should be set.
-	// load the tagset.
-
-	internalActions.state({state: 'loading', message: 'Loading tagset...'});
-	return Axios.get<Tagset>(state.url, {
-		// Remove comment-lines in the returned json. (that's not strictly allowed by JSON, but we chose to support it)
-		transformResponse: [(r: string) => r.replace(/\/\/.*[\r\n]+/g, '')].concat(Axios.defaults.transformResponse!)
-	})
-	.then(t => {
-		const tagset = t.data;
+const indexId$ = new ReplaySubject<string|null>(1);
+const tagset$ = indexId$.pipe(
+	map((id): Loadable<string> => id ? Loaded(id) : Empty()),
+	switchMapLoaded(id => toObservable(frontend.getTagset(id))),
+	tap(v => {
+		if (!isLoaded(v)) return;
+		const tagset = v.value;
 		const annots = CorpusStore.get.allAnnotationsMap();
 		const mainAnnot = Object.values(annots).flat().find(a => a.uiType === 'pos');
 		if (!mainAnnot) {
 			// We don't have any annotation to attach the tagset to
 			// Stop loading, and act as if no tagset was loaded (because it wasn't).
 			console.warn(`Attempting to loading tagset when no annotation has uiType "pos". Cannot load!`);
-			internalActions.state({state: 'disabled', 'message': 'No annotation has uiType "pos". Cannot load tagset.'});
 			return;
 		}
 
@@ -94,14 +45,24 @@ const init = async () => {
 			copyDisplaynamesAndValuesToCorpus(mainAnnot, Object.values(tagset.values));
 			Object.values(tagset.subAnnotations).forEach(sub => copyDisplaynamesAndValuesToCorpus(annots[sub.id], sub.values));
 		});
-		internalActions.replace(tagset);
-	})
-	.then(() => internalActions.state({state: 'loaded', message: ''}))
-	.catch(e => {
-		console.warn('Could not load tagset: ' + e.message);
-		internalActions.state({state: 'disabled', message: 'Error loading tagset: ' + e.message});
-	});
+	}),
+	shareReplay(1)
+);
 
+const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, loadableFromObservable(tagset$, []));
+
+const getState = b.state();
+
+const get = {};
+
+const init = async (corpus: CorpusStore.NormalizedIndex|null) => {
+	if (!corpus) indexId$.next(null);
+	else {
+		const mainAnnot = Object.values(CorpusStore.get.allAnnotations()).find(a => a.uiType === 'pos');
+		if (!mainAnnot) indexId$.next(null);
+		else indexId$.next(corpus.id);
+	}
+	return promiseFromLoadableStream(tagset$);
 };
 
 /**

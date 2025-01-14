@@ -4,16 +4,11 @@ const {VueLoaderPlugin} = require('vue-loader');
 const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const CircularDependencyPlugin = require('circular-dependency-plugin');
 // const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+const CleanTerminalPlugin = require('clean-terminal-webpack-plugin');
 
 module.exports = {
 	entry: {
-		// Output multiple files, one for each main page - important!: also include the polyfills in the output bundle
-		article:        ['./src/utils/enable-polyfills.ts', './src/article.ts'],
-		corpora:        ['./src/utils/enable-polyfills.ts', './src/corpora.ts'],
-		search:         ['./src/utils/enable-polyfills.ts', './src/search.tsx'],
-		'remote-index': ['./src/utils/enable-polyfills.ts', './src/remote-index.ts'],
 		callback:       ['./src/utils/enable-polyfills.ts', './src/callback.ts'],
-		config:         ['./src/utils/enable-polyfills.ts', './src/config.ts'],
 		main:           ['./src/utils/enable-polyfills.ts', './src/main.tsx'],
 	},
 	output: {
@@ -147,6 +142,7 @@ module.exports = {
 			//   console.log('end detecting webpack modules cycles');
 			// },
 		}),
+		new CleanTerminalPlugin()
 	],
 	devtool: 'eval-source-map',
 	// Sometimes we get false-positive errors when importing a typescript type definition from a file which itself imported it from a third file

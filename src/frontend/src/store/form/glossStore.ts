@@ -94,8 +94,9 @@ const namespace = 'glosses';
 const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep({...defaults, settings: null}));
 
 const getState = b.state();
-// intentionally empty, it's just there to prevent this module from being removed by tree-shake (i.e. left out during build)
-const init = () => {};
+const init = () => {
+	actions.reset();
+};
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////

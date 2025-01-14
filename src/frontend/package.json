@@ -30,6 +30,7 @@
     "@vue/babel-preset-jsx": "^1.1.2",
     "babel-loader": "^8.2.3",
     "circular-dependency-plugin": "^5.2.0",
+    "clean-terminal-webpack-plugin": "^3.0.0",
     "clean-webpack-plugin": "^0.1.19",
     "core-js": "^3.36.1",
     "css-loader": "^6.6.0",

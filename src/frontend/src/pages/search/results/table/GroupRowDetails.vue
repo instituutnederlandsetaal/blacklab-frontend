@@ -79,6 +79,9 @@ export default Vue.extend({
 		concordances: null as any as PaginatedGetter<Rows>,
 	}),
 	created() {
+		const getDocumentSummary = UIStore.getState().results.shared.getDocumentSummary;
+		const fieldInfo = CorpusStore.get.corpus().fieldInfo;
+
 		this.concordances = new PaginatedGetter((oldRows, first, number) => {
 			// make a copy of the parameters so we don't clear them for all components using the summary
 			const requestParameters: BLSearchParameters = Object.assign({}, this.query, {

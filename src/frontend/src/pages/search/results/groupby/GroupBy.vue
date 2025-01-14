@@ -136,6 +136,7 @@
 					hideEmpty
 					data-width="auto"
 					data-menu-width="auto"
+					searchable
 					v-model="selectedMetadataCriterium"
 					:options="metadata"
 				/>
@@ -420,8 +421,8 @@ export default Vue.extend({
 				// Offer all span filters as grouping options, with a reference to the list,
 				// (e.g. with-spans[ab] to mean "group on the ab tag in the with-spans list")
 				const listName = listEntry[0];
-				if (CorpusStore.getState().corpus!.relations.spans) {
-					Object.entries(CorpusStore.getState().corpus!.relations.spans!)
+				if (CorpusStore.get.corpus().relations.spans) {
+					Object.entries(CorpusStore.get.corpus().relations.spans!)
 						.forEach(([tagName, spanInfo]) => {
 							if (spanInfo.attributes) {
 								const attr = Object.keys(spanInfo.attributes);
@@ -438,7 +439,7 @@ export default Vue.extend({
 					.forEach(([tagName, matchInfo]) => {
 						const sourceInThisField = this.relationSourceInThisField(matchInfo);
 						if (sourceInThisField) {
-							const spanInfo = CorpusStore.getState().corpus!.relations.spans![tagName];
+							const spanInfo = CorpusStore.get.corpus().relations.spans![tagName];
 							const attr = Object.keys(spanInfo?.attributes ?? {});
 							attr.forEach(attributeName => {
 								optAdd(tagName, attributeName);

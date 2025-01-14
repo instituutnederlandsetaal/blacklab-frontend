@@ -8,6 +8,7 @@ import {ModuleBuilder, getStoreBuilder} from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
 import {RootState} from '@/store/';
+import { NormalizedIndex } from '@/types/apptypes';
 
 const namespace = 'views';
 
@@ -126,9 +127,16 @@ const get = {
 
 }
 
-const init = () => {
+const init = (corpus: NormalizedIndex|null) => {
+	Object.keys(moduleCache).forEach(key => {
+		delete moduleCache[key];
+	});
+	// TODO delete the modules from the internal vuex store as well.
+	// Should be solved when migrating away from vuex/vuex-types
+
 	getOrCreateModule('hits');
 	getOrCreateModule('docs');
+	actions.resetAllViews({resetGroupBy: true});
 };
 
 type ViewModule = ReturnType<typeof createViewModule>;

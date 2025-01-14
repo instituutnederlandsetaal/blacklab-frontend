@@ -8,6 +8,7 @@ import cloneDeep from 'clone-deep';
 import {RootState} from '@/store/';
 import * as UIStore from '@/store/ui'; // Is initialized before we are.
 import {escapeRegex} from '@/utils';
+import { NormalizedIndex } from '@/types/apptypes';
 
 type Token = {
 	/** Annotation ID */
@@ -162,7 +163,7 @@ const actions = {
 	reset: b.commit(state => Object.assign(state, cloneDeep(defaults)), 'reset'),
 };
 
-const init = () => {
+const init = (corpus: NormalizedIndex|null) => {
 	actions.reset();
 };
 

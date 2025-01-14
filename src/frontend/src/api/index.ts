@@ -5,11 +5,12 @@ import {CancelableRequest, createEndpoint} from '@/api/apiutils';
 import {normalizeIndex, normalizeFormat, normalizeIndexBase} from '@/utils/blacklabutils';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { ApiError, NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
+import { ApiError, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
 import { Glossing } from '@/store/form/glossStore';
 import { AtomicQuery, LexiconEntry } from '@/store/form/conceptStore';
 import { isHitParams, uniq } from '@/utils';
 import { User } from 'oidc-client-ts';
+import { stripIndent } from 'common-tags';
 
 /** How many values to return per attribute when requesting /relations */
 const RELATIONS_LIMITVALUES = 1000;
@@ -61,6 +62,7 @@ export const frontendPaths = {
 
 	// The following paths are only for use with the api endpoint (they don't contain the context url - the endpoint will add it)
 	indexInfo: (indexId: string) => `${indexId}/api/info`,
+	tagset: (indexId: string) => `${indexId}/static/tagset.json`,
 	documentContents: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}/contents`,
 	documentMetadata: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}`,
 
@@ -200,23 +202,18 @@ export const blacklab = {
 			formData.append('linkeddata', meta![i], meta![i].name);
 		}
 
-		const cancelToken = axios.CancelToken.source();
-		return {
-			request: endpoints.blacklab.post<BLTypes.BLResponse>(blacklabPaths.documentUpload(indexId), formData, {
-				...requestParameters,
-				headers: {
-					...(requestParameters || {}).headers,
-					'Content-Type': 'multipart/form-data',
-				},
-				onUploadProgress: (event: ProgressEvent) => {
-					if (onProgress) {
-						onProgress(event.loaded / event.total * 100);
-					}
-				},
-				cancelToken: cancelToken.token
-			}),
-			cancel: cancelToken.cancel
-		};
+		return endpoints.blacklab.postCancelable<BLTypes.BLResponse>(blacklabPaths.documentUpload(indexId), formData, {
+			...requestParameters,
+			headers: {
+				...(requestParameters || {}).headers,
+				'Content-Type': 'multipart/form-data',
+			},
+			onUploadProgress: (event: ProgressEvent) => {
+				if (onProgress) {
+					onProgress(event.loaded / event.total * 100);
+				}
+			},
+		});
 	},
 
 	deleteFormat: (id: string) => endpoints.blacklab
@@ -229,7 +226,7 @@ export const blacklab = {
 		.getOrPostCancelable<BLTypes.BLDocument>(blacklabPaths.docInfo(indexId, documentId), params, requestParameters),
 
 	getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<BLTypes.BLRelationInfo>(blacklabPaths.relations(indexId), { limitvalues: RELATIONS_LIMITVALUES }, requestParameters),
+		.getCancelable<BLTypes.BLRelationInfo>(blacklabPaths.relations(indexId), { limitvalues: RELATIONS_LIMITVALUES }, requestParameters),
 
 	getParsePattern: (indexId: string, pattern: string, requestParameters?: AxiosRequestConfig) => {
 		let request: Promise<{ parsed: { bcql: string, json: any } }>;
@@ -244,21 +241,14 @@ export const blacklab = {
 	},
 
 	getHits: <T extends BLTypes.BLHitResults|BLTypes.BLHitGroupResults = BLTypes.BLHitResults|BLTypes.BLHitGroupResults>(indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
-		const {token: cancelToken, cancel} = axios.CancelToken.source();
-
-		let request: Promise<T>;
-		if (!indexId) {
-			request = Promise.reject(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
-		} else if (!isHitParams(params)) {
-			request = Promise.reject(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
+		if (!isHitParams(params)) {
+			return new CancelableRequest(
+				Promise.reject(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined)),
+				() => {}
+			);
 		} else {
-			request = endpoints.blacklab.getOrPost<T>(blacklabPaths.hits(indexId), params, { ...requestParameters, cancelToken });
+			return endpoints.blacklab.getOrPostCancelable<T>(blacklabPaths.hits(indexId), params, requestParameters);
 		}
-
-		return {
-			request,
-			cancel
-		};
 	},
 
 	getHitsCsv: (indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
@@ -268,16 +258,11 @@ export const blacklab = {
 			outputformat: 'csv'
 		});
 
-		if (!indexId) {
-			return {
-				request: Promise.reject(new ApiError('Error', 'No index specified.', 'Internal error', undefined)),
-				cancel: () => {},
-			} ;
-		} else if (!isHitParams(params)) {
-			return {
-				request: Promise.reject(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined)),
-				cancel: () => {}
-			}
+		if (!isHitParams(params)) {
+			return new CancelableRequest(
+				Promise.reject(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined)),
+				() => {}
+			);
 		} else {
 			return endpoints.blacklab.getOrPostCancelable<Blob>(blacklabPaths.hitsCsv(indexId), csvParams, {
 				...requestParameters,
@@ -298,33 +283,19 @@ export const blacklab = {
 			outputformat: 'csv'
 		});
 
-		if (!indexId) {
-			return {
-				request: Promise.reject(new ApiError('Error', 'No index specified', 'Internal error', undefined)),
-				cancel: () => {}
-			}
-		} else {
-			return endpoints.blacklab.getOrPostCancelable<Blob>(blacklabPaths.docsCsv(indexId), csvParams, {
-				...requestParameters,
-				headers: {
-					...(requestParameters || {}).headers,
-					Accept: 'text/csv'
-				},
-				responseType: 'blob',
-				transformResponse: (data: any) => new Blob([data], {type: 'text/plain;charset=utf-8' }),
-			});
-		}
+		return endpoints.blacklab.getOrPostCancelable<Blob>(blacklabPaths.docsCsv(indexId), csvParams, {
+			...requestParameters,
+			headers: {
+				...(requestParameters || {}).headers,
+				Accept: 'text/csv'
+			},
+			responseType: 'blob',
+			transformResponse: (data: any) => new Blob([data], {type: 'text/plain;charset=utf-8' }),
+		});
 	},
 
 	getDocs: <T extends BLTypes.BLDocResults|BLTypes.BLDocGroupResults = BLTypes.BLDocResults|BLTypes.BLDocGroupResults> (indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig): CancelableRequest<T> => {
-		if (!indexId) {
-			return {
-				request: Promise.reject(new ApiError('Error', 'No index specified', 'Internal error', undefined)) as Promise<T>,
-				cancel: () => {}
-			}
-		} else {
-			return endpoints.blacklab.getOrPostCancelable<T>(blacklabPaths.docs(indexId), params)
-		}
+		return endpoints.blacklab.getOrPostCancelable<T>(blacklabPaths.docs(indexId), params)
 	},
 
 	/**
@@ -381,7 +352,52 @@ export const blacklab = {
  * API for corpus-frontend's own webservice
  */
 export const frontend = {
-	getCorpus: (indexId: string) => endpoints.cf.get<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo(indexId)),
+	getCorpus: (indexId: string) => {
+		return endpoints.cf.getCancelable<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo(indexId))
+		.catch<never>(e => {
+			if (!(e instanceof ApiError)) {
+				// Should never happen - API always returns ApiError, but just in case...
+				throw new ApiError(e?.name ?? 'Unknown error', e?.message ?? 'An unknown error occurred.', 'Unknown error', undefined);
+			} else if (e.httpCode === 401) {
+				throw new ApiError('Not allowed', 'You need to be logged in to access this corpus.', 'Not allowed', 401);
+			} else if (e.httpCode === 403) {
+				throw new ApiError('Not allowed', 'You do not have permission to access this corpus.', 'Not allowed', 403);
+			} else if (e.httpCode === 404) {
+				// Not found. May not be configured correctly.
+				console.error(`ApiError: ${JSON.stringify(e)}`);
+				if (e.title === 'CANNOT_OPEN_INDEX' || e.message.indexOf('CANNOT_OPEN_INDEX') !== -1) {
+					// TODO i18n
+					throw new ApiError('Corpus not found',
+						stripIndent`
+						Corpus not found.
+						Please check the spelling, or delete the corpus name from the URL to get a list of available corpora.
+						If it's not there, refer to the documentation at
+						https://github.com/INL/corpus-frontend
+						and check your configuration.`,
+						e.statusText,
+						e.httpCode
+					);
+				} else {
+					// No blacklab response; something isn't configured correctly.
+					throw new ApiError('Corpus not found',
+						stripIndent`
+						Unable to contact BlackLab Server (or Corpus-Frontend's own server component).
+						Make sure both .war applications have been deployed, and your properties file
+						is in the correct location and has the correct name.
+						Refer to the documentation at https://github.com/INL/corpus-frontend for more information.`,
+						e.statusText,
+						e.httpCode
+					);
+				}
+			} else if (e.message.indexOf('blacklabResponse') !== -1) {
+				// Some other blacklab error.
+				throw new ApiError('BlackLab error', e.message, e.statusText, e.httpCode);
+			} else {
+				// Some other API error. Show message.
+				throw e;
+			}
+		});
+	},
 
 	/** Get transformed document contents */
 	getDocumentContents: (indexId: string, pid: string, params: {
@@ -404,6 +420,10 @@ export const frontend = {
 	getHelp: (indexId?: string) => endpoints.cf.getCancelable<string>(frontendPaths.help(indexId)),
 	/** Get html content of the about page. */
 	getAbout: (indexId?: string) => endpoints.cf.getCancelable<string>(frontendPaths.about(indexId)),
+	getTagset: (indexId: string) => endpoints.cf.getCancelable<Tagset>(frontendPaths.tagset(indexId), {
+		// Remove comment-lines in the returned json. (that's not strictly allowed by JSON, but we chose to support it)
+		transformResponse: [(r: string) => r.replace(/\/\/.*[\r\n]+/g, '')].concat(axios.defaults.transformResponse!)
+	})
 }
 
 export const glossPaths = {

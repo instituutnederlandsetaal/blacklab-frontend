@@ -156,8 +156,9 @@ const actions = {
 	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)), 'replace'),
 };
 
-/** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = () => {/**/};
+const init = (corpus: CorpusModule.NormalizedIndex|null) => {
+	actions.reset();
+};
 
 export {
 	ModuleRootState,

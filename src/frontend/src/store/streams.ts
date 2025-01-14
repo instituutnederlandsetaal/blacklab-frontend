@@ -17,7 +17,7 @@ import * as QueryStore from '@/store/query';
 import * as ConceptStore from '@/store/form/conceptStore';
 import * as GlossStore from '@/store/form/glossStore';
 
-import UrlStateParser from '@/store/util/url-state-parser';
+import UrlStateParserSearch from '@/url/url-state-parser-search';
 
 import * as Api from '@/api';
 
@@ -68,9 +68,9 @@ export const selectedSubCorpus$ = merge(
 				subscriber.next(Notification.createNext<RecursiveRequired<BLTypes.BLDocResults>>({
 					docs: [],
 					summary: {
-						numberOfDocs: CorpusStore.getState().corpus!.documentCount,
+						numberOfDocs: CorpusStore.get.corpus()!.documentCount,
 						stillCounting: false,
-						tokensInMatchingDocuments: CorpusStore.getState().corpus!.tokenCount,
+						tokensInMatchingDocuments: CorpusStore.get.corpus()!.tokenCount,
 					}
 				} as any));
 
@@ -116,9 +116,9 @@ export const submittedSubcorpus$ = submittedMetadata$.pipe(
 			subscriber.next({
 				docs: [],
 				summary: {
-					numberOfDocs: CorpusStore.getState().corpus!.documentCount,
+					numberOfDocs: CorpusStore.get.corpus()!.documentCount,
 					stillCounting: false,
-					tokensInMatchingDocuments: CorpusStore.getState().corpus!.tokenCount,
+					tokensInMatchingDocuments: CorpusStore.get.corpus()!.tokenCount,
 				}
 			} as any);
 			return;
@@ -352,7 +352,7 @@ export default () => {
 	);
 
 	fromEvent<PopStateEvent>(window, 'popstate')
-	.pipe(map<PopStateEvent, HistoryStore.HistoryEntry>(evt => evt.state ? evt.state : new UrlStateParser(FilterStore.getState().filters).get()))
+	.pipe(map<PopStateEvent, HistoryStore.HistoryEntry>(evt => evt.state ? evt.state : new UrlStateParserSearch(FilterStore.getState().filters).get()))
 	.subscribe(state => RootStore.actions.replace(state));
 
 	debugLogCat('init', 'Finished connecting store to url and subcorpus calculations.');

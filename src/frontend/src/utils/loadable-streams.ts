@@ -1,4 +1,4 @@
-import { map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subscription, switchMap } from 'rxjs';
+import { filter, firstValueFrom, map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subscription, switchMap } from 'rxjs';
 import jsonStableStringify from 'json-stable-stringify';
 import { ApiError, Canceler } from '@/api';
 import { CancelableRequest } from '@/api/apiutils';
@@ -36,13 +36,22 @@ export const isEmpty = <T>(v: Loadable<T>): v is Empty<T> => v.state === Loadabl
 export function mapLoaded<T, U>(mapper: (v: T) => U): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return map(v => isLoaded(v) ? Loaded(mapper(v.value)) : v);
 }
+export function mapError<T extends U, U>(mapper: (v: ApiError) => Loadable<U>): OperatorFunction<Loadable<T>, Loadable<U>> {
+	return map(v => isError(v) ? mapper(v.error) : v);
+}
 
 export function mergeMapLoaded<T, U>(mapper: (v: T) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return mergeMap(v => isLoaded(v) ? mapper(v.value) : of(v));
 }
+export function mergeMapError<T extends U, U>(mapper: (v: ApiError) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
+	return mergeMap(v => isError(v) ? mapper(v.error) : of(v));
+}
 
 export function switchMapLoaded<T, U>(mapper: (v: T) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return switchMap(v => isLoaded(v) ? mapper(v.value) : of(v));
+}
+export function switchMapError<T extends U, U>(mapper: (v: ApiError) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
+	return switchMap(v => isError(v) ? mapper(v.error) : of(v));
 }
 
 
@@ -53,8 +62,9 @@ export const toObservable = <T>({cancel, request}: CancelableRequest<T>) => new 
 		observer.next(Loaded(v));
 		observer.complete();
 	}).catch((e: ApiError) => {
-		if (e.title === 'Request cancelled') observer.complete();
-		else observer.next(LoadingError(e));
+		if (e.title !== 'Request cancelled')
+			observer.next(LoadingError(e));
+		observer.complete();
 	});
 	return () => cancel();
 });
@@ -239,4 +249,31 @@ export class InteractiveLoadable<I, T> {
 	public dispose() {
 		this.unsub.unsubscribe();
 	}
+}
+
+/**
+ * This isn't ideal, but sometimes we may need to wait for a certain async operation
+ * to complete before we can continue. This is a way to do that.
+ * It resolves the promise with the first Loaded event it receives, or rejects with the first Error event.
+ * If the stream emits an Empty event, or completes without emitting anything, it resolves with undefined.
+ *
+ * NOTE: this function can be a gotcha
+ * If the provided stream internally caches values (like when using shareReplay(1)),
+ * this will immediately resolve to that cached value (unless that value is a Loading() state),
+ * instead of the more logical behaviour of waiting for the next value and resolving that.
+ * @param loadableStream
+ * @returns a promise that will contain the first non-Loading state of the stream.
+ */
+export function promiseFromLoadableStream<T>(loadableStream: Observable<Loadable<T>>): Promise<T|undefined> {
+	return new Promise((resolve, reject) => {
+		const sub = loadableStream.pipe(filter(v => !isLoading(v))).subscribe({
+			next: v => {
+				if (isLoaded(v)) resolve(v.value);
+				if (isError(v)) reject(v.error);
+				if (isEmpty(v)) resolve(undefined);
+			},
+			error: e => reject(e),
+			complete: () => resolve(undefined)
+		});
+	});
 }

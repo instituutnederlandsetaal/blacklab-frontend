@@ -9,6 +9,7 @@ import * as PatternModule from '@/store/form/patterns';
 import * as GapModule from '@/store/form/gap';
 import * as GlossModule from '@/store/form/glossStore';
 import * as ConceptModule from '@/store/form/conceptStore';
+import { NormalizedIndex } from '@/types/apptypes';
 
 type PartialRootState = {
 	explore: ExploreModule.ModuleRootState;
@@ -58,14 +59,14 @@ const actions = {
 	}, 'replaceForm')
 };
 
-const init = () => {
-	ExploreModule.init();
-	FilterModule.init();
-	InterfaceModule.init();
-	PatternModule.init();
-	GapModule.init();
-	GlossModule.init();
-	ConceptModule.init();
+const init = (corpus: NormalizedIndex|null) => {
+	ExploreModule.init(corpus);
+	FilterModule.init(corpus);
+	InterfaceModule.init(corpus);
+	PatternModule.init(corpus);
+	GapModule.init(corpus);
+	GlossModule.init(corpus);
+	ConceptModule.init(corpus);
 };
 
 export {

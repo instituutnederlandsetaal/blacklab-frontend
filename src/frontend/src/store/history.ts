@@ -22,12 +22,10 @@ import * as ConceptModule from '@/store/form/conceptStore';
 import * as GlossModule from '@/store/form/glossStore';
 import * as UIModule from '@/store/ui';
 
-import UrlStateParser from '@/store/util/url-state-parser';
-
-import { NormalizedIndex } from '@/types/apptypes';
 import { debugLog } from '@/utils/debug';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
 import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
+import UrlStateParserSearch from '@/url/url-state-parser-search';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
@@ -85,9 +83,11 @@ const initialState: ModuleRootState = [];
 
 const namespace = 'history';
 const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, initialState);
-let index: NormalizedIndex;
 
 const getState = b.state();
+
+// TODO: this is a bit of a hack, but it's the easiest way to get the corpus id and time modified
+let corpus = null as CorpusModule.NormalizedIndex|null;
 
 const get = {
 	asFile: (entry: FullHistoryEntry) => {
@@ -126,8 +126,8 @@ const get = {
 				try { originalEntry = JSON.parse(atob(base64)); } catch (e) { throw new Error(`Could not read query file '${f.name}'.`); }
 				if (!originalEntry || originalEntry.version == null) { throw new Error('Cannot import: file does not appear to be a valid query.'); }
 
-				// Rountrip from url if not compatible.
-				const entry = originalEntry.version === version ? originalEntry : await new UrlStateParser(FilterModule.getState().filters, new URI(originalEntry.url)).get();
+				// Roundtrip from url if not compatible.
+				const entry = originalEntry.version === version ? originalEntry : await new UrlStateParserSearch(FilterModule.getState().filters, new URI(originalEntry.url)).get();
 
 				resolve({
 					entry,
@@ -150,6 +150,10 @@ const internalActions = {
 };
 
 const actions = {
+	changeCorpus: b.commit((state, payload: {corpusId: string, corpusTimeModified: string}) => {
+		state.splice(0, state.length);
+		readFromLocalStorage(payload.corpusId, payload.corpusTimeModified);
+	}, 'changeCorpus'),
 	addEntry: b.commit((state, {entry, pattern, url}: HistoryEntryPatternAndUrl) => {
 		// history is updated together with page url, so we don't always receive a state we need to store.
 		if (entry.interface.viewedResults == null) {
@@ -209,54 +213,59 @@ const actions = {
 	}, 'clearHistory')
 };
 
-const init = () => {
-	index = CorpusModule.getState().corpus!;
-	readFromLocalStorage();
+const init = (newCorpus: CorpusModule.NormalizedIndex|null) => {
+	corpus = newCorpus;
+	internalActions.replace(readFromLocalStorage());
 };
 
+/**
+ * Load the history for a given index, if it exists and the corpus wasn't modified since saving.
+ * @param indexId the index for which to read query history
+ * @param indexTimeModified when the index was last modified (as reported by BlackLab)
+ * @returns the history, or null if it could not be read
+ */
 const readFromLocalStorage = () => {
-	if (!window.localStorage) {
-		return null;
+	if (!window.localStorage || !corpus?.id || !corpus?.timeModified) {
+		return [];
 	}
 
-	const key = `cf/history/${index.id}`;
+	const key = `cf/history/${corpus.id}`;
 	const historyJson = window.localStorage.getItem(key);
 	if (historyJson == null) {
-		return null;
+		return [];
 	}
 
 	try {
 		const state: LocalStorageState = JSON.parse(historyJson);
-		if (state.indexLastModified !== index.timeModified) {
+		if (state.indexLastModified !== corpus.timeModified) {
 			// It could be the available annotations/metadata in the index have changed since saving the searches
 			// We can't load this.
 			debugLog('Index was modified in between saving and loading history, clearing history.');
 			window.localStorage.removeItem(key);
-			return null;
+			return [];
 		}
 		if (state.version !== version) {
 			debugLog(`History out of date: read version ${state.version}, current version ${version}, clearing history.`);
 			window.localStorage.removeItem(key);
-			return null;
+			return [];
 		}
-
-		internalActions.replace(state.history);
+		return state.history;
 	} catch (e) {
 		debugLog('Could not read search history from localstorage', e);
+		return [];
 	}
-	return null;
 };
 
 const saveToLocalStorage = (state: ModuleRootState) => {
-	if (!window.localStorage) {
+	if (!window.localStorage || !corpus?.id || !corpus?.timeModified) {
 		return;
 	}
 
-	const key = `cf/history/${index.id}`;
+	const key = `cf/history/${corpus.id}`;
 	const entry: LocalStorageState = {
 		version,
 		history: state,
-		indexLastModified: index.timeModified
+		indexLastModified: corpus.timeModified
 	};
 
 	window.localStorage.setItem(key, JSON.stringify(entry));

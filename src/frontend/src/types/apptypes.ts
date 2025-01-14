@@ -358,8 +358,9 @@ export type Tagset = {
 export class ApiError extends Error {
 	public readonly title: string;
 	public readonly message: string;
-	/** http code, -1 if miscellaneous network error */
+	/** Message representing the httpCode, like "Not Found" for 404 */
 	public readonly statusText: string;
+	/** Http code, -1 if generic network error, http code otherwise, or none if no network error at all. */
 	public readonly httpCode: number|undefined;
 
 	constructor(title: string, message: string, statusText: string, httpCode: number|undefined) {

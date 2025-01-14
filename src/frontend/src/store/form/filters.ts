@@ -152,7 +152,7 @@ const actions = {
 	}, 'replace'),
 };
 
-const init = () => {
+const init = (corpus: CorpusModule.NormalizedIndex|null) => {
 	// Take care to copy the order of metadatagroups and their fields here!
 	CorpusModule.get.metadataGroups().forEach(g => {
 		actions.registerFilterGroup({

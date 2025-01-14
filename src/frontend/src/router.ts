@@ -1,9 +1,9 @@
 import Vue from 'vue';
-import Router from 'vue-router';
+import Router, { Route } from 'vue-router';
 
 Vue.use(Router);
 
-export default new Router({
+const router = new Router({
 	base: CONTEXT_URL,
 	mode: 'history',
 	routes: [
@@ -64,7 +64,7 @@ export default new Router({
 			name: 'help',
 			path: '/:corpus/help',
 			alias: '/:corpus/help/*',
-			component: () => import('@/pages/help/HelpPage.vue')
+			component: () => import('@/pages/help/HelpPage.vue'),
 		},
 		{
 			name: 'configwizard',
@@ -87,5 +87,18 @@ export default new Router({
 			}]
 		},
 	],
-
 });
+
+import * as RootStore from '@/store';
+import * as ArticleStore from '@/store/article';
+
+function corpusIdFromRoute(route: Route): string|null {
+	return route.params.corpus;
+}
+
+router.beforeEach((to, from, next) => {
+	RootStore.actions.corpus(corpusIdFromRoute(to));
+	ArticleStore.actions.article(to.params.docId);
+})
+
+export default router;

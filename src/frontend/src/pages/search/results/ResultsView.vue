@@ -338,7 +338,7 @@ export default Vue.extend({
 			set(v: string|null) { this.store.actions.groupDisplayMode(v); }
 		},
 
-		corpus(): NormalizedIndex { return CorpusStore.getState().corpus!; },
+		corpus(): NormalizedIndex { return CorpusStore.get.corpus()!; },
 
 		concordanceAnnotationOptions(): CorpusStore.NormalizedAnnotation[] { return UIStore.getState().results.shared.concordanceAnnotationIdOptions.map(id => CorpusStore.get.allAnnotationsMap()[id]); },
 		concordanceAnnotationId: {
