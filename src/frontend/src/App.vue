@@ -48,7 +48,6 @@ export default Vue.extend({
 				RootStore.actions.replace(stateFromUrl);
 			}
 		}
-
 		// connectStreamsToVuex();
 	}
 })

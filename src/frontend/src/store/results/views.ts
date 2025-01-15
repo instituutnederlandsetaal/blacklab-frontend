@@ -9,6 +9,7 @@ import cloneDeep from 'clone-deep';
 
 import {RootState} from '@/store/';
 import { NormalizedIndex } from '@/types/apptypes';
+import { Module, Store } from 'vuex';
 
 const namespace = 'views';
 
@@ -61,9 +62,7 @@ const createActions = (b: ModuleBuilder<ViewRootState, RootState>) => ({
 	replace: b.commit((state, payload: ViewRootState) => Object.assign(state, cloneDeep(payload)), 'replace'),
 });
 
-const createGetters = (b: ModuleBuilder<ViewRootState, RootState>) => {
-	return {};
-};
+const createGetters = (b: ModuleBuilder<ViewRootState, RootState>) => ({});
 
 /**
  * Create a module with the given namespace and initial state.
@@ -72,7 +71,7 @@ const createGetters = (b: ModuleBuilder<ViewRootState, RootState>) => {
  * @returns a module object with actions, getters, namespace, getState and a vuex module.
  */
 export const createViewModule = (viewName: string, customInitialState?: Partial<ViewRootState>) => {
-	const b = viewsBuilder.module<ViewRootState>(viewName, cloneDeep(Object.assign(initialViewState, customInitialState))); // Don't alias initialstate of different modules!
+	const b = viewsBuilder.module<ViewRootState>(viewName, Object.assign(cloneDeep(initialViewState), customInitialState));
 	const m = {
 		actions: createActions(b),
 		get: createGetters(b),
@@ -128,12 +127,17 @@ const get = {
 }
 
 const init = (corpus: NormalizedIndex|null) => {
+	// Clear all views, delete the modules from the internal vuex-typex builders cache (hack! - depends on implementation details)
+	// and the vuex store.
 	Object.keys(moduleCache).forEach(key => {
+		const builder = viewsBuilder.module(key) as any;
+		const moduleInstance: Module<any, any> = builder._vuexModule;
+		const rootStoreInstance: Store<any> = builder._store;
+		rootStoreInstance.unregisterModule([namespace, key]);
+		// @ts-ignore
+		delete viewsBuilder._moduleBuilders[key];
 		delete moduleCache[key];
 	});
-	// TODO delete the modules from the internal vuex store as well.
-	// Should be solved when migrating away from vuex/vuex-types
-
 	getOrCreateModule('hits');
 	getOrCreateModule('docs');
 	actions.resetAllViews({resetGroupBy: true});

@@ -11,6 +11,7 @@ import * as PatternStore from '@/store/form/patterns';
 import {glossApi, init as initGlossEndpoint} from '@/api';
 import Vue from 'vue';
 import { debugLog } from '@/utils/debug';
+import { NormalizedIndex } from '@/types/apptypes';
 
 type GlossFieldType = {
 	 type: string,
@@ -94,7 +95,7 @@ const namespace = 'glosses';
 const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep({...defaults, settings: null}));
 
 const getState = b.state();
-const init = () => {
+const init = (corpus: NormalizedIndex|null) => {
 	actions.reset();
 };
 

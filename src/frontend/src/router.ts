@@ -92,13 +92,10 @@ const router = new Router({
 import * as RootStore from '@/store';
 import * as ArticleStore from '@/store/article';
 
-function corpusIdFromRoute(route: Route): string|null {
-	return route.params.corpus;
-}
-
 router.beforeEach((to, from, next) => {
-	RootStore.actions.corpus(corpusIdFromRoute(to));
-	ArticleStore.actions.article(to.params.docId);
+	RootStore.actions.corpus(to.params.corpus);
+	ArticleStore.actions.docId(to.params.docId);
+	next();
 })
 
 export default router;

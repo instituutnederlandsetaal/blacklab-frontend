@@ -84,7 +84,6 @@ export default Vue.extend({
 		allAnnotations: CorpusStore.get.allAnnotationsMap,
 		tagset: TagsetStore.getState,
 		isValidTagset(): boolean { return TagsetStore.getState().state === 'loaded'; },
-		errorMessage(): string { return this.isValidTagset ? '' : TagsetStore.getState().message; },
 		query(): string {
 			if (!isLoaded(this.tagset) || !this.annotationValue) return '';
 			const tagset: Tagset = this.tagset.value;

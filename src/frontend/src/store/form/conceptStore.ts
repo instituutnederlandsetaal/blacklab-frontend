@@ -10,6 +10,7 @@ import cloneDeep from 'clone-deep';
 
 import { init as initConceptEndpoint, conceptApi } from '@/api';
 import Vue from 'vue';
+import { NormalizedIndex } from '@/types/apptypes';
 
 type Settings = {
 	/** guaranteed not to end in '/' */
@@ -62,7 +63,7 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneD
 const getState = b.state();
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = () => { actions.reset(); }
+const init = (corpus: NormalizedIndex|null) => { actions.reset(); }
 
 
 

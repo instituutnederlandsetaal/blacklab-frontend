@@ -119,7 +119,7 @@ export async function handleError(error: AxiosError): Promise<never> {
 
 new Promise(() => {}).catch
 
-export class CancelableRequest<T> {
+export class CancelableRequest<T> implements Promise<T> {
 	public request: Promise<T>;
 	public cancel: Canceler;
 	constructor(request: Promise<T>, cancel: Canceler) {
@@ -127,14 +127,16 @@ export class CancelableRequest<T> {
 		this.cancel = cancel;
 	}
 
-	public then<U>(handler: (value: T) => any, errorHandler?: (reason: any) => any): CancelableRequest<U> {
-		return new CancelableRequest(this.request.then(handler, errorHandler), this.cancel);
+	get [Symbol.toStringTag]() { return 'CancelableRequest'; }
+
+	public then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): CancelableRequest<TResult1 | TResult2> {
+		return new CancelableRequest(this.request.then(onfulfilled, onrejected), this.cancel);
 	}
-	public catch<U>(handler: (error: any) => U): CancelableRequest<T|U> {
-		return new CancelableRequest(this.request.catch(handler), this.cancel);
+	public catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): CancelableRequest<T | TResult> {
+		return new CancelableRequest(this.request.catch(onrejected), this.cancel);
 	}
-	public finally(handler: () => void): CancelableRequest<T> {
-		return new CancelableRequest(this.request.finally(handler), this.cancel);
+	public finally(onfinally?: (() => void) | undefined | null): CancelableRequest<T> {
+		return new CancelableRequest(this.request.finally(onfinally), this.cancel);
 	}
 }
 

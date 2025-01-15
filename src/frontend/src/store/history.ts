@@ -150,10 +150,6 @@ const internalActions = {
 };
 
 const actions = {
-	changeCorpus: b.commit((state, payload: {corpusId: string, corpusTimeModified: string}) => {
-		state.splice(0, state.length);
-		readFromLocalStorage(payload.corpusId, payload.corpusTimeModified);
-	}, 'changeCorpus'),
 	addEntry: b.commit((state, {entry, pattern, url}: HistoryEntryPatternAndUrl) => {
 		// history is updated together with page url, so we don't always receive a state we need to store.
 		if (entry.interface.viewedResults == null) {

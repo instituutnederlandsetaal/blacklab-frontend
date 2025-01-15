@@ -109,7 +109,7 @@ const get = {
 };
 
 const actions = {
-	corpus: b.dispatch(async ({state, rootState}, corpusId: string|null) => {
+	corpus: b.dispatch(async ({state, rootState}, corpusId: string|null): Promise<CorpusModule.NormalizedIndex|null> => {
 		state.corpusId = corpusId;
 		const corpus = await CorpusModule.actions.corpus(corpusId) ?? null;
 
@@ -368,8 +368,15 @@ const store = b.vuexStore({
 	strict: process.env.NODE_ENV === 'development',
 });
 
-const init = (corpusId: string|null): Promise<CorpusModule.NormalizedIndex> => {
-	return actions.corpus(corpusId);
+const init = (corpusId: string|null): Promise<CorpusModule.NormalizedIndex|null> => {
+	const corpusLoadingPromise = actions.corpus(corpusId);
+	// store the sub-modules we create so custom scripts can access them (hack!)
+	(window as any).vuexModules.results = {
+		...ViewModule,
+		hits: ViewModule.getOrCreateModule('hits'),
+		docs: ViewModule.getOrCreateModule('docs'),
+	};
+	return corpusLoadingPromise;
 };
 
 // Debugging helpers.

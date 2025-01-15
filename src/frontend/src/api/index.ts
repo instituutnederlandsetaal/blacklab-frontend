@@ -310,22 +310,19 @@ export const blacklab = {
 	 * @returns
 	 */
 	getSnippet: (indexId: string, docId: string, field: string|undefined, hitstart: number, hitend: number, context?: string|number, requestParameters?: AxiosRequestConfig) => {
-		const {request, cancel} = endpoints.blacklab.getOrPostCancelable<BLTypes.BLHit>(blacklabPaths.snippet(indexId, docId), {
+		return endpoints.blacklab.getOrPostCancelable<BLTypes.BLHit>(blacklabPaths.snippet(indexId, docId), {
 			hitstart,
 			hitend,
 			context,
 			field,
-		}, requestParameters);
-		return {
-			cancel,
-			request: request.then<BLTypes.BLHit>(r => {
-				// BlackLab doesn't always return the left/right/before/after context fields (at document boundaries)
-				// Fill them in with blanks to simplify rendering code.
-				if (!r.left) r.left = Object.entries(r.match).reduce((acc, [key, value]) => { acc[key] = []; return acc; }, {} as BLTypes.BLHitSnippetPart);
-				if (!r.right) r.right = Object.entries(r.match).reduce((acc, [key, value]) => { acc[key] = []; return acc; }, {} as BLTypes.BLHitSnippetPart);
-				return r;
-			})
-		};
+		}, requestParameters)
+		.then(r => {
+			// BlackLab doesn't always return the left/right/before/after context fields (at document boundaries)
+			// Fill them in with blanks to simplify rendering code.
+			if (!r.left) r.left = Object.entries(r.match).reduce((acc, [key, value]) => { acc[key] = []; return acc; }, {} as BLTypes.BLHitSnippetPart);
+			if (!r.right) r.right = Object.entries(r.match).reduce((acc, [key, value]) => { acc[key] = []; return acc; }, {} as BLTypes.BLHitSnippetPart);
+			return r;
+		})
 	},
 
 	getTermFrequencies: (indexId: string, annotationId: string, values?: string[], filter?: string, number = 20, requestParameters?: AxiosRequestConfig) => {
@@ -353,8 +350,8 @@ export const blacklab = {
  */
 export const frontend = {
 	getCorpus: (indexId: string) => {
-		return endpoints.cf.getCancelable<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo(indexId))
-		.catch<never>(e => {
+		const base = endpoints.cf.getCancelable<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo(indexId))
+		return base.catch<never>(e => {
 			if (!(e instanceof ApiError)) {
 				// Should never happen - API always returns ApiError, but just in case...
 				throw new ApiError(e?.name ?? 'Unknown error', e?.message ?? 'An unknown error occurred.', 'Unknown error', undefined);

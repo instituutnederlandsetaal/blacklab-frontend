@@ -14,9 +14,9 @@ export type DocInput = {
 export type HitsInput = {
 	indexId: string;
 	docId: string;
-	searchField: string;
 	patt: string;
-	pattgapdata?: string;
+	searchField?: string|undefined;
+	pattgapdata?: string|undefined;
 }
 
 export type PageInput = {
@@ -35,7 +35,7 @@ export const inputsFromStore$ = new ReplaySubject<Input>(1);
 const input$ = inputsFromStore$.pipe(distinctUntilChanged(compareAsSortedJson), shareReplay(1));
 
 // Document metadata
-const toDocInput = (i: Input): Loadable<DocInput> => (!!i.indexId && i.docId != null) ? Loaded(i) : Empty();
+const toDocInput = (i: Input): Loadable<DocInput> => (!!i.indexId && i.docId != null) ? Loaded(i as DocInput) : Empty();
 export const metadata$ =  input$.pipe(
 	map(toDocInput),
 	switchMapLoaded(i => toObservable(blacklab.getDocumentInfo(i.indexId, i.docId))),
@@ -43,13 +43,14 @@ export const metadata$ =  input$.pipe(
 );
 
 // Document hits
-const toHitsInput = (i: Input): Loadable<HitsInput> => (!!i.indexId && i.docId != null && !!i.patt) ? Loaded(i) : Empty();
+const toHitsInput = (i: Input): Loadable<HitsInput> => (!!i.indexId && i.docId != null /* avoid false-ing 0 */) ? Loaded(i as HitsInput) : Empty();
 export const hits$ = input$.pipe(
 	map(toHitsInput),
 	switchMapLoaded(i => toObservable(blacklab.getHits<BLHitResults>(i.indexId, {
 		docpid: i.docId,
 		field: i.searchField,
 		patt: i.patt,
+		pattgapdata: i.pattgapdata,
 		first: 0,
 		number: Math.pow(2, 31)-1, // JAVA BACKEND: max_safe_integer is 2^31-1
 		context: 0,

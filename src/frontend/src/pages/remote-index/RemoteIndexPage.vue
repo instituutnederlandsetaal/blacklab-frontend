@@ -72,7 +72,7 @@
 import Vue from 'vue';
 import Axios from 'axios';
 
-import UrlStateParserBase from '@/store/util/url-state-parser-base';
+import UrlStateParserBase from '@/url/url-state-parser-base';
 import {blacklab} from '@/api';
 
 import SelectPicker, {OptGroup} from '@/components/SelectPicker.vue';
