@@ -1,4 +1,4 @@
-import { filter, firstValueFrom, map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subscription, switchMap } from 'rxjs';
+import { combineLatest, filter, firstValueFrom, map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subscription, switchMap } from 'rxjs';
 import jsonStableStringify from 'json-stable-stringify';
 import { ApiError, Canceler } from '@/api';
 import { CancelableRequest } from '@/api/apiutils';
@@ -55,7 +55,14 @@ export function switchMapError<T extends U, U>(mapper: (v: ApiError) => Observab
 }
 
 
-/** Map the request/canceler into an observable. The observable will never error, but instead emit an error object. */
+/**
+ * Map the request/canceler into an observable that will emit loading states.
+ * The observable will immediately emit a loading state.
+ * If the request errors, the observable will emit a loading error state.
+ * If the request completes successfully, the observable will emit a loaded state.
+ * If the observable is unsubscribed, the request will be cancelled.
+ * The observable will never error, but instead emit an error object.
+ */
 export const toObservable = <T>({cancel, request}: CancelableRequest<T>) => new Observable<Loadable<T>>(observer => {
 	observer.next(Loading());
 	request.then(v => {
@@ -113,31 +120,26 @@ export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => jsonStableStringify
  * Given an array of objects and/or loadables, return a type with the same object, except with loadables replaced by their T type
  * E.g. [Loadable<T>, {a: number}, Loadable<U>] -> [T, {a: number}, U]
 */
-type ValuesExcludingEmpty<Input extends readonly any[]> = { [K in keyof Input]:
-	Input[K] extends Loaded<infer L> ? L :
-	Input[K] extends LoadingError<infer L> ? never :
-	Input[K] extends Empty<infer L> ? never :
-	Input[K] extends Loading<infer L> ? L :
-	Input[K] extends Loadable<infer L> ? L :
-	Input[K] extends any ? Input[K] :
-	never;
-};
-/**
- * Given an array of objects and/or loadables, return a type with the same object, except with loadables replaced by their T type or undefined
- * E.g. [Loadable<T>, {a: number}, Loadable<U>] -> [T|undefined, {a: number}, U|undefined]
-*/
-type ValuesIncludingEmpty<Input extends readonly any[]> = { [K in keyof Input]:
-	Input[K] extends Loaded<infer L> ? L :
-	Input[K] extends LoadingError<infer L> ? never :
-	Input[K] extends Empty<infer L> ? undefined :
-	Input[K] extends Loading<infer L> ? L :
-	Input[K] extends Loadable<infer L> ? L|undefined :
-	Input[K] extends any ? Input[K] :
-	never;
-}
+type ValueFromLoadableIncludingEmpty<T> =
+// if we know the state, we can return the value directly
+T extends Loaded<infer L> ? L :
+T extends LoadingError<infer L> ? never :
+T extends Empty<infer L> ? undefined :
+T extends Loading<infer L> ? L :
+// if we have a loadable with an unknown state, return the value
+T extends Loadable<infer L> ? L|undefined :
+T;
+
+type ValueFromLoadable<T> =
+T extends Loaded<infer L> ? L :
+T extends LoadingError<infer L> ? never :
+T extends Empty<infer L> ? never :
+T extends Loading<infer L> ? L :
+T extends Loadable<infer L> ? L :
+T;
 
 /**
- * Given an Array of objects and/or loadables, return a Loadable with the Array as value, except with loadables replaced by their value.
+ * Given an Array or object, unpack all loadables within it, and return a Loadable with the same structure, except with loadables replaced by their value.
  * If any of the loadables are loading, empty, or errored, return that state instead.
  * Basically, if everything is loaded, return a loadable holding the value, otherwise return the reason we can't return the value.
  *
@@ -145,26 +147,32 @@ type ValuesIncludingEmpty<Input extends readonly any[]> = { [K in keyof Input]:
  * E.g. [Loaded<T>, {a: number}, LoadingError<U>] -> LoadingError<[T, {a: number}, U]>
  * E.g. [Loaded<T>, {a: number}, Empty<U>]        -> Empty<[T, {a: number}, U]>
  * E.g. [Loaded<T>, {a: number}, Loading<U>]      -> Loading<[T, {a: number}, U]>
+ * E.g. {a: Loaded<T>, b: {a: number}, c: Loaded<U>} -> Loaded<{a: T, b: {a: number}, c: U}>
  */
-export function combineLoadables<T extends readonly any[]>(t: T): Loadable<ValuesExcludingEmpty<T>> {
-	const loadingOrErrorOrEmpty = t.find(v => isLoadable(v) && !isLoaded(v));
+export function combineLoadables<T extends readonly any[]|Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: ValueFromLoadable<T[K]> }> {
+	if (t == null) return Empty();
+	const loadingOrErrorOrEmpty = Array.isArray(t) ? t.find(v => isLoadable(v) && !isLoaded(v)) : Object.values(t ?? {}).find(v => isLoadable(v) && !isLoaded(v));
 	if (loadingOrErrorOrEmpty) return loadingOrErrorOrEmpty;
-	else return Loaded(t.map((v: Loaded<any>) => isLoaded(v) ? v.value : v) as any);
+	if (Array.isArray(t)) return Loaded((t).map(v => isLoaded(v) ? v.value : v) as any);
+	else return Loaded(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, isLoaded(v) ? v.value : v])) as any);
 }
 /**
- * Given an Array of objects and/or loadables, return a Loadable with the Array as value, except with loadables replaced by their value.
- * If any of the loadables are loading, empty, or errored, return that state instead.
- * Basically, if everything is loaded, return a loadable holding the value, otherwise return the reason we can't return the value.
+ * Given an Array or object, unpack all loadables within it, and return a Loadable with the same structure, except with loadables replaced by their value.
+ * If any of the loadables are loading or errored, return that state instead.
+ * Basically, if everything is loaded/empty, return a loadable holding the value, otherwise return the reason we can't return the value.
  *
  * E.g. [Loaded<T>, {a: number}, Loaded<U>]       -> Loaded<[T, {a: number}, U]>
  * E.g. [Loaded<T>, {a: number}, LoadingError<U>] -> LoadingError<[T, {a: number}, U]>
- * E.g. [Loaded<T>, {a: number}, Empty<U>]        -> Loaded<[T, {a: number}, undefined]>   -- NOTE the undefined versus Empty
+ * E.g. [Loaded<T>, {a: number}, Empty<U>]        -> Loaded<[T, {a: number}, undefined]> -- note the difference with combineLoadables here.
  * E.g. [Loaded<T>, {a: number}, Loading<U>]      -> Loading<[T, {a: number}, U]>
+ * E.g. {a: Loaded<T>, b: {a: number}, c: Loaded<U>} -> Loaded<{a: T, b: {a: number}, c: U}>
  */
-export function combineLoadablesIncludingEmpty<T extends readonly any[]>(t: T): Loadable<ValuesIncludingEmpty<T>> {
-	const loadingOrError = t.find(v => isLoadable(v) && !isLoaded(v) && !isEmpty(v));
+export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: ValueFromLoadableIncludingEmpty<T[K]> }> {
+	if (t == null) return Empty();
+	const loadingOrError = Array.isArray(t) ? t.find(v => isLoadable(v) && !isLoaded(v) && !isEmpty(v)) : Object.values(t ?? {}).find(v => isLoadable(v) && !isLoaded(v) && !isEmpty(v));
 	if (loadingOrError) return loadingOrError;
-	else return Loaded(t.map(v => isLoaded(v) ? v.value : isEmpty(v) ? undefined : v) as any);
+	if (Array.isArray(t)) return Loaded((t).map(v => isLoaded(v) ? v.value : isEmpty(v) ? undefined : v) as any);
+	else return Loaded(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, isLoaded(v) ? v.value : isEmpty(v) ? undefined : v])) as any);
 }
 
 // some sanity checks
@@ -192,6 +200,13 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]>(t: T): 
 	if (combined.value[1].a !== 2) alertAndLog('combineLoadables failed');
 	if (combined.value[2] !== 1) alertAndLog('combineLoadables failed');
 	if (!isLoadable(combined)) alertAndLog('combineLoadables failed');
+	const toCombine = {a: loaded, b: {a: 2}, c: loaded, d: (Loading<string>() as Loadable<string>)};
+	const combinedObj = combineLoadables(toCombine);
+	if (!isLoaded(combinedObj)) { alertAndLog('combineLoadables with object failed'); return; }
+	if (combinedObj.value.a !== 1) alertAndLog('combineLoadables with object failed');
+	if (combinedObj.value.b.a !== 2) alertAndLog('combineLoadables with object failed');
+	if (combinedObj.value.c !== 1) alertAndLog('combineLoadables with object failed');
+	if (!isLoadable(combinedObj)) alertAndLog('combineLoadables with object failed');
 })();
 
 

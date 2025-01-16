@@ -15,41 +15,52 @@ import {NormalizedIndex, NormalizedAnnotation, NormalizedMetadataField, Normaliz
 import { mapReduce } from '@/utils';
 import { normalizeIndex } from '@/utils/blacklabutils';
 import { combineLoadables, Empty, isEmpty, isError, isLoaded, isLoading, Loadable, loadableFromObservable, Loaded, mapLoaded, mergeMapLoaded, promiseFromLoadableStream, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
-import { combineLatest, distinct, distinctUntilChanged, filter, firstValueFrom, map, mergeMap, ReplaySubject, tap } from 'rxjs';
+import { combineLatest, distinct, distinctUntilChanged, filter, firstValueFrom, map, mergeMap, of, ReplaySubject, switchMap, tap } from 'rxjs';
+import { User } from 'oidc-client-ts';
 
 type ModuleRootState = Loadable<NormalizedIndex>;
 
+let beforeLoadingCompletes: (corpus: NormalizedIndex|null) => void;
+
+const currentUser$ = new ReplaySubject<User|null>(1);
 const indexId$ = new ReplaySubject<string|null>(1);
-const index$ = indexId$.pipe(
-	distinctUntilChanged(),
-	map((id): Loadable<string> => id ? Loaded(id) : Empty()),
-	switchMapLoaded(id => combineLatest([
-		toObservable(Api.frontend.getCorpus(id)),
-		toObservable(Api.blacklab.getRelations(id)),
-	] as const).pipe(map(combineLoadables))),
-	mapLoaded(([index, relations]) => {
-		const corpus = normalizeIndex(index, relations);
-		// Filter bogus entries from groups (normally doesn't happen, but might happen when customjs interferes with the page).
-		corpus.annotationGroups.forEach(g => g.entries = g.entries.filter(id => corpus.annotatedFields[g.annotatedFieldId].annotations[id]));
-		corpus.metadataFieldGroups.forEach(g => g.entries = g.entries.filter(id => corpus.metadataFields[id]));
-		return Object.freeze(corpus);
-	}),
+export const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pipe(
+	tap(console.log),
+	distinctUntilChanged((a, b) => a.user !== b.user || a.indexId !== b.indexId),
+	map(({indexId}): Loadable<string> => indexId ? Loaded(indexId) : Empty()),
+	// NO async behavior after this point,
+	// otherwise the output of that async might occur after the next switchMap, which would be a bug.
+	switchMapLoaded(id =>
+		combineLatest({
+			index: toObservable(Api.frontend.getCorpus(id)),
+			relations: toObservable(Api.blacklab.getRelations(id)),
+		})
+		.pipe(
+			map(combineLoadables),
+			mapLoaded(({index, relations}) => {
+				const corpus = normalizeIndex(index, relations);
+				// Filter bogus entries from groups (normally doesn't happen, but might happen when customjs interferes with the page).
+				corpus.annotationGroups.forEach(g => g.entries = g.entries.filter(id => corpus.annotatedFields[g.annotatedFieldId].annotations[id]));
+				corpus.metadataFieldGroups.forEach(g => g.entries = g.entries.filter(id => corpus.metadataFields[id]));
+				return Object.freeze(corpus);
+			}),
+			tap(v => {
+				if (isLoaded(v)) {
+					const corpus = v.value;
+					// Set displayname in navbar if it's currently a fallback.
+					// (which is when search.xml doesn't specify a displayname)
+					const displayNameInNavbar = document.querySelector('.navbar-brand')!;
+					if (corpus.displayName && displayNameInNavbar.hasAttribute('data-is-fallback')) {
+						displayNameInNavbar.innerHTML = corpus.displayName || corpus.id;
+					}
+				} else if (isEmpty(v)) { // no corpus, reset displayname in navbar
+					const displayNameInNavbar = document.querySelector('.navbar-brand')!;
+					displayNameInNavbar.innerHTML = 'Corpus Frontend';
+				}
+			})
+		),
+	),
 	// TODO yuck! Move to App component....
-	tap(v => {
-		if (isLoaded(v)) {
-			const corpus = v.value;
-			// Set displayname in navbar if it's currently a fallback.
-			// (which is when search.xml doesn't specify a displayname)
-			const displayNameInNavbar = document.querySelector('.navbar-brand')!;
-			if (corpus.displayName && displayNameInNavbar.hasAttribute('data-is-fallback')) {
-				displayNameInNavbar.innerHTML = corpus.displayName || corpus.id;
-			}
-		} else {
-			// Reset displayname in navbar
-			const displayNameInNavbar = document.querySelector('.navbar-brand')!;
-			displayNameInNavbar.innerHTML = 'Corpus Frontend';
-		}
-	})
 );
 
 const namespace = 'corpus';
@@ -147,10 +158,14 @@ const actions = {
 		// about changing state outside of a mutation.
 		handler();
 	}, 'loadTagsetValues'),
-	corpus: b.dispatch((state, corpusId: string|null) => {
-		indexId$.next(corpusId);
-		return promiseFromLoadableStream(index$);
-	}, 'corpus')
+	corpus: b.dispatch((state, payload: {corpusId: string|null, afterLoad?: (corpus: NormalizedIndex|undefined) => NormalizedIndex|undefined}) => {
+		const afterLoad: typeof payload.afterLoad = payload.afterLoad ? payload.afterLoad : (v => v);
+		indexId$.next(payload.corpusId);
+		return promiseFromLoadableStream(index$).then(afterLoad);
+	}, 'corpus'),
+	user: b.dispatch((state, user: User|null) => {
+		currentUser$.next(user);
+	}, 'user'),
 };
 
 

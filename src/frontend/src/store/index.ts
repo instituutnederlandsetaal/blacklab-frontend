@@ -30,7 +30,12 @@ import * as ArticleModule from '@/store/article';
 import * as BLTypes from '@/types/blacklabtypes';
 import { ApiError } from '@/api';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
+import { User } from 'oidc-client-ts';
+import { Loadable, loadableFromObservable } from '@/utils/loadable-streams';
+import { ReplaySubject } from 'rxjs';
 import debug from '@/utils/debug';
+
+const globalLoading$ = new ReplaySubject<Loadable<undefined>>(1);
 
 Vue.use(Vuex);
 
@@ -52,6 +57,8 @@ const b = getStoreBuilder<RootState>();
 const getState = b.state();
 
 const get = {
+	corpusLoadingPromise: CorpusModule.get.loadingPromise,
+
 	viewedResultsSettings: b.read(state => state.views[state.interface.viewedResults!] ?? null, 'getViewedResultsSettings'),
 
 	/** Whether the filters section should be active (as it isn't active when in specific search modes (e.g. simple or explore)) */
@@ -111,25 +118,26 @@ const get = {
 const actions = {
 	corpus: b.dispatch(async ({state, rootState}, corpusId: string|null): Promise<CorpusModule.NormalizedIndex|null> => {
 		state.corpusId = corpusId;
-		const corpus = await CorpusModule.actions.corpus(corpusId) ?? null;
+		return CorpusModule.actions.corpus({corpusId, afterLoad: async (maybeLoadedCorpus) => {
+			UIModule.corpusCustomizations.customizeFunctions.forEach(f => f(UIModule.corpusCustomizations));
 
-		UIModule.corpusCustomizations.customizeFunctions.forEach(f => f(UIModule.corpusCustomizations));
+			// This is user-customizable data, it can be used to override various defaults from other modules,
+			// It needs to determine fallbacks and defaults for settings that haven't been configured,
+			// So initialize it before the other modules.
+			await UIModule.init(corpus);
 
-		// This is user-customizable data, it can be used to override various defaults from other modules,
-		// It needs to determine fallbacks and defaults for settings that haven't been configured,
-		// So initialize it before the other modules.
-		await UIModule.init(corpus);
+			await FormManager.init(corpus);
+			await ViewModule.init(corpus);
+			await GlobalResultsModule.init(corpus);
 
-		await FormManager.init(corpus);
-		await ViewModule.init(corpus);
-		await GlobalResultsModule.init(corpus);
+			await TagsetModule.init(corpus);
+			await HistoryModule.init(corpus);
+			await QueryModule.init(corpus);
 
-		await TagsetModule.init(corpus);
-		await HistoryModule.init(corpus);
-		await QueryModule.init(corpus);
+			await ArticleModule.init(corpus);
+			return maybeLoadedCorpus;
+		}});
 
-		await ArticleModule.init(corpus);
-		return corpus;
 	}, 'corpus'),
 
 	/** Read the form state, build the query, reset the results page/grouping, etc. */
@@ -336,8 +344,7 @@ const actions = {
 		ViewModule.actions.resetAllViews({resetGroupBy: true});
 		QueryModule.actions.reset();
 		ArticleModule.actions.reset();
-		// TODO glosses, concepts, tagset, history, etc.
-
+		// TODO check if everything is reset properly.
 	}, 'resetRoot'),
 
 	/**
@@ -364,7 +371,10 @@ const actions = {
 // NOTE: process.env is empty at runtime, but webpack inlines all values at compile time, so this check works.
 declare const process: any;
 const store = b.vuexStore({
-	state: {corpusId: null} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
+	state: {
+		corpusId: null,
+		loadingState: loadableFromObservable(globalLoading$),
+	} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
 	strict: process.env.NODE_ENV === 'development',
 });
 

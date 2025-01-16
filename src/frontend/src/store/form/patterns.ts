@@ -299,6 +299,7 @@ const actions = {
 const init = (corpus: CorpusStore.NormalizedIndex|null) => {
 	privateActions.clear();
 	if (!corpus) return;
+	debugger;
 
 	const parallelFields = CorpusStore.get.parallelAnnotatedFields();
 	const defaultParallelVersion = parallelFields[0]?.id || '';

@@ -104,7 +104,36 @@ Rethink page initialization
 
 import App from '@/App.vue';
 
+
+import * as LoginSystem from '@/utils/loginsystem';
+import * as RootStore from '@/store';
+import * as FilterStore from '@/store/form/filters';
+
+import { init as initApi } from '@/api';
+import UrlStateParserSearch from '@/url/url-state-parser-search';
 $(document).ready(async () => {
+	const user = await LoginSystem.awaitInit(); // TODO settings
+	initApi('blacklab', BLS_URL, user);
+	initApi('cf', CONTEXT_URL, user);
+	RootStore.actions.user(user);
+
 	// We can render before the tagset loads, the form just won't be populated from the url yet.
 	(window as any).vueRoot = new App().$mount(document.querySelector('#vue-root')!);
+
+	// we do this after render, so the user has something to look at while we're loading.
+
+	// If we have a corpus: parse the url..
+	// TODO this really shouldn't be here
+	if (RootStore.getState().corpusId) {
+		// AAAH!
+		const corpus = await RootStore.get.corpusLoadingPromise();
+		if (corpus) {
+			// await runHook('beforeStateLoaded')
+			const stateFromUrl = await new UrlStateParserSearch(FilterStore.getState().filters).get();
+			RootStore.actions.replace(stateFromUrl);
+		}
+	}
+	// connectStreamsToVuex();
+
+
 });

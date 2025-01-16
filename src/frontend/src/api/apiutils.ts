@@ -138,6 +138,10 @@ export class CancelableRequest<T> implements Promise<T> {
 	public finally(onfinally?: (() => void) | undefined | null): CancelableRequest<T> {
 		return new CancelableRequest(this.request.finally(onfinally), this.cancel);
 	}
+
+	public static isCancelableRequest<T>(value: any): value is CancelableRequest<T> {
+		return value instanceof CancelableRequest;
+	}
 }
 
 export function createEndpoint(options: AxiosRequestConfig) {
