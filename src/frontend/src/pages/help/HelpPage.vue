@@ -27,6 +27,7 @@ export default Vue.extend({
 	watch: {
 		corpus: {
 			immediate: true,
+			deep: true,
 			handler(corpus: CorpusStore.ModuleRootState) {
 				if (isLoaded(corpus)) this.content.next(corpus.value.id);
 				else if (isEmpty(corpus)) this.content.next(undefined);
