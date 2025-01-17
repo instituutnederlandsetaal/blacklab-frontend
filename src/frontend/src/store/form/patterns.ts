@@ -330,7 +330,7 @@ const init = (corpus: CorpusStore.NormalizedIndex|null) => {
 		}
 	});
 
-	debugLog('Finished initializing pattern module state shape');
+	debugLogCat('init', 'Finished initializing pattern module state shape');
 };
 
 export {

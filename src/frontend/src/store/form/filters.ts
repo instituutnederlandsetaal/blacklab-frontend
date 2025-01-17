@@ -13,7 +13,7 @@ import * as UIStore from '@/store/ui';
 
 import { FilterDefinition } from '@/types/apptypes';
 
-import { debugLog } from '@/utils/debug';
+import { debugLog, debugLogCat } from '@/utils/debug';
 import { blacklabPaths } from '@/api';
 import { mapReduce, unescapeRegex } from '@/utils';
 import { getFilterString, getFilterSummary, getValueFunctions, valueFunctions } from '@/components/filters/filterValueFunctions';
@@ -226,7 +226,7 @@ const init = (corpus: CorpusModule.NormalizedIndex|null) => {
 			});
 		});
 
-	debugLog('Finished initializing filter module state shape');
+	debugLogCat('init', 'Finished initializing filter module state shape');
 };
 
 export {

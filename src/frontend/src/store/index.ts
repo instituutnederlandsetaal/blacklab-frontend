@@ -29,18 +29,14 @@ import * as ArticleModule from '@/store/article';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import { Empty, isLoaded, Loadable, loadableFromObservable } from '@/utils/loadable-streams';
-import { map, pairwise, shareReplay, startWith, tap } from 'rxjs';
+import { isLoaded, Loadable, loadableFromObservable } from '@/utils/loadable-streams';
+import { distinctUntilChanged, pairwise, shareReplay, tap } from 'rxjs';
 
 Vue.use(Vuex);
 const loadingState$ = CorpusModule.index$.pipe(
-	tap(v => console.log('observed value of index$ changed', v)),
-	pairwise(),
-	tap(([prev, cur]) => {
-		console.log('observed value of index$ pair changed', prev.state, '->', cur.state);
-		if (isLoaded(prev) !== isLoaded(cur)) privateActions.corpusChanged();
-	}),
-	map(([prev, cur]) => cur),
+	distinctUntilChanged((a, b) => a.state === b.state),
+	tap(v => privateActions.corpusChanged()), // any time the corpus changes, re-run initialization.
+	// Don't remove this, or the stream will run twice (or event more times) on every event if more than one subscriber is present.
 	shareReplay(1),
 )
 

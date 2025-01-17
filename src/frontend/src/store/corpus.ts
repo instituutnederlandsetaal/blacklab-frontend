@@ -33,10 +33,7 @@ const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pipe(
 	// const everythingUntilThisPoint = ...
 	// combineLatest(everythingUntilThisPoint, retry$).pipe(everythingAfterThisPoint)
 	combineLatestWith(retry$),
-	map(([{indexId, user}, _retry]): Loadable<string> => {
-		console.log('index$ inputs changed: ', {indexId, user, _retry});
-		return indexId ? Loaded(indexId) : Empty()
-	}),
+	map(([{indexId, user}, _retry]): Loadable<string> => indexId ? Loaded(indexId) : Empty()),
 	// NO async behavior after this point,
 	// otherwise the output of that async might occur after the next switchMap, which would be a bug.
 	switchMapLoaded(id =>
@@ -45,9 +42,6 @@ const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pipe(
 			relations: toObservable(Api.blacklab.getRelations(id)),
 		})
 		.pipe(
-			tap(v => {
-				console.log('index$ switchmap output changed (something loaded): ', v);
-			}),
 			mapLoaded(({index, relations}) => {
 				const corpus = normalizeIndex(index, relations);
 				// Filter bogus entries from groups (normally doesn't happen, but might happen when customjs interferes with the page).
@@ -72,7 +66,7 @@ const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pipe(
 			})
 		)
 	),
-	tap(v => console.log('index$ after switchmap (actual output): ', v)),
+	// Make sure we don't run this multiple times if multiple subscribers are listening.
 	shareReplay(1)
 );
 
