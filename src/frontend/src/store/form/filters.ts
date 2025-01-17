@@ -10,7 +10,6 @@ import { getStoreBuilder } from 'vuex-typex';
 import { RootState } from '@/store/';
 import * as CorpusModule from '@/store/corpus';
 import * as UIStore from '@/store/ui';
-import * as FilterStore from '@/store/form/filters';
 
 import { FilterDefinition } from '@/types/apptypes';
 
@@ -153,6 +152,12 @@ const actions = {
 };
 
 const init = (corpus: CorpusModule.NormalizedIndex|null) => {
+	if (!corpus) {
+		getState().filters = {};
+		getState().filterGroups = [];
+		return;
+	}
+
 	// Take care to copy the order of metadatagroups and their fields here!
 	CorpusModule.get.metadataGroups().forEach(g => {
 		actions.registerFilterGroup({

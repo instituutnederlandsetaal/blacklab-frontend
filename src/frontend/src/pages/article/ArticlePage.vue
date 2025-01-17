@@ -196,7 +196,7 @@ export default Vue.extend({
 	computed: {
 		inputs(): Input {
 			return {
-				indexId: RootStore.getState().corpusId,
+				indexId: isLoaded(RootStore.getState().corpus) ? RootStore.getState().corpus.value!.id : undefined,
 				docId: ArticleStore.getState().docId,
 
 				viewField: ArticleStore.getState().viewField,

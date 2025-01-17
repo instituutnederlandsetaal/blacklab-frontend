@@ -28,19 +28,29 @@ import * as GlobalResultsModule from '@/store/results/global';
 import * as ArticleModule from '@/store/article';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { ApiError } from '@/api';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import { User } from 'oidc-client-ts';
-import { Loadable, loadableFromObservable } from '@/utils/loadable-streams';
-import { ReplaySubject } from 'rxjs';
-import debug from '@/utils/debug';
-
-const globalLoading$ = new ReplaySubject<Loadable<undefined>>(1);
+import { Empty, isLoaded, Loadable, loadableFromObservable } from '@/utils/loadable-streams';
+import { map, pairwise, shareReplay, startWith, tap } from 'rxjs';
 
 Vue.use(Vuex);
+const loadingState$ = CorpusModule.index$.pipe(
+	tap(v => console.log('observed value of index$ changed', v)),
+	pairwise(),
+	tap(([prev, cur]) => {
+		console.log('observed value of index$ pair changed', prev.state, '->', cur.state);
+		if (isLoaded(prev) !== isLoaded(cur)) privateActions.corpusChanged();
+	}),
+	map(([prev, cur]) => cur),
+	shareReplay(1),
+)
 
 type RootState = {
-	corpusId: string|null;
+	/**
+	 * After the corpus is loaded (or cleared), some further setup of the store needs to occur,
+	 * and before the page can render properly.
+	 * This loadable will only become loaded once that happens.
+	 */
+	storeLoadingState: Loadable<undefined>;
 	corpus: CorpusModule.ModuleRootState;
 	article: ArticleModule.ModuleRootState;
 
@@ -57,7 +67,7 @@ const b = getStoreBuilder<RootState>();
 const getState = b.state();
 
 const get = {
-	corpusLoadingPromise: CorpusModule.get.loadingPromise,
+	loadingState: b.read(s => s.storeLoadingState, 'loadingState'),
 
 	viewedResultsSettings: b.read(state => state.views[state.interface.viewedResults!] ?? null, 'getViewedResultsSettings'),
 
@@ -74,7 +84,7 @@ const get = {
 
 	blacklabParameters: b.read((state): BLTypes.BLSearchParameters|undefined => {
 		const activeView = get.viewedResultsSettings();
-		if (!state.corpusId || !activeView || !state.query) return undefined;
+		if (!activeView || !state.query) return undefined;
 		if (state.global.sampleSize && state.global.sampleSeed == null) {
 			throw new Error('Should provide a sampleSeed when random sampling, or every new page of results will use a different seed');
 		}
@@ -116,29 +126,9 @@ const get = {
 };
 
 const actions = {
-	corpus: b.dispatch(async ({state, rootState}, corpusId: string|null): Promise<CorpusModule.NormalizedIndex|null> => {
-		state.corpusId = corpusId;
-		return CorpusModule.actions.corpus({corpusId, afterLoad: async (maybeLoadedCorpus) => {
-			UIModule.corpusCustomizations.customizeFunctions.forEach(f => f(UIModule.corpusCustomizations));
-
-			// This is user-customizable data, it can be used to override various defaults from other modules,
-			// It needs to determine fallbacks and defaults for settings that haven't been configured,
-			// So initialize it before the other modules.
-			await UIModule.init(corpus);
-
-			await FormManager.init(corpus);
-			await ViewModule.init(corpus);
-			await GlobalResultsModule.init(corpus);
-
-			await TagsetModule.init(corpus);
-			await HistoryModule.init(corpus);
-			await QueryModule.init(corpus);
-
-			await ArticleModule.init(corpus);
-			return maybeLoadedCorpus;
-		}});
-
-	}, 'corpus'),
+	retry: CorpusModule.actions.retry,
+	user: CorpusModule.actions.user,
+	corpusId: CorpusModule.actions.corpus,
 
 	/** Read the form state, build the query, reset the results page/grouping, etc. */
 	searchFromSubmit: b.commit(state => {
@@ -367,27 +357,45 @@ const actions = {
 	}, 'replaceRoot'),
 };
 
+const privateActions = {
+	/** The current corpus has changed or been cleared, re-run initialization. */
+	corpusChanged: b.dispatch(async ({state}) => {
+		const corpus = state.corpus.value ?? null;
+		// Do this one first as it customizes the UI and thus has impact on how the other stores behave
+		await UIModule.init(corpus);
+
+		await FormManager.init(corpus);
+		await ViewModule.init(corpus);
+		await GlobalResultsModule.init(corpus);
+
+		await TagsetModule.init(corpus);
+		await HistoryModule.init(corpus);
+		await QueryModule.init(corpus);
+
+		await ArticleModule.init(corpus);
+
+		// XXX: Changing the corpus recreates these modules, so replace them in window...
+		// Hack!
+		(window as any).vuexModules.results = {
+			...ViewModule,
+			hits: ViewModule.getOrCreateModule('hits'),
+			docs: ViewModule.getOrCreateModule('docs'),
+		};
+		return corpus;
+	}, 'corpusChanged'),
+}
+
 // NOTE: only call this after creating all getters and actions etc.
 // NOTE: process.env is empty at runtime, but webpack inlines all values at compile time, so this check works.
 declare const process: any;
 const store = b.vuexStore({
 	state: {
-		corpusId: null,
-		loadingState: loadableFromObservable(globalLoading$),
+		storeLoadingState: loadableFromObservable(loadingState$, []),
 	} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
 	strict: process.env.NODE_ENV === 'development',
 });
 
-const init = (corpusId: string|null): Promise<CorpusModule.NormalizedIndex|null> => {
-	const corpusLoadingPromise = actions.corpus(corpusId);
-	// store the sub-modules we create so custom scripts can access them (hack!)
-	(window as any).vuexModules.results = {
-		...ViewModule,
-		hits: ViewModule.getOrCreateModule('hits'),
-		docs: ViewModule.getOrCreateModule('docs'),
-	};
-	return corpusLoadingPromise;
-};
+const init = () => {};
 
 // Debugging helpers.
 (window as any).vuexModules = {
@@ -436,4 +444,5 @@ export {
 	get,
 	actions,
 	init,
+	loadingState$
 };

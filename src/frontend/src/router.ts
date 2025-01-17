@@ -1,5 +1,5 @@
 import Vue from 'vue';
-import Router, { Route } from 'vue-router';
+import Router from 'vue-router';
 
 Vue.use(Router);
 
@@ -91,10 +91,22 @@ const router = new Router({
 
 import * as RootStore from '@/store';
 import * as ArticleStore from '@/store/article';
+import * as FilterStore from '@/store/form/filters';
+import UrlStateParserSearch from '@/url/url-state-parser-search';
+import { promiseFromLoadableStream } from '@/utils/loadable-streams';
 
-router.beforeEach((to, from, next) => {
-	RootStore.actions.corpus(to.params.corpus);
+let pageLoadUrlDecoded = false;
+router.beforeEach(async (to, from, next) => {
+	// On first entry on the page, we need to decode the url.
+	RootStore.actions.corpusId(to.params.corpus);
 	ArticleStore.actions.docId(to.params.docId);
+	if (!pageLoadUrlDecoded && to.params.corpus) {
+		promiseFromLoadableStream(RootStore.loadingState$).then(async (r) => {
+			RootStore.actions.replace(await new UrlStateParserSearch(FilterStore.getState().filters).get());
+		})
+	}
+
+	pageLoadUrlDecoded = true;
 	next();
 })
 

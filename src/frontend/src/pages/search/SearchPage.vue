@@ -1,14 +1,14 @@
 <template>
 	<div class="container">
-		<div v-if="isLoading(corpus)">
+		<div v-if="isLoading(storeLoadingState)">
 			<Spinner center/>
 			<h2>Please wait while we load the corpus...</h2>
 		</div>
-		<div v-else-if="isError(corpus)">
+		<div v-else-if="isError(storeLoadingState)">
 			<!-- TODO requires login, forbidden states, retry -->
-			<h2>{{ corpus.error.title }}</h2>
-			<p>{{ corpus.error }}</p>
-			<pre v-if="corpus.error.stack">{{ corpus.error.stack }}</pre>
+			<h2>{{ storeLoadingState.error.title }}</h2>
+			<p>{{ storeLoadingState.error }}</p>
+			<pre v-if="storeLoadingState.error.stack">{{ storeLoadingState.error.stack }}</pre>
 		</div>
 		<div v-else-if="isEmpty(corpus)">
 			<h2>Strange... there should be a corpus here, but there isn't...</h2>
@@ -34,9 +34,9 @@
 
 <script lang="ts">
 import Vue from 'vue';
+import * as RootStore from '@/store';
 import * as InterfaceStore from '@/store/form/interface';
 import * as UIStore from '@/store/ui';
-import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 
 import QueryForm from '@/pages/search/form/QueryForm.vue';
@@ -56,6 +56,7 @@ export default Vue.extend({
 		Spinner
 	},
 	computed: {
+		storeLoadingState() { return RootStore.get.loadingState(); },
 		corpus() { return CorpusStore.getState(); },
 		resultsVisible(): boolean { return InterfaceStore.getState().viewedResults != null; },
 		pageGuideEnabled(): boolean { return UIStore.getState().global.pageGuide.enabled; },

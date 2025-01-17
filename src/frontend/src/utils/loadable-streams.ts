@@ -1,4 +1,4 @@
-import { combineLatest, filter, firstValueFrom, map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subscription, switchMap } from 'rxjs';
+import { combineLatest, distinctUntilChanged, filter, firstValueFrom, map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subscription, switchMap } from 'rxjs';
 import jsonStableStringify from 'json-stable-stringify';
 import { ApiError, Canceler } from '@/api';
 import { CancelableRequest } from '@/api/apiutils';
@@ -16,10 +16,10 @@ export type LoadingError<T> = {state: LoadableState.Error,   value?: undefined, 
 export type Empty<T> =        {state: LoadableState.Empty,   value?: undefined, error?: undefined};
 export type Loadable<T> =     Loading<T> | Loaded<T> | LoadingError<T> | Empty<T>;
 
-export const Loading = <T>(): Loading<T> => ({state: LoadableState.Loading});
-export const Loaded = <T>(value: T): Loaded<T> => ({state: LoadableState.Loaded, value});
-export const LoadingError = <T>(error: ApiError): LoadingError<T> => ({state: LoadableState.Error, error});
-export const Empty = <T>(): Empty<T> => ({state: LoadableState.Empty, value: undefined});
+export const Loading = <T>(): Loading<T> =>       ({state: LoadableState.Loading, value: undefined, error: undefined});
+export const Loaded = <T>(value: T): Loaded<T> => ({state: LoadableState.Loaded,  value, error: undefined});
+export const LoadingError = <T>(error: ApiError): LoadingError<T> => ({state: LoadableState.Error, value: undefined, error});
+export const Empty = <T>(): Empty<T> => ({state: LoadableState.Empty, value: undefined, error: undefined});
 
 export const isLoadable = <T>(v: any): v is Loadable<T> => {
 	if (!v || typeof v !== 'object' || !('state' in v)) return false;
@@ -33,16 +33,20 @@ export const isLoading = <T>(v: Loadable<T>): v is Loading<T> => v.state === Loa
 export const isError = <T>(v: Loadable<T>): v is LoadingError<T> => v.state === LoadableState.Error;
 export const isEmpty = <T>(v: Loadable<T>): v is Empty<T> => v.state === LoadableState.Empty;
 
+/** Map a Loadable representing the loaded value into one that can be anything else. */
 export function mapLoaded<T, U>(mapper: (v: T) => U): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return map(v => isLoaded(v) ? Loaded(mapper(v.value)) : v);
 }
+/** Map a Loadable representing an error into one that can be anything else. */
 export function mapError<T extends U, U>(mapper: (v: ApiError) => Loadable<U>): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return map(v => isError(v) ? mapper(v.error) : v);
 }
 
+/** Map a Loadable representing the loaded value into one that can be anything else, asynchronously. */
 export function mergeMapLoaded<T, U>(mapper: (v: T) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return mergeMap(v => isLoaded(v) ? mapper(v.value) : of(v));
 }
+/** Map a Loadable representing an error into one that can be anything else, asynchronously. */
 export function mergeMapError<T extends U, U>(mapper: (v: ApiError) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return mergeMap(v => isError(v) ? mapper(v.error) : of(v));
 }
@@ -183,7 +187,7 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<s
 	const error = LoadingError(apiError);
 	const empty = Empty();
 
-	const alertAndLog = (msg: string) => { alert(msg); console.error(msg); };
+	const alertAndLog = (msg: string) => { alert(msg); console.error(new Error(msg)); };
 
 	if (!isLoadable(loading)) alertAndLog('isLoadable failed');
 	if (!isLoadable(loaded)) alertAndLog('isLoadable failed');
@@ -200,7 +204,7 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<s
 	if (combined.value[1].a !== 2) alertAndLog('combineLoadables failed');
 	if (combined.value[2] !== 1) alertAndLog('combineLoadables failed');
 	if (!isLoadable(combined)) alertAndLog('combineLoadables failed');
-	const toCombine = {a: loaded, b: {a: 2}, c: loaded, d: (Loading<string>() as Loadable<string>)};
+	const toCombine = {a: loaded, b: {a: 2}, c: loaded};
 	const combinedObj = combineLoadables(toCombine);
 	if (!isLoaded(combinedObj)) { alertAndLog('combineLoadables with object failed'); return; }
 	if (combinedObj.value.a !== 1) alertAndLog('combineLoadables with object failed');
@@ -267,15 +271,15 @@ export class InteractiveLoadable<I, T> {
 }
 
 /**
- * This isn't ideal, but sometimes we may need to wait for a certain async operation
- * to complete before we can continue. This is a way to do that.
- * It resolves the promise with the first Loaded event it receives, or rejects with the first Error event.
- * If the stream emits an Empty event, or completes without emitting anything, it resolves with undefined.
+ * Map the next non-loading state of the stream to a promise.
+ * Empty<T> will resolve to undefined.
+ * NOTE: if the stream returns a LoadingError<T>, this will reject!
+ * Meaning that if you await this promise, it could throw!
  *
- * NOTE: this function can be a gotcha
- * If the provided stream internally caches values (like when using shareReplay(1)),
- * this will immediately resolve to that cached value (unless that value is a Loading() state),
- * instead of the more logical behaviour of waiting for the next value and resolving that.
+ * NOTE: if the stream caches values (such as with BehaviorSubject or shareReplay(1)),
+ * the promise will resolve to the current value!
+ * Make sure you next() the stream's input _before_ calling this function,
+ * and make sure the stream's output changes synchronously with the input.
  * @param loadableStream
  * @returns a promise that will contain the first non-Loading state of the stream.
  */
@@ -291,4 +295,26 @@ export function promiseFromLoadableStream<T>(loadableStream: Observable<Loadable
 			complete: () => resolve(undefined)
 		});
 	});
+}
+
+/**
+ * Combine either a map of streams or an array of streams, and return a stream that will emit the latest values as a single loadable.
+ * It will not emit repeated loading states.
+ */
+export function combineLoadableStreams<T extends readonly Observable<any>[]>(streams: T): Observable<Loadable<{ [K in keyof T]: TemplateTypeFromLoadableOrObservable<T[K]> }>>;
+export function combineLoadableStreams<T extends Record<string, Observable<any>>>(streams: T): Observable<Loadable<{ [K in keyof T]: TemplateTypeFromLoadableOrObservable<T[K]> }>>;
+export function combineLoadableStreams(streams: Observable<any>[]|Record<string, Observable<any>>): Observable<Loadable<any>> {
+	const combined$: Observable<Record<string, any>|any[]> = Array.isArray(streams)
+		? combineLatest(streams)
+		: combineLatest(streams as Record<string, Observable<any>>);
+
+	return combined$.pipe(
+		map(values => combineLoadables(values)),
+		distinctUntilChanged((prev, curr) => {
+			if (prev.state !== curr.state) return false;
+			if (prev.state === LoadableState.Loaded) return prev.value === curr.value;
+			if (prev.state === LoadableState.Error) return prev.error === curr.error;
+			return true; // both empty or both loading -> equal
+		})
+	);
 }

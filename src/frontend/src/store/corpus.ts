@@ -14,29 +14,40 @@ import {RootState} from '@/store/';
 import {NormalizedIndex, NormalizedAnnotation, NormalizedMetadataField, NormalizedAnnotatedField, NormalizedMetadataGroup, NormalizedAnnotationGroup, NormalizedAnnotatedFieldParallel} from '@/types/apptypes';
 import { mapReduce } from '@/utils';
 import { normalizeIndex } from '@/utils/blacklabutils';
-import { combineLoadables, Empty, isEmpty, isError, isLoaded, isLoading, Loadable, loadableFromObservable, Loaded, mapLoaded, mergeMapLoaded, promiseFromLoadableStream, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
-import { combineLatest, distinct, distinctUntilChanged, filter, firstValueFrom, map, mergeMap, of, ReplaySubject, switchMap, tap } from 'rxjs';
+import { combineLoadables, combineLoadableStreams, Empty, isEmpty, isError, isLoaded, isLoading, Loadable, loadableFromObservable, Loaded, mapLoaded, mergeMapLoaded, promiseFromLoadableStream, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
+import { BehaviorSubject, combineLatest, combineLatestWith, distinct, distinctUntilChanged, filter, firstValueFrom, map, mergeMap, mergeWith, of, ReplaySubject, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
 import { User } from 'oidc-client-ts';
 
 type ModuleRootState = Loadable<NormalizedIndex>;
 
-let beforeLoadingCompletes: (corpus: NormalizedIndex|null) => void;
-
-const currentUser$ = new ReplaySubject<User|null>(1);
-const indexId$ = new ReplaySubject<string|null>(1);
-export const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pipe(
-	tap(console.log),
-	distinctUntilChanged((a, b) => a.user !== b.user || a.indexId !== b.indexId),
-	map(({indexId}): Loadable<string> => indexId ? Loaded(indexId) : Empty()),
+const currentUser$ = new BehaviorSubject<User|null>(null);
+const indexId$ = new BehaviorSubject<string|null>(null);
+/** A way to retry loading from an external event. */
+const retry$ = new BehaviorSubject<undefined>(undefined);
+const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pipe(
+	distinctUntilChanged((a, b) => a.user === b.user && a.indexId === b.indexId),
+	// every time a value is pushed into retry$, re-run everything beyond this point.
+	// This is useful when errors occur, and we want to give the user a way to retry.
+	// This is like a combineLatest, but inline.
+	// saves us having to do something like:
+	// const everythingUntilThisPoint = ...
+	// combineLatest(everythingUntilThisPoint, retry$).pipe(everythingAfterThisPoint)
+	combineLatestWith(retry$),
+	map(([{indexId, user}, _retry]): Loadable<string> => {
+		console.log('index$ inputs changed: ', {indexId, user, _retry});
+		return indexId ? Loaded(indexId) : Empty()
+	}),
 	// NO async behavior after this point,
 	// otherwise the output of that async might occur after the next switchMap, which would be a bug.
 	switchMapLoaded(id =>
-		combineLatest({
+		combineLoadableStreams({
 			index: toObservable(Api.frontend.getCorpus(id)),
 			relations: toObservable(Api.blacklab.getRelations(id)),
 		})
 		.pipe(
-			map(combineLoadables),
+			tap(v => {
+				console.log('index$ switchmap output changed (something loaded): ', v);
+			}),
 			mapLoaded(({index, relations}) => {
 				const corpus = normalizeIndex(index, relations);
 				// Filter bogus entries from groups (normally doesn't happen, but might happen when customjs interferes with the page).
@@ -44,6 +55,7 @@ export const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pip
 				corpus.metadataFieldGroups.forEach(g => g.entries = g.entries.filter(id => corpus.metadataFields[id]));
 				return Object.freeze(corpus);
 			}),
+			// TODO yuck! Move to App component....
 			tap(v => {
 				if (isLoaded(v)) {
 					const corpus = v.value;
@@ -58,9 +70,10 @@ export const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pip
 					displayNameInNavbar.innerHTML = 'Corpus Frontend';
 				}
 			})
-		),
+		)
 	),
-	// TODO yuck! Move to App component....
+	tap(v => console.log('index$ after switchmap (actual output): ', v)),
+	shareReplay(1)
 );
 
 const namespace = 'corpus';
@@ -68,11 +81,10 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, loadab
 const getState = b.state();
 
 const get = {
-	loadingPromise(): Promise<NormalizedIndex|undefined> {
-		return promiseFromLoadableStream(index$);
-	},
-
-	/** Util for when you're in a component where you are sure the corpus is loaded */
+	/**
+	 * Util for when you're in a component where you are sure the corpus is loaded
+	 * @deprecated this is an antipattern. Instead we should use the regular getters.
+	 */
 	corpus: b.read((state): NormalizedIndex => {
 		if (!isLoaded(state)) { alert('Corpus not loaded'); throw new Error('Corpus not loaded'); }
 		return state.value;
@@ -153,22 +165,17 @@ const get = {
 
 const actions = {
 	// TODO should this just be a part of search.xml? It's such a fundamental part of the page setup.
-	loadTagsetValues: b.commit((state, handler: () => void) => {
-		// This is strange, this function is just so we're in a commit() and Vue doesn't throw a warning
-		// about changing state outside of a mutation.
-		handler();
-	}, 'loadTagsetValues'),
-	corpus: b.dispatch((state, payload: {corpusId: string|null, afterLoad?: (corpus: NormalizedIndex|undefined) => NormalizedIndex|undefined}) => {
-		const afterLoad: typeof payload.afterLoad = payload.afterLoad ? payload.afterLoad : (v => v);
-		indexId$.next(payload.corpusId);
-		return promiseFromLoadableStream(index$).then(afterLoad);
-	}, 'corpus'),
-	user: b.dispatch((state, user: User|null) => {
-		currentUser$.next(user);
-	}, 'user'),
+	/**
+	 * Implementation may look strange,
+	 * but this function is just so we're in a commit() and Vue doesn't throw a warning
+	 * when we modify displayNames in the corpus object.
+	 * (that may be known in the tagset, but not in the corpus itself)
+	 */
+	loadTagsetValues: b.commit((state, handler: () => void) => handler(), 'loadTagsetValues'),
+	corpus: (corpusId: string|null) => indexId$.next(corpusId),
+	user: (user: User|null) => currentUser$.next(user),
+	retry: () => retry$.next(undefined)
 };
-
-
 
 const init = () => {}
 
@@ -183,6 +190,9 @@ export {
 	get,
 	actions,
 	init,
+
+	// Root store needs to monitor loading state so it can properly initialize other parts of the app.
+	index$,
 
 	namespace,
 };

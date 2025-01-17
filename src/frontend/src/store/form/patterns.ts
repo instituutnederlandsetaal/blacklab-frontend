@@ -58,7 +58,7 @@ type ModuleRootState = {
 // First: the basic state shape (this)
 // Then: the basic state shape with the appropriate annotation and filters created
 // Finally: the values initialized from the page's url on first load.
-const defaults: ModuleRootState = {
+const initialState: ModuleRootState = {
 	shared: {
 		source: null,
 		targets: [],
@@ -86,7 +86,7 @@ const defaults: ModuleRootState = {
 };
 
 const namespace = 'patterns';
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep(defaults));
+const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep(initialState));
 
 const getState = b.state();
 
@@ -106,7 +106,7 @@ const get = {
 };
 
 const privateActions = {
-	clear: b.commit(state => Object.assign(state, cloneDeep(defaults)), 'clear'),
+	clear: b.commit(state => Object.assign(state, cloneDeep(initialState)), 'clear'),
 
 	// initFilter: b.commit((state, payload: FilterValue) => Vue.set(state.filters, payload.id, payload), 'filter_init'),
 	// NOTE when re-integrating annotatedFieldId this needs to be updated to account.
@@ -297,9 +297,10 @@ const actions = {
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
 const init = (corpus: CorpusStore.NormalizedIndex|null) => {
-	privateActions.clear();
-	if (!corpus) return;
-	debugger;
+	if (!corpus) {
+		Object.assign(getState(), cloneDeep(initialState));
+		return;
+	}
 
 	const parallelFields = CorpusStore.get.parallelAnnotatedFields();
 	const defaultParallelVersion = parallelFields[0]?.id || '';
@@ -341,5 +342,5 @@ export {
 	init,
 
 	namespace,
-	defaults
+	initialState as defaults
 };

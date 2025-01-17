@@ -11,11 +11,11 @@ import {getStoreBuilder} from 'vuex-typex';
 import {RootState} from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 
-import { NormalizedAnnotation, Tagset } from '@/types/apptypes';
+import { ApiError, NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import { mapReduce } from '@/utils';
-import { Empty, InteractiveLoadable, isLoadable, isLoaded, isLoading, Loadable, loadableFromObservable, LoadableState, Loaded, promiseFromLoadableStream as promiseFromLoadableStream, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
-import { distinct, distinctUntilChanged, filter, firstValueFrom, map, pipe, ReplaySubject, shareReplay, tap } from 'rxjs';
+import { Empty, InteractiveLoadable, isLoadable, isLoaded, isLoading, Loadable, loadableFromObservable, LoadableState, Loaded, LoadingError, mapError, mergeMapError, promiseFromLoadableStream as promiseFromLoadableStream, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
+import { catchError, distinct, distinctUntilChanged, filter, firstValueFrom, map, of, pipe, ReplaySubject, shareReplay, tap } from 'rxjs';
 import {frontend} from '@/api';
 
 type ModuleRootState = Loadable<Tagset>;
@@ -24,28 +24,34 @@ const namespace = 'tagset';
 const indexId$ = new ReplaySubject<string|null>(1);
 const tagset$ = indexId$.pipe(
 	map((id): Loadable<string> => id ? Loaded(id) : Empty()),
-	switchMapLoaded(id => toObservable(frontend.getTagset(id))),
-	tap(v => {
-		if (!isLoaded(v)) return;
-		const tagset = v.value;
-		const annots = CorpusStore.get.allAnnotationsMap();
-		const mainAnnot = Object.values(annots).flat().find(a => a.uiType === 'pos');
-		if (!mainAnnot) {
-			// We don't have any annotation to attach the tagset to
-			// Stop loading, and act as if no tagset was loaded (because it wasn't).
-			console.warn(`Attempting to loading tagset when no annotation has uiType "pos". Cannot load!`);
-			return;
-		}
+	switchMapLoaded(id =>
+		toObservable(frontend.getTagset(id))
+		.pipe(
+			// 404 will result in a loading representing the error, but we want to treat it as an empty result.
+			mapError((e: ApiError): Loadable<Tagset> => e.httpCode === 404 ? Empty() : LoadingError(e)),
+			tap(v => {
+				if (!isLoaded(v)) return;
+				const tagset = v.value;
+				const annots = CorpusStore.get.allAnnotationsMap();
+				const mainAnnot = Object.values(annots).flat().find(a => a.uiType === 'pos');
+				if (!mainAnnot) {
+					// We don't have any annotation to attach the tagset to
+					// Stop loading, and act as if no tagset was loaded (because it wasn't).
+					console.warn(`Attempting to loading tagset when no annotation has uiType "pos". Cannot load!`);
+					return;
+				}
 
-		validateTagset(mainAnnot, annots, tagset);
-		lowercaseValuesIfNeeded(mainAnnot, annots, tagset);
+				validateTagset(mainAnnot, annots, tagset);
+				lowercaseValuesIfNeeded(mainAnnot, annots, tagset);
 
-		// we're modifying the corpus info here, so we need to commit the changes to the store.
-		CorpusStore.actions.loadTagsetValues(() => {
-			copyDisplaynamesAndValuesToCorpus(mainAnnot, Object.values(tagset.values));
-			Object.values(tagset.subAnnotations).forEach(sub => copyDisplaynamesAndValuesToCorpus(annots[sub.id], sub.values));
-		});
-	}),
+				// we're modifying the corpus info here, so we need to commit the changes to the store.
+				CorpusStore.actions.loadTagsetValues(() => {
+					copyDisplaynamesAndValuesToCorpus(mainAnnot, Object.values(tagset.values));
+					Object.values(tagset.subAnnotations).forEach(sub => copyDisplaynamesAndValuesToCorpus(annots[sub.id], sub.values));
+				});
+			}),
+		)
+	),
 	shareReplay(1)
 );
 
@@ -56,13 +62,17 @@ const getState = b.state();
 const get = {};
 
 const init = async (corpus: CorpusStore.NormalizedIndex|null) => {
-	if (!corpus) indexId$.next(null);
-	else {
+	if (!corpus) {
+		indexId$.next(null);
+	} else {
 		const mainAnnot = Object.values(CorpusStore.get.allAnnotations()).find(a => a.uiType === 'pos');
 		if (!mainAnnot) indexId$.next(null);
 		else indexId$.next(corpus.id);
 	}
-	return promiseFromLoadableStream(tagset$);
+
+	// Catch any error here, we don't want to crash the app if the tagset can't be loaded.
+	// The error will be exposed in the tagset store state, and can be displayed by the tagset component.
+	return promiseFromLoadableStream(tagset$).catch(() => {});
 };
 
 /**

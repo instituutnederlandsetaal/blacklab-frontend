@@ -7,8 +7,8 @@ import Vue from 'vue';
 import { pipe, switchMap } from 'rxjs';
 
 import { frontend } from '@/api';
-import * as RootStore from '@/store';
-import { InteractiveLoadable, toObservable } from '@/utils/loadable-streams';
+import * as CorpusStore from '@/store/corpus';
+import { InteractiveLoadable, isEmpty, isLoaded, toObservable } from '@/utils/loadable-streams';
 
 import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
 
@@ -17,20 +17,22 @@ export default Vue.extend({
 		ServerRenderedComponent
 	},
 	data: () => ({
-		content: new InteractiveLoadable<string, string>(pipe(
-			switchMap(corpusId => toObservable(frontend.getAbout(corpusId))),
+		content: new InteractiveLoadable<string|undefined, string>(pipe(
+			switchMap(corpusIdOrBlank => toObservable(frontend.getAbout(corpusIdOrBlank))),
 		))
 	}),
 	computed: {
-		corpusId: () => RootStore.getState().corpusId,
+		corpus: () => CorpusStore.getState()
 	},
 	watch: {
-		corpusId: {
+		corpus: {
 			immediate: true,
-			handler(corpusId: string) { this.content.next(corpusId); }
+			handler(corpus: CorpusStore.ModuleRootState) {
+				if (isLoaded(corpus)) this.content.next(corpus.value.id);
+				else if (isEmpty(corpus)) this.content.next(undefined);
+			}
 		}
 	}
-
 });
 </script>
 
