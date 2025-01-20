@@ -1,7 +1,7 @@
 // Define a few pipelines to perform actions on streams of data
 import URI from 'urijs';
 
-import { Observable, ReplaySubject, fromEvent } from 'rxjs';
+import { BehaviorSubject, Observable, ReplaySubject, fromEvent, pipe } from 'rxjs';
 import { debounceTime, map, shareReplay, filter } from 'rxjs/operators';
 import cloneDeep from 'clone-deep';
 
@@ -32,28 +32,30 @@ type QueryState = {
 	state: Pick<RootStore.RootState, 'query'|'interface'|'global'|'views'>
 };
 
-const filtersLuceneQuery$ = new ReplaySubject<{luceneQuery: string|null|undefined, indexId: string|null|undefined}>(1);
-const submittedMetadata$ = new ReplaySubject<string|undefined>(1);
-const urlInputParameters$ = new ReplaySubject<QueryState>(1);
-
-type Subcorpus = {
+type TotalsInput = {
+	indexId: string|null;
+	luceneQuery: string|null;
+}
+type TotalsOutput = {
 	docs: number;
 	tokens: number
 }
 
-/**
- * Reads the entered document metadata filters as they are in the main search form,
- * then periodically polls blacklab for the number of matching documents and tokens,
- * yielding the effectively searched document and token counts when searching a pattern with those filters.
- */
-export const selectedSubCorpus$: Observable<Loadable<Subcorpus>> = filtersLuceneQuery$.pipe(
-	debounceTime(1000),
+/** Put the filter selection from the search form here */
+const selectedMetadata$ = new BehaviorSubject<TotalsInput>({indexId: null, luceneQuery: null});
+/** Put the filter selection from the submitted search here */
+const submittedMetadata$ = new BehaviorSubject<TotalsInput>({indexId: null, luceneQuery: null});
+
+const urlInputParameters$ = new ReplaySubject<QueryState>(1);
+
+const luceneQueryAndCorpusIdToSubcorpus = pipe(
+	debounceTime<TotalsInput>(1000),
 	map(loadedIfNotNull('indexId')),
-	switchMapLoaded(v => v.luceneQuery // if we have a query, return a Loadable of the request
+	switchMapLoaded((v): Observable<Loadable<TotalsOutput>> => v.luceneQuery // if we have a query, return a Loadable of the request
 		? toObservable(
 			Api.blacklab
 			.getDocs(v.indexId, {filter: v.luceneQuery, first: 0, number: 0, includetokencount: true, waitfortotal: true})
-			.then<Subcorpus>(r => ({
+			.then<TotalsOutput>(r => ({
 				docs: r.summary.numberOfDocs,
 				tokens: r.summary.tokensInMatchingDocuments!
 			})))
@@ -65,6 +67,13 @@ export const selectedSubCorpus$: Observable<Loadable<Subcorpus>> = filtersLucene
 	shareReplay(1)
 );
 
+/**
+ * Reads the entered document metadata filters as they are in the main search form,
+ * then periodically polls blacklab for the number of matching documents and tokens,
+ * yielding the effectively searched document and token counts when searching a pattern with those filters.
+ */
+export const selectedSubCorpus$: Observable<Loadable<TotalsOutput>> = selectedMetadata$.pipe(luceneQueryAndCorpusIdToSubcorpus);
+export const submittedSubCorpus$: Observable<Loadable<TotalsOutput>> = submittedMetadata$.pipe(luceneQueryAndCorpusIdToSubcorpus);
 
 // Pipeline that will generate a new frontend URL and push it to the browser history whenever
 // the root store state changes in a way that affects the query parameters.
@@ -238,7 +247,7 @@ export default () => {
 			luceneQuery: FilterStore.get.luceneQuery(),
 			indexId: CorpusStore.get.corpusId()
 		}),
-		v => filtersLuceneQuery$.next(v),
+		v => selectedMetadata$.next(v),
 		{ immediate: true }
 	);
 	RootStore.store.watch(
