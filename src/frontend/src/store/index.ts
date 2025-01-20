@@ -29,14 +29,16 @@ import * as ArticleModule from '@/store/article';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import { isLoaded, Loadable, loadableFromObservable } from '@/utils/loadable-streams';
-import { distinctUntilChanged, pairwise, shareReplay, tap } from 'rxjs';
+import { Loadable, loadableFromObservable, loadableStreamFromPromise, mapLoaded } from '@/utils/loadable-streams';
+import { distinctUntilChanged, Observable, shareReplay, switchMap } from 'rxjs';
 
 Vue.use(Vuex);
-const loadingState$ = CorpusModule.index$.pipe(
-	distinctUntilChanged((a, b) => a.state === b.state),
-	tap(v => privateActions.corpusChanged()), // any time the corpus changes, re-run initialization.
-	// Don't remove this, or the stream will run twice (or event more times) on every event if more than one subscriber is present.
+const loadingState$: Observable<Loadable<void>> = CorpusModule.index$.pipe(
+	// only emit when the corpus changes from something to nothing or vice versa.
+	distinctUntilChanged((a, b) => a.isLoaded() === b.isLoaded()),
+	// Then init the other stores, emitting a loading state while doing so.
+	// Errors during init wil be caught and emitted as a LoadingError.
+	switchMap(() => loadableStreamFromPromise(privateActions.corpusChanged())),
 	shareReplay(1),
 )
 
@@ -356,7 +358,8 @@ const actions = {
 const privateActions = {
 	/** The current corpus has changed or been cleared, re-run initialization. */
 	corpusChanged: b.dispatch(async ({state}) => {
-		const corpus = state.corpus.value ?? null;
+		// NOTE: this function should return a promise that only resolves once all stores are initialized.
+		const corpus = state.corpus.isLoaded() ? state.corpus.value : null;
 		// Do this one first as it customizes the UI and thus has impact on how the other stores behave
 		await UIModule.init(corpus);
 
@@ -377,7 +380,6 @@ const privateActions = {
 			hits: ViewModule.getOrCreateModule('hits'),
 			docs: ViewModule.getOrCreateModule('docs'),
 		};
-		return corpus;
 	}, 'corpusChanged'),
 }
 
@@ -386,7 +388,7 @@ const privateActions = {
 declare const process: any;
 const store = b.vuexStore({
 	state: {
-		storeLoadingState: loadableFromObservable(loadingState$, []),
+		storeLoadingState: loadableFromObservable(loadingState$.pipe(mapLoaded(v => undefined)), []),
 	} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
 	strict: process.env.NODE_ENV === 'development',
 });

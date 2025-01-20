@@ -5,18 +5,18 @@
  * are the filters subdivided in groups, what is the text direction, and so on.
  */
 
-import {getStoreBuilder} from 'vuex-typex';
+import { getStoreBuilder } from 'vuex-typex';
 
 import * as Api from '@/api';
 
-import {RootState} from '@/store/';
+import { RootState } from '@/store/';
 
-import {NormalizedIndex, NormalizedAnnotation, NormalizedMetadataField, NormalizedAnnotatedField, NormalizedMetadataGroup, NormalizedAnnotationGroup, NormalizedAnnotatedFieldParallel} from '@/types/apptypes';
+import { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex, NormalizedMetadataField, NormalizedMetadataGroup } from '@/types/apptypes';
 import { mapReduce } from '@/utils';
 import { normalizeIndex } from '@/utils/blacklabutils';
-import { combineLoadables, combineLoadableStreams, Empty, isEmpty, isError, isLoaded, isLoading, Loadable, loadableFromObservable, Loaded, mapLoaded, mergeMapLoaded, promiseFromLoadableStream, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
-import { BehaviorSubject, combineLatest, combineLatestWith, distinct, distinctUntilChanged, filter, firstValueFrom, map, mergeMap, mergeWith, of, ReplaySubject, shareReplay, switchMap, tap, withLatestFrom } from 'rxjs';
+import { combineLoadableStreams, Loadable, loadableFromObservable, loadedIfNotNull, mapLoaded, repeatLatestWhen, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
 import { User } from 'oidc-client-ts';
+import { BehaviorSubject, combineLatest, combineLatestWith, distinctUntilChanged, map, repeat, repeatWhen, shareReplay, switchMap, tap } from 'rxjs';
 
 type ModuleRootState = Loadable<NormalizedIndex>;
 
@@ -26,20 +26,14 @@ const indexId$ = new BehaviorSubject<string|null>(null);
 const retry$ = new BehaviorSubject<undefined>(undefined);
 const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pipe(
 	distinctUntilChanged((a, b) => a.user === b.user && a.indexId === b.indexId),
-	// every time a value is pushed into retry$, re-run everything beyond this point.
-	// This is useful when errors occur, and we want to give the user a way to retry.
-	// This is like a combineLatest, but inline.
-	// saves us having to do something like:
-	// const everythingUntilThisPoint = ...
-	// combineLatest(everythingUntilThisPoint, retry$).pipe(everythingAfterThisPoint)
-	combineLatestWith(retry$),
-	map(([{indexId, user}, _retry]): Loadable<string> => indexId ? Loaded(indexId) : Empty()),
+	map(loadedIfNotNull('indexId')),
+	repeatLatestWhen(retry$),
 	// NO async behavior after this point,
 	// otherwise the output of that async might occur after the next switchMap, which would be a bug.
-	switchMapLoaded(id =>
+	switchMapLoaded(({user, indexId}) =>
 		combineLoadableStreams({
-			index: toObservable(Api.frontend.getCorpus(id)),
-			relations: toObservable(Api.blacklab.getRelations(id)),
+			index: toObservable(Api.frontend.getCorpus(indexId)),
+			relations: toObservable(Api.blacklab.getRelations(indexId)),
 		})
 		.pipe(
 			mapLoaded(({index, relations}) => {
@@ -51,7 +45,7 @@ const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pipe(
 			}),
 			// TODO yuck! Move to App component....
 			tap(v => {
-				if (isLoaded(v)) {
+				if (v.isLoaded()) {
 					const corpus = v.value;
 					// Set displayname in navbar if it's currently a fallback.
 					// (which is when search.xml doesn't specify a displayname)
@@ -59,7 +53,7 @@ const index$ = combineLatest({user: currentUser$, indexId: indexId$}).pipe(
 					if (corpus.displayName && displayNameInNavbar.hasAttribute('data-is-fallback')) {
 						displayNameInNavbar.innerHTML = corpus.displayName || corpus.id;
 					}
-				} else if (isEmpty(v)) { // no corpus, reset displayname in navbar
+				} else if (v.isEmpty()) { // no corpus, reset displayname in navbar
 					const displayNameInNavbar = document.querySelector('.navbar-brand')!;
 					displayNameInNavbar.innerHTML = 'Corpus Frontend';
 				}
@@ -80,23 +74,34 @@ const get = {
 	 * @deprecated this is an antipattern. Instead we should use the regular getters.
 	 */
 	corpus: b.read((state): NormalizedIndex => {
-		if (!isLoaded(state)) { alert('Corpus not loaded'); throw new Error('Corpus not loaded'); }
+		if (!state.isLoaded()) { alert('Corpus not loaded'); throw new Error('Corpus not loaded'); }
 		return state.value;
 	}, 'corpus'),
 
+	/** Get the indexId. Available before index has fully loaded. */
+	corpusId: b.read(state => {
+		/* NOTE: we must touch something in the state for reactivity to register
+		 * (even though we don't use the value in this function)
+		 * In practice, loading still will immediately switch when we set a new indexId
+		 * So this function will response correctly as it immediately updates the returned indexId.
+		 * But if we don't touch the state, it wouldn't ever update.
+		 */
+		return !state.isEmpty() ? indexId$.value : null
+	}, 'corpusId'),
+
 	/** List of annotated fields */
 	allAnnotatedFields: b.read((state): NormalizedAnnotatedField[] =>
-		isLoaded(state) ? Object.values(state.value.annotatedFields) : []
+		state.isLoaded() ? Object.values(state.value.annotatedFields) : []
 	, 'allAnnotatedFields'),
 
 	/** Map of annotated fields */
 	allAnnotatedFieldsMap: b.read((state): Record<string, NormalizedAnnotatedField> =>
-		isLoaded(state) ? state.value.annotatedFields : {}
+		state.isLoaded() ? state.value.annotatedFields : {}
 	, 'allAnnotatedFieldsMap'),
 
 	/** Main annotated field name */
 	mainAnnotatedField: b.read((state): string =>
-		isLoaded(state) ? state.value.mainAnnotatedField : 'contents'
+		state.isLoaded() ? state.value.mainAnnotatedField : 'contents'
 	, 'mainAnnotatedField'),
 
 	/** Is this a parallel corpus? */
@@ -121,12 +126,12 @@ const get = {
 
 	/** All annotations, without duplicates and in no specific order */
 	allAnnotations: b.read((state): NormalizedAnnotation[] =>
-		isLoaded(state) ? Object.values(state.value.annotatedFields[state.value.mainAnnotatedField].annotations) : [], 'allAnnotations'),
+		state.isLoaded() ? Object.values(state.value.annotatedFields[state.value.mainAnnotatedField].annotations) : [], 'allAnnotations'),
 
 	allAnnotationsMap: b.read((): Record<string, NormalizedAnnotation> => mapReduce(get.allAnnotations(), 'id'), 'allAnnotationsMap'),
 
-	allMetadataFields: b.read((state): NormalizedMetadataField[] => isLoaded(state) ? Object.values(state.value.metadataFields) : [], 'allMetadataFields'),
-	allMetadataFieldsMap: b.read((state): Record<string, NormalizedMetadataField> => isLoaded(state) ? state.value.metadataFields : {}, 'allMetadataFieldsMap'),
+	allMetadataFields: b.read((state): NormalizedMetadataField[] => state.isLoaded() ? Object.values(state.value.metadataFields) : [], 'allMetadataFields'),
+	allMetadataFieldsMap: b.read((state): Record<string, NormalizedMetadataField> => state.isLoaded() ? state.value.metadataFields : {}, 'allMetadataFieldsMap'),
 
 	// TODO there can be multiple main annotations if there are multiple annotatedFields
 	// the ui needs to respect this (probably render more extensive results?)
@@ -138,7 +143,7 @@ const get = {
 	 * If groups are defined, fields not in any group are omitted.
 	 */
 	metadataGroups: b.read((state): Array<NormalizedMetadataGroup&{fields: NormalizedMetadataField[]}> =>
-		isLoaded(state) ? state.value.metadataFieldGroups.map(g => ({
+		state.isLoaded() ? state.value.metadataFieldGroups.map(g => ({
 			...g,
 			fields: g.entries.map(id => state.value.metadataFields[id])
 		})) : [], 'metadataGroups'),
@@ -148,13 +153,13 @@ const get = {
 	 * May contain internal annotations if groups were defined through indexconfig.yaml.
 	 */
 	annotationGroups: b.read((state): Array<NormalizedAnnotationGroup&{fields: NormalizedAnnotation[]}> =>
-		isLoaded(state) ? state.value.annotationGroups.map(g => ({
+		state.isLoaded() ? state.value.annotationGroups.map(g => ({
 			...g,
 			fields: g.entries.map(id => state.value.annotatedFields[g.annotatedFieldId].annotations[id]),
 		})) : [], 'annotationGroups'),
 
-	textDirection: b.read(state => isLoaded(state) ? state.value.textDirection : 'ltr', 'getTextDirection'),
-	hasRelations: b.read(state => isLoaded(state) ? state.value.relations.relations != null : false, 'hasRelations'),
+	textDirection: b.read(state => state.isLoaded() ? state.value.textDirection : 'ltr', 'getTextDirection'),
+	hasRelations: b.read(state => state.isLoaded() ? state.value.relations.relations != null : false, 'hasRelations'),
 };
 
 const actions = {
@@ -174,19 +179,9 @@ const actions = {
 const init = () => {}
 
 export {
-	ModuleRootState,
-	NormalizedIndex,
-	NormalizedAnnotatedField,
-	NormalizedAnnotation,
-	NormalizedMetadataField,
-
-	getState,
-	get,
-	actions,
-	init,
-
+	actions, get, getState,
 	// Root store needs to monitor loading state so it can properly initialize other parts of the app.
-	index$,
-
-	namespace,
+	index$, init, ModuleRootState, namespace, NormalizedAnnotatedField,
+	NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField
 };
+

@@ -17,18 +17,14 @@ export type NonNullableObject<T> = {
 	[P in keyof T]: P extends undefined ? P[] : T[P];
 };
 
-/** Remove properties P from type T */
-export type RemoveProperties<T, P extends keyof T> = Pick<T, Exclude<keyof T, P>>;
+type RequiredNotNull<T> = {
+	[P in keyof T]: NonNullable<T[P]>
+}
 
-/** Remove unnamed properties */
-export type KeepProperties<T, P extends keyof T> = {
-	[Q in P]: T[P];
-};
-
-/** Force unnamed properties to not exist */
-export type KeepOnlyProperties<T, P extends keyof T> = {
-	[Q in keyof T]: Q extends P ? T[P] : undefined;
-};
+export type MarkRequiredAndNotNull<T, K extends keyof T> =
+	T extends string|number|boolean ? T :
+	T extends undefined|null ? never :
+	T & Required<RequiredNotNull<Pick<T, K>>>
 
 
 /** Keep only those properties assignable to T  */

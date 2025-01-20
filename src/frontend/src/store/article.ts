@@ -63,7 +63,7 @@ const initialHistoryState: HistoryState = {
 	docId: null,
 	viewField: null,
 	wordstart: 0,
-	wordend: Number.MAX_SAFE_INTEGER,
+	wordend: 2^31-1, // JAVA interop
 	findhit: null
 };
 
@@ -112,7 +112,14 @@ const actions = {
 	}, 'findhit'),
 	viewField: b.commit((state, payload: string|null) => state.viewField = payload, 'field'),
 
-	reset: b.commit(state => Object.assign(state, cloneDeep(initialState)), 'reset'),
+	reset: b.commit(state => {
+		state.docId = null;
+		state.findhit = null;
+		state.viewField = null;
+		state.wordend = 2^31-1;
+		state.wordstart = 0;
+		// Don't reset the rest, is supplied by customJs, don't want to clear that on regular reset.
+	}, 'reset'),
 	replace: b.commit((state, payload: HistoryState) => {
 		actions.docId(payload.docId);
 		actions.page(payload);
@@ -122,7 +129,8 @@ const actions = {
 };
 
 const init = (corpus: NormalizedIndex|null) => {
-	actions.reset();
+	if (!corpus) Object.assign(getState(), initialState);
+	else actions.reset();
 };
 
 export {

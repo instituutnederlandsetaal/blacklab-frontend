@@ -2,7 +2,7 @@ import { blacklab, frontend } from '@/api';
 import { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
 
-import { combineLoadables, combineLoadablesIncludingEmpty, compareAsSortedJson, Empty, isLoaded, Loadable, Loaded, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
+import { combineLoadables, combineLoadablesIncludingEmpty, combineLoadableStreams, compareAsSortedJson, Loadable, loadedIfNotNull, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
 import { combineLatest, distinctUntilChanged, map, Observable, ReplaySubject, shareReplay, tap } from 'rxjs';
 
 // Define some input/intermediate types and utils.
@@ -35,22 +35,20 @@ export const inputsFromStore$ = new ReplaySubject<Input>(1);
 const input$ = inputsFromStore$.pipe(distinctUntilChanged(compareAsSortedJson), shareReplay(1));
 
 // Document metadata
-const toDocInput = (i: Input): Loadable<DocInput> => (!!i.indexId && i.docId != null) ? Loaded(i as DocInput) : Empty();
 export const metadata$ =  input$.pipe(
-	map(toDocInput),
+	map(loadedIfNotNull('indexId', 'docId')),
 	switchMapLoaded(i => toObservable(blacklab.getDocumentInfo(i.indexId, i.docId))),
 	shareReplay(1)
 );
 
 // Document hits
-const toHitsInput = (i: Input): Loadable<HitsInput> => (!!i.indexId && i.docId != null /* avoid false-ing 0 */) ? Loaded(i as HitsInput) : Empty();
 export const hits$ = input$.pipe(
-	map(toHitsInput),
+	map(loadedIfNotNull('indexId', 'docId', 'patt')),
 	switchMapLoaded(i => toObservable(blacklab.getHits<BLHitResults>(i.indexId, {
 		docpid: i.docId,
-		field: i.searchField,
+		field: i.searchField || undefined,
 		patt: i.patt,
-		pattgapdata: i.pattgapdata,
+		pattgapdata: i.pattgapdata || undefined,
 		first: 0,
 		number: Math.pow(2, 31)-1, // JAVA BACKEND: max_safe_integer is 2^31-1
 		context: 0,
@@ -88,9 +86,9 @@ type ValidPaginationAndDocDisplayParameters = {
  * This is only available after the metadata and hits are loaded.
  * It is a guaranteed valid set of pagination parameters.
  */
-export const validPaginationParameters$ = combineLatest([input$, metadata$, hits$]).pipe(
-	map(([input, doc, hits]) => combineLoadablesIncludingEmpty([input, doc, hits] as const)),
-	mapLoaded(([input, doc, hits]) => fixInput(input, doc!, hits)),
+export const validPaginationParameters$: Observable<Loadable<ValidPaginationAndDocDisplayParameters>> = combineLatest([input$, metadata$, hits$]).pipe(
+	map(combineLoadablesIncludingEmpty),
+	mapLoaded(([input, doc, hits]) => fixInput(input, doc!, hits)), // doc should always be present if input is
 	distinctUntilChanged(compareAsSortedJson), // type inference breaks if we pass compareAsSortedJson directly
 	shareReplay(1)
 )
@@ -98,11 +96,11 @@ export const validPaginationParameters$ = combineLatest([input$, metadata$, hits
 // This observable is used to correct the store when the user enters on or navigates to a page that is out of bounds or otherwise invalid.
 export const correctionsForStore$ = combineLatest([inputsFromStore$, validPaginationParameters$]).pipe(
 	map(combineLoadables),
-	mapLoaded(([input, pagination]) => {
-		const commonKeys = Object.keys(input).filter(k => k in pagination) as Extract<keyof typeof input, keyof typeof pagination>[];
+	mapLoaded(([maybeInvalid, valid]) => {
+		const commonKeys = Object.keys(maybeInvalid).filter(k => k in valid) as Extract<keyof typeof maybeInvalid, keyof typeof valid>[];
 		// extract those properties that are different
 		const difference = commonKeys.reduce((acc, key) => {
-			if (input[key] !== pagination[key]) acc[key] = input[key] as any;
+			if (maybeInvalid[key] !== valid[key]) acc[key] = maybeInvalid[key] as any;
 			return acc;
 		}, {} as Partial<Pick<Input, typeof commonKeys[number]>>);
 
@@ -133,7 +131,7 @@ export const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$,
 	map(combineLoadables),
 	distinctUntilChanged((a, b) => {
 		// Inverted: false === not equivalent === changed
-		if (isLoaded(a) && isLoaded(b)) {
+		if (a.isLoaded() && b.isLoaded()) {
 			const [aParams, aHits, aContents] = a.value;
 			const [bParams, bHits, bContents] = b.value;
 			return aParams.findhit === bParams.findhit && aHits === bHits && aContents === bContents;
@@ -166,7 +164,7 @@ const snippet$ = validPaginationParameters$.pipe(
 		0 // context
 	)))
 );
-export const snippetAndDocument$ = combineLatest([snippet$, metadata$]).pipe(map(combineLoadables));
+export const snippetAndDocument$ = combineLoadableStreams([snippet$, metadata$] as const);
 
 /** Given unvalidated pagination parameters and the size of the document, return the validated/fixed pagination parameters. */
 function getDefaultPagination(input: Input, doclength: number): {wordstart: number, wordend: number} {

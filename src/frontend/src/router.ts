@@ -101,9 +101,12 @@ router.beforeEach(async (to, from, next) => {
 	RootStore.actions.corpusId(to.params.corpus);
 	ArticleStore.actions.docId(to.params.docId);
 	if (!pageLoadUrlDecoded && to.params.corpus) {
-		promiseFromLoadableStream(RootStore.loadingState$).then(async (r) => {
+		// wait for store to initialize.
+		await promiseFromLoadableStream(RootStore.loadingState$);
+		// then decode url.
+		if (to.name === 'article' || to.name === 'search') {
 			RootStore.actions.replace(await new UrlStateParserSearch(FilterStore.getState().filters).get());
-		})
+		}
 	}
 
 	pageLoadUrlDecoded = true;

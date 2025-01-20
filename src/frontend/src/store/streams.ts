@@ -1,8 +1,8 @@
 // Define a few pipelines to perform actions on streams of data
 import URI from 'urijs';
 
-import { ReplaySubject, Observable, merge, fromEvent, Notification, from, UnsubscriptionError } from 'rxjs';
-import { debounceTime, switchMap, map, shareReplay, filter, materialize } from 'rxjs/operators';
+import { Observable, ReplaySubject, fromEvent } from 'rxjs';
+import { debounceTime, map, shareReplay, filter } from 'rxjs/operators';
 import cloneDeep from 'clone-deep';
 
 import * as RootStore from '@/store/';
@@ -23,123 +23,48 @@ import * as Api from '@/api';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import jsonStableStringify from 'json-stable-stringify';
-import { debugLog, debugLogCat, showDebugCat } from '@/utils/debug';
+import { debugLogCat } from '@/utils/debug';
 import Vue from 'vue';
-import { RecursiveRequired } from '@/types/helpers';
+import { Loadable, loadedIfNotNull, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
 
 type QueryState = {
 	params?: BLTypes.BLSearchParameters,
 	state: Pick<RootStore.RootState, 'query'|'interface'|'global'|'views'>
 };
 
-const metadata$ = new ReplaySubject<string|undefined>(1);
+const filtersLuceneQuery$ = new ReplaySubject<{luceneQuery: string|null|undefined, indexId: string|null|undefined}>(1);
 const submittedMetadata$ = new ReplaySubject<string|undefined>(1);
 const urlInputParameters$ = new ReplaySubject<QueryState>(1);
 
-// TODO handle errors gracefully, right now the entire stream is closed permanently.
-
-// TODO we could probably refactor this whole file to just be a couple of computeds in the store.
-// That would likely be simpler and more readable.
-// The only thing we'd need to figure out is the debounce and delay functions. But there might be small npm packages for that.
-
+type Subcorpus = {
+	docs: number;
+	tokens: number
+}
 
 /**
  * Reads the entered document metadata filters as they are in the main search form,
  * then periodically polls blacklab for the number of matching documents and tokens,
  * yielding the effectively searched document and token counts when searching a pattern with those filters.
- * We can use this info for all sorts of interesting things such as calculating relative frequencies.
  */
-export const selectedSubCorpus$ = merge(
-	// This is the value-producing stream
-	// it only runs when there's no action for a while, and when there's filters active
-	metadata$.pipe(
-		debounceTime(1000),
-		// filter(v => v.length > 0),
-		map<string, BLTypes.BLSearchParameters>(luceneFilter => ({
-			filter: luceneFilter,
-			first: 0,
-			number: 0,
-			includetokencount: true,
-			waitfortotal: true
-		})),
-		switchMap(params => new Observable<Notification<RecursiveRequired<BLTypes.BLDocResults>>>(subscriber => {
-			// Speedup: we know the totals beforehand when there are no filters: mock a reply
-			if (!params.filter) {
-				subscriber.next(Notification.createNext<RecursiveRequired<BLTypes.BLDocResults>>({
-					docs: [],
-					summary: {
-						numberOfDocs: CorpusStore.get.corpus()!.documentCount,
-						stillCounting: false,
-						tokensInMatchingDocuments: CorpusStore.get.corpus()!.tokenCount,
-					}
-				} as any));
-
-				subscriber.next(Notification.createComplete());
-				subscriber.complete();
-				return;
-			}
-
-			const {request, cancel} = Api.blacklab.getDocs<RecursiveRequired<BLTypes.BLDocResults>>(INDEX_ID, params, {
-				headers: { 'Cache-Control': 'no-cache' }
-			});
-
-			from(request).pipe(materialize()).subscribe(subscriber);
-
-			// When the observer is closed, cancel the ajax request
-			return cancel;
-		})),
-	),
-
-	// And the value-clearing stream, it always emits on changes
-	// The idea is that if the last active filter is removed, the value is clear, and no new value is ever produced,
-	// but when filters are changed, we don't fire a query right away.
-	metadata$.pipe(map(v => null), materialize())
-)
-.pipe(
-	filter(v => v.kind !== 'C'),
-	// And cache the last value so there's always something to display
-	shareReplay(1),
-);
-
-export const submittedSubcorpus$ = submittedMetadata$.pipe(
+export const selectedSubCorpus$: Observable<Loadable<Subcorpus>> = filtersLuceneQuery$.pipe(
 	debounceTime(1000),
-	map<string, BLTypes.BLSearchParameters>(luceneFilter => ({
-		filter: luceneFilter,
-		first: 0,
-		number: 0,
-		includetokencount: true,
-		waitfortotal: true
-	})),
-	switchMap(params => new Observable<BLTypes.BLDocResults>(subscriber => {
-		// Speedup: we know the totals beforehand when there are no totals: mock a reply
-		if (!params.filter) {
-			subscriber.next({
-				docs: [],
-				summary: {
-					numberOfDocs: CorpusStore.get.corpus()!.documentCount,
-					stillCounting: false,
-					tokensInMatchingDocuments: CorpusStore.get.corpus()!.tokenCount,
-				}
-			} as any);
-			return;
-		}
-
-		const {request, cancel} = Api.blacklab.getDocs(INDEX_ID, params, {
-			headers: { 'Cache-Control': 'no-cache' }
-		});
-		request.then(
-			// Sometimes a result comes in anyway after cancelling the request (and closing the subscription),
-			// in this case the subscriber will bark at us if we try to push more values, so check for this.
-			(result: BLTypes.BLDocResults) => { if (!subscriber.closed) { subscriber.next(result); } },
-			(error: Api.ApiError) => { if (!subscriber.closed) { subscriber.error(error); } }
-		);
-
-		// When the observer is closed, cancel the ajax request
-		return cancel;
-	})),
-	// And cache the last value so there's always something to display
-	shareReplay(1),
+	map(loadedIfNotNull('indexId')),
+	switchMapLoaded(v => v.luceneQuery // if we have a query, return a Loadable of the request
+		? toObservable(
+			Api.blacklab
+			.getDocs(v.indexId, {filter: v.luceneQuery, first: 0, number: 0, includetokencount: true, waitfortotal: true})
+			.then<Subcorpus>(r => ({
+				docs: r.summary.numberOfDocs,
+				tokens: r.summary.tokensInMatchingDocuments!
+			})))
+		// if we don't have a query, get the properties from the corpus. (the corpus may also not be loaded yet, so we need to wait for it)
+		: CorpusStore.index$.pipe(
+			mapLoaded(corpus => ({docs: corpus.documentCount,tokens: corpus.tokenCount}))
+		)
+	),
+	shareReplay(1)
 );
+
 
 // Pipeline that will generate a new frontend URL and push it to the browser history whenever
 // the root store state changes in a way that affects the query parameters.
@@ -309,8 +234,11 @@ export default () => {
 	// It doesn't matter though, they're attached to the same state instance, so just ignore the state argument.
 
 	RootStore.store.watch(
-		state => FilterStore.get.luceneQuery(),
-		v => metadata$.next(v),
+		state => ({
+			luceneQuery: FilterStore.get.luceneQuery(),
+			indexId: CorpusStore.get.corpusId()
+		}),
+		v => filtersLuceneQuery$.next(v),
 		{ immediate: true }
 	);
 	RootStore.store.watch(

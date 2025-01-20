@@ -66,8 +66,7 @@ import QueryFormSettings from '@/pages/search/form/QueryFormSettings.vue';
 
 import History from '@/pages/search/History.vue';
 
-import * as BLTypes from '@/types/blacklabtypes';
-import {ApiError} from '@/types/apptypes';
+import { loadableFromObservable } from '@/utils/loadable-streams';
 
 export default Vue.extend({
 	components: {
@@ -77,15 +76,15 @@ export default Vue.extend({
 		QueryFormSettings,
 		History
 	},
-	data: () => ({
-		subscriptions: [] as Subscription[],
-		subCorpusStats: null as null|BLTypes.BLDocResults,
-		error: null as null|ApiError,
-
-		settingsOpen: false,
-		historyOpen: false,
-
-	}),
+	data: () => {
+		const subscriptions: Subscription[] = [];
+		return {
+			subscriptions,
+			subCorpusStats: loadableFromObservable(selectedSubCorpus$, subscriptions),
+			settingsOpen: false,
+			historyOpen: false,
+		}
+	},
 	computed: {
 		queryBuilderVisible(): boolean { return RootStore.get.queryBuilderActive(); },
 		filtersVisible(): boolean { return RootStore.get.filtersActive(); },
@@ -97,7 +96,7 @@ export default Vue.extend({
 	methods: {
 		reset: RootStore.actions.reset,
 		submit() {
-			if (this.activeForm === 'explore' && this.subCorpusStats && this.subCorpusStats.summary.tokensInMatchingDocuments! > 5_000_000) {
+			if (this.activeForm === 'explore' && this.subCorpusStats.isLoaded() && this.subCorpusStats.value.tokens > 5_000_000) {
 				const msg = stripIndent`
 					You have selected a subcorpus of over ${(5_000_000).toLocaleString()} tokens.
 					Please note that this query, on first execution, may take a considerable amount of time to complete.
@@ -114,12 +113,6 @@ export default Vue.extend({
 			}
 			RootStore.actions.searchFromSubmit();
 		}
-	},
-	created() {
-		this.subscriptions.push(selectedSubCorpus$.subscribe(v => {
-			this.subCorpusStats = v.value || null;
-			this.error = v.error || null;
-		}));
 	},
 	destroyed() {
 		this.subscriptions.forEach(s => s.unsubscribe());

@@ -1,8 +1,6 @@
 <template>
 	<!-- TODO: i18n -->
 	<div class="container article">
-
-
 		<template v-for="(value, key) in {...$data, subs: undefined}">
 			<details>
 				<summary>{{ key }}</summary>
@@ -12,9 +10,8 @@
 		{{ {statisticsEnabled} }}
 		<!-- {{ JSON.stringify({...$data, subs: undefined}, undefined, 2) }} -->
 
-
 		<div class="article-pagination" title="Hold to drag" ref="pagination">
-			<template v-if="isLoaded(validPaginationInfo)">
+			<template v-if="validPaginationInfo.isLoaded()">
 				<div class="pagination-container">
 					<label>Page</label>
 					<div class="pagination-wrapper">
@@ -27,10 +24,10 @@
 						/>
 					</div>
 				</div>
-				<hr v-if="!isEmpty(hitToHighlight)"/>
+				<hr v-if="!hitToHighlight.isEmpty()"/>
 			</template>
 
-			<div v-if="isLoaded(hitToHighlight)" class="pagination-container">
+			<div v-if="hitToHighlight.isLoaded()" class="pagination-container">
 				<label>Hit</label>
 				<div class="pagination-wrapper">
 					<Pagination
@@ -41,11 +38,11 @@
 						@change="handleHitNavigation"/>
 				</div>
 			</div>
-			<template v-else-if="isLoading(hitToHighlight)">
+			<template v-else-if="hitToHighlight.isLoading()">
 				<Spinner size="20"/>
 				<label>Loading hits...</label>
 			</template>
-			<template v-else-if="isError(hitToHighlight)">
+			<template v-else-if="hitToHighlight.isError()">
 				<label>Error loading hits</label>
 			</template>
 		</div>
@@ -57,8 +54,8 @@
 		</ul>
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px;">
 			<div id="content" class="tab-pane active">
-				<Spinner v-if="isLoading(contents)" />
-				<div v-else-if="isError(contents)">
+				<Spinner v-if="contents.isLoading()" />
+				<div v-else-if="contents.isError()">
 					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#content_error" aria-expanded="false" aria-controls="content_error">
 						Click here to see errors
 					</a><br>
@@ -73,8 +70,8 @@
 
 
 			<div id="metadata" class="tab-pane">
-				<Spinner v-if="isLoading(metadata)" />
-				<div v-if="isError(metadata)">
+				<Spinner v-if="metadata.isLoading()" />
+				<div v-if="metadata.isError()">
 					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#metadata_error" aria-expanded="false" aria-controls="metadata_error">
 						Click here to see errors
 					</a><br>
@@ -84,7 +81,7 @@
 						</div>
 					</div>
 				</div>
-				<template v-else-if="isLoaded(metadata)">
+				<template v-else-if="metadata.isLoaded()">
 					<h2 v-if="metadata.value.docFields.titleField" style="word-break:break-all;">
 						{{ metadata.value.docInfo[metadata.value.docFields.titleField] }}
 						<template v-if="isParallel">{{ viewField ? $tAnnotatedFieldDisplayName(viewField) : 'Error: missing viewfield.' }}</template>
@@ -92,9 +89,9 @@
 
 					<table class="table-striped">
 						<tbody>
-							<tr v-if="!isEmpty(hits)"><td>Hits in document:</td><td>
-								<Spinner v-if="isLoading(hits)" inline sm/>
-								<template v-else-if="isLoaded(hits)">{{hits.value.length}}</template>
+							<tr v-if="!hits.isEmpty()"><td>Hits in document:</td><td>
+								<Spinner v-if="hits.isLoading()" inline sm/>
+								<template v-else-if="hits.isLoaded()">{{hits.value.length}}</template>
 							</td></tr>
 
 							<template v-for="g in metadataFieldsToShow">
@@ -111,8 +108,8 @@
 			</div>
 
 			<div id="statistics" class="tab-pane" v-if="statisticsEnabled">
-				<Spinner v-if="isLoading(snippetAndDocument)" />
-				<ArticlePageStatistics v-else-if="isLoaded(snippetAndDocument)" :snippet="snippetAndDocument.value[0]"/>
+				<Spinner v-if="snippetAndDocument.isLoading()" />
+				<ArticlePageStatistics v-else-if="snippetAndDocument.isLoaded()" :snippet="snippetAndDocument.value[0]"/>
 			</div>
 		</div>
 	</div>
@@ -169,9 +166,7 @@ function _preventClicks(e: Event) {
 import {inputsFromStore$, contents$, hitToHighlight$, hits$, metadata$, Input, validPaginationParameters$, snippetAndDocument$} from './article';
 import { fieldSubset } from '@/utils';
 import { Subscription } from 'rxjs';
-import { isEmpty, isError, isLoaded, isLoading, loadableFromObservable } from '@/utils/loadable-streams';
-
-import * as RootStore from '@/store';
+import { loadableFromObservable } from '@/utils/loadable-streams';
 
 export default Vue.extend({
 	components: {
@@ -196,7 +191,7 @@ export default Vue.extend({
 	computed: {
 		inputs(): Input {
 			return {
-				indexId: isLoaded(RootStore.getState().corpus) ? RootStore.getState().corpus.value!.id : undefined,
+				indexId: CorpusStore.get.corpusId(),
 				docId: ArticleStore.getState().docId,
 
 				viewField: ArticleStore.getState().viewField,
@@ -224,15 +219,14 @@ export default Vue.extend({
 
 		contentAndContainer(): {content: HTMLElement|undefined, container: HTMLElement|undefined} {
 			return {
-				content: isLoaded(this.contents) ? this.contents.value.container : undefined,
+				content: this.contents.isLoaded() ? this.contents.value.container : undefined,
 				container: this.$refs.contents as HTMLElement
 			}
 		}
 	},
 	methods: {
-		isLoading,isLoaded,isError,isEmpty,
 		handlePageNavigation(page: number) {
-			if (!isLoaded(this.validPaginationInfo)) return;
+			if (!this.validPaginationInfo.isLoaded()) return;
 			ArticleStore.actions.page({
 				wordstart: page * this.validPaginationInfo.value.pageSize,
 				wordend: (page + 1) * this.validPaginationInfo.value.pageSize,

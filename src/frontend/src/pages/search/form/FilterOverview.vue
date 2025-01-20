@@ -6,22 +6,22 @@
 		<!-- <div v-for="filter in activeFilters" :key="filter.id + '_lucene'">{{filter.displayName}}: <i>{{filter.lucene}}</i></div> -->
 
 		<div class="sub-corpus-size">
-			<template v-if="error">
-				{{$t('filterOverview.error')}}: {{error.message}}
+			<template v-if="subcorpus.isError()">
+				{{$t('filterOverview.error')}}: {{subcorpus.error.message}}
 			</template>
-			<template v-else-if="subCorpusStats">
+			<template v-else-if="subcorpus.isLoaded()">
 				{{$t('filterOverview.subCorpus')}}:<br>
 				<span style="display: inline-block; vertical-align:top;">
 					{{$t('filterOverview.totalDocuments')}}:<br>
 					{{$t('filterOverview.totalTokens')}}:
 				</span>
 				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 {{subCorpusStats.summary.numberOfDocs.toLocaleString()}}<br>
-					 {{subCorpusStats.summary.tokensInMatchingDocuments.toLocaleString()}}
+					 {{subcorpus.value.docs.toLocaleString()}}<br>
+					 {{subcorpus.value.tokens.toLocaleString()}}
 				</span>
 				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 ({{ frac2Percent(subCorpusStats.summary.numberOfDocs / totalCorpusDocs) }})<br>
-					 ({{ frac2Percent(subCorpusStats.summary.tokensInMatchingDocuments / totalCorpusTokens) }})
+					 ({{ frac2Percent(subcorpus.value.docs / totalCorpusDocs) }})<br>
+					 ({{ frac2Percent(subcorpus.value.tokens / totalCorpusTokens) }})
 				</span>
 			</template>
 			<template v-else>
@@ -42,22 +42,24 @@ import * as FilterStore from '@/store/form/filters';
 
 import { selectedSubCorpus$ } from '@/store/streams';
 
-import * as BLTypes from '@/types/blacklabtypes';
-import {ApiError} from '@/api';
 
 import frac2Percent from '@/mixins/fractionalToPercent';
-import { getValueFunctions, valueFunctions } from '@/components/filters/filterValueFunctions';
+import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 
 import Spinner from '@/components/Spinner.vue';
-import { RecursiveRequired } from '@/types/helpers';
+import { loadableFromObservable } from '@/utils/loadable-streams';
+
+
 
 export default Vue.extend({
 	components: {Spinner},
-	data: () => ({
-		subscriptions: [] as Subscription[],
-		subCorpusStats: null as null|RecursiveRequired<BLTypes.BLDocResults>,
-		error: null as null|ApiError,
-	}),
+	data: () => {
+		const subs: Subscription[] = [];
+		return {
+			subs,
+			subcorpus: loadableFromObservable(selectedSubCorpus$, subs),
+		}
+	},
 	computed: {
 		activeFilters: FilterStore.get.activeFilters,
 		summaryMap(): Record<string, string> {
@@ -75,14 +77,8 @@ export default Vue.extend({
 	methods: {
 		frac2Percent
 	},
-	created() {
-		this.subscriptions.push(selectedSubCorpus$.subscribe(v => {
-			this.subCorpusStats = v.value || null;
-			this.error = v.error || null;
-		}));
-	},
 	destroyed() {
-		this.subscriptions.forEach(s => s.unsubscribe());
+		this.subs.forEach(s => s.unsubscribe());
 	}
 });
 </script>

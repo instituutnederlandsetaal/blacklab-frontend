@@ -1,14 +1,14 @@
 <template>
 	<div>
-		<Spinner v-if="isLoading(content)" />
-		<div v-else-if="isError(content)">{{ content.error.message }}</div>
-		<div v-else-if="isLoaded(content)" v-html="content.value"></div>
+		<Spinner v-if="content.isLoading()" />
+		<div v-else-if="content.isError()">{{ content.error.message }}</div>
+		<div v-else-if="content.isLoaded()" v-html="content.value"></div>
 		<div v-else>Not applicable.</div>
 	</div>
 </template>
 
 <script lang="ts">
-import { isError, isLoaded, isLoading, Loadable } from '@/utils/loadable-streams';
+import { Loadable } from '@/utils/loadable-streams';
 import Spinner from './Spinner.vue';
 
 export default {
@@ -17,7 +17,6 @@ export default {
 	props: {
 		content: Object as () => Loadable<string>
 	},
-	methods: {isLoading, isError, isLoaded},
 };
 </script>
 

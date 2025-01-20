@@ -3,7 +3,7 @@ import memoize from 'memoize-decorator';
 import BaseUrlStateParser from './url-state-parser-base';
 import LuceneQueryParser from 'lucene-query-parser';
 
-import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex, spanFilterId} from '@/utils';
+import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex, spanFilterId, clamp} from '@/utils';
 import {parseBcql, Attribute, Result, Token} from '@/utils/bcql-json-interpreter';
 import parseLucene from '@/utils/luceneparser';
 import {debugLog} from '@/utils/debug';
@@ -35,8 +35,6 @@ import {FilterValue, AnnotationValue} from '@/types/apptypes';
 
 import cloneDeep from 'clone-deep';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import { isError, isLoaded, isLoading } from '@/utils/loadable-streams';
-import { isEmpty } from 'rxjs';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -419,12 +417,12 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 		// How we parse the cql pattern depends on whether a tagset is available for this corpus, and whether it's enabled in the ui
 		const tagsetState = TagsetModule.getState();
-		if (isLoading(tagsetState))
+		if (tagsetState.isLoading())
 			throw new Error('Attempting to parse url before tagset is loaded or disabled, await tagset.awaitInit() before parsing url.');
-		if (isError(tagsetState))
+		if (tagsetState.isError())
 			throw new Error('Error loading tagset, cannot parse url.');
 
-		const tagsetInfo = isLoaded(tagsetState) ? {
+		const tagsetInfo = tagsetState.isLoaded() ? {
 			mainAnnotations: CorpusModule.get.allAnnotations().filter(a => a.uiType === 'pos').map(a => a.id),
 			subAnnotations: Object.keys(tagsetState.value.subAnnotations)
 		} : null;
@@ -703,6 +701,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		// just leave it empty.
 		const isParallel = (this._parsedCql?.length ?? 0) > 1;
 		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*') ? '' : q;
+
 		return {
 			query: this._parsedCql ? optEmpty(unparenQueryPart(processQueryPart(this._parsedCql?.[0] ?? {}))) || null : null,
 			targetQueries: this._parsedCql ? this._parsedCql.slice(1).map(r => optEmpty(unparenQueryPart(processQueryPart(r))) || '') : [],
@@ -780,12 +779,11 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	private get article(): ArticleStore.HistoryState {
 		const [index, page, docId] = this.paths;
 		if (!(page === 'docs' && docId)) return ArticleStore.initialHistoryState;
-
 		return {
 			docId: page === 'docs' && docId ? docId : null,
 			viewField: this.getString('field', null, v => v || null), // See also "searchField" in shared.
-			wordend: this.getNumber('wordend', Number.MAX_SAFE_INTEGER, v => v >= 0 ? v : Number.MAX_SAFE_INTEGER)!,
-			wordstart: this.getNumber('wordstart', 0, v => v >= 0 ? v : 0)!,
+			wordend: this.getNumber('wordend'), // No validation/defaults here for wordstart/wordend/findhit. It's complicated. Solve in article api/getters.
+			wordstart: this.getNumber('wordstart'),
 			findhit: this.getNumber('findhit')
 		}
 	}

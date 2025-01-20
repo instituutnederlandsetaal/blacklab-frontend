@@ -5,7 +5,6 @@
  * are the filters subdivided in groups, what is the text direction, and so on.
  */
 
-import Axios from 'axios';
 import {getStoreBuilder} from 'vuex-typex';
 
 import {RootState} from '@/store/';
@@ -14,8 +13,8 @@ import * as CorpusStore from '@/store/corpus';
 import { ApiError, NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import { mapReduce } from '@/utils';
-import { Empty, InteractiveLoadable, isLoadable, isLoaded, isLoading, Loadable, loadableFromObservable, LoadableState, Loaded, LoadingError, mapError, mergeMapError, promiseFromLoadableStream as promiseFromLoadableStream, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
-import { catchError, distinct, distinctUntilChanged, filter, firstValueFrom, map, of, pipe, ReplaySubject, shareReplay, tap } from 'rxjs';
+import { Loadable, loadableFromObservable, loadedIfNotNull, mapError, promiseFromLoadableStream as promiseFromLoadableStream, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
+import { map, ReplaySubject, shareReplay, tap } from 'rxjs';
 import {frontend} from '@/api';
 
 type ModuleRootState = Loadable<Tagset>;
@@ -23,14 +22,14 @@ const namespace = 'tagset';
 
 const indexId$ = new ReplaySubject<string|null>(1);
 const tagset$ = indexId$.pipe(
-	map((id): Loadable<string> => id ? Loaded(id) : Empty()),
+	map(loadedIfNotNull()),
 	switchMapLoaded(id =>
 		toObservable(frontend.getTagset(id))
 		.pipe(
 			// 404 will result in a loading representing the error, but we want to treat it as an empty result.
-			mapError((e: ApiError): Loadable<Tagset> => e.httpCode === 404 ? Empty() : LoadingError(e)),
+			mapError((e: ApiError): Loadable<Tagset> => e.httpCode === 404 ? Loadable.Empty() : Loadable.LoadingError(e)),
 			tap(v => {
-				if (!isLoaded(v)) return;
+				if (!v.isLoaded()) return;
 				const tagset = v.value;
 				const annots = CorpusStore.get.allAnnotationsMap();
 				const mainAnnot = Object.values(annots).flat().find(a => a.uiType === 'pos');
