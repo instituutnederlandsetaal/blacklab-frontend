@@ -33,8 +33,8 @@ type QueryState = {
 };
 
 type TotalsInput = {
-	indexId: string|null;
-	luceneQuery: string|null;
+	indexId: string|null|undefined;
+	luceneQuery: string|null|undefined;
 }
 type TotalsOutput = {
 	docs: number;
@@ -251,7 +251,10 @@ export default () => {
 		{ immediate: true }
 	);
 	RootStore.store.watch(
-		state => QueryStore.get.filterString(),
+		state => ({
+			luceneQuery: QueryStore.get.filterString(),
+			indexId: CorpusStore.get.corpusId()
+		}),
 		v => submittedMetadata$.next(v),
 		{ immediate: true }
 	);

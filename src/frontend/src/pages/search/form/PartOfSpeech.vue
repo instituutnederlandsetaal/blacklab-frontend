@@ -1,14 +1,14 @@
 <template>
 	<Modal v-if="open" :title="$tAnnotDisplayName(annotation)" :confirmMessage="$t('partOfSpeech.submit')" @confirm="submit(); $emit('close');" lg :close="false">
-		<Spinner v-if="isLoading(tagset)" center/>
-		<div v-else-if="isError(tagset)" class="alert alert-danger">
+		<Spinner v-if="tagset.isLoading()" center/>
+		<div v-else-if="tagset.isError()" class="alert alert-danger">
 			{{tagset.error.message}}
 		</div>
-		<div v-else-if="isEmpty(tagset)" class="alert alert-warning">
+		<div v-else-if="tagset.isEmpty()" class="alert alert-warning">
 			<!-- TODO i18n -->
 			No tagset
 		</div>
-		<template v-if="isLoaded(tagset)">
+		<template v-if="tagset.isLoaded()">
 			<div class="list-group-container" >
 				<div class="list-group main">
 					<button v-for="value in tagset.value.values"
@@ -64,8 +64,6 @@ import * as CorpusStore from '@/store/corpus';
 import { Tagset } from '@/types/apptypes';
 import { escapeRegex } from '@/utils';
 
-import {isLoaded, isError, isEmpty, isLoading} from '@/utils/loadable-streams';
-
 import Modal from '@/components/Modal.vue';
 
 export default Vue.extend({
@@ -85,7 +83,7 @@ export default Vue.extend({
 		tagset: TagsetStore.getState,
 		isValidTagset(): boolean { return TagsetStore.getState().state === 'loaded'; },
 		query(): string {
-			if (!isLoaded(this.tagset) || !this.annotationValue) return '';
+			if (!this.tagset.isLoaded() || !this.annotationValue) return '';
 			const tagset: Tagset = this.tagset.value;
 			return [
 				`${this.annotation.id}="${escapeRegex(this.annotationValue.value)}"`,
@@ -101,7 +99,6 @@ export default Vue.extend({
 		},
 	},
 	methods: {
-		isEmpty,isError, isLoading, isLoaded,
 		reset() {
 			Object.keys(this.selected).forEach(k => this.selected[k] = false);
 			this.annotationValue = null;

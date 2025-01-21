@@ -244,10 +244,10 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<s
 	if (!Loadable.isLoadable(loaded)) alertAndLog('isLoadable failed');
 	if (!Loadable.isLoadable(error)) alertAndLog('isLoadable failed');
 	if (!Loadable.isLoadable(empty)) alertAndLog('isLoadable failed');
-	if (!Loadable.isLoading(loading)) alertAndLog('isLoading failed');
-	if (!Loadable.isLoaded(loaded)) alertAndLog('isLoaded failed');
-	if (!Loadable.isError(error)) alertAndLog('isError failed');
-	if (!Loadable.isEmpty(empty)) alertAndLog('isEmpty failed');
+	if (!loading.isLoading()) alertAndLog('isLoading failed');
+	if (!loaded.isLoaded()) alertAndLog('isLoaded failed');
+	if (!error.isError()) alertAndLog('isError failed');
+	if (!empty.isEmpty()) alertAndLog('isEmpty failed');
 
 	const combined = combineLoadables([loaded, {a: 2}, loaded] as const);
 	if (!combined.isLoaded()) { alertAndLog('combineLoadables failed'); return; }
@@ -354,7 +354,7 @@ export class InteractiveLoadable<I, T> extends Loadable<T> {
  */
 export function promiseFromLoadableStream<T>(loadableStream: Observable<Loadable<T>>): Promise<T|undefined> {
 	return new Promise((resolve, reject) => {
-		const sub = loadableStream.pipe(filter(v => !Loadable.isLoading(v))).subscribe({
+		const sub = loadableStream.pipe(filter(v => !v.isLoading())).subscribe({
 			next: v => {
 				if (v.isLoaded()) resolve(v.value);
 				if (v.isError()) reject(v.error);

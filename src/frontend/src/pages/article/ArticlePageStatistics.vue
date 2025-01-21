@@ -1,7 +1,7 @@
 <template>
 	<div class="row">
-		<Spinner v-if="isLoading(data)" center size="60px"/>
-		<div v-else-if="isError(data)" class="text-center">
+		<Spinner v-if="data.isLoading()" center size="60px"/>
+		<div v-else-if="data.isError()" class="text-center">
 			<h3 class="text-danger"><em>{{data.error.message}}</em></h3>
 			<br>
 			<!-- TODO retry mechanic -->
@@ -11,7 +11,7 @@
 			<!-- TODO i18n -->
 			<em>No statistics have been configured for this corpus.</em>
 		</h4>
-		<template v-else-if="isLoaded(data)">
+		<template v-else-if="data.isLoaded()">
 			<div v-if="statisticsTableData"
 				:class="{
 					'col-xs-12': true,
@@ -59,7 +59,7 @@ import HighchartsVue from 'highcharts-vue';
 import HighchartsExporting from 'highcharts/modules/exporting';
 import HighchartsExportingData from 'highcharts/modules/export-data';
 import HighchartsBoost from 'highcharts/modules/boost';
-import { isEmpty, isError, isLoaded, isLoading, Loadable } from '@/utils/loadable-streams';
+import { Loadable } from '@/utils/loadable-streams';
 import Spinner from '@/components/Spinner.vue';
 
 HighchartsExporting(Highcharts);
@@ -91,7 +91,7 @@ export default Vue.extend({
 
 		getStatistics: ArticleStore.get.statisticsTableFn,
 		statisticsTableData(): any {
-			return (this.getStatistics && isLoaded(this.data)) ? this.getStatistics(this.data.value[1], this.data.value[0]) : null;
+			return (this.getStatistics && this.data.isLoaded()) ? this.getStatistics(this.data.value[1], this.data.value[0]) : null;
 		},
 		distributionData(): any {
 			const data = ArticleStore.get.distributionAnnotation();
@@ -109,12 +109,6 @@ export default Vue.extend({
 				baseColor: this.baseColor
 			} : null;
 		},
-	},
-	methods: {
-		isLoading,
-		isLoaded,
-		isError,
-		isEmpty
 	}
 });
 

@@ -1,16 +1,16 @@
 <template>
 	<div class="container">
-		<div v-if="isLoading(storeLoadingState)">
+		<div v-if="storeLoadingState.isLoading()">
 			<Spinner center/>
 			<h2>Please wait while we load the corpus...</h2>
 		</div>
-		<div v-else-if="isError(storeLoadingState)">
+		<div v-else-if="storeLoadingState.isError()">
 			<!-- TODO requires login, forbidden states, retry -->
 			<h2>{{ storeLoadingState.error.title }}</h2>
 			<p>{{ storeLoadingState.error }}</p>
 			<pre v-if="storeLoadingState.error.stack">{{ storeLoadingState.error.stack }}</pre>
 		</div>
-		<div v-else-if="isEmpty(corpus)">
+		<div v-else-if="corpus.isEmpty()">
 			<h2>Strange... there should be a corpus here, but there isn't...</h2>
 			<p>Please report this so we can fix it.</p>
 		</div>
@@ -45,8 +45,6 @@ import Results from '@/pages/search/results/Results.vue';
 import PageGuide from '@/pages/search/PageGuide.vue';
 import Spinner from '@/components/Spinner.vue';
 
-import { isLoading, isError, isEmpty, isLoaded } from '@/utils/loadable-streams';
-
 export default Vue.extend({
 	components: {
 		QueryForm,
@@ -61,9 +59,6 @@ export default Vue.extend({
 		resultsVisible(): boolean { return InterfaceStore.getState().viewedResults != null; },
 		pageGuideEnabled(): boolean { return UIStore.getState().global.pageGuide.enabled; },
 		debugQuery: RootStore.get.blacklabParameters
-	},
-	methods:{
-		isLoading, isError, isEmpty, isLoaded
 	},
 });
 </script>
