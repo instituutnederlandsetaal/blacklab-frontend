@@ -55,7 +55,7 @@ import HitsTable from '@/pages/search/results/table/HitsTable.vue';
 import DocRow, {DocRowData} from '@/pages/search/results/table/DocRow.vue';
 import { snippetParts } from '@/utils/hit-highlighting';
 
-import { HitRowData } from '@/pages/search/results/table/HitRow.vue';
+import { HitRowData, HitRows } from '@/pages/search/results/table/HitRow.vue';
 export { DocRowData } from '@/pages/search/results/table/DocRow.vue';
 
 export default Vue.extend({
@@ -79,20 +79,24 @@ export default Vue.extend({
 		changeSort(sort: string) {
 			this.$emit('changeSort', sort)
 		},
-		hitRowsForDoc(docRow: DocRowData): HitRowData[] {
-			return docRow.doc.snippets!.map<HitRowData>(s => ({
-				hit: s,
-				annotatedField: undefined,
-				href: '',
-				isForeign: false,
-				// Don't pass color info here. We don't show capture highlights or releation info in doc snippets.
-				context: snippetParts(s, this.mainAnnotation.id, this.dir),
+		hitRowsForDoc(docRow: DocRowData): HitRows[] {
+			return docRow.doc.snippets!.map<HitRows>(s => ({
+				type: 'hit',
 				doc: docRow.doc,
-				gloss_fields: [],
-				hit_first_word_id: '',
-				hit_id: '',
-				hit_last_word_id: '',
-			}))
+				rows: [{
+					hit: s,
+					annotatedField: undefined,
+					href: '',
+					isForeign: false,
+					// Don't pass color info here. We don't show capture highlights or releation info in doc snippets.
+					context: snippetParts(s, this.mainAnnotation.id, this.dir),
+					doc: docRow.doc,
+					gloss_fields: [],
+					hit_first_word_id: '',
+					hit_id: '',
+					hit_last_word_id: '',
+				}]
+			}));
 		},
 		hiddenHits(docRow: DocRowData): number {
 			return (docRow.doc.numberOfHits || 0) - (docRow.doc.snippets?.length || 0);

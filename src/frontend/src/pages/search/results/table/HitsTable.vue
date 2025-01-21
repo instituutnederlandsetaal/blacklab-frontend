@@ -35,7 +35,7 @@
 			</tr>
 		</thead>
 		<template v-for="(h, i) in data">
-			<Hit v-if="h.type === 'hit'"
+			<Hit v-if="h.type === 'hit'" :key="`${i}-hit`"
 				:query="query"
 				:mainAnnotation="mainAnnotation"
 				:otherAnnotations="otherAnnotations"
