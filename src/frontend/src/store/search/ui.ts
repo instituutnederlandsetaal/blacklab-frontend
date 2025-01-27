@@ -1332,6 +1332,10 @@ const corpusCustomizations = {
 	results: {
 		matchInfoHighlightStyle: (matchInfo: HighlightSection): string|null => {
 			return null; // fall back to default behaviour
+		},
+
+		csvDescription: (blSummary: any, fieldDisplayNameFunc: any) => {
+			return null; // fall back to default behaviour
 		}
 	},
 

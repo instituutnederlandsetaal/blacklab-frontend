@@ -768,6 +768,23 @@ export function getParallelFieldName(prefix: string, version: string) {
 	return `${prefix}${PARALLEL_FIELD_SEPARATOR}${version}`;
 }
 
+/** If passed only a version name: prefix it with the field name from defaultFieldName.
+ *
+ *  So:
+ *  <code>ensureCompleteFieldName('en',          'contents__nl') === 'contents__en'</code>
+ *  <code>ensureCompleteFieldName('contents_en', 'contents__nl') === 'contents__en'</code>
+ */
+export function ensureCompleteFieldName(fieldOrVersion: string, defaultFieldName: string) {
+	if (isParallelField(fieldOrVersion)) {
+		return fieldOrVersion;
+	} else {
+		// Prefix with the field name
+		const parts = getParallelFieldParts(defaultFieldName);
+		return getParallelFieldName(parts.prefix, fieldOrVersion);
+	}
+}
+
+
 /** Does the specified field name denote a field in a parallel corpus? */
 export function isParallelField(fieldName: string) {
 	return fieldName.includes(PARALLEL_FIELD_SEPARATOR);
