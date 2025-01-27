@@ -41,39 +41,8 @@ type TotalsOutput = {
 	tokens: number
 }
 
-/** Put the filter selection from the search form here */
-const selectedMetadata$ = new BehaviorSubject<TotalsInput>({indexId: null, luceneQuery: null});
-/** Put the filter selection from the submitted search here */
-const submittedMetadata$ = new BehaviorSubject<TotalsInput>({indexId: null, luceneQuery: null});
-
 const urlInputParameters$ = new ReplaySubject<QueryState>(1);
 
-const luceneQueryAndCorpusIdToSubcorpus = pipe(
-	debounceTime<TotalsInput>(1000),
-	map(loadedIfNotNull('indexId')),
-	switchMapLoaded((v): Observable<Loadable<TotalsOutput>> => v.luceneQuery // if we have a query, return a Loadable of the request
-		? toObservable(
-			Api.blacklab
-			.getDocs(v.indexId, {filter: v.luceneQuery, first: 0, number: 0, includetokencount: true, waitfortotal: true})
-			.then<TotalsOutput>(r => ({
-				docs: r.summary.numberOfDocs,
-				tokens: r.summary.tokensInMatchingDocuments!
-			})))
-		// if we don't have a query, get the properties from the corpus. (the corpus may also not be loaded yet, so we need to wait for it)
-		: CorpusStore.index$.pipe(
-			mapLoaded(corpus => ({docs: corpus.documentCount,tokens: corpus.tokenCount}))
-		)
-	),
-	shareReplay(1)
-);
-
-/**
- * Reads the entered document metadata filters as they are in the main search form,
- * then periodically polls blacklab for the number of matching documents and tokens,
- * yielding the effectively searched document and token counts when searching a pattern with those filters.
- */
-export const selectedSubCorpus$: Observable<Loadable<TotalsOutput>> = selectedMetadata$.pipe(luceneQueryAndCorpusIdToSubcorpus);
-export const submittedSubCorpus$: Observable<Loadable<TotalsOutput>> = submittedMetadata$.pipe(luceneQueryAndCorpusIdToSubcorpus);
 
 // Pipeline that will generate a new frontend URL and push it to the browser history whenever
 // the root store state changes in a way that affects the query parameters.
@@ -241,23 +210,6 @@ export default () => {
 
 	// Because we use vuex-typex, getters are a little different
 	// It doesn't matter though, they're attached to the same state instance, so just ignore the state argument.
-
-	RootStore.store.watch(
-		state => ({
-			luceneQuery: FilterStore.get.luceneQuery(),
-			indexId: CorpusStore.get.corpusId()
-		}),
-		v => selectedMetadata$.next(v),
-		{ immediate: true }
-	);
-	RootStore.store.watch(
-		state => ({
-			luceneQuery: QueryStore.get.filterString(),
-			indexId: CorpusStore.get.corpusId()
-		}),
-		v => submittedMetadata$.next(v),
-		{ immediate: true }
-	);
 
 	RootStore.store.watch(
 		(state): QueryState => ({

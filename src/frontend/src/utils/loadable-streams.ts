@@ -3,6 +3,7 @@ import jsonStableStringify from 'json-stable-stringify';
 import { ApiError, Canceler } from '@/api';
 import { CancelableRequest } from '@/api/apiutils';
 import { MarkRequiredAndNotNull } from '@/types/helpers';
+import { reactive } from 'vue';
 
 
 /**
@@ -32,9 +33,51 @@ export enum LoadableState {
 	Empty = 'empty'
 }
 
-export abstract class Loadable<T> {
-	protected constructor(public state: LoadableState) {}
+interface LoadableBase<T> {
+	isLoading(): this is Loading<T>;
+	isLoaded(): this is Loaded<T>;
+	isError(): this is LoadingError<T>;
+	isEmpty(): this is Empty<T>;
+}
 
+interface Loading<T> extends LoadableBase<T> {
+	state: LoadableState.Loading
+	value: undefined;
+	error: undefined;
+}
+
+interface Empty<T> extends LoadableBase<T> {
+	state: LoadableState.Empty;
+	value: undefined;
+	error: undefined;
+}
+
+interface Loaded<T> extends LoadableBase<T> {
+	state: LoadableState.Loaded;
+	value: T;
+	error: undefined;
+}
+
+interface LoadingError<T> extends LoadableBase<T> {
+	state: LoadableState.Error;
+	value: undefined;
+	error: ApiError;
+}
+
+interface TLoadable<T> extends LoadableBase<T> {
+	value: T|undefined;
+	error: ApiError|undefined;
+	state: LoadableState;
+}
+
+export class Loadable<T> implements TLoadable<T> {
+	protected constructor(
+		public state: LoadableState,
+		public value: T|undefined,
+		public error: ApiError|undefined
+	) {}
+
+	// NOTE: don't do instanceof here, it breaks with InteractiveLoadble (which implements the behavior of these classes, but doesn't extend them)
 	public isLoading(): this is Loading<T> { return this.state === LoadableState.Loading; }
 	public isLoaded(): this is Loaded<T> { return this.state === LoadableState.Loaded; }
 	public isError(): this is LoadingError<T> { return this.state === LoadableState.Error; }
@@ -46,55 +89,46 @@ export abstract class Loadable<T> {
 	public static isError<T>(v: any): v is LoadingError<T> { return v instanceof Loadable && v.isError(); }
 	public static isEmpty<T>(v: any): v is Empty<T> { return v instanceof Loadable && v.isEmpty(); }
 
-	public static Loading<T>(): Loading<T> { return new Loading<T>(); }
-	public static Loaded<T>(value: T): Loaded<T> { return new Loaded<T>(value); }
-	public static LoadingError<T>(error: ApiError): LoadingError<T> { return new LoadingError(error); }
-	public static Empty<T>(): Empty<T> { return new Empty(); }
+	public static Loading<T>(): Loading<T> { return new Loadable<T>(LoadableState.Loading, undefined, undefined) as Loading<T>; }
+	public static Loaded<T>(value: T): Loaded<T> { return new Loadable<T>(LoadableState.Loaded, value, undefined) as Loaded<T>; }
+	public static LoadingError<T>(error: ApiError): LoadingError<T> { return new Loadable<T>(LoadableState.Error, undefined, error) as LoadingError<T>; }
+	public static Empty<T>(): Empty<T> { return new Loadable<T>(LoadableState.Empty, undefined, undefined) as Empty<T>; }
 }
 
-class Loading<T> extends Loadable<T> {
-	constructor() { super(LoadableState.Loading); }
-	get value(): undefined { return undefined; }
-	get error(): undefined { return undefined; }
-}
-
-class Empty<T> extends Loadable<T> {
-	constructor() { super(LoadableState.Empty); }
-	get value(): undefined { return undefined; }
-	get error(): undefined { return undefined; }
-}
-
-class Loaded<T> extends Loadable<T> {
-	constructor(public value: T) { super(LoadableState.Loaded); }
-	get error(): undefined { return undefined; }
-}
-
-class LoadingError<T> extends Loadable<T> {
-	constructor(public error: ApiError) { super(LoadableState.Error); }
-	get value(): undefined { return undefined; }
-}
+/**
+ * Given a type of Loadable<T>, return a Loadable<U>. Do it in such a way that when passed a Loaded<T>, a Loaded<U> is returned.
+ * This is important to preserve the loading state if it is statically known.
+ */
+type ReplaceLoadableGeneric<T extends Loadable<any>, U> =
+	T extends Loaded<any> ? Loaded<U> :
+	T extends LoadingError<any> ? LoadingError<U> :
+	T extends Loading<any> ? Loading<U> :
+	T extends Empty<any> ? Empty<U> :
+	T extends Loadable<any> ? Loadable<U> :
+	never;
 
 /** Map a Loadable representing the loaded value into one that can be anything else. */
-export function mapLoaded<T, U>(mapper: (v: T) => U): OperatorFunction<Loadable<T>, Loadable<U>> {
-	return map(v => v.isLoaded() ? new Loaded(mapper(v.value)) : v as any);
+export function mapLoaded<T extends Loadable<any>, U>(mapper: (v: T extends Loadable<infer V> ? V : never) => U): OperatorFunction<T, ReplaceLoadableGeneric<T, U>> {
+	return map(v => Loadable.isLoaded(v) ? Loadable.Loaded(mapper(v.value)) : v as any);
+
 }
 /** Map a Loadable representing an error into one that can be anything else. */
 export function mapError<T extends U, U>(mapper: (v: ApiError) => Loadable<U>): OperatorFunction<Loadable<T>, Loadable<U>> {
-	return map(v => v.isError() ? mapper(v.error) : v);
+	return map(v => Loadable.isError(v) ? mapper(v.error) : v);
 }
 /** Map a Loadable representing the loaded value into one that can be anything else, asynchronously. */
 export function mergeMapLoaded<T, U>(mapper: (v: T) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
-	return mergeMap(v => v.isLoaded() ? mapper(v.value) : of(v as any));
+	return mergeMap(v => Loadable.isLoaded<T>(v) ? mapper(v.value) : of(v as any));
 }
 /** Map a Loadable representing an error into one that can be anything else, asynchronously. */
 export function mergeMapError<T extends U, U>(mapper: (v: ApiError) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
-	return mergeMap(v => v.isError() ? mapper(v.error) : of(v));
+	return mergeMap(v => Loadable.isError(v) ? mapper(v.error) : of(v));
 }
 export function switchMapLoaded<T, U>(mapper: (v: T) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
-	return switchMap(v => v.isLoaded() ? mapper(v.value) : of(v as any));
+	return switchMap(v => Loadable.isLoaded<T>(v) ? mapper(v.value) : of(v as any));
 }
 export function switchMapError<T extends U, U>(mapper: (v: ApiError) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
-	return switchMap(v => v.isError() ? mapper(v.error) : of(v));
+	return switchMap(v => Loadable.isError(v) ? mapper(v.error) : of(v));
 }
 
 /**
@@ -111,9 +145,9 @@ export function switchMapError<T extends U, U>(mapper: (v: ApiError) => Observab
 */
 export function loadedIfNotNull<T, K extends keyof T = never>(...requiredKeys: K[]): (object: T) => Loadable<MarkRequiredAndNotNull<T, K>> {
 	return (object: T): Loadable<MarkRequiredAndNotNull<T, K>> => {
-		if (object == null) return new Empty();
+		if (object == null) return Loadable.Empty();
 		const isLoaded = requiredKeys.every(k => object[k] != null); // returns true for empty requiredKeys array
-		return isLoaded ? new Loaded(object as MarkRequiredAndNotNull<T, K>) : new Empty();
+		return isLoaded ? Loadable.Loaded(object as MarkRequiredAndNotNull<T, K>) : Loadable.Empty();
 	};
 }
 
@@ -126,13 +160,13 @@ export function loadedIfNotNull<T, K extends keyof T = never>(...requiredKeys: K
  * The observable will never error, but instead emit an error object.
  */
 export const toObservable = <T>({cancel, request}: CancelableRequest<T>) => new Observable<Loadable<T>>(observer => {
-	observer.next(new Loading());
+	observer.next(Loadable.Loading());
 	request.then(v => {
-		observer.next(new Loaded(v));
+		observer.next(Loadable.Loaded(v));
 		observer.complete();
 	}).catch((e: ApiError) => {
 		if (e.title !== 'Request cancelled')
-			observer.next(new LoadingError(e));
+			observer.next(Loadable.LoadingError(e));
 		observer.complete();
 	});
 	// When the observable is unsubscribed, cancel the request.
@@ -161,13 +195,13 @@ export function loadableFromObservable<
 	T extends Observable<any>,
 	R extends TemplateTypeFromLoadableOrObservable<T>
 >(obs: T, subs: Subscription[], initialValue?: Loadable<R>): Loadable<R> {
-	const ret: Loadable<R> = initialValue ?? new Empty();
+	const ret: Loadable<R> = initialValue ?? Loadable.Empty();
 	const unsub = obs.subscribe({
-		next: v => Object.assign(ret, v instanceof Loadable ? v : new Loaded(v)),
-		error: e => Object.assign(ret, new LoadingError(e)),
+		next: v => Object.assign(ret, v instanceof Loadable ? v : Loadable.Loaded(v)),
+		error: e => Object.assign(ret, Loadable.LoadingError(e)),
 		complete: () => {
 			if (ret.state === LoadableState.Loading) {
-				Object.assign(ret, new Empty());
+				Object.assign(ret, Loadable.Empty());
 				return;
 			}
 			// else keep current value.
@@ -212,31 +246,32 @@ T;
  * E.g. {a: Loaded<T>, b: {a: number}, c: Loaded<U>} -> Loaded<{a: T, b: {a: number}, c: U}>
  */
 export function combineLoadables<T extends readonly any[]|Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: ValueFromLoadable<T[K]> }> {
-	if (t == null) return new Empty();
-	const loadingOrErrorOrEmpty = Array.isArray(t) ? t.find(v => v instanceof Loadable && !v.isLoaded()) : Object.values(t ?? {}).find(v => v instanceof Loadable && !v.isLoaded());
+	const isUnloadedLoadable = (v: any): v is Loadable<any> => Loadable.isLoadable(v) && !Loadable.isLoaded(v);
+	if (t == null) return Loadable.Empty();
+	const loadingOrErrorOrEmpty: Loadable<any>|undefined = (Array.isArray(t) ? t : Object.values(t)).find(isUnloadedLoadable);
 	if (loadingOrErrorOrEmpty) return loadingOrErrorOrEmpty;
-	if (Array.isArray(t)) return new Loaded(t.map(v => v.isLoaded() ? v.value : v) as any);
-	else return new Loaded(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, (v instanceof Loadable && v.isLoaded()) ? v.value : v])) as any);
+	if (Array.isArray(t)) return Loadable.Loaded(t.map(v => Loadable.isLoaded(v) ? v.value : v) as any);
+	else return Loadable.Loaded(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, Loadable.isLoaded(v) ? v.value : v])) as any);
 }
 /**
  * Same as combineLoadables, but also includes Empty states. So if an Empty is present, this will return Loaded<undefined> instead of Empty.
  * E.g. [Loaded<T>, {a: number}, Empty<U>] -> Loaded<[T, {a: number}, undefined]>
  */
 export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: ValueFromLoadableIncludingEmpty<T[K]> }> {
-	if (t == null) return new Empty();
-	const loadingOrError = Array.isArray(t) ? t.find(v => Loadable.isLoadable(v) && !v.isLoaded() && !v.isEmpty()) : Object.values(t ?? {}).find(v => Loadable.isLoadable(v) && !v.isLoaded() && !v.isEmpty());
+	if (t == null) return Loadable.Empty();
+	const loadingOrError: Loadable<any>|undefined = (Array.isArray(t) ? t : Object.values(t)).find(v => Loadable.isLoadable(v) && !Loadable.isLoaded(v) && !Loadable.isEmpty(v));
 	if (loadingOrError) return loadingOrError;
-	if (Array.isArray(t)) return new Loaded((t).map(v => v.isLoaded() ? v.value : v.isEmpty() ? undefined : v) as any);
-	else return new Loaded(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, v.isLoaded() ? v.value : v.isEmpty() ? undefined : v])) as any);
+	if (Array.isArray(t)) return Loadable.Loaded((t).map(v => Loadable.isLoaded(v) ? v.value : Loadable.isEmpty(v) ? undefined : v) as any);
+	else return Loadable.Loaded(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, Loadable.isLoaded(v) ? v.value : Loadable.isEmpty(v) ? undefined : v])) as any);
 }
 
 // some sanity checks
 (() => {
 	const apiError: ApiError = {httpCode: 0, message: '', name: '', statusText: '', title: ''};
-	const loading = new Loading();
-	const loaded = new Loaded(1);
-	const error = new LoadingError(apiError);
-	const empty = new Empty();
+	const loading = Loadable.Loading();
+	const loaded = Loadable.Loaded(1);
+	const error = Loadable.LoadingError(apiError);
+	const empty = Loadable.Empty();
 
 	const alertAndLog = (msg: string) => { alert(msg); console.error(new Error(msg)); };
 
@@ -280,7 +315,7 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<s
  * import { InteractiveLoadable } from '@/utils/loadable-streams';
  * export default {
  * 	data: () => ({
- * 		loadable: new InteractiveLoadable(i$ => i$.pipe(map(i => Loaded(i + 1))))
+ * 		loadable: new InteractiveLoadable(map(i => Loaded(i + 1)))
  * 	}),
  * 	mounted() {
  * 		this.loadable.next(1);
@@ -291,27 +326,25 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<s
  * };
  * ```
  */
-export class InteractiveLoadable<I, T> extends Loadable<T> {
-	private i$: ReplaySubject<I> = new ReplaySubject(1);
-	private o$: Observable<Loadable<T>>;
+export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
+	private i$: ReplaySubject<TInput> = new ReplaySubject(1);
+	private o$: Observable<Loadable<TOutput>>;
 	private unsub: Subscription;
-	private _error: ApiError|undefined;
-	private _value: T|undefined;
 
-	constructor(processInput: (i$: Observable<I>) => Observable<Loadable<T>>) {
-		super(LoadableState.Empty);
+	constructor(processInput: (i$: Observable<TInput>) => Observable<Loadable<TOutput>>) {
+		super(LoadableState.Empty, undefined, undefined);
 
 		this.o$ = processInput(this.i$);
 		this.unsub = this.o$.subscribe({
 			next: v => {
 				this.state = v.state;
-				this._value = v.isLoaded() ? v.value : undefined;
-				this._error = v.isError() ? v.error : undefined;
+				this.value = v.isLoaded() ? v.value : undefined;
+				this.error = v.isError() ? v.error : undefined;
 			},
 			error: e => {
 				this.state = LoadableState.Error;
-				this._value = undefined;
-				this._error = {
+				this.value = undefined;
+				this.error = {
 					httpCode: 0,
 					message: e.message? e.message : 'Unknown error',
 					name: e.name ? e.name : 'Unknown error',
@@ -321,22 +354,21 @@ export class InteractiveLoadable<I, T> extends Loadable<T> {
 			},
 			complete: () => {
 				this.state = LoadableState.Empty;
-				this._value = undefined;
-				this._error = undefined;
+				this.value = undefined;
+				this.error = undefined;
 			}
 		});
+
+		reactive(this);
 	}
 
-	public next(i: I) {
+	public next(i: TInput) {
 		this.i$.next(i);
 	}
 
 	public dispose() {
 		this.unsub.unsubscribe();
 	}
-
-	public get error() { return this._error; }
-	public get value() { return this._value; }
 }
 
 /**
@@ -373,8 +405,8 @@ export function promiseFromLoadableStream<T>(loadableStream: Observable<Loadable
  */
 export function loadableStreamFromPromise<T>(promise: Promise<T>): Observable<Loadable<T>> {
 	const subject = new ReplaySubject<Loadable<T>>(1);
-	subject.next(new Loading());
-	promise.then(v => subject.next(new Loaded(v))).catch(e => subject.next(new LoadingError(e))).finally(() => subject.complete());
+	subject.next(Loadable.Loading());
+	promise.then(v => subject.next(Loadable.Loaded(v))).catch(e => subject.next(Loadable.LoadingError(e))).finally(() => subject.complete());
 	return subject;
 }
 

@@ -359,12 +359,28 @@ export type BLSearchSummary = {
 	requestedWindowSize: number;
 	searchParam: BLSearchParameters;
 	searchTime: number;
+	/** Only available when request was sent with includetokencount: true */
+	tokensInMatchingDocuments?: number;
 	windowFirstResult: number;
 	windowHasNext: boolean;
 	windowHasPrevious: boolean;
 
+	/** Total documents across all counted (not retrieved) hits, -1 if some error occured */
+	numberOfDocs: number;
+	/** Total documents across all retrieved hits */
+	numberOfDocsRetrieved: number;
+	/** Is any counting ongoing, generally true unless blacklab finished counting all results or results exceed the count limit (stoppedCountingHits = true) */
+	stillCounting: boolean;
+} & BLSearchSummarySampleSettings;
+
+/**
+ * Properties in the search summary that are only available if a pattern was passed.
+ * Irrespective of whether docs or hits were requested.
+ * If a pattern was passed, the summary will contain a pattern object with these properties.
+ */
+export type BLSearchSummaryPattern = {
 	/** Only for queries with a pattern. */
-	pattern?: {
+	pattern: {
 		/** The serialization of the query object BlackLab actually executed. */
 		bcql: string;
 		/** The main annotatedField that was searched. This is the full name of the field e.g. "contents__en" */
@@ -378,22 +394,6 @@ export type BLSearchSummary = {
 			[key: string]: BLSummaryMatchInfo;
 		}
 	}
-} & BLSearchSummarySampleSettings;
-
-export interface BLSearchSummaryTotalsDocs {
-	/** Total documents across all counted (not retrieved) hits, -1 if some error occured */
-	numberOfDocs: number;
-	/** Total documents across all retrieved hits */
-	numberOfDocsRetrieved: number;
-	/** Is any hit counting ongoing, generally true unless blacklab finished counting all results or results exceed the count limit (stoppedCountingHits = true) */
-	stillCounting: boolean;
-	/** When a pattern was used to search docs */
-	numberOfHits?: number;
-	/** Only available when request was sent with includetokencount: true, and when no grouping took place. */
-	tokensInMatchingDocuments?: number;
-}
-
-export interface BLSearchSummaryTotalsHits extends BLSearchSummaryTotalsDocs {
 	/** Total number of counted hits (so far), -1 if some error occured */
 	numberOfHits: number;
 	/** Total number of retrieved hits (so far) */
@@ -404,10 +404,17 @@ export interface BLSearchSummaryTotalsHits extends BLSearchSummaryTotalsDocs {
 	stoppedRetrievingHits: boolean;
 }
 
-export interface BLSearchSummaryGroupInfo {
+/** Only when results have been grouped. */
+export interface BLSearchSummaryGrouped {
 	largestGroupSize: number;
 	numberOfGroups: number;
-	/** Contains the size of the entire searched subcorpus (e.g. number of docs and tokens found by the same query without a cql pattern). */
+
+	/**
+	 * Contains the size of the entire searched subcorpus (e.g. number of docs and tokens found by the same query without a cql pattern).
+	 *
+	 * When results ARE grouped based on document metadata, is also present in the individual HitGroups instead,
+	 * representing sum of all docs that match the metadata of the group + the main query's lucene filter.
+	 */
 	subcorpusSize: {
 		/** NOTE: may be 0 in rare cases, when specifying a search for the empty value for all metadata fields */
 		documents: number;
@@ -454,13 +461,13 @@ export interface BLDocGroupResult extends BLGroupResult {
 /** Blacklab response for a query for hits with grouping enabled */
 export interface BLHitGroupResults {
 	hitGroups: BLHitGroupResult[];
-	summary: BLSearchSummary & BLSearchSummaryGroupInfo & BLSearchSummaryTotalsHits;
+	summary: BLSearchSummary & BLSearchSummaryPattern & BLSearchSummaryGrouped;
 }
 
 /** Blacklab response for a query for documents with grouping enabled */
 export interface BLDocGroupResults {
 	docGroups: BLDocGroupResult[];
-	summary: BLSearchSummary & BLSearchSummaryGroupInfo & BLSearchSummaryTotalsDocs;
+	summary: BLSearchSummary & BLSearchSummaryGrouped;
 }
 
 /** Contains a hit's tokens, deconstructed into the individual annotations/properties, such as lemma, pos, word, always contains punctuation in between tokens */
@@ -503,6 +510,7 @@ export interface BLMatchInfoTag {
 	/** E.g. "s" */
 	tagName: string;
 	/** E.g. {id: "123"} for <s id=123/> */
+	// TODO might change to arrays for the values, as there can be multiple values for a single attribute
 	attributes?: Record<string, string>;
 }
 
@@ -617,14 +625,14 @@ export type BLDoc = {
 export interface BLDocResults {
 	docs: BLDoc[];
 	/** All of the hit properties exist or none of them do, depending on whether a pattern was supplied */
-	summary: BLSearchSummary & BLSearchSummaryTotalsDocs & Partial<BLSearchSummaryTotalsHits>;
+	summary: BLSearchSummary;
 }
 
 /** Blacklab response to a query for hits without grouping */
 export interface BLHitResults {
 	docInfos: Record<string, BLDocInfo>;
 	hits: BLHit[];
-	summary: BLSearchSummary & BLSearchSummaryTotalsHits;
+	summary: BLSearchSummary & BLSearchSummaryPattern;
 }
 
 export type BLSearchResult = BLHitResults|BLDocResults|BLHitGroupResults|BLDocGroupResults;
@@ -637,3 +645,6 @@ export const isHitGroupsOrResults = (d: any): d is BLHitResults|BLHitGroupResult
 export const isDocGroupsOrResults = (d: any): d is BLDocResults|BLDocGroupResults => isDocGroups(d) || isDocResults(d);
 export const isGroups = (d: any): d is BLHitGroupResults|BLDocGroupResults => isHitGroups(d) || isDocGroups(d);
 export const isBLError = (e: any): e is BLError => !!(e && e.error && e.error.code && e.error.message);
+
+export const hasPatternInfo = <T extends BLSearchResult>(e?: T): e is T&{summary: T['summary']&BLSearchSummaryPattern} => e != null && 'numberOfHits' in e.summary;
+export const hasGroupInfo = <T extends BLSearchResult>(e?: T): e is T&{summary: T['summary']&BLSearchSummaryGrouped} => e != null && 'numberOfGroups' in e.summary;

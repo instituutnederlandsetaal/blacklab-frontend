@@ -1,7 +1,7 @@
 <template>
 <div class="totals">
 	<div class="totals-content">
-		<Spinner v-if="(isCounting || !subcorpus) && !error" size="25" style="margin-right: 0.25em;"/>
+		<Spinner v-if="(isCounting || !totals.isLoaded()) && !error" size="25" style="margin-right: 0.25em;"/>
 
 		<div class="totals-text" :title="percentOfSearchSpaceClarification">
 			<div class="totals-type">
@@ -25,7 +25,7 @@
 		</div>
 	</div>
 
-	<div v-if="error" class="totals-message text-danger" @click="continueCounting" :title="error.message">
+	<div v-if="error" class="totals-message text-danger" @click="totals.continueCounting" :title="error.message">
 		<span class="fa fa-exclamation-triangle text-danger"/> {{ $t('results.resultsTotals.networkError') }}! <button type="button" class="totals-button" @click="continueCounting"><span class="fa fa-rotate-right text-danger"></span> {{ $t('results.resultsTotals.retry') }}</button>
 	</div>
 	<div v-else-if="isLimited" class="totals-message text-danger" :title="`You may view up to ${numResultsRetrieved.toLocaleString()}. Additionally, BlackLab stopped counting after ${numResults.toLocaleString()}.`">
@@ -35,7 +35,7 @@
 		<span class="fa fa-exclamation-triangle text-danger"/> <b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{numResultsRetrieved.toLocaleString()}} from a total of {{numResults.toLocaleString()}}
 	</div>
 	<div v-else-if="isPaused" class="totals-message text-info">
-		{{ $t('results.resultsTotals.heavyQuery') }} - search paused <button type="button" class="totals-button" @click="continueCounting"><span class="fa fa-rotate-right text-info"></span> {{ $t('results.resultsTotals.continue') }} </button>
+		{{ $t('results.resultsTotals.heavyQuery') }} - search paused <button type="button" class="totals-button" @click="totals.continueCounting"><span class="fa fa-rotate-right text-info"></span> {{ $t('results.resultsTotals.continue') }} </button>
 	</div>
 </div>
 </template>
@@ -44,18 +44,16 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import {Subscription, ReplaySubject} from 'rxjs';
-
 import * as Api from '@/api';
-
-import { submittedSubcorpus$ as subcorpus$ } from '@/store/streams';
-import yieldResultCounts, { CounterInput, CounterOutput } from '@/pages/search/results/TotalsCounterStream';
-
 import * as BLTypes from '@/types/blacklabtypes';
+
+import { TotalsLoader, TotalsOutput } from '@/pages/search/results/TotalsCounterStream';
+
 
 import frac2Percent from '@/mixins/fractionalToPercent';
 
 import Spinner from '@/components/Spinner.vue';
+import { loadableFromObservable } from '@/utils/loadable-streams';
 
 /**
  * Emits update events that contain the new set of totals, so we can update the pagination through our parent components
@@ -78,102 +76,47 @@ export default Vue.extend({
 			type: String as () => string,
 		}
 	},
-	data: () => ({
-		subscriptions: [] as Subscription[],
-
-		subcorpus: null as null|BLTypes.BLDocResults, // total searchSpace
-		resultCount: {} as CounterOutput, // stream instantly returns output from the initials
-		error: null as null|Api.ApiError,
-
-		resultCount$: new ReplaySubject<CounterInput>(1),
-	}),
-
 	computed: {
-		stats(): BLTypes.BLSearchResult { return this.resultCount.state !== 'error' ? this.resultCount.results : this.initialResults; },
-		isCounting(): boolean { return !this.error && this.resultCount.state === 'counting'; },
-		isLimited(): boolean { return !this.error && this.resultCount.state === 'limited'; },
-		isPaused(): boolean { return !this.error && this.resultCount.state === 'paused'; },
-		isFinished(): boolean { return this.isLimited || !(this.isCounting || this.isPaused); },
+		totals(): TotalsLoader { return new TotalsLoader({indexId: this.indexId, operation: this.type, results: this.initialResults }); },
 
-		resultType(): string { return BLTypes.isHitGroupsOrResults(this.stats) ? this.$t('results.resultsTotals.hits') as string : this.$t('results.resultsTotals.documents') as string; },
-		isGroups(): boolean { return BLTypes.isGroups(this.stats); },
-		searchTime(): string { return frac2Percent(this.stats.summary.searchTime / 100000, 1).replace('%', 's'); },
+		value(): TotalsOutput|undefined { return this.totals.isLoaded() ? this.totals.value : undefined; },
+		error(): Api.ApiError|undefined { return this.totals.isError() ? this.totals.error : undefined; },
+		isCounting(): boolean { return this.value?.state === 'counting'; },
+		isLimited(): boolean { return this.value?.state === 'limited'; },
+		isPaused(): boolean { return this.value?.state === 'paused'; },
+		isFinished(): boolean { return this.value?.state === 'finished'; },
+
+		resultType(): string { return this.type === 'hits' ? this.$t('results.resultsTotals.hits').toString() : this.$t('results.resultsTotals.documents').toString() },
+		isGroups(): boolean { return this.value?.groups != null; },
+		searchTime(): string { return this.value ? frac2Percent(this.value.searchTime / 100000, 1).replace('%', 's') : ''; },
 
 		numPrefix(): string { return (this.isLimited || this.isPaused) ? '≥' : ''; },
 		numSuffix(): string { return (this.isCounting || this.isPaused) ? '…' : ''; },
-		numResults(): number { return BLTypes.isHitGroupsOrResults(this.stats) ? this.stats.summary.numberOfHits : this.stats.summary.numberOfDocs; },
-		numResultsRetrieved(): number { return BLTypes.isHitGroupsOrResults(this.stats) ? this.stats.summary.numberOfHitsRetrieved : this.stats.summary.numberOfDocsRetrieved; },
-		numGroups(): number { return BLTypes.isGroups(this.stats) ? this.stats.summary.numberOfGroups : 0; },
+		numResults(): number { return this.type === 'hits' ? this.value?.hitsCounted ?? 0 : this.value?.docsCounted ?? 0; },
+		numResultsRetrieved(): number { return this.type === 'hits' ? this.value?.hitsRetrieved ?? 0 : this.value?.docsRetrieved ?? 0; },
+		numGroups(): number { return this.value?.groups ?? 0; },
 		// numPages(): number { return Math.ceil((this.isGroups ? this.numGroups : this.numResultsRetrieved) / this.initialResults.summary.searchParam.number); },
 
-		searchSpaceType(): string { return BLTypes.isHitGroupsOrResults(this.stats) ? this.$t('results.resultsTotals.tokens') as string : this.$t('results.resultsTotals.documents') as string; },
+		searchSpaceType(): string { return this.type === 'hits' ? this.$t('results.resultsTotals.tokens').toString() : this.$t('results.resultsTotals.documents').toString(); },
 		/** The total number of relevant items in the searched subcorpus, tokens if viewing tokens, docs if viewing documents */
-		searchSpaceCount(): number {
-			if (this.subcorpus == null) {
-				return -1;
-			}
-
-			return BLTypes.isHitGroupsOrResults(this.stats) ? this.subcorpus.summary.tokensInMatchingDocuments! : this.subcorpus.summary.numberOfDocs;
-		},
+		searchSpaceCount(): number { return this.type === 'hits' ? this.value?.tokensInMatchingDocuments ?? 0 : this.value?.numberOfMatchingDocuments ?? 0 },
 		percentOfSearchSpaceClarification(): string {
-			if (this.subcorpus == null) {
-				return '';
-			}
-
+			// TODO i18n
 			return `Matched ${this.numResults.toLocaleString()} ${this.resultType} in a total of ${this.isLimited ? ' more than' : ''} ${this.searchSpaceCount.toLocaleString()} ${this.searchSpaceType} in the searched subcorpus.`;
 		}
 	},
 	methods: {
 		frac2Percent,
-		continueCounting() {
-			this.error = null;
-			this.resultCount$.next({
-				indexId: this.indexId,
-				operation: this.type,
-				results: this.stats
-			});
-		}
 	},
 	watch: {
-		initialResults: {
-			immediate: true,
-			handler(v: BLTypes.BLSearchResult) {
-				this.error = null;
-				this.resultCount$.next({
-					indexId: this.indexId,
-					operation: this.type,
-					results: v
-				});
-			}
-		},
-
-		// todo
-		// not immediate on purpose so we don't emit the empty initial object
-		resultCount(v: CounterOutput) {
-			if (v.state !== 'error') {
-				this.$emit('update', v.results);
-			}
+		totals: {
+			handler(cur: TotalsLoader, prev: TotalsLoader) {
+				if (cur !== prev) prev?.dispose();
+			},
 		}
 	},
-	created() {
-		this.subscriptions.push(
-			this.resultCount$
-				.pipe(yieldResultCounts)
-				.subscribe(v => {
-					this.resultCount = v;
-					if (v.state === 'error') {
-						this.error = v.error;
-					} else {
-						this.error = null;
-					}
-				}),
-			subcorpus$
-				.subscribe(v => this.subcorpus = v)
-		);
-	},
 	destroyed() {
-		this.subscriptions.forEach(s => s.unsubscribe());
-		this.resultCount$.complete();
+		this.totals.dispose();
 	}
 });
 </script>

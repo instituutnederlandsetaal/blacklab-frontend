@@ -1,7 +1,7 @@
-import { BLHit, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummary, BLSearchSummaryTotalsHits } from '@/types/blacklabtypes';
-import { CaptureAndRelation, HitContext, HitToken, TokenHighlight } from '@/types/apptypes';
-import { mapReduce } from '@/utils';
+import { BLHit, BLHitInOtherField, BLHitResults, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummaryPattern } from '@/types/blacklabtypes';
+import { CaptureAndRelation, TokenHighlight } from '@/types/apptypes';
 import { corpusCustomizations } from '@/store/ui';
+import { UnionHelpers } from '@/types/helpers';
 
 /** Part of a hit/context to highlight, with a label, display and boolean whether it's a relation or a section of the query/result labelled by the user. */
 export type HighlightSection = {
@@ -290,6 +290,6 @@ export function mergeMatchInfos(data: BLHitResults): BLHitResults {
  *
  * We use this for highlighting the hits in the UI.
  */
-export function getHighlightColors(summary: BLSearchSummary): Record<string, TokenHighlight> {
+export function getHighlightColors(summary: BLSearchSummaryPattern): Record<string, TokenHighlight> {
 	return Object.fromEntries(Object.keys(summary.pattern?.matchInfos ?? {}).sort().map((key, i) => [key, color(key,i)]));
 }

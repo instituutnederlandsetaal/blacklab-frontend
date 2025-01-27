@@ -1113,7 +1113,7 @@ function validateAnnotations(
 	invalid: (id: string) => string,
 	cb: (ids: string[]) => void
 ) {
-	if (!CorpusStore.get.corpus()) { // not loaded yet
+	if (!CorpusStore.getState().isLoaded()) { // not loaded yet
 		cb(ids);
 		return;
 		// we will re-check this on init()?
@@ -1139,7 +1139,7 @@ function validateMetadata(
 	invalid: (id: string) => string,
 	cb: (ids: string[]) => void
 ) {
-	if (!CorpusStore.get.corpus()) {
+	if (!CorpusStore.getState().isLoaded()) {
 		cb(ids);
 		return;
 		// assume we will re-check this on init()?

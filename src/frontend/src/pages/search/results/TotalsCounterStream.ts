@@ -1,115 +1,133 @@
-import { Observable, pipe, of, empty } from 'rxjs';
-import { switchMap, map, expand } from 'rxjs/operators';
+import { of, EMPTY, timer, lastValueFrom, concat, pipe } from 'rxjs';
+import { expand, takeUntil, filter, distinctUntilChanged, switchMap, debounceTime, shareReplay, map } from 'rxjs/operators';
+
+import { combineLoadables, InteractiveLoadable, Loadable, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
+
 import * as UIStore from '@/store/ui';
-
 import * as Api from '@/api';
-
 import * as BLTypes from '@/types/blacklabtypes';
+import { NormalizedIndex } from '@/types/apptypes';
 
-export type CounterInput = {
+export type TotalsInput = {
 	indexId: string;
 	operation: 'hits'|'docs';
 	results: BLTypes.BLSearchResult;
 };
 
-export type CounterOutput = {
-	state: 'counting'|'paused'|'finished'|'limited';
+export type TotalsOutput = {
 	results: BLTypes.BLSearchResult;
-}|{
-	state: 'error';
-	error: Api.ApiError;
-};
-
-type CounterInternal = CounterInput & CounterOutput;
-
-function getCountState(results: BLTypes.BLSearchResult): 'limited'|'finished'|'counting' {
-	const isLimited = BLTypes.isHitGroupsOrResults(results) && results.summary.stoppedCountingHits;
-	const isFinished = !results.summary.stillCounting;
-	return (
-		isLimited ? 'limited' :
-		isFinished ? 'finished' :
-		'counting'
-	);
+	docsRetrieved: number;
+	docsCounted: number;
+	hitsRetrieved: number;
+	hitsCounted: number;
+	groups?: number;
+	searchTime: number;
+	tokensInMatchingDocuments: number;
+	numberOfMatchingDocuments: number;
+	state: 'counting'|'finished'|'limited'|'paused';
 }
 
-export default pipe(
-	switchMap((initial: CounterInput) => {
-		return new Observable<CounterOutput>(subscriber => {
-			let unsubscribed = false;
-			let hitTimeout = false;
 
-			const timeoutMs = UIStore.getState().results.shared.totalsTimeoutDurationMs;
-			let timeoutHandle: number|null = timeoutMs <= 0 ? null : setTimeout(() => {
-				hitTimeout = true;
-				timeoutHandle = null;
-			}, timeoutMs);
+function getTotals(r: BLTypes.BLSearchResult): TotalsOutput {
+	const hasPatternInfo = BLTypes.hasPatternInfo(r);
+	const hasGroupInfo = BLTypes.hasGroupInfo(r);
 
-			let cancel: Api.Canceler|null = null;
-			function teardown() {
-				unsubscribed = true;
-				if (cancel != null) {
-					cancel();
-				}
-			}
+	return {
+		results: r,
+		docsRetrieved: r.summary.numberOfDocsRetrieved,
+		docsCounted: r.summary.numberOfDocs,
+		hitsRetrieved: hasPatternInfo ? r.summary.numberOfHitsRetrieved : 0,
+		hitsCounted: hasPatternInfo ? r.summary.numberOfHits : 0,
+		groups: hasGroupInfo ? r.summary.numberOfGroups : undefined,
+		searchTime: r.summary.searchTime,
+		tokensInMatchingDocuments: r.summary.tokensInMatchingDocuments!,
+		numberOfMatchingDocuments: r.summary.numberOfDocs!,
+		state: r.summary.stillCounting ? 'counting' : (hasPatternInfo && r.summary.stoppedCountingHits) ? 'limited' : 'finished'
+	};
+}
 
-			of(initial)
-			.pipe(
-				map((input: CounterInput): CounterInternal => ({
-					indexId: input.indexId,
-					operation: input.operation,
-					results: input.results,
-					state: getCountState(input.results)
-				})),
-				expand((cur: CounterInternal) => {
-					/*
-						We can't use async here as we would always return a promise
-						which - even if empty - is transformed into a single undefined value
-						which in turn would be fed back into expand, causing an infinite loop
-
-						So instead just return a stream we can control ourselves, so we can yield the value asynchronously
-						allowing us to wait for the response, handle cancellation, etc.
-					*/
-					const {indexId, operation, results: oldResults, state} = cur;
-					if (state !== 'counting' || unsubscribed) {
-						if (timeoutHandle != null) {
-							clearTimeout(timeoutHandle);
-							timeoutHandle = null;
-						}
-
-						return empty();
-					}
-
-					// Delay for a bit so we don't pummel the server with rapid requests if we don't need to
-					// Do this through a simple timeout so we don't have to nest so many streams
-					return new Promise(resolve => setTimeout(resolve, UIStore.getState().results.shared.totalsRefreshIntervalMs))
-					.then((): Promise<BLTypes.BLSearchResult> => {
-						const searchParams = { ...oldResults.summary.searchParam, number: 0, first: 0 };
-						const axiosParams = { headers: { 'Cache-Control': 'no-cache' } }
-						const r = operation === 'docs' ? Api.blacklab.getDocs(indexId, searchParams, axiosParams) : Api.blacklab.getHits(indexId, searchParams, axiosParams);
-						cancel = r.cancel;
-						return r.request;
-					})
-					.then((results: BLTypes.BLSearchResult) => ({
-						indexId,
-						operation,
-						results,
-						state: hitTimeout ? 'paused' : getCountState(results)
-					}))
-					.catch((e: Api.ApiError) => ({
-						state: 'error',
-						error: e,
-						indexId,
-						operation
-					}));
+export class TotalsLoader extends InteractiveLoadable<TotalsInput, TotalsOutput> {
+	constructor(private initial: TotalsInput) {
+		super(switchMap(({indexId, operation, results}) => {
+			// Don't request any actual results, we're just interested in the totals.
+			const params = {...results.summary.searchParam, number: 0, first: 0, includeTokenCount: true};
+			const timeout$ = timer(UIStore.getState().results.shared.totalsTimeoutDurationMs);
+			const recursiveTotal$ = of(Loadable.Loaded(getTotals(results))).pipe(
+				expand(cur => {
+					if (!cur.isLoaded() || this.isDone(cur.value)) return EMPTY; // Terminating clause/filter intermediate values that are not loaded or are done.
+					return toObservable(operation === 'docs'
+						? Api.blacklab.getDocs(indexId, params).then(getTotals)
+						: Api.blacklab.getHits(indexId, params).then(getTotals)
+					);
 				}),
-				map((result: CounterInternal): CounterOutput => result) // Small typescript quirk...
-			).subscribe(subscriber);
+				filter(v => !v.isLoading()), // remove loading values. We always want a value or an error in the output.
+				takeUntil(timeout$)
+			)
 
-			// This is the teardown for the top-level switchmap
-			// it should ensure the recursive expand operator quits on its next iteration
-			// and tear down any async work that might have been started by the last iteration
-			return teardown;
+			const mostRecentUnfinishedAsPaused = lastValueFrom(recursiveTotal$.pipe(
+				filter(v => v.isLoaded()),
+				// Only emit a paused state if we're not finished...
+				mapLoaded((v): TotalsOutput => this.isDone(v) ? v : {...v, state: 'paused'})
+			));
 
-		});
-	})
-);
+			// Finally return the stream that emits the recursive totals,
+			// and when it completes, emit the most recent value as the paused state.
+			// prevent duplicate output of last value, once from the recursive stream and once from the mostRecentUnfinishedAsPaused.
+			return concat(recursiveTotal$, mostRecentUnfinishedAsPaused).pipe(distinctUntilChanged());
+		}));
+		this.next(initial);
+	}
+
+	public continueCounting() {
+		if (this.isError())
+			this.next(this.initial);
+		else if (this.isLoaded() && !this.isDone(this.value))
+			this.next({...this.initial, results: this.value.results});
+	}
+
+	private isDone(results: TotalsOutput) { return results.state !== 'counting'; }
+}
+
+export type SubcorpusInput = {
+	index: Loadable<NormalizedIndex>;
+	filter: string|undefined|null;
+}
+export type SubcorpusOutput = {
+	numberOfMatchingDocuments: number;
+	tokensInMatchingDocuments: number;
+	totalDocsInIndex: number;
+	totalTokensInIndex: number;
+}
+
+class SubcorpusLoader extends InteractiveLoadable<SubcorpusInput, SubcorpusOutput> {
+	constructor() {
+		super(pipe(
+			debounceTime(1000),
+			map(combineLoadables), // type inference breaks here?
+			switchMapLoaded(v => v.filter
+				// if we have a query, return a Loadable of the request
+				? toObservable(
+					Api.blacklab.getDocs(v.index.id, {filter: v.filter, first: 0, number: 0, includetokencount: true, waitfortotal: true})
+					.then(getTotals)
+					.then(totals => ({
+						numberOfMatchingDocuments: totals.numberOfMatchingDocuments,
+						tokensInMatchingDocuments: totals.tokensInMatchingDocuments,
+						totalDocsInIndex: totals.docsCounted,
+						totalTokensInIndex: totals.tokensInMatchingDocuments
+					}))
+				)
+				// if we don't have a query, get the properties from the corpus.
+				: of(Loadable.Loaded({
+					numberOfMatchingDocuments: v.index.documentCount,
+					tokensInMatchingDocuments: v.index.tokenCount,
+					totalDocsInIndex: v.index.documentCount,
+					totalTokensInIndex: v.index.tokenCount
+				}))
+			),
+			shareReplay(1)
+		))
+	}
+}
+
+export const SubmittedSubcorpusLoader = new SubcorpusLoader();
+export const SelectedSubcorpusLoader = new SubcorpusLoader();

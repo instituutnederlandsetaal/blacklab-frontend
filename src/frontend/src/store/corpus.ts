@@ -74,7 +74,10 @@ const get = {
 	 * @deprecated this is an antipattern. Instead we should use the regular getters.
 	 */
 	corpus: b.read((state): NormalizedIndex => {
-		if (!state.isLoaded()) { alert('Corpus not loaded'); throw new Error('Corpus not loaded'); }
+		if (!state.isLoaded()) {
+			debugger;
+			alert('Corpus not loaded'); throw new Error('Corpus not loaded');
+		}
 		return state.value;
 	}, 'corpus'),
 

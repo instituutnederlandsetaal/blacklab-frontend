@@ -16,12 +16,12 @@
 					{{$t('filterOverview.totalTokens')}}:
 				</span>
 				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 {{subcorpus.value.docs.toLocaleString()}}<br>
-					 {{subcorpus.value.tokens.toLocaleString()}}
+					 {{subcorpus.value.numberOfMatchingDocuments.toLocaleString()}}<br>
+					 {{subcorpus.value.tokensInMatchingDocuments.toLocaleString()}}
 				</span>
 				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 ({{ frac2Percent(subcorpus.value.docs / totalCorpusDocs) }})<br>
-					 ({{ frac2Percent(subcorpus.value.tokens / totalCorpusTokens) }})
+					 ({{ frac2Percent(subcorpus.value.numberOfMatchingDocuments / subcorpus.value.totalDocsInIndex) }})<br>
+					 ({{ frac2Percent(subcorpus.value.tokensInMatchingDocuments / subcorpus.value.totalTokensInIndex) }})
 				</span>
 			</template>
 			<template v-else>
@@ -35,33 +35,29 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import {Subscription} from 'rxjs';
-
 import * as CorpusStore from '@/store/corpus';
 import * as FilterStore from '@/store/form/filters';
 
-import { selectedSubCorpus$ } from '@/store/streams';
-
-
 import frac2Percent from '@/mixins/fractionalToPercent';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { SelectedSubcorpusLoader } from '@/pages/search/results/TotalsCounterStream';
 
 import Spinner from '@/components/Spinner.vue';
-import { loadableFromObservable } from '@/utils/loadable-streams';
-
-
 
 export default Vue.extend({
 	components: {Spinner},
-	data: () => {
-		const subs: Subscription[] = [];
-		return {
-			subs,
-			subcorpus: loadableFromObservable(selectedSubCorpus$, subs),
-		}
-	},
+	data: () => ({
+		subcorpus: SelectedSubcorpusLoader
+	}),
 	computed: {
+		indexAndFilter() {
+			return {
+				index: CorpusStore.getState(),
+				filter: FilterStore.get.luceneQuery()
+			};
+		},
 		activeFilters: FilterStore.get.activeFilters,
+
 		summaryMap(): Record<string, string> {
 			const r: Record<string, string> = {};
 			this.activeFilters.forEach(f => {
@@ -70,15 +66,12 @@ export default Vue.extend({
 			});
 			return r;
 		},
-
-		totalCorpusTokens(): number { return CorpusStore.get.corpus()!.tokenCount; },
-		totalCorpusDocs(): number { return CorpusStore.get.corpus()!.documentCount; }
 	},
 	methods: {
 		frac2Percent
 	},
-	destroyed() {
-		this.subs.forEach(s => s.unsubscribe());
+	watch: {
+		indexAndQuery(q) { this.subcorpus.next(this.indexAndFilter) }
 	}
 });
 </script>

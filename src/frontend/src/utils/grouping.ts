@@ -1,5 +1,5 @@
 import { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes";
-import { BLHitResults, BLSearchResult } from '@/types/blacklabtypes';
+import { BLHitResults, BLSearchResult, hasPatternInfo } from '@/types/blacklabtypes';
 import { spanFilterId } from '@/utils';
 import { attr } from 'highcharts';
 import * as FilterModule from '@/store/form/filters';
@@ -65,8 +65,8 @@ export type GroupByCustom = {
 export type GroupBy = GroupByContext|GroupByMetadata|GroupByCustom;
 
 function determineRelationPartField(results: BLSearchResult|undefined, label: string, relationPart: string|undefined, overriddenFieldName: string|undefined) {
-	const defaultFieldName = overriddenFieldName ?? results?.summary.pattern?.fieldName;
-	const matchInfoDef = results?.summary.pattern?.matchInfos?.[label];
+	const defaultFieldName = overriddenFieldName ?? (hasPatternInfo(results) ? results.summary.pattern.fieldName : '');
+	const matchInfoDef = hasPatternInfo(results) ? results.summary.pattern.matchInfos?.[label] : undefined;
 	if (matchInfoDef) {
 		// Make sure we return the correct field if we're referencing a crossfield relation target
 		if (relationPart === 'target')

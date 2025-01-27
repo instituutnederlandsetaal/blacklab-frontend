@@ -31,6 +31,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
 import { Loadable, loadableFromObservable, loadableStreamFromPromise, mapLoaded } from '@/utils/loadable-streams';
 import { distinctUntilChanged, Observable, shareReplay, switchMap } from 'rxjs';
+import debug from '@/utils/debug';
 
 Vue.use(Vuex);
 const loadingState$: Observable<Loadable<void>> = CorpusModule.index$.pipe(

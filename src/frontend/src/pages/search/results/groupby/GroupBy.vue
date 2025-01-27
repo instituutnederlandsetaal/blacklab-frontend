@@ -202,7 +202,7 @@ import * as FilterModule from '@/store/form/filters';
 import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 import { blacklab } from '@/api';
 
-import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, BLHitInOtherField, BLMatchInfo} from '@/types/blacklabtypes';
+import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, BLHitInOtherField, BLMatchInfo, hasPatternInfo} from '@/types/blacklabtypes';
 
 import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel,
 	humanizeGroupBy } from '@/utils/grouping';
@@ -459,7 +459,7 @@ export default Vue.extend({
 		},
 
 		mainSearchField(): string {
-			return this.results?.summary.pattern?.fieldName ?? '';
+			return hasPatternInfo(this.results) ? this.results.summary.pattern.fieldName : '';
 		},
 
 		colors(): Record<string, TokenHighlight> {

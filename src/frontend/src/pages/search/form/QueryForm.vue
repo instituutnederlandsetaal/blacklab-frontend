@@ -51,13 +51,10 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import {Subscription} from 'rxjs';
 import {stripIndent} from 'common-tags';
 
 import * as RootStore from '@/store/';
 import * as InterfaceStore from '@/store/form/interface';
-
-import { selectedSubCorpus$ } from '@/store/streams';
 
 import QueryFormSearch from '@/pages/search/form/QueryFormSearch.vue';
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';
@@ -66,7 +63,7 @@ import QueryFormSettings from '@/pages/search/form/QueryFormSettings.vue';
 
 import History from '@/pages/search/History.vue';
 
-import { loadableFromObservable } from '@/utils/loadable-streams';
+import { SelectedSubcorpusLoader } from '@/pages/search/results/TotalsCounterStream';
 
 export default Vue.extend({
 	components: {
@@ -76,15 +73,11 @@ export default Vue.extend({
 		QueryFormSettings,
 		History
 	},
-	data: () => {
-		const subscriptions: Subscription[] = [];
-		return {
-			subscriptions,
-			subCorpusStats: loadableFromObservable(selectedSubCorpus$, subscriptions),
-			settingsOpen: false,
-			historyOpen: false,
-		}
-	},
+	data: () => ({
+		subcorpus: SelectedSubcorpusLoader,
+		settingsOpen: false,
+		historyOpen: false,
+	}),
 	computed: {
 		queryBuilderVisible(): boolean { return RootStore.get.queryBuilderActive(); },
 		filtersVisible(): boolean { return RootStore.get.filtersActive(); },
@@ -96,7 +89,7 @@ export default Vue.extend({
 	methods: {
 		reset: RootStore.actions.reset,
 		submit() {
-			if (this.activeForm === 'explore' && this.subCorpusStats.isLoaded() && this.subCorpusStats.value.tokens > 5_000_000) {
+			if (this.activeForm === 'explore' && this.subcorpus.isLoaded() && this.subcorpus.value.tokensInMatchingDocuments > 5_000_000) {
 				const msg = stripIndent`
 					You have selected a subcorpus of over ${(5_000_000).toLocaleString()} tokens.
 					Please note that this query, on first execution, may take a considerable amount of time to complete.
@@ -114,9 +107,6 @@ export default Vue.extend({
 			RootStore.actions.searchFromSubmit();
 		}
 	},
-	destroyed() {
-		this.subscriptions.forEach(s => s.unsubscribe());
-	}
 });
 </script>
 
