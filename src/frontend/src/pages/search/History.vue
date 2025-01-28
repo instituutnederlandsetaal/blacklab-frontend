@@ -86,8 +86,6 @@ import Vue from 'vue';
 import URI from 'urijs';
 import $ from 'jquery';
 
-import {saveAs} from 'file-saver';
-
 import * as RootStore from '@/store/';
 import * as HistoryStore from '@/store/history';
 import * as FilterStore from '@/store/form/filters';
@@ -127,7 +125,9 @@ export default Vue.extend({
 
 		downloadAsFile(entry: HistoryStore.FullHistoryEntry) {
 			const {file, fileName} = HistoryStore.get.asFile(entry);
-			saveAs(file, fileName);
+			import('file-saver').then(({ saveAs }) => {
+				saveAs(file, fileName);
+			});
 		},
 
 		load(entry: HistoryStore.HistoryEntry) {

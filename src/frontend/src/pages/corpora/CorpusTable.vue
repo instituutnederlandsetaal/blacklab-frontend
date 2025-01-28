@@ -17,8 +17,8 @@
 			</thead>
 			<tbody><template v-for="corpus in withExtraInfo">
 				<tr>
-					<td><a :title="`Search the '${corpus.displayName}' corpus`" :class="`icon fa fa-search ${!corpus.canSearch ? 'disabled' : ''}`" :href="corpus.canSearch ? corpus.searchUrl : undefined"></a></td>
-					<td class="corpus-name"><a :title="`Search the '${corpus.displayName}' corpus`" :class="`${!corpus.canSearch ? 'disabled' : ''}`" :href="corpus.canSearch ? corpus.searchUrl : undefined">{{corpusDisplayName(corpus)}} {{corpus.statusText}}</a></td>
+					<td><router-link :to="{ name: 'search', params: { corpus: corpus.id } }" :title="`Search the '${corpus.displayName}' corpus`" :class="`icon fa fa-search ${!corpus.canSearch ? 'disabled' : ''}`"></router-link></td>
+					<td class="corpus-name"><router-link :to="{ name: 'search', params: { corpus: corpus.id } }" :title="`Search the '${corpus.displayName}' corpus`" :class="`${!corpus.canSearch ? 'disabled' : ''}`">{{corpusDisplayName(corpus)}} {{corpus.statusText}}</router-link></td>
 					<td>{{corpus.sizeString}}</td>
 					<template v-if="isPrivate">
 						<td><a role="button" :title="`Upload documents to the '${corpus.displayName}' corpus`" :class="`icon fa fa-fw fa-cloud-upload ${!corpus.canIndex? 'disabled' : ''}`" @click="$emit('upload', corpus.id)"></a></td>

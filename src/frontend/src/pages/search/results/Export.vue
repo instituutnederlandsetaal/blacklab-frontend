@@ -43,7 +43,6 @@
 <script lang="ts">
 import Vue from 'vue';
 import cloneDeep from 'clone-deep';
-import {saveAs} from 'file-saver';
 
 import * as Api from '@/api';
 
@@ -90,7 +89,10 @@ export default Vue.extend({
 			debugLog('starting csv download', this.type, params);
 			apiCall(INDEX_ID, params).request
 			.then(
-				blob => saveAs(blob, 'data.csv'),
+				async blob => {
+					const { saveAs } = await import('file-saver');
+					saveAs(blob, 'data.csv');
+				},
 				error => debugLog('Error downloading csv file', error)
 			)
 			.finally(() => this.downloadInProgress = false);
