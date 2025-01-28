@@ -1,4 +1,4 @@
-import { combineLatest, distinctUntilChanged, filter, firstValueFrom, map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subscription, switchMap } from 'rxjs';
+import { combineLatest, distinctUntilChanged, filter, firstValueFrom, map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subscription, switchMap, tap } from 'rxjs';
 import jsonStableStringify from 'json-stable-stringify';
 import { ApiError, Canceler } from '@/api';
 import { CancelableRequest } from '@/api/apiutils';
@@ -384,9 +384,12 @@ export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
  * @param loadableStream
  * @returns a promise that will contain the first non-Loading state of the stream.
  */
-export function promiseFromLoadableStream<T>(loadableStream: Observable<Loadable<T>>): Promise<T|undefined> {
+export function promiseFromLoadableStream<T>(loadableStream: Observable<Loadable<T>>, title?: string): Promise<T|undefined> {
 	return new Promise((resolve, reject) => {
-		const sub = loadableStream.pipe(filter(v => !v.isLoading())).subscribe({
+		const sub = loadableStream.pipe(
+			filter(v => !v.isLoading()),
+			tap(v => console.log('promiseFromLoadableStream', title, v)),
+		).subscribe({
 			next: v => {
 				if (v.isLoaded()) resolve(v.value);
 				if (v.isError()) reject(v.error);

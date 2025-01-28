@@ -23,7 +23,7 @@ export function debugLog(...args: any[]) {
 }
 
 /** Enable/disable categories of debug messages here, or add '*' to show everything */
-const SHOW_DEBUG_CATEGORIES: Array<LogCategory|'*'> = ['parallel']; // e.g. ['parallel', 'history'];
+const SHOW_DEBUG_CATEGORIES: Array<LogCategory|'*'> = ['*']; // e.g. ['parallel', 'history'];
 
 export function showDebugCat(category: LogCategory) {
 	return SHOW_DEBUG_CATEGORIES.indexOf(category) >= 0 || SHOW_DEBUG_CATEGORIES.indexOf('*') >= 0;

@@ -30,16 +30,24 @@ import * as ArticleModule from '@/store/article';
 import * as BLTypes from '@/types/blacklabtypes';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
 import { Loadable, loadableFromObservable, loadableStreamFromPromise, mapLoaded } from '@/utils/loadable-streams';
-import { distinctUntilChanged, Observable, shareReplay, switchMap } from 'rxjs';
-import debug from '@/utils/debug';
+import { concatMap, Observable, of, pairwise, shareReplay, startWith } from 'rxjs';
+import debug, {  } from '@/utils/debug';
 
 Vue.use(Vuex);
 const loadingState$: Observable<Loadable<void>> = CorpusModule.index$.pipe(
-	// only emit when the corpus changes from something to nothing or vice versa.
-	distinctUntilChanged((a, b) => a.isLoaded() === b.isLoaded()),
-	// Then init the other stores, emitting a loading state while doing so.
-	// Errors during init wil be caught and emitted as a LoadingError.
-	switchMap(() => loadableStreamFromPromise(privateActions.corpusChanged())),
+	// To know when the corpus has changed, we need to compare the previous and current value.
+	// We need a startWith to have a previous value to compare to, otherwise the first value will be ignored.
+	startWith(Loadable.Empty<void>()),
+	mapLoaded(v => undefined as void),
+	pairwise(),
+	// concatMap buffers all events, and waits for the inner observable to complete before moving on to the next value.
+	// So essentially this prevents multiple concurrent calls to corpusChanged.
+	concatMap(([prev, cur]) => {
+		if (cur.value !== prev.value) {
+			return loadableStreamFromPromise(privateActions.corpusChanged())
+		}
+		return of(cur);
+	}),
 	shareReplay(1),
 )
 
@@ -389,7 +397,7 @@ const privateActions = {
 declare const process: any;
 const store = b.vuexStore({
 	state: {
-		storeLoadingState: loadableFromObservable(loadingState$.pipe(mapLoaded(v => undefined)), []),
+		storeLoadingState: Vue.observable(loadableFromObservable(loadingState$.pipe(mapLoaded(v => undefined)), [])),
 	} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
 	strict: process.env.NODE_ENV === 'development',
 });

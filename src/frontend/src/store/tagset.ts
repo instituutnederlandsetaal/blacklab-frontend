@@ -71,7 +71,7 @@ const init = async (corpus: CorpusStore.NormalizedIndex|null) => {
 
 	// Catch any error here, we don't want to crash the app if the tagset can't be loaded.
 	// The error will be exposed in the tagset store state, and can be displayed by the tagset component.
-	return promiseFromLoadableStream(tagset$).catch(() => {});
+	return promiseFromLoadableStream(tagset$, 'tagset').catch(() => {});
 };
 
 /**
