@@ -220,7 +220,5 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
 			...withinAttr
 		};
 	}
-	console.log('withinClauses', withinClauses)
 	return [withinClauses, withinClausesNoWithinWidget];
 }
-

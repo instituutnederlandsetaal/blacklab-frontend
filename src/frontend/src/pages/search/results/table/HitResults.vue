@@ -146,21 +146,23 @@ export default Vue.extend({
 					// For every target field, create a row for the hit in that field.
 					this.targetFields.forEach(field => {
 						const hitForField = hit.otherFields[field.id];
-						this.transformSnippets?.(hitForField);
-						rows.push({
-							hit: hitForField,
-							doc,
-							context: snippetParts(hitForField, this.concordanceAnnotationId, this.textDirection, highlightColors),
-							href: this.getDocumentUrl(pid, field.id, hitForField.start), // link to the hit in the target field
-							annotatedField: field, // this is the hit in the target field.
-							isForeign: true,
+						if (hitForField) {
+							this.transformSnippets?.(hitForField);
+							rows.push({
+								hit: hitForField,
+								doc,
+								context: snippetParts(hitForField, this.concordanceAnnotationId, this.textDirection, highlightColors),
+								href: this.getDocumentUrl(pid, field.id, hitForField.start), // link to the hit in the target field
+								annotatedField: field, // this is the hit in the target field.
+								isForeign: true,
 
-							// Don't do glossing for hits in parallel target fields.
-							gloss_fields: [],
-							hit_first_word_id: '',
-							hit_id: '',
-							hit_last_word_id: ''
-						});
+								// Don't do glossing for hits in parallel target fields.
+								gloss_fields: [],
+								hit_first_word_id: '',
+								hit_id: '',
+								hit_last_word_id: ''
+							});
+						}
 					});
 				}
 
