@@ -60,6 +60,9 @@ export const frontendPaths = {
 	indexInfo: () => `${INDEX_ID}/api/info`,
 	documentContents: (pid: string) => `${INDEX_ID}/docs/${pid}/contents`,
 	documentMetadata: (pid: string) => `${INDEX_ID}/docs/${pid}`,
+
+	// For "Analyse" function. AnalyseType includes topic, colloction, cooccur, wordlist, keyword and network.
+	analyse: (indexId: string, analyseType: string) => `${indexId}/analyse/${analyseType}`,
 }
 
 /** Contains url mappings for different requests to blacklab-server */
@@ -396,6 +399,15 @@ export const frontend = {
 
 	getDocumentMetadata: (pid: string) => endpoints.cf
 		.get<BLTypes.BLDocument>(frontendPaths.documentMetadata(pid)),
+
+	getAnalyse: (indexId: string, analyseType: string, params: BLTypes.CFAnalyseParameters, requestParameters?: AxiosRequestConfig) => {
+		const {token: cancelToken, cancel} = axios.CancelToken.source();
+		const request = endpoints.cf.getOrPost(frontendPaths.analyse(indexId, analyseType), params, { ...requestParameters, cancelToken }) as Promise<BLTypes.BLTableResults>;
+		return {
+			request,
+			cancel
+		};
+	},
 }
 
 export const glossPaths = {

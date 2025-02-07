@@ -28,6 +28,12 @@ import * as CorpusModule from '@/store/search/corpus';
 import * as PatternModule from '@/store/search/form/patterns';
 import * as FilterModule from '@/store/search/form/filters';
 import * as ExploreModule from '@/store/search/form/explore';
+import * as TopicModule from '@/store/search/form/analyse/topic';
+import * as ColloModule from '@/store/search/form/analyse/collocation';
+import * as CooccurModule from '@/store/search/form/analyse/cooccur';
+import * as WordlistModule from '@/store/search/form/analyse/wordlist';
+import * as KeywordModule from '@/store/search/form/analyse/keyword';
+import * as NetworkModule from '@/store/search/form/analyse/network';
 import * as GapModule from '@/store/search/form/gap';
 import { getFilterSummary, getFilterString } from '@/components/filters/filterValueFunctions';
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
@@ -57,6 +63,23 @@ type ModuleRootStateExplore<K extends keyof ExploreModule.ModuleRootState> = {
 	gap: GapModule.ModuleRootState;
 };
 
+// Analyse Form
+type ModuleRootStateAnalyse = {
+	form:'analyse';
+	subForm: 'topic'|'collocation'|'cooccur'|'wordlist'|'keyword'|'network';
+	formState: {
+		'topic': TopicModule.ModuleRootState,
+		'collocation': ColloModule.ModuleRootState,
+		'cooccur': CooccurModule.ModuleRootState,
+		'wordlist': WordlistModule.ModuleRootState,
+		'keyword': KeywordModule.ModuleRootState,
+		'network': NetworkModule.ModuleRootState,
+	}
+	filters: FilterModule.ModuleRootState;
+	shared: PatternModule.ModuleRootState['shared'];
+	gap: GapModule.ModuleRootState;
+};
+
 type ModuleRootStateNone = {
 	form: null;
 	subForm: null;
@@ -66,7 +89,7 @@ type ModuleRootStateNone = {
 	gap: null;
 };
 
-type ModuleRootState = ModuleRootStateNone|ModuleRootStateSearch<keyof PatternModule.ModuleRootState>|ModuleRootStateExplore<keyof ExploreModule.ModuleRootState>;
+type ModuleRootState = ModuleRootStateNone|ModuleRootStateSearch<keyof PatternModule.ModuleRootState>|ModuleRootStateExplore<keyof ExploreModule.ModuleRootState>|ModuleRootStateAnalyse
 
 const initialState: ModuleRootStateNone = {
 	form: null,

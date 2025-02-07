@@ -123,6 +123,100 @@
 			"frequencyType": "Frequentielijsttype"
 		}
 	},
+	"analyse": {
+		"heading": "Analyse...",
+		"topic": {
+			"heading": "LDA Thema Analyse",
+			"stopwords": "Stopwoorden",
+			"topicNumber": "Aantal Thema's",
+			"showNumber": "Aantal Woorden om te tonen",
+			"iteration": "Aantal Iteraties",
+			"isCase": "Morfologische Variatie",
+			"stopwordsHelp": "Stopwoorden moeten gescheiden worden door het 'pipe'-symbool '|', bijvoorbeeld: abandon|corpus. Upload een txt-bestand met één woord per regel.",
+			"topicNumberHelp": "Hier krijgt u n thema's uit het clusteren, waarbij n het ingevoerde aantal is.",
+			"showNumberHelp": "Hier toont elk thema de top n woorden, waarbij n het ingevoerde aantal is.",
+			"isCaseHelp": "Als morfologische variatie wordt meegenomen, wordt de analyse op woordniveau uitgevoerd; anders wordt de analyse gebaseerd op lemmata.",
+			"isCaseConsider": "Morfologische Variatie meenemen",
+			"stopwordsNote": "Scheid de stopwoorden a.u.b. met '|'"
+		},
+		"collocation": {
+			"heading": "Collocatie",
+			"stopwords": "Stopwoorden",
+			"showNumber": "Aantal Woorden om te tonen",
+			"isCase": "Morfologische Variatie",
+			"stopwordsHelp": "Stopwoorden moeten gescheiden worden door het 'pipe'-symbool '|', bijvoorbeeld: abandon|corpus. Upload een txt-bestand met één woord per regel.",
+			"isCaseHelp": "Als morfologische variatie wordt meegenomen, wordt de analyse op woordniveau uitgevoerd; anders wordt de analyse gebaseerd op lemmata.",
+			"isCaseConsider": "Morfologische Variatie meenemen",
+			"stopwordsNote": "*Scheid de stopwoorden a.u.b. met '|'",
+			"aroundNumber": "Venstergrootte",
+			"testAlg": "Statistische Significantietest",
+			"bayesAlg": "Bayesiaanse Factor Algoritme",
+			"effectSizeAlg": "Effectgrootte Algoritme",
+			"keywords": "Sleutelwoorden"
+		},
+		"cooccur": {
+			"heading": "Co-occurrence",
+			"stopwords": "Stopwoorden",
+			"showNumber": "Aantal Woorden om te tonen",
+			"isCase": "Morfologische Variatie",
+			"stopwordsHelp": "Stopwoorden moeten gescheiden worden door het 'pipe'-symbool '|', bijvoorbeeld: abandon|corpus. Upload een txt-bestand met één woord per regel.",
+			"isCaseHelp": "Als morfologische variatie wordt meegenomen, wordt de analyse op woordniveau uitgevoerd; anders wordt de analyse gebaseerd op lemmata.",
+			"isCaseConsider": "Morfologische Variatie meenemen",
+			"stopwordsNote": "*Scheid de stopwoorden a.u.b. met '|'",
+			"keywords": "Sleutelwoorden",
+			"edgeAlg": "Algoritme voor randgewicht",
+			"edgeAlgHelp": "Momenteel berekend op basis van documenten."
+		},		
+		"wordlist": {
+			"heading": "Frequentie-woordenlijst",
+			"stopwords": "Stopwoorden",
+			"isCase": "Morfologische Variatie",
+			"stopwordsHelp": "Stopwoorden moeten gescheiden worden door het 'pipe'-symbool '|', bijvoorbeeld: abandon|corpus. Upload een txt-bestand met één woord per regel.",
+			"isCaseHelp": "Als morfologische variatie wordt meegenomen, wordt de analyse op woordniveau uitgevoerd; anders wordt de analyse gebaseerd op lemmata.",
+			"isCaseConsider": "Morfologische Variatie meenemen",
+			"stopwordsNote": "*Scheid de stopwoorden a.u.b. met '|'",			
+			"dispersionAlg": "Verspreidingsalgoritme",
+			"adjustedAlg": "Aangepast Frequentie Algoritme",
+			"showNumber": "Aantal Frequentie-woorden om te tonen",
+			"partN": "Deel",
+			"partNHelp": "Alle tokens in het corpus worden gelijk verdeeld in n delen"
+		},
+		"keyword": {
+			"heading": "Sleutelwoord",
+			"stopwords": "Stopwoorden",
+			"isCase": "Morfologische Variatie",
+			"stopwordsHelp": "Stopwoorden moeten gescheiden worden door het 'pipe'-symbool '|', bijvoorbeeld: abandon|corpus. Upload een txt-bestand met één woord per regel.",
+			"isCaseHelp": "Als morfologische variatie wordt meegenomen, wordt de analyse op woordniveau uitgevoerd; anders wordt de analyse gebaseerd op lemmata.",
+			"isCaseConsider": "Morfologische Variatie meenemen",
+			"stopwordsNote": "*Scheid de stopwoorden a.u.b. met '|'",
+			"alg": "Sleutelwoord Algoritme",
+			"dampingFactor": "Dempingsfactor",
+			"maxIter": "Maximum Aantal Iteraties",
+			"minDiff": "Minimale Convergentieverschil",
+			"windowSize": "Co-occurrence Venstergrootte",
+			"showNumber": "Aantal Frequentie-woorden om te tonen"
+		},
+		"network": {
+			"heading": "Semantisch Netwerk",
+			"stopwords": "Stopwoorden",
+			"isCase": "Morfologische Variatie",
+			"stopwordsHelp": "Stopwoorden moeten gescheiden worden door het 'pipe'-symbool '|', bijvoorbeeld: abandon|corpus. Upload een txt-bestand met één woord per regel.",
+			"isCaseHelp": "Als morfologische variatie wordt meegenomen, wordt de analyse op woordniveau uitgevoerd; anders wordt de analyse gebaseerd op lemmata.",
+			"isCaseConsider": "Morfologische Variatie meenemen",
+			"stopwordsNote": "*Scheid de stopwoorden a.u.b. met '|'",
+			"showNumber": "Aantal Woorden om te tonen",
+			"scope": "Co-occurrence Bereik",
+			"edgeAlg": "Algoritme voor randgewicht",
+			"edgeAlgHelp": "Momenteel berekend op basis van documenten.",
+			"weightThreshold": "Drempel voor randgewicht",
+			"numCommunities": "Aantal Gemeenschappen",
+    		"numCommunitiesHelp": "Het algoritme voor gemeenschapsdetectie maakt gebruik van het Girvan-Newman algoritme."
+		},
+		"keywordInput":{
+			"inputMode": "Invoermodus",
+			"keywordCQL": "Huidige sleutelwoord CQL"
+		}		
+	},
 	"setting": {
 		"heading": "Globale instellingen",
 		"resultsPerPage": "Resultaten per pagina",
@@ -139,6 +233,7 @@
 	"queryForm": {
 		"search": "Zoeken",
 		"explore": "Verkennen",
+		"analyse": "Analyse",
 		"reset": "Wissen",
 		"history": "Geschiedenis"
 	},
@@ -331,6 +426,41 @@
 		},
 		"sort": {
 			"sortBy": "Sorteer op…"
+		},
+		"relationalGraph": {
+			"heading": "Relatiegraaf"
+		},
+		"wordCloud": {
+			"heading": "Woordwolk"
+		},
+		"tableResults": {
+			"heading": "Queryresultaat",
+			"excel": "Excel exporteren",
+			"key": "Rijnummer",
+			"topic": "Onderwerp",
+			"wordWeight": "Woordgewicht",
+			"topicWeight": "Onderwerp gewicht",
+			"word": "Woord",
+			"absoluteFreq": "Absolute frequentie",
+			"relativeFreq": "Relatieve frequentie",
+			"source": "Bron",
+			"keyword": "Sleutelwoord",
+			"collocation": "Collocatie",
+			"testAlg_p": "Statistische significantie p-waarde",
+			"testAlg_stat": "Statistische significantie statistiek",
+			"bayesAlg": "Bayesiaans",
+			"effectSizeAlg": "Effectgrootte",
+			"cooccurWord": "Co-occurrerend woord",
+			"edgeWeight": "Randgewicht",
+			"weight": "Gewicht",
+			"dispersion": "Dispersie",
+			"adjusted": "Aangepaste frequentie",
+			"word1": "Woord 1",
+			"absoluteFreq1": "Absolute frequentie 1",
+			"relativeFreq1": "Relatieve frequentie 1",
+			"word2": "Woord 2",
+			"absoluteFreq2": "Absolute frequentie 2",
+			"relativeFreq2": "Relatieve frequentie 2"
 		}
 	},
 	"history": {

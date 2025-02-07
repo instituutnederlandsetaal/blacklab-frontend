@@ -122,6 +122,100 @@
 			"frequencyType": "Frequency list type"
 		}
 	},
+	"analyse": {
+		"heading": "Analyse ...",
+		"topic": {
+			"heading": "LDA Topic Analyze",
+			"stopwords": "Stopwords",
+			"topicNumber": "Number of Topics",
+			"showNumber": "Number of Words to Show",
+			"iteration": "Number of Iterations",
+			"isCase": "Morphological Variation",
+			"stopwordsHelp": "Stopwords should be separated by 'pipe' symbol '|', e.g., abandon|corpus. Upload txt file with one word per line.",
+			"topicNumberHelp": "Here you get n topics from clustering, where n is the number you input.",
+			"showNumberHelp": "Here each topic shows the top n words, where n is the number you input.",
+			"isCaseHelp": "If morphological variation is considered, analysis is conducted on a word-level basis; otherwise, analysis is based on lemmas.",
+			"isCaseConsider": "Consider Morphological Variation",
+			"stopwordsNote": "Please separate the stopwords with '|'"
+		},
+		"collocation": {
+			"heading": "Collocation",
+			"stopwords": "Stopwords",
+			"showNumber": "Number of Words to Show",
+			"isCase": "Morphological Variation",
+			"stopwordsHelp": "Stopwords should be separated by 'pipe' symbol '|', e.g., abandon|corpus. Upload txt file with one word per line.",
+			"isCaseHelp": "If morphological variation is considered, analysis is conducted on a word-level basis; otherwise, analysis is based on lemmas.",
+			"isCaseConsider": "Consider Morphological Variation",
+			"stopwordsNote": "*Please separate the stopwords with '|'",
+			"aroundNumber": "Window Size",
+			"testAlg": "Statistical Significance Test",
+			"bayesAlg": "Bayesian Factor Algorithm",
+			"effectSizeAlg": "Effect Size Algorithm",
+			"keywords": "Keywords"
+		},
+		"cooccur": {
+			"heading": "Cooccur",
+			"stopwords": "Stopwords",
+			"showNumber": "Number of Words to Show",
+			"isCase": "Morphological Variation",
+			"stopwordsHelp": "Stopwords should be separated by 'pipe' symbol '|', e.g., abandon|corpus. Upload txt file with one word per line.",
+			"isCaseHelp": "If morphological variation is considered, analysis is conducted on a word-level basis; otherwise, analysis is based on lemmas.",
+			"isCaseConsider": "Consider Morphological Variation",
+			"stopwordsNote": "*Please separate the stopwords with '|'",
+			"keywords": "Keywords",
+			"edgeAlg": "Edge Weight Algorithm",
+			"edgeAlgHelp": "Currently calculated on a document basis."
+		},		
+		"wordlist": {
+			"heading": "High-frequency Wordlist",
+			"stopwords": "Stopwords",
+			"isCase": "Morphological Variation",
+			"stopwordsHelp": "Stopwords should be separated by 'pipe' symbol '|', e.g., abandon|corpus. Upload txt file with one word per line.",
+			"isCaseHelp": "If morphological variation is considered, analysis is conducted on a word-level basis; otherwise, analysis is based on lemmas.",
+			"isCaseConsider": "Consider Morphological Variation",
+			"stopwordsNote": "*Please separate the stopwords with '|'",			
+			"dispersionAlg": "Dispersion Algorithm",
+			"adjustedAlg": "Adjusted Frequency Algorithm",
+			"showNumber": "Number of High-frequency Words to Show",
+			"partN": "Chunk",
+			"partNHelp": "all tokens in the corpus are equally divided into n parts"
+		},
+		"keyword": {
+			"heading": "Keyword",
+			"stopwords": "Stopwords",
+			"isCase": "Morphological Variation",
+			"stopwordsHelp": "Stopwords should be separated by 'pipe' symbol '|', e.g., abandon|corpus. Upload txt file with one word per line.",
+			"isCaseHelp": "If morphological variation is considered, analysis is conducted on a word-level basis; otherwise, analysis is based on lemmas.",
+			"isCaseConsider": "Consider Morphological Variation",
+			"stopwordsNote": "*Please separate the stopwords with '|'",
+			"alg": "Keyword Algorithm",
+			"dampingFactor": "Damping Factor",
+			"maxIter": "Maximum Number of Iterations",
+			"minDiff": "Minimum Convergence Difference",
+			"windowSize": "Co-occurrence Window Size",
+			"showNumber": "Number of High-frequency Words to Show"
+		},
+		"network": {
+			"heading": "Semantic Network",
+			"stopwords": "Stopwords",
+			"isCase": "Morphological Variation",
+			"stopwordsHelp": "Stopwords should be separated by 'pipe' symbol '|', e.g., abandon|corpus. Upload txt file with one word per line.",
+			"isCaseHelp": "If morphological variation is considered, analysis is conducted on a word-level basis; otherwise, analysis is based on lemmas.",
+			"isCaseConsider": "Consider Morphological Variation",
+			"stopwordsNote": "*Please separate the stopwords with '|'",
+			"showNumber": "Number of Words to Show",
+			"scope": "Co-occurrence Scope",
+			"edgeAlg": "Edge Weight Algorithm",
+			"edgeAlgHelp": "Currently calculated on a document basis.",
+			"weightThreshold": "Threshold of Edge Weight",
+			"numCommunities": "Number of Communities",
+			"numCommunitiesHelp": "The community detection algorithm uses the Girvan-Newman algorithm."
+		},
+		"keywordInput":{
+			"inputMode": "Input Mode",
+			"keywordCQL": "Current keyword CQL"
+		}		
+	},
 	"setting": {
 		"heading": "Global settings",
 		"resultsPerPage": "Results per page",
@@ -138,6 +232,7 @@
 	"queryForm": {
 		"search": "Search",
 		"explore": "Explore",
+		"analyse": "Analyse",
 		"reset": "Reset",
 		"history": "History"
 	},
@@ -328,6 +423,41 @@
 		},
 		"sort": {
 			"sortBy": "Sort by…"
+		},
+		"relationalGraph": {
+			"heading": "Relational Graph"
+		},
+		"wordCloud": {
+			"heading": "Wordcloud"
+		},
+		"tableResults": {
+			"heading": "Query Result",
+			"excel": "Export Excel",
+			"key": "Serial Number",
+			"topic": "Topic",
+			"wordWeight": "Word Weight",
+			"topicWeight": "Topic Weight",
+			"word": "Word",
+			"absoluteFreq": "Absolute Frequency",
+			"relativeFreq": "Relative Frequency",
+			"source": "Data Source",
+			"keyword": "Keyword",
+			"collocation": "Collocation Word",
+			"testAlg_p": "Statistical Significance p-value",
+			"testAlg_stat": "Statistical Significance Statistic",
+			"bayesAlg": "Bayesian",
+			"effectSizeAlg": "Effect Size",
+			"cooccurWord": "Co-occurring Word",
+			"edgeWeight": "Edge Weight",
+			"weight": "Weight",
+			"dispersion": "Dispersion",
+			"adjusted": "Adjusted Frequency",
+			"word1": "Word 1",
+			"absoluteFreq1": "Absolute Frequency 1",
+			"relativeFreq1": "Relative Frequency 1",
+			"word2": "Word 2",
+			"absoluteFreq2": "Absolute Frequency 2",
+			"relativeFreq2": "Relative Frequency 2"
 		}
 	},
 	"history": {

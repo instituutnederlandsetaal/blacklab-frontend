@@ -14,13 +14,7 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -34,6 +28,8 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.xml.transform.TransformerException;
 
+import com.alibaba.fastjson.JSONObject;
+import nl.inl.corpuswebsite.utils.analyseUtils.Analyse;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
@@ -280,6 +276,31 @@ public class MainServlet extends HttpServlet {
                 response.setHeader("location", this.config.get(Keys.CF_URL_ON_CLIENT) + "/" + part1 + "/search/");
                 return;
             } else {
+                // The "analyse" function, including topic, collocation, cooccur, wordlist, keyword, network. eg. /corpus-frontend/analyse/topic/...
+                String analType = pathParts.get(0);
+                if(Objects.equals(analType, "analyse"))
+                {
+                    Map<String, Object> params = new HashMap<>();
+                    Enumeration<String> parameterNames = request.getParameterNames();
+                    while (parameterNames.hasMoreElements()) {
+                        String paramName = parameterNames.nextElement();
+                        String paramValue = request.getParameter(paramName);
+                        params.put(paramName, paramValue);
+                    }
+                    JSONObject paramJson = new JSONObject(params);
+                    try {
+                        JSONObject result = Analyse.processAnalyse(pathParts.get(1), paramJson, config.get(Keys.BLS_URL_ON_SERVER), part1);
+                        response.setContentType("application/json");
+                        response.setCharacterEncoding("UTF-8");
+                        response.getWriter().write(result.toString());
+                        return ;
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
                 // Didn't match a page, and there's more parts. This is a corpus, the second part is the page. E.g. /corpus-frontend/corpus/search
                 corpus = part1;
                 String pageOrCorpus = pathParts.remove(0);

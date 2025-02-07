@@ -3,6 +3,7 @@
 		<ul class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
 			<li :class="{'active': activeForm==='search'}" @click.prevent="activeForm='search'"><a href="#form-search">{{$t('queryForm.search')}}</a></li>
 			<li :class="{'active': activeForm==='explore'}" @click.prevent="activeForm='explore'"><a href="#form-explore">{{$t('queryForm.explore')}}</a></li>
+			<li :class="{'active': activeForm==='analyse'}" @click.prevent="activeForm='analyse'"><a href="#form-analyse">{{$t('queryForm.analyse')}}</a></li>
 		</ul>
 		<form class="tab-content cf-panel-tab-body cf-panel-lg clearfix" style="padding-top: 0;" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
 			<QueryFormSearch  id="form-search" v-show="activeForm === 'search'"
@@ -12,6 +13,11 @@
 				}"
 			/>
 			<QueryFormExplore id="form-explore" v-show="activeForm === 'explore'"
+				:class="{
+					'col-xs-12': true
+				}"
+			/>
+			<QueryFormAnalyse id="form-analyse" v-show="activeForm === 'analyse'"
 				:class="{
 					'col-xs-12': true
 				}"
@@ -68,6 +74,7 @@ import History from '@/pages/search/History.vue';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import {ApiError} from '@/types/apptypes';
+import QueryFormAnalyse from './QueryFormAnalyse.vue';
 
 export default Vue.extend({
 	components: {
@@ -75,6 +82,7 @@ export default Vue.extend({
 		QueryFormSearch,
 		QueryFormFilters,
 		QueryFormSettings,
+		QueryFormAnalyse,
 		History
 	},
 	data: () => ({

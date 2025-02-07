@@ -19,6 +19,13 @@ import * as ExploreModule from '@/store/search/form/explore';
 import * as GapModule from '@/store/search/form/gap';
 import * as GlossModule from '@/store/search/form/glossStore';
 import * as ConceptModule from '@/store/search/form/conceptStore';
+// Analyse Form
+import * as TopicModule from '@/store/search/form/analyse/topic';
+import * as ColloModule from '@/store/search/form/analyse/collocation';
+import * as CooccurModule from '@/store/search/form/analyse/cooccur';
+import * as WordlistModule from '@/store/search/form/analyse/wordlist';
+import * as KeywordModule from '@/store/search/form/analyse/keyword';
+import * as NetworkModule from '@/store/search/form/analyse/network';
 
 // Results
 import * as ViewModule from '@/store/search/results/views';
@@ -57,7 +64,7 @@ const get = {
 
 	/** Whether the filters section should be active (as it isn't active when in specific search modes (e.g. simple or explore)) */
 	filtersActive: b.read(state => {
-		return !(InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'simple');
+		return !(InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'simple') && InterfaceModule.get.form() !== 'analyse';
 	}, 'filtersActive'),
 	gapFillingActive: b.read(state => {
 		return (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'expert');
@@ -115,7 +122,106 @@ const get = {
 			context: state.global.context != null ? state.global.context : undefined,
 			adjusthits: 'yes'
 		};
-	}, 'blacklabParameters')
+	}, 'blacklabParameters'),
+
+	topicParameters: b.read((state): BLTypes.CFTopicParameters|undefined => {
+		const activeView = get.viewedResultsSettings();
+		if (activeView == null) {
+			return undefined;
+		}
+
+		return {
+			stopwords: TopicModule.get.stopwords.value(),
+			topicNumber: TopicModule.get.topicNumber.size(),
+			showNumber: TopicModule.get.showNumber.size(),
+			iteration: TopicModule.get.iteration.size(),
+			isCase: TopicModule.get.isCase.value(),
+		};
+	}, 'topicParameters'),
+
+	colloParameters: b.read((state): BLTypes.CFColloParameters|undefined => {
+		const activeView = get.viewedResultsSettings();
+		if (activeView == null) {
+			return undefined;
+		}
+
+		return {
+			keywords: ColloModule.get.keywords.value(),
+			stopwords: ColloModule.get.stopwords.value(),
+			showNumber: ColloModule.get.showNumber.size(),
+			aroundNumber: ColloModule.get.aroundNumber.size(),
+			isCase: ColloModule.get.isCase.value(),
+			testAlg: ColloModule.get.testAlg.value(),
+			bayesAlg: ColloModule.get.bayesAlg.value(),
+			effectSizeAlg: ColloModule.get.effectSizeAlg.value(),
+		};
+	}, 'colloParameters'),
+
+	cooccurParameters: b.read((state): BLTypes.CFCooccurParameters|undefined => {
+		const activeView = get.viewedResultsSettings();
+		if (activeView == null) {
+			return undefined;
+		}
+		
+		return {
+			keywords: CooccurModule.get.keywords.value(),
+			stopwords: CooccurModule.get.stopwords.value(),
+			showNumber: CooccurModule.get.showNumber.size(),
+			isCase: CooccurModule.get.isCase.value(),
+			edgeAlg: CooccurModule.get.edgeAlg.value(),
+		};
+	}, 'cooccurParameters'),
+
+	wordlistParameters: b.read((state): BLTypes.CFWordlistParameters|undefined => {
+		const activeView = get.viewedResultsSettings();
+		if (activeView == null) {
+			return undefined;
+		}
+
+		return {
+			stopwords: WordlistModule.get.stopwords.value(),
+			showNumber:WordlistModule.get.showNumber.size(),
+			isCase: WordlistModule.get.isCase.value(),
+			dispersionAlg: WordlistModule.get.dispersionAlg.value(),
+			adjustedAlg: WordlistModule.get.adjustedAlg.value(),
+			partN: WordlistModule.get.partN.size()
+		};
+	}, 'wordlistParameters'),
+
+	keywordParameters: b.read((state): BLTypes.CFKeywordParameters|undefined => {
+		const activeView = get.viewedResultsSettings();
+		if (activeView == null) {
+			return undefined;
+		}
+
+		return {
+			stopwords: KeywordModule.get.stopwords.value(),
+			showNumber: KeywordModule.get.showNumber.size(),
+			isCase: KeywordModule.get.isCase.value(),
+			keywordAlg: KeywordModule.get.keywordAlg.value(),
+			dampingFactor: KeywordModule.get.dampingFactor.size(),
+			maxIter: KeywordModule.get.maxIter.size(),
+			minDiff: KeywordModule.get.minDiff.size(),
+			windowSize: KeywordModule.get.windowSize.size(),
+		};
+	}, 'keywordParameters'),
+
+	networkParameters: b.read((state): BLTypes.CFNetworkParameters|undefined => {
+		const activeView = get.viewedResultsSettings();
+		if (activeView == null) {
+			return undefined;
+		}
+		
+		return {
+			stopwords: NetworkModule.get.stopwords.value(),
+			showNumber: NetworkModule.get.showNumber.size(),
+			scope: NetworkModule.get.scope.value(),
+			isCase: NetworkModule.get.isCase.value(),
+			edgeAlg: NetworkModule.get.edgeAlg.value(),
+			numCommunities: NetworkModule.get.numCommunities.size(),
+			weightThreshold: NetworkModule.get.weightThreshold.size(),
+		};
+	}, 'networkParameters'),
 };
 
 const privateActions = {
@@ -220,6 +326,27 @@ const actions = {
 				};
 				break;
 			}
+			case 'analyse': { // activeForm === 'analyse'
+				const analyseMode = InterfaceModule.get.analyseMode();
+				submittedFormState = {
+					form: activeForm,
+					subForm: analyseMode,
+					// Copy so we don't alias the objects, we should "snapshot" the current form
+					// Also cast back into correct type after parsing/stringifying so we don't lose type-safety (parse returns any)
+					filters: get.filtersActive() ? cloneDeep(FilterModule.get.activeFiltersMap()) as ReturnType<typeof FilterModule['get']['activeFiltersMap']> : {},
+					formState: {
+						"topic": cloneDeep(TopicModule.getState()) as TopicModule.ModuleRootState,
+						"collocation": cloneDeep(ColloModule.getState()) as ColloModule.ModuleRootState,
+						"cooccur": cloneDeep(CooccurModule.getState()) as CooccurModule.ModuleRootState,
+						"wordlist": cloneDeep(WordlistModule.getState()) as WordlistModule.ModuleRootState,
+						"keyword": cloneDeep(KeywordModule.getState()) as KeywordModule.ModuleRootState,
+						"network": cloneDeep(NetworkModule.getState()) as NetworkModule.ModuleRootState,
+					},
+					shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
+					gap: get.gapFillingActive() ? GapModule.getState() : GapModule.defaults,
+				};
+				break;
+			}
 			default: {
 				throw new Error('Form ' + activeForm + ' cannot generate blacklab query; not implemented!');
 			}
@@ -265,6 +392,12 @@ const actions = {
 		const sharedBatchState: Omit<HistoryModule.HistoryEntry, 'patterns'> = {
 			view: ViewModule.getOrCreateModule(InterfaceModule.getState().viewedResults!).getState(),
 			explore: ExploreModule.defaults,
+			topic: TopicModule.defaults,
+			collocation: ColloModule.defaults,
+			cooccur: CooccurModule.defaults,
+			wordlist: WordlistModule.defaults,
+			keyword: KeywordModule.defaults,
+			network: NetworkModule.defaults,
 			global: GlobalResultsModule.getState(),
 			interface: InterfaceModule.getState(),
 			filters: get.filtersActive() ? FilterModule.get.activeFiltersMap() : {},
@@ -329,6 +462,12 @@ const actions = {
 		FormManager.actions.reset();
 		ViewModule.actions.resetAllViews({resetGroupBy: true});
 		QueryModule.actions.reset();
+		TopicModule.actions.reset();
+		ColloModule.actions.reset();
+		CooccurModule.actions.reset();
+		WordlistModule.actions.reset();
+		KeywordModule.actions.reset();
+		NetworkModule.actions.reset();
 	}, 'resetRoot'),
 
 	/**

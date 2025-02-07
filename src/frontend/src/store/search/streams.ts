@@ -11,6 +11,12 @@ import * as HistoryStore from '@/store/search/history';
 import * as PatternStore from '@/store/search/form/patterns';
 import * as ExploreStore from '@/store/search/form/explore';
 import * as InterfaceStore from '@/store/search/form/interface';
+import * as TopicStore from '@/store/search/form/analyse/topic';
+import * as ColloStore from '@/store/search/form/analyse/collocation';
+import * as CooccurStore from '@/store/search/form/analyse/cooccur';
+import * as WordlistStore from '@/store/search/form/analyse/wordlist';
+import * as KeywordStore from '@/store/search/form/analyse/keyword';
+import * as NetworkStore from '@/store/search/form/analyse/network';
 import * as FilterStore from '@/store/search/form/filters';
 import * as GapStore from '@/store/search/form/gap';
 import * as QueryStore from '@/store/search/query';
@@ -269,10 +275,29 @@ urlInputParameters$.pipe(
 				[query.subForm]: query.formState,
 				shared: query.shared,
 			} : PatternStore.defaults,
+			topic: query.form === 'analyse' && query.subForm === 'topic' ? { 
+				...TopicStore.getState(),
+			} : TopicStore.defaults, 
+			collocation: query.form === 'analyse' && query.subForm === 'collocation' ? { 
+				...ColloStore.getState(),
+			} : ColloStore.defaults,
+			cooccur:query.form === 'analyse' && query.subForm === 'cooccur' ? { 
+				...CooccurStore.getState(),
+			} : CooccurStore.defaults,
+			wordlist: query.form === 'analyse' && query.subForm === 'wordlist' ? {
+				...WordlistStore.getState(),
+			} : WordlistStore.defaults,
+			keyword: query.form === 'analyse' && query.subForm === 'keyword' ? {
+				...KeywordStore.getState(),
+			} : KeywordStore.defaults,
+			network: query.form === 'analyse' && query.subForm === 'network' ? {
+				...NetworkStore.getState(),
+			} : NetworkStore.defaults,
 			interface: {
 				form: query.form ? query.form : 'search',
 				exploreMode: query.form === 'explore' ? query.subForm : 'ngram',
 				patternMode: query.form === 'search' ? query.subForm : 'simple',
+				analyseMode: query.form === 'analyse' ? query.subForm : 'topic',
 				viewedResults: v.state.interface.viewedResults,
 			},
 			gap: query.gap || GapStore.defaults,

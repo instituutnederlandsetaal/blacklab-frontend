@@ -23,6 +23,13 @@ import * as InterfaceModule from '@/store/search/form/interface';
 import * as PatternModule from '@/store/search/form/patterns';
 import * as ExploreModule from '@/store/search/form/explore';
 import * as GapModule from '@/store/search/form/gap';
+// Analyse Form
+import * as TopicModule from '@/store/search/form/analyse/topic';
+import * as ColloModule from '@/store/search/form/analyse/collocation';
+import * as CooccurModule from '@/store/search/form/analyse/cooccur';
+import * as WordlistModule from '@/store/search/form/analyse/wordlist';
+import * as KeywordModule from '@/store/search/form/analyse/keyword';
+import * as NetworkModule from '@/store/search/form/analyse/network';
 
 // Results
 import * as ViewModule from '@/store/search/results/views';
@@ -60,6 +67,12 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			interface: this.interface,
 			patterns: this.patterns,
 			gap: this.gap,
+			topic: TopicModule.defaults,
+			collocation: ColloModule.defaults,
+			cooccur: CooccurModule.defaults,
+			wordlist: WordlistModule.defaults,
+			keyword: KeywordModule.defaults,
+			network: NetworkModule.defaults,
 
 			// settings for the active results view
 			view: this.view(this.interface.viewedResults),

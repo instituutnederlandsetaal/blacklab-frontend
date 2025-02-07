@@ -54,6 +54,60 @@ export type BLSearchParameters = {
 	adjusthits?: 'yes';
 };
 
+/** Analyse query parameters. */
+export type CFTopicParameters = {
+	stopwords?: string;
+	topicNumber?: number;
+	showNumber?: number;
+	iteration?: number;
+	isCase?: boolean;
+};
+export type CFColloParameters = {
+	keywords?: string;
+	stopwords?: string;
+	showNumber?: number;
+	aroundNumber?: number;
+	isCase?: boolean;
+	testAlg?: string;
+	bayesAlg?: string;
+	effectSizeAlg?: string;
+};
+export type CFCooccurParameters = {
+	keywords?: string;
+	stopwords?: string;
+	showNumber?: number;
+	isCase?: boolean;
+	edgeAlg?: string;
+};
+export type CFWordlistParameters = {
+	stopwords?: string;
+	showNumber?: number;
+	isCase?: boolean;
+	dispersionAlg?: string;
+	adjustedAlg?: string;	
+	partN?: number;
+};
+export type CFKeywordParameters = {
+	stopwords?: string;
+	showNumber?: number;
+	isCase?: boolean;
+	keywordAlg?: string;
+	dampingFactor?: number;
+	maxIter?: number;
+	minDiff?: number;
+	windowSize?: number;
+};
+export type CFNetworkParameters = {
+	stopwords?: string;
+	showNumber?: number;
+	scope?: string;
+	isCase?: boolean;
+	edgeAlg?: string;
+	weightThreshold?: number;
+	numCommunities?: number;
+};
+export type CFAnalyseParameters = CFTopicParameters|CFColloParameters|CFCooccurParameters|CFWordlistParameters|CFKeywordParameters|CFNetworkParameters 
+
 // --------------
 // Base responses
 // --------------
@@ -645,7 +699,21 @@ export interface BLHitResults {
 	summary: BLSearchSummary & BLSearchSummaryTotalsHits;
 }
 
-export type BLSearchResult = BLHitResults|BLDocResults|BLHitGroupResults|BLDocGroupResults;
+/** Used in BLTableResults, which used in "Analyse" function. */
+export type TableColumns = {
+    prop: string;
+    label: string;
+}
+
+/** used in "Analyse" function. */
+export interface BLTableResults {
+	data: any;
+    columns: TableColumns[]; 
+	points: any; //Points only used in "Network" function.
+	summary: any;
+}
+
+export type BLSearchResult = BLHitResults|BLDocResults|BLHitGroupResults|BLDocGroupResults|BLTableResults;
 
 export const isHitResults = (d: any): d is BLHitResults => !!(d && d.docInfos && d.hits);
 export const isDocResults = (d: any): d is BLDocResults => !!(d && d.docs);
@@ -655,3 +723,4 @@ export const isHitGroupsOrResults = (d: any): d is BLHitResults|BLHitGroupResult
 export const isDocGroupsOrResults = (d: any): d is BLDocResults|BLDocGroupResults => isDocGroups(d) || isDocResults(d);
 export const isGroups = (d: any): d is BLHitGroupResults|BLDocGroupResults => isHitGroups(d) || isDocGroups(d);
 export const isBLError = (e: any): e is BLError => !!(e && e.error && e.error.code && e.error.message);
+export const isTableResults = (d: any): d is BLTableResults => !!(d && d.columns);

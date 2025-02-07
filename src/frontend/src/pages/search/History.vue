@@ -25,6 +25,7 @@
 							minute: 'numeric'
 						})}}</small></td>
 						<td>{{
+							entry.interface.form === 'analyse' ? entry.interface.analyseMode:
 							entry.interface.viewedResults === 'hits' ? 'Hits' :
 							entry.interface.viewedResults === 'docs' ? 'Documents' :
 							entry.interface.viewedResults

@@ -122,6 +122,100 @@
 			"frequencyType": "频率列表类型"
 		}
 	},
+	"analyse": {
+		"heading": "分析",
+		"topic": {
+			"heading": "LDA主题分析",
+			"stopwords": "停用词",
+			"topicNumber": "话题数",
+			"showNumber": "显示词数",
+			"iteration": "迭代次数",
+			"isCase": "形态变化",
+			"stopwordsHelp": "停用词请以“|”分开，如abandon|corpus，上传txt文件，请一行一个单词",
+			"topicNumberHelp": "这里聚类得到n个话题，其中n为输入的数字",
+			"showNumberHelp": "这里每个话题显示前n个词，其中n为输入的数字",
+			"isCaseHelp": "若考虑形态变化，则以word为单位进行分析；否则以lemma进行分析",
+			"isCaseConsider": "考虑形态变化",
+			"stopwordsNote": "停用词请以'|'分开"
+		},
+		"collocation": {
+			"heading": "搭配",
+			"stopwords": "停用词",
+			"showNumber": "显示词数",
+			"isCase": "形态变化",
+			"stopwordsHelp": "停用词请以“|”分开，如abandon|corpus，上传txt文件，请一行一个单词",
+			"isCaseHelp": "若考虑形态变化，则以word为单位进行分析；否则以lemma进行分析",
+			"isCaseConsider": "考虑形态变化",
+			"stopwordsNote": "*停用词请以'|'分开",
+			"aroundNumber": "检索左右词数",
+			"testAlg": "统计显著性检验",
+			"bayesAlg": "贝叶斯因子算法",
+			"effectSizeAlg": "效应量算法",
+			"keywords": "关键词"
+		},
+		"cooccur": {
+			"heading": "共现",
+			"stopwords": "停用词",
+			"showNumber": "显示词数",
+			"isCase": "形态变化",
+			"stopwordsHelp": "停用词请以“|”分开，如abandon|corpus，上传txt文件，请一行一个单词",
+			"isCaseHelp": "若考虑形态变化，则以word为单位进行分析；否则以lemma进行分析",
+			"isCaseConsider": "考虑形态变化",
+			"stopwordsNote": "*停用词请以'|'分开",
+			"keywords": "关键词",
+			"edgeAlg": "边的权重算法",
+			"edgeAlgHelp": "目前以document为单位进行计算"
+		},
+		"wordlist": {
+			"heading": "高频词表",
+			"stopwords": "停用词",
+			"isCase": "形态变化",
+			"stopwordsHelp": "停用词请以“|”分开，如abandon|corpus，上传txt文件，请一行一个单词",
+			"isCaseHelp": "若考虑形态变化，则以word为单位进行分析；否则以lemma进行分析",
+			"isCaseConsider": "考虑形态变化",
+			"stopwordsNote": "*停用词请以'|'分开",
+			"dispersionAlg": "离散度算法",
+			"adjustedAlg": "调整频率算法",
+			"showNumber": "显示高频词数",
+			"partN": "分块数",
+			"partNHelp": "语料库中所有token被等分为n个部分"
+		},
+		"keyword": {
+			"heading": "关键词",
+			"stopwords": "停用词",
+			"isCase": "形态变化",
+			"stopwordsHelp": "停用词请以“|”分开，如abandon|corpus，上传txt文件，请一行一个单词",
+			"isCaseHelp": "若考虑形态变化，则以word为单位进行分析；否则以lemma进行分析",
+			"isCaseConsider": "考虑形态变化",
+			"stopwordsNote": "*停用词请以'|'分开",
+			"alg": "关键词算法",
+			"dampingFactor": "阻尼因子",
+			"maxIter": "最大迭代次数",
+			"minDiff": "最小收敛差值",
+			"windowSize": "共现窗口大小",
+			"showNumber": "显示高频词数"
+		},
+		"network": {
+			"heading": "语义网络",
+			"stopwords": "停用词",
+			"isCase": "形态变化",
+			"stopwordsHelp": "停用词请以“|”分开，如abandon|corpus，上传txt文件，请一行一个单词",
+			"isCaseHelp": "若考虑形态变化，则以word为单位进行分析；否则以lemma进行分析",
+			"isCaseConsider": "考虑形态变化",
+			"stopwordsNote": "*停用词请以'|'分开",
+			"showNumber": "显示词数",
+			"scope": "共现范围",
+			"edgeAlg": "边的权重算法",
+			"edgeAlgHelp": "目前以document为单位进行计算",
+			"weightThreshold": "边权重阈值",
+			"numCommunities": "社区数",
+			"numCommunitiesHelp": "社区发现算法使用Girvan-Newman算法"
+		},
+		"keywordInput":{
+			"inputMode": "输入模式",
+			"keywordCQL": "当前关键词CQL"
+		}
+	},
 	"setting": {
 		"heading": "全局设置",
 		"resultsPerPage": "每页结果数",
@@ -138,6 +232,7 @@
 	"queryForm": {
 		"search": "查询",
 		"explore": "探索",
+		"analyse": "分析",
 		"reset": "重置",
 		"history": "历史"
 	},
@@ -313,6 +408,41 @@
 		},
 		"sort": {
 			"sortBy": "分类依据"
+		},
+		"relationalGraph": {
+			"heading": "关系图"
+		},
+		"wordCloud": {
+			"heading": "词云"
+		},
+		"tableResults": {
+			"heading": "查询结果",
+			"excel": "导出为Excel",
+			"key": "序号",
+			"topic": "话题",
+			"wordWeight": "单词权重",
+			"topicWeight": "话题权重",
+			"word": "单词",
+			"absoluteFreq": "绝对频数",
+			"relativeFreq": "相对频数",
+			"source": "数据源",
+			"keyword": "关键词",
+			"collocation": "搭配词",
+			"testAlg_p": "统计显著性p值",
+			"testAlg_stat": "统计显著性统计量",
+			"bayesAlg": "贝叶斯",
+			"effectSizeAlg": "效应量",
+			"cooccurWord": "共现词",
+			"edgeWeight": "边权重",
+			"weight": "权重",
+			"dispersion": "离散度",
+			"adjusted": "调整频率",
+			"word1": "单词1",
+			"absoluteFreq1": "单词1绝对频数",
+			"relativeFreq1": "单词1相对频数",
+			"word2": "单词2",
+			"absoluteFreq2": "单词2绝对频数",
+			"relativeFreq2": "单词2相对频数"
 		}
 	},
 	"history": {

@@ -12,9 +12,10 @@ import {ModuleRootState as PatternModuleRootState} from '@/store/search/form/pat
 import {ModuleRootState as ExploreModuleRootState} from '@/store/search/form/explore';
 
 type ModuleRootState = {
-	form: 'search'|'explore';
+	form: 'search'|'explore'|'analyse';
 	patternMode: keyof PatternModuleRootState;
 	exploreMode: keyof ExploreModuleRootState;
+	analyseMode: 'topic'|'wordlist'|'keyword'|'collocation'|'cooccur'|'network';
 	viewedResults: null|string;
 };
 
@@ -22,6 +23,7 @@ const defaults: ModuleRootState = {
 	form: 'search',
 	patternMode: 'simple',
 	exploreMode: 'corpora',
+	analyseMode: 'topic',
 	viewedResults: null,
 };
 
@@ -33,6 +35,7 @@ const get = {
 	form: b.read(state => state.form, 'form'),
 	patternMode: b.read(state => state.patternMode, 'patternMode'),
 	exploreMode: b.read(state => state.exploreMode, 'exploreMode'),
+	analyseMode: b.read(state => state.analyseMode, 'analyseMode'),
 	viewedResults: b.read(state => state.viewedResults, 'viewedResults'),
 };
 
@@ -40,6 +43,7 @@ const actions = {
 	form: b.commit((state, payload: ModuleRootState['form']) => state.form = payload, 'form'),
 	patternMode: b.commit((state, payload: ModuleRootState['patternMode']) => state.patternMode = payload, 'patternMode'),
 	exploreMode: b.commit((state, payload: ModuleRootState['exploreMode']) => state.exploreMode = payload, 'exploreMode'),
+	analyseMode: b.commit((state, payload: ModuleRootState['analyseMode']) => state.analyseMode = payload, 'analyseMode'),
 	viewedResults: b.commit((state, payload: ModuleRootState['viewedResults']) => state.viewedResults = payload, 'viewedResults'),
 
 	reset: b.commit(state => Object.assign(state, cloneDeep(defaults)), 'reset'),

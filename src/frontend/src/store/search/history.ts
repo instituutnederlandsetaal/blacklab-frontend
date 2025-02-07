@@ -22,6 +22,13 @@ import * as ConceptModule from '@/store/search/form/conceptStore';
 import * as GlossModule from '@/store/search/form/glossStore';
 import * as UIModule from '@/store/search/ui';
 
+import * as TopicModule from '@/store/search/form/analyse/topic';
+import * as ColloModule from '@/store/search/form/analyse/collocation';
+import * as CooccurModule from '@/store/search/form/analyse/cooccur';
+import * as WordlistModule from '@/store/search/form/analyse/wordlist';
+import * as KeywordModule from '@/store/search/form/analyse/keyword';
+import * as NetworkModule from '@/store/search/form/analyse/network';
+
 import UrlStateParser from '@/store/search/util/url-state-parser';
 
 import { NormalizedIndex } from '@/types/apptypes';
@@ -49,6 +56,12 @@ type HistoryEntry = {
 	// (in order to reset inactive parts of the page)
 	patterns: PatternModule.ModuleRootState;
 	explore: ExploreModule.ModuleRootState;
+	topic: TopicModule.ModuleRootState;
+	collocation: ColloModule.ModuleRootState;
+	cooccur: CooccurModule.ModuleRootState;
+	wordlist: WordlistModule.ModuleRootState;
+	keyword: KeywordModule.ModuleRootState;
+	network: NetworkModule.ModuleRootState;
 
 	concepts: ConceptModule.HistoryState;
 	glosses: GlossModule.HistoryState;
@@ -104,7 +117,9 @@ const get = {
 		const fileName = `query_${date}.txt`;
 		const fileContents = stripIndent`
 			# Date: ${date}
-			# Results: ${entry.interface.form === 'search' ? entry.interface.viewedResults : entry.interface.exploreMode || '-'}
+			# Results: ${entry.interface.form === 'search' ? entry.interface.viewedResults : 
+				entry.interface.form === 'explore' ? entry.interface.exploreMode || '-' :
+				entry.interface.form === 'analyse' ? entry.interface.analyseMode || '-' : '-'}
 			# Pattern: ${entry.displayValues.pattern || '-'}
 			# Filters: ${entry.displayValues.filters || '-'}
 			# Grouping: ${entry.view.groupBy}

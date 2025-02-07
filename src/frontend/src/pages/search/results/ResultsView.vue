@@ -2,79 +2,92 @@
 	<div class="results-container" :disabled="request" :style="{minHeight: request ? '100px' : undefined}">
 
 		<Spinner v-if="request" overlay size="75"/>
-
+		<div v-if="resultsHaveData">
 		<!-- i.e. HitResults, DocResults, GroupResults -->
 		<!-- Minor annoyance, all slot components are re-created when we group/ungroup results because this :is changes, causing a complete re-render. -->
-		<component v-if="resultsHaveData"
-			:is="resultComponentName"
-			v-bind="resultComponentData"
+			<component v-if="['search', 'explore'].includes(activeForm)"
+				:is="resultComponentName"
+				v-bind="resultComponentData"
 
-			@sort="sort = $event"
-			@viewgroup="restoreOnViewGroupLeave = {page, sort}; viewGroup = $event.id; _viewGroupName = $event.displayName;"
-		>
-			<BreadCrumbs slot="breadcrumbs"
-				:crumbs="breadCrumbs"
-				:disabled="!!request"
-			/>
+				@sort="sort = $event"
+				@viewgroup="restoreOnViewGroupLeave = {page, sort}; viewGroup = $event.id; _viewGroupName = $event.displayName;"
+			>
+				<BreadCrumbs slot="breadcrumbs"
+					:crumbs="breadCrumbs"
+					:disabled="!!request"
+				/>
 
-			<Totals slot="totals"
-				class="result-totals"
-				:initialResults="results"
-				:type="id"
-				:indexId="indexId"
+				<Totals slot="totals"
+					class="result-totals"
+					:initialResults="results"
+					:type="id"
+					:indexId="indexId"
 
-				@update="paginationResults = $event"
-			/>
+					@update="paginationResults = $event"
+				/>
 
-			<GroupBy slot="groupBy" v-if="!viewGroup"
-				:type="id"
-				:results="results"
-				:disabled="!!request"
-			/>
-			<button v-else slot="groupBy" class="btn btn-sm btn-primary" @click="leaveViewgroup"><span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}</button>
+				<GroupBy slot="groupBy" v-if="!viewGroup"
+					:type="id"
+					:results="results"
+					:disabled="!!request"
+				/>
+				<button v-else slot="groupBy" class="btn btn-sm btn-primary" @click="leaveViewgroup"><span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}</button>
 
-			<div slot="annotation-switcher" v-if="concordanceAnnotationOptions.length > 1">
-				<label>{{$t('results.resultsView.selectAnnotation')}}: </label>
-				<div class="btn-group" >
-					<button v-for="a in concordanceAnnotationOptions" type="button"
-						class="btn btn-default btn-sm"
-						:class="{active: a.id === concordanceAnnotationId}"
-						@click="concordanceAnnotationId = a.id">{{ $tAnnotDisplayName(a) }}</button>
+				<div slot="annotation-switcher" v-if="concordanceAnnotationOptions.length > 1">
+					<label>{{$t('results.resultsView.selectAnnotation')}}: </label>
+					<div class="btn-group" >
+						<button v-for="a in concordanceAnnotationOptions" type="button"
+							class="btn btn-default btn-sm"
+							:class="{active: a.id === concordanceAnnotationId}"
+							@click="concordanceAnnotationId = a.id">{{ $tAnnotDisplayName(a) }}</button>
+					</div>
+				</div>
+
+				<Pagination slot="pagination"
+					style="display: block; margin: 10px 0;"
+
+					:page="pagination.shownPage"
+					:maxPage="pagination.maxShownPage"
+					:disabled="!!request"
+
+					@change="page = $event"
+				/>
+
+				<Sort slot="sort"
+					v-model="sort"
+					:hits="isHits"
+					:docs="isDocs"
+					:groups="isGroups"
+
+					:corpus="corpus"
+					:annotations="sortAnnotations"
+					:metadata="sortMetadata"
+
+					:disabled="!!request"
+				/>
+
+				<Export slot="export" v-if="exportEnabled"
+					:results="results"
+					:type="id"
+					:disabled="!!request"
+					:annotations="exportAnnotations"
+					:metadata="exportMetadata"
+				/>
+
+			</component>
+			<div v-else-if="activeForm === 'analyse' && isTableResults">
+				<TableResults :columns="tableResultColumns" :data="tableResultData"></TableResults>
+				<div v-if="analyseMode === 'collocation' || analyseMode === 'cooccur'">
+					<ColloGraph :columns="tableResultColumns" :data="tableResultData" />
+				</div>
+				<div v-if="analyseMode === 'wordlist' || analyseMode === 'keyword'">
+					<WordCloud :columns="tableResultColumns" :data="tableResultData" />
+				</div>
+				<div v-if="analyseMode === 'network'">
+					<ColloGraph :columns="tableResultColumns" :data="tableResultData" :points="tableResultPoint" />
 				</div>
 			</div>
-
-			<Pagination slot="pagination"
-				style="display: block; margin: 10px 0;"
-
-				:page="pagination.shownPage"
-				:maxPage="pagination.maxShownPage"
-				:disabled="!!request"
-
-				@change="page = $event"
-			/>
-
-			<Sort slot="sort"
-				v-model="sort"
-				:hits="isHits"
-				:docs="isDocs"
-				:groups="isGroups"
-
-				:corpus="corpus"
-				:annotations="sortAnnotations"
-				:metadata="sortMetadata"
-
-				:disabled="!!request"
-			/>
-
-			<Export slot="export" v-if="exportEnabled"
-				:results="results"
-				:type="id"
-				:disabled="!!request"
-				:annotations="exportAnnotations"
-				:metadata="exportMetadata"
-			/>
-
-		</component>
+		</div>
 		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
 		<div v-else-if="!valid" class="no-results-found">
 			{{ $t('results.resultsView.inactiveView') }}
@@ -103,6 +116,7 @@ import * as GlobalStore from '@/store/search/results/global';
 import * as QueryStore from '@/store/search/query';
 import * as UIStore from '@/store/search/ui';
 import * as GlossModule from '@/store/search/form/glossStore' // Jesse
+import * as InterfaceModule from '@/store/search/form/interface';
 
 import GroupResults from '@/pages/search/results/table/GroupResults.vue';
 import HitResults from '@/pages/search/results/table/HitResults.vue';
@@ -117,6 +131,10 @@ import Export from '@/pages/search/results/Export.vue';
 import Pagination from '@/components/Pagination.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import Spinner from '@/components/Spinner.vue';
+
+import TableResults from '@/pages/search/results/table/TableResults.vue';
+import ColloGraph from '@/pages/search/results/graph/colloGraph.vue';
+import WordCloud from '@/pages/search/results/graph/wordCloud.vue';
 
 import debug, { debugLog } from '@/utils/debug';
 
@@ -139,7 +157,10 @@ export default Vue.extend({
 		Sort,
 		BreadCrumbs,
 		Export,
-		Spinner
+		Spinner,
+		TableResults,
+		ColloGraph,
+		WordCloud,
 	},
 	props: {
 		/**
@@ -209,15 +230,34 @@ export default Vue.extend({
 			}
 
 			if (this.clearResults) { this.results = this.error = null; this.clearResults = false; }
-
+			
+			let apiCall, r;
+			let params: any;
 			const nonce = this.refreshParameters;
-			const params = RootStore.get.blacklabParameters()!;
-			const apiCall = this.id === 'hits' ? Api.blacklab.getHits : Api.blacklab.getDocs;
-			debugLog('starting search', this.id, params);
-
-			const r = apiCall(this.indexId, params, {headers: { 'Cache-Control': 'no-cache' }});
-			this.request = r.request;
-			this.cancel = r.cancel;
+			const activeForm = InterfaceModule.get.form();
+			if(activeForm === 'analyse'){
+				apiCall = Api.frontend.getAnalyse;
+				const analyseType = InterfaceModule.get.analyseMode();
+				switch(analyseType) {
+					case 'topic': params = RootStore.get.topicParameters()!; break;
+					case 'wordlist': params = RootStore.get.wordlistParameters()!; break;
+					case 'keyword': params = RootStore.get.keywordParameters()!; break;
+					case 'collocation': params = RootStore.get.colloParameters()!; break;
+					case 'cooccur': params = RootStore.get.cooccurParameters()!; break;
+					case 'network': params = RootStore.get.networkParameters()!; break;
+					default: debugLog('Unknown analyse type: ', analyseType); break;
+				}
+				r = apiCall(this.indexId, analyseType, params, {headers: { 'Cache-Control': 'no-cache' }});
+				this.request = r.request;
+				this.cancel = r.cancel;
+			} else {
+				apiCall = this.id === 'hits' ? Api.blacklab.getHits : Api.blacklab.getDocs;
+				params = RootStore.get.blacklabParameters()!;
+				debugLog('starting search', this.id, params);
+				r = apiCall(this.indexId, params, {headers: { 'Cache-Control': 'no-cache' }});
+				this.request = r.request;
+				this.cancel = r.cancel;
+			}			
 
 			setTimeout(() => this.scrollToResults(), 1500);
 
@@ -383,6 +423,7 @@ export default Vue.extend({
 			if (BLTypes.isHitGroups(this.results)) { return this.results.hitGroups.length > 0; }
 			if (BLTypes.isHitResults(this.results)) { return this.results.hits.length > 0; }
 			if (BLTypes.isDocResults(this.results)) { return this.results.docs.length > 0; }
+			if (BLTypes.isTableResults(this.results)) {return this.results.data.length > 0; }
 			return false;
 		},
 		isHits(): boolean { return BLTypes.isHitResults(this.results); },
@@ -468,6 +509,25 @@ export default Vue.extend({
 				disabled: !!this.request,
 				sort: this.sort,
 			};
+		},
+
+		activeForm: InterfaceModule.get.form ,
+		analyseMode: InterfaceModule.get.analyseMode,
+		isTableResults(): boolean {
+			if (BLTypes.isTableResults(this.results)) {return true; }
+			return false;
+		},
+		tableResultColumns(): any {
+			if (BLTypes.isTableResults(this.results)) {return this.results.columns; }
+			return [];
+		},
+		tableResultData(): any {
+			if (BLTypes.isTableResults(this.results)) {return this.results.data; }
+			return [];
+		},
+		tableResultPoint(): any {
+			if (BLTypes.isTableResults(this.results)) {return this.results.points; }
+			return [];
 		},
 	},
 	watch: {
