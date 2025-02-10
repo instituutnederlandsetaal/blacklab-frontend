@@ -137,7 +137,7 @@ export default Vue.extend({
 
 		modal: '',
 
-		corpusId: null as null|string,
+		indexId: null as null|string,
 		formatId: null as null|string,
 
 		refreshingCorpora: new Set() as Set<string>
@@ -153,7 +153,7 @@ export default Vue.extend({
 
 		busy(): boolean { return this.loadingFormats || this.loadingCorpora || this.loadingServerInfo; },
 
-		corpus(): null|NormalizedIndexBase { return this.corpusId ? this.corpora.find(c => c.id === this.corpusId) || null : null; },
+		corpus(): null|NormalizedIndexBase { return this.indexId ? this.corpora.find(c => c.id === this.indexId) || null : null; },
 		format(): null|NormalizedFormat { return this.formatId ? this.formats.find(f => f.id === this.formatId) || null : null; },
 	},
 	methods: {
@@ -178,36 +178,36 @@ export default Vue.extend({
 			.finally(() => this.loadingFormats = false)
 		},
 		/** Begin periodically refreshing the corpus for as long as the status is indexing. */
-		async refreshCorpus(corpusId: string) {
-			if (this.refreshingCorpora.has(corpusId)) return;
-			this.refreshingCorpora.add(corpusId);
+		async refreshCorpus(indexId: string) {
+			if (this.refreshingCorpora.has(indexId)) return;
+			this.refreshingCorpora.add(indexId);
 
-			const displayName = this.corpora.find(c => c.id === corpusId)?.displayName || corpusId;
+			const displayName = this.corpora.find(c => c.id === indexId)?.displayName || indexId;
 			try {
 				while (true) {
-					const newCorpusState = await Api.blacklab.getCorpusStatus(corpusId);
-					let corpus = this.corpora.find(c => c.id === corpusId);
+					const newCorpusState = await Api.blacklab.getCorpusStatus(indexId);
+					let corpus = this.corpora.find(c => c.id === indexId);
 					if (!corpus) break; // corpus was deleted?
 					Object.assign(corpus, newCorpusState);
 					if (newCorpusState.status !== 'indexing') break;
 					await new Promise(resolve => setTimeout(resolve, 2000));
 				}
-				this.refreshingCorpora.delete(corpusId);
+				this.refreshingCorpora.delete(indexId);
 			} catch (error) {
 				this.errorMessage = `Could not retrieve status for corpus "${displayName}": ${error.message}`;
 			}
 		},
-		close() { this.modal = ''; this.corpusId = this.formatId = null; },
+		close() { this.modal = ''; this.indexId = this.formatId = null; },
 		doCreateCorpus() { this.modal = 'create-corpus'; },
 		doCreateFormat() { this.modal = 'create-format'; },
-		doUploadCorpus(corpusId: string) { this.corpusId = corpusId; this.modal = 'upload'; },
-		doShareCorpus(corpusId: string) { this.corpusId = corpusId; this.modal = 'share-corpus'; },
+		doUploadCorpus(indexId: string) { this.indexId = indexId; this.modal = 'upload'; },
+		doShareCorpus(indexId: string) { this.indexId = indexId; this.modal = 'share-corpus'; },
 		doEditFormat(formatId: string) {
 			this.formatId = formatId;
 			this.modal = 'create-format';
 		},
-		doDeleteCorpus(corpusId: string) {
-			this.corpusId = corpusId;
+		doDeleteCorpus(indexId: string) {
+			this.indexId = indexId;
 			const corpus = this.corpus!;
 			this.confirmTitle= `Delete corpus <em>${corpus.displayName}</em>?`;
 			this.confirmMessage = `Are you sure you want to delete corpus "${corpus.displayName}"?`;
@@ -215,10 +215,10 @@ export default Vue.extend({
 			this.confirmAction = () => {
 				this.close();
 				this.loadingCorpora = true;
-				Api.blacklab.deleteCorpus(corpusId)
+				Api.blacklab.deleteCorpus(indexId)
 				.then(r => {
 					this.successMessage = r.status.message;
-					this.corpora = this.corpora.filter(c => c.id !== corpusId);
+					this.corpora = this.corpora.filter(c => c.id !== indexId);
 				})
 				.catch((e: Api.ApiError) => this.errorMessage = `Could not delete corpus "${corpus.displayName}": ${e.message}`)
 				.finally(() => {

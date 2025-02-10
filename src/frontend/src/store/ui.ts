@@ -20,6 +20,10 @@ import * as AppTypes from '@/types/apptypes';
 import { Option } from '@/types/apptypes';
 import { spanFilterId } from '@/utils';
 import { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
+import { InteractiveLoadable, Loadable, toObservable } from '@/utils/loadable-streams';
+import { frontend } from '@/api';
+import { pipe, switchMap } from 'rxjs';
+import { CorpusChange } from '@/store/async-loaders';
 
 type CustomView = {
 	id: string;
@@ -235,6 +239,8 @@ type ModuleRootState = {
 	};
 
 	global: {
+		config: AppTypes.CFPageConfig,
+
 		pageGuide: {
 			enabled: boolean;
 		},
@@ -349,6 +355,18 @@ const initialState: ModuleRootState = {
 		}
 	},
 	global: {
+		config: {
+			analytics: {
+				google: null,
+				plausible: null,
+			},
+			customCss: {},
+			customJs: {},
+			displayName: 'AutoSearch',
+			faviconDir: '',
+			navbarLinks: [],
+			pageSize: null,
+		},
 		pageGuide: {
 			enabled: true
 		},
@@ -376,15 +394,10 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneD
 // Sometimes this is used before store is actually created (in order to initialize other parts of the store)
 const getState = (() => {
 	const getter = b.state();
-
 	return (): ModuleRootState => {
-		try {
-			// throws if store not built yet
-			return getter();
-		} catch (e) {
-			// return the default state we already know
-			return cloneDeep(initialState);
-		}
+		// @ts-ignore
+		if (b._store) return getter();
+		return initialState;
 	};
 })();
 
@@ -743,6 +756,10 @@ const actions = {
 	}
 };
 
+const CFConfigLoader = new InteractiveLoadable<string, AppTypes.CFPageConfig>(
+	switchMap(indexId => toObservable(frontend.getConfig(indexId))),
+)
+
 /**
  * This function is not great.
  * The issue is that customjs can call our setters before we know the corpus shape (because that's loaded async).
@@ -767,11 +784,14 @@ const actions = {
  *   This is where we are now.
  *
  */
-const init = (corpus: AppTypes.NormalizedIndex|null) => {
-	if (!corpus) {
+const init = (state: CorpusChange) => {
+	if (!state.index) {
 		// Reset to completely blank slate if no corpus loaded.
 		Object.assign(getState(), cloneDeep(initialState));
+		Object.assign(getState().global.config, state.config);
 		return;
+	} else {
+		Object.assign(getState().global.config, state.config);
 	}
 
 	// Run customjs customization callbacks:
@@ -1113,7 +1133,7 @@ function validateAnnotations(
 	invalid: (id: string) => string,
 	cb: (ids: string[]) => void
 ) {
-	if (!CorpusStore.getState().isLoaded()) { // not loaded yet
+	if (!CorpusStore.getState()) { // not loaded yet
 		cb(ids);
 		return;
 		// we will re-check this on init()?
@@ -1139,7 +1159,7 @@ function validateMetadata(
 	invalid: (id: string) => string,
 	cb: (ids: string[]) => void
 ) {
-	if (!CorpusStore.getState().isLoaded()) {
+	if (!CorpusStore.getState()) {
 		cb(ids);
 		return;
 		// assume we will re-check this on init()?

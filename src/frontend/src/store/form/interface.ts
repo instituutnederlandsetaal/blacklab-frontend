@@ -11,6 +11,7 @@ import {RootState} from '@/store/';
 import {ModuleRootState as PatternModuleRootState} from '@/store/form/patterns';
 import {ModuleRootState as ExploreModuleRootState} from '@/store/form/explore';
 import { NormalizedIndex } from '@/types/apptypes';
+import { CorpusChange } from '@/store/async-loaders';
 
 type ModuleRootState = {
 	form: 'search'|'explore';
@@ -47,7 +48,7 @@ const actions = {
 	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, payload), 'replace'),
 };
 
-const init = (corpus: NormalizedIndex|null) => {
+const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 

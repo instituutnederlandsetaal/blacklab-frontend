@@ -14,7 +14,7 @@ public class IndexResponse extends BaseResponse {
     protected void completeRequest() throws IOException {
         model.put("pageSize", servlet.getWebsiteConfig(corpus).getPageSize().map(Object::toString).orElse(Integer.toString(Integer.MAX_VALUE)));
         model.put("debugInfo", servlet.debugInfo());
-        
+
         // display template
         displayHtmlTemplate(servlet.getTemplate("main"));
     }

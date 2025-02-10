@@ -4,6 +4,7 @@ import { ApiError, Canceler } from '@/api';
 import { CancelableRequest } from '@/api/apiutils';
 import { MarkRequiredAndNotNull } from '@/types/helpers';
 import { reactive } from 'vue';
+import { observable } from 'vue/types/umd';
 
 
 /**
@@ -96,8 +97,8 @@ export class Loadable<T> implements TLoadable<T> {
 }
 
 /**
- * Given a type of Loadable<T>, return a Loadable<U>. Do it in such a way that when passed a Loaded<T>, a Loaded<U> is returned.
- * This is important to preserve the loading state if it is statically known.
+ * Given a type of Loadable<T>, return a Loadable<U>. Do it in such a way that the loading state is preserved if it is statically known.
+ * E.g. Loaded<T> -> Loaded<U>, Empty<T> -> Empty<U> etc.
  */
 type ReplaceLoadableGeneric<T extends Loadable<any>, U> =
 	T extends Loaded<any> ? Loaded<U> :
@@ -107,20 +108,19 @@ type ReplaceLoadableGeneric<T extends Loadable<any>, U> =
 	T extends Loadable<any> ? Loadable<U> :
 	never;
 
-/** Map a Loadable representing the loaded value into one that can be anything else. */
+/** Map a Loadable representing the loaded value into a Loadable containing anything else. */
 export function mapLoaded<T extends Loadable<any>, U>(mapper: (v: T extends Loadable<infer V> ? V : never) => U): OperatorFunction<T, ReplaceLoadableGeneric<T, U>> {
 	return map(v => Loadable.isLoaded(v) ? Loadable.Loaded(mapper(v.value)) : v as any);
-
 }
-/** Map a Loadable representing an error into one that can be anything else. */
+/** Map a Loadable representing an error into a Loadable containing anything else. */
 export function mapError<T extends U, U>(mapper: (v: ApiError) => Loadable<U>): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return map(v => Loadable.isError(v) ? mapper(v.error) : v);
 }
-/** Map a Loadable representing the loaded value into one that can be anything else, asynchronously. */
+/** Map a Loadable representing the loaded value into a Loadable containing anything else, asynchronously. */
 export function mergeMapLoaded<T, U>(mapper: (v: T) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return mergeMap(v => Loadable.isLoaded<T>(v) ? mapper(v.value) : of(v as any));
 }
-/** Map a Loadable representing an error into one that can be anything else, asynchronously. */
+/** Map a Loadable representing an error into into a Loadable containing anything else, asynchronously. */
 export function mergeMapError<T extends U, U>(mapper: (v: ApiError) => ObservableInput<Loadable<U>>): OperatorFunction<Loadable<T>, Loadable<U>> {
 	return mergeMap(v => Loadable.isError(v) ? mapper(v.error) : of(v));
 }
@@ -173,9 +173,42 @@ export const toObservable = <T>({cancel, request}: CancelableRequest<T>) => new 
 	return function onUnsubscribe() { cancel(); }
 });
 
-type TemplateTypeFromLoadableOrObservable<T> =
-	T extends Observable<infer U> ? U extends Loadable<infer L> ? L : U :
-	T extends Loadable<infer U> ? U : T;
+/**
+ * Given a Loadable<T>, return the T type. If the Loading state is statically known, return the statically known type of the .value.
+ */
+type ValueFromLoadableIncludingEmpty<T> =
+// if we know the state, we can return the value directly
+T extends Loaded<infer L> ? L :
+T extends LoadingError<infer L> ? never :
+T extends Empty<infer L> ? undefined :
+T extends Loading<infer L> ? L :
+// if we have a loadable with an unknown state, return the value
+T extends Loadable<infer L> ? L|undefined :
+T;
+
+/** Given a Loadable<T>, return the T type. If the Loading state is statically known, return the statically known type of the .value */
+type ValueFromLoadable<T> =
+T extends Loaded<infer L> ? L :
+T extends LoadingError<infer L> ? never :
+T extends Empty<infer L> ? never :
+T extends Loading<infer L> ? L :
+T extends Loadable<infer L> ? L :
+T;
+
+/**
+ * Unpack Observables and Loadables into their .value type.
+ * E.g. Observable<Loadable<T>> -> T
+ * E.g. Loadable<T> -> T
+ * E.g. T -> T
+ */
+type ValueTypeFromLoadableOrObservable<T> = T extends Observable<infer U> ? ValueFromLoadable<U> : ValueFromLoadable<T>;
+/**
+ * Unpack Observables and Loadables into their .value type.
+ * E.g. Observable<Loadable<T>> -> T|undefined
+ * E.g. Loadable<T> -> T|undefined
+ * E.g. T -> T
+ */
+type ValueTypeFromLoadableOrObservableIncludingEmpty<T> = T extends Observable<infer U> ? ValueFromLoadableIncludingEmpty<U> : ValueFromLoadableIncludingEmpty<T>;
 
 /**
  * <pre>
@@ -193,7 +226,7 @@ type TemplateTypeFromLoadableOrObservable<T> =
  */
 export function loadableFromObservable<
 	T extends Observable<any>,
-	R extends TemplateTypeFromLoadableOrObservable<T>
+	R extends ValueTypeFromLoadableOrObservable<T>
 >(obs: T, subs: Subscription[], initialValue?: Loadable<R>): Loadable<R> {
 	const ret: Loadable<R> = initialValue ?? Loadable.Empty();
 	const unsub = obs.subscribe({
@@ -212,28 +245,6 @@ export function loadableFromObservable<
 }
 
 export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => jsonStableStringify(a) === jsonStableStringify(b);
-
-/**
- * Given an array of objects and/or loadables, return a type with the same object, except with loadables replaced by their T type
- * E.g. [Loadable<T>, {a: number}, Loadable<U>] -> [T, {a: number}, U]
-*/
-type ValueFromLoadableIncludingEmpty<T> =
-// if we know the state, we can return the value directly
-T extends Loaded<infer L> ? L :
-T extends LoadingError<infer L> ? never :
-T extends Empty<infer L> ? undefined :
-T extends Loading<infer L> ? L :
-// if we have a loadable with an unknown state, return the value
-T extends Loadable<infer L> ? L|undefined :
-T;
-
-type ValueFromLoadable<T> =
-T extends Loaded<infer L> ? L :
-T extends LoadingError<infer L> ? never :
-T extends Empty<infer L> ? never :
-T extends Loading<infer L> ? L :
-T extends Loadable<infer L> ? L :
-T;
 
 /**
  * Combine the values of a bunch of Loadables or other values into a single Loadable.
@@ -327,9 +338,9 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<s
  * ```
  */
 export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
-	private i$: ReplaySubject<TInput> = new ReplaySubject(1);
-	private o$: Observable<Loadable<TOutput>>;
-	private unsub: Subscription;
+	private readonly i$: ReplaySubject<TInput> = new ReplaySubject(1);
+	private readonly o$: Observable<Loadable<TOutput>>;
+	private readonly unsub: Subscription;
 
 	constructor(processInput: (i$: Observable<TInput>) => Observable<Loadable<TOutput>>) {
 		super(LoadableState.Empty, undefined, undefined);
@@ -359,7 +370,7 @@ export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
 			}
 		});
 
-		reactive(this);
+		// observable(this);
 	}
 
 	public next(i: TInput) {
@@ -409,8 +420,27 @@ export function promiseFromLoadableStream<T>(loadableStream: Observable<Loadable
 export function loadableStreamFromPromise<T>(promise: Promise<T>): Observable<Loadable<T>> {
 	const subject = new ReplaySubject<Loadable<T>>(1);
 	subject.next(Loadable.Loading());
-	promise.then(v => subject.next(Loadable.Loaded(v))).catch(e => subject.next(Loadable.LoadingError(e))).finally(() => subject.complete());
+	promise
+		.then(v => subject.next(Loadable.Loaded(v)))
+		.catch(e => subject.next(Loadable.LoadingError(e)))
+		.finally(() => subject.complete());
 	return subject;
+}
+
+function combineLoadableStreamsImpl(combiner: typeof combineLoadables|typeof combineLoadablesIncludingEmpty, streams: Observable<any>[]|Record<string, Observable<any>>): Observable<Loadable<any>> {
+	const combined$: Observable<Record<string, any>|any[]> = Array.isArray(streams)
+		? combineLatest(streams)
+		: combineLatest(streams as Record<string, Observable<any>>);
+
+	return combined$.pipe(
+		map(values => combiner(values)),
+		distinctUntilChanged((prev, curr) => {
+			if (prev.state !== curr.state) return false;
+			if (prev.isLoaded() && curr.isLoaded()) return prev.value === curr.value;
+			if (prev.isError() && curr.isError()) return prev.error === curr.error;
+			return true; // both empty or both loading -> equal
+		})
+	);
 }
 
 /**
@@ -424,24 +454,27 @@ export function loadableStreamFromPromise<T>(promise: Promise<T>): Observable<Lo
  * combineLoadableStreams([stream1, stream2, stream3]) -> stream emitting Loadable<[T1, T2, T3]>
  * combineLoadableStreams({a: stream1, b: stream2, c: stream3}) -> stream emitting Loadable<{a: T1, b: T2, c: T3}>
  */
-export function combineLoadableStreams<T extends readonly Observable<any>[]>(streams: T): Observable<Loadable<{ [K in keyof T]: TemplateTypeFromLoadableOrObservable<T[K]> }>>;
-export function combineLoadableStreams<T extends Record<string, Observable<any>>>(streams: T): Observable<Loadable<{ [K in keyof T]: TemplateTypeFromLoadableOrObservable<T[K]> }>>;
+export function combineLoadableStreams<T extends readonly Observable<any>[]>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservable<T[K]> }>>;
+export function combineLoadableStreams<T extends Record<string, Observable<any>>>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservable<T[K]> }>>;
 export function combineLoadableStreams(streams: Observable<any>[]|Record<string, Observable<any>>): Observable<Loadable<any>> {
-	const combined$: Observable<Record<string, any>|any[]> = Array.isArray(streams)
-		? combineLatest(streams)
-		: combineLatest(streams as Record<string, Observable<any>>);
-
-	return combined$.pipe(
-		map(values => combineLoadables(values)),
-		distinctUntilChanged((prev, curr) => {
-			if (prev.state !== curr.state) return false;
-			if (prev.isLoaded() && curr.isLoaded()) return prev.value === curr.value;
-			if (prev.isError() && curr.isError()) return prev.error === curr.error;
-			return true; // both empty or both loading -> equal
-		})
-	);
+	return combineLoadableStreamsImpl(combineLoadables, streams);
 }
-
+/**
+ * Like combineLoadablesIncludingEmpty, but with streams.
+ * Combine either a map of streams or an array of streams, and return a stream that will emit the latest values as a single loadable.
+ * It will not emit repeated loading states.
+ *
+ * Might need 'as const' on argument to infer the types correctly.
+ *
+ * E.g.
+ * combineLoadableStreamsIncludingEmpty([stream1, stream2, stream3]) -> stream emitting Loadable<[T1|undefined, T2|undefined, T3|undefined]>
+ * combineLoadableStreamsIncludingEmpty({a: stream1, b: stream2, c: stream3}) -> stream emitting Loadable<{a: T1|undefined, b: T2|undefined, c: T3|undefined}>
+ */
+export function combineLoadableStreamsIncludingEmpty<T extends readonly Observable<any>[]>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]>|undefined }>>;
+export function combineLoadableStreamsIncludingEmpty<T extends Record<string, Observable<any>>>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]>|undefined }>>;
+export function combineLoadableStreamsIncludingEmpty(streams: Observable<any>[]|Record<string, Observable<any>>): Observable<Loadable<any>> {
+	return combineLoadableStreamsImpl(combineLoadablesIncludingEmpty, streams);
+}
 /**
  * Util: repeat last output when notifier$ emits anything.
  */

@@ -1,17 +1,13 @@
 <template>
 	<Modal v-if="open" :title="$tAnnotDisplayName(annotation)" :confirmMessage="$t('partOfSpeech.submit')" @confirm="submit(); $emit('close');" lg :close="false">
-		<Spinner v-if="tagset.isLoading()" center/>
-		<div v-else-if="tagset.isError()" class="alert alert-danger">
-			{{tagset.error.message}}
-		</div>
-		<div v-else-if="tagset.isEmpty()" class="alert alert-warning">
+		<div v-if="!tagset" class="alert alert-warning">
 			<!-- TODO i18n -->
 			No tagset
 		</div>
-		<template v-if="tagset.isLoaded()">
+		<template v-else>
 			<div class="list-group-container" >
 				<div class="list-group main">
-					<button v-for="value in tagset.value.values"
+					<button v-for="value in tagset.values"
 						type="button"
 						:key="value.value"
 						:class="{
@@ -32,7 +28,7 @@
 							<Debug>({{subId}})</Debug>
 						</li>
 
-						<li class="list-group-item category-value" v-for="subValue in tagset.value.subAnnotations[subId].values" :key="subValue.value" v-if="!subValue.pos || subValue.pos.includes(annotationValue.value)">
+						<li class="list-group-item category-value" v-for="subValue in tagset.subAnnotations[subId].values" :key="subValue.value" v-if="!subValue.pos || subValue.pos.includes(annotationValue.value)">
 							<label>
 								<input type="checkbox" v-model="selected[`${annotationValue.value}/${subId}/${subValue.value}`]"/>
 								{{subValue.displayName}}
@@ -81,10 +77,9 @@ export default Vue.extend({
 	computed: {
 		allAnnotations: CorpusStore.get.allAnnotationsMap,
 		tagset: TagsetStore.getState,
-		isValidTagset(): boolean { return TagsetStore.getState().state === 'loaded'; },
 		query(): string {
-			if (!this.tagset.isLoaded() || !this.annotationValue) return '';
-			const tagset: Tagset = this.tagset.value;
+			if (!this.tagset || !this.annotationValue) return '';
+			const tagset: Tagset = this.tagset;
 			return [
 				`${this.annotation.id}="${escapeRegex(this.annotationValue.value)}"`,
 				...this.annotationValue.subAnnotationIds.map(subAnnot => {
@@ -108,7 +103,7 @@ export default Vue.extend({
 		}
 	},
 	watch: {
-		'tagset.value': {
+		'tagset': {
 			handler(t: Tagset|undefined) {
 				if (!t) return;
 				Object.values(t.values).forEach(value => {

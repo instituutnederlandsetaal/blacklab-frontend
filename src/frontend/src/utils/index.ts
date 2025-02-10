@@ -413,6 +413,7 @@ export function applyWithinClauses(query: string, withinClauses: Record<string, 
 }
 
 export function getDocumentUrl(
+	indexId: string,
 	pid: string,
 	/** Field for which to show the document contents (important when this is a parallel corpus, as there are multiple "copies" of the same document then, e.g. an English and Dutch version) */
 	fieldName?: string,
@@ -432,7 +433,7 @@ export function getDocumentUrl(
 	}
 
 	return new URI()
-	.segment([CONTEXT_URL, INDEX_ID, 'docs', pid])
+	.segment([CONTEXT_URL, indexId, 'docs', pid])
 	.search({
 		// parameter 'query' controls the hits that are highlighted in the document when it's opened
 		field: fieldName,

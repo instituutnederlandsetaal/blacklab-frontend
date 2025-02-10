@@ -49,15 +49,15 @@ Vue.mixin({
 	// tslint:enable
 });
 
-if (PLAUSIBLE_DOMAIN && PLAUSIBLE_APIHOST) {
-	Vue.use(VuePlausible, {
-		domain: PLAUSIBLE_DOMAIN,
-		trackLocalhost: true,
-		apiHost: PLAUSIBLE_APIHOST,
-	});
-	//@ts-ignore
-	Vue.$plausible.trackPageview();
-}
+// if (PLAUSIBLE_DOMAIN && PLAUSIBLE_APIHOST) {
+// 	Vue.use(VuePlausible, {
+// 		domain: PLAUSIBLE_DOMAIN,
+// 		trackLocalhost: true,
+// 		apiHost: PLAUSIBLE_APIHOST,
+// 	});
+// 	//@ts-ignore
+// 	Vue.$plausible.trackPageview();
+// }
 Vue.use(Filters);
 Vue.use(VTooltip, {
 	popover: {
@@ -110,7 +110,7 @@ import * as RootStore from '@/store';
 
 import { init as initApi } from '@/api';
 $(document).ready(async () => {
-	const user = await LoginSystem.awaitInit(); // TODO settings
+	const user = await LoginSystem.user;
 	initApi('blacklab', BLS_URL, user);
 	initApi('cf', CONTEXT_URL, user);
 	RootStore.actions.user(user);

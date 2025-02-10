@@ -14,6 +14,7 @@ import * as UIStore from '@/store/ui';
 import { debugLog, debugLogCat } from '@/utils/debug';
 
 import { AnnotationValue } from '@/types/apptypes';
+import { CorpusChange } from '@/store/async-loaders';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
@@ -296,8 +297,8 @@ const actions = {
 };
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = (corpus: CorpusStore.NormalizedIndex|null) => {
-	if (!corpus) {
+const init = (state: CorpusChange) => {
+	if (!state.index) {
 		Object.assign(getState(), cloneDeep(initialState));
 		return;
 	}

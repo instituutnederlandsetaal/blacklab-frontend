@@ -29,27 +29,12 @@ import * as ArticleModule from '@/store/article';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import { Loadable, loadableFromObservable, loadableStreamFromPromise, mapLoaded } from '@/utils/loadable-streams';
-import { concatMap, Observable, of, pairwise, shareReplay, startWith } from 'rxjs';
+import { Loadable, loadableFromObservable, mapLoaded } from '@/utils/loadable-streams';
 import debug, {  } from '@/utils/debug';
+import { CorpusChange, createStoreInitializer } from '@/store/async-loaders';
+import { User } from 'oidc-client-ts';
 
 Vue.use(Vuex);
-const loadingState$: Observable<Loadable<void>> = CorpusModule.index$.pipe(
-	// To know when the corpus has changed, we need to compare the previous and current value.
-	// We need a startWith to have a previous value to compare to, otherwise the first value will be ignored.
-	startWith(Loadable.Empty<void>()),
-	mapLoaded(v => undefined as void),
-	pairwise(),
-	// concatMap buffers all events, and waits for the inner observable to complete before moving on to the next value.
-	// So essentially this prevents multiple concurrent calls to corpusChanged.
-	concatMap(([prev, cur]) => {
-		if (cur.value !== prev.value) {
-			return loadableStreamFromPromise(privateActions.corpusChanged())
-		}
-		return of(cur);
-	}),
-	shareReplay(1),
-)
 
 type RootState = {
 	/**
@@ -57,7 +42,7 @@ type RootState = {
 	 * and before the page can render properly.
 	 * This loadable will only become loaded once that happens.
 	 */
-	storeLoadingState: Loadable<undefined>;
+	storeLoadingState: Loadable<CorpusChange>;
 	corpus: CorpusModule.ModuleRootState;
 	article: ArticleModule.ModuleRootState;
 
@@ -73,7 +58,13 @@ const b = getStoreBuilder<RootState>();
 
 const getState = b.state();
 
+const {corpusData$, indexId$, retry$, user$} = createStoreInitializer({
+	onCorpusChange: newCorpus => init(newCorpus)
+})
+
 const get = {
+	indexId: b.read(s => indexId$.value, 'indexId'),
+
 	loadingState: b.read(s => s.storeLoadingState, 'loadingState'),
 
 	viewedResultsSettings: b.read(state => state.views[state.interface.viewedResults!] ?? null, 'getViewedResultsSettings'),
@@ -132,10 +123,12 @@ const get = {
 	}, 'blacklabParameters')
 };
 
+
+
 const actions = {
-	retry: CorpusModule.actions.retry,
-	user: CorpusModule.actions.user,
-	corpusId: CorpusModule.actions.corpus,
+	retryLoading: () => retry$.next(),
+	user: (user: User|null) => user$.next(user),
+	indexId: (indexId: string|null) => indexId$.next(indexId),
 
 	/** Read the form state, build the query, reset the results page/grouping, etc. */
 	searchFromSubmit: b.commit(state => {
@@ -364,45 +357,44 @@ const actions = {
 	}, 'replaceRoot'),
 };
 
-const privateActions = {
-	/** The current corpus has changed or been cleared, re-run initialization. */
-	corpusChanged: b.dispatch(async ({state}) => {
-		// NOTE: this function should return a promise that only resolves once all stores are initialized.
-		const corpus = state.corpus.isLoaded() ? state.corpus.value : null;
-		// Do this one first as it customizes the UI and thus has impact on how the other stores behave
-		await UIModule.init(corpus);
-
-		await FormManager.init(corpus);
-		await ViewModule.init(corpus);
-		await GlobalResultsModule.init(corpus);
-
-		await TagsetModule.init(corpus);
-		await HistoryModule.init(corpus);
-		await QueryModule.init(corpus);
-
-		await ArticleModule.init(corpus);
-
-		// XXX: Changing the corpus recreates these modules, so replace them in window...
-		// Hack!
-		(window as any).vuexModules.results = {
-			...ViewModule,
-			hits: ViewModule.getOrCreateModule('hits'),
-			docs: ViewModule.getOrCreateModule('docs'),
-		};
-	}, 'corpusChanged'),
-}
 
 // NOTE: only call this after creating all getters and actions etc.
 // NOTE: process.env is empty at runtime, but webpack inlines all values at compile time, so this check works.
 declare const process: any;
 const store = b.vuexStore({
 	state: {
-		storeLoadingState: Vue.observable(loadableFromObservable(loadingState$.pipe(mapLoaded(v => undefined)), [])),
+		storeLoadingState: Vue.observable(loadableFromObservable(corpusData$, [])),
 	} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
 	strict: process.env.NODE_ENV === 'development',
 });
 
-const init = () => {};
+/**
+ * The current corpus has changed or been cleared, re-run initialization.
+ * Returns a promise that will resolve once all initialization has been completed.
+*/
+const init = async (state: CorpusChange) => {
+	await CorpusModule.init(state)
+	// Do this one first as it customizes the UI and thus has impact on how the other stores behave
+	await UIModule.init(state);
+
+	await FormManager.init(state);
+	await ViewModule.init(state);
+	await GlobalResultsModule.init(state);
+
+	await TagsetModule.init(state);
+	await HistoryModule.init(state);
+	await QueryModule.init(state);
+
+	await ArticleModule.init(state);
+
+	// XXX: Changing the corpus recreates these modules, so replace them in window...
+	// Hack!
+	(window as any).vuexModules.results = {
+		...ViewModule,
+		hits: ViewModule.getOrCreateModule('hits'),
+		docs: ViewModule.getOrCreateModule('docs'),
+	};
+};
 
 // Debugging helpers.
 (window as any).vuexModules = {
@@ -451,5 +443,6 @@ export {
 	get,
 	actions,
 	init,
-	loadingState$
+	corpusData$
+
 };

@@ -217,7 +217,7 @@ export default ParallelFields.extend({
 			const id = UIStore.getState().search.simple.searchAnnotationId;
 			return CorpusStore.get.allAnnotationsMap()[id] || CorpusStore.get.firstMainAnnotation();
 		},
-		simpleSearchAnnoationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
+		simpleSearchAnnoationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
 		textDirection: CorpusStore.get.textDirection,
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;

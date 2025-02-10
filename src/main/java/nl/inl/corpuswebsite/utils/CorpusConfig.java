@@ -3,28 +3,16 @@ package nl.inl.corpuswebsite.utils;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.Optional;
 
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.xpath.XPathExpressionException;
-import javax.xml.xpath.XPathFactory;
-import javax.xml.xpath.XPathFactoryConfigurationException;
-
-import net.sf.saxon.dom.DocumentBuilderImpl;
 import net.sf.saxon.s9api.*;
-import org.w3c.dom.Document;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
-
-import net.sf.saxon.xpath.XPathFactoryImpl;
 
 /** Represents BlackLab index metadata */
 public class CorpusConfig {
-
     private final String jsonUnescaped;
 
     private final String corpusId;

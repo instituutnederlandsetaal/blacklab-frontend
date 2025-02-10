@@ -330,6 +330,7 @@ export type AttributeDef = {
 };
 
 const DEFAULTS = {
+	indexId: '',
 
 	queryBuilder: {
 		view: {
@@ -424,7 +425,7 @@ const DEFAULTS = {
 	}
 };
 
-export type QueryBuilderOptions = RecursivePartial<typeof DEFAULTS>;
+export type QueryBuilderOptions = Omit<RecursivePartial<typeof DEFAULTS>, 'indexId'> & { indexId: string };
 
 // -------------------
 // Class Querybuilder
@@ -579,7 +580,7 @@ export class QueryBuilder {
 		}
 
 		try {
-			const parallelQueries = (await parseBcql(INDEX_ID, cql, this.settings.attribute.view.defaultAttribute));
+			const parallelQueries = (await parseBcql(this.settings.indexId, cql, this.settings.attribute.view.defaultAttribute));
 			if (parallelQueries.length !== 1) {
 				debugLog('Cql parser could not decode query pattern (parallelQueries.length !== 1)', cql);
 				return false;

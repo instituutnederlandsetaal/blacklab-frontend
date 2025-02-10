@@ -93,7 +93,7 @@ export default Vue.extend({
 				sort: undefined,
 			} as BLSearchParameters);
 
-			let {request, cancel} = this.type === 'hits' ? blacklab.getHits<BLHitResults>(INDEX_ID, requestParameters) : blacklab.getDocs<BLDocResults>(INDEX_ID, requestParameters);
+			let {request, cancel} = this.type === 'hits' ? blacklab.getHits<BLHitResults>(CorpusStore.get.indexId()!, requestParameters) : blacklab.getDocs<BLDocResults>(CorpusStore.get.indexId()!, requestParameters);
 			return {
 				cancel,
 				request: request

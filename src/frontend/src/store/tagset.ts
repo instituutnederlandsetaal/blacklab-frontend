@@ -8,78 +8,31 @@
 import {getStoreBuilder} from 'vuex-typex';
 
 import {RootState} from '@/store/';
-import * as CorpusStore from '@/store/corpus';
 
-import { ApiError, NormalizedAnnotation, Tagset } from '@/types/apptypes';
+import { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import { mapReduce } from '@/utils';
-import { Loadable, loadableFromObservable, loadedIfNotNull, mapError, promiseFromLoadableStream as promiseFromLoadableStream, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
-import { map, ReplaySubject, shareReplay, tap } from 'rxjs';
-import {frontend} from '@/api';
+import { CorpusChange } from '@/store/async-loaders';
 
-type ModuleRootState = Loadable<Tagset>;
+type ModuleRootState = Tagset|null;
 const namespace = 'tagset';
 
-const indexId$ = new ReplaySubject<string|null>(1);
-const tagset$ = indexId$.pipe(
-	map(loadedIfNotNull()),
-	switchMapLoaded(id =>
-		toObservable(frontend.getTagset(id))
-		.pipe(
-			// 404 will result in a loading representing the error, but we want to treat it as an empty result.
-			mapError((e: ApiError): Loadable<Tagset> => e.httpCode === 404 ? Loadable.Empty() : Loadable.LoadingError(e)),
-			tap(v => {
-				if (!v.isLoaded()) return;
-				const tagset = v.value;
-				const annots = CorpusStore.get.allAnnotationsMap();
-				const mainAnnot = Object.values(annots).flat().find(a => a.uiType === 'pos');
-				if (!mainAnnot) {
-					// We don't have any annotation to attach the tagset to
-					// Stop loading, and act as if no tagset was loaded (because it wasn't).
-					console.warn(`Attempting to loading tagset when no annotation has uiType "pos". Cannot load!`);
-					return;
-				}
-
-				validateTagset(mainAnnot, annots, tagset);
-				lowercaseValuesIfNeeded(mainAnnot, annots, tagset);
-
-				// we're modifying the corpus info here, so we need to commit the changes to the store.
-				CorpusStore.actions.loadTagsetValues(() => {
-					copyDisplaynamesAndValuesToCorpus(mainAnnot, Object.values(tagset.values));
-					Object.values(tagset.subAnnotations).forEach(sub => copyDisplaynamesAndValuesToCorpus(annots[sub.id], sub.values));
-				});
-			}),
-		)
-	),
-	shareReplay(1)
-);
-
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, loadableFromObservable(tagset$, []));
+const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, null);
 
 const getState = b.state();
 
 const get = {};
 
-const init = async (corpus: CorpusStore.NormalizedIndex|null) => {
-	if (!corpus) {
-		indexId$.next(null);
-	} else {
-		const mainAnnot = Object.values(CorpusStore.get.allAnnotations()).find(a => a.uiType === 'pos');
-		if (!mainAnnot) indexId$.next(null);
-		else indexId$.next(corpus.id);
-	}
-
-	// Catch any error here, we don't want to crash the app if the tagset can't be loaded.
-	// The error will be exposed in the tagset store state, and can be displayed by the tagset component.
-	return promiseFromLoadableStream(tagset$, 'tagset').catch(() => {});
-};
+const init = b.dispatch(({state, rootState}, payload: CorpusChange) => {
+	rootState.tagset = payload.tagset ?? null;
+}, 'tagset_init')
 
 /**
  * Copy displaynames and extra values defined in the tagset into the corpus info.
  * This way any annotation that is defined in the tagset will have the same displaynames and values in the corpus info.
  * That creates a uniform experience in all components that display those annotations.
  */
-function copyDisplaynamesAndValuesToCorpus(annotation: NormalizedAnnotation, valuesInTagset: Array<{value: string, displayName: string}>) {
+export function copyDisplaynamesAndValuesToCorpus(annotation: NormalizedAnnotation, valuesInTagset: Array<{value: string, displayName: string}>) {
 	const originalValues = mapReduce(annotation.values, 'value');
 
 	for (const tagsetValue of valuesInTagset) {
@@ -122,7 +75,7 @@ function copyDisplaynamesAndValuesToCorpus(annotation: NormalizedAnnotation, val
  *
  * Only do this after validating the tagset, because we don't check whether annotations in the tagset and corpus match, so we could crash if they don't.
  */
-function lowercaseValuesIfNeeded(mainTagsetAnnotation: NormalizedAnnotation, corpusAnnotations: Record<string, NormalizedAnnotation>, tagset: Tagset) {
+export function lowercaseValuesIfNeeded(mainTagsetAnnotation: NormalizedAnnotation, corpusAnnotations: Record<string, NormalizedAnnotation>, tagset: Tagset) {
 	// for the main tagset annotations - lowercase values if the annotation in the corpus is not case sensitive.
 	const mainAnnotationCS = mainTagsetAnnotation.caseSensitive;
 	if (!mainAnnotationCS) {
@@ -153,7 +106,7 @@ function lowercaseValuesIfNeeded(mainTagsetAnnotation: NormalizedAnnotation, cor
  * @param mainTagsetAnnotation The annotation that the tagset is attached to.
  * @param t The tagset to validate.
  */
-function validateTagset(mainTagsetAnnotation: NormalizedAnnotation, otherAnnotations: Record<string, NormalizedAnnotation>, t: Tagset) {
+export function validateTagset(mainTagsetAnnotation: NormalizedAnnotation, otherAnnotations: Record<string, NormalizedAnnotation>, t: Tagset) {
 	/** Validate that subannotations exist within the corpus, and that they don't reference unknown values within the main annotation */
 	function validateAnnotation(annotationId: string, annotationValuesInTagset: Tagset['subAnnotations'][string]['values']) {
 		const annotationInCorpus = otherAnnotations[annotationId];

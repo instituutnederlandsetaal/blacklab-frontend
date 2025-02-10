@@ -75,8 +75,6 @@ import { mapReduce, uniq } from '@/utils'
 import SelectPicker from '@/components/SelectPicker.vue';
 import { conceptApi, blacklab } from '@/api';
 
-type Term = { term: string }
-
 export default Vue.extend ( {
 	name: 'ConceptSearchBox',
 	components: { Autocomplete, SelectPicker },
@@ -115,7 +113,7 @@ export default Vue.extend ( {
 			// TODO use api module.
 			return Promise.all([
 				conceptApi.getTerms(this.settings.instance, this.search_field, this.current_concept, prefix),
-				blacklab.getTermAutocomplete(INDEX_ID, mainAnnotation.annotatedFieldId, 'lemma', prefix)
+				blacklab.getTermAutocomplete(CorpusStore.get.indexId()!, mainAnnotation.annotatedFieldId, 'lemma', prefix)
 			])
 			.then(([pdb, corpus]) => uniq([...pdb, ...corpus]))
 		},
@@ -137,7 +135,7 @@ export default Vue.extend ( {
 			if (!this.settings) return;
 			conceptApi.addConceptOrTermToDatabase(
 				this.settings.instance,
-				INDEX_ID,
+				CorpusStore.get.indexId()!,
 				this.search_field,
 				concept,
 				term

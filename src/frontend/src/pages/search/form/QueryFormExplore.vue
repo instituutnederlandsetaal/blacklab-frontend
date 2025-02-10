@@ -299,7 +299,7 @@ export default Vue.extend({
 			});
 		},
 		autocompleteUrl(annot: CorpusStore.NormalizedAnnotation) {
-			return blacklabPaths.autocompleteAnnotation(INDEX_ID, annot.annotatedFieldId, annot.id);
+			return blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, annot.annotatedFieldId, annot.id);
 		}
 	},
 	created() {

@@ -26,6 +26,7 @@ import { debugLog } from '@/utils/debug';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
 import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
+import { CorpusChange } from '@/store/async-loaders';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
@@ -209,8 +210,8 @@ const actions = {
 	}, 'clearHistory')
 };
 
-const init = (newCorpus: CorpusModule.NormalizedIndex|null) => {
-	corpus = newCorpus;
+const init = (state: CorpusChange) => {
+	corpus = state.index ?? null;
 	internalActions.replace(readFromLocalStorage());
 };
 

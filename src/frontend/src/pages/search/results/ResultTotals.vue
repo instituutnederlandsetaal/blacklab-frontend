@@ -26,7 +26,7 @@
 	</div>
 
 	<div v-if="error" class="totals-message text-danger" @click="totals.continueCounting" :title="error.message">
-		<span class="fa fa-exclamation-triangle text-danger"/> {{ $t('results.resultsTotals.networkError') }}! <button type="button" class="totals-button" @click="continueCounting"><span class="fa fa-rotate-right text-danger"></span> {{ $t('results.resultsTotals.retry') }}</button>
+		<span class="fa fa-exclamation-triangle text-danger"/> {{ $t('results.resultsTotals.networkError') }}! <button type="button" class="totals-button" @click="totals.continueCounting"><span class="fa fa-rotate-right text-danger"></span> {{ $t('results.resultsTotals.retry') }}</button>
 	</div>
 	<div v-else-if="isLimited" class="totals-message text-danger" :title="`You may view up to ${numResultsRetrieved.toLocaleString()}. Additionally, BlackLab stopped counting after ${numResults.toLocaleString()}.`">
 		<span class="fa fa-exclamation-triangle text-danger"/> <b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{numResultsRetrieved.toLocaleString()}} from a total of more than {{numResults.toLocaleString()}}

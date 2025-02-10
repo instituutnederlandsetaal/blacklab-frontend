@@ -17,7 +17,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import nl.inl.corpuswebsite.MainServlet;
-import nl.inl.corpuswebsite.response.ArticleResponse;
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
 public class CorpusFileUtil {

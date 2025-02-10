@@ -922,7 +922,7 @@ export default Vue.extend({
 
 				this.hits = undefined;
 				if (this.firstHitPreviewQuery && this.type === 'hits') {
-					blacklab.getHits(INDEX_ID, this.firstHitPreviewQuery).request.then(r => {
+					blacklab.getHits(CorpusStore.get.indexId()!, this.firstHitPreviewQuery).request.then(r => {
 						const data = r as BLHitResults;
 						if (isHitResults(data)) {
 							// Make sure the target hits (otherFields) 'know' they are the target of a relation.

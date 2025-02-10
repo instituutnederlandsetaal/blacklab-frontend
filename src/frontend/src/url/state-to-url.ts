@@ -37,7 +37,7 @@
 // }
 
 // type ArticlePageUrl = PageUrl<{
-// 	corpusId: string;
+// 	indexId: string;
 // 	docId: string;
 // }, {
 // 	query: string;
@@ -72,7 +72,7 @@
 
 // const articlePage: UrlGeneratorAndDecoder<ArticlePageUrl> = {
 // 	gatherPath: {
-// 		corpusId: () => RootStore.getState().corpusId,
+// 		indexId: () => RootStore.getState().indexId,
 // 		docId: () => ArticleStore.getState().docId,
 // 	},
 // 	gatherQuery: {
@@ -85,16 +85,16 @@
 // 		wordend: () => ArticleStore.getState().wordend,
 // 	},
 // 	isActive(state): boolean {
-// 		return !!state.path.corpusId && !!state.path?.docId;
+// 		return !!state.path.indexId && !!state.path?.docId;
 // 	},
 // 	encode(state: ArticlePageUrl): string {
-// 		const {corpusId, docId} = state.path;
-// 		return `/${encodeURIComponent(corpusId)}/docs/${encodeURIComponent(docId)}?${new URLSearchParams(valuesToString(cleanParams(state.query))).toString()}`;
+// 		const {indexId, docId} = state.path;
+// 		return `/${encodeURIComponent(indexId)}/docs/${encodeURIComponent(docId)}?${new URLSearchParams(valuesToString(cleanParams(state.query))).toString()}`;
 // 	},
 // 	decode: asUrlStateParser(async function() {
-// 		const [corpusId, _, docId] = this.paths;
+// 		const [indexId, _, docId] = this.paths;
 // 		const r: ArticlePageUrl = {
-// 			path: { corpusId, docId, },
+// 			path: { indexId, docId, },
 // 			query: {
 // 				findhit: this.getNumber('findhit'),
 // 				pattgapdata: this.getString('pattgapdata'),
@@ -111,7 +111,7 @@
 // }
 
 // type CorpusPageUrl = PageUrl<{
-// 	corpusId: string;
+// 	indexId: string;
 // 	viewedResults: string;
 // }, {
 // 	// What is visible in the UI
@@ -126,7 +126,7 @@
 
 // const corpusPage: UrlGeneratorAndDecoder<CorpusPageUrl, HistoryEntry> = {
 // 	gatherPath: {
-// 		corpusId: () => RootStore.getState().corpusId,
+// 		indexId: () => RootStore.getState().indexId,
 // 		viewedResults: () => InterfaceStore.get.viewedResults(),
 // 	},
 // 	gatherQuery: {
@@ -162,11 +162,11 @@
 // 		waitfortotal: () => undefined,
 // 	},
 // 	isActive(state): boolean {
-// 		return state.path.corpusId != null;
+// 		return state.path.indexId != null;
 // 	},
 // 	encode(state) {
-// 		const {corpusId, viewedResults} = state.path;
-// 		return `/${corpusId}/search/${viewedResults}?${new URLSearchParams(valuesToString(cleanParams(state.query))).toString()}`;
+// 		const {indexId, viewedResults} = state.path;
+// 		return `/${indexId}/search/${viewedResults}?${new URLSearchParams(valuesToString(cleanParams(state.query))).toString()}`;
 // 	},
 // 	decode: url => new UrlStateParserSearch(FilterStore.getState().filters, new URI(url)).get()
 // }

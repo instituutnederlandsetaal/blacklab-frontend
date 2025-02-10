@@ -4,7 +4,7 @@ declare global {
 	// ---------------------------
 	// valid on all pages
 	// ---------------------------
-	const INDEX_ID: string;
+	// const CorpusStore.get.indexId(): string;
 
 	const WITH_CREDENTIALS: boolean;
 
@@ -12,9 +12,6 @@ declare global {
 	const CONTEXT_URL: string;
 	/** Guaranteed to end in a slash. Does not contain the corpus id. */
 	const BLS_URL: string;
-
-	const PLAUSIBLE_DOMAIN: string|null;
-	const PLAUSIBLE_APIHOST: string|null;
 
 	const OIDC_METADATA_URL: string|null;
 	const OIDC_CLIENT_ID: string|null;
@@ -27,7 +24,7 @@ declare global {
 	// const DOCUMENT_LENGTH: number;
 
 	/** PAGE_SIZE is always defined, but may be MAX_INT if pagination is disabled. */
-	const PAGE_SIZE: number;
+	// const PAGE_SIZE: number;
 	// const pageStart: number;
 	// const pageEnd: number;
 

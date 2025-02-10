@@ -10,6 +10,7 @@ import cloneDeep from 'clone-deep';
 import {RootState} from '@/store/';
 import { NormalizedIndex } from '@/types/apptypes';
 import { Module, Store } from 'vuex';
+import { CorpusChange } from '@/store/async-loaders';
 
 const namespace = 'views';
 
@@ -126,7 +127,7 @@ const get = {
 
 }
 
-const init = (corpus: NormalizedIndex|null) => {
+const init = (state: CorpusChange)=> {
 	// Clear all views, delete the modules from the internal vuex-typex builders cache (hack! - depends on implementation details)
 	// and the vuex store.
 	Object.keys(moduleCache).forEach(key => {

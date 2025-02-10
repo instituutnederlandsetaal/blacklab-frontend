@@ -160,7 +160,7 @@ export default Vue.component('HitRowDetails', {
 
 			const nonce = this.row.hit;
 			this.sentenceRequest = Api.blacklab.getSnippet(
-				INDEX_ID,
+				CorpusStore.get.indexId()!,
 				this.row.doc.docPid,
 				this.row.annotatedField?.id,
 				this.row.hit.start,
@@ -187,7 +187,7 @@ export default Vue.component('HitRowDetails', {
 
 			const nonce = this.row.hit;
 			this.snippetRequest = Api.blacklab
-			.getSnippet(INDEX_ID, this.row.doc.docPid, this.row.annotatedField?.id, this.row.hit.start, this.row.hit.end, concordanceSize)
+			.getSnippet(CorpusStore.get.indexId()!, this.row.doc.docPid, this.row.annotatedField?.id, this.row.hit.start, this.row.hit.end, concordanceSize)
 			.request
 			.then(s => {
 				if (nonce !== this.row.hit) return; // hit has changed in the meantime.
@@ -214,7 +214,7 @@ export default Vue.component('HitRowDetails', {
 						try {
 							return a({
 								docId: this.row.doc.docPid,
-								corpus: INDEX_ID,
+								corpus: CorpusStore.get.indexId()!,
 								document: this.row.doc.docInfo,
 								documentUrl: this.row.href || '',
 								wordAnnotationId: this.info.mainAnnotation.id,

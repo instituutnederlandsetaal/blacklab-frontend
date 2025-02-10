@@ -5,7 +5,7 @@ import {CancelableRequest, createEndpoint} from '@/api/apiutils';
 import {normalizeIndex, normalizeFormat, normalizeIndexBase} from '@/utils/blacklabutils';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { ApiError, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
+import { ApiError, CFPageConfig, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
 import { Glossing } from '@/store/form/glossStore';
 import { AtomicQuery, LexiconEntry } from '@/store/form/conceptStore';
 import { isHitParams, uniq } from '@/utils';
@@ -58,10 +58,12 @@ export function init(which: keyof typeof endpoints, url: string, user: User|null
 // const allMetadataFields = CorpusStore.get.allMetadataFields().map(f => f.id);
 
 export const frontendPaths = {
+	root: () => CONTEXT_URL,
 	currentCorpus: (indexId: string) => `${CONTEXT_URL}/${indexId}/search`,
 
 	// The following paths are only for use with the api endpoint (they don't contain the context url - the endpoint will add it)
 	indexInfo: (indexId: string) => `${indexId}/api/info`,
+	config: (indexId: string|null) => indexId ? `${indexId}/api/config` : `api/config`,
 	tagset: (indexId: string) => `${indexId}/static/tagset.json`,
 	documentContents: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}/contents`,
 	documentMetadata: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}`,
@@ -137,8 +139,8 @@ export const blacklab = {
 		endpoints.blacklab.get<BLTypes.BLRelationInfo>(blacklabPaths.relations(id), { limitvalues: RELATIONS_LIMITVALUES }, requestParameters)
 	]).then(([index, relations]) => normalizeIndex(index, relations)),
 
-	getAnnotatedField: (corpusId: string, fieldName: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<BLTypes.BLAnnotatedField>(blacklabPaths.field(corpusId, fieldName), undefined, requestParameters),
+	getAnnotatedField: (indexId: string, fieldName: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
+		.get<BLTypes.BLAnnotatedField>(blacklabPaths.field(indexId, fieldName), undefined, requestParameters),
 
 	getShares: (id: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
 		.get<{'users[]': BLTypes.BLShareInfo}>(blacklabPaths.shares(id), undefined, requestParameters)
@@ -395,6 +397,7 @@ export const frontend = {
 			}
 		});
 	},
+	getConfig: (indexId: string|null) => endpoints.cf.getCancelable<CFPageConfig>(frontendPaths.config(indexId)),
 
 	/** Get transformed document contents */
 	getDocumentContents: (indexId: string, pid: string, params: {

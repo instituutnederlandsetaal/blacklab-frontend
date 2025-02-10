@@ -1,7 +1,6 @@
 package nl.inl.corpuswebsite.utils;
 
 import java.io.File;
-import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;

@@ -10,6 +10,7 @@ import * as GapModule from '@/store/form/gap';
 import * as GlossModule from '@/store/form/glossStore';
 import * as ConceptModule from '@/store/form/conceptStore';
 import { NormalizedIndex } from '@/types/apptypes';
+import { CorpusChange } from '@/store/async-loaders';
 
 type PartialRootState = {
 	explore: ExploreModule.ModuleRootState;
@@ -59,14 +60,14 @@ const actions = {
 	}, 'replaceForm')
 };
 
-const init = (corpus: NormalizedIndex|null) => {
-	ExploreModule.init(corpus);
-	FilterModule.init(corpus);
-	InterfaceModule.init(corpus);
-	PatternModule.init(corpus);
-	GapModule.init(corpus);
-	GlossModule.init(corpus);
-	ConceptModule.init(corpus);
+const init = (state: CorpusChange) => {
+	ExploreModule.init(state);
+	FilterModule.init(state);
+	InterfaceModule.init(state);
+	PatternModule.init(state);
+	GapModule.init(state);
+	GlossModule.init(state);
+	ConceptModule.init(state);
 };
 
 export {

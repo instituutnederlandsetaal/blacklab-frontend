@@ -191,7 +191,7 @@ export default Vue.extend({
 	computed: {
 		inputs(): Input {
 			return {
-				indexId: CorpusStore.get.corpusId(),
+				indexId: CorpusStore.get.indexId()!,
 				docId: ArticleStore.getState().docId,
 
 				viewField: ArticleStore.getState().viewField,

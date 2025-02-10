@@ -407,8 +407,7 @@ export default Vue.extend({
 			return this.id !== 'hits' || isHitParams(RootStore.get.blacklabParameters());
 		},
 		// simple view variables
-		indexId(): string { return INDEX_ID; },
-
+		indexId(): string { return CorpusStore.get.indexId()!; },
 		isHits(): boolean { return BLTypes.isHitResults(this.results); },
 		isDocs(): boolean { return BLTypes.isDocResults(this.results); },
 		isGroups(): boolean { return BLTypes.isGroups(this.results); },

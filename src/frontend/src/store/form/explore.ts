@@ -9,6 +9,7 @@ import {RootState} from '@/store/';
 import * as UIStore from '@/store/ui'; // Is initialized before we are.
 import {escapeRegex} from '@/utils';
 import { NormalizedIndex } from '@/types/apptypes';
+import { CorpusChange } from '@/store/async-loaders';
 
 type Token = {
 	/** Annotation ID */
@@ -163,7 +164,7 @@ const actions = {
 	reset: b.commit(state => Object.assign(state, cloneDeep(defaults)), 'reset'),
 };
 
-const init = (corpus: NormalizedIndex|null) => {
+const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 

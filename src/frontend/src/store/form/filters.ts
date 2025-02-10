@@ -17,6 +17,7 @@ import { debugLog, debugLogCat } from '@/utils/debug';
 import { blacklabPaths } from '@/api';
 import { mapReduce, unescapeRegex } from '@/utils';
 import { getFilterString, getFilterSummary, getValueFunctions, valueFunctions } from '@/components/filters/filterValueFunctions';
+import { CorpusChange } from '@/store/async-loaders';
 
 export type FilterState = {
 	value: any|null;
@@ -151,8 +152,8 @@ const actions = {
 	}, 'replace'),
 };
 
-const init = (corpus: CorpusModule.NormalizedIndex|null) => {
-	if (!corpus) {
+const init = (state: CorpusChange) => {
+	if (!state.index) {
 		getState().filters = {};
 		getState().filterGroups = [];
 		return;
@@ -175,7 +176,7 @@ const init = (corpus: CorpusModule.NormalizedIndex|null) => {
 					break;
 				case 'combobox':
 					componentName = 'filter-autocomplete';
-					metadata = blacklabPaths.autocompleteMetadata(INDEX_ID, f.id);
+					metadata = blacklabPaths.autocompleteMetadata(state.index!.id, f.id);
 					break;
 				case 'radio'   :
 					componentName = 'filter-radio';

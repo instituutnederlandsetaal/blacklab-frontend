@@ -52,7 +52,7 @@ export default Vue.extend({
 	computed: {
 		indexAndFilter() {
 			return {
-				index: CorpusStore.getState(),
+				index: CorpusStore.getState()!,
 				filter: FilterStore.get.luceneQuery()
 			};
 		},

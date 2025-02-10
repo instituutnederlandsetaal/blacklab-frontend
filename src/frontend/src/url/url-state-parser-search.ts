@@ -417,14 +417,9 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 		// How we parse the cql pattern depends on whether a tagset is available for this corpus, and whether it's enabled in the ui
 		const tagsetState = TagsetModule.getState();
-		if (tagsetState.isLoading())
-			throw new Error('Attempting to parse url before tagset is loaded or disabled, await tagset.awaitInit() before parsing url.');
-		if (tagsetState.isError())
-			throw new Error('Error loading tagset, cannot parse url.');
-
-		const tagsetInfo = tagsetState.isLoaded() ? {
+		const tagsetInfo = tagsetState ? {
 			mainAnnotations: CorpusModule.get.allAnnotations().filter(a => a.uiType === 'pos').map(a => a.id),
-			subAnnotations: Object.keys(tagsetState.value.subAnnotations)
+			subAnnotations: Object.keys(tagsetState.subAnnotations)
 		} : null;
 
 		try {
@@ -816,7 +811,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	private async updateParsedCql(bcql: string|null) {
 		try {
 			this._parsedCql = bcql == null ? null :
-				await parseBcql(INDEX_ID, bcql, CorpusModule.get.firstMainAnnotation().id);
+				await parseBcql(this.paths[0], bcql, CorpusModule.get.firstMainAnnotation().id);
 			if (this._parsedCql && this._parsedCql.length === 0)
 				this._parsedCql = null;
 			if (this._parsedCql && this._parsedCql.length > 1) {

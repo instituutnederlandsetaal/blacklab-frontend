@@ -12,6 +12,7 @@ import {glossApi, init as initGlossEndpoint} from '@/api';
 import Vue from 'vue';
 import { debugLog } from '@/utils/debug';
 import { NormalizedIndex } from '@/types/apptypes';
+import { CorpusChange } from '@/store/async-loaders';
 
 type GlossFieldType = {
 	 type: string,
@@ -84,7 +85,7 @@ const defaults: HistoryState = {
 	glosses: {},
 	current_page: [],
 	gloss_query: {
-		corpus: INDEX_ID,
+		corpus: '',
 		parts: {comment : ''}
 	},
 	gloss_query_cql: '',
@@ -95,8 +96,9 @@ const namespace = 'glosses';
 const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep({...defaults, settings: null}));
 
 const getState = b.state();
-const init = (corpus: NormalizedIndex|null) => {
+const init = (state: CorpusChange)=> {
 	actions.reset();
+	getState().gloss_query.corpus = state.index?.id ?? '';
 };
 
 
@@ -133,6 +135,7 @@ const get = {
 };
 
 const actions = {
+	corpus: b.commit((state, payload: string|undefined|null) => state.gloss_query.corpus = payload ?? '', 'corpus'),
 	reset: b.commit(state => Object.assign<ModuleRootState, HistoryState>(state, cloneDeep(defaults)), 'gloss_reset'),
 	addGloss: b.commit((state, payload: {gloss: Gloss, hit: BLHit}) =>  {
 		if (!state.settings) return;
@@ -141,7 +144,7 @@ const actions = {
 		const hitId = state.settings.get_hit_id(payload.hit)
 		const glossing: Glossing = {
 			gloss: payload.gloss,
-			corpus: INDEX_ID,
+			corpus: state.gloss_query.corpus,
 			hitId,
 			hit_first_word_id: range.startid,
 			hit_last_word_id: range.endid
@@ -162,7 +165,7 @@ const actions = {
 				...state.glosses[hitId]?.gloss,
 				[fieldName]: fieldValue
 			},
-			corpus: INDEX_ID,
+			corpus: state.gloss_query.corpus,
 			hitId,
 			hit_first_word_id,
 			hit_last_word_id,
@@ -181,7 +184,7 @@ const actions = {
 			return
 		};
 		const q = validKeys.reduce<Record<string, string>>((acc, k) => { acc[k] = p[k]; return acc; }, {});
-		glossApi.getCql(state.settings.instance, INDEX_ID, JSON.stringify(q))
+		glossApi.getCql(state.settings.instance, state.gloss_query.corpus, JSON.stringify(q))
 			.then(cql => {
 				actions.setQueryCql(cql);
 				PatternStore.actions.glosses(state.gloss_query_cql);
@@ -217,7 +220,7 @@ const actions = {
 		if (!state.settings) { console.error('Trying to set current page, but not configured.'); return; }
 		state.current_page = payload
 		glossApi
-			.getGlosses(state.settings.instance, INDEX_ID, payload)
+			.getGlosses(state.settings.instance, state.gloss_query.corpus, payload)
 			.then(glossings => glossings.forEach(actions.addGlossing))
 			.catch(e => {
 				console.error(e);

@@ -36,7 +36,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.xml.transform.TransformerException;
 
-import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
@@ -44,8 +43,6 @@ import org.apache.velocity.app.Velocity;
 import org.apache.velocity.runtime.RuntimeServices;
 import org.apache.velocity.runtime.RuntimeSingleton;
 import org.apache.velocity.runtime.parser.ParseException;
-import org.apache.velocity.runtime.resource.util.StringResourceRepository;
-
 import nl.inl.corpuswebsite.response.ApiResponse;
 import nl.inl.corpuswebsite.response.ConfigResponse;
 import nl.inl.corpuswebsite.response.CorporaDataResponse;
@@ -208,7 +205,7 @@ public class MainServlet extends HttpServlet {
             getProjectFile(corpus, "search.xml")
             .map(configFile -> {
                 try { return new WebsiteConfig(configFile, config.get(Keys.CF_URL_ON_CLIENT), corpus); }
-                catch (ConfigurationException e) { throw new RuntimeException("Could not read search.xml " + configFile, e); }
+                catch (Exception e) { throw new RuntimeException("Could not read search.xml " + configFile, e); }
             })
             .orElseThrow(() -> new IllegalStateException("No search.xml, and no default in jar either"));
 

@@ -20,18 +20,16 @@
 <script lang="ts">
 import Vue from 'vue';
 import SelectPicker, { Option } from '@/components/SelectPicker.vue';
+import * as LoginSystem from '@/utils/loginsystem';
 
 export default Vue.extend({
 	components: {SelectPicker},
-	props: {
-		enabled: {
-			type: Boolean,
-			default: false,
-		},
-		canLogin: Boolean,
-		username: String as () => string|undefined,
-	},
+	data: () => ({
+		username: null as string|null,
+	}),
 	computed: {
+		canLogin(): boolean { return !!LoginSystem.userManager; },
+		enabled(): boolean { return this.canLogin || !!this.username; },
 		options(): Option[] {
 			const r: Option[] = [];
 			if (this.canLogin && !this.username) {
@@ -45,12 +43,12 @@ export default Vue.extend({
 	},
 	methods: {
 		handle(value: string) {
-			if (value === 'login') {
-				this.$emit('login');
-			} else if (value === 'logout') {
-				this.$emit('logout');
-			}
+			if (value === 'login') { LoginSystem.login(); }
+			else if (value === 'logout') { LoginSystem.logout(); }
 		}
+	},
+	created() {
+		LoginSystem.userName.then(username => this.username = username);
 	}
 })
 

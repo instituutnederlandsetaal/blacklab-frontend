@@ -89,7 +89,7 @@ export class TotalsLoader extends InteractiveLoadable<TotalsInput, TotalsOutput>
 }
 
 export type SubcorpusInput = {
-	index: Loadable<NormalizedIndex>;
+	index: NormalizedIndex;
 	filter: string|undefined|null;
 }
 export type SubcorpusOutput = {

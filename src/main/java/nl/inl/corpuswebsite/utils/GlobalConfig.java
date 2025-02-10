@@ -56,6 +56,8 @@ public class GlobalConfig implements ServletContextListener {
     public static final String commitMessage;
     /** Maven project version */
     public static final String version;
+    /** Branch name */
+    public static final String branch;
 
     /**
      * Thread that polls the watchService in the background and reloads the config values on change of the file.
@@ -179,7 +181,7 @@ public class GlobalConfig implements ServletContextListener {
             if (stream == null) {
                 // Set it all to the current time so cache busting works properly in development mode.
                 String date = new Date().toString();
-                commitTime = commitMessage = version = date;
+                commitTime = commitMessage = version = branch = date;
                 commitHash = date.hashCode() + ""; // we use this to cache-bust resources so make it a hash without spaces etc.
             } else {
                 props.load(stream);
@@ -188,6 +190,7 @@ public class GlobalConfig implements ServletContextListener {
                 commitTime = props.getProperty("git.commit.time");
                 commitMessage = props.getProperty("git.commit.message.short");
                 version = props.getProperty("git.build.version");
+                branch = props.getProperty("git.branch");
             }
         } catch (IOException e) {
             throw new RuntimeException("Could not load git.properties. It should have been auto-created at build time. Verify the git-commit-id-maven-plugin settings", e);
@@ -202,8 +205,6 @@ public class GlobalConfig implements ServletContextListener {
     public static GlobalConfig getDefault() {
         return new GlobalConfig(defaultProps);
     }
-
-    
     /** 
      * Required for reflection in the servlet container 
      * Creates a default config instance. Don't use this method manually.
@@ -211,7 +212,6 @@ public class GlobalConfig implements ServletContextListener {
     public GlobalConfig() {
         this(defaultProps);
     }
-
     GlobalConfig(File f) {
         this(loadProperties(f));
         this.validateAndNormalize();

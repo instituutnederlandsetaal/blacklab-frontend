@@ -28,6 +28,7 @@ import Vue from 'vue';
 import { Loadable, loadedIfNotNull, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
 
 type QueryState = {
+	indexId?: string|null,
 	params?: BLTypes.BLSearchParameters,
 	state: Pick<RootStore.RootState, 'query'|'interface'|'global'|'views'>
 };
@@ -59,12 +60,12 @@ urlInputParameters$.pipe(
 		url: string;
 	}>(v => {
 		// If we're not searching, return a bare url pointing to ${root}/${corpus}/search/
-		if (v.params == null) {
+		if (!v.indexId || !v.params) {
 			return {
-				url: Api.frontendPaths.currentCorpus(INDEX_ID),
+				url: v.indexId ? Api.frontendPaths.currentCorpus(v.indexId) : Api.frontendPaths.root(),
 				isTruncated: false,
 				state: v.state
-			};
+			}
 		}
 
 		// NOTE:
@@ -106,7 +107,7 @@ urlInputParameters$.pipe(
 
 		// Generate the new frontend url
 		const url = new URI()
-			.segment([CONTEXT_URL, INDEX_ID, 'search', v.state.interface.viewedResults!])
+			.segment([CONTEXT_URL, CorpusStore.get.indexId()!, 'search', v.state.interface.viewedResults!])
 			.host('').protocol('').port('') // remove these, we're only interested in the path and query.
 			.search(queryParams);
 
@@ -183,6 +184,7 @@ urlInputParameters$.pipe(
 			glosses: GlossStore.defaults,
 		};
 		return {
+			indexId: v.indexId,
 			url: v.url,
 			entry,
 			state: v.state,
@@ -213,6 +215,7 @@ export default () => {
 
 	RootStore.store.watch(
 		(state): QueryState => ({
+			indexId: CorpusStore.get.indexId(),
 			params: RootStore.get.blacklabParameters(),
 			state: {
 				views: state.views,

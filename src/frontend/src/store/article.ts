@@ -7,6 +7,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 
 import {RootState} from '@/store';
 import { NormalizedIndex } from '@/types/apptypes';
+import { CorpusChange } from '@/store/async-loaders';
 
 type ModuleRootState = {
 	docId: string|null;
@@ -69,7 +70,7 @@ const initialHistoryState: HistoryState = {
 
 const initialState: ModuleRootState = {
 	...initialHistoryState,
-	pageSize: PAGE_SIZE,
+	pageSize: 1000,
 
 	distributionAnnotation: null,
 	growthAnnotations: null,
@@ -128,8 +129,8 @@ const actions = {
 	}, 'replaceRoot'),
 };
 
-const init = (corpus: NormalizedIndex|null) => {
-	if (!corpus) Object.assign(getState(), initialState);
+const init = (state: CorpusChange) => {
+	if (!state.index) Object.assign(getState(), initialState);
 	else actions.reset();
 };
 

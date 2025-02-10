@@ -4,6 +4,7 @@
 import { getStoreBuilder } from 'vuex-typex';
 
 import { RootState } from '@/store/';
+import * as CorpusStore from '@/store/corpus';
 import * as PatternStore from '@/store/form/patterns';
 import { uniq } from '@/utils'
 import cloneDeep from 'clone-deep';
@@ -11,6 +12,7 @@ import cloneDeep from 'clone-deep';
 import { init as initConceptEndpoint, conceptApi } from '@/api';
 import Vue from 'vue';
 import { NormalizedIndex } from '@/types/apptypes';
+import { CorpusChange } from '@/store/async-loaders';
 
 type Settings = {
 	/** guaranteed not to end in '/' */
@@ -63,9 +65,7 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneD
 const getState = b.state();
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = (corpus: NormalizedIndex|null) => { actions.reset(); }
-
-
+const init = (state: CorpusChange) => { actions.reset(); }
 
 /** TODO align query in store and in query parameters so we can just pass it along as-is. */
 function reshuffle_query_for_blackparank(q: AtomicQuery[][], element: string): {element: string, strict: boolean, filter: string, queries: Record<string, AtomicQuery[]>} {
@@ -129,7 +129,7 @@ const actions = {
 		const query = get.query_for_blackparank();
 		if (!query || !s.settings) return;
 		conceptApi
-			.translate_query_to_cql(s.settings.blacklab_server, INDEX_ID, s.target_element, query)
+			.translate_query_to_cql(s.settings.blacklab_server, CorpusStore.get.indexId()!, s.target_element, query)
 			.then(r => {
 				s.query_cql = r.pattern;
 				PatternStore.actions.concept(s.query_cql);
@@ -148,7 +148,7 @@ const actions = {
 		state.settings.concept_server = state.settings.concept_server.replace(/\/$/, '');
 		initConceptEndpoint('concept', state.settings.concept_server, null);
 
-		conceptApi.getMainFields(state.settings.instance, INDEX_ID)
+		conceptApi.getMainFields(state.settings.instance, CorpusStore.get.indexId()!)
 			.then(response => state.main_fields = uniq(response.data.map(x => x.field)));
 	}, 'concept_load_settings'),
 };

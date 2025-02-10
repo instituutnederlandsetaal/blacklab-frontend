@@ -98,11 +98,11 @@ import { promiseFromLoadableStream } from '@/utils/loadable-streams';
 let pageLoadUrlDecoded = false;
 router.beforeEach(async (to, from, next) => {
 	// On first entry on the page, we need to decode the url.
-	RootStore.actions.corpusId(to.params.corpus);
+	RootStore.actions.indexId(to.params.corpus);
 	ArticleStore.actions.docId(to.params.docId);
 	if (!pageLoadUrlDecoded && to.params.corpus) {
 		// wait for store to initialize.
-		await promiseFromLoadableStream(RootStore.loadingState$, 'root loading state');
+		await promiseFromLoadableStream(RootStore.corpusData$, 'root loading state');
 		// then decode url.
 		if (to.name === 'article' || to.name === 'search') {
 			RootStore.actions.replace(await new UrlStateParserSearch(FilterStore.getState().filters).get());

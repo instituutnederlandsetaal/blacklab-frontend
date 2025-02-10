@@ -209,7 +209,7 @@ export default Vue.extend({
 						lemmata.forEach(l => l.pos = `${l.lemma} (${l.pos || 'unknown'})`);
 
 						// Request occurance counts in the corpus from blacklab. Note we also request occurance count for the entered search term.
-						const {termFreq: frequencies} = await api.blacklab.getTermFrequencies(INDEX_ID, this.annotationId, lemmata.flatMap(r => r.wordforms).concat(term));
+						const {termFreq: frequencies} = await api.blacklab.getTermFrequencies(CorpusStore.get.indexId()!, this.annotationId, lemmata.flatMap(r => r.wordforms).concat(term));
 
 						const options: Record<string, WordOption> = {};
 						lemmata.forEach(({pos, wordforms, lemma}) => {

@@ -31,16 +31,9 @@
         <link rel="stylesheet" href="$CF_URL_ON_CLIENT/css/vendor/pageguide.min.css?_$cache">
         <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.3.0/css/font-awesome.min.css">
         <link rel="stylesheet" href="$CF_URL_ON_CLIENT/css/main.css?_$cache">
-        ## custom JS in footer
-        #foreach($path in $websiteConfig.getCustomCSS($page))
-            <link rel="stylesheet" href="$path?_$cache">
-        #end
-        #foreach($path in $websiteConfig.getCustomCSS(""))
-            <link rel="stylesheet" href="$path?_$cache">
-        #end
+
 
         <script>
-            var INDEX_ID = "$esc.javascript($websiteConfig.getCorpusId().orElse(null))"
             var WITH_CREDENTIALS = $esc.javascript($FRONTEND_WITH_CREDENTIALS);
 
             /** Base url of the corpus-frontend. Guaranteed not to end in '/' */
@@ -48,15 +41,10 @@
             // Not suffixed with the corpus id
             var BLS_URL = "$esc.javascript($BLS_URL_ON_CLIENT)";
 
-            var PLAUSIBLE_DOMAIN = "$esc.javascript($websiteConfig.getPlausibleDomain().orElse(null))"
-            var PLAUSIBLE_APIHOST = "$esc.javascript($websiteConfig.getPlausibleApiHost().orElse(null))"
-
             var OIDC_AUTHORITY = "$esc.javascript($OIDC_AUTHORITY)";
             var OIDC_METADATA_URL = "$esc.javascript($OIDC_METADATA_URL)";
             var OIDC_CLIENT_ID = "$esc.javascript($OIDC_CLIENT_ID)";
 
-            var PROPS_IN_COLUMNS = "$websiteConfig.getPropColumns().orElse("")".split(',');
-            var PAGE_SIZE = $pageSize;
             var DEBUG_INFO_VISIBLE = $debugInfo;
 
             // Place to register CustomJS hook functions
@@ -66,62 +54,11 @@
         </script>
     </head>
     <body>
-        <div class="navbar navbar-inverse navbar-fixed-top">
-            #if ($bannerMessage && $bannerMessageCookie)
-                #set($unescaped = $bannerMessage)
-                <div class="container alert alert-dismissable navbar-alert">
-                    <div class="message">$unescaped</div>
-                    <button type="button" class="btn btn-link btn-lg" data-dismiss="alert" title="Dismiss" onClick="javascript:document.cookie='$bannerMessageCookie'"><span class="fa fa-times"></span></button>
-                </div>
-            #end
-
-            <div class="container">
-                <div class="navbar-header">
-                    <div class="navbar-logo-container">
-                        <div class="navbar-logo"></div>
-                    </div>
-
-                    #if($websiteConfig.getCorpusId().isPresent())
-                    <a class='navbar-brand' href='$CF_URL_ON_CLIENT/$websiteConfig.getCorpusId().get()/search/'
-                        #if($displayNameIsFallback) data-is-fallback #end
-                    >$displayName</a>
-                    #else
-                    <a class='navbar-brand' href='$CF_URL_ON_CLIENT/'>AutoSearch</a>
-                    #end
-                </div>
-
-                <div class="navbar-collapse collapse navbar-logo-margin">
-                    <ul class="nav navbar-nav">
-                        #foreach($link in $websiteConfig.getLinks())
-                            <li><a href="$link.href" #if($link.openInNewWindow) target="_blank" #end>$link</a></li>
-                        #end
-                    </ul>
-                </div>
-
-                <div class="navbar-buttons">
-                    <div id="username"></div>
-                    <div id="locale-selector"></div>
-
-                    <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".navbar-collapse" onclick="document.querySelector('.navbar-collapse').classList.toggle('collapse')">
-                        <span class="icon-bar"></span>
-                        <span class="icon-bar"></span>
-                        <span class="icon-bar"></span>
-                    </button>
-                </div>
-
-            </div>
-        </div>
 
 
-<script>
+    <script src="$JSPATH/main.js?_$cache"></script>
 
-</script>
-
-<script src="$JSPATH/main.js?_$cache"></script>
-
-<div id="vue-root"></div>
-
-
+    <div id="vue-root"></div>
         <div class="container">
             <footer class="row">
                 <hr>

@@ -31,7 +31,9 @@ import * as ExploreModule from '@/store/explore';
 import * as GapModule from '@/store//gap';
 import { getFilterSummary, getFilterString } from '@/components/filters/filterValueFunctions';
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
+import { CorpusChange } from '@/store/async-loaders';
 import { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
+
 
 // todo migrate these weirdo state shapes to mapped types?
 // might be a cleaner way of doing this...
@@ -156,7 +158,7 @@ const actions = {
 	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)), 'replace'),
 };
 
-const init = (corpus: CorpusModule.NormalizedIndex|null) => {
+const init = (state: CorpusChange) => {
 	actions.reset();
 };
 

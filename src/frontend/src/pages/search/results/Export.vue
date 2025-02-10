@@ -45,6 +45,7 @@ import Vue from 'vue';
 import cloneDeep from 'clone-deep';
 
 import * as Api from '@/api';
+import * as CorpusStore from '@/store/corpus';
 
 import { BLSearchResult } from '@/types/blacklabtypes';
 import * as UIStore from '@/store/search/ui';
@@ -84,10 +85,10 @@ export default Vue.extend({
 			}
 			(params as any).csvdescription = UIStore.corpusCustomizations.results.csvDescription(this.results.summary, fieldDisplayName) || '';
 
-			const apir = apiCall(INDEX_ID, params);
+			const apir = apiCall(CorpusStore.get.indexId()!, params);
 
 			debugLog('starting csv download', this.type, params);
-			apiCall(INDEX_ID, params).request
+			apiCall(CorpusStore.get.indexId()!, params).request
 			.then(
 				async blob => {
 					const { saveAs } = await import('file-saver');

@@ -17,7 +17,7 @@ export default Vue.extend({
 	},
 	computed: {
 		content() {
-			return Vue.observable(loadableFromObservable(toObservable(frontend.getAbout(CorpusStore.get.corpusId() ?? undefined)), []));
+			return Vue.observable(loadableFromObservable(toObservable(frontend.getAbout(CorpusStore.get.indexId() ?? undefined)), []));
 		},
 	},
 });

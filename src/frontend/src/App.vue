@@ -1,7 +1,8 @@
 <template>
 	<div class="container">
-		Main App
-		{{ storeLoadingState }}
+		<Navbar/>
+
+		<!-- <pre>{{ storeLoadingState }}</pre> -->
 		<div v-if="storeLoadingState.isLoading()">
 			<Spinner center/>
 			<h2>Please wait while we load the corpus...</h2>
@@ -24,9 +25,10 @@ import {store, get} from '@/store';
 import router from '@/router';
 
 import Spinner from '@/components/Spinner.vue';
+import Navbar from '@/components/Navbar.vue';
 
 export default Vue.extend({
-	components: {Spinner},
+	components: {Spinner, Navbar},
 	router,
 	i18n,
 	store,

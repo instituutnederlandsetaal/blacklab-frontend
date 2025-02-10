@@ -44,6 +44,7 @@ function getSettings(i18n: Vue): QueryBuilderOptions {
 
 
 	return {
+		indexId: CorpusStore.get.indexId()!,
 		queryBuilder: { view: { withinSelectOptions } },
 		attribute: {
 			view: {

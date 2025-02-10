@@ -388,3 +388,58 @@ export type OptGroup = {
 	disabled?: boolean;
 	options: Array<string|Option>;
 };
+
+
+
+export type CFCustomJsEntry = {
+	/** For global customJs, which index it should have on the page (for runtime dependency order) */
+	index: number;
+	attributes: {
+		src: string;
+		async?: boolean;
+		defer?: boolean;
+		type?: string;
+		integrity?: string;
+		crossorigin?: string;
+	};
+};
+
+export type CFCustomCssEntry = {
+	/** For global customCss, which index it should have on the page (so they can override each other, etc.) */
+	index: number;
+	attributes: {
+		href: string;
+		ref: 'stylesheet';
+		// More can exist here.
+	};
+};
+
+export type CFNavbarLink = {
+	label: string;
+	attributes: {
+		href: string;
+		target: string;
+		crossorigin?: string;
+	};
+};
+
+export type CFGoogleAnalyticsSettings = {
+	key: string;
+};
+export type CFPlausibleAnalyticsSettings = {
+	apiHost: string;
+	domain: string;
+}
+
+export type CFPageConfig = {
+	displayName: string;
+	pageSize: number | null;
+	faviconDir: string;
+	customJs: Record<string, CFCustomJsEntry[]>;
+	navbarLinks: CFNavbarLink[];
+	customCss: Record<string, CFCustomCssEntry[]>;
+	analytics: {
+		google: null | CFGoogleAnalyticsSettings;
+		plausible: null | CFPlausibleAnalyticsSettings;
+	};
+};

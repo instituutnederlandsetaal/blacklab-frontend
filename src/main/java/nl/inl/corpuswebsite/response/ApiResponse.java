@@ -1,26 +1,17 @@
 package nl.inl.corpuswebsite.response;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStreamWriter;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
-import javax.servlet.http.HttpServletResponse;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 
 import nl.inl.corpuswebsite.BaseResponse;
-import nl.inl.corpuswebsite.MainServlet;
-import nl.inl.corpuswebsite.response.ArticleResponse.ArticleContentRestrictedException;
-import nl.inl.corpuswebsite.utils.ArticleUtil;
-import nl.inl.corpuswebsite.utils.CorpusConfig;
-import nl.inl.corpuswebsite.utils.QueryException;
-import nl.inl.corpuswebsite.utils.Result;
+import nl.inl.corpuswebsite.utils.*;
+
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
+
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 /**
  * We need a rudimentary API for some of the content that needs to processed serverside.
@@ -37,22 +28,22 @@ import nl.inl.corpuswebsite.utils.Result;
  */
 public class ApiResponse extends BaseResponse {
     public ApiResponse() {
-        super("api", true);
+        super("api", false);
     }
 
     @Override
     protected void completeRequest() throws QueryException {
         if (pathParameters.isEmpty()) throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "No endpoint specified");
         String operation = pathParameters.get(0);
-
         if (operation.equalsIgnoreCase("docs")) docs();
         else if (operation.equalsIgnoreCase("info")) indexMetadata();
+        else if (operation.equalsIgnoreCase("config")) siteConfig();
         else if (operation.equalsIgnoreCase("help")) help();
         else if (operation.equalsIgnoreCase("about")) about();
         else throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint " + operation);
     }
 
-    public void docs() throws QueryException {
+     public void docs() throws QueryException {
         if (pathParameters.size() < 2) throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "No document specified. Expected ${corpus}/docs/${docId}[/contents]");
         String document = pathParameters.get(1);
         boolean isContents = pathParameters.size() > 2 && pathParameters.get(2).equalsIgnoreCase("contents");
@@ -61,6 +52,7 @@ public class ApiResponse extends BaseResponse {
     }
 
     public void documentContents(String docId) throws QueryException {
+        if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
         new ArticleUtil(servlet, request, response).getTransformedDocument(
             servlet.getWebsiteConfig(corpus),
             servlet.getCorpusConfig(corpus, request, response).mapError(QueryException::wrap).getOrThrow(),
@@ -72,6 +64,7 @@ public class ApiResponse extends BaseResponse {
     }
 
     public void documentMetadata(String docId) throws QueryException {
+        if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
         new ArticleUtil(servlet, request, response).getTransformedMetadata(
             servlet.getCorpusConfig(corpus, request, response).mapError(QueryException::wrap).getOrThrow(),
             servlet.getWebsiteConfig(corpus),
@@ -81,10 +74,23 @@ public class ApiResponse extends BaseResponse {
         .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
     }
 
-    public void indexMetadata() {
+    public void indexMetadata() throws QueryException {
+        if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
         servlet.getCorpusConfig(corpus, request, response)
             .mapError(QueryException::wrap)
             .map(CorpusConfig::getJsonUnescaped)
+            .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
+    }
+
+    public void siteConfig() {
+        Result.success(servlet.getWebsiteConfig(corpus))
+            .map(WebsiteConfig.WebsiteConfigJson::new)
+            .mapWithErrorHandling(config -> {
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.enable(SerializationFeature.INDENT_OUTPUT);
+                return mapper.writeValueAsString(config);
+            })
+            .mapError(QueryException::wrap)
             .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
     }
 
@@ -125,24 +131,11 @@ public class ApiResponse extends BaseResponse {
         }, error -> {
             try {
                 response.setStatus(error.getHttpStatusCode());
-                response.getWriter().print(error.getMessage());
+                response.getWriter().print(error.getMessage() + "\n" + ExceptionUtils.getStackTrace(error));
                 response.flushBuffer();
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         });
-    }
-
-
-    private static class TransformationResultDescriptor {
-        public Optional<String> content;
-        public Optional<Exception> exception;
-        public Map<String, Object> meta;
-
-        public TransformationResultDescriptor() {
-            content = Optional.empty();
-            exception = Optional.empty();
-            meta = new HashMap<>();
-        }
     }
 }

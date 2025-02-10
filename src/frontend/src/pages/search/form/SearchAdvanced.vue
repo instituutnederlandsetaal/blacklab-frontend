@@ -45,6 +45,7 @@
 <script lang="ts">
 import * as PatternStore from '@/store/form/patterns';
 import * as InterfaceStore from '@/store/form/interface';
+import * as CorpusStore from '@/store/corpus';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 import MultiValuePicker from '@/components/MultiValuePicker.vue';
@@ -83,7 +84,8 @@ export default ParallelFields.extend({
 				targetValue: this.pTargetValue,
 				// little stupid, but we need a way to know when the locale has changed.
 				// i18n.locale is not reactive?
-				localeChange: this.$i18n.locale
+				localeChange: this.$i18n.locale,
+				indexId: CorpusStore.get.indexId()!
 			}
 		}
 	},
