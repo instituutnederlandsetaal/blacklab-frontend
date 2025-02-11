@@ -278,31 +278,31 @@
             <version>1.1</version>
         </dependency>
 
-        <dependency>
-            <groupId>edu.stanford.nlp</groupId>
-            <artifactId>stanford-corenlp</artifactId>
-            <version>4.4.0</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>edu.stanford.nlp</groupId>-->
+<!--            <artifactId>stanford-corenlp</artifactId>-->
+<!--            <version>4.4.0</version>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>edu.stanford.nlp</groupId>
-            <artifactId>stanford-corenlp</artifactId>
-            <version>4.4.0</version>
-            <classifier>models</classifier>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>edu.stanford.nlp</groupId>-->
+<!--            <artifactId>stanford-corenlp</artifactId>-->
+<!--            <version>4.4.0</version>-->
+<!--            <classifier>models</classifier>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>edu.stanford.nlp</groupId>
-            <artifactId>stanford-corenlp</artifactId>
-            <version>4.4.0</version>
-            <classifier>models-chinese</classifier>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>edu.stanford.nlp</groupId>-->
+<!--            <artifactId>stanford-corenlp</artifactId>-->
+<!--            <version>4.4.0</version>-->
+<!--            <classifier>models-chinese</classifier>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>net.sf.trove4j</groupId>
-            <artifactId>trove4j</artifactId>
-            <version>2.1.0</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>net.sf.trove4j</groupId>-->
+<!--            <artifactId>trove4j</artifactId>-->
+<!--            <version>2.1.0</version>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>org.jgrapht</groupId>
@@ -315,12 +315,20 @@
             <version>1.5.1</version>
         </dependency>
 
+<!--        <dependency>-->
+<!--            <groupId>mallet</groupId>-->
+<!--            <artifactId>mallet</artifactId>-->
+<!--            <version>2.0.8</version>-->
+<!--            <scope>system</scope>-->
+<!--            <systemPath>${project.basedir}/lib/mallet.jar</systemPath>-->
+<!--        </dependency>-->
+
+        <!-- https://mvnrepository.com/artifact/cc.mallet/mallet -->
         <dependency>
-            <groupId>mallet</groupId>
+            <groupId>cc.mallet</groupId>
             <artifactId>mallet</artifactId>
             <version>2.0.8</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/lib/mallet.jar</systemPath>
         </dependency>
+
     </dependencies>
 </project>
