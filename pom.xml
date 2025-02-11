@@ -263,7 +263,7 @@
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
-            <version>1.2.28</version>
+            <version>1.2.83</version>
         </dependency>
 
         <dependency>
@@ -309,11 +309,11 @@
             <artifactId>jgrapht-core</artifactId>
             <version>1.5.1</version>
         </dependency>
-        <dependency>
-            <groupId>org.jgrapht</groupId>
-            <artifactId>jgrapht-opt</artifactId>
-            <version>1.5.1</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.jgrapht</groupId>-->
+<!--            <artifactId>jgrapht-opt</artifactId>-->
+<!--            <version>1.5.1</version>-->
+<!--        </dependency>-->
 
 <!--        <dependency>-->
 <!--            <groupId>mallet</groupId>-->

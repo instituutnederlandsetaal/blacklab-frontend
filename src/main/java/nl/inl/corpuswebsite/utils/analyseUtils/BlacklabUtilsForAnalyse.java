@@ -11,6 +11,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -520,7 +521,7 @@ public class BlacklabUtilsForAnalyse {
         if(keywords.isEmpty()){
             keywordPatt = "[]";
         } else {
-            keywordPatt = "[" + wordOrLemma + "='" + String.join("|", keywords) + "']" + withinScope;
+            keywordPatt = "[" + wordOrLemma + "='" + keywords.stream().map(Pattern::quote).collect(Collectors.joining("|")) + "']" + withinScope;
         }
 
         JSONArray edgeArray = getCooccur(corpusName, isCase, stopwords, getDocumentCount(corpusName), keywordPatt, edgeAlg);

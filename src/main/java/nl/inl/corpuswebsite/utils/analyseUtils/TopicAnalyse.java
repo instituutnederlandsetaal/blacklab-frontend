@@ -95,7 +95,7 @@ public class TopicAnalyse {
 
 
      /** Output the first few words of each topic and their weights, and return them in JSON format **/
-    public static JSONArray getTopicsJson(ParallelTopicModel model, Alphabet dataAlphabet, int topN) {
+    protected static JSONArray getTopicsJson(ParallelTopicModel model, Alphabet dataAlphabet, int topN) {
         ArrayList<TreeSet<IDSorter>> topicSortedWords = model.getSortedWords();
         JSONArray topicsJson = new JSONArray();
 
