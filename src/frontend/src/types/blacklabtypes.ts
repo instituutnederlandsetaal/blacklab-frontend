@@ -84,7 +84,7 @@ export type CFWordlistParameters = {
 	showNumber?: number;
 	isCase?: boolean;
 	dispersionAlg?: string;
-	adjustedAlg?: string;	
+	adjustedAlg?: string;
 	partN?: number;
 };
 export type CFKeywordParameters = {
@@ -106,7 +106,7 @@ export type CFNetworkParameters = {
 	weightThreshold?: number;
 	numCommunities?: number;
 };
-export type CFAnalyseParameters = CFTopicParameters|CFColloParameters|CFCooccurParameters|CFWordlistParameters|CFKeywordParameters|CFNetworkParameters 
+export type CFAnalyseParameters = CFTopicParameters|CFColloParameters|CFCooccurParameters|CFWordlistParameters|CFKeywordParameters|CFNetworkParameters
 
 // --------------
 // Base responses
@@ -701,15 +701,16 @@ export interface BLHitResults {
 
 /** Used in BLTableResults, which used in "Analyse" function. */
 export type TableColumns = {
-    prop: string;
-    label: string;
+	prop: string;
+	label: string;
 }
 
 /** used in "Analyse" function. */
 export interface BLTableResults {
-	data: any;
-    columns: TableColumns[]; 
-	points: any; //Points only used in "Network" function.
+	data: Array<Record<string, string|number>>;
+	columns: TableColumns[];
+	/** Points only used in "network" function */
+	points: any;
 	summary: any;
 }
 

@@ -76,7 +76,7 @@
 
 			</component>
 			<div v-else-if="activeForm === 'analyse' && isTableResults">
-				<TableResults :columns="tableResultColumns" :data="tableResultData"></TableResults>
+				<TableResults :columns="tableResultColumns" :data="tableResultData" @sort="sortTableResults"/>
 				<div v-if="analyseMode === 'collocation' || analyseMode === 'cooccur'">
 					<ColloGraph :columns="tableResultColumns" :data="tableResultData" />
 				</div>
@@ -195,6 +195,8 @@ export default Vue.extend({
 			sort: string|null;
 		},
 
+		currentTableSort: '' as string,
+
 		debug
 	}),
 	methods: {
@@ -230,7 +232,7 @@ export default Vue.extend({
 			}
 
 			if (this.clearResults) { this.results = this.error = null; this.clearResults = false; }
-			
+
 			let apiCall, r;
 			let params: any;
 			const nonce = this.refreshParameters;
@@ -257,7 +259,7 @@ export default Vue.extend({
 				r = apiCall(this.indexId, params, {headers: { 'Cache-Control': 'no-cache' }});
 				this.request = r.request;
 				this.cancel = r.cancel;
-			}			
+			}
 
 			setTimeout(() => this.scrollToResults(), 1500);
 
@@ -328,6 +330,20 @@ export default Vue.extend({
 			this.page = this.restoreOnViewGroupLeave?.page || 0;
 			this.sort = this.restoreOnViewGroupLeave?.sort || null;
 			this.restoreOnViewGroupLeave = null;
+		},
+		sortTableResults(prop: string) {
+			const descending = prop === this.currentTableSort;
+			this.currentTableSort = descending ? '-' + prop : prop;
+			const r = this.results;
+			if (!BLTypes.isTableResults(this.results)) return;
+			const mult = descending ? -1 : 1;
+			this.results.data.sort((a,b) => {
+				const aVal = a[prop];
+				const bVal = b[prop];
+				if (aVal === bVal) return 0;
+				if (typeof aVal === 'string') return aVal.localeCompare(bVal as string) * mult;
+				return ((aVal as number) - (bVal as number)) * mult
+			});
 		}
 	},
 	computed: {
@@ -517,11 +533,11 @@ export default Vue.extend({
 			if (BLTypes.isTableResults(this.results)) {return true; }
 			return false;
 		},
-		tableResultColumns(): any {
+		tableResultColumns(): BLTypes.TableColumns[] {
 			if (BLTypes.isTableResults(this.results)) {return this.results.columns; }
 			return [];
 		},
-		tableResultData(): any {
+		tableResultData(): Array<Record<string, string|number>> {
 			if (BLTypes.isTableResults(this.results)) {return this.results.data; }
 			return [];
 		},

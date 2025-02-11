@@ -7,7 +7,9 @@
 				<thead>
 					<tr>
 						<th v-for="column in columns" :key="column.prop"  style="text-align: center;">
-							{{ $t('results.tableResults.'+column.label) }}
+							<a role="button" @click="$emit('sort', column.prop)">
+								{{ $t('results.tableResults.'+column.label) }}
+							</a>
 						</th>
 					</tr>
 				</thead>
@@ -24,23 +26,23 @@
 			<Pagination slot="pagination"
 				style="display: block; margin: 10px 0;"
 
-				:page="this.shownPage"
+				:page="shownPage"
 				:maxPage="pagination.maxShownPage"
 				:disabled="false"
 
 				@change="handlePageChange"
 			/>
-			<div>  
-				<button class="btn btn-default btn-sm" @click="exportToExcel">{{$t('results.tableResults.excel')}}</button>  
+			<div>
+				<button class="btn btn-default btn-sm" @click="exportToExcel">{{$t('results.tableResults.excel')}}</button>
 			</div>
-		</div>	
+		</div>
 	</div>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
-import * as XLSX from 'xlsx';  
-import { saveAs } from 'file-saver';  
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 
 import * as GlobalViewSettings from '@/store/search/results/global';
 import * as InterfaceStore from '@/store/search/form/interface';
@@ -54,16 +56,16 @@ export default Vue.extend({
 		Export,
 	},
 	props: {
-		columns: Array,
-		data: Array,
+		columns: Array as () => Array<{ prop: string, label: string }>,
+		data: Array as () => Array<Record<string, string|number>>,
 	},
-	data() {  
-		return {  
+	data() {
+		return {
 			shownPage: 0, // page number in shown in frontend
 			pageCount: 0,
 			shownData: [] as any[],
-		};  
-	},  
+		};
+	},
 	computed: {
 		pageSize: {
 			get(): string { return this.itoa(GlobalViewSettings.getState().pageSize); },
@@ -86,7 +88,7 @@ export default Vue.extend({
 			//maxShownPage is based-0，pageCount is based-1
 			this.pageCount = maxShownPage + 1
 
-			this.updateShownData() 
+			this.updateShownData()
 
 			return {
 				maxShownPage: maxShownPage
@@ -100,36 +102,36 @@ export default Vue.extend({
 	methods: {
 		itoa(n: number|null): string { return n == null ? '' : n.toString(); },
 		atoi(s: string): number|null { return s ? Number.parseInt(s, 10) : null; },
-		exportToExcel() {  
-			const wb = XLSX.utils.book_new();  		
-			const ws = XLSX.utils.json_to_sheet(this.data);  
-			XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');  
-			const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });  
-			const blob = new Blob([wbout], { type: 'application/octet-stream' });  
-			saveAs(blob, 'data.xlsx');  
-		},  
-		handlePageChange(newPage: any) {  
+		exportToExcel() {
+			const wb = XLSX.utils.book_new();
+			const ws = XLSX.utils.json_to_sheet(this.data);
+			XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+			const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+			const blob = new Blob([wbout], { type: 'application/octet-stream' });
+			saveAs(blob, 'data.xlsx');
+		},
+		handlePageChange(newPage: any) {
 			this.shownPage = newPage
 		},
-		
-		updateShownData() {  
+
+		updateShownData() {
 			const pageSize = GlobalViewSettings.getState().pageSize;
-			const start = (this.shownPage) * parseInt(this.pageSize, 10);  
+			const start = (this.shownPage) * parseInt(this.pageSize, 10);
 			const end = start + parseInt(this.pageSize, 10);
-			
-			this.shownData =  this.data.slice(start, end); 
-		}  
+
+			this.shownData =  this.data.slice(start, end);
+		},
 	},
-	
+
 })
 </script>
 
 <style lang="scss">
 
 .table-container {
-  width: 100%;  
-  max-width: 100%;  
-  overflow-x: auto;  
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 table {
@@ -139,7 +141,7 @@ table {
 		&:first-child { padding-left: 6px; }
 		&:last-child { padding-right: 6px; }
 		text-align: center;
-		white-space: nowrap; 
+		white-space: nowrap;
 	}
 
 	> thead > tr > th {
@@ -148,7 +150,7 @@ table {
 		&:first-child { padding-left: 6px; }
 		&:last-child { padding-right: 6px; }
 		text-align: center;
-		white-space: nowrap;  
+		white-space: nowrap;
 	}
 
 	&.topic-table {
@@ -170,10 +172,10 @@ table {
 	}
 }
 
-.pagination-and-button-container {  
-  display: flex;  
-  justify-content: space-between;  
-  align-items: center;  
-}  
+.pagination-and-button-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
 </style>
