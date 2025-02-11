@@ -35,9 +35,8 @@ public class WordlistAnalyse {
     }
 
     public JSONObject getWordlist() throws Exception {
-        String[] stopWordsArray = stopwordsStr.split("\\|");
-        List<String> stopWords = Arrays.asList(stopWordsArray);
         BlacklabUtilsForAnalyse blUtils = new BlacklabUtilsForAnalyse(baseUrl);
+        Set<String> stopWords = blUtils.getStopwords(stopwordsStr);
         JSONArray wordFreqArray = blUtils.getTermfreq(corpusName, isCase, wordNumber,  stopWords);
 
         List<String> corpus = blUtils.getAllContentLinear(corpusName, stopWords, isCase);

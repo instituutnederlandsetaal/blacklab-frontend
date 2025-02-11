@@ -3,6 +3,8 @@ package nl.inl.corpuswebsite.utils.analyseUtils;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.jgrapht.Graph;
 import org.jgrapht.alg.clustering.GirvanNewmanClustering;
 import org.jgrapht.alg.interfaces.ClusteringAlgorithm;
@@ -36,16 +38,14 @@ public class NetworkAnalyse {
     }
 
     public JSONObject getCooccurNetwork() throws Exception {
-        String[] stopWordsArray = stopwordsStr.split("\\|");
-        List<String> stopWords = Arrays.asList(stopWordsArray);
-
         BlacklabUtilsForAnalyse blUtils = new BlacklabUtilsForAnalyse(baseUrl);
-        JSONArray wordFreqArray = blUtils.getTermfreq(corpusName, isCase, wordNumber,  stopWords);
+        Set<String> stopWords = blUtils.getStopwords(stopwordsStr);
+        JSONArray wordFreqArray = blUtils.getTermfreq(corpusName, isCase, wordNumber, stopWords);
 
         // Store each keyword and its word frequency
         JSONArray pointsArray = new JSONArray();
         // key is keyword and value is absoluteFreq + "|" + relativeFreq
-        Map<String, String> keywordFreqMap = new HashMap<>();
+        Map<String, Pair<Integer, String>> keywordFreqMap = new HashMap<>();
         List<String> keywords = new ArrayList<>();
         int count = 0;
         for (Object obj : wordFreqArray) {
@@ -60,7 +60,7 @@ public class NetworkAnalyse {
                 pointObj.put("relativeFreq", relativeFreq);
                 pointsArray.add(pointObj);
                 keywords.add(word);
-                keywordFreqMap.put(word, absoluteFreq + "|" + relativeFreq);
+                keywordFreqMap.put(word, Pair.of(absoluteFreq, relativeFreq));
                 count++;
             }
             // If a sufficient number of word frequencies have been obtained, the traversal stops
@@ -74,41 +74,37 @@ public class NetworkAnalyse {
         JSONArray filteredEdgeArray = new JSONArray();
         for (int i = 0; i < edgeArray.size(); i++) {
             JSONObject jsonObject = edgeArray.getJSONObject(i);
-            String[] parts = new String[]{"",""};
             String keyword = jsonObject.getString("keyword");
             String cooccurWord = jsonObject.getString("cooccurWord");
             if(keywords.contains(keyword) && keywords.contains(cooccurWord) && !keyword.equals(cooccurWord))
             {
                 JSONObject edgeObj = new JSONObject();
-                if(keywordFreqMap.get(keyword) != null){
-                    parts = keywordFreqMap.get(keyword).split("\\|");
-                    int absoluteFreq1 = Integer.parseInt(parts[0]);
+                if(keywordFreqMap.containsKey(keyword)){
+                    Pair<Integer, String> freq = keywordFreqMap.get(keyword);
+                    int absoluteFreq1 = freq.getLeft();
+                    String relativeFreq1 = freq.getRight();
                     int absoluteFreq2 = jsonObject.getIntValue("absoluteFreq");
                     if(absoluteFreq1 >= absoluteFreq2){
                         edgeObj.put("absoluteFreq2", absoluteFreq2);
                         edgeObj.put("relativeFreq2", jsonObject.getString("relativeFreq"));
                         edgeObj.put("absoluteFreq1", absoluteFreq1);
-                        edgeObj.put("relativeFreq1", parts.length > 1 ? parts[1] : "");
+                        edgeObj.put("relativeFreq1", relativeFreq1);
                         edgeObj.put("word2", cooccurWord);
                         edgeObj.put("word1", keyword);
                         edgeObj.put("edgeWeight", jsonObject.getString("edgeWeight"));
                         filteredEdgeArray.add(edgeObj);
                     }
                 }
-
             }
         }
 
         // In descending order of edgeWeight
-        Collections.sort(filteredEdgeArray, new Comparator<Object>() {
-            @Override
-            public int compare(Object o1, Object o2) {
-                JSONObject json1 = (JSONObject) o1;
-                JSONObject json2 = (JSONObject) o2;
-                double weight1 = Float.parseFloat(json1.getString("edgeWeight").replace("%", ""));
-                double weight2 = Float.parseFloat(json2.getString("edgeWeight").replace("%", ""));
-                return Double.compare(weight2, weight1);
-            }
+        filteredEdgeArray.sort((o1, o2) -> {
+            JSONObject json1 = (JSONObject) o1;
+            JSONObject json2 = (JSONObject) o2;
+            double weight1 = Float.parseFloat(json1.getString("edgeWeight").replace("%", ""));
+            double weight2 = Float.parseFloat(json2.getString("edgeWeight").replace("%", ""));
+            return Double.compare(weight2, weight1);
         });
         // community detection
         Graph<String, DefaultWeightedEdge> graph = new SimpleWeightedGraph<>(DefaultWeightedEdge.class);

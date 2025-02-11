@@ -3,6 +3,7 @@ package nl.inl.corpuswebsite.utils.analyseUtils;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import org.apache.commons.collections.CollectionUtils;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -65,7 +66,7 @@ public class BlacklabUtilsForAnalyse {
      * @param isCase If isCase == True, it means using "word" that means case and inflected forms are sensitive; else If isCase == False, it means using "lemma" that means case and inflected forms are not sensitive
      * @return a one-dimensional array. the tokens in the form of a one-dimensional array, and each element is a token
      */
-    public List<String> getAllContentLinear(String corpusName, List<String> stopwords, Boolean isCase) throws Exception {
+    public List<String> getAllContentLinear(String corpusName, Set<String> stopwords, Boolean isCase) throws Exception {
         int documentCount = getDocumentCount(corpusName);
         List<String> allPlainList = new ArrayList<>();
 
@@ -83,7 +84,7 @@ public class BlacklabUtilsForAnalyse {
      * @param isCase If isCase == True, it means using "word" that means case and inflected forms are sensitive; else If isCase == False, it means using "lemma" that means case and inflected forms are not sensitive
      * @return a two-dimensional array. Each element in the two-dimensional array is a document, and each element in a document is a token
      */
-    public List<List<String>> getAllContent(String corpusName, List<String> stopwords, Boolean isCase) throws Exception {
+    public List<List<String>> getAllContent(String corpusName, Set<String> stopwords, Boolean isCase) throws Exception {
         int documentCount = getDocumentCount(corpusName);
         List<List<String>> allPlainList = new ArrayList<>();
 
@@ -102,7 +103,7 @@ public class BlacklabUtilsForAnalyse {
      * @param stopwords the word that will be ignored in the result
      * @return JSONArray wordFreqArray, including word("word" or "lemma"), termFreq, relativeFreq and source(corpusName)
      */
-    public JSONArray getTermfreq(String corpusName, Boolean isCase, int number, List<String> stopwords)  throws Exception {
+    public JSONArray getTermfreq(String corpusName, Boolean isCase, int number, Set<String> stopwords)  throws Exception {
         String wordOrLemma = isCase ? "word" : "lemma";
         int queryNumber = number + stopwords.size() + 100;
         String url = this.BASE_URL + corpusName + "/hits?patt=%5B%5D&group=hit:"+ wordOrLemma +"&number="+ queryNumber +"&outputformat=json";
@@ -300,7 +301,7 @@ public class BlacklabUtilsForAnalyse {
      * @param docId the id of the document, 0-based
      * @return List<String> the content of the document
      */
-    protected List<String> getContentFromDoc(String corpusName, List<String> stopwords, Boolean isCase, int docId) throws Exception {
+    protected List<String> getContentFromDoc(String corpusName, Set<String> stopwords, Boolean isCase, int docId) throws Exception {
         String url = this.BASE_URL + corpusName + "/docs/" +docId+ "?outputformat=json";
         String tokenCount = fetch(url).getJSONObject("docInfo").getJSONArray("tokenCounts").getJSONObject(0).getString("tokenCount");
         url = this.BASE_URL + corpusName + "/docs/" +docId+ "/snippet?wordstart=0&wordend="+ tokenCount +"&outputformat=json";
@@ -328,7 +329,7 @@ public class BlacklabUtilsForAnalyse {
      * @param edgeAlg  the algorithm of edge, Jaccard or Simpson, and now on a document basis.
      * @return JSONArray , including keyword("word" or "lemma", depend on keywordPatt), cooccurWord("word"or"lemma" , depend on isCase), absoluteFreq,  relativeFreq and source(corpusName)
      */
-    public JSONArray getCooccur(String corpusName, Boolean isCase, List<String> stopwords, int number, String keywordPatt, String edgeAlg) throws Exception {
+    public JSONArray getCooccur(String corpusName, Boolean isCase, Set<String> stopwords, int number, String keywordPatt, String edgeAlg) throws Exception {
         Map<String, String> requestParams = new HashMap<>();
         if(keywordPatt.length() == 0){
             keywordPatt = "[]";
@@ -507,7 +508,7 @@ public class BlacklabUtilsForAnalyse {
      * @param weightThreshold 权重阈值 权重大于这个阈值则保留
      * @return JSONArray , including keyword("word" or "lemma", depend on keywordPatt), collocation("word"or"lemma" , depend on isCase), relativeFreq and source(corpusName)
      */
-    public JSONArray getCooccurNetworkEdge(String corpusName, Boolean isCase, List<String> stopwords, List<String> keywords, String edgeAlg, String scope, float weightThreshold
+    public JSONArray getCooccurNetworkEdge(String corpusName, Boolean isCase, Set<String> stopwords, List<String> keywords, String edgeAlg, String scope, float weightThreshold
 
     ) throws Exception {
         String keywordPatt;
@@ -546,5 +547,11 @@ public class BlacklabUtilsForAnalyse {
         }
 
         return edgeArray;
+    }
+
+    public Set<String> getStopwords(String stopwords) {
+        HashSet<String> stopWords = new HashSet<>();
+        CollectionUtils.addAll(stopWords, new StringTokenizer(stopwords, "|", false).asIterator());
+        return stopWords;
     }
 }

@@ -6,6 +6,7 @@ import com.alibaba.fastjson.JSONObject;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static nl.inl.corpuswebsite.utils.analyseUtils.Alg.KeywordAlg.*;
 
@@ -55,10 +56,8 @@ public class KeywordAnalyse {
     }
 
     public JSONObject getKeyword() throws Exception {
-        String[] stopWordsArray = stopwordsStr.split("\\|");
-        List<String> stopWords = Arrays.asList(stopWordsArray);
-
         BlacklabUtilsForAnalyse blUtils = new BlacklabUtilsForAnalyse(baseUrl);
+        Set<String> stopWords = blUtils.getStopwords(stopwordsStr);
         List<List<String>> corpusList = blUtils.getAllContent(corpusName, stopWords, isCase);
         JSONArray resultArray = new JSONArray();
         if (Objects.equals(keywordAlg, "TF-IDF")) {

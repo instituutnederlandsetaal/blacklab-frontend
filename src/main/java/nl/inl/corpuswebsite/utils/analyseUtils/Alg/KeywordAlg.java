@@ -25,7 +25,7 @@ public class KeywordAlg {
      * @param windowSize int The size of the co-occurrence window（generally 2-5）
      * @return String JSON including keyword and textRank Weight
      */
-    public static JSONArray computeTextRank(List<List<String>> corpus, List<String> stopwords, int keywordNum, float dampingFactor, int maxIter, float minDiff, int windowSize) {
+    public static JSONArray computeTextRank(List<List<String>> corpus, Set<String> stopwords, int keywordNum, float dampingFactor, int maxIter, float minDiff, int windowSize) {
         // Count the word frequency of all documents
         Map<String, Set<String>> wordGraph = new HashMap<>();
         // Build a co-occurrence diagram
@@ -110,7 +110,7 @@ public class KeywordAlg {
      * @param keywordNum int The number of keywords to extract
      * @return String JSON including keyword and TF-IDF Weight
      */
-    public static JSONArray computeTFIDF(List<List<String>> corpus, List<String> stopWords, int keywordNum) {
+    public static JSONArray computeTFIDF(List<List<String>> corpus, Set<String> stopWords, int keywordNum) {
         // Word Frequency (TF) of the whole corpus
         Map<String, Integer> termFrequency = new HashMap<>();
         int totalTerms = 0; // Record the total number of words in the corpus
@@ -153,7 +153,7 @@ public class KeywordAlg {
     }
 
     // compute IDF value
-    private static Map<String, Float> computeIDF(List<List<String>> corpus, List<String> stopWords) {
+    private static Map<String, Float> computeIDF(List<List<String>> corpus, Set<String> stopWords) {
         Map<String, Integer> documentFrequency = new HashMap<>();
         int totalDocuments = corpus.size();
 

@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 /**
  * ClassName: CooccurAnalyse
@@ -31,9 +32,8 @@ public class CooccurAnalyse {
     }
 
     public JSONObject getCooccurService() throws Exception {
-        String[] stopWordsArray = stopwordsStr.split("\\|");
-        List<String> stopWords = Arrays.asList(stopWordsArray);
         BlacklabUtilsForAnalyse blUtils = new BlacklabUtilsForAnalyse(baseUrl);
+        Set<String> stopWords = blUtils.getStopwords(stopwordsStr);
         JSONArray resultJsonArray = blUtils.getCooccur(corpusName, isCase, stopWords, wordNumber, keywordsInput, edgeAlg);
 
         // add the "key" attribute

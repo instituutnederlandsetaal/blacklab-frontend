@@ -35,9 +35,8 @@ public class TopicAnalyse {
 
     /** get the topic analyse result. **/
     public JSONObject getTopicService() throws Exception {
-        String[] stopWordsArray = stopwordsStr.split("\\|"); // Split the stop word string using | as the separator
-        List<String> stopWords = Arrays.asList(stopWordsArray);
         BlacklabUtilsForAnalyse blUtils = new BlacklabUtilsForAnalyse(baseUrl);
+        Set<String> stopWords = blUtils.getStopwords(stopwordsStr);
         List<List<String>> corpus = blUtils.getAllContent(corpusName, stopWords, isCase);
 
         // Step 1: Create a text processing pipeline
