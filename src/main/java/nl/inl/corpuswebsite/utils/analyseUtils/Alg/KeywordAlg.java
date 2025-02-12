@@ -16,8 +16,8 @@ import java.util.*;
 public class KeywordAlg {
     /**
      * TextRank Algorithmic keyword extraction
-     * @param corpus List<List<String>> corpus
-     * @param stopwords List<String> stopwords
+     * @param corpus corpus
+     * @param stopWords stopWords
      * @param keywordNum int The number of keywords to extract
      * @param dampingFactor float Damping factor (general value range 0.85)
      * @param maxIter int Maximum number of iterations (generally 100-200)
@@ -25,7 +25,7 @@ public class KeywordAlg {
      * @param windowSize int The size of the co-occurrence window（generally 2-5）
      * @return String JSON including keyword and textRank Weight
      */
-    public static JSONArray computeTextRank(List<List<String>> corpus, Set<String> stopwords, int keywordNum, float dampingFactor, int maxIter, float minDiff, int windowSize) {
+    public static JSONArray computeTextRank(List<List<String>> corpus, Set<String> stopWords, int keywordNum, float dampingFactor, int maxIter, float minDiff, int windowSize) {
         // Count the word frequency of all documents
         Map<String, Set<String>> wordGraph = new HashMap<>();
         // Build a co-occurrence diagram
@@ -33,7 +33,7 @@ public class KeywordAlg {
             Queue<String> window = new LinkedList<>();
             for (String word : document) {
                 // Skip stop word
-                if (stopwords.contains(word)) {
+                if (stopWords.contains(word)) {
                     continue;
                 }
                 if (!wordGraph.containsKey(word)) {

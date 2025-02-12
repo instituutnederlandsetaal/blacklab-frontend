@@ -71,25 +71,16 @@ public class TopicAnalyse {
         model.setNumIterations(interation);  // Set number of iterations
         model.estimate();  // estimate model
 
-        // Step 4: Get the first few words of each topic and their weights in JSON format
-        JSONArray resultDataJsonArray = getTopicsJson(model, instances.getDataAlphabet(), wordNumber);
-
-        // Get column name
-        JSONArray resultColumnJsonArray = new JSONArray();
-        String[] columnNames = {"key", "topic", "topicWeight", "word", "wordWeight"};
-        for (String columnName : columnNames) {
-            JSONObject obj = new JSONObject();
-            obj.put("prop", columnName);
-            obj.put("label", columnName);
-            resultColumnJsonArray.add(obj);
-        }
-
-        // the final JSON that will return to the frontend
-        JSONObject resultJson = new JSONObject();
-        resultJson.put("columns", resultColumnJsonArray);
-        resultJson.put("data", resultDataJsonArray);
-
-        return resultJson;
+        return new JSONObject(Map.of(
+            "data", getTopicsJson(model, instances.getDataAlphabet(), wordNumber),
+            "columns", new JSONArray(List.of(
+                Map.of("prop", "key", "label", "key"),
+                Map.of("prop", "topic", "label", "topic"),
+                Map.of("prop", "topicWeight", "label", "topicWeight"),
+                Map.of("prop", "word", "label", "word"),
+                Map.of("prop", "wordWeight", "label", "wordWeight")
+            ))
+        ));
     }
 
 

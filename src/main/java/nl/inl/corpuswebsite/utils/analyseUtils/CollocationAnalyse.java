@@ -40,9 +40,9 @@ public class CollocationAnalyse {
     }
 
     public JSONObject getColloService() throws Exception {
-        String[] stopWordsArray = stopwordsStr.split("\\|");
-        List<String> stopWords = Arrays.asList(stopWordsArray);
+
         BlacklabUtilsForAnalyse blUtils = new BlacklabUtilsForAnalyse(baseUrl);
+        Set<String> stopWords = blUtils.getStopwords(stopwordsStr);
         JSONArray colloArray = blUtils.getColloc(corpusName, isCase, stopWords, wordNumber, aroundNumber, keywordsInput);
 
         // The algorithm used here comes from "wordless", see: https://github.com/BLKSerene/Wordless/blob/main/doc/doc.md#doc-12-4-4
@@ -64,11 +64,13 @@ public class CollocationAnalyse {
             for (Object obj : colloArray) {
                 JSONObject colloJson = (JSONObject) obj;
                 String keyword = colloJson.getString("keyword");
-                int freq = colloJson.getIntValue("absoluteFreq");
+                int freq = colloJson.getIntValue("absoluteFreq"); // frequency of keyword + collocate combination
                 uniqueKeywords.add(keyword);
                 String colloword = colloJson.getString("collocation");
                 uniqueCollowords.add(colloword);
                 // update the freq of keyword
+                // NOTE: counts sum of occurance of keyword + any collocate
+                // So much higher than the actual occurrence of keyword
                 keywordFreqMap.put(keyword, keywordFreqMap.getOrDefault(keyword, 0) + freq);
             }
             // Set to List

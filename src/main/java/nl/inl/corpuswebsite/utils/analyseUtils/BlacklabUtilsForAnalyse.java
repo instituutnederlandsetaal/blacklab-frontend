@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -199,11 +200,9 @@ public class BlacklabUtilsForAnalyse {
      * @param keywordPatt  the CQL of keyword, eg. [word="(?-i)apple|banana"&lemma="(?-i)apple|banana"&pos="NN"]
      * @return JSONArray , including keyword("word" or "lemma", depend on keywordPatt), collocation("word"or"lemma" , depend on isCase), relativeFreq and source(corpusName)
      */
-    public JSONArray getColloc(String corpusName, Boolean isCase, List<String> stopwords, int number, int aroundNumber, String keywordPatt) throws Exception {
+    public JSONArray getColloc(String corpusName, Boolean isCase, Set<String> stopwords, int number, int aroundNumber, String keywordPatt) throws Exception {
         Map<String, String> requestParams = new HashMap<>();
-        if(keywordPatt.length() == 0){
-            keywordPatt = "[]";
-        }
+        keywordPatt = StringUtils.defaultIfBlank(keywordPatt, "[]");
         requestParams.put("patt", keywordPatt);
         requestParams.put("number", String.valueOf(number));
         requestParams.put("outputformat", "json");
@@ -262,7 +261,7 @@ public class BlacklabUtilsForAnalyse {
         Collections.sort(resultList, (o1, o2) -> o2.getInteger("absoluteFreq") - o1.getInteger("absoluteFreq"));
 
         // Obtain the top number of elements excluding stopwords.
-        List<JSONObject> filteredList = new ArrayList<>();
+        JSONArray filteredList = new JSONArray();
         Iterator<JSONObject> iterator = resultList.iterator();
         int count = 0;
         while (iterator.hasNext() && count < number) {
@@ -275,7 +274,7 @@ public class BlacklabUtilsForAnalyse {
             }
         }
 
-        return JSONArray.parseArray(filteredList.toString());
+        return filteredList;
     }
 
     protected JSONObject fetch(String url) throws Exception {
@@ -331,9 +330,7 @@ public class BlacklabUtilsForAnalyse {
      */
     public JSONArray getCooccur(String corpusName, Boolean isCase, Set<String> stopwords, int number, String keywordPatt, String edgeAlg) throws Exception {
         Map<String, String> requestParams = new HashMap<>();
-        if(keywordPatt.length() == 0){
-            keywordPatt = "[]";
-        }
+        keywordPatt = StringUtils.defaultIfBlank(keywordPatt, "[]");
 
         int docNum = getDocumentCount(corpusName);
         int maxTokenCount = 0; // the max tokenCount in each doc
@@ -361,52 +358,21 @@ public class BlacklabUtilsForAnalyse {
         // The key is keyword, and the value is the docId of its occur.
         Map<String, Set<Integer>> keywordDocMap = new HashMap<>();
         // Iterate through each element in the hits array.
+        var annotName = isCase? "word" : "lemma";
         for (int i = 0; i < hits.size(); i++) {
             JSONObject hit = hits.getJSONObject(i);
-            JSONObject match = hit.getJSONObject("match");
-            JSONObject left = hit.getJSONObject("left");
-            JSONObject right = hit.getJSONObject("right");
             int docId = hit.getIntValue("docPid");
 
-            String keyword = isCase? match.getJSONArray("word").get(0).toString() : match.getJSONArray("lemma").get(0).toString();
-            // Check if there is already an entry for the keyword in the map
-            Set<Integer> docIds = keywordDocMap.get(keyword);
-            if (docIds == null) {
-                docIds = new HashSet<>();
-                docIds.add(docId);
-                keywordDocMap.put(keyword, docIds);
-            } else {
-                docIds.add(docId);
-            }
-
-            JSONArray leftArr = isCase? left.getJSONArray("word") : left.getJSONArray("lemma");
-            JSONArray rightArr = isCase? right.getJSONArray("word") : right.getJSONArray("lemma");
+            String keyword = hit.getJSONObject("match").getJSONArray(annotName).getString(0);
+            keywordDocMap.computeIfAbsent(keyword, __ -> new HashSet<>()).add(docId);
 
             // Combine words on the left and right to form collocations and count their frequencies.
-            for (int j = 0; j < leftArr.size(); j++) {
-                String cooccurWord = leftArr.getString(j);
-                String key = keyword + "|" + cooccurWord;
-                freqMap.put(key, freqMap.getOrDefault(key, 0) + 1);
-                Set<Integer> ids = composeDocMap.get(key);
-                if (ids == null) {
-                    ids = new HashSet<>();
-                    ids.add(docId);
-                    composeDocMap.put(key, ids);
-                } else {
-                    ids.add(docId);
-                }
-            }
-            for (int k = 0; k < rightArr.size(); k++) {
-                String cooccurWord = rightArr.getString(k);
-                String key = keyword + "|" + cooccurWord;
-                freqMap.put(key, freqMap.getOrDefault(key, 0) + 1);
-                Set<Integer> ids = composeDocMap.get(key);
-                if (ids == null) {
-                    ids = new HashSet<>();
-                    ids.add(docId);
-                    composeDocMap.put(key, ids);
-                } else {
-                    ids.add(docId);
+            for (var side : List.of("left", "right")) {
+                for (var token : hit.getJSONObject(side).getJSONArray(isCase? "word" : "lemma")) {
+                    String cooccurWord = token.toString();
+                    String key = keyword + "|" + cooccurWord;
+                    freqMap.put(key, freqMap.getOrDefault(key, 0) + 1);
+                    composeDocMap.computeIfAbsent(key, __ -> new HashSet<>()).add(docId);
                 }
             }
         }
@@ -427,7 +393,7 @@ public class BlacklabUtilsForAnalyse {
         }
 
         // Sort using Collections.sort combined with a custom comparator in descending order based on absoluteFreq.
-        Collections.sort(resultList, (o1, o2) -> o2.getInteger("absoluteFreq") - o1.getInteger("absoluteFreq"));
+        resultList.sort((o1, o2) -> o2.getInteger("absoluteFreq") - o1.getInteger("absoluteFreq"));
 
         Set<String> cooccurWords = new HashSet<>();
         // Obtain the top number of elements excluding stopwords.
