@@ -109,8 +109,8 @@ public class TopicAnalyse {
                 String word = (String) dataAlphabet.lookupObject(idCountPair.getID());
                 double weight = idCountPair.getWeight();
                 JSONObject wordJson = new JSONObject();
-                wordJson.put("topic", "topic_" + String.valueOf(topic + 1));
-                wordJson.put("topicWeight",String.format("%.6f", topicWeight));
+                wordJson.put("topic", "topic_" + (topic + 1));
+                wordJson.put("topicWeight", topicWeight);
                 wordJson.put("word", word);
                 wordJson.put("wordWeight", weight);
                 wordsJson.add(wordJson);
@@ -119,16 +119,13 @@ public class TopicAnalyse {
             topicsJson.addAll(wordsJson);
         }
 
-        Collections.sort(topicsJson, new Comparator<Object>() {
-            @Override
-            public int compare(Object o1, Object o2) {
-                JSONObject json1 = (JSONObject) o1;
-                JSONObject json2 = (JSONObject) o2;
-                double weight1 = Float.parseFloat(json1.getString("topicWeight"));
-                double weight2 = Float.parseFloat(json2.getString("topicWeight"));
-                // descending sort
-                return Double.compare(weight2, weight1);
-            }
+        topicsJson.sort((o1, o2) -> {
+            JSONObject json1 = (JSONObject) o1;
+            JSONObject json2 = (JSONObject) o2;
+            double weight1 = json1.getFloat("topicWeight");
+            double weight2 = json2.getFloat("topicWeight");
+            // descending sort
+            return Double.compare(weight2, weight1);
         });
 
         // add the "key"
