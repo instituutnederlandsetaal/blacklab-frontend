@@ -581,7 +581,7 @@ export class QueryBuilder {
 		try {
 			const parallelQueries = (await parseBcql(INDEX_ID, cql, this.settings.attribute.view.defaultAttribute));
 			if (parallelQueries.length !== 1) {
-				debugLog('Cql parser could not decode query pattern', cql);
+				debugLog('Cql parser could not decode query pattern (parallelQueries.length !== 1)', cql);
 				return false;
 			}
 			return populateQueryBuilder(this, parallelQueries[0]);

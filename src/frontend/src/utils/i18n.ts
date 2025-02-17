@@ -192,7 +192,8 @@ const i18nExtensionFunctions = {
 	/** Get the localized display name for a metadata field or the default value */
 	$tMetaDisplayName(this: Vue, m: {id: string, defaultDisplayName?: string, componentName?: string, behaviourName?: string }) {
 		const vf = m.componentName ? getValueFunctions(m) : undefined;
-		const subKey = vf?.isSpanFilter ? `spanFilters.${elementAndAttributeNameFromFilterId(m.id).join('.')}` : m.id;
+		const [ tag, attr ] = vf?.isSpanFilter ? elementAndAttributeNameFromFilterId(m.id) : [null, null];
+		const subKey = vf?.isSpanFilter ? `spanFilters.${tag}.${attr}` : m.id;
 		return this.$td(`index.metadata.${subKey}`, m.defaultDisplayName || m.id);
 	},
 	/** Get the localized description for a metadata field or the default value */
@@ -214,8 +215,9 @@ const i18nExtensionFunctions = {
 	$tWithinDisplayName(this: Vue, within: Option): string {
 		return this.$td(`index.within.${within.value}`, within.label || within.value);
 	},
-	$tWithinAttribute(this: Vue, spanName: string, attrName: string): string {
-		return this.$td(`search.withinAttributes.${spanName}.${attrName}`, `tag ${spanName}, attribute ${attrName}`);
+	$tWithinAttribute(this: Vue, span: string, attribute: string): string {
+		const defaultValue = this.$t('results.groupBy.summary.spanAttribute', { span, attribute }).toString();
+		return this.$td(`search.withinAttributes.${span}.${attribute}`, defaultValue);
 	},
 	$tAlignByDisplayName(this: Vue, alignBy: Option): string {
 		return this.$td(`index.alignBy.${alignBy.value}`, alignBy.label || alignBy.value);

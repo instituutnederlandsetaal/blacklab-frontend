@@ -79,6 +79,8 @@
 					</template>
 				</template>
 
+				<ParallelSourceAndTargets v-if="isParallelCorpus"/>
+
 				<Within />
 
 				<div v-if="splitBatchEnabled" class="form-group">
@@ -88,7 +90,6 @@
 						</label>
 					</div>
 				</div>
-				<ParallelSourceAndTargets v-if="isParallelCorpus"/>
 
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', {'active': activePattern==='advanced'}]" id="advanced">

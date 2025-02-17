@@ -59,8 +59,12 @@ export const getPatternString = (
 
 	if (parallelTargetFields.length > 0) {
 		const relationType = alignBy ?? '';
-		query = `${parenQueryPart(query, ['[]*', '_'])}` +
-			parallelTargetFields.map(v => ` =${relationType}=>${getParallelFieldParts(v).version}? _`).join(' ; ');
+		query = `${parenQueryPartParallel(query)}` +
+			parallelTargetFields.map(v => {
+				const targetVersion = getParallelFieldParts(v).version;
+				const targetQuery = parenQueryPartParallel(applyWithinClauses('_', withinClauses));
+				return ` =${relationType}=>${targetVersion}? ${targetQuery}`;
+			}).join(' ; ');
 	}
 
 	return query || undefined;
@@ -124,7 +128,7 @@ for (let i = 0; i < targetVersions.length; i++) {
 	if (i > 0)
 		queryParts.push(' ; ');
 	const targetVersion = getParallelFieldParts(targetVersions[i]).version;
-	const targetQuery = parenQueryPartParallel(targetCql[i].trim() || '_')
+	const targetQuery = parenQueryPartParallel(applyWithinClauses(targetCql[i].trim() || '_', withinClauses))
 	queryParts.push(` =${relationType}=>${targetVersion}? ${targetQuery}`)
 }
 

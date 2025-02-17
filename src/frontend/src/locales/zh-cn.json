@@ -1,7 +1,9 @@
 {
 	"widgets": {
 		"learnMore": "Learn more",
-		"clickToRemove": "Click to remove"
+		"clickToRemove": "Click to remove",
+		"selectValue": "Select a value...",
+		"selectValues": "Select value(s)..."
 	},
 	"search": {
 		"heading": "搜索方式",
@@ -199,7 +201,6 @@
 
 			"parallelCorpusVersion": "查看版本",
 			"iWantToGroupOnAnnotation": "我想使用注释 {this_annotation} 对 {in_this_location_with_text} {some_words} 进行分组.",
-			"iWantToGroupOnNoAnnotation": "对 {some_words} 进行分组.",
 			"in_this_location_with_text": "{in_this_location} 的",
 
 			"some_words": {
@@ -232,7 +233,7 @@
 
 			"caseSensitive": "区分大小写",
 			"chooseWordPositions": "在这里选择要分组的<strong>特定单词</strong>位置，上方的预览将显示您选择了哪些单词。",
-			"selectDocumentMetadata": "选择要分组的文档元数据",
+			"selectDocumentMetadata": "选择要分组的元数据",
 			"clickButtonsToStart": "在此窗口中，您可以对结果应用分组。单击左侧的按钮创建分组标准以开始。",
 			"metadata": "元数据",
 			"annotation": "标注",

@@ -112,8 +112,7 @@ const privateActions = {
 			Vue.set(state.extended.annotationValues, payload.id, payload), 'annotation_init_extended'),
 	initSimpleAnnotation: b.commit((state, payload: ModuleRootState['simple']) => Object.assign<ModuleRootState['simple'],
 			ModuleRootState['simple']>(state.simple, payload), 'annotation_init_simple'),
-	initParallel: b.commit((state, payload: ModuleRootState['shared']) => Object.assign<ModuleRootState['shared'],
-			ModuleRootState['shared']>(state.shared, payload), 'parallelFiels_init'),
+	initShared: b.commit((state, payload: ModuleRootState['shared']) => Vue.set(state, 'shared', payload), 'init_shared'),
 };
 
 const setTargetFields = (state: ModuleRootState, payload: string[]): string[] => {
@@ -257,6 +256,7 @@ const actions = {
 	glosses: b.commit((state, payload: string|null) =>state.glosses = payload, 'glosses'),
 
 	reset: b.commit(state => {
+		actions.shared.reset();
 		actions.simple.reset();
 		actions.extended.reset();
 		actions.advanced.reset();
@@ -299,7 +299,7 @@ const init = () => {
 
 	const defaultParallelVersion = parallelFields[0]?.id || '';
 	debugLogCat('parallel', `init: Set default parallel version: ${defaultParallelVersion}`);
-	privateActions.initParallel({
+	privateActions.initShared({
 		source: defaultParallelVersion,
 		targets: [],
 		alignBy: null,

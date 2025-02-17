@@ -11,6 +11,9 @@ import { AtomicQuery, LexiconEntry } from '@/store/search/form/conceptStore';
 import { isHitParams, uniq } from '@/utils';
 import { User } from 'oidc-client-ts';
 
+/** How many values to return per attribute when requesting /relations */
+const RELATIONS_LIMITVALUES = 1000;
+
 type API = ReturnType<typeof createEndpoint>;
 
 const endpoints = {
@@ -126,7 +129,7 @@ export const blacklab = {
 
 	getCorpus: (id: string, requestParameters?: AxiosRequestConfig) => Promise.all([
 		endpoints.blacklab.get<BLTypes.BLIndexMetadata>(blacklabPaths.index(id), undefined, requestParameters),
-		endpoints.blacklab.get<BLTypes.BLRelationInfo>(blacklabPaths.relations(id), undefined, requestParameters)
+		endpoints.blacklab.get<BLTypes.BLRelationInfo>(blacklabPaths.relations(id), { limitvalues: RELATIONS_LIMITVALUES }, requestParameters)
 	]).then(([index, relations]) => normalizeIndex(index, relations)),
 
 	getAnnotatedField: (corpusId: string, fieldName: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
@@ -223,7 +226,7 @@ export const blacklab = {
 		.getOrPost<BLTypes.BLDocument>(blacklabPaths.docInfo(indexId, documentId), params, requestParameters),
 
 	getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<BLTypes.BLRelationInfo>(blacklabPaths.relations(indexId), undefined, requestParameters),
+		.get<BLTypes.BLRelationInfo>(blacklabPaths.relations(indexId), { limitvalues: RELATIONS_LIMITVALUES }, requestParameters),
 
 	getParsePattern: (indexId: string, pattern: string, requestParameters?: AxiosRequestConfig) => {
 		let request: Promise<{ parsed: { bcql: string, json: any } }>;

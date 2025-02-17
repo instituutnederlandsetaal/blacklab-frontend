@@ -1244,6 +1244,15 @@ const corpusCustomizations = {
 	customizeFunctions: [] as ((corpus: any) => void)[],
 
 	search: {
+		pattern: {
+			/** Should we add _within-spans(...) around the query,
+			    so all tags are captured and we can group on them?
+				[Default: only if there's span filters defined] */
+			shouldAddWithinSpans(q: string) {
+				return null;
+			}
+		},
+
 		within: {
 			/** Should we include this span in the within widget? (default: all) */
 			includeSpan(spanName: string) {

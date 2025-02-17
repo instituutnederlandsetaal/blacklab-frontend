@@ -54,7 +54,8 @@ export type Token = {
 
 export type Result = {
 	query?: string; // the (partial) BCQL query (only set for source and target queries, for expert/advanced)
-	tokens?: Token[];
+	tokens?: Token[];     // undefined means "could not parse for simple/extended/advanced"; other members are still
+							// valid in this case, e.g. withinClauses
 
 	/** any within clauses on this query */
 	withinClauses?: Record<string, Record<string, any>>;
@@ -85,26 +86,34 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		};
 	}
 
-	function _boolean(type: string, clauses: any[]): BinaryOp {
+	function _boolean(type: string, clauses: any[]): BinaryOp|null {
 		if (clauses.length === 2) {
+			const left = _tokenExpression(clauses[0]);
+			const right = _tokenExpression(clauses[1]);
+			if (left === null || right === null)
+				return null;
 			return {
 				type: 'binaryOp',
 				operator: type === 'and' ? '&' : '|',
-				left: _tokenExpression(clauses[0]),
-				right: _tokenExpression(clauses[1])
+				left,
+				right
 			};
 		}
 
 		// More than 2 clauses, create a recursive structure
+		const left = _tokenExpression(clauses[0]);
+		const right = _boolean(type, clauses.slice(1));
+		if (left === null || right === null)
+			return null;
 		return {
 			type: 'binaryOp',
 			operator: type === 'and' ? '&' : '|',
-			left: _tokenExpression(clauses[0]),
-			right: _boolean(type, clauses.slice(1))
+			left,
+			right
 		};
 	}
 
-	function _tokenExpression(input: any): BinaryOp|Attribute {
+	function _tokenExpression(input: any): BinaryOp|Attribute|null {
 		switch (input.type) {
 		case 'regex':
 			return _regex(input.annotation || defaultAnnotation, input.value);
@@ -114,11 +123,15 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		case 'or':
 			return _boolean(input.type, input.clauses);
 		}
-		throw new Error('Unknown token expression type: ' + input.type);
+		//throw new Error('Unknown token expression type: ' + input.type);
+		return null; // indicates an error occurred, but we can keep going (for e.g. withinClauses)
 	}
 
-	function _sequence(clauses: any[]): Token[] {
-		const tokens = clauses.map(_token);
+	function _sequence(clauses: any[]): Token[]|null {
+		const tokens1 = clauses.map(_token);
+		if (tokens1.indexOf(null) >= 0)
+			return null;
+		const tokens: Token[] = tokens1 as Token[];
 
 		// <s> and </s> are still separate "tokens"; join them with the appropriate real token
 		for (let i = 0; i < tokens.length - 1; i++) {
@@ -158,10 +171,9 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	function _posFilter(producer: any, operation: string, filter: any): Result {
 		if (operation !== 'within')
 			throw new Error('Unknown posfilter operation: ' + operation);
-		if (filter.type !== 'tags' && filter.type !== 'overlapping')
+		if (filter.type !== 'tags' && filter.type !== 'overlapping' && filter.type != 'posfilter')
 			throw new Error('Unknown posfilter filter type: ' + filter.type);
 		const query = _query(producer);
-
 		query.withinClauses = query.withinClauses ?? {};
 
 		if (filter.type === 'tags') {
@@ -174,13 +186,20 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 					throw new Error('Unsupported overlapping clause type: ' + c.type);
 				query.withinClauses![c.name.toString()] = interpretTagsAttributes(c.attributes);
 			});
+		} else if (filter.type === 'posfilter') {
+			const posfilter = _posFilter(filter.producer, filter.operation, filter.filter);
+			query.withinClauses = { ...query.withinClauses, ...posfilter.withinClauses };
 		}
+
+		console.log('posfilter', query);
 
 		return query;
 	}
 
-	function _repeat(input: any): Token {
+	function _repeat(input: any): Token|null {
 		const token = _token(input.clause);
+		if (token === null)
+			return null;
 		const min = 'min' in input ? input.min : 1;
 		const max = 'max' in input ? input.max : null;
 		if (min === 0 && max === 1) {
@@ -222,7 +241,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		return token;
 	}
 
-	function _token(input: any): Token {
+	function _token(input: any): Token|null {
 		switch (input.type) {
 		case 'anytoken': // [] or []{min,max}
 			{
@@ -260,8 +279,12 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 
 		default:
 			// Excluded any special token-level nodes; must be a token expression
+			const expression = _tokenExpression(input);
+			if (expression === null) {
+				return null;
+			}
 			return {
-				expression: _tokenExpression(input),
+				expression,
 				optional: false,
 			};
 		}
@@ -271,7 +294,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		switch (input.type) {
 		case 'sequence':
 			return {
-				tokens: _sequence(input.clauses),
+				tokens: _sequence(input.clauses) ?? undefined,
 			};
 
 		case 'posfilter': // (within expression)
@@ -293,8 +316,9 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 
 		default:
 			// Must be a single token
+			const token = _token(input);
 			return {
-				tokens: [_token(input)],
+				tokens: token === null ? undefined : [token],
 			}
 		}
 	}
@@ -314,10 +338,15 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	}
 
 	function _parallelQuery(bcql: string, input: any): Result[] {
-		if (input.type === 'callfunc' && input.name === 'rspan' && input.args.length === 2 &&
-			input.args[1] === 'all') {
-			// rspan(..., 'all') is added automatically. Ignore here.
-			return _parallelQuery(bcql, input.args[0]);
+		if (input.type === 'callfunc') {
+			if (input.name === 'rspan' && input.args.length === 2 &&
+				input.args[1] === 'all') {
+				// rspan(..., 'all') is added automatically (via the adjusthits BLS parameter). Ignore here.
+				return _parallelQuery(bcql, input.args[0]);
+			} else if (input.name === '_with-spans' && input.args.length === 1) {
+				// We add _with-spans(...) automatically if there's span filters. Ignore here.
+				return _parallelQuery(bcql, input.args[0]);
+			}
 		}
 
 		if (input.type == 'relmatch') {
@@ -348,13 +377,13 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		return [ { ..._query(input), query: bcql } ];
 	}
 
-	const result = _parallelQuery(bcql, json);
-	return result;
+	return _parallelQuery(bcql, json);
 }
 
 const parsePatternCache: Map<string, Result[]> = new Map();
 
 async function parseBcql(indexId: string, bcql: string, defaultAnnotation: string): Promise<Result[]> {
+	console.log('parseBcql', indexId, bcql, defaultAnnotation);
 	const cacheKey = indexId + ':::' + bcql;
 	if (parsePatternCache.has(cacheKey))
 		return parsePatternCache.get(cacheKey)!;

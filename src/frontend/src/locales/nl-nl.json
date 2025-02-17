@@ -1,7 +1,9 @@
 {
 	"widgets": {
 		"learnMore": "Meer informatie",
-		"clickToRemove": "Klik om te verwijderen"
+		"clickToRemove": "Klik om te verwijderen",
+		"selectValue": "Selecteer een waarde...",
+		"selectValues": "Selecteer waarde(s)..."
 	},
 	"search": {
 		"heading": "Zoeken naar ...",
@@ -200,7 +202,6 @@
 
 			"parallelCorpusVersion": "Kijkend naar versie ",
 			"iWantToGroupOnAnnotation": "Ik wil {some_words} {in_this_location_with_text} groeperen op {this_annotation}.",
-			"iWantToGroupOnNoAnnotation": "Ik wil groeperen op {some_words}.",
 			"in_this_location_with_text": "{in_this_location}",
 
 			"some_words": {
@@ -235,7 +236,7 @@
 
 			"caseSensitive": "Hoofdlettergevoelig",
 			"chooseWordPositions": "Kies hier de <strong>specifieke woorden</strong> om op te groeperen, in het voorbeeld hieronder ziet u welke woorden zijn geselecteerd.",
-			"selectDocumentMetadata": "Kies de documentwaarde om op te groeperen.",
+			"selectDocumentMetadata": "Kies de waarde om op te groeperen.",
 			"clickButtonsToStart": "Hier kunt u een groepering toepassen op de resultaten. Klik op de knoppen Metadata of Annotatie om groepeercriteria te definiëren.",
 			"metadata": "Metadata",
 			"annotation": "Annotatie",

@@ -656,16 +656,32 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		const isParallel = (this._parsedCql?.length ?? 0) > 1;
 		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*') ? '' : q;
 
+		// Strip _with-spans(...) from the query (we add this automatically)
+		function stripWithSpans(q: string): string {
+			const prefix = '_with-spans(';
+			const suffix = ')';
+			if (q.startsWith(prefix) && q.endsWith(suffix)) {
+				q = q.substring(prefix.length, q.length - suffix.length);
+				console.log('stripWithSpans', q);
+			}
+			return q;
+		}
+
 		// Strip any withinClauses from the end of the CQL query,
 		// then add back only those that we cannot place into a widget.
 		function stripWithins(q: string) {
-			return q.replace(/(?:\s*(?:within|overlap)?\s*<[^\/]+\/>)+$/g, '');
+			return unparenQueryPart(q)!.replace(/(?:\s*(?:within|overlap)?\s*<[^\/]+\/>)+$/g, '');
 		}
 		const hasWithinClauses = this._parsedCql && this._parsedCql[0].withinClauses && Object.keys(this._parsedCql[0].withinClauses).length > 0;
-		const query = unparenQueryPart(hasWithinClauses ? stripWithins(this._parsedCql![0].query ?? '') : this._parsedCql?.[0].query ?? '');
+		const rawQuery = stripWithSpans((this._parsedCql ? this._parsedCql![0].query : '') ?? '');
+		const query = unparenQueryPart(hasWithinClauses ? stripWithins(rawQuery) : rawQuery);
 		const reapplyWithins = this.expertWithinClauses;
-		console.log('reapplyWithins', reapplyWithins);
 		const finalQuery = Object.keys(reapplyWithins).length > 0 ? applyWithinClauses(query ?? '', reapplyWithins) : query;
+
+		console.log('raw source query', rawQuery);
+		console.log('after stripping', query);
+		console.log('reapplyWithins', reapplyWithins);
+		console.log('finalQuery', finalQuery);
 
 		return {
 			query: this._parsedCql ? optEmpty(unparenQueryPart(finalQuery)) || null : null,

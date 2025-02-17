@@ -110,7 +110,7 @@ export interface BLIndex {
 export interface BLSpanInfo {
 	/** Number of occurances of this span in the corpus. */
 	count: number;
-	attributes: {
+	attributes?: {
 		[attributeName: string]: {
 			/** Every value encountered for this attribute on this span, and number of occurances */
 			values: {[value: string]: number};
