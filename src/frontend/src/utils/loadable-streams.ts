@@ -1,10 +1,9 @@
-import { combineLatest, distinctUntilChanged, filter, firstValueFrom, map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subscription, switchMap, tap } from 'rxjs';
+import { combineLatest, debounceTime, delay, distinctUntilChanged, EMPTY, filter, firstValueFrom, map, mergeMap, Observable, ObservableInput, of, OperatorFunction, pipe, ReplaySubject, startWith, Subject, Subscription, switchMap, tap, timer } from 'rxjs';
 import jsonStableStringify from 'json-stable-stringify';
 import { ApiError, Canceler } from '@/api';
 import { CancelableRequest } from '@/api/apiutils';
 import { MarkRequiredAndNotNull } from '@/types/helpers';
-import { reactive } from 'vue';
-import { observable } from 'vue/types/umd';
+import Vue from 'vue';
 
 
 /**
@@ -310,6 +309,21 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<s
 	if (!Loadable.isLoadable(combinedObj)) alertAndLog('combineLoadables with object failed');
 })();
 
+
+type InteractiveLoadableSettings = {
+	/** Add a delay before showing loading state.
+	 * Values below 0 will never set loading state, instead just silently update value and state (other than loading state). */
+	delayLoading: number,
+	/** Delay clearing previous values and/or errors when loading has taken more that this many ms. Values below 0 will never clear the previous value. */
+	delayClear: number,
+	/** Values below 0 will not debounce */
+	debounce: number,
+	/** Remove the current value on errors? Only has an effect when delayClear !== 0 */
+	clearOnError: boolean,
+}
+
+function markRaw(t: any) { return t; }
+
 /**
  * A class that behaves like a Loadable, but has a next() function that can be called to trigger the loading of a new value.
  * This can be useful when you don't want to use an Observable.
@@ -338,23 +352,26 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<s
  * ```
  */
 export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
-	private readonly i$: ReplaySubject<TInput> = new ReplaySubject(1);
-	private readonly o$: Observable<Loadable<TOutput>>;
-	private readonly unsub: Subscription;
+	private readonly settings: InteractiveLoadableSettings = markRaw({delayLoading: 1000, delayClear: -1, debounce: -1, clearOnError: true});
+	private readonly i$: Subject<TInput> = markRaw(new Subject());
+	private readonly unsubs: Subscription[] = markRaw([]);
 
-	constructor(processInput: (i$: Observable<TInput>) => Observable<Loadable<TOutput>>) {
+	constructor(processInput: (i$: Observable<TInput>) => Observable<Loadable<TOutput>>, settings?: Partial<InteractiveLoadableSettings>) {
 		super(LoadableState.Empty, undefined, undefined);
+		if (settings) Object.assign(this.settings, settings);
 
-		this.o$ = processInput(this.i$);
-		this.unsub = this.o$.subscribe({
+		const debouncedInput$ = this.settings.debounce > 0 ? this.i$.pipe(debounceTime(this.settings.debounce)) : this.i$;
+		const o$: Observable<Loadable<TOutput>> = processInput(debouncedInput$);
+
+		this.unsubs.push(o$.subscribe({
 			next: v => {
 				this.state = v.state;
-				this.value = v.isLoaded() ? v.value : undefined;
-				this.error = v.isError() ? v.error : undefined;
+				if (!v.isLoading()) this.value = v.value;
+				if (!v.isError()) this.error = v.error;
 			},
 			error: e => {
 				this.state = LoadableState.Error;
-				this.value = undefined;
+				if (this.settings.clearOnError) this.value = undefined;
 				this.error = {
 					httpCode: 0,
 					message: e.message? e.message : 'Unknown error',
@@ -368,9 +385,15 @@ export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
 				this.value = undefined;
 				this.error = undefined;
 			}
-		});
+		}));
+		if (this.settings.delayClear >= 0) {
+			const clear$ = o$.pipe(switchMap(e => e.isLoading() ? timer(this.settings.delayClear) : EMPTY));
+			this.unsubs.push(clear$.subscribe(() => this.value = this.error = undefined));
+		}
 
-		// observable(this);
+		// Make this object reactive. NOTE: make sure to markRaw() all things that should not be reactive!
+		// This means the streams and settings are not reactive, but the Loadable state + values are.
+		Vue.observable(this);
 	}
 
 	public next(i: TInput) {
@@ -378,9 +401,11 @@ export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
 	}
 
 	public dispose() {
-		this.unsub.unsubscribe();
+		this.unsubs.forEach(s => s.unsubscribe());
+		this.unsubs.splice(0);
 	}
 }
+
 
 /**
  * Map the next non-loading state of the stream to a promise.

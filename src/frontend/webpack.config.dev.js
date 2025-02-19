@@ -27,6 +27,7 @@ module.exports = {
 			// Make import Vue from 'vue' import the version that includes the template compiler.
 			// Normally you don't need this, but we allow plugin components that may have to be compiled runtime.
 			// Hence we need this alias.
+			// NOTE: the dollar is a regex symbol that matches the end of the string, so this will only match "import ... from 'vue'" and not "from vue/something"
 			'vue$': 'vue/dist/vue.esm.js'
 		}
 	},
@@ -39,7 +40,7 @@ module.exports = {
 			use: [
 				'vue-style-loader',
 				'css-loader',
-				'sass-loader'
+				'sass-loader',
 			]
 		}, {
 			test: /\.vue$/,
@@ -99,7 +100,7 @@ module.exports = {
 			// js files omitted because defaults are fine for dev builds.
 			// prod builds will use babel to transpile
 		}, {
-			test: /\.ttf$/,
+			test: /\.ttf$/i,
 			type: 'asset/resource'
 		}]
 	},

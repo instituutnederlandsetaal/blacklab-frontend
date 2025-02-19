@@ -90,6 +90,7 @@ import Vue from 'vue';
 import $ from 'jquery';
 
 import '@/vendor/pageguide.min.js';
+import '@/vendor/pageguide.min.css';
 
 /**
  * Enable pageguide-js tutorials on the page and augment its behavior a little.
@@ -188,13 +189,12 @@ function monkeyPatchPageguide() {
 	};
 }
 
+monkeyPatchPageguide();
 let inited = false;
 
 export default Vue.extend({
 	mounted() {
 		if (!inited) {
-			monkeyPatchPageguide();
-
 			window.tl.pg.init({ // eslint-disable-line
 				auto_refresh: true,
 				default_zindex: 1, // don't use auto, or overlays will appear beneath elements on the same layer as content is inserted at the top of the page

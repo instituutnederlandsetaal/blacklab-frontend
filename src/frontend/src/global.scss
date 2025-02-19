@@ -1,5 +1,3 @@
-// NOTE: this file is only included on article, search, corpora, and remote-index pages (those with a dedicated javascript bundle)
-// For *actual* global styles, see main.css
 body {
 	background-image: none;
 }
@@ -281,4 +279,250 @@ ul.nav-tabs.cf-panel-tab-header {
 a.disabled {
 	opacity: 0.65;
 	cursor: not-allowed;
+}
+
+
+@font-face{
+	font-family: 'Inl vmnw wnt';
+	src: url('~@/assets/font/INLVRG__.TTF') format('truetype');
+}
+
+@font-face{
+	font-family: 'Inl vmnw wnt';
+	src: url('~@/assets/font/INLVI___.TTF') format('truetype');
+	font-style: italic;
+}
+
+@font-face{
+	font-family: 'Inl vmnw wnt';
+	src: url('~@/assets/font/INLVB___.TTF') format('truetype');
+	font-weight: bold;
+}
+
+@font-face{
+	font-family: 'Inl vmnw wnt';
+	src: url('~@/assets/font/INLVBI__.TTF') format('truetype');
+	font-weight: bold;
+	font-style: italic;
+}
+
+body {
+	font-family: "Helvetica Neue",Helvetica,Arial,sans-serif,"Inl vmnw wnt";
+	padding-top: 60px;
+	padding-bottom: 40px;
+}
+
+a:link, a:visited, a:active, a:hover {
+	text-decoration: none;
+}
+
+a.ui-state-active {
+	outline: 5px auto -webkit-focus-ring-color;
+	outline-offset: -2px;
+	background-color: #f5f5f5;
+}
+
+a.ui-state-active:hover {
+	outline: none;
+}
+
+a.ui-menu-item-wrapper {
+	cursor: pointer;
+}
+
+
+.navbar-logo-container {
+	float: left;
+	height: 1px;
+	overflow: visible;
+	margin-left: 15px;
+	display: none;
+}
+
+@media ( min-width : 768px) {
+	.navbar-logo-container {
+		margin-right: 15px;
+		margin-left: 0px;
+	}
+}
+
+@media ( max-width : 992px) {
+	.navbar>.container {
+		width: auto;
+	}
+}
+
+.navbar-logo {
+	width: 100px;
+	height: 100px;
+	z-index: 9000;
+	background-image: url(~@/assets/img/logo_100x100.png)
+}
+
+
+.navbar .container {
+	/* required for username to be on the same line as the rest of the navbar
+	 when there is a banner message configured. */
+	position: relative;
+}
+
+.navbar-brand {
+	color: #dddddd !important;
+}
+
+.navbar-header {
+	display: flex;
+	flex-wrap: nowrap;
+}
+.navbar-header > .navbar-brand {
+	flex-grow: 1;
+	min-height: 50px;
+	height: auto;
+}
+
+.navbar-fixed-top {
+	-webkit-box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+	-moz-box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+	box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+
+
+.navbar > .container,
+.navbar > .container-fluid {
+	display: flex;
+}
+
+.navbar-toggle {
+	margin-right: 0;
+}
+
+@media (min-width: 768px) {
+	.navbar-logo-margin.navbar-logo-margin {
+		margin-left: 0px!important;
+	}
+}
+
+.navbar-buttons {
+	white-space: nowrap;
+}
+
+.navbar-dropdown {
+	margin: 0;
+	float: none;
+}
+
+/* override bootstrap negative margin... */
+.navbar-dropdown-button {
+	margin-left: 0!important;
+	float: none;
+	padding-left: 0;
+}
+
+@media (min-width: 768px) {
+	.navbar-collapse {
+		flex-grow: 1;
+	}
+}
+
+@media (max-width: 767px) {
+	.navbar > .container,
+	.navbar > .container-fluid {
+		flex-wrap: wrap;
+	}
+
+	.navbar-header {
+		flex-grow: 1;
+	}
+
+	.navbar .navbar-collapse {
+		order: 3;
+		width: 100%;
+	}
+}
+
+
+
+.tab-content {
+	padding-top: 15px;
+}
+
+
+.btn.nohover {
+	cursor: initial;
+	box-shadow: none;
+}
+
+.btn.btn-default.nohover {
+	background-color: white !important;
+	border-color: #ccc !important;
+}
+
+.btn.btn-info.nohover {
+	background-color: #5bc0de !important;
+	border-color: #46b8da !important;
+}
+
+.btn.btn-primary.nohover {
+	background-color: #337ab7 !important;
+	border-color: #2e6da4 !important;
+}
+
+.btn.btn-success.nohover {
+	background-color: #5cb85c !important;
+	border-color: #4cae4c !important;
+}
+
+.btn.btn-warning.nohover {
+	background-color: #f0ad4e !important;
+	border-color: #eea236 !important;
+}
+
+.btn.btn-danger.nohover {
+	background-color: #d9534f !important;
+	border-color: #d43f3a !important;
+}
+
+table {
+	table-layout: fixed;
+	width: 100%;
+}
+#articleTabs {
+	position: sticky;
+	top: 50px;
+	z-index: 1;
+}
+
+.navbar-alert {
+	align-items: baseline;
+	color: #ccc;
+	display: flex;
+	flex-wrap: nowrap;
+	font-size: 18px;
+	justify-content: space-between;
+	margin-bottom: 0!important;
+	margin-top: 0!important;
+	padding: 10px 15px;
+	padding-right: 0;
+	position: relative;
+	text-align: left;
+}
+
+.navbar-alert > .message {
+	flex-grow: 1;
+}
+
+.navbar-alert:before {
+	display: none;
+}
+
+.navbar-alert:after {
+	background: #333;
+	border-top: 1px solid #111;
+	bottom: 0;
+	box-sizing: content-box;
+	display: block;
+	height: 1px;
+	left: calc(50% - 50vw);
+	position: absolute;
+	width: 100vw;
 }

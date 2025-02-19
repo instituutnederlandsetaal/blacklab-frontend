@@ -288,7 +288,142 @@ export default Vue.extend({
 
 </script>
 
-<style scoped>
+<style lang="scss">
+/* page layout, hiding/showing portions */
+#corpora-public-container,
+#corpora-private-container,
+#formats-all-container,
+#errorDiv,
+#successDiv,
+#uploadErrorDiv,
+#uploadSuccessDiv {
+    display: none;
+}
+
+table.corpora {
+	table-layout: auto;
+	width: 100%;
+	margin: 1em 0;
+}
+
+table.corpora td {
+	font-size: 14pt;
+	padding: 3px;
+}
+
+table.corpora th {
+	font-size: 11pt;
+	padding: 3px;
+	background-color: inherit;
+}
+table.corpora table {
+	width: auto;
+}
+
+/* Don't change color when hovering over row (as in results table) */
+table.corpora tr:hover {
+	background-color: inherit;
+}
+col.corpus-name {
+	width: 24%;
+	outline: 1px solid red;
+}
+col.delete {
+	width: 8%;
+}
+
+tr.collapsing {
+   -webkit-transition: none;
+    transition: none;
+}
+tr.collapsing[aria-expanded="false"] {
+	display: none;
+}
+
+td.corpus-name a {
+	color: inherit;
+	text-decoration: none;
+}
+
+th.table-icon {
+	width: 1px; /* just scale to content. */
+}
+
+table.corpora a.disabled {
+   pointer-events: none;
+   cursor: default;
+   color: #bbb;
+}
+
+.alert {
+    margin-top: 1em;
+}
+
+/* upload modal */
+#document-upload-form {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+}
+
+.document-upload-button {
+	flex-shrink: 0;
+	font-size: 24px;
+	height: 100px;
+	overflow: hidden;
+	position: relative;
+	width: 200px;
+	white-space: normal;
+}
+.document-upload-button:before {
+	content: "\f093";
+	color: black;
+    font: normal normal normal 14px/1 FontAwesome;
+    font-size: 80px;
+    left: 50%;
+    opacity: 0.08;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.document-upload-button-text {
+	/* one word per line*/
+	color: inherit;
+	display: table-caption;
+	left: 50%;
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 100%;
+	word-spacing: 9999em;
+}
+
+#document-upload-submit-wrapper {
+	flex: none;
+	width: 100%;
+}
+
+#uploadProgress {
+	white-space: nowrap;
+	padding-left: 6px;
+}
+
+@keyframes grow {
+	0%   { width: 0%; }
+	100% { width: 95%; }
+}
+
+#uploadProgress.indexing {
+	animation: 40s grow;
+	width: 95%; /* stay wide at end of animation */
+	-webkit-transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
+	   -moz-transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
+		 -o-transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
+			transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
+}
+
+
 .alert {
 	margin-left: -15px;
 	margin-right: -15px;

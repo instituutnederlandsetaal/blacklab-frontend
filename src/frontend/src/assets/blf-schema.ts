@@ -59,7 +59,7 @@ export type BLFSchema = {
 	/** Embedded metadata in document */
 	metadata: Metadata;
 	/** Analyzer to use for metadata fields. Unless overridden in the field */
-	metadataDefaultAnalyzer?: 'default'|'standard'|'whitespace'|string;
+	metadataDefaultAnalyzer?: 'default'|'standard'|'whitespace'|{}&string;
 	/** When to substitute default value for metadata. Defaults to 'never' */
 	metadataDefaultUnknownCondition?: 'never'|'missing'|'empty'|'missing_or_empty';
 	/** Value to substitute when a metadata field doesn't have a value. Defaults to 'unknown' */
