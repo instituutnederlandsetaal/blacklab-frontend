@@ -47,7 +47,7 @@ public class WebsiteConfig {
 
         @JsonProperty("displayName")
         public String name() {
-            return config.getDisplayName();
+            return config.getDisplayName().orElse(null);
         }
 
         @JsonProperty("faviconDir")
@@ -140,11 +140,6 @@ public class WebsiteConfig {
 
     /** Name to display for this corpus, null if no corpus set or no explicit display name configured */
     private final Optional<String> corpusDisplayName;
-    /** Autocomatically computed displayname from the corpus id. Null if no corpus set. */
-    private final Optional<String> corpusDisplayNameFallback;
-
-    /** User for this corpus, unset if no corpus set or this corpus has no owner. */
-    private final Optional<String> corpusOwner;
 
     /** Should be a directory */
     private final String pathToFaviconDir;
@@ -197,8 +192,7 @@ public class WebsiteConfig {
         this.xp = proc.newXPathCompiler();
 
         corpusDisplayName = getString("/InterfaceProperties/DisplayName");
-        corpusDisplayNameFallback = CorpusFileUtil.getCorpusName(corpusId);
-        corpusOwner = CorpusFileUtil.getCorpusOwner(corpusId);
+        Optional<String> corpusOwner = CorpusFileUtil.getCorpusOwner(corpusId);
 
         AtomicInteger i = new AtomicInteger();
         xp.evaluate("//InterfaceProperties/CustomJs", doc).forEach(sub -> {
@@ -328,15 +322,8 @@ public class WebsiteConfig {
         return corpusId;
     }
 
-    public String getDisplayName() {
-        return corpusDisplayName.orElse(corpusDisplayNameFallback.orElse(""));
-    }
-    public boolean displayNameIsFallback() {
-        return corpusDisplayName.isEmpty();
-    }
-
-    public Optional<String> getCorpusOwner() {
-        return corpusOwner;
+    public Optional<String> getDisplayName() {
+        return corpusDisplayName;
     }
 
     /**
