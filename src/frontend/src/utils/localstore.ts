@@ -1,4 +1,4 @@
-import Vue from 'vue';
+import Vue, { watch } from 'vue';
 
 class StorageWatcher {
 	private listeners: Map<string, ((newValue: any) => void)> = new Map();
@@ -39,33 +39,41 @@ const storageWatcher = new StorageWatcher();
 const putNewValueInStorage = (key: string) => (newValue: any) => {
 	const storedValue = localStorage.getItem(key);
 	const newStoredValue = JSON.stringify(newValue);
-	// prevent recursion
+	// prevent recursion when there is also a listener on localStorage
 	if (storedValue === newStoredValue) return;
 
 	if (newValue === null) localStorage.removeItem(key);
 	else localStorage.setItem(key, JSON.stringify(newValue));
 }
 
-export function localStorageSynced<T>(storageKey: string, defaultValue: T, watchStorage = false): {value: T, isFromStorage: boolean} {
-	let isFromStorage = false;
-	if (localStorage.getItem(storageKey)) {
-		try { 
-			defaultValue = JSON.parse(localStorage.getItem(storageKey) as string); 
-			isFromStorage = true;
+type ExpiringValue<T> = {value: T, expiry: number|null, isFromStorage: boolean};
+export function localStorageSynced<T>(storageKey: string, defaultValue: T, watchStorage = false, ttlSeconds?: number): ExpiringValue<T> {
+	function nextExpiry(): number|null { return ttlSeconds ? Date.now() + ttlSeconds * 1000 : null; }
+	function isExpired(v: ExpiringValue<T>): boolean { return !!v.expiry && v.expiry < Date.now(); }
+	/** Parse the json, check the expiry (if any) and return the value if still current, or the default value with expiry of ttl. */
+	function fromJson(json: string|null): ExpiringValue<T> {
+		let v: ExpiringValue<T>|null = null;
+		if (json) {
+			try {
+				const obj = JSON.parse(json);
+				if (typeof obj === 'object' && 'value' in obj && 'expiry' in obj) v = {...obj, isFromStorage: true}
+				else if (typeof obj === typeof defaultValue) v = { value: obj as T, expiry: nextExpiry(), isFromStorage: true };
+			} catch {
+				console.warn(`Failed to parse value for ${storageKey}`);
+			}
 		}
-		catch { console.error(`Failed to parse stored value for ${storageKey}`); }
+		if (!v || isExpired(v))
+			v = { value: defaultValue, expiry: nextExpiry(), isFromStorage: false };
+		return v;
 	}
 
-	const v = Vue.observable({
-		value: defaultValue,
-		isFromStorage,
-	});
-	watcher.$watch(() => v.value, putNewValueInStorage(storageKey));
-	if (watchStorage) storageWatcher.addListener<T>(storageKey, newValue => {
-		v.isFromStorage = true;
-		v.value = newValue;
-	});
+	// Make the value observable so updates will trigger our watcher and propagate to localStorage
+	const v: ExpiringValue<T> = Vue.observable(fromJson(localStorage.getItem(storageKey)));
+	// Every time the value changes, update the localStorage with the new value + reset the ttl.
+	watch((): Omit<ExpiringValue<T>, 'isFromStorage'> => ({value: v.value, expiry: nextExpiry()}), putNewValueInStorage(storageKey))
 
+	// For simplicity, we only check expiry during initial read
+	if (watchStorage) storageWatcher.addListener<ExpiringValue<T>>(storageKey, newValue => Object.assign(v, newValue));
 	return v;
 }
 

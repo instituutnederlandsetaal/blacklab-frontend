@@ -360,6 +360,7 @@ const initialState: ModuleRootState = {
 				google: null,
 				plausible: null,
 			},
+			bannerMessage: null,
 			customCss: {},
 			customJs: {},
 			displayName: 'AutoSearch',
@@ -755,10 +756,6 @@ const actions = {
 		}),
 	}
 };
-
-const CFConfigLoader = new InteractiveLoadable<string, AppTypes.CFPageConfig>(
-	switchMap(indexId => toObservable(frontend.getConfig(indexId))),
-)
 
 /**
  * This function is not great.

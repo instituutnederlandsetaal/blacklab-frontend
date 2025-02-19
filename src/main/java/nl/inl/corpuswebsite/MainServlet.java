@@ -204,7 +204,7 @@ public class MainServlet extends HttpServlet {
         Function<String, WebsiteConfig> gen = __ ->
             getProjectFile(corpus, "search.xml")
             .map(configFile -> {
-                try { return new WebsiteConfig(configFile, config.get(Keys.CF_URL_ON_CLIENT), corpus); }
+                try { return new WebsiteConfig(configFile, config, corpus); }
                 catch (Exception e) { throw new RuntimeException("Could not read search.xml " + configFile, e); }
             })
             .orElseThrow(() -> new IllegalStateException("No search.xml, and no default in jar either"));

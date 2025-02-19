@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -14,6 +15,7 @@ import javax.xml.transform.stream.StreamSource;
 import javax.xml.xpath.XPathExpressionException;
 
 import net.sf.saxon.s9api.*;
+import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
 import org.apache.commons.lang3.StringUtils;
 import org.xml.sax.SAXException;
@@ -83,43 +85,21 @@ public class WebsiteConfig {
         @JsonProperty("navbarLinks")
         public List<ElementOnPage> topBarLinks() {
             return config.getLinks();
-//            return config.getLinks().stream().map(l -> Map.of(
-//                "label", l.getLabel(),
-//                "attributes", Map.of(
-//                    "href", l.getHref(),
-//                    "target", l.isOpenInNewWindow() ? "_blank" : "_self"
-//                ))
-//            ).collect(Collectors.toList());
+        }
+
+        @JsonProperty("bannerMessage")
+        public String bannerMessage() {
+            return StringUtils.trimToNull(config.globalConfig.get(Keys.BANNER_MESSAGE));
         }
 
         @JsonProperty("customJs")
         public Map<String, List<ElementOnPage>> customJs() {
             return config.getAllCustomJs();
-//            var r = new HashMap<String, List<Map<String, String>>>();
-//            for (var page : config.getAllCustomJs().keySet()) {
-//                var scriptsOnPage = r.computeIfAbsent(page, __ -> new ArrayList<>());
-//                for (var script : config.getAllCustomJs().get(page)) {
-//                    var m = new HashMap<String, String>();
-//                    m.put("src", script.getUrl());
-//                    m.putAll(script.getAttributes());
-//                    scriptsOnPage.add(m);
-//                }
-//            }
-//            return r;
         }
 
         @JsonProperty("customCss")
         public Map<String, List<ElementOnPage>> customCss() {
             return config.getAllCustomCss();
-//
-//            var r = new HashMap<String, List<Map<String, String>>>();
-//            for (var page : config.getAllCustomCss().keySet()) {
-//                var cssOnPage = r.computeIfAbsent(page, __ -> new ArrayList<>());
-//                for (var css : config.getAllCustomCss().get(page)) {
-//                    cssOnPage.add(Map.of("href", css));
-//                }
-//            }
-//            return r;
         }
     }
 
@@ -153,6 +133,8 @@ public class WebsiteConfig {
             return Integer.compare(this.index, other.index);
         }
     }
+
+    private final GlobalConfig globalConfig;
 
     private final Optional<String> corpusId;
 
@@ -194,15 +176,17 @@ public class WebsiteConfig {
      * Note that corpus may be null, when parsing the default website settings for non-corpus pages (such as the landing page).
      *
      * @param configFile the Search.xml file
+     * @param globalConfig the global configuration
      * @param corpusId (optional) corpus id if this is a corpus-specific config file
-     * @param contextPath the application root url on the client (usually /corpus-frontend). Required for string interpolation while loading the configFile.
      * @throws SaxonApiException, IOException, ParserConfigurationException, XPathExpressionException, SAXException
      */
-    public WebsiteConfig(File configFile, String contextPath, Optional<String> corpusId) throws SaxonApiException, IOException, ParserConfigurationException, XPathExpressionException, SAXException {
+    public WebsiteConfig(File configFile, GlobalConfig globalConfig, Optional<String> corpusId) throws SaxonApiException, IOException {
+        this.globalConfig = globalConfig;
         this.corpusId = corpusId;
+        String contextPath = globalConfig.get(Keys.CF_URL_ON_CLIENT);
 
         // Read the file content and interpolate values
-        String xmlContent = new String(java.nio.file.Files.readAllBytes(configFile.toPath()), StandardCharsets.UTF_8);
+        String xmlContent = Files.readString(configFile.toPath());
         xmlContent = xmlContent.replace("${request:contextPath}", contextPath)
                                .replace("${request:corpusId}", corpusId.orElse(""))
                                .replace("${request:corpusPath}", contextPath + corpusId.map(c -> "/" + c).orElse(""));

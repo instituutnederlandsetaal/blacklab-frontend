@@ -432,14 +432,15 @@ export type CFPlausibleAnalyticsSettings = {
 }
 
 export type CFPageConfig = {
-	displayName: string;
-	pageSize: number | null;
-	faviconDir: string;
-	customJs: Record<string, CFCustomJsEntry[]>;
-	navbarLinks: CFNavbarLink[];
-	customCss: Record<string, CFCustomCssEntry[]>;
 	analytics: {
 		google: null | CFGoogleAnalyticsSettings;
 		plausible: null | CFPlausibleAnalyticsSettings;
 	};
+	bannerMessage: string | null;
+	customCss: Record<string, CFCustomCssEntry[]>;
+	customJs: Record<string, CFCustomJsEntry[]>;
+	displayName: string;
+	faviconDir: string;
+	navbarLinks: CFNavbarLink[];
+	pageSize: number | null;
 };

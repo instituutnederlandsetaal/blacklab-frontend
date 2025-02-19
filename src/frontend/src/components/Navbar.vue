@@ -1,9 +1,9 @@
 <template>
 	<div class="navbar navbar-inverse navbar-fixed-top">
-		<!-- <div v-if="showBanner" class="container alert alert-dismissable navbar-alert">
-			<div class="message" v-html="bannerMessage"></div>
-			<button type="button" class="btn btn-link btn-lg" data-dismiss="alert" title="Dismiss" @click="dismissBanner"><span class="fa fa-times"></span></button>
-		</div> -->
+		<div v-if="showBanner" class="container alert alert-dismissable navbar-alert">
+			<div class="message" v-html="config.bannerMessage"></div>
+			<button type="button" class="btn btn-link btn-lg" title="Hide banner for one week" @click="hideBanner"><span class="fa fa-times"></span></button>
+		</div>
 
 		<div class="container">
 			<div class="navbar-header">
@@ -43,6 +43,7 @@ import LoginButton from '@/components/LoginButton.vue';
 import { CFNavbarLink, CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 import * as UIStore from '@/store/ui';
 import * as CorpusStore from '@/store/corpus';
+import { localStorageSynced } from '@/utils/localstore';
 
 export default Vue.extend({
 	components: {LocaleSelector, LoginButton },
@@ -56,9 +57,10 @@ export default Vue.extend({
 	},
 	data() {
 		return {
-			showBanner: true,
 			collapsed: true,
 			CONTEXT_URL,
+
+			bannerFromLocalStorage: localStorageSynced<string>('cf/banner-hidden', '', false, 24*7*3600)
 		};
 	},
 	computed: {
@@ -67,22 +69,13 @@ export default Vue.extend({
 		// bannerMessage(): string|undefined { return UIStore.getState().global.config.bannerMessage }
 		indexDisplayName(): string { return this.index ? (this.config.displayName || this.index.displayName) : this.config.displayName },
 		links(): CFNavbarLink[] { return this.config.navbarLinks },
+		showBanner(): boolean { return !!this.config.bannerMessage && this.bannerFromLocalStorage.value !== this.config.bannerMessage },
 	},
 	methods: {
-		// checkBannerCookie() {
-		// 	const cookieValue = localStorage.getItem(this.bannerMessageCookie);
-		// 	if (cookieValue === this.bannerMessage) {
-		// 		this.showBanner = false;
-		// 	}
-		// },
-		// dismissBanner() {
-		// 	localStorage.setItem(this.bannerMessageCookie, this.bannerMessage);
-		// 	this.showBanner = false;
-		// }
+		hideBanner() {
+			this.bannerFromLocalStorage.value = this.config.bannerMessage!;
+		}
 	},
-	// created() {
-	// 	this.checkBannerCookie();
-	// },
 })
 </script>
 
