@@ -1426,11 +1426,12 @@ Entry points are the following files
 - [article.ts](src/frontend/src/article.ts)
   Handles the hit navigation, graphs and charts on the document page `/corpus-frontend/docs/...`
 - [corpora.ts](src/frontend/src/corpora.ts)
-  The main index page (or `/corpus-frontend/corpora/`)
+  The main page, where you can select and manage corpora/indexes (or `/corpus-frontend/corpora/`)
 - [remote-index.ts](src/frontend/src/remote-index.ts)
   The `/upload/` page.
-- [search.ts](src/frontend/src/search.ts)
+- [search.tsx](src/frontend/src/search.tsx)
   The search form
+- There are a few more pages with mainly experimental functionality that are not relevant to the core functionality of the application and we won't explain here.
 
 Individual components are contained in the [pages](src/frontend/src/pages) directory. These components are single-use and/or connected to the store in some way.
 The [components](src/frontend/src/components) directory contains a few "dumb" components that can be reused anywhere.
@@ -1459,7 +1460,7 @@ It contains a few things: a stream that listens to state changes in the `vuex` s
 
 Url parsing happens in the [UrlStateParser](src/frontend/src/store/search/util/url-state-parser.ts).
 The url parsing is a little involved, because depending on whether a `tagset` is provided it can differ (the cql pattern is normally parsed and split up so we know what to place in the `simple` and `extended` views, but this needs to happen differently when a tagset is involved).
-Because of this, the store is first initialized (with empty values everywhere), then the url is parsed, after which the state is updated with the parsed values (see [search.ts](src/frontend/src/search.ts)).
+Because of this, the store is first initialized (with empty values everywhere), then the url is parsed, after which the state is updated with the parsed values (see [search.tsx](src/frontend/src/search.tsx)).
 When navigating back and forth through browser history, the url is not parsed, instead the state is attached to the history entry and read directly.
 
 ### **Internationalization**
