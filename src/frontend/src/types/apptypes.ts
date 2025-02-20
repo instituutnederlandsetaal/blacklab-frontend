@@ -439,7 +439,7 @@ export type CFPageConfig = {
 	bannerMessage: string | null;
 	customCss: Record<string, CFCustomCssEntry[]>;
 	customJs: Record<string, CFCustomJsEntry[]>;
-	displayName: string;
+	displayName: string|null;
 	faviconDir: string;
 	navbarLinks: CFNavbarLink[];
 	pageSize: number | null;

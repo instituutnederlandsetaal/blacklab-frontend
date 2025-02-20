@@ -48,12 +48,7 @@ import { localStorageSynced } from '@/utils/localstore';
 export default Vue.extend({
 	components: {LocaleSelector, LoginButton },
 	props: {
-		// bannerMessage: String,
-		// bannerMessageCookie: String,
-		// indexId: String,
-		// cfUrlOnClient: String,
-		// displayName: String,
-		// links: Array as () => Array<{label: string, attributes: Record<string, string>}>
+
 	},
 	data() {
 		return {
@@ -67,7 +62,7 @@ export default Vue.extend({
 		index(): NormalizedIndex|null { return CorpusStore.getState(); },
 		config(): CFPageConfig { return UIStore.getState().global.config; },
 		// bannerMessage(): string|undefined { return UIStore.getState().global.config.bannerMessage }
-		indexDisplayName(): string { return this.index ? (this.config.displayName || this.index.displayName) : this.config.displayName },
+		indexDisplayName(): string { return this.config.displayName || this.index?.displayName || 'Corpus-Frontend' },
 		links(): CFNavbarLink[] { return this.config.navbarLinks },
 		showBanner(): boolean { return !!this.config.bannerMessage && this.bannerFromLocalStorage.value !== this.config.bannerMessage },
 	},

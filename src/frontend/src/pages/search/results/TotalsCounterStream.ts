@@ -54,13 +54,18 @@ export class TotalsLoader extends InteractiveLoadable<TotalsInput, TotalsOutput>
 			const timeout$ = timer(UIStore.getState().results.shared.totalsTimeoutDurationMs);
 			const recursiveTotal$ = of(Loadable.Loaded(getTotals(results))).pipe(
 				expand(cur => {
+					console.log('Totals counter expanding next result set', cur);
 					if (!cur.isLoaded() || this.isDone(cur.value)) return EMPTY; // Terminating clause/filter intermediate values that are not loaded or are done.
 					return toObservable(operation === 'docs'
 						? Api.blacklab.getDocs(indexId, params).then(getTotals)
 						: Api.blacklab.getHits(indexId, params).then(getTotals)
 					);
 				}),
-				filter(v => !v.isLoading()), // remove loading values. We always want a value or an error in the output.
+				filter(v => {
+					const isLoading = v.isLoading();
+					if (isLoading) console.log('Totals counter received loading value, remove it', v);
+					return !v.isLoading()
+				}), // remove loading values. We always want a value or an error in the output.
 				takeUntil(timeout$)
 			)
 
@@ -103,7 +108,7 @@ class SubcorpusLoader extends InteractiveLoadable<SubcorpusInput, SubcorpusOutpu
 	constructor() {
 		super(pipe(
 			debounceTime(1000),
-			map(combineLoadables), // type inference breaks here?
+			map(combineLoadables),
 			switchMapLoaded(v => v.filter
 				// if we have a query, return a Loadable of the request
 				? toObservable(

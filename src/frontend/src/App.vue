@@ -1,6 +1,7 @@
 <template>
 	<div class="container">
 		<Navbar/>
+		<CustomCss/>
 
 		<!-- <pre>{{ storeLoadingState }}</pre> -->
 		<div v-if="storeLoadingState.isLoading()">
@@ -14,6 +15,8 @@
 			<pre v-if="storeLoadingState.error.stack">{{ storeLoadingState.error.stack }}</pre>
 		</div>
 		<router-view v-else/>
+
+		<CustomJs/>
 	</div>
 </template>
 
@@ -27,8 +30,11 @@ import router from '@/router';
 import Spinner from '@/components/Spinner.vue';
 import Navbar from '@/components/Navbar.vue';
 
+import CustomJs from '@/components/CustomJs.vue';
+import CustomCss from '@/components/CustomCss.vue';
+
 export default Vue.extend({
-	components: {Spinner, Navbar},
+	components: {Spinner, Navbar, CustomJs, CustomCss},
 	router,
 	i18n,
 	store,

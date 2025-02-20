@@ -363,7 +363,7 @@ const initialState: ModuleRootState = {
 			bannerMessage: null,
 			customCss: {},
 			customJs: {},
-			displayName: 'AutoSearch',
+			displayName: null,
 			faviconDir: '',
 			navbarLinks: [],
 			pageSize: null,

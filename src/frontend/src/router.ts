@@ -11,24 +11,28 @@ const router = new Router({
 			name: 'corpora',
 			path: '/',
 			alias: '',
+			meta: { name: 'corpora' },
 			component: () => import('@/pages/corpora/CorporaPage.vue')
 		},
 		{
 			name: 'global-help',
 			path: '/help',
 			alias: '/help/*',
+			meta: { name: 'help' },
 			component: () => import('@/pages/help/HelpPage.vue')
 		},
 		{
 			name: 'global-about',
 			path: '/about',
 			alias: '/about/*',
+			meta: { name: 'about' },
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
 			name: 'global-configwizard',
 			path: '/configwizard',
 			alias: '/configwizard/*',
+			meta: { name: 'configwizard' },
 			component: () => import('@/pages/config/ConfigPage.vue'),
 			// todo make this make sense.
 			children: [
@@ -47,28 +51,33 @@ const router = new Router({
 			name: 'search',
 			path: '/:corpus/search',
 			alias: '/:corpus/search/*',
+			meta: { name: 'search' },
 			component: () => import('@/pages/search/SearchPage.vue'),
 		},
 		{
 			name: 'article',
 			path: '/:corpus/docs/:docId',
+			meta: { name: 'article' },
 			component: () => import('@/pages/article/ArticlePage.vue')
 		},
 		{
 			name: 'about',
 			path: '/:corpus/about',
 			alias: '/:corpus/about/*',
+			meta: { name: 'about' },
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
 			name: 'help',
 			path: '/:corpus/help',
 			alias: '/:corpus/help/*',
+			meta: { name: 'help' },
 			component: () => import('@/pages/help/HelpPage.vue'),
 		},
 		{
 			name: 'configwizard',
 			path: '/:corpus/configwizard/:tab?/',
+			meta: { name: 'configwizard' },
 			component: () => import('@/pages/config/CorpusConfig.vue'),
 			props: route => ({
 				id: route.params.id,
