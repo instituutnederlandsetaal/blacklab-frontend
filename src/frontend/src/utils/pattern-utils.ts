@@ -2,6 +2,8 @@ import * as AppTypes from '@/types/apptypes';
 import type {ModuleRootState as ModuleRootStateExplore} from '@/store/search/form/explore';
 import type {ModuleRootState as ModuleRootStatePatterns} from '@/store/search/form/patterns';
 import type {ModuleRootState as ModuleRootStateFilters} from '@/store/search/form/filters';
+import * as FilterModule from '@/store/search/form/filters';
+import * as UIModule from '@/store/search/ui';
 import cloneDeep from 'clone-deep';
 import { applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPart, parenQueryPartParallel, RegexEscapeOptions,
 	splitIntoTerms, uiTypeSupport } from '@/utils';
@@ -38,6 +40,28 @@ export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue)
 	}
 };
 
+function hasSpanFilters(): boolean {
+	return !!Object.values(FilterModule.getState().filters).find(f => getValueFunctions(f).isSpanFilter);
+}
+
+function addWithSpans(q: string) {
+	if (q === '_')
+		return `_with-spans([]+)`; // _ would be interpreted as default argument, which _with-spans doesn't have
+	if (q !== undefined && q.length > 0 && q.indexOf('with-spans') < 0) {
+		let shouldAddWithSpans: boolean|null = UIModule.corpusCustomizations.search.pattern.shouldAddWithinSpans(q);
+		if (shouldAddWithSpans === null) {
+			// Use default behavior if the corpus doesn't have a custom setting.
+			shouldAddWithSpans = hasSpanFilters();
+		}
+		if (shouldAddWithSpans) { // user didn't already add it manually
+			// Note that we use _with-spans() here so we will recognize it as
+			// automatically added and can safely strip it later when restoring the query.
+			return `_with-spans(${q})`;
+		}
+	}
+	return q;
+}
+
 export const getPatternString = (
 	annotations: AppTypes.AnnotationValue[],
 	withinClauses: Record<string, Record<string, any>>,
@@ -48,6 +72,7 @@ export const getPatternString = (
 	parallelTargetFields: string[] = [],
 	alignBy?: string
 ) => {
+
 	const tokens = [] as string[][];
 
 	annotations.forEach(annot => getAnnotationPatternString(annot).forEach((value, index) => {
@@ -55,14 +80,15 @@ export const getPatternString = (
 	}));
 
 	let query = tokens.map(t => `[${t.join('&')}]`).join('');
-	query = applyWithinClauses(query, withinClauses);
+
+	query = addWithSpans(applyWithinClauses(query, withinClauses));
 
 	if (parallelTargetFields.length > 0) {
 		const relationType = alignBy ?? '';
 		query = `${parenQueryPartParallel(query)}` +
 			parallelTargetFields.map(v => {
 				const targetVersion = getParallelFieldParts(v).version;
-				const targetQuery = parenQueryPartParallel(applyWithinClauses('_', withinClauses));
+				const targetQuery = parenQueryPartParallel(addWithSpans(applyWithinClauses('_', withinClauses)));
 				return ` =${relationType}=>${targetVersion}? ${targetQuery}`;
 			}).join(' ; ');
 	}
@@ -117,18 +143,18 @@ if (targetVersions.length > targetCql.length) {
 }
 
 if (targetVersions.length === 0) {
-	return applyWithinClauses(sourceCql, withinClauses);
+	return addWithSpans(applyWithinClauses(sourceCql, withinClauses));
 }
 
 const defaultSourceQuery = targetVersions.length > 0 ? '_': '';
-const sourceQuery = applyWithinClauses(sourceCql.trim() || defaultSourceQuery, withinClauses);
+const sourceQuery = addWithSpans(applyWithinClauses(sourceCql.trim() || defaultSourceQuery, withinClauses));
 const queryParts = [parenQueryPartParallel(sourceQuery)];
 const relationType = alignBy ?? '';
 for (let i = 0; i < targetVersions.length; i++) {
 	if (i > 0)
 		queryParts.push(' ; ');
 	const targetVersion = getParallelFieldParts(targetVersions[i]).version;
-	const targetQuery = parenQueryPartParallel(applyWithinClauses(targetCql[i].trim() || '_', withinClauses))
+	const targetQuery = parenQueryPartParallel(addWithSpans(applyWithinClauses(targetCql[i].trim() || '_', withinClauses)));
 	queryParts.push(` =${relationType}=>${targetVersion}? ${targetQuery}`)
 }
 

@@ -94,7 +94,7 @@ export default Vue.extend({
 		customHitInfo(): string|undefined {
 			const versionPrefix = this.isParallel && this.data.annotatedField ?
 				this.$tAnnotatedFieldDisplayName(this.data.annotatedField) : undefined;
-			const info = corpusCustomizations.results.customHitInfo(this.data.hit, versionPrefix);
+			const info = corpusCustomizations.results.customHitInfo(this.data.hit, versionPrefix)?.trim();
 			return info === null ?
 				versionPrefix : // default behaviour: show parallel version if applicable
 				info;

@@ -99,27 +99,6 @@ const get = {
 	patternString: b.read((state, getters, rootState): string|undefined => {
 		if (!state.subForm) return undefined;
 
-		// Does this corpus have span filters?
-		// If so, we need to add the with-spans() operator to the query, so we'll
-		// find all the spans so we can group on them.
-		const hasSpanFilters = !!Object.values(FilterModule.getState().filters).find(f => getValueFunctions(f).isSpanFilter);
-
-		function addWithSpans(q: string|undefined) {
-			if (q !== undefined && q.length > 0 && q.indexOf('with-spans') < 0) {
-				let shouldAddWithSpans: boolean|null = UIModule.corpusCustomizations.search.pattern.shouldAddWithinSpans(q);
-				if (shouldAddWithSpans === null) {
-					// Use default behavior if the corpus doesn't have a custom setting.
-					shouldAddWithSpans = hasSpanFilters;
-				}
-				if (shouldAddWithSpans) { // user didn't already add it manually
-					// Note that we use _with-spans() here so we will recognize it as
-					// automatically added and can safely strip it later when restoring the query.
-					return `_with-spans(${q})`;
-				}
-			}
-			return q;
-		}
-
 		const formState = {
 			[state.subForm as string]: state.formState,
 			shared: state.shared,
@@ -127,9 +106,9 @@ const get = {
 		const annotations = CorpusModule.get.allAnnotationsMap();
 		switch (state.form) {
 		case 'search':
-			return addWithSpans(getPatternStringSearch(state.subForm, formState as any, rootState.ui.search.shared.alignBy.defaultValue, state.filters));
+			return getPatternStringSearch(state.subForm, formState as any, rootState.ui.search.shared.alignBy.defaultValue, state.filters);
 		case 'explore':
-			return addWithSpans(getPatternStringExplore(state.subForm, formState as any, annotations));
+			return getPatternStringExplore(state.subForm, formState as any, annotations);
 		default:
 			return undefined;
 		}

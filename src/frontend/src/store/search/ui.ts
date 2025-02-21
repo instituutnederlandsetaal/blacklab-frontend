@@ -1367,7 +1367,7 @@ const corpusCustomizations = {
 		 * Default shows versionPrefix if it's set (i.e. if it's a parallel corpus).
 		 * Otherwise, nothing extra is shown.
 		 */
-		customHitInfo: (hit: any, versionPrefix: string|undefined) => {
+		customHitInfo: (hit: any, versionPrefix: string|undefined): string|null => {
 			return null; // use default behaviour
 		}
 	},
