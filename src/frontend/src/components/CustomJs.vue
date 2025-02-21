@@ -1,5 +1,5 @@
 <template>
-	<div style="display: none;" v-html="scripts" id="custom-js">
+	<div style="display: none;" id="custom-js">
 	</div>
 </template>
 
@@ -15,7 +15,7 @@ export default Vue.extend({
 	}),
 	computed: {
 		// @ts-ignore
-		pageName(): string { return this.$router.currentRoute.meta.name as string; },
+		pageName(): string { return this.$route.meta.name as string; },
 		customJs(): CFCustomJsEntry[] {
 			const js = UIStore.getState().global.config.customJs;
 			const jses = [...(js[''] || []), ...(js[this.pageName] || [])].sort((a, b) => a.index - b.index);
@@ -34,10 +34,21 @@ export default Vue.extend({
 			if (compareAsSortedJson(prev, next)) return;
 			// TODO make customjs so that we don't have to do this.
 			if (this.hasCustomJs) {
+				console.info('Triggering page reload due to polluted global scope (customJs is present)')
 				window.location.reload();
 			}
 
-			this.hasCustomJs = true;
+			this.hasCustomJs = next.length > 0;
+			this.loadScripts();
+		}
+	},
+	methods: {
+		loadScripts() {
+			this.customJs.forEach(js => {
+				const script = document.createElement('script');
+				Object.entries(js.attributes).forEach(([k, v]) => v && script.setAttribute(k, v.toString()));
+				this.$el.appendChild(script);
+			});
 		}
 	}
 })
