@@ -1,10 +1,9 @@
 import { combineLatest, debounceTime, delay, distinctUntilChanged, EMPTY, filter, firstValueFrom, map, merge, mergeMap, Observable, ObservableInput, of, OperatorFunction, partition, pipe, race, ReplaySubject, startWith, Subject, Subscription, switchMap, take, takeUntil, tap, timer } from 'rxjs';
 import jsonStableStringify from 'json-stable-stringify';
-import { ApiError, Canceler } from '@/api';
-import { CancelableRequest } from '@/api/apiutils';
 import { MarkRequiredAndNotNull } from '@/types/helpers';
 import Vue, { markRaw } from 'vue';
-
+import { ApiError } from '@/types/apptypes';
+import { Canceler } from 'axios';
 
 /**
  * Bunch of code for interop of streams and asynchronous/optional values.
@@ -93,6 +92,35 @@ export class Loadable<T> implements TLoadable<T> {
 	public static Loaded<T>(value: T): Loaded<T> { return new Loadable<T>(LoadableState.Loaded, value, undefined) as Loaded<T>; }
 	public static LoadingError<T>(error: ApiError): LoadingError<T> { return new Loadable<T>(LoadableState.Error, undefined, error) as LoadingError<T>; }
 	public static Empty<T>(): Empty<T> { return new Loadable<T>(LoadableState.Empty, undefined, undefined) as Empty<T>; }
+}
+
+export class CancelableRequest<T> implements Promise<T> {
+	public request: Promise<T>;
+	public cancel: Canceler;
+	constructor(request: Promise<T>, cancel: Canceler) {
+		this.request = request;
+		this.cancel = cancel;
+	}
+
+	get [Symbol.toStringTag]() { return 'CancelableRequest'; }
+
+	public then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): CancelableRequest<TResult1 | TResult2> {
+		return new CancelableRequest(this.request.then(onfulfilled, onrejected), this.cancel);
+	}
+	public catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): CancelableRequest<T | TResult> {
+		return new CancelableRequest(this.request.catch(onrejected), this.cancel);
+	}
+	public finally(onfinally?: (() => void) | undefined | null): CancelableRequest<T> {
+		return new CancelableRequest(this.request.finally(onfinally), this.cancel);
+	}
+
+	public static isCancelableRequest<T>(value: any): value is CancelableRequest<T> {
+		return value instanceof CancelableRequest;
+	}
+
+	public toObservable(): Observable<Loadable<T>> {
+		return toObservable(this);
+	}
 }
 
 export namespace L {

@@ -1,9 +1,8 @@
 import axios, {AxiosResponse, AxiosRequestConfig, AxiosError, Canceler} from 'axios';
 
-import {ApiError} from '@/types/apptypes';
 import {isBLError} from '@/types/blacklabtypes';
-import { Loadable, toObservable } from '@/utils/loadable-streams';
-import { Observable } from 'rxjs';
+import {ApiError} from '@/types/apptypes';
+import {CancelableRequest} from '@/utils/loadable-streams';
 
 const settings = {
 	// use a builtin delay to simulate network latency (in ms)
@@ -115,35 +114,6 @@ export async function handleError(error: AxiosError): Promise<never> {
 			response.statusText,
 			response.status
 		));
-	}
-}
-
-export class CancelableRequest<T> implements Promise<T> {
-	public request: Promise<T>;
-	public cancel: Canceler;
-	constructor(request: Promise<T>, cancel: Canceler) {
-		this.request = request;
-		this.cancel = cancel;
-	}
-
-	get [Symbol.toStringTag]() { return 'CancelableRequest'; }
-
-	public then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): CancelableRequest<TResult1 | TResult2> {
-		return new CancelableRequest(this.request.then(onfulfilled, onrejected), this.cancel);
-	}
-	public catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): CancelableRequest<T | TResult> {
-		return new CancelableRequest(this.request.catch(onrejected), this.cancel);
-	}
-	public finally(onfinally?: (() => void) | undefined | null): CancelableRequest<T> {
-		return new CancelableRequest(this.request.finally(onfinally), this.cancel);
-	}
-
-	public static isCancelableRequest<T>(value: any): value is CancelableRequest<T> {
-		return value instanceof CancelableRequest;
-	}
-
-	public toObservable(): Observable<Loadable<T>> {
-		return toObservable(this);
 	}
 }
 

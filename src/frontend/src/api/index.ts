@@ -1,16 +1,17 @@
 import axios, {Canceler, AxiosRequestConfig} from 'axios';
 import * as qs from 'qs';
 
-import {CancelableRequest, createEndpoint} from '@/api/apiutils';
+import {createEndpoint} from '@/api/apiutils';
 import {normalizeIndex, normalizeFormat, normalizeIndexBase} from '@/utils/blacklabutils';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { ApiError, CFPageConfig, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
+import { ApiError, CFPageConfig, Tagset } from '@/types/apptypes';
 import { Glossing } from '@/store/form/glossStore';
 import { AtomicQuery, LexiconEntry } from '@/store/form/conceptStore';
 import { isHitParams, uniq } from '@/utils';
 import { User } from 'oidc-client-ts';
 import { stripIndent } from 'common-tags';
+import { CancelableRequest } from '@/utils/loadable-streams';
 
 /** How many values to return per attribute when requesting /relations */
 const RELATIONS_LIMITVALUES = 1000;
