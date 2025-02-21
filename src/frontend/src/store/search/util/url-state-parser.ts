@@ -658,7 +658,13 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 				const suffix = ')';
 				if (q.startsWith(prefix) && q.endsWith(suffix)) {
 					q = q.substring(prefix.length, q.length - suffix.length);
-					console.log('stripWithSpans', q);
+				} else if (q.startsWith('(' + prefix) && q.endsWith(suffix + ')')) {
+					// Each part of a parallel queries is usually parenthesized.
+					// Recognize this and strip _with-spans() in this case as well.
+					// (we can't just strip the outermost parens, at least not without checking that
+					//  parens will remain balanced, i.e. not "(a) (b)" -> "a) (b", but _with-spans() is
+					//  always added last, so it should be fine here)
+					q = q.substring(prefix.length + 1, q.length - suffix.length - 1);
 				}
 				return q;
 			}
