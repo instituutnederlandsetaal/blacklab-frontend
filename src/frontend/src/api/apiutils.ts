@@ -1,8 +1,9 @@
 import axios, {AxiosResponse, AxiosRequestConfig, AxiosError, Canceler} from 'axios';
-import qs from 'qs';
 
 import {ApiError} from '@/types/apptypes';
 import {isBLError} from '@/types/blacklabtypes';
+import { Loadable, toObservable } from '@/utils/loadable-streams';
+import { Observable } from 'rxjs';
 
 const settings = {
 	// use a builtin delay to simulate network latency (in ms)
@@ -15,7 +16,7 @@ const settings = {
 	// Any other case will result in a CORS error, even when there are no cookies.
 	// so it's best to turn this off during development.
 
-	withCredentials: WITH_CREDENTIALS,
+	withCredentials: typeof WITH_CREDENTIALS !== 'undefined' ? WITH_CREDENTIALS : false,
 };
 
 // Simulate a delay on an AxiosResponse/Error by returning a
