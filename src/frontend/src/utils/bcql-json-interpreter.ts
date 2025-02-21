@@ -191,7 +191,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 			query.withinClauses = { ...query.withinClauses, ...posfilter.withinClauses };
 		}
 
-		console.log('posfilter', query);
+		//console.log('posfilter', query);
 
 		return query;
 	}
@@ -383,7 +383,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 const parsePatternCache: Map<string, Result[]> = new Map();
 
 async function parseBcql(indexId: string, bcql: string, defaultAnnotation: string): Promise<Result[]> {
-	console.log('parseBcql', indexId, bcql, defaultAnnotation);
+	//console.log('parseBcql', indexId, bcql, defaultAnnotation);
 	const cacheKey = indexId + ':::' + bcql;
 	if (parsePatternCache.has(cacheKey))
 		return parsePatternCache.get(cacheKey)!;

@@ -1,6 +1,6 @@
 <template>
 	<tr class="concordance rounded">
-		<td v-if="isParallel && data.annotatedField" class='doc-version'><a @click.stop="" :href="data.href" title="Go to hit in document" target="_blank">{{ $tAnnotatedFieldDisplayName(data.annotatedField) }}</a></td>
+		<td v-if="isParallel || customHitInfo" class='doc-version'><a @click.stop="" :href="data.href" title="Go to hit in document" target="_blank">{{ customHitInfo }}</a></td>
 		<HitContextComponent tag="td" class="text-right"  :dir="dir" :data="data.context" :html="html" :annotation="mainAnnotation.id" :before="dir === 'ltr'" :after="dir === 'rtl'"
 			:hoverMatchInfos="hoverMatchInfos"
 			@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
@@ -36,6 +36,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 
 import GlossField from '@/pages/search/form/concept/GlossField.vue';
 import { GlossFieldDescription } from '@/store/search/form/glossStore';
+import { corpusCustomizations } from '@/store/search/ui';
 import { HitContext, NormalizedAnnotatedField, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 
 import HitContextComponent from '@/pages/search/results/table/HitContext.vue';
@@ -89,6 +90,16 @@ export default Vue.extend({
 			default: () => [],
 		},
 	},
+	computed: {
+		customHitInfo(): string|undefined {
+			const versionPrefix = this.isParallel && this.data.annotatedField ?
+				this.$tAnnotatedFieldDisplayName(this.data.annotatedField) : undefined;
+			const info = corpusCustomizations.results.customHitInfo(this.data.hit, versionPrefix);
+			return info === null ?
+				versionPrefix : // default behaviour: show parallel version if applicable
+				info;
+		},
+	}
 });
 </script>
 

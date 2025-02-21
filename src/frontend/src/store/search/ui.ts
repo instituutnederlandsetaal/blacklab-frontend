@@ -1288,7 +1288,7 @@ const corpusCustomizations = {
 				this._customTabs.push({ name, fields });
 			},
 
-			// Create a span filter for corpus.search.metadata.customTabs
+			/** Create a span filter for corpus.search.metadata.customTabs */
 			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: any = {}): AppTypes.FilterDefinition {
 				// No options specified; try to get them from the corpus.
 				let optionsFromCorpus;
@@ -1339,12 +1339,36 @@ const corpusCustomizations = {
 	},
 
 	results: {
+		/**
+		 * How to highlight match info in the hits table.
+		 *
+		 * Default behaviour is to always highlight if the user "captured"
+		 * (i.e. labelled this token in the query), OR if this is a relation and
+		 * there are no explicit captures.
+		 *
+		 * @param matchInfo the highlight section to get the style for
+		 * @returns 'none' (no highlighting), 'static' (always highlight), 'hover'
+		 *   (highlight on mouseover) or null for default behaviour.
+		 */
 		matchInfoHighlightStyle: (matchInfo: HighlightSection): string|null => {
-			return null; // fall back to default behaviour
+			return null; // use default behaviour
 		},
 
+		/**
+		 * Description of the search query to add to the CSV export. Default: none.
+		 */
 		csvDescription: (blSummary: any, fieldDisplayNameFunc: any) => {
-			return null; // fall back to default behaviour
+			return null; // use default behaviour
+		},
+
+		/**
+		 * Show some custom text (with doc link) left of the hit.
+		 *
+		 * Default shows versionPrefix if it's set (i.e. if it's a parallel corpus).
+		 * Otherwise, nothing extra is shown.
+		 */
+		customHitInfo: (hit: any, versionPrefix: string|undefined) => {
+			return null; // use default behaviour
 		}
 	},
 
@@ -1353,7 +1377,7 @@ const corpusCustomizations = {
 		 *  (return null to fall back to default: "only if there's a span filter defined for it")
 		 */
 		includeSpanAttribute(spanName: string, attrName: string): boolean|null {
-			return null; // fall back to default behaviour
+			return null; // use default behaviour
 		},
 	}
 };
