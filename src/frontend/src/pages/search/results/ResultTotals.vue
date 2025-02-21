@@ -35,7 +35,7 @@
 		<span class="fa fa-exclamation-triangle text-danger"/> <b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{numResultsRetrieved.toLocaleString()}} from a total of {{numResults.toLocaleString()}}
 	</div>
 	<div v-else-if="isPaused" class="totals-message text-info">
-		{{ $t('results.resultsTotals.heavyQuery') }} - search paused <button type="button" class="totals-button" @click="totals.continueCounting"><span class="fa fa-rotate-right text-info"></span> {{ $t('results.resultsTotals.continue') }} </button>
+		{{ $t('results.resultsTotals.heavyQuery') }} - search paused <button type="button" class="totals-button" @click="totals.continueCounting()"><span class="fa fa-rotate-right text-info"></span> {{ $t('results.resultsTotals.continue') }} </button>
 	</div>
 </div>
 </template>

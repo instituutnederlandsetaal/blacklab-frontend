@@ -1,4 +1,4 @@
-import { of, EMPTY, timer, lastValueFrom, concat, pipe } from 'rxjs';
+import { of, EMPTY, timer, lastValueFrom, concat, pipe, ObservableInput } from 'rxjs';
 import { expand, takeUntil, filter, distinctUntilChanged, switchMap, debounceTime, shareReplay, map } from 'rxjs/operators';
 
 import { combineLoadables, InteractiveLoadable, Loadable, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
@@ -49,27 +49,30 @@ function getTotals(r: BLTypes.BLSearchResult): TotalsOutput {
 export class TotalsLoader extends InteractiveLoadable<TotalsInput, TotalsOutput> {
 	constructor(private initial: TotalsInput) {
 		super(switchMap(({indexId, operation, results}) => {
-			// Don't request any actual results, we're just interested in the totals.
+			// Override some settings from the original search, we're not interested in the results, but we need the totals.
 			const params = {...results.summary.searchParam, number: 0, first: 0, includeTokenCount: true};
-			const timeout$ = timer(UIStore.getState().results.shared.totalsTimeoutDurationMs);
 			const recursiveTotal$ = of(Loadable.Loaded(getTotals(results))).pipe(
-				expand(cur => {
-					console.log('Totals counter expanding next result set', cur);
-					if (!cur.isLoaded() || this.isDone(cur.value)) return EMPTY; // Terminating clause/filter intermediate values that are not loaded or are done.
-					return toObservable(operation === 'docs'
-						? Api.blacklab.getDocs(indexId, params).then(getTotals)
-						: Api.blacklab.getHits(indexId, params).then(getTotals)
-					);
+				expand((cur: Loadable<TotalsOutput>) => {
+					// Expand is recursive: called for each input + each of its own outputs.
+					// As a consequence: check carefully for terminating clauses to prevent infinite recursion.
+					if (!cur.isLoaded() || this.isDone(cur.value)) return EMPTY;
+					// wait a little while before fetching the next batch of results.
+					return timer(UIStore.getState().results.shared.totalsRefreshIntervalMs).pipe(
+						switchMap(() => operation === 'docs'
+							? Api.blacklab.getDocs(indexId, params).then(getTotals).toObservable()
+							: Api.blacklab.getHits(indexId, params).then(getTotals).toObservable()
+					))
 				}),
-				filter(v => {
-					const isLoading = v.isLoading();
-					if (isLoading) console.log('Totals counter received loading value, remove it', v);
-					return !v.isLoading()
-				}), // remove loading values. We always want a value or an error in the output.
-				takeUntil(timeout$)
+				filter(v => !v.isLoading()), // remove loading values. We always want a value or an error in the output.
+
+				// abort the recursive stream if the timeout is reached.
+				takeUntil(timer(UIStore.getState().results.shared.totalsTimeoutDurationMs)),
 			)
 
-			const mostRecentUnfinishedAsPaused = lastValueFrom(recursiveTotal$.pipe(
+			// We want to end with a paused state if the timer hits and the last value we fetched didn't have all results yet.
+			// But we can't use the endWith operator, as that needs the value upfront, and we need the last value (which doesn't exist yet).
+			// So we use lastValueFrom to get the most recent value from the recursive stream.
+			const pausedOrFinishedState = lastValueFrom(recursiveTotal$.pipe(
 				filter(v => v.isLoaded()),
 				// Only emit a paused state if we're not finished...
 				mapLoaded((v): TotalsOutput => this.isDone(v) ? v : {...v, state: 'paused'})
@@ -78,7 +81,7 @@ export class TotalsLoader extends InteractiveLoadable<TotalsInput, TotalsOutput>
 			// Finally return the stream that emits the recursive totals,
 			// and when it completes, emit the most recent value as the paused state.
 			// prevent duplicate output of last value, once from the recursive stream and once from the mostRecentUnfinishedAsPaused.
-			return concat(recursiveTotal$, mostRecentUnfinishedAsPaused).pipe(distinctUntilChanged());
+			return concat(recursiveTotal$, pausedOrFinishedState);
 		}));
 		this.next(initial);
 	}
@@ -106,31 +109,28 @@ export type SubcorpusOutput = {
 
 class SubcorpusLoader extends InteractiveLoadable<SubcorpusInput, SubcorpusOutput> {
 	constructor() {
-		super(pipe(
-			debounceTime(1000),
-			map(combineLoadables),
-			switchMapLoaded(v => v.filter
-				// if we have a query, return a Loadable of the request
-				? toObservable(
-					Api.blacklab.getDocs(v.index.id, {filter: v.filter, first: 0, number: 0, includetokencount: true, waitfortotal: true})
-					.then(getTotals)
-					.then(totals => ({
-						numberOfMatchingDocuments: totals.numberOfMatchingDocuments,
-						tokensInMatchingDocuments: totals.tokensInMatchingDocuments,
-						totalDocsInIndex: totals.docsCounted,
-						totalTokensInIndex: totals.tokensInMatchingDocuments
-					}))
-				)
-				// if we don't have a query, get the properties from the corpus.
-				: of(Loadable.Loaded({
+		super(switchMap<SubcorpusInput, ObservableInput<Loadable<SubcorpusOutput>>>(v => {
+			if (!v.filter) { // there is no filter - shortcut, we know the entire corpus is the subcorpus
+				return of(Loadable.Loaded({
 					numberOfMatchingDocuments: v.index.documentCount,
 					tokensInMatchingDocuments: v.index.tokenCount,
 					totalDocsInIndex: v.index.documentCount,
 					totalTokensInIndex: v.index.tokenCount
 				}))
-			),
-			shareReplay(1)
-		))
+			}
+
+			// We have a filter - contact BlackLab and get the total subcorpus.
+			return Api.blacklab
+				.getDocs(v.index.id, {filter: v.filter, first: 0, number: 0, includetokencount: true, waitfortotal: true})
+				.then(getTotals)
+				.then(totals => ({
+					numberOfMatchingDocuments: totals.numberOfMatchingDocuments,
+					tokensInMatchingDocuments: totals.tokensInMatchingDocuments,
+					totalDocsInIndex: v.index.documentCount,
+					totalTokensInIndex: v.index.tokenCount
+				}))
+				.toObservable();
+		}), {debounce: 1000 })
 	}
 }
 
