@@ -285,7 +285,7 @@ export default Vue.extend({
 			this.paginationResults = data;
 		},
 		setError(data: Api.ApiError, isGrouped?: boolean) {
-			if (data.title !== 'Request cancelled') { // TODO
+			if (!data.isCancelledRequest) {
 				debugLogCat('results', 'Request failed: ', data);
 				this.error = UIStore.getState().global.errorMessage(data, isGrouped ? 'groups' : this.id as 'hits'|'docs');
 				this.results = null;

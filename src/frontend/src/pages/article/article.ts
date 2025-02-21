@@ -2,7 +2,7 @@ import { blacklab, frontend } from '@/api';
 import { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
 
-import { combineLoadables, combineLoadablesIncludingEmpty, combineLoadableStreams, compareAsSortedJson, Loadable, loadedIfNotNull, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
+import { combineLoadables, combineLoadablesIncludingEmpty, combineLoadableStreams, compareAsSortedJson, Loadable, LoadableState, loadedIfNotNull, mapLoadable, mapLoaded, switchMapLoadable, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
 import { combineLatest, distinctUntilChanged, map, Observable, ReplaySubject, shareReplay, tap } from 'rxjs';
 
 // Define some input/intermediate types and utils.
@@ -37,7 +37,7 @@ const input$ = inputsFromStore$.pipe(distinctUntilChanged(compareAsSortedJson), 
 // Document metadata
 export const metadata$ =  input$.pipe(
 	map(loadedIfNotNull('indexId', 'docId')),
-	switchMapLoaded(i => toObservable(blacklab.getDocumentInfo(i.indexId, i.docId))),
+	switchMapLoaded(i => blacklab.getDocumentInfo(i.indexId, i.docId).toObservable()),
 	shareReplay(1)
 );
 
@@ -56,7 +56,6 @@ export const hits$ = input$.pipe(
 		listvalues: "__do_not_send_anything__", // we don't need this info
 	}))),
 	mapLoaded(hits => hits.hits.map(h => [h.start, h.end] as [number, number])),
-	tap(hits => console.log('hits in article view', hits)),
 	shareReplay(1),
 )
 
@@ -89,7 +88,7 @@ type ValidPaginationAndDocDisplayParameters = {
 export const validPaginationParameters$: Observable<Loadable<ValidPaginationAndDocDisplayParameters>> = combineLatest([input$, metadata$, hits$]).pipe(
 	map(combineLoadablesIncludingEmpty),
 	mapLoaded(([input, doc, hits]) => fixInput(input, doc!, hits)), // doc should always be present if input is
-	distinctUntilChanged(compareAsSortedJson), // type inference breaks if we pass compareAsSortedJson directly
+	distinctUntilChanged(compareAsSortedJson),
 	shareReplay(1)
 )
 

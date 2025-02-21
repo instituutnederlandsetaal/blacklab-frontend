@@ -37,7 +37,7 @@ export function delayError(e: AxiosError): Promise<AxiosResponse<never>> {
  */
 export async function handleError(error: AxiosError): Promise<never> {
 	if (axios.isCancel(error)) { // is a cancelled request, message containing details
-		return Promise.reject(new ApiError('Request cancelled', `Request was cancelled: ${error}`, '', undefined)); // TODO some logic depends on the exact title to filter out cancelled requests
+		return Promise.reject(ApiError.CANCELLED);
 	}
 
 	const response = error.response;
@@ -117,8 +117,6 @@ export async function handleError(error: AxiosError): Promise<never> {
 	}
 }
 
-new Promise(() => {}).catch
-
 export class CancelableRequest<T> implements Promise<T> {
 	public request: Promise<T>;
 	public cancel: Canceler;
@@ -141,6 +139,10 @@ export class CancelableRequest<T> implements Promise<T> {
 
 	public static isCancelableRequest<T>(value: any): value is CancelableRequest<T> {
 		return value instanceof CancelableRequest;
+	}
+
+	public toObservable(): Observable<Loadable<T>> {
+		return toObservable(this);
 	}
 }
 

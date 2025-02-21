@@ -363,6 +363,8 @@ export class ApiError extends Error {
 	/** Http code, -1 if generic network error, http code otherwise, or none if no network error at all. */
 	public readonly httpCode: number|undefined;
 
+	public static CANCELLED = new ApiError('Request Cancelled', 'The request was cancelled by the user.', 'Cancelled', -1);
+
 	constructor(title: string, message: string, statusText: string, httpCode: number|undefined) {
 		super(message);
 		this.title = title;
@@ -370,6 +372,8 @@ export class ApiError extends Error {
 		this.statusText = statusText;
 		this.httpCode = httpCode;
 	}
+
+	get isCancelledRequest() { return this === ApiError.CANCELLED; }
 }
 
 // Import quirks, duplicate these
