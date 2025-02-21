@@ -71,7 +71,10 @@ export default Vue.extend({
 		frac2Percent
 	},
 	watch: {
-		indexAndQuery(q) { this.subcorpus.next(this.indexAndFilter) }
+		indexAndFilter: {
+			handler() { this.subcorpus.next(this.indexAndFilter) },
+			immediate: true,
+		}
 	}
 });
 </script>
