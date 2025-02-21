@@ -29,7 +29,7 @@ import * as ArticleModule from '@/store/article';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import { Loadable, loadableFromObservable, mapLoaded } from '@/utils/loadable-streams';
+import { Loadable, LoadableFromStream } from '@/utils/loadable-streams';
 import debug, {  } from '@/utils/debug';
 import { CorpusChange, createStoreInitializer } from '@/store/async-loaders';
 import { User } from 'oidc-client-ts';
@@ -363,7 +363,7 @@ const actions = {
 declare const process: any;
 const store = b.vuexStore({
 	state: {
-		storeLoadingState: Vue.observable(loadableFromObservable(corpusData$, [])),
+		storeLoadingState: new LoadableFromStream(corpusData$) as Loadable<CorpusChange>,
 	} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
 	strict: process.env.NODE_ENV === 'development',
 });

@@ -1,10 +1,5 @@
 import { User, UserManager, Log } from 'oidc-client-ts';
-import LoginButton from '@/components/LoginButton.vue';
-import { BLServer } from '@/types/blacklabtypes';
 import axios from 'axios';
-import { handleError } from '@/api/apiutils';
-import { debugLogCat } from './debug';
-import { blacklab } from '@/api';
 
 export const userManager = (OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL) ? new UserManager({
 	checkSessionIntervalInSeconds: 10,

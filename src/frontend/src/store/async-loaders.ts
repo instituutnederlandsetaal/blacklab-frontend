@@ -41,6 +41,7 @@ export function createStoreInitializer(p: { onCorpusChange: OnCorpusChange }) {
 				copyDisplaynamesAndValuesToCorpus(mainAnnot, Object.values(tagset.values));
 				Object.values(tagset.subAnnotations).forEach(sub => copyDisplaynamesAndValuesToCorpus(annots[sub.id], sub.values));
 			}
+			config!.displayName = config!.displayName || index?.displayName || 'Corpus-Frontend'; // TODO externalize? (globalconfig?)
 			const r: CorpusChange = { index, config: config!, tagset}
 			return r;
 		}),

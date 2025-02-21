@@ -341,40 +341,6 @@ type ValueTypeFromLoadableOrObservable<T> = T extends Observable<infer U> ? L.Va
  */
 type ValueTypeFromLoadableOrObservableIncludingEmpty<T> = T extends Observable<infer U> ? L.ValEmpty<U> : L.ValEmpty<T>;
 
-/**
- * <pre>
- * Given an observable (potentially of Loadables),
- * return a Loadable that mirrors the observable, except with the value of the observable.
- * Basically, if the observable emits a value, the loadable will have its state and value set to that value.
- * If the observable completes, the loadable will keep its last value
- * If the observable errors, the loadable will have its state set to error.
- *
- * If the stream outputs loadables itself, those are mirrored.
- *
- * So:
- * Observable<Loadable<T>> -> Loadable<T>
- * Observable<T> -> Loadable<T>
- */
-export function loadableFromObservable<
-	T extends Observable<any>,
-	R extends ValueTypeFromLoadableOrObservable<T>
->(obs: T, subs: Subscription[], initialValue?: Loadable<R>): Loadable<R> {
-	const ret: Loadable<R> = initialValue ?? Loadable.Empty();
-	const unsub = obs.subscribe({
-		next: v => Object.assign(ret, v instanceof Loadable ? v : Loadable.Loaded(v)),
-		error: e => Object.assign(ret, Loadable.LoadingError(e)),
-		complete: () => {
-			if (ret.state === LoadableState.Loading) {
-				Object.assign(ret, Loadable.Empty());
-				return;
-			}
-			// else keep current value.
-		}
-	});
-	subs.push(unsub);
-	return ret;
-}
-
 export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => jsonStableStringify(a) === jsonStableStringify(b);
 
 /**
@@ -509,10 +475,10 @@ export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
  * This is basically a simple wrapper to go from async behavior to reactive behavior.
  * Don't forget to dispose() after you're done with it, or the stream will keep running.
  */
-export class LoadableFromStream<T> extends Loadable<T extends Loadable<infer V> ? V : T> {
+export class LoadableFromStream<T> extends Loadable<T> {
 	private readonly unsubs: Subscription[] = markRaw([]);
 
-	constructor(s$: Observable<T>, settings: {
+	constructor(s$: Observable<T|Loadable<T>>, settings: {
 		/** initial state is normally empty, but can be Loading if so desired */
 		loadingOnStart?: boolean
 		/** when stream finishes, can preserve or clear current state */
@@ -523,11 +489,11 @@ export class LoadableFromStream<T> extends Loadable<T extends Loadable<infer V> 
 			next: v => {
 				if (Loadable.isLoadable(v)) {
 					this.state = v.state;
-					if (!v.isLoading()) this.value = v.value as any;
+					if (!v.isLoading()) this.value = v.value;
 					this.error = v.error;
 				} else {
 					this.state = LoadableState.Loaded;
-					this.value = v as any;
+					this.value = v;
 					this.error = undefined;
 				}
 			},

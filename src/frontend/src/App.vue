@@ -1,7 +1,8 @@
 <template>
 	<div class="container">
+		<PageMetaUpdater/>
 		<Navbar/>
-		<CustomCss/>
+
 
 		<!-- <pre>{{ storeLoadingState }}</pre> -->
 		<div v-if="storeLoadingState.isLoading()">
@@ -16,7 +17,11 @@
 		</div>
 		<router-view v-else/>
 
-		<CustomJs/>
+		<footer class="row">
+			<hr>
+			<p class="col-xs-12">Dutch Language Institute Corpus Search Interface v1.3 &copy; <a href="https://www.ivdnt.org/">INT</a> 2013-{{ new Date().getFullYear() }} </p>
+		</footer>
+
 	</div>
 </template>
 
@@ -29,12 +34,10 @@ import router from '@/router';
 
 import Spinner from '@/components/Spinner.vue';
 import Navbar from '@/components/Navbar.vue';
-
-import CustomJs from '@/components/CustomJs.vue';
-import CustomCss from '@/components/CustomCss.vue';
+import PageMetaUpdater from '@/PageMetaUpdater.vue';
 
 export default Vue.extend({
-	components: {Spinner, Navbar, CustomJs, CustomCss},
+	components: {Spinner, Navbar, PageMetaUpdater},
 	router,
 	i18n,
 	store,

@@ -11,21 +11,21 @@ const router = new Router({
 			name: 'corpora',
 			path: '/',
 			alias: '',
-			meta: { name: 'corpora' },
+			meta: { name: 'corpora', getTitle: () => 'Corpora' },
 			component: () => import('@/pages/corpora/CorporaPage.vue')
 		},
 		{
 			name: 'global-help',
 			path: '/help',
 			alias: '/help/*',
-			meta: { name: 'help' },
+			meta: { name: 'help', getTitle: (displayName: string) => displayName + ' Help' },
 			component: () => import('@/pages/help/HelpPage.vue')
 		},
 		{
 			name: 'global-about',
 			path: '/about',
 			alias: '/about/*',
-			meta: { name: 'about' },
+			meta: { name: 'about', getTitle: () => 'About' },
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
@@ -51,27 +51,27 @@ const router = new Router({
 			name: 'search',
 			path: '/:corpus/search',
 			alias: '/:corpus/search/*',
-			meta: { name: 'search' },
+			meta: { name: 'search', getTitle: (displayName: string) => `${displayName} Search` },
 			component: () => import('@/pages/search/SearchPage.vue'),
 		},
 		{
 			name: 'article',
 			path: '/:corpus/docs/:docId',
-			meta: { name: 'article' },
+			meta: { name: 'article', getTitle: (displayName: string) => `${displayName} Article` },
 			component: () => import('@/pages/article/ArticlePage.vue')
 		},
 		{
 			name: 'about',
 			path: '/:corpus/about',
 			alias: '/:corpus/about/*',
-			meta: { name: 'about' },
+			meta: { name: 'about', getTitle: (displayName: string) => `About ${displayName}` },
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
 			name: 'help',
 			path: '/:corpus/help',
 			alias: '/:corpus/help/*',
-			meta: { name: 'help' },
+			meta: { name: 'help', getTitle: (displayName: string) => `${displayName} Help` },
 			component: () => import('@/pages/help/HelpPage.vue'),
 		},
 		{

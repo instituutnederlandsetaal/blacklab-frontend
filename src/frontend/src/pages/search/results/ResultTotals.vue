@@ -53,7 +53,6 @@ import { TotalsLoader, TotalsOutput } from '@/pages/search/results/TotalsCounter
 import frac2Percent from '@/mixins/fractionalToPercent';
 
 import Spinner from '@/components/Spinner.vue';
-import { loadableFromObservable } from '@/utils/loadable-streams';
 
 /**
  * Emits update events that contain the new set of totals, so we can update the pagination through our parent components

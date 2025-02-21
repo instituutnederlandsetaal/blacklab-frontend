@@ -14,15 +14,11 @@ import { stripIndent, html } from 'common-tags';
 import { RootState } from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 import * as ViewsStore from '@/store/results/views';
-import * as FilterModule from '@/store/form/filters';
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 import { Option } from '@/types/apptypes';
 import { spanFilterId } from '@/utils';
 import { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
-import { InteractiveLoadable, Loadable, toObservable } from '@/utils/loadable-streams';
-import { frontend } from '@/api';
-import { pipe, switchMap } from 'rxjs';
 import { CorpusChange } from '@/store/async-loaders';
 
 type CustomView = {
@@ -797,10 +793,6 @@ const init = (state: CorpusChange) => {
 	// At this point we stored the customizations in our state
 	// Now validate it all and correct it if necessary
 	const customizedState = cloneDeep(getState());
-
-
-	// Call the customize function(s) defined in custom.js (if any)
-	corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));
 
 	// XXX: hack!
 	/**

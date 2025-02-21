@@ -446,5 +446,6 @@ export type CFPageConfig = {
 	displayName: string|null;
 	faviconDir: string;
 	navbarLinks: CFNavbarLink[];
+	/** Page size of the document view (in tokens). */
 	pageSize: number | null;
 };

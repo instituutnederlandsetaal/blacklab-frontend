@@ -165,8 +165,7 @@ function _preventClicks(e: Event) {
 
 import {inputsFromStore$, contents$, hitToHighlight$, hits$, metadata$, Input, validPaginationParameters$, snippetAndDocument$} from './article';
 import { fieldSubset } from '@/utils';
-import { Subscription } from 'rxjs';
-import { loadableFromObservable } from '@/utils/loadable-streams';
+import { LoadableFromStream } from '@/utils/loadable-streams';
 
 export default Vue.extend({
 	components: {
@@ -176,18 +175,14 @@ export default Vue.extend({
 		// ArticlePageParallel,
 		Pagination
 	},
-	data: () => {
-		const subs: Subscription[] = [];
-		return {
-			subs,
-			metadata: loadableFromObservable(metadata$, subs),
-			contents: loadableFromObservable(contents$, subs),
-			hits: loadableFromObservable(hits$, subs),
-			hitToHighlight: loadableFromObservable(hitToHighlight$, subs),
-			validPaginationInfo: loadableFromObservable(validPaginationParameters$, subs),
-			snippetAndDocument: loadableFromObservable(snippetAndDocument$, subs)
-		}
-	},
+	data: () => ({
+		metadata: new LoadableFromStream(metadata$),
+		contents: new LoadableFromStream(contents$),
+		hits: new LoadableFromStream(hits$),
+		hitToHighlight: new LoadableFromStream(hitToHighlight$),
+		validPaginationInfo: new LoadableFromStream(validPaginationParameters$),
+		snippetAndDocument: new LoadableFromStream(snippetAndDocument$)
+	}),
 	computed: {
 		inputs(): Input {
 			return {
@@ -259,7 +254,12 @@ export default Vue.extend({
 		}
 	},
 	destroyed() {
-		this.subs.forEach(s => s.unsubscribe());
+		this.metadata.dispose();
+		this.contents.dispose();
+		this.hits.dispose();
+		this.hitToHighlight.dispose();
+		this.validPaginationInfo.dispose();
+		this.snippetAndDocument.dispose();
 	},
 });
 
