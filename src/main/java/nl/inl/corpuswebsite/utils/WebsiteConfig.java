@@ -101,6 +101,12 @@ public class WebsiteConfig {
         public Map<String, List<ElementOnPage>> customCss() {
             return config.getAllCustomCss();
         }
+
+        @JsonProperty("loadedFromPath")
+        @JsonInclude(Include.NON_EMPTY)
+        public String loadedFromPath() {
+            return Boolean.parseBoolean(config.globalConfig.get(Keys.SHOW_DEBUG_CHECKBOX_ON_CLIENT)) ? config.loadedFromFile : null;
+        }
     }
 
     public static class ElementOnPage implements Comparable<ElementOnPage> {
@@ -167,6 +173,8 @@ public class WebsiteConfig {
     private final XPathCompiler xp;
     private final XdmNode doc;
 
+    private final String loadedFromFile;
+
     /**
      * Note that corpus may be null, when parsing the default website settings for non-corpus pages (such as the landing page).
      *
@@ -176,6 +184,7 @@ public class WebsiteConfig {
      * @throws SaxonApiException, IOException, ParserConfigurationException, XPathExpressionException, SAXException
      */
     public WebsiteConfig(File configFile, GlobalConfig globalConfig, Optional<String> corpusId) throws SaxonApiException, IOException {
+        this.loadedFromFile = configFile.getAbsolutePath();
         this.globalConfig = globalConfig;
         this.corpusId = corpusId;
         String contextPath = globalConfig.get(Keys.CF_URL_ON_CLIENT);
@@ -191,7 +200,7 @@ public class WebsiteConfig {
         this.doc = builder.build(new StreamSource(new ByteArrayInputStream(xmlContent.getBytes(StandardCharsets.UTF_8))));
         this.xp = proc.newXPathCompiler();
 
-        corpusDisplayName = getString("/InterfaceProperties/DisplayName");
+        corpusDisplayName = getString("//InterfaceProperties/DisplayName");
         Optional<String> corpusOwner = CorpusFileUtil.getCorpusOwner(corpusId);
 
         AtomicInteger i = new AtomicInteger();
@@ -232,10 +241,10 @@ public class WebsiteConfig {
         });
 
 
-        pathToFaviconDir = getString("/InterfaceProperties/FaviconDir").orElse(contextPath + "/img");
-        pagination = getBoolean("/InterfaceProperties/Article/Pagination").orElse(false);
-        pageSize = getInt("/InterfaceProperties/Article/PageSize").filter(p -> p > 0).orElse(1000);
-        analyticsKey = getString("/InterfaceProperties/Analytics/Key");
+        pathToFaviconDir = getString("//InterfaceProperties/FaviconDir").orElse(contextPath + "/img");
+        pagination = getBoolean("//InterfaceProperties/Article/Pagination").orElse(false);
+        pageSize = getInt("//InterfaceProperties/Article/PageSize").filter(p -> p > 0).orElse(1000);
+        analyticsKey = getString("//InterfaceProperties/Analytics/Key");
 
         linksInTopBar = Stream.concat(
             corpusOwner.isPresent() ? Stream.of(new ElementOnPage("My corpora", i.getAndIncrement())) : Stream.empty(),
@@ -268,8 +277,8 @@ public class WebsiteConfig {
         xsltParameters = xp.evaluate("//XsltParameters/XsltParameter", doc).stream()
                 .collect(Collectors.toMap(sub -> getString("@name", (XdmNode) sub).orElse(""), sub -> getString("@value", (XdmNode) sub).orElse("")));
 
-        plausibleDomain = getString("/InterfaceProperties/Plausible/domain");
-        plausibleApiHost = getString("/InterfaceProperties/Plausible/apiHost");
+        plausibleDomain = getString("//InterfaceProperties/Plausible/domain");
+        plausibleApiHost = getString("//InterfaceProperties/Plausible/apiHost");
     }
 
 
