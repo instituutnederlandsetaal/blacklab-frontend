@@ -154,11 +154,16 @@ export function validateTagset(mainTagsetAnnotation: NormalizedAnnotation, other
 	});
 }
 
+const actions = {
+	load: () => { console.warn('Manual tagset loading is no longer required. Remove the call to tagset.actions.load() from customJS - instead, place the tagset in ${corpusName}/static/tagset.json'); }
+}
+
 export {
 	ModuleRootState,
 	Tagset,
 
 	getState,
+	actions,
 	get,
 	init,
 
