@@ -479,11 +479,11 @@ export class LoadableFromStream<T> extends Loadable<T> {
 	private readonly unsubs: Subscription[] = markRaw([]);
 
 	constructor(s$: Observable<T|Loadable<T>>, settings: {
-		/** initial state is normally empty, but can be Loading if so desired */
+		/** initial state is normally empty, but can be Loading if so desired. Defaults to false. */
 		loadingOnStart?: boolean
-		/** when stream finishes, can preserve or clear current state */
+		/** when stream finishes, can preserve or clear current state. Defaults to true. */
 		keepValueAfterCompletion?: boolean;
-	} = {loadingOnStart: false, keepValueAfterCompletion: false}) {
+	} = {loadingOnStart: false, keepValueAfterCompletion: true}) {
 		super(settings.loadingOnStart ? LoadableState.Loading : LoadableState.Empty, undefined, undefined);
 		this.unsubs.push(s$.subscribe({
 			next: v => {

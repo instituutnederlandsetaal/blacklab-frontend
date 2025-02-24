@@ -18,7 +18,7 @@ export default Vue.extend({
 	computed: {
 		content(): LoadableFromStream<string> {
 			// dispose shouldn't be necessary, web requests always complete eventually.
-			return new LoadableFromStream(frontend.getAbout(CorpusStore.get.indexId() ?? undefined).toObservable());
+			return new LoadableFromStream(frontend.getHelp(CorpusStore.get.indexId() ?? undefined).toObservable());
 		},
 	},
 });
