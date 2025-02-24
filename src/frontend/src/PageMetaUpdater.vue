@@ -75,7 +75,7 @@ export default Vue.extend({
 				// TODO refactor customizing to avoid having to reload the page.
 				// This is a large job however.
 				if (this.hasCustomJs) {
-					console.info('Triggering page reload due to polluted global scope (customJs is present)')
+					console.info('%cTriggering page reload due to polluted global scope (customJs is present)', 'color: blue; font-weight: bold; border: 1px solid blue; padding: 2px 0; background: white;');
 					window.location.reload();
 				}
 				this.hasCustomJs = next.length > 0;
@@ -85,7 +85,8 @@ export default Vue.extend({
 					const script = document.createElement('script');
 					Object.entries(js.attributes).forEach(([k, v]) => v && script.setAttribute(k, v.toString()));
 					script.setAttribute(this.elementMarker, '');
-					this.$el.appendChild(script);
+					// $el is not usually null, but can be if the component is hot-reloaded (e.g. during development) because then the router is already initialized etc and this runs immediately.
+					if (this.$el) this.$el.appendChild(script); else this.$nextTick(() => this.$el.appendChild(script));
 				});
 			},
 		},
@@ -99,7 +100,8 @@ export default Vue.extend({
 					const link = document.createElement('link');
 					Object.entries(css.attributes).forEach(([k, v]) => v && link.setAttribute(k, v.toString()));
 					link.setAttribute(this.elementMarker, '');
-					this.$el.appendChild(link);
+					// $el is not usually null, but can be if the component is hot-reloaded (e.g. during development) because then the router is already initialized etc and this runs immediately.
+					if (this.$el) this.$el.appendChild(link); else this.$nextTick(() => this.$el.appendChild(link));
 				});
 			}
 		},
