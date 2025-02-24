@@ -11,14 +11,14 @@
 					<div class="navbar-logo"></div>
 				</div>
 
-				<a v-if="index" class='navbar-brand' :href="`${CONTEXT_URL}/${index.id}/search/`">{{ indexDisplayName }}</a>
-				<a v-else class='navbar-brand' :href="`${CONTEXT_URL}/`">{{ indexDisplayName }}</a>
+				<router-link :to="indexId ? {name: 'search', params: {corpus: indexId}} : {name: 'corpora'}" class="navbar-brand">{{ indexDisplayName }}</router-link>
 			</div>
 
 			<div class="navbar-collapse collapse navbar-logo-margin" :class="{collapse: collapsed, in: !collapsed}">
 				<ul class="nav navbar-nav">
 					<li v-for="link in links" :key="link.attributes.href">
-						<a v-bind="link.attributes">{{ link.label }}</a>
+						<router-link v-if="!link.isExternal" :to="link.attributes.href" v-bind="{...link.attributes, href: undefined}">{{ link.label }}</router-link>
+						<a v-else v-bind="link.attributes">{{ link.label }}</a>
 					</li>
 				</ul>
 			</div>
@@ -44,6 +44,7 @@ import { CFNavbarLink, CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 import * as UIStore from '@/store/ui';
 import * as CorpusStore from '@/store/corpus';
 import { localStorageSynced } from '@/utils/localstore';
+import { escapeRegex } from '@/utils';
 
 export default Vue.extend({
 	components: {LocaleSelector, LoginButton },
@@ -59,11 +60,22 @@ export default Vue.extend({
 		};
 	},
 	computed: {
+		indexId(): string|null { return CorpusStore.get.indexId(); },
 		index(): NormalizedIndex|null { return CorpusStore.getState(); },
 		config(): CFPageConfig { return UIStore.getState().global.config; },
-		// bannerMessage(): string|undefined { return UIStore.getState().global.config.bannerMessage }
-		indexDisplayName(): string { return this.config.displayName || this.index?.displayName || 'Corpus-Frontend' },
-		links(): CFNavbarLink[] { return this.config.navbarLinks },
+		// A little speficic, but this way on purpose, since the config and index are loaded async, and we want to show something asap.
+		// If no index is loaded at all, show the default corpus-frontend name.
+		indexDisplayName(): string { return this.config.displayName || this.index?.displayName || this.indexId || 'Corpus-Frontend' },
+		links(): Array<CFNavbarLink&{isExternal: boolean}> { return this.config.navbarLinks.map(l => ({
+			...l,
+			attributes: {
+				...l.attributes,
+				// vue-router will automatically prepend the basepath to the href, so we need to remove it here
+				// to avoid double basepath in the final href
+				href: l.attributes.href.startsWith(CONTEXT_URL) ? l.attributes.href.replace(new RegExp('^' + escapeRegex(CONTEXT_URL)), '')  : l.attributes.href
+			},
+			isExternal: !l.attributes.href.startsWith(CONTEXT_URL)
+		})) },
 		showBanner(): boolean { return !!this.config.bannerMessage && this.bannerFromLocalStorage.value !== this.config.bannerMessage },
 	},
 	methods: {
