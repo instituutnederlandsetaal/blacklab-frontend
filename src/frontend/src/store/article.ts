@@ -1,12 +1,9 @@
 import cloneDeep from 'clone-deep';
 import {getStoreBuilder} from 'vuex-typex';
 
-import {blacklab, frontend} from '@/api';
-
 import * as BLTypes from '@/types/blacklabtypes';
 
 import {RootState} from '@/store';
-import { NormalizedIndex } from '@/types/apptypes';
 import { CorpusChange } from '@/store/async-loaders';
 
 type ModuleRootState = {

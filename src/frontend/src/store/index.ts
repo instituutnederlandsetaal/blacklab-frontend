@@ -43,6 +43,7 @@ type RootState = {
 	 * This loadable will only become loaded once that happens.
 	 */
 	storeLoadingState: Loadable<CorpusChange>;
+	indexId: string|null;
 	corpus: CorpusModule.ModuleRootState;
 	article: ArticleModule.ModuleRootState;
 
@@ -63,7 +64,7 @@ const {corpusData$, indexId$, retry$, user$} = createStoreInitializer({
 })
 
 const get = {
-	indexId: b.read(s => indexId$.value, 'indexId'),
+	indexId: b.read(s => s.indexId, 'indexId'),
 
 	loadingState: b.read(s => s.storeLoadingState, 'loadingState'),
 
@@ -128,7 +129,7 @@ const get = {
 const actions = {
 	retryLoading: () => retry$.next(),
 	user: (user: User|null) => user$.next(user),
-	indexId: (indexId: string|null) => indexId$.next(indexId),
+	indexId: b.commit((state, indexId: string|null) => { indexId$.next(indexId); state.indexId = indexId; }, 'indexId'),
 
 	/** Read the form state, build the query, reset the results page/grouping, etc. */
 	searchFromSubmit: b.commit(state => {
@@ -364,6 +365,7 @@ declare const process: any;
 const store = b.vuexStore({
 	state: {
 		storeLoadingState: new LoadableFromStream(corpusData$) as Loadable<CorpusChange>,
+		indexId: null,
 	} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
 	strict: process.env.NODE_ENV === 'development',
 });

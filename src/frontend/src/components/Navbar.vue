@@ -48,19 +48,14 @@ import { escapeRegex } from '@/utils';
 
 export default Vue.extend({
 	components: {LocaleSelector, LoginButton },
-	props: {
-
-	},
 	data() {
 		return {
 			collapsed: true,
-			CONTEXT_URL,
-
 			bannerFromLocalStorage: localStorageSynced<string>('cf/banner-hidden', '', false, 24*7*3600)
 		};
 	},
 	computed: {
-		indexId(): string|null { return CorpusStore.get.indexId(); },
+		indexId: CorpusStore.get.indexId, // separate from index - the ID is available before the index is loaded
 		index(): NormalizedIndex|null { return CorpusStore.getState(); },
 		config(): CFPageConfig { return UIStore.getState().global.config; },
 		// A little speficic, but this way on purpose, since the config and index are loaded async, and we want to show something asap.
