@@ -1,5 +1,5 @@
 <template>
-	<div v-if="routerIsInitialized" id="custom-js-css"></div>
+	<div id="custom-js-css"></div>
 </template>
 
 <script lang="ts">
