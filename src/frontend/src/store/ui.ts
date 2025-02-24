@@ -1015,13 +1015,13 @@ const init = (state: CorpusChange) => {
 	// no default for this one.
 
 	actions.results.shared.groupAnnotationIds(customizedState.results.shared.groupAnnotationIds);
-	if (!getState().results.shared.groupAnnotationIds.length) actions.results.shared.groupAnnotationIds(defaultAnnotationsToShow);
+	if (!getState().results.shared.groupAnnotationIds.length) actions.results.shared.groupAnnotationIds(defaultAnnotationsWithForwardIndex);
 
 	actions.results.shared.groupMetadataIds(customizedState.results.shared.groupMetadataIds);
 	if (!getState().results.shared.groupMetadataIds.length) actions.results.shared.groupMetadataIds(defaultMetadataToShow);
 
 	actions.results.shared.sortAnnotationIds(customizedState.results.shared.sortAnnotationIds);
-	if (!getState().results.shared.sortAnnotationIds.length) actions.results.shared.sortAnnotationIds(defaultAnnotationsToShow);
+	if (!getState().results.shared.sortAnnotationIds.length) actions.results.shared.sortAnnotationIds(defaultAnnotationsWithForwardIndex);
 
 	actions.results.shared.sortMetadataIds(customizedState.results.shared.sortMetadataIds);
 	if (!getState().results.shared.sortMetadataIds.length) actions.results.shared.sortMetadataIds(defaultMetadataToShow);
@@ -1036,6 +1036,7 @@ const init = (state: CorpusChange) => {
 	actions.results.shared.dependencies(customizedState.results.shared.dependencies);
 	if (!Object.values(customizedState.results.shared.dependencies).some(v => v != null)) {
 		function findAnnotation(keywords: string[]): string[] {
+			// Annotations in the dependency tree need to be displayed - and for that they need a forward index.
 			const ids = Object.keys(allAnnotationsMap).filter(id => allAnnotationsMap[id].hasForwardIndex);
 
 			// return best match first. If multiple annotations match the same keyword, prefer the shortest one i.e. best match (e.g. pos > pos_with_features)
