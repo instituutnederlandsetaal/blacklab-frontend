@@ -63,7 +63,15 @@ function setDefaultLocale(defaultLocale: string) {
 }
 
 const loading = reactive({value: false});
-watch(() => i18n.locale, loadLocaleMessages,{immediate: true});
+watch(() => i18n.locale, async (newLocale, prevLocale) => {
+	const originalFallbackLocale = i18n.fallbackLocale;
+	if (prevLocale) i18n.fallbackLocale = prevLocale;
+	i18n.silentFallbackWarn = i18n.silentTranslationWarn = true;
+	loadLocaleMessages(newLocale).catch(() => {}).finally(() => {
+		i18n.silentFallbackWarn = i18n.silentTranslationWarn = false;
+		i18n.fallbackLocale = originalFallbackLocale;
+	})
+} ,{immediate: true});
 async function loadLocaleMessages(locale: string) {
 	// also allow loading locales not defined in the availableLocales.
 	// This is useful for loading overrides for locales that are not available in the UI.
