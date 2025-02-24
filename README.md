@@ -25,7 +25,6 @@
     - [Backend development](#backend-development)
 
 
-
 About
 ===================
 
@@ -37,12 +36,6 @@ At the Dutch Language Institute, we use it to publish our corpora such as [CHN](
 
 
 ## How to use
-
-Help is contained in the application in the form of a _page guide_ that can be opened by clicking the button on the right of the page.
-
-![](docs/img/page_guide.png)
-
-
 
 Installation
 ===================
@@ -659,12 +652,6 @@ Custom javascript files can be included on any page by adding them to [search.xm
 
 
 Through javascript you can do many things, but outlined below are some of the more interesting/useful features on the `/search/` page:
-
-- <details>
-    <summary>[Global] - Hide the page guide</summary>
-
-    `vuexModules.ui.actions.global.pageGuide.enable(false)`
-  </details>
 
 - <details>
     <summary>[Global] - Configure which annotations & metadata fields are visible</summary>

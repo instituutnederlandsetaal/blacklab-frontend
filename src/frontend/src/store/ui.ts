@@ -237,10 +237,6 @@ type ModuleRootState = {
 	global: {
 		config: AppTypes.CFPageConfig,
 
-		pageGuide: {
-			enabled: boolean;
-		},
-
 		/** Database to use in the lexicon service component. To allow switching early dutch/middle dutch etc. */
 		lexiconDb: string;
 		/**
@@ -363,9 +359,6 @@ const initialState: ModuleRootState = {
 			faviconDir: '',
 			navbarLinks: [],
 			pageSize: null,
-		},
-		pageGuide: {
-			enabled: true
 		},
 		lexiconDb: 'lexiconservice_mnw_wnt',
 		errorMessage: (e, c) => {
@@ -691,9 +684,7 @@ const actions = {
 	},
 	global: {
 		pageGuide: {
-			enable: b.commit((state, payload: boolean) => {
-				state.global.pageGuide.enabled = !!payload;
-			}, 'global_pageGuide_enabled'),
+			enable: () => {console.warn('Pageguide has been removed and will be replaced with a more modern implementation in the future. Please remove the corresponding customjs.');},
 		},
 		lexiconDb: b.commit((state, payload: string) => state.global.lexiconDb = payload, 'global_lexiconDb')
 	},
@@ -781,11 +772,11 @@ const init = (state: CorpusChange) => {
 	if (!state.index) {
 		// Reset to completely blank slate if no corpus loaded.
 		Object.assign(getState(), cloneDeep(initialState));
-		Object.assign(getState().global.config, state.config);
+		getState().global.config = state.config;
 		return;
-	} else {
-		Object.assign(getState().global.config, state.config);
 	}
+
+	getState().global.config = state.config;
 
 	// Run customjs customization callbacks:
 	corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));
@@ -833,6 +824,7 @@ const init = (state: CorpusChange) => {
 		// remainder group is hidden unless there's no other group. Also internal annotations in the remainder group are always hidden.
 		return hasNonRemainderGroup ? [] : g.entries.filter(annotationName => allAnnotationsMap[annotationName]?.isInternal === false);
 	});
+	const defaultAnnotationsWithForwardIndex = defaultAnnotationsToShow.filter(a => allAnnotationsMap[a].hasForwardIndex);
 
 	// Metadata/filters (extended, advanced, expert, explore)
 	// If unconfigured: show all metadata in groups (groups are defined in the index format yaml file)

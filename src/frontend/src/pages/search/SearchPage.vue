@@ -10,8 +10,6 @@
 		</Debug>
 
 		<Results v-show="resultsVisible" id="results"/>
-
-		<PageGuide v-if="pageGuideEnabled"/>
 	</div>
 </template>
 
@@ -19,12 +17,10 @@
 import Vue from 'vue';
 import * as RootStore from '@/store';
 import * as InterfaceStore from '@/store/form/interface';
-import * as UIStore from '@/store/ui';
 
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 import Results from '@/pages/search/results/Results.vue';
-import PageGuide from '@/pages/search/PageGuide.vue';
 import Spinner from '@/components/Spinner.vue';
 
 export default Vue.extend({
@@ -32,12 +28,10 @@ export default Vue.extend({
 		QueryForm,
 		QuerySummary,
 		Results,
-		PageGuide,
 		Spinner
 	},
 	computed: {
 		resultsVisible(): boolean { return InterfaceStore.getState().viewedResults != null; },
-		pageGuideEnabled(): boolean { return UIStore.getState().global.pageGuide.enabled; },
 		debugQuery: RootStore.get.blacklabParameters
 	},
 });

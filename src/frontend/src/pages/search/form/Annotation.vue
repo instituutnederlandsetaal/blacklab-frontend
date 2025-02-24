@@ -158,7 +158,6 @@ export default Vue.extend({
 		value: {
 			get(): string {
 				const state = this.stateGetter();
-				if (!state) debugger;
 				return this.stateGetter().value;
 			},
 			set(value: string) {
