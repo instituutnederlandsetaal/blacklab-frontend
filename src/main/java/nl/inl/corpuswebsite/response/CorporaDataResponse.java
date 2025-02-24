@@ -53,19 +53,18 @@ public class CorporaDataResponse extends BaseResponse {
 
             String pathString = path.toString();
             Optional<File> file = servlet.getProjectFile(corpus, pathString);
-
             if (!file.isPresent() || !file.get().isFile()) {
                 response.setStatus(404);
                 return;
             }
 
+            ensureEtagAndCache(file.get().lastModified());
+
             try (InputStream is = new FileInputStream(file.get())) {
                 // Headers must be set before writing the response.
                 String mime = servlet.getServletContext().getMimeType(pathString);
-                response.setHeader("Cache-Control", "public, max-age=604800" /* 7 days */);
                 response.setHeader("Content-Length", Long.toString(file.get().length()));
                 response.setContentType(mime);
-
                 IOUtils.copy(is, response.getOutputStream());
             }
         } catch (InvalidPathException e1) { // runtimeException from Path.resolve; when weird paths are being requested

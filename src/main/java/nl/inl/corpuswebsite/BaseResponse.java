@@ -219,4 +219,22 @@ public abstract class BaseResponse {
     public boolean isCookieSet(String name, String value) {
         return this.getCookie(name).filter(c -> c.getValue().equals(value)).isPresent();
     }
+
+    /**
+     * Check the Etag, and if it matches, throw a ReturnToClientException for the NOT_MODIFIED status.
+     * If the Etag does not match (i.e. client resource out of date) set the Etag, Last-Modified, and Cache-Control headers.
+     */
+    protected void ensureEtagAndCache(long lastModified) {
+        ensureEtagAndCache(lastModified, 0);
+    }
+
+    protected void ensureEtagAndCache(long lastModified, long cacheSeconds) {
+        String eTag = "W/\"" + lastModified + "\"";
+        if (eTag.equals(request.getHeader("If-None-Match"))) {
+            throw new ReturnToClientException(HttpServletResponse.SC_NOT_MODIFIED);
+        }
+        response.setHeader("ETag", eTag);
+        response.setDateHeader("last-modified", lastModified);
+        response.setHeader("Cache-Control", "public, max-age=" + cacheSeconds + (cacheSeconds <= 0 ? ", must-revalidate" : ""));
+    }
 }

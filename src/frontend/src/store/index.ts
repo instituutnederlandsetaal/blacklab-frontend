@@ -124,8 +124,6 @@ const get = {
 	}, 'blacklabParameters')
 };
 
-
-
 const actions = {
 	retryLoading: () => retry$.next(),
 	user: (user: User|null) => user$.next(user),

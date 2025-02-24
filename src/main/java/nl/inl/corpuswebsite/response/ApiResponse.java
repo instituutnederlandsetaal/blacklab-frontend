@@ -77,14 +77,16 @@ public class ApiResponse extends BaseResponse {
     public void indexMetadata() throws QueryException {
         if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
         servlet.getCorpusConfig(corpus, request, response)
+            .tap(c -> ensureEtagAndCache(c.lastModified())) // throws ReturnToClientException[not_modified] if etag matches
+            .mapWithErrorHandling(CorpusConfig::getJsonUnescaped)
             .mapError(QueryException::wrap)
-            .map(CorpusConfig::getJsonUnescaped)
             .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
     }
 
     public void siteConfig() {
         Result.success(servlet.getWebsiteConfig(corpus))
             .map(WebsiteConfig.WebsiteConfigJson::new)
+            .tap(config -> ensureEtagAndCache(config.lastModified()))
             .mapWithErrorHandling(config -> {
                 ObjectMapper mapper = new ObjectMapper();
                 mapper.enable(SerializationFeature.INDENT_OUTPUT);

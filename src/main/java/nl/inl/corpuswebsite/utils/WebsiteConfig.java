@@ -107,6 +107,11 @@ public class WebsiteConfig {
         public String loadedFromPath() {
             return Boolean.parseBoolean(config.globalConfig.get(Keys.SHOW_DEBUG_CHECKBOX_ON_CLIENT)) ? config.loadedFromFile : null;
         }
+
+        @JsonIgnore
+        public Long lastModified() {
+            return config.lastModified;
+        }
     }
 
     public static class ElementOnPage implements Comparable<ElementOnPage> {
@@ -174,6 +179,7 @@ public class WebsiteConfig {
     private final XdmNode doc;
 
     private final String loadedFromFile;
+    private final long lastModified;
 
     /**
      * Note that corpus may be null, when parsing the default website settings for non-corpus pages (such as the landing page).
@@ -185,6 +191,7 @@ public class WebsiteConfig {
      */
     public WebsiteConfig(File configFile, GlobalConfig globalConfig, Optional<String> corpusId) throws SaxonApiException, IOException {
         this.loadedFromFile = configFile.getAbsolutePath();
+        this.lastModified = configFile.lastModified();
         this.globalConfig = globalConfig;
         this.corpusId = corpusId;
         String contextPath = globalConfig.get(Keys.CF_URL_ON_CLIENT);

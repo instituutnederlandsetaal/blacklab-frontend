@@ -3,6 +3,12 @@ package nl.inl.corpuswebsite.utils;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.text.DateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.util.Date;
 import java.util.Optional;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -22,6 +28,8 @@ public class CorpusConfig {
     private final Optional<String> corpusDataFormat;
 
     private final String listValues;
+
+    private final long lastModified;
     
     public CorpusConfig(String corpusId, String configAsXml, String configAsJson)
             throws SAXException, IOException, ParserConfigurationException, XPathExpressionException, SaxonApiException {
@@ -52,6 +60,13 @@ public class CorpusConfig {
             + "//annotation[not(isInternal='true') and uiType='pos']/subannotation"
             + ", ',')",
         doc).stream().findFirst().map(XdmItem::getStringValue).orElse("");
+
+        // format: "2025-02-21 22:00:09"
+        String modified = xp.evaluateSingle("/blacklabResponse/versionInfo/timeModified", doc).getStringValue();
+        this.lastModified = LocalDateTime
+                .parse(modified, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+                .atZone(ZoneId.systemDefault())
+                .toInstant().toEpochMilli();
     }
 
     public String getCorpusId() {
@@ -76,5 +91,9 @@ public class CorpusConfig {
 
     public String getListValues() {
         return listValues;
+    }
+
+    public long lastModified() {
+        return this.lastModified;
     }
 }
