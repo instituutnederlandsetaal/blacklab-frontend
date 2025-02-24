@@ -22,9 +22,8 @@ export default Vue.extend({
 		routerIsInitialized(): boolean { return this.$route.name != null; },
 		config(): CFPageConfig { return UIStore.getState().global.config; },
 		pageName(): string { return this.$route.meta?.name as string || ''; },
-
 		title(): string {
-			if (!this.routerIsInitialized) return '';
+			if (!this.routerIsInitialized || !this.config.displayName) return '';
 			return this.$route.meta?.getTitle?.(this.config.displayName) ?? this.config.displayName;
 		},
 		customJs(): CFCustomJsEntry[] {
@@ -66,7 +65,10 @@ export default Vue.extend({
 	watch: {
 		title: {
 			immediate: true,
-			handler() { if (this.title) document.title = this.title; }
+			handler() {
+				if (this.title == null) debugger;
+				if (this.title) document.title = this.title;
+			}
 		},
 		/** Javascript only works when manually appending script elements. Therefor we can't do this in the template. */
 		customJs: {
