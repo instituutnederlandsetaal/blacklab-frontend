@@ -105,20 +105,21 @@ import UrlStateParserSearch from '@/url/url-state-parser-search';
 import { promiseFromLoadableStream } from '@/utils/loadable-streams';
 
 let pageLoadUrlDecoded = false;
-router.beforeEach(async (to, from, next) => {
-	// On first entry on the page, we need to decode the url.
+router.beforeEach((to, from, next) => {
 	RootStore.actions.indexId(to.params.corpus);
 	ArticleStore.actions.docId(to.params.docId);
+
+	// On first entry on the page, we need to decode the url.
 	if (!pageLoadUrlDecoded && to.params.corpus) {
-		// wait for store to initialize.
-		await promiseFromLoadableStream(RootStore.corpusData$, 'root loading state');
-		// then decode url.
+		pageLoadUrlDecoded = true;
 		if (to.name === 'article' || to.name === 'search') {
-			RootStore.actions.replace(await new UrlStateParserSearch(FilterStore.getState().filters).get());
+			// wait for store to initialize.
+			promiseFromLoadableStream(RootStore.corpusData$, 'root loading state')
+			.then(() => new UrlStateParserSearch(FilterStore.getState().filters).get())
+			.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
 		}
 	}
 
-	pageLoadUrlDecoded = true;
 	next();
 })
 

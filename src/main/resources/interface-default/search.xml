@@ -28,7 +28,7 @@
         <!--<DisplayName>BlackLab AutoSearch Corpus Search</DisplayName>-->
 
 
-        <!-- Should be a directory; see webapp/img/ for a full listing of files -->
+        <!-- Should be a directory; see frontend code for used files. -->
         <FaviconDir>${request:contextPath}/img</FaviconDir>
 
         <!-- 
