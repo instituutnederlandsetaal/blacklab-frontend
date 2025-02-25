@@ -524,6 +524,10 @@ export class LoadableFromStream<T> extends Loadable<T> {
 		this.unsubs.forEach(s => s.unsubscribe());
 		this.unsubs.splice(0);
 	}
+
+	toJSON() {
+		return {value: this.value, state: this.state, error: this.error};
+	}
 }
 
 
@@ -618,8 +622,8 @@ export function combineLoadableStreams(streams: Observable<any>[]|Record<string,
  * combineLoadableStreamsIncludingEmpty({a: stream1, b: stream2, c: stream3}) -> stream emitting Loadable<{a: T1|undefined, b: T2|undefined, c: T3|undefined}>
  * ```
  */
-export function combineLoadableStreamsIncludingEmpty<T extends readonly Observable<any>[]>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]>|undefined }>>;
-export function combineLoadableStreamsIncludingEmpty<T extends Record<string, Observable<any>>>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]>|undefined }>>;
+export function combineLoadableStreamsIncludingEmpty<T extends readonly Observable<any>[]>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]> }>>;
+export function combineLoadableStreamsIncludingEmpty<T extends Record<string, Observable<any>>>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]> }>>;
 export function combineLoadableStreamsIncludingEmpty(streams: Observable<any>[]|Record<string, Observable<any>>): Observable<Loadable<any>> {
 	return combineLoadableStreamsImpl(combineLoadablesIncludingEmpty, streams);
 }
