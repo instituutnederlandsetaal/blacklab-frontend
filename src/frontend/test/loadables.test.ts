@@ -263,6 +263,10 @@ describe('combineLoadableStreams', () => {
 	test('does not emit repeated empty states', async () =>
 		expect(allValuesFrom(combineLoadableStreams([of(loaded), of(loaded), of(empty, empty, loaded)]))).resolves.toEqual([empty, Loadable.Loaded([loaded.value, loaded.value, loaded.value])])
 	)
+	test('works with streams containing normal values instead of Loadables', async () => {
+		await expect(allValuesFrom(combineLoadableStreams([of(loaded.value)]))).resolves.toEqual([Loadable.Loaded([loaded.value])]);
+		await expect(allValuesFrom(combineLoadableStreams([of(loaded.value), of(loaded)]))).resolves.toEqual([Loadable.Loaded([loaded.value, loaded.value])]);
+	});
 })
 
 describe('combineLoadableStreamsIncludingEmpty', () => {
@@ -290,4 +294,8 @@ describe('combineLoadableStreamsIncludingEmpty', () => {
 			Loadable.Loaded([loaded.value, loaded.value, loaded.value])
 		])
 	)
+	test('works with streams containing normal values instead of Loadables', async () => {
+		await expect(allValuesFrom(combineLoadableStreamsIncludingEmpty([of(loaded.value)]))).resolves.toEqual([Loadable.Loaded([loaded.value])]);
+		await expect(allValuesFrom(combineLoadableStreamsIncludingEmpty([of(loaded.value), of(loaded)]))).resolves.toEqual([Loadable.Loaded([loaded.value, loaded.value])]);
+	});
 })

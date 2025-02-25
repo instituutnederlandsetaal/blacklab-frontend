@@ -6,5 +6,6 @@ export default defineConfig({
 			'@': resolve(__dirname, '../src/'),
 			'@test': resolve(__dirname, './')
 		}
-	}
+	},
+	onConsoleLog(log, type) { return true; },
 })
