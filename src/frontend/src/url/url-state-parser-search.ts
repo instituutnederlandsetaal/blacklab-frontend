@@ -55,7 +55,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	public async get(): Promise<HistoryModule.HistoryEntry&{article: ArticleStore.HistoryState}> {
 
 		// Make sure our parsed cql is up to date (used to be a memoized getter, but we need it to be async)
-		await this.updateParsedCql(this.getString('patt', null, v => v ? v : null));
+		const cql = this.getString('patt') || this.getString('query') || null;
+		await this.updateParsedCql(cql);
 
 		return {
 			explore: this.explore,
@@ -643,12 +644,12 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 	@memoize
 	private get conceptPattern(): string|null { // Jesse
-		return this.getString('patt', null, v=>v?v:null); // TODO dit zal wel anders moeten
+		return this.getString('patt') || this.getString('query') || null;
 	}
 
 	@memoize
 	private get glossPattern(): string|null { // Jesse
-		return this.getString('patt', null, v=>v?v:null); // TODO dit zal wel anders moeten
+		return this.getString('patt') || this.getString('query') || null;
 	}
 
 	@memoize

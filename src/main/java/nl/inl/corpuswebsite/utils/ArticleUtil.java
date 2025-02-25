@@ -79,7 +79,7 @@ public class ArticleUtil {
                     docId,
                     fieldToShow,
                     fieldToSearch,
-                    optTargetField(getParameter("query", request), queryTargetField),
+                    optTargetField(getParameter("patt", request), queryTargetField),
                     getParameter("pattgapdata", request),
                     page.blacklabPageStart,
                     page.blacklabPageEnd

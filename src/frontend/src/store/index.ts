@@ -341,17 +341,23 @@ const actions = {
 	 * Should fully reset and overwrite form state, and then execute a search.
 	*/
 	replace: b.commit((_, payload: HistoryModule.HistoryEntry&{article?: ArticleModule.HistoryState} ) => {
+		debugger;
 		FormManager.actions.replace(payload);
 		GlobalResultsModule.actions.replace(payload.global);
 		// clear all views, otherwise inactive views would persist current settings.
 		ViewModule.actions.resetAllViews({resetGroupBy: true});
+		if (payload.article) {
+			ArticleModule.actions.replace(payload.article);
+		}
 		// The state we just restored has results open, so execute a search.
 		if (payload.interface.viewedResults != null) {
 			ViewModule.actions.replaceView({view: payload.interface.viewedResults, data: payload.view});
-			actions.searchAfterRestore();
 		}
-		if (payload.article) {
-			ArticleModule.actions.replace(payload.article);
+		if ((payload.article?.docId != null && payload.patterns.expert) || payload.interface.viewedResults != null ) {
+			// need to submit the search if we're in article view, otherwise the
+			// query won't be sent to blacklab
+			// as it uses the submitted query.
+			actions.searchAfterRestore();
 		}
 	}, 'replaceRoot'),
 };
