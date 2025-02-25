@@ -483,17 +483,19 @@ export class LoadableFromStream<T> extends Loadable<T> {
 		loadingOnStart?: boolean
 		/** when stream finishes, can preserve or clear current state. Defaults to true. */
 		keepValueAfterCompletion?: boolean;
-	} = {loadingOnStart: false, keepValueAfterCompletion: true}) {
+		/** Defaults to false */
+		deepReactiveValue?: boolean;
+	} = {loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false}) {
 		super(settings.loadingOnStart ? LoadableState.Loading : LoadableState.Empty, undefined, undefined);
 		this.unsubs.push(s$.subscribe({
 			next: v => {
 				if (Loadable.isLoadable(v)) {
 					this.state = v.state;
-					if (!v.isLoading()) this.value = v.value;
+					if (!v.isLoading()) this.value = this.preventDeepReactive(v.value, !settings.deepReactiveValue);
 					this.error = v.error;
 				} else {
 					this.state = LoadableState.Loaded;
-					this.value = v;
+					this.value = this.preventDeepReactive(v, !!settings.deepReactiveValue);
 					this.error = undefined;
 				}
 			},
@@ -527,6 +529,10 @@ export class LoadableFromStream<T> extends Loadable<T> {
 
 	toJSON() {
 		return {value: this.value, state: this.state, error: this.error};
+	}
+
+	private preventDeepReactive(v: any, shouldBeReactive: boolean): any {
+		if (shouldBeReactive) Object.freeze(v); return v;
 	}
 }
 
