@@ -3,8 +3,9 @@ import Vue, { watch } from 'vue';
 class StorageWatcher {
 	private listeners: Map<string, ((newValue: any) => void)> = new Map();
 
-	constructor() { window.addEventListener('storage', this.callback); }
-	public close() { window.removeEventListener('storage', this.callback); }
+	// check for window to account for test environments
+	constructor() { typeof window !== 'undefined' && window.addEventListener('storage', this.callback); }
+	public close() { typeof window !== 'undefined'  && window.removeEventListener('storage', this.callback); }
 
 	// arrow so 'this' context is correct
 	private callback = (e: StorageEvent) => {

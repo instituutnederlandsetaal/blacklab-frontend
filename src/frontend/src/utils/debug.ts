@@ -2,12 +2,12 @@ import Vue from 'vue';
 import { syncPropertyWithLocalStorage } from '@/utils/localstore';
 
 
-type LogCategory = 'history'|'parallel'|'init'|'shared';
+export type LogCategory = 'history'|'parallel'|'init'|'shared'|'article metadata';
 
-declare const process: any;
+const isDebugMode = !!process.env.NODE_ENV?.match(/dev|test/);
 let debug = Vue.observable({
-	debug: process.env.NODE_ENV === 'development',
-	debug_visible: (typeof DEBUG_INFO_VISIBLE !== 'undefined') ? DEBUG_INFO_VISIBLE || process.env.NODE_ENV === 'development' : false
+	debug: isDebugMode,
+	debug_visible: typeof DEBUG_INFO_VISIBLE !== 'undefined' ? DEBUG_INFO_VISIBLE ?? isDebugMode : isDebugMode
 });
 
 let queued: IArguments[] = [];
@@ -23,10 +23,10 @@ export function debugLog(...args: any[]) {
 }
 
 /** Enable/disable categories of debug messages here, or add '*' to show everything */
-const SHOW_DEBUG_CATEGORIES: Array<LogCategory|'*'> = ['*']; // e.g. ['parallel', 'history'];
+const SHOW_DEBUG_CATEGORIES: null|Set<LogCategory> = null; // e.g. ['parallel', 'history'];
 
 export function showDebugCat(category: LogCategory) {
-	return SHOW_DEBUG_CATEGORIES.indexOf(category) >= 0 || SHOW_DEBUG_CATEGORIES.indexOf('*') >= 0;
+	return !SHOW_DEBUG_CATEGORIES || SHOW_DEBUG_CATEGORIES.has(category);
 }
 
 /** A debug message in a category that we may want to show or not */
@@ -113,16 +113,18 @@ export function monitorRedraws() {
 }
 
 // only bind to localstorage if not running in development environment (as debug mode is always enabled when running from webpack)
-if (process.env.NODE_ENV !== 'development') {
+if (process.env.NODE_ENV !== 'development' && typeof localStorage !== 'undefined') {
 	syncPropertyWithLocalStorage('cf/debug', debug, 'debug');
 }
 
 export default debug;
 
-(window as any).debug = {
-	enable,
-	disable,
-	show,
-	hide,
-	monitorRedraws,
-}
+// check in case of test environment
+if (typeof window !== 'undefined')
+	(window as any).debug = {
+		enable,
+		disable,
+		show,
+		hide,
+		monitorRedraws,
+	}

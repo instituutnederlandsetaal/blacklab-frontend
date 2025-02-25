@@ -326,12 +326,6 @@ export interface BLIndexMetadata {
 	documentCount: number;
 };
 
-export type BLDocument = {
-	docPid: string;
-	docInfo: BLDocInfo;
-	docFields: BLDocFields;
-};
-
 // --------------
 // Search results
 // --------------
@@ -608,10 +602,15 @@ export type BLDocInfo = {
 	lengthInTokens: number;
 	tokenCounts?: Array<{fieldName: string; tokenCount: number}>
 	mayView: boolean;
-}&{
-	[key: string]: string[];
-};
+	// ts is particular about dictionaries with some hardcoded keys, see
+	// https://old.reddit.com/r/typescript/comments/13mcx7p/how_to_define_the_record_type_with_known_required/
+	// https://www.typescriptlang.org/play/?ssl=6&ssc=28&pln=6&pc=51#code/JYOwLgpgTgZghgYwgAgLITHAClA9gBwGdkBvAKGUuABMAuZEAVwFsAjaMgXzLAE98UOAsQC8pCsmYY49dJiFEA3F2QAyZAAoAShAS4o1ADyEwUUAHMANMhNmQ5gHzIAPsh16DhkBABu0a95+UA4AlMpkeiAmyJAm9AqipFKY9CTINPQAjJzWsWD0AESZAEwAzAAsBbkQJsWFBdxAA
+	// Either it breaks when trying to read properties (in the above example), or it
+	// breaks when trying to write properties (in this setup)
+	// Since we only read from this object, we can use the first setup.
+}&{[key: string]: string[];};
 
+/** Info returned when getting hits or documents. */
 export type BLDoc = {
 	docInfo: BLDocInfo;
 	docPid: string;
@@ -620,6 +619,13 @@ export type BLDoc = {
 	/* Only when query was performed with a cql pattern */
 	snippets?: BLHitSnippet[];
 }
+
+/** Info returned when getting a document's metadata directly. */
+export type BLDocument = {
+	docPid: string;
+	docInfo: BLDocInfo;
+	docFields: BLDocFields;
+};
 
 /** Blacklab response to a query for documents without grouping */
 export interface BLDocResults {

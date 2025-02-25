@@ -28,6 +28,7 @@
     "@types/urijs": "^1.19.18",
     "@vue/babel-helper-vue-jsx-merge-props": "^1.0.0",
     "@vue/babel-preset-jsx": "^1.1.2",
+    "axios-mock-adapter": "^2.1.0",
     "babel-loader": "^8.2.3",
     "circular-dependency-plugin": "^5.2.0",
     "clean-terminal-webpack-plugin": "^3.0.0",

@@ -2,8 +2,11 @@ import { blacklab, frontend } from '@/api';
 import { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
 
-import { combineLoadables, combineLoadablesIncludingEmpty, combineLoadableStreams, compareAsSortedJson, Loadable, LoadableState, loadedIfNotNull, mapLoadable, mapLoaded, switchMapLoadable, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
-import { combineLatest, distinctUntilChanged, map, Observable, ReplaySubject, shareReplay, tap } from 'rxjs';
+import { combineLoadables, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, compareAsSortedJson, Loadable, loadedIfNotNull, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
+import { combineLatest, distinctUntilChanged, map, Observable, of, ReplaySubject, shareReplay } from 'rxjs';
+
+
+// const debug = <T>(cat: LogCategory, message: string) => tap<T>(v => debugLogCat(cat, message, v));
 
 // Define some input/intermediate types and utils.
 
@@ -85,12 +88,13 @@ type ValidPaginationAndDocDisplayParameters = {
  * This is only available after the metadata and hits are loaded.
  * It is a guaranteed valid set of pagination parameters.
  */
-export const validPaginationParameters$: Observable<Loadable<ValidPaginationAndDocDisplayParameters>> = combineLatest([input$, metadata$, hits$]).pipe(
-	map(combineLoadablesIncludingEmpty),
-	mapLoaded(([input, doc, hits]) => fixInput(input, doc!, hits)), // doc should always be present if input is
-	distinctUntilChanged(compareAsSortedJson),
-	shareReplay(1)
-)
+export const validPaginationParameters$: Observable<Loadable<ValidPaginationAndDocDisplayParameters>> =
+	metadata$.pipe(
+		switchMapLoaded(m => combineLoadableStreamsIncludingEmpty({doc: of(m), input: input$, hits: hits$})),
+		mapLoaded(({input, doc, hits}) => fixInput(input, doc, hits)), // doc should always be present if input is
+		distinctUntilChanged(compareAsSortedJson),
+		shareReplay(1)
+	)
 
 // This observable is used to correct the store when the user enters on or navigates to a page that is out of bounds or otherwise invalid.
 export const correctionsForStore$ = combineLatest([inputsFromStore$, validPaginationParameters$]).pipe(
