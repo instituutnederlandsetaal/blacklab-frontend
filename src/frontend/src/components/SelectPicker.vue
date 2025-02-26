@@ -455,28 +455,19 @@ export default Vue.extend({
 		}
 	},
 	methods: {
-		doOpen(focusEl?: HTMLElement): void {
+		doOpen(focusEl?: any): void {
 			this.isNaturallyOpen = true;
 			if (focusEl && this.isOpen) {
 				Vue.nextTick(() => focusEl.focus());
 			}
 		},
 		doClose(event?: Event): void {
-			function isChild(parent: Element, child: Element|null) {
-				for (child; child; child = child.parentElement) {
-					if (child === parent) {
-						return true;
-					}
-				}
-				return false;
-			}
-
 			if (event && event.type === 'click') {
-				const isOwnMenuClick = isChild(this.$refs.menu as HTMLElement, event.target! as HTMLElement);
+				const isOwnMenuClick = (this.$refs.menu as HTMLElement).contains(event.target as HTMLElement);
 				// We don't render a label, but outside may want to point a label at our input/button.
 				const isOwnLabelClick = (event.target as HTMLElement).closest(`label[for="${(this as any).dataId}"]`) != null;
 				// NOTE: assumes the template doesn't render a button as main interactable when this.editable is true
-				const isOwnInputClick = this.editable && isChild(this.$el, event.target! as HTMLElement);
+				const isOwnInputClick = this.editable && this.$el.contains(event.target as HTMLElement);
 				if (isOwnMenuClick || isOwnInputClick || isOwnLabelClick) {
 					return;
 				}

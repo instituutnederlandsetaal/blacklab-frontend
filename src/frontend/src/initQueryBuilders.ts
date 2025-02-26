@@ -9,7 +9,7 @@ import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
 import * as PatternStore from '@/store/form/patterns';
-import debug, {debugLog} from '@/utils/debug';
+import debug, {debugLog, debugLogCat} from '@/utils/debug';
 
 import { getAnnotationSubset } from '@/utils';
 import { Option } from './types/apptypes';
@@ -88,7 +88,7 @@ async function updateOrCreateBuilder(el: HTMLElement, i18n: Vue, getState: (stat
 
 /** Create or update the querybuilders. */
 export async function initQueryBuilders(i18n: Vue) {
-	debugLog('Begin initializing querybuilder(s)');
+	debugLogCat('init', 'Begin initializing querybuilder(s)');
 
 	// Initialize configuration
 	$('.querybuilder').toArray().forEach(async (el, i) => {

@@ -1,5 +1,5 @@
-import { describe, expect, vi, test, afterAll, beforeAll } from 'vitest';
-import {hits$, Input, inputsFromStore$, metadata$, validPaginationParameters$} from '@/pages/article/article';
+import { describe, expect, vi, test, afterAll } from 'vitest';
+import {hits$, Input, input$, metadata$, validPaginationParameters$} from '@/pages/article/article';
 import { CancelableRequest, Loadable, LoadableFromStream, LoadableState, promiseFromLoadableStream } from '@/utils/loadable-streams';
 import { BLDoc } from '@/types/blacklabtypes';
 
@@ -82,17 +82,17 @@ describe('hits$', () => {
 	const hitsOutput = new LoadableFromStream(hits$);
 	test('should be empty initially', () => expect(hitsOutput).toMatchObject({ state: 'empty' }));
 	test('Should find the hits', async () => {
-		inputsFromStore$.next(baseInputs);
+		input$.next(baseInputs);
 		await promiseFromLoadableStream(hits$); // needs a moment to get the hits.
 		return expect(hitsOutput).toMatchObject(Loadable.Loaded(values.MOCK_HITS.hits.map(h => [h.start, h.end])));
 	})
 	test('Should clear if no docId', async () => {
-		inputsFromStore$.next({...baseInputs, docId: undefined});
+		input$.next({...baseInputs, docId: undefined});
 		await promiseFromLoadableStream(hits$);
 		return expect(hitsOutput).toMatchObject(Loadable.Empty());
 	});
 	test('Should clear if no indexId', async () => {
-		inputsFromStore$.next({...baseInputs, indexId: undefined});
+		input$.next({...baseInputs, indexId: undefined});
 		await promiseFromLoadableStream(hits$);
 		return expect(hitsOutput).toMatchObject(Loadable.Empty());
 	});
@@ -102,13 +102,13 @@ describe('hits$', () => {
 describe('metadata$', () => {
 	const output = new LoadableFromStream(metadata$);
 	test('Should be empty initially', async () => {
-		inputsFromStore$.next({});
+		input$.next({});
 		await promiseFromLoadableStream(metadata$); // wait for the metadata to load.
 		return expect(output).toMatchObject(Loadable.Empty());
 	});
 
 	test('Should load the metadata', async () => {
-		inputsFromStore$.next(baseInputs);
+		input$.next(baseInputs);
 		await promiseFromLoadableStream(metadata$); // wait for the metadata to load.
 		return expect(output).toMatchObject(Loadable.Loaded(values.MOCK_DOC));
 	})
@@ -124,11 +124,11 @@ describe('metadata$', () => {
 describe('validPaginationParameters$', () => {
 	const output = new LoadableFromStream(validPaginationParameters$);
 	test('Should be empty initially', () => {
-		inputsFromStore$.next({})
+		input$.next({})
 		expect(output).toMatchObject(Loadable.Empty())
 	});
 	test('Should fix the pagination parameters to match the findHit', async () => {
-		inputsFromStore$.next({
+		input$.next({
 			...baseInputs,
 			findhit: values.MOCK_HITS.hits[0].start,
 			pageSize: 10,
@@ -141,7 +141,7 @@ describe('validPaginationParameters$', () => {
 			wordend: 60
 		});
 
-		inputsFromStore$.next({
+		input$.next({
 			...baseInputs,
 			findhit: values.MOCK_HITS.hits[0].start,
 			pageSize: 100,
@@ -156,7 +156,7 @@ describe('validPaginationParameters$', () => {
 		});
 	})
 	test('Should clear the findhit if invalid', async () => {
-		inputsFromStore$.next({
+		input$.next({
 			...baseInputs,
 			findhit: 10000,
 		});
@@ -164,7 +164,7 @@ describe('validPaginationParameters$', () => {
 		await expect(output.value).toMatchObject({findhit: undefined});
 	});
 	test('Should set the pageSize to the doclength if not provided', async () => {
-		inputsFromStore$.next({
+		input$.next({
 			...baseInputs,
 			pageSize: undefined,
 		});
@@ -172,7 +172,7 @@ describe('validPaginationParameters$', () => {
 		await expect(output.value).toMatchObject({wordend: values.MOCK_DOC.docInfo.lengthInTokens});
 	});
 	test('Should expose the error as a Loadable if the doc is not found', async () => {
-		inputsFromStore$.next({
+		input$.next({
 			...baseInputs,
 			docId: 'notfound'
 		});

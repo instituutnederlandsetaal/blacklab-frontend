@@ -2,7 +2,7 @@ import Vue from 'vue';
 import { syncPropertyWithLocalStorage } from '@/utils/localstore';
 
 
-export type LogCategory = 'history'|'parallel'|'init'|'shared'|'article metadata';
+export type LogCategory = 'history'|'parallel'|'init'|'shared';
 
 const isDebugMode = !!process.env.NODE_ENV?.match(/dev|test/);
 let debug = Vue.observable({

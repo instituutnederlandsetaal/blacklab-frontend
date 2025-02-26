@@ -225,7 +225,7 @@ public abstract class BaseResponse {
      * If the Etag does not match (i.e. client resource out of date) set the Etag, Last-Modified, and Cache-Control headers.
      */
     protected void ensureEtagAndCache(long lastModified) {
-        ensureEtagAndCache(lastModified, 0);
+        ensureEtagAndCache(lastModified, 7*24*3600);
     }
 
     protected void ensureEtagAndCache(long lastModified, long cacheSeconds) {

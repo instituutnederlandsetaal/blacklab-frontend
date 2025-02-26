@@ -341,7 +341,6 @@ const actions = {
 	 * Should fully reset and overwrite form state, and then execute a search.
 	*/
 	replace: b.commit((_, payload: HistoryModule.HistoryEntry&{article?: ArticleModule.HistoryState} ) => {
-		debugger;
 		FormManager.actions.replace(payload);
 		GlobalResultsModule.actions.replace(payload.global);
 		// clear all views, otherwise inactive views would persist current settings.

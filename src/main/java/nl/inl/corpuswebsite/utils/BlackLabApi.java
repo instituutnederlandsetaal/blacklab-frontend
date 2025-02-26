@@ -8,6 +8,8 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang3.StringUtils;
+
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
 /**
@@ -94,7 +96,7 @@ public class BlackLabApi {
 	public static Optional<String> readRequestParameter(HttpServletRequest request, String type, String name) {
 		return Optional
 			.ofNullable(type)
-			.filter(t -> name != null)
+			.filter(StringUtils::isNotBlank)
 			.map(String::toLowerCase)
 			.map(t -> {
 				switch (t) {
@@ -111,7 +113,7 @@ public class BlackLabApi {
 					}
 				}
 			})
-			.filter(s -> !s.isBlank());
+			.filter(StringUtils::isNotBlank);
 	}
 
 	private void setParameter(AuthRequest request, String type, String name, String value) {

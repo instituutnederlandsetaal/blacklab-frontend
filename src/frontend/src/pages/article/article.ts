@@ -34,7 +34,8 @@ type _Input = Partial<DocInput & HitsInput & PageInput>
 export type Input = { [K in keyof _Input]: _Input[K] | null; }
 
 /** The initial input */
-export const inputsFromStore$ = new ReplaySubject<Input>(1);
+const inputsFromStore$  = new ReplaySubject<Input>(1);
+export {inputsFromStore$ as input$};
 const input$ = inputsFromStore$.pipe(distinctUntilChanged(compareAsSortedJson), shareReplay(1));
 
 // Document metadata
@@ -97,7 +98,7 @@ export const validPaginationParameters$: Observable<Loadable<ValidPaginationAndD
 	)
 
 // This observable is used to correct the store when the user enters on or navigates to a page that is out of bounds or otherwise invalid.
-export const correctionsForStore$ = combineLatest([inputsFromStore$, validPaginationParameters$]).pipe(
+export const correctionsForStore$ = combineLatest([input$, validPaginationParameters$]).pipe(
 	map(combineLoadables),
 	mapLoaded(([maybeInvalid, valid]) => {
 		const commonKeys = Object.keys(maybeInvalid).filter(k => k in valid) as Extract<keyof typeof maybeInvalid, keyof typeof valid>[];
@@ -165,7 +166,8 @@ const snippet$ = validPaginationParameters$.pipe(
 		0, // start
 		p.docLength, // end
 		0 // context
-	)))
+	))),
+	shareReplay(1)
 );
 export const snippetAndDocument$ = combineLoadableStreams([snippet$, metadata$] as const);
 
