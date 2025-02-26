@@ -438,7 +438,7 @@ export function getDocumentUrl(
 		// parameter 'query' controls the hits that are highlighted in the document when it's opened
 		field: fieldName,
 		searchfield: searchField,
-		query: cql || undefined,
+		patt: cql || undefined,
 		pattgapdata: pattgapdata || undefined,
 		findhit
 	}).toString();

@@ -95,10 +95,13 @@
 							</td></tr>
 
 							<template v-for="g in metadataFieldsToShow">
-								<tr><td colspan="2"><b>{{ $tMetaGroupName(g) }} <debug>[{{g}}]</debug>:</b></td></tr>
+								<tr><td colspan="2"><b>{{ $tMetaGroupName(g) }} <debug>[{{g.id}}]</debug>:</b></td></tr>
 								<tr v-for="f in g.entries">
 									<td style="padding-left: 0.5em">{{ $tMetaDisplayName(f) }}<debug> [{{ f.id }}]</debug></td>
-									<td>{{ metadata.value.docInfo[f.id] }}</td>
+									<td>
+										<template v-if="metadata.value.docInfo[f.id]?.length">{{ metadata.value.docInfo[f.id].join(', ')}}</template>
+										<em v-else class="text-muted">{{$t('results.groupBy.groupNameWithoutValue')}}</em>
+									</td>
 								</tr>
 							</template>
 							<tr><td>Document length (tokens)</td><td id="docLengthTokens">{{ metadata.value.docInfo.tokenCounts?.find(tc => tc.fieldName === inputs.viewField)?.tokenCount }}</td></tr>
@@ -163,7 +166,7 @@ function _preventClicks(e: Event) {
 	return false;
 }
 
-import {inputsFromStore$, contents$, hitToHighlight$, hits$, metadata$, Input, validPaginationParameters$, snippetAndDocument$} from './article';
+import {input$, contents$, hitToHighlight$, hits$, metadata$, Input, validPaginationParameters$, snippetAndDocument$} from './article';
 import { fieldSubset } from '@/utils';
 import { LoadableFromStream } from '@/utils/loadable-streams';
 
@@ -202,7 +205,7 @@ export default Vue.extend({
 		},
 
 		metadataFieldsToShow(): ReturnType<typeof fieldSubset<AppTypes.NormalizedMetadataField>> {
-			return fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(CorpusStore.get.allMetadataFieldsMap), CorpusStore.get.metadataGroups(), CorpusStore.get.allMetadataFieldsMap())
+			return fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(CorpusStore.get.allMetadataFieldsMap()), CorpusStore.get.metadataGroups(), CorpusStore.get.allMetadataFieldsMap())
 		},
 
 		statisticsEnabled: ArticleStore.get.statisticsEnabled,
@@ -214,7 +217,7 @@ export default Vue.extend({
 
 		contentAndContainer(): {content: HTMLElement|undefined, container: HTMLElement|undefined} {
 			return {
-				content: this.contents.isLoaded() ? this.contents.value.container : undefined,
+				content: this.contents.value?.container,
 				container: this.$refs.contents as HTMLElement
 			}
 		}
@@ -233,7 +236,7 @@ export default Vue.extend({
 	},
 	watch: {
 		inputs: {
-			handler: function(v) { inputsFromStore$.next(v); },
+			handler: function(v) { input$.next(v); },
 			immediate: true,
 		},
 		contentAndContainer: {
