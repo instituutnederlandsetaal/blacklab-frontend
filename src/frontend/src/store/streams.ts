@@ -201,9 +201,6 @@ urlInputParameters$.pipe(
 	});
 	debugLogCat('history', `Calling pushState with entry:`, v.entry, `and url:`, v.url);
 	history.pushState(v.entry, '', v.url);
-
-	ga('set', v.url);
-	ga('send', 'pageview');
 });
 
 /** Here we attach listeners to the vuex store, and pump the relevant values into the streams defined above. That in turn runs the listeners on those streams, and we can compute the stuff we need. */
@@ -227,18 +224,6 @@ export default () => {
 		(cur, prev) => {
 			// update the frontend URL according to the changes in the store
 			urlInputParameters$.next(cloneDeep(cur));
-			// @ts-ignore
-			if ( Vue.$plausible &&
-				(cur.params?.patt || cur.params?.filter) &&
-				((cur.params?.patt !== prev?.params?.patt) ||
-				(cur.params?.filter !== prev?.params?.filter))
-			) {
-				// @ts-ignore
-				Vue.$plausible.trackEvent('search', { props: {
-					pattern: cur.params?.patt || '',
-					filter: cur.params?.filter || ''
-				}});
-			}
 		},
 		{
 			immediate: true,
