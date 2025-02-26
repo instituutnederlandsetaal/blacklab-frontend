@@ -83,7 +83,7 @@
 				</div>
 				<template v-else-if="metadata.isLoaded()">
 					<h2 v-if="metadata.value.docFields.titleField" style="word-break:break-all;">
-						{{ metadata.value.docInfo[metadata.value.docFields.titleField] }}
+						{{ metadata.value.docInfo[metadata.value.docFields.titleField]?.join(', ') || $t('results.groupBy.groupNameWithoutValue') }}
 						<template v-if="isParallel">{{ viewField ? $tAnnotatedFieldDisplayName(viewField) : 'Error: missing viewfield.' }}</template>
 					</h2>
 
