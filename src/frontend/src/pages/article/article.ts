@@ -80,7 +80,7 @@ type ValidPaginationAndDocDisplayParameters = {
 	pageSize: number;
 	/** 0-indexed */
 	page: number;
-	/** 0-indexed */
+	/** 0-indexed. Inclusive */
 	maxPage: number;
 	/** wordstart of a hit */
 	findhit?: number;
@@ -145,8 +145,8 @@ export const contents$ = validPaginationParameters$.pipe(
 export const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$, contents$]).pipe(
 	map(combineLoadables),
 	mapLoaded(([pagination, hits, {container, highlights}]) => {
-		const firstVisibleHitIndex = binarySearch(hits, h => pagination.wordstart - h[0]);
-		const hitIndexToHighlight = binarySearch(hits, h => pagination.findhit! - h[0]);
+		const firstVisibleHitIndex = Math.abs(binarySearch(hits, h => pagination.wordstart - h[0]));
+		const hitIndexToHighlight = pagination.findhit ? binarySearch(hits, h => pagination.findhit! - h[0]) : firstVisibleHitIndex;
 		const localHitIndexToHighlight = hitIndexToHighlight - firstVisibleHitIndex;
 		return {
 			totalHits: hits.length,

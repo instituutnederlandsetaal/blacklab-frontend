@@ -35,9 +35,8 @@
 						:maxPage="hitToHighlight.value.totalHits-1"
 						:editable="false"
 						:showOffsets="false"
-						@change="handleHitNavigation(hits.value[$event][0])"
+						@change="hits.isLoaded() ? handleHitNavigation(hits.value[$event][0]) : void 0"
 					/>
-					<pre>{{ hitToHighlight.value }}</pre>
 				</div>
 			</div>
 			<template v-else-if="hitToHighlight.isLoading()">
@@ -170,7 +169,12 @@ function _preventClicks(e: Event) {
 
 import {input$, contents$, hitToHighlight$, hits$, metadata$, Input, validPaginationParameters$, snippetAndDocument$} from './article';
 import { fieldSubset } from '@/utils';
-import { LoadableFromStream } from '@/utils/loadable-streams';
+import { L, LoadableFromStream } from '@/utils/loadable-streams';
+import { Observable } from 'rxjs';
+
+// Hmm... this could use some work. This is a little convoluted just to get a synchronous type
+type HitToHighlightLoadable = typeof hitToHighlight$ extends Observable<infer U> ? U : never;
+type HitToHighlight = L.Val<HitToHighlightLoadable>;
 
 export default Vue.extend({
 	components: {
@@ -217,13 +221,6 @@ export default Vue.extend({
 		viewField(): AppTypes.NormalizedAnnotatedField|undefined {
 			return CorpusStore.get.allAnnotatedFieldsMap()[this.inputs.viewField!];
 		},
-
-		contentAndContainer(): {content: HTMLElement|undefined, container: HTMLElement|undefined} {
-			return {
-				content: this.contents.value?.container,
-				container: this.$refs.contents as HTMLElement
-			}
-		}
 	},
 	methods: {
 		stringifyWithHtml(v: any): string {
@@ -240,10 +237,6 @@ export default Vue.extend({
 			});
 		},
 		handleHitNavigation(hitStart: number) {
-			console.log(hitStart)
-			// TODO: hack!
-			// this.$router.replace({ query: { ...this.$route.query, findhit: hitStart.toString() } });
-
 			ArticleStore.actions.findhit(hitStart);
 		},
 	},
@@ -252,18 +245,12 @@ export default Vue.extend({
 			handler: function(v) { input$.next(v); },
 			immediate: true,
 		},
-		contentAndContainer: {
-			handler: function({content, container}: {content: HTMLElement|undefined, container: HTMLElement|undefined}) {
-				if (container) {
-					container.innerHTML = '';
-					if (content) container.appendChild(content);
-				}
-			},
+		'hitToHighlight.value': {
 			immediate: true,
-			deep: false
-		},
-		hitToHighlight(cur, prev) {
-			console.log('hitToHighlight', cur, prev);
+			handler(cur: HitToHighlight, prev?: HitToHighlight) {
+				prev?.hl?.classList.remove('active');
+				cur?.hl?.classList.add('active');
+			}
 		}
 	},
 	mounted() {
