@@ -24,23 +24,12 @@ import * as Api from '@/api';
 import * as BLTypes from '@/types/blacklabtypes';
 import jsonStableStringify from 'json-stable-stringify';
 import { debugLogCat } from '@/utils/debug';
-import Vue from 'vue';
-import { Loadable, loadedIfNotNull, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
 
 type QueryState = {
 	indexId?: string|null,
 	params?: BLTypes.BLSearchParameters,
 	state: Pick<RootStore.RootState, 'query'|'interface'|'global'|'views'>
 };
-
-type TotalsInput = {
-	indexId: string|null|undefined;
-	luceneQuery: string|null|undefined;
-}
-type TotalsOutput = {
-	docs: number;
-	tokens: number
-}
 
 const urlInputParameters$ = new ReplaySubject<QueryState>(1);
 

@@ -401,17 +401,19 @@ export const frontend = {
 	getConfig: (indexId: string|null) => endpoints.cf.getCancelable<CFPageConfig>(frontendPaths.config(indexId)),
 
 	/** Get transformed document contents */
-	getDocumentContents: (indexId: string, pid: string, params: {
+	getDocumentContents: (params: {
+		indexId: string,
+		docId: string,
 		patt?: string,
 		pattgapdata?: string,
 		wordstart?: number,
 		wordend?: number,
 		/** Annotated field for which to get contents */
-		field: string,
+		viewField: string,
 		/** Annotated field in which to search (for parallel corpora) - only required if different from field */
 		searchfield?: string
 	}) => endpoints.cf
-		.getCancelable<string>(frontendPaths.documentContents(indexId, pid), params),
+		.getCancelable<string>(frontendPaths.documentContents(params.indexId, params.docId), params),
 
 	/** Get transformed document metadata */
 	getDocumentMetadata: (indexId: string, pid: string) => endpoints.cf

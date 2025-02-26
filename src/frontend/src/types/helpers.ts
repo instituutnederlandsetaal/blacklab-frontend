@@ -21,7 +21,7 @@ type RequiredNotNull<T> = {
 	[P in keyof T]: NonNullable<T[P]>
 }
 
-export type MarkRequiredAndNotNull<T, K extends keyof T> =
+export type MarkRequiredAndNotNull<T, K extends keyof T = keyof T> =
 	T extends string|number|boolean ? T :
 	T extends undefined|null ? never :
 	T & Required<RequiredNotNull<Pick<T, K>>>

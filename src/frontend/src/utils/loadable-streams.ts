@@ -296,7 +296,7 @@ export const switchMapLoading = switchMapLoadable.Loading = <T, U extends Loadab
  * E.g. LoadedIfNutNull('someProperty')({someProperty: undefined}) -> Empty()
  * ```
 */
-export function loadedIfNotNull<T, K extends keyof T = keyof T>(...requiredKeys: K[]): (object: T) => Loadable<MarkRequiredAndNotNull<T, K>> {
+export function withRequiredKeys<T, K extends keyof T = keyof T>(...requiredKeys: K[]): (object: T) => Loadable<MarkRequiredAndNotNull<T, K>> {
 	return (object: T): Loadable<MarkRequiredAndNotNull<T, K>> => {
 		if (object == null) return Loadable.Empty();
 		const isLoaded = requiredKeys.every(k => object[k] != null); // returns true for empty requiredKeys array

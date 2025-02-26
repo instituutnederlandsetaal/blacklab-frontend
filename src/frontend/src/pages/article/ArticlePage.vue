@@ -1,10 +1,10 @@
 <template>
 	<!-- TODO: i18n -->
 	<div class="container article">
-		<template v-for="(value, key) in {...$data, subs: undefined}">
+		<template v-for="(value, key) in {contents, metadata, hits, hitToHighlight, validPaginationInfo, snippetAndDocument}">
 			<details>
 				<summary>{{ key }}</summary>
-				<pre>{{ JSON.stringify(value, undefined, 2) }}</pre>
+				<pre>{{ stringifyWithHtml(value) }}</pre>
 			</details>
 		</template>
 		{{ {statisticsEnabled} }}
@@ -32,10 +32,12 @@
 				<div class="pagination-wrapper">
 					<Pagination
 						:page="hitToHighlight.value.hitIndexToHighlight"
-						:maxPage="hitToHighlight.value.totalHits"
+						:maxPage="hitToHighlight.value.totalHits-1"
 						:editable="false"
 						:showOffsets="false"
-						@change="handleHitNavigation"/>
+						@change="handleHitNavigation(hits.value[$event][0])"
+					/>
+					<pre>{{ hitToHighlight.value }}</pre>
 				</div>
 			</div>
 			<template v-else-if="hitToHighlight.isLoading()">
@@ -65,7 +67,7 @@
 						</div>
 					</div>
 				</div>
-				<div ref="contents"></div>
+				<InstancedHtml v-if="contents.isLoaded()" :value="contents.value.container"/>
 			</div>
 
 
@@ -134,7 +136,7 @@ import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 // import ArticlePageParallel from '@/pages/article/ArticlePageParallel.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
-
+import InstancedHtml from '@/components/InstancedHtml.vue';
 
 import 'jquery-ui';
 import 'jquery-ui/ui/widgets/draggable';
@@ -176,7 +178,8 @@ export default Vue.extend({
 		ArticlePageStatistics,
 		// ArticlePagePagination,
 		// ArticlePageParallel,
-		Pagination
+		Pagination,
+		InstancedHtml
 	},
 	data: () => ({
 		metadata: new LoadableFromStream(metadata$),
@@ -184,7 +187,7 @@ export default Vue.extend({
 		hits: new LoadableFromStream(hits$),
 		hitToHighlight: new LoadableFromStream(hitToHighlight$),
 		validPaginationInfo: new LoadableFromStream(validPaginationParameters$),
-		snippetAndDocument: new LoadableFromStream(snippetAndDocument$)
+		snippetAndDocument: new LoadableFromStream(snippetAndDocument$),
 	}),
 	computed: {
 		inputs(): Input {
@@ -223,6 +226,12 @@ export default Vue.extend({
 		}
 	},
 	methods: {
+		stringifyWithHtml(v: any): string {
+			return JSON.stringify(v, (key, value) => {
+				if (value instanceof HTMLElement) return `<${value.tagName}/>`;
+				return value;
+			}, 2);
+		},
 		handlePageNavigation(page: number) {
 			if (!this.validPaginationInfo.isLoaded()) return;
 			ArticleStore.actions.page({
@@ -230,8 +239,12 @@ export default Vue.extend({
 				wordend: (page + 1) * this.validPaginationInfo.value.pageSize,
 			});
 		},
-		handleHitNavigation(hitIndex: number) {
-			ArticleStore.actions.findhit(hitIndex);
+		handleHitNavigation(hitStart: number) {
+			console.log(hitStart)
+			// TODO: hack!
+			// this.$router.replace({ query: { ...this.$route.query, findhit: hitStart.toString() } });
+
+			ArticleStore.actions.findhit(hitStart);
 		},
 	},
 	watch: {
@@ -249,6 +262,9 @@ export default Vue.extend({
 			immediate: true,
 			deep: false
 		},
+		hitToHighlight(cur, prev) {
+			console.log('hitToHighlight', cur, prev);
+		}
 	},
 	mounted() {
 		if (this.$refs.pagination instanceof HTMLElement && this.$refs.pagination.nodeType === 1) { // sometimes it's a comment if our top v-if is false.

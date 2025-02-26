@@ -1,7 +1,7 @@
 import {test, expect, describe} from 'vitest';
-import { EMPTY, Observable, of, Subject } from 'rxjs';
+import { EMPTY, map, Observable, of, Subject } from 'rxjs';
 
-import {Loadable, CancelableRequest, LoadableFromStream, LoadableState, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, combineLoadables, combineLoadablesIncludingEmpty, flatMapLoadable, loadableStreamFromPromise, loadedIfNotNull, mapLoadable, mergeMapLoadable, promiseFromLoadableStream, switchMapLoadable, toObservable} from '@/utils/loadable-streams';
+import {Loadable, CancelableRequest, LoadableFromStream, LoadableState, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, combineLoadables, combineLoadablesIncludingEmpty, flatMapLoadable, loadableStreamFromPromise, mapLoadable, mergeMapLoadable, promiseFromLoadableStream, switchMapLoadable, withRequiredKeys } from '@/utils/loadable-streams';
 import { ApiError } from '@/api';
 
 const apiError: ApiError = new ApiError('', '', '', 0);
@@ -104,18 +104,18 @@ describe('loadedIfNotNull', () => {
 	type T = {[K in keyof typeof dummyObject]?: undefined|null|(typeof dummyObject)[K]}&{b?: number|null|undefined};
 	test('returns a loaded if the keys are not null', () => {
 		// When given a (set of) keys, check inside the object.
-		expect(loadedIfNotNull<T>('a')(dummyObject)).toEqual(Loadable.Loaded(dummyObject));
-		expect(loadedIfNotNull<T>('a')({a: null})).toEqual(empty);
-		expect(loadedIfNotNull<T>('a')({a: null})).toEqual(empty);
-		expect(loadedIfNotNull<T>('a', 'b')(dummyObject)).toEqual(empty); // b key not present -> empty
-		expect(loadedIfNotNull<T>('a', 'b')({a: null, b: null})).toEqual(empty); // a and b keys are null -> empty
-		expect(loadedIfNotNull<T>('a', 'b')({a: null, b: 1})).toEqual(empty); // a key is null -> empty
-		expect(loadedIfNotNull<T>('a', 'b')({a: 1, b: 1})).toEqual(Loadable.Loaded({a: 1, b: 1})); // b key is null -> empty
+		expect(withRequiredKeys<T>('a' as const)(dummyObject)).toEqual(Loadable.Loaded(dummyObject));
+		expect(withRequiredKeys<T>('a')({a: null})).toEqual(empty);
+		expect(withRequiredKeys<T>('a')({a: null})).toEqual(empty);
+		expect(withRequiredKeys<T>('a', 'b')(dummyObject)).toEqual(empty); // b key not present -> empty
+		expect(withRequiredKeys<T>('a', 'b')({a: null, b: null})).toEqual(empty); // a and b keys are null -> empty
+		expect(withRequiredKeys<T>('a', 'b')({a: null, b: 1})).toEqual(empty); // a key is null -> empty
+		expect(withRequiredKeys<T>('a', 'b')({a: 1, b: 1})).toEqual(Loadable.Loaded({a: 1, b: 1})); // b key is null -> empty
 
 		// When given no keys, check the object itself.
-		expect(loadedIfNotNull<T>()(null as any)).toEqual(empty);
-		expect(loadedIfNotNull<T>()(undefined as any)).toEqual(empty);
-		expect(loadedIfNotNull<T>()({})).toEqual(Loadable.Loaded({})); // no key given, parameter is not null -> result is loaded
+		expect(withRequiredKeys<T>()(null as any)).toEqual(empty);
+		expect(withRequiredKeys<T>()(undefined as any)).toEqual(empty);
+		expect(withRequiredKeys<T>()({})).toEqual(Loadable.Loaded({})); // no key given, parameter is not null -> result is loaded
 	})
 })
 
