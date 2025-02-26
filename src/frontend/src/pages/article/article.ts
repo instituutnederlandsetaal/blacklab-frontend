@@ -92,7 +92,7 @@ type ValidPaginationAndDocDisplayParameters = {
 export const validPaginationParameters$: Observable<Loadable<ValidPaginationAndDocDisplayParameters>> =
 	metadata$.pipe(
 		switchMapLoaded(m => combineLoadableStreamsIncludingEmpty({doc: of(m), input: input$, hits: hits$})),
-		mapLoaded(({input, doc, hits}) => fixInput(input, doc, hits)), // doc should always be present if input is
+		mapLoaded(({input, doc, hits}) => fixInput(input, doc, hits)),
 		distinctUntilChanged(compareAsSortedJson),
 		shareReplay(1)
 	)

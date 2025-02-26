@@ -29,7 +29,6 @@ const router = new Router({
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
-			name: 'global-configwizard',
 			path: '/configwizard',
 			alias: '/configwizard/*',
 			meta: { name: 'configwizard' },
@@ -38,7 +37,7 @@ const router = new Router({
 			children: [
 				{
 					path: '/',
-					name: 'global-config',
+					name: 'global-configwizard',
 					component: () => import('@/pages/config/CorpusPicker.vue'),
 				}
 			]

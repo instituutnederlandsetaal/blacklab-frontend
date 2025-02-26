@@ -115,7 +115,6 @@ $(document).ready(async () => {
 	initApi('cf', CONTEXT_URL, user);
 	RootStore.actions.user(user);
 
-	console.log('rendering');
 	// We can render before the tagset loads, the form just won't be populated from the url yet.
 	(window as any).vueRoot = new App().$mount(document.querySelector('#vue-root')!);
 	// connectStreamsToVuex();
