@@ -9,7 +9,7 @@
 				:style="style"
 				:title="title"
 				@mouseover="$emit('hover', relationKeys)"
-				@mouseout="$emit('unhover', relationKeys)"
+				@mouseout="$emit('unhover')"
 				:class="{ hoverable: true, hover: relationKeys?.some(c => hoverMatchInfos.includes(c)) }"
 			></span
 			><span v-else v-html="text" :key="'text' + '_' + text + '_' + i"></span
@@ -25,7 +25,7 @@
 				:style="style"
 				:title="title"
 				@mouseover="$emit('hover', relationKeys)"
-				@mouseout="$emit('unhover', relationKeys)"
+				@mouseout="$emit('unhover')"
 				:class="{ hoverable: true, hover: relationKeys?.some(c => hoverMatchInfos.includes(c)) }"
 			>{{ text }}</span
 			><template v-else>{{ text }}</template
@@ -60,7 +60,7 @@ export default Vue.extend({
 		before: Boolean,
 		after: Boolean,
 		punct: {default: true},
-		/** If set, render one of the values in HitToken.annotation, instead of the main 'text' property of the HitToken */
+		/** ID of the annotation whose values to render */
 		annotation: {
 			required: true,
 			type: String,

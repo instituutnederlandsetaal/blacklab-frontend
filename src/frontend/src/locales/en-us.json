@@ -281,7 +281,8 @@
 			"property": "Property",
 			"value": "value",
 			"noContext": "No context available.",
-			"parallelVersion": "Version"
+			"parallelVersion": "Version",
+			"goToHitInDocument": "Go to hit in document"
 		},
 		"export": {
 			"downloading": "Downloading...",

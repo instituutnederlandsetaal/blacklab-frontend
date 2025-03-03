@@ -1,160 +1,123 @@
 <template>
-	<tr class="concordance rounded">
-		<td v-if="isParallel || customHitInfo" class='doc-version'><a @click.stop="" :href="data.href" title="Go to hit in document" target="_blank">{{ customHitInfo }}</a></td>
-		<HitContextComponent tag="td" class="text-right"  :dir="dir" :data="data.context" :html="html" :annotation="mainAnnotation.id" :before="dir === 'ltr'" :after="dir === 'rtl'"
-			:hoverMatchInfos="hoverMatchInfos"
-			@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
-		<HitContextComponent tag="td" class="text-center" :dir="dir" :data="data.context" :html="html" :annotation="mainAnnotation.id" bold
-			:hoverMatchInfos="hoverMatchInfos"
-			@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)"/>
-		<HitContextComponent tag="td" class="text-left"   :dir="dir" :data="data.context" :html="html" :annotation="mainAnnotation.id" :after="dir === 'ltr'"  :before="dir === 'rtl'"
-			:hoverMatchInfos="hoverMatchInfos"
-			@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)"/>
-
-		<HitContextComponent tag="td" :annotation="a.id" :data="data.context" :html="html" :dir="dir" :key="a.id" :highlight="false" v-for="a in otherAnnotations"
-			:hoverMatchInfos="hoverMatchInfos"
-			:punct="false"
-			@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)"/>
-
-		<td v-for="field in data.gloss_fields" :key="field.fieldName" style="overflow: visible;">
-			<GlossField
-				:fieldName="field.fieldName"
-				:hit_first_word_id="data.hit_first_word_id"
-				:hit_last_word_id="data.hit_last_word_id"
-				:fieldDescription="field"
-				:hitId="data.hit_id"
+	<tbody :class="{interactable: !disableDetails && !disabled}">
+		<!-- Show hits in other fields (parallel corpora) -->
+		<template v-for="row in row.rows">
+			<HitRowContext
+				:class="{open, 'foreign-hit': row.isForeign}"
+				:data="row"
+				:cols="cols"
+				:html="info.html"
+				:hoverMatchInfos="hoverMatchInfos"
+				@hover="hoverMatchInfos = $event"
+				@unhover="hoverMatchInfos = undefined"
+				@click.native="open = disableDetails ? null : row.annotatedField.id"
 			/>
-		</td>
-		<td v-if="data.doc" v-for="meta in metadata" :key="meta.id">{{ data.doc.docInfo[meta.id]?.join(', ') || '' }}</td>
-	</tr>
+			<HitRowDetails v-if="!disableDetails"
+				:data="row"
+				:info="info"
+				:colspan="cols.hitColumns.length"
+				:open="open === row.annotatedField.id"
+				:hoverMatchInfos="hoverMatchInfos"
+				@hover="hoverMatchInfos = $event"
+				@unhover="hoverMatchInfos = undefined"
+			/>
+
+			<!-- <HitRow :key="`${row.annotatedField?.id}-hit`"
+				:class="{open, 'foreign-hit': row.isForeign}"
+				:data="row"
+				:mainAnnotation="mainAnnotation"
+				:otherAnnotations="otherAnnotations"
+				:metadata="metadata"
+				:dir="dir"
+				:html="html"
+				:hoverMatchInfos="hoverMatchInfos"
+				:isParallel="isParallel"
+				@hover="hover($event)"
+				@unhover="unhover()"
+				@click.native="clickNative()"
+			/>
+			<HitRowDetails v-if="!disableDetails" :key="`${row.annotatedField?.id}-details`"
+				:colspan="colspan"
+				:data="row"
+				:open="open"
+				:mainAnnotation="mainAnnotation"
+				:detailedAnnotations="detailedAnnotations"
+				:depTreeAnnotations="depTreeAnnotations"
+				:dir="dir"
+				:html="html"
+				:isParallel="isParallel"
+				:hoverMatchInfos="hoverMatchInfos"
+				@hover="hover($event)"
+				@unhover="unhover()"
+			/> -->
+		</template>
+	</tbody>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
-
-import * as BLTypes from '@/types/blacklabtypes';
-
-import GlossField from '@/pages/search/form/concept/GlossField.vue';
-import { GlossFieldDescription } from '@/store/search/form/glossStore';
-import { corpusCustomizations } from '@/store/search/ui';
-import { HitContext, NormalizedAnnotatedField, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
-
-import HitContextComponent from '@/pages/search/results/table/HitContext.vue';
-
-export type HitRowData = {
-	doc: BLTypes.BLDoc;
-	hit: BLTypes.BLHit|BLTypes.BLHitSnippet;
-	/** Is the data in this hit from the searched field or from the parallel/related/target field. False if source, true if target. */
-	isForeign: boolean;
-	context: HitContext;
-	/** For parallel corpora. The url to view the hit in the document's version in the target field. */
-	href: string;
-	/** For parallel corpora. The field in which this version of the hit exists. */
-	annotatedField?: NormalizedAnnotatedField;
-
-	// TODO jesse
-	gloss_fields: GlossFieldDescription[];
-	hit_first_word_id: string; // Jesse
-	hit_last_word_id: string // jesse
-	hit_id: string; // jesse
-}
-
-/**
- * Can contain either a full hit or a partial hit (without capture/relations info)
- * Partials hits are returned when requesting /docs.
- */
-export type HitRows = {
-	type: 'hit';
-	doc: BLTypes.BLDoc;
-	rows: HitRowData[];
-};
+import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue'
+import HitRowContext from '@/pages/search/results/table/HitRowContext.vue'
+import { ColumnDefHit, ColumnDefs, DisplaySettings, HitRowData } from '@/utils/hit-highlighting';
 
 export default Vue.extend({
 	components: {
-		GlossField,
-		HitContextComponent
+		HitRowContext,
+		HitRowDetails,
 	},
 	props: {
-		data: Object as () => HitRowData,
-		mainAnnotation: Object as () => NormalizedAnnotation,
-		otherAnnotations: Array as () => NormalizedAnnotation[]|undefined,
-		metadata: Array as () => NormalizedMetadataField[]|undefined,
-		dir: String as () => 'ltr'|'rtl',
-		html: Boolean,
-		/** Toggles whether we display the source annotated field of the hit. */
-		isParallel: Boolean,
+		row: Object as () => HitRowData,
+		cols: Object as () => ColumnDefs,
+		info: Object as () => DisplaySettings,
 
-		// which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
-		hoverMatchInfos: {
-			type: Array as () => string[],
-			default: () => [],
-		},
+
+		// query: Object as () => BLSearchParameters|undefined,
+
+		// /** Annotation shown in the before/hit/after columns and expanded concordance */
+		// mainAnnotation: Object as () => NormalizedAnnotation,
+		// /** Optional. Additional annotation columns to show (besides before/hit/after) */
+		// otherAnnotations: Array as () => NormalizedAnnotation[]|undefined,
+		// /** Optional. Annotations shown in the expanded concordance.  */
+		// detailedAnnotations: Array as () => NormalizedAnnotation[]|undefined,
+		// /** What properties/annotations to show for tokens in the deptree, e.g. lemma, pos, etc. */
+		// depTreeAnnotations: Object as () =>  Record<'lemma'|'upos'|'xpos'|'feats', NormalizedAnnotation|null>,
+
+		// /** Optional. Additional metadata columns to show. Normally nothing, but could show document id or something */
+		// metadata: Array as () => NormalizedMetadataField[]|undefined,
+
+		// dir: String as () => 'ltr'|'rtl',
+		/** Render contents as html or text */
+		// html: Boolean,
+		/** Prevent interaction with sorting, expanding/collapsing, etc. */
+		disabled: Boolean,
+		disableDetails: Boolean,
+
+		// /** The results */
+		// h: Object as () => HitRows,
+
+		// /** Toggles whether we show the source field of the hits */
+		// isParallel: Boolean,
 	},
-	computed: {
-		customHitInfo(): string|undefined {
-			const versionPrefix = this.isParallel && this.data.annotatedField ?
-				this.$tAnnotatedFieldDisplayName(this.data.annotatedField) : undefined;
-			const info = corpusCustomizations.results.customHitInfo(this.data.hit, versionPrefix)?.trim();
-			return info === null ?
-				versionPrefix : // default behaviour: show parallel version if applicable
-				info;
-		},
+	data: () => ({
+		open: null as string|null,
+		hoverMatchInfos: undefined as undefined|string[],
+	}),
+	watch: {
+		new_data() { this.open = null; }
 	}
-});
+})
+
 </script>
 
-<style lang="scss">
+<style>
 
-tr.foreign-hit {
-	color: #666;
-	font-style: italic;
+.parallel tbody tr:first-child td {
+	padding-top: 0.5em;
 }
 
-tr.concordance.foreign-hit + tr.concordance:not(.foreign-hit) > td {
-	padding-top: 0.6em;
-}
-
-tr.rounded > td.doc-version {
-	padding-left: 1.5em;
-}
-
-tr.concordance {
-	> td {
-		transition: padding 0.1s;
-	}
-
-	&.open {
-		> td {
-			background: white;
-			border-top: 2px solid #ddd;
-			border-bottom: 1px solid #ddd;
-			padding-top: 8px;
-			padding-bottom: 8px;
-			&:first-child {
-				border-left: 2px solid #ddd;
-				border-top-left-radius: 4px;
-				border-bottom-left-radius: 0;
-			}
-			&:last-child {
-				border-right: 2px solid #ddd;
-				border-top-right-radius: 4px;
-				border-bottom-right-radius: 0;
-			}
-		}
-	}
-	&-details {
-		> td {
-			background: white;
-			border: 2px solid #ddd;
-			border-top: none;
-			border-radius: 0px 0px 4px 4px;
-			padding: 15px 20px;
-
-			> p {
-				margin: 0 6px 10px;
-			}
-		}
-	}
+.parallel tbody tr:last-child td {
+	padding-bottom: 0.5em;
+	border-bottom: 1px solid #ddd;
 }
 
 </style>

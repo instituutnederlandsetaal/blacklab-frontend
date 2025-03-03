@@ -3,6 +3,8 @@
  * Table definitions (as in which columns etc), as well as the functions to calculate derived data that is shown in those columns.
  */
 
+import { KeysOfType } from '@/types/helpers';
+
 
 /**
  * The columns can display various computed data, such as relative group size, or relative frequency.
@@ -26,6 +28,8 @@ export const definitions = [
  * We unpack and simplify it a little so that every entry has the same data available. Names are according to the definitions above
  */
 export interface GroupData {
+	type: 'group';
+	/** ID of the group in BlackLab */
 	id: string;
 	size: number;
 	displayname: string;
@@ -55,6 +59,7 @@ export interface GroupData {
 
 /** For UI purposes: holds derived statistics about groups. E.G. size of this group vs the largest group. */
 export interface GroupRowData extends GroupData {
+
 	// adds to 1 across all groups
 	'relative group size [gr.d/r.d]': number;
 	'relative group size [gr.t/r.t]'?: number; // FIXME remove option flag when Jan implements
@@ -84,7 +89,7 @@ export type TableDef = Array<Column|[Column, Column]>;
  * These are the table layouts we can show.
  * There are several ways of displaying the data, and the user can pick which one they want.
  *
- * It is structures as follows:
+ * It is structured as follows:
  * Based on what the user has searched for, there are several ways of displaying the data
  * - At the top is the distinction of what we're grouping/displaying: hits or docs
  * - Below that is the distinction of what is being grouped on: document metadata, or a hit property (such as 'lemma' or 'pos')
@@ -93,28 +98,7 @@ export type TableDef = Array<Column|[Column, Column]>;
  *     Then the rest are the same columns but in a wider view using a horizontal bar to illustrate the magnitude of the group,
  *     instead of just a cell with a fractional number.
  */
-export const displayModes: {
-	hits: {
-		metadata: {
-			'table': TableDef,
-			'docs': TableDef,
-			'hits': TableDef,
-			'relative docs': TableDef,
-			'relative hits': TableDef,
-		},
-		annotation: {
-			'table': TableDef,
-			'hits': TableDef,
-		},
-	},
-	docs: {
-		metadata: {
-			'table': TableDef,
-			'docs': TableDef,
-			'tokens': TableDef
-		}
-	}
-} = {
+export const displayModes: Record<'hits'|'docs', Record<'metadata'|'annotation', Record<string, TableDef>>> = {
 	hits: {
 		metadata: {
 			'table': [
@@ -160,11 +144,12 @@ export const displayModes: {
 			'hits': [
 				'displayname',
 				['relative frequency (hits) [gr.h/gsc.t]', 'gr.h'],
-				'relative frequency (hits) [gr.h/gsc.t]'
+				'relative frequency (hits) [gr.h/gsc.t]',
 			],
 		},
 	},
 	docs: {
+		annotation: {}, // no annotation grouping for docs
 		metadata: {
 			'table': [
 				'displayname',
@@ -281,10 +266,10 @@ export const tableHeaders: {
 // but sometimes we only have the maximum value in the currently displayed page (such as for properties we compute locally, such as relative sizes).
 // Fixing this would be a substantial amount of extra work for BlackLab.
 export type LocalMaxima = {  [P in keyof GroupRowData]-?: number extends GroupRowData[P] ? number : never; };
-export class MaxCounter {
-	public values: {[key: string]: number} = {};
+export class MaxCounter<T, K extends (T extends string ? T : KeysOfType<T, number>) = T extends string ? T : KeysOfType<T, number>> {
+	public values: Record<K, number> = {} as any;
 
-	public add(key: string, v?: number) {
+	public add(key: K, v?: number) {
 		if (typeof v === 'number')
 			this.values[key] = Math.max(this.values[key] || 0, v);
 	}

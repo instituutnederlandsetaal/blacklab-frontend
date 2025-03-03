@@ -11,6 +11,7 @@
 
 			@sort="sort = $event"
 			@viewgroup="restoreOnViewGroupLeave = {page, sort}; viewGroup = $event.id; _viewGroupName = $event.displayName;"
+			@groupDisplayMode="groupDisplayMode = $event"
 		>
 			<BreadCrumbs slot="breadcrumbs"
 				:crumbs="breadCrumbs"
@@ -121,10 +122,10 @@ import Spinner from '@/components/Spinner.vue';
 import debug, { debugLog } from '@/utils/debug';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { NormalizedIndex } from '@/types/apptypes';
+import { NormalizedAnnotatedFieldParallel, NormalizedIndex } from '@/types/apptypes';
 import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
-import { mergeMatchInfos } from '@/utils/hit-highlighting';
+import { DisplaySettings, makeRows } from '@/utils/hit-highlighting';
 import { isHitParams } from '@/utils';
 
 export default Vue.extend({
@@ -212,7 +213,7 @@ export default Vue.extend({
 
 			const nonce = this.refreshParameters;
 			const params = RootStore.get.blacklabParameters()!;
-			const apiCall = this.id === 'hits' ? Api.blacklab.getHits : Api.blacklab.getDocs;
+			const apiCall = this.id === 'hits' ? Api.blacklab.getHits<BLTypes.BLHitResults|BLTypes.BLHitGroupResults> : Api.blacklab.getDocs<BLTypes.BLDocResults|BLTypes.BLDocGroupResults>;
 			debugLog('starting search', this.id, params);
 
 			const r = apiCall(this.indexId, params, {headers: { 'Cache-Control': 'no-cache' }});
@@ -248,11 +249,6 @@ export default Vue.extend({
 			this.error = null;
 			this.request = null;
 			this.cancel = null;
-
-			if (BLTypes.isHitResults(data)) {
-				// Make sure the target hits (otherFields) 'know' they are the target of a relation.
-				mergeMatchInfos(data);
-			}
 
 			// Jesse (glosses): hier ook een keer de page hits in de gloss store updaten
 			const get_hit_id = GlossModule.get.settings()?.get_hit_id;
@@ -306,6 +302,10 @@ export default Vue.extend({
 		viewGroup: {
 			get(): string|null { return this.store.getState().viewGroup; },
 			set(v: string|null) { this.store.actions.viewGroup(v); }
+		},
+		groupDisplayMode: {
+			get(): string|null { return this.store.getState().groupDisplayMode; },
+			set(v: string|null) { this.store.actions.groupDisplayMode(v); }
 		},
 
 		corpus(): NormalizedIndex { return CorpusStore.getState().corpus!; },
@@ -378,13 +378,7 @@ export default Vue.extend({
 		},
 		// simple view variables
 		indexId(): string { return INDEX_ID; },
-		resultsHaveData(): boolean {
-			if (BLTypes.isDocGroups(this.results)) { return this.results.docGroups.length > 0; }
-			if (BLTypes.isHitGroups(this.results)) { return this.results.hitGroups.length > 0; }
-			if (BLTypes.isHitResults(this.results)) { return this.results.hits.length > 0; }
-			if (BLTypes.isDocResults(this.results)) { return this.results.docs.length > 0; }
-			return false;
-		},
+
 		isHits(): boolean { return BLTypes.isHitResults(this.results); },
 		isDocs(): boolean { return BLTypes.isDocResults(this.results); },
 		isGroups(): boolean { return BLTypes.isGroups(this.results); },
@@ -469,6 +463,33 @@ export default Vue.extend({
 				sort: this.sort,
 			};
 		},
+
+		resultsData(): DisplaySettings {
+			const sourceField = CorpusStore.get.allAnnotatedFieldsMap()[QueryStore.getState().shared?.source ?? CorpusStore.get.mainAnnotatedField()];
+			const r: DisplaySettings = {
+				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
+
+				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, id && CorpusStore.get.allAnnotationsMap()[id]])) as any,
+				detailedAnnotations: UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [],
+				dir: CorpusStore.get.textDirection(),
+				getSummary: UIStore.getState().results.shared.getDocumentSummary,
+				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
+				metadata: UIStore.getState().results.shared.detailedMetadataIds?.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) ?? [],
+				otherAnnotations: UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [],
+				sourceField,
+				targetFields: (QueryStore.getState().shared?.targets.map(t => CorpusStore.get.allAnnotatedFieldsMap()[t]) ?? CorpusStore.get.allAnnotatedFields()).filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel && f !== sourceField),
+				specialFields: CorpusStore.getState().corpus!.fieldInfo,
+				groupDisplayMode: this.groupDisplayMode as any,
+				i18n: this,
+				html: UIStore.getState().results.shared.concordanceAsHtml,
+				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
+			}
+			return r;
+		},
+		rows(): ReturnType<typeof makeRows>|null {
+			return this.results && makeRows(this.results, this.resultsData);
+		},
+		resultsHaveData(): boolean { return !!this.rows?.rows.length; }
 	},
 	watch: {
 		querySettings: {

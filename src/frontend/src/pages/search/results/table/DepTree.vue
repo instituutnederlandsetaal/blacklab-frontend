@@ -13,10 +13,10 @@ import Vue from 'vue';
 
 // @ts-ignore
 import {ReactiveDepTree} from '@/../node_modules/reactive-dep-tree/dist/reactive-dep-tree.umd.js';
-import {HitRowData} from '@/pages/search/results/table/HitRow.vue';
 import { BLHit, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
 import Spinner from '@/components/Spinner.vue';
 import { NormalizedAnnotation } from '@/types/apptypes';
+import { HitRowContext, HitRowData } from '@/utils/hit-highlighting';
 
 
 /* https://universaldependencies.org/format.html
@@ -79,7 +79,7 @@ export default Vue.extend({
 		Spinner
 	},
 	props: {
-		data: Object as () => HitRowData,
+		data: Object as () => HitRowContext,
 		fullSentence: Object as () => BLHit|undefined,
 
 		// TODO

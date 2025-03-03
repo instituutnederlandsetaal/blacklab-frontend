@@ -10,16 +10,19 @@
 		<slot name="annotation-switcher"/>
 
 		<DocsTable
-			:mainAnnotation="mainAnnotation"
-			:metadata="metadata"
-			:dir="dir"
-			:html="html"
-			:disabled="disabled"
-			:showHits="showDocumentHits"
-			:data="docRows"
+			:cols="cols"
+			:rows="rows"
+			:info="info"
 
+			:showHits="showDocumentHits"
 			@changeSort="changeSort"
 		/>
+		<!-- :mainAnnotation="mainAnnotation"
+		:metadata="metadata"
+		:dir="dir"
+		:html="html"
+		:disabled="disabled"
+		:data="docRows" -->
 
 		<hr>
 		<div class="text-right">
@@ -41,60 +44,57 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import * as CorpusStore from '@/store/search/corpus';
-import * as UIStore from '@/store/search/ui';
-
-import { getDocumentUrl } from '@/utils';
-import { BLDocResults } from '@/types/blacklabtypes';
-import { NormalizedMetadataField } from '@/types/apptypes';
-
-import DocsTable, {DocRowData} from '@/pages/search/results/table/DocsTable.vue';
+import DocsTable from '@/pages/search/results/table/DocsTable.vue';
+import { ColumnDefs, DisplaySettings, Rows } from '@/utils/hit-highlighting';
 
 export default Vue.extend({
 	components: {
 		DocsTable,
 	},
 	props: {
-		results: Object as () => BLDocResults,
-		sort: String as () => null|string,
+		cols: Object as () => ColumnDefs,
+		rows: Object as () => Rows,
+		info: Object as () => DisplaySettings,
+
+		// results: Object as () => BLDocResults,
+		sort: String as () => string|null,
 		disabled: Boolean
 	},
 	data: () => ({
-		pinnedTooltip: null as null|number,
 		showDocumentHits: false
 	}),
 	computed: {
-		mainAnnotation(): CorpusStore.NormalizedAnnotation { return CorpusStore.get.allAnnotationsMap()[UIStore.getState().results.shared.concordanceAnnotationId]; },
+		// mainAnnotation(): CorpusStore.NormalizedAnnotation { return CorpusStore.get.allAnnotationsMap()[UIStore.getState().results.shared.concordanceAnnotationId]; },
 		/** explicitly shown metadata fields + whatever field is currently being sorted on (if any). */
-		metadata(): NormalizedMetadataField[]|undefined {
-			const sortMetadataFieldMatch = this.sort && this.sort.match(/^-?field:(.+)$/);
-			const sortMetadataField = sortMetadataFieldMatch ? sortMetadataFieldMatch[1] : undefined;
+		// metadata(): NormalizedMetadataField[]|undefined {
+		// 	const sortMetadataFieldMatch = this.sort && this.sort.match(/^-?field:(.+)$/);
+		// 	const sortMetadataField = sortMetadataFieldMatch ? sortMetadataFieldMatch[1] : undefined;
 
-			const colsToShow = UIStore.getState().results.docs.shownMetadataIds;
-			return (sortMetadataField && !colsToShow.includes(sortMetadataField) ? colsToShow.concat(sortMetadataField) : colsToShow)
-			.map(id => CorpusStore.get.allMetadataFieldsMap()[id]);
-		},
-		dir(): 'ltr'|'rtl' { return CorpusStore.get.textDirection(); },
-		html(): boolean { return UIStore.getState().results.shared.concordanceAsHtml; },
-		docRows(): DocRowData[] {
-			const getDocumentSummary = UIStore.getState().results.shared.getDocumentSummary;
-			const specialFields = CorpusStore.getState().corpus!.fieldInfo;
+		// 	const colsToShow = UIStore.getState().results.docs.shownMetadataIds;
+		// 	return (sortMetadataField && !colsToShow.includes(sortMetadataField) ? colsToShow.concat(sortMetadataField) : colsToShow)
+		// 	.map(id => CorpusStore.get.allMetadataFieldsMap()[id]);
+		// },
+		// dir(): 'ltr'|'rtl' { return CorpusStore.get.textDirection(); },
+		// html(): boolean { return UIStore.getState().results.shared.concordanceAsHtml; },
+		// docRows(): DocRowData[] {
+		// 	const getDocumentSummary = UIStore.getState().results.shared.getDocumentSummary;
+		// 	const specialFields = CorpusStore.getState().corpus!.fieldInfo;
 
-			return this.results.docs.map(doc => {
-				return {
-					doc,
-					href: getDocumentUrl(
-						doc.docPid,
-						this.results.summary.pattern?.fieldName ?? '',
-						undefined,
-						this.results.summary.searchParam.patt || undefined,
-						this.results.summary.searchParam.pattgapdata || undefined),
-					summary: getDocumentSummary(doc.docInfo, specialFields),
-					type: 'doc'
-				};
-			});
-		},
-		hasHits(): boolean { return !!this.results.summary.searchParam.patt; } // if there's a cql pattern there are hits.
+		// 	return this.results.docs.map(doc => {
+		// 		return {
+		// 			doc,
+		// 			href: getDocumentUrl(
+		// 				doc.docPid,
+		// 				this.results.summary.pattern?.fieldName ?? '',
+		// 				undefined,
+		// 				this.results.summary.searchParam.patt || undefined,
+		// 				this.results.summary.searchParam.pattgapdata || undefined),
+		// 			summary: getDocumentSummary(doc.docInfo, specialFields),
+		// 			type: 'doc'
+		// 		};
+		// 	});
+		// },
+		hasHits(): boolean { return !!this.rows.rows.some(r => r.type === 'hit'); }
 	},
 	methods: {
 		changeSort(payload: string) {
@@ -102,13 +102,6 @@ export default Vue.extend({
 				this.$emit('sort', payload === this.sort ? '-'+payload : payload);
 			}
 		},
-	},
-	watch: {
-		results: {
-			handler() {
-				this.pinnedTooltip = null;
-			}
-		}
 	},
 });
 </script>

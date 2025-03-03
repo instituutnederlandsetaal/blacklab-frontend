@@ -415,7 +415,7 @@ export function applyWithinClauses(query: string, withinClauses: Record<string, 
 export function getDocumentUrl(
 	pid: string,
 	/** Field for which to show the document contents (important when this is a parallel corpus, as there are multiple "copies" of the same document then, e.g. an English and Dutch version) */
-	fieldName: string,
+	fieldName?: string,
 	/** Field on which the cql query is run. if searchfield differs from field (parallel corpus) */
 	searchField?: string,
 	cql?: string,

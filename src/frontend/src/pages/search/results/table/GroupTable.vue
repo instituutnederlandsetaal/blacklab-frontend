@@ -2,6 +2,26 @@
 	<table class="group-table">
 		<thead>
 			<tr class="rounded">
+				<TableHeader v-for="(col, i) in cols.groupColumns" :key="col.key" :col="col" @changeSort="changeSort" :disabled="disabled" >
+					<v-popover v-if="i === 0" offset="5" style="display:inline-block;">
+						<a role="button" title="Column meanings"><span class="fa fa-lg fa-question-circle"></span></a>
+						<template slot="popover">
+							<table class="table table-condensed" style="table-layout:auto; max-width:calc(100vw - 75px);width:500px;">
+								<tbody>
+									<tr v-for="(row, i) in definitions" :key="i">
+										<td v-for="(cell, j) in row" :key="j">{{cell}}</td>
+									</tr>
+								</tbody>
+							</table>
+						</template>
+					</v-popover>
+				</TableHeader>
+				<!-- glosses todo -->
+				<!-- <th v-for="(fieldName, i) in shownGlossCols" :key="i"><a class='sort gloss_field_heading' :title="`User gloss field: ${fieldName}`">{{ fieldName }}</a></th> -->
+			</tr>
+		</thead>
+
+			<!-- <tr class="rounded">
 				<th v-for="(header, i) in headers"
 					:key="header.key"
 					:title="header.title"
@@ -31,32 +51,31 @@
 					<template v-else>{{header.label}}</template>
 				</th>
 			</tr>
-		</thead>
+		</thead> -->
 		<tbody>
-			<template v-for="row in data">
-				<GroupRow :key="row.id"
-					:data="row"
-					:columns="columns"
-					:maxima="maxima"
-					@click.native="$set(open, row.id, !open[row.id])"
-				/>
-				<GroupRowDetails :key="`${row.id}-concordances`" v-show="open[row.id]"
-					:type="type"
+			<template v-for="row in rows.rows">
+				<template v-if="row.type === 'group'">
+					<GroupRow
+						:key="row.id"
+						:data="row"
+						:columns="cols"
+						:maxima="rows.maxima"
+						@click.native="$set(open, row.id, !open[row.id])"
+					/>
+					<GroupRowDetails :key="`${row.id}-concordances`" v-show="open[row.id]"
+						:info="info"
+						:new_data="row"
+						:cols="cols"
 
-					:query="query"
-					:mainAnnotation="mainAnnotation"
-					:otherAnnotations="otherAnnotations"
-					:metadata="metadata"
+						:open="open[row.id]"
+						:disabled="disabled"
+						:type="type"
+						:query="query"
 
-					:disabled="disabled"
-					:dir="dir"
-					:html="html"
-					:data="row"
-					:open="open[row.id]"
-
-					@openFullConcordances="$emit('openFullConcordances', row.id, row.displayname)"
-					@close="$set(open, row.id, false)"
-				/>
+						@openFullConcordances="$emit('openFullConcordances', row.id, row.displayname)"
+						@close="$set(open, row.id, false)"
+					/>
+				</template>
 			</template>
 		</tbody>
 	</table>
@@ -67,42 +86,50 @@
 import Vue from 'vue';
 
 import { BLSearchParameters } from '@/types/blacklabtypes';
-import { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
-
-import {GroupRowData, definitions} from '@/pages/search/results/table/groupTable';
+import { definitions } from '@/pages/search/results/table/groupTable';
 import GroupRow from '@/pages/search/results/table/GroupRow.vue';
 import GroupRowDetails from '@/pages/search/results/table/GroupRowDetails.vue';
-
-export {GroupRowData} from '@/pages/search/results/table/groupTable';
+import { ColumnDefs, DisplaySettings, Rows } from '@/utils/hit-highlighting';
+import TableHeader from '@/pages/search/results/table/TableHeader.vue';
 
 export default Vue.extend({
 	components: {
-		GroupRow, GroupRowDetails
+		GroupRow, GroupRowDetails, TableHeader
 	},
 	props: {
-		type: String as () => 'hits'|'docs',
-		headers: Array as () => Array<{
-			label: string,
-			key: string,
-			title: string,
-			sortProp?: string,
-			isBar?: boolean
-		}>,
-		columns: Array as () => Array<keyof GroupRowData|[keyof GroupRowData, keyof GroupRowData]>,
-		data: Array as () => GroupRowData[],
-		maxima: Object as () => Record<keyof GroupRowData, number>,
+		cols: Object as () => ColumnDefs,
+		rows: Object as () => Rows,
+		info: Object as () => DisplaySettings,
 
-		mainAnnotation: Object as () => NormalizedAnnotation,
-		/** Required to render group contents if they're hits, optional */
-		otherAnnotations: Array as () => NormalizedAnnotation[]|undefined,
-		/** Required to render group contnets if they're metadata. optional. */
-		metadata: Array as () => NormalizedMetadataField[]|undefined,
-
-		/** Required to render group contents if they're hits. */
-		query: Object as () => BLSearchParameters,
 		disabled: Boolean,
-		html: Boolean,
-		dir: String as () => 'ltr'|'rtl',
+
+		/// UGH, required to get group contents as this is not exposed in the results directly.
+		type: String as () => 'hits'|'docs',
+		query: Object as () => BLSearchParameters,
+
+		// type: String as () => 'hits'|'docs',
+		// headers: Array as () => Array<{
+		// 	label: string,
+		// 	key: string,
+		// 	title: string,
+		// 	sortProp?: string,
+		// 	isBar?: boolean
+		// }>,
+		// columns: Array as () => Array<keyof GroupRowData|[keyof GroupRowData, keyof GroupRowData]>,
+		// data: Array as () => GroupRowData[],
+		// maxima: Object as () => Record<keyof GroupRowData, number>,
+
+		// mainAnnotation: Object as () => NormalizedAnnotation,
+		// /** Required to render group contents if they're hits, optional */
+		// otherAnnotations: Array as () => NormalizedAnnotation[]|undefined,
+		// /** Required to render group contnets if they're metadata. optional. */
+		// metadata: Array as () => NormalizedMetadataField[]|undefined,
+
+		// /** Required to render group contents if they're hits. */
+		// query: Object as () => BLSearchParameters,
+		// disabled: Boolean,
+		// html: Boolean,
+		// dir: String as () => 'ltr'|'rtl',
 
 	},
 	data: () => ({

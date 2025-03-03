@@ -83,7 +83,7 @@ export default pipe(
 					// Do this through a simple timeout so we don't have to nest so many streams
 					return new Promise(resolve => setTimeout(resolve, UIStore.getState().results.shared.totalsRefreshIntervalMs))
 					.then((): Promise<BLTypes.BLSearchResult> => {
-						const apiCall = operation === 'docs' ? Api.blacklab.getDocs : Api.blacklab.getHits;
+						const apiCall = operation === 'docs' ? Api.blacklab.getDocs<BLTypes.BLDocResults|BLTypes.BLDocGroupResults> : Api.blacklab.getHits<BLTypes.BLHitResults|BLTypes.BLHitGroupResults>;
 						const apiResult = apiCall(indexId, {
 							...oldResults.summary.searchParam,
 							number: 0,

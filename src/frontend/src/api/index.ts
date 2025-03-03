@@ -240,10 +240,10 @@ export const blacklab = {
 		return request;
 	},
 
-	getHits: (indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
+	getHits: <T extends BLTypes.BLHitResults|BLTypes.BLHitGroupResults = BLTypes.BLHitResults|BLTypes.BLHitGroupResults>(indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
 		const {token: cancelToken, cancel} = axios.CancelToken.source();
 
-		let request: Promise<BLTypes.BLHitResults|BLTypes.BLHitGroupResults>;
+		let request: Promise<T>;
 		if (!indexId) {
 			request = Promise.reject(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
 		} else if (!isHitParams(params)) {

@@ -214,7 +214,7 @@ import 'vue-slider-component/theme/default.css'
 import jsonStableStringify from 'json-stable-stringify';
 
 import SelectPicker, { OptGroup, Options } from '@/components/SelectPicker.vue';
-import { getHighlightColors, mergeMatchInfos, snippetParts } from '@/utils/hit-highlighting';
+import { Highlights, mergeMatchInfos, snippetParts } from '@/utils/hit-highlighting';
 import { CaptureAndRelation, HitToken, Option, TokenHighlight } from '@/types/apptypes';
 
 
@@ -249,7 +249,7 @@ export default Vue.extend({
 		Tabs
 	},
 	props: {
-		type: String, // grouping hits or docs?
+		type: String as () => 'hits'|'docs', // grouping hits or docs?
 		disabled: Boolean,
 		results: Object as () => BLSearchResult|undefined
 	},
@@ -468,7 +468,7 @@ export default Vue.extend({
 		},
 
 		colors(): Record<string, TokenHighlight> {
-			return this.hits ? getHighlightColors(this.hits.summary) : {};
+			return this.hits ? Highlights.getHighlightColors(this.hits.summary) : {};
 		},
 
 		selectedCriterium(): GroupBy|undefined { return this.addedCriteria[this.selectedCriteriumIndex]; },
@@ -529,7 +529,7 @@ export default Vue.extend({
 			const hitInField = targetField && targetField.length > 0 && targetField !== this.mainSearchField && firstHit.otherFields ? firstHit.otherFields[targetField] : firstHit;
 			const {annotation, context} = this.selectedCriterium;
 
-			const snippet = snippetParts(hitInField, wordAnnotation, CorpusStore.get.textDirection(), this.colors)
+			const snippet = snippetParts(hitInField, wordAnnotation, this.colors)
 
 			// Don't highlight the list of relations matchInfo; it doesn't make sense to group on those
 			const removeListMatchInfo = (t: HitToken) => t.captureAndRelation = t.captureAndRelation?.filter(c => c.key.indexOf('[') < 0);
@@ -924,7 +924,7 @@ export default Vue.extend({
 			immediate: true,
 			handler() {
 				this.hits = undefined;
-				if (this.firstHitPreviewQuery) {
+				if (this.firstHitPreviewQuery && this.type === 'hits') {
 					blacklab.getHits(INDEX_ID, this.firstHitPreviewQuery).request.then(r => {
 						const data = r as BLHitResults;
 						if (isHitResults(data)) {

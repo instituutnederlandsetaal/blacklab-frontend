@@ -1,20 +1,20 @@
+import { Canceler } from 'axios';
 import Vue from 'vue';
 
 /** A class that can retrieve items in a paginated way and exposes them along with an error and loading state. */
 export default class PaginatedGetter<T> {
-	public results: T[] = [];
+	public count: number = 0;
+	public results: T|undefined = undefined;
 	public loading = false;
 	public error = null as string | null;
 	public done = false;
 
 	private cancelToken = null as null | (() => void);
-	private request: Promise<T[]> | null = null;
+	private request: Promise<T> | null = null;
 
 	constructor(
-		private readonly getter: (first: number, count: number) => {
-			cancel: () => void;
-			request: Promise<T[]>;
-		},
+		/** first is 0-indexed, meaning first=20 here means we already have 20 results (index 1...19), and want starting at index 20 */
+		private readonly getter: (acc: T|undefined, first: number, count: number) => { cancel: Canceler; request: Promise<T>; },
 		public totalCount: number,
 		public pageSize: number = 20
 	) {
@@ -28,25 +28,25 @@ export default class PaginatedGetter<T> {
 			return;
 		}
 
-		const first = this.results.length;
+		const first = this.count;
 		const count = Math.min(this.pageSize, this.totalCount - first);
 		if (count <= 0) {
 			return;
 		}
 
 		this.loading = true;
-		const { request, cancel } = this.getter(first, count);
+		const { request, cancel } = this.getter(this.results, first, count);
 		this.cancelToken = cancel;
 		this.request = request;
 		this.request
-			.then(r => { if (this.request === request) this.results.push(...r) })
+			.then(r => { if (this.request === request) { this.results = r; this.count += this.pageSize; } })
 			.catch(e => { if (this.request === request) this.error = e.toString(); })
 			.finally(() => {
 				if (this.request === request) {
 					this.loading = false;
 					this.cancelToken = this.request = null;
 				}
-				this.done = this.results.length >= this.totalCount;
+				this.done = this.count >= this.totalCount;
 			});
 	}
 

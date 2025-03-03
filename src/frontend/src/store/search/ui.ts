@@ -18,7 +18,7 @@ import * as FilterModule from '@/store/search/form/filters';
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 import { Option } from '@/types/apptypes';
-import { HighlightSection } from '@/utils/hit-highlighting';
+import { Highlights } from '@/utils/hit-highlighting';
 import { spanFilterId } from '@/utils';
 
 type CustomView = {
@@ -1350,7 +1350,7 @@ const corpusCustomizations = {
 		 * @returns 'none' (no highlighting), 'static' (always highlight), 'hover'
 		 *   (highlight on mouseover) or null for default behaviour.
 		 */
-		matchInfoHighlightStyle: (matchInfo: HighlightSection): string|null => {
+		matchInfoHighlightStyle: (matchInfo: Highlights.HighlightSection): string|null => {
 			return null; // use default behaviour
 		},
 

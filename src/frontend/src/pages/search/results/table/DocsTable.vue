@@ -2,6 +2,12 @@
 	<table class="docs-table">
 		<thead>
 			<tr class="rounded">
+				<TableHeader v-for="col in cols.hitColumns" :key="col.key" :col="col" @changeSort="changeSort" :disabled="disabled"/>
+				<!-- glosses todo -->
+				<!-- <th v-for="(fieldName, i) in shownGlossCols" :key="i"><a class='sort gloss_field_heading' :title="`User gloss field: ${fieldName}`">{{ fieldName }}</a></th> -->
+			</tr>
+
+			<!-- <tr class="rounded">
 				<th><a role="button"
 					@click="changeSort(`field:${specialFields.titleField}`)"
 					:class="['sort', {'disabled': disabled}]"
@@ -18,14 +24,47 @@
 					</a>
 				</th>
 				<th v-if="hasHits"><a role="button" @click="changeSort(`numhits`)" :class="['sort', {'disabled': disabled}]" :title="$t('results.table.sortByHits').toString()">{{ $t('results.table.hits') }}</a></th>
-			</tr>
+			</tr> -->
 		</thead>
 		<tbody>
-			<template v-for="(rowData, index) in data">
-				<DocRow
-					:data="rowData"
-					:metadata="metadata"
+			<template v-for="(rowData, index) in rows.rows">
+				<DocRow v-if="rowData.type === 'doc'" :key="rowData.doc.docPid"
+					:new_data="rowData"
+					:new_cols="cols.docColumns"
 				/>
+				<!-- colspan will break here probably. -->
+
+				<template v-if="showHits && rowData.type === 'hit'">
+					<HitsTable
+						:new_cols="cols.hitColumns"
+						:new_rows="[rowData]"
+						:info="info"
+						:html="info.html"
+						:disabled="true"
+						:disableDetails="true"
+					/>
+					<tr v-if="hiddenHits(rowData.rows[0])"><td :colspan="cols.docColumns.length + (cols.docColumns[0].colspan || 1)" class="text-muted col-xs-12 clearfix">
+						...({{hiddenHits(rowData.rows[0])}} {{ $t('results.table.moreHiddenHits') }})
+					</td></tr>
+				</template>
+			</template>
+
+
+<!--
+					<HitRow :key="rowData.doc.docPid + '_hits'"
+					:new_data="rowData"
+					:new_cols="new_cols.hitColumns"
+					:html="info.html"
+					:disabled="true"
+					:disableDetails="true"
+				>
+				</HitRow>
+				<tr v-if="hiddenHits(rowData)"><td :colspan="new_cols.docColumns.length + (new_cols.docColumns[0].colspan || 1)" class="text-muted col-xs-12 clearfix">
+					...({{hiddenHits(rowData)}} {{ $t('results.table.moreHiddenHits') }})
+				</td></tr>
+			</template> -->
+
+<!--
 				<tr v-if="showHits && rowData.doc.snippets" :key="index + '-hits'">
 					<td colspan="100">
 						<HitsTable
@@ -39,7 +78,7 @@
 						<div class="text-muted clearfix col-xs-12" v-if="hiddenHits(rowData)">...({{hiddenHits(rowData)}} {{ $t('results.table.moreHiddenHits') }})</div>
 					</td>
 				</tr>
-			</template>
+			</template> -->
 		</tbody>
 	</table>
 </template>
@@ -47,59 +86,57 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import * as CorpusStore from '@/store/search/corpus';
-import { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
-import { BLDocFields } from '@/types/blacklabtypes';
-
 import HitsTable from '@/pages/search/results/table/HitsTable.vue';
-import DocRow, {DocRowData} from '@/pages/search/results/table/DocRow.vue';
-import { snippetParts } from '@/utils/hit-highlighting';
+import DocRow from '@/pages/search/results/table/DocRow.vue';
+import TableHeader from '@/pages/search/results/table/TableHeader.vue';
+import { ColumnDefs, DisplaySettings, HitRowContext, Rows } from '@/utils/hit-highlighting';
 
-import { HitRowData, HitRows } from '@/pages/search/results/table/HitRow.vue';
-export { DocRowData } from '@/pages/search/results/table/DocRow.vue';
 
 export default Vue.extend({
-	components: {HitsTable, DocRow},
+	components: {HitsTable, DocRow, TableHeader},
 	props: {
-		mainAnnotation: Object as () => NormalizedAnnotation,
-		metadata: Array as () => NormalizedMetadataField[]|undefined,
-		dir: String as () => 'ltr'|'rtl',
-		html: Boolean,
-		disabled: Boolean,
+		cols: Object as () => ColumnDefs,
+		rows: Object as () => Rows,
+		info: Object as () => DisplaySettings,
 
+		// mainAnnotation: Object as () => NormalizedAnnotation,
+		// metadata: Array as () => NormalizedMetadataField[]|undefined,
+		// dir: String as () => 'ltr'|'rtl',
+		// html: Boolean,
+		disabled: Boolean,
 		showHits: Boolean,
 
-		data: Array as () => DocRowData[]
+		// data: Array as () => DocRowData[]
 	},
 	computed: {
-		hasHits(): boolean { return this.data[0]?.doc.numberOfHits != null; },
-		specialFields(): BLDocFields { return CorpusStore.getState().corpus!.fieldInfo; },
+		// hasHits(): boolean { return this.data[0]?.doc.numberOfHits != null; },
+		// specialFields(): BLDocFields { return CorpusStore.getState().corpus!.fieldInfo; },
 	},
 	methods: {
 		changeSort(sort: string) {
 			this.$emit('changeSort', sort)
 		},
-		hitRowsForDoc(docRow: DocRowData): HitRows[] {
-			return docRow.doc.snippets!.map<HitRows>(s => ({
-				type: 'hit',
-				doc: docRow.doc,
-				rows: [{
-					hit: s,
-					annotatedField: undefined,
-					href: '',
-					isForeign: false,
-					// Don't pass color info here. We don't show capture highlights or releation info in doc snippets.
-					context: snippetParts(s, this.mainAnnotation.id, this.dir),
-					doc: docRow.doc,
-					gloss_fields: [],
-					hit_first_word_id: '',
-					hit_id: '',
-					hit_last_word_id: '',
-				}]
-			}));
-		},
-		hiddenHits(docRow: DocRowData): number {
-			return (docRow.doc.numberOfHits || 0) - (docRow.doc.snippets?.length || 0);
+		// hitRowsForDoc(docRow: DocRowData): HitRows[] {
+		// 	return docRow.doc.snippets!.map<HitRows>(s => ({
+		// 		type: 'hit',
+		// 		doc: docRow.doc,
+		// 		rows: [{
+		// 			hit: s,
+		// 			annotatedField: undefined,
+		// 			href: '',
+		// 			isForeign: false,
+		// 			// Don't pass color info here. We don't show capture highlights or releation info in doc snippets.
+		// 			context: snippetParts(s, this.mainAnnotation.id, this.dir),
+		// 			doc: docRow.doc,
+		// 			gloss_fields: [],
+		// 			hit_first_word_id: '',
+		// 			hit_id: '',
+		// 			hit_last_word_id: '',
+		// 		}]
+		// 	}));
+		// },
+		hiddenHits(docRow?: HitRowContext): number {
+			return docRow ? (docRow.doc.numberOfHits || 0) - (docRow.doc.snippets?.length || 0) : 0;
 		}
 	}
 

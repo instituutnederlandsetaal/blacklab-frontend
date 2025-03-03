@@ -41,7 +41,7 @@ type NormalizedAnnotatedFieldBase  = {
 	hasXmlTags: boolean;
 	/**
 	 * usually 'contents', annotatedFieldId in NormalizedAnnotation refers to this.
-	 * In parallel corpora, consists of a prefix (e.g. "contents") and a suffix (e.g. "en").
+	 * In parallel corpora, consists of a prefix (e.g. "contents") and a suffix (e.g. "en") e.g. content__en
 	 */
 	id: string;
 	isAnnotatedField: boolean;

@@ -29,3 +29,12 @@ export type KeepProperties<T, P extends keyof T> = {
 export type KeepOnlyProperties<T, P extends keyof T> = {
 	[Q in keyof T]: Q extends P ? T[P] : undefined;
 };
+
+
+/** Keep only those properties assignable to T  */
+export type FilterProps<TObj, T> = {
+	[K in keyof TObj as TObj[K] extends T ? K : never]: TObj[K]
+};
+
+/** Return only those keys whose values are assignable to T */
+export type KeysOfType<TObj, T> = keyof FilterProps<Required<TObj>, T>;
