@@ -125,7 +125,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedAnnotatedFieldParallel, NormalizedIndex } from '@/types/apptypes';
 import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
-import { DisplaySettings, makeRows } from '@/utils/hit-highlighting';
+import { DisplaySettings, makeColumns, makeRows } from '@/utils/hit-highlighting';
 import { isHitParams } from '@/utils';
 
 export default Vue.extend({
@@ -457,10 +457,11 @@ export default Vue.extend({
 			}
 		},
 		resultComponentData(): any {
+			if (!this.results) return undefined;
 			return {
-				results: this.results,
-				disabled: !!this.request,
-				sort: this.sort,
+				cols: makeColumns(this.results, this.resultsData),
+				rows: makeRows(this.results, this.resultsData),
+				info: this.resultsData
 			};
 		},
 
@@ -470,12 +471,15 @@ export default Vue.extend({
 				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
 
 				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, id && CorpusStore.get.allAnnotationsMap()[id]])) as any,
-				detailedAnnotations: UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [],
 				dir: CorpusStore.get.textDirection(),
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
 				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
-				metadata: UIStore.getState().results.shared.detailedMetadataIds?.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) ?? [],
-				otherAnnotations: UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [],
+
+				metadata: this.isHits ? UIStore.getState().results.hits.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) :
+				this.isDocs ? UIStore.getState().results.docs.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) : [],
+				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
+				detailedAnnotations: UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [],
+
 				sourceField,
 				targetFields: (QueryStore.getState().shared?.targets.map(t => CorpusStore.get.allAnnotatedFieldsMap()[t]) ?? CorpusStore.get.allAnnotatedFields()).filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel && f !== sourceField),
 				specialFields: CorpusStore.getState().corpus!.fieldInfo,

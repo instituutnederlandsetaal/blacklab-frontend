@@ -1,9 +1,9 @@
 <template>
 	<tr class="concordance rounded">
-		<template v-for="col in cols">
+		<template v-for="col in cols.hitColumns">
 			<HitContextComponent v-if="col.field === 'match' || col.field === 'after' || col.field === 'before' || col.field === 'annotation'" :key="col.key"
 				tag=td
-				:data="col.field === 'annotation' ? row.context.match : row.context[col.field]"
+				:data="row.context"
 				:bold="col.field === 'match'"
 				:highlight="col.field !== 'annotation'"
 				:before="col.field === 'before'"
@@ -62,7 +62,7 @@ import Vue from 'vue';
 import { corpusCustomizations } from '@/store/search/ui';
 
 import HitContextComponent from '@/pages/search/results/table/HitContext.vue';
-import { ColumnDefHit, DisplaySettings, HitRowContext } from '@/utils/hit-highlighting';
+import { ColumnDefHit, ColumnDefs, DisplaySettings, HitRowContext } from '@/utils/hit-highlighting';
 
 import GlossField from '@/pages/search/form/concept/GlossField.vue';
 
@@ -87,7 +87,7 @@ export default Vue.extend({
 		// cols: Array as () => ColumnDefHit[],
 
 		row: Object as () => HitRowContext,
-		cols: Array as () => ColumnDefHit[],
+		cols: Object as () => ColumnDefs,
 		info: Object as () => DisplaySettings,
 
 		// info: Object as () => DisplaySettings,

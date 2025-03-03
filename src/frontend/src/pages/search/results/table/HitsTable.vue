@@ -10,7 +10,7 @@
 		<template v-for="(row, i) in rows.rows">
 			<HitRow v-if="row.type === 'hit'"
 				:row="row"
-				:cols="cols.hitColumns"
+				:cols="cols"
 				:info="info"
 				:disabled="disabled"
 				:disableDetails="disableDetails"
@@ -18,7 +18,7 @@
 
 			<DocRow v-else-if="row.type === 'doc'"
 				:row="row"
-				:cols="cols.docColumns"
+				:cols="cols"
 				:info="info"
 			/>
 		</template>

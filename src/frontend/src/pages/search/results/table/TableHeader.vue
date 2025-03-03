@@ -1,4 +1,4 @@
-<template functional>
+<template>
 	<th>
 		<slot></slot>
 		<span v-if="Array.isArray(col.sort)" class="dropdown">

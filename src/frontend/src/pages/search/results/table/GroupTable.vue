@@ -57,15 +57,16 @@
 				<template v-if="row.type === 'group'">
 					<GroupRow
 						:key="row.id"
-						:data="row"
-						:columns="cols"
+						:row="row"
+						:cols="cols"
+						:info="info"
 						:maxima="rows.maxima"
 						@click.native="$set(open, row.id, !open[row.id])"
 					/>
 					<GroupRowDetails :key="`${row.id}-concordances`" v-show="open[row.id]"
-						:info="info"
-						:new_data="row"
+						:row="row"
 						:cols="cols"
+						:info="info"
 
 						:open="open[row.id]"
 						:disabled="disabled"

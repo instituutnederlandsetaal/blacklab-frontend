@@ -4,8 +4,9 @@
 		<template v-for="row in row.rows">
 			<HitRowContext
 				:class="{open, 'foreign-hit': row.isForeign}"
-				:data="row"
+				:row="row"
 				:cols="cols"
+				:info="info"
 				:html="info.html"
 				:hoverMatchInfos="hoverMatchInfos"
 				@hover="hoverMatchInfos = $event"
@@ -13,7 +14,8 @@
 				@click.native="open = disableDetails ? null : row.annotatedField.id"
 			/>
 			<HitRowDetails v-if="!disableDetails"
-				:data="row"
+				:row="row"
+				:cols="cols"
 				:info="info"
 				:colspan="cols.hitColumns.length"
 				:open="open === row.annotatedField.id"

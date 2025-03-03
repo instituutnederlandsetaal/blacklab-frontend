@@ -765,6 +765,14 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		value: `${prefix}:${a.id}`,
 	})
 
+	const sorts = (a: NormalizedAnnotation[]|undefined, prefix: string): {sort: SortOption[]}|{title: string, sort: string}|{} => {
+		if (a?.length === 1) {
+			const {title, value: sort} = sortAnnot(a[0], prefix);
+			return {title, sort};
+		} else if (a?.length) return a.map(a => sortAnnot(a, prefix));
+		else return {};
+	}
+
 	if (isHitResults(results) && !!results.hits.find(h => !!h.otherFields)) {
 		hitColumns.push({
 			key: 'annotatedField',
@@ -773,12 +781,15 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		});
 	}
 
+
+
+
 	hitColumns.push({
 		key: 'left',
-		label: i.$t(leftLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
 		textAlignClass: 'text-right',
-		sort: contextAnnots.map(a => sortAnnot(a, blSortPrefixLeft)),
+		...sorts(contextAnnots, blSortPrefixLeft),
+		label: i.$t(leftLabelKey).toString(),
 		field: info.dir === 'rtl' ? 'after' : 'before',
 		annotation: info.mainAnnotation
 	}, {
@@ -786,7 +797,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		label: i.$t(centerLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
 		textAlignClass: 'text-center',
-		sort: contextAnnots.map(a => sortAnnot(a, blSortPrefixCenter)),
+		...sorts(contextAnnots, blSortPrefixCenter),
 		field: 'match',
 		annotation: info.mainAnnotation
 	}, {
@@ -794,7 +805,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		label: i.$t(rightLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
 		textAlignClass: 'text-left',
-		sort: contextAnnots.map(a => sortAnnot(a, blSortPrefixRight)),
+		...sorts(contextAnnots, blSortPrefixRight),
 		field: info.dir === 'rtl' ? 'before' : 'after',
 		annotation: info.mainAnnotation
 	},
@@ -803,7 +814,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		label: i.$tAnnotDisplayName(a),
 		debugLabel: a.id,
 		textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
-		sort: `field:${a.id}`,
+		...sorts([a], 'annotation'),
 		field: 'annotation' as const,
 		annotation: a
 	})),
@@ -812,6 +823,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		label: i.$tMetaDisplayName(m),
 		debugLabel: m.id,
 		textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
+		title: i.$t('results.table.sortBy', {field: i.$tMetaDisplayName(m)}).toString(),
 		sort: `field:${m.id}`,
 		field: 'metadata' as const,
 		metadata: m

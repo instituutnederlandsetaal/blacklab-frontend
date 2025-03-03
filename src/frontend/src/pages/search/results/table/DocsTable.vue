@@ -2,7 +2,7 @@
 	<table class="docs-table">
 		<thead>
 			<tr class="rounded">
-				<TableHeader v-for="col in cols.hitColumns" :key="col.key" :col="col" @changeSort="changeSort" :disabled="disabled"/>
+				<TableHeader v-for="col in cols.docColumns" :key="col.key" :col="col" @changeSort="changeSort" :disabled="disabled"/>
 				<!-- glosses todo -->
 				<!-- <th v-for="(fieldName, i) in shownGlossCols" :key="i"><a class='sort gloss_field_heading' :title="`User gloss field: ${fieldName}`">{{ fieldName }}</a></th> -->
 			</tr>
@@ -27,24 +27,25 @@
 			</tr> -->
 		</thead>
 		<tbody>
-			<template v-for="(rowData, index) in rows.rows">
-				<DocRow v-if="rowData.type === 'doc'" :key="rowData.doc.docPid"
-					:new_data="rowData"
-					:new_cols="cols.docColumns"
+			<template v-for="(row, index) in rows.rows">
+				<DocRow v-if="row.type === 'doc'" :key="row.doc.docPid"
+					:row="row"
+					:cols="cols"
+					:info="info"
 				/>
 				<!-- colspan will break here probably. -->
 
-				<template v-if="showHits && rowData.type === 'hit'">
+				<template v-if="showHits && row.type === 'hit'">
 					<HitsTable
-						:new_cols="cols.hitColumns"
-						:new_rows="[rowData]"
+						:cols="cols.hitColumns"
+						:rows="[row]"
 						:info="info"
-						:html="info.html"
+
 						:disabled="true"
 						:disableDetails="true"
 					/>
-					<tr v-if="hiddenHits(rowData.rows[0])"><td :colspan="cols.docColumns.length + (cols.docColumns[0].colspan || 1)" class="text-muted col-xs-12 clearfix">
-						...({{hiddenHits(rowData.rows[0])}} {{ $t('results.table.moreHiddenHits') }})
+					<tr v-if="hiddenHits(row.rows[0])"><td :colspan="cols.docColumns.length + (cols.docColumns[0].colspan || 1)" class="text-muted col-xs-12 clearfix">
+						...({{hiddenHits(row.rows[0])}} {{ $t('results.table.moreHiddenHits') }})
 					</td></tr>
 				</template>
 			</template>
