@@ -729,24 +729,31 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		title: info.specialFields.titleField ? i.$t('results.table.sortByDocument').toString() : undefined,
 		sort: info.specialFields.titleField ? `field:${info.specialFields.titleField}` : undefined,
 		textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
-	},
-	...info.metadata.map(m => ({
-		key: 'doc_metadata_' + m.id,
-		field: 'metadata' as const,
-		label: i.$tMetaDisplayName(m).toString(),
-		debugLabel: m.id,
-		title: i.$t('results.table.sortBy', {field: i.$tMetaDisplayName(m).toString()}).toString(),
-		sort: `field:${m.id}`,
-		metadata: m
-	})))
-	if (isDocResults(results) && results.docs[0].snippets) {
-		docColumns.push({
-			key: 'doc_hits',
-			field: 'hits',
-			label: i.$t('results.table.hits').toString(),
-			sort: `numhits`,
-		})
+	});
+
+	if (isDocResults(results)) {
+		docColumns.push(...info.metadata.map(m => ({
+			key: 'doc_metadata_' + m.id,
+			field: 'metadata' as const,
+			label: i.$tMetaDisplayName(m).toString(),
+			debugLabel: m.id,
+			title: i.$t('results.table.sortBy', {field: i.$tMetaDisplayName(m).toString()}).toString(),
+			sort: `field:${m.id}`,
+			metadata: m
+		})));
+
+		if(results.docs[0].snippets) {
+			docColumns.push({
+				key: 'doc_hits',
+				field: 'hits',
+				label: i.$t('results.table.hits').toString(),
+				sort: `numhits`,
+			})
+		}
 	}
+
+
+
 
 	/// HITS
 
@@ -829,11 +836,19 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		sort: `field:${m.id}`,
 		field: 'metadata' as const,
 		metadata: m
-	})));
+	}))
+	);
 
-	// XXX
-	const tableWidth = hitColumns.length;
-	docColumns[0].colspan = Math.max(1, tableWidth - (docColumns.length - 1));
+
+
+
+	const tableWidth = (isHitResults(results) ? hitColumns : isGroups(results) ? groupColumns : docColumns).reduce((width, col) => width + (col.colspan ?? 1), 0);
+	if (isHitResults(results))
+		docColumns[0].colspan = Math.max(1, tableWidth - (docColumns.length - 1));
+	/// TODO
+	// else if (isDocResults(results))
+	// 	hitColumns
+	// hitColumns.length;
 
 	/// GROUPS
 
@@ -869,6 +884,8 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 			sort: header.sortProp,
 		})
 	});
+
+
 
 	return {hitColumns, docColumns, groupColumns, groupModeOptions: availableDisplayModes};
 }
