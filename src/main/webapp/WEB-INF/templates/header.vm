@@ -65,9 +65,9 @@
         <div class="navbar navbar-inverse navbar-fixed-top">
             #if ($bannerMessage && $bannerMessageCookie)
                 #set($unescaped = $bannerMessage)
-                <div class="container alert alert-dismissable navbar-alert">
+                <div class="container alert alert-dismissible navbar-alert">
                     <div class="message">$unescaped</div>
-                    <button type="button" class="btn btn-link btn-lg" data-dismiss="alert" title="Dismiss" onClick="javascript:document.cookie='$bannerMessageCookie'"><span class="fa fa-times"></span></button>
+                    <button type="button" class="btn btn-link btn-lg" data-dismiss="alert" title="Dismiss" onClick="javascript:document.cookie='$bannerMessageCookie', getElementById('body-navbar-placeholder')?.remove()"><span class="fa fa-times"></span></button>
                 </div>
             #end
 
@@ -123,3 +123,8 @@
             <p>You are using an <strong>outdated</strong> browser which cannot display this website correctly. Please use the latest version of <a href="http://www.mozilla.org/en-US/firefox/new/">Mozilla Firefox</a> or <a href="https://www.google.com/intl/en/chrome/browser/">Google Chrome</a> instead.</p>
             </div>
         <![endif]-->
+
+
+    #if ($bannerMessage && $bannerMessageCookie)
+        <div style="content: ''; display: block; clear: both; height: 50px;" id="body-navbar-placeholder"></div>
+    #end
