@@ -556,7 +556,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 				type: 'group',
 				id: g.identity || defaultGroupName,
 				size: g.size,
-				displayname: g.properties.sort((a,b) => a.name.localeCompare(b.name)).map(v => v.value).join('·') || defaultGroupName,
+				displayname: g.properties.concat().sort((a,b) => a.name.localeCompare(b.name)).map(v => v.value).join('·') || defaultGroupName,
 
 				'r.d': summary.numberOfDocs,
 				'r.t': summary.subcorpusSize!.tokens, // FIXME augment request to make this available
@@ -873,7 +873,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		const header = Object.assign({}, tableHeaders.default[labelField], tableHeaders[groupType][labelField]);
 		groupColumns.push({
 			field: 'group',
-			key: typeof c === 'string' ? c : c[0],
+			key: c.toString(),
 			label: header.label!,
 			title: header.title,
 			labelField,

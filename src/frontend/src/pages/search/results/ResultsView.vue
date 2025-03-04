@@ -1,6 +1,9 @@
 <template>
 	<div class="results-container" :disabled="request" :style="{minHeight: request ? '100px' : undefined}">
 
+
+		<!-- <pre>{{ {...resultsData, i18n: undefined, depTreeAnnotations: undefined} }}</pre> -->
+
 		<Spinner v-if="request" overlay size="75"/>
 
 		<!-- i.e. HitResults, DocResults, GroupResults -->
@@ -91,7 +94,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import Vue, { markRaw } from 'vue';
 
 import jsonStableStringify from 'json-stable-stringify';
 
@@ -116,7 +119,6 @@ import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
 import Export from '@/pages/search/results/Export.vue';
 
 import Pagination from '@/components/Pagination.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
 import Spinner from '@/components/Spinner.vue';
 
 import debug, { debugLog } from '@/utils/debug';
@@ -136,7 +138,6 @@ export default Vue.extend({
 		DocResults,
 		Totals,
 		GroupBy,
-		SelectPicker,
 		Sort,
 		BreadCrumbs,
 		Export,
@@ -461,13 +462,17 @@ export default Vue.extend({
 			return {
 				cols: makeColumns(this.results, this.resultsData),
 				rows: makeRows(this.results, this.resultsData),
-				info: this.resultsData
+				info: this.resultsData,
+				query: this.results.summary.searchParam,
+				type: this.id,
+				sort: this.sort,
+				disabled: !!this.request
 			};
 		},
 
 		resultsData(): DisplaySettings {
 			const sourceField = CorpusStore.get.allAnnotatedFieldsMap()[QueryStore.getState().shared?.source ?? CorpusStore.get.mainAnnotatedField()];
-			const r: DisplaySettings = {
+			const r: DisplaySettings = markRaw({
 				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
 
 				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, id && CorpusStore.get.allAnnotationsMap()[id]])) as any,
@@ -489,8 +494,8 @@ export default Vue.extend({
 
 				// TODO this should not be part of the computed resultsData that's used to compute the rows
 				// as the rows are indepenent of the columns, and this is a column setting.
-				groupDisplayMode: this.groupDisplayMode as any,
-			}
+				groupDisplayMode: this.groupDisplayMode as any || 'table',
+			})
 			return r;
 		},
 		rows(): ReturnType<typeof makeRows>|null {

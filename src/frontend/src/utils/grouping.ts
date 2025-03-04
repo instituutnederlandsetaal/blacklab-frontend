@@ -321,7 +321,6 @@ export function isValidGroupBy(g: GroupBy): boolean {
 }
 
 export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<string, NormalizedAnnotation>, metadata: Record<string, NormalizedMetadataField>): string {
-	console.log('humanizeGroupBy', JSON.stringify(g));
 	if (g.type === 'context') {
 		if (!g.annotation)
 			return i18n.$t('results.groupBy.specify').toString();

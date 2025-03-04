@@ -15,7 +15,7 @@
 				:class="col.textAlignClass"
 
 				:hoverMatchInfos="hoverMatchInfos"
-				@hover="$emit('hover', {relationKeys: $event, docPid: row.doc.docPid})"
+				@hover="$emit('hover', $event)"
 				@unhover="$emit('unhover')"
 			/>
 			<td v-else-if="col.field === 'annotatedField'" class="doc-version" :key="col.key + col.field">

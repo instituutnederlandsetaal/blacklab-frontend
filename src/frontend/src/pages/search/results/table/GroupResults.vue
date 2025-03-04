@@ -30,21 +30,6 @@
 			@changeSort="changeSort"
 			@openFullConcordances="openFullConcordances"
 		/>
-<!--
-						:type="type"
-						:headers="headers"
-						:columns="columns"
-						:data="rows"
-						:maxima="maxima"
-
-						:mainAnnotation="mainAnnotation"
-						:otherAnnotations="otherAnnotations"
-						:metadata="metadata"
-
-						:query="results.summary.searchParam"
-						:disabled="disabled"
-						:html="html"
-						:dir="dir" -->
 
 		<hr>
 		<div class="text-right">
@@ -57,8 +42,6 @@
 
 <script lang="ts">
 import Vue from 'vue';
-
-import * as ResultsStore from '@/store/search/results/views';
 
 import * as BLTypes from '@/types/blacklabtypes';
 
@@ -82,10 +65,24 @@ export default Vue.extend({
 	},
 	methods: {
 		changeSort(payload: string) {
-			if (!this.disabled) { this.$emit('sort', payload === this.sort ? '-'+payload : payload); }
+			if (!this.disabled) {
+				debugger; this.$emit('sort', payload === this.sort ? '-'+payload : payload);
+			}
 		},
-		openFullConcordances(id: string, displayName: string) { this.$emit('viewgroup', {id, displayName}); },
-		changeGroupDisplayMode(payload: string) { this.$emit('groupDisplayMode', payload) }
+		openFullConcordances(id: string, displayName: string) {
+			if (!this.disabled) {
+				debugger; this.$emit('viewgroup', {id, displayName});
+			}
+		},
+		changeGroupDisplayMode(payload: string) {
+			if (!this.disabled) {
+				debugger; this.$emit('groupDisplayMode', payload)
+			}
+		},
+
+		debug() {
+			debugger;
+		}
 	},
 });
 </script>

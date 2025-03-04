@@ -336,7 +336,6 @@ export default Vue.extend({
 					options: this.tagAttributes,
 				}
 			];
-			console.log('metadata', result);
 			return result;
 		},
 
@@ -401,7 +400,6 @@ export default Vue.extend({
 				}
 				if (shouldInclude) {
 					const value = spanAttributeOptionValue(tagName, attributeName, listName);
-					console.log('spanAttributeOptionValue', value);
 					result.push({
 						label: 'Group by ' + (filter ? this.$tMetaDisplayName(filter) : this.$tWithinAttribute(tagName, attributeName)),
 						value,
@@ -411,7 +409,6 @@ export default Vue.extend({
 
 			// Check if we have a list of matches (e.g. from _with-spans(...))
 			const matchInfos = this.hits?.summary?.pattern?.matchInfos || {};
-			//console.log('matchInfos', JSON.stringify(matchInfos));
 			const listEntry = Object.entries(matchInfos).find( ([name, mi]) => mi.type === 'list');
 			const result: { label?: string, value: string, title?: string }[] = [];
 			if (listEntry) {
@@ -422,7 +419,6 @@ export default Vue.extend({
 				// Offer all span filters as grouping options, with a reference to the list,
 				// (e.g. with-spans[ab] to mean "group on the ab tag in the with-spans list")
 				const listName = listEntry[0];
-				console.log(`listName`, listName)
 				if (CorpusStore.getState().corpus!.relations.spans) {
 					Object.entries(CorpusStore.getState().corpus!.relations.spans!)
 						.forEach(([tagName, spanInfo]) => {
@@ -440,11 +436,8 @@ export default Vue.extend({
 					.filter(([_, matchInfo]) => matchInfo.type === 'tag')
 					.forEach(([tagName, matchInfo]) => {
 						const sourceInThisField = this.relationSourceInThisField(matchInfo);
-						console.log('sourceInThisField', sourceInThisField);
 						if (sourceInThisField) {
 							const spanInfo = CorpusStore.getState().corpus!.relations.spans![tagName];
-							if (!spanInfo)
-								console.log('No span info for', tagName);
 							const attr = Object.keys(spanInfo?.attributes ?? {});
 							attr.forEach(attributeName => {
 								optAdd(tagName, attributeName);
@@ -452,7 +445,6 @@ export default Vue.extend({
 						}
 					});
 			}
-			console.log('tagAttributes', result);
 			return result;
 		},
 		relationNames(): string[] {
@@ -885,7 +877,6 @@ export default Vue.extend({
 		},
 		relationSourceInThisField(v: BLSummaryMatchInfo) {
 			const field = v.fieldName ?? this.mainSearchField;
-			console.log('selectedCriterium', JSON.stringify(this.selectedCriterium));
 			return !this.selectedCriteriumAsContext?.fieldName || field === this.selectedCriteriumAsContext?.fieldName;
 		},
 		relationTargetInThisField(v: BLSummaryMatchInfo) {

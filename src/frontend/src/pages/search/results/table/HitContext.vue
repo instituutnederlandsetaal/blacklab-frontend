@@ -10,7 +10,7 @@
 				:title="title"
 				@mouseover="$emit('hover', relationKeys)"
 				@mouseout="$emit('unhover')"
-				:class="{ hoverable: true, hover: relationKeys?.some(c => hoverMatchInfos.includes(c)) }"
+				:class="{ hoverable: true, hover: !!(relationKeys && hoverMatchInfos) ? relationKeys.some(c => hoverMatchInfos.includes(c)) : false }"
 			></span
 			><span v-else v-html="text"></span
 			><span v-if="doPunct" v-html="punct"></span
@@ -26,7 +26,7 @@
 				:title="title"
 				@mouseover="$emit('hover', relationKeys)"
 				@mouseout="$emit('unhover')"
-				:class="{ hoverable: true, hover: relationKeys?.some(c => hoverMatchInfos.includes(c)) }"
+				:class="{ hoverable: true, hover: !!(relationKeys && hoverMatchInfos) ? relationKeys.some(c => hoverMatchInfos.includes(c)) : false }"
 			>{{ text }}</span
 			><template v-else>{{ text }}</template
 			><template v-if="doPunct">{{ punct }}</template
@@ -52,10 +52,7 @@ export default Vue.extend({
 		highlight: {default: true},
 
 		// which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
-		hoverMatchInfos: {
-			type: Array as () => string[],
-			default: () => [],
-		},
+		hoverMatchInfos: Array as () => string[],
 
 		before: Boolean,
 		after: Boolean,

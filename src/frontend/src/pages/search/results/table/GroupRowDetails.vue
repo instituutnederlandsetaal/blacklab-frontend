@@ -2,40 +2,37 @@
 	<tr class="concordance">
 		<td colspan="10">
 			<div class="well-light">
-				<div class="concordance-controls clearfix">
-					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
-					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
-						<Spinner v-if="concordances.loading">{{$t('results.table.loading')}}</Spinner>
-						<template v-else>{{$t('results.table.loadMoreConcordances')}}</template>
-					</button>
+				<template v-if="concordances.results">
+					<div class="concordance-controls clearfix">
+						<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
+						<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
+							<template v-if="concordances.loading"><Spinner :inline="true"/> {{$t('results.table.loading')}} HOI</template>
+							<template v-else>{{$t('results.table.loadMoreConcordances')}}</template>
+						</button>
 
-					<button type="button" class="close close-concordances" title="close" @click="$emit('close')"><span>&times;</span></button>
-				</div>
+						<button type="button" class="close close-concordances" :title="$t('results.table.close').toString()" @click="$emit('close')"><span>&times;</span></button>
+					</div>
 
+					<HitsTable v-if="type === 'hits' && concordances.results.rows.length"
+						:rows="concordances.results"
+						:info="info"
+						:cols="cols"
+					/>
+					<DocsTable v-else-if="type === 'docs' && concordances.results.rows.length"
+						:rows="concordances.results"
+						:info="info"
+						:cols="cols"
+					/>
+					<div class="concordance-controls clearfix" v-if="concordances.results?.rows.length > 10">
+						<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
+						<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
+							<template v-if="concordances.loading"><Spinner inline/> {{$t('results.table.loading')}} HOI</template>
+							<template v-else>{{$t('results.table.loadMoreConcordances')}}</template>
+						</button>
+					</div>
+				</template>
 				<div v-if="concordances.error != null" class="text-danger" v-html="concordances.error"></div>
-
-				<HitsTable v-if="type === 'hits' && concordances.results?.rows.length"
-					:data="concordances.results"
-					:info="info"
-					:cols="cols"
-				/>
-				<DocsTable v-else-if="type === 'docs' && concordances.results?.rows.length"
-					:data="concordances.results"
-					:info="info"
-					:cols="cols"
-				/>
-				<div class="concordance-controls clearfix" v-if="concordances.results && concordances.results?.rows.length > 10">
-					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
-					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
-						<template v-if="concordances.loading">
-							<span class="fa fa-spin fa-spinner"></span> {{$t('results.table.loading')}}
-						</template>
-						<template v-else>{{$t('results.table.loadMoreConcordances')}}</template>
-					</button>
-
-					<button type="button" class="close close-concordances" :title="$t('results.table.close').toString()" @click="$emit('close')"><span>&times;</span></button>
-				</div>
-
+				<Spinner v-if="!concordances.results && concordances.loading" center/>
 			</div>
 		</td>
 	</tr>
@@ -84,10 +81,10 @@ export default Vue.extend({
 		// open: Boolean
 	},
 	data: () => ({
-		concordances: null as any as PaginatedGetter<Rows&{results: BLHitResults|BLDocResults}>,
+		concordances: null as any as PaginatedGetter<Rows>,
 	}),
 	created() {
-		this.concordances = new PaginatedGetter((r, first, number) => {
+		this.concordances = new PaginatedGetter((oldRows, first, number) => {
 			// make a copy of the parameters so we don't clear them for all components using the summary
 			const requestParameters: BLSearchParameters = Object.assign({}, this.query, {
 				// Do not clear sample/samplenum/samplecount,
@@ -101,18 +98,13 @@ export default Vue.extend({
 			let {request, cancel} = this.type === 'hits' ? blacklab.getHits<BLHitResults>(INDEX_ID, requestParameters) : blacklab.getDocs<BLDocResults>(INDEX_ID, requestParameters);
 			return {
 				cancel,
-				request: request.then(newResults => {
-					if (r) { // already have results - merge into new results.
-						if (isDocResults(newResults) && isDocResults(r.results)) { r.results.docs.unshift(...newResults.docs); }
-						else if (isHitResults(newResults) && isHitResults(r.results)) { r.results.hits.unshift(...newResults.hits); Object.assign(newResults.docInfos, r.results.docInfos); }
-						else throw new Error('Unexpected results type');
-					}
-					return newResults;
+				request: request
+				.then(newResults => makeRows(newResults, this.info))
+				.then(newRows => {
+					if (!oldRows) return newRows;
+					oldRows.rows.push(...newRows.rows);
+					return oldRows;
 				})
-				.then<Rows&{results: BLHitResults|BLDocResults}>(r => ({
-					...makeRows(r, this.info),
-					results: r,
-				}))
 			}
 		}, this.row.size)
 	},
