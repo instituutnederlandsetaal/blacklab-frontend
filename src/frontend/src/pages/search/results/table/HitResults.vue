@@ -189,34 +189,4 @@ export default Vue.extend({
 	}
 }
 
-table {
-	> thead > tr > th,
-	> tbody > tr > td,
-	> tbody > tr > th {
-		&:first-child { padding-left: 6px; }
-		&:last-child { padding-right: 6px; }
-	}
-
-	&.hits-table {
-		border-collapse: separate;
-		table-layout: auto;
-		> tbody > tr {
-			border-bottom: 1px solid #ffffff;
-
-			> td {
-				overflow: hidden;
-				text-overflow: ellipsis;
-			}
-
-			&.concordance.open > td {
-				overflow: visible;
-			}
-		}
-	}
-
-	&.concordance-details-table {
-		table-layout: auto;
-	}
-}
-
 </style>

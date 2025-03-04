@@ -9,7 +9,7 @@
 					<span class="fa fa-exclamation-triangle"></span> <span v-html="error"></span>
 				</p>
 				<template v-else-if="snippet"> <!-- context is the larger surrounding context of the hit. We don't always have one (when rendering docs we only have the immediate hit) -->
-					<template v-if="hasRelations && !row.isForeign">
+					<template v-if="hasRelations && !row.annotatedField.isParallel">
 						<label v-if="sentenceAvailable">
 							<input type="checkbox" v-model="sentenceShown" class="show-sentence-checkbox" />
 							<Spinner v-if="sentenceRequest" inline style="margin-right: 0.5em"/>{{$t('results.table.showFullSentence')}}
@@ -123,7 +123,6 @@ export default Vue.extend({
 			type: Array as () => string[],
 			default: () => [],
 		},
-		// isParallel: { default: false },
 	},
 	data: () => ({
 		sentenceRequest: null as null|Promise<any>,

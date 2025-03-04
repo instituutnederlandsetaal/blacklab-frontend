@@ -1,7 +1,10 @@
 <template>
 	<tr class="concordance rounded">
 		<template v-for="col in cols.hitColumns">
-			<HitContext v-if="col.field === 'match' || col.field === 'after' || col.field === 'before' || col.field === 'annotation'" :key="col.key"
+			<td v-if="col.field === 'annotatedField'" class="doc-version" :key="col.key + col.field">
+				<a @click.stop="" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank">{{ customHitInfo }}</a> <!-- todo tidy up custom fields. -->
+			</td>
+			<HitContext v-else-if="col.field === 'match' || col.field === 'after' || col.field === 'before' || col.field === 'annotation'" :key="col.key"
 				tag=td
 				:data="row.context"
 				:bold="col.field === 'match'"
@@ -18,9 +21,6 @@
 				@hover="$emit('hover', $event)"
 				@unhover="$emit('unhover')"
 			/>
-			<td v-else-if="col.field === 'annotatedField'" class="doc-version" :key="col.key + col.field">
-				<a @click.stop="" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank">{{ customHitInfo }}</a> <!-- todo tidy up custom fields. -->
-			</td>
 			<td v-else-if="col.field === 'metadata'" :key="col.key + col.metadata.id">{{ row.doc.docInfo[col.metadata.id]?.join(', ') || '' }}</td>
 
 			<!-- TODO -->
@@ -131,64 +131,8 @@ export default Vue.extend({
 
 <style lang="scss">
 
-tr:not(.foreign-hit) + tr.foreign-hit > td {
-	padding-top: 0.6em;
-	border-top: 1px solid #666;
-}
-
-tr.foreign-hit {
-	color: #666;
-	font-style: italic;
-}
-
-tr.concordance.foreign-hit + tr.concordance:not(.foreign-hit) > td {
-	padding-top: 0.6em;
-}
-
-tr.rounded > td.doc-version {
-	padding-left: 1.5em;
-}
-
-tr.concordance {
-	> td {
-		transition: padding 0.1s;
-	}
-
-	&.open {
-		> td {
-			background: white;
-			border-top: 2px solid #ddd;
-			border-bottom: 1px solid #ddd;
-			padding-top: 8px;
-			padding-bottom: 8px;
-			&:first-child {
-				border-left: 2px solid #ddd;
-				border-top-left-radius: 4px;
-				border-bottom-left-radius: 0;
-			}
-			&:last-child {
-				border-right: 2px solid #ddd;
-				border-top-right-radius: 4px;
-				border-bottom-right-radius: 0;
-			}
-		}
-	}
-	&-details {
-		> td {
-			background: white;
-
-			border-top: none;
-			border-bottom: 2px solid #ddd;
-			border-radius: 0;
-			&:first-child { border-left: 2px solid #ddd; border-bottom-left-radius: 4px; }
-			&:last-child { border-right: 2px solid #ddd; border-bottom-right-radius: 4px; }
-
-			padding: 15px 20px;
-			> p {
-				margin: 0 6px 10px;
-			}
-		}
-	}
+td.doc-version {
+	padding-left: 1.5em!important;
 }
 
 </style>
