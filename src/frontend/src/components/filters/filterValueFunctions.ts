@@ -1,11 +1,10 @@
-import { unescapeLucene, escapeLucene, splitIntoTerms, mapReduce, cast } from '@/utils';
+import { unescapeLucene, escapeLucene, splitIntoTerms, mapReduce, cast, spanFilterId } from '@/utils';
 import { FilterValue, Option } from '@/types/apptypes';
 import { ASTNode, ASTRange } from 'lucene-query-parser';
 // @ts-ignore - weird this doesn't work during builds
 import { modes } from './FilterRangeMultipleFields.vue';
 import { FullFilterState } from '@/store/search/form/filters';
 import { debugLog } from '@/utils/debug';
-
 
 /** month (m) and day (d) may be empty strings. Month field starts at 1 instead of javascript Date's 0. */
 export type DateValue = {
@@ -43,9 +42,16 @@ type FilterValueFunctions<M, V> = {
 	 * If a custom filter wants to take "ownership" of a decoded filter value, it should delete the value from the map, to prevent
 	 * later (inbuilt) filters from decoding it.
 	 */
-	decodeInitialState(id: string, filterMetadata: M, filterValues: Record<string, FilterValue|undefined>, ast: ASTNode): V|null,
+	decodeInitialState(id: string, filterMetadata: M, filterValues: Record<string, FilterValue|undefined>, ast: ASTNode|null): V|null,
+	/** For document-level filters: return the Lucene filter query */
 	luceneQuery(id: string, filterMetadata: M, value: V|null): string|null;
+	/** For all filter types: summarize what filter will be applied */
 	luceneQuerySummary(id: string, filterMetadata: M, value: V|null): string|null;
+	/** Is this filter currently active? */
+	isActive(id: string, filterMetadata: M, value: V|null): boolean;
+	/** Is this a span-based filter, i.e. selecting parts documents instead of entire documents?
+	 *  (i.e. filter on speaker in documents with multiple speakers; done using a "within" BCQL query) */
+	isSpanFilter?: boolean;
 };
 
 /**
@@ -74,7 +80,7 @@ type FilterValueFunctions<M, V> = {
  * }
  * ```
  */
-function getFieldValues(ast: ASTNode, field1: string, field2: string): {
+function getFieldValues(ast: ASTNode|null, field1: string, field2: string): {
 	field1: {
 		low: string,
 		high: string,
@@ -85,6 +91,9 @@ function getFieldValues(ast: ASTNode, field1: string, field2: string): {
 	},
 	mode: 'permissive'|'strict';
 }|null {
+	if (ast === null)
+		return null;
+
 	function isRange(n: any): n is ASTRange {
 		return  !!(n && 'field' in n && 'term_min' in n);
 	}
@@ -211,6 +220,9 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		luceneQuerySummary(id, filterMetadata, value) {
 			const split = value ? splitIntoTerms(value, true) : [];
 			return split.map(t => (t.isQuoted || split.length > 1) ? `"${t.value}"` : t.value).join(', ') || null;
+		},
+		isActive(id, filterMetadata, value) {
+			return this.luceneQuery(id, filterMetadata, value) !== null;
 		}
 	}),
 	'filter-checkbox': cast<FilterValueFunctions<Option[], Record<string, boolean>>>({
@@ -237,6 +249,9 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 				.map(([value, isSelected]) => filterMetadata.find(option => option.value === value)?.label || value);
 
 			return selected.length >= 2 ? selected.map(v => `"${v}"`).join(', ') : selected[0] || null;
+		},
+		isActive(id, filterMetadata, value) {
+			return this.luceneQuery(id, filterMetadata, value) !== null;
 		}
 	}),
 	'filter-radio': cast<FilterValueFunctions<Option[], string>>({
@@ -256,6 +271,9 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
 			return filterMetadata.find(option => option.value === value)?.label || value || null;
+		},
+		isActive(id, filterMetadata, value) {
+			return this.luceneQuery(id, filterMetadata, value) !== null;
 		}
 	}),
 	'filter-range': cast<FilterValueFunctions<never, { low: string; high: string; }>>({
@@ -275,6 +293,9 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
 			return (value && (value.low != null || value.high != null)) ? `${value.low || '0'} - ${value.high || '9999'}` : null;
+		},
+		isActive(id, filterMetadata, value) {
+			return this.luceneQuery(id, filterMetadata, value) !== null;
 		}
 	}),
 	'filter-range-multiple-fields': cast<FilterValueFunctions<{low: string, high: string}, {low: string, high: string, mode: 'permissive'|'strict'}>>({
@@ -315,6 +336,9 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 
 			const luceneQuery = this.luceneQuery(id, filterMetadata, value);
 			return luceneQuery ? `${lowValue.padStart(longestValue, '0')}-${highValue.padStart(longestValue, '0')}` : null;
+		},
+		isActive(id, filterMetadata, value) {
+			return this.luceneQuery(id, filterMetadata, value) !== null;
 		}
 	}),
 	'filter-select': cast<FilterValueFunctions<Option[], string[]>>({
@@ -337,6 +361,9 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 				return filterMetadata.find(option => option.value === v)?.label || v;
 			});
 			return asDisplayValues.length >= 2 ? asDisplayValues.map(v => `"${v}"`).join(', ') : asDisplayValues[0] || null;
+		},
+		isActive(id, filterMetadata, value) {
+			return this.luceneQuery(id, filterMetadata, value) !== null;
 		}
 	}),
 	'filter-text': cast<FilterValueFunctions<never, string>>({
@@ -350,6 +377,9 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		luceneQuerySummary(id, filterMetadata, value) {
 			const split = value ? splitIntoTerms(value, true) : [];
 			return split.map(t => (t.isQuoted || split.length > 1) ? `"${t.value}"` : t.value).join(', ') || null;
+		},
+		isActive(id, filterMetadata, value) {
+			return this.luceneQuery(id, filterMetadata, value) !== null;
 		}
 	}),
 	'filter-date': cast<FilterValueFunctions<FilterDateMetadata, FilterDateValue>>({
@@ -417,8 +447,90 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			end = DateUtils.luceneToDisplayString(end);
 			return (start !== end) ? start + ' to ' + end : start;
 		},
-	})
+		isActive(id, filterMetadata, value) {
+			return this.luceneQuery(id, filterMetadata, value) !== null;
+		}
+	}),
+	'span-text': cast<FilterValueFunctions<{name?: string, attribute?: string}, string>>({
+		decodeInitialState(id, filterMetadata, filterValues) {
+			const name = filterMetadata['name'] || 'span';
+			const attribute = filterMetadata['attribute'] || 'value';
+			return filterValues[spanFilterId(name, attribute)]?.values[0] || null;
+		},
+		luceneQuery(id, filterMetadata, value) {
+			return null; // not a document level filter
+		},
+		luceneQuerySummary(id, filterMetadata, value) {
+			return value ?? null;
+		},
+		isActive(id, filterMetadata, value) {
+			return !!value;
+		},
+		isSpanFilter: true
+	}),
+	'span-select': cast<FilterValueFunctions<{name?: string, attribute?: string, options: Option[]}|Option[], string[]>>({
+		decodeInitialState(id, filterMetadata, filterValues) {
+			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
+			const name = filterMetadata['name'] || 'span';
+			const attribute = filterMetadata['attribute'] || 'value';
+			return (filterValues[spanFilterId(name, attribute)]?.values) || null;
+		},
+		luceneQuery(id, filterMetadata, value) {
+			return null; // not a document level filter
+		},
+		luceneQuerySummary(id, filterMetadata, value) {
+			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
+			const options: Option[] = filterMetadata.options;
+			const asDisplayValues = (value || []).map(v => {
+				return options.find(option => option.value === v)?.label || v;
+			});
+			return asDisplayValues.length >= 2 ? asDisplayValues.map(v => `"${v}"`).join(', ') : asDisplayValues[0] || null;
+		},
+		isActive(id, filterMetadata, value) {
+			return !!(value && value.length > 0);
+		},
+		isSpanFilter: true
+	}),
+	'span-range': cast<FilterValueFunctions<{name?: string, attribute?: string}, { low: number|null, high: number|null }>>({
+		decodeInitialState(id, filterMetadata, filterValues) {
+			const name = filterMetadata['name'] || 'span';
+			const attribute = filterMetadata['attribute'] || 'value';
+			const key = spanFilterId(name, attribute);
+			const v = filterValues[key]?.values ?? [null, null];
+			return {
+				low: v[0] ? parseInt(v[0]) : null,
+				high: v[1] ? parseInt(v[1]) : null
+			};
+		},
+		luceneQuery(id, filterMetadata, value) {
+			return null; // not a document level filter
+		},
+		luceneQuerySummary(id, filterMetadata, values) {
+			return values ? `${values.low || 0}-${values.high || 9999}` : null;
+		},
+		isActive(id, filterMetadata, values) {
+			return !!(values && (values.low || values.high));
+		},
+		isSpanFilter: true
+	}),
 };
+
+/** Get the right set of functions for a filter, based on its
+ *  behaviourName, or if that's not set, its componentName. */
+export function getValueFunctions(filter: { behaviourName?: string, componentName?: string }): FilterValueFunctions<any, any> {
+	const name = filter.behaviourName ?? filter.componentName ?? 'ERROR';
+	const func = valueFunctions[name];
+	if (func)
+		return func;
+	// Referencing nonexistent filter functions; report and return a dummy value
+	console.error(`No value functions for filter ${name}; returning dummy`);
+	return {
+		decodeInitialState: () => null,
+		luceneQuery: () => null,
+		luceneQuerySummary: () => null,
+		isActive: () => false
+	};
+}
 
 /**
  * Converts the active filters into a parameter string blacklab-server can understand.
@@ -436,13 +548,16 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
  */
 export function getFilterString(filters: FullFilterState[]): string|undefined {
 	return filters
-		.map(f => valueFunctions[f.componentName].luceneQuery(f.id, f.metadata, f.value))
+		.map(f => getValueFunctions(f).luceneQuery(f.id, f.metadata, f.value))
 		.filter(lucene => !!lucene).join(' AND ') || undefined;
 }
 
 // NOTE: range filter has hidden defaults for unset field (min, max), see https://github.com/INL/corpus-frontend/issues/234
 export const getFilterSummary = (filters: FullFilterState[]): string|undefined => filters
-	.map(f => ({f, summary: valueFunctions[f.componentName].luceneQuerySummary(f.id, f.metadata, f.value)}))
+	.map(f => {
+		const vf = getValueFunctions(f);
+		return ({f, summary: vf.isSpanFilter ? null : vf.luceneQuerySummary(f.id, f.metadata, f.value)})
+	})
 	.filter(f => !!f.summary)
 	.map(f => `${f.f.defaultDisplayName}: ${f.summary}`)
 	.join(', ') || undefined;

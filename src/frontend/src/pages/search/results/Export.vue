@@ -4,7 +4,7 @@
 			type="button"
 			class="btn btn-default btn-sm"
 			:disabled="downloadInProgress || disabled"
-			:title="downloadInProgress ? $t('results.export.downloading') : $t('results.export.csvTooltip')"
+			:title="(downloadInProgress ? $t('results.export.downloading') : $t('results.export.csvTooltip')).toLocaleString()"
 
 			@click="downloadCsv(false)"
 		>
@@ -15,7 +15,7 @@
 			type="button"
 			class="btn btn-default btn-sm"
 			:disabled="downloadInProgress || disabled"
-			:title="downloadInProgress ? $t('results.export.downloading') : $t('results.export.excelTooltip')"
+			:title="(downloadInProgress ? $t('results.export.downloading') : $t('results.export.excelTooltip')).toLocaleString()"
 
 			@click="downloadCsv(true)"
 		>
@@ -48,7 +48,10 @@ import {saveAs} from 'file-saver';
 import * as Api from '@/api';
 
 import { BLSearchResult } from '@/types/blacklabtypes';
+import * as UIStore from '@/store/search/ui';
+import * as CorpusStore from '@/store/search/corpus';
 import { debugLog } from '@/utils/debug';
+import { ensureCompleteFieldName, getParallelFieldName, getParallelFieldParts, isParallelField } from '@/utils';
 
 export default Vue.extend({
 	props: {
@@ -75,6 +78,12 @@ export default Vue.extend({
 			if (this.metadata) params.listmetadatavalues = this.metadata.join(',');
 			(params as any).csvsepline = !!excel;
 			(params as any).csvsummary = true;
+			const fieldDisplayName = (name: string, baseFieldName: string = '') => {
+				const defaultField = this.results.summary.pattern?.fieldName ?? CorpusStore.get.mainAnnotatedField();
+				name = ensureCompleteFieldName(name, defaultField); // don't just pass version name
+				return this.$td(`index.annotatedFields.${name}`, name);
+			}
+			(params as any).csvdescription = UIStore.corpusCustomizations.results.csvDescription(this.results.summary, fieldDisplayName) || '';
 
 			debugLog('starting csv download', this.type, params);
 			apiCall(INDEX_ID, params).request

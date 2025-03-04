@@ -9,13 +9,15 @@ import { getStoreBuilder } from 'vuex-typex';
 
 import { RootState } from '@/store/search/';
 import * as CorpusModule from '@/store/search/corpus';
+import * as UIStore from '@/store/search/ui';
+import * as FilterStore from '@/store/search/form/filters';
 
 import { FilterDefinition } from '@/types/apptypes';
 
 import { debugLog } from '@/utils/debug';
 import { blacklabPaths } from '@/api';
-import { mapReduce } from '@/utils';
-import { getFilterString, getFilterSummary, valueFunctions } from '@/components/filters/filterValueFunctions';
+import { mapReduce, unescapeRegex } from '@/utils';
+import { getFilterString, getFilterSummary, getValueFunctions, valueFunctions } from '@/components/filters/filterValueFunctions';
 
 export type FilterState = {
 	value: any|null;
@@ -23,19 +25,25 @@ export type FilterState = {
 
 export type FullFilterState = FilterDefinition<any, any>&FilterState;
 
+/** A group of metadata filters (i.e. a tab in the search interface) */
+export type FilterGroupType = {
+	/** Name on the tab */
+	tabname: string;
+	/** Groups of related fields on this tab ("subtabs") */
+	subtabs: Array<{
+		tabname?: string;
+		fields: string[];
+	}>;
+	/** Filter query that is always included if this filter group (tab) is active. */
+	query?: Record<string, string[]>;
+};
+
 type ModuleRootState = {
 	filters: {
 		[filterId: string]: FullFilterState;
 	},
 	// Differently structured from the normal BlackLab MetadataFieldGroups, because we allow inserting subheaders between fields, and activating a query on tab activation
-	filterGroups: Array<{
-		tabname: string;
-		subtabs: Array<{
-			tabname?: string;
-			fields: string[];
-		}>;
-		query?: Record<string, string[]>;
-	}>
+	filterGroups: FilterGroupType[];
 };
 
 type ExternalModuleRootState = ModuleRootState['filters'];
@@ -54,7 +62,7 @@ const getState = b.state();
 
 const get = {
 	/** Return all filters holding a value */
-	activeFilters: b.read(state => Object.values(state.filters).filter(f => valueFunctions[f.componentName].luceneQuery(f.id, f.metadata, f.value)), 'activeFilters'),
+	activeFilters: b.read(state => Object.values(state.filters).filter(f => getValueFunctions(f).isActive(f.id, f.metadata, f.value)), 'activeFilters'),
 	/** Return activeFilters as associative map instead of array */
 	activeFiltersMap: b.read(state => {
 		const activeFilters: FullFilterState[] = get.activeFilters();
@@ -124,7 +132,14 @@ const actions = {
 		Vue.set<FullFilterState>(state.filters, filter.id, {...filter, value: null});
 	}, 'registerFilter'),
 
-	filterValue: b.commit((state, {id, value}: Pick<FullFilterState, 'id'|'value'>) => state.filters[id].value = value != null ? value : null, 'filter_value'),
+	filterValue: b.commit((state, {id, value}: Pick<FullFilterState, 'id'|'value'>) => {
+		const filterObj = state.filters[id];
+		if (!filterObj) {
+			console.error(`Filter ${id} does not exist`);
+		}
+		return (filterObj.value = value != null ? value : null);
+	}, 'filter_value'),
+
 	// filterLucene: b.commit((state, {id, lucene}: Pick<FullFilterState, 'id'|'lucene'>) => state.filters[id].lucene = lucene || null , 'filter_lucene'),
 	// filterSummary: b.commit((state, {id, summary}: Pick<FullFilterState, 'id'|'summary'>) => state.filters[id].summary = summary || null, 'filter_summary'),
 	reset: b.commit(state => Object.keys(state.filters).forEach(k => {
@@ -193,6 +208,18 @@ const init = () => {
 			});
 		});
 	});
+
+	// Make sure we register all fields in any custom tabs
+	UIStore.corpusCustomizations.search.metadata._customTabs
+		.map(t => ({ name: t.name, fields: t.fields ?? t.subtabs.flatMap( (s: any) => s.fields)})) // flatten subtabs
+		.map(t => t.fields.map( (f: any) => ({ groupId: t.name, ...f })) ) // fill in missing groupId if any
+		.flat() // flatten tabs
+		.filter(f => f.id)
+		.forEach(f => {
+			actions.registerFilter({
+				filter: f as FilterDefinition
+			});
+		});
 
 	debugLog('Finished initializing filter module state shape');
 };

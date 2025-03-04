@@ -132,6 +132,7 @@ $(document).ready(async () => {
 			await runHook('beforeStateLoaded')
 			const stateFromUrl = await new UrlStateParser(FilterStore.getState().filters).get();
 			RootStore.actions.replace(stateFromUrl);
+
 			// Don't do this before the url is parsed, as it controls the page url (among other things derived from the state).
 			connectStreamsToVuex();
 		},

@@ -1,7 +1,9 @@
 {
 	"widgets": {
 		"learnMore": "Learn more",
-		"clickToRemove": "Click to remove"
+		"clickToRemove": "Click to remove",
+		"selectValue": "Select a value...",
+		"selectValues": "Select value(s)..."
 	},
 	"search": {
 		"heading": "搜索方式",
@@ -205,7 +207,8 @@
 				"theFirstWord": "第一个词",
 				"allWords": "所有词",
 				"specificWords": "特定词",
-				"captureGroupsLabel": "标签和关系"
+				"captureGroupsLabel": "标签和关系",
+				"spanFiltersLabel": "Span filters"
 			},
 			"in_this_location": {
 				"beforeTheHit": "命中前",
@@ -230,7 +233,7 @@
 
 			"caseSensitive": "区分大小写",
 			"chooseWordPositions": "在这里选择要分组的<strong>特定单词</strong>位置，上方的预览将显示您选择了哪些单词。",
-			"selectDocumentMetadata": "选择要分组的文档元数据",
+			"selectDocumentMetadata": "选择要分组的元数据",
 			"clickButtonsToStart": "在此窗口中，您可以对结果应用分组。单击左侧的按钮创建分组标准以开始。",
 			"metadata": "元数据",
 			"annotation": "标注",

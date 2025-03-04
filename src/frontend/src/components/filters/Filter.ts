@@ -31,7 +31,9 @@ const baseFilter = Vue.extend({
 		description(): string|undefined { return this.$tMetaDescription(this.definition); },
 		/** Return the options but with their localized labels */
 		options(): Option[]|undefined {
-			return Array.isArray(this.definition.metadata) ? this.definition.metadata : undefined;
+			if (Array.isArray(this.definition.metadata))
+				return this.definition.metadata;
+			return this.definition.metadata.options;
 		}
 	},
 });

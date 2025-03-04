@@ -1,3 +1,4 @@
+// Define a few pipelines to perform actions on streams of data
 import URI from 'urijs';
 
 import { ReplaySubject, Observable, merge, fromEvent, Notification, from, UnsubscriptionError } from 'rxjs';
@@ -33,7 +34,7 @@ type QueryState = {
 
 const metadata$ = new ReplaySubject<string|undefined>(1);
 const submittedMetadata$ = new ReplaySubject<string|undefined>(1);
-const url$ = new ReplaySubject<QueryState>(1);
+const urlInputParameters$ = new ReplaySubject<QueryState>(1);
 
 // TODO handle errors gracefully, right now the entire stream is closed permanently.
 
@@ -140,7 +141,9 @@ export const submittedSubcorpus$ = submittedMetadata$.pipe(
 	shareReplay(1),
 );
 
-url$.pipe(
+// Pipeline that will generate a new frontend URL and push it to the browser history whenever
+// the root store state changes in a way that affects the query parameters.
+urlInputParameters$.pipe(
 	// Generate the new page url and add it to the data flowing through the stream
 	map<QueryState, QueryState&{
 		/**
@@ -264,7 +267,7 @@ url$.pipe(
 			patterns: query.form === 'search' ? {
 				...PatternStore.defaults,
 				[query.subForm]: query.formState,
-				parallelFields: query.parallelFields,
+				shared: query.shared,
 			} : PatternStore.defaults,
 			interface: {
 				form: query.form ? query.form : 'search',
@@ -287,7 +290,11 @@ url$.pipe(
 .subscribe(v => {
 	if (showDebugCat('history'))
 		debugLog('Adding/updating query in query history, adding browser history entry, and reporting to ga', v.url, v.entry);
-	HistoryStore.actions.addEntry({entry: v.entry, pattern: v.params && v.params.patt, url: v.url});
+	HistoryStore.actions.addEntry({
+		entry: v.entry,
+		pattern: v.params && v.params.patt,
+		url: v.url
+	});
 	debugLogCat('history', `Calling pushState with entry: ${JSON.stringify(v.entry)} and url: ${v.url}`);
 	history.pushState(v.entry, '', v.url);
 
@@ -324,7 +331,8 @@ export default () => {
 			}
 		}),
 		(cur, prev) => {
-			url$.next(cloneDeep(cur));
+			// update the frontend URL according to the changes in the store
+			urlInputParameters$.next(cloneDeep(cur));
 			// @ts-ignore
 			if ( Vue.$plausible &&
 				(cur.params?.patt || cur.params?.filter) &&

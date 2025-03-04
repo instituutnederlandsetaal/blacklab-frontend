@@ -56,13 +56,12 @@ public class ArticleUtil {
     }
 
     public Result<String, QueryException> getDocumentContent(WebsiteConfig corpusConfig, GlobalConfig config, String docId, PaginationInfo page) {
-
         // Search a different field than the one we're displaying content from?
         // (used for parallel corpora, where a query can return hits from a different field than the one that was searched,
         //  e.g. search the contents__en field using query rfield('the' -->nl _, 'nl') to find the Dutch translation of 'the')
-        Optional<String> fieldToShow = getParameter("field", request); // required
-        Optional<String> fieldToSearch = getParameter("searchfield", request); // optional, only if different
-        Optional<String> queryTargetField = fieldToSearch.isPresent() ? fieldToShow : Optional.empty();
+        Optional<String> fieldToShow = getParameter("field", request); // optional - if different from the default field (left up BlackLab)
+        Optional<String> fieldToSearch = getParameter("searchfield", request) ; // optional, if different from default field.
+        Optional<String> queryTargetField = fieldToSearch.isPresent() && !fieldToSearch.equals(fieldToShow) ? fieldToShow : Optional.empty();
 
         return new BlackLabApi(request, response, config)
             .getDocumentContents(
@@ -86,8 +85,12 @@ public class ArticleUtil {
 
     /**
      * Optionally request hits from a specific target field (parallel corpora).
-     *
+     * By default BlackLab will return hits in all versions of the document.
      * This is done by adding <code>rfield(..., targetField)</code> to the query.
+     *
+     * NOTE KOEN: not sure why we need to this in client code...
+     * why can't BlackLab do this itself? Will the wrong hits become highlighted if we don't do this?
+     * And what even happens if we don't do this...?
      */
     private Optional<String> optTargetField(Optional<String> query, Optional<String> targetfield) {
         if (query.isPresent() && targetfield.isPresent()) {
@@ -201,7 +204,7 @@ public class ArticleUtil {
         Optional<Integer> pageStart = getIntParameter("wordstart", request);
         Optional<Integer> pageEnd = getIntParameter("wordend", request);
         Optional<Integer> hitStart = getIntParameter("findhit", request);
-        String field = getParameter("field", request).orElse(null);
-        return new PaginationInfo(pageSize, documentMetadata, pageStart, pageEnd, hitStart, field);
+        Optional<String>  fieldToShow = getParameter("field", request);
+        return new PaginationInfo(pageSize, documentMetadata, pageStart, pageEnd, hitStart, fieldToShow);
     }
 }

@@ -249,8 +249,15 @@ export type FilterDefinition<MetadataType = any, ValueType = any> = {
 	defaultDescription?: string;
 	/** Name of the component, for filters generated from the blacklab index metadata, `filter-${uiType}` */
 	componentName: string;
+
+	/** If defined, overrides the component name when determining how the widget should behave.
+	 *  (by default, all widgets behave as document-level metadata widgets)
+	 */
+	behaviourName?: string;
+
 	/** The group this filter is part of, only for ui purposes. */
 	groupId?: string;
+
 	/**
 	 * Other info the filter component may require, such as options in a dropdown list for a filter of type Select.
 	 * This is usually empty for the normal text, range, autocomplete types. But for select, radio, and checkbox this contains the available options.

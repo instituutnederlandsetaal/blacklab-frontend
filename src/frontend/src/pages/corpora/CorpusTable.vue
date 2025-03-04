@@ -18,7 +18,7 @@
 			<tbody><template v-for="corpus in withExtraInfo">
 				<tr>
 					<td><a :title="`Search the '${corpus.displayName}' corpus`" :class="`icon fa fa-search ${!corpus.canSearch ? 'disabled' : ''}`" :href="corpus.canSearch ? corpus.searchUrl : undefined"></a></td>
-					<td class="corpus-name"><a :title="`Search the '${corpus.displayName}' corpus`" :class="`${!corpus.canSearch ? 'disabled' : ''}`" :href="corpus.canSearch ? corpus.searchUrl : undefined">{{corpus.displayName}} {{corpus.statusText}}</a></td>
+					<td class="corpus-name"><a :title="`Search the '${corpus.displayName}' corpus`" :class="`${!corpus.canSearch ? 'disabled' : ''}`" :href="corpus.canSearch ? corpus.searchUrl : undefined">{{corpusDisplayName(corpus)}} {{corpus.statusText}}</a></td>
 					<td>{{corpus.sizeString}}</td>
 					<template v-if="isPrivate">
 						<td><a role="button" :title="`Upload documents to the '${corpus.displayName}' corpus`" :class="`icon fa fa-fw fa-cloud-upload ${!corpus.canIndex? 'disabled' : ''}`" @click="$emit('upload', corpus.id)"></a></td>
@@ -125,6 +125,12 @@ export default Vue.extend({
 		}
 	},
 	methods: {
+		corpusDisplayName(corpus: IndexWithExtraInfo) {
+			// Check if corpus displayName is unique
+			const otherCorpora = this.withExtraInfo.filter(c => c.id !== corpus.id);
+			const isUnique = otherCorpora.every(c => c.displayName !== corpus.displayName);
+			return isUnique ? corpus.displayName : corpus.displayName + ' (' + corpus.id + ')';
+		},
 		// 2695798 becomes 2,6M, etc.
 		abbrNumber(n: number|null|undefined) {
 			if (n == null) {

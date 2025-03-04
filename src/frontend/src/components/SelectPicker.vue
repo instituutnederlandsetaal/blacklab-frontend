@@ -56,7 +56,7 @@
 			@click="isOpen ? doClose() : doOpen($refs.focusOnClickOpen)"
 			@keydown.tab="doClose()/*focus shifts to next element, close menu*/"
 			@keydown.esc="doClose()"
-			@keydown.prevent.enter="$event.target.click()/*stop to prevent submitting any parent form*/"
+			@keydown.prevent.enter="clickTarget($event)/*stop to prevent submitting any parent form*/"
 
 			ref="focusOnEscClose"
 		>
@@ -65,7 +65,7 @@
 				<span class="menu-value" v-else :title="displayValues.join(',')">{{displayValues.join(', ')}}</span>
 			</template>
 			<span v-else class="menu-value placeholder">
-				{{ placeholder || $attrs.title || (multiple ? 'Select values...' : 'Select a value...')}}
+				{{ placeholder || $attrs.title || $t(multiple ? 'widgets.selectValues' : 'widgets.selectValue')}}
 			</span>
 			<span v-if="loading" class="menu-icon fa fa-spinner fa-spin text-muted"></span>
 			<span v-else-if="!showValues && multiple && showValueCount" :class="['menu-icon badge',{'active': displayValues.length}]">
@@ -796,6 +796,10 @@ export default Vue.extend({
 				deselectedValues.forEach(v => Vue.delete(this.internalModel, v));
 				newSelectedValues.forEach(v => Vue.set(this.internalModel, v, true));
 			}
+		},
+		/** This method exists just to deal with weirdness with TypeScript in Vue templates. */
+		clickTarget(event: Event) {
+			return event.target && (event.target as HTMLElement).click();
 		}
 	},
 	watch: {

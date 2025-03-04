@@ -13,16 +13,22 @@ import * as UIStore from '@/store/search/ui';
 
 import { debugLog, debugLogCat } from '@/utils/debug';
 
-import { AnnotationValue } from '@/types/apptypes';
+import { AnnotationValue, Option } from '@/types/apptypes';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
-	parallelFields: {
+	shared: {
 		/** Id of the annotated field that is the source we're searching in */
 		source: string|null,
 		/** Ids of the annotated fields that we're comparing to */
 		targets: string[],
 		alignBy: string|null,
+
+		/** Selected element in Within widget (extended/advanced) */
+		within: string|null,
+
+		/** Attribute values entered in Within widget, if any (extended/advanced) */
+		withinAttributes: Record<string, string>,
 	},
 	simple: {
 		annotationValue: AnnotationValue
@@ -33,8 +39,7 @@ type ModuleRootState = {
 				[annotationId: string]: AnnotationValue
 			// }
 		},
-		within: string|null,
-		withinAttributes: Record<string, string>,
+
 		splitBatch: boolean,
 	},
 	advanced: {
@@ -54,18 +59,18 @@ type ModuleRootState = {
 // Then: the basic state shape with the appropriate annotation and filters created
 // Finally: the values initialized from the page's url on first load.
 const defaults: ModuleRootState = {
-	parallelFields: {
+	shared: {
 		source: null,
 		targets: [],
 		alignBy: null,
+		within: null,
+		withinAttributes: {},
 	},
 	simple: {
 		annotationValue: {case: false, id: '', value: '', type: 'text'}
 	},
 	extended: {
 		annotationValues: {},
-		within: null,
-		withinAttributes: {},
 		splitBatch: false,
 	},
 	advanced: {
@@ -97,7 +102,7 @@ const get = {
 	simple: b.read(state => state.simple, 'simple'),
 
 	/** Selected parallel source and target versions. Note that these are the full ids of the annotatedFields (e.g. "contents__nl") */
-	parallelAnnotatedFields: b.read(state => state.parallelFields, 'parallelFields'),
+	shared: b.read(state => state.shared, 'shared'),
 };
 
 const privateActions = {
@@ -107,15 +112,14 @@ const privateActions = {
 			Vue.set(state.extended.annotationValues, payload.id, payload), 'annotation_init_extended'),
 	initSimpleAnnotation: b.commit((state, payload: ModuleRootState['simple']) => Object.assign<ModuleRootState['simple'],
 			ModuleRootState['simple']>(state.simple, payload), 'annotation_init_simple'),
-	initParallel: b.commit((state, payload: ModuleRootState['parallelFields']) => Object.assign<ModuleRootState['parallelFields'],
-			ModuleRootState['parallelFields']>(state.parallelFields, payload), 'parallelFiels_init'),
+	initShared: b.commit((state, payload: ModuleRootState['shared']) => Vue.set(state, 'shared', payload), 'init_shared'),
 };
 
 const setTargetFields = (state: ModuleRootState, payload: string[]): string[] => {
 	// sanity check:
 	if (payload.find(annotatedFieldId => !CorpusStore.get.parallelAnnotatedFieldsMap()[annotatedFieldId])) {
 		console.error('Tried to set target fields to non-existent annotated field, maybe mixup between version and annotatedField');
-		return state.parallelFields.targets;
+		return state.shared.targets;
 	}
 
 	if (payload && payload.length > 0) {
@@ -126,27 +130,27 @@ const setTargetFields = (state: ModuleRootState, payload: string[]): string[] =>
 			state.expert.targetQueries.push('');
 		}
 	}
-	return Vue.set(state.parallelFields, 'targets', payload);
+	return Vue.set(state.shared, 'targets', payload);
 };
 
 const actions = {
-	parallelFields: {
+	shared: {
 		sourceField: b.commit((state, payload: string|null) => {
 			if (payload && !CorpusStore.get.parallelAnnotatedFieldsMap()[payload]) {
 				console.error('Tried to set source version to non-existent annotated field. Ignoring');
 				return;
 			}
-			return (state.parallelFields.source = payload);
-		}, 'parallelFields_source_version'),
+			return (state.shared.source = payload);
+		}, 'shared_source_version'),
 		addTarget: b.commit((state, version: string) => {
-			debugLogCat('parallel', `parallelFields.addTargetVersion: Adding ${version}`);
+			debugLogCat('parallel', `shared.addTargetVersion: Adding ${version}`);
 			if (!version) {
 				console.warn('tried to add null target version');
 				return;
 			}
-			const payload = state.parallelFields.targets.concat([version]);
+			const payload = state.shared.targets.concat([version]);
 			return setTargetFields(state, payload);
-		}, 'parallelFields_addTarget'),
+		}, 'shared_addTarget'),
 		removeTarget: b.commit((state, version: string) => {
 			if (!CorpusStore.get.parallelAnnotatedFieldsMap()[version]) {
 				console.error('Tried to remove non-existent target version');
@@ -154,12 +158,12 @@ const actions = {
 			}
 
 			debugLogCat('parallel', `parallelFields.removeTargetVersion: Removing ${version}`);
-			const index = state.parallelFields.targets.indexOf(version);
+			const index = state.shared.targets.indexOf(version);
 			if (index < 0) {
 				console.warn('tried to remove non-existent target version');
 				return;
 			}
-			state.parallelFields.targets.splice(index, 1);
+			state.shared.targets.splice(index, 1);
 			if (state.advanced.targetQueries.length > index)
 				state.advanced.targetQueries.splice(index, 1);
 			if (state.expert.targetQueries.length > index)
@@ -167,16 +171,24 @@ const actions = {
 		}, 'parallelFields_removeTarget'),
 		targetFields: b.commit(setTargetFields, 'parallelFields_targets'),
 		alignBy: b.commit((state, payload: string|null) => {
-			return (state.parallelFields.alignBy = payload == null ? UIStore.getState().search.shared.alignBy.defaultValue : payload);
-		}, 'parallelFields_align_by'),
+			return (state.shared.alignBy = payload == null ? UIStore.getState().search.shared.alignBy.defaultValue : payload);
+		}, 'shared_align_by'),
+		within: b.commit((state, payload: string|null) => {
+			return (state.shared.within = payload);
+		}, 'shared_within'),
+		withinAttributes: b.commit((state, payload: Record<string, string>) => {
+			return (state.shared.withinAttributes = payload);
+		}, 'shared_within_attributes'),
 		reset: b.commit(state => {
 			const defaultSourceField = CorpusStore.get.parallelAnnotatedFields()[0]?.id;
-			debugLogCat('parallel', `parallelFields.reset: Selecting default source version ${defaultSourceField}`);
-			state.parallelFields.source = defaultSourceField;
-			state.parallelFields.targets = [];
+			debugLogCat('shared', `shared.reset: Selecting default source version ${defaultSourceField}`);
+			state.shared.source = defaultSourceField;
+			state.shared.targets = [];
 			const v = UIStore.getState().search.shared.alignBy.defaultValue;
-			state.parallelFields.alignBy = v;
-		}, 'parallelFields_reset'),
+			state.shared.alignBy = v;
+			state.shared.within = null;
+			state.shared.withinAttributes = {};
+		}, 'shared_reset'),
 	},
 	simple: {
 		annotation: b.commit((state, {id, type, ...safeValues}: Partial<AnnotationValue>&{id: string}) => {
@@ -193,27 +205,12 @@ const actions = {
 			// Never overwrite annotatedFieldId or type, even when they're submitted through here.
 			Object.assign(state.extended.annotationValues[id], safeValues);
 		}, 'extended_annotation'),
-		within: b.commit((state, payload: string|null) => {
-			if (payload !== state.extended.within) {
-				state.extended.within = payload;
-				state.extended.withinAttributes = {};
-			}
-		}, 'extended_within'),
-		withinAttributes: b.commit((state, payload: Record<string, string>) => {
-			state.extended.withinAttributes = payload;
-		}, 'extended_within_attributes'),
-		setWithinAttribute: b.commit((state, payload: {name: string, value: string}) => {
-			if (payload.value === '' || payload.value === null || payload.value === undefined)
-				delete state.extended.withinAttributes[payload.name];
-			state.extended.withinAttributes[payload.name] = payload.value;
-		}, 'extended_set_within_attribute'),
 		splitBatch: b.commit((state, payload: boolean) => state.extended.splitBatch = payload, 'extended_split_batch'),
 		reset: b.commit(state => {
 			Object.values(state.extended.annotationValues).forEach(annot => {
 				annot.value = '';
 				annot.case = false;
 			});
-			state.extended.within = null;
 			state.extended.splitBatch = false;
 		}, 'extended_reset'),
 	},
@@ -259,6 +256,7 @@ const actions = {
 	glosses: b.commit((state, payload: string|null) =>state.glosses = payload, 'glosses'),
 
 	reset: b.commit(state => {
+		actions.shared.reset();
 		actions.simple.reset();
 		actions.extended.reset();
 		actions.advanced.reset();
@@ -268,17 +266,17 @@ const actions = {
 	}, 'reset'),
 
 	replace: b.commit((state, payload: ModuleRootState) => {
-		actions.parallelFields.reset();
-		actions.parallelFields.alignBy(payload.parallelFields.alignBy);
-		actions.parallelFields.sourceField(payload.parallelFields.source);
-		actions.parallelFields.targetFields(payload.parallelFields.targets);
+		actions.shared.reset();
+		actions.shared.alignBy(payload.shared.alignBy);
+		actions.shared.sourceField(payload.shared.source);
+		actions.shared.targetFields(payload.shared.targets);
+		state.shared.within = payload.shared.within;
+		state.shared.withinAttributes = payload.shared.withinAttributes;
 
 		actions.simple.reset();
 		actions.simple.annotation(payload.simple.annotationValue);
 
 		actions.extended.reset();
-		actions.extended.within(payload.extended.within);
-		actions.extended.withinAttributes(payload.extended.withinAttributes);
 		state.extended.splitBatch = payload.extended.splitBatch;
 		Object.values(payload.extended.annotationValues).forEach(actions.extended.annotation);
 
@@ -301,10 +299,12 @@ const init = () => {
 
 	const defaultParallelVersion = parallelFields[0]?.id || '';
 	debugLogCat('parallel', `init: Set default parallel version: ${defaultParallelVersion}`);
-	privateActions.initParallel({
+	privateActions.initShared({
 		source: defaultParallelVersion,
 		targets: [],
 		alignBy: null,
+		within: null,
+		withinAttributes: {},
 	})
 	CorpusStore.get.allAnnotations().forEach(({id, uiType}) =>
 		privateActions.initExtendedAnnotation({

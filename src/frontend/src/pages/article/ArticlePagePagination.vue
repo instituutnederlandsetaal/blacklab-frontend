@@ -230,11 +230,13 @@ export default Vue.extend({
 		}
 
 		const spinnerTimeout = setTimeout(() => this.loadingForAwhile = true, 3000);
+		const patt = optTargetField(query, searchfield && searchfield !== field ? field : undefined);
+		console.log({ query, field, searchfield, patt });
 		blacklab
 		.getHits(INDEX_ID, {
 			docpid: DOCUMENT_ID,
 			field: searchfield ?? field,
-			patt: optTargetField(query, searchfield ? field : undefined),
+			patt,
 			first: 0,
 			number: Math.pow(2, 31)-1,
 			context: 0,

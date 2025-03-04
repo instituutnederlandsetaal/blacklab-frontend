@@ -3,7 +3,7 @@ import memoize from 'memoize-decorator';
 import BaseUrlStateParser from '@/store/util/url-state-parser-base';
 import LuceneQueryParser from 'lucene-query-parser';
 
-import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName} from '@/utils';
+import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex, spanFilterId} from '@/utils';
 import {parseBcql, Attribute, Result, Token} from '@/utils/bcql-json-interpreter';
 import parseLucene from '@/utils/luceneparser';
 import {debugLog} from '@/utils/debug';
@@ -15,6 +15,7 @@ import * as TagsetModule from '@/store/search/tagset';
 import * as QueryModule from '@/store/search/query';
 import * as ConceptModule from '@/store/search/form/conceptStore';
 import * as GlossModule from '@/store/search/form/glossStore';
+import * as UIStore from '@/store/search/ui';
 
 // Form
 import * as FilterModule from '@/store/search/form/filters';
@@ -30,7 +31,7 @@ import * as GlobalResultsModule from '@/store/search/results/global';
 import {FilterValue, AnnotationValue} from '@/types/apptypes';
 
 import cloneDeep from 'clone-deep';
-import { valueFunctions } from '@/components/filters/filterValueFunctions';
+import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -78,17 +79,81 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		};
 	}
 
+	/** Within clauses that can be added to a span filter widget (on the right)
+	 *  (and are not already in the within widget on the left)
+	 */
+	@memoize
+	get spanFilters(): Record<string, FilterValue> {
+		const result: Record<string, FilterValue> = {};
+		Object.entries(this.withinClauses)
+			.forEach(([elName, attrs]) => {
+				Object.entries(attrs)
+					.forEach(([attrName, attrValue]) => {
+					const id = spanFilterId(elName, attrName);
+					const filter = FilterModule.getState().filters[id];
+					const vf = filter ? getValueFunctions(filter) : undefined;
+					if (vf?.isSpanFilter) {
+						let values: string[];
+						if (typeof attrValue === 'string') {
+							if (filter.componentName === 'filter-select') {
+								// select, decode options
+								values = attrValue.split('|').map(v => unescapeRegex(v, { escapeWildcards: false }));
+							} else {
+								// text
+								values = [ unescapeRegex(attrValue, { escapeWildcards: false }) ];
+							}
+						} else if (attrValue.low || attrValue.high) {
+							values = [attrValue.low || '', attrValue.high || ''];
+						} else {
+							values = [ attrValue ];
+						}
+						result[id] = { id, values };
+					}
+				});
+		});
+		return result;
+	}
+
+	/** Within clauses that don't fit into a widget, so must remain part of the Expert query */
+	@memoize
+	get withinClausesWithoutSpanFilters(): Record<string, Record<string, any>> {
+		// Only keep within clauses that are not span filters
+		return Object.fromEntries(Object.entries(this.withinClauses)
+			.map(([spanName, attrs]: [string, Record<string, any>]) => {
+				if (Object.keys(attrs).length === 0) {
+					// No attributes, so this might be the within widget selection.
+					return [spanName, { '_MAYBE_WITHIN_': true } as Record<string, any>];
+				} else {
+					const filters = FilterModule.getState().filters;
+					const filteredAttrs = Object.fromEntries(Object.entries(attrs)
+						.filter(entry => {
+							const filter = filters[spanFilterId(spanName, entry[0])];
+							const vf = filter ? getValueFunctions(filter) : undefined;
+							return !vf?.isSpanFilter;
+						}));
+					if (Object.keys(attrs).length > 0 && Object.keys(filteredAttrs).length === 0) {
+						// All attributes were placed in span filters, so we probably don't want this
+						// to be the within widget selection.
+						return [spanName, { } as Record<string, any>];
+					} else {
+						return [spanName, filteredAttrs as Record<string, any>];
+					}
+				}
+			})
+			.filter(([elName, attrs]: [string, Record<string, any>]) => Object.keys(attrs).length > 0)
+			.map(([elName, attrs]: [string, Record<string, any>]) => [elName, attrs['_MAYBE_WITHIN_'] ? {} : attrs])) as Record<string, Record<string, any>>;
+	}
+
 	@memoize
 	private get filters(): FilterModule.ModuleRootState {
 		const luceneString = this.getString('filter', null, v=>v?v:null);
-		if (luceneString == null) {
+		const spanFilters = this.spanFilters;
+		if (luceneString == null && Object.keys(spanFilters).length === 0) {
 			return {};
 		}
 
 		try {
-			const luceneQueryAST = LuceneQueryParser.parse(luceneString);
-			const parsedQuery: Record<string, FilterValue> = mapReduce(parseLucene(luceneString), 'id');
-
+			// FIXME: code below claims to be important but is never used!?
 			const metadataFields = CorpusModule.get.allMetadataFieldsMap();
 			const filterDefinitions = FilterModule.getState().filters;
 			const allFilters = Object
@@ -98,14 +163,19 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 			const filterValues: Record<string, FilterModule.FullFilterState> = {};
 
-			Object.values(FilterModule.getState().filters)
-			.forEach(filterDefinition => {
-				const value: unknown = valueFunctions[filterDefinition.componentName].decodeInitialState(
+			const luceneQueryAST = luceneString ? LuceneQueryParser.parse(luceneString) : null;
+			const parsedQuery: Record<string, FilterValue> = {
+				...(luceneString ? mapReduce(parseLucene(luceneString), 'id') : {}),
+				...this.spanFilters  // also include span filters like "within <speech person='Einstein'/>"
+			};
+			Object.values(FilterModule.getState().filters).forEach(filterDefinition => {
+				const valueFuncs = getValueFunctions(filterDefinition);
+				let value: unknown = valueFuncs.decodeInitialState ? valueFuncs.decodeInitialState(
 					filterDefinition.id,
 					filterDefinition.metadata,
 					parsedQuery,
 					luceneQueryAST
-				);
+				) : null;
 
 				if (value) {
 					filterValues[filterDefinition.id] = {
@@ -271,7 +341,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		const cql = this._parsedCql[0];
 		if ( // all tokens need to be very simple [annotation="value"] tokens.
 			!cql ||
-			cql.within ||
+			cql.withinClauses && Object.keys(cql.withinClauses).length > 0 ||
 			cql.targetVersion ||
 			cql.tokens === undefined || cql.tokens.length > ExploreModule.defaults.ngram.maxSize ||
 			cql.tokens.find(t =>
@@ -307,7 +377,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	private get patterns(): PatternModule.ModuleRootState {
 		return {
-			parallelFields: this.parallelFields,
+			shared: this.shared,
 			simple: this.simplePattern,
 			extended: this.extendedPattern,
 			advanced: this.advancedPattern,
@@ -454,33 +524,86 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	}
 
 	@memoize
-	private get parallelFields() {
+	private get withinElementName(): string|null {
+		// Determine selected option in within widget from within clauses in the query
+		const withinUi = UIStore.getState().search.shared.within;
+		// Note that the first withinOption we find that is in withinClauses is assumed to be the
+		// selected within option.
+		// FIXME: It's possible that we select the wrong withinOption this way. If we do, and there's
+		// no span filter widget to populate with what would have been the correct within option, that
+		// part of the query gets dropped on page reload, breaking the user's query...
+		// Complex additional logic might improve this slightly, but the real fix is to change the URL to describe
+		// the frontend's interface state, not the query we send to BLS.
+		const withinOptions = withinUi.enabled ?
+			withinUi.elements.filter(element => UIModule.corpusCustomizations.search.within.includeSpan(element.value)) : [];
+		return withinOptions.find(opt => !!this.withinClausesWithoutSpanFilters[opt.value])?.value ?? null;
+	}
+
+	@memoize
+	private get withinAttributes(): Record<string, any> {
+		// Find any attributes for the within widget
+		const within = this.withinElementName;
+		const allAttributes = within ? this.withinClausesWithoutSpanFilters[within] ?? {} : {};
+		const attributesAcceptedByWithinWidget = within ?
+			(UIModule.corpusCustomizations.search.within._attributes(within) || [])
+			.map(el => typeof el === 'string' ? { value: el } : el) : [];
+		const withinAttributes = Object.fromEntries(Object.entries(allAttributes)
+			.filter(([attrName, attrValue]) => {
+				return !!attributesAcceptedByWithinWidget.find(w => w.value === attrName);
+			})
+			.map(([attrName, attrValue]) => [attrName, unescapeRegex(attrValue, { escapeWildcards: false })]));
+		return withinAttributes;
+	}
+
+	@memoize
+	private get expertWithinClauses(): Record<string, Record<string, any>> {
+		// Remove whatever goes into the within widget from the withinClauses.
+		const within = this.withinElementName;
+		const withinAttributes = this.withinAttributes;
+		return Object.fromEntries(Object.entries(this.withinClausesWithoutSpanFilters)
+			.map(([el, attr]) => {
+				if (el === within) {
+					// Remove attributes that are already in the within widget
+					Object.keys(withinAttributes).forEach(attrName => delete attr[attrName]);
+				}
+				return [el, attr];
+			})) as Record<string, Record<string, any>>;
+	}
+
+	@memoize
+	private get shared() {
 		// The query typically doesn't contain the entire parallel field name.
 		// BlackLab allows passing just "en" instead of "contents__en" in some spots
 		// So we need to reconstruct the full field name from the query here.
 		const prefix = CorpusModule.get.parallelFieldPrefix();
-		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
 
 		const parallelFieldsMap = CorpusModule.get.parallelAnnotatedFieldsMap();
 
 		// It used to be that sourceField was only the version suffix, but now it's the full field name
 		// So we need to check if the source field is a valid parallel field name, and if not, try to find the correct one
 		// For interop with legacy urls (which shouldn't be in production, but might be floating around in test docs).
-		let sourceFromUrl = this.getString('field', null, v => v ? v : null);
-		if (sourceFromUrl && !parallelFieldsMap[sourceFromUrl]) {
-			sourceFromUrl = getParallelFieldName(prefix, sourceFromUrl);
-			if (!parallelFieldsMap[sourceFromUrl]) {
+		let source = this.getString('field', null, v => v ? v : null);
+		if (source && !parallelFieldsMap[source]) {
+			source = getParallelFieldName(prefix, source);
+			if (!parallelFieldsMap[source]) {
 				console.info(`Invalid parallel source field name in url (${this.getString('field')}), ignoring`);
-				sourceFromUrl = null;
+				source = null;
 			}
 		}
+		const targets = this._parsedCql ? this._parsedCql.slice(1)
+			.map(result => result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '') : [];
 
-		const result = {
-			source: sourceFromUrl,
-			targets: this._parsedCql ? this._parsedCql.slice(1).map(result => result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '') : [],
-			alignBy: (this._parsedCql ? this._parsedCql[1]?.relationType : defaultAlignBy) ?? defaultAlignBy,
+		// Determine align by (relation type in BCQL query, e.g. for "the" -word-alignment->nl _ it would be "word-alignment")
+		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
+		const alignBy = (this._parsedCql ? this._parsedCql[1]?.relationType : defaultAlignBy) ?? defaultAlignBy;
+
+		return {
+			source,
+			targets,
+			alignBy,
+			within: this.withinElementName,
+			withinAttributes: this.withinAttributes
 		};
-		return result;
 	}
 
 	@memoize
@@ -504,8 +627,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 		return {
 			annotationValues: parsedAnnotationValues,
-			within: this.within,
-			withinAttributes: this.withinAttributes,
+
 			// This is always false, it's just a checkbox that will split up the query when it's submitted, then untick itself
 			splitBatch: false
 		};
@@ -529,14 +651,51 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	private get expertPattern() {
 
+		const processQueryPart = (r: Result) => {
+			// Strip _with-spans(...) from the query (we add this automatically)
+			function stripWithSpans(q: string): string {
+				const prefix = '_with-spans(';
+				const suffix = ')';
+				if (q.startsWith(prefix) && q.endsWith(suffix)) {
+					q = q.substring(prefix.length, q.length - suffix.length);
+				} else if (q.startsWith('(' + prefix) && q.endsWith(suffix + ')')) {
+					// Each part of a parallel queries is usually parenthesized.
+					// Recognize this and strip _with-spans() in this case as well.
+					// (we can't just strip the outermost parens, at least not without checking that
+					//  parens will remain balanced, i.e. not "(a) (b)" -> "a) (b", but _with-spans() is
+					//  always added last, so it should be fine here)
+					q = q.substring(prefix.length + 1, q.length - suffix.length - 1);
+				}
+				return q;
+			}
+
+			// Strip any withinClauses from the end of the CQL query,
+			// then add back only those that we cannot place into a widget.
+			function stripWithins(q: string) {
+				return unparenQueryPart(q)!.replace(/(?:\s*(?:within|overlap)?\s*<[^\/]+\/>)+$/g, '');
+			}
+
+			const hasWithinClauses = r.withinClauses && Object.keys(r.withinClauses).length > 0;
+			const rawQuery = stripWithSpans(r.query ?? '');
+			const query = unparenQueryPart(hasWithinClauses ? stripWithins(rawQuery) : rawQuery);
+			const reapplyWithins = this.expertWithinClauses;
+			const finalQuery = Object.keys(reapplyWithins).length > 0 ?
+				applyWithinClauses(query ?? '', reapplyWithins) : query;
+
+			//console.log('raw source query', rawQuery);
+			//console.log('after stripping', query);
+			//console.log('reapplyWithins', reapplyWithins);
+			//console.log('finalQuery', finalQuery);
+			return finalQuery;
+		}
+
 		// In parallel queries, if any of the queries amounts to "zero or more of any token",
 		// just leave it empty.
 		const isParallel = (this._parsedCql?.length ?? 0) > 1;
 		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*') ? '' : q;
-
 		return {
-			query: this._parsedCql ? optEmpty(unparenQueryPart(this._parsedCql[0].query)) || null : null,
-			targetQueries: this._parsedCql ? this._parsedCql.slice(1).map(r => optEmpty(unparenQueryPart(r.query)) || '') : [],
+			query: this._parsedCql ? optEmpty(unparenQueryPart(processQueryPart(this._parsedCql?.[0] ?? {}))) || null : null,
+			targetQueries: this._parsedCql ? this._parsedCql.slice(1).map(r => optEmpty(unparenQueryPart(processQueryPart(r))) || '') : [],
 		};
 	}
 
@@ -590,13 +749,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 	// TODO these might become dynamic in the future, then we need extra manual checking to see if the value is even supported in this corpus
 	@memoize
-	private get within(): string|null {
-		return this._parsedCql ? this._parsedCql[0].within || null : null;
-	}
-
-	@memoize
-	private get withinAttributes(): Record<string, string> {
-		return this._parsedCql ? this._parsedCql[0].withinAttributes || {} : {};
+	private get withinClauses(): Record<string, Record<string, any>> {
+		return this._parsedCql?.[0].withinClauses ?? {};
 	}
 
 	@memoize

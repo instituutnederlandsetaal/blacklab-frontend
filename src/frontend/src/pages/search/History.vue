@@ -14,7 +14,7 @@
 					</tr>
 				</thead>
 				<tbody>
-					<tr v-for="(entry, index) in recentHistory" :key="entry.hash + entry.interface.viewedResults">
+					<tr v-for="(entry, index) in recentHistory" :key="entry.hash + (entry.interface.viewedResults || '')">
 						<td><strong>{{index + 1}}.</strong></td>
 						<td class="text-muted" style="padding-left:0;"><small>{{new Date(entry.timestamp).toLocaleString('nl-NL', {
 							hour12: false,

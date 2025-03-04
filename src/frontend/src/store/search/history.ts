@@ -27,7 +27,7 @@ import UrlStateParser from '@/store/search/util/url-state-parser';
 import { NormalizedIndex } from '@/types/apptypes';
 import { debugLog } from '@/utils/debug';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
-import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils';
+import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
@@ -52,6 +52,13 @@ type HistoryEntry = {
 
 	concepts: ConceptModule.HistoryState;
 	glosses: GlossModule.HistoryState;
+};
+
+/** Intermediate type between HistoryEntry and FullHistoryEntry used in a few places */
+export type HistoryEntryPatternAndUrl = {
+	entry: HistoryEntry;
+	pattern?: string;
+	url: string;
 };
 
 type FullHistoryEntry = HistoryEntry&{
@@ -143,7 +150,7 @@ const internalActions = {
 };
 
 const actions = {
-	addEntry: b.commit((state, {entry, pattern, url}: {entry: HistoryEntry; pattern?: string; url: string;}) => {
+	addEntry: b.commit((state, {entry, pattern, url}: HistoryEntryPatternAndUrl) => {
 		// history is updated together with page url, so we don't always receive a state we need to store.
 		if (entry.interface.viewedResults == null) {
 			return;
@@ -153,17 +160,19 @@ const actions = {
 		const filterSummary: string|undefined = getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
 		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
 		const patternSummary: string|undefined =
-			entry.interface.form === 'search' ? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy) :
+			entry.interface.form === 'search' ? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy, entry.filters) :
 			entry.interface.form === 'explore' ? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, CorpusModule.get.allAnnotationsMap()) :
 			undefined;
 
 		// Should only contain items that uniquely identify a query
 		// Normally this would only be the pattern (including gap values) and filters,
 		// but we've agreed that grouping differently constitutes a new query, so we also need to compare those
-		// TODO: does changing source/targetfields also constitute a new query?
+		// Note that changing search field (source field in a parallel corpus) also constitute a new query,
+		//  but target fields become part of the pattern, so don't need to be included here.
 		const hashBase = {
 			filters: entry,
-			pattern,
+			fieldName: entry.patterns.shared.source, // the [source] field we're searching
+			pattern,            // CQL query (doesn't include span filters (if any))
 			gap: entry.gap,
 			groupBy: entry.view.groupBy.sort((l, r) => l.localeCompare(r)),
 		};

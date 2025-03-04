@@ -73,8 +73,8 @@ export default ParallelFields.extend({
 	computed: {
 		// The query (or source query, for parallel corpora)
 		mainQuery: {
-			get() { return PatternStore.getState().expert.query ?? ''; },
-			set: PatternStore.actions.expert.query,
+			get(): string { return PatternStore.getState().expert.query || ''; },
+			set: (v: string|undefined) => { PatternStore.actions.expert.query(v ?? null) },
 		},
 
 		// If this is a parallel corpus: the target queries

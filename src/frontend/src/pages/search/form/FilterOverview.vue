@@ -1,7 +1,7 @@
 <template>
 	<div class="filter-overview">
 		<div v-for="filter in activeFilters" :key="filter.id">
-			{{filter.defaultDisplayName}}<small v-if="filter.groupId"> ({{filter.groupId}})</small>: <i>{{summaryMap[filter.id]}}</i>
+			{{$tMetaDisplayName(filter)}}<small v-if="filter.groupId"> ({{filter.groupId}})</small>: <i>{{summaryMap[filter.id]}}</i>
 		</div>
 		<!-- <div v-for="filter in activeFilters" :key="filter.id + '_lucene'">{{filter.displayName}}: <i>{{filter.lucene}}</i></div> -->
 
@@ -46,7 +46,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 import {ApiError} from '@/api';
 
 import frac2Percent from '@/mixins/fractionalToPercent';
-import { valueFunctions } from '@/components/filters/filterValueFunctions';
+import { getValueFunctions, valueFunctions } from '@/components/filters/filterValueFunctions';
 
 import Spinner from '@/components/Spinner.vue';
 import { RecursiveRequired } from '@/types/helpers';
@@ -63,7 +63,7 @@ export default Vue.extend({
 		summaryMap(): Record<string, string> {
 			const r: Record<string, string> = {};
 			this.activeFilters.forEach(f => {
-				const summary = valueFunctions[f.componentName].luceneQuerySummary(f.id, f.metadata, f.value);
+				const summary = getValueFunctions(f).luceneQuerySummary(f.id, f.metadata, f.value);
 				if (summary) { r[f.id] = summary; }
 			});
 			return r;

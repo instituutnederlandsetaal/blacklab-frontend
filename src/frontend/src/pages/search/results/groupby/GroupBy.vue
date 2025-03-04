@@ -136,12 +136,12 @@
 					hideEmpty
 					data-width="auto"
 					data-menu-width="auto"
-					v-model="selectedCriterium.field"
+					v-model="selectedMetadataCriterium"
 					:options="metadata"
 				/>
 
 				<!-- mimic style of annotation box. -->
-				<form class="case-and-context">
+				<form class="case-and-context" v-if="showCaseSensitive">
 					<div class="labels">
 						<label for="group-case-sensitive">{{ $t('results.groupBy.caseSensitive') }}: </label>
 					</div>
@@ -196,13 +196,15 @@ import * as UIStore from '@/store/search/ui';
 import * as ResultsStore from '@/store/search/results/views';
 import * as GlobalSearchSettingsStore from '@/store/search/results/global';
 import * as SearchModule from '@/store/search/index';
+import * as FilterModule from '@/store/search/form/filters';
 
-import { getAnnotationSubset, getMetadataSubset } from '@/utils';
+import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 import { blacklab } from '@/api';
 
 import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, BLHitInOtherField, BLMatchInfo} from '@/types/blacklabtypes';
 
-import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel, humanizeGroupBy as summarizeGroup} from '@/utils/grouping';
+import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel,
+	humanizeGroupBy } from '@/utils/grouping';
 
 import debug from '@/utils/debug';
 
@@ -217,6 +219,28 @@ import { CaptureAndRelation, HitToken, Option, TokenHighlight } from '@/types/ap
 
 
 import Tabs from '@/components/Tabs.vue';
+import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+
+// What we prefix the tag attribute grouping option with so we can recognize it
+const OPT_PREFIX_SPAN_ATTRIBUTE = '$TAGATTR:';
+
+function isSpanAttributeOptionValue(value: string): boolean {
+	return value.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE);
+}
+
+function spanAttributeOptionValue(name: string, attrName: string, listName?: string): string {
+	const groupByName = listName ? `${listName}[${name}]` : name;
+	return `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([groupByName, attrName])}`;
+}
+
+function splitSpanAttributeOptionValue(value: string): { name: string, attrName: string } {
+	if (value.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE)) {
+		// grouping on a span attribute
+		const [name, attrName] = JSON.parse(value.slice(OPT_PREFIX_SPAN_ATTRIBUTE.length));
+		return { name, attrName };
+	}
+	throw `Not a span attribute option value: ${value}`;
+}
 
 export default Vue.extend({
 	components: {
@@ -241,7 +265,7 @@ export default Vue.extend({
 		/** For the preview. Results from props can also be grouped, so we need to request these ourselves. */
 		hits: undefined as undefined|BLHitResults,
 
-		active: false
+		active: false,
 	}),
 	computed: {
 		metadataGroups() { return CorpusStore.get.metadataGroups() },
@@ -251,7 +275,7 @@ export default Vue.extend({
 
 		tabs(): Option[] {
 			return this.addedCriteria.map((c, i) => ({
-				label: summarizeGroup(this, c, this.annotationsMap, this.metadataFieldsMap),
+				label: humanizeGroupBy(this, c, this.annotationsMap, this.metadataFieldsMap),
 				value: i.toString(),
 				class: isValidGroupBy(c) ? '' : 'text-muted',
 			}));
@@ -264,7 +288,8 @@ export default Vue.extend({
 		storeValue(): string[] { return this.storeModule.getState().groupBy; },
 		firstHitPreviewQuery(): BLSearchParameters|undefined {
 			let params = SearchModule.get.blacklabParameters();
-			if (!params || !params.patt) return undefined; // can't get hits without a query
+			if (!isHitParams(params))
+				return undefined; // can't get hits without a query
 
 			params = {...params}; // make a copy before modifying
 			if (!params.viewgroup)
@@ -302,13 +327,22 @@ export default Vue.extend({
 				this,
 				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
 				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible
-			)
-			return r;
+			);
+			const result = [
+				...r,
+				{
+					label: this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
+					options: this.tagAttributes,
+				}
+			];
+			console.log('metadata', result);
+			return result;
 		},
 
 		contextsize(): number {
 			let params = SearchModule.get.blacklabParameters();
-			if (!params || !params.patt) return 5; // default
+			if (!isHitParams(params))
+				return 5; // default
 			return typeof params.context === 'number' ? params.context as number :  // use actual value from query if set
 			    (typeof GlobalSearchSettingsStore.getState().context === 'number' ?
 			        GlobalSearchSettingsStore.getState().context as number :  // use global default if set
@@ -339,11 +373,85 @@ export default Vue.extend({
 					if (sourceInThisField || targetInThisField) {
 						result.push({
 							label: k,
-							name: `${k}`,
+							name: k,
 							targetField: this.selectedCriteriumAsPositional?.fieldName,
 						});
 					}
 				});
+			return result;
+		},
+		tagAttributes() {
+			/** Check if we should add this tag+attr option, and if so, add it. */
+			const optAdd = (tagName: string, attributeName: string, listName?: string) => {
+				// Check custom method to see if we should include this attribute
+				// (or if that returns null, we will fall back to default behaviour)
+				let shouldInclude = UIStore.corpusCustomizations.grouping.includeSpanAttribute(tagName, attributeName);
+				const filterId = spanFilterId(tagName, attributeName);
+				const filter = FilterModule.getState().filters[filterId];
+				if (shouldInclude === null) {
+					// By default, you may group on any span attribute for which a
+					// span filter exists, or which occurs in the within widget.
+					const isSpanFilter = filter ? getValueFunctions(filter)?.isSpanFilter ?? null : false;
+					const customWithin = UIStore.corpusCustomizations.search.within;
+					const isWithinAttr =
+						customWithin.includeSpan(tagName) &&
+						customWithin.includeAttribute(tagName, attributeName);
+					shouldInclude = isSpanFilter || isWithinAttr;
+				}
+				if (shouldInclude) {
+					const value = spanAttributeOptionValue(tagName, attributeName, listName);
+					console.log('spanAttributeOptionValue', value);
+					result.push({
+						label: 'Group by ' + (filter ? this.$tMetaDisplayName(filter) : this.$tWithinAttribute(tagName, attributeName)),
+						value,
+					});
+				}
+			}
+
+			// Check if we have a list of matches (e.g. from _with-spans(...))
+			const matchInfos = this.hits?.summary?.pattern?.matchInfos || {};
+			//console.log('matchInfos', JSON.stringify(matchInfos));
+			const listEntry = Object.entries(matchInfos).find( ([name, mi]) => mi.type === 'list');
+			const result: { label?: string, value: string, title?: string }[] = [];
+			if (listEntry) {
+				// @@@ TODO: we should first add the non-list captures as options,
+				//   then add the other options with a reference to the list.
+
+				// We capture lists of tags, but we don't know all the captured tags at this point.
+				// Offer all span filters as grouping options, with a reference to the list,
+				// (e.g. with-spans[ab] to mean "group on the ab tag in the with-spans list")
+				const listName = listEntry[0];
+				console.log(`listName`, listName)
+				if (CorpusStore.getState().corpus!.relations.spans) {
+					Object.entries(CorpusStore.getState().corpus!.relations.spans!)
+						.forEach(([tagName, spanInfo]) => {
+							if (spanInfo.attributes) {
+								const attr = Object.keys(spanInfo.attributes);
+								attr.forEach(attributeName => {
+									optAdd(tagName, attributeName, listName);
+								});
+							}
+						});
+				}
+			} else {
+				// We don't capture any lists. Only (possibly) include the tags we know we've captured.
+				Object.entries(matchInfos)
+					.filter(([_, matchInfo]) => matchInfo.type === 'tag')
+					.forEach(([tagName, matchInfo]) => {
+						const sourceInThisField = this.relationSourceInThisField(matchInfo);
+						console.log('sourceInThisField', sourceInThisField);
+						if (sourceInThisField) {
+							const spanInfo = CorpusStore.getState().corpus!.relations.spans![tagName];
+							if (!spanInfo)
+								console.log('No span info for', tagName);
+							const attr = Object.keys(spanInfo?.attributes ?? {});
+							attr.forEach(attributeName => {
+								optAdd(tagName, attributeName);
+							});
+						}
+					});
+			}
+			console.log('tagAttributes', result);
 			return result;
 		},
 		relationNames(): string[] {
@@ -382,6 +490,10 @@ export default Vue.extend({
 		selectedCriteriumAsSlider(): undefined|GroupByContext<ContextPositional> {
 			if (this.selectedCriteriumAsPositional?.context.whichTokens === 'specific')
 				return this.selectedCriteriumAsPositional;
+		},
+		showCaseSensitive(): boolean {
+			return this.selectedCriterium?.type === 'metadata' &&
+				this.selectedCriterium.metadata.type === 'document';
 		},
 
 		sliderVisible(): boolean { return !!this.selectedCriteriumAsSlider; },
@@ -517,7 +629,7 @@ export default Vue.extend({
 					...this.captures.map(c => ({
 						label: `<span class="color-ball" style="background-color: ${this.colors[c.label].color};">&nbsp;</span> capture ${c.name}`,
 						value: c.name
-					}))
+					})),
 				]
 			}];
 		},
@@ -565,7 +677,12 @@ export default Vue.extend({
 			get(): 'first'|'all'|'context'|string {
 				// if grouping on a label: return the label, if grouping on a position: return the position.
 				// Otherwise blank.
-				return this.selectedCriteriumAsLabel?.context.label ?? this.selectedCriteriumAsPositional?.context.whichTokens ?? '';
+				if (this.selectedCriterium?.type !== 'context')
+					return '';
+				else if (this.selectedCriterium.context.type === 'label')
+					return this.selectedCriterium.context.label;
+				else
+					return this.selectedCriteriumAsPositional?.context.whichTokens ?? '';
 			},
 			/** The string value is when grouping on a capture group or relation. */
 			set(v: 'first'|'all'|'specific'|string) {
@@ -591,6 +708,7 @@ export default Vue.extend({
 						this.selectedCriteriumAsPositional.context.position = 'H';
 					}
 				} else {
+					// update context object as we're currently grouping on a label.
 					this.selectedCriterium.context = {
 						type: 'label',
 						label: v,
@@ -598,6 +716,36 @@ export default Vue.extend({
 					}
 				}
 			},
+		},
+		selectedMetadataCriterium: {
+			get(): string {
+				if (this.selectedCriterium?.type === 'metadata') {
+					const meta = this.selectedCriterium.metadata;
+					if (meta.type === 'document')
+						return meta.field;
+					else
+						return spanAttributeOptionValue(meta.spanName, meta.attributeName);
+				}
+				return '';
+			},
+			set(v: string) {
+				if (v && this.selectedCriterium?.type === 'metadata') {
+					const isSpanAttr = isSpanAttributeOptionValue(v);
+					if (!isSpanAttr) {
+						this.selectedCriterium.metadata ={
+							type: 'document',
+							field: v,
+						};
+					} else {
+						const { name, attrName } = splitSpanAttributeOptionValue(v);
+						this.selectedCriterium.metadata ={
+							type: 'span-attribute',
+							spanName: name,
+							attributeName: attrName,
+						};
+					}
+				}
+			}
 		},
 
 		positionOptions(): Options {
@@ -650,7 +798,12 @@ export default Vue.extend({
 			//this.selectedCriteriumIndex = -1;
 		},
 
-		isEmptyGroup(group: GroupBy) { return (group.type === 'context' && !group.annotation) || (group.type === 'metadata' && !group.field); },
+		isEmptyGroup(group: GroupBy) {
+			return (group.type === 'context' && !group.annotation) ||
+				(group.type === 'metadata' && (
+					group.metadata.type === 'document' && !group.metadata.field ||
+					group.metadata.type === 'span-attribute' && !group.metadata.spanName && !group.metadata.attributeName));
+		},
 		isInvalidGroup(group: GroupBy) { return !this.isEmptyGroup(group) && !isValidGroupBy(group); },
 		removeGroup(i: number) {
 			if (this.selectedCriteriumIndex >= i) this.selectedCriteriumIndex--;
@@ -676,15 +829,18 @@ export default Vue.extend({
 				},
 				caseSensitive: false
 			});
-			this.selectedCriteriumIndex = this.addedCriteria.length -1;
+			this.selectedCriteriumIndex = this.addedCriteria.length - 1;
 		},
 		addMetadata() {
 			this.addedCriteria.push({
 				type: 'metadata',
-				field: '',
-				caseSensitive: false
+				caseSensitive: false,
+				metadata: {
+					type: 'document',
+					field: ''
+				}
 			});
-			this.selectedCriteriumIndex = this.addedCriteria.length -1;
+			this.selectedCriteriumIndex = this.addedCriteria.length - 1;
 		},
 		/**
 		 * When a highlighted word in the preview is clicked, retrieve what it represents (a capture group, or relation source/target)
@@ -728,11 +884,12 @@ export default Vue.extend({
 		},
 		relationSourceInThisField(v: BLSummaryMatchInfo) {
 			const field = v.fieldName ?? this.mainSearchField;
-			return field === this.selectedCriteriumAsContext?.fieldName;
+			console.log('selectedCriterium', JSON.stringify(this.selectedCriterium));
+			return !this.selectedCriteriumAsContext?.fieldName || field === this.selectedCriteriumAsContext?.fieldName;
 		},
 		relationTargetInThisField(v: BLSummaryMatchInfo) {
 			const field = v.targetField ?? this.mainSearchField;
-			return field === this.selectedCriteriumAsContext?.fieldName;
+			return !this.selectedCriteriumAsContext?.fieldName || field === this.selectedCriteriumAsContext?.fieldName;
 		},
 		relationMatchInfoDefByLabel(label: string): BLSummaryMatchInfo {
 			const mi = this.hits?.summary?.pattern?.matchInfos ?? {};

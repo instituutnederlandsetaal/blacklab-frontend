@@ -1,5 +1,4 @@
 # Development overrides for BLS+frontend Compose
-version: '3.9'
 
 services:
 

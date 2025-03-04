@@ -125,6 +125,7 @@ import { NormalizedIndex } from '@/types/apptypes';
 import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
 import { mergeMatchInfos } from '@/utils/hit-highlighting';
+import { isHitParams } from '@/utils';
 
 export default Vue.extend({
 	components: {
@@ -373,12 +374,7 @@ export default Vue.extend({
 		},
 
 		valid(): boolean {
-			if (this.id === 'hits') {
-				const params = RootStore.get.blacklabParameters();
-				return !!(params && params.patt);
-			} else {
-				return true;
-			}
+			return this.id !== 'hits' || isHitParams(RootStore.get.blacklabParameters());
 		},
 		// simple view variables
 		indexId(): string { return INDEX_ID; },

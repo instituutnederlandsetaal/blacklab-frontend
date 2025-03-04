@@ -1,9 +1,9 @@
 <template>
-	<tbody class="interactable">
+	<tbody :class="{interactable: !disableDetails && !disabled}">
 		<!-- Show hits in other fields (parallel corpora) -->
 		<template v-for="row in h.rows">
 			<HitRow :key="`${row.annotatedField?.id}-hit`"
-				:class="{open, interactable: !disableDetails && !disabled, 'foreign-hit': row.isForeign}"
+				:class="{open, 'foreign-hit': row.isForeign}"
 				:data="row"
 				:mainAnnotation="mainAnnotation"
 				:otherAnnotations="otherAnnotations"

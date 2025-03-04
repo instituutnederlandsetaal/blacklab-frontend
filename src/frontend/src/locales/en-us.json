@@ -1,7 +1,9 @@
 {
 	"widgets": {
 		"learnMore": "Learn more",
-		"clickToRemove": "Click to remove"
+		"clickToRemove": "Click to remove",
+		"selectValue": "Select a value...",
+		"selectValues": "Select value(s)..."
 	},
 	"search": {
 		"heading": "Search for …",
@@ -205,7 +207,8 @@
 				"theFirstWord": "the first word",
 				"allWords": "all words",
 				"specificWords": "specific words",
-				"captureGroupsLabel": "Labels and relations"
+				"captureGroupsLabel": "Labels and relations",
+				"spanFiltersLabel": "Span filters"
 			},
 			"in_this_location": {
 				"beforeTheHit": "before the hit",
@@ -230,7 +233,7 @@
 
 			"caseSensitive": "Case sensitive",
 			"chooseWordPositions": "Choose the <strong>specific word</strong> positions to group on here, the preview at the top will show you which words you have selected.",
-			"selectDocumentMetadata": "Select the document metadata to group on.",
+			"selectDocumentMetadata": "Select the metadata to group on.",
 			"clickButtonsToStart": "Click on Annotation or Metadata to define grouping criteria.",
 			"metadata": "Metadata",
 			"annotation": "Annotation",
@@ -241,6 +244,7 @@
 				"firstWord": "first {field} {position}",
 				"allWords": "{field} {position}",
 				"labelledWord": "label {label} on {field}",
+				"spanAttribute": "tag {span}, attribute {attribute}",
 				"metadata": "Document {field}",
 
 				"position": {

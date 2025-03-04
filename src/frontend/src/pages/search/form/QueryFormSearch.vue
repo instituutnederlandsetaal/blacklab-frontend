@@ -79,6 +79,8 @@
 					</template>
 				</template>
 
+				<ParallelSourceAndTargets v-if="isParallelCorpus"/>
+
 				<Within />
 
 				<div v-if="splitBatchEnabled" class="form-group">
@@ -88,7 +90,6 @@
 						</label>
 					</div>
 				</div>
-				<ParallelSourceAndTargets v-if="isParallelCorpus"/>
 
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', {'active': activePattern==='advanced'}]" id="advanced">
@@ -220,11 +221,10 @@ export default ParallelFields.extend({
 		textDirection: CorpusStore.get.textDirection,
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
-			return enabled ? elements.filter(corpusCustomizations.search.within.include) : [];
+			return enabled ? elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
 		},
-		within: {
-			get(): string|null { return PatternStore.getState().extended.within; },
-			set: PatternStore.actions.extended.within,
+		within(): string|null {
+			return PatternStore.getState().shared.within;
 		},
 		splitBatchEnabled(): boolean {
 			return UIStore.getState().search.extended.splitBatch.enabled &&
@@ -352,24 +352,6 @@ export default ParallelFields.extend({
 				// setup watcher so custom component is notified of changes to its value by external processes (global form reset, history state restore, etc.)
 				RootStore.store.watch(state => value, (cur, prev) => update(cur, prev, div), {deep: true});
 			}
-		},
-		withinAttributes(): Option[] {
-			const within = this.within;
-			if (!within) return [];
-
-			const option = this.withinOptions.find(o => o.value === within);
-			if (!option) return [];
-
-			return (corpusCustomizations.search.within.attributes(option) || [])
-				.map(el => typeof el === 'string' ? { value: el } : el);
-		},
-		withinAttributeValue(option: Option) {
-			const value = PatternStore.getState().extended.withinAttributes[option.value];
-			return value == null ? '' : value;
-		},
-		changeWithinAttribute(option: Option, event: Event) {
-			const el = event.target as HTMLInputElement;
-			PatternStore.actions.extended.setWithinAttribute({ name: option.value, value: el.value });
 		},
 	},
 	watch: {

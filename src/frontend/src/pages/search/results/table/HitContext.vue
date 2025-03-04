@@ -13,7 +13,7 @@
 				:class="{ hoverable: true, hover: relationKeys?.some(c => hoverMatchInfos.includes(c)) }"
 			></span
 			><span v-else v-html="text" :key="'text' + '_' + text + '_' + i"></span
-			><span v-if="doPunct" v-html="punct" :key="'punct_' + punct + '_' + i"></span
+			><span v-html="doPunct ? punct : ' '" :key="'punct_' + punct + '_' + i"></span
 		></template
 		><template v-if="after">…</template
 	></component
@@ -29,7 +29,7 @@
 				:class="{ hoverable: true, hover: relationKeys?.some(c => hoverMatchInfos.includes(c)) }"
 			>{{ text }}</span
 			><template v-else>{{ text }}</template
-			><template v-if="doPunct">{{punct}}</template
+			><template>{{ doPunct ? punct : ' ' }}</template
 		></template
 		><template v-if="after">…</template
 	></component>

@@ -1,4 +1,4 @@
-// TODO split this file into patternUtils, groupUtils and generic utils.
+// TODO split this file into patternUtils (DONE - JN), groupUtils and generic utils.
 
 
 import URI from 'urijs';
@@ -26,7 +26,7 @@ const defaultRegexEscapeOptions = {
 	/** Defaults to true. If true, escape " to \". If false, leave alone. */
 	escapeQuotes: true
 }
-type RegexEscapeOptions = Partial<typeof defaultRegexEscapeOptions>;
+export type RegexEscapeOptions = Partial<typeof defaultRegexEscapeOptions>;
 export function escapeRegex(value: string, settings: RegexEscapeOptions = {}) {
 	settings = {...defaultRegexEscapeOptions, ...settings};
 
@@ -200,35 +200,6 @@ export const decodeAnnotationValue = (value: string|string[], type: Required<App
 	}
 };
 
-/** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */
-export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): string[] => {
-	const {id, case: caseSensitive, value, type} = annotation;
-
-	if (!value.trim()) {
-		return [''];
-	}
-
-	switch (type) {
-		case 'pos':
-			// already valid cql, no escaping or wildcard substitution.
-			return [value];
-		case 'select':
-			return [`${id}="${escapeRegex(value.trim())}"`];
-		case 'text':
-		case 'lexicon':
-		case 'combobox': {
-			// if multiple tokens, split on quotes (removing them), and whitespace outside quotes, and then transform the values individually
-			let resultParts = splitIntoTerms(value, true).map(v => escapeRegex(v.value, {escapePipes: false, escapeWildcards: false}));
-			if (caseSensitive) {
-				resultParts = resultParts.map(v => `(?-i)${v}`);
-			}
-
-			return resultParts.map(word => `${id}="${word}"`);
-		}
-		default: throw new Error('Unimplemented cql serialization for annotation type ' + type);
-	}
-};
-
 type SplitString = {
 	start: number;
 	end: number;
@@ -390,7 +361,7 @@ export const splitIntoTerms = (value: string, useQuoteDelimiters: boolean): Spli
 });
 
 /** Parenthesize part of a BCQL query if it's not already */
-function parenQueryPart(query: string, exceptions: string[] = []) {
+export function parenQueryPart(query: string, exceptions: string[] = []) {
 	query = query.trim();
 	if (query.match(/^\(.+\)$/) || query.match(/^\[[^\]]*\]$/) || exceptions.includes(query)) {
 		return query;
@@ -398,85 +369,48 @@ function parenQueryPart(query: string, exceptions: string[] = []) {
 	return `(${query})`;
 }
 
-/** Remove parentheses from a BCQL query part if it's parenthesized */
-export function unparenQueryPart(query?: string) {
-	if (query) {
-		query = query.trim();
-		if (query.match(/^\([^)]+\)$/)) {
-			const result = query.substring(1, query.length - 1);
-			return result;
-		}
-	}
-	return query;
-}
-
-export const getPatternString = (
-	annotations: AppTypes.AnnotationValue[],
-	within: null|string,
-	withinAttributes: null|Record<string, string>,
-	/**
-	 * Ids of the annotated fields the query should target (for parallel corpora).
-	 * Note that the generated query will only contain the version suffix, not the full field id.
-	 */
-	targetParallelVersions: string[] = [],
-	alignBy?: string
-) => {
-	const tokens = [] as string[][];
-
-	annotations.forEach(annot => getAnnotationPatternString(annot).forEach((value, index) => {
-		(tokens[index] = tokens[index] || []).push(value);
-	}));
-
-	let query = tokens.map(t => `[${t.join('&')}]`).join('');
-	if (within) {
-		const attr = withinAttributes ? Object.entries(withinAttributes).filter(([k, v]) => !!v)
-			.map(([k, v]) => ` ${k}="${v.replace(/"/g, '\\"')}"`).join('') : '';
-		const tags = `<${within}${attr}/>`;
-		if (query.length > 0) {
-			// Actual within
-			query += ` within ${tags}`;
-		} else {
-			// No query given; just find the tags themselves
-			query = tags;
-		}
-	}
-
-	if (targetParallelVersions.length > 0) {
-		const relationType = alignBy ?? '';
-		query = `${parenQueryPart(query, ['[]*', '_'])}` + targetParallelVersions.map(v => ` =${relationType}=>${getParallelFieldParts(v).version}? _`).join(' ; ');
-	}
-
-	return query || undefined;
-};
-
-function parenQueryPartParallel(query: string) {
+export function parenQueryPartParallel(query: string) {
 	const parenExceptions = ['[]*', '_'];
 	return parenQueryPart(query === '[]*' ? '_' : query, parenExceptions);
 }
 
-export const getPatternStringFromCql = (sourceCql: string, targetVersions: string[], targetCql: string[], alignBy?: string) => {
-	if (targetVersions.length > targetCql.length) {
-		console.error('There must be a CQL query for each selected parallel version!', targetVersions, targetCql);
-		throw new Error(`There must be a CQL query for each selected parallel version!`);
+/** Remove parentheses from a BCQL query part if it's parenthesized and doesn't
+ *  contain nested parens.
+ */
+export function unparenQueryPart(query?: string) {
+	if (query) {
+
+		query = query.trim();
+		while (query.match(/^\([^\(\)]*\)$/)) {
+			query = query.substring(1, query.length - 1).trim();
+		}
 	}
-
-	if (targetVersions.length === 0) {
-		return sourceCql;
-	}
-
-	const defaultSourceQuery = targetVersions.length > 0 ? '_': '';
-	const queryParts = [parenQueryPartParallel(sourceCql.trim() || defaultSourceQuery)];
-	const relationType = alignBy ?? '';
-	for (let i = 0; i < targetVersions.length; i++) {
-		if (i > 0)
-			queryParts.push(' ; ');
-		queryParts.push(` =${relationType}=>${getParallelFieldParts(targetVersions[i]).version}? ${parenQueryPartParallel(targetCql[i].trim() || '_')}`)
-	}
-
-	const query = queryParts.join('');
-
 	return query;
-};
+}
+
+export function applyWithinClauses(query: string, withinClauses: Record<string, Record<string, any>>) {
+	const overlapClauses = Object.entries(withinClauses)
+		.map(([elName, attributes]) => {
+			const attr = attributes ?
+			Object.entries(attributes).filter(([k, v]) => !!v)
+				.map(([k, v]) => {
+					if (typeof v === 'string') {
+						// Regex query
+						return ` ${k}="${v.replace(/"/g, '\\"')}"`;
+					} else if (v.low || v.high) {
+						// Range query
+						return ` ${k}=in[${v.low || 0},${v.high || 9999}]`;
+					} else
+						return '';
+				})
+				.join('') : '';
+			return `<${elName}${attr}/>`;
+		})
+		.join(' overlap ');
+	if (query.length > 0 && overlapClauses.length > 0)
+		return `${query} within ${overlapClauses}`;
+	return query.length > 0 ? query : overlapClauses;
+}
 
 export function getDocumentUrl(
 	pid: string,
@@ -644,7 +578,6 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 	/* show the <small/> labels at the end of options labels? */
 	showGroupLabels = true
 ): Array<AppTypes.OptGroup&{entries: T[]}> {
-	const defaultMetadataOptGroupName = 'Metadata';
 	const subset = fieldSubset(ids, groups, metadata);
 
 	// Map a metadata field's id + displayname + group to an option for rendering a groupby or sortby dropdown.
@@ -676,9 +609,6 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 		label: i18n.$tMetaGroupName(group.id)
 	}));
 
-	// If there is only one metadata group to display: do not display the group names, instead display only 'Metadata'
-	// https://github.com/INL/corpus-frontend/issues/197#issuecomment-441475896
-	if (r.length === 1) { r[0].label = defaultMetadataOptGroupName; }
 	return r;
 }
 
@@ -805,95 +735,6 @@ export function getCorrectUiType<T extends AppTypes.NormalizedAnnotation['uiType
 	return allowed.includes(actual) ? actual : 'text' as any;
 }
 
-import type {ModuleRootState as ModuleRootStateExplore} from '@/store/search/form/explore';
-import type {ModuleRootState as ModuleRootStateSearch} from '@/store/search/form/patterns';
-import cloneDeep from 'clone-deep';
-
-export function getPatternStringExplore(
-	subForm: keyof ModuleRootStateExplore,
-	state: ModuleRootStateExplore,
-	annots: Record<string, AppTypes.NormalizedAnnotation>
-): string|undefined {
-	switch (subForm) {
-		case 'corpora': return undefined;
-		case 'frequency': return '[]';
-		case 'ngram': return state.ngram.tokens
-				.slice(0, state.ngram.size)
-				// type select because we only ever want to output one cql token per n-gram input
-				.map(token => {
-					const tokenType = annots[token.id].uiType;
-					const correctedType = getCorrectUiType(uiTypeSupport.explore.ngram, tokenType);
-
-					const escapeSettings: RegexEscapeOptions = {
-						escapePipes: correctedType === 'select',
-						escapeWildcards: correctedType === 'select',
-					}
-					return token.value ? `[${token.id}="${escapeRegex(token.value, escapeSettings)}"]` : '[]';
-				})
-				.join('');
-		default: throw new Error('Unknown submitted form - cannot generate cql query');
-	}
-}
-export function getPatternStringSearch(
-	subForm: keyof ModuleRootStateSearch,
-	state: ModuleRootStateSearch,
-	defaultAlignBy: string,
-): string|undefined {
-	// For the normal search form,
-	// the simple and extended views require the values to be processed before converting them to cql.
-	// The advanced and expert views already contain a good-to-go cql query. We only need to take care not to emit an empty string.
-	const alignBy = state.parallelFields.alignBy || defaultAlignBy;
-	const targets = state.parallelFields.targets || [];
-	switch (subForm) {
-		case 'simple':
-			const q = state.simple.annotationValue.value ? [state.simple.annotationValue] : [];
-			return q.length ?
-				getPatternString(q, null, null, targets, alignBy) :
-				undefined;
-		case 'extended': {
-			const r = cloneDeep(Object.values(state.extended.annotationValues))
-				.filter(annot => !!annot.value)
-				.map(annot => ({
-					...annot,
-					type: getCorrectUiType(uiTypeSupport.search.extended, annot.type!)
-				}));
-			return r.length || state.extended.within ?
-				getPatternString(r, state.extended.within, state.extended.withinAttributes, targets, alignBy) :
-				undefined;
-		}
-		case 'advanced':
-			if (!state.advanced.query)
-				return undefined;
-			return getPatternStringFromCql(state.advanced.query, targets, state.advanced.targetQueries, alignBy);
-		case 'expert':
-			return getPatternStringFromCql(state.expert.query || '', targets, state.expert.targetQueries, alignBy);
-		case 'concept': return state.concept?.trim() || undefined;
-		case 'glosses': return state.glosses?.trim() || undefined;
-		default: throw new Error('Unimplemented pattern generation.');
-	}
-}
-
-export function getPatternSummaryExplore<K extends keyof ModuleRootStateExplore>(
-	subForm: K,
-	state: ModuleRootStateExplore,
-	annots: Record<string, AppTypes.NormalizedAnnotation>
-): string|undefined {
-	switch (subForm) {
-		case 'corpora': return undefined;
-		case 'frequency': return `${annots[state.frequency.annotationId].defaultDisplayName} frequency`;
-		case 'ngram': return `${annots[state.ngram.groupAnnotationId].defaultDisplayName} ${state.ngram.size}-grams`
-		default: return undefined;
-	}
-}
-export function getPatternSummarySearch<K extends keyof ModuleRootStateSearch>(
-	subForm: K,
-	state: ModuleRootStateSearch,
-	defaultAlignBy: string,
-) {
-	const patt = getPatternStringSearch(subForm, state, defaultAlignBy);
-	return patt?.replace(/\\(.)/g, '$1') || '';
-}
-
 // Must be here to avoid recursive dependencies
 export const PARALLEL_FIELD_SEPARATOR = '__';
 
@@ -927,6 +768,51 @@ export function getParallelFieldName(prefix: string, version: string) {
 	return `${prefix}${PARALLEL_FIELD_SEPARATOR}${version}`;
 }
 
+/** If passed only a version name: prefix it with the field name from defaultFieldName.
+ *
+ *  So:
+ *  <code>ensureCompleteFieldName('en',          'contents__nl') === 'contents__en'</code>
+ *  <code>ensureCompleteFieldName('contents_en', 'contents__nl') === 'contents__en'</code>
+ */
+export function ensureCompleteFieldName(fieldOrVersion: string, defaultFieldName: string) {
+	if (isParallelField(fieldOrVersion)) {
+		return fieldOrVersion;
+	} else {
+		// Prefix with the field name
+		const parts = getParallelFieldParts(defaultFieldName);
+		return getParallelFieldName(parts.prefix, fieldOrVersion);
+	}
+}
+
+
+/** Does the specified field name denote a field in a parallel corpus? */
 export function isParallelField(fieldName: string) {
 	return fieldName.includes(PARALLEL_FIELD_SEPARATOR);
+}
+
+/** Are these valid parameters with a pattern that will yield results with hits? */
+export function isHitParams(params: BLTypes.BLSearchParameters|null|undefined): params is BLTypes.BLSearchParameters {
+	return !! (params && params.patt);
+}
+
+/** Span filter ids always start with this */
+const SPAN_FILTER_PREFIX = 'span';
+
+/** Separator for span filter id parts */
+const SPAN_FILTER_SEPARATOR = ':';
+
+/** ID of span filter, given its element and attribute names. */
+export function spanFilterId(elName: string, attributeName: string): string {
+	return [SPAN_FILTER_PREFIX, elName, attributeName].join(SPAN_FILTER_SEPARATOR);
+}
+
+/** Get element name and attribute name from a span filter id. */
+export function elementAndAttributeNameFromFilterId(filterId: string): [string, string] {
+	const filterIdParts = filterId.split(SPAN_FILTER_SEPARATOR);
+	if (filterIdParts.length !== 3 || filterIdParts[0] !== SPAN_FILTER_PREFIX) {
+		throw new Error(`Not a valid span filter ID: ${filterId}`);
+	}
+	const elName = filterIdParts[1];
+	const attrName = filterIdParts[2];
+	return [elName, attrName];
 }

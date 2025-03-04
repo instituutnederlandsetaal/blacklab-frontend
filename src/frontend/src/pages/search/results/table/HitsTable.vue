@@ -25,7 +25,7 @@
 						role="button"
 						:class="['sort', {disabled}]"
 						:title="def.sortOptions[0].title.toString()"
-						@click="changeSort(def.sortOptions[0].sortKey)">{{ def.sortOptions[0].label }} <Debug>{{def.sortOptions[0].debugLabel}}</Debug>
+						@click="changeSort(def.sortOptions[0].sortKey)">{{ def.columnLabel }} <Debug>{{def.sortOptions[0].debugLabel}}</Debug>
 					</a>
 					<template v-else>{{def.columnLabel}}</template>
 				</th>
@@ -35,14 +35,14 @@
 			</tr>
 		</thead>
 		<template v-for="(h, i) in data">
-			<Hit v-if="h.type === 'hit'"
+			<Hit v-if="h.type === 'hit'" :key="`${i}-hit`"
 				:query="query"
 				:mainAnnotation="mainAnnotation"
 				:otherAnnotations="otherAnnotations"
 				:detailedAnnotations="detailedAnnotations"
 				:depTreeAnnotations="depTreeAnnotations"
 				:metadata="metadata"
-				:dir="dir"
+				:dir="hitDirection(h)"
 				:html="html"
 				:disabled="disabled"
 				:disableDetails="disableDetails"
@@ -68,6 +68,7 @@ import HitRow, {HitRows} from '@/pages/search/results/table/HitRow.vue'
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue'
 import DocRow, {DocRowData} from '@/pages/search/results/table/DocRow.vue';
 import { TranslateResult } from 'vue-i18n';
+import * as CorpusStore from '@/store/search/corpus';
 
 export {HitRows, HitRowData} from '@/pages/search/results/table/HitRow.vue';
 
@@ -189,6 +190,17 @@ export default Vue.extend({
 		changeSort(sort: string) {
 			this.$emit('changeSort', sort)
 		},
+
+		hitDirection(hit: HitRows): 'ltr'|'rtl' {
+			// See if the document has overridden the text direction
+			const hd = hit.doc.docInfo['textDirection'];
+			if (hd && hd.length === 1) {
+				// Yes, use the document's text direction
+				return hd[0] === 'rtl' ? 'rtl' : 'ltr';
+			}
+			// No, use the corpus-wide default
+			return CorpusStore.get.textDirection();
+		}
 	},
 })
 

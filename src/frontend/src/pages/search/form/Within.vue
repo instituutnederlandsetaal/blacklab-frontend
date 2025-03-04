@@ -7,7 +7,7 @@
 		<div class="btn-group col-xs-12 col-md-9">
 			<button v-for="option in withinOptions"
 				type="button"
-				:class="['btn', within === option.value ? 'active btn-primary' : 'btn-default']"
+				:class="['btn', within === option.value || within === null && option.value === '' ? 'active btn-primary' : 'btn-default']"
 				:key="option.value"
 				:value="option.value"
 				:title="option.title || undefined"
@@ -15,7 +15,7 @@
 			>{{$tWithinDisplayName(option)}}</button> <!-- empty value searches across entire documents -->
 		</div>
 		<div class="btn-group col-xs-12 col-md-9 col-md-push-3 attr form-inline" v-for="attr in withinAttributes()">
-			<label>{{ attr.label || attr.value }}</label>
+			<label>{{ $tWithinAttribute(within ?? 'none', attr.value) }}</label>
 			<input class='form-control' type="text" :title="attr.title || undefined"
 					:value="withinAttributeValue(attr)" @change="changeWithinAttribute(attr, $event)" />
 		</div>
@@ -27,6 +27,7 @@ import Vue from 'vue';
 
 import * as UIStore from '@/store/search/ui';
 import * as PatternStore from '@/store/search/form/patterns';
+import * as CorpusStore from '@/store/search/corpus';
 
 import { Option } from '@/components/SelectPicker.vue';
 import { corpusCustomizations } from '@/store/search/ui';
@@ -35,11 +36,15 @@ export default Vue.extend({
 	computed: {
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
-			return enabled ? elements.filter(corpusCustomizations.search.within.include) : [];
+			return enabled ? elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
 		},
 		within: {
-			get(): string|null { return PatternStore.getState().extended.within; },
-			set: PatternStore.actions.extended.within,
+			get(): string|null {
+				return PatternStore.getState().shared.within;
+			},
+			set(v: string|null) {
+				PatternStore.actions.shared.within(v);;
+			}
 		},
 	},
 	methods: {
@@ -50,16 +55,23 @@ export default Vue.extend({
 			const option = this.withinOptions.find(o => o.value === within);
 			if (!option) return [];
 
-			return (corpusCustomizations.search.within.attributes(option) || [])
+			return (corpusCustomizations.search.within._attributes(option.value) || [])
 				.map(el => typeof el === 'string' ? { value: el } : el);
 		},
 		withinAttributeValue(option: Option) {
-			const value = PatternStore.getState().extended.withinAttributes[option.value];
-			return value == null ? '' : value;
+			if (this.within === null)
+			 	return '';
+			const within = PatternStore.getState().shared.withinAttributes;
+			return within ? within[option.value] ?? '' : '';
 		},
 		changeWithinAttribute(option: Option, event: Event) {
+			const spanName = this.within;
+			if (spanName === null)
+				return;
 			const el = event.target as HTMLInputElement;
-			PatternStore.actions.extended.setWithinAttribute({ name: option.value, value: el.value });
+			const curVal = PatternStore.getState().shared.withinAttributes || {};
+			curVal[option.value] = el.value;
+			PatternStore.actions.shared.withinAttributes(curVal);
 		},
 	},
 })

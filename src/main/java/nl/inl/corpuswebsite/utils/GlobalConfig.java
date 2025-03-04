@@ -322,6 +322,9 @@ public class GlobalConfig implements ServletContextListener {
         final String applicationName = ctx.getContextPath().replaceAll("^/", "");
         final String configFileName = applicationName + ".properties";
 
+        set(defaultProps, Keys.CF_URL_ON_CLIENT, "/" + applicationName);
+        set(defaultProps, Keys.JSPATH, "/" + applicationName + "/js");
+
         // Get config dir from environment variable
         String envNameFromAppName = applicationName.replaceAll("\\W", "_").toUpperCase() + "_CONFIG_DIR";
         Optional<GlobalConfig> config =

@@ -38,7 +38,7 @@ function getSettings(i18n: Vue): QueryBuilderOptions {
 	}));
 
 	const withinSelectOptions = UIStore.getState().search.shared.within.elements
-		.filter(UIStore.corpusCustomizations.search.within.include)
+		.filter(element => UIStore.corpusCustomizations.search.within.includeSpan(element.value))
 		.map(opt => ({
 			...opt,
 			label: i18n.$tWithinDisplayName(opt) || 'document',
@@ -64,7 +64,7 @@ async function updateOrCreateBuilder(el: HTMLElement, i18n: Vue, getState: (stat
 		await instance.refresh(getSettings(i18n));
 	} else {
 		instance = new QueryBuilder($(el), getSettings(i18n), i18n);
-		
+
 		// When store updates - put in builder.
 		RootStore.store.watch(getState, v => {
 			const pattern = instance.getCql();
@@ -78,7 +78,7 @@ async function updateOrCreateBuilder(el: HTMLElement, i18n: Vue, getState: (stat
 			setState(instance.getCql());
 		}
 	}
-	
+
 	// When builder updates - put in store
 	// Always do this, instance.element is replaced on refresh() TODO: fix that.
 	instance.element.on('cql:modified', () => {
@@ -96,10 +96,10 @@ export async function initQueryBuilders(i18n: Vue) {
 		// Index 0 is the source query, the rest are target queries
 		// They're all stored in the same store, but the first one is stored in a different field
 		// Abstract that away here.
-		const getStateValue = 
-			i === 0 ? (state: RootStore.RootState) => (state.patterns.advanced.query || '') : 
+		const getStateValue =
+			i === 0 ? (state: RootStore.RootState) => (state.patterns.advanced.query || '') :
 			(state: RootStore.RootState) => (state.patterns.advanced.targetQueries[i - 1] || '');
-		const setStateValue = i === 0 ? PatternStore.actions.advanced.query : 
+		const setStateValue = i === 0 ? PatternStore.actions.advanced.query :
 			(v: string) => PatternStore.actions.advanced.changeTargetQuery({ index: i - 1, value: v });
 
 		await updateOrCreateBuilder(el, i18n, getStateValue, setStateValue);

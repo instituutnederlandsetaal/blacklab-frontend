@@ -1,5 +1,9 @@
 import { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes";
 import { BLHitResults, BLSearchResult } from '@/types/blacklabtypes';
+import { spanFilterId } from '@/utils';
+import { attr } from 'highcharts';
+import * as FilterModule from '@/store/search/form/filters';
+//import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
 
 /** Group by some tokens at a fixed position in the hit. */
 export type ContextPositional = {
@@ -29,12 +33,27 @@ export type GroupByContext<T extends ContextPositional|ContextLabel = ContextPos
 
 	context: T;
 }
-/** Represents grouping by document metadata */
-export type GroupByMetadata = {
-	type: 'metadata';
+
+/** Document-level metadata */
+export type MetadataDocument = {
+	type: 'document';
 	field: string;
-	caseSensitive: boolean;
 }
+/** Span-level metadata */
+export type MetadataSpanAttribute = {
+	type: 'span-attribute';
+	spanName: string;
+	attributeName: string;
+}
+
+/** Represents grouping by metadata (document-level or span-level) */
+export type GroupByMetadata<T extends MetadataDocument|MetadataSpanAttribute = MetadataDocument|MetadataSpanAttribute> = {
+	type: 'metadata';
+	caseSensitive: boolean;
+
+	metadata: T;
+}
+
 /**
  * Represents grouping by something we don't support.
  * We just stick the raw string in the value field.
@@ -45,6 +64,19 @@ export type GroupByCustom = {
 	value: string;
 }
 export type GroupBy = GroupByContext|GroupByMetadata|GroupByCustom;
+
+function determineRelationPartField(results: BLSearchResult|undefined, label: string, relationPart: string|undefined, overriddenFieldName: string|undefined) {
+	const defaultFieldName = overriddenFieldName ?? results?.summary.pattern?.fieldName;
+	const matchInfoDef = results?.summary.pattern?.matchInfos?.[label];
+	if (matchInfoDef) {
+		// Make sure we return the correct field if we're referencing a crossfield relation target
+		if (relationPart === 'target')
+			return matchInfoDef.targetField ?? defaultFieldName;
+		else
+			return matchInfoDef.fieldName ?? defaultFieldName;
+	}
+	return defaultFieldName;
+};
 
 /**
  * Parse a GroupBy string. It should be pre-separated on comma's.
@@ -65,24 +97,15 @@ export function parseGroupBy(groupBy: string[], results?: BLSearchResult): Group
 			// grouping by metadata
 			case 'field': return {
 				type: 'metadata',
-				field: parts[1],
-				caseSensitive: parts[2] === 's'
+				caseSensitive: parts[2] === 's',
+				metadata: {
+					type: 'document',
+					field: parts[1],
+				}
 			};
 			case 'capture':
 				const [_, __, sensitivity, label, relationPart] = parts;
-				const determineRelationPartField = (label: string, relationPart: string|undefined, overriddenFieldName: string|undefined) => {
-					const defaultFieldName = overriddenFieldName ?? results?.summary.pattern?.fieldName;
-					const matchInfoDef = results?.summary.pattern?.matchInfos?.[label];
-					if (matchInfoDef) {
-						// Make sure we return the correct field if we're referencing a crossfield relation target
-						if (relationPart === 'target')
-							return matchInfoDef.targetField ?? defaultFieldName;
-						else
-							return matchInfoDef.fieldName ?? defaultFieldName;
-					}
-					return defaultFieldName;
-				};
-				const actualFieldName = determineRelationPartField(label, relationPart, optFieldName)
+				const actualFieldName = determineRelationPartField(results, label, relationPart, optFieldName)
 				return cast<GroupByContext>({
 					type: 'context',
 					fieldName: actualFieldName,
@@ -95,6 +118,32 @@ export function parseGroupBy(groupBy: string[], results?: BLSearchResult): Group
 						relation: relationPart as 'source'|'target'|'full'|undefined
 					}
 				});
+			case 'span-attribute': {
+				const [__, tagName, attributeName, sensitivity] = parts;
+				// @@@ TODO: how do we pass fieldName with span-attribute?
+				//           (or is that determined automatically by BL based on capture name..?)
+				//const actualFieldName = determineRelationPartField(results, tagName, 'source', optFieldName);
+				return {
+					type: 'metadata',
+					caseSensitive: sensitivity === 's', // NOTE: ignored, determined by how spans were indexed (the new default is case-insensitive)
+					metadata: {
+						type: 'span-attribute',
+						spanName: tagName,
+						attributeName: attributeName  ///@@@@@
+					}
+				};
+				// return cast<GroupByContext>({
+				// 	type: 'context',
+				// 	fieldName: actualFieldName,
+				// 	annotation: undefined,
+				// 	caseSensitive: sensitivity === 's',
+				// 	context: {
+				// 		type: 'span-attribute',
+				// 		spanName: tagName,
+				// 		attributeName,
+				// 	}
+				// });
+			}
 			case 'hit':
 				return cast<GroupByContext>({
 					type: 'context',
@@ -207,7 +256,17 @@ export function serializeGroupBy(groupBy: GroupBy|GroupBy[]): string|string[] {
 	function serialize(g: GroupBy): string {
 		const optTargetField = g.type === 'context' && g.fieldName ? `${g.fieldName}%` : '';
 		switch (g.type) {
-			case 'metadata': return `field:${g.field}:${g.caseSensitive ? 's' : 'i'}`;
+			case 'metadata': {
+				const meta = g.metadata;
+				if (meta.type === 'document') {
+					return `field:${meta.field}:${g.caseSensitive ? 's' : 'i'}`;
+				} else if (meta.type === 'span-attribute') {
+					return `span-attribute:${meta.spanName}:${meta.attributeName}:${g.caseSensitive ? 's' : 'i'}`;
+				}
+				const e = new Error('Unimplemented metadata group type: ' + JSON.stringify(g, undefined, 2))
+				console.error(e, g);
+				throw e;
+			}
 			case 'context': {
 				const ctx = g.context;
 				if (ctx.type === 'label') {
@@ -244,8 +303,14 @@ export function serializeGroupBy(groupBy: GroupBy|GroupBy[]): string|string[] {
 }
 
 export function isValidGroupBy(g: GroupBy): boolean {
-	if (!g.type) return false;
-	if (g.type === 'metadata' && !g.field) return false;
+	if (!g.type)
+		return false;
+	if (g.type === 'metadata') {
+		if (g.metadata.type === 'document')
+			return !!g.metadata.field;
+		if (g.metadata.type === 'span-attribute')
+			return !!(g.metadata.spanName || g.metadata.attributeName);
+	}
 	if (g.type === 'context') {
 		if (!g.annotation) return false;
 		if (g.context.type === 'label' && !g.context.label) return false;
@@ -256,11 +321,14 @@ export function isValidGroupBy(g: GroupBy): boolean {
 }
 
 export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<string, NormalizedAnnotation>, metadata: Record<string, NormalizedMetadataField>): string {
+	console.log('humanizeGroupBy', JSON.stringify(g));
 	if (g.type === 'context') {
-		if (!g.annotation) return i18n.$t('results.groupBy.specify').toString();
+		if (!g.annotation)
+			return i18n.$t('results.groupBy.specify').toString();
 		const field = i18n.$tAnnotDisplayName(annotations[g.annotation]);
 
-		if (g.context.type === 'label') return i18n.$t('results.groupBy.summary.labelledWord', {field, label: g.context.label}).toString();
+		if (g.context.type === 'label')
+			return i18n.$t('results.groupBy.summary.labelledWord', {field, label: g.context.label}).toString();
 
 		let positionDisplay: string;
 		switch (g.context.position) {
@@ -282,10 +350,24 @@ export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<strin
 			default: return i18n.$t('results.groupBy.specify').toString();
 		}
 	} else if (g.type === 'metadata') {
-		if (!g.field) return i18n.$t('results.groupBy.specify').toString();
-		return i18n.$t('results.groupBy.summary.metadata', {field: i18n.$tMetaDisplayName(metadata[g.field])}).toString();
+		const meta = g.metadata;
+		if (meta.type === 'span-attribute') {
+			// Span-level metadata
+			const filterId = spanFilterId(meta.spanName, meta.attributeName);
+			console.log('filterId', filterId);
+			const filter = FilterModule.getState().filters[filterId];
+			console.log('filter', JSON.stringify(filter));
+			return filter ?
+				i18n.$tMetaDisplayName(filter).toString() :
+				i18n.$tWithinAttribute(meta.spanName, meta.attributeName).toString();
+		}
+		// Document-level metadata
+		return meta.field ?
+			i18n.$t('results.groupBy.summary.metadata', {field: i18n.$tMetaDisplayName(metadata[meta.field])}).toString() :
+			i18n.$t('results.groupBy.specify').toString();
 	} else {
 		// Unknown.
 		return g.value;
 	}
 }
+

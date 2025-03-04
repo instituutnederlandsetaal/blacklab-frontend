@@ -49,24 +49,24 @@ const BaseParallelInfo = Vue.extend({
 
 		/** For binding to e.g. SelectPicker v-model */
 		pSourceValue: {
-			get(): string|null { return PatternStore.get.parallelAnnotatedFields().source; },
-			set(value: string) { PatternStore.actions.parallelFields.sourceField(value); }
+			get(): string|null { return PatternStore.get.shared().source; },
+			set(value: string) { PatternStore.actions.shared.sourceField(value); }
 		},
 		/** For binding to e.g. SelectPicker v-model */
 		pTargetValue: {
-			get(): string[] { return PatternStore.get.parallelAnnotatedFields().targets; },
-			set(value: string[]) { PatternStore.actions.parallelFields.targetFields(value); }
+			get(): string[] { return PatternStore.get.shared().targets; },
+			set(value: string[]) { PatternStore.actions.shared.targetFields(value); }
 		}
 	},
 	methods: {
 		addTarget(targetAnnotatedFieldId: string) {
-			PatternStore.actions.parallelFields.addTarget(targetAnnotatedFieldId);
+			PatternStore.actions.shared.addTarget(targetAnnotatedFieldId);
 		},
 		removeTarget(targetAnnotatedFieldId: string) {
-			PatternStore.actions.parallelFields.removeTarget(targetAnnotatedFieldId);
+			PatternStore.actions.shared.removeTarget(targetAnnotatedFieldId);
 		},
 		setSource(sourceAnnotatedFieldId: string) {
-			PatternStore.actions.parallelFields.sourceField(sourceAnnotatedFieldId);
+			PatternStore.actions.shared.sourceField(sourceAnnotatedFieldId);
 		}
 	}
 })

@@ -32,7 +32,7 @@ public class PaginationInfo {
     /**
      *
      * @param pageSize if omitted, pagination is disabled, otherwise a non-zero positive integer is expected
-     * @param documentMetadata for retrieving the length
+     * @param documentMetadata for retrieving the length of the document
      * @param requestedPageStart the requested start of the page by the client
      * @param requestedPageEnd the requested end of the page by the client
      * @param hitStart if no (or invalid) requestedPageStart and requestedPageEnd, center around this value based on the page size.
@@ -44,7 +44,7 @@ public class PaginationInfo {
             Optional<Integer> requestedPageStart,
             Optional<Integer> requestedPageEnd,
             Optional<Integer> hitStart,
-            String field
+            Optional<String> field
     ) {
 
         // Get doc length for the annotated field
@@ -91,21 +91,19 @@ public class PaginationInfo {
         this.blacklabPageEnd = end != documentLength ? Optional.of(end) : Optional.empty();
     }
 
-    private static int getDocumentLength(String documentMetadata, String field) {
-        Pattern p;
-        boolean isParallel = !StringUtils.isEmpty(field);
-        if (isParallel) {
-            // Get document length for a specific field (parallel corpora)
-            // (note that field may either be full field name like contents__nl or just a version like nl)
-            p = Pattern.compile("<fieldName>(?:\\w+__)?" + field + "</fieldName>\\s*<tokenCount>\\s*(\\d+)\\s*</tokenCount>");
-        } else {
-            // Get document length for main annotated field
-            p = CAPTURE_DOCLENGTH_PATTERN;
-        }
+    private static int getDocumentLength(String documentMetadata, Optional<String> field) {
+        Pattern p = field
+                .filter(StringUtils::isNotBlank)
+                // Get document length for a specific field (parallel corpora)
+                // (note that field may either be full field name like contents__nl or just a version like nl)
+                .map(f -> Pattern.compile("<fieldName>(?:\\w+__)?" + f + "</fieldName>\\s*<tokenCount>\\s*(\\d+)\\s*</tokenCount>"))
+                // Get document length for main annotated field
+                .orElse(CAPTURE_DOCLENGTH_PATTERN);
+
         Matcher m = p.matcher(documentMetadata);
         if (m.find())
             return Integer.parseInt(m.group(1));
         else
-            throw new RuntimeException("Cannot decode document size" + (isParallel ? " for field " + field : "") + ". Unsupported BlackLab version?");
+            throw new RuntimeException("Cannot decode document size" + field.map(f -> " for field " + f).orElse("") + ". Unsupported BlackLab version?");
     }
 }

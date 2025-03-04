@@ -581,7 +581,7 @@ export class QueryBuilder {
 		try {
 			const parallelQueries = (await parseBcql(INDEX_ID, cql, this.settings.attribute.view.defaultAttribute));
 			if (parallelQueries.length !== 1) {
-				debugLog('Cql parser could not decode query pattern', cql);
+				debugLog('Cql parser could not decode query pattern (parallelQueries.length !== 1)', cql);
 				return false;
 			}
 			return populateQueryBuilder(this, parallelQueries[0]);
@@ -1284,19 +1284,20 @@ function populateQueryBuilders(queryBuilders: QueryBuilder[], parallelQueries: R
 function populateQueryBuilder(queryBuilder: QueryBuilder, parsedCql: Result): boolean {
 	try {
 		const tokens = parsedCql.tokens;
-		const within = parsedCql.within;
-		if (tokens === undefined) {
+		if (tokens === undefined)
 			return false;
-		}
+
+		const withinSelectOptions = queryBuilder.settings.queryBuilder.view.withinSelectOptions;
+		const within = Object.keys(parsedCql.withinClauses ?? {})
+				.find(spanName => withinSelectOptions.find(o => o.value === spanName));
 
 		queryBuilder.reset();
 		if (tokens.length > 0) {
 			// only clear the querybuilder when we're putting something back in
 			queryBuilder.getTokens().forEach(token => token.element.remove());
 		}
-		if (within) {
+		if (within)
 			queryBuilder.set('within', within);
-		}
 
 		tokens.forEach(token => {
 			const tokenInstance = queryBuilder.createToken();
