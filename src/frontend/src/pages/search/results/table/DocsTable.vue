@@ -119,7 +119,7 @@ import Vue from 'vue';
 import HitsTable from '@/pages/search/results/table/HitsTable.vue';
 import DocRow from '@/pages/search/results/table/DocRow.vue';
 import TableHeader from '@/pages/search/results/table/TableHeader.vue';
-import { ColumnDefs, DisplaySettings, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/utils/hit-highlighting';
 import { BLDoc } from '@/types/blacklabtypes';
 
 
@@ -128,7 +128,7 @@ export default Vue.extend({
 	props: {
 		cols: Object as () => ColumnDefs,
 		rows: Object as () => Rows,
-		info: Object as () => DisplaySettings,
+		info: Object as () => DisplaySettingsForRendering,
 
 		// mainAnnotation: Object as () => NormalizedAnnotation,
 		// metadata: Array as () => NormalizedMetadataField[]|undefined,

@@ -43,12 +43,12 @@ import Vue from 'vue';
 
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import {blacklab} from '@/api';
-import { BLSearchParameters, BLHitResults, BLDocResults, isDocResults, isHitResults } from '@/types/blacklabtypes';
+import { BLSearchParameters, BLHitResults, BLDocResults } from '@/types/blacklabtypes';
 
 import HitsTable from '@/pages/search/results/table/HitsTable.vue'
 import DocsTable from '@/pages/search/results/table/DocsTable.vue';
 
-import { ColumnDefs, DisplaySettings, GroupRowData, makeRows, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, GroupRowData, makeRows, Rows } from '@/utils/hit-highlighting';
 
 import Spinner from '@/components/Spinner.vue';
 export default Vue.extend({
@@ -58,27 +58,12 @@ export default Vue.extend({
 	props: {
 		row: Object as () => GroupRowData,
 		cols: Object as () => ColumnDefs,
-		info: Object as () => DisplaySettings,
+		info: Object as () => DisplaySettingsForRendering,
 
 		open: Boolean,
 		disabled: Boolean,
 		type: String as () => 'hits'|'docs',
 		query: Object as () => BLSearchParameters,
-
-
-		// query: Object as () => BLSearchParameters,
-		// /** Are we inside the docResults or hitResults. Not great. */
-		// type: String as () => 'hits'|'docs',
-		// data: Object as () => GroupRowData,
-
-		// mainAnnotation: Object as () => NormalizedAnnotation,
-		// otherAnnotations: Array as () => NormalizedAnnotation[]|undefined,
-		// metadata: Array as () => NormalizedMetadataField[]|undefined,
-
-		// dir: String as () => 'ltr'|'rtl',
-		// html: Boolean,
-		// disabled: Boolean,
-		// open: Boolean
 	},
 	data: () => ({
 		concordances: null as any as PaginatedGetter<Rows>,

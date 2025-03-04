@@ -30,7 +30,7 @@ import Vue from 'vue';
 
 import HitRow from '@/pages/search/results/table/HitRow.vue'
 import DocRow from '@/pages/search/results/table/DocRow.vue';
-import { ColumnDefs, DisplaySettings, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/utils/hit-highlighting';
 
 import TableHeader from './TableHeader.vue';
 
@@ -47,7 +47,7 @@ export default Vue.extend({
 	props: {
 		cols: Object as () => ColumnDefs,
 		rows: Object as () => Rows,
-		info: Object as () => DisplaySettings,
+		info: Object as () => DisplaySettingsForRendering,
 
 		// html: Boolean,
 		disabled: Boolean,

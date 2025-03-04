@@ -31,7 +31,7 @@
 import Vue from 'vue';
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue'
 import HitRowContext from '@/pages/search/results/table/HitRowContext.vue'
-import { ColumnDefs, DisplaySettings, HitRowData } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from '@/utils/hit-highlighting';
 
 export default Vue.extend({
 	components: {
@@ -41,7 +41,7 @@ export default Vue.extend({
 	props: {
 		row: Object as () => HitRowData,
 		cols: Object as () => ColumnDefs,
-		info: Object as () => DisplaySettings,
+		info: Object as () => DisplaySettingsForRendering,
 
 
 		// query: Object as () => BLSearchParameters|undefined,

@@ -186,17 +186,16 @@ export namespace Highlights {
  * { a: [], b: [] } ==> [ { a: '', b: '' }, { a: '', b: '' }]
  *
  * @param part The part of the hit on which to do this.
- * @param annotationId the annotation to put into the main 'text' property of the token.
  * @param punctuationSettings BlackLab sends punctuation BEFORE the token, with a trailing value at the end
  *                            This doesn't align nicely with how we want to render it, so we have to scoot over the punctuation
  *                            Generally, we remove punctation at the very start and end, and move the punctation at the end of the hit over to the after context.
  */
-function flatten(part: BLHitSnippetPart|undefined, annotationId: string, punctuationSettings: {punctAfterLastWord?: string, firstPunct?: boolean}): HitToken[] {
+function flatten(part: BLHitSnippetPart|undefined, punctuationSettings: {punctAfterLastWord?: string, firstPunct?: boolean}): HitToken[] {
 	if (!part) return [];
 	/** The result array */
 	const r: HitToken[] = [];
-	const length = part[annotationId].length;
-	for (let i = 0; i < part[annotationId].length; i++) {
+	const length = part.punct.length;
+	for (let i = 0; i < part.punct.length; i++) {
 		// punctuation is the punctuation/whitespace BEFORE the current word. There is always one more punctuation than there are words in a document (fencepost problem).
 		const punct = (i === length - 1 ? punctuationSettings.punctAfterLastWord : part.punct[i+1]) || '';
 		const token: HitToken = {punct, annotations: {}};
@@ -221,17 +220,16 @@ function flatten(part: BLHitSnippetPart|undefined, annotationId: string, punctua
  *
  * @param summary - the search summary, containing all matchInfos, so we can be sure to have the same color for every hit.
  * @param hit - the hit, or most of the hit in case of doc results (which contain less info than hits)
- * @param annotationId - annotation to put in the token's main 'text' property. Usually whatever annotation contains the words.
  * @param colors - which colors to use for highlighting. This is usually the result of getHighlightColors. If omitted, no highlighting will be done.
  *
  * @returns the hit split into before, match, and after parts, with capture and relation info added to the tokens. The punct is to be shown after the word.
  */
-export function snippetParts(hit: BLHit|BLHitSnippet, annotationId: string, colors?: Record<string, TokenHighlight>): HitContext {
+export function snippetParts(hit: BLHit|BLHitSnippet, colors?: Record<string, TokenHighlight>): HitContext {
 	// NOTE: the original BLS API was designed before RTL support and uses left/right to mean before/after.
 	//       the new BLS API correctly uses before/after, which makes sense for both LTR and RTL languages.
-	const before = flatten(hit.left, annotationId, {punctAfterLastWord: hit.match.punct[0]});
-	const match = flatten(hit.match, annotationId, {});
-	const after = flatten(hit.right, annotationId, {firstPunct: true});
+	const before = flatten(hit.left, {punctAfterLastWord: hit.match.punct[0]});
+	const match = flatten(hit.match, {});
+	const after = flatten(hit.right, {firstPunct: true});
 
 	// Only extract captures if have the necessary info to do so.
 	if (!('start' in hit) || !hit.matchInfos || !colors)
@@ -367,7 +365,7 @@ export function mergeMatchInfos(data: BLHitResults): BLHitResults {
 
 // ===================
 
-export type DisplaySettings = {
+export type DisplaySettingsForRendering = {
 	/** Annotation shown in the before/hit/after columns and expanded concordance */
 	mainAnnotation: NormalizedAnnotation;
 	/** Additional annotation columns to show (besides before/hit/after) */
@@ -404,6 +402,10 @@ export type DisplaySettings = {
 
 	groupDisplayMode: 'table'|'docs'|'hits'|'relative docs'|'relative hits'|'tokens';
 }
+
+export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'>
+export type DisplaySettingsForRows = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'sourceField'|'targetFields'|'getSummary'>
+export type DisplaySettingsForColumns = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'mainAnnotation'|'metadata'|'otherAnnotations'|'sortableAnnotations'|'groupDisplayMode'>
 
 type Result<HitType extends BLHit|BLHitSnippet|BLHitInOtherField|undefined = BLHit|BLHitSnippet|BLHitInOtherField|undefined> = {
 	doc: BLDoc;
@@ -459,7 +461,7 @@ function input(result: BLSearchResult, doc: BLDocInfo|BLDoc, hit?: BLHit|BLHitIn
 	return {doc: typeof doc.docPid === 'string' ? doc as BLDoc : {docPid: (hit as BLHit).docPid, docInfo: doc as BLDocInfo}, hit, query: result.summary.searchParam};
 }
 
-function makeDocRow(p: Result, info: DisplaySettings): DocRowData {
+function makeDocRow(p: Result, info: DisplaySettingsForRows): DocRowData {
 	return {
 		doc: p.doc,
 		href: getDocumentUrl(p.doc.docPid, info.sourceField.id, undefined, p.query.patt, p.query.pattgapdata, undefined),
@@ -478,11 +480,11 @@ function docDir(doc: BLDoc, corpusNativeDir: 'ltr'|'rtl'): 'ltr'|'rtl' {
 	}
 }
 
-function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: DisplaySettings, highlightColors: Record<string, TokenHighlight>|undefined, field: NormalizedAnnotatedField): HitRowContext {
+function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined, field: NormalizedAnnotatedField): HitRowContext {
 	return {
 		doc: p.doc,
 		hit: p.hit,
-		context: snippetParts(p.hit, info.mainAnnotation.id, highlightColors),
+		context: snippetParts(p.hit, highlightColors),
 		href: getDocumentUrl(p.doc.docPid, field.id, info.sourceField.id, p.query.patt, p.query.pattgapdata, start(p.hit)),
 		isForeign: field !== info.sourceField,
 		annotatedField: field,
@@ -496,11 +498,11 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 	}
 }
 
-function makeDocRows(results: BLDocResults, info: DisplaySettings): DocRowData[] {
+function makeDocRows(results: BLDocResults, info: DisplaySettingsForRows): DocRowData[] {
 	return results.docs.map(doc => makeDocRow(input(results, doc), info));
 }
 
-function makeHitRows(results: BLHitResults, info: DisplaySettings): Array<DocRowData|HitRowData> {
+function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array<DocRowData|HitRowData> {
 	// First, merge the matchInfos from the main hit with the otherFields hits.
 	// This is required to highlight hits in parallel corpora.
 	mergeMatchInfos(results);
@@ -516,7 +518,7 @@ function makeHitRows(results: BLHitResults, info: DisplaySettings): Array<DocRow
 	}
 	return r;
 }
-function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: DisplaySettings, highlightColors: Record<string, TokenHighlight>|undefined): HitRowData {
+function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined): HitRowData {
 	const r: HitRowData = {
 		type: 'hit',
 		rows: [makeHitRow(p, info, highlightColors, info.sourceField)]
@@ -645,7 +647,10 @@ export type Rows = {
 	rows: Array<DocRowData|HitRowData|GroupRowData>;
 	maxima?: Maxima;
 }
-export function makeRows(results: BLSearchResult, info: DisplaySettings): Rows {
+
+
+export function makeRows(results: BLSearchResult, info: DisplaySettingsForRows): Rows {
+	console.log('recomputing rows');
 	if (isDocResults(results)) return { rows: makeDocRows(results, info) }
 	else if (isHitResults(results)) return { rows: makeHitRows(results, info) }
 	else return makeGroupRows(results, info.i18n.$t('results.groupBy.groupNameWithoutValue').toString());
@@ -700,10 +705,12 @@ export type ColumnDefs = {
 	hitColumns: ColumnDefHit[];
 	docColumns: ColumnDefDoc[];
 	groupColumns: ColumnDefGroup[];
-	groupModeOptions: DisplaySettings['groupDisplayMode'][];
+	groupModeOptions: DisplaySettingsForColumns['groupDisplayMode'][];
 }
 
-export function makeColumns(results: BLSearchResult, info: DisplaySettings): ColumnDefs {
+export function makeColumns(results: BLSearchResult, info: DisplaySettingsForColumns): ColumnDefs {
+	console.log('Recomputing columns');
+
 	const docColumns: ColumnDefDoc[] = [];
 	const hitColumns: ColumnDefHit[] = [];
 	const groupColumns: ColumnDefGroup[] = [];
@@ -741,9 +748,6 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		}
 	}
 
-
-
-
 	/// HITS
 
 	const leftLabelKey = info.dir === 'rtl' ? 'results.table.columnLabelAfterHit' : 'results.table.columnLabelBeforeHit';
@@ -753,7 +757,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 	const blSortPrefixCenter = 'hit'; // e.g. hit:word or hit:lemma
 	const blSortPrefixRight = info.dir === 'rtl' ? 'before' : 'after'; //. e.g. after:word or after:lemma
 
-	const contextAnnots = info. sortableAnnotations || [];
+	const contextAnnots = info.sortableAnnotations || [];
 	const otherAnnots = info.otherAnnotations || [];
 	const meta = info.metadata || [];
 
@@ -853,7 +857,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 	if (!isGroups(results)) return {hitColumns, docColumns, groupColumns, groupModeOptions: []};
 	const groupType = isDocGroups(results) ? 'docs' : 'hits';
 	const groupedBy = results.summary.searchParam.group!.match(/field:|decade/) ? 'metadata' : 'annotation';
-	let availableDisplayModes = Object.keys(displayModes[groupType][groupedBy]) as DisplaySettings['groupDisplayMode'][];
+	let availableDisplayModes = Object.keys(displayModes[groupType][groupedBy]) as DisplaySettingsForColumns['groupDisplayMode'][];
 
 	// Hide the relative tokens view when results are filtered based on a cql pattern
 	if (groupType === 'docs' && results.summary.pattern) { availableDisplayModes = availableDisplayModes.filter(o => o !== 'tokens'); }

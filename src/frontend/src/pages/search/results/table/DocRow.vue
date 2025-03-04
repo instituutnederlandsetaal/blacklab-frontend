@@ -18,14 +18,14 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import { DocRowData, DisplaySettings, ColumnDefs } from '@/utils/hit-highlighting';
+import { DocRowData, DisplaySettingsForRendering, ColumnDefs } from '@/utils/hit-highlighting';
 
 
 export default Vue.extend({
 	props: {
 		row: Object as () => DocRowData,
 		cols: Object as () => ColumnDefs,
-		info: Object as () => DisplaySettings,
+		info: Object as () => DisplaySettingsForRendering,
 
 		// data: Object as () => DocRowData,
 		// /** Optional! */

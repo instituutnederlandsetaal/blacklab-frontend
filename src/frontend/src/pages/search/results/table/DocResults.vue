@@ -45,7 +45,7 @@
 import Vue from 'vue';
 
 import DocsTable from '@/pages/search/results/table/DocsTable.vue';
-import { ColumnDefs, DisplaySettings, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/utils/hit-highlighting';
 
 export default Vue.extend({
 	components: {
@@ -54,7 +54,7 @@ export default Vue.extend({
 	props: {
 		cols: Object as () => ColumnDefs,
 		rows: Object as () => Rows,
-		info: Object as () => DisplaySettings,
+		info: Object as () => DisplaySettingsForRendering,
 
 		// results: Object as () => BLDocResults,
 		sort: String as () => string|null,

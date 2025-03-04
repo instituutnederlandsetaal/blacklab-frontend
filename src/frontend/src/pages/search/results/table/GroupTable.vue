@@ -90,7 +90,7 @@ import { BLSearchParameters } from '@/types/blacklabtypes';
 import { definitions } from '@/pages/search/results/table/groupTable';
 import GroupRow from '@/pages/search/results/table/GroupRow.vue';
 import GroupRowDetails from '@/pages/search/results/table/GroupRowDetails.vue';
-import { ColumnDefs, DisplaySettings, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/utils/hit-highlighting';
 import TableHeader from '@/pages/search/results/table/TableHeader.vue';
 
 export default Vue.extend({
@@ -100,7 +100,7 @@ export default Vue.extend({
 	props: {
 		cols: Object as () => ColumnDefs,
 		rows: Object as () => Rows,
-		info: Object as () => DisplaySettings,
+		info: Object as () => DisplaySettingsForRendering,
 
 		disabled: Boolean,
 

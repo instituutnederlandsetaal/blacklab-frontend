@@ -522,7 +522,7 @@ export default Vue.extend({
 			const hitInField = targetField && targetField.length > 0 && targetField !== this.mainSearchField && firstHit.otherFields ? firstHit.otherFields[targetField] : firstHit;
 			const {annotation, context} = this.selectedCriterium;
 
-			const snippet = snippetParts(hitInField, wordAnnotation, this.colors)
+			const snippet = snippetParts(hitInField, this.colors)
 
 			// Don't highlight the list of relations matchInfo; it doesn't make sense to group on those
 			const removeListMatchInfo = (t: HitToken) => t.captureAndRelation = t.captureAndRelation?.filter(c => c.key.indexOf('[') < 0);

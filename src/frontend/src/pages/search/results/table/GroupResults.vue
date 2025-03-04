@@ -47,7 +47,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 
 import GroupTable from '@/pages/search/results/table/GroupTable.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
-import { ColumnDefs, DisplaySettings, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/utils/hit-highlighting';
 
 export default Vue.extend({
 	components: { SelectPicker, GroupTable },
@@ -55,7 +55,7 @@ export default Vue.extend({
 	props: {
 		cols: Object as () => ColumnDefs,
 		rows: Object as () => Rows,
-		info: Object as () => DisplaySettings,
+		info: Object as () => DisplaySettingsForRendering,
 
 		sort: String as () => null|string,
 		disabled: Boolean,
@@ -66,23 +66,19 @@ export default Vue.extend({
 	methods: {
 		changeSort(payload: string) {
 			if (!this.disabled) {
-				debugger; this.$emit('sort', payload === this.sort ? '-'+payload : payload);
+				this.$emit('sort', payload === this.sort ? '-'+payload : payload);
 			}
 		},
 		openFullConcordances(id: string, displayName: string) {
 			if (!this.disabled) {
-				debugger; this.$emit('viewgroup', {id, displayName});
+				this.$emit('viewgroup', {id, displayName});
 			}
 		},
 		changeGroupDisplayMode(payload: string) {
 			if (!this.disabled) {
-				debugger; this.$emit('groupDisplayMode', payload)
+				this.$emit('groupDisplayMode', payload)
 			}
 		},
-
-		debug() {
-			debugger;
-		}
 	},
 });
 </script>

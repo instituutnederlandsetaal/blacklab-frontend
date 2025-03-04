@@ -84,7 +84,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 
 import { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
-import { ColumnDefs, DisplaySettings, HitRowContext, snippetParts } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, HitRowContext, snippetParts } from '@/utils/hit-highlighting';
 import DepTree from '@/pages/search/results/table/DepTree.vue';
 import Spinner from '@/components/Spinner.vue';
 
@@ -103,8 +103,7 @@ export default Vue.extend({
 	props: {
 		row: Object as () => HitRowContext,
 		cols: Object as () => ColumnDefs,
-		info: Object as () => DisplaySettings,
-
+		info: Object as () => DisplaySettingsForRendering,
 
 		// data: Object as () => HitRowData,
 
@@ -197,15 +196,14 @@ export default Vue.extend({
 				// HACK! copy the colors from the existing hit. There's no easy way to get the entire Results object here to get the colors from there.
 				// At least there's never be more highlights in the surrounding snippet than in the hit itself, so this works...
 				const highlightColors = [...this.row.context.before, ...this.row.context.match, ...this.row.context.after]
-				.reduce<Record<string, TokenHighlight>>((acc, t) => {
-					t.captureAndRelation?.forEach(c => acc[c.highlight.key] = c.highlight);
-					return acc;
-				}, {});
+					.reduce<Record<string, TokenHighlight>>((acc, t) => {
+						t.captureAndRelation?.forEach(c => acc[c.highlight.key] = c.highlight);
+						return acc;
+					}, {});
 
 				this.snippet = snippetParts(
 					// @ts-ignore matchinfos not included in snippets. copy from the original hit.
 					{matchInfos: this.row.hit.matchInfos,...s},
-					this.info.mainAnnotation.id,
 					highlightColors
 				);
 

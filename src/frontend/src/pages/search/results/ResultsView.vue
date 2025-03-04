@@ -8,7 +8,7 @@
 
 		<!-- i.e. HitResults, DocResults, GroupResults -->
 		<!-- Minor annoyance, all slot components are re-created when we group/ungroup results because this :is changes, causing a complete re-render. -->
-		<component v-if="resultsHaveData"
+		<component v-if="resultComponentData"
 			:is="resultComponentName"
 			v-bind="resultComponentData"
 
@@ -127,7 +127,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedAnnotatedFieldParallel, NormalizedIndex } from '@/types/apptypes';
 import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
-import { DisplaySettings, makeColumns, makeRows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, makeColumns, makeRows, Rows } from '@/utils/hit-highlighting';
 import { isHitParams } from '@/utils';
 
 export default Vue.extend({
@@ -457,12 +457,15 @@ export default Vue.extend({
 				return 'DocResults';
 			}
 		},
+
 		resultComponentData(): any {
-			if (!this.results) return undefined;
+			console.log('recomputing resultsData');
+			if (!this.results || !this.cols || !this.rows || !this.renderDisplaySettings) return undefined;
 			return {
-				cols: makeColumns(this.results, this.resultsData),
-				rows: makeRows(this.results, this.resultsData),
-				info: this.resultsData,
+				cols: this.cols,
+				rows: this.rows,
+				info: this.renderDisplaySettings,
+
 				query: this.results.summary.searchParam,
 				type: this.id,
 				sort: this.sort,
@@ -470,38 +473,46 @@ export default Vue.extend({
 			};
 		},
 
-		resultsData(): DisplaySettings {
-			const sourceField = CorpusStore.get.allAnnotatedFieldsMap()[QueryStore.getState().shared?.source ?? CorpusStore.get.mainAnnotatedField()];
-			const r: DisplaySettings = markRaw({
-				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
-
-				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, id && CorpusStore.get.allAnnotationsMap()[id]])) as any,
+		commonDisplaySettings(): DisplaySettingsCommon {
+			return {
 				dir: CorpusStore.get.textDirection(),
+				i18n: this,
+				specialFields: CorpusStore.getState().corpus!.fieldInfo,
+			}
+		},
+		rowDisplaySettings(): DisplaySettingsForRows {
+			const sourceField = CorpusStore.get.allAnnotatedFieldsMap()[QueryStore.getState().shared?.source ?? CorpusStore.get.mainAnnotatedField()];
+			return {
+				...this.commonDisplaySettings,
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
+				sourceField,
+				targetFields: (QueryStore.getState().shared?.targets.map(t => CorpusStore.get.allAnnotatedFieldsMap()[t]) ?? CorpusStore.get.allAnnotatedFields()).filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel && f !== sourceField),
+			}
+		},
+		columnDisplaySettings(): DisplaySettingsForColumns {
+			return {
+				...this.commonDisplaySettings,
+				groupDisplayMode: this.groupDisplayMode as any || 'table',
 				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
-
 				metadata: 	this.isHits ? UIStore.getState().results.hits.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) :
 							this.isDocs ? UIStore.getState().results.docs.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) : [],
 				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
-				detailedAnnotations: UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [],
-
-				sourceField,
-				targetFields: (QueryStore.getState().shared?.targets.map(t => CorpusStore.get.allAnnotatedFieldsMap()[t]) ?? CorpusStore.get.allAnnotatedFields()).filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel && f !== sourceField),
-				specialFields: CorpusStore.getState().corpus!.fieldInfo,
-				i18n: this,
-				html: UIStore.getState().results.shared.concordanceAsHtml,
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
+			}
+		},
+		renderDisplaySettings(): DisplaySettingsForRendering {
+			return {
+				...this.rowDisplaySettings,
+				...this.columnDisplaySettings,
+				detailedAnnotations: UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [],
+				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, id && CorpusStore.get.allAnnotationsMap()[id]])) as any,
+				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
+				html: UIStore.getState().results.shared.concordanceAsHtml,
+			}
+		},
 
-				// TODO this should not be part of the computed resultsData that's used to compute the rows
-				// as the rows are indepenent of the columns, and this is a column setting.
-				groupDisplayMode: this.groupDisplayMode as any || 'table',
-			})
-			return r;
-		},
-		rows(): ReturnType<typeof makeRows>|null {
-			return this.results && makeRows(this.results, this.resultsData);
-		},
-		resultsHaveData(): boolean { return !!this.rows?.rows.length; }
+		cols(): ColumnDefs|null { return this.results && makeColumns(this.results, this.columnDisplaySettings); },
+		rows(): Rows|null { return this.results && makeRows(this.results, this.rowDisplaySettings); },
 	},
 	watch: {
 		querySettings: {
