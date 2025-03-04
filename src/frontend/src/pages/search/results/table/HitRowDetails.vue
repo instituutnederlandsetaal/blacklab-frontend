@@ -292,7 +292,6 @@ $screen-lg: 1200px;
 	@media(min-width: $screen-lg) { max-width: calc($screen-lg - 130px); }
 }
 
-
 .concordance-details-table {
 	table-layout: auto;
 	td {

@@ -1,9 +1,5 @@
 <template>
 	<div class="results-container" :disabled="request" :style="{minHeight: request ? '100px' : undefined}">
-
-
-		<!-- <pre>{{ {...resultsData, i18n: undefined, depTreeAnnotations: undefined} }}</pre> -->
-
 		<Spinner v-if="request" overlay size="75"/>
 
 		<!-- i.e. HitResults, DocResults, GroupResults -->
@@ -459,7 +455,6 @@ export default Vue.extend({
 		},
 
 		resultComponentData(): any {
-			console.log('recomputing resultsData');
 			if (!this.results || !this.cols || !this.rows || !this.renderDisplaySettings) return undefined;
 			return {
 				cols: this.cols,

@@ -43,34 +43,10 @@ export default Vue.extend({
 		row: Object as () => HitRowData,
 		cols: Object as () => ColumnDefs,
 		info: Object as () => DisplaySettingsForRendering,
-
-
-		// query: Object as () => BLSearchParameters|undefined,
-
-		// /** Annotation shown in the before/hit/after columns and expanded concordance */
-		// mainAnnotation: Object as () => NormalizedAnnotation,
-		// /** Optional. Additional annotation columns to show (besides before/hit/after) */
-		// otherAnnotations: Array as () => NormalizedAnnotation[]|undefined,
-		// /** Optional. Annotations shown in the expanded concordance.  */
-		// detailedAnnotations: Array as () => NormalizedAnnotation[]|undefined,
-		// /** What properties/annotations to show for tokens in the deptree, e.g. lemma, pos, etc. */
-		// depTreeAnnotations: Object as () =>  Record<'lemma'|'upos'|'xpos'|'feats', NormalizedAnnotation|null>,
-
-		// /** Optional. Additional metadata columns to show. Normally nothing, but could show document id or something */
-		// metadata: Array as () => NormalizedMetadataField[]|undefined,
-
-		// dir: String as () => 'ltr'|'rtl',
-		/** Render contents as html or text */
-		// html: Boolean,
 		/** Prevent interaction with sorting, expanding/collapsing, etc. */
 		disabled: Boolean,
+		/** Do not render detail rows, even when not disabled. */
 		disableDetails: Boolean,
-
-		// /** The results */
-		// h: Object as () => HitRows,
-
-		// /** Toggles whether we show the source field of the hits */
-		// isParallel: Boolean,
 	},
 	data: () => ({
 		open: false,

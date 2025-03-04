@@ -650,7 +650,6 @@ export type Rows = {
 
 
 export function makeRows(results: BLSearchResult, info: DisplaySettingsForRows): Rows {
-	console.log('recomputing rows');
 	if (isDocResults(results)) return { rows: makeDocRows(results, info) }
 	else if (isHitResults(results)) return { rows: makeHitRows(results, info) }
 	else return makeGroupRows(results, info.i18n.$t('results.groupBy.groupNameWithoutValue').toString());
@@ -709,8 +708,6 @@ export type ColumnDefs = {
 }
 
 export function makeColumns(results: BLSearchResult, info: DisplaySettingsForColumns): ColumnDefs {
-	console.log('Recomputing columns');
-
 	const docColumns: ColumnDefDoc[] = [];
 	const hitColumns: ColumnDefHit[] = [];
 	const groupColumns: ColumnDefGroup[] = [];
