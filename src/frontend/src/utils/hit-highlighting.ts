@@ -441,6 +441,7 @@ export type DocRowData = {
 	summary: string;
 	href: string;
 	doc: BLDoc,
+	hits?: HitRowData[]
 };
 
 export {GroupRowData} from '@/pages/search/results/table/groupTable';
@@ -464,6 +465,7 @@ function makeDocRow(p: Result, info: DisplaySettings): DocRowData {
 		href: getDocumentUrl(p.doc.docPid, info.sourceField.id, undefined, p.query.patt, p.query.pattgapdata, undefined),
 		summary: info.getSummary(p.doc.docInfo, info.specialFields),
 		type: 'doc',
+		hits: p.doc.snippets?.length ? p.doc.snippets.map(s => makeRowsForHit({...p, hit: s}, info, undefined)) : undefined
 	}
 }
 
@@ -477,7 +479,6 @@ function docDir(doc: BLDoc, corpusNativeDir: 'ltr'|'rtl'): 'ltr'|'rtl' {
 }
 
 function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: DisplaySettings, highlightColors: Record<string, TokenHighlight>|undefined, field: NormalizedAnnotatedField): HitRowContext {
-	const dir = docDir(p.doc, info.dir);
 	return {
 		doc: p.doc,
 		hit: p.hit,
@@ -485,7 +486,7 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		href: getDocumentUrl(p.doc.docPid, field.id, info.sourceField.id, p.query.patt, p.query.pattgapdata, start(p.hit)),
 		isForeign: field !== info.sourceField,
 		annotatedField: field,
-		dir,
+		dir: docDir(p.doc, info.dir),
 
 		// TODO
 		gloss_fields: [],
@@ -495,17 +496,9 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 	}
 }
 
-function makeDocRows(results: BLDocResults, info: DisplaySettings): Array<DocRowData|HitRowData> {
-	const highlightColors = Highlights.getHighlightColors(results.summary);
-	const r: Array<DocRowData|HitRowData> = [];
-	for (const doc of results.docs) {
-		const data: Result = {doc, hit: undefined, query: results.summary.searchParam};
-		r.push(makeDocRow(data, info));
-		doc.snippets?.forEach(hit => r.push({type: 'hit', rows: [makeHitRow({...data, hit}, info, highlightColors, info.sourceField)]}));
-	}
-	return r;
+function makeDocRows(results: BLDocResults, info: DisplaySettings): DocRowData[] {
+	return results.docs.map(doc => makeDocRow(input(results, doc), info));
 }
-
 
 function makeHitRows(results: BLHitResults, info: DisplaySettings): Array<DocRowData|HitRowData> {
 	// First, merge the matchInfos from the main hit with the otherFields hits.
@@ -523,23 +516,19 @@ function makeHitRows(results: BLHitResults, info: DisplaySettings): Array<DocRow
 	}
 	return r;
 }
-function makeRowsForHit(p: Result<BLHit>, info: DisplaySettings, highlightColors: Record<string, TokenHighlight>): HitRowData {
-	return {
+function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: DisplaySettings, highlightColors: Record<string, TokenHighlight>|undefined): HitRowData {
+	const r: HitRowData = {
 		type: 'hit',
-		rows: [
-			makeHitRow(p, info, highlightColors, info.sourceField),
-			...info.targetFields
-				.filter(f => p.hit.otherFields?.[f.id])
-				.map(f => makeHitRow({...p, hit: p.hit.otherFields![f.id]}, info, highlightColors, f))
-		]
+		rows: [makeHitRow(p, info, highlightColors, info.sourceField)]
+	};
+	if ('otherFields' in p.hit && info.targetFields.length) {
+		const h = p.hit as BLHit;
+		r.rows.push(...info.targetFields
+			.filter(f => h.otherFields?.[f.id])
+			.map(targetField => makeHitRow({...p, hit: h.otherFields![targetField.id]}, info, highlightColors, targetField))
+		);
 	}
-
-	// yield makeHitRow(p, info, highlightColors, info.sourceField);
-	// for (const targetField of info.targetFields) {
-	// 	const hitInOtherField = p.hit.otherFields?.[targetField.id];
-	// 	if (!hitInOtherField) continue;
-	// 	yield makeHitRow({...p, hit: hitInOtherField}, info, highlightColors, targetField);
-	// }
+	return r;
 }
 
 /** Return those keys whose value is of type U */
@@ -675,7 +664,7 @@ type ColumnDefBase = {
 	title?: string;
 	sort?: string|SortOption[];
 	textAlignClass?: string;
-	colspan?: number;
+	colspan?: number|string;
 }
 
 // we want either a single sort with a title holding the 'sort by' text
@@ -817,34 +806,43 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettings): Col
 		...sorts(contextAnnots, blSortPrefixRight),
 		field: info.dir === 'rtl' ? 'before' : 'after',
 		annotation: info.mainAnnotation
-	},
-	...otherAnnots.map(a => ({
-		key: `annot_${a.id}`,
-		label: i.$tAnnotDisplayName(a),
-		debugLabel: a.id,
-		textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
-		...sorts([a], 'annotation'),
-		field: 'annotation' as const,
-		annotation: a
-	})),
-	...meta.map(m => ({
-		key: `meta_${m.id}`,
-		label: i.$tMetaDisplayName(m),
-		debugLabel: m.id,
-		textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
-		title: i.$t('results.table.sortBy', {field: i.$tMetaDisplayName(m)}).toString(),
-		sort: `field:${m.id}`,
-		field: 'metadata' as const,
-		metadata: m
-	}))
-	);
+	});
 
+	if (isHitResults(results)) {
+		hitColumns.push(
+			...otherAnnots.map(a => ({
+				key: `annot_${a.id}`,
+				label: i.$tAnnotDisplayName(a),
+				debugLabel: a.id,
+				textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
+				...sorts([a], 'annotation'),
+				field: 'annotation' as const,
+				annotation: a
+			})),
+			...meta.map(m => ({
+				key: `meta_${m.id}`,
+				label: i.$tMetaDisplayName(m),
+				debugLabel: m.id,
+				textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
+				title: i.$t('results.table.sortBy', {field: i.$tMetaDisplayName(m)}).toString(),
+				sort: `field:${m.id}`,
+				field: 'metadata' as const,
+				metadata: m
+			}))
+		)
+	}
 
-
-
-	const tableWidth = (isHitResults(results) ? hitColumns : isGroups(results) ? groupColumns : docColumns).reduce((width, col) => width + (col.colspan ?? 1), 0);
+	const tableWidth = (isHitResults(results) ? hitColumns : isGroups(results) ? groupColumns : docColumns).reduce((width, col) => width + (typeof col.colspan === 'number' ? col.colspan : 1), 0);
 	if (isHitResults(results))
 		docColumns[0].colspan = Math.max(1, tableWidth - (docColumns.length - 1));
+	else {
+		hitColumns.forEach(c => {
+			c.colspan = (1 / hitColumns.length) * 100 + '%'
+			// c.textAlignClass = 'text-center';
+			c.sort = undefined;
+			c.title = undefined;
+		});
+	}
 	/// TODO
 	// else if (isDocResults(results))
 	// 	hitColumns

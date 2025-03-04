@@ -1,7 +1,7 @@
 <template>
 	<table class="group-table">
 		<thead>
-			<tr class="rounded">
+			<tr>
 				<TableHeader v-for="(col, i) in cols.groupColumns" :key="col.key" :col="col" @changeSort="changeSort" :disabled="disabled" >
 					<v-popover v-if="i === 0" offset="5" style="display:inline-block;">
 						<a role="button" title="Column meanings"><span class="fa fa-lg fa-question-circle"></span></a>

@@ -12,6 +12,7 @@
 				:annotation="col.annotation.id"
 				:html="info.html"
 				:dir="row.dir"
+				:class="col.textAlignClass"
 
 				:hoverMatchInfos="hoverMatchInfos"
 				@hover="$emit('hover', {relationKeys: $event, docPid: row.doc.docPid})"
@@ -175,11 +176,14 @@ tr.concordance {
 	&-details {
 		> td {
 			background: white;
-			border: 2px solid #ddd;
-			border-top: none;
-			border-radius: 0px 0px 4px 4px;
-			padding: 15px 20px;
 
+			border-top: none;
+			border-bottom: 2px solid #ddd;
+			border-radius: 0;
+			&:first-child { border-left: 2px solid #ddd; border-bottom-left-radius: 4px; }
+			&:last-child { border-right: 2px solid #ddd; border-bottom-right-radius: 4px; }
+
+			padding: 15px 20px;
 			> p {
 				margin: 0 6px 10px;
 			}

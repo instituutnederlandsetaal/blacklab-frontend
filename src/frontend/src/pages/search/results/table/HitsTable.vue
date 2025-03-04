@@ -1,7 +1,7 @@
 <template>
 	<table class="hits-table">
 		<thead>
-			<tr class="rounded">
+			<tr>
 				<TableHeader v-for="col in cols.hitColumns" :key="col.key" :col="col" @changeSort="changeSort" :disabled="disabled" />
 				<!-- glosses todo -->
 				<!-- <th v-for="(fieldName, i) in shownGlossCols" :key="i"><a class='sort gloss_field_heading' :title="`User gloss field: ${fieldName}`">{{ fieldName }}</a></th> -->

@@ -1,5 +1,5 @@
 <template>
-	<th>
+	<th :class="col.textAlignClass">
 		<slot></slot>
 		<span v-if="Array.isArray(col.sort)" class="dropdown">
 			<a role="button" data-toggle="dropdown" :class="['dropdown-toggle', {disabled}]">
@@ -20,7 +20,7 @@
 		>
 			{{ col.label }} <debug><b>[{{ col.debugLabel || col.key }}]</b></debug>
 		</a>
-		<template v-else>{{ col.label }} <debug><b>[{{ col.debugLabel || col.key }}]</b></debug></template>
+		<span v-else :title="col.title">{{ col.label }} <debug><b>[{{ col.debugLabel || col.key }}]</b></debug></span>
 	</th>
 </template>
 <script lang="ts">

@@ -94,7 +94,7 @@ export default Vue.extend({
 		// 		};
 		// 	});
 		// },
-		hasHits(): boolean { return !!this.rows.rows.some(r => r.type === 'hit'); }
+		hasHits(): boolean { return !!this.rows.rows.some(r => r.type === 'hit' || (r.type === 'doc' && r.hits)); }
 	},
 	methods: {
 		changeSort(payload: string) {
@@ -110,6 +110,7 @@ export default Vue.extend({
 
 .docs-table {
 	table-layout: auto;
+	border-collapse: separate;
 
 	> thead > tr > th,
 	> tbody > tr > td,

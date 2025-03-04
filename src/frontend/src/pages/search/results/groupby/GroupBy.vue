@@ -296,6 +296,7 @@ export default Vue.extend({
 				delete params.group;
 			delete params.includetokencount;
 			delete params.listvalues;
+			if (params.sort && params.sort.includes('numhits')) params.sort.split(',').filter(s => s != 'numhits').join(',');
 			params.listmetadatavalues = '__nothing__';
 			params.first = 0;
 			params.number = 10; // not 1 but 10 because for parallel corpus we need a hit with otherFields (hopefully we'll get one)
@@ -303,7 +304,7 @@ export default Vue.extend({
 			return params;
 		},
 		firstHitPreviewQueryHash(): string {
-			return jsonStableStringify(this.firstHitPreviewQuery);
+			return this.active ? jsonStableStringify(this.firstHitPreviewQuery) : '';
 		},
 
 		annotations(): Options {
@@ -923,6 +924,8 @@ export default Vue.extend({
 		firstHitPreviewQueryHash: {
 			immediate: true,
 			handler() {
+				if (!this.active) return;
+
 				this.hits = undefined;
 				if (this.firstHitPreviewQuery && this.type === 'hits') {
 					blacklab.getHits(INDEX_ID, this.firstHitPreviewQuery).request.then(r => {

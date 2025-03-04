@@ -1,7 +1,7 @@
 <template>
 	<table class="docs-table">
 		<thead>
-			<tr class="rounded">
+			<tr>
 				<TableHeader v-for="col in cols.docColumns" :key="col.key" :col="col" @changeSort="changeSort" :disabled="disabled"/>
 				<!-- glosses todo -->
 				<!-- <th v-for="(fieldName, i) in shownGlossCols" :key="i"><a class='sort gloss_field_heading' :title="`User gloss field: ${fieldName}`">{{ fieldName }}</a></th> -->
@@ -28,14 +28,43 @@
 		</thead>
 		<tbody>
 			<template v-for="(row, index) in rows.rows">
-				<DocRow v-if="row.type === 'doc'" :key="row.doc.docPid"
-					:row="row"
-					:cols="cols"
-					:info="info"
-				/>
-				<!-- colspan will break here probably. -->
+				<template v-if="row.type === 'doc'">
+					<DocRow :key="row.doc.docPid" :class="{open: showHits && row.hits?.length}" class="concordance"
+						:row="row"
+						:cols="cols"
+						:info="info"
+					/>
+					<tr v-if="showHits && row.hits && row.doc.numberOfHits" :key="index + '-hits'" class="concordance-details">
+						<td colspan="100" style="opacity: 0.8; padding: 0.75em;">
+							<HitsTable
+								:rows="{rows: row.hits}"
+								:cols="cols"
+								:info="info"
+								:disabled="true"
+								:disableDetails="true"
+							/>
+							<div v-if="(row.doc.numberOfHits - row.hits.length ) > 0" class="text-muted clearfix col-xs-12 text-center"> ( {{row.doc.numberOfHits - row.hits.length}} {{ $t('results.table.moreHiddenHits') }}) </div>
+						</td>
+					</tr>
 
-				<template v-if="showHits && row.type === 'hit'">
+				</template>
+				<!-- colspan will break here probably. -->
+				<!-- <template v-else-if="showHits && row.type === 'hit'"> -->
+					<!-- <tr><td colspan="100">
+						<HitRow style="table-layout: fixed; width: 100%;"
+							:row="row"
+							:cols="cols"
+							:info="info"
+						/>
+					</td></tr>
+					<tr v-if="hiddenHits(row.rows[0])"><td :colspan="cols.docColumns.length + (cols.docColumns[0].colspan || 1)" class="text-muted col-xs-12 clearfix">
+						...({{hiddenHits(row.rows[0])}} {{ $t('results.table.moreHiddenHits') }})
+					</td></tr> -->
+				<!-- </template> -->
+
+
+
+				<!-- <template v-if="showHits && row.type === 'hit'">
 					<HitsTable
 						:cols="cols.hitColumns"
 						:rows="[row]"
@@ -43,11 +72,11 @@
 
 						:disabled="true"
 						:disableDetails="true"
-					/>
-					<tr v-if="hiddenHits(row.rows[0])"><td :colspan="cols.docColumns.length + (cols.docColumns[0].colspan || 1)" class="text-muted col-xs-12 clearfix">
+					/> -->
+					<!-- <tr v-if="hiddenHits(row.rows[0])"><td :colspan="cols.docColumns.length + (cols.docColumns[0].colspan || 1)" class="text-muted col-xs-12 clearfix">
 						...({{hiddenHits(row.rows[0])}} {{ $t('results.table.moreHiddenHits') }})
-					</td></tr>
-				</template>
+					</td></tr> -->
+				<!-- </template> -->
 			</template>
 
 
@@ -90,7 +119,8 @@ import Vue from 'vue';
 import HitsTable from '@/pages/search/results/table/HitsTable.vue';
 import DocRow from '@/pages/search/results/table/DocRow.vue';
 import TableHeader from '@/pages/search/results/table/TableHeader.vue';
-import { ColumnDefs, DisplaySettings, HitRowContext, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettings, Rows } from '@/utils/hit-highlighting';
+import { BLDoc } from '@/types/blacklabtypes';
 
 
 export default Vue.extend({
@@ -136,8 +166,8 @@ export default Vue.extend({
 		// 		}]
 		// 	}));
 		// },
-		hiddenHits(docRow?: HitRowContext): number {
-			return docRow ? (docRow.doc.numberOfHits || 0) - (docRow.doc.snippets?.length || 0) : 0;
+		hiddenHits(doc: BLDoc): number {
+			return (doc.numberOfHits || 0) - (doc.snippets?.length || 0);
 		}
 	}
 
