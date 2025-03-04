@@ -1,27 +1,27 @@
 <template>
 	<!-- mind the whitespace, we don't want ANY whitespace between elements. -->
-	<component :is="tag" v-if="html" :style="{fontWeight: bold ? 'bold' : undefined}"
+	<component v-if="html" :is="tag" :style="{fontWeight: bold ? 'bold' : undefined}"
 		><template v-if="before">…</template
-		><template v-for="{text, punct, style, title, relationKeys}, i in renderInfo"
+		><template v-for="{text, punct, punctBefore, style, title, relationKeys}, i in renderInfo"
+			><span v-if="doPunct && punctBefore" v-html="punctBefore"></span
 			><span v-if="style"
 				v-html="text"
-				:key="text + '_' + title + '_' + i"
 				:style="style"
 				:title="title"
 				@mouseover="$emit('hover', relationKeys)"
 				@mouseout="$emit('unhover')"
 				:class="{ hoverable: true, hover: relationKeys?.some(c => hoverMatchInfos.includes(c)) }"
 			></span
-			><span v-else v-html="text" :key="'text' + '_' + text + '_' + i"></span
-			><span v-html="doPunct ? punct : ' '" :key="'punct_' + punct + '_' + i"></span
+			><span v-else v-html="text"></span
+			><span v-if="doPunct" v-html="punct"></span
 		></template
 		><template v-if="after">…</template
 	></component
 	><component v-else :is="tag" :style="{fontWeight: bold ? 'bold' : undefined}"
 		><template v-if="before">…</template
-		><template v-for="{text, punct, style, title, relationKeys}, i in renderInfo"
+		><template v-for="{text, punct, punctBefore, style, title, relationKeys}, i in renderInfo"
+			><template v-if="doPunct && punctBefore">{{ punctBefore }}</template
 			><span v-if="style"
-				:key="text + '_' + title + '_' + i"
 				:style="style"
 				:title="title"
 				@mouseover="$emit('hover', relationKeys)"
@@ -29,7 +29,7 @@
 				:class="{ hoverable: true, hover: relationKeys?.some(c => hoverMatchInfos.includes(c)) }"
 			>{{ text }}</span
 			><template v-else>{{ text }}</template
-			><template>{{ doPunct ? punct : ' ' }}</template
+			><template v-if="doPunct">{{ punct }}</template
 		></template
 		><template v-if="after">…</template
 	></component>
@@ -68,7 +68,7 @@ export default Vue.extend({
 	},
 	computed: {
 		doPunct(): boolean { return this.punct; }, // avoid conflict with props.data in template
-		renderInfo(): Array<{text: string, punct: string, style?: object, title?: string, relationKeys?: string[]}> {
+		renderInfo(): Array<{text: string, punct: string, punctBefore?: string, style?: object, title?: string, relationKeys?: string[]}> {
 			const tokens = this.before ? this.data.before : this.after ? this.data.after : this.data.match;
 
 			return tokens.map(token => {
@@ -97,6 +97,7 @@ export default Vue.extend({
 					relationKeys: token.captureAndRelation?.map(c => c.key),
 					text: token.annotations[this.annotation],
 					punct: token.punct,
+					punctBefore: token.punctBefore,
 					title: this.highlight ? token.captureAndRelation?.map(c => c.display).join(' · ') : undefined,
 					style
 				})

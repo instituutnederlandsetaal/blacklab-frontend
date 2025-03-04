@@ -1,7 +1,7 @@
 <template>
 	<tr class="concordance rounded">
 		<template v-for="col in cols.hitColumns">
-			<HitContextComponent v-if="col.field === 'match' || col.field === 'after' || col.field === 'before' || col.field === 'annotation'" :key="col.key"
+			<HitContext v-if="col.field === 'match' || col.field === 'after' || col.field === 'before' || col.field === 'annotation'" :key="col.key"
 				tag=td
 				:data="row.context"
 				:bold="col.field === 'match'"
@@ -36,10 +36,10 @@
 
 
 		<!-- <td v-if="customHitInfo" class='doc-version'><a @click.stop="" :href="data.href" title="Go to hit in document" target="_blank">{{ customHitInfo }}</a></td>
-		<HitContextComponent v-bind="commonProps" v-on="$listeners" class="text-right" :before="data.dir === 'ltr'" :after="data.dir === 'rtl'"/>
-		<HitContextComponent v-bind="commonProps" v-on="$listeners" class="text-center"/>
-		<HitContextComponent v-bind="commonProps" v-on="$listeners" class="text-left" :before="data.dir !== 'ltr'" :after="data.dir !== 'rtl'"/>
-		<HitContextComponent v-for="a in otherAnnotations" :key="a.id" v-bind="commonProps" v-on="$listeners" :annotation="a.id" :highlight="false" :punct="false"/>
+		<HitContext v-bind="commonProps" v-on="$listeners" class="text-right" :before="data.dir === 'ltr'" :after="data.dir === 'rtl'"/>
+		<HitContext v-bind="commonProps" v-on="$listeners" class="text-center"/>
+		<HitContext v-bind="commonProps" v-on="$listeners" class="text-left" :before="data.dir !== 'ltr'" :after="data.dir !== 'rtl'"/>
+		<HitContext v-for="a in otherAnnotations" :key="a.id" v-bind="commonProps" v-on="$listeners" :annotation="a.id" :highlight="false" :punct="false"/>
 
 		<td v-for="field in data.gloss_fields" :key="field.fieldName" style="overflow: visible;">
 			<GlossField
@@ -61,7 +61,7 @@ import Vue from 'vue';
 
 import { corpusCustomizations } from '@/store/search/ui';
 
-import HitContextComponent from '@/pages/search/results/table/HitContext.vue';
+import HitContext from '@/pages/search/results/table/HitContext.vue';
 import { ColumnDefHit, ColumnDefs, DisplaySettings, HitRowContext } from '@/utils/hit-highlighting';
 
 import GlossField from '@/pages/search/form/concept/GlossField.vue';
@@ -80,7 +80,7 @@ import GlossField from '@/pages/search/form/concept/GlossField.vue';
 export default Vue.extend({
 	components: {
 		GlossField,
-		HitContextComponent
+		HitContext
 	},
 	props: {
 		// data: Object as () => HitRowData,

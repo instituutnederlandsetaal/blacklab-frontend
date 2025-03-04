@@ -11,7 +11,7 @@
 				:hoverMatchInfos="hoverMatchInfos"
 				@hover="hoverMatchInfos = $event"
 				@unhover="hoverMatchInfos = undefined"
-				@click.native="open = disableDetails ? null : row.annotatedField.id"
+				@click.native="open = open || disableDetails ? null : row.annotatedField.id"
 			/>
 			<HitRowDetails v-if="!disableDetails"
 				:row="row"
@@ -23,35 +23,6 @@
 				@hover="hoverMatchInfos = $event"
 				@unhover="hoverMatchInfos = undefined"
 			/>
-
-			<!-- <HitRow :key="`${row.annotatedField?.id}-hit`"
-				:class="{open, 'foreign-hit': row.isForeign}"
-				:data="row"
-				:mainAnnotation="mainAnnotation"
-				:otherAnnotations="otherAnnotations"
-				:metadata="metadata"
-				:dir="dir"
-				:html="html"
-				:hoverMatchInfos="hoverMatchInfos"
-				:isParallel="isParallel"
-				@hover="hover($event)"
-				@unhover="unhover()"
-				@click.native="clickNative()"
-			/>
-			<HitRowDetails v-if="!disableDetails" :key="`${row.annotatedField?.id}-details`"
-				:colspan="colspan"
-				:data="row"
-				:open="open"
-				:mainAnnotation="mainAnnotation"
-				:detailedAnnotations="detailedAnnotations"
-				:depTreeAnnotations="depTreeAnnotations"
-				:dir="dir"
-				:html="html"
-				:isParallel="isParallel"
-				:hoverMatchInfos="hoverMatchInfos"
-				@hover="hover($event)"
-				@unhover="unhover()"
-			/> -->
 		</template>
 	</tbody>
 </template>
@@ -60,7 +31,7 @@
 import Vue from 'vue';
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue'
 import HitRowContext from '@/pages/search/results/table/HitRowContext.vue'
-import { ColumnDefHit, ColumnDefs, DisplaySettings, HitRowData } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettings, HitRowData } from '@/utils/hit-highlighting';
 
 export default Vue.extend({
 	components: {

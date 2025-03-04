@@ -191,15 +191,17 @@ export namespace Highlights {
  *                            This doesn't align nicely with how we want to render it, so we have to scoot over the punctuation
  *                            Generally, we remove punctation at the very start and end, and move the punctation at the end of the hit over to the after context.
  */
-function flatten(part: BLHitSnippetPart|undefined, annotationId: string, punctuationSettings: {punctAfterLastWord?: string, removeFirstPunctuation: boolean }): HitToken[] {
+function flatten(part: BLHitSnippetPart|undefined, annotationId: string, punctuationSettings: {punctAfterLastWord?: string, firstPunct?: boolean}): HitToken[] {
 	if (!part) return [];
 	/** The result array */
 	const r: HitToken[] = [];
 	const length = part[annotationId].length;
 	for (let i = 0; i < part[annotationId].length; i++) {
 		// punctuation is the punctuation/whitespace BEFORE the current word. There is always one more punctuation than there are words in a document (fencepost problem).
-		const punct = (punctuationSettings.removeFirstPunctuation && i === 0 ? undefined : i === length - 1 ? punctuationSettings.punctAfterLastWord : part.punct[i+1]) || '';
-		r.push({punct, annotations: {}});
+		const punct = (i === length - 1 ? punctuationSettings.punctAfterLastWord : part.punct[i+1]) || '';
+		const token: HitToken = {punct, annotations: {}};
+		if (i === 0 && punctuationSettings.firstPunct) token.punctBefore = part.punct[i];
+		r.push(token);
 	}
 	for (const annotationId in part) {
 		if (annotationId !== 'punct') // we already handled this.
@@ -227,9 +229,9 @@ function flatten(part: BLHitSnippetPart|undefined, annotationId: string, punctua
 export function snippetParts(hit: BLHit|BLHitSnippet, annotationId: string, colors?: Record<string, TokenHighlight>): HitContext {
 	// NOTE: the original BLS API was designed before RTL support and uses left/right to mean before/after.
 	//       the new BLS API correctly uses before/after, which makes sense for both LTR and RTL languages.
-	const before = flatten(hit.left, annotationId, {removeFirstPunctuation: true});
-	const match = flatten(hit.match, annotationId, {removeFirstPunctuation: true, punctAfterLastWord: hit.match.punct[0]});
-	const after = flatten(hit.right, annotationId, {removeFirstPunctuation: false});
+	const before = flatten(hit.left, annotationId, {punctAfterLastWord: hit.match.punct[0]});
+	const match = flatten(hit.match, annotationId, {});
+	const after = flatten(hit.right, annotationId, {firstPunct: true});
 
 	// Only extract captures if have the necessary info to do so.
 	if (!('start' in hit) || !hit.matchInfos || !colors)

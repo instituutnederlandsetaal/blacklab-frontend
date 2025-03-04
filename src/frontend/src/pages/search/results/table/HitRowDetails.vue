@@ -45,12 +45,12 @@
 							/>
 						</template>
 
-						<HitContextComponent tag="span" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" :before="true" :after="false"
+						<HitContext tag="span" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" :before="true" :after="false"
 							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', {relationKeys: $event, docPid: row.doc.docPid})" @unhover="$emit('unhover')" />
-						<HitContextComponent tag="strong" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" bold
+						<HitContext tag="strong" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" bold
 							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', {relationKeys: $event, docPid: row.doc.docPid})" @unhover="$emit('unhover')" />
 						<a v-if="row.href" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank"><sup class="fa fa-link" style="margin-left: -5px;"></sup></a>
-						<HitContextComponent tag="span" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" :after="true"  :before="false"
+						<HitContext tag="span" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" :after="true"  :before="false"
 							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', {relationKeys: $event, docPid: row.doc.docPid})" @unhover="$emit('unhover')" />
 					</p>
 					<table v-if="info.detailedAnnotations?.length" class="concordance-details-table">
@@ -63,7 +63,7 @@
 						<tbody>
 							<tr v-for="(annot, index) in info.detailedAnnotations" :key="annot.id">
 								<th>{{$tAnnotDisplayName(annot)}}</th>
-								<HitContextComponent v-for="(token, ti) in snippet.match" tag="td" :data="{match: [token]}" :html="info.html" :dir="row.dir" :key="annot.id + ti" :punct="false" :highlight="false" :annotation="annot.id"
+								<HitContext v-for="(token, ti) in snippet.match" tag="td" :data="{match: [token]}" :html="info.html" :dir="row.dir" :key="annot.id + ti" :punct="false" :highlight="false" :annotation="annot.id"
 									:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', {relationKeys: $event, docPid: row.doc.docPid})" @unhover="$emit('unhover')" />
 								@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
 							</tr>
@@ -83,8 +83,8 @@ import Vue from 'vue';
 
 import * as BLTypes from '@/types/blacklabtypes';
 
-import { HitContext, TokenHighlight } from '@/types/apptypes';
-import HitContextComponent from '@/pages/search/results/table/HitContext.vue';
+import { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
+import HitContext from '@/pages/search/results/table/HitContext.vue';
 import { ColumnDefs, DisplaySettings, HitRowContext, snippetParts } from '@/utils/hit-highlighting';
 import DepTree from '@/pages/search/results/table/DepTree.vue';
 import Spinner from '@/components/Spinner.vue';
@@ -97,7 +97,7 @@ import { debugLog } from '@/utils/debug';
 /** TODO disconnect from the store? */
 export default Vue.extend({
 	components: {
-		HitContextComponent,
+		HitContext,
 		DepTree,
 		Spinner
 	},
@@ -132,7 +132,7 @@ export default Vue.extend({
 		sentence: null as null|BLTypes.BLHit,
 
 		snippetRequest: null as null|Promise<void>,
-		snippet: null as null|HitContext,
+		snippet: null as null|ContextOfHit,
 
 		error: null as null|string,
 		addons: [] as Array<ReturnType<UIStore.ModuleRootState['results']['hits']['addons'][number]>>,

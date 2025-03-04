@@ -303,6 +303,7 @@ export type HitToken = {
 	annotations: Record<string, string>
 	/** after the text */
 	punct: string;
+	punctBefore?: string;
 	captureAndRelation?: CaptureAndRelation[];
 }
 

@@ -475,18 +475,21 @@ export default Vue.extend({
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
 				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
 
-				metadata: this.isHits ? UIStore.getState().results.hits.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) :
-				this.isDocs ? UIStore.getState().results.docs.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) : [],
+				metadata: 	this.isHits ? UIStore.getState().results.hits.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) :
+							this.isDocs ? UIStore.getState().results.docs.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) : [],
 				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
 				detailedAnnotations: UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [],
 
 				sourceField,
 				targetFields: (QueryStore.getState().shared?.targets.map(t => CorpusStore.get.allAnnotatedFieldsMap()[t]) ?? CorpusStore.get.allAnnotatedFields()).filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel && f !== sourceField),
 				specialFields: CorpusStore.getState().corpus!.fieldInfo,
-				groupDisplayMode: this.groupDisplayMode as any,
 				i18n: this,
 				html: UIStore.getState().results.shared.concordanceAsHtml,
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
+
+				// TODO this should not be part of the computed resultsData that's used to compute the rows
+				// as the rows are indepenent of the columns, and this is a column setting.
+				groupDisplayMode: this.groupDisplayMode as any,
 			}
 			return r;
 		},
