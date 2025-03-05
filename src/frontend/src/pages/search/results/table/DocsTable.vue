@@ -22,7 +22,7 @@
 		</thead>
 		<tbody>
 			<template v-for="(rowData, index) in data">
-				<DocRow :key="index"
+				<DocRow
 					:data="rowData"
 					:metadata="metadata"
 				/>
