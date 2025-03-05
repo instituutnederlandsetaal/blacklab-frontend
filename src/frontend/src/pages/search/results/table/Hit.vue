@@ -2,7 +2,7 @@
 	<tbody :class="{interactable: !disableDetails && !disabled}">
 		<!-- Show hits in other fields (parallel corpora) -->
 		<template v-for="row in h.rows">
-			<HitRow :key="`${row.annotatedField?.id}-hit`"
+			<HitRow
 				:class="{open, 'foreign-hit': row.isForeign}"
 				:data="row"
 				:mainAnnotation="mainAnnotation"
@@ -16,7 +16,7 @@
 				@unhover="unhover()"
 				@click.native="clickNative()"
 			/>
-			<HitRowDetails v-if="!disableDetails" :key="`${row.annotatedField?.id}-details`"
+			<HitRowDetails v-if="!disableDetails"
 				:colspan="colspan"
 				:data="row"
 				:open="open"
@@ -109,9 +109,8 @@ export default Vue.extend({
 		}
 	},
 	watch: {
-		h() {
-			this.open = false;
-		}
+		// Clear data when this component is reused
+		h() { this.open = false; }
 	}
 })
 
