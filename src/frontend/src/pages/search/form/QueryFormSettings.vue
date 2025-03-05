@@ -64,7 +64,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import Vue, { watch } from 'vue';
 
 import * as RootStore from '@/store/search/';
 import * as GlobalViewSettings from '@/store/search/results/global';
@@ -76,6 +76,10 @@ import Modal from '@/components/Modal.vue';
 import debug from '@/utils/debug';
 import { localStorageSynced } from '@/utils/localstore';
 
+// outside component, want to always run this code, even when component is invisible.
+const wideView = localStorageSynced('cf/wideView', false);
+watch(wideView, v => $('.container, .container-fluid').toggleClass('container', !v).toggleClass('container-fluid', wideView.value));
+
 export default Vue.extend({
 	components: {
 		SelectPicker,
@@ -83,7 +87,7 @@ export default Vue.extend({
 	},
 	data: () => ({
 		debug,
-		wideView: localStorageSynced('cf/wideView', false),
+		wideView,
 	}),
 	computed: {
 		viewedResultsSettings: RootStore.get.viewedResultsSettings,
@@ -153,13 +157,5 @@ export default Vue.extend({
 		itoa(n: number|null): string { return n == null ? '' : n.toString(); },
 		atoi(s: string): number|null { return s ? Number.parseInt(s, 10) : null; }
 	},
-	watch: {
-		'wideView.value': {
-			immediate: true,
-			handler(v: boolean) {
-				$('.container, .container-fluid').toggleClass('container', !v).toggleClass('container-fluid', v);
-			},
-		}
-	}
 })
 </script>
