@@ -8,7 +8,7 @@
 		<tbody>
 			<template v-for="(row, index) in rows.rows">
 				<template v-if="row.type === 'doc'">
-					<DocRow :key="row.doc.docPid" :class="{open: showHits && row.hits?.length}" class="concordance"
+					<DocRow :key="row.doc.docPid" :class="{open: showHits && row.hits?.length, concordance: true}"
 						:row="row"
 						:cols="cols"
 						:info="info"
@@ -37,7 +37,7 @@ import Vue from 'vue';
 import HitsTable from '@/pages/search/results/table/HitsTable.vue';
 import DocRow from '@/pages/search/results/table/DocRow.vue';
 import TableHeader from '@/pages/search/results/table/TableHeader.vue';
-import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
 import { BLDoc } from '@/types/blacklabtypes';
 
 export default Vue.extend({

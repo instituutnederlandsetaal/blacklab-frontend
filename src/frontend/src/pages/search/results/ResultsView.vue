@@ -123,7 +123,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedAnnotatedFieldParallel, NormalizedIndex } from '@/types/apptypes';
 import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
-import { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, makeColumns, makeRows, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, makeColumns, makeRows, Rows } from '@/pages/search/results/table/table-layout';
 import { isHitParams } from '@/utils';
 
 export default Vue.extend({
@@ -231,7 +231,8 @@ export default Vue.extend({
 						if (e.title === 'UNKNOWN_MATCH_INFO' && this.groupBy.length > 0) {
 							// remove the group on label.
 							debugLog('grouping failed, clearing groupBy');
-							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined).filter(g => !(g.type === 'context' && g.context.type === 'label'));
+							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined)
+								.filter(g => !((g.type === 'context' && g.context.type === 'label') || (g.type === 'metadata' && g.metadata.type === 'span-attribute')));
 							const newGroupBy = serializeGroupBy(okayGroups);
 							this.groupBy = newGroupBy;
 						}
@@ -489,8 +490,11 @@ export default Vue.extend({
 				...this.commonDisplaySettings,
 				groupDisplayMode: this.groupDisplayMode as any || 'table',
 				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
+				// If groups, don't show any metadata columns.
 				metadata: 	this.isHits ? UIStore.getState().results.hits.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) :
 							this.isDocs ? UIStore.getState().results.docs.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) : [],
+
+				// If groups, don't show any annotation columns.
 				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
 			}
@@ -499,7 +503,8 @@ export default Vue.extend({
 			return {
 				...this.rowDisplaySettings,
 				...this.columnDisplaySettings,
-				detailedAnnotations: UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [],
+				// Don't show details table in expanded rows when showing groups or hits in docs.
+				detailedAnnotations: this.isHits ? UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [] : [],
 				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, id && CorpusStore.get.allAnnotationsMap()[id]])) as any,
 				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
 				html: UIStore.getState().results.shared.concordanceAsHtml,

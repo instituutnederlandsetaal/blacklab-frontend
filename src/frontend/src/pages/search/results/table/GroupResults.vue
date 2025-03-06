@@ -47,7 +47,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 
 import GroupTable from '@/pages/search/results/table/GroupTable.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
-import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
 
 export default Vue.extend({
 	components: { SelectPicker, GroupTable },

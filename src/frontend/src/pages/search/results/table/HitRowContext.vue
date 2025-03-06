@@ -45,7 +45,7 @@ import Vue from 'vue';
 import { corpusCustomizations } from '@/store/search/ui';
 
 import HitContext from '@/pages/search/results/table/HitContext.vue';
-import { ColumnDefs, DisplaySettingsForRendering, HitRowContext } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, HitRowContext } from './table-layout';
 
 import GlossField from '@/pages/search/form/concept/GlossField.vue';
 

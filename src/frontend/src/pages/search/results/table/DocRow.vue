@@ -1,5 +1,5 @@
 <template functional>
-	<tr class="document rounded"
+	<tr :class="['document rounded', data.class]"
 		v-tooltip.top-start="{
 			content: `Document id: ${props.row.doc.docPid}`,
 			trigger: 'hover',
@@ -18,7 +18,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import { DocRowData, DisplaySettingsForRendering, ColumnDefs } from '@/utils/hit-highlighting';
+import { DocRowData, DisplaySettingsForRendering, ColumnDefs } from '@/pages/search/results/table/table-layout';
 
 
 export default Vue.extend({

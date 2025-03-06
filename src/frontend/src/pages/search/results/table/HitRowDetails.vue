@@ -84,7 +84,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 
 import { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
-import { ColumnDefs, DisplaySettingsForRendering, HitRowContext, snippetParts } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, HitRowContext, snippetParts } from './table-layout';
 import DepTree from '@/pages/search/results/table/DepTree.vue';
 import Spinner from '@/components/Spinner.vue';
 
@@ -254,12 +254,6 @@ export default Vue.extend({
 			this.sentenceShown = false;
 		}
 	},
-	created() {
-		//console.log('HitRowDetails created');
-	},
-	destroyed() {
-		//console.log('HitRowDetails destroyed');
-	}
 });
 </script>
 

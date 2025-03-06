@@ -16,7 +16,7 @@ import Vue from 'vue';
 
 import frac2Percent from '@/mixins/fractionalToPercent';
 import { GroupRowData } from '@/pages/search/results/table/groupTable';
-import { ColumnDefGroup, ColumnDefs, Maxima } from '@/utils/hit-highlighting';
+import { ColumnDefGroup, ColumnDefs, Maxima } from '@/pages/search/results/table/table-layout';
 export { GroupRowData } from '@/pages/search/results/table/groupTable';
 
 export default Vue.extend({

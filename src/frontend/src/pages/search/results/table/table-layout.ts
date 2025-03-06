@@ -1,183 +1,280 @@
-import { BLDoc, BLDocFields, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchParameters, BLSearchResult, BLSearchSummary, BLSearchSummaryTotalsHits, hitHasParallelInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
-import { CaptureAndRelation, HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedMetadataField, TokenHighlight } from '@/types/apptypes';
-import { getDocumentUrl, mapReduce } from '@/utils';
-import { corpusCustomizations } from '@/store/search/ui';
-import { displayModes, GroupData, GroupRowData, MaxCounter, tableHeaders } from '@/pages/search/results/table/groupTable';
+import { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchParameters, BLSearchResult, BLSearchSummary, BLSearchSummaryTotalsHits, hitHasParallelInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
+import { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedMetadataField, TokenHighlight } from '@/types/apptypes';
+import { getDocumentUrl } from '@/utils';
 import { GlossFieldDescription } from '@/store/search/form/glossStore';
+
+import * as Highlights from './hit-highlighting';
+
 import { KeysOfType } from '@/types/helpers';
 
-export namespace Highlights {
-	/** Part of a hit/context to highlight, with a label, display and boolean whether it's a relation or a section of the query/result labelled by the user. */
-	export type HighlightSection = {
-		/** -1 for root */
-		sourceStart: number;
-		/** -1 for root */
-		sourceEnd: number;
-		targetStart: number;
-		targetEnd: number;
-		targetField?: string;
 
-		/** True if this is a relation, false if this is a capture group */
-		isRelation: boolean;
+/**
+ * The columns can display various computed data, such as relative group size, or relative frequency.
+ * To keep the displaying manageable we use shortcodes for those, this is a definition list.
+ * also for developer documentation :)
+ */
+export const definitions = [
+	['c',   '[corpus]',            'The entire corpus'],
+	['sc',  '[subcorpus]',         'A set of documents within c. Defined by a specific set of metadata.'],
+	['gsc', '[grouped subcorpus]', 'A set of documents within sc. Creating by matching a set of metadata against documents in sc. If not grouping by metadata, gsc=sc'],
+	['r',   '[results]',           'A set of documents within sc. Created by matching a (optional) cql pattern against documents in sc. If no cql is used, r=sc'],
+	['gr',  '[grouped results]',   'A set of documents within r. Created by matching a set of metadata against documents in r.'],
 
-		/** Should this be permanently higlighted? (if not, may still be hoverable if this is a parallel corpus) */
-		showHighlight: boolean;
+	['*.d', '[documents]',         'Number of documents in a collection'],
+	['*.t', '[tokens]',            'Number of tokens in a collections'],
+	['*.h', '[documents]',         'Number of hits in a collection'],
+];
 
-		/**
-		 * Key of this info as reported by BlackLab.
-		 * E.g. for a query "_ -obj-> _" this would be "obj".
-		 * For an anonymous relation e.g. _ --> _ this would be something like "dep1" or "rel1"
-		 * For a capture group, e.g. "a:[] b:[]" this would be the name of the capture group, "a" or "b".
-		 *
-		 * Can be used for e.g. grouping results (and we do use this, mind when refactoring.)
-		 */
-		key: string;
+/**
+ * Represents the data structure for a group row in the search results table.
+ * The BlackLab api response for groups has data in several different places.
+ * We unpack and simplify it a little so that every entry has the same data available. Names are according to the definitions above
+ */
+export interface GroupRowData {
+	/** Type of the row, which is always 'group'. */
+	type: 'group';
+	/** ID of the group in BlackLab. */
+	id: string;
+	/** Size of the group. */
+	size: number;
+	/** Display name of the group. */
+	displayname: string;
+	/** Total number of documents in the total result set. */
+	'r.d': number;
+	/** Total number of tokens across all matched documents. */
+	'r.t'?: number;
+	/** Total number of hits. Unavailable for queries without CQL pattern. */
+	'r.h'?: number;
+	/** Number of documents in the group. */
+	'gr.d': number;
+	/** Number of tokens in the group. FIXME: Remove optional flag when Jan implements. */
+	'gr.t'?: number;
+	/** Number of hits in the group. Unavailable for queries without CQL pattern. */
+	'gr.h'?: number;
+	/** Group within total search space. Might be unknown (in rare cases, 0 is returned for groups where the metadata value is unknown). */
+	'gsc.d'?: number;
+	/** Group within total search space. Might be unknown (in rare cases, 0 is returned for groups where the metadata value is unknown). */
+	'gsc.t'?: number;
+	/** Total search space. */
+	'sc.d': number;
+	/** Total search space. */
+	'sc.t': number;
+	/** Relative group size (documents) [gr.d/r.d]. Adds to 1 across all groups. */
+	'relative group size [gr.d/r.d]': number;
+	/** Relative group size (tokens) [gr.t/r.t]. Adds to 1 across all groups. FIXME: Remove optional flag when Jan implements. */
+	'relative group size [gr.t/r.t]'?: number;
+	/** Relative group size (hits) [gr.h/r.h]. Adds to 1 across all groups. Optional, only when CQL pattern is available. */
+	'relative group size [gr.h/r.h]'?: number;
+	/** Relative frequency (documents) [gr.d/gsc.d]. Optional because subcorpus might not be calculable. */
+	'relative frequency (docs) [gr.d/gsc.d]'?: number;
+	/** Relative frequency (tokens) [gr.t/gsc.t]. Optional because subcorpus might not be calculable. */
+	'relative frequency (tokens) [gr.t/gsc.t]'?: number;
+	/** Relative frequency (hits) [gr.h/gsc.t]. Optional because subcorpus might not be calculable and hits are optional. */
+	'relative frequency (hits) [gr.h/gsc.t]'?: number;
+	/** Relative frequency (documents) [gr.d/sc.d]. Optional because subcorpus is unknown for metadata grouped requests. Wait for Jan. */
+	'relative frequency (docs) [gr.d/sc.d]'?: number;
+	/** Relative frequency (tokens) [gr.t/sc.t]. Optional because subcorpus is unknown for metadata grouped requests. Wait for Jan. */
+	'relative frequency (tokens) [gr.t/sc.t]'?: number;
+	/** Average document length [gr.t/gr.d]. */
+	'average document length [gr.t/gr.d]'?: number;
+}
 
-		/** Display string, key if !isRelation, relation value + arrow if isRelation == true */
-		display: string;
+/** What properties are available to display in the columns */
+type Column = keyof GroupRowData;
+/**
+ * A "table" layout is just an array of columns.
+ * A column in our case is a cell holding a number, or a horizontal bar (the table represents a sideways bar chart)
+ * The subarray represents a bar, and a string ("column") represents a cell holding a number (like rowData[cell.key])
+ */
+type TableDef = Array<Column|[Column, Column]>;
+
+/**
+ * These are the table layouts we can show for grouped data.
+ * There are several ways of displaying the data, and the user can pick which one they want.
+ *
+ * It is structured as follows:
+ * Based on what the user has searched for, there are several ways of displaying the data
+ * - At the top is the distinction of what we're grouping/displaying: hits or docs
+ * - Below that is the distinction of what is being grouped on: document metadata, or a hit property (such as 'lemma' or 'pos')
+ * - Then below THAT, is the display mode chose by the user. These are the same data, just different sets of columns.
+ *     Usually one wide table containing all relevant properties of the groups
+ *     Then the rest are the same columns but in a wider view using a horizontal bar to illustrate the magnitude of the group,
+ *     instead of just a cell with a fractional number.
+ */
+const displayModes: Record<'hits'|'docs', Record<'metadata'|'annotation', Record<string, TableDef>>> = {
+	hits: {
+		metadata: {
+			'table': [
+				'displayname',
+				'gr.d',
+				'gr.h',
+				'gsc.d',
+				'gsc.t',
+				'relative frequency (docs) [gr.d/gsc.d]',
+				'relative frequency (hits) [gr.h/gsc.t]',
+			],
+
+			'docs': [
+				'displayname',
+				['relative group size [gr.d/r.d]', 'gr.d'],
+				'relative group size [gr.d/r.d]',
+			],
+
+			'hits': [
+				'displayname',
+				['relative group size [gr.h/r.h]', 'gr.h'],
+				'relative group size [gr.h/r.h]',
+			],
+
+			'relative docs': [
+				'displayname',
+				['relative frequency (docs) [gr.d/gsc.d]', 'gr.d'],
+				'relative frequency (docs) [gr.d/gsc.d]'
+			],
+
+			'relative hits': [
+				'displayname',
+				['relative frequency (hits) [gr.h/gsc.t]', 'gr.h'],
+				'relative frequency (hits) [gr.h/gsc.t]'
+			],
+		},
+		annotation: {
+			'table': [
+				'displayname',
+				'gr.h',
+				'relative frequency (hits) [gr.h/gsc.t]'
+			],
+			'hits': [
+				'displayname',
+				['relative frequency (hits) [gr.h/gsc.t]', 'gr.h'],
+				'relative frequency (hits) [gr.h/gsc.t]',
+			],
+		},
+	},
+	docs: {
+		annotation: {'table': []}, // docs can't be grouped by annotaiton, we have this so we don't get key warnings from typescript.
+		metadata: {
+			'table': [
+				'displayname',
+				'gr.d',
+				'gr.t',
+				'relative frequency (docs) [gr.d/gsc.d]',
+				'relative frequency (tokens) [gr.t/gsc.t]',
+				'average document length [gr.t/gr.d]',
+			],
+			'docs': [
+				'displayname',
+				['relative group size [gr.d/r.d]', 'gr.d'],
+				'relative group size [gr.d/r.d]'
+			],
+			'tokens': [
+				'displayname',
+				['relative frequency (tokens) [gr.t/gsc.t]', 'gr.t'],
+				'relative frequency (tokens) [gr.t/gsc.t]'
+			],
+		}
 	}
+};
 
-	// these should be alright for colorblind people.
-	// taken from https://personal.sron.nl/~pault/#sec:qualitative
-	const colors = [
-		'#77AADD',
-		'#EE8866',
-		'#EEDD88',
-		'#FFAABB',
-		'#99DDFF',
-		'#44BB99',
-		'#BBCC33',
-		'#AAAA00',
-		'#DDDDDD',
-	]
-
-	const color = (key: string, i: number): TokenHighlight => ({
-		key,
-		color: colors[i % colors.length],
-		textcolor: 'black',
-		textcolorcontrast: 'white'
-	});
-
-	function mapCaptureList(key: string, list: BLMatchInfoList): HighlightSection[] {
-		return list.infos.map((info, index) => ({
-			...info,
-			isRelation: info.type === 'relation',
-			showHighlight: true,
-			sourceEnd: info.sourceEnd ?? -1,
-			sourceStart: info.sourceStart ?? -1,
-			key: `${key}[${index}]`,
-			display: info.relType,
-		}));
+/**
+ * For every possible column (1 per key in the RowData type) a column header is defined.
+ * It holds the display name, possible tooltip, and optionally what to sort on should the user click the header
+ * (e.g. the column header for the "size" property sorts the groups based on size when clicked by the user - analogous to the Hits and Docs tables)
+ *
+ * So just a mapping for every internal column id to a display name, tooltip and sort property.
+ */
+const tableHeaders: {
+	[K in ('hits'|'docs'|'default')]: {
+		[ColumnId in keyof GroupRowData]?: {
+			label?: string;
+			title?: string;
+			/** annotation, meta field or other property to sort on should this header be clicked by the user */
+			sortProp?: string;
+		}
 	}
+} = {
+	default: {
+		'displayname': {
+			label: 'Group',
+			title: 'Group name',
+			sortProp: 'identity'
+		},
+		'average document length [gr.t/gr.d]': {
+			label: 'Average document length',
+			title: '(gr.t/gr.d)'
+		},
+		'gsc.d': {
+			label: '#all docs in current group',
+			title: '(gsc.d) - This includes documents without hits'
+		},
+		'gr.t': {
+			label: '#tokens in group',
+			title: '(gr.t) - Combined length of all documents with hits in this group',
+		},
+		'gr.h': {
+			label: '#hits in group',
+			title: '(gr.h)'
+		},
+		'relative frequency (docs) [gr.d/gsc.d]': {
+			label: 'Relative frequency (docs)',
+			title: '(gr.d/gsc.d) - Note that gsc.d = sc.d when not grouped by metadata'
+		},
+		'relative frequency (hits) [gr.h/gsc.t]': {
+			label: 'Relative frequency (hits)',
+			title: '(gr.h/gsc.t) - Note that gsc.t = sc.t when not grouped by metadata'
+		},
+		'relative frequency (tokens) [gr.t/gsc.t]': {
+			label: 'Relative frequency (tokens)',
+			title: '(gr.t/gsc.t) - Note that gsc.t = sc.t when not grouped by metadata'
+		}
+	},
+	hits: {
+		'gr.d': {
+			label: '#docs with hits in current group',
+			title: '(gr.d)',
+		},
+		'gr.h': {
+			sortProp: 'size'
+		},
+		'gsc.t': {
+			label: '#all tokens in current group',
+			title: '(gr.t)',
+		},
 
-	function mapCaptureRelation(key: string, relation: BLMatchInfoRelation): HighlightSection {
-		return {
-			...relation,
-			sourceStart: relation.sourceStart ?? -1,
-			sourceEnd: relation.sourceEnd ?? -1,
-			isRelation: true,
-			showHighlight: true,
-			key,
-			display: relation.relType,
-		};
-	}
+		'relative group size [gr.d/r.d]': {
+			label: 'Relative group size (docs)',
+			title: '(gr.d/r.d) - Number of found documents in this group relative to total number of found documents',
+		},
+		'relative group size [gr.h/r.h]': {
+			label: 'Relative group size (hits)',
+			title: '(gr.h/r.h) - Number of hits in this group relative to total number hits',
+		},
+	},
+	docs: {
+		'gr.d': {
+			label: '#docs in group',
+			title: '(gr.d)',
+			sortProp: 'size'
+		},
+		'relative group size [gr.d/r.d]': {
+			label: 'Relative frequency (docs)',
+			title: '(gr.d/r.d)',
+		},
+	},
+};
+// Helpers to compute the largest number in the currently displayed result set.
+// E.G. largest occurance of the RowData['gr.d'] property.
+// This is required to scale the bars in the horizontal barchart view. The largest occurance of a value there has 100% width.
+// NOTE: sometimes we know the absolute maximum across all groups (such as the size), because BlackLab tells us,
+// but sometimes we only have the maximum value in the currently displayed page (such as for properties we compute locally, such as relative sizes).
+// Fixing this would be a substantial amount of extra work for BlackLab.
+export type LocalMaxima = {  [P in keyof GroupRowData]-?: number extends GroupRowData[P] ? number : never; };
+export class MaxCounter<T, K extends (T extends string ? T : KeysOfType<T, number>) = T extends string ? T : KeysOfType<T, number>> {
+	public values: Record<K, number> = {} as any;
 
-	function mapCaptureSpan(key: string, span: BLMatchInfoSpan): HighlightSection {
-		return {
-			sourceEnd: span.end,
-			sourceStart: span.start,
-			targetEnd: span.end,
-			targetStart: span.start,
-			isRelation: false,
-			showHighlight: true,
-			key,
-			display: key,
-		};
-	}
-
-	/**
-	 * Extract matches and capture groups we're interested in for highlighting and (potentially) grouping.
-	 * Because we run this once per hit, it's important that the order of the captures we return is consistent.
-	 * Because we assign colors based on the index, and we want them to be consistent for every hit.
-	 *
-	 * TODO what if there are optional parts of a query, or the query has "or" in it with different highlights on the branches.
-	 *
-	 * @param matchInfos The matchInfos object from a single hit.
-	 * @returns
-	 */
-	export function getHighlightSections(matchInfos: NonNullable<BLHit['matchInfos']>): HighlightSection[] {
-		let interestingCaptures = Object.entries(matchInfos).flatMap<HighlightSection>(([key, info]) => {
-			// captured_rels happens when we ask BlackLab to explicitly return all relations in the hit,
-			// So ignore that, as we'd be highlighting every word in the sentence if we did.
-			// (this happens when requesting context to display in the UI, for example.)
-			// (NOTE: "captured_rels" is the default capture name for rcap() operations,
-			//        so if the query is "(...SOME_QUERY...) within rcap(<s/>)", the "captured_rels" capture
-			//        will contain all relations in the sentence)
-			if (key === 'captured_rels') return [];
-
-			// A list of relations, such as returned by the ==>TARGETVERSION (parallel alignment) operator
-			// or a call to rcap(). Return the captured relations, but include the list index in the name.
-			if (info.type === 'list') return mapCaptureList(key, info);
-			// A single relation
-			else if (info.type === 'relation') return mapCaptureRelation(key, info);
-			// A span, e.g. an explicit capture.
-			// Set the source and target to the same span so it's the same structure as a relation.
-			else if (info.type === 'span') return mapCaptureSpan(key, info);
-			else return []; // type === 'tag'. We don't care about highlighting stuff in between tags (that would be for example every word in a sentence - not very useful)
-		})
-		// Important that this returns a sorted list, as we assign colors based on the index.
-		.sort((a, b) => a.key.localeCompare(b.key))
-
-		// Allow custom script to determine what to highlight for this hit
-		// (i.e. "do (hover)highlight word alignments, but not verse alignments")
-		/** I.E. are there captures (e.g. a:[]) or only relations? */
-		const hasExplicitCaptures = interestingCaptures.find(c => !c.isRelation) !== undefined;
-
-		const result: HighlightSection[] = interestingCaptures
-			.map(mi => {
-				// always highlight if the user "captured" (i.e. labelled this token in the query),
-				// OR if this is a relation and there are no explicit captures.
-				// Even if this is false, the highlight will appear up if the user hovers over the hit.
-				// This only controls whether it's always shown.
-				const shouldHighlightByDefault = !mi.isRelation || !hasExplicitCaptures;
-				const shouldHighlightByCustomizations = corpusCustomizations.results.matchInfoHighlightStyle(mi);
-
-				if (shouldHighlightByCustomizations === 'none') {
-					// this capture/relation should never be highlighed.
-					// remove this from the list.
-					return null;
-				} else if (shouldHighlightByCustomizations === 'static') {
-					// true signifies that this should always be highlighted.
-					mi.showHighlight = true;
-				} else if (shouldHighlightByCustomizations === 'hover') {
-					// false signifies that this should only be highlighted on hover.
-					mi.showHighlight = false;
-				} else {
-					// Script returned null or undefined, or something else we don't understand.
-					// Use the default behavior.
-					mi.showHighlight = shouldHighlightByDefault;
-				}
-
-				return mi;
-			})
-			.filter(mi => mi !== null)
-
-		return result;
-	}
-
-	/**
-	 * Get a color for every relation and capture.
-	 * This ensures that we use the same color everywhere for the same relation/capture.
-	 * The returned colors are keyed by the matchInfos key as reported by BlackLab
-	 *
-	 * E.g. for a query "_ -obj-> _" the color would be under "obj".
-	 * For an anonymous relation e.g. _ --> _ this the color would be under something like "dep" or "rel"
-	 * For a capture group, e.g. "a:[] b:[]" this would be the name of the capture group, "a" or "b".
-	 *
-	 * We use this for highlighting the hits in the UI.
-	 */
-	export function getHighlightColors(summary: BLSearchSummary): Record<string, TokenHighlight> {
-		return mapReduce(Object.keys(summary.pattern?.matchInfos ?? {}).sort(), (hl, i) => color(hl, i));
+	public add(key: K, v?: number) {
+		if (typeof v === 'number')
+			this.values[key] = Math.max(this.values[key] || 0, v);
 	}
 }
 
@@ -211,9 +308,6 @@ function flatten(part: BLHitSnippetPart|undefined, punctuationSettings: {punctAf
 	return r;
 }
 
-
-
-
 /**
  * Split a hit into before, match, and after parts, with capture and relation info added to the tokens.
  * The punct is to be shown after the word.
@@ -236,131 +330,12 @@ export function snippetParts(hit: BLHit|BLHitSnippet, colors?: Record<string, To
 		return { before, match, after };
 
 	const highlights = Highlights.getHighlightSections(hit.matchInfos);
-
-	/** Return those entries in the highlights array where source/target overlaps with the globalTokenIndex */
-	const findHighlightsByTokenIndex = (globalTokenIndex: number): undefined|CaptureAndRelation[] => highlights.reduce<undefined|CaptureAndRelation[]>((matches, c) => {
-		// first see if we're in the matched area for the capture/relation
-
-		// For cross-field relations in parallel corpora, we want to make sure we only
-		// highlight either source or target. If targetField is '__THIS__', we're the target,
-		// otherwise we're the source.
-		// (for single-field relations, we always want to highlight both source and target)
-		const isCrossFieldRelation = 'targetField' in c;
-		const areWeTarget = !isCrossFieldRelation || c.targetField === '__THIS__';
-		const areWeSource = !isCrossFieldRelation || !areWeTarget;
-
-		const isSource = areWeSource && c.sourceStart <= globalTokenIndex && globalTokenIndex < c.sourceEnd;
-		const isTarget = areWeTarget && c.targetStart <= globalTokenIndex && globalTokenIndex < c.targetEnd;
-		if (isSource || isTarget) {
-			// we matched, add it to the matches.
-			const colorIndex = c.key.replace(/\[\d+\]$/g, '');
-			matches = matches ?? [];
-
-			// "fix" for not having highlight colors in otherFields....
-			const FALLBACK_COLOR = {color: 'black', textcolor: 'white', textcolorcontrast: 'black'};
-
-			matches.push({
-				key: c.key,
-				display: c.isRelation ? (isSource ? c.display + '-->' : /*isTarget*/ '-->' + c.display) : c.display,
-				highlight: colors[colorIndex] || FALLBACK_COLOR,
-				showHighlight: c.showHighlight,
-				isSource: c.isRelation && isSource,
-				isTarget: c.isRelation && isTarget
-			});
-		}
-		return matches;
-	}, undefined);
-
-	before.forEach((token, i) => token.captureAndRelation = findHighlightsByTokenIndex(i + hit.start - before.length));
-	match.forEach((token, i) => token.captureAndRelation = findHighlightsByTokenIndex(i + hit.start));
-	after.forEach((token, i) => token.captureAndRelation = findHighlightsByTokenIndex(i + hit.end));
-
-	return {
-		before,
-		match,
-		after
-	};
-}
-
-
-/**
- * For hits with parallel information (e.g. hit in english with dutch alignments from other fields).
- * Enrich the hit in the target with match/relation info.
- * This is required because BlackLab only includes the relation info at the source, not at the target.
- * But we want that info in the target as well, so we can highlight it.
- */
-export function mergeMatchInfos(data: BLHitResults): BLHitResults {
-	// Copy relations to their target field hit, so we can later render that hit as a relation target
-	// (the matchInfo is copied there, with targetField set to the special string __THIS__)
-	data.hits.forEach(hit => {
-		if (hit.matchInfos && hit.otherFields) {
-			hit.otherFields = Object.fromEntries(
-				Object.entries(hit.otherFields).map(([k, v] : [string, BLHitInOtherField]) => {
-					return [k, processHit(k, v, hit.matchInfos!)];
-				})
-			);
-		}
-	});
-
-	// Actually copy the matchInfos to the target field hit from the main hit matchInfos
-	function processHit(
-		targetFieldName: string,
-		targetHit: BLHitInOtherField,
-		sourceHitMatchInfos: Record<string, BLMatchInfo>
-	): BLHitInOtherField {
-		if (Object.keys(sourceHitMatchInfos).length === 0) {
-			// Nothing to merge
-			return targetHit;
-		}
-
-		/** Does the given matchInfo's targetField point to us?
-		 * If it's a list, do any of the list's elements target us?
-		 */
-		function matchInfoHasUsAsTargets([name, matchInfo]: [string, BLMatchInfo]): boolean {
-			if ('targetField' in matchInfo && matchInfo.targetField === targetFieldName)
-				return true;
-			if (matchInfo.type === 'list') {
-				const infos = matchInfo.infos as BLMatchInfo[];
-				if (infos.some(l => 'targetField' in l && l.targetField === targetFieldName))
-					return true;
-			}
-			return false;
-		};
-
-		// Mark targetField as __THIS__ so we'll know it is us later
-		function markTargetField(matchInfo: BLMatchInfo) {
-			return 'targetField' in matchInfo ? ({ ...matchInfo, targetField: '__THIS__'}) : matchInfo;
-		}
-
-		// Keep only relations with us as the target field (and mark it, see above)
-		const toMerge = Object.entries(sourceHitMatchInfos)
-			.filter(matchInfoHasUsAsTargets)
-			.reduce((acc, [name, matchInfo]) => {
-				if ('infos' in matchInfo) {
-					acc[name] = acc[name] = {
-						...matchInfo,
-						infos: matchInfo.infos.map(markTargetField) as BLMatchInfoRelation[]
-					};
-				} else {
-					acc[name] = markTargetField(matchInfo);
-				}
-				return acc;
-			}, {} as Record<string, BLMatchInfo>);
-
-		if (!targetHit.matchInfos || Object.keys(targetHit.matchInfos).length === 0) {
-			// Hit has no matchInfos of its own; just use the infos from the main hit
-			return {
-				...targetHit,
-				matchInfos: toMerge
-			};
-		}
-
-		// Construct a new hit with matchInfos merged together
-		const newHit = {...targetHit};
-		newHit.matchInfos = {...toMerge, ...targetHit.matchInfos};
-		return newHit;
+	if (highlights.length) {
+		before.forEach((token, i) => token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.start - before.length, colors));
+		match.forEach((token, i) => token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.start, colors));
+		after.forEach((token, i) => token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.end, colors));
 	}
-	return data;
+	return { before, match, after };
 }
 
 // ===================
@@ -407,6 +382,7 @@ export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18
 export type DisplaySettingsForRows = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'sourceField'|'targetFields'|'getSummary'>
 export type DisplaySettingsForColumns = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'mainAnnotation'|'metadata'|'otherAnnotations'|'sortableAnnotations'|'groupDisplayMode'>
 
+/** Helper type, data for which we're computing a hitrow or docrow. */
 type Result<HitType extends BLHit|BLHitSnippet|BLHitInOtherField|undefined = BLHit|BLHitSnippet|BLHitInOtherField|undefined> = {
 	doc: BLDoc;
 	hit: HitType;
@@ -414,6 +390,15 @@ type Result<HitType extends BLHit|BLHitSnippet|BLHitInOtherField|undefined = BLH
 	query: BLSearchParameters;
 };
 
+/**
+ * Due to parallel searching, and wanting to highlight the words in both versions of the document,
+ * hits are displayed in their own little mini-tables
+ * Usually for non-parallel searches there's only one row, but when searching in parallel corpora,
+ * there can be multiple.
+ * Due to this, a HitRow actually contains multiple HitRowContexts, which represent the actual rows, one for every "version" of the hit.
+ * (e.g. one in the Dutch version of the document, one in the English version of the document)
+ * For consistency, we call the main rows HitRow/DocRow/GroupRow, and this subobject HitRowContext.
+ */
 export type HitRowContext = {
 	doc: BLDoc;
 	hit: BLHit|BLHitSnippet;
@@ -445,8 +430,6 @@ export type DocRowData = {
 	doc: BLDoc,
 	hits?: HitRowData[]
 };
-
-export {GroupRowData} from '@/pages/search/results/table/groupTable';
 
 function start(hit: BLHit): number;
 function start(hit: BLHitSnippet|undefined): undefined;
@@ -505,7 +488,7 @@ function makeDocRows(results: BLDocResults, info: DisplaySettingsForRows): DocRo
 function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array<DocRowData|HitRowData> {
 	// First, merge the matchInfos from the main hit with the otherFields hits.
 	// This is required to highlight hits in parallel corpora.
-	mergeMatchInfos(results);
+	Highlights.mergeMatchInfos(results);
 	const r: Array<DocRowData|HitRowData> = [];
 	let prevRes: Result|undefined;
 	const colors = Highlights.getHighlightColors(results.summary);
@@ -533,91 +516,63 @@ function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: D
 	return r;
 }
 
-/** Return those keys whose value is of type U */
-// type PropertiesOfType<T, U> = Exclude<{[K in keyof T]: T[K] extends U | undefined ? K : never}[keyof T], undefined>;
-
-// type AllValueTypes<T> = T[keyof T];
-// type AllValueTypesExcept<T, U> = Exclude<AllValueTypes<T>, U>;
-
-
-// type PropertiesOfType<T, U> = Exclude<T,
-
-
-
 function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGroupName: string): { rows: GroupRowData[], maxima: Maxima } {
 	const max = new MaxCounter<GroupRowData>();
 
-	const stage1: GroupData[] = [];
-	if (isHitGroups(results)) {
-		const {summary, hitGroups} = results;
-		// we know the global maximum of this property, so might as well use it.
-		max.add('gr.h', summary.largestGroupSize);
+	const mapHitGroup = (g: BLHitGroupResult, summary: BLHitGroupResults['summary']) => ({
+		type: 'group',
+		id: g.identity || defaultGroupName,
+		size: g.size,
+		displayname: g.properties.concat().sort((a,b) => a.name.localeCompare(b.name)).map(v => v.value).join('·') || defaultGroupName,
 
-		hitGroups.forEach(g => {
-			stage1.push({
-				type: 'group',
-				id: g.identity || defaultGroupName,
-				size: g.size,
-				displayname: g.properties.concat().sort((a,b) => a.name.localeCompare(b.name)).map(v => v.value).join('·') || defaultGroupName,
+		'r.d': summary.numberOfDocs,
+		// When a pattern was used (which is always when we have hits), we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
+		'r.t': undefined, // TODO wait for jan. Should be total tokens in all docs with a hit.
+		'r.h': summary.numberOfHits,
 
-				'r.d': summary.numberOfDocs,
-				'r.t': summary.subcorpusSize!.tokens, // FIXME augment request to make this available
-				'r.h': summary.numberOfHits,
+		'gr.d': g.numberOfDocs,
+		'gr.t': undefined, // TODO wait for jan, is more specific than subcorpusSize, since should only account for docs with hits.
+		'gr.h': g.size,
 
-				'gr.d': g.numberOfDocs,
-				'gr.t': undefined, // TODO wait for jan
-				'gr.h': g.size,
+		'gsc.d': g.subcorpusSize?.documents,
+		'gsc.t': g.subcorpusSize?.tokens,
 
-				'gsc.d': (g.subcorpusSize ? g.subcorpusSize.documents : summary.subcorpusSize!.documents) || undefined,
-				'gsc.t': (g.subcorpusSize ? g.subcorpusSize.tokens : summary.subcorpusSize!.tokens) || undefined,
+		'sc.d': summary.subcorpusSize.documents,
+		'sc.t': summary.subcorpusSize.tokens
+	} as const);
+	const mapDocGroup = (g: BLDocGroupResult, summary: BLDocGroupResults['summary']) => ({
+		type: 'group',
+		id: g.identity,
+		size: g.size,
+		displayname: g.properties.sort((a,b) => a.name.localeCompare(b.name)).map(v => v.value).join('·') || defaultGroupName,
 
-				'sc.d': summary.subcorpusSize ? summary.subcorpusSize.documents : undefined, // TODO jan might make always available, remove check
-				'sc.t': summary.subcorpusSize ? summary.subcorpusSize.tokens : undefined
-			});
-		});
-	} else if (isDocGroups(results)) {
-		const {summary, docGroups} = results;
+		'r.d': summary.numberOfDocs,
+		// When a pattern was used, we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
+		'r.t': summary.searchParam.patt ? undefined : summary.subcorpusSize.tokens,
+		'r.h': summary.numberOfHits,
 
-		// we know the global maximum of this property, so might as well use it.
-		max.add('gr.d', summary.largestGroupSize);
+		'gr.d': g.size,
+		'gr.t': g.numberOfTokens,
+		'gr.h': undefined, // TODO add when jan makes available, something like g.numberOfHits?
 
-		docGroups.forEach(g => {
-			// both are 0 in some cases, so mind that
-			const sdocs = (g.subcorpusSize ? g.subcorpusSize.documents : summary.subcorpusSize!.documents) || undefined;
-			const stokens = (g.subcorpusSize ? g.subcorpusSize.tokens : summary.subcorpusSize!.tokens) || undefined;
-			const reldocs = g.size / summary.numberOfDocs;
-			const reltokens = /*stokens ? g.numberOfTokens / stokens :*/ undefined; // can't really do more with this, we don't have the number of tokens in docs in this group, probably?
-			const sreldocs = sdocs ? g.size / sdocs : undefined;
-			const sreltokens = stokens ? g.numberOfTokens / stokens : undefined;
+		'gsc.d': g.subcorpusSize.documents,
+		'gsc.t': g.subcorpusSize.tokens,
 
-			stage1.push({
-				type: 'group',
-				id: g.identity,
-				size: g.size,
-				displayname: g.properties.sort((a,b) => a.name.localeCompare(b.name)).map(v => v.value).join('·') || defaultGroupName,
+		'sc.d': summary.subcorpusSize.documents,
+		'sc.t': summary.subcorpusSize.tokens
+	} as const);
 
-				'r.d': summary.numberOfDocs,
-				'r.t': summary.tokensInMatchingDocuments!, // FIXME augment request to make this available
-				'r.h': undefined, // summary.numberOfHits, TODO add when jan makes available
+	const stage1 =
+		isHitGroups(results) ? results.hitGroups.map(g => mapHitGroup(g, results.summary)) :
+		isDocGroups(results) ? results.docGroups.map(g => mapDocGroup(g, results.summary)) : [];
+	// we know the global maximum of this property, so might as well use it.
+	max.add(isHitGroups(results) ? 'gr.h' : 'gr.d', results.summary.largestGroupSize);
 
-				'gr.d': g.size,
-				'gr.t': g.numberOfTokens,
-				'gr.h': undefined, // g.numberOfHits, TODO add when jan makes available
-
-				'gsc.d': (g.subcorpusSize ? g.subcorpusSize.documents : summary.subcorpusSize!.documents) || undefined,
-				'gsc.t': (g.subcorpusSize ? g.subcorpusSize.tokens : summary.subcorpusSize!.tokens) || undefined,
-
-				'sc.d': summary.subcorpusSize ? summary.subcorpusSize.documents : undefined, // TODO jan might make always available, remove null check and make non-optional if/when
-				'sc.t': summary.subcorpusSize ? summary.subcorpusSize.tokens : undefined
-			});
-		});
-	}
-
-	const rows = stage1.map<GroupRowData>((row: GroupData) => {
+	const rows = stage1.map<GroupRowData>(row => {
 		const r: GroupRowData = {
 			...row,
 			'relative group size [gr.d/r.d]': row['gr.d'] / row['r.d'],
-			'relative group size [gr.t/r.t]': row['gr.t'] ? row['gr.t']! / row['r.t'] : undefined,
+			'relative group size [gr.t/r.t]': row['gr.t'] && row['r.t'] ? row['gr.t']! / row['r.t'] : undefined,
 			'relative group size [gr.h/r.h]': (row['gr.h'] && row['r.h']) ? row['gr.h']! / row['r.h']! : undefined,
 
 			'relative frequency (docs) [gr.d/gsc.d]':   row['gsc.d']                 ? row['gr.d']  / row['gsc.d']! : undefined,
@@ -628,8 +583,6 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 			'relative frequency (tokens) [gr.t/sc.t]': row['gr.t'] && row['sc.t'] ? row['gr.t']! / row['sc.t']! : undefined,
 
 			'average document length [gr.t/gr.d]': row['gr.t'] ? Math.round(row['gr.t']! / row['gr.d']) : undefined,
-
-			type: 'group',
 		};
 
 		Object.entries(r).forEach(([k, v]: [keyof GroupRowData, GroupRowData[keyof GroupRowData]]) => max.add(k as any, v as any));
@@ -647,7 +600,6 @@ export type Rows = {
 	rows: Array<DocRowData|HitRowData|GroupRowData>;
 	maxima?: Maxima;
 }
-
 
 export function makeRows(results: BLSearchResult, info: DisplaySettingsForRows): Rows {
 	if (isDocResults(results)) return { rows: makeDocRows(results, info) }

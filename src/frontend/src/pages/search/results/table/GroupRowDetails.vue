@@ -15,7 +15,7 @@
 
 					<HitsTable v-if="type === 'hits' && concordances.results.rows.length"
 						:rows="concordances.results"
-						:info="info"
+						:info="{...info, detailedAnnotations: []}"
 						:cols="cols"
 					/>
 					<DocsTable v-else-if="type === 'docs' && concordances.results.rows.length"
@@ -45,10 +45,10 @@ import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import {blacklab} from '@/api';
 import { BLSearchParameters, BLHitResults, BLDocResults } from '@/types/blacklabtypes';
 
-import HitsTable from '@/pages/search/results/table/HitsTable.vue'
+import HitsTable from '@/pages/search/results/table/HitsTable.vue';
 import DocsTable from '@/pages/search/results/table/DocsTable.vue';
 
-import { ColumnDefs, DisplaySettingsForRendering, GroupRowData, makeRows, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, GroupRowData, makeRows, Rows } from '@/pages/search/results/table/table-layout';
 
 import Spinner from '@/components/Spinner.vue';
 export default Vue.extend({
@@ -86,6 +86,8 @@ export default Vue.extend({
 				request: request
 				.then(newResults => makeRows(newResults, this.info))
 				.then(newRows => {
+					newRows.rows = newRows.rows.filter(r => r.type === 'hit');
+
 					if (!oldRows) return newRows;
 					oldRows.rows.push(...newRows.rows);
 					return oldRows;

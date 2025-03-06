@@ -42,7 +42,7 @@
 import Vue from 'vue';
 
 import HitsTable, {} from './HitsTable.vue';
-import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
 
 export default Vue.extend({
 	components: {

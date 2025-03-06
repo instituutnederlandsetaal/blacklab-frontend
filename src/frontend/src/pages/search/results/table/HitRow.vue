@@ -1,5 +1,13 @@
 <template>
-	<tbody :class="{interactable: !disableDetails && !disabled, 'has-foreign-hit': row.rows.some(r => r.isForeign)}">
+	<HitRowContext v-if="((disabled && !open) || disableDetails) && row.rows.length === 1"
+		:class="{open, 'foreign-hit': row.rows[0].isForeign}"
+		:row="row.rows[0]"
+		:cols="cols"
+		:info="info"
+		:html="info.html"
+	/>
+
+	<tbody v-else :class="{interactable: !disableDetails && !disabled, 'has-foreign-hit': row.rows.some(r => r.isForeign)}">
 		<!-- Show hits in other fields (parallel corpora) -->
 		<template v-for="row in row.rows">
 			<HitRowContext
@@ -32,7 +40,7 @@
 import Vue from 'vue';
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue'
 import HitRowContext from '@/pages/search/results/table/HitRowContext.vue'
-import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
 
 export default Vue.extend({
 	components: {
@@ -53,7 +61,7 @@ export default Vue.extend({
 		hoverMatchInfos: undefined as undefined|string[],
 	}),
 	watch: {
-		new_data() { this.open = false; }
+		row() { this.open = false; }
 	}
 })
 

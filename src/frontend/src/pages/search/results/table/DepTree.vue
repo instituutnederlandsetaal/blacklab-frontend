@@ -16,7 +16,7 @@ import {ReactiveDepTree} from '@/../node_modules/reactive-dep-tree/dist/reactive
 import { BLHit, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
 import Spinner from '@/components/Spinner.vue';
 import { NormalizedAnnotation } from '@/types/apptypes';
-import { HitRowContext, HitRowData } from '@/utils/hit-highlighting';
+import { HitRowContext, HitRowData } from '@/pages/search/results/table/table-layout';
 
 
 /* https://universaldependencies.org/format.html

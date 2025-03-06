@@ -39,7 +39,7 @@
 import Vue from 'vue';
 
 import DocsTable from '@/pages/search/results/table/DocsTable.vue';
-import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
 
 export default Vue.extend({
 	components: {

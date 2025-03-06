@@ -214,12 +214,13 @@ import 'vue-slider-component/theme/default.css'
 import jsonStableStringify from 'json-stable-stringify';
 
 import SelectPicker, { OptGroup, Options } from '@/components/SelectPicker.vue';
-import { Highlights, mergeMatchInfos, snippetParts } from '@/utils/hit-highlighting';
 import { CaptureAndRelation, HitToken, Option, TokenHighlight } from '@/types/apptypes';
 
 
 import Tabs from '@/components/Tabs.vue';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
+import { snippetParts } from '@/pages/search/results/table/table-layout';
 
 // What we prefix the tag attribute grouping option with so we can recognize it
 const OPT_PREFIX_SPAN_ATTRIBUTE = '$TAGATTR:';
@@ -461,7 +462,7 @@ export default Vue.extend({
 		},
 
 		colors(): Record<string, TokenHighlight> {
-			return this.hits ? Highlights.getHighlightColors(this.hits.summary) : {};
+			return this.hits ? getHighlightColors(this.hits.summary) : {};
 		},
 
 		selectedCriterium(): GroupBy|undefined { return this.addedCriteria[this.selectedCriteriumIndex]; },
