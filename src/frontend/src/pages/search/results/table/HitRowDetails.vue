@@ -259,10 +259,10 @@ export default Vue.extend({
 		}
 	},
 	created() {
-		console.log('HitRowDetails created');
+		//console.log('HitRowDetails created');
 	},
 	destroyed() {
-		console.log('HitRowDetails destroyed');
+		//console.log('HitRowDetails destroyed');
 	}
 });
 </script>

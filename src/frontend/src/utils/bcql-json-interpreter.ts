@@ -190,9 +190,6 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 			const posfilter = _posFilter(filter.producer, filter.operation, filter.filter);
 			query.withinClauses = { ...query.withinClauses, ...posfilter.withinClauses };
 		}
-
-		//console.log('posfilter', query);
-
 		return query;
 	}
 
@@ -324,6 +321,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	}
 
 	function _relTarget(input: any): Result {
+		input = stripWithSpans(input);
 		if (input.type !== 'reltarget')
 			throw new Error('Unknown reltarget type: ' + input.type);
 		// if (input.relType !== '.*')
@@ -335,6 +333,18 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 			relationType: input.relType,
 			optional: input.optional,
 		};
+	}
+
+	/** Strip the automatically added _with-span() call.
+	 *  (added for certain corpora so we know all overlapping spans for each hit)
+	 */
+	function stripWithSpans(input: any): any {
+		if (input.type === 'callfunc') {
+			if (input.name === '_with-spans' && input.args.length === 1) {
+				return input.args[0];
+			}
+		}
+		return input;
 	}
 
 	function _parallelQuery(bcql: string, input: any): Result[] {
@@ -363,7 +373,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 			}
 
 			const queries = bcql.split(/;?\s*=[\w\-]*=>\w+\??\s*/); // extract partial queries for advanced/expert view
-			const parent = { ..._query(input.parent), query: queries.shift() };
+			const parent = { ..._query(stripWithSpans(input.parent)), query: queries.shift() };
 			const children: Result[] = input.children.map(_relTarget).map( (r: Result, index: number) => ({
 				...r,
 				query: queries.shift(),
