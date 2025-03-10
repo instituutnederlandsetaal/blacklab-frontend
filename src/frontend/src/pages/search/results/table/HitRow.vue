@@ -1,131 +1,85 @@
 <template>
-	<HitRowContext v-if="((disabled && !open) || disableDetails) && row.rows.length === 1"
-		:class="{open, 'foreign-hit': row.rows[0].isForeign}"
-		:row="row.rows[0]"
-		:cols="cols"
-		:info="info"
-		:html="info.html"
-	/>
-
-	<tbody v-else :class="{interactable: !disableDetails && !disabled, 'has-foreign-hit': row.rows.some(r => r.isForeign)}">
-		<!-- Show hits in other fields (parallel corpora) -->
-		<template v-for="row in row.rows">
-			<HitRowContext
-				:class="{open, 'foreign-hit': row.isForeign}"
-				:row="row"
-				:cols="cols"
-				:info="info"
+	<tr class="concordance" :class="{'foreign-hit': row.isForeign}">
+		<template v-for="col in cols.hitColumns">
+			<td v-if="col.field === 'annotatedField'" class="doc-version" :key="col.key + col.field">
+				<a @click.stop="" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank">{{ customHitInfo }}</a> <!-- todo tidy up custom fields. -->
+			</td>
+			<HitContext v-else-if="col.field === 'match' || col.field === 'after' || col.field === 'before' || col.field === 'annotation'" :key="col.key"
+				tag=td
+				:data="row.context"
+				:bold="col.field === 'match'"
+				:highlight="col.field !== 'annotation'"
+				:before="col.field === 'before'"
+				:after="col.field === 'after'"
+				:punct="col.field !== 'annotation'"
+				:annotation="col.annotation.id"
 				:html="info.html"
+				:dir="row.dir"
+				:class="col.textAlignClass"
+
 				:hoverMatchInfos="hoverMatchInfos"
-				@hover="hoverMatchInfos = $event"
-				@unhover="hoverMatchInfos = undefined"
-				@click.native="open = disabled ? open : !open"
+				@hover="$emit('hover', $event)"
+				@unhover="$emit('unhover')"
 			/>
-			<HitRowDetails v-if="!disableDetails"
-				:class="{open}"
-				:row="row"
-				:cols="cols"
-				:info="info"
-				:colspan="cols.hitColumns.length"
-				:open="open"
-				:hoverMatchInfos="hoverMatchInfos"
-				@hover="hoverMatchInfos = $event"
-				@unhover="hoverMatchInfos = undefined"
-			/>
+			<td v-else-if="col.field === 'metadata'" :key="col.key + col.metadata.id">{{ row.doc.docInfo[col.metadata.id]?.join(', ') || '' }}</td>
+
+			<!-- TODO -->
+			<td v-for="field in row.gloss_fields" :key="field.fieldName" style="overflow: visible;">
+				<GlossField
+					:fieldName="field.fieldName"
+					:hit_first_word_id="row.hit_first_word_id"
+					:hit_last_word_id="row.hit_last_word_id"
+					:fieldDescription="field"
+					:hitId="row.hit_id"
+				/>
+			</td>
 		</template>
-	</tbody>
+	</tr>
 </template>
 
 <script lang="ts">
 import Vue from 'vue';
-import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue';
-import HitRowContext from '@/pages/search/results/table/HitRowContext.vue';
-import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
+import { corpusCustomizations } from '@/store/search/ui';
+
+import HitContext from '@/pages/search/results/table/HitContext.vue';
+import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from './table-layout';
+
+import GlossField from '@/pages/search/form/concept/GlossField.vue';
 
 export default Vue.component('HitRow', {
 	components: {
-		HitRowContext,
-		HitRowDetails
+		GlossField,
+		HitContext
 	},
 	props: {
 		row: Object as () => HitRowData,
 		cols: Object as () => ColumnDefs,
 		info: Object as () => DisplaySettingsForRendering,
-		/** Prevent interaction with sorting, expanding/collapsing, etc. */
-		disabled: Boolean,
-		/** Do not render detail rows, even when not disabled. */
-		disableDetails: Boolean,
-	},
-	data: () => ({
-		open: false,
-		hoverMatchInfos: undefined as undefined|string[],
-	}),
-	watch: {
-		row() { this.open = false; }
-	}
-})
+		open: Boolean,
 
+		// which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
+		hoverMatchInfos: {
+			type: Array as () => string[],
+			default: () => [],
+		},
+	},
+	computed: {
+		customHitInfo(): string|undefined {
+			const versionPrefix = this.row.annotatedField && this.$tAnnotatedFieldDisplayName(this.row.annotatedField);
+			return corpusCustomizations.results.customHitInfo(this.row.hit, versionPrefix)?.trim() || versionPrefix;
+		},
+	},
+	methods: {
+		hover(v: any) { this.$emit('hover', v); },
+		unhover(v: any) { this.$emit('unhover', v); },
+	}
+});
 </script>
 
 <style lang="scss">
 
-/*
-tbody.has-foreign-hit > tr:first-child > td { padding-top: 0.5em; }
-tbody.has-foreign-hit > tr:last-child > td { padding-bottom: 0.5em; }
-tbody + tbody.has-foreign-hit > tr:first-child > td {
-	border-top: 1px solid #ddd;
+td.doc-version {
+	padding-left: 1.5em!important;
 }
-
-tbody.has-foreign-hit > tr:not(.open) > td {
-	border-radius: 0!important;
-}
-
-tr.foreign-hit {
-	color: #666;
-	font-style: italic;
-}
-
-tr.concordance {
-	> td {
-		transition: padding 0.1s;
-	}
-
-	&.open {
-		> td {
-			background: white;
-			border-top: 2px solid #ddd;
-			border-bottom: 1px solid #ddd;
-			padding-top: 8px;
-			padding-bottom: 8px;
-			&:first-child {
-				border-left: 2px solid #ddd;
-				border-top-left-radius: 4px;
-				border-bottom-left-radius: 0;
-			}
-			&:last-child {
-				border-right: 2px solid #ddd;
-				border-top-right-radius: 4px;
-				border-bottom-right-radius: 0;
-			}
-		}
-	}
-	&-details {
-		> td {
-			background: white;
-
-			border-top: none;
-			border-bottom: 2px solid #ddd;
-			border-radius: 0;
-			&:first-child { border-left: 2px solid #ddd; border-bottom-left-radius: 4px; }
-			&:last-child { border-right: 2px solid #ddd; border-bottom-right-radius: 4px; }
-
-			padding: 15px 20px;
-			> p {
-				margin: 0 6px 10px;
-			}
-		}
-	}
-}
-	*/
 
 </style>

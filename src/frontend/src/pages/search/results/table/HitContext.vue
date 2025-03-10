@@ -113,7 +113,9 @@ span.hoverable {
 }
 
 span.hover {
-	background-color: #337ab7;
-	color: white;
+	background-image: none!important;
+	background-color: #337ab7!important;
+	color: white!important;
+	text-shadow: none!important;
 }
 </style>

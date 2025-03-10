@@ -9,7 +9,7 @@
 			<template v-for="(row, index) in rows.rows">
 				<template v-if="row.type === 'doc' && !showTitles"></template>
 				<template v-else>
-				<component :is="row.type === 'doc' ? 'DocRow' : row.type === 'hit' ? 'HitRowContext' : 'GroupRow'"
+				<component :is="row.type === 'doc' ? 'DocRow' : row.type === 'hit' ? 'HitRow' : 'GroupRow'"
 					:class="{
 						rounded: true,
 						open: openRows[row.hit_id || index],
@@ -62,8 +62,8 @@ import { BLSearchParameters } from '@/types/blacklabtypes';
 // ensure we have these components loaded
 import '@/pages/search/results/table/DocRow.vue';
 import '@/pages/search/results/table/DocRowDetails.vue';
+import '@/pages/search/results/table/HitRow.vue';
 import '@/pages/search/results/table/HitRowDetails.vue';
-import '@/pages/search/results/table/HitRowContext.vue';
 import '@/pages/search/results/table/GroupRow.vue';
 import '@/pages/search/results/table/GroupRowDetails.vue';
 
