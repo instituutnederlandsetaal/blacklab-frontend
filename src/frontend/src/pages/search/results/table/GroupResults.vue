@@ -46,13 +46,11 @@ import Vue from 'vue';
 
 import * as BLTypes from '@/types/blacklabtypes';
 
-import GroupTable from '@/pages/search/results/table/GroupTable.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
 import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 
 export default Vue.extend({
-	components: { SelectPicker, GroupTable, GenericTable },
+	components: { GenericTable },
 
 	props: {
 		cols: Object as () => ColumnDefs,

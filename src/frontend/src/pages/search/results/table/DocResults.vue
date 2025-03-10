@@ -30,14 +30,11 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import DocsTable from '@/pages/search/results/table/DocsTable.vue';
 import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 
 export default Vue.extend({
-	components: {
-		DocsTable, GenericTable
-	},
+	components: { GenericTable },
 	props: {
 		cols: Object as () => ColumnDefs,
 		rows: Object as () => Rows,

@@ -54,7 +54,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import TableHeader from '@/pages/search/results/table/TableHeader.vue';
+import '@/pages/search/results/table/TableHeader.vue';
 import { definitions, ColumnDefs, DisplaySettingsForRendering, Rows, ColumnDef, HitRowData, GroupRowData } from '@/pages/search/results/table/table-layout';
 import { BLSearchParameters } from '@/types/blacklabtypes';
 
