@@ -260,8 +260,6 @@
 			"loading": "Loading...",
 			"loadMoreConcordances": "Load more concordances",
 			"viewDetailedConcordances": "View detailed concordances",
-			"showHits": "Show Hits",
-			"hideHits": "Hide Hits",
 			"document": "Document",
 			"hits": "Hits",
 			"columnLabelBeforeHit": "Before Hit",

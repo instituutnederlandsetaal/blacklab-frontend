@@ -59,7 +59,7 @@
 				:disabled="!!request"
 				:query="results?.summary.searchParam"
 
-				@changeSort="restoreOnViewGroupLeave = {page, sort}; viewGroup = $event.id; _viewGroupName = $event.displayName;"
+				@changeSort="sort = (sort === $event ? `-${sort}` : $event)"
 				@viewgroup="changeViewGroup"
 			/>
 
@@ -521,7 +521,7 @@ export default Vue.extend({
 		columnDisplaySettings(): DisplaySettingsForColumns {
 			return {
 				...this.commonDisplaySettings,
-				groupDisplayMode: this.groupDisplayMode as any || 'table',
+				groupDisplayMode: this.groupDisplayMode as any || (BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
 				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
 				// If groups, don't show any metadata columns.
 				metadata: 	this.isHits ? UIStore.getState().results.hits.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) :

@@ -244,8 +244,6 @@
 			"loading": "加载中...",
 			"loadMoreConcordances": "加载更多索引",
 			"viewDetailedConcordances": "显示隐藏的索引",
-			"showHits": "显示命中",
-			"hideHits": "隐藏命中",
 			"document": "文件",
 			"hits": "命中",
 			"columnLabelBeforeHit": "之前 命中",

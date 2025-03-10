@@ -628,7 +628,7 @@ type ColumnDefBase = {
 	title?: string;
 	sort?: string|SortOption[];
 	textAlignClass?: string;
-	colspan?: number|string;
+	colspan?: number;
 }
 
 // we want either a single sort with a title holding the 'sort by' text
@@ -679,8 +679,8 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		key: 'doc_summary',
 		field: 'summary',
 		label: i.$t('results.table.document').toString(),
-		title: info.specialFields.titleField ? i.$t('results.table.sortByDocument').toString() : undefined,
-		sort: info.specialFields.titleField ? `field:${info.specialFields.titleField}` : undefined,
+		title: isDocResults(results) && info.specialFields.titleField ? i.$t('results.table.sortByDocument').toString() : undefined,
+		sort: isDocResults(results) && info.specialFields.titleField ? `field:${info.specialFields.titleField}` : undefined,
 		textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
 	});
 
@@ -694,15 +694,15 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 			sort: `field:${m.id}`,
 			metadata: m
 		})));
+	}
 
-		if(results.docs[0].snippets) {
-			docColumns.push({
-				key: 'doc_hits',
-				field: 'hits',
-				label: i.$t('results.table.hits').toString(),
-				sort: `numhits`,
-			})
-		}
+	if (!isHitResults(results) && results.summary.pattern) {
+		docColumns.push({
+			key: 'doc_hits',
+			field: 'hits',
+			label: i.$t('results.table.hits').toString(),
+			sort: isGroups(results) ? undefined : `numhits`,
+		})
 	}
 
 	/// HITS
@@ -713,10 +713,6 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 	const blSortPrefixLeft = info.dir === 'rtl' ? 'after' : 'before'; // e.g. before:word or before:lemma
 	const blSortPrefixCenter = 'hit'; // e.g. hit:word or hit:lemma
 	const blSortPrefixRight = info.dir === 'rtl' ? 'before' : 'after'; //. e.g. after:word or after:lemma
-
-	const contextAnnots = info.sortableAnnotations || [];
-	const otherAnnots = info.otherAnnotations || [];
-	const meta = info.metadata || [];
 
 	const sortAnnot = (a: NormalizedAnnotation, prefix: string): SortOption => ({
 		label: i.$tAnnotDisplayName(a),
@@ -732,7 +728,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		else return {};
 	}
 
-	if (isHitResults(results) && !!results.hits.find(h => !!h.otherFields)) {
+	if (isHitResults(results) && results.hits.find(h => !!h.otherFields) || !!results.summary.searchParam.patt?.includes('=>')) {
 		hitColumns.push({
 			key: 'annotatedField',
 			field: 'annotatedField',
@@ -740,14 +736,11 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		});
 	}
 
-
-
-
 	hitColumns.push({
 		key: 'left',
 		debugLabel: info.mainAnnotation.id,
 		textAlignClass: 'text-right',
-		...sorts(contextAnnots, blSortPrefixLeft),
+		...sorts(info.sortableAnnotations, blSortPrefixLeft),
 		label: i.$t(leftLabelKey).toString(),
 		field: info.dir === 'rtl' ? 'after' : 'before',
 		annotation: info.mainAnnotation
@@ -756,7 +749,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		label: i.$t(centerLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
 		textAlignClass: 'text-center',
-		...sorts(contextAnnots, blSortPrefixCenter),
+		...sorts(info.sortableAnnotations, blSortPrefixCenter),
 		field: 'match',
 		annotation: info.mainAnnotation
 	}, {
@@ -764,14 +757,14 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		label: i.$t(rightLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
 		textAlignClass: 'text-left',
-		...sorts(contextAnnots, blSortPrefixRight),
+		...sorts(info.sortableAnnotations, blSortPrefixRight),
 		field: info.dir === 'rtl' ? 'before' : 'after',
 		annotation: info.mainAnnotation
 	});
 
 	if (isHitResults(results)) {
 		hitColumns.push(
-			...otherAnnots.map(a => ({
+			...info.otherAnnotations.map(a => ({
 				key: `annot_${a.id}`,
 				label: i.$tAnnotDisplayName(a),
 				debugLabel: a.id,
@@ -780,7 +773,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 				field: 'annotation' as const,
 				annotation: a
 			})),
-			...meta.map(m => ({
+			...info.metadata.map(m => ({
 				key: `meta_${m.id}`,
 				label: i.$tMetaDisplayName(m),
 				debugLabel: m.id,
@@ -793,13 +786,11 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		)
 	}
 
-	const tableWidth = (isHitResults(results) ? hitColumns : isGroups(results) ? groupColumns : docColumns).reduce((width, col) => width + (typeof col.colspan === 'number' ? col.colspan : 1), 0);
+	const tableWidth = (isHitResults(results) ? hitColumns : isGroups(results) ? groupColumns : docColumns).reduce((width, col) => width + (col.colspan ?? 1), 0);
 	if (isHitResults(results))
 		docColumns[0].colspan = Math.max(1, tableWidth - (docColumns.length - 1));
 	else {
 		hitColumns.forEach(c => {
-			c.colspan = (1 / hitColumns.length) * 100 + '%'
-			// c.textAlignClass = 'text-center';
 			c.sort = undefined;
 			c.title = undefined;
 		});
