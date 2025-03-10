@@ -47,12 +47,9 @@
 							@click="concordanceAnnotationId = a.id">{{ $tAnnotDisplayName(a) }}</button>
 					</div>
 				</div>
-
-
 			</div>
 
-
-			<GenericTable class="hits-table"
+			<GenericTable
 				:type="id"
 				:cols="cols"
 				:rows="rows"
@@ -64,8 +61,7 @@
 
 				@changeSort="restoreOnViewGroupLeave = {page, sort}; viewGroup = $event.id; _viewGroupName = $event.displayName;"
 				@viewgroup="changeViewGroup"
-				/>
-
+			/>
 
 			<div class="result-buttons-layout" style="border-top: 1px solid #ccc; padding-top: 15px;">
 				<Pagination
