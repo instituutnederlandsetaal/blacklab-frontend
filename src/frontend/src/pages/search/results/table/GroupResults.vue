@@ -29,7 +29,7 @@
 			:header="cols.groupColumns"
 
 			@changeSort="changeSort"
-			@openFullConcordances="openFullConcordances"
+			@openFullConcordances2="openFullConcordances"
 		/>
 
 		<hr>

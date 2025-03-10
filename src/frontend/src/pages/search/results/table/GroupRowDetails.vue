@@ -19,6 +19,7 @@
 					:header="type === 'hits' ? cols.hitColumns : cols.docColumns"
 					:cols="cols"
 					:info="{...info, detailedAnnotations: []}"
+					:type="type"
 				/>
 				<!-- <HitsTable v-if="type === 'hits' && concordances.results.rows.length"
 					:rows="concordances.results"

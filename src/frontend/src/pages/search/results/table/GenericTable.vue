@@ -2,11 +2,13 @@
 	<table class="results-table">
 		<thead>
 			<tr>
-				<TableHeader v-for="col in header" :key="col.key" :col="col" v-on="$listeners" :disabled="disabled"/>
+				<TableHeader v-for="col in header" :key="col.key" :col="col" :disabled="disabled" @changeSort="$emit('changeSort', $event)"/>
 			</tr>
 		</thead>
 		<tbody>
 			<template v-for="(row, index) in rows.rows">
+				<template v-if="row.type === 'doc' && !showTitles"></template>
+				<template v-else>
 				<component :is="row.type === 'doc' ? 'DocRow' : row.type === 'hit' ? 'HitRowContext' : 'GroupRow'"
 					:class="{
 						rounded: true,
@@ -39,9 +41,11 @@
 					@hover="hoverMatchInfos = $event; hoverMatchInfosId = index"
 					@unhover="hoverMatchInfos = undefined"
 					@close="toggleRow(index, $event)"
+					@openFullConcordances="openFullConcordances(row)"
 					v-bind="$props"
 					v-on="$listeners"
 				/>
+			</template>
 			</template>
 		</tbody>
 	</table>
@@ -51,7 +55,7 @@
 import Vue from 'vue';
 
 import TableHeader from '@/pages/search/results/table/TableHeader.vue';
-import { definitions, ColumnDefs, DisplaySettingsForRendering, Rows, ColumnDef, HitRowData } from '@/pages/search/results/table/table-layout';
+import { definitions, ColumnDefs, DisplaySettingsForRendering, Rows, ColumnDef, HitRowData, GroupRowData } from '@/pages/search/results/table/table-layout';
 import { BLSearchParameters } from '@/types/blacklabtypes';
 
 
@@ -72,7 +76,7 @@ export default Vue.component('GenericTable', {
 		disabled: Boolean,
 		disableDetails: Boolean,
 
-		showHits: Boolean,
+		showTitles: { default: true },
 
 		/// UGH, required to get group contents as this is not exposed in the results directly.
 		type: String as () => 'hits'|'docs',
@@ -93,6 +97,12 @@ export default Vue.component('GenericTable', {
 			const newState = !this.openRows[id];
 			this.$set(this.openRows, id, newState);
 		},
+		openFullConcordances(row: GroupRowData) {
+			this.$emit('openFullConcordances2', row.id, row.displayname);
+		}
+	},
+	watch: {
+		rows() { this.openRows = {}; }
 	}
 })
 </script>

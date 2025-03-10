@@ -15,6 +15,7 @@
 			:rows="rows"
 			:info="info"
 			:header="cols.hitColumns"
+			:showTitles="showTitles"
 			type="hits"
 
 			:disabled="disabled"
