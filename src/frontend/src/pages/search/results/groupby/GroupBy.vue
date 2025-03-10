@@ -1,6 +1,6 @@
 <template>
 
-	<button v-if="!active && !addedCriteria.length" class="btn btn-default btn-secondary btn-sm" type="button" @click="active=true">
+	<button v-if="!active && !addedCriteria.length" class="btn btn-default btn-secondary btn-sm groupselect" type="button" @click="active=true">
 		{{$t('results.groupBy.groupResults')}}
 	</button>
 

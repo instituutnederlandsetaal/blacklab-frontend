@@ -63,7 +63,7 @@
 			<div v-html="$t('pageGuide.showHit')"></div>
 		</li>
 
-		<li class="tlypageguide_top" data-tourtarget=".hits-table tr.concordance">
+		<li class="tlypageguide_top" data-tourtarget=".results-table tr.concordance">
 			<div v-html="$t('pageGuide.clickHit')"></div>
 		</li>
 
