@@ -1,5 +1,5 @@
 <template>
-	<tr class="concordance rounded">
+	<tr class="concordance" :class="{'foreign-hit': row.isForeign}">
 		<template v-for="col in cols.hitColumns">
 			<td v-if="col.field === 'annotatedField'" class="doc-version" :key="col.key + col.field">
 				<a @click.stop="" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank">{{ customHitInfo }}</a> <!-- todo tidy up custom fields. -->
@@ -39,25 +39,23 @@
 
 <script lang="ts">
 import Vue from 'vue';
-
-
-
 import { corpusCustomizations } from '@/store/search/ui';
 
 import HitContext from '@/pages/search/results/table/HitContext.vue';
-import { ColumnDefs, DisplaySettingsForRendering, HitRowContext } from './table-layout';
+import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from './table-layout';
 
 import GlossField from '@/pages/search/form/concept/GlossField.vue';
 
-export default Vue.extend({
+export default Vue.component('HitRowContext', {
 	components: {
 		GlossField,
 		HitContext
 	},
 	props: {
-		row: Object as () => HitRowContext,
+		row: Object as () => HitRowData,
 		cols: Object as () => ColumnDefs,
 		info: Object as () => DisplaySettingsForRendering,
+		open: Boolean,
 
 		// which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
 		hoverMatchInfos: {

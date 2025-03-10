@@ -19,13 +19,14 @@
 			</div>
 		</div>
 
-		<GroupTable
+		<GenericTable class="group-table"
 			:cols="cols"
 			:rows="rows"
 			:info="info"
 			:disabled="disabled"
 			:type="type"
 			:query="query"
+			:header="cols.groupColumns"
 
 			@changeSort="changeSort"
 			@openFullConcordances="openFullConcordances"
@@ -48,9 +49,10 @@ import * as BLTypes from '@/types/blacklabtypes';
 import GroupTable from '@/pages/search/results/table/GroupTable.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
+import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 
 export default Vue.extend({
-	components: { SelectPicker, GroupTable },
+	components: { SelectPicker, GroupTable, GenericTable },
 
 	props: {
 		cols: Object as () => ColumnDefs,
@@ -91,43 +93,6 @@ export default Vue.extend({
 	th {
 		vertical-align: top;
 	}
-}
-
-.grouprow {
-	border-bottom: 2px solid transparent;
-}
-
-.group-size-indicator {
-	cursor: pointer;
-	margin: 0;
-
-	background: linear-gradient(to right, hsla(0, 0%, 91%, 1) 40%, white 100%);
-
-	&:hover {
-		background: #d8d8d8;
-	}
-
-	> .progress-bar {
-		background-image: linear-gradient(to right, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0) 250px);
-		// Do not shrink smaller than the text inside the bar.
-		// Greater widths are set using min-width.
-		padding: 0px 2px;
-		width: auto;
-		white-space: nowrap;
-	}
-}
-
-.concordance-controls {
-	margin-bottom: 8px;
-}
-
-.well-light {
-	background: rgba(255,255,255,0.8);
-	border: 1px solid #e8e8e8;
-	border-radius: 4px;
-	box-shadow: inset 0 1px 2px 0px rgba(0,0,0,0.1);
-	margin-bottom: 8px;
-	padding: 8px
 }
 
 </style>

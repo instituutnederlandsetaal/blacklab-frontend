@@ -1,12 +1,12 @@
 <template>
-	<tr v-if="open" class="concordance-details">
-		<td :colspan="colspan">
+	<tr class="concordance-details" :class="{'foreign-hit': row.isForeign}">
+		<td colspan="100">
 			<div class="concordance-details-wrapper">
 				<p v-if="snippetRequest" :class="{'text-danger': !!error}">
 					<Spinner inline/> {{$t('results.table.loading')}}
 				</p>
 				<p v-else-if="error" class="text-danger">
-					<span class="fa fa-exclamation-triangle"></span> <span v-html="error"></span>
+					<span class="fa fa-exclamation-triangle"></span><br> <span style="white-space: pre;" v-html="error"></span>
 				</p>
 				<template v-else-if="snippet"> <!-- context is the larger surrounding context of the hit. We don't always have one (when rendering docs we only have the immediate hit) -->
 					<template v-if="hasRelations && !row.annotatedField.isParallel">
@@ -84,7 +84,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 
 import { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
-import { ColumnDefs, DisplaySettingsForRendering, HitRowContext, snippetParts } from './table-layout';
+import { ColumnDefs, DisplaySettingsForRendering, HitRowData, snippetParts } from './table-layout';
 import DepTree from '@/pages/search/results/table/DepTree.vue';
 import Spinner from '@/components/Spinner.vue';
 
@@ -94,14 +94,14 @@ import * as Api from '@/api';
 import { debugLog } from '@/utils/debug';
 
 /** TODO disconnect from the store? */
-export default Vue.extend({
+export default Vue.component('HitRowDetails', {
 	components: {
 		HitContext,
 		DepTree,
 		Spinner
 	},
 	props: {
-		row: Object as () => HitRowContext,
+		row: Object as () => HitRowData,
 		cols: Object as () => ColumnDefs,
 		info: Object as () => DisplaySettingsForRendering,
 
@@ -169,7 +169,7 @@ export default Vue.extend({
 			)
 			// check if hit hasn't changed in the meantime (due to component reuse)
 			.then(r => { if (nonce === this.row.hit) { this.sentence = r; this.sentenceRequest = null; }})
-			.catch(e => { this.error = formatError(e, 'snippet'); })
+			.catch(e => { if (nonce === this.row.hit) { this.error = formatError(e, 'snippet'); this.sentenceRequest = null; }})
 		},
 		loadSnippet() {
 			// If we don't have a fat hit, we can't get any larger context (because we don't know the start/end of the hit)
@@ -232,7 +232,9 @@ export default Vue.extend({
 				this.snippetRequest = null;
 			})
 			.catch((err: Api.ApiError) => {
+				if (nonce !== this.row.hit) return; // hit has changed in the meantime.
 				this.error = formatError(err, 'snippet');
+				this.snippetRequest = null;
 				if (err.stack) debugLog(err.stack);
 				ga('send', 'exception', { exDescription: err.message, exFatal: false });
 			})
@@ -288,9 +290,7 @@ $screen-lg: 1200px;
 
 .concordance-details-table {
 	table-layout: auto;
-	td {
-		padding: 0 0.25em;
-	}
+	td { padding: 0 0.25em; }
 }
 
 

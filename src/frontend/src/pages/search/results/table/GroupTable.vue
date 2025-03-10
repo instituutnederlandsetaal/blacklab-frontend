@@ -54,10 +54,9 @@
 import Vue from 'vue';
 
 import { BLSearchParameters } from '@/types/blacklabtypes';
-import { definitions } from '@/pages/search/results/table/groupTable';
 import GroupRow from '@/pages/search/results/table/GroupRow.vue';
 import GroupRowDetails from '@/pages/search/results/table/GroupRowDetails.vue';
-import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
+import { definitions, ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
 import TableHeader from '@/pages/search/results/table/TableHeader.vue';
 
 export default Vue.extend({

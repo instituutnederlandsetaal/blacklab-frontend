@@ -26,7 +26,7 @@
 <script lang="ts">
 import { ColumnDef } from '@/pages/search/results/table/table-layout';
 import Vue from 'vue';
-export default Vue.extend({
+export default Vue.component('TableHeader', {
 	props: {
 		disabled: Boolean,
 		col: Object as () => ColumnDef

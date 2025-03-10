@@ -4,8 +4,9 @@ import Vue from 'vue';
 import debug from '@/utils/debug';
 
 export default Vue.extend({
-	render(): any {
-		return debug.debug ? this.$slots.default : undefined;
+	functional: true,
+	render(v, c): any {
+		return debug.debug ? c.children : undefined;
 	}
 });
 </script>

@@ -9,29 +9,21 @@
 		<slot name="pagination"/>
 		<slot name="annotation-switcher"/>
 
-		<DocsTable
+		<GenericTable class="docs-table"
 			:cols="cols"
 			:rows="rows"
 			:info="info"
+			:header="cols.docColumns"
+			type="docs"
 
-			:showHits="showDocumentHits"
 			@changeSort="changeSort"
 		/>
 
 		<hr>
 		<div class="text-right">
 			<slot name="sort"/>
-			<button v-if="hasHits"
-				type="button"
-				class="btn btn-primary btn-sm"
-
-				@click="showDocumentHits = !showDocumentHits"
-			>
-				{{showDocumentHits ? $t('results.table.hideHits') : $t('results.table.showHits')}}
-			</button>
 			<slot name="export"/>
 		</div>
-
 	</div>
 </template>
 
@@ -40,10 +32,11 @@ import Vue from 'vue';
 
 import DocsTable from '@/pages/search/results/table/DocsTable.vue';
 import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
+import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 
 export default Vue.extend({
 	components: {
-		DocsTable,
+		DocsTable, GenericTable
 	},
 	props: {
 		cols: Object as () => ColumnDefs,
@@ -54,9 +47,6 @@ export default Vue.extend({
 		sort: String as () => string|null,
 		disabled: Boolean
 	},
-	data: () => ({
-		showDocumentHits: false
-	}),
 	computed: {
 		hasHits(): boolean { return !!this.rows.rows.some(r => r.type === 'hit' || (r.type === 'doc' && r.hits)); }
 	},

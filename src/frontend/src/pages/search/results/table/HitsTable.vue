@@ -48,15 +48,15 @@ export default Vue.extend({
 
 <style lang="scss">
 
-table.hits-table {
-	th, td {
-		&:first-child { padding-left: 6px; }
-		&:last-child { padding-right: 6px; }
-	}
+// table.hits-table {
+// 	th, td {
+// 		&:first-child { padding-left: 6px; }
+// 		&:last-child { padding-right: 6px; }
+// 	}
 
-	border-collapse: separate;
-	table-layout: auto;
-}
+// 	border-collapse: separate;
+// 	table-layout: auto;
+// }
 
 
 </style>

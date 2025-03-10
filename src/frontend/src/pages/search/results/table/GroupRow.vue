@@ -1,5 +1,5 @@
 <template>
-	<tr class="grouprow rounded interactable">
+	<tr class="grouprow">
 		<td v-for="col in cols.groupColumns" :key="col.key" :colspan="col.colspan">
 			<div v-if="col.barField" class="progress group-size-indicator">
 				<div class="progress-bar progress-bar-primary" :style="barStyle(col)">
@@ -15,11 +15,9 @@
 import Vue from 'vue';
 
 import frac2Percent from '@/mixins/fractionalToPercent';
-import { GroupRowData } from '@/pages/search/results/table/groupTable';
-import { ColumnDefGroup, ColumnDefs, Maxima } from '@/pages/search/results/table/table-layout';
-export { GroupRowData } from '@/pages/search/results/table/groupTable';
+import { ColumnDefGroup, ColumnDefs, GroupRowData, Maxima } from '@/pages/search/results/table/table-layout';
 
-export default Vue.extend({
+export default Vue.component('GroupRow', {
 	props: {
 		row: Object as () => GroupRowData,
 		cols: Object as () => ColumnDefs,
@@ -28,7 +26,8 @@ export default Vue.extend({
 	methods: {
 		frac2Percent,
 		barStyle(col: ColumnDefGroup): Record<string, string> {
-			if (!col.barField || this.row[col.barField] == null) return { minWidth: '100%', opacity: '0.5' }
+			// if (!col.barField || this.row[col.barField] == null) return { width: '0', minWidth: '0', maxWidth: '0', padding: '0', color: 'black', textShadow: 'none', marginLeft: '6px', fontWeight: 'bold', overflow: 'visible', opacity: '0.8' }
+			if (!col.barField || this.row[col.barField] == null) return { width: '100%', opacity: '0.8' }
 			return { minWidth: this.frac2Percent(this.row[col.barField]! / this.maxima[col.barField])}
 		},
 		valueForCell(col: ColumnDefGroup): string {
@@ -41,5 +40,30 @@ export default Vue.extend({
 });
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
+
+.grouprow > td {
+	border-bottom: 2px solid transparent;
+}
+
+.group-size-indicator {
+	cursor: pointer;
+	margin: 0;
+
+	background: linear-gradient(to right, hsla(0, 0%, 91%, 1) 40%, white 100%);
+
+	&:hover {
+		background: #d8d8d8;
+	}
+
+	> .progress-bar {
+		background-image: linear-gradient(to right, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0) 250px);
+		// Do not shrink smaller than the text inside the bar.
+		// Greater widths are set using min-width.
+		padding: 0px 2px;
+		width: auto;
+		white-space: nowrap;
+	}
+}
+
 </style>

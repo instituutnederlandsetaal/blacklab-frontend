@@ -38,14 +38,14 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue'
-import HitRowContext from '@/pages/search/results/table/HitRowContext.vue'
+import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue';
+import HitRowContext from '@/pages/search/results/table/HitRowContext.vue';
 import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
 
-export default Vue.extend({
+export default Vue.component('HitRow', {
 	components: {
 		HitRowContext,
-		HitRowDetails,
+		HitRowDetails
 	},
 	props: {
 		row: Object as () => HitRowData,
@@ -69,6 +69,7 @@ export default Vue.extend({
 
 <style lang="scss">
 
+/*
 tbody.has-foreign-hit > tr:first-child > td { padding-top: 0.5em; }
 tbody.has-foreign-hit > tr:last-child > td { padding-bottom: 0.5em; }
 tbody + tbody.has-foreign-hit > tr:first-child > td {
@@ -125,5 +126,6 @@ tr.concordance {
 		}
 	}
 }
+	*/
 
 </style>

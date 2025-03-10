@@ -10,10 +10,12 @@
 		<slot name="pagination"/>
 		<slot name="annotation-switcher"/>
 
-		<HitsTable
+		<GenericTable class="hits-table"
 			:cols="cols"
 			:rows="rows"
 			:info="info"
+			:header="cols.hitColumns"
+			type="hits"
 
 			:disabled="disabled"
 			@changeSort="changeSort"
@@ -43,11 +45,13 @@ import Vue from 'vue';
 
 import HitsTable, {} from './HitsTable.vue';
 import { ColumnDefs, DisplaySettingsForRendering, Rows } from '@/pages/search/results/table/table-layout';
+import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 
 export default Vue.extend({
 	components: {
 	 	// GlossField,
-		HitsTable
+		HitsTable,
+		GenericTable
 	},
 	props: {
 		cols: Object as () => ColumnDefs,

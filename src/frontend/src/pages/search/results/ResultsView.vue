@@ -117,7 +117,7 @@ import Export from '@/pages/search/results/Export.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 
-import debug, { debugLog } from '@/utils/debug';
+import debug, { debugLogCat } from '@/utils/debug';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedAnnotatedFieldParallel, NormalizedIndex } from '@/types/apptypes';
@@ -178,7 +178,7 @@ export default Vue.extend({
 		markDirty() {
 			this.isDirty = true;
 			if (this.cancel) {
-				debugLog('cancelling search request');
+				debugLogCat('results', 'cancelling search request');
 				this.cancel();
 				this.cancel = null;
 				this.request = null;
@@ -189,10 +189,10 @@ export default Vue.extend({
 		},
 		refresh() {
 			this.isDirty = false;
-			debugLog('this is when the search should be refreshed');
+			debugLogCat('results', 'this is when the search should be refreshed');
 
 			if (this.cancel) {
-				debugLog('cancelling previous search request');
+				debugLogCat('results', 'cancelling previous search request');
 				this.cancel();
 				this.request = null;
 				this.cancel = null;
@@ -211,7 +211,7 @@ export default Vue.extend({
 			const nonce = this.refreshParameters;
 			const params = RootStore.get.blacklabParameters()!;
 			const apiCall = this.id === 'hits' ? Api.blacklab.getHits<BLTypes.BLHitResults|BLTypes.BLHitGroupResults> : Api.blacklab.getDocs<BLTypes.BLDocResults|BLTypes.BLDocGroupResults>;
-			debugLog('starting search', this.id, params);
+			debugLogCat('results', 'starting search', this.id, params);
 
 			const r = apiCall(this.indexId, params, {headers: { 'Cache-Control': 'no-cache' }});
 			this.request = r.request;
@@ -230,7 +230,7 @@ export default Vue.extend({
 						// We simply remove the offending grouping clause and try again.
 						if (e.title === 'UNKNOWN_MATCH_INFO' && this.groupBy.length > 0) {
 							// remove the group on label.
-							debugLog('grouping failed, clearing groupBy');
+							debugLogCat('results', 'grouping failed, clearing groupBy');
 							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined)
 								.filter(g => !((g.type === 'context' && g.context.type === 'label') || (g.type === 'metadata' && g.metadata.type === 'span-attribute')));
 							const newGroupBy = serializeGroupBy(okayGroups);
@@ -243,7 +243,7 @@ export default Vue.extend({
 			.finally(() => this.scrollToResults())
 		},
 		setSuccess(data: BLTypes.BLSearchResult) {
-			debugLog('search results', data);
+			debugLogCat('results', 'search results', data);
 			this.error = null;
 			this.request = null;
 			this.cancel = null;
@@ -259,7 +259,7 @@ export default Vue.extend({
 		},
 		setError(data: Api.ApiError, isGrouped?: boolean) {
 			if (data.title !== 'Request cancelled') { // TODO
-				debugLog('Request failed: ', data);
+				debugLogCat('results', 'Request failed: ', data);
 				this.error = UIStore.getState().global.errorMessage(data, isGrouped ? 'groups' : this.id as 'hits'|'docs');
 				this.results = null;
 				this.paginationResults = null;
@@ -504,7 +504,7 @@ export default Vue.extend({
 				...this.rowDisplaySettings,
 				...this.columnDisplaySettings,
 				// Don't show details table in expanded rows when showing groups or hits in docs.
-				detailedAnnotations: this.isHits ? UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? [] : [],
+				detailedAnnotations: this.isHits ? UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? CorpusStore.get.allAnnotations().filter(a => !a.isInternal && a.hasForwardIndex) : [],
 				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, id && CorpusStore.get.allAnnotationsMap()[id]])) as any,
 				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
 				html: UIStore.getState().results.shared.concordanceAsHtml,
@@ -553,32 +553,21 @@ export default Vue.extend({
 	color: #777;
 }
 
-table {
-	> thead > tr > th {
-		text-align: left;
-		background-color: white;
-		border-bottom: 1px solid #aaa;
-		padding-bottom: 5px;
-	}
-
-	> tbody > tr > td {
-		vertical-align: top;
-	}
-}
 
 .results-container {
 	position: relative;
 }
 
-// Make entire row clickable even when the document title is short
-.doctitle {
-	display: block;
-}
+
 
 .result-totals {
 	background: white;
 	padding: 8px 8px 0 15px;
 	flex: none;
 }
+
+
+
+
 
 </style>

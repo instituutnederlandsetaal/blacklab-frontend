@@ -383,25 +383,26 @@ export type DisplaySettingsForRows = DisplaySettingsCommon&Pick<DisplaySettingsF
 export type DisplaySettingsForColumns = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'mainAnnotation'|'metadata'|'otherAnnotations'|'sortableAnnotations'|'groupDisplayMode'>
 
 /** Helper type, data for which we're computing a hitrow or docrow. */
-type Result<HitType extends BLHit|BLHitSnippet|BLHitInOtherField|undefined = BLHit|BLHitSnippet|BLHitInOtherField|undefined> = {
+type Result<HitType extends BLHit|BLHitSnippet|BLHitInOtherField|undefined> = {
 	doc: BLDoc;
 	hit: HitType;
 	/** Query that created this result. Required for generating links to the hit/document with the proper results highlighted. */
 	query: BLSearchParameters;
+
+	hit_id: HitType extends undefined ? never : string;
+	first_of_hit: HitType extends undefined ? never : boolean;
+	last_of_hit: HitType extends undefined ? never : boolean;
 };
 
-/**
- * Due to parallel searching, and wanting to highlight the words in both versions of the document,
- * hits are displayed in their own little mini-tables
- * Usually for non-parallel searches there's only one row, but when searching in parallel corpora,
- * there can be multiple.
- * Due to this, a HitRow actually contains multiple HitRowContexts, which represent the actual rows, one for every "version" of the hit.
- * (e.g. one in the Dutch version of the document, one in the English version of the document)
- * For consistency, we call the main rows HitRow/DocRow/GroupRow, and this subobject HitRowContext.
- */
-export type HitRowContext = {
+export type HitRowData = {
+	type: 'hit'
 	doc: BLDoc;
 	hit: BLHit|BLHitSnippet;
+
+	first_of_hit: boolean;
+	last_of_hit: boolean;
+	/** For highlighting in parallel hits, we need to know which rows represent the same hit. */
+	hit_id: string;
 	/** Is the data in this hit from the searched field or from the parallel/related/target field. False if source, true if target. */
 	isForeign: boolean;
 	context: HitContext;
@@ -415,12 +416,6 @@ export type HitRowContext = {
 	gloss_fields: GlossFieldDescription[];
 	hit_first_word_id: string; // Jesse
 	hit_last_word_id: string // jesse
-	hit_id: string; // jesse
-}
-
-export type HitRowData = {
-	type: 'hit';
-	rows: HitRowContext[];
 }
 
 export type DocRowData = {
@@ -437,20 +432,20 @@ function start(hit: BLHitSnippet|BLHit|undefined): number|undefined {
 	return (hit as BLHit&BLHitSnippet)?.start;
 }
 
-function input(result: BLSearchResult, doc: BLDocInfo, hit: BLHit|BLHitInOtherField): Result<BLHit>;
-function input(result: BLSearchResult, doc: BLDoc, hit: BLHitSnippet): Result<BLHitSnippet>;
-function input(result: BLSearchResult, doc: BLDoc): Result<undefined>;
-function input(result: BLSearchResult, doc: BLDocInfo|BLDoc, hit?: BLHit|BLHitInOtherField|BLHitSnippet): Result {
-	return {doc: typeof doc.docPid === 'string' ? doc as BLDoc : {docPid: (hit as BLHit).docPid, docInfo: doc as BLDocInfo}, hit, query: result.summary.searchParam};
-}
+// function input(result: BLSearchResult, doc: BLDocInfo, hit: BLHit|BLHitInOtherField): Result<BLHit>;
+// function input(result: BLSearchResult, doc: BLDoc, hit: BLHitSnippet): Result<BLHitSnippet>;
+// function input(result: BLSearchResult, doc: BLDoc): Result<undefined>;
+// function input(result: BLSearchResult, doc: BLDocInfo|BLDoc, hit?: BLHit|BLHitInOtherField|BLHitSnippet): Result {
+// 	return {doc: typeof doc.docPid === 'string' ? doc as BLDoc : {docPid: (hit as BLHit).docPid, docInfo: doc as BLDocInfo}, hit, query: result.summary.searchParam};
+// }
 
-function makeDocRow(p: Result, info: DisplaySettingsForRows): DocRowData {
+function makeDocRow(p: Result<any>, info: DisplaySettingsForRows): DocRowData {
 	return {
 		doc: p.doc,
 		href: getDocumentUrl(p.doc.docPid, info.sourceField.id, undefined, p.query.patt, p.query.pattgapdata, undefined),
 		summary: info.getSummary(p.doc.docInfo, info.specialFields),
 		type: 'doc',
-		hits: p.doc.snippets?.length ? p.doc.snippets.map(s => makeRowsForHit({...p, hit: s}, info, undefined)) : undefined
+		hits: p.doc.snippets?.length ? p.doc.snippets.flatMap(s => makeRowsForHit({...p, hit: s}, info, undefined)) : undefined
 	}
 }
 
@@ -463,10 +458,16 @@ function docDir(doc: BLDoc, corpusNativeDir: 'ltr'|'rtl'): 'ltr'|'rtl' {
 	}
 }
 
-function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined, field: NormalizedAnnotatedField): HitRowContext {
+function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined, field: NormalizedAnnotatedField): HitRowData {
 	return {
+		type: 'hit',
 		doc: p.doc,
 		hit: p.hit,
+
+		hit_id: p.hit_id,
+		first_of_hit: p.first_of_hit,
+		last_of_hit: p.last_of_hit,
+
 		context: snippetParts(p.hit, highlightColors),
 		href: getDocumentUrl(p.doc.docPid, field.id, info.sourceField.id, p.query.patt, p.query.pattgapdata, start(p.hit)),
 		isForeign: field !== info.sourceField,
@@ -476,13 +477,32 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		// TODO
 		gloss_fields: [],
 		hit_first_word_id: '',
-		hit_id: '',
 		hit_last_word_id: '',
 	}
 }
 
+function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined): HitRowData[] {
+	const r: HitRowData[] = [];
+	p.first_of_hit = true;
+	p.last_of_hit = false;
+	p.hit_id = p.doc.docPid + start(p.hit)
+	r.push(makeHitRow(p, info, highlightColors, info.sourceField));
+
+	const h = p.hit as BLHit;
+	const parallelHits = info.targetFields.map(f => [h.otherFields?.[f.id], f] as const).filter((h): h is [BLHitInOtherField, NormalizedAnnotatedFieldParallel] => h[0] != null);
+	for (let i = 0; i < parallelHits.length; i++) {
+		p.hit = parallelHits[i][0];
+		p.first_of_hit = false;
+		p.last_of_hit = i === parallelHits.length - 1;
+		r.push(makeHitRow(p, info, highlightColors, info.targetFields[i]));
+	}
+	if (!parallelHits.length) r[0].first_of_hit = r[0].last_of_hit = false;
+	return r;
+}
+
+
 function makeDocRows(results: BLDocResults, info: DisplaySettingsForRows): DocRowData[] {
-	return results.docs.map(doc => makeDocRow(input(results, doc), info));
+	return results.docs.map(doc => makeDocRow({doc, query: results.summary.searchParam} as Result<undefined>, info));
 }
 
 function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array<DocRowData|HitRowData> {
@@ -490,28 +510,16 @@ function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array
 	// This is required to highlight hits in parallel corpora.
 	Highlights.mergeMatchInfos(results);
 	const r: Array<DocRowData|HitRowData> = [];
-	let prevRes: Result|undefined;
+	let prevRes: Result<any>|undefined;
 	const colors = Highlights.getHighlightColors(results.summary);
 	for (const hit of results.hits) {
 		if (prevRes?.doc.docPid !== hit.docPid) { // every time the doc changes, add a new doc title row.
-			prevRes = input(results, results.docInfos[hit.docPid], hit);
+			prevRes = {doc: {docInfo: results.docInfos[hit.docPid], docPid: hit.docPid }, query: results.summary.searchParam} as Result<undefined>;
 			r.push(makeDocRow(prevRes, info));
 		}
-		r.push(makeRowsForHit({...prevRes, hit}, info, colors));
-	}
-	return r;
-}
-function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined): HitRowData {
-	const r: HitRowData = {
-		type: 'hit',
-		rows: [makeHitRow(p, info, highlightColors, info.sourceField)]
-	};
-	if ('otherFields' in p.hit && info.targetFields.length) {
-		const h = p.hit as BLHit;
-		r.rows.push(...info.targetFields
-			.filter(f => h.otherFields?.[f.id])
-			.map(targetField => makeHitRow({...p, hit: h.otherFields![targetField.id]}, info, highlightColors, targetField))
-		);
+		prevRes.hit = hit;
+
+		r.push(...makeRowsForHit(prevRes, info, colors));
 	}
 	return r;
 }

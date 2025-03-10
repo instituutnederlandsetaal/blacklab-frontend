@@ -27,9 +27,9 @@ export function showDebugCat(category: string) {
 }
 
 /** A debug message in a category that we may want to show or not */
-export function debugLogCat(category: string, message: string) {
+export function debugLogCat(category: string, ...args: any[]) {
 	if (showDebugCat(category)) {
-		debugLog(`[${category}] ${message}`);
+		debugLog(`[${category}]`, ...args);
 	}
 }
 

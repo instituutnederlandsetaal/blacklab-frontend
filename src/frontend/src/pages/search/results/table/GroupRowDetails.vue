@@ -1,39 +1,46 @@
 <template>
-	<tr class="concordance">
-		<td colspan="10">
-			<div class="well-light">
-				<template v-if="concordances.results">
-					<div class="concordance-controls clearfix">
-						<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
-						<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
-							<template v-if="concordances.loading"><Spinner :inline="true"/> {{$t('results.table.loading')}} HOI</template>
-							<template v-else>{{$t('results.table.loadMoreConcordances')}}</template>
-						</button>
+	<tr class="grouprow-details">
+		<td colspan="10" class="well-light">
 
-						<button type="button" class="close close-concordances" :title="$t('results.table.close').toString()" @click="$emit('close')"><span>&times;</span></button>
-					</div>
+			<template v-if="concordances.results">
+				<div class="concordance-controls clearfix">
+					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
+					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
+						<template v-if="concordances.loading"><Spinner :inline="true"/> {{$t('results.table.loading')}} HOI</template>
+						<template v-else>{{$t('results.table.loadMoreConcordances')}}</template>
+					</button>
 
-					<HitsTable v-if="type === 'hits' && concordances.results.rows.length"
-						:rows="concordances.results"
-						:info="{...info, detailedAnnotations: []}"
-						:cols="cols"
-					/>
-					<DocsTable v-else-if="type === 'docs' && concordances.results.rows.length"
-						:rows="concordances.results"
-						:info="info"
-						:cols="cols"
-					/>
-					<div class="concordance-controls clearfix" v-if="concordances.results?.rows.length > 10">
-						<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
-						<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
-							<template v-if="concordances.loading"><Spinner inline/> {{$t('results.table.loading')}} HOI</template>
-							<template v-else>{{$t('results.table.loadMoreConcordances')}}</template>
-						</button>
-					</div>
-				</template>
-				<div v-if="concordances.error != null" class="text-danger" v-html="concordances.error"></div>
-				<Spinner v-if="!concordances.results && concordances.loading" center/>
-			</div>
+					<button type="button" class="close close-concordances" :title="$t('results.table.close').toString()" @click="$emit('close')"><span>&times;</span></button>
+				</div>
+
+				<GenericTable
+					style="margin: 8px 0;"
+					:rows="concordances.results"
+					:header="type === 'hits' ? cols.hitColumns : cols.docColumns"
+					:cols="cols"
+					:info="{...info, detailedAnnotations: []}"
+				/>
+				<!-- <HitsTable v-if="type === 'hits' && concordances.results.rows.length"
+					:rows="concordances.results"
+					:info="{...info, detailedAnnotations: []}"
+					:cols="cols"
+				/>
+				<DocsTable v-else-if="type === 'docs' && concordances.results.rows.length"
+					:rows="concordances.results"
+					:info="info"
+					:cols="cols"
+				/> -->
+				<div class="concordance-controls clearfix" v-if="concordances.results?.rows.length > 10">
+					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
+					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
+						<template v-if="concordances.loading"><Spinner inline/> {{$t('results.table.loading')}} HOI</template>
+						<template v-else>{{$t('results.table.loadMoreConcordances')}}</template>
+					</button>
+				</div>
+			</template>
+			<div v-if="concordances.error != null" class="text-danger" v-html="concordances.error"></div>
+			<Spinner v-if="!concordances.results && concordances.loading" center/>
+
 		</td>
 	</tr>
 </template>
@@ -45,15 +52,12 @@ import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import {blacklab} from '@/api';
 import { BLSearchParameters, BLHitResults, BLDocResults } from '@/types/blacklabtypes';
 
-import HitsTable from '@/pages/search/results/table/HitsTable.vue';
-import DocsTable from '@/pages/search/results/table/DocsTable.vue';
-
 import { ColumnDefs, DisplaySettingsForRendering, GroupRowData, makeRows, Rows } from '@/pages/search/results/table/table-layout';
 
 import Spinner from '@/components/Spinner.vue';
-export default Vue.extend({
+export default Vue.component('GroupRowDetails', {
 	components: {
-		HitsTable, DocsTable, Spinner
+		Spinner
 	},
 	props: {
 		row: Object as () => GroupRowData,
@@ -86,7 +90,9 @@ export default Vue.extend({
 				request: request
 				.then(newResults => makeRows(newResults, this.info))
 				.then(newRows => {
-					newRows.rows = newRows.rows.filter(r => r.type === 'hit');
+					if (this.type === 'hits') newRows.rows = newRows.rows.filter(r => r.type === 'hit');
+					else newRows.rows = newRows.rows.filter(r => r.type === 'doc');
+
 
 					if (!oldRows) return newRows;
 					oldRows.rows.push(...newRows.rows);
@@ -103,5 +109,14 @@ export default Vue.extend({
 });
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
+
+.well-light {
+	background: rgba(255,255,255,0.8);
+	border: 1px solid #e8e8e8;
+	border-radius: 4px!important;
+	box-shadow: inset 0 1px 2px 0px rgba(0,0,0,0.1);
+	margin-bottom: 8px;
+	padding: 8px!important;
+}
 </style>
