@@ -90,15 +90,16 @@ export default Vue.component('GenericTable', {
 		hoverMatchInfosId: undefined as undefined|number,
 	}),
 	methods: {
-		toggleRow(index: number, event: any) {
+		toggleRow(index: number) {
 			if (this.disabled || this.disableDetails) return;
 			const row = this.rows.rows[index];
+			if (row.type === 'doc' && this.type === 'hits' || row.type === 'hit' && this.type === 'docs') return;
 			const id = (row as HitRowData).hit_id || index;
 			const newState = !this.openRows[id];
 			this.$set(this.openRows, id, newState);
 		},
 		openFullConcordances(row: GroupRowData) {
-			this.$emit('openFullConcordances2', row.id, row.displayname);
+			this.$emit('viewgroup', row.id, row.displayname);
 		}
 	},
 	watch: {
@@ -116,7 +117,7 @@ table.results-table {
 	// border-collapse: separate;
 	border-collapse: collapse;
 
-	> thead th {
+	thead th {
 		// text-align: left;
 		background-color: white;
 		border-bottom: 1px solid #aaa;

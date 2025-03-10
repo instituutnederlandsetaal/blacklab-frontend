@@ -3,16 +3,16 @@
 		<li :class="['first', {'disabled': !prevEnabled || disabled}]">
 			<a v-if="prevEnabled" role="button" title="first" @click.prevent="changePage(minPage)">&laquo;</a>
 			<span v-else title="first">&laquo;</span>
-		</li>
-		<li v-if="prevEnabled" :class="['prev', {'disabled': !prevEnabled || disabled}]">
+		</li
+		><li v-if="prevEnabled" :class="['prev', {'disabled': !prevEnabled || disabled}]">
 			<a role="button" title="previous" @click.prevent="changePage(page-1)">&lsaquo;</a>
-		</li>
-		<template v-if="showOffsets">
-			<li v-for="i in lowerPages" :key="i" :class="{'disabled': disabled}">
+		</li
+		><template v-if="showOffsets"
+			><li v-for="i in lowerPages" :key="i" :class="{'disabled': disabled}">
 				<a role="button" @click.prevent="changePage(i)">{{(i+1).toLocaleString()}}</a>
-			</li>
-		</template>
-		<li v-if="lowerPages.length || higherPages.length" :class="{
+			</li
+		></template
+		><li v-if="lowerPages.length || higherPages.length" :class="{
 			current: pageActive,
 			active: pageActive,
 			disabled
@@ -33,19 +33,19 @@
 			</template>
 			<a v-else-if="!pageActive" role="button" @click.prevent="changePage(page)">{{(page+1).toLocaleString()}}</a>
 			<span v-else>{{page+1}}</span>
-		</li>
-		<li v-else class="active"> <!-- no available pages -->
+		</li
+		><li v-else class="active"> <!-- no available pages -->
 			<span>{{(page+1).toLocaleString()}}</span>
-		</li>
-		<template v-if="showOffsets">
-			<li v-for="i in higherPages" :key="i" :class="{'disabled': disabled}">
+		</li
+		><template v-if="showOffsets"
+			><li v-for="i in higherPages" :key="i" :class="{'disabled': disabled}">
 				<a role="button" @click.prevent="changePage(i)">{{(i+1).toLocaleString()}}</a>
-			</li>
-		</template>
-		<li v-if="nextEnabled" :class="['next', {'disabled': !nextEnabled || disabled}]">
+			</li
+		></template
+		><li v-if="nextEnabled" :class="['next', {'disabled': !nextEnabled || disabled}]">
 			<a role="button" title="next" @click.prevent="changePage(page+1)">&rsaquo;</a>
-		</li>
-		<li :class="['last', {'disabled': !nextEnabled || disabled}]">
+		</li
+		><li :class="['last', {'disabled': !nextEnabled || disabled}]">
 			<a v-if="nextEnabled" role="button" :title="(maxPage+1).toLocaleString() +' (last)'" @click.prevent="changePage(maxPage)">&raquo;</a>
 			<span v-else :title="(maxPage+1).toLocaleString() + ' (last)'">&raquo;</span>
 		</li>
@@ -139,7 +139,6 @@ export default Vue.extend({
 	$color: darken(#337ab7, 5);
 	$border-color: lighten(#337ab7, 20);
 	margin: 0;
-	font-size: 0;
 	display: inline-block!important;
 
 	vertical-align: middle; // this is done for buttons, but not for ul? align with neighboring buttons.

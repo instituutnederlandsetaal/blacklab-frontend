@@ -30,3 +30,9 @@ export default Vue.component('DocRow', {
 });
 </script>
 
+<style lang="scss">
+.doctitle {
+	// Make line clickable when links wraps onto next line.
+	display: inline-block;
+}
+</style>

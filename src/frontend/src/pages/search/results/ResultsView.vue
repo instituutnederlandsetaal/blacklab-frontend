@@ -2,79 +2,114 @@
 	<div class="results-container" :disabled="request" :style="{minHeight: request ? '100px' : undefined}">
 		<Spinner v-if="request" overlay size="75"/>
 
-		<!-- i.e. HitResults, DocResults, GroupResults -->
-		<!-- Minor annoyance, all slot components are re-created when we group/ungroup results because this :is changes, causing a complete re-render. -->
-		<component v-if="resultComponentData"
-			:is="resultComponentName"
-			v-bind="resultComponentData"
 
-			@sort="sort = $event"
-			@viewgroup="restoreOnViewGroupLeave = {page, sort}; viewGroup = $event.id; _viewGroupName = $event.displayName;"
-			@groupDisplayMode="groupDisplayMode = $event"
-		>
-			<BreadCrumbs slot="breadcrumbs"
-				:crumbs="breadCrumbs"
-				:disabled="!!request"
-			/>
-
-			<Totals slot="totals"
-				class="result-totals"
-				:initialResults="results"
-				:type="id"
-				:indexId="indexId"
-
-				@update="paginationResults = $event"
-			/>
-
-			<GroupBy slot="groupBy" v-if="!viewGroup"
-				:type="id"
-				:results="results"
-				:disabled="!!request"
-			/>
-			<button v-else slot="groupBy" class="btn btn-sm btn-primary" @click="leaveViewgroup"><span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}</button>
-
-			<div slot="annotation-switcher" v-if="concordanceAnnotationOptions.length > 1">
-				<label>{{$t('results.resultsView.selectAnnotation')}}: </label>
-				<div class="btn-group" >
-					<button v-for="a in concordanceAnnotationOptions" type="button"
-						class="btn btn-default btn-sm"
-						:class="{active: a.id === concordanceAnnotationId}"
-						@click="concordanceAnnotationId = a.id">{{ $tAnnotDisplayName(a) }}</button>
-				</div>
+		<template v-if="resultComponentData && cols && renderDisplaySettings">
+			<div class="crumbs-totals">
+				<BreadCrumbs :crumbs="breadCrumbs" :disabled="!!request" />
+				<Totals class="result-totals" :initialResults="results" :type="id" :indexId="indexId" @update="paginationResults = $event" />
 			</div>
 
-			<Pagination slot="pagination"
-				style="display: block; margin: 10px 0;"
-
-				:page="pagination.shownPage"
-				:maxPage="pagination.maxShownPage"
-				:disabled="!!request"
-
-				@change="page = $event"
-			/>
-
-			<Sort slot="sort"
-				v-model="sort"
-				:hits="isHits"
-				:docs="isDocs"
-				:groups="isGroups"
-
-				:corpus="corpus"
-				:annotations="sortAnnotations"
-				:metadata="sortMetadata"
-
-				:disabled="!!request"
-			/>
-
-			<Export slot="export" v-if="exportEnabled"
-				:results="results"
+			<GroupBy v-if="!viewGroup"
 				:type="id"
+				:results="results"
 				:disabled="!!request"
-				:annotations="exportAnnotations"
-				:metadata="exportMetadata"
 			/>
 
-		</component>
+
+			<div class="result-buttons-layout">
+				<Pagination slot="pagination" v-if="20 <= (rows?.rows.length ?? 0)"
+					:page="pagination.shownPage"
+					:maxPage="pagination.maxShownPage"
+					:disabled="!!request"
+
+					@change="page = $event"
+				/>
+
+				<div class="btn-group" v-if="isGroups" style="flex: none;">
+					<button v-for="option in cols.groupModeOptions"
+						type="button"
+						:class="['btn btn-default btn-sm', {'active': renderDisplaySettings.groupDisplayMode === option}]"
+						:key="option"
+						@click="groupDisplayMode = option"
+					>{{option}}</button>
+				</div>
+				<button v-if="viewGroup" class="btn btn-sm btn-primary" @click="leaveViewgroup">
+					<span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}
+				</button>
+
+				<div style="flex-grow: 1;"></div>
+				<div v-if="concordanceAnnotationOptions.length > 1 && id === 'hits'">
+					<label>{{$t('results.resultsView.selectAnnotation')}}: </label>
+					<div class="btn-group" >
+						<button v-for="a in concordanceAnnotationOptions" type="button"
+							class="btn btn-default btn-sm"
+							:class="{active: a.id === concordanceAnnotationId}"
+							@click="concordanceAnnotationId = a.id">{{ $tAnnotDisplayName(a) }}</button>
+					</div>
+				</div>
+
+
+			</div>
+
+
+			<GenericTable class="hits-table"
+				:type="id"
+				:cols="cols"
+				:rows="rows"
+				:info="renderDisplaySettings"
+				:header="isHits ? cols.hitColumns : isDocs ? cols.docColumns : cols.groupColumns"
+				:showTitles="showTitles"
+				:disabled="!!request"
+				:query="results?.summary.searchParam"
+
+				@changeSort="restoreOnViewGroupLeave = {page, sort}; viewGroup = $event.id; _viewGroupName = $event.displayName;"
+				@viewgroup="changeViewGroup"
+				/>
+
+
+			<div class="result-buttons-layout" style="border-top: 1px solid #ccc; padding-top: 15px;">
+				<Pagination
+					style="display: block;"
+
+					:page="pagination.shownPage"
+					:maxPage="pagination.maxShownPage"
+					:disabled="!!request"
+
+					@change="page = $event"
+				/>
+				<div style="flex-grow: 1;"></div>
+
+				<button v-if="isHits"
+					type="button"
+					class="btn btn-primary btn-sm show-titles"
+
+					@click="showTitles = !showTitles"
+				>
+					{{showTitles ? $t('results.table.hide') : $t('results.table.show')}} {{ $t('results.table.titles') }}
+				</button>
+
+				<Sort
+					v-model="sort"
+					:hits="isHits"
+					:docs="isDocs"
+					:groups="isGroups"
+
+					:corpus="corpus"
+					:annotations="sortAnnotations"
+					:metadata="sortMetadata"
+
+					:disabled="!!request"
+				/>
+
+				<Export v-if="exportEnabled"
+					:results="results"
+					:type="id"
+					:disabled="!!request"
+					:annotations="exportAnnotations"
+					:metadata="exportMetadata"
+				/>
+			</div>
+		</template>
 		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
 		<div v-else-if="!valid" class="no-results-found">
 			{{ $t('results.resultsView.inactiveView') }}
@@ -104,9 +139,6 @@ import * as QueryStore from '@/store/search/query';
 import * as UIStore from '@/store/search/ui';
 import * as GlossModule from '@/store/search/form/glossStore' // Jesse
 
-import GroupResults from '@/pages/search/results/table/GroupResults.vue';
-import HitResults from '@/pages/search/results/table/HitResults.vue';
-import DocResults from '@/pages/search/results/table/DocResults.vue';
 import Totals from '@/pages/search/results/ResultTotals.vue';
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
 
@@ -126,12 +158,12 @@ import { TranslateResult } from 'vue-i18n';
 import { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, makeColumns, makeRows, Rows } from '@/pages/search/results/table/table-layout';
 import { isHitParams } from '@/utils';
 
+
+import '@/pages/search/results/table/GenericTable.vue';
+
 export default Vue.extend({
 	components: {
 		Pagination,
-		GroupResults,
-		HitResults,
-		DocResults,
 		Totals,
 		GroupBy,
 		Sort,
@@ -145,7 +177,6 @@ export default Vue.extend({
 		 * Since we use this ID to determine whether we're getting hits or docs from blacklab, and some rendering or logic may depend on it being 'hits' or 'docs' as well.
 		 */
 		id: String as () => 'hits'|'docs',
-		label: String,
 		active: Boolean,
 
 		store: Object as () => ResultsStore.ViewModule,
@@ -171,6 +202,7 @@ export default Vue.extend({
 			page: number;
 			sort: string|null;
 		},
+		showTitles: true,
 
 		debug
 	}),
@@ -282,6 +314,11 @@ export default Vue.extend({
 			this.page = this.restoreOnViewGroupLeave?.page || 0;
 			this.sort = this.restoreOnViewGroupLeave?.sort || null;
 			this.restoreOnViewGroupLeave = null;
+		},
+		changeViewGroup(groupId: string, groupDisplay: string) {
+			this.restoreOnViewGroupLeave = {page: this.page, sort: this.sort};
+			this.viewGroup = groupId;
+			this._viewGroupName = groupDisplay;
 		}
 	},
 	computed: {
@@ -558,15 +595,19 @@ export default Vue.extend({
 	position: relative;
 }
 
-
-
 .result-totals {
 	background: white;
 	padding: 8px 8px 0 15px;
 	flex: none;
 }
 
-
+.result-buttons-layout {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	margin: 10px 0;
+	gap: 10px;
+}
 
 
 
