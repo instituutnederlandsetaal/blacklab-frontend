@@ -413,9 +413,6 @@ export default Vue.extend({
 			const listEntry = Object.entries(matchInfos).find( ([name, mi]) => mi.type === 'list');
 			const result: { label?: string, value: string, title?: string }[] = [];
 			if (listEntry) {
-				// @@@ TODO: we should first add the non-list captures as options,
-				//   then add the other options with a reference to the list.
-
 				// We capture lists of tags, but we don't know all the captured tags at this point.
 				// Offer all span filters as grouping options, with a reference to the list,
 				// (e.g. with-spans[ab] to mean "group on the ab tag in the with-spans list")

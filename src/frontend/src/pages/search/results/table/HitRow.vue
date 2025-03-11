@@ -71,6 +71,10 @@ export default Vue.component('HitRow', {
 
 <style lang="scss">
 
+th:first-child {
+	padding-left: 1.5em;
+}
+
 td.doc-version {
 	padding-left: 1.5em!important;
 }
