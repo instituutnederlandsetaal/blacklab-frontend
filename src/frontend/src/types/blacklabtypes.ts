@@ -502,8 +502,10 @@ export interface BLMatchInfoTag {
 	end: number;
 	/** E.g. "s" */
 	tagName: string;
-	/** E.g. {id: "123"} for <s id=123/> */
-	attributes?: Record<string, string>;
+	/** E.g. {id: ["123"]} for <s id=123/> */
+	attributes?: Record<string, string|string[]>;
+	// JN: above value type is transitional only; after 2025-04-01, change to
+	//           Record<string, string[]>
 }
 
 /** Represents the info captured by an arrow in the query (-->, ==>). So the source, target, and value. */
