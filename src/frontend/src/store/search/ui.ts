@@ -770,6 +770,9 @@ const actions = {
 const init = () => {
 	if (!CorpusStore.getState().corpus) throw new Error('Cannot initialize UI module before corpus is loaded');
 
+	// Call the customize function(s) defined in custom.js (if any)
+	corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));
+
 	// XXX: hack!
 	/**
 	 * If we don't do this, imagine the following
@@ -1239,7 +1242,7 @@ function printCustomizations() {
 /** This object contains any customization "hook" functions for this corpus.
  *  It defines defaults that can be overridden from custom JS file(s); see below.
  */
-const corpusCustomizations = {
+const corpusCustomizations = Vue.observable({
 	// Registered customize function(s), to be called once the corpus info has been loaded
 	customizeFunctions: [] as ((corpus: any) => void)[],
 
@@ -1380,7 +1383,7 @@ const corpusCustomizations = {
 			return null; // use default behaviour
 		},
 	}
-};
+});
 
 /** This lets custom JS files call frontend.customize((corpus) => { ... });
   * to customize any of the above "hooks". Doing this via a function instead of
