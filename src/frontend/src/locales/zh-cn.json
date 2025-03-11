@@ -263,7 +263,8 @@
 			"property": "属性",
 			"value": "值",
 			"noContext": "没有可用的文本",
-			"parallelVersion": "Version"
+			"customColumnHeader": "Version",
+			"goToHitInDocument": "转到文档中的此位置"
 		},
 		"export": {
 			"downloading": "下载中...",

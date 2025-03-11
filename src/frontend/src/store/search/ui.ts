@@ -1364,14 +1364,21 @@ const corpusCustomizations = Vue.observable({
 			return null; // use default behaviour
 		},
 
+		hasCustomHitInfoColumn: (results: BLTypes.BLHitResults, isParallelCorpus: boolean): boolean => {
+			return isParallelCorpus;
+		},
+
 		/**
 		 * Show some custom text (with doc link) left of the hit.
 		 *
 		 * Default shows versionPrefix if it's set (i.e. if it's a parallel corpus).
 		 * Otherwise, nothing extra is shown.
+		 * @param hit the hit
+		 * @param annotatedFieldDisplayName the name of the field the hit is in. This is already translated to the user's locale.
+		 *  In the case of non-parallel corpora, this will always be the main annotated field.
 		 */
-		customHitInfo: (hit: any, versionPrefix: string|undefined): string|null => {
-			return null; // use default behaviour
+		customHitInfo: (hit: BLTypes.BLHit|BLTypes.BLHitSnippet|BLTypes.BLHitInOtherField, annotatedFieldDisplayName: string|null): string|null => {
+			return annotatedFieldDisplayName;
 		}
 	},
 

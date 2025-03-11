@@ -279,7 +279,7 @@
 			"property": "Property",
 			"value": "value",
 			"noContext": "No context available.",
-			"parallelVersion": "Version",
+			"customColumnHeader": "Version",
 			"goToHitInDocument": "Go to hit in document"
 		},
 		"export": {

@@ -507,15 +507,15 @@ export default Vue.extend({
 				dir: CorpusStore.get.textDirection(),
 				i18n: this,
 				specialFields: CorpusStore.getState().corpus!.fieldInfo,
+				targetFields: QueryStore.get.targetFields(),
 			}
 		},
 		rowDisplaySettings(): DisplaySettingsForRows {
-			const sourceField = CorpusStore.get.allAnnotatedFieldsMap()[QueryStore.getState().shared?.source ?? CorpusStore.get.mainAnnotatedField()];
 			return {
 				...this.commonDisplaySettings,
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
-				sourceField,
-				targetFields: (QueryStore.getState().shared?.targets.map(t => CorpusStore.get.allAnnotatedFieldsMap()[t]) ?? CorpusStore.get.allAnnotatedFields()).filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel && f !== sourceField),
+				sourceField: QueryStore.get.sourceField()!, // if no field, there would be no results...
+				getCustomHitInfo: UIStore.corpusCustomizations.results.customHitInfo,
 			}
 		},
 		columnDisplaySettings(): DisplaySettingsForColumns {
@@ -530,6 +530,7 @@ export default Vue.extend({
 				// If groups, don't show any annotation columns.
 				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
+				hasCustomHitInfoColumn: UIStore.corpusCustomizations.results.hasCustomHitInfoColumn,
 			}
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {

@@ -282,7 +282,8 @@
 			"property": "Eigenschap",
 			"value": "waarde",
 			"noContext": "Geen context beschikbaar.",
-			"parallelVersion": "Versie"
+			"customColumnHeader": "Versie",
+			"goToHitInDocument": "Ga naar deze locatie in het document"
 		},
 		"export": {
 			"downloading": "Downloaden...",

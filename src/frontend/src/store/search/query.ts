@@ -28,10 +28,10 @@ import * as CorpusModule from '@/store/search/corpus';
 import * as PatternModule from '@/store/search/form/patterns';
 import * as FilterModule from '@/store/search/form/filters';
 import * as ExploreModule from '@/store/search/form/explore';
-import * as UIModule from '@/store/search/ui';
 import * as GapModule from '@/store/search/form/gap';
 import { getFilterSummary, getFilterString, getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
+import { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
 
 // todo migrate these weirdo state shapes to mapped types?
 // might be a cleaner way of doing this...
@@ -83,6 +83,14 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, Object
 const getState = b.state();
 
 const get = {
+	sourceField: b.read((state): CorpusModule.NormalizedAnnotatedField|undefined => {
+		return CorpusModule.get.allAnnotatedFieldsMap()[get.annotatedFieldName() ?? ''] ?? CorpusModule.get.mainAnnotatedField();
+	}, 'sourceField'),
+	targetFields: b.read((state): NormalizedAnnotatedFieldParallel[] => {
+		const allFields = CorpusModule.get.allAnnotatedFieldsMap();
+		return state.shared?.targets?.map(t => allFields[t]).filter(f => f.isParallel) ?? [];
+	}, 'targetFields'),
+
 	/**
 	 * Return the sourceField of the query.
 	 * We only return a value here for parallel corpora.

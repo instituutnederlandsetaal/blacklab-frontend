@@ -376,11 +376,16 @@ export type DisplaySettingsForRendering = {
 	i18n: Vue;
 
 	groupDisplayMode: 'table'|'docs'|'hits'|'relative docs'|'relative hits'|'tokens';
+
+	/** See hasCustomHitInfo in the UI store. we don't use the store directly to simplify unit-testing. */
+	hasCustomHitInfoColumn: (results: BLHitResults, isParallelCoprus: boolean) => boolean;
+	/** See getCustomHitInfo in UI store. We don't use the store directly to simplify unit-testing. */
+	getCustomHitInfo: (hit: BLHit|BLHitSnippet|BLHitInOtherField, annotatedFieldDisplayName: string) => string|null;
 }
 
-export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'>
-export type DisplaySettingsForRows = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'sourceField'|'targetFields'|'getSummary'>
-export type DisplaySettingsForColumns = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'mainAnnotation'|'metadata'|'otherAnnotations'|'sortableAnnotations'|'groupDisplayMode'>
+export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'|'targetFields'>
+export type DisplaySettingsForRows = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'sourceField'|'getSummary'|'getCustomHitInfo'>
+export type DisplaySettingsForColumns = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'mainAnnotation'|'otherAnnotations'|'sortableAnnotations'|'metadata'|'groupDisplayMode'|'hasCustomHitInfoColumn'>
 
 /** Helper type, data for which we're computing a hitrow or docrow. */
 type Result<HitType extends BLHit|BLHitSnippet|BLHitInOtherField|undefined> = {
@@ -389,8 +394,11 @@ type Result<HitType extends BLHit|BLHitSnippet|BLHitInOtherField|undefined> = {
 	/** Query that created this result. Required for generating links to the hit/document with the proper results highlighted. */
 	query: BLSearchParameters;
 
+	/** Ugly: for parallel corpora, we can have multiple rows for a single result. We want to know which belong together. */
 	hit_id: HitType extends undefined ? never : string;
+	/** Ugly: for parallel results, we can have multiple rows for a single result. We want to group these visually. */
 	first_of_hit: HitType extends undefined ? never : boolean;
+	/** Ugly: for parallel results, we can have multiple rows for a single result. We want to group these visually. */
 	last_of_hit: HitType extends undefined ? never : boolean;
 };
 
@@ -412,6 +420,13 @@ export type HitRowData = {
 	annotatedField: NormalizedAnnotatedField;
 	dir: 'ltr'|'rtl';
 
+	/**
+	 * For the custom column. By default we show the source field here.
+	 * NB: this column is not always present, depending on the hasCustomHitInfoColumn customization function in the UI store.
+	 * For ease-of-use, we sub an empty string if the column is not present.
+	*/
+	customHitInfo: string;
+
 	// TODO jesse
 	gloss_fields: GlossFieldDescription[];
 	hit_first_word_id: string; // Jesse
@@ -432,13 +447,7 @@ function start(hit: BLHitSnippet|BLHit|undefined): number|undefined {
 	return (hit as BLHit&BLHitSnippet)?.start;
 }
 
-// function input(result: BLSearchResult, doc: BLDocInfo, hit: BLHit|BLHitInOtherField): Result<BLHit>;
-// function input(result: BLSearchResult, doc: BLDoc, hit: BLHitSnippet): Result<BLHitSnippet>;
-// function input(result: BLSearchResult, doc: BLDoc): Result<undefined>;
-// function input(result: BLSearchResult, doc: BLDocInfo|BLDoc, hit?: BLHit|BLHitInOtherField|BLHitSnippet): Result {
-// 	return {doc: typeof doc.docPid === 'string' ? doc as BLDoc : {docPid: (hit as BLHit).docPid, docInfo: doc as BLDocInfo}, hit, query: result.summary.searchParam};
-// }
-
+/** Create the title row for a document, plus - when the document has them - nested rows for the hits in that document. */
 function makeDocRow(p: Result<any>, info: DisplaySettingsForRows): DocRowData {
 	return {
 		doc: p.doc,
@@ -458,6 +467,7 @@ function docDir(doc: BLDoc, corpusNativeDir: 'ltr'|'rtl'): 'ltr'|'rtl' {
 	}
 }
 
+/** Make a row that shows a single snippet context, i.e. a single instance of before/match/after. */
 function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined, field: NormalizedAnnotatedField): HitRowData {
 	return {
 		type: 'hit',
@@ -478,9 +488,12 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		gloss_fields: [],
 		hit_first_word_id: '',
 		hit_last_word_id: '',
+
+		customHitInfo: info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field)) ?? ''
 	}
 }
 
+/** Create all rows for hit. For parallel corpora, a 'hit' may represent multiple rows, one for every version of the document it was found it (i.e. dutch + english). */
 function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined): HitRowData[] {
 	const r: HitRowData[] = [];
 	p.first_of_hit = true;
@@ -500,11 +513,12 @@ function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: D
 	return r;
 }
 
-
+/** For a set of document results, create all rows. */
 function makeDocRows(results: BLDocResults, info: DisplaySettingsForRows): DocRowData[] {
 	return results.docs.map(doc => makeDocRow({doc, query: results.summary.searchParam} as Result<undefined>, info));
 }
 
+/** For a set of hit results, create all rows. */
 function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array<DocRowData|HitRowData> {
 	// First, merge the matchInfos from the main hit with the otherFields hits.
 	// This is required to highlight hits in parallel corpora.
@@ -524,6 +538,7 @@ function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array
 	return r;
 }
 
+/** For a set of group results, create all rows. */
 function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGroupName: string): { rows: GroupRowData[], maxima: Maxima } {
 	const max = new MaxCounter<GroupRowData>();
 
@@ -631,10 +646,6 @@ type ColumnDefBase = {
 	colspan?: number;
 }
 
-// we want either a single sort with a title holding the 'sort by' text
-// or multiple sorts without a title
-// or no sort at all with a title
-
 export type ColumnDefHit = ColumnDefBase & ({
 	/** Column shows the tokens of the hit, either the before/match/after, which get special treatment, or another annotation, but in that case the match is shown. */
 	field: 'before'|'match'|'after'|'annotation';
@@ -645,7 +656,7 @@ export type ColumnDefHit = ColumnDefBase & ({
 	metadata: NormalizedMetadataField
 }|{
 	/** Column shows the name of the AnnotatedField of the hit in the current row. */
-	field: 'annotatedField',
+	field: 'custom',
 });
 
 export type ColumnDefDoc = ColumnDefBase & {
@@ -728,11 +739,11 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		else return {};
 	}
 
-	if (isHitResults(results) && results.hits.find(h => !!h.otherFields) || !!results.summary.searchParam.patt?.includes('=>')) {
+	if (isHitResults(results) && info.hasCustomHitInfoColumn(results, info.targetFields.length > 0)) {
 		hitColumns.push({
-			key: 'annotatedField',
-			field: 'annotatedField',
-			label: i.$t('results.table.parallelVersion').toString(),
+			key: 'custom',
+			field: 'custom',
+			label: i.$t('results.table.customColumnHeader').toString(),
 		});
 	}
 
@@ -795,10 +806,6 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 			c.title = undefined;
 		});
 	}
-	/// TODO
-	// else if (isDocResults(results))
-	// 	hitColumns
-	// hitColumns.length;
 
 	/// GROUPS
 
@@ -834,7 +841,6 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 			sort: header.sortProp,
 		})
 	});
-
 
 
 	return {hitColumns, docColumns, groupColumns, groupModeOptions: availableDisplayModes};

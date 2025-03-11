@@ -1,8 +1,8 @@
 <template>
 	<tr class="concordance" :class="{'foreign-hit': row.isForeign}">
 		<template v-for="col in cols.hitColumns">
-			<td v-if="col.field === 'annotatedField'" class="doc-version" :key="col.key + col.field">
-				<a @click.stop="" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank">{{ customHitInfo }}</a> <!-- todo tidy up custom fields. -->
+			<td v-if="col.field === 'custom'" class="doc-version" :key="col.key + col.field">
+				<a @click.stop="" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank">{{ row.customHitInfo }}</a>
 			</td>
 			<HitContext v-else-if="col.field === 'match' || col.field === 'after' || col.field === 'before' || col.field === 'annotation'" :key="col.key"
 				tag=td
@@ -39,7 +39,6 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import { corpusCustomizations } from '@/store/search/ui';
 
 import HitContext from '@/pages/search/results/table/HitContext.vue';
 import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from './table-layout';
@@ -61,12 +60,6 @@ export default Vue.component('HitRow', {
 		hoverMatchInfos: {
 			type: Array as () => string[],
 			default: () => [],
-		},
-	},
-	computed: {
-		customHitInfo(): string|undefined {
-			const versionPrefix = this.row.annotatedField && this.$tAnnotatedFieldDisplayName(this.row.annotatedField);
-			return corpusCustomizations.results.customHitInfo(this.row.hit, versionPrefix)?.trim() || versionPrefix;
 		},
 	},
 	methods: {
