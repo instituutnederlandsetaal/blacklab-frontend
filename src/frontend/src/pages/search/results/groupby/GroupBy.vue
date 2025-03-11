@@ -807,7 +807,8 @@ export default Vue.extend({
 			this.addedCriteria = [];
 			this.selectedCriteriumIndex = -1;
 			this.active = false;
-			this.apply();
+			if (this.storeValue.length > 0)
+				this.apply(); // only when actually removing something, otherwise we reset the results for no reason.
 		},
 		addAnnotation() {
 			this.addedCriteria.push({
