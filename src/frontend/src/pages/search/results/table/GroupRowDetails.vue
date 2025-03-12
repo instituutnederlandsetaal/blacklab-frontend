@@ -57,14 +57,11 @@ import { ColumnDefs, DisplaySettingsForRendering, GroupRowData, makeRows, Rows }
 
 import * as UIStore from '@/store/ui';
 import * as CorpusStore from '@/store/corpus';
-import { getDocumentUrl } from '@/utils';
-import { getHighlightColors, mergeMatchInfos, snippetParts } from '@/utils/hit-highlighting';
+import Spinner from '@/components/Spinner.vue';
 
 
 export default Vue.extend({
-	components: {
-		Spinner
-	},
+	components: { Spinner },
 	props: {
 		row: Object as () => GroupRowData,
 		cols: Object as () => ColumnDefs,

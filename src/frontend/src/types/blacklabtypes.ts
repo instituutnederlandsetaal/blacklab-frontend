@@ -652,5 +652,7 @@ export const isDocGroupsOrResults = (d: any): d is BLDocResults|BLDocGroupResult
 export const isGroups = (d: any): d is BLHitGroupResults|BLDocGroupResults => isHitGroups(d) || isDocGroups(d);
 export const isBLError = (e: any): e is BLError => !!(e && e.error && e.error.code && e.error.message);
 
-export const hasPatternInfo = <T extends BLSearchResult>(e?: T): e is T&{summary: T['summary']&BLSearchSummaryPattern} => e != null && 'numberOfHits' in e.summary;
+export function hasPatternInfo(e?: BLSearchResult): e is BLSearchResult&{summary: BLSearchSummary&BLSearchSummaryPattern};
+export function hasPatternInfo(e?: BLSearchSummary): e is BLSearchSummary&BLSearchSummaryPattern;
+export function hasPatternInfo(e?: BLSearchResult|BLSearchSummary) { return e != null && (('summary' in e && 'numberOfHits' in e.summary) || ('numberOfHits' in e)); };
 export const hasGroupInfo = <T extends BLSearchResult>(e?: T): e is T&{summary: T['summary']&BLSearchSummaryGrouped} => e != null && 'numberOfGroups' in e.summary;

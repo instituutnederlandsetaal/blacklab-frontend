@@ -156,3 +156,58 @@ export default Vue.extend({
 })
 
 </script>
+
+<style>
+.document-upload-button {
+	flex-shrink: 0;
+	font-size: 24px;
+	height: 100px;
+	overflow: hidden;
+	position: relative;
+	width: 200px;
+	white-space: normal;
+}
+.document-upload-button:before {
+	content: "\f093";
+	color: black;
+    font: normal normal normal 14px/1 FontAwesome;
+    font-size: 80px;
+    left: 50%;
+    opacity: 0.08;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.document-upload-button-text {
+	/* one word per line*/
+	color: inherit;
+	display: table-caption;
+	left: 50%;
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 100%;
+	word-spacing: 9999em;
+}
+
+@keyframes grow {
+	0%   { width: 0%; }
+	100% { width: 95%; }
+}
+
+#uploadProgress {
+	white-space: nowrap;
+	padding-left: 6px;
+}
+
+#uploadProgress.indexing {
+	animation: 40s grow;
+	width: 95%; /* stay wide at end of animation */
+	-webkit-transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
+	   -moz-transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
+		 -o-transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
+			transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
+}
+
+</style>

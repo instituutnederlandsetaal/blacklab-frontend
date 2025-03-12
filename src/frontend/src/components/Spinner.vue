@@ -46,7 +46,7 @@ export default Vue.extend({
 			// size observer and center spinner
 			this.observer = new ResizeObserver(() => {
 				const {width, height} = parent.getBoundingClientRect();
-				// don't use bounding client. It changes when the element rotates
+				// don't use boundingClientRect for ourselves. It changes when the our element rotates
 				const ownWidth =  this.$el.scrollWidth;
 				const ownHeight = this.$el.scrollHeight;
 				const left = width / 2 - ownWidth / 2;

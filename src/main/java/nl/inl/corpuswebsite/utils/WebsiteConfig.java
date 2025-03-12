@@ -5,27 +5,32 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.stream.StreamSource;
-import javax.xml.xpath.XPathExpressionException;
-
-import net.sf.saxon.s9api.*;
-import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
 import org.apache.commons.lang3.StringUtils;
-import org.xml.sax.SAXException;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+import net.sf.saxon.s9api.DocumentBuilder;
+import net.sf.saxon.s9api.Processor;
+import net.sf.saxon.s9api.SaxonApiException;
+import net.sf.saxon.s9api.XPathCompiler;
+import net.sf.saxon.s9api.XdmItem;
+import net.sf.saxon.s9api.XdmNode;
+import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
 /**
  * Configuration read from the Search.xml config file specific to a corpus.
@@ -161,7 +166,7 @@ public class WebsiteConfig {
     /** Page size to use for paginating documents in this corpus, defaults to 1000 if omitted (also see default Search.xml) */
     private final int pageSize;
 
-    /** Google analytics key, analytics are disabled if not provided */
+    /** Google Analytics key, analytics are disabled if not provided */
     private final Optional<String> analyticsKey;
 
     private final Optional<String> plausibleDomain;
@@ -352,18 +357,6 @@ public class WebsiteConfig {
 
     public Map<String, String> getXsltParameters() {
         return xsltParameters;
-    }
-
-    public List<ElementOnPage> getCustomJS(String page) {
-        Stream<ElementOnPage> s = customJS.computeIfAbsent(page, __ -> new ArrayList<>()).stream();
-        // add the default scripts to the stream if the page is not empty
-        if (!page.isEmpty()) s = Stream.concat(s, customJS.computeIfAbsent("", __ -> new ArrayList<>()).stream());
-        // sort the scripts by index in the config, and return
-        return s.sorted().collect(Collectors.toList());
-    }
-
-    public List<ElementOnPage> getCustomCSS(String page) {
-        return customCSS.computeIfAbsent(page, __ -> new ArrayList<>());
     }
 
     public String getPathToFaviconDir() {

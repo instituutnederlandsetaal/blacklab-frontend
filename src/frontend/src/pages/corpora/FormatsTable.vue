@@ -1,5 +1,5 @@
 <template>
-	<div id="formats-all-container" class="cf-panel cf-panel-lg" style="display: block;">
+	<div id="formats-all-container" class="cf-panel cf-panel-lg">
 		<Spinner v-if="loading" class="lg overlay"/>
 		<h2>Your import formats</h2>
 		<table class="table corpora">
@@ -36,3 +36,9 @@ export default Vue.extend({
 	},
 })
 </script>
+
+<style>
+th.table-icon {
+	width: 1px; /* just scale to content. */
+}
+</style>

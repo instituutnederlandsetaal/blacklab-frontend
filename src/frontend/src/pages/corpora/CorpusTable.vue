@@ -1,7 +1,7 @@
 <template>
 
-	<div class="cf-panel cf-panel-lg" style="position: relative; min-height: 150px; display: block;">
-		<Spinner v-if="loading" class="overlay"/>
+	<div class="cf-panel cf-panel-lg">
+		<Spinner v-if="loading" overlay/>
 		<h2>{{ title }}</h2>
 		<table class="corpora public table">
 			<thead>
@@ -162,3 +162,55 @@ export default Vue.extend({
 	}
 })
 </script>
+
+<style lang="scss">
+th.table-icon {
+	width: 1px; /* just scale to content. */
+}
+
+table.corpora {
+	table-layout: auto;
+	width: 100%;
+	margin: 1em 0;
+}
+
+table.corpora td {
+	font-size: 14pt;
+	padding: 3px;
+}
+
+table.corpora th {
+	font-size: 11pt;
+	padding: 3px;
+	background-color: inherit;
+}
+table.corpora table {
+	width: auto;
+}
+
+table.corpora a.disabled {
+   pointer-events: none;
+   cursor: default;
+   color: #bbb;
+}
+
+/* Don't change color when hovering over row (as in results table) */
+table.corpora tr:hover {
+	background-color: inherit;
+}
+col.corpus-name {
+	width: 24%;
+	outline: 1px solid red;
+}
+col.delete {
+	width: 8%;
+}
+
+td.corpus-name a {
+	color: inherit;
+	text-decoration: none;
+}
+
+
+
+</style>

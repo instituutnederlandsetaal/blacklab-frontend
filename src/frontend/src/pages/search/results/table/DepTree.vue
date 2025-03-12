@@ -13,10 +13,10 @@ import Vue from 'vue';
 
 // @ts-ignore
 import {ReactiveDepTree} from '@/../node_modules/reactive-dep-tree/dist/reactive-dep-tree.umd.js';
+import { HitRowData } from '@/pages/search/results/table/table-layout';
 import { BLHit, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
 import Spinner from '@/components/Spinner.vue';
 import { NormalizedAnnotation } from '@/types/apptypes';
-import { HitRowData } from '@/pages/search/results/table/table-layout';
 
 
 /* https://universaldependencies.org/format.html

@@ -2,7 +2,7 @@ import Vue from 'vue';
 import { syncPropertyWithLocalStorage } from '@/utils/localstore';
 
 
-export type LogCategory = 'history'|'parallel'|'init'|'shared';
+export type LogCategory = 'history'|'parallel'|'init'|'shared'|'results';
 
 const isDebugMode = !!process.env.NODE_ENV?.match(/dev|test/);
 let debug = Vue.observable({
@@ -30,7 +30,7 @@ export function showDebugCat(category: LogCategory) {
 }
 
 /** A debug message in a category that we may want to show or not */
-export function debugLogCat(category: string, ...args: any[]) {
+export function debugLogCat(category: LogCategory, ...args: any[]) {
 	if (showDebugCat(category)) {
 		debugLog(`[${category}]`, ...args);
 	}

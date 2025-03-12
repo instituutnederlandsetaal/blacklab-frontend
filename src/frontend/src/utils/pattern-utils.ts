@@ -2,8 +2,8 @@ import * as AppTypes from '@/types/apptypes';
 import type {ModuleRootState as ModuleRootStateExplore} from '@/store/form/explore';
 import type {ModuleRootState as ModuleRootStatePatterns} from '@/store/form/patterns';
 import type {ModuleRootState as ModuleRootStateFilters} from '@/store/form/filters';
-import * as FilterModule from '@/store/search/form/filters';
-import * as UIModule from '@/store/search/ui';
+import * as FilterModule from '@/store/form/filters';
+import * as UIModule from '@/store/ui';
 import cloneDeep from 'clone-deep';
 import { applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPart, parenQueryPartParallel, RegexEscapeOptions,
 	splitIntoTerms, uiTypeSupport } from '@/utils';

@@ -145,7 +145,7 @@ import Export from '@/pages/search/results/Export.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 
-import debug, { debugLogCat } from '@/utils/debug';
+import debug, { debugLog, debugLogCat } from '@/utils/debug';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedAnnotatedFieldParallel, NormalizedIndex } from '@/types/apptypes';
@@ -504,7 +504,7 @@ export default Vue.extend({
 			return {
 				dir: CorpusStore.get.textDirection(),
 				i18n: this,
-				specialFields: CorpusStore.getState().corpus!.fieldInfo,
+				specialFields: CorpusStore.getState()!.fieldInfo,
 				targetFields: QueryStore.get.targetFields(),
 			}
 		},

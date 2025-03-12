@@ -176,7 +176,7 @@ export default Vue.component('HitRowDetails', {
 			// If we don't have a fat hit, we can't get any larger context (because we don't know the start/end of the hit)
 			// Don't do anything else, we just won't render the larger context.
 			// The small table will still be shown.
-			if (this.loading || this.context || !('start' in this.data.hit)) return;
+			if (this.snippetRequest || this.snippet || !('start' in this.row.hit)) return;
 
 			const transformSnippets = UIStore.getState().results.shared.transformSnippets;
 			const addons = UIStore.getState().results.hits.addons;

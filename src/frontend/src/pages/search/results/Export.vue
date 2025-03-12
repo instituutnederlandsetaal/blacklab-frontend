@@ -47,11 +47,10 @@ import cloneDeep from 'clone-deep';
 import * as Api from '@/api';
 import * as CorpusStore from '@/store/corpus';
 
-import { BLSearchResult } from '@/types/blacklabtypes';
-import * as UIStore from '@/store/search/ui';
-import * as CorpusStore from '@/store/search/corpus';
+import { BLSearchResult, hasPatternInfo } from '@/types/blacklabtypes';
+import * as UIStore from '@/store/ui';
 import { debugLog } from '@/utils/debug';
-import { ensureCompleteFieldName, getParallelFieldName, getParallelFieldParts, isParallelField } from '@/utils';
+import { ensureCompleteFieldName } from '@/utils';
 
 export default Vue.extend({
 	props: {
@@ -79,9 +78,10 @@ export default Vue.extend({
 			(params as any).csvsepline = !!excel;
 			(params as any).csvsummary = true;
 			const fieldDisplayName = (name: string, baseFieldName: string = '') => {
-				const defaultField = this.results.summary.pattern?.fieldName ?? CorpusStore.get.mainAnnotatedField();
+				const defaultField = (hasPatternInfo(this.results) ? this.results.summary.pattern?.fieldName : undefined) ?? CorpusStore.get.mainAnnotatedField();
 				name = ensureCompleteFieldName(name, defaultField); // don't just pass version name
-				return this.$td(`index.annotatedFields.${name}`, name);
+				const field = CorpusStore.get.allAnnotatedFieldsMap()[name];
+				return this.$tAnnotatedFieldDisplayName(field);
 			}
 			(params as any).csvdescription = UIStore.corpusCustomizations.results.csvDescription(this.results.summary, fieldDisplayName) || '';
 

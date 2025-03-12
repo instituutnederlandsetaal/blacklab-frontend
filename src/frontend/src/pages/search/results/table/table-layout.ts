@@ -1,7 +1,7 @@
-import { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchParameters, BLSearchResult, BLSearchSummary, BLSearchSummaryTotalsHits, hitHasParallelInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
+import { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLSearchParameters, BLSearchResult, hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 import { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedMetadataField, TokenHighlight } from '@/types/apptypes';
 import { getDocumentUrl } from '@/utils';
-import { GlossFieldDescription } from '@/store/search/form/glossStore';
+import { GlossFieldDescription } from '@/store/form/glossStore';
 
 import * as Highlights from './hit-highlighting';
 
@@ -572,7 +572,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		'r.d': summary.numberOfDocs,
 		// When a pattern was used, we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
 		'r.t': summary.searchParam.patt ? undefined : summary.subcorpusSize.tokens,
-		'r.h': summary.numberOfHits,
+		'r.h': hasPatternInfo(summary) ? summary.numberOfHits : undefined,
 
 		'gr.d': g.size,
 		'gr.t': g.numberOfTokens,
@@ -707,7 +707,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		})));
 	}
 
-	if (!isHitResults(results) && results.summary.pattern) {
+	if (!isHitResults(results) && hasPatternInfo(results)) {
 		docColumns.push({
 			key: 'doc_hits',
 			field: 'hits',
@@ -815,7 +815,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 	let availableDisplayModes = Object.keys(displayModes[groupType][groupedBy]) as DisplaySettingsForColumns['groupDisplayMode'][];
 
 	// Hide the relative tokens view when results are filtered based on a cql pattern
-	if (groupType === 'docs' && results.summary.pattern) { availableDisplayModes = availableDisplayModes.filter(o => o !== 'tokens'); }
+	if (groupType === 'docs' && hasPatternInfo(results)) { availableDisplayModes = availableDisplayModes.filter(o => o !== 'tokens'); }
 	let displayMode = info.groupDisplayMode;
 	if (!availableDisplayModes.includes(displayMode)) {
 		console.error('Unknown group displaymode', {displayMode, availableDisplayModes, groupType, groupedBy});
