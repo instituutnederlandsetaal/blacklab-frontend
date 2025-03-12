@@ -692,7 +692,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		// In parallel queries, if any of the queries amounts to "zero or more of any token",
 		// just leave it empty.
 		const isParallel = (this._parsedCql?.length ?? 0) > 1;
-		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*') ? '' : q;
+		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*' || q === '[]+') ? '' : q;
 		return {
 			query: this._parsedCql ? optEmpty(unparenQueryPart(processQueryPart(this._parsedCql?.[0] ?? {}))) || null : null,
 			targetQueries: this._parsedCql ? this._parsedCql.slice(1).map(r => optEmpty(unparenQueryPart(processQueryPart(r))) || '') : [],
