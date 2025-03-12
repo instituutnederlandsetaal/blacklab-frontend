@@ -651,32 +651,14 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	private get expertPattern() {
 
+		// Strip any withinClauses from the end of the CQL query,
+		// then add back only those that we cannot place into a widget.
 		const processQueryPart = (r: Result) => {
-			// Strip _with-spans(...) from the query (we add this automatically)
-			function stripWithSpans(q: string): string {
-				const prefix = '_with-spans(';
-				const suffix = ')';
-				if (q.startsWith(prefix) && q.endsWith(suffix)) {
-					q = q.substring(prefix.length, q.length - suffix.length);
-				} else if (q.startsWith('(' + prefix) && q.endsWith(suffix + ')')) {
-					// Each part of a parallel queries is usually parenthesized.
-					// Recognize this and strip _with-spans() in this case as well.
-					// (we can't just strip the outermost parens, at least not without checking that
-					//  parens will remain balanced, i.e. not "(a) (b)" -> "a) (b", but _with-spans() is
-					//  always added last, so it should be fine here)
-					q = q.substring(prefix.length + 1, q.length - suffix.length - 1);
-				}
-				return q;
-			}
-
-			// Strip any withinClauses from the end of the CQL query,
-			// then add back only those that we cannot place into a widget.
+			const hasWithinClauses = r.withinClauses && Object.keys(r.withinClauses).length > 0;
+			const rawQuery = r.query ?? '';
 			function stripWithins(q: string) {
 				return unparenQueryPart(q)!.replace(/(?:\s*(?:within|overlap)?\s*<[^\/]+\/>)+$/g, '');
 			}
-
-			const hasWithinClauses = r.withinClauses && Object.keys(r.withinClauses).length > 0;
-			const rawQuery = stripWithSpans(r.query ?? '');
 			const query = unparenQueryPart(hasWithinClauses ? stripWithins(rawQuery) : rawQuery);
 			const reapplyWithins = this.expertWithinClauses;
 			const finalQuery = Object.keys(reapplyWithins).length > 0 ?
