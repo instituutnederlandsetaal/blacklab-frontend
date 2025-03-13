@@ -27,7 +27,7 @@ const get = {
 
 	/** Get the indexId. Available before index has fully loaded. */
 	// @ts-ignore
-	indexId: b.read<string>((state, getters, rootState, rootGetters) => rootGetters.indexId, 'indexId'),
+	indexId: b.read<string|null>((state, getters, rootState, rootGetters) => rootGetters.indexId, 'indexId'),
 
 	/** List of annotated fields */
 	allAnnotatedFields: b.read((state): NormalizedAnnotatedField[] =>

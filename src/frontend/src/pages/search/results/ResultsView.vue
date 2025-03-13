@@ -511,6 +511,7 @@ export default Vue.extend({
 		rowDisplaySettings(): DisplaySettingsForRows {
 			return {
 				...this.commonDisplaySettings,
+				indexId: CorpusStore.get.indexId()!,
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
 				sourceField: QueryStore.get.sourceField()!, // if no field, there would be no results...
 				getCustomHitInfo: UIStore.corpusCustomizations.results.customHitInfo,

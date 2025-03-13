@@ -60,7 +60,7 @@ import * as CorpusStore from '@/store/corpus';
 import Spinner from '@/components/Spinner.vue';
 
 
-export default Vue.extend({
+export default Vue.component('GroupRowDetails', {
 	components: { Spinner },
 	props: {
 		row: Object as () => GroupRowData,
@@ -76,9 +76,6 @@ export default Vue.extend({
 		concordances: null as any as PaginatedGetter<Rows>,
 	}),
 	created() {
-		const getDocumentSummary = UIStore.getState().results.shared.getDocumentSummary;
-		const fieldInfo = CorpusStore.get.corpus().fieldInfo;
-
 		this.concordances = new PaginatedGetter((oldRows, first, number) => {
 			// make a copy of the parameters so we don't clear them for all components using the summary
 			const requestParameters: BLSearchParameters = Object.assign({}, this.query, {
@@ -90,10 +87,8 @@ export default Vue.extend({
 				sort: undefined,
 			} as BLSearchParameters);
 
-			let {request, cancel} = this.type === 'hits' ? blacklab.getHits<BLHitResults>(CorpusStore.get.indexId()!, requestParameters) : blacklab.getDocs<BLDocResults>(CorpusStore.get.indexId()!, requestParameters);
-			return {
-				cancel,
-				request: request
+			const indexId = CorpusStore.get.indexId()!;
+			return (this.type === 'hits' ? blacklab.getHits<BLHitResults>(indexId, requestParameters) : blacklab.getDocs<BLDocResults>(indexId, requestParameters))
 				.then(newResults => makeRows(newResults, this.info))
 				.then(newRows => {
 					if (this.type === 'hits') newRows.rows = newRows.rows.filter(r => r.type === 'hit');
@@ -103,8 +98,7 @@ export default Vue.extend({
 					if (!oldRows) return newRows;
 					oldRows.rows.push(...newRows.rows);
 					return oldRows;
-				})
-			}
+				});
 		}, this.row.size)
 	},
 	watch: {

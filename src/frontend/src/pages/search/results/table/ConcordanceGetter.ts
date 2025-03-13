@@ -1,5 +1,5 @@
-import { Canceler } from 'axios';
 import Vue from 'vue';
+import { CancelableRequest } from '@/utils/loadable-streams';
 
 /** A class that can retrieve items in a paginated way and exposes them along with an error and loading state. */
 export default class PaginatedGetter<T> {
@@ -14,7 +14,7 @@ export default class PaginatedGetter<T> {
 
 	constructor(
 		/** first is 0-indexed, meaning first=20 here means we already have 20 results (index 1...19), and want starting at index 20 */
-		private readonly getter: (acc: T|undefined, first: number, count: number) => { cancel: Canceler; request: Promise<T>; },
+		private readonly getter: (acc: T|undefined, first: number, count: number) => CancelableRequest<T>,
 		public totalCount: number,
 		public pageSize: number = 20
 	) {

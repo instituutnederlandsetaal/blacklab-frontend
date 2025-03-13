@@ -412,35 +412,34 @@ export function applyWithinClauses(query: string, withinClauses: Record<string, 
 	return query.length > 0 ? query : overlapClauses;
 }
 
-export function getDocumentUrl(
+export function getDocumentUrl(p: {
 	indexId: string,
 	pid: string,
 	/** Field for which to show the document contents (important when this is a parallel corpus, as there are multiple "copies" of the same document then, e.g. an English and Dutch version) */
-	fieldName?: string,
+	showField: string,
 	/** Field on which the cql query is run. if searchfield differs from field (parallel corpus) */
 	searchField?: string,
 	cql?: string,
 	pattgapdata?: string,
 	/** HACK: make the backend figure out which page to display based on the start index of the hit -- see ArticlePagination.vue/PaginationInfo.java */
 	findhit?: number
-) {
-
-	cql = (cql || '').trim();
-	pattgapdata = (pattgapdata || '').trim();
-	if ((cql.length + pattgapdata.length) > 1000) { // server has issues with long urls
-		cql = undefined;
-		pattgapdata = undefined;
+}) {
+	p.cql = p.cql?.trim() || '';
+	p.pattgapdata = p.pattgapdata?.trim() || '';
+	if ((p.cql.length + p.pattgapdata.length) > 1000) { // server has issues with long urls
+		p.cql = undefined;
+		p.pattgapdata = undefined;
 	}
 
 	return new URI()
-	.segment([CONTEXT_URL, indexId, 'docs', pid])
+	.segment([CONTEXT_URL, p.indexId, 'docs', p.pid])
 	.search({
 		// parameter 'query' controls the hits that are highlighted in the document when it's opened
-		field: fieldName,
-		searchfield: searchField,
-		patt: cql || undefined,
-		pattgapdata: pattgapdata || undefined,
-		findhit
+		field: p.showField,
+		searchfield: p.searchField,
+		patt: p.cql || undefined,
+		pattgapdata: p.pattgapdata || undefined,
+		findhit: p.findhit
 	}).toString();
 }
 

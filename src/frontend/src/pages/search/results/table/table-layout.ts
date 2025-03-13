@@ -341,6 +341,9 @@ export function snippetParts(hit: BLHit|BLHitSnippet, colors?: Record<string, To
 // ===================
 
 export type DisplaySettingsForRendering = {
+	/** ID of the index / the corpus for which to generate the table. Required for generating urls */
+	indexId: string;
+
 	/** Annotation shown in the before/hit/after columns and expanded concordance */
 	mainAnnotation: NormalizedAnnotation;
 	/** Additional annotation columns to show (besides before/hit/after) */
@@ -384,7 +387,7 @@ export type DisplaySettingsForRendering = {
 }
 
 export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'|'targetFields'>
-export type DisplaySettingsForRows = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'sourceField'|'getSummary'|'getCustomHitInfo'>
+export type DisplaySettingsForRows = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'sourceField'|'getSummary'|'getCustomHitInfo'|'indexId'>
 export type DisplaySettingsForColumns = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'mainAnnotation'|'otherAnnotations'|'sortableAnnotations'|'metadata'|'groupDisplayMode'|'hasCustomHitInfoColumn'>
 
 /** Helper type, data for which we're computing a hitrow or docrow. */
@@ -451,7 +454,7 @@ function start(hit: BLHitSnippet|BLHit|undefined): number|undefined {
 function makeDocRow(p: Result<any>, info: DisplaySettingsForRows): DocRowData {
 	return {
 		doc: p.doc,
-		href: getDocumentUrl(p.doc.docPid, info.sourceField.id, undefined, p.query.patt, p.query.pattgapdata, undefined),
+		href: getDocumentUrl({indexId: info.indexId, pid: p.doc.docPid, searchField: info.sourceField.id, showField: info.sourceField.id, cql: p.query.patt, pattgapdata: p.query.pattgapdata, findhit: undefined}),
 		summary: info.getSummary(p.doc.docInfo, info.specialFields),
 		type: 'doc',
 		hits: p.doc.snippets?.length ? p.doc.snippets.flatMap(s => makeRowsForHit({...p, hit: s}, info, undefined)) : undefined
@@ -479,7 +482,7 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		last_of_hit: p.last_of_hit,
 
 		context: snippetParts(p.hit, highlightColors),
-		href: getDocumentUrl(p.doc.docPid, field.id, info.sourceField.id, p.query.patt, p.query.pattgapdata, start(p.hit)),
+		href: getDocumentUrl({indexId: info.indexId, pid: p.doc.docPid, showField: field.id, searchField: info.sourceField.id, cql: p.query.patt, pattgapdata: p.query.pattgapdata, findhit: start(p.hit)}),
 		isForeign: field !== info.sourceField,
 		annotatedField: field,
 		dir: docDir(p.doc, info.dir),
