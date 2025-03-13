@@ -1,12 +1,12 @@
 <template>
 <SelectPicker
-	class="locale-select navbar-dropdown"
-	data-class="btn-link navbar-brand navbar-dropdown-button"
+	class="locale"
+	data-class="btn-navbar"
 	data-width="auto"
 	data-menu-width="auto"
 	right
 	hideEmpty
-	placeholder="🌐"
+	:placeholder="'🌐\uFE0E'"
 
 	:options="availableLocales"
 	:loading="loading.value"
@@ -14,6 +14,7 @@
 
 	v-model="$i18n.locale"
 />
+
 </template>
 
 <script lang="ts">
@@ -29,3 +30,11 @@ export default Vue.extend({
 });
 
 </script>
+
+<style scoped>
+
+/* .locale .placeholder {
+	color: transparent!important;
+	text-shadow: 0px 0px inherit;
+} */
+</style>

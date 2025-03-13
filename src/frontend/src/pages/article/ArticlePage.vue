@@ -312,4 +312,11 @@ export default Vue.extend({
 		}
 	}
 }
+
+#articleTabs {
+	position: sticky;
+	top: 50px;
+	z-index: 1;
+}
+
 </style>

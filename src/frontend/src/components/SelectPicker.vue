@@ -64,9 +64,9 @@
 				<span class="menu-value" v-if="allowHtml" :title="value + ''" v-html="displayValues.join(', ')"/>
 				<span class="menu-value" v-else :title="displayValues.join(',')">{{displayValues.join(', ')}}</span>
 			</template>
-			<span v-else class="menu-value placeholder">
-				{{ placeholder || $attrs.title || $t(multiple ? 'widgets.selectValues' : 'widgets.selectValue')}}
-			</span>
+			<span v-else class="menu-value placeholder">{{
+				placeholder || $attrs.title || $t(multiple ? 'widgets.selectValues' : 'widgets.selectValue')
+			}}</span>
 			<span v-if="loading" class="menu-icon fa fa-spinner fa-spin text-muted"></span>
 			<span v-else-if="!showValues && multiple && showValueCount" :class="['menu-icon badge',{'active': displayValues.length}]">
 				{{displayValues.length || totalOptionCount}}

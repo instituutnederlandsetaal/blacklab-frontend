@@ -1,36 +1,35 @@
 <template>
-	<div class="navbar navbar-inverse navbar-fixed-top">
-		<div v-if="showBanner" class="container alert alert-dismissable navbar-alert">
-			<div class="message" v-html="config.bannerMessage"></div>
-			<button type="button" class="btn btn-link btn-lg" title="Hide banner for one week" @click="hideBanner"><span class="fa fa-times"></span></button>
+	<div class="navbar-inverse navbar-fixed-top">
+		<div class="navbar-alert container" v-if="showBanner">
+			<div class="navbar-brand" v-html="config.bannerMessage"></div>
+			<button type="button" class="btn btn-navbar" title="Hide banner for one week" @click="hideBanner"><span class="fa fa-times"></span></button>
 		</div>
 
-		<div class="container">
-			<div class="navbar-header">
-				<div class="navbar-logo-container">
-					<div class="navbar-logo"></div>
-				</div>
-
-				<router-link :to="indexId ? {name: 'search', params: {corpus: indexId}} : {name: 'corpora'}" class="navbar-brand">{{ indexDisplayName }}</router-link>
+		<div class="navbar-main container">
+			<div class="navbar-logo-container">
+				<div class="navbar-logo"></div>
 			</div>
 
-			<div class="navbar-collapse collapse navbar-logo-margin" :class="{collapse: collapsed, in: !collapsed}">
-				<ul class="nav navbar-nav">
+			<div class="navbar-content-container">
+				<router-link class="navbar-brand" :to="indexId ? {name: 'search', params: {corpus: indexId}} : {name: 'corpora'}" >{{ indexDisplayName }}</router-link>
+
+				<ul class="nav navbar-nav navbar-collapse" :class="{visible: !collapsed}">
 					<li v-for="link in links" :key="link.attributes.href">
 						<router-link v-if="!link.isExternal" :to="link.attributes.href" v-bind="{...link.attributes, href: undefined}">{{ link.label }}</router-link>
 						<a v-else v-bind="link.attributes">{{ link.label }}</a>
 					</li>
 				</ul>
-			</div>
 
-			<div class="navbar-buttons">
-				<LoginButton/>
-				<LocaleSelector/>
-				<button class="navbar-toggle" type="button" @click="collapsed = !collapsed">
-					<span class="icon-bar"></span>
-					<span class="icon-bar"></span>
-					<span class="icon-bar"></span>
-				</button>
+				<div class="navbar-buttons">
+					<LoginButton/>
+					<LocaleSelector/>
+					<button class="btn btn-navbar navbar-toggle" type="button" @click="collapsed = !collapsed">
+						<span class="fa fa-bars"></span>
+						<!-- <span class="icon-bar"></span>
+						<span class="icon-bar"></span>
+						<span class="icon-bar"></span> -->
+					</button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -81,6 +80,105 @@ export default Vue.extend({
 })
 </script>
 
-<style scoped>
-/* Add your styles here */
+<style lang="scss">
+
+body { padding-top: 60px; }
+
+.btn.btn-navbar {
+	border: none;
+	color: #9d9d9d;
+	* { color: inherit; }
+	background: transparent;
+	background-color: transparent;
+	margin: 0;
+	&:not(:disabled, .disabled) { &:active, &:focus, &:hover {
+		color: #ddd;
+		background-color: #333;
+	}}
+	&:disabled {opacity: 1;}
+}
+.combobox {vertical-align: baseline!important;} // selectpicker
+.menu-caret { margin: 0; }
+
+// clear some bootstrap float, padding and clearfix stuff
+.navbar-inverse {
+	&, * {
+		float: none!important;
+		&:not(.fa, .menu-value) { &:before, &:after {display: none!important; content: "";} }
+	}
+
+	> .container { padding: 0; } // padding comes from content, we only use this for margin/width
+
+	button.btn {
+		padding: 15px;
+		margin: 0;
+	}
+}
+.navbar-brand {
+	height: unset;
+	color: #ddd!important;
+}
+
+
+// own layout.
+.navbar-alert {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	> .navbar-hide {
+		padding: 9px 10px;
+		color: #ddd;
+	}
+	& + .navbar-main {
+		box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+		border-top: 1px solid #101010;
+	}
+}
+
+.navbar-main {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: nowrap;
+
+	@at-root .navbar-logo-container {
+		display: none; // logo must enabled by user customization
+		flex: 0;
+		align-self: flex-start;
+		padding: 5px 15px 15px;
+		height: 1px;
+		overflow: visible;
+		width: auto; // from child
+
+		@at-root .navbar-logo {
+			width: 100px;
+			height: 100px;
+			z-index: 9000;
+			background-image: url(~@/assets/img/logo_100x100.png)
+		}
+	}
+	@at-root .navbar-content-container {
+		display: flex;
+		flex-wrap: wrap;
+		flex-grow: 1;
+		align-items: baseline;
+
+		> .navbar-nav { margin: 0; padding: 0; flex-grow: 1; }
+		> .navbar-nav > li { display: inline-block; }
+		// > .navbar-buttons { flex-grow: 1; text-align: right; }
+
+		@media(max-width: 767px) {
+			justify-content: space-between;
+
+			.navbar-nav {
+				width: 100%;
+				order: 3;
+				padding: 7.5px 0;
+
+				> li { display: block; }
+				&:not(.visible) { display: none; }
+			}
+		}
+	}
+}
+
 </style>

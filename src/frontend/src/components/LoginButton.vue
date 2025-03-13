@@ -1,7 +1,7 @@
 <template>
 	<SelectPicker v-if="enabled"
-		class="username navbar-username navbar-dropdown"
-		data-class="btn-link navbar-brand navbar-dropdown-button"
+		class="username"
+		data-class="btn-navbar"
 		data-width="auto"
 		data-menu-width="auto"
 		right
@@ -56,7 +56,7 @@ export default Vue.extend({
 
 <style lang="scss">
 
-.username [disabled] .menu-caret {
+.username *:disabled .menu-caret {
 	display: none;
 }
 

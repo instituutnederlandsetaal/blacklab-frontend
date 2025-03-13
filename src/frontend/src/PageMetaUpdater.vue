@@ -1,5 +1,5 @@
 <template>
-	<div id="custom-js-css"></div>
+	<div id="custom-js-css-and-page-meta"></div>
 </template>
 
 <script lang="ts">

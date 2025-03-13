@@ -1,6 +1,5 @@
 <template>
-<div class="container">
-
+<div>
 	<Spinner v-if="loadingServerInfo" lg center/>
 
 	<div v-if="!busy && !serverInfo && errorMessage" class="alert alert-danger">
