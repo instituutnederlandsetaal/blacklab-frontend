@@ -69,8 +69,8 @@ export const frontendPaths = {
 	documentContents: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}/contents`,
 	documentMetadata: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}`,
 
-	help: (indexId?: string) => `${indexId ? indexId + '/' : indexId }api/help`,
-	about: (indexId?: string) => `${indexId ? indexId + '/' : indexId }api/about`,
+	help: (indexId?: string) => `${indexId ? indexId + '/' : '' }api/help`,
+	about: (indexId?: string) => `${indexId ? indexId + '/' : '' }api/about`,
 }
 
 /** Contains url mappings for different requests to blacklab-server */
