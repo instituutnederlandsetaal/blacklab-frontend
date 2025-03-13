@@ -1,8 +1,0 @@
-#parse("header.vm")
-
-<div id="vue-root"></div>
-
-<script src="$JSPATH/config.js?_$cache"></script>
-
-
-#parse("footer.vm")
