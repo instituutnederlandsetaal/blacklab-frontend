@@ -503,11 +503,12 @@ export default Vue.extend({
 		},
 
 		commonDisplaySettings(): DisplaySettingsCommon {
+			const summaryOtherFields = this.results?.summary.pattern?.otherFields ?? [];
 			return {
 				dir: CorpusStore.get.textDirection(),
 				i18n: this,
 				specialFields: CorpusStore.getState().corpus!.fieldInfo,
-				targetFields: QueryStore.get.targetFields(),
+				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name])
 			}
 		},
 		rowDisplaySettings(): DisplaySettingsForRows {

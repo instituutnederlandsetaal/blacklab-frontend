@@ -502,7 +502,7 @@ function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: D
 	r.push(makeHitRow(p, info, highlightColors, info.sourceField));
 
 	const h = p.hit as BLHit;
-	const parallelHits = info.targetFields.map(f => [h.otherFields?.[f.id], f] as const).filter((h): h is [BLHitInOtherField, NormalizedAnnotatedFieldParallel] => h[0] != null);
+	const parallelHits = info.targetFields.map(f => [h.otherFields?.[f.id], f] as const).filter((h): h is [BLHitInOtherField, NormalizedAnnotatedFieldParallel] => h[0] !== undefined);
 	for (let i = 0; i < parallelHits.length; i++) {
 		p.hit = parallelHits[i][0];
 		p.first_of_hit = false;
