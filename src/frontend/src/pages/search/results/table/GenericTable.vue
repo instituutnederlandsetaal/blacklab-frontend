@@ -5,7 +5,7 @@
 				<TableHeader v-for="col in header" :key="col.key" :col="col" :disabled="disabled" @changeSort="$emit('changeSort', $event)"/>
 			</tr>
 		</thead>
-		<tbody>
+		<tbody :class="{ 'has-foreign-hit': hasForeignHit(rows) }">
 			<template v-for="(row, index) in rows.rows">
 				<template v-if="row.type === 'doc' && !showTitles"></template>
 				<template v-else>
@@ -90,6 +90,9 @@ export default Vue.component('GenericTable', {
 		hoverMatchInfosId: undefined as undefined|number,
 	}),
 	methods: {
+		hasForeignHit(rows: Rows) {
+			return rows.rows.some(row => row.type === 'hit' && row.isForeign);
+		},
 		toggleRow(index: number) {
 			if (this.disabled || this.disableDetails) return;
 			const row = this.rows.rows[index];
