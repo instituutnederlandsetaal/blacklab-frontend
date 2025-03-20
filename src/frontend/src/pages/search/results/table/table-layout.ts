@@ -509,7 +509,11 @@ function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: D
 		p.last_of_hit = i === parallelHits.length - 1;
 		r.push(makeHitRow(p, info, highlightColors, info.targetFields[i]));
 	}
-	if (!parallelHits.length) r[0].first_of_hit = r[0].last_of_hit = false;
+	if (info.targetFields.length === 0) {
+		// we use first/last to draw borders between parallel hit, and we don't want borders
+		// for non-parallel query.
+		r[0].first_of_hit = r[0].last_of_hit = false;
+	}
 	return r;
 }
 
