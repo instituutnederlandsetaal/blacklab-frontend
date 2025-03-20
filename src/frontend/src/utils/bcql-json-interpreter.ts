@@ -339,6 +339,34 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		};
 	}
 
+	function _parallelQuery(bcql: string, input: any): Result[] {
+		if (input.type == 'relmatch') {
+			// Determine what relationtype we're filtering by
+			// (must all be the same for the query to be interpretable here)
+			let relationType: string|undefined = undefined;
+			input.children.forEach((c: any) => {
+				c = stripWithSpans(c); // (parallel targets may be wrapped in _with-spans)
+				if (c.type !== 'reltarget')
+					throw new Error('Unknown relmatch child type: ' + c.type);
+				if (relationType === undefined)
+					relationType = c.relType;
+				if (relationType !== c.relType)
+					throw new Error('Mismatch in relation types: ' + relationType + ' / ' + c.relType);
+			});
+
+			const parent = {
+				..._query(stripWithSpans(input.parent)) // (parallel source may be wrapped in _with-spans)
+			};
+			const children: Result[] = input.children.map(_relTarget).map( (r: Result, index: number) => ({
+				...r,
+				relationType
+			}));
+			return [parent, ...children];
+		}
+
+		return [ { ..._query(input) } ];
+	}
+
 	/** Strip the automatically added _with-span() call.
 	 *  (added for certain corpora so we know all overlapping spans for each hit)
 	 */
@@ -351,49 +379,19 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		return input;
 	}
 
-	function _parallelQuery(bcql: string, input: any): Result[] {
+	/** Strip the automatically added rspan(..., 'all') call.
+	 *  (added for relations queries using adjusthits=yes so hits cover all matched relations)
+	 */
+	function stripRspanAll(input: any): any {
 		if (input.type === 'callfunc') {
-			if (input.name === 'rspan' && input.args.length === 2 &&
-				input.args[1] === 'all') {
-				// rspan(..., 'all') is added automatically (via the adjusthits BLS parameter). Ignore here.
-				return _parallelQuery(bcql, input.args[0]);
-			} else if (input.name === '_with-spans' && input.args.length === 1) {
-				// We add _with-spans(...) automatically if there's span filters. Ignore here.
-				return _parallelQuery(bcql, input.args[0]);
+			if (input.name === 'rspan' && input.args.length === 2 && input.args[1] === 'all') {
+				return input.args[0];
 			}
 		}
-
-		if (input.type == 'relmatch') {
-
-			// Determine what relationtype we're filtering by
-			// (must all be the same for the query to be interpretable here)
-			let relationType: string|undefined = undefined;
-			input.children.forEach((c: any) => {
-				c = stripWithSpans(c);
-				if (c.type !== 'reltarget')
-					throw new Error('Unknown relmatch child type: ' + c.type);
-				if (relationType === undefined)
-					relationType = c.relType;
-				if (relationType !== c.relType)
-					throw new Error('Mismatch in relation types: ' + relationType + ' / ' + c.relType);
-			});
-
-			const parent = {
-				..._query(stripWithSpans(input.parent))
-			};
-			const children: Result[] = input.children.map(_relTarget).map( (r: Result, index: number) => ({
-				...r,
-				relationType
-			}));
-			// if (queries.length !== children.length + 1)
-			// 	throw new Error('Mismatch in number of queries and children');
-			return [parent, ...children];
-		}
-
-		return [ { ..._query(stripWithSpans(input)) } ];
+		return input;
 	}
 
-	return _parallelQuery(bcql, json);
+	return _parallelQuery(bcql, stripRspanAll(stripWithSpans(json)));
 }
 
 const parsePatternCache: Map<string, Result[]> = new Map();
