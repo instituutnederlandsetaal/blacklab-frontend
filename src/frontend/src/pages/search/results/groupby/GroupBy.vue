@@ -95,13 +95,13 @@
 								v-if="relationSourceInThisField(relationMatchInfoDefByLabel(selectedCriteriumAsLabel ? selectedCriteriumAsLabel.context.label : ''))"
 								class="btn btn-default btn-sm"
 								:class="{active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'source'}"
-								@click="selectedCriterium.context.relation = 'source'"
+								@click="selectedCriteriumAsLabel && (selectedCriteriumAsLabel.context.relation = 'source')"
 							>{{relationPartByClass('source')}}</button>
 							<button type="button"
 								v-if="relationTargetInThisField(relationMatchInfoDefByLabel(selectedCriteriumAsLabel ? selectedCriteriumAsLabel.context.label : ''))"
 								class="btn btn-default btn-sm"
 								:class="{active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'target'}"
-								@click="selectedCriterium.context.relation = 'target'"
+								@click="selectedCriteriumAsLabel && (selectedCriteriumAsLabel.context.relation = 'target')"
 								>{{relationPartByClass('target')}}</button>
 							<!-- Never want to group on things in between source and target of a relation apparently. So don't show this button. -->
 							<!-- <button type="button"

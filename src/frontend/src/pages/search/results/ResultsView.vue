@@ -51,6 +51,7 @@
 
 			<GenericTable
 				:type="id"
+				:class="isHits ? 'hits-table' : isDocs ? 'docs-table' : isGroups ? 'groups-table' : ''"
 				:cols="cols"
 				:rows="rows"
 				:info="renderDisplaySettings"

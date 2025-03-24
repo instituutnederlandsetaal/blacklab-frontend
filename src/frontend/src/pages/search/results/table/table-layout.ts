@@ -6,6 +6,7 @@ import { GlossFieldDescription } from '@/store/search/form/glossStore';
 import * as Highlights from './hit-highlighting';
 
 import { KeysOfType } from '@/types/helpers';
+import { StyleValue } from 'vue';
 
 
 /**
@@ -648,7 +649,8 @@ type ColumnDefBase = {
 	debugLabel?: string;
 	title?: string;
 	sort?: string|SortOption[];
-	textAlignClass?: string;
+	class?: string;
+	style?: StyleValue;
 	colspan?: number;
 }
 
@@ -698,7 +700,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		label: i.$t('results.table.document').toString(),
 		title: isDocResults(results) && info.specialFields.titleField ? i.$t('results.table.sortByDocument').toString() : undefined,
 		sort: isDocResults(results) && info.specialFields.titleField ? `field:${info.specialFields.titleField}` : undefined,
-		textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
+		class: info.dir === 'rtl' ? 'text-right' : 'text-left',
 	});
 
 	if (isDocResults(results)) {
@@ -741,7 +743,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		if (a?.length === 1) {
 			const {title, value: sort} = sortAnnot(a[0], prefix);
 			return {title, sort};
-		} else if (a?.length) return a.map(a => sortAnnot(a, prefix));
+		} else if (a?.length) return {sort: a.map(a => sortAnnot(a, prefix)) };
 		else return {};
 	}
 
@@ -750,13 +752,15 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 			key: 'custom',
 			field: 'custom',
 			label: i.$t('results.table.customColumnHeader').toString(),
+			// This column has some extra padding.
+			style: 'padding-left: 1.5em;'
 		});
 	}
 
 	hitColumns.push({
 		key: 'left',
 		debugLabel: info.mainAnnotation.id,
-		textAlignClass: 'text-right',
+		class: 'text-right',
 		...sorts(info.sortableAnnotations, blSortPrefixLeft),
 		label: i.$t(leftLabelKey).toString(),
 		field: info.dir === 'rtl' ? 'after' : 'before',
@@ -765,7 +769,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		key: 'hit',
 		label: i.$t(centerLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
-		textAlignClass: 'text-center',
+		class: 'text-center',
 		...sorts(info.sortableAnnotations, blSortPrefixCenter),
 		field: 'match',
 		annotation: info.mainAnnotation
@@ -773,7 +777,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		key: 'right',
 		label: i.$t(rightLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
-		textAlignClass: 'text-left',
+		class: 'text-left',
 		...sorts(info.sortableAnnotations, blSortPrefixRight),
 		field: info.dir === 'rtl' ? 'before' : 'after',
 		annotation: info.mainAnnotation
@@ -781,20 +785,20 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 
 	if (isHitResults(results)) {
 		hitColumns.push(
-			...info.otherAnnotations.map(a => ({
+			...info.otherAnnotations.map<ColumnDefHit>(a => ({
 				key: `annot_${a.id}`,
 				label: i.$tAnnotDisplayName(a),
 				debugLabel: a.id,
-				textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
+				class: info.dir === 'rtl' ? 'text-right' : 'text-left',
 				...sorts([a], 'annotation'),
 				field: 'annotation' as const,
 				annotation: a
 			})),
-			...info.metadata.map(m => ({
+			...info.metadata.map<ColumnDefHit>(m => ({
 				key: `meta_${m.id}`,
 				label: i.$tMetaDisplayName(m),
 				debugLabel: m.id,
-				textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
+				class: info.dir === 'rtl' ? 'text-right' : 'text-left',
 				title: i.$t('results.table.sortBy', {field: i.$tMetaDisplayName(m)}).toString(),
 				sort: `field:${m.id}`,
 				field: 'metadata' as const,

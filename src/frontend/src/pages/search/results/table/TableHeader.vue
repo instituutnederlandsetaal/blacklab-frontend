@@ -1,5 +1,5 @@
 <template>
-	<th :class="col.textAlignClass">
+	<th :class="col.class" :style="col.style">
 		<slot></slot>
 		<span v-if="Array.isArray(col.sort)" class="dropdown">
 			<a role="button" data-toggle="dropdown" :class="['dropdown-toggle', {disabled: disabled}]">

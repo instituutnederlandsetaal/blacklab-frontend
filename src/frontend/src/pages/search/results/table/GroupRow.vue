@@ -1,6 +1,6 @@
 <template>
 	<tr class="grouprow">
-		<td v-for="col in cols.groupColumns" :key="col.key" :colspan="col.colspan">
+		<td v-for="col in cols.groupColumns" :key="col.key" :colspan="col.colspan" :class="col.class" :style="col.style">
 			<div v-if="col.barField" class="progress group-size-indicator">
 				<div class="progress-bar progress-bar-primary" :style="barStyle(col)">
 					{{row[col.labelField]?.toLocaleString() ?? $t('results.groupBy.groupNameWithoutValue')}}

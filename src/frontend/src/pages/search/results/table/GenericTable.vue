@@ -2,7 +2,24 @@
 	<table class="results-table">
 		<thead>
 			<tr>
-				<TableHeader v-for="col in header" :key="col.key" :col="col" :disabled="disabled" @changeSort="$emit('changeSort', $event)"/>
+				<TableHeader v-for="(col, i) in header"
+					:key="col.key"
+					:col="col" :disabled="disabled"
+					@changeSort="$emit('changeSort', $event)"
+				>
+					<v-popover v-if="i === 0 && col.field === 'group'" offset="5" style="display:inline-block;">
+						<a role="button" title="Column meanings"><span class="fa fa-lg fa-question-circle"></span></a>
+						<template slot="popover">
+							<table class="table table-condensed" style="table-layout:auto; max-width:calc(100vw - 75px);width:500px;">
+								<tbody>
+									<tr v-for="(row, i) in definitions" :key="i">
+										<td v-for="(cell, j) in row" :key="j">{{cell}}</td>
+									</tr>
+								</tbody>
+							</table>
+						</template>
+					</v-popover>
+				</TableHeader>
 			</tr>
 		</thead>
 		<tbody :class="{ 'has-foreign-hit': hasForeignHit(rows) }">
@@ -197,25 +214,10 @@ table.results-table {
 		padding-bottom: 4px;
 	}
 
-
-
-
-
-	tr:not(.foreign-hit) + tr.foreign-hit:first-child > td { padding-top: 0.5em; }
-	tr.has-foreign-hit:last-child > td { padding-bottom: 0.5em; }
-	tbody + tbody.has-foreign-hit > tr:first-child > td {
-		border-top: 1px solid #ddd;
-	}
-
-	tbody.has-foreign-hit > tr:not(.open) > td {
-		border-radius: 0!important;
-	}
-
 	tr.foreign-hit {
 		color: #666;
 		font-style: italic;
 	}
-
 }
 
 </style>
