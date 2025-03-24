@@ -561,8 +561,10 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		'gr.t': undefined, // TODO wait for jan, is more specific than subcorpusSize, since should only account for docs with hits.
 		'gr.h': g.size,
 
-		'gsc.d': g.subcorpusSize?.documents,
-		'gsc.t': g.subcorpusSize?.tokens,
+		// When group doesn't specify subcorpus, it is the same as the total search space.
+		// (this happens when not grouping by metadata)
+		'gsc.d': g.subcorpusSize?.documents ?? results.summary.subcorpusSize.documents,
+		'gsc.t': g.subcorpusSize?.tokens ?? results.summary.subcorpusSize.tokens,
 
 		'sc.d': summary.subcorpusSize.documents,
 		'sc.t': summary.subcorpusSize.tokens
