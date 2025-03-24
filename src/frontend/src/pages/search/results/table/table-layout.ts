@@ -510,7 +510,7 @@ function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: D
 		p.hit = parallelHits[i][0];
 		p.first_of_hit = false;
 		p.last_of_hit = i === parallelHits.length - 1;
-		r.push(makeHitRow(p, info, highlightColors, info.targetFields[i]));
+		r.push(makeHitRow(p, info, highlightColors, parallelHits[i][1]));
 	}
 	if (!parallelHits.length) r[0].first_of_hit = r[0].last_of_hit = false;
 	return r;
