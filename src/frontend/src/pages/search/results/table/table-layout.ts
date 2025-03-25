@@ -551,7 +551,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		type: 'group',
 		id: g.identity || defaultGroupName,
 		size: g.size,
-		displayname: g.properties.concat().sort((a,b) => a.name.localeCompare(b.name)).map(v => v.value).join('·') || defaultGroupName,
+		displayname: g.properties.map(v => v.value).join('·') || defaultGroupName,
 
 		'r.d': summary.numberOfDocs,
 		// When a pattern was used (which is always when we have hits), we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
@@ -574,7 +574,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		type: 'group',
 		id: g.identity,
 		size: g.size,
-		displayname: g.properties.sort((a,b) => a.name.localeCompare(b.name)).map(v => v.value).join('·') || defaultGroupName,
+		displayname: g.properties.map(v => v.value).join('·') || defaultGroupName,
 
 		'r.d': summary.numberOfDocs,
 		// When a pattern was used, we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
