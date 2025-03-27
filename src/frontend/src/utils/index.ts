@@ -5,6 +5,7 @@ import URI from 'urijs';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
+import * as UIStore from '@/store/search/ui';
 
 
 const defaultRegexEscapeOptions = {
@@ -576,7 +577,8 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 	i18n: Vue,
 	debug = false,
 	/* show the <small/> labels at the end of options labels? */
-	showGroupLabels = true
+	showGroupLabels = true,
+	showFieldFunction?: (id: string) => boolean|null
 ): Array<AppTypes.OptGroup&{entries: T[]}> {
 	const subset = fieldSubset(ids, groups, metadata);
 
@@ -604,7 +606,13 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 	}
 
 	const r = subset.map<AppTypes.OptGroup&{entries: T[]}>(group => ({
-		options: group.entries.flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),
+		options: group.entries
+			.filter(e => {
+				const result = showFieldFunction?.(e.id) ?? null;
+				console.log('showFieldFunction', showFieldFunction, e.id, result);
+				return result === null ? true : result;
+			})
+			.flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),
 		entries: group.entries,
 		label: i18n.$tMetaGroupName(group.id)
 	}));

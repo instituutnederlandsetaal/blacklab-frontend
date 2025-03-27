@@ -193,6 +193,7 @@ import Vue from 'vue';
 
 import * as CorpusStore from '@/store/search/corpus';
 import * as UIStore from '@/store/search/ui';
+import { corpusCustomizations } from '@/store/search/ui';
 import * as ResultsStore from '@/store/search/results/views';
 import * as GlobalSearchSettingsStore from '@/store/search/results/global';
 import * as SearchModule from '@/store/search/index';
@@ -328,7 +329,8 @@ export default Vue.extend({
 				'Group',
 				this,
 				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
-				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible
+				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
+				corpusCustomizations.search.metadata.showField
 			);
 			const result = [
 				...r,

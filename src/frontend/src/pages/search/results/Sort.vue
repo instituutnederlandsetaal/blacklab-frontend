@@ -23,6 +23,7 @@ import Vue from 'vue';
 import { NormalizedIndex } from '@/types/apptypes';
 import SelectPicker, { OptGroup } from '@/components/SelectPicker.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
+import { corpusCustomizations } from '@/store/search/ui';
 import debug from '@/utils/debug';
 
 export default Vue.extend({
@@ -102,7 +103,9 @@ export default Vue.extend({
 					this.corpus.metadataFields,
 					'Sort',
 					this,
-					debug.debug
+					debug.debug,
+					true,
+					corpusCustomizations.search.metadata.showField
 				));
 			}
 

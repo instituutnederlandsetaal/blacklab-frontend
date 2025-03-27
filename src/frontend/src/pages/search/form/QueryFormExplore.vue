@@ -166,6 +166,7 @@ import * as CorpusStore from '@/store/search/corpus';
 import * as InterfaceStore from '@/store/search/form/interface';
 import * as ExploreStore from '@/store/search/form/explore';
 import * as UIStore from '@/store/search/ui';
+import { corpusCustomizations } from '@/store/search/ui';
 
 import SelectPicker, {Option, OptGroup} from '@/components/SelectPicker.vue';
 import Autocomplete from '@/components/Autocomplete.vue';
@@ -264,7 +265,8 @@ export default Vue.extend({
 				'Group',
 				this,
 				debug.debug,
-				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible
+				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
+				corpusCustomizations.search.metadata.showField
 			);
 			optGroups.forEach(fix);
 			return optGroups;
