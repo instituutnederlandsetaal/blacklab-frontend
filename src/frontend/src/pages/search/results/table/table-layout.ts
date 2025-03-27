@@ -293,7 +293,7 @@ function flatten(part: BLHitSnippetPart|undefined, punctuationSettings: {punctAf
 	/** The result array */
 	const r: HitToken[] = [];
 	const length = part.punct.length;
-	for (let i = 0; i < part.punct.length; i++) {
+	for (let i = 0; i < length; i++) {
 		// punctuation is the punctuation/whitespace BEFORE the current word. There is always one more punctuation than there are words in a document (fencepost problem).
 		const punct = (i === length - 1 ? punctuationSettings.punctAfterLastWord : part.punct[i+1]) || '';
 		const token: HitToken = {punct, annotations: {}};
@@ -322,7 +322,7 @@ function flatten(part: BLHitSnippetPart|undefined, punctuationSettings: {punctAf
 export function snippetParts(hit: BLHit|BLHitSnippet, colors?: Record<string, TokenHighlight>): HitContext {
 	// NOTE: the original BLS API was designed before RTL support and uses left/right to mean before/after.
 	//       the new BLS API correctly uses before/after, which makes sense for both LTR and RTL languages.
-	const before = flatten(hit.left, {punctAfterLastWord: hit.match.punct[0]});
+	const before = flatten(hit.left, {punctAfterLastWord: hit.match.punct?.[0] ?? ''});
 	const match = flatten(hit.match, {});
 	const after = flatten(hit.right, {firstPunct: true});
 
@@ -381,7 +381,7 @@ export type DisplaySettingsForRendering = {
 	/** See hasCustomHitInfo in the UI store. we don't use the store directly to simplify unit-testing. */
 	hasCustomHitInfoColumn: (results: BLHitResults, isParallelCoprus: boolean) => boolean;
 	/** See getCustomHitInfo in UI store. We don't use the store directly to simplify unit-testing. */
-	getCustomHitInfo: (hit: BLHit|BLHitSnippet|BLHitInOtherField, annotatedFieldDisplayName: string) => string|null;
+	getCustomHitInfo: (hit: BLHit|BLHitSnippet|BLHitInOtherField, annotatedFieldDisplayName: string, doc: BLDoc) => string|null;
 }
 
 export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'|'targetFields'>
@@ -490,7 +490,7 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		hit_first_word_id: '',
 		hit_last_word_id: '',
 
-		customHitInfo: info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field)) ?? ''
+		customHitInfo: info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field), p.doc) ?? ''
 	}
 }
 

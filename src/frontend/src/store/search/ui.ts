@@ -1376,8 +1376,11 @@ const corpusCustomizations = Vue.observable({
 		 * @param hit the hit
 		 * @param annotatedFieldDisplayName the name of the field the hit is in. This is already translated to the user's locale.
 		 *  In the case of non-parallel corpora, this will always be the main annotated field.
+		 * @param docInfo document metadata
 		 */
-		customHitInfo: (hit: BLTypes.BLHit|BLTypes.BLHitSnippet|BLTypes.BLHitInOtherField, annotatedFieldDisplayName: string|null): string|null => {
+		customHitInfo: (hit: BLTypes.BLHit|BLTypes.BLHitSnippet|BLTypes.BLHitInOtherField,
+				annotatedFieldDisplayName: string|null,
+				docInfo: BLTypes.BLDoc): string|null => {
 			return annotatedFieldDisplayName;
 		}
 	},
