@@ -34,6 +34,7 @@ export default Vue.extend({
 		hits: Boolean,
 		docs: Boolean,
 		groups: Boolean,
+		parallelCorpus: Boolean,
 
 		value: String,
 
@@ -82,6 +83,19 @@ export default Vue.extend({
 					this.corpus.textDirection,
 					debug.debug
 				));
+
+				if (this.parallelCorpus) {
+					opts.push({
+						label: 'Parallel Corpus',
+						options: [{
+							label: 'Sort by alignments',
+							value: 'alignments'
+						}, {
+							label: 'Sort by alignments (ascending)',
+							value: '-alignments'
+						},]
+					});
+				}
 			}
 			if (this.docs) {
 				opts.push({

@@ -90,6 +90,7 @@
 					:hits="isHits"
 					:docs="isDocs"
 					:groups="isGroups"
+					:parallelCorpus="isParallelCorpus"
 
 					:corpus="corpus"
 					:annotations="sortAnnotations"
@@ -414,6 +415,7 @@ export default Vue.extend({
 		isHits(): boolean { return BLTypes.isHitResults(this.results); },
 		isDocs(): boolean { return BLTypes.isDocResults(this.results); },
 		isGroups(): boolean { return BLTypes.isGroups(this.results); },
+		isParallelCorpus: CorpusStore.get.isParallelCorpus,
 
 		viewGroupName(): string {
 			if (this.viewGroup == null) { return ''; }
