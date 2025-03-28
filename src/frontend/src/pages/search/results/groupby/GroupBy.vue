@@ -319,7 +319,7 @@ export default Vue.extend({
 				CorpusStore.get.textDirection(),
 				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
 				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible
-			).map(group => ({label: group.label, title: group.title, options: group.options}))
+			);
 		},
 		metadata(): Options {
 			const r = getMetadataSubset(

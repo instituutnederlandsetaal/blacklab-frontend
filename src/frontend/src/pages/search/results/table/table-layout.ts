@@ -379,7 +379,7 @@ export type DisplaySettingsForRendering = {
 	groupDisplayMode: 'table'|'docs'|'hits'|'relative docs'|'relative hits'|'tokens';
 
 	/** See hasCustomHitInfo in the UI store. we don't use the store directly to simplify unit-testing. */
-	hasCustomHitInfoColumn: (results: BLHitResults, isParallelCoprus: boolean) => boolean;
+	hasCustomHitInfoColumn: (results: BLHitResults|BLHitGroupResults, isParallelCoprus: boolean) => boolean;
 	/** See getCustomHitInfo in UI store. We don't use the store directly to simplify unit-testing. */
 	getCustomHitInfo: (hit: BLHit|BLHitSnippet|BLHitInOtherField, annotatedFieldDisplayName: string, doc: BLDoc) => string|null;
 }
@@ -543,6 +543,8 @@ function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array
 	return r;
 }
 
+const GROUP_PROP_SEPARATOR = ' • '; // WAS: '·'
+
 /** For a set of group results, create all rows. */
 function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGroupName: string): { rows: GroupRowData[], maxima: Maxima } {
 	const max = new MaxCounter<GroupRowData>();
@@ -551,7 +553,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		type: 'group',
 		id: g.identity || defaultGroupName,
 		size: g.size,
-		displayname: g.properties.map(v => v.value).join('·') || defaultGroupName,
+		displayname: g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
 
 		'r.d': summary.numberOfDocs,
 		// When a pattern was used (which is always when we have hits), we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
@@ -574,7 +576,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		type: 'group',
 		id: g.identity,
 		size: g.size,
-		displayname: g.properties.map(v => v.value).join('·') || defaultGroupName,
+		displayname: g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
 
 		'r.d': summary.numberOfDocs,
 		// When a pattern was used, we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
@@ -747,7 +749,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		else return {};
 	}
 
-	if (isHitResults(results) && info.hasCustomHitInfoColumn(results, info.targetFields.length > 0)) {
+	if ((isHitResults(results) || isHitGroups(results)) && info.hasCustomHitInfoColumn(results, info.targetFields.length > 0)) {
 		hitColumns.push({
 			key: 'custom',
 			field: 'custom',

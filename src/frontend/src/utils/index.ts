@@ -609,7 +609,6 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 		options: group.entries
 			.filter(e => {
 				const result = showFieldFunction?.(e.id) ?? null;
-				console.log('showFieldFunction', showFieldFunction, e.id, result);
 				return result === null ? true : result;
 			})
 			.flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),

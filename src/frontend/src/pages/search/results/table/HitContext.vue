@@ -39,6 +39,8 @@
 import Vue from 'vue';
 import { HitContext } from '@/types/apptypes';
 
+const HIGHLIGHT_SEPARATOR = ' • '; // WAS: ' · '
+
 export default Vue.extend({
 	props: {
 		data: Object as () => HitContext,
@@ -95,7 +97,7 @@ export default Vue.extend({
 					text: token.annotations[this.annotation],
 					punct: token.punct,
 					punctBefore: token.punctBefore,
-					title: this.highlight ? token.captureAndRelation?.map(c => c.display).join(' · ') : undefined,
+					title: this.highlight ? token.captureAndRelation?.map(c => c.display).join(HIGHLIGHT_SEPARATOR) : undefined,
 					style
 				})
 			});

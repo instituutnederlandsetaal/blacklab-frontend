@@ -1364,7 +1364,7 @@ const corpusCustomizations = Vue.observable({
 			return null; // use default behaviour
 		},
 
-		hasCustomHitInfoColumn: (results: BLTypes.BLHitResults, isParallelCorpus: boolean): boolean => {
+		hasCustomHitInfoColumn: (results: BLTypes.BLHitResults|BLTypes.BLHitGroupResults, isParallelCorpus: boolean): boolean => {
 			return isParallelCorpus;
 		},
 
