@@ -24,6 +24,7 @@
              <div id="content" class="tab-pane active">
                  <div id="vue-root-pagination"></div>
                  <div id="vue-root-parallel-version"></div><!-- parallel corpus: version name and length -->
+                 <h2 id="content-title" style="word-break:break-all;"></h2>
 
                 #set($unescaped = $article_content) ## see BaseResponse.java
                 $!unescaped

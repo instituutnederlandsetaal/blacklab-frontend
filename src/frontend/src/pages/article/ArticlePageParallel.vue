@@ -47,19 +47,36 @@ export default Vue.extend({
 					.finally(() => this.request = null);
 				}
 			} else {
-				this.fieldDisplayName = 'Contents';
-				console.log('default', this.fieldDisplayName);
+				this.fieldDisplayName = '';
+        this.updateTitle();
 			}
-		}
+		},
+    updateTitle() {
+      // Transfer doc title to content tab
+      this.$nextTick(() => {
+        const contentTitle = document.getElementById('content-title');
+        if (contentTitle)
+          contentTitle.innerHTML = document.getElementById('meta-title')!.innerHTML ?? '??'
+      });
+    }
 	},
 	watch: {
-		fieldDisplayName() {
-			document.getElementById('parallel-version')!.innerText = ` (${this.fieldDisplayName})`;
+		fieldDisplayName: function () {
+      if (this.fieldDisplayName)
+			  document.getElementById('parallel-version')!.innerText = ` (${this.fieldDisplayName})`;
 			document.getElementById('docLengthTokens')!.innerText = `${this.lengthTokens}`;
+
+      // Transfer doc title to content tab as well
+      this.updateTitle();
 		}
 	},
 	created() {
 		const metaTab = (document.querySelector('a[href="#metadata"]') as HTMLAnchorElement);
+
+		// load immediately so title on content tab populates
+		// (HACK: setTimeout seems to be needed so that RootStore.getState().field is set...)
+		setTimeout(() => this.load(), 100);
+
 		metaTab.addEventListener('click', () => this.load(), { once: true });
 	}
 });
