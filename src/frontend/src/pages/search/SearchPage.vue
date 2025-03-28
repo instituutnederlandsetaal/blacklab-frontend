@@ -17,7 +17,6 @@
 		</template>
 		<div v-else>
 			<h2>
-				<span v-if="loadingState !== 'loading'" class="fa fa-danger fa-4x"></span>
 				{{ loadingMessage }}
 			</h2>
 			<Spinner v-if="loadingState === 'loading'" center/>

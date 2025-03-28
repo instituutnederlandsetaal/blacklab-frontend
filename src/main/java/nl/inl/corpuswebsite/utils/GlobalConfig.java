@@ -15,6 +15,7 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -255,6 +256,14 @@ public class GlobalConfig implements ServletContextListener {
         p.remove(k.toString());
     }
 
+    private boolean isDefault(Keys k) {
+        return Objects.equals(get(defaultProps, k), get(k));
+    }
+
+    private static boolean contains(Properties p, Keys k) {
+        return p.containsKey(k.toString());
+    }
+
     /**
      * To be called before finishing initialization.
      * Replace all properties with the properly capitalized versions.
@@ -263,14 +272,23 @@ public class GlobalConfig implements ServletContextListener {
      */
     private void validateAndNormalize() {
         // First, replace all properties with the properly capitalized versions
-        for (String key : instanceProps.stringPropertyNames()) {
-            final String currentValue = instanceProps.getProperty(key);
-            Keys foundKey = Keys.get(key);
-            if (foundKey == null) continue; // property does not map to a known key, ignore it
+        for (String randomlyCaptilizedKey : instanceProps.stringPropertyNames()) {
+            final String currentValue = instanceProps.getProperty(randomlyCaptilizedKey);
+            Keys properlyCapitalizedKey = Keys.get(randomlyCaptilizedKey);
+            if (properlyCapitalizedKey == null) continue; // property does not map to a known key, ignore it
 
             // replace with the properly capitalized version
-            remove(foundKey); // this is okay, stringPropertyNames() returns a copy of the keys
-            set(foundKey, currentValue);
+            // removing while iterating is okay, stringPropertyNames() returns a copy of the keys
+            instanceProps.remove(properlyCapitalizedKey);
+            set(properlyCapitalizedKey, currentValue);
+        }
+        
+        // If only one of the (clientside, serverside) blacklab urls is set
+        // Initialize the other one to the same value.
+        if (contains(instanceProps, Keys.BLS_URL_ON_CLIENT) != contains(instanceProps, Keys.BLS_URL_ON_SERVER)) {
+            Keys presentKey = contains(instanceProps, Keys.BLS_URL_ON_CLIENT) ? Keys.BLS_URL_ON_CLIENT : Keys.BLS_URL_ON_SERVER;
+            Keys missingKey = presentKey == Keys.BLS_URL_ON_CLIENT ? Keys.BLS_URL_ON_SERVER : Keys.BLS_URL_ON_CLIENT;
+            set(missingKey, get(presentKey));
         }
 
         // Now check for missing props, warn and set defaults
@@ -290,8 +308,9 @@ public class GlobalConfig implements ServletContextListener {
         set(Keys.DEFAULT_CORPUS_CONFIG, StringUtils.stripEnd(get(Keys.DEFAULT_CORPUS_CONFIG), "/\\"));
         set(Keys.JSPATH, StringUtils.stripEnd(get(Keys.JSPATH), "/\\"));
         set(Keys.CF_URL_ON_CLIENT, StringUtils.stripEnd(get(Keys.CF_URL_ON_CLIENT), "/\\"));
-        if (get(Keys.JSPATH).equals(get(defaultProps, Keys.JSPATH)) && !get(Keys.CF_URL_ON_CLIENT).equals(get(defaultProps, Keys.CF_URL_ON_CLIENT)) ) {
-            // JSPath is the default, but the CF_URL_ON_CLIENT is not. Update the JSPath to match the CF_URL_ON_CLIENT
+        if (isDefault(Keys.JSPATH) && !isDefault(Keys.CF_URL_ON_CLIENT)) {
+            // JSPath is the default, but the CF_URL_ON_CLIENT is not. 
+            // That means the js won't be found because it's not at the expected location.
             // This can happen if someone sets the CF_URL_ON_CLIENT to something other than the default, but doesn't set the JSPATH.
             // In that case our defaults set the JSPATH to /${contextPath}/js, but we need to update it to match the new CF_URL_ON_CLIENT
             set(Keys.JSPATH, get(Keys.CF_URL_ON_CLIENT) + "/js");
