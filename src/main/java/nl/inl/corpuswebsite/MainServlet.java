@@ -109,7 +109,6 @@ public class MainServlet extends HttpServlet {
             startVelocity(ctx);
 
             XslTransformer.setUseCache(this.useCache(null));
-            BlackLabApi.setBlsUrl(config.get(Keys.BLS_URL_ON_SERVER));
 
             // Map responses, the majority of these can be served for a specific corpus, or as a general autosearch page
             // E.G. the AboutResponse is mapped to /<root>/<corpus>/about and /<root>/about

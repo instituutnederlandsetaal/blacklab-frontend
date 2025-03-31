@@ -16,8 +16,6 @@ import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
  * Has methods for getting various things from BlackLab, with the ability to copy basic auth headers from the client request (which is why it needs the request and response objects).
  */
 public class BlackLabApi {
-	protected static String blsUrl;
-	
 	protected final HttpServletRequest request;
 	protected final HttpServletResponse response;
 	protected final GlobalConfig config;
@@ -39,19 +37,19 @@ public class BlackLabApi {
 
 	public Result<String, QueryException> getDocumentMetadata(String corpus, String documentId) {
 		return authRequest()
-				.url(blsUrl, corpus, "docs", documentId)
+				.url(config.get(Keys.BLS_URL_ON_SERVER), corpus, "docs", documentId)
 				.query("outputformat", "xml")
 				.request(true);
 	}
 
 	public Result<CorpusConfig, Exception> getCorpusConfig(String corpus) {
 		return authRequest()
-				.url(blsUrl, corpus)
+				.url(config.get(Keys.BLS_URL_ON_SERVER), corpus)
 				.query("outputformat", "xml")
 				.request(true)
 				.flatMapWithErrorHandling(xml ->
 						authRequest()
-							.url(blsUrl, corpus)
+							.url(config.get(Keys.BLS_URL_ON_SERVER), corpus)
 							.query("outputformat", "json")
 							.query("listvalues", new CorpusConfig(corpus, xml, "").getListValues())
 							.request(true)
@@ -61,7 +59,7 @@ public class BlackLabApi {
 
 	public Result<String, QueryException> getStylesheet(String formatName) {
 		return authRequest()
-				.url(blsUrl, "input-formats", formatName, "xslt")
+				.url(config.get(Keys.BLS_URL_ON_SERVER), "input-formats", formatName, "xslt")
 				.request(true);
 	}
 
@@ -75,7 +73,7 @@ public class BlackLabApi {
 			Optional<Integer> pageStart,
 			Optional<Integer> pageEnd) {
 		return authRequest()
-				.url(blsUrl, corpus, "docs", docId, "contents")
+				.url(config.get(Keys.BLS_URL_ON_SERVER), corpus, "docs", docId, "contents")
 				.query("field", field)
 				.query("searchfield", searchfield)
 				.query("patt", blacklabQuery)
@@ -84,10 +82,6 @@ public class BlackLabApi {
 				.query("wordend", pageEnd.map(Object::toString))
 				.query("escapexmlfragments", "false")
 				.request(true);
-	}
-	
-	public static void setBlsUrl(String url) {
-		BlackLabApi.blsUrl = url;
 	}
 
 	private static boolean warned = false;
