@@ -283,7 +283,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	private get viewedResults(): string|null {
 		// paths are already decoded, and have the base portion removed, so we can just use them directly
-		if (this.paths[1] === 'search' && this.paths.length === 3)
+		if (this.paths[1] === 'search' && this.paths.length >= 3)
 			return this.paths[2] || null; // hits or docs, or custom view
 
 		return null;
