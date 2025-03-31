@@ -587,8 +587,8 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		'gr.t': g.numberOfTokens,
 		'gr.h': undefined, // TODO add when jan makes available, something like g.numberOfHits?
 
-		'gsc.d': g.subcorpusSize.documents,
-		'gsc.t': g.subcorpusSize.tokens,
+		'gsc.d': g.subcorpusSize?.documents ?? g.size,
+		'gsc.t': g.subcorpusSize?.tokens ?? g.numberOfTokens,
 
 		'sc.d': summary.subcorpusSize.documents,
 		'sc.t': summary.subcorpusSize.tokens

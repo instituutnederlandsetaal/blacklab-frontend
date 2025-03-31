@@ -443,7 +443,7 @@ export interface BLHitGroupResult extends BLGroupResult {
 export interface BLDocGroupResult extends BLGroupResult {
 	/** Total number of tokens across all documents in this group */
 	numberOfTokens: number;
-	subcorpusSize: {
+	subcorpusSize?: {
 		/** Number of documents this group including those documents that do not contain a hit. Might be 0 when grouped by metadata and this is the 'no value' group. */
 		documents: number;
 		/** Total number of tokens in those documents. Might be 0 when grouped by metadata and this is the 'no value' group. */
