@@ -41,7 +41,7 @@ function getSettings(i18n: Vue): QueryBuilderOptions {
 		.filter(element => UIStore.corpusCustomizations.search.within.includeSpan(element.value))
 		.map(opt => ({
 			...opt,
-			label: i18n.$tWithinDisplayName(opt) || 'document',
+			label: i18n.$tSpanDisplayName(opt) || 'document',
 		}));
 
 

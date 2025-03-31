@@ -212,12 +212,12 @@ const i18nExtensionFunctions = {
 		const key = `index.metadataGroups.${originalName}`;
 		return this.$td(key, originalName);
 	},
-	$tWithinDisplayName(this: Vue, within: Option): string {
-		return this.$td(`index.within.${within.value}`, within.label || within.value);
+	$tSpanDisplayName(this: Vue, span: Option): string {
+		return this.$td(`index.spans.${span.value}`, span.label || span.value);
 	},
-	$tWithinAttribute(this: Vue, span: string, attribute: string): string {
+	$tSpanAttributeDisplay(this: Vue, span: string, attribute: string): string {
 		const defaultValue = this.$t('results.groupBy.summary.spanAttribute', { span, attribute }).toString();
-		return this.$td(`search.withinAttributes.${span}.${attribute}`, defaultValue);
+		return this.$td(`index.spanAttributes.${span}.${attribute}`, defaultValue);
 	},
 	$tAlignByDisplayName(this: Vue, alignBy: Option): string {
 		return this.$td(`index.alignBy.${alignBy.value}`, alignBy.label || alignBy.value);

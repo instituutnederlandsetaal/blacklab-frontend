@@ -244,6 +244,14 @@ function splitSpanAttributeOptionValue(value: string): { name: string, attrName:
 	throw `Not a span attribute option value: ${value}`;
 }
 
+/** Customize and add one or more groups */
+const customizeOptGroups = (optGroups: OptGroup[], i18n: Vue) => {
+	return optGroups.map(optGroup => {
+		const result = corpusCustomizations.group.customize(optGroup, i18n);
+		return result === null ? optGroup : result;
+	});
+};
+
 export default Vue.extend({
 	components: {
 		SelectPicker,
@@ -310,7 +318,7 @@ export default Vue.extend({
 		},
 
 		annotations(): Options {
-			return getAnnotationSubset(
+			return customizeOptGroups(getAnnotationSubset(
 				UIStore.getState().results.shared.groupAnnotationIds,
 				this.annotationGroups,
 				this.annotationsMap,
@@ -319,7 +327,7 @@ export default Vue.extend({
 				CorpusStore.get.textDirection(),
 				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
 				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible
-			);
+			), this);
 		},
 		metadata(): Options {
 			const r = getMetadataSubset(
@@ -337,9 +345,9 @@ export default Vue.extend({
 				{
 					label: this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
 					options: this.tagAttributes,
-				}
+				} as OptGroup
 			];
-			return result;
+			return customizeOptGroups(result, this);
 		},
 
 		contextsize(): number {
@@ -388,7 +396,7 @@ export default Vue.extend({
 			const optAdd = (tagName: string, attributeName: string, listName?: string) => {
 				// Check custom method to see if we should include this attribute
 				// (or if that returns null, we will fall back to default behaviour)
-				let shouldInclude = UIStore.corpusCustomizations.grouping.includeSpanAttribute(tagName, attributeName);
+				let shouldInclude = UIStore.corpusCustomizations.group.includeSpanAttribute(tagName, attributeName);
 				const filterId = spanFilterId(tagName, attributeName);
 				const filter = FilterModule.getState().filters[filterId];
 				if (shouldInclude === null) {
@@ -404,7 +412,7 @@ export default Vue.extend({
 				if (shouldInclude) {
 					const value = spanAttributeOptionValue(tagName, attributeName, listName);
 					result.push({
-						label: 'Group by ' + (filter ? this.$tMetaDisplayName(filter) : this.$tWithinAttribute(tagName, attributeName)),
+						label: 'Group by ' + (filter ? this.$tMetaDisplayName(filter) : this.$tSpanAttributeDisplay(tagName, attributeName)),
 						value,
 					});
 				}

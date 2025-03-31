@@ -358,7 +358,7 @@ export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<strin
 			console.log('filter', JSON.stringify(filter));
 			return filter ?
 				i18n.$tMetaDisplayName(filter).toString() :
-				i18n.$tWithinAttribute(meta.spanName, meta.attributeName).toString();
+				i18n.$tSpanAttributeDisplay(meta.spanName, meta.attributeName).toString();
 		}
 		// Document-level metadata
 		return meta.field ?

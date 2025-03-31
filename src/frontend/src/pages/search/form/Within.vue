@@ -12,10 +12,10 @@
 				:value="option.value"
 				:title="option.title || undefined"
 				@click="within = option.value"
-			>{{$tWithinDisplayName(option)}}</button> <!-- empty value searches across entire documents -->
+			>{{$tSpanDisplayName(option)}}</button> <!-- empty value searches across entire documents -->
 		</div>
 		<div class="btn-group col-xs-12 col-md-9 col-md-push-3 attr form-inline" v-for="attr in withinAttributes()">
-			<label>{{ $tWithinAttribute(within ?? 'none', attr.value) }}</label>
+			<label>{{ $tSpanAttributeDisplay(within ?? 'none', attr.value) }}</label>
 			<input class='form-control' type="text" :title="attr.title || undefined"
 					:value="withinAttributeValue(attr)" @change="changeWithinAttribute(attr, $event)" />
 		</div>

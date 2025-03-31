@@ -1385,13 +1385,23 @@ const corpusCustomizations = Vue.observable({
 		}
 	},
 
-	grouping: {
+	sort: {
+		customize(optGroup: AppTypes.OptGroup): AppTypes.OptGroup|null {
+			return null; // use default behaviour [no change]
+		}
+	},
+
+	group: {
 		/** Should this span attribute be included in group by?
 		 *  (return null to fall back to default: "only if there's a span filter defined for it")
 		 */
 		includeSpanAttribute(spanName: string, attrName: string): boolean|null {
 			return null; // use default behaviour
 		},
+
+		customize(optGroup: AppTypes.OptGroup, i18n: Vue): AppTypes.OptGroup|null {
+			return null; // use default behaviour [no change]
+		}
 	}
 });
 
