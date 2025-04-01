@@ -51,7 +51,8 @@ import { BLSearchResult } from '@/types/blacklabtypes';
 import * as UIStore from '@/store/search/ui';
 import * as CorpusStore from '@/store/search/corpus';
 import { debugLog } from '@/utils/debug';
-import { ensureCompleteFieldName, getParallelFieldName, getParallelFieldParts, isParallelField } from '@/utils';
+import { ensureCompleteFieldName } from '@/utils';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	props: {
@@ -83,7 +84,7 @@ export default Vue.extend({
 				name = ensureCompleteFieldName(name, defaultField); // don't just pass version name
 				return this.$td(`index.annotatedFields.${name}`, name);
 			}
-			(params as any).csvdescription = UIStore.corpusCustomizations.results.csvDescription(this.results.summary, fieldDisplayName) || '';
+			(params as any).csvdescription = corpusCustomizations.results.csvDescription(this.results.summary, fieldDisplayName) || '';
 
 			debugLog('starting csv download', this.type, params);
 			apiCall(INDEX_ID, params).request

@@ -166,7 +166,6 @@ import * as CorpusStore from '@/store/search/corpus';
 import * as InterfaceStore from '@/store/search/form/interface';
 import * as ExploreStore from '@/store/search/form/explore';
 import * as UIStore from '@/store/search/ui';
-import { corpusCustomizations } from '@/store/search/ui';
 
 import SelectPicker, {Option, OptGroup} from '@/components/SelectPicker.vue';
 import Autocomplete from '@/components/Autocomplete.vue';
@@ -175,6 +174,7 @@ import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { blacklabPaths } from '@/api';
 
 import debug from '@/utils/debug';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	components: {

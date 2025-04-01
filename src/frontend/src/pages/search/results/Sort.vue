@@ -21,10 +21,11 @@
 <script lang="ts">
 import Vue from 'vue';
 import { NormalizedIndex } from '@/types/apptypes';
+import * as CorpusStore from '@/store/search/corpus';
 import SelectPicker, { OptGroup } from '@/components/SelectPicker.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
-import { corpusCustomizations } from '@/store/search/ui';
 import debug from '@/utils/debug';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	components: {

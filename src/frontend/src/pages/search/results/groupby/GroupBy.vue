@@ -193,7 +193,6 @@ import Vue from 'vue';
 
 import * as CorpusStore from '@/store/search/corpus';
 import * as UIStore from '@/store/search/ui';
-import { corpusCustomizations } from '@/store/search/ui';
 import * as ResultsStore from '@/store/search/results/views';
 import * as GlobalSearchSettingsStore from '@/store/search/results/global';
 import * as SearchModule from '@/store/search/index';
@@ -222,6 +221,7 @@ import Tabs from '@/components/Tabs.vue';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
 import { snippetParts } from '@/pages/search/results/table/table-layout';
+import { corpusCustomizations } from '@/utils/customization';
 
 // What we prefix the tag attribute grouping option with so we can recognize it
 const OPT_PREFIX_SPAN_ATTRIBUTE = '$TAGATTR:';
@@ -396,14 +396,14 @@ export default Vue.extend({
 			const optAdd = (tagName: string, attributeName: string, listName?: string) => {
 				// Check custom method to see if we should include this attribute
 				// (or if that returns null, we will fall back to default behaviour)
-				let shouldInclude = UIStore.corpusCustomizations.group.includeSpanAttribute(tagName, attributeName);
+				let shouldInclude = corpusCustomizations.group.includeSpanAttribute(tagName, attributeName);
 				const filterId = spanFilterId(tagName, attributeName);
 				const filter = FilterModule.getState().filters[filterId];
 				if (shouldInclude === null) {
 					// By default, you may group on any span attribute for which a
 					// span filter exists, or which occurs in the within widget.
 					const isSpanFilter = filter ? getValueFunctions(filter)?.isSpanFilter ?? null : false;
-					const customWithin = UIStore.corpusCustomizations.search.within;
+					const customWithin = corpusCustomizations.search.within;
 					const isWithinAttr =
 						customWithin.includeSpan(tagName) &&
 						customWithin.includeAttribute(tagName, attributeName);

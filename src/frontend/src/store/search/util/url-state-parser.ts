@@ -3,7 +3,7 @@ import memoize from 'memoize-decorator';
 import BaseUrlStateParser from '@/store/util/url-state-parser-base';
 import LuceneQueryParser from 'lucene-query-parser';
 
-import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex, spanFilterId} from '@/utils';
+import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex, spanFilterId } from '@/utils';
 import {parseBcql, Attribute, Result, Token} from '@/utils/bcql-json-interpreter';
 import parseLucene from '@/utils/luceneparser';
 import {debugLog} from '@/utils/debug';
@@ -32,6 +32,7 @@ import {FilterValue, AnnotationValue} from '@/types/apptypes';
 
 import cloneDeep from 'clone-deep';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { corpusCustomizations } from '@/utils/customization';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -535,7 +536,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		// Complex additional logic might improve this slightly, but the real fix is to change the URL to describe
 		// the frontend's interface state, not the query we send to BLS.
 		const withinOptions = withinUi.enabled ?
-			withinUi.elements.filter(element => UIModule.corpusCustomizations.search.within.includeSpan(element.value)) : [];
+			withinUi.elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
 		return withinOptions.find(opt => !!this.withinClausesWithoutSpanFilters[opt.value])?.value ?? null;
 	}
 
@@ -544,9 +545,14 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		// Find any attributes for the within widget
 		const within = this.withinElementName;
 		const allAttributes = within ? this.withinClausesWithoutSpanFilters[within] ?? {} : {};
+
+		// Which, if any, attribute filter fields should be displayed for this element?
+		const availableAttr = within ? Object.keys(CorpusModule.getState().corpus?.relations.spans?.[within].attributes ?? {}) : [];
+		const attr = within ? availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(within, attrName))
+			.map(a => ({ value: a })) || [] : [];
+
 		const attributesAcceptedByWithinWidget = within ?
-			(UIModule.corpusCustomizations.search.within._attributes(within) || [])
-			.map(el => typeof el === 'string' ? { value: el } : el) : [];
+			attr.map(el => typeof el === 'string' ? { value: el } : el) : [];
 		const withinAttributes = Object.fromEntries(Object.entries(allAttributes)
 			.filter(([attrName, attrValue]) => {
 				return !!attributesAcceptedByWithinWidget.find(w => w.value === attrName);

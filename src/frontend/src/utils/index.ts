@@ -5,7 +5,8 @@ import URI from 'urijs';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
-import * as UIStore from '@/store/search/ui';
+import Vue from 'vue';
+import { corpusCustomizations } from '@/utils/customization';
 
 
 const defaultRegexEscapeOptions = {

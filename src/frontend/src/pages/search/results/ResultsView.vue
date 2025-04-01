@@ -150,7 +150,7 @@ import Spinner from '@/components/Spinner.vue';
 import debug, { debugLogCat } from '@/utils/debug';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { NormalizedAnnotatedFieldParallel, NormalizedIndex } from '@/types/apptypes';
+import { NormalizedIndex } from '@/types/apptypes';
 import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
 import { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, makeColumns, makeRows, Rows } from '@/pages/search/results/table/table-layout';
@@ -158,6 +158,7 @@ import { isHitParams } from '@/utils';
 
 
 import '@/pages/search/results/table/GenericTable.vue';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	components: {
@@ -519,7 +520,7 @@ export default Vue.extend({
 				...this.commonDisplaySettings,
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
 				sourceField: QueryStore.get.sourceField()!, // if no field, there would be no results...
-				getCustomHitInfo: UIStore.corpusCustomizations.results.customHitInfo,
+				getCustomHitInfo: corpusCustomizations.results.customHitInfo,
 			}
 		},
 		columnDisplaySettings(): DisplaySettingsForColumns {
@@ -534,7 +535,7 @@ export default Vue.extend({
 				// If groups, don't show any annotation columns.
 				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
-				hasCustomHitInfoColumn: UIStore.corpusCustomizations.results.hasCustomHitInfoColumn,
+				hasCustomHitInfoColumn: corpusCustomizations.results.hasCustomHitInfoColumn,
 			}
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {

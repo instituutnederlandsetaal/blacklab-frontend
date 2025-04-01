@@ -1,6 +1,8 @@
 import type {NormalizedIndex, NormalizedAnnotation, NormalizedAnnotatedField, NormalizedMetadataField, NormalizedFormat, NormalizedMetadataGroup, NormalizedAnnotationGroup, NormalizedIndexBase} from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 import { getParallelFieldParts, mapReduce, PARALLEL_FIELD_SEPARATOR } from '@/utils';
+import * as CorpusStore from '@/store/search/corpus';
+import { corpusCustomizations } from '@/utils/customization';
 
 /** Find the annotation that contains annotationId as on of its subAnnotations. */
 function findParentAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string): string|undefined {

@@ -30,7 +30,7 @@ import * as PatternStore from '@/store/search/form/patterns';
 import * as CorpusStore from '@/store/search/corpus';
 
 import { Option } from '@/components/SelectPicker.vue';
-import { corpusCustomizations } from '@/store/search/ui';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	computed: {
@@ -55,8 +55,12 @@ export default Vue.extend({
 			const option = this.withinOptions.find(o => o.value === within);
 			if (!option) return [];
 
-			return (corpusCustomizations.search.within._attributes(option.value) || [])
-				.map(el => typeof el === 'string' ? { value: el } : el);
+			// Which, if any, attribute filter fields should be displayed for this element?
+			const availableAttr = Object.keys(CorpusStore.getState().corpus?.relations.spans?.[option.value].attributes ?? {});
+			const attr = availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(option.value, attrName))
+				.map(a => ({ value: a })) || [];
+
+			return attr.map(el => typeof el === 'string' ? { value: el } : el);
 		},
 		withinAttributeValue(option: Option) {
 			if (this.within === null)

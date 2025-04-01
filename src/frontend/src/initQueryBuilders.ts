@@ -13,7 +13,7 @@ import debug, {debugLog} from '@/utils/debug';
 
 import { getAnnotationSubset } from '@/utils';
 import { Option } from './types/apptypes';
-import { RootState } from './store/article';
+import { corpusCustomizations } from '@/utils/customization';
 
 
 function getSettings(i18n: Vue): QueryBuilderOptions {
@@ -38,7 +38,7 @@ function getSettings(i18n: Vue): QueryBuilderOptions {
 	}));
 
 	const withinSelectOptions = UIStore.getState().search.shared.within.elements
-		.filter(element => UIStore.corpusCustomizations.search.within.includeSpan(element.value))
+		.filter(element => corpusCustomizations.search.within.includeSpan(element.value))
 		.map(opt => ({
 			...opt,
 			label: i18n.$tSpanDisplayName(opt) || 'document',

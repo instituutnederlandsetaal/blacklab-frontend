@@ -139,6 +139,8 @@ const init = () => Promise.all([Api.frontend.getCorpus(), Api.blacklab.getRelati
 	// can throw ApiError, caught in root store init function.
 
 
+
+
 export {
 	ModuleRootState,
 	NormalizedIndex,
