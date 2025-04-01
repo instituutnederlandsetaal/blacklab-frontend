@@ -160,8 +160,15 @@ function textOrDefault<T extends string|null|undefined>(i18n: VueI18n, key: stri
 // (filters are technically not directly equal to metadata objects, but for translation purposes we use the same keys)
 const i18nExtensionFunctions = {
 	$td<T extends string|null|undefined>(this: Vue, key: string, defaultText: T): T|string {
-		if (this.$te(key)) return this.$t(key).toString();
-		if (this.$i18n.locale !== this.$i18n.fallbackLocale && this.$te(key, this.$i18n.fallbackLocale as string)) return this.$t(key, this.$i18n.fallbackLocale as string).toString();
+		// See if there is a non-null, non-undefined value (may be the empty string!)
+		const v = this.$te(key) ? this.$t(key) : undefined;
+		if (v !== null && v != undefined)
+			return v.toString();
+		if (this.$i18n.locale !== this.$i18n.fallbackLocale && this.$te(key, this.$i18n.fallbackLocale as string)) {
+			const v = this.$te(key, this.$i18n.fallbackLocale as string) ? this.$t(key, this.$i18n.fallbackLocale as string) : undefined;
+			if (v !== null && v != undefined)
+				return v.toString();
+		}
 		return defaultText;
 	},
 	/** Get the localized display name for an annotated field or the default value.
