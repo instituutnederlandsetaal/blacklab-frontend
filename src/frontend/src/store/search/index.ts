@@ -376,15 +376,6 @@ const init = async () => {
 		await QueryModule.init();
 		privateActions.setLoadingState({loadingState: 'loaded', loadingMessage: ''});
 
-		// Set the default parallel source field (the first one)
-		// We need to do this after loading the corpus information
-		// @@@ setTimeout is stupid, but doesn't work otherwise!?
-		setTimeout(() => {
-			const par = CorpusModule.get.parallelAnnotatedFields();
-			if (par.length > 0)
-				PatternModule.getState().shared.source = par[0].id;
-		}, 100);
-
 		return true;
 	} catch (e: any) {
 		console.log(e);
