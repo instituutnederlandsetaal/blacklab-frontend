@@ -32,7 +32,7 @@
 						simple
 					/>
 				</div>
-				<ParallelSourceAndTargets v-if="isParallelCorpus" block lg/>
+				<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 			</div>
 			<div :class="['tab-pane form-horizontal', {'active': activePattern==='extended'}]" id="extended">
 				<template v-if="useTabs">
@@ -79,7 +79,7 @@
 					</template>
 				</template>
 
-				<ParallelSourceAndTargets v-if="isParallelCorpus"/>
+				<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion"/>
 
 				<Within />
 
@@ -184,6 +184,9 @@ export default ParallelFields.extend({
 		ConceptSearch,
 		GlossSearch,
 		Within,
+	},
+	props: {
+		errorNoParallelSourceVersion: {default: false, type: Boolean},
 	},
 	data: () => ({
 		uid: uid(),

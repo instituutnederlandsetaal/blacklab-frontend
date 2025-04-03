@@ -81,6 +81,7 @@
 		"parallel": {
 			"alignBy": "Aligneer op",
 			"inSourceVersion": "In bronversie",
+			"errorNoSourceVersion": "Kies a.u.b. een bronversie.",
 			"andCompareWithTargetVersions": "En vergelijk met doelversie(s)",
 			"queryForSourceVersion": "Bronversie",
 			"queryForTargetVersion": "Doelversie",

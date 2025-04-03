@@ -10,6 +10,7 @@
 					'col-xs-12': true,
 					'col-md-6': filtersVisible && !queryBuilderVisible
 				}"
+				:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
 			/>
 			<QueryFormExplore id="form-explore" v-show="activeForm === 'explore'"
 				:class="{
@@ -56,6 +57,7 @@ import {stripIndent} from 'common-tags';
 
 import * as RootStore from '@/store/search/';
 import * as InterfaceStore from '@/store/search/form/interface';
+import * as PatternStore from '@/store/search/form/patterns';
 
 import { selectedSubCorpus$ } from '@/store/search/streams';
 
@@ -84,7 +86,7 @@ export default Vue.extend({
 
 		settingsOpen: false,
 		historyOpen: false,
-
+		errorNoParallelSourceVersion: false,
 	}),
 	computed: {
 		queryBuilderVisible(): boolean { return RootStore.get.queryBuilderActive(); },
@@ -97,6 +99,15 @@ export default Vue.extend({
 	methods: {
 		reset: RootStore.actions.reset,
 		submit() {
+			if (this.activeForm === 'search' && PatternStore.getState().shared.source === null) {
+				// Alert the user that they need to select a source version
+				this.errorNoParallelSourceVersion = true;
+				setTimeout(() => this.errorNoParallelSourceVersion = false, 3000);
+				return;
+			} else {
+				this.errorNoParallelSourceVersion = false;
+			}
+
 			if (this.activeForm === 'explore' && this.subCorpusStats && this.subCorpusStats.summary.tokensInMatchingDocuments! > 5_000_000) {
 				const msg = stripIndent`
 					You have selected a subcorpus of over ${(5_000_000).toLocaleString()} tokens.

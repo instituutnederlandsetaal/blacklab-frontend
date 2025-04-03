@@ -80,6 +80,7 @@
 		"parallel": {
 			"alignBy": "Align by",
 			"inSourceVersion": "In source version",
+			"errorNoSourceVersion": "Please select a source version.",
 			"andCompareWithTargetVersions": "And compare with target version(s)",
 			"queryForSourceVersion": "Query for source version",
 			"queryForTargetVersion": "Query for target version",
