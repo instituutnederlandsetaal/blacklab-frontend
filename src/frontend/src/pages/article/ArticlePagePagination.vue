@@ -101,7 +101,7 @@ export default Vue.extend({
 			pageActive: boolean
 		} {
 			if (!this.ready) { return undefined; }
-			if (this.hits!.length <= 1) return undefined;
+			if (this.hits!.length === 0) return undefined;
 
 			const isOnHit = this.currentHitInPage != null;
 			return {
@@ -181,12 +181,15 @@ export default Vue.extend({
 
 		// initially, highlight the correct hit, if there is any specified
 		// otherwise just remove the window hash
-		if (!this.hitElements.length) {
+		if (this.hitElements.length === 0) {
+			// There are no highlighted hits on this page.
 			this.currentHitInPage = undefined;
 			const url = window.location.pathname + window.location.search;
 			debugLogCat('history', `Calling replaceState with URL: ${url}`);
 			window.history.replaceState(undefined, '', url); // setting hash to '' won't remove '#'
 		} else {
+			// Which hit on the page should be active?
+			// If the hash is set, use that; otherwise use the first hit
 			let hitInPage = Number(window.location.hash ? window.location.hash.substring(1) : '0') || 0;
 			if (hitInPage >= this.hitElements.length || hitInPage < 0) {
 				hitInPage = 0;
@@ -231,7 +234,7 @@ export default Vue.extend({
 
 		const spinnerTimeout = setTimeout(() => this.loadingForAwhile = true, 3000);
 		const patt = optTargetField(query, searchfield && searchfield !== field ? field : undefined);
-		console.log({ query, field, searchfield, patt });
+		//console.log({ query, field, searchfield, patt });
 		blacklab
 		.getHits(INDEX_ID, {
 			docpid: DOCUMENT_ID,
@@ -254,7 +257,7 @@ export default Vue.extend({
 
 				if (index >= 0) {
 					let firstVisibleHitIndex = Math.abs(binarySearch(hits, h => PAGE_START - h[0]));
-					if (this.currentHitInPage != null) {
+					if (this.currentHitInPage !== undefined) {
 						this.hitElements[this.currentHitInPage].classList.remove('active');
 					}
 					this.currentHitInPage = index - firstVisibleHitIndex;

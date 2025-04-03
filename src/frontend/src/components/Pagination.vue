@@ -12,7 +12,7 @@
 				<a role="button" @click.prevent="changePage(i)">{{(i+1).toLocaleString()}}</a>
 			</li
 		></template
-		><li v-if="lowerPages.length || higherPages.length" :class="{
+		><li :class="{
 			current: pageActive,
 			active: pageActive,
 			disabled
@@ -33,9 +33,6 @@
 			</template>
 			<a v-else-if="!pageActive" role="button" @click.prevent="changePage(page)">{{(page+1).toLocaleString()}}</a>
 			<span v-else>{{page+1}}</span>
-		</li
-		><li v-else class="active"> <!-- no available pages -->
-			<span>{{(page+1).toLocaleString()}}</span>
 		</li
 		><template v-if="showOffsets"
 			><li v-for="i in higherPages" :key="i" :class="{'disabled': disabled}">
