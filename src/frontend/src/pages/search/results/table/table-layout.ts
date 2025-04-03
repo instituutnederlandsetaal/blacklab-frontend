@@ -379,7 +379,7 @@ export type DisplaySettingsForRendering = {
 	groupDisplayMode: 'table'|'docs'|'hits'|'relative docs'|'relative hits'|'tokens';
 
 	/** See hasCustomHitInfo in the UI store. we don't use the store directly to simplify unit-testing. */
-	hasCustomHitInfoColumn: (results: BLHitResults|BLHitGroupResults, isParallelCoprus: boolean) => boolean;
+	hasCustomHitInfoColumn: (results: BLSearchResult, isParallelCoprus: boolean) => boolean;
 	/** See getCustomHitInfo in UI store. We don't use the store directly to simplify unit-testing. */
 	getCustomHitInfo: (hit: BLHit|BLHitSnippet|BLHitInOtherField, annotatedFieldDisplayName: string, doc: BLDoc) => string|null;
 }
@@ -490,7 +490,7 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		hit_first_word_id: '',
 		hit_last_word_id: '',
 
-		customHitInfo: info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field), p.doc) ?? ''
+		customHitInfo: (p.hit ? info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field), p.doc) : undefined) ?? ''
 	}
 }
 
@@ -749,7 +749,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		else return {};
 	}
 
-	if ((isHitResults(results) || isHitGroups(results)) && info.hasCustomHitInfoColumn(results, info.targetFields.length > 0)) {
+	if (info.hasCustomHitInfoColumn(results, info.targetFields.length > 0)) {
 		hitColumns.push({
 			key: 'custom',
 			field: 'custom',
