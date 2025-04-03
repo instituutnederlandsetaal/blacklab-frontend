@@ -240,6 +240,14 @@ export default Vue.extend({
 			if (this.clearResults) { this.results = this.error = null; this.clearResults = false; }
 
 			const nonce = this.refreshParameters;
+
+			// If we're querying a parallel corpus, and no sort was chosen yet,
+			// sort by alignments (so aligned hits appear first).
+			const viewModule = ResultsStore.getOrCreateModule('hits');
+			if (CorpusStore.get.isParallelCorpus() && viewModule.getState().sort === null) {
+				viewModule.actions.sort('alignments');
+			}
+
 			const params = RootStore.get.blacklabParameters()!;
 			const apiCall = this.id === 'hits' ? Api.blacklab.getHits<BLTypes.BLHitResults|BLTypes.BLHitGroupResults> : Api.blacklab.getDocs<BLTypes.BLDocResults|BLTypes.BLDocGroupResults>;
 			debugLogCat('results', 'starting search', this.id, params);
