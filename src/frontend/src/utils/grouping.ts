@@ -354,7 +354,7 @@ export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<strin
 			// Span-level metadata
 			const filterId = spanFilterId(meta.spanName, meta.attributeName);
 			console.log('filterId', filterId);
-			const filter = FilterModule.getState().filters[filterId];
+			const filter = FilterModule.getState().filters[filterId] ?? {id: filterId};
 			console.log('filter', JSON.stringify(filter));
 			return filter ?
 				i18n.$tMetaDisplayName(filter).toString() :
@@ -362,7 +362,7 @@ export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<strin
 		}
 		// Document-level metadata
 		return meta.field ?
-			i18n.$t('results.groupBy.summary.metadata', {field: i18n.$tMetaDisplayName(metadata[meta.field])}).toString() :
+			i18n.$t('results.groupBy.summary.metadata', {field: i18n.$tMetaDisplayName(metadata[meta.field]) ?? {id: meta.field}}).toString() :
 			i18n.$t('results.groupBy.specify').toString();
 	} else {
 		// Unknown.

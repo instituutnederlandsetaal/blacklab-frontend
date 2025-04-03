@@ -501,7 +501,7 @@ export default Vue.extend({
 		},
 
 		resultComponentData(): any {
-			if (!this.results || !this.cols || !this.rows || !this.renderDisplaySettings) return undefined;
+			if (!this.results || !this.cols || !this.rows?.rows.length || !this.renderDisplaySettings) return undefined;
 			return {
 				cols: this.cols,
 				rows: this.rows,
