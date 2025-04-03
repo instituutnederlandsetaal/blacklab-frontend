@@ -56,6 +56,7 @@ import {Subscription} from 'rxjs';
 import {stripIndent} from 'common-tags';
 
 import * as RootStore from '@/store/search/';
+import * as CorpusStore from '@/store/search/corpus';
 import * as InterfaceStore from '@/store/search/form/interface';
 import * as PatternStore from '@/store/search/form/patterns';
 
@@ -99,13 +100,15 @@ export default Vue.extend({
 	methods: {
 		reset: RootStore.actions.reset,
 		submit() {
-			if (this.activeForm === 'search' && PatternStore.getState().shared.source === null) {
-				// Alert the user that they need to select a source version
-				this.errorNoParallelSourceVersion = true;
-				setTimeout(() => this.errorNoParallelSourceVersion = false, 3000);
-				return;
-			} else {
-				this.errorNoParallelSourceVersion = false;
+			if (CorpusStore.get.isParallelCorpus()) {
+				if ( this.activeForm === 'search' && PatternStore.getState().shared.source === null) {
+					// Alert the user that they need to select a source version
+					this.errorNoParallelSourceVersion = true;
+					setTimeout(() => this.errorNoParallelSourceVersion = false, 3000);
+					return;
+				} else {
+					this.errorNoParallelSourceVersion = false;
+				}
 			}
 
 			if (this.activeForm === 'explore' && this.subCorpusStats && this.subCorpusStats.summary.tokensInMatchingDocuments! > 5_000_000) {
