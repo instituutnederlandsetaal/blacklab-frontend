@@ -30,7 +30,10 @@
 					:class="{
 						rounded: true,
 						open: openRows[row.hit_id || index],
-						interactable: !disabled && !disableDetails && (row.type === 'group' || ((row.type === 'hit') === (type === 'hits')) && ((row.type === 'doc') == (type === 'docs'))) ,
+						interactable:
+							!disabled &&
+							!disableDetails &&
+							isRowOpenable(row),
 						topborder: index > 0 && row.first_of_hit,
 						bottomborder: row.last_of_hit && (index < rows.rows.length - 1)
 					}"
@@ -72,7 +75,7 @@
 import Vue from 'vue';
 
 import '@/pages/search/results/table/TableHeader.vue';
-import { definitions, ColumnDefs, DisplaySettingsForRendering, Rows, ColumnDef, HitRowData, GroupRowData } from '@/pages/search/results/table/table-layout';
+import { definitions, ColumnDefs, DisplaySettingsForRendering, Rows, ColumnDef, HitRowData, GroupRowData, DocRowData } from '@/pages/search/results/table/table-layout';
 import { BLSearchParameters } from '@/types/blacklabtypes';
 
 
@@ -107,13 +110,18 @@ export default Vue.component('GenericTable', {
 		hoverMatchInfosId: undefined as undefined|number,
 	}),
 	methods: {
+		isRowOpenable(row: HitRowData|DocRowData|GroupRowData) {
+			if (row.type === 'group') return true;
+			if (row.type === 'hit' && this.type === 'hits') return true;
+			if (row.type === 'doc' && this.type === 'docs' && row.hits) return true;
+			return false;
+		},
 		hasForeignHit(rows: Rows) {
 			return rows.rows.some(row => row.type === 'hit' && row.isForeign);
 		},
 		toggleRow(index: number) {
-			if (this.disabled || this.disableDetails) return;
 			const row = this.rows.rows[index];
-			if (row.type === 'doc' && this.type === 'hits' || row.type === 'hit' && this.type === 'docs') return;
+			if (this.disabled || this.disableDetails || !this.isRowOpenable(row)) return;
 			const id = (row as HitRowData).hit_id || index;
 			const newState = !this.openRows[id];
 			this.$set(this.openRows, id, newState);
