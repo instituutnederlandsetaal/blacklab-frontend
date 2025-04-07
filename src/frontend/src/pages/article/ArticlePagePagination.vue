@@ -74,7 +74,8 @@ export default Vue.extend({
 			maxPage: number,
 			minPage: number,
 			disabled: boolean,
-			pageActive: boolean
+			pageActive: boolean,
+			showTotal: boolean,
 		} {
 			// Don't bother if we're showing the entire document
 			if (PAGE_START <= 0 && PAGE_END >= DOCUMENT_LENGTH) {
@@ -90,7 +91,8 @@ export default Vue.extend({
 				maxPage: Math.floor(DOCUMENT_LENGTH / PAGE_SIZE!),
 				minPage: 0,
 				disabled: false,
-				pageActive: isOnExactPage
+				pageActive: isOnExactPage,
+				showTotal: Math.floor(DOCUMENT_LENGTH / PAGE_SIZE!) > 1,
 			}
 		},
 		hitInfo(): undefined|{
@@ -98,7 +100,8 @@ export default Vue.extend({
 			maxPage: number,
 			minPage: number,
 			disabled: boolean,
-			pageActive: boolean
+			pageActive: boolean,
+			showTotal: boolean,
 		} {
 			if (!this.ready) { return undefined; }
 			if (this.hits!.length === 0) return undefined;
@@ -109,7 +112,8 @@ export default Vue.extend({
 				maxPage: this.hits!.length-1,
 				minPage: 0,
 				disabled: false,
-				pageActive: isOnHit
+				pageActive: isOnHit,
+				showTotal: this.hits!.length > 1,
 			}
 		},
 	},
