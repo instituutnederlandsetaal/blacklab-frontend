@@ -1,18 +1,99 @@
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
-import Vue from 'vue';
 import { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
 import { spanFilterId } from '@/utils';
 
-/** This object contains any customization "hook" functions for this corpus.
+const unwrappedImplementation = Symbol('unwrappedImplementation');
+const isProxied = Symbol('proxyMark');
+const dontProxyMe = Symbol('dontProxyMe');
+
+/**
+ * Looks scary, is pretty mundane really
+ * Recursively wrap everything in the object in a getter/setter pair.
+ *
+ * This allows us to wrap any function the user sets in the object, so we can
+ * catch any errors thrown by the new implementation, log them, and
+ * call the original implementation instead.
+ *
+ * This prevents us from having wrap every customization function call in a try/catch block.
+ *
+ * There's a few little gotchas like proxying new values put in the object, checking if such values are already proxied,
+ * and recursion (proxy getter/setter only applies to the direct object, so deep.property.access doesn't call the proxy for nested values).
+ */
+function wrapWithErrorHandling<T extends object>(obj: T) {
+	// Mark the proxied object to avoid re-proxying
+	Object.defineProperty(obj, isProxied, {
+		value: true,
+		enumerable: false,
+		configurable: false,
+		writable: false
+	});
+	return new Proxy(obj, {
+		get(target, prop, receiver) {
+			let value = Reflect.get(target, prop, receiver);
+			// Before we return a nested array/object, make sure it's wrapped,
+			// otherwise this proxy won't be called when properties in that object are accessed.
+			if (
+				typeof value === 'object' && value !== null /* js-ism: typeof null === 'object' */ &&
+				// Check if the value is already proxied to avoid re-wrapping
+				// And some things we don't want to proxy
+				!(dontProxyMe in value) &&
+				!(isProxied in value)
+			) {
+				value = wrapWithErrorHandling(value);
+				Reflect.set(target, prop, value, receiver);
+			}
+			return value;
+		},
+		set(this: any, target, prop, newValue, receiver) {
+			let currentValue: any = Reflect.get(target, prop, receiver);
+			if (typeof currentValue !== 'function' || typeof newValue !== 'function') {
+				Reflect.set(target, prop, newValue, receiver); // return true/false,NOT new value!
+				return newValue;
+			}
+
+			// Someone is replacing one of the function!
+			// wrap their implementation, and use the original implementation if the new implementation ever errors.
+			const defaultImplementation = currentValue[unwrappedImplementation] || currentValue;
+			currentValue = function(this: any, ...args: any[]) {
+				try { return newValue.apply(this, args); }
+				catch (e) {
+					console.error(`Error in customization function ${String(prop)}:`, e);
+					return defaultImplementation.apply(this, args);
+				}
+			}
+			// Store the default implementation so we don't stack multiple wrappers if the function is every replaced another time
+			currentValue[unwrappedImplementation] = defaultImplementation;
+			// Finally store and return the wrapped function
+			Reflect.set(target, prop, currentValue, receiver);
+			return currentValue;
+		},
+	});
+}
+
+function dontProxy<T extends object>(t: T): T {
+	if (typeof t === 'object' && t !== null) {
+		Object.defineProperty(t, dontProxyMe, {
+			value: true,
+			enumerable: false,
+			configurable: false,
+			writable: false
+		})
+	}
+	return t;
+}
+
+
+/**
+ * This object contains any customization "hook" functions for this corpus.
  *  It defines defaults that can be overridden from custom JS file(s); see below.
  */
-export const corpusCustomizations = Vue.observable({
+export const corpusCustomizations = wrapWithErrorHandling({
 	// Registered customize function(s), to be called once the corpus info has been loaded
-	customizeFunctions: [] as ((corpus: any) => void)[],
+	customizeFunctions: dontProxy([] as ((corpus: any) => void)[]),
 
 	/** index information */
-	_corpus: null as AppTypes.NormalizedIndex|null,
+	_corpus: dontProxy({}) as AppTypes.NormalizedIndex|null,
 
 	search: {
 		pattern: {
@@ -50,7 +131,7 @@ export const corpusCustomizations = Vue.observable({
 			},
 
 			/** Any custom metadata tabs to add (INTERNAL) */
-			_customTabs: [] as any[],
+			_customTabs: dontProxy([]) as any[],
 
 			/** Add a custom tab with some (span) filter fields */
 			addCustomTab(name: string, fields: any[]) {
