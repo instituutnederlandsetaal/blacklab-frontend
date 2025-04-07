@@ -173,8 +173,9 @@ const i18nExtensionFunctions = {
 	},
 	/** Get the localized display name for an annotated field or the default value.
 	 * Note that the field ID should be *including* the parallel suffix. So just e.g. "contents__en" for a parallel field. */
-	$tAnnotatedFieldDisplayName(this: Vue, f: NormalizedAnnotatedField): string {
-		return this.$td(`index.annotatedFields.${f.id}`, (f.isParallel ? f.version : f.defaultDisplayName || f.id));
+	$tAnnotatedFieldDisplayName(this: Vue, f: {id: string, defaultDisplayName?: string, version?: string, isParallel?: boolean}): string {
+		// Use a subset of the full annotation object, we sometimes need to call this when we don't have the full object.
+		return this.$td(`index.annotatedFields.${f.id}`, (f.isParallel ? f.version || f.id : f.defaultDisplayName || f.id));
 	},
 	$tAnnotatedFieldDescription(this: Vue, f: NormalizedAnnotatedField): string {
 		return this.$td(`index.annotatedFields.${f.id}_description`, f.defaultDescription);

@@ -21,64 +21,38 @@ export default Vue.extend({
 	}),
 	computed: {
 		document: RootStore.get.document,
-		isLoading(): boolean { return this.request != null; }
-	},
-	methods: {
-		load(): void {
-			if (this.fieldDisplayName || this.error || this.request) {
-				return;
-			}
-
-			// Find the display name and content length for the current annotated field.
-			const annotatedFieldName = RootStore.getState().field;
-			if (annotatedFieldName) {
-				// Content length can be found in the document info
-				this.lengthTokens = this.document?.docInfo.tokenCounts?.find(t => t.fieldName === annotatedFieldName)?.tokenCount ?? -1;
-
-				// The display name either comes from i18n, or from BlackLab.
-				this.fieldDisplayName = this.$tAnnotatedFieldDisplayName({id: annotatedFieldName} as any);
-				if (this.fieldDisplayName?.length === 0) {
-					// Not in i18n; use the value from BlackLab.
-					this.request = blacklab.getAnnotatedField(RootStore.getState().indexId, annotatedFieldName)
-					.then(fieldInfo => {
-						this.fieldDisplayName = fieldInfo.displayName;
-					})
-					.catch(error => this.error = error)
-					.finally(() => this.request = null);
-				}
-			} else {
-				this.fieldDisplayName = '';
-        this.updateTitle();
-			}
-		},
-    updateTitle() {
-      // Transfer doc title to content tab
-      this.$nextTick(() => {
-        const contentTitle = document.getElementById('content-title');
-        if (contentTitle)
-          contentTitle.innerHTML = document.getElementById('meta-title')!.innerHTML ?? '??'
-      });
-    }
+		field(): string|null { return RootStore.getState().field; },
 	},
 	watch: {
-		fieldDisplayName: function () {
-      if (this.fieldDisplayName)
-			  document.getElementById('parallel-version')!.innerText = ` (${this.fieldDisplayName})`;
-			document.getElementById('docLengthTokens')!.innerText = `${this.lengthTokens}`;
+		field: {
+			immediate: true,
+			handler() {
+				if (!this.field) return;
+				// Find the display name and content length for the current annotated field.
+				// Content length can be found in the document info
+				this.lengthTokens = this.document?.docInfo.tokenCounts?.find(t => t.fieldName === this.field)?.tokenCount ?? -1;
+				this.fieldDisplayName = this.$tAnnotatedFieldDisplayName({id: this.field});
 
-      // Transfer doc title to content tab as well
-      this.updateTitle();
+				// The display name either comes from i18n, or from BlackLab.
+				if (this.fieldDisplayName?.length === 0) {
+					// Not in i18n; use the value from BlackLab.
+					this.request = blacklab.getAnnotatedField(RootStore.getState().indexId, this.field)
+						.then(fieldInfo => this.fieldDisplayName = fieldInfo.displayName)
+						.catch(error => this.error = error)
+						.finally(() => this.request = null);
+				}
+			},
+		},
+		fieldDisplayName() {
+			if (this.fieldDisplayName) {
+				document.getElementById('parallel-version')!.innerText = ` (${this.fieldDisplayName})`;
+				document.getElementById('docLengthTokens')!.innerText = `${this.lengthTokens}`;
+				const contentTitle = document.getElementById('content-title')
+				if (contentTitle)
+					contentTitle.innerHTML = document.getElementById('meta-title')?.innerHTML ?? '??'
+			}
 		}
 	},
-	created() {
-		const metaTab = (document.querySelector('a[href="#metadata"]') as HTMLAnchorElement);
-
-		// load immediately so title on content tab populates
-		// (HACK: setTimeout seems to be needed so that RootStore.getState().field is set...)
-		setTimeout(() => this.load(), 100);
-
-		metaTab.addEventListener('click', () => this.load(), { once: true });
-	}
 });
 
 </script>
