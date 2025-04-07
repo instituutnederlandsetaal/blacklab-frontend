@@ -105,7 +105,7 @@ export default Vue.extend({
 
 			const isOnHit = this.currentHitInPage != null;
 			return {
-				page: this.currentHitIndex || 0,
+				page: this.currentHitIndex || this.firstVisibleHitIndex,
 				maxPage: this.hits!.length-1,
 				minPage: 0,
 				disabled: false,
