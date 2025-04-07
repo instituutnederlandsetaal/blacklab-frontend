@@ -756,13 +756,6 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		.filter(g => !!g);
 	}
 
-	@memoize
-	private get caseSensitive(): boolean {
-		const groups = this.groupBy.filter(g => !g.startsWith('context:'));
-
-		return groups.length > 0 && groups.every(g => g.endsWith(':s'));
-	}
-
 	/**
 	 * Get the state for a specific view.
 	 * Or when a custom module has been defined, the custom module.

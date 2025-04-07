@@ -76,7 +76,7 @@
 						right
 						searchable
 						hideEmpty
-						:options="annotations"
+						:options="annotationDropdownOptions"
 						allowHtml
 						v-model="selectedCriterium.annotation"
 					/></template>
@@ -137,7 +137,7 @@
 					data-width="auto"
 					data-menu-width="auto"
 					v-model="selectedMetadataCriterium"
-					:options="metadata"
+					:options="metadataDropdownOptions"
 				/>
 
 				<!-- mimic style of annotation box. -->
@@ -196,6 +196,7 @@ import * as UIStore from '@/store/search/ui';
 import * as ResultsStore from '@/store/search/results/views';
 import * as GlobalSearchSettingsStore from '@/store/search/results/global';
 import * as SearchModule from '@/store/search/index';
+import * as QueryStore from '@/store/search/query';
 import * as FilterModule from '@/store/search/form/filters';
 
 import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
@@ -244,14 +245,6 @@ function splitSpanAttributeOptionValue(value: string): { name: string, attrName:
 	throw `Not a span attribute option value: ${value}`;
 }
 
-/** Customize and add one or more groups */
-const customizeOptGroups = (optGroups: OptGroup[], i18n: Vue) => {
-	return optGroups.map(optGroup => {
-		const result = corpusCustomizations.group.customize(optGroup, i18n);
-		return result === null ? optGroup : result;
-	});
-};
-
 export default Vue.extend({
 	components: {
 		SelectPicker,
@@ -278,10 +271,47 @@ export default Vue.extend({
 		active: false,
 	}),
 	computed: {
+		storeModule(): ResultsStore.ViewModule { return ResultsStore.getOrCreateModule(this.type); },
+		/** NOTE: this may contain grouping criteria this corpus doesn't support! On page load, it comes directly from the URL! */
+		storeValue(): string[] { return this.storeModule.getState().groupBy; },
+
 		metadataGroups() { return CorpusStore.get.metadataGroups() },
 		metadataFieldsMap() { return CorpusStore.get.allMetadataFieldsMap() },
 		annotationGroups() { return CorpusStore.get.annotationGroups() },
 		annotationsMap() { return CorpusStore.get.allAnnotationsMap() },
+		defaultAnnotation(): string { return UIStore.getState().results.shared.concordanceAnnotationId; },
+
+		metadataDropdownOptions(): Options {
+			return (getMetadataSubset(
+				UIStore.getState().results.shared.groupMetadataIds,
+				this.metadataGroups,
+				this.metadataFieldsMap,
+				'Group',
+				this,
+				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
+				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
+				corpusCustomizations.search.metadata.showField
+			) as OptGroup[]).concat({
+				label: this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
+				options: this.tagAttributes,
+			})
+			.map(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
+			.flatMap<Options[number]>(optGroup => optGroup.label ? optGroup : optGroup.options)
+		},
+		annotationDropdownOptions(): Options {
+			return getAnnotationSubset(
+				UIStore.getState().results.shared.groupAnnotationIds,
+				this.annotationGroups,
+				this.annotationsMap,
+				'Search',
+				this,
+				CorpusStore.get.textDirection(),
+				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
+				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible
+			)
+			.flatMap(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
+			.flatMap<Options[number]>(optGroup => optGroup.label ? optGroup : optGroup.options)
+		},
 
 		tabs(): Option[] {
 			return this.addedCriteria.map((c, i) => ({
@@ -290,12 +320,7 @@ export default Vue.extend({
 				class: isValidGroupBy(c) ? '' : 'text-muted',
 			}));
 		},
-		defaultAnnotation(): string {
-			const a = this.annotations.find(a => typeof a === 'object' && 'options' in a) as any;
-			return a?.options[0]?.value ?? '';
-		},
-		storeModule(): ResultsStore.ViewModule { return ResultsStore.getOrCreateModule(this.type); },
-		storeValue(): string[] { return this.storeModule.getState().groupBy; },
+
 		firstHitPreviewQuery(): BLSearchParameters|undefined {
 			let params = SearchModule.get.blacklabParameters();
 			if (!isHitParams(params))
@@ -306,6 +331,7 @@ export default Vue.extend({
 				delete params.group;
 			delete params.includetokencount;
 			delete params.listvalues;
+			// Only available for doc queries, remove it if present
 			if (params.sort && params.sort.includes('numhits')) params.sort.split(',').filter(s => s != 'numhits').join(',');
 			params.listmetadatavalues = '__nothing__';
 			params.first = 0;
@@ -316,40 +342,6 @@ export default Vue.extend({
 		firstHitPreviewQueryHash(): string {
 			return this.active ? jsonStableStringify(this.firstHitPreviewQuery) : '';
 		},
-
-		annotations(): Options {
-			return customizeOptGroups(getAnnotationSubset(
-				UIStore.getState().results.shared.groupAnnotationIds,
-				this.annotationGroups,
-				this.annotationsMap,
-				'Search',
-				this,
-				CorpusStore.get.textDirection(),
-				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
-				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible
-			), this);
-		},
-		metadata(): Options {
-			const r = getMetadataSubset(
-				UIStore.getState().results.shared.groupMetadataIds,
-				this.metadataGroups,
-				this.metadataFieldsMap,
-				'Group',
-				this,
-				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
-				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
-				corpusCustomizations.search.metadata.showField
-			);
-			const result = [
-				...r,
-				{
-					label: this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
-					options: this.tagAttributes,
-				} as OptGroup
-			];
-			return customizeOptGroups(result, this);
-		},
-
 		contextsize(): number {
 			let params = SearchModule.get.blacklabParameters();
 			if (!isHitParams(params))
@@ -391,7 +383,7 @@ export default Vue.extend({
 				});
 			return result;
 		},
-		tagAttributes() {
+		tagAttributes(): Option[] {
 			/** Check if we should add this tag+attr option, and if so, add it. */
 			const optAdd = (tagName: string, attributeName: string, listName?: string) => {
 				// Check custom method to see if we should include this attribute
@@ -464,9 +456,7 @@ export default Vue.extend({
 				this.relationNames.includes(this.selectedCriterium.context.label)
 		},
 
-		mainSearchField(): string {
-			return this.results?.summary.pattern?.fieldName ?? '';
-		},
+		mainSearchField(): string { return QueryStore.get.sourceField().id; },
 
 		colors(): Record<string, TokenHighlight> {
 			return this.hits ? getHighlightColors(this.hits.summary) : {};
@@ -643,6 +633,13 @@ export default Vue.extend({
 						const selectedContext = this.selectedCriteriumAsContext.context as ContextLabel;
 						const selectedLabel = selectedContext.label;
 						// When contextOptions has updated, we need to check if the selected label is still in the list.
+						// The reason we need to do this is that when the user selects a different field
+						// The relations might not be available in the new field.
+						// So we need to clear the value
+						// We can't rely on the Selectpicker component to do this
+						// because if we would make that reject unknown values
+						// it would clear the value when results are still pending
+						// (as the relations are not available yet)
 						Vue.nextTick(() => {
 							const opt = this.contextOptions.find(o => {
 								if (typeof o === 'string') {
@@ -771,20 +768,10 @@ export default Vue.extend({
 		isParallel(): boolean { return CorpusStore.get.isParallelCorpus() ?? false; },
 
 		parallelVersionOptions(): Option[] {
-			// First gather all parallel fields involved in the current search.
-			/** The complete names of the (parallel) fields involved in the query names, e.g. ["contents__en", "contents__nl"] */
-			const fieldNames: string[] = [];
-			fieldNames.push(this.mainSearchField);
-			if (this.hits?.summary.pattern?.otherFields)
-				fieldNames.push(...this.hits.summary.pattern.otherFields);
-
-			// Now we have the full field names, map them to their localized display names.
-			// For this we need the underlying field objects from the corpus.
-			const fields = CorpusStore.get.allAnnotatedFieldsMap();
-			return fieldNames.map(name => fields[name]).map<Option>(field => ({
+			return [QueryStore.get.sourceField(), ...QueryStore.get.targetFields()].map(field => ({
 				value: field.id,
 				label: this.$tAnnotatedFieldDisplayName(field)
-			}))
+			}));
 		}
 	},
 	methods: {
@@ -903,7 +890,6 @@ export default Vue.extend({
 			const target = this.relationTargetInThisField(matchInfoDef);
 			return source == target ? undefined : (source ? 'source' : 'target');
 		},
-
 	},
 	watch: {
 		storeValue: {

@@ -320,11 +320,13 @@ export function isValidGroupBy(g: GroupBy): boolean {
 	return true;
 }
 
+// Take care that groups passed in here don't conform to the corpus
+// As we don't validate the groups upfront while decoding the url.
 export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<string, NormalizedAnnotation>, metadata: Record<string, NormalizedMetadataField>): string {
 	if (g.type === 'context') {
 		if (!g.annotation)
 			return i18n.$t('results.groupBy.specify').toString();
-		const field = i18n.$tAnnotDisplayName(annotations[g.annotation]);
+		const field = i18n.$tAnnotDisplayName(g.annotation in annotations ? annotations[g.annotation] : {id: g.annotation, defaultDisplayName: g.annotation});
 
 		if (g.context.type === 'label')
 			return i18n.$t('results.groupBy.summary.labelledWord', {field, label: g.context.label}).toString();

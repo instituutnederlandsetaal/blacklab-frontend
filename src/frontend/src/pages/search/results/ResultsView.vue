@@ -108,16 +108,32 @@
 				/>
 			</div>
 		</template>
-		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
+		<div v-else-if="error != null" class="no-results-found">
+			<span class="fa fa-exclamation-triangle text-danger"></span><br>
+			<div v-html="error" style="text-align: initial;"></div>
+			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty();">{{ $t('results.resultsView.tryAgain') }}</button>
+		</div>
 		<div v-else-if="!valid" class="no-results-found">
 			{{ $t('results.resultsView.inactiveView') }}
 		</div>
-		<div v-else-if="error != null" class="no-results-found">
-			<span class="fa fa-exclamation-triangle text-danger"></span><br>
-			<span v-html="error"></span>
-			<br>
-			<br>
-			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty();">{{ $t('results.resultsView.tryAgain') }}</button>
+		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
+		<!-- Allow the user to clear grouping or pagination if something's wrong. -->
+		<div v-if="!(resultComponentData && cols && renderDisplaySettings)">
+			<GroupBy v-if="groupBy.length"
+				:type="id"
+				:results="results"
+				:disabled="!!request"
+			/>
+			<Pagination v-if="pagination.shownPage != 0"
+				style="display: block;"
+
+				:page="pagination.shownPage"
+				:maxPage="pagination.maxShownPage"
+				:disabled="!!request"
+
+				@change="page = $event"
+			/>
+
 		</div>
 	</div>
 </template>
@@ -398,8 +414,8 @@ export default Vue.extend({
 				};
 			}
 
-			const pageSize = this.results!.summary.requestedWindowSize;
-			const shownPage = Math.floor(this.results!.summary.windowFirstResult / pageSize);
+			const pageSize = r.summary.requestedWindowSize;
+			const shownPage = Math.floor(r.summary.windowFirstResult / pageSize);
 			const totalResults =
 				BLTypes.isGroups(r) ? r.summary.numberOfGroups :
 				BLTypes.isHitResults(r) ? r.summary.numberOfHitsRetrieved :
@@ -411,7 +427,7 @@ export default Vue.extend({
 
 			return {
 				shownPage,
-				maxShownPage: pageCount
+				maxShownPage: pageCount >= shownPage ? pageCount : shownPage,
 			};
 		},
 

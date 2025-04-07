@@ -83,27 +83,17 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, Object
 const getState = b.state();
 
 const get = {
-	sourceField: b.read((state): CorpusModule.NormalizedAnnotatedField|undefined => {
-		return CorpusModule.get.allAnnotatedFieldsMap()[get.annotatedFieldName() ?? ''] ?? CorpusModule.get.mainAnnotatedField();
+	sourceField: b.read((state): CorpusModule.NormalizedAnnotatedField => {
+		let sourceField: string|undefined|null;
+		if (state.form === 'search') sourceField = state.shared.source;
+		else if (state.form === 'explore') sourceField = state.shared.source;
+		return CorpusModule.get.allAnnotatedFieldsMap()[sourceField ?? ''] ?? CorpusModule.get.mainAnnotatedField();
 	}, 'sourceField'),
 	targetFields: b.read((state): NormalizedAnnotatedFieldParallel[] => {
 		const allFields = CorpusModule.get.allAnnotatedFieldsMap();
 		return state.shared?.targets?.map(t => allFields[t]).filter(f => f.isParallel) ?? [];
 	}, 'targetFields'),
 
-	/**
-	 * Return the sourceField of the query.
-	 * We only return a value here for parallel corpora.
-	 * In all other cases, we let BlackLab decide the main search field.
-	 * (In practice it will be the mainAnnotatedField)
-	 */
-	annotatedFieldName: b.read((state): string|undefined => {
-		switch (state.form) {
-			case 'search': return state.shared.source || undefined;
-			case 'explore': return undefined; // always use default field.
-			default: return undefined;
-		}
-	}, 'annotatedFieldName'),
 	patternString: b.read((state, getters, rootState): string|undefined => {
 		if (!state.subForm) return undefined;
 
