@@ -608,10 +608,7 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 
 	const r = subset.map<AppTypes.OptGroup&{entries: T[]}>(group => ({
 		options: group.entries
-			.filter(e => {
-				const result = showFieldFunction?.(e.id) ?? null;
-				return result === null ? true : result;
-			})
+			.filter(e => showFieldFunction?.(e.id) ?? true)
 			.flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),
 		entries: group.entries,
 		label: i18n.$tMetaGroupName(group.id)

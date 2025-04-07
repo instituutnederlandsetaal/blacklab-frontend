@@ -11,7 +11,6 @@
 				:highlight="col.field !== 'annotation'"
 				:before="col.field === 'before'"
 				:after="col.field === 'after'"
-				:punct="col.field !== 'annotation'"
 				:annotation="col.annotation.id"
 				:html="info.html"
 				:dir="row.dir"
