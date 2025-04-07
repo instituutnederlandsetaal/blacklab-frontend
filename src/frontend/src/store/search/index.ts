@@ -120,7 +120,6 @@ const get = {
 
 const privateActions = {
 	setLoadingState: b.commit((state, newState: Pick<RootState, 'loadingState'|'loadingMessage'>) => {
-		console.log(`Setting loading state to ${newState.loadingState} with message: ${newState.loadingMessage}`);
 		return Object.assign(state, newState);
 	}, 'setLoadingState'),
 }
@@ -378,7 +377,6 @@ const init = async () => {
 
 		return true;
 	} catch (e: any) {
-		console.log(e);
 		if (e instanceof ApiError) {
 			if (e.httpCode === 401) {
 				privateActions.setLoadingState({loadingState: 'requiresLogin', loadingMessage: e.message});
@@ -386,7 +384,6 @@ const init = async () => {
 				privateActions.setLoadingState({loadingState: 'unauthorized', loadingMessage: e.message});
 			} else if (e.httpCode === 404) {
 				// Not found. May not be configured correctly.
-				console.log(`ApiError: ${JSON.stringify(e)}`);
 				if (e.title === 'CANNOT_OPEN_INDEX' || e.message.indexOf('CANNOT_OPEN_INDEX') !== -1) {
 					// Corpus not found
 					privateActions.setLoadingState({loadingState: 'error', loadingMessage:
@@ -413,6 +410,7 @@ const init = async () => {
 			}
 		} else {
 			// Non-API error. Show message.
+			console.error('Error initializing store', e);
 			privateActions.setLoadingState({loadingState: 'error', loadingMessage: e.message ?? e.toString()});
 		}
 		return false;

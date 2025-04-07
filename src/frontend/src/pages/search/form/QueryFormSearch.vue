@@ -236,7 +236,6 @@ export default ParallelFields.extend({
 			const field = (this.isParallelCorpus ? PatternStore.getState().shared.source : undefined)
 				?? CorpusStore.get.mainAnnotatedField();
 			const id = UIStore.getState().search.simple.searchAnnotationId;
-			console.log(field, id);
 			return CorpusStore.get.allAnnotatedFieldsMap()[field]?.annotations[id]
 				|| CorpusStore.get.firstMainAnnotation();
 		},

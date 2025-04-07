@@ -353,9 +353,7 @@ export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<strin
 		if (meta.type === 'span-attribute') {
 			// Span-level metadata
 			const filterId = spanFilterId(meta.spanName, meta.attributeName);
-			console.log('filterId', filterId);
 			const filter = FilterModule.getState().filters[filterId] ?? {id: filterId};
-			console.log('filter', JSON.stringify(filter));
 			return filter ?
 				i18n.$tMetaDisplayName(filter).toString() :
 				i18n.$tSpanAttributeDisplay(meta.spanName, meta.attributeName).toString();
