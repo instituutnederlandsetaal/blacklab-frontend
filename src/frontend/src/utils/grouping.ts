@@ -370,3 +370,13 @@ export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<strin
 	}
 }
 
+export function humanizeSerializedGroupBy<T extends string|string[]>(
+	i18n: Vue,
+	g: T,
+	annotations: Record<string, NormalizedAnnotation>,
+	metadata: Record<string, NormalizedMetadataField>
+): T {
+	const r = [g].flat().map(g => humanizeGroupBy(i18n, parseGroupBy([g])[0], annotations, metadata));
+	// @ts-ignore
+	return Array.isArray(g) ? r : r[0];
+}
