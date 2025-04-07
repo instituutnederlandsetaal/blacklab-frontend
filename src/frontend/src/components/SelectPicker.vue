@@ -155,7 +155,7 @@
 						<span v-else class="menu-value">{{o.label || ' '}}</span>
 						<span v-if="multiple && internalModel[o.value]" class="menu-icon fa fa-check"/>
 					</li>
-					<li v-else-if="o.type === 2"
+					<li v-else-if="o.type === 2 && o.label"
 						:class="{
 							'menu-group': true,
 							'disabled': o.disabled,
