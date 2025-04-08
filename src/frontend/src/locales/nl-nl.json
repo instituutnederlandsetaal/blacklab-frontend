@@ -236,7 +236,7 @@
 			"tipClickOnHighlightedWords": "Tip: klik op uitgelichte woorden om te groeperen op syntactische relaties.",
 
 			"caseSensitive": "Hoofdlettergevoelig",
-			"chooseWordPositions": "Kies hier de <strong>specifieke woorden</strong> om op te groeperen, in het voorbeeld hieronder ziet u welke woorden zijn geselecteerd.",
+			"chooseWordPositions": "Kies hier de <strong>specifieke woorden</strong> om op te groeperen, in de voorbeeldzin ziet u welke woorden zijn geselecteerd.",
 			"selectDocumentMetadata": "Kies de waarde om op te groeperen.",
 			"clickButtonsToStart": "Hier kunt u een groepering toepassen op de resultaten. Klik op de knoppen Metadata of Annotatie om groepeercriteria te definiëren.",
 			"metadata": "Metadata",

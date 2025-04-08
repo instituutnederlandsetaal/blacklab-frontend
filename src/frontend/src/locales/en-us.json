@@ -233,7 +233,7 @@
 			"tipClickOnHighlightedWords": "Tip: click on highlighted words for syntactic grouping.",
 
 			"caseSensitive": "Case sensitive",
-			"chooseWordPositions": "Choose the <strong>specific word</strong> positions to group on here, the preview at the top will show you which words you have selected.",
+			"chooseWordPositions": "Choose the <strong>specific word</strong> positions to group on here, the preview sentence will show you which words you have selected.",
 			"selectDocumentMetadata": "Select the metadata to group on.",
 			"clickButtonsToStart": "Click on Annotation or Metadata to define grouping criteria.",
 			"metadata": "Metadata",
