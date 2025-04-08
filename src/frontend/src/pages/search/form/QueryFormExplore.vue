@@ -47,6 +47,12 @@
 			</div>
 			<div id="explore-n-grams" :class="['tab-pane form-horizontal', {'active': exploreMode==='ngram'}]">
 				<div class="form-group">
+					<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('search.parallel.inSourceVersion') }}</label>
+					<div class="col-xs-8">
+						<ParallelSource v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+					</div>
+				</div>
+				<div class="form-group">
 					<label class="col-xs-4 col-md-2" for="n-gram-size">{{$t('explore.ngram.ngramSize')}}</label>
 					<div class="col-xs-8 col-md-5">
 						<input
@@ -140,6 +146,10 @@
 			</div>
 			<div id="explore-frequency" :class="['tab-pane form-horizontal', {'active': exploreMode==='frequency'}]">
 				<div class="form-group form-group-lg" style="margin: 0;">
+					<label class="control-label">{{ $t('search.parallel.inSourceVersion') }}</label>
+					<ParallelSource v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+				</div>
+				<div class="form-group form-group-lg" style="margin: 0;">
 					<label for="frequency-type" class="control-label">{{$t('explore.frequency.frequencyType')}}</label>
 					<SelectPicker
 						data-id="frequency-type"
@@ -170,17 +180,23 @@ import * as UIStore from '@/store/search/ui';
 import SelectPicker, {Option, OptGroup} from '@/components/SelectPicker.vue';
 import Autocomplete from '@/components/Autocomplete.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
+import ParallelSource from '@/pages/search/form/ParallelSource.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { blacklabPaths } from '@/api';
 
 import debug from '@/utils/debug';
 import { corpusCustomizations } from '@/utils/customization';
+import ParallelFields from './parallel/ParallelFields';
 
-export default Vue.extend({
+export default ParallelFields.extend({
 	components: {
+		ParallelSource,
 		SelectPicker,
 		Autocomplete,
 		Lexicon
+	},
+	props: {
+		errorNoParallelSourceVersion: {default: false, type: Boolean},
 	},
 	data: () => ({
 		debug

@@ -16,6 +16,7 @@
 				:class="{
 					'col-xs-12': true
 				}"
+				:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
 			/>
 
 			<!-- TODO this is a bit dumb, only show the hr when the filters and pattern form are below each other, but that's rather conditional... -->
@@ -96,13 +97,20 @@ export default Vue.extend({
 			get: InterfaceStore.get.form,
 			set: InterfaceStore.actions.form
 		},
+		exploreMode: {
+			get: InterfaceStore.get.exploreMode,
+			set: InterfaceStore.actions.exploreMode
+		},
 	},
 	methods: {
 		reset: RootStore.actions.reset,
 		submit() {
-			if (CorpusStore.get.isParallelCorpus()) {
-				if ( this.activeForm === 'search' && PatternStore.getState().shared.source === null) {
-					// Alert the user that they need to select a source version
+			if (CorpusStore.get.isParallelCorpus() && PatternStore.getState().shared.source === null) {
+				// No source version selected. Required for most operations.
+				const needsSource = this.activeForm === 'search' ||
+					(this.activeForm === 'explore' && (this.exploreMode === 'ngram' || this.exploreMode === 'frequency'));
+				if (needsSource) {
+					// Source is required. Alert the user that they need to select a source version
 					this.errorNoParallelSourceVersion = true;
 					setTimeout(() => this.errorNoParallelSourceVersion = false, 3000);
 					return;
