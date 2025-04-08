@@ -4,9 +4,27 @@ import { HighlightSection } from '@/pages/search/results/table/hit-highlighting'
 import { spanFilterId } from '@/utils';
 
 const unwrappedImplementation = Symbol('unwrappedImplementation');
-const isProxied = Symbol('proxyMark');
+const isProxiedSym = Symbol('proxyMark');
 const dontProxyMe = Symbol('dontProxyMe');
 
+
+function mark(obj: any, marker: symbol) {
+	if (typeof obj === 'object' && obj !== null && !Object.isFrozen(obj) && !(isProxiedSym in obj) && !(dontProxyMe in obj)) {
+		Object.defineProperty(obj, marker, {
+			value: true,
+			enumerable: false,
+			configurable: false,
+			writable: false
+		});
+	}
+	return obj;
+}
+// Check if the value is already proxied to avoid re-wrapping
+// And some things we don't want to proxy
+function canAndShouldProxy(obj: any): obj is object {
+	return typeof obj === 'object' && obj !== null && !Object.isFrozen(obj) && !(isProxiedSym in obj) && !(dontProxyMe in obj);
+}
+function dontProxy<T>(obj: T): T { return mark(obj, dontProxyMe); }
 /**
  * Looks scary, is pretty mundane really
  * Recursively wrap everything in the object in a getter/setter pair.
@@ -22,24 +40,13 @@ const dontProxyMe = Symbol('dontProxyMe');
  */
 function wrapWithErrorHandling<T extends object>(obj: T) {
 	// Mark the proxied object to avoid re-proxying
-	Object.defineProperty(obj, isProxied, {
-		value: true,
-		enumerable: false,
-		configurable: false,
-		writable: false
-	});
+	mark(obj, isProxiedSym);
 	return new Proxy(obj, {
 		get(target, prop, receiver) {
 			let value = Reflect.get(target, prop, receiver);
 			// Before we return a nested array/object, make sure it's wrapped,
 			// otherwise this proxy won't be called when properties in that object are accessed.
-			if (
-				typeof value === 'object' && value !== null /* js-ism: typeof null === 'object' */ &&
-				// Check if the value is already proxied to avoid re-wrapping
-				// And some things we don't want to proxy
-				!(dontProxyMe in value) &&
-				!(isProxied in value)
-			) {
+			if (canAndShouldProxy(value)) {
 				value = wrapWithErrorHandling(value);
 				Reflect.set(target, prop, value, receiver);
 			}
@@ -48,7 +55,10 @@ function wrapWithErrorHandling<T extends object>(obj: T) {
 		set(this: any, target, prop, newValue, receiver) {
 			let currentValue: any = Reflect.get(target, prop, receiver);
 			if (typeof currentValue !== 'function' || typeof newValue !== 'function') {
-				Reflect.set(target, prop, newValue, receiver); // return true/false,NOT new value!
+				// Not a function we should wrap, just save the value.
+				Reflect.set(target, prop, newValue, receiver);
+				// propagate the dontProxyMe marker to the new value
+				if (currentValue[dontProxyMe]) mark(newValue, dontProxyMe);
 				return newValue;
 			}
 
@@ -70,19 +80,6 @@ function wrapWithErrorHandling<T extends object>(obj: T) {
 		},
 	});
 }
-
-function dontProxy<T extends object>(t: T): T {
-	if (typeof t === 'object' && t !== null) {
-		Object.defineProperty(t, dontProxyMe, {
-			value: true,
-			enumerable: false,
-			configurable: false,
-			writable: false
-		})
-	}
-	return t;
-}
-
 
 /**
  * This object contains any customization "hook" functions for this corpus.
