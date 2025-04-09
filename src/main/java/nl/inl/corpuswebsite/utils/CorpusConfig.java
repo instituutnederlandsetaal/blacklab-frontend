@@ -203,7 +203,13 @@ public class CorpusConfig {
             if (propertyElements.getLength() == 0) {
                 propertyElements = annotatedFieldElement.getElementsByTagName("annotation"); // since blacklab 2.0
             }
-            String mainPropertyName = annotatedFieldElement.getElementsByTagName("mainProperty").item(0).getTextContent();
+            if (propertyElements.getLength() == 0) {
+                NodeList annots = propertyElements = annotatedFieldElement.getElementsByTagName("annotations");
+                if (annots.getLength() > 0) {
+                    propertyElements = ((Element) annots.item(0)).getElementsByTagName("annotation");
+                }
+            }
+            String mainPropertyName = annotatedFieldElement.getElementsByTagName("mainAnnotation").item(0).getTextContent();
             for (int ip = 0; ip < propertyElements.getLength(); ++ip) {
                 Node propertyNode = propertyElements.item(ip);
                 if (!(propertyNode instanceof Element))
