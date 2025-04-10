@@ -17,7 +17,7 @@
 
 
 			<div class="result-buttons-layout">
-				<Pagination slot="pagination" v-if="20 <= (rows?.rows.length ?? 0)"
+				<Pagination slot="pagination"
 					:page="pagination.shownPage"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
