@@ -62,7 +62,7 @@ public class XslTransformer {
                 return ee.getMessageAndLocation();
             } else if (e instanceof XPathException) {
                 XPathException ee = (XPathException) e;
-                return ee.getErrorCodeLocalPart() + " in " + ee.getHostLanguage() + ": " + ee.getMessageAndLocation();
+                return ee.getErrorCodeQName().getLocalPart() + " in " + ee.getHostLanguage() + ": " + ee.getMessageAndLocation();
             } else {
                 return e.getMessageAndLocation();
             }
