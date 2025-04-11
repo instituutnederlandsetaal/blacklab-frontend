@@ -4,7 +4,7 @@ import { syncPropertyWithLocalStorage } from '@/utils/localstore';
 declare const process: any;
 let debug = Vue.observable({
 	debug: false,
-	debug_visible: DEBUG_INFO_VISIBLE || process.env.NODE_ENV === 'development',
+	debug_visible: (typeof DEBUG_INFO_VISIBLE !== 'undefined' ? DEBUG_INFO_VISIBLE : undefined) ?? process.env.NODE_ENV === 'development',
 });
 syncPropertyWithLocalStorage('cf/debug', debug, 'debug');
 
