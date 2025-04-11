@@ -138,7 +138,7 @@ export default Vue.component('GenericTable', {
 		}
 	},
 	watch: {
-		rows() { this.openRows = {}; }
+		query() { this.openRows = {}; }
 	}
 })
 </script>
