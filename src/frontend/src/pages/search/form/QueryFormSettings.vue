@@ -57,8 +57,18 @@
 		<hr>
 		<div class="checkbox-inline"><label for="wide-view"><input type="checkbox" id="wide-view" name="wide-view" v-model="wideView.value">{{$t('setting.wideView')}}</label></div>
 		<br>
-		<div v-if="debug.debug_visible || debug.debug" class="checkbox-inline"><label for="debug" class="text-muted"><input type="checkbox" id="debug" name="debug" v-model="debug.debug">{{ $t('setting.debug') }}</label></div>
 
+		<template v-if="debug.debug_visible || debug.debug">
+			<div class="checkbox-inline">
+				<label for="debug" class="text-muted">
+					<input type="checkbox" id="debug" name="debug" v-model="debug.debug">{{ $t('setting.debug') }}</label>
+				</div>
+			</div>
+			<br>
+			<button type="button" class="btn btn-sm btn-default" @click="debug.debug_visible = false; debug.debug = false">
+				{{ $t('setting.hideDebugUntilReload') }}
+			</button>
+		</template>
 	</Modal>
 
 </template>
@@ -78,7 +88,10 @@ import { localStorageSynced } from '@/utils/localstore';
 
 // outside component, want to always run this code, even when component is invisible.
 const wideView = localStorageSynced('cf/wideView', false);
-watch(wideView, v => $('.container, .container-fluid').toggleClass('container', !v).toggleClass('container-fluid', wideView.value));
+watch(() => wideView.value, v => document.querySelectorAll('.container, .container-fluid').forEach(el => {
+	el.classList.toggle('container', !v);
+	el.classList.toggle('container-fluid', !!v);
+}), {immediate: true});
 
 export default Vue.extend({
 	components: {

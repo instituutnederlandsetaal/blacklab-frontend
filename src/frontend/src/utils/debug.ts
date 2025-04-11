@@ -3,9 +3,10 @@ import { syncPropertyWithLocalStorage } from '@/utils/localstore';
 
 declare const process: any;
 let debug = Vue.observable({
-	debug: process.env.NODE_ENV === 'development',
-	debug_visible: (typeof DEBUG_INFO_VISIBLE !== 'undefined') ? DEBUG_INFO_VISIBLE || process.env.NODE_ENV === 'development' : false
+	debug: false,
+	debug_visible: DEBUG_INFO_VISIBLE || process.env.NODE_ENV === 'development',
 });
+syncPropertyWithLocalStorage('cf/debug', debug, 'debug');
 
 let queued: IArguments[] = [];
 
@@ -110,9 +111,6 @@ export function monitorRedraws() {
 }
 
 // only bind to localstorage if not running in development environment (as debug mode is always enabled when running from webpack)
-if (process.env.NODE_ENV !== 'development') {
-	syncPropertyWithLocalStorage('cf/debug', debug, 'debug');
-}
 
 export default debug;
 

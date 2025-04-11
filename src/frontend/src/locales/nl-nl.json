@@ -137,6 +137,7 @@
 		"context": "Contextgrootte",
 		"wideView": "Breedbeeld",
 		"debug": "Debuginfo",
+		"hideDebugUntilReload": "Verberg debug-informatie checkbox gedurende deze sessie",
 		"close": "Sluiten"
 	},
 	"queryForm": {

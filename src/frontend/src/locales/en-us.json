@@ -134,8 +134,9 @@
 		"sampleSizePercentage": "percentage",
 		"sampleSeed": "Seed",
 		"context": "Context size",
-		"wideView": " Wide View",
-		"debug": " Debug info",
+		"wideView": "Wide View",
+		"debug": "Debug info",
+		"hideDebugUntilReload": "Hide debug checkbox until next reload",
 		"close": "Close"
 	},
 	"queryForm": {

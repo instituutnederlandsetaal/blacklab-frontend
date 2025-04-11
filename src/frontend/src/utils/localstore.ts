@@ -1,4 +1,4 @@
-import Vue from 'vue';
+import Vue, { watch } from 'vue';
 
 class StorageWatcher {
 	private listeners: Map<string, ((newValue: any) => void)> = new Map();
@@ -33,7 +33,6 @@ class StorageWatcher {
 // It doesn't matter where the variable lives, it can be outside the Vue instance.
 // As long as it's reactive, this will work.
 // When migrating to vue 3, just use a ref or a library that does this for us...
-const watcher = new Vue();
 const storageWatcher = new StorageWatcher();
 
 const putNewValueInStorage = (key: string) => (newValue: any) => {
@@ -49,8 +48,8 @@ const putNewValueInStorage = (key: string) => (newValue: any) => {
 export function localStorageSynced<T>(storageKey: string, defaultValue: T, watchStorage = false): {value: T, isFromStorage: boolean} {
 	let isFromStorage = false;
 	if (localStorage.getItem(storageKey)) {
-		try { 
-			defaultValue = JSON.parse(localStorage.getItem(storageKey) as string); 
+		try {
+			defaultValue = JSON.parse(localStorage.getItem(storageKey) as string);
 			isFromStorage = true;
 		}
 		catch { console.error(`Failed to parse stored value for ${storageKey}`); }
@@ -60,7 +59,7 @@ export function localStorageSynced<T>(storageKey: string, defaultValue: T, watch
 		value: defaultValue,
 		isFromStorage,
 	});
-	watcher.$watch(() => v.value, putNewValueInStorage(storageKey));
+	watch(() => v.value, putNewValueInStorage(storageKey));
 	if (watchStorage) storageWatcher.addListener<T>(storageKey, newValue => {
 		v.isFromStorage = true;
 		v.value = newValue;
@@ -76,7 +75,7 @@ export function syncPropertyWithLocalStorage<T extends object, K extends keyof T
 	}
 
 	const v = Vue.observable(props);
-	watcher.$watch(() => v[prop], putNewValueInStorage(storageKey));
+	watch(() => v[prop], putNewValueInStorage(storageKey));
 	if (watchStorage) storageWatcher.addListener<T[K]>(storageKey, newValue => props[prop] = newValue);
 	return v;
 }
