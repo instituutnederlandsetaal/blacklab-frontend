@@ -406,20 +406,22 @@ export default Vue.extend({
 			shownPage: number,
 			maxShownPage: number
 		} {
-			const r: BLTypes.BLSearchResult|null = this.paginationResults || this.results;
-			if (r == null) {
+			// Take care to use this.results for page size, but this.paginationResults for total number of results.
+			// This is because pagination results are requested with a window size of 0!
+			if (!this.results || !this.paginationResults) {
 				return {
 					shownPage: 0,
 					maxShownPage: 0,
 				};
 			}
 
-			const pageSize = r.summary.requestedWindowSize;
-			const shownPage = Math.floor(r.summary.windowFirstResult / pageSize);
+			// use actual results - pagination results are requested with windows size 0 (!)
+			const pageSize = this.results.summary.requestedWindowSize;
+			const shownPage = Math.floor(this.results.summary.windowFirstResult / pageSize);
 			const totalResults =
-				BLTypes.isGroups(r) ? r.summary.numberOfGroups :
-				BLTypes.isHitResults(r) ? r.summary.numberOfHitsRetrieved :
-				r.summary.numberOfDocsRetrieved;
+				BLTypes.isGroups(this.paginationResults) ? this.paginationResults.summary.numberOfGroups :
+				BLTypes.isHitResults(this.paginationResults) ? this.paginationResults.summary.numberOfHitsRetrieved :
+				this.paginationResults.summary.numberOfDocsRetrieved;
 
 			// subtract one page if number of results exactly diactive by page size
 			// e.g. 20 results for a page size of 20 is still only one page instead of 2.
