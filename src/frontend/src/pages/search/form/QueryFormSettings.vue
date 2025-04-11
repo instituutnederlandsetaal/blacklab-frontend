@@ -60,9 +60,7 @@
 
 		<template v-if="debug.debug_visible || debug.debug">
 			<div class="checkbox-inline">
-				<label for="debug" class="text-muted">
-					<input type="checkbox" id="debug" name="debug" v-model="debug.debug">{{ $t('setting.debug') }}</label>
-				</div>
+				<label for="debug" class="text-muted"><input type="checkbox" id="debug" name="debug" v-model="debug.debug">{{ $t('setting.debug') }}</label>
 			</div>
 			<br>
 			<button type="button" class="btn btn-sm btn-default" @click="debug.debug_visible = false; debug.debug = false">
@@ -87,7 +85,7 @@ import debug from '@/utils/debug';
 import { localStorageSynced } from '@/utils/localstore';
 
 // outside component, want to always run this code, even when component is invisible.
-const wideView = localStorageSynced('cf/wideView', false);
+export const wideView = localStorageSynced('cf/wideView', false);
 watch(() => wideView.value, v => document.querySelectorAll('.container, .container-fluid').forEach(el => {
 	el.classList.toggle('container', !v);
 	el.classList.toggle('container-fluid', !!v);

@@ -1,6 +1,6 @@
 <template>
 
-	<div class="container">
+	<div :class="wideView.value ? 'container-fluid' : 'container'">
 		<template v-if="loadingState === 'loaded'">
 			<QueryForm/>
 			<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary"/>
@@ -37,6 +37,8 @@ import Results from '@/pages/search/results/Results.vue';
 import PageGuide from '@/pages/search/PageGuide.vue';
 import Spinner from '@/components/Spinner.vue';
 
+import {wideView} from '@/pages/search/form/QueryFormSettings.vue';
+
 export default Vue.extend({
 	components: {
 		QueryForm,
@@ -45,6 +47,7 @@ export default Vue.extend({
 		PageGuide,
 		Spinner
 	},
+	data: () => ({ wideView, }),
 	computed: {
 		loadingState() { return RootStore.get.status().status; },
 		loadingMessage() { return RootStore.get.status().message; },
