@@ -22,6 +22,7 @@ import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.event.EventCartridge;
 import org.apache.velocity.app.event.ReferenceInsertionEventHandler;
+import org.apache.velocity.context.Context;
 import org.apache.velocity.tools.generic.DateTool;
 import org.apache.velocity.tools.generic.EscapeTool;
 
@@ -160,16 +161,14 @@ public abstract class BaseResponse {
                  * @param value the resolved value
                  */
                 @Override
-                public Object referenceInsert(String expression, Object value) {
+                public Object referenceInsert(Context context, String expression, Object value) {
                     boolean escape = !expression.toLowerCase().contains("unescaped");
                     String val = value != null ? value.toString() : "";
-
                     return escape ? esc.html(val) : val;
                 }
             });
             model.attachEventCartridge(cartridge);
         }
-
     }
 
     /**

@@ -51,6 +51,7 @@ import { BLSearchResult, hasPatternInfo } from '@/types/blacklabtypes';
 import * as UIStore from '@/store/ui';
 import { debugLog } from '@/utils/debug';
 import { ensureCompleteFieldName } from '@/utils';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	props: {
@@ -83,7 +84,7 @@ export default Vue.extend({
 				const field = CorpusStore.get.allAnnotatedFieldsMap()[name];
 				return this.$tAnnotatedFieldDisplayName(field);
 			}
-			(params as any).csvdescription = UIStore.corpusCustomizations.results.csvDescription(this.results.summary, fieldDisplayName) || '';
+			(params as any).csvdescription = corpusCustomizations.results.csvDescription(this.results.summary, fieldDisplayName) || '';
 
 			const apir = apiCall(CorpusStore.get.indexId()!, params);
 

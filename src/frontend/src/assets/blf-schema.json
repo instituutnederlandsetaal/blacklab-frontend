@@ -87,7 +87,7 @@
             "saxon",
             "vtd"
           ],
-          "description": "Which xml processor to use. Defaults to vtd. See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#xpath-support-level"
+          "description": "Which xml processor to use. Defaults to vtd. See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#xpath-support-level"
         },
         "namespaces": {
           "type": "object",
@@ -2203,19 +2203,19 @@
                         },
                         "spanStartPath": {
                           "type": "string",
-                          "description": "See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations"
+                          "description": "See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations"
                         },
                         "spanEndPath": {
                           "type": "string",
-                          "description": "See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations"
+                          "description": "See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations"
                         },
                         "spanEndIsInclusive": {
                           "type": "boolean",
-                          "description": "See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations"
+                          "description": "See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations"
                         },
                         "spanNamePath": {
                           "type": "string",
-                          "description": "See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations"
+                          "description": "See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations"
                         },
                         "annotations": {
                           "type": "array",
@@ -3247,7 +3247,7 @@
                         "annotations"
                       ],
                       "additionalProperties": false,
-                      "description": "See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations"
+                      "description": "See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations"
                     },
                     {
                       "type": "object",
@@ -3276,7 +3276,7 @@
                     }
                   ]
                 },
-                "description": "Standoff annotations are annotations that are specified in a different part of the document. See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations"
+                "description": "Standoff annotations are annotations that are specified in a different part of the document. See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations"
               },
               "inlineTags": {
                 "type": "array",
@@ -4048,7 +4048,7 @@
             ],
             "additionalProperties": false
           },
-          "description": "See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#linking-to-external-document-metadata"
+          "description": "See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#linking-to-external-document-metadata"
         },
         "corpusConfig": {
           "type": "object",
@@ -4158,7 +4158,7 @@
             }
           },
           "additionalProperties": false,
-          "description": "See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#corpus-metadata"
+          "description": "See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#corpus-metadata"
         },
         "store": {
           "type": "boolean",

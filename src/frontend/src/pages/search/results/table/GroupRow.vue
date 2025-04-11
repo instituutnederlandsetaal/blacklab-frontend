@@ -1,6 +1,6 @@
 <template>
 	<tr class="grouprow">
-		<td v-for="col in cols.groupColumns" :key="col.key" :colspan="col.colspan">
+		<td v-for="col in cols.groupColumns" :key="col.key" :colspan="col.colspan" :class="col.class" :style="col.style">
 			<div v-if="col.barField" class="progress group-size-indicator">
 				<div class="progress-bar progress-bar-primary" :style="barStyle(col)">
 					{{row[col.labelField]?.toLocaleString() ?? $t('results.groupBy.groupNameWithoutValue')}}
@@ -15,13 +15,12 @@
 import Vue from 'vue';
 
 import frac2Percent from '@/mixins/fractionalToPercent';
-import { ColumnDefGroup, ColumnDefs, GroupRowData, Maxima } from '@/pages/search/results/table/table-layout';
+import { ColumnDefGroup, GroupRowData, } from '@/pages/search/results/table/table-layout';
+import IRow from '@/pages/search/results/table/IRow.vue';
 
-export default Vue.component('GroupRow', {
+export default Vue.component('GroupRow', IRow.extend({
 	props: {
 		row: Object as () => GroupRowData,
-		cols: Object as () => ColumnDefs,
-		maxima: Object as () => Maxima
 	},
 	methods: {
 		frac2Percent,
@@ -37,7 +36,7 @@ export default Vue.component('GroupRow', {
 			return v.toLocaleString();
 		}
 	},
-});
+}));
 </script>
 
 <style lang="scss">

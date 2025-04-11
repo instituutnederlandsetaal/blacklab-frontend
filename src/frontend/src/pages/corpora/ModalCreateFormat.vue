@@ -54,7 +54,7 @@
 
 		</div>
 		<template #footer>
-			<h5 class="pull-left"><span class="fa fa-question-circle text-muted"></span> <a href="http://inl.github.io/BlackLab/how-to-configure-indexing.html" target="_blank" style="font-weight: bold">How to write your own format</a></h5>
+			<h5 class="pull-left"><span class="fa fa-question-circle text-muted"></span> <a href="https://blacklab.ivdnt.org//how-to-configure-indexing.html" target="_blank" style="font-weight: bold">How to write your own format</a></h5>
 		</template>
 	</Modal>
 </template>

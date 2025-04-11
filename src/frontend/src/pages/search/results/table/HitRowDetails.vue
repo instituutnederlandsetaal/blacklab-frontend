@@ -80,11 +80,12 @@
 <script lang="ts">
 import Vue from 'vue';
 
+import IRow from '@/pages/search/results/table/IRow.vue';
 import * as BLTypes from '@/types/blacklabtypes';
 
 import { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
-import { ColumnDefs, DisplaySettingsForRendering, HitRowData, snippetParts } from './table-layout';
+import { HitRowData, snippetParts } from './table-layout';
 import DepTree from '@/pages/search/results/table/DepTree.vue';
 import Spinner from '@/components/Spinner.vue';
 
@@ -94,36 +95,13 @@ import * as Api from '@/api';
 import { debugLog } from '@/utils/debug';
 
 /** TODO disconnect from the store? */
-export default Vue.component('HitRowDetails', {
+export default Vue.component('HitRowDetails', IRow.extend({
 	components: {
 		HitContext,
 		DepTree,
 		Spinner
 	},
-	props: {
-		row: Object as () => HitRowData,
-		cols: Object as () => ColumnDefs,
-		info: Object as () => DisplaySettingsForRendering,
-
-		// data: Object as () => HitRowData,
-
-		// mainAnnotation: Object as () => NormalizedAnnotation,
-		// detailedAnnotations: Array as () => NormalizedAnnotation[]|undefined,
-		// /** What properties/annotations to show for tokens in the deptree, e.g. lemma, pos, etc. */
-		// depTreeAnnotations: Object as () => Record<'lemma'|'upos'|'xpos'|'feats', NormalizedAnnotation|null>,
-
-		// html: Boolean,
-		colspan: Number,
-		// dir: String as () => 'ltr'|'rtl',
-
-		open: Boolean,
-
-		// // which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
-		hoverMatchInfos: {
-			type: Array as () => string[],
-			default: () => [],
-		},
-	},
+	props: { row: Object as () => HitRowData, },
 	data: () => ({
 		sentenceRequest: null as null|Promise<any>,
 		sentence: null as null|BLTypes.BLHit,
@@ -255,7 +233,7 @@ export default Vue.component('HitRowDetails', {
 			this.sentenceShown = false;
 		}
 	},
-});
+}));
 </script>
 
 <style lang="scss">

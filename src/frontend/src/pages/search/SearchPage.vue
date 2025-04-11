@@ -1,5 +1,5 @@
 <template>
-	<div>
+	<div :class="wideView.value ? 'container-fluid' : 'container'">
 		<QueryForm/>
 		<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary"/>
 		<Debug v-if="resultsVisible">
@@ -23,6 +23,8 @@ import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 import Results from '@/pages/search/results/Results.vue';
 import Spinner from '@/components/Spinner.vue';
 
+import {wideView} from '@/pages/search/form/QueryFormSettings.vue';
+
 export default Vue.extend({
 	components: {
 		QueryForm,
@@ -30,6 +32,7 @@ export default Vue.extend({
 		Results,
 		Spinner
 	},
+	data: () => ({ wideView, }),
 	computed: {
 		resultsVisible(): boolean { return InterfaceStore.getState().viewedResults != null; },
 		debugQuery: RootStore.get.blacklabParameters

@@ -6,6 +6,7 @@ import { GlossFieldDescription } from '@/store/form/glossStore';
 import * as Highlights from './hit-highlighting';
 
 import { KeysOfType } from '@/types/helpers';
+import { StyleValue } from 'vue';
 
 
 /**
@@ -35,6 +36,8 @@ export interface GroupRowData {
 	type: 'group';
 	/** ID of the group in BlackLab. */
 	id: string;
+	/** Hack to make typescript happy. Unused */
+	hit_id?: undefined;
 	/** Size of the group. */
 	size: number;
 	/** Display name of the group. */
@@ -292,7 +295,7 @@ function flatten(part: BLHitSnippetPart|undefined, punctuationSettings: {punctAf
 	/** The result array */
 	const r: HitToken[] = [];
 	const length = part.punct.length;
-	for (let i = 0; i < part.punct.length; i++) {
+	for (let i = 0; i < length; i++) {
 		// punctuation is the punctuation/whitespace BEFORE the current word. There is always one more punctuation than there are words in a document (fencepost problem).
 		const punct = (i === length - 1 ? punctuationSettings.punctAfterLastWord : part.punct[i+1]) || '';
 		const token: HitToken = {punct, annotations: {}};
@@ -321,7 +324,7 @@ function flatten(part: BLHitSnippetPart|undefined, punctuationSettings: {punctAf
 export function snippetParts(hit: BLHit|BLHitSnippet, colors?: Record<string, TokenHighlight>): HitContext {
 	// NOTE: the original BLS API was designed before RTL support and uses left/right to mean before/after.
 	//       the new BLS API correctly uses before/after, which makes sense for both LTR and RTL languages.
-	const before = flatten(hit.left, {punctAfterLastWord: hit.match.punct[0]});
+	const before = flatten(hit.left, {punctAfterLastWord: hit.match.punct?.[0] ?? ''});
 	const match = flatten(hit.match, {});
 	const after = flatten(hit.right, {firstPunct: true});
 
@@ -381,9 +384,9 @@ export type DisplaySettingsForRendering = {
 	groupDisplayMode: 'table'|'docs'|'hits'|'relative docs'|'relative hits'|'tokens';
 
 	/** See hasCustomHitInfo in the UI store. we don't use the store directly to simplify unit-testing. */
-	hasCustomHitInfoColumn: (results: BLHitResults, isParallelCoprus: boolean) => boolean;
+	hasCustomHitInfoColumn: (results: BLSearchResult, isParallelCoprus: boolean) => boolean;
 	/** See getCustomHitInfo in UI store. We don't use the store directly to simplify unit-testing. */
-	getCustomHitInfo: (hit: BLHit|BLHitSnippet|BLHitInOtherField, annotatedFieldDisplayName: string) => string|null;
+	getCustomHitInfo: (hit: BLHit|BLHitSnippet|BLHitInOtherField, annotatedFieldDisplayName: string, doc: BLDoc) => string|null;
 }
 
 export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'|'targetFields'>
@@ -441,7 +444,8 @@ export type DocRowData = {
 	summary: string;
 	href: string;
 	doc: BLDoc,
-	hits?: HitRowData[]
+	hits?: HitRowData[],
+	hit_id?: undefined
 };
 
 function start(hit: BLHit): number;
@@ -492,7 +496,7 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		hit_first_word_id: '',
 		hit_last_word_id: '',
 
-		customHitInfo: info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field)) ?? ''
+		customHitInfo: (p.hit ? info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field), p.doc) : undefined) ?? ''
 	}
 }
 
@@ -505,14 +509,18 @@ function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: D
 	r.push(makeHitRow(p, info, highlightColors, info.sourceField));
 
 	const h = p.hit as BLHit;
-	const parallelHits = info.targetFields.map(f => [h.otherFields?.[f.id], f] as const).filter((h): h is [BLHitInOtherField, NormalizedAnnotatedFieldParallel] => h[0] != null);
+	const parallelHits = info.targetFields.map(f => [h.otherFields?.[f.id], f] as const).filter((h): h is [BLHitInOtherField, NormalizedAnnotatedFieldParallel] => h[0] !== undefined);
 	for (let i = 0; i < parallelHits.length; i++) {
 		p.hit = parallelHits[i][0];
 		p.first_of_hit = false;
 		p.last_of_hit = i === parallelHits.length - 1;
 		r.push(makeHitRow(p, info, highlightColors, parallelHits[i][1]));
 	}
-	if (!parallelHits.length) r[0].first_of_hit = r[0].last_of_hit = false;
+	if (info.targetFields.length === 0) {
+		// we use first/last to draw borders between parallel hit, and we don't want borders
+		// for non-parallel query.
+		r[0].first_of_hit = r[0].last_of_hit = false;
+	}
 	return r;
 }
 
@@ -541,6 +549,8 @@ function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array
 	return r;
 }
 
+const GROUP_PROP_SEPARATOR = ' • '; // WAS: '·'
+
 /** For a set of group results, create all rows. */
 function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGroupName: string): { rows: GroupRowData[], maxima: Maxima } {
 	const max = new MaxCounter<GroupRowData>();
@@ -549,7 +559,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		type: 'group',
 		id: g.identity || defaultGroupName,
 		size: g.size,
-		displayname: g.properties.concat().sort((a,b) => a.name.localeCompare(b.name)).map(v => v.value).join('·') || defaultGroupName,
+		displayname: g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
 
 		'r.d': summary.numberOfDocs,
 		// When a pattern was used (which is always when we have hits), we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
@@ -560,8 +570,10 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		'gr.t': undefined, // TODO wait for jan, is more specific than subcorpusSize, since should only account for docs with hits.
 		'gr.h': g.size,
 
-		'gsc.d': g.subcorpusSize?.documents,
-		'gsc.t': g.subcorpusSize?.tokens,
+		// When group doesn't specify subcorpus, it is the same as the total search space.
+		// (this happens when not grouping by metadata)
+		'gsc.d': g.subcorpusSize?.documents ?? results.summary.subcorpusSize.documents,
+		'gsc.t': g.subcorpusSize?.tokens ?? results.summary.subcorpusSize.tokens,
 
 		'sc.d': summary.subcorpusSize.documents,
 		'sc.t': summary.subcorpusSize.tokens
@@ -570,7 +582,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		type: 'group',
 		id: g.identity,
 		size: g.size,
-		displayname: g.properties.sort((a,b) => a.name.localeCompare(b.name)).map(v => v.value).join('·') || defaultGroupName,
+		displayname: g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
 
 		'r.d': summary.numberOfDocs,
 		// When a pattern was used, we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
@@ -581,8 +593,8 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		'gr.t': g.numberOfTokens,
 		'gr.h': undefined, // TODO add when jan makes available, something like g.numberOfHits?
 
-		'gsc.d': g.subcorpusSize.documents,
-		'gsc.t': g.subcorpusSize.tokens,
+		'gsc.d': g.subcorpusSize?.documents ?? g.size,
+		'gsc.t': g.subcorpusSize?.tokens ?? g.numberOfTokens,
 
 		'sc.d': summary.subcorpusSize.documents,
 		'sc.t': summary.subcorpusSize.tokens
@@ -645,7 +657,8 @@ type ColumnDefBase = {
 	debugLabel?: string;
 	title?: string;
 	sort?: string|SortOption[];
-	textAlignClass?: string;
+	class?: string;
+	style?: StyleValue;
 	colspan?: number;
 }
 
@@ -695,7 +708,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		label: i.$t('results.table.document').toString(),
 		title: isDocResults(results) && info.specialFields.titleField ? i.$t('results.table.sortByDocument').toString() : undefined,
 		sort: isDocResults(results) && info.specialFields.titleField ? `field:${info.specialFields.titleField}` : undefined,
-		textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
+		class: info.dir === 'rtl' ? 'text-right' : 'text-left',
 	});
 
 	if (isDocResults(results)) {
@@ -738,22 +751,24 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		if (a?.length === 1) {
 			const {title, value: sort} = sortAnnot(a[0], prefix);
 			return {title, sort};
-		} else if (a?.length) return a.map(a => sortAnnot(a, prefix));
+		} else if (a?.length) return {sort: a.map(a => sortAnnot(a, prefix)) };
 		else return {};
 	}
 
-	if (isHitResults(results) && info.hasCustomHitInfoColumn(results, info.targetFields.length > 0)) {
+	if (info.hasCustomHitInfoColumn(results, info.targetFields.length > 0)) {
 		hitColumns.push({
 			key: 'custom',
 			field: 'custom',
 			label: i.$t('results.table.customColumnHeader').toString(),
+			// This column has some extra padding.
+			style: 'padding-left: 1.5em;'
 		});
 	}
 
 	hitColumns.push({
 		key: 'left',
 		debugLabel: info.mainAnnotation.id,
-		textAlignClass: 'text-right',
+		class: 'text-right',
 		...sorts(info.sortableAnnotations, blSortPrefixLeft),
 		label: i.$t(leftLabelKey).toString(),
 		field: info.dir === 'rtl' ? 'after' : 'before',
@@ -762,7 +777,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		key: 'hit',
 		label: i.$t(centerLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
-		textAlignClass: 'text-center',
+		class: 'text-center',
 		...sorts(info.sortableAnnotations, blSortPrefixCenter),
 		field: 'match',
 		annotation: info.mainAnnotation
@@ -770,7 +785,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		key: 'right',
 		label: i.$t(rightLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
-		textAlignClass: 'text-left',
+		class: 'text-left',
 		...sorts(info.sortableAnnotations, blSortPrefixRight),
 		field: info.dir === 'rtl' ? 'before' : 'after',
 		annotation: info.mainAnnotation
@@ -778,20 +793,20 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 
 	if (isHitResults(results)) {
 		hitColumns.push(
-			...info.otherAnnotations.map(a => ({
+			...info.otherAnnotations.map<ColumnDefHit>(a => ({
 				key: `annot_${a.id}`,
 				label: i.$tAnnotDisplayName(a),
 				debugLabel: a.id,
-				textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
+				class: info.dir === 'rtl' ? 'text-right' : 'text-left',
 				...sorts([a], 'annotation'),
 				field: 'annotation' as const,
 				annotation: a
 			})),
-			...info.metadata.map(m => ({
+			...info.metadata.map<ColumnDefHit>(m => ({
 				key: `meta_${m.id}`,
 				label: i.$tMetaDisplayName(m),
 				debugLabel: m.id,
-				textAlignClass: info.dir === 'rtl' ? 'text-right' : 'text-left',
+				class: info.dir === 'rtl' ? 'text-right' : 'text-left',
 				title: i.$t('results.table.sortBy', {field: i.$tMetaDisplayName(m)}).toString(),
 				sort: `field:${m.id}`,
 				field: 'metadata' as const,
@@ -840,6 +855,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 			title: header.title,
 			labelField,
 			barField: barField as any,
+			style: barField ? 'width: 60%' : undefined,
 			showAsPercentage: labelField.includes('relative') as any, // HACK, all relative fields are percentages, and no other fields are.
 			sort: header.sortProp,
 		})

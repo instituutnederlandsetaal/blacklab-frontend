@@ -16,6 +16,7 @@ import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -36,7 +37,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.xml.transform.TransformerException;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.app.Velocity;
@@ -106,7 +106,6 @@ public class MainServlet extends HttpServlet {
             startVelocity(ctx);
 
             XslTransformer.setUseCache(this.useCache(null));
-            BlackLabApi.setBlsUrl(config.get(Keys.BLS_URL_ON_SERVER));
 
             // Map responses, the majority of these can be served for a specific corpus, or as a general autosearch page
             // E.G. the AboutResponse is mapped to /<root>/<corpus>/about and /<root>/about
@@ -139,19 +138,20 @@ public class MainServlet extends HttpServlet {
         Velocity.init(p);
     }
 
-    public Template parseAsTemplate(InputStream is) {
+    public Template parseAsTemplate(File f) {
         try {
-            String templateContent = IOUtils.toString(new InputStreamReader(is, StandardCharsets.UTF_8));
+            String templateContent = Files.readString(f.toPath(), StandardCharsets.UTF_8);
             RuntimeServices runtimeServices = RuntimeSingleton.getRuntimeServices();
             StringReader reader = new StringReader(templateContent);
             Template template = new Template();
             template.setRuntimeServices(runtimeServices);
+            template.setName(f.getName());
 
             /*
              * The following line works for Velocity version up to 1.7
              * For version 2, replace "Template name" with the variable, template
              */
-            template.setData(runtimeServices.parse(reader, "__template__"));
+            runtimeServices.parse(new InputStreamReader(new FileInputStream(f), StandardCharsets.UTF_8), template);
             template.initDocument();
             return template;
         } catch (IOException e) {
@@ -356,16 +356,12 @@ public class MainServlet extends HttpServlet {
                 Optional.of(file));
     }
 
-    public InputStream getHelpPage(Optional<String> corpus) {
-        return Result.from(getProjectFile(corpus, "help.inc"))
-                .mapWithErrorHandling(FileInputStream::new)
-                .getOrThrow(IllegalStateException::new); // this file always exists (at least the fallback in our own jar)
+    public File getHelpPage(Optional<String> corpus) {
+        return getProjectFile(corpus, "help.inc").orElseThrow(() -> new IllegalStateException("Help page not found - this file has an internal fallback in the jar - yet it wasn't found?"));
     }
 
-    public InputStream getAboutPage(Optional<String> corpus) {
-        return Result.from(getProjectFile(corpus, "about.inc"))
-                .mapWithErrorHandling(FileInputStream::new)
-                .getOrThrow(IllegalStateException::new); // this file always exists (at least the fallback in our own jar)
+    public File getAboutPage(Optional<String> corpus) {
+        return getProjectFile(corpus, "about.inc").orElseThrow(() -> new IllegalStateException("About page not found - this file has an internal fallback in the jar - yet it wasn't found?"));
     }
 
     /**

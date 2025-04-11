@@ -32,7 +32,7 @@
 						simple
 					/>
 				</div>
-				<ParallelSourceAndTargets v-if="isParallelCorpus" block lg/>
+				<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 			</div>
 			<div :class="['tab-pane form-horizontal', {'active': activePattern==='extended'}]" id="extended">
 				<template v-if="useTabs">
@@ -79,7 +79,7 @@
 					</template>
 				</template>
 
-				<ParallelSourceAndTargets v-if="isParallelCorpus"/>
+				<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion"/>
 
 				<Within />
 
@@ -168,12 +168,12 @@ import * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
 
 import { Option } from '@/components/SelectPicker.vue';
-import { corpusCustomizations } from '@/store/ui';
 
 function isVue(v: any): v is Vue { return v instanceof Vue; }
 function isJQuery(v: any): v is JQuery { return typeof v !== 'boolean' && v && v.jquery; }
 
 import ParallelFields from './parallel/ParallelFields';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default ParallelFields.extend({
 	components: {
@@ -184,6 +184,9 @@ export default ParallelFields.extend({
 		ConceptSearch,
 		GlossSearch,
 		Within,
+	},
+	props: {
+		errorNoParallelSourceVersion: {default: false, type: Boolean},
 	},
 	data: () => ({
 		uid: uid(),
@@ -201,7 +204,7 @@ export default ParallelFields.extend({
 			return this.tabs.length > 1;
 		},
 		tabs(): Array<{label?: string, entries: AppTypes.NormalizedAnnotation[]}> {
-			return getAnnotationSubset(
+			const result = getAnnotationSubset(
 				UIStore.getState().search.extended.searchAnnotationIds,
 				CorpusStore.get.annotationGroups(),
 				CorpusStore.get.allAnnotationsMap(),
@@ -209,15 +212,34 @@ export default ParallelFields.extend({
 				this,
 				CorpusStore.get.textDirection()
 			);
+			if (this.isParallelCorpus) {
+				// Make sure we have the correct field, so autosuggest works properly
+				const field = PatternStore.getState().shared.source;
+				if (field) {
+					const fieldId = CorpusStore.get.allAnnotatedFieldsMap()[field]?.id;
+					if (fieldId) {
+						result.forEach(tab => {
+							tab.entries = tab.entries.map(e => ({
+								...e,
+								annotatedFieldId: field
+							}));
+						});
+					}
+				}
+			}
+			return result;
 		},
 		allAnnotations(): AppTypes.NormalizedAnnotation[] {
 			return this.tabs.flatMap(tab => tab.entries);
 		},
 		simpleSearchAnnotation(): AppTypes.NormalizedAnnotation {
+			const field = (this.isParallelCorpus ? PatternStore.getState().shared.source : undefined)
+				?? CorpusStore.get.mainAnnotatedField();
 			const id = UIStore.getState().search.simple.searchAnnotationId;
-			return CorpusStore.get.allAnnotationsMap()[id] || CorpusStore.get.firstMainAnnotation();
+			return CorpusStore.get.allAnnotatedFieldsMap()[field]?.annotations[id]
+				|| CorpusStore.get.firstMainAnnotation();
 		},
-		simpleSearchAnnoationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
+		simpleSearchAnnotationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
 		textDirection: CorpusStore.get.textDirection,
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;

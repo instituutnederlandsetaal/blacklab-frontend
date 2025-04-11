@@ -34,7 +34,6 @@ class StorageWatcher {
 // It doesn't matter where the variable lives, it can be outside the Vue instance.
 // As long as it's reactive, this will work.
 // When migrating to vue 3, just use a ref or a library that does this for us...
-const watcher = new Vue();
 const storageWatcher = new StorageWatcher();
 
 const putNewValueInStorage = (key: string) => (newValue: any) => {
@@ -85,7 +84,7 @@ export function syncPropertyWithLocalStorage<T extends object, K extends keyof T
 	}
 
 	const v = Vue.observable(props);
-	watcher.$watch(() => v[prop], putNewValueInStorage(storageKey));
+	watch(() => v[prop], putNewValueInStorage(storageKey));
 	if (watchStorage) storageWatcher.addListener<T[K]>(storageKey, newValue => props[prop] = newValue);
 	return v;
 }

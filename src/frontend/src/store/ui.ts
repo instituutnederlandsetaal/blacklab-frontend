@@ -20,6 +20,7 @@ import { Option } from '@/types/apptypes';
 import { spanFilterId } from '@/utils';
 import { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
 import { CorpusChange } from '@/store/async-loaders';
+import { corpusCustomizations } from '@/utils/customization';
 
 type CustomView = {
 	id: string;
@@ -778,8 +779,18 @@ const init = (state: CorpusChange) => {
 
 	getState().global.config = state.config;
 
-	// Run customjs customization callbacks:
+	// Call the customize function(s) defined in custom.js (if any)
+	corpusCustomizations._corpus = CorpusStore.getState()!;
 	corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));
+	// Update uiTypes for annotations where necessary
+	CorpusStore.get.allAnnotatedFields().forEach((field) => {
+		Object.values(field.annotations).forEach((annotation) => {
+			const uiType = corpusCustomizations.search.pattern.uiType(annotation.annotatedFieldId, annotation.id);
+			if (uiType)
+				annotation.uiType = uiType;
+		});
+	});
+	
 
 	// At this point we stored the customizations in our state
 	// Now validate it all and correct it if necessary
@@ -1248,159 +1259,6 @@ function printCustomizations() {
 	`);
 }
 
-/** This object contains any customization "hook" functions for this corpus.
- *  It defines defaults that can be overridden from custom JS file(s); see below.
- */
-const corpusCustomizations = Vue.observable({
-	// Registered customize function(s), to be called once the corpus info has been loaded
-	customizeFunctions: [] as ((corpus: any) => void)[],
-
-	search: {
-		pattern: {
-			/** Should we add _within-spans(...) around the query,
-			    so all tags are captured and we can group on them?
-				[Default: only if there's span filters defined] */
-			shouldAddWithinSpans(q: string) {
-				return null;
-			}
-		},
-
-		within: {
-			/** Should we include this span in the within widget? (default: all) */
-			includeSpan(spanName: string) {
-				return true;
-			},
-
-			/** Should we include this span attribute in the within widget? (default: none) */
-			includeAttribute(spanName: string, attrName: string) {
-				return null;
-			},
-
-			/** Which, if any, attribute filter fields should be displayed for this element?
-			 * (INTERNAL; use includeAttribute to customize, works more consistently like other methods)
-			 */
-			_attributes(spanName: string): string[]|Option[]|null {
-				const availableAttr = Object.keys(CorpusStore.get.corpus()?.relations.spans?.[spanName].attributes ?? {});
-				return availableAttr.filter(attrName => this.includeAttribute(spanName, attrName))
-					.map(a => ({ value: a }));
-			},
-		},
-
-		metadata: {
-			/** Show this metadata search field? */
-			showField(filterId: string): boolean|null {
-				return null;
-			},
-
-			/** Any custom metadata tabs to add (INTERNAL) */
-			_customTabs: [] as any[],
-
-			/** Add a custom tab with some (span) filter fields */
-			addCustomTab(name: string, fields: any[]) {
-				this._customTabs.push({ name, fields });
-			},
-
-			/** Create a span filter for corpus.search.metadata.customTabs */
-			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: any = {}): AppTypes.FilterDefinition {
-				// No options specified; try to get them from the corpus.
-				let optionsFromCorpus;
-				const corpus = CorpusStore.get.corpus();
-				if (!metadata.options && corpus && corpus.relations.spans) {
-					const span: BLTypes.BLSpanInfo = corpus.relations.spans[spanName] ?? {};
-					const attr = span.attributes?.[attrName] ?? { values: {}, valueListComplete: false };
-					if (attr?.valueListComplete) {
-						optionsFromCorpus = Object.keys(attr.values).map((value: string) => ({ value }));
-					}
-				}
-
-				if (widget === 'auto') {
-					widget = optionsFromCorpus ? 'select' : 'text';
-				}
-
-				if (widget === 'select') {
-					// If user passed in just an array, assume these are the options.
-					if (Array.isArray(metadata)) {
-						metadata = { options: metadata };
-					}
-
-					if (!metadata.options)
-						metadata.options = optionsFromCorpus ?? [];
-
-					// If the options are just strings, convert them to simple Option objects.
-					metadata.options = metadata.options.map((option: any) => {
-						return typeof option === 'string' ? { value: option } : option;
-					});
-				}
-
-				const behaviourName = widget === 'select' || widget === 'range' ? `span-${widget}` : 'span-text';
-
-				return {
-					id: spanFilterId(spanName, attrName),
-					componentName: `filter-${widget}`,
-					behaviourName, // i.e. generate a "within ..." BCQL query
-					defaultDisplayName: displayName ?? `tag ${spanName}, attribute ${attrName}`,
-					metadata: {
-						name: spanName,
-						attribute: attrName,
-						...metadata
-					},
-					// (groupId will be set automatically when creating the custom tabs)
-				};
-			},
-		},
-	},
-
-	results: {
-		/**
-		 * How to highlight match info in the hits table.
-		 *
-		 * Default behaviour is to always highlight if the user "captured"
-		 * (i.e. labelled this token in the query), OR if this is a relation and
-		 * there are no explicit captures.
-		 *
-		 * @param matchInfo the highlight section to get the style for
-		 * @returns 'none' (no highlighting), 'static' (always highlight), 'hover'
-		 *   (highlight on mouseover) or null for default behaviour.
-		 */
-		matchInfoHighlightStyle: (matchInfo: HighlightSection): 'none'|'static'|'hover'|null => {
-			return null; // use default behaviour
-		},
-
-		/**
-		 * Description of the search query to add to the CSV export. Default: none.
-		 */
-		csvDescription: (blSummary: any, fieldDisplayNameFunc: any) => {
-			return null; // use default behaviour
-		},
-
-		hasCustomHitInfoColumn: (results: BLTypes.BLHitResults, isParallelCorpus: boolean): boolean => {
-			return isParallelCorpus;
-		},
-
-		/**
-		 * Show some custom text (with doc link) left of the hit.
-		 *
-		 * Default shows versionPrefix if it's set (i.e. if it's a parallel corpus).
-		 * Otherwise, nothing extra is shown.
-		 * @param hit the hit
-		 * @param annotatedFieldDisplayName the name of the field the hit is in. This is already translated to the user's locale.
-		 *  In the case of non-parallel corpora, this will always be the main annotated field.
-		 */
-		customHitInfo: (hit: BLTypes.BLHit|BLTypes.BLHitSnippet|BLTypes.BLHitInOtherField, annotatedFieldDisplayName: string|null): string|null => {
-			return annotatedFieldDisplayName;
-		}
-	},
-
-	grouping: {
-		/** Should this span attribute be included in group by?
-		 *  (return null to fall back to default: "only if there's a span filter defined for it")
-		 */
-		includeSpanAttribute(spanName: string, attrName: string): boolean|null {
-			return null; // use default behaviour
-		},
-	}
-});
-
 /** This lets custom JS files call frontend.customize((corpus) => { ... });
   * to customize any of the above "hooks". Doing this via a function instead of
   * direct access to a global object gives us more flexibility to change things
@@ -1431,7 +1289,5 @@ export {
 	actions,
 	init,
 
-	namespace,
-
-	corpusCustomizations,
+	namespace
 };

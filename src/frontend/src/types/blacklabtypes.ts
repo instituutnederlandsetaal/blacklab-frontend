@@ -27,7 +27,7 @@ export type BLSearchParameters = {
 	/**
 	 * CQL query gap-filling values, contents of a tsv file in string form.
 	 *
-	 * See http://inl.github.io/BlackLab/blacklab-server-overview.html#requests
+	 * See https://blacklab.ivdnt.org//blacklab-server-overview.html#requests
 	 */
 	pattgapdata?: string;
 	/** How to sort results, comma-separated list of field:${someMetadataFieldId} or (wordleft|hit|wordright):${someAnnotationId} */
@@ -444,7 +444,7 @@ export interface BLHitGroupResult extends BLGroupResult {
 export interface BLDocGroupResult extends BLGroupResult {
 	/** Total number of tokens across all documents in this group */
 	numberOfTokens: number;
-	subcorpusSize: {
+	subcorpusSize?: {
 		/** Number of documents this group including those documents that do not contain a hit. Might be 0 when grouped by metadata and this is the 'no value' group. */
 		documents: number;
 		/** Total number of tokens in those documents. Might be 0 when grouped by metadata and this is the 'no value' group. */
@@ -503,9 +503,8 @@ export interface BLMatchInfoTag {
 	end: number;
 	/** E.g. "s" */
 	tagName: string;
-	/** E.g. {id: "123"} for <s id=123/> */
-	// TODO might change to arrays for the values, as there can be multiple values for a single attribute
-	attributes?: Record<string, string>;
+	/** E.g. {id: ["123"]} for <s id=123/> */
+	attributes?: Record<string, string[]>;
 }
 
 /** Represents the info captured by an arrow in the query (-->, ==>). So the source, target, and value. */

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -229,7 +230,7 @@ public class WebsiteConfig {
                 throw new RuntimeException(e);
             }
 
-            String page = StringUtils.defaultString(css.getAttributes().remove("page"), "");
+            String page = Objects.toString(css.getAttributes().remove("page"), "");
             customJS.computeIfAbsent(page, __ -> new ArrayList<>()).add(css);
         });
 
@@ -248,7 +249,7 @@ public class WebsiteConfig {
                 throw new RuntimeException(e);
             }
 
-            String page = StringUtils.defaultString(css.getAttributes().remove("page"), "");
+            String page = Objects.toString(css.getAttributes().remove("page"), "");
             customCSS.computeIfAbsent(page, __ -> new ArrayList<>()).add(css);
         });
 

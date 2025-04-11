@@ -24,6 +24,7 @@ import { NormalizedIndex } from '@/types/apptypes';
 import SelectPicker, { OptGroup } from '@/components/SelectPicker.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import debug from '@/utils/debug';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	components: {
@@ -33,6 +34,7 @@ export default Vue.extend({
 		hits: Boolean,
 		docs: Boolean,
 		groups: Boolean,
+		parallelCorpus: Boolean,
 
 		value: String,
 
@@ -50,10 +52,18 @@ export default Vue.extend({
 			options: OptGroup[],
 			searchable: boolean
 		} {
-			const opts = [] as OptGroup[];
+			const options = [] as OptGroup[];
+
+			/** Customize and add one or more groups */
+			const addGroups = ((...optGroups: OptGroup[]) => {
+				options.push(...optGroups.map(optGroup => {
+					const result = corpusCustomizations.sort.customize(optGroup);
+					return result === null ? optGroup : result;
+				}));
+			});
 
 			if (this.groups) {
-				opts.push({
+				addGroups({
 					label: 'Groups',
 					options: [{
 						label: 'Sort by Group Name',
@@ -72,7 +82,7 @@ export default Vue.extend({
 			}
 
 			if (this.hits) {
-				opts.push(...getAnnotationSubset(
+				addGroups(...getAnnotationSubset(
 					this.annotations,
 					this.corpus.annotationGroups,
 					this.corpus.annotatedFields[this.corpus.mainAnnotatedField].annotations,
@@ -81,9 +91,22 @@ export default Vue.extend({
 					this.corpus.textDirection,
 					debug.debug
 				));
+
+				if (this.parallelCorpus) {
+					addGroups({
+						label: 'Parallel Corpus',
+						options: [{
+							label: 'Sort by alignments',
+							value: 'alignments'
+						}, {
+							label: 'Sort by alignments (ascending)',
+							value: '-alignments'
+						},]
+					});
+				}
 			}
 			if (this.docs) {
-				opts.push({
+				addGroups({
 					label: 'Documents',
 					options: [{
 						label: 'Sort by hits',
@@ -96,19 +119,21 @@ export default Vue.extend({
 			}
 
 			if (!this.groups) {
-				opts.push(...getMetadataSubset(
+				addGroups(...getMetadataSubset(
 					this.metadata,
 					this.corpus.metadataFieldGroups,
 					this.corpus.metadataFields,
 					'Sort',
 					this,
-					debug.debug
+					debug.debug,
+					true,
+					corpusCustomizations.search.metadata.showField
 				));
 			}
 
 			return {
-				options: opts,
-				searchable: opts.reduce((a, g) => a + g.options.length, 0) > 12
+				options,
+				searchable: options.reduce((a, g) => a + g.options.length, 0) > 12
 			};
 		},
 	}

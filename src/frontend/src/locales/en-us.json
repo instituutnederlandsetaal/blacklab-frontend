@@ -80,6 +80,7 @@
 		"parallel": {
 			"alignBy": "Align by",
 			"inSourceVersion": "In source version",
+			"errorNoSourceVersion": "Please select a source version.",
 			"andCompareWithTargetVersions": "And compare with target version(s)",
 			"queryForSourceVersion": "Query for source version",
 			"queryForTargetVersion": "Query for target version",
@@ -133,8 +134,9 @@
 		"sampleSizePercentage": "percentage",
 		"sampleSeed": "Seed",
 		"context": "Context size",
-		"wideView": " Wide View",
-		"debug": " Debug info",
+		"wideView": "Wide View",
+		"debug": "Debug info",
+		"hideDebugUntilReload": "Hide debug checkbox until next reload",
 		"close": "Close"
 	},
 	"queryForm": {
@@ -232,7 +234,7 @@
 			"tipClickOnHighlightedWords": "Tip: click on highlighted words for syntactic grouping.",
 
 			"caseSensitive": "Case sensitive",
-			"chooseWordPositions": "Choose the <strong>specific word</strong> positions to group on here, the preview at the top will show you which words you have selected.",
+			"chooseWordPositions": "Choose the <strong>specific word</strong> positions to group on here, the preview sentence will show you which words you have selected.",
 			"selectDocumentMetadata": "Select the metadata to group on.",
 			"clickButtonsToStart": "Click on Annotation or Metadata to define grouping criteria.",
 			"metadata": "Metadata",
@@ -256,7 +258,7 @@
 			}
 		},
 		"table": {
-			"showFullSentence": "Show full sentence",
+			"showFullSentence": "Display sentence analysis",
 			"loading": "Loading...",
 			"loadMoreConcordances": "Load more concordances",
 			"viewDetailedConcordances": "View detailed concordances",

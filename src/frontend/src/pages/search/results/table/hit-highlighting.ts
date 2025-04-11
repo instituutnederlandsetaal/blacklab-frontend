@@ -1,7 +1,9 @@
-import { BLHit, BLHitInOtherField, BLHitResults, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummaryPattern } from '@/types/blacklabtypes';
-import { CaptureAndRelation, TokenHighlight } from '@/types/apptypes';
-import { corpusCustomizations } from '@/store/ui';
+import type { CaptureAndRelation, TokenHighlight } from '@/types/apptypes';
+import type { BLHit, BLHitInOtherField, BLHitResults, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummaryPattern } from '@/types/blacklabtypes';
+
+// TODO this is a bit dirty, make it a function argument if possible
 import { UnionHelpers } from '@/types/helpers';
+import { corpusCustomizations } from '@/utils/customization';
 
 /** Part of a hit/context to highlight, with a label, display and boolean whether it's a relation or a section of the query/result labelled by the user. */
 export type HighlightSection = {

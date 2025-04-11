@@ -2,10 +2,27 @@
 	<table class="results-table">
 		<thead>
 			<tr>
-				<TableHeader v-for="col in header" :key="col.key" :col="col" :disabled="disabled" @changeSort="$emit('changeSort', $event)"/>
+				<TableHeader v-for="(col, i) in header"
+					:key="col.key"
+					:col="col" :disabled="disabled"
+					@changeSort="$emit('changeSort', $event)"
+				>
+					<v-popover v-if="i === 0 && col.field === 'group'" offset="5" style="display:inline-block;">
+						<a role="button" title="Column meanings"><span class="fa fa-lg fa-question-circle"></span></a>
+						<template slot="popover">
+							<table class="table table-condensed" style="table-layout:auto; max-width:calc(100vw - 75px);width:500px;">
+								<tbody>
+									<tr v-for="(row, i) in definitions" :key="i">
+										<td v-for="(cell, j) in row" :key="j">{{cell}}</td>
+									</tr>
+								</tbody>
+							</table>
+						</template>
+					</v-popover>
+				</TableHeader>
 			</tr>
 		</thead>
-		<tbody>
+		<tbody :class="{ 'has-foreign-hit': hasForeignHit(rows) }">
 			<template v-for="(row, index) in rows.rows">
 				<template v-if="row.type === 'doc' && !showTitles"></template>
 				<template v-else>
@@ -13,20 +30,23 @@
 					:class="{
 						rounded: true,
 						open: openRows[row.hit_id || index],
-						interactable: !disabled && !disableDetails && (row.type === 'group' || ((row.type === 'hit') === (type === 'hits')) && ((row.type === 'doc') == (type === 'docs'))) ,
-						topborder: index > 0 && row.first_of_hit,
-						bottomborder: row.last_of_hit && (index < rows.rows.length - 1)
+						interactable: isOpenable(row),
+						topborder: index > 0 && 'first_of_hit' in row && row.first_of_hit,
+						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1)
 					}"
 					:row="row"
+					:info="info"
+					:cols="cols"
 					:maxima="rows.maxima"
 					:open="!!openRows[row.hit_id || index]"
+					:disabled="disabled"
+					:type="type"
+					:query="query"
 					:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
 					@hover="hoverMatchInfos = $event; hoverMatchInfosId = row.hit_id"
 					@unhover="hoverMatchInfos = undefined"
-					v-bind="$props"
+					@click.native="toggleRow(index)"
 					v-on="$listeners"
-
-					@click.native="toggleRow(index, $event)"
 				/>
 				<component v-if="!disableDetails" v-show="openRows[row.hit_id || index]":is="row.type === 'doc' ? 'DocRowDetails' : row.type === 'hit' ? 'HitRowDetails' : 'GroupRowDetails'"
 					:class="{
@@ -35,14 +55,18 @@
 						open: openRows[row.hit_id || index],
 					}"
 					:row="row"
+					:info="info"
+					:cols="cols"
 					:maxima="rows.maxima"
 					:open="!!openRows[row.hit_id || index]"
+					:disabled="disabled"
+					:type="type"
+					:query="query"
 					:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
-					@hover="hoverMatchInfos = $event; hoverMatchInfosId = index"
+					@hover="hoverMatchInfos = $event; hoverMatchInfosId = row.hit_id"
 					@unhover="hoverMatchInfos = undefined"
-					@close="toggleRow(index, $event)"
+					@close="toggleRow(index)"
 					@openFullConcordances="openFullConcordances(row)"
-					v-bind="$props"
 					v-on="$listeners"
 				/>
 			</template>
@@ -55,7 +79,7 @@
 import Vue from 'vue';
 
 import '@/pages/search/results/table/TableHeader.vue';
-import { definitions, ColumnDefs, DisplaySettingsForRendering, Rows, ColumnDef, HitRowData, GroupRowData } from '@/pages/search/results/table/table-layout';
+import { definitions, ColumnDefs, DisplaySettingsForRendering, Rows, ColumnDef, HitRowData, GroupRowData, DocRowData } from '@/pages/search/results/table/table-layout';
 import { BLSearchParameters } from '@/types/blacklabtypes';
 
 
@@ -87,23 +111,34 @@ export default Vue.component('GenericTable', {
 		openRows: {} as Record<number|string, boolean>,
 
 		hoverMatchInfos: undefined as undefined|string[],
-		hoverMatchInfosId: undefined as undefined|number,
+		hoverMatchInfosId: undefined as undefined|string,
 	}),
 	methods: {
+		isOpenable(row: HitRowData|DocRowData|GroupRowData) {
+			if (this.disabled || this.disableDetails) return false;
+			if (row.type === 'group') return true;
+			if (row.type === 'hit' && this.type === 'hits') return true;
+			if (row.type === 'doc' && this.type === 'docs' && row.hits) return true;
+			return false;
+		},
+		hasForeignHit(rows: Rows) {
+			return rows.rows.some(row => row.type === 'hit' && row.isForeign);
+		},
 		toggleRow(index: number) {
-			if (this.disabled || this.disableDetails) return;
 			const row = this.rows.rows[index];
-			if (row.type === 'doc' && this.type === 'hits' || row.type === 'hit' && this.type === 'docs') return;
-			const id = (row as HitRowData).hit_id || index;
+			if (!this.isOpenable(row)) return;
+			const id = row.hit_id || index;
 			const newState = !this.openRows[id];
 			this.$set(this.openRows, id, newState);
 		},
-		openFullConcordances(row: GroupRowData) {
-			this.$emit('viewgroup', row.id, row.displayname);
+		openFullConcordances(row: HitRowData|DocRowData|GroupRowData) {
+			if ('displayname' in row) {
+				this.$emit('viewgroup', row.id, row.displayname);
+			}
 		}
 	},
 	watch: {
-		rows() { this.openRows = {}; }
+		query() { this.openRows = {}; }
 	}
 })
 </script>
@@ -194,25 +229,10 @@ table.results-table {
 		padding-bottom: 4px;
 	}
 
-
-
-
-
-	tr:not(.foreign-hit) + tr.foreign-hit:first-child > td { padding-top: 0.5em; }
-	tr.has-foreign-hit:last-child > td { padding-bottom: 0.5em; }
-	tbody + tbody.has-foreign-hit > tr:first-child > td {
-		border-top: 1px solid #ddd;
-	}
-
-	tbody.has-foreign-hit > tr:not(.open) > td {
-		border-radius: 0!important;
-	}
-
 	tr.foreign-hit {
 		color: #666;
 		font-style: italic;
 	}
-
 }
 
 </style>

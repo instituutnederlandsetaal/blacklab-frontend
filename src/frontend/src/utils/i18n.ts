@@ -132,14 +132,22 @@ function textOrDefault<T extends string|null|undefined>(i18n: VueI18n, key: stri
 // (filters are technically not directly equal to metadata objects, but for translation purposes we use the same keys)
 const i18nExtensionFunctions = {
 	$td<T extends string|null|undefined>(this: Vue, key: string, defaultText: T): T|string {
-		if (this.$te(key)) return this.$t(key).toString();
-		if (this.$i18n.locale !== this.$i18n.fallbackLocale && this.$te(key, this.$i18n.fallbackLocale as string)) return this.$t(key, this.$i18n.fallbackLocale as string).toString();
+		// See if there is a non-null, non-undefined value (may be the empty string!)
+		const v = this.$te(key) ? this.$t(key) : undefined;
+		if (v !== null && v != undefined)
+			return v.toString();
+		if (this.$i18n.locale !== this.$i18n.fallbackLocale && this.$te(key, this.$i18n.fallbackLocale as string)) {
+			const v = this.$te(key, this.$i18n.fallbackLocale as string) ? this.$t(key, this.$i18n.fallbackLocale as string) : undefined;
+			if (v !== null && v != undefined)
+				return v.toString();
+		}
 		return defaultText;
 	},
 	/** Get the localized display name for an annotated field or the default value.
 	 * Note that the field ID should be *including* the parallel suffix. So just e.g. "contents__en" for a parallel field. */
-	$tAnnotatedFieldDisplayName(this: Vue, f: NormalizedAnnotatedField): string {
-		return this.$td(`index.annotatedFields.${f.id}`, (f.isParallel ? f.version : f.defaultDisplayName || f.id));
+	$tAnnotatedFieldDisplayName(this: Vue, f: {id: string, defaultDisplayName?: string, version?: string, isParallel?: boolean}): string {
+		// Use a subset of the full annotation object, we sometimes need to call this when we don't have the full object.
+		return this.$td(`index.annotatedFields.${f.id}`, (f.isParallel ? f.version || f.id : f.defaultDisplayName || f.id));
 	},
 	$tAnnotatedFieldDescription(this: Vue, f: NormalizedAnnotatedField): string {
 		return this.$td(`index.annotatedFields.${f.id}_description`, f.defaultDescription);
@@ -184,12 +192,12 @@ const i18nExtensionFunctions = {
 		const key = `index.metadataGroups.${originalName}`;
 		return this.$td(key, originalName);
 	},
-	$tWithinDisplayName(this: Vue, within: Option): string {
-		return this.$td(`index.within.${within.value}`, within.label || within.value);
+	$tSpanDisplayName(this: Vue, span: Option): string {
+		return this.$td(`index.spans.${span.value}`, span.label || span.value);
 	},
-	$tWithinAttribute(this: Vue, span: string, attribute: string): string {
+	$tSpanAttributeDisplay(this: Vue, span: string, attribute: string): string {
 		const defaultValue = this.$t('results.groupBy.summary.spanAttribute', { span, attribute }).toString();
-		return this.$td(`search.withinAttributes.${span}.${attribute}`, defaultValue);
+		return this.$td(`index.spanAttributes.${span}.${attribute}`, defaultValue);
 	},
 	$tAlignByDisplayName(this: Vue, alignBy: Option): string {
 		return this.$td(`index.alignBy.${alignBy.value}`, alignBy.label || alignBy.value);

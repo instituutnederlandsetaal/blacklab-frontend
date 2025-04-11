@@ -1,7 +1,7 @@
 <template>
 	<tr class="concordance" :class="{'foreign-hit': row.isForeign}">
 		<template v-for="col in cols.hitColumns">
-			<td v-if="col.field === 'custom'" class="doc-version" :key="col.key + col.field">
+			<td v-if="col.field === 'custom'" :class="col.class" :style="col.style" :key="col.key + col.field">
 				<a @click.stop="" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank">{{ row.customHitInfo }}</a>
 			</td>
 			<HitContext v-else-if="col.field === 'match' || col.field === 'after' || col.field === 'before' || col.field === 'annotation'" :key="col.key"
@@ -11,20 +11,20 @@
 				:highlight="col.field !== 'annotation'"
 				:before="col.field === 'before'"
 				:after="col.field === 'after'"
-				:punct="col.field !== 'annotation'"
 				:annotation="col.annotation.id"
 				:html="info.html"
 				:dir="row.dir"
-				:class="col.textAlignClass"
+				:class="col.class"
+				:style="col.style"
 
 				:hoverMatchInfos="hoverMatchInfos"
 				@hover="$emit('hover', $event)"
 				@unhover="$emit('unhover')"
 			/>
-			<td v-else-if="col.field === 'metadata'" :key="col.key + col.metadata.id">{{ row.doc.docInfo[col.metadata.id]?.join(', ') || '' }}</td>
+			<td v-else-if="col.field === 'metadata'" :key="col.key + col.metadata.id" :class="col.class" :style="col.style">{{ row.doc.docInfo[col.metadata.id]?.join(', ') || '' }}</td>
 
 			<!-- TODO -->
-			<td v-for="field in row.gloss_fields" :key="field.fieldName" style="overflow: visible;">
+			<td v-for="field in row.gloss_fields" :key="field.fieldName" style="overflow: visible;" :class="col.class" :style="col.style">
 				<GlossField
 					:fieldName="field.fieldName"
 					:hit_first_word_id="row.hit_first_word_id"
@@ -39,38 +39,28 @@
 
 <script lang="ts">
 import Vue from 'vue';
-
+import IRow from '@/pages/search/results/table/IRow.vue';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
-import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from './table-layout';
-import GlossField from '@/pages/search/form/concept/GlossField.vue';
 
-export default Vue.component('HitRow', {
+import GlossField from '@/pages/search/form/concept/GlossField.vue';
+import { HitRowData } from '@/pages/search/results/table/table-layout';
+
+export default Vue.component('HitRow', IRow.extend({
+	props: { row: Object as () => HitRowData },
 	components: {
 		GlossField,
 		HitContext
-	},
-	props: {
-		row: Object as () => HitRowData,
-		cols: Object as () => ColumnDefs,
-		info: Object as () => DisplaySettingsForRendering,
-		open: Boolean,
-
-		// which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
-		hoverMatchInfos: {
-			type: Array as () => string[],
-			default: () => [],
-		},
 	},
 	methods: {
 		hover(v: any) { this.$emit('hover', v); },
 		unhover(v: any) { this.$emit('unhover', v); },
 	}
-});
+}));
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 
-td.doc-version {
+.doc-version {
 	padding-left: 1.5em!important;
 }
 

@@ -35,6 +35,7 @@ import {FilterValue, AnnotationValue} from '@/types/apptypes';
 
 import cloneDeep from 'clone-deep';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { corpusCustomizations } from '@/utils/customization';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -248,9 +249,9 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			let fromPattern = true; // is interface state actually from the pattern, or from the default fallback?
 			if (this.simplePattern && !hasFilters && !hasGapValue) {
 				ui.patternMode = 'simple';
-			} else if ((Object.keys(this.extendedPattern.annotationValues).length > 0) && !hasGapValue) {
+			} else if (this.extendedPattern && !hasGapValue) {
 				ui.patternMode = 'extended';
-			} else if (this.advancedPattern.query && !hasGapValue && UIModule.getState().search.advanced.enabled) {
+			} else if (this.advancedPattern?.query && !hasGapValue && UIModule.getState().search.advanced.enabled) {
 				ui.patternMode = 'advanced';
 			} else if (this.expertPattern.query) {
 				ui.patternMode = 'expert';
@@ -288,7 +289,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	@memoize
 	private get viewedResults(): string|null {
 		// paths are already decoded, and have the base portion removed, so we can just use them directly
-		if (this.paths[1] === 'search' && this.paths.length === 3)
+		if (this.paths[1] === 'search' && this.paths.length >= 3)
 			return this.paths[2] || null; // hits or docs, or custom view
 
 		return null;
@@ -383,9 +384,9 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	private get patterns(): PatternModule.ModuleRootState {
 		return {
 			shared: this.shared,
-			simple: this.simplePattern,
-			extended: this.extendedPattern,
-			advanced: this.advancedPattern,
+			simple: this.simplePattern || {annotationValue: { id: '', value: '', case: false }},
+			extended: this.extendedPattern || {annotationValues: {}, splitBatch: false },
+			advanced: this.advancedPattern || {query: '', targetQueries: []},
 			concept: this.conceptPattern,
 			glosses: this.glossPattern,
 			expert: this.expertPattern,
@@ -409,11 +410,14 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	}
 
 	@memoize
-	private get annotationValues(): {[key: string]: AnnotationValue} {
-		const result = this._parsedCql?.[0];
-		// no query; can't interpret as annotation values
-		if (!result || !result.tokens) {
-			return {};
+	private get annotationValues(): {[key: string]: AnnotationValue}|undefined {
+		if (this._parsedCql === null) {
+			return undefined; // no query; can't interpret as annotation values
+		}
+
+		const result = this._parsedCql[0];
+		if (result == null || result.tokens === undefined) {
+			return undefined;
 		}
 
 		// How we parse the cql pattern depends on whether a tagset is available for this corpus, and whether it's enabled in the ui
@@ -517,8 +521,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			});
 			return mapReduce(decodedValues, 'id');
 		} catch (error) {
-			debugLog('Cql query could not be placed in extended view', error);
-			return {};
+			debugLog('Cql query could not be placed in simple/extended view', error);
+			return undefined;
 		}
 	}
 
@@ -534,7 +538,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		// Complex additional logic might improve this slightly, but the real fix is to change the URL to describe
 		// the frontend's interface state, not the query we send to BLS.
 		const withinOptions = withinUi.enabled ?
-			withinUi.elements.filter(element => UIModule.corpusCustomizations.search.within.includeSpan(element.value)) : [];
+			withinUi.elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
 		return withinOptions.find(opt => !!this.withinClausesWithoutSpanFilters[opt.value])?.value ?? null;
 	}
 
@@ -543,9 +547,14 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		// Find any attributes for the within widget
 		const within = this.withinElementName;
 		const allAttributes = within ? this.withinClausesWithoutSpanFilters[within] ?? {} : {};
+
+		// Which, if any, attribute filter fields should be displayed for this element?
+		const availableAttr = within ? Object.keys(CorpusModule.getState()!.relations.spans?.[within].attributes ?? {}) : [];
+		const attr = within ? availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(within, attrName))
+			.map(a => ({ value: a })) || [] : [];
+
 		const attributesAcceptedByWithinWidget = within ?
-			(UIModule.corpusCustomizations.search.within._attributes(within) || [])
-			.map(el => typeof el === 'string' ? { value: el } : el) : [];
+			attr.map(el => typeof el === 'string' ? { value: el } : el) : [];
 		const withinAttributes = Object.fromEntries(Object.entries(allAttributes)
 			.filter(([attrName, attrValue]) => {
 				return !!attributesAcceptedByWithinWidget.find(w => w.value === attrName);
@@ -608,27 +617,29 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	}
 
 	@memoize
-	private get simplePattern() {
+	private get simplePattern(): {annotationValue: AnnotationValue}|undefined {
 		// Simple view is just a single annotation without any within query or filters
-		// NOTE: do not use extendedPattern, as the annotation used for simple may not be available for extended searching!
+		// NOTE: do not use extendedPattern, as the annotation used for simple may not be available for extended searching!\
+		const id = UIModule.getState().search.simple.searchAnnotationId;
+		if (!this.annotationValues?.[id]) return undefined;
 		return {
-			annotationValue: this.annotationValues[CorpusModule.get.firstMainAnnotation().id] || {}
+			annotationValue: this.annotationValues[id]
 		};
 	}
 
 	@memoize
 	private get extendedPattern() {
 		const annotationsInInterface = mapReduce(UIModule.getState().search.extended.searchAnnotationIds);
-		const parsedAnnotationValues = cloneDeep(this.annotationValues);
+		const parsedAnnotationValues = cloneDeep(this.annotationValues || {});
 		Object.keys(parsedAnnotationValues).forEach(annotId => {
 			if (!annotationsInInterface[annotId]) {
 				delete parsedAnnotationValues[annotId];
 			}
 		});
 
+		if (Object.keys(parsedAnnotationValues).length === 0) return undefined;
 		return {
 			annotationValues: parsedAnnotationValues,
-
 			// This is always false, it's just a checkbox that will split up the query when it's submitted, then untick itself
 			splitBatch: false
 		};
@@ -636,7 +647,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 	@memoize
 	private get advancedPattern() {
-		return this._parsedCql ? this.expertPattern : { query: null, targetQueries: [] };
+		return this._parsedCql ? this.expertPattern : undefined;
 	}
 
 	@memoize
@@ -652,32 +663,14 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	@memoize
 	private get expertPattern() {
 
+		// Strip any withinClauses from the end of the CQL query,
+		// then add back only those that we cannot place into a widget.
 		const processQueryPart = (r: Result) => {
-			// Strip _with-spans(...) from the query (we add this automatically)
-			function stripWithSpans(q: string): string {
-				const prefix = '_with-spans(';
-				const suffix = ')';
-				if (q.startsWith(prefix) && q.endsWith(suffix)) {
-					q = q.substring(prefix.length, q.length - suffix.length);
-				} else if (q.startsWith('(' + prefix) && q.endsWith(suffix + ')')) {
-					// Each part of a parallel queries is usually parenthesized.
-					// Recognize this and strip _with-spans() in this case as well.
-					// (we can't just strip the outermost parens, at least not without checking that
-					//  parens will remain balanced, i.e. not "(a) (b)" -> "a) (b", but _with-spans() is
-					//  always added last, so it should be fine here)
-					q = q.substring(prefix.length + 1, q.length - suffix.length - 1);
-				}
-				return q;
-			}
-
-			// Strip any withinClauses from the end of the CQL query,
-			// then add back only those that we cannot place into a widget.
+			const hasWithinClauses = r.withinClauses && Object.keys(r.withinClauses).length > 0;
+			const rawQuery = r.query ?? '';
 			function stripWithins(q: string) {
 				return unparenQueryPart(q)!.replace(/(?:\s*(?:within|overlap)?\s*<[^\/]+\/>)+$/g, '');
 			}
-
-			const hasWithinClauses = r.withinClauses && Object.keys(r.withinClauses).length > 0;
-			const rawQuery = stripWithSpans(r.query ?? '');
 			const query = unparenQueryPart(hasWithinClauses ? stripWithins(rawQuery) : rawQuery);
 			const reapplyWithins = this.expertWithinClauses;
 			const finalQuery = Object.keys(reapplyWithins).length > 0 ?
@@ -693,8 +686,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		// In parallel queries, if any of the queries amounts to "zero or more of any token",
 		// just leave it empty.
 		const isParallel = (this._parsedCql?.length ?? 0) > 1;
-		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*') ? '' : q;
-
+		const optEmpty = (q: string|undefined) => isParallel && (q === undefined || q === '_' || q === '[]*' || q === '[]+') ? '' : q;
 		return {
 			query: this._parsedCql ? optEmpty(unparenQueryPart(processQueryPart(this._parsedCql?.[0] ?? {}))) || null : null,
 			targetQueries: this._parsedCql ? this._parsedCql.slice(1).map(r => optEmpty(unparenQueryPart(processQueryPart(r))) || '') : [],

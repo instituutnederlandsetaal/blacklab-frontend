@@ -16,6 +16,7 @@
 					<label>Page</label>
 					<div class="pagination-wrapper">
 						<Pagination
+							showTotal
 							:page="validPaginationInfo.value.page"
 							:maxPage="validPaginationInfo.value.maxPage"
 							:editable="false"
@@ -31,6 +32,7 @@
 				<label>Hit</label>
 				<div class="pagination-wrapper">
 					<Pagination
+						showTotal
 						:page="hitToHighlight.value.hitIndexToHighlight"
 						:maxPage="hitToHighlight.value.totalHits-1"
 						:editable="false"
@@ -55,6 +57,7 @@
 		</ul>
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px;">
 			<div id="content" class="tab-pane active">
+				<h2 v-if="isParallel" style="word-break:break-all;">{{$tAnnotatedFieldDisplayName(sourceField)}}</h2>
 				<Spinner v-if="contents.isLoading()" />
 				<div v-else-if="contents.isError()">
 					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#content_error" aria-expanded="false" aria-controls="content_error">
@@ -68,7 +71,6 @@
 				</div>
 				<InstancedHtml v-if="contents.isLoaded()" :value="contents.value.container"/>
 			</div>
-
 
 			<div id="metadata" class="tab-pane">
 				<Spinner v-if="metadata.isLoading()" />
@@ -194,13 +196,14 @@ export default Vue.extend({
 		snippetAndDocument: new LoadableFromStream(snippetAndDocument$),
 	}),
 	computed: {
+		sourceField: QueryStore.get.sourceField,
 		inputs(): Input {
 			return {
 				indexId: CorpusStore.get.indexId()!,
 				docId: ArticleStore.getState().docId,
 
 				viewField: ArticleStore.getState().viewField,
-				searchField: QueryStore.get.annotatedFieldName() || CorpusStore.get.mainAnnotatedField(),
+				searchField: this.sourceField.id,
 
 				wordstart: ArticleStore.get.wordstart(),
 				wordend: ArticleStore.get.wordend(),

@@ -1,8 +1,8 @@
 // Define a few pipelines to perform actions on streams of data
 import URI from 'urijs';
 
-import { BehaviorSubject, Observable, ReplaySubject, fromEvent, pipe } from 'rxjs';
-import { debounceTime, map, shareReplay, filter } from 'rxjs/operators';
+import { BehaviorSubject, Observable, ReplaySubject, fromEvent, of, pipe } from 'rxjs';
+import { debounceTime, map, shareReplay, filter, mergeMap } from 'rxjs/operators';
 import cloneDeep from 'clone-deep';
 
 import * as RootStore from '@/store/';
@@ -221,7 +221,7 @@ export default () => {
 	);
 
 	fromEvent<PopStateEvent>(window, 'popstate')
-	.pipe(map<PopStateEvent, HistoryStore.HistoryEntry>(evt => evt.state ? evt.state : new UrlStateParserSearch(FilterStore.getState().filters).get()))
+	.pipe(mergeMap(evt => evt.state  ? of(evt.state as HistoryStore.HistoryEntry) : new UrlStateParserSearch(FilterStore.getState().filters).get()))
 	.subscribe(state => RootStore.actions.replace(state));
 
 	debugLogCat('init', 'Finished connecting store to url and subcorpus calculations.');

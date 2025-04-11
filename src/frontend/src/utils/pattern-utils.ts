@@ -3,11 +3,11 @@ import type {ModuleRootState as ModuleRootStateExplore} from '@/store/form/explo
 import type {ModuleRootState as ModuleRootStatePatterns} from '@/store/form/patterns';
 import type {ModuleRootState as ModuleRootStateFilters} from '@/store/form/filters';
 import * as FilterModule from '@/store/form/filters';
-import * as UIModule from '@/store/ui';
 import cloneDeep from 'clone-deep';
-import { applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPart, parenQueryPartParallel, RegexEscapeOptions,
+import { applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel, RegexEscapeOptions,
 	splitIntoTerms, uiTypeSupport } from '@/utils';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { corpusCustomizations } from '@/utils/customization';
 
 /** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */
 export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): string[] => {
@@ -48,7 +48,7 @@ function addWithSpans(q: string) {
 	if (q === '_')
 		return `_with-spans([]+)`; // _ would be interpreted as default argument, which _with-spans doesn't have
 	if (q !== undefined && q.length > 0 && q.indexOf('with-spans') < 0) {
-		let shouldAddWithSpans: boolean|null = UIModule.corpusCustomizations.search.pattern.shouldAddWithinSpans(q);
+		let shouldAddWithSpans: boolean|null = corpusCustomizations.search.pattern.shouldAddWithinSpans(q);
 		if (shouldAddWithSpans === null) {
 			// Use default behavior if the corpus doesn't have a custom setting.
 			shouldAddWithSpans = hasSpanFilters();

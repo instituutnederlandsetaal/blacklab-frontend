@@ -1,9 +1,8 @@
 package nl.inl.corpuswebsite.response;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,8 +12,6 @@ import java.util.Optional;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import org.apache.commons.io.IOUtils;
 
 import nl.inl.corpuswebsite.BaseResponse;
 import nl.inl.corpuswebsite.MainServlet;
@@ -57,16 +54,12 @@ public class CorporaDataResponse extends BaseResponse {
                 response.setStatus(404);
                 return;
             }
-
+            
+            String mime = servlet.getServletContext().getMimeType(pathString);
+            response.setHeader("Content-Length", Long.toString(file.get().length()));
+            response.setContentType(mime);
             ensureEtagAndCache(file.get().lastModified());
-
-            try (InputStream is = new FileInputStream(file.get())) {
-                // Headers must be set before writing the response.
-                String mime = servlet.getServletContext().getMimeType(pathString);
-                response.setHeader("Content-Length", Long.toString(file.get().length()));
-                response.setContentType(mime);
-                IOUtils.copy(is, response.getOutputStream());
-            }
+            Files.copy(file.get().toPath(), response.getOutputStream());
         } catch (InvalidPathException e1) { // runtimeException from Path.resolve; when weird paths are being requested
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;

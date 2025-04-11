@@ -17,7 +17,7 @@
 
 
 			<div class="result-buttons-layout">
-				<Pagination slot="pagination" v-if="20 <= (rows?.rows.length ?? 0)"
+				<Pagination slot="pagination"
 					:page="pagination.shownPage"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
@@ -51,6 +51,7 @@
 
 			<GenericTable
 				:type="id"
+				:class="isHits ? 'hits-table' : isDocs ? 'docs-table' : isGroups ? 'groups-table' : ''"
 				:cols="cols"
 				:rows="rows"
 				:info="renderDisplaySettings"
@@ -89,6 +90,7 @@
 					:hits="isHits"
 					:docs="isDocs"
 					:groups="isGroups"
+					:parallelCorpus="isParallelCorpus"
 
 					:corpus="corpus"
 					:annotations="sortAnnotations"
@@ -106,16 +108,32 @@
 				/>
 			</div>
 		</template>
-		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
+		<div v-else-if="error != null" class="no-results-found">
+			<span class="fa fa-exclamation-triangle text-danger"></span><br>
+			<div style="text-align: initial;">{{error}}</div>
+			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty();">{{ $t('results.resultsView.tryAgain') }}</button>
+		</div>
 		<div v-else-if="!valid" class="no-results-found">
 			{{ $t('results.resultsView.inactiveView') }}
 		</div>
-		<div v-else-if="error != null" class="no-results-found">
-			<span class="fa fa-exclamation-triangle text-danger"></span><br>
-			<span v-html="error"></span>
-			<br>
-			<br>
-			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty();">{{ $t('results.resultsView.tryAgain') }}</button>
+		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
+		<!-- Allow the user to clear grouping or pagination if something's wrong. -->
+		<div v-if="!request && !(resultComponentData && cols && renderDisplaySettings)">
+			<GroupBy v-if="groupBy.length"
+				:type="id"
+				:results="results"
+				:disabled="!!request"
+			/>
+			<Pagination v-if="pagination.shownPage != 0"
+				style="display: block;"
+
+				:page="pagination.shownPage"
+				:maxPage="pagination.maxShownPage"
+				:disabled="!!request"
+
+				@change="page = $event"
+			/>
+
 		</div>
 	</div>
 </template>
@@ -148,7 +166,7 @@ import Spinner from '@/components/Spinner.vue';
 import debug, { debugLog, debugLogCat } from '@/utils/debug';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { NormalizedAnnotatedFieldParallel, NormalizedIndex } from '@/types/apptypes';
+import { NormalizedIndex } from '@/types/apptypes';
 import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
 import { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, makeColumns, makeRows, Rows } from '@/pages/search/results/table/table-layout';
@@ -156,6 +174,7 @@ import { isHitParams } from '@/utils';
 
 
 import '@/pages/search/results/table/GenericTable.vue';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	components: {
@@ -237,6 +256,14 @@ export default Vue.extend({
 			if (this.clearResults) { this.results = this.error = null; this.clearResults = false; }
 
 			const nonce = this.refreshParameters;
+
+			// If we're querying a parallel corpus, and no sort was chosen yet,
+			// sort by alignments (so aligned hits appear first).
+			const viewModule = ResultsStore.getOrCreateModule('hits');
+			if (CorpusStore.get.isParallelCorpus() && viewModule.getState().sort === null) {
+				viewModule.actions.sort('alignments');
+			}
+
 			const params = RootStore.get.blacklabParameters()!;
 			const axiosParams = {headers: { 'Cache-Control': 'no-cache' }};
 			debugLog('starting search', this.id, params);
@@ -378,20 +405,22 @@ export default Vue.extend({
 			shownPage: number,
 			maxShownPage: number
 		} {
-			const r: BLTypes.BLSearchResult|null = this.paginationResults || this.results;
-			if (r == null) {
+			// Take care to use this.results for page size, but this.paginationResults for total number of results.
+			// This is because pagination results are requested with a window size of 0!
+			if (!this.results || !this.paginationResults) {
 				return {
 					shownPage: 0,
 					maxShownPage: 0,
 				};
 			}
 
-			const pageSize = this.results!.summary.requestedWindowSize;
-			const shownPage = Math.floor(this.results!.summary.windowFirstResult / pageSize);
+			// use actual results - pagination results are requested with windows size 0 (!)
+			const pageSize = this.results.summary.requestedWindowSize;
+			const shownPage = Math.floor(this.results.summary.windowFirstResult / pageSize);
 			const totalResults =
-				BLTypes.isGroups(r) ? r.summary.numberOfGroups :
-				BLTypes.isHitResults(r) ? r.summary.numberOfHitsRetrieved :
-				r.summary.numberOfDocsRetrieved;
+				BLTypes.isGroups(this.paginationResults) ? this.paginationResults.summary.numberOfGroups :
+				BLTypes.isHitResults(this.paginationResults) ? this.paginationResults.summary.numberOfHitsRetrieved :
+				this.paginationResults.summary.numberOfDocsRetrieved;
 
 			// subtract one page if number of results exactly diactive by page size
 			// e.g. 20 results for a page size of 20 is still only one page instead of 2.
@@ -399,7 +428,7 @@ export default Vue.extend({
 
 			return {
 				shownPage,
-				maxShownPage: pageCount
+				maxShownPage: pageCount >= shownPage ? pageCount : shownPage,
 			};
 		},
 
@@ -411,6 +440,7 @@ export default Vue.extend({
 		isHits(): boolean { return BLTypes.isHitResults(this.results); },
 		isDocs(): boolean { return BLTypes.isDocResults(this.results); },
 		isGroups(): boolean { return BLTypes.isGroups(this.results); },
+		isParallelCorpus: CorpusStore.get.isParallelCorpus,
 
 		viewGroupName(): string {
 			if (this.viewGroup == null) { return ''; }
@@ -487,7 +517,7 @@ export default Vue.extend({
 		},
 
 		resultComponentData(): any {
-			if (!this.results || !this.cols || !this.rows || !this.renderDisplaySettings) return undefined;
+			if (!this.results || !this.cols || !this.rows?.rows.length || !this.renderDisplaySettings) return undefined;
 			return {
 				cols: this.cols,
 				rows: this.rows,
@@ -501,11 +531,12 @@ export default Vue.extend({
 		},
 
 		commonDisplaySettings(): DisplaySettingsCommon {
+			const summaryOtherFields = BLTypes.hasPatternInfo(this.results?.summary) ? this.results.summary.pattern.otherFields ?? [] : [];
 			return {
 				dir: CorpusStore.get.textDirection(),
 				i18n: this,
 				specialFields: CorpusStore.getState()!.fieldInfo,
-				targetFields: QueryStore.get.targetFields(),
+				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name])
 			}
 		},
 		rowDisplaySettings(): DisplaySettingsForRows {
@@ -514,7 +545,7 @@ export default Vue.extend({
 				indexId: CorpusStore.get.indexId()!,
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
 				sourceField: QueryStore.get.sourceField()!, // if no field, there would be no results...
-				getCustomHitInfo: UIStore.corpusCustomizations.results.customHitInfo,
+				getCustomHitInfo: corpusCustomizations.results.customHitInfo,
 			}
 		},
 		columnDisplaySettings(): DisplaySettingsForColumns {
@@ -529,7 +560,7 @@ export default Vue.extend({
 				// If groups, don't show any annotation columns.
 				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
-				hasCustomHitInfoColumn: UIStore.corpusCustomizations.results.hasCustomHitInfoColumn,
+				hasCustomHitInfoColumn: corpusCustomizations.results.hasCustomHitInfoColumn,
 			}
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {

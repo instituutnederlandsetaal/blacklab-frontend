@@ -8,7 +8,7 @@
  *
  * Obviously, that means the JSON tree structure returned by BlackLab's parser must
  * be stable. The documentation can be found here:
- * https://inl.github.io/BlackLab/server/rest-api/corpus/parse-pattern/get.html#json-query-structure
+ * https://blacklab.ivdnt.org/server/rest-api/corpus/parse-pattern/get.html#json-query-structure
  */
 
 import * as api from '@/api';
@@ -177,8 +177,10 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		query.withinClauses = query.withinClauses ?? {};
 
 		if (filter.type === 'tags') {
+			// regular within (e.g. within <s/>)
 			query.withinClauses[filter.name.toString()] = interpretTagsAttributes(filter.attributes);
 		} else if (filter.type === 'overlapping') {
+			// "within (overlap of) all these tags"; combine withinClauses
 			if (filter.operation !== 'overlap')
 				throw new Error('Unknown overlapping operation: ' + operation);
 			filter.clauses.forEach((c: any) => {
@@ -187,8 +189,8 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 				query.withinClauses![c.name.toString()] = interpretTagsAttributes(c.attributes);
 			});
 		} else if (filter.type === 'posfilter') {
-			const posfilter = _posFilter(filter.producer, filter.operation, filter.filter);
-			query.withinClauses = { ...query.withinClauses, ...posfilter.withinClauses };
+			// nested posfilter (A within (B within C)); combine withinClauses
+			throw new Error('Cannot interpret nested posfilter');
 		}
 		return query;
 	}
@@ -288,9 +290,11 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	}
 
 	function _query(input: any): Result {
+		//console.log('_query', input);
 		switch (input.type) {
 		case 'sequence':
 			return {
+				query: input.bcqlFragment,
 				tokens: _sequence(input.clauses) ?? undefined,
 			};
 
@@ -300,6 +304,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		case 'tags':
 			// "show me these tags" (not really within, no query given)
 			return {
+				query: input.bcqlFragment,
 				withinClauses: {
 					[input.name]: interpretTagsAttributes(input.attributes),
 				},
@@ -308,6 +313,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		case 'overlapping':
 			// "show me the overlaps of these tags" (no query given)
 			return {
+				query: input.bcqlFragment,
 				withinClauses: Object.fromEntries(input.clauses.filter( (c: any) => c.type === 'tags').map((c: any) => [c.name, interpretTagsAttributes(c.attributes)])),
 			};
 
@@ -315,24 +321,50 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 			// Must be a single token
 			const token = _token(input);
 			return {
+				query: input.bcqlFragment,
 				tokens: token === null ? undefined : [token],
 			}
 		}
 	}
 
 	function _relTarget(input: any): Result {
-		input = stripWithSpans(input);
 		if (input.type !== 'reltarget')
 			throw new Error('Unknown reltarget type: ' + input.type);
-		// if (input.relType !== '.*')
-		// 	throw new Error('Unsupported reltarget relType: ' + input.relType);
-
+		const clause = stripWithSpans(input.clause);
 		return {
-			..._query(input.clause),
+			..._query(clause),
 			targetVersion: input.targetVersion,
 			relationType: input.relType,
 			optional: input.optional,
 		};
+	}
+
+	function _parallelQuery(bcql: string, input: any): Result[] {
+		if (input.type == 'relmatch') {
+			// Determine what relationtype we're filtering by
+			// (must all be the same for the query to be interpretable here)
+			let relationType: string|undefined = undefined;
+			input.children.forEach((c: any) => {
+				c = stripWithSpans(c); // (parallel targets may be wrapped in _with-spans)
+				if (c.type !== 'reltarget')
+					throw new Error('Unknown relmatch child type: ' + c.type);
+				if (relationType === undefined)
+					relationType = c.relType;
+				if (relationType !== c.relType)
+					throw new Error('Mismatch in relation types: ' + relationType + ' / ' + c.relType);
+			});
+
+			const parent = {
+				..._query(stripWithSpans(input.parent)) // (parallel source may be wrapped in _with-spans)
+			};
+			const children: Result[] = input.children.map(_relTarget).map( (r: Result, index: number) => ({
+				...r,
+				relationType
+			}));
+			return [parent, ...children];
+		}
+
+		return [ { ..._query(input) } ];
 	}
 
 	/** Strip the automatically added _with-span() call.
@@ -347,59 +379,31 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		return input;
 	}
 
-	function _parallelQuery(bcql: string, input: any): Result[] {
+	/** Strip the automatically added rspan(..., 'all') call.
+	 *  (added for relations queries using adjusthits=yes so hits cover all matched relations)
+	 */
+	function stripRspanAll(input: any): any {
 		if (input.type === 'callfunc') {
-			if (input.name === 'rspan' && input.args.length === 2 &&
-				input.args[1] === 'all') {
-				// rspan(..., 'all') is added automatically (via the adjusthits BLS parameter). Ignore here.
-				return _parallelQuery(bcql, input.args[0]);
-			} else if (input.name === '_with-spans' && input.args.length === 1) {
-				// We add _with-spans(...) automatically if there's span filters. Ignore here.
-				return _parallelQuery(bcql, input.args[0]);
+			if (input.name === 'rspan' && input.args.length === 2 && input.args[1] === 'all') {
+				return input.args[0];
 			}
 		}
-
-		if (input.type == 'relmatch') {
-
-			// Determine what relationtype we're filtering by
-			// (must all be the same for the query to be interpretable here)
-			const regex = /\s*=([\w\-]*)=>\w+\??\s*/g;
-			let result, relationType: string|undefined = undefined;
-			while ((result = regex.exec(bcql)) !== null) {
-				const type = result[1] || '';
-				if (relationType !== undefined && relationType !== type)
-					throw new Error('Mismatch in relation types');
-				relationType = type;
-			}
-
-			const queries = bcql.split(/;?\s*=[\w\-]*=>\w+\??\s*/); // extract partial queries for advanced/expert view
-			const parent = { ..._query(stripWithSpans(input.parent)), query: queries.shift() };
-			const children: Result[] = input.children.map(_relTarget).map( (r: Result, index: number) => ({
-				...r,
-				query: queries.shift(),
-				relationType
-			}));
-			// if (queries.length !== children.length + 1)
-			// 	throw new Error('Mismatch in number of queries and children');
-			return [parent, ...children];
-		}
-
-		return [ { ..._query(input), query: bcql } ];
+		return input;
 	}
 
-	return _parallelQuery(bcql, json);
+	return _parallelQuery(bcql, stripRspanAll(stripWithSpans(json)));
 }
 
 const parsePatternCache: Map<string, Result[]> = new Map();
 
 async function parseBcql(indexId: string, bcql: string, defaultAnnotation: string): Promise<Result[]> {
-	//console.log('parseBcql', indexId, bcql, defaultAnnotation);
 	const cacheKey = indexId + ':::' + bcql;
 	if (parsePatternCache.has(cacheKey))
 		return parsePatternCache.get(cacheKey)!;
 	const response = await api.blacklab.getParsePattern(indexId, bcql);
 	const result = interpretBcqlJson(bcql, response.parsed.json, defaultAnnotation);
 	parsePatternCache.set(cacheKey, result);
+	//console.log('parseBcql', indexId, bcql, defaultAnnotation, result);
 	return result;
 }
 

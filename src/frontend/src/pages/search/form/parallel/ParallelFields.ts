@@ -10,12 +10,13 @@ const BaseParallelInfo = Vue.extend({
 		isParallelCorpus: CorpusStore.get.isParallelCorpus,
 		/** If this is a parallel corpus: the vailable source version options (all except current targets) */
 		pSourceOptions(): Option[] {
-			return CorpusStore.get.parallelAnnotatedFields()
+			const opt = CorpusStore.get.parallelAnnotatedFields()
 				.filter(f => !this.pTargetValue.includes(f.id))
 				.map(f => ({
 					value: f.id,
 					label: this.$tAnnotatedFieldDisplayName(f)
-				}))
+				}));
+			return opt.sort((a, b) => a.label.localeCompare(b.label));
 		},
 		/** If this is a parallel corpus: the available target version options (all except current source and targets) */
 		pTargetOptions(): Option[] {
@@ -23,12 +24,13 @@ const BaseParallelInfo = Vue.extend({
 		},
 		/** If this is a parallel corpus: the available target version options (all except current source) */
 		pTargetOptionsWithCurrent(): Option[] {
-			return CorpusStore.get.parallelAnnotatedFields()
+			const opt = CorpusStore.get.parallelAnnotatedFields()
 				.filter(f => f.id !== this.pSourceValue)
 				.map(f => ({
 					value: f.id,
 					label: this.$tAnnotatedFieldDisplayName(f)
 				}))
+			return opt.sort((a, b) => a.label.localeCompare(b.label));
 		},
 		/** For rendering, contains the localized display name as label and the field's id as value. */
 		pSource(): Option|undefined {

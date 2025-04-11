@@ -12,10 +12,10 @@
 				:value="option.value"
 				:title="option.title || undefined"
 				@click="within = option.value"
-			>{{$tWithinDisplayName(option)}}</button> <!-- empty value searches across entire documents -->
+			>{{$tSpanDisplayName(option)}}</button> <!-- empty value searches across entire documents -->
 		</div>
 		<div class="btn-group col-xs-12 col-md-9 col-md-push-3 attr form-inline" v-for="attr in withinAttributes()">
-			<label>{{ $tWithinAttribute(within ?? 'none', attr.value) }}</label>
+			<label>{{ $tSpanAttributeDisplay(within ?? 'none', attr.value) }}</label>
 			<input class='form-control' type="text" :title="attr.title || undefined"
 					:value="withinAttributeValue(attr)" @change="changeWithinAttribute(attr, $event)" />
 		</div>
@@ -30,7 +30,7 @@ import * as PatternStore from '@/store/form/patterns';
 import * as CorpusStore from '@/store/corpus';
 
 import { Option } from '@/components/SelectPicker.vue';
-import { corpusCustomizations } from '@/store/ui';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	computed: {
@@ -55,8 +55,12 @@ export default Vue.extend({
 			const option = this.withinOptions.find(o => o.value === within);
 			if (!option) return [];
 
-			return (corpusCustomizations.search.within._attributes(option.value) || [])
-				.map(el => typeof el === 'string' ? { value: el } : el);
+			// Which, if any, attribute filter fields should be displayed for this element?
+			const availableAttr = Object.keys(CorpusStore.getState()!.relations.spans?.[option.value].attributes ?? {});
+			const attr = availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(option.value, attrName))
+				.map(a => ({ value: a })) || [];
+
+			return attr.map(el => typeof el === 'string' ? { value: el } : el);
 		},
 		withinAttributeValue(option: Option) {
 			if (this.within === null)

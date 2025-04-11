@@ -21,16 +21,6 @@
 					:info="{...info, detailedAnnotations: []}"
 					:type="type"
 				/>
-				<!-- <HitsTable v-if="type === 'hits' && concordances.results.rows.length"
-					:rows="concordances.results"
-					:info="{...info, detailedAnnotations: []}"
-					:cols="cols"
-				/>
-				<DocsTable v-else-if="type === 'docs' && concordances.results.rows.length"
-					:rows="concordances.results"
-					:info="info"
-					:cols="cols"
-				/> -->
 				<div class="concordance-controls clearfix" v-if="concordances.results?.rows.length > 10">
 					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
 					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
@@ -58,20 +48,11 @@ import { ColumnDefs, DisplaySettingsForRendering, GroupRowData, makeRows, Rows }
 import * as UIStore from '@/store/ui';
 import * as CorpusStore from '@/store/corpus';
 import Spinner from '@/components/Spinner.vue';
+import IRow from '@/pages/search/results/table/IRow.vue';
 
-
-export default Vue.component('GroupRowDetails', {
+export default Vue.component('GroupRowDetails', IRow.extend({
 	components: { Spinner },
-	props: {
-		row: Object as () => GroupRowData,
-		cols: Object as () => ColumnDefs,
-		info: Object as () => DisplaySettingsForRendering,
-
-		open: Boolean,
-		disabled: Boolean,
-		type: String as () => 'hits'|'docs',
-		query: Object as () => BLSearchParameters,
-	},
+	props: { row: Object as () => GroupRowData },
 	data: () => ({
 		concordances: null as any as PaginatedGetter<Rows>,
 	}),
@@ -106,7 +87,7 @@ export default Vue.component('GroupRowDetails', {
 			if (this.open && !this.concordances.done && !this.concordances.loading && !this.concordances.results?.rows.length) this.concordances.next();
 		}
 	}
-});
+}));
 </script>
 
 <style lang="scss">

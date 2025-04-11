@@ -31,7 +31,7 @@
 						}}</td>
 						<td class="history-table-contain-text" :title="entry.displayValues.pattern.substring(0,1000) || undefined">{{entry.displayValues.pattern}}</td>
 						<td class="history-table-contain-text" :title="entry.displayValues.filters.substring(0,1000) || undefined">{{entry.displayValues.filters}}</td>
-						<td class="history-table-contain-text" :title="entry.view.groupBy.join(' ') || '-'">{{entry.view.groupBy.join(' ') || '-'}}</td>
+						<td class="history-table-contain-text" :title="humanize(entry.view.groupBy).join(' ') || '-'">{{humanize(entry.view.groupBy).join(' ') || '-'}}</td>
 						<td>
 							<div class="btn-group">
 								<button type="button" class="btn btn-default" @click="load(entry)">{{ $t('history.search') }}</button>
@@ -95,6 +95,9 @@ import UrlStateParserSearch from '@/url/url-state-parser-search';
 import Modal from '@/components/Modal.vue';
 
 import uid from '@/mixins/uid';
+import { humanizeSerializedGroupBy } from '@/utils/grouping';
+
+import * as CorpusStore from '@/store/corpus';
 
 export default Vue.extend({
 	components: {
@@ -134,6 +137,9 @@ export default Vue.extend({
 			// @ts-ignore
 			$(this.$refs.modal).modal('toggle');
 			RootStore.actions.replace(entry);
+		},
+		humanize(g: string[]): string[] {
+			return humanizeSerializedGroupBy(this, g, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap());
 		},
 
 		async importFromUrl() {
