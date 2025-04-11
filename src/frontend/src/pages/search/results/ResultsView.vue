@@ -110,7 +110,7 @@
 		</template>
 		<div v-else-if="error != null" class="no-results-found">
 			<span class="fa fa-exclamation-triangle text-danger"></span><br>
-			<div v-html="error" style="text-align: initial;"></div>
+			<div style="text-align: initial;">{{error}}</div>
 			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty();">{{ $t('results.resultsView.tryAgain') }}</button>
 		</div>
 		<div v-else-if="!valid" class="no-results-found">
@@ -118,7 +118,7 @@
 		</div>
 		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
 		<!-- Allow the user to clear grouping or pagination if something's wrong. -->
-		<div v-if="!(resultComponentData && cols && renderDisplaySettings)">
+		<div v-if="!request && !(resultComponentData && cols && renderDisplaySettings)">
 			<GroupBy v-if="groupBy.length"
 				:type="id"
 				:results="results"
