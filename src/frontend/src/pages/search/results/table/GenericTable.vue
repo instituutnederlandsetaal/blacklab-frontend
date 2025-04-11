@@ -30,23 +30,23 @@
 					:class="{
 						rounded: true,
 						open: openRows[row.hit_id || index],
-						interactable:
-							!disabled &&
-							!disableDetails &&
-							isRowOpenable(row),
-						topborder: index > 0 && row.first_of_hit,
-						bottomborder: row.last_of_hit && (index < rows.rows.length - 1)
+						interactable: isOpenable(row),
+						topborder: index > 0 && 'first_of_hit' in row && row.first_of_hit,
+						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1)
 					}"
 					:row="row"
+					:info="info"
+					:cols="cols"
 					:maxima="rows.maxima"
 					:open="!!openRows[row.hit_id || index]"
+					:disabled="disabled"
+					:type="type"
+					:query="query"
 					:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
 					@hover="hoverMatchInfos = $event; hoverMatchInfosId = row.hit_id"
 					@unhover="hoverMatchInfos = undefined"
-					v-bind="$props"
+					@click.native="toggleRow(index)"
 					v-on="$listeners"
-
-					@click.native="toggleRow(index, $event)"
 				/>
 				<component v-if="!disableDetails" v-show="openRows[row.hit_id || index]":is="row.type === 'doc' ? 'DocRowDetails' : row.type === 'hit' ? 'HitRowDetails' : 'GroupRowDetails'"
 					:class="{
@@ -55,14 +55,18 @@
 						open: openRows[row.hit_id || index],
 					}"
 					:row="row"
+					:info="info"
+					:cols="cols"
 					:maxima="rows.maxima"
 					:open="!!openRows[row.hit_id || index]"
+					:disabled="disabled"
+					:type="type"
+					:query="query"
 					:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
-					@hover="hoverMatchInfos = $event; hoverMatchInfosId = index"
+					@hover="hoverMatchInfos = $event; hoverMatchInfosId = row.hit_id"
 					@unhover="hoverMatchInfos = undefined"
-					@close="toggleRow(index, $event)"
+					@close="toggleRow(index)"
 					@openFullConcordances="openFullConcordances(row)"
-					v-bind="$props"
 					v-on="$listeners"
 				/>
 			</template>
@@ -107,10 +111,11 @@ export default Vue.component('GenericTable', {
 		openRows: {} as Record<number|string, boolean>,
 
 		hoverMatchInfos: undefined as undefined|string[],
-		hoverMatchInfosId: undefined as undefined|number,
+		hoverMatchInfosId: undefined as undefined|string,
 	}),
 	methods: {
-		isRowOpenable(row: HitRowData|DocRowData|GroupRowData) {
+		isOpenable(row: HitRowData|DocRowData|GroupRowData) {
+			if (this.disabled || this.disableDetails) return false;
 			if (row.type === 'group') return true;
 			if (row.type === 'hit' && this.type === 'hits') return true;
 			if (row.type === 'doc' && this.type === 'docs' && row.hits) return true;
@@ -121,13 +126,15 @@ export default Vue.component('GenericTable', {
 		},
 		toggleRow(index: number) {
 			const row = this.rows.rows[index];
-			if (this.disabled || this.disableDetails || !this.isRowOpenable(row)) return;
-			const id = (row as HitRowData).hit_id || index;
+			if (!this.isOpenable(row)) return;
+			const id = row.hit_id || index;
 			const newState = !this.openRows[id];
 			this.$set(this.openRows, id, newState);
 		},
-		openFullConcordances(row: GroupRowData) {
-			this.$emit('viewgroup', row.id, row.displayname);
+		openFullConcordances(row: HitRowData|DocRowData|GroupRowData) {
+			if ('displayname' in row) {
+				this.$emit('viewgroup', row.id, row.displayname);
+			}
 		}
 	},
 	watch: {

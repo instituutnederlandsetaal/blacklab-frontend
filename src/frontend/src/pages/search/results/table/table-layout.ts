@@ -36,6 +36,8 @@ export interface GroupRowData {
 	type: 'group';
 	/** ID of the group in BlackLab. */
 	id: string;
+	/** Hack to make typescript happy. Unused */
+	hit_id?: undefined;
 	/** Size of the group. */
 	size: number;
 	/** Display name of the group. */
@@ -439,7 +441,8 @@ export type DocRowData = {
 	summary: string;
 	href: string;
 	doc: BLDoc,
-	hits?: HitRowData[]
+	hits?: HitRowData[],
+	hit_id?: undefined
 };
 
 function start(hit: BLHit): number;

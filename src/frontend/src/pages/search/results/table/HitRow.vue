@@ -39,34 +39,23 @@
 
 <script lang="ts">
 import Vue from 'vue';
-
+import IRow from '@/pages/search/results/table/IRow.vue';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
-import { ColumnDefs, DisplaySettingsForRendering, HitRowData } from './table-layout';
 
 import GlossField from '@/pages/search/form/concept/GlossField.vue';
+import { HitRowData } from '@/pages/search/results/table/table-layout';
 
-export default Vue.component('HitRow', {
+export default Vue.component('HitRow', IRow.extend({
+	props: { row: Object as () => HitRowData },
 	components: {
 		GlossField,
 		HitContext
-	},
-	props: {
-		row: Object as () => HitRowData,
-		cols: Object as () => ColumnDefs,
-		info: Object as () => DisplaySettingsForRendering,
-		open: Boolean,
-
-		// which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
-		hoverMatchInfos: {
-			type: Array as () => string[],
-			default: () => [],
-		},
 	},
 	methods: {
 		hover(v: any) { this.$emit('hover', v); },
 		unhover(v: any) { this.$emit('unhover', v); },
 	}
-});
+}));
 </script>
 
 <style lang="scss" scoped>

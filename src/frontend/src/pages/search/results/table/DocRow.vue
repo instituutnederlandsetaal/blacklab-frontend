@@ -18,16 +18,14 @@
 
 <script lang="ts">
 import Vue from 'vue';
+import IRow from '@/pages/search/results/table/IRow.vue';
+import { DocRowData } from '@/pages/search/results/table/table-layout';
 
-import { DocRowData, DisplaySettingsForRendering, ColumnDefs } from '@/pages/search/results/table/table-layout';
-
-export default Vue.component('DocRow', {
+export default Vue.component('DocRow', IRow.extend({
 	props: {
 		row: Object as () => DocRowData,
-		cols: Object as () => ColumnDefs,
-		info: Object as () => DisplaySettingsForRendering,
 	},
-});
+}));
 </script>
 
 <style lang="scss">
