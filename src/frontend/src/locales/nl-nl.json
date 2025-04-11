@@ -261,7 +261,7 @@
 			}
 		},
 		"table": {
-			"showFullSentence": "Toon complete zin",
+			"showFullSentence": "Toon zinsanalyse",
 			"loading": "Loading...",
 			"loadMoreConcordances": "Laad meer concordanties",
 			"viewDetailedConcordances": "Toon gedetailleerde concordanties",

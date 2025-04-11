@@ -258,7 +258,7 @@
 			}
 		},
 		"table": {
-			"showFullSentence": "Show full sentence",
+			"showFullSentence": "Display sentence analysis",
 			"loading": "Loading...",
 			"loadMoreConcordances": "Load more concordances",
 			"viewDetailedConcordances": "View detailed concordances",
