@@ -190,7 +190,7 @@ auth.target.type=header
 
 ## Adding corpora
 
-Corpora may be [added manually](https://inl.github.io/BlackLab/guide/indexing-with-blacklab.html) or [uploaded by users](#allowing-users-to-add-corpora) (if configured).
+Corpora may be [added manually](https://blacklab.ivdnt.org/guide/indexing-with-blacklab.html) or [uploaded by users](#allowing-users-to-add-corpora) (if configured).
 
 After a corpus has been added, the corpus-frontend will automatically detect it, a restart should not be required.
 
@@ -200,7 +200,7 @@ After a corpus has been added, the corpus-frontend will automatically detect it,
 ### Configuring BlackLab
 
 To allow this, BlackLab needs to be configured properly (user support needs to be enabled and user directories need to be configured).
-See [the BlackLab documentation](https://inl.github.io/BlackLab/server/howtos.html#let-users-manage-their-own-corpora).
+See [the BlackLab documentation](https://blacklab.ivdnt.org/server/howtos.html#let-users-manage-their-own-corpora).
 
 When BlackLab is properly configured, two new sections will appear on the main corpus overview page.
 They allow you to define your own configurations to customize how blacklab will index your data, create private corpora (up to 10 by default, but can be customized in BlackLab), and add data to them.
@@ -823,7 +823,7 @@ Through javascript you can do many things, but outlined below are some of the mo
     `vuexModules.ui.actions.search.shared.within.enable(false)`
 
     It's also possible to set which tags are shown (and how) in `within`.
-    You can only add tags that you actually index (using the [inlineTags options](https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#annotated-configuration-file) in your index config yaml)
+    You can only add tags that you actually index (using the [inlineTags options](https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#annotated-configuration-file) in your index config yaml)
     ```js
     vuexModules.ui.actions.search.shared.within.elements({
       title: 'Tooltip here (optional)',

@@ -8,7 +8,7 @@
  *
  * Obviously, that means the JSON tree structure returned by BlackLab's parser must
  * be stable. The documentation can be found here:
- * https://inl.github.io/BlackLab/server/rest-api/corpus/parse-pattern/get.html#json-query-structure
+ * https://blacklab.ivdnt.org/server/rest-api/corpus/parse-pattern/get.html#json-query-structure
  */
 
 import * as api from '@/api';

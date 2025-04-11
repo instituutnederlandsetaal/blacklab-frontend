@@ -27,7 +27,7 @@ export type BLSearchParameters = {
 	/**
 	 * CQL query gap-filling values, contents of a tsv file in string form.
 	 *
-	 * See http://inl.github.io/BlackLab/blacklab-server-overview.html#requests
+	 * See https://blacklab.ivdnt.org//blacklab-server-overview.html#requests
 	 */
 	pattgapdata?: string;
 	/** How to sort results, comma-separated list of field:${someMetadataFieldId} or (wordleft|hit|wordright):${someAnnotationId} */

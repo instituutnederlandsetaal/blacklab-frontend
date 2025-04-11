@@ -43,7 +43,7 @@ export type BLFSchema = {
 
 	/**
 	 * Which xml processor to use. Defaults to vtd.
-	 * See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#xpath-support-level
+	 * See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#xpath-support-level
 	 */
 	processor?: 'saxon'|'vtd';
 
@@ -67,10 +67,10 @@ export type BLFSchema = {
 	/** Name replacements for metadata fields. Only has effect for fields created through forEachPath */
 	indexFieldAs?: {[originalName: string]: string};
 
-	/** See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#linking-to-external-document-metadata */
+	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#linking-to-external-document-metadata */
 	linkedDocuments?: { [fieldname: string]: LinkedDocument };
 
-	/** See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#corpus-metadata */
+	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#corpus-metadata */
 	corpusConfig?: CorpusConfig;
 
 	/** Whether to store the document contents in the content store. Disabling this removes the ability to view document's contents. Defaults to true. */
@@ -110,7 +110,7 @@ type AnnotatedField = {
 	annotations: Annotation[];
 	/**
 	 * Standoff annotations are annotations that are specified in a different part of the document.
-	 * See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations
+	 * See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations
 	 */
 	standoffAnnotations?: StandoffAnnotation[];
 	/** What tags occurring between the word tags do we wish to index? (relative to containerPath) */
@@ -230,17 +230,17 @@ type StandoffAnnotationRegular = {
 	annotations: Annotation[];
 }
 
-/** See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations */
+/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
 type StandoffAnnotationMultipleTokens = {
 	/** Xpath: where to find the standoff. */
 	path: string;
-	/** See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations */
+	/** See https://blacklab.ivdnt.org//guide/how-to-configure-indexing.html#standoff-annotations */
 	spanStartPath: string;
-	/** See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations */
+	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
 	spanEndPath: string;
-	/** See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations */
+	/** See https://blacklab.ivdnt.org//guide/how-to-configure-indexing.html#standoff-annotations */
 	spanEndIsInclusive: boolean;
-	/** See https://inl.github.io/BlackLab/guide/how-to-configure-indexing.html#standoff-annotations */
+	/** See https://blacklab.ivdnt.org//guide/how-to-configure-indexing.html#standoff-annotations */
 	spanNamePath: string;
 	annotations: Annotation[];
 }

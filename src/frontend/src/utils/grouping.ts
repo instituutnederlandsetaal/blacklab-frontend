@@ -80,7 +80,7 @@ function determineRelationPartField(results: BLSearchResult|undefined, label: st
 
 /**
  * Parse a GroupBy string. It should be pre-separated on comma's.
- * https://inl.github.io/BlackLab/server/rest-api/corpus/hits/get.html#criteria-for-sorting-grouping-and-faceting
+ * https://blacklab.ivdnt.org/server/rest-api/corpus/hits/get.html#criteria-for-sorting-grouping-and-faceting
  */
 export function parseGroupBy(groupBy: string[], results?: BLSearchResult): GroupBy[] {
 	const cast = <T>(x: T): T => x;
@@ -240,7 +240,7 @@ export function parseGroupBy(groupBy: string[], results?: BLSearchResult): Group
 	});
 }
 
-/** See https://inl.github.io/BlackLab/server/rest-api/corpus/hits/get.html#criteria-for-sorting-grouping-and-faceting */
+/** See https://blacklab.ivdnt.org/server/rest-api/corpus/hits/get.html#criteria-for-sorting-grouping-and-faceting */
 export function serializeGroupBy(groupBy: GroupBy): string;
 export function serializeGroupBy(groupBy: GroupBy[]): string[]
 export function serializeGroupBy(groupBy: GroupBy|GroupBy[]): string|string[] {

@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<h3>{{$t('search.expert.corpusQueryLanguage') + (isParallelCorpus ? '' : ':') }}
-			<a class='help' target='_blank' href='https://inl.github.io/BlackLab/guide/corpus-query-language.html'
+			<a class='help' target='_blank' href='https://blacklab.ivdnt.org/guide/corpus-query-language.html'
 				:title="$t('widgets.learnMore').toString()">🛈</a>
 		</h3>
 		<template v-if="!isParallelCorpus">
