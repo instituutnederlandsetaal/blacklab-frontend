@@ -849,6 +849,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 			title: header.title,
 			labelField,
 			barField: barField as any,
+			style: barField ? 'width: 60%' : undefined,
 			showAsPercentage: labelField.includes('relative') as any, // HACK, all relative fields are percentages, and no other fields are.
 			sort: header.sortProp,
 		})
