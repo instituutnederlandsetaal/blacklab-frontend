@@ -67,13 +67,6 @@
             <PageSize>1000</PageSize>
         </Article>
 
-        <!-- Google analytics. Disabled if not provided. -->
-        <!--
-        <Analytics>
-            <Key>google analytics key</Key>
-        </Analytics>
-        -->
-
         <!-- see https://github.com/moritzsternemann/vue-plausible -->
         <!-- 
         <Plausible>

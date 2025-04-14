@@ -71,7 +71,6 @@
 			// So only autoload those typings we actually want and need.
 
 			// See https://github.com/sindresorhus/del/issues/88
-			"@types/google.analytics",
 			"@types/jquery",
 			"@types/jqueryui"
 		],

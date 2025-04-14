@@ -122,8 +122,6 @@ public abstract class BaseResponse {
         model.put("commitMessage", GlobalConfig.commitMessage);
         model.put("version", GlobalConfig.version);
 
-        cfg.getAnalyticsKey().ifPresent(key -> model.put("googleAnalyticsKey", key));
-
         Optional.ofNullable(globalCfg.get(Keys.BANNER_MESSAGE))
                 .filter(msg -> !this.isCookieSet("banner-hidden", Integer.toString(msg.hashCode())))
                 .ifPresent(msg -> {

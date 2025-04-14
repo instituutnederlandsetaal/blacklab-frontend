@@ -155,8 +155,6 @@ export default Vue.component('HitRowDetails', IRow.extend({
 			// The small table will still be shown.
 			if (this.snippetRequest || this.snippet || !('start' in this.row.hit)) return;
 
-			ga('send', 'event', 'results', 'snippet/load', this.row.doc.docPid);
-
 			const transformSnippets = UIStore.getState().results.shared.transformSnippets;
 			const addons = UIStore.getState().results.hits.addons;
 			const formatError = UIStore.getState().global.errorMessage;
@@ -214,7 +212,6 @@ export default Vue.component('HitRowDetails', IRow.extend({
 				this.error = formatError(err, 'snippet');
 				this.snippetRequest = null;
 				if (err.stack) debugLog(err.stack);
-				ga('send', 'exception', { exDescription: err.message, exFatal: false });
 			})
 		}
 	},
