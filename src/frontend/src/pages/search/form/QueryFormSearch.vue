@@ -25,8 +25,8 @@
 						ref="_simple"
 					></div>
 					<Annotation v-else
-						:key="'simple/' + simpleSearchAnnotation.annotatedFieldId + '/' + simpleSearchAnnotation.id"
-						:htmlId="'simple/' + simpleSearchAnnotation.annotatedFieldId + '/' + simpleSearchAnnotation.id"
+						:key="'simple/' + simpleSearchAnnotation.id"
+						:htmlId="'simple/' + simpleSearchAnnotation.id"
 						:annotation="simpleSearchAnnotation"
 						bare
 						simple
@@ -48,15 +48,17 @@
 							:id="getTabId(tab.label)"
 						>
 							<template v-for="annotation in tab.entries">
+								<!-- Note that we don't use annotatedFieldId in the key, because for parallel,
+								     we can change the version, but we don't want that to affect the value of
+									 the input field, only the autocomplete functionality. -->
 								<div v-if="customAnnotations[annotation.id]"
-									:key="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
+									:key="getTabId(tab.label) + '/' + annotation.id"
 									:data-custom-annotation-root="annotation.id"
-									:ref="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
+									:ref="getTabId(tab.label) + '/' + annotation.id"
 								></div>
-
 								<Annotation v-else
-									:key="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
-									:htmlId="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
+									:key="getTabId(tab.label) + '/' + annotation.id"
+									:htmlId="getTabId(tab.label) + '/' + annotation.id"
 									:annotation="annotation"
 								/>
 							</template>
@@ -66,14 +68,14 @@
 				<template v-else>
 					<template v-for="annotation in allAnnotations">
 						<div v-if="customAnnotations[annotation.id]"
-							:key="annotation.annotatedFieldId + '/' + annotation.id + '/custom'"
+							:key="annotation.id + '/custom'"
 							:data-custom-annotation-root="annotation.id"
-							:ref="annotation.annotatedFieldId + '/' + annotation.id"
+							:ref="annotation.id"
 						></div>
 
 						<Annotation v-else
-							:key="annotation.annotatedFieldId + '/' + annotation.id + '/builtin'"
-							:htmlId="annotation.annotatedFieldId + '/' + annotation.id"
+							:key="annotation.id + '/builtin'"
+							:htmlId="annotation.id"
 							:annotation="annotation"
 						/>
 					</template>
@@ -214,17 +216,16 @@ export default ParallelFields.extend({
 			);
 			if (this.isParallelCorpus) {
 				// Make sure we have the correct field, so autosuggest works properly
-				const field = PatternStore.getState().shared.source;
-				if (field) {
-					const fieldId = CorpusStore.get.allAnnotatedFieldsMap()[field]?.id;
-					if (fieldId) {
-						result.forEach(tab => {
-							tab.entries = tab.entries.map(e => ({
-								...e,
-								annotatedFieldId: field
-							}));
-						});
-					}
+				const versionSelected = PatternStore.getState().shared.source !== null;
+				const field = PatternStore.getState().shared.source ?? CorpusStore.get.mainAnnotatedField();
+				const fieldId = CorpusStore.get.allAnnotatedFieldsMap()[field]?.id;
+				if (fieldId) {
+					result.forEach(tab => {
+						tab.entries = tab.entries.map(e => ({
+							...e,
+							annotatedFieldId: versionSelected ? field : '' // no autocomplete if no version selected
+						}));
+					});
 				}
 			}
 			return result;
@@ -233,11 +234,17 @@ export default ParallelFields.extend({
 			return this.tabs.flatMap(tab => tab.entries);
 		},
 		simpleSearchAnnotation(): AppTypes.NormalizedAnnotation {
-			const field = (this.isParallelCorpus ? PatternStore.getState().shared.source : undefined)
-				?? CorpusStore.get.mainAnnotatedField();
+			const field = this.isParallelCorpus ?
+				PatternStore.getState().shared.source :
+				CorpusStore.get.mainAnnotatedField();
 			const id = UIStore.getState().search.simple.searchAnnotationId;
-			return CorpusStore.get.allAnnotatedFieldsMap()[field]?.annotations[id]
+			const annotField = field ?? CorpusStore.get.mainAnnotatedField();
+			const result = CorpusStore.get.allAnnotatedFieldsMap()[annotField]?.annotations[id]
 				|| CorpusStore.get.firstMainAnnotation();
+			return {
+				...result,
+				annotatedFieldId: field ?? '' // no autocomplete if no parallel version selected
+			};
 		},
 		simpleSearchAnnotationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
 		textDirection: CorpusStore.get.textDirection,

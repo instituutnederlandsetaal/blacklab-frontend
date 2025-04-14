@@ -1,8 +1,8 @@
 <template>
 	<div :class="bare ? '' : 'form-group propertyfield'" :id="htmlId"> <!-- behaves as .row when in .form-horizontal so .row may be omitted -->
-		<label v-if="!bare" :for="inputId" class="col-xs-12 col-md-3" :title="description">{{displayName}} <Debug>(id: {{annotation.id}})</Debug></label>
+		<label v-if="!bare" :for="inputId" class="col-xs-12 col-md-3" :title="description">{{displayName}} <Debug>(id: {{annotation?.id}})</Debug></label>
 		<div :class="bare ? '' : 'col-xs-12 col-md-9'">
-			<SelectPicker v-if="annotation.uiType === 'select'"
+			<SelectPicker v-if="annotation?.uiType === 'select'"
 				data-width="100%"
 				container="body"
 
@@ -16,7 +16,7 @@
 
 				v-model="value"
 			/>
-			<Lexicon v-else-if="annotation.uiType === 'lexicon'"
+			<Lexicon v-else-if="annotation?.uiType === 'lexicon'"
 				:annotationId="annotation.id"
 				:definition="annotation"
 
@@ -34,7 +34,7 @@
 					:id="inputId"
 					:name="inputId"
 					:placeholder="displayName"
-					:disabled="annotation.uiType === 'pos'"
+					:disabled="annotation?.uiType === 'pos'"
 					:dir="textDirection"
 
 					:autocomplete="autocomplete"
@@ -42,11 +42,11 @@
 					v-model="value"
 				/>
 				<div v-if="!bare" class="input-group-btn">
-					<button v-if="annotation.uiType === 'pos'" class="btn btn-default" type="button" @click="posOpen = true">
+					<button v-if="annotation?.uiType === 'pos'" class="btn btn-default" type="button" @click="posOpen = true">
 						<span class="fa fa-pencil fa-fw"></span>
 					</button>
 
-					<label class="btn btn-default file-input-button" :for="fileInputId" v-if="annotation.uiType !== 'pos'">
+					<label class="btn btn-default file-input-button" :for="fileInputId" v-if="annotation?.uiType !== 'pos'">
 						<span class="fa fa-upload fa-fw"></span>
 						<input
 							type="file"
@@ -59,7 +59,7 @@
 					</label>
 				</div>
 			</div>
-			<template v-if="annotation.uiType === 'pos'">
+			<template v-if="annotation?.uiType === 'pos'">
 				<!-- Use a v-show here, the component keeps some state. If we destroy it when it closes the user must re-enter their query every time. -->
 				<PartOfSpeech :open="posOpen" @close="posOpen = false"
 					:id="`pos_editor${uid}`"
@@ -106,6 +106,7 @@ import UID from '@/mixins/uid';
 
 import {blacklabPaths} from '@/api';
 import { AnnotationValue, NormalizedAnnotation } from '@/types/apptypes';
+import annotationDistributions from '@/pages/article/annotationDistributions';
 
 export default Vue.extend({
 	components: {
@@ -115,7 +116,7 @@ export default Vue.extend({
 		Lexicon
 	},
 	props: {
-		annotation: Object as () => NormalizedAnnotation,
+		annotation: Object as () => NormalizedAnnotation|undefined,
 		htmlId: String,
 		bare: Boolean,
 		/**
@@ -133,37 +134,45 @@ export default Vue.extend({
 		stateGetter(): () => AnnotationValue {
 			return this.simple ?
 				() => PatternStore.get.simple().annotationValue :
-				PatternStore.get.annotationValue.bind(this, this.annotation.annotatedFieldId, this.annotation.id);
+				(
+					() => this.annotation ?
+						PatternStore.get.annotationValue.bind(this, this.annotation.annotatedFieldId, this.annotation.id) :
+						{ value: '', case: false}
+				);
 		},
 		stateSetter(): (payload: Partial<AnnotationValue> & { id: string }) => void {
-			return this.simple ? PatternStore.actions.simple.annotation : PatternStore.actions.extended.annotation;
+			return this.simple ?
+				PatternStore.actions.simple.annotation :
+				PatternStore.actions.extended.annotation;
 		},
 		textDirection(): string|undefined {
 			// only set direction if this is the main annotation
 			// so we don't set rtl mode on things like part-of-speech etc.
-			return this.annotation.isMainAnnotation ? CorpusStore.get.textDirection() : undefined;
+			return this.annotation?.isMainAnnotation ? CorpusStore.get.textDirection() : undefined;
 		},
 		inputId(): string { return this.htmlId + '_value'; },
 		fileInputId(): string { return this.htmlId + '_file'; },
 		caseInputId(): string { return this.htmlId + '_case'; },
 
-		displayName(): string { return this.$tAnnotDisplayName(this.annotation); },
-		description(): string { return this.$tAnnotDescription(this.annotation); },
+		displayName(): string { return this.annotation ? this.$tAnnotDisplayName(this.annotation) : ''; },
+		description(): string { return this.annotation ? this.$tAnnotDescription(this.annotation) : ''; },
 
-		options(): Option[] { return this.annotation.values || []; },
+		options(): Option[] { return this.annotation?.values ?? []; },
 
-		autocomplete(): boolean { return this.annotation.uiType === 'combobox'; },
-		autocompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.annotation.annotatedFieldId, this.annotation.id); },
+		autocomplete(): boolean { return this.annotation?.uiType === 'combobox' && this.annotation.annotatedFieldId !== ''; },
+		autocompleteUrl(): string { return this.autocomplete ? blacklabPaths.autocompleteAnnotation(INDEX_ID, this.annotation?.annotatedFieldId ?? '', this.annotation?.id ?? '') : ''; },
 
 		value: {
 			get(): string {
 				return this.stateGetter().value;
 			},
 			set(value: string) {
-				this.stateSetter({
-					id: this.annotation.id,
-					value
-				});
+				if (this.annotation) {
+					this.stateSetter({
+						id: this.annotation.id,
+						value
+					});
+				}
 			}
 		},
 		caseSensitive: {
@@ -171,10 +180,12 @@ export default Vue.extend({
 				return this.stateGetter().case;
 			},
 			set(caseSensitive: boolean) {
-				this.stateSetter({
-					id: this.annotation.id,
-					case: caseSensitive
-				});
+				if (this.annotation) {
+					this.stateSetter({
+						id: this.annotation.id,
+						case: caseSensitive
+					});
+				}
 			}
 		}
 	},
@@ -210,7 +221,7 @@ export default Vue.extend({
 	},
 	destroyed() {
 		this.subscriptions.forEach(unsub => unsub());
-	}
+	},
 });
 </script>
 
