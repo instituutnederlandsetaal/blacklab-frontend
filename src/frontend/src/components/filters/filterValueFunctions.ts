@@ -304,7 +304,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			const s = getFieldValues(ast, low, high);
 			// Prevent these fields from also being decoded by another filter later in the decoding stage.
 			// Otherwise the values would "double up".
-			// https://github.com/INL/corpus-frontend/issues/379
+			// https://github.com/instituutnederlandsetaal/corpus-frontend/issues/379
 			if (filterValues[low] && filterValues[high]) {
 				delete filterValues[low];
 				delete filterValues[high];
@@ -552,7 +552,7 @@ export function getFilterString(filters: FullFilterState[]): string|undefined {
 		.filter(lucene => !!lucene).join(' AND ') || undefined;
 }
 
-// NOTE: range filter has hidden defaults for unset field (min, max), see https://github.com/INL/corpus-frontend/issues/234
+// NOTE: range filter has hidden defaults for unset field (min, max), see https://github.com/instituutnederlandsetaal/corpus-frontend/issues/234
 export const getFilterSummary = (filters: FullFilterState[]): string|undefined => filters
 	.map(f => {
 		const vf = getValueFunctions(f);

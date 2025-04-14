@@ -389,7 +389,7 @@ const init = async () => {
 					privateActions.setLoadingState({loadingState: 'error', loadingMessage:
 						`Corpus not found. Please check the spelling, or delete the corpus` +
 						'name from the URL to get a list of available corpora. ' +
-						'If it\'s not there, refer to the documentation at https://github.com/INL/corpus-frontend '+
+						'If it\'s not there, refer to the documentation at https://github.com/instituutnederlandsetaal/corpus-frontend '+
 						'and check your configuration.'
 					});
 				} else if (e.message.indexOf('blacklabResponse') !== -1) {
@@ -401,7 +401,7 @@ const init = async () => {
 						'Unable to contact BlackLab Server (or corpus-frontend\'s own server component). ' +
 						'Make sure both .war applications have been deployed, and your properties file ' +
 						'is in the correct location and has the correct name. ' +
-						'Refer to the documentation at https://github.com/INL/corpus-frontend '
+						'Refer to the documentation at https://github.com/instituutnederlandsetaal/corpus-frontend '
 					});
 				}
 			} else {

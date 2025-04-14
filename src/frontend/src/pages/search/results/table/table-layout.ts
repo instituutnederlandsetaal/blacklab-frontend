@@ -462,7 +462,7 @@ function makeDocRow(p: Result<any>, info: DisplaySettingsForRows): DocRowData {
 	}
 }
 
-/** Extract the document's own text director (for mixed corpora). See https://github.com/INL/corpus-frontend/issues/520 */
+/** Extract the document's own text director (for mixed corpora). See https://github.com/instituutnederlandsetaal/corpus-frontend/issues/520 */
 function docDir(doc: BLDoc, corpusNativeDir: 'ltr'|'rtl'): 'ltr'|'rtl' {
 	switch (doc.docInfo.textDirection?.[0]) {
 		case 'ltr':

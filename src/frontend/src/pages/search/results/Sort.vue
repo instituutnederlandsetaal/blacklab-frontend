@@ -77,7 +77,7 @@ export default Vue.extend({
 						value: 'size',
 					}, {
 						label: 'Sort by Size (ascending)',
-						value: '-size', // numeric sorting is inverted: https://github.com/INL/corpus-frontend/issues/340
+						value: '-size', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/corpus-frontend/issues/340
 					}]
 				});
 			}
@@ -114,7 +114,7 @@ export default Vue.extend({
 						value: 'numhits'
 					}, {
 						label: 'Sort by hits (ascending)',
-						value: '-numhits' // numeric sorting is inverted: https://github.com/INL/corpus-frontend/issues/340
+						value: '-numhits' // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/corpus-frontend/issues/340
 					}]
 				});
 			}
