@@ -9,6 +9,7 @@
 			<h3 class="panel-title" style="padding-right: 0.5em;">{{$t('results.groupBy.groupResults')}}</h3>
 			<button v-if="type === 'hits'" class="btn btn-default" type="button" @click="addAnnotation">+ {{$t('results.groupBy.annotation')}}</button>
 			<button class="btn btn-default" type="button" @click="addMetadata">+ {{$t('results.groupBy.metadata')}}</button>
+			<button type="button" :disabled="disabled" class="close" style="margin-left: auto;" @click="clear" :title="addedCriteria.length ? $t('results.groupBy.clear').toString() : $t('results.groupBy.close').toString()">&times;</button>
 		</div>
 
 		<Tabs v-if="tabs.length"
