@@ -67,16 +67,16 @@ export default Vue.extend({
 				addGroups({
 					label: 'Groups',
 					options: [{
-						label: 'Sort by Group Name',
+						label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_groupName')}).toString(),
 						value: 'identity',
 					}, {
-						label: 'Sort by Group Name (descending)',
+						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_groupName')}).toString(),
 						value: '-identity',
 					}, {
-						label: 'Sort by Size',
+						label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_groupSize')}).toString(),
 						value: 'size',
 					}, {
-						label: 'Sort by Size (ascending)',
+						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_groupSize')}).toString(),
 						value: '-size', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/corpus-frontend/issues/340
 					}]
 				});
@@ -97,10 +97,10 @@ export default Vue.extend({
 					addGroups({
 						label: 'Parallel Corpus',
 						options: [{
-							label: 'Sort by alignments',
+							label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_alignments')}).toString(),
 							value: 'alignments'
 						}, {
-							label: 'Sort by alignments (ascending)',
+							label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_alignments')}).toString(),
 							value: '-alignments'
 						},]
 					});
@@ -110,10 +110,10 @@ export default Vue.extend({
 				addGroups({
 					label: 'Documents',
 					options: [{
-						label: 'Sort by hits',
+						label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_numberOfHits')}).toString(),
 						value: 'numhits'
 					}, {
-						label: 'Sort by hits (ascending)',
+						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_numberOfHits')}).toString(),
 						value: '-numhits' // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/corpus-frontend/issues/340
 					}]
 				});
