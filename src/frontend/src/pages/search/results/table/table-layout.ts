@@ -451,6 +451,12 @@ function start(hit: BLHitSnippet|BLHit|undefined): number|undefined {
 	return (hit as BLHit&BLHitSnippet)?.start;
 }
 
+function end(hit: BLHit): number;
+function end(hit: BLHitSnippet|undefined): undefined;
+function end(hit: BLHitSnippet|BLHit|undefined): number|undefined {
+	return (hit as BLHit&BLHitSnippet)?.end;
+}
+
 /** Create the title row for a document, plus - when the document has them - nested rows for the hits in that document. */
 function makeDocRow(p: Result<any>, info: DisplaySettingsForRows): DocRowData {
 	return {
@@ -502,7 +508,7 @@ function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: D
 	const r: HitRowData[] = [];
 	p.first_of_hit = true;
 	p.last_of_hit = false;
-	p.hit_id = p.doc.docPid + start(p.hit)
+	p.hit_id = p.doc.docPid + start(p.hit) + end(p.hit);
 	r.push(makeHitRow(p, info, highlightColors, info.sourceField));
 
 	const h = p.hit as BLHit;
