@@ -292,10 +292,7 @@ export default Vue.extend({
 				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
 				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
 				corpusCustomizations.search.metadata.showField
-			) as OptGroup[]).concat({
-				label: this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
-				options: this.tagAttributes,
-			})
+			) as OptGroup[]).concat(this.tagAttributes)
 			.map(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
 			.flatMap<Options[number]>(optGroup => optGroup.label ? optGroup : optGroup.options)
 		},
@@ -384,7 +381,7 @@ export default Vue.extend({
 				});
 			return result;
 		},
-		tagAttributes(): Option[] {
+		tagAttributes(): OptGroup[] {
 			/** Check if we should add this tag+attr option, and if so, add it. */
 			const optAdd = (tagName: string, attributeName: string, listName?: string) => {
 				// Check custom method to see if we should include this attribute
@@ -404,7 +401,7 @@ export default Vue.extend({
 				}
 				if (shouldInclude) {
 					const value = spanAttributeOptionValue(tagName, attributeName, listName);
-					result.push({
+					options.push({
 						label: 'Group by ' + (filter ? this.$tMetaDisplayName(filter) : this.$tSpanAttributeDisplay(tagName, attributeName)),
 						value,
 					});
@@ -414,7 +411,8 @@ export default Vue.extend({
 			// Check if we have a list of matches (e.g. from _with-spans(...))
 			const matchInfos = this.hits?.summary?.pattern?.matchInfos || {};
 			const listEntry = Object.entries(matchInfos).find( ([name, mi]) => mi.type === 'list');
-			const result: { label?: string, value: string, title?: string }[] = [];
+			let options: { label?: string, value: string, title?: string }[];
+			const optGroups: OptGroup[] = [];
 			if (listEntry) {
 				// We capture lists of tags, but we don't know all the captured tags at this point.
 				// Offer all span filters as grouping options, with a reference to the list,
@@ -424,10 +422,17 @@ export default Vue.extend({
 					Object.entries(CorpusStore.getState().corpus!.relations.spans!)
 						.forEach(([tagName, spanInfo]) => {
 							if (spanInfo.attributes) {
+								options = [];
 								const attr = Object.keys(spanInfo.attributes);
 								attr.forEach(attributeName => {
 									optAdd(tagName, attributeName, listName);
 								});
+								if (options.length > 0) {
+									optGroups.push({
+										label: this.$td(`results.groupBy.groupLabel.tag ${tagName}`, `Tag ${tagName}`).toString(),
+										options: options,
+									});
+								}
 							}
 						});
 				}
@@ -438,15 +443,22 @@ export default Vue.extend({
 					.forEach(([tagName, matchInfo]) => {
 						const sourceInThisField = this.relationSourceInThisField(matchInfo);
 						if (sourceInThisField) {
+							options = [];
 							const spanInfo = CorpusStore.getState().corpus!.relations.spans![tagName];
 							const attr = Object.keys(spanInfo?.attributes ?? {});
 							attr.forEach(attributeName => {
 								optAdd(tagName, attributeName);
 							});
+							if (options.length > 0) {
+								optGroups.push({
+									label: tagName, //this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
+									options: options,
+								});
+							}
 						}
 					});
 			}
-			return result;
+			return optGroups;
 		},
 		relationNames(): string[] {
 			return this.relations.map(c => c.name);
