@@ -429,7 +429,7 @@ export default Vue.extend({
 								});
 								if (options.length > 0) {
 									optGroups.push({
-										label: this.$td(`results.groupBy.groupLabel.tag ${tagName}`, `Tag ${tagName}`).toString(),
+										label: this.groupLabelTag(tagName),
 										options: options,
 									});
 								}
@@ -788,6 +788,12 @@ export default Vue.extend({
 		}
 	},
 	methods: {
+		groupLabelTag(tagName: string): string {
+			let s = this.$td(`results.groupBy.groupLabel.tag ${tagName}`, '');
+			if (s === '')
+				s = this.$td(`index.spans.${tagName}`, `Tag ${tagName}`);
+			return s;
+		},
 		apply() {
 			this.storeValueUpdateIsOurs = true;
 			this.storeModule.actions.groupBy(serializeGroupBy(this.addedCriteria.filter(isValidGroupBy)));
