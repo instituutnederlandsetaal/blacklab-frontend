@@ -402,7 +402,7 @@ export default Vue.extend({
 				if (shouldInclude) {
 					const value = spanAttributeOptionValue(tagName, attributeName, listName);
 					options.push({
-						label: 'Group by ' + (filter ? this.$tMetaDisplayName(filter) : this.$tSpanAttributeDisplay(tagName, attributeName)),
+						label: `${this.$t('results.table.groupBy', { field: filter ? this.$tMetaDisplayName(filter) : this.$tSpanAttributeDisplay(tagName, attributeName) })}`,
 						value,
 					});
 				}
