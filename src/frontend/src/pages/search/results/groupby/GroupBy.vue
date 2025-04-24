@@ -781,7 +781,12 @@ export default Vue.extend({
 		isParallel(): boolean { return CorpusStore.get.isParallelCorpus() ?? false; },
 
 		parallelVersionOptions(): Option[] {
-			return [QueryStore.get.sourceField(), ...QueryStore.get.targetFields()].map(field => ({
+			// NOTE: we look at results.summary.pattern, not the QueryStore, so this also works
+			//       with Expert queries where the target version is not selected
+			//       in the GUI but part of the query.
+			const patt = this.results?.summary.pattern;
+			const fields = patt ? [patt.fieldName, ...(patt.otherFields ?? [])] : [];
+			return fields.map(fieldName => CorpusStore.get.parallelAnnotatedFieldsMap()[fieldName]).map(field => ({
 				value: field.id,
 				label: this.$tAnnotatedFieldDisplayName(field)
 			}));
