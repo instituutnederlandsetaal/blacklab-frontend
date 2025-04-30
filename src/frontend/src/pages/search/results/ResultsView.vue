@@ -260,7 +260,7 @@ export default Vue.extend({
 			// If we're querying a parallel corpus, and no sort was chosen yet,
 			// sort by alignments (so aligned hits appear first).
 			const viewModule = ResultsStore.getOrCreateModule('hits');
-			if (this.id === 'hits' && this.groupBy.length === 0 && CorpusStore.get.isParallelCorpus() && viewModule.getState().sort === null) {
+			if (this.id === 'hits' && (this.groupBy.length === 0 || this.viewGroup) && CorpusStore.get.isParallelCorpus() && viewModule.getState().sort === null) {
 				viewModule.actions.sort('alignments');
 			}
 
