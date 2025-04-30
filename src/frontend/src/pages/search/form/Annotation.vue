@@ -132,13 +132,9 @@ export default Vue.extend({
 	}),
 	computed: {
 		stateGetter(): () => AnnotationValue {
-			return this.simple ?
-				() => PatternStore.get.simple().annotationValue :
-				(
-					() => this.annotation ?
-						PatternStore.get.annotationValue.bind(this, this.annotation.annotatedFieldId, this.annotation.id) :
-						{ value: '', case: false}
-				);
+			if (this.simple) return () => PatternStore.get.simple().annotationValue;
+			if (this.annotation) return PatternStore.get.annotationValue.bind(this, this.annotation.annotatedFieldId, this.annotation.id);
+			else return () => ({ id: this.htmlId, value: '', case: false });
 		},
 		stateSetter(): (payload: Partial<AnnotationValue> & { id: string }) => void {
 			return this.simple ?
