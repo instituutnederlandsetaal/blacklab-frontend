@@ -58,8 +58,7 @@ export default Vue.extend({
 			/** Customize and add one or more groups */
 			const addGroups = ((...optGroups: OptGroup[]) => {
 				options.push(...optGroups.map(optGroup => {
-					const result = corpusCustomizations.sort.customize(optGroup);
-					return result === null ? optGroup : result;
+					return corpusCustomizations.sort.customize(optGroup) ?? optGroup;
 				}));
 			});
 

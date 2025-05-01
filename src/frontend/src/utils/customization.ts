@@ -208,12 +208,18 @@ export const corpusCustomizations = wrapWithErrorHandling({
 			return null; // use default behaviour
 		},
 
+		/** Should the custom hit info column be shown for this result set?
+		 *
+		 * If true, uses the customHitInfo function to determine what to show.
+		 */
 		hasCustomHitInfoColumn: (results: BLTypes.BLHitResults|BLTypes.BLHitGroupResults, isParallelCorpus: boolean): boolean => {
 			return isParallelCorpus;
 		},
 
 		/**
-		 * Show some custom text (with doc link) left of the hit.
+		 * Determine custom hit info for this hit.
+		 *
+		 * Shows some custom text (with doc link) left of the hit.
 		 *
 		 * Default shows versionPrefix if it's set (i.e. if it's a parallel corpus).
 		 * Otherwise, nothing extra is shown.
@@ -230,6 +236,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 	},
 
 	sort: {
+		/** Perform customizations on these sort options */
 		customize(optGroup: AppTypes.OptGroup): AppTypes.OptGroup|null {
 			return null; // use default behaviour [no change]
 		}
@@ -243,6 +250,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 			return null; // use default behaviour
 		},
 
+		/** Perform customizations on these group options */
 		customize(optGroup: AppTypes.OptGroup, i18n: Vue): AppTypes.OptGroup|null {
 			return null; // use default behaviour [no change]
 		}
