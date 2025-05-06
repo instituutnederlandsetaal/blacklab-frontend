@@ -451,7 +451,7 @@ export default Vue.extend({
 							});
 							if (options.length > 0) {
 								optGroups.push({
-									label: tagName, //this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
+									label: this.groupLabelTag(tagName), //this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
 									options: options,
 								});
 							}
@@ -794,10 +794,9 @@ export default Vue.extend({
 	},
 	methods: {
 		groupLabelTag(tagName: string): string {
-			let s = this.$td(`results.groupBy.groupLabel.tag ${tagName}`, '');
-			if (s === '')
-				s = this.$td(`index.spans.${tagName}`, `Tag ${tagName}`);
-			return s;
+			if (this.$te(`results.groupBy.groupLabel.tag ${tagName}`))
+				return this.$t(`results.groupBy.groupLabel.tag ${tagName}`).toString();
+			return this.$td(`index.spans.${tagName}`, `Tag ${tagName}`);
 		},
 		apply() {
 			this.storeValueUpdateIsOurs = true;
