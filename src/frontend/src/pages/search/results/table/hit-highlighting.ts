@@ -6,6 +6,7 @@ import { UnionHelpers } from '@/types/helpers';
 import * as CorpusStore from '@/store/search/corpus';
 import { corpusCustomizations } from '@/utils/customization';
 
+// #region docsmatchinfohighlightstyle
 /** Part of a hit/context to highlight, with a label, display and boolean whether it's a relation or a section of the query/result labelled by the user. */
 export type HighlightSection = {
 	/** -1 for root */
@@ -35,6 +36,7 @@ export type HighlightSection = {
 	/** Display string, key if !isRelation, relation value + arrow if isRelation == true */
 	display: string;
 }
+// #endregion docsmatchinfohighlightstyle
 
 // these should be alright for colorblind people.
 // taken from https://personal.sron.nl/~pault/#sec:qualitative

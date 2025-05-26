@@ -214,7 +214,6 @@ export default Vue.extend({
 		}
 
 		const loadHits = () => {
-			const spinnerTimeout = setTimeout(() => this.loadingForAwhile = true, 3000);
 
 			// Load all hits in the document (also those outside this page)
 			const { query, field, searchfield }: {
@@ -226,6 +225,7 @@ export default Vue.extend({
 			if (!query) { // no hits when no query, abort
 				return Promise.resolve([]);
 			}
+			
 			/**
 			 * Optionally request hits from a specific target field (parallel corpora).
 			 *
@@ -240,6 +240,8 @@ export default Vue.extend({
 			}
 			const patt = optTargetField(query, searchfield && searchfield !== field ? field : undefined);
 			//console.log({ query, field, searchfield, patt });
+			
+			const spinnerTimeout = setTimeout(() => this.loadingForAwhile = true, 3000);
 			return blacklab
 			.getHits(INDEX_ID, {
 				docpid: DOCUMENT_ID,

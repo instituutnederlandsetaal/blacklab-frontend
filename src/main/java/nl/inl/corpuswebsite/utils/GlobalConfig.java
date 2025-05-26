@@ -367,7 +367,7 @@ public class GlobalConfig implements ServletContextListener {
         }
 
         // Return config, or default values if none found
-        return config.orElseGet(GlobalConfig::getDefault);
+        return config.orElseGet(GlobalConfig::getDefaultWithEnvironmentVariables);
     }
 
     private static Optional<GlobalConfig> tryLoadConfigEnv(String envName, String filename) {
@@ -414,6 +414,29 @@ public class GlobalConfig implements ServletContextListener {
         }
         return loadedProps;
     }
+
+     /**
+     * Parse environment variables using the enum keys and add them to the configuration.
+     */
+    private static GlobalConfig getDefaultWithEnvironmentVariables() {
+        // Start with the default configuration
+        Properties combinedProps = new Properties();
+        combinedProps.putAll(defaultProps);
+
+        // Parse environment variables and override the default configuration
+        String prefix = "CF_";
+        for (Keys keyEnum : Keys.values()) {
+            String envKey = prefix + keyEnum.name(); // Use the enum's name() method for uppercase keys
+            String value = System.getenv(envKey);
+            if (value != null) {
+                logger.info(String.format("Setting config key '%s' from environment variable '%s' - %s", keyEnum, envKey, value));
+                combinedProps.setProperty(keyEnum.toString(), value);
+            }
+        }
+
+        return new GlobalConfig(combinedProps);
+    }
+
 
     // ========================
     // Livereload on the config
@@ -468,16 +491,8 @@ public class GlobalConfig implements ServletContextListener {
     // ServletContextListener
     // ========================
 
-//    private static void initDefaults(ServletContext ctx) {
-//        final String applicationName = ctx.getContextPath().replaceAll("^/", "");
-//        set(defaultProps, Keys.CF_URL_ON_CLIENT, "/" + applicationName);
-//        // DO NOT init jspath here. it's dependent on CF_URL_ON_CLIENT.
-//        // If the user overrides that, we need to know whether the user also set jspath
-//    }
-
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-//        initDefaults(sce.getServletContext());
         instance = loadConfigFile(sce.getServletContext());
     }
 

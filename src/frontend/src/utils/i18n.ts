@@ -34,6 +34,7 @@ const defaultLocale = navigator.language.toLowerCase();
 const locale = localStorageSynced('cf/locale', defaultLocale, true);
 const availableLocales: Option[] = Vue.observable([]);
 
+// #locale-registration
 // Language selector will pick up the new entry, after which it can be loaded.
 function registerLocale(locale: string, label: string) {
 	availableLocales.push({value: locale, label})
@@ -43,6 +44,7 @@ function removeLocale(locale: string) {
 	const index = availableLocales.findIndex(l => l.value === locale);
 	if (index >= 0) availableLocales.splice(index, 1);
 }
+// #endregion
 
 const i18n = new VueI18n({
 	locale: locale.value,

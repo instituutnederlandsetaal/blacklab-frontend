@@ -1,0 +1,21 @@
+---
+# BlackLab Server config file
+# ===============================================================
+
+# This indicates we're using the new index format.
+configVersion: 2
+
+# How to determine current user
+# (you only need this if you want per-user private indices or authorization)
+authentication:
+    system:
+        class: AuthDebugFixed
+        userId: test_user
+
+# Where indexes can be found
+# (list directories whose subdirectories are indexes, or directories containing a single index)
+indexLocations:
+- /data/index
+
+userIndexes: /data/user-index
+

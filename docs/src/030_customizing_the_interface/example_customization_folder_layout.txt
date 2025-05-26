@@ -1,0 +1,19 @@
+/etc/projectConfigs   The location set in the corporaInterfaceDataDir setting  
+  corpus-1/  	        Exact name/ID of the corpus as in BlackLab   
+    search.xml  
+    help.inc   
+    about.inc  
+    article.xsl  
+    meta.xsl  
+    static/  
+      locales/      Language files for the interface, specific to this corpus
+        en-us.json  
+        ...
+      ...           Anything else you want to make available client-side
+    corpus-2/
+    corpus-3/
+    ...
+    default/        Fallbacks / Defaults go here
+      search.xml
+      ...
+    ...  

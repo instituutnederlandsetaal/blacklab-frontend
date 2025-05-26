@@ -1,0 +1,20 @@
+services:
+  frontend:
+    image: instituutnederlandsetaal/blacklab-frontend:${IMAGE_VERSION}
+    build: 
+      context: ..
+      dockerfile: docker/frontend-bls.dockerfile
+    ports: 
+      - 8080:8080
+    volumes:
+      - ${CORPORA_DIR}:/data/index
+      - ${USER_CORPORA_DIR}:/data/user-index
+      - ${CORPORA_CUSTOMIZATIONS_DIR}:/etc/blacklab/projectconfigs
+      
+      
+      # Optionally, to override the default configurations
+      # See the docs for more details on these files:
+      - ${FRONTEND_CONFIG_FILE}:/etc/blacklab/corpus-frontend.properties
+      - ${BLACKLAB_CONFIG_FILE}:/etc/blacklab/blacklab-server.yaml
+    environment: 
+      - JAVA_OPTS=${JAVA_OPTS:-"-Xmx4g"}

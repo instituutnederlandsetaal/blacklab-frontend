@@ -241,11 +241,11 @@ export type FilterValue = {
 
 /** Everything a filter needs to be rendered. Name of the component, the ID (to connect to the vuex store), list of possible values (when relevant), etc. */
 export type FilterDefinition<MetadataType = any, ValueType = any> = {
-	/** Id of the filters, this must be unique */
+	/** Id of the filter, this must be unique */
 	id: string;
-	/** Display name to show if there is no localized version in the i18n bundle */
+	/** Display name to show if there is no localized display name in the i18n bundle */
 	defaultDisplayName: string;
-	/** Description to show if there is no localized version in the i18n bundle */
+	/** Description to show if there is no localized description in the i18n bundle */
 	defaultDescription?: string;
 	/** Name of the component, for filters generated from the blacklab index metadata, `filter-${uiType}` */
 	componentName: string;
@@ -320,10 +320,8 @@ export type HitContext = {
 // -------------------
 // Configuration types
 // -------------------
-
+// #region docslinktagset
 export type Tagset = {
-	/** Referring to the annotation for which the values exist, this is the annotation under which the main part-of-speech category is stored ('ww', 'vnw' etc) */
-	// annotationId: string;
 	/**
 	 * All known values for this annotation.
 	 * The raw values can be gathered from blacklab
@@ -337,10 +335,7 @@ export type Tagset = {
 			subAnnotationIds: string[];
 		}
 	};
-	/**
-	 * All subannotations of the main annotation
-	 * Except the displayNames for values, we could just autofill this from blacklab.
-	 */
+	/** All subannotations of the main annotation */
 	subAnnotations: {
 		[key: string]: {
 			id: string;
@@ -348,12 +343,17 @@ export type Tagset = {
 			values: Array<{
 				value: string;
 				displayName: string;
-				/** Only allow/show this specific value for the defined main annotation values (referring to Tagset['values'][key]) */
+				/** 
+				 * Only allow/show this value when one of these values is selected in the main annotation 
+				 * (referring to Tagset['values'][key]) 
+				 * Allows further filtering of the values than just the subAnnotationIds array in the main values object.
+				 */
 				pos?: string[];
 			}>;
 		};
 	};
 };
+// #endregion docslinktagset
 
 export class ApiError extends Error {
 	public readonly title: string;

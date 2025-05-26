@@ -234,13 +234,13 @@ type StandoffAnnotationRegular = {
 type StandoffAnnotationMultipleTokens = {
 	/** Xpath: where to find the standoff. */
 	path: string;
-	/** See https://blacklab.ivdnt.org//guide/how-to-configure-indexing.html#standoff-annotations */
+	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
 	spanStartPath: string;
 	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
 	spanEndPath: string;
-	/** See https://blacklab.ivdnt.org//guide/how-to-configure-indexing.html#standoff-annotations */
+	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
 	spanEndIsInclusive: boolean;
-	/** See https://blacklab.ivdnt.org//guide/how-to-configure-indexing.html#standoff-annotations */
+	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
 	spanNamePath: string;
 	annotations: Annotation[];
 }

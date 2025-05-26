@@ -17,6 +17,7 @@ import * as ViewsStore from '@/store/search/results/views';
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
+import { normalizeAnnotationUIType } from '@/utils/blacklabutils';
 
 type CustomView = {
 	id: string;
@@ -777,8 +778,10 @@ const init = () => {
 		Object.values(fs).forEach((field) => {
 			Object.values(field.annotations).forEach((annotation) => {
 				const uiType = corpusCustomizations.search.pattern.uiType(annotation.annotatedFieldId, annotation.id);
-				if (uiType)
+				if (uiType) {
 					annotation.uiType = uiType;
+					normalizeAnnotationUIType(annotation);
+				}
 			});
 		});
 	}

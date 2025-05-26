@@ -36,17 +36,21 @@ function normalizeMetadataUIType(field: BLTypes.BLMetadataField): NormalizedMeta
 	}
 }
 
-function normalizeAnnotationUIType(field: BLTypes.BLAnnotation): NormalizedAnnotation['uiType'] {
+export function normalizeAnnotationUIType(field: BLTypes.BLAnnotation|NormalizedAnnotation): NormalizedAnnotation['uiType'] {
 	const uiType = field.uiType.trim().toLowerCase();
 
+	// valueListComplete only present on non-normalized annotation
+	// if the field is normalized, and we have a values property, we can assume that the list is complete.
+	const hasAllValues = field.values && ('valueListComplete' in field ? !!field.valueListComplete : true);
+
 	if (!uiType) {
-		return field.values ? field.valueListComplete ? 'select' : 'combobox' : 'text';
+		return field.values ? hasAllValues ? 'select' : 'combobox' : 'text';
 	}
 
 	switch (uiType) {
 		case 'dropdown':
 		case 'select':
-			return field.values && field.valueListComplete ? 'select' : 'combobox';
+			return hasAllValues ? 'select' : 'combobox';
 		case 'autocomplete':
 		case 'combobox':
 			return 'combobox';

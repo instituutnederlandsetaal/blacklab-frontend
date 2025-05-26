@@ -336,6 +336,8 @@ export type BLDocument = {
 // Search results
 // --------------
 
+// #region docssearchsummary
+
 export type BLSearchSummarySampleSettings = {} | {
 	samplePercentage: number;
 	sampleSeed: number;
@@ -416,6 +418,8 @@ export interface BLSearchSummaryGroupInfo {
 	};
 }
 
+// #endregion docssearchsummary
+
 /** Single group of either hits or documents */
 export interface BLGroupResult {
 	identity: string;
@@ -463,7 +467,14 @@ export interface BLDocGroupResults {
 	summary: BLSearchSummary & BLSearchSummaryGroupInfo & BLSearchSummaryTotalsDocs;
 }
 
-/** Contains a hit's tokens, deconstructed into the individual annotations/properties, such as lemma, pos, word, always contains punctuation in between tokens */
+
+// #region docssnippettypes
+
+/** 
+ * Contains a hit's tokens, 
+ * deconstructed into the individual annotations/properties, such as lemma, pos, word, 
+ * always contains punctuation in between tokens 
+ */
 export interface BLHitSnippetPart {
 	/**
 	 * Punctuation always exists (even if only an empty string or a space).
@@ -485,6 +496,8 @@ export type BLHitSnippet = {
 	right?: BLHitSnippetPart;
 	match: BLHitSnippetPart;
 }
+
+// #endregion docssnippettypes
 
 /** When tagging part of the query like a:[] returns the start and end of the part labelled with the 'a' (so in this case, the []) */
 export interface BLMatchInfoSpan {

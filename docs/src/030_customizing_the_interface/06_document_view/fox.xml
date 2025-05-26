@@ -1,0 +1,11 @@
+<doc>
+  <w xml:id="w_0" pos="DET"   lemma="the">The</w>
+  <w xml:id="w_1" pos="ADJ"   lemma="quick">quick</w>
+  <w xml:id="w_2" pos="ADJ"   lemma="brown">brown</w>
+  <w xml:id="w_3" pos="NOUN"  lemma="fox">fox</w>
+  <w xml:id="w_4" pos="VERB"  lemma="jump">jumps</w>
+  <w xml:id="w_5" pos="ADP"   lemma="over">over</w>
+  <w xml:id="w_6" pos="DET"   lemma="the">the</w>
+  <w xml:id="w_7" pos="ADJ"   lemma="lazy">lazy</w>
+  <w xml:id="w_8" pos="NOUN"  lemma="dog">dog</w>
+</doc>

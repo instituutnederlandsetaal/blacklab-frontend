@@ -208,6 +208,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 			return null; // use default behaviour
 		},
 
+		// #region docscustomhitinfocolumn
 		/** Should the custom hit info column be shown for this result set?
 		 *
 		 * If true, uses the customHitInfo function to determine what to show.
@@ -228,11 +229,13 @@ export const corpusCustomizations = wrapWithErrorHandling({
 		 *  In the case of non-parallel corpora, this will always be the main annotated field.
 		 * @param docInfo document metadata
 		 */
-		customHitInfo: (hit: BLTypes.BLHit|BLTypes.BLHitSnippet|BLTypes.BLHitInOtherField,
+		customHitInfo: (
+				hit: BLTypes.BLHit|BLTypes.BLHitSnippet|BLTypes.BLHitInOtherField,
 				annotatedFieldDisplayName: string|null,
 				docInfo: BLTypes.BLDoc): string|null => {
 			return annotatedFieldDisplayName;
 		}
+		// #endregion docscustomhitinfocolumn
 	},
 
 	sort: {
