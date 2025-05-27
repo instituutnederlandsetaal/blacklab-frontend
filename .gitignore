@@ -21,4 +21,7 @@ jsconfig.json
 # Javascript in webapp folder (this is output from compiling src/frontend)
 src/main/webapp/js/
 
-node_modules/
+**/.vitepress/cache/
+**/.vitepress/dist/
+
+node_modules
