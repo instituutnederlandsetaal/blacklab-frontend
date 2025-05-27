@@ -1,7 +1,7 @@
 # Config Files
 
 The default location of customization files is `/etc/projectconfigs/`  
-The location can be changed using the `corporaInterfaceDataDir` setting in the [Global Settings File](../../configuration/global_settings.md).
+The location can be changed using the `corporaInterfaceDataDir` setting in the [Global Settings File](/configuration/global_settings).
 
 <FileTree hl="1-12">
 <!-- @include: ../example_customization_folder_layout.txt -->
@@ -13,8 +13,8 @@ The location can be changed using the `corporaInterfaceDataDir` setting in the [
 
 Files and `static` files 'overlay' each other, meaning we will always check all of the following locations, in order of precedence:
 1. The directory of the corpus itself
-2. The `default` dir <small>[(corporaInterfaceDefault)](../configuration/global_settings.md)</small>
-3. [Inside the WAR](https://github.com/instituutnederlandsetaal/corpus-frontend/tree/dev/src/main/resources/interface-default)
+2. The `default` dir <small>[(corporaInterfaceDefault)](/configuration/global_settings)</small>
+3. [Inside the WAR](@github:/src/main/resources/interface-default)
 
 ### Example of overlaying
 

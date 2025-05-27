@@ -4,7 +4,7 @@ If your documents are very long, it can help to enable pagination. This will onl
 
 ## Enable Pagination
 
-Pagination is configured through the [search.xml](/customization/files/search_xml) configuration file.
+Pagination is configured through the [search.xml](/customizing_the_interface/files/search_xml) configuration file.
 
 <<< @/../../src/main/resources/interface-default/search.xml#docspagination
 
@@ -13,7 +13,7 @@ By default, the page size is set to 1000 words.
 
 ## Pagination Pitfalls
 ::: danger &nbsp;
-If [pagination](./pagination) is enabled in your corpus, **content outside the current page will not be present** in the processed XML.  
+If [pagination](/customizing_the_interface/document_view/pagination) is enabled in your corpus, **content outside the current page will not be present** in the processed XML.  
 BlackLab will automatically fixes "unbalanced tags" i.e. automatically opens/closes truncated elements, so the xml should still be valid, but elements that completely lie outside or around the current page will be missing!  
 Try not to rely too much on the absolute structure of the XML.
 

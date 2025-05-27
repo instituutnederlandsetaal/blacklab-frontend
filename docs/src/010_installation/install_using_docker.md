@@ -46,9 +46,8 @@ Here is an example `docker-compose.yml` file for a barebones installation of Bla
 4. **You should now see an empty page with a message saying "No corpora available".**
    ![No corpora available](no_corpora_available.png)
    This is expected, as you have not yet added any corpora to the system.  
-   At this point you can either:
    - Read on to learn how to enable uploads in the Corpus Frontend.
-   - Or [add a corpus](../tutorials/add_a_corpus.md)
+
 
 ## Basic setup with uploads enabled
 
@@ -59,7 +58,7 @@ The following section explains how to enable a **test user** in BlackLab, so you
 BlackLab relies on external softare such as proxies to implement user authentication, using a forwarded header (typically `remote-user`) to know who you are.  
 The Corpus Frontend in turn relies on BlackLab, so you should only need to configure BlackLab (and your proxy).
 
-:bust_in_silhouette:  [This tutorial](../tutorials/social_logins.md) details how to set up a proxy that can integrate with Microsoft, Google, Facebook, etc.  
+:bust_in_silhouette:  [This tutorial](/tutorials/authentication) details how to set up a proxy that can integrate with Microsoft, Google, Facebook, etc.  
 For a more technical explanation, consult [the BlackLab docs](https://blacklab.ivdnt.org/server/howtos.html#let-users-manage-their-own-corpora).
 
 :::

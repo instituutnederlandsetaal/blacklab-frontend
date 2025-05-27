@@ -13,7 +13,7 @@ For most settings we'll try to determine sensible defaults based on your corpus.
 
 ::: tip :information_source: Walkthrough
 There's a walkthrough that will take you through the entire process for a simple customization, including creating the configuration files, telling the Frontend where to find them, etc.  
---> [Simple Customization Walkthrough](../../tutorials/customize_a_corpus.md).
+--> [Simple Customization Walkthrough](/tutorials/customize_a_corpus).
 :::
 ::: warning 
 User Corpora (corpora uploaded/owned by users) cannot be configured _individually_.  

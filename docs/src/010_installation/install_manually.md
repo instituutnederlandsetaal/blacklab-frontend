@@ -24,13 +24,13 @@ order: 1
 
 1. **Obtain a Release**
    - Releases can be downloaded [here](https://github.com/instituutnederlandsetaal/corpus-frontend/releases).  
-   - Alternatively, [build from source](../development/build_from_source.md)
+   - Alternatively, [build from source](/development/build_from_source)
 
 2. **Place the WAR file**
    - Place the `corpus-frontend.war` file in the `webapps` directory of your servlet container (e.g., Tomcat).
 
-3. [**Configuration**](../configuration/index)  
-   Configuration is described in more detail in the [Configuration section](../configuration/index).
+3. [**Configuration**](/configuration/global_settings)  
+   Configuration is described in more detail in the [Configuration section](/configuration/global_settings).
    Basic steps are: create an environment variable `BLACKLAB_CONFIG_DIR` pointing to a directory containing a `corpus-frontend.properties` file.
    Use this file to configure the frontend server component.
 

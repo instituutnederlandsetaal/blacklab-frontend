@@ -1,4 +1,4 @@
-# Setting Up
+# Development Setup
 
 This guide helps you set up a development environment for the corpus-frontend project, covering both the Java backend and JavaScript frontend.
 

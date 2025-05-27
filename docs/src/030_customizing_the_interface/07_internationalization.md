@@ -23,7 +23,7 @@ It's best to copy an existing locale file and translate the strings.
 
 #### Global translations
 Place your locales in the `default` directory of the interface data directory (`corporaInterfaceDataDir`) to make them available for all corpora at once.  
-This uses the [overlay system](./files/#overlay-system) to apply translations globally.
+This uses the [overlay system](/customizing_the_interface/files/#overlay-system) to apply translations globally.
 
 You can even override these defaults further by placing additional locale files in the `static` directory of your corpus' dedicated `static` directory.
 #### Comments
