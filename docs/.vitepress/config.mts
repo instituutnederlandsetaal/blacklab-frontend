@@ -97,6 +97,8 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
 
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
+    
+    logo: '/img/ivdnt-logo-4regels.svg',
     nav: [
       { text: 'About', link: '/about' },
       { text: 'Examples', link: '/markdown-examples' }

@@ -36,6 +36,9 @@ export default function createGithubLinkPlugin(options: GithubLinkPluginOptions)
             console.warn(`GithubLinkPlugin: Source file not found: ${absPath}`);
           }
         }
+        else if (href.startsWith('/')) {
+          
+        }
       }
       return defaultRender(tokens, idx, options_, env, self);
     };
