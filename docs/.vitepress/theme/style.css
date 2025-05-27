@@ -296,7 +296,24 @@ img+img {
 	font-family: 'schoolboek', sans-serif !important;
 }
 
+/* nav items */
+.VPNavBarMenu {
+	order: 1;
+}
 .VPNavBarSearch {
 	flex-grow: 0!important;
-	order: 5;
+	order: 2;
+	padding-left: 0!important;
+}
+/* github link */
+.VPSocialLinks {
+	order: 3;
+}
+/* dark mode switch */
+.VPNavBarAppearance {
+	order: 4;
+}
+/* collapsed state of dark mode and social links */
+.VPFlyout {
+	order: 3;
 }
