@@ -113,11 +113,7 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
     }
   },
   
-  rewrites: id => {
-    const rewritten = stripNumbersFromLink(id)!;
-    console.log('rewriting', id, 'to', rewritten);
-    return rewritten;
-  },
+  rewrites: id => stripNumbersFromLink(id)!,
   ignoreDeadLinks: 'localhostLinks' // some examples refer to localhost
 }, {
   // Sidebar generator options
