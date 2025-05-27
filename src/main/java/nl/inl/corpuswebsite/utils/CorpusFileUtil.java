@@ -56,7 +56,7 @@ public class CorpusFileUtil {
             .map(Path::toFile)
             .filter(File::canRead)
             // if the lookup above didn't work, try the defaults folder
-            // see https://github.com/INL/corpus-frontend/pull/69
+            // see https://github.com/instituutnederlandsetaal/blacklab-frontend/pull/69
             .or(() -> dataDir
                 .flatMap(p -> resolveIfValid(p, fallbackCorpus))
                 .flatMap(p -> resolveIfValid(p, filePath))

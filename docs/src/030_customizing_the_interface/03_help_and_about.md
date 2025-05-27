@@ -14,7 +14,7 @@ so you can use the full power of Velocity to generate dynamic content if you wan
 There are some variables and utils available, for full details see the relevant code.
 You can refer to these using the velocity syntax `$var` or `$util.method()`.
 
-::: details Available variables and utils ([full file](https://github.com/instituutnederlandsetaal/corpus-frontend/blob/dev/src/main/java/nl/inl/corpuswebsite/BaseResponse.java))
+::: details Available variables and utils ([full file](@github:/src/main/java/nl/inl/corpuswebsite/BaseResponse.java))
 <<< @/../../src/main/java/nl/inl/corpuswebsite/BaseResponse.java#docsvelocitytemplatemodel
 :::
 

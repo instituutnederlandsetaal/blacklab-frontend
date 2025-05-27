@@ -225,7 +225,7 @@
                               },
                               "isInternal": {
                                 "type": "boolean",
-                                "description": "Hides the field in various parts of the corpus-frontend. Not used by blacklab. Defaults to false."
+                                "description": "Hides the field in various parts of the BlackLab Frontend. Not used by BlackLab. Defaults to false."
                               },
                               "process": {
                                 "type": "array",
@@ -555,7 +555,7 @@
                               },
                               "isInternal": {
                                 "type": "boolean",
-                                "description": "Hides the field in various parts of the corpus-frontend. Not used by blacklab. Defaults to false."
+                                "description": "Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false."
                               },
                               "process": {
                                 "type": "array",
@@ -888,7 +888,7 @@
                     },
                     "isInternal": {
                       "type": "boolean",
-                      "description": "Hides the field in various parts of the corpus-frontend. Not used by blacklab. Defaults to false."
+                      "description": "Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false."
                     },
                     "process": {
                       "type": "array",
@@ -1261,7 +1261,7 @@
                                         },
                                         "isInternal": {
                                           "type": "boolean",
-                                          "description": "Hides the field in various parts of the corpus-frontend. Not used by blacklab. Defaults to false."
+                                          "description": "Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false."
                                         },
                                         "process": {
                                           "type": "array",
@@ -1591,7 +1591,7 @@
                                         },
                                         "isInternal": {
                                           "type": "boolean",
-                                          "description": "Hides the field in various parts of the corpus-frontend. Not used by blacklab. Defaults to false."
+                                          "description": "Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false."
                                         },
                                         "process": {
                                           "type": "array",
@@ -1924,7 +1924,7 @@
                               },
                               "isInternal": {
                                 "type": "boolean",
-                                "description": "Hides the field in various parts of the corpus-frontend. Not used by blacklab. Defaults to false."
+                                "description": "Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false."
                               },
                               "process": {
                                 "type": "array",
@@ -2313,7 +2313,7 @@
                                         },
                                         "isInternal": {
                                           "type": "boolean",
-                                          "description": "Hides the field in various parts of the corpus-frontend. Not used by blacklab. Defaults to false."
+                                          "description": "Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false."
                                         },
                                         "process": {
                                           "type": "array",
@@ -2643,7 +2643,7 @@
                                         },
                                         "isInternal": {
                                           "type": "boolean",
-                                          "description": "Hides the field in various parts of the corpus-frontend. Not used by blacklab. Defaults to false."
+                                          "description": "Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false."
                                         },
                                         "process": {
                                           "type": "array",
@@ -2976,7 +2976,7 @@
                               },
                               "isInternal": {
                                 "type": "boolean",
-                                "description": "Hides the field in various parts of the corpus-frontend. Not used by blacklab. Defaults to false."
+                                "description": "Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false."
                               },
                               "process": {
                                 "type": "array",
@@ -3375,7 +3375,7 @@
                           "tokenized",
                           "numeric"
                         ],
-                        "description": "Should metadata be split into words/tokens, or it a number (changes sorting, leading zeroes matching, etc.). Defaults to 'tokenized'. The pidField (see specialFields) should be untokenized usually, or viewing documents in corpus-frontend might not work when the document id contains spaces."
+                        "description": "Should metadata be split into words/tokens, or it a number (changes sorting, leading zeroes matching, etc.). Defaults to 'tokenized'. The pidField (see specialFields) should be untokenized usually, or viewing documents in BlackLab Frontend might not work when the document id contains spaces."
                       },
                       "uiType": {
                         "type": "string",
@@ -4121,9 +4121,9 @@
                   "fields"
                 ],
                 "additionalProperties": false,
-                "description": "How to group together metadata fields in the corpus-frontend search interface."
+                "description": "How to group together metadata fields in the BlackLab Frontend search interface."
               },
-              "description": "How to group together metadata fields in the corpus-frontend search interface."
+              "description": "How to group together metadata fields in the BlackLab Frontend search interface."
             },
             "annotationGroups": {
               "type": "object",

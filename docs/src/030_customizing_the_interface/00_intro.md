@@ -1,18 +1,18 @@
 # Intro
 
-Many parts of the UI of the Corpus Frontend can customized.
-Because the Corpus Frontend is a web application, these customizations are mainly done using JavaScript.  
+Many parts of the UI of the BlackLab Frontend can be customized.
+Because the BlackLab Frontend is a web application, these customizations are mainly done using JavaScript.  
 
 Some settings go deeper, and require changes to how the data is indexed in BlackLab, like the text direction, which fields are available, field data types (numeric, textual, dates, etc.). We'll link to the appropriate BlackLab docs where this is the case.
 
 -----
 
-For the Frontend everything starts in a central config file, `Search.xml`, which serves as a fixed starting point from where you can include your custom scripts and other files. It also contains a few settings that need to be available serverside, such as pagination.  
+For BlackLab Frontend everything starts in a central config file, `Search.xml`, which serves as a fixed starting point from where you can include your custom scripts and other files. It also contains a few settings that need to be available serverside, such as pagination.  
 
 For most settings we'll try to determine sensible defaults based on your corpus. This means that some customization can be achieved in multiple ways. In these docs we'll primarily explain the Javascript API, with the corresponding BlackLab setting as a footnote, if there is one.
 
 ::: tip :information_source: Walkthrough
-There's a walkthrough that will take you through the entire process for a simple customization, including creating the configuration files, telling the Frontend where to find them, etc.  
+There's a walkthrough that will take you through the entire process for a simple customization, including creating the configuration files, telling BlackLab Frontend where to find them, etc.  
 --> [Simple Customization Walkthrough](/tutorials/customize_a_corpus).
 :::
 ::: warning 

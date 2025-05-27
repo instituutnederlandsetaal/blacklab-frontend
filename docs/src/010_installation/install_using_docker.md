@@ -1,5 +1,5 @@
 ---
-description: Docker installation instructions for Corpus Frontend
+description: Docker installation instructions for BlackLab Frontend
 order: 0
 ---
 
@@ -7,7 +7,7 @@ order: 0
 
 ## Basic Setup
 
-Here is an example `docker-compose.yml` file for a barebones installation of BlackLab and Corpus Frontend.
+Here is an example `docker-compose.yml` file for a barebones installation of BlackLab and BlackLab Frontend.
 
 1. **Create the `docker-compose.yml` file**
    - Place the following example in a directory of your choice.
@@ -26,8 +26,8 @@ Here is an example `docker-compose.yml` file for a barebones installation of Bla
             - /path/to/your/corpora-customizations:/etc/blacklab/projectconfigs
             # Optionally, to override the default configurations
             # See the docs for more details on these files:
-            # - /path/to/your/corpus-frontend.properties:/etc/blacklab/corpus-frontend.properties
-            # - /path/to/your/blacklab-server.yaml:/etc/blacklab/blacklab-server.yaml
+            # - /path/to/your/blacklab-frontend.properties:/etc/blacklab/blacklab-frontend.properties
+            # - /path/to/your/blacklab-frontend.properties:/etc/blacklab/blacklab-frontend.properties
           environment:
             - JAVA_OPTS=-Xmx4g
       ```
@@ -40,13 +40,13 @@ Here is an example `docker-compose.yml` file for a barebones installation of Bla
    ```
 
 3. **Access the Application**
-   - The Corpus-Frontend is now available at http://localhost:8080/corpus-frontend/
+   - The BlackLab Frontendis now available at http://localhost:8080/blacklab-frontend/
    - The BlackLab-Server API is now available at http://localhost:8080/blacklab-server/
 
 4. **You should now see an empty page with a message saying "No corpora available".**
    ![No corpora available](no_corpora_available.png)
    This is expected, as you have not yet added any corpora to the system.  
-   - Read on to learn how to enable uploads in the Corpus Frontend.
+   - Read on to learn how to enable uploads in the BlackLab Frontend.
 
 
 ## Basic setup with uploads enabled
@@ -56,7 +56,7 @@ The following section explains how to enable a **test user** in BlackLab, so you
 ::: info :information_source: **BlackLab does not support user registration and login natively.**  
 
 BlackLab relies on external softare such as proxies to implement user authentication, using a forwarded header (typically `remote-user`) to know who you are.  
-The Corpus Frontend in turn relies on BlackLab, so you should only need to configure BlackLab (and your proxy).
+The BlackLab Frontend in turn relies on BlackLab, so you should only need to configure BlackLab (and your proxy).
 
 :bust_in_silhouette:  [This tutorial](/tutorials/authentication) details how to set up a proxy that can integrate with Microsoft, Google, Facebook, etc.  
 For a more technical explanation, consult [the BlackLab docs](https://blacklab.ivdnt.org/server/howtos.html#let-users-manage-their-own-corpora).
@@ -94,7 +94,7 @@ For a more technical explanation, consult [the BlackLab docs](https://blacklab.i
             - /path/to/your/corpora-customizations:/etc/blacklab/projectconfigs
             # Optionally, to override the default configurations
             # See the docs for more details on these files:
-            # - /path/to/your/corpus-frontend.properties:/etc/blacklab/corpus-frontend.properties
+            # - /path/to/your/blacklab-frontend.properties:/etc/blacklab/blacklab-frontend.properties
             - /path/to/your/blacklab-server.yaml:/etc/blacklab/blacklab-server.yaml    # [!code focus] [!code highlight]
           environment:
             - JAVA_OPTS=-Xmx4g

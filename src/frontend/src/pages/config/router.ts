@@ -17,9 +17,9 @@ const router = new VueRouter({
 	base: CONTEXT_URL, // guaranteed not to end in a slash
 	mode: 'history',
 
-	// Routers in the corpus-frontend are interesting, this is a legacy holdover
-	// without corpus: /corpus-frontend/${page}
-	// with corpus: /corpus-frontend/${corpus}/${page}
+	// Routers in the BlackLab Frontend are interesting, this is a legacy holdover
+	// without corpus: /blacklab-frontend/${page}
+	// with corpus: /blacklab-frontend/${corpus}/${page}
 
 	// since this page (the configwizard) is only served on paths where /configwizard is part of the url (as the ${page} part)
 	// we don't have to take into account all other possible urls.

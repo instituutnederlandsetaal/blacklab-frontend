@@ -14,7 +14,7 @@ corpusConfig:
 - Use `"rtl"` for right-to-left languages.
 - The default is left-to-right (`"ltr"`).
 
-**Note:** This feature is not actively used by us, if you encounter an issue, please [create an issue](https://github.com/instituutnederlandsetaal/corpus-frontend/issues/new).
+**Note:** This feature is not actively used by us, if you encounter an issue, please [create an issue](https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/new).
 
 ## What does this affect?
 
@@ -30,7 +30,7 @@ Setting `textDirection: "rtl"` will change:
 
 - This setting must be present in your corpus index format file before indexing data.
 - If you edit the format config after indexing, you may need to manually update the `indexmetadata.yaml` or `indexmetadata.json` file and reload the corpus.
-- If you encounter any issues, please report them on the [GitHub issue tracker](https://github.com/INL/corpus-frontend/issues/new).
+- If you encounter any issues, please report them on the [GitHub issue tracker](https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/new).
 
 
 

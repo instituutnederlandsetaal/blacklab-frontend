@@ -384,7 +384,7 @@ export const blacklab = {
 };
 
 /**
- * API for corpus-frontend's own webservice
+ * API for blacklab-frontend's own webservice
  */
 export const frontend = {
 	getCorpus: () => endpoints.cf.get<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo()),

@@ -7,5 +7,5 @@
 :::
 
 The `/static` directory is for any files you want to make available to the browser/client, any custom JS, CSS, fonts, logos, etc.
-Urls are mapped to `/${context_url:corpus-frontend}/${corpus_id}/static/`  
-For example `/corpus-frontend/MyCorpus/static/path/to/my.file`.
+Urls are mapped to `/${context_url:blacklab-frontend}/${corpus_id}/static/`  
+For example `/blacklab-frontend/MyCorpus/static/path/to/my.file`.

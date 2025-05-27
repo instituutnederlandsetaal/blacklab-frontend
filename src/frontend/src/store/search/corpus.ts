@@ -104,7 +104,7 @@ const privateActions = {
 }
 
 /**
- * Expects the corpus-frontend api to be initialized.
+ * Expects the BlackLab Frontend api to be initialized.
  * Returned promise may contain ApiError if rejected.
  */
 const init = () => Promise.all([Api.frontend.getCorpus(), Api.blacklab.getRelations(INDEX_ID)])

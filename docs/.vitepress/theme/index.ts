@@ -5,7 +5,6 @@ import DefaultTheme from 'vitepress/theme'
 import { enhanceAppWithTabs } from 'vitepress-plugin-tabs/client'
 
 import './style.css'
-import './custom.css'
 
 import FileTree from './FileTree.vue'
 

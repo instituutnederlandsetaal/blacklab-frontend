@@ -186,7 +186,7 @@ type AnnotationBase = {
 	allowDuplicateValues?: boolean;
 	/** Store the xml instead of the text when 'valuePath' results in an xml element. */
 	captureXml?: boolean;
-	/** Hides the field in various parts of the corpus-frontend. Not used by blacklab. Defaults to false. */
+	/** Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false. */
 	isInternal?: boolean;
 
 	/** Post-process values. Every process entry is evaluated in order with the output of the previous one as input. */
@@ -266,7 +266,7 @@ type MetadataFieldSingle = {
 	value?: string;
 	/** Can this metadata field have multiple values? Useful for things like Authors. Defaults to true. */
 	multipleValues?: boolean;
-	/** Should metadata be split into words/tokens, or it a number (changes sorting, leading zeroes matching, etc.). Defaults to 'tokenized'. The pidField (see specialFields) should be untokenized usually, or viewing documents in corpus-frontend might not work when the document id contains spaces. */
+	/** Should metadata be split into words/tokens, or it a number (changes sorting, leading zeroes matching, etc.). Defaults to 'tokenized'. The pidField (see specialFields) should be untokenized usually, or viewing documents in BlackLab Frontend might not work when the document id contains spaces. */
 	type?: 'untokenized'|'tokenized'|'numeric';
 	// leave extra line breaks or they won't appear in the monaco editor :(
 	/**
@@ -348,7 +348,7 @@ type LinkedDocument = {
     documentPath?: string;
 }
 
-/** Metadata not used by BlackLab directly, but useful for configuring the corpus-frontend search interface. */
+/** Metadata not used by BlackLab directly, but useful for configuring the BlackLab Frontend search interface. */
 type CorpusConfig = {
 	/** Corpus display name in the user interface */
 	displayName?: string;
@@ -370,7 +370,7 @@ type CorpusConfig = {
 		dateField?: string;
 	}
 
-	/** How to group together metadata fields in the corpus-frontend search interface. */
+	/** How to group together metadata fields in the BlackLab Frontend search interface. */
 	metadataFieldGroups?: MetadataFieldGroup[];
 	annotationGroups?: { [annotatedField: string]: AnnotationGroup[]; }
 
@@ -388,7 +388,7 @@ type AnnotationGroup = {
 	addRemainingAnnotations?: boolean;
 }
 
-/** How to group together metadata fields in the corpus-frontend search interface. */
+/** How to group together metadata fields in the BlackLab Frontend search interface. */
 type MetadataFieldGroup = {
 	/** Group name */
 	name: string;

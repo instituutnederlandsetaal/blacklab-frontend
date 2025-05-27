@@ -96,7 +96,7 @@ use the name of the tab as the `uiType` in the `.blf.yaml` file, or return it fr
   In addition to setting uiType `pos` for the main tag, you will also need to instruct the frontend to load the tagset file.
 
   ::: tip Tagset generator
-  There is an experimental page in the interface that lets you create a tagset file. It is not yet available in the interface, but you can access it by going to `/corpus-frontend/${corpus_id}/configwizard/`. From there, select the Annotation that holds the main Part of Speech tag, and the annotation(s) that hold the subtag(s), the generator will query blacklab for all valid combinations, and generate a tagset file for you.
+  There is an experimental page in the interface that lets you create a tagset file. It is not yet available in the interface, but you can access it by going to `/blacklab-frontend/${corpus_id}/configwizard/`. From there, select the Annotation that holds the main Part of Speech tag, and the annotation(s) that hold the subtag(s), the generator will query blacklab for all valid combinations, and generate a tagset file for you.
   :::
 
   ::: info 

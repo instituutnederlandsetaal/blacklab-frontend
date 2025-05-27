@@ -19,13 +19,13 @@ RUN --mount=type=cache,target=/root/.m2 mvn --no-transfer-progress package
 #--------------------------------------
 FROM instituutnederlandsetaal/blacklab-proxy:latest
 
-# Where corpus-frontend.properties can be found. Can be overridden.
+# Where blacklab-frontend.properties can be found. Can be overridden.
 ARG CONFIG_ROOT=docker/config
 
 # What the name of the Tomcat app (and therefore the URL should be). Can be overridden.
-ARG TOMCAT_APP_NAME=corpus-frontend
+ARG TOMCAT_APP_NAME=blacklab-frontend
 
-COPY ${CONFIG_ROOT}/corpus-frontend.properties /etc/blacklab/
+COPY ${CONFIG_ROOT}/blacklab-frontend.properties /etc/blacklab/
 
 # Copy the WAR file
-COPY --from=builder /app/target/corpus-frontend-*.war /usr/local/tomcat/webapps/${TOMCAT_APP_NAME}.war
+COPY --from=builder /app/target/blacklab-frontend-*.war /usr/local/tomcat/webapps/${TOMCAT_APP_NAME}.war

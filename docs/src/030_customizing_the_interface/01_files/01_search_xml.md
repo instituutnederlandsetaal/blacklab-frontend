@@ -1,6 +1,6 @@
 ---
 title: Search.xml
-description: Configuring and Customizing the Corpus Frontend
+description: Configuring and Customizing the BlackLab Frontend
 aside: false
 includeFolderIndexFile: true
 ---
@@ -13,12 +13,12 @@ includeFolderIndexFile: true
 </FileTree>
 :::
 
-`Search.xml` allows you to configure various aspects of the corpus frontend interface, such as navbar links, custom CSS/JS, and pagination settings for documents. 
+`Search.xml` allows you to configure various aspects of the BlackLab Frontend interface, such as navbar links, custom CSS/JS, and pagination settings for documents. 
 It's always required if you want to apply any customization for your corpus after initial creation.
 BlackLab lets you configure some aspect of your corpus, but you can only do this while creating the corpus. 
 
 ::: tip
-Set `cache=false` in the main `corpus-frontend.properties` configuration file, so you don't need to restart the server every time you update the `search.xml` file.
+Set `cache=false` in the main `blacklab-frontend.properties` configuration file, so you don't need to restart the server every time you update the `search.xml` file.
 :::
 
 ## Capabilities
@@ -30,15 +30,15 @@ The example file below also contains some comments to help you understand what e
 
 Some variables are available in the `search.xml` file. These variables are replaced with their actual values. The following variables are available:
 - `${request:contextPath}`  
-    E.g. `/corpus-frontend`  
-    The "home" link for the Corpus Frontend.   
+    E.g. `/blacklab-frontend`  
+    The "home" link for the BlackLab Frontend.   
     This **does not end with a slash**. 
 - `${request:corpusId}` 
  E.g. `my_corpus`.  
  The ID of the corpus.  
  This is _not_ the display name, but the internal ID of the corpus. Useful to refer to the static files, or create urls, etc. 
 - `${request:corpusPath}`  
-  E.g. `/corpus-frontend/${corpus_id}/`  
+  E.g. `/blacklab-frontend/${corpus_id}/`  
   The "home link" for the corpus.  
   This is just a concatenation of the `contextPath` and the `corpusId`.  
   This **does not end with a slash**. 

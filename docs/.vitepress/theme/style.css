@@ -297,7 +297,6 @@ img+img {
 }
 
 .VPNavBarSearch {
-	justify-content: center!important;
-	flex-grow: 1;
-	display: flex;
+	flex-grow: 0!important;
+	order: 5;
 }

@@ -11,7 +11,7 @@ You can find links to specific documentation in the sidebar.
 # Getting started
 
 The simplest way to get started is to follow the basic [docker setup](/installation/install_using_docker).  
-If you would like to help develop the Corpus Frontend, start by creating a [development setup](/development/development_setup).
+If you would like to help develop the BlackLab Frontend, start by creating a [development setup](/development/development_setup).
 
 
 ---------
@@ -19,4 +19,4 @@ If you would like to help develop the Corpus Frontend, start by creating a [deve
 
 If you have any further questions or experience any issues, please contact [Jan Niestadt](mailto:jan.niestadt@ivdnt.org) and/or [Koen Mertens](mailto:koen.mertens@ivdnt.org).
 
-Like BlackLab, the Corpus Frontend is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).
+Like BlackLab, the BlackLab Frontend is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0).

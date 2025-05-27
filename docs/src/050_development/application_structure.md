@@ -1,8 +1,8 @@
 # Application Structure
 
-The Frontend contains a small Java backend and a larger Vue.js frontend.
-The Backend is responsible for serving the correct javascript files, setting up the page skeleton, and handling the document page.
-The Frontend is responsible for the user interface, handling the search, displaying results, and managing the state of the application.
+BlackLab Frontend contains a small Java backend and a larger Vue.js frontend.
+The backend is responsible for serving the correct javascript files, setting up the page skeleton, and handling the document page.
+The BlackLab Frontend is responsible for the user interface, handling the search, displaying results, and managing the state of the application.
 
 
 ## Frontend Javascript
@@ -15,15 +15,15 @@ The following pages exist:
 
 | URL                                         | Entrypoint         | Page Name | Description                                                                                                 |
 |----------------------------------------------|--------------------|-----------|-------------------------------------------------------------------------------------------------------------|
-| `/corpus-frontend/`                         | `corpora.ts`       | corpora   | The corpora overview page.                                                                                  |
-| `/corpus-frontend/docs/${document}`          | `article.ts`       | article   | Contains the contents of the selected document.                                                             |
-| `/corpus-frontend/${corpus}/search/`         | `search.tsx`       | search    | The search page.                                                                                            |
-| `/corpus-frontend/about/`                    | [no script]        | about     | Contains the default `about.inc`.                                                                           |
-| `/corpus-frontend/${corpus}/about/`          | [no script]        | about     | Contains the `about.inc` for the selected corpus.                                                           |
-| `/corpus-frontend/help/`                     | [no script]        | help      | Contains the default `help.inc`.                                                                            |
-| `/corpus-frontend/${corpus}/help/`           | [no script]        | help      | Contains the `help.inc` for the selected corpus.                                                            |
-| `/corpus-frontend/upload/`                   | `remote-index.ts`  | upload    | The upload page.                                                                                            |
-| `/corpus-frontend/config/`                   | [no script]        | config    | Contains details about the current configuration, such as the version, BlackLab location, etc.              |
+| `/blacklab-frontend/`                         | `corpora.ts`       | corpora   | The corpora overview page.                                                                                  |
+| `/blacklab-frontend/docs/${document}`          | `article.ts`       | article   | Contains the contents of the selected document.                                                             |
+| `/blacklab-frontend/${corpus}/search/`         | `search.tsx`       | search    | The search page.                                                                                            |
+| `/blacklab-frontend/about/`                    | [no script]        | about     | Contains the default `about.inc`.                                                                           |
+| `/blacklab-frontend/${corpus}/about/`          | [no script]        | about     | Contains the `about.inc` for the selected corpus.                                                           |
+| `/blacklab-frontend/help/`                     | [no script]        | help      | Contains the default `help.inc`.                                                                            |
+| `/blacklab-frontend/${corpus}/help/`           | [no script]        | help      | Contains the `help.inc` for the selected corpus.                                                            |
+| `/blacklab-frontend/upload/`                   | `remote-index.ts`  | upload    | The upload page.                                                                                            |
+| `/blacklab-frontend/config/`                   | [no script]        | config    | Contains details about the current configuration, such as the version, BlackLab location, etc.              |
 
 
 Outlined below here is the `/search/` page, as it contains the majority of the code.

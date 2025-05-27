@@ -18,7 +18,7 @@ Files and `static` files 'overlay' each other, meaning we will always check all 
 
 ### Example of overlaying
 
-When requesting /corpus-frontend/my-corpus/static/some_script.js the server will return the first file it finds in the following locations:
+When requesting /blacklab-frontend/my-corpus/static/some_script.js the server will return the first file it finds in the following locations:
 1. `my-corpus/static/some_script.js`
 2. `default/static/some_script.js`
 3. `src/main/resources/interface-default/static/some_script.js` (inside the WAR)

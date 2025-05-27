@@ -14,7 +14,7 @@ services:
       
       # Optionally, to override the default configurations
       # See the docs for more details on these files:
-      - ${FRONTEND_CONFIG_FILE}:/etc/blacklab/corpus-frontend.properties
+      - ${FRONTEND_CONFIG_FILE}:/etc/blacklab/blacklab-frontend.properties
       - ${BLACKLAB_CONFIG_FILE}:/etc/blacklab/blacklab-server.yaml
     environment: 
       - JAVA_OPTS=${JAVA_OPTS:-"-Xmx4g"}

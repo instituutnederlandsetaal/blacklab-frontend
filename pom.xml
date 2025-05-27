@@ -2,12 +2,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>nl.inl.blacklab</groupId>
-    <artifactId>corpus-frontend</artifactId>
+    <artifactId>blacklab-frontend</artifactId>
     <version>3.1.1-SNAPSHOT</version>
     <packaging>war</packaging>
-    <name>INT Corpus Frontend</name>
+    <name>INT BlackLab Frontend</name>
     <description>A web application to search corpora through the BlackLab Server web service.</description>
-    <url>https://github.com/INL/corpus-frontend</url>
+    <url>https://github.com/instituutnederlandsetaal/blacklab-frontend</url>
     <organization>
         <url>https://www.ivdnt.org/</url>
         <name>Dutch Language Institute</name>
@@ -21,13 +21,13 @@
         </license>
     </licenses>
     <scm>
-        <url>https://github.com/inl/corpus-frontend</url>
-        <connection>scm:git:https://github.com/inl/corpus-frontend.git</connection>
-        <developerConnection>scm:git:https://github.com/inl/corpus-frontend.git</developerConnection>
+        <url>https://github.com/instituutnederlandsetaal/blacklab-frontend</url>
+        <connection>scm:git:https://github.com/instituutnederlandsetaal/blacklab-frontend.git</connection>
+        <developerConnection>scm:git:https://github.com/instituutnederlandsetaal/blacklab-frontend.git</developerConnection>
         <tag>HEAD</tag>
     </scm>
     <issueManagement>
-        <url>https://github.com/INL/corpus-frontend/issues</url>
+        <url>https://github.com/instituutnederlandsetaal/blacklab-frontend/issues</url>
         <system>GitHub Issues</system>
     </issueManagement>
     <developers>
@@ -149,7 +149,7 @@
                         <!--
                             skip compiling JS when compiling in eclipse.
                             It's slow and unneeded as you can manually start a webpack-dev-server during development.
-                            Run "npm start" in the src/frontend folder, and configure corpus-frontend.properties jspath to "http://localhost:8081/dist/js"
+                            Run "npm start" in the src/frontend folder, and configure blacklab-frontend.properties jspath to "http://localhost:8081/dist/js"
                         -->
                         <?m2e ignore?>
                     </execution>
@@ -179,7 +179,7 @@
                         <!--
                              skip compiling JS when compiling in eclipse.
                              It's slow and unneeded as you can manually start a webpack-dev-server during development.
-                             Run "npm start" in the src/frontend/src folder, and configure corpus-frontend.properties jspath to "http://localhost:80/dist"
+                             Run "npm start" in the src/frontend/src folder, and configure blacklab-frontend.properties jspath to "http://localhost:80/dist"
                         -->
                         <?m2e ignore?>
                     </execution>

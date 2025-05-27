@@ -1,6 +1,6 @@
 # Navbar Links
 
-You can customize the links in the navbar of the Corpus Frontend by adding a `<NavLinks>` element to the `search.xml` file. This allows you to add links to external resources or other pages within your corpus.
+You can customize the links in the navbar of the BlackLab Frontend by adding a `<NavLinks>` element to the `search.xml` file. This allows you to add links to external resources or other pages within your corpus.
 
 ![alt text](navbar_links.png)
 

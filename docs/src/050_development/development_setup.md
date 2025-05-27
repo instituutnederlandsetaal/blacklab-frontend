@@ -1,6 +1,6 @@
 # Development Setup
 
-This guide helps you set up a development environment for the corpus-frontend project, covering both the Java backend and JavaScript frontend.
+This guide helps you set up a development environment for the BlackLab Frontend project, covering both the Java backend and JavaScript frontend.
 
 ## 1. Prerequisites
 
@@ -41,9 +41,9 @@ docker-compose up -d
 
 - BlackLab Server API: [http://localhost:8082/blacklab-server/](http://localhost:8082/blacklab-server/)
 
-## 3. Configure and Run the Corpus-Frontend
+## 3. Configure and Run the BlackLab Frontend
 
-### 3.1 Create `corpus-frontend.properties`
+### 3.1 Create `blacklab-frontend.properties`
 
 ```properties
 # Point to the webpack dev server
@@ -58,8 +58,8 @@ cache=false
 
 ### 3.2 Run in Your IDE
 
-- Start the corpus-frontend servlet from your IDE (IntelliJ, VSCode, or Eclipse).
-- The frontend will be available at [http://localhost:8080/corpus-frontend/](http://localhost:8080/corpus-frontend/), but will not work until the frontend JavaScript is built.
+- Start the BlackLab Frontend servlet from your IDE (IntelliJ, VSCode, or Eclipse).
+- The frontend will be available at [http://localhost:8080/blacklab-frontend/](http://localhost:8080/blacklab-frontend/), but will not work until the frontend JavaScript is built.
 
 ## 4. Start the Webpack Dev Server
 
@@ -97,7 +97,7 @@ The backend is written in Java and is mainly responsible for:
 ## Tips
 
 - Install the Vue devtools ([Chrome](https://chrome.google.com/webstore/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd), [Firefox](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)).
-- Using the `jspath` property in `corpus-frontend.properties` with the webpack dev server lets you sideload JavaScript for real-time compilation and hot reload.
+- Using the `jspath` property in `blacklab-frontend.properties` with the webpack dev server lets you sideload JavaScript for real-time compilation and hot reload.
 - Example `jspath` for sideloading (no trailing slash!):
   ```properties
   jspath=http://localhost:8081/dist

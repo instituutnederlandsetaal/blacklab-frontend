@@ -65,7 +65,7 @@ vuexModules.ui.actions.results.shared.concordanceAsHtml(true)
 
 #### Example
 
-Combined with BlackLab's [`captureXml`](https://github.com/INL/BlackLab/blob/9fdc0e146f136287b0c3cca8456b0ef60ce2cbe2/core/src/site/markdown/how-to-configure-indexing.md#indexing-xml) mode, you can index raw XML from your documents into an annotation (e.g., `word_xml`). By enabling `concordanceAsHtml`, the frontend will render the annotation as HTML in the hits table, allowing you to style it with custom CSS.
+Combined with BlackLab's [`captureXml`](https://github.com/instituutnederlandsetaal/BlackLab/blob/9fdc0e146f136287b0c3cca8456b0ef60ce2cbe2/core/src/site/markdown/how-to-configure-indexing.md#indexing-xml) mode, you can index raw XML from your documents into an annotation (e.g., `word_xml`). By enabling `concordanceAsHtml`, the frontend will render the annotation as HTML in the hits table, allowing you to style it with custom CSS.
 
 ::: code-group
 ```xml [Source document]

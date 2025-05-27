@@ -122,7 +122,7 @@ public class WebsiteConfig {
      *
      * @param configFile the Search.xml file
      * @param corpusId (optional) corpus id if this is a corpus-specific config file
-     * @param contextPath the application root url on the client (usually /corpus-frontend). Required for string interpolation while loading the configFile.
+     * @param contextPath the application root url on the client (usually /blacklab-frontend). Required for string interpolation while loading the configFile.
      * @throws ConfigurationException
      */
     public WebsiteConfig(File configFile, String contextPath, Optional<String> corpusId) throws ConfigurationException {

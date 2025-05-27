@@ -76,7 +76,7 @@ export default Vue.extend({
 						value: 'size',
 					}, {
 						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_groupSize')}).toString(),
-						value: '-size', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/corpus-frontend/issues/340
+						value: '-size', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
 					}]
 				});
 			}
@@ -113,7 +113,7 @@ export default Vue.extend({
 						value: 'numhits'
 					}, {
 						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_numberOfHits')}).toString(),
-						value: '-numhits' // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/corpus-frontend/issues/340
+						value: '-numhits' // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
 					}]
 				});
 			}

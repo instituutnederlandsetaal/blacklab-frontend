@@ -62,8 +62,8 @@ function stripNumbersFromLinksInSidebar(config: ReturnType<typeof defineConfig>)
 
 // https://vitepress.dev/reference/site-config
 export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
-  title: "Corpus Frontend",
-  description: "Documentation for the Corpus Frontend, a webinterface for searching and publishing BlackLab corpora",
+  title: "BlackLab Frontend",
+  description: "Documentation for the BlackLab Frontend, a webinterface for searching and publishing BlackLab corpora",
   srcDir: 'src',
   
   locales: {
@@ -88,7 +88,7 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
       const projectRoot = path.resolve(__dirname, '../../');
       md.use(githubLinkPlugin({
         organisation: 'instituutnederlandsetaal',
-        repository: 'corpus-frontend',
+        repository: 'blacklab-frontend',
         branch: 'dev',
         projectRoot, // absolute path to the project root
       })); 
@@ -105,7 +105,7 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/instituutnederlandsetaal/corpus-frontend/' }
+      { icon: 'github', link: 'https://github.com/instituutnederlandsetaal/blacklab-frontend/' }
     ],
 
     search: {

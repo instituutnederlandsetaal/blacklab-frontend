@@ -56,7 +56,7 @@
             If your files link to external metadata in different files, you should also upload those files here.
             Support for external data has to be configured in a custom import format, so you usually won't need this option.<br>
             For more information on how to configure a format for using linked/external files, 
-            <a style="text-decoration: underline;color:#337ab7;" target="_blank" href="https://github.com/INL/BlackLab/blob/d20eb71b25137facf10f7d2681242de34ab1fa54/core/src/site/markdown/how-to-configure-indexing.md#metadata-external">see here</a>.
+            <a style="text-decoration: underline;color:#337ab7;" target="_blank" href="https://github.com/instituutnederlandsetaal/BlackLab/blob/d20eb71b25137facf10f7d2681242de34ab1fa54/core/src/site/markdown/how-to-configure-indexing.md#metadata-external">see here</a>.
         </div>
     </li>
     <li class="tlypageguide_right" data-tourtarget="button[data-target='#new-format-modal']">

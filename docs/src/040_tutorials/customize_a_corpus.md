@@ -4,7 +4,7 @@ order: 0
 ---
 # Basic Customization Tutorial
 
-This tutorial shows how to customize a corpus in the corpus-frontend by adding a custom JavaScript file and changing the displayed title of your documents.
+This tutorial shows how to customize a corpus in the BlackLab Frontend by adding a custom JavaScript file and changing the displayed title of your documents.
 
 ## Steps
 
@@ -38,6 +38,6 @@ This tutorial shows how to customize a corpus in the corpus-frontend by adding a
    ```
 
 6. **Restart your server and perform a search in your corpus to see the changes.**  
-   For example: [http://localhost:8080/corpus-frontend/example/search/docs?patt=""](http://localhost:8080/corpus-frontend/example/search/docs?patt="")
+   For example: [http://localhost:8080/blacklab-frontend/example/search/docs?patt=""](http://localhost:8080/blacklab-frontend/example/search/docs?patt="")
 
-   **NOTE:** You don't need to restart the application constantly. Simply set `cache=false` in the main `corpus-frontend.properties` config file to disable caching of files by the server.
+   **NOTE:** You don't need to restart the application constantly. Simply set `cache=false` in the main `blacklab-frontend.properties` config file to disable caching of files by the server.
