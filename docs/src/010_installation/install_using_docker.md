@@ -1,6 +1,6 @@
 ---
 description: Docker installation instructions for BlackLab Frontend
-order: 0
+order: 1
 ---
 
 # Installation using Docker

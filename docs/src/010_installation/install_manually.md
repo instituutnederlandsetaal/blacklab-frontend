@@ -1,6 +1,6 @@
 ---
 description: Manual installation instructions for BlackLab Frontend
-order: 1
+order: 2
 ---
 
 # Manual Installation
