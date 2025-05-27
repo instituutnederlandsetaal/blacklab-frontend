@@ -65,7 +65,6 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
   title: "BlackLab Frontend",
   description: "Documentation for the BlackLab Frontend, a webinterface for searching and publishing BlackLab corpora",
   srcDir: 'src',
-  base: '/blacklab-frontend/', // base URL for the site, used for links and assets
   
   locales: {
     root: {
