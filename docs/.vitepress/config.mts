@@ -99,9 +99,13 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
     // https://vitepress.dev/reference/default-theme-config
     
     logo: '/img/ivdnt-logo-4regels.svg',
+    
     nav: [
-      { text: 'About', link: '/about' },
-      { text: 'Examples', link: '/markdown-examples' }
+      { text: 'Installation', link: '/installation/install_using_docker' },
+      { text: 'Configuration', link: '/configuration/global_settings' },
+      { text: 'Development', link: '/development/development_setup' },
+      { text: 'BlackLab', link: 'https://blacklab.ivdnt.org/' },
+      { text: '/INT/', link: 'https://ivdnt.org/' },
     ],
 
     socialLinks: [
@@ -122,19 +126,14 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
   useFolderTitleFromIndexFile: true, // tertiary
   documentRootPath: 'src', // needs to be set to the same as srcDir
   capitalizeFirst: true, // capitalize first letter of folder names (probably files too, but we set explicit titles)
-  
-  // sortMenusByFrontmatterOrder: true, // "order: " in frontmatter
-  excludePattern: ['_*'], // files and directories starting with _ are ignored (we use those for image directories and templates)
+
+  sortMenusByFrontmatterOrder: true, // "order: " in frontmatter
+  excludePattern: ['_*'], // Do not show files and directories starting with an underscore in the sidebar. They are still compiled and can be linked to, but not shown in the sidebar.
   useFolderLinkFromIndexFile: true, // clicking folder entry in sidebar opens the index.md file
 
   collapseDepth: 1,
+  includeRootIndexFile: true,
 
-  // usually the main heading in the sidebar is configuring using index.md, 
-  // e.g. /path/index.md configures the sidebar entry for /path
-  // But this leads to lots of index.md files everywhere, 
-  // This settings makes it so that we can also use /path/path.md 
-  // E.g. /sidebar/sidebar.md 
-  // Which is a little friendlier to navigate in the workspace.
-  // useFolderLinkFromSameNameSubFile: true 
+  excludeFilesByFrontmatterFieldName: 'excludeFromSidebar'
 })))
 

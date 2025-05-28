@@ -91,17 +91,20 @@
  * -------------------------------------------------------------------------- */
 
 :root {
+  --pop-color-1: hsl(16.9, 98.3%, 47.5%);
+  --pop-color-2: hsl(42.1, 100%, 50%);
+
   --vp-home-hero-name-color: transparent;
   --vp-home-hero-name-background: -webkit-linear-gradient(
     120deg,
-    #bd34fe 30%,
-    #41d1ff
+    var(--pop-color-1) 30%,
+    var(--pop-color-2)
   );
 
   --vp-home-hero-image-background-image: linear-gradient(
     -45deg,
-    #bd34fe 50%,
-    #47caff 50%
+	var(--pop-color-1) 50%,
+	var(--pop-color-2) 50%
   );
   --vp-home-hero-image-filter: blur(44px);
 }
@@ -177,73 +180,111 @@ img+img {
 /* Layout adjustments for larger and smaller screens */
 /*****************************************************/
 
-/* Some extra horizontal space here and there */
-.content-container {
-	max-width: unset !important;
-}
-
-.aside {
-	padding-left: 0 !important;
-}
-
-/** remove excessive left margin from center content, on larger screen while sidebar is visible.
- sidebar hides at 960 */
-@media screen and (min-width: 960px) {
-	.VPDoc.has-aside {
-		padding-left: 0 !important;
-	}
-}
-
 :root {
 	--vp-layout-max-width: 1920px;
 }
 
-.VPDoc:not(.has-sidebar) .container {
-	max-width: 1584px !important;
-}
+.Layout {
+	.VPNavBar {
+		box-shadow:0 2px 8px rgba(0,0,0,.2);
+		&:not(.home) {
+			background-color: var(--vp-nav-bg-color)!important;
+			border-bottom: 1px solid var(--vp-c-gutter)!important;
+		}
+		
+		.wrapper {
+			padding: 0!important;
+			.container {
+				max-width: var(--vp-layout-max-width);
+				display: flex;
+				justify-content: space-between;
+				gap: 32px;
+				padding: 0 32px;
+				flex-wrap: nowrap;
+				.title {
+					padding: 0!important;
+					background-color: transparent;
+					width: auto!important;
+					flex: 0 1 auto;
+					min-width: 0px!important;
+					
+					.title span { overflow: hidden; text-overflow: ellipsis; }
+					
+					position: static!important;
+					font-size: 125%;
+				}
+				.content {
+					flex-grow: 0;
+					background: transparent!important;
+					padding: 0!important;
+					.content-body {
+						background: transparent!important;
+					}
+				}
+			}
+		}
 
-.VPDoc:not(.has-sidebar) .content {
-	max-width: 1264px !important;
-}
+		.divider { display: none; } // strange bottom border - we moved it to the navbar container itself.
 
-.VPDoc.has-aside .content-container {
-	max-width: 1168px !important;
-}
-
-/* Change max content width to 1920 instead 1440 */
-@media (max-width: 1919px) and (min-width: 960px) {
-	.VPContent.has-sidebar {
-		margin: var(--vp-layout-top-height, 0px) 0 0!important;
-		padding-left: var(--vp-sidebar-width)!important;
-	}
-	.VPSidebar {
-		width: var(--vp-sidebar-width)!important;
-		max-width: 100%!important;
-	}
+		.VPNavBar.has-sidebar .content {
+			padding-left: 0!important;
+			padding-right: 0!important;
+		}
 	
-	.VPNavBar.has-sidebar .title {
-		position: absolute;
-		top: 0;
-		left: 0;
-		z-index: 2;
-		padding: 0 32px;
-		width: var(--vp-sidebar-width)!important;
-		height: var(--vp-nav-height);
-		background-color: transparent;
-		padding-left: 32px!important;
+		// Reorder navbar items 
+		/* nav items */
+		.VPNavBarMenu {
+			order: 1;
+		}
+		.VPNavBarSearch {
+			flex-grow: 0!important;
+			order: 2;
+			padding-left: 0!important;
+		}
+		/* github link */
+		.VPSocialLinks {
+			order: 3;
+		}
+		/* dark mode switch */
+		.VPNavBarAppearance {
+			order: 4;
+		}
+		/* collapsed state of dark mode and social links */
+		.VPFlyout {
+			order: 3;
+		}
 	}
-	.VPNavBar.has-sidebar .title .title {
-		width: 100%!important;
+	.VPSidebar { // left side sidebar
+		
+	}
+	> .VPContent {
+		 > .VPDoc {
+			> .container { // content without left sidebar
+				display: flex;
+				
+				> .aside { flex-grow: 0; } // right-side sidebar
+				> .content { // main document
+					padding: 0;
+					flex-grow: 1; 
+					max-width: unset; 
+					.content-container {
+						max-width: unset;
+					}
+				}
+			 }
+		 }
+		 
 	}
 
-	.VPNavBar.has-sidebar .content {
-		position: relative;
-		z-index: 1;
-		padding-right: 32px;
-		padding-left: var(--vp-sidebar-width)!important;
+	@media (max-width: 1919px) and (min-width: 960px) {
+		.VPSidebar {
+			width: var(--vp-sidebar-width);
+		}
+		.VPContent.has-sidebar {
+			padding-left: var(--vp-sidebar-width)!important;
+		}
 	}
 }
-
 
 /*******************************/
 /* Style, as opposed to layout */
@@ -256,25 +297,20 @@ img+img {
 	min-height:40px;
 }
 
+.VPHero img {
+	box-shadow: none!important;
+}
 :root.dark .logo {
 	filter: invert(1);
 }
 
-
 /* border pixel fix */
-.title{
-	background-color: white!important;
-	border-bottom:1px solid #e2e2e3!important;
-	height: 65px!important;
-}
-:root.dark .title {
-	background-color: #1B1B1F!important;
-	border-bottom:1px solid #000 !important;
+.VPNavBar .title {
+	border-bottom: none!important; 
+	height: var(--vp-nav-height)!important;
+    font-family: 'schoolboek', sans-serif !important;
 }
 
-.VPNavBar{
-	box-shadow:0 2px 8px rgba(0,0,0,.2);
-}
 
 /* alles hoekig -> INT be square :P */
 *:not(.VPSwitch):not(.icon):not(.check){
@@ -292,28 +328,4 @@ img+img {
 	font-style: normal;
 	font-stretch: normal;
 }
-.title{
-	font-family: 'schoolboek', sans-serif !important;
-}
 
-/* nav items */
-.VPNavBarMenu {
-	order: 1;
-}
-.VPNavBarSearch {
-	flex-grow: 0!important;
-	order: 2;
-	padding-left: 0!important;
-}
-/* github link */
-.VPSocialLinks {
-	order: 3;
-}
-/* dark mode switch */
-.VPNavBarAppearance {
-	order: 4;
-}
-/* collapsed state of dark mode and social links */
-.VPFlyout {
-	order: 3;
-}

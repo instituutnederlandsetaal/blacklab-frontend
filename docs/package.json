@@ -5,13 +5,12 @@
     "docs:preview": "vitepress preview .",
     "start": "vitepress dev ."
   },
-  "devDependencies": {
-    "markdown-it": "^14.1.0",
-    "vue": "^3.5.13"
-  },
   "dependencies": {
+    "markdown-it": "^14.1.0",
+    "sass-embedded": "^1.89.0",
     "vitepress": "^1.6.3",
     "vitepress-plugin-tabs": "^0.7.1",
-    "vitepress-sidebar": "^1.31.1"
+    "vitepress-sidebar": "^1.31.1",
+    "vue": "^3.5.13"
   }
 }
