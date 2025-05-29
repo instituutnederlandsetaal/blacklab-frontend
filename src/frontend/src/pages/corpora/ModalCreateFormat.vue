@@ -54,7 +54,7 @@
 
 		</div>
 		<template #footer>
-			<h5 class="pull-left"><span class="fa fa-question-circle text-muted"></span> <a href="https://blacklab.ivdnt.org//how-to-configure-indexing.html" target="_blank" style="font-weight: bold">How to write your own format</a></h5>
+			<h5 class="pull-left"><span class="fa fa-question-circle text-muted"></span> <a href="https://blacklab.ivdnt.org/how-to-configure-indexing.html" target="_blank" style="font-weight: bold">How to write your own format</a></h5>
 		</template>
 	</Modal>
 </template>
@@ -165,20 +165,15 @@ export default Vue.extend({
 				this.$emit('create');
 				this.$emit('success', data.status.message);
 				this.dirty = false;
+				this.error = '';
 			})
 			.catch((e: Api.ApiError) => this.error = e.message)
 			.finally(() => this.uploading = false);
 		}
 	},
-	watch: {
-		// when opening the modal on a specific format, load it.
-		format: {
-			immediate: true,
-			handler() {
-				this.formatPresetName = this.format?.id ?? '';
-				this.downloadFormat();
-			}
-		},
+	created() {
+		this.formatPresetName = this.format?.id ?? '';
+		this.downloadFormat();
 	}
 })
 
