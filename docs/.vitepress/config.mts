@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitepress'
+import { DefaultTheme, defineConfig, UserConfig } from 'vitepress'
 import {withSidebar} from 'vitepress-sidebar'
 import { SidebarItem } from 'vitepress-sidebar/types';
 import { tabsMarkdownPlugin } from 'vitepress-plugin-tabs'
@@ -66,6 +66,7 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
   description: "Documentation for the BlackLab Frontend, a webinterface for searching and publishing BlackLab corpora",
   srcDir: 'src',
   
+  
   locales: {
     root: {
       label: 'English',
@@ -114,12 +115,26 @@ export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
 
     search: {
       provider: 'local'
-    }
+    },
+    editLink: {
+      pattern: `https://github.com/instituutnederlandsetaal/blacklab-frontend/edit/dev/docs/src/:path`,
+    },
+    footer: {
+      message: 'Apache license 2.0',
+      copyright: 'Copyright © 2010-present Dutch Language Institute',
+    },
+    lastUpdated: {}, // enabled, but defaults are fine. removing this line disables it
+    docFooter: {
+      next: false,
+      prev: false,
+    },
+
+    outline: [2,3]
   },
   
   rewrites: id => stripNumbersFromLink(id)!,
   ignoreDeadLinks: 'localhostLinks' // some examples refer to localhost
-}, {
+} satisfies UserConfig<DefaultTheme.Config>, {
   // Sidebar generator options
   useTitleFromFrontmatter: true, // precedence
   useTitleFromFileHeading: true, // secondary

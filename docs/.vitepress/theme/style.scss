@@ -276,6 +276,44 @@ img+img {
 		 
 	}
 
+	// Normally footer is hidden when sidebar is visible
+	// We want to show it anyway, so override the default behavior
+	// The footer is actually below the sidebar and content, 
+	// but we we want to style it as if it is below the content
+	// So add compensation padding equal to the sidebar and aside width
+
+	> .VPFooter {
+		--vp-aside-width: 256px;
+		
+		border: none;
+		display: block!important;
+		width: 100%;
+		max-width: var(--vp-layout-max-width);
+		margin: auto;
+		
+		// Compensate for 
+		padding: 0px;
+		padding-top: 24px;
+		// Sidebar (left): Visible above 960px, and only present when we have a .has-sidebar class
+		@media (min-width: 960px) {
+			&.has-sidebar { padding-left: var(--vp-sidebar-width); } 
+		}
+		// Aside (right): Visible above 1280px, and check for existence through the :has() pseudo-class
+		@media (min-width: 1280px) { 
+			@at-root .VPContent:has(.aside) + .VPFooter {
+				padding-right: var(--vp-aside-width);
+			}
+		}
+		
+		// Add some padding and margin here to mirror the document container
+		.container {
+			margin: 0 32px;
+			padding: 16px 24px;
+			border-top: 1px solid var(--vp-c-divider);
+		}
+	}
+
+	// Overrides for the sidebar padding, this otherwise breaks above the default max page width of 1440px
 	@media (max-width: 1919px) and (min-width: 960px) {
 		.VPSidebar {
 			width: var(--vp-sidebar-width);
