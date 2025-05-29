@@ -5,4 +5,4 @@ This setting is global across all corpora, so it lives in the [global configurat
 
 ![Banner Message](./banner_message.png)
 
-<<< @/020_configuration/default_corpus_frontend.properties {39-43}
+<<< @/020_configuration/default_blacklab_frontend.properties {39-43}

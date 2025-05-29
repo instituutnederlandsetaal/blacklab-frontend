@@ -64,4 +64,4 @@ For the above example, the config should now be located in `${BLACKLAB_CONFIG_DI
 You can leave out any setting, and the BlackLab Frontend will just use the default value for that setting.  
 The default values are shown in the example file below, which you can use as a template for your own configuration. Some defaults are a little _smart_ and will try to guess the right value based on the context path of the servlet.
 
-<<< @/020_configuration/default_corpus_frontend.properties
+<<< @/020_configurationdefault_blacklab_frontend/.properties
