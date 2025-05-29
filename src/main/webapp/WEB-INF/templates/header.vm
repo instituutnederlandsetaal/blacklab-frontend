@@ -65,9 +65,9 @@
         <div class="navbar navbar-inverse navbar-fixed-top">
             #if ($bannerMessage && $bannerMessageCookie)
                 #set($unescaped = $bannerMessage)
-                <div class="container alert alert-dismissible navbar-alert">
+                <div class="container alert alert-dismissible navbar-alert" id="banner-message">
                     <div class="message">$unescaped</div>
-                    <button type="button" class="btn btn-link btn-lg" data-dismiss="alert" title="Dismiss" onClick="javascript:document.cookie='$bannerMessageCookie', getElementById('body-navbar-placeholder')?.remove()"><span class="fa fa-times"></span></button>
+                    <button type="button" class="btn btn-link btn-lg" data-dismiss="alert" title="Dismiss" onClick="javascript:document.cookie='$bannerMessageCookie', getElementById('body-navbar-placeholder')?.remove(), getElementById('banner-message')?.remove()"><span class="fa fa-times"></span></button>
                 </div>
             #end
 
