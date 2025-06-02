@@ -91,8 +91,15 @@ export default Vue.extend({
 		renderTree: true,
 	}),
 	computed: {
-		shownFeatures(): string {
-			const extraFeatures = Object.entries(this.otherAnnotations).filter(([featureName, annotationForFeature]) => annotationForFeature != null).map(([k, v]) => k.toUpperCase()).join(',');
+		shownFeatures(): string { // FORM,LEMMA,UPOS,XPOS,FEATS.someFeat,FEATS.someOtherFeat (probably, we only provide 1 feat hardcoded to the name of the annotation, i.e. FEATS.annotationName)
+			const extraFeatures = Object
+				.entries(this.otherAnnotations)
+				.filter(([featureName, annotationForFeature]) => annotationForFeature != null)
+				.map(([k, v]) => {
+					if (k === 'feats') return k.toUpperCase()+ '.' + v!.id; // FEATS.featName 
+					else return k.toUpperCase();
+				})
+				.join(',');
 			return `FORM${extraFeatures ? ',' + extraFeatures : ''}`;
 		},
 
@@ -150,6 +157,17 @@ export default Vue.extend({
 		connlu(): string {
 			if (!this.relationInfo) return '';
 
+			/** 
+			 * Connlu features look like feat1=val1|feat2=val2 
+			 * We only map a single annotation, e.g. 'some_token_annotation' in BlackLab -> 'FEATS.some_token_annotation' in CoNNL-U shown-features, 
+			 * and 'some_token_annotation=val1' in the feats column.
+			*/
+			function transformAnnotationIntoConnluFeature(annotName: string, annotValue: string): string {
+				if (!annotValue) return '_'; // No value, no feature.
+				if (annotValue.includes('=')) return annotValue; // If the value already contains an '=', we assume it's a feature and return it as is.
+				return `${annotName}=${annotValue}`;
+			}
+
 			let header = '# text = ';
 			let rows: string[][] = [];
 
@@ -176,10 +194,10 @@ export default Vue.extend({
 				const row = [] as string[];
 				row.push((1+i).toString()); // index
 				row.push(token[this.mainAnnotation.id]); // form (usually word)
-				if (this.otherAnnotations.lemma) row.push(token[this.otherAnnotations.lemma.id]); else row.push('_'); // lemma
-				if (this.otherAnnotations.upos)  row.push(token[this.otherAnnotations.upos.id]);  else row.push('_'); // upos
-				if (this.otherAnnotations.xpos)  row.push(token[this.otherAnnotations.xpos.id]);  else row.push('_'); // xpos
-				if (this.otherAnnotations.feats) row.push(token[this.otherAnnotations.feats.id]); else row.push('_'); // feats
+				if (this.otherAnnotations.lemma) row.push(token[this.otherAnnotations.lemma.id] || '_'); else row.push('_'); // lemma
+				if (this.otherAnnotations.upos)  row.push(token[this.otherAnnotations.upos.id] || '_');  else row.push('_'); // upos
+				if (this.otherAnnotations.xpos)  row.push(token[this.otherAnnotations.xpos.id] || '_');  else row.push('_'); // xpos
+				if (this.otherAnnotations.feats) row.push(transformAnnotationIntoConnluFeature(this.otherAnnotations.feats.id, token[this.otherAnnotations.feats.id])); else row.push('_'); // feats
 				row.push((rel && rel.parentIndex < this.sensibleArray!.length) ? (rel.parentIndex + 1).toString() : '_'); // head
 				row.push(rel ? rel.label : '_'); // deprel
 				row.push('_'); // deps

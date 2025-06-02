@@ -660,18 +660,18 @@ const actions = {
 			dependencies: b.commit((state, payload: { lemma: string|null, upos: string|null, xpos: string|null, feats: string|null }) => {
 				const allAnnotations= CorpusStore.get.allAnnotationsMap();
 				const storeIsInitialized = Object.keys(allAnnotations).length > 0;
-				const validate = (id: string|null): string|null => {
+				const validate = (id: string|null, key: string): string|null => {
 					if (!storeIsInitialized) return id; // validate in this module's init() function. allow for now.
 					if (id == null || allAnnotations[id]?.hasForwardIndex) return id;
-					if (!allAnnotations[id]) console.warn(`[results.shared.dependencies] - Trying to show dependency tree with annotation '${id}', but it does not exist.`);
-					if (!allAnnotations[id]?.hasForwardIndex) console.warn(`[results.shared.dependencies] - Trying to show dependency tree with annotation '${id}', but it does not have the required forward index.`);
+					if (!allAnnotations[id]) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for feature '${key}', but it does not exist.`);
+					if (!allAnnotations[id]?.hasForwardIndex) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for features '${key}', but it does not have the required forward index.`);
 					return null;
 				}
 				state.results.shared.dependencies = {
-					lemma: validate(payload.lemma),
-					upos: validate(payload.upos),
-					xpos: validate(payload.xpos),
-					feats: validate(payload.feats)
+					lemma: validate(payload.lemma, 'lemma'),
+					upos: validate(payload.upos, 'upos'),
+					xpos: validate(payload.xpos, 'xpos'),
+					feats: validate(payload.feats, 'feats')
 				};
 			}, 'dependencies')
 		}
