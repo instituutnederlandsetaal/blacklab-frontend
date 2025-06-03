@@ -62,7 +62,7 @@ function stripNumbersFromLinksInSidebar(config: ReturnType<typeof defineConfig>)
 
 // https://vitepress.dev/reference/site-config
 export default stripNumbersFromLinksInSidebar(defineConfig(withSidebar({
-  title: "BlackLab Frontend",
+  title: "/ BlackLab Frontend /",
   description: "Documentation for the BlackLab Frontend, a webinterface for searching and publishing BlackLab corpora",
   srcDir: 'src',
   

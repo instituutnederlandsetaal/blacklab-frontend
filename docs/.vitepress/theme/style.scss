@@ -91,21 +91,9 @@
  * -------------------------------------------------------------------------- */
 
 :root {
-  --pop-color-1: hsl(16.9, 98.3%, 47.5%);
-  --pop-color-2: hsl(42.1, 100%, 50%);
-
   --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: -webkit-linear-gradient(
-    120deg,
-    var(--pop-color-1) 30%,
-    var(--pop-color-2)
-  );
-
-  --vp-home-hero-image-background-image: linear-gradient(
-    -45deg,
-	var(--pop-color-1) 50%,
-	var(--pop-color-2) 50%
-  );
+  --vp-home-hero-name-background: var(--vp-c-brand-3);
+  --vp-home-hero-image-background-image: transparent;
   --vp-home-hero-image-filter: blur(44px);
 }
 
@@ -192,21 +180,22 @@ img+img {
 			border-bottom: 1px solid var(--vp-c-gutter)!important;
 		}
 		
-		.wrapper {
+		> .wrapper {
 			padding: 0!important;
-			.container {
+			> .container {
 				max-width: var(--vp-layout-max-width);
 				display: flex;
 				justify-content: space-between;
-				gap: 32px;
-				padding: 0 32px;
+				gap: 24px;
+				padding: 0 24px;
 				flex-wrap: nowrap;
 				.title {
 					padding: 0!important;
 					background-color: transparent;
 					width: auto!important;
-					flex: 0 1 auto;
-					min-width: 0px!important;
+					flex: 0; // 0 1 auto;
+					flex-basis: auto;
+					// min-width: 0px!important;
 					
 					.title span { overflow: hidden; text-overflow: ellipsis; }
 					
@@ -217,8 +206,20 @@ img+img {
 					flex-grow: 0;
 					background: transparent!important;
 					padding: 0!important;
+					flex-shrink: 1;
+					min-width: 0;
 					.content-body {
 						background: transparent!important;
+						flex-shrink: 1;
+						min-width: 0;
+						.VPNavBarMenu {
+							flex-shrink: 1;
+							overflow: overlay;
+							// Scrollable, but invisible bar
+							// Scroll using shift + wheel or drag on mobile
+							scrollbar-width: none;
+							min-width: 0;
+						}
 					}
 				}
 			}
@@ -235,6 +236,7 @@ img+img {
 		/* nav items */
 		.VPNavBarMenu {
 			order: 1;
+			overflow: auto;
 		}
 		.VPNavBarSearch {
 			flex-grow: 0!important;
@@ -252,6 +254,11 @@ img+img {
 		/* collapsed state of dark mode and social links */
 		.VPFlyout {
 			order: 3;
+		}
+		.VPNavBarHamburger {
+			order: 10;
+			// justify-content: end;
+			margin-right: -16px; // align with the right edge of the navbar
 		}
 	}
 	.VPSidebar { // left side sidebar
@@ -322,6 +329,13 @@ img+img {
 			padding-left: var(--vp-sidebar-width)!important;
 		}
 	}
+
+	@media (max-width: 1279px) {
+		// Hide logo
+		.VPNavBar .title img {
+			display: none;
+		}
+	}
 }
 
 /*******************************/
@@ -335,6 +349,24 @@ img+img {
 	min-height:40px;
 }
 
+// When no image, center the hero section
+.VPHero:not(:has(img)) > .container > .main {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	max-width: max(75%, 576px);
+	margin: auto;
+
+	* {
+		text-align: center;
+		max-width: 100%;
+	}
+	.heading {
+		align-items: center;
+	}
+	
+}
 .VPHero img {
 	box-shadow: none!important;
 }
@@ -346,7 +378,7 @@ img+img {
 .VPNavBar .title {
 	border-bottom: none!important; 
 	height: var(--vp-nav-height)!important;
-    font-family: 'schoolboek', sans-serif !important;
+	font-family: 'schoolboek', sans-serif !important;
 }
 
 

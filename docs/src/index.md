@@ -14,9 +14,6 @@ hero:
     - theme: alt
       text: Or go to the BlackLab docs →
       link: https://blacklab.ivdnt.org/
-  image:
-    src: /img/logo-blacklab.png
-    alt: BlackLab
 
 features:
   - title: Publish your corpora
