@@ -175,13 +175,18 @@ img+img {
 .Layout {
 	.VPNavBar {
 		box-shadow:0 2px 8px rgba(0,0,0,.2);
+		border-bottom: 5px solid var(--vp-c-brand-3)!important;
+		height: calc(var(--vp-nav-height) + 5px);
+
 		&:not(.home) {
 			background-color: var(--vp-nav-bg-color)!important;
-			border-bottom: 1px solid var(--vp-c-gutter)!important;
+			// border-bottom: 1px solid var(--vp-c-gutter)!important;
 		}
 		
 		> .wrapper {
 			padding: 0!important;
+			
+			box-sizing: border-box;
 			> .container {
 				max-width: var(--vp-layout-max-width);
 				display: flex;
