@@ -408,7 +408,7 @@ export default Vue.extend({
 				}
 			}
 
-			// Check if we have a list of matches (e.g. from _with-spans(...))
+			// Check if we have a list of matches (e.g. from withspans=true)
 			const matchInfos = this.hits?.summary?.pattern?.matchInfos || {};
 			const listEntry = Object.entries(matchInfos).find( ([name, mi]) => mi.type === 'list');
 			let options: { label?: string, value: string, title?: string }[];

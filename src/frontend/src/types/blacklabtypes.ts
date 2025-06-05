@@ -51,7 +51,10 @@ export type BLSearchParameters = {
 	maxretrieve?: number;
 
 	/** When using relation matching in pattern, widen the match part of the hit to contain both source and target. */
-	adjusthits?: 'yes';
+	adjusthits?: boolean;
+
+	/** When using relation matching in pattern, widen the match part of the hit to contain both source and target. */
+	withspans?: boolean;
 };
 
 // --------------
@@ -470,10 +473,10 @@ export interface BLDocGroupResults {
 
 // #region docssnippettypes
 
-/** 
- * Contains a hit's tokens, 
- * deconstructed into the individual annotations/properties, such as lemma, pos, word, 
- * always contains punctuation in between tokens 
+/**
+ * Contains a hit's tokens,
+ * deconstructed into the individual annotations/properties, such as lemma, pos, word,
+ * always contains punctuation in between tokens
  */
 export interface BLHitSnippetPart {
 	/**

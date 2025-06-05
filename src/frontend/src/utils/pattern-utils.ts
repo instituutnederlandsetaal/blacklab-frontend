@@ -44,22 +44,13 @@ function hasSpanFilters(): boolean {
 	return !!Object.values(FilterModule.getState().filters).find(f => getValueFunctions(f).isSpanFilter);
 }
 
-function addWithSpans(q: string) {
-	if (q === '_')
-		return `_with-spans([]+)`; // _ would be interpreted as default argument, which _with-spans doesn't have
-	if (q !== undefined && q.length > 0 && q.indexOf('with-spans') < 0) {
-		let shouldAddWithSpans: boolean|null = corpusCustomizations.search.pattern.shouldAddWithinSpans(q);
-		if (shouldAddWithSpans === null) {
-			// Use default behavior if the corpus doesn't have a custom setting.
-			shouldAddWithSpans = hasSpanFilters();
-		}
-		if (shouldAddWithSpans) { // user didn't already add it manually
-			// Note that we use _with-spans() here so we will recognize it as
-			// automatically added and can safely strip it later when restoring the query.
-			return `_with-spans(${q})`;
-		}
+export function shouldAddWithSpans(q: string) {
+	let shouldAddWithSpans: boolean|null = corpusCustomizations.search.pattern.shouldAddWithSpans(q);
+	if (shouldAddWithSpans === null) {
+		// Use default behavior if the corpus doesn't have a custom setting.
+		shouldAddWithSpans = hasSpanFilters();
 	}
-	return q;
+	return shouldAddWithSpans;
 }
 
 export const getPatternString = (
@@ -81,14 +72,14 @@ export const getPatternString = (
 
 	let query = tokens.map(t => `[${t.join('&')}]`).join('');
 
-	query = addWithSpans(applyWithinClauses(query, withinClauses));
+	query = applyWithinClauses(query, withinClauses);
 
 	if (parallelTargetFields.length > 0) {
 		const relationType = alignBy ?? '';
 		query = `${parenQueryPartParallel(query)}` +
 			parallelTargetFields.map(v => {
 				const targetVersion = getParallelFieldParts(v).version;
-				const targetQuery = parenQueryPartParallel(addWithSpans(applyWithinClauses('_', withinClauses)));
+				const targetQuery = parenQueryPartParallel(applyWithinClauses('_', withinClauses));
 				return ` =${relationType}=>${targetVersion}? ${targetQuery}`;
 			}).join(' ; ');
 	}
@@ -143,18 +134,18 @@ if (targetVersions.length > targetCql.length) {
 }
 
 if (targetVersions.length === 0) {
-	return addWithSpans(applyWithinClauses(sourceCql, withinClauses));
+	return applyWithinClauses(sourceCql, withinClauses);
 }
 
 const defaultSourceQuery = targetVersions.length > 0 ? '_': '';
-const sourceQuery = addWithSpans(applyWithinClauses(sourceCql.trim() || defaultSourceQuery, withinClauses));
+const sourceQuery = applyWithinClauses(sourceCql.trim() || defaultSourceQuery, withinClauses);
 const queryParts = [parenQueryPartParallel(sourceQuery)];
 const relationType = alignBy ?? '';
 for (let i = 0; i < targetVersions.length; i++) {
 	if (i > 0)
 		queryParts.push(' ; ');
 	const targetVersion = getParallelFieldParts(targetVersions[i]).version;
-	const targetQuery = parenQueryPartParallel(addWithSpans(applyWithinClauses(targetCql[i].trim() || '_', withinClauses)));
+	const targetQuery = parenQueryPartParallel(applyWithinClauses(targetCql[i].trim() || '_', withinClauses));
 	queryParts.push(` =${relationType}=>${targetVersion}? ${targetQuery}`)
 }
 

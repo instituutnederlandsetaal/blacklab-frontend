@@ -330,7 +330,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	function _relTarget(input: any): Result {
 		if (input.type !== 'reltarget')
 			throw new Error('Unknown reltarget type: ' + input.type);
-		const clause = stripWithSpans(input.clause);
+		const clause = input.clause;
 		return {
 			..._query(clause),
 			targetVersion: input.targetVersion,
@@ -345,7 +345,6 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 			// (must all be the same for the query to be interpretable here)
 			let relationType: string|undefined = undefined;
 			input.children.forEach((c: any) => {
-				c = stripWithSpans(c); // (parallel targets may be wrapped in _with-spans)
 				if (c.type !== 'reltarget')
 					throw new Error('Unknown relmatch child type: ' + c.type);
 				if (relationType === undefined)
@@ -355,7 +354,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 			});
 
 			const parent = {
-				..._query(stripWithSpans(input.parent)) // (parallel source may be wrapped in _with-spans)
+				..._query(input.parent)
 			};
 			const children: Result[] = input.children.map(_relTarget).map( (r: Result, index: number) => ({
 				...r,
@@ -365,18 +364,6 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		}
 
 		return [ { ..._query(input) } ];
-	}
-
-	/** Strip the automatically added _with-span() call.
-	 *  (added for certain corpora so we know all overlapping spans for each hit)
-	 */
-	function stripWithSpans(input: any): any {
-		if (input.type === 'callfunc') {
-			if (input.name === '_with-spans' && input.args.length === 1) {
-				return input.args[0];
-			}
-		}
-		return input;
 	}
 
 	/** Strip the automatically added rspan(..., 'all') call.
@@ -391,7 +378,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		return input;
 	}
 
-	return _parallelQuery(bcql, stripRspanAll(stripWithSpans(json)));
+	return _parallelQuery(bcql, stripRspanAll(json));
 }
 
 const parsePatternCache: Map<string, Result[]> = new Map();
