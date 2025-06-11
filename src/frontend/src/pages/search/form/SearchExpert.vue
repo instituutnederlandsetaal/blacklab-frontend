@@ -41,7 +41,7 @@
 
 			<div v-if="pTargetOptions.length" class="form-group">
 				<!-- Parallel target extra field selector. -->
-				<label>{{ $t(pTargetValue.length ? 'search.parallel.addTargetVersion' : 'search.parallel.chooseTargetVersion') }}</label>
+				<label>{{ $t(pTargetValue.length ? 'search.parallel.addTargetVersion' : 'search.parallel.andCompareWithTargetVersions') }}</label>
 				<div>
 					<!--
 						Note: this selectpicker only allows a single value. Then every time the user selects something, the selected value is removed

@@ -84,7 +84,6 @@
 			"andCompareWithTargetVersions": "And compare with target version(s)",
 			"queryForSourceVersion": "Query for source version",
 			"queryForTargetVersion": "Query for target version",
-			"chooseTargetVersion": "Choose a target version",
 			"addTargetVersion": "Add another target version"
 		}
 	},

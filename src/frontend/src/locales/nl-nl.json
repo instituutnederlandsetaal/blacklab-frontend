@@ -85,7 +85,6 @@
 			"andCompareWithTargetVersions": "En vergelijk met doelversie(s)",
 			"queryForSourceVersion": "Bronversie",
 			"queryForTargetVersion": "Doelversie",
-			"chooseTargetVersion": "Kies een doelversie",
 			"addTargetVersion": "Voeg nog een doelversie toe"
 		}
 	},
