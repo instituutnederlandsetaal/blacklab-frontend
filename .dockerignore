@@ -30,6 +30,6 @@
 **/.dockerignore
 **/docker-compose*.yml
 
-# node_modules
 src/frontend/node_modules
 src/frontend/node
+docker-test/

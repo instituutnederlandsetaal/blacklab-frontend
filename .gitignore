@@ -25,3 +25,4 @@ src/main/webapp/js/
 **/.vitepress/dist/
 
 node_modules
+docker-test/
