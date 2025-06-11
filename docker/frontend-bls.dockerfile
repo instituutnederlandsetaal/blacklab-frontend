@@ -30,7 +30,5 @@ ARG CONFIG_ROOT=docker/config
 # What the name of the Tomcat app (and therefore the URL should be). Can be overridden.
 ARG TOMCAT_APP_NAME=blacklab-frontend
 
-COPY ${CONFIG_ROOT}/blacklab-frontend.properties /etc/blacklab/
-
 # Copy the WAR file
 COPY --from=builder /app/target/blacklab-frontend-*.war /usr/local/tomcat/webapps/${TOMCAT_APP_NAME}.war

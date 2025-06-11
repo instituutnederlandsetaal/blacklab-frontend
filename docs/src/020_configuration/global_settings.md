@@ -50,6 +50,30 @@ For the above example, the config should now be located in `${BLACKLAB_CONFIG_DI
 - When using a proxy, the context path is determined by the servlet container, not the browser URL.
 :::
 
+## Environment Variables
+You can also configure the global settings through environment variables, which **override** the values in the configuration file.
+All environment variables always need to be prefixed with `BF_`.
+There are a few options for the name of the variables:
+- the setting name, e.g. `BF_blsUrl`
+- the setting name, but in uppercase, e.g. `BF_BLSURL`
+- the setting name, but with camelCase, dots, and dashes separators replaced with underscores, e.g. `BF_BLS_URL`
+- the internal name of the setting (see below), e.g. `BF_BLS_URL_ON_SERVER`
+
+::: details A few examples
+| name in .properties | as-is | uppercase | uppercase with underscores | internal name |
+|---------------------|-------|-----------|----------------------------|---------------|
+| `debugInfo`         | `BF_debugInfo` | `BF_DEBUGINFO` | `BF_DEBUG_INFO` | `BF_SHOW_DEBUG_CHECKBOX_ON_CLIENT` |
+| `blsUrl`           | `BF_blsUrl`     | `BF_BLSURL`     | `BF_BLS_URL`               | `BF_BLS_URL_ON_SERVER` |
+:::
+
+::: details Available variable names ([full file](@github:/src/main/java/nl/inl/corpuswebsite/utils/GlobalConfig.java))
+<<< @/../../src/main/java/nl/inl/corpuswebsite/utils/GlobalConfig.java#GlobalConfigKeysInDocs 
+:::
+
+
+
+
+
 ## Example file and default values
 
   :::: tip The file is reloaded automatically

@@ -225,7 +225,7 @@
                               },
                               "isInternal": {
                                 "type": "boolean",
-                                "description": "Hides the field in various parts of the BlackLab Frontend. Not used by BlackLab. Defaults to false."
+                                "description": "Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false."
                               },
                               "process": {
                                 "type": "array",
@@ -2203,7 +2203,7 @@
                         },
                         "spanStartPath": {
                           "type": "string",
-                          "description": "See https://blacklab.ivdnt.org//guide/how-to-configure-indexing.html#standoff-annotations"
+                          "description": "See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations"
                         },
                         "spanEndPath": {
                           "type": "string",
@@ -2211,11 +2211,11 @@
                         },
                         "spanEndIsInclusive": {
                           "type": "boolean",
-                          "description": "See https://blacklab.ivdnt.org//guide/how-to-configure-indexing.html#standoff-annotations"
+                          "description": "See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations"
                         },
                         "spanNamePath": {
                           "type": "string",
-                          "description": "See https://blacklab.ivdnt.org//guide/how-to-configure-indexing.html#standoff-annotations"
+                          "description": "See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations"
                         },
                         "annotations": {
                           "type": "array",
