@@ -410,7 +410,7 @@ export function applyWithinClauses(query: string, withinClauses: Record<string, 
 		})
 		.join(' overlap ');
 	if (query.length > 0 && overlapClauses.length > 0)
-		return `${query} within ${overlapClauses}`;
+		return `(${query}) within ${overlapClauses}`;
 	return query.length > 0 ? query : overlapClauses;
 }
 
