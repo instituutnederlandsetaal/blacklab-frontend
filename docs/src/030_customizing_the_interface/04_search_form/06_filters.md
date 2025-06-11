@@ -14,7 +14,7 @@ This is best done through BlackLab, by using the `metadataFieldGroups` setting i
 See the [BlackLab docs](https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#full-example-of-a-configuration-file) for more info on that.
 
 ::: info
-The current situation is very user-friendly, we'll work on improving this workflow in the future.
+The current situation is not very user-friendly, we'll work on improving this workflow in the future.
 :::
 
 ### Example 
