@@ -112,6 +112,8 @@ export default Vue.extend({
 				if (needsSource) {
 					// Source is required. Alert the user that they need to select a source version
 					this.errorNoParallelSourceVersion = true;
+					// Scroll to the top of the page so the user can see the error
+					window.scrollTo(0, 0);
 					setTimeout(() => this.errorNoParallelSourceVersion = false, 3000);
 					return;
 				} else {

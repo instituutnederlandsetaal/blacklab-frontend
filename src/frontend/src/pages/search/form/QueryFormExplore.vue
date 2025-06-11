@@ -47,7 +47,7 @@
 			</div>
 			<div id="explore-n-grams" :class="['tab-pane form-horizontal', {'active': exploreMode==='ngram'}]">
 				<div class="form-group">
-					<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('search.parallel.inSourceVersion') }}</label>
+					<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('search.parallel.searchSourceVersion') }}</label>
 					<div class="col-xs-8">
 						<ParallelSource v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					</div>
@@ -146,7 +146,7 @@
 			</div>
 			<div id="explore-frequency" :class="['tab-pane form-horizontal', {'active': exploreMode==='frequency'}]">
 				<div class="form-group form-group-lg" style="margin: 0;">
-					<label class="control-label">{{ $t('search.parallel.inSourceVersion') }}</label>
+					<label class="control-label">{{ $t('search.parallel.searchSourceVersion') }}</label>
 					<ParallelSource v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 				</div>
 				<div class="form-group form-group-lg" style="margin: 0;">

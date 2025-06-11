@@ -79,7 +79,7 @@
 		},
 		"parallel": {
 			"alignBy": "Align by",
-			"inSourceVersion": "Search source version",
+			"searchSourceVersion": "Search source version",
 			"errorNoSourceVersion": "Please select a source version.",
 			"andCompareWithTargetVersions": "And compare with target version(s)",
 			"queryForSourceVersion": "Query for source version",

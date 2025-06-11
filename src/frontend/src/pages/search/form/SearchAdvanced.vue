@@ -11,6 +11,9 @@
 					<SelectPicker id="sourceVersion" :options="pSourceOptions"
 						v-model="pSourceValue" data-menu-width="grow" hideEmpty/>
 				</label>
+				<span v-if="errorNoParallelSourceVersion" class="error">
+					{{ $t('search.parallel.errorNoSourceVersion') }}
+				</span>
 				<div class="querybuilder"></div>
 			</div>
 
@@ -58,6 +61,9 @@ export default ParallelFields.extend({
 		SelectPicker,
 		MultiValuePicker,
 		AlignBy,
+	},
+	props: {
+		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
 	data: () => ({
 		queryBuilderLoading: false,
@@ -158,6 +164,12 @@ h3 .help {
 			content: '✕';
 			margin-left: 5px;
 		}
+	}
+
+	.error {
+		color: red;
+		margin: 0.5em 0 0 1em;
+		font-weight: bold;
 	}
 }
 

@@ -94,7 +94,7 @@
 
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', {'active': activePattern==='advanced'}]" id="advanced">
-				<SearchAdvanced	/>
+				<SearchAdvanced :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 			</div>
 			<div v-if="conceptEnabled" :class="['tab-pane', {'active': activePattern==='concept'}]" id="concept">
 
@@ -109,7 +109,7 @@
 				<button type="button" class="btn btn-default btn-sm" @click="copyGlossQuery">{{$t('search.glosses.copyGlossQuery')}}</button>
 			</div>
 			<div :class="['tab-pane', {'active': activePattern==='expert'}]" id="expert">
-				<SearchExpert />
+				<SearchExpert :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 
 				<!-- Copy to builder, import, gap filling buttons -->
 				<template>
@@ -453,6 +453,13 @@ export default ParallelFields.extend({
 		margin-bottom: 0;
 		&.bl-querybuilder-root { padding: 0; }
 	}
+
+}
+
+.error {
+	color: red;
+	margin: 0.5em 0 0 1em;
+	font-weight: bold;
 }
 
 #simple .form-group {

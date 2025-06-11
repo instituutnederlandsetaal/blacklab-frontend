@@ -80,7 +80,7 @@
 		},
 		"parallel": {
 			"alignBy": "Aligneer op",
-			"inSourceVersion": "Zoek in bronversie",
+			"searchSourceVersion": "Zoek in bronversie",
 			"errorNoSourceVersion": "Kies a.u.b. een bronversie.",
 			"andCompareWithTargetVersions": "En vergelijk met doelversie(s)",
 			"queryForSourceVersion": "Bronversie",

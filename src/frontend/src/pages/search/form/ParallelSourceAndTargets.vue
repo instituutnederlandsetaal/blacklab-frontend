@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<div :class="{'form-group': true, 'form-group-lg': lg}">
-			<label :class="{'col-xs-12': !block, 'col-md-3': !block, 'control-label': block}">{{ $t('search.parallel.inSourceVersion') }}</label>
+			<label :class="{'col-xs-12': !block, 'col-md-3': !block, 'control-label': block}">{{ $t('search.parallel.searchSourceVersion') }}</label>
 			<div :class="{'col-xs-12': !block, 'col-md-9': !block}">
 				<SelectPicker :options="pSourceOptions" v-model="pSourceValue" data-menu-width="grow" hideEmpty/>
 				<transition name="flash">

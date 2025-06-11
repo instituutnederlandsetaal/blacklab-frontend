@@ -18,6 +18,9 @@
 					<SelectPicker id="sourceVersion" :options="pSourceOptions"
 						v-model="pSourceValue" data-menu-width="grow" hideEmpty/>
 				</label>
+				<span v-if="errorNoParallelSourceVersion" class="error">
+					{{ $t('search.parallel.errorNoSourceVersion') }}
+				</span>
 				<textarea class="form-control querybox" name="querybox" rows="7" v-model="mainQuery"></textarea>
 			</div>
 
@@ -69,6 +72,9 @@ export default ParallelFields.extend({
 		SelectPicker,
 		MultiValuePicker,
 		AlignBy,
+	},
+	props: {
+		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
 	computed: {
 		// The query (or source query, for parallel corpora)

@@ -79,7 +79,7 @@
 		},
 		"parallel": {
 			"alignBy": "对齐方式",
-			"inSourceVersion": "在源版本中",
+			"searchSourceVersion": "在源版本中",
 			"errorNoSourceVersion": "Please select a source version.",
 			"andCompareWithTargetVersions": "并与目标版本进行比较",
 			"queryForSourceVersion": "源版本查询",
