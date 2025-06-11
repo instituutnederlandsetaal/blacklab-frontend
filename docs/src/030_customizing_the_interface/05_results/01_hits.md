@@ -169,7 +169,7 @@ vuexModules.ui.actions.results.shared.detailedAnnotationIds(['word', 'lemma', 'p
 ### Dependency Tree in Expanded View (`dependencies`)
 
 
-If your corpus has [dependency relations](https://blacklab.ivdnt.org/guide/corpus-query-language.html#relations-querying), you can configure which annotations are used in the dependency tree shown in hit details.
+If your corpus has [dependency relations](https://blacklab.ivdnt.org/guide/query-language/relations.html), you can configure which annotations are used in the dependency tree shown in hit details.
 We will try to show all dependencies in the sentence, or shown the explicitly searched dependencies.
 
 ::: tabs
@@ -187,7 +187,7 @@ vuexModules.ui.actions.results.shared.dependencies({
 ```
 === Sentence boundary element
 You can also set the sentence boundary element for the dependency tree,
-this must be an [inline tag](https://blacklab.ivdnt.org/guide/corpus-query-language.html#relations-querying).
+this must be a [span](https://blacklab.ivdnt.org/guide/query-language/token-based.html#spans).
 We try to autodetect this using various names for 'sentence' (e.g. `s`, `sent`, `sentence`), but you can override this if needed:
 
 ```js
@@ -202,7 +202,7 @@ Marking parts of your query will highlight the corresponding parts in the hits t
 We will highlight marked parts of the query, or alternatively, any matched relations when using a relation query.
 
 ::: tip
-See the [BlackLab docs on relations](https://blacklab.ivdnt.org/guide/corpus-query-language.html#relations-querying) for more information on how to use relations in your data and queries.
+See the [BlackLab docs on relations](https://blacklab.ivdnt.org/guide/query-language/relations.html) for more information on how to use relations in your data and queries.
 :::
 
 :::tabs 

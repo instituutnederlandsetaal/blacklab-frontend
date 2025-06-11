@@ -100,7 +100,7 @@ corpus.search.within.includeAttribute = function (name, attrName) {
 
 ### Customize match info higlight style
 
-Match info is any explicit captures (e.g. `A:[] "cow"`), spans (e.g. `<named-entity type='loc' />`), or relations (`_ -nsubj-> _`) that were encountered while resolving your query.
+Match info is any explicit captures (e.g. `A:[] "cow"`), spans (e.g. `<named-entity type="loc" />`), or relations (`_ -nsubj-> _`) that were encountered while resolving your query.
 
 ```js
 corpus.results.matchInfoHighlightStyle = function (matchInfo) {

@@ -1,7 +1,7 @@
 ## Within
 
 It's also possible to set which tags are shown (and how) in `within`.
-You can only add tags that you actually index (using the [inlineTags options](https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#annotated-configuration-file) in your index config yaml)
+You can only add tags that you actually index (using the [inlineTags options](https://blacklab.ivdnt.org/guide/index-your-data/spans.html) in your index config yaml)
 ```js
 vuexModules.ui.actions.search.shared.within.elements({
 	title: 'Tooltip here (optional)',
