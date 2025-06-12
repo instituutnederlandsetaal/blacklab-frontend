@@ -321,7 +321,8 @@ const initialState: ModuleRootState = {
 			transformSnippets: null,
 			concordanceAsHtml: false,
 			getDocumentSummary: (doc: BLTypes.BLDocInfo, fields: BLTypes.BLDocFields): string => {
-				const { titleField = '', dateField = '', authorField = '' } = fields;
+				let { titleField = '', dateField = '', authorField = '' } = fields;
+				titleField = titleField || 'fromInputFile';
 				const { [titleField]: title = [], [dateField]: date = [], [authorField]: author = [] } = doc;
 				return (title[0] || 'UNKNOWN') + (author.length ? ' by ' + author.join(', ') : '');
 			},
