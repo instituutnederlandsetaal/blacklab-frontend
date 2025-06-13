@@ -351,7 +351,7 @@ export type DisplaySettingsForRendering = {
 	/** Annotations shown in the expanded concordance. May be empty. */
 	detailedAnnotations: NormalizedAnnotation[];
 	/** What properties/annotations to show for tokens in the deptree, e.g. lemma, pos, etc. */
-	depTreeAnnotations: Record<'lemma'|'upos'|'xpos'|'feats', NormalizedAnnotation|null>,
+	depTreeAnnotations: Record<'lemma'|'upos'|'xpos', NormalizedAnnotation|null>&Record<'feats', NormalizedAnnotation[]|null>,
 	/** What annotations should be offered up for sorting in the context (before,hit,after) column headers? */
 	sortableAnnotations: NormalizedAnnotation[];
 

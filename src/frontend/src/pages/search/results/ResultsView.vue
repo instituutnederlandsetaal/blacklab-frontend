@@ -565,12 +565,16 @@ export default Vue.extend({
 			}
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {
+			const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
 			return {
 				...this.rowDisplaySettings,
 				...this.columnDisplaySettings,
 				// Don't show details table in expanded rows when showing groups or hits in docs.
-				detailedAnnotations: this.isHits ? UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? CorpusStore.get.allAnnotations().filter(a => !a.isInternal && a.hasForwardIndex) : [],
-				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, id && CorpusStore.get.allAnnotationsMap()[id]])) as any,
+				detailedAnnotations: this.isHits ? UIStore.getState().results.shared.detailedAnnotationIds?.map(id => allAnnotationsMap[id]) ?? CorpusStore.get.allAnnotations().filter(a => !a.isInternal && a.hasForwardIndex) : [],
+				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [
+					key,
+					Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null
+				])) as any, 
 				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
 				html: UIStore.getState().results.shared.concordanceAsHtml,
 			}

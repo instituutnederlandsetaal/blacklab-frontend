@@ -16,7 +16,7 @@ import {ReactiveDepTree} from '@/../node_modules/reactive-dep-tree/dist/reactive
 import { BLHit, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
 import Spinner from '@/components/Spinner.vue';
 import { NormalizedAnnotation } from '@/types/apptypes';
-import { HitRowData } from '@/pages/search/results/table/table-layout';
+import { DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
 
 
 /* https://universaldependencies.org/format.html
@@ -85,22 +85,21 @@ export default Vue.extend({
 		// TODO
 		dir: String as () => 'ltr'|'rtl',
 		mainAnnotation: Object as () => NormalizedAnnotation,
-		otherAnnotations: Object as () => Record<'lemma'|'upos'|'xpos'|'feats', NormalizedAnnotation|null>,
+		otherAnnotations: Object as () => DisplaySettingsForRendering['depTreeAnnotations'],
 	},
 	data: () => ({
 		renderTree: true,
 	}),
 	computed: {
 		shownFeatures(): string { // FORM,LEMMA,UPOS,XPOS,FEATS.someFeat,FEATS.someOtherFeat (probably, we only provide 1 feat hardcoded to the name of the annotation, i.e. FEATS.annotationName)
-			const extraFeatures = Object
-				.entries(this.otherAnnotations)
-				.filter(([featureName, annotationForFeature]) => annotationForFeature != null)
-				.map(([k, v]) => {
-					if (k === 'feats') return k.toUpperCase()+ '.' + v!.id; // FEATS.featName 
-					else return k.toUpperCase();
-				})
-				.join(',');
-			return `FORM${extraFeatures ? ',' + extraFeatures : ''}`;
+			// E.g. FEATS.some_annot, FEATS.some_other_annot
+			const featureAnnots = this.otherAnnotations.feats?.map(a => `FEATS.${a.id}`) || [];
+			// E.g. UPOS, XPOS, LEMMA
+			const regularAnnots = Object.entries(this.otherAnnotations).filter(([k, v]) => v != null && k !== 'feats')
+				.map(([k]) => k.toUpperCase())
+			
+			// FORM is the word itself, so we always include it.
+			return ['FORM', ...regularAnnots, ...featureAnnots].join(',');
 		},
 
 		// We only need this to know where our hit starts and ends.
@@ -113,7 +112,7 @@ export default Vue.extend({
 		sensibleArray(): undefined|Array<Record<string, string>> {
 			if (!this.context?.matchInfos) return undefined;
 			/** Which annotations are we interested in, punct and the main annotation, but maybe more. */
-			const extract = ['punct', this.mainAnnotation.id].concat(Object.values(this.otherAnnotations).filter((a): a is NormalizedAnnotation => !!a).map(a => a.id));
+			const extract = ['punct', this.mainAnnotation.id].concat(Object.values(this.otherAnnotations).flat().filter((a): a is NormalizedAnnotation => !!a).map(a => a.id));
 			const {left, match, right} =  this.context;
 			return flatten(left, extract).concat(flatten(match, extract)).concat(flatten(right, extract));
 		},
@@ -162,10 +161,14 @@ export default Vue.extend({
 			 * We only map a single annotation, e.g. 'some_token_annotation' in BlackLab -> 'FEATS.some_token_annotation' in CoNNL-U shown-features, 
 			 * and 'some_token_annotation=val1' in the feats column.
 			*/
-			function transformAnnotationIntoConnluFeature(annotName: string, annotValue: string): string {
-				if (!annotValue) return '_'; // No value, no feature.
-				if (annotValue.includes('=')) return annotValue; // If the value already contains an '=', we assume it's a feature and return it as is.
-				return `${annotName}=${annotValue}`;
+			function connluFeatValues(annotations: NormalizedAnnotation[], token: Record<string, string>): string {
+				return annotations
+					.map(a => [a.id, token[a.id]])
+					.map(([id, value]) => {
+						if (!value) return '_'; // no value for this feature.
+						if (value.includes('=')) return value; // If the value already contains an '=', we assume it's a feature and return it as is.
+						return `${id}=${value}`;
+					}).join('|');
 			}
 
 			let header = '# text = ';
@@ -197,7 +200,7 @@ export default Vue.extend({
 				if (this.otherAnnotations.lemma) row.push(token[this.otherAnnotations.lemma.id] || '_'); else row.push('_'); // lemma
 				if (this.otherAnnotations.upos)  row.push(token[this.otherAnnotations.upos.id] || '_');  else row.push('_'); // upos
 				if (this.otherAnnotations.xpos)  row.push(token[this.otherAnnotations.xpos.id] || '_');  else row.push('_'); // xpos
-				if (this.otherAnnotations.feats) row.push(transformAnnotationIntoConnluFeature(this.otherAnnotations.feats.id, token[this.otherAnnotations.feats.id])); else row.push('_'); // feats
+				if (this.otherAnnotations.feats) row.push(connluFeatValues(this.otherAnnotations.feats, token)); else row.push('_'); // feats
 				row.push((rel && rel.parentIndex < this.sensibleArray!.length) ? (rel.parentIndex + 1).toString() : '_'); // head
 				row.push(rel ? rel.label : '_'); // deprel
 				row.push('_'); // deps

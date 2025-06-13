@@ -182,7 +182,12 @@ vuexModules.ui.actions.results.shared.dependencies({
   lemma: 'lemma',
   upos: 'upos',
   xpos: 'xpos',
-  feats: 'feats'
+
+  // Pass a single annotation ID to show one feat, e.g.:
+  feats: 'feats',
+  
+  // or pass an array of feat annotation IDs to show multiple feats, e.g.:
+  feats: ['pos_gender', 'pos_number', 'pos_person'], 
 });
 ```
 === Sentence boundary element
