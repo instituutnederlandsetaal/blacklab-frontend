@@ -87,7 +87,7 @@
             "saxon",
             "vtd"
           ],
-          "description": "Which xml processor to use. Defaults to vtd. See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#xpath-support-level"
+          "description": "Which xml processor to use. Though the default is vtd, saxon is recommended and will become the default in the future. See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#xpath-support-level"
         },
         "namespaces": {
           "type": "object",
@@ -173,6 +173,10 @@
                               "description": {
                                 "type": "string",
                                 "description": "Description of the annotation in the interface."
+                              },
+                              "basePath": {
+                                "type": "string",
+                                "description": "Xpath (optional): what element all other Xpaths in this block are relative to."
                               },
                               "captureValuePaths": {
                                 "type": "array",
@@ -499,6 +503,10 @@
                               "description": {
                                 "type": "string",
                                 "description": "Description of the annotation in the interface."
+                              },
+                              "basePath": {
+                                "type": "string",
+                                "description": "Xpath (optional): what element all other Xpaths in this block are relative to."
                               },
                               "valuePath": {
                                 "type": "string",
@@ -832,6 +840,10 @@
                     "description": {
                       "type": "string",
                       "description": "Description of the annotation in the interface."
+                    },
+                    "basePath": {
+                      "type": "string",
+                      "description": "Xpath (optional): what element all other Xpaths in this block are relative to."
                     },
                     "valuePath": {
                       "type": "string",
@@ -1210,6 +1222,10 @@
                                           "type": "string",
                                           "description": "Description of the annotation in the interface."
                                         },
+                                        "basePath": {
+                                          "type": "string",
+                                          "description": "Xpath (optional): what element all other Xpaths in this block are relative to."
+                                        },
                                         "captureValuePaths": {
                                           "type": "array",
                                           "items": {
@@ -1535,6 +1551,10 @@
                                         "description": {
                                           "type": "string",
                                           "description": "Description of the annotation in the interface."
+                                        },
+                                        "basePath": {
+                                          "type": "string",
+                                          "description": "Xpath (optional): what element all other Xpaths in this block are relative to."
                                         },
                                         "valuePath": {
                                           "type": "string",
@@ -1868,6 +1888,10 @@
                               "description": {
                                 "type": "string",
                                 "description": "Description of the annotation in the interface."
+                              },
+                              "basePath": {
+                                "type": "string",
+                                "description": "Xpath (optional): what element all other Xpaths in this block are relative to."
                               },
                               "valuePath": {
                                 "type": "string",
@@ -2262,6 +2286,10 @@
                                           "type": "string",
                                           "description": "Description of the annotation in the interface."
                                         },
+                                        "basePath": {
+                                          "type": "string",
+                                          "description": "Xpath (optional): what element all other Xpaths in this block are relative to."
+                                        },
                                         "captureValuePaths": {
                                           "type": "array",
                                           "items": {
@@ -2587,6 +2615,10 @@
                                         "description": {
                                           "type": "string",
                                           "description": "Description of the annotation in the interface."
+                                        },
+                                        "basePath": {
+                                          "type": "string",
+                                          "description": "Xpath (optional): what element all other Xpaths in this block are relative to."
                                         },
                                         "valuePath": {
                                           "type": "string",
@@ -2921,6 +2953,10 @@
                                 "type": "string",
                                 "description": "Description of the annotation in the interface."
                               },
+                              "basePath": {
+                                "type": "string",
+                                "description": "Xpath (optional): what element all other Xpaths in this block are relative to."
+                              },
                               "valuePath": {
                                 "type": "string",
                                 "description": "Xpath: what element contains the value of this annotation"
@@ -3254,16 +3290,28 @@
                       "properties": {
                         "type": {
                           "type": "string",
-                          "const": "relation"
+                          "const": "relation",
+                          "description": "See https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations"
+                        },
+                        "path": {
+                          "type": "string",
+                          "description": "Xpath relative to which the valuePath, sourcePath and targetPath are evaluated. This Xpath itself is relative to the document's root node (i.e. containerPath)."
+                        },
+                        "relationClass": {
+                          "type": "string",
+                          "description": "See https://blacklab.ivdnt.org/guide/query-language/relations.html  See https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations\n\nWhen indexing relations in BlackLab, you assign them a class, a short string indicating what family of relations it belongs to.  For example, you could assign the class string dep to dependency relations. An obj relation would become dep::obj. To simplify things, rel is the default relation class in BlackLab.  If you index relations without a class, they will automatically get this class.  Similarly, when searching, if you don't specify a class, rel:: will be prepended to the relation type.  So if you're not indexing different classes of relations, you can just ignore the classes."
                         },
                         "valuePath": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "Xpath: the value/name of the relation. Relative to 'path'."
                         },
                         "sourcePath": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "Xpath: Note that the root node should have an empty value for source."
                         },
                         "targetPath": {
-                          "type": "string"
+                          "type": "string",
+                          "description": "Xpath for the ID of the target token/word/node."
                         }
                       },
                       "required": [
@@ -3272,7 +3320,8 @@
                         "sourcePath",
                         "targetPath"
                       ],
-                      "additionalProperties": false
+                      "additionalProperties": false,
+                      "description": "See https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations"
                     }
                   ]
                 },
@@ -4093,34 +4142,53 @@
                   "description": "Defaults to 'date'"
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "description": "Put the names of metadata fields here that have a special semantic meaning here. The Frontend will use these to display your documents in a more user-friendly way.  The pidField should always be set, as it is used to link to the document in the content store. Note that the pidField should also be untokenized, as spaces and special characters in the pid of your document will cause issues otherwise."
             },
             "metadataFieldGroups": {
               "type": "array",
               "items": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "description": "Group name"
-                  },
-                  "fields": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "fields": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Metadata fields in this group"
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Group name. A MetadataGroup must either contain a list of 'fields' to include in it, or include 'addRemainingFields'."
+                      }
                     },
-                    "description": "Metadata fields in this group"
+                    "required": [
+                      "fields",
+                      "name"
+                    ]
                   },
-                  "addRemainingFields": {
-                    "type": "boolean",
-                    "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                      "addRemainingFields": {
+                        "type": "boolean",
+                        "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Group name. A MetadataGroup must either contain a list of 'fields' to include in it, or include 'addRemainingFields'."
+                      }
+                    },
+                    "required": [
+                      "addRemainingFields",
+                      "name"
+                    ]
                   }
-                },
-                "required": [
-                  "name",
-                  "fields"
                 ],
-                "additionalProperties": false,
                 "description": "How to group together metadata fields in the BlackLab Frontend search interface."
               },
               "description": "How to group together metadata fields in the BlackLab Frontend search interface."
@@ -4130,31 +4198,49 @@
               "additionalProperties": {
                 "type": "array",
                 "items": {
-                  "type": "object",
-                  "properties": {
-                    "name": {
-                      "type": "string",
-                      "description": "Group name"
-                    },
-                    "annotations": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "annotations": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "IDs of annotations in this group."
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "Group name"
+                        }
                       },
-                      "description": "IDs of annotations in this group."
+                      "required": [
+                        "annotations",
+                        "name"
+                      ]
                     },
-                    "addRemainingAnnotations": {
-                      "type": "boolean",
-                      "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "addRemainingAnnotations": {
+                          "type": "boolean",
+                          "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
+                        },
+                        "name": {
+                          "type": "string",
+                          "description": "Group name"
+                        }
+                      },
+                      "required": [
+                        "name"
+                      ]
                     }
-                  },
-                  "required": [
-                    "name",
-                    "annotations"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
-              }
+              },
+              "description": "How to group together annotations in the BlackLab Frontend search interface."
             }
           },
           "additionalProperties": false,

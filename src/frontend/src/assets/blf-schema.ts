@@ -42,7 +42,7 @@ export type BLFSchema = {
 	}
 
 	/**
-	 * Which xml processor to use. Defaults to vtd.
+	 * Which xml processor to use. Though the default is vtd, saxon is recommended and will become the default in the future.
 	 * See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#xpath-support-level
 	 */
 	processor?: 'saxon'|'vtd';
@@ -138,13 +138,15 @@ type AnnotationBase = {
 	/** Description of the annotation in the interface. */
 	description?: string;
 
+	/** Xpath (optional): what element all other Xpaths in this block are relative to.  */
+	basePath?: string;
 	/** Xpath: what element contains the value of this annotation */
 	valuePath: string;
 	/**
 	 * Xpath: Store some xpath results before evaluating valuePath,
 	 * the stored results can now be used in valuePath.
-	 * E.g. valuePath="/some/dynamic/path/$1/",
-	 * BlackLab will replace $1 with the result of the first captureValuePaths entry.
+	 * E.g. valuePath="/some/dynamic/path/$1/$2",
+	 * BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc. 
 	 */
 	captureValuePaths?: string[];
 	/**
@@ -244,10 +246,30 @@ type StandoffAnnotationMultipleTokens = {
 	spanNamePath: string;
 	annotations: Annotation[];
 }
+/** See https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations */
 type StandoffAnnotationDependencyRelation = {
+	/** See https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations */
 	type: 'relation';
+	/** Xpath relative to which the valuePath, sourcePath and targetPath are evaluated. This Xpath itself is relative to the document's root node (i.e. containerPath). */
+	path?: string;
+
+	/** 
+	 * See https://blacklab.ivdnt.org/guide/query-language/relations.html 
+	 * See https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations
+	 * 
+	 * When indexing relations in BlackLab, you assign them a class, a short string indicating what family of relations it belongs to. 
+	 * For example, you could assign the class string dep to dependency relations. An obj relation would become dep::obj.
+	 * To simplify things, rel is the default relation class in BlackLab. 
+	 * If you index relations without a class, they will automatically get this class. 
+	 * Similarly, when searching, if you don't specify a class, rel:: will be prepended to the relation type. 
+	 * So if you're not indexing different classes of relations, you can just ignore the classes.
+	 */
+	relationClass?: string;
+	/** Xpath: the value/name of the relation. Relative to 'path'. */
 	valuePath: string;
+	/** Xpath: Note that the root node should have an empty value for source. */
 	sourcePath: string;
+	/** Xpath for the ID of the target token/word/node. */
 	targetPath: string;
 }
 
@@ -359,6 +381,11 @@ type CorpusConfig = {
 	/** Defaults to 'ltr' */
 	textDirection?: 'ltr'|'rtl';
 
+	/** 
+	 * Put the names of metadata fields here that have a special semantic meaning here. The Frontend will use these to display your documents in a more user-friendly way. 
+	 * The pidField should always be set, as it is used to link to the document in the content store.
+	 * Note that the pidField should also be untokenized, as spaces and special characters in the pid of your document will cause issues otherwise.
+	*/
 	specialFields?: {
 		/** Defaults to 'id' */
 		pidField?: string;
@@ -372,6 +399,7 @@ type CorpusConfig = {
 
 	/** How to group together metadata fields in the BlackLab Frontend search interface. */
 	metadataFieldGroups?: MetadataFieldGroup[];
+	/** How to group together annotations in the BlackLab Frontend search interface. */
 	annotationGroups?: { [annotatedField: string]: AnnotationGroup[]; }
 
 }
@@ -379,29 +407,31 @@ type CorpusConfig = {
 type AnnotationGroup = {
 	/** Group name */
 	name: string;
+}&({
 	/** IDs of annotations in this group. */
 	annotations: string[];
+}|{
 	/**
 	 * Add all annotations not in any other group. Only one group should have this. Defaults to false.
 	 * If you have no group that defines this, BlackLab will make one for you.
 	 */
 	addRemainingAnnotations?: boolean;
-}
+})
 
 /** How to group together metadata fields in the BlackLab Frontend search interface. */
 type MetadataFieldGroup = {
-	/** Group name */
+	/** Group name. A MetadataGroup must either contain a list of 'fields' to include in it, or include 'addRemainingFields'. */
 	name: string;
+}&({
 	/** Metadata fields in this group */
 	fields: string[];
+}|{
 	/**
 	 * Add all annotations not in any other group. Only one group should have this. Defaults to false.
 	 * If you have no group that defines this, BlackLab will make one for you.
 	 */
-	addRemainingFields?: boolean;
-}
-
-
+	addRemainingFields: boolean;
+})
 
 /**
  * @title Regex replace part of the value
