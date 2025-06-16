@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<h3>{{$t('search.expert.corpusQueryLanguage') + (isParallelCorpus ? '' : ':') }}
-			<a class='help' target='_blank' href='https://inl.github.io/BlackLab/guide/corpus-query-language.html'
+			<a class='help' target='_blank' href='https://blacklab.ivdnt.org/guide/corpus-query-language.html'
 				:title="$t('widgets.learnMore').toString()">🛈</a>
 		</h3>
 		<template v-if="!isParallelCorpus">
@@ -18,6 +18,9 @@
 					<SelectPicker id="sourceVersion" :options="pSourceOptions"
 						v-model="pSourceValue" data-menu-width="grow" hideEmpty/>
 				</label>
+				<span v-if="errorNoParallelSourceVersion" class="error">
+					{{ $t('search.parallel.errorNoSourceVersion') }}
+				</span>
 				<textarea class="form-control querybox" name="querybox" rows="7" v-model="mainQuery"></textarea>
 			</div>
 
@@ -38,7 +41,7 @@
 
 			<div v-if="pTargetOptions.length" class="form-group">
 				<!-- Parallel target extra field selector. -->
-				<label>{{ $t(pTargetValue.length ? 'search.parallel.addTargetVersion' : 'search.parallel.chooseTargetVersion') }}</label>
+				<label>{{ $t(pTargetValue.length ? 'search.parallel.addTargetVersion' : 'search.parallel.andCompareWithTargetVersions') }}</label>
 				<div>
 					<!--
 						Note: this selectpicker only allows a single value. Then every time the user selects something, the selected value is removed
@@ -69,6 +72,9 @@ export default ParallelFields.extend({
 		SelectPicker,
 		MultiValuePicker,
 		AlignBy,
+	},
+	props: {
+		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
 	computed: {
 		// The query (or source query, for parallel corpora)

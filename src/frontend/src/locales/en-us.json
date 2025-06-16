@@ -79,11 +79,11 @@
 		},
 		"parallel": {
 			"alignBy": "Align by",
-			"inSourceVersion": "In source version",
+			"searchSourceVersion": "Search source version",
+			"errorNoSourceVersion": "Please select a source version.",
 			"andCompareWithTargetVersions": "And compare with target version(s)",
 			"queryForSourceVersion": "Query for source version",
 			"queryForTargetVersion": "Query for target version",
-			"chooseTargetVersion": "Choose a target version",
 			"addTargetVersion": "Add another target version"
 		}
 	},
@@ -133,8 +133,9 @@
 		"sampleSizePercentage": "percentage",
 		"sampleSeed": "Seed",
 		"context": "Context size",
-		"wideView": " Wide View",
-		"debug": " Debug info",
+		"wideView": "Wide View",
+		"debug": "Debug info",
+		"hideDebugUntilReload": "Hide debug checkbox until next reload",
 		"close": "Close"
 	},
 	"queryForm": {
@@ -232,7 +233,7 @@
 			"tipClickOnHighlightedWords": "Tip: click on highlighted words for syntactic grouping.",
 
 			"caseSensitive": "Case sensitive",
-			"chooseWordPositions": "Choose the <strong>specific word</strong> positions to group on here, the preview at the top will show you which words you have selected.",
+			"chooseWordPositions": "Choose the <strong>specific word</strong> positions to group on here, the preview sentence will show you which words you have selected.",
 			"selectDocumentMetadata": "Select the metadata to group on.",
 			"clickButtonsToStart": "Click on Annotation or Metadata to define grouping criteria.",
 			"metadata": "Metadata",
@@ -256,22 +257,23 @@
 			}
 		},
 		"table": {
-			"showFullSentence": "Show full sentence",
+			"showFullSentence": "Display sentence analysis",
 			"loading": "Loading...",
 			"loadMoreConcordances": "Load more concordances",
 			"viewDetailedConcordances": "View detailed concordances",
-			"showHits": "Show Hits",
-			"hideHits": "Hide Hits",
 			"document": "Document",
 			"hits": "Hits",
 			"columnLabelBeforeHit": "Before Hit",
 			"columnLabelHit": "Hit",
 			"columnLabelAfterHit": "After Hit",
 			"sortBy": "Sort by {field}",
+			"sortByDescending": "Sort by {field} (reverse)",
+			"sort_numberOfHits": "number of hits",
+			"sort_groupName": "group name",
+			"sort_groupSize": "group size",
+			"sort_alignments": "alignments",
 			"groupBy": "Group by {field}",
-			"sortByDescending": "Sort by {field} (descending)",
 			"sortByDocument": "Sort by document title",
-			"sortByHits": "Sort by number of hits",
 			"moreHiddenHits": "more hidden hits",
 			"clickToSort": "click to sort",
 			"close": "close",
@@ -281,7 +283,8 @@
 			"property": "Property",
 			"value": "value",
 			"noContext": "No context available.",
-			"parallelVersion": "Version"
+			"customColumnHeader": "Version",
+			"goToHitInDocument": "Go to hit in document"
 		},
 		"export": {
 			"downloading": "Downloading...",
@@ -375,7 +378,7 @@
 		"token": "<p>This is a <code>token</code>, the basic building block of a query.<br></p><p>A token in the querybuilder is made up two parts:<br>The set of <code>attributes</code> a token in the corpus must have to be matched by the query.<br>Create attributes by clicking the + button within this token. Then enter a value that the attribute must have for the token to be found.<br>Contextual <code>properties</code>, such as whether the <code>token</code> occurs at the start, or the end of a sentence.</p><p>The CQL query generated to match this token in the corpus is also displayed here, to help understand what is happening internally.<br></p><p>Rearrange a token by clicking and dragging the little arrow handle in the top-left corner.<br>Delete a token by clicking the x in the top-right corner.<br>Create new tokens by clicking the + button over on the right.<br></p>",
 		"tokenButton": "Create additional tokens by clicking this button.",
 		"attribute": "<p>This is an <code>attribute</code> of this token.<br></p><p>Attributes are much like in the <code>simple</code> search. Select which attributea token should have, and enter the value that the attribute must have for the token to be matched.<br>In addition to this simple behavior the querybuilder also allows several more advanced configurations.<br>Attributes in the querybuilder are interpreted as <code>regular expressions</code>.</p><p>Using the + buttons, new attributes can be added. Two options exist: <code>AND</code> and <code>OR</code>.<br>The <code>AND</code> option creates a new attribute that <i>also</i> must exist on a token for that token to be matched.<br>As an example: the attribute <code>part of speech</code> with value <code>NOU</code> is already defined, so all tokens that are nouns will be matched.<br>Creating a new attribute using <code>AND</code> will change that query so that now a token must be a noun, <i>in addition</i> to being/having whatever new attribute is created.<br>The <code>OR</code> largely performs the same role, with the change that a token will now be matched whenever it has the original attribute <i>or</i> the new attribute.<br>As an example: you have an attribute <code>lemma = \"bee\"</code>, and you select <code>AND</code>.<br>Now you have <code>lemma = \"bee\"</code> AND <code>some other attribute</code>, and both of these must be true for a token to be found.<br>If you had selected <code>OR</code> it would find all tokens with either <code>lemma = \"bee\"</code> or that have your new attribute<br></p><p>It's also possible to upload a list of values, to do so, click the upload button that appears when you hover the mouse over the text input for this attribute and select a text file.Tokens will then be matched for any of the values from the file.<br>Uploaded files must be be plain text files (.txt), with each value on its own line.<br>After uploading a file, the text can be edited by clicking the yellow button that has appeared in place of the text field. Editing the text is temporary and will not modify your original file.<br>To remove an uploaded file and go back to typing a value, click the upload button a second time, then press cancel instead of selecting a file.</p>",
-		"CQLeditor": "<p>The <code>CQL editor</code> allows you to type your own CQL query, or edit a query further after creating it in the <code>querybuilder</code>.</p><p>Queries generated by the <code>querybuilder</code> will be pasted here automatically. Note that this will overwrite any queries you type here yourself!<br>In some cases, when the query is relatively simple, it can be also be imported into the querybuilder using the <code>copy to query builder</code> button below.A message will be displayed next to the button if the query couldn't be parsed.</p><p>For more information on how to write <code>CQL</code>, <a style=\"text-decoration:underline;color:#337ab7;\" target=\"_blank\" href=\"https://github.com/INL/BlackLab/blob/d20eb71b25137facf10f7d2681242de34ab1fa54/core/src/site/markdown/corpus-query-language.md\">click here</a>.</p>",
+		"CQLeditor": "<p>The <code>CQL editor</code> allows you to type your own CQL query, or edit a query further after creating it in the <code>querybuilder</code>.</p><p>Queries generated by the <code>querybuilder</code> will be pasted here automatically. Note that this will overwrite any queries you type here yourself!<br>In some cases, when the query is relatively simple, it can be also be imported into the querybuilder using the <code>copy to query builder</code> button below.A message will be displayed next to the button if the query couldn't be parsed.</p><p>For more information on how to write <code>CQL</code>, <a style=\"text-decoration:underline;color:#337ab7;\" target=\"_blank\" href=\"https://blacklab.ivdnt.org/guide/corpus-query-language.html\">click here</a>.</p>",
 		"TSVbutton": "<p>Use this button to upload a TSV file with terms to complete a query with marked gaps.<br>For instance, given a query:<br><code>[lemma=\"@@\"][pos=\"LID.*\"][lemma=\"@@\"]</code><br>you would supply a list with two tab-separated columns of terms, where the terms in the first column will be entered at the position of the first gap (@@) and the words in the second column at the position of the second gap.This mimics the word list functionality of the Extended and Advanced search interfaces.</p><p>Please note that for this to work, you do need to enter @@ in the field where you want the substitution to take place. An empty field ([]) will match any term.</p>",
 		"importQuery": "<p>Import previously saved queries here.</p><p>To <code>export</code> a query: first run a search, then open the history, and select <code>save as file</code> in the dropdown on the right.</p>",
 		"metedata": "<p>Listed here are the <code>metadata</code> fields that exist on documents within this corpus.<br>Using these fields a query can be limited to a subset of documents with specific metadata values.<br>It's also possible to view all documents by leaving all <code>attributes</code> in the <code>simple</code> search empty.</p><p>As an example: to search within only documents from the year <code>2003</code> (assuming documents contain metadata for the year of writing),<br>type <code>2003</code> in the <code>year</code> field (or the equivalent name of the year data in this corpus).<br></p><p>Some values like dates and numbers support entering a <code>range</code>.<br>Ranges are <code>inclusive</code>, meaning that for a range of <code>10 to 20</code>, documents for which the value is exactly 10 or 20 will also be included.</p><p>Some of the most common values will for each field be autocompleted as you are entering a value. Clicking on an autocompleted value will paste that value in the field.<br>For fields where the total number of different values is relatively small, a dropdown will be shown instead, allowing you to pick the exact set of documents to search.<br></p><p>To search in documents within a set of different values, enter multiple values, separated by spaces. If one of the values already contains spaces of itself, it must be surrounded by double quotes (<code>\"</code>).<br>As an example: to match the value <code>my metadata value</code>, enter <code>\"my metadata value\"</code> in the field, including the quotes.<br>Entering <code>three different values</code> without quotes will instead search in any document with a value of <code>three</code>, <code>different</code> or <code>values</code> for that metadata field.</p>",

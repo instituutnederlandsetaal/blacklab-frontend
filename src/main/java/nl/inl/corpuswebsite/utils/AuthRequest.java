@@ -1,7 +1,9 @@
 package nl.inl.corpuswebsite.utils;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -16,9 +18,6 @@ import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang.StringUtils;
 
 /** Factory pattern url builder */
 class URLBuilder<T extends URLBuilder<T>> {
@@ -284,7 +283,7 @@ public class AuthRequest extends URLBuilder<AuthRequest> {
                 if (hardFailOnMissingAuth && r.getHeaderField("www-authenticate") != null) {
                     r.getHeaderFields().forEach((k, v) -> v.forEach(w -> response.addHeader(k, w)));
                     InputStream s = r.getErrorStream() != null ? r.getErrorStream() : r.getInputStream();
-                    String content = IOUtils.toString(s, "utf-8");
+                    String content = new BufferedReader(new InputStreamReader(s, StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
                     throw new ReturnToClientException(code, content);
                 }
 
@@ -309,14 +308,14 @@ public class AuthRequest extends URLBuilder<AuthRequest> {
         try {
             int code = conn.getResponseCode();
             if (conn.getErrorStream() != null) {
-                String body = StringUtils.join(IOUtils.readLines(conn.getErrorStream(), "utf-8"), "\n");
+                String body = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
                 return Result.error(new QueryException(code, body));
             } else if (code < 200 || code >= 300) {
                 return Result.error(new QueryException(code, "Unexpected response (http " + code + ") from url " + conn.getURL()));
             } else if (code == 204) {
                 return Result.success("");
             } else {
-                String body = StringUtils.join(IOUtils.readLines(conn.getInputStream(), "utf-8"), "\n");
+                String body = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
                 return Result.success(body);
             }
         } catch (IOException e) {

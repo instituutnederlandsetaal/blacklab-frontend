@@ -80,7 +80,7 @@ function determineRelationPartField(results: BLSearchResult|undefined, label: st
 
 /**
  * Parse a GroupBy string. It should be pre-separated on comma's.
- * https://inl.github.io/BlackLab/server/rest-api/corpus/hits/get.html#criteria-for-sorting-grouping-and-faceting
+ * https://blacklab.ivdnt.org/server/rest-api/corpus/hits/get.html#criteria-for-sorting-grouping-and-faceting
  */
 export function parseGroupBy(groupBy: string[], results?: BLSearchResult): GroupBy[] {
 	const cast = <T>(x: T): T => x;
@@ -240,7 +240,7 @@ export function parseGroupBy(groupBy: string[], results?: BLSearchResult): Group
 	});
 }
 
-/** See https://inl.github.io/BlackLab/server/rest-api/corpus/hits/get.html#criteria-for-sorting-grouping-and-faceting */
+/** See https://blacklab.ivdnt.org/server/rest-api/corpus/hits/get.html#criteria-for-sorting-grouping-and-faceting */
 export function serializeGroupBy(groupBy: GroupBy): string;
 export function serializeGroupBy(groupBy: GroupBy[]): string[]
 export function serializeGroupBy(groupBy: GroupBy|GroupBy[]): string|string[] {
@@ -320,12 +320,13 @@ export function isValidGroupBy(g: GroupBy): boolean {
 	return true;
 }
 
+// Take care that groups passed in here don't conform to the corpus
+// As we don't validate the groups upfront while decoding the url.
 export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<string, NormalizedAnnotation>, metadata: Record<string, NormalizedMetadataField>): string {
-	console.log('humanizeGroupBy', JSON.stringify(g));
 	if (g.type === 'context') {
 		if (!g.annotation)
 			return i18n.$t('results.groupBy.specify').toString();
-		const field = i18n.$tAnnotDisplayName(annotations[g.annotation]);
+		const field = i18n.$tAnnotDisplayName(g.annotation in annotations ? annotations[g.annotation] : {id: g.annotation, defaultDisplayName: g.annotation});
 
 		if (g.context.type === 'label')
 			return i18n.$t('results.groupBy.summary.labelledWord', {field, label: g.context.label}).toString();
@@ -353,17 +354,22 @@ export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<strin
 		const meta = g.metadata;
 		if (meta.type === 'span-attribute') {
 			// Span-level metadata
-			const filterId = spanFilterId(meta.spanName, meta.attributeName);
-			console.log('filterId', filterId);
+			let span = meta.spanName;
+			const m = span.match(/^with-spans\[([^\]]+)\]$/);
+			if (m) {
+				// with-spans[verse] -> verse
+				span = m[1];
+			}
+			console.log(m, meta.spanName, span, meta.attributeName);
+			const filterId = spanFilterId(span, meta.attributeName);
 			const filter = FilterModule.getState().filters[filterId];
-			console.log('filter', JSON.stringify(filter));
 			return filter ?
 				i18n.$tMetaDisplayName(filter).toString() :
-				i18n.$tWithinAttribute(meta.spanName, meta.attributeName).toString();
+				i18n.$tSpanAttributeDisplay(span, meta.attributeName).toString();
 		}
 		// Document-level metadata
 		return meta.field ?
-			i18n.$t('results.groupBy.summary.metadata', {field: i18n.$tMetaDisplayName(metadata[meta.field])}).toString() :
+			i18n.$t('results.groupBy.summary.metadata', {field: i18n.$tMetaDisplayName(metadata[meta.field]) ?? {id: meta.field}}).toString() :
 			i18n.$t('results.groupBy.specify').toString();
 	} else {
 		// Unknown.
@@ -371,3 +377,13 @@ export function humanizeGroupBy(i18n: Vue, g: GroupBy, annotations: Record<strin
 	}
 }
 
+export function humanizeSerializedGroupBy<T extends string|string[]>(
+	i18n: Vue,
+	g: T,
+	annotations: Record<string, NormalizedAnnotation>,
+	metadata: Record<string, NormalizedMetadataField>
+): T {
+	const r = [g].flat().map(g => humanizeGroupBy(i18n, parseGroupBy([g])[0], annotations, metadata));
+	// @ts-ignore
+	return Array.isArray(g) ? r : r[0];
+}

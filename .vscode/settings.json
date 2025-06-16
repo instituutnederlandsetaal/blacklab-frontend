@@ -1,0 +1,11 @@
+{
+	"java.import.gradle.enabled": false,
+	"java.import.gradle.wrapper.enabled": false,
+	"java.import.projectSelection": "manual",
+	"java.project.resourceFilters": [
+		"node_modules",
+		"\\.git",
+		"/src/frontend/",
+		"/docs"
+	]
+}

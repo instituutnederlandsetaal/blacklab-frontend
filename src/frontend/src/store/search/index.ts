@@ -26,7 +26,7 @@ import * as GlobalResultsModule from '@/store/search/results/global';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { ApiError } from '@/api';
-import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
+import { getPatternString, getWithinClausesFromFilters, shouldAddWithSpans } from '@/utils/pattern-utils';
 import debug from '@/utils/debug';
 
 Vue.use(Vuex);
@@ -82,6 +82,8 @@ const get = {
 			throw new Error('Should provide a sampleSeed when random sampling, or every new page of results will use a different seed');
 		}
 
+		const patt = QueryModule.get.patternString() ?? '';
+
 		// These make debugging more convenient
 		const debugParams = debug.debug ? {
 			// Explain how the CQL was converted to a query and rewritten for optimization
@@ -102,8 +104,8 @@ const get = {
 			group: activeView.groupBy.join(','),
 
 			number: state.global.pageSize,
-			field: QueryModule.get.annotatedFieldName(),
-			patt: QueryModule.get.patternString(),
+			field: QueryModule.get.sourceField().id,
+			patt,
 			pattgapdata: (QueryModule.get.patternString() && QueryModule.getState().gap) ? QueryModule.getState().gap!.value || undefined : undefined,
 
 			sample: (state.global.sampleMode === 'percentage' && state.global.sampleSize) ? state.global.sampleSize : undefined,
@@ -113,14 +115,14 @@ const get = {
 			sort: activeView.sort != null ? activeView.sort : undefined,
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: state.global.context != null ? state.global.context : undefined,
-			adjusthits: 'yes'
+			adjusthits: true,
+			withspans: shouldAddWithSpans(patt),
 		};
 	}, 'blacklabParameters')
 };
 
 const privateActions = {
 	setLoadingState: b.commit((state, newState: Pick<RootState, 'loadingState'|'loadingMessage'>) => {
-		console.log(`Setting loading state to ${newState.loadingState} with message: ${newState.loadingMessage}`);
 		return Object.assign(state, newState);
 	}, 'setLoadingState'),
 }
@@ -362,9 +364,6 @@ const init = async () => {
 	try {
 		await CorpusModule.init();
 
-		// Call the customize function(s) defined in custom.js (if any)
-		UIModule.corpusCustomizations.customizeFunctions.forEach(f => f(UIModule.corpusCustomizations));
-
 		// This is user-customizable data, it can be used to override various defaults from other modules,
 		// It needs to determine fallbacks and defaults for settings that haven't been configured,
 		// So initialize it before the other modules.
@@ -379,18 +378,8 @@ const init = async () => {
 		await QueryModule.init();
 		privateActions.setLoadingState({loadingState: 'loaded', loadingMessage: ''});
 
-		// Set the default parallel source field (the first one)
-		// We need to do this after loading the corpus information
-		// @@@ setTimeout is stupid, but doesn't work otherwise!?
-		setTimeout(() => {
-			const par = CorpusModule.get.parallelAnnotatedFields();
-			if (par.length > 0)
-				PatternModule.getState().shared.source = par[0].id;
-		}, 100);
-
 		return true;
 	} catch (e: any) {
-		console.log(e);
 		if (e instanceof ApiError) {
 			if (e.httpCode === 401) {
 				privateActions.setLoadingState({loadingState: 'requiresLogin', loadingMessage: e.message});
@@ -398,13 +387,12 @@ const init = async () => {
 				privateActions.setLoadingState({loadingState: 'unauthorized', loadingMessage: e.message});
 			} else if (e.httpCode === 404) {
 				// Not found. May not be configured correctly.
-				console.log(`ApiError: ${JSON.stringify(e)}`);
 				if (e.title === 'CANNOT_OPEN_INDEX' || e.message.indexOf('CANNOT_OPEN_INDEX') !== -1) {
 					// Corpus not found
 					privateActions.setLoadingState({loadingState: 'error', loadingMessage:
 						`Corpus not found. Please check the spelling, or delete the corpus` +
 						'name from the URL to get a list of available corpora. ' +
-						'If it\'s not there, refer to the documentation at https://github.com/INL/corpus-frontend '+
+						'If it\'s not there, refer to the documentation at https://github.com/instituutnederlandsetaal/blacklab-frontend '+
 						'and check your configuration.'
 					});
 				} else if (e.message.indexOf('blacklabResponse') !== -1) {
@@ -413,10 +401,10 @@ const init = async () => {
 				} else {
 					// No blacklab response; something isn't configured correctly.
 					privateActions.setLoadingState({loadingState: 'error', loadingMessage:
-						'Unable to contact BlackLab Server (or corpus-frontend\'s own server component). ' +
+						'Unable to contact BlackLab Server (or blacklab-frontend\'s own server component). ' +
 						'Make sure both .war applications have been deployed, and your properties file ' +
 						'is in the correct location and has the correct name. ' +
-						'Refer to the documentation at https://github.com/INL/corpus-frontend '
+						'Refer to the documentation at https://github.com/instituutnederlandsetaal/blacklab-frontend '
 					});
 				}
 			} else {
@@ -425,6 +413,7 @@ const init = async () => {
 			}
 		} else {
 			// Non-API error. Show message.
+			console.error('Error initializing store', e);
 			privateActions.setLoadingState({loadingState: 'error', loadingMessage: e.message ?? e.toString()});
 		}
 		return false;

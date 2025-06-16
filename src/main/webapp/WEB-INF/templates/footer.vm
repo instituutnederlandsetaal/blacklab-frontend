@@ -5,23 +5,6 @@
             </footer>
         </div>
 
-        #if($googleAnalyticsKey)
-        #set($unescaped = $googleAnalyticsKey) ## see BaseResponse.java
-        <script>
-            window.ga=window.ga||function(){(ga.q=ga.q||[]).push(arguments)};ga.l=+new Date;
-            ga('create', '$unescaped', 'auto');
-            ga('set', 'anonymizeIp', true);
-            ga('set','page',window.location.href);
-            ga('send', 'pageview');
-        </script>
-        <script async src='https://www.google-analytics.com/analytics.js'></script>
-        #else
-        ## insert a no-op so we don't have to add conditionals to check if ga is enabled everywhere
-        <script>
-        window.ga=window.ga||function(){};
-        </script>
-        #end
-
         ## custom css in header to prevent FOUT
         #foreach($js in $websiteConfig.getCustomJS($page))
         <script

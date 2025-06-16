@@ -16,8 +16,9 @@ import { FilterDefinition } from '@/types/apptypes';
 
 import { debugLog } from '@/utils/debug';
 import { blacklabPaths } from '@/api';
-import { mapReduce, unescapeRegex } from '@/utils';
-import { getFilterString, getFilterSummary, getValueFunctions, valueFunctions } from '@/components/filters/filterValueFunctions';
+import { mapReduce } from '@/utils';
+import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { corpusCustomizations } from '@/utils/customization';
 
 export type FilterState = {
 	value: any|null;
@@ -210,7 +211,7 @@ const init = () => {
 	});
 
 	// Make sure we register all fields in any custom tabs
-	UIStore.corpusCustomizations.search.metadata._customTabs
+	corpusCustomizations.search.metadata._customTabs
 		.map(t => ({ name: t.name, fields: t.fields ?? t.subtabs.flatMap( (s: any) => s.fields)})) // flatten subtabs
 		.map(t => t.fields.map( (f: any) => ({ groupId: t.name, ...f })) ) // fill in missing groupId if any
 		.flat() // flatten tabs

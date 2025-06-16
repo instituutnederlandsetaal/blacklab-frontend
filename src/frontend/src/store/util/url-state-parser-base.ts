@@ -6,7 +6,7 @@ import URI from 'urijs';
  */
 export default abstract class UrlStateParser<T> {
 	/**
-	 * Path segments of the url this was constructed with, but omitting the root path of the application (usually /corpus-frontend/).
+	 * Path segments of the url this was constructed with, but omitting the root path of the application (usually /blacklab-frontend/).
 	 * typically something like [INDEX_ID, 'search', 'docs'|'hits']
 	 */
 	protected paths: string[];
@@ -14,8 +14,8 @@ export default abstract class UrlStateParser<T> {
 	protected params: {[key: string]: string|string[]|null};
 
 	constructor(uri = new URI()) {
-		const fullPath = uri.segmentCoded();
-		const basePath = new URI(CONTEXT_URL).segmentCoded();
+		const fullPath = uri.segmentCoded().filter(p => !!p); // Remove empty path segment if there's a trailing slash.
+		const basePath = new URI(CONTEXT_URL).segmentCoded().filter(p => !!p); // Remove empty path segment if there's a trailing slash.
 		this.paths = fullPath.slice(basePath.length);
 		this.params = uri.search(true) || {};
 	}

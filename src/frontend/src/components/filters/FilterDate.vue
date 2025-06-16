@@ -101,18 +101,8 @@ export default BaseFilter.extend({
 	},
 
 	computed: {
-		// we moeten zorgen dat de model die values bevat de we willen returnen, dat betekent dat we de defaults returnen zolang model isDefaultValue, en anders gewoon model.
-		// of we moeten gewoon created() en dan de boel vervangen door de defaults..., doen we dat wel.
-
 		model(): FilterDateValue {
 			return this.value;
-			// const v = this.value as FilterDateValue;
-			// // @ts-ignore
-			// if (v.isDefaultValue) { // replace with min and max when not set by the user (i.e. isDefaultValue)
-			// 	if (this.minDate) v.startDate = this.minDate;
-			// 	if (this.maxDate) v.endDate = this.maxDate;
-			// }
-			// return this.value;
 		},
 		metadata(): Metadata {
 			return this.definition.metadata || {

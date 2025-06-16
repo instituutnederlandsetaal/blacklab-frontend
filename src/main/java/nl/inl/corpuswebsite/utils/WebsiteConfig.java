@@ -106,9 +106,6 @@ public class WebsiteConfig {
     /** Page size to use for paginating documents in this corpus, defaults to 1000 if omitted (also see default Search.xml) */
     private final int pageSize;
 
-    /** Google analytics key, analytics are disabled if not provided */
-    private final Optional<String> analyticsKey;
-
     private final Optional<String> plausibleDomain;
     private final Optional<String> plausibleApiHost;
 
@@ -125,7 +122,7 @@ public class WebsiteConfig {
      *
      * @param configFile the Search.xml file
      * @param corpusId (optional) corpus id if this is a corpus-specific config file
-     * @param contextPath the application root url on the client (usually /corpus-frontend). Required for string interpolation while loading the configFile.
+     * @param contextPath the application root url on the client (usually /blacklab-frontend). Required for string interpolation while loading the configFile.
      * @throws ConfigurationException
      */
     public WebsiteConfig(File configFile, String contextPath, Optional<String> corpusId) throws ConfigurationException {
@@ -179,7 +176,6 @@ public class WebsiteConfig {
         propColumns = Optional.ofNullable(StringUtils.trimToNull(xmlConfig.getString("InterfaceProperties.PropColumns")));
         pagination = xmlConfig.getBoolean("InterfaceProperties.Article.Pagination", false);
         pageSize = Math.max(1, xmlConfig.getInt("InterfaceProperties.Article.PageSize", 1000));
-        analyticsKey = Optional.ofNullable(StringUtils.trimToNull(xmlConfig.getString("InterfaceProperties.Analytics.Key")));
         linksInTopBar = Stream.concat(
             corpusOwner.isPresent() ? Stream.of(new LinkInTopBar("My corpora", contextPath + "/corpora", false)) : Stream.empty(),
             xmlConfig.configurationsAt("InterfaceProperties.NavLinks.Link").stream().map(sub -> {
@@ -251,10 +247,6 @@ public class WebsiteConfig {
     /** Return the pagination size, if pagination is enabled for this corpus */
     public Optional<Integer> getPageSize() {
         return Optional.of(pageSize).filter(p -> this.pagination && p > 0);
-    }
-
-    public Optional<String> getAnalyticsKey() {
-        return analyticsKey;
     }
 
     public Optional<String> getPlausibleDomain() {

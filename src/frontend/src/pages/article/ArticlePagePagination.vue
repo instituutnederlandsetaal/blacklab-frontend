@@ -74,7 +74,8 @@ export default Vue.extend({
 			maxPage: number,
 			minPage: number,
 			disabled: boolean,
-			pageActive: boolean
+			pageActive: boolean,
+			showTotal: boolean,
 		} {
 			// Don't bother if we're showing the entire document
 			if (PAGE_START <= 0 && PAGE_END >= DOCUMENT_LENGTH) {
@@ -90,7 +91,8 @@ export default Vue.extend({
 				maxPage: Math.floor(DOCUMENT_LENGTH / PAGE_SIZE!),
 				minPage: 0,
 				disabled: false,
-				pageActive: isOnExactPage
+				pageActive: isOnExactPage,
+				showTotal: Math.floor(DOCUMENT_LENGTH / PAGE_SIZE!) > 1,
 			}
 		},
 		hitInfo(): undefined|{
@@ -98,18 +100,20 @@ export default Vue.extend({
 			maxPage: number,
 			minPage: number,
 			disabled: boolean,
-			pageActive: boolean
+			pageActive: boolean,
+			showTotal: boolean,
 		} {
 			if (!this.ready) { return undefined; }
-			if (this.hits!.length <= 1) return undefined;
+			if (this.hits!.length === 0) return undefined;
 
 			const isOnHit = this.currentHitInPage != null;
 			return {
-				page: this.currentHitIndex || 0,
+				page: this.currentHitIndex || this.firstVisibleHitIndex,
 				maxPage: this.hits!.length-1,
 				minPage: 0,
 				disabled: false,
-				pageActive: isOnHit
+				pageActive: isOnHit,
+				showTotal: this.hits!.length > 1,
 			}
 		},
 	},
@@ -121,7 +125,7 @@ export default Vue.extend({
 			if (wordstart <= 0) { wordstart = undefined; }
 			if (wordend >= DOCUMENT_LENGTH) { wordend = undefined; }
 
-			const newUrl = new URI().setSearch({wordstart, wordend, findhit: undefined}).fragment(hit ? hit.toString() : '').toString();
+			const newUrl = new URI().setSearch({wordstart, wordend, findhit: undefined}).fragment(hit != null ? hit.toString() : '').toString();
 			debugLogCat('history', `Setting window.location.href to ${newUrl}`);
 			window.location.href = newUrl;
 		},
@@ -177,97 +181,90 @@ export default Vue.extend({
 		// first: the hash as an index (#10 for the 10th hit on this page for example - this is when someone got sent the page from someone else, or when refreshing the page)
 		// second: the ?findhit parameter, contains the token offset where the hit starts
 
-		// case 1: the nth hit on the page
-
-		// initially, highlight the correct hit, if there is any specified
-		// otherwise just remove the window hash
-		if (!this.hitElements.length) {
-			this.currentHitInPage = undefined;
-			const url = window.location.pathname + window.location.search;
-			debugLogCat('history', `Calling replaceState with URL: ${url}`);
-			window.history.replaceState(undefined, '', url); // setting hash to '' won't remove '#'
-		} else {
-			let hitInPage = Number(window.location.hash ? window.location.hash.substring(1) : '0') || 0;
-			if (hitInPage >= this.hitElements.length || hitInPage < 0) {
-				hitInPage = 0;
+		const tryHighlightIndexOnCurrentPage = (): boolean => {
+			const hitInPage = window.location.hash ? Number(window.location.hash.substring(1)) : this.hitElements.length ? 0 : undefined;
+			if (hitInPage == null || isNaN(hitInPage) || hitInPage >= this.hitElements.length || hitInPage < 0) {
+				// clean up the hash
+				const url = window.location.pathname + window.location.search;
+				window.history.replaceState(undefined, '', url); // setting hash to '' won't remove '#'
+				return false;
 			}
-
+			
 			this.hitElements[hitInPage].classList.add('active');
 			this.hitElements[hitInPage].scrollIntoView({block: 'center', inline: 'center'});
 			this.currentHitInPage = hitInPage;
+			return true;
 		}
 
+		const tryHighlightFromHitStart = () => {
+			// Extract the info we need and fix up the url. Pagination parameters may be missing.
+			const findHit: number = Number(new URI().search(true).findhit);
+			window.history.replaceState(undefined, '', new URI().removeSearch('findhit').setSearch('wordstart', PAGE_START).setSearch('wordend', PAGE_END).toString());
 
-		// case 2: the ?findhit parameter
-		// we need to request all hits from blacklab for this
-		//   (but we need these anyway, so we know how many hits there are and where, for navigating through them)
-
-
-		// Load all hits in the document (also those outside this page)
-		// @ts-ignore
-		const { query, field, searchfield }: {
-			query: string|undefined,
-			field: string|undefined,
-			searchfield: string|undefined, // override in parallel corpus (e.g. show contents from field a; search starts from field B)
-		} = new URI().search(true);
-
-		if (!query) { // no hits when no query, abort
-			this.hits = [];
-			return;
-		}
-
-		/**
-		 * Optionally request hits from a specific target field (parallel corpora).
-		 *
-		 * This is done by adding <code>rfield(..., targetField)</code> to the query.
-		 */
-		function optTargetField(query?: string, targetfield?: string) {
-			if (query && targetfield) {
-				const f = targetfield.replace(/'/g, "\\'");
-				return "rfield(" + query + ", '" + f + "')";
+			if (!this.hits || isNaN(findHit) || findHit < 0) {
+				debugLogCat('article', `Invalid findhit in URL: ${findHit}`);
+				return;
 			}
-			return query;
+			const index = binarySearch(this.hits, h => findHit - h[0]);
+			if (index < 0) {
+				debugLogCat('article', `Findhit doesn't exist in document: ${findHit}`);
+				return;
+			}
+			this.handleHitNavigation(index);
 		}
 
-		const spinnerTimeout = setTimeout(() => this.loadingForAwhile = true, 3000);
-		const patt = optTargetField(query, searchfield && searchfield !== field ? field : undefined);
-		console.log({ query, field, searchfield, patt });
-		blacklab
-		.getHits(INDEX_ID, {
-			docpid: DOCUMENT_ID,
-			field: searchfield ?? field,
-			patt,
-			first: 0,
-			number: Math.pow(2, 31)-1,
-			context: 0,
-			includetokencount: false,
-			listvalues: "__do_not_send_anything__", // we don't need this info
-		}).request
-		.then((r: BLHitResults) => r.hits.map(h => [h.start, h.end] as [number, number]))
-		.then(hits => {
-			// if specific hit passed from the previous page, find it in this page
-			let findHit: number = Number(new URI().search(true).findhit);
+		const loadHits = () => {
 
-			if (!isNaN(findHit)) {
-				// binary search to find the hit:
-				const index = binarySearch(hits, h => findHit - h[0]);
+			// Load all hits in the document (also those outside this page)
+			const { query, field, searchfield }: {
+				query?: string,
+				field?: string,
+				searchfield?: string, // override in parallel corpus (e.g. show contents from field a; search starts from field B)
+			} = new URI().search(true);
 
-				if (index >= 0) {
-					let firstVisibleHitIndex = Math.abs(binarySearch(hits, h => PAGE_START - h[0]));
-					if (this.currentHitInPage != null) {
-						this.hitElements[this.currentHitInPage].classList.remove('active');
-					}
-					this.currentHitInPage = index - firstVisibleHitIndex;
-					this.hitElements[this.currentHitInPage].classList.add('active');
-					this.hitElements[this.currentHitInPage].scrollIntoView({block: 'center', inline: 'center'});
+			if (!query) { // no hits when no query, abort
+				return Promise.resolve([]);
+			}
+			
+			/**
+			 * Optionally request hits from a specific target field (parallel corpora).
+			 *
+			 * This is done by adding <code>rfield(..., targetField)</code> to the query.
+			 */
+			function optTargetField(query?: string, targetfield?: string) {
+				if (query && targetfield) {
+					const f = targetfield.replace(/'/g, "\\'");
+					return "rfield(" + query + ", '" + f + "')";
 				}
+				return query;
 			}
-			window.history.replaceState(undefined, '', new URI().removeSearch('findhit').toString());
-
-
-			this.hits = hits;
+			const patt = optTargetField(query, searchfield && searchfield !== field ? field : undefined);
+			//console.log({ query, field, searchfield, patt });
+			
+			const spinnerTimeout = setTimeout(() => this.loadingForAwhile = true, 3000);
+			return blacklab
+			.getHits(INDEX_ID, {
+				docpid: DOCUMENT_ID,
+				field: searchfield ?? field,
+				patt,
+				first: 0,
+				number: Math.pow(2, 31)-1,
+				context: 0,
+				includetokencount: false,
+				listvalues: "__do_not_send_anything__", // we don't need this info
+			}).request
+			.then((r: BLHitResults) => r.hits.map(h => [h.start, h.end] as [number, number]))
+			.then(hits => this.hits = hits)
+			.finally(() => {clearTimeout(spinnerTimeout); this.loadingForAwhile = false;})
+		}
+		
+		// We can do this immediately
+		const isHitHighlighted = tryHighlightIndexOnCurrentPage(); 
+		loadHits()
+		.then(() => {
+			// This one requires the hits to be loaded first.
+			if (!isHitHighlighted) tryHighlightFromHitStart();
 		})
-		.finally(() => { clearTimeout(spinnerTimeout);  this.loadingForAwhile = false; });
 	}
 });
 </script>

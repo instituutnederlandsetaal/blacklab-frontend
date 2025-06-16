@@ -6,7 +6,7 @@
 		<ul class="nav nav-tabs" v-if="tabs.length > 1">
 			<li v-for="tab in tabs" :class="{'active': activeTab===tab.tabname}" :key="tab.tabname" @click.prevent="activeTab=tab.tabname;">
 				<a :href="'#'+tab.tabname">
-					{{tab.tabname}}
+					{{tab.tabname || 'Common' }}
 					<span v-if="activeFiltersMap[tab.tabname]" class="badge" style="background-color:#aaa; vertical-align: baseline;">
 						{{activeFiltersMap[tab.tabname]}}
 					</span>
@@ -70,6 +70,7 @@ import { mapReduce } from '@/utils';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 
 import * as RootStore from '@/store/search';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	components: {
@@ -107,7 +108,7 @@ export default Vue.extend({
 						.map(subtab => ({
 							tabname: this.$tMetaGroupName(subtab.tabname)?.toString(),
 							fields: subtab.fields.filter(id => {
-								const showField = UIStore.corpusCustomizations.search.metadata.showField(id);
+								const showField = corpusCustomizations.search.metadata.showField(id);
 								return showField === true || (showField === null && allIdsToShow.has(id));
 							})
 						}))

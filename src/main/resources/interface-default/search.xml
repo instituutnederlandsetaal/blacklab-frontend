@@ -3,8 +3,8 @@
     <InterfaceProperties>
         <!--
         Limited variable interpolation is supported.
-        ${request:contextPath}  - the application root path on the client, usually /corpus-frontend . Is equal to the cfUrlExternal setting. Does not contain a trailing slash.
-        ${request:corpusPath}   - the corpus root path on the client, usually /corpus-frontend/${corpus-id}, equal to ${request:contextPath} if not viewing a corpus. Does not contain a trailing slash.
+        ${request:contextPath}  - the application root path on the client, usually /blacklab-frontend . Is equal to the cfUrlExternal setting. Does not contain a trailing slash.
+        ${request:corpusPath}   - the corpus root path on the client, usually /blacklab-frontend/${corpus-id}, equal to ${request:contextPath} if not viewing a corpus. Does not contain a trailing slash.
         ${request:corpusId}     - the corpus id (including username portion for user corpora), so 'lassy' or 'username:corpus-name', empty if not viewing a corpus.
         Paths do not contain a trailing slash
         -->
@@ -48,6 +48,7 @@
         -->
         <!-- <PropColumns>lemma,pos,tense, person,number</PropColumns> -->
 
+        
         <NavLinks>
             <Link value="http://www.ivdnt.org/" newWindow="true">INT</Link>
             <Link value="http://www.clarin.eu/" newWindow="true">CLARIN</Link>
@@ -56,6 +57,7 @@
             <Link value="${request:corpusPath}/about">About</Link>
         </NavLinks>
 
+        <!-- #region docspagination -->
         <Article>
             <!--
             Set to true to enable pagination when viewing documents.
@@ -66,13 +68,7 @@
             <!-- When pagination is enabled, this controls the length of a page. -->
             <PageSize>1000</PageSize>
         </Article>
-
-        <!-- Google analytics. Disabled if not provided. -->
-        <!--
-        <Analytics>
-            <Key>google analytics key</Key>
-        </Analytics>
-        -->
+        <!-- #endregion docspagination -->
 
         <!-- see https://github.com/moritzsternemann/vue-plausible -->
         <!-- 
@@ -87,10 +83,10 @@
     <!--
         The following values are provided automatically:
         
-        Typically /corpus-frontend/ or similar. Takes the value of cfUrlExternal from the .properties file.
+        Typically /blacklab-frontend/ or similar. Takes the value of cfUrlExternal from the .properties file.
         Will not contain a trailing slash.
         <XsltParameter name="contextPath" value="${request:contextPath}"/>
-        The corpus path, usually /corpus-frontend/${corpus-id}, equal to ${request:contextPath} if not viewing a corpus.
+        The corpus path, usually /blacklab-frontend/${corpus-id}, equal to ${request:contextPath} if not viewing a corpus.
         Will not contain a trailing slash.
         <XsltParameter name="corpusPath" value="${request:corpusPath}"/>
         The corpus ID (including username portion for user corpora), so 'lassy' or 'username:corpus-name', empty if not viewing a corpus.

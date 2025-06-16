@@ -177,7 +177,7 @@ module.exports = {
 		// as serving them from a different port does not work
 		// So proxy the tomcat instance through webpack-dev-server so everything can run off port 8081 in the browser.
 		proxy: [{
-			context: ['/corpus-frontend', '/blacklab-server'],
+			context: ['/blacklab-frontend', '/blacklab-server'],
 			target: 'http://127.0.0.1:8080',
 			secure: false
 		}]

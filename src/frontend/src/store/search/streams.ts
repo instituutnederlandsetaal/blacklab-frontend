@@ -1,8 +1,8 @@
 // Define a few pipelines to perform actions on streams of data
 import URI from 'urijs';
 
-import { ReplaySubject, Observable, merge, fromEvent, Notification, from, UnsubscriptionError } from 'rxjs';
-import { debounceTime, switchMap, map, shareReplay, filter, materialize } from 'rxjs/operators';
+import { ReplaySubject, Observable, merge, fromEvent, Notification, from, UnsubscriptionError, of } from 'rxjs';
+import { debounceTime, switchMap, map, shareReplay, filter, materialize, mergeMap } from 'rxjs/operators';
 import cloneDeep from 'clone-deep';
 
 import * as RootStore from '@/store/search/';
@@ -65,12 +65,25 @@ export const selectedSubCorpus$ = merge(
 		switchMap(params => new Observable<Notification<RecursiveRequired<BLTypes.BLDocResults>>>(subscriber => {
 			// Speedup: we know the totals beforehand when there are no filters: mock a reply
 			if (!params.filter) {
+				const annot = Object.entries(CorpusStore.getState().corpus!.annotatedFields);
+				const annotatedFields = annot.map(([fieldName, field]) => ({
+					fieldName,
+					documents: field.documentCount ?? 0,
+					tokens: field.tokenCount ?? 0
+				}));
+
 				subscriber.next(Notification.createNext<RecursiveRequired<BLTypes.BLDocResults>>({
 					docs: [],
 					summary: {
 						numberOfDocs: CorpusStore.getState().corpus!.documentCount,
 						stillCounting: false,
 						tokensInMatchingDocuments: CorpusStore.getState().corpus!.tokenCount,
+						subcorpusSize: {
+							documents: CorpusStore.getState().corpus!.documentCount,
+							docVersions: CorpusStore.getState().corpus!.docVersions,
+							tokens: CorpusStore.getState().corpus!.tokenCount,
+							annotatedFields
+						}
 					}
 				} as any));
 
@@ -186,7 +199,7 @@ urlInputParameters$.pipe(
 		// Store some interface state in the url, so the query can be restored to the correct form
 		// even when loading the page from just the url. See UrlStateParser class in store/utils/url-state-parser.ts
 		// TODO we should probably output the form in the url as /${indexId}/('search'|'explore')/('simple'|'advanced' ...etc)/('hits'|'docs')
-		// But for now, we keep parity with blacklab's urls. This allows just changing /corpus-frontend to /blacklab-server, which has some value I suppose.
+		// But for now, we keep parity with blacklab's urls. This allows just changing /blacklab-frontend to /blacklab-server, which has some value I suppose.
 		// We only add a few query parameters of our own to restore some parts of the interface that can't be inferred from the blacklab parameters.
 		const viewedResults = v.state.interface.viewedResults;
 		const view = viewedResults ? v.state.views[viewedResults] : undefined;
@@ -224,7 +237,7 @@ urlInputParameters$.pipe(
 		// while current url might contain one for whatever reason (if user just landed on page - tomcat injects it)
 		// So strip it from the current url in order to properly compare.
 		// also remove domain, port, protocol, since the new url may be generated without them.
-		// if CONTEXT_URL (cfUrlExternal in corpus-frontend.properties) doesn't contain them.
+		// if CONTEXT_URL (cfUrlExternal in blacklab-frontend.properties) doesn't contain them.
 		// If we don't check this here, we might end up with a history entry for the same page, but with a different trailing slash, or even the exact same url.
 		const curUrl = new URI().host('').protocol('').port('').toString().replace(/\/+$/, '');
 
@@ -297,9 +310,6 @@ urlInputParameters$.pipe(
 	});
 	debugLogCat('history', `Calling pushState with entry: ${JSON.stringify(v.entry)} and url: ${v.url}`);
 	history.pushState(v.entry, '', v.url);
-
-	ga('set', v.url);
-	ga('send', 'pageview');
 });
 
 /** Here we attach listeners to the vuex store, and pump the relevant values into the streams defined above. That in turn runs the listeners on those streams, and we can compute the stuff we need. */
@@ -353,7 +363,7 @@ export default () => {
 	);
 
 	fromEvent<PopStateEvent>(window, 'popstate')
-	.pipe(map<PopStateEvent, HistoryStore.HistoryEntry>(evt => evt.state ? evt.state : new UrlStateParser(FilterStore.getState().filters).get()))
+	.pipe(mergeMap(evt => evt.state  ? of(evt.state as HistoryStore.HistoryEntry) : new UrlStateParser(FilterStore.getState().filters).get()))
 	.subscribe(state => RootStore.actions.replace(state));
 
 	debugLog('Finished connecting store to url and subcorpus calculations.');

@@ -10,11 +10,13 @@
 					'col-xs-12': true,
 					'col-md-6': filtersVisible && !queryBuilderVisible
 				}"
+				:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
 			/>
 			<QueryFormExplore id="form-explore" v-show="activeForm === 'explore'"
 				:class="{
 					'col-xs-12': true
 				}"
+				:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
 			/>
 
 			<!-- TODO this is a bit dumb, only show the hr when the filters and pattern form are below each other, but that's rather conditional... -->
@@ -55,7 +57,9 @@ import {Subscription} from 'rxjs';
 import {stripIndent} from 'common-tags';
 
 import * as RootStore from '@/store/search/';
+import * as CorpusStore from '@/store/search/corpus';
 import * as InterfaceStore from '@/store/search/form/interface';
+import * as PatternStore from '@/store/search/form/patterns';
 
 import { selectedSubCorpus$ } from '@/store/search/streams';
 
@@ -84,7 +88,7 @@ export default Vue.extend({
 
 		settingsOpen: false,
 		historyOpen: false,
-
+		errorNoParallelSourceVersion: false,
 	}),
 	computed: {
 		queryBuilderVisible(): boolean { return RootStore.get.queryBuilderActive(); },
@@ -93,10 +97,30 @@ export default Vue.extend({
 			get: InterfaceStore.get.form,
 			set: InterfaceStore.actions.form
 		},
+		exploreMode: {
+			get: InterfaceStore.get.exploreMode,
+			set: InterfaceStore.actions.exploreMode
+		},
 	},
 	methods: {
 		reset: RootStore.actions.reset,
 		submit() {
+			if (CorpusStore.get.isParallelCorpus() && PatternStore.getState().shared.source === null) {
+				// No source version selected. Required for most operations.
+				const needsSource = this.activeForm === 'search' ||
+					(this.activeForm === 'explore' && (this.exploreMode === 'ngram' || this.exploreMode === 'frequency'));
+				if (needsSource) {
+					// Source is required. Alert the user that they need to select a source version
+					this.errorNoParallelSourceVersion = true;
+					// Scroll to the top of the page so the user can see the error
+					window.scrollTo(0, 0);
+					setTimeout(() => this.errorNoParallelSourceVersion = false, 3000);
+					return;
+				} else {
+					this.errorNoParallelSourceVersion = false;
+				}
+			}
+
 			if (this.activeForm === 'explore' && this.subCorpusStats && this.subCorpusStats.summary.tokensInMatchingDocuments! > 5_000_000) {
 				const msg = stripIndent`
 					You have selected a subcorpus of over ${(5_000_000).toLocaleString()} tokens.

@@ -1,11 +1,9 @@
 <template>
 	<div class="multi-value-picker">
 		<div class="selected" v-if="selected.length">
-			<ul>
-				<li class='option' v-for="v in selected" :key="v ? v.value : 'x'" :data-value="v ? v.value : 'x'" :title="$t('widgets.clickToRemove').toString()" @click="clickLabel($event?.target)">
-					{{ v.label || v.value }}
-				</li>
-			</ul>
+			<button type="button" class="btn option" v-for="v in selected" :key="v ? v.value : 'x'" :data-value="v ? v.value : 'x'" :title="$t('widgets.clickToRemove').toString()" @click="clickLabel($event?.target)">
+				{{ v.label || v.value }}
+			</button>
 		</div>
 		<div class="add" v-if="optionsNotYetSelected.length > 0">
 			<SelectPicker :options="optionsNotYetSelected" :value="selectValue" @input="add($event)" data-menu-width="grow" hideEmpty/>
@@ -99,34 +97,21 @@ export default Vue.extend({
 
 <style lang="scss" scoped>
 
-div.selected {
-	margin-top: 0.5rem;
-	margin-bottom: 0.5rem;
-	max-height: 3cm;
-	overflow: auto;
+.selected {
+	margin: 0.5rem 0;
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
 
-	ul {
-		display: inline;
-		padding: 0;
-		li {
-			list-style-type: none;
-			display: inline-block;
-			margin: 2px;
-			user-select: none;
-		}
-		li.option {
-			position: relative;
-			top: 1px;
-			background-color: lighten(#337ab7, 40); // $panel-color (global.scss); maybe separate variables into file we can import here?
-			color: black;
-			padding: 7px;
-			border-radius: 3px;
-			cursor: pointer;
-			&::after {
-				font-weight: bold;
-				content: '✕';
-				margin-left: 5px;
-			}
+	.option {
+		background-color: lighten(#337ab7, 40); // $panel-color (global.scss); maybe separate variables into file we can import here?
+		color: black;
+		padding-left: 7px;
+		padding-right: 7px;
+
+		&::after {
+			font-weight: bold;
+			content: '✕';
 		}
 	}
 }

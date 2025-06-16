@@ -109,7 +109,6 @@ public class MainServlet extends HttpServlet {
             startVelocity(ctx);
 
             XslTransformer.setUseCache(this.useCache(null));
-            BlackLabApi.setBlsUrl(config.get(Keys.BLS_URL_ON_SERVER));
 
             // Map responses, the majority of these can be served for a specific corpus, or as a general autosearch page
             // E.G. the AboutResponse is mapped to /<root>/<corpus>/about and /<root>/about
@@ -262,25 +261,25 @@ public class MainServlet extends HttpServlet {
         List<String> pathParameters;
 
         if (pathParts.isEmpty()) {
-            // don't have any path. E.g. /corpus-frontend
+            // don't have any path. E.g. /blacklab-frontend
             responseClass = responses.get(DEFAULT_PAGE);
             corpus = null;
             pathParameters = new ArrayList<>();
         } else {
             String part1 = pathParts.remove(0);
             if (responses.containsKey(part1)) {
-                // matched a page directly. E.g. /corpus-frontend/help
+                // matched a page directly. E.g. /blacklab-frontend/help
                 responseClass = responses.get(part1);
                 corpus = null;
                 pathParameters = new ArrayList<>(pathParts);
             } else if (pathParts.isEmpty()) {
-                // Didn't match a page, and there's nothing else. Redirect to search page. E.g. /corpus-frontend/corpus
+                // Didn't match a page, and there's nothing else. Redirect to search page. E.g. /blacklab-frontend/corpus
                 logger.fine(String.format("Unknown page '%s' requested - might be a corpus, redirecting to search page", part1));
                 response.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
                 response.setHeader("location", this.config.get(Keys.CF_URL_ON_CLIENT) + "/" + part1 + "/search/");
                 return;
             } else {
-                // Didn't match a page, and there's more parts. This is a corpus, the second part is the page. E.g. /corpus-frontend/corpus/search
+                // Didn't match a page, and there's more parts. This is a corpus, the second part is the page. E.g. /blacklab-frontend/corpus/search
                 corpus = part1;
                 String pageOrCorpus = pathParts.remove(0);
                 responseClass = responses.getOrDefault(pageOrCorpus, ErrorResponse.class);

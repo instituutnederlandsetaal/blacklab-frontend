@@ -5,6 +5,8 @@ import URI from 'urijs';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
+import Vue from 'vue';
+import { corpusCustomizations } from '@/utils/customization';
 
 
 const defaultRegexEscapeOptions = {
@@ -408,14 +410,14 @@ export function applyWithinClauses(query: string, withinClauses: Record<string, 
 		})
 		.join(' overlap ');
 	if (query.length > 0 && overlapClauses.length > 0)
-		return `${query} within ${overlapClauses}`;
+		return `(${query}) within ${overlapClauses}`;
 	return query.length > 0 ? query : overlapClauses;
 }
 
 export function getDocumentUrl(
 	pid: string,
 	/** Field for which to show the document contents (important when this is a parallel corpus, as there are multiple "copies" of the same document then, e.g. an English and Dutch version) */
-	fieldName: string,
+	fieldName?: string,
 	/** Field on which the cql query is run. if searchfield differs from field (parallel corpus) */
 	searchField?: string,
 	cql?: string,
@@ -576,7 +578,8 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 	i18n: Vue,
 	debug = false,
 	/* show the <small/> labels at the end of options labels? */
-	showGroupLabels = true
+	showGroupLabels = true,
+	showFieldFunction?: (id: string) => boolean|null
 ): Array<AppTypes.OptGroup&{entries: T[]}> {
 	const subset = fieldSubset(ids, groups, metadata);
 
@@ -604,7 +607,9 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 	}
 
 	const r = subset.map<AppTypes.OptGroup&{entries: T[]}>(group => ({
-		options: group.entries.flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),
+		options: group.entries
+			.filter(e => showFieldFunction?.(e.id) ?? true)
+			.flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),
 		entries: group.entries,
 		label: i18n.$tMetaGroupName(group.id)
 	}));

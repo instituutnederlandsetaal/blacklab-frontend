@@ -11,6 +11,7 @@
 		</ul>
 		<div class="tab-content" :class="{ parallel: isParallelCorpus }">
 			<div :class="['tab-pane form-horizontal', {'active': activePattern==='simple'}]" id="simple">
+				<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 				<!-- TODO render the full annotation instance? requires some changes to bind to store correctly and apply appropriate classes though -->
 				<div class="form-group form-group-lg">
 					<label class="control-label"
@@ -25,16 +26,16 @@
 						ref="_simple"
 					></div>
 					<Annotation v-else
-						:key="'simple/' + simpleSearchAnnotation.annotatedFieldId + '/' + simpleSearchAnnotation.id"
-						:htmlId="'simple/' + simpleSearchAnnotation.annotatedFieldId + '/' + simpleSearchAnnotation.id"
+						:key="'simple/' + simpleSearchAnnotation.id"
+						:htmlId="'simple/' + simpleSearchAnnotation.id"
 						:annotation="simpleSearchAnnotation"
 						bare
 						simple
 					/>
 				</div>
-				<ParallelSourceAndTargets v-if="isParallelCorpus" block lg/>
 			</div>
 			<div :class="['tab-pane form-horizontal', {'active': activePattern==='extended'}]" id="extended">
+				<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion"/>
 				<template v-if="useTabs">
 					<ul class="nav nav-tabs subtabs" style="padding-left: 15px">
 						<li v-for="(tab, index) in tabs" :class="{'active': index === 0}" :key="index">
@@ -48,15 +49,17 @@
 							:id="getTabId(tab.label)"
 						>
 							<template v-for="annotation in tab.entries">
+								<!-- Note that we don't use annotatedFieldId in the key, because for parallel,
+								     we can change the version, but we don't want that to affect the value of
+									 the input field, only the autocomplete functionality. -->
 								<div v-if="customAnnotations[annotation.id]"
-									:key="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
+									:key="getTabId(tab.label) + '/' + annotation.id"
 									:data-custom-annotation-root="annotation.id"
-									:ref="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
+									:ref="getTabId(tab.label) + '/' + annotation.id"
 								></div>
-
 								<Annotation v-else
-									:key="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
-									:htmlId="getTabId(tab.label) + '/' + annotation.annotatedFieldId + '/' + annotation.id"
+									:key="getTabId(tab.label) + '/' + annotation.id"
+									:htmlId="getTabId(tab.label) + '/' + annotation.id"
 									:annotation="annotation"
 								/>
 							</template>
@@ -66,20 +69,18 @@
 				<template v-else>
 					<template v-for="annotation in allAnnotations">
 						<div v-if="customAnnotations[annotation.id]"
-							:key="annotation.annotatedFieldId + '/' + annotation.id + '/custom'"
+							:key="annotation.id + '/custom'"
 							:data-custom-annotation-root="annotation.id"
-							:ref="annotation.annotatedFieldId + '/' + annotation.id"
+							:ref="annotation.id"
 						></div>
 
 						<Annotation v-else
-							:key="annotation.annotatedFieldId + '/' + annotation.id + '/builtin'"
-							:htmlId="annotation.annotatedFieldId + '/' + annotation.id"
+							:key="annotation.id + '/builtin'"
+							:htmlId="annotation.id"
 							:annotation="annotation"
 						/>
 					</template>
 				</template>
-
-				<ParallelSourceAndTargets v-if="isParallelCorpus"/>
 
 				<Within />
 
@@ -93,7 +94,7 @@
 
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', {'active': activePattern==='advanced'}]" id="advanced">
-				<SearchAdvanced	/>
+				<SearchAdvanced :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 			</div>
 			<div v-if="conceptEnabled" :class="['tab-pane', {'active': activePattern==='concept'}]" id="concept">
 
@@ -108,7 +109,7 @@
 				<button type="button" class="btn btn-default btn-sm" @click="copyGlossQuery">{{$t('search.glosses.copyGlossQuery')}}</button>
 			</div>
 			<div :class="['tab-pane', {'active': activePattern==='expert'}]" id="expert">
-				<SearchExpert />
+				<SearchExpert :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 
 				<!-- Copy to builder, import, gap filling buttons -->
 				<template>
@@ -168,12 +169,12 @@ import * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
 
 import { Option } from '@/components/SelectPicker.vue';
-import { corpusCustomizations } from '@/store/search/ui';
 
 function isVue(v: any): v is Vue { return v instanceof Vue; }
 function isJQuery(v: any): v is JQuery { return typeof v !== 'boolean' && v && v.jquery; }
 
 import ParallelFields from './parallel/ParallelFields';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default ParallelFields.extend({
 	components: {
@@ -184,6 +185,9 @@ export default ParallelFields.extend({
 		ConceptSearch,
 		GlossSearch,
 		Within,
+	},
+	props: {
+		errorNoParallelSourceVersion: {default: false, type: Boolean},
 	},
 	data: () => ({
 		uid: uid(),
@@ -201,7 +205,7 @@ export default ParallelFields.extend({
 			return this.tabs.length > 1;
 		},
 		tabs(): Array<{label?: string, entries: AppTypes.NormalizedAnnotation[]}> {
-			return getAnnotationSubset(
+			const result = getAnnotationSubset(
 				UIStore.getState().search.extended.searchAnnotationIds,
 				CorpusStore.get.annotationGroups(),
 				CorpusStore.get.allAnnotationsMap(),
@@ -209,15 +213,39 @@ export default ParallelFields.extend({
 				this,
 				CorpusStore.get.textDirection()
 			);
+			if (this.isParallelCorpus) {
+				// Make sure we have the correct field, so autosuggest works properly
+				const versionSelected = PatternStore.getState().shared.source !== null;
+				const field = PatternStore.getState().shared.source ?? CorpusStore.get.mainAnnotatedField();
+				const fieldId = CorpusStore.get.allAnnotatedFieldsMap()[field]?.id;
+				if (fieldId) {
+					result.forEach(tab => {
+						tab.entries = tab.entries.map(e => ({
+							...e,
+							annotatedFieldId: versionSelected ? field : '' // no autocomplete if no version selected
+						}));
+					});
+				}
+			}
+			return result;
 		},
 		allAnnotations(): AppTypes.NormalizedAnnotation[] {
 			return this.tabs.flatMap(tab => tab.entries);
 		},
 		simpleSearchAnnotation(): AppTypes.NormalizedAnnotation {
+			const field = this.isParallelCorpus ?
+				PatternStore.getState().shared.source :
+				CorpusStore.get.mainAnnotatedField();
 			const id = UIStore.getState().search.simple.searchAnnotationId;
-			return CorpusStore.get.allAnnotationsMap()[id] || CorpusStore.get.firstMainAnnotation();
+			const annotField = field ?? CorpusStore.get.mainAnnotatedField();
+			const result = CorpusStore.get.allAnnotatedFieldsMap()[annotField]?.annotations[id]
+				|| CorpusStore.get.firstMainAnnotation();
+			return {
+				...result,
+				annotatedFieldId: field ?? '' // no autocomplete if no parallel version selected
+			};
 		},
-		simpleSearchAnnoationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
+		simpleSearchAnnotationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
 		textDirection: CorpusStore.get.textDirection,
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
@@ -425,6 +453,13 @@ export default ParallelFields.extend({
 		margin-bottom: 0;
 		&.bl-querybuilder-root { padding: 0; }
 	}
+
+}
+
+.error {
+	color: red;
+	margin: 0.5em 0 0 1em;
+	font-weight: bold;
 }
 
 #simple .form-group {

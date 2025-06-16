@@ -8,6 +8,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -17,10 +18,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import nl.inl.corpuswebsite.MainServlet;
-import nl.inl.corpuswebsite.response.ArticleResponse;
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
 public class CorpusFileUtil {
+    private static final Logger logger = Logger.getLogger(CorpusFileUtil.class.getName());
 
     /**
      * Get a file from the directory belonging to this corpus and return it, attempting to get a default if that fails.
@@ -54,10 +55,8 @@ public class CorpusFileUtil {
             .flatMap(p -> resolveIfValid(p, filePath))
             .map(Path::toFile)
             .filter(File::canRead)
-            // if the lookup above didn't work, try the fallback corpus
-            // see https://github.com/INL/corpus-frontend/pull/69
-            // In essence, this can be used to supply a default config which also applies to user corpora
-            // (albeit as a whole, not individually).
+            // if the lookup above didn't work, try the defaults folder
+            // see https://github.com/instituutnederlandsetaal/blacklab-frontend/pull/69
             .or(() -> dataDir
                 .flatMap(p -> resolveIfValid(p, fallbackCorpus))
                 .flatMap(p -> resolveIfValid(p, filePath))
@@ -110,7 +109,7 @@ public class CorpusFileUtil {
             HttpServletResponse response
     ) {
         Optional<String> fullFileName = corpus.getCorpusDataFormat().map(formatName -> fileName + "_" + formatName + ".xsl");
-        Optional<String> fallbackFilename = Optional.of(fileName + ".xsl");
+        Optional<String> fallbackFilename = Optional.of(fileName + ".xsl"); // e.g. article.xsl, meta.xsl
         String filesDir = config.get(Keys.CORPUS_CONFIG_DIR);
         Optional<String> fallbackDirectory = Optional.of(config.get(Keys.DEFAULT_CORPUS_CONFIG));
 
@@ -118,33 +117,42 @@ public class CorpusFileUtil {
         Optional<File> file = getProjectFile(filesDir, Optional.of(corpus.getCorpusId()), fallbackDirectory, fullFileName)
                 .or(() -> getProjectFile(filesDir, Optional.of(corpus.getCorpusId()), fallbackDirectory, fallbackFilename));
 
-        // If file found, parse it
-        Result<XslTransformer, TransformerException> r = Result
-                .from(file)
-                .mapWithErrorHandling(XslTransformer::new)
-                .mapError(e -> new TransformerException(
-                        "Error loading stylesheet from disk:\n"
-                                + file.get() + "\n"
-                                + e.getMessage() + "\n"
-                                + ExceptionUtils.getStackTrace(e))
-                );
-        // If the file exists (i.e. we have a result or an error at this point), return it.
-        // Don't hide errors in the file by using BlackLab as a fallback (since we want to be able to debug errors in files on disk).
-        if (!r.isEmpty()) return r;
+        // Dance around types, since the API uses Result<> but file resolving uses Optional<>
+        Result<File, QueryException> fileResult = Result.from(file);
+        Result<String, QueryException> blacklabResult = Result.empty();
 
-        // alright, file not found. Try getting from BlackLab and parse that
-        if (fileName.equals("article") && corpus.getCorpusDataFormat().isPresent()) { // for article files, we can try blacklab if there is no file on disk
-            return new BlackLabApi(request, response, config)
-                    .getStylesheet(corpus.getCorpusDataFormat().get())
-                    .flatRecover(e -> e.getHttpStatusCode() == 404 ? Result.empty() : Result.error(e)) // if blacklab returns a 404, return empty instead of the http error.
-                    .mapWithErrorHandling(xsl -> new XslTransformer(corpus.getCorpusDataFormat().get(), xsl))
-                    .mapError(e -> new TransformerException(
-                            "Error loading stylesheet " + corpus.getCorpusDataFormat().get() + " from BlackLab:\n"
-                                    + e.getMessage() + "\n"
-                                    + ExceptionUtils.getStackTrace(e))
-                    );
+        // TODO: bit of a hack.
+        // The builtin "article.xsl" is now loaded if there is no dedicated article file for the corpus
+        // Ignore it for now, and try to get the version from BlackLab
+        if (fileName.equals("article") && fileResult.matches(f -> f.getPath().contains("interface-default"))) {
+            // attemp to load the file from blacklab, only using the default article.xsl if blacklab return 404.
+            // (if the blacklab file is invalid, raise that error, it should never happen, and we want to know about it)
+            // This is a bit of a hack, but it works for now.
+            System.out.println("Stylesheet: article - trying to load from blacklab");
+            blacklabResult = new BlackLabApi(request, response, config)
+                .getStylesheet(corpus.getCorpusDataFormat().get())
+                .flatMapError(e -> e.getHttpStatusCode() == 404 ? Result.empty() : Result.error(e)); // if blacklab returns a 404, return empty instead of the http error.
+                
         }
-        return Result.error(new TransformerException("File not found on disk, and no fallback available: " + fileName + ".xsl"));
+
+        return blacklabResult // attempt to use the BlackLab stylesheet first, as we only retrieve it when needed
+            .tapSelf(r -> System.out.println("Stylesheet '"+fileName+"' from blacklab: " + (r.hasError() ? "error" : r.hasResult() ? "present" : "empty")))
+            .mapWithErrorHandling(xsl -> new XslTransformer(corpus.getCorpusDataFormat().get(), xsl))
+            .mapError(e -> new TransformerException("Error loading stylesheet from blacklab:\n" 
+                + corpus.getCorpusDataFormat().get() + "\n"
+                + e.getMessage() + "\n"
+                + ExceptionUtils.getStackTrace(e))
+            )
+            .or(() -> fileResult
+                .tapSelf(r -> System.out.println("Stylesheet '"+fileName+"' from disk: " + (r.hasError() ? "error! - " + r.getError().get(): r.hasResult() ? r.getResult().get() : "empty")))
+                .mapWithErrorHandling(XslTransformer::new)
+                .mapError(e -> new TransformerException("Error loading stylesheet from disk:\n"
+                    + file.get() + "\n"
+                    + e.getMessage() + "\n"
+                    + ExceptionUtils.getStackTrace(e))
+                )
+            )
+            .orError(() -> new TransformerException("File not found on disk, and no fallback available: " + fileName + ".xsl"));
     }
 
     private static Optional<Path> getIfValid(String path) {

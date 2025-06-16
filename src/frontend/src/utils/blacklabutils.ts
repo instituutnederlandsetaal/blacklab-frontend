@@ -1,6 +1,8 @@
 import type {NormalizedIndex, NormalizedAnnotation, NormalizedAnnotatedField, NormalizedMetadataField, NormalizedFormat, NormalizedMetadataGroup, NormalizedAnnotationGroup, NormalizedIndexBase} from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 import { getParallelFieldParts, mapReduce, PARALLEL_FIELD_SEPARATOR } from '@/utils';
+import * as CorpusStore from '@/store/search/corpus';
+import { corpusCustomizations } from '@/utils/customization';
 
 /** Find the annotation that contains annotationId as on of its subAnnotations. */
 function findParentAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string): string|undefined {
@@ -34,17 +36,21 @@ function normalizeMetadataUIType(field: BLTypes.BLMetadataField): NormalizedMeta
 	}
 }
 
-function normalizeAnnotationUIType(field: BLTypes.BLAnnotation): NormalizedAnnotation['uiType'] {
+export function normalizeAnnotationUIType(field: BLTypes.BLAnnotation|NormalizedAnnotation): NormalizedAnnotation['uiType'] {
 	const uiType = field.uiType.trim().toLowerCase();
 
+	// valueListComplete only present on non-normalized annotation
+	// if the field is normalized, and we have a values property, we can assume that the list is complete.
+	const hasAllValues = field.values && ('valueListComplete' in field ? !!field.valueListComplete : true);
+
 	if (!uiType) {
-		return field.values ? field.valueListComplete ? 'select' : 'combobox' : 'text';
+		return field.values ? hasAllValues ? 'select' : 'combobox' : 'text';
 	}
 
 	switch (uiType) {
 		case 'dropdown':
 		case 'select':
-			return field.values && field.valueListComplete ? 'select' : 'combobox';
+			return hasAllValues ? 'select' : 'combobox';
 		case 'autocomplete':
 		case 'combobox':
 			return 'combobox';
@@ -111,6 +117,8 @@ function normalizeAnnotatedField(field: BLTypes.BLAnnotatedField): NormalizedAnn
 		isParallel,
 		prefix: parallelFieldParts.prefix,
 		version: parallelFieldParts.version,
+		tokenCount: field.tokenCount,
+		documentCount: field.documentCount,
 	};
 }
 

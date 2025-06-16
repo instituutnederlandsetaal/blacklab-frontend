@@ -15,6 +15,7 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -30,12 +31,12 @@ import org.apache.commons.lang3.SystemUtils;
 
 /**
  * <pre>
- * Class to manage our global config file (default name: corpus-frontend.properties)
+ * Class to manage our global config file (default name: blacklab-frontend.properties)
  * A default setup should *just work*, provided blacklab can be found on the same host at /blacklab-server/.
  *
  * Config files are loaded in the following order:
- * - Environment variables first (corpus frontend, then blacklab as fallback).
- * - Then /etc/corpus-frontend, then /etc/blacklab as fallback. (linux only)
+ * - Environment variables first (BlackLab Frontend, then blacklab as fallback).
+ * - Then /etc/blacklab-frontend, then /etc/blacklab as fallback. (linux only)
  * - Then the directory containing the webapp, then the user's home directory.
  *
  * Configurations files are NOT case-sensitive.
@@ -80,9 +81,12 @@ public class GlobalConfig implements ServletContextListener {
 
     private final Properties instanceProps;
 
+    private static final String SETTING_ENV_KEY_PREFIX = "BF_"; 
+
     public enum Keys {
+        // #region GlobalConfigKeysInDocs
         /**
-         * Message to display at the top of the page. Note that this may contain HTML. https://github.com/INL/corpus-frontend/issues/247
+         * Message to display at the top of the page. Note that this may contain HTML. https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/247
          * NULL if not set.
          */
         BANNER_MESSAGE("bannerMessage"),
@@ -110,12 +114,12 @@ public class GlobalConfig implements ServletContextListener {
         /** Enable/disable the debug info checkbox in the interface */
         SHOW_DEBUG_CHECKBOX_ON_CLIENT("debugInfo"),
         /**
-         * Url to reach the corpus-frontend servlet (i.e. this) from the browser. Usually not required, but might be necessary when server is behind a proxy,
-         * defaults to the servlet context path. Never ends in a slash.
+         * Url to reach the blacklab-frontend servlet (i.e. this) from the browser. Usually not required, but might be necessary when server is behind a proxy,
+         * defaults to the servlet context path. Never ends with a slash.
          */
         CF_URL_ON_CLIENT("cfUrlExternal"),
 
-        /** ClientID for OpenID Connect authentication. Defaults to "corpus-frontend" */
+        /** ClientID for OpenID Connect authentication. Defaults to "blacklab-frontend" */
         OIDC_CLIENT_ID("oidc.clientId"),
         /** Authority for OpenID Connect authentication. This is usually the root of the oidc server. Ex. for Keycloak, https://login.ivdnt.org/realms/blacklab/ */
         OIDC_AUTHORITY("oidc.authority"),
@@ -139,6 +143,8 @@ public class GlobalConfig implements ServletContextListener {
          */
         AUTH_TARGET_TYPE("auth.target.type");
 
+        // #endregion GlobalConfigKeysInDocs
+
         public final String s;
         Keys(String s) {
             this.s = s;
@@ -152,6 +158,7 @@ public class GlobalConfig implements ServletContextListener {
             return Arrays.stream(Keys.values()).filter(k -> k.s.equalsIgnoreCase(s)).findFirst().orElse(null);
         }
     }
+    
 
     static {
         // Keep these in sync with what we document as defaults in README.md
@@ -162,16 +169,18 @@ public class GlobalConfig implements ServletContextListener {
         set(defaultProps, Keys.SHOW_DEBUG_CHECKBOX_ON_CLIENT,   "false");
         set(defaultProps, Keys.FRONTEND_WITH_CREDENTIALS,       "false");
         set(defaultProps, Keys.CACHE,                           "true");
-        set(defaultProps, Keys.OIDC_CLIENT_ID,                  "corpus-frontend");
+        set(defaultProps, Keys.OIDC_CLIENT_ID,                  "blacklab-frontend");
 
-        set(defaultProps, Keys.AUTH_SOURCE_NAME,                 "Authorization");
-        set(defaultProps, Keys.AUTH_SOURCE_TYPE,                 "header");
-        set(defaultProps, Keys.AUTH_TARGET_NAME,                 "Authorization");
-        set(defaultProps, Keys.AUTH_TARGET_TYPE,                 "header");
+        set(defaultProps, Keys.AUTH_SOURCE_NAME,                "Authorization");
+        set(defaultProps, Keys.AUTH_SOURCE_TYPE,                "header");
+        set(defaultProps, Keys.AUTH_TARGET_NAME,                "Authorization");
+        set(defaultProps, Keys.AUTH_TARGET_TYPE,                "header");
         // JSPATH and CF_URL_ON_CLIENT properly initialized later, because we need the servlet context path for that.
         // JSPATH is also dependent on CF_URL_ON_CLIENT, so we need to watch out for the case where the user CF_URL_ON_CLIENT but not JSPATH.
-        set(defaultProps, Keys.JSPATH,                           "/corpus-frontend/js");
-        set(defaultProps, Keys.CF_URL_ON_CLIENT,                 "/corpus-frontend");
+        set(defaultProps, Keys.JSPATH,                          "/blacklab-frontend/js");
+        set(defaultProps, Keys.CF_URL_ON_CLIENT,                "/blacklab-frontend");
+
+       
 
         // git.properties is generated by the git-commit-id-maven-plugin
         Properties props = new Properties();
@@ -200,13 +209,15 @@ public class GlobalConfig implements ServletContextListener {
     }
 
     public static GlobalConfig getDefault() {
-        return new GlobalConfig(defaultProps);
+        // Explicitly pass an empty props object, so we can detect if settings come from ENV or not based on presence
+        return new GlobalConfig(new Properties());
     }
 
     
     /** 
+     * DO NOT USE THIS METHOD.
      * Required for reflection in the servlet container 
-     * Creates a default config instance. Don't use this method manually.
+     * Creates a default config instance. 
      */
     public GlobalConfig() {
         this(defaultProps);
@@ -214,13 +225,19 @@ public class GlobalConfig implements ServletContextListener {
 
     GlobalConfig(File f) {
         this(loadProperties(f));
-        this.validateAndNormalize();
         watchConfigFile(f);
     }
 
     GlobalConfig(Properties p) {
-        this.instanceProps = (Properties) p.clone();
-        this.validateAndNormalize();
+        this.instanceProps = new Properties();
+        this.apply(p);
+    }
+
+    /** Separate function to allow reload of the config file to replace settings in existing config instances. */
+    void apply(Properties p) {
+        validate(p);
+        this.instanceProps.clear();
+        this.instanceProps.putAll(p);
     }
 
     public String get(Keys k) {
@@ -255,22 +272,69 @@ public class GlobalConfig implements ServletContextListener {
         p.remove(k.toString());
     }
 
+    private boolean isDefault(Keys k) {
+        return isDefault(instanceProps, k);
+    }
+
+    private static boolean isDefault(Properties p, Keys k) {
+        return Objects.equals(get(defaultProps, k), get(p, k));
+    }
+
+    private static boolean contains(Properties p, Keys k) {
+        return p.containsKey(k.toString());
+    }
+
+
     /**
      * To be called before finishing initialization.
-     * Replace all properties with the properly capitalized versions.
      * Warn about missing props.
      * Replace missing props with their defaults.
+     * Fix up any inconsistencies, such as trailing slashes, so the rest of the code can assume a consistent format.
      */
-    private void validateAndNormalize() {
-        // First, replace all properties with the properly capitalized versions
-        for (String key : instanceProps.stringPropertyNames()) {
-            final String currentValue = instanceProps.getProperty(key);
-            Keys foundKey = Keys.get(key);
-            if (foundKey == null) continue; // property does not map to a known key, ignore it
+    private static void validate(Properties instanceProps) {
+        // Before we do anything, we need to normalize the property names to prevent collisions, etc.
+        for (String randomlyCaptilizedKey : instanceProps.stringPropertyNames()) {
+            final String currentValue = instanceProps.getProperty(randomlyCaptilizedKey);
+            Keys properlyCapitalizedKey = Keys.get(randomlyCaptilizedKey);
+            if (properlyCapitalizedKey == null) continue; // property does not map to a known key, ignore it
 
             // replace with the properly capitalized version
-            remove(foundKey); // this is okay, stringPropertyNames() returns a copy of the keys
-            set(foundKey, currentValue);
+            // removing while iterating is okay, stringPropertyNames() returns a copy of the keys
+            instanceProps.remove(properlyCapitalizedKey);
+            set(instanceProps, properlyCapitalizedKey, currentValue);
+        }
+
+        // Now, apply environment variables to the config.
+        for (Keys key : Keys.values()) {
+            String[] envKeysToTry = new String[] {
+                SETTING_ENV_KEY_PREFIX + key.name(),                      // e.g., BF_BLS_URL_ON_CLIENT
+                SETTING_ENV_KEY_PREFIX + key.toString(),                  // e.g., BF_blsUrlExternal
+                SETTING_ENV_KEY_PREFIX + key.toString().toUpperCase(),    // e.g., BF_BLSURLEXTERNAL
+                // camelCase to CAMEL_CASE
+                SETTING_ENV_KEY_PREFIX + key.toString()                   // e.g., BF_BLS_URL_EXTERNAL
+                    .replaceAll("([a-z])([A-Z]+)", "$1_$2")
+                    .replaceAll("[-\\.]", "_") // also replace dashes and dots
+                    .toUpperCase() 
+            };
+            for (String envKey : envKeysToTry) {
+                String envValue = System.getenv(envKey);
+                if (envValue != null) {
+                    logger.info(String.format("Setting config key '%s' from environment variable '%s' - %s", key, envKey, envValue));
+                    set(instanceProps, key, envValue);
+                    break; // stop after the first match
+                }
+            }
+        }
+
+        // If only one of the (clientside, serverside) blacklab urls is set
+        // Initialize the other one to the same value.
+        // We assume that if one is set, that means BlackLab is not in the expected location, so both should be changed.
+        if (contains(instanceProps, Keys.BLS_URL_ON_CLIENT) != contains(instanceProps, Keys.BLS_URL_ON_SERVER)) {
+            Keys presentKey = contains(instanceProps, Keys.BLS_URL_ON_CLIENT) ? Keys.BLS_URL_ON_CLIENT : Keys.BLS_URL_ON_SERVER;
+            Keys missingKey = presentKey == Keys.BLS_URL_ON_CLIENT ? Keys.BLS_URL_ON_SERVER : Keys.BLS_URL_ON_CLIENT;
+            set(instanceProps, missingKey, get(instanceProps, presentKey));
+            logger.warning("Found changed BlackLab URL in " + presentKey + ", but not in " + missingKey + ".\n" + 
+            "  Setting " + missingKey + " to the same value: " + get(instanceProps, presentKey));
         }
 
         // Now check for missing props, warn and set defaults
@@ -283,36 +347,37 @@ public class GlobalConfig implements ServletContextListener {
         }
 
         // perform some final checks, such as removing any trailing slash (just to be consistent)
-        if (StringUtils.isBlank(get(Keys.BANNER_MESSAGE))) remove(Keys.BANNER_MESSAGE);
-        set(Keys.BLS_URL_ON_SERVER, StringUtils.stripEnd(get(Keys.BLS_URL_ON_SERVER), "/\\"));
-        set(Keys.BLS_URL_ON_CLIENT, StringUtils.stripEnd(get(Keys.BLS_URL_ON_CLIENT), "/\\"));
-        set(Keys.CORPUS_CONFIG_DIR, StringUtils.stripEnd(get(Keys.CORPUS_CONFIG_DIR), "/\\"));
-        set(Keys.DEFAULT_CORPUS_CONFIG, StringUtils.stripEnd(get(Keys.DEFAULT_CORPUS_CONFIG), "/\\"));
-        set(Keys.JSPATH, StringUtils.stripEnd(get(Keys.JSPATH), "/\\"));
-        set(Keys.CF_URL_ON_CLIENT, StringUtils.stripEnd(get(Keys.CF_URL_ON_CLIENT), "/\\"));
-        if (get(Keys.JSPATH).equals(get(defaultProps, Keys.JSPATH)) && !get(Keys.CF_URL_ON_CLIENT).equals(get(defaultProps, Keys.CF_URL_ON_CLIENT)) ) {
-            // JSPath is the default, but the CF_URL_ON_CLIENT is not. Update the JSPath to match the CF_URL_ON_CLIENT
+        if (StringUtils.isBlank(get(instanceProps, Keys.BANNER_MESSAGE))) remove(instanceProps, Keys.BANNER_MESSAGE);
+        set(instanceProps, Keys.BLS_URL_ON_SERVER, StringUtils.stripEnd(get(instanceProps, Keys.BLS_URL_ON_SERVER), "/\\"));
+        set(instanceProps, Keys.BLS_URL_ON_CLIENT, StringUtils.stripEnd(get(instanceProps, Keys.BLS_URL_ON_CLIENT), "/\\"));
+        set(instanceProps, Keys.CORPUS_CONFIG_DIR, StringUtils.stripEnd(get(instanceProps, Keys.CORPUS_CONFIG_DIR), "/\\"));
+        set(instanceProps, Keys.DEFAULT_CORPUS_CONFIG, StringUtils.stripEnd(get(instanceProps, Keys.DEFAULT_CORPUS_CONFIG), "/\\"));
+        set(instanceProps, Keys.JSPATH, StringUtils.stripEnd(get(instanceProps, Keys.JSPATH), "/\\"));
+        set(instanceProps, Keys.CF_URL_ON_CLIENT, StringUtils.stripEnd(get(instanceProps, Keys.CF_URL_ON_CLIENT), "/\\"));
+        if (isDefault(instanceProps, Keys.JSPATH) && !isDefault(instanceProps, Keys.CF_URL_ON_CLIENT)) {
+            // JSPath is the default, but the CF_URL_ON_CLIENT is not. 
+            // That means the js won't be found because it's not at the expected location.
             // This can happen if someone sets the CF_URL_ON_CLIENT to something other than the default, but doesn't set the JSPATH.
             // In that case our defaults set the JSPATH to /${contextPath}/js, but we need to update it to match the new CF_URL_ON_CLIENT
-            set(Keys.JSPATH, get(Keys.CF_URL_ON_CLIENT) + "/js");
+            set(instanceProps, Keys.JSPATH, get(instanceProps, Keys.CF_URL_ON_CLIENT) + "/js");
             logger.info(String.format("Detected modified %s but default %s, updating %s to match. New value '%s'",
-                    Keys.CF_URL_ON_CLIENT, Keys.JSPATH, Keys.JSPATH, get(Keys.JSPATH)));
+                    Keys.CF_URL_ON_CLIENT, Keys.JSPATH, Keys.JSPATH, get(instanceProps, Keys.JSPATH)));
         }
 
-        if (Stream.of("header", "cookie", "attribute", "parameter").noneMatch(get(Keys.AUTH_SOURCE_TYPE)::equalsIgnoreCase)) {
-            logger.warning("Invalid value for " + Keys.AUTH_SOURCE_TYPE + ": " + get(Keys.AUTH_SOURCE_TYPE) + ". Defaulting to 'header'.");
-            set(Keys.AUTH_SOURCE_TYPE, "header");
+        if (Stream.of("header", "cookie", "attribute", "parameter").noneMatch(get(instanceProps, Keys.AUTH_SOURCE_TYPE)::equalsIgnoreCase)) {
+            logger.warning("Invalid value for " + Keys.AUTH_SOURCE_TYPE + ": " + get(instanceProps, Keys.AUTH_SOURCE_TYPE) + ". Defaulting to 'header'.");
+            set(instanceProps, Keys.AUTH_SOURCE_TYPE, "header");
         }
-        if (Stream.of("header", "cookie", "parameter").noneMatch(get(Keys.AUTH_TARGET_TYPE)::equalsIgnoreCase)) {
-            logger.warning("Invalid value for " + Keys.AUTH_TARGET_TYPE + ": " + get(Keys.AUTH_TARGET_TYPE) + ". Defaulting to 'header'.");
-            set(Keys.AUTH_TARGET_TYPE, "header");
+        if (Stream.of("header", "cookie", "parameter").noneMatch(get(instanceProps, Keys.AUTH_TARGET_TYPE)::equalsIgnoreCase)) {
+            logger.warning("Invalid value for " + Keys.AUTH_TARGET_TYPE + ": " + get(instanceProps, Keys.AUTH_TARGET_TYPE) + ". Defaulting to 'header'.");
+            set(instanceProps, Keys.AUTH_TARGET_TYPE, "header");
         }
     }
 
     /**
      * Config file resolution order:
-     * Environment variables first (corpus frontend, then blacklab as fallback).
-     * Then /etc/corpus-frontend, then /etc/blacklab as fallback.
+     * Environment variables first (BlackLab Frontend, then blacklab as fallback).
+     * Then /etc/blacklab-frontend, then /etc/blacklab as fallback.
      * Then the directory containing the webapp, then the user's home directory.
      * </pre>
      * @param ctx ServletContext
@@ -379,6 +444,7 @@ public class GlobalConfig implements ServletContextListener {
                 });
     }
 
+    /** Load the file and return it as-is. Names are not normalized, nothing is validated. */
     private static Properties loadProperties(File f) {
         if (!f.isFile())
             throw new IllegalArgumentException("File " + f + " does not exist");
@@ -395,6 +461,7 @@ public class GlobalConfig implements ServletContextListener {
         }
         return loadedProps;
     }
+
 
     // ========================
     // Livereload on the config
@@ -417,7 +484,7 @@ public class GlobalConfig implements ServletContextListener {
                             if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
                                 Path changed = (Path) event.context();
                                 if (changed.equals(configFile.toPath().getFileName())) {
-                                    reloadProperties(configFile);
+                                    instance.apply(loadProperties(configFile));
                                 }
                             }
                         }
@@ -438,27 +505,12 @@ public class GlobalConfig implements ServletContextListener {
         }
     }
 
-    private static void reloadProperties(File configFile) {
-        logger.info("Config file changed - reloading: " + configFile);
-        instance.instanceProps.clear();
-        instance.instanceProps.putAll(loadProperties(configFile));
-        instance.validateAndNormalize();
-    }
-
     // ========================
     // ServletContextListener
     // ========================
 
-//    private static void initDefaults(ServletContext ctx) {
-//        final String applicationName = ctx.getContextPath().replaceAll("^/", "");
-//        set(defaultProps, Keys.CF_URL_ON_CLIENT, "/" + applicationName);
-//        // DO NOT init jspath here. it's dependent on CF_URL_ON_CLIENT.
-//        // If the user overrides that, we need to know whether the user also set jspath
-//    }
-
     @Override
     public void contextInitialized(ServletContextEvent sce) {
-//        initDefaults(sce.getServletContext());
         instance = loadConfigFile(sce.getServletContext());
     }
 

@@ -1,11 +1,11 @@
 <template>
 
-	<div class="container">
+	<div :class="wideView.value ? 'container-fluid' : 'container'">
 		<template v-if="loadingState === 'loaded'">
 			<QueryForm/>
 			<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary"/>
-			<Debug v-if="resultsVisible" style="margin: 0 -15px; margin-bottom: 40px;">
-				<div>
+			<Debug v-if="resultsVisible">
+				<div style="margin: 0 -15px; margin-bottom: 40px;">
 					<div>{{ $t('searchPage.fullQuery') }}: </div>
 					<pre><template v-for="(v, k) in debugQuery"><template v-if="v != null && v !== ''">{{k}}: {{ v }}<br></template></template></pre>
 				</div>
@@ -17,7 +17,6 @@
 		</template>
 		<div v-else>
 			<h2>
-				<span v-if="loadingState !== 'loading'" class="fa fa-danger fa-4x"></span>
 				{{ loadingMessage }}
 			</h2>
 			<Spinner v-if="loadingState === 'loading'" center/>
@@ -38,6 +37,8 @@ import Results from '@/pages/search/results/Results.vue';
 import PageGuide from '@/pages/search/PageGuide.vue';
 import Spinner from '@/components/Spinner.vue';
 
+import {wideView} from '@/pages/search/form/QueryFormSettings.vue';
+
 export default Vue.extend({
 	components: {
 		QueryForm,
@@ -46,6 +47,7 @@ export default Vue.extend({
 		PageGuide,
 		Spinner
 	},
+	data: () => ({ wideView, }),
 	computed: {
 		loadingState() { return RootStore.get.status().status; },
 		loadingMessage() { return RootStore.get.status().message; },

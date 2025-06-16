@@ -21,9 +21,11 @@
 <script lang="ts">
 import Vue from 'vue';
 import { NormalizedIndex } from '@/types/apptypes';
+import * as CorpusStore from '@/store/search/corpus';
 import SelectPicker, { OptGroup } from '@/components/SelectPicker.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import debug from '@/utils/debug';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	components: {
@@ -33,6 +35,7 @@ export default Vue.extend({
 		hits: Boolean,
 		docs: Boolean,
 		groups: Boolean,
+		parallelCorpus: Boolean,
 
 		value: String,
 
@@ -50,29 +53,36 @@ export default Vue.extend({
 			options: OptGroup[],
 			searchable: boolean
 		} {
-			const opts = [] as OptGroup[];
+			const options = [] as OptGroup[];
+
+			/** Customize and add one or more groups */
+			const addGroups = ((...optGroups: OptGroup[]) => {
+				options.push(...optGroups.map(optGroup => {
+					return corpusCustomizations.sort.customize(optGroup) ?? optGroup;
+				}));
+			});
 
 			if (this.groups) {
-				opts.push({
+				addGroups({
 					label: 'Groups',
 					options: [{
-						label: 'Sort by Group Name',
+						label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_groupName')}).toString(),
 						value: 'identity',
 					}, {
-						label: 'Sort by Group Name (descending)',
+						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_groupName')}).toString(),
 						value: '-identity',
 					}, {
-						label: 'Sort by Size',
+						label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_groupSize')}).toString(),
 						value: 'size',
 					}, {
-						label: 'Sort by Size (ascending)',
-						value: '-size', // numeric sorting is inverted: https://github.com/INL/corpus-frontend/issues/340
+						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_groupSize')}).toString(),
+						value: '-size', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
 					}]
 				});
 			}
 
 			if (this.hits) {
-				opts.push(...getAnnotationSubset(
+				addGroups(...getAnnotationSubset(
 					this.annotations,
 					this.corpus.annotationGroups,
 					this.corpus.annotatedFields[this.corpus.mainAnnotatedField].annotations,
@@ -81,34 +91,49 @@ export default Vue.extend({
 					this.corpus.textDirection,
 					debug.debug
 				));
+
+				if (this.parallelCorpus) {
+					addGroups({
+						label: 'Parallel Corpus',
+						options: [{
+							label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_alignments')}).toString(),
+							value: 'alignments'
+						}, {
+							label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_alignments')}).toString(),
+							value: '-alignments'
+						},]
+					});
+				}
 			}
 			if (this.docs) {
-				opts.push({
+				addGroups({
 					label: 'Documents',
 					options: [{
-						label: 'Sort by hits',
+						label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_numberOfHits')}).toString(),
 						value: 'numhits'
 					}, {
-						label: 'Sort by hits (ascending)',
-						value: '-numhits' // numeric sorting is inverted: https://github.com/INL/corpus-frontend/issues/340
+						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_numberOfHits')}).toString(),
+						value: '-numhits' // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
 					}]
 				});
 			}
 
 			if (!this.groups) {
-				opts.push(...getMetadataSubset(
+				addGroups(...getMetadataSubset(
 					this.metadata,
 					this.corpus.metadataFieldGroups,
 					this.corpus.metadataFields,
 					'Sort',
 					this,
-					debug.debug
+					debug.debug,
+					true,
+					corpusCustomizations.search.metadata.showField
 				));
 			}
 
 			return {
-				options: opts,
-				searchable: opts.reduce((a, g) => a + g.options.length, 0) > 12
+				options,
+				searchable: options.reduce((a, g) => a + g.options.length, 0) > 12
 			};
 		},
 	}

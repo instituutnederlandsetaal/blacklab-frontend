@@ -1,35 +1,35 @@
 <template>
 	<!-- mind the whitespace, we don't want ANY whitespace between elements. -->
-	<component :is="tag" v-if="html" :style="{fontWeight: bold ? 'bold' : undefined}"
+	<component v-if="html" :is="tag" :style="{fontWeight: bold ? 'bold' : undefined}"
 		><template v-if="before">…</template
-		><template v-for="{text, punct, style, title, relationKeys}, i in renderInfo"
+		><template v-for="{text, punct, punctBefore, style, title, relationKeys}, i in renderInfo"
+			><span v-if="doPunct && punctBefore" v-html="punctBefore"></span
 			><span v-if="style"
 				v-html="text"
-				:key="text + '_' + title + '_' + i"
 				:style="style"
 				:title="title"
 				@mouseover="$emit('hover', relationKeys)"
-				@mouseout="$emit('unhover', relationKeys)"
-				:class="{ hoverable: true, hover: relationKeys?.some(c => hoverMatchInfos.includes(c)) }"
+				@mouseout="$emit('unhover')"
+				:class="{ hoverable: true, hover: !!(relationKeys && hoverMatchInfos) ? relationKeys.some(c => hoverMatchInfos.includes(c)) : false }"
 			></span
-			><span v-else v-html="text" :key="'text' + '_' + text + '_' + i"></span
-			><span v-html="doPunct ? punct : ' '" :key="'punct_' + punct + '_' + i"></span
+			><span v-else v-html="text"></span
+			><span v-if="doPunct" v-html="punct"></span
 		></template
 		><template v-if="after">…</template
 	></component
 	><component v-else :is="tag" :style="{fontWeight: bold ? 'bold' : undefined}"
 		><template v-if="before">…</template
-		><template v-for="{text, punct, style, title, relationKeys}, i in renderInfo"
+		><template v-for="{text, punct, punctBefore, style, title, relationKeys}, i in renderInfo"
+			><template v-if="doPunct && punctBefore">{{ punctBefore }}</template
 			><span v-if="style"
-				:key="text + '_' + title + '_' + i"
 				:style="style"
 				:title="title"
 				@mouseover="$emit('hover', relationKeys)"
-				@mouseout="$emit('unhover', relationKeys)"
-				:class="{ hoverable: true, hover: relationKeys?.some(c => hoverMatchInfos.includes(c)) }"
+				@mouseout="$emit('unhover')"
+				:class="{ hoverable: true, hover: !!(relationKeys && hoverMatchInfos) ? relationKeys.some(c => hoverMatchInfos.includes(c)) : false }"
 			>{{ text }}</span
 			><template v-else>{{ text }}</template
-			><template>{{ doPunct ? punct : ' ' }}</template
+			><template v-if="doPunct">{{ punct }}</template
 		></template
 		><template v-if="after">…</template
 	></component>
@@ -38,6 +38,8 @@
 <script lang="ts">
 import Vue from 'vue';
 import { HitContext } from '@/types/apptypes';
+
+const HIGHLIGHT_SEPARATOR = ' • '; // WAS: ' · '
 
 export default Vue.extend({
 	props: {
@@ -52,15 +54,12 @@ export default Vue.extend({
 		highlight: {default: true},
 
 		// which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
-		hoverMatchInfos: {
-			type: Array as () => string[],
-			default: () => [],
-		},
+		hoverMatchInfos: Array as () => string[],
 
 		before: Boolean,
 		after: Boolean,
 		punct: {default: true},
-		/** If set, render one of the values in HitToken.annotation, instead of the main 'text' property of the HitToken */
+		/** ID of the annotation whose values to render */
 		annotation: {
 			required: true,
 			type: String,
@@ -68,7 +67,7 @@ export default Vue.extend({
 	},
 	computed: {
 		doPunct(): boolean { return this.punct; }, // avoid conflict with props.data in template
-		renderInfo(): Array<{text: string, punct: string, style?: object, title?: string, relationKeys?: string[]}> {
+		renderInfo(): Array<{text: string, punct: string, punctBefore?: string, style?: object, title?: string, relationKeys?: string[]}> {
 			const tokens = this.before ? this.data.before : this.after ? this.data.after : this.data.match;
 
 			return tokens.map(token => {
@@ -97,7 +96,8 @@ export default Vue.extend({
 					relationKeys: token.captureAndRelation?.map(c => c.key),
 					text: token.annotations[this.annotation],
 					punct: token.punct,
-					title: this.highlight ? token.captureAndRelation?.map(c => c.display).join(' · ') : undefined,
+					punctBefore: token.punctBefore,
+					title: this.highlight ? token.captureAndRelation?.map(c => c.display).join(HIGHLIGHT_SEPARATOR) : undefined,
 					style
 				})
 			});
@@ -115,7 +115,9 @@ span.hoverable {
 }
 
 span.hover {
-	background-color: #337ab7;
-	color: white;
+	background-image: none!important;
+	background-color: #337ab7!important;
+	color: white!important;
+	text-shadow: none!important;
 }
 </style>

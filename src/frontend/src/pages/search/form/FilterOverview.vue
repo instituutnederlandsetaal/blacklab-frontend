@@ -16,12 +16,12 @@
 					{{$t('filterOverview.totalTokens')}}:
 				</span>
 				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 {{subCorpusStats.summary.numberOfDocs.toLocaleString()}}<br>
-					 {{subCorpusStats.summary.tokensInMatchingDocuments.toLocaleString()}}
+					 {{matchingCount.documents.toLocaleString()}}<br>
+					 {{matchingCount.tokens.toLocaleString()}}
 				</span>
 				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 ({{ frac2Percent(subCorpusStats.summary.numberOfDocs / totalCorpusDocs) }})<br>
-					 ({{ frac2Percent(subCorpusStats.summary.tokensInMatchingDocuments / totalCorpusTokens) }})
+					 ({{ frac2Percent(matchingCount.documents / totalCorpusDocs) }})<br>
+					 ({{ frac2Percent(matchingCount.tokens / totalCorpusTokens) }})
 				</span>
 			</template>
 			<template v-else>
@@ -38,6 +38,7 @@ import Vue from 'vue';
 import {Subscription} from 'rxjs';
 
 import * as CorpusStore from '@/store/search/corpus';
+import * as PatternStore from '@/store/search/form/patterns';
 import * as FilterStore from '@/store/search/form/filters';
 
 import { selectedSubCorpus$ } from '@/store/search/streams';
@@ -69,6 +70,35 @@ export default Vue.extend({
 			return r;
 		},
 
+		matchingCount(): {
+			documents: number;
+			tokens: number;
+		} {
+			// If there's a source version, get the doc/token count from there.
+			const source = PatternStore.get.shared().source;
+			let count = null;
+			if (source) {
+				count = this.subCorpusStats?.summary.subcorpusSize?.annotatedFields?.find(f => f.fieldName === source) ?? null;
+			}
+			if (!count) {
+				let documents = 0;
+				let tokens = 0;
+				this.subCorpusStats?.summary.subcorpusSize?.annotatedFields?.forEach(f => {
+					documents += f.documents;
+					tokens += f.tokens;
+				});
+				if (documents === 0 && tokens === 0) {
+					// If no documents or tokens, use the total corpus size
+					documents = this.subCorpusStats?.summary.numberOfDocs ?? 0;
+					tokens = this.subCorpusStats?.summary.tokensInMatchingDocuments ?? 0;
+				}
+				count = {
+					documents,
+					tokens
+				};
+			}
+			return count;
+		},
 		totalCorpusTokens(): number { return CorpusStore.getState().corpus!.tokenCount; },
 		totalCorpusDocs(): number { return CorpusStore.getState().corpus!.documentCount; }
 	},

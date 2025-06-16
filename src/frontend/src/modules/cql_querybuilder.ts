@@ -14,7 +14,7 @@ import '@/modules/cql_querybuilder.scss';
 import { escapeRegex } from '@/utils';
 
 /**
- * The querybuilder is a visual editor for CQL queries (see http://inl.github.io/BlackLab/corpus-query-language.html#supported-features for an introduction to CQL)
+ * The querybuilder is a visual editor for CQL queries (see https://blacklab.ivdnt.org//corpus-query-language.html#supported-features for an introduction to CQL)
  * The querybuilder is a hierarchy of nested objects, where every object is represented by its own isolated container in the DOM.
  *
  * At the top is the QueryBuilder itself, it contains/manages Tokens

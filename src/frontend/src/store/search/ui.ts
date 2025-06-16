@@ -14,12 +14,10 @@ import { stripIndent, html } from 'common-tags';
 import { RootState } from '@/store/search/';
 import * as CorpusStore from '@/store/search/corpus';
 import * as ViewsStore from '@/store/search/results/views';
-import * as FilterModule from '@/store/search/form/filters';
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
-import { Option } from '@/types/apptypes';
-import { HighlightSection } from '@/utils/hit-highlighting';
-import { spanFilterId } from '@/utils';
+import { corpusCustomizations } from '@/utils/customization';
+import { normalizeAnnotationUIType } from '@/utils/blacklabutils';
 
 type CustomView = {
 	id: string;
@@ -220,7 +218,7 @@ type ModuleRootState = {
 				lemma: string|null;
 				upos: string|null;
 				xpos: string|null;
-				feats: string|null;
+				feats: string[]|null;
 			}
 		};
 	};
@@ -323,7 +321,8 @@ const initialState: ModuleRootState = {
 			transformSnippets: null,
 			concordanceAsHtml: false,
 			getDocumentSummary: (doc: BLTypes.BLDocInfo, fields: BLTypes.BLDocFields): string => {
-				const { titleField = '', dateField = '', authorField = '' } = fields;
+				let { titleField = '', dateField = '', authorField = '' } = fields;
+				titleField = titleField || 'fromInputFile';
 				const { [titleField]: title = [], [dateField]: date = [], [authorField]: author = [] } = doc;
 				return (title[0] || 'UNKNOWN') + (author.length ? ' by ' + author.join(', ') : '');
 			},
@@ -659,21 +658,35 @@ const actions = {
 			}, 'totalsRefreshIntervalMs'),
 
 			/** Edit which annotations are shown in the dependency tree in the hits result table. */
-			dependencies: b.commit((state, payload: { lemma: string|null, upos: string|null, xpos: string|null, feats: string|null }) => {
+			dependencies: b.commit((state, payload: { 
+				lemma: string|null, 
+				upos: string|null, 
+				xpos: string|null, 
+				/** It's possible to show multiple feats by passing multiple annotations here. */
+				feats: string|null|string[] 
+			}) => {
 				const allAnnotations= CorpusStore.get.allAnnotationsMap();
 				const storeIsInitialized = Object.keys(allAnnotations).length > 0;
-				const validate = (id: string|null): string|null => {
+
+				const validate = (id: string|null, key: string): string|null => {
 					if (!storeIsInitialized) return id; // validate in this module's init() function. allow for now.
-					if (id == null || allAnnotations[id]?.hasForwardIndex) return id;
-					if (!allAnnotations[id]) console.warn(`[results.shared.dependencies] - Trying to show dependency tree with annotation '${id}', but it does not exist.`);
-					if (!allAnnotations[id]?.hasForwardIndex) console.warn(`[results.shared.dependencies] - Trying to show dependency tree with annotation '${id}', but it does not have the required forward index.`);
+					if (!id) return null; // empty.
+					if (allAnnotations[id]?.hasForwardIndex) return id;
+					
+					if (!allAnnotations[id]) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for feature '${key}', but it does not exist.`);
+					if (!allAnnotations[id]?.hasForwardIndex) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for features '${key}', but it does not have the required forward index.`);
 					return null;
 				}
+
+				function validateArray(ids: Array<string|null>, key: string): string[] {
+					return ids.map(id => validate(id, key)).filter(v => !!v) as string[];
+				}
+
 				state.results.shared.dependencies = {
-					lemma: validate(payload.lemma),
-					upos: validate(payload.upos),
-					xpos: validate(payload.xpos),
-					feats: validate(payload.feats)
+					lemma: validate(payload.lemma, 'lemma'),
+					upos: validate(payload.upos, 'upos'),
+					xpos: validate(payload.xpos, 'xpos'),
+					feats: validateArray([payload.feats].flat(), 'feats')
 				};
 			}, 'dependencies')
 		}
@@ -769,6 +782,24 @@ const actions = {
  */
 const init = () => {
 	if (!CorpusStore.getState().corpus) throw new Error('Cannot initialize UI module before corpus is loaded');
+
+	// Call the customize function(s) defined in custom.js (if any)
+	corpusCustomizations._corpus = CorpusStore.getState().corpus;
+	corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));
+
+	// Update uiTypes for annotations where necessary
+	const fs = CorpusStore.getState().corpus?.annotatedFields;
+	if (fs) {
+		Object.values(fs).forEach((field) => {
+			Object.values(field.annotations).forEach((annotation) => {
+				const uiType = corpusCustomizations.search.pattern.uiType(annotation.annotatedFieldId, annotation.id);
+				if (uiType) {
+					annotation.uiType = uiType;
+					normalizeAnnotationUIType(annotation);
+				}
+			});
+		});
+	}
 
 	// XXX: hack!
 	/**
@@ -1236,152 +1267,6 @@ function printCustomizations() {
 	`);
 }
 
-/** This object contains any customization "hook" functions for this corpus.
- *  It defines defaults that can be overridden from custom JS file(s); see below.
- */
-const corpusCustomizations = {
-	// Registered customize function(s), to be called once the corpus info has been loaded
-	customizeFunctions: [] as ((corpus: any) => void)[],
-
-	search: {
-		pattern: {
-			/** Should we add _within-spans(...) around the query,
-			    so all tags are captured and we can group on them?
-				[Default: only if there's span filters defined] */
-			shouldAddWithinSpans(q: string) {
-				return null;
-			}
-		},
-
-		within: {
-			/** Should we include this span in the within widget? (default: all) */
-			includeSpan(spanName: string) {
-				return true;
-			},
-
-			/** Should we include this span attribute in the within widget? (default: none) */
-			includeAttribute(spanName: string, attrName: string) {
-				return null;
-			},
-
-			/** Which, if any, attribute filter fields should be displayed for this element?
-			 * (INTERNAL; use includeAttribute to customize, works more consistently like other methods)
-			 */
-			_attributes(spanName: string): string[]|Option[]|null {
-				const availableAttr = Object.keys(CorpusStore.getState().corpus?.relations.spans?.[spanName].attributes ?? {});
-				return availableAttr.filter(attrName => this.includeAttribute(spanName, attrName))
-					.map(a => ({ value: a }));
-			},
-		},
-
-		metadata: {
-			/** Show this metadata search field? */
-			showField(filterId: string): boolean|null {
-				return null;
-			},
-
-			/** Any custom metadata tabs to add (INTERNAL) */
-			_customTabs: [] as any[],
-
-			/** Add a custom tab with some (span) filter fields */
-			addCustomTab(name: string, fields: any[]) {
-				this._customTabs.push({ name, fields });
-			},
-
-			/** Create a span filter for corpus.search.metadata.customTabs */
-			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: any = {}): AppTypes.FilterDefinition {
-				// No options specified; try to get them from the corpus.
-				let optionsFromCorpus;
-				const corpus = CorpusStore.getState().corpus;
-				if (!metadata.options && corpus && corpus.relations.spans) {
-					const span: BLTypes.BLSpanInfo = corpus.relations.spans[spanName] ?? {};
-					const attr = span.attributes?.[attrName] ?? { values: {}, valueListComplete: false };
-					if (attr?.valueListComplete) {
-						optionsFromCorpus = Object.keys(attr.values).map((value: string) => ({ value }));
-					}
-				}
-
-				if (widget === 'auto') {
-					widget = optionsFromCorpus ? 'select' : 'text';
-				}
-
-				if (widget === 'select') {
-					// If user passed in just an array, assume these are the options.
-					if (Array.isArray(metadata)) {
-						metadata = { options: metadata };
-					}
-
-					if (!metadata.options)
-						metadata.options = optionsFromCorpus ?? [];
-
-					// If the options are just strings, convert them to simple Option objects.
-					metadata.options = metadata.options.map((option: any) => {
-						return typeof option === 'string' ? { value: option } : option;
-					});
-				}
-
-				const behaviourName = widget === 'select' || widget === 'range' ? `span-${widget}` : 'span-text';
-
-				return {
-					id: spanFilterId(spanName, attrName),
-					componentName: `filter-${widget}`,
-					behaviourName, // i.e. generate a "within ..." BCQL query
-					defaultDisplayName: displayName ?? `tag ${spanName}, attribute ${attrName}`,
-					metadata: {
-						name: spanName,
-						attribute: attrName,
-						...metadata
-					},
-					// (groupId will be set automatically when creating the custom tabs)
-				};
-			},
-		},
-	},
-
-	results: {
-		/**
-		 * How to highlight match info in the hits table.
-		 *
-		 * Default behaviour is to always highlight if the user "captured"
-		 * (i.e. labelled this token in the query), OR if this is a relation and
-		 * there are no explicit captures.
-		 *
-		 * @param matchInfo the highlight section to get the style for
-		 * @returns 'none' (no highlighting), 'static' (always highlight), 'hover'
-		 *   (highlight on mouseover) or null for default behaviour.
-		 */
-		matchInfoHighlightStyle: (matchInfo: HighlightSection): string|null => {
-			return null; // use default behaviour
-		},
-
-		/**
-		 * Description of the search query to add to the CSV export. Default: none.
-		 */
-		csvDescription: (blSummary: any, fieldDisplayNameFunc: any) => {
-			return null; // use default behaviour
-		},
-
-		/**
-		 * Show some custom text (with doc link) left of the hit.
-		 *
-		 * Default shows versionPrefix if it's set (i.e. if it's a parallel corpus).
-		 * Otherwise, nothing extra is shown.
-		 */
-		customHitInfo: (hit: any, versionPrefix: string|undefined): string|null => {
-			return null; // use default behaviour
-		}
-	},
-
-	grouping: {
-		/** Should this span attribute be included in group by?
-		 *  (return null to fall back to default: "only if there's a span filter defined for it")
-		 */
-		includeSpanAttribute(spanName: string, attrName: string): boolean|null {
-			return null; // use default behaviour
-		},
-	}
-};
-
 /** This lets custom JS files call frontend.customize((corpus) => { ... });
   * to customize any of the above "hooks". Doing this via a function instead of
   * direct access to a global object gives us more flexibility to change things
@@ -1412,7 +1297,5 @@ export {
 	actions,
 	init,
 
-	namespace,
-
-	corpusCustomizations,
+	namespace
 };

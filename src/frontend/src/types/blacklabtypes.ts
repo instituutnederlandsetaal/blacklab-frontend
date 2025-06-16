@@ -27,7 +27,7 @@ export type BLSearchParameters = {
 	/**
 	 * CQL query gap-filling values, contents of a tsv file in string form.
 	 *
-	 * See http://inl.github.io/BlackLab/blacklab-server-overview.html#requests
+	 * See https://blacklab.ivdnt.org//blacklab-server-overview.html#requests
 	 */
 	pattgapdata?: string;
 	/** How to sort results, comma-separated list of field:${someMetadataFieldId} or (wordleft|hit|wordright):${someAnnotationId} */
@@ -51,7 +51,10 @@ export type BLSearchParameters = {
 	maxretrieve?: number;
 
 	/** When using relation matching in pattern, widen the match part of the hit to contain both source and target. */
-	adjusthits?: 'yes';
+	adjusthits?: boolean;
+
+	/** When using relation matching in pattern, widen the match part of the hit to contain both source and target. */
+	withspans?: boolean;
 };
 
 // --------------
@@ -231,6 +234,8 @@ interface BLAnnotatedFieldInternal  {
 	hasLengthTokens: boolean;
 	hasXmlTags: boolean;
 	isAnnotatedField: boolean;
+	tokenCount?: number;
+	documentCount?: number;
 }
 type BLAnnotatedFieldV1 = BLAnnotatedFieldInternal&{
 	/** Indexed token properties/annotations for this field */
@@ -336,6 +341,8 @@ export type BLDocument = {
 // Search results
 // --------------
 
+// #region docssearchsummary
+
 export type BLSearchSummarySampleSettings = {} | {
 	samplePercentage: number;
 	sampleSeed: number;
@@ -351,7 +358,6 @@ export type BLSummaryMatchInfo = {
 	targetField?: string;   // field the relation target is in (if not default field)
 };
 
-// TODO - incomplete
 export type BLSearchSummary = {
 	actualWindowSize: number;
 	countTime?: number;
@@ -360,8 +366,6 @@ export type BLSearchSummary = {
 	requestedWindowSize: number;
 	searchParam: BLSearchParameters;
 	searchTime: number;
-	/** Only available when request was sent with includetokencount: true */
-	tokensInMatchingDocuments?: number;
 	windowFirstResult: number;
 	windowHasNext: boolean;
 	windowHasPrevious: boolean;
@@ -390,6 +394,10 @@ export interface BLSearchSummaryTotalsDocs {
 	numberOfDocsRetrieved: number;
 	/** Is any hit counting ongoing, generally true unless blacklab finished counting all results or results exceed the count limit (stoppedCountingHits = true) */
 	stillCounting: boolean;
+	/** When a pattern was used to search docs */
+	numberOfHits?: number;
+	/** Only available when request was sent with includetokencount: true, and when no grouping took place. */
+	tokensInMatchingDocuments?: number;
 }
 
 export interface BLSearchSummaryTotalsHits extends BLSearchSummaryTotalsDocs {
@@ -401,22 +409,22 @@ export interface BLSearchSummaryTotalsHits extends BLSearchSummaryTotalsDocs {
 	stoppedCountingHits: boolean;
 	/** Did the query hit the default retrieval limit (defaultMaxHitsToRetrieve) */
 	stoppedRetrievingHits: boolean;
+	subcorpusSize?: {
+		documents: number;
+		tokens: number;
+		annotatedFields?: {
+			fieldName: string;
+			documents: number;
+			tokens: number;
+		}[];
+	};
 }
 
 export interface BLSearchSummaryGroupInfo {
 	largestGroupSize: number;
 	numberOfGroups: number;
-}
-
-export interface BLSearchSummaryGroupInfoHits extends BLSearchSummaryGroupInfo {
-	/**
-	 * Contains the size of the entire searched subcorpus (e.g. number of docs and tokens found by the same query without a cql pattern).
-	 * Only present when the query is not grouping results based on document metadata.
-	 *
-	 * When results ARE grouped based on document metadata, is present in the individual HitGroups instead.
-	 * Then it contains the total number of documents in the group, along with their total number of tokens.
-	 */
-	subcorpusSize?: {
+	/** Contains the size of the entire searched subcorpus (e.g. number of docs and tokens found by the same query without a cql pattern). */
+	subcorpusSize: {
 		/** NOTE: may be 0 in rare cases, when specifying a search for the empty value for all metadata fields */
 		documents: number;
 		/** NOTE: may be 0 in rare cases, when specifying a search for the empty value for all metadata fields */
@@ -424,18 +432,7 @@ export interface BLSearchSummaryGroupInfoHits extends BLSearchSummaryGroupInfo {
 	};
 }
 
-export interface BLSearchSummaryGroupInfoDocs extends BLSearchSummaryGroupInfo {
-	/**
-	 * Contains the size of the entire searched subcorpus (e.g. number of docs and tokens found by the same query without a cql pattern).
-	 *
-	 * Only present when the query does not contain a cql pattern.
-	 * If the query does contain a cql pattern, subcorpusSize is instead defined per docGroup, and contains the size of that group if the cql pattern would not exist.
-	 */
-	subcorpusSize?: {
-		documents: number;
-		tokens: number;
-	};
-}
+// #endregion docssearchsummary
 
 /** Single group of either hits or documents */
 export interface BLGroupResult {
@@ -452,11 +449,11 @@ export interface BLGroupResult {
 export interface BLHitGroupResult extends BLGroupResult {
 	/** When grouped on annotation + metadata */
 	numberOfDocs: number;
-	/** Present when grouped on at least one metadata field, otherwise use subcorpusSize in BLSearchSummaryHitsGrouped */
+	/** Present when grouped on at least one metadata field, otherwise use subcorpusSize in the main results summary. */
 	subcorpusSize?: {
-		/** Number of documents this group including those documents that do not contain a hit. */
+		/** Number of documents this group including those documents that do not contain a hit. Might be 0 when grouped by metadata and this is the 'no value' group. */
 		documents: number;
-		/** Total number of tokens in those documents */
+		/** Total number of tokens in those documents. Might be 0 when grouped by metadata and this is the 'no value' group. */
 		tokens: number;
 	};
 }
@@ -464,11 +461,10 @@ export interface BLHitGroupResult extends BLGroupResult {
 export interface BLDocGroupResult extends BLGroupResult {
 	/** Total number of tokens across all documents in this group */
 	numberOfTokens: number;
-	/** Present when the query contains a pattern, otherwise use subcorpusSize in BLSearchSummaryDocsGrouped */
 	subcorpusSize?: {
-		/** Number of documents this group including those documents that do not contain a hit. */
+		/** Number of documents this group including those documents that do not contain a hit. Might be 0 when grouped by metadata and this is the 'no value' group. */
 		documents: number;
-		/** Total number of tokens in those documents */
+		/** Total number of tokens in those documents. Might be 0 when grouped by metadata and this is the 'no value' group. */
 		tokens: number;
 	};
 }
@@ -476,16 +472,23 @@ export interface BLDocGroupResult extends BLGroupResult {
 /** Blacklab response for a query for hits with grouping enabled */
 export interface BLHitGroupResults {
 	hitGroups: BLHitGroupResult[];
-	summary: BLSearchSummary & BLSearchSummaryGroupInfoHits & BLSearchSummaryTotalsHits;
+	summary: BLSearchSummary & BLSearchSummaryGroupInfo & BLSearchSummaryTotalsHits;
 }
 
 /** Blacklab response for a query for documents with grouping enabled */
 export interface BLDocGroupResults {
 	docGroups: BLDocGroupResult[];
-	summary: BLSearchSummary & BLSearchSummaryGroupInfoDocs & BLSearchSummaryTotalsDocs;
+	summary: BLSearchSummary & BLSearchSummaryGroupInfo & BLSearchSummaryTotalsDocs;
 }
 
-/** Contains a hit's tokens, deconstructed into the individual annotations/properties, such as lemma, pos, word, always contains punctuation in between tokens */
+
+// #region docssnippettypes
+
+/**
+ * Contains a hit's tokens,
+ * deconstructed into the individual annotations/properties, such as lemma, pos, word,
+ * always contains punctuation in between tokens
+ */
 export interface BLHitSnippetPart {
 	/**
 	 * Punctuation always exists (even if only an empty string or a space).
@@ -508,6 +511,8 @@ export type BLHitSnippet = {
 	match: BLHitSnippetPart;
 }
 
+// #endregion docssnippettypes
+
 /** When tagging part of the query like a:[] returns the start and end of the part labelled with the 'a' (so in this case, the []) */
 export interface BLMatchInfoSpan {
 	/** When tagging part of the query like a:[] returns the start and end of the part labelled with the 'a' (so in this case, the []) */
@@ -522,6 +527,12 @@ export interface BLMatchInfoTag {
 	type: 'tag';
 	start: number;
 	end: number;
+	/** E.g. "s" */
+	tagName: string;
+	/** E.g. {id: ["123"]} for <s id=123/> */
+	attributes?: Record<string, string|string[]>;
+	// JN: above value type is transitional only; after 2025-04-01, change to
+	//           Record<string, string[]>
 }
 
 /** Represents the info captured by an arrow in the query (-->, ==>). So the source, target, and value. */
@@ -567,7 +578,7 @@ export interface BLMatchInfoList {
 	type: 'list';
 	start: number;
 	end: number;
-	infos: Array<BLMatchInfoRelation>
+	infos: Array<BLMatchInfoRelation|BLMatchInfoTag>
 }
 
 export type BLMatchInfo = BLMatchInfoSpan|BLMatchInfoRelation|BLMatchInfoTag|BLMatchInfoList;

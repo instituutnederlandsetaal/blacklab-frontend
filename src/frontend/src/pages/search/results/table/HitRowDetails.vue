@@ -1,29 +1,29 @@
 <template>
-	<tr class="concordance-details" v-if="open">
-		<td :colspan="colspan">
+	<tr class="concordance-details" :class="{'foreign-hit': row.isForeign}">
+		<td colspan="100">
 			<div class="concordance-details-wrapper">
-				<p v-if="loading" :class="{'text-danger': !!error}">
+				<p v-if="snippetRequest" :class="{'text-danger': !!error}">
 					<Spinner inline/> {{$t('results.table.loading')}}
 				</p>
 				<p v-else-if="error" class="text-danger">
-					<span class="fa fa-exclamation-triangle"></span> <span v-html="error"></span>
+					<span class="fa fa-exclamation-triangle"></span><br> <span style="white-space: pre;" v-html="error"></span>
 				</p>
-				<template v-else-if="context"> <!-- context is the larger surrounding context of the hit. We don't always have one (when rendering docs we only have the immediate hit) -->
-					<template v-if="hasRelations && !isParallel">
+				<template v-else-if="snippet"> <!-- context is the larger surrounding context of the hit. We don't always have one (when rendering docs we only have the immediate hit) -->
+					<template v-if="hasRelations && !row.annotatedField.isParallel">
 						<label v-if="sentenceAvailable">
 							<input type="checkbox" v-model="sentenceShown" class="show-sentence-checkbox" />
-							<Spinner v-if="sentenceLoading" inline style="margin-right: 0.5em"/>{{$t('results.table.showFullSentence')}}
+							<Spinner v-if="sentenceRequest" inline style="margin-right: 0.5em"/>{{$t('results.table.showFullSentence')}}
 						</label>
 
 						<!-- Will not render anything if no relation info is available in the passed hit/sentence. -->
 						<DepTree
-							:data="data"
+							:data="row"
 							:fullSentence="sentenceShown ? sentence : undefined"
-							:mainAnnotation="mainAnnotation"
-							:otherAnnotations="depTreeAnnotations"
+							:mainAnnotation="info.mainAnnotation"
+							:otherAnnotations="info.depTreeAnnotations"
 						/>
 					</template>
-					<p :dir="dir">
+					<p :dir="row.dir">
 						<template v-for="addon in addons">
 							<component v-if="addon.component"
 								:is="addon.component"
@@ -45,38 +45,33 @@
 							/>
 						</template>
 
-						<HitContextComponent tag="span" :dir="dir" :data="context" :html="html" :annotation="mainAnnotation.id" :before="true" :after="false"
-							:hoverMatchInfos="hoverMatchInfos"
-							@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
-						<HitContextComponent tag="strong" :dir="dir" :data="context" :html="html" :annotation="mainAnnotation.id" bold
-							:hoverMatchInfos="hoverMatchInfos"
-							@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
-						<a v-if="data.href" :href="data.href" title="Go to hit in document" target="_blank"><sup class="fa fa-link" style="margin-left: -5px;"></sup></a>
-						<HitContextComponent tag="span" :dir="dir" :data="context" :html="html" :annotation="mainAnnotation.id" :after="true"  :before="false"
-							:hoverMatchInfos="hoverMatchInfos"
-							@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
+						<HitContext tag="span" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" :before="true" :after="false"
+							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
+						<HitContext tag="strong" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" bold
+							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
+						<a v-if="row.href" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank"><sup class="fa fa-link" style="margin-left: -5px;"></sup></a>
+						<HitContext tag="span" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" :after="true"  :before="false"
+							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
 					</p>
-					<table v-if="detailedAnnotations?.length" class="concordance-details-table">
+					<table v-if="info.detailedAnnotations?.length" class="concordance-details-table">
 						<thead>
 							<tr>
 								<th>{{$t('results.table.property')}}</th>
-								<th :colspan="data.hit.match.punct.length" :style="`text-align: ${dir === 'rtl' ? 'right' : 'left'}`">{{$t('results.table.value')}}</th>
+								<th :colspan="row.hit.match.punct.length" :style="`text-align: ${row.dir === 'rtl' ? 'right' : 'left'}`">{{$t('results.table.value')}}</th>
 							</tr>
 						</thead>
 						<tbody>
-							<tr v-for="(annot, index) in detailedAnnotations" :key="annot.id">
+							<tr v-for="(annot, index) in info.detailedAnnotations" :key="annot.id">
 								<th>{{$tAnnotDisplayName(annot)}}</th>
-								<HitContextComponent v-for="(token, ti) in context.match" tag="td" :data="{match: [token]}" :html="html" :dir="dir" :key="annot.id + ti" :punct="false" :highlight="false" :annotation="annot.id"
-									:hoverMatchInfos="hoverMatchInfos"
-								@hover="$emit('hover', $event)" @unhover="$emit('unhover', $event)" />
+								<HitContext v-for="(token, ti) in snippet.match" tag="td" :data="{match: [token]}" :html="info.html" :dir="row.dir" :key="annot.id + ti" :punct="false" :highlight="false" :annotation="annot.id"
+									:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
 							</tr>
 						</tbody>
 					</table>
 				</template>
-				<template v-else-if="!detailedAnnotations?.length">
+				<template v-else-if="!info.detailedAnnotations?.length">
 					<p>{{$t('results.table.noContext')}}</p>
 				</template>
-
 			</div>
 		</td>
 	</tr>
@@ -85,12 +80,12 @@
 <script lang="ts">
 import Vue from 'vue';
 
+import IRow from '@/pages/search/results/table/IRow.vue';
 import * as BLTypes from '@/types/blacklabtypes';
 
-import { HitContext, NormalizedAnnotation, TokenHighlight } from '@/types/apptypes';
-import HitContextComponent from '@/pages/search/results/table/HitContext.vue';
-import { snippetParts } from '@/utils/hit-highlighting';
-import { HitRowData } from '@/pages/search/results/table/HitRow.vue';
+import { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
+import HitContext from '@/pages/search/results/table/HitContext.vue';
+import { HitRowData, snippetParts } from './table-layout';
 import DepTree from '@/pages/search/results/table/DepTree.vue';
 import Spinner from '@/components/Spinner.vue';
 
@@ -100,49 +95,31 @@ import * as Api from '@/api';
 import { debugLog } from '@/utils/debug';
 
 /** TODO disconnect from the store? */
-export default Vue.extend({
+export default Vue.component('HitRowDetails', IRow.extend({
 	components: {
-		HitContextComponent,
+		HitContext,
 		DepTree,
 		Spinner
 	},
-	props: {
-		data: Object as () => HitRowData,
-
-		mainAnnotation: Object as () => NormalizedAnnotation,
-		detailedAnnotations: Array as () => NormalizedAnnotation[]|undefined,
-		/** What properties/annotations to show for tokens in the deptree, e.g. lemma, pos, etc. */
-		depTreeAnnotations: Object as () => Record<'lemma'|'upos'|'xpos'|'feats', NormalizedAnnotation|null>,
-
-		html: Boolean,
-		colspan: Number,
-		dir: String as () => 'ltr'|'rtl',
-
-		open: Boolean,
-
-		// which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
-		hoverMatchInfos: {
-			type: Array as () => string[],
-			default: () => [],
-		},
-		isParallel: { default: false },
-	},
+	props: { row: Object as () => HitRowData, },
 	data: () => ({
-		loading: false,
+		sentenceRequest: null as null|Promise<any>,
+		sentence: null as null|BLTypes.BLHit,
+
+		snippetRequest: null as null|Promise<void>,
+		snippet: null as null|ContextOfHit,
+
 		error: null as null|string,
-		context: null as null|HitContext,
 		addons: [] as Array<ReturnType<UIStore.ModuleRootState['results']['hits']['addons'][number]>>,
 
 		// whether full sentence is shown (instead of just n words before and after the hit)
 		// For this to be available, the sentenceElement must be set (in the ui store)
 		sentenceShown: false,
-		sentenceLoading: false,
-		sentence: null as null|BLTypes.BLHit,
 	}),
 	computed: {
 		hasRelations: CorpusStore.get.hasRelations,
 		/** Exact surrounding sentence can only be loaded if we the start location of the current hit, and when the boundery element has been set. */
-		sentenceAvailable(): boolean { return this.hasRelations && !!UIStore.getState().search.shared.within.sentenceElement && 'start' in this.data.hit; },
+		sentenceAvailable(): boolean { return this.hasRelations && !!UIStore.getState().search.shared.within.sentenceElement && 'start' in this.row.hit; },
 
 	},
 	methods: {
@@ -151,60 +128,57 @@ export default Vue.extend({
 		 * We use it to render the dependency tree for the entire sentence.
 		 */
 		loadSentence() {
-			if (!this.sentenceAvailable || this.sentence || this.sentenceLoading) return;
-			if (!('start' in this.data.hit)) // should always be true if this.sentenceAvailable is true, but typescript doesn't know this.
-				return;
+			// 'start' should always be true if this.sentenceAvailable is true, but typescript doesn't know this.
+			if (!this.sentenceAvailable || this.sentenceRequest || !('start' in this.row.hit)) return;
 
 			const context = UIStore.getState().search.shared.within.sentenceElement;
 			if (!context) return; // unavailable.
 
 			const formatError = UIStore.getState().global.errorMessage;
 
-			this.sentenceLoading = true;
-			Api.blacklab.getSnippet(
+			const nonce = this.row.hit;
+			this.sentenceRequest = Api.blacklab.getSnippet(
 				INDEX_ID,
-				this.data.doc.docPid,
-				this.data.annotatedField?.id,
-				this.data.hit.start,
-				this.data.hit.end,
+				this.row.doc.docPid,
+				this.row.annotatedField?.id,
+				this.row.hit.start,
+				this.row.hit.end,
 				context
 			)
-			.then(r => this.sentence = r)
-			.catch(e => this.error = formatError(e, 'snippet'))
-			.finally(() => this.sentenceLoading = false);
+			// check if hit hasn't changed in the meantime (due to component reuse)
+			.then(r => { if (nonce === this.row.hit) { this.sentence = r; this.sentenceRequest = null; }})
+			.catch(e => { if (nonce === this.row.hit) { this.error = formatError(e, 'snippet'); this.sentenceRequest = null; }})
 		},
-		loadContext() {
+		loadSnippet() {
 			// If we don't have a fat hit, we can't get any larger context (because we don't know the start/end of the hit)
 			// Don't do anything else, we just won't render the larger context.
 			// The small table will still be shown.
-			if (this.loading || this.context || !('start' in this.data.hit)) return;
-
-			ga('send', 'event', 'results', 'snippet/load', this.data.doc.docPid);
-			this.loading = true;
+			if (this.snippetRequest || this.snippet || !('start' in this.row.hit)) return;
 
 			const transformSnippets = UIStore.getState().results.shared.transformSnippets;
 			const addons = UIStore.getState().results.hits.addons;
 			const formatError = UIStore.getState().global.errorMessage;
 			const concordanceSize = UIStore.getState().results.shared.concordanceSize;
 
-			Api.blacklab
-			.getSnippet(INDEX_ID, this.data.doc.docPid, this.data.annotatedField?.id, this.data.hit.start, this.data.hit.end, concordanceSize)
+			const nonce = this.row.hit;
+			this.snippetRequest = Api.blacklab
+			.getSnippet(INDEX_ID, this.row.doc.docPid, this.row.annotatedField?.id, this.row.hit.start, this.row.hit.end, concordanceSize)
 			.then(s => {
+				if (nonce !== this.row.hit) return; // hit has changed in the meantime.
+
 				transformSnippets?.(s);
 
 				// HACK! copy the colors from the existing hit. There's no easy way to get the entire Results object here to get the colors from there.
 				// At least there's never be more highlights in the surrounding snippet than in the hit itself, so this works...
-				const highlightColors = [...this.data.context.before, ...this.data.context.match, ...this.data.context.after]
-				.reduce<Record<string, TokenHighlight>>((acc, t) => {
-					t.captureAndRelation?.forEach(c => acc[c.highlight.key] = c.highlight);
-					return acc;
-				}, {});
+				const highlightColors = [...this.row.context.before, ...this.row.context.match, ...this.row.context.after]
+					.reduce<Record<string, TokenHighlight>>((acc, t) => {
+						t.captureAndRelation?.forEach(c => acc[c.highlight.key] = c.highlight);
+						return acc;
+					}, {});
 
-				this.context = snippetParts(
+				this.snippet = snippetParts(
 					// @ts-ignore matchinfos not included in snippets. copy from the original hit.
-					{matchInfos: this.data.hit.matchInfos,...s},
-					this.mainAnnotation.id,
-					this.dir,
+					{matchInfos: this.row.hit.matchInfos,...s},
 					highlightColors
 				);
 
@@ -213,12 +187,12 @@ export default Vue.extend({
 					.map((a, i) => {
 						try {
 							return a({
-								docId: this.data.doc.docPid,
+								docId: this.row.doc.docPid,
 								corpus: INDEX_ID,
-								document: this.data.doc.docInfo,
-								documentUrl: this.data.href || '',
-								wordAnnotationId: this.mainAnnotation.id,
-								dir: this.dir,
+								document: this.row.doc.docInfo,
+								documentUrl: this.row.href || '',
+								wordAnnotationId: this.info.mainAnnotation.id,
+								dir: this.row.dir,
 								citation: s
 							});
 						} catch (e) {
@@ -230,26 +204,34 @@ export default Vue.extend({
 						}
 					})
 					.filter(a => a != null);
+
+				this.snippetRequest = null;
 			})
 			.catch((err: Api.ApiError) => {
+				if (nonce !== this.row.hit) return; // hit has changed in the meantime.
 				this.error = formatError(err, 'snippet');
+				this.snippetRequest = null;
 				if (err.stack) debugLog(err.stack);
-				ga('send', 'exception', { exDescription: err.message, exFatal: false });
 			})
-			.finally(() => this.loading = false);
 		}
 	},
 	watch: {
 		open: {
 			immediate: true,
-			handler() { if (this.open) this.loadContext(); }
+			handler() { if (this.open) this.loadSnippet(); }
 		},
 		sentenceShown: {
 			immediate: true,
 			handler() { if (this.sentenceShown) this.loadSentence(); }
+		},
+		data() {
+			// Clear any data that's no longer relevant.
+			this.snippetRequest = this.snippet = this.sentenceRequest = this.sentence = this.error = null;
+			this.addons = [];
+			this.sentenceShown = false;
 		}
-	}
-});
+	},
+}));
 </script>
 
 <style lang="scss">
@@ -281,12 +263,9 @@ $screen-lg: 1200px;
 	@media(min-width: $screen-lg) { max-width: calc($screen-lg - 130px); }
 }
 
-
 .concordance-details-table {
 	table-layout: auto;
-	td {
-		padding: 0 0.25em;
-	}
+	td { padding: 0 0.25em; }
 }
 
 

@@ -1,9 +1,14 @@
 <template>
 	<div>
 		<div :class="{'form-group': true, 'form-group-lg': lg}">
-			<label :class="{'col-xs-12': !block, 'col-md-3': !block, 'control-label': block}">{{ $t('search.parallel.inSourceVersion') }}</label>
+			<label :class="{'col-xs-12': !block, 'col-md-3': !block, 'control-label': block}">{{ $t('search.parallel.searchSourceVersion') }}</label>
 			<div :class="{'col-xs-12': !block, 'col-md-9': !block}">
 				<SelectPicker :options="pSourceOptions" v-model="pSourceValue" data-menu-width="grow" hideEmpty/>
+				<transition name="flash">
+					<span v-if="errorNoParallelSourceVersion" class="error">
+						{{ $t('search.parallel.errorNoSourceVersion') }}
+					</span>
+				</transition>
 			</div>
 		</div>
 		<div :class="{'form-group': true, 'form-group-lg': lg}">
@@ -32,6 +37,7 @@ export default ParallelFields.extend({
 	props: {
 		block: {default: false, type: Boolean},
 		lg: {default: false, type: Boolean},
+		errorNoParallelSourceVersion: {default: false, type: Boolean},
 	},
 });
 </script>
@@ -39,5 +45,20 @@ export default ParallelFields.extend({
 <style lang="scss" scoped>
 
 label { font-weight: bold; }
+
+.error {
+	color: red;
+	margin: 0.5em 0 0 1em;
+	font-weight: bold;
+}
+
+@keyframes flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.1; }
+}
+
+.flash-enter-active {
+  animation: flash 0.5s ease-in-out 2;
+}
 
 </style>

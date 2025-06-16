@@ -277,33 +277,6 @@ ul.nav-tabs.cf-panel-tab-header {
 	border-top: 1px solid #ddd;
 }
 
-tr.interactable, tbody.interactable {
-	cursor: pointer;
-
-	&:hover,
-	&:focus {
-		background-color: #eee;
-	}
-	&:active {
-		background-color: #ddd;
-	}
-}
-
-tr.rounded {
-	> th,
-	> td {
-		padding: 0 4px;
-
-		&:first-child {
-			border-top-left-radius: 3px;
-			border-bottom-left-radius: 3px;
-		}
-		&:last-child {
-			border-top-right-radius: 3px;
-			border-bottom-right-radius: 3px;
-		}
-	}
-}
 
 a.disabled {
 	opacity: 0.65;

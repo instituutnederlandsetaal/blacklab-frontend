@@ -177,6 +177,14 @@ public class Result<R, E extends Exception> {
         return Result.success(other);
     }
 
+    /** Return true iff this contains a result and the result matches */
+    public boolean matches(Function<R, Boolean> predicate) {
+        return this.result != null && predicate.apply(this.result);
+    }
+    /** Return true iff this contains an error and the error matches */
+    public boolean errorMatches(Function<E, Boolean> predicate) {
+        return this.error != null && predicate.apply(this.error);
+    }
 
     /**
      * Use other if this Result is currently empty.

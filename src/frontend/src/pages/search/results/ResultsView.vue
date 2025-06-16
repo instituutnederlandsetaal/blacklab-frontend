@@ -1,50 +1,131 @@
 <template>
 	<div class="results-container" :disabled="request" :style="{minHeight: request ? '100px' : undefined}">
-
 		<Spinner v-if="request" overlay size="75"/>
 
-		<!-- i.e. HitResults, DocResults, GroupResults -->
-		<!-- Minor annoyance, all slot components are re-created when we group/ungroup results because this :is changes, causing a complete re-render. -->
-		<component v-if="resultsHaveData"
-			:is="resultComponentName"
-			v-bind="resultComponentData"
 
-			@sort="sort = $event"
-			@viewgroup="restoreOnViewGroupLeave = {page, sort}; viewGroup = $event.id; _viewGroupName = $event.displayName;"
-		>
-			<BreadCrumbs slot="breadcrumbs"
-				:crumbs="breadCrumbs"
-				:disabled="!!request"
-			/>
+		<template v-if="resultComponentData && cols && renderDisplaySettings">
+			<div class="crumbs-totals">
+				<BreadCrumbs :crumbs="breadCrumbs" :disabled="!!request" />
+				<Totals class="result-totals" :initialResults="results" :type="id" :indexId="indexId" @update="paginationResults = $event" />
+			</div>
 
-			<Totals slot="totals"
-				class="result-totals"
-				:initialResults="results"
-				:type="id"
-				:indexId="indexId"
-
-				@update="paginationResults = $event"
-			/>
-
-			<GroupBy slot="groupBy" v-if="!viewGroup"
+			<GroupBy v-if="!viewGroup"
 				:type="id"
 				:results="results"
 				:disabled="!!request"
 			/>
-			<button v-else slot="groupBy" class="btn btn-sm btn-primary" @click="leaveViewgroup"><span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}</button>
 
-			<div slot="annotation-switcher" v-if="concordanceAnnotationOptions.length > 1">
-				<label>{{$t('results.resultsView.selectAnnotation')}}: </label>
-				<div class="btn-group" >
-					<button v-for="a in concordanceAnnotationOptions" type="button"
-						class="btn btn-default btn-sm"
-						:class="{active: a.id === concordanceAnnotationId}"
-						@click="concordanceAnnotationId = a.id">{{ $tAnnotDisplayName(a) }}</button>
+
+			<div class="result-buttons-layout">
+				<Pagination slot="pagination"
+					:page="pagination.shownPage"
+					:maxPage="pagination.maxShownPage"
+					:disabled="!!request"
+
+					@change="page = $event"
+				/>
+
+				<div class="btn-group" v-if="isGroups" style="flex: none;">
+					<button v-for="option in cols.groupModeOptions"
+						type="button"
+						:class="['btn btn-default btn-sm', {'active': renderDisplaySettings.groupDisplayMode === option}]"
+						:key="option"
+						@click="groupDisplayMode = option"
+					>{{option}}</button>
+				</div>
+				<button v-if="viewGroup" class="btn btn-sm btn-primary" @click="leaveViewgroup">
+					<span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}
+				</button>
+
+				<div style="flex-grow: 1;"></div>
+				<div v-if="concordanceAnnotationOptions.length > 1 && id === 'hits'">
+					<label>{{$t('results.resultsView.selectAnnotation')}}: </label>
+					<div class="btn-group" >
+						<button v-for="a in concordanceAnnotationOptions" type="button"
+							class="btn btn-default btn-sm"
+							:class="{active: a.id === concordanceAnnotationId}"
+							@click="concordanceAnnotationId = a.id">{{ $tAnnotDisplayName(a) }}</button>
+					</div>
 				</div>
 			</div>
 
-			<Pagination slot="pagination"
-				style="display: block; margin: 10px 0;"
+			<GenericTable
+				:type="id"
+				:class="isHits ? 'hits-table' : isDocs ? 'docs-table' : isGroups ? 'groups-table' : ''"
+				:cols="cols"
+				:rows="rows"
+				:info="renderDisplaySettings"
+				:header="isHits ? cols.hitColumns : isDocs ? cols.docColumns : cols.groupColumns"
+				:showTitles="showTitles"
+				:disabled="!!request"
+				:query="results?.summary.searchParam"
+
+				@changeSort="sort = (sort === $event ? `-${sort}` : $event)"
+				@viewgroup="changeViewGroup"
+			/>
+
+			<div class="result-buttons-layout" style="border-top: 1px solid #ccc; padding-top: 15px;">
+				<Pagination
+					style="display: block;"
+
+					:page="pagination.shownPage"
+					:maxPage="pagination.maxShownPage"
+					:disabled="!!request"
+
+					@change="page = $event"
+				/>
+				<div style="flex-grow: 1;"></div>
+
+				<button v-if="isHits"
+					type="button"
+					class="btn btn-primary btn-sm show-titles"
+
+					@click="showTitles = !showTitles"
+				>
+					{{showTitles ? $t('results.table.hide') : $t('results.table.show')}} {{ $t('results.table.titles') }}
+				</button>
+
+				<Sort
+					v-model="sort"
+					:hits="isHits"
+					:docs="isDocs"
+					:groups="isGroups"
+					:parallelCorpus="isParallelCorpus"
+
+					:corpus="corpus"
+					:annotations="sortAnnotations"
+					:metadata="sortMetadata"
+
+					:disabled="!!request"
+				/>
+
+				<Export v-if="exportEnabled"
+					:results="results"
+					:type="id"
+					:disabled="!!request"
+					:annotations="exportAnnotations"
+					:metadata="exportMetadata"
+				/>
+			</div>
+		</template>
+		<div v-else-if="error != null" class="no-results-found">
+			<span class="fa fa-exclamation-triangle text-danger"></span><br>
+			<div style="text-align: initial;">{{error}}</div>
+			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty();">{{ $t('results.resultsView.tryAgain') }}</button>
+		</div>
+		<div v-else-if="!valid" class="no-results-found">
+			{{ $t('results.resultsView.inactiveView') }}
+		</div>
+		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
+		<!-- Allow the user to clear grouping or pagination if something's wrong. -->
+		<div v-if="!request && !(resultComponentData && cols && renderDisplaySettings)">
+			<GroupBy v-if="groupBy.length"
+				:type="id"
+				:results="results"
+				:disabled="!!request"
+			/>
+			<Pagination v-if="pagination.shownPage != 0"
+				style="display: block;"
 
 				:page="pagination.shownPage"
 				:maxPage="pagination.maxShownPage"
@@ -53,44 +134,12 @@
 				@change="page = $event"
 			/>
 
-			<Sort slot="sort"
-				v-model="sort"
-				:hits="isHits"
-				:docs="isDocs"
-				:groups="isGroups"
-
-				:corpus="corpus"
-				:annotations="sortAnnotations"
-				:metadata="sortMetadata"
-
-				:disabled="!!request"
-			/>
-
-			<Export slot="export" v-if="exportEnabled"
-				:results="results"
-				:type="id"
-				:disabled="!!request"
-				:annotations="exportAnnotations"
-				:metadata="exportMetadata"
-			/>
-
-		</component>
-		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
-		<div v-else-if="!valid" class="no-results-found">
-			{{ $t('results.resultsView.inactiveView') }}
-		</div>
-		<div v-else-if="error != null" class="no-results-found">
-			<span class="fa fa-exclamation-triangle text-danger"></span><br>
-			<span v-html="error"></span>
-			<br>
-			<br>
-			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty();">{{ $t('results.resultsView.tryAgain') }}</button>
 		</div>
 	</div>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import Vue, { markRaw } from 'vue';
 
 import jsonStableStringify from 'json-stable-stringify';
 
@@ -104,9 +153,6 @@ import * as QueryStore from '@/store/search/query';
 import * as UIStore from '@/store/search/ui';
 import * as GlossModule from '@/store/search/form/glossStore' // Jesse
 
-import GroupResults from '@/pages/search/results/table/GroupResults.vue';
-import HitResults from '@/pages/search/results/table/HitResults.vue';
-import DocResults from '@/pages/search/results/table/DocResults.vue';
 import Totals from '@/pages/search/results/ResultTotals.vue';
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
 
@@ -115,27 +161,26 @@ import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
 import Export from '@/pages/search/results/Export.vue';
 
 import Pagination from '@/components/Pagination.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
 import Spinner from '@/components/Spinner.vue';
 
-import debug, { debugLog } from '@/utils/debug';
+import debug, { debugLogCat } from '@/utils/debug';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedIndex } from '@/types/apptypes';
 import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
-import { mergeMatchInfos } from '@/utils/hit-highlighting';
+import { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, makeColumns, makeRows, Rows } from '@/pages/search/results/table/table-layout';
 import { isHitParams } from '@/utils';
+
+
+import '@/pages/search/results/table/GenericTable.vue';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
 	components: {
 		Pagination,
-		GroupResults,
-		HitResults,
-		DocResults,
 		Totals,
 		GroupBy,
-		SelectPicker,
 		Sort,
 		BreadCrumbs,
 		Export,
@@ -147,7 +192,6 @@ export default Vue.extend({
 		 * Since we use this ID to determine whether we're getting hits or docs from blacklab, and some rendering or logic may depend on it being 'hits' or 'docs' as well.
 		 */
 		id: String as () => 'hits'|'docs',
-		label: String,
 		active: Boolean,
 
 		store: Object as () => ResultsStore.ViewModule,
@@ -173,6 +217,7 @@ export default Vue.extend({
 			page: number;
 			sort: string|null;
 		},
+		showTitles: true,
 
 		debug
 	}),
@@ -180,7 +225,7 @@ export default Vue.extend({
 		markDirty() {
 			this.isDirty = true;
 			if (this.cancel) {
-				debugLog('cancelling search request');
+				debugLogCat('results', 'cancelling search request');
 				this.cancel();
 				this.cancel = null;
 				this.request = null;
@@ -191,10 +236,10 @@ export default Vue.extend({
 		},
 		refresh() {
 			this.isDirty = false;
-			debugLog('this is when the search should be refreshed');
+			debugLogCat('results', 'this is when the search should be refreshed');
 
 			if (this.cancel) {
-				debugLog('cancelling previous search request');
+				debugLogCat('results', 'cancelling previous search request');
 				this.cancel();
 				this.request = null;
 				this.cancel = null;
@@ -211,9 +256,17 @@ export default Vue.extend({
 			if (this.clearResults) { this.results = this.error = null; this.clearResults = false; }
 
 			const nonce = this.refreshParameters;
+
+			// If we're querying a parallel corpus, and no sort was chosen yet,
+			// sort by alignments (so aligned hits appear first).
+			const viewModule = ResultsStore.getOrCreateModule('hits');
+			if (this.id === 'hits' && (this.groupBy.length === 0 || this.viewGroup) && CorpusStore.get.isParallelCorpus() && viewModule.getState().sort === null) {
+				viewModule.actions.sort('alignments');
+			}
+
 			const params = RootStore.get.blacklabParameters()!;
-			const apiCall = this.id === 'hits' ? Api.blacklab.getHits : Api.blacklab.getDocs;
-			debugLog('starting search', this.id, params);
+			const apiCall = this.id === 'hits' ? Api.blacklab.getHits<BLTypes.BLHitResults|BLTypes.BLHitGroupResults> : Api.blacklab.getDocs<BLTypes.BLDocResults|BLTypes.BLDocGroupResults>;
+			debugLogCat('results', 'starting search', this.id, params);
 
 			const r = apiCall(this.indexId, params, {headers: { 'Cache-Control': 'no-cache' }});
 			this.request = r.request;
@@ -232,8 +285,9 @@ export default Vue.extend({
 						// We simply remove the offending grouping clause and try again.
 						if (e.title === 'UNKNOWN_MATCH_INFO' && this.groupBy.length > 0) {
 							// remove the group on label.
-							debugLog('grouping failed, clearing groupBy');
-							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined).filter(g => !(g.type === 'context' && g.context.type === 'label'));
+							debugLogCat('results', 'grouping failed, clearing groupBy');
+							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined)
+								.filter(g => !((g.type === 'context' && g.context.type === 'label') || (g.type === 'metadata' && g.metadata.type === 'span-attribute')));
 							const newGroupBy = serializeGroupBy(okayGroups);
 							this.groupBy = newGroupBy;
 						}
@@ -244,15 +298,10 @@ export default Vue.extend({
 			.finally(() => this.scrollToResults())
 		},
 		setSuccess(data: BLTypes.BLSearchResult) {
-			debugLog('search results', data);
+			debugLogCat('results', 'search results', data);
 			this.error = null;
 			this.request = null;
 			this.cancel = null;
-
-			if (BLTypes.isHitResults(data)) {
-				// Make sure the target hits (otherFields) 'know' they are the target of a relation.
-				mergeMatchInfos(data);
-			}
 
 			// Jesse (glosses): hier ook een keer de page hits in de gloss store updaten
 			const get_hit_id = GlossModule.get.settings()?.get_hit_id;
@@ -265,7 +314,7 @@ export default Vue.extend({
 		},
 		setError(data: Api.ApiError, isGrouped?: boolean) {
 			if (data.title !== 'Request cancelled') { // TODO
-				debugLog('Request failed: ', data);
+				debugLogCat('results', 'Request failed: ', data);
 				this.error = UIStore.getState().global.errorMessage(data, isGrouped ? 'groups' : this.id as 'hits'|'docs');
 				this.results = null;
 				this.paginationResults = null;
@@ -288,6 +337,11 @@ export default Vue.extend({
 			this.page = this.restoreOnViewGroupLeave?.page || 0;
 			this.sort = this.restoreOnViewGroupLeave?.sort || null;
 			this.restoreOnViewGroupLeave = null;
+		},
+		changeViewGroup(groupId: string, groupDisplay: string) {
+			this.restoreOnViewGroupLeave = {page: this.page, sort: this.sort};
+			this.viewGroup = groupId;
+			this._viewGroupName = groupDisplay;
 		}
 	},
 	computed: {
@@ -306,6 +360,10 @@ export default Vue.extend({
 		viewGroup: {
 			get(): string|null { return this.store.getState().viewGroup; },
 			set(v: string|null) { this.store.actions.viewGroup(v); }
+		},
+		groupDisplayMode: {
+			get(): string|null { return this.store.getState().groupDisplayMode; },
+			set(v: string|null) { this.store.actions.groupDisplayMode(v); }
 		},
 
 		corpus(): NormalizedIndex { return CorpusStore.getState().corpus!; },
@@ -348,20 +406,22 @@ export default Vue.extend({
 			shownPage: number,
 			maxShownPage: number
 		} {
-			const r: BLTypes.BLSearchResult|null = this.paginationResults || this.results;
-			if (r == null) {
+			// Take care to use this.results for page size, but this.paginationResults for total number of results.
+			// This is because pagination results are requested with a window size of 0!
+			if (!this.results || !this.paginationResults) {
 				return {
 					shownPage: 0,
 					maxShownPage: 0,
 				};
 			}
 
-			const pageSize = this.results!.summary.requestedWindowSize;
-			const shownPage = Math.floor(this.results!.summary.windowFirstResult / pageSize);
+			// use actual results - pagination results are requested with windows size 0 (!)
+			const pageSize = this.results.summary.requestedWindowSize;
+			const shownPage = Math.floor(this.results.summary.windowFirstResult / pageSize);
 			const totalResults =
-				BLTypes.isGroups(r) ? r.summary.numberOfGroups :
-				BLTypes.isHitResults(r) ? r.summary.numberOfHitsRetrieved :
-				r.summary.numberOfDocsRetrieved;
+				BLTypes.isGroups(this.paginationResults) ? this.paginationResults.summary.numberOfGroups :
+				BLTypes.isHitResults(this.paginationResults) ? this.paginationResults.summary.numberOfHitsRetrieved :
+				this.paginationResults.summary.numberOfDocsRetrieved;
 
 			// subtract one page if number of results exactly diactive by page size
 			// e.g. 20 results for a page size of 20 is still only one page instead of 2.
@@ -369,7 +429,7 @@ export default Vue.extend({
 
 			return {
 				shownPage,
-				maxShownPage: pageCount
+				maxShownPage: pageCount >= shownPage ? pageCount : shownPage,
 			};
 		},
 
@@ -378,16 +438,11 @@ export default Vue.extend({
 		},
 		// simple view variables
 		indexId(): string { return INDEX_ID; },
-		resultsHaveData(): boolean {
-			if (BLTypes.isDocGroups(this.results)) { return this.results.docGroups.length > 0; }
-			if (BLTypes.isHitGroups(this.results)) { return this.results.hitGroups.length > 0; }
-			if (BLTypes.isHitResults(this.results)) { return this.results.hits.length > 0; }
-			if (BLTypes.isDocResults(this.results)) { return this.results.docs.length > 0; }
-			return false;
-		},
+
 		isHits(): boolean { return BLTypes.isHitResults(this.results); },
 		isDocs(): boolean { return BLTypes.isDocResults(this.results); },
 		isGroups(): boolean { return BLTypes.isGroups(this.results); },
+		isParallelCorpus: CorpusStore.get.isParallelCorpus,
 
 		viewGroupName(): string {
 			if (this.viewGroup == null) { return ''; }
@@ -462,13 +517,71 @@ export default Vue.extend({
 				return 'DocResults';
 			}
 		},
+
 		resultComponentData(): any {
+			if (!this.results || !this.cols || !this.rows?.rows.length || !this.renderDisplaySettings) return undefined;
 			return {
-				results: this.results,
-				disabled: !!this.request,
+				cols: this.cols,
+				rows: this.rows,
+				info: this.renderDisplaySettings,
+
+				query: this.results.summary.searchParam,
+				type: this.id,
 				sort: this.sort,
+				disabled: !!this.request
 			};
 		},
+
+		commonDisplaySettings(): DisplaySettingsCommon {
+			const summaryOtherFields = this.results?.summary.pattern?.otherFields ?? [];
+			return {
+				dir: CorpusStore.get.textDirection(),
+				i18n: this,
+				specialFields: CorpusStore.getState().corpus!.fieldInfo,
+				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name])
+			}
+		},
+		rowDisplaySettings(): DisplaySettingsForRows {
+			return {
+				...this.commonDisplaySettings,
+				getSummary: UIStore.getState().results.shared.getDocumentSummary,
+				sourceField: QueryStore.get.sourceField()!, // if no field, there would be no results...
+				getCustomHitInfo: corpusCustomizations.results.customHitInfo,
+			}
+		},
+		columnDisplaySettings(): DisplaySettingsForColumns {
+			return {
+				...this.commonDisplaySettings,
+				groupDisplayMode: this.groupDisplayMode as any || (BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
+				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
+				// If groups, don't show any metadata columns.
+				metadata: 	this.isHits ? UIStore.getState().results.hits.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) :
+							this.isDocs ? UIStore.getState().results.docs.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) : [],
+
+				// If groups, don't show any annotation columns.
+				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
+				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
+				hasCustomHitInfoColumn: corpusCustomizations.results.hasCustomHitInfoColumn,
+			}
+		},
+		renderDisplaySettings(): DisplaySettingsForRendering {
+			const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
+			return {
+				...this.rowDisplaySettings,
+				...this.columnDisplaySettings,
+				// Don't show details table in expanded rows when showing groups or hits in docs.
+				detailedAnnotations: this.isHits ? UIStore.getState().results.shared.detailedAnnotationIds?.map(id => allAnnotationsMap[id]) ?? CorpusStore.get.allAnnotations().filter(a => !a.isInternal && a.hasForwardIndex) : [],
+				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [
+					key,
+					Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null
+				])) as any, 
+				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
+				html: UIStore.getState().results.shared.concordanceAsHtml,
+			}
+		},
+
+		cols(): ColumnDefs|null { return this.results && makeColumns(this.results, this.columnDisplaySettings); },
+		rows(): Rows|null { return this.results && makeRows(this.results, this.rowDisplaySettings); },
 	},
 	watch: {
 		querySettings: {
@@ -509,26 +622,9 @@ export default Vue.extend({
 	color: #777;
 }
 
-table {
-	> thead > tr > th {
-		text-align: left;
-		background-color: white;
-		border-bottom: 1px solid #aaa;
-		padding-bottom: 5px;
-	}
-
-	> tbody > tr > td {
-		vertical-align: top;
-	}
-}
 
 .results-container {
 	position: relative;
-}
-
-// Make entire row clickable even when the document title is short
-.doctitle {
-	display: block;
 }
 
 .result-totals {
@@ -536,5 +632,15 @@ table {
 	padding: 8px 8px 0 15px;
 	flex: none;
 }
+
+.result-buttons-layout {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	margin: 10px 0;
+	gap: 10px;
+}
+
+
 
 </style>

@@ -53,8 +53,6 @@ export default Vue.extend({
 			this.audio.addEventListener('ended', this.stop);
 			this.audio.currentTime = this.startTime;
 			this.audio.play();
-
-			ga('send', 'event', 'results', 'audio/play', this.url);
 		},
 		/** @return true if the active player was this */
 		stopActive(): boolean {
