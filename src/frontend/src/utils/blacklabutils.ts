@@ -117,6 +117,8 @@ function normalizeAnnotatedField(field: BLTypes.BLAnnotatedField): NormalizedAnn
 		isParallel,
 		prefix: parallelFieldParts.prefix,
 		version: parallelFieldParts.version,
+		tokenCount: field.tokenCount,
+		documentCount: field.documentCount,
 	};
 }
 

@@ -234,6 +234,8 @@ interface BLAnnotatedFieldInternal  {
 	hasLengthTokens: boolean;
 	hasXmlTags: boolean;
 	isAnnotatedField: boolean;
+	tokenCount?: number;
+	documentCount?: number;
 }
 type BLAnnotatedFieldV1 = BLAnnotatedFieldInternal&{
 	/** Indexed token properties/annotations for this field */
@@ -407,6 +409,15 @@ export interface BLSearchSummaryTotalsHits extends BLSearchSummaryTotalsDocs {
 	stoppedCountingHits: boolean;
 	/** Did the query hit the default retrieval limit (defaultMaxHitsToRetrieve) */
 	stoppedRetrievingHits: boolean;
+	subcorpusSize?: {
+		documents: number;
+		tokens: number;
+		annotatedFields?: {
+			fieldName: string;
+			documents: number;
+			tokens: number;
+		}[];
+	};
 }
 
 export interface BLSearchSummaryGroupInfo {

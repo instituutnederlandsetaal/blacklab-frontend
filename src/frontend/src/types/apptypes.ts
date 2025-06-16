@@ -51,6 +51,8 @@ type NormalizedAnnotatedFieldBase  = {
 	 * Refers to the id of a NormalizedAnnotation
 	 */
 	mainAnnotationId: string;
+	tokenCount?: number;
+	documentCount?: number;
 };
 
 export type NormalizedAnnotatedFieldParallel = NormalizedAnnotatedFieldBase&{
@@ -133,8 +135,10 @@ export type NormalizedIndexBase = {
 	timeModified: string;
 	/** Number of tokens in this index (excluding those tokens added in any currently running indexing action). */
 	tokenCount: number;
-	/** Number of documents in this index excluding those tokens added in any currently running indexing action). */
+	/** Number of documents in this index (excluding those tokens added in any currently running indexing action). */
 	documentCount: number;
+	/** Number of document versions in this index, if parallel corpus. */
+	docVersions?: number;
 }
 
 /** Contains information about the internal structure of the index - which fields exist for tokens, which metadata fields exist for documents, etc */
@@ -343,9 +347,9 @@ export type Tagset = {
 			values: Array<{
 				value: string;
 				displayName: string;
-				/** 
-				 * Only allow/show this value when one of these values is selected in the main annotation 
-				 * (referring to Tagset['values'][key]) 
+				/**
+				 * Only allow/show this value when one of these values is selected in the main annotation
+				 * (referring to Tagset['values'][key])
 				 * Allows further filtering of the values than just the subAnnotationIds array in the main values object.
 				 */
 				pos?: string[];

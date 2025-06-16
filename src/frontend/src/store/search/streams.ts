@@ -65,12 +65,25 @@ export const selectedSubCorpus$ = merge(
 		switchMap(params => new Observable<Notification<RecursiveRequired<BLTypes.BLDocResults>>>(subscriber => {
 			// Speedup: we know the totals beforehand when there are no filters: mock a reply
 			if (!params.filter) {
+				const annot = Object.entries(CorpusStore.getState().corpus!.annotatedFields);
+				const annotatedFields = annot.map(([fieldName, field]) => ({
+					fieldName,
+					documents: field.documentCount ?? 0,
+					tokens: field.tokenCount ?? 0
+				}));
+
 				subscriber.next(Notification.createNext<RecursiveRequired<BLTypes.BLDocResults>>({
 					docs: [],
 					summary: {
 						numberOfDocs: CorpusStore.getState().corpus!.documentCount,
 						stillCounting: false,
 						tokensInMatchingDocuments: CorpusStore.getState().corpus!.tokenCount,
+						subcorpusSize: {
+							documents: CorpusStore.getState().corpus!.documentCount,
+							docVersions: CorpusStore.getState().corpus!.docVersions,
+							tokens: CorpusStore.getState().corpus!.tokenCount,
+							annotatedFields
+						}
 					}
 				} as any));
 
