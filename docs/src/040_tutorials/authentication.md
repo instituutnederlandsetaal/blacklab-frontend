@@ -71,9 +71,11 @@ userIndexes: /data/user-index
 # (you only need this if you want per-user private indices or authorization)
 authentication:
   system: 
-    class: AuthRequestAttribute
-    attributeName: x-forwarded-email
-    attributeType: header
+    class: AuthRequestValue
+    # attribute|header|parameter
+    type: header
+    # name of the attribute, header or parameter that contains the user id
+    name: x-forwarded-email
 ```
 ```properties [blacklab-frontend.properties]
 # blacklab-frontend.properties
