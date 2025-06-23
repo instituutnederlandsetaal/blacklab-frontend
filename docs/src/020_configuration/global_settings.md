@@ -41,9 +41,9 @@ For the above example, the config should now be located in `${BLACKLAB_CONFIG_DI
 | `.war`                | Context Path (optional) | Proxy (optional)                             | Browser URL             | Config Location (relative to base dir)  |
 |-----------------------|-------------------------|--------------------------------------------- |-------------------------|-----------------------------------------|
 | `blacklab-frontend.war` | —                       | —                                            | `/blacklab-frontend`      | `blacklab-frontend.properties`            |
-| `my-frontend.war`     | —                       | —                                            | `/my-frontend`          | `my-frontend.properties`                |
+| `my-frontend.war`     | —                         | —                                            | `/my-frontend`          | `my-frontend.properties`                |
 | any                   | `/test/blacklab-frontend` | —                                            | `/test/blacklab-frontend` | `test/blacklab-frontend.properties`       |
-| any                   | `/text/blacklab-frontend` | `/frisian-corpora` → `/TEST/blacklab-frontend` | `/frisian-corpora`      | `test/blacklab-frontend.properties`       |
+| any                   | `/TEST/blacklab-frontend` | `/frisian-corpora` → `/TEST/blacklab-frontend` | `/frisian-corpora`      | `TEST/blacklab-frontend.properties`       |
 
 **Note:**  
 - The config location is relative to the chosen config directory (see above).
