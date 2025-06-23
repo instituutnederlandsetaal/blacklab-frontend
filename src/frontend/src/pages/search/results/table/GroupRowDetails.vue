@@ -1,7 +1,6 @@
 <template>
 	<tr class="grouprow-details">
 		<td colspan="10" class="well-light">
-
 			<template v-if="concordances.results">
 				<div class="concordance-controls clearfix">
 					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>

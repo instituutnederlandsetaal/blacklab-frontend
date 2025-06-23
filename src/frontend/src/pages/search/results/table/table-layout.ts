@@ -161,8 +161,8 @@ const displayModes: Record<'hits'|'docs', Record<'metadata'|'annotation', Record
 				'displayname',
 				'gr.d',
 				'gr.t',
-				'relative frequency (docs) [gr.d/gsc.d]',
-				'relative frequency (tokens) [gr.t/gsc.t]',
+				'relative frequency (docs) [gr.d/sc.d]',
+				'relative frequency (tokens) [gr.t/sc.t]',
 				'average document length [gr.t/gr.d]',
 			],
 			'docs': [
@@ -172,8 +172,8 @@ const displayModes: Record<'hits'|'docs', Record<'metadata'|'annotation', Record
 			],
 			'tokens': [
 				'displayname',
-				['relative frequency (tokens) [gr.t/gsc.t]', 'gr.t'],
-				'relative frequency (tokens) [gr.t/gsc.t]'
+				['relative frequency (tokens) [gr.t/sc.t]', 'gr.t'],
+				'relative frequency (tokens) [gr.t/sc.t]'
 			],
 		}
 	}
@@ -613,17 +613,17 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		const r: GroupRowData = {
 			...row,
 			'relative group size [gr.d/r.d]': row['gr.d'] / row['r.d'],
-			'relative group size [gr.t/r.t]': row['gr.t'] && row['r.t'] ? row['gr.t']! / row['r.t'] : undefined,
-			'relative group size [gr.h/r.h]': (row['gr.h'] && row['r.h']) ? row['gr.h']! / row['r.h']! : undefined,
+			'relative group size [gr.t/r.t]': (row['gr.t'] && row['r.t']) ? row['gr.t'] / row['r.t'] : undefined,
+			'relative group size [gr.h/r.h]': (row['gr.h'] && row['r.h']) ? row['gr.h'] / row['r.h'] : undefined,
 
-			'relative frequency (docs) [gr.d/gsc.d]':   row['gsc.d']                 ? row['gr.d']  / row['gsc.d']! : undefined,
-			'relative frequency (tokens) [gr.t/gsc.t]': row['gr.t']  && row['gsc.t'] ? row['gr.t']! / row['gsc.t']! : undefined,
-			'relative frequency (hits) [gr.h/gsc.t]':   row['gr.h']  && row['gsc.t'] ? row['gr.h']! / row['gsc.t']! : undefined,
+			'relative frequency (docs) [gr.d/gsc.d]':   row['gsc.d']                   ? row['gr.d'] / row['gsc.d'] : undefined,
+			'relative frequency (tokens) [gr.t/gsc.t]': (row['gr.t']  && row['gsc.t']) ? row['gr.t'] / row['gsc.t'] : undefined,
+			'relative frequency (hits) [gr.h/gsc.t]':   (row['gr.h']  && row['gsc.t']) ? row['gr.h'] / row['gsc.t'] : undefined,
 
-			'relative frequency (docs) [gr.d/sc.d]':   row['sc.d'] ? row['gr.d'] / row['sc.d']! : undefined,
-			'relative frequency (tokens) [gr.t/sc.t]': row['gr.t'] && row['sc.t'] ? row['gr.t']! / row['sc.t']! : undefined,
+			'relative frequency (docs) [gr.d/sc.d]':   row['sc.d'] ? row['gr.d'] / row['sc.d'] : undefined,
+			'relative frequency (tokens) [gr.t/sc.t]': (row['gr.t'] && row['sc.t']) ? row['gr.t'] / row['sc.t'] : undefined,
 
-			'average document length [gr.t/gr.d]': row['gr.t'] ? Math.round(row['gr.t']! / row['gr.d']) : undefined,
+			'average document length [gr.t/gr.d]': row['gr.t'] ? Math.ceil(row['gr.t'] / row['gr.d']) : undefined,
 		};
 
 		Object.entries(r).forEach(([k, v]: [keyof GroupRowData, GroupRowData[keyof GroupRowData]]) => max.add(k as any, v as any));
