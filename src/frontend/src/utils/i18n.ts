@@ -1,4 +1,4 @@
-import Vue from 'vue';
+import Vue, { computed } from 'vue';
 import VueI18n, { LocaleMessageObject } from 'vue-i18n';
 import { merge } from 'ts-deepmerge';
 import { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, NormalizedMetadataGroup, Option } from '@/types/apptypes';
@@ -29,28 +29,25 @@ function parseJsonWithComments<T = any>(jsonResponse: Response): Promise<T> {
 // type ValidPaths = Path<typeof import('@/locales/en-us.json')>;
 
 Vue.use(VueI18n);
-const defaultFallbackLocale = 'en-us';
-const defaultLocale = navigator.language.toLowerCase();
-const locale = localStorageSynced('cf/locale', defaultLocale, true);
 const availableLocales: Option[] = Vue.observable([]);
-
-// #locale-registration
-// Language selector will pick up the new entry, after which it can be loaded.
-function registerLocale(locale: string, label: string) {
-	availableLocales.push({value: locale, label})
-}
-
+function registerLocale(locale: string, label: string) { availableLocales.push({value: locale, label}); }
 function removeLocale(locale: string) {
 	const index = availableLocales.findIndex(l => l.value === locale);
 	if (index >= 0) availableLocales.splice(index, 1);
 }
-// #endregion
+// Do this first, so that we can validate the default locale from the browser etc.
+registerLocale('en-us', 'English')
+registerLocale('zh-cn', '中文')
+registerLocale('nl-nl', 'Nederlands')
+
+const defaultFallbackLocale = 'en-us';
+const locale = localStorageSynced('cf/locale', resolveLocale(navigator.language.toLowerCase()), true);
 
 const i18n = new VueI18n({
-	locale: locale.value,
+	locale: locale.value, // it's okay if this is unknown, vue-i18n will show the fallbacks
 	fallbackLocale: defaultFallbackLocale,
 	messages: {},
-});
+} as any);
 
 function setFallbackLocale(locale: string) {
 	if (availableLocales.some(l => l.value === locale))
@@ -61,51 +58,62 @@ function setFallbackLocale(locale: string) {
 
 function setDefaultLocale(defaultLocale: string) {
 	// If there is no explicit locale stored, set the locale to the value.
-	if (!locale.isFromStorage) locale.value = defaultLocale;
+	// Check with the available locales first.
+	if (!locale.isFromStorage) locale.value = resolveLocale(defaultLocale);
 }
 
-async function loadLocaleMessages(locale: string) {
-	if (!locale) return;
-	// also allow loading locales not defined in the availableLocales.
-	// This is useful for loading overrides for locales that are not available in the UI.
-	// Also, because the UI list can be updated asynchronously (from customjs), we might have a locale in localStorage that is not in the list yet.
-	// if it errors, you'll just see the fallbackLocale and a bunch of warnings.
+/** Helper to resolve a locale to the best available match */
+function resolveLocale(requestedLocale: string): string {
+	if (!requestedLocale) return defaultFallbackLocale;
+	// If exact match exists, use it
+	if (availableLocales.some(l => l.value === requestedLocale)) return requestedLocale;
+	// Try to find a locale that starts with the requested prefix (e.g. 'nl' -> 'nl-nl')
+	const prefix = requestedLocale.split('-')[0];
+	const match = availableLocales.find(l => l.value.startsWith(prefix + '-'));
+	if (match) return match.value;
+	// Fallback
+	return defaultFallbackLocale;
+}
 
-	if (i18n.availableLocales.includes(locale)) return;
+async function loadLocaleMessages(requestedLocale: string) {
+	if (!requestedLocale) return;
+	const resolved = resolveLocale(requestedLocale);
+	if (i18n.availableLocales.includes(resolved)) return;
 
 	let messages: LocaleMessageObject|null = null;
 	let overrides: LocaleMessageObject|null = null;
 
-	try { messages = await import(`@/locales/${locale}.json`); }
-	catch (e) { console.info(`Failed to load builtin locale messages for ${locale}: ${e}`); }
+	try { messages = await import(`@/locales/${resolved}.json`); }
+	catch (e) { console.info(`Failed to load builtin locale messages for ${resolved}: ${e}`); }
 
-	overrides =  await fetch(`${CONTEXT_URL}${INDEX_ID ? `/${INDEX_ID}` : ''}/static/locales/${locale}.json`)
-		.then(r => {
-			if (!r.ok) {
-				// If the file doesn't exist, that's fine, we just won't have any overrides.
-				// NOTE: browsers will typically log the 404 in the console anyway, there's no way to suppress that from code AFAIK.
-				if (r.status !== 404) console.info(`Failed to fetch locale overrides for ${locale}: ${r.statusText}`)
-				else console.error(`No locale overrides found for ${locale}. It's safe to ignore the 404 error.`)
-				return null;
-			} else {
-				return parseJsonWithComments(r);
-			}
-		})
-		.catch(e => {
-			console.warn(`Override ${INDEX_ID}/static/locales/${locale}.json does not appear to be valid JSON! Skipping overrides.`, e)
+	overrides =  await fetch(`${CONTEXT_URL}${INDEX_ID ? `/${INDEX_ID}` : ''}/static/locales/${resolved}.json`, {
+		headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+		cache: 'no-store',
+	})
+	.then(r => {
+		if (!r.ok) {
+			// If the file doesn't exist, that's fine, we just won't have any overrides.
+			// NOTE: browsers will typically log the 404 in the console anyway, there's no way to suppress that from code AFAIK.
+			if (r.status !== 404) console.info(`Failed to fetch locale overrides for ${resolved}: ${r.statusText}`)
+			else console.error(`No locale overrides found for ${resolved}. It's safe to ignore the 404 error.`)
 			return null;
-		});
+		} else {
+			return parseJsonWithComments(r);
+		}
+	})
+	.catch(e => {
+		console.warn(`Override ${INDEX_ID}/static/locales/${resolved}.json does not appear to be valid JSON! Skipping overrides.`, e)
+		return null;
+	});
 
 	if (messages || overrides) {
-		i18n.setLocaleMessage(locale, merge(messages || {}, overrides || {}));
+		i18n.setLocaleMessage(resolved, merge(messages || {}, overrides || {}));
 	} else {
-		console.error(`Failed to load locale messages for ${locale}`);
+		console.error(`Failed to load locale messages for ${resolved}`);
 	}
 }
 
-registerLocale('en-us', 'English')
-registerLocale('zh-cn', '中文')
-registerLocale('nl-nl', 'Nederlands')
+
 
 const LocaleSelector = Vue.extend({
 	i18n,
@@ -120,33 +128,35 @@ const LocaleSelector = Vue.extend({
 			right
 			hideEmpty
 			placeholder="🌐"
+			allowUnknownValues
 
 			:options="availableLocales"
 			:loading="loading"
 			:showValues="false"
 			v-model="locale.value"
 		/>`,
-
+	computed: {
+		actualShownLocale(): string {
+			return resolveLocale(this.locale.value);
+		}
+	},
 	watch: {
-		async 'locale.value'() {
-			if (this.loading) return;
-			if (!this.$i18n.availableLocales.includes(this.locale.value)) {
+		async actualShownLocale(resolved: string) {
+			if (!this.$i18n.availableLocales.includes(resolved)) {
 				this.loading = true
-				await loadLocaleMessages(this.locale.value);
-				this.loading = false
+				await loadLocaleMessages(resolved);
+				if (this.actualShownLocale === resolved) // hasn't changed in the meantime
+					this.loading = false
 			}
-			this.$i18n.locale = locale.value
+			this.$i18n.locale = resolved; // only update after loading, or we'll get many warnings about missing translations for a split second
 		},
 	},
 	async created() {
-		loadLocaleMessages(defaultFallbackLocale);
-		loadLocaleMessages(defaultLocale);
-		loadLocaleMessages(locale.value);
+		await loadLocaleMessages(i18n.fallbackLocale as string);
+		await loadLocaleMessages(locale.value);
 	}
 });
 const localeSelectorInstance = new LocaleSelector().$mount('#locale-selector');
-
-
 
 /** Get the i18n text or fall back to a default value if the key doesn't exist.
  *  Useful for dynamic key values such as field names.
@@ -257,8 +267,11 @@ window.i18n = {
 	removeLocale,
 	setFallbackLocale,
 	setDefaultLocale,
-	setLocale(locale: string) {
-		i18n.locale = locale;
+	setLocale(newLocale: string) {
+		locale.value = newLocale; // propagates to the VueI18n instance
 	},
-	i18n
+	i18n,
+	getLocale() {
+		return locale.value;
+	}
 }
