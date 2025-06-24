@@ -390,9 +390,9 @@ const init = async () => {
 				if (e.title === 'CANNOT_OPEN_INDEX' || e.message.indexOf('CANNOT_OPEN_INDEX') !== -1) {
 					// Corpus not found
 					privateActions.setLoadingState({loadingState: 'error', loadingMessage:
-						`Corpus not found. Please check the spelling, or delete the corpus` +
-						'name from the URL to get a list of available corpora. ' +
-						'If it\'s not there, refer to the documentation at https://github.com/instituutnederlandsetaal/blacklab-frontend '+
+						`Corpus '${INDEX_ID}' not found.<br>` +
+						`Please check the spelling, or go to <a href="${CONTEXT_URL}">${CONTEXT_URL}</a> to get a list of available corpora.<br>` +
+						`If it's not there, refer to the documentation at <a href="https://blacklab.ivdnt.org" target="_blank">https://blacklab.ivdnt.org</a> `+
 						'and check your configuration.'
 					});
 				} else if (e.message.indexOf('blacklabResponse') !== -1) {
@@ -404,7 +404,7 @@ const init = async () => {
 						'Unable to contact BlackLab Server (or blacklab-frontend\'s own server component). ' +
 						'Make sure both .war applications have been deployed, and your properties file ' +
 						'is in the correct location and has the correct name. ' +
-						'Refer to the documentation at https://github.com/instituutnederlandsetaal/blacklab-frontend '
+						'Refer to the documentation at <a href="https://blacklab.ivdnt.org" target="_blank">https://blacklab.ivdnt.org</a>'
 					});
 				}
 			} else {
