@@ -149,12 +149,28 @@ export default FileTree;
   display: inline-flex;
   flex-wrap: nowrap;
   white-space: nowrap;
-  > * > * { height: 1.8em; line-height: 1.8em; }
+  overflow: auto;
+  max-width: 100%;
+}
+
+.comments, 
+.structure {
+  /* fix strange 1px scrollbar from some overflow I can't find. */
+  overflow-y: hidden; 
+  flex-shrink: 0;
+}
+
+.comment, .comment *, 
+.name-and-connector, .name-and-connector * {
+  height: 1.8em; 
+  line-height: 1.8em;
+  font-size: 16px;
 }
 
 pre { margin: 0; padding: 0; display: inline-block; white-space: pre;}
 .comment {
   padding-left: 1em;
+  padding-right: 1em;
   width: 100%;
 }
 
