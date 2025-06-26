@@ -58,7 +58,7 @@ function wrapWithErrorHandling<T extends object>(obj: T) {
 				// Not a function we should wrap, just save the value.
 				Reflect.set(target, prop, newValue, receiver);
 				// propagate the dontProxyMe marker to the new value
-				if (currentValue[dontProxyMe]) mark(newValue, dontProxyMe);
+				if (currentValue != null && currentValue[dontProxyMe]) mark(newValue, dontProxyMe);
 				return newValue;
 			}
 
