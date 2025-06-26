@@ -6,7 +6,7 @@ import * as loginSystem from '@/utils/loginsystem';
 import {init as initApi} from '@/api';
 
 import '@/global.scss';
-import '@/utils/i18n';
+import {i18n} from '@/utils/i18n';
 
 
 $(document).ready(async () => {
@@ -15,6 +15,7 @@ $(document).ready(async () => {
 	initApi('cf', CONTEXT_URL, user);
 
 	new Vue({
+		i18n,
 		render: v => v(RemoteIndexPageComponent)
 	})
 	.$mount(document.querySelector('#vue-root')!);
