@@ -361,8 +361,8 @@ const initialState: ModuleRootState = {
 
 	dropdowns: {
 		groupBy: {
-			metadataGroupLabelsVisible: true,
-			annotationGroupLabelsVisible: true
+			metadataGroupLabelsVisible: false,
+			annotationGroupLabelsVisible: false
 		}
 	}
 };
