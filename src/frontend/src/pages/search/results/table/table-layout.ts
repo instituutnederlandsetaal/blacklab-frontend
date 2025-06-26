@@ -801,7 +801,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 				label: i.$tAnnotDisplayName(a),
 				debugLabel: a.id,
 				class: info.dir === 'rtl' ? 'text-right' : 'text-left',
-				...sorts([a], 'annotation'),
+				...sorts([a], blSortPrefixCenter),
 				field: 'annotation' as const,
 				annotation: a
 			})),

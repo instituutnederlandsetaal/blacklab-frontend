@@ -2,11 +2,12 @@
 	<th :class="col.class" :style="col.style">
 		<slot></slot>
 		<span v-if="Array.isArray(col.sort)" class="dropdown">
-			<a role="button" data-toggle="dropdown" :class="['dropdown-toggle', {disabled: disabled}]">
+			<a role="button" data-toggle="dropdown" :class="['dropdown-toggle', {disabled: disabled}]" aria-haspopup="true" aria-expanded="false">
 				{{ col.label }} <debug><b>[{{ col.debugLabel || col.key }}]</b></debug>
 				<span class="caret"></span>
 			</a>
 			<ul class="dropdown-menu" role="menu">
+				<li class="dropdown-header">{{ $t('results.sort.sortBy') }}</li>
 				<li v-for="o in col.sort" :key="o.value" :class="{disabled: disabled}">
 					<a :class="['sort', {disabled: disabled}]" role="button" @click="changeSort(o.value)">{{o.label}} <Debug><b>[{{o.value}}]</b></Debug></a>
 				</li>
