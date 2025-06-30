@@ -879,7 +879,7 @@ const init = () => {
 	if (!initialState.search.shared.within.elements.length) {
 		function setValuesForWithin(validValues?: AppTypes.NormalizedAnnotation['values']) {
 			if (!validValues?.length) {
-				console.warn('Within clause not supported in this corpus, no relations indexed');
+				console.info('Within clause not supported in this corpus, no relations indexed');
 				actions.search.shared.within.enable(false);
 				return;
 			};

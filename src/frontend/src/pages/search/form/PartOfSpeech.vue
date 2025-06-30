@@ -109,7 +109,7 @@ export default Vue.extend({
 			value.subAnnotationIds.forEach(annotId => {
 				const {values, id} = this.tagset.subAnnotations[annotId];
 				values.forEach(({value: subAnnotValue}) => {
-					Vue.set(this.selected, `${value.value}/${annotId}/${subAnnotValue}`, false);
+					this.$set(this.selected, `${value.value}/${annotId}/${subAnnotValue}`, false);
 				});
 			});
 		});

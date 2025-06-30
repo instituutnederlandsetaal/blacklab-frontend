@@ -7,6 +7,7 @@
 
 			v-model="stepstate"
 		/>
+		<button @click="reset">Reset</button>
 	</div>
 </template>
 
@@ -118,6 +119,20 @@ const component = Vue.extend({
 		// deselectedSubAnnotations(): NormalizedAnnotation[] { return Object.entries(this.subAnnotationSelections).filter(([k, v]) => !v).map(([k]) => this.annotationsMap[k]); },
 	},
 	methods: {
+		reset() {
+			this.step = 0;
+			this.stepstate = {
+				version: 1,
+				annotations: this.index.annotatedFields ? Object.values(this.index.annotatedFields).flatMap(f => Object.values(f.annotations)) : [],
+				mainPosAnnotationId: undefined,
+				subAnnotations: [],
+				index: this.index,
+				step3: {},
+				step4: {}
+			};
+			localStorage.removeItem(this.localStorageKey);
+			this.warning = '';
+		},
 		// log(e: any) { console.log(e); },
 		goToStep(targetstep: number) {
 			try {

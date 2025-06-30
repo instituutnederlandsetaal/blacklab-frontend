@@ -329,7 +329,7 @@ public class MainServlet extends HttpServlet {
 
         // need to use corpus name in the cache map
         // because corpora can define their own xsl files in their own data directory
-        String key = corpus + "_" + corpusDataFormat.orElse("missing-format") + "_" + name;
+        String key = corpus.getCorpusId() + "_" + corpusDataFormat.orElse("missing-format") + "_" + name;
         return this.useCache(request) ? articleTransformers.computeIfAbsent(key, gen) : gen.apply(key);
     }
 
