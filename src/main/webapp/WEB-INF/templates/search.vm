@@ -8,7 +8,8 @@
     var DEBUG_INFO_VISIBLE = $debugInfo;
 </script>
 
-<script src="$JSPATH/search.js?_$cache"></script>
+<script src="$JSPATH/search.js?_$cache" onerror="document.body.insertAdjacentHTML('afterbegin', '<div class=\'alert alert-danger\'>Warning: Failed to load search.js from $JSPATH. Please check your configuration or dev-server.</div>');"></script>
+
 
 <div id="vue-root"></div>
 
