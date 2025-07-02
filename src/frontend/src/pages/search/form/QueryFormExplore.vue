@@ -123,6 +123,7 @@
 
 							:value="token.value"
 							@input="updateTokenValue(index, $event)"
+							ref="reset"
 						/>
 
 						<Autocomplete v-else
@@ -172,6 +173,7 @@
 <script lang="ts">
 import Vue from 'vue';
 
+import * as RootStore from '@/store/search';
 import * as CorpusStore from '@/store/search/corpus';
 import * as InterfaceStore from '@/store/search/form/interface';
 import * as ExploreStore from '@/store/search/form/explore';
@@ -199,7 +201,8 @@ export default ParallelFields.extend({
 		errorNoParallelSourceVersion: {default: false, type: Boolean},
 	},
 	data: () => ({
-		debug
+		debug,
+		subscriptions: [] as Array<() => void>,
 	}),
 	computed: {
 		exploreMode: {
@@ -322,7 +325,20 @@ export default ParallelFields.extend({
 	},
 	created() {
 		this.corporaGroupDisplayMode = this.corporaGroupDisplayModeOptions[0].value;
-	}
+		
+		const eventId = `${ExploreStore.namespace}/reset`;
+
+		this.subscriptions.push(RootStore.store.subscribe((mutation, state) => {
+			if (this.$refs.reset && mutation.type === eventId) {
+				(this.$refs.reset as any[]).forEach(v => v.reset());
+			}
+		}));
+	
+	},
+	beforeDestroy() {
+		this.subscriptions.forEach(unsub => unsub());
+		this.subscriptions = [];
+	},
 });
 </script>
 
