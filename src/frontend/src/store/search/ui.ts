@@ -230,6 +230,12 @@ type ModuleRootState = {
 			/** Shows or hides the small muted text label showing the group of a metadata field. */
 			metadataGroupLabelsVisible: boolean,
 		};
+		sortBy: {
+			/** Shows or hides the small muted text label showing the group of an annotation. Also hides the hit/before/after label. */
+			annotationGroupLabelsVisible: boolean;
+			/** Shows or hides the small muted text label showing the group of a metadata field. */
+			metadataGroupLabelsVisible: boolean;
+		}
 	};
 
 	global: {
@@ -361,6 +367,10 @@ const initialState: ModuleRootState = {
 
 	dropdowns: {
 		groupBy: {
+			metadataGroupLabelsVisible: false,
+			annotationGroupLabelsVisible: false
+		},
+		sortBy: {
 			metadataGroupLabelsVisible: false,
 			annotationGroupLabelsVisible: false
 		}
@@ -701,8 +711,12 @@ const actions = {
 	},
 	dropdowns: {
 		groupBy: {
-			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.annotationGroupLabelsVisible = payload, 'annotationGroupLabelsVisible'),
-			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.metadataGroupLabelsVisible = payload, 'metadataGroupLabelsVisible'),
+			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.annotationGroupLabelsVisible = payload, 'groupBy.annotationGroupLabelsVisible'),
+			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.metadataGroupLabelsVisible = payload, 'groupBy.metadataGroupLabelsVisible'),
+		},
+		sortBy: {
+			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.sortBy.annotationGroupLabelsVisible = payload, 'sortBy.annotationGroupLabelsVisible'),
+			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.sortBy.metadataGroupLabelsVisible = payload, 'sortBy.metadataGroupLabelsVisible'),
 		},
 	},
 

@@ -94,7 +94,9 @@
 
 					:corpus="corpus"
 					:annotations="sortAnnotations"
+					:annotationGroupLabels="sortAnnotationLabels"
 					:metadata="sortMetadata"
+					:metadataGroupLabels="sortMetadataLabels"
 
 					:disabled="!!request"
 				/>
@@ -375,10 +377,11 @@ export default Vue.extend({
 		},
 
 		sortAnnotations(): string[] { return UIStore.getState().results.shared.sortAnnotationIds; },
+		sortAnnotationLabels(): boolean { return UIStore.getState().dropdowns.sortBy.annotationGroupLabelsVisible; },
 		sortMetadata(): string[] { return UIStore.getState().results.shared.sortMetadataIds; },
+		sortMetadataLabels(): boolean { return UIStore.getState().dropdowns.sortBy.metadataGroupLabelsVisible; },
 		exportAnnotations(): string[]|null { return UIStore.getState().results.shared.detailedAnnotationIds; },
 		exportMetadata(): string[]|null { return UIStore.getState().results.shared.detailedMetadataIds; },
-
 
 		exportEnabled(): boolean { return UIStore.getState().results.shared.exportEnabled; },
 

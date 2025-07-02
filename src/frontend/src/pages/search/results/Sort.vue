@@ -21,7 +21,6 @@
 <script lang="ts">
 import Vue from 'vue';
 import { NormalizedIndex } from '@/types/apptypes';
-import * as CorpusStore from '@/store/search/corpus';
 import SelectPicker, { OptGroup } from '@/components/SelectPicker.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import debug from '@/utils/debug';
@@ -41,7 +40,9 @@ export default Vue.extend({
 
 		corpus: Object as () => NormalizedIndex,
 		annotations: Array as () => string[],
+		annotationGroupLabels: Boolean,
 		metadata: Array as () => string[],
+		metadataGroupLabels: Boolean,
 		disabled: Boolean,
 	},
 	computed: {
@@ -89,7 +90,8 @@ export default Vue.extend({
 					'Sort',
 					this,
 					this.corpus.textDirection,
-					debug.debug
+					debug.debug,
+					this.annotationGroupLabels
 				));
 
 				if (this.parallelCorpus) {
@@ -126,8 +128,8 @@ export default Vue.extend({
 					'Sort',
 					this,
 					debug.debug,
-					true,
-					corpusCustomizations.search.metadata.showField
+					this.metadataGroupLabels,
+					corpusCustomizations.search.metadata.showField,
 				));
 			}
 

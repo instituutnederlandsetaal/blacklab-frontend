@@ -566,10 +566,24 @@ export function fieldSubset<T extends {id: string}>(
 	return ret;
 }
 
-// The type of the field objects is a little more generic than a metadata field
-// because this function can also be used with filters. Which do not 100% overlap with metadata fields necessarily.
-// (although in the vast majority of cases, filters are created from metadata fields).
-// (but for example a date range filter has two underlying metadata fields, so it requires a custom id that doesn't exist in the metadata)
+/**
+ * Given a list of metadata IDs, and some metadata about the corpus, convert them to a list of options for a <SelectPicker/>, or for rendering the fields in a list-type fashion.
+ * 
+ * NOTE:
+ * The type of the field objects is a little more generic than a metadata field
+ * because this function can also be used with filters. Which do not 100% overlap with metadata fields necessarily.
+ * (although in the vast majority of cases, filters are created from metadata fields).
+ * (but for example a date range filter has two underlying metadata fields, so it requires a custom id that doesn't exist in the metadata)
+ * 
+ * @param ids the list of metadata IDs to keep
+ * @param groups how metadata in the corpus is grouped into subsections.
+ * @param metadata all metadata fields in the corpus
+ * @param operation What section of the interface to generate the options list for: 'Sort' will generate additional entries to sort in reverse order, and 'Group' is just to generate appropriate option labels "Group by ...".
+ * @param i18n the Vue instance to use for i18n
+ * @param debug is debug mode enabled? print raw IDS in suffix labels
+ * @param showGroupLabels show little group name suffixes at the end of options?
+ * @param showFieldFunction a function that returns whether a field should be shown in the list of options. If not provided, all requested fields are shown. For 'customization' (see customization.ts).
+ */
 export function getMetadataSubset<T extends {id: string, defaultDisplayName?: string}>(
 	ids: string[],
 	groups: AppTypes.NormalizedMetadataGroup[],
@@ -587,7 +601,6 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 	// This will map the value to be the string required for blacklab to sort/group by the field
 	// and the label to be the human-readable display name of the field.
 	function mapToOptions(value: string, displayName: string, groupId: string): AppTypes.Option[] {
-		// @ts-ignore
 		const displayIdHtml = debug ? `<small><strong>[id: ${value}]</strong></small>` : '';
 		const displayNameHtml = displayName || value;
 		const displaySuffixHtml = showGroupLabels && groupId ? `<small class="text-muted">${groupId}</small>` : '';
