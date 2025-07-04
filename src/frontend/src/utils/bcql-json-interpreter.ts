@@ -341,6 +341,9 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 
 	function _parallelQuery(bcql: string, input: any): Result[] {
 		if (input.type == 'relmatch') {
+			const isParallel = input.children.every((c: any) => !!c.targetVersion);
+			if (!isParallel)
+				throw new Error('Cannot interpret non-parallel relmatch queries in the frontend');
 			// Determine what relationtype we're filtering by
 			// (must all be the same for the query to be interpretable here)
 			let relationType: string|undefined = undefined;
