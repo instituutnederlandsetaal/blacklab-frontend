@@ -59,7 +59,7 @@ BlackLab relies on external softare such as proxies to implement user authentica
 The BlackLab Frontend in turn relies on BlackLab, so you should only need to configure BlackLab (and your proxy).
 
 :bust_in_silhouette:  [This tutorial](/tutorials/authentication) details how to set up a proxy that can integrate with Microsoft, Google, Facebook, etc.  
-For a more technical explanation, consult [the BlackLab docs](https://blacklab.ivdnt.org/server/howtos.html#let-users-manage-their-own-corpora).
+For a more technical explanation, consult [the BlackLab docs](https://blacklab.ivdnt.org/server/user-corpora.html).
 
 :::
 
