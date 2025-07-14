@@ -1,5 +1,5 @@
 # Base image of BlackLab to use.
-ARG BLACKLAB_IMAGE_VERSION=latest
+ARG BLACKLAB_IMAGE_VERSION=4
 
 # Stage "builder": build the WAR file
 #--------------------------------------
@@ -23,9 +23,6 @@ RUN --mount=type=cache,target=/root/.m2  \
 #--------------------------------------
 
 FROM instituutnederlandsetaal/blacklab:$BLACKLAB_IMAGE_VERSION
-
-# Where blacklab-frontend.properties can be found. Can be overridden.
-ARG CONFIG_ROOT=docker/config
 
 # What the name of the Tomcat app (and therefore the URL should be). Can be overridden.
 ARG TOMCAT_APP_NAME=blacklab-frontend
