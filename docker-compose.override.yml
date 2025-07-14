@@ -5,9 +5,9 @@ services:
   frontend:
     # Bind mount properties file for quick updates during development
     volumes:
-      - ./docker/config/corpus-frontend.properties:/etc/blacklab/corpus-frontend.properties
+      - ./docker/config/blacklab-frontend.properties:/etc/blacklab/blacklab-frontend.properties
 
   frontend-proxy:
     # Bind mount properties file for quick updates during development
     volumes:
-      - ./docker/config/corpus-frontend.properties:/etc/blacklab/corpus-frontend.properties
+      - ./docker/config/blacklab-frontend.properties:/etc/blacklab/blacklab-frontend.properties

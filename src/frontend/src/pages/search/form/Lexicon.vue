@@ -14,7 +14,7 @@
 		/>
 		<span v-if="!wordOptions" class="fa fa-spinner fa-spin text-muted"></span>
 
-		<div v-if="wordOptions && wordOptions.length" style="margin: 10px 0;">
+		<div v-if="wordOptions && wordOptions.length" style="display: flex; flex-wrap: wrap; gap: 0.25em; margin: 10px 0;">
 			<button
 				type="button"
 				class="btn btn-default"
@@ -29,30 +29,34 @@
 			</button>
 		</div>
 
-		<label v-for="opt in renderedWords" :key="opt.word"
-			style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-			:role="opt.count > 0 ? 'button' : undefined"
-			:class="{'disabled': opt.count === 0}"
-			:title="`${opt.word} (${opt.count})`"
-		>
-			<input type="checkbox"
-				:value="opt"
-				:disabled="opt.count === 0"
-
-				v-model="opt.selected"
-			> {{opt.word}}<!-- ({{opt.count}})-->
-		</label>
-		<template v-if="wordOptions && wordOptions.length"> <!-- if we have wordOptions, we also have pos options -->
-			<h4>{{$t('lexicon.limit')}}</h4>
-			<label v-for="(checked, pos) in posOptions" :key="pos"
+		<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">
+			<label v-for="opt in renderedWords" :key="opt.word"
 				style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-				role="button"
+				:role="opt.count > 0 ? 'button' : undefined"
+				:class="{'disabled': opt.count === 0}"
+				:title="`${opt.word} (${opt.count})`"
 			>
 				<input type="checkbox"
-					v-model="posOptions[pos]"
-					:value="pos"
-				> {{pos}}
+					:value="opt"
+					:disabled="opt.count === 0"
+	
+					v-model="opt.selected"
+				> {{opt.word}}<!-- ({{opt.count}})-->
 			</label>
+		</div>
+		<template v-if="wordOptions && wordOptions.length"> <!-- if we have wordOptions, we also have pos options -->
+			<h4>{{$t('lexicon.limit')}}</h4>
+			<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">
+				<label v-for="(checked, pos) in posOptions" :key="pos"
+					style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+					role="button"
+				>
+					<input type="checkbox"
+						v-model="posOptions[pos]"
+						:value="pos"
+					> {{pos}}
+				</label>
+			</div>
 		</template>
 	</div>
 </template>

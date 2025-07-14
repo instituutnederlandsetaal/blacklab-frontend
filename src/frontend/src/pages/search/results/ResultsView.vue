@@ -94,7 +94,9 @@
 
 					:corpus="corpus"
 					:annotations="sortAnnotations"
+					:annotationGroupLabels="sortAnnotationLabels"
 					:metadata="sortMetadata"
+					:metadataGroupLabels="sortMetadataLabels"
 
 					:disabled="!!request"
 				/>
@@ -260,7 +262,7 @@ export default Vue.extend({
 			// If we're querying a parallel corpus, and no sort was chosen yet,
 			// sort by alignments (so aligned hits appear first).
 			const viewModule = ResultsStore.getOrCreateModule('hits');
-			if (CorpusStore.get.isParallelCorpus() && viewModule.getState().sort === null) {
+			if (this.id === 'hits' && (this.groupBy.length === 0 || this.viewGroup) && CorpusStore.get.isParallelCorpus() && viewModule.getState().sort === null) {
 				viewModule.actions.sort('alignments');
 			}
 
@@ -374,10 +376,11 @@ export default Vue.extend({
 		},
 
 		sortAnnotations(): string[] { return UIStore.getState().results.shared.sortAnnotationIds; },
+		sortAnnotationLabels(): boolean { return UIStore.getState().dropdowns.sortBy.annotationGroupLabelsVisible; },
 		sortMetadata(): string[] { return UIStore.getState().results.shared.sortMetadataIds; },
+		sortMetadataLabels(): boolean { return UIStore.getState().dropdowns.sortBy.metadataGroupLabelsVisible; },
 		exportAnnotations(): string[]|null { return UIStore.getState().results.shared.detailedAnnotationIds; },
 		exportMetadata(): string[]|null { return UIStore.getState().results.shared.detailedMetadataIds; },
-
 
 		exportEnabled(): boolean { return UIStore.getState().results.shared.exportEnabled; },
 
@@ -564,12 +567,16 @@ export default Vue.extend({
 			}
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {
+			const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
 			return {
 				...this.rowDisplaySettings,
 				...this.columnDisplaySettings,
 				// Don't show details table in expanded rows when showing groups or hits in docs.
-				detailedAnnotations: this.isHits ? UIStore.getState().results.shared.detailedAnnotationIds?.map(id => CorpusStore.get.allAnnotationsMap()[id]) ?? CorpusStore.get.allAnnotations().filter(a => !a.isInternal && a.hasForwardIndex) : [],
-				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, id && CorpusStore.get.allAnnotationsMap()[id]])) as any,
+				detailedAnnotations: this.isHits ? UIStore.getState().results.shared.detailedAnnotationIds?.map(id => allAnnotationsMap[id]) ?? CorpusStore.get.allAnnotations().filter(a => !a.isInternal && a.hasForwardIndex) : [],
+				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [
+					key,
+					Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null
+				])) as any, 
 				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
 				html: UIStore.getState().results.shared.concordanceAsHtml,
 			}

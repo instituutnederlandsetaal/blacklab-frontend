@@ -40,7 +40,9 @@ export default Vue.extend({
 
 		corpus: Object as () => NormalizedIndex,
 		annotations: Array as () => string[],
+		annotationGroupLabels: Boolean,
 		metadata: Array as () => string[],
+		metadataGroupLabels: Boolean,
 		disabled: Boolean,
 	},
 	computed: {
@@ -57,8 +59,7 @@ export default Vue.extend({
 			/** Customize and add one or more groups */
 			const addGroups = ((...optGroups: OptGroup[]) => {
 				options.push(...optGroups.map(optGroup => {
-					const result = corpusCustomizations.sort.customize(optGroup);
-					return result === null ? optGroup : result;
+					return corpusCustomizations.sort.customize(optGroup) ?? optGroup;
 				}));
 			});
 
@@ -66,17 +67,17 @@ export default Vue.extend({
 				addGroups({
 					label: 'Groups',
 					options: [{
-						label: 'Sort by Group Name',
+						label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_groupName')}).toString(),
 						value: 'identity',
 					}, {
-						label: 'Sort by Group Name (descending)',
+						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_groupName')}).toString(),
 						value: '-identity',
 					}, {
-						label: 'Sort by Size',
+						label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_groupSize')}).toString(),
 						value: 'size',
 					}, {
-						label: 'Sort by Size (ascending)',
-						value: '-size', // numeric sorting is inverted: https://github.com/INL/corpus-frontend/issues/340
+						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_groupSize')}).toString(),
+						value: '-size', // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
 					}]
 				});
 			}
@@ -89,17 +90,18 @@ export default Vue.extend({
 					'Sort',
 					this,
 					this.corpus.textDirection,
-					debug.debug
+					debug.debug,
+					this.annotationGroupLabels
 				));
 
 				if (this.parallelCorpus) {
 					addGroups({
 						label: 'Parallel Corpus',
 						options: [{
-							label: 'Sort by alignments',
+							label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_alignments')}).toString(),
 							value: 'alignments'
 						}, {
-							label: 'Sort by alignments (ascending)',
+							label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_alignments')}).toString(),
 							value: '-alignments'
 						},]
 					});
@@ -109,11 +111,11 @@ export default Vue.extend({
 				addGroups({
 					label: 'Documents',
 					options: [{
-						label: 'Sort by hits',
+						label: this.$t('results.table.sortBy', {field: this.$t('results.table.sort_numberOfHits')}).toString(),
 						value: 'numhits'
 					}, {
-						label: 'Sort by hits (ascending)',
-						value: '-numhits' // numeric sorting is inverted: https://github.com/INL/corpus-frontend/issues/340
+						label: this.$t('results.table.sortByDescending', {field: this.$t('results.table.sort_numberOfHits')}).toString(),
+						value: '-numhits' // numeric sorting is inverted: https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/340
 					}]
 				});
 			}
@@ -126,8 +128,8 @@ export default Vue.extend({
 					'Sort',
 					this,
 					debug.debug,
-					true,
-					corpusCustomizations.search.metadata.showField
+					this.metadataGroupLabels,
+					corpusCustomizations.search.metadata.showField,
 				));
 			}
 

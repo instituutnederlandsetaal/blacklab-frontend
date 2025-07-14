@@ -161,8 +161,8 @@ const displayModes: Record<'hits'|'docs', Record<'metadata'|'annotation', Record
 				'displayname',
 				'gr.d',
 				'gr.t',
-				'relative frequency (docs) [gr.d/gsc.d]',
-				'relative frequency (tokens) [gr.t/gsc.t]',
+				'relative frequency (docs) [gr.d/sc.d]',
+				'relative frequency (tokens) [gr.t/sc.t]',
 				'average document length [gr.t/gr.d]',
 			],
 			'docs': [
@@ -172,8 +172,8 @@ const displayModes: Record<'hits'|'docs', Record<'metadata'|'annotation', Record
 			],
 			'tokens': [
 				'displayname',
-				['relative frequency (tokens) [gr.t/gsc.t]', 'gr.t'],
-				'relative frequency (tokens) [gr.t/gsc.t]'
+				['relative frequency (tokens) [gr.t/sc.t]', 'gr.t'],
+				'relative frequency (tokens) [gr.t/sc.t]'
 			],
 		}
 	}
@@ -354,7 +354,7 @@ export type DisplaySettingsForRendering = {
 	/** Annotations shown in the expanded concordance. May be empty. */
 	detailedAnnotations: NormalizedAnnotation[];
 	/** What properties/annotations to show for tokens in the deptree, e.g. lemma, pos, etc. */
-	depTreeAnnotations: Record<'lemma'|'upos'|'xpos'|'feats', NormalizedAnnotation|null>,
+	depTreeAnnotations: Record<'lemma'|'upos'|'xpos', NormalizedAnnotation|null>&Record<'feats', NormalizedAnnotation[]|null>,
 	/** What annotations should be offered up for sorting in the context (before,hit,after) column headers? */
 	sortableAnnotations: NormalizedAnnotation[];
 
@@ -454,6 +454,12 @@ function start(hit: BLHitSnippet|BLHit|undefined): number|undefined {
 	return (hit as BLHit&BLHitSnippet)?.start;
 }
 
+function end(hit: BLHit): number;
+function end(hit: BLHitSnippet|undefined): undefined;
+function end(hit: BLHitSnippet|BLHit|undefined): number|undefined {
+	return (hit as BLHit&BLHitSnippet)?.end;
+}
+
 /** Create the title row for a document, plus - when the document has them - nested rows for the hits in that document. */
 function makeDocRow(p: Result<any>, info: DisplaySettingsForRows): DocRowData {
 	return {
@@ -465,7 +471,7 @@ function makeDocRow(p: Result<any>, info: DisplaySettingsForRows): DocRowData {
 	}
 }
 
-/** Extract the document's own text director (for mixed corpora). See https://github.com/INL/corpus-frontend/issues/520 */
+/** Extract the document's own text director (for mixed corpora). See https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/520 */
 function docDir(doc: BLDoc, corpusNativeDir: 'ltr'|'rtl'): 'ltr'|'rtl' {
 	switch (doc.docInfo.textDirection?.[0]) {
 		case 'ltr':
@@ -505,7 +511,7 @@ function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: D
 	const r: HitRowData[] = [];
 	p.first_of_hit = true;
 	p.last_of_hit = false;
-	p.hit_id = p.doc.docPid + start(p.hit)
+	p.hit_id = p.doc.docPid + start(p.hit) + end(p.hit);
 	r.push(makeHitRow(p, info, highlightColors, info.sourceField));
 
 	const h = p.hit as BLHit;
@@ -610,17 +616,17 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 		const r: GroupRowData = {
 			...row,
 			'relative group size [gr.d/r.d]': row['gr.d'] / row['r.d'],
-			'relative group size [gr.t/r.t]': row['gr.t'] && row['r.t'] ? row['gr.t']! / row['r.t'] : undefined,
-			'relative group size [gr.h/r.h]': (row['gr.h'] && row['r.h']) ? row['gr.h']! / row['r.h']! : undefined,
+			'relative group size [gr.t/r.t]': (row['gr.t'] && row['r.t']) ? row['gr.t'] / row['r.t'] : undefined,
+			'relative group size [gr.h/r.h]': (row['gr.h'] && row['r.h']) ? row['gr.h'] / row['r.h'] : undefined,
 
-			'relative frequency (docs) [gr.d/gsc.d]':   row['gsc.d']                 ? row['gr.d']  / row['gsc.d']! : undefined,
-			'relative frequency (tokens) [gr.t/gsc.t]': row['gr.t']  && row['gsc.t'] ? row['gr.t']! / row['gsc.t']! : undefined,
-			'relative frequency (hits) [gr.h/gsc.t]':   row['gr.h']  && row['gsc.t'] ? row['gr.h']! / row['gsc.t']! : undefined,
+			'relative frequency (docs) [gr.d/gsc.d]':   row['gsc.d']                   ? row['gr.d'] / row['gsc.d'] : undefined,
+			'relative frequency (tokens) [gr.t/gsc.t]': (row['gr.t']  && row['gsc.t']) ? row['gr.t'] / row['gsc.t'] : undefined,
+			'relative frequency (hits) [gr.h/gsc.t]':   (row['gr.h']  && row['gsc.t']) ? row['gr.h'] / row['gsc.t'] : undefined,
 
-			'relative frequency (docs) [gr.d/sc.d]':   row['sc.d'] ? row['gr.d'] / row['sc.d']! : undefined,
-			'relative frequency (tokens) [gr.t/sc.t]': row['gr.t'] && row['sc.t'] ? row['gr.t']! / row['sc.t']! : undefined,
+			'relative frequency (docs) [gr.d/sc.d]':   row['sc.d'] ? row['gr.d'] / row['sc.d'] : undefined,
+			'relative frequency (tokens) [gr.t/sc.t]': (row['gr.t'] && row['sc.t']) ? row['gr.t'] / row['sc.t'] : undefined,
 
-			'average document length [gr.t/gr.d]': row['gr.t'] ? Math.round(row['gr.t']! / row['gr.d']) : undefined,
+			'average document length [gr.t/gr.d]': row['gr.t'] ? Math.ceil(row['gr.t'] / row['gr.d']) : undefined,
 		};
 
 		Object.entries(r).forEach(([k, v]: [keyof GroupRowData, GroupRowData[keyof GroupRowData]]) => max.add(k as any, v as any));
@@ -798,7 +804,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 				label: i.$tAnnotDisplayName(a),
 				debugLabel: a.id,
 				class: info.dir === 'rtl' ? 'text-right' : 'text-left',
-				...sorts([a], 'annotation'),
+				...sorts([a], blSortPrefixCenter),
 				field: 'annotation' as const,
 				annotation: a
 			})),

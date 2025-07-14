@@ -88,16 +88,16 @@ export const step = Vue.extend({
 
 		const mainValues = Object.keys(this.value.step3.main!)
 		const mainId = this.value.mainPosAnnotationId!;
-		Vue.set(this.displays, mainId, this.displays[mainId] || mapReduce(mainValues, v => v));
+		this.$set(this.displays, mainId, this.displays[mainId] || mapReduce(mainValues, v => v));
 
 		const subs = Object.values(this.value.step3.main!)[0].subs;
 
 		// now create all missing entries
 		Object.entries(subs)
 		.forEach(([subId, subValues]) => {
-			Vue.set(this.displays, subId, this.displays.subId || {});
+			this.$set(this.displays, subId, this.displays.subId || {});
 			Object.entries(subValues).forEach(([value, {occurances}]) => {
-				Vue.set(this.displays[subId], value, this.displays[subId][value] || value);
+				this.$set(this.displays[subId], value, this.displays[subId][value] || value);
 			});
 		});
 	},

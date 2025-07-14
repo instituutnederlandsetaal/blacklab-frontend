@@ -28,7 +28,7 @@ import * as GlobalResultsModule from '@/store/results/global';
 import * as ArticleModule from '@/store/article';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
+import { getPatternString, getWithinClausesFromFilters, shouldAddWithSpans } from '@/utils/pattern-utils';
 import { Loadable, LoadableFromStream } from '@/utils/loadable-streams';
 import debug, {  } from '@/utils/debug';
 import { CorpusChange, createStoreInitializer } from '@/store/async-loaders';
@@ -88,6 +88,8 @@ const get = {
 			throw new Error('Should provide a sampleSeed when random sampling, or every new page of results will use a different seed');
 		}
 
+		const patt = QueryModule.get.patternString() ?? '';
+
 		// These make debugging more convenient
 		const debugParams = debug.debug ? {
 			// Explain how the CQL was converted to a query and rewritten for optimization
@@ -109,7 +111,7 @@ const get = {
 
 			number: state.global.pageSize,
 			field: QueryModule.get.sourceField().id,
-			patt: QueryModule.get.patternString(),
+			patt,
 			pattgapdata: (QueryModule.get.patternString() && QueryModule.getState().gap) ? QueryModule.getState().gap!.value || undefined : undefined,
 
 			sample: (state.global.sampleMode === 'percentage' && state.global.sampleSize) ? state.global.sampleSize : undefined,
@@ -119,7 +121,8 @@ const get = {
 			sort: activeView.sort != null ? activeView.sort : undefined,
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: state.global.context != null ? state.global.context : undefined,
-			adjusthits: 'yes'
+			adjusthits: true,
+			withspans: shouldAddWithSpans(patt),
 		};
 	}, 'blacklabParameters')
 };

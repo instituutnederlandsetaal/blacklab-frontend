@@ -21,6 +21,7 @@ import { spanFilterId } from '@/utils';
 import { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
 import { CorpusChange } from '@/store/async-loaders';
 import { corpusCustomizations } from '@/utils/customization';
+import { normalizeAnnotationUIType } from '@/utils/blacklabutils';
 
 type CustomView = {
 	id: string;
@@ -221,7 +222,7 @@ type ModuleRootState = {
 				lemma: string|null;
 				upos: string|null;
 				xpos: string|null;
-				feats: string|null;
+				feats: string[]|null;
 			}
 		};
 	};
@@ -233,6 +234,12 @@ type ModuleRootState = {
 			/** Shows or hides the small muted text label showing the group of a metadata field. */
 			metadataGroupLabelsVisible: boolean,
 		};
+		sortBy: {
+			/** Shows or hides the small muted text label showing the group of an annotation. Also hides the hit/before/after label. */
+			annotationGroupLabelsVisible: boolean;
+			/** Shows or hides the small muted text label showing the group of a metadata field. */
+			metadataGroupLabelsVisible: boolean;
+		}
 	};
 
 	global: {
@@ -322,7 +329,8 @@ const initialState: ModuleRootState = {
 			transformSnippets: null,
 			concordanceAsHtml: false,
 			getDocumentSummary: (doc: BLTypes.BLDocInfo, fields: BLTypes.BLDocFields): string => {
-				const { titleField = '', dateField = '', authorField = '' } = fields;
+				let { titleField = '', dateField = '', authorField = '' } = fields;
+				titleField = titleField || 'fromInputFile';
 				const { [titleField]: title = [], [dateField]: date = [], [authorField]: author = [] } = doc;
 				return (title[0] || 'UNKNOWN') + (author.length ? ' by ' + author.join(', ') : '');
 			},
@@ -372,8 +380,12 @@ const initialState: ModuleRootState = {
 
 	dropdowns: {
 		groupBy: {
-			metadataGroupLabelsVisible: true,
-			annotationGroupLabelsVisible: true
+			metadataGroupLabelsVisible: false,
+			annotationGroupLabelsVisible: false
+		},
+		sortBy: {
+			metadataGroupLabelsVisible: false,
+			annotationGroupLabelsVisible: false
 		}
 	}
 };
@@ -664,21 +676,35 @@ const actions = {
 			}, 'totalsRefreshIntervalMs'),
 
 			/** Edit which annotations are shown in the dependency tree in the hits result table. */
-			dependencies: b.commit((state, payload: { lemma: string|null, upos: string|null, xpos: string|null, feats: string|null }) => {
+			dependencies: b.commit((state, payload: { 
+				lemma: string|null, 
+				upos: string|null, 
+				xpos: string|null, 
+				/** It's possible to show multiple feats by passing multiple annotations here. */
+				feats: string|null|string[] 
+			}) => {
 				const allAnnotations= CorpusStore.get.allAnnotationsMap();
 				const storeIsInitialized = Object.keys(allAnnotations).length > 0;
-				const validate = (id: string|null): string|null => {
+
+				const validate = (id: string|null, key: string): string|null => {
 					if (!storeIsInitialized) return id; // validate in this module's init() function. allow for now.
-					if (id == null || allAnnotations[id]?.hasForwardIndex) return id;
-					if (!allAnnotations[id]) console.warn(`[results.shared.dependencies] - Trying to show dependency tree with annotation '${id}', but it does not exist.`);
-					if (!allAnnotations[id]?.hasForwardIndex) console.warn(`[results.shared.dependencies] - Trying to show dependency tree with annotation '${id}', but it does not have the required forward index.`);
+					if (!id) return null; // empty.
+					if (allAnnotations[id]?.hasForwardIndex) return id;
+					
+					if (!allAnnotations[id]) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for feature '${key}', but it does not exist.`);
+					if (!allAnnotations[id]?.hasForwardIndex) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for features '${key}', but it does not have the required forward index.`);
 					return null;
 				}
+
+				function validateArray(ids: Array<string|null>, key: string): string[] {
+					return ids.map(id => validate(id, key)).filter(v => !!v) as string[];
+				}
+
 				state.results.shared.dependencies = {
-					lemma: validate(payload.lemma),
-					upos: validate(payload.upos),
-					xpos: validate(payload.xpos),
-					feats: validate(payload.feats)
+					lemma: validate(payload.lemma, 'lemma'),
+					upos: validate(payload.upos, 'upos'),
+					xpos: validate(payload.xpos, 'xpos'),
+					feats: validateArray([payload.feats].flat(), 'feats')
 				};
 			}, 'dependencies')
 		}
@@ -691,8 +717,12 @@ const actions = {
 	},
 	dropdowns: {
 		groupBy: {
-			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.annotationGroupLabelsVisible = payload, 'annotationGroupLabelsVisible'),
-			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.metadataGroupLabelsVisible = payload, 'metadataGroupLabelsVisible'),
+			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.annotationGroupLabelsVisible = payload, 'groupBy.annotationGroupLabelsVisible'),
+			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.metadataGroupLabelsVisible = payload, 'groupBy.metadataGroupLabelsVisible'),
+		},
+		sortBy: {
+			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.sortBy.annotationGroupLabelsVisible = payload, 'sortBy.annotationGroupLabelsVisible'),
+			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.sortBy.metadataGroupLabelsVisible = payload, 'sortBy.metadataGroupLabelsVisible'),
 		},
 	},
 
@@ -786,11 +816,12 @@ const init = (state: CorpusChange) => {
 	CorpusStore.get.allAnnotatedFields().forEach((field) => {
 		Object.values(field.annotations).forEach((annotation) => {
 			const uiType = corpusCustomizations.search.pattern.uiType(annotation.annotatedFieldId, annotation.id);
-			if (uiType)
+			if (uiType) {
 				annotation.uiType = uiType;
+				normalizeAnnotationUIType(annotation);
+			}
 		});
 	});
-	
 
 	// At this point we stored the customizations in our state
 	// Now validate it all and correct it if necessary
@@ -872,7 +903,7 @@ const init = (state: CorpusChange) => {
 	if (!customizedState.search.shared.within.elements.length) {
 		function setValuesForWithin(validValues?: AppTypes.NormalizedAnnotation['values']) {
 			if (!validValues?.length) {
-				console.warn('Within clause not supported in this corpus, no relations indexed');
+				console.info('Within clause not supported in this corpus, no relations indexed');
 				actions.search.shared.within.enable(false);
 				return;
 			};

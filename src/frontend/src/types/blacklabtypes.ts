@@ -51,7 +51,10 @@ export type BLSearchParameters = {
 	maxretrieve?: number;
 
 	/** When using relation matching in pattern, widen the match part of the hit to contain both source and target. */
-	adjusthits?: 'yes';
+	adjusthits?: boolean;
+
+	/** When using relation matching in pattern, widen the match part of the hit to contain both source and target. */
+	withspans?: boolean;
 };
 
 // --------------
@@ -231,6 +234,8 @@ interface BLAnnotatedFieldInternal  {
 	hasLengthTokens: boolean;
 	hasXmlTags: boolean;
 	isAnnotatedField: boolean;
+	tokenCount?: number;
+	documentCount?: number;
 }
 type BLAnnotatedFieldV1 = BLAnnotatedFieldInternal&{
 	/** Indexed token properties/annotations for this field */
@@ -330,6 +335,8 @@ export interface BLIndexMetadata {
 // Search results
 // --------------
 
+// #region docssearchsummary
+
 export type BLSearchSummarySampleSettings = {} | {
 	samplePercentage: number;
 	sampleSeed: number;
@@ -396,6 +403,15 @@ export type BLSearchSummaryPattern = {
 	stoppedCountingHits: boolean;
 	/** Did the query hit the default retrieval limit (defaultMaxHitsToRetrieve) */
 	stoppedRetrievingHits: boolean;
+	subcorpusSize?: {
+		documents: number;
+		tokens: number;
+		annotatedFields?: {
+			fieldName: string;
+			documents: number;
+			tokens: number;
+		}[];
+	};
 }
 
 /** Only when results have been grouped. */
@@ -416,6 +432,8 @@ export interface BLSearchSummaryGrouped {
 		tokens: number;
 	};
 }
+
+// #endregion docssearchsummary
 
 /** Single group of either hits or documents */
 export interface BLGroupResult {
@@ -464,7 +482,14 @@ export interface BLDocGroupResults {
 	summary: BLSearchSummary & BLSearchSummaryGrouped;
 }
 
-/** Contains a hit's tokens, deconstructed into the individual annotations/properties, such as lemma, pos, word, always contains punctuation in between tokens */
+
+// #region docssnippettypes
+
+/**
+ * Contains a hit's tokens,
+ * deconstructed into the individual annotations/properties, such as lemma, pos, word,
+ * always contains punctuation in between tokens
+ */
 export interface BLHitSnippetPart {
 	/**
 	 * Punctuation always exists (even if only an empty string or a space).
@@ -486,6 +511,8 @@ export type BLHitSnippet = {
 	right?: BLHitSnippetPart;
 	match: BLHitSnippetPart;
 }
+
+// #endregion docssnippettypes
 
 /** When tagging part of the query like a:[] returns the start and end of the part labelled with the 'a' (so in this case, the []) */
 export interface BLMatchInfoSpan {

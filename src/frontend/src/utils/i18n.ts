@@ -38,12 +38,7 @@ const i18n = new VueI18n({
 });
 syncPropertyWithLocalStorage(storeKey, i18n, 'locale', true);
 const availableLocales: Option[] = Vue.observable([]);
-
-// Language selector will pick up the new entry, after which it can be loaded.
-function registerLocale(locale: string, label: string) {
-	availableLocales.push({value: locale, label})
-}
-
+function registerLocale(locale: string, label: string) { availableLocales.push({value: locale, label}); }
 function removeLocale(locale: string) {
 	const index = availableLocales.findIndex(l => l.value === locale);
 	if (index >= 0) availableLocales.splice(index, 1);
@@ -105,9 +100,9 @@ async function loadLocaleMessages(locale: string) {
 		});
 
 	if (messages || overrides) {
-		i18n.setLocaleMessage(locale, merge(messages || {}, overrides || {}));
+		i18n.setLocaleMessage(resolved, merge(messages || {}, overrides || {}));
 	} else {
-		console.error(`Failed to load locale messages for ${locale}`);
+		console.error(`Failed to load locale messages for ${resolved}`);
 	}
 
 	loading.value = false;
@@ -229,8 +224,11 @@ window.i18n = {
 	removeLocale,
 	setFallbackLocale,
 	setDefaultLocale,
-	setLocale(locale: string) {
-		i18n.locale = locale;
+	setLocale(newLocale: string) {
+		locale.value = newLocale; // propagates to the VueI18n instance
 	},
-	i18n
+	i18n,
+	getLocale() {
+		return locale.value;
+	}
 }

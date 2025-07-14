@@ -1,7 +1,6 @@
 <template>
 	<tr class="grouprow-details">
 		<td colspan="10" class="well-light">
-
 			<template v-if="concordances.results">
 				<div class="concordance-controls clearfix">
 					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
@@ -43,30 +42,31 @@ import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import {blacklab} from '@/api';
 import { BLSearchParameters, BLHitResults, BLDocResults } from '@/types/blacklabtypes';
 
-import { ColumnDefs, DisplaySettingsForRendering, GroupRowData, makeRows, Rows } from '@/pages/search/results/table/table-layout';
+import { GroupRowData, makeRows, Rows } from '@/pages/search/results/table/table-layout';
 
-import * as UIStore from '@/store/ui';
 import * as CorpusStore from '@/store/corpus';
 import Spinner from '@/components/Spinner.vue';
 import IRow from '@/pages/search/results/table/IRow.vue';
 
 export default Vue.component('GroupRowDetails', IRow.extend({
 	components: { Spinner },
+	// NOTE: also update the watcher on this prop if you change this name!
 	props: { row: Object as () => GroupRowData },
 	data: () => ({
 		concordances: null as any as PaginatedGetter<Rows>,
 	}),
-	created() {
-		this.concordances = new PaginatedGetter((oldRows, first, number) => {
-			// make a copy of the parameters so we don't clear them for all components using the summary
-			const requestParameters: BLSearchParameters = Object.assign({}, this.query, {
-				// Do not clear sample/samplenum/samplecount,
-				// or we could retrieve concordances that weren't included in the input results for the grouping
-				number,
-				first,
-				viewgroup: this.row.id,
-				sort: undefined,
-			} as BLSearchParameters);
+	methods: {
+		createGetter() {
+			this.concordances = new PaginatedGetter((oldRows, first, number) => {
+				// make a copy of the parameters so we don't clear them for all components using the summary
+				const requestParameters: BLSearchParameters = Object.assign({}, this.query, {
+					// Do not clear sample/samplenum/samplecount,
+					// or we could retrieve concordances that weren't included in the input results for the grouping
+					number,
+					first,
+					viewgroup: this.row.id,
+					sort: 'alignments', // if parallel corpus, show aligned hits first. (if not, we don't care about order)
+				} as BLSearchParameters);
 
 			const indexId = CorpusStore.get.indexId()!;
 			return (this.type === 'hits' ? blacklab.getHits<BLHitResults>(indexId, requestParameters) : blacklab.getDocs<BLDocResults>(indexId, requestParameters))
@@ -83,6 +83,10 @@ export default Vue.component('GroupRowDetails', IRow.extend({
 		}, this.row.size)
 	},
 	watch: {
+		row: {
+			handler() { this.createGetter(); },
+			immediate: true
+		},
 		open() {
 			if (this.open && !this.concordances.done && !this.concordances.loading && !this.concordances.results?.rows.length) this.concordances.next();
 		}

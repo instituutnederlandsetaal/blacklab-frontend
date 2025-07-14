@@ -12,6 +12,7 @@ export type TotalsInput = {
 	indexId: string;
 	operation: 'hits'|'docs';
 	results: BLTypes.BLSearchResult;
+	annotatedFieldId: string;
 };
 
 export type TotalsOutput = {
@@ -28,9 +29,49 @@ export type TotalsOutput = {
 }
 
 
-function getTotals(r: BLTypes.BLSearchResult): TotalsOutput {
+function getTotals(r: BLTypes.BLSearchResult, annotatedFieldId: string): TotalsOutput {
 	const hasPatternInfo = BLTypes.hasPatternInfo(r);
 	const hasGroupInfo = BLTypes.hasGroupInfo(r);
+
+	if (annotatedFieldId) {
+		throw new Error(`Not implemented yet - need to validate BlackLab search summary types. 
+			Currently implies subcorpusStats only available when using patterns, 
+			but we try to use this feature when no pattern is requested, and we only have a set of filters.`
+		);
+		
+		/*
+			This is the original code that was used to get the filter totals for a specific field:
+			Lifted from FilterOverview.vue, where we show the selected subcorpus based on the filters.
+			(and now, based on the selected source field too, apparently.)
+			------
+
+			// If there's a source version, get the doc/token count from there.
+			const source = PatternStore.get.shared().source;
+			let count = null;
+			if (source) {
+				count = this.subCorpusStats?.summary.subcorpusSize?.annotatedFields?.find(f => f.fieldName === source) ?? null;
+			}
+			if (!count) {
+				let documents = 0;
+				let tokens = 0;
+				this.subCorpusStats?.summary.subcorpusSize?.annotatedFields?.forEach(f => {
+					documents += f.documents;
+					tokens += f.tokens;
+				});
+				if (documents === 0 && tokens === 0) {
+					// If no documents or tokens, use the total corpus size
+					documents = this.subCorpusStats?.summary.numberOfDocs ?? 0;
+					tokens = this.subCorpusStats?.summary.tokensInMatchingDocuments ?? 0;
+				}
+				count = {
+					documents,
+					tokens
+				};
+			}
+			return count;
+
+		*/
+	}
 
 	return {
 		results: r,
@@ -51,7 +92,7 @@ export class TotalsLoader extends InteractiveLoadable<TotalsInput, TotalsOutput>
 		super(switchMap(({indexId, operation, results}) => {
 			// Override some settings from the original search, we're not interested in the results, but we need the totals.
 			const params = {...results.summary.searchParam, number: 0, first: 0, includeTokenCount: true};
-			const recursiveTotal$ = of(Loadable.Loaded(getTotals(results))).pipe(
+			const recursiveTotal$ = of(Loadable.Loaded(getTotals(results, initial.annotatedFieldId))).pipe(
 				expand((cur: Loadable<TotalsOutput>) => {
 					// Expand is recursive: called for each input + each of its own outputs.
 					// As a consequence: check carefully for terminating clauses to prevent infinite recursion.
@@ -59,8 +100,8 @@ export class TotalsLoader extends InteractiveLoadable<TotalsInput, TotalsOutput>
 					// wait a little while before fetching the next batch of results.
 					return timer(UIStore.getState().results.shared.totalsRefreshIntervalMs).pipe(
 						switchMap(() => operation === 'docs'
-							? Api.blacklab.getDocs(indexId, params).then(getTotals).toObservable()
-							: Api.blacklab.getHits(indexId, params).then(getTotals).toObservable()
+							? Api.blacklab.getDocs(indexId, params).then(r => getTotals(r, initial.annotatedFieldId)).toObservable()
+							: Api.blacklab.getHits(indexId, params).then(r => getTotals(r, initial.annotatedFieldId)).toObservable()
 					))
 				}),
 				filter(v => !v.isLoading()), // remove loading values. We always want a value or an error in the output.
@@ -99,6 +140,7 @@ export class TotalsLoader extends InteractiveLoadable<TotalsInput, TotalsOutput>
 export type SubcorpusInput = {
 	index: NormalizedIndex;
 	filter: string|undefined|null;
+	annotatedFieldId: string;
 }
 export type SubcorpusOutput = {
 	numberOfMatchingDocuments: number;
@@ -112,8 +154,8 @@ class SubcorpusLoader extends InteractiveLoadable<SubcorpusInput, SubcorpusOutpu
 		super(switchMap<SubcorpusInput, ObservableInput<Loadable<SubcorpusOutput>>>(v => {
 			if (!v.filter) { // there is no filter - shortcut, we know the entire corpus is the subcorpus
 				return of(Loadable.Loaded({
-					numberOfMatchingDocuments: v.index.documentCount,
-					tokensInMatchingDocuments: v.index.tokenCount,
+					numberOfMatchingDocuments: v.index.annotatedFields[v.annotatedFieldId].documentCount || v.index.documentCount,
+					tokensInMatchingDocuments: v.index.annotatedFields[v.annotatedFieldId].tokenCount || v.index.tokenCount,
 					totalDocsInIndex: v.index.documentCount,
 					totalTokensInIndex: v.index.tokenCount
 				}))
@@ -122,7 +164,7 @@ class SubcorpusLoader extends InteractiveLoadable<SubcorpusInput, SubcorpusOutpu
 			// We have a filter - contact BlackLab and get the total subcorpus.
 			return Api.blacklab
 				.getDocs(v.index.id, {filter: v.filter, first: 0, number: 0, includetokencount: true, waitfortotal: true})
-				.then(getTotals)
+				.then(r => getTotals(r, v.annotatedFieldId))
 				.then(totals => ({
 					numberOfMatchingDocuments: totals.numberOfMatchingDocuments,
 					tokensInMatchingDocuments: totals.tokensInMatchingDocuments,

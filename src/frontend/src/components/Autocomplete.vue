@@ -1,6 +1,6 @@
 <template>
 	<input
-		:autocomplete="!autocomplete"
+		:autocomplete="autocomplete ? 'off' : 'on'"
 		@keypress="_refreshList"
 		@keyup.left="_refreshList"
 		@keyup.right="_refreshList"

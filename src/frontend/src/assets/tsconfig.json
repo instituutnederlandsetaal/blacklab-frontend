@@ -1,0 +1,4 @@
+{
+	// Required or otherwise we pick up everything in node_modules and that makes schema compilation slow.
+	"files": []
+}

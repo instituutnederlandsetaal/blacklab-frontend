@@ -79,12 +79,11 @@
 		},
 		"parallel": {
 			"alignBy": "Align by",
-			"inSourceVersion": "In source version",
+			"searchSourceVersion": "Search source version",
 			"errorNoSourceVersion": "Please select a source version.",
 			"andCompareWithTargetVersions": "And compare with target version(s)",
 			"queryForSourceVersion": "Query for source version",
 			"queryForTargetVersion": "Query for target version",
-			"chooseTargetVersion": "Choose a target version",
 			"addTargetVersion": "Add another target version"
 		}
 	},
@@ -193,7 +192,7 @@
 	},
 	"results": {
 		"groupBy": {
-			"groupNameWithoutValue": "[none]",
+			"groupNameWithoutValue": "[no value]",
 
 			"groupResults": "Group Results",
 			"close": "Close",
@@ -268,10 +267,13 @@
 			"columnLabelHit": "Hit",
 			"columnLabelAfterHit": "After Hit",
 			"sortBy": "Sort by {field}",
+			"sortByDescending": "Sort by {field} (reverse)",
+			"sort_numberOfHits": "number of hits",
+			"sort_groupName": "group name",
+			"sort_groupSize": "group size",
+			"sort_alignments": "alignments",
 			"groupBy": "Group by {field}",
-			"sortByDescending": "Sort by {field} (descending)",
 			"sortByDocument": "Sort by document title",
-			"sortByHits": "Sort by number of hits",
 			"moreHiddenHits": "more hidden hits",
 			"clickToSort": "click to sort",
 			"close": "close",
@@ -364,6 +366,7 @@
 		"createNewCorpus": "or create a new corpus and add to that...",
 		"name": "Name",
 		"create": "Create",
+		"select": "Select",
 		"illegalCorpusName": "Illegal corpus name. Corpus name must be between 3 and 30 characters and may not contain special characters.",
 		"retry": "Retry"
 	},

@@ -85,21 +85,56 @@ Rethink page initialization
 - then restore state from url
 */
 
-// type Hook = () => void|Promise<any>;
-// const isHook = (hook: any): hook is Hook => typeof hook === 'function';
-// declare const hooks: {
-// 	beforeStoreInit?: Hook;
-// 	beforeStateLoaded?: Hook;
-// };
 
-// async function runHook(hookName: keyof (typeof hooks)) {
-// 	const hook = hooks[hookName];
-// 	if (isHook(hook)) {
-// 		debugLogCat('init', `Running hook ${hookName}...`);
-// 		await hook();
-// 		debugLogCat('init', `Finished running hook ${hookName}`);
-// 	}
-// }
+// --- HOOKS SYSTEM ---
+
+// Internal storage for hooks
+type Hook = () => void | Promise<any>;
+const _hooksStore: Record<string, Hook[]> = {};
+// Proxy to allow both assignment and function-call registration
+// e.g. hooks.something = function() { ... } or hooks.something(fn) to register a hook
+// @ts-ignore
+globalThis.hooks = new Proxy({}, {
+	get(target, prop: string) {
+		// Return a function to allow hooks.anything(fn) registration
+		return (fn: Hook) => {
+			if (!_hooksStore[prop]) _hooksStore[prop] = [];
+			_hooksStore[prop].push(fn);
+		};
+	},
+	set(target, prop: string, value: any) {
+		if (!_hooksStore[prop as string]) _hooksStore[prop as string] = [];
+		_hooksStore[prop as string].push(value);
+		return true;
+	}
+}) as {
+	[key: string]: ((fn: Hook) => void) & Hook[];
+};
+
+// Helper to get all hooks for a given name
+function getHooks(name: string): Hook[] {
+	return _hooksStore[name] || [];
+}
+
+
+function isPromise(obj: any): obj is Promise<any> {
+	return !!obj && typeof obj.then === 'function';
+}
+
+async function runHook(hookName: string) {
+	const hooksArr = getHooks(hookName);
+	debugLogCat('init', `Running hook ${hookName}...`);
+	for (const hook of hooksArr) {
+		if (typeof hook === 'function') {
+			await hook();
+		} else if (isPromise(hook)) {
+			await hook;
+		}
+	}
+	debugLogCat('init', `Finished running hook ${hookName}`);
+}
+
+// --- END HOOKS SYSTEM ---
 
 import App from '@/App.vue';
 

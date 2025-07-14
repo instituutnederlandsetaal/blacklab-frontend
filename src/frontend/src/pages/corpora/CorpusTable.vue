@@ -8,6 +8,7 @@
 				<tr>
 					<th class="table-icon"></th>
 					<th>Corpus</th>
+					<debug><th>ID [debug]</th></debug>
 					<th>Size</th>
 					<th class="table-icon"></th>
 					<th v-if="isPrivate" class="table-icon"></th>
@@ -19,6 +20,7 @@
 				<tr>
 					<td><router-link :to="{ name: 'search', params: { corpus: corpus.id } }" :title="`Search the '${corpus.displayName}' corpus`" :class="`icon fa fa-search ${!corpus.canSearch ? 'disabled' : ''}`"></router-link></td>
 					<td class="corpus-name"><router-link :to="{ name: 'search', params: { corpus: corpus.id } }" :title="`Search the '${corpus.displayName}' corpus`" :class="`${!corpus.canSearch ? 'disabled' : ''}`">{{corpusDisplayName(corpus)}} {{corpus.statusText}}</router-link></td>
+					<debug><td>{{corpus.id}}</td></debug>
 					<td>{{corpus.sizeString}}</td>
 					<template v-if="isPrivate">
 						<td><a role="button" :title="`Upload documents to the '${corpus.displayName}' corpus`" :class="`icon fa fa-fw fa-cloud-upload ${!corpus.canIndex? 'disabled' : ''}`" @click="$emit('upload', corpus.id)"></a></td>

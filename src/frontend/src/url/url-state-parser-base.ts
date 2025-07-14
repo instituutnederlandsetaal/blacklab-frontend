@@ -6,7 +6,7 @@ import URI from 'urijs';
  */
 export default abstract class UrlStateParser<T> {
 	/**
-	 * Path segments of the url this was constructed with, but omitting the root path of the application (usually /corpus-frontend/).
+	 * Path segments of the url this was constructed with, but omitting the root path of the application (usually /blacklab-frontend/).
 	 * typically something like [INDEX_ID, 'search', 'docs'|'hits']
 	 */
 	protected paths: string[];

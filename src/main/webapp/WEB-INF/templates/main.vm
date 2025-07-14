@@ -11,7 +11,7 @@
         <script>
             var WITH_CREDENTIALS = $esc.javascript($FRONTEND_WITH_CREDENTIALS);
 
-            /** Base url of the corpus-frontend. Guaranteed not to end in '/' */
+            /** Base url of the blacklab-frontend. Guaranteed not to end in '/' */
             var CONTEXT_URL = "$esc.javascript($CF_URL_ON_CLIENT)";
             // Not suffixed with the corpus id
             var BLS_URL = "$esc.javascript($BLS_URL_ON_CLIENT)";
@@ -27,7 +27,7 @@
             // Currently not used on other pages.
             var hooks = {};
         </script>
-        <script src="$JSPATH/main.js?_$cache"></script>
+        <script src="$JSPATH/main.js?_$cache" onerror="document.body.insertAdjacentHTML('afterbegin', '<div class=\'alert alert-danger\'>Warning: Failed to load main.js from $JSPATH. Please check your configuration or dev-server.</div>');"></script>
     </head>
     <body>
         <div id="vue-root"></div>

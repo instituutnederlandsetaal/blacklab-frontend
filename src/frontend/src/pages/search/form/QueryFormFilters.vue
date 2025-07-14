@@ -6,7 +6,7 @@
 		<ul class="nav nav-tabs" v-if="tabs.length > 1">
 			<li v-for="tab in tabs" :class="{'active': activeTab===tab.tabname}" :key="tab.tabname" @click.prevent="activeTab=tab.tabname;">
 				<a :href="'#'+tab.tabname">
-					{{tab.tabname}}
+					{{tab.tabname || 'Common' }}
 					<span v-if="activeFiltersMap[tab.tabname]" class="badge" style="background-color:#aaa; vertical-align: baseline;">
 						{{activeFiltersMap[tab.tabname]}}
 					</span>

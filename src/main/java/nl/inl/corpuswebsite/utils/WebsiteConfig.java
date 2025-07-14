@@ -69,13 +69,8 @@ public class WebsiteConfig {
         @JsonProperty("analytics")
         public Map<String, Object> analytics() {
             Map<String, Object> analyticsMap = new HashMap<>();
-            analyticsMap.put("google", getGoogleAnalytics());
             analyticsMap.put("plausible", getPlausibleAnalytics());
             return analyticsMap;
-        }
-
-        private Map<String, String> getGoogleAnalytics() {
-            return config.getAnalyticsKey().map(key -> Map.of("key", key)).orElse(null);
         }
 
         private Map<String, String> getPlausibleAnalytics() {
@@ -167,9 +162,6 @@ public class WebsiteConfig {
     /** Page size to use for paginating documents in this corpus, defaults to 1000 if omitted (also see default Search.xml) */
     private final int pageSize;
 
-    /** Google Analytics key, analytics are disabled if not provided */
-    private final Optional<String> analyticsKey;
-
     private final Optional<String> plausibleDomain;
     private final Optional<String> plausibleApiHost;
 
@@ -257,7 +249,6 @@ public class WebsiteConfig {
         pathToFaviconDir = getString("//InterfaceProperties/FaviconDir").orElse(contextPath + "/img");
         pagination = getBoolean("//InterfaceProperties/Article/Pagination").orElse(false);
         pageSize = getInt("//InterfaceProperties/Article/PageSize").filter(p -> p > 0).orElse(1000);
-        analyticsKey = getString("//InterfaceProperties/Analytics/Key");
 
         linksInTopBar = Stream.concat(
             corpusOwner.isPresent() ? Stream.of(new ElementOnPage("My corpora", i.getAndIncrement())) : Stream.empty(),
@@ -366,10 +357,6 @@ public class WebsiteConfig {
 
     public Optional<Integer> getPageSize() {
         return Optional.of(pageSize).filter(p -> this.pagination && p > 0);
-    }
-
-    public Optional<String> getAnalyticsKey() {
-        return analyticsKey;
     }
 
     public Optional<String> getPlausibleDomain() {

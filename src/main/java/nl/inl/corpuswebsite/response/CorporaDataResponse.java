@@ -23,20 +23,6 @@ public class CorporaDataResponse extends BaseResponse {
     }
 
     @Override
-    public void init(HttpServletRequest request, HttpServletResponse response, MainServlet servlet, Optional<String> corpus, List<String> pathParameters)
-        throws ServletException {
-
-        // Don't call super(), we don't always have a corpus to work with, and even if we do, it's not guaranteed to be valid
-        // (since we will retrieve the default fallback files in that case, and the BaseResponse is supposed to use a valid corpus)
-
-        this.request = request;
-        this.response = response;
-        this.servlet = servlet;
-        this.corpus = corpus;
-        this.pathParameters = pathParameters;
-    }
-
-    @Override
     protected void completeRequest() throws IOException {
         try {
             // NOTE: the corpus-specific directory can be used to store both internal and external files.

@@ -20,3 +20,9 @@ jsconfig.json
 
 # Javascript in webapp folder (this is output from compiling src/frontend)
 src/main/webapp/js/
+
+**/.vitepress/cache/
+**/.vitepress/dist/
+
+node_modules
+docker-test/

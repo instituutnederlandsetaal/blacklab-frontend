@@ -58,7 +58,7 @@ function wrapWithErrorHandling<T extends object>(obj: T) {
 				// Not a function we should wrap, just save the value.
 				Reflect.set(target, prop, newValue, receiver);
 				// propagate the dontProxyMe marker to the new value
-				if (currentValue[dontProxyMe]) mark(newValue, dontProxyMe);
+				if (currentValue != null && currentValue[dontProxyMe]) mark(newValue, dontProxyMe);
 				return newValue;
 			}
 
@@ -104,7 +104,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 			/** Should we add _within-spans(...) around the query,
 			    so all tags are captured and we can group on them?
 				[Default: only if there's span filters defined] */
-			shouldAddWithinSpans(q: string) {
+			shouldAddWithSpans(q: string) {
 				return null;
 			}
 		},
@@ -208,12 +208,19 @@ export const corpusCustomizations = wrapWithErrorHandling({
 			return null; // use default behaviour
 		},
 
+		// #region docscustomhitinfocolumn
+		/** Should the custom hit info column be shown for this result set?
+		 *
+		 * If true, uses the customHitInfo function to determine what to show.
+		 */
 		hasCustomHitInfoColumn: (results: BLTypes.BLHitResults|BLTypes.BLHitGroupResults, isParallelCorpus: boolean): boolean => {
 			return isParallelCorpus;
 		},
 
 		/**
-		 * Show some custom text (with doc link) left of the hit.
+		 * Determine custom hit info for this hit.
+		 *
+		 * Shows some custom text (with doc link) left of the hit.
 		 *
 		 * Default shows versionPrefix if it's set (i.e. if it's a parallel corpus).
 		 * Otherwise, nothing extra is shown.
@@ -222,14 +229,17 @@ export const corpusCustomizations = wrapWithErrorHandling({
 		 *  In the case of non-parallel corpora, this will always be the main annotated field.
 		 * @param docInfo document metadata
 		 */
-		customHitInfo: (hit: BLTypes.BLHit|BLTypes.BLHitSnippet|BLTypes.BLHitInOtherField,
+		customHitInfo: (
+				hit: BLTypes.BLHit|BLTypes.BLHitSnippet|BLTypes.BLHitInOtherField,
 				annotatedFieldDisplayName: string|null,
 				docInfo: BLTypes.BLDoc): string|null => {
 			return annotatedFieldDisplayName;
 		}
+		// #endregion docscustomhitinfocolumn
 	},
 
 	sort: {
+		/** Perform customizations on these sort options */
 		customize(optGroup: AppTypes.OptGroup): AppTypes.OptGroup|null {
 			return null; // use default behaviour [no change]
 		}
@@ -243,6 +253,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 			return null; // use default behaviour
 		},
 
+		/** Perform customizations on these group options */
 		customize(optGroup: AppTypes.OptGroup, i18n: Vue): AppTypes.OptGroup|null {
 			return null; // use default behaviour [no change]
 		}

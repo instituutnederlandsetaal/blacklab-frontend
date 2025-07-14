@@ -349,7 +349,7 @@ export const blacklab = {
 };
 
 /**
- * API for corpus-frontend's own webservice
+ * API for blacklab-frontend's own webservice
  */
 export const frontend = {
 	getCorpus: (indexId: string) => {
@@ -369,11 +369,9 @@ export const frontend = {
 					// TODO i18n
 					throw new ApiError('Corpus not found',
 						stripIndent`
-						Corpus not found.
-						Please check the spelling, or delete the corpus name from the URL to get a list of available corpora.
-						If it's not there, refer to the documentation at
-						https://github.com/INL/corpus-frontend
-						and check your configuration.`,
+						Corpus '${indexId}' not found.<br>
+						Please check the spelling, or go to <a href="${CONTEXT_URL}">${CONTEXT_URL}</a> to get a list of available corpora.<br>
+						If it's not there, refer to the documentation at <a href="https://blacklab.ivdnt.org" target="_blank">https://blacklab.ivdnt.org</a> and check your configuration.`,
 						e.statusText,
 						e.httpCode
 					);
@@ -381,10 +379,10 @@ export const frontend = {
 					// No blacklab response; something isn't configured correctly.
 					throw new ApiError('Corpus not found',
 						stripIndent`
-						Unable to contact BlackLab Server (or Corpus-Frontend's own server component).
-						Make sure both .war applications have been deployed, and your properties file
-						is in the correct location and has the correct name.
-						Refer to the documentation at https://github.com/INL/corpus-frontend for more information.`,
+						Unable to contact BlackLab Server (or blacklab-frontend's own server component).<br> 
+						Make sure both .war applications have been deployed, and your properties file<br>
+						is in the correct location and has the correct name.<br>
+						Refer to the documentation at <a href="https://blacklab.ivdnt.org" target="_blank">https://blacklab.ivdnt.org</a>`,
 						e.statusText,
 						e.httpCode
 					);

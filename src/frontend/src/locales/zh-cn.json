@@ -79,12 +79,11 @@
 		},
 		"parallel": {
 			"alignBy": "对齐方式",
-			"inSourceVersion": "在源版本中",
+			"searchSourceVersion": "在源版本中",
 			"errorNoSourceVersion": "Please select a source version.",
 			"andCompareWithTargetVersions": "并与目标版本进行比较",
 			"queryForSourceVersion": "源版本查询",
 			"queryForTargetVersion": "目标版本查询",
-			"chooseTargetVersion": "选择目标版本",
 			"addTargetVersion": "添加另一个目标版本"
 		}
 	},
@@ -253,9 +252,12 @@
 			"columnLabelAfterHit": "之后 命中",
 			"sortBy": "分类依据：{field}",
 			"sortByDescending": "分类依据：{field} (降序)",
+			"sort_numberOfHits": "number of hits",
+			"sort_groupName": "group name",
+			"sort_groupSize": "group size",
+			"sort_alignments": "alignments",
 			"groupBy": "分组依据：{field}",
 			"sortByDocument": "分类依据：文章标题",
-			"sortByHits": "分类依据：命中数",
 			"moreHiddenHits": "更多隐藏的命中",
 			"clickToSort": "点击分类",
 			"close": "关闭",

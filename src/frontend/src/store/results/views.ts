@@ -1,6 +1,6 @@
 /**
  * This module contains a sub-module for every type of results view.
- * The default installation of corpus-frontend supports 'hits' and 'docs' views.
+ * The default installation of blacklab-frontend supports 'hits' and 'docs' views.
  * But addon scripts can add more views, if required.
  * Those will get their own sub-module here.
  */

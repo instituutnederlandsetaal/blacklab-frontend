@@ -9,6 +9,7 @@
 			<h3 class="panel-title" style="padding-right: 0.5em;">{{$t('results.groupBy.groupResults')}}</h3>
 			<button v-if="type === 'hits'" class="btn btn-default" type="button" @click="addAnnotation">+ {{$t('results.groupBy.annotation')}}</button>
 			<button class="btn btn-default" type="button" @click="addMetadata">+ {{$t('results.groupBy.metadata')}}</button>
+			<button type="button" :disabled="disabled" class="close" style="margin-left: auto;" @click="clear" :title="addedCriteria.length ? $t('results.groupBy.clear').toString() : $t('results.groupBy.close').toString()">&times;</button>
 		</div>
 
 		<Tabs v-if="tabs.length"
@@ -292,10 +293,7 @@ export default Vue.extend({
 				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
 				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
 				corpusCustomizations.search.metadata.showField
-			) as OptGroup[]).concat({
-				label: this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
-				options: this.tagAttributes,
-			})
+			) as OptGroup[]).concat(this.tagAttributes)
 			.map(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
 			.flatMap<Options[number]>(optGroup => optGroup.label ? optGroup : optGroup.options)
 		},
@@ -384,7 +382,7 @@ export default Vue.extend({
 				});
 			return result;
 		},
-		tagAttributes(): Option[] {
+		tagAttributes(): OptGroup[] {
 			/** Check if we should add this tag+attr option, and if so, add it. */
 			const optAdd = (tagName: string, attributeName: string, listName?: string) => {
 				// Check custom method to see if we should include this attribute
@@ -404,17 +402,18 @@ export default Vue.extend({
 				}
 				if (shouldInclude) {
 					const value = spanAttributeOptionValue(tagName, attributeName, listName);
-					result.push({
-						label: 'Group by ' + (filter ? this.$tMetaDisplayName(filter) : this.$tSpanAttributeDisplay(tagName, attributeName)),
+					options.push({
+						label: `${this.$t('results.table.groupBy', { field: filter ? this.$tMetaDisplayName(filter) : this.$tSpanAttributeDisplay(tagName, attributeName) })}`,
 						value,
 					});
 				}
 			}
 
-			// Check if we have a list of matches (e.g. from _with-spans(...))
+			// Check if we have a list of matches (e.g. from withspans=true)
 			const matchInfos = this.hits?.summary?.pattern?.matchInfos || {};
 			const listEntry = Object.entries(matchInfos).find( ([name, mi]) => mi.type === 'list');
-			const result: { label?: string, value: string, title?: string }[] = [];
+			let options: { label?: string, value: string, title?: string }[];
+			const optGroups: OptGroup[] = [];
 			if (listEntry) {
 				// We capture lists of tags, but we don't know all the captured tags at this point.
 				// Offer all span filters as grouping options, with a reference to the list,
@@ -424,10 +423,17 @@ export default Vue.extend({
 					Object.entries(CorpusStore.get.corpus().relations.spans!)
 						.forEach(([tagName, spanInfo]) => {
 							if (spanInfo.attributes) {
+								options = [];
 								const attr = Object.keys(spanInfo.attributes);
 								attr.forEach(attributeName => {
 									optAdd(tagName, attributeName, listName);
 								});
+								if (options.length > 0) {
+									optGroups.push({
+										label: this.groupLabelTag(tagName),
+										options: options,
+									});
+								}
 							}
 						});
 				}
@@ -438,15 +444,22 @@ export default Vue.extend({
 					.forEach(([tagName, matchInfo]) => {
 						const sourceInThisField = this.relationSourceInThisField(matchInfo);
 						if (sourceInThisField) {
+							options = [];
 							const spanInfo = CorpusStore.get.corpus().relations.spans![tagName];
 							const attr = Object.keys(spanInfo?.attributes ?? {});
 							attr.forEach(attributeName => {
 								optAdd(tagName, attributeName);
 							});
+							if (options.length > 0) {
+								optGroups.push({
+									label: this.groupLabelTag(tagName), //this.$t('results.groupBy.some_words.spanFiltersLabel').toString(),
+									options: options,
+								});
+							}
 						}
 					});
 			}
-			return result;
+			return optGroups;
 		},
 		relationNames(): string[] {
 			return this.relations.map(c => c.name);
@@ -769,13 +782,23 @@ export default Vue.extend({
 		isParallel(): boolean { return CorpusStore.get.isParallelCorpus() ?? false; },
 
 		parallelVersionOptions(): Option[] {
-			return [QueryStore.get.sourceField(), ...QueryStore.get.targetFields()].map(field => ({
+			// NOTE: we look at results.summary.pattern, not the QueryStore, so this also works
+			//       with Expert queries where the target version is not selected
+			//       in the GUI but part of the query.
+			const patt = this.results?.summary.pattern;
+			const fields = patt ? [patt.fieldName, ...(patt.otherFields ?? [])] : [];
+			return fields.map(fieldName => CorpusStore.get.parallelAnnotatedFieldsMap()[fieldName]).map(field => ({
 				value: field.id,
 				label: this.$tAnnotatedFieldDisplayName(field)
 			}));
 		}
 	},
 	methods: {
+		groupLabelTag(tagName: string): string {
+			if (this.$te(`results.groupBy.groupLabel.tag ${tagName}`))
+				return this.$t(`results.groupBy.groupLabel.tag ${tagName}`).toString();
+			return this.$td(`index.spans.${tagName}`, `Tag ${tagName}`);
+		},
 		apply() {
 			this.storeValueUpdateIsOurs = true;
 			this.storeModule.actions.groupBy(serializeGroupBy(this.addedCriteria.filter(isValidGroupBy)));

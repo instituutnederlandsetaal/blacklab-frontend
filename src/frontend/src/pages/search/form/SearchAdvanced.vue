@@ -11,6 +11,9 @@
 					<SelectPicker id="sourceVersion" :options="pSourceOptions"
 						v-model="pSourceValue" data-menu-width="grow" hideEmpty/>
 				</label>
+				<span v-if="errorNoParallelSourceVersion" class="error">
+					{{ $t('search.parallel.errorNoSourceVersion') }}
+				</span>
 				<div class="querybuilder"></div>
 			</div>
 
@@ -24,7 +27,7 @@
 			</div>
 
 			<div v-if="pTargetOptions.length" class="add-target-version form-group">
-				<label>{{ $t(pTargetValue.length ? 'search.parallel.addTargetVersion' : 'search.parallel.chooseTargetVersion') }}</label>
+				<label>{{ $t(pTargetValue.length ? 'search.parallel.addTargetVersion' : 'search.parallel.andCompareWithTargetVersions') }}</label>
 				<div>
 					<!--
 						Note: this selectpicker only allows a single value. Then every time the user selects something, the selected value is removed
@@ -59,6 +62,9 @@ export default ParallelFields.extend({
 		SelectPicker,
 		MultiValuePicker,
 		AlignBy,
+	},
+	props: {
+		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
 	data: () => ({
 		queryBuilderLoading: false,
@@ -160,6 +166,12 @@ h3 .help {
 			content: '✕';
 			margin-left: 5px;
 		}
+	}
+
+	.error {
+		color: red;
+		margin: 0.5em 0 0 1em;
+		font-weight: bold;
 	}
 }
 

@@ -118,15 +118,27 @@ export default Vue.extend({
 // Only contains styles for classes used in the built in xsl files (article_tei.xsl, article_folia.xsl). And some styles for the navigation controls (next hit, next page)
 
 .hl {
-	font-weight: bold;
-	background-color: #e4ebef; //#ffe1bc;
-	color: #464646;
+  --bg-color: #337ab7;
+  
+  font-weight: bold;
+  background-color: hsl(from var(--bg-color) h min(s * 1.2, 100) 92.5);
+  color: black;
+  border-radius: 3px;
+  padding: 0 2px;
+  font-size: 105%;
 
-	&.active {
-		/*text-decoration: underline;*/
-		color: #fff;
-		background-color: #337ab7;
-	}
+  &.active {
+    /*text-decoration: underline;*/
+    
+    text-shadow:
+      -1px -1px 0 white,
+      1px -1px 0 white,
+      -1px 1px 0 white,
+      1px 1px 0 white;
+    color: black;
+    background-color: var(--bg-color);
+    box-shadow: 0 0 10px var(--bg-color);
+  }
 }
 
 .word, .tooltip-hover {

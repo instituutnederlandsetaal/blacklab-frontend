@@ -152,7 +152,7 @@ export default Vue.extend({
 
 		options(): Option[] { return this.annotation.values || []; },
 
-		autocomplete(): boolean { return this.annotation.uiType === 'combobox'; },
+		autocomplete(): boolean { return this.annotation.uiType === 'combobox' && this.annotation.annotatedFieldId !== ''; },
 		autocompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, this.annotation.annotatedFieldId, this.annotation.id); },
 
 		value: {
