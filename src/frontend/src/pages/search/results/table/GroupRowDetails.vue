@@ -51,40 +51,47 @@ export default Vue.component('GroupRowDetails', IRow.extend({
 	components: {
 		Spinner
 	},
+	// NOTE: also update the watcher on this prop if you change this name!
 	props: { row: Object as () => GroupRowData },
 	data: () => ({
 		concordances: null as any as PaginatedGetter<Rows>,
 	}),
-	created() {
-		this.concordances = new PaginatedGetter((oldRows, first, number) => {
-			// make a copy of the parameters so we don't clear them for all components using the summary
-			const requestParameters: BLSearchParameters = Object.assign({}, this.query, {
-				// Do not clear sample/samplenum/samplecount,
-				// or we could retrieve concordances that weren't included in the input results for the grouping
-				number,
-				first,
-				viewgroup: this.row.id,
-				sort: 'alignments', // if parallel corpus, show aligned hits first. (if not, we don't care about order)
-			} as BLSearchParameters);
+	methods: {
+		createGetter() {
+			this.concordances = new PaginatedGetter((oldRows, first, number) => {
+				// make a copy of the parameters so we don't clear them for all components using the summary
+				const requestParameters: BLSearchParameters = Object.assign({}, this.query, {
+					// Do not clear sample/samplenum/samplecount,
+					// or we could retrieve concordances that weren't included in the input results for the grouping
+					number,
+					first,
+					viewgroup: this.row.id,
+					sort: 'alignments', // if parallel corpus, show aligned hits first. (if not, we don't care about order)
+				} as BLSearchParameters);
 
-			let {request, cancel} = this.type === 'hits' ? blacklab.getHits<BLHitResults>(INDEX_ID, requestParameters) : blacklab.getDocs<BLDocResults>(INDEX_ID, requestParameters);
-			return {
-				cancel,
-				request: request
-				.then(newResults => makeRows(newResults, this.info))
-				.then(newRows => {
-					if (this.type === 'hits') newRows.rows = newRows.rows.filter(r => r.type === 'hit');
-					else newRows.rows = newRows.rows.filter(r => r.type === 'doc');
+				let {request, cancel} = this.type === 'hits' ? blacklab.getHits<BLHitResults>(INDEX_ID, requestParameters) : blacklab.getDocs<BLDocResults>(INDEX_ID, requestParameters);
+				return {
+					cancel,
+					request: request
+					.then(newResults => makeRows(newResults, this.info))
+					.then(newRows => {
+						if (this.type === 'hits') newRows.rows = newRows.rows.filter(r => r.type === 'hit');
+						else newRows.rows = newRows.rows.filter(r => r.type === 'doc');
 
 
-					if (!oldRows) return newRows;
-					oldRows.rows.push(...newRows.rows);
-					return oldRows;
-				})
-			}
-		}, this.row.size)
+						if (!oldRows) return newRows;
+						oldRows.rows.push(...newRows.rows);
+						return oldRows;
+					})
+				}
+			}, this.row.size)
+		}
 	},
 	watch: {
+		row: {
+			handler() { this.createGetter(); },
+			immediate: true
+		},
 		open() {
 			if (this.open && !this.concordances.done && !this.concordances.loading && !this.concordances.results?.rows.length) this.concordances.next();
 		}
