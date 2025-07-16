@@ -1,231 +1,186 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-    <modelVersion>4.0.0</modelVersion>
-
-    <groupId>nl.inl.blacklab</groupId>
-    <artifactId>blacklab-frontend</artifactId>
-    <version>3.1.1-SNAPSHOT</version>
-    <packaging>war</packaging>
-    <name>INT BlackLab Frontend</name>
-    <description>A web application to search corpora through the BlackLab Server web service.</description>
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>nl.inl.blacklab</groupId>
+  <artifactId>blacklab-frontend</artifactId>
+  <version>4.0.0-SNAPSHOT</version>
+  <packaging>war</packaging>
+  <name>INT BlackLab Frontend</name>
+  <description>A web application to search corpora through the BlackLab Server web service.</description>
+  <url>https://github.com/instituutnederlandsetaal/blacklab-frontend</url>
+  <organization>
+    <url>https://www.ivdnt.org/</url>
+    <name>Dutch Language Institute</name>
+  </organization>
+  <licenses>
+    <license>
+      <name>Apache License, Version 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+      <comments>A business-friendly OSS license</comments>
+    </license>
+  </licenses>
+  <scm>
     <url>https://github.com/instituutnederlandsetaal/blacklab-frontend</url>
-    <organization>
-        <url>https://www.ivdnt.org/</url>
-        <name>Dutch Language Institute</name>
-    </organization>
-    <licenses>
-        <license>
-            <name>Apache License, Version 2.0</name>
-            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-            <distribution>repo</distribution>
-            <comments>A business-friendly OSS license</comments>
-        </license>
-    </licenses>
-    <scm>
-        <url>https://github.com/instituutnederlandsetaal/blacklab-frontend</url>
-        <connection>scm:git:https://github.com/instituutnederlandsetaal/blacklab-frontend.git</connection>
-        <developerConnection>scm:git:https://github.com/instituutnederlandsetaal/blacklab-frontend.git</developerConnection>
-        <tag>HEAD</tag>
-    </scm>
-    <issueManagement>
-        <url>https://github.com/instituutnederlandsetaal/blacklab-frontend/issues</url>
-        <system>GitHub Issues</system>
-    </issueManagement>
-    <developers>
-        <developer>
-            <id>jan-niestadt</id>
-            <name>Jan Niestadt</name>
-            <email>jan.niestadt@ivdnt.org</email>
-            <url>https://github.com/jan-niestadt</url>
-            <organization>INT</organization>
-            <organizationUrl>https://www.ivdnt.org/</organizationUrl>
-            <roles>
-                <role>developer</role>
-            </roles>
-            <timezone>Europe/Amsterdam</timezone>
-        </developer>
-        <developer>
-            <id>KCMertens</id>
-            <name>Koen Mertens</name>
-            <email>koen.mertens@ivdnt.org</email>
-            <url>https://github.com/KCMertens</url>
-            <organization>INT</organization>
-            <organizationUrl>https://www.ivdnt.org/</organizationUrl>
-            <roles>
-                <role>developer</role>
-            </roles>
-            <timezone>Europe/Amsterdam</timezone>
-        </developer>
-    </developers>
-
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- Java version. -->
-        <maven.compiler.release>17</maven.compiler.release>
-    </properties>
-
-    <build>
-        <plugins>
-            <!-- should be okay by default, but sometimes seems to mess up in older maven versions -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.0</version>
-            </plugin>
-
-            <!-- Used in GlobalConfig.java -->
-            <plugin>
-                <groupId>io.github.git-commit-id</groupId>
-                <artifactId>git-commit-id-maven-plugin</artifactId>
-                <version>9.0.2</version>
-                <executions>
-                    <execution>
-                        <id>get-the-git-infos</id>
-                        <goals><goal>revision</goal></goals>
-                        <phase>initialize</phase>
-                    </execution>
-                </executions>
-                <configuration>
-                    <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
-                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
-                    <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
-                    <commitIdGenerationMode>full</commitIdGenerationMode>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-war-plugin</artifactId>
-                <version>3.4.0</version>
-                <configuration>
-                    <webResources>
-                        <resource>
-                            <!-- Input directory: this is relative to the pom.xml directory -->
-                            <directory>src/frontend/dist/</directory>
-                            <filtering>false</filtering>
-                            <targetPath>js</targetPath>
-                            <!-- Output directory is root of the war, which is already correct for our purposes. -->
-                        </resource>
-                    </webResources>
-                </configuration>
-            </plugin>
-
-            <!-- https://repo1.maven.org/maven2/com/github/eirslett/frontend-maven-plugin/ -->
-            <plugin>
-                <groupId>com.github.eirslett</groupId>
-                <artifactId>frontend-maven-plugin</artifactId>
-                <version>1.15.1</version>
-
-                <configuration>
-                    <workingDirectory>src/frontend</workingDirectory>
-                </configuration>
-
-                <executions>
-                    <execution>
-                        <id>install node and npm</id>
-                        <goals>
-                            <goal>install-node-and-npm</goal>
-                        </goals>
-                        <configuration>
-                            <!-- See https://nodejs.org/en/download/ for
-                                 latest node and npm (lts) versions -->
-                            <nodeVersion>v22.14.0</nodeVersion>
-                            <npmVersion>10.9.2</npmVersion>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>npm install</id>
-                        <goals>
-                            <goal>npm</goal>
-                        </goals>
-                        <!-- Optional configuration which provides for running
-                             any npm command -->
-                        <configuration>
-                            <arguments>install</arguments>
-                        </configuration>
-
-                        <!--
-                            skip compiling JS when compiling in eclipse.
-                            It's slow and unneeded as you can manually start a webpack-dev-server during development.
-                            Run "npm start" in the src/frontend folder, and configure blacklab-frontend.properties jspath to "http://localhost:8081/dist/js"
-                        -->
-                        <?m2e ignore?>
-                    </execution>
-
-                    <!-- rebuild node native bindings (required for node-sass) (this fixes build errors when a library version is updated, but the CI server has cached the old libs) -->
-                    <execution>
-                        <id>npm rebuild</id>
-                        <goals>
-                            <goal>npm</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>rebuild --force</arguments>
-                        </configuration>
-                        <!-- skip compiling JS when compiling in eclipse. -->
-                        <?m2e ignore?>
-                    </execution>
-
-                    <execution>
-                        <id>npm run build</id>
-                        <goals>
-                            <goal>npm</goal>
-                        </goals>
-                        <configuration>
-                            <arguments>run build</arguments>
-                        </configuration>
-
-                        <!--
-                             skip compiling JS when compiling in eclipse.
-                             It's slow and unneeded as you can manually start a webpack-dev-server during development.
-                             Run "npm start" in the src/frontend/src folder, and configure blacklab-frontend.properties jspath to "http://localhost:80/dist"
-                        -->
-                        <?m2e ignore?>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
-
-
-    <dependencies>
-        <dependency>
-            <groupId>javax.servlet</groupId>
-            <artifactId>javax.servlet-api</artifactId>
-            <version>4.0.1</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-configuration2</artifactId>
-            <version>2.12.0</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/commons-beanutils/commons-beanutils -->
-        <!-- seems to be required for commons-configuration2 or we end up with NoClassDefFoundError: org/apache/commons/beanutils/DynaBean -->
-        <dependency>
-            <groupId>commons-beanutils</groupId>
-            <artifactId>commons-beanutils</artifactId>
-            <version>1.11.0</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/org.apache.velocity.tools/velocity-tools-view -->
-        <dependency>
-            <groupId>org.apache.velocity.tools</groupId>
-            <artifactId>velocity-tools-view</artifactId>
-            <version>3.1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>net.sf.saxon</groupId>
-            <artifactId>Saxon-HE</artifactId>
-            <version>12.8</version>
-        </dependency>
-
-        <!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>2.13.1</version>
-        </dependency>
-    </dependencies>
+    <connection>scm:git:https://github.com/instituutnederlandsetaal/blacklab-frontend.git</connection>
+    <developerConnection>scm:git:https://github.com/instituutnederlandsetaal/blacklab-frontend.git</developerConnection>
+    <tag>HEAD</tag>
+  </scm>
+  <issueManagement>
+    <url>https://github.com/instituutnederlandsetaal/blacklab-frontend/issues</url>
+    <system>GitHub Issues</system>
+  </issueManagement>
+  <developers>
+    <developer>
+      <id>jan-niestadt</id>
+      <name>Jan Niestadt</name>
+      <email>jan.niestadt@ivdnt.org</email>
+      <url>https://github.com/jan-niestadt</url>
+      <organization>INT</organization>
+      <organizationUrl>https://www.ivdnt.org/</organizationUrl>
+      <roles>
+        <role>developer</role>
+      </roles>
+      <timezone>Europe/Amsterdam</timezone>
+    </developer>
+    <developer>
+      <id>KCMertens</id>
+      <name>Koen Mertens</name>
+      <email>koen.mertens@ivdnt.org</email>
+      <url>https://github.com/KCMertens</url>
+      <organization>INT</organization>
+      <organizationUrl>https://www.ivdnt.org/</organizationUrl>
+      <roles>
+        <role>developer</role>
+      </roles>
+      <timezone>Europe/Amsterdam</timezone>
+    </developer>
+  </developers>
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>17</maven.compiler.release>
+  </properties>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.14.0</version>
+      </plugin>
+      <plugin>
+        <groupId>io.github.git-commit-id</groupId>
+        <artifactId>git-commit-id-maven-plugin</artifactId>
+        <version>9.0.2</version>
+        <executions>
+          <execution>
+            <id>get-the-git-infos</id>
+            <goals>
+              <goal>revision</goal>
+            </goals>
+            <phase>initialize</phase>
+          </execution>
+        </executions>
+        <configuration>
+          <dotGitDirectory>${project.basedir}/.git</dotGitDirectory>
+          <generateGitPropertiesFile>true</generateGitPropertiesFile>
+          <generateGitPropertiesFilename>${project.build.outputDirectory}/git.properties</generateGitPropertiesFilename>
+          <commitIdGenerationMode>full</commitIdGenerationMode>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>3.4.0</version>
+        <configuration>
+          <webResources>
+            <resource>
+              <directory>src/frontend/dist/</directory>
+              <filtering>false</filtering>
+              <targetPath>js</targetPath>
+            </resource>
+          </webResources>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>com.github.eirslett</groupId>
+        <artifactId>frontend-maven-plugin</artifactId>
+        <version>1.15.1</version>
+        <configuration>
+          <workingDirectory>src/frontend</workingDirectory>
+        </configuration>
+        <executions>
+          <execution>
+            <id>install node and npm</id>
+            <goals>
+              <goal>install-node-and-npm</goal>
+            </goals>
+            <configuration>
+              <nodeVersion>v22.14.0</nodeVersion>
+              <npmVersion>10.9.2</npmVersion>
+            </configuration>
+          </execution>
+          <execution>
+            <id>npm install</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <configuration>
+              <arguments>install</arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>npm rebuild</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <configuration>
+              <arguments>rebuild --force</arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>npm run build</id>
+            <goals>
+              <goal>npm</goal>
+            </goals>
+            <configuration>
+              <arguments>run build</arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>javax.servlet-api</artifactId>
+      <version>4.0.1</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-configuration2</artifactId>
+      <version>2.12.0</version>
+    </dependency>
+    <dependency>
+      <groupId>commons-beanutils</groupId>
+      <artifactId>commons-beanutils</artifactId>
+      <version>1.11.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.velocity.tools</groupId>
+      <artifactId>velocity-tools-view</artifactId>
+      <version>3.1</version>
+    </dependency>
+    <dependency>
+      <groupId>net.sf.saxon</groupId>
+      <artifactId>Saxon-HE</artifactId>
+      <version>12.8</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <version>2.13.1</version>
+    </dependency>
+  </dependencies>
 </project>
