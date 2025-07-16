@@ -27,8 +27,10 @@
 **/Dockerfile
 **/*.dockerfile
 **/.dockerignore
-**/docker-compose*.yml
+/docker/
 
-src/frontend/node_modules
-src/frontend/node
-docker-test/
+# Frontend build stuff
+**/node_modules
+
+# Documentation site
+/docs/
