@@ -6,7 +6,6 @@
 **/.idea
 **/*.iml
 **/.vscode
-**/doc
 /*.md
 **/README.md
 **/.project
