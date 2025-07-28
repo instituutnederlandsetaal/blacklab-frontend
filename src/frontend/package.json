@@ -64,7 +64,7 @@
     "lucene-query-parser": "^1.2.0",
     "memoize-decorator": "^1.0.2",
     "monaco-editor": "^0.47.0",
-    "monaco-yaml": "^5.1.1",
+    "monaco-yaml": "^5.4.0",
     "mustache": "^2.3.2",
     "oidc-client-ts": "^2.4.0",
     "popper.js": "^1.15.0",
