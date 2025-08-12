@@ -18,12 +18,6 @@ import open from 'open';
 import { parseStringPromise, Builder } from 'xml2js';
 import os from 'os';
 
-
-// Bun: use Bun.spawnSync instead of execSync
-// import { execSync } from 'child_process';
-
-// Bun: __dirname is not defined in ESM, so define it
-
 const git = simpleGit();
 const rootDir = (await (Bun.$`git rev-parse --show-toplevel`).text()).trim();
 const packageJsonPath = path.join(rootDir, 'src/frontend/package.json');
@@ -32,10 +26,85 @@ const changelogPath = path.join(rootDir, 'CHANGELOG.md');
 const textEditor: string|undefined = (Bun.env.VSCODE_GIT_IPC_HANDLE || Bun.env.TERM_PROGRAM === 'vscode') ? 'code --wait' : (await git.getConfig('core.editor')).value || undefined;
 const GIT_BACKUP_TAG = 'VERSION_BUMP_CHECKPOINT';
 
+let backupTagCreated = false;
+let tagCreated: string | undefined = undefined;
+
+/**
+ * Restores the git repository to the initial checkpoint created at the start of the script.
+ * This is called when the user interrupts the process or when an error occurs.
+ */
+async function restoreToCheckpoint() {
+  if (!backupTagCreated) return;
+  
+  try {
+    if (tagCreated) {
+      console.log(`Removing created tag: ${tagCreated}`);
+      await git.tag(['-d', tagCreated]);
+      tagCreated = undefined;
+    }
+
+    if (backupTagCreated) {
+      console.log('\nRestoring to git checkpoint...');
+      await git.reset(['--hard', GIT_BACKUP_TAG]);
+      console.log('Git state restored to initial checkpoint.');
+      await cleanupBackupTag();
+    }
+  } catch (error) {
+    console.error('Failed to restore git checkpoint:', error);
+  }
+}
+
+/**
+ * Cleans up the backup tag when operations complete successfully.
+ */
+async function cleanupBackupTag() {
+  if (!backupTagCreated) return;
+  
+  try {
+    await git.tag(['-d', GIT_BACKUP_TAG]);
+    backupTagCreated = false;
+  } catch (error) {
+    // Ignore errors when cleaning up backup tag
+  }
+}
+
+// Handle user interruption (Ctrl+C)
+process.on('SIGINT', async () => {
+  console.log('\nOperation interrupted by user.');
+  await restoreToCheckpoint();
+  process.exit(130); // Standard exit code for SIGINT
+});
+
+process.on('SIGTERM', async () => {
+  console.log('\nOperation terminated.');
+  await restoreToCheckpoint();
+  process.exit(143); // Standard exit code for SIGTERM
+});
+
+/**
+ * Wrapper for Enquirer prompts to handle user cancellation gracefully.
+ * If the user presses Ctrl+C during a prompt, it will restore the git checkpoint.
+ */
+async function safePrompt<T>(promptConfig: any): Promise<T> {
+  try {
+    return await Enquirer.prompt<T>(promptConfig);
+  } catch (error) {
+    // Handle Ctrl+C during prompts
+    if (error && typeof error === 'object' && 'message' in error && error.message === '') {
+      console.log('\nOperation cancelled by user.');
+      await restoreToCheckpoint();
+      process.exit(130);
+    }
+    throw error;
+  }
+}
+
 class Version {
+  private static readonly versionRegex = /^(\d+)\.(\d+)\.(\d+)(-SNAPSHOT)?$/;
+  
   protected constructor(public major: number, public minor: number, public patch: number, public snapshot: boolean) {}
   static fromString(version: string): Version {
-    const m = version.match(/(\d+)\.(\d+)\.(\d+)(-SNAPSHOT)?/);
+    const m = version.match(this.versionRegex);
     if (!m) throw new Error('Invalid version: ' + version);
     return new Version(Number(m[1]), Number(m[2]), Number(m[3]), !!m[4]);
   }
@@ -59,6 +128,10 @@ class Version {
 
   static equals(v1: Version, v2: Version): boolean {
     return v1.major === v2.major && v1.minor === v2.minor && v1.patch === v2.patch && v1.snapshot === v2.snapshot;
+  }
+
+  static isVersionString(str: string): boolean {
+    return this.versionRegex.test(str);
   }
 
   nextMinorSnapshot(): Version { return new Version(this.major, this.minor + 1, 0, true); }
@@ -98,10 +171,11 @@ async function ensureCleanGit(): Promise<void> {
 
 async function createChangelog() {
   // 1. Find the latest non-SNAPSHOT version tag
-  const versionTags = (await git.tags()).all.filter(t => /^v?[\d\.]+$/.test(t));
+  const versionTags = (await git.tags(['--merged', '--sort=creatordate'])).all.filter(Version.isVersionString);
   if (!versionTags.length) {
     throw new Error('No previous release tag found. Cannot create changelog.');
   }
+  console.log(`Generating changelog from ${versionTags[versionTags.length-1]} to HEAD`);
   const log = (await git.log({ from: versionTags[versionTags.length-1], to: 'HEAD' })).all
     .map(c => [`# ${c.date} (${c.author_name}) <${c.hash}>`, c.message, c.body].join('\n'))
     .join('\n\n');
@@ -131,14 +205,12 @@ async function createChangelog() {
       console.log('editor returned');
       if (exitCode !== 0) throw new Error(`${textEditor} exited with code ${exitCode}`);
     } else {
-
+      console.log('Waiting for you to close the changelog before continuing.');
       await new Promise<void>(async (resolve, reject) => {
         const proc = await open(tmpPath);
         proc.on('error', reject);
         proc.on('close', () => resolve());
       });
-      console.log('Please close the changelog editor before continuing.');
-      // Optionally, wait for user input here
     }
 
     // Read, filter, and write back to changelog
@@ -155,10 +227,10 @@ const actions = {
   updateVersion: {
     order: 1,
     message: 'Update version',
-    hint: 'Create a new -SNAPSHOT version with a new version number, updating package.json and pom.xml.',
+    hint: 'Create a new -SNAPSHOT version (prior to release).',
     async handler() {
       const currentVersion = await getVersion();
-      const {nextVersion} = await Enquirer.prompt<{nextVersion: string}>({
+      const {nextVersion} = await safePrompt<{nextVersion: string}>({
         type: 'select',
         name: 'nextVersion',
         message: `Current version is ${currentVersion}. Select the version part to increment:`,
@@ -169,7 +241,6 @@ const actions = {
         ]
       });
 
-      await ensureCleanGit();
       await updatePackageJsonVersion(nextVersion);
       await updatePomXmlVersion(nextVersion);
       await git.add(rootDir);
@@ -181,10 +252,7 @@ const actions = {
   createRelease: {
     order: 2,
     message: 'Release',
-    hint: [
-      'Create a release from current SNAPSHOT version, followed by incrementing to a new SNAPSHOT version.',
-      'Will create a commit and matching git tag for the release, followed by another commit to bump the version to a new SNAPSHOT.',
-    ].join('\n'),
+    hint: 'Create a release from current SNAPSHOT version.',
     async handler(params?: { push?: boolean }) {
       const currentVersion = await getVersion();
       if (!currentVersion.snapshot) {
@@ -199,6 +267,7 @@ const actions = {
       await git.add(rootDir);
       await git.commit(`Release version ${releaseVersion}`);
       await git.addTag(releaseVersion.toString());
+      tagCreated = releaseVersion.toString();
       await actions.updateVersion.handler();
     }
   }
@@ -207,7 +276,7 @@ const actions = {
 async function main() {
   await ensureCleanGit();
 
-  const {actionsToPerform} = await Enquirer.prompt<{actionsToPerform: Array<keyof typeof actions>, push: boolean}>({
+  const {actionsToPerform} = await safePrompt<{actionsToPerform: Array<keyof typeof actions>, push: boolean}>({
     type: 'multiselect',
     message: 'Select actions to perform',
     name: 'actionsToPerform',
@@ -221,26 +290,40 @@ async function main() {
   });
   actionsToPerform.sort((a, b) => actions[a].order - actions[b].order);
   
+  // Create backup checkpoint
   await git.addTag(GIT_BACKUP_TAG);
-  for (const action of actionsToPerform) {
-    await actions[action].handler();
-  }
-  await git.tag(['-d', GIT_BACKUP_TAG]);
+  backupTagCreated = true;
   
+  try {
+    for (const action of actionsToPerform) {
+      await actions[action].handler();
+    }
+    
+    const {push} = await safePrompt<{push: boolean}>({
+      type: 'confirm',
+      name: 'push',
+      message: 'Push changes?',
+    });
 
-  const {push} = await Enquirer.prompt<{push: boolean}>({
-    type: 'confirm',
-    name: 'push',
-    message: 'Push changes?',
-  });
-
-  if (push) {
-    await git.push();
-    await git.pushTags();
+    if (push) {
+      await git.push();
+      await git.pushTags();
+    }
+    
+    // Clean up backup tag on success
+    await cleanupBackupTag();
+    
+  } catch (error) {
+    console.error('\nAn error occurred during execution:', error);
+    throw error; // Re-throw to maintain error exit code, run cleanup in main catch
   }
 }
 
-main().catch(e => {
-  console.error(e.message);
+main().catch(async e => {
+  console.error('\nScript failed:', e.message);
+  
+  // Try to restore checkpoint if an error occurred
+  await restoreToCheckpoint();
+  
   process.exit(1);
 });
