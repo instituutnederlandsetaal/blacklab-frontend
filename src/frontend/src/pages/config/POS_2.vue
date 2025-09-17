@@ -50,17 +50,10 @@ export const value = 'Choose sub'
 export const label = value;
 export const title = 'Select Part of Speech sub annotations';
 
-
-import {filterDuplicates} from '@/utils';
-
 // export const canActivate = () => true;
 export const defaultAction = (s: StepState): StepState => ({
 	...s,
 	subAnnotations: s.annotations.filter(a => a.parentAnnotationId === s.mainPosAnnotationId)
-});
-export const lastStepChanged = (s: StepState): StepState => ({
-	...s,
-	subAnnotations: s.subAnnotations.filter(sub => sub.id !== s.mainPosAnnotationId)
 });
 export const step = Vue.extend({
 	props: {

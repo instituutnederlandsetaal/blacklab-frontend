@@ -65,7 +65,22 @@ export const value = 'Generate'
 export const label = value;
 export const title = 'Check all combinations with BlackLab to see which occur in the corpus';
 
-export const defaultAction = (s: StepState): StepState => { throw new Error('Cannot automatically perform ') };
+export const defaultAction = (s: StepState): StepState => { 
+	// check if all are loaded.
+	const annotations = s.step3.main && Object.values(s.step3.main);
+	if (!annotations?.length) throw new Error('Step 3 not completed');
+	for (const a of annotations) {
+		if (a.loading) throw new Error('Step 3 not completed');
+		for (const sub of Object.values(a.subs)) {
+			for (const v of Object.values(sub)) {
+				if (v.occurances === -1 || v.loading) throw new Error('Step 3 not completed');
+			}
+		}
+	}
+	return s;
+};
+
+
 export const step = Vue.extend({
 	components: {
 		SelectPicker

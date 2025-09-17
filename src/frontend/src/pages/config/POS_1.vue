@@ -25,8 +25,6 @@ export const defaultAction = (s: StepState): StepState => {
 	return {...s, mainPosAnnotationId: defaultPosAnnot.id};
 }
 
-export const lastStepChanged = (s: StepState): StepState => s; // what?
-
 export const step = Vue.extend({
 	components: { SelectPicker },
 	props: {
