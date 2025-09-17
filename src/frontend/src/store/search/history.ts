@@ -170,7 +170,7 @@ const actions = {
 		// Note that changing search field (source field in a parallel corpus) also constitute a new query,
 		//  but target fields become part of the pattern, so don't need to be included here.
 		const hashBase = {
-			filters: entry,
+			filters: entry.filters,
 			fieldName: entry.patterns.shared.source, // the [source] field we're searching
 			pattern,            // CQL query (doesn't include span filters (if any))
 			gap: entry.gap,
