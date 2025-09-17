@@ -1263,7 +1263,7 @@ function printCustomizations() {
 				'',
 				`// ${g.id}`,
 				...g.entries.map(v => stripIndent`
-					['${v.id}'${' '.repeat(longestAnnotId - v.id.length)},${annotationCells.map(c => v.checkmarks[c.propName] ? c.checked : c.unchecked).join(',')}],
+					['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestAnnotId - v.id.length)},${annotationCells.map(c => v.checkmarks[c.propName] ? c.checked : c.unchecked).join(',')}],
 				`)
 			])}
 		]);
@@ -1274,7 +1274,7 @@ function printCustomizations() {
 				'',
 				`// ${g.id}`,
 				...g.entries.map(v => stripIndent`
-					['${v.id}'${' '.repeat(longestMetadataId - v.id.length)},${metadataCells.map(c => v.checkmarks[c.propName] ? c.checked : c.unchecked).join(',')}],
+					['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestMetadataId - v.id.length)},${metadataCells.map(c => v.checkmarks[c.propName] ? c.checked : c.unchecked).join(',')}],
 				`)
 			])}
 		]);
