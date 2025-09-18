@@ -668,12 +668,12 @@ const actions = {
 			}, 'totalsRefreshIntervalMs'),
 
 			/** Edit which annotations are shown in the dependency tree in the hits result table. */
-			dependencies: b.commit((state, payload: { 
-				lemma: string|null, 
-				upos: string|null, 
-				xpos: string|null, 
+			dependencies: b.commit((state, payload: {
+				lemma: string|null,
+				upos: string|null,
+				xpos: string|null,
 				/** It's possible to show multiple feats by passing multiple annotations here. */
-				feats: string|null|string[] 
+				feats: string|null|string[]
 			}) => {
 				const allAnnotations= CorpusStore.get.allAnnotationsMap();
 				const storeIsInitialized = Object.keys(allAnnotations).length > 0;
@@ -682,7 +682,7 @@ const actions = {
 					if (!storeIsInitialized) return id; // validate in this module's init() function. allow for now.
 					if (!id) return null; // empty.
 					if (allAnnotations[id]?.hasForwardIndex) return id;
-					
+
 					if (!allAnnotations[id]) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for feature '${key}', but it does not exist.`);
 					if (!allAnnotations[id]?.hasForwardIndex) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for features '${key}', but it does not have the required forward index.`);
 					return null;
@@ -766,6 +766,55 @@ const actions = {
 			'RESULTS/DOCS': ['results', 'docs', 'shownMetadataIds'],
 			'EXPORT':       ['results', 'shared', 'detailedMetadataIds']
 		}),
+
+		moveAnnotationToGroup: (annotationId: string, targetGroupName: string, removeFromExistingGroup = true) => {
+			// NOTE: is frozen object, though not deeply.
+			// Need to reassign to trigger reactivity.
+			const corpus = CorpusStore.getState().corpus;
+			if (!corpus) {
+				console.warn(`[moveAnnotationToGroup] - Trying to move annotation '${annotationId}' to group '${targetGroupName}', but the corpus is not loaded yet!`);
+				return;
+			}
+
+			const groups = corpus.annotationGroups;
+			const targetGroup = groups.find(g => g.id === targetGroupName);
+			const currentGroups = groups.filter(g => g.entries.includes(annotationId));
+			if (!targetGroup) {
+				console.warn(`[moveAnnotationToGroup] - Trying to move annotation '${annotationId}' to group '${targetGroupName}', but that group does not exist!`);
+				return;
+			}
+			if (removeFromExistingGroup) {
+				currentGroups.forEach(g => g.entries = g.entries.filter(e => e !== annotationId))
+			}
+			if (!targetGroup.entries.includes(annotationId)) {
+				targetGroup.entries.push(annotationId);
+			};
+			CorpusStore.getState().corpus = {...corpus}; // trigger reactivity
+		},
+		moveMetadataToGroup: (metadataFieldId: string, targetGroupName: string, removeFromExistingGroup = true) => {
+			// NOTE: is frozen object, though not deeply.
+			// Need to reassign to trigger reactivity.
+			const corpus = CorpusStore.getState().corpus;
+			if (!corpus) {
+				console.warn(`[moveMetadataToGroup] - Trying to move metadata field '${metadataFieldId}' to group '${targetGroupName}', but the corpus is not loaded yet!`);
+				return;
+			}
+
+			const groups = corpus.metadataFieldGroups;
+			const targetGroup = groups.find(g => g.id === targetGroupName);
+			const currentGroups = groups.filter(g => g.entries.includes(metadataFieldId));
+			if (!targetGroup) {
+				console.warn(`[moveMetadataToGroup] - Trying to move metadata field '${metadataFieldId}' to group '${targetGroupName}', but that group does not exist!`);
+				return;
+			}
+			if (removeFromExistingGroup) {
+				currentGroups.forEach(g => g.entries = g.entries.filter(e => e !== metadataFieldId))
+			}
+			if (!targetGroup.entries.includes(metadataFieldId)) {
+				targetGroup.entries.push(metadataFieldId);
+			};
+			CorpusStore.getState().corpus = {...corpus}; // trigger reactivity
+		}
 	}
 };
 
