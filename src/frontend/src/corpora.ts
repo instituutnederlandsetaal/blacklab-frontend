@@ -7,8 +7,7 @@ import DebugComponent from '@/components/Debug.vue';
 
 import * as loginSystem from '@/utils/loginsystem';
 import { init as initApi } from '@/api';
-
-import '@/utils/i18n';
+import { i18n, init as initI18n } from '@/utils/i18n';
 
 import '@/global.scss';
 
@@ -26,12 +25,13 @@ Vue.component('Debug', DebugComponent);
 
 
 $(document).ready(async () => {
-	const user = await loginSystem.awaitInit();
+	const [user] = await Promise.all([loginSystem.awaitInit(), initI18n()]);
 	initApi('blacklab', BLS_URL, user);
 	initApi('cf', CONTEXT_URL, user);
 
 	// We can render before the tagset loads, the form just won't be populated from the url yet.
 	(window as any).vueRoot = new Vue({
+		i18n,
 		render: h => h(CorporaPageComponent),
 	}).$mount(document.querySelector('#vue-root')!);
 });

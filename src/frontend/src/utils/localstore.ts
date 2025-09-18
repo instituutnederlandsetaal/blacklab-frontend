@@ -21,9 +21,13 @@ class StorageWatcher {
 		this.listeners.set(e.key, listener);
 	}
 
-	public addListener<T>(storageKey: string, callback: (newValue: T) => void) {
+	public addListener<T>(storageKey: string, callback: (newValue: T) => void, { immediate = false }: { immediate?: boolean } = {}) {
 		if (!this.listeners.has(storageKey)) this.listeners.set(storageKey, callback);
 		else console.error(`LocalStorageWatcher - Already watching ${storageKey}`);
+		if (immediate && localStorage.getItem(storageKey)) {
+			try { callback(JSON.parse(localStorage.getItem(storageKey)!)); }
+			catch { console.error(`LocalStorageWatcher - Failed to parse stored value for ${storageKey}`); }
+		}
 	}
 
 	public removeListener(key: string) { this.listeners.delete(key); }
@@ -42,7 +46,7 @@ const putNewValueInStorage = (key: string) => (newValue: any) => {
 	if (storedValue === newStoredValue) return;
 
 	if (newValue === null) localStorage.removeItem(key);
-	else localStorage.setItem(key, JSON.stringify(newValue));
+	else localStorage.setItem(key, newStoredValue);
 }
 
 export function localStorageSynced<T>(storageKey: string, defaultValue: T, watchStorage = false): {value: T, isFromStorage: boolean} {
@@ -65,6 +69,21 @@ export function localStorageSynced<T>(storageKey: string, defaultValue: T, watch
 		v.value = newValue;
 	});
 
+	return v;
+}
+
+export function watchStorage(key: string, callback: (newValue: any) => void, settings?: { immediate?: boolean }) {
+	storageWatcher.addListener(key, callback, settings);
+	return () => storageWatcher.removeListener(key);
+}
+
+/** Read the value written by localStorageSynced in the past, without setting up any reactivity */
+export function probeLocalStorageSynced<T>(storageKey: string, defaultValue: T): {value: T, isFromStorage: boolean} {
+	const v = { value: defaultValue, isFromStorage: false };
+	if (localStorage.getItem(storageKey)) {
+		try { v.value = JSON.parse(localStorage.getItem(storageKey)!); v.isFromStorage = true; }
+		catch { console.error(`Failed to parse stored value for ${storageKey}`); }
+	}
 	return v;
 }
 

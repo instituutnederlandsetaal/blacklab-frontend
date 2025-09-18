@@ -25,7 +25,7 @@ import SearchPageComponent from '@/pages/search/SearchPage.vue';
 
 
 import { init as initApi } from '@/api';
-import {i18n} from '@/utils/i18n';
+import { i18n, init as initI18n } from '@/utils/i18n';
 import * as loginSystem from '@/utils/loginsystem';
 
 import '@/global.scss';
@@ -148,6 +148,7 @@ async function runHook(hookName: string) {
 // --- END HOOKS SYSTEM ---
 
 $(document).ready(async () => {
+	await initI18n();
 	// We can render before the tagset loads, the form just won't be populated from the url yet.
 	(window as any).vueRoot = new Vue({
 		i18n,
