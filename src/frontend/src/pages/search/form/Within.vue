@@ -12,10 +12,10 @@
 				:value="option.value"
 				:title="option.title || undefined"
 				@click="within = option.value"
-			>{{$tSpanDisplayName(option)}}</button> <!-- empty value searches across entire documents -->
+			>{{$tSpanDisplayName(option)}}<debug><b> [{{ option.value || `''` }}]</b></debug></button> <!-- empty value searches across entire documents -->
 		</div>
-		<div class="btn-group col-xs-12 col-md-9 col-md-push-3 attr form-inline" v-for="attr in withinAttributes()">
-			<label>{{ $tSpanAttributeDisplay(within ?? 'none', attr.value) }}</label>
+		<div class="btn-group col-xs-12 col-md-9 col-md-push-3 attr form-inline" v-for="attr in withinAttributes">
+			<label>{{ $tSpanAttributeDisplay(within ?? 'none', attr.value) }}<debug> <b>[{{ attr.value }}]</b></debug></label>
 			<input class='form-control' type="text" :title="attr.title || undefined"
 					:value="withinAttributeValue(attr)" @change="changeWithinAttribute(attr, $event)" />
 		</div>
@@ -46,13 +46,8 @@ export default Vue.extend({
 				PatternStore.actions.shared.within(v);;
 			}
 		},
-	},
-	methods: {
 		withinAttributes(): Option[] {
-			const within = this.within;
-			if (!within) return [];
-
-			const option = this.withinOptions.find(o => o.value === within);
+			const option = this.within && this.withinOptions.find(o => o.value === this.within);
 			if (!option) return [];
 
 			// Which, if any, attribute filter fields should be displayed for this element?
@@ -62,6 +57,9 @@ export default Vue.extend({
 
 			return attr.map(el => typeof el === 'string' ? { value: el } : el);
 		},
+	},
+	methods: {
+
 		withinAttributeValue(option: Option) {
 			if (this.within === null)
 			 	return '';
