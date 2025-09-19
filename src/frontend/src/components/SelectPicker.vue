@@ -96,37 +96,46 @@
 
 			ref="menu"
 		>
-			<li class="menu-header">
-			<div v-if="loading && editable /* not visible in button when editable */" class="text-center">
-				<span class="fa fa-spinner fa-spin text-muted"></span>
-			</div><button v-if="resettable && filteredOptions.length"
-				type="button"
-				tabindex="-1"
-				:class="['menu-button menu-reset', 'btn btn-sm', dataClass || 'btn-default']"
+		<template v-if="menuHeading">
+			<li v-if="allowHtml" class="menu-heading" v-html="menuHeading"></li>
+			<li v-else class="menu-heading">{{menuHeading}}</li>
+		</template>
+		
+		{{/* note: don't insert whitespace in the heading or :empty css rule will not work */}}
+			<li class="menu-header"><div v-if="loading && editable /* not visible in button when editable */" class="text-center"
+				>
+					<span class="fa fa-spinner fa-spin text-muted"></span>
+				</div
+				><button v-if="resettable && filteredOptions.length"
+					type="button"
+					tabindex="-1"
+					:class="['menu-button menu-reset', 'btn btn-sm', dataClass || 'btn-default']"
 
-				@click="internalModel = {}; inputValue=''"
-			>Reset</button><input v-if="searchable && !editable /* When it's available, edit box handles searching */"
-				type="text"
-				class="form-control input-sm menu-search"
-				placeholder="Filter..."
-				tabindex="-1"
+					@click="internalModel = {}; inputValue=''"
+				>
+					Reset
+				</button
+				><input v-if="searchable && !editable /* When it's available, edit box handles searching */"
+					type="text"
+					class="form-control input-sm menu-search"
+					placeholder="Filter..."
+					tabindex="-1"
 
-				:dir="dir"
+					:dir="dir"
 
-				@keydown.stop.left
-				@keydown.stop.right
-				@keydown.stop.home
-				@keydown.stop.end
-				@keydown.prevent.enter="
-					filteredOptions.length < 5 &&
-					filteredOptions.filter(o => o.type === 1).length === 1 ?
-						select(filteredOptions.filter(o => o.type === 1)[0]) :
-						undefined/*prevent submission when embedded in a form*/
-				"
+					@keydown.stop.left
+					@keydown.stop.right
+					@keydown.stop.home
+					@keydown.stop.end
+					@keydown.prevent.enter="
+						filteredOptions.length < 5 &&
+						filteredOptions.filter(o => o.type === 1).length === 1 ?
+							select(filteredOptions.filter(o => o.type === 1)[0]) :
+							undefined/*prevent submission when embedded in a form*/
+					"
+					v-model="inputValue"
 
-				v-model="inputValue"
-
-				ref="focusOnClickOpen"
+					ref="focusOnClickOpen"
 			/></li>
 
 			<li class="menu-body">
@@ -244,6 +253,8 @@ export default Vue.extend({
 		editable: Boolean,
 		/** Show reset button at top of menu? */
 		resettable: Boolean,
+		/** Optional header content for inside the menu */
+		menuHeading: String,
 		disabled: Boolean,
 		placeholder: String,
 		noOptionsPlaceholder: {type: String, default: 'No available options.'},
@@ -1035,14 +1046,27 @@ export default Vue.extend({
 		margin: 0;
 		list-style: none;
 	}
+	
+	>.menu-heading {
+		padding: 6px;
+		// background: #337ab7;
+		font-weight: bold;
+		color: #333;
+		border-bottom: 1px solid #e5e5e5;
+		&:first-child { margin-top: -5px; }
+	}
 
 	>.menu-header {
 		border-bottom: 1px solid #e5e5e5;
-		display: block;
-		margin: -5px 0 3px; //offset padding at top of .menu
+		display: flex;
+		flex-direction: column;
+		&:first-child { margin-top: -5px; }
+		margin-bottom: 3px;
+		gap: 3px;
 		padding: 6px;
 
 		&:empty { display: none; }
+
 
 		>.menu-reset {
 			display: block;
@@ -1054,6 +1078,7 @@ export default Vue.extend({
 			display: block;
 		}
 	}
+	
 	>.menu-body {
 		display: flex;
 		flex-direction: vertical;
