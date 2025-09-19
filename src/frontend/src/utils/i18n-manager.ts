@@ -18,7 +18,7 @@ interface LocaleState {
 }
 
 class I18nManager {
-	private readonly registeredLocaleIds = reactive(new Set<string>());
+	private readonly registeredLocaleIds = reactive<Record<string, true>>({});
 	private localeStates = reactive<Record<string, LocaleState>>({});
 	private nextLocale = ref<string|null>(null);
 	private nextFallbackLocale: string | null = null;
@@ -47,7 +47,7 @@ class I18nManager {
 
 	// Computed available locales with state information
 	public readonly availableLocales = computed<(Option & { loading: boolean; error: string | null })[]>(() => {
-		return [...this.registeredLocaleIds]
+		return Object.keys(this.registeredLocaleIds)
 			.map(id => this.localeStates[id])
 			.map(state => ({
 				value: state.value,
@@ -80,7 +80,7 @@ class I18nManager {
 	registerLocale(localeId: string, label: string): void {
 		const locale = this.resolveLocale(localeId);
 		locale.label = label;
-		this.registeredLocaleIds.add(locale.value);
+		this.registeredLocaleIds[locale.value] = true;
 	}
 
 	/**

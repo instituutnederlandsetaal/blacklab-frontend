@@ -24,9 +24,10 @@ class StorageWatcher {
 	public addListener<T>(storageKey: string, callback: (newValue: T) => void, { immediate = false }: { immediate?: boolean } = {}) {
 		if (!this.listeners.has(storageKey)) this.listeners.set(storageKey, callback);
 		else console.error(`LocalStorageWatcher - Already watching ${storageKey}`);
-		if (immediate && localStorage.getItem(storageKey)) {
-			try { callback(JSON.parse(localStorage.getItem(storageKey)!)); }
-			catch { console.error(`LocalStorageWatcher - Failed to parse stored value for ${storageKey}`); }
+		const item = localStorage.getItem(storageKey);
+		if (immediate && item != null) {
+			try { callback(JSON.parse(item)); }
+			catch { callback(item as T); }
 		}
 	}
 
