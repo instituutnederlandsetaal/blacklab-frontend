@@ -1,12 +1,14 @@
 import { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchParameters, BLSearchResult, BLSearchSummary, BLSearchSummaryTotalsHits, hitHasParallelInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
-import { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedMetadataField, TokenHighlight } from '@/types/apptypes';
-import { getDocumentUrl } from '@/utils';
+import { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, NormalizedMetadataGroup, OptGroup, Option, TokenHighlight } from '@/types/apptypes';
+import { getAnnotationSubset, getDocumentUrl, mapReduce } from '@/utils';
 import { GlossFieldDescription } from '@/store/search/form/glossStore';
 
 import * as Highlights from './hit-highlighting';
 
 import { KeysOfType } from '@/types/helpers';
 import { StyleValue } from 'vue';
+import { Options } from '@/components/SelectPicker.vue';
+
 
 
 /**
@@ -355,6 +357,9 @@ export type DisplaySettingsForRendering = {
 	/** What annotations should be offered up for sorting in the context (before,hit,after) column headers? */
 	sortableAnnotations: NormalizedAnnotation[];
 
+	/** For grouping entries in the sort dropdown. */
+	annotationGroups: NormalizedAnnotationGroup[];
+
 	/** Optional. Additional metadata columns to show. Normally nothing, but could show document id or something */
 	metadata: NormalizedMetadataField[];
 
@@ -388,7 +393,7 @@ export type DisplaySettingsForRendering = {
 
 export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'|'targetFields'>
 export type DisplaySettingsForRows = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'sourceField'|'getSummary'|'getCustomHitInfo'>
-export type DisplaySettingsForColumns = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'mainAnnotation'|'otherAnnotations'|'sortableAnnotations'|'metadata'|'groupDisplayMode'|'hasCustomHitInfoColumn'>
+export type DisplaySettingsForColumns = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'mainAnnotation'|'otherAnnotations'|'sortableAnnotations'|'annotationGroups'|'metadata'|'groupDisplayMode'|'hasCustomHitInfoColumn'>
 
 /** Helper type, data for which we're computing a hitrow or docrow. */
 type Result<HitType extends BLHit|BLHitSnippet|BLHitInOtherField|undefined> = {
@@ -648,22 +653,16 @@ export function makeRows(results: BLSearchResult, info: DisplaySettingsForRows):
 	else return makeGroupRows(results, info.i18n.$t('results.groupBy.groupNameWithoutValue').toString());
 }
 
-type SortOption = {
-	label: string;
-	title: string;
-	value: string;
-}
-
 type ColumnDefBase = {
 	key: string;
 	label: string;
-	debugLabel?: string;
 	title?: string;
-	sort?: string|SortOption[];
+	sort?: Options|string;
+	debugLabel?: string;
 	class?: string;
 	style?: StyleValue;
 	colspan?: number;
-}
+};
 
 export type ColumnDefHit = ColumnDefBase & ({
 	/** Column shows the tokens of the hit, either the before/match/after, which get special treatment, or another annotation, but in that case the match is shown. */
@@ -744,18 +743,33 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 	const blSortPrefixCenter = 'hit'; // e.g. hit:word or hit:lemma
 	const blSortPrefixRight = info.dir === 'rtl' ? 'before' : 'after'; //. e.g. after:word or after:lemma
 
-	const sortAnnot = (a: NormalizedAnnotation, prefix: string): SortOption => ({
+	const sortAnnot = (a: NormalizedAnnotation, prefix: string) => ({
 		label: i.$tAnnotDisplayName(a),
 		title: i.$t('results.table.sortBy', {field: i.$tAnnotDisplayName(a)}).toString(),
 		value: `${prefix}:${a.id}`,
 	})
 
-	const sorts = (a: NormalizedAnnotation[]|undefined, prefix: string): {sort: SortOption[]}|{title: string, sort: string}|{} => {
-		if (a?.length === 1) {
-			const {title, value: sort} = sortAnnot(a[0], prefix);
+	const annotationColumnSortOptions = (prefix: string, annots?: NormalizedAnnotation[]): {sort?: string|Options, title?: string} => {
+		const annotsToShow = new Set((annots ?? info.sortableAnnotations).map(a => a.id));
+		const groups = info.annotationGroups;
+
+		if (annotsToShow.size === 0) return {};
+		else if (annotsToShow.size === 1) { 
+			const {title, value: sort} = sortAnnot(info.sortableAnnotations[0], prefix);
 			return {title, sort};
-		} else if (a?.length) return {sort: a.map(a => sortAnnot(a, prefix)) };
-		else return {};
+		} else {
+			return {
+				sort: groups
+					.filter(g => g.entries.some(id => annotsToShow.has(id)))
+					.map<OptGroup>(g => ({
+						label: i.$tAnnotGroupName(g).toString(),
+						options: g.entries.filter(id => annotsToShow.has(id)).map<Option>(id => ({
+							value: `${prefix}:${id}`,
+							label: i.$tAnnotDisplayName(info.sortableAnnotations.find(a => a.id === id)!).toString()
+						}))
+					}))
+			}
+		}
 	}
 
 	if (info.hasCustomHitInfoColumn(results, info.targetFields.length > 0)) {
@@ -772,7 +786,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		key: 'left',
 		debugLabel: info.mainAnnotation.id,
 		class: 'text-right',
-		...sorts(info.sortableAnnotations, blSortPrefixLeft),
+		...annotationColumnSortOptions(blSortPrefixLeft),
 		label: i.$t(leftLabelKey).toString(),
 		field: info.dir === 'rtl' ? 'after' : 'before',
 		annotation: info.mainAnnotation
@@ -781,7 +795,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		label: i.$t(centerLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
 		class: 'text-center',
-		...sorts(info.sortableAnnotations, blSortPrefixCenter),
+		...annotationColumnSortOptions(blSortPrefixCenter),
 		field: 'match',
 		annotation: info.mainAnnotation
 	}, {
@@ -789,7 +803,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		label: i.$t(rightLabelKey).toString(),
 		debugLabel: info.mainAnnotation.id,
 		class: 'text-left',
-		...sorts(info.sortableAnnotations, blSortPrefixRight),
+		...annotationColumnSortOptions(blSortPrefixRight),
 		field: info.dir === 'rtl' ? 'before' : 'after',
 		annotation: info.mainAnnotation
 	});
@@ -801,7 +815,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 				label: i.$tAnnotDisplayName(a),
 				debugLabel: a.id,
 				class: info.dir === 'rtl' ? 'text-right' : 'text-left',
-				...sorts([a], blSortPrefixCenter),
+				...annotationColumnSortOptions(blSortPrefixCenter, [a]),
 				field: 'annotation' as const,
 				annotation: a
 			})),

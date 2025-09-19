@@ -683,8 +683,8 @@ export function getAnnotationSubset(
 		// and 2 per postion: ascending and descending.
 		return [
 			['hit:', 'Hit', ''],
-			[corpusTextDirection === 'rtl' ? 'right:' : 'left:', 'Before hit', 'before'],
-			[corpusTextDirection === 'rtl' ? 'left:' : 'right:', 'After hit', 'after']
+			['before:', 'Before hit', 'before'],
+			['after:', 'After hit', 'after']
 		]
 		.map<AppTypes.OptGroup&{entries: AppTypes.NormalizedAnnotation[]}>(([prefix, groupname, suffix]) =>({
 			label: groupname,

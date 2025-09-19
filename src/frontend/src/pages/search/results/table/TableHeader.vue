@@ -1,18 +1,20 @@
 <template>
 	<th :class="col.class" :style="col.style">
 		<slot></slot>
-		<span v-if="Array.isArray(col.sort)" class="dropdown">
-			<a role="button" data-toggle="dropdown" :class="['dropdown-toggle', {disabled: disabled}]" aria-haspopup="true" aria-expanded="false">
-				{{ col.label }} <debug><b>[{{ col.debugLabel || col.key }}]</b></debug>
-				<span class="caret"></span>
-			</a>
-			<ul class="dropdown-menu" role="menu">
-				<li class="dropdown-header">{{ $t('results.sort.sortBy') }}</li>
-				<li v-for="o in col.sort" :key="o.value" :class="{disabled: disabled}">
-					<a :class="['sort', {disabled: disabled}]" role="button" @click="changeSort(o.value)">{{o.label}} <Debug><b>[{{o.value}}]</b></Debug></a>
-				</li>
-			</ul>
-		</span>
+		<SelectPicker v-if="Array.isArray(col.sort)"
+			data-width="auto"
+			data-menu-width="grow"
+			data-class="btn-link"
+			hideEmpty
+			:menuHeading=" $t('results.sort.sortBy')"
+			:title=" $t('results.sort.sortBy')"
+			:placeholder="col.label"
+			:options="col.sort"
+			:disabled="disabled"
+			@change="changeSort"
+			:value="sort.replace(/^-/, '') /* strip inverted sort value for display purposes */"
+			:showValues="false"
+		/>
 		<a v-else-if="col.sort"
 			role="button"
 			:class="['sort', {disabled: disabled}]"
@@ -27,13 +29,35 @@
 <script lang="ts">
 import { ColumnDef } from '@/pages/search/results/table/table-layout';
 import Vue from 'vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 export default Vue.component('TableHeader', {
+	components: { SelectPicker },
 	props: {
 		disabled: Boolean,
-		col: Object as () => ColumnDef
+		col: Object as () => ColumnDef,
+		sort: String
 	},
 	methods: {
 		changeSort(sort: string) { this.$emit('changeSort', sort); }
 	}
 })
 </script>
+
+<style lang="scss">
+th {
+	.combobox {
+		.menu-button {
+			outline: none!important;
+			padding: 0;
+			font-weight: bold;
+			text-decoration: none!important;
+		}
+		.menu-value.placeholder {
+			color: inherit!important;
+		}
+		.combobox-menu {
+			font-weight: normal;
+		}
+	}
+}
+</style>
