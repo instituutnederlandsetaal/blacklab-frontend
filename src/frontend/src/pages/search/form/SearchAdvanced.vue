@@ -2,7 +2,9 @@
 	<div>
 		<template v-if="!isParallelCorpus">
 			<!-- Regular (non-parallel) corpus -->
-			<div class="querybuilder"></div>
+			<!-- <div class="querybuilder"></div> -->
+			 <CqlQueryBuilder :options="queryBuilderOptions" @change="updateQueryBuilder"/>
+
 		</template>
 		<div v-else>
 			<!-- Parallel corpus -->
@@ -46,21 +48,28 @@
 </template>
 
 <script lang="ts">
+import * as CorpusStore from '@/store/search/corpus';
 import * as PatternStore from '@/store/search/form/patterns';
 import * as InterfaceStore from '@/store/search/form/interface';
+import * as UIStore from '@/store/search/ui';
+import { corpusCustomizations } from '@/utils/customization';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 import MultiValuePicker from '@/components/MultiValuePicker.vue';
 import AlignBy from '@/pages/search/form/AlignBy.vue';
 import { initQueryBuilders } from '@/initQueryBuilders';
+import CqlQueryBuilder from '@/components/cql/CqlQueryBuilder.vue';
 
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
+import { NormalizedAnnotation } from '@/types/apptypes';
+import { CqlQueryBuilderOptions, DEFAULT_COMPARATORS, DEFAULT_OPERATORS } from '@/components/cql/cql-types';
 
 export default ParallelFields.extend({
 	components: {
 		SelectPicker,
 		MultiValuePicker,
 		AlignBy,
+		CqlQueryBuilder
 	},
 	props: {
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
@@ -91,6 +100,18 @@ export default ParallelFields.extend({
 				// i18n.locale is not reactive?
 				localeChange: this.$i18n.locale
 			}
+		},
+		annotations(): NormalizedAnnotation[] {
+			return CorpusStore.get.allAnnotations();
+		},
+		queryBuilderOptions(): CqlQueryBuilderOptions {
+			return {
+				annotations: this.annotations,
+				comparators: DEFAULT_COMPARATORS,
+				defaultAnnotation: UIStore.getState().search.advanced.defaultSearchAnnotationId,
+				operators: DEFAULT_OPERATORS,
+				textDirection: CorpusStore.get.textDirection(),
+			}
 		}
 	},
 	methods: {
@@ -104,6 +125,9 @@ export default ParallelFields.extend({
 				});
 			}
 			InterfaceStore.actions.patternMode('expert');
+		},
+		updateQueryBuilder(cql: string) {
+			console.log('update event from querybuilder', cql);
 		},
 	},
 	watch: {

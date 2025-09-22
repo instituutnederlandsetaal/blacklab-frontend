@@ -89,20 +89,20 @@ async function updateOrCreateBuilder(el: HTMLElement, i18n: Vue, getState: (stat
 
 /** Create or update the querybuilders. */
 export async function initQueryBuilders(i18n: Vue) {
-	debugLog('Begin initializing querybuilder(s)');
+	// debugLog('Begin initializing querybuilder(s)');
 
-	// Initialize configuration
-	$('.querybuilder').toArray().forEach(async (el, i) => {
-		// Index 0 is the source query, the rest are target queries
-		// They're all stored in the same store, but the first one is stored in a different field
-		// Abstract that away here.
-		const getStateValue =
-			i === 0 ? (state: RootStore.RootState) => (state.patterns.advanced.query || '') :
-			(state: RootStore.RootState) => (state.patterns.advanced.targetQueries[i - 1] || '');
-		const setStateValue = i === 0 ? PatternStore.actions.advanced.query :
-			(v: string) => PatternStore.actions.advanced.changeTargetQuery({ index: i - 1, value: v });
+	// // Initialize configuration
+	// $('.querybuilder').toArray().forEach(async (el, i) => {
+	// 	// Index 0 is the source query, the rest are target queries
+	// 	// They're all stored in the same store, but the first one is stored in a different field
+	// 	// Abstract that away here.
+	// 	const getStateValue =
+	// 		i === 0 ? (state: RootStore.RootState) => (state.patterns.advanced.query || '') :
+	// 		(state: RootStore.RootState) => (state.patterns.advanced.targetQueries[i - 1] || '');
+	// 	const setStateValue = i === 0 ? PatternStore.actions.advanced.query :
+	// 		(v: string) => PatternStore.actions.advanced.changeTargetQuery({ index: i - 1, value: v });
 
-		await updateOrCreateBuilder(el, i18n, getStateValue, setStateValue);
-	})
+	// 	await updateOrCreateBuilder(el, i18n, getStateValue, setStateValue);
+	// })
 }
 

@@ -33,6 +33,9 @@ import { Option } from '@/components/SelectPicker.vue';
 import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.extend({
+	props: {
+		value: { type: String, required: false },
+	},
 	computed: {
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
@@ -40,10 +43,14 @@ export default Vue.extend({
 		},
 		within: {
 			get(): string|null {
-				return PatternStore.getState().shared.within;
+				return 'value' in this.$props ? this.$props.value : PatternStore.getState().shared.within;
 			},
 			set(v: string|null) {
-				PatternStore.actions.shared.within(v);;
+				if ('value' in this.$props) {
+					this.$emit('input', v);
+				} else {
+					PatternStore.actions.shared.within(v);
+				}
 			}
 		},
 		withinAttributes(): Option[] {

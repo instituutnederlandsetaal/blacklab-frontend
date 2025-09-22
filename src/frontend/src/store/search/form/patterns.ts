@@ -14,6 +14,7 @@ import * as UIStore from '@/store/search/ui';
 import { debugLog, debugLogCat } from '@/utils/debug';
 
 import { AnnotationValue, Option } from '@/types/apptypes';
+import { CqlQueryBuilderData } from '@/components/cql/cql-types';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
@@ -43,8 +44,8 @@ type ModuleRootState = {
 		splitBatch: boolean,
 	},
 	advanced: {
-		query: string|null,
-		targetQueries: string[],
+		query: CqlQueryBuilderData,
+		targetQueries: CqlQueryBuilderData[],
 	},
 	expert: {
 		query: string|null,

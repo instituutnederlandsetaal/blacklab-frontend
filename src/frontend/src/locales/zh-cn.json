@@ -31,7 +31,8 @@
 
 				"withinSelect_label": "范围:",
 
-				"token_head_handle_title": "拖动此处移动此标记",
+				"token_head_move_right_title": "将此标记向右移动一个位置",
+				"token_head_move_left_title": "将此标记向左移动一个位置",
 				"token_head_deleteButton_title": "删除标记",
 
 				"body_tab_header_search": "搜索",
