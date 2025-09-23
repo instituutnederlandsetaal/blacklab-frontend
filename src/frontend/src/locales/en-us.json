@@ -59,8 +59,8 @@
 				"attribute_create_button_title": "Add another attribute",
 
 				"boolean_operators": {
-					"AND": "AND",
-					"OR": "OR"
+					"&": "AND",
+					"|": "OR"
 				},
 				"comparators": {
 					"=": "equals",

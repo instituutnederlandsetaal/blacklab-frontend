@@ -61,6 +61,7 @@
 					<CqlAttributeGroup
 						v-model="model.rootAttributeGroup"
 						:is-root="true"
+						:options="options"
 						@update:group="updateRootAttributeGroup"
 					/>
 				</div>
@@ -132,7 +133,8 @@ import Vue from 'vue';
 import {
 	CqlTokenData,
 	CqlAttributeGroupData,
-	CqlGenerator
+	CqlGenerator,
+	CqlQueryBuilderOptions
 } from '@/components/cql/cql-types';
 import CqlAttributeGroup from './CqlAttributeGroup.vue';
 
@@ -143,6 +145,7 @@ export default useModel<CqlTokenData>().extend({
 		CqlAttributeGroup
 	},
 	props: {
+		options: { type: Object as () => CqlQueryBuilderOptions, required: true },
 		canMoveLeft: { type: Boolean, default: false },
 		canMoveRight: { type: Boolean, default: false },
 	},

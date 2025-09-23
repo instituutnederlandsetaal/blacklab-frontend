@@ -1,4 +1,4 @@
-import { NormalizedAnnotation } from '@/types/apptypes';
+import { NormalizedAnnotation, OptGroup, Option } from '@/types/apptypes';
 
 // Updated types for the Vue implementation of CQL Query Builder
 
@@ -59,22 +59,28 @@ export interface CqlQueryBuilderData {
 	withinAttributes: Record<string, string>;
 }
 
-// Default configurations
-export const DEFAULT_COMPARATORS: CqlComparator[][] = [
-	[
-		{ value: '=', label: '=' },
-		{ value: '!=', label: '≠' }
-	],
-	[
-		{ value: 'starts with', label: 'starts with' },
-		{ value: 'ends with', label: 'ends with' }
-	]
+export const COMPARATORS: string[][] = [
+	['=', '!='],
+	['startsWith', 'endsWith']
 ];
 
-export const DEFAULT_OPERATORS: CqlOperator[] = [
-	{ operator: '&', label: 'AND' },
-	{ operator: '|', label: 'OR' }
-];
+export const OPERATORS = ['&','|',];
+
+// Options type for CQL Query Builder - contains all precomputed store data
+export interface CqlQueryBuilderOptions {
+	// Store-derived values (language-agnostic)
+	defaultAnnotationId: string;
+	// searchAnnotationIds: string[];
+	textDirection: 'ltr' | 'rtl';
+	allAnnotationsMap: Record<string, NormalizedAnnotation>;
+
+	// Precomputed options (language-agnostic)
+	annotationOptions: (Option|OptGroup)[];
+
+	// Default configurations (always the same)
+	operatorOptions: Option[];
+	comparatorOptions: OptGroup[];
+}
 
 function rootCql(data: CqlQueryBuilderData): string | null {
 	if (data.tokens.length === 0) return null;

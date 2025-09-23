@@ -14,7 +14,7 @@
 			<!-- Annotation Type Select -->
 			<SelectPicker
 				data-attribute-role="type"
-				:options="annotationOptions"
+				:options="options.annotationOptions"
 				hideEmpty
 				data-width="75px"
 				data-menu-width="auto"
@@ -26,7 +26,7 @@
 			<!-- Operator Select -->
 			<SelectPicker
 				data-attribute-role="operator"
-				:options="comparatorOptions"
+				:options="options.comparatorOptions"
 				data-width="50px"
 				data-menu-width="auto"
 				hideEmpty
@@ -83,28 +83,7 @@
 			</label>
 
 			<!-- Add Controls -->
-			<div class="dropup bl-create-attribute-dropdown">
-				<button
-					type="button"
-					class="btn btn-sm btn-default dropdown-toggle"
-					data-toggle="dropdown"
-					:title="$t('search.advanced.queryBuilder.attribute_create_button_title').toString()"
-				>
-					<span class="glyphicon glyphicon-plus"></span>&#8203;
-				</button>
-				<ul class="dropdown-menu">
-					<li v-for="operator in operatorOptions" :key="operator.value">
-						<a
-							href="#"
-							@click.prevent="emitAddAttributeGroup(operator.value)"
-						>
-							<span class="glyphicon glyphicon-plus-sign text-success"></span>
-							{{ operator.label }}
-						</a>
-					</li>
-				</ul>
-			</div>
-
+			<CqlAddAttributeButton @click="emitAddAttributeGroup($event)" :options="options" />
 		</div>
 
 		<!-- Case Sensitive Checkbox -->
@@ -151,56 +130,28 @@
 <script lang="ts">
 import Vue from 'vue';
 import { NormalizedAnnotation, OptGroup, Option } from '@/types/apptypes';
-import { CqlAttributeData, CqlComparator, CqlOperator, DEFAULT_COMPARATORS, DEFAULT_OPERATORS } from '@/components/cql/cql-types';
-import { Options } from '@/components/SelectPicker.vue';
+import { CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
 import SelectPicker from '@/components/SelectPicker.vue';
 import Modal from '@/components/Modal.vue';
+import CqlAddAttributeButton from '@/components/cql/CqlAddAttributeButton.vue';
 
 import useModel from './useModel';
-
-import * as UIStore from '@/store/search/ui';
-import * as CorpusStore from '@/store/search/corpus';
-import { getAnnotationSubset } from '@/utils';
 
 
 export default useModel<CqlAttributeData>().extend({
 	components: {
+		CqlAddAttributeButton,
 		SelectPicker,
-		Modal
+		Modal,
+	},
+	props: {
+		options: { type: Object as () => CqlQueryBuilderOptions, required: true },
 	},
 	data: () => ({ showModal: false }),
 	computed: {
-		textDirection: CorpusStore.get.textDirection,
-		currentAnnotation(): NormalizedAnnotation | undefined { return CorpusStore.get.allAnnotationsMap()[this.model.annotationId]; },
-
-		annotationOptions(): Options {
-			const annotationGroups = getAnnotationSubset(
-				UIStore.getState().search.advanced.searchAnnotationIds,
-				CorpusStore.get.annotationGroups(),
-				CorpusStore.get.allAnnotationsMap(),
-				'Search',
-				this,
-				this.textDirection,
-				false,
-				false
-			);
-			return annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options);
-		},
-
-		operatorOptions(): Option[] {
-			return DEFAULT_OPERATORS.map<Option>(op => ({
-				label: this.$td(`search.advanced.queryBuilder.boolean_operators.${op.label}`, op.label),
-				value: op.operator,
-			}));
-		},
-		comparatorOptions(): OptGroup[] {
-			return DEFAULT_COMPARATORS.map<OptGroup>(compGroup => ({
-				label: '',
-				options: compGroup.map<Option>(comp => ({
-					label: this.$td(`search.advanced.queryBuilder.comparators.${comp.value}`, comp.label),
-					value: comp.value,
-				})),
-			}));
+		textDirection(): 'ltr' | 'rtl' { return this.options.textDirection; },
+		currentAnnotation(): NormalizedAnnotation | undefined {
+			return this.options.allAnnotationsMap[this.model.annotationId];
 		},
 
 		hasUploadedValue(): boolean { return !!this.model.uploadedValue },

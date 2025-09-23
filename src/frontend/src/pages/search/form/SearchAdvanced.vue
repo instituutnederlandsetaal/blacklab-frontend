@@ -47,21 +47,16 @@
 </template>
 
 <script lang="ts">
-import * as CorpusStore from '@/store/search/corpus';
 import * as PatternStore from '@/store/search/form/patterns';
 import * as InterfaceStore from '@/store/search/form/interface';
-import * as UIStore from '@/store/search/ui';
-import { corpusCustomizations } from '@/utils/customization';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 import MultiValuePicker from '@/components/MultiValuePicker.vue';
 import AlignBy from '@/pages/search/form/AlignBy.vue';
-import { initQueryBuilders } from '@/initQueryBuilders';
 import CqlQueryBuilder from '@/components/cql/CqlQueryBuilder.vue';
 
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
-import { NormalizedAnnotation } from '@/types/apptypes';
-import { CqlGenerator, CqlQueryBuilderData, DEFAULT_COMPARATORS, DEFAULT_OPERATORS } from '@/components/cql/cql-types';
+import { CqlGenerator, CqlQueryBuilderData } from '@/components/cql/cql-types';
 
 export default ParallelFields.extend({
 	components: {

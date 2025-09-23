@@ -7,13 +7,14 @@
 				:key="`operator-${entry.id}`"
 				class="bl-token-attribute-group-label"
 			>
-				{{ $td(`search.advanced.queryBuilder.boolean_operators.${currentOperatorOption.label}`, currentOperatorOption.label) }}
+				{{ currentOperatorOption.label }}
 			</div>
 
 			<!-- Attribute Entry -->
 			<CqlAttribute
 				v-if="isCqlAttributeData(entry)"
 				:key="entry.id"
+				:options="options"
 				@add-attribute-group="addAttribute($event, entry)"
 				@delete-attribute="deleteAttribute(entry.id)"
 				v-model="model.entries[index]"
@@ -24,33 +25,14 @@
 				v-else-if="isCqlAttributeGroupData(entry)"
 				:key="entry.id"
 				:is-root="false"
+				:options="options"
 				@delete-group="deleteNestedGroup"
 				v-model="model.entries[index]"
 			/>
 		</template>
 
 		<!-- Add Controls -->
-		<div v-if="!isRoot || shouldShowAddControls" class="dropup bl-create-attribute-dropdown">
-			<button
-				type="button"
-				class="btn btn-sm btn-default dropdown-toggle"
-				data-toggle="dropdown"
-				:title="$t('search.advanced.queryBuilder.attribute_create_button_title').toString()"
-			>
-				<span class="glyphicon glyphicon-plus"></span>&#8203;
-			</button>
-			<ul class="dropdown-menu">
-				<li v-for="operator in operatorOptions" :key="operator.value">
-					<a
-						href="#"
-						@click.prevent="addAttribute(operator.value)"
-					>
-						<span class="glyphicon glyphicon-plus-sign text-success"></span>
-						{{ operator.label }}
-					</a>
-				</li>
-			</ul>
-		</div>
+		<CqlAddAttributeButton v-if="shouldShowAddControls" @click="addAttribute($event)" :options="options"/>
 	</div>
 </template>
 
@@ -60,42 +42,37 @@ import {
 	CqlAttributeGroupData,
 	CqlAttributeData,
 	CqlGroupEntry,
+	CqlQueryBuilderOptions,
 	isCqlAttributeData,
 	isCqlAttributeGroupData,
-	DEFAULT_OPERATORS
 } from '@/components/cql/cql-types';
 import CqlAttribute from './CqlAttribute.vue';
+import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
 import uid from '@/mixins/uid';
-import * as UIStore from '@/store/search/ui';
 
 import useModel from './useModel';
 
 export default useModel<CqlAttributeGroupData>().extend({
 	name: 'CqlAttributeGroup',
 	components: {
-		CqlAttribute
+		CqlAttribute,
+		CqlAddAttributeButton
 	},
 	props: {
 		isRoot: { type: Boolean, default: false },
+		options: { type: Object as () => CqlQueryBuilderOptions, required: true },
 	},
 	computed: {
 		shouldShowAddControls(): boolean {
 			// Show add controls if we have any content or if we're the root group
 			return this.isRoot || this.model.entries.length > 0;
 		},
-		operatorOptions(): Option[] {
-			return DEFAULT_OPERATORS.map<Option>(op => ({
-				label: this.$td(`search.advanced.queryBuilder.boolean_operators.${op.label}`, op.label),
-				value: op.operator,
-			}));
-		},
 		currentOperatorOption(): Option {
-			return this.operatorOptions.find(op => op.value === this.model.operator) ?? {
+			return this.options.operatorOptions.find(op => op.value === this.model.operator) || {
 				value: this.model.operator,
 				label: this.model.operator
-			};
-		},
-		defaultAnnotationId() { return UIStore.getState().search.advanced.defaultSearchAnnotationId },
+			}
+		}
 	},
 	methods: {
 		// Helper methods for type checking
@@ -110,7 +87,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 		createDefaultAttribute(): CqlAttributeData {
 			return {
 				id: `attr_${uid()}`,
-				annotationId: this.defaultAnnotationId,
+				annotationId: this.options.defaultAnnotationId,
 				comparator: '=',
 				values: [''],
 				caseSensitive: false

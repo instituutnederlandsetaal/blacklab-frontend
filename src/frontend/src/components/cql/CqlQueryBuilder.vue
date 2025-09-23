@@ -5,6 +5,7 @@
 			<CqlToken
 				v-for="(token, index) in model.tokens" v-model="model.tokens[index]"
 				:key="token.id"
+				:options="options"
 
 				:can-move-left="index > 0"
 				:can-move-right="index < model.tokens.length - 1"
@@ -33,9 +34,10 @@
 <script lang="ts">
 import {
 	CqlTokenData,
-	DEFAULT_COMPARATORS,
-	DEFAULT_OPERATORS,
+	COMPARATORS,
+	OPERATORS,
 	CqlQueryBuilderData,
+	CqlQueryBuilderOptions,
 } from '@/components/cql/cql-types';
 import CqlToken from './CqlToken.vue';
 import Modal from '@/components/Modal.vue';
@@ -43,6 +45,8 @@ import Within from '@/pages/search/form/Within.vue';
 import uid from '@/mixins/uid';
 
 import * as UIStore from '@/store/search/ui';
+import * as CorpusStore from '@/store/search/corpus';
+import { getAnnotationSubset } from '@/utils';
 
 import useModel from './useModel';
 
@@ -53,9 +57,48 @@ export default useModel<CqlQueryBuilderData>().extend({
 		Within
 	},
 	computed: {
-		defaultAnnotationId() { return UIStore.getState().search.advanced.defaultSearchAnnotationId },
+		options(): CqlQueryBuilderOptions {
+			return this.createCqlQueryBuilderOptions();
+		},
 	},
 	methods: {
+		createCqlQueryBuilderOptions(): CqlQueryBuilderOptions {
+			const textDirection = CorpusStore.get.textDirection();
+			const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
+			const searchAnnotationIds = UIStore.getState().search.advanced.searchAnnotationIds;
+
+			const annotationGroups = getAnnotationSubset(
+				searchAnnotationIds,
+				CorpusStore.get.annotationGroups(),
+				allAnnotationsMap,
+				'Search',
+				this,
+				textDirection,
+				false,
+				false
+			);
+
+			const annotationOptions = (annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options)) as any;
+
+			return {
+				defaultAnnotationId: UIStore.getState().search.advanced.defaultSearchAnnotationId,
+				textDirection,
+				allAnnotationsMap,
+				annotationOptions,
+				operatorOptions: OPERATORS.map(op => ({
+					label: this.$td(`search.advanced.queryBuilder.boolean_operators.${op}`, op),
+					value: op,
+				})),
+				comparatorOptions: COMPARATORS.map(comp => ({
+					label: '',
+					options: comp.map(comp => ({
+						label: this.$td(`search.advanced.queryBuilder.comparators.${comp}`, comp),
+						value: comp,
+					})),
+				}))
+			};
+		},
+
 		addToken() {
 			const newToken: CqlTokenData = {
 				id: `token_${uid()}`,
@@ -68,11 +111,11 @@ export default useModel<CqlQueryBuilderData>().extend({
 				},
 				rootAttributeGroup: {
 					id: `group_${uid()}`,
-					operator: DEFAULT_OPERATORS[0].operator,
+					operator: OPERATORS[0],
 					entries: [{
 						id: `attr_${uid()}`,
-						annotationId: this.defaultAnnotationId,
-						comparator: DEFAULT_COMPARATORS[0][0].value,
+						annotationId: this.options.defaultAnnotationId,
+						comparator: COMPARATORS[0][0],
 						values: [''],
 						caseSensitive: false
 					}]
