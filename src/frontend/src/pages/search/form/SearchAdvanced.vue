@@ -39,7 +39,7 @@
 				</div>
 			</div>
 
-			<AlignBy block />
+			<AlignBy v-if="pTargets.length" block />
 		</div>
 
 		<button type="button" class="btn btn-default btn-sm" @click="copyAdvancedQuery">{{$t('search.advanced.copyAdvancedQuery')}}</button>
