@@ -1,44 +1,44 @@
 <template>
-	<div class="panel panel-primary bl-token" :id="localToken.id">
+	<div class="panel panel-primary bl-token" :id="model.id">
 		<!-- Token Header -->
 		<div class="panel-heading">
-			<button 
+			<button
 				v-if="canMoveLeft"
-				type="button" 
+				type="button"
 				class="btn btn-xs btn-default"
 				:title="$t('search.advanced.queryBuilder.token_head_move_left_title').toString()"
-				@click="$emit('move-token-left', localToken.id)"
+				@click="$emit('move-token-left', model.id)"
 			>
 				<span class="glyphicon glyphicon-chevron-left"></span>
 			</button>
-			<button 
+			<button
 				v-if="canMoveRight"
-				type="button" 
+				type="button"
 				class="btn btn-xs btn-default"
 				:title="$t('search.advanced.queryBuilder.token_head_move_right_title').toString()"
-				@click="$emit('move-token-right', localToken.id)"
+				@click="$emit('move-token-right', model.id)"
 			>
 				<span class="glyphicon glyphicon-chevron-right"></span>
 			</button>
-		
+
 			<!-- CQL Preview -->
-			<span :id="localToken.id + '_cql_preview'" class="bl-token-cql-preview">{{ tokenCql }}</span>
-			
+			<span :id="model.id + '_cql_preview'" class="bl-token-cql-preview">{{ tokenCql }}</span>
+
 			<!-- Delete Button -->
-			<button 
-				type="button" 
-				class="close" 
-				area-label="delete" 
+			<button
+				type="button"
+				class="close"
+				area-label="delete"
 				:title="$t('search.advanced.queryBuilder.token_head_deleteButton_title').toString()"
-				@click="$emit('delete-token', localToken.id)"
+				@click="$emit('delete-token', model.id)"
 			>
 				<span aria-hidden="true">&times;</span>
 			</button>
-			
+
 		</div>
 
 		<!-- Token Body -->
-		<div class="panel-body" :id="localToken.id + '_panel_body'">
+		<div class="panel-body" :id="model.id + '_panel_body'">
 			<!-- Tabs -->
 			<ul class="nav nav-tabs">
 				<li :class="{ active: activeTab === 'attributes' }">
@@ -52,82 +52,72 @@
 			<!-- Tab Content -->
 			<div class="tab-content">
 				<!-- Attributes Tab -->
-				<div 
-					:id="localToken.id + '_tab_attributes'"
+				<div
+					:id="model.id + '_tab_attributes'"
 					class="tab-pane"
 					:class="{ active: activeTab === 'attributes' }"
 					style="padding: 25px 15px;"
 				>
 					<CqlAttributeGroup
-						:group="localToken.rootAttributeGroup"
-						:annotations="annotations"
-						:comparators="comparators"
-						:operators="operators"
-						:text-direction="textDirection"
-						:get-cql-fn="getCqlFn"
+						v-model="model.rootAttributeGroup"
 						:is-root="true"
 						@update:group="updateRootAttributeGroup"
 					/>
 				</div>
 
 				<!-- Properties Tab -->
-				<div 
-					:id="localToken.id + '_tab_properties'"
+				<div
+					:id="model.id + '_tab_properties'"
 					class="tab-pane"
 					:class="{ active: activeTab === 'properties' }"
 					style="padding: 10px 15px 25px 15px;"
 				>
 					<div class="checkbox">
 						<label :title="$t('search.advanced.queryBuilder.body_tab_properties_optional_title').toString()">
-							<input 
-								type="checkbox" 
-								:id="localToken.id + '_property_optional'"
-								v-model="localToken.properties.optional"
-								@change="emitUpdate"
+							<input
+								type="checkbox"
+								:id="model.id + '_property_optional'"
+								v-model="model.properties.optional"
 							>
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_optional') }}
 						</label>
 					</div>
 					<div class="checkbox">
 						<label :title="$t('search.advanced.queryBuilder.body_tab_properties_beginOfSentence_title').toString()">
-							<input 
-								type="checkbox" 
-								:id="localToken.id + '_property_sentence_start'"
-								v-model="localToken.properties.beginOfSentence"
-								@change="emitUpdate"
+							<input
+								type="checkbox"
+								:id="model.id + '_property_sentence_start'"
+								v-model="model.properties.beginOfSentence"
 							>
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_beginOfSentence') }}
 						</label>
 					</div>
 					<div class="checkbox">
 						<label :title="$t('search.advanced.queryBuilder.body_tab_properties_endOfSentence_title').toString()">
-							<input 
-								type="checkbox" 
-								:id="localToken.id + '_property_sentence_end'"
-								v-model="localToken.properties.endOfSentence"
-								@change="emitUpdate"
+							<input
+								type="checkbox"
+								:id="model.id + '_property_sentence_end'"
+								v-model="model.properties.endOfSentence"
 							>
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_endOfSentence') }}
 						</label>
 					</div>
 					<div class="input-group" style="width:318px;">
 						<span class="input-group-addon">{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_label') }}</span>
-						<input 
-							type="text" 
-							class="form-control" 
-							:id="localToken.id + '_property_repeats_min'"
-							v-model.number="localToken.properties.minRepeats"
-							@change="emitUpdate"
+						<input
+							type="text"
+							class="form-control"
+							:id="model.id + '_property_repeats_min'"
+							v-model.number="model.properties.minRepeats"
 						>
 						<span class="input-group-addon" style="border-left-width:0px; border-right-width:0px;">
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_to') }}
 						</span>
-						<input 
-							type="text" 
-							class="form-control" 
-							:id="localToken.id + '_property_repeats_max'"
-							v-model.number="localToken.properties.maxRepeats"
-							@change="emitUpdate"
+						<input
+							type="text"
+							class="form-control"
+							:id="model.id + '_property_repeats_max'"
+							v-model.number="model.properties.maxRepeats"
 						>
 						<span class="input-group-addon">{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_times') }}</span>
 					</div>
@@ -153,51 +143,30 @@ import {
 } from '@/components/cql/cql-types';
 import CqlAttributeGroup from './CqlAttributeGroup.vue';
 
-export default Vue.extend({
+import useModel from './useModel';
+
+export default useModel<CqlTokenData>().extend({
 	components: {
 		CqlAttributeGroup
 	},
 	props: {
-		token: { type: Object as () => CqlTokenData, required: true },
 		canMoveLeft: { type: Boolean, default: false },
 		canMoveRight: { type: Boolean, default: false },
 	},
 	data() {
 		return {
 			activeTab: 'attributes' as 'attributes' | 'properties',
-			localToken: JSON.parse(JSON.stringify(this.token))
 		};
 	},
 	computed: {
 		tokenCql(): string {
-			return this.generateTokenCql(this.localToken);
-		}
-	},
-	watch: {
-		token: {
-			deep: true,
-			immediate: true,
-			handler() {
-				this.localToken = this.createLocalToken();
-			}
+			return CqlGenerator.tokenCql(this.model);
 		}
 	},
 	methods: {
-		createLocalToken(): CqlTokenData {
-			// Deep clone the token to avoid mutating the original
-			return JSON.parse(JSON.stringify(this.token));
-		},
-
 		updateRootAttributeGroup(updatedGroup: CqlAttributeGroupData) {
-			this.localToken.rootAttributeGroup = updatedGroup;
-			this.emitUpdate();
+			this.model.rootAttributeGroup = updatedGroup;
 		},
-
-		emitUpdate() {
-			this.$emit('update:token', this.localToken);
-		},
-
-		generateTokenCql(token: CqlTokenData): string { return CqlGenerator.tokenCql(token); },
 	}
 });
 </script>

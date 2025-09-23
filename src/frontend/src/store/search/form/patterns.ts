@@ -13,7 +13,7 @@ import * as UIStore from '@/store/search/ui';
 
 import { debugLog, debugLogCat } from '@/utils/debug';
 
-import { AnnotationValue, Option } from '@/types/apptypes';
+import { AnnotationValue } from '@/types/apptypes';
 import { CqlQueryBuilderData } from '@/components/cql/cql-types';
 
 type ModuleRootState = {
@@ -44,7 +44,7 @@ type ModuleRootState = {
 		splitBatch: boolean,
 	},
 	advanced: {
-		query: CqlQueryBuilderData,
+		query: CqlQueryBuilderData|null,
 		targetQueries: CqlQueryBuilderData[],
 	},
 	expert: {
@@ -125,7 +125,7 @@ const setTargetFields = (state: ModuleRootState, payload: string[]): string[] =>
 
 	if (payload && payload.length > 0) {
 		while (state.advanced.targetQueries.length < payload.length) {
-			state.advanced.targetQueries.push('');
+			state.advanced.targetQueries.push({tokens: [], within: '', withinAttributes: {}});
 		}
 		while (state.expert.targetQueries.length < payload.length) {
 			state.expert.targetQueries.push('');
@@ -216,7 +216,7 @@ const actions = {
 		}, 'extended_reset'),
 	},
 	advanced: {
-		query: b.commit((state, payload: string|null) => {
+		query: b.commit((state, payload: CqlQueryBuilderData|null) => {
 			return (state.advanced.query = payload);
 		}, 'advanced_query'),
 		changeTargetQuery: b.commit((state, {index, value}: {index: number, value: string}) => {
@@ -226,7 +226,7 @@ const actions = {
 			}
 			Vue.set(state.advanced.targetQueries, index, value);
 		}, 'advanced_change_target_query'),
-		targetQueries: b.commit((state, payload: string[]) => {
+		targetQueries: b.commit((state, payload: CqlQueryBuilderData[]) => {
 			return (state.advanced.targetQueries = [...payload]); // copy, don't reference
 		}, 'advanced_target_queries'),
 		reset: b.commit(state => {

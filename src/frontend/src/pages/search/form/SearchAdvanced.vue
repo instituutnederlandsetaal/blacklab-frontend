@@ -3,7 +3,7 @@
 		<template v-if="!isParallelCorpus">
 			<!-- Regular (non-parallel) corpus -->
 			<!-- <div class="querybuilder"></div> -->
-			 <CqlQueryBuilder :options="queryBuilderOptions" @change="updateQueryBuilder"/>
+			 <CqlQueryBuilder v-model="mainQuery" />
 
 		</template>
 		<div v-else>
@@ -62,7 +62,7 @@ import CqlQueryBuilder from '@/components/cql/CqlQueryBuilder.vue';
 
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 import { NormalizedAnnotation } from '@/types/apptypes';
-import { CqlQueryBuilderOptions, DEFAULT_COMPARATORS, DEFAULT_OPERATORS } from '@/components/cql/cql-types';
+import { CqlGenerator, DEFAULT_COMPARATORS, DEFAULT_OPERATORS } from '@/components/cql/cql-types';
 
 export default ParallelFields.extend({
 	components: {
@@ -80,8 +80,11 @@ export default ParallelFields.extend({
 	computed: {
 		// The query (or source query, for parallel corpora)
 		mainQuery: {
-			get() { return PatternStore.getState().advanced.query || undefined; },
-			set: PatternStore.actions.advanced.query,
+			get() { return PatternStore.getState().advanced.query; },
+			set(v: any) {
+				debugger;
+				PatternStore.actions.advanced.query(v);
+			}
 		},
 
 		// If this is a parallel corpus: the target queries
@@ -92,57 +95,19 @@ export default ParallelFields.extend({
 			},
 			set: PatternStore.actions.advanced.targetQueries,
 		},
-
-		refreshQueryBuilders(): any {
-			return {
-				targetValue: this.pTargetValue,
-				// little stupid, but we need a way to know when the locale has changed.
-				// i18n.locale is not reactive?
-				localeChange: this.$i18n.locale
-			}
-		},
-		annotations(): NormalizedAnnotation[] {
-			return CorpusStore.get.allAnnotations();
-		},
-		queryBuilderOptions(): CqlQueryBuilderOptions {
-			return {
-				annotations: this.annotations,
-				comparators: DEFAULT_COMPARATORS,
-				defaultAnnotation: UIStore.getState().search.advanced.defaultSearchAnnotationId,
-				operators: DEFAULT_OPERATORS,
-				textDirection: CorpusStore.get.textDirection(),
-			}
-		}
 	},
 	methods: {
 		copyAdvancedQuery() {
 			const q = PatternStore.getState().advanced.query;
-			PatternStore.actions.expert.query(q);
+			PatternStore.actions.expert.query(q ? CqlGenerator.rootCql(q) : '');
 			for (let i = 0; i < PatternStore.getState().advanced.targetQueries.length; i++) {
 				PatternStore.actions.expert.changeTargetQuery({
 					index: i,
-					value: PatternStore.getState().advanced.targetQueries[i]
+					value: CqlGenerator.rootCql(PatternStore.getState().advanced.targetQueries[i]) || ''
 				});
 			}
 			InterfaceStore.actions.patternMode('expert');
 		},
-		updateQueryBuilder(cql: string) {
-			console.log('update event from querybuilder', cql);
-		},
-	},
-	watch: {
-		refreshQueryBuilders: {
-			immediate: true,
-			handler(v) {
-				if (this.queryBuilderLoading) return;
-				this.queryBuilderLoading = true;
-				setTimeout(() => {
-					initQueryBuilders(this).then(() => {
-						this.queryBuilderLoading = false;
-					});
-				}, 100);
-			},
-		}
 	},
 });
 </script>

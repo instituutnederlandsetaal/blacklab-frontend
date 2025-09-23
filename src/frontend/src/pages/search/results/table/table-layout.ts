@@ -7,9 +7,6 @@ import * as Highlights from './hit-highlighting';
 
 import { KeysOfType } from '@/types/helpers';
 import { StyleValue } from 'vue';
-import { Options } from '@/components/SelectPicker.vue';
-
-
 
 /**
  * The columns can display various computed data, such as relative group size, or relative frequency.
@@ -657,7 +654,7 @@ type ColumnDefBase = {
 	key: string;
 	label: string;
 	title?: string;
-	sort?: Options|string;
+	sort?: Array<Option|OptGroup>|string;
 	debugLabel?: string;
 	class?: string;
 	style?: StyleValue;
@@ -749,7 +746,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		value: `${prefix}:${a.id}`,
 	})
 
-	const annotationColumnSortOptions = (prefix: string, annots?: NormalizedAnnotation[]): {sort?: string|Options, title?: string} => {
+	const annotationColumnSortOptions = (prefix: string, annots?: NormalizedAnnotation[]): {sort?: string|Array<OptGroup|Option>, title?: string} => {
 		const annotsToShow = new Set((annots ?? info.sortableAnnotations).map(a => a.id));
 		const groups = info.annotationGroups;
 

@@ -3,7 +3,7 @@
 		<!-- Mixed Entries with Operators -->
 		<div v-for="(entry, index) in model.entries" :key="entry.id" class="bl-attribute-entry-wrapper">
 			<!-- Operator Label (shown before each entry except the first one) -->
-			<div 
+			<div
 				v-if="index > 0"
 				class="bl-token-attribute-group-label"
 			>
@@ -27,21 +27,21 @@
 
 		<!-- Add Controls -->
 		<div v-if="!isRoot || shouldShowAddControls" class="dropup bl-create-attribute-dropdown">
-			<button 
-				type="button" 
-				class="btn btn-sm btn-default dropdown-toggle" 
-				data-toggle="dropdown" 
+			<button
+				type="button"
+				class="btn btn-sm btn-default dropdown-toggle"
+				data-toggle="dropdown"
 				:title="$t('search.advanced.queryBuilder.attribute_create_button_title').toString()"
 			>
 				<span class="glyphicon glyphicon-plus"></span>&#8203;
 			</button>
 			<ul class="dropdown-menu">
 				<li v-for="operator in operatorOptions" :key="operator.value">
-					<a 
-						href="#" 
+					<a
+						href="#"
 						@click.prevent="addAttribute(operator.value)"
 					>
-						<span class="glyphicon glyphicon-plus-sign text-success"></span> 
+						<span class="glyphicon glyphicon-plus-sign text-success"></span>
 						{{ operator.label }}
 					</a>
 				</li>
@@ -65,6 +65,7 @@ import {
 } from '@/components/cql/cql-types';
 import CqlAttribute from './CqlAttribute.vue';
 import uid from '@/mixins/uid';
+import * as UIStore from '@/store/search/ui';
 
 import useModel from './useModel';
 
@@ -81,7 +82,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 			// Show add controls if we have any content or if we're the root group
 			return this.isRoot || this.model.entries.length > 0;
 		},
-		operatorOptions(): Option[] { 
+		operatorOptions(): Option[] {
 			return DEFAULT_OPERATORS.map<Option>(op => ({
 				label: this.$td(`search.advanced.queryBuilder.boolean_operators.${op.label}`, op.label),
 				value: op.operator,
@@ -93,6 +94,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 				label: this.model.operator
 			};
 		},
+		defaultAnnotationId() { return UIStore.getState().search.advanced.defaultSearchAnnotationId },
 	},
 	methods: {
 		// Helper methods for type checking
@@ -115,7 +117,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 		},
 
 		addAttribute(operator: string, calledForAttribute?: CqlAttributeData) {
-			// Optimization: If there's only one attribute in the group, 
+			// Optimization: If there's only one attribute in the group,
 			// just change the operator and add a new attribute instead of creating nested groups
 			if (this.model.entries.length <= 1) {
 				// Change the group's operator to the new operator
@@ -123,14 +125,14 @@ export default useModel<CqlAttributeGroupData>().extend({
 			}
 			if (operator === this.model.operator) {
 				// just insert a new attribute
-				const index = calledForAttribute 
-					? this.model.entries.findIndex(e => e.id === calledForAttribute.id) + 1 
+				const index = calledForAttribute
+					? this.model.entries.findIndex(e => e.id === calledForAttribute.id) + 1
 					: this.model.entries.length;
 				this.model.entries.splice(index, 0, this.createDefaultAttribute());
 				this.emitUpdate();
 				return;
 			}
-	
+
 			// Replace existing attribute with a group containing it + a new attribute
 			if (calledForAttribute) {
 				const newGroup: CqlAttributeGroupData = {
@@ -155,7 +157,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 		},
 
 		updateAttribute(updatedAttribute: CqlAttributeData) {
-			const index = this.model.entries.findIndex((entry: CqlGroupEntry) => 
+			const index = this.model.entries.findIndex((entry: CqlGroupEntry) =>
 				this.isCqlAttributeData(entry) && entry.id === updatedAttribute.id);
 			if (index !== -1) {
 				this.$set(this.model.entries, index, updatedAttribute);
@@ -164,7 +166,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 		},
 
 		deleteAttribute(attributeId: string) {
-			const index = this.model.entries.findIndex((entry: CqlGroupEntry) => 
+			const index = this.model.entries.findIndex((entry: CqlGroupEntry) =>
 				this.isCqlAttributeData(entry) && entry.id === attributeId);
 			if (index !== -1) {
 				this.model.entries.splice(index, 1);
@@ -174,7 +176,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 		},
 
 		updateNestedGroup(updatedGroup: CqlAttributeGroupData) {
-			const index = this.model.entries.findIndex((entry: CqlGroupEntry) => 
+			const index = this.model.entries.findIndex((entry: CqlGroupEntry) =>
 				this.isCqlAttributeGroupData(entry) && entry.id === updatedGroup.id);
 			if (index !== -1) {
 				this.$set(this.model.entries, index, updatedGroup);
@@ -183,7 +185,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 		},
 
 		deleteNestedGroup(groupId: string) {
-			const index = this.model.entries.findIndex((entry: CqlGroupEntry) => 
+			const index = this.model.entries.findIndex((entry: CqlGroupEntry) =>
 				this.isCqlAttributeGroupData(entry) && entry.id === groupId);
 			if (index !== -1) {
 				this.model.entries.splice(index, 1);

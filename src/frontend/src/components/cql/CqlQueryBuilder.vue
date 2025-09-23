@@ -3,25 +3,20 @@
 		<!-- Tokens Container -->
 		<div class="bl-token-container">
 			<CqlToken
-				v-for="(token, index) in tokens"
+				v-for="(token, index) in model.tokens" v-model="model.tokens[index]"
 				:key="token.id"
-				:token="token"
-				:annotations="options.annotations"
-				:comparators="comparators"
-				:operators="operators"
-				:text-direction="textDirection"
+
 				:can-move-left="index > 0"
-				:can-move-right="index < tokens.length - 1"
-				:get-cql-fn="getCqlFn"
-				@update:token="updateToken"
+				:can-move-right="index < model.tokens.length - 1"
+
 				@delete-token="deleteToken"
 				@move-token-left="moveTokenLeft"
 				@move-token-right="moveTokenRight"
 			/>
-			
+
 			<!-- Add Token Button -->
-			<button 
-				type="button" 
+			<button
+				type="button"
 				class="btn btn-primary bl-token-create"
 				:title="$t('search.advanced.queryBuilder.createTokenButton_label').toString()"
 				@click="addToken"
@@ -32,45 +27,6 @@
 
 		<!-- Within Select -->
 		<Within class="clearfix" v-model="value.within"/>
-		
-		<!-- Modal Editor -->
-		<Modal 
-			v-if="showModalEditor"
-			:title="$t('search.advanced.queryBuilder.modalEditor_title')"
-			@close="closeModalEditor"
-		>
-			<template #body>
-				<textarea 
-					v-model="modalEditorValue"
-					class="form-control" 
-					rows="10" 
-					style="width:100%;overflow:auto;resize:none;white-space:pre;"
-				></textarea>
-			</template>
-			<template #footer>
-				<button 
-					type="button" 
-					class="btn btn-primary pull-left" 
-					@click="clearModalEditor"
-				>
-					{{ $t('search.advanced.queryBuilder.modalEditor_clear') }}
-				</button>
-				<button 
-					type="button" 
-					class="btn btn-default" 
-					@click="closeModalEditor"
-				>
-					{{ $t('search.advanced.queryBuilder.modalEditor_cancel') }}
-				</button>
-				<button 
-					type="button" 
-					class="btn btn-primary" 
-					@click="saveModalEditor"
-				>
-					{{ $t('search.advanced.queryBuilder.modalEditor_save') }}
-				</button>
-			</template>
-		</Modal>
 	</div>
 </template>
 
@@ -100,6 +56,7 @@ import * as UIStore from '@/store/search/ui';
 import * as CorpusStore from '@/store/search/corpus';
 
 import useModel from './useModel';
+import { using } from 'rxjs';
 
 export default useModel<CqlQueryBuilderData>().extend({
 	components: {
@@ -107,17 +64,14 @@ export default useModel<CqlQueryBuilderData>().extend({
 		Modal,
 		Within
 	},
-	props: {
-		options: {
-			type: Object as () => CqlQueryBuilderOptions,
-			required: true,
-		},
-	},
 	mounted() {
 		// Create initial token if none exist
 		if (this.model.tokens.length === 0) {
 			this.addToken();
 		}
+	},
+	computed: {
+		defaultAnnotationId() { return UIStore.getState().search.advanced.defaultSearchAnnotationId },
 	},
 	methods: {
 		addToken() {
@@ -135,8 +89,8 @@ export default useModel<CqlQueryBuilderData>().extend({
 					operator: '&',
 					entries: [{
 						id: `attr_${uid()}`,
-						annotationId: this.defaultAnnotation,
-						operator: '=',
+						annotationId: this.defaultAnnotationId,
+						operator: DEFAULT_OPERATORS[0].operator,
 						values: [''],
 						caseSensitive: false
 					}]
@@ -157,7 +111,7 @@ export default useModel<CqlQueryBuilderData>().extend({
 			const index = this.model.tokens.findIndex(t => t.id === tokenId);
 			if (index !== -1) {
 				this.model.tokens.splice(index, 1);
-				
+
 				// Ensure at least one token exists
 				if (this.model.tokens.length === 0) {
 					this.addToken();

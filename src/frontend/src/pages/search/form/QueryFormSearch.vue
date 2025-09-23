@@ -175,6 +175,7 @@ function isJQuery(v: any): v is JQuery { return typeof v !== 'boolean' && v && v
 
 import ParallelFields from './parallel/ParallelFields';
 import { corpusCustomizations } from '@/utils/customization';
+import { CqlQueryBuilderData } from '@/components/cql/cql-types';
 
 export default ParallelFields.extend({
 	components: {
@@ -270,7 +271,7 @@ export default ParallelFields.extend({
 		glossEnabled(): boolean { return GlossStore.get.settings() != null; },
 		conceptEnabled(): boolean { return ConceptStore.get.settings() != null; },
 		advanced: {
-			get(): string|null { return PatternStore.getState().advanced.query; },
+			get(): CqlQueryBuilderData|null { return PatternStore.getState().advanced.query; },
 			set: PatternStore.actions.advanced.query,
 		},
 		concept: {

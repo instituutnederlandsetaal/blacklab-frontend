@@ -8,6 +8,8 @@ import { applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, g
 	splitIntoTerms, uiTypeSupport } from '@/utils';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { corpusCustomizations } from '@/utils/customization';
+import { CqlGenerator, CqlQueryBuilderData, CqlTokenData, CqlAttributeGroupData, CqlGroupEntry, CqlAttributeData } from '@/components/cql/cql-types';
+import { Result } from '@/utils/bcql-json-interpreter';
 
 /** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */
 export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): string[] => {
@@ -126,32 +128,37 @@ export function getPatternSummaryExplore<K extends keyof ModuleRootStateExplore>
 	}
 }
 
-export const getPatternStringFromCql = (sourceCql: string, withinClauses: Record<string, Record<string, any>>,
-	targetVersions: string[], targetCql: string[], alignBy?: string) => {
-if (targetVersions.length > targetCql.length) {
-	console.error('There must be a CQL query for each selected parallel version!', targetVersions, targetCql);
-	throw new Error(`There must be a CQL query for each selected parallel version!`);
-}
+export const getPatternStringFromCql = (
+	sourceCql: string,
+	withinClauses: Record<string, Record<string, any>>,
+	targetVersions: string[],
+	targetCql: string[],
+	alignBy?: string
+) => {
+	if (targetVersions.length > targetCql.length) {
+		console.error('There must be a CQL query for each selected parallel version!', targetVersions, targetCql);
+		throw new Error(`There must be a CQL query for each selected parallel version!`);
+	}
 
-if (targetVersions.length === 0) {
-	return applyWithinClauses(sourceCql, withinClauses);
-}
+	if (targetVersions.length === 0) {
+		return applyWithinClauses(sourceCql, withinClauses);
+	}
 
-const defaultSourceQuery = targetVersions.length > 0 ? '_': '';
-const sourceQuery = applyWithinClauses(sourceCql.trim() || defaultSourceQuery, withinClauses);
-const queryParts = [parenQueryPartParallel(sourceQuery)];
-const relationType = alignBy ?? '';
-for (let i = 0; i < targetVersions.length; i++) {
-	if (i > 0)
-		queryParts.push(' ; ');
-	const targetVersion = getParallelFieldParts(targetVersions[i]).version;
-	const targetQuery = parenQueryPartParallel(applyWithinClauses(targetCql[i].trim() || '_', withinClauses));
-	queryParts.push(` =${relationType}=>${targetVersion}? ${targetQuery}`)
-}
+	const defaultSourceQuery = targetVersions.length > 0 ? '_': '';
+	const sourceQuery = applyWithinClauses(sourceCql.trim() || defaultSourceQuery, withinClauses);
+	const queryParts = [parenQueryPartParallel(sourceQuery)];
+	const relationType = alignBy ?? '';
+	for (let i = 0; i < targetVersions.length; i++) {
+		if (i > 0)
+			queryParts.push(' ; ');
+		const targetVersion = getParallelFieldParts(targetVersions[i]).version;
+		const targetQuery = parenQueryPartParallel(applyWithinClauses(targetCql[i].trim() || '_', withinClauses));
+		queryParts.push(` =${relationType}=>${targetVersion}? ${targetQuery}`)
+	}
 
-const query = queryParts.join('');
+	const query = queryParts.join('');
 
-return query;
+	return query;
 };
 
 export function getPatternStringSearch(
@@ -188,10 +195,16 @@ export function getPatternStringSearch(
 				undefined;
 		}
 		case 'advanced':
-			if (!state.advanced.query)
+			const sourceQuery = state.advanced?.query && CqlGenerator.rootCql(state.advanced.query);
+			if (!sourceQuery)
 				return undefined;
-			return getPatternStringFromCql(state.advanced.query, withinClauses, targets, state.advanced.targetQueries,
-				alignBy);
+			return getPatternStringFromCql(
+				sourceQuery,
+				withinClauses,
+				targets,
+				state.advanced?.targetQueries.map(tq => CqlGenerator.rootCql(tq)).filter(q => q != null) ?? [],
+				alignBy
+			);
 		case 'expert':
 			return getPatternStringFromCql(state.expert.query || '', withinClausesNoWithinWidget, targets,
 				state.expert.targetQueries, alignBy);
@@ -242,4 +255,157 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
 		};
 	}
 	return [withinClauses, withinClausesNoWithinWidget];
+}
+
+export function getQueryBuilderStateFromParsedQuery(queries: Result[]): {
+	query: CqlQueryBuilderData,
+	targetQueries: CqlQueryBuilderData[],
+} {
+	// Find source query (no targetVersion) and target queries (with targetVersion)
+	const sourceQuery = queries.find(q => !q.targetVersion);
+	const targetQueries = queries.filter(q => !!q.targetVersion);
+
+	const parseQuery = (parsedQuery: Result): CqlQueryBuilderData => {
+		let nextId = 0;
+		const generateId = () => `generated_${nextId++}`;
+
+		const tokens = parsedQuery.tokens || [];
+		const withinClauses = parsedQuery.withinClauses || {};
+
+		// Extract within element and attributes
+		const withinElements = Object.keys(withinClauses);
+		const within = withinElements.length > 0 ? withinElements[0] : '';
+		const withinAttributes: Record<string, string> = within ? withinClauses[within] || {} : {};
+
+		const parsedTokens = tokens.map(token => {
+			const tokenData: CqlTokenData = {
+				id: generateId(),
+				properties: {
+					optional: token.optional || false,
+					minRepeats: token.repeats?.min ?? 1,
+					maxRepeats: token.repeats?.max ?? 1,
+					beginOfSentence: !!token.leadingXmlTag && token.leadingXmlTag.name === 's',
+					endOfSentence: !!token.trailingXmlTag && token.trailingXmlTag.name === 's'
+				},
+				rootAttributeGroup: {
+					id: generateId(),
+					operator: '&', // default operator
+					entries: []
+				}
+			};
+
+			// Parse the token expression into the root attribute group
+			if (token.expression) {
+				parseExpression(token.expression, tokenData.rootAttributeGroup, generateId);
+			}
+
+			return tokenData;
+		});
+
+		return {
+			tokens: parsedTokens,
+			within,
+			withinAttributes
+		};
+	};
+
+	// Parse expression tree into CQL entries
+	const parseExpression = (
+		expression: any,
+		targetGroup: CqlAttributeGroupData,
+		generateId: () => string
+	): void => {
+		if (!expression) return;
+
+		if (expression.type === 'binaryOp') {
+			// Set the group operator based on the binary operation
+			targetGroup.operator = expression.operator;
+
+			// Parse left and right operands
+			const leftEntries: CqlGroupEntry[] = [];
+			const rightEntries: CqlGroupEntry[] = [];
+
+			// Create temporary groups to collect entries
+			const leftGroup: CqlAttributeGroupData = {
+				id: generateId(),
+				operator: expression.operator,
+				entries: leftEntries
+			};
+			const rightGroup: CqlAttributeGroupData = {
+				id: generateId(),
+				operator: expression.operator,
+				entries: rightEntries
+			};
+
+			parseExpression(expression.left, leftGroup, generateId);
+			parseExpression(expression.right, rightGroup, generateId);
+
+			// Add entries to target group
+			// If the child group has the same operator and only contains attributes, flatten it
+			if (leftGroup.entries.length === 1 && leftGroup.operator === targetGroup.operator) {
+				targetGroup.entries.push(...leftGroup.entries);
+			} else if (leftGroup.entries.length > 0) {
+				targetGroup.entries.push(leftGroup);
+			}
+
+			if (rightGroup.entries.length === 1 && rightGroup.operator === targetGroup.operator) {
+				targetGroup.entries.push(...rightGroup.entries);
+			} else if (rightGroup.entries.length > 0) {
+				targetGroup.entries.push(rightGroup);
+			}
+		} else if (expression.type === 'attribute') {
+			// Parse attribute value for case sensitivity and special operators
+			let value = expression.value;
+			let caseSensitive = false;
+			let operator = expression.operator;
+
+			// Check for case sensitivity flags
+			if (value.indexOf('(?-i)') === 0) {
+				caseSensitive = true;
+				value = value.substr(5);
+			} else if (value.indexOf('(?c)') === 0) {
+				caseSensitive = true;
+				value = value.substr(4);
+			}
+
+			// Check for starts with / ends with patterns
+			if (operator === '=' && value.length >= 2 && value.indexOf('|') === -1) {
+				if (value.indexOf('.*') === 0) {
+					operator = 'ends with';
+					value = value.substr(2);
+				} else if (value.indexOf('.*') === value.length - 2) {
+					operator = 'starts with';
+					value = value.substr(0, value.length - 2);
+				}
+			}
+
+			// Split values on pipe character for multi-value attributes
+			const values = value.split('|');
+
+			const attributeData: CqlAttributeData = {
+				id: generateId(),
+				annotationId: expression.name,
+				operator,
+				values,
+				caseSensitive
+			};
+
+			targetGroup.entries.push(attributeData);
+		}
+	};
+
+	// Parse source query or create empty state
+	const query = sourceQuery ? parseQuery(sourceQuery) : {
+		tokens: [],
+		within: '',
+		withinAttributes: {}
+	};
+
+	// Parse target queries
+	const parsedTargetQueries = targetQueries.map(parseQuery);
+
+	return {
+		query,
+		targetQueries: parsedTargetQueries
+	};
 }

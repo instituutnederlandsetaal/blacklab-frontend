@@ -33,6 +33,8 @@ import {FilterValue, AnnotationValue} from '@/types/apptypes';
 import cloneDeep from 'clone-deep';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { corpusCustomizations } from '@/utils/customization';
+import { CqlAttributeData, CqlAttributeGroupData, CqlQueryBuilderData } from '@/components/cql/cql-types';
+import { getQueryBuilderStateFromParsedQuery } from '@/utils/pattern-utils';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -642,8 +644,11 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	}
 
 	@memoize
-	private get advancedPattern() {
-		return this._parsedCql ? this.expertPattern : undefined;
+	private get advancedPattern(): {
+		query: CqlQueryBuilderData,
+		targetQueries: CqlQueryBuilderData[],
+	} {
+		return getQueryBuilderStateFromParsedQuery(this._parsedCql || []);
 	}
 
 	@memoize

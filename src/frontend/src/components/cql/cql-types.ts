@@ -12,15 +12,6 @@ export interface CqlOperator {
 	label: string;
 }
 
-export interface CqlAttributeValue {
-	/** Unique ID of the annotation */
-	id: string;
-	/** Raw value */
-	value: string;
-	/** Should match using case sensitivity */
-	caseSensitive: boolean;
-}
-
 export interface CqlTokenProperties {
 	optional: boolean;
 	minRepeats: number;
@@ -56,11 +47,6 @@ export function isCqlAttributeGroupData(entry: CqlGroupEntry): entry is CqlAttri
 	return 'entries' in entry;
 }
 
-export interface QueryBuilderData {
-	tokens: CqlTokenData[];
-	within: string;
-}
-
 export interface CqlTokenData {
 	id: string;
 	properties: CqlTokenProperties;
@@ -92,9 +78,9 @@ export const DEFAULT_OPERATORS: CqlOperator[] = [
 
 
 export const DEFAULT_CQL_GENERATOR = (
-	annotation: string, 
-	comparator: string, 
-	caseSensitive: boolean, 
+	annotation: string,
+	comparator: string,
+	caseSensitive: boolean,
 	values: string[]
 ): string => {
 	switch (comparator) {
