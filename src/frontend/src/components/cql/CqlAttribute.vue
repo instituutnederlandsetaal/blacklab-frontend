@@ -2,13 +2,13 @@
 	<div class="bl-token-attribute" :id="model.id">
 		<div class="bl-token-attribute-main">
 			<!-- Delete Button -->
-			<button 
-				type="button" 
+			<button
+				type="button"
 				class="btn btn-xs btn-link"
 				:title="$t('search.advanced.queryBuilder.attribute_delete_attribute_button_title').toString()"
 				@click="$emit('delete-attribute', model.id)"
 			>
-				<span class="glyphicon glyphicon-remove text-primary"></span>	
+				<span class="glyphicon glyphicon-remove text-primary"></span>
 			</button>
 
 			<!-- Annotation Type Select -->
@@ -26,19 +26,19 @@
 			<!-- Operator Select -->
 			<SelectPicker
 				data-attribute-role="operator"
-				:options="operatorOptions"
+				:options="comparatorOptions"
 				data-width="50px"
 				data-menu-width="auto"
 				hideEmpty
 				container="body"
 				data-class="btn btn-sm btn-primary bl-selectpicker-hide-caret bl-no-border-radius"
-				v-model="model.operator"
+				v-model="model.comparator"
 			/>
 
 			<!-- Regular Input/Select -->
-			<button v-if="hasUploadedValue" 
-				type="button" 
-				class="btn btn-default btn-sm bl-no-border-radius" 
+			<button v-if="hasUploadedValue"
+				type="button"
+				class="btn btn-default btn-sm bl-no-border-radius"
 				:title="$t('search.advanced.queryBuilder.attribute_file_upload_edit_button_title').toString()"
 				@click="openModalEditor"
 			>
@@ -58,21 +58,21 @@
 			<input
 				v-else
 				type="text"
-				class="form-control input-sm bl-no-border-radius-right"
+				class="form-control input-sm bl-no-border-radius"
 				:dir="textDirection"
 				v-model="textValue"
 				@input="handleTextInput"
 			/>
-		
+
 			<!-- File Upload Controls -->
-		
+
 			<label v-if="!hasUploadedValue"
 				class="btn btn-sm btn-default bl-no-border-radius bl-input-upload-button"
 				:title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title').toString()"
 			>
-				<input 
-					type="file" 
-					accept="text/*" 
+				<input
+					type="file"
+					accept="text/*"
 					style="display: none;"
 					:title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title')"
 					@change="handleFileUpload"
@@ -83,35 +83,35 @@
 
 			<!-- Add Controls -->
 			<div class="dropup bl-create-attribute-dropdown">
-				<button 
-					type="button" 
-					class="btn btn-sm btn-default dropdown-toggle" 
-					data-toggle="dropdown" 
+				<button
+					type="button"
+					class="btn btn-sm btn-default dropdown-toggle"
+					data-toggle="dropdown"
 					:title="$t('search.advanced.queryBuilder.attribute_create_button_title').toString()"
 				>
 					<span class="glyphicon glyphicon-plus"></span>&#8203;
 				</button>
 				<ul class="dropdown-menu">
 					<li v-for="operator in operatorOptions" :key="operator.value">
-						<a 
-							href="#" 
+						<a
+							href="#"
 							@click.prevent="emitAddAttributeGroup(operator.value)"
 						>
-							<span class="glyphicon glyphicon-plus-sign text-success"></span> 
+							<span class="glyphicon glyphicon-plus-sign text-success"></span>
 							{{ operator.label }}
 						</a>
 					</li>
 				</ul>
 			</div>
-		
+
 		</div>
 
 		<!-- Case Sensitive Checkbox -->
 		<div v-if="currentAnnotation && currentAnnotation.caseSensitive" class="bl-token-attribute-case-and-diacritics-sensitive">
 			<div class="checkbox">
 				<label>
-					<input 
-						type="checkbox" 
+					<input
+						type="checkbox"
 						v-model="model.caseSensitive"
 					>
 					{{ $t('search.advanced.queryBuilder.attribute_caseAndDiacriticsSensitive') }}
@@ -122,22 +122,22 @@
 			:title="$t('search.advanced.queryBuilder.modalEditor_title')"
 			:closeMessage="$t('search.advanced.queryBuilder.modalEditor_cancel')"
 			:confirmMessage="$t('search.advanced.queryBuilder.modalEditor_save')"
-			
+
 			@close="closeModalEditor"
 			@confirm="confirmModalEditor"
 		>
 			<template #body>
-				<textarea 
+				<textarea
 					v-model="model.uploadedValue"
-					class="form-control" 
-					rows="10" 
+					class="form-control"
+					rows="10"
 					style="width:100%;overflow:auto;resize:none;white-space:pre;"
 				></textarea>
 			</template>
 			<template #footer>
-				<button 
-					type="button" 
-					class="btn btn-danger pull-left" 
+				<button
+					type="button"
+					class="btn btn-danger pull-left"
 					@click="clearModalEditor"
 				>
 					{{ $t('search.advanced.queryBuilder.modalEditor_clear') }}
@@ -150,7 +150,7 @@
 <script lang="ts">
 import Vue from 'vue';
 import { NormalizedAnnotation, OptGroup, Option } from '@/types/apptypes';
-import { CqlAttributeData, CqlComparator, CqlOperator, DEFAULT_OPERATORS } from '@/components/cql/cql-types';
+import { CqlAttributeData, CqlComparator, CqlOperator, DEFAULT_COMPARATORS, DEFAULT_OPERATORS } from '@/components/cql/cql-types';
 import { Options } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import Modal from '@/components/Modal.vue';
@@ -186,10 +186,19 @@ export default useModel<CqlAttributeData>().extend({
 			return annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options);
 		},
 
-		operatorOptions(): Option[] { 
+		operatorOptions(): Option[] {
 			return DEFAULT_OPERATORS.map<Option>(op => ({
 				label: this.$td(`search.advanced.queryBuilder.boolean_operators.${op.label}`, op.label),
 				value: op.operator,
+			}));
+		},
+		comparatorOptions(): OptGroup[] {
+			return DEFAULT_COMPARATORS.map<OptGroup>(compGroup => ({
+				label: '',
+				options: compGroup.map<Option>(comp => ({
+					label: this.$td(`search.advanced.queryBuilder.comparators.${comp.value}`, comp.label),
+					value: comp.value,
+				})),
 			}));
 		},
 
@@ -240,7 +249,7 @@ export default useModel<CqlAttributeData>().extend({
 			this.model.values = this.parseUploadedFile(this.model.uploadedValue!);
 			this.closeModalEditor();
 		},
-		clearModalEditor() { 
+		clearModalEditor() {
 			this.model.uploadedValue = undefined;
 			this.model.values = [''];
 			this.closeModalEditor();
@@ -249,7 +258,7 @@ export default useModel<CqlAttributeData>().extend({
 		closeModalEditor() { this.showModal = false; },
 
 		emitAddAttributeGroup(operator: string) {
-			this.$emit('add-attribute-group', operator, this.model);
+			this.$emit('add-attribute-group', operator);
 		}
 	}
 });

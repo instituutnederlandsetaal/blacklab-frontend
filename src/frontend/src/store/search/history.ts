@@ -31,7 +31,7 @@ import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/patte
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
-const version = 8;
+const version = 9;
 
 type HistoryEntry = {
 	// always set

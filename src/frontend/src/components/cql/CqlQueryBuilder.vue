@@ -26,49 +26,31 @@
 		</div>
 
 		<!-- Within Select -->
-		<Within class="clearfix" v-model="value.within"/>
+		<Within class="bl-querybuilder-within" v-model="value.within"/>
 	</div>
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
 import {
 	CqlTokenData,
-	CqlAttributeGroupData,
-	CqlAttributeData,
-	CqlComparator,
-	CqlOperator,
-	isCqlAttributeData,
-	isCqlAttributeGroupData,
 	DEFAULT_COMPARATORS,
 	DEFAULT_OPERATORS,
-	DEFAULT_CQL_GENERATOR,
 	CqlQueryBuilderData,
-	CqlGenerator
 } from '@/components/cql/cql-types';
 import CqlToken from './CqlToken.vue';
 import Modal from '@/components/Modal.vue';
 import Within from '@/pages/search/form/Within.vue';
 import uid from '@/mixins/uid';
 
-
 import * as UIStore from '@/store/search/ui';
-import * as CorpusStore from '@/store/search/corpus';
 
 import useModel from './useModel';
-import { using } from 'rxjs';
 
 export default useModel<CqlQueryBuilderData>().extend({
 	components: {
 		CqlToken,
 		Modal,
 		Within
-	},
-	mounted() {
-		// Create initial token if none exist
-		if (this.model.tokens.length === 0) {
-			this.addToken();
-		}
 	},
 	computed: {
 		defaultAnnotationId() { return UIStore.getState().search.advanced.defaultSearchAnnotationId },
@@ -86,11 +68,11 @@ export default useModel<CqlQueryBuilderData>().extend({
 				},
 				rootAttributeGroup: {
 					id: `group_${uid()}`,
-					operator: '&',
+					operator: DEFAULT_OPERATORS[0].operator,
 					entries: [{
 						id: `attr_${uid()}`,
 						annotationId: this.defaultAnnotationId,
-						operator: DEFAULT_OPERATORS[0].operator,
+						comparator: DEFAULT_COMPARATORS[0][0].value,
 						values: [''],
 						caseSensitive: false
 					}]
@@ -135,5 +117,35 @@ export default useModel<CqlQueryBuilderData>().extend({
 			}
 		},
 	},
+	watch: {
+		model: {
+			// Create initial token if none exist
+			handler() {
+				if (!this.model.tokens.length) {
+					this.addToken();
+				}
+			},
+			deep: true,
+			immediate: true,
+		}
+	}
 });
 </script>
+
+<style lang="scss">
+@import '@/modules/cql_querybuilder.scss';
+
+.bl-querybuilder-within {
+	display: flex;
+	margin: 0;
+	flex-direction: row;
+	gap: 1em;
+	justify-content: flex-start;
+	align-items: center;
+
+	> * {
+		padding: 0;
+		width: auto;
+	}
+}
+</style>

@@ -44,7 +44,7 @@ type ModuleRootState = {
 		splitBatch: boolean,
 	},
 	advanced: {
-		query: CqlQueryBuilderData|null,
+		query: CqlQueryBuilderData,
 		targetQueries: CqlQueryBuilderData[],
 	},
 	expert: {
@@ -75,7 +75,7 @@ const defaults: ModuleRootState = {
 		splitBatch: false,
 	},
 	advanced: {
-		query: null,
+		query: {tokens: [], within: '', withinAttributes: {}},
 		targetQueries: [],
 	},
 	expert: {
@@ -217,9 +217,9 @@ const actions = {
 	},
 	advanced: {
 		query: b.commit((state, payload: CqlQueryBuilderData|null) => {
-			return (state.advanced.query = payload);
+			return (state.advanced.query = payload || {tokens: [], within: '', withinAttributes: {}});
 		}, 'advanced_query'),
-		changeTargetQuery: b.commit((state, {index, value}: {index: number, value: string}) => {
+		changeTargetQuery: b.commit((state, {index, value}: {index: number, value: CqlQueryBuilderData}) => {
 			if (index >= state.advanced.targetQueries.length) {
 				console.error('Tried to set target query for non-existent index');
 				return;
@@ -230,7 +230,7 @@ const actions = {
 			return (state.advanced.targetQueries = [...payload]); // copy, don't reference
 		}, 'advanced_target_queries'),
 		reset: b.commit(state => {
-			state.advanced.query = null
+			state.advanced.query = {tokens: [], within: '', withinAttributes: {}};
 			state.advanced.targetQueries = [];
 		}, 'advanced_reset'),
 	},

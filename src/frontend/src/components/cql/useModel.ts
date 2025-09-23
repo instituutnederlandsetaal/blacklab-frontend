@@ -11,12 +11,12 @@ function useModel<T>() {
 				isUpdatingFromProp: false
 			};
 		},
-		created() { this.model = { ...this.value }; },
+		created() { this.model = structuredClone(this.value); },
 		watch: {
 			value: {
 				handler() {
 					this.isUpdatingFromProp = true;
-					this.model = { ...this.value };
+					this.model = structuredClone(this.value);
 					this.$nextTick(() => {
 						this.isUpdatingFromProp = false;
 					});

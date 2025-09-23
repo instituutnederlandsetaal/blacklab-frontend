@@ -4,7 +4,6 @@
 			<!-- Regular (non-parallel) corpus -->
 			<!-- <div class="querybuilder"></div> -->
 			 <CqlQueryBuilder v-model="mainQuery" />
-
 		</template>
 		<div v-else>
 			<!-- Parallel corpus -->
@@ -16,16 +15,16 @@
 				<span v-if="errorNoParallelSourceVersion" class="error">
 					{{ $t('search.parallel.errorNoSourceVersion') }}
 				</span>
-				<div class="querybuilder"></div>
+				<CqlQueryBuilder v-model="mainQuery" />
 			</div>
 
-			<div class="qb-par-wrap" v-for="field in pTargets" :key="field.value">
+			<div class="qb-par-wrap" v-for="(field, index) in pTargets" :key="field.value">
 				<label class="control-label" @click.prevent>{{$t('search.parallel.queryForTargetVersion')}}
 					<button type="button" class="targetVersion" @click="removeTarget(field.value)" :title="$t('widgets.clickToRemove').toString()">
 						{{ field.label }}
 					</button>
 				</label>
-				<div class="querybuilder"></div>
+				<CqlQueryBuilder :key="field.value" :value="targetQueries[index]" @input="changeTargetQuery(index, $event)" />
 			</div>
 
 			<div v-if="pTargetOptions.length" class="add-target-version form-group">
@@ -62,7 +61,7 @@ import CqlQueryBuilder from '@/components/cql/CqlQueryBuilder.vue';
 
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 import { NormalizedAnnotation } from '@/types/apptypes';
-import { CqlGenerator, DEFAULT_COMPARATORS, DEFAULT_OPERATORS } from '@/components/cql/cql-types';
+import { CqlGenerator, CqlQueryBuilderData, DEFAULT_COMPARATORS, DEFAULT_OPERATORS } from '@/components/cql/cql-types';
 
 export default ParallelFields.extend({
 	components: {
@@ -81,19 +80,12 @@ export default ParallelFields.extend({
 		// The query (or source query, for parallel corpora)
 		mainQuery: {
 			get() { return PatternStore.getState().advanced.query; },
-			set(v: any) {
-				debugger;
-				PatternStore.actions.advanced.query(v);
-			}
+			set(v: any) { PatternStore.actions.advanced.query(v); }
 		},
 
 		// If this is a parallel corpus: the target queries
 		targetQueries: {
-			get() {
-				const queries = PatternStore.getState().expert.targetQueries;
-				return queries.map(q => q == null || q == '_' || q == '[]*' ? '' : q);
-			},
-			set: PatternStore.actions.advanced.targetQueries,
+			get() { return  PatternStore.getState().advanced.targetQueries; },
 		},
 	},
 	methods: {
@@ -108,6 +100,9 @@ export default ParallelFields.extend({
 			}
 			InterfaceStore.actions.patternMode('expert');
 		},
+		changeTargetQuery(index: number, value: CqlQueryBuilderData) {
+			PatternStore.actions.advanced.changeTargetQuery({ index, value });
+		}
 	},
 });
 </script>

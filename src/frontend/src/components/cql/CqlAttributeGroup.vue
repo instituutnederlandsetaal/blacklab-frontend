@@ -1,10 +1,10 @@
 <template>
 	<div class="bl-token-attribute-group" :class="{ well: !isRoot }" :id="model.id">
 		<!-- Mixed Entries with Operators -->
-		<div v-for="(entry, index) in model.entries" :key="entry.id" class="bl-attribute-entry-wrapper">
+		<template v-for="(entry, index) in model.entries" class="bl-attribute-entry-wrapper">
 			<!-- Operator Label (shown before each entry except the first one) -->
-			<div
-				v-if="index > 0"
+			<div v-if="index > 0"
+				:key="`operator-${entry.id}`"
 				class="bl-token-attribute-group-label"
 			>
 				{{ $td(`search.advanced.queryBuilder.boolean_operators.${currentOperatorOption.label}`, currentOperatorOption.label) }}
@@ -13,17 +13,20 @@
 			<!-- Attribute Entry -->
 			<CqlAttribute
 				v-if="isCqlAttributeData(entry)"
+				:key="entry.id"
+				@add-attribute-group="addAttribute($event, entry)"
 				v-model="model.entries[index]"
 			/>
 
 			<!-- Nested Attribute Group -->
 			<CqlAttributeGroup
 				v-else-if="isCqlAttributeGroupData(entry)"
-				v-model="model.entries[index]"
+				:key="entry.id"
 				:is-root="false"
 				@delete-group="deleteNestedGroup"
+				v-model="model.entries[index]"
 			/>
-		</div>
+		</template>
 
 		<!-- Add Controls -->
 		<div v-if="!isRoot || shouldShowAddControls" class="dropup bl-create-attribute-dropdown">
@@ -51,14 +54,11 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { NormalizedAnnotation, Option } from '@/types/apptypes';
+import { Option } from '@/types/apptypes';
 import {
 	CqlAttributeGroupData,
 	CqlAttributeData,
 	CqlGroupEntry,
-	CqlComparator,
-	CqlOperator,
 	isCqlAttributeData,
 	isCqlAttributeGroupData,
 	DEFAULT_OPERATORS
@@ -110,7 +110,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 			return {
 				id: `attr_${uid()}`,
 				annotationId: this.defaultAnnotationId,
-				operator: '=',
+				comparator: '=',
 				values: [''],
 				caseSensitive: false
 			};

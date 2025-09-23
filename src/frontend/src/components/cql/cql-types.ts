@@ -23,7 +23,7 @@ export interface CqlTokenProperties {
 export interface CqlAttributeData {
 	id: string;
 	annotationId: string;
-	operator: string;
+	comparator: string;
 	values: string[];
 	caseSensitive: boolean;
 	uploadedValue?: string;
@@ -76,102 +76,92 @@ export const DEFAULT_OPERATORS: CqlOperator[] = [
 	{ operator: '|', label: 'OR' }
 ];
 
+function rootCql(data: CqlQueryBuilderData): string | null {
+	if (data.tokens.length === 0) return null;
 
-export const DEFAULT_CQL_GENERATOR = (
-	annotation: string,
-	comparator: string,
-	caseSensitive: boolean,
-	values: string[]
-): string => {
-	switch (comparator) {
-		case 'starts with':
-			return annotation + ' = "' + (caseSensitive ? '(?-i)' : '') + values.join('|') + '.*"';
-		case 'ends with':
-			return annotation + ' = "' + (caseSensitive ? '(?-i)' : '') + '.*' + values.join('|') + '"';
-		default:
-			return annotation + ' ' + comparator + ' "' + (caseSensitive ? '(?-i)' : '') + values.join('|') + '"';
+	const tokenCqlParts: string[] = [];
+	data.tokens.map(tokenCql).forEach(cql => cql && tokenCqlParts.push(cql));
+	if (tokenCqlParts.length === 0) return null;
+	let result = tokenCqlParts.join(' ');
+	if (data.within) {
+		result = `<${data.within}/> containing ${result}`;
 	}
-};
+	return result;
+}
 
+function tokenCql(token: CqlTokenData): string {
+	const parts: string[] = [];
 
-export const CqlGenerator = {
-	rootCql(data: CqlQueryBuilderData): string|null {
-		if (data.tokens.length === 0) return null;
+	if (token.properties.beginOfSentence) {
+		parts.push('<s>');
+	}
 
-		const tokenCqlParts: string[] = [];
-		data.tokens.map(this.tokenCql).forEach(cql => cql && tokenCqlParts.push(cql));
-		if (tokenCqlParts.length === 0) return null;
-		let result = tokenCqlParts.join(' ');
-		if (data.within) {
-			result = `<${data.within}/> containing ${result}`;
+	parts.push('[');
+	parts.push(groupCql(token.rootAttributeGroup));
+	parts.push(']');
+
+	// Handle repeats
+	const { minRepeats, maxRepeats, optional } = token.properties;
+	if (!isNaN(minRepeats) || !isNaN(maxRepeats)) {
+		if (minRepeats === maxRepeats) {
+			if (minRepeats !== 1) {
+				parts.push(`{${minRepeats}}`);
+			}
+		} else {
+			const min = isNaN(minRepeats) ? '' : minRepeats.toString();
+			const max = isNaN(maxRepeats) ? '' : maxRepeats.toString();
+			parts.push(`{${min},${max}}`);
 		}
-		return result;
-	},
-	tokenCql(token: CqlTokenData): string {
-		const parts: string[] = [];
+	}
 
-		if (token.properties.beginOfSentence) {
-			parts.push('<s>');
-		}
+	if (optional && minRepeats !== 0) {
+		parts.push('?');
+	}
 
-		parts.push('[');
-		parts.push(this.groupCql(token.rootAttributeGroup));
-		parts.push(']');
+	if (token.properties.endOfSentence) {
+		parts.push('</s>');
+	}
 
-		// Handle repeats
-		const { minRepeats, maxRepeats, optional } = token.properties;
-		if (!isNaN(minRepeats) || !isNaN(maxRepeats)) {
-			if (minRepeats === maxRepeats) {
-				if (minRepeats !== 1) {
-					parts.push(`{${minRepeats}}`);
-				}
-			} else {
-				const min = isNaN(minRepeats) ? '' : minRepeats.toString();
-				const max = isNaN(maxRepeats) ? '' : maxRepeats.toString();
-				parts.push(`{${min},${max}}`);
+	return parts.join('');
+}
+
+function groupCql(group: CqlAttributeGroupData): string {
+	const parts: string[] = [];
+
+	// Process all entries (both attributes and nested groups)
+	for (const entry of group.entries) {
+		if (isCqlAttributeData(entry)) {
+			// Handle attribute entry
+			const attrCql = attributeCql(entry);
+			if (attrCql) {
+				parts.push(attrCql);
+			}
+		} else if (isCqlAttributeGroupData(entry)) {
+			// Handle nested group entry
+			const groupCqlStr = groupCql(entry);
+			if (groupCqlStr) {
+				parts.push(`(${groupCqlStr})`);
 			}
 		}
+	}
 
-		if (optional && minRepeats !== 0) {
-			parts.push('?');
-		}
+	return parts.join(` ${group.operator} `);
+}
 
-		if (token.properties.endOfSentence) {
-			parts.push('</s>');
-		}
-
-		return parts.join('');
-	},
-	groupCql(group: CqlAttributeGroupData): string {
-		const parts: string[] = [];
-
-		// Process all entries (both attributes and nested groups)
-		for (const entry of group.entries) {
-			if (isCqlAttributeData(entry)) {
-				// Handle attribute entry
-				const attrCql = this.attributeCql(entry);
-				if (attrCql) {
-					parts.push(attrCql);
-				}
-			} else if (isCqlAttributeGroupData(entry)) {
-				// Handle nested group entry
-				const groupCql = this.groupCql(entry);
-				if (groupCql) {
-					parts.push(`(${groupCql})`);
-				}
-			}
-		}
-
-		return parts.join(` ${group.operator} `);
-	},
-	attributeCql({values, caseSensitive, operator, annotationId}: CqlAttributeData): string|null {
-		switch (operator) {
-			case 'starts with':
-				return annotationId + ' = "' + (caseSensitive ? '(?-i)' : '') + values.join('|') + '.*"';
-			case 'ends with':
-				return annotationId + ' = "' + (caseSensitive ? '(?-i)' : '') + '.*' + values.join('|') + '"';
-			default:
-				return annotationId + ' ' + operator + ' "' + (caseSensitive ? '(?-i)' : '') + values.join('|') + '"';
-		}
+function attributeCql({ values, caseSensitive, comparator: operator, annotationId }: CqlAttributeData): string | null {
+	switch (operator) {
+		case 'starts with':
+			return annotationId + ' = "' + (caseSensitive ? '(?-i)' : '') + values.join('|') + '.*"';
+		case 'ends with':
+			return annotationId + ' = "' + (caseSensitive ? '(?-i)' : '') + '.*' + values.join('|') + '"';
+		default:
+			return annotationId + ' ' + operator + ' "' + (caseSensitive ? '(?-i)' : '') + values.join('|') + '"';
 	}
 }
+
+export const CqlGenerator = {
+	rootCql,
+	tokenCql,
+	groupCql,
+	attributeCql
+};

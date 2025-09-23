@@ -129,16 +129,9 @@
 
 <script lang="ts">
 import Vue from 'vue';
-import { NormalizedAnnotation } from '@/types/apptypes';
 import {
 	CqlTokenData,
-	CqlComparator,
-	CqlOperator,
 	CqlAttributeGroupData,
-	CqlAttributeData,
-	CqlGroupEntry,
-	isCqlAttributeData,
-	isCqlAttributeGroupData,
 	CqlGenerator
 } from '@/components/cql/cql-types';
 import CqlAttributeGroup from './CqlAttributeGroup.vue';

@@ -285,7 +285,7 @@ const actions = {
 			entry: {
 				...sharedBatchState,
 				patterns: {
-					advanced: { query: null, targetQueries: [] },
+					advanced: { query: {tokens: [], within: '', withinAttributes: {}}, targetQueries: [] },
 					concept: null,
 					glosses: null,
 					expert: {

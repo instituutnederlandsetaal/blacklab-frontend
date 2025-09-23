@@ -261,8 +261,6 @@ export function getQueryBuilderStateFromParsedQuery(queries: Result[]): {
 	query: CqlQueryBuilderData,
 	targetQueries: CqlQueryBuilderData[],
 } {
-	debugger;
-
 	// Find source query (no targetVersion) and target queries (with targetVersion)
 	const sourceQuery = queries.find(q => !q.targetVersion);
 	const targetQueries = queries.filter(q => !!q.targetVersion);
@@ -387,7 +385,7 @@ export function getQueryBuilderStateFromParsedQuery(queries: Result[]): {
 			const attributeData: CqlAttributeData = {
 				id: generateId(),
 				annotationId: expression.name,
-				operator,
+				comparator: operator,
 				values,
 				caseSensitive
 			};

@@ -57,7 +57,18 @@
 				"attribute_file_upload_edit_button_title": "Bewerk uw geüploade waarden",
 				"attribute_file_upload_clear_button_title": "Geüploade waarden wissen",
 
-				"attribute_create_button_title": "Voeg een attribuut toe"
+				"attribute_create_button_title": "Voeg een attribuut toe",
+
+				"boolean_operators": {
+					"AND": "EN",
+					"OR": "OF"
+				},
+				"comparators": {
+					"=": "is gelijk aan",
+					"!=": "is niet gelijk aan",
+					"starts with": "begint met",
+					"ends with": "eindigt op"
+				}
 			}
 		},
 		"concept": {
