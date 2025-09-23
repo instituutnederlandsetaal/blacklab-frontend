@@ -82,7 +82,7 @@
 					</template>
 				</template>
 
-				<Within />
+				<Within v-model="within"/>
 
 				<div v-if="splitBatchEnabled" class="form-group">
 					<div class="col-xs-12 col-md-9 col-md-push-3 checkbox">
@@ -252,8 +252,9 @@ export default ParallelFields.extend({
 			const {enabled, elements} = UIStore.getState().search.shared.within;
 			return enabled ? elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
 		},
-		within(): string|null {
-			return PatternStore.getState().shared.within;
+		within: {
+			get(): string|null { return PatternStore.getState().shared.within; },
+			set: PatternStore.actions.shared.within,
 		},
 		splitBatchEnabled(): boolean {
 			return UIStore.getState().search.extended.splitBatch.enabled &&
