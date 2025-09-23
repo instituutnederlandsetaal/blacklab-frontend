@@ -7,17 +7,28 @@ function useModel<T>() {
 		},
 		data() {
 			return {
-				model: {} as T
+				model: {} as T,
+				isUpdatingFromProp: false
 			};
 		},
 		created() { this.model = { ...this.value }; },
 		watch: {
 			value: {
-				handler() { this.model = { ...this.value }; },
+				handler() {
+					this.isUpdatingFromProp = true;
+					this.model = { ...this.value };
+					this.$nextTick(() => {
+						this.isUpdatingFromProp = false;
+					});
+				},
 				immediate: true,
 			},
 			model: {
-				handler() { this.$emit('input', this.model); },
+				handler() {
+					if (!this.isUpdatingFromProp) {
+						this.$emit('input', this.model);
+					}
+				},
 				deep: true,
 			}
 		}
