@@ -100,12 +100,12 @@
 			<li v-if="allowHtml" class="menu-heading" v-html="menuHeading"></li>
 			<li v-else class="menu-heading">{{menuHeading}}</li>
 		</template>
-		
+
 		{{/* note: don't insert whitespace in the heading or :empty css rule will not work */}}
-			<li class="menu-header"><div v-if="loading && editable /* not visible in button when editable */" class="text-center"
-				>
-					<span class="fa fa-spinner fa-spin text-muted"></span>
-				</div
+			<li class="menu-header"
+				><div v-if="loading && editable /* not visible in button when editable */" class="text-center"
+					><span class="fa fa-spinner fa-spin text-muted"></span
+				></div
 				><button v-if="resettable && filteredOptions.length"
 					type="button"
 					tabindex="-1"
@@ -164,16 +164,19 @@
 						<span v-else class="menu-value">{{o.label || ' '}}</span>
 						<span v-if="multiple && internalModel[o.value]" class="menu-icon fa fa-check"/>
 					</li>
-					<li v-else-if="o.type === 2 && o.label"
+					<li v-else-if="o.type === 2"
 						:class="{
 							'menu-group': true,
 							'disabled': o.disabled,
+							'spacer-only': !o.label?.trim()
 						}"
 						:key="o.id"
 						:title="o.title"
 					>
-						<span v-if="allowHtml" class="menu-value" v-html="o.label"/> <!-- don't nbsp fallback here, we want the height to collapse if there's no label -->
-						<span v-else class="menu-value">{{o.label || ' '}}</span>
+						<template v-if="o.label?.trim()">
+							<span v-if="allowHtml" class="menu-value" v-html="o.label"></span> <!-- don't nbsp fallback here, we want the height to collapse if there's no label -->
+							<span v-else class="menu-value">{{o.label || ' '}}</span>
+						</template>
 					</li>
 					</template>
 				</ul>
@@ -1046,7 +1049,7 @@ export default Vue.extend({
 		margin: 0;
 		list-style: none;
 	}
-	
+
 	>.menu-heading {
 		padding: 6px;
 		// background: #337ab7;
@@ -1078,7 +1081,7 @@ export default Vue.extend({
 			display: block;
 		}
 	}
-	
+
 	>.menu-body {
 		display: flex;
 		flex-direction: vertical;
@@ -1140,6 +1143,12 @@ export default Vue.extend({
 		&.disabled {
 			color: #777;
 			cursor: not-allowed;
+		}
+		&.spacer-only {
+			&:first-child, &:last-child { display: none; }
+			height: 0;
+			padding: 0;
+			margin: 3px 0;
 		}
 	}
 
