@@ -17,11 +17,7 @@ services:
       - source: blacklab-server
         target: /etc/blacklab/blacklab-server.yaml
         mode: 0444 # read-only for the container
-    environment:
-      - BF_BLS_URL=http://svotmc10.ivdnt.loc:8080/blacklab-server/
-      - BF_JSPATH=http://localhost:8081/dist/
-      - BF_CACHE=false
-
+    
 configs: 
   blacklab-server: 
     content: |
