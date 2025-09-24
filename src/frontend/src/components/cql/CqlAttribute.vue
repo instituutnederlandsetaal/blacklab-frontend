@@ -50,9 +50,10 @@
 				:options="currentAnnotation.values"
 				multiple
 				searchable
-				data-class="btn btn-default btn-sm bl-no-border-radius-right"
+				data-class="btn btn-default btn-sm bl-no-border-radius"
 				container="body"
-				v-model="model.values"
+				:value="model.values"
+				@input="model.values = $event || [] /* workaround for querbuilder emitting null sometimes */"
 			/>
 			<!-- Text input for free text -->
 			<input
