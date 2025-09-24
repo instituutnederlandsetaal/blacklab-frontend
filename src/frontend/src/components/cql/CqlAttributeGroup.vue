@@ -15,6 +15,7 @@
 				v-if="isCqlAttributeData(entry)"
 				:key="entry.id"
 				@add-attribute-group="addAttribute($event, entry)"
+				@delete-attribute="deleteAttribute(entry.id)"
 				v-model="model.entries[index]"
 			/>
 
