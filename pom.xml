@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>nl.inl.blacklab</groupId>
   <artifactId>blacklab-frontend</artifactId>
-  <version>4.0.1-SNAPSHOT</version>
+  <version>4.0.1</version>
   <packaging>war</packaging>
   <name>INT BlackLab Frontend</name>
   <description>A web application to search corpora through the BlackLab Server web service.</description>
