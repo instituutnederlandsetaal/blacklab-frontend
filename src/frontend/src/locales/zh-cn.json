@@ -56,7 +56,18 @@
 				"attribute_file_upload_edit_button_title": "编辑上传的值",
 				"attribute_file_upload_clear_button_title": "清除上传的值",
 
-				"attribute_create_button_title": "添加另一个属性"
+				"attribute_create_button_title": "添加另一个属性",
+
+				"boolean_operators": {
+					"&": "与",
+					"|": "或"
+				},
+				"comparators": {
+					"=": "=",
+					"!=": "≠",
+					"startsWith": "开始于",
+					"endsWith": "结束于"
+				}
 			}
 		},
 		"concept": {

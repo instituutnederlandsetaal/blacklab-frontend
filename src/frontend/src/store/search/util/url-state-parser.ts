@@ -248,7 +248,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 				ui.patternMode = 'simple';
 			} else if (this.extendedPattern && !hasGapValue) {
 				ui.patternMode = 'extended';
-			} else if (this.advancedPattern?.query && !hasGapValue && UIModule.getState().search.advanced.enabled) {
+			} else if (this.advancedPattern?.query.tokens.length && !hasGapValue && UIModule.getState().search.advanced.enabled) {
 				ui.patternMode = 'advanced';
 			} else if (this.expertPattern.query) {
 				ui.patternMode = 'expert';

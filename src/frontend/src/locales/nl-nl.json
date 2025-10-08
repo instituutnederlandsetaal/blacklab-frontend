@@ -64,8 +64,8 @@
 					"|": "OF"
 				},
 				"comparators": {
-					"=": "is gelijk aan",
-					"!=": "is niet gelijk aan",
+					"=": "=",
+					"!=": "≠",
 					"startsWith": "begint met",
 					"endsWith": "eindigt op"
 				}

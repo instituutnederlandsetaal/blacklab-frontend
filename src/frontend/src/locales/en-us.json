@@ -63,8 +63,8 @@
 					"|": "OR"
 				},
 				"comparators": {
-					"=": "equals",
-					"!=": "does not equal",
+					"=": "=",
+					"!=": "≠",
 					"startsWith": "starts with",
 					"endsWith": "ends with"
 				}
