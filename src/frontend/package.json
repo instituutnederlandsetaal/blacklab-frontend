@@ -66,7 +66,7 @@
     "monaco-editor": "^0.47.0",
     "monaco-yaml": "^5.1.1",
     "mustache": "^2.3.2",
-    "oidc-client-ts": "^2.4.0",
+    "oidc-client-ts": "^3.3.0",
     "popper.js": "^1.15.0",
     "qs": "^6.5.2",
     "reactive-dep-tree": "^0.5.2",
