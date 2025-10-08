@@ -176,6 +176,8 @@ function isJQuery(v: any): v is JQuery { return typeof v !== 'boolean' && v && v
 import ParallelFields from './parallel/ParallelFields';
 import { corpusCustomizations } from '@/utils/customization';
 import { CqlQueryBuilderData } from '@/components/cql/cql-types';
+import { getPatternStringFromCql, getQueryBuilderStateFromParsedQuery } from '@/utils/pattern-utils';
+import { parseBcql, Result } from '@/utils/bcql-json-interpreter';
 
 export default ParallelFields.extend({
 	components: {
@@ -297,25 +299,34 @@ export default ParallelFields.extend({
 			return name?.replace(/[^\w]/g, '_') + '_annotations';
 		},
 		async parseQuery() {
-			const expertQueries = [PatternStore.getState().expert.query, ...PatternStore.getState().expert.targetQueries];
+			// retrieve the expert query (which presumably is active atm because the button was visible)
 
-			const queryBuilders = $('.querybuilder').map((_, el) => $(el).data('builder')).get();
-			let success = true;
-			for (let i = 0; i < queryBuilders.length; i++) {
-				const builder = queryBuilders[i];
-				if (builder) {
-					if (!(await builder.parse(expertQueries[i]))) {
-						success = false;
-						break;
-					}
-				}
-			}
-			if (success) {
-				InterfaceStore.actions.patternMode('advanced');
-				this.parseQueryError = null;
+			// Can't just use the string, we need to generate the query when this is a parallel corpus
+
+			const currentCorpus = CorpusStore.getState().corpus!.id;
+			const mainAnnotationId = CorpusStore.get.firstMainAnnotation().id;
+			const builtQuery = getPatternStringFromCql(
+				PatternStore.getState().expert.query || '',
+				{}, // skip within for now?
+				PatternStore.getState().shared.targets,
+				PatternStore.getState().expert.targetQueries,
+				PatternStore.getState().shared.alignBy
+			);
+			let parsed: Result[]|null = null;
+			try { parsed = await parseBcql(currentCorpus, builtQuery, mainAnnotationId); }
+			catch {}
+			if (!parsed) {
+				this.parseQueryError = 'The querybuilder could not parse your query.';
 				return;
 			}
-			this.parseQueryError = 'The querybuilder could not parse your query.';
+
+			const queryBuilderState = getQueryBuilderStateFromParsedQuery(parsed);
+			PatternStore.actions.advanced.query(queryBuilderState.query);
+			PatternStore.actions.advanced.targetQueries(queryBuilderState.targetQueries);
+			InterfaceStore.actions.patternMode('advanced');
+
+			this.parseQueryError = null;
+			return;
 		},
 		importQuery(event: Event) {
 			const el = (event.target as HTMLInputElement);

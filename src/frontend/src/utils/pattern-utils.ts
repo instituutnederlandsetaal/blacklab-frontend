@@ -133,7 +133,7 @@ export const getPatternStringFromCql = (
 	withinClauses: Record<string, Record<string, any>>,
 	targetVersions: string[],
 	targetCql: string[],
-	alignBy?: string
+	alignBy?: string|null
 ) => {
 	if (targetVersions.length > targetCql.length) {
 		console.error('There must be a CQL query for each selected parallel version!', targetVersions, targetCql);
