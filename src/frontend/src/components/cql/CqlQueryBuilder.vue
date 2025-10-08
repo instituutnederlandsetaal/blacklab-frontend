@@ -176,7 +176,29 @@ export default useModel<CqlQueryBuilderData>().extend({
 </script>
 
 <style lang="scss">
-@import '@/modules/cql_querybuilder.scss';
+.bl-querybuilder-root {
+	padding: 15px;
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+}
+
+
+.bl-token-container {
+	display: flex;
+	flex-direction: row;
+	gap: 15px;
+	align-items: start;
+	overflow-x: auto;
+}
+
+
+.bl-token-create {
+	align-self: flex-start;
+
+}
+
+
 
 .bl-querybuilder-within {
 	display: flex;

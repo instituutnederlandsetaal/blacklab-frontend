@@ -2,15 +2,8 @@ import { NormalizedAnnotation, OptGroup, Option } from '@/types/apptypes';
 
 // Updated types for the Vue implementation of CQL Query Builder
 
-export interface CqlComparator {
-	value: string;
-	label: string;
-}
-
-export interface CqlOperator {
-	operator: string;
-	label: string;
-}
+export type CqlAnnotationValueComparator = '=' | '!=' | 'startsWith' | 'endsWith';
+export type CqlAnnotationCombinator = '&' | '|';
 
 export interface CqlTokenProperties {
 	optional: boolean;
@@ -23,7 +16,7 @@ export interface CqlTokenProperties {
 export interface CqlAttributeData {
 	id: string;
 	annotationId: string;
-	comparator: string;
+	comparator: CqlAnnotationValueComparator;
 	values: string[];
 	caseSensitive: boolean;
 	uploadedValue?: string;
@@ -34,7 +27,7 @@ export type CqlGroupEntry = CqlAttributeData | CqlAttributeGroupData;
 
 export interface CqlAttributeGroupData {
 	id: string;
-	operator: string; // '&' for AND, '|' for OR
+	operator: CqlAnnotationCombinator;
 	entries: CqlGroupEntry[];
 }
 
@@ -59,12 +52,12 @@ export interface CqlQueryBuilderData {
 	withinAttributes: Record<string, string>;
 }
 
-export const COMPARATORS: string[][] = [
+export const COMPARATORS: CqlAnnotationValueComparator[][]= [
 	['=', '!='],
 	['startsWith', 'endsWith']
 ];
 
-export const OPERATORS = ['&','|',];
+export const OPERATORS: CqlAnnotationCombinator[] = ['&','|'];
 
 // Options type for CQL Query Builder - contains all precomputed store data
 export interface CqlQueryBuilderOptions {
@@ -154,14 +147,14 @@ function groupCql(group: CqlAttributeGroupData): string {
 	return parts.join(` ${group.operator} `);
 }
 
-function attributeCql({ values, caseSensitive, comparator: operator, annotationId }: CqlAttributeData): string | null {
-	switch (operator) {
-		case 'starts with':
+function attributeCql({ values, caseSensitive, comparator, annotationId }: CqlAttributeData): string | null {
+	switch (comparator) {
+		case 'startsWith':
 			return annotationId + ' = "' + (caseSensitive ? '(?-i)' : '') + values.join('|') + '.*"';
-		case 'ends with':
+		case 'endsWith':
 			return annotationId + ' = "' + (caseSensitive ? '(?-i)' : '') + '.*' + values.join('|') + '"';
 		default:
-			return annotationId + ' ' + operator + ' "' + (caseSensitive ? '(?-i)' : '') + values.join('|') + '"';
+			return annotationId + ' ' + comparator + ' "' + (caseSensitive ? '(?-i)' : '') + values.join('|') + '"';
 	}
 }
 

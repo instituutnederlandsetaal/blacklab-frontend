@@ -56,7 +56,7 @@
 					:id="model.id + '_tab_attributes'"
 					class="tab-pane"
 					:class="{ active: activeTab === 'attributes' }"
-					style="padding: 25px 15px;"
+					style="padding: 15px;"
 				>
 					<CqlAttributeGroup
 						v-model="model.rootAttributeGroup"
@@ -71,7 +71,7 @@
 					:id="model.id + '_tab_properties'"
 					class="tab-pane"
 					:class="{ active: activeTab === 'properties' }"
-					style="padding: 10px 15px 25px 15px;"
+					style="padding: 15px;"
 				>
 					<div class="checkbox">
 						<label :title="$t('search.advanced.queryBuilder.body_tab_properties_optional_title').toString()">
@@ -170,23 +170,35 @@ export default useModel<CqlTokenData>().extend({
 <style lang="scss">
 /* Using original CSS classes from cql_querybuilder.scss - no additional styles needed */
 
+
 .bl-token {
-	min-width: 350px;
+	display: inline-block; // Shrink-wrap to widest child (the body)
+	margin: 0;
+
 	> .panel-heading {
-		width: 100%;
 		display: flex;
 		flex-wrap: nowrap;
 		gap: 0.25em;
-		.close {
-			float: none;
-		}
+		width: 0; // Give header zero intrinsic width
+		min-width: 100%; // But make it stretch to fill parent (body's width)
+
 		.bl-token-cql-preview {
-			flex-grow: 1;
+			flex: 1 1 0; // Allow the preview to grow and fill available space
+			min-width: 0; // Critical: allows the flex item to shrink below content size
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
 		}
 	}
 
+	.nav-tabs>li:first-child>a {
+		border-left: none!important;
+	}
+
+
+	.panel-body, .tab-content {
+		padding: 0;
+	}
 }
+
 </style>

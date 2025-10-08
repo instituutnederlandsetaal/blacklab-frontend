@@ -45,6 +45,7 @@ import {
 	CqlQueryBuilderOptions,
 	isCqlAttributeData,
 	isCqlAttributeGroupData,
+	CqlAnnotationCombinator,
 } from '@/components/cql/cql-types';
 import CqlAttribute from './CqlAttribute.vue';
 import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
@@ -94,7 +95,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 			};
 		},
 
-		addAttribute(operator: string, calledForAttribute?: CqlAttributeData) {
+		addAttribute(operator: CqlAnnotationCombinator, calledForAttribute?: CqlAttributeData) {
 			// Optimization: If there's only one attribute in the group,
 			// just change the operator and add a new attribute instead of creating nested groups
 			if (this.model.entries.length <= 1) {
@@ -187,5 +188,28 @@ export default useModel<CqlAttributeGroupData>().extend({
 </script>
 
 <style lang="scss">
-/* Using original CSS classes from cql_querybuilder.scss - no additional styles needed */
+
+.bl-token-attribute-group {
+	padding: 0px;
+	/* 	No margin-top here, as the topmost group does not require spacing above it
+		Spacing is instead done in all subgroups, which also have the well class */
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.bl-token-attribute-group.well {
+	padding: 3px 8px 8px 8px;
+	margin-top: 6px;
+	margin-bottom: 0;
+
+	box-shadow: 4px 4px 7px -3px rgba(0,0,0,0.38);
+	border: 1px solid rgba(0,0,0,0.15);
+}
+
+
+
+.bl-create-attribute-dropdown {
+	align-self: center;
+}
+
 </style>

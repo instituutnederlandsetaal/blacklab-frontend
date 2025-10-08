@@ -66,8 +66,8 @@
 				"comparators": {
 					"=": "is gelijk aan",
 					"!=": "is niet gelijk aan",
-					"starts with": "begint met",
-					"ends with": "eindigt op"
+					"startsWith": "begint met",
+					"endsWith": "eindigt op"
 				}
 			}
 		},

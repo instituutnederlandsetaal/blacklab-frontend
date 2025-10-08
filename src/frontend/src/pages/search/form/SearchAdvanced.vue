@@ -68,9 +68,6 @@ export default ParallelFields.extend({
 	props: {
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
-	data: () => ({
-		queryBuilderLoading: false,
-	}),
 	computed: {
 		// The query (or source query, for parallel corpora)
 		mainQuery: {

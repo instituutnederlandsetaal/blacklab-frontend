@@ -677,10 +677,6 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			const finalQuery = Object.keys(reapplyWithins).length > 0 ?
 				applyWithinClauses(query ?? '', reapplyWithins) : query;
 
-			//console.log('raw source query', rawQuery);
-			//console.log('after stripping', query);
-			//console.log('reapplyWithins', reapplyWithins);
-			//console.log('finalQuery', finalQuery);
 			return finalQuery;
 		}
 

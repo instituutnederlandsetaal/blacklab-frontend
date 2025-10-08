@@ -30,36 +30,38 @@
 				data-width="50px"
 				data-menu-width="auto"
 				hideEmpty
+				hideCaret
 				container="body"
-				data-class="btn btn-sm btn-primary bl-selectpicker-hide-caret bl-no-border-radius"
+				data-class="btn btn-sm btn-primary bl-no-border-radius"
 				v-model="model.comparator"
 			/>
 
 			<!-- Regular Input/Select -->
 			<button v-if="hasUploadedValue"
 				type="button"
-				class="btn btn-default btn-sm bl-no-border-radius"
+				class="btn btn-default btn-sm bl-no-border-radius bl-token-attribute-main-input"
+				style="text-align: auto;"
 				:title="$t('search.advanced.queryBuilder.attribute_file_upload_edit_button_title').toString()"
 				@click="openModalEditor"
 			>
+				<span class="glyphicon glyphicon-edit"></span>
 				{{ uploadedValuesSummary }}
 			</button>
 			<!-- Multi-select for known values -->
-			<SelectPicker
-				v-else-if="currentAnnotation?.values"
+			<SelectPicker v-else-if="currentAnnotation?.values"
 				:options="currentAnnotation.values"
 				multiple
 				searchable
-				data-class="btn btn-default btn-sm bl-no-border-radius"
+				data-class="btn btn-default btn-sm bl-no-border-radius bl-token-attribute-main-input"
+				class="bl-token-attribute-main-input"
 				container="body"
 				:value="model.values"
 				@input="model.values = $event || [] /* workaround for querbuilder emitting null sometimes */"
 			/>
 			<!-- Text input for free text -->
-			<input
-				v-else
+			<input v-else
 				type="text"
-				class="form-control input-sm bl-no-border-radius"
+				class="form-control input-sm bl-no-border-radius bl-token-attribute-main-input"
 				:dir="textDirection"
 				v-model="textValue"
 				@input="handleTextInput"
@@ -87,17 +89,13 @@
 		</div>
 
 		<!-- Case Sensitive Checkbox -->
-		<div v-if="currentAnnotation && currentAnnotation.caseSensitive" class="bl-token-attribute-case-and-diacritics-sensitive">
-			<div class="checkbox">
-				<label>
-					<input
-						type="checkbox"
-						v-model="model.caseSensitive"
-					>
-					{{ $t('search.advanced.queryBuilder.attribute_caseAndDiacriticsSensitive') }}
-				</label>
-			</div>
-		</div>
+		<label v-if="currentAnnotation && currentAnnotation.caseSensitive" class="bl-token-attribute-case-and-diacritics-sensitive">
+			<input
+				type="checkbox"
+				v-model="model.caseSensitive"
+			>
+			{{ $t('search.advanced.queryBuilder.attribute_caseAndDiacriticsSensitive') }}
+		</label>
 		<Modal v-if="showModal" size="sm"
 			:title="$t('search.advanced.queryBuilder.modalEditor_title')"
 			:closeMessage="$t('search.advanced.queryBuilder.modalEditor_cancel')"
@@ -216,6 +214,81 @@ export default useModel<CqlAttributeData>().extend({
 });
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
+
+.bl-token-attribute-main {
+	display: flex;
+	align-items: center;
+
+	// Main input (either button, input, or dropdown)
+	@at-root .bl-token-attribute-main-input {
+		flex-grow: 1;
+		min-width: 125px; // Allow shrinking below content size
+		width: 0!important; // Allow shrinking below content size
+	}
+}
+
+
+.bl-token-attribute-case-and-diacritics-sensitive {
+	font-weight: normal;
+	padding: 5px 0 0 24px;
+}
+
+.bl-token-attribute-main-input-container {
+	flex-grow: 1;
+	display: inline-block;
+	min-width: 110px;
+	width: 0;
+
+	> .bl-token-attribute-main-input {
+		width: 100%;
+		display: flex;
+		>input,
+		.selectpicker {
+			width: 100%!important;
+			min-width: 0px!important;
+		}
+	}
+}
+
+.bl-input-upload-button {
+	border-left: none;
+}
+
+/* Some weirdness going on here, we essentially move the actual
+element out of its parent, hide the overflow, and fill the entire container with padding
+This fixes issues like browsers overriding the cursor etc.*/
+.bl-input-upload {
+	position:absolute;
+	width: 100%;
+	height: 100%;
+	margin: 0px;
+	padding: 0px;
+	padding-left: 100%;
+	opacity: 0;
+	left: 0;
+	top: 0;
+	z-index: 10;
+	overflow: hidden;
+	cursor: pointer;
+}
+.bl-no-border-radius {
+	border-radius: 0px;
+}
+.bl-no-border-radius-right {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+.bl-no-border-radius-left {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+
+.bl-token-attribute .bl-create-attribute-dropdown button {
+	border-left: 0;
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+
 
 </style>

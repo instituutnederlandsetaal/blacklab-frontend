@@ -71,7 +71,7 @@
 			<span v-else-if="!showValues && multiple && showValueCount" :class="['menu-icon badge',{'active': displayValues.length}]">
 				{{displayValues.length || totalOptionCount}}
 			</span>
-			<span :class="['menu-icon', 'menu-caret', 'fa', 'fa-caret-down', {
+			<span v-if="!hideCaret" :class="['menu-icon', 'menu-caret', 'fa', 'fa-caret-down', {
 				//'fa-rotate-180': isOpen
 				'fa-flip-vertical': isOpen
 			}]"></span>
@@ -282,6 +282,7 @@ export default Vue.extend({
 		hideDisabled: Boolean,
 		/** Hide the default empty value for non-multiple dropdowns */
 		hideEmpty: Boolean,
+		hideCaret: Boolean,
 		/** Queryselector for menu container */
 		container: String,
 		autofocus: Boolean,
