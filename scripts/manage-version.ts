@@ -35,7 +35,7 @@ let tagCreated: string | undefined = undefined;
  */
 async function restoreToCheckpoint() {
   if (!backupTagCreated) return;
-  
+
   try {
     if (tagCreated) {
       console.log(`Removing created tag: ${tagCreated}`);
@@ -59,7 +59,7 @@ async function restoreToCheckpoint() {
  */
 async function cleanupBackupTag() {
   if (!backupTagCreated) return;
-  
+
   try {
     await git.tag(['-d', GIT_BACKUP_TAG]);
     backupTagCreated = false;
@@ -101,10 +101,10 @@ async function safePrompt<T>(promptConfig: any): Promise<T> {
 
 class Version {
   private static readonly versionRegex = /^(\d+)\.(\d+)\.(\d+)(-SNAPSHOT)?$/;
-  
+
   protected constructor(public major: number, public minor: number, public patch: number, public snapshot: boolean) {}
   static fromString(version: string): Version {
-    const m = version.match(this.versionRegex);
+    const m = version.match(Version.versionRegex);
     if (!m) throw new Error('Invalid version: ' + version);
     return new Version(Number(m[1]), Number(m[2]), Number(m[3]), !!m[4]);
   }
@@ -131,7 +131,7 @@ class Version {
   }
 
   static isVersionString(str: string): boolean {
-    return this.versionRegex.test(str);
+    return Version.versionRegex.test(str);
   }
 
   nextMinorSnapshot(): Version { return new Version(this.major, this.minor + 1, 0, true); }
@@ -171,7 +171,7 @@ async function ensureCleanGit(): Promise<void> {
 
 async function createChangelog() {
   // 1. Find the latest non-SNAPSHOT version tag
-  const versionTags = (await git.tags(['--merged', '--sort=creatordate'])).all.filter(Version.isVersionString);
+  const versionTags = (await git.tags(['--sort=creatordate', '--merged'])).all.filter(Version.isVersionString);
   if (!versionTags.length) {
     throw new Error('No previous release tag found. Cannot create changelog.');
   }
@@ -179,18 +179,14 @@ async function createChangelog() {
   const log = (await git.log({ from: versionTags[versionTags.length-1], to: 'HEAD' })).all
     .map(c => [`# ${c.date} (${c.author_name}) <${c.hash}>`, c.message, c.body].join('\n'))
     .join('\n\n');
-  
+
   await fs.writeFile(changelogPath, log);
 
   // 5. Let user edit as before
   async function editChangelogWithInstructions() {
     // Prepare temp file with instructions and current changelog
     const tmpPath = path.join(os.tmpdir(), `changelog-edit-${Date.now()}.md`);
-    const instructions = [
-      '# Edit the changelog below. Lines starting with # are ignored.',
-      '# Save and close the editor to continue.',
-      '',
-    ].join('\n');
+    const instructions = await fs.readFile(path.join(__dirname, 'changelog_instructions.md'), 'utf8');
     const changelogContent = await fs.readFile(changelogPath, 'utf8');
     await fs.writeFile(tmpPath, instructions + changelogContent);
 
@@ -215,7 +211,7 @@ async function createChangelog() {
 
     // Read, filter, and write back to changelog
     const edited = await fs.readFile(tmpPath, 'utf8');
-    const filtered = edited.split('\n').filter(line => !line.trim().startsWith('#')).join('\n');
+    const filtered = edited.split('\n').filter(line => !line.trim().startsWith('//')).join('\n');
     await fs.writeFile(changelogPath, filtered.trim() + '\n');
     await fs.unlink(tmpPath);
   }
@@ -226,7 +222,7 @@ async function createChangelog() {
 const actions = {
   updateVersion: {
     order: 1,
-    message: 'Update version',
+    message: 'Update SNAPSHOT Version',
     hint: 'Create a new -SNAPSHOT version (prior to release).',
     async handler() {
       const currentVersion = await getVersion();
@@ -251,7 +247,7 @@ const actions = {
   },
   createRelease: {
     order: 2,
-    message: 'Release',
+    message: 'Create Release',
     hint: 'Create a release from current SNAPSHOT version.',
     async handler(params?: { push?: boolean }) {
       const currentVersion = await getVersion();
@@ -259,7 +255,7 @@ const actions = {
         console.log('Current version is not a SNAPSHOT. Nothing to release.');
         return;
       }
-      
+
       const releaseVersion = currentVersion.nonSnapshotVersion();
       await updatePackageJsonVersion(releaseVersion.toString());
       await updatePomXmlVersion(releaseVersion.toString());
@@ -289,16 +285,16 @@ async function main() {
       }))
   });
   actionsToPerform.sort((a, b) => actions[a].order - actions[b].order);
-  
+
   // Create backup checkpoint
   await git.addTag(GIT_BACKUP_TAG);
   backupTagCreated = true;
-  
+
   try {
     for (const action of actionsToPerform) {
       await actions[action].handler();
     }
-    
+
     const {push} = await safePrompt<{push: boolean}>({
       type: 'confirm',
       name: 'push',
@@ -309,10 +305,10 @@ async function main() {
       await git.push();
       await git.pushTags();
     }
-    
+
     // Clean up backup tag on success
     await cleanupBackupTag();
-    
+
   } catch (error) {
     console.error('\nAn error occurred during execution:', error);
     throw error; // Re-throw to maintain error exit code, run cleanup in main catch
@@ -321,9 +317,9 @@ async function main() {
 
 main().catch(async e => {
   console.error('\nScript failed:', e.message);
-  
+
   // Try to restore checkpoint if an error occurred
   await restoreToCheckpoint();
-  
+
   process.exit(1);
 });
