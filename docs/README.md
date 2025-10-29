@@ -6,6 +6,7 @@ There are a few things to keep in mind when adding documentation:
 
 The sidebar's entries are automatically generated based on the files in the `docs` directory, however you must restart the dev server to see changes.
 There are a few things to take into account when naming files.
+**Files and directories starting with an underscore `_` are not shown in the sidebar!**
 
 ## Order of entries
 

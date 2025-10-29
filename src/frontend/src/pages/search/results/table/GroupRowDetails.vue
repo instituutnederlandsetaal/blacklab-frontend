@@ -47,6 +47,7 @@ import { GroupRowData, makeRows, Rows } from '@/pages/search/results/table/table
 import * as CorpusStore from '@/store/corpus';
 import Spinner from '@/components/Spinner.vue';
 import IRow from '@/pages/search/results/table/IRow.vue';
+import * as CorpusStore from '@/store/search/corpus';
 
 export default Vue.component('GroupRowDetails', IRow.extend({
 	components: { Spinner },
@@ -65,7 +66,7 @@ export default Vue.component('GroupRowDetails', IRow.extend({
 					number,
 					first,
 					viewgroup: this.row.id,
-					sort: 'alignments', // if parallel corpus, show aligned hits first. (if not, we don't care about order)
+					sort: CorpusStore.get.isParallelCorpus() ? 'alignments' : undefined, // if parallel corpus, show aligned hits first. (if not, we don't care about order)
 				} as BLSearchParameters);
 
 			const indexId = CorpusStore.get.indexId()!;

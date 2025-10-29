@@ -42,6 +42,8 @@ export default Vue.extend({
 		storeLoadingState: get.loadingState(),
 	})
 })
+
+alert('todo version');
 </script>
 
 <style lang="scss">

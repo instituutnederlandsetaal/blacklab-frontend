@@ -268,6 +268,7 @@ const actions = {
 			throw new Error('Attempting to submit split batches in wrong view');
 		}
 
+		InterfaceModule.actions.viewedResults('hits');
 		const sharedBatchState: Omit<HistoryModule.HistoryEntry, 'patterns'> = {
 			view: ViewModule.getOrCreateModule(InterfaceModule.getState().viewedResults!).getState(),
 			explore: ExploreModule.defaults,
@@ -288,10 +289,7 @@ const actions = {
 			entry: {
 				...sharedBatchState,
 				patterns: {
-					advanced: {
-						query: null,
-						targetQueries: [],
-					},
+					advanced: { query: {tokens: [], within: '', withinAttributes: {}}, targetQueries: [] },
 					concept: null,
 					glosses: null,
 					expert: {

@@ -1,0 +1,32 @@
+# Run a basic docker container for quick testing or exploring the BlackLab Frontend
+
+services:
+  frontend:
+    image: instituutnederlandsetaal/blacklab-frontend:dev
+    build:
+      context: ..
+      dockerfile: docker/frontend-bls.dockerfile
+    ports:
+      - "8080:8080" # frontend and BLS will both be available on 8080
+    volumes:
+      - ./data/index:/data/index
+      - ./data/user-index:/data/user-index
+      - ./data/index-configs:/etc/blacklab/projectconfigs
+      
+    configs: 
+      - source: blacklab-server
+        target: /etc/blacklab/blacklab-server.yaml
+        mode: 0444 # read-only for the container
+    
+configs: 
+  blacklab-server: 
+    content: |
+      ---
+      # https://blacklab.ivdnt.org/server/configuration.html
+      authentication:
+          system: 
+            class: AuthDebugFixed
+            userId: test_user
+      indexLocations:
+      - /data/index
+      userIndexes: /data/user-index

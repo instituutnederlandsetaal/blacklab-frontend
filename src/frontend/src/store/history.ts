@@ -30,7 +30,7 @@ import { CorpusChange } from '@/store/async-loaders';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
-const version = 8;
+const version = 9;
 
 type HistoryEntry = {
 	// always set
@@ -171,7 +171,7 @@ const actions = {
 		// Note that changing search field (source field in a parallel corpus) also constitute a new query,
 		//  but target fields become part of the pattern, so don't need to be included here.
 		const hashBase = {
-			filters: entry,
+			filters: entry.filters,
 			fieldName: entry.patterns.shared.source, // the [source] field we're searching
 			pattern,            // CQL query (doesn't include span filters (if any))
 			gap: entry.gap,

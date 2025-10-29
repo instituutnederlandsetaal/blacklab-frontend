@@ -59,6 +59,7 @@
 				:showTitles="showTitles"
 				:disabled="!!request"
 				:query="results?.summary.searchParam"
+				:sort="sort"
 
 				@changeSort="sort = (sort === $event ? `-${sort}` : $event)"
 				@viewgroup="changeViewGroup"
@@ -563,6 +564,7 @@ export default Vue.extend({
 				// If groups, don't show any annotation columns.
 				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
+				annotationGroups: CorpusStore.get.annotationGroups(),
 				hasCustomHitInfoColumn: corpusCustomizations.results.hasCustomHitInfoColumn,
 			}
 		},

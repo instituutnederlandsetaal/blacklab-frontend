@@ -18,6 +18,16 @@ import Filters from '@/components/filters';
 
 import AudioPlayer from '@/components/AudioPlayer.vue';
 import DebugComponent from '@/components/Debug.vue';
+import SearchPageComponent from '@/pages/search/SearchPage.vue';
+
+
+
+import { init as initApi } from '@/api';
+import { i18n, init as initI18n } from '@/utils/i18n';
+import * as loginSystem from '@/utils/loginsystem';
+
+import '@/global.scss';
+import { debugLogCat } from '@/utils/debug';
 
 // --------------
 // Initialize vue
@@ -149,6 +159,7 @@ $(document).ready(async () => {
 	initApi('cf', CONTEXT_URL, user);
 	RootStore.actions.user(user);
 
+	await initI18n();
 	// We can render before the tagset loads, the form just won't be populated from the url yet.
 	(window as any).vueRoot = new App().$mount(document.querySelector('#vue-root')!);
 	// connectStreamsToVuex();

@@ -71,7 +71,7 @@
 			<span v-else-if="!showValues && multiple && showValueCount" :class="['menu-icon badge',{'active': displayValues.length}]">
 				{{displayValues.length || totalOptionCount}}
 			</span>
-			<span :class="['menu-icon', 'menu-caret', 'fa', 'fa-caret-down', {
+			<span v-if="!hideCaret" :class="['menu-icon', 'menu-caret', 'fa', 'fa-caret-down', {
 				//'fa-rotate-180': isOpen
 				'fa-flip-vertical': isOpen
 			}]"></span>
@@ -96,37 +96,46 @@
 
 			ref="menu"
 		>
-			<li class="menu-header">
-			<div v-if="loading && editable /* not visible in button when editable */" class="text-center">
-				<span class="fa fa-spinner fa-spin text-muted"></span>
-			</div><button v-if="resettable && filteredOptions.length"
-				type="button"
-				tabindex="-1"
-				:class="['menu-button menu-reset', 'btn btn-sm', dataClass || 'btn-default']"
+		<template v-if="menuHeading">
+			<li v-if="allowHtml" class="menu-heading" v-html="menuHeading"></li>
+			<li v-else class="menu-heading">{{menuHeading}}</li>
+		</template>
 
-				@click="internalModel = {}; inputValue=''"
-			>Reset</button><input v-if="searchable && !editable /* When it's available, edit box handles searching */"
-				type="text"
-				class="form-control input-sm menu-search"
-				placeholder="Filter..."
-				tabindex="-1"
+		{{/* note: don't insert whitespace in the heading or :empty css rule will not work */}}
+			<li class="menu-header"
+				><div v-if="loading && editable /* not visible in button when editable */" class="text-center"
+					><span class="fa fa-spinner fa-spin text-muted"></span
+				></div
+				><button v-if="resettable && filteredOptions.length"
+					type="button"
+					tabindex="-1"
+					:class="['menu-button menu-reset', 'btn btn-sm', dataClass || 'btn-default']"
 
-				:dir="dir"
+					@click="internalModel = {}; inputValue=''"
+				>
+					Reset
+				</button
+				><input v-if="searchable && !editable /* When it's available, edit box handles searching */"
+					type="text"
+					class="form-control input-sm menu-search"
+					placeholder="Filter..."
+					tabindex="-1"
 
-				@keydown.stop.left
-				@keydown.stop.right
-				@keydown.stop.home
-				@keydown.stop.end
-				@keydown.prevent.enter="
-					filteredOptions.length < 5 &&
-					filteredOptions.filter(o => o.type === 1).length === 1 ?
-						select(filteredOptions.filter(o => o.type === 1)[0]) :
-						undefined/*prevent submission when embedded in a form*/
-				"
+					:dir="dir"
 
-				v-model="inputValue"
+					@keydown.stop.left
+					@keydown.stop.right
+					@keydown.stop.home
+					@keydown.stop.end
+					@keydown.prevent.enter="
+						filteredOptions.length < 5 &&
+						filteredOptions.filter(o => o.type === 1).length === 1 ?
+							select(filteredOptions.filter(o => o.type === 1)[0]) :
+							undefined/*prevent submission when embedded in a form*/
+					"
+					v-model="inputValue"
 
-				ref="focusOnClickOpen"
+					ref="focusOnClickOpen"
 			/></li>
 
 			<li class="menu-body">
@@ -155,16 +164,19 @@
 						<span v-else class="menu-value">{{o.label || ' '}}</span>
 						<span v-if="multiple && internalModel[o.value]" class="menu-icon fa fa-check"/>
 					</li>
-					<li v-else-if="o.type === 2 && o.label"
+					<li v-else-if="o.type === 2"
 						:class="{
 							'menu-group': true,
 							'disabled': o.disabled,
+							'spacer-only': !o.label?.trim()
 						}"
 						:key="o.id"
 						:title="o.title"
 					>
-						<span v-if="allowHtml" class="menu-value" v-html="o.label"/> <!-- don't nbsp fallback here, we want the height to collapse if there's no label -->
-						<span v-else class="menu-value">{{o.label || ' '}}</span>
+						<template v-if="o.label?.trim()">
+							<span v-if="allowHtml" class="menu-value" v-html="o.label"></span> <!-- don't nbsp fallback here, we want the height to collapse if there's no label -->
+							<span v-else class="menu-value">{{o.label || ' '}}</span>
+						</template>
 					</li>
 					</template>
 				</ul>
@@ -244,6 +256,8 @@ export default Vue.extend({
 		editable: Boolean,
 		/** Show reset button at top of menu? */
 		resettable: Boolean,
+		/** Optional header content for inside the menu */
+		menuHeading: String,
 		disabled: Boolean,
 		placeholder: String,
 		noOptionsPlaceholder: {type: String, default: 'No available options.'},
@@ -268,6 +282,7 @@ export default Vue.extend({
 		hideDisabled: Boolean,
 		/** Hide the default empty value for non-multiple dropdowns */
 		hideEmpty: Boolean,
+		hideCaret: Boolean,
 		/** Queryselector for menu container */
 		container: String,
 		autofocus: Boolean,
@@ -1027,13 +1042,26 @@ export default Vue.extend({
 		list-style: none;
 	}
 
+	>.menu-heading {
+		padding: 6px;
+		// background: #337ab7;
+		font-weight: bold;
+		color: #333;
+		border-bottom: 1px solid #e5e5e5;
+		&:first-child { margin-top: -5px; }
+	}
+
 	>.menu-header {
 		border-bottom: 1px solid #e5e5e5;
-		display: block;
-		margin: -5px 0 3px; //offset padding at top of .menu
+		display: flex;
+		flex-direction: column;
+		&:first-child { margin-top: -5px; }
+		margin-bottom: 3px;
+		gap: 3px;
 		padding: 6px;
 
 		&:empty { display: none; }
+
 
 		>.menu-reset {
 			display: block;
@@ -1045,6 +1073,7 @@ export default Vue.extend({
 			display: block;
 		}
 	}
+
 	>.menu-body {
 		display: flex;
 		flex-direction: vertical;
@@ -1106,6 +1135,12 @@ export default Vue.extend({
 		&.disabled {
 			color: #777;
 			cursor: not-allowed;
+		}
+		&.spacer-only {
+			&:first-child, &:last-child { display: none; }
+			height: 0;
+			padding: 0;
+			margin: 3px 0;
 		}
 	}
 
