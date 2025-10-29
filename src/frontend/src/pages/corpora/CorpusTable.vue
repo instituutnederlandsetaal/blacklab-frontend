@@ -8,6 +8,7 @@
 				<tr>
 					<th class="table-icon"></th>
 					<th>Corpus</th>
+					<debug><th>ID [debug]</th></debug>
 					<th>Size</th>
 					<th class="table-icon"></th>
 					<th v-if="isPrivate" class="table-icon"></th>
@@ -19,6 +20,7 @@
 				<tr>
 					<td><a :title="`Search the '${corpus.displayName}' corpus`" :class="`icon fa fa-search ${!corpus.canSearch ? 'disabled' : ''}`" :href="corpus.canSearch ? corpus.searchUrl : undefined"></a></td>
 					<td class="corpus-name"><a :title="`Search the '${corpus.displayName}' corpus`" :class="`${!corpus.canSearch ? 'disabled' : ''}`" :href="corpus.canSearch ? corpus.searchUrl : undefined">{{corpusDisplayName(corpus)}} {{corpus.statusText}}</a></td>
+					<debug><td>{{corpus.id}}</td></debug>
 					<td>{{corpus.sizeString}}</td>
 					<template v-if="isPrivate">
 						<td><a role="button" :title="`Upload documents to the '${corpus.displayName}' corpus`" :class="`icon fa fa-fw fa-cloud-upload ${!corpus.canIndex? 'disabled' : ''}`" @click="$emit('upload', corpus.id)"></a></td>

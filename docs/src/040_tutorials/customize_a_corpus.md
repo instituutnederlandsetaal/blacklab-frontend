@@ -1,5 +1,5 @@
 ---
-title: Basic Customization Tutorial
+title: Customization
 order: 0
 ---
 # Basic Customization Tutorial

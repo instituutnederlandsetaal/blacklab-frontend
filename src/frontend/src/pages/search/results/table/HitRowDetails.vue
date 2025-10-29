@@ -101,7 +101,10 @@ export default Vue.component('HitRowDetails', IRow.extend({
 		DepTree,
 		Spinner
 	},
-	props: { row: Object as () => HitRowData, },
+	props: { 
+		// NOTE: also update the watcher on this prop if you change this name!
+		row: Object as () => HitRowData, 
+	},
 	data: () => ({
 		sentenceRequest: null as null|Promise<any>,
 		sentence: null as null|BLTypes.BLHit,
@@ -224,7 +227,7 @@ export default Vue.component('HitRowDetails', IRow.extend({
 			immediate: true,
 			handler() { if (this.sentenceShown) this.loadSentence(); }
 		},
-		data() {
+		row() {
 			// Clear any data that's no longer relevant.
 			this.snippetRequest = this.snippet = this.sentenceRequest = this.sentence = this.error = null;
 			this.addons = [];

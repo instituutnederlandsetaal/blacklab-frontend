@@ -26,6 +26,9 @@ Hide or show the small labels next to the options in the dropdowns.
 ```js 
 vuexModules.ui.actions.dropdowns.groupBy.annotationGroupLabelsVisible(true)
 vuexModules.ui.actions.dropdowns.groupBy.metadataGroupLabelsVisible(true)
+
+vuexModules.ui.actions.dropdowns.sortBy.annotationGroupLabelsVisible(true)
+vuexModules.ui.actions.dropdowns.sortBy.metadataGroupLabelsVisible(true)
 ```
 == Hidden Labels
 ![labels hidden](group_dropdown_labels_hidden.png)

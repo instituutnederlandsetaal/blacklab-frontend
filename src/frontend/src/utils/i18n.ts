@@ -1,116 +1,44 @@
-import Vue from 'vue';
-import VueI18n, { LocaleMessageObject } from 'vue-i18n';
-import { merge } from 'ts-deepmerge';
+import Vue, { watch } from 'vue';
+import VueI18n from 'vue-i18n';
 import { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, NormalizedMetadataGroup, Option } from '@/types/apptypes';
 import SelectPicker from '@/components/SelectPicker.vue';
-import { localStorageSynced } from '@/utils/localstore';
 import { elementAndAttributeNameFromFilterId } from '@/utils';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import stripJsonComments from 'strip-json-comments'
-
-function parseJsonWithComments<T = any>(jsonResponse: Response): Promise<T> {
-	return jsonResponse.text().then(text => JSON.parse(stripJsonComments(text)));
-}
+import { I18nManager } from '@/utils/i18n-manager';
 
 
-// This is some cool typescript magic to get the paths of the keys in the i18n json files.
-// This way we can typecheck the keys in the code and get autocompletion.
-// However we can't use this yet because it's currently not possible to
-// overwrite the $t function in the Vue prototype with the correct types.
-// For that we'd need to overwrite the declaration in the vue-i18n package
-// but that's not supported by typescript currently.
-// See https://github.com/microsoft/TypeScript/issues/36146
-// type Path<T> = {
-// [K in keyof T]: K extends string ? T[K] extends object
-// 	? `${K}.${Path<T[K]>}`
-// 	: K
-// 	: never;
-// }[keyof T];
-// type ValidPaths = Path<typeof import('@/locales/en-us.json')>;
+const LOCALE_STORAGE_KEY = 'cf/locale';
+
+const i18nManager = new I18nManager(LOCALE_STORAGE_KEY);
+// Do this first, so that we can validate the default locale from the browser etc.
+i18nManager.registerLocale('en-us', 'English')
+i18nManager.registerLocale('zh-cn', '中文')
+i18nManager.registerLocale('nl-nl', 'Nederlands')
+i18nManager.setFallbackLocale('en-us')
 
 Vue.use(VueI18n);
-const defaultFallbackLocale = 'en-us';
-const defaultLocale = navigator.language.toLowerCase();
-const locale = localStorageSynced('cf/locale', defaultLocale, true);
-const availableLocales: Option[] = Vue.observable([]);
-
-// #locale-registration
-// Language selector will pick up the new entry, after which it can be loaded.
-function registerLocale(locale: string, label: string) {
-	availableLocales.push({value: locale, label})
-}
-
-function removeLocale(locale: string) {
-	const index = availableLocales.findIndex(l => l.value === locale);
-	if (index >= 0) availableLocales.splice(index, 1);
-}
-// #endregion
-
-const i18n = new VueI18n({
-	locale: locale.value,
-	fallbackLocale: defaultFallbackLocale,
-	messages: {},
+const i18n = new VueI18n();
+watch(() => i18nManager.localeState.value, (newVal) => {
+	if (newVal?.messages) {
+		i18n.locale = newVal.value;
+		if (!i18n.messages[newVal.value]) {
+			i18n.setLocaleMessage(newVal.value, newVal.messages);
+		}
+	}
+}, { immediate: true });
+watch(() => i18nManager.fallbackLocaleState.value, (newVal) => {
+	if (newVal?.messages) {
+		i18n.fallbackLocale = newVal.value;
+		if (!i18n.messages[newVal.value]) {
+			i18n.setLocaleMessage(newVal.value, newVal.messages);
+		}
+	}
 });
 
-function setFallbackLocale(locale: string) {
-	if (availableLocales.some(l => l.value === locale))
-		i18n.fallbackLocale = locale;
-	else
-		console.warn(`Fallback locale ${locale} is not in the list of available locales!`);
-}
-
-function setDefaultLocale(defaultLocale: string) {
-	// If there is no explicit locale stored, set the locale to the value.
-	if (!locale.isFromStorage) locale.value = defaultLocale;
-}
-
-async function loadLocaleMessages(locale: string) {
-	if (!locale) return;
-	// also allow loading locales not defined in the availableLocales.
-	// This is useful for loading overrides for locales that are not available in the UI.
-	// Also, because the UI list can be updated asynchronously (from customjs), we might have a locale in localStorage that is not in the list yet.
-	// if it errors, you'll just see the fallbackLocale and a bunch of warnings.
-
-	if (i18n.availableLocales.includes(locale)) return;
-
-	let messages: LocaleMessageObject|null = null;
-	let overrides: LocaleMessageObject|null = null;
-
-	try { messages = await import(`@/locales/${locale}.json`); }
-	catch (e) { console.info(`Failed to load builtin locale messages for ${locale}: ${e}`); }
-
-	overrides =  await fetch(`${CONTEXT_URL}${INDEX_ID ? `/${INDEX_ID}` : ''}/static/locales/${locale}.json`)
-		.then(r => {
-			if (!r.ok) {
-				// If the file doesn't exist, that's fine, we just won't have any overrides.
-				// NOTE: browsers will typically log the 404 in the console anyway, there's no way to suppress that from code AFAIK.
-				if (r.status !== 404) console.info(`Failed to fetch locale overrides for ${locale}: ${r.statusText}`)
-				else console.error(`No locale overrides found for ${locale}. It's safe to ignore the 404 error.`)
-				return null;
-			} else {
-				return parseJsonWithComments(r);
-			}
-		})
-		.catch(e => {
-			console.warn(`Override ${INDEX_ID}/static/locales/${locale}.json does not appear to be valid JSON! Skipping overrides.`, e)
-			return null;
-		});
-
-	if (messages || overrides) {
-		i18n.setLocaleMessage(locale, merge(messages || {}, overrides || {}));
-	} else {
-		console.error(`Failed to load locale messages for ${locale}`);
-	}
-}
-
-registerLocale('en-us', 'English')
-registerLocale('zh-cn', '中文')
-registerLocale('nl-nl', 'Nederlands')
 
 const LocaleSelector = Vue.extend({
 	i18n,
 	components: { SelectPicker },
-	data: () => ({ availableLocales, loading: false, locale }),
 	template: `
 		<SelectPicker
 			class="locale-select navbar-dropdown"
@@ -120,40 +48,23 @@ const LocaleSelector = Vue.extend({
 			right
 			hideEmpty
 			placeholder="🌐"
+			allowUnknownValues
 
 			:options="availableLocales"
 			:loading="loading"
 			:showValues="false"
-			v-model="locale.value"
+			v-model="value"
 		/>`,
-
-	watch: {
-		async 'locale.value'() {
-			if (this.loading) return;
-			if (!this.$i18n.availableLocales.includes(this.locale.value)) {
-				this.loading = true
-				await loadLocaleMessages(this.locale.value);
-				this.loading = false
-			}
-			this.$i18n.locale = locale.value
+	computed: {
+		value: {
+			get(): string|null|undefined { return i18nManager.localeState.value?.value; },
+			set(v: string) { i18nManager.setLocale(v); }
 		},
+		loading(): boolean { return i18nManager.loading.value; },
+		availableLocales() { return i18nManager.availableLocales.value; }
 	},
-	async created() {
-		loadLocaleMessages(defaultFallbackLocale);
-		loadLocaleMessages(defaultLocale);
-		loadLocaleMessages(locale.value);
-	}
 });
 const localeSelectorInstance = new LocaleSelector().$mount('#locale-selector');
-
-
-
-/** Get the i18n text or fall back to a default value if the key doesn't exist.
- *  Useful for dynamic key values such as field names.
- */
-function textOrDefault<T extends string|null|undefined>(i18n: VueI18n, key: string, defaultText: T): T|string {
-	return i18n.te(key) ? i18n.t(key).toString() : defaultText;
-}
 
 // 1. Define the functions
 // For various reasons sometimes we don't have the exact object for which we want to get the translation.
@@ -243,22 +154,28 @@ declare module 'vue/types/vue' {
 	interface Vue extends Ii18nExtensionFunctions {}
 }
 
-export {
-	loadLocaleMessages,
-	registerLocale,
-	removeLocale,
-	i18n,
-	textOrDefault,
+export { i18n }
+export function init() {
+	return new Promise<void>((resolve) => {
+		if (!i18nManager.loading.value) { resolve(); return; }
+		const cancel = setInterval(() => {
+			if (!i18nManager.loading.value) {
+				clearInterval(cancel);
+				resolve();
+			}
+		}, 10);
+	})
 }
 
 // @ts-ignore
 window.i18n = {
-	registerLocale,
-	removeLocale,
-	setFallbackLocale,
-	setDefaultLocale,
-	setLocale(locale: string) {
-		i18n.locale = locale;
-	},
-	i18n
+	registerLocale: i18nManager.registerLocale.bind(i18nManager),
+	removeLocale: i18nManager.removeLocale.bind(i18nManager),
+	setFallbackLocale: i18nManager.setFallbackLocale.bind(i18nManager),
+	getFallbackLocale: () => i18nManager.fallbackLocaleState.value?.value,
+	setDefaultLocale: (defaultLocale: string) => { i18nManager.setLocale(defaultLocale, I18nManager.PRIORITY_EXPLICIT_DEFAULT); },
+	setLocale: (locale: string) => { i18nManager.setLocale(locale); },
+	i18n,
+	manager: i18nManager,
+	getLocale() { return i18nManager.localeState.value?.value; },
 }

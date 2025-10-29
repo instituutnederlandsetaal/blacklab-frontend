@@ -6,6 +6,7 @@
 					:key="col.key"
 					:col="col" :disabled="disabled"
 					@changeSort="$emit('changeSort', $event)"
+					:sort="sort"
 				>
 					<v-popover v-if="i === 0 && col.field === 'group'" offset="5" style="display:inline-block;">
 						<a role="button" title="Column meanings"><span class="fa fa-lg fa-question-circle"></span></a>
@@ -101,6 +102,7 @@ export default Vue.component('GenericTable', {
 		disableDetails: Boolean,
 
 		showTitles: { default: true },
+		sort: String,
 
 		/// UGH, required to get group contents as this is not exposed in the results directly.
 		type: String as () => 'hits'|'docs',

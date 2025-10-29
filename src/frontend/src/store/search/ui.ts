@@ -230,6 +230,12 @@ type ModuleRootState = {
 			/** Shows or hides the small muted text label showing the group of a metadata field. */
 			metadataGroupLabelsVisible: boolean,
 		};
+		sortBy: {
+			/** Shows or hides the small muted text label showing the group of an annotation. Also hides the hit/before/after label. */
+			annotationGroupLabelsVisible: boolean;
+			/** Shows or hides the small muted text label showing the group of a metadata field. */
+			metadataGroupLabelsVisible: boolean;
+		}
 	};
 
 	global: {
@@ -361,8 +367,12 @@ const initialState: ModuleRootState = {
 
 	dropdowns: {
 		groupBy: {
-			metadataGroupLabelsVisible: true,
-			annotationGroupLabelsVisible: true
+			metadataGroupLabelsVisible: false,
+			annotationGroupLabelsVisible: false
+		},
+		sortBy: {
+			metadataGroupLabelsVisible: false,
+			annotationGroupLabelsVisible: false
 		}
 	}
 };
@@ -658,12 +668,12 @@ const actions = {
 			}, 'totalsRefreshIntervalMs'),
 
 			/** Edit which annotations are shown in the dependency tree in the hits result table. */
-			dependencies: b.commit((state, payload: { 
-				lemma: string|null, 
-				upos: string|null, 
-				xpos: string|null, 
+			dependencies: b.commit((state, payload: {
+				lemma: string|null,
+				upos: string|null,
+				xpos: string|null,
 				/** It's possible to show multiple feats by passing multiple annotations here. */
-				feats: string|null|string[] 
+				feats: string|null|string[]
 			}) => {
 				const allAnnotations= CorpusStore.get.allAnnotationsMap();
 				const storeIsInitialized = Object.keys(allAnnotations).length > 0;
@@ -672,7 +682,7 @@ const actions = {
 					if (!storeIsInitialized) return id; // validate in this module's init() function. allow for now.
 					if (!id) return null; // empty.
 					if (allAnnotations[id]?.hasForwardIndex) return id;
-					
+
 					if (!allAnnotations[id]) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for feature '${key}', but it does not exist.`);
 					if (!allAnnotations[id]?.hasForwardIndex) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for features '${key}', but it does not have the required forward index.`);
 					return null;
@@ -701,8 +711,12 @@ const actions = {
 	},
 	dropdowns: {
 		groupBy: {
-			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.annotationGroupLabelsVisible = payload, 'annotationGroupLabelsVisible'),
-			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.metadataGroupLabelsVisible = payload, 'metadataGroupLabelsVisible'),
+			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.annotationGroupLabelsVisible = payload, 'groupBy.annotationGroupLabelsVisible'),
+			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.metadataGroupLabelsVisible = payload, 'groupBy.metadataGroupLabelsVisible'),
+		},
+		sortBy: {
+			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.sortBy.annotationGroupLabelsVisible = payload, 'sortBy.annotationGroupLabelsVisible'),
+			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.sortBy.metadataGroupLabelsVisible = payload, 'sortBy.metadataGroupLabelsVisible'),
 		},
 	},
 
@@ -752,6 +766,55 @@ const actions = {
 			'RESULTS/DOCS': ['results', 'docs', 'shownMetadataIds'],
 			'EXPORT':       ['results', 'shared', 'detailedMetadataIds']
 		}),
+
+		moveAnnotationToGroup: (annotationId: string, targetGroupName: string, removeFromExistingGroup = true) => {
+			// NOTE: is frozen object, though not deeply.
+			// Need to reassign to trigger reactivity.
+			const corpus = CorpusStore.getState().corpus;
+			if (!corpus) {
+				console.warn(`[moveAnnotationToGroup] - Trying to move annotation '${annotationId}' to group '${targetGroupName}', but the corpus is not loaded yet!`);
+				return;
+			}
+
+			const groups = corpus.annotationGroups;
+			const targetGroup = groups.find(g => g.id === targetGroupName);
+			const currentGroups = groups.filter(g => g.entries.includes(annotationId));
+			if (!targetGroup) {
+				console.warn(`[moveAnnotationToGroup] - Trying to move annotation '${annotationId}' to group '${targetGroupName}', but that group does not exist!`);
+				return;
+			}
+			if (removeFromExistingGroup) {
+				currentGroups.forEach(g => g.entries = g.entries.filter(e => e !== annotationId))
+			}
+			if (!targetGroup.entries.includes(annotationId)) {
+				targetGroup.entries.push(annotationId);
+			};
+			CorpusStore.getState().corpus = {...corpus}; // trigger reactivity
+		},
+		moveMetadataToGroup: (metadataFieldId: string, targetGroupName: string, removeFromExistingGroup = true) => {
+			// NOTE: is frozen object, though not deeply.
+			// Need to reassign to trigger reactivity.
+			const corpus = CorpusStore.getState().corpus;
+			if (!corpus) {
+				console.warn(`[moveMetadataToGroup] - Trying to move metadata field '${metadataFieldId}' to group '${targetGroupName}', but the corpus is not loaded yet!`);
+				return;
+			}
+
+			const groups = corpus.metadataFieldGroups;
+			const targetGroup = groups.find(g => g.id === targetGroupName);
+			const currentGroups = groups.filter(g => g.entries.includes(metadataFieldId));
+			if (!targetGroup) {
+				console.warn(`[moveMetadataToGroup] - Trying to move metadata field '${metadataFieldId}' to group '${targetGroupName}', but that group does not exist!`);
+				return;
+			}
+			if (removeFromExistingGroup) {
+				currentGroups.forEach(g => g.entries = g.entries.filter(e => e !== metadataFieldId))
+			}
+			if (!targetGroup.entries.includes(metadataFieldId)) {
+				targetGroup.entries.push(metadataFieldId);
+			};
+			CorpusStore.getState().corpus = {...corpus}; // trigger reactivity
+		}
 	}
 };
 
@@ -879,7 +942,7 @@ const init = () => {
 	if (!initialState.search.shared.within.elements.length) {
 		function setValuesForWithin(validValues?: AppTypes.NormalizedAnnotation['values']) {
 			if (!validValues?.length) {
-				console.warn('Within clause not supported in this corpus, no relations indexed');
+				console.info('Within clause not supported in this corpus, no relations indexed');
 				actions.search.shared.within.enable(false);
 				return;
 			};
@@ -1249,7 +1312,7 @@ function printCustomizations() {
 				'',
 				`// ${g.id}`,
 				...g.entries.map(v => stripIndent`
-					['${v.id}'${' '.repeat(longestAnnotId - v.id.length)},${annotationCells.map(c => v.checkmarks[c.propName] ? c.checked : c.unchecked).join(',')}],
+					['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestAnnotId - v.id.length)},${annotationCells.map(c => v.checkmarks[c.propName] ? c.checked : c.unchecked).join(',')}],
 				`)
 			])}
 		]);
@@ -1260,7 +1323,7 @@ function printCustomizations() {
 				'',
 				`// ${g.id}`,
 				...g.entries.map(v => stripIndent`
-					['${v.id}'${' '.repeat(longestMetadataId - v.id.length)},${metadataCells.map(c => v.checkmarks[c.propName] ? c.checked : c.unchecked).join(',')}],
+					['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestMetadataId - v.id.length)},${metadataCells.map(c => v.checkmarks[c.propName] ? c.checked : c.unchecked).join(',')}],
 				`)
 			])}
 		]);

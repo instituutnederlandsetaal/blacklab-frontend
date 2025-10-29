@@ -59,6 +59,7 @@
 				:showTitles="showTitles"
 				:disabled="!!request"
 				:query="results?.summary.searchParam"
+				:sort="sort"
 
 				@changeSort="sort = (sort === $event ? `-${sort}` : $event)"
 				@viewgroup="changeViewGroup"
@@ -94,7 +95,9 @@
 
 					:corpus="corpus"
 					:annotations="sortAnnotations"
+					:annotationGroupLabels="sortAnnotationLabels"
 					:metadata="sortMetadata"
+					:metadataGroupLabels="sortMetadataLabels"
 
 					:disabled="!!request"
 				/>
@@ -375,10 +378,11 @@ export default Vue.extend({
 		},
 
 		sortAnnotations(): string[] { return UIStore.getState().results.shared.sortAnnotationIds; },
+		sortAnnotationLabels(): boolean { return UIStore.getState().dropdowns.sortBy.annotationGroupLabelsVisible; },
 		sortMetadata(): string[] { return UIStore.getState().results.shared.sortMetadataIds; },
+		sortMetadataLabels(): boolean { return UIStore.getState().dropdowns.sortBy.metadataGroupLabelsVisible; },
 		exportAnnotations(): string[]|null { return UIStore.getState().results.shared.detailedAnnotationIds; },
 		exportMetadata(): string[]|null { return UIStore.getState().results.shared.detailedMetadataIds; },
-
 
 		exportEnabled(): boolean { return UIStore.getState().results.shared.exportEnabled; },
 
@@ -561,6 +565,7 @@ export default Vue.extend({
 				// If groups, don't show any annotation columns.
 				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
+				annotationGroups: CorpusStore.get.annotationGroups(),
 				hasCustomHitInfoColumn: corpusCustomizations.results.hasCustomHitInfoColumn,
 			}
 		},

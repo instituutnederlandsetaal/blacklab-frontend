@@ -128,7 +128,7 @@ public class CorpusFileUtil {
             // attemp to load the file from blacklab, only using the default article.xsl if blacklab return 404.
             // (if the blacklab file is invalid, raise that error, it should never happen, and we want to know about it)
             // This is a bit of a hack, but it works for now.
-            System.out.println("Stylesheet: article - trying to load from blacklab");
+            logger.fine("Stylesheet: article - trying to load from blacklab");
             blacklabResult = new BlackLabApi(request, response, config)
                 .getStylesheet(corpus.getCorpusDataFormat().get())
                 .flatMapError(e -> e.getHttpStatusCode() == 404 ? Result.empty() : Result.error(e)); // if blacklab returns a 404, return empty instead of the http error.
@@ -136,7 +136,7 @@ public class CorpusFileUtil {
         }
 
         return blacklabResult // attempt to use the BlackLab stylesheet first, as we only retrieve it when needed
-            .tapSelf(r -> System.out.println("Stylesheet '"+fileName+"' from blacklab: " + (r.hasError() ? "error" : r.hasResult() ? "present" : "empty")))
+            .tapSelf(r -> logger.fine("Stylesheet '"+fileName+"' from blacklab: " + (r.hasError() ? "error" : r.hasResult() ? "present" : "empty")))
             .mapWithErrorHandling(xsl -> new XslTransformer(corpus.getCorpusDataFormat().get(), xsl))
             .mapError(e -> new TransformerException("Error loading stylesheet from blacklab:\n" 
                 + corpus.getCorpusDataFormat().get() + "\n"
@@ -144,7 +144,7 @@ public class CorpusFileUtil {
                 + ExceptionUtils.getStackTrace(e))
             )
             .or(() -> fileResult
-                .tapSelf(r -> System.out.println("Stylesheet '"+fileName+"' from disk: " + (r.hasError() ? "error! - " + r.getError().get(): r.hasResult() ? r.getResult().get() : "empty")))
+                .tapSelf(r -> logger.fine("Stylesheet '"+fileName+"' from disk: " + (r.hasError() ? "error! - " + r.getError().get(): r.hasResult() ? r.getResult().get() : "empty")))
                 .mapWithErrorHandling(XslTransformer::new)
                 .mapError(e -> new TransformerException("Error loading stylesheet from disk:\n"
                     + file.get() + "\n"

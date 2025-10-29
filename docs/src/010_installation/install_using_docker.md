@@ -7,31 +7,18 @@ order: 1
 
 ## Basic Setup
 
-Here is an example `docker-compose.yml` file for a barebones installation of BlackLab and BlackLab Frontend.
+Here is an example `docker-compose.yml` file for a simple installation of BlackLab and BlackLab Frontend that will let you explore the application.
 
-1. **Create the `docker-compose.yml` file**
-   - Place the following example in a directory of your choice.
-   - Replace the placeholder paths (`/path/to/...`) with the actual paths on your system.  
-    
-   ::: details Example `docker-compose.yml`
-      ```yaml
-      services:
-        frontend:
-          image: instituutnederlandsetaal/blacklab-frontend:dev
-          ports:
-            - 8080:8080
-          volumes:
-            - /path/to/your/corpora:/data/index
-            - /path/to/your/user-corpora:/data/user-index
-            - /path/to/your/corpora-customizations:/etc/blacklab/projectconfigs
-            # Optionally, to override the default configurations
-            # See the docs for more details on these files:
-            # - /path/to/your/blacklab-frontend.properties:/etc/blacklab/blacklab-frontend.properties
-            # - /path/to/your/blacklab-frontend.properties:/etc/blacklab/blacklab-frontend.properties
-          environment:
-            - JAVA_OPTS=-Xmx4g
-      ```
+
+1. **Create the `docker-compose.yml` file**  
+   Place the following file in a directory of your choice.
+   Data will be stored in a `data` directory in the same location as the `docker-compose.yml` file.
+   The compose file contains a basic configuration for BlackLab that enables a **test user**, so you can play around with the application without having to set up a proxy or authentication.
+
+   ::: code-group
+      <<< @/../../docker/docker-compose.yml
    :::
+
 
 2. **Run Docker Compose**  
    This will start the service
@@ -43,68 +30,70 @@ Here is an example `docker-compose.yml` file for a barebones installation of Bla
    - The BlackLab Frontendis now available at http://localhost:8080/blacklab-frontend/
    - The BlackLab-Server API is now available at http://localhost:8080/blacklab-server/
 
-4. **You should now see an empty page with a message saying "No corpora available".**
-   ![No corpora available](no_corpora_available.png)
-   This is expected, as you have not yet added any corpora to the system.  
-   - Read on to learn how to enable uploads in the BlackLab Frontend.
-
-
-## Basic setup with uploads enabled
-
-The following section explains how to enable a **test user** in BlackLab, so you can play around with the process of uploading data through the UI.
-
-::: info :information_source: **BlackLab does not support user registration and login natively.**  
-
-BlackLab relies on external softare such as proxies to implement user authentication, using a forwarded header (typically `remote-user`) to know who you are.  
-The BlackLab Frontend in turn relies on BlackLab, so you should only need to configure BlackLab (and your proxy).
-
-:bust_in_silhouette:  [This tutorial](/tutorials/authentication) details how to set up a proxy that can integrate with Microsoft, Google, Facebook, etc.  
-For a more technical explanation, consult [the BlackLab docs](https://blacklab.ivdnt.org/server/howtos.html#let-users-manage-their-own-corpora).
-
-:::
-
-1. **Create the `blacklab-server.yaml` file**   
-   ::: details Example `blacklab-server.yaml` with a test user enabled
-      ```yaml{4-7}
-      ---
-      # https://blacklab.ivdnt.org/server/configuration.html
-      configVersion: 2
-      authentication:
-         system: 
-            class: AuthDebugFixed
-            userId: test_user
-      indexLocations:
-      - /data/index
-      userIndexes: /data/user-index
-      ```
-   :::
-
-2. **Edit the `docker-compose.yml`**  
-   Uncomment and set the line that mounts the `blacklab-server.yaml` file in the `docker-compose.yml` file. No `.env` file is needed.
-   ::: details `docker-compose.yml` with the config mounted
-      ```yaml
-      services:
-        frontend:
-          image: instituutnederlandsetaal/blacklab-frontend:dev
-          ports:
-            - 8080:8080
-          volumes:
-            - /path/to/your/corpora:/data/index
-            - /path/to/your/user-corpora:/data/user-index
-            - /path/to/your/corpora-customizations:/etc/blacklab/projectconfigs
-            # Optionally, to override the default configurations
-            # See the docs for more details on these files:
-            # - /path/to/your/blacklab-frontend.properties:/etc/blacklab/blacklab-frontend.properties
-            - /path/to/your/blacklab-server.yaml:/etc/blacklab/blacklab-server.yaml    # [!code focus] [!code highlight]
-          environment:
-            - JAVA_OPTS=-Xmx4g
-      ```
-   :::
-
-3. **Restart the Docker container**
-   ```bash
-   docker-compose up -d 
-   ```
 
 4. **You should now be presented with options for uploading data.**
+
+   Since there are no public corpora available (we didn't add any!), you will see a page with options to upload data.
+
    ![Page with uploads enabled](with_uploads_enabled.png)
+
+
+## Production setup
+
+
+For production use, there are two things you could consider:
+
+### Without upload functionality
+
+1. **Create a real config**   
+  Copy the default [blacklab-server.yaml](https://blacklab.ivdnt.org/server/configuration.html) file from the `docker-compose` directory into a `blacklab-server.yaml` file.
+   <FileTree hl=7>
+   blacklab
+      docker-compose.yml
+      data 
+         index
+         user-index
+         index-configs
+         blacklab-server.yaml here
+   </FileTree>
+
+2. **Update `docker-compose.yml`** to mount the config you just created:
+
+   This will disable authentication and make everyone be anonymous, and since uploads are disabled if you're not logged in, this will effectively disable uploads.
+   Now you can add some public corpora, which anyone can access without needing to log in.
+
+   ```yaml
+   volumes:
+      - ./data/index:/data/index
+      - ./data/user-index:/data/user-index
+      - ./data/index-configs:/etc/blacklab/projectconfigs
+      - ./blacklab-server.yaml:/etc/blacklab/blacklab-server.yaml # [!code ++]      
+   configs: # [!code --]
+      - source: blacklab-server # [!code --]
+        target: /etc/blacklab/blacklab-server.yaml # [!code --]
+        mode: 0444 # read-only for the container [!code --]
+   ```
+
+3. **Restart the service**
+   ```bash
+   docker compose up -d
+   ```
+4. **Add some public corpora**  
+  Since you just disabled uploads, users will see the following - rather boring - page:
+  ![Boring page without uploads](no_corpora_available.png)
+
+
+### With individual user accounts & uploads
+
+::: warning :information_source: **BlackLab relies on external software for user registration and login.**  
+
+*BlackLab* relies on external software such as proxies to implement user authentication, using a forwarded header or request attribute (such as `remote-user`) to know who is logged in.  
+The *BlackLab Frontend* in turn relies on BlackLab, so you should only need to configure BlackLab (and your proxy).
+
+In the first example, we forced BlackLab to use a test user, just so that you can play around with the upload functionality.
+If you want to use BlackLab in a production environment, you will need to set up a proxy that can authenticate users and forward the user ID to BlackLab.
+
+:bust_in_silhouette:  [This tutorial](/tutorials/authentication) details how to set up a proxy that can integrate with Microsoft, Google, Facebook, etc.  
+For a more technical explanation, consult [the BlackLab docs](https://blacklab.ivdnt.org/server/user-corpora.html).
+
+:::

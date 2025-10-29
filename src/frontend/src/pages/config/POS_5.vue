@@ -4,16 +4,12 @@
 		<!-- main annotation values -->
 		<button type="button" @click="copy">copy</button>
 		<button type="button" @click="download">download</button>
-		<div>
-			{{json}}
-		</div>
+		<pre>{{json}}</pre>
 	</div>
 </template>
 
 <script lang="ts">
 import { Tagset } from '@/types/apptypes';
-import { mapReduce } from '@/utils';
-import cloneDeep from 'clone-deep';
 import Vue from 'vue';
 import {saveAs} from 'file-saver';
 
@@ -30,12 +26,6 @@ export const step = Vue.extend({
 	},
 	data: () => ({
 		title,
-
-		displays: {} as {
-			[annotationId: string]: {
-				[value: string]: string
-			}
-		}
 	}),
 	computed: {
 		json(): Tagset {
@@ -53,12 +43,10 @@ export const step = Vue.extend({
 					}
 				});
 
-
-
 				t.values[mainValue] = {
 					value: mainValue,
 					displayName: this.value.step4[this.value.mainPosAnnotationId!][mainValue],
-					subAnnotationIds: valuesPerSubAnnotations.filter(sa => sa.values.length).map(sa => sa.annotationId),
+					subAnnotationIds: valuesPerSubAnnotations.filter(sa => sa.values.length).map(sa => sa.annotationId).sort((a, b) => a.localeCompare(b)),
 				};
 			});
 
@@ -83,9 +71,13 @@ export const step = Vue.extend({
 						value,
 						displayName: this.value.step4[subAnnotId][value],
 						pos: mainPosValues
-					}))
+					})).sort((a, b) => a.displayName.localeCompare(b.displayName))
 				}
 			});
+
+			// Sort keys alphabetically
+			t.values = Object.fromEntries(Object.entries(t.values).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)));
+			t.subAnnotations = Object.fromEntries(Object.entries(t.subAnnotations).sort(([keyA], [keyB]) => keyA.localeCompare(keyB)));
 
 			return t;
 		}
@@ -98,16 +90,12 @@ export const step = Vue.extend({
 			saveAs(new Blob([contents], {type: 'application/json'}), fileName);
 		},
 		copy() {
-			const el: HTMLTextAreaElement = document.createElement('textarea');
-			document.body.appendChild(el);
-			el.style.display = 'none';
-
 			const content = JSON.stringify(this.json, undefined, 2);
-			el.value = content;
-			el.select();
-			el.setSelectionRange(0, content.length + 1);
-
-			document.execCommand("copy");
+			navigator.clipboard.writeText(content).then(() => {
+				console.log('Content copied to clipboard successfully!');
+			}).catch(err => {
+				console.error('Failed to copy content to clipboard:', err);
+			});
 		}
 	}
 });

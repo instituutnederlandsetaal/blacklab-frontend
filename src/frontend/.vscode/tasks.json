@@ -16,8 +16,52 @@
 			},
 			"problemMatcher": "$tsc-watch",
 			"presentation": {
-				"echo": false,
-				"reveal": "never",
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "new",
+				"showReuseMessage": false,
+				"clear": false
+			}
+		},
+		{
+			"label": "start development server (npm start)",
+			"type": "shell",
+			"command": "npm",
+			"args": ["start"],
+			"isBackground": true,
+			"runOptions": {
+				"instanceLimit": 1
+			},
+			"problemMatcher": {
+				"owner": "webpack",
+				"fileLocation": "relative",
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^webpack \\d+\\.\\d+\\.\\d+ compiled",
+					"endsPattern": "^webpack \\d+\\.\\d+\\.\\d+ compiled"
+				},
+				"pattern": [
+					{
+						"regexp": "^(ERROR|WARNING) in ([^\\s]+) (\\d+)(?::(\\d+))?(?:-(\\d+)(?::(\\d+))?)?$",
+						"severity": 1,
+						"file": 2,
+						"line": 3,
+						"column": 4,
+						"endLine": 5,
+						"endColumn": 6
+					},
+					{
+						"regexp": "^(TS\\d+): (.+)$",
+						"code": 1,
+						"message": 2,
+						"loop": true
+					}
+				]
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
 				"focus": false,
 				"panel": "new",
 				"showReuseMessage": false,

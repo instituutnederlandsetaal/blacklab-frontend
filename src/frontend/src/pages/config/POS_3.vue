@@ -2,6 +2,7 @@
 	<div>
 		<button @click="$emit('submit')" :disabled="loading">OK</button>
 		<h3>{{currentStep}}</h3>
+		<button @click="reset" :disabled="loading">Reset</button>
 		<!-- main annotation values -->
 		<div style="display: flex;">
 			<ul class="list-unstyled" style="width: auto; max-width: 200px; display: flex; flex-direction: column;">
@@ -64,7 +65,22 @@ export const value = 'Generate'
 export const label = value;
 export const title = 'Check all combinations with BlackLab to see which occur in the corpus';
 
-export const defaultAction = (s: StepState): StepState => { throw new Error('Cannot automatically perform ') };
+export const defaultAction = (s: StepState): StepState => { 
+	// check if all are loaded.
+	const annotations = s.step3.main && Object.values(s.step3.main);
+	if (!annotations?.length) throw new Error('Step 3 not completed');
+	for (const a of annotations) {
+		if (a.loading) throw new Error('Step 3 not completed');
+		for (const sub of Object.values(a.subs)) {
+			for (const v of Object.values(sub)) {
+				if (v.occurances === -1 || v.loading) throw new Error('Step 3 not completed');
+			}
+		}
+	}
+	return s;
+};
+
+
 export const step = Vue.extend({
 	components: {
 		SelectPicker
@@ -107,6 +123,19 @@ export const step = Vue.extend({
 		},
 	},
 	methods: {
+		reset() {
+			if (this.loading) {
+				this.stop = true;
+				return;
+			};
+			this.stop = false;
+			this.v = {};
+			this.activeValue = null;
+			this.loading = true;
+			this.currentStep = '';
+			this.$emit('input', {...this.value, step3: this.v});
+			this.getCombinations();
+		},
 		async getValues() {
 			const numAnnotations = this.subs.length + 1;
 			this.currentStep = `[0/${numAnnotations}] Getting available options for annotations...`;
@@ -115,7 +144,7 @@ export const step = Vue.extend({
 				const mainPosValues = await blacklab.getTermFrequencies(this.value.index.id, this.main.id, undefined, undefined, 100);
 
 				const values = Object.keys(mainPosValues.termFreq).filter(v => !!v.trim());
-				Vue.set(this.v, 'main', mapReduce(values, () => ({
+				this.$set(this.v, 'main', mapReduce(values, () => ({
 					loading: true,
 					subs: {}
 				})));
@@ -133,14 +162,12 @@ export const step = Vue.extend({
 					++i;
 					continue;
 				}
-
 				const r = await blacklab.getTermFrequencies(this.value.index.id, subAnnot.id, undefined, undefined, 100);
 				const subValues = Object.keys(r.termFreq).filter(v => !!v.trim())
-
-
+				
 				this.currentStep = `[${++i}/${numAnnotations}] Getting available options for annotations...`;
 
-				Object.entries(this.v.main!).forEach(([mainValue, {subs}]) => Vue.set(subs, subAnnot.id, mapReduce(subValues, () => ({
+				Object.entries(this.v.main!).forEach(([mainValue, {subs}]) => this.$set(subs, subAnnot.id, mapReduce(subValues, () => ({
 					loading: false,
 					occurances: -1,
 				}))));

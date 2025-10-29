@@ -108,6 +108,6 @@
 
 <link rel="stylesheet" href="$CF_URL_ON_CLIENT/css/corpora.css?_$cache" >
 
-<script src="$JSPATH/corpora.js?_$cache"></script>
+<script src="$JSPATH/corpora.js?_$cache" onerror="document.body.insertAdjacentHTML('afterbegin', '<div class=\'alert alert-danger\'>Warning: Failed to load corpora.js from $JSPATH. Please check your configuration or dev-server.</div>');"></script>
  
 #parse("footer.vm")

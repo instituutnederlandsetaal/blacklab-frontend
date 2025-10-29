@@ -31,7 +31,8 @@
 
 				"withinSelect_label": "Within:",
 
-				"token_head_handle_title": "Drag here move this token",
+				"token_head_move_right_title": "Move this token one position to the right",
+				"token_head_move_left_title": "Move this token one position to the left",
 				"token_head_deleteButton_title": "Remove token",
 
 				"body_tab_header_search": "Search",
@@ -55,7 +56,18 @@
 				"attribute_file_upload_edit_button_title": "Edit your uploaded values",
 				"attribute_file_upload_clear_button_title": "Clear uploaded values",
 
-				"attribute_create_button_title": "Add another attribute"
+				"attribute_create_button_title": "Add another attribute",
+
+				"boolean_operators": {
+					"&": "AND",
+					"|": "OR"
+				},
+				"comparators": {
+					"=": "=",
+					"!=": "≠",
+					"startsWith": "starts with",
+					"endsWith": "ends with"
+				}
 			}
 		},
 		"concept": {
@@ -192,7 +204,7 @@
 	},
 	"results": {
 		"groupBy": {
-			"groupNameWithoutValue": "[none]",
+			"groupNameWithoutValue": "[no value]",
 
 			"groupResults": "Group Results",
 			"close": "Close",
@@ -366,6 +378,7 @@
 		"createNewCorpus": "or create a new corpus and add to that...",
 		"name": "Name",
 		"create": "Create",
+		"select": "Select",
 		"illegalCorpusName": "Illegal corpus name. Corpus name must be between 3 and 30 characters and may not contain special characters.",
 		"retry": "Retry"
 	},

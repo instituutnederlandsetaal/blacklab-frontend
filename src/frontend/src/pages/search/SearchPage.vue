@@ -16,9 +16,7 @@
 			<PageGuide v-if="pageGuideEnabled"/>
 		</template>
 		<div v-else>
-			<h2>
-				{{ loadingMessage }}
-			</h2>
+			<h2 v-html="loadingMessage"></h2>
 			<Spinner v-if="loadingState === 'loading'" center/>
 			<button v-else-if="loadingState === 'requiresLogin'" type="button" class="btn btn-lg btn-primary">login (todo)</button>
 		</div>

@@ -13,7 +13,8 @@ import * as UIStore from '@/store/search/ui';
 
 import { debugLog, debugLogCat } from '@/utils/debug';
 
-import { AnnotationValue, Option } from '@/types/apptypes';
+import { AnnotationValue } from '@/types/apptypes';
+import { CqlQueryBuilderData } from '@/components/cql/cql-types';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
@@ -43,8 +44,8 @@ type ModuleRootState = {
 		splitBatch: boolean,
 	},
 	advanced: {
-		query: string|null,
-		targetQueries: string[],
+		query: CqlQueryBuilderData,
+		targetQueries: CqlQueryBuilderData[],
 	},
 	expert: {
 		query: string|null,
@@ -74,7 +75,7 @@ const defaults: ModuleRootState = {
 		splitBatch: false,
 	},
 	advanced: {
-		query: null,
+		query: {tokens: [], within: '', withinAttributes: {}},
 		targetQueries: [],
 	},
 	expert: {
@@ -124,7 +125,7 @@ const setTargetFields = (state: ModuleRootState, payload: string[]): string[] =>
 
 	if (payload && payload.length > 0) {
 		while (state.advanced.targetQueries.length < payload.length) {
-			state.advanced.targetQueries.push('');
+			state.advanced.targetQueries.push({tokens: [], within: '', withinAttributes: {}});
 		}
 		while (state.expert.targetQueries.length < payload.length) {
 			state.expert.targetQueries.push('');
@@ -215,21 +216,21 @@ const actions = {
 		}, 'extended_reset'),
 	},
 	advanced: {
-		query: b.commit((state, payload: string|null) => {
-			return (state.advanced.query = payload);
+		query: b.commit((state, payload: CqlQueryBuilderData|null) => {
+			return (state.advanced.query = payload || {tokens: [], within: '', withinAttributes: {}});
 		}, 'advanced_query'),
-		changeTargetQuery: b.commit((state, {index, value}: {index: number, value: string}) => {
+		changeTargetQuery: b.commit((state, {index, value}: {index: number, value: CqlQueryBuilderData}) => {
 			if (index >= state.advanced.targetQueries.length) {
 				console.error('Tried to set target query for non-existent index');
 				return;
 			}
 			Vue.set(state.advanced.targetQueries, index, value);
 		}, 'advanced_change_target_query'),
-		targetQueries: b.commit((state, payload: string[]) => {
+		targetQueries: b.commit((state, payload: CqlQueryBuilderData[]) => {
 			return (state.advanced.targetQueries = [...payload]); // copy, don't reference
 		}, 'advanced_target_queries'),
 		reset: b.commit(state => {
-			state.advanced.query = null
+			state.advanced.query = {tokens: [], within: '', withinAttributes: {}};
 			state.advanced.targetQueries = [];
 		}, 'advanced_reset'),
 	},

@@ -183,7 +183,7 @@
                                 "items": {
                                   "type": "string"
                                 },
-                                "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/\", BlackLab will replace $1 with the result of the first captureValuePaths entry."
+                                "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/$2\", BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc."
                               },
                               "sensitivity": {
                                 "type": "string",
@@ -517,7 +517,7 @@
                                 "items": {
                                   "type": "string"
                                 },
-                                "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/\", BlackLab will replace $1 with the result of the first captureValuePaths entry."
+                                "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/$2\", BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc."
                               },
                               "sensitivity": {
                                 "type": "string",
@@ -854,7 +854,7 @@
                       "items": {
                         "type": "string"
                       },
-                      "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/\", BlackLab will replace $1 with the result of the first captureValuePaths entry."
+                      "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/$2\", BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc."
                     },
                     "sensitivity": {
                       "type": "string",
@@ -1231,7 +1231,7 @@
                                           "items": {
                                             "type": "string"
                                           },
-                                          "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/\", BlackLab will replace $1 with the result of the first captureValuePaths entry."
+                                          "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/$2\", BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc."
                                         },
                                         "sensitivity": {
                                           "type": "string",
@@ -1565,7 +1565,7 @@
                                           "items": {
                                             "type": "string"
                                           },
-                                          "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/\", BlackLab will replace $1 with the result of the first captureValuePaths entry."
+                                          "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/$2\", BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc."
                                         },
                                         "sensitivity": {
                                           "type": "string",
@@ -1902,7 +1902,7 @@
                                 "items": {
                                   "type": "string"
                                 },
-                                "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/\", BlackLab will replace $1 with the result of the first captureValuePaths entry."
+                                "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/$2\", BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc."
                               },
                               "sensitivity": {
                                 "type": "string",
@@ -2295,7 +2295,7 @@
                                           "items": {
                                             "type": "string"
                                           },
-                                          "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/\", BlackLab will replace $1 with the result of the first captureValuePaths entry."
+                                          "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/$2\", BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc."
                                         },
                                         "sensitivity": {
                                           "type": "string",
@@ -2629,7 +2629,7 @@
                                           "items": {
                                             "type": "string"
                                           },
-                                          "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/\", BlackLab will replace $1 with the result of the first captureValuePaths entry."
+                                          "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/$2\", BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc."
                                         },
                                         "sensitivity": {
                                           "type": "string",
@@ -2966,7 +2966,7 @@
                                 "items": {
                                   "type": "string"
                                 },
-                                "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/\", BlackLab will replace $1 with the result of the first captureValuePaths entry."
+                                "description": "Xpath: Store some xpath results before evaluating valuePath, the stored results can now be used in valuePath. E.g. valuePath=\"/some/dynamic/path/$1/$2\", BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc."
                               },
                               "sensitivity": {
                                 "type": "string",

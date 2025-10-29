@@ -32,7 +32,8 @@
 
 				"withinSelect_label": "Binnen:",
 
-				"token_head_handle_title": "Sleep hier om dit woord te verplaatsen",
+				"token_head_move_right_title": "Verplaats dit woord één positie naar rechts",
+				"token_head_move_left_title": "Verplaats dit woord één positie naar links",
 				"token_head_deleteButton_title": "Verwijder woord",
 
 				"body_tab_header_search": "Zoeken",
@@ -56,7 +57,18 @@
 				"attribute_file_upload_edit_button_title": "Bewerk uw geüploade waarden",
 				"attribute_file_upload_clear_button_title": "Geüploade waarden wissen",
 
-				"attribute_create_button_title": "Voeg een attribuut toe"
+				"attribute_create_button_title": "Voeg een attribuut toe",
+
+				"boolean_operators": {
+					"&": "EN",
+					"|": "OF"
+				},
+				"comparators": {
+					"=": "=",
+					"!=": "≠",
+					"startsWith": "begint met",
+					"endsWith": "eindigt op"
+				}
 			}
 		},
 		"concept": {

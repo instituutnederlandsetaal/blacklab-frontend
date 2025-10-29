@@ -31,7 +31,8 @@
 
 				"withinSelect_label": "范围:",
 
-				"token_head_handle_title": "拖动此处移动此标记",
+				"token_head_move_right_title": "将此标记向右移动一个位置",
+				"token_head_move_left_title": "将此标记向左移动一个位置",
 				"token_head_deleteButton_title": "删除标记",
 
 				"body_tab_header_search": "搜索",
@@ -55,7 +56,18 @@
 				"attribute_file_upload_edit_button_title": "编辑上传的值",
 				"attribute_file_upload_clear_button_title": "清除上传的值",
 
-				"attribute_create_button_title": "添加另一个属性"
+				"attribute_create_button_title": "添加另一个属性",
+
+				"boolean_operators": {
+					"&": "与",
+					"|": "或"
+				},
+				"comparators": {
+					"=": "=",
+					"!=": "≠",
+					"startsWith": "开始于",
+					"endsWith": "结束于"
+				}
 			}
 		},
 		"concept": {

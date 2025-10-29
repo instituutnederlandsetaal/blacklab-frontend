@@ -33,6 +33,8 @@ import {FilterValue, AnnotationValue} from '@/types/apptypes';
 import cloneDeep from 'clone-deep';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { corpusCustomizations } from '@/utils/customization';
+import { CqlAttributeData, CqlAttributeGroupData, CqlQueryBuilderData } from '@/components/cql/cql-types';
+import { getQueryBuilderStateFromParsedQuery } from '@/utils/pattern-utils';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -246,7 +248,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 				ui.patternMode = 'simple';
 			} else if (this.extendedPattern && !hasGapValue) {
 				ui.patternMode = 'extended';
-			} else if (this.advancedPattern?.query && !hasGapValue && UIModule.getState().search.advanced.enabled) {
+			} else if (this.advancedPattern?.query.tokens.length && !hasGapValue && UIModule.getState().search.advanced.enabled) {
 				ui.patternMode = 'advanced';
 			} else if (this.expertPattern.query) {
 				ui.patternMode = 'expert';
@@ -642,8 +644,11 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	}
 
 	@memoize
-	private get advancedPattern() {
-		return this._parsedCql ? this.expertPattern : undefined;
+	private get advancedPattern(): {
+		query: CqlQueryBuilderData,
+		targetQueries: CqlQueryBuilderData[],
+	} {
+		return getQueryBuilderStateFromParsedQuery(this._parsedCql || []);
 	}
 
 	@memoize
@@ -672,10 +677,6 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			const finalQuery = Object.keys(reapplyWithins).length > 0 ?
 				applyWithinClauses(query ?? '', reapplyWithins) : query;
 
-			//console.log('raw source query', rawQuery);
-			//console.log('after stripping', query);
-			//console.log('reapplyWithins', reapplyWithins);
-			//console.log('finalQuery', finalQuery);
 			return finalQuery;
 		}
 

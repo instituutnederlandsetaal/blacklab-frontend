@@ -7,7 +7,7 @@
 
 BlackLab will insert `<hl></hl>` tags around all hits in your document.  
 The default settings will transform these into `<span class="hl"></span>` elements, which will be styled with a background color in the default CSS.  
-Additionally the paginator will allow you to jump to the next or previous hit in the document, it relies on the `hl` class to find the hits in the document.
+Additionally the paginator will allow you to jump to the next or previous hit in the document.
 
 ::: warning
 :warning: It's important that you use the `hl` class for hits in your document, as the interface relies on this to highlight hits in the document view.  

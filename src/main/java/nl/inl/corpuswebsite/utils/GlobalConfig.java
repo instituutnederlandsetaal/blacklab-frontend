@@ -319,7 +319,7 @@ public class GlobalConfig implements ServletContextListener {
             for (String envKey : envKeysToTry) {
                 String envValue = System.getenv(envKey);
                 if (envValue != null) {
-                    logger.info(String.format("Setting config key '%s' from environment variable '%s' - %s", key, envKey, envValue));
+                    logger.fine(String.format("Setting config key '%s' from environment variable '%s' - %s", key, envKey, envValue));
                     set(instanceProps, key, envValue);
                     break; // stop after the first match
                 }
@@ -341,7 +341,7 @@ public class GlobalConfig implements ServletContextListener {
         for (String defaultPropName : defaultProps.stringPropertyNames()) {
             String defaultPropValue = defaultProps.getProperty(defaultPropName);
             if (!instanceProps.containsKey(defaultPropName) && defaultPropValue != null) {
-                logger.info(String.format("Config setting not found '%s' : using default value '%s'", defaultPropName, defaultPropValue));
+                logger.fine(String.format("Config setting not found '%s' : using default value '%s'", defaultPropName, defaultPropValue));
                 instanceProps.setProperty(defaultPropName, defaultPropValue);
             }
         }
@@ -413,7 +413,10 @@ public class GlobalConfig implements ServletContextListener {
         }
 
         // Return config, or default values if none found
-        return config.orElseGet(GlobalConfig::getDefault);
+        return config.orElseGet(() -> {
+            logger.info("No global config file found, using default settings.");
+            return getDefault();
+        });
     }
 
     private static Optional<GlobalConfig> tryLoadConfigEnv(String envName, String filename) {
@@ -422,8 +425,12 @@ public class GlobalConfig implements ServletContextListener {
             logger.fine("Config from env '" + envName + "': not set - ignoring.");
             return Optional.empty();
         }
-        logger.fine("Config from env '" + envName + "': " + path);
-        return tryLoadConfigPath(path, filename);
+        logger.info("Config from env '" + envName + "': " + path);
+        Optional<GlobalConfig> theConfig = tryLoadConfigPath(path, filename);
+        if (theConfig.isEmpty()) {
+            logger.warning("Config from env '"+envName+" ("+path+")': file '"+filename+"' does not exist or is not readable - ignoring");
+        }
+        return theConfig;
     }
 
     private static Optional<GlobalConfig> tryLoadConfigPath(String path, String filename) {

@@ -52,17 +52,20 @@ export type Token = {
 	};
 };
 
+/** The result of interpreting a BCQL query */
 export type Result = {
-	query?: string; // the (partial) BCQL query (only set for source and target queries, for expert/advanced)
-	tokens?: Token[];     // undefined means "could not parse for simple/extended/advanced"; other members are still
-							// valid in this case, e.g. withinClauses
-
-	/** any within clauses on this query */
+	/** The (partial) BCQL query (only set for source and target queries, for expert/advanced) */
+	query?: string;
+	/** Tokens parsed from the query; undefined means "could not parse for simple/extended/advanced" */
+	tokens?: Token[];
+	/** Any within clauses on this query */
 	withinClauses?: Record<string, Record<string, any>>;
-
-	targetVersion?: string; // target version for this query, or undefined if this is the source query
-	relationType?: string; // relation type for this (target) query, or undefined if this is the source query
-	optional?: boolean; // whether alignment relation target is optional
+	/** Target version for this query, or undefined if this is the source query */
+	targetVersion?: string;
+	/** Relation type for this (target) query, or undefined if this is the source query */
+	relationType?: string;
+	/** Whether alignment relation target is optional */
+	optional?: boolean;
 };
 
 function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): Result[] {
@@ -341,6 +344,9 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 
 	function _parallelQuery(bcql: string, input: any): Result[] {
 		if (input.type == 'relmatch') {
+			const isParallel = input.children.every((c: any) => !!c.targetVersion);
+			if (!isParallel)
+				throw new Error('Cannot interpret non-parallel relmatch queries in the frontend');
 			// Determine what relationtype we're filtering by
 			// (must all be the same for the query to be interpretable here)
 			let relationType: string|undefined = undefined;
