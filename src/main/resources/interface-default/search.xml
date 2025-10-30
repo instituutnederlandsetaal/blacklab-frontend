@@ -91,6 +91,8 @@
         <XsltParameter name="corpusPath" value="${request:corpusPath}"/>
         The corpus ID (including username portion for user corpora), so 'lassy' or 'username:corpus-name', empty if not viewing a corpus.
         <XsltParameter name="corpusId" value="${request:corpusId}"/>
+        The document untransformed metadata in xml, including those confugured in the index. The value may be <empty/>.
+        <XsltParameter name="metadata" value="the value as described in https://blacklab.ivdnt.org/server/rest-api/documents/metadata.html"/>
      -->
     </XsltParameters>
 </SearchInterface>

@@ -102,17 +102,22 @@ public class ArticleUtil {
 
     /**
      * Every time we run an xslt transformation, we need to add some standard parameters.
-     * These are defined and documented in the builtin search.xml 
+     * These are defined and documented in the builtin search.xml
      * The user can add their own parameters there.
      * Take care to update the search.xml file if you add new parameters here.
+     *
      * @param trans
      * @param config
      * @param corpus
+     * @param metadata
      */
-    private void addStandardXsltParameters(XslTransformer trans, GlobalConfig config, WebsiteConfig corpus) {
+    private void addStandardXsltParameters(XslTransformer trans, GlobalConfig config, WebsiteConfig corpus, Result<String, QueryException> metadata) {
         String baseUrl = config.get(Keys.CF_URL_ON_CLIENT);
         String corpusId = corpus.getCorpusId().orElseThrow();
         String corpusUrl = baseUrl + "/" + corpus.getCorpusId().orElseThrow();
+        if (metadata!=null) {
+            trans.addParameter("metadata", metadata.getResult().orElse("<empty/>"));
+        }
 
         // contextRoot is deprecated, but still used in some stylesheets.
         trans.addParameter("contextRoot", baseUrl);
@@ -143,7 +148,7 @@ public class ArticleUtil {
         PaginationInfo pagination = getPaginationInfo(corpus, request, metadata);
         Result<String, QueryException> contents = getDocumentContent(corpus, config, docId, pagination);
 
-        return transformDocument(corpus, corpusMetadata, config, contents);
+        return transformDocument(corpus, corpusMetadata, config, contents, metadata);
     }
 
     public Result<String, QueryException> getTransformedMetadata(
@@ -156,7 +161,7 @@ public class ArticleUtil {
         return transformMetadata(corpus, corpusConfig, config, meta);
     }
 
-    private Result<String, QueryException> transformDocument(WebsiteConfig corpus, CorpusConfig corpusMetadata, GlobalConfig config, Result<String, QueryException> contents) {
+    private Result<String, QueryException> transformDocument(WebsiteConfig corpus, CorpusConfig corpusMetadata, GlobalConfig config, Result<String, QueryException> contents, Result<String, QueryException> metadata) {
         return contents.flatMap(c -> {
             // If the document contents aren't xml, don't bother with the transformer.
             if (!XML_TAG_PATTERN.matcher(c).find()) {
@@ -169,7 +174,7 @@ public class ArticleUtil {
             // we managed to get the contents, and they're definitely xml.
             // Load the transformer.
             return servlet.getStylesheet(corpusMetadata, "article", request, response)
-                    .tap(trans -> this.addStandardXsltParameters(trans, config, corpus))
+                    .tap(trans -> this.addStandardXsltParameters(trans, config, corpus, metadata))
                     .mapWithErrorHandling(trans -> trans.transform(c))
                     .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred while transforming document contents: \n" + e.getMessage() + "\n" + ExceptionUtils.getStackTrace(e)));
         });
@@ -178,7 +183,7 @@ public class ArticleUtil {
     public Result<String, QueryException> transformMetadata(CorpusConfig corpus, WebsiteConfig corpusConfig, GlobalConfig config, Result<String, QueryException> metadata) {
         return metadata.flatMap(md ->
             servlet.getStylesheet(corpus,"meta",request, response)
-            .tap(trans -> this.addStandardXsltParameters(trans, config, corpusConfig))
+            .tap(trans -> this.addStandardXsltParameters(trans, config, corpusConfig, null))
             .mapWithErrorHandling(trans -> trans.transform(md))
             .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred while transforming document metadata contents: \n" + e.getMessage() + "\n" + ExceptionUtils.getStackTrace(e)))
         );
