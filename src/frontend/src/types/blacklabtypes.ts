@@ -44,6 +44,8 @@ export type BLSearchParameters = {
 	listvalues?: string;
 	/** List of comma-separated metadata IDs to include in document info. */
 	listmetadatavalues?: string;
+	/** List of comma-separated span attribute IDs (e.g. speech.speaker) to include in the kwic data. */
+	listspanattributes?: string;
 
 	/** maximum hits to count outside requested window (only does something when > first+number) */
 	maxcount?: number;

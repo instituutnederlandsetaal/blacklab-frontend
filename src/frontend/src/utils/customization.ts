@@ -201,11 +201,23 @@ export const corpusCustomizations = wrapWithErrorHandling({
 			return null; // use default behaviour
 		},
 
-		/**
-		 * Description of the search query to add to the CSV export. Default: none.
-		 */
-		csvDescription: (blSummary: any, fieldDisplayNameFunc: any) => {
-			return null; // use default behaviour
+		/** CSV export customizations */
+		export: {
+
+			/**
+			 * Description of the search query to add to the CSV export. Default: none.
+			 */
+			description: (blSummary: any, fieldDisplayNameFunc: any) => {
+				return null; // use default behaviour
+			},
+
+			/** Should this span attribute be included in the export?
+			 *  (default: no)
+			 */
+			includeSpanAttribute(spanName: string, attrName: string): boolean|null {
+				return null; // use default behaviour
+			},
+
 		},
 
 		// #region docscustomhitinfocolumn
