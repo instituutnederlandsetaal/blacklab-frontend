@@ -14,24 +14,18 @@ import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import javax.xml.transform.TransformerException;
 
 import org.apache.commons.configuration2.ex.ConfigurationException;
@@ -61,6 +55,7 @@ import nl.inl.corpuswebsite.utils.Result;
 import nl.inl.corpuswebsite.utils.ReturnToClientException;
 import nl.inl.corpuswebsite.utils.WebsiteConfig;
 import nl.inl.corpuswebsite.utils.XslTransformer;
+import org.apache.velocity.tools.config.EasyFactoryConfiguration;
 
 /**
  * Main servlet class for the corpus application.
@@ -139,6 +134,24 @@ public class MainServlet extends HttpServlet {
     private void startVelocity(ServletContext ctx) throws IOException {
         // Read in the WebApplicationResourceLoader
         Velocity.setApplicationAttribute(ServletContext.class.getName(), ctx);
+
+
+
+        /*
+        # Set the in- and output encoding
+                input.encoding=UTF-8
+                output.encoding=UTF-8
+
+                runtime.log.logsystem.class=org.apache.velocity.runtime.log.NullLogSystem
+
+        # Configure the resource loader (WebappLoader: load templates from WAR)
+                resource.loader=webapp
+                webapp.resource.loader.class=org.apache.velocity.tools.view.WebappResourceLoader
+                webapp.resource.loader.path=/WEB-INF/templates/
+
+        # Enable strict mode, no implicit variable declaration and implicit swallowing of undefined/null properties in context.
+                        runtime.references.strict=true
+        */
 
         Properties p = new Properties();
         try (InputStream is = getServletContext().getResourceAsStream(VELOCITY_PROPERTIES)) {
