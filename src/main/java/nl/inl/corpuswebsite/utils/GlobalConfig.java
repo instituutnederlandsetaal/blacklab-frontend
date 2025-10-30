@@ -22,9 +22,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
-import javax.servlet.ServletContext;
-import javax.servlet.ServletContextEvent;
-import javax.servlet.ServletContextListener;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletContextEvent;
+import jakarta.servlet.ServletContextListener;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -189,7 +189,7 @@ public class GlobalConfig implements ServletContextListener {
                 // Set it all to the current time so cache busting works properly in development mode.
                 String date = new Date().toString();
                 commitTime = commitMessage = version = date;
-                commitHash = date.hashCode() + ""; // we use this to cache-bust resources so make it a hash without spaces etc.
+                commitHash = date.hashCode() + "-not-available-in-dev"; // we use this to cache-bust resources so make it a hash without spaces etc.
             } else {
                 props.load(stream);
 

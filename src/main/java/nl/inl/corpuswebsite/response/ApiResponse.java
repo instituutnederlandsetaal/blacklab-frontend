@@ -3,7 +3,7 @@ package nl.inl.corpuswebsite.response;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 
 import nl.inl.corpuswebsite.BaseResponse;
 import nl.inl.corpuswebsite.utils.ArticleUtil;
