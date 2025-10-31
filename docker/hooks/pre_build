@@ -1,0 +1,43 @@
+#!/bin/bash
+set -e
+
+echo "Running pre_build hook..."
+echo "Repository root directory: ${REPO_ROOT_DIR}"
+
+
+if [ -z "$SOURCE_BRANCH" ]; then
+	echo "ERROR: SOURCE_BRANCH is not set! Not running in Docker Hub?"
+	exit 1
+fi
+if [ -z "$DOCKERFILE_PATH" ]; then
+	echo "ERROR: DOCKERFILE_PATH is not set! Not running in Docker Hub?"
+	exit 1
+fi
+
+echo "SOURCE_BRANCH=${SOURCE_BRANCH}" # either the tag or the branch, according to the docs.
+
+# Extract major version (e.g., v2.3.4 → 2)
+if [[ "$SOURCE_BRANCH" =~ ^v?([0-9]+)\. ]]; then
+	BASE_IMAGE_TAG="${BASH_REMATCH[1]}"
+	echo "Detected major version: ${BASE_IMAGE_TAG}"
+# Not building from a semver tag, check if our output version makes sense, and then use that
+elif [[ "$DOCKER_TAG" == "dev" ]]; then
+	BASE_IMAGE_TAG="dev"
+	echo "Detected dev version"
+elif [[ "$DOCKER_TAG" == "latest" ]]; then
+	BASE_IMAGE_TAG="latest"
+	echo "Detected latest version"
+# Source branch unknown, target tag (from dockerhub build config) is also unknown, just use dev?
+else
+	BASE_IMAGE_TAG="dev"
+	echo "Unknown tag/branch ${SOURCE_BRANCH}, and unknown target tag ${DOCKER_TAG}, using dev"
+fi
+
+# Mutate Dockerfile in place
+echo "Patching Dockerfile to use BLACKLAB_IMAGE_VERSION=${BASE_IMAGE_TAG}"
+REPO_ROOT_DIR="$(git rev-parse --show-toplevel)"
+ABS_DOCKERFILE_PATH="${REPO_ROOT_DIR}/${DOCKERFILE_PATH}"
+
+sed -i "s|^ARG BLACKLAB_IMAGE_VERSION=.*|ARG BLACKLAB_IMAGE_VERSION=${BASE_IMAGE_TAG}|" "$ABS_DOCKERFILE_PATH"
+
+echo "✅ Dockerfile successfully updated"
