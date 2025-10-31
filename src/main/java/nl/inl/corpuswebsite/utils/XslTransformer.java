@@ -76,7 +76,7 @@ public class XslTransformer {
     private static final TransformerFactory FACTORY
             = TransformerFactory.newInstance("net.sf.saxon.TransformerFactoryImpl", XslTransformer.class.getClassLoader());
 
-    private final Map<String, String> params = new HashMap<>();
+    private final Map<String, Object> params = new HashMap<>();
 
     private final Transformer transformer;
 
@@ -140,7 +140,7 @@ public class XslTransformer {
         StreamResult streamResult = new StreamResult(result);
 
         synchronized (transformer) {
-            for (Entry<String, String> e : params.entrySet()) {
+            for (Entry<String, Object> e : params.entrySet()) {
                 transformer.setParameter(e.getKey(), e.getValue());
             }
 
@@ -159,7 +159,7 @@ public class XslTransformer {
         StreamResult streamResult = new StreamResult(result);
 
         synchronized (transformer) {
-            for (Entry<String, String> e : params.entrySet()) {
+            for (Entry<String, Object> e : params.entrySet()) {
                 transformer.setParameter(e.getKey(), e.getValue());
             }
 
@@ -172,7 +172,7 @@ public class XslTransformer {
 
     }
 
-    public void addParameter(String key, String value) {
+    public void addParameter(String key, Object value) {
         params.put(key, value);
     }
 

@@ -1,5 +1,7 @@
 package nl.inl.corpuswebsite.utils;
 
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.Optional;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
@@ -12,6 +14,12 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import nl.inl.corpuswebsite.MainServlet;
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
+import org.w3c.dom.Document;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 /**
  * <pre>
@@ -116,7 +124,13 @@ public class ArticleUtil {
         String corpusId = corpus.getCorpusId().orElseThrow();
         String corpusUrl = baseUrl + "/" + corpus.getCorpusId().orElseThrow();
         if (metadata!=null) {
-            trans.addParameter("metadata", metadata.getResult().orElse("<empty/>"));
+            final Document doc;
+            try {
+                 doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new InputSource(new StringReader(metadata.getResult().orElse("<empty/>"))));
+            } catch (SAXException |IOException|ParserConfigurationException e) {
+                throw new RuntimeException(e);
+            }
+            trans.addParameter("metadata", doc);
         }
 
         // contextRoot is deprecated, but still used in some stylesheets.

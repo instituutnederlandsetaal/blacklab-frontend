@@ -95,8 +95,8 @@
         <XsltParameter name="corpusId" value="${request:corpusId}"/>
 
         The document untransformed metadata in xml, including those confugured in the index. The value may be <empty/>.
-        In article.xslt you can use <xsl:param name="metadata"/> and <xsl:variable name="metadatadoc" select="doc($metadata)"/>
-        <XsltParameter name="metadata" value="the value as described in https://blacklab.ivdnt.org/server/rest-api/documents/metadata.html"/>
+        In article.xslt you can use <xsl:param name="metadata" as="document-node()"/>
+        <XsltParameter name="metadata" value="xml as described in https://blacklab.ivdnt.org/server/rest-api/documents/metadata.html"/>
      -->
     </XsltParameters>
 </SearchInterface>
