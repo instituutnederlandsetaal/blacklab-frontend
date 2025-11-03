@@ -235,7 +235,7 @@ vuexModules.filters.actions.registerFilter({filter: {
   function registerFilter(params: { 
     filter: {
       componentName: 'filter-range-multiple-fields',
-      /** internal bookkeeping. MUST BE UNIQUE FROM ACTUAL METADATA FIELDS IDS */
+      /** internal bookkeeping. MUST BE UNIQUE AND DISTINCT FROM ACTUAL METADATA FIELD IDS */
       id: string,
       /** Display name to show if there is no localized display name */
       defaultDisplayName: string;
