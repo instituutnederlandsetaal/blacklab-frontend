@@ -19,8 +19,8 @@ interface LocaleState {
 
 class I18nManager {
 	private readonly registeredLocaleIds = reactive<Record<string, true>>({});
-	private localeStates = reactive<Record<string, LocaleState>>({});
-	private nextLocale = ref<string|null>(null);
+	private readonly localeStates = reactive<Record<string, LocaleState>>({});
+	private readonly nextLocale = ref<string|null>(null);
 	private nextFallbackLocale: string | null = null;
 
 	public static PRIORITY_SET_BY_USER = 3;
@@ -90,6 +90,7 @@ class I18nManager {
 		const locale = this.resolveLocale(localeId);
 		if (locale.loading) await locale.loading;
 		delete this.localeStates[localeId];
+		delete this.registeredLocaleIds[localeId];
 	}
 
 	/**
