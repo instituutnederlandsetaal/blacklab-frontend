@@ -1,10 +1,10 @@
-import { unescapeLucene, escapeLucene, splitIntoTerms, mapReduce, cast, spanFilterId } from '@/utils';
 import { FilterValue, Option } from '@/types/apptypes';
+import { cast, escapeLucene, mapReduce, spanFilterId, splitIntoTerms, unescapeLucene } from '@/utils';
 import { ASTNode, ASTRange } from 'lucene-query-parser';
 // @ts-ignore - weird this doesn't work during builds
-import { modes } from './FilterRangeMultipleFields.vue';
 import { FullFilterState } from '@/store/search/form/filters';
 import { debugLog } from '@/utils/debug';
+import { modes } from './FilterRangeMultipleFields.vue';
 
 /** month (m) and day (d) may be empty strings. Month field starts at 1 instead of javascript Date's 0. */
 export type DateValue = {
