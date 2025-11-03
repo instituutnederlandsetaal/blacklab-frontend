@@ -1,39 +1,38 @@
+import cloneDeep from 'clone-deep';
+import LuceneQueryParser from 'lucene-query-parser';
 import memoize from 'memoize-decorator';
 
 import BaseUrlStateParser from '@/store/util/url-state-parser-base';
-import LuceneQueryParser from 'lucene-query-parser';
 
-import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex, spanFilterId } from '@/utils';
-import {parseBcql, Attribute, Result, Token} from '@/utils/bcql-json-interpreter';
+import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, getParallelFieldName, mapReduce, spanFilterId, uiTypeSupport, unescapeRegex, unparenQueryPart } from '@/utils';
+import { Attribute, parseBcql, Result, Token } from '@/utils/bcql-json-interpreter';
+import { debugLog } from '@/utils/debug';
 import parseLucene from '@/utils/luceneparser';
-import {debugLog} from '@/utils/debug';
 
 import * as CorpusModule from '@/store/search/corpus';
-import * as UIModule from '@/store/search/ui';
-import * as HistoryModule from '@/store/search/history';
-import * as TagsetModule from '@/store/search/tagset';
-import * as QueryModule from '@/store/search/query';
 import * as ConceptModule from '@/store/search/form/conceptStore';
 import * as GlossModule from '@/store/search/form/glossStore';
+import * as HistoryModule from '@/store/search/history';
+import * as TagsetModule from '@/store/search/tagset';
+import * as UIModule from '@/store/search/ui';
 import * as UIStore from '@/store/search/ui';
 
 // Form
+import * as ExploreModule from '@/store/search/form/explore';
 import * as FilterModule from '@/store/search/form/filters';
+import * as GapModule from '@/store/search/form/gap';
 import * as InterfaceModule from '@/store/search/form/interface';
 import * as PatternModule from '@/store/search/form/patterns';
-import * as ExploreModule from '@/store/search/form/explore';
-import * as GapModule from '@/store/search/form/gap';
 
 // Results
-import * as ViewModule from '@/store/search/results/views';
 import * as GlobalResultsModule from '@/store/search/results/global';
+import * as ViewModule from '@/store/search/results/views';
 
-import {FilterValue, AnnotationValue} from '@/types/apptypes';
+import { AnnotationValue, FilterValue } from '@/types/apptypes';
 
-import cloneDeep from 'clone-deep';
+import { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { corpusCustomizations } from '@/utils/customization';
-import { CqlAttributeData, CqlAttributeGroupData, CqlQueryBuilderData } from '@/components/cql/cql-types';
 import { getQueryBuilderStateFromParsedQuery } from '@/utils/pattern-utils';
 
 /**
@@ -156,7 +155,6 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		}
 
 		try {
-			// FIXME: code below claims to be important but is never used!?
 			const metadataFields = CorpusModule.get.allMetadataFieldsMap();
 			const filterDefinitions = FilterModule.getState().filters;
 			const allFilters = Object
@@ -171,7 +169,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 				...(luceneString ? mapReduce(parseLucene(luceneString), 'id') : {}),
 				...this.spanFilters  // also include span filters like "within <speech person='Einstein'/>"
 			};
-			Object.values(FilterModule.getState().filters).forEach(filterDefinition => {
+			allFilters.map(id => filterDefinitions[id]).forEach(filterDefinition => {
 				const valueFuncs = getValueFunctions(filterDefinition);
 				let value: unknown = valueFuncs.decodeInitialState ? valueFuncs.decodeInitialState(
 					filterDefinition.id,
