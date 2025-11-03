@@ -121,7 +121,6 @@ class I18nManager {
 	setLocale(localeId: string, priority = I18nManager.PRIORITY_SET_BY_USER): Promise<void> {
 		if (priority < this.highestLocalePrecedence || !localeId) { return Promise.resolve(); }
 		localeId = this.resolveLocale(localeId).value;
-		console.log(`switching locale to ${localeId}`)
 		this.highestLocalePrecedence = priority;
 		this.nextLocale.value = localeId;
 		return this.ensureLocaleLoaded(localeId)
