@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 
-// manage-version.js: Interactive CLI for project version management
-// Requirements: enquirer, simple-git, conventional-changelog, open, xml2js, fs/promises
-
+// manage-version.js: Interactive CLI for project version management and release notes generation.
 
 if (!('Bun' in globalThis)) {
   console.error('\x1b[31m%s\x1b[0m', 'This script requires Bun to run. Please install Bun from https://bun.sh');
@@ -12,19 +10,21 @@ if (!('Bun' in globalThis)) {
 
 import Enquirer from 'enquirer';
 import simpleGit from 'simple-git';
+import fssync from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
 import open from 'open';
-import { parseStringPromise, Builder } from 'xml2js';
 import os from 'os';
+
+import Version from './version.ts';
 
 const git = simpleGit();
 const rootDir = (await (Bun.$`git rev-parse --show-toplevel`).text()).trim();
-const packageJsonPath = path.join(rootDir, 'src/frontend/package.json');
-const pomXmlPath = path.join(rootDir, 'pom.xml');
-const changelogPath = path.join(rootDir, 'CHANGELOG.md');
+const frontendPath = path.join(rootDir, 'src/frontend/');
 const textEditor: string|undefined = (Bun.env.VSCODE_GIT_IPC_HANDLE || Bun.env.TERM_PROGRAM === 'vscode') ? 'code --wait' : (await git.getConfig('core.editor')).value || undefined;
 const GIT_BACKUP_TAG = 'VERSION_BUMP_CHECKPOINT';
+const RELEASE_NOTES_DIR = path.join(rootDir, 'docs/src/060_release_notes/');
+const RELEASE_NOTES_TEMPLATE_FILE = path.join(__dirname, 'release_notes.template.md');
 
 let backupTagCreated = false;
 let tagCreated: string | undefined = undefined;
@@ -85,7 +85,7 @@ process.on('SIGTERM', async () => {
  * Wrapper for Enquirer prompts to handle user cancellation gracefully.
  * If the user presses Ctrl+C during a prompt, it will restore the git checkpoint.
  */
-async function safePrompt<T>(promptConfig: any): Promise<T> {
+async function safePrompt<T>(promptConfig: Parameters<(typeof Enquirer<T>)['prompt']>[0]): Promise<T> {
   try {
     return await Enquirer.prompt<T>(promptConfig);
   } catch (error) {
@@ -99,67 +99,17 @@ async function safePrompt<T>(promptConfig: any): Promise<T> {
   }
 }
 
-class Version {
-  private static readonly versionRegex = /^(\d+)\.(\d+)\.(\d+)(-SNAPSHOT)?$/;
-
-  protected constructor(public major: number, public minor: number, public patch: number, public snapshot: boolean) {}
-  static fromString(version: string): Version {
-    const m = version.match(Version.versionRegex);
-    if (!m) throw new Error('Invalid version: ' + version);
-    return new Version(Number(m[1]), Number(m[2]), Number(m[3]), !!m[4]);
-  }
-  static clone(version: Version): Version {
-    return new Version(version.major, version.minor, version.patch, version.snapshot);
-  }
-  static fromObject(obj: { major: number; minor: number; patch: number; snapshot?: boolean }): Version {
-    return new Version(obj.major, obj.minor, obj.patch, !!obj.snapshot);
-  }
-
-  toString() {
-    return `${this.major}.${this.minor}.${this.patch}${this.snapshot ? '-SNAPSHOT' : ''}`;
-  }
-
-  static highestVersion(v1: Version, v2: Version): Version {
-    if (v1.major !== v2.major) return v1.major > v2.major ? v1 : v2;
-    if (v1.minor !== v2.minor) return v1.minor > v2.minor ? v1 : v2;
-    if (v1.patch !== v2.patch) return v1.patch > v2.patch ? v1 : v2;
-    return v1.snapshot ? v2 : v1; // return non-snapshot version
-  }
-
-  static equals(v1: Version, v2: Version): boolean {
-    return v1.major === v2.major && v1.minor === v2.minor && v1.patch === v2.patch && v1.snapshot === v2.snapshot;
-  }
-
-  static isVersionString(str: string): boolean {
-    return Version.versionRegex.test(str);
-  }
-
-  nextMinorSnapshot(): Version { return new Version(this.major, this.minor + 1, 0, true); }
-  nextPatchSnapshot(): Version { return new Version(this.major, this.minor, this.patch + 1, true); }
-  nextMajorSnapshot(): Version { return new Version(this.major + 1, 0, 0, true); }
-  nonSnapshotVersion(): Version { return new Version(this.major, this.minor, this.patch, false);}
-}
-
 async function getVersion(): Promise<Version> {
-  const npmVersion = await fs.readFile(packageJsonPath, 'utf8').then(JSON.parse).then(pkg => Version.fromString(pkg.version));
-  const pomVersion = await fs.readFile(pomXmlPath, 'utf8').then(xml => parseStringPromise(xml)).then(obj => Version.fromString(obj.project.version[0]));
+  // npm returns version as "version" (with quotes) -> remove quotes
+  const npmVersion = await (Bun.$`cd ${frontendPath} && npm pkg get version`).text().then(v => v.replaceAll('"', '')).then(v => Version.fromString(v.trim()));
+  const pomVersion = await (Bun.$`cd ${rootDir} && mvn help:evaluate -Dexpression=project.version -q -DforceStdout`).text().then(v => Version.fromString(v.trim()));
   if (!Version.equals(npmVersion, pomVersion)) console.warn(`inconsistent versions! NPM: ${npmVersion} - POM: ${pomVersion}`);
   return Version.highestVersion(npmVersion, pomVersion);
 }
 
-async function updatePackageJsonVersion(newVersion: string) {
-  const pkg = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
-  pkg.version = newVersion;
-  await fs.writeFile(packageJsonPath, JSON.stringify(pkg, null, 2) + '\n');
-}
-
-async function updatePomXmlVersion(newVersion: string) {
-  const xml = await fs.readFile(pomXmlPath, 'utf8');
-  const obj = await parseStringPromise(xml);
-  obj.project.version = [newVersion];
-  const builder = new Builder();
-  const newXml = builder.buildObject(obj);
-  await fs.writeFile(pomXmlPath, newXml);
+async function setVersion(newVersion: Version) {
+  await (Bun.$`cd ${frontendPath} && npm version ${newVersion.toString()} --no-git-tag-version --silent`.quiet());
+  await (Bun.$`cd ${rootDir} && mvn versions:set -DnewVersion=${newVersion.toString()} -DgenerateBackupPoms=false`.quiet());
 }
 
 async function ensureCleanGit(): Promise<void> {
@@ -169,54 +119,97 @@ async function ensureCleanGit(): Promise<void> {
   }
 }
 
-async function createChangelog() {
+async function getGitLogSinceLastVersion(): Promise<string> {
   // 1. Find the latest non-SNAPSHOT version tag
-  const versionTags = (await git.tags(['--sort=creatordate', '--merged'])).all.filter(Version.isVersionString);
+  const versionTags = (await git.tags(['--sort=creatordate', '--merged'])).all.filter(v => Version.isVersionString(v) && !Version.fromString(v).snapshot);
   if (!versionTags.length) {
-    throw new Error('No previous release tag found. Cannot create changelog.');
+    throw new Error('No previous release tag found. Cannot get changelog.');
   }
   console.log(`Generating changelog from ${versionTags[versionTags.length-1]} to HEAD`);
+  // Retrieve git log between that tag and HEAD
   const log = (await git.log({ from: versionTags[versionTags.length-1], to: 'HEAD' })).all
     .map(c => [`# ${c.date} (${c.author_name}) <${c.hash}>`, c.message, c.body].join('\n'))
     .join('\n\n');
+  return log;
+}
 
-  await fs.writeFile(changelogPath, log);
+async function spawnEditorForFileAndAwaitExit(filePath: string): Promise<void> {
+  if (textEditor) {
+    const proc = Bun.spawn({
+      cmd: ['sh', '-c', `${textEditor} '${filePath}'`],
+      stdin: 'inherit',
+      stdout: 'inherit',
+      stderr: 'inherit',
+    });
+    const exitCode = await proc.exited;
+    if (exitCode !== 0) throw new Error(`${textEditor} exited with code ${exitCode}`);
+  } else {
+    console.log('Waiting for you to save the file and close the editor before continuing...');
+    await new Promise<void>(async (resolve, reject) => {
+      const proc = await open(filePath);
+      proc.on('error', reject);
+      proc.on('close', () => resolve());
+    });
+  }
+}
 
-  // 5. Let user edit as before
-  async function editChangelogWithInstructions() {
-    // Prepare temp file with instructions and current changelog
-    const tmpPath = path.join(os.tmpdir(), `changelog-edit-${Date.now()}.md`);
-    const instructions = await fs.readFile(path.join(__dirname, 'changelog_instructions.md'), 'utf8');
-    const changelogContent = await fs.readFile(changelogPath, 'utf8');
-    await fs.writeFile(tmpPath, instructions + changelogContent);
 
-    if (textEditor) {
-      const proc = Bun.spawn({
-        cmd: ['sh', '-c', `${textEditor} '${tmpPath}'`],
-        stdin: 'inherit',
-        stdout: 'inherit',
-        stderr: 'inherit',
-      });
-      const exitCode = await proc.exited;
-      console.log('editor returned');
-      if (exitCode !== 0) throw new Error(`${textEditor} exited with code ${exitCode}`);
-    } else {
-      console.log('Waiting for you to close the changelog before continuing.');
-      await new Promise<void>(async (resolve, reject) => {
-        const proc = await open(tmpPath);
-        proc.on('error', reject);
-        proc.on('close', () => resolve());
-      });
+/**
+ * Open an editor for the user to modify/add release notes, return the final content.
+ * @param version The version for which release notes are being created.
+ * @param gitLog The raw git log for the user to edit. Instructions will be prepended.
+ */
+async function promptUserForReleaseNotes(version: Version, gitLog: string): Promise<string> {
+  // Prepare temp file with instructions and current changelog
+  const tmpPath = path.join(os.tmpdir(), `release-notes-draft-${Date.now()}.md`);
+  const template = await fs.readFile(RELEASE_NOTES_TEMPLATE_FILE, 'utf8');
+  const initialContents = `# ${version.toString()}\n\n` + template + `\n<!--\n${gitLog}\n-->`;
+  await fs.writeFile(tmpPath, initialContents);
+
+  // Let user edit, naively check contents
+  let edited: string;
+  while (true) {
+    await spawnEditorForFileAndAwaitExit(tmpPath);
+    edited = await fs.readFile(tmpPath, 'utf8');
+    
+    let warning: string = '';
+    if (edited === initialContents) { 
+      warning = 'Warning: File was not edited.'; 
+    } else if (edited.includes('<!--') || edited.includes('-->')) { 
+      warning = 'Warning: File still contains instructions/comments.';
     }
 
-    // Read, filter, and write back to changelog
-    const edited = await fs.readFile(tmpPath, 'utf8');
-    const filtered = edited.split('\n').filter(line => !line.trim().startsWith('//')).join('\n');
-    await fs.writeFile(changelogPath, filtered.trim() + '\n');
-    await fs.unlink(tmpPath);
+    if (warning) {
+      const {ok} = await safePrompt<{ok: boolean}>({
+        type: 'confirm',
+        name: 'ok',
+        message: `${warning}. Use anyway?`,
+        initial: false,
+      });
+      if (!ok) continue;
+    }
+    break;
   }
 
-  await editChangelogWithInstructions();
+  await fs.unlink(tmpPath);
+  return edited;
+}
+
+function getReleaseNotesFile(version: Version): string {
+  if (!fssync.existsSync(RELEASE_NOTES_DIR)) {
+    throw new Error(`Release notes directory does not exist: ${RELEASE_NOTES_DIR}\n Please fix the ${__filename} script.`);
+  }
+  return path.join(RELEASE_NOTES_DIR, `${version}.md`);
+}
+
+async function createReleaseNotes() {
+  const currentVersion = await getVersion();
+  const rawChangelog = await getGitLogSinceLastVersion();
+  const releaseNotes = await promptUserForReleaseNotes(currentVersion, rawChangelog);
+
+  const finalLocation = getReleaseNotesFile(currentVersion);
+  console.log(`Writing changelog to ${finalLocation}`);
+  await fs.writeFile(finalLocation, releaseNotes.trim() + '\n');
 }
 
 const actions = {
@@ -237,8 +230,7 @@ const actions = {
         ]
       });
 
-      await updatePackageJsonVersion(nextVersion);
-      await updatePomXmlVersion(nextVersion);
+      await setVersion(Version.fromString(nextVersion));
       await git.add(rootDir);
       await git.commit(`Bump version to ${nextVersion}`);
       console.log(`Version updated to ${nextVersion}`);
@@ -257,14 +249,44 @@ const actions = {
       }
 
       const releaseVersion = currentVersion.nonSnapshotVersion();
-      await updatePackageJsonVersion(releaseVersion.toString());
-      await updatePomXmlVersion(releaseVersion.toString());
-      await createChangelog();
+      await setVersion(releaseVersion);
+      await createReleaseNotes();
       await git.add(rootDir);
       await git.commit(`Release version ${releaseVersion}`);
       await git.addTag(releaseVersion.toString());
       tagCreated = releaseVersion.toString();
       await actions.updateVersion.handler();
+    }
+  },
+  cleanupAfterFailedRun: {
+    order: -1,
+    message: 'Cleanup after failed run',
+    hint: 'Restore git state to before running this script.',
+    async handler() {
+      await git.tags(['--sort=creatordate', '--merged']).then(tags => {
+        for (const tag of tags.all) {
+          if (Version.isVersionString(tag)) { tagCreated = tag; } // a version newer than the last backup tag
+          backupTagCreated = tag === GIT_BACKUP_TAG;
+          if (backupTagCreated) { break; } // found the backup tag, stop going further
+        }
+      });
+      if (!backupTagCreated) {
+        console.log('No backup tag found. Nothing to clean up.');
+        return;
+      }
+
+      const {ok} = await safePrompt<{ok: boolean}>({
+        type: 'confirm',
+        name: 'ok',
+        message: `Found a backup tag${tagCreated ? ` and a version tag ${tagCreated}` : ''}. Delete tags and Restore to checkpoint now?`,
+        initial: true,
+      });
+      if (ok) {
+        restoreToCheckpoint();
+      } else {
+        console.log('Leaving git state as is. Please restore manually if needed.');
+      }
+    
     }
   }
 }
@@ -272,7 +294,7 @@ const actions = {
 async function main() {
   await ensureCleanGit();
 
-  const {actionsToPerform} = await safePrompt<{actionsToPerform: Array<keyof typeof actions>, push: boolean}>({
+  const actionsToPerform = await safePrompt<{actionsToPerform: Array<keyof typeof actions>, push: boolean}>({
     type: 'multiselect',
     message: 'Select actions to perform',
     name: 'actionsToPerform',
@@ -283,8 +305,16 @@ async function main() {
         message: action.message,
         hint: action.hint,
       }))
-  });
-  actionsToPerform.sort((a, b) => actions[a].order - actions[b].order);
+  })
+  .then(res => res.actionsToPerform.map(a => actions[a]))
+  .then(r => r.sort((a, b) => a.order - b.order));
+  
+
+  if (actionsToPerform.includes(actions.cleanupAfterFailedRun)) {
+    console.log('Running cleanup action... Ignoring other selected actions.');
+    await actions.cleanupAfterFailedRun.handler();
+    return;
+  }
 
   // Create backup checkpoint
   await git.addTag(GIT_BACKUP_TAG);
@@ -292,8 +322,11 @@ async function main() {
 
   try {
     for (const action of actionsToPerform) {
-      await actions[action].handler();
+      await action.handler();
     }
+
+    // Clean up backup tag on success
+    await cleanupBackupTag();
 
     const {push} = await safePrompt<{push: boolean}>({
       type: 'confirm',
@@ -305,9 +338,6 @@ async function main() {
       await git.push();
       await git.pushTags();
     }
-
-    // Clean up backup tag on success
-    await cleanupBackupTag();
 
   } catch (error) {
     console.error('\nAn error occurred during execution:', error);

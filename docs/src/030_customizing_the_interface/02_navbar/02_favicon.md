@@ -23,7 +23,7 @@ This is done by adding a `<FaviconDir>` element to the `search.xml` file. The fa
     static
       icon
         favicon.ico the favicon file (`ico` format)
-        ... other favicon files (see) [full spec](@github:/src/main/webapp/WEB-INF/templates/header.vm)
+        ... other favicon files (see header.vm)
   corpus-2
     ...
 </FileTree>
