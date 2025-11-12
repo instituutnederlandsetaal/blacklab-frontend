@@ -1,7 +1,7 @@
 package nl.inl.corpuswebsite.utils;
 
 import java.io.File;
-import java.io.InputStream;
+import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
@@ -11,165 +11,168 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.function.Function;
-import java.util.logging.Level;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 
-import javax.xml.transform.ErrorListener;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Templates;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerConfigurationException;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.stream.StreamResult;
+import javax.xml.transform.Source;
 import javax.xml.transform.stream.StreamSource;
 
-import org.apache.commons.lang3.tuple.Pair;
+import net.sf.saxon.s9api.Message;
+import net.sf.saxon.s9api.Processor;
+import net.sf.saxon.s9api.QName;
+import net.sf.saxon.s9api.SaxonApiException;
+import net.sf.saxon.s9api.Serializer;
+import net.sf.saxon.s9api.XdmAtomicValue;
+import net.sf.saxon.s9api.XsltCompiler;
+import net.sf.saxon.s9api.XsltExecutable;
+import net.sf.saxon.s9api.XsltTransformer;
+import net.sf.saxon.lib.ErrorReporter;
+import net.sf.saxon.s9api.XmlProcessingError;
 
-import net.sf.saxon.trans.XPathException;
 
 public class XslTransformer {
     private static final Logger logger = Logger.getLogger(XslTransformer.class.getName());
 
-    private static class CapturingErrorListener implements ErrorListener {
-        private final List<Pair<String, Exception>> exceptions = new ArrayList<>();
+    /**
+     * Error reporter that captures compilation errors.
+     */
+    private static class CapturingErrorReporter implements ErrorReporter {
+        private final List<String> errors = new ArrayList<>();
 
         @Override
-        public void error(TransformerException e) throws TransformerException {
-            this.exceptions.add(Pair.of(this.getDescriptiveMessage(e), e));
-        }
-
-        @Override
-        public void fatalError(TransformerException e) throws TransformerException {
-            this.exceptions.add(Pair.of(this.getDescriptiveMessage(e), e));
-        }
-
-        @Override
-        public void warning(TransformerException e) throws TransformerException {
-            // just log these, no need to store them as errors
-            logger.log(Level.WARNING, getDescriptiveMessage(e), e);
-        }
-
-        public List<Pair<String, Exception>> getErrorList() {
-            return this.exceptions;
-        }
-
-        private String getDescriptiveMessage(TransformerException e) {
-            if (e instanceof TransformerConfigurationException) {
-                final TransformerConfigurationException ee  = (TransformerConfigurationException) e;
-                return ee.getMessageAndLocation();
-            } else if (e instanceof XPathException) {
-                XPathException ee = (XPathException) e;
-                return ee.getErrorCodeQName().getLocalPart() + " in " + ee.getHostLanguage() + ": " + ee.getMessageAndLocation();
-            } else {
-                return e.getMessageAndLocation();
+        public void report(XmlProcessingError error) {
+            String message = error.getMessage();
+            if (error.getLocation() != null) {
+                message = error.getLocation().getSystemId() + " line " + error.getLocation().getLineNumber() + ": " + message;
             }
+            errors.add(message);
+            logger.warning("XSLT compilation error: " + message);
+        }
+
+        public String getErrorMessages() {
+            return String.join("\n", errors);
+        }
+
+        public boolean hasErrors() {
+            return !errors.isEmpty();
         }
     }
 
     /**
-     * Thread-safe as long as you don't change Configuration, which we don't. See
-     * https://saxonica.plan.io/boards/2/topics/5645.
+     * Shared processor instance (thread-safe).
      */
-    private static final TransformerFactory FACTORY
-            = TransformerFactory.newInstance("net.sf.saxon.TransformerFactoryImpl", XslTransformer.class.getClassLoader());
+    private static final Processor PROCESSOR = new Processor(false);
 
     private final Map<String, String> params = new HashMap<>();
+    private final XsltExecutable executable;
+    private final String id;
 
-    private final Transformer transformer;
-
-    private static final Map<String, Templates> TEMPLATES = new HashMap<>();
-
+    private static final Map<String, XsltExecutable> EXECUTABLE_CACHE = new HashMap<>();
     private static boolean useCache = true;
 
     public static void setUseCache(boolean use) {
         useCache = use;
     }
 
-    static {
-        FACTORY.setErrorListener(new CapturingErrorListener());
-    }
-
     /**
-     * Constructs a new transformer (and templates if not cached and cache is enabled) and caches the templates if caching is enabled.
-     *
-     * @param id
-     * @param source
-     * @return
-     * @throws TransformerException
+     * Compiles and caches an XSLT stylesheet.
      */
-    private static Transformer get(String id, StreamSource source) throws Exception {
-        synchronized (TEMPLATES) {
+    private static XsltExecutable compile(String id, Source source) throws SaxonApiException {
+        synchronized (EXECUTABLE_CACHE) {
+            if (useCache && EXECUTABLE_CACHE.containsKey(id)) {
+                return EXECUTABLE_CACHE.get(id);
+            }
+
+            XsltCompiler compiler = PROCESSOR.newXsltCompiler();
+            CapturingErrorReporter errorReporter = new CapturingErrorReporter();
+            compiler.setErrorReporter(errorReporter);
+            
             try {
-                FACTORY.setErrorListener(new CapturingErrorListener()); // renew to remove old exceptions
-                Function<String, Templates> gen = __ -> { try { return FACTORY.newTemplates(source); } catch (TransformerException e) { throw new RuntimeException(e); } };
-                Templates t = (useCache ? TEMPLATES.computeIfAbsent(id, gen) : gen.apply(id));
-                return t.newTransformer();
-            } catch (Exception e) {
-                CapturingErrorListener l = (CapturingErrorListener) FACTORY.getErrorListener();
-                if (!l.getErrorList().isEmpty()) {
-                    throw l.getErrorList().get(0).getRight();
+                XsltExecutable exec = compiler.compile(source);
+                
+                if (useCache) {
+                    EXECUTABLE_CACHE.put(id, exec);
+                }
+                
+                return exec;
+            } catch (SaxonApiException e) {
+                // If we captured error details, include them in the exception
+                if (errorReporter.hasErrors()) {
+                    throw new SaxonApiException(errorReporter.getErrorMessages(), e);
                 }
                 throw e;
             }
         }
     }
 
-    public XslTransformer(File stylesheet) throws Exception {
-        transformer = get(stylesheet.getAbsolutePath(), new StreamSource(stylesheet));
+    public XslTransformer(File stylesheet) throws SaxonApiException {
+        this.id = stylesheet.getAbsolutePath();
+        this.executable = compile(this.id, new StreamSource(stylesheet));
     }
 
-    public XslTransformer(String id, URI uri) throws Exception {
-        transformer = get(id, new StreamSource(uri.toString()));
+    public XslTransformer(String id, URI uri) throws SaxonApiException {
+        this.id = id;
+        this.executable = compile(this.id, new StreamSource(uri.toString()));
     }
 
-    public XslTransformer(String id, Reader sheet) throws Exception {
-        transformer = get(id, new StreamSource(sheet));
+    public XslTransformer(String id, Reader sheet) throws SaxonApiException {
+        this.id = id;
+        this.executable = compile(this.id, new StreamSource(sheet));
     }
 
-    public XslTransformer(String id, String xsl) throws Exception {
+    public XslTransformer(String id, String xsl) throws SaxonApiException {
         this(id, new StringReader(xsl));
     }
 
-    public String transform(String source)
-            throws TransformerException {
-        StreamSource ssSource = new StreamSource(new StringReader(source));
-        StringWriter result = new StringWriter();
-        StreamResult streamResult = new StreamResult(result);
-
-        synchronized (transformer) {
-            for (Entry<String, String> e : params.entrySet()) {
-                transformer.setParameter(e.getKey(), e.getValue());
-            }
-
-            transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
-            //transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.transform(ssSource, streamResult);
-            transformer.reset();
+    public String transform(String source) throws SaxonApiException, IOException {
+        try (StringWriter result = new StringWriter()) {
+            this.streamTransform(new StringReader(source), result);
+            return result.toString();
         }
-
-        return result.toString();
     }
 
-    public <W extends Writer> W streamTransform(Reader source, W result)
-            throws TransformerException {
-        StreamSource ssSource = new StreamSource(source);
-        StreamResult streamResult = new StreamResult(result);
-
-        synchronized (transformer) {
-            for (Entry<String, String> e : params.entrySet()) {
-                transformer.setParameter(e.getKey(), e.getValue());
+    public <W extends Writer> W streamTransform(Reader source, W result) throws SaxonApiException {
+        XsltTransformer transformer = executable.load();
+        
+        // Capture xsl:message output
+        StringBuilder capturedMessages = new StringBuilder();
+        Consumer<Message> messageHandler = (Message message) -> {
+            String content = message.getContent().getStringValue();
+            if (capturedMessages.length() > 0) {
+                capturedMessages.append("\n");
             }
-
-            transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
-            transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-            transformer.transform(ssSource, streamResult);
-            transformer.reset();
+            capturedMessages.append(content);
+            logger.info("XSLT message: " + content);
+        };
+        transformer.setMessageHandler(messageHandler);
+        
+        // Set parameters
+        for (Map.Entry<String, String> entry : params.entrySet()) {
+            transformer.setParameter(new QName(entry.getKey()), 
+                                    new XdmAtomicValue(entry.getValue()));
         }
-        return result;
 
+        // Set up source and destination
+        StreamSource streamSource = new StreamSource(source);
+        transformer.setSource(streamSource);
+        
+        Serializer serializer = PROCESSOR.newSerializer(result);
+        serializer.setOutputProperty(Serializer.Property.ENCODING, "UTF-8");
+        serializer.setOutputProperty(Serializer.Property.INDENT, "yes");
+        transformer.setDestination(serializer);
+
+        try {
+            transformer.transform();
+        } catch (SaxonApiException e) {
+            // Include captured messages in the exception
+            String messages = capturedMessages.toString();
+            if (!messages.isEmpty() && !messages.equals(e.getMessage())) {
+                throw new SaxonApiException(messages, e);
+            }
+            throw e;
+        }
+
+        return result;
     }
 
     public void addParameter(String key, String value) {

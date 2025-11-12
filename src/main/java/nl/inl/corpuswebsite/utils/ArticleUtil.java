@@ -8,7 +8,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import nl.inl.corpuswebsite.MainServlet;
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
@@ -171,7 +170,7 @@ public class ArticleUtil {
             return servlet.getStylesheet(corpusMetadata, "article", request, response)
                     .tap(trans -> this.addStandardXsltParameters(trans, config, corpus))
                     .mapWithErrorHandling(trans -> trans.transform(c))
-                    .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred while transforming document contents: \n" + e.getMessage() + "\n" + ExceptionUtils.getStackTrace(e)));
+                    .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error transforming document: " + e.getMessage()));
         });
     }
 
@@ -180,7 +179,7 @@ public class ArticleUtil {
             servlet.getStylesheet(corpus,"meta",request, response)
             .tap(trans -> this.addStandardXsltParameters(trans, config, corpusConfig))
             .mapWithErrorHandling(trans -> trans.transform(md))
-            .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred while transforming document metadata contents: \n" + e.getMessage() + "\n" + ExceptionUtils.getStackTrace(e)))
+            .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error transforming metadata: " + e.getMessage()))
         );
     }
 
