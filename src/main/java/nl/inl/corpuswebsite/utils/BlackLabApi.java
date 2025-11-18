@@ -27,7 +27,8 @@ public class BlackLabApi {
 	}
 
 	private AuthRequest authRequest() {
-		var req = new AuthRequest(request, response);
+		var req = new AuthRequest(request, response)
+			.query("api", "4"); // compat
 
 		readRequestParameter(request, config.get(Keys.AUTH_SOURCE_TYPE), config.get(Keys.AUTH_SOURCE_NAME))
 				.ifPresent(auth -> setParameter(req, config.get(Keys.AUTH_TARGET_TYPE), config.get(Keys.AUTH_TARGET_NAME), auth));
