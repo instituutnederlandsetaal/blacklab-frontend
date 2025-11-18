@@ -1,12 +1,10 @@
-export type BLFSchema = {
+type BLFSchemaCommon = {
 	/** Displayname of this format. I.e. without the owner's username etc. */
 	displayName?: string;
 	/** Description of the format. E.g. which files it's meant for. */
 	description?: string;
 	/** Url where more information can be found (optional) */
 	helpUrl?: string;
-	/** DEPRECATED.  */
-	baseFormat?: string;
 
 	/** For your own administration, not used by BlackLab */
 	type?: string;
@@ -52,10 +50,7 @@ export type BLFSchema = {
 
 	/** Xpath: what elements starts a new document? */
 	documentPath: string;
-
-	/** What annotation sets are in the document? */
-	annotatedFields: { [annotatedFieldId: string]: AnnotatedField };
-
+	
 	/** Embedded metadata in document */
 	metadata: Metadata;
 	/** Analyzer to use for metadata fields. Unless overridden in the field */
@@ -77,6 +72,24 @@ export type BLFSchema = {
 	store?: boolean;
 }
 
+
+/** @deprecated move to version 2. See https://blacklab.ivdnt.org/guide/index-your-data/miscellaneous.html#configuration-versions-1-and-2 */
+type BLFSchemaV1 = BLFSchemaCommon&{
+	/** @deprecated move to version 2. See https://blacklab.ivdnt.org/guide/index-your-data/miscellaneous.html#configuration-versions-1-and-2 */
+	version?: 1;
+	/** @deprecated DEPRECATED.  */
+	baseFormat?: string;
+
+	/** What annotation sets are in the document? */
+	annotatedFields: { [annotatedFieldId: string]: AnnotatedFieldV1 };
+}
+type BLFSchemaV2 = BLFSchemaCommon&{
+	version: 2;
+
+	/** What annotation sets are in the document? */
+	annotatedFields: { [annotatedFieldId: string]: AnnotatedFieldV2 };
+}
+
 type Metadata = {
 	/** Xpath: What element (relative to documentPath) contains the metadata? (If omitted, entire document is used.) */
 	containerPath?: string;
@@ -86,7 +99,7 @@ type Metadata = {
 	fields: MetadataField[];
 }
 
-type AnnotatedField = {
+type AnnotatedFieldCommon = {
 	/** How to display the field in the interface (optional) */
 	displayName?: string;
 	/** How to describe the field in the interface (optional) */
@@ -100,6 +113,16 @@ type AnnotatedField = {
 	tokenIdPath?: string;
 	/** Xpath: punctuation between words. */
 	punctPath?: string;
+	
+
+}
+type AnnotatedFieldV1 = AnnotatedFieldCommon&{
+	/** 
+	 * @description What tags occurring between the word tags do we wish to index? (relative to containerPath)  
+	 * @note your format is using the old version (version: 1), and this documentation is for the new version.
+	 * @see https://blacklab.ivdnt.org/guide/index-your-data/spans.html
+	 */
+	inlineTags?: InlineTagV1[];
 	/**
 	 * What annotation can each word have? How do we index them?
 	 * (annotations are also called "(word) properties" in BlackLab)
@@ -107,41 +130,87 @@ type AnnotatedField = {
 	 * NOTE: forEachPath is NOT allowed for annotations, because we need to know all annotations before indexing,
 	 *     and with forEachPath you could run in to an unknown new annotation mid-way through.
 	 */
-	annotations: Annotation[];
+	annotations: AnnotationV1[];
+
 	/**
 	 * Standoff annotations are annotations that are specified in a different part of the document.
-	 * See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations
+	 * @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations
 	 */
-	standoffAnnotations?: StandoffAnnotation[];
-	/** What tags occurring between the word tags do we wish to index? (relative to containerPath) */
-	inlineTags?: InlineTag[];
-}
+	standoffAnnotations?: StandoffAnnotationV1[];
+};
+type AnnotatedFieldV2 = AnnotatedFieldCommon&{
+	/** 
+	 * @description What tags occurring between the word tags do we wish to index? (relative to containerPath) 
+	 * @see https://blacklab.ivdnt.org/guide/index-your-data/spans.html
+	 */
+	inlineTags?: InlineTagV2[];
+	/**
+	 * What annotation can each word have? How do we index them?
+	 * (annotations are also called "(word) properties" in BlackLab)
+	 * (valuePaths relative to wordPath)
+	 * NOTE: forEachPath is NOT allowed for annotations, because we need to know all annotations before indexing,
+	 *     and with forEachPath you could run in to an unknown new annotation mid-way through.
+	 */
+	annotations: AnnotationV2[];
 
-type InlineTag = {
+	/**
+	 * Standoff annotations are annotations that are specified in a different part of the document.
+	 * @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations
+	 */
+	standoffAnnotations?: StandoffAnnotationV2[];
+};
+
+type InlineTagCommon = {
 	/** Xpath: relative to parent AnnotatedField's containerPath */
 	path: string;
 	/** Xpath: Store an id with this inline tag ('path'), so you can index standoff annotations referring to this id later. */
 	tokenIdPath?: string;
+	/** Css class to give these tags in the automatic xslt generation */
+	displayAs?: string;
+}
+type InlineTagV1 = InlineTagCommon&{
 	/** E.g. "xml:id": Don't index Unique ids unless you need them; they slow down indexing and searching and increase index size */
 	excludeAttributes?: string[];
 	/** Acts as attribute whitelist: Only index these attributes. */
 	includeAttributes?: string[];
-	/** Css class to give these tags in the automatic xslt generation */
-	displayAs?: string;
+}
+type InlineTagV2 = InlineTagCommon&{
+	attributes?: Array<{
+		/** Exclude all attributes that aren't named in 'attributes' (i.e. this) list  */
+		exclude?: boolean;
+		/** Include the attribute with this name */
+		name?: string; 
+		/** 
+		 * Xpath: supply a value for this attribute yourself.  
+		 * This also works for attributes that don't exist in the original xml,  
+		 * allowing you to create new attributes based on existing ones, or constant values.
+		 * 
+		 * E.g. for an element `<tag a="first" b="second"/>`,  
+		 * you could have an attribute with 
+		 * ```yaml
+		 * - name: c 
+		 *   valuePath: concat(@a, "_from_a")
+		 *   # result c="first_from_a"
+		 * ```
+		*/
+		valuePath?: string;
+		/** 
+		 * @description what CSS class to use (when using autogenerated XSLT) 
+		 * @see https://blacklab.ivdnt.org/guide/index-your-data/miscellaneous.html#automatic-xslt-generation 
+		 */
+		displayAs: string;
+	}>
 }
 
-type AnnotationBase = {
-	/** Name of the annotation */
+/** Base shared by root- and subannotation, without version-specific fields  */
+type AnnotationBaseCommon = {
+/** Name of the annotation */
 	name: string;
 	/** Name of the annotation in the interface. Defaults to the regular name. */
 	displayName?: string;
 	/** Description of the annotation in the interface. */
 	description?: string;
 
-	/** Xpath (optional): what element all other Xpaths in this block are relative to.  */
-	basePath?: string;
-	/** Xpath: what element contains the value of this annotation */
-	valuePath: string;
 	/**
 	 * Xpath: Store some xpath results before evaluating valuePath,
 	 * the stored results can now be used in valuePath.
@@ -178,6 +247,15 @@ type AnnotationBase = {
 	 * Defaults to true.
 	 */
 	forwardIndex?: boolean;
+	
+	/** Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false. */
+	isInternal?: boolean;
+
+	/** Post-process values. Every process entry is evaluated in order with the output of the previous one as input. */
+	process?: Process[];
+};
+/** Base shared by root- and subannotation, with fields exclusive to v1 */
+type AnnotationBaseV1 = AnnotationBaseCommon&{
 	/** Defaults to false. */
 	multipleValues?: boolean;
 	/**
@@ -188,38 +266,61 @@ type AnnotationBase = {
 	allowDuplicateValues?: boolean;
 	/** Store the xml instead of the text when 'valuePath' results in an xml element. */
 	captureXml?: boolean;
-	/** Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false. */
-	isInternal?: boolean;
-
-	/** Post-process values. Every process entry is evaluated in order with the output of the previous one as input. */
-	process?: Process[];
+	/** Replace values with other values. Takes effect AFTER processing. */
+	mapValues?: {[originalValue: string]: string}
+}
+/** Base shared by root- and subannotation, with fields exclusive to v2 */
+type AnnotationBaseV2 = AnnotationBaseCommon&{
+	/** @deprecated use xpath "serialize(.)" */
+	captureXml: never;
+	/** @deprecated now always true. */
+	multipleValues: never;
+	/** @deprecated now always automatically performed */
+	allowDuplicateValues: never;
+	/** @deprecated use the 'map' processing step instead */
+	mapValues: never;
 }
 
+
+type AnnotationRequiredValuePath = {
+	/** Xpath (optional): what element all other Xpaths in this block are relative to.  */
+	basePath?: string;
+	/** Xpath: what element contains the value of this annotation */
+	valuePath: string;
+}
+type AnnotationOptionalValuePath = {
+	/** Xpath (optional): what element all other Xpaths in this block are relative to.  */
+	basePath?: string;
+	/** Xpath: what element contains the value of this annotation */
+	valuePath?: string;
+}
+type AnnotationV1 = AnnotationRequiredValuePath&AnnotationBaseV1&{subannotations?: SubAnnotationV1[]};
+type AnnotationV2 = AnnotationRequiredValuePath&AnnotationBaseV2&{subannotations?: SubAnnotationV2[]};
+// Subannotations have optional valuePath, root annotations require it. Subannotations also allow for-each, root annotations do not.
+/** @name regular subannotation */
+type SubAnnotationV1 = (AnnotationOptionalValuePath&AnnotationBaseV1)|SubAnnotationForEach;
+/** @name regular subannotation */
+type SubAnnotationV2 = (AnnotationOptionalValuePath&AnnotationBaseV2)|SubAnnotationForEach;
+
+/** 
+ * @name for-each subannotation
+ * @description a subannotation that will create multiple distinct subannotations by looping over the forEachPath
+ *              the generated subannotations can be further specified by adding extra subannotation blocks with a name that matches one of the 'namePath' results.
+ */
 type SubAnnotationForEach = {
 	forEachPath: string;
 	namePath: string;
 	valuePath: string;
 }
+type StandoffAnnotationBase<T extends AnnotationBaseCommon&AnnotationRequiredValuePath>= StandoffAnnotationRegular<T> | StandoffAnnotationMultipleTokens<T> | StandoffAnnotationDependencyRelation;
+type StandoffAnnotationV1 = StandoffAnnotationBase<AnnotationV1>;
+type StandoffAnnotationV2 = StandoffAnnotationBase<AnnotationV2>;
 
-type SubAnnotationEnrichment = Omit<AnnotationBase, 'valuePath'>;
-/**
- * SubAnnotations can be either a normal annotation declaration,
- * or a special for-each, in which the remaining properties are ignored.
- * or they can be an enrichment for a target of the for-each annotation.
- */
-type SubAnnotation = SubAnnotationForEach|SubAnnotationEnrichment|AnnotationBase;
-
-type Annotation = AnnotationBase&{
-	/**
-	 * Sub annotations can be a special annotation contianing a forEachPath,
-	 * or just regular annotations,
-	 * or blocks without a valuePath, that set options for annotations generated by the another forEachPath
-	 */
-	subannotations?: SubAnnotation[];
-}
-
-type StandoffAnnotation= StandoffAnnotationRegular | StandoffAnnotationMultipleTokens | StandoffAnnotationDependencyRelation;
-type StandoffAnnotationRegular = {
+/** 
+ * @title single token standoff annotation
+ * @description Standoff annotation representing annotations that apply to a single token/node.
+ * @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
+type StandoffAnnotationRegular<T extends AnnotationBaseCommon&AnnotationRequiredValuePath> = {
 	/** Xpath: where to find the standoff. */
 	path: string;
 	/**
@@ -227,50 +328,76 @@ type StandoffAnnotationRegular = {
 	 * may have multiple matches; values will be indexed at all those tokens
 	 */
 	tokenRefPath: string;
-
 	/** What new annotations to store in the referenced tokens. Relative to 'path'. */
-	annotations: Annotation[];
+	annotations: T[];
 }
 
-/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
-type StandoffAnnotationMultipleTokens = {
+/** 
+ * @title multiple token standoff annotation
+ * @description Standoff annotation representing annotations that are the same for a stretch of multiple tokens.
+ * @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
+type StandoffAnnotationMultipleTokens<T extends AnnotationBaseCommon&AnnotationRequiredValuePath> = {
 	/** Xpath: where to find the standoff. */
 	path: string;
-	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
+	/** @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
 	spanStartPath: string;
-	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
+	/** @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
 	spanEndPath: string;
-	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
+	/** @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
 	spanEndIsInclusive: boolean;
-	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
-	spanNamePath: string;
-	annotations: Annotation[];
+	/** @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
+	valuePath: string;
+	annotations: T[];
 }
-/** See https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations */
+/** 
+ * @title dependency standoff annotation
+ * @description Standoff annotation representing a dependency relation between two tokens.
+ * @see https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations */
 type StandoffAnnotationDependencyRelation = {
-	/** See https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations */
+	/** @see https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations */
 	type: 'relation';
-	/** Xpath relative to which the valuePath, sourcePath and targetPath are evaluated. This Xpath itself is relative to the document's root node (i.e. containerPath). */
+	/** Xpath: context relative to which the valuePath, sourcePath and targetPath are evaluated. 
+	 * This Xpath itself is relative to the document's root node (i.e. containerPath). */
 	path?: string;
 
 	/** 
-	 * See https://blacklab.ivdnt.org/guide/query-language/relations.html 
-	 * See https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations
+	 * @see https://blacklab.ivdnt.org/guide/query-language/relations.html 
+	 * @see https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations
 	 * 
-	 * When indexing relations in BlackLab, you assign them a class, a short string indicating what family of relations it belongs to. 
-	 * For example, you could assign the class string dep to dependency relations. An obj relation would become dep::obj.
-	 * To simplify things, rel is the default relation class in BlackLab. 
-	 * If you index relations without a class, they will automatically get this class. 
-	 * Similarly, when searching, if you don't specify a class, rel:: will be prepended to the relation type. 
-	 * So if you're not indexing different classes of relations, you can just ignore the classes.
+	 * When indexing relations in BlackLab, you assign them a class, a short string indicating what family of relations it belongs to.  
+	 * For example, you could assign the class string dep to dependency relations. An obj relation would become dep::obj.  
+	 * To simplify things, rel is the default relation class in BlackLab.  
+	 * If you index relations without a class, they will automatically get this class.  
+	 * Similarly, when searching, if you don't specify a class, rel:: will be prepended to the relation type.  
+	 * So if you're not indexing different classes of relations, you can just ignore the classes.  
 	 */
 	relationClass?: string;
 	/** Xpath: the value/name of the relation. Relative to 'path'. */
 	valuePath: string;
 	/** Xpath: Note that the root node should have an empty value for source. */
 	sourcePath: string;
-	/** Xpath for the ID of the target token/word/node. */
+	/** Xpath: for the ID of the target token/word/node. */
 	targetPath: string;
+
+	/** 
+	 * Xpath: What version does the target attribute refer to? 
+	 * 
+	 * For relations: how to find target version for the relation. Defaults to empty, meaning 'this version'.
+	 *
+	 * NOTE: targetField and targetVersion are combined into a single field in the index.
+	 * For example, if targetField is empty and targetVersion resolves to "de", and this field is "contents__nl",
+	 * the target field for the relations will be the field will be "contents__de".
+	 * 
+	*/
+	targetVersionPath?: string;
+
+	/** 
+	 * For relations: target field for the relation. Defaults to empty, meaning 'this field'. 
+	 * NOTE: targetField and targetVersion are combined into a single field in the index.
+	 * For example, if targetField is empty and targetVersion is "de", and this field is "contents__nl",
+	 * the target field for the relations will be the field will be "contents__de".
+	 */
+	targetField?: string;
 }
 
 type MetadataField= MetadataFieldSingle | MetadataFieldForEach;
@@ -311,8 +438,6 @@ type MetadataFieldSingle = {
 	uiType?: 'autocomplete'|'combobox'|'range'|'select'|'dropdown'|'checkbox'|'radio'|'date'|'text';
 	/** Post-process values. Every process entry is evaluated in order with the output of the previous one as input. */
 	process?: Process[];
-	/** Replace values with other values. Takes effect AFTER processing. */
-	mapValues?: {[originalValue: string]: string}
 
 	/** When to replace value with default (or ignore it altogether). Defaults to 'never' */
 	unknownCondition?: 'never'|'missing'|'empty'|'missing_or_empty';
@@ -449,6 +574,7 @@ type ProcessReplace = {
 /**
  * @title Default value
  * @description Set a default value if there is none. The default value can be hardcoded, or retrieved from another metadata field.
+ * @deprecated use 'ifempty' instead.
  */
 type ProcessDefaultValue = {
 	action: 'default';
@@ -458,10 +584,27 @@ type ProcessDefaultValue = {
 /**
  * @title Default value from another field
  * @description Set a default value if there is none. The default value can be retrieved from another metadata field.
+ * @deprecated use 'ifempty' instead.
  */
 type ProcessDefaultField = {
 	action: 'default';
 	/** Metadata Field to take the default value from. Make sure this field is further up in the configuration file, so it's already been indexed. */
+	field: string;
+}
+/**
+ * @title Value if empty
+ * @description If current value is the empty string, set its value to either the specified value or the value of the specified field. If you refer to a field, make sure it is defined before this field (fields are processed in order). (NOTE: this processing step was previously called default)
+ */
+type ProcessDefaultIfEmpty = {
+	action: 'ifempty';
+	value: string;
+}
+/**
+ * @title Value if empty
+ * @description If current value is the empty string, set its value to either the specified value or the value of the specified field. If you refer to a field, make sure it is defined before this field (fields are processed in order). (NOTE: this processing step was previously called default)
+ */
+type ProcessDefaultFieldIfEmpty = {
+	action: 'ifempty';
 	field: string;
 }
 /**
@@ -472,6 +615,9 @@ type ProcessAppendValue = {
 	action: 'append';
 	/** String to append to the value. */
 	value: string;
+	/* Inserted between the original value and the appended value. Defaults to '' */
+	prefix?: string;
+	/** @deprecated Ignored when using a constant value, use 'prefix' for the old behavior, where the separator was inserted between the base value and the appended value. */
 	separator?: string;
 }
 /**
@@ -482,7 +628,10 @@ type ProcessAppendField = {
 	action: 'append';
 	/** Metadata Field to take the value to append from. Make sure this field is further up in the configuration file, so it's already been indexed. */
 	field: string;
+	/** Separator used for concatenating values in 'field', if it contains multiple values. Defaults to ' ' */
 	separator?: string;
+	/** Separator between the original value and the to-be-appended values (after joining them). Defaults to '' */
+	prefix?: string;
 }
 /**
  * @title Split values
@@ -504,6 +653,31 @@ type ProcessStrip = {
 	/** List of characters to strip from beginning and end.. */
 	chars: string;
 }
+/** 
+ * @title Map values to other values before indexing
+ * @description Map values to other values. The table is a map from input to output values. If the input value is not in the table, it is left unchanged.
+ */
+type ProcessMap = {
+	action: 'map';
+	/** Map of original values to new values. If a value is not in the map, it is left unchanged. */
+	table: {[originalValue: string]: string};
+}
+/**
+ * @title Sort values
+ * @description Sort multiple values using the default collator. This may help to ensure that the first term (which is the one used for sorting and grouping) is more predictable.
+ */
+type ProcessSort = {
+	action: 'sort';
+}
+/**
+ * @title Decuplicate values
+ * @description Remove duplicate values from the field. You normally never need to do this as it is done automatically just before actually indexing the final terms.
+ */
+type ProcessUnique = {
+	action: 'unique';
+}
+
+
 /**
  * @title Parse part of speech
  * @description parse common part of speech expressions of the form A(b=c,d=e)
@@ -542,4 +716,7 @@ type ProcessConcatDate = {
 	autofill?: 'start'|'end';
 }
 
-type Process = ProcessReplace|ProcessDefaultValue|ProcessDefaultField|ProcessAppendValue|ProcessAppendField|ProcessSplit|ProcessStrip|ProcessParsePos|ProcessChatFormatAgeToMonths|ProcessConcatDate;
+
+type Process = ProcessReplace|ProcessDefaultValue|ProcessDefaultField|ProcessDefaultIfEmpty|ProcessDefaultFieldIfEmpty|ProcessAppendValue|ProcessAppendField|ProcessSplit|ProcessStrip|ProcessMap|ProcessSort|ProcessUnique|ProcessParsePos|ProcessChatFormatAgeToMonths|ProcessConcatDate;
+
+export type BLFSchema = BLFSchemaV1|BLFSchemaV2;
