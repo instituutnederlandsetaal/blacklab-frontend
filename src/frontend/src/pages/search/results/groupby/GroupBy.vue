@@ -283,7 +283,16 @@ export default Vue.extend({
 		metadataFieldsMap() { return CorpusStore.get.allMetadataFieldsMap() },
 		annotationGroups() { return CorpusStore.get.annotationGroups() },
 		annotationsMap() { return CorpusStore.get.allAnnotationsMap() },
-		defaultAnnotation(): string { return UIStore.getState().results.shared.concordanceAnnotationId; },
+		defaultAnnotation(): string { 
+			// sometimes grouping by the shown annotation itself isn't allowed (e.g. when it contains inline HTML)
+			// in which case usually the corpus allows grouping on the plain version of that annotation.
+			// so check if this one's allowed, and if not, find the first allowed one.
+			const concordanceAnnotation = UIStore.getState().results.shared.concordanceAnnotationId; 
+			const allowedAnnotations = UIStore.getState().results.shared.groupAnnotationIds;
+			return allowedAnnotations.includes(concordanceAnnotation) ?
+				concordanceAnnotation :
+				(allowedAnnotations.length > 0 ? allowedAnnotations[0] : '');
+		},
 
 		metadataDropdownOptions(): Options {
 			return (getMetadataSubset(
