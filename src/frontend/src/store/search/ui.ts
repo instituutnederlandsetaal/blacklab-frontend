@@ -239,10 +239,6 @@ type ModuleRootState = {
 	};
 
 	global: {
-		pageGuide: {
-			enabled: boolean;
-		},
-
 		/** Database to use in the lexicon service component. To allow switching early dutch/middle dutch etc. */
 		lexiconDb: string;
 		/**
@@ -353,9 +349,6 @@ const initialState: ModuleRootState = {
 		}
 	},
 	global: {
-		pageGuide: {
-			enabled: true
-		},
 		lexiconDb: 'lexiconservice_mnw_wnt',
 		errorMessage: (e, c) => {
 			switch (c) {
@@ -703,9 +696,9 @@ const actions = {
 	},
 	global: {
 		pageGuide: {
-			enable: b.commit((state, payload: boolean) => {
-				state.global.pageGuide.enabled = !!payload;
-			}, 'global_pageGuide_enabled'),
+			enable: () => {
+				console.warn('Page guide has been removed.');
+			}
 		},
 		lexiconDb: b.commit((state, payload: string) => state.global.lexiconDb = payload, 'global_lexiconDb')
 	},

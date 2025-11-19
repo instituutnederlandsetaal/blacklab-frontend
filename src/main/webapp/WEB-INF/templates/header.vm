@@ -28,7 +28,6 @@
         ## TODO set based on corpus info
         <link title="Search" type="application/opensearchdescription+xml" rel="search" href="$CF_URL_ON_CLIENT/opensearch.xml">
         <link rel="stylesheet" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-        <link rel="stylesheet" href="$CF_URL_ON_CLIENT/css/vendor/pageguide.min.css?_$cache">
         <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.3.0/css/font-awesome.min.css">
         <link rel="stylesheet" href="$CF_URL_ON_CLIENT/css/main.css?_$cache">
         ## custom JS in footer
