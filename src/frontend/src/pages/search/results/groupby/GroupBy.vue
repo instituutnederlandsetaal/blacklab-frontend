@@ -37,12 +37,12 @@
 			<template v-if="selectedCriterium?.type === 'context'">
 				<span v-if="isParallel">{{ $t('results.groupBy.parallelCorpusVersion') }}</span>
 				<SelectPicker v-if="isParallel"
-						:options="parallelVersionOptions"
-						v-model="fieldName"
-						allowUnknownValues
-						data-width="auto"
-						data-menu-width="auto"
-						hideEmpty />
+					:options="parallelVersionOptions"
+					v-model="fieldName"
+					allowUnknownValues
+					data-width="auto"
+					data-menu-width="auto"
+					hideEmpty />
 				<i18n path="results.groupBy.iWantToGroupOnAnnotation" tag="div">
 					<!-- allow unknown values here. If grouping on a capture group/relation, they're not always available immediately (we need the first hit to decode them). -->
 					<template #some_words><SelectPicker
@@ -160,7 +160,7 @@
 		<div v-if="selectedCriterium?.type === 'context'" class="hit-preview panel-footer">
 			<template v-for="(section, i) of preview">
 				<div v-if="i !== 0" class="separator"></div>
-				<template v-for="({selectedAnnotation, word, punct, active, style}, j) of section">
+				<template v-for="({selectedAnnotation, word, punct, active, style, wordAsHtml, selectedAnnotationAsHtml}, j) of section">
 					<component
 						:is="active ? 'section' : 'div'"
 						:key="word + i + '_' + j"
@@ -173,8 +173,11 @@
 						:style="style"
 						@click="handlePreviewClick($event, i, j)"
 					>
-						<div :title="word" class="main">{{ word }}</div>
-						<div :title="selectedAnnotation" class="annotation">{{ selectedAnnotation }}</div>
+						<div v-if="!wordAsHtml" :title="word" class="main">{{ word }}</div>
+						<div v-else class="main" v-html="word"></div>
+						
+						<div v-if="selectedAnnotationAsHtml" :title="selectedAnnotation" class="annotation" v-html="selectedAnnotation"></div>
+						<div v-else :title="selectedAnnotation" class="annotation">{{ selectedAnnotation }}</div>
 					</component>
 					<!-- punctuation between words. -->
 					<component :is="active && section[j+1]?.active ? 'section' : 'div'" :class="{punct: true, active: active && section[j+1]?.active}" :title="punct">{{ punct || ' ' }}</component>
@@ -516,7 +519,9 @@ export default Vue.extend({
 		preview(): {
 			active: boolean;
 			word: string;
+			wordAsHtml: boolean;
 			selectedAnnotation: string;
+			selectedAnnotationAsHtml: boolean;
 			punct: string;
 			style: object;
 			captureAndRelation: CaptureAndRelation[]|undefined;
@@ -528,6 +533,8 @@ export default Vue.extend({
 			}
 
 			const wordAnnotation = UIStore.getState().results.shared.concordanceAnnotationId;
+			const wordAsHtml = UIStore.getState().results.shared.concordanceAsHtml;
+			
 			const firstHit = this.hits.hits.find(v => !!v.otherFields) ?? this.hits.hits[0];
 			const targetField = this.selectedCriterium?.fieldName;
 			const hitInField = targetField && targetField.length > 0 && targetField !== this.mainSearchField && firstHit.otherFields ? firstHit.otherFields[targetField] : firstHit;
@@ -588,7 +595,9 @@ export default Vue.extend({
 			return [
 				snippet.before.map((t, i) => ({
 					word: (t.punctBefore || '') + t.annotations[wordAnnotation] || '·',
+					wordAsHtml,
 					selectedAnnotation: t.annotations[annotation!] || '·',
+					selectedAnnotationAsHtml: annotation === wordAnnotation ? wordAsHtml : false,
 					punct: t.punct,
 					active: (position === 'B' && isActiveIndex(i)) || isActiveRelationOrCapture(t),
 					style: getPreviewStyle(t),
@@ -596,7 +605,9 @@ export default Vue.extend({
 				})),
 				snippet.match.map((t, i) => ({
 					word: (t.punctBefore || '') + t.annotations[wordAnnotation] || '·',
+					wordAsHtml,
 					selectedAnnotation: t.annotations[annotation!] || '·',
+					selectedAnnotationAsHtml: annotation === wordAnnotation ? wordAsHtml : false,
 					punct: t.punct,
 					active: ((position === 'H' || position === 'E') && isActiveIndex(i)) || isActiveRelationOrCapture(t),
 					style: getPreviewStyle(t),
@@ -604,7 +615,9 @@ export default Vue.extend({
 				})),
 				snippet.after.map((t, i) => ({
 					word: (t.punctBefore || '') + t.annotations[wordAnnotation] || '·',
+					wordAsHtml,
 					selectedAnnotation: t.annotations[annotation!] || '·',
+					selectedAnnotationAsHtml: annotation === wordAnnotation ? wordAsHtml : false,
 					punct: t.punct,
 					active: (position === 'A' && isActiveIndex(i)) || isActiveRelationOrCapture(t),
 					style: getPreviewStyle(t),
