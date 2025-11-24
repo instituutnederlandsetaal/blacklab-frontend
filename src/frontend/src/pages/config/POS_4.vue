@@ -105,9 +105,11 @@ export const step = Vue.extend({
 					console.warn(`No displayNames found for annotation ${annotId} in imported data`);
 					return;
 				}
-				// Update the display names for the current annotation ID
-				Object.entries(displayNamesForAnnot).forEach(([value, displayName]) => {
-					this.$set(this.displays[annotId], value, displayName);
+
+				Object.entries(this.displays[annotId]).forEach(([value, displayName]) => {
+					if (displayNamesForAnnot[value]) {
+						this.displays[annotId][value] = displayNamesForAnnot[value];
+					}
 				});
 			});
 		}
