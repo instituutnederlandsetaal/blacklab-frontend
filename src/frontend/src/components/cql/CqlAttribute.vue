@@ -39,6 +39,7 @@
 			<!-- Regular Input/Select -->
 			<button v-if="hasUploadedValue"
 				type="button"
+				data-attribute-role="value"
 				class="btn btn-default btn-sm bl-no-border-radius bl-token-attribute-main-input"
 				style="text-align: auto;"
 				:title="$t('search.advanced.queryBuilder.attribute_file_upload_edit_button_title').toString()"
@@ -49,17 +50,20 @@
 			</button>
 			<!-- Multi-select for known values -->
 			<SelectPicker v-else-if="currentAnnotation?.values"
+				data-attribute-role="value"
 				:options="currentAnnotation.values"
 				multiple
 				searchable
+				container="body"
+				data-menu-width="auto"
 				data-class="btn btn-default btn-sm bl-no-border-radius bl-token-attribute-main-input"
 				class="bl-token-attribute-main-input"
-				container="body"
 				:value="model.values"
 				@input="model.values = $event || [] /* workaround for querbuilder emitting null sometimes */"
 			/>
 			<!-- Text input for free text -->
 			<input v-else
+				data-attribute-role="value"
 				type="text"
 				class="form-control input-sm bl-no-border-radius bl-token-attribute-main-input"
 				:dir="textDirection"
