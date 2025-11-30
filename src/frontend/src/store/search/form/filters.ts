@@ -124,7 +124,7 @@ const actions = {
 			return;
 		}
 
-		// Backwards compat: we renamed these fields but not all extension scripts are upt-to-date
+		// Backwards compat: we renamed these fields but not all extension scripts are up-to-date
 		//@ts-ignore
 		filter.defaultDisplayName = filter.defaultDisplayName || filter.displayName;
 		//@ts-ignore

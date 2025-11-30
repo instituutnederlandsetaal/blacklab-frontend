@@ -4,9 +4,9 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.logging.Logger;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
@@ -27,7 +27,8 @@ public class BlackLabApi {
 	}
 
 	private AuthRequest authRequest() {
-		var req = new AuthRequest(request, response);
+		var req = new AuthRequest(request, response)
+			.query("api", "4"); // compat
 
 		readRequestParameter(request, config.get(Keys.AUTH_SOURCE_TYPE), config.get(Keys.AUTH_SOURCE_NAME))
 				.ifPresent(auth -> setParameter(req, config.get(Keys.AUTH_TARGET_TYPE), config.get(Keys.AUTH_TARGET_NAME), auth));

@@ -47,28 +47,13 @@ import BaseFilter from '@/components/filters/Filter';
 import { Option } from '@/components/SelectPicker.vue';
 import {FilterDateValue as Value, FilterDateMetadata as Metadata, FilterDateValue, DateUtils} from './filterValueFunctions';
 
-export const modes = {
-	permissive: {
-		id: 'permissive',
-		operator: 'OR',
-		displayName: 'Permissive',
-		description: "Matches documents that are partially contained within the entered range"
-	},
-
-	strict: {
-		id: 'strict',
-		operator: 'AND',
-		displayName: 'Strict',
-		description: "Matches documents that are completely contained within the entered range"
-	}
-};
 
 export default BaseFilter.extend({
 	props: {
 		value: {
 			type: Object as () => FilterDateValue, // comes in as all empty strings: see decodeInitialState in filterValueFunctions.ts
 			required: true,
-			default: () => ({
+			default: (): Value&{isDefaultValue: boolean} => ({
 				startDate: {
 					y: '',
 					m: '',
@@ -96,7 +81,7 @@ export default BaseFilter.extend({
 				 * Conveniently this system also lets us detect when only the strict/permissive toggle has been changed, but not the date.
 				 */
 				isDefaultValue: true
-			}) as Value
+			})
 		},
 	},
 
@@ -120,13 +105,16 @@ export default BaseFilter.extend({
 		startMonthLength(): string { return DateUtils.dateValueToLucene({...this.model.startDate, d: ''}, 'end')!.substring(6, 8); },
 		endMonthLength(): string { return DateUtils.dateValueToLucene({...this.model.endDate, d: ''}, 'end')!.substring(6, 8); },
 
-
 		modes(): Option[] {
-			return Object.values(modes).map(m => ({
-				label: m.displayName,
-				title: m.description,
-				value: m.id
-			}));
+			return [{
+				value: 'permissive',
+				label: this.$t('filter.range.permissive').toString(),
+				title: this.$t('filter.range.permissiveDescription').toString()
+			}, {
+				value: 'strict',
+				label: this.$t('filter.range.strict').toString(),
+				title: this.$t('filter.range.strictDescription').toString()
+			}]
 		},
 
 		yearFrom: {

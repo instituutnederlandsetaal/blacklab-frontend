@@ -48,7 +48,10 @@ export function init(which: keyof typeof endpoints, url: string, user: User|null
 	endpoints[which] = createEndpoint({
 		baseURL: url.replace(/\/*$/, '/'),
 		paramsSerializer: params => qs.stringify(params),
-		headers
+		headers,
+		params: which === 'blacklab' ? {
+			api: '4' // backward compat
+		} : undefined,
 	});
 }
 
