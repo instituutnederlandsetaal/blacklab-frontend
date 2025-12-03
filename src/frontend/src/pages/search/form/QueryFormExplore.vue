@@ -136,7 +136,6 @@
 							:dir="token.annotation.isMainAnnotation ? mainTokenTextDirection : undefined"
 							:disabled="index >= ngramSize"
 
-							:autocomplete="token.annotation.uiType === 'combobox'"
 							:url="autocompleteUrl(token.annotation)"
 
 							:value="token.value"
