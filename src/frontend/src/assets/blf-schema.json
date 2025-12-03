@@ -4017,47 +4017,29 @@
                 "metadataFieldGroups": {
                   "type": "array",
                   "items": {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "properties": {
-                          "fields": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            },
-                            "description": "Metadata fields in this group"
-                          },
-                          "name": {
-                            "type": "string",
-                            "description": "Group name. A MetadataGroup must either contain a list of 'fields' to include in it, or include 'addRemainingFields'."
-                          }
-                        },
-                        "required": [
-                          "fields",
-                          "name"
-                        ]
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Group name. A MetadataGroup must either contain a list of 'fields' to include in it, or include 'addRemainingFields'."
                       },
-                      {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "properties": {
-                          "addRemainingFields": {
-                            "type": "boolean",
-                            "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
-                          },
-                          "name": {
-                            "type": "string",
-                            "description": "Group name. A MetadataGroup must either contain a list of 'fields' to include in it, or include 'addRemainingFields'."
-                          }
+                      "fields": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
                         },
-                        "required": [
-                          "addRemainingFields",
-                          "name"
-                        ]
+                        "description": "Metadata fields in this group"
+                      },
+                      "addRemainingFields": {
+                        "type": "boolean",
+                        "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
                       }
+                    },
+                    "required": [
+                      "name",
+                      "fields"
                     ],
+                    "additionalProperties": false,
                     "description": "How to group together metadata fields in the BlackLab Frontend search interface."
                   },
                   "description": "How to group together metadata fields in the BlackLab Frontend search interface."
@@ -4067,46 +4049,29 @@
                   "additionalProperties": {
                     "type": "array",
                     "items": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "additionalProperties": false,
-                          "properties": {
-                            "annotations": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              },
-                              "description": "IDs of annotations in this group."
-                            },
-                            "name": {
-                              "type": "string",
-                              "description": "Group name"
-                            }
-                          },
-                          "required": [
-                            "annotations",
-                            "name"
-                          ]
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "description": "Group name"
                         },
-                        {
-                          "type": "object",
-                          "additionalProperties": false,
-                          "properties": {
-                            "addRemainingAnnotations": {
-                              "type": "boolean",
-                              "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
-                            },
-                            "name": {
-                              "type": "string",
-                              "description": "Group name"
-                            }
+                        "annotations": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
                           },
-                          "required": [
-                            "name"
-                          ]
+                          "description": "IDs of annotations in this group."
+                        },
+                        "addRemainingAnnotations": {
+                          "type": "boolean",
+                          "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
                         }
-                      ]
+                      },
+                      "required": [
+                        "name",
+                        "annotations"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "description": "How to group together annotations in the BlackLab Frontend search interface."
@@ -8035,47 +8000,29 @@
                 "metadataFieldGroups": {
                   "type": "array",
                   "items": {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "properties": {
-                          "fields": {
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            },
-                            "description": "Metadata fields in this group"
-                          },
-                          "name": {
-                            "type": "string",
-                            "description": "Group name. A MetadataGroup must either contain a list of 'fields' to include in it, or include 'addRemainingFields'."
-                          }
-                        },
-                        "required": [
-                          "fields",
-                          "name"
-                        ]
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "Group name. A MetadataGroup must either contain a list of 'fields' to include in it, or include 'addRemainingFields'."
                       },
-                      {
-                        "type": "object",
-                        "additionalProperties": false,
-                        "properties": {
-                          "addRemainingFields": {
-                            "type": "boolean",
-                            "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
-                          },
-                          "name": {
-                            "type": "string",
-                            "description": "Group name. A MetadataGroup must either contain a list of 'fields' to include in it, or include 'addRemainingFields'."
-                          }
+                      "fields": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
                         },
-                        "required": [
-                          "addRemainingFields",
-                          "name"
-                        ]
+                        "description": "Metadata fields in this group"
+                      },
+                      "addRemainingFields": {
+                        "type": "boolean",
+                        "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
                       }
+                    },
+                    "required": [
+                      "name",
+                      "fields"
                     ],
+                    "additionalProperties": false,
                     "description": "How to group together metadata fields in the BlackLab Frontend search interface."
                   },
                   "description": "How to group together metadata fields in the BlackLab Frontend search interface."
@@ -8085,46 +8032,29 @@
                   "additionalProperties": {
                     "type": "array",
                     "items": {
-                      "anyOf": [
-                        {
-                          "type": "object",
-                          "additionalProperties": false,
-                          "properties": {
-                            "annotations": {
-                              "type": "array",
-                              "items": {
-                                "type": "string"
-                              },
-                              "description": "IDs of annotations in this group."
-                            },
-                            "name": {
-                              "type": "string",
-                              "description": "Group name"
-                            }
-                          },
-                          "required": [
-                            "annotations",
-                            "name"
-                          ]
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "description": "Group name"
                         },
-                        {
-                          "type": "object",
-                          "additionalProperties": false,
-                          "properties": {
-                            "addRemainingAnnotations": {
-                              "type": "boolean",
-                              "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
-                            },
-                            "name": {
-                              "type": "string",
-                              "description": "Group name"
-                            }
+                        "annotations": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
                           },
-                          "required": [
-                            "name"
-                          ]
+                          "description": "IDs of annotations in this group."
+                        },
+                        "addRemainingAnnotations": {
+                          "type": "boolean",
+                          "description": "Add all annotations not in any other group. Only one group should have this. Defaults to false. If you have no group that defines this, BlackLab will make one for you."
                         }
-                      ]
+                      },
+                      "required": [
+                        "name",
+                        "annotations"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "description": "How to group together annotations in the BlackLab Frontend search interface."

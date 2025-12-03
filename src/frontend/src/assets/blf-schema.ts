@@ -532,31 +532,28 @@ type CorpusConfig = {
 type AnnotationGroup = {
 	/** Group name */
 	name: string;
-}&({
+
 	/** IDs of annotations in this group. */
 	annotations: string[];
-}|{
 	/**
 	 * Add all annotations not in any other group. Only one group should have this. Defaults to false.
 	 * If you have no group that defines this, BlackLab will make one for you.
 	 */
 	addRemainingAnnotations?: boolean;
-})
+}
 
 /** How to group together metadata fields in the BlackLab Frontend search interface. */
 type MetadataFieldGroup = {
 	/** Group name. A MetadataGroup must either contain a list of 'fields' to include in it, or include 'addRemainingFields'. */
 	name: string;
-}&({
 	/** Metadata fields in this group */
 	fields: string[];
-}|{
 	/**
 	 * Add all annotations not in any other group. Only one group should have this. Defaults to false.
 	 * If you have no group that defines this, BlackLab will make one for you.
 	 */
-	addRemainingFields: boolean;
-})
+	addRemainingFields?: boolean;
+}
 
 /**
  * @title Regex replace part of the value
