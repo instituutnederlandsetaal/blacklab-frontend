@@ -290,7 +290,6 @@
 			"groupBy": "Groeperen op {field}",
 			"sortByDocument": "Sorteer op documenttitel",
 			"moreHiddenHits": "meer verborgen hits",
-			"clickToSort": "klik om te sorteren",
 			"close": "sluiten",
 			"hide": "Verberg",
 			"show": "Toon",
@@ -322,6 +321,7 @@
 				"documents": "Documenten",
 				"viewingGroup": "In groep {group}",
 				"groupedBy": "Gegroepeerd op {group}",
+				"sortedBy": "Gesorteerd op {sort}",
 				"randomSample": "Steekproef ({sample})"
 			},
 

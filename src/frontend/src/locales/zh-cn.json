@@ -271,7 +271,6 @@
 			"groupBy": "分组依据：{field}",
 			"sortByDocument": "分类依据：文章标题",
 			"moreHiddenHits": "更多隐藏的命中",
-			"clickToSort": "点击分类",
 			"close": "关闭",
 			"hide": "隐藏",
 			"show": "显示",
@@ -303,6 +302,7 @@
 				"documents": "文档",
 				"viewingGroup": "查看组 {group}",
 				"groupedBy": "按 {group} 分组",
+				"sortedBy": "已按 {property} 排序",
 				"randomSample": "随机样本 ({sample})"
 			},
 

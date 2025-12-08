@@ -287,7 +287,6 @@
 			"groupBy": "Group by {field}",
 			"sortByDocument": "Sort by document title",
 			"moreHiddenHits": "more hidden hits",
-			"clickToSort": "click to sort",
 			"close": "close",
 			"hide": "Hide",
 			"show": "Show",
@@ -319,6 +318,7 @@
 				"documents": "Documents",
 				"viewingGroup": "Viewing group {group}",
 				"groupedBy": "Grouped by {group}",
+				"sortedBy": "Sorted by {sort}",
 				"randomSample": "Random sample ({sample})"
 			},
 

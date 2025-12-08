@@ -206,11 +206,8 @@ import * as FilterModule from '@/store/search/form/filters';
 import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 import { blacklab } from '@/api';
 
-import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, BLHitInOtherField, BLMatchInfo} from '@/types/blacklabtypes';
-
-import {GroupBy, serializeGroupBy, parseGroupBy, isValidGroupBy, ContextPositional, GroupByContext, ContextLabel,
-	humanizeGroupBy } from '@/utils/grouping';
-
+import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo } from '@/types/blacklabtypes';
+import { ContextLabel, ContextPositional, GroupBy, GroupByContext, humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 import debug from '@/utils/debug';
 
 // @ts-ignore
@@ -325,7 +322,7 @@ export default Vue.extend({
 
 		tabs(): Option[] {
 			return this.addedCriteria.map((c, i) => ({
-				label: humanizeGroupBy(this, c, this.annotationsMap, this.metadataFieldsMap),
+				label: humanizeGroupByOrSortBy(this, c, this.annotationsMap, this.metadataFieldsMap),
 				value: i.toString(),
 				class: isValidGroupBy(c) ? '' : 'text-muted',
 			}));
@@ -822,7 +819,7 @@ export default Vue.extend({
 		},
 		apply() {
 			this.storeValueUpdateIsOurs = true;
-			this.storeModule.actions.groupBy(serializeGroupBy(this.addedCriteria.filter(isValidGroupBy)));
+			this.storeModule.actions.groupBy(serializeSortByOrGroupBy(this.addedCriteria.filter(isValidGroupBy)));
 
 			// JN disabled next line; a tabbed interface with no tab selected is
 			//    normally impossible in a GUI and looks confusing/broken.
