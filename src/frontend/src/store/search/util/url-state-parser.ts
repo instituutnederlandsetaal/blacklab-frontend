@@ -157,10 +157,23 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		try {
 			const metadataFields = CorpusModule.get.allMetadataFieldsMap();
 			const filterDefinitions = FilterModule.getState().filters;
+			/* 
+				IMPORTANT: every metadata field has a corresponding filter instance,
+				but in addition to that, there might be special filters that don't correspond directly 1-to-1 to a metadata field,
+				e.g. date-based filters that operate on separate day/month/year fields.
+				Those special filters need to be parsed first, so they can remove any values from the parsed query
+				Otherwise those values would be parsed again by the "normal" filters, leading to duplicate filters in the url state.
+
+				To do this, we create a list of all "special" filters, followed by all "normal" filters.
+				They then get a chance to parse/modify the query in that order.
+				This way, "special" filters can remove values from the query before "normal" filters get to see them.
+
+				NOTE: we explicitly allow putting values even in invisible filters (i.e. we don't check whether they're shown in the UI)
+				This to be flexible for inbound links for other applications.
+			*/
 			const allFilters = Object
-				.keys(filterDefinitions) // IMPORTANT: have "special" filters (that don't "own" their metadata field) first
-				.filter(id => metadataFields[id] == null) // that way, they can delete values from the filtervalues and prevent other filters from parsing those values as well, which would lead to the filter being "doubled" on url decode
-				.concat(UIModule.getState().search.shared.searchMetadataIds)
+				.keys(filterDefinitions) 
+				.sort((a, b) => !metadataFields[a] ? -1 : !metadataFields[b] ? 1 : 0);
 
 			const filterValues: Record<string, FilterModule.FullFilterState> = {};
 
