@@ -6,6 +6,8 @@ services:
     build:
       context: ..
       dockerfile: docker/frontend-bls.dockerfile
+      args: 
+        BLACKLAB_IMAGE_VERSION: 4
     ports:
       - "8080:8080" # frontend and BLS will both be available on 8080
     volumes:

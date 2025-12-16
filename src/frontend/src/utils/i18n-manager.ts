@@ -1,4 +1,4 @@
-import { reactive, ref, computed, watch } from 'vue';
+import { reactive, ref, computed, watch, del, set } from 'vue';
 import { LocaleMessageObject } from 'vue-i18n';
 import { merge } from 'ts-deepmerge';
 import stripJsonComments from 'strip-json-comments';
@@ -19,6 +19,7 @@ interface LocaleState {
 
 class I18nManager {
 	private readonly registeredLocaleIds = reactive<Record<string, true>>({});
+	private readonly registeredLocaleIdsVersion = ref(0); // Increment to trigger computed updates
 	private readonly localeStates = reactive<Record<string, LocaleState>>({});
 	private readonly nextLocale = ref<string|null>(null);
 	private nextFallbackLocale: string | null = null;
@@ -47,8 +48,11 @@ class I18nManager {
 
 	// Computed available locales with state information
 	public readonly availableLocales = computed<(Option & { loading: boolean; error: string | null })[]>(() => {
+		// Dependency tracking for Object.keys doesn't seem to work with reactive({}) for some reason?
+		// So we use a version counter to force recompute when keys change.
+		this.registeredLocaleIdsVersion.value;
 		return Object.keys(this.registeredLocaleIds)
-			.map(id => this.localeStates[id])
+			.map(id => this.resolveLocale(id))
 			.map(state => ({
 				value: state.value,
 				label: state.label,
@@ -62,6 +66,7 @@ class I18nManager {
 			if (localStorage.getItem(localStorageKey)) {
 				this.setLocale(localStorage.getItem(localStorageKey)!, I18nManager.PRIORITY_SET_BY_USER);
 			}
+			// Only save actual explicit locale choices user changes
 			watch(() => this.locale.value, newVal => {
 				if (this.highestLocalePrecedence >= I18nManager.PRIORITY_SET_BY_USER) {
 					localStorage.setItem(localStorageKey, newVal);
@@ -80,7 +85,10 @@ class I18nManager {
 	registerLocale(localeId: string, label: string): void {
 		const locale = this.resolveLocale(localeId);
 		locale.label = label;
-		this.registeredLocaleIds[locale.value] = true;
+		if (!this.registeredLocaleIds[locale.value]) {
+			set(this.registeredLocaleIds, locale.value, true);
+			this.registeredLocaleIdsVersion.value++;
+		}
 	}
 
 	/**
@@ -89,8 +97,9 @@ class I18nManager {
 	async removeLocale(localeId: string): Promise<void> {
 		const locale = this.resolveLocale(localeId);
 		if (locale.loading) await locale.loading;
-		delete this.localeStates[localeId];
-		delete this.registeredLocaleIds[localeId];
+		del(this.localeStates, locale.value);
+		del(this.registeredLocaleIds, locale.value);
+		this.registeredLocaleIdsVersion.value++;
 	}
 
 	/**
@@ -157,13 +166,13 @@ class I18nManager {
 		const prefix = requestedLocale.split('-')[0];
 		let match = Object.values(this.localeStates).find(locale => locale.value.startsWith(prefix + '-'));
 		if (!match) {
-			match = this.localeStates[requestedLocale] = {
+			match = set(this.localeStates, requestedLocale, {
 				value: requestedLocale,
 				label: requestedLocale,
 				loading: null,
 				error: null,
 				messages: null,
-			};
+			});
 		}
 		return match;
 	}

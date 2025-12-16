@@ -747,20 +747,23 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 	})
 
 	const annotationColumnSortOptions = (prefix: string, annots?: NormalizedAnnotation[]): {sort?: string|Array<OptGroup|Option>, title?: string} => {
-		const annotsToShow = new Set((annots ?? info.sortableAnnotations).map(a => a.id));
+		const sortableIds = new Set(info.sortableAnnotations.map(a => a.id));
+		// If specific annotations are requested, filter to only those that are sortable
+		const annotsToShow = (annots ?? info.sortableAnnotations).filter(a => sortableIds.has(a.id));
+		const annotsToShowIds = new Set(annotsToShow.map(a => a.id));
 		const groups = info.annotationGroups;
 
-		if (annotsToShow.size === 0) return {};
-		else if (annotsToShow.size === 1) { 
-			const {title, value: sort} = sortAnnot(info.sortableAnnotations[0], prefix);
+		if (annotsToShow.length === 0) return {};
+		else if (annotsToShow.length === 1) { 
+			const {title, value: sort} = sortAnnot(annotsToShow[0], prefix);
 			return {title, sort};
 		} else {
 			return {
 				sort: groups
-					.filter(g => g.entries.some(id => annotsToShow.has(id)))
+					.filter(g => g.entries.some(id => annotsToShowIds.has(id)))
 					.map<OptGroup>(g => ({
 						label: i.$tAnnotGroupName(g).toString(),
-						options: g.entries.filter(id => annotsToShow.has(id)).map<Option>(id => ({
+						options: g.entries.filter(id => annotsToShowIds.has(id)).map<Option>(id => ({
 							value: `${prefix}:${id}`,
 							label: i.$tAnnotDisplayName(info.sortableAnnotations.find(a => a.id === id)!).toString()
 						}))

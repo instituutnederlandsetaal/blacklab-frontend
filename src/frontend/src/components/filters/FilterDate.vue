@@ -34,7 +34,6 @@
 				:title="mode.title || ''"
 				@click="e_input({...value, mode: mode.value})"
 			>{{mode.label}}</button>
-			<button v-if="!value.isDefaultValue" class="btn btn-default" type="button" @click="e_input(null)">reset</button>
 		</div>
 		<div class="col-xs-12" v-if="description">
 			<small class="text-muted description"><em>{{ description }}</em></small>

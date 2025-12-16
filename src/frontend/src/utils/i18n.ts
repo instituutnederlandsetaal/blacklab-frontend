@@ -137,7 +137,7 @@ const i18nExtensionFunctions = {
 		return this.$td(`index.spans.${span.value}`, span.label || span.value);
 	},
 	$tSpanAttributeDisplay(this: Vue, span: string, attribute: string): string {
-		const defaultValue = this.$t('results.groupBy.summary.spanAttribute', { span, attribute }).toString();
+		const defaultValue = this.$t('results.shared.spanAttribute', { span, attribute }).toString();
 		return this.$td(`index.spanAttributes.${span}.${attribute}`, defaultValue);
 	},
 	$tAlignByDisplayName(this: Vue, alignBy: Option): string {

@@ -12,8 +12,6 @@
 			</Debug>
 
 			<Results v-show="resultsVisible" id="results"/>
-
-			<PageGuide v-if="pageGuideEnabled"/>
 		</template>
 		<div v-else>
 			<h2 v-html="loadingMessage"></h2>
@@ -32,7 +30,6 @@ import * as RootStore from '@/store/search/';
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 import Results from '@/pages/search/results/Results.vue';
-import PageGuide from '@/pages/search/PageGuide.vue';
 import Spinner from '@/components/Spinner.vue';
 
 import {wideView} from '@/pages/search/form/QueryFormSettings.vue';
@@ -42,7 +39,6 @@ export default Vue.extend({
 		QueryForm,
 		QuerySummary,
 		Results,
-		PageGuide,
 		Spinner
 	},
 	data: () => ({ wideView, }),
@@ -51,7 +47,6 @@ export default Vue.extend({
 		loadingMessage() { return RootStore.get.status().message; },
 
 		resultsVisible(): boolean { return InterfaceStore.getState().viewedResults != null; },
-		pageGuideEnabled(): boolean { return UIStore.getState().global.pageGuide.enabled; },
 		debugQuery: RootStore.get.blacklabParameters
 	},
 });

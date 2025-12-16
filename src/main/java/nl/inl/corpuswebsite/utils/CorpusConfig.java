@@ -62,8 +62,11 @@ public class CorpusConfig {
             + "//annotation[not(isInternal='true') and uiType='select']/@name |"
             + "//annotation[not(isInternal='true') and uiType='pos']/@name | "
             + "//annotation[not(isInternal='true') and uiType='pos']/subannotation"
-            + ", ',')",
-        doc).stream().findFirst().map(XdmItem::getStringValue).orElse("");
+            + ", ',')", doc)
+        .stream()
+        .findFirst()
+        .map(XdmItem::getStringValue)
+        .orElse("");
     }
 
     public String getCorpusId() {

@@ -70,7 +70,7 @@ export const step = Vue.extend({
 					values: Object.entries(subAnnotValues).map(([value, mainPosValues]) =>  ({
 						value,
 						displayName: this.value.step4[subAnnotId][value],
-						pos: mainPosValues
+						pos: mainPosValues.sort((a, b) => a.localeCompare(b))
 					})).sort((a, b) => a.displayName.localeCompare(b.displayName))
 				}
 			});

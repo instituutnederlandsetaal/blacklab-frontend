@@ -5,7 +5,8 @@
 **/.settings
 **/.idea
 **/*.iml
-**/.vscode
+**/.vscode/
+**/.github/
 /*.md
 **/README.md
 **/.project
@@ -30,7 +31,8 @@
 /docker/
 
 # Frontend build stuff
-**/node_modules
+**/node_modules/
+**/node/
 
 # Documentation site
 /docs/

@@ -33,6 +33,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.app.Velocity;
 
+import net.sf.saxon.s9api.SaxonApiException;
 import nl.inl.corpuswebsite.response.AboutResponse;
 import nl.inl.corpuswebsite.response.ApiResponse;
 import nl.inl.corpuswebsite.response.ArticleResponse;
@@ -85,7 +86,7 @@ public class MainServlet extends HttpServlet {
     /**
      * Xslt transformers for corpora
      */
-    private static final Map<String, Result<XslTransformer, TransformerException>> articleTransformers = new HashMap<>();
+    private static final Map<String, Result<XslTransformer, SaxonApiException>> articleTransformers = new HashMap<>();
 
     /**
      * The response classes for our URI patterns
@@ -336,9 +337,9 @@ public class MainServlet extends HttpServlet {
      * @param name - the name of the stylesheet, excluding extension (currently supported "article" and "meta")
      * @return the xsl transformer to use for transformation, note that this is always the same transformer.
      */
-    public Result<XslTransformer, TransformerException> getStylesheet(CorpusConfig corpus, String name, HttpServletRequest request, HttpServletResponse response) {
+    public Result<XslTransformer, SaxonApiException> getStylesheet(CorpusConfig corpus, String name, HttpServletRequest request, HttpServletResponse response) {
         Optional<String> corpusDataFormat = corpus.getCorpusDataFormat();
-        Function<String, Result<XslTransformer, TransformerException>> gen = __ -> CorpusFileUtil.getStylesheet(corpus, config, name, request, response);
+        Function<String, Result<XslTransformer, SaxonApiException>> gen = __ -> CorpusFileUtil.getStylesheet(corpus, config, name, request, response);
 
         // need to use corpus name in the cache map
         // because corpora can define their own xsl files in their own data directory

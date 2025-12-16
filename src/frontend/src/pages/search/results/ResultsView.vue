@@ -142,7 +142,7 @@
 </template>
 
 <script lang="ts">
-import Vue, { markRaw } from 'vue';
+import Vue, { markRaw, onDeactivated } from 'vue';
 
 import jsonStableStringify from 'json-stable-stringify';
 
@@ -170,7 +170,7 @@ import debug, { debugLogCat } from '@/utils/debug';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedIndex } from '@/types/apptypes';
-import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
+import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
 import { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, makeColumns, makeRows, Rows } from '@/pages/search/results/table/table-layout';
 import { isHitParams } from '@/utils';
@@ -178,6 +178,7 @@ import { isHitParams } from '@/utils';
 
 import '@/pages/search/results/table/GenericTable.vue';
 import { corpusCustomizations } from '@/utils/customization';
+import { Globals } from 'highcharts';
 
 export default Vue.extend({
 	components: {
@@ -291,7 +292,7 @@ export default Vue.extend({
 							debugLogCat('results', 'grouping failed, clearing groupBy');
 							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined)
 								.filter(g => !((g.type === 'context' && g.context.type === 'label') || (g.type === 'metadata' && g.metadata.type === 'span-attribute')));
-							const newGroupBy = serializeGroupBy(okayGroups);
+							const newGroupBy = serializeSortByOrGroupBy(okayGroups);
 							this.groupBy = newGroupBy;
 						}
 						this.setError(e, !!params.group)
@@ -456,8 +457,7 @@ export default Vue.extend({
 		breadCrumbs(): Array<{
 			label: TranslateResult,
 			title: TranslateResult,
-			active: boolean,
-			onClick: () => void
+			onClick?: () => void
 		}> {
 			// Labels and titles might look confusing
 			// but, the label is what the uses is currently looking at
@@ -467,34 +467,31 @@ export default Vue.extend({
 			// if clicking grouped by -> go to grouped results
 			// if clicking specific group -> go to specific group
 
-			const r = [];
+			const r: {
+				label: TranslateResult,
+				title: TranslateResult,
+				onClick?: () => void,
+				deactivate: (() => void)|undefined,
+				toggle?: () => void,
+			}[] = [];
+
 			r.push({
 				label: this.id === 'hits' ? this.$t('results.resultsView.navigation.hits') : this.$t('results.resultsView.navigation.documents'),
 				title: this.$t('results.resultsView.navigation.backToUngroupedResults').toString(),
-				active: false,
-				onClick: () => {
-					this.groupBy = [];
-					GlobalStore.actions.sampleSize(null);
-				}
+				deactivate: undefined,
 			});
 			if (this.groupBy.length > 0) {
-				const groupByLabel = parseGroupBy(this.groupBy, this.results ?? undefined).map(g => humanizeGroupBy(this, g, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap())).join(', ')
 				r.push({
-					label: this.$t('results.resultsView.navigation.groupedBy', {group: groupByLabel}),
+					label: this.$t('results.resultsView.navigation.groupedBy', {group: humanizeSerializedGroupBy(this, this.groupBy, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap()).join(', ')}),
 					title: this.$t('results.resultsView.navigation.backToGroupedResults'),
-					active: false,
-					onClick: () => {
-						this.leaveViewgroup();
-						GlobalStore.actions.sampleSize(null);
-					}
+					deactivate: () => { this.groupBy = []; }
 				});
 			}
 			if (this.viewGroup != null) {
 				r.push({
 					label: this.$t('results.resultsView.navigation.viewingGroup', {group: this.viewGroupName}),
 					title: '',
-					active: false,
-					onClick: () => GlobalStore.actions.sampleSize(null)
+					deactivate: () => this.leaveViewgroup(),
 				});
 			}
 			const {sampleMode, sampleSize} = GlobalStore.getState();
@@ -502,13 +499,38 @@ export default Vue.extend({
 				r.push({
 					label: this.$t('results.resultsView.navigation.randomSample', {sample: `${sampleSize}${sampleMode === 'percentage' ? '%' : ''}`}),
 					title: '',
-					active: false,
-					onClick: () => {
-						$('#settings').modal('show')
+					deactivate: () => { GlobalStore.actions.sampleSize(null); }
+				})
+			}
+			if (this.sort) {
+				r.push({
+					label: this.$t('results.resultsView.navigation.sortedBy', {sort: humanizeGroupByOrSortBy(this, parseSortBy(this.sort), CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap())}),
+					title: '',
+					deactivate: () => this.sort = null,
+					toggle: () => {
+						this.sort = this.sort?.startsWith('-') ? this.sort!.substring(1) : '-' + this.sort!;
 					}
 				})
 			}
-			r[r.length -1].active = true;
+
+			// Clicking a breadcrumb deactivates all breadcrumbs after it.
+			// So we set up the onClick handlers here.
+			// If a breadcrumb has a toggle() function, and it's the last one, call the toggle instead (onClick takes precedence).
+			for (let i = 0; i < r.length; i++) {
+				const entry = r[i];
+				const isLast = (i === r.length - 1);
+				
+				if (!isLast) {
+					entry.onClick = () => {
+						for (let j = r.length -1; j > i; j--) {
+							r[j].deactivate?.();
+						}
+					}
+				} else if (entry.toggle) {
+					entry.onClick = entry.toggle;
+				}
+			}
+
 			return r;
 		},
 

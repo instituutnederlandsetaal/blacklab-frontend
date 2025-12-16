@@ -59,17 +59,17 @@
 					</label>
 				</div>
 			</div>
-			<template v-if="annotation.uiType === 'pos'">
-				<!-- Use a v-show here, the component keeps some state. If we destroy it when it closes the user must re-enter their query every time. -->
-				<PartOfSpeech :open="posOpen" @close="posOpen = false"
-					:id="`pos_editor${uid}`"
-					:annotation="annotation"
+			
+			<!-- Don't destroy the component on close, it keeps some state. -->
+			<PartOfSpeech v-if="annotation.uiType === 'pos'" :open="posOpen" @close="posOpen = false" 
+				:id="`pos_editor${uid}`"
+				:annotation="annotation"
 
-					@submit="value = $event"
+				@submit="value = $event"
 
-					ref="reset"
-				/>
-			</template>
+				ref="reset"
+			/>
+		
 			<div v-if="annotation.caseSensitive && !bare" class="checkbox">
 				<label :for="caseInputId">
 					<input

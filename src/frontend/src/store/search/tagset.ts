@@ -191,25 +191,25 @@ function validateTagset(mainTagsetAnnotation: NormalizedAnnotation, otherAnnotat
 			throw new Error(`Annotation "${annotationId}" does not exist in the corpus, but is referenced in the tagset.`);
 		}
 
-		if (!annotationInCorpus.values) {
-			throw new Error(`Annotation "${annotationId}" does not have any known values in the corpus, but is referenced in the tagset.`);
-		}
-
-		// part-of-speech is almost always indexed case-insensitive
-		// so we always want to compare values in the tagset and values in the corpus in lowercase
-		const annotationValuesInCorpus = mapReduce(annotationInCorpus.values, 'value');
-		annotationValuesInTagset.forEach(v => {
-			if (!annotationValuesInCorpus[annotationInCorpus.caseSensitive ? v.value : v.value.toLowerCase()]) {
-				console.warn(`Annotation "${annotationId}" may have value "${v.value}" which does not exist in the corpus.`);
-			}
-
-			if (v.pos) {
-				const unknownPosList = v.pos.filter(pos => !t.values[pos]);
-				if (unknownPosList.length > 0) {
-					console.warn(`SubAnnotation '${annotationId}' value '${v.value}' declares unknown main-pos value(s): ${unknownPosList.toString()}`);
+		if (!annotationInCorpus.values?.length) {
+			console.warn(`Annotation "${annotationId}" does not have any known values in the corpus, but is referenced in the tagset.`);
+		} else {
+			// part-of-speech is almost always indexed case-insensitive
+			// so we always want to compare values in the tagset and values in the corpus in lowercase
+			const annotationValuesInCorpus = mapReduce(annotationInCorpus.values, 'value');
+			annotationValuesInTagset.forEach(v => {
+				if (!annotationValuesInCorpus[annotationInCorpus.caseSensitive ? v.value : v.value.toLowerCase()]) {
+					console.warn(`Annotation "${annotationId}" may have value "${v.value}" which does not exist in the corpus.`);
 				}
-			}
-		});
+	
+				if (v.pos) {
+					const unknownPosList = v.pos.filter(pos => !t.values[pos]);
+					if (unknownPosList.length > 0) {
+						console.warn(`SubAnnotation '${annotationId}' value '${v.value}' declares unknown main-pos value(s): ${unknownPosList.toString()}`);
+					}
+				}
+			});
+		}
 	}
 
 	// validate the root annotation

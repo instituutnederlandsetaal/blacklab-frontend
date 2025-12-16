@@ -15,8 +15,8 @@ import jakarta.servlet.http.HttpServletResponse;
 import javax.xml.transform.TransformerException;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 
+import net.sf.saxon.s9api.SaxonApiException;
 import nl.inl.corpuswebsite.MainServlet;
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
@@ -101,7 +101,7 @@ public class CorpusFileUtil {
      * @param config - the global configuration, used to copy auth headers from the client request to the blacklab request.
      * @return the xsl transformer to use for transformation, note that this is always the same transformer.
      */
-    public static Result<XslTransformer, TransformerException> getStylesheet(
+    public static Result<XslTransformer, SaxonApiException> getStylesheet(
             CorpusConfig corpus,
             GlobalConfig config,
             String fileName,
@@ -138,21 +138,29 @@ public class CorpusFileUtil {
         return blacklabResult // attempt to use the BlackLab stylesheet first, as we only retrieve it when needed
             .tapSelf(r -> logger.fine("Stylesheet '"+fileName+"' from blacklab: " + (r.hasError() ? "error" : r.hasResult() ? "present" : "empty")))
             .mapWithErrorHandling(xsl -> new XslTransformer(corpus.getCorpusDataFormat().get(), xsl))
-            .mapError(e -> new TransformerException("Error loading stylesheet from blacklab:\n" 
-                + corpus.getCorpusDataFormat().get() + "\n"
-                + e.getMessage() + "\n"
-                + ExceptionUtils.getStackTrace(e))
-            )
+            .mapError(e -> {
+                String message = "Error loading stylesheet from BlackLab (" + corpus.getCorpusDataFormat().orElse("unknown") + "): " + e.getMessage();
+                if (e instanceof SaxonApiException) {
+                    e.addSuppressed(new RuntimeException(message));
+                    return (SaxonApiException) e;
+                } else {
+                    return new SaxonApiException(message + ":\n", e);
+                }
+            })
             .or(() -> fileResult
                 .tapSelf(r -> logger.fine("Stylesheet '"+fileName+"' from disk: " + (r.hasError() ? "error! - " + r.getError().get(): r.hasResult() ? r.getResult().get() : "empty")))
                 .mapWithErrorHandling(XslTransformer::new)
-                .mapError(e -> new TransformerException("Error loading stylesheet from disk:\n"
-                    + file.get() + "\n"
-                    + e.getMessage() + "\n"
-                    + ExceptionUtils.getStackTrace(e))
-                )
+                .mapError(e -> {
+                    String message = "Error loading stylesheet from disk (" + file.map(File::getAbsolutePath).orElse("unknown") + ")";
+                    if (e instanceof SaxonApiException) {
+                        e.addSuppressed(new RuntimeException(message));
+                        return (SaxonApiException) e;
+                    } else {
+                        return new SaxonApiException(message + ":\n", e);
+                    }
+                })
             )
-            .orError(() -> new TransformerException("File not found on disk, and no fallback available: " + fileName + ".xsl"));
+            .orError(() -> new SaxonApiException("Stylesheet file not found: " + fileName + ".xsl"));
     }
 
     private static Optional<Path> getIfValid(String path) {

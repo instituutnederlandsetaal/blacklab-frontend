@@ -10,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import nl.inl.corpuswebsite.MainServlet;
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
@@ -161,7 +160,6 @@ public class ArticleUtil {
         Result<String, QueryException> metadata = docMetadata.or(() -> getDocumentMetadata(corpus, config, docId));
         PaginationInfo pagination = getPaginationInfo(corpus, request, metadata);
         Result<String, QueryException> contents = getDocumentContent(corpus, config, docId, pagination);
-
         return transformDocument(corpus, corpusMetadata, config, contents, metadata);
     }
 
@@ -190,7 +188,9 @@ public class ArticleUtil {
             return servlet.getStylesheet(corpusMetadata, "article", request, response)
                     .tap(trans -> this.addStandardXsltParameters(trans, config, corpus, metadata))
                     .mapWithErrorHandling(trans -> trans.transform(c))
-                    .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred while transforming document contents: \n" + e.getMessage() + "\n" + ExceptionUtils.getStackTrace(e)));
+                    .mapError(e ->
+                        new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                                "Error transforming document: " + e.getMessage()));
         });
     }
 
@@ -199,7 +199,7 @@ public class ArticleUtil {
             servlet.getStylesheet(corpus,"meta",request, response)
             .tap(trans -> this.addStandardXsltParameters(trans, config, corpusConfig, null))
             .mapWithErrorHandling(trans -> trans.transform(md))
-            .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "An error occurred while transforming document metadata contents: \n" + e.getMessage() + "\n" + ExceptionUtils.getStackTrace(e)))
+            .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error transforming metadata: " + e.getMessage()))
         );
     }
 

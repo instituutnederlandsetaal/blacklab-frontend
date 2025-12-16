@@ -65,7 +65,7 @@ export const value = 'Generate'
 export const label = value;
 export const title = 'Check all combinations with BlackLab to see which occur in the corpus';
 
-export const defaultAction = (s: StepState): StepState => { 
+export const defaultAction = (s: StepState): StepState => {
 	// check if all are loaded.
 	const annotations = s.step3.main && Object.values(s.step3.main);
 	if (!annotations?.length) throw new Error('Step 3 not completed');
@@ -101,6 +101,24 @@ export const step = Vue.extend({
 	computed: {
 		main(): NormalizedAnnotation { return this.value.annotations.find(a => a.id === this.value.mainPosAnnotationId)!; },
 		subs(): NormalizedAnnotation[] { return this.value.subAnnotations; },
+
+		exclusionClause(): string {
+			if (!this.value.exclusions || this.value.exclusions.length === 0) {
+				return '';
+			}
+
+			const clauses = this.value.exclusions
+				.filter(e => e.annotationId && e.values.length > 0)
+				.map(e => {
+					if (e.values.length === 1) {
+						return `${e.annotationId}!="${e.values[0]}"`;
+					} else {
+						return `${e.annotationId}!="${e.values.join('|')}"`;
+					}
+				});
+
+			return clauses.length > 0 ? ` & ${clauses.join(' & ')}` : '';
+		},
 
 		mainValues(): null|Array<{value: string, loading: boolean}> {
 			return this.v.main ? Object.keys(this.v.main).map(v => ({ value: v, loading: this.v.main![v].loading})) : null
@@ -164,7 +182,7 @@ export const step = Vue.extend({
 				}
 				const r = await blacklab.getTermFrequencies(this.value.index.id, subAnnot.id, undefined, undefined, 100);
 				const subValues = Object.keys(r.termFreq).filter(v => !!v.trim())
-				
+
 				this.currentStep = `[${++i}/${numAnnotations}] Getting available options for annotations...`;
 
 				Object.entries(this.v.main!).forEach(([mainValue, {subs}]) => this.$set(subs, subAnnot.id, mapReduce(subValues, () => ({
@@ -204,21 +222,21 @@ export const step = Vue.extend({
 							continue;
 						}
 
-						performedWork = true;
-						this.currentStep = `[${++i}/${totalCombinations}] Resolving available combinations in the corpus... ${mainPosValue} + ${subAnnotationId}=${subAnnotationValue}`;
+					performedWork = true;
+					this.currentStep = `[${++i}/${totalCombinations}] Resolving available combinations in the corpus... ${mainPosValue} + ${subAnnotationId}=${subAnnotationValue}`;
 
 
-						state.loading = true;
-						const r = await blacklab.getHits(indexId, {
-							number: 0,
-							first: 0,
-							patt: `[${mainPosId}="${mainPosValue}" & ${subAnnotationId}="${subAnnotationValue}"]`,
-							maxretrieve: 1,
-							maxcount: 1
-						}).request;
+					state.loading = true;
+					const r = await blacklab.getHits(indexId, {
+						number: 0,
+						first: 0,
+						patt: `[${mainPosId}="${mainPosValue}" & ${subAnnotationId}="${subAnnotationValue}"${this.exclusionClause}]`,
+						maxretrieve: 1,
+						maxcount: 1
+					}).request;
 
-						state.occurances = r.summary.numberOfHits;
-						state.loading = false;
+					state.occurances = r.summary.numberOfHits;
+					state.loading = false;
 					}
 					if (performedWork) {
 						this.$emit('input', {...this.value, step3: this.v});

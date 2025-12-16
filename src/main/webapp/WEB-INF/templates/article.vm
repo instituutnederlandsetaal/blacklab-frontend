@@ -38,6 +38,16 @@
                        #foreach($stack in $article_content_error.getStackTrace())
                            $stack.toString()
                        #end
+                    #if ($article_content_error.getSuppressed() && $article_content_error.getSuppressed().size() > 0)
+                        <br>Suppressed Errors:
+                        #foreach($suppressed in $article_content_error.getSuppressed())
+                            $suppressed.toString()
+                        #end
+                    #end
+                    #if ($article_content_error.getCause())
+                        <br>Causal Error:
+                        $article_content_error.getCause().toString()
+                    #end
                     </div></div>
                 #end
             </div>
@@ -56,6 +66,16 @@
                    #foreach($stack in $article_meta_error.getStackTrace())
                        $stack.toString()
                    #end
+                #if ($article_meta_error.getSuppressed() && $article_meta_error.getSuppressed().size() > 0)
+                    <br>Suppressed Errors:
+                    #foreach($suppressed in $article_meta_error.getSuppressed())
+                        $suppressed.toString()
+                    #end
+                #end
+                #if ($article_meta_error.getCause())
+                    <br>Causal Error:
+                    $article_meta_error.getCause().toString()
+                #end
                 </div></div>
             #end
         </div>
