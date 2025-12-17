@@ -2,8 +2,8 @@
 	<div>
 		<h3>{{title}}</h3>
 		<SelectPicker :options="options" :value="value.mainPosAnnotationId" @input="$emit('input', {...value, mainPosAnnotationId: $event})" placeholder="Select annotation" allowHtml searchable/>
-		<button type="button" @click="$emit('submit')" :disabled="!value.mainPosAnnotationId">OK</button>
-		<button type="button" @click="$emit('input', {...value, mainPosAnnotationId: defaultPosAnnotation && defaultPosAnnotation.id})">Default</button>
+		<button type="button" class="btn btn-primary" @click="$emit('submit')" :disabled="!value.mainPosAnnotationId">OK</button>
+		<button type="button" class="btn btn-default" @click="$emit('input', {...value, mainPosAnnotationId: defaultPosAnnotation && defaultPosAnnotation.id})">Default</button>
 	</div>
 </template>
 
