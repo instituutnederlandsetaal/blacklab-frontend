@@ -86,11 +86,18 @@
         Typically /blacklab-frontend/ or similar. Takes the value of cfUrlExternal from the .properties file.
         Will not contain a trailing slash.
         <XsltParameter name="contextPath" value="${request:contextPath}"/>
+
         The corpus path, usually /blacklab-frontend/${corpus-id}, equal to ${request:contextPath} if not viewing a corpus.
         Will not contain a trailing slash.
         <XsltParameter name="corpusPath" value="${request:corpusPath}"/>
+
         The corpus ID (including username portion for user corpora), so 'lassy' or 'username:corpus-name', empty if not viewing a corpus.
         <XsltParameter name="corpusId" value="${request:corpusId}"/>
+
+        The metadata as a document node, including those configured in the index. The value may be <empty/>.
+        In article.xslt you can use <xsl:param name="metadata" as="document-node()"/>. NOTE that the metadata xml does not have a namespace,
+        when using for example the tei namespace as default for xpath, you may unexpectedly find no results.
+        <XsltParameter name="metadata" value="xml as described in https://blacklab.ivdnt.org/server/rest-api/documents/metadata.html"/>
      -->
     </XsltParameters>
 </SearchInterface>

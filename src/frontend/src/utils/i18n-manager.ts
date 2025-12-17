@@ -48,7 +48,7 @@ class I18nManager {
 
 	// Computed available locales with state information
 	public readonly availableLocales = computed<(Option & { loading: boolean; error: string | null })[]>(() => {
-		// Dependency tracking for Object.keys doesn't seem to work with reactive({}) for some reason? 
+		// Dependency tracking for Object.keys doesn't seem to work with reactive({}) for some reason?
 		// So we use a version counter to force recompute when keys change.
 		this.registeredLocaleIdsVersion.value;
 		return Object.keys(this.registeredLocaleIds)
