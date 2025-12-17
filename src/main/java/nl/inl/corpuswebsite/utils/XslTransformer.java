@@ -15,19 +15,24 @@ import java.util.function.Consumer;
 import java.util.logging.Logger;
 
 import javax.xml.transform.Source;
+import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamSource;
 
+import net.sf.saxon.s9api.DocumentBuilder;
 import net.sf.saxon.s9api.Message;
 import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.s9api.QName;
 import net.sf.saxon.s9api.SaxonApiException;
 import net.sf.saxon.s9api.Serializer;
 import net.sf.saxon.s9api.XdmAtomicValue;
+import net.sf.saxon.s9api.XdmNode;
+import net.sf.saxon.s9api.XdmValue;
 import net.sf.saxon.s9api.XsltCompiler;
 import net.sf.saxon.s9api.XsltExecutable;
 import net.sf.saxon.s9api.XsltTransformer;
 import net.sf.saxon.lib.ErrorReporter;
 import net.sf.saxon.s9api.XmlProcessingError;
+import org.w3c.dom.Document;
 
 
 public class XslTransformer {
@@ -63,7 +68,7 @@ public class XslTransformer {
      */
     private static final Processor PROCESSOR = new Processor(false);
 
-    private final Map<String, String> params = new HashMap<>();
+    private final Map<String, Object> params = new HashMap<>();
     private final XsltExecutable executable;
     private final String id;
 
@@ -86,14 +91,14 @@ public class XslTransformer {
             XsltCompiler compiler = PROCESSOR.newXsltCompiler();
             CapturingErrorReporter errorReporter = new CapturingErrorReporter();
             compiler.setErrorReporter(errorReporter);
-            
+
             try {
                 XsltExecutable exec = compiler.compile(source);
-                
+
                 if (useCache) {
                     EXECUTABLE_CACHE.put(id, exec);
                 }
-                
+
                 return exec;
             } catch (SaxonApiException e) {
                 // If we captured error details, include them in the exception
@@ -133,7 +138,7 @@ public class XslTransformer {
 
     public <W extends Writer> W streamTransform(Reader source, W result) throws SaxonApiException {
         XsltTransformer transformer = executable.load();
-        
+
         // Capture xsl:message output
         StringBuilder capturedMessages = new StringBuilder();
         Consumer<Message> messageHandler = (Message message) -> {
@@ -145,17 +150,22 @@ public class XslTransformer {
             logger.info("XSLT message: " + content);
         };
         transformer.setMessageHandler(messageHandler);
-        
+
         // Set parameters
-        for (Map.Entry<String, String> entry : params.entrySet()) {
-            transformer.setParameter(new QName(entry.getKey()), 
-                                    new XdmAtomicValue(entry.getValue()));
+        for (Map.Entry<String, Object> entry : params.entrySet()) {
+            if (entry.getValue() instanceof Document d) {
+                DocumentBuilder db = PROCESSOR.newDocumentBuilder();
+                XdmNode xdmDoc = db.build(new DOMSource(d));
+                transformer.setParameter(new QName(entry.getKey()), xdmDoc);
+            } else {
+                transformer.setParameter(new QName(entry.getKey()), XdmValue.makeValue(entry.getValue()));
+            }
         }
 
         // Set up source and destination
         StreamSource streamSource = new StreamSource(source);
         transformer.setSource(streamSource);
-        
+
         Serializer serializer = PROCESSOR.newSerializer(result);
         serializer.setOutputProperty(Serializer.Property.ENCODING, "UTF-8");
         serializer.setOutputProperty(Serializer.Property.INDENT, "yes");
@@ -175,7 +185,7 @@ public class XslTransformer {
         return result;
     }
 
-    public void addParameter(String key, String value) {
+    public void addParameter(String key, Object value) {
         params.put(key, value);
     }
 
