@@ -1,6 +1,6 @@
 {
   "name": "blacklab-frontend",
-  "version": "4.2.0-SNAPSHOT",
+  "version": "4.2.0",
   "description": "BlackLab Frontend javascript code",
   "private": true,
   "scripts": {
