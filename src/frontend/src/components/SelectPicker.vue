@@ -106,7 +106,7 @@
 				><div v-if="loading && editable /* not visible in button when editable */" class="text-center"
 					><span class="fa fa-spinner fa-spin text-muted"></span
 				></div
-				><button v-if="resettable && filteredOptions.length"
+				><button v-if="resettableModel && filteredOptions.length"
 					type="button"
 					tabindex="-1"
 					:class="['menu-button menu-reset', 'btn btn-sm', dataClass || 'btn-default']"
@@ -115,7 +115,7 @@
 				>
 					Reset
 				</button
-				><input v-if="searchable && !editable /* When it's available, edit box handles searching */"
+				><input v-if="searchableModel && !editable /* When it's available, edit box handles searching */"
 					type="text"
 					class="form-control input-sm menu-search"
 					placeholder="Filter..."
@@ -334,6 +334,9 @@ export default Vue.extend({
 		uid: nextMenuId++,
 	}),
 	computed: {
+		searchableModel(): boolean { return this.searchable ?? (this.uiOptions.length >= 10 && !this.editable); },
+		resettableModel(): boolean { return this.resettable ?? this.searchableModel },
+
 		menuId(): string { return this.$attrs.id != null ? this.$attrs.id : `combobox-${this.uid}`; },
 		isOpen(): boolean { if (this.open != null) { return this.open; } else { return this.isNaturallyOpen; } },
 
@@ -885,8 +888,8 @@ export default Vue.extend({
 			immediate: true,
 			handler() { this.correctModel(this.value); }
 		},
-		editable(v: boolean) { if (!v && !this.searchable) { this.inputValue = ''; } if (v) { this.internalModel = {}; }},
-		searchable(v: boolean) { if (!v && !this.editable) { this.inputValue = ''; } },
+		editable(v: boolean) { if (!v && !this.searchableModel) { this.inputValue = ''; } if (v) { this.internalModel = {}; }},
+		searchableModel(v: boolean) { if (!v && !this.editable) { this.inputValue = ''; } },
 	},
 	mounted() {
 		// Only do this when mounted, the container selector may refer to a parent element

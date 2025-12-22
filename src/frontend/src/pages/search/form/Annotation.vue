@@ -6,7 +6,6 @@
 				data-width="100%"
 				container="body"
 
-				:searchable="options.length > 12"
 				:placeholder="displayName"
 				:data-id="inputId"
 				:data-name="inputId"
@@ -59,9 +58,9 @@
 					</label>
 				</div>
 			</div>
-			
+
 			<!-- Don't destroy the component on close, it keeps some state. -->
-			<PartOfSpeech v-if="annotation.uiType === 'pos'" :open="posOpen" @close="posOpen = false" 
+			<PartOfSpeech v-if="annotation.uiType === 'pos'" :open="posOpen" @close="posOpen = false"
 				:id="`pos_editor${uid}`"
 				:annotation="annotation"
 
@@ -69,7 +68,7 @@
 
 				ref="reset"
 			/>
-		
+
 			<div v-if="annotation.caseSensitive && !bare" class="checkbox">
 				<label :for="caseInputId">
 					<input

@@ -18,7 +18,6 @@
 				:dir="textDirection"
 				:placeholder="displayName"
 				:options="options"
-				:searchable="searchable"
 
 				:value="value"
 				@input="e_input($event);"
@@ -33,7 +32,7 @@
 
 <script lang="ts">
 import BaseFilter from '@/components/filters/Filter';
-import SelectPicker, { Option } from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 
 export default BaseFilter.extend({
 	components: {
@@ -45,9 +44,6 @@ export default BaseFilter.extend({
 			required: true,
 			default: () => []
 		},
-	},
-	computed: {
-		searchable(): boolean { return Array.isArray(this.options) && this.options!.length > 10; },
 	},
 });
 
