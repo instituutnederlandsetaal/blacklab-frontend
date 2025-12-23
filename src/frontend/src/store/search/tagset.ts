@@ -14,6 +14,7 @@ import * as CorpusStore from '@/store/search/corpus';
 import { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import { mapReduce } from '@/utils';
+import { cachedRequest } from '@/utils/apiCache';
 
 type ModuleRootState = Tagset&{
 	/** Uninitialized before init() or load() action called. loading/loaded during/after load() called. Disabled when load() not called before init(), or loading failed for any reason. */
@@ -70,12 +71,15 @@ const init = async () => {
 	// load the tagset.
 
 	internalActions.state({state: 'loading', message: 'Loading tagset...'});
-	return Axios.get<Tagset>(state.url, {
-		// Remove comment-lines in the returned json. (that's not strictly allowed by JSON, but we chose to support it)
-		transformResponse: [(r: string) => r.replace(/\/\/.*[\r\n]+/g, '')].concat(Axios.defaults.transformResponse!)
+	return cachedRequest<Tagset>(`tagset-${state.url}`, {
+		baseURL: '',
+		url: state.url,
+		config: {
+			// Remove comment-lines in the returned json. (that's not strictly allowed by JSON, but we chose to support it)
+			transformResponse: [(r: string) => r.replace(/\/\/.*[\r\n]+/g, '')].concat(Axios.defaults.transformResponse!)
+		}
 	})
-	.then(t => {
-		const tagset = t.data;
+	.then(tagset => {
 		const annots = CorpusStore.get.allAnnotationsMap();
 		const mainAnnot = Object.values(annots).flat().find(a => a.uiType === 'pos');
 		if (!mainAnnot) {

@@ -210,10 +210,7 @@ class I18nManager {
 
 		// Try to load external overrides
 		try {
-			const response = await fetch(`${CONTEXT_URL}${INDEX_ID ? `/${INDEX_ID}` : ''}/static/locales/${localeId}.json`, {
-				headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
-				cache: 'no-store',
-			});
+			const response = await fetch(`${CONTEXT_URL}${INDEX_ID ? `/${INDEX_ID}` : ''}/static/locales/${localeId}.json`)
 
 			if (response.ok) {
 				overrides = await parseJsonWithComments(response);
