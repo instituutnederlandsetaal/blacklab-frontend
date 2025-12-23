@@ -69,7 +69,7 @@
 				ref="reset"
 			/>
 
-			<div v-if="annotation.caseSensitive && !bare" class="checkbox">
+			<div v-if="annotation.caseSensitive && !bare && annotation.uiType !== 'pos'" class="checkbox">
 				<label :for="caseInputId">
 					<input
 						type="checkbox"
