@@ -25,8 +25,17 @@ elif [[ "$DOCKER_TAG" == "dev" ]]; then
 	BASE_IMAGE_TAG="dev"
 	echo "Detected dev version"
 elif [[ "$DOCKER_TAG" == "latest" ]]; then
-	BASE_IMAGE_TAG="latest"
-	echo "Detected latest version"
+	echo "Detected we're building 'latest' tag i.e. stable release, finding current major version..."
+	# argh, blacklab latest is the "dev" version, which might be the next major already
+	# Parse the latest version from the nearest git tag
+	NEWEST_TAG=$(git describe --tags --abbrev=0 --always)
+	if [[ "$NEWEST_TAG" =~ ^v?([0-9]+)\. ]]; then
+		BASE_IMAGE_TAG="${BASH_REMATCH[1]}"
+		echo "Detected major version from newest tag: ${BASE_IMAGE_TAG}"
+	else
+		BASE_IMAGE_TAG="latest"
+		echo "Unable to parse major version from newest tag (${NEWEST_TAG}), defaulting to latest"
+	fi
 # Source branch unknown, target tag (from dockerhub build config) is also unknown, just use dev?
 else
 	BASE_IMAGE_TAG="dev"
