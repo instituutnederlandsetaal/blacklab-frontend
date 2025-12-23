@@ -2,11 +2,9 @@ package nl.inl.corpuswebsite.response;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Optional;
 
 import jakarta.servlet.ServletException;
@@ -14,7 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import nl.inl.corpuswebsite.BaseResponse;
-import nl.inl.corpuswebsite.MainServlet;
+import nl.inl.corpuswebsite.utils.StaticFileHandler;
 
 public class CorporaDataResponse extends BaseResponse {
 
@@ -43,10 +41,7 @@ public class CorporaDataResponse extends BaseResponse {
             }
 
             String mime = servlet.getServletContext().getMimeType(pathString);
-            response.setHeader("Cache-Control", "public, max-age=604800" /* 7 days */);
-            response.setHeader("Content-Length", Long.toString(file.get().length()));
-            response.setContentType(mime);
-            Files.copy(file.get().toPath(), response.getOutputStream());
+            StaticFileHandler.serveFile(request, response, file.get(), mime);
         } catch (InvalidPathException e1) { // runtimeException from Path.resolve; when weird paths are being requested
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;

@@ -8,7 +8,7 @@
         ## custom css in header to prevent FOUT
         #foreach($js in $websiteConfig.getCustomJS($page))
         <script
-            src="$js.url?_$cache"
+            src="$js.url"
             #foreach($attribute in $js.getAttributes().entrySet())
                 $attribute.getKey() #if($attribute.getValue()) ="$attribute.getValue()" #end
             #end></script>

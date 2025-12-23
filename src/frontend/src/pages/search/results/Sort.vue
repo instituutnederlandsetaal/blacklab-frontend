@@ -10,8 +10,7 @@
 		allowUnknownValues
 		right
 
-		:searchable="sortOptions.searchable"
-		:options="sortOptions.options"
+		:options="sortOptions"
 		:disabled="disabled"
 
 		v-model="model"
@@ -50,10 +49,7 @@ export default Vue.extend({
 			get(): string { return this.value; },
 			set(v: string) { this.$emit('input', v); }
 		},
-		sortOptions(): {
-			options: OptGroup[],
-			searchable: boolean
-		} {
+		sortOptions(): OptGroup[] {
 			const options = [] as OptGroup[];
 
 			/** Customize and add one or more groups */
@@ -133,10 +129,7 @@ export default Vue.extend({
 				));
 			}
 
-			return {
-				options,
-				searchable: options.reduce((a, g) => a + g.options.length, 0) > 12
-			};
+			return options;
 		},
 	}
 })
