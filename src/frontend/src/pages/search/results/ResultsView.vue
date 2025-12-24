@@ -21,6 +21,8 @@
 					:page="pagination.shownPage"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
+					:rangeStartPage="pagination.rangeStartPage"
+					:rangeEndPage="pagination.rangeEndPage"
 
 					@change="page = $event"
 				/>
@@ -60,6 +62,9 @@
 				:disabled="!!request"
 				:query="results?.summary.searchParam"
 				:sort="sort"
+				:urlRangeFirst="urlRange.first"
+				:urlRangeNumber="urlRange.number"
+				:fetchWindowFirst="fetchWindowFirst"
 
 				@changeSort="sort = (sort === $event ? `-${sort}` : $event)"
 				@viewgroup="changeViewGroup"
@@ -72,6 +77,8 @@
 					:page="pagination.shownPage"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
+					:rangeStartPage="pagination.rangeStartPage"
+					:rangeEndPage="pagination.rangeEndPage"
 
 					@change="page = $event"
 				/>
@@ -133,6 +140,8 @@
 				:page="pagination.shownPage"
 				:maxPage="pagination.maxShownPage"
 				:disabled="!!request"
+				:rangeStartPage="pagination.rangeStartPage"
+				:rangeEndPage="pagination.rangeEndPage"
 
 				@change="page = $event"
 			/>
@@ -217,9 +226,10 @@ export default Vue.extend({
 		// Should we clear the results when we begin the next request? - set when main form is submitted.
 		clearResults: false,
 
-		/** When no longer viewing contents of a group, restore the page and sorting (i.e. user's position in the results). */
+		/** When no longer viewing contents of a group, restore the result range and sorting (i.e. user's position in the results). */
 		restoreOnViewGroupLeave: null as null|{
-			page: number;
+			first: number;
+			number: number;
 			sort: string|null;
 		},
 		showTitles: localStorageSynced('cf/results/showTitles', true),
@@ -339,12 +349,25 @@ export default Vue.extend({
 		},
 		leaveViewgroup() {
 			this.viewGroup = null;
-			this.page = this.restoreOnViewGroupLeave?.page || 0;
-			this.sort = this.restoreOnViewGroupLeave?.sort || null;
+			if (this.restoreOnViewGroupLeave) {
+				this.store.actions.range({
+					first: this.restoreOnViewGroupLeave.first,
+					number: this.restoreOnViewGroupLeave.number
+				});
+				this.sort = this.restoreOnViewGroupLeave.sort;
+			} else {
+				this.store.actions.range({ first: 0, number: GlobalStore.pageSize.value });
+				this.sort = null;
+			}
 			this.restoreOnViewGroupLeave = null;
 		},
 		changeViewGroup(groupId: string, groupDisplay: string) {
-			this.restoreOnViewGroupLeave = {page: this.page, sort: this.sort};
+			const viewState = this.store.getState();
+			this.restoreOnViewGroupLeave = {
+				first: viewState.first,
+				number: viewState.number,
+				sort: this.sort
+			};
 			this.viewGroup = groupId;
 			this._viewGroupName = groupDisplay;
 		}
@@ -354,9 +377,20 @@ export default Vue.extend({
 			get(): string[] { return this.store.getState().groupBy; },
 			set(v: string[]) { this.store.actions.groupBy(v); }
 		},
+		/**
+		 * Page is computed from view's `first` and the local `pageSize` preference.
+		 * Setting it updates `first` and `number` in the store.
+		 */
 		page: {
-			get(): number { return this.store.getState().page; },
-			set(v: number) { this.store.actions.page(v);  }
+			get(): number {
+				const first = this.store.getState().first;
+				const ps = GlobalStore.pageSize.value;
+				return Math.floor(first / ps);
+			},
+			set(v: number) {
+				const ps = GlobalStore.pageSize.value;
+				this.store.actions.range({ first: v * ps, number: ps });
+			}
 		},
 		sort: {
 			get(): string|null { return this.store.getState().sort; },
@@ -408,9 +442,28 @@ export default Vue.extend({
 		// When these change, the form has been resubmitted, so we need to initiate a scroll event
 		querySettings() { return QueryStore.getState(); },
 
+		/**
+		 * Pagination state for the current view.
+		 * 
+		 * Three cases for the shown range [first, first+number):
+		 * 1. Exact page: first % pageSize == 0 && number == pageSize
+		 *    -> Single page active, no range highlighting needed
+		 * 2. Span fits in 1 page: floor(first/pageSize) == floor((first+number-1)/pageSize)
+		 *    -> Single page active (the page containing the span)
+		 * 3. Span crosses pages: startPage != endPage
+		 *    -> Multiple pages active, highlight the range
+		 */
 		pagination(): {
+			/** The primary page to show as current (first page of the shown range) */
 			shownPage: number,
-			maxShownPage: number
+			/** Maximum page number available */
+			maxShownPage: number,
+			/** First page that overlaps the shown span (0-indexed), null if exact single page */
+			rangeStartPage: number|null,
+			/** Last page that overlaps the shown span (0-indexed), null if exact single page */
+			rangeEndPage: number|null,
+			/** Whether we're showing an exact single page (aligned to page boundaries) */
+			isExactPage: boolean,
 		} {
 			// Take care to use this.results for page size, but this.paginationResults for total number of results.
 			// This is because pagination results are requested with a window size of 0!
@@ -418,25 +471,64 @@ export default Vue.extend({
 				return {
 					shownPage: 0,
 					maxShownPage: 0,
+					rangeStartPage: null,
+					rangeEndPage: null,
+					isExactPage: true,
 				};
 			}
 
-			// use actual results - pagination results are requested with windows size 0 (!)
-			const pageSize = this.results.summary.requestedWindowSize;
-			const shownPage = Math.floor(this.results.summary.windowFirstResult / pageSize);
+			const pageSize = GlobalStore.pageSize.value;
+			const { first, number } = this.store.getState();
+			const last = first + number - 1;
+
+			// Calculate which pages the shown span overlaps
+			const startPage = Math.floor(first / pageSize);
+			const endPage = Math.floor(last / pageSize);
+
+			// Check if this is an exact page (aligned to page boundaries)
+			const isExactPage = (first % pageSize === 0) && (number === pageSize);
+
 			const totalResults =
 				BLTypes.isGroups(this.paginationResults) ? this.paginationResults.summary.numberOfGroups :
 				BLTypes.isHitResults(this.paginationResults) ? this.paginationResults.summary.numberOfHitsRetrieved :
 				this.paginationResults.summary.numberOfDocsRetrieved;
 
-			// subtract one page if number of results exactly diactive by page size
-			// e.g. 20 results for a page size of 20 is still only one page instead of 2.
-			const pageCount = Math.floor(totalResults / pageSize) - ((totalResults % pageSize === 0 && totalResults > 0) ? 1 : 0);
+			// Calculate max page (subtract one if exactly divisible to avoid empty last page)
+			const maxPage = Math.max(0, Math.floor((totalResults - 1) / pageSize));
+
+			// Determine range highlighting:
+			// - If exact page: no range highlighting needed (null values)
+			// - If span fits in 1 page (startPage == endPage but not exact): still show as single active page
+			// - If span crosses pages: highlight the range
+			const showRange = !isExactPage && startPage !== endPage;
 
 			return {
-				shownPage,
-				maxShownPage: pageCount >= shownPage ? pageCount : shownPage,
+				shownPage: startPage,
+				maxShownPage: Math.max(maxPage, startPage),
+				rangeStartPage: showRange ? startPage : null,
+				rangeEndPage: showRange ? endPage : null,
+				isExactPage,
 			};
+		},
+
+		/**
+		 * The URL range (first/number) for highlighting purposes.
+		 * Simply returns the current first/number from the view state.
+		 */
+		urlRange(): { first: number, number: number } {
+			const viewState = this.store.getState();
+			return {
+				first: viewState.first,
+				number: viewState.number
+			};
+		},
+
+		/**
+		 * The first index of the current fetch window.
+		 * This is used to calculate which rows fall within the URL range.
+		 */
+		fetchWindowFirst(): number {
+			return this.results?.summary.windowFirstResult ?? 0;
 		},
 
 		valid(): boolean {

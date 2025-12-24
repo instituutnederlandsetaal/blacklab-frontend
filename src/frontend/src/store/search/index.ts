@@ -84,6 +84,10 @@ const get = {
 
 		const patt = QueryModule.get.patternString() ?? '';
 
+		// Use first/number directly from view state
+		const fetchFirst = activeView.first;
+		const fetchNumber = activeView.number;
+
 		// These make debugging more convenient
 		const debugParams = debug.debug ? {
 			// Explain how the CQL was converted to a query and rewritten for optimization
@@ -100,10 +104,10 @@ const get = {
 			...debugParams,
 
 			filter: QueryModule.get.filterString(),
-			first: state.global.pageSize * activeView.page,
+			first: fetchFirst,
 			group: activeView.groupBy.join(','),
 
-			number: state.global.pageSize,
+			number: fetchNumber,
 			field: QueryModule.get.sourceField().id,
 			patt,
 			pattgapdata: (QueryModule.get.patternString() && QueryModule.getState().gap) ? QueryModule.getState().gap!.value || undefined : undefined,

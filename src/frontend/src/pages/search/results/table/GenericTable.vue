@@ -23,7 +23,7 @@
 				</TableHeader>
 			</tr>
 		</thead>
-		<tbody :class="{ 'has-foreign-hit': hasForeignHit(rows) }">
+		<tbody :class="{ 'has-foreign-hit': hasForeignHit(rows), 'has-url-range': hasUrlRange }">
 			<template v-for="(row, index) in rows.rows">
 				<template v-if="row.type === 'doc' && !showTitles"></template>
 				<template v-else>
@@ -33,7 +33,8 @@
 						open: openRows[row.hit_id || index],
 						interactable: isOpenable(row),
 						topborder: index > 0 && 'first_of_hit' in row && row.first_of_hit,
-						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1)
+						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1),
+						'in-url-range': isInUrlRange(index)
 					}"
 					:row="row"
 					:info="info"
@@ -107,6 +108,30 @@ export default Vue.component('GenericTable', {
 		/// UGH, required to get group contents as this is not exposed in the results directly.
 		type: String as () => 'hits'|'docs',
 		query: Object as () => BLSearchParameters,
+
+		/**
+		 * The starting index of the URL's result range (0-indexed absolute position in result set).
+		 * Used to highlight rows that fall within a shared URL's range.
+		 */
+		urlRangeFirst: {
+			type: Number as () => number|null,
+			default: null
+		},
+		/**
+		 * The number of results in the URL's range.
+		 */
+		urlRangeNumber: {
+			type: Number as () => number|null,
+			default: null
+		},
+		/**
+		 * The first index of the current fetched window (0-indexed absolute position).
+		 * This is needed to calculate which rows fall within the URL range.
+		 */
+		fetchWindowFirst: {
+			type: Number as () => number,
+			default: 0
+		}
 	},
 	data: () => ({
 		definitions,
@@ -115,7 +140,25 @@ export default Vue.component('GenericTable', {
 		hoverMatchInfos: undefined as undefined|string[],
 		hoverMatchInfosId: undefined as undefined|string,
 	}),
+	computed: {
+		/**
+		 * Whether we have a URL range that differs from the current view.
+		 */
+		hasUrlRange(): boolean {
+			return this.urlRangeFirst != null && this.urlRangeNumber != null;
+		}
+	},
 	methods: {
+		/**
+		 * Check if a row at the given index (within the fetch window) is part of the URL's range.
+		 * @param index - The 0-indexed position within the current fetch window
+		 */
+		isInUrlRange(index: number): boolean {
+			if (!this.hasUrlRange) return false;
+			const absoluteIndex = this.fetchWindowFirst + index;
+			const urlLast = this.urlRangeFirst! + this.urlRangeNumber! - 1;
+			return absoluteIndex >= this.urlRangeFirst! && absoluteIndex <= urlLast;
+		},
 		isOpenable(row: HitRowData|DocRowData|GroupRowData) {
 			if (this.disabled || this.disableDetails) return false;
 			if (row.type === 'group') return true;
@@ -234,6 +277,16 @@ table.results-table {
 	tr.foreign-hit {
 		color: #666;
 		font-style: italic;
+	}
+
+	// Highlight rows that are part of the shared URL's result range
+	tr.in-url-range {
+		background-color: rgba(#f0ad4e, 0.15);
+
+		&:hover,
+		&:focus {
+			background-color: rgba(#f0ad4e, 0.25)!important;
+		}
 	}
 }
 

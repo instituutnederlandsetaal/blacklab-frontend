@@ -103,10 +103,10 @@ export default Vue.extend({
 	computed: {
 		viewedResultsSettings: RootStore.get.viewedResultsSettings,
 		pageSize: {
-			get(): string { return this.itoa(GlobalViewSettings.getState().pageSize); },
+			get(): string { return this.itoa(GlobalViewSettings.pageSize.value); },
 			set(v: string) {
-				GlobalViewSettings.actions.pageSize(this.atoi(v)!);
-				ResultsViewSettings.actions.resetPage();
+				GlobalViewSettings.setPageSize(this.atoi(v)!);
+				ResultsViewSettings.actions.resetFirst();
 			}
 		},
 		pageSizeOptions(): Option[] {
@@ -119,7 +119,7 @@ export default Vue.extend({
 			get() { return GlobalViewSettings.getState().sampleMode; },
 			set(v: GlobalViewSettings.ModuleRootState['sampleMode']) {
 				GlobalViewSettings.actions.sampleMode(v);
-				ResultsViewSettings.actions.resetPage();
+				ResultsViewSettings.actions.resetFirst();
 			}
 		},
 		sampleModeOptions(): Option[] {
@@ -135,7 +135,7 @@ export default Vue.extend({
 			get(): string { return this.itoa(GlobalViewSettings.getState().sampleSize); },
 			set(v: string) {
 				GlobalViewSettings.actions.sampleSize(this.atoi(v));
-				ResultsViewSettings.actions.resetPage();
+				ResultsViewSettings.actions.resetFirst();
 			}
 		},
 		sampleSeed: {
@@ -146,7 +146,7 @@ export default Vue.extend({
 					// No need to do this when ungrouped - the raw number of results
 					// will stay as it is, but the distribution (and number of) groups may change and
 					// cause the number of pages to shift
-					ResultsViewSettings.actions.resetPage();
+					ResultsViewSettings.actions.resetFirst();
 				}
 			}
 		},

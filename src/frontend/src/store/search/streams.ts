@@ -195,14 +195,24 @@ urlInputParameters$.pipe(
 			return acc;
 		}, {} as any);
 
+		// Override first/number in the URL with the view's logical position
+		// This decouples the URL's result range from the local page size preference
+		const viewedResults = v.state.interface.viewedResults;
+		const view = viewedResults ? v.state.views[viewedResults] : undefined;
+		if (view) {
+			// Use first/number directly from view state
+			queryParams.first = view.first;
+			queryParams.number = view.number;
+			// If first is 0, we can omit it for cleaner URLs
+			if (queryParams.first === 0) delete queryParams.first;
+		}
+
 		// The raw blacklab-server query parameters don't contain enough information on their own to fully restore the frontend's state on load
 		// Store some interface state in the url, so the query can be restored to the correct form
 		// even when loading the page from just the url. See UrlStateParser class in store/utils/url-state-parser.ts
 		// TODO we should probably output the form in the url as /${indexId}/('search'|'explore')/('simple'|'advanced' ...etc)/('hits'|'docs')
 		// But for now, we keep parity with blacklab's urls. This allows just changing /blacklab-frontend to /blacklab-server, which has some value I suppose.
 		// We only add a few query parameters of our own to restore some parts of the interface that can't be inferred from the blacklab parameters.
-		const viewedResults = v.state.interface.viewedResults;
-		const view = viewedResults ? v.state.views[viewedResults] : undefined;
 		Object.assign(queryParams, {
 			interface: JSON.stringify({
 				form: v.state.query.form,

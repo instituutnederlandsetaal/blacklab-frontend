@@ -1,5 +1,5 @@
 <template>
-	<ul class="pagination pagination-sm">
+	<ul class="pagination pagination-sm" :class="{'has-url-range': hasPageRange}">
 		<li :class="['first', {'disabled': !prevEnabled || disabled}]">
 			<a v-if="prevEnabled" role="button" title="first" @click.prevent="changePage(minPage)">&laquo;</a>
 			<span v-else title="first">&laquo;</span>
@@ -8,16 +8,21 @@
 			<a role="button" title="previous" @click.prevent="changePage(page-1)">&lsaquo;</a>
 		</li
 		><template v-if="showOffsets"
-			><li v-for="i in lowerPages" :key="i" :class="{'disabled': disabled}">
+			><li v-for="i in lowerPages" :key="i" :class="{'disabled': disabled, 'in-url-range': isInUrlRange(i)}">
 				<a role="button" @click.prevent="changePage(i)">{{(i+1).toLocaleString()}}</a>
 			</li
 		></template
 		><li :class="{
 			current: pageActive,
 			active: pageActive,
-			disabled
+			disabled,
+			'in-url-range': isInUrlRange(page)
 		}">
-			<template v-if="editable">
+			<template v-if="hasPageRange && !editable">
+				<!-- Show page range when viewing multiple local pages from URL -->
+				<span class="url-range-label" :title="`Viewing pages ${rangeLabel} from shared URL`">{{ rangeLabel }}</span>
+			</template>
+			<template v-else-if="editable">
 				<input
 					type="number"
 					class="form-control"
@@ -35,7 +40,7 @@
 			<span v-else>{{ showTotal ? `${(page+1).toLocaleString()}/${(maxPage+1).toLocaleString()}` : (page+1).toLocaleString() }}</span>
 		</li
 		><template v-if="showOffsets"
-			><li v-for="i in higherPages" :key="i" :class="{'disabled': disabled}">
+			><li v-for="i in higherPages" :key="i" :class="{'disabled': disabled, 'in-url-range': isInUrlRange(i)}">
 				<a role="button" @click.prevent="changePage(i)">{{(i+1).toLocaleString()}}</a>
 			</li
 		></template
@@ -81,12 +86,42 @@ export default Vue.extend({
 		showTotal: {
 			type: Boolean,
 			default: false,
+		},
+		/**
+		 * When viewing a URL with a different page size, we may be viewing a range of local pages.
+		 * rangeStartPage and rangeEndPage define the range of pages that contain the URL's result range.
+		 * These are 0-indexed page numbers.
+		 */
+		rangeStartPage: {
+			type: Number as () => number|null,
+			default: null
+		},
+		rangeEndPage: {
+			type: Number as () => number|null,
+			default: null
 		}
 	},
 	data: () => ({
 		focus: false,
 	}),
 	computed: {
+		/** Whether we're showing a range of pages (from a shared URL with different page size) */
+		hasPageRange(): boolean {
+			return this.rangeStartPage != null && this.rangeEndPage != null &&
+				this.rangeStartPage !== this.rangeEndPage;
+		},
+		/** Whether a given page is within the URL's range */
+		isInUrlRange(): (page: number) => boolean {
+			return (page: number) => {
+				if (this.rangeStartPage == null || this.rangeEndPage == null) return false;
+				return page >= this.rangeStartPage && page <= this.rangeEndPage;
+			};
+		},
+		/** Format the page range display */
+		rangeLabel(): string {
+			if (!this.hasPageRange) return '';
+			return `${(this.rangeStartPage! + 1).toLocaleString()}-${(this.rangeEndPage! + 1).toLocaleString()}`;
+		},
 		lowerPages(): number[] {
 			return this.calcOffsets(this.boundedPage - this.minPage).reverse().map(o => this.boundedPage - o);
 		},
@@ -215,9 +250,29 @@ export default Vue.extend({
 				font-weight: bold;
 			}
 		}
+
+		// Highlight pages that are part of the shared URL's result range
+		&.in-url-range {
+			> a,
+			> span {
+				background-color: rgba(#f0ad4e, 0.3);
+				border-color: #f0ad4e;
+			}
+		}
 	}
 	li+li.current {
 		margin-left: -1px;
+	}
+
+	// URL range label styling
+	.url-range-label {
+		display: inline-block;
+		padding: 5px 10px;
+		background-color: rgba(#f0ad4e, 0.3);
+		border: 1px solid #f0ad4e;
+		border-radius: 3px;
+		font-weight: bold;
+		cursor: help;
 	}
 }
 </style>

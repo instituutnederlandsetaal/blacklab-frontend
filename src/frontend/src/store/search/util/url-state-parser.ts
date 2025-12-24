@@ -404,7 +404,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	private get global(): GlobalResultsModule.ExternalModuleRootState {
 		return {
-			pageSize: this.pageSize,
+			// pageSize is now a local user preference (stored separately via localStorageSynced),
+			// not parsed from URL. The URL contains first/number for the shared result range.
 			sampleMode: this.sampleMode,
 			sampleSeed: this.sampleSeed,
 			sampleSize: this.sampleSize,
@@ -414,6 +415,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 	@memoize
 	private get pageSize(): number {
+		// Keep this for backwards compatibility with URLs that have a number param
+		// but it's no longer used for global state
 		return this.getNumber('number', GlobalResultsModule.defaults.pageSize, v => [20,50,100,200].includes(v) ? v : GlobalResultsModule.defaults.pageSize)!;
 	}
 
@@ -779,13 +782,18 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			return cloneDeep(ViewModule.initialViewState);
 		}
 
+		// Get the first and number values directly from URL
+		const first = this.getNumber('first', null, v => v != null && v >= 0 ? v : null) ?? 0;
+		const number = this.getNumber('number', null, v => v != null && v > 0 ? v : null) ?? 20;
+
 		return {
 			customState: JSON.parse(this.getString('resultViewCustomState', 'null', v => v ?? 'null')!),
 			groupBy: this.groupBy,
 			sort: this.getString('sort', null, v => v?v:null),
 			viewGroup: this.getString('viewgroup', undefined, v => (v && this.groupBy.length > 0)?v:null),
-			page: this.getNumber('first', 0, v => Math.floor(Math.max(0, v)/this.pageSize)/* round down to nearest page containing the starting index */)!,
 			groupDisplayMode: this.getString('groupDisplayMode', null, v => v?v:null),
+			first,
+			number,
 		};
 	}
 

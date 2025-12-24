@@ -1,20 +1,40 @@
 /**
  * This store module contains all global parameters that instantly update the displayed results
- * Think things like page size, context size, random sampling settings
+ * Think things like context size, random sampling settings.
+ *
+ * Page size is managed separately via localStorageSynced as it's a local user preference
+ * that should not be shared via URL or history.
  */
 
 import {getStoreBuilder} from 'vuex-typex';
 
 import {RootState} from '@/store/search/';
+import { localStorageSynced } from '@/utils/localstore';
 
 const defaults = {
 	pageSize: 20,
 	sampleMode: 'percentage' as 'percentage' // required to allow putting it in string enum types
 };
 
+/**
+ * Page size is a local user preference, not part of the store state.
+ * It's persisted in localStorage and reactive via Vue.observable.
+ * Use `pageSize.value` to get/set the value.
+ */
+export const pageSize = localStorageSynced('cf/pageSize', defaults.pageSize);
+
+/** Validate and set page size */
+export function setPageSize(value: number): void {
+	pageSize.value = [20, 50, 100, 200].includes(value) ? value : defaults.pageSize;
+}
+
 const namespace = 'global';
+
+/**
+ * Note: pageSize is NOT part of the store state anymore.
+ * Use the exported `pageSize` reactive ref instead.
+ */
 type ModuleRootState = {
-	pageSize: number;
 	sampleMode: 'percentage'|'count';
 	sampleSeed: number|null;
 	sampleSize: number|null;
@@ -23,7 +43,6 @@ type ModuleRootState = {
 };
 
 const initialState: ModuleRootState = {
-	pageSize: defaults.pageSize as number,
 	sampleMode: defaults.sampleMode,
 	sampleSeed: null,
 	sampleSize: null,
@@ -36,9 +55,6 @@ const getState = b.state();
 const get = {}; //nothing for now.
 
 const actions = {
-	pageSize: b.commit((state, payload: number) => {
-		state.pageSize = [20, 50, 100, 200].includes(payload) ? payload : defaults.pageSize;
-	}, 'pagesize'),
 	sampleMode: b.commit((state, payload?: 'percentage'|'count') => {
 		// reset on null, undefined, invalid strings
 		if (!['percentage', 'count'].includes(payload as any)) { payload = defaults.sampleMode; }
@@ -77,7 +93,6 @@ const actions = {
 	reset: b.commit(state => Object.assign(state, initialState), 'reset'),
 	replace: b.commit((state, payload: ModuleRootState) => {
 		// Use actions so we can verify data
-		actions.pageSize(payload.pageSize);
 		actions.sampleMode(payload.sampleMode);
 		actions.sampleSeed(payload.sampleSeed);
 		actions.sampleSize(payload.sampleSize);
