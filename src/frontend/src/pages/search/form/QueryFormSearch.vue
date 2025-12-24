@@ -175,8 +175,8 @@ function isJQuery(v: any): v is JQuery { return typeof v !== 'boolean' && v && v
 
 import ParallelFields from './parallel/ParallelFields';
 import { corpusCustomizations } from '@/utils/customization';
-import { CqlQueryBuilderData } from '@/components/cql/cql-types';
-import { getPatternStringFromCql, getQueryBuilderStateFromParsedQuery } from '@/utils/pattern-utils';
+import { CqlQueryBuilderData, getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
+import { getPatternStringFromCql } from '@/utils/pattern-utils';
 import { parseBcql, Result } from '@/utils/bcql-json-interpreter';
 
 export default ParallelFields.extend({
@@ -320,6 +320,7 @@ export default ParallelFields.extend({
 				return;
 			}
 
+			debugger;
 			const queryBuilderState = getQueryBuilderStateFromParsedQuery(parsed);
 			PatternStore.actions.advanced.query(queryBuilderState.query);
 			PatternStore.actions.advanced.targetQueries(queryBuilderState.targetQueries);

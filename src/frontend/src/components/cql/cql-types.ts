@@ -1,4 +1,5 @@
 import { NormalizedAnnotation, OptGroup, Option } from '@/types/apptypes';
+import { Condition, BooleanOp, type Result as CqlParseResult  } from '@/utils/bcql-json-interpreter';
 
 // Updated types for the Vue implementation of CQL Query Builder
 
@@ -164,3 +165,154 @@ export const CqlGenerator = {
 	groupCql,
 	attributeCql
 };
+
+
+
+
+export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): {
+	query: CqlQueryBuilderData,
+	targetQueries: CqlQueryBuilderData[],
+} {
+	// Find source query (no targetVersion) and target queries (with targetVersion)
+	const sourceQuery = queries.find(q => !q.targetVersion);
+	const targetQueries = queries.filter(q => !!q.targetVersion);
+
+	const parseQuery = (parsedQuery: CqlParseResult): CqlQueryBuilderData => {
+		let nextId = 0;
+		const generateId = () => `generated_${nextId++}`;
+
+		const tokens = parsedQuery.tokens || [];
+		const withinClauses = parsedQuery.withinClauses || {};
+
+		// Extract within element and attributes
+		const withinElements = Object.keys(withinClauses);
+		const within = withinElements.length > 0 ? withinElements[0] : '';
+		const withinAttributes: Record<string, string> = within ? withinClauses[within] || {} : {};
+
+		const parsedTokens = tokens.map(token => {
+			const tokenData: CqlTokenData = {
+				id: generateId(),
+				properties: {
+					optional: token.optional || false,
+					minRepeats: token.repeats?.min ?? 1,
+					maxRepeats: token.repeats?.max ?? 1,
+					beginOfSentence: !!token.leadingXmlTag && token.leadingXmlTag.name === 's',
+					endOfSentence: !!token.trailingXmlTag && token.trailingXmlTag.name === 's'
+				},
+				rootAttributeGroup: {
+					id: generateId(),
+					operator: '&', // default operator
+					entries: []
+				}
+			};
+
+			// Parse the token expression into the root attribute group
+			if (token.expression) {
+				parseExpression(token.expression, tokenData.rootAttributeGroup, generateId);
+			}
+
+			return tokenData;
+		});
+
+		return {
+			tokens: parsedTokens,
+			within,
+			withinAttributes
+		};
+	};
+
+	// Parse expression tree into CQL entries
+	const parseExpression = (
+		expression: BooleanOp|Condition,
+		targetGroup: CqlAttributeGroupData,
+		generateId: () => string
+	): void => {
+		if (!expression) return;
+
+		if (expression.type === 'booleanOp') {
+			// Set the group operator based on the binary operation
+			targetGroup.operator = expression.operator;
+
+			// Parse left and right operands
+			const leftEntries: CqlGroupEntry[] = [];
+			const rightEntries: CqlGroupEntry[] = [];
+
+			// Create temporary groups to collect entries
+			const leftGroup: CqlAttributeGroupData = {
+				id: generateId(),
+				operator: expression.operator,
+				entries: leftEntries
+			};
+			const rightGroup: CqlAttributeGroupData = {
+				id: generateId(),
+				operator: expression.operator,
+				entries: rightEntries
+			};
+
+			parseExpression(expression.left, leftGroup, generateId);
+			parseExpression(expression.right, rightGroup, generateId);
+
+			// Add entries to target group
+			// If the child group has the same operator and only contains attributes, flatten it
+			if (leftGroup.entries.length === 1 && leftGroup.operator === targetGroup.operator) {
+				targetGroup.entries.push(...leftGroup.entries);
+			} else if (leftGroup.entries.length > 0) {
+				targetGroup.entries.push(leftGroup);
+			}
+
+			if (rightGroup.entries.length === 1 && rightGroup.operator === targetGroup.operator) {
+				targetGroup.entries.push(...rightGroup.entries);
+			} else if (rightGroup.entries.length > 0) {
+				targetGroup.entries.push(rightGroup);
+			}
+		} else if (expression.type === 'condition') {
+			// Parse attribute value for case sensitivity and special operators
+			let value = expression.value;
+			let caseSensitive = false;
+			let operator = expression.operator;
+
+			// Check for case sensitivity flags
+			if (value.indexOf('(?-i)') === 0) {
+				caseSensitive = true;
+				value = value.substr(5);
+			} else if (value.indexOf('(?c)') === 0) {
+				caseSensitive = true;
+				value = value.substr(4);
+			}
+
+			// decode starts-with / ends-with from value regex
+			let comparator: CqlAnnotationValueComparator = '=';
+			if (operator === '=' && value.startsWith('.*')) { comparator = 'endsWith'; }
+			else if (operator === '=' && value.endsWith('.*')) { comparator = 'startsWith'; }
+			else { comparator = operator as CqlAnnotationValueComparator; }
+
+			// Split values on pipe character for multi-value attributes
+			const values = value.split('|');
+
+			const attributeData: CqlAttributeData = {
+				id: generateId(),
+				annotationId: expression.name,
+				comparator,
+				values,
+				caseSensitive
+			};
+
+			targetGroup.entries.push(attributeData);
+		}
+	};
+
+	// Parse source query or create empty state
+	const query = sourceQuery ? parseQuery(sourceQuery) : {
+		tokens: [],
+		within: '',
+		withinAttributes: {}
+	};
+
+	// Parse target queries
+	const parsedTargetQueries = targetQueries.map(parseQuery);
+
+	return {
+		query,
+		targetQueries: parsedTargetQueries
+	};
+}

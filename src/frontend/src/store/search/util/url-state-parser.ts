@@ -5,7 +5,7 @@ import memoize from 'memoize-decorator';
 import BaseUrlStateParser from '@/store/util/url-state-parser-base';
 
 import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, getParallelFieldName, mapReduce, spanFilterId, uiTypeSupport, unescapeRegex, unparenQueryPart } from '@/utils';
-import { Attribute, parseBcql, Result, Token } from '@/utils/bcql-json-interpreter';
+import { Condition, parseBcql, Result, Token } from '@/utils/bcql-json-interpreter';
 import { debugLog } from '@/utils/debug';
 import parseLucene from '@/utils/luceneparser';
 
@@ -30,10 +30,9 @@ import * as ViewModule from '@/store/search/results/views';
 
 import { AnnotationValue, FilterValue } from '@/types/apptypes';
 
-import { CqlQueryBuilderData } from '@/components/cql/cql-types';
+import { CqlQueryBuilderData, getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { corpusCustomizations } from '@/utils/customization';
-import { getQueryBuilderStateFromParsedQuery } from '@/utils/pattern-utils';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -157,7 +156,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		try {
 			const metadataFields = CorpusModule.get.allMetadataFieldsMap();
 			const filterDefinitions = FilterModule.getState().filters;
-			/* 
+			/*
 				IMPORTANT: every metadata field has a corresponding filter instance,
 				but in addition to that, there might be special filters that don't correspond directly 1-to-1 to a metadata field,
 				e.g. date-based filters that operate on separate day/month/year fields.
@@ -172,7 +171,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 				This to be flexible for inbound links for other applications.
 			*/
 			const allFilters = Object
-				.keys(filterDefinitions) 
+				.keys(filterDefinitions)
 				.sort((a, b) => !metadataFields[a] ? -1 : !metadataFields[b] ? 1 : 0);
 
 			const filterValues: Record<string, FilterModule.FullFilterState> = {};
@@ -363,7 +362,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 				t.trailingXmlTag != null ||
 				(t.repeats != null && (t.repeats.min !== 1 || t.repeats.max !== 1)) ||
 				t.optional ||
-				(t.expression != null && (t.expression.type !== 'attribute' || t.expression.operator !== '='))
+				(t.expression != null && (t.expression.type !== 'condition' || t.expression.operator !== '='))
 			) != null
 		) {
 			return null;
@@ -376,13 +375,13 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			maxSize: ExploreModule.defaults.ngram.maxSize,
 			size: cql.tokens.length,
 			tokens: cql.tokens.map(t => {
-				const valueAnnotationId = t.expression ? (t.expression as Attribute).name : defaultNgramTokenAnnotation;
+				const valueAnnotationId = t.expression ? (t.expression as Condition).name : defaultNgramTokenAnnotation;
 				const type = getCorrectUiType(uiTypeSupport.explore.ngram, allAnnotations[valueAnnotationId].uiType);
 
 				return {
 					// when expression is undefined, the token was just '[]' in the query, so set it to defaults.
 					id: valueAnnotationId,
-					value: t.expression ? decodeAnnotationValue((t.expression as Attribute).value, type).value : '',
+					value: t.expression ? decodeAnnotationValue((t.expression as Condition).value, type).value : '',
 				};
 			}),
 		};
@@ -468,7 +467,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 				const stack = token.expression ? [token.expression] : [];
 				while (stack.length) {
 					const expr = stack.shift()!;
-					if (expr.type === 'attribute') {
+					if (expr.type === 'condition') {
 						const name = expr.name;
 						if (knownAnnotations[name] == null) {
 							debugLog(`Encountered unknown cql field ${name} while decoding query from url, ignoring.`);
@@ -500,8 +499,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 							values.push(expr.value);
 						}
 
-					} else if (expr.type === 'binaryOp') {
-						if (!(expr.operator === '&' || expr.operator === 'AND')) {
+					} else if (expr.type === 'booleanOp') {
+						if (expr.operator !== '&') {
 							throw new Error(`Properties on token ${i} are combined using unsupported operator ${expr.operator} in query ${this.expertPattern}, only AND/& operator is supported.`);
 						}
 

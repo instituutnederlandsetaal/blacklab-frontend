@@ -29,6 +29,7 @@ const defaultRegexEscapeOptions = {
 	escapeQuotes: true
 }
 export type RegexEscapeOptions = Partial<typeof defaultRegexEscapeOptions>;
+/** Escape special characters in a string for use in a regular expression, the default escaping options are to escape wildcards, pipes, and quotes */
 export function escapeRegex(value: string, settings: RegexEscapeOptions = {}) {
 	settings = {...defaultRegexEscapeOptions, ...settings};
 
@@ -568,13 +569,13 @@ export function fieldSubset<T extends {id: string}>(
 
 /**
  * Given a list of metadata IDs, and some metadata about the corpus, convert them to a list of options for a <SelectPicker/>, or for rendering the fields in a list-type fashion.
- * 
+ *
  * NOTE:
  * The type of the field objects is a little more generic than a metadata field
  * because this function can also be used with filters. Which do not 100% overlap with metadata fields necessarily.
  * (although in the vast majority of cases, filters are created from metadata fields).
  * (but for example a date range filter has two underlying metadata fields, so it requires a custom id that doesn't exist in the metadata)
- * 
+ *
  * @param ids the list of metadata IDs to keep
  * @param groups how metadata in the corpus is grouped into subsections.
  * @param metadata all metadata fields in the corpus

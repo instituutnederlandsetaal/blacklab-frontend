@@ -130,7 +130,7 @@
 			/><button v-if="resettableModel && filteredOptions.length"
 					type="button"
 					tabindex="-1"
-					:class="['menu-button menu-reset', 'btn btn-sm', dataClass || 'btn-default']"
+					:class="['menu-button menu-reset', 'btn btn-sm btn-default']"
 
 					@click="internalModel = {}; inputValue=''"
 				>
@@ -1071,7 +1071,7 @@ export default Vue.extend({
 		margin-top: -5px; // compensate for menu padding
 		gap: 6px;
 		padding: 6px;
-		
+
 		&:empty { display: none; }
 
 		>.menu-reset {
