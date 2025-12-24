@@ -51,7 +51,7 @@
 			<!-- Multi-select for known values -->
 			<SelectPicker v-else-if="currentAnnotation?.values"
 				data-attribute-role="value"
-				:options="currentAnnotation.values"
+				:options="currentAnnotation.values.map(v => ({...v, value: escapeRegex(v.value)}))"
 				multiple
 				searchable
 				container="body"
@@ -131,7 +131,6 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
 import { NormalizedAnnotation, OptGroup, Option } from '@/types/apptypes';
 import { CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
 import SelectPicker from '@/components/SelectPicker.vue';
@@ -141,6 +140,7 @@ import Autocomplete from '@/components/Autocomplete.vue';
 import { blacklabPaths } from '@/api';
 
 import useModel from './useModel';
+import { escapeRegex } from '@/utils';
 
 
 export default useModel<CqlAttributeData>().extend({
@@ -181,6 +181,7 @@ export default useModel<CqlAttributeData>().extend({
 		}
 	},
 	methods: {
+		escapeRegex,
 		handleTextInput(event: Event) {
 			const target = event.target as HTMLInputElement;
 			this.model.values = target.value ? [target.value] : [''];
