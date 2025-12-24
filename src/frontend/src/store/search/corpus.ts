@@ -116,6 +116,8 @@ const init = () => Promise.all([Api.frontend.getCorpus(), Api.blacklab.getRelati
 		if (corpus.displayName && displayNameInNavbar.hasAttribute('data-is-fallback')) {
 			displayNameInNavbar.innerHTML = corpus.displayName || corpus.id;
 		}
+		// Update page title
+		document.title = displayNameInNavbar.textContent + ' search';
 
 		// We to finish up some state that might be missing.
 		if (corpus.documentCount === -1) {
