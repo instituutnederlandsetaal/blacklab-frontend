@@ -13,7 +13,6 @@ import * as CorpusStore from '@/store/search/corpus';
 
 import { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
-import { mapReduce } from '@/utils';
 import { cachedRequest } from '@/utils/apiCache';
 
 type ModuleRootState = Tagset&{
@@ -90,14 +89,9 @@ const init = async () => {
 			return;
 		}
 
-		validateTagset(mainAnnot, annots, tagset);
-		lowercaseValuesIfNeeded(mainAnnot, annots, tagset);
+		// Validate, normalize and merge tagset into corpus annotations
+		processTagset(mainAnnot, annots, tagset);
 
-		// we're modifying the corpus info here, so we need to commit the changes to the store.
-		CorpusStore.actions.loadTagsetValues(() => {
-			copyDisplaynamesAndValuesToCorpus(mainAnnot, Object.values(tagset.values));
-			Object.values(tagset.subAnnotations).forEach(sub => copyDisplaynamesAndValuesToCorpus(annots[sub.id], sub.values));
-		});
 		internalActions.replace(tagset);
 	})
 	.then(() => internalActions.state({state: 'loaded', message: ''}))
@@ -109,128 +103,157 @@ const init = async () => {
 };
 
 /**
- * Copy displaynames and extra values defined in the tagset into the corpus info.
- * This way any annotation that is defined in the tagset will have the same displaynames and values in the corpus info.
- * That creates a uniform experience in all components that display those annotations.
- */
-function copyDisplaynamesAndValuesToCorpus(annotation: NormalizedAnnotation, valuesInTagset: Array<{value: string, displayName: string}>) {
-	const originalValues = mapReduce(annotation.values, 'value');
-
-	for (const tagsetValue of valuesInTagset) {
-		const a = originalValues[tagsetValue.value];
-		const b = tagsetValue;
-
-		const value = a ? a.value : b.value;
-		const label = b.displayName || b.value;
-		const title = a ? a.title : null;
-
-		originalValues[value] = {
-			value,
-			label,
-			title
-		};
-	}
-	// Now we have (potentially) have new displaynames and values, sort the values again.
-	// preserve the original order where possible.
-	annotation.values = Object.values(originalValues)
-	.sort((a, b) =>
-		annotation.values ?
-			annotation.values.findIndex(v => v.value === a.value) -
-			annotation.values.findIndex(v => v.value === b.value) :
-			0
-	);
-
-	// Since we now have an exhaustive list of all values for the annotation, we can change the uiType to 'select'.
-	if (annotation.uiType === 'text') {
-		annotation.uiType = 'select';
-	}
-}
-
-/**
- * Sometimes an annotation in the corpus is case-insensitive, but the tagset is case-sensitive.
- * In that case, we need to lowercase all values in the tagset.
- * It doesn't matter for query-generation purposes,
- * but the tagset usually contains nice display names for all annotation values,
- * and we can only copy them into the corpus annotations if the values match exactly.
- * So we lowercase the values in the tagset if the annotation in the corpus is case-insensitive.
+ * Process a tagset: validate it against the corpus, normalize case, and merge values into corpus annotations.
  *
- * Only do this after validating the tagset, because we don't check whether annotations in the tagset and corpus match, so we could crash if they don't.
- */
-function lowercaseValuesIfNeeded(mainTagsetAnnotation: NormalizedAnnotation, corpusAnnotations: Record<string, NormalizedAnnotation>, tagset: Tagset) {
-	// for the main tagset annotations - lowercase values if the annotation in the corpus is not case sensitive.
-	const mainAnnotationCS = mainTagsetAnnotation.caseSensitive;
-	if (!mainAnnotationCS) {
-		for (const key in tagset.values) tagset.values[key].value = tagset.values[key].value.toLowerCase();
-	}
-
-	for (const id in tagset.subAnnotations) {
-		const cs = corpusAnnotations[id].caseSensitive;
-		if (cs) continue;
-		for (const value of tagset.subAnnotations[id].values) {
-			// lowercase the value
-			value.value = value.value.toLowerCase();
-			// lowercase references to main-pos values too
-			if (value.pos && !mainAnnotationCS)
-				value.pos = value.pos.map(v => v.toLowerCase());
-		}
-	}
-}
-
-
-/**
- * Tagsets are tightly coupled to the contents of one or more of the part-of-speech annotations in the corpus.
- * Check that all annotations defined in the tagset actually exist in the corpus, throws an error if they don't.
- * Also validate internal constraints: that the main annotation doesn't reference any subannotations that don't exist,
- * and that the subannotations don't reference any main-pos values that don't exist.
- * Finally also warn if values for an annotation in the tagset values don't match the values in the corpus.
+ * This function performs three tasks in one pass per annotation:
+ * 1. Validates that all annotations and values referenced in the tagset exist in the corpus
+ * 2. Normalizes tagset values to match corpus case-sensitivity settings
+ * 3. Merges tagset values and displaynames into corpus annotations, collapsing case variants
  *
- * @param mainTagsetAnnotation The annotation that the tagset is attached to.
- * @param t The tagset to validate.
+ * Case-insensitive matching is used throughout:
+ * - If the tagset contains a value (e.g. 'Nou'), and the corpus has differently-cased variants (e.g. 'NOU', 'nou'),
+ *   they are collapsed to use the tagset's value as the canonical form with its displayName.
+ * - If the corpus has case variants but no tagset match, they remain distinct.
+ *
+ * @param mainAnnot The main annotation (with uiType 'pos') that the tagset is attached to.
+ * @param corpusAnnotations All annotations in the corpus.
+ * @param tagset The tagset to process (will be mutated for case normalization).
  */
-function validateTagset(mainTagsetAnnotation: NormalizedAnnotation, otherAnnotations: Record<string, NormalizedAnnotation>, t: Tagset) {
-	/** Validate that subannotations exist within the corpus, and that they don't reference unknown values within the main annotation */
-	function validateAnnotation(annotationId: string, annotationValuesInTagset: Tagset['subAnnotations'][string]['values']) {
-		const annotationInCorpus = otherAnnotations[annotationId];
-		if (!annotationInCorpus) {
-			throw new Error(`Annotation "${annotationId}" does not exist in the corpus, but is referenced in the tagset.`);
-		}
+function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations: Record<string, NormalizedAnnotation>, tagset: Tagset) {
+	const mainAnnotationCS = mainAnnot.caseSensitive;
 
-		if (!annotationInCorpus.values?.length) {
-			console.warn(`Annotation "${annotationId}" does not have any known values in the corpus, but is referenced in the tagset.`);
-		} else {
-			// part-of-speech is almost always indexed case-insensitive
-			// so we always want to compare values in the tagset and values in the corpus in lowercase
-			const annotationValuesInCorpus = mapReduce(annotationInCorpus.values, 'value');
-			annotationValuesInTagset.forEach(v => {
-				if (!annotationValuesInCorpus[annotationInCorpus.caseSensitive ? v.value : v.value.toLowerCase()]) {
-					console.warn(`Annotation "${annotationId}" may have value "${v.value}" which does not exist in the corpus.`);
-				}
-	
-				if (v.pos) {
-					const unknownPosList = v.pos.filter(pos => !t.values[pos]);
-					if (unknownPosList.length > 0) {
-						console.warn(`SubAnnotation '${annotationId}' value '${v.value}' declares unknown main-pos value(s): ${unknownPosList.toString()}`);
-					}
-				}
-			});
-		}
-	}
+	// Build a case-insensitive lookup for main tagset values (for validating pos references in subannotations)
+	const tagsetValuesLower = new Set(Object.keys(tagset.values).map(k => k.toLowerCase()));
 
-	// validate the root annotation
-	validateAnnotation(mainTagsetAnnotation.id, Object.values(t.values));
-	// validate all subannotations
-	Object.values(t.subAnnotations).forEach(sub => validateAnnotation(sub.id, sub.values));
-
-	// validate that the main annotation doesn't reference any subannotations that don't exist
-	Object.values(t.values).forEach(({value, subAnnotationIds}) => {
-		const subAnnotsNotInTagset = subAnnotationIds.filter(id => t.subAnnotations[id] == null);
+	// Validate that the main annotation doesn't reference any subannotations that don't exist
+	Object.values(tagset.values).forEach(({value, subAnnotationIds}) => {
+		const subAnnotsNotInTagset = subAnnotationIds.filter(id => tagset.subAnnotations[id] == null);
 		if (subAnnotsNotInTagset.length) {
 			throw new Error(`Value "${value}" declares subAnnotation(s) "${subAnnotsNotInTagset}" that do not exist in the tagset.`);
 		}
-
-		const subAnnotsNotInCorpus = subAnnotationIds.filter(subId => otherAnnotations[subId] == null);
+		const subAnnotsNotInCorpus = subAnnotationIds.filter(subId => corpusAnnotations[subId] == null);
 		if (subAnnotsNotInCorpus.length) {
 			throw new Error(`Value "${value}" declares subAnnotation(s) "${subAnnotsNotInCorpus}" that do not exist in the corpus.`);
+		}
+	});
+
+	/**
+	 * Process a single annotation: validate, normalize case in tagset, and merge into corpus.
+	 */
+	function processAnnotation(
+		annotationId: string,
+		tagsetValues: Array<{value: string, displayName: string, pos?: string[]}>,
+		isCaseSensitive: boolean
+	) {
+		const annotationInCorpus = corpusAnnotations[annotationId];
+		if (!annotationInCorpus) {
+			console.error(`Annotation "${annotationId}" does not exist in the corpus, but is referenced in the tagset.`);
+			return;
+		}
+
+		// Build case-insensitive lookup of corpus values for validation
+		const corpusValuesLower = new Set(annotationInCorpus.values?.map(v => v.value.toLowerCase()) ?? []);
+
+		if (!annotationInCorpus.values?.length) {
+			console.warn(`Annotation "${annotationId}" does not have any known values in the corpus, but is referenced in the tagset.`);
+		}
+
+		// Validate and normalize tagset values
+		for (const tv of tagsetValues) {
+			// Validate: warn if value doesn't exist in corpus
+			if (corpusValuesLower.size > 0 && !corpusValuesLower.has(tv.value.toLowerCase())) {
+				console.warn(`Annotation "${annotationId}" may have value "${tv.value}" which does not exist in the corpus.`);
+			}
+
+			// Validate pos references (for subannotations)
+			if (tv.pos) {
+				const unknownPosList = tv.pos.filter(pos => !tagsetValuesLower.has(pos.toLowerCase()));
+				if (unknownPosList.length > 0) {
+					console.warn(`SubAnnotation '${annotationId}' value '${tv.value}' declares unknown main-pos value(s): ${unknownPosList.toString()}`);
+				}
+				// Normalize pos references if main annotation is case-insensitive
+				if (!mainAnnotationCS) {
+					tv.pos = tv.pos.map(v => v.toLowerCase());
+				}
+			}
+
+			// Normalize value case if annotation is case-insensitive
+			if (!isCaseSensitive) {
+				tv.value = tv.value.toLowerCase();
+			}
+		}
+
+		// Build case-insensitive lookup from (now normalized) tagset values
+		const tagsetByLower: Record<string, {value: string, displayName: string}> = {};
+		for (const tv of tagsetValues) {
+			tagsetByLower[tv.value.toLowerCase()] = tv;
+		}
+
+		// Merge: collapse corpus values to tagset canonical forms where applicable
+		const resultValues: Record<string, {value: string, label: string, title: string|null}> = {};
+
+		// Process original corpus values
+		if (annotationInCorpus.values) {
+			for (const origValue of annotationInCorpus.values) {
+				const lowerValue = origValue.value.toLowerCase();
+				const tagsetMatch = tagsetByLower[lowerValue];
+
+				if (tagsetMatch) {
+					// Collapse to tagset's canonical value
+					const canonicalValue = tagsetMatch.value;
+					if (!resultValues[canonicalValue]) {
+						resultValues[canonicalValue] = {
+							value: canonicalValue,
+							label: tagsetMatch.displayName || canonicalValue,
+							title: origValue.title
+						};
+					}
+				} else {
+					// No tagset match - keep original
+					if (!resultValues[origValue.value]) {
+						resultValues[origValue.value] = {
+							value: origValue.value,
+							label: origValue.label,
+							title: origValue.title
+						};
+					}
+				}
+			}
+		}
+
+		// Add any tagset values not already present
+		for (const tv of tagsetValues) {
+			if (!resultValues[tv.value]) {
+				resultValues[tv.value] = {
+					value: tv.value,
+					label: tv.displayName || tv.value,
+					title: null
+				};
+			}
+		}
+
+		// Sort: preserve original order where possible, new values at the end
+		const originalValues = annotationInCorpus.values;
+		annotationInCorpus.values = Object.values(resultValues).sort((a, b) => {
+			if (!originalValues) return 0;
+			const aIdx = originalValues.findIndex(v => v.value.toLowerCase() === a.value.toLowerCase());
+			const bIdx = originalValues.findIndex(v => v.value.toLowerCase() === b.value.toLowerCase());
+			return (aIdx === -1 ? Infinity : aIdx) - (bIdx === -1 ? Infinity : bIdx);
+		});
+
+		// With exhaustive values, we can use a select UI
+		if (annotationInCorpus.uiType === 'text') {
+			annotationInCorpus.uiType = 'select';
+		}
+	}
+
+	// Process main annotation and subannotations within the store mutation
+	CorpusStore.actions.loadTagsetValues(() => {
+		processAnnotation(mainAnnot.id, Object.values(tagset.values), mainAnnotationCS);
+		for (const subId in tagset.subAnnotations) {
+			const sub = tagset.subAnnotations[subId];
+			const subAnnot = corpusAnnotations[sub.id];
+			processAnnotation(sub.id, sub.values, subAnnot?.caseSensitive ?? false);
 		}
 	});
 }
