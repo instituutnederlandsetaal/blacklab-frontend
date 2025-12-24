@@ -56,7 +56,7 @@
 				:rows="rows"
 				:info="renderDisplaySettings"
 				:header="isHits ? cols.hitColumns : isDocs ? cols.docColumns : cols.groupColumns"
-				:showTitles="showTitles"
+				:showTitles="showTitles.value"
 				:disabled="!!request"
 				:query="results?.summary.searchParam"
 				:sort="sort"
@@ -81,9 +81,9 @@
 					type="button"
 					class="btn btn-primary btn-sm show-titles"
 
-					@click="showTitles = !showTitles"
+					@click="showTitles.value = !showTitles.value"
 				>
-					{{showTitles ? $t('results.table.hide') : $t('results.table.show')}} {{ $t('results.table.titles') }}
+					{{showTitles.value ? $t('results.table.hide') : $t('results.table.show')}} {{ $t('results.table.titles') }}
 				</button>
 
 				<Sort
@@ -179,6 +179,7 @@ import { isHitParams } from '@/utils';
 import '@/pages/search/results/table/GenericTable.vue';
 import { corpusCustomizations } from '@/utils/customization';
 import { Globals } from 'highcharts';
+import { localStorageSynced } from '@/utils/localstore';
 
 export default Vue.extend({
 	components: {
@@ -221,7 +222,7 @@ export default Vue.extend({
 			page: number;
 			sort: string|null;
 		},
-		showTitles: true,
+		showTitles: localStorageSynced('cf/results/showTitles', true),
 
 		debug
 	}),
