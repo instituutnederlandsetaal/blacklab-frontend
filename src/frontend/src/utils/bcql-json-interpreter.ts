@@ -22,8 +22,8 @@ export type XmlTag = {
 	isClosingTag: boolean;
 };
 
-export type Attribute = {
-	type: 'attribute';
+export type Condition = {
+	type: 'condition';
 	/** A word property(/annotatedField) id, such as lemma, pos, word, etc... */
 	name: string;
 	/** Comparison type, usually '=' or '!=' */
@@ -32,18 +32,18 @@ export type Attribute = {
 	value: string;
 };
 
-export type BinaryOp = {
-	type: 'binaryOp';
+export type BooleanOp = {
+	type: 'booleanOp';
 	/** typically 'OR', 'AND', '|', '&' */
-	operator: string;
-	left: BinaryOp|Attribute;
-	right: BinaryOp|Attribute;
+	operator: '|'|'&';
+	left: BooleanOp|Condition;
+	right: BooleanOp|Condition;
 };
 
 export type Token = {
 	leadingXmlTag?: XmlTag;
 	trailingXmlTag?: XmlTag;
-	expression?: BinaryOp|Attribute;
+	expression?: BooleanOp|Condition;
 	optional: boolean;
 	repeats?: {
 		min: number;
@@ -70,7 +70,7 @@ export type Result = {
 
 function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): Result[] {
 
-	function _not(clause: any): Attribute {
+	function _not(clause: any): Condition {
 		if (clause.type !== 'regex') {
 			throw new Error('Can only interpret not on regex');
 		}
@@ -80,23 +80,23 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		};
 	}
 
-	function _regex(annotation: string, value: string): Attribute {
+	function _regex(annotation: string, value: string): Condition {
 		return {
-			type: 'attribute',
+			type: 'condition',
 			name: annotation || DEFAULT_ANNOTATION,
 			operator: '=',
 			value
 		};
 	}
 
-	function _boolean(type: string, clauses: any[]): BinaryOp|null {
+	function _boolean(type: string, clauses: any[]): BooleanOp|null {
 		if (clauses.length === 2) {
 			const left = _tokenExpression(clauses[0]);
 			const right = _tokenExpression(clauses[1]);
 			if (left === null || right === null)
 				return null;
 			return {
-				type: 'binaryOp',
+				type: 'booleanOp',
 				operator: type === 'and' ? '&' : '|',
 				left,
 				right
@@ -109,14 +109,14 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		if (left === null || right === null)
 			return null;
 		return {
-			type: 'binaryOp',
+			type: 'booleanOp',
 			operator: type === 'and' ? '&' : '|',
 			left,
 			right
 		};
 	}
 
-	function _tokenExpression(input: any): BinaryOp|Attribute|null {
+	function _tokenExpression(input: any): BooleanOp|Condition|null {
 		switch (input.type) {
 		case 'regex':
 			return _regex(input.annotation || defaultAnnotation, input.value);
