@@ -36,11 +36,11 @@ export type FilterDateMetadata = ({
 
 export type FilterRangeMultipleFieldsValue = {
 	/** Current value of the lower bound */
-	low: string; 
+	low: string;
 	/** Current value of the upper bound */
-	high: string; 
-	/** 
-	 * Strict === actual value must be >= lower bound && <= upper bound 
+	high: string;
+	/**
+	 * Strict === actual value must be >= lower bound && <= upper bound
 	 * Permissive === actual value may be >= lower bound || <= upper bound
 	*/
 	mode: 'permissive'|'strict'
@@ -473,8 +473,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 	}),
 	'span-text': cast<FilterValueFunctions<{name?: string, attribute?: string}, string>>({
 		decodeInitialState(id, filterMetadata, filterValues) {
-			const name = filterMetadata['name'] || 'span';
-			const attribute = filterMetadata['attribute'] || 'value';
+			const name = filterMetadata.name || 'span';
+			const attribute = filterMetadata.attribute || 'value';
 			return filterValues[spanFilterId(name, attribute)]?.values[0] || null;
 		},
 		luceneQuery(id, filterMetadata, value) {
@@ -491,8 +491,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 	'span-select': cast<FilterValueFunctions<{name?: string, attribute?: string, options: Option[]}|Option[], string[]>>({
 		decodeInitialState(id, filterMetadata, filterValues) {
 			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
-			const name = filterMetadata['name'] || 'span';
-			const attribute = filterMetadata['attribute'] || 'value';
+			const name = filterMetadata.name || 'span';
+			const attribute = filterMetadata.attribute || 'value';
 			return (filterValues[spanFilterId(name, attribute)]?.values) || null;
 		},
 		luceneQuery(id, filterMetadata, value) {
@@ -513,8 +513,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 	}),
 	'span-range': cast<FilterValueFunctions<{name?: string, attribute?: string}, { low: number|null, high: number|null }>>({
 		decodeInitialState(id, filterMetadata, filterValues) {
-			const name = filterMetadata['name'] || 'span';
-			const attribute = filterMetadata['attribute'] || 'value';
+			const name = filterMetadata.name || 'span';
+			const attribute = filterMetadata.attribute || 'value';
 			const key = spanFilterId(name, attribute);
 			const v = filterValues[key]?.values ?? [null, null];
 			return {
