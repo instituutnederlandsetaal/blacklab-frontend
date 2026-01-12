@@ -403,17 +403,11 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	private get global(): GlobalResultsModule.ExternalModuleRootState {
 		return {
-			pageSize: this.pageSize,
 			sampleMode: this.sampleMode,
 			sampleSeed: this.sampleSeed,
 			sampleSize: this.sampleSize,
 			context: this.context
 		};
-	}
-
-	@memoize
-	private get pageSize(): number {
-		return this.getNumber('number', GlobalResultsModule.defaults.pageSize, v => [20,50,100,200].includes(v) ? v : GlobalResultsModule.defaults.pageSize)!;
 	}
 
 	@memoize
@@ -783,8 +777,9 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			groupBy: this.groupBy,
 			sort: this.getString('sort', null, v => v?v:null),
 			viewGroup: this.getString('viewgroup', undefined, v => (v && this.groupBy.length > 0)?v:null),
-			page: this.getNumber('first', 0, v => Math.floor(Math.max(0, v)/this.pageSize)/* round down to nearest page containing the starting index */)!,
 			groupDisplayMode: this.getString('groupDisplayMode', null, v => v?v:null),
+			first: this.getNumber('first', null, v => v != null && v >= 0 ? v : null) ?? 0,
+			number: this.getNumber('number', GlobalResultsModule.getState().pageSize, v => v != null && v > 0 ? v : null) ?? 20,
 		};
 	}
 

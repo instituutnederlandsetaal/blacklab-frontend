@@ -212,6 +212,8 @@ urlInputParameters$.pipe(
 			} as Partial<InterfaceStore.ModuleRootState>),
 			groupDisplayMode: view?.groupDisplayMode || undefined, // remove null
 			resultViewCustomState: view?.customState || undefined, // remove null
+			first: view?.first,
+			number: view?.number,
 		});
 
 		// Generate the new frontend url

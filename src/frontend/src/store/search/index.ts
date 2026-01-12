@@ -97,23 +97,30 @@ const get = {
 			//usecache: false
 		} : {};
 
+		const pageSize = state.global.pageSize;
+		// e.g. pagesize=50 first=120, first result to retrieve is 100
+		// basically use first, rounded down to nearest pagesize
+		const lowerPageBoundary = Math.floor(activeView.first / pageSize) * pageSize;
+		// e.g. pagesize=50, number=70 (from URL), need to retrieve 100 results to cover the requested range
+		const numberOfResults = Math.ceil((activeView.first + activeView.number - lowerPageBoundary) / pageSize) * pageSize;
+
 		return {
 			...debugParams,
 
-			filter: QueryModule.get.filterString(),
-			first: state.global.pageSize * activeView.page,
-			group: activeView.groupBy.join(','),
+			first: lowerPageBoundary,
+			number: numberOfResults,
 
-			number: state.global.pageSize,
+			filter: QueryModule.get.filterString(),
 			field: QueryModule.get.sourceField().id,
 			patt,
 			pattgapdata: (QueryModule.get.patternString() && QueryModule.getState().gap) ? QueryModule.getState().gap!.value || undefined : undefined,
-
+			
 			sample: (state.global.sampleMode === 'percentage' && state.global.sampleSize) ? state.global.sampleSize : undefined,
 			samplenum: (state.global.sampleMode === 'count' && state.global.sampleSize) ? state.global.sampleSize : undefined,
 			sampleseed: state.global.sampleSize != null ? state.global.sampleSeed! /* non-null precondition checked above */ : undefined,
-
+			
 			sort: activeView.sort != null ? activeView.sort : undefined,
+			group: activeView.groupBy.join(','),
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: state.global.context != null ? state.global.context : undefined,
 			adjusthits: true,

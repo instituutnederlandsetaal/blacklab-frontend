@@ -33,7 +33,8 @@
 						open: openRows[row.hit_id || index],
 						interactable: isOpenable(row),
 						topborder: index > 0 && 'first_of_hit' in row && row.first_of_hit,
-						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1)
+						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1),
+						hl: row.highlighted
 					}"
 					:row="row"
 					:info="info"
@@ -234,6 +235,16 @@ table.results-table {
 	tr.foreign-hit {
 		color: #666;
 		font-style: italic;
+	}
+
+	// Highlight rows that are part of the shared URL's result range
+	tr.hl {
+		background-color: rgba(#f0ad4e, 0.15);
+
+		&:hover,
+		&:focus {
+			background-color: rgba(#f0ad4e, 0.25)!important;
+		}
 	}
 }
 

@@ -139,7 +139,6 @@
 	"setting": {
 		"heading": "全局设置",
 		"resultsPerPage": "每页结果数",
-		"resultsPerPageOption": "{n} 个结果",
 		"sampleSize": "样本大小",
 		"sampleSizeCount": "数字",
 		"sampleSizePercentage": "百分比",

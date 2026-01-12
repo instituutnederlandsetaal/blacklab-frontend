@@ -16,7 +16,7 @@
 						</label>
 
 						<!-- Will not render anything if no relation info is available in the passed hit/sentence. -->
-						<DepTree
+						<DepTree v-if="sentenceShown && sentence"
 							:data="row"
 							:fullSentence="sentenceShown ? sentence : undefined"
 							:mainAnnotation="info.mainAnnotation"
