@@ -1,12 +1,12 @@
 import { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchParameters, BLSearchResult, BLSearchSummary, BLSearchSummaryTotalsHits, hitHasParallelInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 import { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, NormalizedMetadataGroup, OptGroup, Option, TokenHighlight } from '@/types/apptypes';
-import { getAnnotationSubset, getDocumentUrl, mapReduce } from '@/utils';
 import { GlossFieldDescription } from '@/store/search/form/glossStore';
 
 import * as Highlights from './hit-highlighting';
 
 import { KeysOfType } from '@/types/helpers';
 import { StyleValue } from 'vue';
+import { frontendPaths } from '@/api';
 
 /**
  * The columns can display various computed data, such as relative group size, or relative frequency.
@@ -365,9 +365,6 @@ export type DisplaySettingsForRendering = {
 	/** Fields to show the secondary (parallel) hits. Can be empty for non-parallel corpora. These should already have the prefix. */
 	targetFields: NormalizedAnnotatedFieldParallel[];
 
-	/** For the 'empty' group. I.e. when grouping on for example document date, the name for the group containing docs without a date. */
-	defaultGroupName: string;
-
 	/** Required to compute document title/summary. */
 	specialFields: BLDocFields;
 	/** Document title/summary can be customized, so a callback is required. */
@@ -463,7 +460,13 @@ function end(hit: BLHitSnippet|BLHit|undefined): number|undefined {
 function makeDocRow(p: Result<any>, info: DisplaySettingsForRows): DocRowData {
 	return {
 		doc: p.doc,
-		href: getDocumentUrl(p.doc.docPid, info.sourceField.id, undefined, p.query.patt, p.query.pattgapdata, undefined),
+		href: frontendPaths.documentPage({
+			pid: p.doc.docPid, 
+			fieldName: info.sourceField.id, 
+			searchField: undefined, 
+			patt: p.query.patt, 
+			pattgapdata: p.query.pattgapdata,
+		}),
 		summary: info.getSummary(p.doc.docInfo, info.specialFields),
 		type: 'doc',
 		hits: p.doc.snippets?.length ? p.doc.snippets.flatMap(s => makeRowsForHit({...p, hit: s}, info, undefined)) : undefined
@@ -491,7 +494,14 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		last_of_hit: p.last_of_hit,
 
 		context: snippetParts(p.hit, highlightColors),
-		href: getDocumentUrl(p.doc.docPid, field.id, info.sourceField.id, p.query.patt, p.query.pattgapdata, start(p.hit)),
+		href: frontendPaths.documentPage({
+			pid: p.doc.docPid,
+			fieldName: field.id,
+			searchField: info.sourceField.id,
+			patt: p.query.patt,
+			pattgapdata: p.query.pattgapdata,
+			findhit: start(p.hit),
+		}),
 		isForeign: field !== info.sourceField,
 		annotatedField: field,
 		dir: docDir(p.doc, info.dir),
@@ -557,8 +567,9 @@ function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array
 const GROUP_PROP_SEPARATOR = ' • '; // WAS: '·'
 
 /** For a set of group results, create all rows. */
-function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGroupName: string): { rows: GroupRowData[], maxima: Maxima } {
+function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, info: DisplaySettingsForRows): { rows: GroupRowData[], maxima: Maxima } {
 	const max = new MaxCounter<GroupRowData>();
+	const defaultGroupName = info.i18n.$t('results.groupBy.groupNameWithoutValue').toString();
 
 	const mapHitGroup = (g: BLHitGroupResult, summary: BLHitGroupResults['summary']) => ({
 		type: 'group',
@@ -647,7 +658,7 @@ export type Rows = {
 export function makeRows(results: BLSearchResult, info: DisplaySettingsForRows): Rows {
 	if (isDocResults(results)) return { rows: makeDocRows(results, info) }
 	else if (isHitResults(results)) return { rows: makeHitRows(results, info) }
-	else return makeGroupRows(results, info.i18n.$t('results.groupBy.groupNameWithoutValue').toString());
+	else return makeGroupRows(results, info);
 }
 
 type ColumnDefBase = {

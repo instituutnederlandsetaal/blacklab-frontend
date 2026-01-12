@@ -53,17 +53,36 @@ export function init(which: keyof typeof endpoints, url: string, user: User|null
 	});
 }
 
-// We need this for transforming metadata fields in reponses from (optional) strings to (required) arrays
-// i.e. polyfilling missing document info fields in responses.
-// const allMetadataFields = CorpusStore.get.allMetadataFields().map(f => f.id);
-
 export const frontendPaths = {
 	currentCorpus: () => `${CONTEXT_URL}/${INDEX_ID}/search`,
 
 	// The following paths are only for use with the api endpoint (they don't contain the context url - the endpoint will add it)
-	indexInfo: () => `${INDEX_ID}/api/info`,
-	documentContents: (pid: string) => `${INDEX_ID}/docs/${pid}/contents`,
-	documentMetadata: (pid: string) => `${INDEX_ID}/docs/${pid}`,
+	indexInfo: () => `${CONTEXT_URL}/${INDEX_ID}/api/info`,
+	documentContents: (pid: string) => `${CONTEXT_URL}/${INDEX_ID}/api/docs/${pid}/contents`,
+	documentMetadata: (pid: string) => `${CONTEXT_URL}/${INDEX_ID}/api/docs/${pid}`,
+	/** Get the URL for displaying the document/article in the Frontend, with various highlighting and pagination params. */
+	documentPage: (p: {
+		pid: string;
+		/** CQL Query to use to highlight hits */
+		patt?: string;
+		/** Pattgapdata to go with query */
+		pattgapdata?: string;
+		/** HACK: make the backend figure out which page to display based on the start index of the hit -- see ArticlePagination.vue/PaginationInfo.java */
+		findhit?: number;
+		/** Field on which the cql query is run. if searchfield differs from field (parallel corpus) */
+		searchField?: string;
+		/** Field for which to show the document contents (important when this is a parallel corpus, as there are multiple "copies" of the same document then, e.g. an English and Dutch version) */
+		fieldName?: string;
+	}) => {
+		const url = new URL(`${CONTEXT_URL}/${INDEX_ID}/docs/${p.pid}`, window.location.origin);
+		
+		if (p.patt) url.searchParams.append('query', p.patt); // TODO support patt, like the regular search page.
+		if (p.pattgapdata) url.searchParams.append('pattgapdata', p.pattgapdata);
+		if (p.findhit !== undefined) url.searchParams.append('findhit', p.findhit.toString());
+		if (p.searchField) url.searchParams.append('searchfield', p.searchField);
+		if (p.fieldName) url.searchParams.append('field', p.fieldName);
+		return url.toString();
+	}
 }
 
 /** Contains url mappings for different requests to blacklab-server */

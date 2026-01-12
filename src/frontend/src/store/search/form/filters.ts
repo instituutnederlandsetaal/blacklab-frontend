@@ -9,9 +9,6 @@ import { getStoreBuilder } from 'vuex-typex';
 
 import { RootState } from '@/store/search/';
 import * as CorpusModule from '@/store/search/corpus';
-import * as UIStore from '@/store/search/ui';
-import * as FilterStore from '@/store/search/form/filters';
-
 import { FilterDefinition } from '@/types/apptypes';
 
 import { debugLog } from '@/utils/debug';
@@ -84,6 +81,10 @@ const get = {
 	}, 'luceneQuerySummary'),
 
 	filterValue(id: string) { return getState().filters[id]; },
+
+	hasSpanFilters: b.read(state => {
+		return !!Object.values(state.filters).find(f => getValueFunctions(f).isSpanFilter);
+	}, 'hasSpanFilters'),
 };
 
 const actions = {

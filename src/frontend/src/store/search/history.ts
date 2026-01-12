@@ -28,6 +28,7 @@ import { NormalizedIndex } from '@/types/apptypes';
 import { debugLog } from '@/utils/debug';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
 import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
+import { markRaw } from 'vue';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
@@ -145,7 +146,7 @@ const get = {
 
 const internalActions = {
 	replace: b.commit((state, payload: ModuleRootState) => {
-		state.splice(0, state.length, ...payload);
+		state.splice(0, state.length, ...payload.map(e => Object.freeze(markRaw(e))));
 	}, 'replace')
 };
 
@@ -177,7 +178,7 @@ const actions = {
 			groupBy: entry.view.groupBy.sort((l, r) => l.localeCompare(r)),
 		};
 
-		const fullEntry: FullHistoryEntry = {
+		const fullEntry: FullHistoryEntry = Object.freeze(markRaw({
 			...entry,
 			hash: hashJavaDJB2(jsonStableStringify(hashBase)),
 			url,
@@ -186,7 +187,7 @@ const actions = {
 				filters: filterSummary || '-',
 				pattern: patternSummary || '-'
 			}
-		};
+		}));
 
 		const i = state.findIndex(v => v.hash === fullEntry.hash);
 		if (i !== -1) {

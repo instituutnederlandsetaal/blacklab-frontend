@@ -26,8 +26,9 @@ import * as GlobalResultsModule from '@/store/search/results/global';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { ApiError } from '@/api';
-import { getPatternString, getWithinClausesFromFilters, shouldAddWithSpans } from '@/utils/pattern-utils';
+import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
 import debug from '@/utils/debug';
+import { corpusCustomizations } from '@/utils/customization';
 
 Vue.use(Vuex);
 
@@ -116,7 +117,7 @@ const get = {
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: state.global.context != null ? state.global.context : undefined,
 			adjusthits: true,
-			withspans: shouldAddWithSpans(patt),
+			withspans: corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? FilterModule.get.hasSpanFilters(),
 		};
 	}, 'blacklabParameters')
 };

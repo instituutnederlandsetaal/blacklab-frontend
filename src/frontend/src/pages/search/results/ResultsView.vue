@@ -57,8 +57,7 @@
 				:info="renderDisplaySettings"
 				:header="isHits ? cols.hitColumns : isDocs ? cols.docColumns : cols.groupColumns"
 				:showTitles="showTitles"
-				:disabled="!!request"
-				:query="results?.summary.searchParam"
+								:query="results?.summary.searchParam"
 				:sort="sort"
 
 				@changeSort="sort = (sort === $event ? `-${sort}` : $event)"
@@ -178,7 +177,6 @@ import { isHitParams } from '@/utils';
 
 import '@/pages/search/results/table/GenericTable.vue';
 import { corpusCustomizations } from '@/utils/customization';
-import { Globals } from 'highcharts';
 
 export default Vue.extend({
 	components: {
@@ -313,8 +311,7 @@ export default Vue.extend({
 				GlossModule.actions.setCurrentPage(data.hits.map(get_hit_id));
 			}
 
-			this.results = data;
-			this.paginationResults = data;
+			this.results = markRaw(data);
 		},
 		setError(data: Api.ApiError, isGrouped?: boolean) {
 			if (data.title !== 'Request cancelled') { // TODO
@@ -602,8 +599,7 @@ export default Vue.extend({
 					key,
 					Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null
 				])) as any, 
-				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
-				html: UIStore.getState().results.shared.concordanceAsHtml,
+								html: UIStore.getState().results.shared.concordanceAsHtml,
 			}
 		},
 

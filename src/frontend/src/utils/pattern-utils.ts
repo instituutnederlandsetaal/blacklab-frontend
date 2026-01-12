@@ -41,19 +41,6 @@ export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue)
 	}
 };
 
-function hasSpanFilters(): boolean {
-	return !!Object.values(FilterModule.getState().filters).find(f => getValueFunctions(f).isSpanFilter);
-}
-
-export function shouldAddWithSpans(q: string) {
-	let shouldAddWithSpans: boolean|null = corpusCustomizations.search.pattern.shouldAddWithSpans(q);
-	if (shouldAddWithSpans === null) {
-		// Use default behavior if the corpus doesn't have a custom setting.
-		shouldAddWithSpans = hasSpanFilters();
-	}
-	return shouldAddWithSpans;
-}
-
 export const getPatternString = (
 	annotations: AppTypes.AnnotationValue[],
 	withinClauses: Record<string, Record<string, any>>,
