@@ -154,14 +154,21 @@ export default Vue.extend({
 			return numActiveFiltersPerTab;
 		},
 	},
-	created() {
-		// Always set an active tab if there are any tabs at all
-		// new tabs may be added just after setup, changing useTabs from false to true
-		this.activeTab = this.tabs.length ? this.tabs[0].tabname : null;
-	},
 	watch: {
-		tabs(cur: FilterStore.FilterGroupType[], prev) {
-			this.activeTab = cur.length ? cur[0].tabname : null;
+		tabs: {
+			handler(newTabs: FilterStore.FilterGroupType[]) {
+				// Initialize activeTab if not set or if current tab is no longer available
+				if (newTabs.length > 0) {
+					const currentTab = this.activeTab;
+					const tabNames = newTabs.map(tab => tab.tabname);
+					if (!currentTab || !tabNames.includes(currentTab)) {
+						this.activeTab = tabNames[0];
+					}
+				} else {
+					this.activeTab = null;
+				}
+			},
+			immediate: true
 		},
 		activeTab: {
 			immediate: true,
