@@ -55,11 +55,6 @@ export function init(which: keyof typeof endpoints, url: string, user: User|null
 
 export const frontendPaths = {
 	currentCorpus: () => `${CONTEXT_URL}/${INDEX_ID}/search`,
-
-	// The following paths are only for use with the api endpoint (they don't contain the context url - the endpoint will add it)
-	indexInfo: () => `${CONTEXT_URL}/${INDEX_ID}/api/info`,
-	documentContents: (pid: string) => `${CONTEXT_URL}/${INDEX_ID}/api/docs/${pid}/contents`,
-	documentMetadata: (pid: string) => `${CONTEXT_URL}/${INDEX_ID}/api/docs/${pid}`,
 	/** Get the URL for displaying the document/article in the Frontend, with various highlighting and pagination params. */
 	documentPage: (p: {
 		pid: string;
@@ -82,7 +77,12 @@ export const frontendPaths = {
 		if (p.searchField) url.searchParams.append('searchfield', p.searchField);
 		if (p.fieldName) url.searchParams.append('field', p.fieldName);
 		return url.toString();
-	}
+	},
+
+	// The following paths are only for use with the api endpoint (they don't contain the context url - the endpoint will add it)
+	indexInfo: () => `${INDEX_ID}/api/info`,
+	documentContents: (pid: string) => `${INDEX_ID}/api/docs/${pid}/contents`,
+	documentMetadata: (pid: string) => `${INDEX_ID}/api/docs/${pid}`,
 }
 
 /** Contains url mappings for different requests to blacklab-server */
