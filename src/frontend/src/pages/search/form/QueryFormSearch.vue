@@ -38,8 +38,8 @@
 				<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion"/>
 				<template v-if="useTabs">
 					<ul class="nav nav-tabs subtabs" style="padding-left: 15px">
-						<li v-for="(tab, index) in tabs" :class="{'active': activeAnnotationTab === getTabId(tab.label)}" :key="index" @click.prevent="activeAnnotationTab = getTabId(tab.label)">
-							<a :href="'#'+getTabId(tab.label)">{{tab.label}}</a>
+						<li v-for="(tab, index) in tabs" :class="{'active': activeAnnotationTab === getTabId(tab.label)}" :key="index">
+							<a :href="'#'+getTabId(tab.label)" @click.prevent="activeAnnotationTab = getTabId(tab.label)">{{tab.label}}</a>
 						</li>
 					</ul>
 					<div class="tab-content">
