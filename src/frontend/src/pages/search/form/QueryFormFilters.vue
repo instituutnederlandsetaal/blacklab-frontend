@@ -158,13 +158,14 @@ export default Vue.extend({
 		tabs: {
 			handler(newTabs: FilterStore.FilterGroupType[]) {
 				// Initialize activeTab if not set or if current tab is no longer available
-				if (newTabs.length > 0) {
+				// Only set if useTabs is true (more than 1 tab or first tab has multiple subtabs)
+				if (this.useTabs && newTabs.length > 0) {
 					const currentTab = this.activeTab;
 					const tabNames = newTabs.map(tab => tab.tabname);
 					if (!currentTab || !tabNames.includes(currentTab)) {
 						this.activeTab = tabNames[0];
 					}
-				} else {
+				} else if (!this.useTabs) {
 					this.activeTab = null;
 				}
 			},

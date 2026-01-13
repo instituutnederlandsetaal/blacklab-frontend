@@ -404,7 +404,8 @@ export default ParallelFields.extend({
 		tabs: {
 			handler(newTabs: Array<{label?: string, entries: AppTypes.NormalizedAnnotation[]}>) {
 				// Initialize activeAnnotationTab if not set or if current tab is no longer available
-				if (newTabs.length > 0) {
+				// Only set if useTabs is true (more than 1 tab)
+				if (this.useTabs && newTabs.length > 1) {
 					const currentTabId = this.activeAnnotationTab;
 					const tabIds = newTabs.map(tab => this.getTabId(tab.label));
 					if (!currentTabId || !tabIds.includes(currentTabId)) {
