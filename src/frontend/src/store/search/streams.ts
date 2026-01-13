@@ -209,6 +209,8 @@ urlInputParameters$.pipe(
 				exploreMode: v.state.query.form === 'explore' ? v.state.query.subForm : undefined, // remove if not relevant
 				patternMode: v.state.query.form === 'search' ? v.state.query.subForm : undefined, // remove if not relevant
 				viewedResults: undefined, // remove from query parameters: is encoded in path (segmentcoded)
+				activeAnnotationTab: v.state.interface.activeAnnotationTab || undefined, // remove null
+				activeFilterTab: v.state.interface.activeFilterTab || undefined, // remove null
 			} as Partial<InterfaceStore.ModuleRootState>),
 			groupDisplayMode: view?.groupDisplayMode || undefined, // remove null
 			resultViewCustomState: view?.customState || undefined, // remove null
@@ -289,6 +291,8 @@ urlInputParameters$.pipe(
 				exploreMode: query.form === 'explore' ? query.subForm : 'ngram',
 				patternMode: query.form === 'search' ? query.subForm : 'simple',
 				viewedResults: v.state.interface.viewedResults,
+				activeAnnotationTab: v.state.interface.activeAnnotationTab,
+				activeFilterTab: v.state.interface.activeFilterTab,
 			},
 			gap: query.gap || GapStore.defaults,
 			concepts: ConceptStore.defaults,

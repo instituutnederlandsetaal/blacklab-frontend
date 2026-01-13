@@ -38,13 +38,13 @@
 				<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion"/>
 				<template v-if="useTabs">
 					<ul class="nav nav-tabs subtabs" style="padding-left: 15px">
-						<li v-for="(tab, index) in tabs" :class="{'active': index === 0}" :key="index">
-							<a :href="'#'+getTabId(tab.label)" data-toggle="tab">{{tab.label}}</a>
+						<li v-for="(tab, index) in tabs" :class="{'active': activeAnnotationTab === getTabId(tab.label)}" :key="index" @click.prevent="activeAnnotationTab = getTabId(tab.label)">
+							<a :href="'#'+getTabId(tab.label)">{{tab.label}}</a>
 						</li>
 					</ul>
 					<div class="tab-content">
 						<div v-for="(tab, index) in tabs"
-							:class="['tab-pane', 'annotation-container', {'active': index === 0}]"
+							:class="['tab-pane', 'annotation-container', {'active': activeAnnotationTab === getTabId(tab.label)}]"
 							:key="index"
 							:id="getTabId(tab.label)"
 						>
@@ -203,6 +203,10 @@ export default ParallelFields.extend({
 		activePattern: {
 			get(): string { return InterfaceStore.getState().patternMode; },
 			set: InterfaceStore.actions.patternMode,
+		},
+		activeAnnotationTab: {
+			get(): string|null { return InterfaceStore.getState().activeAnnotationTab; },
+			set: InterfaceStore.actions.activeAnnotationTab,
 		},
 		useTabs(): boolean {
 			return this.tabs.length > 1;
@@ -397,6 +401,19 @@ export default ParallelFields.extend({
 		},
 	},
 	watch: {
+		tabs: {
+			handler(newTabs: Array<{label?: string, entries: AppTypes.NormalizedAnnotation[]}>) {
+				// Initialize activeAnnotationTab if not set or if current tab is no longer available
+				if (newTabs.length > 0) {
+					const currentTabId = this.activeAnnotationTab;
+					const tabIds = newTabs.map(tab => this.getTabId(tab.label));
+					if (!currentTabId || !tabIds.includes(currentTabId)) {
+						this.activeAnnotationTab = tabIds[0];
+					}
+				}
+			},
+			immediate: true
+		},
 		customAnnotations: {
 			handler() {
 				// custom annotation widget setup.

@@ -63,6 +63,7 @@ import Vue from 'vue';
 import * as CorpusStore from '@/store/search/corpus';
 import * as UIStore from '@/store/search/ui';
 import * as FilterStore from '@/store/search/form/filters';
+import * as InterfaceStore from '@/store/search/form/interface';
 
 import FilterOverview from '@/pages/search/form/FilterOverview.vue';
 import { mapReduce } from '@/utils';
@@ -77,13 +78,16 @@ export default Vue.extend({
 		FilterOverview,
 	},
 	data: () => ({
-		activeTab: null as string|null,
 		cancelFilterWatch: [] as Array<() => void>,
 	}),
 	methods: {
 		updateFilterValue(id: string, value: any) { FilterStore.actions.filterValue({id, value}); },
 	},
 	computed: {
+		activeTab: {
+			get(): string|null { return InterfaceStore.getState().activeFilterTab; },
+			set(value: string|null) { InterfaceStore.actions.activeFilterTab(value); }
+		},
 		textDirection(): string { return CorpusStore.get.textDirection(); },
 		allFilters(): FilterStore.FullFilterState[] {
 			const seenIds = new Set<string>();
