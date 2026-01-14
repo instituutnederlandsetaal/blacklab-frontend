@@ -82,6 +82,12 @@ export default Vue.extend({
 	}),
 	methods: {
 		updateFilterValue(id: string, value: any) { FilterStore.actions.filterValue({id, value}); },
+		
+		/** Tabs can be set to null or invalid value when decoding existing URL. Validate and correct it if required */
+		synchronizeActiveTab() {
+			if (this.activeTab == null || !this.tabs.find(t => t.tabname === this.activeTab)) 
+				this.activeTab = this.tabs[0]?.tabname ?? null;
+		}
 	},
 	computed: {
 		activeTab: {
@@ -155,22 +161,10 @@ export default Vue.extend({
 		},
 	},
 	watch: {
-		tabs: {
-			handler(newTabs: FilterStore.FilterGroupType[]) {
-				// Initialize activeTab if not set or if current tab is no longer available
-				// Only set if useTabs is true (tab UI is visible)
-				if (this.useTabs) {
-					const currentTab = this.activeTab;
-					const tabNames = newTabs.map(tab => tab.tabname);
-					if (!currentTab || !tabNames.includes(currentTab)) {
-						this.activeTab = tabNames[0];
-					}
-				} else {
-					this.activeTab = null;
-				}
-			},
-			immediate: true
-		},
+		/** 
+		 * Tabs can have some predefined filter queries with them. 
+		 * When the current tab changes, we need to apply/remove those filter queries accordingly.
+		 */
 		activeTab: {
 			immediate: true,
 			handler(cur: string, prev: string) {
@@ -212,8 +206,14 @@ export default Vue.extend({
 						);
 					});
 				}
-			}
+				// Make sure we always have a tab active, etc.
+				this.synchronizeActiveTab(); 
+			},
 		},
+		tabs() {
+			// Make sure we always have a tab active, etc.
+			this.synchronizeActiveTab(); 
+		}
 	},
 	destroyed() {
 		this.cancelFilterWatch.forEach(c => c());

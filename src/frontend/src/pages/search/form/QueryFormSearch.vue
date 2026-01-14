@@ -38,28 +38,28 @@
 				<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion"/>
 				<template v-if="useTabs">
 					<ul class="nav nav-tabs subtabs" style="padding-left: 15px">
-						<li v-for="(tab, index) in tabs" :class="{'active': activeAnnotationTab === getTabId(tab.label)}" :key="index">
-							<a :href="'#'+getTabId(tab.label)" @click.prevent="activeAnnotationTab = getTabId(tab.label)">{{tab.label}}</a>
+						<li v-for="tab in tabs" :class="{'active': activeAnnotationTab === tab.id}" :key="tab.id">
+							<a :href="'#'+tab.id" @click.prevent="activeAnnotationTab = tab.id">{{tab.label}}</a>
 						</li>
 					</ul>
 					<div class="tab-content">
-						<div v-for="(tab, index) in tabs"
-							:class="['tab-pane', 'annotation-container', {'active': activeAnnotationTab === getTabId(tab.label)}]"
-							:key="index"
-							:id="getTabId(tab.label)"
+						<div v-for="tab in tabs"
+							:class="['tab-pane', 'annotation-container', {'active': activeAnnotationTab === tab.id}]"
+							:key="tab.id"
+							:id="tab.id"
 						>
 							<template v-for="annotation in tab.entries">
 								<!-- Note that we don't use annotatedFieldId in the key, because for parallel,
 								     we can change the version, but we don't want that to affect the value of
 									 the input field, only the autocomplete functionality. -->
 								<div v-if="customAnnotations[annotation.id]"
-									:key="getTabId(tab.label) + '/' + annotation.id"
+									:key="tab.id + '/' + annotation.id"
 									:data-custom-annotation-root="annotation.id"
-									:ref="getTabId(tab.label) + '/' + annotation.id"
+									:ref="tab.id + '/' + annotation.id"
 								></div>
 								<Annotation v-else
-									:key="getTabId(tab.label) + '/' + annotation.id"
-									:htmlId="getTabId(tab.label) + '/' + annotation.id"
+									:key="tab.id + '/' + annotation.id + '/builtin'"
+									:htmlId="tab.id + '/' + annotation.id"
 									:annotation="annotation"
 								/>
 							</template>
@@ -211,7 +211,8 @@ export default ParallelFields.extend({
 		useTabs(): boolean {
 			return this.tabs.length > 1;
 		},
-		tabs(): Array<{label?: string, entries: AppTypes.NormalizedAnnotation[]}> {
+		tabs(): Array<{label: string, id: string, entries: AppTypes.NormalizedAnnotation[]}> {
+			console.log('computing tabs');
 			const result = getAnnotationSubset(
 				UIStore.getState().search.extended.searchAnnotationIds,
 				CorpusStore.get.annotationGroups(),
@@ -219,7 +220,11 @@ export default ParallelFields.extend({
 				'Search',
 				this,
 				CorpusStore.get.textDirection()
-			);
+			).map(group => ({
+				...group,
+				label: group.label!,
+				id: group.label!.replace(/[^\w]/g, '_') + '_annotations'
+			}))
 			if (this.isParallelCorpus) {
 				// Make sure we have the correct field, so autosuggest works properly
 				const versionSelected = PatternStore.getState().shared.source !== null;
@@ -299,9 +304,6 @@ export default ParallelFields.extend({
 		}
 	},
 	methods: {
-		getTabId(name?: string) {
-			return name?.replace(/[^\w]/g, '_') + '_annotations';
-		},
 		async parseQuery() {
 			// retrieve the expert query (which presumably is active atm because the button was visible)
 
@@ -324,7 +326,6 @@ export default ParallelFields.extend({
 				return;
 			}
 
-			debugger;
 			const queryBuilderState = getQueryBuilderStateFromParsedQuery(parsed);
 			PatternStore.actions.advanced.query(queryBuilderState.query);
 			PatternStore.actions.advanced.targetQueries(queryBuilderState.targetQueries);
@@ -399,22 +400,15 @@ export default ParallelFields.extend({
 				RootStore.store.watch(state => value, (cur, prev) => update(cur, prev, div), {deep: true});
 			}
 		},
+		/** Tabs can be set to null or invalid value when decoding existing URL. Validate and correct it if required */
+		synchronizeActiveTab() {
+			if (this.activeAnnotationTab == null || !this.tabs.find(t => t.id === this.activeAnnotationTab)) 
+				this.activeAnnotationTab = this.tabs[0]?.id ?? null;
+		}
 	},
 	watch: {
-		tabs: {
-			handler(newTabs: Array<{label?: string, entries: AppTypes.NormalizedAnnotation[]}>) {
-				// Initialize activeAnnotationTab if not set or if current tab is no longer available
-				// Only set if useTabs is true (tab UI is visible)
-				if (this.useTabs) {
-					const currentTabId = this.activeAnnotationTab;
-					const tabIds = newTabs.map(tab => this.getTabId(tab.label));
-					if (!currentTabId || !tabIds.includes(currentTabId)) {
-						this.activeAnnotationTab = tabIds[0];
-					}
-				}
-			},
-			immediate: true
-		},
+		tabs: { handler() { this.synchronizeActiveTab(); }, immediate: true },
+		activeAnnotationTab: { handler() { this.synchronizeActiveTab(); }, immediate: true },
 		customAnnotations: {
 			handler() {
 				// custom annotation widget setup.
@@ -439,17 +433,6 @@ export default ParallelFields.extend({
 			deep: true
 		}
 	},
-	mounted() {
-		if (this.$refs.reset) {
-			const eventId = `${PatternStore.namespace}/reset`;
-
-			this.subscriptions.push(RootStore.store.subscribe((mutation, state) => {
-				if (this.$refs.reset && mutation.type === eventId) {
-					(this.$refs.reset as any).reset();
-				}
-			}));
-		}
-	}
 })
 </script>
 
