@@ -92,6 +92,7 @@
 					</div>
 				</div>
 
+				<button v-if="useTabs || allAnnotations.length > 1" type="button" class="btn btn-default btn-sm" @click="copyExtendedQuery">{{$t('search.advanced.copyAdvancedQuery')}}</button>
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', {'active': activePattern==='advanced'}]" id="advanced">
 				<SearchAdvanced :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
@@ -150,6 +151,7 @@ import * as CorpusStore from '@/store/search/corpus';
 import * as UIStore from '@/store/search/ui';
 import * as InterfaceStore from '@/store/search/form/interface';
 import * as PatternStore from '@/store/search/form/patterns';
+import * as FilterStore from '@/store/search/form/filters';
 import * as GlossStore from '@/store/search/form/glossStore';
 import * as ConceptStore from '@/store/search/form/conceptStore';
 import * as GapStore from '@/store/search/form/gap';
@@ -175,8 +177,8 @@ function isJQuery(v: any): v is JQuery { return typeof v !== 'boolean' && v && v
 
 import ParallelFields from './parallel/ParallelFields';
 import { corpusCustomizations } from '@/utils/customization';
-import { CqlQueryBuilderData, getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
-import { getPatternStringFromCql } from '@/utils/pattern-utils';
+import { CqlGenerator, CqlQueryBuilderData, getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
+import { getPatternStringFromCql, getPatternStringSearch } from '@/utils/pattern-utils';
 import { parseBcql, Result } from '@/utils/bcql-json-interpreter';
 
 export default ParallelFields.extend({
@@ -304,6 +306,13 @@ export default ParallelFields.extend({
 		}
 	},
 	methods: {
+		copyExtendedQuery() {
+			const patternState = PatternStore.getState();
+			const filterState = FilterStore.getState();
+			const q = getPatternStringSearch('extended', patternState, UIStore.getState().search.shared.alignBy.defaultValue, filterState.filters);
+			PatternStore.actions.expert.query(q || '');
+			InterfaceStore.actions.patternMode('expert');
+		},
 		async parseQuery() {
 			// retrieve the expert query (which presumably is active atm because the button was visible)
 

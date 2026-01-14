@@ -206,8 +206,7 @@ export function getPatternSummarySearch<K extends keyof ModuleRootStatePatterns>
 	defaultAlignBy: string,
 	filterState: ModuleRootStateFilters
 ) {
-	const patt = getPatternStringSearch(subForm, state, defaultAlignBy, filterState);
-	return patt?.replace(/\\(.)/g, '$1') || '';
+	return getPatternStringSearch(subForm, state, defaultAlignBy, filterState);
 }
 
 /** Derive within clauses from filters and the within widget (on the left), if any */
