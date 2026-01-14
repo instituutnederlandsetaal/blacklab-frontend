@@ -15,7 +15,10 @@ type ModuleRootState = Record<string, ViewRootState>;
 type ViewRootState = {
 	customState: any;
 	groupBy: string[];
-	page: number;
+	/** The 0-indexed offset of the first result to retrieve */
+	first: number;
+	/** The number of results to retrieve */
+	number: number;
 	sort: string|null;
 	viewGroup: string|null;
 	groupDisplayMode: string|null;
@@ -25,7 +28,8 @@ const initialState: ModuleRootState = {};
 const initialViewState: ViewRootState = {
 	customState: null,
 	groupBy: [],
-	page: 0,
+	first: 0,
+	number: 20, // default page size
 	sort: null,
 	viewGroup: null,
 	groupDisplayMode: null,
@@ -40,14 +44,22 @@ const createActions = (b: ModuleBuilder<ViewRootState, RootState>) => ({
 		state.groupBy.splice(0, state.groupBy.length, ...payload);
 		state.viewGroup = null;
 		state.sort = null;
-		state.page = 0;
+		state.first = 0;
 	}, 'groupBy'),
 	sort: b.commit((state, payload: string|null) => state.sort = payload, 'sort'),
-	page: b.commit((state, payload: number) => state.page = payload, 'page'),
+	/** Set the first result offset */
+	first: b.commit((state, payload: number) => state.first = Math.max(0, payload), 'first'),
+	/** Set the number of results to retrieve */
+	number: b.commit((state, payload: number) => state.number = Math.max(1, payload), 'number'),
+	/** Convenience action to set both first and number at once */
+	range: b.commit((state, payload: {first: number, number: number}) => {
+		state.first = Math.max(0, payload.first);
+		state.number = Math.max(1, payload.number);
+	}, 'range'),
 	viewGroup: b.commit((state, payload: string|null) => {
 		state.viewGroup = payload;
 		state.sort = null;
-		state.page = 0;
+		state.first = 0;
 	},'viewgroup'),
 	groupDisplayMode: b.commit((state, payload: string|null) => state.groupDisplayMode = payload, 'groupDisplayMode'),
 
@@ -114,7 +126,7 @@ function getOrCreateModule(view: string, initialState?: ViewRootState) {
 }
 
 const actions = {
-	resetPage: viewsBuilder.commit(() => Object.values(moduleCache).forEach(m => m.actions.page(0)), 'resetPage'),
+	resetFirst: viewsBuilder.commit(() => Object.values(moduleCache).forEach(m => m.actions.first(0)), 'resetFirst'),
 	resetViewGroup: viewsBuilder.commit(() => Object.values(moduleCache).forEach(m => m.actions.viewGroup(null)), 'resetViewGroup'),
 	resetAllViews: viewsBuilder.commit((state, props: {resetGroupBy: boolean}) => Object.values(moduleCache).forEach(m => m.actions.reset(props)), 'reset'),
 	replaceView: viewsBuilder.commit((_, payload: {view: string|null, data: ViewRootState}) => {

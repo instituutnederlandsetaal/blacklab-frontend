@@ -19,9 +19,10 @@
 			<div class="result-buttons-layout">
 				<Pagination slot="pagination"
 					:page="pagination.shownPage"
+					:page2="pagination.shownPage2"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
-
+					
 					@change="page = $event"
 				/>
 
@@ -70,9 +71,10 @@
 					style="display: block;"
 
 					:page="pagination.shownPage"
+					:page2="pagination.shownPage2"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
-
+					
 					@change="page = $event"
 				/>
 				<div style="flex-grow: 1;"></div>
@@ -131,6 +133,7 @@
 				style="display: block;"
 
 				:page="pagination.shownPage"
+				:page2="pagination.shownPage2"
 				:maxPage="pagination.maxShownPage"
 				:disabled="!!request"
 
@@ -178,7 +181,6 @@ import { isHitParams } from '@/utils';
 
 import '@/pages/search/results/table/GenericTable.vue';
 import { corpusCustomizations } from '@/utils/customization';
-import { Globals } from 'highcharts';
 import { localStorageSynced } from '@/utils/localstore';
 
 export default Vue.extend({
@@ -207,6 +209,8 @@ export default Vue.extend({
 		results: null as null|BLTypes.BLSearchResult,
 		error: null as null|string,
 		cancel: null as null|Api.Canceler,
+		firstWhenResultsCameIn: null as null|number,
+		numberWhenResultsCameIn: null as null|number,
 
 		_viewGroupName: null as string|null,
 
@@ -217,9 +221,10 @@ export default Vue.extend({
 		// Should we clear the results when we begin the next request? - set when main form is submitted.
 		clearResults: false,
 
-		/** When no longer viewing contents of a group, restore the page and sorting (i.e. user's position in the results). */
+		/** When no longer viewing contents of a group, restore the result range and sorting (i.e. user's position in the results). */
 		restoreOnViewGroupLeave: null as null|{
-			page: number;
+			first: number;
+			number: number;
 			sort: string|null;
 		},
 		showTitles: localStorageSynced('cf/results/showTitles', true),
@@ -314,8 +319,10 @@ export default Vue.extend({
 				GlossModule.actions.setCurrentPage(data.hits.map(get_hit_id));
 			}
 
-			this.results = data;
-			this.paginationResults = data;
+			this.results = markRaw(data);
+			this.firstWhenResultsCameIn = this.store.getState().first;
+			this.numberWhenResultsCameIn = this.store.getState().number;
+			this.paginationResults = markRaw(data);
 		},
 		setError(data: Api.ApiError, isGrouped?: boolean) {
 			if (data.title !== 'Request cancelled') { // TODO
@@ -339,12 +346,26 @@ export default Vue.extend({
 		},
 		leaveViewgroup() {
 			this.viewGroup = null;
-			this.page = this.restoreOnViewGroupLeave?.page || 0;
-			this.sort = this.restoreOnViewGroupLeave?.sort || null;
+			if (this.restoreOnViewGroupLeave) {
+				this.store.actions.range({
+					first: this.restoreOnViewGroupLeave.first,
+					number: this.restoreOnViewGroupLeave.number
+				});
+				this.sort = this.restoreOnViewGroupLeave.sort;
+			} else {
+				this.store.actions.range({ first: 0, number: GlobalStore.getState().pageSize });
+				this.sort = null;
+			}
 			this.restoreOnViewGroupLeave = null;
 		},
 		changeViewGroup(groupId: string, groupDisplay: string) {
-			this.restoreOnViewGroupLeave = {page: this.page, sort: this.sort};
+			if (this.request) return;
+			const viewState = this.store.getState();
+			this.restoreOnViewGroupLeave = {
+				first: viewState.first,
+				number: viewState.number,
+				sort: this.sort
+			};
 			this.viewGroup = groupId;
 			this._viewGroupName = groupDisplay;
 		}
@@ -355,12 +376,12 @@ export default Vue.extend({
 			set(v: string[]) { this.store.actions.groupBy(v); }
 		},
 		page: {
-			get(): number { return this.store.getState().page; },
-			set(v: number) { this.store.actions.page(v);  }
+			get(): number { return 0; /** page is not always a singular clean number */ },
+			set(v: number) { this.store.actions.range({first: v * this.pageSize, number: this.pageSize});  }
 		},
 		sort: {
 			get(): string|null { return this.store.getState().sort; },
-			set(v: string|null) { this.store.actions.sort(v); }
+			set(v: string|null) { if (!this.request) this.store.actions.sort(v); }
 		},
 		viewGroup: {
 			get(): string|null { return this.store.getState().viewGroup; },
@@ -405,12 +426,27 @@ export default Vue.extend({
 			});
 		},
 
-		// When these change, the form has been resubmitted, so we need to initiate a scroll event
+		/** When these change, the form has been resubmitted, so we need to initiate a scroll event */
 		querySettings() { return QueryStore.getState(); },
 
+		pageSize(): number { return GlobalStore.getState().pageSize; },
+		/**
+		 * Pagination state for the current view.
+		 * 
+		 * Three cases for the shown range [first, first+number):
+		 * 1. Exact page: first % pageSize == 0 && number == pageSize
+		 *    -> Single page active, no range highlighting needed
+		 * 2. Span fits in 1 page: floor(first/pageSize) == floor((first+number-1)/pageSize)
+		 *    -> Single page active (the page containing the span)
+		 * 3. Span crosses pages: startPage != endPage
+		 *    -> Multiple pages active, highlight the range
+		 */
 		pagination(): {
+			/** The primary page to show as current (first page of the shown range) */
 			shownPage: number,
-			maxShownPage: number
+			shownPage2?: number,
+			/** Maximum page number available */
+			maxShownPage: number,
 		} {
 			// Take care to use this.results for page size, but this.paginationResults for total number of results.
 			// This is because pagination results are requested with a window size of 0!
@@ -421,21 +457,35 @@ export default Vue.extend({
 				};
 			}
 
-			// use actual results - pagination results are requested with windows size 0 (!)
-			const pageSize = this.results.summary.requestedWindowSize;
-			const shownPage = Math.floor(this.results.summary.windowFirstResult / pageSize);
+			const pageSize = GlobalStore.getState().pageSize;
+			const { first, number } = this.store.getState();
+			const last = first + number - 1;
+
+			// Calculate which pages the shown span overlaps
+			const startPage = Math.floor(first / pageSize);
+			const endPage = Math.floor(last / pageSize);
+
+			// Check if this is an exact page (aligned to page boundaries)
+			const isExactPage = (first % pageSize === 0) && (number === pageSize);
+
 			const totalResults =
 				BLTypes.isGroups(this.paginationResults) ? this.paginationResults.summary.numberOfGroups :
 				BLTypes.isHitResults(this.paginationResults) ? this.paginationResults.summary.numberOfHitsRetrieved :
 				this.paginationResults.summary.numberOfDocsRetrieved;
 
-			// subtract one page if number of results exactly diactive by page size
-			// e.g. 20 results for a page size of 20 is still only one page instead of 2.
-			const pageCount = Math.floor(totalResults / pageSize) - ((totalResults % pageSize === 0 && totalResults > 0) ? 1 : 0);
+			// Calculate max page (subtract one if exactly divisible to avoid empty last page)
+			const maxPage = Math.max(0, Math.floor((totalResults - 1) / pageSize));
+
+			// Determine range highlighting:
+			// - If exact page: no range highlighting needed (null values)
+			// - If span fits in 1 page (startPage == endPage but not exact): still show as single active page
+			// - If span crosses pages: highlight the range
+			const showRange = !isExactPage && startPage !== endPage;
 
 			return {
-				shownPage,
-				maxShownPage: pageCount >= shownPage ? pageCount : shownPage,
+				shownPage: startPage,
+				shownPage2: showRange ? endPage : undefined,
+				maxShownPage: Math.max(maxPage, startPage),
 			};
 		},
 
@@ -565,7 +615,10 @@ export default Vue.extend({
 				dir: CorpusStore.get.textDirection(),
 				i18n: this,
 				specialFields: CorpusStore.getState().corpus!.fieldInfo,
-				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name])
+				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name]),
+				first: this.firstWhenResultsCameIn ?? this.store.getState().first,
+				number: this.numberWhenResultsCameIn ?? this.store.getState().number,
+				pageSize: this.pageSize
 			}
 		},
 		rowDisplaySettings(): DisplaySettingsForRows {
@@ -603,7 +656,6 @@ export default Vue.extend({
 					key,
 					Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null
 				])) as any, 
-				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
 				html: UIStore.getState().results.shared.concordanceAsHtml,
 			}
 		},

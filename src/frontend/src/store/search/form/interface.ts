@@ -16,6 +16,8 @@ type ModuleRootState = {
 	patternMode: keyof PatternModuleRootState;
 	exploreMode: keyof ExploreModuleRootState;
 	viewedResults: null|string;
+	activeAnnotationTab: null|string; // Active subtab in Extended search tab
+	activeFilterTab: null|string; // Active tab in Filters section
 };
 
 const defaults: ModuleRootState = {
@@ -23,6 +25,8 @@ const defaults: ModuleRootState = {
 	patternMode: 'simple',
 	exploreMode: 'corpora',
 	viewedResults: null,
+	activeAnnotationTab: null,
+	activeFilterTab: null,
 };
 
 const namespace = 'interface';
@@ -34,6 +38,8 @@ const get = {
 	patternMode: b.read(state => state.patternMode, 'patternMode'),
 	exploreMode: b.read(state => state.exploreMode, 'exploreMode'),
 	viewedResults: b.read(state => state.viewedResults, 'viewedResults'),
+	activeAnnotationTab: b.read(state => state.activeAnnotationTab, 'activeAnnotationTab'),
+	activeFilterTab: b.read(state => state.activeFilterTab, 'activeFilterTab'),
 };
 
 const actions = {
@@ -41,6 +47,8 @@ const actions = {
 	patternMode: b.commit((state, payload: ModuleRootState['patternMode']) => state.patternMode = payload, 'patternMode'),
 	exploreMode: b.commit((state, payload: ModuleRootState['exploreMode']) => state.exploreMode = payload, 'exploreMode'),
 	viewedResults: b.commit((state, payload: ModuleRootState['viewedResults']) => state.viewedResults = payload, 'viewedResults'),
+	activeAnnotationTab: b.commit((state, payload: ModuleRootState['activeAnnotationTab']) => state.activeAnnotationTab = payload, 'activeAnnotationTab'),
+	activeFilterTab: b.commit((state, payload: ModuleRootState['activeFilterTab']) => state.activeFilterTab = payload, 'activeFilterTab'),
 
 	reset: b.commit(state => Object.assign(state, cloneDeep(defaults)), 'reset'),
 	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, payload), 'replace'),

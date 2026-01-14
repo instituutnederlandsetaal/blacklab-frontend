@@ -4,16 +4,13 @@
 			<div class="form-group"> <!-- behaves as .row when in .form-horizontal so .row may be omitted -->
 				<label for="resultsPerPage" class="col-xs-3">{{$t('setting.resultsPerPage')}}:</label>
 				<div class="col-xs-9">
-					<SelectPicker
-						data-id="resultsPerPage"
-						data-name="resultsPerPage"
-						hideEmpty
-						allowUnknownValues
-
-						:options="pageSizeOptions"
-
-						v-model="pageSize"
-					/>
+					<input type="number" class="form-control" v-model.lazy="pageSize" id="resultsPerPage" name="resultsPerPage" min="1" max="1000" list="resultsPerPageOptions"></input>
+					<datalist id="resultsPerPageOptions">
+						<option value="20"></option>
+						<option value="50"></option>
+						<option value="100"></option>
+						<option value="200"></option>
+					</datalist>
 				</div>
 			</div>
 
@@ -105,21 +102,20 @@ export default Vue.extend({
 		pageSize: {
 			get(): string { return this.itoa(GlobalViewSettings.getState().pageSize); },
 			set(v: string) {
-				GlobalViewSettings.actions.pageSize(this.atoi(v)!);
-				ResultsViewSettings.actions.resetPage();
+				try {
+					const i = this.atoi(v)!;
+					GlobalViewSettings.actions.pageSize(i);
+				} catch (e) {
+					// ignore invalid input
+					this.pageSize = "20";
+				}
 			}
-		},
-		pageSizeOptions(): Option[] {
-			return ['20','50','100','200'].map(value => ({
-				value,
-				label: this.$t('setting.resultsPerPageOption', { n: value }).toString()
-			}));
 		},
 		sampleMode: {
 			get() { return GlobalViewSettings.getState().sampleMode; },
 			set(v: GlobalViewSettings.ModuleRootState['sampleMode']) {
 				GlobalViewSettings.actions.sampleMode(v);
-				ResultsViewSettings.actions.resetPage();
+				ResultsViewSettings.actions.resetFirst();
 			}
 		},
 		sampleModeOptions(): Option[] {
@@ -135,7 +131,7 @@ export default Vue.extend({
 			get(): string { return this.itoa(GlobalViewSettings.getState().sampleSize); },
 			set(v: string) {
 				GlobalViewSettings.actions.sampleSize(this.atoi(v));
-				ResultsViewSettings.actions.resetPage();
+				ResultsViewSettings.actions.resetFirst();
 			}
 		},
 		sampleSeed: {
@@ -146,7 +142,7 @@ export default Vue.extend({
 					// No need to do this when ungrouped - the raw number of results
 					// will stay as it is, but the distribution (and number of) groups may change and
 					// cause the number of pages to shift
-					ResultsViewSettings.actions.resetPage();
+					ResultsViewSettings.actions.resetFirst();
 				}
 			}
 		},

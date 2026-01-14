@@ -7,5 +7,6 @@
 		"\\.git",
 		"/src/frontend/",
 		"/docs"
-	]
+	],
+	"typescript.tsserver.experimental.enableProjectDiagnostics": false
 }
