@@ -67,7 +67,7 @@ function normalizeAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotatio
 
 	return {
 		annotatedFieldId,
-		caseSensitive: annotation.sensitivity === 'SENSITIVE_AND_INSENSITIVE',
+		caseSensitive: annotation.sensitivity === 'SENSITIVE_AND_INSENSITIVE' || annotation.sensitivity === 'ONLY_SENSITIVE',
 		defaultDescription: annotation.description,
 		defaultDisplayName: annotation.displayName || annotationId,
 		hasForwardIndex: annotation.hasForwardIndex,

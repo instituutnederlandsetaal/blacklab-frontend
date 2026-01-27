@@ -216,7 +216,7 @@ export interface BLAnnotation {
 	hasForwardIndex: boolean;
 	isInternal: boolean;
 	offsetsAlternative: string;
-	sensitivity: 'SENSITIVE_AND_INSENSITIVE'|'SENSITIVE'|'INSENSITIVE';
+	sensitivity: 'SENSITIVE_AND_INSENSITIVE'|'ONLY_SENSITIVE'|'ONLY_INSENSITIVE'|'CASE_AND_DIACRITICS_SEPARATE';
 	/** Contains ids of other BLAnnotations in the parent annotatedField if this field has subannotations. */
 	subannotations?: string[];
 	uiType: string|'select'|'combobox'|'text'|'pos'|'dropdown'|'autocomplete';
