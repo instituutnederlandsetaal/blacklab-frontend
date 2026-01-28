@@ -114,17 +114,18 @@ const get = {
 			field: QueryModule.get.sourceField().id,
 			patt,
 			pattgapdata: (QueryModule.get.patternString() && QueryModule.getState().gap) ? QueryModule.getState().gap!.value || undefined : undefined,
-			
+
 			sample: (state.global.sampleMode === 'percentage' && state.global.sampleSize) ? state.global.sampleSize : undefined,
 			samplenum: (state.global.sampleMode === 'count' && state.global.sampleSize) ? state.global.sampleSize : undefined,
 			sampleseed: state.global.sampleSize != null ? state.global.sampleSeed! /* non-null precondition checked above */ : undefined,
-			
+
 			sort: activeView.sort != null ? activeView.sort : undefined,
 			group: activeView.groupBy.join(','),
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: state.global.context != null ? state.global.context : undefined,
 			adjusthits: true,
-			withspans: corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? FilterModule.get.hasSpanFilters(),
+			withspans: corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ??
+				(FilterModule.get.hasSpanFilters() || CorpusModule.get.hasRelations()),
 		};
 	}, 'blacklabParameters')
 };
