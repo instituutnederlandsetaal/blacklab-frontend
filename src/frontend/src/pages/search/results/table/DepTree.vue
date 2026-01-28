@@ -97,7 +97,7 @@ export default Vue.extend({
 			// E.g. UPOS, XPOS, LEMMA
 			const regularAnnots = Object.entries(this.otherAnnotations).filter(([k, v]) => v != null && k !== 'feats')
 				.map(([k]) => k.toUpperCase())
-			
+
 			// FORM is the word itself, so we always include it.
 			return ['FORM', ...regularAnnots, ...featureAnnots].join(',');
 		},
@@ -130,6 +130,19 @@ export default Vue.extend({
 
 			const r: Array<{parentIndex: number;label: string;}> = [];
 			const doRelation = (v: BLMatchInfoRelation) => {
+				// Skip cross-field relations here as they don't make sense for the dependency tree.
+				//
+				// TODO: actually we should only gather relations with a single relClass.
+				// Probably:
+				// (1) an explicitly configured one in custom.js, or
+				// (2) fall back to "dep" if that class exists in this corpus, or
+				// (3) fall back to the first one alphabetically, skipping /^al__/ (parallel alignment)).
+				//
+				// Otherwise if our corpus e.g. contains both dependency and constituency relations,
+				// we might be trying to draw both as a single tree, which doesn't make sense.
+				if (v.targetField)
+					return;
+
 				// CoNNL-U can only have one parent, so skip if the relation is not one-to-one
 				if (!(v.targetEnd - v.targetStart > 1) && (v.sourceStart == null || !(v.sourceEnd! - v.sourceStart > 1))) {
 					// translate the indices to something that makes sense
@@ -148,17 +161,23 @@ export default Vue.extend({
 			Object.entries(this.context.matchInfos || {}).forEach(mi => {
 				const [k, v] = mi;
 				// Not interested in non-relation matches.
-				if (v.type === 'relation') doRelation(v);
-				else if (v.type === 'list') v.infos.forEach(doRelation);
+				if (v.type === 'relation') {
+					doRelation(v);
+				} else if (v.type === 'list') {
+					v.infos.forEach(info => {
+						if (info.type === 'relation')
+							doRelation(info);
+					});
+				}
 			})
 			return r.length ? r : undefined;
 		},
 		connlu(): string {
 			if (!this.relationInfo) return '';
 
-			/** 
-			 * Connlu features look like feat1=val1|feat2=val2 
-			 * We only map a single annotation, e.g. 'some_token_annotation' in BlackLab -> 'FEATS.some_token_annotation' in CoNNL-U shown-features, 
+			/**
+			 * Connlu features look like feat1=val1|feat2=val2
+			 * We only map a single annotation, e.g. 'some_token_annotation' in BlackLab -> 'FEATS.some_token_annotation' in CoNNL-U shown-features,
 			 * and 'some_token_annotation=val1' in the feats column.
 			*/
 			function connluFeatValues(annotations: NormalizedAnnotation[], token: Record<string, string>): string {
