@@ -80,6 +80,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		};
 	}
 
+	// BL4 will return [word="de"] as a single regex node
 	function _regex(annotation: string, value: string): Condition {
 		return {
 			type: 'condition',
@@ -87,6 +88,20 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 			operator: '=',
 			value
 		};
+	}
+	// BL5 will return [word="de"] as a compare node with symbol and string clauses
+	function _compare(clauses: any[], operation: string): Condition {
+		if (operation !== '=' && operation !== '!=')
+			throw new Error('Cannot interpret compare operation: ' + operation);
+		if (clauses[0].type !== 'defval' || clauses[1].type !== 'symbol')
+			throw new Error('Cannot interpret compare left clause of type: ' + clauses[0].type);
+		if (clauses[1].type !== 'string')
+			throw new Error('Cannot interpret compare right clause of type: ' + clauses[1].type);
+		let annot = clauses[0].type === 'defval' ? DEFAULT_ANNOTATION : clauses[0].value;
+		return {
+			..._regex(annot, clauses[1].value),
+			operator: operation // = or !=
+		}
 	}
 
 	function _boolean(type: string, clauses: any[]): BooleanOp|null {
@@ -120,6 +135,8 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		switch (input.type) {
 		case 'regex':
 			return _regex(input.annotation || defaultAnnotation, input.value);
+		case 'compare':
+			return _compare(input.clauses, input.operation);
 		case 'not':
 			return _not(input.clause);
 		case 'and':
@@ -138,7 +155,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 
 		// <s> and </s> are still separate "tokens"; join them with the appropriate real token
 		for (let i = 0; i < tokens.length - 1; i++) {
-			if (tokens[i].leadingXmlTag && !tokens[i].leadingXmlTag?.isClosingTag && tokens[i].repeats?.min || 0 < 0) {
+			if (tokens[i].leadingXmlTag && !tokens[i].leadingXmlTag?.isClosingTag && tokens[i].repeats?.min) {
 				// <s> token followed by a regular [word="..."] token; join with next token
 				tokens[i] = {
 					...tokens[i + 1],
@@ -147,7 +164,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 				tokens.splice(i + 1, 1);
 				i--;
 				continue;
-			} else if (tokens[i + 1].leadingXmlTag && tokens[i + 1].leadingXmlTag?.isClosingTag && tokens[i + 1].repeats?.min || 0 < 0) {
+			} else if (tokens[i + 1].leadingXmlTag && tokens[i + 1].leadingXmlTag?.isClosingTag && tokens[i + 1].repeats?.min) {
 				// Regular [word="..."] token followed by a </s> token; join with previous token
 				tokens[i].trailingXmlTag = tokens[i + 1].leadingXmlTag;
 				tokens.splice(i + 1, 1);
