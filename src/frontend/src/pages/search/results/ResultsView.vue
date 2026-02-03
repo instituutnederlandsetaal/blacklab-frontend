@@ -207,8 +207,6 @@ export default Vue.extend({
 		results: null as null|BLTypes.BLSearchResult,
 		error: null as null|string,
 		cancel: null as null|Api.Canceler,
-		firstWhenResultsCameIn: null as null|number,
-		numberWhenResultsCameIn: null as null|number,
 
 		_viewGroupName: null as string|null,
 
@@ -318,8 +316,6 @@ export default Vue.extend({
 			}
 
 			this.results = markRaw(data);
-			this.firstWhenResultsCameIn = this.store.getState().first;
-			this.numberWhenResultsCameIn = this.store.getState().number;
 			this.paginationResults = markRaw(data);
 		},
 		setError(data: Api.ApiError, isGrouped?: boolean) {
@@ -614,8 +610,8 @@ export default Vue.extend({
 				i18n: this,
 				specialFields: CorpusStore.getState().corpus!.fieldInfo,
 				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name]),
-				first: this.firstWhenResultsCameIn ?? this.store.getState().first,
-				number: this.numberWhenResultsCameIn ?? this.store.getState().number,
+				first: this.results?.summary.windowFirstResult ?? 0,
+				number: this.results?.summary.actualWindowSize ?? 0,
 				pageSize: this.pageSize
 			}
 		},
