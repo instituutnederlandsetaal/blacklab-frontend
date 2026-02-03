@@ -119,19 +119,6 @@ const init = () => Promise.all([Api.frontend.getCorpus(), Api.blacklab.getRelati
 		// Update page title
 		document.title = displayNameInNavbar.textContent + ' search';
 
-		// We to finish up some state that might be missing.
-		if (corpus.documentCount === -1) {
-			// Request a sum of all documents in the corpus
-			Api.blacklab.getDocs(corpus.id, {
-				first: 0,
-				number: 0,
-				waitfortotal: true
-			})
-			.request.then(r => {
-				corpus.documentCount = r.summary.numberOfDocs;
-			});
-		}
-
 		// Filter bogus entries from groups (normally doesn't happen, but might happen when customjs interferes with the page).
 		corpus.annotationGroups.forEach(g => g.entries = g.entries.filter(id => corpus.annotatedFields[g.annotatedFieldId].annotations[id]));
 		corpus.metadataFieldGroups.forEach(g => g.entries = g.entries.filter(id => corpus.metadataFields[id]));
