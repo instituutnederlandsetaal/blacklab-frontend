@@ -105,14 +105,16 @@ function createSpanFilter(
 ): FilterDefinition;
 ```
 ```js [usage]
-const m = corpus.search.metadata;
-m.addCustomTab(
-  'Span filters',
-  [
-    m.createSpanFilter('named-entity', 'type'),
-    m.createSpanFilter('speech', 'person'),
-  ]
-);
+frontend.customize((corpus) => {
+  const m = corpus.search.metadata;
+  m.addCustomTab(
+    'Span filters',
+    [
+      m.createSpanFilter('named-entity', 'type'),
+      m.createSpanFilter('speech', 'person'),
+    ]
+  );
+});
 ```
 
 :::
