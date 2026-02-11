@@ -2,6 +2,8 @@
 
 The search form contains many input fields for Filters/Metadata and Annotations, and you can customize what widget is shown for each field.
 
+<!-- @include: ../_custom_js_tip.md -->
+
 ## Overview
 
 Widget types can be set for:

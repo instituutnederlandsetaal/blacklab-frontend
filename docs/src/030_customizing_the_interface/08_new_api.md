@@ -4,6 +4,8 @@ title: 🧪 New Customization API
 
 # New Callback-based API (Experimental) 
 
+<!-- @include: _custom_js_tip.md -->
+
 As an experiment, we're trying out a different approach for some new customizations. In your `custom.js` file(s), you can now use code like the following:
 
 ```js

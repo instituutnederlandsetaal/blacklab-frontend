@@ -1,5 +1,7 @@
 # Sorting and Grouping
 
+<!-- @include: ../_custom_js_tip.md -->
+
 ## Options
 
 Set which annotations and metadata are available for sorting and grouping the results.

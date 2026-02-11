@@ -3,6 +3,8 @@
 Extended search lets you search multiple fields at once.
 By default every `annotation` in your corpus is shown here, but you can limit or organize the selection as you see fit.
 
+<!-- @include: ../_custom_js_tip.md -->
+
 
 ## Group annotations in tabs
 
