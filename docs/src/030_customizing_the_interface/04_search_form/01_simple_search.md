@@ -2,6 +2,8 @@
 
 ![Simple Search](simple_search.png)
 
+<!-- @include: ../_custom_js_tip.md -->
+
 
 ## Changing the searched field
 

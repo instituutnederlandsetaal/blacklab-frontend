@@ -2,6 +2,8 @@
 
 <!-- @include: ../_table_based_layout_tip.md -->
 
+<!-- @include: ../_custom_js_tip.md -->
+
 
 ::: tabs
 === Documents

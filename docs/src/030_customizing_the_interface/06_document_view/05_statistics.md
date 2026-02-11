@@ -11,6 +11,8 @@ These functions are only available on the `/docs/` page, not the `/search/` page
 Make sure you check for availability, or add the `page="article"` attribute to your custom JS in `search.xml` to ensure it only runs on the `/docs/` page.
 :::
 
+<!-- @include: ../_custom_js_tip.md -->
+
 
 ## Custom Statistics Table
 
