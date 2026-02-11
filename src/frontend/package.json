@@ -48,7 +48,7 @@
     "webpack-dev-server": "^4.7.4"
   },
   "dependencies": {
-    "axios": "^0.21.2",
+    "axios": "^0.30.2",
     "blacklab-frontend": "file:",
     "bootstrap": "^3.4.1",
     "bootstrap-select": "^1.13.18",
