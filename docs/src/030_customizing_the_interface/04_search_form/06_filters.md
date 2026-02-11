@@ -1,10 +1,12 @@
 # Filters
-
-![filters](filters.png)
  
 In `Extended`, `Advanced` and `Expert` search, Filters are shown.
 These represent Document Metadata, e.g. year of writing, title, author, etc. (depending on how you indexed your data).
 In BlackLab terms, these are `metadata` fields, see [the docs](https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#document-metadata).
+
+![filters](filters.png)
+
+<!-- @include: ../_custom_js_tip.md -->
 
 
 ## Organize filters in tabs

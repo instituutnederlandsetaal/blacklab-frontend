@@ -2,6 +2,8 @@
 
 ![advanced search](./advanced_search.png)
 
+<!-- @include: ../_custom_js_tip.md -->
+
 
 ## Hide the Advanced Search
 
