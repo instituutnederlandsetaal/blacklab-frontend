@@ -96,7 +96,7 @@ export default Vue.extend({
 </script>
 
 <style lang="scss" scoped>
-
+@use "sass:color";
 .selected {
 	margin: 0.5rem 0;
 	display: inline-flex;
@@ -104,7 +104,7 @@ export default Vue.extend({
 	gap: 0.5rem;
 
 	.option {
-		background-color: lighten(#337ab7, 40); // $panel-color (global.scss); maybe separate variables into file we can import here?
+		background-color: color.adjust(#337ab7, $lightness: 40%); // $panel-color (global.scss); maybe separate variables into file we can import here?
 		color: black;
 		padding-left: 7px;
 		padding-right: 7px;

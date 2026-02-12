@@ -1,3 +1,5 @@
+@use "sass:color";
+
 // NOTE: this file is only included on article, search, corpora, and remote-index pages (those with a dedicated javascript bundle)
 // For *actual* global styles, see main.css
 body {
@@ -14,13 +16,13 @@ hr {
 }
 
 $panel-color: #337ab7;
-$accent: darken($panel-color, 3);
+$accent: color.adjust($panel-color, $lightness: -3%);
 // $border-default: #ccc;
 // $border-dark: #bababa;
 $border-default: #ddd;
 $border-dark: #ccc;
-$border-default-hover: darken($border-default, 10);
-$border-dark-hover: darken($border-dark, 10);
+$border-default-hover: color.adjust($border-default, $lightness: -10%);
+$border-dark-hover: color.adjust($border-dark, $lightness: -10%);
 $border-radius: 3px;
 $border-radius-lg: 4px;
 

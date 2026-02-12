@@ -151,9 +151,11 @@ export default Vue.extend({
 </script>
 
 <style lang="scss" scoped>
+@use "sass:color";
+
 .pagination {
-	$color: darken(#337ab7, 5);
-	$border-color: lighten(#337ab7, 20);
+	$color: color.adjust(#337ab7, $lightness: -5%);
+	$border-color: color.adjust(#337ab7, $lightness: 20%);
 	margin: 0;
 	display: inline-block!important;
 
