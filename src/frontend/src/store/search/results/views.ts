@@ -48,9 +48,9 @@ const createActions = (b: ModuleBuilder<ViewRootState, RootState>) => ({
 	}, 'groupBy'),
 	sort: b.commit((state, payload: string|null) => state.sort = payload, 'sort'),
 	/** Set the first result offset */
-	first: b.commit((state, payload: number) => state.first = Math.max(0, payload), 'first'),
+	first: b.commit((state, payload: number) => {debugger; state.first = Math.max(0, payload)}, 'first') ,
 	/** Set the number of results to retrieve */
-	number: b.commit((state, payload: number) => state.number = Math.max(1, payload), 'number'),
+	number: b.commit((state, payload: number) => {debugger; state.number = Math.max(1, payload)}, 'number'),
 	/** Convenience action to set both first and number at once */
 	range: b.commit((state, payload: {first: number, number: number}) => {
 		state.first = Math.max(0, payload.first);

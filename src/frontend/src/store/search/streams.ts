@@ -203,6 +203,7 @@ urlInputParameters$.pipe(
 		// We only add a few query parameters of our own to restore some parts of the interface that can't be inferred from the blacklab parameters.
 		const viewedResults = v.state.interface.viewedResults;
 		const view = viewedResults ? v.state.views[viewedResults] : undefined;
+		debugger;
 		Object.assign(queryParams, {
 			interface: JSON.stringify({
 				form: v.state.query.form,
@@ -348,6 +349,7 @@ export default () => {
 		}),
 		(cur, prev) => {
 			// update the frontend URL according to the changes in the store
+			debugger;
 			urlInputParameters$.next(cloneDeep(cur));
 			// @ts-ignore
 			if ( Vue.$plausible &&

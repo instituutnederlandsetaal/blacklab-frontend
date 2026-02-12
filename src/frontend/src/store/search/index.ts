@@ -104,6 +104,7 @@ const get = {
 		// e.g. pagesize=50, number=70 (from URL), need to retrieve 100 results to cover the requested range
 		const numberOfResults = Math.ceil((activeView.first + activeView.number - lowerPageBoundary) / pageSize) * pageSize;
 
+		debugger;
 		return {
 			...debugParams,
 

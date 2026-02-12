@@ -80,8 +80,8 @@ export interface GroupRowData {
 	/** Average document length [gr.t/gr.d]. */
 	'average document length [gr.t/gr.d]'?: number;
 
-	/** Is this row highlighted? (used when more rows displayed than defined by the user's page size (from URL)) */
-	highlighted: boolean;
+	/** Is this row muted? (used when more rows displayed than defined by the user's page size (from URL)) */
+	muted: boolean;
 }
 
 /** What properties are available to display in the columns */
@@ -353,12 +353,13 @@ export function snippetParts(hit: BLHit|BLHitSnippet, colors?: Record<string, To
  * This means we might get more results back than the user requested in the URL.
  * We then need to highlight the results that are outside the URL range (i.e. highlighting rows 50-80 in this example).
  */
-function shouldHighlight(indexInRequestedResults: number, firstFromUrl: number, numberFromUrl: number, firstFromBlackLab: number|undefined, numberFromBlackLab: number): boolean {
+function isOutsideRequestedResults(indexInRequestedResults: number, firstFromUrl: number, numberFromUrl: number, firstFromBlackLab: number|undefined, numberFromBlackLab: number): boolean {
 	const requestedResultsAlignExactly = firstFromUrl === firstFromBlackLab && numberFromBlackLab === numberFromUrl;
 	if (requestedResultsAlignExactly) return false;
 
 	const globalIndex = indexInRequestedResults + (firstFromBlackLab ?? 0);
-	return !(globalIndex < firstFromUrl || globalIndex >= (firstFromUrl + numberFromUrl));
+	const isOutsideUrlRange = (globalIndex < firstFromUrl) || (globalIndex >= (firstFromUrl + numberFromUrl));
+	return isOutsideUrlRange;
 }
 
 // ===================
@@ -463,7 +464,7 @@ export type HitRowData = {
 	hit_last_word_id: string // jesse
 
 	/** Is this row highlighted? (used when more rows displayed than defined by the user's page size (from URL)) */
-	highlighted: boolean;
+	muted: boolean;
 }
 
 export type DocRowData = {
@@ -474,7 +475,7 @@ export type DocRowData = {
 	hits?: HitRowData[],
 	hit_id?: undefined,
 	/** Is this row highlighted? (used when more rows displayed than defined by the user's page size (from URL)) */
-	highlighted: boolean;
+	muted: boolean;
 };
 
 function start(hit: BLHit): number;
@@ -503,7 +504,7 @@ function makeDocRow(p: Result<any>, info: DisplaySettingsForRows, indexInRequest
 		summary: info.getSummary(p.doc.docInfo, info.specialFields),
 		type: 'doc',
 		hits: p.doc.snippets?.length ? p.doc.snippets.flatMap(s => makeRowsForHit({...p, hit: s}, info, undefined, indexInRequestedResults)) : undefined,
-		highlighted: shouldHighlight(indexInRequestedResults, info.first, info.number, p.query.first, p.query.number)
+		muted: isOutsideRequestedResults(indexInRequestedResults, info.first, info.number, p.query.first, p.query.number)
 	}
 }
 
@@ -546,7 +547,7 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		hit_last_word_id: '',
 
 		customHitInfo: (p.hit ? info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field), p.doc) : undefined) ?? '',
-		highlighted: shouldHighlight(indexInRequestedResults, info.first, info.number, p.query.first, p.query.number)
+		muted: isOutsideRequestedResults(indexInRequestedResults, info.first, info.number, p.query.first, p.query.number)
 	}
 }
 
@@ -673,7 +674,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, info: Displ
 			'relative frequency (tokens) [gr.t/sc.t]': (row['gr.t'] && row['sc.t']) ? row['gr.t'] / row['sc.t'] : undefined,
 
 			'average document length [gr.t/gr.d]': row['gr.t'] ? Math.ceil(row['gr.t'] / row['gr.d']) : undefined,
-			highlighted: shouldHighlight(i, info.first, info.number, results.summary.searchParam.first, results.summary.searchParam.number)
+			muted: isOutsideRequestedResults(i, info.first, info.number, results.summary.searchParam.first, results.summary.searchParam.number)
 		};
 
 		Object.entries(r).forEach(([k, v]: [keyof GroupRowData, GroupRowData[keyof GroupRowData]]) => max.add(k as any, v as any));

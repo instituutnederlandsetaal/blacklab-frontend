@@ -34,7 +34,7 @@
 						interactable: isOpenable(row),
 						topborder: index > 0 && 'first_of_hit' in row && row.first_of_hit,
 						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1),
-						hl: row.highlighted
+						muted: row.muted
 					}"
 					:row="row"
 					:info="info"
@@ -55,6 +55,7 @@
 						details: true,
 						rounded: true,
 						open: openRows[row.hit_id || index],
+						muted: row.muted
 					}"
 					:row="row"
 					:info="info"
@@ -237,13 +238,15 @@ table.results-table {
 		font-style: italic;
 	}
 
-	// Highlight rows that are part of the shared URL's result range
-	tr.hl {
-		background-color: rgba(#f0ad4e, 0.15);
+	tr.muted + tr:not(.muted) { border-top: 2px dashed #aaa; }
+	tr:not(.muted) + tr.muted { border-top: 2px dashed #aaa; }
 
-		&:hover,
-		&:focus {
-			background-color: rgba(#f0ad4e, 0.25)!important;
+	// Highlight rows that are part of the shared URL's result range
+	tr.muted {
+		font-style: italic;
+		opacity: 0.7;
+		&:hover {
+			opacity: 1;
 		}
 	}
 }
