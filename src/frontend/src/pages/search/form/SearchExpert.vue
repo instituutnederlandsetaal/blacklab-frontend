@@ -99,6 +99,7 @@ export default ParallelFields.extend({
 </script>
 
 <style lang="scss" scoped>
+@use "sass:color";
 
 h3 .help {
 	font-size: 0.8em;
@@ -138,7 +139,7 @@ h3 .help {
 		// position: relative;
 		// top: 1px;
 
-		background-color: lighten(#337ab7, 40); // $panel-color (global.scss); maybe separate variables into file we can import here?
+		background-color: color.adjust(#337ab7, $lightness: 40%); // $panel-color (global.scss); maybe separate variables into file we can import here?
 		color: black;
 		padding: 7px;
 		border-radius: 3px;

@@ -453,7 +453,7 @@ export default Vue.extend({
 				};
 			}
 
-			const pageSize = GlobalStore.getState().pageSize;
+			const pageSize = this.pageSize;
 			const { first, number } = this.store.getState();
 			const last = first + number - 1;
 
@@ -607,13 +607,15 @@ export default Vue.extend({
 
 		commonDisplaySettings(): DisplaySettingsCommon {
 			const summaryOtherFields = this.results?.summary.pattern?.otherFields ?? [];
+			const { first, number, requestedRange } = this.store.getState();
 			return {
 				dir: CorpusStore.get.textDirection(),
 				i18n: this,
 				specialFields: CorpusStore.getState().corpus!.fieldInfo,
 				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name]),
-				first: this.results?.summary.windowFirstResult ?? 0,
-				number: this.results?.summary.actualWindowSize ?? 0,
+				first,
+				number,
+				requestedRange,
 				pageSize: this.pageSize
 			}
 		},
@@ -626,16 +628,34 @@ export default Vue.extend({
 			}
 		},
 		columnDisplaySettings(): DisplaySettingsForColumns {
+			// Parse sort to extract annotation or metadata field being sorted on
+			const parsedSort = this.sort ? parseSortBy(this.sort, this.results ?? undefined) : null;
+			const sortAnnotationId = parsedSort?.type === 'context' ? parsedSort.annotation : undefined;
+			const sortMetadataId = parsedSort?.type === 'metadata' && parsedSort.metadata.type === 'document' ? parsedSort.metadata.field : undefined;
+			
+			// Get shown columns and append sort column if not already shown
+			const shownAnnotationIds = this.isHits ? UIStore.getState().results.hits.shownAnnotationIds : [];
+			const annotationIdsToShow = (sortAnnotationId && !shownAnnotationIds.includes(sortAnnotationId)) 
+				? shownAnnotationIds.concat(sortAnnotationId) 
+				: shownAnnotationIds;
+			
+			const shownMetadataIds = this.isHits 
+				? UIStore.getState().results.hits.shownMetadataIds 
+				: this.isDocs 
+					? UIStore.getState().results.docs.shownMetadataIds 
+					: [];
+			const metadataIdsToShow = (sortMetadataId && !shownMetadataIds.includes(sortMetadataId))
+				? shownMetadataIds.concat(sortMetadataId)
+				: shownMetadataIds;
+			
 			return {
 				...this.commonDisplaySettings,
 				groupDisplayMode: this.groupDisplayMode as any || (BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
 				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
-				// If groups, don't show any metadata columns.
-				metadata: 	this.isHits ? UIStore.getState().results.hits.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) :
-							this.isDocs ? UIStore.getState().results.docs.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) : [],
-
-				// If groups, don't show any annotation columns.
-				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
+				// If groups, don't show any metadata columns. Automatically append sort column if not already shown.
+				metadata: metadataIdsToShow.map(id => CorpusStore.get.allMetadataFieldsMap()[id]),
+				// If groups, don't show any annotation columns. Automatically append sort column if not already shown.
+				otherAnnotations: annotationIdsToShow.map(id => CorpusStore.get.allAnnotationsMap()[id]),
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
 				annotationGroups: CorpusStore.get.annotationGroups(),
 				hasCustomHitInfoColumn: corpusCustomizations.results.hasCustomHitInfoColumn,

@@ -1,6 +1,4 @@
 import 'bootstrap';
-import 'bootstrap-select';
-import 'bootstrap-select/dist/css/bootstrap-select.css';
 
 import $ from 'jquery';
 import Vue from 'vue';

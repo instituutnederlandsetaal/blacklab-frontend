@@ -780,6 +780,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 			groupDisplayMode: this.getString('groupDisplayMode', null, v => v?v:null),
 			first: this.getNumber('first', null, v => v != null && v >= 0 ? v : null) ?? 0,
 			number: this.getNumber('number', GlobalResultsModule.getState().pageSize, v => v != null && v > 0 ? v : null) ?? 20,
+			requestedRange: null,
 		};
 	}
 

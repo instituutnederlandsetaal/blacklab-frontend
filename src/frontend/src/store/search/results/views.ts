@@ -12,6 +12,10 @@ import {RootState} from '@/store/search/';
 const namespace = 'views';
 
 type ModuleRootState = Record<string, ViewRootState>;
+type RequestedRange = {
+	first: number;
+	number: number;
+};
 type ViewRootState = {
 	customState: any;
 	groupBy: string[];
@@ -19,6 +23,8 @@ type ViewRootState = {
 	first: number;
 	/** The number of results to retrieve */
 	number: number;
+	/** The original range requested via URL. Null means no shared URL-range context is active. */
+	requestedRange: RequestedRange|null;
 	sort: string|null;
 	viewGroup: string|null;
 	groupDisplayMode: string|null;
@@ -30,6 +36,7 @@ const initialViewState: ViewRootState = {
 	groupBy: [],
 	first: 0,
 	number: 20, // default page size
+	requestedRange: null,
 	sort: null,
 	viewGroup: null,
 	groupDisplayMode: null,
@@ -45,21 +52,54 @@ const createActions = (b: ModuleBuilder<ViewRootState, RootState>) => ({
 		state.viewGroup = null;
 		state.sort = null;
 		state.first = 0;
+		state.requestedRange = null;
 	}, 'groupBy'),
 	sort: b.commit((state, payload: string|null) => state.sort = payload, 'sort'),
+
+	/*
+	 * Pagination flow overview (hits/docs each have their own view state):
+	 * 1) Fresh submit (searchFromSubmit): all views are reset, then number is set to global.pageSize.
+	 *    This guarantees URL serialization uses the active user's configured page size instead of the
+	 *    hardcoded initial fallback (20).
+	 * 2) URL restore (replaceRoot in root store): the active view is replaced from URL first/number,
+	 *    then a requestedRange may be set when the URL span is incompatible with local page boundaries.
+	 * 3) Local page-size change (global module): first/number are re-aligned to new boundaries and
+	 *    requestedRange is cleared immediately.
+	 * 4) Local pagination/grouping interactions (first/number/range/groupBy/viewGroup actions here):
+	 *    requestedRange is cleared, because the user is now navigating in local state, not shared URL context.
+	 */
+
+
 	/** Set the first result offset */
-	first: b.commit((state, payload: number) => state.first = Math.max(0, payload), 'first'),
+	first: b.commit((state, payload: number) => {
+		state.first = Math.max(0, payload);
+		state.requestedRange = null;
+	}, 'first') ,
 	/** Set the number of results to retrieve */
-	number: b.commit((state, payload: number) => state.number = Math.max(1, payload), 'number'),
+	number: b.commit((state, payload: number) => {
+		state.number = Math.max(1, payload);
+		state.requestedRange = null;
+	}, 'number'),
 	/** Convenience action to set both first and number at once */
 	range: b.commit((state, payload: {first: number, number: number}) => {
 		state.first = Math.max(0, payload.first);
 		state.number = Math.max(1, payload.number);
+		state.requestedRange = null;
 	}, 'range'),
+	setRequestedRange: b.commit((state, payload: RequestedRange) => {
+		state.requestedRange = {
+			first: Math.max(0, payload.first),
+			number: Math.max(1, payload.number)
+		};
+	}, 'setRequestedRange'),
+	clearRequestedRange: b.commit(state => {
+		state.requestedRange = null;
+	}, 'clearRequestedRange'),
 	viewGroup: b.commit((state, payload: string|null) => {
 		state.viewGroup = payload;
 		state.sort = null;
 		state.first = 0;
+		state.requestedRange = null;
 	},'viewgroup'),
 	groupDisplayMode: b.commit((state, payload: string|null) => state.groupDisplayMode = payload, 'groupDisplayMode'),
 
@@ -69,7 +109,12 @@ const createActions = (b: ModuleBuilder<ViewRootState, RootState>) => ({
 		Object.assign(state, cloneDeep(initialViewState))
 		if (!props.resetGroupBy) state.groupBy = prevGroupBy;
 	}, 'reset'),
-	replace: b.commit((state, payload: ViewRootState) => Object.assign(state, cloneDeep(payload)), 'replace'),
+	replace: b.commit((state, payload: ViewRootState) => {
+		Object.assign(state, cloneDeep(payload));
+		if (state.requestedRange == null) {
+			state.requestedRange = null;
+		}
+	}, 'replace'),
 });
 
 const createGetters = (b: ModuleBuilder<ViewRootState, RootState>) => {
@@ -128,7 +173,12 @@ function getOrCreateModule(view: string, initialState?: ViewRootState) {
 const actions = {
 	resetFirst: viewsBuilder.commit(() => Object.values(moduleCache).forEach(m => m.actions.first(0)), 'resetFirst'),
 	resetViewGroup: viewsBuilder.commit(() => Object.values(moduleCache).forEach(m => m.actions.viewGroup(null)), 'resetViewGroup'),
-	resetAllViews: viewsBuilder.commit((state, props: {resetGroupBy: boolean}) => Object.values(moduleCache).forEach(m => m.actions.reset(props)), 'reset'),
+	resetAllViews: viewsBuilder.dispatch(({rootState}, props: {resetGroupBy: boolean}) => {
+		Object.values(moduleCache).forEach(m => {
+			m.actions.reset(props);
+			m.actions.number(rootState.global.pageSize);
+		});
+	}, 'reset'),
 	replaceView: viewsBuilder.commit((_, payload: {view: string|null, data: ViewRootState}) => {
 		if (payload.view) getOrCreateModule(payload.view).actions.replace(payload.data);
 	}, 'replaceResultsView'),
