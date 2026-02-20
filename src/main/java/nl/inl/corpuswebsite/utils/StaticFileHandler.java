@@ -7,8 +7,6 @@ import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -28,6 +26,10 @@ public class StaticFileHandler {
 
     private static final int BUFFER_SIZE = 8192;
     private static final Pattern RANGE_PATTERN = Pattern.compile("bytes=(\\d*)-(\\d*)");
+    private static final int PUBLIC_MAX_AGE_SECONDS = 300;
+    private static final int PRIVATE_MAX_AGE_SECONDS = 120;
+    private static final int STALE_WHILE_REVALIDATE_API_SECONDS = 300;
+    private static final int STALE_WHILE_REVALIDATE_STATIC_SECONDS = 3600;
 
     /**
      * Result of checking if the client's cached version is still valid.
@@ -172,22 +174,30 @@ public class StaticFileHandler {
     }
 
     /**
-     * Set standard caching headers on the response.
-     * 
-     * @param response The HTTP response
-     * @param etag The ETag value
-     * @param isPublic If true, use "public" cache directive (allows shared caches).
-     *                 If false, use "private" (only browser cache, not proxies/CDNs).
+     * Set ETag and Cache-Control headers on the response.
      */
-    public static void setCacheHeaders(HttpServletResponse response, String etag, boolean isPublic) {
+    private static void setETagAndCacheControl(HttpServletResponse response, String etag, boolean isPublic, int staleWhileRevalidateSeconds) {
+        int maxAge = isPublic ? PUBLIC_MAX_AGE_SECONDS : PRIVATE_MAX_AGE_SECONDS;
+        String visibility = isPublic ? "public" : "private";
         response.setHeader("ETag", etag);
-        response.setHeader("Accept-Ranges", "bytes");
-        // public: can be cached by shared caches (proxies, CDNs)
-        // private: only the browser's private cache (for authenticated responses)
-        String cacheControl = isPublic 
-            ? "public, max-age=604800"  // 7 days for public
-            : "private, max-age=300";   // 5 minutes for private (authenticated)
-        response.setHeader("Cache-Control", cacheControl);
+        response.setHeader("Cache-Control", String.format("%s, max-age=%d, stale-while-revalidate=%d",
+            visibility, maxAge, staleWhileRevalidateSeconds));
+    }
+
+    /**
+     * Copy a byte range from a RandomAccessFile to an OutputStream.
+     */
+    private static void copyBytes(RandomAccessFile raf, OutputStream out, long offset, long length) throws IOException {
+        raf.seek(offset);
+        byte[] buffer = new byte[BUFFER_SIZE];
+        long remaining = length;
+        while (remaining > 0) {
+            int toRead = (int) Math.min(buffer.length, remaining);
+            int read = raf.read(buffer, 0, toRead);
+            if (read == -1) break;
+            out.write(buffer, 0, read);
+            remaining -= read;
+        }
     }
 
     /**
@@ -253,49 +263,27 @@ public class StaticFileHandler {
         ByteRange range = parseRangeHeader(request, fileLength);
 
         // Set common headers
-        response.setHeader("ETag", etag);
+        setETagAndCacheControl(response, etag, isPublic, STALE_WHILE_REVALIDATE_STATIC_SECONDS);
         response.setHeader("Accept-Ranges", "bytes");
-        // public: shared caches can store; private: only browser cache (for authenticated)
-        response.setHeader("Cache-Control", isPublic ? "public, max-age=604800" : "private, max-age=300");
         response.setDateHeader("Last-Modified", file.lastModified());
 
-        if (range == null) {
-            // Full content response
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.setHeader("Content-Length", String.valueOf(fileLength));
-            
-            try (RandomAccessFile raf = new RandomAccessFile(file, "r");
-                 OutputStream out = response.getOutputStream()) {
-                byte[] buffer = new byte[BUFFER_SIZE];
-                long remaining = fileLength;
-                while (remaining > 0) {
-                    int toRead = (int) Math.min(buffer.length, remaining);
-                    int read = raf.read(buffer, 0, toRead);
-                    if (read == -1) break;
-                    out.write(buffer, 0, read);
-                    remaining -= read;
-                }
-            }
-        } else {
-            // Partial content response
+        // Set range-dependent headers
+        long serveOffset, serveLength;
+        if (range != null) {
             response.setStatus(HttpServletResponse.SC_PARTIAL_CONTENT);
-            response.setHeader("Content-Length", String.valueOf(range.length));
-            response.setHeader("Content-Range", 
-                String.format("bytes %d-%d/%d", range.start, range.end, fileLength));
+            response.setHeader("Content-Range", String.format("bytes %d-%d/%d", range.start, range.end, fileLength));
+            serveOffset = range.start;
+            serveLength = range.length;
+        } else {
+            response.setStatus(HttpServletResponse.SC_OK);
+            serveOffset = 0;
+            serveLength = fileLength;
+        }
+        response.setHeader("Content-Length", String.valueOf(serveLength));
 
-            try (RandomAccessFile raf = new RandomAccessFile(file, "r");
-                 OutputStream out = response.getOutputStream()) {
-                raf.seek(range.start);
-                byte[] buffer = new byte[BUFFER_SIZE];
-                long remaining = range.length;
-                while (remaining > 0) {
-                    int toRead = (int) Math.min(buffer.length, remaining);
-                    int read = raf.read(buffer, 0, toRead);
-                    if (read == -1) break;
-                    out.write(buffer, 0, read);
-                    remaining -= read;
-                }
-            }
+        try (RandomAccessFile raf = new RandomAccessFile(file, "r");
+             OutputStream out = response.getOutputStream()) {
+            copyBytes(raf, out, serveOffset, serveLength);
         }
     }
 
@@ -334,9 +322,7 @@ public class StaticFileHandler {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setHeader("Content-Type", contentType);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.setHeader("ETag", etag);
-        // public: shared caches can store; private: only browser cache (for authenticated)
-        response.setHeader("Cache-Control", isPublic ? "public, max-age=300" : "private, no-cache");
+        setETagAndCacheControl(response, etag, isPublic, STALE_WHILE_REVALIDATE_API_SECONDS);
         response.getWriter().write(content);
         response.flushBuffer();
         return true;
