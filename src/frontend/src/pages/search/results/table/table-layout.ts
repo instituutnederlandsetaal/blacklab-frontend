@@ -80,8 +80,8 @@ export interface GroupRowData {
 	/** Average document length [gr.t/gr.d]. */
 	'average document length [gr.t/gr.d]'?: number;
 
-	/** Is this row highlighted? (used when more rows displayed than defined by the user's page size (from URL)) */
-	highlighted: boolean;
+	/** Is this row muted? (used for rows outside a shared URL-requested range) */
+	muted: boolean;
 }
 
 /** What properties are available to display in the columns */
@@ -353,12 +353,12 @@ export function snippetParts(hit: BLHit|BLHitSnippet, colors?: Record<string, To
  * This means we might get more results back than the user requested in the URL.
  * We then need to highlight the results that are outside the URL range (i.e. highlighting rows 50-80 in this example).
  */
-function shouldHighlight(indexInRequestedResults: number, firstFromUrl: number, numberFromUrl: number, firstFromBlackLab: number|undefined, numberFromBlackLab: number): boolean {
-	const requestedResultsAlignExactly = firstFromUrl === firstFromBlackLab && numberFromBlackLab === numberFromUrl;
-	if (requestedResultsAlignExactly) return false;
+function isOutsideRequestedResults(indexInRequestedResults: number, requestedRange: {first: number, number: number}|null, firstFromBlackLab: number|undefined): boolean {
+	if (requestedRange == null) return false;
 
 	const globalIndex = indexInRequestedResults + (firstFromBlackLab ?? 0);
-	return !(globalIndex < firstFromUrl || globalIndex >= (firstFromUrl + numberFromUrl));
+	const isOutsideUrlRange = (globalIndex < requestedRange.first) || (globalIndex >= (requestedRange.first + requestedRange.number));
+	return isOutsideUrlRange;
 }
 
 // ===================
@@ -411,9 +411,11 @@ export type DisplaySettingsForRendering = {
 	first: number;
 	/** Number of results requested based on URL (results view store) - not necessarily what was sent to BlackLab) */
 	number: number;
+	/** If set, original range requested via shared URL for this active view. */
+	requestedRange: {first: number, number: number}|null;
 }
 
-export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'|'targetFields'|'pageSize'|'first'|'number'>;
+export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'|'targetFields'|'pageSize'|'first'|'number'|'requestedRange'>;
 export type DisplaySettingsForRows = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'sourceField'|'getSummary'|'getCustomHitInfo'>
 export type DisplaySettingsForColumns = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'mainAnnotation'|'otherAnnotations'|'sortableAnnotations'|'annotationGroups'|'metadata'|'groupDisplayMode'|'hasCustomHitInfoColumn'>
 
@@ -462,8 +464,8 @@ export type HitRowData = {
 	hit_first_word_id: string; // Jesse
 	hit_last_word_id: string // jesse
 
-	/** Is this row highlighted? (used when more rows displayed than defined by the user's page size (from URL)) */
-	highlighted: boolean;
+	/** Is this row muted? (used for rows outside a shared URL-requested range) */
+	muted: boolean;
 }
 
 export type DocRowData = {
@@ -473,8 +475,8 @@ export type DocRowData = {
 	doc: BLDoc,
 	hits?: HitRowData[],
 	hit_id?: undefined,
-	/** Is this row highlighted? (used when more rows displayed than defined by the user's page size (from URL)) */
-	highlighted: boolean;
+	/** Is this row muted? (used for rows outside a shared URL-requested range) */
+	muted: boolean;
 };
 
 function start(hit: BLHit): number;
@@ -503,7 +505,7 @@ function makeDocRow(p: Result<any>, info: DisplaySettingsForRows, indexInRequest
 		summary: info.getSummary(p.doc.docInfo, info.specialFields),
 		type: 'doc',
 		hits: p.doc.snippets?.length ? p.doc.snippets.flatMap(s => makeRowsForHit({...p, hit: s}, info, undefined, indexInRequestedResults)) : undefined,
-		highlighted: shouldHighlight(indexInRequestedResults, info.first, info.number, p.query.first, p.query.number)
+		muted: isOutsideRequestedResults(indexInRequestedResults, info.requestedRange, p.query.first)
 	}
 }
 
@@ -546,7 +548,7 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		hit_last_word_id: '',
 
 		customHitInfo: (p.hit ? info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field), p.doc) : undefined) ?? '',
-		highlighted: shouldHighlight(indexInRequestedResults, info.first, info.number, p.query.first, p.query.number)
+		muted: isOutsideRequestedResults(indexInRequestedResults, info.requestedRange, p.query.first)
 	}
 }
 
@@ -673,7 +675,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, info: Displ
 			'relative frequency (tokens) [gr.t/sc.t]': (row['gr.t'] && row['sc.t']) ? row['gr.t'] / row['sc.t'] : undefined,
 
 			'average document length [gr.t/gr.d]': row['gr.t'] ? Math.ceil(row['gr.t'] / row['gr.d']) : undefined,
-			highlighted: shouldHighlight(i, info.first, info.number, results.summary.searchParam.first, results.summary.searchParam.number)
+			muted: isOutsideRequestedResults(i, info.requestedRange, results.summary.searchParam.first)
 		};
 
 		Object.entries(r).forEach(([k, v]: [keyof GroupRowData, GroupRowData[keyof GroupRowData]]) => max.add(k as any, v as any));

@@ -351,7 +351,24 @@ const actions = {
 		ViewModule.actions.resetAllViews({resetGroupBy: true});
 		// The state we just restored has results open, so execute a search.
 		if (payload.interface.viewedResults != null) {
-			ViewModule.actions.replaceView({view: payload.interface.viewedResults, data: payload.view});
+			const viewName = payload.interface.viewedResults;
+			ViewModule.actions.replaceView({view: viewName, data: payload.view});
+
+			const pageSize = GlobalResultsModule.getState().pageSize;
+			const lowerPageBoundary = Math.floor(payload.view.first / pageSize) * pageSize;
+			const numberOfResults = Math.ceil((payload.view.first + payload.view.number - lowerPageBoundary) / pageSize) * pageSize;
+			const rangeNeedsExpansion = lowerPageBoundary !== payload.view.first || numberOfResults !== payload.view.number;
+
+			const restoredView = ViewModule.getOrCreateModule(viewName);
+			if (rangeNeedsExpansion) {
+				restoredView.actions.setRequestedRange({
+					first: payload.view.first,
+					number: payload.view.number,
+				});
+			} else {
+				restoredView.actions.clearRequestedRange();
+			}
+
 			actions.searchAfterRestore();
 		}
 	}, 'replaceRoot'),

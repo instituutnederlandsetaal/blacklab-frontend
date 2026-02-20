@@ -451,7 +451,7 @@ export default Vue.extend({
 				};
 			}
 
-			const pageSize = GlobalStore.getState().pageSize;
+			const pageSize = this.pageSize;
 			const { first, number } = this.store.getState();
 			const last = first + number - 1;
 
@@ -605,13 +605,15 @@ export default Vue.extend({
 
 		commonDisplaySettings(): DisplaySettingsCommon {
 			const summaryOtherFields = this.results?.summary.pattern?.otherFields ?? [];
+			const { first, number, requestedRange } = this.store.getState();
 			return {
 				dir: CorpusStore.get.textDirection(),
 				i18n: this,
 				specialFields: CorpusStore.getState().corpus!.fieldInfo,
 				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name]),
-				first: this.results?.summary.windowFirstResult ?? 0,
-				number: this.results?.summary.actualWindowSize ?? 0,
+				first,
+				number,
+				requestedRange,
 				pageSize: this.pageSize
 			}
 		},
