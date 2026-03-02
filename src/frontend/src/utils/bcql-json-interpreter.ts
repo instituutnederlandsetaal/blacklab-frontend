@@ -93,13 +93,24 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	function _compare(clauses: any[], operation: string): Condition {
 		if (operation !== '=' && operation !== '!=')
 			throw new Error('Cannot interpret compare operation: ' + operation);
-		if (clauses[0].type !== 'defval' || clauses[1].type !== 'symbol')
-			throw new Error('Cannot interpret compare left clause of type: ' + clauses[0].type);
-		if (clauses[1].type !== 'string')
-			throw new Error('Cannot interpret compare right clause of type: ' + clauses[1].type);
-		let annot = clauses[0].type === 'defval' ? DEFAULT_ANNOTATION : clauses[0].value;
+		
+		const [compareWhat, compareWith] = clauses;
+		if (compareWhat.type === 'symbol' && compareWith.type === 'string') {
+			return {
+				name: compareWhat.value,
+				operator: operation,
+				value: compareWith.value,
+				type: 'condition',
+			}
+		}
+
+		if (compareWhat.type !== 'defval' || compareWith.type !== 'symbol')
+			throw new Error('Cannot interpret compare left clause of type: ' + compareWhat.type);
+		if (compareWith.type !== 'string')
+			throw new Error('Cannot interpret compare right clause of type: ' + compareWith.type);
+		let annot = compareWhat.type === 'defval' ? DEFAULT_ANNOTATION : compareWhat.value;
 		return {
-			..._regex(annot, clauses[1].value),
+			..._regex(annot, compareWith.value),
 			operator: operation // = or !=
 		}
 	}
@@ -310,7 +321,6 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	}
 
 	function _query(input: any): Result {
-		//console.log('_query', input);
 		switch (input.type) {
 		case 'sequence':
 			return {
@@ -413,7 +423,6 @@ async function parseBcql(indexId: string, bcql: string, defaultAnnotation: strin
 	const response = await api.blacklab.getParsePattern(indexId, bcql);
 	const result = interpretBcqlJson(bcql, response.parsed.json, defaultAnnotation);
 	parsePatternCache.set(cacheKey, result);
-	//console.log('parseBcql', indexId, bcql, defaultAnnotation, result);
 	return result;
 }
 

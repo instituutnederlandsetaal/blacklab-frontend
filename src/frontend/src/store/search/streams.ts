@@ -369,7 +369,7 @@ export default () => {
 	);
 
 	fromEvent<PopStateEvent>(window, 'popstate')
-	.pipe(mergeMap(evt => evt.state  ? of(evt.state as HistoryStore.HistoryEntry) : new UrlStateParser(FilterStore.getState().filters).get()))
+	.pipe(mergeMap(evt => evt.state  ? of(evt.state as HistoryStore.HistoryEntry) : new UrlStateParser().get()))
 	.subscribe(state => RootStore.actions.replace(state));
 
 	debugLog('Finished connecting store to url and subcorpus calculations.');

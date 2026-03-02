@@ -128,7 +128,7 @@ const get = {
 				if (!originalEntry || originalEntry.version == null) { throw new Error('Cannot import: file does not appear to be a valid query.'); }
 
 				// Rountrip from url if not compatible.
-				const entry = originalEntry.version === version ? originalEntry : await new UrlStateParser(FilterModule.getState().filters, new URI(originalEntry.url)).get();
+				const entry = originalEntry.version === version ? originalEntry : await new UrlStateParser(new URI(originalEntry.url)).get();
 
 				resolve({
 					entry,

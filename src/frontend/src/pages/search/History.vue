@@ -155,7 +155,7 @@ export default Vue.extend({
 			}
 
 			const uri = new URI(importUrl);
-			const state = await new UrlStateParser(FilterStore.getState().filters, uri).get();
+			const state = await new UrlStateParser(uri).get();
 			HistoryStore.actions.addEntry({
 				entry: state,
 				pattern: (uri.query(true) as any).patt,
