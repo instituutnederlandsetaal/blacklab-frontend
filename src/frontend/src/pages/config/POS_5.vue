@@ -91,11 +91,7 @@ export const step = Vue.extend({
 		},
 		copy() {
 			const content = JSON.stringify(this.json, undefined, 2);
-			navigator.clipboard.writeText(content).then(() => {
-				console.log('Content copied to clipboard successfully!');
-			}).catch(err => {
-				console.error('Failed to copy content to clipboard:', err);
-			});
+			navigator.clipboard.writeText(content).catch(err => console.error('Failed to copy content to clipboard:', err));
 		}
 	}
 });

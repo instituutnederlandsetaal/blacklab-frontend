@@ -214,7 +214,6 @@ export default ParallelFields.extend({
 			return this.tabs.length > 1;
 		},
 		tabs(): Array<{label: string, id: string, entries: AppTypes.NormalizedAnnotation[]}> {
-			console.log('computing tabs');
 			const result = getAnnotationSubset(
 				UIStore.getState().search.extended.searchAnnotationIds,
 				CorpusStore.get.annotationGroups(),

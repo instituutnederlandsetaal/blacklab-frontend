@@ -395,7 +395,6 @@ export function humanizeGroupByOrSortBy(i18n: Vue, g: GroupBy|SortBy, annotation
 					// with-spans[verse] -> verse
 					span = m[1];
 				}
-				console.log(m, meta.spanName, span, meta.attributeName);
 				const filterId = spanFilterId(span, meta.attributeName);
 				const filter = FilterModule.getState().filters[filterId];
 				return filter ?

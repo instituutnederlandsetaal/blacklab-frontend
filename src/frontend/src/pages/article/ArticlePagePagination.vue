@@ -239,7 +239,6 @@ export default Vue.extend({
 				return query;
 			}
 			const patt = optTargetField(query, searchfield && searchfield !== field ? field : undefined);
-			//console.log({ query, field, searchfield, patt });
 			
 			const spinnerTimeout = setTimeout(() => this.loadingForAwhile = true, 3000);
 			return blacklab

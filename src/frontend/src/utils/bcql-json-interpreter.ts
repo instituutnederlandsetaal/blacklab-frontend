@@ -310,7 +310,6 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	}
 
 	function _query(input: any): Result {
-		//console.log('_query', input);
 		switch (input.type) {
 		case 'sequence':
 			return {
@@ -413,7 +412,6 @@ async function parseBcql(indexId: string, bcql: string, defaultAnnotation: strin
 	const response = await api.blacklab.getParsePattern(indexId, bcql);
 	const result = interpretBcqlJson(bcql, response.parsed.json, defaultAnnotation);
 	parsePatternCache.set(cacheKey, result);
-	//console.log('parseBcql', indexId, bcql, defaultAnnotation, result);
 	return result;
 }
 

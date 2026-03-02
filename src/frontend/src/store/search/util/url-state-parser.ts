@@ -39,14 +39,13 @@ import { corpusCustomizations } from '@/utils/customization';
  * Keep everything private except the getters
  */
 export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.HistoryEntry> {
-	/**
-	 * MetadataFilters here are the interface components to filter a query by document metadata.
-	 * Because these can be fairly complex components, we have decided to implement decoding of the query in the Vue components.
-	 * So in order to decode the query, we need knowledge of which filters are configured.
-	 * This is done by the FilterModule, so we need that info here.
-	 */
-	constructor(private registeredMetadataFilters: FilterModule.ModuleRootState, uri?: URI) {
+	constructor(uri?: URI) {
 		super(uri);
+		try {
+			this._interfaceStateFromUrl = JSON.parse(this.getString('interface', null, v => v.startsWith('{')?v:null)!);
+		} catch (e) {
+			// No big deal if we can't parse the interface state from the url, we'll just determine it from the rest of the url parameters later.
+		}
 	}
 
 	@memoize
@@ -230,7 +229,7 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	private get interface(): InterfaceModule.ModuleRootState {
 		try {
-			const uiStateFromUrl: Partial<InterfaceModule.ModuleRootState>|null = JSON.parse(this.getString('interface', null, v => v.startsWith('{')?v:null)!);
+			const uiStateFromUrl = this._interfaceStateFromUrl;
 			if (!uiStateFromUrl) {
 				throw new Error('No url ui state, falling back to determining from rest of parameters.');
 			}
@@ -811,13 +810,13 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		} catch (e) {
 			// Just accept that we cannot interpret it for use in the simple, extended or advanced
 			// search modes, and use the entire query for the Expert view.
-			this._parsedCql = [
-				{
-					query: bcql || ''
-				}
-			];
+			console.error('Error parsing BCQL query from url, putting entire query in expert view', e);
+			this._parsedCql = [{ query: bcql || '' }];
+			// Additionally, force the viewed form to be the expert form, so that the user sees the error and has a chance to fix it.
+			this._interfaceStateFromUrl = null;
 		}
 	}
 
 	_parsedCql: Result[]|null = null;
+	_interfaceStateFromUrl: Partial<InterfaceModule.ModuleRootState>|null = null;
 }

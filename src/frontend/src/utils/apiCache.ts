@@ -1,5 +1,6 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { probeLocalStorageSynced } from '@/utils/localstore';
+import { debugLog } from './debug';
 
 /**
  * Global cache validation queue.
@@ -187,11 +188,11 @@ export function cachedRequest<T>(key: string, options: CachedRequestOptions): Pr
 	// If we have cached data, return it immediately
 	// The request will validate in the background
 	if (isFromStorage && cached !== null) {
-		console.log('Using cached data for', key);
+		debugLog('Using cached data for', key, cached);
 		return Promise.resolve(cached);
 	}
 	
-	console.log('No cached data for', key);
+	debugLog('No cached data for', key);
 	// No cache - must wait for the request
 	return requestPromise;
 }
