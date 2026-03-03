@@ -789,6 +789,8 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 
 	private async updateParsedCql(bcql: string|null) {
 		try {
+			// Let BlackLab parse it, then try to interpret the parse tree
+			// for use in the simple, extended or advanced search forms.
 			this._parsedCql = bcql == null ? null :
 				await parseBcql(INDEX_ID, bcql, CorpusModule.get.firstMainAnnotation().id);
 			if (this._parsedCql && this._parsedCql.length === 0)
@@ -810,9 +812,10 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 		} catch (e) {
 			// Just accept that we cannot interpret it for use in the simple, extended or advanced
 			// search modes, and use the entire query for the Expert view.
-			console.error('Error parsing BCQL query from url, putting entire query in expert view', e);
+			console.warn('BCQL query from url cannot fit in simple, extended or advanced search modes; using expert', e);
 			this._parsedCql = [{ query: bcql || '' }];
-			// Additionally, force the viewed form to be the expert form, so that the user sees the error and has a chance to fix it.
+			// Additionally, force the viewed form to be the expert form, which can contain any BCQL query,
+			// not just the subset that can be interpreted for the simple, extended and advanced forms.
 			this._interfaceStateFromUrl = null;
 		}
 	}
