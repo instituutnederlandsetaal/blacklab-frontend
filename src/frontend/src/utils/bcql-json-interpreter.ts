@@ -93,25 +93,19 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	function _compare(clauses: any[], operation: string): Condition {
 		if (operation !== '=' && operation !== '!=')
 			throw new Error('Cannot interpret compare operation: ' + operation);
-		
+
 		const [compareWhat, compareWith] = clauses;
-		if (compareWhat.type === 'symbol' && compareWith.type === 'string') {
-			return {
-				name: compareWhat.value,
-				operator: operation,
-				value: compareWith.value,
-				type: 'condition',
-			}
-		}
 
 		if (compareWhat.type !== 'defval' || compareWith.type !== 'symbol')
 			throw new Error('Cannot interpret compare left clause of type: ' + compareWhat.type);
 		if (compareWith.type !== 'string')
 			throw new Error('Cannot interpret compare right clause of type: ' + compareWith.type);
-		let annot = compareWhat.type === 'defval' ? DEFAULT_ANNOTATION : compareWhat.value;
+		let annotation = compareWhat.type === 'defval' ? DEFAULT_ANNOTATION : compareWhat.value;
 		return {
-			..._regex(annot, compareWith.value),
-			operator: operation // = or !=
+			name: annotation,
+			operator: operation,
+			value: compareWith.value,
+			type: 'condition',
 		}
 	}
 
