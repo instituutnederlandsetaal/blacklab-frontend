@@ -50,7 +50,6 @@ export interface CqlTokenData {
 export interface CqlQueryBuilderData {
 	tokens: CqlTokenData[];
 	within: string;
-	withinAttributes: Record<string, string>;
 }
 
 export const COMPARATORS: CqlAnnotationValueComparator[][]= [
@@ -187,7 +186,6 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 		// Extract within element and attributes
 		const withinElements = Object.keys(withinClauses);
 		const within = withinElements.length > 0 ? withinElements[0] : '';
-		const withinAttributes: Record<string, string> = within ? withinClauses[within] || {} : {};
 
 		const parsedTokens = tokens.map(token => {
 			const tokenData: CqlTokenData = {
@@ -217,7 +215,6 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 		return {
 			tokens: parsedTokens,
 			within,
-			withinAttributes
 		};
 	};
 
@@ -305,7 +302,6 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 	const query = sourceQuery ? parseQuery(sourceQuery) : {
 		tokens: [],
 		within: '',
-		withinAttributes: {}
 	};
 
 	// Parse target queries
