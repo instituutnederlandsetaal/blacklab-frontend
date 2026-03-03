@@ -58,8 +58,8 @@ export type Result = {
 	query?: string;
 	/** Tokens parsed from the query; undefined means "could not parse for simple/extended/advanced" */
 	tokens?: Token[];
-	/** Any within clauses on this query */
-	withinClauses?: Record<string, Record<string, any>>;
+	/** Any within clauses on this query. Usually in the form of {[]} */
+	withinClauses?: Record<string, Record<string, string|{ low: string; high: string }>>;
 	/** Target version for this query, or undefined if this is the source query */
 	targetVersion?: string;
 	/** Relation type for this (target) query, or undefined if this is the source query */
@@ -67,6 +67,18 @@ export type Result = {
 	/** Whether alignment relation target is optional */
 	optional?: boolean;
 };
+
+// TODO proper typing of the JSON structure for parsed queries.
+// For now - some ad-hoc types to get linting working.
+type BLTextPatternValue = {
+	type: 'string'|'number'|'boolean';
+	value: string|number|boolean;
+}|{
+	type: 'int-range';
+	min: number;
+	max: number;
+}
+
 
 function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): Result[] {
 
@@ -181,16 +193,22 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		return tokens;
 	}
 
-	function interpretTagsAttributes(attributes: Record<string, any>): Record<string, any> {
+
+
+	function interpretTagsAttributes(attributes: Record<string, BLTextPatternValue>): Record<string, string|{ low: string; high: string }> {
+		const r: Record<string, string|{ low: string; high: string }> = {};
 		if (!attributes)
-			return {};
-		// Recognize range query (e.g. { min: 10, max: 20 })
-		return Object.fromEntries(Object.entries(attributes).map(([k, v]) => {
-			if (v.min || v.max) {
-				return [k, { low: v.min == 0 ? '' : v.min.toString(), high: v.max == 9999 ? '' : v.max.toString() }];
+			return r;
+		for (const [k, v] of Object.entries(attributes)) {
+			if (v.type === 'int-range') {
+				r[k] = { low: v.min == 0 ? '' : v.min.toString(), high: v.max == 9999 ? '' : v.max.toString() };
+			} else if (v.type === 'string' || v.type === 'number' || v.type === 'boolean') {
+				r[k] = v.value.toString();
+			} else {
+				r[k] = v as any;
 			}
-			return [k, v];
-		}));
+		}
+		return r;
 	}
 
 	function _posFilter(producer: any, operation: string, filter: any): Result {

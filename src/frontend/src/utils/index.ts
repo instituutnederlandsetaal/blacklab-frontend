@@ -783,7 +783,13 @@ export function isHitParams(params: BLTypes.BLSearchParameters|null|undefined): 
 	return !! (params && params.patt);
 }
 
-/** Span filter ids always start with this */
+/** 
+ * We need to generate filter IDs for spans, which should never collide with filters for builtin metadata fields of the corpus 
+ * (which always have a filter with that same ID) 
+ * To that end, we always combine the spans ("inlineTags") with a fixed prefix, 
+ * This also happens during e.g. query parsing (for blacklab patterns like `<speech person="Smith">`)
+ * Will be parsed (roughly) into a filter mapping of { "span:speech:person": "Smith" }
+ */
 const SPAN_FILTER_PREFIX = 'span';
 
 /** Separator for span filter id parts */

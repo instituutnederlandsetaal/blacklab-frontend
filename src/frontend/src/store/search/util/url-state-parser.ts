@@ -85,32 +85,41 @@ export default class UrlStateParser extends BaseUrlStateParser<HistoryModule.His
 	@memoize
 	get spanFilters(): Record<string, FilterValue> {
 		const result: Record<string, FilterValue> = {};
-		Object.entries(this.withinClauses)
-			.forEach(([elName, attrs]) => {
-				Object.entries(attrs)
-					.forEach(([attrName, attrValue]) => {
-					const id = spanFilterId(elName, attrName);
-					const filter = FilterModule.getState().filters[id];
-					const vf = filter ? getValueFunctions(filter) : undefined;
-					if (vf?.isSpanFilter) {
-						let values: string[];
-						if (typeof attrValue === 'string') {
-							if (filter.componentName === 'filter-select') {
-								// select, decode options
-								values = attrValue.split('|').map(v => unescapeRegex(v, { escapeWildcards: false }));
-							} else {
-								// text
-								values = [ unescapeRegex(attrValue, { escapeWildcards: false }) ];
-							}
-						} else if (attrValue.low || attrValue.high) {
-							values = [attrValue.low || '', attrValue.high || ''];
-						} else {
-							values = [ attrValue ];
-						}
-						result[id] = { id, values };
+		const filters = FilterModule.getState().filters;
+		Object
+			.entries(this.withinClauses)
+			.flatMap(([elName, attrs]) => Object.entries(attrs).map(([attrName, attrValue]) => [elName, attrName, attrValue] as [string, string, any]))
+			// Now we have pairs of [elementname, attributename, attributevalue(s)] e.g. [speech, person, Einstein] for <speech person="Einstein"/>
+			.forEach(([elName, attrName, attrValue]) => {
+				const id = spanFilterId(elName, attrName);
+				const filter = filters[id];
+				const vf = filter && getValueFunctions(filter);
+				// strange, no filter has been created for this (or it's not a span - then why are we here?), skip it ??
+				if (!filter || !vf?.isSpanFilter) {
+					console.error(`Expected to find a span filter for within clause ${elName} with attribute ${attrName}, but did not (filter id ${id}). This part of the query will be ignored.`, filters);
+					return
+				};
+
+				// TODO why are we decoding this here..
+				// This logic should live either in the query preprocessing (cql-interpreter)
+				// or in the filtervaluefunctions (probably in the bcql-interpreter though)
+				let values: string[];
+				if (typeof attrValue === 'string') {
+					if (filter.componentName === 'filter-select') {
+						// select, decode options
+						values = attrValue.split('|').map(v => unescapeRegex(v, { escapeWildcards: false }));
+					} else {
+						// text
+						values = [ unescapeRegex(attrValue, { escapeWildcards: false }) ];
 					}
-				});
-		});
+				} else if (attrValue.low || attrValue.high) {
+					values = [attrValue.low || '', attrValue.high || ''];
+				} else {
+					values = [ attrValue ];
+				}
+				result[id] = { id, values };
+			});
+		
 		return result;
 	}
 
