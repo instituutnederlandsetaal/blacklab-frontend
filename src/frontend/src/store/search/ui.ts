@@ -379,13 +379,12 @@ const getState = (() => {
 	const getter = b.state();
 
 	return (): ModuleRootState => {
-		try {
-			// throws if store not built yet
+		if ('_store' in getter)  { // check if built. 
 			return getter();
-		} catch (e) {
-			// return the default state we already know
+		} else {
 			return cloneDeep(initialState);
 		}
+		
 	};
 })();
 
