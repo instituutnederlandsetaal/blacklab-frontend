@@ -57,7 +57,78 @@ Defaults to `en-us`, but you can change it to any other locale you have register
 function i18n.setFallbackLocale(locale: string);
 ```
 
+## Customize parallel version display names
 
+If you have a parallel corpus of book translations with e.g. `en`, `de` and `fr` versions, custome the field display names under `index.annotatedFields`.
+
+::: details Parallel i18n in more detail
+
+```json
+{
+	"search": {
+		"parallel": {
+			"searchSourceVersion": "Search language",
+			"errorNoSourceVersion": "Please select a language.",
+			"andCompareWithTargetVersions": "and compare with language(s)",
+			"queryForSourceVersion": "Source language",
+			"queryForTargetVersion": "Target language"
+		}
+	},
+
+	"index": {
+		"annotatedFields": {
+			"contents__en": "English",
+			"contents__de": "German",
+			"contents__fr": "French"
+		},
+
+		"annotationGroups": {
+			"Other": ""
+		},
+
+		"metadataGroups": {
+			"Metadata": ""
+		},
+
+		"alignBy": {
+			"word-alignment": "Word",
+			"sentence-alignment": "Sentence"
+		},
+
+		"spans": {
+			"s": "Sentence"
+		},
+
+		"spanAttributes": {
+			"div": {
+				"chapter": "chapter"
+			}
+		},
+
+		"metadata": {
+			"bookName": "Book name",
+
+			"spanFilters": {
+				"div": {
+					"chapter": "Chapter"
+				}
+			}
+		}
+	},
+
+	"results": {
+		"groupBy": {
+			"some_words": {
+				"spanFiltersLabel": ""
+			},
+			"groupLabel": {
+				"tag div": ""
+			}
+		}
+	}
+}
+```
+:::
 
 ----
 
