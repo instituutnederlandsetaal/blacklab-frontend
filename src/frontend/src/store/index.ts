@@ -28,11 +28,12 @@ import * as GlobalResultsModule from '@/store/results/global';
 import * as ArticleModule from '@/store/article';
 
 import * as BLTypes from '@/types/blacklabtypes';
-import { getPatternString, getWithinClausesFromFilters, shouldAddWithSpans } from '@/utils/pattern-utils';
+import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
 import { Loadable, LoadableFromStream } from '@/utils/loadable-streams';
 import debug, {  } from '@/utils/debug';
 import { CorpusChange, createStoreInitializer } from '@/store/async-loaders';
 import { User } from 'oidc-client-ts';
+import { corpusCustomizations } from '@/utils/customization';
 
 Vue.use(Vuex);
 
@@ -102,14 +103,20 @@ const get = {
 			//usecache: false
 		} : {};
 
+		const pageSize = state.global.pageSize;
+		// e.g. pagesize=50 first=120, first result to retrieve is 100
+		// basically use first, rounded down to nearest pagesize
+		const lowerPageBoundary = Math.floor(activeView.first / pageSize) * pageSize;
+		// e.g. pagesize=50, number=70 (from URL), need to retrieve 100 results to cover the requested range
+		const numberOfResults = Math.ceil((activeView.first + activeView.number - lowerPageBoundary) / pageSize) * pageSize;
+
 		return {
 			...debugParams,
 
-			filter: QueryModule.get.filterString(),
-			first: state.global.pageSize * activeView.page,
-			group: activeView.groupBy.join(','),
+			first: lowerPageBoundary,
+			number: numberOfResults,
 
-			number: state.global.pageSize,
+			filter: QueryModule.get.filterString(),
 			field: QueryModule.get.sourceField().id,
 			patt,
 			pattgapdata: (QueryModule.get.patternString() && QueryModule.getState().gap) ? QueryModule.getState().gap!.value || undefined : undefined,
@@ -119,10 +126,12 @@ const get = {
 			sampleseed: state.global.sampleSize != null ? state.global.sampleSeed! /* non-null precondition checked above */ : undefined,
 
 			sort: activeView.sort != null ? activeView.sort : undefined,
+			group: activeView.groupBy.join(','),
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: state.global.context != null ? state.global.context : undefined,
 			adjusthits: true,
-			withspans: shouldAddWithSpans(patt),
+			withspans: corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ??
+				(FilterModule.get.hasSpanFilters() || CorpusModule.get.hasRelations()),
 		};
 	}, 'blacklabParameters')
 };
@@ -351,7 +360,24 @@ const actions = {
 		}
 		// The state we just restored has results open, so execute a search.
 		if (payload.interface.viewedResults != null) {
-			ViewModule.actions.replaceView({view: payload.interface.viewedResults, data: payload.view});
+			const viewName = payload.interface.viewedResults;
+			ViewModule.actions.replaceView({view: viewName, data: payload.view});
+
+			const pageSize = GlobalResultsModule.getState().pageSize;
+			const lowerPageBoundary = Math.floor(payload.view.first / pageSize) * pageSize;
+			const numberOfResults = Math.ceil((payload.view.first + payload.view.number - lowerPageBoundary) / pageSize) * pageSize;
+			const rangeNeedsExpansion = lowerPageBoundary !== payload.view.first || numberOfResults !== payload.view.number;
+
+			const restoredView = ViewModule.getOrCreateModule(viewName);
+			if (rangeNeedsExpansion) {
+				restoredView.actions.setRequestedRange({
+					first: payload.view.first,
+					number: payload.view.number,
+				});
+			} else {
+				restoredView.actions.clearRequestedRange();
+			}
+
 		}
 		if ((payload.article?.docId != null && payload.patterns.expert) || payload.interface.viewedResults != null ) {
 			// need to submit the search if we're in article view, otherwise the

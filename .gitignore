@@ -26,3 +26,6 @@ src/main/webapp/js/
 
 node_modules
 docker/data
+docker/docker-compose.override.yml
+
+.DS_Store

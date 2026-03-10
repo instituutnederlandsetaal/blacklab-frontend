@@ -12,6 +12,15 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import jakarta.servlet.http.HttpServletResponse;
+
+import nl.inl.corpuswebsite.BaseResponse;
+import nl.inl.corpuswebsite.utils.ArticleUtil;
+import nl.inl.corpuswebsite.utils.CorpusConfig;
+import nl.inl.corpuswebsite.utils.QueryException;
+import nl.inl.corpuswebsite.utils.Result;
+import nl.inl.corpuswebsite.utils.ReturnToClientException;
+import nl.inl.corpuswebsite.utils.StaticFileHandler;
 
 /**
  * We need a rudimentary API for some of the content that needs to processed serverside.
@@ -76,6 +85,10 @@ public class ApiResponse extends BaseResponse {
 
     public void indexMetadata() throws QueryException {
         if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
+        // Use public caching only for unauthenticated requests
+        // This allows localStorage caching on the client for public corpora
+        boolean isPublic = servlet.useCache(request);
+        
         servlet.getCorpusConfig(corpus, request, response)
             .tap(c -> ensureEtagAndCache(c.lastModified())) // throws ReturnToClientException[not_modified] if etag matches
             .mapWithErrorHandling(CorpusConfig::getJsonUnescaped)
@@ -93,7 +106,25 @@ public class ApiResponse extends BaseResponse {
                 return mapper.writeValueAsString(config);
             })
             .mapError(QueryException::wrap)
-            .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
+            .tap(json -> serveWithETag(json, "application/json; charset=utf-8", isPublic))
+            .tapError(e -> { throw new ReturnToClientException(e); });
+    }
+
+    /**
+     * Serve content with ETag support for caching.
+     * Used for corpus info endpoint where the content doesn't change frequently.
+     * 
+     * @param content The content to serve
+     * @param contentType The content type
+     * @param isPublic If true, response can be cached by shared caches (proxies/CDNs) and localStorage.
+     *                 If false, only the browser's private HTTP cache can store the response.
+     */
+    private void serveWithETag(String content, String contentType, boolean isPublic) {
+        try {
+            StaticFileHandler.serveContent(request, response, content, contentType, isPublic);
+        } catch (IOException e) {
+            throw new ReturnToClientException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
     }
 
     public void help() {
@@ -121,23 +152,17 @@ public class ApiResponse extends BaseResponse {
     }
 
     protected void sendResult(Result<String, QueryException> r, String contentType) {
-        r.ifPresentOrElse(contents -> {
+        r.tap(contents -> {
             try {
                 response.setHeader("Content-Type", contentType);
                 response.setCharacterEncoding(StandardCharsets.UTF_8.name());
                 response.getWriter().write(contents);
                 response.flushBuffer();
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                throw returnToClientException.wrap(e);
             }
-        }, error -> {
-            try {
-                response.setStatus(error.getHttpStatusCode());
-                response.getWriter().print(error.getMessage() + "\n" + ExceptionUtils.getStackTrace(error));
-                response.flushBuffer();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
+        }).tapError(error -> {
+            throw ReturnToClientException.wrap(error);
         });
     }
 }

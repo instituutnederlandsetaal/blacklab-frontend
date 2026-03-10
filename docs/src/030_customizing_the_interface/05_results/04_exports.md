@@ -1,6 +1,8 @@
 
 # Exports
 
+<!-- @include: ../_custom_js_tip.md -->
+
 ## Show / Hide 
 Show or hide the export button
 

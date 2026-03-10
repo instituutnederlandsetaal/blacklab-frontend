@@ -58,8 +58,11 @@ public class CorpusConfig {
             + "//annotation[not(isInternal='true') and uiType='select']/@name |"
             + "//annotation[not(isInternal='true') and uiType='pos']/@name | "
             + "//annotation[not(isInternal='true') and uiType='pos']/subannotation"
-            + ", ',')",
-        doc).stream().findFirst().map(XdmItem::getStringValue).orElse("");
+            + ", ',')", doc)
+        .stream()
+        .findFirst()
+        .map(XdmItem::getStringValue)
+        .orElse("");
 
         // format: "2025-02-21 22:00:09"
         String modified = xp.evaluateSingle("/blacklabResponse/versionInfo/timeModified", doc).getStringValue();

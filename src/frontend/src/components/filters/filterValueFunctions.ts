@@ -1,5 +1,5 @@
-import { unescapeLucene, escapeLucene, splitIntoTerms, mapReduce, cast, spanFilterId } from '@/utils';
 import { FilterValue, Option } from '@/types/apptypes';
+import { cast, escapeLucene, mapReduce, spanFilterId, splitIntoTerms, unescapeLucene } from '@/utils';
 import { ASTNode, ASTRange } from 'lucene-query-parser';
 // @ts-ignore - weird this doesn't work during builds
 import { modes } from './FilterRangeMultipleFields.vue';
@@ -34,6 +34,27 @@ export type FilterDateMetadata = ({
 	/** string in format yyyymmdd or yyyy-mm-dd */
 	max?: string|Date|DateValue;
 };
+
+export type FilterRangeMultipleFieldsValue = {
+	/** Current value of the lower bound */
+	low: string;
+	/** Current value of the upper bound */
+	high: string;
+	/**
+	 * Strict === actual value must be >= lower bound && <= upper bound
+	 * Permissive === actual value may be >= lower bound || <= upper bound
+	*/
+	mode: 'permissive'|'strict'
+};
+export type FilterRangeMultipleFieldsMetadata = {
+	/** Name of the underlying metadata field for the lower bound  */
+	low: string;
+	/** Name of the underlying metadata field for the upper bound  */
+	high: string;
+	/** Disable permissive/strict selector and force the range filter to the selected mode */
+	mode?: 'permissive'|'strict';
+}
+
 
 type FilterValueFunctions<M, V> = {
 	/**
@@ -315,7 +336,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 				mode: s.mode
 			} : null;
 		},
-		luceneQuery(id: string, filterMetadata: {low: string, high: string}, value: { low: string; high: string; mode: keyof typeof modes}|null): string|null {
+		luceneQuery(id: string, filterMetadata: {low: string, high: string}, value: { low: string; high: string; mode: 'permissive'|'strict'}|null): string|null {
 			if (!value) { return null; }
 			const {low, high} = filterMetadata;
 
@@ -323,7 +344,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			// NOTE: ranges can be unbounded ('*'), if so, skip padding.
 			const lowPadded = value.low.padStart(4, '0');
 			const highPadded = value.high ? value.high.padStart(4, '0') : '9999'; // unbounded query
-			const op = modes[value.mode as keyof typeof modes].operator;
+			const op = value.mode === 'permissive' ? 'OR' : 'AND';
 
 			return (value.low || value.high) ? `(${low}:[${lowPadded} TO ${highPadded}] ${op} ${high}:[${lowPadded} TO ${highPadded}])` : null;
 		},
@@ -419,7 +440,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			const startDate = value.startDate;
 			// value.endDate is only used when the filter is in range mode
 			const endDate = filterMetadata.range ? value.endDate : value.startDate;
-			const operator = modes[value.mode].operator; // OR or AND
+			const operator = value.mode === 'permissive' ? 'OR' : 'AND';
 			// Which metadatafield are we filtering? either a single field ('field' prop), or two separate fields ('from_field' and 'to_field')
 			const lowFieldName = 'field' in filterMetadata ? filterMetadata.field : filterMetadata.from_field;
 			const highFieldName = 'field' in filterMetadata ? filterMetadata.field : filterMetadata.to_field;
@@ -453,8 +474,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 	}),
 	'span-text': cast<FilterValueFunctions<{name?: string, attribute?: string}, string>>({
 		decodeInitialState(id, filterMetadata, filterValues) {
-			const name = filterMetadata['name'] || 'span';
-			const attribute = filterMetadata['attribute'] || 'value';
+			const name = filterMetadata.name || 'span';
+			const attribute = filterMetadata.attribute || 'value';
 			return filterValues[spanFilterId(name, attribute)]?.values[0] || null;
 		},
 		luceneQuery(id, filterMetadata, value) {
@@ -471,8 +492,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 	'span-select': cast<FilterValueFunctions<{name?: string, attribute?: string, options: Option[]}|Option[], string[]>>({
 		decodeInitialState(id, filterMetadata, filterValues) {
 			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
-			const name = filterMetadata['name'] || 'span';
-			const attribute = filterMetadata['attribute'] || 'value';
+			const name = filterMetadata.name || 'span';
+			const attribute = filterMetadata.attribute || 'value';
 			return (filterValues[spanFilterId(name, attribute)]?.values) || null;
 		},
 		luceneQuery(id, filterMetadata, value) {
@@ -493,8 +514,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 	}),
 	'span-range': cast<FilterValueFunctions<{name?: string, attribute?: string}, { low: number|null, high: number|null }>>({
 		decodeInitialState(id, filterMetadata, filterValues) {
-			const name = filterMetadata['name'] || 'span';
-			const attribute = filterMetadata['attribute'] || 'value';
+			const name = filterMetadata.name || 'span';
+			const attribute = filterMetadata.attribute || 'value';
 			const key = spanFilterId(name, attribute);
 			const v = filterValues[key]?.values ?? [null, null];
 			return {

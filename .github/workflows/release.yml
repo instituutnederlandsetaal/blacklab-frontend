@@ -1,0 +1,52 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v?[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  build-and-draft-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+          
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+          
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            src/frontend/node_modules
+            src/frontend/node
+          key: ${{ runner.os }}-frontend-${{ hashFiles('src/frontend/package-lock.json', 'pom.xml') }}
+          restore-keys: ${{ runner.os }}-frontend-
+
+      - name: Make build script executable
+        run: chmod +x .github/build-release.sh
+  
+      - name: Build release artifacts
+        run: ./.github/build-release.sh "${GITHUB_REF#refs/tags/}"
+
+      - name: Create Draft Release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: target/release-artifacts/*.war
+          body_path: target/release-artifacts/RELEASE_NOTES.md
+          fail_on_unmatched_files: true

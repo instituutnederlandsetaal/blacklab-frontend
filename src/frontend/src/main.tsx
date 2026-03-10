@@ -1,10 +1,6 @@
 import 'bootstrap';
-import 'bootstrap-select';
-import 'bootstrap-select/dist/css/bootstrap-select.css';
-
 // Global corpus-frontend styles.
 import '@/global.scss';
-
 
 import $ from 'jquery';
 import Vue from 'vue';
@@ -161,6 +157,26 @@ $(document).ready(async () => {
 
 	await initI18n();
 	// We can render before the tagset loads, the form just won't be populated from the url yet.
-	(window as any).vueRoot = new App().$mount(document.querySelector('#vue-root')!);
-	// connectStreamsToVuex();
+	(window as any).vueRoot = new Vue({
+		i18n,
+		store: RootStore.store,
+		render: h => h(App),
+		async mounted() {
+			// we do this after render, so the user has something to look at while we're loading.
+			const user = await loginSystem.awaitInit(); // LOGIN SYSTEM
+			initApi('blacklab', BLS_URL, user);
+			initApi('cf', CONTEXT_URL, user);
+			await runHook('beforeStoreInit');
+			const success = await RootStore.init();
+			if (!success) {
+				return;
+			}
+			await runHook('beforeStateLoaded')
+			const stateFromUrl = await new UrlStateParser(FilterStore.getState().filters).get();
+			RootStore.actions.replace(stateFromUrl);
+
+			// Don't do this before the url is parsed, as it controls the page url (among other things derived from the state).
+			connectStreamsToVuex();
+		},
+	}).$mount(document.querySelector('#vue-root')!);
 });

@@ -1,6 +1,6 @@
 <template>
 
-	<div>
+	<div class="container">
 		<h2>Welcome to the config helper page</h2>
 		<div>
 			This is a page where some experimental stuff is hidden away.

@@ -65,6 +65,17 @@ export default Vue.extend({
 	data: () => ({
 		downloadInProgress: false,
 	}),
+	computed: {
+		spanAttributesToExport(): string[] {
+			const spans = Object.entries(CorpusStore.getState().corpus?.relations.spans || {});
+			return spans.flatMap(([spanName, spanInfo]) =>
+				Object.keys(spanInfo.attributes || {})
+					.map(attrName => [ spanName, attrName ])
+					.filter(([spanName, attrName]) => corpusCustomizations.results.export.includeSpanAttribute(spanName, attrName))
+						.map(([spanName, attrName]) => `${spanName}.${attrName}`)
+				);
+		}
+	},
 	methods: {
 		downloadCsv(excel: boolean) {
 			if (this.downloadInProgress || !this.results) {
@@ -76,6 +87,7 @@ export default Vue.extend({
 			const params = cloneDeep(this.results.summary.searchParam);
 			if (this.annotations) params.listvalues = this.annotations!.join(',');
 			if (this.metadata) params.listmetadatavalues = this.metadata.join(',');
+			params.listspanattributes = this.spanAttributesToExport.join(',');
 			(params as any).csvsepline = !!excel;
 			(params as any).csvsummary = true;
 			const fieldDisplayName = (name: string, baseFieldName: string = '') => {
@@ -84,7 +96,7 @@ export default Vue.extend({
 				const field = CorpusStore.get.allAnnotatedFieldsMap()[name];
 				return this.$tAnnotatedFieldDisplayName(field);
 			}
-			(params as any).csvdescription = corpusCustomizations.results.csvDescription(this.results.summary, fieldDisplayName) || '';
+			(params as any).csvdescription = corpusCustomizations.results.export.description(this.results.summary, fieldDisplayName) || '';
 
 			const apir = apiCall(CorpusStore.get.indexId()!, params);
 

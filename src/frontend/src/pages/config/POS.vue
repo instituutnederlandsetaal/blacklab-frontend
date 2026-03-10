@@ -2,11 +2,13 @@
 	<div>
 		<Steps :steps="steps" :step="step" @input="goToStep($event)"/>
 		<h2 v-if="warning">{{warning}}</h2>
-		<component :is="steps[step].step"
-			@submit="step = steps[step+1] ? step+1 : step"
+		<div class="panel panel-default">
+			<component :is="steps[step].step" class="panel-body"
+				@submit="step = steps[step+1] ? step+1 : step"
 
-			v-model="stepstate"
-		/>
+				v-model="stepstate"
+			/>
+		</div>
 		<button @click="reset">Reset everything and start over</button>
 	</div>
 </template>
@@ -20,9 +22,15 @@ import SelectPicker from '@/components/SelectPicker.vue';
 import Steps from './Steps.vue';
 import * as Step1 from './POS_1.vue';
 import * as Step2 from './POS_2.vue';
+import * as Step2_5 from './POS_2_5.vue';
 import * as Step3 from './POS_3.vue';
 import * as Step4 from './POS_4.vue';
 import * as Step5 from './POS_5.vue';
+
+export type ExclusionRule = {
+	annotationId: string;
+	values: string[];
+};
 
 export type StepState = {
 	version: number; // only update when old version should not be assigned to new version
@@ -32,6 +40,7 @@ export type StepState = {
 
 	mainPosAnnotationId?: string; // step 1
 	subAnnotations: NormalizedAnnotation[]; // step 2
+	exclusions: ExclusionRule[]; // step 2.5
 
 	// step 3
 	step3: {
@@ -63,6 +72,7 @@ const steps: Array<Option&{
 }> = [
 	Step1,
 	Step2,
+	Step2_5,
 	Step3,
 	Step4,
 	Step5
@@ -83,10 +93,11 @@ const component = Vue.extend({
 		steps,
 		step: 0,
 		stepstate: {
-			version: 1,
+			version: 2,
 			annotations: [],
 			mainPosAnnotationId: undefined,
 			subAnnotations: [],
+			exclusions: [],
 			index: undefined as any, // correct on created
 			step3: {},
 			step4: {}
@@ -101,10 +112,11 @@ const component = Vue.extend({
 		reset() {
 			this.step = 0;
 			this.stepstate = {
-				version: 1,
+				version: 2,
 				annotations: this.index.annotatedFields ? Object.values(this.index.annotatedFields).flatMap(f => Object.values(f.annotations)) : [],
 				mainPosAnnotationId: undefined,
 				subAnnotations: [],
+				exclusions: [],
 				index: this.index,
 				step3: {},
 				step4: {}

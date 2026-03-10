@@ -145,6 +145,12 @@ export default Vue.extend({
 	// Defined in main.css in the main webapp
 	font-family: "Helvetica Neue", "Helvetica", "Arial,sans-serif", "Inl vmnw wnt";
 }
+.tooltip-open {
+  text-decoration: underline;
+}
+.tooltip-hover {
+  box-shadow: 0px 1px 7px -1px rgba(0,0,0,0.2);
+}
 
 .p,
 .paragraph {
@@ -152,15 +158,14 @@ export default Vue.extend({
 	margin: 0 0 10px;
 }
 
-.linenumber {
-	color: #aaaaaa;
-	font-weight: bold;
-}
-
 // Metadata table
 #metadata td,
 #metadata th {
 	vertical-align: top;
+}
+
+#content-title:empty {
+  display: none !important;
 }
 
 </style>

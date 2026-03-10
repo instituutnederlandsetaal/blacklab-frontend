@@ -38,28 +38,28 @@
 				<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion"/>
 				<template v-if="useTabs">
 					<ul class="nav nav-tabs subtabs" style="padding-left: 15px">
-						<li v-for="(tab, index) in tabs" :class="{'active': index === 0}" :key="index">
-							<a :href="'#'+getTabId(tab.label)" data-toggle="tab">{{tab.label}}</a>
+						<li v-for="tab in tabs" :class="{'active': activeAnnotationTab === tab.id}" :key="tab.id">
+							<a :href="'#'+tab.id" @click.prevent="activeAnnotationTab = tab.id">{{tab.label}}</a>
 						</li>
 					</ul>
 					<div class="tab-content">
-						<div v-for="(tab, index) in tabs"
-							:class="['tab-pane', 'annotation-container', {'active': index === 0}]"
-							:key="index"
-							:id="getTabId(tab.label)"
+						<div v-for="tab in tabs"
+							:class="['tab-pane', 'annotation-container', {'active': activeAnnotationTab === tab.id}]"
+							:key="tab.id"
+							:id="tab.id"
 						>
 							<template v-for="annotation in tab.entries">
 								<!-- Note that we don't use annotatedFieldId in the key, because for parallel,
 								     we can change the version, but we don't want that to affect the value of
 									 the input field, only the autocomplete functionality. -->
 								<div v-if="customAnnotations[annotation.id]"
-									:key="getTabId(tab.label) + '/' + annotation.id"
+									:key="tab.id + '/' + annotation.id"
 									:data-custom-annotation-root="annotation.id"
-									:ref="getTabId(tab.label) + '/' + annotation.id"
+									:ref="tab.id + '/' + annotation.id"
 								></div>
 								<Annotation v-else
-									:key="getTabId(tab.label) + '/' + annotation.id"
-									:htmlId="getTabId(tab.label) + '/' + annotation.id"
+									:key="tab.id + '/' + annotation.id + '/builtin'"
+									:htmlId="tab.id + '/' + annotation.id"
 									:annotation="annotation"
 								/>
 							</template>
@@ -92,6 +92,7 @@
 					</div>
 				</div>
 
+				<button v-if="useTabs || allAnnotations.length > 1" type="button" class="btn btn-default btn-sm" @click="copyExtendedQuery">{{$t('search.advanced.copyAdvancedQuery')}}</button>
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', {'active': activePattern==='advanced'}]" id="advanced">
 				<SearchAdvanced :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
@@ -175,8 +176,8 @@ function isJQuery(v: any): v is JQuery { return typeof v !== 'boolean' && v && v
 
 import ParallelFields from './parallel/ParallelFields';
 import { corpusCustomizations } from '@/utils/customization';
-import { CqlQueryBuilderData } from '@/components/cql/cql-types';
-import { getPatternStringFromCql, getQueryBuilderStateFromParsedQuery } from '@/utils/pattern-utils';
+import { CqlGenerator, CqlQueryBuilderData, getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
+import { getPatternStringFromCql, getPatternStringSearch } from '@/utils/pattern-utils';
 import { parseBcql, Result } from '@/utils/bcql-json-interpreter';
 
 export default ParallelFields.extend({
@@ -204,10 +205,14 @@ export default ParallelFields.extend({
 			get(): string { return InterfaceStore.getState().patternMode; },
 			set: InterfaceStore.actions.patternMode,
 		},
+		activeAnnotationTab: {
+			get(): string|null { return InterfaceStore.getState().activeAnnotationTab; },
+			set: InterfaceStore.actions.activeAnnotationTab,
+		},
 		useTabs(): boolean {
 			return this.tabs.length > 1;
 		},
-		tabs(): Array<{label?: string, entries: AppTypes.NormalizedAnnotation[]}> {
+		tabs(): Array<{label: string, id: string, entries: AppTypes.NormalizedAnnotation[]}> {
 			const result = getAnnotationSubset(
 				UIStore.getState().search.extended.searchAnnotationIds,
 				CorpusStore.get.annotationGroups(),
@@ -215,7 +220,11 @@ export default ParallelFields.extend({
 				'Search',
 				this,
 				CorpusStore.get.textDirection()
-			);
+			).map(group => ({
+				...group,
+				label: group.label!,
+				id: group.label!.replace(/[^\w]/g, '_') + '_annotations'
+			}))
 			if (this.isParallelCorpus) {
 				// Make sure we have the correct field, so autosuggest works properly
 				const versionSelected = PatternStore.getState().shared.source !== null;
@@ -295,8 +304,12 @@ export default ParallelFields.extend({
 		}
 	},
 	methods: {
-		getTabId(name?: string) {
-			return name?.replace(/[^\w]/g, '_') + '_annotations';
+		copyExtendedQuery() {
+			const patternState = PatternStore.getState();
+			const filterState = FilterStore.getState();
+			const q = getPatternStringSearch('extended', patternState, UIStore.getState().search.shared.alignBy.defaultValue, filterState.filters);
+			PatternStore.actions.expert.query(q || '');
+			InterfaceStore.actions.patternMode('expert');
 		},
 		async parseQuery() {
 			// retrieve the expert query (which presumably is active atm because the button was visible)
@@ -394,8 +407,15 @@ export default ParallelFields.extend({
 				RootStore.store.watch(state => value, (cur, prev) => update(cur, prev, div), {deep: true});
 			}
 		},
+		/** Tabs can be set to null or invalid value when decoding existing URL. Validate and correct it if required */
+		synchronizeActiveTab() {
+			if (this.activeAnnotationTab == null || !this.tabs.find(t => t.id === this.activeAnnotationTab)) 
+				this.activeAnnotationTab = this.tabs[0]?.id ?? null;
+		}
 	},
 	watch: {
+		tabs: { handler() { this.synchronizeActiveTab(); }, immediate: true },
+		activeAnnotationTab: { handler() { this.synchronizeActiveTab(); }, immediate: true },
 		customAnnotations: {
 			handler() {
 				// custom annotation widget setup.
@@ -420,17 +440,6 @@ export default ParallelFields.extend({
 			deep: true
 		}
 	},
-	mounted() {
-		if (this.$refs.reset) {
-			const eventId = `${PatternStore.namespace}/reset`;
-
-			this.subscriptions.push(RootStore.store.subscribe((mutation, state) => {
-				if (this.$refs.reset && mutation.type === eventId) {
-					(this.$refs.reset as any).reset();
-				}
-			}));
-		}
-	}
 })
 </script>
 

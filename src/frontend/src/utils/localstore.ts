@@ -103,8 +103,8 @@ export function syncPropertyWithLocalStorage<T extends object, K extends keyof T
 		catch { console.error(`Failed to parse stored value for ${storageKey}`); }
 	}
 
-	const v = Vue.observable(props);
-	watch(() => v[prop], putNewValueInStorage(storageKey));
+	props = Vue.observable(props);
+	watch(() => props[prop], putNewValueInStorage(storageKey));
 	if (watchStorage) storageWatcher.addListener<T[K]>(storageKey, newValue => props[prop] = newValue);
-	return v;
+	return props;
 }

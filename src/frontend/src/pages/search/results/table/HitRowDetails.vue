@@ -9,14 +9,14 @@
 					<span class="fa fa-exclamation-triangle"></span><br> <span style="white-space: pre;" v-html="error"></span>
 				</p>
 				<template v-else-if="snippet"> <!-- context is the larger surrounding context of the hit. We don't always have one (when rendering docs we only have the immediate hit) -->
-					<template v-if="hasRelations && !row.annotatedField.isParallel">
+					<template v-if="hasRelations">
 						<label v-if="sentenceAvailable">
 							<input type="checkbox" v-model="sentenceShown" class="show-sentence-checkbox" />
 							<Spinner v-if="sentenceRequest" inline style="margin-right: 0.5em"/>{{$t('results.table.showFullSentence')}}
 						</label>
 
 						<!-- Will not render anything if no relation info is available in the passed hit/sentence. -->
-						<DepTree
+						<DepTree v-if="sentenceShown && sentence"
 							:data="row"
 							:fullSentence="sentenceShown ? sentence : undefined"
 							:mainAnnotation="info.mainAnnotation"
@@ -101,9 +101,9 @@ export default Vue.component('HitRowDetails', IRow.extend({
 		DepTree,
 		Spinner
 	},
-	props: { 
+	props: {
 		// NOTE: also update the watcher on this prop if you change this name!
-		row: Object as () => HitRowData, 
+		row: Object as () => HitRowData,
 	},
 	data: () => ({
 		sentenceRequest: null as null|Promise<any>,

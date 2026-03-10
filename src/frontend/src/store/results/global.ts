@@ -1,6 +1,6 @@
 /**
  * This store module contains all global parameters that instantly update the displayed results
- * Think things like page size, context size, random sampling settings
+ * Think things like context size, random sampling settings.
  */
 
 import {getStoreBuilder} from 'vuex-typex';
@@ -8,6 +8,7 @@ import {getStoreBuilder} from 'vuex-typex';
 import {RootState} from '@/store/';
 import { NormalizedIndex } from '@/types/apptypes';
 import { CorpusChange } from '@/store/async-loaders';
+import { syncPropertyWithLocalStorage } from '@/utils/localstore';
 
 const defaults = {
 	pageSize: 20,
@@ -24,6 +25,8 @@ type ModuleRootState = {
 	context: number|string|null;
 };
 
+type ExternalModuleRootState = Omit<ModuleRootState, 'pageSize'>;
+
 const initialState: ModuleRootState = {
 	pageSize: defaults.pageSize as number,
 	sampleMode: defaults.sampleMode,
@@ -31,6 +34,7 @@ const initialState: ModuleRootState = {
 	sampleSize: null,
 	context: null,
 };
+syncPropertyWithLocalStorage('cf/pageSize', initialState, 'pageSize');
 
 const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, Object.assign({}, initialState));
 
@@ -38,8 +42,15 @@ const getState = b.state();
 const get = {}; //nothing for now.
 
 const actions = {
-	pageSize: b.commit((state, payload: number) => {
-		state.pageSize = [20, 50, 100, 200].includes(payload) ? payload : defaults.pageSize;
+	pageSize: b.dispatch(({state, rootState}, pageSize: number) => {
+		if (pageSize > 0 && pageSize <= 1000 && pageSize !== state.pageSize) {
+			state.pageSize = pageSize;
+			Object.values(rootState.views).forEach(view => {
+				view.first = Math.floor(view.first / pageSize) * pageSize;
+				view.number = pageSize;
+				view.requestedRange = null;
+			});
+		}
 	}, 'pagesize'),
 	sampleMode: b.commit((state, payload?: 'percentage'|'count') => {
 		// reset on null, undefined, invalid strings
@@ -77,9 +88,8 @@ const actions = {
 	context: b.commit((state, payload: number|string|null) => state.context = payload, 'context'),
 
 	reset: b.commit(state => Object.assign(state, initialState), 'reset'),
-	replace: b.commit((state, payload: ModuleRootState) => {
+	replace: b.commit((state, payload: ExternalModuleRootState) => {
 		// Use actions so we can verify data
-		actions.pageSize(payload.pageSize);
 		actions.sampleMode(payload.sampleMode);
 		actions.sampleSeed(payload.sampleSeed);
 		actions.sampleSize(payload.sampleSize);
@@ -87,13 +97,13 @@ const actions = {
 	}, 'replace'),
 };
 
-/** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
+// Reset on corpus change, defaults are already synced with storage
 const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
 export {
-	ModuleRootState as ExternalModuleRootState,
+	ExternalModuleRootState,
 	ModuleRootState,
 
 	getState,

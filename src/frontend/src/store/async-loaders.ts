@@ -5,7 +5,7 @@ import { combineLatest, distinctUntilChanged, shareReplay, concatMap, of, Subjec
 import * as Api from '@/api';
 import { normalizeIndex } from '@/utils/blacklabutils';
 import { CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
-import { copyDisplaynamesAndValuesToCorpus, lowercaseValuesIfNeeded, validateTagset } from '@/store/tagset';
+import { processTagset } from '@/store/tagset';
 
 export type CorpusChange = {
 	index: NormalizedIndex|undefined;
@@ -36,12 +36,9 @@ export function createStoreInitializer(p: { onCorpusChange: OnCorpusChange }) {
 			const annots = index?.annotatedFields[index.mainAnnotatedField].annotations;
 			const mainAnnot = annots && Object.values(annots).find(a => a.uiType === 'pos');
 			if (tagset && mainAnnot) {
-				validateTagset(mainAnnot, annots, tagset);
-				lowercaseValuesIfNeeded(mainAnnot, annots, tagset);
-				copyDisplaynamesAndValuesToCorpus(mainAnnot, Object.values(tagset.values));
-				Object.values(tagset.subAnnotations).forEach(sub => copyDisplaynamesAndValuesToCorpus(annots[sub.id], sub.values));
+				processTagset(mainAnnot, annots, tagset)
 			}
-			config!.displayName = config!.displayName || index?.displayName || 'Corpus-Frontend'; // TODO externalize? (globalconfig?)
+			config!.displayName = config!.displayName || index?.displayName || 'Blacklab-Frontend'; // TODO externalize? (globalconfig?)
 			const r: CorpusChange = { index, config: config!, tagset}
 			return r;
 		}),

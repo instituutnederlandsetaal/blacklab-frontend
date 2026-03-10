@@ -25,6 +25,7 @@ import * as UIModule from '@/store/ui';
 import { debugLog } from '@/utils/debug';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
 import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
+import { markRaw } from 'vue';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 import { CorpusChange } from '@/store/async-loaders';
 
@@ -128,7 +129,7 @@ const get = {
 				if (!originalEntry || originalEntry.version == null) { throw new Error('Cannot import: file does not appear to be a valid query.'); }
 
 				// Roundtrip from url if not compatible.
-				const entry = originalEntry.version === version ? originalEntry : await new UrlStateParserSearch(FilterModule.getState().filters, new URI(originalEntry.url)).get();
+				const entry = originalEntry.version === version ? originalEntry : await new UrlStateParserSearch(new URI(originalEntry.url)).get();
 
 				resolve({
 					entry,
@@ -146,7 +147,7 @@ const get = {
 
 const internalActions = {
 	replace: b.commit((state, payload: ModuleRootState) => {
-		state.splice(0, state.length, ...payload);
+		state.splice(0, state.length, ...payload.map(e => Object.freeze(markRaw(e))));
 	}, 'replace')
 };
 
@@ -178,7 +179,7 @@ const actions = {
 			groupBy: entry.view.groupBy.sort((l, r) => l.localeCompare(r)),
 		};
 
-		const fullEntry: FullHistoryEntry = {
+		const fullEntry: FullHistoryEntry = Object.freeze(markRaw({
 			...entry,
 			hash: hashJavaDJB2(jsonStableStringify(hashBase)),
 			url,
@@ -187,7 +188,7 @@ const actions = {
 				filters: filterSummary || '-',
 				pattern: patternSummary || '-'
 			}
-		};
+		}));
 
 		const i = state.findIndex(v => v.hash === fullEntry.hash);
 		if (i !== -1) {

@@ -149,7 +149,7 @@ export default useModel<CqlAttributeGroupData>().extend({
 				this.isCqlAttributeData(entry) && entry.id === attributeId);
 			if (index !== -1) {
 				this.model.entries.splice(index, 1);
-				this.checkIfShouldRemoveEmptyGroup();
+				this.checkIfShouldRemoveSingleEntryGroup();
 				this.emitUpdate();
 			}
 		},
@@ -163,20 +163,26 @@ export default useModel<CqlAttributeGroupData>().extend({
 			}
 		},
 
-		deleteNestedGroup(groupId: string) {
+		deleteNestedGroup(groupId: string, replaceWith?: CqlGroupEntry) {
 			const index = this.model.entries.findIndex((entry: CqlGroupEntry) =>
 				this.isCqlAttributeGroupData(entry) && entry.id === groupId);
 			if (index !== -1) {
-				this.model.entries.splice(index, 1);
-				this.checkIfShouldRemoveEmptyGroup();
+				if (replaceWith) {
+					// Replace the group with its remaining entry
+					this.model.entries.splice(index, 1, replaceWith);
+				} else {
+					this.model.entries.splice(index, 1);
+				}
+				this.checkIfShouldRemoveSingleEntryGroup();
 				this.emitUpdate();
 			}
 		},
 
-		checkIfShouldRemoveEmptyGroup() {
-			// If this is not the root group and it's empty, suggest removal
-			if (!this.isRoot && this.model.entries.length === 0) {
-				this.$emit('delete-group', this.model.id);
+		checkIfShouldRemoveSingleEntryGroup() {
+			// If this is not the root group and only one entry remains (or none),
+			// dissolve this group and move the remaining content (if any) to the parent
+			if (!this.isRoot && this.model.entries.length <= 1) {
+				this.$emit('delete-group', this.model.id, this.model.entries[0]);
 			}
 		},
 

@@ -44,6 +44,8 @@ export type BLSearchParameters = {
 	listvalues?: string;
 	/** List of comma-separated metadata IDs to include in document info. */
 	listmetadatavalues?: string;
+	/** List of comma-separated span attribute IDs (e.g. speech.speaker) to include in the kwic data. */
+	listspanattributes?: string;
 
 	/** maximum hits to count outside requested window (only does something when > first+number) */
 	maxcount?: number;
@@ -214,7 +216,7 @@ export interface BLAnnotation {
 	hasForwardIndex: boolean;
 	isInternal: boolean;
 	offsetsAlternative: string;
-	sensitivity: 'SENSITIVE_AND_INSENSITIVE'|'SENSITIVE'|'INSENSITIVE';
+	sensitivity: 'SENSITIVE_AND_INSENSITIVE'|'ONLY_SENSITIVE'|'ONLY_INSENSITIVE'|'CASE_AND_DIACRITICS_SEPARATE';
 	/** Contains ids of other BLAnnotations in the parent annotatedField if this field has subannotations. */
 	subannotations?: string[];
 	uiType: string|'select'|'combobox'|'text'|'pos'|'dropdown'|'autocomplete';

@@ -1,11 +1,9 @@
 {
   "dependencies": {
     "@types/xml2js": "^0.4.14",
-    "conventional-changelog": "^7.1.1",
     "enquirer": "^2.4.1",
     "open": "^10.2.0",
-    "simple-git": "^3.28.0",
-    "xml2js": "^0.6.2"
+    "simple-git": "^3.28.0"
   },
   "devDependencies": {
     "@types/bun": "^1.2.18"

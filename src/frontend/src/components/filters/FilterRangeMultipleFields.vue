@@ -49,47 +49,32 @@
 <script lang="ts">
 import BaseFilter from '@/components/filters/Filter';
 import { Option } from '@/components/SelectPicker.vue';
-
-export const modes = {
-	permissive: {
-		id: 'permissive',
-		operator: 'OR',
-	},
-
-	strict: {
-		id: 'strict',
-		operator: 'AND',
-	}
-};
-
-type Mode = keyof typeof modes;
-
-type ValueType = {
-	low: string;
-	high: string;
-	mode: Mode;
-};
+import type { FilterRangeMultipleFieldsMetadata, FilterRangeMultipleFieldsValue } from './filterValueFunctions';
 
 export default BaseFilter.extend({
 	props: {
 		value: {
-			type: Object as () => ValueType,
+			type: Object as () => FilterRangeMultipleFieldsValue,
 			required: true,
-			default: () => ({
+			default: (): FilterRangeMultipleFieldsValue => ({
 				low: '',
 				high: '',
 				mode: 'strict'
-			}) as ValueType
+			})
 		},
 	},
 	computed: {
-		fields(): { low: string, high: string, mode?: keyof typeof modes } { return this.definition.metadata; },
+		fields(): FilterRangeMultipleFieldsMetadata { return this.definition.metadata; },
 		modes(): Option[] {
-			return Object.values(modes).map<Option>(m => ({
-				value: m.id,
-				label: this.$td(`filter.range.${m.id}`, m.id),
-				title: this.$td(`filter.range.${m.id}_description`, m.id)
-			}))
+			return [{
+				value: 'permissive',
+				label: this.$t('filter.range.permissive').toString(),
+				title: this.$t('filter.range.permissiveDescription').toString()
+			}, {
+				value: 'strict',
+				label: this.$t('filter.range.strict').toString(),
+				title: this.$t('filter.range.strictDescription').toString()
+			}]
 		},
 	}
 });

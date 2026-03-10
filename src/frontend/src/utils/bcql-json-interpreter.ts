@@ -22,8 +22,8 @@ export type XmlTag = {
 	isClosingTag: boolean;
 };
 
-export type Attribute = {
-	type: 'attribute';
+export type Condition = {
+	type: 'condition';
 	/** A word property(/annotatedField) id, such as lemma, pos, word, etc... */
 	name: string;
 	/** Comparison type, usually '=' or '!=' */
@@ -32,18 +32,18 @@ export type Attribute = {
 	value: string;
 };
 
-export type BinaryOp = {
-	type: 'binaryOp';
+export type BooleanOp = {
+	type: 'booleanOp';
 	/** typically 'OR', 'AND', '|', '&' */
-	operator: string;
-	left: BinaryOp|Attribute;
-	right: BinaryOp|Attribute;
+	operator: '|'|'&';
+	left: BooleanOp|Condition;
+	right: BooleanOp|Condition;
 };
 
 export type Token = {
 	leadingXmlTag?: XmlTag;
 	trailingXmlTag?: XmlTag;
-	expression?: BinaryOp|Attribute;
+	expression?: BooleanOp|Condition;
 	optional: boolean;
 	repeats?: {
 		min: number;
@@ -58,8 +58,8 @@ export type Result = {
 	query?: string;
 	/** Tokens parsed from the query; undefined means "could not parse for simple/extended/advanced" */
 	tokens?: Token[];
-	/** Any within clauses on this query */
-	withinClauses?: Record<string, Record<string, any>>;
+	/** Any within clauses on this query. Usually in the form of {[]} */
+	withinClauses?: Record<string, Record<string, string|{ low: string; high: string }>>;
 	/** Target version for this query, or undefined if this is the source query */
 	targetVersion?: string;
 	/** Relation type for this (target) query, or undefined if this is the source query */
@@ -68,9 +68,21 @@ export type Result = {
 	optional?: boolean;
 };
 
+// TODO proper typing of the JSON structure for parsed queries.
+// For now - some ad-hoc types to get linting working.
+type BLTextPatternValue = {
+	type: 'string'|'number'|'boolean';
+	value: string|number|boolean;
+}|{
+	type: 'int-range';
+	min: number;
+	max: number;
+}
+
+
 function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): Result[] {
 
-	function _not(clause: any): Attribute {
+	function _not(clause: any): Condition {
 		if (clause.type !== 'regex') {
 			throw new Error('Can only interpret not on regex');
 		}
@@ -80,23 +92,43 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		};
 	}
 
-	function _regex(annotation: string, value: string): Attribute {
+	// BL4 will return [word="de"] as a single regex node
+	function _regex(annotation: string, value: string): Condition {
 		return {
-			type: 'attribute',
+			type: 'condition',
 			name: annotation || DEFAULT_ANNOTATION,
 			operator: '=',
 			value
 		};
 	}
+	// BL5 will return [word="de"] as a compare node with symbol and string clauses
+	function _compare(clauses: any[], operation: string): Condition {
+		if (operation !== '=' && operation !== '!=')
+			throw new Error('Cannot interpret compare operation: ' + operation);
 
-	function _boolean(type: string, clauses: any[]): BinaryOp|null {
+		const [compareWhat, compareWith] = clauses;
+
+		if (compareWhat.type !== 'defval' || compareWith.type !== 'symbol')
+			throw new Error('Cannot interpret compare left clause of type: ' + compareWhat.type);
+		if (compareWith.type !== 'string')
+			throw new Error('Cannot interpret compare right clause of type: ' + compareWith.type);
+		let annotation = compareWhat.type === 'defval' ? DEFAULT_ANNOTATION : compareWhat.value;
+		return {
+			name: annotation,
+			operator: operation,
+			value: compareWith.value,
+			type: 'condition',
+		}
+	}
+
+	function _boolean(type: string, clauses: any[]): BooleanOp|null {
 		if (clauses.length === 2) {
 			const left = _tokenExpression(clauses[0]);
 			const right = _tokenExpression(clauses[1]);
 			if (left === null || right === null)
 				return null;
 			return {
-				type: 'binaryOp',
+				type: 'booleanOp',
 				operator: type === 'and' ? '&' : '|',
 				left,
 				right
@@ -109,17 +141,19 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		if (left === null || right === null)
 			return null;
 		return {
-			type: 'binaryOp',
+			type: 'booleanOp',
 			operator: type === 'and' ? '&' : '|',
 			left,
 			right
 		};
 	}
 
-	function _tokenExpression(input: any): BinaryOp|Attribute|null {
+	function _tokenExpression(input: any): BooleanOp|Condition|null {
 		switch (input.type) {
 		case 'regex':
 			return _regex(input.annotation || defaultAnnotation, input.value);
+		case 'compare':
+			return _compare(input.clauses, input.operation);
 		case 'not':
 			return _not(input.clause);
 		case 'and':
@@ -138,7 +172,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 
 		// <s> and </s> are still separate "tokens"; join them with the appropriate real token
 		for (let i = 0; i < tokens.length - 1; i++) {
-			if (tokens[i].leadingXmlTag && !tokens[i].leadingXmlTag?.isClosingTag && tokens[i].repeats?.min || 0 < 0) {
+			if (tokens[i].leadingXmlTag && !tokens[i].leadingXmlTag?.isClosingTag && tokens[i].repeats?.min) {
 				// <s> token followed by a regular [word="..."] token; join with next token
 				tokens[i] = {
 					...tokens[i + 1],
@@ -147,7 +181,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 				tokens.splice(i + 1, 1);
 				i--;
 				continue;
-			} else if (tokens[i + 1].leadingXmlTag && tokens[i + 1].leadingXmlTag?.isClosingTag && tokens[i + 1].repeats?.min || 0 < 0) {
+			} else if (tokens[i + 1].leadingXmlTag && tokens[i + 1].leadingXmlTag?.isClosingTag && tokens[i + 1].repeats?.min) {
 				// Regular [word="..."] token followed by a </s> token; join with previous token
 				tokens[i].trailingXmlTag = tokens[i + 1].leadingXmlTag;
 				tokens.splice(i + 1, 1);
@@ -159,16 +193,22 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		return tokens;
 	}
 
-	function interpretTagsAttributes(attributes: Record<string, any>): Record<string, any> {
+
+
+	function interpretTagsAttributes(attributes: Record<string, BLTextPatternValue>): Record<string, string|{ low: string; high: string }> {
+		const r: Record<string, string|{ low: string; high: string }> = {};
 		if (!attributes)
-			return {};
-		// Recognize range query (e.g. { min: 10, max: 20 })
-		return Object.fromEntries(Object.entries(attributes).map(([k, v]) => {
-			if (v.min || v.max) {
-				return [k, { low: v.min == 0 ? '' : v.min.toString(), high: v.max == 9999 ? '' : v.max.toString() }];
+			return r;
+		for (const [k, v] of Object.entries(attributes)) {
+			if (v.type === 'int-range') {
+				r[k] = { low: v.min == 0 ? '' : v.min.toString(), high: v.max == 9999 ? '' : v.max.toString() };
+			} else if (v.type === 'string' || v.type === 'number' || v.type === 'boolean') {
+				r[k] = v.value.toString();
+			} else {
+				r[k] = v as any;
 			}
-			return [k, v];
-		}));
+		}
+		return r;
 	}
 
 	function _posFilter(producer: any, operation: string, filter: any): Result {
@@ -293,7 +333,6 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	}
 
 	function _query(input: any): Result {
-		//console.log('_query', input);
 		switch (input.type) {
 		case 'sequence':
 			return {
@@ -396,7 +435,6 @@ async function parseBcql(indexId: string, bcql: string, defaultAnnotation: strin
 	const response = await api.blacklab.getParsePattern(indexId, bcql);
 	const result = interpretBcqlJson(bcql, response.parsed.json, defaultAnnotation);
 	parsePatternCache.set(cacheKey, result);
-	//console.log('parseBcql', indexId, bcql, defaultAnnotation, result);
 	return result;
 }
 

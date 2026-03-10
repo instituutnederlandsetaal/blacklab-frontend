@@ -17,29 +17,26 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import javax.xml.transform.TransformerException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.app.Velocity;
+
+import net.sf.saxon.s9api.SaxonApiException;
+import nl.inl.corpuswebsite.response.AboutResponse;
 import org.apache.velocity.runtime.RuntimeServices;
 import org.apache.velocity.runtime.RuntimeSingleton;
 import org.apache.velocity.runtime.parser.ParseException;
@@ -58,6 +55,7 @@ import nl.inl.corpuswebsite.utils.Result;
 import nl.inl.corpuswebsite.utils.ReturnToClientException;
 import nl.inl.corpuswebsite.utils.WebsiteConfig;
 import nl.inl.corpuswebsite.utils.XslTransformer;
+import org.apache.velocity.tools.config.EasyFactoryConfiguration;
 
 /**
  * Main servlet class for the corpus application.
@@ -87,7 +85,7 @@ public class MainServlet extends HttpServlet {
     /**
      * Xslt transformers for corpora
      */
-    private static final Map<String, Result<XslTransformer, TransformerException>> articleTransformers = new HashMap<>();
+    private static final Map<String, Result<XslTransformer, SaxonApiException>> articleTransformers = new HashMap<>();
 
     /**
      * The response classes for our URI patterns
@@ -130,6 +128,24 @@ public class MainServlet extends HttpServlet {
     private void startVelocity(ServletContext ctx) throws IOException {
         // Read in the WebApplicationResourceLoader
         Velocity.setApplicationAttribute(ServletContext.class.getName(), ctx);
+
+
+
+        /*
+        # Set the in- and output encoding
+                input.encoding=UTF-8
+                output.encoding=UTF-8
+
+                runtime.log.logsystem.class=org.apache.velocity.runtime.log.NullLogSystem
+
+        # Configure the resource loader (WebappLoader: load templates from WAR)
+                resource.loader=webapp
+                webapp.resource.loader.class=org.apache.velocity.tools.view.WebappResourceLoader
+                webapp.resource.loader.path=/WEB-INF/templates/
+
+        # Enable strict mode, no implicit variable declaration and implicit swallowing of undefined/null properties in context.
+                        runtime.references.strict=true
+        */
 
         Properties p = new Properties();
         try (InputStream is = getServletContext().getResourceAsStream(VELOCITY_PROPERTIES)) {
@@ -338,9 +354,9 @@ public class MainServlet extends HttpServlet {
      * @param name - the name of the stylesheet, excluding extension (currently supported "article" and "meta")
      * @return the xsl transformer to use for transformation, note that this is always the same transformer.
      */
-    public Result<XslTransformer, TransformerException> getStylesheet(CorpusConfig corpus, String name, HttpServletRequest request, HttpServletResponse response) {
+    public Result<XslTransformer, SaxonApiException> getStylesheet(CorpusConfig corpus, String name, HttpServletRequest request, HttpServletResponse response) {
         Optional<String> corpusDataFormat = corpus.getCorpusDataFormat();
-        Function<String, Result<XslTransformer, TransformerException>> gen = __ -> CorpusFileUtil.getStylesheet(corpus, config, name, request, response);
+        Function<String, Result<XslTransformer, SaxonApiException>> gen = __ -> CorpusFileUtil.getStylesheet(corpus, config, name, request, response);
 
         // need to use corpus name in the cache map
         // because corpora can define their own xsl files in their own data directory

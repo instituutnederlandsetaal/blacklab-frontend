@@ -15,9 +15,9 @@
 		><li :class="{
 			current: pageActive,
 			active: pageActive,
-			disabled
+			disabled,
 		}">
-			<template v-if="editable">
+			<template v-if="editable && !hasPageRange">
 				<input
 					type="number"
 					class="form-control"
@@ -31,8 +31,8 @@
 				/>
 				<span v-if="editable" class="fa fa-pencil"></span>
 			</template>
-			<a v-else-if="!pageActive" role="button" @click.prevent="changePage(page)">{{ showTotal ? `${(page+1).toLocaleString()}/${(maxPage+1).toLocaleString()}` : (page+1).toLocaleString() }}</a>
-			<span v-else>{{ showTotal ? `${(page+1).toLocaleString()}/${(maxPage+1).toLocaleString()}` : (page+1).toLocaleString() }}</span>
+			<a v-else-if="!pageActive" role="button" @click.prevent="changePage(page)">{{ currentPageLabel }}</a>
+			<span v-else>{{ currentPageLabel}}</span>
 		</li
 		><template v-if="showOffsets"
 			><li v-for="i in higherPages" :key="i" :class="{'disabled': disabled}">
@@ -68,6 +68,10 @@ export default Vue.extend({
 	props: {
 		/** 0-indexed. The interface will display this number + 1 */
 		page: Number,
+		page2: {
+			type: Number,
+			required: false,
+		},
 		pageActive: {
 			type: Boolean,
 			default: true
@@ -95,26 +99,36 @@ export default Vue.extend({
 		showTotal: {
 			type: Boolean,
 			default: false,
-		}
+		},
 	},
 	data: () => ({
 		focus: false,
 	}),
 	computed: {
-		lowerPages(): number[] {
-			return this.calcOffsets(this.boundedPage - this.minPage).reverse().map(o => this.boundedPage - o);
-		},
-		higherPages(): number[] {
-			return this.calcOffsets(this.maxPage - this.boundedPage).map(o => this.boundedPage + o);
-		},
-		nextEnabled(): boolean {
-			return this.boundedPage < this.maxPage;
-		},
-		prevEnabled(): boolean {
-			return this.boundedPage > this.minPage;
+		/** Whether we're showing a range of pages (from a shared URL with different page size) */
+		hasPageRange(): boolean { return this.page2 != null && this.page2 !== this.page; },
+		currentPageLabel(): string {
+			const baseRangeString = this.hasPageRange
+				? `${(this.boundedLowerPage+1).toLocaleString()} - ${(this.boundedUpperPage+1).toLocaleString()}`
+				: (this.boundedLowerPage+1).toLocaleString();
+			return this.showTotal ? `${baseRangeString}/${(this.maxPage+1).toLocaleString()}` : baseRangeString;
 		},
 
-		boundedPage(): number { return Math.max(this.minPage, Math.min(this.page, this.maxPage)); }
+		lowerPages(): number[] {
+			return this.calcOffsets(this.boundedLowerPage - this.minPage).reverse().map(o => this.boundedLowerPage - o);
+		},
+		higherPages(): number[] {
+			return this.calcOffsets(this.maxPage - this.boundedUpperPage).map(o => this.boundedUpperPage + o);
+		},
+		nextEnabled(): boolean {
+			return this.boundedUpperPage < this.maxPage;
+		},
+		prevEnabled(): boolean {
+			return this.boundedLowerPage > this.minPage;
+		},
+
+		boundedLowerPage(): number { return Math.max(this.minPage, Math.min(this.page, this.maxPage)); },
+		boundedUpperPage(): number { return Math.max(this.minPage, Math.min(this.page2 ?? this.page, this.maxPage)); }
 	},
 	methods: {
 		calcOffsets(range: number) {
@@ -151,9 +165,11 @@ export default Vue.extend({
 </script>
 
 <style lang="scss" scoped>
+@use "sass:color";
+
 .pagination {
-	$color: darken(#337ab7, 5);
-	$border-color: lighten(#337ab7, 20);
+	$color: color.adjust(#337ab7, $lightness: -5%);
+	$border-color: color.adjust(#337ab7, $lightness: 20%);
 	margin: 0;
 	display: inline-block!important;
 

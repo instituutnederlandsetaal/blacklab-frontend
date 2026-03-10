@@ -33,7 +33,8 @@
 						open: openRows[row.hit_id || index],
 						interactable: isOpenable(row),
 						topborder: index > 0 && 'first_of_hit' in row && row.first_of_hit,
-						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1)
+						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1),
+						muted: row.muted
 					}"
 					:row="row"
 					:info="info"
@@ -54,6 +55,7 @@
 						details: true,
 						rounded: true,
 						open: openRows[row.hit_id || index],
+						muted: row.muted
 					}"
 					:row="row"
 					:info="info"
@@ -234,6 +236,18 @@ table.results-table {
 	tr.foreign-hit {
 		color: #666;
 		font-style: italic;
+	}
+
+	tr.muted + tr:not(.muted) { border-top: 2px dashed #aaa; }
+	tr:not(.muted) + tr.muted { border-top: 2px dashed #aaa; }
+
+	// Subtly style rows outside the shared URL-requested range
+	tr.muted {
+		font-style: italic;
+		opacity: 0.7;
+		&:hover {
+			opacity: 1;
+		}
 	}
 }
 

@@ -1,8 +1,8 @@
 <template>
 	<ol class="breadcrumb resultscrumb">
 		<!-- no disabled state; use active class instead... -->
-		<li v-for="(crumb, index) in crumbs" :key="index" :class="{'active': crumb.active || disabled}">
-			<a v-if="!crumb.active && !disabled"
+		<li v-for="(crumb, index) in crumbs" :key="index" :class="{'active': !(crumb.onClick && !disabled) /* activate state is inverted, i.e. active is noninteractable */ }">
+			<a v-if="crumb.onClick && !disabled"
 				role="button"
 				:title="crumb.title"
 				:disabled="disabled"
@@ -22,7 +22,6 @@ export default Vue.extend({
 		crumbs: Array as () => Array<{
 			label: string,
 			title?: string,
-			active?: boolean,
 			onClick?: () => void
 		}>,
 		disabled: Boolean,

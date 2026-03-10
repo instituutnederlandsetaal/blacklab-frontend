@@ -1,12 +1,12 @@
-import { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLSearchParameters, BLSearchResult, hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
-import { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedMetadataField, TokenHighlight } from '@/types/apptypes';
-import { getAnnotationSubset, getDocumentUrl, mapReduce } from '@/utils';
-import { GlossFieldDescription } from '@/store/form/glossStore';
+import { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchParameters, BLSearchResult, BLSearchSummary, BLSearchSummaryTotalsHits, hitHasParallelInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
+import { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, NormalizedMetadataGroup, OptGroup, Option, TokenHighlight } from '@/types/apptypes';
+import { GlossFieldDescription } from '@/store/search/form/glossStore';
 
 import * as Highlights from './hit-highlighting';
 
 import { KeysOfType } from '@/types/helpers';
 import { StyleValue } from 'vue';
+import { frontendPaths } from '@/api';
 
 /**
  * The columns can display various computed data, such as relative group size, or relative frequency.
@@ -79,6 +79,9 @@ export interface GroupRowData {
 	'relative frequency (tokens) [gr.t/sc.t]'?: number;
 	/** Average document length [gr.t/gr.d]. */
 	'average document length [gr.t/gr.d]'?: number;
+
+	/** Is this row muted? (used for rows outside a shared URL-requested range) */
+	muted: boolean;
 }
 
 /** What properties are available to display in the columns */
@@ -340,6 +343,24 @@ export function snippetParts(hit: BLHit|BLHitSnippet, colors?: Record<string, To
 	return { before, match, after };
 }
 
+/** 
+ * The URL encodes first + number, which don't have to align with clean page boundaries. 
+ * As we want to allow users to define their own page size, but still open a page from another user with a different page boundary.
+ * 
+ * If the results as defined in the URL (say 80-100) don't align with the user's page size, 
+ * we request multiple pages of results (as defined by the user's page size) so they completely cover the result range in the URL.
+ * E.g. for a user page size of 50, we would request results 50-100 to cover the URL range of 80-100.
+ * This means we might get more results back than the user requested in the URL.
+ * We then need to highlight the results that are outside the URL range (i.e. highlighting rows 50-80 in this example).
+ */
+function isOutsideRequestedResults(indexInRequestedResults: number, requestedRange: {first: number, number: number}|null, firstFromBlackLab: number|undefined): boolean {
+	if (requestedRange == null) return false;
+
+	const globalIndex = indexInRequestedResults + (firstFromBlackLab ?? 0);
+	const isOutsideUrlRange = (globalIndex < requestedRange.first) || (globalIndex >= (requestedRange.first + requestedRange.number));
+	return isOutsideUrlRange;
+}
+
 // ===================
 
 export type DisplaySettingsForRendering = {
@@ -368,9 +389,6 @@ export type DisplaySettingsForRendering = {
 	/** Fields to show the secondary (parallel) hits. Can be empty for non-parallel corpora. These should already have the prefix. */
 	targetFields: NormalizedAnnotatedFieldParallel[];
 
-	/** For the 'empty' group. I.e. when grouping on for example document date, the name for the group containing docs without a date. */
-	defaultGroupName: string;
-
 	/** Required to compute document title/summary. */
 	specialFields: BLDocFields;
 	/** Document title/summary can be customized, so a callback is required. */
@@ -389,9 +407,18 @@ export type DisplaySettingsForRendering = {
 	hasCustomHitInfoColumn: (results: BLSearchResult, isParallelCoprus: boolean) => boolean;
 	/** See getCustomHitInfo in UI store. We don't use the store directly to simplify unit-testing. */
 	getCustomHitInfo: (hit: BLHit|BLHitSnippet|BLHitInOtherField, annotatedFieldDisplayName: string, doc: BLDoc) => string|null;
+
+	/** User's configured page size (global store) */
+	pageSize: number;
+	/** First result requested based on URL (results view store) - not necessarily what was sent to BlackLab) */
+	first: number;
+	/** Number of results requested based on URL (results view store) - not necessarily what was sent to BlackLab) */
+	number: number;
+	/** If set, original range requested via shared URL for this active view. */
+	requestedRange: {first: number, number: number}|null;
 }
 
-export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'|'targetFields'>
+export type DisplaySettingsCommon = Pick<DisplaySettingsForRendering, 'dir'|'i18n'|'specialFields'|'targetFields'|'pageSize'|'first'|'number'|'requestedRange'>;
 export type DisplaySettingsForRows = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'sourceField'|'getSummary'|'getCustomHitInfo'|'indexId'>
 export type DisplaySettingsForColumns = DisplaySettingsCommon&Pick<DisplaySettingsForRendering, 'mainAnnotation'|'otherAnnotations'|'sortableAnnotations'|'annotationGroups'|'metadata'|'groupDisplayMode'|'hasCustomHitInfoColumn'>
 
@@ -439,6 +466,9 @@ export type HitRowData = {
 	gloss_fields: GlossFieldDescription[];
 	hit_first_word_id: string; // Jesse
 	hit_last_word_id: string // jesse
+
+	/** Is this row muted? (used for rows outside a shared URL-requested range) */
+	muted: boolean;
 }
 
 export type DocRowData = {
@@ -447,7 +477,9 @@ export type DocRowData = {
 	href: string;
 	doc: BLDoc,
 	hits?: HitRowData[],
-	hit_id?: undefined
+	hit_id?: undefined,
+	/** Is this row muted? (used for rows outside a shared URL-requested range) */
+	muted: boolean;
 };
 
 function start(hit: BLHit): number;
@@ -463,13 +495,21 @@ function end(hit: BLHitSnippet|BLHit|undefined): number|undefined {
 }
 
 /** Create the title row for a document, plus - when the document has them - nested rows for the hits in that document. */
-function makeDocRow(p: Result<any>, info: DisplaySettingsForRows): DocRowData {
+function makeDocRow(p: Result<any>, info: DisplaySettingsForRows, indexInRequestedResults: number): DocRowData {
 	return {
 		doc: p.doc,
-		href: getDocumentUrl({indexId: info.indexId, pid: p.doc.docPid, searchField: info.sourceField.id, showField: info.sourceField.id, cql: p.query.patt, pattgapdata: p.query.pattgapdata, findhit: undefined}),
+		href: frontendPaths.documentPage({
+			indexId: info.indexId,
+			pid: p.doc.docPid, 
+			fieldName: info.sourceField.id, 
+			searchField: undefined, 
+			patt: p.query.patt, 
+			pattgapdata: p.query.pattgapdata,
+		}),
 		summary: info.getSummary(p.doc.docInfo, info.specialFields),
 		type: 'doc',
-		hits: p.doc.snippets?.length ? p.doc.snippets.flatMap(s => makeRowsForHit({...p, hit: s}, info, undefined)) : undefined
+		hits: p.doc.snippets?.length ? p.doc.snippets.flatMap(s => makeRowsForHit({...p, hit: s}, info, undefined, indexInRequestedResults)) : undefined,
+		muted: isOutsideRequestedResults(indexInRequestedResults, info.requestedRange, p.query.first)
 	}
 }
 
@@ -483,7 +523,7 @@ function docDir(doc: BLDoc, corpusNativeDir: 'ltr'|'rtl'): 'ltr'|'rtl' {
 }
 
 /** Make a row that shows a single snippet context, i.e. a single instance of before/match/after. */
-function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined, field: NormalizedAnnotatedField): HitRowData {
+function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined, field: NormalizedAnnotatedField, indexInRequestedResults: number): HitRowData {
 	return {
 		type: 'hit',
 		doc: p.doc,
@@ -494,7 +534,15 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		last_of_hit: p.last_of_hit,
 
 		context: snippetParts(p.hit, highlightColors),
-		href: getDocumentUrl({indexId: info.indexId, pid: p.doc.docPid, showField: field.id, searchField: info.sourceField.id, cql: p.query.patt, pattgapdata: p.query.pattgapdata, findhit: start(p.hit)}),
+		href: frontendPaths.documentPage({
+			indexId: info.indexId,
+			pid: p.doc.docPid,
+			fieldName: field.id,
+			searchField: info.sourceField.id,
+			patt: p.query.patt,
+			pattgapdata: p.query.pattgapdata,
+			findhit: start(p.hit),
+		}),
 		isForeign: field !== info.sourceField,
 		annotatedField: field,
 		dir: docDir(p.doc, info.dir),
@@ -504,17 +552,18 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		hit_first_word_id: '',
 		hit_last_word_id: '',
 
-		customHitInfo: (p.hit ? info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field), p.doc) : undefined) ?? ''
+		customHitInfo: (p.hit ? info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field), p.doc) : undefined) ?? '',
+		muted: isOutsideRequestedResults(indexInRequestedResults, info.requestedRange, p.query.first)
 	}
 }
 
 /** Create all rows for hit. For parallel corpora, a 'hit' may represent multiple rows, one for every version of the document it was found it (i.e. dutch + english). */
-function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined): HitRowData[] {
+function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight>|undefined, indexInRequestedResults: number): HitRowData[] {
 	const r: HitRowData[] = [];
 	p.first_of_hit = true;
 	p.last_of_hit = false;
 	p.hit_id = p.doc.docPid + start(p.hit) + end(p.hit);
-	r.push(makeHitRow(p, info, highlightColors, info.sourceField));
+	r.push(makeHitRow(p, info, highlightColors, info.sourceField, indexInRequestedResults));
 
 	const h = p.hit as BLHit;
 	const parallelHits = info.targetFields.map(f => [h.otherFields?.[f.id], f] as const).filter((h): h is [BLHitInOtherField, NormalizedAnnotatedFieldParallel] => h[0] !== undefined);
@@ -522,7 +571,7 @@ function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: D
 		p.hit = parallelHits[i][0];
 		p.first_of_hit = false;
 		p.last_of_hit = i === parallelHits.length - 1;
-		r.push(makeHitRow(p, info, highlightColors, parallelHits[i][1]));
+		r.push(makeHitRow(p, info, highlightColors, info.targetFields[i], indexInRequestedResults));
 	}
 	if (info.targetFields.length === 0) {
 		// we use first/last to draw borders between parallel hit, and we don't want borders
@@ -534,7 +583,7 @@ function makeRowsForHit(p: Result<BLHit|BLHitSnippet|BLHitInOtherField>, info: D
 
 /** For a set of document results, create all rows. */
 function makeDocRows(results: BLDocResults, info: DisplaySettingsForRows): DocRowData[] {
-	return results.docs.map(doc => makeDocRow({doc, query: results.summary.searchParam} as Result<undefined>, info));
+	return results.docs.map((doc, i) => makeDocRow({doc, query: results.summary.searchParam} as Result<undefined>, info, i));
 }
 
 /** For a set of hit results, create all rows. */
@@ -545,14 +594,15 @@ function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array
 	const r: Array<DocRowData|HitRowData> = [];
 	let prevRes: Result<any>|undefined;
 	const colors = Highlights.getHighlightColors(results.summary);
-	for (const hit of results.hits) {
+	for (let i = 0; i < results.hits.length; i++) {
+		const hit = results.hits[i];
 		if (prevRes?.doc.docPid !== hit.docPid) { // every time the doc changes, add a new doc title row.
 			prevRes = {doc: {docInfo: results.docInfos[hit.docPid], docPid: hit.docPid }, query: results.summary.searchParam} as Result<undefined>;
-			r.push(makeDocRow(prevRes, info));
+			r.push(makeDocRow(prevRes, info, i));
 		}
 		prevRes.hit = hit;
 
-		r.push(...makeRowsForHit(prevRes, info, colors));
+		r.push(...makeRowsForHit(prevRes, info, colors, i));
 	}
 	return r;
 }
@@ -560,8 +610,9 @@ function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array
 const GROUP_PROP_SEPARATOR = ' • '; // WAS: '·'
 
 /** For a set of group results, create all rows. */
-function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGroupName: string): { rows: GroupRowData[], maxima: Maxima } {
+function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, info: DisplaySettingsForRows): { rows: GroupRowData[], maxima: Maxima } {
 	const max = new MaxCounter<GroupRowData>();
+	const defaultGroupName = info.i18n.$t('results.groupBy.groupNameWithoutValue').toString();
 
 	const mapHitGroup = (g: BLHitGroupResult, summary: BLHitGroupResults['summary']) => ({
 		type: 'group',
@@ -614,7 +665,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 	// we know the global maximum of this property, so might as well use it.
 	max.add(isHitGroups(results) ? 'gr.h' : 'gr.d', results.summary.largestGroupSize);
 
-	const rows = stage1.map<GroupRowData>(row => {
+	const rows = stage1.map<GroupRowData>((row, i) => {
 		const r: GroupRowData = {
 			...row,
 			'relative group size [gr.d/r.d]': row['gr.d'] / row['r.d'],
@@ -629,6 +680,7 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, defaultGrou
 			'relative frequency (tokens) [gr.t/sc.t]': (row['gr.t'] && row['sc.t']) ? row['gr.t'] / row['sc.t'] : undefined,
 
 			'average document length [gr.t/gr.d]': row['gr.t'] ? Math.ceil(row['gr.t'] / row['gr.d']) : undefined,
+			muted: isOutsideRequestedResults(i, info.requestedRange, results.summary.searchParam.first)
 		};
 
 		Object.entries(r).forEach(([k, v]: [keyof GroupRowData, GroupRowData[keyof GroupRowData]]) => max.add(k as any, v as any));
@@ -648,9 +700,13 @@ export type Rows = {
 }
 
 export function makeRows(results: BLSearchResult, info: DisplaySettingsForRows): Rows {
+	// Fix: BL sends back all params as strings, but we need numbers for calculations.
+	results.summary.searchParam.first = Number(results.summary.searchParam.first) || 0;
+	results.summary.searchParam.number = Number(results.summary.searchParam.number) || 10;
+
 	if (isDocResults(results)) return { rows: makeDocRows(results, info) }
 	else if (isHitResults(results)) return { rows: makeHitRows(results, info) }
-	else return makeGroupRows(results, info.i18n.$t('results.groupBy.groupNameWithoutValue').toString());
+	else return makeGroupRows(results, info);
 }
 
 type ColumnDefBase = {
@@ -750,20 +806,23 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 	})
 
 	const annotationColumnSortOptions = (prefix: string, annots?: NormalizedAnnotation[]): {sort?: string|Array<OptGroup|Option>, title?: string} => {
-		const annotsToShow = new Set((annots ?? info.sortableAnnotations).map(a => a.id));
+		const sortableIds = new Set(info.sortableAnnotations.map(a => a.id));
+		// If specific annotations are requested, filter to only those that are sortable
+		const annotsToShow = (annots ?? info.sortableAnnotations).filter(a => sortableIds.has(a.id));
+		const annotsToShowIds = new Set(annotsToShow.map(a => a.id));
 		const groups = info.annotationGroups;
 
-		if (annotsToShow.size === 0) return {};
-		else if (annotsToShow.size === 1) { 
-			const {title, value: sort} = sortAnnot(info.sortableAnnotations[0], prefix);
+		if (annotsToShow.length === 0) return {};
+		else if (annotsToShow.length === 1) { 
+			const {title, value: sort} = sortAnnot(annotsToShow[0], prefix);
 			return {title, sort};
 		} else {
 			return {
 				sort: groups
-					.filter(g => g.entries.some(id => annotsToShow.has(id)))
+					.filter(g => g.entries.some(id => annotsToShowIds.has(id)))
 					.map<OptGroup>(g => ({
 						label: i.$tAnnotGroupName(g).toString(),
-						options: g.entries.filter(id => annotsToShow.has(id)).map<Option>(id => ({
+						options: g.entries.filter(id => annotsToShowIds.has(id)).map<Option>(id => ({
 							value: `${prefix}:${id}`,
 							label: i.$tAnnotDisplayName(info.sortableAnnotations.find(a => a.id === id)!).toString()
 						}))

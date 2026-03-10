@@ -76,7 +76,7 @@ const initialState: ModuleRootState = {
 		splitBatch: false,
 	},
 	advanced: {
-		query: {tokens: [], within: '', withinAttributes: {}},
+		query: {tokens: [], within: ''},
 		targetQueries: [],
 	},
 	expert: {
@@ -128,7 +128,7 @@ const setTargetFields = (state: ModuleRootState, payload: string[]): string[] =>
 
 	if (payload && payload.length > 0) {
 		while (state.advanced.targetQueries.length < payload.length) {
-			state.advanced.targetQueries.push({tokens: [], within: '', withinAttributes: {}});
+			state.advanced.targetQueries.push({tokens: [], within: ''});
 		}
 		while (state.expert.targetQueries.length < payload.length) {
 			state.expert.targetQueries.push('');
@@ -220,7 +220,7 @@ const actions = {
 	},
 	advanced: {
 		query: b.commit((state, payload: CqlQueryBuilderData|null) => {
-			return (state.advanced.query = payload || {tokens: [], within: '', withinAttributes: {}});
+			return (state.advanced.query = payload || {tokens: [], within: ''});
 		}, 'advanced_query'),
 		changeTargetQuery: b.commit((state, {index, value}: {index: number, value: CqlQueryBuilderData}) => {
 			if (index >= state.advanced.targetQueries.length) {
@@ -233,7 +233,7 @@ const actions = {
 			return (state.advanced.targetQueries = [...payload]); // copy, don't reference
 		}, 'advanced_target_queries'),
 		reset: b.commit(state => {
-			state.advanced.query = {tokens: [], within: '', withinAttributes: {}};
+			state.advanced.query = {tokens: [], within: ''};
 			state.advanced.targetQueries = [];
 		}, 'advanced_reset'),
 	},

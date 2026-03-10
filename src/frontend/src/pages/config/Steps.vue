@@ -1,19 +1,22 @@
 <template>
 	<div>
-		<button v-for="(s, i) in steps" :key="s.value"
-			type="button"
-			class="btn btn-default step"
+		<div class="btn-group">
+			<button v-for="(s, i) in steps" :key="s.value"
+				type="button"
+				class="btn btn-default step"
 
-			:title="s.title || ''"
-			:class="{
-				active: step > i,
-				active2: step === i
-			}"
+				:title="s.title || ''"
+				:class="{
+					active: step > i,
+					active2: step === i
+				}"
 
-			@click="$emit('input', i)"
-		>
-			{{s.label}}
-		</button>
+				@click="$emit('input', i)"
+			>
+				{{s.label}}
+			</button>
+
+		</div>
 		<div><em class="text-muted">{{steps[step].title}}</em></div>
 	</div>
 </template>

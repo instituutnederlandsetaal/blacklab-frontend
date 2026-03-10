@@ -19,9 +19,10 @@
 			<div class="result-buttons-layout">
 				<Pagination slot="pagination"
 					:page="pagination.shownPage"
+					:page2="pagination.shownPage2"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
-
+					
 					@change="page = $event"
 				/>
 
@@ -56,7 +57,7 @@
 				:rows="rows"
 				:info="renderDisplaySettings"
 				:header="isHits ? cols.hitColumns : isDocs ? cols.docColumns : cols.groupColumns"
-				:showTitles="showTitles"
+				:showTitles="showTitles.value"
 				:disabled="!!request"
 				:query="results?.summary.searchParam"
 				:sort="sort"
@@ -70,9 +71,10 @@
 					style="display: block;"
 
 					:page="pagination.shownPage"
+					:page2="pagination.shownPage2"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
-
+					
 					@change="page = $event"
 				/>
 				<div style="flex-grow: 1;"></div>
@@ -81,9 +83,9 @@
 					type="button"
 					class="btn btn-primary btn-sm show-titles"
 
-					@click="showTitles = !showTitles"
+					@click="showTitles.value = !showTitles.value"
 				>
-					{{showTitles ? $t('results.table.hide') : $t('results.table.show')}} {{ $t('results.table.titles') }}
+					{{showTitles.value ? $t('results.table.hide') : $t('results.table.show')}} {{ $t('results.table.titles') }}
 				</button>
 
 				<Sort
@@ -131,6 +133,7 @@
 				style="display: block;"
 
 				:page="pagination.shownPage"
+				:page2="pagination.shownPage2"
 				:maxPage="pagination.maxShownPage"
 				:disabled="!!request"
 
@@ -142,7 +145,7 @@
 </template>
 
 <script lang="ts">
-import Vue, { markRaw } from 'vue';
+import Vue, { markRaw, onDeactivated } from 'vue';
 
 import jsonStableStringify from 'json-stable-stringify';
 
@@ -170,7 +173,7 @@ import debug, { debugLog, debugLogCat } from '@/utils/debug';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { NormalizedIndex } from '@/types/apptypes';
-import { humanizeGroupBy, parseGroupBy, serializeGroupBy } from '@/utils/grouping';
+import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 import { TranslateResult } from 'vue-i18n';
 import { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, makeColumns, makeRows, Rows } from '@/pages/search/results/table/table-layout';
 import { isHitParams } from '@/utils';
@@ -178,6 +181,7 @@ import { isHitParams } from '@/utils';
 
 import '@/pages/search/results/table/GenericTable.vue';
 import { corpusCustomizations } from '@/utils/customization';
+import { localStorageSynced } from '@/utils/localstore';
 
 export default Vue.extend({
 	components: {
@@ -215,12 +219,13 @@ export default Vue.extend({
 		// Should we clear the results when we begin the next request? - set when main form is submitted.
 		clearResults: false,
 
-		/** When no longer viewing contents of a group, restore the page and sorting (i.e. user's position in the results). */
+		/** When no longer viewing contents of a group, restore the result range and sorting (i.e. user's position in the results). */
 		restoreOnViewGroupLeave: null as null|{
-			page: number;
+			first: number;
+			number: number;
 			sort: string|null;
 		},
-		showTitles: true,
+		showTitles: localStorageSynced('cf/results/showTitles', true),
 
 		debug
 	}),
@@ -290,7 +295,7 @@ export default Vue.extend({
 							debugLogCat('results', 'grouping failed, clearing groupBy');
 							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined)
 								.filter(g => !((g.type === 'context' && g.context.type === 'label') || (g.type === 'metadata' && g.metadata.type === 'span-attribute')));
-							const newGroupBy = serializeGroupBy(okayGroups);
+							const newGroupBy = serializeSortByOrGroupBy(okayGroups);
 							this.groupBy = newGroupBy;
 						}
 						this.setError(e, !!params.group)
@@ -311,8 +316,8 @@ export default Vue.extend({
 				GlossModule.actions.setCurrentPage(data.hits.map(get_hit_id));
 			}
 
-			this.results = data;
-			this.paginationResults = data;
+			this.results = markRaw(data);
+			this.paginationResults = markRaw(data);
 		},
 		setError(data: Api.ApiError, isGrouped?: boolean) {
 			if (!data.isCancelledRequest) {
@@ -336,12 +341,26 @@ export default Vue.extend({
 		},
 		leaveViewgroup() {
 			this.viewGroup = null;
-			this.page = this.restoreOnViewGroupLeave?.page || 0;
-			this.sort = this.restoreOnViewGroupLeave?.sort || null;
+			if (this.restoreOnViewGroupLeave) {
+				this.store.actions.range({
+					first: this.restoreOnViewGroupLeave.first,
+					number: this.restoreOnViewGroupLeave.number
+				});
+				this.sort = this.restoreOnViewGroupLeave.sort;
+			} else {
+				this.store.actions.range({ first: 0, number: GlobalStore.getState().pageSize });
+				this.sort = null;
+			}
 			this.restoreOnViewGroupLeave = null;
 		},
 		changeViewGroup(groupId: string, groupDisplay: string) {
-			this.restoreOnViewGroupLeave = {page: this.page, sort: this.sort};
+			if (this.request) return;
+			const viewState = this.store.getState();
+			this.restoreOnViewGroupLeave = {
+				first: viewState.first,
+				number: viewState.number,
+				sort: this.sort
+			};
 			this.viewGroup = groupId;
 			this._viewGroupName = groupDisplay;
 		}
@@ -352,12 +371,12 @@ export default Vue.extend({
 			set(v: string[]) { this.store.actions.groupBy(v); }
 		},
 		page: {
-			get(): number { return this.store.getState().page; },
-			set(v: number) { this.store.actions.page(v);  }
+			get(): number { return 0; /** page is not always a singular clean number */ },
+			set(v: number) { this.store.actions.range({first: v * this.pageSize, number: this.pageSize});  }
 		},
 		sort: {
 			get(): string|null { return this.store.getState().sort; },
-			set(v: string|null) { this.store.actions.sort(v); }
+			set(v: string|null) { if (!this.request) this.store.actions.sort(v); }
 		},
 		viewGroup: {
 			get(): string|null { return this.store.getState().viewGroup; },
@@ -402,12 +421,27 @@ export default Vue.extend({
 			});
 		},
 
-		// When these change, the form has been resubmitted, so we need to initiate a scroll event
+		/** When these change, the form has been resubmitted, so we need to initiate a scroll event */
 		querySettings() { return QueryStore.getState(); },
 
+		pageSize(): number { return GlobalStore.getState().pageSize; },
+		/**
+		 * Pagination state for the current view.
+		 * 
+		 * Three cases for the shown range [first, first+number):
+		 * 1. Exact page: first % pageSize == 0 && number == pageSize
+		 *    -> Single page active, no range highlighting needed
+		 * 2. Span fits in 1 page: floor(first/pageSize) == floor((first+number-1)/pageSize)
+		 *    -> Single page active (the page containing the span)
+		 * 3. Span crosses pages: startPage != endPage
+		 *    -> Multiple pages active, highlight the range
+		 */
 		pagination(): {
+			/** The primary page to show as current (first page of the shown range) */
 			shownPage: number,
-			maxShownPage: number
+			shownPage2?: number,
+			/** Maximum page number available */
+			maxShownPage: number,
 		} {
 			// Take care to use this.results for page size, but this.paginationResults for total number of results.
 			// This is because pagination results are requested with a window size of 0!
@@ -418,21 +452,35 @@ export default Vue.extend({
 				};
 			}
 
-			// use actual results - pagination results are requested with windows size 0 (!)
-			const pageSize = this.results.summary.requestedWindowSize;
-			const shownPage = Math.floor(this.results.summary.windowFirstResult / pageSize);
+			const pageSize = this.pageSize;
+			const { first, number } = this.store.getState();
+			const last = first + number - 1;
+
+			// Calculate which pages the shown span overlaps
+			const startPage = Math.floor(first / pageSize);
+			const endPage = Math.floor(last / pageSize);
+
+			// Check if this is an exact page (aligned to page boundaries)
+			const isExactPage = (first % pageSize === 0) && (number === pageSize);
+
 			const totalResults =
 				BLTypes.isGroups(this.paginationResults) ? this.paginationResults.summary.numberOfGroups :
 				BLTypes.isHitResults(this.paginationResults) ? this.paginationResults.summary.numberOfHitsRetrieved :
 				this.paginationResults.summary.numberOfDocsRetrieved;
 
-			// subtract one page if number of results exactly diactive by page size
-			// e.g. 20 results for a page size of 20 is still only one page instead of 2.
-			const pageCount = Math.floor(totalResults / pageSize) - ((totalResults % pageSize === 0 && totalResults > 0) ? 1 : 0);
+			// Calculate max page (subtract one if exactly divisible to avoid empty last page)
+			const maxPage = Math.max(0, Math.floor((totalResults - 1) / pageSize));
+
+			// Determine range highlighting:
+			// - If exact page: no range highlighting needed (null values)
+			// - If span fits in 1 page (startPage == endPage but not exact): still show as single active page
+			// - If span crosses pages: highlight the range
+			const showRange = !isExactPage && startPage !== endPage;
 
 			return {
-				shownPage,
-				maxShownPage: pageCount >= shownPage ? pageCount : shownPage,
+				shownPage: startPage,
+				shownPage2: showRange ? endPage : undefined,
+				maxShownPage: Math.max(maxPage, startPage),
 			};
 		},
 
@@ -454,8 +502,7 @@ export default Vue.extend({
 		breadCrumbs(): Array<{
 			label: TranslateResult,
 			title: TranslateResult,
-			active: boolean,
-			onClick: () => void
+			onClick?: () => void
 		}> {
 			// Labels and titles might look confusing
 			// but, the label is what the uses is currently looking at
@@ -465,34 +512,31 @@ export default Vue.extend({
 			// if clicking grouped by -> go to grouped results
 			// if clicking specific group -> go to specific group
 
-			const r = [];
+			const r: {
+				label: TranslateResult,
+				title: TranslateResult,
+				onClick?: () => void,
+				deactivate: (() => void)|undefined,
+				toggle?: () => void,
+			}[] = [];
+
 			r.push({
 				label: this.id === 'hits' ? this.$t('results.resultsView.navigation.hits') : this.$t('results.resultsView.navigation.documents'),
 				title: this.$t('results.resultsView.navigation.backToUngroupedResults').toString(),
-				active: false,
-				onClick: () => {
-					this.groupBy = [];
-					GlobalStore.actions.sampleSize(null);
-				}
+				deactivate: undefined,
 			});
 			if (this.groupBy.length > 0) {
-				const groupByLabel = parseGroupBy(this.groupBy, this.results ?? undefined).map(g => humanizeGroupBy(this, g, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap())).join(', ')
 				r.push({
-					label: this.$t('results.resultsView.navigation.groupedBy', {group: groupByLabel}),
+					label: this.$t('results.resultsView.navigation.groupedBy', {group: humanizeSerializedGroupBy(this, this.groupBy, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap()).join(', ')}),
 					title: this.$t('results.resultsView.navigation.backToGroupedResults'),
-					active: false,
-					onClick: () => {
-						this.leaveViewgroup();
-						GlobalStore.actions.sampleSize(null);
-					}
+					deactivate: () => { this.groupBy = []; }
 				});
 			}
 			if (this.viewGroup != null) {
 				r.push({
 					label: this.$t('results.resultsView.navigation.viewingGroup', {group: this.viewGroupName}),
 					title: '',
-					active: false,
-					onClick: () => GlobalStore.actions.sampleSize(null)
+					deactivate: () => this.leaveViewgroup(),
 				});
 			}
 			const {sampleMode, sampleSize} = GlobalStore.getState();
@@ -500,13 +544,38 @@ export default Vue.extend({
 				r.push({
 					label: this.$t('results.resultsView.navigation.randomSample', {sample: `${sampleSize}${sampleMode === 'percentage' ? '%' : ''}`}),
 					title: '',
-					active: false,
-					onClick: () => {
-						$('#settings').modal('show')
+					deactivate: () => { GlobalStore.actions.sampleSize(null); }
+				})
+			}
+			if (this.sort) {
+				r.push({
+					label: this.$t('results.resultsView.navigation.sortedBy', {sort: humanizeGroupByOrSortBy(this, parseSortBy(this.sort), CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap())}),
+					title: '',
+					deactivate: () => this.sort = null,
+					toggle: () => {
+						this.sort = this.sort?.startsWith('-') ? this.sort!.substring(1) : '-' + this.sort!;
 					}
 				})
 			}
-			r[r.length -1].active = true;
+
+			// Clicking a breadcrumb deactivates all breadcrumbs after it.
+			// So we set up the onClick handlers here.
+			// If a breadcrumb has a toggle() function, and it's the last one, call the toggle instead (onClick takes precedence).
+			for (let i = 0; i < r.length; i++) {
+				const entry = r[i];
+				const isLast = (i === r.length - 1);
+				
+				if (!isLast) {
+					entry.onClick = () => {
+						for (let j = r.length -1; j > i; j--) {
+							r[j].deactivate?.();
+						}
+					}
+				} else if (entry.toggle) {
+					entry.onClick = entry.toggle;
+				}
+			}
+
 			return r;
 		},
 
@@ -536,11 +605,16 @@ export default Vue.extend({
 
 		commonDisplaySettings(): DisplaySettingsCommon {
 			const summaryOtherFields = BLTypes.hasPatternInfo(this.results?.summary) ? this.results.summary.pattern.otherFields ?? [] : [];
+			const { first, number, requestedRange } = this.store.getState();
 			return {
 				dir: CorpusStore.get.textDirection(),
 				i18n: this,
 				specialFields: CorpusStore.getState()!.fieldInfo,
-				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name])
+				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name]),
+				first,
+				number,
+				requestedRange,
+				pageSize: this.pageSize
 			}
 		},
 		rowDisplaySettings(): DisplaySettingsForRows {
@@ -553,16 +627,34 @@ export default Vue.extend({
 			}
 		},
 		columnDisplaySettings(): DisplaySettingsForColumns {
+			// Parse sort to extract annotation or metadata field being sorted on
+			const parsedSort = this.sort ? parseSortBy(this.sort, this.results ?? undefined) : null;
+			const sortAnnotationId = parsedSort?.type === 'context' ? parsedSort.annotation : undefined;
+			const sortMetadataId = parsedSort?.type === 'metadata' && parsedSort.metadata.type === 'document' ? parsedSort.metadata.field : undefined;
+			
+			// Get shown columns and append sort column if not already shown
+			const shownAnnotationIds = this.isHits ? UIStore.getState().results.hits.shownAnnotationIds : [];
+			const annotationIdsToShow = (sortAnnotationId && !shownAnnotationIds.includes(sortAnnotationId)) 
+				? shownAnnotationIds.concat(sortAnnotationId) 
+				: shownAnnotationIds;
+			
+			const shownMetadataIds = this.isHits 
+				? UIStore.getState().results.hits.shownMetadataIds 
+				: this.isDocs 
+					? UIStore.getState().results.docs.shownMetadataIds 
+					: [];
+			const metadataIdsToShow = (sortMetadataId && !shownMetadataIds.includes(sortMetadataId))
+				? shownMetadataIds.concat(sortMetadataId)
+				: shownMetadataIds;
+			
 			return {
 				...this.commonDisplaySettings,
 				groupDisplayMode: this.groupDisplayMode as any || (BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
 				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
-				// If groups, don't show any metadata columns.
-				metadata: 	this.isHits ? UIStore.getState().results.hits.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) :
-							this.isDocs ? UIStore.getState().results.docs.shownMetadataIds.map(id => CorpusStore.get.allMetadataFieldsMap()[id]) : [],
-
-				// If groups, don't show any annotation columns.
-				otherAnnotations: this.isHits ? UIStore.getState().results.hits.shownAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]) : [],
+				// If groups, don't show any metadata columns. Automatically append sort column if not already shown.
+				metadata: metadataIdsToShow.map(id => CorpusStore.get.allMetadataFieldsMap()[id]),
+				// If groups, don't show any annotation columns. Automatically append sort column if not already shown.
+				otherAnnotations: annotationIdsToShow.map(id => CorpusStore.get.allAnnotationsMap()[id]),
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
 				annotationGroups: CorpusStore.get.annotationGroups(),
 				hasCustomHitInfoColumn: corpusCustomizations.results.hasCustomHitInfoColumn,
@@ -579,7 +671,6 @@ export default Vue.extend({
 					key,
 					Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null
 				])) as any, 
-				defaultGroupName: this.$t('results.groupBy.groupNameWithoutValue').toString(),
 				html: UIStore.getState().results.shared.concordanceAsHtml,
 			}
 		},

@@ -1,6 +1,6 @@
 package nl.inl.corpuswebsite.utils;
 
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 
 /** 
  * Should never be caught, only propagated to the top level, at which point the code and body should be returned to the client.
@@ -13,8 +13,16 @@ public class ReturnToClientException extends RuntimeException {
 	
 	public ReturnToClientException(Exception e) {
 		super(e);
-		this.code = e instanceof QueryException ? ((QueryException) e).getHttpStatusCode() : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-		this.body = e.getMessage();
+		if (e instanceof ReturnToClientException) {
+			this.code = ((ReturnToClientException) e).getCode();
+			this.body = ((ReturnToClientException) e).getBody();
+		} else if (e instanceof QueryException) {
+			this.code = ((QueryException) e).getHttpStatusCode();
+			this.body = e.getMessage();
+		} else {
+			this.code = HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+			this.body = e.getMessage();
+		}
 	}
 	public ReturnToClientException(int code, String body) {
 		super(body);
@@ -32,5 +40,10 @@ public class ReturnToClientException extends RuntimeException {
 
 	public String getBody() {
 		return body;
+	}
+
+	public static ReturnToClientException wrap(Exception e) {
+		if (e instanceof ReturnToClientException) return (ReturnToClientException) e;
+		else return new ReturnToClientException(e);
 	}
 }

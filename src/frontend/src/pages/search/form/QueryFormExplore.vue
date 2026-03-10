@@ -18,7 +18,6 @@
 							data-width="100%"
 							style="max-width: 400px;"
 
-							searchable
 							hideEmpty
 							allowHtml
 
@@ -108,7 +107,6 @@
 							data-class="btn btn-default"
 							data-menu-width="grow"
 
-							:searchable="token.annotation.values && token.annotation.values.length > 12"
 							:placeholder="$tAnnotDisplayName(token.annotation)"
 							:data-dir="token.annotation.isMainAnnotation ? mainTokenTextDirection : undefined"
 							:options="token.annotation.values"
@@ -136,7 +134,6 @@
 							:dir="token.annotation.isMainAnnotation ? mainTokenTextDirection : undefined"
 							:disabled="index >= ngramSize"
 
-							:autocomplete="token.annotation.uiType === 'combobox'"
 							:url="autocompleteUrl(token.annotation)"
 
 							:value="token.value"
@@ -324,7 +321,7 @@ export default ParallelFields.extend({
 	},
 	created() {
 		this.corporaGroupDisplayMode = this.corporaGroupDisplayModeOptions[0].value;
-		
+
 		const eventId = `${ExploreStore.namespace}/reset`;
 
 		this.subscriptions.push(RootStore.store.subscribe((mutation, state) => {
@@ -332,7 +329,7 @@ export default ParallelFields.extend({
 				(this.$refs.reset as any[]).forEach(v => v.reset());
 			}
 		}));
-	
+
 	},
 	beforeDestroy() {
 		this.subscriptions.forEach(unsub => unsub());

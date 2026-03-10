@@ -16,9 +16,6 @@ import * as CorpusStore from '@/store/corpus';
 import * as ViewsStore from '@/store/results/views';
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
-import { Option } from '@/types/apptypes';
-import { spanFilterId } from '@/utils';
-import { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
 import { CorpusChange } from '@/store/async-loaders';
 import { corpusCustomizations } from '@/utils/customization';
 import { normalizeAnnotationUIType } from '@/utils/blacklabutils';
@@ -711,7 +708,9 @@ const actions = {
 	},
 	global: {
 		pageGuide: {
-			enable: () => {console.warn('Pageguide has been removed and will be replaced with a more modern implementation in the future. Please remove the corresponding customjs.');},
+			enable: () => {
+				console.warn('Page guide has been removed.');
+			}
 		},
 		lexiconDb: b.commit((state, payload: string) => state.global.lexiconDb = payload, 'global_lexiconDb')
 	},
@@ -776,7 +775,7 @@ const actions = {
 		moveAnnotationToGroup: (annotationId: string, targetGroupName: string, removeFromExistingGroup = true) => {
 			// NOTE: is frozen object, though not deeply.
 			// Need to reassign to trigger reactivity.
-			const corpus = CorpusStore.getState().corpus;
+			const corpus = CorpusStore.getState();
 			if (!corpus) {
 				console.warn(`[moveAnnotationToGroup] - Trying to move annotation '${annotationId}' to group '${targetGroupName}', but the corpus is not loaded yet!`);
 				return;
@@ -795,12 +794,11 @@ const actions = {
 			if (!targetGroup.entries.includes(annotationId)) {
 				targetGroup.entries.push(annotationId);
 			};
-			CorpusStore.getState().corpus = {...corpus}; // trigger reactivity
 		},
 		moveMetadataToGroup: (metadataFieldId: string, targetGroupName: string, removeFromExistingGroup = true) => {
 			// NOTE: is frozen object, though not deeply.
 			// Need to reassign to trigger reactivity.
-			const corpus = CorpusStore.getState().corpus;
+			const corpus = CorpusStore.getState();
 			if (!corpus) {
 				console.warn(`[moveMetadataToGroup] - Trying to move metadata field '${metadataFieldId}' to group '${targetGroupName}', but the corpus is not loaded yet!`);
 				return;
@@ -819,7 +817,6 @@ const actions = {
 			if (!targetGroup.entries.includes(metadataFieldId)) {
 				targetGroup.entries.push(metadataFieldId);
 			};
-			CorpusStore.getState().corpus = {...corpus}; // trigger reactivity
 		}
 	}
 };

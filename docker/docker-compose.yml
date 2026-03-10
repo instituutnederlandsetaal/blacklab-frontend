@@ -6,6 +6,8 @@ services:
     build:
       context: ..
       dockerfile: docker/frontend-bls.dockerfile
+      args: 
+        BLACKLAB_IMAGE_VERSION: dev
     ports:
       - "8080:8080" # frontend and BLS will both be available on 8080
     volumes:
@@ -30,3 +32,13 @@ configs:
       indexLocations:
       - /data/index
       userIndexes: /data/user-index
+      parameters: 
+        processHits:
+          default: -1
+          max: -1
+        countHits:
+          default: -1
+          max: -1
+        pageSize:
+          max: -1
+        

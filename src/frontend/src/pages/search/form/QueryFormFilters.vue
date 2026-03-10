@@ -77,13 +77,22 @@ export default Vue.extend({
 		FilterOverview,
 	},
 	data: () => ({
-		activeTab: null as string|null,
 		cancelFilterWatch: [] as Array<() => void>,
 	}),
 	methods: {
 		updateFilterValue(id: string, value: any) { FilterStore.actions.filterValue({id, value}); },
+		
+		/** Tabs can be set to null or invalid value when decoding existing URL. Validate and correct it if required */
+		synchronizeActiveTab() {
+			if (this.activeTab == null || !this.tabs.find(t => t.tabname === this.activeTab)) 
+				this.activeTab = this.tabs[0]?.tabname ?? null;
+		}
 	},
 	computed: {
+		activeTab: {
+			get(): string|null { return InterfaceStore.getState().activeFilterTab; },
+			set(value: string|null) { InterfaceStore.actions.activeFilterTab(value); }
+		},
 		textDirection(): string { return CorpusStore.get.textDirection(); },
 		allFilters(): FilterStore.FullFilterState[] {
 			const seenIds = new Set<string>();
@@ -150,15 +159,11 @@ export default Vue.extend({
 			return numActiveFiltersPerTab;
 		},
 	},
-	created() {
-		// Always set an active tab if there are any tabs at all
-		// new tabs may be added just after setup, changing useTabs from false to true
-		this.activeTab = this.tabs.length ? this.tabs[0].tabname : null;
-	},
 	watch: {
-		tabs(cur: FilterStore.FilterGroupType[], prev) {
-			this.activeTab = cur.length ? cur[0].tabname : null;
-		},
+		/** 
+		 * Tabs can have some predefined filter queries with them. 
+		 * When the current tab changes, we need to apply/remove those filter queries accordingly.
+		 */
 		activeTab: {
 			immediate: true,
 			handler(cur: string, prev: string) {
@@ -200,8 +205,14 @@ export default Vue.extend({
 						);
 					});
 				}
-			}
+				// Make sure we always have a tab active, etc.
+				this.synchronizeActiveTab(); 
+			},
 		},
+		tabs() {
+			// Make sure we always have a tab active, etc.
+			this.synchronizeActiveTab(); 
+		}
 	},
 	destroyed() {
 		this.cancelFilterWatch.forEach(c => c());

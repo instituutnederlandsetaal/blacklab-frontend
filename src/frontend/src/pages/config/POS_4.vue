@@ -11,7 +11,7 @@
 
 					<input type="text" v-model="displays[annotId][value]" :placeholder="value" style="width: 200px;" :id="`${annotId}-${value}`"
 						:style="{ borderColor: (display === value) ? 'red' : undefined }"
-					
+
 					/>
 				</li>
 			</ul>
@@ -38,16 +38,27 @@ export const title = 'Validate and add display values';
 export const defaultAction = (s: StepState): StepState => s;
 
 
-function getDisplayNamesFromTagset(t: Tagset, mainAnnotationId: string): Record<string, Record<string, string>> {
+function getDisplayNamesFromTagset(
+	t: Tagset,
+	mainAnnotationId: string,
+	annotationCaseSensitivities: Record<string, boolean> = {}
+): Record<string, Record<string, string>> {
 	const r: Record<string, Record<string, string>> = {};
 	r[mainAnnotationId] = {}
 	Object.values(t.values).forEach(({value, displayName}) => {
-		r[mainAnnotationId][value] = displayName || value;
+		const originalValue = value;
+		if (!annotationCaseSensitivities[mainAnnotationId])
+			value = value.toLowerCase();
+		r[mainAnnotationId][value] = displayName || originalValue;
 	});
 	Object.values(t.subAnnotations).forEach(sub => {
 		r[sub.id] = {};
+
 		sub.values.forEach(({value, displayName}) => {
-			r[sub.id][value] = displayName || value;
+			const originalValue = value;
+			if (!annotationCaseSensitivities[sub.id])
+				value = value.toLowerCase();
+			r[sub.id][value] = displayName || originalValue;
 		});
 	});
 	return r;
@@ -91,7 +102,7 @@ export const step = Vue.extend({
 		},
 
 		decodedDisplayNames(): Record<string, Record<string, string>>|{default: Record<string, string>} {
-			if (this.importValueAsTagset) return getDisplayNamesFromTagset(this.importValueAsTagset, this.value.mainPosAnnotationId!);
+			if (this.importValueAsTagset) return getDisplayNamesFromTagset(this.importValueAsTagset, this.value.mainPosAnnotationId!, Object.fromEntries(this.value.annotations.map(a => [a.id, a.caseSensitive])));
 			else if (this.importValueAsRecord) return {default: this.importValueAsRecord };
 			else return {};
 		},
@@ -105,9 +116,11 @@ export const step = Vue.extend({
 					console.warn(`No displayNames found for annotation ${annotId} in imported data`);
 					return;
 				}
-				// Update the display names for the current annotation ID
-				Object.entries(displayNamesForAnnot).forEach(([value, displayName]) => {
-					this.$set(this.displays[annotId], value, displayName);
+
+				Object.entries(this.displays[annotId]).forEach(([value, displayName]) => {
+					if (displayNamesForAnnot[value]) {
+						this.displays[annotId][value] = displayNamesForAnnot[value];
+					}
 				});
 			});
 		}

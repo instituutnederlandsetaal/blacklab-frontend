@@ -96,6 +96,7 @@ export default function init(_config: Config) {
 	activeTooltippable$.subscribe(({element, eventType}) => {
 		const destroyExistingTooltip = !settings.explicitlyOpened || (settings.explicitlyOpened && eventType === 'click');
 		if (settings.activeTooltip && destroyExistingTooltip) {
+			(settings.activeTooltip?.reference as HTMLElement)?.classList.toggle('tooltip-open', false);
 			settings.activeTooltip.destroy();
 			settings.activeTooltip = null;
 			settings.explicitlyOpened = false;
@@ -107,6 +108,7 @@ export default function init(_config: Config) {
 
 		settings.activeTooltip = createNewTooltip(element);
 		settings.explicitlyOpened = eventType === 'click';
+		(settings.activeTooltip?.reference as HTMLElement)?.classList.toggle('tooltip-open', true);
 	});
 
 	function createNewTooltip(element: HTMLElement|null) {
@@ -174,7 +176,7 @@ function getTooltipContent(config: Config, el: HTMLElement): {
 		preview = el.getAttribute('title') || undefined;
 		if ((preview && dataAttributes.length) || dataAttributes.length > 1) {
 			content = `
-				<table class="table" style="table-layout:fixed;width:auto;min-width:300px;">
+				<table class="table" style="table-layout:fixed;width:auto;min-width:300px; margin: 0">
 				<tbody>${dataAttributes.map(a => `
 					<tr>
 						<td>${a.key}</td>

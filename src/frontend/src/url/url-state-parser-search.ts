@@ -1,18 +1,18 @@
+import cloneDeep from 'clone-deep';
+import LuceneQueryParser from 'lucene-query-parser';
 import memoize from 'memoize-decorator';
 
 import BaseUrlStateParser from './url-state-parser-base';
-import LuceneQueryParser from 'lucene-query-parser';
 
-import {mapReduce, decodeAnnotationValue, uiTypeSupport, getCorrectUiType, unparenQueryPart, getParallelFieldName, applyWithinClauses, unescapeRegex, spanFilterId, clamp} from '@/utils';
-import {parseBcql, Attribute, Result, Token} from '@/utils/bcql-json-interpreter';
+import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, getParallelFieldName, mapReduce, spanFilterId, uiTypeSupport, unescapeRegex, unparenQueryPart, clamp} from '@/utils';
+import { Condition, parseBcql, Result, Token } from '@/utils/bcql-json-interpreter';
+import { debugLog } from '@/utils/debug';
 import parseLucene from '@/utils/luceneparser';
-import {debugLog} from '@/utils/debug';
 
 import * as CorpusModule from '@/store/corpus';
 import * as UIModule from '@/store/ui';
 import * as HistoryModule from '@/store/history';
 import * as TagsetModule from '@/store/tagset';
-import * as QueryModule from '@/store/query';
 import * as ConceptModule from '@/store/form/conceptStore';
 import * as GlossModule from '@/store/form/glossStore';
 import * as UIStore from '@/store/ui';
@@ -31,13 +31,11 @@ import * as GlobalResultsModule from '@/store/results/global';
 // Article
 import * as ArticleStore from '@/store/article';
 
-import {FilterValue, AnnotationValue} from '@/types/apptypes';
+import { AnnotationValue, FilterValue } from '@/types/apptypes';
 
-import cloneDeep from 'clone-deep';
+import { CqlQueryBuilderData, getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { corpusCustomizations } from '@/utils/customization';
-import { CqlAttributeData, CqlAttributeGroupData, CqlQueryBuilderData } from '@/components/cql/cql-types';
-import { getQueryBuilderStateFromParsedQuery } from '@/utils/pattern-utils';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -50,8 +48,13 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	 * So in order to decode the query, we need knowledge of which filters are configured.
 	 * This is done by the FilterModule, so we need that info here.
 	 */
-	constructor(private registeredMetadataFilters: FilterModule.ModuleRootState, uri?: URI) {
+	constructor(uri?: URI) {
 		super(uri);
+		try {
+			this._interfaceStateFromUrl = JSON.parse(this.getString('interface', null, v => v.startsWith('{')?v:null)!);
+		} catch (e) {
+			// No big deal if we can't parse the interface state from the url, we'll just determine it from the rest of the url parameters later.
+		}
 	}
 
 	@memoize
@@ -93,32 +96,41 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	@memoize
 	get spanFilters(): Record<string, FilterValue> {
 		const result: Record<string, FilterValue> = {};
-		Object.entries(this.withinClauses)
-			.forEach(([elName, attrs]) => {
-				Object.entries(attrs)
-					.forEach(([attrName, attrValue]) => {
-					const id = spanFilterId(elName, attrName);
-					const filter = FilterModule.getState().filters[id];
-					const vf = filter ? getValueFunctions(filter) : undefined;
-					if (vf?.isSpanFilter) {
-						let values: string[];
-						if (typeof attrValue === 'string') {
-							if (filter.componentName === 'filter-select') {
-								// select, decode options
-								values = attrValue.split('|').map(v => unescapeRegex(v, { escapeWildcards: false }));
-							} else {
-								// text
-								values = [ unescapeRegex(attrValue, { escapeWildcards: false }) ];
-							}
-						} else if (attrValue.low || attrValue.high) {
-							values = [attrValue.low || '', attrValue.high || ''];
-						} else {
-							values = [ attrValue ];
-						}
-						result[id] = { id, values };
+		const filters = FilterModule.getState().filters;
+		Object
+			.entries(this.withinClauses)
+			.flatMap(([elName, attrs]) => Object.entries(attrs).map(([attrName, attrValue]) => [elName, attrName, attrValue] as [string, string, any]))
+			// Now we have pairs of [elementname, attributename, attributevalue(s)] e.g. [speech, person, Einstein] for <speech person="Einstein"/>
+			.forEach(([elName, attrName, attrValue]) => {
+				const id = spanFilterId(elName, attrName);
+				const filter = filters[id];
+				const vf = filter && getValueFunctions(filter);
+				// strange, no filter has been created for this (or it's not a span - then why are we here?), skip it ??
+				if (!filter || !vf?.isSpanFilter) {
+					console.error(`Expected to find a span filter for within clause ${elName} with attribute ${attrName}, but did not (filter id ${id}). This part of the query will be ignored.`, filters);
+					return
+				};
+
+				// TODO why are we decoding this here..
+				// This logic should live either in the query preprocessing (cql-interpreter)
+				// or in the filtervaluefunctions (probably in the bcql-interpreter though)
+				let values: string[];
+				if (typeof attrValue === 'string') {
+					if (filter.componentName === 'filter-select') {
+						// select, decode options
+						values = attrValue.split('|').map(v => unescapeRegex(v, { escapeWildcards: false }));
+					} else {
+						// text
+						values = [ unescapeRegex(attrValue, { escapeWildcards: false }) ];
 					}
-				});
-		});
+				} else if (attrValue.low || attrValue.high) {
+					values = [attrValue.low || '', attrValue.high || ''];
+				} else {
+					values = [ attrValue ];
+				}
+				result[id] = { id, values };
+			});
+		
 		return result;
 	}
 
@@ -161,13 +173,25 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		}
 
 		try {
-			// FIXME: code below claims to be important but is never used!?
 			const metadataFields = CorpusModule.get.allMetadataFieldsMap();
 			const filterDefinitions = FilterModule.getState().filters;
+			/*
+				IMPORTANT: every metadata field has a corresponding filter instance,
+				but in addition to that, there might be special filters that don't correspond directly 1-to-1 to a metadata field,
+				e.g. date-based filters that operate on separate day/month/year fields.
+				Those special filters need to be parsed first, so they can remove any values from the parsed query
+				Otherwise those values would be parsed again by the "normal" filters, leading to duplicate filters in the url state.
+
+				To do this, we create a list of all "special" filters, followed by all "normal" filters.
+				They then get a chance to parse/modify the query in that order.
+				This way, "special" filters can remove values from the query before "normal" filters get to see them.
+
+				NOTE: we explicitly allow putting values even in invisible filters (i.e. we don't check whether they're shown in the UI)
+				This to be flexible for inbound links for other applications.
+			*/
 			const allFilters = Object
-				.keys(filterDefinitions) // IMPORTANT: have "special" filters (that don't "own" their metadata field) first
-				.filter(id => metadataFields[id] == null) // that way, they can delete values from the filtervalues and prevent other filters from parsing those values as well, which would lead to the filter being "doubled" on url decode
-				.concat(UIModule.getState().search.shared.searchMetadataIds)
+				.keys(filterDefinitions)
+				.sort((a, b) => !metadataFields[a] ? -1 : !metadataFields[b] ? 1 : 0);
 
 			const filterValues: Record<string, FilterModule.FullFilterState> = {};
 
@@ -176,7 +200,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				...(luceneString ? mapReduce(parseLucene(luceneString), 'id') : {}),
 				...this.spanFilters  // also include span filters like "within <speech person='Einstein'/>"
 			};
-			Object.values(FilterModule.getState().filters).forEach(filterDefinition => {
+			allFilters.map(id => filterDefinitions[id]).forEach(filterDefinition => {
 				const valueFuncs = getValueFunctions(filterDefinition);
 				let value: unknown = valueFuncs.decodeInitialState ? valueFuncs.decodeInitialState(
 					filterDefinition.id,
@@ -225,7 +249,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	@memoize
 	private get interface(): InterfaceModule.ModuleRootState {
 		try {
-			const uiStateFromUrl: Partial<InterfaceModule.ModuleRootState>|null = JSON.parse(this.getString('interface', null, v => v.startsWith('{')?v:null)!);
+			const uiStateFromUrl = this._interfaceStateFromUrl;
 			if (!uiStateFromUrl) {
 				throw new Error('No url ui state, falling back to determining from rest of parameters.');
 			}
@@ -357,7 +381,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				t.trailingXmlTag != null ||
 				(t.repeats != null && (t.repeats.min !== 1 || t.repeats.max !== 1)) ||
 				t.optional ||
-				(t.expression != null && (t.expression.type !== 'attribute' || t.expression.operator !== '='))
+				(t.expression != null && (t.expression.type !== 'condition' || t.expression.operator !== '='))
 			) != null
 		) {
 			return null;
@@ -370,13 +394,13 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			maxSize: ExploreModule.defaults.ngram.maxSize,
 			size: cql.tokens.length,
 			tokens: cql.tokens.map(t => {
-				const valueAnnotationId = t.expression ? (t.expression as Attribute).name : defaultNgramTokenAnnotation;
+				const valueAnnotationId = t.expression ? (t.expression as Condition).name : defaultNgramTokenAnnotation;
 				const type = getCorrectUiType(uiTypeSupport.explore.ngram, allAnnotations[valueAnnotationId].uiType);
 
 				return {
 					// when expression is undefined, the token was just '[]' in the query, so set it to defaults.
 					id: valueAnnotationId,
-					value: t.expression ? decodeAnnotationValue((t.expression as Attribute).value, type).value : '',
+					value: t.expression ? decodeAnnotationValue((t.expression as Condition).value, type).value : '',
 				};
 			}),
 		};
@@ -398,17 +422,11 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	@memoize
 	private get global(): GlobalResultsModule.ExternalModuleRootState {
 		return {
-			pageSize: this.pageSize,
 			sampleMode: this.sampleMode,
 			sampleSeed: this.sampleSeed,
 			sampleSize: this.sampleSize,
 			context: this.context
 		};
-	}
-
-	@memoize
-	private get pageSize(): number {
-		return this.getNumber('number', GlobalResultsModule.defaults.pageSize, v => [20,50,100,200].includes(v) ? v : GlobalResultsModule.defaults.pageSize)!;
 	}
 
 	@memoize
@@ -459,7 +477,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				const stack = token.expression ? [token.expression] : [];
 				while (stack.length) {
 					const expr = stack.shift()!;
-					if (expr.type === 'attribute') {
+					if (expr.type === 'condition') {
 						const name = expr.name;
 						if (knownAnnotations[name] == null) {
 							debugLog(`Encountered unknown cql field ${name} while decoding query from url, ignoring.`);
@@ -491,8 +509,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 							values.push(expr.value);
 						}
 
-					} else if (expr.type === 'binaryOp') {
-						if (!(expr.operator === '&' || expr.operator === 'AND')) {
+					} else if (expr.type === 'booleanOp') {
+						if (expr.operator !== '&') {
 							throw new Error(`Properties on token ${i} are combined using unsupported operator ${expr.operator} in query ${this.expertPattern}, only AND/& operator is supported.`);
 						}
 
@@ -790,8 +808,10 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			groupBy: this.groupBy,
 			sort: this.getString('sort', null, v => v?v:null),
 			viewGroup: this.getString('viewgroup', undefined, v => (v && this.groupBy.length > 0)?v:null),
-			page: this.getNumber('first', 0, v => Math.floor(Math.max(0, v)/this.pageSize)/* round down to nearest page containing the starting index */)!,
 			groupDisplayMode: this.getString('groupDisplayMode', null, v => v?v:null),
+			first: this.getNumber('first', null, v => v != null && v >= 0 ? v : null) ?? 0,
+			number: this.getNumber('number', GlobalResultsModule.getState().pageSize, v => v != null && v > 0 ? v : null) ?? 20,
+			requestedRange: null,
 		};
 	}
 
@@ -801,6 +821,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 	private async updateParsedCql(bcql: string|null) {
 		try {
+			// Let BlackLab parse it, then try to interpret the parse tree
+			// for use in the simple, extended or advanced search forms.
 			this._parsedCql = bcql == null ? null :
 				await parseBcql(this.paths[0], bcql, CorpusModule.get.firstMainAnnotation().id);
 			if (this._parsedCql && this._parsedCql.length === 0)
@@ -822,13 +844,14 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		} catch (e) {
 			// Just accept that we cannot interpret it for use in the simple, extended or advanced
 			// search modes, and use the entire query for the Expert view.
-			this._parsedCql = [
-				{
-					query: bcql || ''
-				}
-			];
+			console.warn('BCQL query from url cannot fit in simple, extended or advanced search modes; using expert', e);
+			this._parsedCql = [{ query: bcql || '' }];
+			// Additionally, force the viewed form to be the expert form, which can contain any BCQL query,
+			// not just the subset that can be interpreted for the simple, extended and advanced forms.
+			this._interfaceStateFromUrl = null;
 		}
 	}
 
 	_parsedCql: Result[]|null = null;
+	_interfaceStateFromUrl: Partial<InterfaceModule.ModuleRootState>|null = null;
 }

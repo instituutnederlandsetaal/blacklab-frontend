@@ -106,16 +106,7 @@
 				><div v-if="loading && editable /* not visible in button when editable */" class="text-center"
 					><span class="fa fa-spinner fa-spin text-muted"></span
 				></div
-				><button v-if="resettable && filteredOptions.length"
-					type="button"
-					tabindex="-1"
-					:class="['menu-button menu-reset', 'btn btn-sm', dataClass || 'btn-default']"
-
-					@click="internalModel = {}; inputValue=''"
-				>
-					Reset
-				</button
-				><input v-if="searchable && !editable /* When it's available, edit box handles searching */"
+				><input v-if="searchableModel && !editable /* When it's available, edit box handles searching */"
 					type="text"
 					class="form-control input-sm menu-search"
 					placeholder="Filter..."
@@ -136,7 +127,16 @@
 					v-model="inputValue"
 
 					ref="focusOnClickOpen"
-			/></li>
+			/><button v-if="resettableModel && filteredOptions.length"
+					type="button"
+					tabindex="-1"
+					:class="['menu-button menu-reset', 'btn btn-sm btn-default']"
+
+					@click="internalModel = {}; inputValue=''"
+				>
+					Reset
+				</button
+			></li>
 
 			<li class="menu-body">
 				<ul class="menu-options">
@@ -251,11 +251,11 @@ export default Vue.extend({
 		options: { type: Array as () => Option[], default: () => [] as Options },
 		multiple: Boolean,
 		/** Is the dropdown list filtered by the current value (acts more as an autocomplete) */
-		searchable: Boolean,
+		searchable: {type: Boolean, default: undefined},
 		/** Allow custom values by the user? */
 		editable: Boolean,
 		/** Show reset button at top of menu? */
-		resettable: Boolean,
+		resettable: {type: Boolean, default: undefined},
 		/** Optional header content for inside the menu */
 		menuHeading: String,
 		disabled: Boolean,
@@ -334,6 +334,9 @@ export default Vue.extend({
 		uid: nextMenuId++,
 	}),
 	computed: {
+		searchableModel(): boolean { return this.searchable ?? (this.uiOptions.length >= 10 && !this.editable); },
+		resettableModel(): boolean { return this.resettable ?? this.searchableModel },
+
 		menuId(): string { return this.$attrs.id != null ? this.$attrs.id : `combobox-${this.uid}`; },
 		isOpen(): boolean { if (this.open != null) { return this.open; } else { return this.isNaturallyOpen; } },
 
@@ -876,8 +879,8 @@ export default Vue.extend({
 			immediate: true,
 			handler() { this.correctModel(this.value); }
 		},
-		editable(v: boolean) { if (!v && !this.searchable) { this.inputValue = ''; } if (v) { this.internalModel = {}; }},
-		searchable(v: boolean) { if (!v && !this.editable) { this.inputValue = ''; } },
+		editable(v: boolean) { if (!v && !this.searchableModel) { this.inputValue = ''; } if (v) { this.internalModel = {}; }},
+		searchableModel(v: boolean) { if (!v && !this.editable) { this.inputValue = ''; } },
 	},
 	mounted() {
 		// Only do this when mounted, the container selector may refer to a parent element
@@ -1054,19 +1057,16 @@ export default Vue.extend({
 	>.menu-header {
 		border-bottom: 1px solid #e5e5e5;
 		display: flex;
-		flex-direction: column;
-		&:first-child { margin-top: -5px; }
+		flex-direction: row;
 		margin-bottom: 3px;
-		gap: 3px;
+		margin-top: -5px; // compensate for menu padding
+		gap: 6px;
 		padding: 6px;
 
 		&:empty { display: none; }
 
-
 		>.menu-reset {
-			display: block;
-			width: 100%;
-			&+.menu-search { margin-top: 6px; }
+			// none
 		}
 		>.menu-search {
 			width: 100%;
