@@ -4,13 +4,14 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.logging.Logger;
 
+import org.apache.commons.lang3.StringUtils;
+
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
-import org.apache.commons.lang3.StringUtils;
-
-import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
+import nl.inl.corpuswebsite.config.CorpusConfig;
+import nl.inl.corpuswebsite.config.GlobalConfig;
+import nl.inl.corpuswebsite.config.GlobalConfig.Keys;
 
 /**
  * Helper class for talking to BlackLab.

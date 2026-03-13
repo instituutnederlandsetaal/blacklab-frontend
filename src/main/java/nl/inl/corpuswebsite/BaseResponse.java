@@ -7,7 +7,6 @@
 package nl.inl.corpuswebsite;
 
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -18,7 +17,6 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.event.EventCartridge;
 import org.apache.velocity.app.event.ReferenceInsertionEventHandler;
@@ -26,16 +24,14 @@ import org.apache.velocity.context.Context;
 import org.apache.velocity.tools.generic.DateTool;
 import org.apache.velocity.tools.generic.EscapeTool;
 
-import nl.inl.corpuswebsite.utils.GlobalConfig;
-import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
+import nl.inl.corpuswebsite.config.GlobalConfig;
+import nl.inl.corpuswebsite.config.WebsiteConfig;
+import nl.inl.corpuswebsite.config.GlobalConfig.Keys;
 import nl.inl.corpuswebsite.utils.QueryException;
 import nl.inl.corpuswebsite.utils.ReturnToClientException;
-import nl.inl.corpuswebsite.utils.WebsiteConfig;
 
 public abstract class BaseResponse {
     protected static final Logger logger = Logger.getLogger(BaseResponse.class.getName());
-
-    protected static final String OUTPUT_ENCODING = "UTF-8";
 
     protected static final EscapeTool esc = new EscapeTool();
     protected static final DateTool date = new DateTool();
@@ -175,35 +171,6 @@ public abstract class BaseResponse {
             });
             model.attachEventCartridge(cartridge);
         }
-    }
-
-    /**
-     * Display a specific template, with specific mime type
-     *
-     * @param template template to display
-     * @param mimeType mime type to set
-     */
-    protected void displayTemplate(Template template, String mimeType) {
-        // Set the content headers for the response
-        response.setCharacterEncoding(OUTPUT_ENCODING);
-        response.setContentType(mimeType);
-
-        // Merge context into the page template and write to output stream
-        try (OutputStreamWriter osw = new OutputStreamWriter(response.getOutputStream(), OUTPUT_ENCODING)) {
-            template.merge(model, osw);
-            osw.flush();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    /**
-     * Display a template with the HTML mime type
-     *
-     * @param template the xslt template instance
-     */
-    protected void displayHtmlTemplate(Template template) {
-        displayTemplate(template, "text/html");
     }
 
     /**

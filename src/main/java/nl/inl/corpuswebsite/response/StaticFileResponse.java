@@ -10,11 +10,13 @@ import java.util.Optional;
 import jakarta.servlet.http.HttpServletResponse;
 
 import nl.inl.corpuswebsite.BaseResponse;
-import nl.inl.corpuswebsite.utils.StaticFileHandler;
+import nl.inl.corpuswebsite.http.FileHttpResource;
+import nl.inl.corpuswebsite.http.HttpResourceResponder;
+import nl.inl.corpuswebsite.http.HttpResourceType;
 
-public class CorporaDataResponse extends BaseResponse {
+public class StaticFileResponse extends BaseResponse {
 
-    public CorporaDataResponse() {
+    public StaticFileResponse() {
         super("data", false); // allow getting static files without corpus, this normally never happens, but we clear the corpus for /default/ static files
     }
 
@@ -38,7 +40,8 @@ public class CorporaDataResponse extends BaseResponse {
             }
             
             String mime = servlet.getServletContext().getMimeType(pathString);
-            StaticFileHandler.serveFile(request, response, file.get(), mime);
+            FileHttpResource resource = FileHttpResource.fromFile(file.get(), HttpResourceType.ASSET);
+            HttpResourceResponder.serve(request, response, resource, mime);
         } catch (InvalidPathException e1) { // runtimeException from Path.resolve; when weird paths are being requested
             response.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;

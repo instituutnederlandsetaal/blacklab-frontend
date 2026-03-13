@@ -191,7 +191,7 @@ class URLBuilder<T extends URLBuilder<T>> {
             connection.connect();
             return connection;
         } catch (IOException e) {
-            throw QueryException.wrap(e, "Error connecting to url " + url);
+            throw QueryException.wrap(e);
         }
     }
 }

@@ -1,4 +1,4 @@
-package nl.inl.corpuswebsite.utils;
+package nl.inl.corpuswebsite.config;
 
 import java.io.BufferedReader;
 import java.io.File;

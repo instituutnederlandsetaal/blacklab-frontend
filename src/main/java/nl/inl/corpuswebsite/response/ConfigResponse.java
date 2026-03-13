@@ -2,12 +2,13 @@ package nl.inl.corpuswebsite.response;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import nl.inl.corpuswebsite.BaseResponse;
-import nl.inl.corpuswebsite.utils.GlobalConfig;
-import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
+import nl.inl.corpuswebsite.config.GlobalConfig;
+import nl.inl.corpuswebsite.config.GlobalConfig.Keys;
 
 /** Show the about page. */
 public class ConfigResponse extends BaseResponse {
@@ -17,10 +18,10 @@ public class ConfigResponse extends BaseResponse {
 
     @Override
     protected void completeRequest() {
-        response.setCharacterEncoding(OUTPUT_ENCODING);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType("application/json");
 
-        try (OutputStreamWriter osw = new OutputStreamWriter(response.getOutputStream(), OUTPUT_ENCODING)) {
+        try (OutputStreamWriter osw = new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8)) {
             GlobalConfig globalConfig = servlet.getGlobalConfig();
             ObjectMapper mapper = new ObjectMapper();
             ObjectNode json = mapper.createObjectNode();

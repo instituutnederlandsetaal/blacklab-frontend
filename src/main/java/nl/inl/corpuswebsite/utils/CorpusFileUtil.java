@@ -17,7 +17,9 @@ import org.apache.commons.lang3.StringUtils;
 
 import net.sf.saxon.s9api.SaxonApiException;
 import nl.inl.corpuswebsite.MainServlet;
-import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
+import nl.inl.corpuswebsite.config.CorpusConfig;
+import nl.inl.corpuswebsite.config.GlobalConfig;
+import nl.inl.corpuswebsite.config.GlobalConfig.Keys;
 
 public class CorpusFileUtil {
     private static final Logger logger = Logger.getLogger(CorpusFileUtil.class.getName());
@@ -34,10 +36,10 @@ public class CorpusFileUtil {
      * </pre>
      *
      * @param filesDir - the root dir where per-corpus files are stored (so not already resolved to the corpus name)
-     *                      (i.e. {@link nl.inl.corpuswebsite.utils.GlobalConfig.Keys#CORPUS_CONFIG_DIR })
+     *                      (i.e. {@link nl.inl.corpuswebsite.config.GlobalConfig.Keys#CORPUS_CONFIG_DIR })
      * @param corpus - corpus for which to get the file. If null or a user-defined corpus only the default locations are
      *         checked.
-     * @param fallbackCorpus - for when the corpus does not exist, try this one instead (i.e. {@link nl.inl.corpuswebsite.utils.GlobalConfig.Keys#DEFAULT_CORPUS_CONFIG}).
+     * @param fallbackCorpus - for when the corpus does not exist, try this one instead (i.e. {@link nl.inl.corpuswebsite.config.GlobalConfig.Keys#DEFAULT_CORPUS_CONFIG}).
      * @param filePath - path to the file relative to the directory for the corpus.
      * @return the file, if found
      */

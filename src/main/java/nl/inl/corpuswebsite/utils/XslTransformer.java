@@ -18,21 +18,21 @@ import javax.xml.transform.Source;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamSource;
 
+import org.w3c.dom.Document;
+
+import net.sf.saxon.lib.ErrorReporter;
 import net.sf.saxon.s9api.DocumentBuilder;
 import net.sf.saxon.s9api.Message;
 import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.s9api.QName;
 import net.sf.saxon.s9api.SaxonApiException;
 import net.sf.saxon.s9api.Serializer;
-import net.sf.saxon.s9api.XdmAtomicValue;
 import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XdmValue;
+import net.sf.saxon.s9api.XmlProcessingError;
 import net.sf.saxon.s9api.XsltCompiler;
 import net.sf.saxon.s9api.XsltExecutable;
 import net.sf.saxon.s9api.XsltTransformer;
-import net.sf.saxon.lib.ErrorReporter;
-import net.sf.saxon.s9api.XmlProcessingError;
-import org.w3c.dom.Document;
 
 
 public class XslTransformer {

@@ -12,7 +12,11 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 
 import nl.inl.corpuswebsite.MainServlet;
-import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
+import nl.inl.corpuswebsite.config.CorpusConfig;
+import nl.inl.corpuswebsite.config.GlobalConfig;
+import nl.inl.corpuswebsite.config.WebsiteConfig;
+import nl.inl.corpuswebsite.config.GlobalConfig.Keys;
+
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;

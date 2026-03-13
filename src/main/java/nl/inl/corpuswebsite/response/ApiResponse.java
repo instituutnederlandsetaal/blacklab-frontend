@@ -1,17 +1,22 @@
 package nl.inl.corpuswebsite.response;
 
+import java.io.IOException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
-import nl.inl.corpuswebsite.BaseResponse;
-import nl.inl.corpuswebsite.utils.*;
-
-import java.io.IOException;
-import java.io.StringWriter;
-import java.nio.charset.StandardCharsets;
-
-import org.apache.commons.lang3.exception.ExceptionUtils;
 import jakarta.servlet.http.HttpServletResponse;
+import nl.inl.corpuswebsite.BaseResponse;
+import nl.inl.corpuswebsite.config.CorpusConfig;
+import nl.inl.corpuswebsite.config.WebsiteConfig;
+import nl.inl.corpuswebsite.http.HttpResourceResponder;
+import nl.inl.corpuswebsite.http.HttpResourceType;
+import nl.inl.corpuswebsite.http.InMemoryHttpResource;
+import nl.inl.corpuswebsite.utils.ArticleUtil;
+import nl.inl.corpuswebsite.utils.QueryException;
+import nl.inl.corpuswebsite.utils.Result;
+import nl.inl.corpuswebsite.utils.ReturnToClientException;
+import nl.inl.corpuswebsite.velocity.TemplateUtils;
 
 /**
  * We need a rudimentary API for some of the content that needs to processed serverside.
@@ -76,21 +81,14 @@ public class ApiResponse extends BaseResponse {
 
     public void indexMetadata() {
         if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
-        // Use public caching only for unauthenticated requests
-        // This allows localStorage caching on the client for public corpora
-        boolean isPublic = servlet.useCache(request);
-        
+
         servlet.getCorpusConfig(corpus, request, response)
             .mapError(QueryException::wrap)
             .map(CorpusConfig::getJsonUnescaped)
-            .tap(json -> serveWithETag(json, "application/json; charset=utf-8", isPublic))
-            .mapError(ReturnToClientException::wrap)
-            .throwIfError();
+            .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
     }
 
     public void siteConfig() {
-        boolean isPublic = servlet.useCache(request);
-
         Result.success(servlet.getWebsiteConfig(corpus))
             .map(WebsiteConfig.WebsiteConfigJson::new)
             .mapWithErrorHandling(config -> {
@@ -98,68 +96,33 @@ public class ApiResponse extends BaseResponse {
                 mapper.enable(SerializationFeature.INDENT_OUTPUT);
                 return mapper.writeValueAsString(config);
             })
-            .tap(json -> serveWithETag(json, "application/json; charset=utf-8", isPublic))
-            .mapError(ReturnToClientException::wrap)
-            .throwIfError();
-    }
-
-    /**
-     * Serve content with ETag support for caching.
-     * Used for corpus info endpoint where the content doesn't change frequently.
-     * 
-     * @param content The content to serve
-     * @param contentType The content type
-     * @param isPublic If true, response can be cached by shared caches (proxies/CDNs) and localStorage.
-     *                 If false, only the browser's private HTTP cache can store the response.
-     */
-    private void serveWithETag(String content, String contentType, boolean isPublic) {
-        try {
-            StaticFileHandler.serveContent(request, response, content, contentType, isPublic);
-        } catch (IOException e) {
-            throw new ReturnToClientException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-        }
-    }
-    private void serveWithETag(String content, String contentType, Date lastModified, boolean isPublic) {
-        try {
-            StaticFileHandler.serveContent(request, response, content, contentType, lastModified, isPublic);
-        } catch (IOException e) {
-            throw new ReturnToClientException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
-        }
+            .mapError(QueryException::wrap)
+            .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
     }
 
     public void help() {
         Result.attempt(() -> servlet.getHelpPage(corpus))
-                .mapWithErrorHandling(servlet::parseAsTemplate)
-                .mapWithErrorHandling(template -> {
-                    StringWriter writer = new StringWriter();
-                    template.merge(model, writer);
-                    return writer.toString();
-                })
+                .mapWithErrorHandling(templateFile -> TemplateUtils.renderTemplateToString(templateFile, model))
                 .mapError(QueryException::wrap)
                 .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
     }
 
     public void about() {
         Result.attempt(() -> servlet.getAboutPage(corpus))
-                .mapWithErrorHandling(servlet::parseAsTemplate)
-                .mapWithErrorHandling(template -> {
-                    StringWriter writer = new StringWriter();
-                    template.merge(model, writer);
-                    return writer.toString();
-                })
+                .mapWithErrorHandling(templateFile -> TemplateUtils.renderTemplateToString(templateFile, model))
                 .mapError(QueryException::wrap)
                 .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
     }
 
     protected void sendResult(Result<String, QueryException> r, String contentType) {
         r.tap(contents -> {
+            boolean isPublic = servlet.useCache(request);
+            HttpResourceType resourceType = isPublic ? HttpResourceType.API_PUBLIC : HttpResourceType.API_PRIVATE;
+            InMemoryHttpResource resource = InMemoryHttpResource.fromString(contents, resourceType, System.currentTimeMillis());
             try {
-                response.setHeader("Content-Type", contentType);
-                response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-                response.getWriter().write(contents);
-                response.flushBuffer();
+                HttpResourceResponder.serve(request, response, resource, contentType);
             } catch (IOException e) {
-                throw ReturnToClientException.wrap(e);
+                throw new ReturnToClientException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }).tapError(error -> {
             throw ReturnToClientException.wrap(error);

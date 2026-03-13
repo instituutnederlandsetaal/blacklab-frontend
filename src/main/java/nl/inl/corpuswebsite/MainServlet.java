@@ -7,21 +7,27 @@
 package nl.inl.corpuswebsite;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Properties;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.velocity.Template;
+import org.apache.velocity.app.Velocity;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -29,31 +35,22 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.velocity.Template;
-import org.apache.velocity.app.Velocity;
-
 import net.sf.saxon.s9api.SaxonApiException;
-import org.apache.velocity.runtime.RuntimeServices;
-import org.apache.velocity.runtime.RuntimeSingleton;
-import org.apache.velocity.runtime.parser.ParseException;
+import nl.inl.corpuswebsite.config.CorpusConfig;
+import nl.inl.corpuswebsite.config.GlobalConfig;
+import nl.inl.corpuswebsite.config.GlobalConfig.Keys;
+import nl.inl.corpuswebsite.config.WebsiteConfig;
 import nl.inl.corpuswebsite.response.ApiResponse;
 import nl.inl.corpuswebsite.response.ConfigResponse;
-import nl.inl.corpuswebsite.response.CorporaDataResponse;
 import nl.inl.corpuswebsite.response.IndexResponse;
 import nl.inl.corpuswebsite.response.OidcCallbackResponse;
+import nl.inl.corpuswebsite.response.StaticFileResponse;
 import nl.inl.corpuswebsite.utils.BlackLabApi;
-import nl.inl.corpuswebsite.utils.CorpusConfig;
 import nl.inl.corpuswebsite.utils.CorpusFileUtil;
-import nl.inl.corpuswebsite.utils.GlobalConfig;
 import nl.inl.corpuswebsite.utils.HttpException;
-import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
-import nl.inl.corpuswebsite.utils.QueryException;
 import nl.inl.corpuswebsite.utils.Result;
-import nl.inl.corpuswebsite.utils.ReturnToClientException;
-import nl.inl.corpuswebsite.utils.WebsiteConfig;
 import nl.inl.corpuswebsite.utils.XslTransformer;
+import nl.inl.corpuswebsite.velocity.TemplateUtils;
 
 /**
  * Main servlet class for the corpus application.
@@ -69,6 +66,7 @@ public class MainServlet extends HttpServlet {
      * Where to find the Velocity properties file
      */
     private static final String VELOCITY_PROPERTIES = "/WEB-INF/config/velocity.properties";
+    private static final String TEMPLATE_BASE_PATH = "/WEB-INF/templates/";
 
     /**
      * Per-corpus configuration parameters (from search.xml)
@@ -106,7 +104,7 @@ public class MainServlet extends HttpServlet {
             // Map responses, the majority of these can be served for a specific corpus, or as a general autosearch page
             // E.G. the AboutResponse is mapped to /<root>/<corpus>/about and /<root>/about
             responses.put("", IndexResponse.class);
-            responses.put("static", CorporaDataResponse.class);
+            responses.put("static", StaticFileResponse.class);
             responses.put("config", ConfigResponse.class);
             responses.put("api", ApiResponse.class);
             responses.put("callback", OidcCallbackResponse.class);
@@ -128,64 +126,25 @@ public class MainServlet extends HttpServlet {
         Velocity.setApplicationAttribute(ServletContext.class.getName(), ctx);
 
         Properties p = new Properties();
-        try (InputStream is = getServletContext().getResourceAsStream(VELOCITY_PROPERTIES)) {
+        try (InputStream is = ctx.getResourceAsStream(VELOCITY_PROPERTIES)) {
             p.load(is);
         }
         Velocity.init(p);
     }
 
-    public Template parseAsTemplate(File f) {
-        try {
-            RuntimeServices runtimeServices = RuntimeSingleton.getRuntimeServices();
-            Template template = new Template();
-            template.setRuntimeServices(runtimeServices);
-            template.setName(f.getName());
-
-            /*
-             * The following line works for Velocity version up to 1.7
-             * For version 2, replace "Template name" with the variable, template
-             */
-            runtimeServices.parse(new InputStreamReader(new FileInputStream(f), StandardCharsets.UTF_8), template);
-            template.initDocument();
-            return template;
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to read template content from InputStream", e);
-        } catch (ParseException e) {
-            throw new RuntimeException("Failed to parse template content", e);
-        }
-    }
-
-
     /**
-     * Get the velocity template
+     * Get a builtin velocity template
      *
-     * @param templateName name of the template, excluding filename (.vm) suffix
+     * @param templateName name of the template, with or without .vm suffix
      * @return velocity template
      */
     public synchronized Template getTemplate(String templateName) {
-        templateName = templateName + ".vm";
-
-        if (Velocity.resourceExists(templateName)) {
-            if (templates.containsKey(templateName)) {
-                return templates.get(templateName);
-            }
-
-            try {
-                Template t = Velocity.getTemplate(templateName, "utf-8");
-                templates.put(templateName, t);
-                return t;
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        // The template doesn't exist, so we'll display an error page
-        // it is important that the error template is available,
-        // or we'll end up in an infinite loop
-        if (templateName.equals("error.vm")) {
-            throw new RuntimeException("Could not find error template, giving up");
-        }
-        return getTemplate("error");
+        return templates.computeIfAbsent(templateName.endsWith(".vm") ? templateName : templateName + ".vm", tn -> {
+            InputStream is = getServletContext().getResourceAsStream(TEMPLATE_BASE_PATH + tn);
+            if (is == null) 
+                throw new RuntimeException("Could not find template: " + tn);
+            return TemplateUtils.loadTemplate(is, templateName);
+        });
     }
 
     /**

@@ -1,4 +1,4 @@
-package nl.inl.corpuswebsite.utils;
+package nl.inl.corpuswebsite.config;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -31,7 +31,8 @@ import net.sf.saxon.s9api.SaxonApiException;
 import net.sf.saxon.s9api.XPathCompiler;
 import net.sf.saxon.s9api.XdmItem;
 import net.sf.saxon.s9api.XdmNode;
-import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
+import nl.inl.corpuswebsite.config.GlobalConfig.Keys;
+import nl.inl.corpuswebsite.utils.CorpusFileUtil;
 
 /**
  * Configuration read from the Search.xml config file specific to a corpus.
