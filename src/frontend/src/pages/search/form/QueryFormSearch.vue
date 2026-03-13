@@ -155,6 +155,7 @@ import * as GlossStore from '@/store/form/glossStore';
 import * as ConceptStore from '@/store/form/conceptStore';
 import * as GapStore from '@/store/form/gap';
 import * as HistoryStore from '@/store/history';
+import * as FilterStore from '@/store/form/filters';
 
 import Annotation from '@/pages/search/form/Annotation.vue';
 import SearchAdvanced from '@/pages/search/form/SearchAdvanced.vue';
@@ -316,7 +317,6 @@ export default ParallelFields.extend({
 
 			// Can't just use the string, we need to generate the query when this is a parallel corpus
 
-			const currentCorpus = CorpusStore.getState().corpus!.id;
 			const mainAnnotationId = CorpusStore.get.firstMainAnnotation().id;
 			const builtQuery = getPatternStringFromCql(
 				PatternStore.getState().expert.query || '',
@@ -326,7 +326,7 @@ export default ParallelFields.extend({
 				PatternStore.getState().shared.alignBy
 			);
 			let parsed: Result[]|null = null;
-			try { parsed = await parseBcql(currentCorpus, builtQuery, mainAnnotationId); }
+			try { parsed = await parseBcql(CorpusStore.get.indexId()!, builtQuery, mainAnnotationId); }
 			catch {}
 			if (!parsed) {
 				this.parseQueryError = 'The querybuilder could not parse your query.';

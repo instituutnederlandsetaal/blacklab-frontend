@@ -1,32 +1,39 @@
 <template>
-<SelectPicker
-	class="locale"
-	data-class="btn-navbar"
-	data-width="auto"
-	data-menu-width="auto"
-	right
-	hideEmpty
-	:placeholder="'🌐\uFE0E'"
+	<SelectPicker
+		class="locale-select navbar-dropdown"
+		data-class="btn-link navbar-brand navbar-dropdown-button"
+		data-width="auto"
+		data-menu-width="auto"
+		right
+		hideEmpty
+		placeholder="🌐"
+		allowUnknownValues
 
-	:options="availableLocales"
-	:loading="loading.value"
-	:showValues="false"
-
-	v-model="$i18n.locale"
-/>
-
+		:options="availableLocales"
+		:loading="loading"
+		:showValues="false"
+		v-model="value"
+	/>
 </template>
+
 
 <script lang="ts">
 import Vue from 'vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 
-import {i18n, loading, availableLocales} from '@/utils/i18n';
+import {i18n, i18nManager} from '@/utils/i18n';
 
 export default Vue.extend({
 	i18n,
 	components: { SelectPicker },
-	data: () => ({ loading, availableLocales }),
+	computed: {
+		value: {
+			get(): string|null|undefined { return i18nManager.localeState.value?.value; },
+			set(v: string) { i18nManager.setLocale(v); }
+		},
+		loading(): boolean { return i18nManager.loading.value; },
+		availableLocales() { return i18nManager.availableLocales.value; }
+	},
 });
 
 </script>

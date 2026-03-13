@@ -29,14 +29,12 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import javax.xml.transform.TransformerException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.app.Velocity;
 
 import net.sf.saxon.s9api.SaxonApiException;
-import nl.inl.corpuswebsite.response.AboutResponse;
 import org.apache.velocity.runtime.RuntimeServices;
 import org.apache.velocity.runtime.RuntimeSingleton;
 import org.apache.velocity.runtime.parser.ParseException;
@@ -49,13 +47,13 @@ import nl.inl.corpuswebsite.utils.BlackLabApi;
 import nl.inl.corpuswebsite.utils.CorpusConfig;
 import nl.inl.corpuswebsite.utils.CorpusFileUtil;
 import nl.inl.corpuswebsite.utils.GlobalConfig;
+import nl.inl.corpuswebsite.utils.HttpException;
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 import nl.inl.corpuswebsite.utils.QueryException;
 import nl.inl.corpuswebsite.utils.Result;
 import nl.inl.corpuswebsite.utils.ReturnToClientException;
 import nl.inl.corpuswebsite.utils.WebsiteConfig;
 import nl.inl.corpuswebsite.utils.XslTransformer;
-import org.apache.velocity.tools.config.EasyFactoryConfiguration;
 
 /**
  * Main servlet class for the corpus application.
@@ -129,24 +127,6 @@ public class MainServlet extends HttpServlet {
         // Read in the WebApplicationResourceLoader
         Velocity.setApplicationAttribute(ServletContext.class.getName(), ctx);
 
-
-
-        /*
-        # Set the in- and output encoding
-                input.encoding=UTF-8
-                output.encoding=UTF-8
-
-                runtime.log.logsystem.class=org.apache.velocity.runtime.log.NullLogSystem
-
-        # Configure the resource loader (WebappLoader: load templates from WAR)
-                resource.loader=webapp
-                webapp.resource.loader.class=org.apache.velocity.tools.view.WebappResourceLoader
-                webapp.resource.loader.path=/WEB-INF/templates/
-
-        # Enable strict mode, no implicit variable declaration and implicit swallowing of undefined/null properties in context.
-                        runtime.references.strict=true
-        */
-
         Properties p = new Properties();
         try (InputStream is = getServletContext().getResourceAsStream(VELOCITY_PROPERTIES)) {
             p.load(is);
@@ -156,9 +136,7 @@ public class MainServlet extends HttpServlet {
 
     public Template parseAsTemplate(File f) {
         try {
-            String templateContent = Files.readString(f.toPath(), StandardCharsets.UTF_8);
             RuntimeServices runtimeServices = RuntimeSingleton.getRuntimeServices();
-            StringReader reader = new StringReader(templateContent);
             Template template = new Template();
             template.setRuntimeServices(runtimeServices);
             template.setName(f.getName());
@@ -328,17 +306,12 @@ public class MainServlet extends HttpServlet {
 
                 br.init(request, response, this, Optional.ofNullable(corpus), pathParameters);
                 br.completeRequest();
-            } catch (QueryException e) {
+            } catch (HttpException e) {
                 if (e.getHttpStatusCode() != HttpServletResponse.SC_OK) {
-                    response.sendError(e.getHttpStatusCode(), e.getMessage());
+                    response.sendError(e.getHttpStatusCode(), e.getBody());
                 } else {
-                    response.getWriter().write(e.getMessage());
+                    response.getWriter().write(e.getBody());
                 }
-            } catch (ReturnToClientException e) {
-                if (e.getCode() != HttpServletResponse.SC_OK)
-                    response.sendError(e.getCode(), e.getMessage());
-                else if (e.getMessage() != null)
-                    response.getWriter().write(e.getMessage());
             }
         } catch (Exception e) {
             throw new ServletException(e);

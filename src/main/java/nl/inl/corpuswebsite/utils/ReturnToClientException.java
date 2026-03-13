@@ -1,45 +1,22 @@
 package nl.inl.corpuswebsite.utils;
 
-import jakarta.servlet.http.HttpServletResponse;
-
 /** 
  * Should never be caught, only propagated to the top level, at which point the code and body should be returned to the client.
  * Yes yes.. Exceptions as control flow is bad practice, but in this case it makes perfect sense because we never know when we need abort/return control to the client. 
  * We only use this in unrecoverable situations (blacklab returned 404, 401, that sort of thing).
  */
-public class ReturnToClientException extends RuntimeException {
-	int code;
-	String body;
-	
-	public ReturnToClientException(Exception e) {
+public class ReturnToClientException extends HttpException {
+	private ReturnToClientException(Exception e) {
 		super(e);
-		if (e instanceof ReturnToClientException) {
-			this.code = ((ReturnToClientException) e).getCode();
-			this.body = ((ReturnToClientException) e).getBody();
-		} else if (e instanceof QueryException) {
-			this.code = ((QueryException) e).getHttpStatusCode();
-			this.body = e.getMessage();
-		} else {
-			this.code = HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-			this.body = e.getMessage();
-		}
 	}
 	public ReturnToClientException(int code, String body) {
+		super(code, body);
+	}
+	public ReturnToClientException(String body) {
 		super(body);
-		this.code = code;
-		this.body = body;
 	}
 	public ReturnToClientException(int code) {
-		super();
-		this.code = code;
-	}
-
-	public int getCode() {
-		return code;
-	}
-
-	public String getBody() {
-		return body;
+		super(code);
 	}
 
 	public static ReturnToClientException wrap(Exception e) {

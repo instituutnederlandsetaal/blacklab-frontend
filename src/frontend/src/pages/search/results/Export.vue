@@ -67,7 +67,7 @@ export default Vue.extend({
 	}),
 	computed: {
 		spanAttributesToExport(): string[] {
-			const spans = Object.entries(CorpusStore.getState().corpus?.relations.spans || {});
+			const spans = Object.entries(CorpusStore.get.corpus()!.relations.spans || {});
 			return spans.flatMap(([spanName, spanInfo]) =>
 				Object.keys(spanInfo.attributes || {})
 					.map(attrName => [ spanName, attrName ])

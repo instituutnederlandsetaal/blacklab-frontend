@@ -23,6 +23,8 @@ class I18nManager {
 	private readonly localeStates = reactive<Record<string, LocaleState>>({});
 	private readonly nextLocale = ref<string|null>(null);
 	private nextFallbackLocale: string | null = null;
+	private indexId: string | null = null;
+	private localeContentVersion = 0;
 
 	public static PRIORITY_SET_BY_USER = 3;
 	public static PRIORITY_EXPLICIT_DEFAULT = 2;
@@ -61,7 +63,8 @@ class I18nManager {
 			}));
 	});
 
-	constructor(localStorageKey?: string) {
+	constructor(localStorageKey?: string, initialIndexId?: string|null) {
+		this.indexId = initialIndexId ?? null;
 		if (localStorageKey) {
 			if (localStorage.getItem(localStorageKey)) {
 				this.setLocale(localStorage.getItem(localStorageKey)!, I18nManager.PRIORITY_SET_BY_USER);
@@ -77,6 +80,43 @@ class I18nManager {
 		// Wait a moment, because maybe another script wants to set locale with a higher prio.
 		// which will work, but by waiting we allow that to happen first and can potentially save a download.
 		setTimeout(() => this.setLocale(navigator.language, I18nManager.PRIORITY_BROWSER), 0);
+	}
+
+	/**
+	 * Set the active index id for locale override fetching and refresh loaded locale messages.
+	 */
+	setIndexId(indexId: string | null | undefined): Promise<void> {
+		const normalizedIndexId = indexId || null;
+		if (this.indexId === normalizedIndexId) {
+			return Promise.resolve();
+		}
+
+		this.indexId = normalizedIndexId;
+		return this.invalidateLocaleMessages();
+	}
+
+	private invalidateLocaleMessages(): Promise<void> {
+		this.localeContentVersion++;
+
+		Object.values(this.localeStates).forEach(state => {
+			state.messages = null;
+			state.error = null;
+			state.loading = null;
+		});
+
+		const targetFallbackLocale = this.nextFallbackLocale ?? this.fallbackLocale.value;
+		const targetLocale = this.nextLocale.value ?? this.locale.value;
+		const nextPriority = Math.max(this.highestLocalePrecedence, I18nManager.PRIORITY_BROWSER);
+
+		const reloads: Promise<void>[] = [];
+		if (targetFallbackLocale) {
+			reloads.push(this.setFallbackLocale(targetFallbackLocale));
+		}
+		if (targetLocale) {
+			reloads.push(this.setLocale(targetLocale, nextPriority));
+		}
+
+		return Promise.all(reloads).then(() => undefined);
 	}
 
 	/**
@@ -187,17 +227,29 @@ class I18nManager {
 		if (state.messages) return Promise.resolve(state);
 		else if (state.error) { return Promise.reject(state); }
 		if (state.loading) return state.loading;
+		const requestedVersion = this.localeContentVersion;
 
-		return state.loading = I18nManager.loadLocaleMessages(localeId)
-			.then(messages => { state.messages = messages; return state; })
-			.catch(error => { state.error = error; return state; })
+		return state.loading = this.loadLocaleMessages(localeId, requestedVersion)
+			.then(messages => {
+				if (requestedVersion !== this.localeContentVersion) return state;
+				state.messages = messages;
+				return state;
+			})
+			.catch(error => {
+				if (requestedVersion !== this.localeContentVersion) return state;
+				state.error = error;
+				return state;
+			})
 			.finally(() => state.loading = null);
 	}
 
 	/**
 	 * Load locale messages from built-in files and external overrides.
 	 */
-	private static async loadLocaleMessages(localeId: string): Promise<LocaleMessageObject> {
+	private async loadLocaleMessages(localeId: string, contentVersion: number): Promise<LocaleMessageObject> {
+		if (contentVersion !== this.localeContentVersion) {
+			throw new Error(`Stale locale load for ${localeId}`);
+		}
 		let messages: LocaleMessageObject | null = null;
 		let overrides: LocaleMessageObject | null = null;
 
@@ -210,7 +262,7 @@ class I18nManager {
 
 		// Try to load external overrides
 		try {
-			const response = await fetch(`${CONTEXT_URL}${INDEX_ID ? `/${INDEX_ID}` : ''}/static/locales/${localeId}.json`)
+			const response = await fetch(`${CONTEXT_URL}${this.indexId ? `/${this.indexId}` : ''}/static/locales/${localeId}.json`)
 
 			if (response.ok) {
 				overrides = await parseJsonWithComments(response);
@@ -218,7 +270,7 @@ class I18nManager {
 				console.info(`Failed to fetch locale overrides for ${localeId}: ${response.statusText}`);
 			}
 		} catch (e) {
-			console.warn(`Override ${INDEX_ID}/static/locales/${localeId}.json does not appear to be valid JSON! Skipping overrides.`, e);
+			console.warn(`Override ${this.indexId ?? ''}/static/locales/${localeId}.json does not appear to be valid JSON! Skipping overrides.`, e);
 		}
 
 		// If we have neither built-in messages nor overrides, and this isn't a registered locale, throw an error

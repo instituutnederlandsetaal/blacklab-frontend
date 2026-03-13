@@ -47,7 +47,6 @@ import { GroupRowData, makeRows, Rows } from '@/pages/search/results/table/table
 import * as CorpusStore from '@/store/corpus';
 import Spinner from '@/components/Spinner.vue';
 import IRow from '@/pages/search/results/table/IRow.vue';
-import * as CorpusStore from '@/store/search/corpus';
 
 export default Vue.component('GroupRowDetails', IRow.extend({
 	components: { Spinner },
@@ -60,28 +59,34 @@ export default Vue.component('GroupRowDetails', IRow.extend({
 		createGetter() {
 			this.concordances = new PaginatedGetter((oldRows, first, number) => {
 				// make a copy of the parameters so we don't clear them for all components using the summary
-				const requestParameters: BLSearchParameters = Object.assign({}, this.query, {
+				const requestParameters: BLSearchParameters = {
+					...this.query,
 					// Do not clear sample/samplenum/samplecount,
 					// or we could retrieve concordances that weren't included in the input results for the grouping
 					number,
 					first,
 					viewgroup: this.row.id,
-					sort: CorpusStore.get.isParallelCorpus() ? 'alignments' : undefined, // if parallel corpus, show aligned hits first. (if not, we don't care about order)
-				} as BLSearchParameters);
+					// if parallel corpus, show aligned hits first. (if not, we don't care about order)
+					sort: CorpusStore.get.isParallelCorpus() ? 'alignments' : undefined, 
+				}
+			
+				const indexId = CorpusStore.get.indexId()!;
+				const r = this.type === 'hits' 
+					? blacklab.getHits<BLHitResults>(indexId, requestParameters) 
+					: blacklab.getDocs<BLDocResults>(indexId, requestParameters);
+				
+				return r
+					.then(newResults => makeRows(newResults, this.info))
+					.then(newRows => {
+						if (this.type === 'hits') newRows.rows = newRows.rows.filter(r => r.type === 'hit');
+						else newRows.rows = newRows.rows.filter(r => r.type === 'doc');
 
-			const indexId = CorpusStore.get.indexId()!;
-			return (this.type === 'hits' ? blacklab.getHits<BLHitResults>(indexId, requestParameters) : blacklab.getDocs<BLDocResults>(indexId, requestParameters))
-				.then(newResults => makeRows(newResults, this.info))
-				.then(newRows => {
-					if (this.type === 'hits') newRows.rows = newRows.rows.filter(r => r.type === 'hit');
-					else newRows.rows = newRows.rows.filter(r => r.type === 'doc');
-
-
-					if (!oldRows) return newRows;
-					oldRows.rows.push(...newRows.rows);
-					return oldRows;
-				});
-		}, this.row.size)
+						if (!oldRows) return newRows;
+						oldRows.rows.push(...newRows.rows);
+						return oldRows;
+					});
+			}, this.row.size)
+		}
 	},
 	watch: {
 		row: {

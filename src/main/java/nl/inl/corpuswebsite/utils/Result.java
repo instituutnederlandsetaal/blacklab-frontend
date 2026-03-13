@@ -35,7 +35,7 @@ public class Result<R, E extends Exception> {
         ReturnToClientException.class
     );
 
-    /** If the exception is of a type that should never be caught, throw it. */
+    /** If the exception is or extends a type that should never be caught, throw it. */
     private static  <T extends Exception> void checkThrow(T e) {
         if (e instanceof RuntimeException) {
             if (neverCatch.stream().anyMatch(c -> c.isAssignableFrom(e.getClass()))) throw (RuntimeException) e;

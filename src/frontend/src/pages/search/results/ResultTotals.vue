@@ -73,10 +73,19 @@ export default Vue.extend({
 		indexId: {
 			required: true,
 			type: String as () => string,
+		},
+		annotatedFieldId: {
+			required: true,
+			type: String as () => string,
 		}
 	},
 	computed: {
-		totals(): TotalsLoader { return new TotalsLoader({indexId: this.indexId, operation: this.type, results: this.initialResults }); },
+		totals(): TotalsLoader { return new TotalsLoader({
+			indexId: this.indexId, 
+			annotatedFieldId: this.annotatedFieldId,
+			operation: this.type, 
+			results: this.initialResults 
+		}); },
 
 		value(): TotalsOutput|undefined { return this.totals.isLoaded() ? this.totals.value : undefined; },
 		error(): Api.ApiError|undefined { return this.totals.isError() ? this.totals.error : undefined; },

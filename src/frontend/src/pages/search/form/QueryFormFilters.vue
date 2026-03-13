@@ -63,6 +63,7 @@ import Vue from 'vue';
 import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
 import * as FilterStore from '@/store/form/filters';
+import * as InterfaceStore from '@/store/form/interface';
 
 import FilterOverview from '@/pages/search/form/FilterOverview.vue';
 import { mapReduce } from '@/utils';

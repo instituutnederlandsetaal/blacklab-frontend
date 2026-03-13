@@ -9,7 +9,7 @@ import { I18nManager } from '@/utils/i18n-manager';
 
 const LOCALE_STORAGE_KEY = 'cf/locale';
 
-const i18nManager = new I18nManager(LOCALE_STORAGE_KEY);
+export const i18nManager = new I18nManager(LOCALE_STORAGE_KEY);
 // Do this first, so that we can validate the default locale from the browser etc.
 i18nManager.registerLocale('en-us', 'English')
 i18nManager.registerLocale('zh-cn', '中文')
@@ -18,53 +18,20 @@ i18nManager.setFallbackLocale('en-us')
 
 Vue.use(VueI18n);
 const i18n = new VueI18n();
-watch(() => i18nManager.localeState.value, (newVal) => {
+watch(() => [i18nManager.localeState.value?.value, i18nManager.localeState.value?.messages], () => {
+	const newVal = i18nManager.localeState.value;
 	if (newVal?.messages) {
 		i18n.locale = newVal.value;
-		if (!i18n.messages[newVal.value]) {
-			i18n.setLocaleMessage(newVal.value, newVal.messages);
-		}
+		i18n.setLocaleMessage(newVal.value, newVal.messages);
 	}
 }, { immediate: true });
-watch(() => i18nManager.fallbackLocaleState.value, (newVal) => {
+watch(() => [i18nManager.fallbackLocaleState.value?.value, i18nManager.fallbackLocaleState.value?.messages], () => {
+	const newVal = i18nManager.fallbackLocaleState.value;
 	if (newVal?.messages) {
 		i18n.fallbackLocale = newVal.value;
-		if (!i18n.messages[newVal.value]) {
-			i18n.setLocaleMessage(newVal.value, newVal.messages);
-		}
+		i18n.setLocaleMessage(newVal.value, newVal.messages);
 	}
 });
-
-
-const LocaleSelector = Vue.extend({
-	i18n,
-	components: { SelectPicker },
-	template: `
-		<SelectPicker
-			class="locale-select navbar-dropdown"
-			data-class="btn-link navbar-brand navbar-dropdown-button"
-			data-width="auto"
-			data-menu-width="auto"
-			right
-			hideEmpty
-			placeholder="🌐"
-			allowUnknownValues
-
-			:options="availableLocales"
-			:loading="loading"
-			:showValues="false"
-			v-model="value"
-		/>`,
-	computed: {
-		value: {
-			get(): string|null|undefined { return i18nManager.localeState.value?.value; },
-			set(v: string) { i18nManager.setLocale(v); }
-		},
-		loading(): boolean { return i18nManager.loading.value; },
-		availableLocales() { return i18nManager.availableLocales.value; }
-	},
-});
-const localeSelectorInstance = new LocaleSelector().$mount('#locale-selector');
 
 // 1. Define the functions
 // For various reasons sometimes we don't have the exact object for which we want to get the translation.
@@ -155,6 +122,9 @@ declare module 'vue/types/vue' {
 }
 
 export { i18n }
+export function setIndexId(indexId: string|null|undefined) {
+	return i18nManager.setIndexId(indexId);
+}
 export function init() {
 	return new Promise<void>((resolve) => {
 		if (!i18nManager.loading.value) { resolve(); return; }
@@ -175,6 +145,7 @@ window.i18n = {
 	getFallbackLocale: () => i18nManager.fallbackLocaleState.value?.value,
 	setDefaultLocale: (defaultLocale: string) => { i18nManager.setLocale(defaultLocale, I18nManager.PRIORITY_EXPLICIT_DEFAULT); },
 	setLocale: (locale: string) => { i18nManager.setLocale(locale); },
+	setIndexId: (indexId: string|null|undefined) => { i18nManager.setIndexId(indexId); },
 	i18n,
 	manager: i18nManager,
 	getLocale() { return i18nManager.localeState.value?.value; },

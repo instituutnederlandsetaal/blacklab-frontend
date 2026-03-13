@@ -16,12 +16,12 @@
 					{{$t('filterOverview.totalTokens')}}:
 				</span>
 				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 {{matchingCount.documents.toLocaleString()}}<br>
-					 {{matchingCount.tokens.toLocaleString()}}
+					 {{subcorpus.value.numberOfMatchingDocuments.toLocaleString()}}<br>
+					 {{subcorpus.value.tokensInMatchingDocuments.toLocaleString()}}
 				</span>
 				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 ({{ frac2Percent(matchingCount.documents / totalCorpusDocs) }})<br>
-					 ({{ frac2Percent(matchingCount.tokens / totalCorpusTokens) }})
+					 ({{ frac2Percent(subcorpus.value.numberOfMatchingDocuments / subcorpus.value.totalDocsInIndex) }})<br>
+					 ({{ frac2Percent(subcorpus.value.tokensInMatchingDocuments / subcorpus.value.totalTokensInIndex) }})
 				</span>
 			</template>
 			<template v-else>
@@ -35,16 +35,9 @@
 <script lang="ts">
 import Vue from 'vue';
 
-import {Subscription} from 'rxjs';
-
-import * as CorpusStore from '@/store/search/corpus';
-import * as FilterStore from '@/store/search/form/filters';
+import * as CorpusStore from '@/store/corpus';
+import * as FilterStore from '@/store/form/filters';
 import * as PatternStore from '@/store/form/patterns';
-
-import { selectedSubCorpus$ } from '@/store/search/streams';
-
-import * as BLTypes from '@/types/blacklabtypes';
-import {ApiError} from '@/api';
 
 import frac2Percent from '@/mixins/fractionalToPercent';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
@@ -76,8 +69,8 @@ export default Vue.extend({
 			return r;
 		},
 
-		totalCorpusTokens(): number { return CorpusStore.getState().corpus!.tokenCount; },
-		totalCorpusDocs(): number { return CorpusStore.getState().corpus!.documentCount; }
+		totalCorpusTokens(): number { return CorpusStore.getState()!.tokenCount; },
+		totalCorpusDocs(): number { return CorpusStore.getState()!.documentCount; }
 	},
 	methods: {
 		frac2Percent

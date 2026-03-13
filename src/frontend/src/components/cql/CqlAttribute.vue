@@ -161,7 +161,7 @@ export default useModel<CqlAttributeData>().extend({
 		},
 		autocompleteUrl(): string {
 			if (!this.currentAnnotation) return '';
-			return blacklabPaths.autocompleteAnnotation(INDEX_ID, this.currentAnnotation.annotatedFieldId, this.currentAnnotation.id);
+			return blacklabPaths.autocompleteAnnotation(this.options.indexId, this.currentAnnotation.annotatedFieldId, this.currentAnnotation.id);
 		},
 
 		hasUploadedValue(): boolean { return !!this.model.uploadedValue },

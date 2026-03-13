@@ -6,7 +6,13 @@
 		<template v-if="resultComponentData && cols && renderDisplaySettings">
 			<div class="crumbs-totals">
 				<BreadCrumbs :crumbs="breadCrumbs" :disabled="!!request" />
-				<Totals class="result-totals" :initialResults="results" :type="id" :indexId="indexId" @update="paginationResults = $event" />
+				<Totals class="result-totals" 
+					:initialResults="results" 
+					:type="id" 
+					:indexId="indexId" 
+					:annotatedFieldId="sourceAnnotatedFieldId"
+					@update="paginationResults = $event" 
+				/>
 			</div>
 
 			<GroupBy v-if="!viewGroup"
@@ -388,7 +394,7 @@ export default Vue.extend({
 		},
 
 		corpus(): NormalizedIndex { return CorpusStore.get.corpus()!; },
-
+		sourceAnnotatedFieldId(): string { return QueryStore.get.sourceField()!.id; },
 		concordanceAnnotationOptions(): CorpusStore.NormalizedAnnotation[] { return UIStore.getState().results.shared.concordanceAnnotationIdOptions.map(id => CorpusStore.get.allAnnotationsMap()[id]); },
 		concordanceAnnotationId: {
 			get(): string { return UIStore.getState().results.shared.concordanceAnnotationId; },

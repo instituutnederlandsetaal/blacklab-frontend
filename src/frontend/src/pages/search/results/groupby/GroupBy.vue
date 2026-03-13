@@ -207,7 +207,7 @@ import * as FilterModule from '@/store/form/filters';
 import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 import { blacklab } from '@/api';
 
-import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo } from '@/types/blacklabtypes';
+import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, hasPatternInfo } from '@/types/blacklabtypes';
 import { ContextLabel, ContextPositional, GroupBy, GroupByContext, humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 import debug from '@/utils/debug';
 
@@ -804,7 +804,7 @@ export default Vue.extend({
 			// NOTE: we look at results.summary.pattern, not the QueryStore, so this also works
 			//       with Expert queries where the target version is not selected
 			//       in the GUI but part of the query.
-			const patt = this.results?.summary.pattern;
+			const patt = hasPatternInfo(this.results) ? this.results.summary.pattern : undefined;
 			const fields = patt ? [patt.fieldName, ...(patt.otherFields ?? [])] : [];
 			return fields.map(fieldName => CorpusStore.get.parallelAnnotatedFieldsMap()[fieldName]).map(field => ({
 				value: field.id,

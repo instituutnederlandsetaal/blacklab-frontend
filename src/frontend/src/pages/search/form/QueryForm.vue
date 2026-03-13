@@ -114,9 +114,9 @@ export default Vue.extend({
 				}
 			}
 
-			if (this.activeForm === 'explore' && this.subcorpus.isLoaded() && this.subcorpus.value.tokensInMatchingDocuments > 5_000_000) {
+			if (this.activeForm === 'explore' && this.subcorpus.isLoaded() && this.subcorpus.value.tokensInMatchingDocuments > 5000000) {
 				const msg = stripIndent`
-					You have selected a subcorpus of over ${(5_000_000).toLocaleString()} tokens.
+					You have selected a subcorpus of over ${(5000000).toLocaleString()} tokens.
 					Please note that this query, on first execution, may take a considerable amount of time to complete.
 					Proceed with caution.
 

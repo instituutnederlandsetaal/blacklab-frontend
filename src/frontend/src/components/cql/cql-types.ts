@@ -61,6 +61,7 @@ export const OPERATORS: CqlAnnotationCombinator[] = ['&','|'];
 
 // Options type for CQL Query Builder - contains all precomputed store data
 export interface CqlQueryBuilderOptions {
+	indexId: string;
 	// Store-derived values (language-agnostic)
 	defaultAnnotationId: string;
 	// searchAnnotationIds: string[];

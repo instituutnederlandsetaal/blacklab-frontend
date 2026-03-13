@@ -7,6 +7,7 @@ import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,50 +42,80 @@ public class StaticFileHandler {
         NEEDS_CONTENT
     }
 
+    public enum CacheCategory {
+        ASSET,
+        PUBLIC_API_RESPONSE,
+        PRIVATE_API_RESPONSE
+    }
+
     /**
      * Represents a byte range for partial content requests.
      */
-    public static class ByteRange {
-        public final long start;
-        public final long end;
-        public final long length;
+    public static record ByteRange(long start, long end, long length) {}
 
-        public ByteRange(long start, long end, long fileLength) {
-            this.start = start;
-            this.end = Math.min(end, fileLength - 1);
-            this.length = this.end - this.start + 1;
+    public static record ETagHeaders(String eTag, Date lastModified, CacheCategory cacheCategory) {
+        public static ETagHeaders fromFile(File file, CacheCategory cc) {
+            String eTag = generateFileETag(file);
+            Date lastModified = new Date(file.lastModified());
+            return new ETagHeaders(eTag, lastModified, cc);
         }
-    }
+        public static ETagHeaders fromContent(String content, CacheCategory cc) {
+            String eTag = generateContentETag(content);
+            Date lastModified = new Date(); // Use current time for dynamic content
+            return new ETagHeaders(eTag, lastModified, cc);
+        }
 
-    /**
-     * Generate an ETag for a file based on its last modified time and size.
-     * Format: W/"lastModified-size" (weak ETag, as we don't hash the actual content)
-     */
-    public static String generateFileETag(File file) {
-        long lastModified = file.lastModified();
-        long size = file.length();
-        return String.format("W/\"%x-%x\"", lastModified, size);
-    }
+        public void applyToResponse(HttpServletResponse response) {
+            response.setHeader("ETag", eTag);
+            response.setDateHeader("Last-Modified", lastModified.getTime());
+            
+            String cacheControlHeader = switch(cacheCategory) {
+                case PUBLIC_API_RESPONSE -> 
+                    String.format("public, max-age=%d, stale-while-revalidate=%d",
+                    PUBLIC_MAX_AGE_SECONDS, STALE_WHILE_REVALIDATE_API_SECONDS);
+                case PRIVATE_API_RESPONSE -> 
+                    String.format("private, max-age=%d, stale-while-revalidate=%d",
+                    PRIVATE_MAX_AGE_SECONDS, STALE_WHILE_REVALIDATE_API_SECONDS);
+                case ASSET -> 
+                    String.format("public, max-age=%d, stale-while-revalidate=%d",
+                    STALE_WHILE_REVALIDATE_STATIC_SECONDS, STALE_WHILE_REVALIDATE_STATIC_SECONDS);
+            };
 
-    /**
-     * Generate an ETag for string content by hashing it.
-     * Uses MD5 for speed (this is not for security, just cache validation).
-     */
-    public static String generateContentETag(String content) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] hash = md.digest(content.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder("\"");
-            for (byte b : hash) {
-                sb.append(String.format("%02x", b));
+            response.setHeader("Cache-Control", cacheControlHeader);
+        }
+            
+        /**
+         * Generate an ETag for a file based on its last modified time and size.
+         * Format: W/"lastModified-size" (weak ETag, as we don't hash the actual content)
+         */
+        private static String generateFileETag(File file) {
+            long lastModified = file.lastModified();
+            long size = file.length();
+            return String.format("W/\"%x-%x\"", lastModified, size);
+        }
+
+        /**
+         * Generate an ETag for string content by hashing it.
+         * Uses MD5 for speed (this is not for security, just cache validation).
+         */
+        private static String generateContentETag(String content) {
+            try {
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] hash = md.digest(content.getBytes(StandardCharsets.UTF_8));
+                StringBuilder sb = new StringBuilder("\"");
+                for (byte b : hash) {
+                    sb.append(String.format("%02x", b));
+                }
+                sb.append("\"");
+                return sb.toString();
+            } catch (NoSuchAlgorithmException e) {
+                // MD5 is always available, but fallback just in case
+                return String.format("\"%x\"", content.hashCode());
             }
-            sb.append("\"");
-            return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
-            // MD5 is always available, but fallback just in case
-            return String.format("\"%x\"", content.hashCode());
         }
     }
+    
+
 
     /**
      * Check if the client's cached version is still valid.
@@ -310,7 +341,8 @@ public class StaticFileHandler {
      * @throws IOException if an I/O error occurs
      */
     public static boolean serveContent(HttpServletRequest request, HttpServletResponse response,
-                                       String content, String contentType, boolean isPublic) throws IOException {
+                                       String content, String contentType, 
+                                       Date lastModified, boolean isPublic) throws IOException {
         String etag = generateContentETag(content);
 
         // Check if client's cached version is still valid

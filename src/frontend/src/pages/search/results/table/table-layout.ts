@@ -1,6 +1,6 @@
-import { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchParameters, BLSearchResult, BLSearchSummary, BLSearchSummaryTotalsHits, hitHasParallelInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
+import { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchParameters, BLSearchResult, hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 import { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, NormalizedMetadataGroup, OptGroup, Option, TokenHighlight } from '@/types/apptypes';
-import { GlossFieldDescription } from '@/store/search/form/glossStore';
+import { GlossFieldDescription } from '@/store/form/glossStore';
 
 import * as Highlights from './hit-highlighting';
 

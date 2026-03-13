@@ -6,21 +6,12 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import nl.inl.corpuswebsite.BaseResponse;
 import nl.inl.corpuswebsite.utils.*;
 
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import jakarta.servlet.http.HttpServletResponse;
-
-import nl.inl.corpuswebsite.BaseResponse;
-import nl.inl.corpuswebsite.utils.ArticleUtil;
-import nl.inl.corpuswebsite.utils.CorpusConfig;
-import nl.inl.corpuswebsite.utils.QueryException;
-import nl.inl.corpuswebsite.utils.Result;
-import nl.inl.corpuswebsite.utils.ReturnToClientException;
-import nl.inl.corpuswebsite.utils.StaticFileHandler;
 
 /**
  * We need a rudimentary API for some of the content that needs to processed serverside.
@@ -83,31 +74,33 @@ public class ApiResponse extends BaseResponse {
         .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
     }
 
-    public void indexMetadata() throws QueryException {
+    public void indexMetadata() {
         if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
         // Use public caching only for unauthenticated requests
         // This allows localStorage caching on the client for public corpora
         boolean isPublic = servlet.useCache(request);
         
         servlet.getCorpusConfig(corpus, request, response)
-            .tap(c -> ensureEtagAndCache(c.lastModified())) // throws ReturnToClientException[not_modified] if etag matches
-            .mapWithErrorHandling(CorpusConfig::getJsonUnescaped)
             .mapError(QueryException::wrap)
-            .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
+            .map(CorpusConfig::getJsonUnescaped)
+            .tap(json -> serveWithETag(json, "application/json; charset=utf-8", isPublic))
+            .mapError(ReturnToClientException::wrap)
+            .throwIfError();
     }
 
     public void siteConfig() {
+        boolean isPublic = servlet.useCache(request);
+
         Result.success(servlet.getWebsiteConfig(corpus))
             .map(WebsiteConfig.WebsiteConfigJson::new)
-            .tap(config -> ensureEtagAndCache(config.lastModified()))
             .mapWithErrorHandling(config -> {
                 ObjectMapper mapper = new ObjectMapper();
                 mapper.enable(SerializationFeature.INDENT_OUTPUT);
                 return mapper.writeValueAsString(config);
             })
-            .mapError(QueryException::wrap)
             .tap(json -> serveWithETag(json, "application/json; charset=utf-8", isPublic))
-            .tapError(e -> { throw new ReturnToClientException(e); });
+            .mapError(ReturnToClientException::wrap)
+            .throwIfError();
     }
 
     /**
@@ -122,6 +115,13 @@ public class ApiResponse extends BaseResponse {
     private void serveWithETag(String content, String contentType, boolean isPublic) {
         try {
             StaticFileHandler.serveContent(request, response, content, contentType, isPublic);
+        } catch (IOException e) {
+            throw new ReturnToClientException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+    private void serveWithETag(String content, String contentType, Date lastModified, boolean isPublic) {
+        try {
+            StaticFileHandler.serveContent(request, response, content, contentType, lastModified, isPublic);
         } catch (IOException e) {
             throw new ReturnToClientException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
         }
@@ -159,7 +159,7 @@ public class ApiResponse extends BaseResponse {
                 response.getWriter().write(contents);
                 response.flushBuffer();
             } catch (IOException e) {
-                throw returnToClientException.wrap(e);
+                throw ReturnToClientException.wrap(e);
             }
         }).tapError(error -> {
             throw ReturnToClientException.wrap(error);

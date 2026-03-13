@@ -44,8 +44,8 @@ import Modal from '@/components/Modal.vue';
 import Within from '@/pages/search/form/Within.vue';
 import uid from '@/mixins/uid';
 
-import * as UIStore from '@/store/search/ui';
-import * as CorpusStore from '@/store/search/corpus';
+import * as UIStore from '@/store/ui';
+import * as CorpusStore from '@/store/corpus';
 import { getAnnotationSubset } from '@/utils';
 
 import useModel from './useModel';
@@ -58,11 +58,6 @@ export default useModel<CqlQueryBuilderData>().extend({
 	},
 	computed: {
 		options(): CqlQueryBuilderOptions {
-			return this.createCqlQueryBuilderOptions();
-		},
-	},
-	methods: {
-		createCqlQueryBuilderOptions(): CqlQueryBuilderOptions {
 			const textDirection = CorpusStore.get.textDirection();
 			const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
 			const searchAnnotationIds = UIStore.getState().search.advanced.searchAnnotationIds;
@@ -81,6 +76,7 @@ export default useModel<CqlQueryBuilderData>().extend({
 			const annotationOptions = (annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options)) as any;
 
 			return {
+				indexId: this.options.indexId,
 				defaultAnnotationId: UIStore.getState().search.advanced.defaultSearchAnnotationId,
 				textDirection,
 				allAnnotationsMap,
@@ -98,7 +94,8 @@ export default useModel<CqlQueryBuilderData>().extend({
 				}))
 			};
 		},
-
+	},
+	methods: {
 		addToken() {
 			const newToken: CqlTokenData = {
 				id: `token_${uid()}`,

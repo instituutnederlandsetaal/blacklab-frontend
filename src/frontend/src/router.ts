@@ -99,13 +99,14 @@ const router = new Router({
 
 import * as RootStore from '@/store';
 import * as ArticleStore from '@/store/article';
-import * as FilterStore from '@/store/form/filters';
+import { setIndexId as setI18nIndexId } from '@/utils/i18n';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 import { promiseFromLoadableStream } from '@/utils/loadable-streams';
 
 let pageLoadUrlDecoded = false;
 router.beforeEach((to, from, next) => {
 	RootStore.actions.indexId(to.params.corpus);
+	setI18nIndexId(to.params.corpus);
 	ArticleStore.actions.docId(to.params.docId);
 
 	// On first entry on the page, we need to decode the url.
@@ -114,7 +115,7 @@ router.beforeEach((to, from, next) => {
 		if (to.name === 'article' || to.name === 'search') {
 			// wait for store to initialize.
 			promiseFromLoadableStream(RootStore.corpusData$, 'root loading state')
-			.then(() => new UrlStateParserSearch(FilterStore.getState().filters).get())
+			.then(() => new UrlStateParserSearch().get())
 			.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
 		}
 	}
