@@ -50,6 +50,6 @@
     </servlet-mapping>
 
     <listener>
-        <listener-class>nl.inl.corpuswebsite.utils.GlobalConfig</listener-class>
+        <listener-class>nl.inl.corpuswebsite.config.GlobalConfig</listener-class>
     </listener>
 </web-app>
