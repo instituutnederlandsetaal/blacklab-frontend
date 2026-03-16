@@ -21,7 +21,7 @@ public class TemplateUtils {
             Template template = new Template();
             template.setRuntimeServices(runtimeServices);
             template.setName(templateName);
-            runtimeServices.parse(new InputStreamReader(input, StandardCharsets.UTF_8), template);
+            template.setData(runtimeServices.parse(new InputStreamReader(input, StandardCharsets.UTF_8), template));
             template.initDocument();
             return template;
         } catch (ParseException e) {
