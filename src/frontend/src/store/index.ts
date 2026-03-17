@@ -405,6 +405,7 @@ const store = b.vuexStore({
  * Returns a promise that will resolve once all initialization has been completed.
 */
 const init = async (state: CorpusChange) => {
+	console.log('Initializing store with new corpus data', state);
 	await CorpusModule.init(state)
 	// Do this one first as it customizes the UI and thus has impact on how the other stores behave
 	await UIModule.init(state);

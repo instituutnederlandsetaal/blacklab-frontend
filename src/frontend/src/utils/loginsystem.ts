@@ -1,5 +1,6 @@
 import { User, UserManager, Log } from 'oidc-client-ts';
 import axios from 'axios';
+import { BLServer } from '@/types/blacklabtypes';
 
 export const userManager = (OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL) ? new UserManager({
 	checkSessionIntervalInSeconds: 10,
@@ -54,7 +55,7 @@ export const user: Promise<User|null> = new Promise(async (resolve, reject) => {
 });
 export const userName = user.then(u => {
 	if (u) return u.profile.preferred_username || u.profile.email || u.profile.sub;
-	else return axios.get(BLS_URL, { headers: { 'Accept': 'application/json' }}) // use axios as API is not initialized at this point.
+	else return axios.get<BLServer>(BLS_URL, { headers: { 'Accept': 'application/json' }}) // use axios as API is not initialized at this point.
 		.then(r => r.data)
 		.then(r => r.user.id ?? null)
 		.catch(e => { console.error('Failed to get username from fallbackUsernameGetter', e); return null; });

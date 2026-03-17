@@ -25,9 +25,6 @@
 					<LocaleSelector/>
 					<button class="btn btn-navbar navbar-toggle" type="button" @click="collapsed = !collapsed">
 						<span class="fa fa-bars"></span>
-						<!-- <span class="icon-bar"></span>
-						<span class="icon-bar"></span>
-						<span class="icon-bar"></span> -->
 					</button>
 				</div>
 			</div>

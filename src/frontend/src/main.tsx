@@ -4,6 +4,8 @@ import '@/global.scss';
 
 import $ from 'jquery';
 import Vue from 'vue';
+import router from '@/route/router';
+
 
 // @ts-ignore
 import VTooltip from 'v-tooltip';
@@ -147,7 +149,6 @@ import App from '@/App.vue';
 
 import * as LoginSystem from '@/utils/loginsystem';
 import * as RootStore from '@/store';
-import UrlStateParserSearch from './url/url-state-parser-search';
 
 $(document).ready(async () => {
 	
@@ -155,6 +156,7 @@ $(document).ready(async () => {
 	// We can render before the tagset loads, the form just won't be populated from the url yet.
 	(window as any).vueRoot = new Vue({
 		i18n,
+		router,
 		store: RootStore.store,
 		render: h => h(App),
 		async mounted() {

@@ -149,6 +149,8 @@ export function cachedRequest<T>(key: string, options: CachedRequestOptions): Ca
 		validateStatus: status => (status >= 200 && status < 300) || status === 304,
 		headers: cachedEtag ? { ...options.config?.headers, 'If-None-Match': cachedEtag } : options.config?.headers,
 	};
+
+	options.baseURL = options.baseURL.endsWith('/') ? options.baseURL : options.baseURL + '/';
 	
 	// Fire off the request
 	const source = axios.CancelToken.source();
