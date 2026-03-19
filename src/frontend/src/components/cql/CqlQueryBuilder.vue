@@ -58,6 +58,7 @@ export default useModel<CqlQueryBuilderData>().extend({
 	},
 	computed: {
 		options(): CqlQueryBuilderOptions {
+			const indexId = CorpusStore.get.indexId()!;
 			const textDirection = CorpusStore.get.textDirection();
 			const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
 			const searchAnnotationIds = UIStore.getState().search.advanced.searchAnnotationIds;
@@ -76,7 +77,7 @@ export default useModel<CqlQueryBuilderData>().extend({
 			const annotationOptions = (annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options)) as any;
 
 			return {
-				indexId: this.options.indexId,
+				indexId,
 				defaultAnnotationId: UIStore.getState().search.advanced.defaultSearchAnnotationId,
 				textDirection,
 				allAnnotationsMap,
