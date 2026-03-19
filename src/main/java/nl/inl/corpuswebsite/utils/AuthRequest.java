@@ -127,6 +127,9 @@ class URLBuilder<T extends URLBuilder<T>> {
      * @return this
      */
     public T headers(Map<String, String> headers) {
+        if (headers == null || headers.isEmpty()) {
+            return (T) this;
+        }
         if (this.headers == null) {
             this.headers = new HashMap<>();
         }
@@ -143,6 +146,9 @@ class URLBuilder<T extends URLBuilder<T>> {
     }
 
     public T cookies(Map<String, String> cookies) {
+        if (cookies == null || cookies.isEmpty()) {
+            return (T) this;
+        }
         if (this.cookies == null) {
             this.cookies = new HashMap<>();
         }
