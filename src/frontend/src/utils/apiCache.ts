@@ -193,7 +193,10 @@ export function cachedRequest<T>(key: string, options: CachedRequestOptions): Ca
 	// The request will validate in the background
 	if (isFromStorage && cached !== null) {
 		debugLog('Using cached data for', key, cached);
-		return new CancelableRequest(Promise.resolve(cached), source.cancel);
+		// Keep validation request running in the background.
+		// If we pass source.cancel here, toObservable teardown will abort it as soon as
+		// the immediate cached promise completes.
+		return new CancelableRequest(Promise.resolve(cached), () => {});
 	}
 	
 	debugLog('No cached data for', key);

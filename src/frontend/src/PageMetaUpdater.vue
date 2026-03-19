@@ -21,6 +21,7 @@ export default Vue.extend({
 		// That way we can be sure that a navigation is actually happening when we update.
 		routerIsInitialized(): boolean { return this.$route.name != null; },
 		config(): CFPageConfig { return UIStore.getState().global.config; },
+		indexId(): string { return this.$route.params.indexId as string || ''; },
 		pageName(): string { return this.$route.meta?.name as string || ''; },
 		title(): string {
 			if (!this.routerIsInitialized || !this.config.displayName) return '';
@@ -63,6 +64,11 @@ export default Vue.extend({
 		}
 	},
 	watch: {
+		indexId: {
+			immediate: true,
+			// @ts-expect-error legacy script interop
+			handler() { window.INDEX_ID = this.indexId; }
+		},
 		title: {
 			immediate: true,
 			handler() {
