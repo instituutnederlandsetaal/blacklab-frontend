@@ -15,8 +15,12 @@
 							<Spinner v-if="sentenceRequest" inline style="margin-right: 0.5em"/>{{$t('results.table.showFullSentence')}}
 						</label>
 
-						<!-- Will not render anything if no relation info is available in the passed hit/sentence. -->
-						<DepTree v-if="sentenceShown && sentence"
+						<!-- NOTE: always render the tree. 
+						 Relations can also be embedded in the direct result, when searching for a dependency relation.
+						 We always want to show those, even if the full sentence isn't yet available.
+						 So don't v-if the tree!
+						 -->
+						<DepTree
 							:data="row"
 							:fullSentence="sentenceShown ? sentence : undefined"
 							:mainAnnotation="info.mainAnnotation"
