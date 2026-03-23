@@ -23,11 +23,13 @@ const rootDir = (await (Bun.$`git rev-parse --show-toplevel`).text()).trim();
 const frontendPath = path.join(rootDir, 'src/frontend/');
 const textEditor: string|undefined = (Bun.env.VSCODE_GIT_IPC_HANDLE || Bun.env.TERM_PROGRAM === 'vscode') ? 'code --wait' : (await git.getConfig('core.editor')).value || undefined;
 const GIT_BACKUP_TAG = 'VERSION_BUMP_CHECKPOINT';
+const MAINTENANCE_BRANCH_REGEX = /^v(\d+)-maintenance$/;
 const RELEASE_NOTES_DIR = path.join(rootDir, 'docs/src/060_release_notes/');
 const RELEASE_NOTES_TEMPLATE_FILE = path.join(__dirname, 'release_notes.template.md');
 
 let backupTagCreated = false;
 let tagCreated: string | undefined = undefined;
+const additionalBranchesToPush: string[] = [];
 
 /**
  * Restores the git repository to the initial checkpoint created at the start of the script.
@@ -97,6 +99,22 @@ async function safePrompt<T>(promptConfig: Parameters<(typeof Enquirer<T>)['prom
     }
     throw error;
   }
+}
+
+/** Returns the major version number if branch is a v<major>-maintenance branch, otherwise null. */
+function getMaintenanceBranchMajor(branch: string): number | null {
+  const m = branch.match(MAINTENANCE_BRANCH_REGEX);
+  return m ? Number(m[1]) : null;
+}
+
+/** Returns true if no released tags with a higher major version exist than the given major. */
+async function isLatestMajor(major: number): Promise<boolean> {
+  const allTags = (await git.tags()).all;
+  return !allTags
+    .filter(t => Version.isVersionString(t))
+    .map(t => Version.fromString(t))
+    .filter(v => !v.snapshot)
+    .some(v => v.major > major);
 }
 
 async function getVersion(): Promise<Version> {
@@ -242,6 +260,12 @@ const actions = {
     message: 'Create Release',
     hint: 'Create a release from current SNAPSHOT version.',
     async handler(params?: { push?: boolean }) {
+      const currentBranch = (await git.branchLocal()).current;
+      const branchMajor = getMaintenanceBranchMajor(currentBranch);
+      if (branchMajor === null) {
+        throw new Error(`Releases must be created from a v<major>-maintenance branch. Current branch: '${currentBranch}'`);
+      }
+
       const currentVersion = await getVersion();
       if (!currentVersion.snapshot) {
         console.log('Current version is not a SNAPSHOT. Nothing to release.');
@@ -256,6 +280,27 @@ const actions = {
       await git.addTag(releaseVersion.toString());
       tagCreated = releaseVersion.toString();
       await actions.updateVersion.handler();
+
+      // Merge the release notes file into dev (docs site is built from dev)
+      const releaseNotesFile = getReleaseNotesFile(releaseVersion);
+      const releaseNotesRelPath = path.relative(rootDir, releaseNotesFile);
+      console.log(`\nMerging release notes to dev branch...`);
+      await git.checkout('dev');
+      await git.checkout([currentBranch, '--', releaseNotesRelPath]);
+      await git.commit(`docs: Add release notes for ${releaseVersion}`);
+      await git.checkout(currentBranch);
+      additionalBranchesToPush.push('dev');
+
+      // Merge the release tag to main if this is (one of) the current major(s)
+      if (await isLatestMajor(branchMajor)) {
+        console.log(`\nMerging release tag ${releaseVersion} to main...`);
+        await git.checkout('main');
+        await git.merge([releaseVersion.toString(), '--no-ff', '-m', `Merge release ${releaseVersion} to main`]);
+        await git.checkout(currentBranch);
+        additionalBranchesToPush.push('main');
+      } else {
+        console.log(`\nSkipping main merge: v${branchMajor} is not the latest major version.`);
+      }
     }
   },
   cleanupAfterFailedRun: {
@@ -336,6 +381,9 @@ async function main() {
 
     if (push) {
       await git.push();
+      for (const branch of additionalBranchesToPush) {
+        await git.push(['origin', branch]);
+      }
       await git.pushTags();
     }
 
