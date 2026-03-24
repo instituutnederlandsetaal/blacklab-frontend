@@ -86,10 +86,8 @@ const getState = b.state();
 
 const get = {
 	sourceField: b.read((state): CorpusModule.NormalizedAnnotatedField => {
-		let sourceField: string|undefined|null;
-		if (state.form === 'search') sourceField = state.shared.source;
-		else if (state.form === 'explore') sourceField = state.shared.source;
-		return CorpusModule.get.allAnnotatedFieldsMap()[sourceField ?? ''] ?? CorpusModule.get.mainAnnotatedField();
+		const fieldName = state.shared?.source ?? CorpusModule.get.mainAnnotatedField();
+		return CorpusModule.get.allAnnotatedFieldsMap()[fieldName];
 	}, 'sourceField'),
 	targetFields: b.read((state): NormalizedAnnotatedFieldParallel[] => {
 		const allFields = CorpusModule.get.allAnnotatedFieldsMap();
