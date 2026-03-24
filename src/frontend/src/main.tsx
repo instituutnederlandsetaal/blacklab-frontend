@@ -4,7 +4,7 @@ import '@/global.scss';
 
 import $ from 'jquery';
 import Vue from 'vue';
-import router from '@/route/router';
+import router, { initialUrlStateApplied } from '@/route/router';
 
 
 // @ts-ignore
@@ -149,6 +149,7 @@ import App from '@/App.vue';
 
 import * as LoginSystem from '@/utils/loginsystem';
 import * as RootStore from '@/store';
+import connectStoreStreams from '@/store/streams';
 
 $(document).ready(async () => {
 	
@@ -167,6 +168,7 @@ $(document).ready(async () => {
 			RootStore.actions.user(user);
 
 			// Don't do this before the url is parsed, as it controls the page url (among other things derived from the state).
+			initialUrlStateApplied.then(() => connectStoreStreams());
 		},
 	}).$mount(document.querySelector('#vue-root')!);
 });

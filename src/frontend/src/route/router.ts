@@ -101,9 +101,25 @@ import * as RootStore from '@/store';
 import * as ArticleStore from '@/store/article';
 import { setIndexId as setI18nIndexId } from '@/utils/i18n';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
+import UrlStateParserArticle from '@/url/url-state-parser-article';
 import { promiseFromLoadableStream } from '@/utils/loadable-streams';
 
 let pageLoadUrlDecoded = false;
+let initialUrlStateAppliedResolved = false;
+let resolveInitialUrlStateApplied: (() => void)|null = null;
+
+export const initialUrlStateApplied = new Promise<void>(resolve => {
+	resolveInitialUrlStateApplied = resolve;
+});
+
+function markInitialUrlStateApplied() {
+	if (initialUrlStateAppliedResolved) {
+		return;
+	}
+	initialUrlStateAppliedResolved = true;
+	resolveInitialUrlStateApplied?.();
+}
+
 router.beforeEach((to, from, next) => {
 	RootStore.actions.indexId(to.params.corpus);
 	setI18nIndexId(to.params.corpus);
@@ -113,10 +129,14 @@ router.beforeEach((to, from, next) => {
 	if (!pageLoadUrlDecoded && to.params.corpus) {
 		pageLoadUrlDecoded = true;
 		if (to.name === 'article' || to.name === 'search') {
+			const parser = to.name === 'article' ? new UrlStateParserArticle() : new UrlStateParserSearch();
 			// wait for store to initialize.
 			promiseFromLoadableStream(RootStore.corpusData$, 'root loading state')
-			.then(() => new UrlStateParserSearch().get())
+			.then(() => parser.get())
 			.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
+			.finally(() => markInitialUrlStateApplied());
+		} else {
+			markInitialUrlStateApplied();
 		}
 	}
 

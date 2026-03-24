@@ -1,172 +1,142 @@
-// import * as RootStore from '@/store';
-// import * as CorpusStore from '@/store/corpus';
-// import * as ArticleStore from '@/store/article';
-// import * as QueryStore from '@/store/query';
-// import * as InterfaceStore from '@/store/form/interface';
-// import UrlStateParserBase from '@/url/url-state-parser-base';
-// import UrlStateParserSearch from '@/url/url-state-parser-search';
-// import { HistoryEntry } from '@/store/history';
-// import { BLSearchParameters } from '@/types/blacklabtypes';
+import URI from 'urijs';
 
-// function cleanParams<T extends {}>(params: T): T {
-// 	return Object.entries(params).reduce((acc, [key, val]) => {
-// 		if (val == null) { return acc; }
-// 		if (typeof val === 'string' && val.length === 0) { return acc; }
-// 		if (Array.isArray(val) && val.length === 0) { return acc; }
-// 		if (typeof val === 'object' && !Array.isArray(val) && Object.keys(val).length === 0) { return acc; }
-// 		acc[key] = val;
-// 		return acc;
-// 	}, {} as any);
-// }
+import type * as BLTypes from '@/types/blacklabtypes';
+import type * as RootStore from '@/store/';
+import type * as InterfaceStore from '@/store/form/interface';
 
-// function valuesToString<T extends {}>(t: T): {[K in keyof T]: string} {
-// 	// @ts-ignore
-// 	return t;
-// }
+const MAX_URL_LENGTH = 4000;
 
-// type PageUrl<
-// 	PathParameters extends Record<string, string>,
-// 	QueryParameters extends Record<string, string|number|boolean>
-// > = {
-// 	path: PathParameters;
-// 	query: { [K in keyof QueryParameters]-?: QueryParameters[K]|null|undefined };
-// }
+type UrlStateSlice = Pick<RootStore.RootState, 'query'|'interface'|'global'|'views'|'article'>;
 
-// type UrlGetters<T extends Record<string, string|number|boolean>> = {
-// 	[K in keyof T]: () => T[K]|undefined|null;
-// }
+export type UrlTransformInput = {
+	contextUrl: string;
+	indexId?: string|null;
+	params?: BLTypes.BLSearchParameters;
+	pattern?: string|null;
+	gapValue?: string|null;
+	searchField?: string|null;
+	state: UrlStateSlice;
+};
 
-// type ArticlePageUrl = PageUrl<{
-// 	indexId: string;
-// 	docId: string;
-// }, {
-// 	query: string;
-// 	pattgapdata: string;
-// 	viewField: string;
-// 	searchField: string;
+export type UrlTransformOutput = {
+	page: 'root'|'search'|'article';
+	url: string;
+	fullUrl: string;
+	isTruncated: boolean;
+};
 
-// 	wordstart: number;
-// 	wordend: number;
-// 	findhit: number;
-// }>
+function cleanParams<T extends Record<string, unknown>>(params: T): Partial<T> {
+	return Object.entries(params).reduce((acc, [key, val]) => {
+		if (val == null) { return acc; }
+		if (typeof val === 'string' && val.length === 0) { return acc; }
+		if (Array.isArray(val) && val.length === 0) { return acc; }
+		(acc as any)[key] = val;
+		return acc;
+	}, {} as Partial<T>);
+}
 
-// type UrlGeneratorAndDecoder<
-// 	T extends PageUrl<any, any>,
-// 	DecodedState extends {} = T
-// > = {
-// 	isActive(state: T): boolean;
-// 	decode(url: string): Promise<DecodedState>;
+function getContextSegments(contextUrl: string): string[] {
+	return new URI(contextUrl).segmentCoded().filter(s => !!s);
+}
 
-// 	// Egh, typescript gymnastics
-// 	gatherPath: T extends PageUrl<infer P, any> ? UrlGetters<P> : never;
-// 	gatherQuery: T extends PageUrl<any, infer Q> ? UrlGetters<Q> : never;
-// 	encode(state: T): string;
-// }
+function toRelativeUrl(contextUrl: string, pathSegments: string[], queryParams: Record<string, unknown>): string {
+	return new URI()
+		.segment(getContextSegments(contextUrl).concat(pathSegments))
+		.host('').protocol('').port('')
+		.search(cleanParams(queryParams))
+		.toString();
+}
 
-// function asUrlStateParser<T extends PageUrl<any, any>>(
-// 	parse: (this: UrlStateParserBase<T>) => Promise<T>
-// ): ((url: string) => Promise<T>) {
-// 	class AnonymousInstance extends UrlStateParserBase<T> { get() { return parse.call(this); } }
-// 	return (url: string) => new AnonymousInstance(new URI(url)).get();
-// }
 
-// const articlePage: UrlGeneratorAndDecoder<ArticlePageUrl> = {
-// 	gatherPath: {
-// 		indexId: () => RootStore.getState().indexId,
-// 		docId: () => ArticleStore.getState().docId,
-// 	},
-// 	gatherQuery: {
-// 		findhit: () => ArticleStore.getState().findhit,
-// 		query: () => QueryStore.get.patternString(),
-// 		pattgapdata: () => QueryStore.getState().gap?.value,
-// 		searchField: () => QueryStore.get.annotatedFieldName(),
-// 		viewField: () => ArticleStore.getState().viewField,
-// 		wordstart: () => ArticleStore.getState().wordstart,
-// 		wordend: () => ArticleStore.getState().wordend,
-// 	},
-// 	isActive(state): boolean {
-// 		return !!state.path.indexId && !!state.path?.docId;
-// 	},
-// 	encode(state: ArticlePageUrl): string {
-// 		const {indexId, docId} = state.path;
-// 		return `/${encodeURIComponent(indexId)}/docs/${encodeURIComponent(docId)}?${new URLSearchParams(valuesToString(cleanParams(state.query))).toString()}`;
-// 	},
-// 	decode: asUrlStateParser(async function() {
-// 		const [indexId, _, docId] = this.paths;
-// 		const r: ArticlePageUrl = {
-// 			path: { indexId, docId, },
-// 			query: {
-// 				findhit: this.getNumber('findhit'),
-// 				pattgapdata: this.getString('pattgapdata'),
-// 				query: this.getString('query'),
-// 				searchField: this.getString('searchField'),
-// 				viewField: this.getString('viewField'),
-// 				wordstart: this.getNumber('wordstart'),
-// 				wordend: this.getNumber('wordend'),
-// 			}
-// 		}
+export function corpusSearchUrl(contextUrl: string, indexId: string): string {
+	return toRelativeUrl(contextUrl, [indexId, 'search'], {});
+}
 
-// 		return r;
-// 	})
-// }
+export function searchStateToUrl(input: UrlTransformInput): UrlTransformOutput {
+	if (!input.indexId || !input.params || !input.state.interface.viewedResults) {
+		const url = input.indexId ? corpusSearchUrl(input.contextUrl, input.indexId) : input.contextUrl;
+		return {
+			page: 'root',
+			url,
+			fullUrl: url,
+			isTruncated: false,
+		};
+	}
 
-// type CorpusPageUrl = PageUrl<{
-// 	indexId: string;
-// 	viewedResults: string;
-// }, {
-// 	// What is visible in the UI
-// 	interface: string;
-// 	groupDisplayMode: string;
-// 	resultsViewCustomState: any;
-// }&BLSearchParameters>
+	const queryParams: Partial<BLTypes.BLSearchParameters> = cleanParams(input.params);
+	const viewedResults = input.state.interface.viewedResults;
+	const view = input.state.views[viewedResults];
 
-// import * as UIStore from '@/store/ui';
-// import * as GlobalResultsStore from '@/store/results/global';
-// import * as FilterStore from '@/store/form/filters';
+	Object.assign(queryParams, {
+		interface: JSON.stringify({
+			form: input.state.query.form,
+			exploreMode: input.state.query.form === 'explore' ? input.state.query.subForm : undefined,
+			patternMode: input.state.query.form === 'search' ? input.state.query.subForm : undefined,
+			viewedResults: undefined,
+			activeAnnotationTab: input.state.interface.activeAnnotationTab || undefined,
+			activeFilterTab: input.state.interface.activeFilterTab || undefined,
+		} as Partial<InterfaceStore.ModuleRootState>),
+		groupDisplayMode: view?.groupDisplayMode || undefined,
+		resultViewCustomState: view?.customState || undefined,
+		first: view?.first,
+		number: view?.number,
+	});
 
-// const corpusPage: UrlGeneratorAndDecoder<CorpusPageUrl, HistoryEntry> = {
-// 	gatherPath: {
-// 		indexId: () => RootStore.getState().indexId,
-// 		viewedResults: () => InterfaceStore.get.viewedResults(),
-// 	},
-// 	gatherQuery: {
-// 		adjusthits: () => 'yes',
-// 		context: () => GlobalResultsStore.getState().context,
-// 		interface: () => JSON.stringify({
-// 			form: QueryStore.getState().form,
-// 			exploreMode: QueryStore.getState().form === 'explore' ? QueryStore.getState().subForm : undefined, // remove if not relevant
-// 			patternMode: QueryStore.getState().form === 'search' ? QueryStore.getState().subForm : undefined, // remove if not relevant
-// 			viewedResults: undefined, // remove from query parameters: is encoded in path (viewedResults)
-// 		}),
-// 		groupDisplayMode: () => RootStore.get.viewedResultsSettings().groupDisplayMode,
-// 		resultsViewCustomState: () => RootStore.get.viewedResultsSettings().customState ? JSON.stringify(RootStore.get.viewedResultsSettings().customState) : undefined,
-// 		docpid: () => undefined,
-// 		field: () => QueryStore.get.annotatedFieldName(),
-// 		filter: () => QueryStore.get.filterString(),
-// 		first: () => GlobalResultsStore.getState().pageSize * RootStore.get.viewedResultsSettings().page,
-// 		group: () => RootStore.get.viewedResultsSettings().groupBy.join(','),
-// 		includetokencount: () => undefined,
-// 		listmetadatavalues: () => undefined,
-// 		listvalues: () => undefined,
-// 		maxcount: () => undefined,
-// 		maxretrieve: () => undefined,
-// 		number: () => GlobalResultsStore.getState().pageSize,
-// 		patt: () => QueryStore.get.patternString(),
-// 		pattgapdata: () => QueryStore.getState().gap?.value,
-// 		sample: () => (GlobalResultsStore.getState().sampleMode === 'percentage' && GlobalResultsStore.getState().sampleSize) ? GlobalResultsStore.getState().sampleSize : undefined,
-// 		sort: () => RootStore.get.viewedResultsSettings().sort,
-// 		samplenum: () => (GlobalResultsStore.getState().sampleMode === 'count' && GlobalResultsStore.getState().sampleSize) ? GlobalResultsStore.getState().sampleSize : undefined,
-// 		sampleseed: () => GlobalResultsStore.getState().sampleSize ? GlobalResultsStore.getState().sampleSeed : undefined,
-// 		searchfield: () => undefined,
-// 		viewgroup: () => RootStore.get.viewedResultsSettings().viewGroup,
-// 		waitfortotal: () => undefined,
-// 	},
-// 	isActive(state): boolean {
-// 		return state.path.indexId != null;
-// 	},
-// 	encode(state) {
-// 		const {indexId, viewedResults} = state.path;
-// 		return `/${indexId}/search/${viewedResults}?${new URLSearchParams(valuesToString(cleanParams(state.query))).toString()}`;
-// 	},
-// 	decode: url => new UrlStateParserSearch(FilterStore.getState().filters, new URI(url)).get()
-// }
+	const fullUrl = toRelativeUrl(input.contextUrl, [input.indexId, 'search', viewedResults], queryParams as Record<string, unknown>);
+	const url = fullUrl.length <= MAX_URL_LENGTH ? fullUrl : toRelativeUrl(input.contextUrl, [input.indexId, 'search', viewedResults], {
+		...queryParams,
+		patt: undefined, 
+		pattgapdata: undefined,
+	});
+	
+	return {
+		page: 'search',
+		fullUrl,
+		url,
+		isTruncated: fullUrl !== url,
+	};
+}
+
+export function articleStateToUrl(input: UrlTransformInput): UrlTransformOutput|null {
+	if (!input.indexId || !input.state.article.docId) {
+		return null;
+	}
+
+	const pattern = input.pattern ?? input.params?.patt ?? null;
+	const gapValue = input.gapValue ?? input.params?.pattgapdata ?? null;
+
+	const queryParams = {
+		query: pattern,
+		pattgapdata: gapValue,
+		searchField: input.searchField || undefined,
+		field: input.state.article.viewField || undefined,
+		wordstart: input.state.article.wordstart,
+		wordend: input.state.article.wordend,
+		findhit: input.state.article.findhit,
+	};
+
+	const fullUrl = toRelativeUrl(input.contextUrl, [input.indexId, 'docs', input.state.article.docId], queryParams);
+	if (fullUrl.length <= MAX_URL_LENGTH) {
+		return {
+			page: 'article',
+			url: fullUrl,
+			fullUrl,
+			isTruncated: false,
+		};
+	}
+
+	return {
+		page: 'article',
+		fullUrl,
+		url: toRelativeUrl(input.contextUrl, [input.indexId, 'docs', input.state.article.docId], {
+			...queryParams,
+			query: undefined,
+			pattgapdata: undefined,
+		}),
+		isTruncated: true,
+	};
+}
+
+export function stateToUrl(input: UrlTransformInput): UrlTransformOutput {
+	return articleStateToUrl(input) || searchStateToUrl(input);
+}

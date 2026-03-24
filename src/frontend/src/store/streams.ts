@@ -1,25 +1,26 @@
 // Define a few pipelines to perform actions on streams of data
 import URI from 'urijs';
 
-import { BehaviorSubject, Observable, ReplaySubject, fromEvent, of, pipe } from 'rxjs';
-import { debounceTime, map, shareReplay, filter, mergeMap } from 'rxjs/operators';
+import { ReplaySubject, fromEvent, of } from 'rxjs';
+import { map, filter, mergeMap } from 'rxjs/operators';
 import cloneDeep from 'clone-deep';
 
 import * as RootStore from '@/store/';
+import * as ArticleStore from '@/store/article';
 import * as CorpusStore from '@/store/corpus';
 import * as HistoryStore from '@/store/history';
 import * as PatternStore from '@/store/form/patterns';
 import * as ExploreStore from '@/store/form/explore';
-import * as InterfaceStore from '@/store/form/interface';
-import * as FilterStore from '@/store/form/filters';
 import * as GapStore from '@/store/form/gap';
 import * as QueryStore from '@/store/query';
 import * as ConceptStore from '@/store/form/conceptStore';
 import * as GlossStore from '@/store/form/glossStore';
+import * as ViewStore from '@/store/results/views';
 
 import UrlStateParserSearch from '@/url/url-state-parser-search';
-
-import * as Api from '@/api';
+import UrlStateParserArticle from '@/url/url-state-parser-article';
+import { stateToUrl } from '@/url/state-to-url';
+import router from '@/route/router';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import jsonStableStringify from 'json-stable-stringify';
@@ -28,10 +29,70 @@ import { debugLogCat } from '@/utils/debug';
 type QueryState = {
 	indexId?: string|null,
 	params?: BLTypes.BLSearchParameters,
-	state: Pick<RootStore.RootState, 'query'|'interface'|'global'|'views'>
+	state: Pick<RootStore.RootState, 'query'|'interface'|'global'|'views'|'article'>
 };
 
+type BrowserHistoryEntry = HistoryStore.HistoryEntry&{article: ArticleStore.HistoryState};
+const HISTORY_STATE_KEY = 'cfHistoryState';
+
 const urlInputParameters$ = new ReplaySubject<QueryState>(1);
+
+function decodeStateFromCurrentUrl(): Promise<HistoryStore.HistoryEntry&{article: ArticleStore.HistoryState}> {
+	const pathSegments = new URI().segmentCoded().filter(s => !!s);
+	const contextSegments = new URI(CONTEXT_URL).segmentCoded().filter(s => !!s);
+	const relativeSegments = pathSegments.slice(contextSegments.length);
+	const isArticleRoute = relativeSegments[1] === 'docs' && !!relativeSegments[2];
+	return (isArticleRoute ? new UrlStateParserArticle() : new UrlStateParserSearch()).get();
+}
+
+function getStoredHistoryEntry(state: unknown): BrowserHistoryEntry|null {
+	if (!state || typeof state !== 'object') {
+		return null;
+	}
+	const typed = state as Record<string, unknown>;
+	const nested = typed[HISTORY_STATE_KEY] as BrowserHistoryEntry|undefined;
+	if (nested && typeof nested === 'object') {
+		return nested;
+	}
+	if ('interface' in typed && 'patterns' in typed) {
+		return typed as unknown as BrowserHistoryEntry;
+	}
+	return null;
+}
+
+function toRouterPath(url: string): string {
+	const context = (CONTEXT_URL || '').replace(/\/+$/, '');
+	if (!context || !url.startsWith(context)) {
+		return url;
+	}
+	const relative = url.slice(context.length);
+	return relative.length ? relative : '/';
+}
+
+function isNavigationDuplicated(err: unknown): boolean {
+	if (!err || typeof err !== 'object') {
+		return false;
+	}
+	const maybeError = err as {name?: string, message?: string};
+	return maybeError.name === 'NavigationDuplicated' || (maybeError.message || '').includes('Avoided redundant navigation');
+}
+
+async function pushUrlWithHistoryState(url: string, state: BrowserHistoryEntry): Promise<void> {
+	const target = toRouterPath(url);
+	try {
+		await router.push(target);
+	} catch (e) {
+		if (!isNavigationDuplicated(e)) {
+			throw e;
+		}
+	}
+
+	const existingState = (history.state && typeof history.state === 'object') ? history.state as Record<string, unknown> : {};
+	history.replaceState({
+		...existingState,
+		[HISTORY_STATE_KEY]: state,
+	}, '', undefined);
+}
 
 
 // Pipeline that will generate a new frontend URL and push it to the browser history whenever
@@ -48,66 +109,18 @@ urlInputParameters$.pipe(
 		isTruncated: boolean;
 		url: string;
 	}>(v => {
-		// If we're not searching, return a bare url pointing to ${root}/${corpus}/search/
-		if (!v.indexId || !v.params) {
-			return {
-				url: v.indexId ? Api.frontendPaths.currentCorpus(v.indexId) : Api.frontendPaths.root(),
-				isTruncated: false,
-				state: v.state
-			}
-		}
-
-		// NOTE:
-		// This part of the url-generation is pretty confusing
-		// If in doubt, read url-state-parser for any calls to getString(), getNumber(), etc.
-		// All those properties are the ones that we should set here.
-		// We should codify them in an enum sometime, and make this process type-safe
-		// So we get a compile error when we forget to add a property here.
-		// or when we try to add a property that doesn't exist in the url-state-parser.
-
-		// Remove null, undefined, empty strings and empty arrays from our query params
-		// Any missing/omitted parameters in the (frontend) url will be replaced by their defaults by the url-state-parser when the url might be decoded.
-		const queryParams: Partial<BLTypes.BLSearchParameters> = Object.entries(v.params).reduce((acc, [key, val]) => {
-			if (val == null) { return acc; }
-			if (typeof val === 'string' && val.length === 0) { return acc; }
-			if (Array.isArray(val) && val.length === 0) { return acc; }
-			acc[key] = val;
-			return acc;
-		}, {} as any);
-
-		// The raw blacklab-server query parameters don't contain enough information on their own to fully restore the frontend's state on load
-		// Store some interface state in the url, so the query can be restored to the correct form
-		// even when loading the page from just the url. See UrlStateParser class in store/utils/url-state-parser.ts
-		// TODO we should probably output the form in the url as /${indexId}/('search'|'explore')/('simple'|'advanced' ...etc)/('hits'|'docs')
-		// But for now, we keep parity with blacklab's urls. This allows just changing /blacklab-frontend to /blacklab-server, which has some value I suppose.
-		// We only add a few query parameters of our own to restore some parts of the interface that can't be inferred from the blacklab parameters.
-		const viewedResults = v.state.interface.viewedResults;
-		const view = viewedResults ? v.state.views[viewedResults] : undefined;
-		Object.assign(queryParams, {
-			interface: JSON.stringify({
-				form: v.state.query.form,
-				exploreMode: v.state.query.form === 'explore' ? v.state.query.subForm : undefined, // remove if not relevant
-				patternMode: v.state.query.form === 'search' ? v.state.query.subForm : undefined, // remove if not relevant
-				viewedResults: undefined, // remove from query parameters: is encoded in path (segmentcoded)
-				activeAnnotationTab: v.state.interface.activeAnnotationTab || undefined, // remove null
-				activeFilterTab: v.state.interface.activeFilterTab || undefined, // remove null
-			} as Partial<InterfaceStore.ModuleRootState>),
-			groupDisplayMode: view?.groupDisplayMode || undefined, // remove null
-			resultViewCustomState: view?.customState || undefined, // remove null
-			first: view?.first,
-			number: view?.number,
+		const full = stateToUrl({
+			contextUrl: CONTEXT_URL,
+			indexId: v.indexId,
+			params: v.params,
+			pattern: QueryStore.get.patternString(),
+			gapValue: QueryStore.getState().gap?.value || null,
+			searchField: QueryStore.get.sourceField().id,
+			state: v.state,
 		});
-
-		// Generate the new frontend url
-		const url = new URI()
-			.segment([CONTEXT_URL, CorpusStore.get.indexId()!, 'search', v.state.interface.viewedResults!])
-			.host('').protocol('').port('') // remove these, we're only interested in the path and query.
-			.search(queryParams);
-
-		const fullUrl = url.toString();
 		return {
-			url: fullUrl.length <= 4000 ? fullUrl : url.search(Object.assign({}, queryParams, {patt: undefined, pattgapdata: undefined})).toString(),
-			isTruncated: fullUrl.length > 4000,
+			url: full.url,
+			isTruncated: full.isTruncated,
 			state: v.state,
 			params: v.params
 		};
@@ -134,12 +147,15 @@ urlInputParameters$.pipe(
 		// New url is truncated, and is different from the previous url, but did the pattern change?
 		// Might still be able to compare the patterns by checking the state from which it was generated
 		// NOTE: history.state here is the browser's history entry state, we save it in this stream's subscribe handler
-		const lastState: HistoryStore.HistoryEntry|null = history.state;
+		const lastState = getStoredHistoryEntry(history.state);
 		if (lastState == null) {
 			// don't store; no previous state stored in history (i.e. the user just landed on the page, so it MUST be equal)
 			// this can't actually happen I think, since if you just landed here, how did the url end up truncated
 			// since the page can't even load with a url long enough to generate a state that would generate a truncated url.
 			return false;
+		}
+		if (!lastState.interface || !lastState.patterns || !lastState.gap) {
+			return true;
 		}
 
 		// shortcut: only need to check the pattern, as the interface state IS contained in the url, and is guaranteed to be the same
@@ -147,16 +163,17 @@ urlInputParameters$.pipe(
 		return jsonStableStringify({formState: v.state.query.formState, gap: v.state.query.gap}) !== jsonStableStringify({formState: lastState.patterns[lastState.interface.patternMode], gap: lastState.gap});
 	}),
 	map((v): QueryState&{
-		entry: HistoryStore.HistoryEntry
+		entry: BrowserHistoryEntry
 		url: string,
 	} => {
 		const {query, views, global} = v.state;
+		const activeView = v.state.interface.viewedResults ? views[v.state.interface.viewedResults] : undefined;
 		// Store only those parts actively in use (so don't store the hits tab info when currently viewing docs for example)
 		// the rest is set to defaults so the rest of the page nicely clears if this entry is loaded later.
-		const entry: HistoryStore.HistoryEntry = {
+		const entry: BrowserHistoryEntry = {
 			filters: query.filters || {},
 			global,
-			view: views[v.state.interface.viewedResults!],
+			view: activeView || cloneDeep(ViewStore.initialViewState),
 			explore: query.form === 'explore' ? {
 				...ExploreStore.defaults,
 				[query.subForm]: query.formState
@@ -177,6 +194,13 @@ urlInputParameters$.pipe(
 			gap: query.gap || GapStore.defaults,
 			concepts: ConceptStore.defaults,
 			glosses: GlossStore.defaults,
+			article: {
+				docId: v.state.article.docId,
+				viewField: v.state.article.viewField,
+				wordstart: v.state.article.wordstart,
+				wordend: v.state.article.wordend,
+				findhit: v.state.article.findhit,
+			},
 		};
 		return {
 			indexId: v.indexId,
@@ -189,13 +213,26 @@ urlInputParameters$.pipe(
 )
 .subscribe(v => {
 	debugLogCat('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', v.url, v.entry);
+	const entryForQueryHistory: HistoryStore.HistoryEntry = {
+		filters: v.entry.filters,
+		global: v.entry.global,
+		view: v.entry.view,
+		explore: v.entry.explore,
+		patterns: v.entry.patterns,
+		interface: v.entry.interface,
+		gap: v.entry.gap,
+		concepts: v.entry.concepts,
+		glosses: v.entry.glosses,
+	};
 	HistoryStore.actions.addEntry({
-		entry: v.entry,
+		entry: entryForQueryHistory,
 		pattern: v.params && v.params.patt,
 		url: v.url
 	});
-	debugLogCat('history', `Calling pushState with entry:`, v.entry, `and url:`, v.url);
-	history.pushState(v.entry, '', v.url);
+	debugLogCat('history', `Calling router.push (then replaceState) with entry:`, v.entry, `and url:`, v.url);
+	pushUrlWithHistoryState(v.url, v.entry).catch(e => {
+		console.error('Failed to push URL through router', e);
+	});
 });
 
 /** Here we attach listeners to the vuex store, and pump the relevant values into the streams defined above. That in turn runs the listeners on those streams, and we can compute the stuff we need. */
@@ -212,6 +249,7 @@ export default () => {
 			state: {
 				views: state.views,
 				global: state.global,
+				article: state.article,
 				interface: state.interface,
 				query: state.query
 			}
@@ -227,7 +265,10 @@ export default () => {
 	);
 
 	fromEvent<PopStateEvent>(window, 'popstate')
-	.pipe(mergeMap(evt => evt.state  ? of(evt.state as HistoryStore.HistoryEntry) : new UrlStateParserSearch().get()))
+	.pipe(mergeMap(evt => {
+		const fromState = getStoredHistoryEntry(evt.state);
+		return fromState ? of(fromState) : decodeStateFromCurrentUrl();
+	}))
 	.subscribe(state => RootStore.actions.replace(state));
 
 	debugLogCat('init', 'Finished connecting store to url and subcorpus calculations.');

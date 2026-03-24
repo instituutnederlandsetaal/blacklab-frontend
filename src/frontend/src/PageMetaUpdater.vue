@@ -83,8 +83,8 @@ export default Vue.extend({
 				// TODO refactor customizing to avoid having to reload the page.
 				// This is a large job however.
 				if (this.hasCustomJs) {
-					console.info('%cTriggering page reload due to polluted global scope (customJs is present)', 'color: blue; font-weight: bold; border: 1px solid blue; padding: 2px 0; background: white;');
-					window.location.reload();
+					// console.info('%cTriggering page reload due to polluted global scope (customJs is present)', 'color: blue; font-weight: bold; border: 1px solid blue; padding: 2px 0; background: white;');
+					// window.location.reload();
 				}
 				this.hasCustomJs = next.length > 0;
 

@@ -618,7 +618,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		Which means that if "searchField" is set, we should use that. If not, we should use "field".
 		See also "viewField" in the article module (which is "field" in BlackLab terms.)
 		*/
-		let source = this.getString('searchField') || this.getString('field');
+		let source = this.getString('searchField') || this.getString('searchfield') || this.getString('field');
 		if (source && !parallelFieldsMap[source]) source = null;
 		const targets = this._parsedCql ? this._parsedCql.slice(1)
 			.map(result => result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '') : [];
