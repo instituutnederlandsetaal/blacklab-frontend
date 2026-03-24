@@ -31,10 +31,10 @@
             // Currently not used on other pages.
             var hooks = {};
         </script>
-        <script src="$JSPATH/main.js?_$cache" onerror="document.body.insertAdjacentHTML('afterbegin', '<div class=\'alert alert-danger\'>Warning: Failed to load main.js from $JSPATH. Please check your configuration or dev-server.</div>');"></script>
     </head>
     <body>
         <div id="vue-root"></div>
+        <script src="$JSPATH/main.js?_$cache" onerror="document.body.insertAdjacentHTML('afterbegin', '<div class=\'alert alert-danger\'>Warning: Failed to load main.js from $JSPATH. Please check your configuration or dev-server.</div>');"></script>
     </body>
 
     <!-- Commit hash: $commitHash -->
