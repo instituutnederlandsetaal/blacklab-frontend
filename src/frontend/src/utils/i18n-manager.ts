@@ -9,6 +9,25 @@ function parseJsonWithComments<T = any>(jsonResponse: Response): Promise<T> {
 	return jsonResponse.text().then(text => JSON.parse(stripJsonComments(text)));
 }
 
+function normalizeLocaleModule(module: any): LocaleMessageObject {
+	if (!module || typeof module !== 'object') return {};
+	const candidate = 'default' in module ? module.default : module;
+	return (candidate && typeof candidate === 'object') ? candidate as LocaleMessageObject : {};
+}
+
+function deepFreezeLocaleMessages<T>(value: T, seen: WeakSet<object> = new WeakSet<object>()): T {
+	if (!value || typeof value !== 'object') return value;
+	const objectValue = value as unknown as object;
+	if (seen.has(objectValue) || Object.isFrozen(objectValue)) return value;
+	seen.add(objectValue);
+
+	Object.keys(objectValue).forEach(key => {
+		deepFreezeLocaleMessages((objectValue as any)[key], seen);
+	});
+
+	return Object.freeze(value);
+}
+
 interface LocaleState {
 	value: string;
 	label: string;
@@ -255,7 +274,8 @@ class I18nManager {
 
 		// Try to load built-in messages
 		try {
-			messages = await import(`@/locales/${localeId}.json`);
+			const module = await import(`@/locales/${localeId}.json`);
+			messages = normalizeLocaleModule(module);
 		} catch (e) {
 			console.info(`No built-in locale messages for ${localeId}: ${e}`);
 		}
@@ -279,7 +299,7 @@ class I18nManager {
 		}
 
 		// Merge messages with overrides taking priority
-		return merge(messages || {}, overrides || {});
+		return deepFreezeLocaleMessages(merge(messages || {}, overrides || {}));
 	}
 }
 
