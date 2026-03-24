@@ -3,7 +3,7 @@
 	<div>
 		<PageMetaUpdater/>
 		<Navbar/>
-		<pre style="overflow: auto; width: 100%; max-height: 20vh">{{ completeStoreState }}</pre>
+		<!-- <pre style="overflow: auto; width: 100%; max-height: 20vh">{{ completeStoreState }}</pre> -->
 
 
 		<div v-if="storeLoadingState.isLoading()" class="container main-content">
