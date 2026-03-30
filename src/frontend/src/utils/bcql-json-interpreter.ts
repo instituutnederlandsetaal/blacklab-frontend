@@ -12,8 +12,7 @@
  */
 
 import * as api from '@/api';
-
-export const DEFAULT_ANNOTATION = '__default__';
+import { BCQLAndNode, BCQLCompareNode, BCQLOrNode, BCQLPositionFilterNode, BCQLQueryNode, BCQLRegexNode, BCQLSequenceNode, BCQLTagAttributeExpressionNode, BCQLTextPatternNode, BCQLTextPatternStruct, BCQLValueNode } from '@/types/blacklabcql';
 
 export type XmlTag = {
 	type: 'xml';
@@ -36,8 +35,7 @@ export type BooleanOp = {
 	type: 'booleanOp';
 	/** typically 'OR', 'AND', '|', '&' */
 	operator: '|'|'&';
-	left: BooleanOp|Condition;
-	right: BooleanOp|Condition;
+	clauses: (Condition|BooleanOp)[];
 };
 
 export type Token = {
@@ -68,51 +66,42 @@ export type Result = {
 	optional?: boolean;
 };
 
-// TODO proper typing of the JSON structure for parsed queries.
-// For now - some ad-hoc types to get linting working.
-type BLTextPatternValue = {
-	type: 'string'|'number'|'boolean';
-	value: string|number|boolean;
-}|{
-	type: 'int-range';
-	min: number;
-	max: number;
-}
 
 
-function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): Result[] {
 
-	function _not(clause: any): Condition {
+function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnnotation: string): Result[] {
+
+	function _not(clause: BCQLTextPatternNode): Condition {
 		if (clause.type !== 'regex') {
 			throw new Error('Can only interpret not on regex');
 		}
 		return {
-			..._regex(clause.annotation, clause.value),
+			..._regex(clause),
 			operator: '!=',
 		};
 	}
 
 	// BL4 will return [word="de"] as a single regex node
-	function _regex(annotation: string, value: string): Condition {
+	function _regex({annotation, value}: BCQLRegexNode): Condition {
 		return {
 			type: 'condition',
-			name: annotation || DEFAULT_ANNOTATION,
+			name: annotation ?? defaultAnnotation,
 			operator: '=',
 			value
 		};
 	}
 	// BL5 will return [word="de"] as a compare node with symbol and string clauses
-	function _compare(clauses: any[], operation: string): Condition {
+	function _compare({clauses, operation}: BCQLCompareNode): Condition {
 		if (operation !== '=' && operation !== '!=')
 			throw new Error('Cannot interpret compare operation: ' + operation);
 
 		const [compareWhat, compareWith] = clauses;
 
-		if (compareWhat.type !== 'defval' || compareWith.type !== 'symbol')
+		if (compareWhat.type !== 'defval' && compareWhat.type !== 'string')
 			throw new Error('Cannot interpret compare left clause of type: ' + compareWhat.type);
 		if (compareWith.type !== 'string')
 			throw new Error('Cannot interpret compare right clause of type: ' + compareWith.type);
-		let annotation = compareWhat.type === 'defval' ? DEFAULT_ANNOTATION : compareWhat.value;
+		let annotation = compareWhat.type === 'defval' ? defaultAnnotation : compareWhat.value;
 		return {
 			name: annotation,
 			operator: operation,
@@ -121,50 +110,31 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		}
 	}
 
-	function _boolean(type: string, clauses: any[]): BooleanOp|null {
-		if (clauses.length === 2) {
-			const left = _tokenExpression(clauses[0]);
-			const right = _tokenExpression(clauses[1]);
-			if (left === null || right === null)
-				return null;
-			return {
-				type: 'booleanOp',
-				operator: type === 'and' ? '&' : '|',
-				left,
-				right
-			};
-		}
-
-		// More than 2 clauses, create a recursive structure
-		const left = _tokenExpression(clauses[0]);
-		const right = _boolean(type, clauses.slice(1));
-		if (left === null || right === null)
-			return null;
+	function _boolean({type, clauses}: BCQLAndNode|BCQLOrNode): BooleanOp|null {
 		return {
 			type: 'booleanOp',
 			operator: type === 'and' ? '&' : '|',
-			left,
-			right
-		};
+			clauses: clauses.map(_tokenExpression).filter(c => c != null)
+		}
 	}
 
-	function _tokenExpression(input: any): BooleanOp|Condition|null {
+	function _tokenExpression(input: BCQLTextPatternNode): BooleanOp|Condition|null {
 		switch (input.type) {
 		case 'regex':
-			return _regex(input.annotation || defaultAnnotation, input.value);
+			return _regex(input);
 		case 'compare':
-			return _compare(input.clauses, input.operation);
+			return _compare(input);
 		case 'not':
 			return _not(input.clause);
 		case 'and':
 		case 'or':
-			return _boolean(input.type, input.clauses);
+			return _boolean(input);
 		}
 		//throw new Error('Unknown token expression type: ' + input.type);
 		return null; // indicates an error occurred, but we can keep going (for e.g. withinClauses)
 	}
 
-	function _sequence(clauses: any[]): Token[]|null {
+	function _sequence(clauses: BCQLQueryNode[]): Token[]|null {
 		const tokens1 = clauses.map(_token);
 		if (tokens1.indexOf(null) >= 0)
 			return null;
@@ -195,23 +165,23 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 
 
 
-	function interpretTagsAttributes(attributes: Record<string, BLTextPatternValue>): Record<string, string|{ low: string; high: string }> {
+	function interpretTagsAttributes(attributes?: Record<string, BCQLTagAttributeExpressionNode>): Record<string, string|{ low: string; high: string }> {
 		const r: Record<string, string|{ low: string; high: string }> = {};
 		if (!attributes)
 			return r;
 		for (const [k, v] of Object.entries(attributes)) {
 			if (v.type === 'int-range') {
 				r[k] = { low: v.min == 0 ? '' : v.min.toString(), high: v.max == 9999 ? '' : v.max.toString() };
-			} else if (v.type === 'string' || v.type === 'number' || v.type === 'boolean') {
+			} else if (v.type === 'string' || v.type === 'integer' || v.type === 'boolean') {
 				r[k] = v.value.toString();
 			} else {
-				r[k] = v as any;
+				r[k] = v.bcqlFragment;
 			}
 		}
 		return r;
 	}
 
-	function _posFilter(producer: any, operation: string, filter: any): Result {
+	function _posFilter({producer, operation, filter}: BCQLPositionFilterNode): Result {
 		if (operation !== 'within')
 			throw new Error('Unknown posfilter operation: ' + operation);
 		if (filter.type !== 'tags' && filter.type !== 'overlapping' && filter.type != 'posfilter')
@@ -332,7 +302,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 		}
 	}
 
-	function _query(input: any): Result {
+	function _query(input: BCQLQueryNode): Result {
 		switch (input.type) {
 		case 'sequence':
 			return {
@@ -341,7 +311,7 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 			};
 
 		case 'posfilter': // (within expression)
-			return _posFilter(input.producer, input.operation, input.filter);
+			return _posFilter(input);
 
 		case 'tags':
 			// "show me these tags" (not really within, no query given)
@@ -356,7 +326,11 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 			// "show me the overlaps of these tags" (no query given)
 			return {
 				query: input.bcqlFragment,
-				withinClauses: Object.fromEntries(input.clauses.filter( (c: any) => c.type === 'tags').map((c: any) => [c.name, interpretTagsAttributes(c.attributes)])),
+				withinClauses: Object.fromEntries(input
+					.clauses
+					.filter(c => c.type === 'tags')
+					.map(c => [c.name, interpretTagsAttributes(c.attributes)])
+				),
 			};
 
 		default:
@@ -414,10 +388,15 @@ function interpretBcqlJson(bcql: string, json: any, defaultAnnotation: string): 
 	/** Strip the automatically added rspan(..., 'all') call.
 	 *  (added for relations queries using adjusthits=yes so hits cover all matched relations)
 	 */
-	function stripRspanAll(input: any): any {
+	function stripRspanAll(input: BCQLTextPatternStruct) {
 		if (input.type === 'callfunc') {
-			if (input.name === 'rspan' && input.args.length === 2 && input.args[1] === 'all') {
-				return input.args[0];
+			if (input.name === 'rspan') {
+				if (input.args.length === 2) {
+					const secondArg = input.args[1];
+					if (secondArg.type === 'string' && secondArg.value === 'all') {
+						return input.args[0];
+					}
+				}
 			}
 		}
 		return input;

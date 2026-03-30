@@ -207,7 +207,13 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 
 			// Parse the token expression into the root attribute group
 			if (token.expression) {
-				parseExpression(token.expression, tokenData.rootAttributeGroup, generateId);
+				const expr = parseExpression(token.expression, generateId);
+				if ('operator' in expr) {
+					tokenData.rootAttributeGroup = expr;
+				} else {
+					// If the expression is a single attribute, wrap it in a group for consistency
+					tokenData.rootAttributeGroup.entries.push(expr);
+				}
 			}
 
 			return tokenData;
@@ -222,48 +228,34 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 	// Parse expression tree into CQL entries
 	const parseExpression = (
 		expression: BooleanOp|Condition,
-		targetGroup: CqlAttributeGroupData,
 		generateId: () => string
-	): void => {
-		if (!expression) return;
-
+	): CqlAttributeGroupData|CqlAttributeData => {
 		if (expression.type === 'booleanOp') {
-			// Set the group operator based on the binary operation
-			targetGroup.operator = expression.operator;
-
-			// Parse left and right operands
-			const leftEntries: CqlGroupEntry[] = [];
-			const rightEntries: CqlGroupEntry[] = [];
-
-			// Create temporary groups to collect entries
-			const leftGroup: CqlAttributeGroupData = {
-				id: generateId(),
-				operator: expression.operator,
-				entries: leftEntries
-			};
-			const rightGroup: CqlAttributeGroupData = {
-				id: generateId(),
-				operator: expression.operator,
-				entries: rightEntries
-			};
-
-			parseExpression(expression.left, leftGroup, generateId);
-			parseExpression(expression.right, rightGroup, generateId);
-
-			// Add entries to target group
-			// If the child group has the same operator and only contains attributes, flatten it
-			if (leftGroup.entries.length === 1 && leftGroup.operator === targetGroup.operator) {
-				targetGroup.entries.push(...leftGroup.entries);
-			} else if (leftGroup.entries.length > 0) {
-				targetGroup.entries.push(leftGroup);
+			const operator = expression.operator;
+			
+			const firstGroupWithOperator = new Map<string, CqlAttributeGroupData>();
+			const ourEntries = [] as CqlGroupEntry[];
+			for (const entry of expression.clauses.map(c => parseExpression(c, generateId))) {
+				if (!('operator' in entry)) {
+					ourEntries.push(entry);
+					continue;
+				}
+				const subgroup = entry;
+				if (subgroup.operator === operator) {
+					ourEntries.push(...subgroup.entries);
+				} else if (!firstGroupWithOperator.has(subgroup.operator)) {
+					firstGroupWithOperator.set(subgroup.operator, subgroup);
+				} else {
+					firstGroupWithOperator.get(subgroup.operator)!.entries.push(...subgroup.entries);
+				}
 			}
-
-			if (rightGroup.entries.length === 1 && rightGroup.operator === targetGroup.operator) {
-				targetGroup.entries.push(...rightGroup.entries);
-			} else if (rightGroup.entries.length > 0) {
-				targetGroup.entries.push(rightGroup);
+			ourEntries.push(...firstGroupWithOperator.values());
+			return {
+				id: generateId(),
+				operator,
+				entries: ourEntries
 			}
-		} else if (expression.type === 'condition') {
+		} else { // (expression.type === 'condition') 
 			// Parse attribute value for case sensitivity and special operators
 			let value = expression.value;
 			let caseSensitive = false;
@@ -272,17 +264,17 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 			// Check for case sensitivity flags
 			if (value.indexOf('(?-i)') === 0) {
 				caseSensitive = true;
-				value = value.substr(5);
+				value = value.substring(5);
 			} else if (value.indexOf('(?c)') === 0) {
 				caseSensitive = true;
-				value = value.substr(4);
+				value = value.substring(4);
 			}
 
 			// decode starts-with / ends-with from value regex
 			let comparator: CqlAnnotationValueComparator = '=';
 			if (operator === '=' && value.startsWith('.*')) { comparator = 'endsWith'; }
 			else if (operator === '=' && value.endsWith('.*')) { comparator = 'startsWith'; }
-			else { comparator = operator as CqlAnnotationValueComparator; }
+			else { comparator = operator }
 
 			// Split values on pipe character for multi-value attributes
 			const values = value.split('|');
@@ -295,7 +287,7 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 				caseSensitive
 			};
 
-			targetGroup.entries.push(attributeData);
+			return attributeData;
 		}
 	};
 
