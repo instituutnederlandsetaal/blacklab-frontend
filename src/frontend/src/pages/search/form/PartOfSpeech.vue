@@ -22,13 +22,13 @@
 				</div>
 
 				<div v-if="annotationValue" class="category-container">
-					<ul v-for="subId in annotationValue.subAnnotationIds" class="list-group category">
+					<ul v-for="subId in annotationValue.subAnnotationIds" :key="subId" class="list-group category">
 						<li class="list-group-item active category-name">
 							{{$tAnnotDisplayName(allAnnotations[subId])}}
 							<Debug>({{subId}})</Debug>
 						</li>
 
-						<li class="list-group-item category-value" v-for="subValue in tagset.subAnnotations[subId].values" :key="subValue.value" v-if="!subValue.pos || subValue.pos.includes(annotationValue.value)">
+						<li class="list-group-item category-value" v-for="subValue in visibleSubAnnotationValues(subId)" :key="subValue.value">
 							<label>
 								<input type="checkbox" v-model="selected[`${annotationValue.value}/${subId}/${subValue.value}`]"/>
 								{{subValue.displayName}}
@@ -83,7 +83,7 @@ export default Vue.extend({
 			return [
 				`${this.annotation.id}="${escapeRegex(this.annotationValue.value)}"`,
 				...this.annotationValue.subAnnotationIds.map(subAnnot => {
-					const {values} = tagset.subAnnotations[subAnnot];
+					const values = tagset.subAnnotations[subAnnot]?.values || [];
 					const selected = values.filter(v => this.selected[`${this.annotationValue!.value}/${subAnnot}/${v.value}`]);
 
 					return {subAnnot, escapedValues: selected.map(v => escapeRegex(v.value))};
@@ -94,6 +94,16 @@ export default Vue.extend({
 		},
 	},
 	methods: {
+		visibleSubAnnotationValues(subId: string) {
+			if (!this.tagset || !this.annotationValue) {
+				return [] as Tagset['subAnnotations'][string]['values'];
+			}
+			const subAnnotation = this.tagset.subAnnotations[subId];
+			if (!subAnnotation) {
+				return [] as Tagset['subAnnotations'][string]['values'];
+			}
+			return subAnnotation.values.filter(subValue => !subValue.pos || subValue.pos.includes(this.annotationValue!.value));
+		},
 		reset() {
 			Object.keys(this.selected).forEach(k => this.selected[k] = false);
 			this.annotationValue = null;
@@ -108,7 +118,7 @@ export default Vue.extend({
 				if (!t) return;
 				Object.values(t.values).forEach(value => {
 					value.subAnnotationIds.forEach(annotId => {
-						const {values, id} = t.subAnnotations[annotId];
+						const values = t.subAnnotations[annotId]?.values || [];
 						values.forEach(({value: subAnnotValue}) => {
 							Vue.set(this.selected, `${value.value}/${annotId}/${subAnnotValue}`, false);
 						});

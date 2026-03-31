@@ -23,7 +23,7 @@
 
 				ref="reset"
 			/>
-			<div v-else :class="bare ? '' : 'input-group'">
+			<div v-else :class="bare ? undefined : 'input-group'">
 				<Autocomplete
 					type="text"
 					class="form-control"
@@ -208,7 +208,7 @@ export default Vue.extend({
 			}));
 		}
 	},
-	destroyed() {
+	unmounted() {
 		this.subscriptions.forEach(unsub => unsub());
 	}
 });

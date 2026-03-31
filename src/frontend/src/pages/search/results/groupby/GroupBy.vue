@@ -161,10 +161,9 @@
 		<div v-if="selectedCriterium?.type === 'context'" class="hit-preview panel-footer">
 			<template v-for="(section, i) of preview">
 				<div v-if="i !== 0" class="separator"></div>
-				<template v-for="({selectedAnnotation, word, punct, active, style, wordAsHtml, selectedAnnotationAsHtml}, j) of section">
+				<template v-for="({selectedAnnotation, word, punct, active, style, wordAsHtml, selectedAnnotationAsHtml}, j) of section" :key="word + i + '_' + j">
 					<component
 						:is="active ? 'section' : 'div'"
-						:key="word + i + '_' + j"
 						:class="{
 							'word': true,
 							'active': active,

@@ -8,7 +8,7 @@
 import { getStoreBuilder } from 'vuex-typex';
 import { RootState } from '@/store/';
 
-import { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex, NormalizedMetadataField, NormalizedMetadataGroup } from '@/types/apptypes';
+import type { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex, NormalizedMetadataField, NormalizedMetadataGroup } from '@/types/apptypes';
 import { mapReduce } from '@/utils';
 import { CorpusChange } from '@/store/async-loaders';
 
@@ -112,7 +112,10 @@ export {
 	// Root store needs to monitor loading state so it can properly initialize other parts of the app.
 	init,
 	ModuleRootState,
-	namespace,
+	namespace
+};
+
+export type {
 	NormalizedAnnotatedField,
 	NormalizedAnnotation,
 	NormalizedIndex,

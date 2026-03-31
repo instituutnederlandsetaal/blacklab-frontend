@@ -131,7 +131,7 @@ export default Vue.extend({
 		removeMeta() { document.head.querySelectorAll?.(`[${this.elementMarker}]`).forEach(e => e.remove()); },
 		removeCss() { this.$el?.querySelectorAll?.(`link[${this.elementMarker}]`).forEach(e => e.remove()); },
 	},
-	beforeDestroy() {
+	beforeUnmount() {
 		this.removeScripts();
 		this.removeMeta();
 		this.removeCss();

@@ -46,24 +46,24 @@ docker-compose up -d
 ### 3.1 Create `blacklab-frontend.properties`
 
 ```properties
-# Point to the webpack dev server
-jspath=http://localhost:8081/dist/
+# Point to the Vite dev server (host+port, no trailing slash)
+vite=localhost:5173
 # Point to the BlackLab instance running in Docker
 blsUrl=http://localhost:8082/blacklab-server/ 
 # Disable caching of template files and configs serverside
 cache=false
 ```
 
-- This config makes the frontend use the Webpack dev server for JS files and disables caching for immediate updates.
+- This config makes the frontend use the Vite dev server for JS modules and disables caching for immediate updates.
 
 ### 3.2 Run in Your IDE
 
 - Start the BlackLab Frontend servlet from your IDE (IntelliJ, VSCode, or Eclipse).
 - The frontend will be available at [http://localhost:8080/blacklab-frontend/](http://localhost:8080/blacklab-frontend/), but will not work until the frontend JavaScript is built.
 
-## 4. Start the Webpack Dev Server
+## 4. Start the Vite Dev Server
 
-Compile and watch JavaScript files using webpack.  
+Compile and watch JavaScript files using Vite.  
 Run the following in `src/frontend/`:
 
 ```bash
@@ -72,19 +72,19 @@ npm install
 npm start
 ```
 
-- Webpack dev server: [http://localhost:8081/](http://localhost:8081/)
+- Vite dev server: [http://localhost:5173/](http://localhost:5173/)
 
 **Note:**  
-The default port is `8080`, but we use `8081` because Tomcat uses `8080`. To change this, edit the `scripts.start` property in [package.json](src/frontend/package.json).
+The default Vite port is `5173`. To change it, edit the Vite server settings in [vite.config.ts](src/frontend/vite.config.ts).
 
 **Hot Reload:**  
 When you change a JS file, the page reloads automatically.
 
 ## 5. Development Workflow
 
-- The Webpack dev server auto-reloads on JS changes.
+- The Vite dev server auto-reloads on JS changes.
 - If you see "No corpora available", add a corpus to BlackLab.
-- For production, run `mvn clean package` in the project root to build and embed frontend assets in the WAR file. Remove `jspath` from your config when testing the production build.
+- For production, run `mvn clean package` in the project root to build and embed frontend assets in the WAR file. Remove `vite` from your config when testing the production build.
 
 ## 6. Backend Development Notes
 
@@ -97,8 +97,8 @@ The backend is written in Java and is mainly responsible for:
 ## Tips
 
 - Install the Vue devtools ([Chrome](https://chrome.google.com/webstore/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd), [Firefox](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)).
-- Using the `jspath` property in `blacklab-frontend.properties` with the webpack dev server lets you sideload JavaScript for real-time compilation and hot reload.
-- Example `jspath` for sideloading (no trailing slash!):
+- Using the `vite` property in `blacklab-frontend.properties` with the Vite dev server lets you sideload JavaScript for real-time compilation and hot reload.
+- Example `vite` for sideloading (no trailing slash!):
   ```properties
-  jspath=http://localhost:8081/dist
+  vite=localhost:5173
   ```

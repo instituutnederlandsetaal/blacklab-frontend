@@ -123,7 +123,7 @@ export default Vue.extend({
 			},
 		}
 	},
-	destroyed() {
+	unmounted() {
 		this.totals.dispose();
 	}
 });

@@ -215,7 +215,7 @@ export default Vue.extend({
 			this.synchronizeActiveTab(); 
 		}
 	},
-	destroyed() {
+	unmounted() {
 		this.cancelFilterWatch.forEach(c => c());
 		this.cancelFilterWatch = [];
 	}

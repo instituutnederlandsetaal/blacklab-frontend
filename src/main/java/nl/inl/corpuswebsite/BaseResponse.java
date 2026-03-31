@@ -131,7 +131,7 @@ public abstract class BaseResponse {
                                 "; Path="+globalCfg.get(Keys.CF_URL_ON_CLIENT)+"/");
         });
 
-        model.put("JSPATH", globalCfg.get(Keys.JSPATH));
+        model.put("VITE", globalCfg.get(Keys.VITE));
         model.put("FRONTEND_WITH_CREDENTIALS", globalCfg.getBool(Keys.FRONTEND_WITH_CREDENTIALS));
 
         // Clientside js variables (some might be used in vm directly)

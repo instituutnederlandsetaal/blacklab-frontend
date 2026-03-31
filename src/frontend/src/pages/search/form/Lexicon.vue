@@ -270,7 +270,7 @@ export default Vue.extend({
 			}),
 		);
 	},
-	destroyed() {
+	unmounted() {
 		this.subscriptions.forEach(s => s.unsubscribe());
 	},
 	watch: {

@@ -74,7 +74,7 @@ export default Vue.extend({
 		document.body.classList.add('modal-open');
 		document.body.setAttribute('data-modal-count', (parseInt(document.body.getAttribute('data-modal-count') || '0') + 1).toString());
 	},
-	beforeDestroy() {
+	beforeUnmount() {
 		document.body.setAttribute('data-modal-count', (parseInt(document.body.getAttribute('data-modal-count') || '0') - 1).toString());
 		if (!document.body.hasAttribute('data-modal-count') || document.body.getAttribute('data-modal-count') === '0')
 			document.body.classList.remove('modal-open');

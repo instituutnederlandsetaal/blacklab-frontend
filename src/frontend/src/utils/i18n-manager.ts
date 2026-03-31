@@ -1,8 +1,8 @@
-import { reactive, ref, computed, watch, del, set } from 'vue';
-import { LocaleMessageObject } from 'vue-i18n';
+import { reactive, ref, computed, watch } from 'vue';
+import type { LocaleMessageObject } from 'vue-i18n';
 import { merge } from 'ts-deepmerge';
 import stripJsonComments from 'strip-json-comments';
-import { Option } from '@/types/apptypes';
+import type { Option } from '@/types/apptypes';
 import { watchStorage } from '@/utils/localstore';
 
 function parseJsonWithComments<T = any>(jsonResponse: Response): Promise<T> {
@@ -145,7 +145,7 @@ class I18nManager {
 		const locale = this.resolveLocale(localeId);
 		locale.label = label;
 		if (!this.registeredLocaleIds[locale.value]) {
-			set(this.registeredLocaleIds, locale.value, true);
+			this.registeredLocaleIds[locale.value] = true;
 			this.registeredLocaleIdsVersion.value++;
 		}
 	}
@@ -156,8 +156,8 @@ class I18nManager {
 	async removeLocale(localeId: string): Promise<void> {
 		const locale = this.resolveLocale(localeId);
 		if (locale.loading) await locale.loading;
-		del(this.localeStates, locale.value);
-		del(this.registeredLocaleIds, locale.value);
+		delete this.localeStates[locale.value];
+		delete this.registeredLocaleIds[locale.value];
 		this.registeredLocaleIdsVersion.value++;
 	}
 
@@ -225,13 +225,14 @@ class I18nManager {
 		const prefix = requestedLocale.split('-')[0];
 		let match = Object.values(this.localeStates).find(locale => locale.value.startsWith(prefix + '-'));
 		if (!match) {
-			match = set(this.localeStates, requestedLocale, {
+			this.localeStates[requestedLocale] = {
 				value: requestedLocale,
 				label: requestedLocale,
 				loading: null,
 				error: null,
 				messages: null,
-			});
+			};
+			match = this.localeStates[requestedLocale];
 		}
 		return match;
 	}

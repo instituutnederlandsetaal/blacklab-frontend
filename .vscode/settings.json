@@ -8,5 +8,6 @@
 		"/src/frontend/",
 		"/docs"
 	],
-	"typescript.tsserver.experimental.enableProjectDiagnostics": false
+	"typescript.tsserver.experimental.enableProjectDiagnostics": false,
+	"java.configuration.updateBuildConfiguration": "interactive"
 }

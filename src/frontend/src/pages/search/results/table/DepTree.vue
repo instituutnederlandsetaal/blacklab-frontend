@@ -1,21 +1,15 @@
 <template>
-	<reactive-dep-tree v-if="connlu && renderTree" ref="tree"
-		minimal
-		interactive
-		:shown-features="shownFeatures"
-		:conll="connlu"
-	></reactive-dep-tree>
+	<div v-if="connlu" class="text-muted dep-tree-disabled">
+		Dependency tree rendering is temporarily disabled during the Vue 3 migration.
+	</div>
 </template>
 
 <script lang="ts">
 // https://github.com/kirianguiller/reactive-dep-tree/
 import Vue from 'vue';
 
-// @ts-ignore
-import {ReactiveDepTree} from '@/../node_modules/reactive-dep-tree/dist/reactive-dep-tree.umd.js';
 import { DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
 import { BLHit, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
-import Spinner from '@/components/Spinner.vue';
 import { NormalizedAnnotation } from '@/types/apptypes';
 
 
@@ -74,10 +68,6 @@ function flatten(h?: BLHitSnippetPart, values?: string[]): Array<Record<string, 
 }
 
 export default Vue.extend({
-	components: {
-		ReactiveDepTree,
-		Spinner
-	},
 	props: {
 		data: Object as () => HitRowData,
 		fullSentence: Object as () => BLHit|undefined,
@@ -87,9 +77,6 @@ export default Vue.extend({
 		mainAnnotation: Object as () => NormalizedAnnotation,
 		otherAnnotations: Object as () => DisplaySettingsForRendering['depTreeAnnotations'],
 	},
-	data: () => ({
-		renderTree: true,
-	}),
 	computed: {
 		shownFeatures(): string { // FORM,LEMMA,UPOS,XPOS,FEATS.someFeat,FEATS.someOtherFeat (probably, we only provide 1 feat hardcoded to the name of the annotation, i.e. FEATS.annotationName)
 			// E.g. FEATS.some_annot, FEATS.some_other_annot
@@ -233,13 +220,6 @@ export default Vue.extend({
 
 			return header + '\n' + rows.map(row => row.join('\t')).join('\n');
 		},
-	},
-	watch: {
-		connlu() {
-			// Tree component is somehow not reactive..
-			this.renderTree = false;
-			this.$nextTick(() => this.renderTree = true);
-		}
 	}
 });
 </script>

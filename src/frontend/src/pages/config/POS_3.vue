@@ -255,7 +255,7 @@ export const step = Vue.extend({
 		this.v = this.value.step3;
 		this.getCombinations();
 	},
-	destroyed() {
+	unmounted() {
 		this.stop = true;
 	}
 });

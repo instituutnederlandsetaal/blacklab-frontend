@@ -1,11 +1,11 @@
-import Vue from 'vue';
+import { reactive } from 'vue';
 import { syncPropertyWithLocalStorage } from '@/utils/localstore';
 
 
 export type LogCategory = 'history'|'parallel'|'init'|'shared'|'results';
 
 const isDebugMode = !!process.env.NODE_ENV?.match(/dev|test/);
-let debug = Vue.observable({
+let debug = reactive({
 	debug: false,
 	debug_visible: isDebugMode || (typeof DEBUG_INFO_VISIBLE !== 'undefined' ? DEBUG_INFO_VISIBLE : false),
 });

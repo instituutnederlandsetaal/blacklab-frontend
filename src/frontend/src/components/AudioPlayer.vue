@@ -73,7 +73,7 @@ export default Vue.extend({
 			this.stop();
 		}
 	},
-	beforeDestroy() {
+	beforeUnmount() {
 		this.stop();
 	}
 });

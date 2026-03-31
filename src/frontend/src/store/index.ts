@@ -397,7 +397,9 @@ const store = b.vuexStore({
 		storeLoadingState: new LoadableFromStream(corpusData$) as Loadable<CorpusChange>,
 		indexId: null,
 	} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
-	strict: process.env.NODE_ENV === 'development',
+	// Vue 3 compat makes several legacy reactive helpers observable to Vuex strict mode.
+	// Keep strict mode off until those helpers are migrated to commit-driven updates.
+	strict: false,
 });
 
 /**

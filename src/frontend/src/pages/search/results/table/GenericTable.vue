@@ -8,9 +8,9 @@
 					@changeSort="$emit('changeSort', $event)"
 					:sort="sort"
 				>
-					<v-popover v-if="i === 0 && col.field === 'group'" offset="5" style="display:inline-block;">
+					<v-dropdown v-if="i === 0 && col.field === 'group'" :distance="5" style="display:inline-block;">
 						<a role="button" title="Column meanings"><span class="fa fa-lg fa-question-circle"></span></a>
-						<template slot="popover">
+						<template #popper>
 							<table class="table table-condensed" style="table-layout:auto; max-width:calc(100vw - 75px);width:500px;">
 								<tbody>
 									<tr v-for="(row, i) in definitions" :key="i">
@@ -19,7 +19,7 @@
 								</tbody>
 							</table>
 						</template>
-					</v-popover>
+					</v-dropdown>
 				</TableHeader>
 			</tr>
 		</thead>

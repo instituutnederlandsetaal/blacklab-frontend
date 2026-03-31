@@ -10,7 +10,12 @@
         var WITH_CREDENTIALS = false; // must be defined for api to initialize.
     </script>
 
-    <script src="$JSPATH/callback.js?_$cache"></script>
+    #if($VITE)
+    <script type="module" src="$VITE/@vite/client"></script>
+    <script type="module" src="$VITE/src/callback.ts"></script>
+    #else
+    <script src="$CF_URL_ON_CLIENT/js/callback.js?_$cache"></script>
+    #end
 </head>
 <body>
     <div class="container">

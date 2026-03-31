@@ -1,36 +1,31 @@
-import Vue from 'vue';
-import Router from 'vue-router';
+import { createRouter, createWebHistory } from 'vue-router';
 
-Vue.use(Router);
-
-const router = new Router({
-	base: CONTEXT_URL,
-	mode: 'history',
+const router = createRouter({
+	history: createWebHistory(CONTEXT_URL),
 	routes: [
 		{
 			name: 'corpora',
 			path: '/',
-			alias: '',
 			meta: { name: 'corpora', getTitle: () => 'Corpora' },
 			component: () => import('@/pages/corpora/CorporaPage.vue')
 		},
 		{
 			name: 'global-help',
 			path: '/help',
-			alias: '/help/*',
+			alias: '/help/:pathMatch(.*)*',
 			meta: { name: 'help', getTitle: (displayName: string) => displayName + ' Help' },
 			component: () => import('@/pages/help/HelpPage.vue')
 		},
 		{
 			name: 'global-about',
 			path: '/about',
-			alias: '/about/*',
+			alias: '/about/:pathMatch(.*)*',
 			meta: { name: 'about', getTitle: () => 'About' },
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
 			path: '/configwizard',
-			alias: '/configwizard/*',
+			alias: '/configwizard/:pathMatch(.*)*',
 			meta: { name: 'configwizard' },
 			component: () => import('@/pages/config/ConfigPage.vue'),
 			// todo make this make sense.
@@ -49,7 +44,7 @@ const router = new Router({
 		{
 			name: 'search',
 			path: '/:corpus/search',
-			alias: '/:corpus/search/*',
+			alias: '/:corpus/search/:pathMatch(.*)*',
 			meta: { name: 'search', getTitle: (displayName: string) => `${displayName} Search` },
 			component: () => import('@/pages/search/SearchPage.vue'),
 		},
@@ -62,14 +57,14 @@ const router = new Router({
 		{
 			name: 'about',
 			path: '/:corpus/about',
-			alias: '/:corpus/about/*',
+			alias: '/:corpus/about/:pathMatch(.*)*',
 			meta: { name: 'about', getTitle: (displayName: string) => `About ${displayName}` },
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
 			name: 'help',
 			path: '/:corpus/help',
-			alias: '/:corpus/help/*',
+			alias: '/:corpus/help/:pathMatch(.*)*',
 			meta: { name: 'help', getTitle: (displayName: string) => `${displayName} Help` },
 			component: () => import('@/pages/help/HelpPage.vue'),
 		},
@@ -121,12 +116,15 @@ function markInitialUrlStateApplied() {
 }
 
 router.beforeEach((to, from, next) => {
-	RootStore.actions.indexId(to.params.corpus);
-	setI18nIndexId(to.params.corpus);
-	ArticleStore.actions.docId(to.params.docId);
+	const corpus = typeof to.params.corpus === 'string' ? to.params.corpus : null;
+	const docId = typeof to.params.docId === 'string' ? to.params.docId : null;
+
+	RootStore.actions.indexId(corpus);
+	setI18nIndexId(corpus);
+	ArticleStore.actions.docId(docId ?? undefined);
 
 	// On first entry on the page, we need to decode the url.
-	if (!pageLoadUrlDecoded && to.params.corpus) {
+	if (!pageLoadUrlDecoded && corpus) {
 		pageLoadUrlDecoded = true;
 		if (to.name === 'article' || to.name === 'search') {
 			const parser = to.name === 'article' ? new UrlStateParserArticle() : new UrlStateParserSearch();

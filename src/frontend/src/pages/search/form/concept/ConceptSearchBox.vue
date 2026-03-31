@@ -3,6 +3,7 @@
 		<div class="box-header">{{ $t('formConcept.conceptSearchBox.subquery') }} {{ id }}</div>
 
 		<table>
+			<tbody>
 			<tr>
 				<td class="fn">
 					<label :for="id + 'main_fields'">{{ $t('formConcept.conceptSearchBox.field') }}: </label>
@@ -48,6 +49,7 @@
 					</div>
 				</td>
 			</tr>
+			</tbody>
 		</table>
 
 

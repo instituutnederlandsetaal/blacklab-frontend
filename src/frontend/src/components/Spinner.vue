@@ -6,7 +6,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import Vue, { onBeforeUnmount } from 'vue';
 export default Vue.extend({
 	props: {
 		lg: Boolean,
@@ -60,7 +60,7 @@ export default Vue.extend({
 
 		}
 	},
-	beforeDestroy() { if (this.observer) this.observer.disconnect(); }
+	onBeforeUnmount() { if (this.observer) this.observer.disconnect(); }
 })
 </script>
 

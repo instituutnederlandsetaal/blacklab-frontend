@@ -1,4 +1,4 @@
-import Vue from 'vue';
+import { reactive } from 'vue';
 import { CancelableRequest } from '@/utils/loadable-streams';
 
 /** A class that can retrieve items in a paginated way and exposes them along with an error and loading state. */
@@ -19,7 +19,7 @@ export default class PaginatedGetter<T> {
 		public pageSize: number = 20
 	) {
 		// make it so we can render this in a vue component reactively, etc.
-		Vue.observable(this);
+		return reactive(this) as this;
 	}
 
 	/** Load the next page, if possible. */

@@ -1,196 +1,152 @@
 <template>
-	<input
-		:autocomplete="autocomplete ? 'off' : 'on'"
-		@keypress="_refreshList"
-		@keyup.left="_refreshList"
-		@keyup.right="_refreshList"
-		@click="_refreshList"
-		v-model="modelvalue"
+	<SelectPicker
+		v-bind="$attrs"
+		editable
+		@select="_autocompleteSelected"
+		v-model="modelValue"
+		:options
+		:autocomplete="props.autocomplete ? 'on' : 'off'"
+		container="body"
+		@keyup="_refreshList"
+		ref="input"
 	/>
 </template>
 
-<script lang="ts">
-import Vue from 'vue';
+<script setup lang="ts">
 
-import $ from 'jquery';
-import 'jquery-ui';
-import 'jquery-ui/ui/widgets/autocomplete';
+import { computed, ref, useTemplateRef } from 'vue';
+import SelectPicker from './SelectPicker.vue';
+
 
 import {splitIntoTerms} from '@/utils';
 
-// Inherit jQueryUI autocomplete widget and customize the rendering
-// to apply some bootstrap classes and structure
-// Jesse: renderMenu en renderItem mee kunnen geven??
-$.widget('custom.autocomplete', $.ui.autocomplete, {
-	_renderMenu(ul: HTMLUListElement, items: any) {
-		const self = this;
-		$.each(items, function(index, item) {
-			self._renderItem(ul, item);
-		});
-	},
-	_renderItem(ul: HTMLUListElement, item: { value: string, label: string }) {
-		$('<li></li>')
-			.attr('value', item.value)
-			.html('<a>' + item.label + '</a>')
-			.data('ui-autocomplete-item', item)
-			.appendTo(ul);
-	},
-	_resizeMenu() {
-		$((this as any).menu.element).css({
-			'max-height': '300px',
-			'overflow-y': 'auto',
-			'overflow-x': 'hidden',
-			'width': 'auto',
-			'min-width': $(this.element).outerWidth(),
-			'max-width': '500px'
-		} as JQuery.PlainObject);
-	}
+
+const modelValue = defineModel<string>({default: ''});
+const props = withDefaults(defineProps<{
+	url?: string,
+	/** alternative to url, use this to get the data yourself. */
+	getData?: (term: string) => Promise<string[]>,
+	autocomplete?: boolean,
+	useQuoteAsWordBoundary?: boolean,
+}>(), {
+	autocomplete: true,
+	useQuoteAsWordBoundary: false,
 });
 
-export default Vue.extend({
-	props: {
-		value: String,
-		url: String,
-		/** alternative to url, use this to get the data yourself. */
-		getData: Function as any as () => (term: string) => Promise<string[]>,
-		/** Process the data before it is displayed. Work on both getData and url. */
-		processData: Function as any as () => (data: any) => string[],
-		autocomplete: {
-			default: true,
-			type: Boolean
-		},
-		useQuoteAsWordBoundary: Boolean,
-	},
-	data: () => ({
-		withCredentials: WITH_CREDENTIALS,
-	}),
-	computed: {
-		modelvalue: {
-			get(): string { return this.value; },
-			set(v: string) { this.$emit('input', v); this.$emit('change', v); }
-		}
-	},
-	methods: {
-		_createAutocomplete() {
-			const $input = $(this.$el);
-			const self = this;
-			let lastSearchValue = '';
-			let lastSearchResults: string[]|undefined;
-			$input.autocomplete({
-				// Show values when at least 1 letter is present in the input
-				minLength: 1,
-				classes: {
-					'ui-autocomplete': 'dropdown-menu'
-				},
-				source(params: any, render: (v: string[]) => void) {
-					if (!self.getData && !self.url) return;
+const emit = defineEmits<{
+   change: [value: string],
+   update: [value: string] 
+}>()
 
-					const {value} = self._getWordAroundCursor(false);
-					if (!value.length) return;
-					if (value === lastSearchValue && lastSearchResults) return render(lastSearchResults);
-					lastSearchValue = value;
 
-					const getData = (self.getData && self.getData(value)) || $.ajax({
-						method: 'GET',
-						url: self.url,
-						data: {term: value},
-						dataType: 'json',
-						xhrFields: {
-							withCredentials: self.withCredentials
-						}
-					});
-
-					getData.then(r => {
-						if (value !== lastSearchValue) return; // stale data.
-						if (self.processData) r = self.processData(r);
-						lastSearchResults = r;
-						render(r);
-					});
-				},
-				create() {
-					// This element has a div appended every time an element is highlighted
-					// but they are never removed... remove this element for now
-					$('.ui-helper-hidden-accessible').remove();
-				},
-				// Manually fire dom change event as autocomplete doesn't fire it when user selects a value
-				// and we require change events in other parts of the code.
-				select(event, ui) {
-					self._autocompleteSelected(ui.item.value);
-					return false;
-				},
-				focus(event, ui) {
-					event.preventDefault();
-					// prevent jquery from previewing the entire value in the input field.
-					// since we run custom value logic
-				}
-			});
-		},
-		_destroyAutocomplete() { $(this.$el).autocomplete('destroy'); },
-		_refreshList(e: Event) { if (!this.autocomplete) { return; } $(e.target as HTMLElement).autocomplete('search'); },
-
-		/**
-		 * @param lookForward select until next whitespace, or only look back
-		 */
-		_getWordAroundCursor(lookForward: boolean): {start: number, end: number, value: string} {
-			const input = this.$el as HTMLInputElement;
-			const value = input.value;
-			const nothingFound = {value : '', start: 0, end: value.length};
-			if (value.length > 100) {
-				return nothingFound;
-			}
-
-			let start = input.selectionStart != null ? input.selectionStart : 0;
-			let end = input.selectionEnd != null ? input.selectionEnd : value.length;
-			if (start > end) { const tmp = start; start = end; end = tmp; }
-
-			if (start === end) { // just a caret; no selection, find whitespace boundaries around cursor
-				// start - 1 because splitIntoTerms takes quotes into consideration by default, but we do not.
-				const term =  splitIntoTerms(value, this.useQuoteAsWordBoundary).find(t => t.end >= (start -1))
-				if (!term) {
-					return nothingFound;
-				}
-				if (lookForward) {
-					return term;
-				}
-				// We have a term but aren't supposed to look beyond the cursor end index, strip everything beyond it from the found term.
-				return {
-					start: term.isQuoted ? term.start + 1 : term.start,
-					end: Math.min(term.end, end),
-					value: term.value.substring(0, end - term.start)
-				}
-			}
-
-			return { start, end, value: value.substring(start, end) };
-		},
-		_autocompleteSelected(v: string) {
-			if (this.useQuoteAsWordBoundary && v.match(/\s/)) v = `"${v}"`;
-
-			const input = this.$el as HTMLInputElement;
-			const value = input.value;
-
-			const {start, end}: {start: number; end: number;} = this._getWordAroundCursor(true);
-
-			input.value = value.substring(0, start) + v + value.substring(end);
-			input.selectionStart = start+v.length+1;
-			input.selectionEnd = start+v.length+1;
-
-			let event: Event;
-			if(typeof(Event) === 'function') {
-				event = new Event('input');
-			}else{
-				event = document.createEvent('Event');
-				event.initEvent('input', true, true);
-			}
-			input.dispatchEvent(event);
-
-		}
-	},
-	mounted() { if (this.autocomplete) { this._createAutocomplete(); }},
-	beforeDestroy() { if (this.autocomplete) { this._destroyAutocomplete(); }},
-	watch: {
-		autocomplete(v: boolean) {
-			v ? this._createAutocomplete() : this._destroyAutocomplete();
-		},
+const options = ref<string[]>([]);
+const autocompleteRef = useTemplateRef<typeof SelectPicker>('input');
+const inputElement = computed<HTMLInputElement | null>(() => {
+	console.log('getting input element');
+	const el = autocompleteRef.value?.$el;
+	if (!el) {
+		// console.warn(`Could not find 'input' template ref`);
+		return null;
 	}
+	const input = el.querySelector('input');
+	if (!input) {
+		// console.warn(`Could not find input element within autocomplete component`);
+		return null;
+	}
+	if (!(input instanceof HTMLInputElement)) {
+		// console.warn(`Element found with querySelector was not an HTMLInputElement`);
+		return null;
+	} 
+	return input;
 });
+
+let lastSearchValue = '';
+
+function _refreshList() {
+	// console.log('refreshing list');
+	if (!props.url && !props.getData) return;
+	
+	const input = inputElement.value;
+	if (!input) return;
+	
+	const v = _getWordAroundCursor(input, false).value;
+	if (v === lastSearchValue) return;
+	
+	lastSearchValue = v;
+	if (!v.length) return;
+
+	let r: Promise<string[]>|undefined;
+	if (props.getData) {
+		r = props.getData(v);
+	} else if (props.url){
+		const url = new URL(props.url);
+		const qs = new URLSearchParams(url.search);
+		qs.set('term', v);
+		qs.set('api', '4');
+		r = fetch(`${url.protocol}//${url.host}${url.pathname}?${qs.toString()}`, {
+			method: 'GET',
+			credentials: WITH_CREDENTIALS ? 'include' : 'same-origin',
+			headers: {
+				'Accept': 'application/json'
+			}
+		})
+		.then(res => res.json());
+	}
+
+	if (!r) return;
+	r.then(suggestions => {
+		if (v === lastSearchValue) options.value = suggestions;
+	});
+}
+
+/**
+ * @param lookForward select until next whitespace, or only look back
+ */
+function _getWordAroundCursor(inputElement: HTMLInputElement, lookForward: boolean): {start: number, end: number, value: string} {
+	const input = inputElement;
+	const value = input.value;
+	const nothingFound = {value : '', start: 0, end: value.length};
+	if (value.length > 100) {
+		return nothingFound;
+	}
+
+	let start = input.selectionStart != null ? input.selectionStart : 0;
+	let end = input.selectionEnd != null ? input.selectionEnd : value.length;
+	if (start > end) { const tmp = start; start = end; end = tmp; }
+
+	if (start === end) { // just a caret; no selection, find whitespace boundaries around cursor
+		// start - 1 because splitIntoTerms takes quotes into consideration by default, but we do not.
+		const term =  splitIntoTerms(value, props.useQuoteAsWordBoundary).find(t => t.end >= (start -1))
+		if (!term) {
+			return nothingFound;
+		}
+		if (lookForward) {
+			return term;
+		}
+		// We have a term but aren't supposed to look beyond the cursor end index, strip everything beyond it from the found term.
+		return {
+			start: term.isQuoted ? term.start + 1 : term.start,
+			end: Math.min(term.end, end),
+			value: term.value.substring(0, end - term.start)
+		}
+	}
+
+	return { start, end, value: value.substring(start, end) };
+}
+function _autocompleteSelected({value: v}: {value: string}) {
+	if (props.useQuoteAsWordBoundary && v.match(/\s/)) v = `"${v}"`;
+
+	const input = inputElement.value;
+	if (!input) return;
+	const value = input.value;
+
+	const {start, end}: {start: number; end: number;} = _getWordAroundCursor(input, true);
+
+	input.value = value.substring(0, start) + v + value.substring(end);
+	input.selectionStart = start+v.length+1;
+	input.selectionEnd = start+v.length+1;
+
+	input.dispatchEvent(new Event('input'));
+	return false;
+}	
 </script>

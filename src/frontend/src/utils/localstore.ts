@@ -1,4 +1,4 @@
-import Vue, { watch } from 'vue';
+import { reactive, watch } from 'vue';
 
 class StorageWatcher {
 	private listeners: Map<string, ((newValue: any) => void)> = new Map();
@@ -42,6 +42,7 @@ class StorageWatcher {
 const storageWatcher = new StorageWatcher();
 
 const putNewValueInStorage = (key: string) => (newValue: any) => {
+	if (typeof localStorage === 'undefined') return;
 	const storedValue = localStorage.getItem(key);
 	const newStoredValue = JSON.stringify(newValue);
 	// prevent recursion when there is also a listener on localStorage
@@ -73,12 +74,12 @@ export function localStorageSynced<T>(storageKey: string, defaultValue: T, watch
 	}
 
 	// Make the value observable so updates will trigger our watcher and propagate to localStorage
-	const v: ExpiringValue<T> = Vue.observable(fromJson(localStorage.getItem(storageKey)));
+	const v: ExpiringValue<T> = reactive(fromJson(typeof localStorage === 'undefined' ? null : localStorage.getItem(storageKey))) as ExpiringValue<T>;
 	// Every time the value changes, update the localStorage with the new value + reset the ttl.
 	watch((): Omit<ExpiringValue<T>, 'isFromStorage'> => ({value: v.value, expiry: nextExpiry()}), putNewValueInStorage(storageKey))
 
 	// For simplicity, we only check expiry during initial read
-	if (watchStorage) storageWatcher.addListener<ExpiringValue<T>>(storageKey, newValue => Object.assign(v, newValue));
+	if (watchStorage && typeof localStorage !== 'undefined') storageWatcher.addListener<ExpiringValue<T>>(storageKey, newValue => Object.assign(v, newValue));
 	return v;
 }
 
@@ -90,6 +91,7 @@ export function watchStorage(key: string, callback: (newValue: any) => void, set
 /** Read the value written by localStorageSynced in the past, without setting up any reactivity */
 export function probeLocalStorageSynced<T>(storageKey: string, defaultValue: T): {value: T, isFromStorage: boolean} {
 	const v = { value: defaultValue, isFromStorage: false };
+	if (typeof localStorage === 'undefined') return v;
 	if (localStorage.getItem(storageKey)) {
 		try { v.value = JSON.parse(localStorage.getItem(storageKey)!); v.isFromStorage = true; }
 		catch { console.error(`Failed to parse stored value for ${storageKey}`); }
@@ -98,12 +100,13 @@ export function probeLocalStorageSynced<T>(storageKey: string, defaultValue: T):
 }
 
 export function syncPropertyWithLocalStorage<T extends object, K extends keyof T>(storageKey: string, props: T, prop: K, watchStorage = false) {
+	if (typeof localStorage === 'undefined') return props;
 	if (localStorage.getItem(storageKey)) {
 		try { props[prop] = JSON.parse(localStorage.getItem(storageKey) as string); }
 		catch { console.error(`Failed to parse stored value for ${storageKey}`); }
 	}
 
-	props = Vue.observable(props);
+	props = reactive(props) as T;
 	watch(() => props[prop], putNewValueInStorage(storageKey));
 	if (watchStorage) storageWatcher.addListener<T[K]>(storageKey, newValue => props[prop] = newValue);
 	return props;

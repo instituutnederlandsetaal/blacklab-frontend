@@ -54,7 +54,7 @@
 		],
 
 		// Enable importing source files by their absolute path by prefixing with "@/"
-		// Note: this also requires webpack to be able to find the imports see webpack.config.js
+		// Note: this also requires Vite to be able to find the imports, see vite.config.ts
 		"baseUrl": "src",
 		"paths": {
 			"@/*": ["./*"]
@@ -77,12 +77,12 @@
 		"outDir": "dist",
 	},
 	// This tsconfig is meant for files that run in the browser. Therefor exclude files that run in nodejs.
-	// (this is basically anything that's used in webpack and linters/compilers).
+	// (this is basically anything that's used in Vite and linters/compilers).
 	// This is to prevent the typescript compiler from complaining about missing nodejs types.
 	// And likewise, to prevent nodejs global functions/types from being autocompleted/polluting files containing code meant to run in the browser.
-	"exclude": ["dist", "webpack.config.prod.js", "webpack.config.dev.js", "eslint.config.js", ".babelrc"],
+	"exclude": ["dist", "vite.config.ts", "eslint.config.js", ".babelrc"],
 	"vueCompilerOptions": {
-		"target": 2,
+		"target": 3,
 		"extensions": [
 			".vue"
 		]

@@ -1,7 +1,7 @@
 import { combineLatest, debounceTime, delay, distinctUntilChanged, EMPTY, filter, firstValueFrom, map, merge, mergeMap, Observable, ObservableInput, of, OperatorFunction, partition, pipe, race, ReplaySubject, startWith, Subject, Subscription, switchMap, take, takeUntil, tap, timer } from 'rxjs';
 import jsonStableStringify from 'json-stable-stringify';
 import { MarkRequiredAndNotNull } from '@/types/helpers';
-import Vue, { markRaw } from 'vue';
+import { markRaw, reactive } from 'vue';
 import { ApiError } from '@/types/apptypes';
 import { Canceler } from 'axios';
 
@@ -407,7 +407,7 @@ type InteractiveLoadableSettings = typeof defaultInteractiveLoadableSettings;
  * 	mounted() {
  * 		this.loadable.next(1);
  * 	},
- * 	beforeDestroy() {
+ * 	beforeUnmount() {
  * 		this.loadable.dispose();
  * 	}
  * };
@@ -458,7 +458,7 @@ export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
 
 		// Make this object reactive. NOTE: make sure to markRaw() all things that should not be reactive!
 		// This means the streams and settings are not reactive, but the Loadable state + values are.
-		Vue.observable(this);
+		return reactive(this) as this;
 	}
 
 	public next(i: TInput) {
@@ -521,7 +521,7 @@ export class LoadableFromStream<T> extends Loadable<T> {
 
 		// Make this object reactive. NOTE: make sure to markRaw() all things that should not be reactive!
 		// This means the streams and settings are not reactive, but the Loadable state + values are.
-		Vue.observable(this);
+		return reactive(this) as this;
 	}
 
 	public dispose() {

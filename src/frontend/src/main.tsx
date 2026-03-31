@@ -1,16 +1,15 @@
-import 'bootstrap';
+import '@/utils/enable-polyfills';
 // Global corpus-frontend styles.
 import '@/global.scss';
 
-import $ from 'jquery';
-import Vue from 'vue';
+import $ from '@/utils/jquery-globals';
+import 'bootstrap';
+import Vue, { createApp } from 'vue';
 import router, { initialUrlStateApplied } from '@/route/router';
 
 
-// @ts-ignore
-import VTooltip from 'v-tooltip';
-//@ts-ignore
-import VuePlausible from 'vue-plausible/lib/esm/vue-plugin.js';
+import FloatingVue from 'floating-vue';
+import 'floating-vue/dist/style.css';
 
 import Filters from '@/components/filters';
 
@@ -30,17 +29,17 @@ import { debugLogCat } from '@/utils/debug';
 // --------------
 // Initialize vue
 // --------------
-Vue.config.productionTip = false;
-Vue.config.errorHandler = (err, vm, info) => {
+const errorHandler = (err: Error, vm: unknown, info: string) => {
 	if (!err.message.includes('[vuex]' /* do not mutate vuex store state outside mutation handlers */)) { // already logged and annoying
 		console.error(err);
 	}
 };
-Vue.mixin({
+
+const renderErrorMixin = {
 	// tslint:disable
-	renderError(h, err) {
+	renderError(h: any, err: Error) {
 		// Retrieve component stack
-		let components = [this] as Vue[];
+		let components = [this as unknown as Vue];
 		while(components[components.length-1].$options.parent) {
 			components.push(components[components.length-1].$options.parent as Vue)
 		}
@@ -54,7 +53,7 @@ Vue.mixin({
 		)
 	}
 	// tslint:enable
-});
+};
 
 // if (PLAUSIBLE_DOMAIN && PLAUSIBLE_APIHOST) {
 // 	Vue.use(VuePlausible, {
@@ -65,19 +64,6 @@ Vue.mixin({
 // 	//@ts-ignore
 // 	Vue.$plausible.trackPageview();
 // }
-Vue.use(Filters);
-Vue.use(VTooltip, {
-	popover: {
-		defaultBaseClass: 'popover',
-		defaultWrapperClass: 'wrapper',
-		defaultInnerClass: 'popover-content',
-		defaultArrowClass: 'arrow tooltip-arrow',
-	}
-});
-
-Vue.component('Debug', DebugComponent);
-Vue.component('AudioPlayer', AudioPlayer);
-
 // Expose and declare some globals
 (window as any).Vue = Vue;
 
@@ -151,24 +137,33 @@ import * as LoginSystem from '@/utils/loginsystem';
 import * as RootStore from '@/store';
 import connectStoreStreams from '@/store/streams';
 
+const RootComponent = {
+	i18n,
+	render: () => <App />,
+} as any;
+
 $(document).ready(async () => {
 	
 	await initI18n();
-	// We can render before the tagset loads, the form just won't be populated from the url yet.
-	(window as any).vueRoot = new Vue({
-		i18n,
-		router,
-		store: RootStore.store,
-		render: h => h(App),
-		async mounted() {
-			// we do this after render, so the user has something to look at while we're loading.
-			const user = await LoginSystem.user;
-			initApi('blacklab', BLS_URL, user);
-			initApi('cf', CONTEXT_URL, user);
-			RootStore.actions.user(user);
+	const user = await LoginSystem.user;
+	initApi('blacklab', BLS_URL, user);
+	initApi('cf', CONTEXT_URL, user);
+	RootStore.actions.user(user);
+	// Don't do this before the url is parsed, as it controls the page url (among other things derived from the state).
+	initialUrlStateApplied.then(() => connectStoreStreams());
 
-			// Don't do this before the url is parsed, as it controls the page url (among other things derived from the state).
-			initialUrlStateApplied.then(() => connectStoreStreams());
-		},
-	}).$mount(document.querySelector('#vue-root')!);
+	const app = createApp(RootComponent);
+	app.config.errorHandler = errorHandler;
+	app.mixin(renderErrorMixin);
+	app.use(Filters);
+	app.use(FloatingVue);
+	app.use(RootStore.store as any);
+	app.use(router);
+	app.component('Debug', DebugComponent);
+	app.component('AudioPlayer', AudioPlayer);
+
+	await router.isReady();
+	// We can render before the tagset loads, the form just won't be populated from the url yet.
+	(window as any).vueApp = app;
+	(window as any).vueRoot = app.mount(document.querySelector('#vue-root')!);
 });

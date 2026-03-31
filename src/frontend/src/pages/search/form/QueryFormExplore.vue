@@ -331,7 +331,7 @@ export default ParallelFields.extend({
 		}));
 
 	},
-	beforeDestroy() {
+	beforeUnmount() {
 		this.subscriptions.forEach(unsub => unsub());
 		this.subscriptions = [];
 	},

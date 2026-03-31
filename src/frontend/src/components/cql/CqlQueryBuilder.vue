@@ -27,7 +27,7 @@
 		</div>
 
 		<!-- Within Select -->
-		<Within class="bl-querybuilder-within" v-model="value.within"/>
+		<Within class="bl-querybuilder-within" v-model="model.within"/>
 	</div>
 </template>
 
@@ -162,6 +162,12 @@ export default useModel<CqlQueryBuilderData>().extend({
 		model: {
 			// Create initial token if none exist
 			handler() {
+				if (!Array.isArray(this.model.tokens)) {
+					this.$set(this.model, 'tokens', []);
+				}
+				if (typeof this.model.within !== 'string') {
+					this.$set(this.model, 'within', '');
+				}
 				if (!this.model.tokens.length) {
 					this.addToken();
 				}

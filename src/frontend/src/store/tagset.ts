@@ -9,7 +9,7 @@ import {getStoreBuilder} from 'vuex-typex';
 
 import {RootState} from '@/store/';
 
-import { NormalizedAnnotation, Tagset } from '@/types/apptypes';
+import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import { mapReduce } from '@/utils';
 import { CorpusChange } from '@/store/async-loaders';
@@ -187,8 +187,6 @@ const actions = {
 
 export {
 	ModuleRootState,
-	Tagset,
-
 	getState,
 	actions,
 	get,
@@ -196,3 +194,5 @@ export {
 
 	namespace,
 };
+
+export type { Tagset };

@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "editor-browser",
+      "request": "launch",
+      "name": "Launch in integrated browser",
+      "url": "http://localhost:8080/blacklab-frontend/",
+      "webRoot": "${workspaceFolder}/src/frontend"
+    },
+    {
+      "type": "editor-browser",
+      "request": "attach",
+      "name": "Attach to integrated browser",
+      "webRoot": "${workspaceFolder}/src/frontend"
+    }
+  ]
+}

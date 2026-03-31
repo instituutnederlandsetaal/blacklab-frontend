@@ -90,7 +90,7 @@ export default Vue.extend({
 	}),
 	mounted() {
 	},
-	beforeDestroy() {
+	beforeUnmount() {
 	},
 });
 </script>

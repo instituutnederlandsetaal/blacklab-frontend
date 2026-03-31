@@ -15,7 +15,6 @@ import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.logging.Level;
@@ -108,8 +107,8 @@ public class GlobalConfig implements ServletContextListener {
          * (BlackLab does pass "*" by default, so you'll need a proxy to make this setup work).
          */
         FRONTEND_WITH_CREDENTIALS("withCredentials"),
-        /** Development mode, allow script tags to load js from an external server (e.g. webpack-dev-server), defaults to ${CF_URL_ON_CLIENT}/js. Never ends in a slash. */
-        JSPATH("jspath"),
+        /** Vite dev server host+port. Examples: localhost:5173 or https://my-host:5173. Never ends in a slash. */
+        VITE("vite"),
         // todo remove and use a file watcher or something
         /** Development mode, disable caching of any corpus data (e.g. search.xml, article.xsl, meta.xsl etc) */
         CACHE("cache"),
@@ -177,9 +176,7 @@ public class GlobalConfig implements ServletContextListener {
         set(defaultProps, Keys.AUTH_SOURCE_TYPE,                "header");
         set(defaultProps, Keys.AUTH_TARGET_NAME,                "Authorization");
         set(defaultProps, Keys.AUTH_TARGET_TYPE,                "header");
-        // JSPATH and CF_URL_ON_CLIENT properly initialized later, because we need the servlet context path for that.
-        // JSPATH is also dependent on CF_URL_ON_CLIENT, so we need to watch out for the case where the user CF_URL_ON_CLIENT but not JSPATH.
-        set(defaultProps, Keys.JSPATH,                          "/blacklab-frontend/js");
+        set(defaultProps, Keys.VITE,                            "");
         set(defaultProps, Keys.CF_URL_ON_CLIENT,                "/blacklab-frontend");
 
        
@@ -272,16 +269,30 @@ public class GlobalConfig implements ServletContextListener {
         p.remove(k.toString());
     }
 
-    private boolean isDefault(Keys k) {
-        return isDefault(instanceProps, k);
-    }
-
-    private static boolean isDefault(Properties p, Keys k) {
-        return Objects.equals(get(defaultProps, k), get(p, k));
-    }
-
     private static boolean contains(Properties p, Keys k) {
         return p.containsKey(k.toString());
+    }
+
+    /**
+     * Normalize Vite dev server setting so templates can safely concatenate paths.
+     * Accepts host+port (localhost:5173) and full URLs (http://localhost:5173).
+     */
+    private static String normalizeVite(String viteValue) {
+        String normalized = StringUtils.stripEnd(StringUtils.trimToEmpty(viteValue), "/\\");
+        if (normalized.isEmpty()) {
+            return "";
+        }
+
+        // Allow protocol-relative input and normalize to explicit HTTP for dev usage.
+        if (normalized.startsWith("//")) {
+            normalized = normalized.substring(2);
+        }
+
+        if (normalized.matches("(?i)^https?://.*")) {
+            return normalized;
+        }
+
+        return "http://" + normalized;
     }
 
 
@@ -352,17 +363,8 @@ public class GlobalConfig implements ServletContextListener {
         set(instanceProps, Keys.BLS_URL_ON_CLIENT, StringUtils.stripEnd(get(instanceProps, Keys.BLS_URL_ON_CLIENT), "/\\"));
         set(instanceProps, Keys.CORPUS_CONFIG_DIR, StringUtils.stripEnd(get(instanceProps, Keys.CORPUS_CONFIG_DIR), "/\\"));
         set(instanceProps, Keys.DEFAULT_CORPUS_CONFIG, StringUtils.stripEnd(get(instanceProps, Keys.DEFAULT_CORPUS_CONFIG), "/\\"));
-        set(instanceProps, Keys.JSPATH, StringUtils.stripEnd(get(instanceProps, Keys.JSPATH), "/\\"));
         set(instanceProps, Keys.CF_URL_ON_CLIENT, StringUtils.stripEnd(get(instanceProps, Keys.CF_URL_ON_CLIENT), "/\\"));
-        if (isDefault(instanceProps, Keys.JSPATH) && !isDefault(instanceProps, Keys.CF_URL_ON_CLIENT)) {
-            // JSPath is the default, but the CF_URL_ON_CLIENT is not. 
-            // That means the js won't be found because it's not at the expected location.
-            // This can happen if someone sets the CF_URL_ON_CLIENT to something other than the default, but doesn't set the JSPATH.
-            // In that case our defaults set the JSPATH to /${contextPath}/js, but we need to update it to match the new CF_URL_ON_CLIENT
-            set(instanceProps, Keys.JSPATH, get(instanceProps, Keys.CF_URL_ON_CLIENT) + "/js");
-            logger.info(String.format("Detected modified %s but default %s, updating %s to match. New value '%s'",
-                    Keys.CF_URL_ON_CLIENT, Keys.JSPATH, Keys.JSPATH, get(instanceProps, Keys.JSPATH)));
-        }
+        set(instanceProps, Keys.VITE, normalizeVite(get(instanceProps, Keys.VITE)));
 
         if (Stream.of("header", "cookie", "attribute", "parameter").noneMatch(get(instanceProps, Keys.AUTH_SOURCE_TYPE)::equalsIgnoreCase)) {
             logger.warning("Invalid value for " + Keys.AUTH_SOURCE_TYPE + ": " + get(instanceProps, Keys.AUTH_SOURCE_TYPE) + ". Defaulting to 'header'.");
@@ -388,7 +390,6 @@ public class GlobalConfig implements ServletContextListener {
         final String configFileName = applicationName + ".properties";
 
         set(defaultProps, Keys.CF_URL_ON_CLIENT, "/" + applicationName);
-        set(defaultProps, Keys.JSPATH, "/" + applicationName + "/js");
 
         // Get config dir from environment variable
         String envNameFromAppName = applicationName.replaceAll("\\W", "_").toUpperCase() + "_CONFIG_DIR";

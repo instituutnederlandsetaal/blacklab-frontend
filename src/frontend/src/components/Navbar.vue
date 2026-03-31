@@ -150,7 +150,7 @@ body { padding-top: 60px; }
 			width: 100px;
 			height: 100px;
 			z-index: 9000;
-			background-image: url(~@/assets/img/logo_100x100.png)
+					background-image: url(@/assets/img/logo_100x100.png)
 		}
 	}
 	@at-root .navbar-content-container {

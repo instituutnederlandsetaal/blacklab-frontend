@@ -283,24 +283,24 @@ a.disabled {
 
 @font-face{
 	font-family: 'Inl vmnw wnt';
-	src: url('~@/assets/font/INLVRG__.TTF') format('truetype');
+	src: url('@/assets/font/INLVRG__.TTF') format('truetype');
 }
 
 @font-face{
 	font-family: 'Inl vmnw wnt';
-	src: url('~@/assets/font/INLVI___.TTF') format('truetype');
+	src: url('@/assets/font/INLVI___.TTF') format('truetype');
 	font-style: italic;
 }
 
 @font-face{
 	font-family: 'Inl vmnw wnt';
-	src: url('~@/assets/font/INLVB___.TTF') format('truetype');
+	src: url('@/assets/font/INLVB___.TTF') format('truetype');
 	font-weight: bold;
 }
 
 @font-face{
 	font-family: 'Inl vmnw wnt';
-	src: url('~@/assets/font/INLVBI__.TTF') format('truetype');
+	src: url('@/assets/font/INLVBI__.TTF') format('truetype');
 	font-weight: bold;
 	font-style: italic;
 }

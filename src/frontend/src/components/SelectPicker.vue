@@ -77,7 +77,10 @@
 			}]"></span>
 		</button>
 
+		<teleport :to="containerEl" :disabled="!containerEl">
 		<!-- NOTE: might not actually be a child of root element at runtime! Event handling is rather specific -->
+		<!-- NOTE: use v-show, we call reposition() as soon as :open becomes true, which triggers before dom has updated
+		  if we were to use v-if, the menu ref would not be available yet -->
 		<ul v-show="isOpen && (filteredOptions.length || !editable)"
 			:data-menu-id="menuId"
 			:dir="dir"
@@ -96,12 +99,11 @@
 
 			ref="menu"
 		>
-		<template v-if="menuHeading">
-			<li v-if="allowHtml" class="menu-heading" v-html="menuHeading"></li>
-			<li v-else class="menu-heading">{{menuHeading}}</li>
-		</template>
-
-		{{/* note: don't insert whitespace in the heading or :empty css rule will not work */}}
+			<template v-if="menuHeading">
+				<li v-if="allowHtml" class="menu-heading" v-html="menuHeading"></li>
+				<li v-else class="menu-heading">{{menuHeading}}</li>
+			</template>
+			<!-- note: don't insert whitespace in the heading or :empty css rule will not work -->
 			<li class="menu-header"
 				><div v-if="loading && editable /* not visible in button when editable */" class="text-center"
 					><span class="fa fa-spinner fa-spin text-muted"></span
@@ -143,7 +145,7 @@
 					<li v-if="!filteredOptions.length" class="menu-option disabled">
 						<em class="menu-value" v-html="noOptionsPlaceholder"></em>
 					</li>
-					<template v-for="o in filteredOptions">
+					<template v-for="o in filteredOptions" :key="o.id">
 					<li v-if="o.type === 1"
 						:class="{
 							'menu-option': true,
@@ -151,7 +153,6 @@
 							'checked': multiple && internalModel[o.value],
 							'disabled': o.disabled,
 						}"
-						:key="o.id"
 						:tabindex="o.disabled ? undefined : -1"
 						:title="o.title"
 						:data-value="o.value"
@@ -170,7 +171,6 @@
 							'disabled': o.disabled,
 							'spacer-only': !o.label?.trim()
 						}"
-						:key="o.id"
 						:title="o.title"
 					>
 						<template v-if="o.label?.trim()">
@@ -182,6 +182,7 @@
 				</ul>
 			</li>
 		</ul>
+		</teleport>
 	</div>
 </template>
 
@@ -189,7 +190,7 @@
 
 // tslint:disable
 
-import Vue from 'vue';
+import Vue, { defineComponent } from 'vue';
 import { mapReduce } from '@/utils';
 
 export type SimpleOption = string;
@@ -241,14 +242,14 @@ function isOptGroup(e: any): e is OptGroup { return e && typeof e.label === 'str
 
 let nextMenuId = 0;
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
 		flip: {
 			type: Boolean,
 			default: true
 		},
 
-		options: { type: Array as () => Option[], default: () => [] as Options },
+		options: { type: Array as () => Options, default: () => [] as Options },
 		multiple: Boolean,
 		/** Is the dropdown list filtered by the current value (acts more as an autocomplete) */
 		searchable: {type: Boolean, default: undefined},
@@ -315,7 +316,13 @@ export default Vue.extend({
 		},
 		dataMenuClass: [Array, String, Object],
 		/** Right-align the dropdown menu, only when menuWidth != 'stretch' */
-		right: Boolean
+		right: Boolean,
+
+		/** 
+		 * If passed, call this function instead of handling the select internally.
+		 * Return false to prevent the default internal handling of value updates.
+		 */
+		onSelect: Function as any as (() => (value: _uiOpt) => boolean|undefined),
 	},
 	data: () =>  ({
 		/** Is the menu currently open, overridden by the 'open' prop, i.e. only used when 'open' not specified */
@@ -337,8 +344,8 @@ export default Vue.extend({
 		searchableModel(): boolean { return this.searchable ?? (this.uiOptions.length >= 10 && !this.editable); },
 		resettableModel(): boolean { return this.resettable ?? this.searchableModel },
 
-		menuId(): string { return this.$attrs.id != null ? this.$attrs.id : `combobox-${this.uid}`; },
-		isOpen(): boolean { if (this.open != null) { return this.open; } else { return this.isNaturallyOpen; } },
+		menuId(): string { return this.$attrs.id as string ?? `combobox-${this.uid}`; },
+		isOpen(): boolean { return this.open ?? this.isNaturallyOpen; },
 
 		uiOptions(): uiOption[] {
 			let id = 0;
@@ -426,7 +433,7 @@ export default Vue.extend({
 			}
 
 			const filter = this.inputValue;
-			if (!filter) { return options; }
+			if (!filter || !this.searchableModel) { return options; }
 
 			let hideNextOptGroup = true;
 			return options
@@ -485,7 +492,7 @@ export default Vue.extend({
 				// We don't render a label, but outside may want to point a label at our input/button.
 				const isOwnLabelClick = (event.target as HTMLElement).closest(`label[for="${(this as any).dataId}"]`) != null;
 				// NOTE: assumes the template doesn't render a button as main interactable when this.editable is true
-				const isOwnInputClick = this.editable && this.$el.contains(event.target as HTMLElement);
+				const isOwnInputClick = this.editable && this.$el?.contains(event.target as HTMLElement);
 				if (isOwnMenuClick || isOwnInputClick || isOwnLabelClick) {
 					return;
 				}
@@ -688,11 +695,18 @@ export default Vue.extend({
 			}
 		},
 
-		select(opt: {disabled?: boolean, value: string}): void {
+		select(opt: _uiOpt): void {
 			const {disabled, value} = opt;
 
 			if (disabled) {
 				return;
+			}
+
+			if (this.onSelect) {
+				const defaultPrevented = !this.onSelect(opt);
+				if (defaultPrevented) {
+					return;
+				}
 			}
 
 			if (this.editable) {
@@ -713,10 +727,10 @@ export default Vue.extend({
 				undefined;
 
 			for (const key of deleteFromModel) {
-				Vue.delete(this.internalModel, key);
+				delete this.internalModel[key];
 			}
 			if (addToModel) {
-				Vue.set(this.internalModel, addToModel, true);
+				this.internalModel[addToModel] = true;
 				this.$emit('select', addToModel);
 			}
 
@@ -802,8 +816,8 @@ export default Vue.extend({
 				/** wasn't in previous :value array but is now - guaranteed selected and a corresponding option exists, or we allow unknowns */
 				const newSelectedValues: string[] = (newVal as string[]).filter(v => !oldValues[v] && (availableOptions[v] || this.allowUnknownValues));
 
-				deselectedValues.forEach(v => Vue.delete(this.internalModel, v));
-				newSelectedValues.forEach(v => Vue.set(this.internalModel, v, true));
+				deselectedValues.forEach(v => delete this.internalModel[v]);
+				newSelectedValues.forEach(v => this.internalModel[v] = true);
 			}
 		},
 		/** This method exists just to deal with weirdness with TypeScript in Vue templates. */
@@ -867,7 +881,6 @@ export default Vue.extend({
 				}
 
 				if (cur) {
-					cur.appendChild(this.$refs.menu as HTMLElement);
 					if (this.isOpen) {
 						this.reposition();
 					}
@@ -888,13 +901,11 @@ export default Vue.extend({
 		if (this.container) {
 			this.containerEl = document.querySelector(this.container);
 		}
-		// @ts-ignore
+		// @ts-ignore - interop for external scripts; expose a setValue method on our root element
 		(this.$el).setValue = (v: string|string[]) => this.$emit('input', this.multiple ? [v].flat().filter(v => v != null) : v || null);
 	},
-	beforeDestroy() {
+	beforeUnmount() {
 		this.removeGlobalListeners();
-		// In case container has been set.
-		(this.$refs.menu as HTMLElement).parentElement!.removeChild(this.$refs.menu as HTMLElement);
 
 		// @ts-ignore
 		this.$el.setValue = undefined;
