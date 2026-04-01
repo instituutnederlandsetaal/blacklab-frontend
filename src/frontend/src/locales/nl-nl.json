@@ -87,7 +87,7 @@
 			"importQuery": "Importeer zoekvraag",
 			"importQueryTitle": "Importeer een eerder gedownloade zoekvraag",
 			"gapFilling": "Gap-filling",
-			"gapFillingTitle": "Upload een lijst waardes gescheiden door tabs om in de query te gebruiken (op de plaats van '@@').",
+			"gapFillingTitle": "Upload een lijst waardes gescheiden door tabs om in de query te gebruiken (op de plaats van '{'@'}{'@'}').",
 			"clearGapValues": "Gap-waarden wissen"
 		},
 		"parallel": {

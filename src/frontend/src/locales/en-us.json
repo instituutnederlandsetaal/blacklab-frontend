@@ -86,7 +86,7 @@
 			"importQuery": "Import query",
 			"importQueryTitle": "Import a previously downloaded query",
 			"gapFilling": "Gap-filling",
-			"gapFillingTitle": "Upload a tab-separated list of values to substitute for gap values ('@@' in your query).",
+			"gapFillingTitle": "Upload a tab-separated list of values to substitute for gap values ('{'@'}{'@'}'; in your query).",
 			"clearGapValues": "Clear gap values"
 		},
 		"parallel": {

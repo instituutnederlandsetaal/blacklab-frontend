@@ -1,89 +1,65 @@
-import { reactive, ref, computed, watch } from 'vue';
-import type { LocaleMessageObject } from 'vue-i18n';
+import { reactive, ref, computed, watch, markRaw } from 'vue';
 import { merge } from 'ts-deepmerge';
 import stripJsonComments from 'strip-json-comments';
-import type { Option } from '@/types/apptypes';
 import { watchStorage } from '@/utils/localstore';
-
-function parseJsonWithComments<T = any>(jsonResponse: Response): Promise<T> {
-	return jsonResponse.text().then(text => JSON.parse(stripJsonComments(text)));
-}
-
-function normalizeLocaleModule(module: any): LocaleMessageObject {
-	if (!module || typeof module !== 'object') return {};
-	const candidate = 'default' in module ? module.default : module;
-	return (candidate && typeof candidate === 'object') ? candidate as LocaleMessageObject : {};
-}
-
-function deepFreezeLocaleMessages<T>(value: T, seen: WeakSet<object> = new WeakSet<object>()): T {
-	if (!value || typeof value !== 'object') return value;
-	const objectValue = value as unknown as object;
-	if (seen.has(objectValue) || Object.isFrozen(objectValue)) return value;
-	seen.add(objectValue);
-
-	Object.keys(objectValue).forEach(key => {
-		deepFreezeLocaleMessages((objectValue as any)[key], seen);
-	});
-
-	return Object.freeze(value);
-}
-
 interface LocaleState {
 	value: string;
 	label: string;
 	loading: Promise<any>|null;
 	error: string | null;
-	messages: LocaleMessageObject | null;
+	messages: unknown | null;
 }
 
+const importBuiltinLocale = (() => {
+	const cache: Record<string, Promise<{default: string}>> = {};
+	return (localeId: string): Promise<{default: string}> => {
+		return (cache[localeId] ??= import(`@/locales/${localeId}.json?raw`));
+	}
+})();
+
+/**
+ * A helper for managing and caching locale message bundles.
+ * It does not actually interface with with the vue-i18n plugin directly,
+ * only exposes the currently active locale, its messages, and loading/error states.
+ * 
+ * Setting a new (fallback-)locale will trigger loading of the corresponding messages.
+ * After which the active locale will be updated.
+ * This way, there should never be a state where the locale is set, but the messages are not loaded yet.
+ * 
+ * It still requires wiring to vue-i18n to push the new messages/active locale to the plugin,
+ * but all you need for this is a simple watch() on the localeState object.
+ * 
+ * After that, you should *not* use the vue-i18n API directly for updating the locale,
+ * but always go through this manager, so that the state is properly updated and messages are loaded as needed.
+ * 
+ * Since locales can be overridden per corpus/index, we also support an optional indexId, 
+ * which will trigger a refresh of the active locale's messages when changed, to ensure the local overrides are applied correctly.
+ */
 class I18nManager {
-	private readonly registeredLocaleIds = reactive<Record<string, true>>({});
-	private readonly registeredLocaleIdsVersion = ref(0); // Increment to trigger computed updates
 	private readonly localeStates = reactive<Record<string, LocaleState>>({});
-	private readonly nextLocale = ref<string|null>(null);
-	private nextFallbackLocale: string | null = null;
-	private indexId: string | null = null;
-	private localeContentVersion = 0;
 
 	public static PRIORITY_SET_BY_USER = 3;
 	public static PRIORITY_EXPLICIT_DEFAULT = 2;
 	public static PRIORITY_BROWSER = 1;
 	public static PRIORITY_UNSET = 0;
 	private highestLocalePrecedence = 0;
-
-	// Public reactive state
+	
+	// Internals
+	private readonly indexId = ref<string|null>(null);
 	private readonly locale = ref<string>('');
 	private readonly fallbackLocale = ref<string>('');
+	private readonly pendingLocaleSwitch = ref<string|null>(null);
+	private readonly pendingFallbackLocaleSwitch = ref<string|null>(null);
 
+	// Public read-only state
 	public readonly localeState = computed<LocaleState|null>(() => this.localeStates[this.locale.value] || null);
 	public readonly fallbackLocaleState = computed<LocaleState|null>(() => this.localeStates[this.fallbackLocale.value] || null);
-	public readonly messages = computed<Record<string, LocaleMessageObject>>(() =>
-		Object.fromEntries(
-			Object
-			.entries(this.localeStates)
-			.filter(([_, state]) => !!state.messages)
-			.map(([localeId, state]) => [localeId, state.messages as LocaleMessageObject])
-		)
-	);
-	public readonly loading = computed(() => this.nextLocale.value != null);
-
-	// Computed available locales with state information
-	public readonly availableLocales = computed<(Option & { loading: boolean; error: string | null })[]>(() => {
-		// Dependency tracking for Object.keys doesn't seem to work with reactive({}) for some reason?
-		// So we use a version counter to force recompute when keys change.
-		this.registeredLocaleIdsVersion.value;
-		return Object.keys(this.registeredLocaleIds)
-			.map(id => this.resolveLocale(id))
-			.map(state => ({
-				value: state.value,
-				label: state.label,
-				loading: !!state.loading,
-				error: state.error
-			}));
-	});
+	
+	public readonly loading = computed(() => !!this.pendingLocaleSwitch.value);
+	public readonly availableLocales = computed(() => Object.values(this.localeStates).map(s => ({ value: s.value, label: s.label })));
 
 	constructor(localStorageKey?: string, initialIndexId?: string|null) {
-		this.indexId = initialIndexId ?? null;
+		this.indexId.value = initialIndexId ?? null;
 		if (localStorageKey) {
 			if (localStorage.getItem(localStorageKey)) {
 				this.setLocale(localStorage.getItem(localStorageKey)!, I18nManager.PRIORITY_SET_BY_USER);
@@ -103,39 +79,28 @@ class I18nManager {
 
 	/**
 	 * Set the active index id for locale override fetching and refresh loaded locale messages.
+	 * Returns a promise that will resolve once the locale has been reloaded with the new index ID (if needed).
 	 */
-	setIndexId(indexId: string | null | undefined): Promise<void> {
+	public setIndexId(indexId: string|null|undefined): Promise<void> {
 		const normalizedIndexId = indexId || null;
-		if (this.indexId === normalizedIndexId) {
+		if (this.indexId.value === normalizedIndexId) {
 			return Promise.resolve();
 		}
-
-		this.indexId = normalizedIndexId;
+		this.indexId.value = normalizedIndexId;
 		return this.invalidateLocaleMessages();
 	}
 
 	private invalidateLocaleMessages(): Promise<void> {
-		this.localeContentVersion++;
-
 		Object.values(this.localeStates).forEach(state => {
 			state.messages = null;
 			state.error = null;
 			state.loading = null;
 		});
 
-		const targetFallbackLocale = this.nextFallbackLocale ?? this.fallbackLocale.value;
-		const targetLocale = this.nextLocale.value ?? this.locale.value;
-		const nextPriority = Math.max(this.highestLocalePrecedence, I18nManager.PRIORITY_BROWSER);
-
-		const reloads: Promise<void>[] = [];
-		if (targetFallbackLocale) {
-			reloads.push(this.setFallbackLocale(targetFallbackLocale));
-		}
-		if (targetLocale) {
-			reloads.push(this.setLocale(targetLocale, nextPriority));
-		}
-
-		return Promise.all(reloads).then(() => undefined);
+		return Promise.allSettled([
+			this.setLocale(this.locale.value, this.highestLocalePrecedence),
+			this.setFallbackLocale(this.fallbackLocale.value)
+		]).then(() => {});
 	}
 
 	/**
@@ -144,9 +109,14 @@ class I18nManager {
 	registerLocale(localeId: string, label: string): void {
 		const locale = this.resolveLocale(localeId);
 		locale.label = label;
-		if (!this.registeredLocaleIds[locale.value]) {
-			this.registeredLocaleIds[locale.value] = true;
-			this.registeredLocaleIdsVersion.value++;
+		if (!this.localeStates[locale.value]) {
+			this.localeStates[locale.value] = {
+				value: locale.value,
+				label,
+				loading: null,
+				error: null,
+				messages: null,
+			};
 		}
 	}
 
@@ -157,8 +127,6 @@ class I18nManager {
 		const locale = this.resolveLocale(localeId);
 		if (locale.loading) await locale.loading;
 		delete this.localeStates[locale.value];
-		delete this.registeredLocaleIds[locale.value];
-		this.registeredLocaleIdsVersion.value++;
 	}
 
 	/**
@@ -166,16 +134,18 @@ class I18nManager {
 	 */
 	async setFallbackLocale(localeId: string): Promise<void> {
 		localeId = this.resolveLocale(localeId).value;
-
-		this.nextFallbackLocale = localeId;
-		this.ensureLocaleLoaded(localeId)
-			.then(state => {
-				const canApply = state.messages
-				// Only perform any state updates if this is still the requested locale (thunk hasn't changed)
-				if (this.nextFallbackLocale === localeId) {
-					if (canApply) this.fallbackLocale.value = this.nextFallbackLocale;
-					if (state.error) console.error(`Failed to load locale ${localeId}:`, state.error);
-					this.nextFallbackLocale = null;
+		const loadingForIndexId = this.indexId.value;
+		this.pendingFallbackLocaleSwitch.value = localeId;
+		this.ensureLocaleLoaded(localeId, this.indexId.value)
+			.finally(() => {
+				// check if stale
+				if (loadingForIndexId === this.indexId.value && this.pendingFallbackLocaleSwitch.value === localeId) {
+					// always clear loading state
+					this.pendingFallbackLocaleSwitch.value = null;
+					// only activate if locale loaded successfully
+					if (this.localeStates[localeId]?.messages) {
+						this.locale.value = localeId;
+					}
 				}
 			});
 	}
@@ -190,17 +160,21 @@ class I18nManager {
 		if (priority < this.highestLocalePrecedence || !localeId) { return Promise.resolve(); }
 		localeId = this.resolveLocale(localeId).value;
 		this.highestLocalePrecedence = priority;
-		this.nextLocale.value = localeId;
-		return this.ensureLocaleLoaded(localeId)
-			.then(state => {
-				const canApply = state.messages
-				// Only perform any state updates if this is still the requested locale (thunk hasn't changed)
-				if (this.nextLocale.value === localeId) {
-					if (canApply) this.locale.value = this.nextLocale.value;
-					if (state.error) console.error(`Failed to load locale ${localeId}:`, state.error);
-					this.nextLocale.value = null;
+		this.pendingLocaleSwitch.value = localeId;
+		const loadingForIndexId = this.indexId.value;
+		return this
+			.ensureLocaleLoaded(localeId, loadingForIndexId)
+			.finally(() => {
+				// check if stale
+				if (loadingForIndexId === this.indexId.value && this.pendingLocaleSwitch.value === localeId) {
+					// always clear loading state
+					this.pendingLocaleSwitch.value = null;
+					// only activate if locale loaded successfully
+					if (this.localeStates[localeId]?.messages) {
+						this.locale.value = localeId;
+					}
 				}
-			});
+			})
 	}
 
 	/**
@@ -212,7 +186,11 @@ class I18nManager {
 
 	/**
 	 * Resolve a locale string to the best available match.
-	 * Return the original locale if we have no match.
+	 * If there's an exact locale registered, returns that one.
+	 * If there's an approximate locale (prefix matches, but not exact), returns that one.
+	 * 
+	 * Required because some browsers report e.g. 'en', but others report 'en-us' or 'en-gb',
+	 * this way we automatically use the best available match, and we can also ensure consistent casing of locale IDs.
 	 */
 	private resolveLocale(requestedLocale: string): LocaleState {
 		requestedLocale = requestedLocale.toLowerCase();
@@ -238,69 +216,65 @@ class I18nManager {
 	}
 
 	/**
-	 * Ensure a locale's messages are loaded. Returns immediately if already loaded.
+	 * Trigger a load on the locale if required, 
+	 * Does not update state, only updates the locale's state.
+	 * 
+	 * @returns A promise that resolves once the locale has settled (meaning either in loaded or error state).
 	 */
-	private ensureLocaleLoaded(localeId: string): Promise<LocaleState> {
+	private ensureLocaleLoaded(localeId: string, indexId: string|null): Promise<void> {
 		const state = this.localeStates[localeId];
 		if (!state) { throw new Error(`Locale ${localeId} is not registered`); }
 		// If already loaded, return immediately
-		if (state.messages) return Promise.resolve(state);
-		else if (state.error) { return Promise.reject(state); }
 		if (state.loading) return state.loading;
-		const requestedVersion = this.localeContentVersion;
+		else if (state.messages) return Promise.resolve();
+		else if (state.error) { return Promise.reject(); }
 
-		return state.loading = this.loadLocaleMessages(localeId, requestedVersion)
-			.then(messages => {
-				if (requestedVersion !== this.localeContentVersion) return state;
-				state.messages = messages;
-				return state;
-			})
-			.catch(error => {
-				if (requestedVersion !== this.localeContentVersion) return state;
-				state.error = error;
-				return state;
-			})
-			.finally(() => state.loading = null);
+		return state.loading = I18nManager.loadLocaleMessages(localeId, indexId)
+			.then(r => { if (indexId === this.indexId.value) state.messages = r; })
+			.catch(e => { if (indexId === this.indexId.value) state.error = e?.toString() ?? 'Unknown error'; })
+			.finally(() => { if (indexId === this.indexId.value) state.loading = null; });
 	}
 
 	/**
-	 * Load locale messages from built-in files and external overrides.
+	 * Helper; Load locale messages from built-in files and external overrides.
+	 * Returns the merged messages object
 	 */
-	private async loadLocaleMessages(localeId: string, contentVersion: number): Promise<LocaleMessageObject> {
-		if (contentVersion !== this.localeContentVersion) {
-			throw new Error(`Stale locale load for ${localeId}`);
+	private static loadLocaleMessages(localeId: string, indexId: string|null): Promise<any> {
+		function processImportResult(r: Promise<{default: string}>): Promise<Record<string, any>> {
+			return r
+				.catch(e => { throw new Error(`Failed to load built-in locale messages for ${localeId}: ${e}`); })
+				.then(m => m.default)
+				.then(stripJsonComments)
+				.then(JSON.parse)
 		}
-		let messages: LocaleMessageObject | null = null;
-		let overrides: LocaleMessageObject | null = null;
-
-		// Try to load built-in messages
-		try {
-			const module = await import(`@/locales/${localeId}.json`);
-			messages = normalizeLocaleModule(module);
-		} catch (e) {
-			console.info(`No built-in locale messages for ${localeId}: ${e}`);
+		function processFetchResult(r: Promise<Response>): Promise<Record<string, any>> {
+			return r.then<string>(async response => { 
+				if (response.status === 404) {console.info(`Locale overrides for ${localeId} not found`); return '{}'; }
+				if (!response.ok) { throw new Error(`Received ${response.status} ${response.statusText} while fetching locale overrides for ${localeId}: ${await response.text()}`); }
+				return response.text().catch(e => { throw new Error(`Locale override ${localeId} does not appear to be valid JSON! Skipping overrides: ${e}`); });
+			})
+			.then(stripJsonComments)
+			.then(JSON.parse);
 		}
 
-		// Try to load external overrides
-		try {
-			const response = await fetch(`${CONTEXT_URL}${this.indexId ? `/${this.indexId}` : ''}/static/locales/${localeId}.json`)
-
-			if (response.ok) {
-				overrides = await parseJsonWithComments(response);
-			} else if (response.status !== 404) {
-				console.info(`Failed to fetch locale overrides for ${localeId}: ${response.statusText}`);
+		return Promise.allSettled([
+			// vite async module import, as string
+			// https://vite.dev/guide/features#custom-queries
+			processImportResult(importBuiltinLocale(localeId)), 
+			processFetchResult(fetch(`${CONTEXT_URL}${indexId ? `/${indexId}` : ''}/static/locales/${localeId}.json`, { headers: { accept: 'application/json' } }))
+		]).then(results => {
+			try {
+				const rejected: PromiseRejectedResult[] = [], fulfilled: Record<string, any>[] = [];
+				results.forEach(r => r.status === 'rejected' ? rejected.push(r) : fulfilled.push(r.value));
+				rejected.forEach(r => console.info(r.reason));
+				if (!fulfilled.length) {
+					throw new Error(`No messages found for locale ${localeId}`);
+				}
+				return markRaw(merge(...fulfilled));
+			} catch (e) {
+				console.error(e); throw e;
 			}
-		} catch (e) {
-			console.warn(`Override ${this.indexId ?? ''}/static/locales/${localeId}.json does not appear to be valid JSON! Skipping overrides.`, e);
-		}
-
-		// If we have neither built-in messages nor overrides, and this isn't a registered locale, throw an error
-		if (!messages && !overrides) {
-			throw new Error(`No messages found for locale ${localeId}`);
-		}
-
-		// Merge messages with overrides taking priority
-		return deepFreezeLocaleMessages(merge(messages || {}, overrides || {}));
+		});
 	}
 }
 

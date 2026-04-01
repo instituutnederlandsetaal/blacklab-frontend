@@ -20,7 +20,7 @@ import SearchPageComponent from '@/pages/search/SearchPage.vue';
 
 
 import { init as initApi } from '@/api';
-import { i18n, init as initI18n } from '@/utils/i18n';
+import i18n from '@/utils/i18n';
 import * as loginSystem from '@/utils/loginsystem';
 
 import '@/global.scss';
@@ -144,7 +144,7 @@ const RootComponent = {
 
 $(document).ready(async () => {
 	
-	await initI18n();
+	await i18n.init();
 	const user = await LoginSystem.user;
 	initApi('blacklab', BLS_URL, user);
 	initApi('cf', CONTEXT_URL, user);
@@ -159,6 +159,7 @@ $(document).ready(async () => {
 	app.use(FloatingVue);
 	app.use(RootStore.store as any);
 	app.use(router);
+	app.use(i18n);
 	app.component('Debug', DebugComponent);
 	app.component('AudioPlayer', AudioPlayer);
 

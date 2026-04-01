@@ -62,7 +62,7 @@
     "ts-deepmerge": "^7.0.0",
     "urijs": "^1.19.7",
     "vue": "^3.5.31",
-    "vue-i18n": "^8.28.2",
+    "vue-i18n": "^9.14.5",
     "vue-router": "^4.6.4",
     "vue-slider-component": "^3.2.24",
     "vuex": "^4.1.0",

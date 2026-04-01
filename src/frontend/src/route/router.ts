@@ -94,7 +94,7 @@ const router = createRouter({
 
 import * as RootStore from '@/store';
 import * as ArticleStore from '@/store/article';
-import { setIndexId as setI18nIndexId } from '@/utils/i18n';
+import i18n from '@/utils/i18n';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 import UrlStateParserArticle from '@/url/url-state-parser-article';
 import { promiseFromLoadableStream } from '@/utils/loadable-streams';
@@ -120,8 +120,8 @@ router.beforeEach((to, from, next) => {
 	const docId = typeof to.params.docId === 'string' ? to.params.docId : null;
 
 	RootStore.actions.indexId(corpus);
-	setI18nIndexId(corpus);
-	ArticleStore.actions.docId(docId ?? undefined);
+	i18n.setIndexId(corpus);
+	ArticleStore.actions.docId(docId ?? null);
 
 	// On first entry on the page, we need to decode the url.
 	if (!pageLoadUrlDecoded && corpus) {

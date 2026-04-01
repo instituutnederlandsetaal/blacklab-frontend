@@ -86,7 +86,7 @@
 			"importQuery": "导入查询",
 			"importQueryTitle": "导入一个之前下载过的查询",
 			"gapFilling": "替换分隔符",
-			"gapFillingTitle": "上传以制表符分隔的值列表以替换查询中的分隔符（即查询中的'@@'）",
+			"gapFillingTitle": "上传以制表符分隔的值列表以替换查询中的分隔符（即查询中的'{'@'}{'@'}'）",
 			"clearGapValues": "清除分割"
 		},
 		"parallel": {

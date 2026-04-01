@@ -43,7 +43,7 @@
 					data-width="auto"
 					data-menu-width="auto"
 					hideEmpty />
-				<i18n path="results.groupBy.iWantToGroupOnAnnotation" tag="div">
+				<i18n-t keypath="results.groupBy.iWantToGroupOnAnnotation" tag="div">
 					<!-- allow unknown values here. If grouping on a capture group/relation, they're not always available immediately (we need the first hit to decode them). -->
 					<template #some_words><SelectPicker
 						:options="contextOptions"
@@ -57,7 +57,7 @@
 					<!-- Specific layout, we want to hide the selectpicker, but there might be surrounding text that also needs to be hidden... -->
 					<template #in_this_location_with_text>
 						<!-- if not grouping on a label but on a specific position, then show the position picker. -->
-						<i18n v-if="selectedCriteriumAsPositional" path="results.groupBy.in_this_location_with_text">
+						<i18n-t v-if="selectedCriteriumAsPositional" keypath="results.groupBy.in_this_location_with_text">
 							<template #in_this_location> <!-- doesn't seem to work if we don't wrap the selectpicker in a template. -->
 								<SelectPicker
 									v-model="positionValue"
@@ -67,7 +67,7 @@
 									:options="positionOptions"
 								/>
 							</template>
-						</i18n>
+						</i18n-t>
 					</template>
 					<template #this_annotation>
 					<SelectPicker
@@ -81,7 +81,7 @@
 						allowHtml
 						v-model="selectedCriterium.annotation"
 					/></template>
-				</i18n>
+				</i18n-t>
 
 
 				<form class="case-and-context">

@@ -9,37 +9,25 @@
 		placeholder="🌐"
 		allowUnknownValues
 
-		:options="availableLocales"
-		:loading="loading"
+		:options="i18n.manager.availableLocales.value"
+		:loading="i18n.manager.loading.value"
 		:showValues="false"
-		v-model="value"
+		:value="i18n.manager.localeState.value?.value"
+		@select="(v) => { i18n.manager.setLocale(v.value); return false; }"
 	/>
 </template>
 
 
-<script lang="ts">
-import Vue from 'vue';
+<script setup lang="ts">
 import SelectPicker from '@/components/SelectPicker.vue';
-
-import {i18n, i18nManager} from '@/utils/i18n';
-
-export default Vue.extend({
-	i18n,
-	components: { SelectPicker },
-	computed: {
-		value: {
-			get(): string|null|undefined { return i18nManager.localeState.value?.value; },
-			set(v: string) { i18nManager.setLocale(v); }
-		},
-		loading(): boolean { return i18nManager.loading.value; },
-		availableLocales() { return i18nManager.availableLocales.value; }
-	},
-});
-
+import i18n from '@/utils/i18n';
 </script>
 
 <style scoped>
 
+.locale-select {
+	display: inline-block;
+}
 /* .locale .placeholder {
 	color: transparent!important;
 	text-shadow: 0px 0px inherit;
