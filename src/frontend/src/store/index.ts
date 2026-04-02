@@ -29,7 +29,7 @@ import * as ArticleModule from '@/store/article';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import { Loadable, LoadableFromStream } from '@/utils/loadable-streams';
+import { Loadable, loadableFromStream } from '@/utils/loadable-streams';
 import debug, {  } from '@/utils/debug';
 import { CorpusChange, createStoreInitializer } from '@/store/async-loaders';
 import { User } from 'oidc-client-ts';
@@ -394,7 +394,7 @@ const actions = {
 declare const process: any;
 const store = b.vuexStore({
 	state: {
-		storeLoadingState: new LoadableFromStream(corpusData$) as Loadable<CorpusChange>,
+		storeLoadingState: loadableFromStream(corpusData$) as Loadable<CorpusChange>,
 		indexId: null,
 	} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
 	// Vue 3 compat makes several legacy reactive helpers observable to Vuex strict mode.

@@ -1,7 +1,7 @@
 import {test, expect, describe} from 'vitest';
 import { EMPTY, map, Observable, of, Subject } from 'rxjs';
 
-import {Loadable, CancelableRequest, LoadableFromStream, LoadableState, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, combineLoadables, combineLoadablesIncludingEmpty, flatMapLoadable, loadableStreamFromPromise, mapLoadable, mergeMapLoadable, promiseFromLoadableStream, switchMapLoadable, withRequiredKeys } from '@/utils/loadable-streams';
+import {Loadable, CancelableRequest, loadableFromStream, LoadableState, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, combineLoadables, combineLoadablesIncludingEmpty, flatMapLoadable, loadableStreamFromPromise, mapLoadable, mergeMapLoadable, promiseFromLoadableStream, switchMapLoadable, withRequiredKeys } from '@/utils/loadable-streams';
 import { ApiError } from '@/api';
 
 const apiError: ApiError = new ApiError('', '', '', 0);
@@ -161,33 +161,33 @@ describe('loadable streams operators', () => {
 describe('loadableFromStream', () => {
 	test('the default initial state should be empty', () => {
 		const ob$ = new Subject<number>();
-		const o = new LoadableFromStream(ob$);
+		const o = loadableFromStream(ob$);
 		expect(o.state).toBe(LoadableState.Empty);
 		o.dispose();
 	})
 	test('if configured, the initial state should be loading', () => {
 		const ob$ = new Subject<number>();
-		const o = new LoadableFromStream(ob$, {loadingOnStart: true});
+		const o = loadableFromStream(ob$, {loadingOnStart: true});
 		expect(o.state).toBe(LoadableState.Loading);
 		o.dispose();
 	})
 	test('the state should be empty after the stream completes', () => {
 		const ob$ = new Subject<number>();
-		const o = new LoadableFromStream(ob$, {loadingOnStart: true});
+		const o = loadableFromStream(ob$, {loadingOnStart: true});
 		ob$.complete();
 		expect(o.state).toBe(LoadableState.Empty);
 		o.dispose();
 	})
 	test('if configured, the final should be preserved after the stream completes', () => {
 		const ob$ = new Subject<number>();
-		const o = new LoadableFromStream(ob$, {loadingOnStart: true, keepValueAfterCompletion: true});
+		const o = loadableFromStream(ob$, {loadingOnStart: true, keepValueAfterCompletion: true});
 		ob$.complete();
 		expect(o.state).toBe(LoadableState.Loading);
 		o.dispose();
 	})
 	test('its value should mirror the stream output', () => {
 		const ob$ = new Subject<number>();
-		const o = new LoadableFromStream(ob$);
+		const o = loadableFromStream(ob$);
 		ob$.next(1);
 		expect(o.state).toBe(LoadableState.Loaded);
 		expect(o.value).toBe(1);
@@ -198,7 +198,7 @@ describe('loadableFromStream', () => {
 	})
 	test('it should unpack loadables in the stream', () => {
 		const ob$ = new Subject<Loadable<Number>>();
-		const o = new LoadableFromStream(ob$);
+		const o = loadableFromStream(ob$);
 		ob$.next(Loadable.Loaded(1));
 		expect(o.state).toBe(LoadableState.Loaded);
 		expect(o.value).toBe(1);
@@ -214,7 +214,7 @@ describe('loadableFromStream', () => {
 	})
 	test('it should capture errors in the stream', () => {
 		const ob$ = new Subject<number>();
-		const o = new LoadableFromStream(ob$);
+		const o = loadableFromStream(ob$);
 		ob$.error(apiError);
 		expect(o.state).toBe(LoadableState.Error);
 		expect(o.error).toBeInstanceOf(ApiError);

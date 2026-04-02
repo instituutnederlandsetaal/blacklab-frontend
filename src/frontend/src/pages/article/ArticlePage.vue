@@ -7,10 +7,10 @@
 				<pre>{{ stringifyWithHtml(value) }}</pre>
 			</details>
 		</template>
-		{{ {statisticsEnabled} }}
 		<!-- {{ JSON.stringify({...$data, subs: undefined}, undefined, 2) }} -->
 
-		<div class="article-pagination" title="Hold to drag" ref="pagination">
+		<UseDraggable >
+			<div class="article-pagination" title="Hold to drag" >
 			<template v-if="validPaginationInfo.isLoaded()">
 				<div class="pagination-container">
 					<label>Page</label>
@@ -49,6 +49,8 @@
 				<label>Error loading hits</label>
 			</template>
 		</div>
+		</useDraggable>
+		
 
 		<ul id="articleTabs" class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
 			<li class="active"><a href="#content" data-toggle="tab">Content</a></li>
@@ -57,7 +59,7 @@
 		</ul>
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px;">
 			<div id="content" class="tab-pane active">
-				<h2 v-if="isParallel" style="word-break:break-all;">{{$tAnnotatedFieldDisplayName(sourceField)}}</h2>
+				<h2 v-if="isParallel" style="word-break:break-all;">{{$tAnnotatedFieldDisplayName(viewField)}}</h2>
 				<Spinner v-if="contents.isLoading()" />
 				<div v-else-if="contents.isError()">
 					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#content_error" aria-expanded="false" aria-controls="content_error">
@@ -121,8 +123,7 @@
 	</div>
 </template>
 
-<script lang="ts">
-import Vue from 'vue';
+<script setup lang="ts">
 
 import * as ArticleStore from '@/store/article';
 import * as QueryStore from '@/store/query';
@@ -130,7 +131,6 @@ import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
 
 
-import * as AppTypes from '@/types/apptypes';
 
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 // import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
@@ -138,17 +138,6 @@ import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 import InstancedHtml from '@/components/InstancedHtml.vue';
-
-import 'jquery-ui/ui/version';
-import 'jquery-ui/ui/widget';
-import 'jquery-ui/ui/ie';
-import 'jquery-ui/ui/data';
-import 'jquery-ui/ui/plugin';
-import 'jquery-ui/ui/safe-active-element';
-import 'jquery-ui/ui/safe-blur';
-import 'jquery-ui/ui/scroll-parent';
-import 'jquery-ui/ui/widgets/mouse';
-import 'jquery-ui/ui/widgets/draggable';
 
 // TODO
 // import initTooltips from '@/modules/expandable-tooltips';
@@ -171,113 +160,81 @@ import 'jquery-ui/ui/widgets/draggable';
 // Need to fix url-parsing
 
 
-function _preventClicks(e: Event) {
-	e.preventDefault();
-	e.stopPropagation();
-	return false;
-}
-
 import {input$, contents$, hitToHighlight$, hits$, metadata$, Input, validPaginationParameters$, snippetAndDocument$} from './article';
 import { fieldSubset } from '@/utils';
-import { L, LoadableFromStream } from '@/utils/loadable-streams';
-import { Observable } from 'rxjs';
+import { L, loadableFromStream } from '@/utils/loadable-streams';
+import { computed, onMounted, onUnmounted, useTemplateRef, watch } from 'vue';
+import { UseDraggable } from '@vueuse/components';
 
-// Hmm... this could use some work. This is a little convoluted just to get a synchronous type
-type HitToHighlightLoadable = typeof hitToHighlight$ extends Observable<infer U> ? U : never;
-type HitToHighlight = L.Val<HitToHighlightLoadable>;
 
-export default Vue.extend({
-	components: {
-		Spinner,
-		ArticlePageStatistics,
-		// ArticlePagePagination,
-		// ArticlePageParallel,
-		Pagination,
-		InstancedHtml
-	},
-	data: () => ({
-		metadata: new LoadableFromStream(metadata$),
-		contents: new LoadableFromStream(contents$),
-		hits: new LoadableFromStream(hits$),
-		hitToHighlight: new LoadableFromStream(hitToHighlight$),
-		validPaginationInfo: new LoadableFromStream(validPaginationParameters$),
-		snippetAndDocument: new LoadableFromStream(snippetAndDocument$),
-	}),
-	computed: {
-		sourceField: QueryStore.get.sourceField,
-		inputs(): Input {
-			return {
-				indexId: CorpusStore.get.indexId()!,
-				docId: ArticleStore.getState().docId,
+const metadata = loadableFromStream(metadata$);
+const contents = loadableFromStream(contents$);
+const hits = loadableFromStream(hits$);
+const hitToHighlight = loadableFromStream(hitToHighlight$);
+const validPaginationInfo = loadableFromStream(validPaginationParameters$);
+const snippetAndDocument = loadableFromStream(snippetAndDocument$);
 
-				viewField: ArticleStore.getState().viewField,
-				searchField: this.sourceField.id,
 
-				wordstart: ArticleStore.get.wordstart(),
-				wordend: ArticleStore.get.wordend(),
-				pageSize: ArticleStore.get.pageSize(),
-				findhit: ArticleStore.get.findhit(),
-				patt: QueryStore.get.patternString(),
-				pattgapdata: QueryStore.getState().gap?.value,
-			}
-		},
+const inputs = computed(() => ({
+	indexId: CorpusStore.get.indexId()!,
+	docId: ArticleStore.getState().docId,
 
-		metadataFieldsToShow(): ReturnType<typeof fieldSubset<AppTypes.NormalizedMetadataField>> {
-			return fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(CorpusStore.get.allMetadataFieldsMap()), CorpusStore.get.metadataGroups(), CorpusStore.get.allMetadataFieldsMap())
-		},
+	viewField: ArticleStore.getState().viewField,
+	searchField: QueryStore.get.sourceField().id,
 
-		statisticsEnabled: ArticleStore.get.statisticsEnabled,
-		isParallel: CorpusStore.get.isParallelCorpus,
+	wordstart: ArticleStore.get.wordstart(),
+	wordend: ArticleStore.get.wordend(),
+	pageSize: ArticleStore.get.pageSize(),
+	findhit: ArticleStore.get.findhit(),
+	patt: QueryStore.get.patternString(),
+	pattgapdata: QueryStore.getState().gap?.value,
+}));
 
-		viewField(): AppTypes.NormalizedAnnotatedField|undefined {
-			return CorpusStore.get.allAnnotatedFieldsMap()[this.inputs.viewField!];
-		},
-	},
-	methods: {
-		stringifyWithHtml(v: any): string {
-			return JSON.stringify(v, (key, value) => {
-				if (value instanceof HTMLElement) return `<${value.tagName}/>`;
-				return value;
-			}, 2);
-		},
-		handlePageNavigation(page: number) {
-			if (!this.validPaginationInfo.isLoaded()) return;
-			ArticleStore.actions.page({
-				wordstart: page * this.validPaginationInfo.value.pageSize,
-				wordend: (page + 1) * this.validPaginationInfo.value.pageSize,
-			});
-		},
-		handleHitNavigation(hitStart: number) {
-			ArticleStore.actions.findhit(hitStart);
-		},
-	},
-	watch: {
-		inputs: {
-			handler: function(v) { input$.next(v); },
-			immediate: true,
-		},
-		'hitToHighlight.value': {
-			immediate: true,
-			handler(cur: HitToHighlight, prev?: HitToHighlight) {
-				prev?.hl?.classList.remove('active');
-				cur?.hl?.classList.add('active');
-			}
-		}
-	},
-	mounted() {
-		if (this.$refs.pagination instanceof HTMLElement && this.$refs.pagination.nodeType === 1) { // sometimes it's a comment if our top v-if is false.
-			//@ts-ignore
-			$(this.$refs.pagination).draggable();
-		}
-	},
-	unmounted() {
-		this.metadata.dispose();
-		this.contents.dispose();
-		this.hits.dispose();
-		this.hitToHighlight.dispose();
-		this.validPaginationInfo.dispose();
-		this.snippetAndDocument.dispose();
-	},
+const metadataFieldsToShow = computed(() => fieldSubset(
+	UIStore.getState().results.shared.detailedMetadataIds || Object.keys(CorpusStore.get.allMetadataFieldsMap()), 
+	CorpusStore.get.metadataGroups(), 
+	CorpusStore.get.allMetadataFieldsMap()
+));
+
+
+const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
+const isParallel = computed(() => CorpusStore.get.isParallelCorpus());
+const viewField = computed(() => CorpusStore.get.allAnnotatedFieldsMap()[inputs.value.viewField!]);
+	
+
+function stringifyWithHtml(v: any): string {
+	return JSON.stringify(v, (key, value) => {
+		if (value instanceof HTMLElement) return `<${value.tagName}/>`;
+		return value;
+	}, 2);
+}
+function handlePageNavigation(page: number) {
+	if (!validPaginationInfo.isLoaded()) return;
+	ArticleStore.actions.page({
+		wordstart: page * validPaginationInfo.value.pageSize,
+		wordend: (page + 1) * validPaginationInfo.value.pageSize,
+	});
+}
+function handleHitNavigation(hitStart: number) {
+	ArticleStore.actions.findhit(hitStart);
+}
+
+watch(inputs, v => input$.next(v), {immediate: true});
+watch(() => hitToHighlight.value, (cur, prev) => {
+	prev?.hl?.classList.remove('active');
+	cur?.hl?.classList.add('active');
+}, {immediate: true});
+
+
+
+
+onUnmounted(() => {
+	metadata.dispose();
+	contents.dispose();
+	hits.dispose();
+	hitToHighlight.dispose();
+	validPaginationInfo.dispose();
+	snippetAndDocument.dispose();
 });
 
 </script>

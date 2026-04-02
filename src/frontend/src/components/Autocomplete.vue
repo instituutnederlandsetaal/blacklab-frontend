@@ -1,6 +1,7 @@
 <template>
 	<SelectPicker
 		v-bind="$attrs"
+		
 		editable
 		@select="_autocompleteSelected"
 		v-model="modelValue"
@@ -9,7 +10,13 @@
 		container="body"
 		@keyup="_refreshList"
 		ref="input"
-	/>
+		
+	>
+		<!-- pass through all slots -->
+		<template v-for="(_, slotName) in $slots" v-slot:[slotName]="slotProps">
+			<slot :name="slotName" v-bind="slotProps ?? {}" />
+		</template>
+	</SelectPicker>
 </template>
 
 <script setup lang="ts">
@@ -19,7 +26,6 @@ import SelectPicker from './SelectPicker.vue';
 
 
 import {splitIntoTerms} from '@/utils';
-
 
 const modelValue = defineModel<string>({default: ''});
 const props = withDefaults(defineProps<{

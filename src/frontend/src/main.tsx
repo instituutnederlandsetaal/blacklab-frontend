@@ -1,10 +1,12 @@
-import '@/utils/enable-polyfills';
+import '@/utils/jquery-globals';
+import 'bootstrap';
+
 // Global corpus-frontend styles.
 import '@/global.scss';
 
-import $ from '@/utils/jquery-globals';
-import 'bootstrap';
-import Vue, { createApp } from 'vue';
+// import $ from '@/utils/jquery-globals';
+// import 'bootstrap';
+import { createApp } from 'vue';
 import router, { initialUrlStateApplied } from '@/route/router';
 
 
@@ -65,7 +67,7 @@ const renderErrorMixin = {
 // 	Vue.$plausible.trackPageview();
 // }
 // Expose and declare some globals
-(window as any).Vue = Vue;
+// (window as any).Vue = Vue;
 
 /*
 Rethink page initialization
@@ -142,16 +144,12 @@ const RootComponent = {
 	render: () => <App />,
 } as any;
 
-$(document).ready(async () => {
-	
-	await i18n.init();
+document.addEventListener('DOMContentLoaded', async () => {
 	const user = await LoginSystem.user;
 	initApi('blacklab', BLS_URL, user);
 	initApi('cf', CONTEXT_URL, user);
 	RootStore.actions.user(user);
-	// Don't do this before the url is parsed, as it controls the page url (among other things derived from the state).
-	initialUrlStateApplied.then(() => connectStoreStreams());
-
+	
 	const app = createApp(RootComponent);
 	app.config.errorHandler = errorHandler;
 	app.mixin(renderErrorMixin);
@@ -162,9 +160,10 @@ $(document).ready(async () => {
 	app.use(i18n);
 	app.component('Debug', DebugComponent);
 	app.component('AudioPlayer', AudioPlayer);
-
-	await router.isReady();
+	
+	// Don't do this before the url is parsed, as it controls the page url (among other things derived from the state).
 	// We can render before the tagset loads, the form just won't be populated from the url yet.
 	(window as any).vueApp = app;
 	(window as any).vueRoot = app.mount(document.querySelector('#vue-root')!);
+	router.isReady().then(() => connectStoreStreams());
 });

@@ -19,7 +19,6 @@
 				<td>
 					<Autocomplete
 						:id="id + 'ac1'"
-						class="form-control"
 						placeholder="...concept..."
 
 						:getData="getConceptAutocompletes"
@@ -36,7 +35,6 @@
 				<td>
 					<div class="input-group">
 						<Autocomplete
-							class="form-control"
 							placeholder="...term..."
 							:id="id + 'ac2'"
 							:getData="getTermAutocompletes"

@@ -25,8 +25,7 @@
 			/>
 			<div v-else :class="bare ? undefined : 'input-group'">
 				<Autocomplete
-					type="text"
-					class="form-control"
+					
 
 					useQuoteAsWordBoundary
 

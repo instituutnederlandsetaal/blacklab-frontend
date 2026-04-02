@@ -5,7 +5,6 @@
 		<Navbar/>
 		<!-- <pre style="overflow: auto; width: 100%; max-height: 20vh">{{ completeStoreState }}</pre> -->
 
-
 		<div v-if="storeLoadingState.isLoading()" class="container main-content">
 			<Spinner center/>
 			<h2>Please wait while we load the corpus...</h2>
@@ -24,8 +23,8 @@
 	</div>
 </template>
 
-<script lang="ts">
-import Vue from 'vue';
+<script setup lang="ts">
+import { computed } from 'vue';
 
 import * as RootStore from '@/store';
 
@@ -33,13 +32,7 @@ import Spinner from '@/components/Spinner.vue';
 import Navbar from '@/components/Navbar.vue';
 import PageMetaUpdater from '@/PageMetaUpdater.vue';
 
-export default Vue.extend({
-	components: {Spinner, Navbar, PageMetaUpdater},
-	data: () => ({
-		storeLoadingState: RootStore.get.loadingState(),
-		completeStoreState: RootStore.getState(),
-	})
-})
+const storeLoadingState = computed(() => RootStore.get.loadingState());
 
 </script>
 

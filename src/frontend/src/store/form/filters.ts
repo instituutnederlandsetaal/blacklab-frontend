@@ -134,7 +134,7 @@ const actions = {
 		//@ts-ignore
 		filter.defaultDescription = filter.defaultDescription || filter.description;
 
-		Vue.set<FullFilterState>(state.filters, filter.id, {...filter, value: null});
+		state.filters[filter.id] = {...filter, value: null};
 	}, 'registerFilter'),
 
 	filterValue: b.commit((state, {id, value}: Pick<FullFilterState, 'id'|'value'>) => {

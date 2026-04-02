@@ -7,7 +7,7 @@ import Vue from 'vue';
 
 import { frontend } from '@/api';
 import * as CorpusStore from '@/store/corpus';
-import { LoadableFromStream } from '@/utils/loadable-streams';
+import { loadableFromStream } from '@/utils/loadable-streams';
 
 import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
 
@@ -18,7 +18,7 @@ export default Vue.extend({
 	computed: {
 		content(): LoadableFromStream<string> {
 			// dispose shouldn't be necessary, web requests always complete eventually.
-			return new LoadableFromStream(frontend.getHelp(CorpusStore.get.indexId() ?? undefined).toObservable());
+			return loadableFromStream(frontend.getHelp(CorpusStore.get.indexId() ?? undefined).toObservable());
 		},
 	},
 });

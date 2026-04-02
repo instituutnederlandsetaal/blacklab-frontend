@@ -4,9 +4,11 @@ import $ from 'jquery';
 const globalScope = globalThis as typeof globalThis & {
 	$: typeof $;
 	jQuery: typeof $;
+	jquery: typeof $;
 };
 
 globalScope.$ = $;
 globalScope.jQuery = $;
+globalScope.jquery = $;
 
 export default $;

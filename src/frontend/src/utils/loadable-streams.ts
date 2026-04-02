@@ -481,16 +481,21 @@ export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
 	}
 }
 
+export interface LoadableFromStream<T> extends Loadable<T> {
+	dispose: () => void;
+	toJSON(): {state: LoadableState, value: T|undefined, error: ApiError|undefined};
+}
+
 /** Helper for creating a reactive loadable */
-class MutableLoadable<T> extends Loadable<T> {
+class MutableLoadable<T> extends Loadable<T> implements LoadableFromStream<T>  {
 	constructor(state: LoadableState, value: T|undefined, error: ApiError|undefined, public dispose: () => void) {
 		super(state, value, error);
 	}
-
 	toJSON() {
 		return {value: this.value, state: this.state, error: this.error};
 	}
 }
+
 /**
  * A class that behaves like a Loadable, auto-updates based on a stream's state.
  * This is basically a simple wrapper to go from async behavior to reactive behavior.
@@ -499,7 +504,7 @@ class MutableLoadable<T> extends Loadable<T> {
  * but otherwise, 
  * Don't forget to dispose() after you're done with it, or the stream will keep running.
  */
-export function LoadableFromStream<T>(
+export function loadableFromStream<T>(
 	stream$: Observable<T|Loadable<T>>, 
 	settings: {
 		/** initial state is normally empty, but can be Loading if so desired. Defaults to false. */

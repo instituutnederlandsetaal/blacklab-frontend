@@ -24,7 +24,7 @@
 						{{ field.label }}
 					</button>
 				</label>
-				<CqlQueryBuilder :key="field.value" :value="targetQueries[index]" @input="changeTargetQuery(index, $event)" />
+				<CqlQueryBuilder :key="field.value" :model-value="targetQueries[index]" @update:model-value="changeTargetQuery(index, $event)" />
 			</div>
 
 			<div v-if="pTargetOptions.length" class="add-target-version form-group">

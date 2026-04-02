@@ -84,7 +84,6 @@
 <script lang="ts">
 import Vue from 'vue';
 import URI from 'urijs';
-import $ from 'jquery';
 
 import * as RootStore from '@/store/';
 import * as HistoryStore from '@/store/history';
@@ -134,9 +133,8 @@ export default Vue.extend({
 		},
 
 		load(entry: HistoryStore.HistoryEntry) {
-			// @ts-ignore
-			$(this.$refs.modal).modal('toggle');
 			RootStore.actions.replace(entry);
+			this.$emit('close');
 		},
 		humanize(g: string[]): string[] {
 			return humanizeSerializedGroupBy(this, g, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap());

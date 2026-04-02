@@ -7,7 +7,7 @@
 				type="button"
 				class="btn btn-xs btn-default"
 				:title="$t('search.advanced.queryBuilder.token_head_move_left_title').toString()"
-				@click="$emit('move-token-left', model.id)"
+				@click="emit('move-token-left', model.id)"
 			>
 				<span class="glyphicon glyphicon-chevron-left"></span>
 			</button>
@@ -16,7 +16,7 @@
 				type="button"
 				class="btn btn-xs btn-default"
 				:title="$t('search.advanced.queryBuilder.token_head_move_right_title').toString()"
-				@click="$emit('move-token-right', model.id)"
+				@click="emit('move-token-right', model.id)"
 			>
 				<span class="glyphicon glyphicon-chevron-right"></span>
 			</button>
@@ -30,7 +30,7 @@
 				class="close"
 				area-label="delete"
 				:title="$t('search.advanced.queryBuilder.token_head_deleteButton_title').toString()"
-				@click="$emit('delete-token', model.id)"
+				@click="emit('delete-token', model.id)"
 			>
 				<span aria-hidden="true">&times;</span>
 			</button>
@@ -62,7 +62,6 @@
 						v-model="model.rootAttributeGroup"
 						:is-root="true"
 						:options="options"
-						@update:group="updateRootAttributeGroup"
 					/>
 				</div>
 
@@ -128,43 +127,41 @@
 	</div>
 </template>
 
-<script lang="ts">
-import Vue from 'vue';
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import { useVModel } from '@vueuse/core';
 import {
 	CqlTokenData,
-	CqlAttributeGroupData,
 	CqlGenerator,
-	CqlQueryBuilderOptions
+	CqlQueryBuilderOptions,
 } from '@/components/cql/cql-types';
 import CqlAttributeGroup from './CqlAttributeGroup.vue';
 
-import useModel from './useModel';
-
-export default useModel<CqlTokenData>().extend({
-	components: {
-		CqlAttributeGroup
-	},
-	props: {
-		options: { type: Object as () => CqlQueryBuilderOptions, required: true },
-		canMoveLeft: { type: Boolean, default: false },
-		canMoveRight: { type: Boolean, default: false },
-	},
-	data() {
-		return {
-			activeTab: 'attributes' as 'attributes' | 'properties',
-		};
-	},
-	computed: {
-		tokenCql(): string {
-			return CqlGenerator.tokenCql(this.model);
-		}
-	},
-	methods: {
-		updateRootAttributeGroup(updatedGroup: CqlAttributeGroupData) {
-			this.model.rootAttributeGroup = updatedGroup;
-		},
-	}
+const props = withDefaults(defineProps<{
+	options: CqlQueryBuilderOptions,
+	modelValue: CqlTokenData,
+	canMoveLeft?: boolean,
+	canMoveRight?: boolean,
+}>(), {
+	canMoveLeft: false,
+	canMoveRight: false,
 });
+
+const emit = defineEmits<{
+	'update:modelValue': [value: CqlTokenData],
+	'move-token-left': [tokenId: string],
+	'move-token-right': [tokenId: string],
+	'delete-token': [tokenId: string],
+}>();
+
+const model = useVModel(props, 'modelValue', emit, {
+	deep: true,
+	passive: true,
+	clone: true,
+});
+
+const activeTab = ref<'attributes' | 'properties'>('attributes');
+const tokenCql = computed(() => CqlGenerator.tokenCql(model.value));
 </script>
 
 <style lang="scss">

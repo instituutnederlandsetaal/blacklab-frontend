@@ -11,12 +11,12 @@
 			</div>
 
 			<div class="navbar-content-container">
-				<router-link class="navbar-brand" :to="indexId ? {name: 'search', params: {corpus: indexId}} : {name: 'corpora'}" >{{ indexDisplayName }}</router-link>
+				<!-- <router-link class="navbar-brand" :to="indexId ? {name: 'search', params: {corpus: indexId}} : {name: 'corpora'}" >{{ indexDisplayName }}</router-link> -->
 
 				<ul class="nav navbar-nav navbar-collapse" :class="{visible: !collapsed}">
 					<li v-for="link in links" :key="link.attributes.href">
-						<router-link v-if="!link.isExternal" :to="link.attributes.href" v-bind="{...link.attributes, href: undefined}">{{ link.label }}</router-link>
-						<a v-else v-bind="link.attributes">{{ link.label }}</a>
+						<!-- <router-link v-if="!link.isExternal" :to="link.attributes.href" v-bind="{...link.attributes, href: undefined}">{{ link.label }}</router-link> -->
+						<!-- <a v-else v-bind="link.attributes">{{ link.label }}</a> -->
 					</li>
 				</ul>
 

@@ -1,5 +1,3 @@
-import '@/utils/enable-polyfills';
-
 /**
  * This is the main javascript bundle for the OIDC callback page.
  * OIDC works by first redirecting the user to a login page, and then after login, that page redirecting back to a callback page.

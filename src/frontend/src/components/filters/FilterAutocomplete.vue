@@ -9,7 +9,7 @@
 		<div class="col-xs-12">
 			<Autocomplete
 				type="text"
-				class="form-control"
+				
 
 				useQuoteAsWordBoundary
 

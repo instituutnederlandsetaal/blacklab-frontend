@@ -110,13 +110,12 @@ const get = {
 const privateActions = {
 	clear: b.commit(state => Object.assign(state, cloneDeep(initialState)), 'clear'),
 
-	// initFilter: b.commit((state, payload: FilterValue) => Vue.set(state.filters, payload.id, payload), 'filter_init'),
 	// NOTE when re-integrating annotatedFieldId this needs to be updated to account.
 	initExtendedAnnotation: b.commit((state, payload: AnnotationValue) =>
-			Vue.set(state.extended.annotationValues, payload.id, payload), 'annotation_init_extended'),
+			state.extended.annotationValues[payload.id] = payload, 'annotation_init_extended'),
 	initSimpleAnnotation: b.commit((state, payload: ModuleRootState['simple']) => Object.assign<ModuleRootState['simple'],
 			ModuleRootState['simple']>(state.simple, payload), 'annotation_init_simple'),
-	initShared: b.commit((state, payload: ModuleRootState['shared']) => Vue.set(state, 'shared', payload), 'init_shared'),
+	initShared: b.commit((state, payload: ModuleRootState['shared']) => state.shared = payload, 'init_shared'),
 };
 
 const setTargetFields = (state: ModuleRootState, payload: string[]): string[] => {
@@ -134,7 +133,7 @@ const setTargetFields = (state: ModuleRootState, payload: string[]): string[] =>
 			state.expert.targetQueries.push('');
 		}
 	}
-	return Vue.set(state.shared, 'targets', payload);
+	return (state.shared.targets = payload);
 };
 
 const actions = {
@@ -227,7 +226,7 @@ const actions = {
 				console.error('Tried to set target query for non-existent index');
 				return;
 			}
-			Vue.set(state.advanced.targetQueries, index, value);
+			state.advanced.targetQueries[index] = value;
 		}, 'advanced_change_target_query'),
 		targetQueries: b.commit((state, payload: CqlQueryBuilderData[]) => {
 			return (state.advanced.targetQueries = [...payload]); // copy, don't reference
@@ -246,7 +245,7 @@ const actions = {
 				console.error('Tried to set target query for non-existent index');
 				return;
 			}
-			Vue.set(state.expert.targetQueries, index, value);
+			state.expert.targetQueries[index] = value;
 		}, 'expert_change_target_query'),
 		targetQueries: b.commit((state, payload: string[]) => {
 			return (state.expert.targetQueries = [...payload]); // copy, don't reference

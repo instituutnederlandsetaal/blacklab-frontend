@@ -1,6 +1,6 @@
 import { describe, expect, vi, test, afterAll } from 'vitest';
 import {hits$, Input, input$, metadata$, validPaginationParameters$} from '@/pages/article/article';
-import { CancelableRequest, Loadable, LoadableFromStream, LoadableState, promiseFromLoadableStream } from '@/utils/loadable-streams';
+import { CancelableRequest, Loadable, loadableFromStream, LoadableState, promiseFromLoadableStream } from '@/utils/loadable-streams';
 import { BLDoc } from '@/types/blacklabtypes';
 
 const ids = vi.hoisted(() => ({
@@ -79,7 +79,7 @@ const baseInputs: Input = {
 describe('hits$', () => {
 	// For ease of use, we'll use a LoadableFromStream object to test the hits$ observable.
 	// We have separate tests to validate the behavior of the LoadableFromStream object.
-	const hitsOutput = new LoadableFromStream(hits$);
+	const hitsOutput = loadableFromStream(hits$);
 	test('should be empty initially', () => expect(hitsOutput).toMatchObject({ state: 'empty' }));
 	test('Should find the hits', async () => {
 		input$.next(baseInputs);
@@ -100,7 +100,7 @@ describe('hits$', () => {
 });
 
 describe('metadata$', () => {
-	const output = new LoadableFromStream(metadata$);
+	const output = loadableFromStream(metadata$);
 	test('Should be empty initially', async () => {
 		input$.next({});
 		await promiseFromLoadableStream(metadata$); // wait for the metadata to load.
@@ -122,7 +122,7 @@ describe('metadata$', () => {
 // So if there are global/reused variables that are modified outside the test, they may not be in the state you expect.
 
 describe('validPaginationParameters$', () => {
-	const output = new LoadableFromStream(validPaginationParameters$);
+	const output = loadableFromStream(validPaginationParameters$);
 	test('Should be empty initially', () => {
 		input$.next({})
 		expect(output).toMatchObject(Loadable.Empty())

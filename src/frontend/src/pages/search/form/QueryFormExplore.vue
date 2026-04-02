@@ -125,8 +125,8 @@
 						/>
 
 						<Autocomplete v-else
-							type="text"
-							class="form-control"
+							
+							
 
 							useQuoteAsWordBoundary
 

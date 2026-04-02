@@ -378,6 +378,12 @@ export class ApiError extends Error {
 	}
 
 	get isCancelledRequest() { return this === ApiError.CANCELLED; }
+
+	public static wrap(error: any): ApiError {
+		if (error instanceof ApiError) return error;
+		if (error instanceof Error) return new ApiError('Unknown Error', `${error.message}`, 'Error', undefined);
+		return new ApiError(error?.title ?? 'Unknown Error', error?.message ?? `${JSON.stringify(error)}`, error?.statusText ?? 'Error', error?.httpCode ?? undefined);
+	}
 }
 
 // Import quirks, duplicate these

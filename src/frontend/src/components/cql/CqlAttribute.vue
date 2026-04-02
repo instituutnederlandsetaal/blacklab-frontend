@@ -6,7 +6,7 @@
 				type="button"
 				class="btn btn-xs btn-link"
 				:title="$t('search.advanced.queryBuilder.attribute_delete_attribute_button_title').toString()"
-				@click="$emit('delete-attribute', model.id)"
+				@click="emit('delete-attribute', model.id)"
 			>
 				<span class="glyphicon glyphicon-remove text-primary"></span>
 			</button>
@@ -65,8 +65,8 @@
 			<Autocomplete v-else
 				data-attribute-role="value"
 				type="text"
-				class="form-control input-sm bl-no-border-radius bl-token-attribute-main-input"
-				:dir="textDirection"
+				data-class="form-control input-sm bl-no-border-radius bl-token-attribute-main-input"
+				:dir="options.textDirection"
 				:url="autocompleteUrl"
 				useQuoteAsWordBoundary
 				v-model="textValue"
@@ -90,7 +90,7 @@
 			</label>
 
 			<!-- Add Controls -->
-			<CqlAddAttributeButton @click="emitAddAttributeGroup($event)" :options="options" />
+			<CqlAddAttributeButton @click="emit('add-attribute-group', $event)" :options="options" />
 		</div>
 
 		<!-- Case Sensitive Checkbox -->
@@ -130,101 +130,86 @@
 	</div>
 </template>
 
-<script lang="ts">
-import { NormalizedAnnotation, OptGroup, Option } from '@/types/apptypes';
-import { CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
+<script setup lang="ts">
+import { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
 import SelectPicker from '@/components/SelectPicker.vue';
 import Modal from '@/components/Modal.vue';
 import CqlAddAttributeButton from '@/components/cql/CqlAddAttributeButton.vue';
 import Autocomplete from '@/components/Autocomplete.vue';
 import { blacklabPaths } from '@/api';
 
-import useModel from './useModel';
+// import useModel from './useModel';
 import { escapeRegex } from '@/utils';
+import { useVModel } from '@vueuse/core';
+import { computed, ref } from 'vue';
 
+const props = defineProps<{
+	options: CqlQueryBuilderOptions,
+	modelValue: CqlAttributeData,
+}>();
+const emit = defineEmits<{
+	'update:modelValue': [value: CqlAttributeData],
+	'add-attribute-group': [operator: CqlAnnotationCombinator],
+	'delete-attribute': [id: string],
+}>();
 
-export default useModel<CqlAttributeData>().extend({
-	components: {
-		CqlAddAttributeButton,
-		SelectPicker,
-		Modal,
-		Autocomplete,
+const model = useVModel(props, 'modelValue', emit, {
+	deep: true,
+	passive: true,
+	clone: true
+});
+const showModal = ref(false);
+const currentAnnotation = computed(() => props.options.allAnnotationsMap[model.value.annotationId]);
+const autocompleteUrl = computed(() => {
+	if (!currentAnnotation.value) return '';
+	return blacklabPaths.autocompleteAnnotation(props.options.indexId, currentAnnotation.value.annotatedFieldId, currentAnnotation.value.id);
+});
+const hasUploadedValue = computed(() => !!model.value.uploadedValue);
+const uploadedValuesSummary = computed(() => {
+	if (!hasUploadedValue.value) return '';
+	return `${model.value.values.length} value${model.value.values.length !== 1 ? 's' : ''}`;
+});
+const textValue = computed({
+	get(): string {
+		return model.value.values.join('|');
 	},
-	props: {
-		options: { type: Object as () => CqlQueryBuilderOptions, required: true },
-	},
-	data: () => ({ showModal: false }),
-	computed: {
-		textDirection(): 'ltr' | 'rtl' { return this.options.textDirection; },
-		currentAnnotation(): NormalizedAnnotation | undefined {
-			return this.options.allAnnotationsMap[this.model.annotationId];
-		},
-		autocompleteUrl(): string {
-			if (!this.currentAnnotation) return '';
-			return blacklabPaths.autocompleteAnnotation(this.options.indexId, this.currentAnnotation.annotatedFieldId, this.currentAnnotation.id);
-		},
-
-		hasUploadedValue(): boolean { return !!this.model.uploadedValue },
-
-		uploadedValuesSummary(): string {
-			if (!this.hasUploadedValue) return '';
-			return `${this.model.values.length} value${this.model.values.length !== 1 ? 's' : ''}`;
-		},
-
-		textValue: {
-			get(): string {
-				return this.model.values.join('|');
-			},
-			set(value: string) {
-				this.model.values = value ? [value] : [''];
-			}
-		}
-	},
-	methods: {
-		escapeRegex,
-		handleTextInput(event: Event) {
-			const target = event.target as HTMLInputElement;
-			this.model.values = target.value ? [target.value] : [''];
-		},
-
-		parseUploadedFile(contents: string): string[] {
-			return contents.trim().split(/\s+/g).map(v => v.trim()).filter(line => line);
-		},
-
-		handleFileUpload(event: Event) {
-			const target = event.target as HTMLInputElement;
-			const file = target.files?.[0];
-			if (!file) return;
-
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				const content = e.target?.result as string;
-				if (content) {
-					// Split by lines and filter out empty lines
-					this.model.uploadedValue = content;
-					this.model.values = this.parseUploadedFile(content);
-				}
-			};
-			reader.readAsText(file);
-		},
-
-		confirmModalEditor() {
-			this.model.values = this.parseUploadedFile(this.model.uploadedValue!);
-			this.closeModalEditor();
-		},
-		clearModalEditor() {
-			this.model.uploadedValue = undefined;
-			this.model.values = [''];
-			this.closeModalEditor();
-		},
-		openModalEditor() { this.showModal = true; },
-		closeModalEditor() { this.showModal = false; },
-
-		emitAddAttributeGroup(operator: string) {
-			this.$emit('add-attribute-group', operator);
-		}
+	set(value: string) {
+		model.value.values = value ? [value] : [''];
 	}
 });
+
+function parseUploadedFile(contents: string): string[] {
+	return contents.trim().split(/\s+/g).map(v => v.trim()).filter(line => line);
+}
+function handleFileUpload(event: Event) {
+	const target = event.target as HTMLInputElement;
+	const file = target.files?.[0];
+	if (!file) return;
+
+	const reader = new FileReader();
+	reader.onload = (e) => {
+		const content = e.target?.result as string;
+		if (content) {
+			// Split by lines and filter out empty lines
+			model.value.uploadedValue = content;
+			model.value.values = parseUploadedFile(content);
+		}
+	};
+	reader.readAsText(file);
+};
+
+function confirmModalEditor() {
+	model.value.values = parseUploadedFile(model.value.uploadedValue!);
+	closeModalEditor();
+}
+function clearModalEditor() {
+	model.value.uploadedValue = undefined;
+	model.value.values = [''];
+	closeModalEditor();
+}
+function openModalEditor() { showModal.value = true; }
+function closeModalEditor() { showModal.value = false; }
+
 </script>
 
 <style lang="scss">

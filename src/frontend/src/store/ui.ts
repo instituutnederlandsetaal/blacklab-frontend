@@ -407,7 +407,7 @@ const get = {
 const privateActions = {
 	search: {
 		shared: {
-			initCustomAnnotationRegistrationPoint: b.commit((state, id: string) => Vue.set(state.search.shared.customAnnotations, id, state.search.shared.customAnnotations[id] ?? null), 'search_shared_initCustomAnnotation')
+			initCustomAnnotationRegistrationPoint: b.commit((state, id: string) => state.search.shared.customAnnotations[id] = state.search.shared.customAnnotations[id] ?? null, 'search_shared_initCustomAnnotationRegistrationPoint'),
 		}
 	}
 }

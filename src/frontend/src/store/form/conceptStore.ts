@@ -119,9 +119,7 @@ const actions = {
 		actions.updateCQL();
 	}, 'remove_subquery'),
 	updateSubquery: b.commit((state, payload: {index: number, query: AtomicQuery[]}) => {
-		// Use Vue.set to make sure the change is recorded, otherwise it won't be detected by Vue.
-		// this can be removed when we switch to Vue 3.
-		Vue.set(state.query, payload.index, payload.query);
+		state.query[payload.index] = payload.query;
 		actions.updateCQL();
 	}, 'update_subquery'),
 

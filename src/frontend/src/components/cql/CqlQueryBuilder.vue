@@ -31,7 +31,7 @@
 	</div>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 import {
 	CqlTokenData,
 	COMPARATORS,
@@ -40,142 +40,136 @@ import {
 	CqlQueryBuilderOptions,
 } from '@/components/cql/cql-types';
 import CqlToken from './CqlToken.vue';
-import Modal from '@/components/Modal.vue';
 import Within from '@/pages/search/form/Within.vue';
 import uid from '@/mixins/uid';
+import { computed, getCurrentInstance, watch } from 'vue';
+import { useVModel } from '@vueuse/core';
 
 import * as UIStore from '@/store/ui';
 import * as CorpusStore from '@/store/corpus';
 import { getAnnotationSubset } from '@/utils';
 
-import useModel from './useModel';
+const props = defineProps<{
+	modelValue: CqlQueryBuilderData,
+}>();
 
-export default useModel<CqlQueryBuilderData>().extend({
-	components: {
-		CqlToken,
-		Modal,
-		Within
-	},
-	computed: {
-		options(): CqlQueryBuilderOptions {
-			const indexId = CorpusStore.get.indexId()!;
-			const textDirection = CorpusStore.get.textDirection();
-			const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
-			const searchAnnotationIds = UIStore.getState().search.advanced.searchAnnotationIds;
+const emit = defineEmits<{
+	'update:modelValue': [value: CqlQueryBuilderData],
+}>();
 
-			const annotationGroups = getAnnotationSubset(
-				searchAnnotationIds,
-				CorpusStore.get.annotationGroups(),
-				allAnnotationsMap,
-				'Search',
-				this,
-				textDirection,
-				false,
-				false
-			);
+const model = useVModel(props, 'modelValue', emit, {
+	deep: true,
+	passive: true,
+	clone: true,
+});
 
-			const annotationOptions = (annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options)) as any;
+const instance = getCurrentInstance()?.proxy as any;
 
-			return {
-				indexId,
-				defaultAnnotationId: UIStore.getState().search.advanced.defaultSearchAnnotationId,
-				textDirection,
-				allAnnotationsMap,
-				annotationOptions,
-				operatorOptions: OPERATORS.map(op => ({
-					label: this.$td(`search.advanced.queryBuilder.boolean_operators.${op}`, op),
-					value: op,
-				})),
-				comparatorOptions: COMPARATORS.map(comp => ({
-					label: '',
-					options: comp.map(comp => ({
-						label: this.$td(`search.advanced.queryBuilder.comparators.${comp}`, comp),
-						value: comp,
-					})),
-				}))
-			};
+const options = computed<CqlQueryBuilderOptions>(() => {
+	const indexId = CorpusStore.get.indexId()!;
+	const textDirection = CorpusStore.get.textDirection();
+	const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
+	const searchAnnotationIds = UIStore.getState().search.advanced.searchAnnotationIds;
+
+	const annotationGroups = getAnnotationSubset(
+		searchAnnotationIds,
+		CorpusStore.get.annotationGroups(),
+		allAnnotationsMap,
+		'Search',
+		instance,
+		textDirection,
+		false,
+		false
+	);
+
+	const annotationOptions = (annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options)) as any;
+
+	return {
+		indexId,
+		defaultAnnotationId: UIStore.getState().search.advanced.defaultSearchAnnotationId,
+		textDirection,
+		allAnnotationsMap,
+		annotationOptions,
+		operatorOptions: OPERATORS.map(op => ({
+			label: instance.$td(`search.advanced.queryBuilder.boolean_operators.${op}`, op),
+			value: op,
+		})),
+		comparatorOptions: COMPARATORS.map(comp => ({
+			label: '',
+			options: comp.map(comp => ({
+				label: instance.$td(`search.advanced.queryBuilder.comparators.${comp}`, comp),
+				value: comp,
+			})),
+		})),
+	};
+});
+
+function addToken() {
+	const newToken: CqlTokenData = {
+		id: `token_${uid()}`,
+		properties: {
+			optional: false,
+			minRepeats: 1,
+			maxRepeats: 1,
+			beginOfSentence: false,
+			endOfSentence: false,
 		},
-	},
-	methods: {
-		addToken() {
-			const newToken: CqlTokenData = {
-				id: `token_${uid()}`,
-				properties: {
-					optional: false,
-					minRepeats: 1,
-					maxRepeats: 1,
-					beginOfSentence: false,
-					endOfSentence: false
-				},
-				rootAttributeGroup: {
-					id: `group_${uid()}`,
-					operator: OPERATORS[0],
-					entries: [{
-						id: `attr_${uid()}`,
-						annotationId: this.options.defaultAnnotationId,
-						comparator: COMPARATORS[0][0],
-						values: [''],
-						caseSensitive: false
-					}]
-				}
-			};
-
-			this.model.tokens.push(newToken);
+		rootAttributeGroup: {
+			id: `group_${uid()}`,
+			operator: OPERATORS[0],
+			entries: [{
+				id: `attr_${uid()}`,
+				annotationId: options.value.defaultAnnotationId,
+				comparator: COMPARATORS[0][0],
+				values: [''],
+				caseSensitive: false,
+			}],
 		},
+	};
 
-		updateToken(updatedToken: CqlTokenData) {
-			const index = this.model.tokens.findIndex(t => t.id === updatedToken.id);
-			if (index !== -1) {
-				this.$set(this.model.tokens, index, updatedToken);
-			}
-		},
+	model.value.tokens.push(newToken);
+}
 
-		deleteToken(tokenId: string) {
-			const index = this.model.tokens.findIndex(t => t.id === tokenId);
-			if (index !== -1) {
-				this.model.tokens.splice(index, 1);
+function deleteToken(tokenId: string) {
+	const index = model.value.tokens.findIndex(t => t.id === tokenId);
+	if (index !== -1) {
+		model.value.tokens.splice(index, 1);
 
-				// Ensure at least one token exists
-				if (this.model.tokens.length === 0) {
-					this.addToken();
-				}
-			}
-		},
-
-		moveTokenLeft(tokenId: string) {
-			const index = this.model.tokens.findIndex(t => t.id === tokenId);
-			if (index > 0) {
-				const token = this.model.tokens.splice(index, 1)[0];
-				this.model.tokens.splice(index - 1, 0, token);
-			}
-		},
-
-		moveTokenRight(tokenId: string) {
-			const index = this.model.tokens.findIndex(t => t.id === tokenId);
-			if (index < this.model.tokens.length - 1) {
-				const token = this.model.tokens.splice(index, 1)[0];
-				this.model.tokens.splice(index + 1, 0, token);
-			}
-		},
-	},
-	watch: {
-		model: {
-			// Create initial token if none exist
-			handler() {
-				if (!Array.isArray(this.model.tokens)) {
-					this.$set(this.model, 'tokens', []);
-				}
-				if (typeof this.model.within !== 'string') {
-					this.$set(this.model, 'within', '');
-				}
-				if (!this.model.tokens.length) {
-					this.addToken();
-				}
-			},
-			deep: true,
-			immediate: true,
+		if (model.value.tokens.length === 0) {
+			addToken();
 		}
 	}
+}
+
+function moveTokenLeft(tokenId: string) {
+	const index = model.value.tokens.findIndex(t => t.id === tokenId);
+	if (index > 0) {
+		const token = model.value.tokens.splice(index, 1)[0];
+		model.value.tokens.splice(index - 1, 0, token);
+	}
+}
+
+function moveTokenRight(tokenId: string) {
+	const index = model.value.tokens.findIndex(t => t.id === tokenId);
+	if (index < model.value.tokens.length - 1) {
+		const token = model.value.tokens.splice(index, 1)[0];
+		model.value.tokens.splice(index + 1, 0, token);
+	}
+}
+
+watch(model, () => {
+	if (!Array.isArray(model.value.tokens)) {
+		model.value.tokens = [];
+	}
+	if (typeof model.value.within !== 'string') {
+		model.value.within = '';
+	}
+	if (!model.value.tokens.length) {
+		addToken();
+	}
+}, {
+	deep: true,
+	immediate: true,
 });
 </script>
 

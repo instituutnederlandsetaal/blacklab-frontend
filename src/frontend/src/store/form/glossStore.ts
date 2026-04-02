@@ -149,12 +149,12 @@ const actions = {
 			hit_first_word_id: range.startid,
 			hit_last_word_id: range.endid
 		}
-		Vue.set(state.glosses, hitId, glossing);
+		state.glosses[hitId] = glossing;
 	}, 'add_gloss'),
 
 	addGlossing: b.commit((state, payload: Glossing) => {
 		const hitId = payload.hitId
-		Vue.set(state.glosses, hitId, payload);
+		state.glosses[hitId] = payload;
 	}, 'add_glossing'),
 
 	setOneGlossField: b.commit((state, payload: { hitId: string, fieldName: string, fieldValue: string, hit_first_word_id: string, hit_last_word_id: string}) => {
@@ -170,7 +170,7 @@ const actions = {
 			hit_first_word_id,
 			hit_last_word_id,
 		}
-		Vue.set(state.glosses, hitId, glossing);
+		state.glosses[hitId] = glossing;
 		actions.storeToDatabase({glossings: [glossing]})
 	}, `set_gloss_field_value`), // als je dit twee keer doet gaat ie mis wegens dubbele dinges...
 
@@ -197,7 +197,7 @@ const actions = {
 	setOneGlossQueryField: b.commit((state, payload: {  fieldName: string, fieldValue: string })  => {
 		const fieldName = payload.fieldName
 		const fieldValue = payload.fieldValue
-		Vue.set(state.gloss_query.parts, fieldName, fieldValue);
+		state.gloss_query.parts[fieldName] = fieldValue;
 		// and translate query to cql......?
 		//alert('Set gloss query field: ' + JSON.stringify(payload))
 		actions.updateCQL()

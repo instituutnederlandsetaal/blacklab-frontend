@@ -12,7 +12,7 @@
 			<li v-for="op in options.operatorOptions" :key="op.value">
 				<a
 					href="#"
-					@click.prevent="onClick(op.value)"
+					@click.prevent="emit('click', op.value as CqlAnnotationCombinator); "
 				>
 					<span class="glyphicon glyphicon-plus-sign text-success"></span>
 					{{ op.label }}
@@ -22,19 +22,14 @@
 	</div>
 </template>
 
-<script lang="ts">
-import Vue from 'vue';
-import { CqlQueryBuilderOptions } from '@/components/cql/cql-types';
-export default Vue.extend({
-	props: {
-		options: Object as () => CqlQueryBuilderOptions
-	},
-	methods: {
-		onClick(op: string) {
-			this.$emit('click', op);
-		}
-	}
-})
+<script setup lang="ts">
+import { CqlAnnotationCombinator, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
+defineProps<{
+	options: CqlQueryBuilderOptions,
+}>();
+const emit = defineEmits<{
+	click: [operator: CqlAnnotationCombinator],
+}>();
 </script>
 
 <style lang="scss">

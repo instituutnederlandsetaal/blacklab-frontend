@@ -1,5 +1,4 @@
 import axios, {Canceler, AxiosRequestConfig} from 'axios';
-import * as qs from 'qs';
 
 import {createEndpoint} from '@/api/apiutils';
 import {normalizeIndex, normalizeFormat, normalizeIndexBase} from '@/utils/blacklabutils';
@@ -50,7 +49,7 @@ export function init(which: keyof typeof endpoints, url: string, user: User|null
 
 	endpoints[which] = createEndpoint({
 		baseURL: url.replace(/\/*$/, '/'),
-		paramsSerializer: params => qs.stringify(params),
+		paramsSerializer: params => new URLSearchParams(params).toString(),
 		headers,
 		params: which === 'blacklab' ? {
 			api: '4' // backward compat
@@ -198,9 +197,11 @@ export const blacklab = {
 
 	postShares: (id: string, users: BLTypes.BLShareInfo, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
 		.post<BLTypes.BLResponse>(blacklabPaths.shares(id),
-			// Need to manually set content-type due to long-standing axios bug
-			// https://github.com/axios/axios/issues/362
-			qs.stringify({users: users.map(u => u.trim()).filter(u => u.length)}, {arrayFormat: 'brackets'}),
+			users.reduce((params, user) => {
+				const trimmed = user.trim();
+				if (trimmed) params.append('users[]', trimmed);
+				return params;
+			}, new URLSearchParams()),
 			{
 				...requestParameters,
 				headers: {
@@ -218,7 +219,7 @@ export const blacklab = {
 
 	postCorpus: (id: string, displayName: string, format: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
 		.post(blacklabPaths.root(),
-			qs.stringify({name: id, display: displayName, format}),
+			new URLSearchParams({name: id, display: displayName, format}),
 			{
 				...requestParameters,
 				headers: {
@@ -490,7 +491,7 @@ export const glossApi = {
 			.join("| ")
 		),
 	storeGlosses: (instance: string, glossings: Glossing[]) => endpoints.gloss
-		.post(glossPaths.glosses(), qs.stringify({
+		.post(glossPaths.glosses(), new URLSearchParams({
 			instance,
 			glossings: JSON.stringify(glossings)
 		})),

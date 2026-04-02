@@ -17,6 +17,7 @@ export default defineConfig(({ mode }): UserConfig => ({
 				compilerOptions: {
 					compatConfig: {
 						MODE: 2,
+						COMPILER_V_BIND_OBJECT_ORDER: false
 					},
 				},
 			},
@@ -25,8 +26,12 @@ export default defineConfig(({ mode }): UserConfig => ({
 	],
 	resolve: {
 		alias: {
+			// allow importing from 'src' using '@/...' instead of relative paths
 			'@': path.resolve(__dirname, 'src'),
+			// temporary vue compat mode
 			vue: '@vue/compat',
+
+			// hack: make vuex-typex import vuex 4 instead of 3, since it's not updated
 			vuex: path.resolve(__dirname, 'node_modules/vuex/dist/vuex.esm-bundler.js'),
 			'vuex-typex/node_modules/vuex': path.resolve(__dirname, 'node_modules/vuex/dist/vuex.esm-bundler.js'),
 		},
