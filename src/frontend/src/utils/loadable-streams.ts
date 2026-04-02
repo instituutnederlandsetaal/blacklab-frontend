@@ -1,7 +1,7 @@
 import { combineLatest, debounceTime, delay, distinctUntilChanged, EMPTY, filter, firstValueFrom, map, merge, mergeMap, Observable, ObservableInput, of, OperatorFunction, partition, pipe, race, ReplaySubject, startWith, Subject, Subscription, switchMap, take, takeUntil, tap, timer } from 'rxjs';
 import jsonStableStringify from 'json-stable-stringify';
 import { MarkRequiredAndNotNull } from '@/types/helpers';
-import { markRaw, reactive } from 'vue';
+import { getCurrentInstance, markRaw, onUnmounted, reactive, shallowReactive } from 'vue';
 import { ApiError } from '@/types/apptypes';
 import { Canceler } from 'axios';
 
@@ -92,6 +92,12 @@ export class Loadable<T> implements TLoadable<T> {
 	public static Loaded<T>(value: T): Loaded<T> { return new Loadable<T>(LoadableState.Loaded, value, undefined) as Loaded<T>; }
 	public static LoadingError<T>(error: ApiError): LoadingError<T> { return new Loadable<T>(LoadableState.Error, undefined, error) as LoadingError<T>; }
 	public static Empty<T>(): Empty<T> { return new Loadable<T>(LoadableState.Empty, undefined, undefined) as Empty<T>; }
+
+	/** Return a loadable of the value, if the value is already a loadable, return it as is. Otherwise, wrap it in a Loaded loadable. */
+	public static wrap<T, TV extends ValueTypeFromLoadableOrObservable<T>>(value: T): Loadable<TV> {
+		if (Loadable.isLoadable<TV>(value)) return value;
+		else return Loadable.Loaded<TV>(value as any);
+	}
 }
 
 export class CancelableRequest<T> implements Promise<T> {
@@ -327,19 +333,23 @@ export const toObservable = <T>({cancel, request}: CancelableRequest<T>) => new 
 	return cancel; // cleanup for when the observable is unsubscribed.
 });
 
+type ValueTypeFromLoadable<T> = T extends Loadable<infer U> ? U : T;
 
 /**
  * Unpack Observables and Loadables into their .value type.
- * E.g. Observable<Loadable<T>> -> T
- * E.g. Loadable<T> -> T
- * E.g. T -> T
+ * If the static type of the Loadable is known (e.g. Empty<T>), return the statically known type (e.g. T for Loaded<T>, never for Empty<T> and LoadingError<T>).
+ * 
+ * @example ValueTypeFromLoadableOrObservable<Observable<Loadable<T>>> -> T
+ * @example ValueTypeFromLoadableOrObservable<Loadable<T>> -> T
+ * @example ValueTypeFromLoadableOrObservable<T> -> T
  */
 type ValueTypeFromLoadableOrObservable<T> = T extends Observable<infer U> ? L.Val<U> : L.Val<T>;
 /**
  * Unpack Observables and Loadables into their .value type.
- * E.g. Observable<Loadable<T>> -> T|undefined
- * E.g. Loadable<T> -> T|undefined
- * E.g. T -> T
+ * If the static type of the Loadable is known (e.g. Empty<T>), return the statically known type (e.g. T for Loaded<T>, never for Empty<T> and LoadingError<T>).
+ * @example ValueTypeFromLoadableOrObservableIncludingEmpty<Observable<Loadable<T>>> -> T|undefined
+ * @example ValueTypeFromLoadableOrObservableIncludingEmpty<Loadable<T>> -> T|undefined
+ * @example ValueTypeFromLoadableOrObservableIncludingEmpty<T> -> T
  */
 type ValueTypeFromLoadableOrObservableIncludingEmpty<T> = T extends Observable<infer U> ? L.ValEmpty<U> : L.ValEmpty<T>;
 
@@ -471,71 +481,70 @@ export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
 	}
 }
 
+/** Helper for creating a reactive loadable */
+class MutableLoadable<T> extends Loadable<T> {
+	constructor(state: LoadableState, value: T|undefined, error: ApiError|undefined, public dispose: () => void) {
+		super(state, value, error);
+	}
 
+	toJSON() {
+		return {value: this.value, state: this.state, error: this.error};
+	}
+}
 /**
  * A class that behaves like a Loadable, auto-updates based on a stream's state.
  * This is basically a simple wrapper to go from async behavior to reactive behavior.
+ * 
+ * When called from within a vue component, cleanup will happen automatically on unmount,
+ * but otherwise, 
  * Don't forget to dispose() after you're done with it, or the stream will keep running.
  */
-export class LoadableFromStream<T> extends Loadable<T> {
-	private readonly unsubs: Subscription[] = markRaw([]);
-
-	constructor(s$: Observable<T|Loadable<T>>, settings: {
+export function LoadableFromStream<T>(
+	stream$: Observable<T|Loadable<T>>, 
+	settings: {
 		/** initial state is normally empty, but can be Loading if so desired. Defaults to false. */
 		loadingOnStart?: boolean
 		/** when stream finishes, can preserve or clear current state. Defaults to true. */
 		keepValueAfterCompletion?: boolean;
 		/** Defaults to false */
 		deepReactiveValue?: boolean;
-	} = {loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false}) {
-		super(settings.loadingOnStart ? LoadableState.Loading : LoadableState.Empty, undefined, undefined);
-		this.unsubs.push(s$.subscribe({
-			next: v => {
-				if (Loadable.isLoadable(v)) {
-					this.state = v.state;
-					if (!v.isLoading()) this.value = this.preventDeepReactive(v.value, !settings.deepReactiveValue);
-					this.error = v.error;
-				} else {
-					this.state = LoadableState.Loaded;
-					this.value = this.preventDeepReactive(v, !!settings.deepReactiveValue);
-					this.error = undefined;
-				}
-			},
-			error: e => {
-				this.state = LoadableState.Error;
-				this.value = undefined;
-				this.error = new ApiError(
-					e?.title || 'Unknown error',
-					e?.message || 'Unknown error',
-					e?.statusText || 'Unknown error',
-					e?.httpCode ?? 0,
-				)
-			},
-			complete: () => {
-				if (settings.keepValueAfterCompletion) return;
-				this.state = LoadableState.Empty;
-				this.value = undefined;
-				this.error = undefined;
-			}
-		}));
+	} = {loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false}
+) {
+	let unsubs: Subscription[]|undefined = [];
+	
+	function onDispose() {
+		unsubs?.forEach(s => s.unsubscribe());
+		unsubs = undefined;
+	}
+	
+	const l = settings.deepReactiveValue ? reactive(new MutableLoadable<ValueTypeFromLoadableOrObservable<T>>(
+		settings.loadingOnStart ? LoadableState.Loading : LoadableState.Empty,
+		undefined, 
+		undefined,
+		onDispose
+	)) : shallowReactive(new MutableLoadable<ValueTypeFromLoadableOrObservable<T>>(
+		settings.loadingOnStart ? LoadableState.Loading : LoadableState.Empty,
+		undefined, 
+		undefined,
+		onDispose
+	));
 
-		// Make this object reactive. NOTE: make sure to markRaw() all things that should not be reactive!
-		// This means the streams and settings are not reactive, but the Loadable state + values are.
-		return reactive(this) as this;
+	// tear down streams automatically if this is called from within a vue component,
+	// otherwise the caller has to call dispose() manually when they're done with it.
+	if (getCurrentInstance()) {
+		onUnmounted(onDispose);
 	}
 
-	public dispose() {
-		this.unsubs.forEach(s => s.unsubscribe());
-		this.unsubs.splice(0);
-	}
+	unsubs.push(stream$.subscribe({
+		next: nextState => Object.assign(l, Loadable.wrap(nextState)),
+		error: e => Object.assign(l, Loadable.LoadingError(ApiError.wrap(e))),
+		complete: () => {
+			if (settings.keepValueAfterCompletion) return;
+			Object.assign(l, Loadable.Empty());
+		}
+	}));
 
-	toJSON() {
-		return {value: this.value, state: this.state, error: this.error};
-	}
-
-	private preventDeepReactive(v: any, shouldBeReactive: boolean): any {
-		if (shouldBeReactive) Object.freeze(v); return v;
-	}
+	return l;
 }
 
 
