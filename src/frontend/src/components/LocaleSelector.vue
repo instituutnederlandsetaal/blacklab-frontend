@@ -14,13 +14,21 @@
 		:showValues="false"
 		:value="i18n.manager.localeState.value?.value"
 		@select="(v) => { i18n.manager.setLocale(v.value); return false; }"
-	/>
+	>
+		<template #option-label="{ option }">
+			<span :class="option.error ? 'text-danger' : ''" :title="option.error">
+				<Spinner inline v-if="option.loading"/>
+				<span class="fa fa-exclamation-triangle" v-if="option.error"></span> {{ option.label }}
+			</span>
+		</template>
+	</SelectPicker>
 </template>
 
 
 <script setup lang="ts">
 import SelectPicker from '@/components/SelectPicker.vue';
 import i18n from '@/utils/i18n';
+import Spinner from '@/components/Spinner.vue';
 </script>
 
 <style scoped>

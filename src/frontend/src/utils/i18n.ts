@@ -6,6 +6,15 @@ import { I18nManager } from '@/utils/i18n-manager';
 import { createI18n } from 'vue-i18n';
 
 
+
+/**
+ * This module contains the glue code between our internal i18n message bundle manager (i18n-manager) and the Vue I18n plugin.
+ * 
+ * The i18n manager is responsible for managing the available locales, loading locale messages from the server, and determining the active locale and fallback locale.
+ * This module connects the i18n manager to the Vue I18n plugin, so that when the active locale changes, the Vue I18n plugin is updated with the new messages.
+ * It also provides some helper functions that can be used in Vue components to get translated display names and descriptions for various objects based on the loaded locale messages.
+ */
+
 const LOCALE_STORAGE_KEY = 'cf/locale';
 
 export const i18nManager = new I18nManager(LOCALE_STORAGE_KEY);

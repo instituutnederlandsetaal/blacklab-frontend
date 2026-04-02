@@ -6,6 +6,7 @@
 		@keydown.prevent.exact.down="(isOpen || !$refs.focusOnClickOpen) ? focusDown() : doOpen($refs.focusOnClickOpen)"
 		@keydown.prevent.exact.up="focusUp"
 	>
+		<slot name="before"></slot>
 		<input v-if="editable && multiple"
 			:class="dataClass || 'form-control'"
 			:style="dataStyle"
@@ -77,6 +78,8 @@
 			}]"></span>
 		</button>
 
+		<slot name="after"></slot>
+
 		<teleport :to="containerEl" :disabled="!containerEl">
 		<!-- NOTE: might not actually be a child of root element at runtime! Event handling is rather specific -->
 		<!-- NOTE: use v-show, we call reposition() as soon as :open becomes true, which triggers before dom has updated
@@ -145,6 +148,7 @@
 					<li v-if="!filteredOptions.length" class="menu-option disabled">
 						<em class="menu-value" v-html="noOptionsPlaceholder"></em>
 					</li>
+					<slot v-for="o in filteredOptions" :key="o.id"></slot>
 					<template v-for="o in filteredOptions" :key="o.id">
 					<li v-if="o.type === 1"
 						:class="{
@@ -161,9 +165,16 @@
 						@keydown.prevent.enter="select(o); emitChangeOnClose = true;"
 						@keydown.prevent.space="select(o); emitChangeOnClose = true;"
 					>
-						<span v-if="allowHtml || !o.label || !o.label.trim()" class="menu-value" v-html="o.label && o.label.trim() ? o.label : '&nbsp;'"/>
-						<span v-else class="menu-value">{{o.label || ' '}}</span>
-						<span v-if="multiple && internalModel[o.value]" class="menu-icon fa fa-check"/>
+						<span class="menu-value">
+							<slot name="option-label" :option="o">
+								<template v-if="allowHtml" v-html="o.label || '\u200C'"></template>
+								<template v-else>{{ o.label || '\u200C' }}</template>
+							</slot>
+							
+							<slot name="option-check" v-if="multiple && internalModel[o.value]">
+								<span class="menu-icon fa fa-check"></span>
+							</slot>
+						</span>
 					</li>
 					<li v-else-if="o.type === 2"
 						:class="{
@@ -174,7 +185,7 @@
 						:title="o.title"
 					>
 						<template v-if="o.label?.trim()">
-							<span v-if="allowHtml" class="menu-value" v-html="o.label"></span> <!-- don't nbsp fallback here, we want the height to collapse if there's no label -->
+							<span v-if="allowHtml" class="menu-value" v-html="o.label"></span> <!-- don't zero-width-non-joiner fallback here, we want the height to collapse if there's no label -->
 							<span v-else class="menu-value">{{o.label || ' '}}</span>
 						</template>
 					</li>
@@ -311,7 +322,7 @@ export default defineComponent({
 		 * - anything else: used as css-value ('auto' works!)
 		 */
 		dataMenuWidth: {
-			type: String as any as () => MenuWidthMode,
+			type: String as any as () => MenuWidthMode|(string&{}), // hack to allow string literals and arbitrary strings while still showing the options in IDEs
 			default: 'stretch'
 		},
 		dataMenuClass: [Array, String, Object],
@@ -367,6 +378,7 @@ export default defineComponent({
 				type: 1,
 				id: id++,
 
+				...o,
 				value: o.value,
 				label: o.label || o.value,
 				title: o.title != null ? o.title : undefined,
@@ -940,6 +952,7 @@ export default defineComponent({
 	}
 }
 
+
 .combobox {
 	text-align: left;
 	&[dir="rtl"] {
@@ -948,10 +961,7 @@ export default defineComponent({
 
 	// Bootstrap helper
 	&:not(.input-group-btn):not(.input-group-addon) {
-		display: inline-block;
 		position: relative;
-		vertical-align: middle; // mimic bootstrap btn
-		width: 220px; // just some default
 
 		>.menu-button {
 			width: 100%;
