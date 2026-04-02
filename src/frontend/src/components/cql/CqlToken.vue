@@ -59,9 +59,10 @@
 					style="padding: 15px;"
 				>
 					<CqlAttributeGroup
-						v-model="model.rootAttributeGroup"
 						:is-root="true"
+						:model-value="model.rootAttributeGroup"
 						:options="options"
+						@update:model-value="model.rootAttributeGroup = $event"
 					/>
 				</div>
 

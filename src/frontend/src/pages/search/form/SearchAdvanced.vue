@@ -3,7 +3,7 @@
 		<template v-if="!isParallelCorpus">
 			<!-- Regular (non-parallel) corpus -->
 			<!-- <div class="querybuilder"></div> -->
-			 <CqlQueryBuilder v-model="mainQuery" />
+			<CqlQueryBuilder :model-value="mainQuery" @update:model-value="mainQuery = $event" />
 		</template>
 		<div v-else>
 			<!-- Parallel corpus -->
@@ -15,7 +15,7 @@
 				<span v-if="errorNoParallelSourceVersion" class="error">
 					{{ $t('search.parallel.errorNoSourceVersion') }}
 				</span>
-				<CqlQueryBuilder v-model="mainQuery" />
+				<CqlQueryBuilder :model-value="mainQuery" @update:model-value="mainQuery = $event" />
 			</div>
 
 			<div class="qb-par-wrap" v-for="(field, index) in pTargets" :key="field.value">
