@@ -41,7 +41,6 @@ import {
 	CqlQueryBuilderData,
 	CqlQueryBuilderOptions,
 } from '@/components/cql/cql-types';
-import type { NormalizedAnnotation, NormalizedAnnotationGroup } from '@/types/apptypes';
 import CqlToken from './CqlToken.vue';
 import Within from '@/pages/search/form/Within.vue';
 import uid from '@/mixins/uid';
@@ -50,7 +49,7 @@ import { useVModel } from '@vueuse/core';
 
 import * as UIStore from '@/store/ui';
 import * as CorpusStore from '@/store/corpus';
-import i18n from '@/utils/i18n';
+import { translate } from '@/utils/i18n';
 import { getAnnotationSubset } from '@/utils';
 
 const props = defineProps<{
@@ -67,34 +66,6 @@ const model = useVModel(props, 'modelValue', emit, {
 	clone: true,
 });
 
-function translateDefault<T extends string | null | undefined>(key: string, defaultText: T): T | string {
-	const fallbackLocale = i18n.getFallbackLocale();
-	const hasTranslation = i18n.i18n.te(key);
-
-	if (hasTranslation) {
-		return i18n.i18n.t(key).toString();
-	}
-
-	if (fallbackLocale && i18n.i18n.locale !== fallbackLocale && i18n.i18n.te(key, fallbackLocale)) {
-		return i18n.i18n.t(key, fallbackLocale).toString();
-	}
-
-	return defaultText;
-}
-
-const queryBuilderI18n = {
-	$td: translateDefault,
-	$tAnnotDisplayName(annotation: Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName'>) {
-		return translateDefault(`index.annotations.${annotation.id}`, annotation.defaultDisplayName || annotation.id);
-	},
-	$tAnnotDescription(annotation: Pick<NormalizedAnnotation, 'id' | 'defaultDescription'>) {
-		return translateDefault(`index.annotations.${annotation.id}_description`, annotation.defaultDescription);
-	},
-	$tAnnotGroupName(group: Pick<NormalizedAnnotationGroup, 'id'>) {
-		return translateDefault(`index.annotationGroups.${group.id}`, group.id);
-	},
-};
-
 const options = computed<CqlQueryBuilderOptions>(() => {
 	const indexId = CorpusStore.get.indexId()!;
 	const textDirection = CorpusStore.get.textDirection();
@@ -106,7 +77,7 @@ const options = computed<CqlQueryBuilderOptions>(() => {
 		CorpusStore.get.annotationGroups(),
 		allAnnotationsMap,
 		'Search',
-		queryBuilderI18n as any,
+		translate,
 		textDirection,
 		false,
 		false
@@ -121,13 +92,13 @@ const options = computed<CqlQueryBuilderOptions>(() => {
 		allAnnotationsMap,
 		annotationOptions,
 		operatorOptions: OPERATORS.map(op => ({
-			label: translateDefault(`search.advanced.queryBuilder.boolean_operators.${op}`, op),
+			label: translate.$td(`search.advanced.queryBuilder.boolean_operators.${op}`, op),
 			value: op,
 		})),
 		comparatorOptions: COMPARATORS.map(comp => ({
 			label: '',
 			options: comp.map(comp => ({
-				label: translateDefault(`search.advanced.queryBuilder.comparators.${comp}`, comp),
+				label: translate.$td(`search.advanced.queryBuilder.comparators.${comp}`, comp),
 				value: comp,
 			})),
 		})),

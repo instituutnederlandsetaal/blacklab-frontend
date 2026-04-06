@@ -22,7 +22,7 @@ import SearchPageComponent from '@/pages/search/SearchPage.vue';
 
 
 import { init as initApi } from '@/api';
-import i18n from '@/utils/i18n';
+import * as i18n from '@/utils/i18n';
 import * as loginSystem from '@/utils/loginsystem';
 
 import '@/global.scss';
@@ -139,18 +139,13 @@ import * as LoginSystem from '@/utils/loginsystem';
 import * as RootStore from '@/store';
 import connectStoreStreams from '@/store/streams';
 
-const RootComponent = {
-	i18n,
-	render: () => <App />,
-} as any;
-
 document.addEventListener('DOMContentLoaded', async () => {
 	const user = await LoginSystem.user;
 	initApi('blacklab', BLS_URL, user);
 	initApi('cf', CONTEXT_URL, user);
 	RootStore.actions.user(user);
 	
-	const app = createApp(RootComponent);
+	const app = createApp(App);
 	app.config.errorHandler = errorHandler;
 	app.mixin(renderErrorMixin);
 	app.use(Filters);

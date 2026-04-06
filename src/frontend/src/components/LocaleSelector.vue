@@ -9,11 +9,11 @@
 		placeholder="🌐"
 		allowUnknownValues
 
-		:options="i18n.manager.availableLocales.value"
-		:loading="i18n.manager.loading.value"
+		:options="i18n.availableLocales.value"
+		:loading="i18n.loading.value"
 		:showValues="false"
-		:value="i18n.manager.localeState.value?.value"
-		@select="(v) => { i18n.manager.setLocale(v.value); return false; }"
+		:value="i18n.localeState.value?.value"
+		@select="(v) => { i18n.setLocale(v.value); return false; }"
 	>
 		<template #option-label="{ option }">
 			<span :class="option.error ? 'text-danger' : ''" :title="option.error">
@@ -27,7 +27,7 @@
 
 <script setup lang="ts">
 import SelectPicker from '@/components/SelectPicker.vue';
-import i18n from '@/utils/i18n';
+import {manager as i18n} from '@/utils/i18n';
 import Spinner from '@/components/Spinner.vue';
 </script>
 

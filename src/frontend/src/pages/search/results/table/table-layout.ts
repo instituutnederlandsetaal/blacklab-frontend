@@ -7,6 +7,7 @@ import * as Highlights from './hit-highlighting';
 import { KeysOfType } from '@/types/helpers';
 import { StyleValue } from 'vue';
 import { frontendPaths } from '@/api';
+import type { Translate } from '@/utils/i18n';
 
 /**
  * The columns can display various computed data, such as relative group size, or relative frequency.
@@ -399,7 +400,7 @@ export type DisplaySettingsForRendering = {
 	/** Display results as html? */
 	html: boolean;
 
-	i18n: Vue;
+	i18n: Translate;
 
 	groupDisplayMode: 'table'|'docs'|'hits'|'relative docs'|'relative hits'|'tokens';
 
@@ -683,7 +684,9 @@ function makeGroupRows(results: BLDocGroupResults|BLHitGroupResults, info: Displ
 			muted: isOutsideRequestedResults(i, info.requestedRange, results.summary.searchParam.first)
 		};
 
-		Object.entries(r).forEach(([k, v]: [keyof GroupRowData, GroupRowData[keyof GroupRowData]]) => max.add(k as any, v as any));
+		for (const key of Object.keys(r) as Array<keyof GroupRowData>) {
+			max.add(key as any, r[key] as any);
+		}
 		return r;
 	});
 

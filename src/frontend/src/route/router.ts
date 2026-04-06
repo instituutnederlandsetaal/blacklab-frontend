@@ -94,7 +94,7 @@ const router = createRouter({
 
 import * as RootStore from '@/store';
 import * as ArticleStore from '@/store/article';
-import i18n from '@/utils/i18n';
+import * as i18n from '@/utils/i18n';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 import UrlStateParserArticle from '@/url/url-state-parser-article';
 import { promiseFromLoadableStream } from '@/utils/loadable-streams';

@@ -178,6 +178,10 @@ class I18nManager {
 			});
 	}
 
+	getFallbackLocale(): string {
+		return this.fallbackLocale.value;
+	}
+
 	/**
 	 * Set the active locale. This will load messages if needed and update when complete.
 	 * @param localeId The locale ID to set

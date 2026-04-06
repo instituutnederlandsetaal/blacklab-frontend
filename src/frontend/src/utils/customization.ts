@@ -2,6 +2,7 @@ import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
 import { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
 import { spanFilterId } from '@/utils';
+import type { Translate } from '@/utils/i18n';
 
 const unwrappedImplementation = Symbol('unwrappedImplementation');
 const isProxiedSym = Symbol('proxyMark');
@@ -266,7 +267,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 		},
 
 		/** Perform customizations on these group options */
-		customize(optGroup: AppTypes.OptGroup, i18n: Vue): AppTypes.OptGroup|null {
+		customize(optGroup: AppTypes.OptGroup, i18n: Translate): AppTypes.OptGroup|null {
 			return null; // use default behaviour [no change]
 		}
 	}

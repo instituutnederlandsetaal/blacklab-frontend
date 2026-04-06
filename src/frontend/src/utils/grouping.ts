@@ -2,6 +2,7 @@ import { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes"
 import { BLSearchResult, hasPatternInfo } from '@/types/blacklabtypes';
 import { spanFilterId } from '@/utils';
 import * as FilterModule from '@/store/form/filters';
+import type { Translate } from '@/utils/i18n';
 
 /** Group by some tokens at a fixed position in the hit. */
 export type ContextPositional = {
@@ -356,7 +357,7 @@ export function isValidGroupBy(g: GroupBy): boolean {
 
 // Take care that groups passed in here don't conform to the corpus
 // As we don't validate the groups upfront while decoding the url.
-export function humanizeGroupByOrSortBy(i18n: Vue, g: GroupBy|SortBy, annotations: Record<string, NormalizedAnnotation>, metadata: Record<string, NormalizedMetadataField>): string {
+export function humanizeGroupByOrSortBy(i18n: Translate, g: GroupBy|SortBy, annotations: Record<string, NormalizedAnnotation>, metadata: Record<string, NormalizedMetadataField>): string {
 	function baseHumanize(g: GroupBy|SortBy): string {
 		if (g.type === 'context') {
 			if (!g.annotation)
@@ -430,7 +431,7 @@ export function humanizeGroupByOrSortBy(i18n: Vue, g: GroupBy|SortBy, annotation
 }
 
 export function humanizeSerializedGroupBy<T extends string|string[]>(
-	i18n: Vue,
+	i18n: Translate,
 	g: T,
 	annotations: Record<string, NormalizedAnnotation>,
 	metadata: Record<string, NormalizedMetadataField>

@@ -5,8 +5,8 @@ import URI from 'urijs';
 
 import * as BLTypes from '@/types/blacklabtypes';
 import * as AppTypes from '@/types/apptypes';
-import Vue from 'vue';
 import { corpusCustomizations } from '@/utils/customization';
+import type { Translate } from '@/utils/i18n';
 
 
 const defaultRegexEscapeOptions = {
@@ -550,7 +550,7 @@ export function fieldSubset<T extends {id: string}>(
  * @param groups how metadata in the corpus is grouped into subsections.
  * @param metadata all metadata fields in the corpus
  * @param operation What section of the interface to generate the options list for: 'Sort' will generate additional entries to sort in reverse order, and 'Group' is just to generate appropriate option labels "Group by ...".
- * @param i18n the Vue instance to use for i18n
+ * @param i18n the translation facade to use for i18n
  * @param debug is debug mode enabled? print raw IDS in suffix labels
  * @param showGroupLabels show little group name suffixes at the end of options?
  * @param showFieldFunction a function that returns whether a field should be shown in the list of options. If not provided, all requested fields are shown. For 'customization' (see customization.ts).
@@ -560,7 +560,7 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 	groups: AppTypes.NormalizedMetadataGroup[],
 	metadata: Record<string, T>,
 	operation: 'Sort'|'Group',
-	i18n: Vue,
+	i18n: Translate,
 	debug = false,
 	/* show the <small/> labels at the end of options labels? */
 	showGroupLabels = true,
@@ -616,7 +616,7 @@ export function getAnnotationSubset(
 	groups: AppTypes.NormalizedAnnotationGroup[],
 	annotations: Record<string, AppTypes.NormalizedAnnotation>,
 	operation: 'Search'|'Sort',
-	i18n: Vue,
+	i18n: Translate,
 	corpusTextDirection: 'rtl'|'ltr' = 'ltr',
 	debug = false,
 	showGroupLabels = false
