@@ -13,11 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.logging.Logger;
 
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
+import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.event.EventCartridge;
@@ -26,6 +22,10 @@ import org.apache.velocity.context.Context;
 import org.apache.velocity.tools.generic.DateTool;
 import org.apache.velocity.tools.generic.EscapeTool;
 
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import nl.inl.corpuswebsite.utils.GlobalConfig;
 import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 import nl.inl.corpuswebsite.utils.QueryException;
@@ -134,6 +134,8 @@ public abstract class BaseResponse {
                                 "; Max-Age="+24*7*3600+
                                 "; Path="+globalCfg.get(Keys.CF_URL_ON_CLIENT)+"/");
         });
+        if (!StringUtils.isEmpty(globalCfg.get(Keys.FOOTER_MESSAGE)))
+            model.put("footerMessage", globalCfg.get(Keys.FOOTER_MESSAGE));
 
         model.put("JSPATH", globalCfg.get(Keys.JSPATH));
         model.put("FRONTEND_WITH_CREDENTIALS", globalCfg.getBool(Keys.FRONTEND_WITH_CREDENTIALS));

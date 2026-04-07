@@ -22,12 +22,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
+
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.SystemUtils;
 
 /**
  * <pre>
@@ -90,6 +90,11 @@ public class GlobalConfig implements ServletContextListener {
          * NULL if not set.
          */
         BANNER_MESSAGE("bannerMessage"),
+        /**
+         * Message to display at the bottom of the page. Note that this may contain HTML.
+         * NULL if not set.
+         */
+        FOOTER_MESSAGE("footerMessage"),
         /** Url to reach blacklab-server from this application. Never ends with a slash. */
         BLS_URL_ON_SERVER("blsUrl"),
         /** Url to reach blacklab-server from the browser. Never ends with a slash. */
