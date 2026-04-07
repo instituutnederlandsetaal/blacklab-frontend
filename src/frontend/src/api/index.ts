@@ -70,7 +70,7 @@ export const frontendPaths = {
 		fieldName?: string;
 	}) => {
 		const url = new URL(`${CONTEXT_URL}/${INDEX_ID}/docs/${p.pid}`, window.location.origin);
-		
+
 		if (p.patt) url.searchParams.append('query', p.patt); // TODO support patt, like the regular search page.
 		if (p.pattgapdata) url.searchParams.append('pattgapdata', p.pattgapdata);
 		if (p.findhit !== undefined) url.searchParams.append('findhit', p.findhit.toString());
@@ -155,7 +155,7 @@ export const blacklab = {
 	getCorpus: (id: string, _requestParameters?: AxiosRequestConfig) => {
 		const baseURL = endpoints.blacklab.defaults.baseURL as string;
 		const withCredentials = endpoints.blacklab.defaults.withCredentials;
-		
+
 		return Promise.all([
 			cachedRequest<BLTypes.BLIndexMetadata>(`blacklab-index-${id}`, {
 				baseURL,
@@ -261,7 +261,7 @@ export const blacklab = {
 
 	getRelations: (indexId: string) => cachedRequest<BLTypes.BLRelationInfo>(`blacklab-relations-${indexId}`, {
 		baseURL: endpoints.blacklab.defaults.baseURL as string,
-		url: blacklabPaths.relations(indexId) + `?limitvalues=${RELATIONS_LIMITVALUES}`,
+		url: blacklabPaths.relations(indexId) + `?limitvalues=${RELATIONS_LIMITVALUES}&api=4`,
 		withCredentials: endpoints.blacklab.defaults.withCredentials
 	}),
 
