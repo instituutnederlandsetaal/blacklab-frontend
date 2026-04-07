@@ -18,6 +18,7 @@ import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.event.EventCartridge;
@@ -134,6 +135,8 @@ public abstract class BaseResponse {
                                 "; Max-Age="+24*7*3600+
                                 "; Path="+globalCfg.get(Keys.CF_URL_ON_CLIENT)+"/");
         });
+        if (!StringUtils.isEmpty(globalCfg.get(Keys.FOOTER_MESSAGE)))
+            model.put("footerMessage", globalCfg.get(Keys.FOOTER_MESSAGE));
 
         model.put("JSPATH", globalCfg.get(Keys.JSPATH));
         model.put("FRONTEND_WITH_CREDENTIALS", globalCfg.getBool(Keys.FRONTEND_WITH_CREDENTIALS));
