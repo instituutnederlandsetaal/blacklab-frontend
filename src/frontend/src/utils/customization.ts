@@ -246,7 +246,11 @@ export const corpusCustomizations = wrapWithErrorHandling({
 				annotatedFieldDisplayName: string|null,
 				docInfo: BLTypes.BLDoc): string|null => {
 			return annotatedFieldDisplayName;
-		}
+		},
+
+		/** Should the custom hit info be a link to the document? */
+		customHitInfoLink: true,
+
 		// #endregion docscustomhitinfocolumn
 	},
 
