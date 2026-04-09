@@ -2,7 +2,8 @@
 	<tr class="concordance" :class="{'foreign-hit': row.isForeign}">
 		<template v-for="col in cols.hitColumns">
 			<td v-if="col.field === 'custom'" :class="col.class" :style="col.style" :key="col.key + col.field">
-				<a @click.stop="" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank">{{ row.customHitInfo }}</a>
+				<a v-if="showCustomHitInfoLink" @click.stop="" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank">{{ row.customHitInfo }}</a>
+				<span v-else>{{ row.customHitInfo }}</span>
 			</td>
 			<HitContext v-else-if="col.field === 'match' || col.field === 'after' || col.field === 'before' || col.field === 'annotation'" :key="col.key"
 				tag=td
@@ -44,6 +45,7 @@ import HitContext from '@/pages/search/results/table/HitContext.vue';
 
 import GlossField from '@/pages/search/form/concept/GlossField.vue';
 import { HitRowData } from '@/pages/search/results/table/table-layout';
+import { corpusCustomizations } from '@/utils/customization';
 
 export default Vue.component('HitRow', IRow.extend({
 	props: { row: Object as () => HitRowData },
@@ -54,6 +56,11 @@ export default Vue.component('HitRow', IRow.extend({
 	methods: {
 		hover(v: any) { this.$emit('hover', v); },
 		unhover(v: any) { this.$emit('unhover', v); },
+	},
+	computed: {
+		showCustomHitInfoLink(): boolean {
+			return !!this.row.href && corpusCustomizations.results.customHitInfoLink;
+		}
 	}
 }));
 </script>

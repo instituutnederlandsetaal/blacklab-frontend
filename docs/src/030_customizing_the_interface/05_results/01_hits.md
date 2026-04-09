@@ -147,6 +147,8 @@ frontend.customize(corpus => {
     // Example: Show the document title
     return `${docInfo.title}`;
   };
+  // If you DON't want custom info to be a link to the hit in the document
+  corpus.results.customHitInfoLink = false; // default is true
 })
 ```
 <<< @/../../src/frontend/src/utils/customization.ts#docscustomhitinfocolumn [Type definitions]
