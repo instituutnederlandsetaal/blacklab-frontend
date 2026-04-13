@@ -1,25 +1,25 @@
-import { PluginObject } from 'vue';
+import type { ObjectPlugin } from 'vue';
 
 import FilterAutocomplete from './FilterAutocomplete.vue';
 import FilterCheckbox from './FilterCheckbox.vue';
+import FilterDate from './FilterDate.vue';
 import FilterRadio from './FilterRadio.vue';
 import FilterRange from './FilterRange.vue';
 import FilterRangeMultipleFields from './FilterRangeMultipleFields.vue';
 import FilterSelect from './FilterSelect.vue';
 import FilterText from './FilterText.vue';
-import FilterDate from './FilterDate.vue';
 
-const filterPlugin: PluginObject<never> = {
-	install(vue) {
-		vue.component('filter-autocomplete', FilterAutocomplete);
-		vue.component('filter-checkbox', FilterCheckbox);
-		vue.component('filter-radio', FilterRadio);
-		vue.component('filter-range', FilterRange);
-		vue.component('filter-select', FilterSelect);
-		vue.component('filter-text', FilterText);
-		vue.component('filter-range-multiple-fields', FilterRangeMultipleFields);
-		vue.component('filter-date', FilterDate);
-	}
+const filterPlugin: ObjectPlugin<{}> = {
+  install(app) {
+    app.component('filter-autocomplete', FilterAutocomplete);
+    app.component('filter-checkbox', FilterCheckbox);
+    app.component('filter-radio', FilterRadio);
+    app.component('filter-range', FilterRange);
+    app.component('filter-select', FilterSelect);
+    app.component('filter-text', FilterText);
+    app.component('filter-range-multiple-fields', FilterRangeMultipleFields);
+    app.component('filter-date', FilterDate);
+  }
 };
 
 export default filterPlugin;

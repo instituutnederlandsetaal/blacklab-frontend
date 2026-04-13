@@ -1,6 +1,6 @@
-import * as BLTypes from '@/types/blacklabtypes';
-import * as AppTypes from '@/types/apptypes';
-import { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
+import type * as BLTypes from '@/types/blacklabtypes';
+import type * as AppTypes from '@/types/apptypes';
+import type { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
 import { spanFilterId } from '@/utils';
 import type { Translate } from '@/utils/i18n';
 

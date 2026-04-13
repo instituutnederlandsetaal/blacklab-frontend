@@ -197,7 +197,7 @@ describe('loadableFromStream', () => {
 		o.dispose();
 	})
 	test('it should unpack loadables in the stream', () => {
-		const ob$ = new Subject<Loadable<Number>>();
+		const ob$ = new Subject<Loadable<number>>();
 		const o = loadableFromStream(ob$);
 		ob$.next(Loadable.Loaded(1));
 		expect(o.state).toBe(LoadableState.Loaded);

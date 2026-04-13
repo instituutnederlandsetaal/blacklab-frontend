@@ -6,12 +6,12 @@
 		<template v-if="resultComponentData && cols && renderDisplaySettings">
 			<div class="crumbs-totals">
 				<BreadCrumbs :crumbs="breadCrumbs" :disabled="!!request" />
-				<Totals class="result-totals" 
-					:initialResults="results" 
-					:type="id" 
-					:indexId="indexId" 
+				<Totals class="result-totals"
+					:initialResults="results"
+					:type="id"
+					:indexId="indexId"
 					:annotatedFieldId="sourceAnnotatedFieldId"
-					@update="paginationResults = $event" 
+					@update="paginationResults = $event"
 				/>
 			</div>
 
@@ -28,7 +28,7 @@
 					:page2="pagination.shownPage2"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
-					
+
 					@change="page = $event"
 				/>
 
@@ -59,14 +59,14 @@
 			<GenericTable
 				:type="id"
 				:class="isHits ? 'hits-table' : isDocs ? 'docs-table' : isGroups ? 'groups-table' : ''"
-				:cols="cols"
-				:rows="rows"
+				:cols="resultComponentData.cols"
+				:rows="resultComponentData.rows"
 				:info="renderDisplaySettings"
 				:header="isHits ? cols.hitColumns : isDocs ? cols.docColumns : cols.groupColumns"
 				:showTitles="showTitles.value"
 				:disabled="!!request"
 				:query="results?.summary.searchParam"
-				:sort="sort"
+				:sort="resultComponentData.sort"
 
 				@changeSort="sort = (sort === $event ? `-${sort}` : $event)"
 				@viewgroup="changeViewGroup"
@@ -80,7 +80,7 @@
 					:page2="pagination.shownPage2"
 					:maxPage="pagination.maxShownPage"
 					:disabled="!!request"
-					
+
 					@change="page = $event"
 				/>
 				<div style="flex-grow: 1;"></div>
@@ -151,7 +151,7 @@
 </template>
 
 <script lang="ts">
-import Vue, { markRaw, onDeactivated } from 'vue';
+import { markRaw } from 'vue';
 
 import jsonStableStringify from 'json-stable-stringify';
 
@@ -159,37 +159,40 @@ import * as Api from '@/api';
 
 import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
-import * as ResultsStore from '@/store/results/views';
-import * as GlobalStore from '@/store/results/global';
+import * as GlossModule from '@/store/form/glossStore'; // Jesse
 import * as QueryStore from '@/store/query';
+import * as GlobalStore from '@/store/results/global';
+import * as ResultsStore from '@/store/results/views';
 import * as UIStore from '@/store/ui';
-import * as GlossModule from '@/store/form/glossStore' // Jesse
 
 import Totals from '@/pages/search/results/ResultTotals.vue';
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
 
-import Sort from '@/pages/search/results/Sort.vue';
 import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
 import Export from '@/pages/search/results/Export.vue';
+import Sort from '@/pages/search/results/Sort.vue';
 
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 
 import debug, { debugLog, debugLogCat } from '@/utils/debug';
 
+import type { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, Rows } from '@/pages/search/results/table/table-layout';
+import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
+import type { NormalizedIndex } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
-import { NormalizedIndex } from '@/types/apptypes';
-import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
-import { TranslateResult } from 'vue-i18n';
-import { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, makeColumns, makeRows, Rows } from '@/pages/search/results/table/table-layout';
 import { isHitParams } from '@/utils';
+import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
+import type { TranslateResult } from 'vue-i18n';
 
 
-import '@/pages/search/results/table/GenericTable.vue';
+import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 import { corpusCustomizations } from '@/utils/customization';
 import { localStorageSynced } from '@/utils/localstore';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		Pagination,
 		Totals,
@@ -197,17 +200,18 @@ export default Vue.extend({
 		Sort,
 		BreadCrumbs,
 		Export,
-		Spinner
+		Spinner,
+		GenericTable
 	},
 	props: {
 		/**
 		 * In our case, always 'hits' or 'docs', we don't support adding another ResultsView tab with a different ID.
 		 * Since we use this ID to determine whether we're getting hits or docs from blacklab, and some rendering or logic may depend on it being 'hits' or 'docs' as well.
 		 */
-		id: String as () => 'hits'|'docs',
-		active: Boolean,
+		id: { type: String as PropType<'hits'|'docs'>, required: true },
+		active: { type: Boolean, required: true },
 
-		store: Object as () => ResultsStore.ViewModule,
+		store: { type: Object as PropType<ResultsStore.ViewModule>, required: true },
 	},
 	data: () => ({
 		isDirty: true, // since we don't have any results yet
@@ -433,7 +437,7 @@ export default Vue.extend({
 		pageSize(): number { return GlobalStore.getState().pageSize; },
 		/**
 		 * Pagination state for the current view.
-		 * 
+		 *
 		 * Three cases for the shown range [first, first+number):
 		 * 1. Exact page: first % pageSize == 0 && number == pageSize
 		 *    -> Single page active, no range highlighting needed
@@ -570,7 +574,7 @@ export default Vue.extend({
 			for (let i = 0; i < r.length; i++) {
 				const entry = r[i];
 				const isLast = (i === r.length - 1);
-				
+
 				if (!isLast) {
 					entry.onClick = () => {
 						for (let j = r.length -1; j > i; j--) {
@@ -595,7 +599,7 @@ export default Vue.extend({
 			}
 		},
 
-		resultComponentData(): any {
+		resultComponentData(): {cols: ColumnDefs, rows: Rows, info: DisplaySettingsForRendering, query: BLTypes.BLSearchParameters, type: string, sort: string|null, disabled: boolean} | undefined {
 			if (!this.results || !this.cols || !this.rows?.rows.length || !this.renderDisplaySettings) return undefined;
 			return {
 				cols: this.cols,
@@ -637,22 +641,22 @@ export default Vue.extend({
 			const parsedSort = this.sort ? parseSortBy(this.sort, this.results ?? undefined) : null;
 			const sortAnnotationId = parsedSort?.type === 'context' ? parsedSort.annotation : undefined;
 			const sortMetadataId = parsedSort?.type === 'metadata' && parsedSort.metadata.type === 'document' ? parsedSort.metadata.field : undefined;
-			
+
 			// Get shown columns and append sort column if not already shown
 			const shownAnnotationIds = this.isHits ? UIStore.getState().results.hits.shownAnnotationIds : [];
-			const annotationIdsToShow = (sortAnnotationId && !shownAnnotationIds.includes(sortAnnotationId)) 
-				? shownAnnotationIds.concat(sortAnnotationId) 
+			const annotationIdsToShow = (sortAnnotationId && !shownAnnotationIds.includes(sortAnnotationId))
+				? shownAnnotationIds.concat(sortAnnotationId)
 				: shownAnnotationIds;
-			
-			const shownMetadataIds = this.isHits 
-				? UIStore.getState().results.hits.shownMetadataIds 
-				: this.isDocs 
-					? UIStore.getState().results.docs.shownMetadataIds 
+
+			const shownMetadataIds = this.isHits
+				? UIStore.getState().results.hits.shownMetadataIds
+				: this.isDocs
+					? UIStore.getState().results.docs.shownMetadataIds
 					: [];
 			const metadataIdsToShow = (sortMetadataId && !shownMetadataIds.includes(sortMetadataId))
 				? shownMetadataIds.concat(sortMetadataId)
 				: shownMetadataIds;
-			
+
 			return {
 				...this.commonDisplaySettings,
 				groupDisplayMode: this.groupDisplayMode as any || (BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
@@ -676,7 +680,7 @@ export default Vue.extend({
 				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [
 					key,
 					Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null
-				])) as any, 
+				])) as any,
 				html: UIStore.getState().results.shared.concordanceAsHtml,
 			}
 		},

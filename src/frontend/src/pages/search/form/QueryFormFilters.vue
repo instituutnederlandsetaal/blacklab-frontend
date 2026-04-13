@@ -29,9 +29,9 @@
 						:definition="filterMap[id]"
 						:textDirection="textDirection"
 						:showLabel="subtab.fields.length > 1 || !subtab.tabname"
-						:value="filterMap[id].value != null ? filterMap[id].value : undefined"
-
-						@change-value="updateFilterValue(id, $event)"
+						
+						:modelValue="filterMap[id].value"
+						@update:modelValue="updateFilterValue(id, $event)"
 					/>
 				</template>
 			</div>
@@ -43,9 +43,9 @@
 				:htmlId="`filter_${filter.id}`"
 				:definition="filter"
 				:textDirection="textDirection"
-				:value="filter.value != null ? filter.value : undefined"
-
-				@change-value="updateFilterValue(filter.id, $event)"
+				
+				:modelValue="filter.value"
+				@update:modelValue="updateFilterValue(filter.id, $event)"
 			/>
 		</div>
 		<div v-else class="text-muted well">
@@ -58,12 +58,12 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import * as CorpusStore from '@/store/corpus';
-import * as UIStore from '@/store/ui';
 import * as FilterStore from '@/store/form/filters';
 import * as InterfaceStore from '@/store/form/interface';
+import * as UIStore from '@/store/ui';
 
 import FilterOverview from '@/pages/search/form/FilterOverview.vue';
 import { mapReduce } from '@/utils';
@@ -73,152 +73,152 @@ import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import * as RootStore from '@/store';
 import { corpusCustomizations } from '@/utils/customization';
 
-export default Vue.extend({
-	components: {
-		FilterOverview,
-	},
-	data: () => ({
-		cancelFilterWatch: [] as Array<() => void>,
-	}),
-	methods: {
-		updateFilterValue(id: string, value: any) { FilterStore.actions.filterValue({id, value}); },
+export default defineComponent({
+  components: {
+    FilterOverview,
+  },
+  data: () => ({
+    cancelFilterWatch: [] as Array<() => void>,
+  }),
+  methods: {
+    updateFilterValue(id: string, value: any) { FilterStore.actions.filterValue({id, value}); },
 		
-		/** Tabs can be set to null or invalid value when decoding existing URL. Validate and correct it if required */
-		synchronizeActiveTab() {
-			if (this.activeTab == null || !this.tabs.find(t => t.tabname === this.activeTab)) 
-				this.activeTab = this.tabs[0]?.tabname ?? null;
-		}
-	},
-	computed: {
-		activeTab: {
-			get(): string|null { return InterfaceStore.getState().activeFilterTab; },
-			set(value: string|null) { InterfaceStore.actions.activeFilterTab(value); }
-		},
-		textDirection(): string { return CorpusStore.get.textDirection(); },
-		allFilters(): FilterStore.FullFilterState[] {
-			const seenIds = new Set<string>();
-			const filterMap = this.filterMap;
-			return this.tabs.flatMap(t => t.subtabs.flatMap(tab => tab.fields.map(id => filterMap[id]))).filter(f => {
-				const seen = seenIds.has(f.id);
-				seenIds.add(f.id);
-				return !seen;
-			});
-		},
-		tabs(): FilterStore.FilterGroupType[] {
-			const availableBuiltinFilters = CorpusStore.get.allMetadataFieldsMap();
-			const builtinFiltersToShow = UIStore.getState().search.shared.searchMetadataIds;
-			const customFilters = Object.keys(FilterStore.getState().filters).filter(id => !availableBuiltinFilters[id]);
-			const allIdsToShow = new Set(builtinFiltersToShow.concat(customFilters));
+    /** Tabs can be set to null or invalid value when decoding existing URL. Validate and correct it if required */
+    synchronizeActiveTab() {
+      if (this.activeTab == null || !this.tabs.find(t => t.tabname === this.activeTab)) 
+        this.activeTab = this.tabs[0]?.tabname ?? null;
+    }
+  },
+  computed: {
+    activeTab: {
+      get(): string|null { return InterfaceStore.getState().activeFilterTab; },
+      set(value: string|null) { InterfaceStore.actions.activeFilterTab(value); }
+    },
+    textDirection(): string { return CorpusStore.get.textDirection(); },
+    allFilters(): FilterStore.FullFilterState[] {
+      const seenIds = new Set<string>();
+      const filterMap = this.filterMap;
+      return this.tabs.flatMap(t => t.subtabs.flatMap(tab => tab.fields.map(id => filterMap[id]))).filter(f => {
+        const seen = seenIds.has(f.id);
+        seenIds.add(f.id);
+        return !seen;
+      });
+    },
+    tabs(): FilterStore.FilterGroupType[] {
+      const availableBuiltinFilters = CorpusStore.get.allMetadataFieldsMap();
+      const builtinFiltersToShow = UIStore.getState().search.shared.searchMetadataIds;
+      const customFilters = Object.keys(FilterStore.getState().filters).filter(id => !availableBuiltinFilters[id]);
+      const allIdsToShow = new Set(builtinFiltersToShow.concat(customFilters));
 
-			// the filters should be in the correct order already
-			let result = FilterStore.getState().filterGroups
-				.map<FilterStore.FilterGroupType>(group => ({
-					tabname: this.$tMetaGroupName(group.tabname)?.toString(),
-					subtabs: group.subtabs
-						.map(subtab => ({
-							tabname: this.$tMetaGroupName(subtab.tabname)?.toString(),
-							fields: subtab.fields.filter(id => {
-								const showField = corpusCustomizations.search.metadata.showField(id);
-								return showField === true || (showField === null && allIdsToShow.has(id));
-							})
-						}))
-						.filter(subtab => subtab.fields.length),
-					query: group.query
-				}) as FilterStore.FilterGroupType);
-			result = result.filter(g => g.subtabs.length);
-			return result;
-		},
-		filterMap(): Record<string, FilterStore.FullFilterState> {
-			return FilterStore.getState().filters;
-		},
-		useTabs(): boolean { return this.tabs.length > 1 || this.tabs.length > 0 && this.tabs[0].subtabs.length > 1; },
-		activeFiltersMap(): Record<string, number> {
-			const activeTab = this.tabs.find(t => t.tabname === this.activeTab);
-			const filterMap = this.filterMap;
+      // the filters should be in the correct order already
+      let result = FilterStore.getState().filterGroups
+        .map<FilterStore.FilterGroupType>(group => ({
+          tabname: this.$tMetaGroupName(group.tabname)?.toString(),
+          subtabs: group.subtabs
+            .map(subtab => ({
+              tabname: this.$tMetaGroupName(subtab.tabname)?.toString(),
+              fields: subtab.fields.filter(id => {
+                const showField = corpusCustomizations.search.metadata.showField(id);
+                return showField === true || (showField === null && allIdsToShow.has(id));
+              })
+            }))
+            .filter(subtab => subtab.fields.length),
+          query: group.query
+        }) as FilterStore.FilterGroupType);
+      result = result.filter(g => g.subtabs.length);
+      return result;
+    },
+    filterMap(): Record<string, FilterStore.FullFilterState> {
+      return FilterStore.getState().filters;
+    },
+    useTabs(): boolean { return this.tabs.length > 1 || this.tabs.length > 0 && this.tabs[0].subtabs.length > 1; },
+    activeFiltersMap(): Record<string, number> {
+      const activeTab = this.tabs.find(t => t.tabname === this.activeTab);
+      const filterMap = this.filterMap;
 
-			const implicitlyActiveFilters: Record<string, string[]> = activeTab?.query || {}; // filters that are always active as long as this tab is active
-			const manuallyActiveFiltersInCurrentTab: Record<string, boolean> = activeTab ? mapReduce(activeTab.subtabs.flatMap(subtab => subtab.fields.filter(f =>
-				// keep only those filters that are -a: active and -b: not in the implicitly active set
-				// when is a filter active? when its value returns a non-null lucene query
-				!implicitlyActiveFilters[f] && getValueFunctions(filterMap[f]).isActive(f, filterMap[f].metadata, filterMap[f].value)
-			))) : {}; // and if there's somehow no tab active, no filters are manually active in the current tab eh
+      const implicitlyActiveFilters: Record<string, string[]> = activeTab?.query || {}; // filters that are always active as long as this tab is active
+      const manuallyActiveFiltersInCurrentTab: Record<string, boolean> = activeTab ? mapReduce(activeTab.subtabs.flatMap(subtab => subtab.fields.filter(f =>
+      // keep only those filters that are -a: active and -b: not in the implicitly active set
+      // when is a filter active? when its value returns a non-null lucene query
+        !implicitlyActiveFilters[f] && getValueFunctions(filterMap[f]).isActive(f, filterMap[f].metadata, filterMap[f].value)
+      ))) : {}; // and if there's somehow no tab active, no filters are manually active in the current tab eh
 
-			// Note: when a filter is implicitly active, it's never counted as active for any tab
-			// Note: when a filter is active in the current tab, it's never counted as active for other tabs
-			const numActiveFiltersPerTab: Record<string, number> = {};
-			this.tabs.forEach(tab => {
-				if (tab === activeTab) {
-					numActiveFiltersPerTab[tab.tabname] = Object.keys(manuallyActiveFiltersInCurrentTab).length;
-				} else {
-					numActiveFiltersPerTab[tab.tabname] = tab.subtabs.reduce((num, subtab) => num + subtab.fields.filter(filter =>
-						!implicitlyActiveFilters[filter] &&
+      // Note: when a filter is implicitly active, it's never counted as active for any tab
+      // Note: when a filter is active in the current tab, it's never counted as active for other tabs
+      const numActiveFiltersPerTab: Record<string, number> = {};
+      this.tabs.forEach(tab => {
+        if (tab === activeTab) {
+          numActiveFiltersPerTab[tab.tabname] = Object.keys(manuallyActiveFiltersInCurrentTab).length;
+        } else {
+          numActiveFiltersPerTab[tab.tabname] = tab.subtabs.reduce((num, subtab) => num + subtab.fields.filter(filter =>
+            !implicitlyActiveFilters[filter] &&
 						!manuallyActiveFiltersInCurrentTab[filter] &&
 						getValueFunctions(filterMap[filter]).isActive(filter, filterMap[filter].metadata, filterMap[filter].value)
-					).length, 0)
-				}
-			})
-			return numActiveFiltersPerTab;
-		},
-	},
-	watch: {
-		/** 
+          ).length, 0)
+        }
+      })
+      return numActiveFiltersPerTab;
+    },
+  },
+  watch: {
+    /** 
 		 * Tabs can have some predefined filter queries with them. 
 		 * When the current tab changes, we need to apply/remove those filter queries accordingly.
 		 */
-		activeTab: {
-			immediate: true,
-			handler(cur: string, prev: string) {
-				const curQuery = this.tabs.find(t => t.tabname === cur)?.query;
-				const prevQuery = this.tabs.find(t => t.tabname === prev)?.query;
-				this.cancelFilterWatch.forEach(c => c());
-				this.cancelFilterWatch = [];
+    activeTab: {
+      immediate: true,
+      handler(cur: string, prev: string) {
+        const curQuery = this.tabs.find(t => t.tabname === cur)?.query;
+        const prevQuery = this.tabs.find(t => t.tabname === prev)?.query;
+        this.cancelFilterWatch.forEach(c => c());
+        this.cancelFilterWatch = [];
 
-				if (prevQuery) {
-					Object.keys(prevQuery).forEach(id => FilterStore.actions.filterValue({id, value: null}));
-				}
+        if (prevQuery) {
+          Object.keys(prevQuery).forEach(id => FilterStore.actions.filterValue({id, value: null}));
+        }
 
-				if (curQuery) {
-					const allFilters = FilterStore.getState().filters;
-					Object.entries(curQuery).forEach(([id, value]) => {
-						const filter = allFilters[id];
-						const valueFuncs = getValueFunctions(filter);
-						const actualValue = valueFuncs.decodeInitialState(
-							id,
-							filter.metadata,
-							{ [id]: { id: id, values: value } },
+        if (curQuery) {
+          const allFilters = FilterStore.getState().filters;
+          Object.entries(curQuery).forEach(([id, value]) => {
+            const filter = allFilters[id];
+            const valueFuncs = getValueFunctions(filter);
+            const actualValue = valueFuncs.decodeInitialState(
+              id,
+              filter.metadata,
+              { [id]: { id: id, values: value } },
 							undefined as any
-						);
+            );
 
-						FilterStore.actions.filterValue({
-							id,
-							value: actualValue,
-						});
-						// filthy! Reactivate filter query on global form reset (which otherwise removes it)
-						this.cancelFilterWatch.push(
-							RootStore.store.watch(state => state.filters.filters[id].value, (cur, prev) => {
-								if (cur != prev) {
-									FilterStore.actions.filterValue({
-										id,
-										value: actualValue,
-									});
-								}
-							})
-						);
-					});
-				}
-				// Make sure we always have a tab active, etc.
-				this.synchronizeActiveTab(); 
-			},
-		},
-		tabs() {
-			// Make sure we always have a tab active, etc.
-			this.synchronizeActiveTab(); 
-		}
-	},
-	unmounted() {
-		this.cancelFilterWatch.forEach(c => c());
-		this.cancelFilterWatch = [];
-	}
+            FilterStore.actions.filterValue({
+              id,
+              value: actualValue,
+            });
+            // filthy! Reactivate filter query on global form reset (which otherwise removes it)
+            this.cancelFilterWatch.push(
+              RootStore.store.watch(state => state.filters.filters[id].value, (cur, prev) => {
+                if (cur != prev) {
+                  FilterStore.actions.filterValue({
+                    id,
+                    value: actualValue,
+                  });
+                }
+              })
+            );
+          });
+        }
+        // Make sure we always have a tab active, etc.
+        this.synchronizeActiveTab(); 
+      },
+    },
+    tabs() {
+      // Make sure we always have a tab active, etc.
+      this.synchronizeActiveTab(); 
+    }
+  },
+  unmounted() {
+    this.cancelFilterWatch.forEach(c => c());
+    this.cancelFilterWatch = [];
+  }
 });
 </script>
 

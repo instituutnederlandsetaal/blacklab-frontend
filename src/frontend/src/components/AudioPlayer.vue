@@ -9,15 +9,15 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 let activePlayer: any = null;
 
 const audioPlayerCache: {[key: string]: HTMLAudioElement} = {};
-export default Vue.extend({
+export default defineComponent({
 	props: {
-		url: String,
-		startTime: Number,
-		endTime: Number
+		url: { type: String, required: true },
+		startTime: { type: Number, required: true },
+		endTime: { type: Number, required: true }
 	},
 	data: () => ({
 		isPlaying: false,

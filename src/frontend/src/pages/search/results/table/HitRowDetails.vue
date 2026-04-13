@@ -15,7 +15,7 @@
 							<Spinner v-if="sentenceRequest" inline style="margin-right: 0.5em"/>{{$t('results.table.showFullSentence')}}
 						</label>
 
-						<!-- NOTE: always render the tree. 
+						<!-- NOTE: always render the tree.
 						 Relations can also be embedded in the direct result, when searching for a dependency relation.
 						 We always want to show those, even if the full sentence isn't yet available.
 						 So don't v-if the tree!
@@ -82,24 +82,28 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import IRow from '@/pages/search/results/table/IRow.vue';
-import * as BLTypes from '@/types/blacklabtypes';
+import type * as BLTypes from '@/types/blacklabtypes';
 
-import { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
-import HitContext from '@/pages/search/results/table/HitContext.vue';
-import { HitRowData, snippetParts } from './table-layout';
-import DepTree from '@/pages/search/results/table/DepTree.vue';
 import Spinner from '@/components/Spinner.vue';
+import DepTree from '@/pages/search/results/table/DepTree.vue';
+import HitContext from '@/pages/search/results/table/HitContext.vue';
+import type { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
+import type { HitRowData } from './table-layout';
+import { snippetParts } from './table-layout';
 
-import * as UIStore from '@/store/ui';
-import * as CorpusStore from '@/store/corpus';
 import * as Api from '@/api';
+import * as CorpusStore from '@/store/corpus';
+import * as UIStore from '@/store/ui';
 import { debugLog } from '@/utils/debug';
+import type { PropType } from 'vue';
 
 /** TODO disconnect from the store? */
-export default Vue.component('HitRowDetails', IRow.extend({
+export default defineComponent({
+	name: 'HitRowDetails',
+	extends: IRow,
 	components: {
 		HitContext,
 		DepTree,
@@ -107,7 +111,7 @@ export default Vue.component('HitRowDetails', IRow.extend({
 	},
 	props: {
 		// NOTE: also update the watcher on this prop if you change this name!
-		row: Object as () => HitRowData,
+		row: { type: Object as PropType<HitRowData>, required: true },
 	},
 	data: () => ({
 		sentenceRequest: null as null|Promise<any>,
@@ -240,7 +244,7 @@ export default Vue.component('HitRowDetails', IRow.extend({
 			this.sentenceShown = false;
 		}
 	},
-}));
+});
 </script>
 
 <style lang="scss">

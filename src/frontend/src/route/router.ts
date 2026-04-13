@@ -1,4 +1,6 @@
+import connectStoreStreams from '@/store/streams';
 import { createRouter, createWebHistory } from 'vue-router';
+
 
 const router = createRouter({
 	history: createWebHistory(CONTEXT_URL),
@@ -23,20 +25,7 @@ const router = createRouter({
 			meta: { name: 'about', getTitle: () => 'About' },
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
-		{
-			path: '/configwizard',
-			alias: '/configwizard/:pathMatch(.*)*',
-			meta: { name: 'configwizard' },
-			component: () => import('@/pages/config/ConfigPage.vue'),
-			// todo make this make sense.
-			children: [
-				{
-					path: '/',
-					name: 'global-configwizard',
-					component: () => import('@/pages/config/CorpusPicker.vue'),
-				}
-			]
-		},
+		
 		{
 			path: '/:corpus/',
 			redirect: '/:corpus/search',
@@ -69,8 +58,22 @@ const router = createRouter({
 			component: () => import('@/pages/help/HelpPage.vue'),
 		},
 		{
+			path: '/configwizard',
+			alias: '/configwizard/:pathMatch(.*)*',
+			meta: { name: 'configwizard' },
+			component: () => import('@/pages/config/ConfigPage.vue'),
+			// todo make this make sense.
+			children: [
+				{
+					path: '/:pathMatch(.*)*',
+					name: 'global-configwizard',
+					component: () => import('@/pages/config/CorpusPicker.vue'),
+				}
+			]
+		},
+		{
 			name: 'configwizard',
-			path: '/:corpus/configwizard/:tab?/',
+			path: '/:corpus/configwizard',
 			meta: { name: 'configwizard' },
 			component: () => import('@/pages/config/CorpusConfig.vue'),
 			props: route => ({
@@ -94,9 +97,9 @@ const router = createRouter({
 
 import * as RootStore from '@/store';
 import * as ArticleStore from '@/store/article';
-import * as i18n from '@/utils/i18n';
-import UrlStateParserSearch from '@/url/url-state-parser-search';
 import UrlStateParserArticle from '@/url/url-state-parser-article';
+import UrlStateParserSearch from '@/url/url-state-parser-search';
+import * as i18n from '@/utils/i18n';
 import { promiseFromLoadableStream } from '@/utils/loadable-streams';
 
 let pageLoadUrlDecoded = false;
@@ -132,6 +135,7 @@ router.beforeEach((to, from, next) => {
 			promiseFromLoadableStream(RootStore.corpusData$, 'root loading state')
 			.then(() => parser.get())
 			.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
+			.then(() => connectStoreStreams())
 			.finally(() => markInitialUrlStateApplied());
 		} else {
 			markInitialUrlStateApplied();

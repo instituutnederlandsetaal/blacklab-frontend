@@ -3,13 +3,13 @@
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
 
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import { getStoreBuilder } from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
-import { RootState } from '@/store/';
+import type { RootState } from '@/store/';
 import { NormalizedIndex } from '@/types/apptypes';
-import { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/store/async-loaders';
 
 type ModuleRootState = {
 	value: string|null;
@@ -52,14 +52,5 @@ const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
-export {
-	ModuleRootState,
-
-	getState,
-	get,
-	actions,
-	init,
-
-	namespace,
-	defaults
-};
+export type { ModuleRootState };
+export { getState, get, actions, init, namespace, defaults };

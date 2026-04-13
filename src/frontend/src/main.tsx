@@ -137,7 +137,6 @@ import App from '@/App.vue';
 
 import * as LoginSystem from '@/utils/loginsystem';
 import * as RootStore from '@/store';
-import connectStoreStreams from '@/store/streams';
 
 document.addEventListener('DOMContentLoaded', async () => {
 	const user = await LoginSystem.user;
@@ -160,5 +159,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 	// We can render before the tagset loads, the form just won't be populated from the url yet.
 	(window as any).vueApp = app;
 	(window as any).vueRoot = app.mount(document.querySelector('#vue-root')!);
-	router.isReady().then(() => connectStoreStreams());
 });

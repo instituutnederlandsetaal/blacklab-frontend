@@ -65,7 +65,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import Autocomplete from '@/components/Autocomplete.vue';
 import * as CorpusStore from '@/store/corpus';
@@ -75,7 +75,7 @@ import { mapReduce, uniq } from '@/utils'
 import SelectPicker from '@/components/SelectPicker.vue';
 import { conceptApi, blacklab } from '@/api';
 
-export default Vue.extend ( {
+export default defineComponent ( {
 	name: 'ConceptSearchBox',
 	components: { Autocomplete, SelectPicker },
 	props: {

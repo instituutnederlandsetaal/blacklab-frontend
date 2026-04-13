@@ -15,7 +15,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import ResultsView from '@/pages/search/results/ResultsView.vue';
 
@@ -23,7 +23,7 @@ import * as InterfaceStore from '@/store/form/interface';
 import * as UIStore from '@/store/ui';
 import * as ViewStore from '@/store/results/views';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		ResultsView,
 	},

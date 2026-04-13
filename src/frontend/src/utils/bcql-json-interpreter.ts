@@ -12,7 +12,7 @@
  */
 
 import * as api from '@/api';
-import { BCQLAndNode, BCQLCompareNode, BCQLOrNode, BCQLPositionFilterNode, BCQLQueryNode, BCQLRegexNode, BCQLSequenceNode, BCQLTagAttributeExpressionNode, BCQLTextPatternNode, BCQLTextPatternStruct, BCQLValueNode } from '@/types/blacklabcql';
+import type { BCQLAndNode, BCQLCompareNode, BCQLOrNode, BCQLPositionFilterNode, BCQLQueryNode, BCQLRegexNode, BCQLTagAttributeExpressionNode, BCQLTextPatternNode, BCQLTextPatternStruct } from '@/types/blacklabcql';
 
 export type XmlTag = {
 	type: 'xml';

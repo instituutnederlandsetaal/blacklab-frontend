@@ -131,10 +131,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useVModel } from '@vueuse/core';
-import {
+import type {
 	CqlTokenData,
-	CqlGenerator,
-	CqlQueryBuilderOptions,
+	CqlQueryBuilderOptions} from '@/components/cql/cql-types';
+import {
+	CqlGenerator
 } from '@/components/cql/cql-types';
 import CqlAttributeGroup from './CqlAttributeGroup.vue';
 

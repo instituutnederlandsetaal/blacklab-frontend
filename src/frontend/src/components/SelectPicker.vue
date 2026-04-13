@@ -24,7 +24,7 @@
 			:name="dataName"
 			:style="dataStyle"
 			:title="dataTitle"
-			:placeholder="placeholder || $attrs.title"
+			:placeholder="(placeholder || $attrs.title) ?? ''"
 			:disabled="disabled"
 			:dir="dir"
 			:autofocus="autofocus"
@@ -170,7 +170,7 @@
 								<template v-if="allowHtml" v-html="o.label || '\u200C'"></template>
 								<template v-else>{{ o.label || '\u200C' }}</template>
 							</slot>
-							
+
 							<slot name="option-check" v-if="multiple && internalModel[o.value]">
 								<span class="menu-icon fa fa-check"></span>
 							</slot>
@@ -329,7 +329,7 @@ export default defineComponent({
 		/** Right-align the dropdown menu, only when menuWidth != 'stretch' */
 		right: Boolean,
 
-		/** 
+		/**
 		 * If passed, call this function instead of handling the select internally.
 		 * Return false to prevent the default internal handling of value updates.
 		 */

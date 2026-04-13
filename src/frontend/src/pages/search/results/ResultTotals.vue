@@ -42,12 +42,13 @@
 
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
-import * as Api from '@/api';
-import * as BLTypes from '@/types/blacklabtypes';
+import type * as Api from '@/api';
+import type * as BLTypes from '@/types/blacklabtypes';
 
-import { TotalsLoader, TotalsOutput } from '@/pages/search/results/TotalsCounterStream';
+import type { TotalsOutput } from '@/pages/search/results/TotalsCounterStream';
+import { TotalsLoader } from '@/pages/search/results/TotalsCounterStream';
 
 
 import frac2Percent from '@/mixins/fractionalToPercent';
@@ -59,7 +60,7 @@ import Spinner from '@/components/Spinner.vue';
  * TODO tidy this!
  */
 
-export default Vue.extend({
+export default defineComponent({
 	components: {Spinner},
 	props: {
 		initialResults: {

@@ -3,12 +3,12 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { CFCustomCssEntry, CFCustomJsEntry, CFPageConfig } from '@/types/apptypes';
+import { defineComponent } from 'vue';
+import type { CFCustomCssEntry, CFCustomJsEntry, CFPageConfig } from '@/types/apptypes';
 import * as UIStore from '@/store/ui';
 import { compareAsSortedJson } from '@/utils/loadable-streams';
 
-export default Vue.extend({
+export default defineComponent({
 	data: () => ({
 		hasCustomJs: false,
 		elementMarker: 'data-vue-meta'
@@ -72,7 +72,7 @@ export default Vue.extend({
 		title: {
 			immediate: true,
 			handler() {
-				if (this.title == null) debugger;
+				if (this.title == null) {}
 				if (this.title) document.title = this.title;
 			}
 		},

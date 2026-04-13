@@ -4,36 +4,38 @@ import memoize from 'memoize-decorator';
 
 import BaseUrlStateParser from './url-state-parser-base';
 
-import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, getParallelFieldName, mapReduce, spanFilterId, uiTypeSupport, unescapeRegex, unparenQueryPart, clamp} from '@/utils';
-import { Condition, parseBcql, Result, Token } from '@/utils/bcql-json-interpreter';
+import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, getParallelFieldName, mapReduce, spanFilterId, uiTypeSupport, unescapeRegex, unparenQueryPart } from '@/utils';
+import type { Condition, Result, Token } from '@/utils/bcql-json-interpreter';
+import { parseBcql } from '@/utils/bcql-json-interpreter';
 import { debugLog } from '@/utils/debug';
 import parseLucene from '@/utils/luceneparser';
 
 import * as CorpusModule from '@/store/corpus';
-import * as UIModule from '@/store/ui';
-import * as HistoryModule from '@/store/history';
+import type * as ConceptModule from '@/store/form/conceptStore';
+import type * as GlossModule from '@/store/form/glossStore';
+import type * as HistoryModule from '@/store/history';
 import * as TagsetModule from '@/store/tagset';
-import * as ConceptModule from '@/store/form/conceptStore';
-import * as GlossModule from '@/store/form/glossStore';
+import * as UIModule from '@/store/ui';
 import * as UIStore from '@/store/ui';
 
 // Form
-import * as FilterModule from '@/store/form/filters';
-import * as InterfaceModule from '@/store/form/interface';
-import * as PatternModule from '@/store/form/patterns';
 import * as ExploreModule from '@/store/form/explore';
+import * as FilterModule from '@/store/form/filters';
 import * as GapModule from '@/store/form/gap';
+import * as InterfaceModule from '@/store/form/interface';
+import type * as PatternModule from '@/store/form/patterns';
 
 // Results
-import * as ViewModule from '@/store/results/views';
 import * as GlobalResultsModule from '@/store/results/global';
+import * as ViewModule from '@/store/results/views';
 
 // Article
 import * as ArticleStore from '@/store/article';
 
-import { AnnotationValue, FilterValue } from '@/types/apptypes';
+import type { AnnotationValue, FilterValue } from '@/types/apptypes';
 
-import { CqlQueryBuilderData, getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
+import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
+import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { corpusCustomizations } from '@/utils/customization';
 
@@ -130,7 +132,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				}
 				result[id] = { id, values };
 			});
-		
+
 		return result;
 	}
 
@@ -138,8 +140,9 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	@memoize
 	get withinClausesWithoutSpanFilters(): Record<string, Record<string, any>> {
 		// Only keep within clauses that are not span filters
-		return Object.fromEntries(Object.entries(this.withinClauses)
-			.map(([spanName, attrs]: [string, Record<string, any>]) => {
+		return Object.fromEntries(Object
+			.entries(this.withinClauses)
+			.map<[string, Record<string, any>]>(([spanName, attrs]) => {
 				if (Object.keys(attrs).length === 0) {
 					// No attributes, so this might be the within widget selection.
 					return [spanName, { '_MAYBE_WITHIN_': true } as Record<string, any>];
@@ -160,8 +163,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 					}
 				}
 			})
-			.filter(([elName, attrs]: [string, Record<string, any>]) => Object.keys(attrs).length > 0)
-			.map(([elName, attrs]: [string, Record<string, any>]) => [elName, attrs['_MAYBE_WITHIN_'] ? {} : attrs])) as Record<string, Record<string, any>>;
+			.filter(([_, attrs]) => Object.keys(attrs).length > 0)
+			.map(([elName, attrs]) => [elName, attrs['_MAYBE_WITHIN_'] ? {} : attrs]));
 	}
 
 	@memoize
@@ -263,7 +266,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				// hence decode seperately.
 				viewedResults: this.viewedResults
 			};
-		} catch (e) {
+		} catch {
 			// Can't parse from url, instead determine the best state based on other parameters.
 			const ui = InterfaceModule.defaults;
 
@@ -495,26 +498,27 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 							for (const id of tagsetInfo!.mainAnnotations) {
 								const valuesForAnnotation = annotationValues[id] = annotationValues[id] || [];
 								// keep main annotation at the start
-								isMainTagsetAnnotation ? valuesForAnnotation.unshift(originalValue) : valuesForAnnotation.push(originalValue);
+								if (isMainTagsetAnnotation) valuesForAnnotation.unshift(originalValue)
+								else valuesForAnnotation.push(originalValue);
 							}
 						} else {
 							// otherwise just store wherever it should be in the store.
 							const values = annotationValues[name] = annotationValues[name] || [];
 							if (expr.operator !== '=') {
-								throw new Error(`Unsupported comparator for property ${name} on token ${i} for query ${this.expertPattern}, only "=" is supported.`);
+								throw new Error(`Unsupported comparator for property ${name} on token ${i} for query ${this.expertPattern.query}, only "=" is supported.`);
 							}
 							if (values.length !== i) {
-								throw new Error(`Property ${name} contains gaps in value for query ${this.expertPattern}`);
+								throw new Error(`Property ${name} contains gaps in value for query ${this.expertPattern.query}`);
 							}
 							values.push(expr.value);
 						}
 
 					} else if (expr.type === 'booleanOp') {
 						if (expr.operator !== '&') {
-							throw new Error(`Properties on token ${i} are combined using unsupported operator ${expr.operator} in query ${this.expertPattern}, only AND/& operator is supported.`);
+							throw new Error(`Properties on token ${i} are combined using unsupported operator ${expr.operator} in query ${this.expertPattern.query}, only AND/& operator is supported.`);
 						}
 
-						stack.push(expr.left, expr.right);
+						stack.push(...expr.clauses);
 					}
 				}
 			}
@@ -576,7 +580,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		const attributesAcceptedByWithinWidget = within ?
 			attr.map(el => typeof el === 'string' ? { value: el } : el) : [];
 		const withinAttributes = Object.fromEntries(Object.entries(allAttributes)
-			.filter(([attrName, attrValue]) => {
+			.filter(([attrName, _]) => {
 				return !!attributesAcceptedByWithinWidget.find(w => w.value === attrName);
 			})
 			.map(([attrName, attrValue]) => [attrName, unescapeRegex(attrValue, { escapeWildcards: false })]));
@@ -692,7 +696,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			const hasWithinClauses = r.withinClauses && Object.keys(r.withinClauses).length > 0;
 			const rawQuery = r.query ?? '';
 			function stripWithins(q: string) {
-				return unparenQueryPart(q)!.replace(/(?:\s*(?:within|overlap)?\s*<[^\/]+\/>)+$/g, '');
+				return unparenQueryPart(q)!.replace(/(?:\s*(?:within|overlap)?\s*<[^/]+\/>)+$/g, '');
 			}
 			const query = unparenQueryPart(hasWithinClauses ? stripWithins(rawQuery) : rawQuery);
 			const reapplyWithins = this.expertWithinClauses;
@@ -781,7 +785,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 	@memoize
 	private get article(): ArticleStore.HistoryState {
-		const [index, page, docId] = this.paths;
+		const [_indexId, page, docId] = this.paths;
 		if (!(page === 'docs' && docId)) return ArticleStore.initialHistoryState;
 		return {
 			docId: page === 'docs' && docId ? docId : null,

@@ -1,10 +1,10 @@
-import { User } from 'oidc-client-ts';
+import type { User } from 'oidc-client-ts';
 import { combineLoadableStreamsIncludingEmpty, Loadable, loadableStreamFromPromise, mapError, mapLoaded, repeatLatestWhen, toObservable } from '@/utils/loadable-streams';
 import { combineLatest, distinctUntilChanged, shareReplay, concatMap, of, Subject, switchMap, catchError, BehaviorSubject } from 'rxjs';
 
 import * as Api from '@/api';
 import { normalizeIndex } from '@/utils/blacklabutils';
-import { CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
+import type { CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
 import { processTagset } from '@/store/tagset';
 
 export type CorpusChange = {

@@ -14,9 +14,8 @@
 				:id="inputId"
 				:placeholder="displayName"
 				:dir="textDirection"
-				:value="value"
-
-				@input="e_input($event.target.value)"
+				
+				v-model="vmodel"
 			/>
 			<small v-if="description" class="text-muted description"><em>{{ description }}</em></small>
 		</div>
@@ -24,16 +23,16 @@
 </template>
 
 <script lang="ts">
-import BaseFilter from '@/components/filters/Filter';
+import createBaseFilterComponent from '@/components/filters/Filter';
+import { defineComponent } from 'vue';
 
-export default BaseFilter.extend({
-	props: {
-		value: {
-			type: String,
-			required: true,
-			default: ''
+export default defineComponent({
+	extends: createBaseFilterComponent<string, any>(String, () => ''),
+	computed: {
+		vmodel: {
+			get() { return this.modelValue; },
+			set(value: string) { this.e_input(value); }
 		}
-	},
+	}
 });
-
 </script>

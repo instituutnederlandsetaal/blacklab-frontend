@@ -1,10 +1,11 @@
-import * as AppTypes from '@/types/apptypes';
+import type * as AppTypes from '@/types/apptypes';
 import type {ModuleRootState as ModuleRootStateExplore} from '@/store/form/explore';
 import type {ModuleRootState as ModuleRootStatePatterns} from '@/store/form/patterns';
 import type {ModuleRootState as ModuleRootStateFilters} from '@/store/form/filters';
 import * as FilterModule from '@/store/form/filters';
 import cloneDeep from 'clone-deep';
-import { applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel, RegexEscapeOptions,
+import type { RegexEscapeOptions} from '@/utils';
+import { applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel,
 	splitIntoTerms, uiTypeSupport } from '@/utils';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { corpusCustomizations } from '@/utils/customization';

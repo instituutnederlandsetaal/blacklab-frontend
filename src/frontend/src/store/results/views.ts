@@ -4,13 +4,13 @@
  * But addon scripts can add more views, if required.
  * Those will get their own sub-module here.
  */
-import {ModuleBuilder, getStoreBuilder} from 'vuex-typex';
 import cloneDeep from 'clone-deep';
+import type { ModuleBuilder} from 'vuex-typex';
+import { getStoreBuilder } from 'vuex-typex';
 
-import {RootState} from '@/store/';
-import { NormalizedIndex } from '@/types/apptypes';
-import { Module, Store } from 'vuex';
-import { CorpusChange } from '@/store/async-loaders';
+import type { RootState } from '@/store/';
+import type { CorpusChange } from '@/store/async-loaders';
+import type { Module, Store } from 'vuex';
 
 const namespace = 'views';
 
@@ -208,14 +208,5 @@ const init = (state: CorpusChange)=> {
 
 type ViewModule = ReturnType<typeof createViewModule>;
 
-export {
-	ViewRootState,
-	ModuleRootState,
-	ViewModule,
-	init,
-	getOrCreateModule,
-	actions,
-	get,
-	initialState,
-	initialViewState
-}
+export type { ModuleRootState, ViewModule, ViewRootState };
+export { actions, get, getOrCreateModule, init, initialState, initialViewState };

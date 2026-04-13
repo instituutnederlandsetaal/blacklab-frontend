@@ -50,7 +50,7 @@
 					@click.native="toggleRow(index)"
 					v-on="$listeners"
 				/>
-				<component v-if="!disableDetails" v-show="openRows[row.hit_id || index]":is="row.type === 'doc' ? 'DocRowDetails' : row.type === 'hit' ? 'HitRowDetails' : 'GroupRowDetails'"
+				<component v-if="!disableDetails" v-show="openRows[row.hit_id || index]" :is="row.type === 'doc' ? 'DocRowDetails' : row.type === 'hit' ? 'HitRowDetails' : 'GroupRowDetails'"
 					:class="{
 						details: true,
 						rounded: true,
@@ -79,22 +79,24 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import '@/pages/search/results/table/TableHeader.vue';
-import { definitions, ColumnDefs, DisplaySettingsForRendering, Rows, ColumnDef, HitRowData, GroupRowData, DocRowData } from '@/pages/search/results/table/table-layout';
-import { BLSearchParameters } from '@/types/blacklabtypes';
+import type { ColumnDef, ColumnDefs, DisplaySettingsForRendering, DocRowData, GroupRowData, HitRowData, Rows } from '@/pages/search/results/table/table-layout';
+import { definitions } from '@/pages/search/results/table/table-layout';
+import type { BLSearchParameters } from '@/types/blacklabtypes';
 
 
 // ensure we have these components loaded
 import '@/pages/search/results/table/DocRow.vue';
 import '@/pages/search/results/table/DocRowDetails.vue';
-import '@/pages/search/results/table/HitRow.vue';
-import '@/pages/search/results/table/HitRowDetails.vue';
 import '@/pages/search/results/table/GroupRow.vue';
 import '@/pages/search/results/table/GroupRowDetails.vue';
+import '@/pages/search/results/table/HitRow.vue';
+import '@/pages/search/results/table/HitRowDetails.vue';
 
-export default Vue.component('GenericTable', {
+export default defineComponent({
+	name: 'GenericTable',
 	props: {
 		cols: Object as () => ColumnDefs,
 		header: Array as () => ColumnDef[],
@@ -133,7 +135,7 @@ export default Vue.component('GenericTable', {
 			if (!this.isOpenable(row)) return;
 			const id = row.hit_id || index;
 			const newState = !this.openRows[id];
-			this.$set(this.openRows, id, newState);
+			this.openRows[id] = newState;
 		},
 		openFullConcordances(row: HitRowData|DocRowData|GroupRowData) {
 			if ('displayname' in row) {

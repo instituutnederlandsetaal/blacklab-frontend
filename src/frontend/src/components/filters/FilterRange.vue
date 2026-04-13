@@ -13,9 +13,7 @@
 				autocomplete="off"
 
 				:id="inputId+'_lower'"
-				:value="value.low"
-
-				@input="e_input({low: $event.target.value, high: value.high})"
+				v-model="lower"
 			>
 		</div>
 		<div class="col-xs-4">
@@ -25,9 +23,7 @@
 				autocomplete="off"
 
 				:id="inputId+'_upper'"
-				:value="value.high"
-
-				@input="e_input({low: value.low, high: $event.target.value})"
+				v-model="upper"
 			>
 		</div>
 		<div class="col-xs-12" v-if="description">
@@ -37,22 +33,22 @@
 </template>
 
 <script lang="ts">
-import BaseFilter from '@/components/filters/Filter';
+import createBaseFilterComponent from '@/components/filters/Filter';
+import { defineComponent, type PropType } from 'vue';
 
-export default BaseFilter.extend({
-	props: {
-		value: {
-			type: Object as () => {
-				low: string,
-				high: string
-			},
-			required: true,
-			default: () => ({
-				high: '',
-				low: ''
-			})
+export default defineComponent({
+	extends: createBaseFilterComponent(Object as PropType<{low: string, high: string}>, () => ({low: '', high: ''})),
+
+	computed: {
+		lower: {
+			get() { return this.modelValue.low; },
+			set(value: string) { this.e_input({low: value, high: this.modelValue.high}); }
+		},
+		upper: {
+			get() { return this.modelValue.high; },
+			set(value: string) { this.e_input({low: this.modelValue.low, high: value}); }
 		}
-	},
+	}
 });
 
 </script>

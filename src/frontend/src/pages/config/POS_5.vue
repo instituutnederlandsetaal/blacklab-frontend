@@ -9,18 +9,18 @@
 </template>
 
 <script lang="ts">
-import { Tagset } from '@/types/apptypes';
-import Vue from 'vue';
+import type { Tagset } from '@/types/apptypes';
+import { defineComponent } from 'vue';
 import {saveAs} from 'file-saver';
 
-import {StepState} from './POS.vue';
+import type {StepState} from './POS.vue';
 
 export const value = 'Download'
 export const label = value;
 export const title = 'Download results';
 export const defaultAction = (s: StepState): StepState => s;
 
-export const step = Vue.extend({
+export const step = defineComponent({
 	props: {
 		value: Object as () => StepState
 	},

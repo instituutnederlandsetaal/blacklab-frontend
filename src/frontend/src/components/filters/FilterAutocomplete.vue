@@ -18,7 +18,7 @@
 				:dir="textDirection"
 
 				:url="autocompleteUrl"
-				v-model="modelvalue"
+				v-model="vmodel"
 			/>
 		</div>
 		<div class="col-xs-12" v-if="description">
@@ -30,23 +30,19 @@
 <script lang="ts">
 import Autocomplete from '@/components/Autocomplete.vue';
 import FilterText from '@/components/filters/FilterText.vue';
+import { defineComponent } from 'vue';
 
-export default FilterText.extend({
+export default defineComponent({
+	extends: FilterText,
 	components: { Autocomplete },
-	props: {
-		value: {
-			type: String,
-			required: true,
-			default: '',
-		}
-	},
 	computed: {
 		autocompleteUrl(): string { return this.definition.metadata as string; },
-		modelvalue: {
-			get(): string { return this.value; },
+		vmodel: {
+			get(): string { return this.modelValue; },
 			set(v: string) { this.e_input(v); }
 		}
-	},
-});
+	}
+})
+
 
 </script>

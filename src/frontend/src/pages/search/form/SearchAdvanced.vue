@@ -57,9 +57,12 @@ import AlignBy from '@/pages/search/form/AlignBy.vue';
 import CqlQueryBuilder from '@/components/cql/CqlQueryBuilder.vue';
 
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
-import { CqlGenerator, CqlQueryBuilderData } from '@/components/cql/cql-types';
+import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
+import { CqlGenerator } from '@/components/cql/cql-types';
+import { defineComponent } from 'vue';
 
-export default ParallelFields.extend({
+export default defineComponent({
+	extends: ParallelFields,
 	components: {
 		SelectPicker,
 		MultiValuePicker,

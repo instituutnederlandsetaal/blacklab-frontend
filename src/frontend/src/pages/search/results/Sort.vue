@@ -18,14 +18,15 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { NormalizedIndex } from '@/types/apptypes';
-import SelectPicker, { OptGroup } from '@/components/SelectPicker.vue';
+import { defineComponent } from 'vue';
+import type { NormalizedIndex } from '@/types/apptypes';
+import type { OptGroup } from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import debug from '@/utils/debug';
 import { corpusCustomizations } from '@/utils/customization';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		SelectPicker
 	},

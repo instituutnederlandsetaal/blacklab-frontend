@@ -3,8 +3,8 @@
 
 import URI from 'urijs';
 
-import * as BLTypes from '@/types/blacklabtypes';
-import * as AppTypes from '@/types/apptypes';
+import type * as BLTypes from '@/types/blacklabtypes';
+import type * as AppTypes from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
 import type { Translate } from '@/utils/i18n';
 
@@ -384,7 +384,7 @@ export function unparenQueryPart(query?: string) {
 	if (query) {
 
 		query = query.trim();
-		while (query.match(/^\([^\(\)]*\)$/)) {
+		while (query.match(/^\([^()]*\)$/)) {
 			query = query.substring(1, query.length - 1).trim();
 		}
 	}

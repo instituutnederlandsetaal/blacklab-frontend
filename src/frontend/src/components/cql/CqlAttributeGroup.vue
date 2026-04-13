@@ -41,15 +41,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useVModel } from '@vueuse/core';
-import { Option } from '@/types/apptypes';
-import {
+import type { Option } from '@/types/apptypes';
+import type {
 	CqlAttributeGroupData,
 	CqlAttributeData,
 	CqlGroupEntry,
 	CqlQueryBuilderOptions,
+	CqlAnnotationCombinator} from '@/components/cql/cql-types';
+import {
 	isCqlAttributeData,
-	isCqlAttributeGroupData,
-	CqlAnnotationCombinator,
+	isCqlAttributeGroupData
 } from '@/components/cql/cql-types';
 import CqlAttribute from './CqlAttribute.vue';
 import CqlAddAttributeButton from './CqlAddAttributeButton.vue';

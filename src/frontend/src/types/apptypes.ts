@@ -1,4 +1,4 @@
-import * as BLTypes from '@/types/blacklabtypes';
+import type * as BLTypes from '@/types/blacklabtypes';
 
 // -----------
 // State types

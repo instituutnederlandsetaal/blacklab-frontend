@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts">
-import { Loadable } from '@/utils/loadable-streams';
+import type { Loadable } from '@/utils/loadable-streams';
 import Spinner from './Spinner.vue';
 
 export default {

@@ -50,7 +50,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 export type PaginationInfo = {
 	page: number;
@@ -64,10 +64,10 @@ export type PaginationInfo = {
 
 
 /** Renders pagination controls, inputs are 0-based, meaning page === 0 will render as 1 on the label */
-export default Vue.extend({
+export default defineComponent({
 	props: {
 		/** 0-indexed. The interface will display this number + 1 */
-		page: Number,
+		page: { type: Number, required: true },
 		page2: {
 			type: Number,
 			required: false,

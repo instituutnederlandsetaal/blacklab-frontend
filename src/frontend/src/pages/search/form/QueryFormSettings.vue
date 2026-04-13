@@ -69,17 +69,19 @@
 </template>
 
 <script lang="ts">
-import Vue, { watch } from 'vue';
+import { watch } from 'vue';
 
 import * as RootStore from '@/store/';
 import * as GlobalViewSettings from '@/store/results/global';
 import * as ResultsViewSettings from '@/store/results/views';
 
-import SelectPicker,{ Option } from '@/components/SelectPicker.vue';
 import Modal from '@/components/Modal.vue';
+import type { Option } from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 
 import debug from '@/utils/debug';
 import { localStorageSynced } from '@/utils/localstore';
+import { defineComponent } from 'vue';
 
 // outside component, want to always run this code, even when component is invisible.
 export const wideView = localStorageSynced('cf/wideView', false);
@@ -88,7 +90,7 @@ watch(() => wideView.value, v => document.querySelectorAll('.container, .contain
 	el.classList.toggle('container-fluid', !!v);
 }), {immediate: true});
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		SelectPicker,
 		Modal

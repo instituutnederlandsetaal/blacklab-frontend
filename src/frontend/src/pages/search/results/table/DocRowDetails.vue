@@ -15,12 +15,15 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
 import IRow from '@/pages/search/results/table/IRow.vue';
-import { DocRowData } from '@/pages/search/results/table/table-layout';
+import type { DocRowData } from '@/pages/search/results/table/table-layout';
 
-export default Vue.component('DocRowDetails', IRow.extend({
+import { defineComponent } from 'vue';
+
+export default defineComponent({
+	name: 'DocRowDetails',	
+	extends: IRow,
 	props: { row: Object as () => DocRowData, },
-}));
+});
 </script>
 

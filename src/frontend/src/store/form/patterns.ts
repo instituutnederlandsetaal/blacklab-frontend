@@ -3,19 +3,19 @@
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
 
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import { getStoreBuilder } from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
-import { RootState } from '@/store/';
+import type { RootState } from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
 
 import { debugLog, debugLogCat } from '@/utils/debug';
 
-import { AnnotationValue } from '@/types/apptypes';
-import { CorpusChange } from '@/store/async-loaders';
-import { CqlQueryBuilderData } from '@/components/cql/cql-types';
+import type { AnnotationValue } from '@/types/apptypes';
+import type { CorpusChange } from '@/store/async-loaders';
+import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
@@ -334,14 +334,5 @@ const init = (state: CorpusChange) => {
 	debugLogCat('init', 'Finished initializing pattern module state shape');
 };
 
-export {
-	ModuleRootState,
-
-	getState,
-	get,
-	actions,
-	init,
-
-	namespace,
-	initialState as defaults
-};
+export type { ModuleRootState };
+export { getState, get, actions, init, namespace, initialState as defaults };

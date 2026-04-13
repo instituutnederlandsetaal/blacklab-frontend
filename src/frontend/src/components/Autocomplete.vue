@@ -22,7 +22,7 @@
 <script setup lang="ts">
 
 import { computed, ref, useTemplateRef } from 'vue';
-import SelectPicker from './SelectPicker.vue';
+import type SelectPicker from './SelectPicker.vue';
 
 
 import {splitIntoTerms} from '@/utils';

@@ -2,7 +2,7 @@ import type { CaptureAndRelation, TokenHighlight } from '@/types/apptypes';
 import type { BLHit, BLHitInOtherField, BLHitResults, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummaryPattern } from '@/types/blacklabtypes';
 
 // TODO this is a bit dirty, make it a function argument if possible
-import { UnionHelpers } from '@/types/helpers';
+import type { UnionHelpers } from '@/types/helpers';
 import { corpusCustomizations } from '@/utils/customization';
 
 // #region docsmatchinfohighlightstyle

@@ -41,19 +41,20 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import cloneDeep from 'clone-deep';
 
 import * as Api from '@/api';
 import * as CorpusStore from '@/store/corpus';
 
-import { BLSearchResult, hasPatternInfo } from '@/types/blacklabtypes';
+import type { BLSearchResult} from '@/types/blacklabtypes';
+import { hasPatternInfo } from '@/types/blacklabtypes';
 import * as UIStore from '@/store/ui';
 import { debugLog } from '@/utils/debug';
 import { ensureCompleteFieldName } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
 		results: Object as () => BLSearchResult,
 		type: String as () => 'hits'|'docs',

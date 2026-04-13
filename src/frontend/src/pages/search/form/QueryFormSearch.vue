@@ -145,44 +145,48 @@
 
 <script lang="ts">
 
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
-import * as UIStore from '@/store/ui';
+import * as ConceptStore from '@/store/form/conceptStore';
+import * as FilterStore from '@/store/form/filters';
+import * as GapStore from '@/store/form/gap';
+import * as GlossStore from '@/store/form/glossStore';
 import * as InterfaceStore from '@/store/form/interface';
 import * as PatternStore from '@/store/form/patterns';
-import * as GlossStore from '@/store/form/glossStore';
-import * as ConceptStore from '@/store/form/conceptStore';
-import * as GapStore from '@/store/form/gap';
 import * as HistoryStore from '@/store/history';
-import * as FilterStore from '@/store/form/filters';
+import * as UIStore from '@/store/ui';
 
+import uid from '@/mixins/uid';
 import Annotation from '@/pages/search/form/Annotation.vue';
-import SearchAdvanced from '@/pages/search/form/SearchAdvanced.vue';
-import SearchExpert from '@/pages/search/form/SearchExpert.vue';
 import ConceptSearch from '@/pages/search/form/concept/ConceptSearch.vue';
 import GlossSearch from '@/pages/search/form/concept/GlossSearch.vue';
 import ParallelSourceAndTargets from '@/pages/search/form/ParallelSourceAndTargets.vue';
+import SearchAdvanced from '@/pages/search/form/SearchAdvanced.vue';
+import SearchExpert from '@/pages/search/form/SearchExpert.vue';
 import Within from '@/pages/search/form/Within.vue';
-import uid from '@/mixins/uid';
 
 import { blacklabPaths } from '@/api';
-import * as AppTypes from '@/types/apptypes';
+import type * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
 
-import { Option } from '@/components/SelectPicker.vue';
+import type { Option } from '@/components/SelectPicker.vue';
 
 function isVue(v: any): v is Vue { return 'render' in v; }
 function isJQuery(v: any): v is JQuery { return typeof v !== 'boolean' && v && v.jquery; }
 
-import ParallelFields from './parallel/ParallelFields';
+import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
+import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
+import type { Result } from '@/utils/bcql-json-interpreter';
+import { parseBcql } from '@/utils/bcql-json-interpreter';
 import { corpusCustomizations } from '@/utils/customization';
-import { CqlGenerator, CqlQueryBuilderData, getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
 import { getPatternStringFromCql, getPatternStringSearch } from '@/utils/pattern-utils';
-import { parseBcql, Result } from '@/utils/bcql-json-interpreter';
+import { nextTick } from 'vue';
+import ParallelFields from './parallel/ParallelFields';
 
-export default ParallelFields.extend({
+export default defineComponent({
+	extends: ParallelFields,
 	components: {
 		ParallelSourceAndTargets,
 		Annotation,
@@ -421,7 +425,7 @@ export default ParallelFields.extend({
 			handler() {
 				// custom annotation widget setup.
 				// listen for changes, so any late registration is also picked up
-				Vue.nextTick(() => {
+				nextTick(() => {
 					// intermediate function, check if div is not already initialized, and should actually become the custom component.
 					const setup = (key: string, div: Element|Vue) => {
 						if (!(div instanceof HTMLElement) || !div.hasAttribute('data-custom-annotation-root') || div.children.length) return;

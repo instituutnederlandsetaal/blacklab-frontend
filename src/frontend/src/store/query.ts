@@ -21,18 +21,18 @@
  */
 
 import cloneDeep from 'clone-deep';
-import {getStoreBuilder} from 'vuex-typex';
+import { getStoreBuilder } from 'vuex-typex';
 
-import {RootState} from '@/store/';
+import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
+import type { RootState } from '@/store/';
+import type { CorpusChange } from '@/store/async-loaders';
 import * as CorpusModule from '@/store/corpus';
-import * as PatternModule from '@/store/form/patterns';
-import * as FilterModule from '@/store/form/filters';
-import * as ExploreModule from '@/store/form/explore';
-import * as GapModule from '@/store/form/gap';
-import { getFilterSummary, getFilterString } from '@/components/filters/filterValueFunctions';
+import type * as ExploreModule from '@/store/form/explore';
+import type * as FilterModule from '@/store/form/filters';
+import type * as GapModule from '@/store/form/gap';
+import type * as PatternModule from '@/store/form/patterns';
+import type { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
-import { CorpusChange } from '@/store/async-loaders';
-import { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
 
 
 // todo migrate these weirdo state shapes to mapped types?
@@ -72,12 +72,12 @@ type ModuleRootStateNone = {
 type ModuleRootState = ModuleRootStateNone|ModuleRootStateSearch<keyof PatternModule.ModuleRootState>|ModuleRootStateExplore<keyof ExploreModule.ModuleRootState>;
 
 const initialState: ModuleRootStateNone = {
-	form: null,
-	subForm: null,
-	formState: null,
-	shared: null,
-	filters: null,
-	gap: null
+  form: null,
+  subForm: null,
+  formState: null,
+  shared: null,
+  filters: null,
+  gap: null
 };
 
 const namespace = 'query';
@@ -85,78 +85,71 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, Object
 const getState = b.state();
 
 const get = {
-	sourceField: b.read((state): CorpusModule.NormalizedAnnotatedField => {
-		const fieldName = state.shared?.source ?? CorpusModule.get.mainAnnotatedField();
-		return CorpusModule.get.allAnnotatedFieldsMap()[fieldName];
-	}, 'sourceField'),
-	targetFields: b.read((state): NormalizedAnnotatedFieldParallel[] => {
-		const allFields = CorpusModule.get.allAnnotatedFieldsMap();
-		return state.shared?.targets?.map(t => allFields[t]).filter(f => f.isParallel) ?? [];
-	}, 'targetFields'),
+  sourceField: b.read((state): CorpusModule.NormalizedAnnotatedField => {
+    const fieldName = state.shared?.source ?? CorpusModule.get.mainAnnotatedField();
+    return CorpusModule.get.allAnnotatedFieldsMap()[fieldName];
+  }, 'sourceField'),
+  targetFields: b.read((state): NormalizedAnnotatedFieldParallel[] => {
+    const allFields = CorpusModule.get.allAnnotatedFieldsMap();
+    return state.shared?.targets?.map(t => allFields[t]).filter(f => f.isParallel) ?? [];
+  }, 'targetFields'),
 
-	patternString: b.read((state, getters, rootState): string|undefined => {
-		if (!state.subForm) return undefined;
+  patternString: b.read((state, getters, rootState): string|undefined => {
+    if (!state.subForm) return undefined;
 
-		const formState = {
-			[state.subForm as string]: state.formState,
-			shared: state.shared,
-		} as Partial<ModuleRootStateSearch<keyof PatternModule.ModuleRootState>>; /** egh, feel free to refactor */
-		const annotations = CorpusModule.get.allAnnotationsMap();
-		switch (state.form) {
-		case 'search':
-			return getPatternStringSearch(state.subForm, formState as any, rootState.ui.search.shared.alignBy.defaultValue, state.filters);
-		case 'explore':
-			return getPatternStringExplore(state.subForm, formState as any, annotations);
-		default:
-			return undefined;
-		}
-	},
-	'patternString'),
-	/** Human-readable version of the query for use in history, summaries, etc. */
-	patternSummary: b.read((state, getters, rootState): string|undefined => {
-		const formState = {
-			[state.subForm as string]: state.formState,
-			shared: state.shared,
-		} as any; /** egh, feel free to refactor */
-		switch (state.form) {
-		case 'search':
-			return getPatternSummarySearch(state.subForm, formState, rootState.ui.search.shared.alignBy.defaultValue, state.filters);
-		case 'explore':
-			return getPatternSummaryExplore(state.subForm, formState, CorpusModule.get.allAnnotationsMap());
-		default:
-			return undefined;
-		}
-	}, 'patternSummary'),
-	filterString: b.read((state): string|undefined => {
-		if (!state.form) { return undefined; }
-		return getFilterString(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
-	}, 'filterString'),
-	filterSummary: b.read((state): string|undefined => {
-		if (!state.form) { return undefined; }
-		return getFilterSummary(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
-	}, 'filterSummary')
+    const formState = {
+      [state.subForm as string]: state.formState,
+      shared: state.shared,
+    } as Partial<ModuleRootStateSearch<keyof PatternModule.ModuleRootState>>; /** egh, feel free to refactor */
+    const annotations = CorpusModule.get.allAnnotationsMap();
+    switch (state.form) {
+      case 'search':
+        return getPatternStringSearch(state.subForm, formState as any, rootState.ui.search.shared.alignBy.defaultValue, state.filters);
+      case 'explore':
+        return getPatternStringExplore(state.subForm, formState as any, annotations);
+      default:
+        return undefined;
+    }
+  },
+  'patternString'),
+  /** Human-readable version of the query for use in history, summaries, etc. */
+  patternSummary: b.read((state, getters, rootState): string|undefined => {
+    const formState = {
+      [state.subForm as string]: state.formState,
+      shared: state.shared,
+    } as any; /** egh, feel free to refactor */
+    switch (state.form) {
+      case 'search':
+        return getPatternSummarySearch(state.subForm, formState, rootState.ui.search.shared.alignBy.defaultValue, state.filters);
+      case 'explore':
+        return getPatternSummaryExplore(state.subForm, formState, CorpusModule.get.allAnnotationsMap());
+      default:
+        return undefined;
+    }
+  }, 'patternSummary'),
+  filterString: b.read((state): string|undefined => {
+    if (!state.form) { return undefined; }
+    return getFilterString(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
+  }, 'filterString'),
+  filterSummary: b.read((state): string|undefined => {
+    if (!state.form) { return undefined; }
+    return getFilterSummary(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
+  }, 'filterSummary')
 };
 
 const actions = {
-	// Deep copy these to prevent aliasing and the reactivity issues that come with it
-	// such as writing to current state causing updates in history entries
-	search: b.commit((state, payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)), 'search'),
+  // Deep copy these to prevent aliasing and the reactivity issues that come with it
+  // such as writing to current state causing updates in history entries
+  search: b.commit((state, payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)), 'search'),
 
-	reset: b.commit(state => Object.assign(state, Object.assign({}, initialState)), 'reset'),
-	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)), 'replace'),
+  reset: b.commit(state => Object.assign(state, Object.assign({}, initialState)), 'reset'),
+  replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)), 'replace'),
 };
 
 const init = (state: CorpusChange) => {
-	actions.reset();
+  actions.reset();
 };
 
-export {
-	ModuleRootState,
+export type { ModuleRootState };
+export { actions, get, getState, init, namespace };
 
-	getState,
-	get,
-	actions,
-	init,
-
-	namespace,
-};

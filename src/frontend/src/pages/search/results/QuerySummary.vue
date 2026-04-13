@@ -5,10 +5,10 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import * as QueryStore from '@/store/query';
 
-export default Vue.extend({
+export default defineComponent({
 	computed: {
 		pattern: QueryStore.get.patternSummary,
 		filters: QueryStore.get.filterSummary,

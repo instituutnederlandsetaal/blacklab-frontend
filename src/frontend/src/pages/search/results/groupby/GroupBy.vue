@@ -193,7 +193,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
@@ -206,8 +206,10 @@ import * as FilterModule from '@/store/form/filters';
 import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 import { blacklab } from '@/api';
 
-import {isHitResults, BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo, hasPatternInfo } from '@/types/blacklabtypes';
-import { ContextLabel, ContextPositional, GroupBy, GroupByContext, humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
+import type { BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo} from '@/types/blacklabtypes';
+import {isHitResults, hasPatternInfo } from '@/types/blacklabtypes';
+import type { ContextLabel, ContextPositional, GroupBy, GroupByContext} from '@/utils/grouping';
+import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 import debug from '@/utils/debug';
 
 // @ts-ignore
@@ -215,8 +217,9 @@ import Slider from 'vue-slider-component';
 import 'vue-slider-component/theme/default.css'
 import jsonStableStringify from 'json-stable-stringify';
 
-import SelectPicker, { OptGroup, Options } from '@/components/SelectPicker.vue';
-import { CaptureAndRelation, HitToken, Option, TokenHighlight } from '@/types/apptypes';
+import type { OptGroup, Options } from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
+import type { CaptureAndRelation, HitToken, Option, TokenHighlight } from '@/types/apptypes';
 
 
 import Tabs from '@/components/Tabs.vue';
@@ -246,7 +249,7 @@ function splitSpanAttributeOptionValue(value: string): { name: string, attrName:
 	throw `Not a span attribute option value: ${value}`;
 }
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		SelectPicker,
 		Slider,

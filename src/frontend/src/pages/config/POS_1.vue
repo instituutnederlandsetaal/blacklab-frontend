@@ -8,10 +8,10 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { NormalizedAnnotation, Option } from '@/types/apptypes';
+import { defineComponent } from 'vue';
+import type { NormalizedAnnotation, Option } from '@/types/apptypes';
 import SelectPicker from '@/components/SelectPicker.vue';
-import {StepState} from './POS.vue';
+import type {StepState} from './POS.vue';
 
 export const value = 'Choose main'
 export const label = value;
@@ -25,7 +25,7 @@ export const defaultAction = (s: StepState): StepState => {
 	return {...s, mainPosAnnotationId: defaultPosAnnot.id};
 }
 
-export const step = Vue.extend({
+export const step = defineComponent({
 	components: { SelectPicker },
 	props: {
 		value: Object as () => StepState

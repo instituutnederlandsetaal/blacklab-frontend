@@ -6,17 +6,17 @@
  * Configure from external javascript through window.vuexModules.ui.getState() and assign things.
  */
 
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import cloneDeep from 'clone-deep';
 import { getStoreBuilder } from 'vuex-typex';
 import { stripIndent, html } from 'common-tags';
 
-import { RootState } from '@/store/';
+import type { RootState } from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 import * as ViewsStore from '@/store/results/views';
-import * as BLTypes from '@/types/blacklabtypes';
-import * as AppTypes from '@/types/apptypes';
-import { CorpusChange } from '@/store/async-loaders';
+import type * as BLTypes from '@/types/blacklabtypes';
+import type * as AppTypes from '@/types/apptypes';
+import type { CorpusChange } from '@/store/async-loaders';
 import { corpusCustomizations } from '@/utils/customization';
 import { normalizeAnnotationUIType } from '@/utils/blacklabutils';
 
@@ -1357,14 +1357,5 @@ function printCustomizations() {
 
 (window as any).printCustomJs = printCustomizations;
 
-export {
-	ModuleRootState,
-	CustomView,
-
-	getState,
-	get,
-	actions,
-	init,
-
-	namespace
-};
+export type { ModuleRootState, CustomView };
+export { getState, get, actions, init, namespace };

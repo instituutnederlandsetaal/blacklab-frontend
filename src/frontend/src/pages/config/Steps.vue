@@ -22,10 +22,10 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { Option } from '@/types/apptypes';
+import { defineComponent } from 'vue';
+import type { Option } from '@/types/apptypes';
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
 		steps: Array as () => Option[],
 		step: Number

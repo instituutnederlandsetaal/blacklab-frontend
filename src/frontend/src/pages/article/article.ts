@@ -1,10 +1,13 @@
 import { blacklab, frontend } from '@/api';
-import { BLDoc, BLHitResults } from '@/types/blacklabtypes';
+import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
-import { debugLogCat, LogCategory } from '@/utils/debug';
+import type { LogCategory } from '@/utils/debug';
+import { debugLogCat } from '@/utils/debug';
 
-import { combineLoadables, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, compareAsSortedJson, Loadable, withRequiredKeys, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
-import { combineLatest, distinctUntilChanged, map, Observable, of, ReplaySubject, shareReplay, tap } from 'rxjs';
+import type { Loadable} from '@/utils/loadable-streams';
+import { combineLoadables, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, compareAsSortedJson, withRequiredKeys, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
+import type { Observable} from 'rxjs';
+import { combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareReplay, tap } from 'rxjs';
 
 
 const debug = <T>(cat: LogCategory, message: string) => tap<T>(v => debugLogCat(cat, message, v));

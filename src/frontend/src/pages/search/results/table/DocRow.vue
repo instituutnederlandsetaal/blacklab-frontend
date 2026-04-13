@@ -17,15 +17,18 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
 import IRow from '@/pages/search/results/table/IRow.vue';
-import { DocRowData } from '@/pages/search/results/table/table-layout';
+import type { DocRowData } from '@/pages/search/results/table/table-layout';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
-export default Vue.component('DocRow', IRow.extend({
+export default defineComponent({
+	name: 'DocRow',
+	extends: IRow,
 	props: {
-		row: Object as () => DocRowData,
+		row: { type: Object as PropType<DocRowData>, required: true },
 	},
-}));
+});
 </script>
 
 <style lang="scss">

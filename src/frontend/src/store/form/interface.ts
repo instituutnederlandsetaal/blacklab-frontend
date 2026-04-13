@@ -7,11 +7,11 @@
 import {getStoreBuilder} from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
-import {RootState} from '@/store/';
-import {ModuleRootState as PatternModuleRootState} from '@/store/form/patterns';
-import {ModuleRootState as ExploreModuleRootState} from '@/store/form/explore';
+import type {RootState} from '@/store/';
+import type {ModuleRootState as PatternModuleRootState} from '@/store/form/patterns';
+import type {ModuleRootState as ExploreModuleRootState} from '@/store/form/explore';
 import { NormalizedIndex } from '@/types/apptypes';
-import { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/store/async-loaders';
 
 type ModuleRootState = {
 	form: 'search'|'explore';
@@ -60,14 +60,5 @@ const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
-export {
-	ModuleRootState,
-
-	getState,
-	get,
-	actions,
-	init,
-
-	namespace,
-	defaults
-};
+export type { ModuleRootState };
+export { getState, get, actions, init, namespace, defaults };

@@ -6,8 +6,8 @@
 </template>
 
 <script lang="ts">
-import Vue, { onBeforeUnmount } from 'vue';
-export default Vue.extend({
+import { defineComponent } from 'vue';
+export default defineComponent({
 	props: {
 		lg: Boolean,
 		xs: Boolean,

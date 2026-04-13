@@ -12,7 +12,7 @@
 	>
 		<div
 			style="display: flex; flex-direction: column; height: 100%; position: relative; gap: 15px;"
-			@dragover.prevent="onDragOver" 
+			@dragover.prevent="onDragOver"
 			@dragleave.prevent="onDragLeave"
 			@drop.prevent="onDrop"
 		>
@@ -69,16 +69,17 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import Modal from '@/components/Modal.vue';
-import { NormalizedFormat, Option } from '@/types/apptypes';
 import * as Api from '@/api';
+import Modal from '@/components/Modal.vue';
+import type { NormalizedFormat, Option } from '@/types/apptypes';
+import { defineComponent } from 'vue';
 
-import SelectPicker from '@/components/SelectPicker.vue'
+import type { Options } from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
-import { Options } from '@/components/SelectPicker.vue';
+import type { PropType } from 'vue';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		Modal,
 		SelectPicker,
@@ -87,10 +88,10 @@ export default Vue.extend({
 	},
 	props: {
 		/** When clicking the pencil to edit an existing format. */
-		format: Object as () => undefined|NormalizedFormat,
-		publicFormats: Array as () => NormalizedFormat[],
-		privateFormats: Array as () => NormalizedFormat[],
-		loading: Boolean
+		format: { type: Object as PropType<undefined|NormalizedFormat>, required: false },
+		publicFormats: { type: Array as PropType<NormalizedFormat[]>, required: true },
+		privateFormats: { type: Array as PropType<NormalizedFormat[]>, required: true },
+		loading: { type: Boolean, required: true }
 	},
 	data: () => ({
 		formatName: '',

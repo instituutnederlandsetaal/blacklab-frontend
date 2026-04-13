@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { CqlAnnotationCombinator, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
+import type { CqlAnnotationCombinator, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
 defineProps<{
 	options: CqlQueryBuilderOptions,
 }>();

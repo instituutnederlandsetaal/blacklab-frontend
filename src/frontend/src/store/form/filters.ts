@@ -4,27 +4,25 @@
  *
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
-import Vue from 'vue';
 import { getStoreBuilder } from 'vuex-typex';
 
-import { RootState } from '@/store/';
+import type { RootState } from '@/store/';
 import * as CorpusModule from '@/store/corpus';
-import * as UIStore from '@/store/ui';
 
-import { FilterDefinition } from '@/types/apptypes';
+import type { FilterDefinition } from '@/types/apptypes';
 
-import { debugLog, debugLogCat } from '@/utils/debug';
 import { blacklabPaths } from '@/api';
-import { mapReduce } from '@/utils';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
-import { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/store/async-loaders';
+import { mapReduce } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
+import { debugLogCat } from '@/utils/debug';
 
 export type FilterState = {
-	value: any|null;
+	value: unknown|null;
 };
 
-export type FullFilterState = FilterDefinition<any, any>&FilterState;
+export type FullFilterState = FilterDefinition<unknown, unknown>&FilterState;
 
 /** A group of metadata filters (i.e. a tab in the search interface) */
 export type FilterGroupType = {
@@ -53,8 +51,8 @@ type ExternalModuleRootState = ModuleRootState['filters'];
 
 /** Populated on store initialization and afterwards */
 const initialState: ModuleRootState = {
-	filters: {},
-	filterGroups: []
+  filters: {},
+  filterGroups: []
 };
 
 const namespace = 'filters';
@@ -62,187 +60,179 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, Object
 const getState = b.state();
 
 const get = {
-	/** Return all filters holding a value */
-	activeFilters: b.read(state => Object.values(state.filters).filter(f => getValueFunctions(f).isActive(f.id, f.metadata, f.value)), 'activeFilters'),
-	/** Return activeFilters as associative map instead of array */
-	activeFiltersMap: b.read(state => {
-		const activeFilters: FullFilterState[] = get.activeFilters();
-		return mapReduce(activeFilters, 'id');
-	}, 'activeFiltersMap'),
+  /** Return all filters holding a value */
+  activeFilters: b.read(state => Object.values(state.filters).filter(f => getValueFunctions(f).isActive(f.id, f.metadata, f.value)), 'activeFilters'),
+  /** Return activeFilters as associative map instead of array */
+  activeFiltersMap: b.read(state => {
+    const activeFilters: FullFilterState[] = get.activeFilters();
+    return mapReduce(activeFilters, 'id');
+  }, 'activeFiltersMap'),
 
-	luceneQuery: b.read(state => {
-		// NOTE: sort the filters so a stable query is created
-		// this is important for comparing history entries
-		const activeFilters: FullFilterState[] = get.activeFilters().concat().sort((l, r) => l.id.localeCompare(r.id));
-		return getFilterString(activeFilters);
-	} , 'luceneQuery'),
-	luceneQuerySummary: b.read(state => {
-		// NOTE: sort the filters so a stable query is created
-		// this is important for comparing history entries
-		const activeFilters: FullFilterState[] = get.activeFilters().concat().sort((l, r) => l.id.localeCompare(r.id));
-		return getFilterSummary(activeFilters);
-	}, 'luceneQuerySummary'),
+  luceneQuery: b.read(state => {
+    // NOTE: sort the filters so a stable query is created
+    // this is important for comparing history entries
+    const activeFilters: FullFilterState[] = get.activeFilters().concat().sort((l, r) => l.id.localeCompare(r.id));
+    return getFilterString(activeFilters);
+  } , 'luceneQuery'),
+  luceneQuerySummary: b.read(state => {
+    // NOTE: sort the filters so a stable query is created
+    // this is important for comparing history entries
+    const activeFilters: FullFilterState[] = get.activeFilters().concat().sort((l, r) => l.id.localeCompare(r.id));
+    return getFilterSummary(activeFilters);
+  }, 'luceneQuerySummary'),
 
-	filterValue(id: string) { return getState().filters[id]; },
+  filterValue(id: string) { return getState().filters[id]; },
 
-	hasSpanFilters: b.read(state => {
-		return !!Object.values(state.filters).find(f => getValueFunctions(f).isSpanFilter);
-	}, 'hasSpanFilters'),
+  hasSpanFilters: b.read(state => {
+    return !!Object.values(state.filters).find(f => getValueFunctions(f).isSpanFilter);
+  }, 'hasSpanFilters'),
 };
 
 const actions = {
-	registerFilterGroup: b.commit((state, filterGroup: {id: string, filterIds: string[]}) => {
-		if (state.filterGroups.find(g => g.tabname === filterGroup.id)) {
-			console.warn(`Filter group ${filterGroup.id} already exists`);
-			return;
-		}
-		state.filterGroups.push({
-			tabname: filterGroup.id,
-			subtabs: [{
-				tabname: undefined,
-				fields: filterGroup.filterIds.filter(id => state.filters[id] != null),
-			}],
-		});
-	}, 'registerFilterGroup'),
+  registerFilterGroup: b.commit((state, filterGroup: {id: string, filterIds: string[]}) => {
+    if (state.filterGroups.find(g => g.tabname === filterGroup.id)) {
+      console.warn(`Filter group ${filterGroup.id} already exists`);
+      return;
+    }
+    state.filterGroups.push({
+      tabname: filterGroup.id,
+      subtabs: [{
+        tabname: undefined,
+        fields: filterGroup.filterIds.filter(id => state.filters[id] != null),
+      }],
+    });
+  }, 'registerFilterGroup'),
 
-	registerFilter: b.commit((state, {filter, insertBefore}: {
+  registerFilter: b.commit((state, {filter, insertBefore}: {
 		/** Filter definition */
 		filter: FilterDefinition;
 		/** Optional: ID of another filter in this group before which to insert this filter, if omitted, the filter is appended at the end. */
 		insertBefore?: string;
 	}) => {
-		if (filter.groupId) {
-			if (!state.filterGroups.find(g => g.tabname === filter.groupId)) {
-				actions.registerFilterGroup({
-					filterIds: [],
-					id: filter.groupId,
-				});
-			}
-			const group = state.filterGroups.find(g => g.tabname === filter.groupId)!;
-			const subtabIndex = insertBefore != null && state.filters[insertBefore] ? group.subtabs.findIndex(subtab => subtab.fields.includes(insertBefore)) : 0;
-			const index = subtabIndex != 0 ? group.subtabs[subtabIndex].fields.indexOf(insertBefore!) : -1;
-			group.subtabs[subtabIndex].fields.splice(index !== -1 ? index : group.subtabs[subtabIndex].fields.length, 0, filter.id);
-		}
+    if (filter.groupId) {
+      if (!state.filterGroups.find(g => g.tabname === filter.groupId)) {
+        actions.registerFilterGroup({
+          filterIds: [],
+          id: filter.groupId,
+        });
+      }
+      const group = state.filterGroups.find(g => g.tabname === filter.groupId)!;
+      const subtabIndex = insertBefore != null && state.filters[insertBefore] ? group.subtabs.findIndex(subtab => subtab.fields.includes(insertBefore)) : 0;
+      const index = subtabIndex != 0 ? group.subtabs[subtabIndex].fields.indexOf(insertBefore!) : -1;
+      group.subtabs[subtabIndex].fields.splice(index !== -1 ? index : group.subtabs[subtabIndex].fields.length, 0, filter.id);
+    }
 
-		if (state.filters[filter.id]) { // already exists, might be registered twice because it's in multiple groups
-			return;
-		}
+    if (state.filters[filter.id]) { // already exists, might be registered twice because it's in multiple groups
+      return;
+    }
 
-		// Backwards compat: we renamed these fields but not all extension scripts are up-to-date
-		//@ts-ignore
-		filter.defaultDisplayName = filter.defaultDisplayName || filter.displayName;
-		//@ts-ignore
-		filter.defaultDescription = filter.defaultDescription || filter.description;
+    // Backwards compat: we renamed these fields but not all extension scripts are up-to-date
+    //@ts-ignore
+    filter.defaultDisplayName = filter.defaultDisplayName || filter.displayName;
+    //@ts-ignore
+    filter.defaultDescription = filter.defaultDescription || filter.description;
 
-		state.filters[filter.id] = {...filter, value: null};
-	}, 'registerFilter'),
+    state.filters[filter.id] = {...filter, value: null};
+  }, 'registerFilter'),
 
-	filterValue: b.commit((state, {id, value}: Pick<FullFilterState, 'id'|'value'>) => {
-		const filterObj = state.filters[id];
-		if (!filterObj) {
-			console.error(`Filter ${id} does not exist`);
-		}
-		return (filterObj.value = value != null ? value : null);
-	}, 'filter_value'),
+  filterValue: b.commit((state, {id, value}: Pick<FullFilterState, 'id'|'value'>) => {
+    const filterObj = state.filters[id];
+    if (!filterObj) {
+      console.error(`Filter ${id} does not exist`);
+    }
+    return (filterObj.value = value != null ? value : null);
+  }, 'filter_value'),
 
-	// filterLucene: b.commit((state, {id, lucene}: Pick<FullFilterState, 'id'|'lucene'>) => state.filters[id].lucene = lucene || null , 'filter_lucene'),
-	// filterSummary: b.commit((state, {id, summary}: Pick<FullFilterState, 'id'|'summary'>) => state.filters[id].summary = summary || null, 'filter_summary'),
-	reset: b.commit(state => Object.keys(state.filters).forEach(k => {
-		state.filters[k].value = null;
-	}), 'filter_reset'),
+  // filterLucene: b.commit((state, {id, lucene}: Pick<FullFilterState, 'id'|'lucene'>) => state.filters[id].lucene = lucene || null , 'filter_lucene'),
+  // filterSummary: b.commit((state, {id, summary}: Pick<FullFilterState, 'id'|'summary'>) => state.filters[id].summary = summary || null, 'filter_summary'),
+  reset: b.commit(state => Object.keys(state.filters).forEach(k => {
+    state.filters[k].value = null;
+  }), 'filter_reset'),
 
-	replace: b.commit((state, payload: ExternalModuleRootState) => {
-		actions.reset();
-		Object.values(payload).forEach(actions.filterValue);
-	}, 'replace'),
+  replace: b.commit((state, payload: ExternalModuleRootState) => {
+    actions.reset();
+    Object.values(payload).forEach(actions.filterValue);
+  }, 'replace'),
 };
 
 const init = (state: CorpusChange) => {
-	if (!state.index) {
-		getState().filters = {};
-		getState().filterGroups = [];
-		return;
-	}
+  if (!state.index) {
+    getState().filters = {};
+    getState().filterGroups = [];
+    return;
+  }
 
-	// Take care to copy the order of metadatagroups and their fields here!
-	CorpusModule.get.metadataGroups().forEach(g => {
-		actions.registerFilterGroup({
-			filterIds: [],
-			id: g.id
-		});
+  // Take care to copy the order of metadatagroups and their fields here!
+  CorpusModule.get.metadataGroups().forEach(g => {
+    actions.registerFilterGroup({
+      filterIds: [],
+      id: g.id
+    });
 
-		g.fields.forEach(f => {
-			let componentName;
-			let metadata: any;
-			switch (f.uiType) {
-				case 'checkbox':
-					componentName = 'filter-checkbox';
-					metadata = f.values || [];
-					break;
-				case 'combobox':
-					componentName = 'filter-autocomplete';
-					metadata = blacklabPaths.autocompleteMetadata(state.index!.id, f.id);
-					break;
-				case 'radio'   :
-					componentName = 'filter-radio';
-					metadata = f.values || [];
-					break;
-				case 'range'   :
-					componentName = 'filter-range';
-					metadata = undefined;
-					break;
-				case 'select'  :
-					componentName = 'filter-select';
-					metadata = f.values || [];
-					break;
-				case 'date':
-					componentName = 'filter-date';
-					metadata = {
-						field: f.id
-					}
-				case 'text'    :
-				default        :
-					componentName = 'filter-text';
-					metadata = undefined;
-					break;
-			}
+    g.fields.forEach(f => {
+      let componentName;
+      let metadata: any;
+      switch (f.uiType) {
+        case 'checkbox':
+          componentName = 'filter-checkbox';
+          metadata = f.values || [];
+          break;
+        case 'combobox':
+          componentName = 'filter-autocomplete';
+          metadata = blacklabPaths.autocompleteMetadata(state.index!.id, f.id);
+          break;
+        case 'radio':
+          componentName = 'filter-radio';
+          metadata = f.values || [];
+          break;
+        case 'range':
+          componentName = 'filter-range';
+          metadata = undefined;
+          break;
+        case 'select':
+          componentName = 'filter-select';
+          metadata = f.values || [];
+          break;
+        case 'date':
+          componentName = 'filter-date';
+          metadata = {
+            field: f.id
+          }
+        case 'text':
+        default:
+          componentName = 'filter-text';
+          metadata = undefined;
+          break;
+      }
 
-			actions.registerFilter({
-				filter: {
-					componentName,
-					defaultDescription: f.defaultDescription,
-					defaultDisplayName: f.defaultDisplayName,
-					groupId: g.id,
-					id: f.id,
-					metadata,
-				}
-			});
-		});
-	});
+      actions.registerFilter({
+        filter: {
+          componentName,
+          defaultDescription: f.defaultDescription,
+          defaultDisplayName: f.defaultDisplayName,
+          groupId: g.id,
+          id: f.id,
+          metadata,
+        }
+      });
+    });
+  });
 
-	// Make sure we register all fields in any custom tabs
-	corpusCustomizations.search.metadata._customTabs
-		.map(t => ({ name: t.name, fields: t.fields ?? t.subtabs.flatMap( (s: any) => s.fields)})) // flatten subtabs
-		.map(t => t.fields.map( (f: any) => ({ groupId: t.name, ...f })) ) // fill in missing groupId if any
-		.flat() // flatten tabs
-		.filter(f => f.id)
-		.forEach(f => {
-			actions.registerFilter({
-				filter: f as FilterDefinition
-			});
-		});
+  // Make sure we register all fields in any custom tabs
+  corpusCustomizations.search.metadata._customTabs
+    .map(t => ({ name: t.name, fields: t.fields ?? t.subtabs.flatMap( (s: any) => s.fields)})) // flatten subtabs
+    .map(t => t.fields.map( (f: any) => ({ groupId: t.name, ...f })) ) // fill in missing groupId if any
+    .flat() // flatten tabs
+    .filter(f => f.id)
+    .forEach(f => {
+      actions.registerFilter({
+        filter: f as FilterDefinition
+      });
+    });
 
-	debugLogCat('init', 'Finished initializing filter module state shape');
+  debugLogCat('init', 'Finished initializing filter module state shape');
 };
 
-export {
-	ExternalModuleRootState as ModuleRootState,
-	ModuleRootState as FullModuleRootState,
+export type { ModuleRootState as FullModuleRootState, ExternalModuleRootState as ModuleRootState };
+export { actions, get, getState, init, namespace };
 
-	getState,
-	get,
-	actions,
-	init,
-
-	namespace,
-};

@@ -1,5 +1,5 @@
-import { reactive } from 'vue';
 import { syncPropertyWithLocalStorage } from '@/utils/localstore';
+import { reactive } from 'vue';
 
 
 export type LogCategory = 'history'|'parallel'|'init'|'shared'|'results';
@@ -15,9 +15,9 @@ let queued: IArguments[] = [];
 
 // If you wish to see the original logging location, blackbox this script in the chrome devtools
 // For now, seeing the original location is not supported in firefox and edge/ie (and probably safari)
-export function debugLog(...args: any[]) {
+export function debugLog(..._args: any[]) {
 	if (debug.debug) {
-		console.log.apply(console, arguments); //tslint:disable-line
+		console.log(...arguments);
 	} else {
 		queued.push(arguments);
 	}

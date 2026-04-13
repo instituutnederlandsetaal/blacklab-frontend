@@ -60,10 +60,11 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { NormalizedAnnotation, Option } from '@/types/apptypes';
+import { defineComponent } from 'vue';
+import type { Option } from '@/types/apptypes';
+import { NormalizedAnnotation } from '@/types/apptypes';
 import SelectPicker from '@/components/SelectPicker.vue';
-import { StepState, ExclusionRule } from './POS.vue';
+import type { StepState, ExclusionRule } from './POS.vue';
 import { blacklab } from '@/api';
 
 export const value = 'Exclusions';
@@ -75,7 +76,7 @@ export const defaultAction = (s: StepState): StepState => {
 	return s;
 };
 
-export const step = Vue.extend({
+export const step = defineComponent({
 	components: { SelectPicker },
 	props: {
 		value: Object as () => StepState

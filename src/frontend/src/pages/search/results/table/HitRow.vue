@@ -38,15 +38,18 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import IRow from '@/pages/search/results/table/IRow.vue';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
 
 import GlossField from '@/pages/search/form/concept/GlossField.vue';
-import { HitRowData } from '@/pages/search/results/table/table-layout';
+import type { HitRowData } from '@/pages/search/results/table/table-layout';
+import type { PropType } from 'vue';
 
-export default Vue.component('HitRow', IRow.extend({
-	props: { row: Object as () => HitRowData },
+export default defineComponent({
+	name: 'HitRow',
+	extends: IRow,
+	props: { row: { type: Object as PropType<HitRowData>, required: true } },
 	components: {
 		GlossField,
 		HitContext
@@ -55,7 +58,7 @@ export default Vue.component('HitRow', IRow.extend({
 		hover(v: any) { this.$emit('hover', v); },
 		unhover(v: any) { this.$emit('unhover', v); },
 	}
-}));
+});
 </script>
 
 <style lang="scss" scoped>

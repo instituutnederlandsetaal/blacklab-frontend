@@ -3,16 +3,14 @@
 
 import { getStoreBuilder } from 'vuex-typex';
 
-import { RootState } from '@/store/';
+import type { RootState } from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 import * as PatternStore from '@/store/form/patterns';
-import { uniq } from '@/utils'
+import { uniq } from '@/utils';
 import cloneDeep from 'clone-deep';
 
-import { init as initConceptEndpoint, conceptApi } from '@/api';
-import Vue from 'vue';
-import { NormalizedIndex } from '@/types/apptypes';
-import { CorpusChange } from '@/store/async-loaders';
+import { conceptApi, init as initConceptEndpoint } from '@/api';
+import type { CorpusChange } from '@/store/async-loaders';
 
 type Settings = {
 	/** guaranteed not to end in '/' */
@@ -151,17 +149,5 @@ const actions = {
 	}, 'concept_load_settings'),
 };
 
-export {
-	ModuleRootState,
-	HistoryState,
-	AtomicQuery,
-	LexiconEntry,
-	Settings,
-
-	namespace,
-	defaults,
-	actions,
-	getState,
-	get,
-	init,
-}
+export { actions, defaults, get, getState, init, namespace };
+export type { AtomicQuery, HistoryState, LexiconEntry, ModuleRootState, Settings };

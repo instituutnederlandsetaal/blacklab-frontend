@@ -66,8 +66,10 @@ import * as PatternStore from '@/store/form/patterns';
 import SelectPicker from '@/components/SelectPicker.vue';
 import MultiValuePicker from '@/components/MultiValuePicker.vue';
 import AlignBy from '@/pages/search/form/AlignBy.vue';
+import { defineComponent } from 'vue';
 
-export default ParallelFields.extend({
+export default defineComponent({
+	extends: ParallelFields,
 	components: {
 		SelectPicker,
 		MultiValuePicker,

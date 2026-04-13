@@ -82,7 +82,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import URI from 'urijs';
 
 import * as RootStore from '@/store/';
@@ -98,7 +98,7 @@ import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
 import * as CorpusStore from '@/store/corpus';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		Modal,
 	},

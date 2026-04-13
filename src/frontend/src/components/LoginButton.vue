@@ -18,11 +18,12 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import SelectPicker, { Option } from '@/components/SelectPicker.vue';
+import { defineComponent } from 'vue';
+import type { Option } from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 import * as LoginSystem from '@/utils/loginsystem';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {SelectPicker},
 	data: () => ({
 		username: null as string|null,

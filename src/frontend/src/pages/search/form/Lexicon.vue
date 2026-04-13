@@ -62,7 +62,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import Axios from 'axios';
 import * as Observable from 'rxjs';
 import { debounceTime, switchMap, mergeMap, map, toArray, catchError, mapTo, distinctUntilChanged, tap, filter } from 'rxjs/operators';
@@ -126,7 +126,7 @@ type WordOption = {
 	selected: boolean;
 };
 
-export default Vue.extend({
+export default defineComponent({
 	components: { SelectPicker },
 	inheritAttrs: false,
 	props: {

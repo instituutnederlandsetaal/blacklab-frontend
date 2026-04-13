@@ -5,14 +5,14 @@
 
 import {getStoreBuilder} from 'vuex-typex';
 
-import {RootState} from '@/store/';
+import type {RootState} from '@/store/';
 import { NormalizedIndex } from '@/types/apptypes';
-import { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/store/async-loaders';
 import { syncPropertyWithLocalStorage } from '@/utils/localstore';
 
 const defaults = {
 	pageSize: 20,
-	sampleMode: 'percentage' as 'percentage' // required to allow putting it in string enum types
+	sampleMode: 'percentage' as const // required to allow putting it in string enum types
 };
 
 const namespace = 'global';
@@ -102,15 +102,5 @@ const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
-export {
-	ExternalModuleRootState,
-	ModuleRootState,
-
-	getState,
-	get,
-	actions,
-	init,
-
-	namespace,
-	defaults
-};
+export type { ExternalModuleRootState, ModuleRootState };
+export { getState, get, actions, init, namespace, defaults };

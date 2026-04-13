@@ -1,0 +1,56 @@
+{
+	"extends": "@vue/tsconfig/tsconfig.dom.json",
+	"compilerOptions": {
+		"allowJs": true,
+		// Output the most modern javascript instead of downcompiling, 
+		// we'll use a dedicated tool in vite if we need to.
+		"target": "esnext",
+		// Output the most modern import/export statements, instead of converting modules to CommonJs
+		// Again, let babel handle that
+		"module": "esnext",
+		"strictNullChecks": true,
+		"noImplicitThis": true,
+		"noImplicitAny": true,
+		/*
+			We use babel to transform jsx into vue render calls, see @babe/babel-preset-jsx in .babelrc
+			So the typescript compiler should just ignore it.
+			See https://github.com/vuejs/jsx/tree/dev/packages/babel-preset-jsx
+		*/
+		"jsx": "preserve",
+		"resolveJsonModule": true,
+
+		// Allow @decorator
+		"experimentalDecorators": true,
+		"lib": [
+			"dom",
+			"dom.iterable",
+			"ES2021"
+		],
+
+		// Enable importing source files by their absolute path by prefixing with "@/"
+		// Note: this also requires Vite to be able to find the imports, see vite.config.ts
+		"paths": {
+			"@/*": ["./src/*"]
+		},
+		"types": [
+			// Only declare "global" typings here (or typings that augment other typings, such as jqueryui, which adds methods)
+			// Other typings are automatically attached to things that manually imported
+
+			// Normally typescript picks up all type declarations in node_modules/@types
+			// However the nodejs definitions are pulled in by a transitive dependency (webpack-dev-server -> del -> glob)
+			// causing all sorts of issues where DOM functions such as setTimeout are resolved to the nodejs version, which is slightly different
+			// additionally, it declares a bunch of global variables to exist, and throws off autocompletion
+			// making it easy to think code works when it actually wouldn't (and thus cause runtime errors)
+			// So only autoload those typings we actually want and need.
+
+			// See https://github.com/sindresorhus/del/issues/88
+			"@types/jquery",
+		],
+		"outDir": "dist",
+	},
+	// This tsconfig is meant for files that run in the browser. Therefor exclude files that run in nodejs.
+	// (this is basically anything that's used in Vite and linters/compilers).
+	// This is to prevent the typescript compiler from complaining about missing nodejs types.
+	// And likewise, to prevent nodejs global functions/types from being autocompleted/polluting files containing code meant to run in the browser.
+	"exclude": ["dist", "vite.config.ts", "eslint.config.js"],
+}

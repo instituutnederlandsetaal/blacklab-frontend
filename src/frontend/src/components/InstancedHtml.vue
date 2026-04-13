@@ -3,8 +3,8 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-export default Vue.extend({
+import { defineComponent } from 'vue';
+export default defineComponent({
 	props: {
 		value: null as any as () => HTMLElement|null|undefined|string,
 	},

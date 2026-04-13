@@ -15,7 +15,7 @@
 
 // tslint:disable
 
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 
 export type SimpleOption = string;
@@ -35,7 +35,7 @@ export type OptGroup = {
 
 export type Options = Array<SimpleOption|Option|OptGroup>;
 
-export default Vue.extend({
+export default defineComponent({
 	components:	{
 		SelectPicker,
 	},

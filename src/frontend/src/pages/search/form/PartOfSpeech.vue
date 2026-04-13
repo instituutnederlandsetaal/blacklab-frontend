@@ -53,16 +53,16 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import * as TagsetStore from '@/store/tagset';
 import * as CorpusStore from '@/store/corpus';
 
-import { Tagset } from '@/types/apptypes';
+import type { Tagset } from '@/types/apptypes';
 import { escapeRegex } from '@/utils';
 
 import Modal from '@/components/Modal.vue';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		Modal,
 	},

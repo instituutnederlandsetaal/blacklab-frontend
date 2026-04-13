@@ -3,10 +3,10 @@ import cloneDeep from 'clone-deep';
 import BaseUrlStateParser from './url-state-parser-base';
 
 import * as CorpusModule from '@/store/corpus';
-import * as HistoryModule from '@/store/history';
+import type * as HistoryModule from '@/store/history';
 
 // Form
-import * as FilterModule from '@/store/form/filters';
+import type * as FilterModule from '@/store/form/filters';
 import * as InterfaceModule from '@/store/form/interface';
 import * as PatternModule from '@/store/form/patterns';
 import * as ExploreModule from '@/store/form/explore';

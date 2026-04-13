@@ -3,12 +3,12 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import * as Highcharts from 'highcharts';
 
-import * as BLTypes from '@/types/blacklabtypes';
+import type * as BLTypes from '@/types/blacklabtypes';
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
 		snippet: Object as () => BLTypes.BLHitSnippet,
 		baseColor: String,

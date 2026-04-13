@@ -14,8 +14,8 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { NormalizedAnnotation, NormalizedIndex, Option } from '@/types/apptypes';
+import { defineComponent } from 'vue';
+import type { NormalizedAnnotation, NormalizedIndex, Option } from '@/types/apptypes';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 
@@ -81,7 +81,7 @@ const steps: Array<Option&{
 
 
 
-const component = Vue.extend({
+const component = defineComponent({
 	components: {
 		SelectPicker,
 		Steps

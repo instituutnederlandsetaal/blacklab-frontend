@@ -5,11 +5,11 @@
 import {getStoreBuilder} from 'vuex-typex';
 import cloneDeep from 'clone-deep';
 
-import {RootState} from '@/store/';
+import type {RootState} from '@/store/';
 import * as UIStore from '@/store/ui'; // Is initialized before we are.
 import {escapeRegex} from '@/utils';
 import { NormalizedIndex } from '@/types/apptypes';
-import { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/store/async-loaders';
 
 type Token = {
 	/** Annotation ID */
@@ -168,15 +168,5 @@ const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
-export {
-	ModuleRootState,
-	Token,
-
-	getState,
-	get,
-	actions,
-	init,
-
-	namespace,
-	defaults,
-};
+export type { ModuleRootState, Token };
+export { getState, get, actions, init, namespace, defaults };

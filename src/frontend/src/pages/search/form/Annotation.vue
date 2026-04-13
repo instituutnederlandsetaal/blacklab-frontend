@@ -25,7 +25,7 @@
 			/>
 			<div v-else :class="bare ? undefined : 'input-group'">
 				<Autocomplete
-					
+
 
 					useQuoteAsWordBoundary
 
@@ -90,22 +90,24 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 import * as PatternStore from '@/store/form/patterns';
 
-import SelectPicker, {Option} from '@/components/SelectPicker.vue';
-import PartOfSpeech from '@/pages/search/form/PartOfSpeech.vue';
 import Autocomplete from '@/components/Autocomplete.vue';
-import Lexicon from '@/pages/search/form/Lexicon.vue';
+import type { Option } from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 import UID from '@/mixins/uid';
+import Lexicon from '@/pages/search/form/Lexicon.vue';
+import PartOfSpeech from '@/pages/search/form/PartOfSpeech.vue';
 
-import {blacklabPaths} from '@/api';
-import { AnnotationValue, NormalizedAnnotation } from '@/types/apptypes';
+import { blacklabPaths } from '@/api';
+import type { AnnotationValue, NormalizedAnnotation } from '@/types/apptypes';
+import type { PropType } from 'vue';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		SelectPicker,
 		PartOfSpeech,
@@ -113,7 +115,7 @@ export default Vue.extend({
 		Lexicon
 	},
 	props: {
-		annotation: Object as () => NormalizedAnnotation,
+		annotation: { type: Object as PropType<NormalizedAnnotation>, required: true },
 		htmlId: String,
 		bare: Boolean,
 		/**
@@ -179,19 +181,19 @@ export default Vue.extend({
 	},
 	methods: {
 		onFileChanged(event: Event) {
-			const self = this;
+
 			const fileInput = event.target as HTMLInputElement;
 			const file = fileInput.files && fileInput.files[0];
 			if (file != null) {
 				const fr = new FileReader();
-				fr.onload = function() {
+				fr.onload = () => {
 					// Replace all whitespace with pipes,
 					// Same as the querybuilder wordlist upload
-					self.value = (fr.result as string).trim().replace(/\s+/g, '|');
+					this.value = (fr.result as string).trim().replace(/\s+/g, '|');
 				};
 				fr.readAsText(file);
 			} else {
-				self.value = '';
+				this.value = '';
 			}
 			(event.target as HTMLInputElement).value = '';
 		}

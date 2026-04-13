@@ -3,15 +3,16 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
 import * as Highcharts from 'highcharts';
+import { defineComponent } from 'vue';
 
-import * as BLTypes from '@/types/blacklabtypes';
+import type * as BLTypes from '@/types/blacklabtypes';
 import { stripIndent } from 'common-tags';
+import type { PropType } from 'vue';
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
-		snippet: Object as () => BLTypes.BLHitSnippet,
+		snippet: { type: Object as PropType<() => BLTypes.BLHitSnippet>, required: true},
 		annotations: Array as () => Array<{
 			id: string;
 			displayName?: string;

@@ -33,7 +33,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import * as CorpusStore from '@/store/corpus';
 import * as FilterStore from '@/store/form/filters';
@@ -45,7 +45,7 @@ import { SelectedSubcorpusLoader } from '@/pages/search/results/TotalsCounterStr
 
 import Spinner from '@/components/Spinner.vue';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {Spinner},
 	data: () => ({
 		subcorpus: SelectedSubcorpusLoader

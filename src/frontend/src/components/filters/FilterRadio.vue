@@ -13,7 +13,7 @@
 					:value="option.value"
 					:name="inputId"
 					:id="inputId+'_'+index"
-					:checked="value === option.value"
+					:checked="modelValue === option.value"
 
 					@click="changeValue($event, option.value) /* clear if clicked again */"
 					@input.space="changeValue($event, option.value) /* clear if clicked again */"
@@ -27,17 +27,12 @@
 </template>
 
 <script lang="ts">
-import BaseFilter from '@/components/filters/Filter';
-import { Option } from '@/components/SelectPicker.vue';
+import createBaseFilterComponent from '@/components/filters/Filter';
+import { defineComponent, type PropType } from 'vue';
 
-export default BaseFilter.extend({
-	props: {
-		value: {
-			type: String,
-			required: true,
-			default: ''
-		}
-	},
+export default defineComponent({
+	extends: createBaseFilterComponent(Object as PropType<string|undefined>),
+	
 	methods: {
 		changeValue(event: Event, value: string) {
 			const t = event.target as HTMLInputElement;

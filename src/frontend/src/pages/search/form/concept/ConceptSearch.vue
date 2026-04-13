@@ -42,7 +42,7 @@
 
 <script lang="ts">
 
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import * as PatternStore from '@/store/form/patterns';
 import * as ConceptStore from '@/store/form/conceptStore';
@@ -50,7 +50,7 @@ import * as ConceptStore from '@/store/form/conceptStore';
 import SelectPicker from '@/components/SelectPicker.vue';
 import ConceptSearchBox from './ConceptSearchBox.vue'
 
-export default Vue.extend ({
+export default defineComponent ({
 	components: { ConceptSearchBox, SelectPicker },
 	name: 'ConceptSearch',
 	data: () => ({

@@ -6,7 +6,7 @@ import { map, filter, mergeMap } from 'rxjs/operators';
 import cloneDeep from 'clone-deep';
 
 import * as RootStore from '@/store/';
-import * as ArticleStore from '@/store/article';
+import type * as ArticleStore from '@/store/article';
 import * as CorpusStore from '@/store/corpus';
 import * as HistoryStore from '@/store/history';
 import * as PatternStore from '@/store/form/patterns';
@@ -22,7 +22,7 @@ import UrlStateParserArticle from '@/url/url-state-parser-article';
 import { stateToUrl } from '@/url/state-to-url';
 import router from '@/route/router';
 
-import * as BLTypes from '@/types/blacklabtypes';
+import type * as BLTypes from '@/types/blacklabtypes';
 import jsonStableStringify from 'json-stable-stringify';
 import { debugLogCat } from '@/utils/debug';
 

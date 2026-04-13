@@ -33,16 +33,16 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import LocaleSelector from '@/components/LocaleSelector.vue';
 import LoginButton from '@/components/LoginButton.vue';
-import { CFNavbarLink, CFPageConfig, NormalizedIndex } from '@/types/apptypes';
+import type { CFNavbarLink, CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 import * as UIStore from '@/store/ui';
 import * as CorpusStore from '@/store/corpus';
 import { localStorageSynced } from '@/utils/localstore';
 import { escapeRegex } from '@/utils';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {LocaleSelector, LoginButton },
 	data() {
 		return {

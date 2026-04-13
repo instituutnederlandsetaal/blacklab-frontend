@@ -27,10 +27,10 @@
 <script lang="ts">
 import { mapReduce } from '@/utils';
 import cloneDeep from 'clone-deep';
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
-import {StepState} from './POS.vue';
-import { Tagset } from '@/types/apptypes';
+import type {StepState} from './POS.vue';
+import type { Tagset } from '@/types/apptypes';
 
 export const value = 'Edit'
 export const label = value;
@@ -65,7 +65,7 @@ function getDisplayNamesFromTagset(
 }
 
 
-export const step = Vue.extend({
+export const step = defineComponent({
 	props: {
 		value: Object as () => StepState
 	},

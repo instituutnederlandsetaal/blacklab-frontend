@@ -1,12 +1,8 @@
-<script lang="ts">
-import Vue from 'vue';
+<template>
+	<template v-if="debug.debug"><slot/></template>
+</template>
+<script setup lang="ts">
 
 import debug from '@/utils/debug';
 
-export default Vue.extend({
-	functional: true,
-	render(v, c): any {
-		return debug.debug ? c.children : undefined;
-	}
-});
 </script>

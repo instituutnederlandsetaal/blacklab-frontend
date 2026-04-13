@@ -3,7 +3,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import { frontend } from '@/api';
 import * as CorpusStore from '@/store/corpus';
@@ -11,7 +11,7 @@ import { loadableFromStream } from '@/utils/loadable-streams';
 
 import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		ServerRenderedComponent
 	},

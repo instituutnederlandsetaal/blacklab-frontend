@@ -2,7 +2,7 @@ import luceneQueryParser from 'lucene-query-parser';
 
 import {debugLog} from '@/utils/debug';
 
-import {FilterValue} from '@/types/apptypes';
+import type {FilterValue} from '@/types/apptypes';
 
 /** Parse the expression into an array of filter fields for easy displaying. Throws error if the query is too complex or contains errors. */
 export default (luceneQuery?: string): FilterValue[] => {

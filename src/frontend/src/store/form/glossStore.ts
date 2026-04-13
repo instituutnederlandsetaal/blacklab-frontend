@@ -4,15 +4,15 @@
 import cloneDeep from 'clone-deep';
 
 import { getStoreBuilder } from 'vuex-typex';
-import { BLHit } from '@/types/blacklabtypes';
-import { RootState } from '@/store/';
+import type { BLHit } from '@/types/blacklabtypes';
+import type { RootState } from '@/store/';
 import * as PatternStore from '@/store/form/patterns';
 
 import {glossApi, init as initGlossEndpoint} from '@/api';
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import { debugLog } from '@/utils/debug';
 import { NormalizedIndex } from '@/types/apptypes';
-import { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/store/async-loaders';
 
 type GlossFieldType = {
 	 type: string,
@@ -238,21 +238,7 @@ const actions = {
 };
 
 // hebben we de init nodig?
-export {
-	ModuleRootState,
-	HistoryState,
-	Gloss,
-	Glossing,
-	Settings,
-	GlossFieldType,
-	GlossFieldDescription,
-
-	namespace,
-	defaults,
-	actions,
-	getState,
-	get,
-	init,
-}
+export type { ModuleRootState, HistoryState, Gloss, Glossing, Settings, GlossFieldType, GlossFieldDescription };
+export { namespace, defaults, actions, getState, get, init };
 
 

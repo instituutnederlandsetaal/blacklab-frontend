@@ -52,7 +52,7 @@
 		/>
 
 		<!-- Modals -->
-		<ModalCreateFormat v-if="modal === 'create-format'"
+		<ModalCreateFormat v-if="modal === 'create-format' && format"
 			:publicFormats="publicFormats"
 			:privateFormats="privateFormats"
 			:loading="loadingFormats"
@@ -74,7 +74,7 @@
 			@error="error"
 			@close="close"
 		/>
-		<ModalUpload v-if="modal === 'upload'"
+		<ModalUpload v-if="modal === 'upload' && corpus"
 			:corpus="corpus"
 			:formats="formats"
 			@indexing="refreshCorpus"
@@ -82,7 +82,7 @@
 			@error="error"
 			@close="close"
 		/>
-		<ModalShareCorpus v-if="modal === 'share-corpus'"
+		<ModalShareCorpus v-if="modal === 'share-corpus' && corpus"
 			:corpus="corpus"
 			@success="success"
 			@error="error"
@@ -103,22 +103,22 @@
 
 </template>
 <script lang="ts">
-import Vue from 'vue';
-import { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
-import { BLServer } from '@/types/blacklabtypes';
 import * as Api from '@/api';
+import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
+import type { BLServer } from '@/types/blacklabtypes';
 import { normalizeIndexBase } from '@/utils/blacklabutils';
+import { defineComponent } from 'vue';
 
-import Spinner from '@/components/Spinner.vue';
-import CorpusTable from './CorpusTable.vue';
-import FormatsTable from './FormatsTable.vue';
 import Modal from '@/components/Modal.vue';
+import Spinner from '@/components/Spinner.vue';
 import ModalCreateCorpus from '@/pages/corpora/ModalCreateCorpus.vue';
 import ModalCreateFormat from '@/pages/corpora/ModalCreateFormat.vue';
-import ModalUpload from '@/pages/corpora/ModalUpload.vue';
 import ModalShareCorpus from '@/pages/corpora/ModalShare.vue';
+import ModalUpload from '@/pages/corpora/ModalUpload.vue';
+import CorpusTable from './CorpusTable.vue';
+import FormatsTable from './FormatsTable.vue';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {Spinner, CorpusTable, FormatsTable, ModalCreateCorpus, ModalCreateFormat, ModalUpload, ModalShareCorpus, Modal},
 	data: () => ({
 		corpora: [] as NormalizedIndexBase[],

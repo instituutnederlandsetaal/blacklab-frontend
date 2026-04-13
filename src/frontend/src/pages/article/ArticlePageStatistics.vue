@@ -45,11 +45,11 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import * as ArticleStore from '@/store/article';
 
-import * as BLTypes from '@/types/blacklabtypes';
+import type * as BLTypes from '@/types/blacklabtypes';
 
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
 import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
@@ -59,7 +59,7 @@ import HighchartsVue from 'highcharts-vue';
 import HighchartsExporting from 'highcharts/modules/exporting';
 import HighchartsExportingData from 'highcharts/modules/export-data';
 import HighchartsBoost from 'highcharts/modules/boost';
-import { Loadable } from '@/utils/loadable-streams';
+import type { Loadable } from '@/utils/loadable-streams';
 import Spinner from '@/components/Spinner.vue';
 
 HighchartsExporting(Highcharts);
@@ -73,7 +73,7 @@ function _preventClicks(e: Event) {
 	return false;
 }
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		Spinner,
 		AnnotationDistributions,

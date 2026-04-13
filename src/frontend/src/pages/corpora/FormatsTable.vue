@@ -25,10 +25,10 @@
 </template>
 
 <script lang="ts">
-import { NormalizedFormat } from '@/types/apptypes';
-import Vue from 'vue';
+import type { NormalizedFormat } from '@/types/apptypes';
+import { defineComponent } from 'vue';
 import Spinner from '@/components/Spinner.vue';
-export default Vue.extend({
+export default defineComponent({
 	components: {Spinner},
 	props: {
 		formats: Array as () => NormalizedFormat[],

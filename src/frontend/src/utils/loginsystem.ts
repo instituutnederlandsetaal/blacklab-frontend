@@ -1,6 +1,7 @@
-import { User, UserManager, Log } from 'oidc-client-ts';
+import type { User} from 'oidc-client-ts';
+import { UserManager, Log } from 'oidc-client-ts';
 import axios from 'axios';
-import { BLServer } from '@/types/blacklabtypes';
+import type { BLServer } from '@/types/blacklabtypes';
 
 export const userManager = (OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL) ? new UserManager({
 	checkSessionIntervalInSeconds: 10,

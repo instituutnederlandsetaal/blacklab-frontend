@@ -69,16 +69,17 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import Axios from 'axios';
 
 import UrlStateParserBase from '@/url/url-state-parser-base';
 import {blacklab} from '@/api';
 
-import SelectPicker, {OptGroup} from '@/components/SelectPicker.vue';
+import type {OptGroup} from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 
-import * as AppTypes from '@/types/apptypes';
-import * as BLTypes from '@/types/blacklabtypes';
+import type * as AppTypes from '@/types/apptypes';
+import type * as BLTypes from '@/types/blacklabtypes';
 import { debugLogCat } from '@/utils/debug';
 
 class UrlStateParser extends UrlStateParserBase<{
@@ -95,7 +96,7 @@ class UrlStateParser extends UrlStateParserBase<{
 	}
 }
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		SelectPicker
 	},
@@ -125,7 +126,7 @@ export default Vue.extend({
 		progress: 0,
 	}),
 	computed: {
-		newCorpusNameValid(): boolean { return !!this.newCorpusName.match(/^(?:[\w \.,\-'"]{3,30}|)$/); },
+		newCorpusNameValid(): boolean { return !!this.newCorpusName.match(/^(?:[\w .,\-'"]{3,30}|)$/); },
 
 		availableCorporaOptions(): OptGroup[] {
 			if (!this.blacklabData.user) {

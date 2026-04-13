@@ -50,11 +50,11 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
-import { NormalizedAnnotation } from '@/types/apptypes';
+import type { NormalizedAnnotation } from '@/types/apptypes';
 
-import {StepState} from './POS.vue';
+import type {StepState} from './POS.vue';
 import { mapReduce } from '@/utils';
 import { blacklab } from '@/api';
 
@@ -81,7 +81,7 @@ export const defaultAction = (s: StepState): StepState => {
 };
 
 
-export const step = Vue.extend({
+export const step = defineComponent({
 	components: {
 		SelectPicker
 	},

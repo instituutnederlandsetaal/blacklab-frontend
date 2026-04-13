@@ -36,15 +36,15 @@
 </template>
 
 <script lang="ts">
-import { Option } from '@/types/apptypes';
-import Vue from 'vue';
+import type { Option } from '@/types/apptypes';
+import { defineComponent } from 'vue';
 
 export type Tab = Option&{
 	class?: any,
 	style?: CSSStyleDeclaration,
 }
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
 		value: {required: false, type: [String, Number] },
 		tabs: Array as () => Array<string|Option&{class?: string, style?: CSSStyleDeclaration}>,

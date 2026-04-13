@@ -6,11 +6,12 @@
 
 <script lang="ts">
 // https://github.com/kirianguiller/reactive-dep-tree/
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
-import { DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
-import { BLHit, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
-import { NormalizedAnnotation } from '@/types/apptypes';
+import type { DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
+import type { NormalizedAnnotation } from '@/types/apptypes';
+import type { BLHit, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
+import type { PropType } from 'vue';
 
 
 /* https://universaldependencies.org/format.html
@@ -67,15 +68,15 @@ function flatten(h?: BLHitSnippetPart, values?: string[]): Array<Record<string, 
 	return r;
 }
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
-		data: Object as () => HitRowData,
-		fullSentence: Object as () => BLHit|undefined,
+		data: { type: Object as PropType<HitRowData>, required: true },
+		fullSentence: { type: Object as PropType<BLHit|undefined>, required: false },
 
 		// TODO
-		dir: String as () => 'ltr'|'rtl',
-		mainAnnotation: Object as () => NormalizedAnnotation,
-		otherAnnotations: Object as () => DisplaySettingsForRendering['depTreeAnnotations'],
+		dir: { type: String as PropType<'ltr'|'rtl'>, required: true },
+		mainAnnotation: { type: Object as PropType<NormalizedAnnotation>, required: true },
+		otherAnnotations: { type: Object as PropType<DisplaySettingsForRendering['depTreeAnnotations']>, required: true },
 	},
 	computed: {
 		shownFeatures(): string { // FORM,LEMMA,UPOS,XPOS,FEATS.someFeat,FEATS.someOtherFeat (probably, we only provide 1 feat hardcoded to the name of the annotation, i.e. FEATS.annotationName)

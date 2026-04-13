@@ -33,17 +33,17 @@
 	</Modal>
 </template>
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import Modal from '@/components/Modal.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
-import { NormalizedFormat } from '@/types/apptypes';
-import { Options } from '@/components/SelectPicker.vue';
-import { BLUser } from '@/types/blacklabtypes';
+import type { NormalizedFormat } from '@/types/apptypes';
+import type { Options } from '@/components/SelectPicker.vue';
+import type { BLUser } from '@/types/blacklabtypes';
 import * as Api from '@/api';
 
 
 
-export default Vue.extend({
+export default defineComponent({
 	components: {Modal, SelectPicker},
 	props: {
 		publicFormats: Array as () => NormalizedFormat[],

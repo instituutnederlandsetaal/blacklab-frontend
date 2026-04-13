@@ -27,12 +27,14 @@ import * as GlobalResultsModule from '@/store/results/global';
 // Article
 import * as ArticleModule from '@/store/article';
 
-import * as BLTypes from '@/types/blacklabtypes';
+import type * as BLTypes from '@/types/blacklabtypes';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import { Loadable, loadableFromStream } from '@/utils/loadable-streams';
+import type { Loadable} from '@/utils/loadable-streams';
+import { loadableFromStream } from '@/utils/loadable-streams';
 import debug, {  } from '@/utils/debug';
-import { CorpusChange, createStoreInitializer } from '@/store/async-loaders';
-import { User } from 'oidc-client-ts';
+import type { CorpusChange} from '@/store/async-loaders';
+import { createStoreInitializer } from '@/store/async-loaders';
+import type { User } from 'oidc-client-ts';
 import { corpusCustomizations } from '@/utils/customization';
 
 Vue.use(Vuex);
@@ -470,14 +472,5 @@ const init = async (state: CorpusChange) => {
 
 (window as any).vuexStore = store;
 
-export {
-	RootState,
-
-	store,
-	getState,
-	get,
-	actions,
-	init,
-	corpusData$
-
-};
+export type { RootState };
+export { store, getState, get, actions, init, corpusData$ };

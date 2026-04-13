@@ -34,12 +34,13 @@
 </template>
 
 <script setup lang="ts">
-import {
+import type {
 	CqlTokenData,
-	COMPARATORS,
-	OPERATORS,
 	CqlQueryBuilderData,
-	CqlQueryBuilderOptions,
+	CqlQueryBuilderOptions} from '@/components/cql/cql-types';
+import {
+	COMPARATORS,
+	OPERATORS
 } from '@/components/cql/cql-types';
 import CqlToken from './CqlToken.vue';
 import Within from '@/pages/search/form/Within.vue';

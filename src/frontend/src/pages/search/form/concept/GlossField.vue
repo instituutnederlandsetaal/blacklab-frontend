@@ -7,11 +7,11 @@
 
 <script lang="ts">
 
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import * as GlossStore from '@/store/form/glossStore';
 import SelectPicker from '@/components/SelectPicker.vue'
 
-export default Vue.extend ({
+export default defineComponent ({
 	name: 'GlossField',
 	components: {
 		SelectPicker

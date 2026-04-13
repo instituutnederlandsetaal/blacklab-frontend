@@ -13,11 +13,11 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import Modal from '@/components/Modal.vue';
-import { NormalizedIndexBase } from '@/types/apptypes';
+import type { NormalizedIndexBase } from '@/types/apptypes';
 import * as Api from '@/api';
-export default Vue.extend({
+export default defineComponent({
 	components: {Modal},
 	props: {
 		corpus: Object as () => NormalizedIndexBase

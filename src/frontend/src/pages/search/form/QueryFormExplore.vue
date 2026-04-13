@@ -175,7 +175,8 @@ import * as InterfaceStore from '@/store/form/interface';
 import * as ExploreStore from '@/store/form/explore';
 import * as UIStore from '@/store/ui';
 
-import SelectPicker, {Option, OptGroup} from '@/components/SelectPicker.vue';
+import type {Option, OptGroup} from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 import Autocomplete from '@/components/Autocomplete.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import ParallelSource from '@/pages/search/form/ParallelSource.vue';
@@ -185,8 +186,10 @@ import { blacklabPaths } from '@/api';
 import debug from '@/utils/debug';
 import { corpusCustomizations } from '@/utils/customization';
 import ParallelFields from './parallel/ParallelFields';
+import { defineComponent } from 'vue';
 
-export default ParallelFields.extend({
+export default defineComponent({
+	extends: ParallelFields,
 	components: {
 		ParallelSource,
 		SelectPicker,

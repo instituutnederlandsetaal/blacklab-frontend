@@ -22,17 +22,18 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { NormalizedAnnotation, NormalizedIndex, Option } from '@/types/apptypes';
+import type { NormalizedAnnotation, NormalizedIndex, Option } from '@/types/apptypes';
+import { defineComponent } from 'vue';
 
 import SelectPicker from '@/components/SelectPicker.vue';
+import type { PropType } from 'vue';
 
-const component = Vue.extend({
+const component = defineComponent({
 	components: {
 		SelectPicker,
 	},
 	props: {
-		index: Object as () => NormalizedIndex
+		index: { type: Object as PropType<NormalizedIndex>, required: true }
 	},
 	data: () => ({
 		activePattern: '',

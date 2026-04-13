@@ -27,16 +27,16 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import * as UIStore from '@/store/ui';
 import * as PatternStore from '@/store/form/patterns';
 import * as CorpusStore from '@/store/corpus';
 
-import { Option } from '@/components/SelectPicker.vue';
+import type { Option } from '@/components/SelectPicker.vue';
 import { corpusCustomizations } from '@/utils/customization';
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
 		value: { type: String, required: false },
 	},

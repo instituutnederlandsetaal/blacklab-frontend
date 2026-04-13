@@ -131,7 +131,7 @@
 </template>
 
 <script setup lang="ts">
-import { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
+import type { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
 import SelectPicker from '@/components/SelectPicker.vue';
 import Modal from '@/components/Modal.vue';
 import CqlAddAttributeButton from '@/components/cql/CqlAddAttributeButton.vue';

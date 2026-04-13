@@ -15,7 +15,7 @@
 					:value="option.value"
 					:name="inputId+'_'+index"
 					:id="inputId+'_'+index"
-					:checked="value[option.value]"
+					:checked="modelValue[option.value]"
 
 					@change="toggleCheckbox(option.value, $event.target.checked);"
 				> {{option.label || option.value}}</label>
@@ -29,22 +29,16 @@
 
 
 <script lang="ts">
-import BaseFilter from '@/components/filters/Filter';
+import createBaseFilterComponent from '@/components/filters/Filter';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
-export default BaseFilter.extend({
-	props: {
-		value: {
-			type: Object as () => {
-				[value: string]: boolean;
-			},
-			required: true,
-			default: () => ({})
-		}
-	},
+export default defineComponent({
+	extends: createBaseFilterComponent(Object as PropType<Record<string, boolean>>),
 	methods: {
 		toggleCheckbox(value: string, checked: boolean) {
 			this.e_input({
-				...this.value,
+				...this.modelValue,
 				[value]: checked
 			});
 		},

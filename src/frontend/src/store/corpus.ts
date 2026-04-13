@@ -6,11 +6,11 @@
  */
 
 import { getStoreBuilder } from 'vuex-typex';
-import { RootState } from '@/store/';
+import type { RootState } from '@/store/';
 
 import type { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex, NormalizedMetadataField, NormalizedMetadataGroup } from '@/types/apptypes';
 import { mapReduce } from '@/utils';
-import { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/store/async-loaders';
 
 type ModuleRootState = NormalizedIndex|null;
 
@@ -107,13 +107,8 @@ const actions = {
 
 const init = b.dispatch(({state, rootState}, payload: CorpusChange) => rootState.corpus = payload.index ?? null, 'corpus_init');
 
-export {
-	actions, get, getState,
-	// Root store needs to monitor loading state so it can properly initialize other parts of the app.
-	init,
-	ModuleRootState,
-	namespace
-};
+export type { ModuleRootState };
+export { actions, get, getState, init, namespace };
 
 export type {
 	NormalizedAnnotatedField,

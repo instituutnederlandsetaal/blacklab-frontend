@@ -1,9 +1,10 @@
-import { combineLatest, debounceTime, delay, distinctUntilChanged, EMPTY, filter, firstValueFrom, map, merge, mergeMap, Observable, ObservableInput, of, OperatorFunction, partition, pipe, race, ReplaySubject, startWith, Subject, Subscription, switchMap, take, takeUntil, tap, timer } from 'rxjs';
+import type { ObservableInput, OperatorFunction, Subscription} from 'rxjs';
+import { combineLatest, debounceTime, delay, distinctUntilChanged, EMPTY, filter, firstValueFrom, map, merge, mergeMap, Observable, of, partition, pipe, race, ReplaySubject, startWith, Subject, switchMap, take, takeUntil, tap, timer } from 'rxjs';
 import jsonStableStringify from 'json-stable-stringify';
-import { MarkRequiredAndNotNull } from '@/types/helpers';
+import type { MarkRequiredAndNotNull } from '@/types/helpers';
 import { getCurrentInstance, markRaw, onUnmounted, reactive, shallowReactive } from 'vue';
 import { ApiError } from '@/types/apptypes';
-import { Canceler } from 'axios';
+import type { Canceler } from 'axios';
 
 /**
  * Bunch of code for interop of streams and asynchronous/optional values.
@@ -110,13 +111,13 @@ export class CancelableRequest<T> implements Promise<T> {
 
 	get [Symbol.toStringTag]() { return 'CancelableRequest'; }
 
-	public then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): CancelableRequest<TResult1 | TResult2> {
+	public then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>)   | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>)   | null): CancelableRequest<TResult1 | TResult2> {
 		return new CancelableRequest(this.request.then(onfulfilled, onrejected), this.cancel);
 	}
-	public catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): CancelableRequest<T | TResult> {
+	public catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>)   | null): CancelableRequest<T | TResult> {
 		return new CancelableRequest(this.request.catch(onrejected), this.cancel);
 	}
-	public finally(onfinally?: (() => void) | undefined | null): CancelableRequest<T> {
+	public finally(onfinally?: (() => void)   | null): CancelableRequest<T> {
 		return new CancelableRequest(this.request.finally(onfinally), this.cancel);
 	}
 

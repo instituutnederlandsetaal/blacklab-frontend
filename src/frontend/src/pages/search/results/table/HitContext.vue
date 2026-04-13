@@ -10,7 +10,7 @@
 				:title="title"
 				@mouseover="$emit('hover', relationKeys)"
 				@mouseout="$emit('unhover')"
-				:class="{ hoverable: true, hover: !!(relationKeys && hoverMatchInfos) ? relationKeys.some(c => hoverMatchInfos.includes(c)) : false }"
+				:class="{ hoverable: true, hover: (relationKeys && hoverMatchInfos) ? relationKeys.some(c => hoverMatchInfos.includes(c)) : false }"
 			></span
 			><span v-else v-html="text"></span
 			><span v-if="doPunct" v-html="punct"></span
@@ -36,14 +36,15 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
-import { HitContext } from '@/types/apptypes';
+import type { HitContext } from '@/types/apptypes';
+import type { PropType, StyleValue } from 'vue';
+import { defineComponent } from 'vue';
 
 const HIGHLIGHT_SEPARATOR = ' • '; // WAS: ' · '
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
-		data: Object as () => HitContext,
+		data: { type: Object as PropType<HitContext>, required: true },
 		html: Boolean,
 		tag: {
 			default: 'div',
@@ -54,7 +55,7 @@ export default Vue.extend({
 		highlight: {default: true},
 
 		// which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
-		hoverMatchInfos: Array as () => string[],
+		hoverMatchInfos: { type: Array as PropType<string[]>, required: false },
 
 		before: Boolean,
 		after: Boolean,
@@ -67,7 +68,7 @@ export default Vue.extend({
 	},
 	computed: {
 		doPunct(): boolean { return this.punct; }, // avoid conflict with props.data in template
-		renderInfo(): Array<{text: string, punct: string, punctBefore?: string, style?: object, title?: string, relationKeys?: string[]}> {
+		renderInfo(): Array<{text: string, punct: string, punctBefore?: string, style?: StyleValue, title?: string, relationKeys?: string[]}> {
 			const tokens = this.before ? this.data.before : this.after ? this.data.after : this.data.match;
 
 			return tokens.map(token => {

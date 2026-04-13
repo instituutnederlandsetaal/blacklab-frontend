@@ -1,9 +1,10 @@
-import { App, ComponentCustomProperties, FunctionPlugin, getCurrentInstance, inject, InjectionKey, ObjectPlugin, provide, watch } from 'vue';
-import { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGroup, Option } from '@/types/apptypes';
+import type { App, FunctionPlugin, InjectionKey} from 'vue';
+import { ComponentCustomProperties, getCurrentInstance, inject, ObjectPlugin, provide, watch } from 'vue';
+import type { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGroup, Option } from '@/types/apptypes';
 import { elementAndAttributeNameFromFilterId } from '@/utils';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { I18nManager } from '@/utils/i18n-manager';
-import { createI18n, useI18n } from 'vue-i18n';
+import { createI18n } from 'vue-i18n';
 
 
 
@@ -143,7 +144,7 @@ declare module 'vue' {
 export const install: FunctionPlugin = function install(app: App) {
 	app.use(vueI18nPlugin);
 	Object.assign(app.config.globalProperties, i18nFacade); 
-	provide(I18N_FACADE_INJECTION_KEY, i18nFacade);
+	app.provide(I18N_FACADE_INJECTION_KEY, i18nFacade);
 };
 export const registerLocale = i18nManager.registerLocale.bind(i18nManager);
 export const removeLocale = i18nManager.removeLocale.bind(i18nManager);
@@ -170,6 +171,7 @@ export function useI18n() { return inject(I18N_FACADE_INJECTION_KEY)!; }
 export type Translate = typeof i18nFacade;
 export const translate: Translate = i18nFacade;
 
+// customjs interop, expose these on the global object so that they can be used in customjs scripts without needing to import them.
 (globalThis as typeof globalThis & { i18n: any }).i18n = {
 	registerLocale,removeLocale,getFallbackLocale,setFallbackLocale,getLocale,setLocale,setDefaultLocale,manager,translate
 };

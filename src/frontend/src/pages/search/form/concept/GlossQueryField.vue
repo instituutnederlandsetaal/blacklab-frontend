@@ -13,17 +13,18 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import * as GlossStore from '@/store/form/glossStore';
 
-import SelectPicker from '@/components/SelectPicker.vue'
+import SelectPicker from '@/components/SelectPicker.vue';
+import type { PropType } from 'vue';
 
-export default Vue.extend ({
+export default defineComponent ({
 	name: 'GlossQueryField',
 	components: { SelectPicker },
 	props: {
-		fieldDescription: Object as () => GlossStore.GlossFieldDescription
+		fieldDescription: { type: Object as PropType<GlossStore.GlossFieldDescription>, required: true }
 	},
 	computed : {
 		id(): string {

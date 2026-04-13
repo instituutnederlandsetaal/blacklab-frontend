@@ -1,8 +1,9 @@
-import axios, {AxiosResponse, AxiosRequestConfig, AxiosError, Canceler} from 'axios';
+import type { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios from 'axios';
 
-import {isBLError} from '@/types/blacklabtypes';
-import {ApiError} from '@/types/apptypes';
-import {CancelableRequest} from '@/utils/loadable-streams';
+import { ApiError } from '@/types/apptypes';
+import { isBLError } from '@/types/blacklabtypes';
+import { CancelableRequest } from '@/utils/loadable-streams';
 
 const settings = {
 	// use a builtin delay to simulate network latency (in ms)
@@ -45,7 +46,7 @@ export async function handleError(error: AxiosError): Promise<never> {
 		let url: string;
 		try {
 			url = new URL(error.config.url || '', new URL(error.config.baseURL || '').toString()).toString();
-		} catch (e) {
+		} catch {
 			url = [error.config.baseURL || '', error.config.url].join('');
 		}
 
@@ -98,7 +99,7 @@ export async function handleError(error: AxiosError): Promise<never> {
 					response.status
 				));
 			}
-		} catch (e) {
+		} catch {
 			// failed to parse xml but response indicated it was xml... Return the raw text instead.
 			return Promise.reject(new ApiError(
 				`Server returned an error (${response.statusText}) at: ${response.config.url}`,

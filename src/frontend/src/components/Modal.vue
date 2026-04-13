@@ -22,7 +22,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 // We want a few modes
 // a 'sm', 'lg' and 'xl' which will be the various container widths
@@ -31,7 +31,7 @@ import Vue from 'vue';
 
 // maybe something like shrink true/false in addition to a size='sm|lg|xl|auto'
 
-export default Vue.extend({
+export default defineComponent({
 	props: {
 		close: {default: true},
 		closeEnabled: {default: true},

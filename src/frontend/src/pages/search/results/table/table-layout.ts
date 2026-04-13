@@ -1,13 +1,14 @@
-import { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchParameters, BLSearchResult, hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
-import { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, NormalizedMetadataGroup, OptGroup, Option, TokenHighlight } from '@/types/apptypes';
-import { GlossFieldDescription } from '@/store/form/glossStore';
+import type { GlossFieldDescription } from '@/store/form/glossStore';
+import type { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, OptGroup, Option, TokenHighlight } from '@/types/apptypes';
+import type { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLSearchParameters, BLSearchResult } from '@/types/blacklabtypes';
+import { hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 
 import * as Highlights from './hit-highlighting';
 
-import { KeysOfType } from '@/types/helpers';
-import { StyleValue } from 'vue';
 import { frontendPaths } from '@/api';
+import type { KeysOfType } from '@/types/helpers';
 import type { Translate } from '@/utils/i18n';
+import type { StyleValue } from 'vue';
 
 /**
  * The columns can display various computed data, such as relative group size, or relative frequency.
@@ -344,11 +345,11 @@ export function snippetParts(hit: BLHit|BLHitSnippet, colors?: Record<string, To
 	return { before, match, after };
 }
 
-/** 
- * The URL encodes first + number, which don't have to align with clean page boundaries. 
+/**
+ * The URL encodes first + number, which don't have to align with clean page boundaries.
  * As we want to allow users to define their own page size, but still open a page from another user with a different page boundary.
- * 
- * If the results as defined in the URL (say 80-100) don't align with the user's page size, 
+ *
+ * If the results as defined in the URL (say 80-100) don't align with the user's page size,
  * we request multiple pages of results (as defined by the user's page size) so they completely cover the result range in the URL.
  * E.g. for a user page size of 50, we would request results 50-100 to cover the URL range of 80-100.
  * This means we might get more results back than the user requested in the URL.
@@ -501,10 +502,10 @@ function makeDocRow(p: Result<any>, info: DisplaySettingsForRows, indexInRequest
 		doc: p.doc,
 		href: frontendPaths.documentPage({
 			indexId: info.indexId,
-			pid: p.doc.docPid, 
-			fieldName: info.sourceField.id, 
-			searchField: undefined, 
-			patt: p.query.patt, 
+			pid: p.doc.docPid,
+			fieldName: info.sourceField.id,
+			searchField: undefined,
+			patt: p.query.patt,
 			pattgapdata: p.query.pattgapdata,
 		}),
 		summary: info.getSummary(p.doc.docInfo, info.specialFields),
@@ -816,7 +817,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		const groups = info.annotationGroups;
 
 		if (annotsToShow.length === 0) return {};
-		else if (annotsToShow.length === 1) { 
+		else if (annotsToShow.length === 1) {
 			const {title, value: sort} = sortAnnot(annotsToShow[0], prefix);
 			return {title, sort};
 		} else {

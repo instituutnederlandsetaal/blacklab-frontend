@@ -1,5 +1,6 @@
-import { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes";
-import { BLSearchResult, hasPatternInfo } from '@/types/blacklabtypes';
+import type { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes";
+import type { BLSearchResult} from '@/types/blacklabtypes';
+import { hasPatternInfo } from '@/types/blacklabtypes';
 import { spanFilterId } from '@/utils';
 import * as FilterModule from '@/store/form/filters';
 import type { Translate } from '@/utils/i18n';

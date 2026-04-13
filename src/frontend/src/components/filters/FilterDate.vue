@@ -28,11 +28,11 @@
 		<div class="btn-group col-xs-12" v-if="!definition.metadata.mode && definition.metadata.range" style="margin-left: calc(15px + 3em);"> <!-- only when mode isn't locked, and when we're defining ranges -->
 			<button v-for="mode in modes"
 				type="button"
-				:class="['btn btn-default', {'active': value.mode === mode.value}]"
+				:class="['btn btn-default', {'active': modelValue.mode === mode.value}]"
 				:key="mode.value"
 				:value="mode.value"
 				:title="mode.title || ''"
-				@click="e_input({...value, mode: mode.value})"
+				@click="e_input({...modelValue, mode: mode.value})"
 			>{{mode.label}}</button>
 		</div>
 		<div class="col-xs-12" v-if="description">
@@ -42,51 +42,49 @@
 </template>
 
 <script lang="ts">
-import BaseFilter from '@/components/filters/Filter';
-import { Option } from '@/components/SelectPicker.vue';
-import {FilterDateValue as Value, FilterDateMetadata as Metadata, FilterDateValue, DateUtils} from './filterValueFunctions';
+import createBaseFilterComponent from '@/components/filters/Filter';
+import type { Option } from '@/components/SelectPicker.vue';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
+import type { FilterDateValue, FilterDateMetadata as Metadata } from './filterValueFunctions';
+import { DateUtils } from './filterValueFunctions';
 
-
-export default BaseFilter.extend({
-	props: {
-		value: {
-			type: Object as () => FilterDateValue, // comes in as all empty strings: see decodeInitialState in filterValueFunctions.ts
-			required: true,
-			default: (): Value&{isDefaultValue: boolean} => ({
-				startDate: {
-					y: '',
-					m: '',
-					d: ''
-				},
-				endDate: {
-					y: '',
-					m: '',
-					d: ''
-				},
-				mode: 'strict',
-				/**
-				 * props.definition.metadata can contain a default value.
-				 * props.value is our actual value we pass to the calendar, on first setup this is undefined, so we set a default here in this object.
-				 *
-				 * We want to apply the defaults from definition.metadata to our default value object, but we can't do that,
-				 * because we can't access the other props here (as the component hasn't been fully created yet).
-				 *
-				 * So what we do:
-				 * Mark the default value with this boolean
-				 * Instead of putting this into our calendar directly, pass it through computedValue() first
-				 * There, see if we have this boolean, and if so, replace the two defaults defined above with those from defintion.metadata.
-				 *
-				 * Then when the user interacts with the calender (i.e. overwrites the default value) this boolean will disappear, and the user dates will be used.
-				 * Conveniently this system also lets us detect when only the strict/permissive toggle has been changed, but not the date.
-				 */
-				isDefaultValue: true
-			})
-		},
-	},
-
+export default defineComponent({
+	extends: createBaseFilterComponent(
+		Object as PropType<FilterDateValue&{isDefaultValue: boolean}>, 
+		() => ({
+			startDate: {
+				y: '',
+				m: '',
+				d: ''
+			},
+			endDate: {
+				y: '',
+				m: '',
+				d: ''
+			},
+			mode: 'strict' as const,
+			/**
+			 * props.definition.metadata can contain a default value.
+			 * props.value is our actual value we pass to the calendar, on first setup this is undefined, so we set a default here in this object.
+			 *
+			 * We want to apply the defaults from definition.metadata to our default value object, but we can't do that,
+			 * because we can't access the other props here (as the component hasn't been fully created yet).
+			 *
+			 * So what we do:
+			 * Mark the default value with this boolean
+			 * Instead of putting this into our calendar directly, pass it through computedValue() first
+			 * There, see if we have this boolean, and if so, replace the two defaults defined above with those from defintion.metadata.
+			 *
+			 * Then when the user interacts with the calender (i.e. overwrites the default value) this boolean will disappear, and the user dates will be used.
+			 * Conveniently this system also lets us detect when only the strict/permissive toggle has been changed, but not the date.
+			 */
+			isDefaultValue: true
+		})
+	),
 	computed: {
 		model(): FilterDateValue {
-			return this.value;
+			return this.modelValue;
 		},
 		metadata(): Metadata {
 			return this.definition.metadata || {

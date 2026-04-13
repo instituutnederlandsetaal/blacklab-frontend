@@ -12,15 +12,18 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
 import frac2Percent from '@/mixins/fractionalToPercent';
-import { ColumnDefGroup, GroupRowData, } from '@/pages/search/results/table/table-layout';
 import IRow from '@/pages/search/results/table/IRow.vue';
+import type { ColumnDefGroup, GroupRowData, } from '@/pages/search/results/table/table-layout';
+import type { PropType } from 'vue';
 
-export default Vue.component('GroupRow', IRow.extend({
+export default defineComponent({
+	name: 'GroupRow',
+	extends: IRow,
 	props: {
-		row: Object as () => GroupRowData,
+		row: { type: Object as PropType<GroupRowData>, required: true },
 	},
 	methods: {
 		frac2Percent,
@@ -36,7 +39,7 @@ export default Vue.component('GroupRow', IRow.extend({
 			return v.toLocaleString();
 		}
 	},
-}));
+});
 </script>
 
 <style lang="scss">

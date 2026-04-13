@@ -38,11 +38,11 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
-import { NormalizedAnnotation } from '@/types/apptypes';
+import type { NormalizedAnnotation } from '@/types/apptypes';
 
-import {StepState} from './POS.vue';
+import type {StepState} from './POS.vue';
 
 
 export const value = 'Choose sub'
@@ -54,7 +54,7 @@ export const defaultAction = (s: StepState): StepState => ({
 	...s,
 	subAnnotations: s.annotations.filter(a => a.parentAnnotationId === s.mainPosAnnotationId)
 });
-export const step = Vue.extend({
+export const step = defineComponent({
 	props: {
 		value: Object as () => StepState
 	},

@@ -1,6 +1,7 @@
 import {fromEvent, asyncScheduler, merge} from 'rxjs';
 import { map, filter, distinctUntilChanged, throttleTime, elementAt } from 'rxjs/operators';
-import Popper, { PopperOptions } from 'popper.js';
+import type { PopperOptions } from 'popper.js';
+import Popper from 'popper.js';
 
 import '@/modules/expandable-tooltips.scss';
 

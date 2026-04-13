@@ -52,7 +52,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import {stripIndent} from 'common-tags';
 
 import * as RootStore from '@/store/';
@@ -69,7 +69,7 @@ import History from '@/pages/search/History.vue';
 
 import { SelectedSubcorpusLoader } from '@/pages/search/results/TotalsCounterStream';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		QueryFormExplore,
 		QueryFormSearch,

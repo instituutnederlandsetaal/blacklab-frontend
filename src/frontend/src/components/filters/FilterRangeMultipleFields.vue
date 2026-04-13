@@ -13,9 +13,7 @@
 				autocomplete="off"
 
 				:id="inputId+'_lower'"
-				:value="value.low"
-
-				@input="e_input({...value, low: $event.target.value})"
+				:v-model="lower"
 			>
 		</div>
 		<div class="col-xs-4">
@@ -25,19 +23,17 @@
 				autocomplete="off"
 
 				:id="inputId+'_upper'"
-				:value="value.high"
-
-				@input="e_input({...value, high: $event.target.value})"
+				v-model="upper"
 			>
 		</div>
 		<div class="btn-group col-xs-12" style="margin-top: 12px;" v-if="!fields.mode">
 			<button v-for="mode in modes"
 				type="button"
-				:class="['btn btn-default', {'active': value.mode === mode.value}]"
+				:class="['btn btn-default', {'active': modelValue.mode === mode.value}]"
 				:key="mode.value"
 				:value="mode.value"
 				:title="mode.title || ''"
-				@click="e_input({...value, mode: mode.value})"
+				@click="e_input({...modelValue, mode: mode.value})"
 			>{{mode.label}}</button>
 		</div>
 		<div class="col-xs-12" v-if="description">
@@ -47,22 +43,18 @@
 </template>
 
 <script lang="ts">
-import BaseFilter from '@/components/filters/Filter';
-import { Option } from '@/components/SelectPicker.vue';
+
+import createBaseFilterComponent from '@/components/filters/Filter';
+import type { Option } from '@/types/apptypes';
+import { defineComponent, type PropType } from 'vue';
 import type { FilterRangeMultipleFieldsMetadata, FilterRangeMultipleFieldsValue } from './filterValueFunctions';
 
-export default BaseFilter.extend({
-	props: {
-		value: {
-			type: Object as () => FilterRangeMultipleFieldsValue,
-			required: true,
-			default: (): FilterRangeMultipleFieldsValue => ({
-				low: '',
-				high: '',
-				mode: 'strict'
-			})
-		},
-	},
+export default defineComponent({
+	extends: createBaseFilterComponent<FilterRangeMultipleFieldsValue, FilterRangeMultipleFieldsMetadata>(Object as PropType<FilterRangeMultipleFieldsValue>, () => ({
+		low: '',
+		high: '',
+		mode: 'strict',
+	})),
 	computed: {
 		fields(): FilterRangeMultipleFieldsMetadata { return this.definition.metadata; },
 		modes(): Option[] {
@@ -76,6 +68,14 @@ export default BaseFilter.extend({
 				title: this.$t('filter.range.strictDescription').toString()
 			}]
 		},
+		upper: {
+			get() { return this.modelValue.high; },
+			set(value: string) { this.e_input({...this.modelValue, high: value}); }
+		},
+		lower: {
+			get() { return this.modelValue.low; },
+			set(value: string) { this.e_input({...this.modelValue, low: value}); }
+		}
 	}
 });
 </script>

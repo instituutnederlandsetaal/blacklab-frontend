@@ -14,7 +14,7 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 import * as RootStore from '@/store';
 import * as InterfaceStore from '@/store/form/interface';
 
@@ -25,7 +25,7 @@ import Spinner from '@/components/Spinner.vue';
 
 import {wideView} from '@/pages/search/form/QueryFormSettings.vue';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		QueryForm,
 		QuerySummary,

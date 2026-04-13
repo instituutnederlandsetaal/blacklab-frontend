@@ -1,4 +1,5 @@
-import { of, EMPTY, timer, lastValueFrom, concat, ObservableInput } from 'rxjs';
+import type { ObservableInput } from 'rxjs';
+import { of, EMPTY, timer, lastValueFrom, concat } from 'rxjs';
 import { expand, takeUntil, filter, switchMap } from 'rxjs/operators';
 
 import { InteractiveLoadable, Loadable, mapLoaded } from '@/utils/loadable-streams';
@@ -6,7 +7,7 @@ import { InteractiveLoadable, Loadable, mapLoaded } from '@/utils/loadable-strea
 import * as UIStore from '@/store/ui';
 import * as Api from '@/api';
 import * as BLTypes from '@/types/blacklabtypes';
-import { NormalizedIndex } from '@/types/apptypes';
+import type { NormalizedIndex } from '@/types/apptypes';
 
 export type TotalsInput = {
 	indexId: string;

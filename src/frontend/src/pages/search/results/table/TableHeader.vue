@@ -27,14 +27,16 @@
 	</th>
 </template>
 <script lang="ts">
-import { ColumnDef } from '@/pages/search/results/table/table-layout';
-import Vue from 'vue';
 import SelectPicker from '@/components/SelectPicker.vue';
-export default Vue.component('TableHeader', {
+import type { ColumnDef } from '@/pages/search/results/table/table-layout';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
+export default defineComponent({
+	name: 'TableHeader',
 	components: { SelectPicker },
 	props: {
 		disabled: Boolean,
-		col: Object as () => ColumnDef,
+		col: { type: Object as PropType<ColumnDef>, required: true },
 		sort: String
 	},
 	methods: {

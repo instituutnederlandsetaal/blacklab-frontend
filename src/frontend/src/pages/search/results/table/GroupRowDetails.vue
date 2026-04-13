@@ -36,19 +36,22 @@
 </template>
 
 <script lang="ts">
-import Vue from 'vue';
+import { defineComponent } from 'vue';
 
+import { blacklab } from '@/api';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
-import {blacklab} from '@/api';
-import { BLSearchParameters, BLHitResults, BLDocResults } from '@/types/blacklabtypes';
+import type { BLDocResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
 
-import { GroupRowData, makeRows, Rows } from '@/pages/search/results/table/table-layout';
+import type { GroupRowData, Rows } from '@/pages/search/results/table/table-layout';
+import { makeRows } from '@/pages/search/results/table/table-layout';
 
-import * as CorpusStore from '@/store/corpus';
 import Spinner from '@/components/Spinner.vue';
 import IRow from '@/pages/search/results/table/IRow.vue';
+import * as CorpusStore from '@/store/corpus';
 
-export default Vue.component('GroupRowDetails', IRow.extend({
+export default defineComponent({
+	name: 'GroupRowDetails',
+	extends: IRow,
 	components: { Spinner },
 	// NOTE: also update the watcher on this prop if you change this name!
 	props: { row: Object as () => GroupRowData },
@@ -97,7 +100,7 @@ export default Vue.component('GroupRowDetails', IRow.extend({
 			if (this.open && !this.concordances.done && !this.concordances.loading && !this.concordances.results?.rows.length) this.concordances.next();
 		}
 	}
-}));
+});
 </script>
 
 <style lang="scss">

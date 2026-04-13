@@ -20,12 +20,12 @@
 
 <script lang="ts">
 import { blacklab } from '@/api';
-import { NormalizedIndex } from '@/types/apptypes';
-import Vue from 'vue';
+import type { NormalizedIndex } from '@/types/apptypes';
+import { defineComponent } from 'vue';
 
 import POS from './POS.vue';
 
-export default Vue.extend({
+export default defineComponent({
 	components: {
 		POS
 	},

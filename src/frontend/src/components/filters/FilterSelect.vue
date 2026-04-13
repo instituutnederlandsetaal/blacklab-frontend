@@ -19,8 +19,7 @@
 				:placeholder="displayName"
 				:options="options"
 
-				:value="value"
-				@input="e_input($event);"
+				v-model="vmodel"
 			/>
 			<div class="col-xs-12" v-if="description">
 				<small class="text-muted description"><em>{{ description }}</em></small>
@@ -29,22 +28,20 @@
 	</div>
 </template>
 
-
 <script lang="ts">
-import BaseFilter from '@/components/filters/Filter';
-import SelectPicker from '@/components/SelectPicker.vue';
+import createBaseFilterComponent from '@/components/filters/Filter';
+import { defineComponent, type PropType } from 'vue';
+import SelectPicker from '../SelectPicker.vue';
 
-export default BaseFilter.extend({
-	components: {
-		SelectPicker
-	},
-	props: {
-		value: {
-			type: Array as () => string[],
-			required: true,
-			default: () => []
-		},
-	},
+export default defineComponent({
+  extends: createBaseFilterComponent(Array as PropType<string[]>, () => []),
+  components: { SelectPicker },
+  computed: {
+    vmodel: {
+      get() { return this.modelValue; },
+      set(value: string[]) { this.e_input(value); }
+    }
+  }
 });
 
 </script>
