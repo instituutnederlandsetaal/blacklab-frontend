@@ -2,14 +2,13 @@
  * Contains the current ui state for n-gram form.
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
-import {getStoreBuilder} from 'vuex-typex';
 import cloneDeep from 'clone-deep';
+import { getStoreBuilder } from 'vuex-typex';
 
-import type {RootState} from '@/store/';
-import * as UIStore from '@/store/ui'; // Is initialized before we are.
-import {escapeRegex} from '@/utils';
-import { NormalizedIndex } from '@/types/apptypes';
+import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';
+import * as UIStore from '@/store/ui'; // Is initialized before we are.
+import { escapeRegex } from '@/utils';
 
 type Token = {
 	/** Annotation ID */
@@ -168,5 +167,6 @@ const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
+export { actions, defaults, get, getState, init, namespace };
 export type { ModuleRootState, Token };
-export { getState, get, actions, init, namespace, defaults };
+

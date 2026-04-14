@@ -4,7 +4,7 @@ import { reactive } from 'vue';
 
 export type LogCategory = 'history'|'parallel'|'init'|'shared'|'results';
 
-const isDebugMode = !!process.env.NODE_ENV?.match(/dev|test/);
+const isDebugMode = import.meta.env.DEV;
 let debug = reactive({
 	debug: false,
 	debug_visible: isDebugMode || (typeof DEBUG_INFO_VISIBLE !== 'undefined' ? DEBUG_INFO_VISIBLE : false),

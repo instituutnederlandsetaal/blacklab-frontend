@@ -14,5 +14,8 @@
 		"source.organizeImports": "explicit",
 		"source.addMissingImports.ts": "explicit",
 		"source.fixAll.oxc": "explicit",
-	}
+	},
+	"oxc.configPath": "src/frontend/oxlint.config.ts",
+	"oxc.tsConfigPath": "src/frontend/tsconfig.json",
+	"oxc.path.tsgolint": "src/frontend/node_modules/.bin/tsgolint"
 }

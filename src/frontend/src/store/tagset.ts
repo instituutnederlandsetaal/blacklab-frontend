@@ -5,13 +5,12 @@
  * are the filters subdivided in groups, what is the text direction, and so on.
  */
 
-import {getStoreBuilder} from 'vuex-typex';
+import { getStoreBuilder } from 'vuex-typex';
 
-import type {RootState} from '@/store/';
+import type { RootState } from '@/store/';
 
 import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
-import { mapReduce } from '@/utils';
 import type { CorpusChange } from '@/store/async-loaders';
 
 type ModuleRootState = Tagset|null;
@@ -185,7 +184,7 @@ const actions = {
 	load: () => { console.warn('Manual tagset loading is no longer required. Remove the call to tagset.actions.load() from customJS - instead, place the tagset in ${corpusName}/static/tagset.json'); }
 }
 
+export { actions, get, getState, init, namespace };
 export type { ModuleRootState };
-export { getState, actions, get, init, namespace };
 
-export type { Tagset };
+	export type { Tagset };

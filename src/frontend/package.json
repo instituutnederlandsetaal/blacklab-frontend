@@ -33,7 +33,7 @@
     "globals": "^17.4.0",
     "jiti": "^2.6.1",
     "oxfmt": "^0.44.0",
-    "oxlint": "^1.59.0",
+    "oxlint": "^1.60.0",
     "oxlint-tsgolint": "^0.20.0",
     "sass": "^1.92.1",
     "ts-json-schema-generator": "^1.5.0",

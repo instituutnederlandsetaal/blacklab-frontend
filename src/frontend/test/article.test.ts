@@ -1,8 +1,8 @@
-import { describe, expect, vi, test, afterAll } from 'vitest';
-import type { Input} from '@/pages/article/article';
-import {hits$, input$, metadata$, validPaginationParameters$} from '@/pages/article/article';
-import { CancelableRequest, Loadable, loadableFromStream, LoadableState, promiseFromLoadableStream } from '@/utils/loadable-streams';
+import type { Input } from '@/pages/article/article';
+import { hits$, input$, metadata$, validPaginationParameters$ } from '@/pages/article/article';
 import type { BLDoc } from '@/types/blacklabtypes';
+import { CancelableRequest, Loadable, loadableFromStream, LoadableState, promiseFromLoadableStream } from '@/utils/loadable-streams';
+import { afterAll, describe, expect, test, vi } from 'vitest';
 
 const ids = vi.hoisted(() => ({
 	MOCK_INDEX_ID: 'test',
@@ -85,17 +85,17 @@ describe('hits$', () => {
 	test('Should find the hits', async () => {
 		input$.next(baseInputs);
 		await promiseFromLoadableStream(hits$); // needs a moment to get the hits.
-		return expect(hitsOutput).toMatchObject(Loadable.Loaded(values.MOCK_HITS.hits.map(h => [h.start, h.end])));
+		expect(hitsOutput).toMatchObject(Loadable.Loaded(values.MOCK_HITS.hits.map(h => [h.start, h.end])));
 	})
 	test('Should clear if no docId', async () => {
 		input$.next({...baseInputs, docId: undefined});
 		await promiseFromLoadableStream(hits$);
-		return expect(hitsOutput).toMatchObject(Loadable.Empty());
+		expect(hitsOutput).toMatchObject(Loadable.Empty());
 	});
 	test('Should clear if no indexId', async () => {
 		input$.next({...baseInputs, indexId: undefined});
 		await promiseFromLoadableStream(hits$);
-		return expect(hitsOutput).toMatchObject(Loadable.Empty());
+		expect(hitsOutput).toMatchObject(Loadable.Empty());
 	});
 	afterAll(() => hitsOutput.dispose());
 });
@@ -105,13 +105,13 @@ describe('metadata$', () => {
 	test('Should be empty initially', async () => {
 		input$.next({});
 		await promiseFromLoadableStream(metadata$); // wait for the metadata to load.
-		return expect(output).toMatchObject(Loadable.Empty());
+		expect(output).toMatchObject(Loadable.Empty());
 	});
 
 	test('Should load the metadata', async () => {
 		input$.next(baseInputs);
 		await promiseFromLoadableStream(metadata$); // wait for the metadata to load.
-		return expect(output).toMatchObject(Loadable.Loaded(values.MOCK_DOC));
+		expect(output).toMatchObject(Loadable.Loaded(values.MOCK_DOC));
 	})
 
 	afterAll(() => output.dispose());
@@ -137,7 +137,7 @@ describe('validPaginationParameters$', () => {
 			wordend: 1000
 		});
 		await promiseFromLoadableStream(validPaginationParameters$);
-		await expect(output.value).toMatchObject({
+		expect(output.value).toMatchObject({
 			wordstart: 50,
 			wordend: 60
 		});
@@ -150,7 +150,7 @@ describe('validPaginationParameters$', () => {
 			wordend: 1000
 		});
 		await promiseFromLoadableStream(validPaginationParameters$);
-		await expect(output.value).toMatchObject({
+		expect(output.value).toMatchObject({
 			wordstart: 0,
 			wordend: 100,
 			findhit: values.MOCK_HITS.hits[0].start
@@ -162,7 +162,7 @@ describe('validPaginationParameters$', () => {
 			findhit: 10000,
 		});
 		await promiseFromLoadableStream(validPaginationParameters$);
-		await expect(output.value).toMatchObject({findhit: undefined});
+		expect(output.value).toMatchObject({findhit: undefined});
 	});
 	test('Should set the pageSize to the doclength if not provided', async () => {
 		input$.next({
@@ -170,7 +170,7 @@ describe('validPaginationParameters$', () => {
 			pageSize: undefined,
 		});
 		await promiseFromLoadableStream(validPaginationParameters$);
-		await expect(output.value).toMatchObject({wordend: values.MOCK_DOC.docInfo.lengthInTokens});
+		expect(output.value).toMatchObject({wordend: values.MOCK_DOC.docInfo.lengthInTokens});
 	});
 	test('Should expose the error as a Loadable if the doc is not found', async () => {
 		input$.next({
@@ -178,7 +178,7 @@ describe('validPaginationParameters$', () => {
 			docId: 'notfound'
 		});
 		await expect(promiseFromLoadableStream(validPaginationParameters$)).rejects.toMatchObject({statusText: 'test'});
-		await expect(output).toMatchObject({state: LoadableState.Error});
+		expect(output).toMatchObject({state: LoadableState.Error});
 	});
 
 	afterAll(() => output.dispose());

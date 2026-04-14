@@ -37,6 +37,7 @@ import type { Loadable } from '@/utils/loadable-streams';
 import { loadableFromStream } from '@/utils/loadable-streams';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
 import type { User } from 'oidc-client-ts';
+import type { Store } from 'vuex/types/index.js';
 
 Vue.use(Vuex);
 
@@ -391,11 +392,7 @@ const actions = {
 	}, 'replaceRoot'),
 };
 
-
-// NOTE: only call this after creating all getters and actions etc.
-// NOTE: process.env is empty at runtime, but webpack inlines all values at compile time, so this check works.
-declare const process: any;
-const store = b.vuexStore({
+const store: Store<RootState> = b.vuexStore({
 	state: {
 		storeLoadingState: loadableFromStream(corpusData$) as Loadable<CorpusChange>,
 		indexId: null,

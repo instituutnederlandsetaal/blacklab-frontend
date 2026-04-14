@@ -94,7 +94,7 @@ type Metadata = {
 	/** Xpath: What element (relative to documentPath) contains the metadata? (If omitted, entire document is used.) */
 	containerPath?: string;
 	/** Analyzer to use for metadata fields. Unless overridden in the field through */
-	defaultAnalyzer?: 'default'|'standard'|'whitespace'|string;
+	defaultAnalyzer?: 'default'|'standard'|'whitespace'|(string&{});
 	/** The metadata fields. These are indexed in order of declaration. Their xpaths are relative to 'containerPath'  */
 	fields: MetadataField[];
 }

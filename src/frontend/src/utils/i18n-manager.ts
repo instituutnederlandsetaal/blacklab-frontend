@@ -1,8 +1,7 @@
-import { reactive, ref, computed, watch, markRaw } from 'vue';
-import { merge } from 'ts-deepmerge';
-import stripJsonComments from 'strip-json-comments';
 import { localStorageSynced } from '@/utils/localstore';
-import { Loadable, LoadableState } from './loadable-streams';
+import stripJsonComments from 'strip-json-comments';
+import { merge } from 'ts-deepmerge';
+import { computed, reactive, ref, watch } from 'vue';
 
 /**
  * A helper for managing and caching locale message bundles.

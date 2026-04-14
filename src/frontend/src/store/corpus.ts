@@ -5,12 +5,12 @@
  * are the filters subdivided in groups, what is the text direction, and so on.
  */
 
-import { getStoreBuilder } from 'vuex-typex';
 import type { RootState } from '@/store/';
+import { getStoreBuilder } from 'vuex-typex';
 
+import type { CorpusChange } from '@/store/async-loaders';
 import type { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex, NormalizedMetadataField, NormalizedMetadataGroup } from '@/types/apptypes';
 import { mapReduce } from '@/utils';
-import type { CorpusChange } from '@/store/async-loaders';
 
 type ModuleRootState = NormalizedIndex|null;
 
@@ -107,13 +107,13 @@ const actions = {
 
 const init = b.dispatch(({state, rootState}, payload: CorpusChange) => rootState.corpus = payload.index ?? null, 'corpus_init');
 
-export type { ModuleRootState };
 export { actions, get, getState, init, namespace };
+export type { ModuleRootState };
 
-export type {
-	NormalizedAnnotatedField,
-	NormalizedAnnotation,
-	NormalizedIndex,
-	NormalizedMetadataField
-};
+	export type {
+		NormalizedAnnotatedField,
+		NormalizedAnnotation,
+		NormalizedIndex,
+		NormalizedMetadataField
+	};
 

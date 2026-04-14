@@ -13,6 +13,9 @@ export default defineConfig({
       prefer: "type-imports",
     }],
     "typescript/consistent-type-exports": "error",
+    "eslint/no-unused-vars": ["error", {
+      args: "none",
+    }]
   },
   settings: {},
   env: {
@@ -20,6 +23,6 @@ export default defineConfig({
   },
   options: {
     typeAware: true,
-    typeCheck: true
+    typeCheck: true,
   }
 });

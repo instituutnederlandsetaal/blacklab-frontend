@@ -3,10 +3,9 @@
  * Think things like context size, random sampling settings.
  */
 
-import {getStoreBuilder} from 'vuex-typex';
+import { getStoreBuilder } from 'vuex-typex';
 
-import type {RootState} from '@/store/';
-import { NormalizedIndex } from '@/types/apptypes';
+import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';
 import { syncPropertyWithLocalStorage } from '@/utils/localstore';
 
@@ -102,5 +101,6 @@ const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
+export { actions, defaults, get, getState, init, namespace };
 export type { ExternalModuleRootState, ModuleRootState };
-export { getState, get, actions, init, namespace, defaults };
+

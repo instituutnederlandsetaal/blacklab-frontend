@@ -4,14 +4,13 @@
  * we need to track what the user is actually doing when a query is submitted,
  * so that we know how to construct the actual query that's sent to blacklab.
  */
-import {getStoreBuilder} from 'vuex-typex';
 import cloneDeep from 'clone-deep';
+import { getStoreBuilder } from 'vuex-typex';
 
-import type {RootState} from '@/store/';
-import type {ModuleRootState as PatternModuleRootState} from '@/store/form/patterns';
-import type {ModuleRootState as ExploreModuleRootState} from '@/store/form/explore';
-import { NormalizedIndex } from '@/types/apptypes';
+import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';
+import type { ModuleRootState as ExploreModuleRootState } from '@/store/form/explore';
+import type { ModuleRootState as PatternModuleRootState } from '@/store/form/patterns';
 
 type ModuleRootState = {
 	form: 'search'|'explore';
@@ -60,5 +59,6 @@ const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
+export { actions, defaults, get, getState, init, namespace };
 export type { ModuleRootState };
-export { getState, get, actions, init, namespace, defaults };
+

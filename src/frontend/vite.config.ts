@@ -7,10 +7,15 @@ import checker from 'vite-plugin-checker';
 
 export default defineConfig(({ mode }): UserConfig => ({
   plugins: [
-    checker({vueTsc: {
-      root: __dirname,
-      tsconfigPath: 'tsconfig.app.json', // relative to root prop above
-    }}),
+    checker({
+      vueTsc: {
+        root: __dirname,
+        tsconfigPath: 'tsconfig.json', // relative to root prop above
+      },
+      oxlint: {
+        lintCommand: 'oxlint --config oxlint.config.ts ',
+      }
+    }),
     inject({
       $: 'jquery',
       jQuery: 'jquery',

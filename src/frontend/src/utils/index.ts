@@ -1,11 +1,9 @@
 // TODO split this file into patternUtils (DONE - JN), groupUtils and generic utils.
 
 
-import URI from 'urijs';
 
-import type * as BLTypes from '@/types/blacklabtypes';
 import type * as AppTypes from '@/types/apptypes';
-import { corpusCustomizations } from '@/utils/customization';
+import type * as BLTypes from '@/types/blacklabtypes';
 import type { Translate } from '@/utils/i18n';
 
 
@@ -215,6 +213,7 @@ type SplitString = {
  * For example strings input in the "Simple Search" input.
  * This works by splitting the string on all whitespace (ignoring it), except where (a part of) the string is enclosed in double quotes (""), between which whitespace is preserved.
  * Double quotes and whitespace that has been used as separator is stripped from the value field of the returned structs.
+ * Returned indices use half-open ranges: start is inclusive, end is exclusive (same convention as substring(start, end)).
  * Stripped quotes (not whitespace!) are however still reflected in the start and end properties. (meaning for a string that isQuoted, (end-start) === (value.length + 2))
  * This is because this function is also used to split out (and replace) the currently selected word/sequence of words for autocompleted annotations.
  * Note: quote escaping is not taken into consideration. Backslashes are treated as any other character
@@ -267,101 +266,11 @@ export const splitIntoTerms = (value: string, useQuoteDelimiters: boolean): Spli
 		++i;
 	}
 	if (seg) {
-		segs.push({start, end: i+1, value: seg, isQuoted: inQuotes});
+		segs.push({start, end: i, value: seg, isQuoted: inQuotes});
 		seg = '';
 	}
 	return segs;
 };
-
-[{
-	value: '"the simplest"',
-	expect: [{
-		start: 0,
-		end: 14,
-		value: 'the simplest',
-		isQuoted: true
-	}]
-}, {
-	value: 'this is " a test """ ',
-	expect: [{
-		start: 0,
-		end: 4,
-		value: 'this'
-	}, {
-		start: 5,
-		end: 7,
-		value: 'is'
-	}, {
-		start: 8,
-		end: 18,
-		value: ' a test ',
-		isQuoted: true
-	}]
-}, {
-	value: 'regular string',
-	expect: [{
-		start: 0,
-		end: 7,
-		value: 'regular'
-	}, {
-		start: 8,
-		end: 14,
-		value: 'string'
-	}]
-}, {
-	value: '  starting with a few \t spaces \r\nhelp',
-	expect: [{
-		start: 2,
-		end: 10,
-		value: 'starting'
-	}, {
-		start: 11,
-		end: 15,
-		value: 'with'
-	}, {
-		start: 16,
-		end: 17,
-		value: 'a'
-	}, {
-		start: 18,
-		end: 21,
-		value: 'few'
-	}, {
-		start: 24,
-		end: 30,
-		value: 'spaces'
-	}, {
-		start: 33,
-		end: 37,
-		value: 'help'
-	}]
-},{
-	value: '"normal everyday" string "with some quotes"',
-	expect: [{
-		start: 0,
-		end: 17,
-		value: 'normal everyday',
-		isQuoted: true
-	}, {
-		start: 19,
-		end: 24,
-		value: 'string'
-	}, {
-		start: 26,
-		end: 44,
-		value: 'with some quotes',
-		isQuoted: true
-	}]
-}].forEach(({value: fullValue, expect}) => {
-	const split = splitIntoTerms(fullValue, true);
-	split.forEach((part, index) => {
-		const {start, end, value, isQuoted} = expect[index];
-		const expand = part.isQuoted ? 1 : 0;
-		if (fullValue.substring(part.start + expand, part.end - expand) !== value) {
-			console.log('part: ', part, 'expect: ', expect[index]);
-		}
-	})
-});
 
 /** Parenthesize part of a BCQL query if it's not already */
 export function parenQueryPart(query: string, exceptions: string[] = []) {
@@ -435,7 +344,7 @@ export function makeMapReducer<T, V extends (t: T, i: number) => any = (t: T, i:
 export function makeMultimapReducer<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(k: KeysOfType<T, string>, m?: V): (m: Record<string, Array<ReturnType<V>>>, t: T, i: number) => Record<string, Array<ReturnType<V>>> {
 	return (acc: Record<string, Array<ReturnType<V>>>, v: T, i: number): Record<string, Array<ReturnType<V>>> => {
 		const kv = v[k] as any as string;
-		acc[kv] ? acc[kv].push(m ? m(v, i) : v) : acc[kv] = [m ? m(v, i) : v];
+		(acc[kv] ??= []).push(m ? m(v, i) : v);
 		return acc;
 	};
 }
@@ -476,7 +385,6 @@ export function mapReduce<
 	} else {
 		const values = t as T[]|undefined|null;
 		const key = a as KeysOfType<T, string>;
-		const mapper = b as VT|undefined;
 		return values ? values.reduce(makeMapReducer<T, VT>(key, b), {}) : {};
 	}
 }
@@ -704,7 +612,7 @@ export function binarySearch<T>(a: T[], compare: (el: T) => number) {
 	return -low;  // key not found.
 }
 
-export function uniq<T>(l: T[]): T[] {return Array.from(new Set(l)).sort() }
+export function uniq<T>(l: T[]): T[] {return [...new Set(l)].sort() }
 
 /** Compile time checking: ensure the passed parameter is of the template type and return it (no-op).
  * Can use while setting variables initial value for example. */

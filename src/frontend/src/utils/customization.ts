@@ -1,6 +1,6 @@
-import type * as BLTypes from '@/types/blacklabtypes';
-import type * as AppTypes from '@/types/apptypes';
 import type { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
+import type * as AppTypes from '@/types/apptypes';
+import type * as BLTypes from '@/types/blacklabtypes';
 import { spanFilterId } from '@/utils';
 import type { Translate } from '@/utils/i18n';
 
@@ -60,7 +60,7 @@ function wrapWithErrorHandling<T extends object>(obj: T) {
 				Reflect.set(target, prop, newValue, receiver);
 				// propagate the dontProxyMe marker to the new value
 				if (currentValue != null && currentValue[dontProxyMe]) mark(newValue, dontProxyMe);
-				return newValue;
+				return true;
 			}
 
 			// Someone is replacing one of the function!
@@ -77,7 +77,7 @@ function wrapWithErrorHandling<T extends object>(obj: T) {
 			currentValue[unwrappedImplementation] = defaultImplementation;
 			// Finally store and return the wrapped function
 			Reflect.set(target, prop, currentValue, receiver);
-			return currentValue;
+			return true;
 		},
 	});
 }

@@ -5,12 +5,12 @@
  * Those will get their own sub-module here.
  */
 import cloneDeep from 'clone-deep';
-import type { ModuleBuilder} from 'vuex-typex';
+import type { ModuleBuilder } from 'vuex-typex';
 import { getStoreBuilder } from 'vuex-typex';
 
 import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';
-import type { Module, Store } from 'vuex';
+import type { Module, Store } from 'vuex/types/index.d.ts';
 
 const namespace = 'views';
 
@@ -208,5 +208,6 @@ const init = (state: CorpusChange)=> {
 
 type ViewModule = ReturnType<typeof createViewModule>;
 
-export type { ModuleRootState, ViewModule, ViewRootState };
 export { actions, get, getOrCreateModule, init, initialState, initialViewState };
+export type { ModuleRootState, ViewModule, ViewRootState };
+
