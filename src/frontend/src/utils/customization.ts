@@ -76,7 +76,7 @@ function wrapWithErrorHandling<T extends object>(obj: T) {
 			currentValue[unwrappedImplementation] = defaultImplementation;
 			// Finally store and return the wrapped function
 			Reflect.set(target, prop, currentValue, receiver);
-			return currentValue;
+			return true;
 		},
 	});
 }
