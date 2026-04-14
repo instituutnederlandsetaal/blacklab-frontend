@@ -48,6 +48,7 @@
     "@types/jquery": "^4.0.0",
     "@vue/compat": "^3.5.31",
     "@vueuse/components": "^14.2.1",
+    "@vueuse/core": "^14.2.1",
     "axios": "^0.21.2",
     "blacklab-frontend": "file:",
     "bootstrap": "^3.4.1",
@@ -76,5 +77,11 @@
     "vue-slider-component": "^3.2.24",
     "vuex": "^4.1.0",
     "vuex-typex": "^3.1.9"
+  },
+  "overrides": {
+    "vue-slider-component": {
+      "vue-property-decorator": "^9"
+    },
+    "vue-class-component": "^8.0.0-0"
   }
 }

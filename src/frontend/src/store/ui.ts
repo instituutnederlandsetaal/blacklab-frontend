@@ -6,19 +6,18 @@
  * Configure from external javascript through window.vuexModules.ui.getState() and assign things.
  */
 
-import { defineComponent } from 'vue';
 import cloneDeep from 'clone-deep';
+import { html, stripIndent } from 'common-tags';
 import { getStoreBuilder } from 'vuex-typex';
-import { stripIndent, html } from 'common-tags';
 
 import type { RootState } from '@/store/';
+import type { CorpusChange } from '@/store/async-loaders';
 import * as CorpusStore from '@/store/corpus';
 import * as ViewsStore from '@/store/results/views';
-import type * as BLTypes from '@/types/blacklabtypes';
 import type * as AppTypes from '@/types/apptypes';
-import type { CorpusChange } from '@/store/async-loaders';
-import { corpusCustomizations } from '@/utils/customization';
+import type * as BLTypes from '@/types/blacklabtypes';
 import { normalizeAnnotationUIType } from '@/utils/blacklabutils';
+import { corpusCustomizations } from '@/utils/customization';
 
 type CustomView = {
 	id: string;
@@ -27,7 +26,7 @@ type CustomView = {
 	/** Title shown when hovering over tab */
 	title: string;
 	/** Vue component name or a compiled component. */
-	component: string|Vue.Component;
+	component: string;
 }
 
 type ModuleRootState = {
@@ -60,10 +59,6 @@ type ModuleRootState = {
 			 * This remains a bit of a TODO but it requires some deep thinking and architectural changes.
 			 */
 			searchMetadataIds: string[];
-			customAnnotations: Record<string, null|{
-				render(config: AppTypes.NormalizedAnnotation, state: AppTypes.AnnotationValue, vue: typeof Vue): HTMLElement|JQuery<HTMLElement>|string|Vue,
-				update(newState: AppTypes.AnnotationValue, oldState: AppTypes.AnnotationValue, element: HTMLElement): void
-			}>;
 
 			within: {
 				enabled: boolean;
@@ -277,7 +272,6 @@ const initialState: ModuleRootState = {
 
 		shared: {
 			searchMetadataIds: [],
-			customAnnotations: {},
 
 			within: {
 				enabled: true,
@@ -404,13 +398,6 @@ const getState = (() => {
 const get = {
 };
 
-const privateActions = {
-	search: {
-		shared: {
-			initCustomAnnotationRegistrationPoint: b.commit((state, id: string) => state.search.shared.customAnnotations[id] = state.search.shared.customAnnotations[id] ?? null, 'search_shared_initCustomAnnotationRegistrationPoint'),
-		}
-	}
-}
 
 const actions = {
 	search: {
@@ -1139,9 +1126,6 @@ const init = (state: CorpusChange) => {
 		actions.results.shared.dependencies({lemma, upos, xpos, feats});
 	}
 
-	// init custom annotation extension points, so vue reactivity will properly pick up on them
-	CorpusStore.get.allAnnotations().forEach(annot => privateActions.search.shared.initCustomAnnotationRegistrationPoint(annot.id));
-
 	Object.assign(customizedState, cloneDeep(getState()));
 
 	// disable our terrible hack
@@ -1264,7 +1248,9 @@ function getCheckmarks(
 
 	// Fill outputs
 	Object.entries(config).forEach(([checkmarkName, checkmarkPath]) => {
-		const entriesToPutCheck: string[] = checkmarkPath.reduce((context, path) => (context as any)[path], getState()) || [];
+		// Cursed code, the path is a property path like ['search', 'extended', 'searchAnnotationIds'], we need to get the value at that path in the state, 
+		// the terminal value is always a string[], but the intermediate objects are not really possible to type properly, so just use any.
+		const entriesToPutCheck: string[] = checkmarkPath.reduce<string[]>((context, path) => (context as any)[path], getState() as any) || [];
 		entriesToPutCheck.forEach(id => entryMap[id].checkmarks[checkmarkName] = true);
 	});
 
@@ -1357,5 +1343,6 @@ function printCustomizations() {
 
 (window as any).printCustomJs = printCustomizations;
 
-export type { ModuleRootState, CustomView };
-export { getState, get, actions, init, namespace };
+export { actions, get, getState, init, namespace };
+export type { CustomView, ModuleRootState };
+

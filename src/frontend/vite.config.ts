@@ -22,7 +22,7 @@ export default defineConfig(({ mode }): UserConfig => ({
         compilerOptions: {
           compatConfig: {
             MODE: 2,
-            COMPILER_V_BIND_OBJECT_ORDER: false
+            COMPILER_V_BIND_OBJECT_ORDER: false,
           },
         },
       },

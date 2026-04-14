@@ -19,13 +19,7 @@
 						:title="$tAnnotDescription(simpleSearchAnnotation)"
 					>{{$tAnnotDisplayName(simpleSearchAnnotation)}}
 					</label>
-
-					<div v-if="customAnnotations[simpleSearchAnnotation.id]"
-						:data-custom-annotation-root="simpleSearchAnnotation.id"
-						data-is-simple="true"
-						ref="_simple"
-					></div>
-					<Annotation v-else
+					<Annotation
 						:key="'simple/' + simpleSearchAnnotation.id"
 						:htmlId="'simple/' + simpleSearchAnnotation.id"
 						:annotation="simpleSearchAnnotation"
@@ -48,38 +42,25 @@
 							:key="tab.id"
 							:id="tab.id"
 						>
-							<template v-for="annotation in tab.entries">
-								<!-- Note that we don't use annotatedFieldId in the key, because for parallel,
-								     we can change the version, but we don't want that to affect the value of
-									 the input field, only the autocomplete functionality. -->
-								<div v-if="customAnnotations[annotation.id]"
-									:key="tab.id + '/' + annotation.id"
-									:data-custom-annotation-root="annotation.id"
-									:ref="tab.id + '/' + annotation.id"
-								></div>
-								<Annotation v-else
-									:key="tab.id + '/' + annotation.id + '/builtin'"
-									:htmlId="tab.id + '/' + annotation.id"
-									:annotation="annotation"
-								/>
-							</template>
+							<!-- 
+								The same annotation can be present in multiple tabs - make sure the htmlId is unique.
+								Note that we don't use annotatedFieldId in the key, because for parallel,
+								we can change the version, but we don't want that to affect the value of
+								the input field, only the autocomplete functionality. -->
+							<Annotation v-for="annotation in tab.entries"
+								:key="tab.id + '/' + annotation.id"
+								:htmlId="tab.id + '/' + annotation.id"
+								:annotation="annotation"
+							/>
 						</div>
 					</div>
 				</template>
 				<template v-else>
-					<template v-for="annotation in allAnnotations">
-						<div v-if="customAnnotations[annotation.id]"
-							:key="annotation.id + '/custom'"
-							:data-custom-annotation-root="annotation.id"
-							:ref="annotation.id"
-						></div>
-
-						<Annotation v-else
-							:key="annotation.id + '/builtin'"
-							:htmlId="annotation.id"
-							:annotation="annotation"
-						/>
-					</template>
+					<Annotation v-for="annotation in allAnnotations"
+						:key="annotation.id"
+						:htmlId="annotation.id"
+						:annotation="annotation"
+					/>
 				</template>
 
 				<Within v-model="within"/>
@@ -182,7 +163,6 @@ import type { Result } from '@/utils/bcql-json-interpreter';
 import { parseBcql } from '@/utils/bcql-json-interpreter';
 import { corpusCustomizations } from '@/utils/customization';
 import { getPatternStringFromCql, getPatternStringSearch } from '@/utils/pattern-utils';
-import { nextTick } from 'vue';
 import ParallelFields from './parallel/ParallelFields';
 
 export default defineComponent({
@@ -304,10 +284,6 @@ export default defineComponent({
 			get: GapStore.get.gapValue,
 			set: GapStore.actions.gapValue
 		},
-
-		customAnnotations() {
-			return UIStore.getState().search.shared.customAnnotations;
-		}
 	},
 	methods: {
 		copyExtendedQuery() {
@@ -392,26 +368,6 @@ export default defineComponent({
 			PatternStore.actions.expert.query(this.glosses);
 			InterfaceStore.actions.patternMode('expert');
 		},
-		setupCustomAnnotation(div: HTMLElement, plugin: NonNullable<UIStore.ModuleRootState['search']['shared']['customAnnotations'][string]>) {
-			const annotId = div.getAttribute('data-custom-annotation-root')!;
-			const isSimpleAnnotation = div.hasAttribute('data-is-simple');
-
-			const config = CorpusStore.get.allAnnotationsMap()[annotId];
-			const value = isSimpleAnnotation ? PatternStore.getState().simple.annotationValue : PatternStore.getState().extended.annotationValues[annotId];
-
-			const {render, update} = plugin;
-			const ui = render(config, value, Vue);
-
-			if (typeof ui === 'string') div.innerHTML = ui;
-			else if (ui instanceof HTMLElement) div.appendChild(ui);
-			else if (isJQuery(ui)) ui.appendTo(div);
-			else if (isVue(ui)) ui.$mount(div);
-
-			if (!isVue(ui) && update != null) {
-				// setup watcher so custom component is notified of changes to its value by external processes (global form reset, history state restore, etc.)
-				RootStore.store.watch(state => value, (cur, prev) => update(cur, prev, div), {deep: true});
-			}
-		},
 		/** Tabs can be set to null or invalid value when decoding existing URL. Validate and correct it if required */
 		synchronizeActiveTab() {
 			if (this.activeAnnotationTab == null || !this.tabs.find(t => t.id === this.activeAnnotationTab)) 
@@ -421,29 +377,6 @@ export default defineComponent({
 	watch: {
 		tabs: { handler() { this.synchronizeActiveTab(); }, immediate: true },
 		activeAnnotationTab: { handler() { this.synchronizeActiveTab(); }, immediate: true },
-		customAnnotations: {
-			handler() {
-				// custom annotation widget setup.
-				// listen for changes, so any late registration is also picked up
-				nextTick(() => {
-					// intermediate function, check if div is not already initialized, and should actually become the custom component.
-					const setup = (key: string, div: Element|Vue) => {
-						if (!(div instanceof HTMLElement) || !div.hasAttribute('data-custom-annotation-root') || div.children.length) return;
-						const annotId = div.getAttribute('data-custom-annotation-root')!;
-						this.setupCustomAnnotation(div, this.customAnnotations[annotId]!)
-					}
-
-					// by now our dom should have updates, and the extension point (div) should be present
-					// scan to find it.
-					Object.entries(this.$refs).forEach(([refId, ref]) => {
-						if (Array.isArray(ref)) ref.forEach(r => setup(refId, r));
-						else if (ref instanceof HTMLElement) setup(refId, ref);
-					});
-				})
-			},
-			immediate: true,
-			deep: true
-		}
 	},
 })
 </script>

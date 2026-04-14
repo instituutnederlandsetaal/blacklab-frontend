@@ -40,7 +40,7 @@ export function debugLogCat(category: LogCategory, ...args: any[]) {
 export function enable() {
 	debug.debug = true;
 	for (const argArray of queued) {
-		debugLog.apply(undefined, argArray);
+		debugLog(...argArray);
 	}
 	queued = [];
 }

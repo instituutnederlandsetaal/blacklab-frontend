@@ -1,8 +1,9 @@
 import Vue from 'vue';
+// @ts-ignore
 import Vuex from 'vuex';
 
 import cloneDeep from 'clone-deep';
-import {getStoreBuilder} from 'vuex-typex';
+import { getStoreBuilder } from 'vuex-typex';
 
 import * as CorpusModule from '@/store/corpus';
 import * as HistoryModule from '@/store/history';
@@ -12,30 +13,30 @@ import * as UIModule from '@/store/ui';
 
 // Form
 import * as FormManager from '@/store/form';
-import * as FilterModule from '@/store/form/filters';
-import * as InterfaceModule from '@/store/form/interface';
-import * as PatternModule from '@/store/form/patterns';
+import * as ConceptModule from '@/store/form/conceptStore';
 import * as ExploreModule from '@/store/form/explore';
+import * as FilterModule from '@/store/form/filters';
 import * as GapModule from '@/store/form/gap';
 import * as GlossModule from '@/store/form/glossStore';
-import * as ConceptModule from '@/store/form/conceptStore';
+import * as InterfaceModule from '@/store/form/interface';
+import * as PatternModule from '@/store/form/patterns';
 
 // Results
-import * as ViewModule from '@/store/results/views';
 import * as GlobalResultsModule from '@/store/results/global';
+import * as ViewModule from '@/store/results/views';
 
 // Article
 import * as ArticleModule from '@/store/article';
 
-import type * as BLTypes from '@/types/blacklabtypes';
-import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import type { Loadable} from '@/utils/loadable-streams';
-import { loadableFromStream } from '@/utils/loadable-streams';
-import debug, {  } from '@/utils/debug';
-import type { CorpusChange} from '@/store/async-loaders';
+import type { CorpusChange } from '@/store/async-loaders';
 import { createStoreInitializer } from '@/store/async-loaders';
-import type { User } from 'oidc-client-ts';
+import type * as BLTypes from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
+import debug from '@/utils/debug';
+import type { Loadable } from '@/utils/loadable-streams';
+import { loadableFromStream } from '@/utils/loadable-streams';
+import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
+import type { User } from 'oidc-client-ts';
 
 Vue.use(Vuex);
 
@@ -472,5 +473,6 @@ const init = async (state: CorpusChange) => {
 
 (window as any).vuexStore = store;
 
+export { actions, corpusData$, get, getState, init, store };
 export type { RootState };
-export { store, getState, get, actions, init, corpusData$ };
+

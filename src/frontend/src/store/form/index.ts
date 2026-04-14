@@ -1,16 +1,15 @@
-import {getStoreBuilder} from 'vuex-typex';
+import { getStoreBuilder } from 'vuex-typex';
 
 import type { RootState } from '@/store/';
 
+import type { CorpusChange } from '@/store/async-loaders';
+import * as ConceptModule from '@/store/form/conceptStore';
 import * as ExploreModule from '@/store/form/explore';
 import * as FilterModule from '@/store/form/filters';
-import * as InterfaceModule from '@/store/form/interface';
-import * as PatternModule from '@/store/form/patterns';
 import * as GapModule from '@/store/form/gap';
 import * as GlossModule from '@/store/form/glossStore';
-import * as ConceptModule from '@/store/form/conceptStore';
-import { NormalizedIndex } from '@/types/apptypes';
-import type { CorpusChange } from '@/store/async-loaders';
+import * as InterfaceModule from '@/store/form/interface';
+import * as PatternModule from '@/store/form/patterns';
 
 type PartialRootState = {
 	explore: ExploreModule.ModuleRootState;
@@ -70,5 +69,6 @@ const init = (state: CorpusChange) => {
 	ConceptModule.init(state);
 };
 
+export { actions, get, init };
 export type { PartialRootState };
-export { get, actions, init };
+

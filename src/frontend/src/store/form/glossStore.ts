@@ -3,16 +3,14 @@
 
 import cloneDeep from 'clone-deep';
 
-import { getStoreBuilder } from 'vuex-typex';
-import type { BLHit } from '@/types/blacklabtypes';
 import type { RootState } from '@/store/';
 import * as PatternStore from '@/store/form/patterns';
+import type { BLHit } from '@/types/blacklabtypes';
+import { getStoreBuilder } from 'vuex-typex';
 
-import {glossApi, init as initGlossEndpoint} from '@/api';
-import { defineComponent } from 'vue';
-import { debugLog } from '@/utils/debug';
-import { NormalizedIndex } from '@/types/apptypes';
+import { glossApi, init as initGlossEndpoint } from '@/api';
 import type { CorpusChange } from '@/store/async-loaders';
+import { debugLog } from '@/utils/debug';
 
 type GlossFieldType = {
 	 type: string,
@@ -238,7 +236,7 @@ const actions = {
 };
 
 // hebben we de init nodig?
-export type { ModuleRootState, HistoryState, Gloss, Glossing, Settings, GlossFieldType, GlossFieldDescription };
-export { namespace, defaults, actions, getState, get, init };
+export { actions, defaults, get, getState, init, namespace };
+export type { Gloss, GlossFieldDescription, GlossFieldType, Glossing, HistoryState, ModuleRootState, Settings };
 
 
