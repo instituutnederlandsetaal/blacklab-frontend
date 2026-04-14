@@ -9,7 +9,7 @@ declare module 'lucene-query-parser' {
 	};
 
 	export type ASTField = {
-		field: '<implicit>'|string;
+		field: '<implicit>'|(string&{});
 		term: string;
 		prefix?: '+'|'-';
 		boost?: number;
@@ -19,7 +19,7 @@ declare module 'lucene-query-parser' {
 	};
 
 	export type ASTRange = {
-		field: '<implicit>'|string;
+		field: '<implicit>'|(string&{});
 		/** Lower bound */
 		term_min: string;
 		/** Upper bound */

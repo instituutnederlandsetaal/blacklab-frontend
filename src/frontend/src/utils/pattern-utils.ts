@@ -195,8 +195,6 @@ export function getPatternStringSearch(
 		case 'expert':
 			return getPatternStringFromCql(state.expert.query || '', withinClausesNoWithinWidget, targets,
 				state.expert.targetQueries, alignBy);
-		case 'concept': return state.concept?.trim() || undefined;
-		case 'glosses': return state.glosses?.trim() || undefined;
 		default: throw new Error('Unimplemented pattern generation.');
 	}
 }

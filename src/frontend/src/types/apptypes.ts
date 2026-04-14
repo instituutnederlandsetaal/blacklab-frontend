@@ -244,7 +244,7 @@ export type FilterValue = {
 };
 
 /** Everything a filter needs to be rendered. Name of the component, the ID (to connect to the vuex store), list of possible values (when relevant), etc. */
-export type FilterDefinition<MetadataType = any, ValueType = any> = {
+export type FilterDefinition<MetadataType> = {
 	/** Id of the filter, this must be unique */
 	id: string;
 	/** Display name to show if there is no localized display name in the i18n bundle */
@@ -268,7 +268,7 @@ export type FilterDefinition<MetadataType = any, ValueType = any> = {
 	 * For 'pos' this contains the tagset.
 	 * Custom filter types may place whatever data they require here and it will be made available as a prop.
 	 */
-	metadata: any;
+	metadata: MetadataType;
 };
 
 // ---------------

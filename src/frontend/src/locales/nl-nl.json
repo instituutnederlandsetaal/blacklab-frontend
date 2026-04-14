@@ -71,14 +71,6 @@
 				}
 			}
 		},
-		"concept": {
-			"heading": "Concepten",
-			"copyConceptQuery": "Kopiëren naar CQL-editor (expertmodus)"
-		},
-		"glosses": {
-			"heading": "User glosses",
-			"copyGlossQuery": "Kopiëren naar CQL-editor (expertmodus)"
-		},
 		"expert": {
 			"heading": "Expert",
 			"corpusQueryLanguage": "Corpus Query Language",
@@ -175,32 +167,6 @@
 	},
 	"annotation": {
 		"caseSensitive": "Hoofdletter- en diakrietgevoelig"
-	},
-	"formConcept": {
-		"conceptSearch": {
-			"searchIn": "Zoek in:",
-			"reset": "Wissen",
-			"addBox": "Add box",
-			"removeBox": "Remove box",
-			"viewLexicon": "View lexicon",
-			"showQuery": "Show query",
-			"settings": "Settings:",
-			"query": "Query",
-			"cqlRendition": "CQL-weergave"
-		},
-		"conceptSearchBox": {
-			"subquery": "Subquery",
-			"field": "Field",
-			"concept": "Concept",
-			"term": "Term",
-			"addToLexicon": "Add term to lexicon",
-			"clear": "Wissen"
-		},
-		"glossSearch": {
-			"reset": "Reset",
-			"showQuery": "Show query",
-			"settings": "Settings"
-		}
 	},
 	"results": {
 		"groupBy": {

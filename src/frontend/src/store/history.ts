@@ -47,9 +47,6 @@ type HistoryEntry = {
 	// (in order to reset inactive parts of the page)
 	patterns: PatternModule.ModuleRootState;
 	explore: ExploreModule.ModuleRootState;
-
-	concepts: ConceptModule.HistoryState;
-	glosses: GlossModule.HistoryState;
 };
 
 /** Intermediate type between HistoryEntry and FullHistoryEntry used in a few places */

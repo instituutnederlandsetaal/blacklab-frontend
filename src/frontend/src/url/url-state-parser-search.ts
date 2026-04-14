@@ -74,8 +74,6 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			// settings for the active results view
 			view: this.view(this.interface.viewedResults),
 			global: this.global,
-			concepts: this.concepts,
-			glosses: this.glosses,
 			article: this.article
 			// submitted query not parsed from url: is restored from rest of state later.
 		};
@@ -414,8 +412,6 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			simple: this.simplePattern || {annotationValue: { id: '', value: '', case: false }},
 			extended: this.extendedPattern || {annotationValues: {}, splitBatch: false },
 			advanced: this.advancedPattern || {query: '', targetQueries: []},
-			concept: this.conceptPattern,
-			glosses: this.glossPattern,
 			expert: this.expertPattern,
 		};
 	}
@@ -676,16 +672,6 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	}
 
 	@memoize
-	private get conceptPattern(): string|null { // Jesse
-		return this.getString('patt') || this.getString('query') || null;
-	}
-
-	@memoize
-	private get glossPattern(): string|null { // Jesse
-		return this.getString('patt') || this.getString('query') || null;
-	}
-
-	@memoize
 	private get expertPattern() {
 
 		// Strip any withinClauses from the end of the CQL query,
@@ -712,29 +698,6 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			query: this._parsedCql ? optEmpty(unparenQueryPart(processQueryPart(this._parsedCql?.[0] ?? {}))) || null : null,
 			targetQueries: this._parsedCql ? this._parsedCql.slice(1).map(r => optEmpty(unparenQueryPart(processQueryPart(r))) || '') : [],
 		};
-	}
-
-	@memoize
-	private get concepts(): ConceptModule.HistoryState {
-		return {
-			main_fields: [],
-			query: [[],[]],
-			query_cql: this.conceptPattern ||'',
-			target_element: '',
-		}
-	}
-
-	@memoize
-	private get glosses(): GlossModule.HistoryState {
-		return {
-			current_page: [],
-			gloss_query: {
-				corpus: '',
-				parts: {}
-			},
-			gloss_query_cql: '',
-			glosses: {},
-		}
 	}
 
 	@memoize

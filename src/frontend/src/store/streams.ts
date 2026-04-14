@@ -190,8 +190,6 @@ urlInputParameters$.pipe(
 				activeFilterTab: v.state.interface.activeFilterTab,
 			},
 			gap: query.gap || GapStore.defaults,
-			concepts: ConceptStore.defaults,
-			glosses: GlossStore.defaults,
 			article: {
 				docId: v.state.article.docId,
 				viewField: v.state.article.viewField,
@@ -219,8 +217,6 @@ urlInputParameters$.pipe(
 		patterns: v.entry.patterns,
 		interface: v.entry.interface,
 		gap: v.entry.gap,
-		concepts: v.entry.concepts,
-		glosses: v.entry.glosses,
 	};
 	HistoryStore.actions.addEntry({
 		entry: entryForQueryHistory,

@@ -231,7 +231,7 @@ export default defineComponent({
 			this.formatId = formatId;
 			const format = this.format!;
 			this.confirmTitle = `Delete import format <em>${format.displayName}</em>?`;
-			this.confirmMessage = `You are about to delete the import format <i>${format.id}</i>.<br>Are you sure?`,
+			this.confirmMessage = `You are about to delete the import format <i>${format.id}</i>.<br>Are you sure?`;
 			this.modal = 'confirm';
 			this.confirmAction = () => {
 				this.close();

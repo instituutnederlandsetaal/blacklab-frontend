@@ -60,7 +60,7 @@ function e<T>(): CancelableRequest<T> {
 vi.mock('@/api', () => ({
 	blacklab: {
 		getHits: r(values.MOCK_HITS),
-		getDocumentInfo: (indexId: string, docId: string) => docId === values.MOCK_DOC.docPid ? r(values.MOCK_DOC)() : e(),
+		getDocumentInfo: (_indexId: string, docId: string) => docId === values.MOCK_DOC.docPid ? r(values.MOCK_DOC)() : e(),
 	},
 	frontend: {
 		getDocumentContents: r<string>(''),

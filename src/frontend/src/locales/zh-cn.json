@@ -70,14 +70,6 @@
 				}
 			}
 		},
-		"concept": {
-			"heading": "概念",
-			"copyConceptQuery": "复制到CQL编辑器(专家模式)"
-		},
-		"glosses": {
-			"heading": "用户标注",
-			"copyGlossQuery": "复制到CQL编辑器(专家模式)"
-		},
 		"expert": {
 			"heading": "专家级",
 			"corpusQueryLanguage": "语料库查询语言",
@@ -174,32 +166,6 @@
 	},
 	"annotation": {
 		"caseSensitive": "区分大小写和变音符号"
-	},
-	"formConcept": {
-		"conceptSearch": {
-			"searchIn": "搜索范围：",
-			"reset": "重置",
-			"addBox": "添加框",
-			"removeBox": "移除框",
-			"viewLexicon": "查看词典",
-			"showQuery": "显示查询",
-			"settings": "设置：",
-			"query": "查询",
-			"cqlRendition": "CQL 表达式"
-		},
-		"conceptSearchBox": {
-			"subquery": "子查询",
-			"field": "字段",
-			"concept": "概念",
-			"term": "术语",
-			"addToLexicon": "添加术语到词典",
-			"clear": "清除"
-		},
-		"glossSearch": {
-			"reset": "重置",
-			"showQuery": "显示查询",
-			"settings": "设置"
-		}
 	},
 	"results": {
 		"groupBy": {

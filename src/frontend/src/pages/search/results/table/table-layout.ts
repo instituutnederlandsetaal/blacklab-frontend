@@ -1,4 +1,3 @@
-import type { GlossFieldDescription } from '@/store/form/glossStore';
 import type { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, OptGroup, Option, TokenHighlight } from '@/types/apptypes';
 import type { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLSearchParameters, BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
@@ -464,11 +463,6 @@ export type HitRowData = {
 	*/
 	customHitInfo: string;
 
-	// TODO jesse
-	gloss_fields: GlossFieldDescription[];
-	hit_first_word_id: string; // Jesse
-	hit_last_word_id: string // jesse
-
 	/** Is this row muted? (used for rows outside a shared URL-requested range) */
 	muted: boolean;
 }
@@ -548,11 +542,6 @@ function makeHitRow(p: Result<BLHitInOtherField|BLHit|BLHitSnippet>, info: Displ
 		isForeign: field !== info.sourceField,
 		annotatedField: field,
 		dir: docDir(p.doc, info.dir),
-
-		// TODO
-		gloss_fields: [],
-		hit_first_word_id: '',
-		hit_last_word_id: '',
 
 		customHitInfo: (p.hit ? info.getCustomHitInfo(p.hit, info.i18n.$tAnnotatedFieldDisplayName(field), p.doc) : undefined) ?? '',
 		muted: isOutsideRequestedResults(indexInRequestedResults, info.requestedRange, p.query.first)

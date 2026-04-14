@@ -159,7 +159,6 @@ import * as Api from '@/api';
 
 import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
-import * as GlossModule from '@/store/form/glossStore'; // Jesse
 import * as QueryStore from '@/store/query';
 import * as GlobalStore from '@/store/results/global';
 import * as ResultsStore from '@/store/results/views';
@@ -319,13 +318,6 @@ export default defineComponent({
 			this.error = null;
 			this.request = null;
 			this.cancel = null;
-
-			// Jesse (glosses): hier ook een keer de page hits in de gloss store updaten
-			const get_hit_id = GlossModule.get.settings()?.get_hit_id;
-			if (BLTypes.isHitResults(data) && get_hit_id) {
-				GlossModule.actions.setCurrentPage(data.hits.map(get_hit_id));
-			}
-
 			this.results = markRaw(data);
 			this.paginationResults = markRaw(data);
 		},

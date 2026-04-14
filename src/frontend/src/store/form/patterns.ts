@@ -51,8 +51,6 @@ type ModuleRootState = {
 		query: string|null,
 		targetQueries: string[],
 	},
-	concept: string|null, // Jesse
-	glosses: string|null, // Jesse
 };
 
 // There are three levels of state initialization
@@ -82,8 +80,6 @@ const initialState: ModuleRootState = {
 		query: null,
 		targetQueries: [],
 	},
-	concept: null,
-	glosses: null,
 };
 
 const namespace = 'patterns';
@@ -254,17 +250,12 @@ const actions = {
 			state.expert.targetQueries = [];
 		}, 'expert_reset'),
 	},
-	concept: b.commit((state, payload: string|null) =>state.concept = payload, 'concept'),
-	glosses: b.commit((state, payload: string|null) =>state.glosses = payload, 'glosses'),
-
-	reset: b.commit(state => {
+	reset: b.commit(() => {
 		actions.shared.reset();
 		actions.simple.reset();
 		actions.extended.reset();
 		actions.advanced.reset();
 		actions.expert.reset();
-		state.concept = null;
-		state.glosses = null;
 	}, 'reset'),
 
 	replace: b.commit((state, payload: ModuleRootState) => {
@@ -289,9 +280,6 @@ const actions = {
 		actions.expert.reset();
 		actions.expert.query(payload.expert.query);
 		actions.expert.targetQueries(payload.expert.targetQueries);
-
-		actions.concept(payload.concept);
-		actions.glosses(payload.glosses);
 	}, 'replace'),
 };
 

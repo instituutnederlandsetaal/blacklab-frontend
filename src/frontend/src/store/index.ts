@@ -287,8 +287,6 @@ const actions = {
 			interface: InterfaceModule.getState(),
 			filters: get.filtersActive() ? FilterModule.get.activeFiltersMap() : {},
 			gap: get.gapFillingActive() ? GapModule.getState() : GapModule.defaults,
-			concepts: ConceptModule.getState(),
-			glosses: GlossModule.getState(),
 		};
 
 		const annotations = PatternModule.get.activeAnnotations();
@@ -301,8 +299,6 @@ const actions = {
 				...sharedBatchState,
 				patterns: {
 					advanced: { query: {tokens: [], within: '', withinAttributes: {}}, targetQueries: [] },
-					concept: null,
-					glosses: null,
 					expert: {
 						query: null,
 						targetQueries: [],
@@ -422,7 +418,7 @@ const init = async (state: CorpusChange) => {
 
 	// XXX: Changing the corpus recreates these modules, so replace them in window...
 	// Hack!
-	(window as any).vuexModules.results = {
+	(globalThis as any).vuexModules.results = {
 		...ViewModule,
 		hits: ViewModule.getOrCreateModule('hits'),
 		docs: ViewModule.getOrCreateModule('docs'),
@@ -430,7 +426,7 @@ const init = async (state: CorpusChange) => {
 };
 
 // Debugging helpers.
-(window as any).vuexModules = {
+(globalThis as any).vuexModules = {
 	root: {
 		store,
 		getState,
@@ -444,8 +440,6 @@ const init = async (state: CorpusChange) => {
 	query: QueryModule,
 	tagset: TagsetModule,
 	ui: UIModule,
-	concepts: ConceptModule, // Jesse
-	glosses: GlossModule,
 	explore: ExploreModule,
 	form: FormManager,
 	filters: FilterModule,

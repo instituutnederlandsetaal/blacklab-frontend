@@ -70,14 +70,6 @@
 				}
 			}
 		},
-		"concept": {
-			"heading": "Concepts",
-			"copyConceptQuery": "Copy to CQL editor (expert mode)"
-		},
-		"glosses": {
-			"heading": "User glosses",
-			"copyGlossQuery": "Copy to CQL editor (expert mode)"
-		},
 		"expert": {
 			"heading": "Expert",
 			"corpusQueryLanguage": "Corpus Query Language",
@@ -174,32 +166,6 @@
 	},
 	"annotation": {
 		"caseSensitive": "Case- and diacritics-sensitive"
-	},
-	"formConcept": {
-		"conceptSearch": {
-			"searchIn": "Search in:",
-			"reset": "Reset",
-			"addBox": "Add box",
-			"removeBox": "Remove box",
-			"viewLexicon": "View lexicon",
-			"showQuery": "Show query",
-			"settings": "Settings:",
-			"query": "Query",
-			"cqlRendition": "CQL rendition"
-		},
-		"conceptSearchBox": {
-			"subquery": "Subquery",
-			"field": "Field",
-			"concept": "Concept",
-			"term": "Term",
-			"addToLexicon": "Add term to lexicon",
-			"clear": "Clear"
-		},
-		"glossSearch": {
-			"reset": "Reset",
-			"showQuery": "Show query",
-			"settings": "Settings"
-		}
 	},
 	"results": {
 		"groupBy": {

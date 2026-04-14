@@ -16,7 +16,8 @@ export default defineConfig({
     "eslint/no-unused-vars": ["warn", {
       args: "none",
       varsIgnorePattern: "^_.*"
-    }]
+    }], 
+    "typescript/await-thenable": "ignore",
   },
   settings: {},
   env: {

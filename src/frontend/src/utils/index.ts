@@ -612,8 +612,6 @@ export function binarySearch<T>(a: T[], compare: (el: T) => number) {
 	return -low;  // key not found.
 }
 
-export function uniq<T>(l: T[]): T[] {return [...new Set(l)].sort() }
-
 /** Compile time checking: ensure the passed parameter is of the template type and return it (no-op).
  * Can use while setting variables initial value for example. */
 export function cast<T>(t: T): T { return t; }

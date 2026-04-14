@@ -22,17 +22,6 @@
 				@unhover="$emit('unhover')"
 			/>
 			<td v-else-if="col.field === 'metadata'" :key="col.key + col.metadata.id" :class="col.class" :style="col.style">{{ row.doc.docInfo[col.metadata.id]?.join(', ') || '' }}</td>
-
-			<!-- TODO -->
-			<td v-for="field in row.gloss_fields" :key="field.fieldName" style="overflow: visible;" :class="col.class" :style="col.style">
-				<GlossField
-					:fieldName="field.fieldName"
-					:hit_first_word_id="row.hit_first_word_id"
-					:hit_last_word_id="row.hit_last_word_id"
-					:fieldDescription="field"
-					:hitId="row.hit_id"
-				/>
-			</td>
 		</template>
 	</tr>
 </template>
@@ -42,7 +31,6 @@ import { defineComponent } from 'vue';
 import IRow from '@/pages/search/results/table/IRow.vue';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
 
-import GlossField from '@/pages/search/form/concept/GlossField.vue';
 import type { HitRowData } from '@/pages/search/results/table/table-layout';
 import type { PropType } from 'vue';
 
@@ -51,7 +39,6 @@ export default defineComponent({
 	extends: IRow,
 	props: { row: { type: Object as PropType<HitRowData>, required: true } },
 	components: {
-		GlossField,
 		HitContext
 	},
 	methods: {

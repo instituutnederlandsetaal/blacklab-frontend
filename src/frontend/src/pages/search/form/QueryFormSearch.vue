@@ -247,14 +247,6 @@ export default defineComponent({
 			get(): CqlQueryBuilderData|null { return PatternStore.getState().advanced.query; },
 			set: PatternStore.actions.advanced.query,
 		},
-		concept: {
-			get(): string|null { return PatternStore.getState().concept; },
-			set: PatternStore.actions.concept,
-		},
-		glosses: {
-			get(): string|null { return PatternStore.getState().glosses; },
-			set: PatternStore.actions.glosses,
-		},
 		gapValue: {
 			get: GapStore.get.gapValue,
 			set: GapStore.actions.gapValue
@@ -332,15 +324,6 @@ export default defineComponent({
 
 			el.value = `${textStart}\t${textEnd}`;
 			el.selectionEnd = el.selectionStart = originalSelectionStart + 1;
-		},
-
-		copyConceptQuery() {
-			PatternStore.actions.expert.query(this.concept);
-			InterfaceStore.actions.patternMode('expert');
-		},
-		copyGlossQuery() {
-			PatternStore.actions.expert.query(this.glosses);
-			InterfaceStore.actions.patternMode('expert');
 		},
 		/** Tabs can be set to null or invalid value when decoding existing URL. Validate and correct it if required */
 		synchronizeActiveTab() {

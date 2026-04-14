@@ -94,11 +94,11 @@ class I18nManager {
 				const {own, stored} = cur;
 				if (prev) {
 					const {own: prevOwn, stored: prevStored} = prev;
-					if (prevStored !== stored && own !== stored) this.setLocale(stored, I18nManager.PRIORITY_SET_BY_USER);
+					if (prevStored !== stored && own !== stored) void this.setLocale(stored, I18nManager.PRIORITY_SET_BY_USER);
 					else if (prevOwn !== own && own !== stored && this.highestLocalePrecedence >= I18nManager.PRIORITY_SET_BY_USER) localeFromStorage.value = own;
 				} else {
 					// init
-					if (stored !== own) this.setLocale(stored, I18nManager.PRIORITY_SET_BY_USER);
+					if (stored !== own) void this.setLocale(stored, I18nManager.PRIORITY_SET_BY_USER);
 				}
 			}, { immediate: true });
 		}
@@ -279,7 +279,7 @@ class I18nManager {
 				.catch(e => { throw `Built-in messages for locale '${localeId}' not found.` })
 				.then(m => {
 					try { return JSON.parse(stripJsonComments(m.default)) }
-					catch (e) { throw new Error(`Failed to parse built-in messages for locale '${localeId}': ${e}`); }
+					catch (e) { throw new Error(`Failed to parse built-in messages for locale '${localeId}': ${JSON.stringify(e)}`); }
 				});
 		}
 		function processFetchResult(r: Promise<Response>): Promise<Record<string, any>> {
@@ -290,7 +290,7 @@ class I18nManager {
 			})
 			.then<Record<string, string>>(m => {
 				try { return JSON.parse(stripJsonComments(m)); }
-				catch (e) { throw new Error(`Failed to parse custom messages for locale '${localeId}': ${e}`); }
+				catch (e) { throw new Error(`Failed to parse custom messages for locale '${localeId}': ${JSON.stringify(e)}`); }
 			})
 		}
 
@@ -309,7 +309,7 @@ class I18nManager {
 			try {
 				return merge(...fulfilled);
 			} catch (e) {
-				throw new Error(`Failed to build locale messages for locale '${localeId}': ${e}`);
+				throw new Error(`Failed to build locale messages for locale '${localeId}': ${JSON.stringify(e)}`);
 			}
 		});
 	}
