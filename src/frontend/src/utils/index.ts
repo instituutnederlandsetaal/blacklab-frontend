@@ -682,7 +682,7 @@ export function getAnnotationSubset(
  * Find a the index of a value in the array using binary search.
  * @param a the array to search in
  * @param compare compare the current element, should return a negative number if the wanted element comes before the current element, a positive number if it comes after, and 0 if it is the wanted element.
- * @returns the index of the element in the array, or the negative index where it should be inserted.
+ * @returns the index of the element in the array, or <code>-(insertionPoint + 1)</code> when not found.
  */
 export function binarySearch<T>(a: T[], compare: (el: T) => number) {
 	let low = 0;
@@ -700,7 +700,7 @@ export function binarySearch<T>(a: T[], compare: (el: T) => number) {
 		else
 			return mid; // key found
 	}
-	return -low;  // key not found.
+	return -(low + 1); // key not found.
 }
 
 export function uniq<T>(l: T[]): T[] {return Array.from(new Set(l)).sort() }
