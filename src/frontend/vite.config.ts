@@ -13,7 +13,7 @@ export default defineConfig(({ mode }): UserConfig => ({
         tsconfigPath: 'tsconfig.json', // relative to root prop above
       },
       oxlint: {
-        lintCommand: 'oxlint --config oxlint.config.ts ',
+        lintCommand: 'oxlint --config oxlint.config.ts --tsconfig tsconfig.json ',
       }
     }),
     inject({

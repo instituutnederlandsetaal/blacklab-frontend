@@ -11,11 +11,9 @@ import jsonStableStringify from 'json-stable-stringify';
 
 import type { RootState } from '@/store/';
 import * as CorpusModule from '@/store/corpus';
-import type * as ConceptModule from '@/store/form/conceptStore';
 import type * as ExploreModule from '@/store/form/explore';
 import type * as FilterModule from '@/store/form/filters';
 import type * as GapModule from '@/store/form/gap';
-import type * as GlossModule from '@/store/form/glossStore';
 import type * as InterfaceModule from '@/store/form/interface';
 import type * as PatternModule from '@/store/form/patterns';
 import type * as GlobalModule from '@/store/results/global';
@@ -31,7 +29,7 @@ import { markRaw } from 'vue';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
-const version = 9;
+const version = 10;
 
 type HistoryEntry = {
 	// always set
@@ -286,8 +284,8 @@ function hashJavaDJB2(str: string) {
 // tslint:enable
 
 export {
-	actions, get, getState, init,
+  actions, get, getState, init,
 
-	namespace, type FullHistoryEntry, type HistoryEntry, type ModuleRootState
+  namespace, type FullHistoryEntry, type HistoryEntry, type ModuleRootState
 };
 

@@ -5,8 +5,6 @@
 			<li :class="{'active': activePattern==='simple'}" @click.prevent="activePattern='simple'"><a href="#simple" class="querytype">{{$t('search.simple.heading')}}</a></li>
 			<li :class="{'active': activePattern==='extended'}" @click.prevent="activePattern='extended'"><a href="#extended" class="querytype">{{$t('search.extended.heading')}}</a></li>
 			<li v-if="advancedEnabled" :class="{'active': activePattern==='advanced'}" @click.prevent="activePattern='advanced'" ><a href="#advanced" class="querytype">{{$t('search.advanced.heading')}}</a></li>
-			<li v-if="conceptEnabled" :class="{'active': activePattern==='concept'}" @click.prevent="activePattern='concept'"><a href="#concept" class="querytype">{{$t('search.concept.heading')}}</a></li>
-			<li v-if="glossEnabled" :class="{'active': activePattern==='glosses'}" @click.prevent="activePattern='glosses'"><a href="#glosses" class="querytype">{{$t('search.glosses.heading')}}</a></li>
 			<li :class="{'active': activePattern==='expert'}" @click.prevent="activePattern='expert'"><a href="#expert" class="querytype">{{$t('search.expert.heading')}}</a></li>
 		</ul>
 		<div class="tab-content" :class="{ parallel: isParallelCorpus }">
@@ -78,18 +76,6 @@
 			<div v-if="advancedEnabled" :class="['tab-pane', {'active': activePattern==='advanced'}]" id="advanced">
 				<SearchAdvanced :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 			</div>
-			<div v-if="conceptEnabled" :class="['tab-pane', {'active': activePattern==='concept'}]" id="concept">
-
-				<!-- Jesse -->
-				<ConceptSearch/>
-				<button type="button" class="btn btn-default btn-sm" @click="copyConceptQuery">{{$t('search.concept.copyConceptQuery')}}</button>
-			</div>
-			<div v-if="glossEnabled" :class="['tab-pane', {'active': activePattern==='glosses'}]" id="glosses">
-				<!-- Jesse -->
-				<GlossSearch/>
-				<div style="margin-top:2em"/>
-				<button type="button" class="btn btn-default btn-sm" @click="copyGlossQuery">{{$t('search.glosses.copyGlossQuery')}}</button>
-			</div>
 			<div :class="['tab-pane', {'active': activePattern==='expert'}]" id="expert">
 				<SearchExpert :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 
@@ -130,10 +116,8 @@ import { defineComponent } from 'vue';
 
 import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
-import * as ConceptStore from '@/store/form/conceptStore';
 import * as FilterStore from '@/store/form/filters';
 import * as GapStore from '@/store/form/gap';
-import * as GlossStore from '@/store/form/glossStore';
 import * as InterfaceStore from '@/store/form/interface';
 import * as PatternStore from '@/store/form/patterns';
 import * as HistoryStore from '@/store/history';
@@ -141,8 +125,6 @@ import * as UIStore from '@/store/ui';
 
 import uid from '@/mixins/uid';
 import Annotation from '@/pages/search/form/Annotation.vue';
-import ConceptSearch from '@/pages/search/form/concept/ConceptSearch.vue';
-import GlossSearch from '@/pages/search/form/concept/GlossSearch.vue';
 import ParallelSourceAndTargets from '@/pages/search/form/ParallelSourceAndTargets.vue';
 import SearchAdvanced from '@/pages/search/form/SearchAdvanced.vue';
 import SearchExpert from '@/pages/search/form/SearchExpert.vue';
@@ -153,9 +135,6 @@ import type * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
 
 import type { Option } from '@/components/SelectPicker.vue';
-
-function isVue(v: any): v is Vue { return 'render' in v; }
-function isJQuery(v: any): v is JQuery { return typeof v !== 'boolean' && v && v.jquery; }
 
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
@@ -172,8 +151,6 @@ export default defineComponent({
 		Annotation,
 		SearchAdvanced,
 		SearchExpert,
-		ConceptSearch,
-		GlossSearch,
 		Within,
 	},
 	props: {
@@ -266,8 +243,6 @@ export default defineComponent({
 			set: PatternStore.actions.simple.annotation,
 		},
 		advancedEnabled(): boolean { return UIStore.getState().search.advanced.enabled; },
-		glossEnabled(): boolean { return GlossStore.get.settings() != null; },
-		conceptEnabled(): boolean { return ConceptStore.get.settings() != null; },
 		advanced: {
 			get(): CqlQueryBuilderData|null { return PatternStore.getState().advanced.query; },
 			set: PatternStore.actions.advanced.query,
@@ -338,10 +313,9 @@ export default defineComponent({
 			.finally(() => el.value = '')
 		},
 		importGapFile(event: Event) {
-			const self = this;
 			const el = (event.target as HTMLInputElement);
 			if (!el.files || el.files.length !== 1) {
-				self.gapValue = null;
+				this.gapValue = null;
 				return;
 			}
 			GapStore.actions.gapValueFile(el.files[0]);

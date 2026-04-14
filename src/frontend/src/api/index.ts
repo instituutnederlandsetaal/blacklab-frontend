@@ -1,18 +1,16 @@
-import type { AxiosRequestConfig,Canceler} from 'axios';
+import type { AxiosRequestConfig, Canceler } from 'axios';
 import axios from 'axios';
 
-import {createEndpoint} from '@/api/apiutils';
-import {normalizeIndex, normalizeFormat, normalizeIndexBase} from '@/utils/blacklabutils';
+import { createEndpoint } from '@/api/apiutils';
+import { normalizeFormat, normalizeIndex, normalizeIndexBase } from '@/utils/blacklabutils';
 
-import type * as BLTypes from '@/types/blacklabtypes';
 import type { CFPageConfig, Tagset } from '@/types/apptypes';
 import { ApiError } from '@/types/apptypes';
-import type { Glossing } from '@/store/form/glossStore';
-import type { AtomicQuery, LexiconEntry } from '@/store/form/conceptStore';
-import { isHitParams, uniq } from '@/utils';
-import type { User } from 'oidc-client-ts';
-import { stripIndent } from 'common-tags';
+import type * as BLTypes from '@/types/blacklabtypes';
+import { isHitParams } from '@/utils';
 import { CancelableRequest } from '@/utils/loadable-streams';
+import { stripIndent } from 'common-tags';
+import type { User } from 'oidc-client-ts';
 
 /** How many values to return per attribute when requesting /relations */
 const RELATIONS_LIMITVALUES = 1000;
@@ -20,18 +18,11 @@ const RELATIONS_LIMITVALUES = 1000;
 type API = ReturnType<typeof createEndpoint>;
 
 const endpoints = {
-
 	// Communicates with the BlackLab Server instance
 	blacklab: null as any as API,
 
 	// Communicates with the frontend's own Java backend (which in turn can communicate with BLS)
-	cf: null as any as API,
-
-	//
-	gloss: null as any as API,
-
-	//
-	concept: null as any as API,
+	frontend: null as any as API,
 };
 
 /** Initialize an endpoint. In a function because urls might be set asynchronously (such as from customjs). */
@@ -380,7 +371,7 @@ export const blacklab = {
  * API for blacklab-frontend's own webservice
  */
 export const frontend = {
-	getCorpus: (indexId: string) => endpoints.cf
+	getCorpus: (indexId: string) => endpoints.frontend
 		.getCancelable<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo(indexId))
 		.catch<never>(e => {
 			if (!(e instanceof ApiError)) {
@@ -423,7 +414,7 @@ export const frontend = {
 				throw e;
 			}
 		}),
-	getConfig: (indexId: string|null) => endpoints.cf.getCancelable<CFPageConfig>(frontendPaths.config(indexId)),
+	getConfig: (indexId: string|null) => endpoints.frontend.getCancelable<CFPageConfig>(frontendPaths.config(indexId)),
 
 	/** Get transformed document contents */
 	getDocumentContents: (params: {
@@ -437,117 +428,23 @@ export const frontend = {
 		viewField: string,
 		/** Annotated field in which to search (for parallel corpora) - only required if different from field */
 		searchfield?: string
-	}) => endpoints.cf
+	}) => endpoints.frontend
 		.getCancelable<string>(frontendPaths.documentContents(params.indexId, params.docId), params),
 
 	/** Get transformed document metadata */
-	getDocumentMetadata: (indexId: string, pid: string) => endpoints.cf
+	getDocumentMetadata: (indexId: string, pid: string) => endpoints.frontend
 		.getCancelable<string>(frontendPaths.documentMetadata(indexId, pid)),
 
 	/** Get html content of the help page. */
-	getHelp: (indexId?: string) => endpoints.cf.getCancelable<string>(frontendPaths.help(indexId)),
+	getHelp: (indexId?: string) => endpoints.frontend.getCancelable<string>(frontendPaths.help(indexId)),
 	/** Get html content of the about page. */
-	getAbout: (indexId?: string) => endpoints.cf.getCancelable<string>(frontendPaths.about(indexId)),
-	getTagset: (indexId: string) => endpoints.cf.getCancelable<Tagset>(frontendPaths.tagset(indexId), {
+	getAbout: (indexId?: string) => endpoints.frontend.getCancelable<string>(frontendPaths.about(indexId)),
+	getTagset: (indexId: string) => endpoints.frontend.getCancelable<Tagset>(frontendPaths.tagset(indexId), {
 		// Remove comment-lines in the returned json. (that's not strictly allowed by JSON, but we chose to support it)
 		transformResponse: [(r: string) => r.replace(/\/\/.*[\r\n]+/g, '')].concat(axios.defaults.transformResponse!)
 	})
 }
 
-export const glossPaths = {
-	root: () => './',
-	glosses: () => `GlossStore` // NOTE: no trailing slash!
-}
-
-export const glossApi = {
-	getCql: (instance: string, corpus: string, query: string) => endpoints.gloss
-		.get<''|Glossing[]>(glossPaths.glosses(), {instance,corpus,query})
-		.then(glossings => !glossings ? '' : glossings
-			.filter(g => g.hit_first_word_id?.length > 3)
-			.map(g => {
-				if (g.hit_first_word_id !== g.hit_last_word_id)
-					return `([_xmlid='${g.hit_first_word_id}'][]*[_xmlid='${g.hit_last_word_id}'])`;
-				else
-					return `([_xmlid='${g.hit_first_word_id}'])`
-			})
-			.join("| ")
-		),
-	storeGlosses: (instance: string, glossings: Glossing[]) => endpoints.gloss
-		.post(glossPaths.glosses(), new URLSearchParams({
-			instance,
-			glossings: JSON.stringify(glossings)
-		})),
-	getGlosses: (instance: string, corpus: string, hitIds: string[]) => endpoints.gloss
-		.get<Glossing[]>(glossPaths.glosses(), {instance,corpus,hitIds: JSON.stringify(hitIds)}),
-
-}
-
-/** API of the concept implementation is a bit weird. Everything happens through query parameters mostly. */
-export const conceptPaths = {
-	api: () => `api`,
-	cql: () => `BlackPaRank`,
-}
-
-export const conceptApi = {
-	/** Data contains duplicates currently. */
-	getMainFields: (instance: string, corpus: string) => endpoints.concept
-		.get<{data: LexiconEntry[]}>(conceptPaths.api(), {
-			instance,
-			query: `query Quine { lexicon(corpus : "${corpus}") { field } }`
-		}),
-	addConceptOrTermToDatabase: (
-		instance: string,
-		corpus: string,
-		field: string,
-		concept: string,
-		/** When omitted, only the concept is added to the database. */
-		term?: string
-	) => endpoints.concept.get(conceptPaths.api(), {
-		instance,
-		insertTerm: term
-			? { corpus, field, concept, term }
-			: { corpus, field, concept }
-	}),
-	getConcepts: (
-		instance: string,
-		field: string,
-		prefix?: string
-	) => endpoints.concept.get<{data: {data: Array<{cluster: string}>}}>(conceptPaths.api(), {
-		instance,
-		query: `query Quine { lexicon (${prefix ? `cluster: "/^${prefix}/",` : ''} field: "${field}") { field, cluster, term } }`
-	}).then(r => uniq(r.data.data.map(x => x.cluster))),
-	getTerms: (
-		instance: string,
-		field: string,
-		concept: string,
-		/** Optionally, return a list only with those terms starting with the prefix. All terms returned otherwise. */
-		prefix?: string
-	) => endpoints.concept.get<{data: {data: Array<{term: string}>}}>(conceptPaths.api(), {
-		instance,
-		query: `query Quine { lexicon (${prefix ? `term: "/^${prefix}/",` : ''} field: "${field}", cluster: "${concept}") { field, cluster, term } }`
-	}).then(r => uniq(r.data.data.map(x => x.term))),
-	translate_query_to_cql: (
-		blacklabBackendEndpoint: string,
-		corpus: string,
-		element: string,
-		queries: Record<string, AtomicQuery[]>,
-	): Promise<{pattern: string}> => endpoints.concept
-		.get<{pattern: string}>(conceptPaths.cql(), {
-			server: blacklabBackendEndpoint,
-			corpus,
-			action: 'info',
-			query: JSON.stringify({
-				element,
-				strict: true,
-				filter: '',
-				queries
-			})
-		}, {
-			headers: {
-				Accept: 'application/json'
-			},
-		}),
-}
-
-export type { Canceler };
 export { ApiError };
+export type { Canceler };
+

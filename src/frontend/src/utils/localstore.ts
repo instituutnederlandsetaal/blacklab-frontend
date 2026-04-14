@@ -4,8 +4,8 @@ class StorageWatcher {
 	private listeners: Map<string, ((newValue: any) => void)> = new Map();
 
 	// check for window to account for test environments
-	constructor() { typeof window !== 'undefined' && window.addEventListener('storage', this.callback); }
-	public close() { typeof window !== 'undefined'  && window.removeEventListener('storage', this.callback); }
+	constructor() { if (typeof window !== 'undefined') window.addEventListener('storage', this.callback); }
+	public close() { if (typeof window !== 'undefined') window.removeEventListener('storage', this.callback); }
 
 	// arrow so 'this' context is correct
 	private callback = (e: StorageEvent) => {

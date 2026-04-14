@@ -1,8 +1,8 @@
-import {test, expect, describe} from 'vitest';
-import { EMPTY, map, Observable, of, Subject } from 'rxjs';
+import { EMPTY, Observable, of, Subject } from 'rxjs';
+import { describe, expect, test } from 'vitest';
 
-import {Loadable, CancelableRequest, loadableFromStream, LoadableState, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, combineLoadables, combineLoadablesIncludingEmpty, flatMapLoadable, loadableStreamFromPromise, mapLoadable, mergeMapLoadable, promiseFromLoadableStream, switchMapLoadable, withRequiredKeys } from '@/utils/loadable-streams';
 import { ApiError } from '@/api';
+import { CancelableRequest, combineLoadables, combineLoadablesIncludingEmpty, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, flatMapLoadable, Loadable, loadableFromStream, LoadableState, loadableStreamFromPromise, mapLoadable, mergeMapLoadable, promiseFromLoadableStream, switchMapLoadable, withRequiredKeys } from '@/utils/loadable-streams';
 
 const apiError: ApiError = new ApiError('', '', '', 0);
 const loading = Loadable.Loading();

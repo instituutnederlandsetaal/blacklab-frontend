@@ -1,4 +1,5 @@
 import type { FilterDefinition, Option } from '@/types/apptypes';
+import { isObject } from '@vueuse/core';
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue/dist/vue.js';
 
@@ -10,7 +11,7 @@ export default function createBaseFilterComponent<T, M = never>(
 	const component = defineComponent({
 		props: {
 			definition: {
-				type: Object as PropType<FilterDefinition<T, M>>,
+				type: Object as PropType<FilterDefinition<M>>,
 				required: true
 			},
 			modelValue: {
@@ -43,7 +44,9 @@ export default function createBaseFilterComponent<T, M = never>(
 			options(): Option[]|undefined {
 				if (Array.isArray(this.definition.metadata))
 					return this.definition.metadata;
-				return this.definition.metadata.options;
+				else if (isObject(this.definition.metadata) && 'options' in this.definition.metadata && Array.isArray(this.definition.metadata.options)) 
+					return this.definition.metadata.options;
+
 			}
 		},
 	});

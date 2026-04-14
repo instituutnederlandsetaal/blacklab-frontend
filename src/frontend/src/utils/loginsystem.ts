@@ -1,7 +1,7 @@
-import type { User} from 'oidc-client-ts';
-import { UserManager, Log } from 'oidc-client-ts';
-import axios from 'axios';
 import type { BLServer } from '@/types/blacklabtypes';
+import axios from 'axios';
+import type { User } from 'oidc-client-ts';
+import { Log, UserManager } from 'oidc-client-ts';
 
 export const userManager = (OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL) ? new UserManager({
 	checkSessionIntervalInSeconds: 10,
@@ -48,7 +48,7 @@ export const user: Promise<User|null> = new Promise(async (resolve, reject) => {
 				try { user = await userManager.signinSilent(); }
 				catch { }
 			}
-		} catch (e) {
+		} catch {
 			// not logged in.
 		}
 	}
@@ -62,5 +62,5 @@ export const userName = user.then(u => {
 		.catch(e => { console.error('Failed to get username from fallbackUsernameGetter', e); return null; });
 })
 
-export function login() { userManager?.signinRedirect({redirect_uri: window.location.href}); }
-export function logout() { userManager?.signoutRedirect({post_logout_redirect_uri: window.location.href}); }
+export function login() { void userManager?.signinRedirect({redirect_uri: window.location.href}); }
+export function logout() { void userManager?.signoutRedirect({post_logout_redirect_uri: window.location.href}); }

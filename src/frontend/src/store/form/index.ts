@@ -3,11 +3,9 @@ import { getStoreBuilder } from 'vuex-typex';
 import type { RootState } from '@/store/';
 
 import type { CorpusChange } from '@/store/async-loaders';
-import * as ConceptModule from '@/store/form/conceptStore';
 import * as ExploreModule from '@/store/form/explore';
 import * as FilterModule from '@/store/form/filters';
 import * as GapModule from '@/store/form/gap';
-import * as GlossModule from '@/store/form/glossStore';
 import * as InterfaceModule from '@/store/form/interface';
 import * as PatternModule from '@/store/form/patterns';
 
@@ -17,8 +15,6 @@ type PartialRootState = {
 	interface: InterfaceModule.ModuleRootState;
 	patterns: PatternModule.ModuleRootState;
 	gap: GapModule.ModuleRootState;
-	glosses: GlossModule.ModuleRootState;
-	concepts: ConceptModule.ModuleRootState;
 };
 
 type ResetState = {
@@ -27,8 +23,6 @@ type ResetState = {
 	interface: InterfaceModule.ModuleRootState;
 	patterns: PatternModule.ModuleRootState;
 	gap: GapModule.ModuleRootState;
-	glosses: GlossModule.HistoryState;
-	concepts: ConceptModule.HistoryState;
 }
 
 const b = getStoreBuilder<RootState>();
@@ -44,8 +38,6 @@ const actions = {
 		InterfaceModule.actions.viewedResults(null);
 		PatternModule.actions.reset();
 		GapModule.actions.reset();
-		GlossModule.actions.reset();
-		ConceptModule.actions.reset();
 	}, 'resetForm'),
 
 	replace: b.commit((state, payload: ResetState) => {
@@ -54,8 +46,6 @@ const actions = {
 		PatternModule.actions.replace(payload.patterns);
 		InterfaceModule.actions.replace(payload.interface);
 		GapModule.actions.replace(payload.gap);
-		GlossModule.actions.replace(payload.glosses);
-		ConceptModule.actions.replace(payload.concepts);
 	}, 'replaceForm')
 };
 
@@ -65,8 +55,6 @@ const init = (state: CorpusChange) => {
 	InterfaceModule.init(state);
 	PatternModule.init(state);
 	GapModule.init(state);
-	GlossModule.init(state);
-	ConceptModule.init(state);
 };
 
 export { actions, get, init };

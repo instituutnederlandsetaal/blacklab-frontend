@@ -171,7 +171,7 @@ export interface BLFormatContent {
 	/** id */
 	formatName: string;
 	/** usually one of 'yml', 'yaml', 'json', lowercased */
-	configFileType: 'json'|'yml'|'yaml'|string;
+	configFileType: 'json'|'yml'|'yaml'|(string&{});
 	/** contents of the file, treat with caution: user content! */
 	configFile: string;
 }
@@ -219,7 +219,7 @@ export interface BLAnnotation {
 	sensitivity: 'SENSITIVE_AND_INSENSITIVE'|'ONLY_SENSITIVE'|'ONLY_INSENSITIVE'|'CASE_AND_DIACRITICS_SEPARATE';
 	/** Contains ids of other BLAnnotations in the parent annotatedField if this field has subannotations. */
 	subannotations?: string[];
-	uiType: string|'select'|'combobox'|'text'|'pos'|'dropdown'|'autocomplete';
+	uiType: (string&{})|'select'|'combobox'|'text'|'pos'|'dropdown'|'autocomplete';
 	/** Only when the indexMetadata was requested with ?listvalues=annotationId,annotationId etc. */
 	values?: string[];
 	/** Only when values present. */

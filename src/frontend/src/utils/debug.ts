@@ -11,15 +11,15 @@ let debug = reactive({
 });
 syncPropertyWithLocalStorage('cf/debug', debug, 'debug');
 
-let queued: IArguments[] = [];
+let queued: any[][] = [];
 
 // If you wish to see the original logging location, blackbox this script in the chrome devtools
 // For now, seeing the original location is not supported in firefox and edge/ie (and probably safari)
-export function debugLog(..._args: any[]) {
+export function debugLog(...args: any[]) {
 	if (debug.debug) {
-		console.log(...arguments);
+		console.log(...args);
 	} else {
-		queued.push(arguments);
+		queued.push(args);
 	}
 }
 

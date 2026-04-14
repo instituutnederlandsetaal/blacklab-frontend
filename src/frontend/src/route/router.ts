@@ -127,7 +127,7 @@ router.beforeEach((to, from, next) => {
 	const docId = typeof to.params.docId === 'string' ? to.params.docId : null;
 
 	RootStore.actions.indexId(corpus);
-	i18n.setIndexId(corpus);
+	void i18n.setIndexId(corpus);
 	ArticleStore.actions.docId(docId ?? null);
 
 	// On first entry on the page, we need to decode the url.
@@ -136,11 +136,11 @@ router.beforeEach((to, from, next) => {
 		if (to.name === 'article' || to.name === 'search') {
 			const parser = to.name === 'article' ? new UrlStateParserArticle() : new UrlStateParserSearch();
 			// wait for store to initialize.
-			promiseFromLoadableStream(RootStore.corpusData$, 'root loading state')
-			.then(() => parser.get())
-			.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
-			.then(() => connectStoreStreams())
-			.finally(() => markInitialUrlStateApplied());
+			void promiseFromLoadableStream(RootStore.corpusData$, 'root loading state')
+				.then(() => parser.get())
+				.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
+				.then(() => connectStoreStreams())
+				.finally(() => markInitialUrlStateApplied());
 		} else {
 			markInitialUrlStateApplied();
 		}

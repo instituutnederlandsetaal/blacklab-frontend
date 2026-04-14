@@ -884,7 +884,6 @@ const init = (state: CorpusChange) => {
 	// ====================
 
 	const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
-	const allMetadataFieldsMap = CorpusStore.get.allMetadataFieldsMap();
 	const annotationGroups = CorpusStore.get.annotationGroups();
 	const metadataGroups = CorpusStore.get.metadataGroups();
 	const mainAnnotation = CorpusStore.get.firstMainAnnotation();

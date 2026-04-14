@@ -74,7 +74,7 @@ Rethink page initialization
 // --- HOOKS SYSTEM ---
 
 // Internal storage for hooks
-type Hook = () => void | Promise<any>;
+type Hook = (() => Promise<unknown>) | Promise<unknown>;
 const _hooksStore: Record<string, Hook[]> = {};
 // Proxy to allow both assignment and function-call registration
 // e.g. hooks.something = function() { ... } or hooks.something(fn) to register a hook
@@ -131,7 +131,7 @@ import type { ComponentPublicInstance } from 'vue';
 document.addEventListener('DOMContentLoaded', async () => {
 	const user = await LoginSystem.user;
 	initApi('blacklab', BLS_URL, user);
-	initApi('cf', CONTEXT_URL, user);
+	initApi('frontend', CONTEXT_URL, user);
 	RootStore.actions.user(user);
 	
 	const app = createApp(App);

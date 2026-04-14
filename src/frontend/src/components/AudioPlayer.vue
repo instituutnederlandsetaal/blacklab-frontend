@@ -47,7 +47,7 @@ export default defineComponent({
 		},
 		start(): void {
 			this.stopActive();
-			activePlayer = this;
+			activePlayer = this as any; // make linter happy. We need a this alias here...
 			this.isPlaying = true;
 			this.audio.addEventListener('timeupdate', this.update);
 			this.audio.addEventListener('ended', this.stop);

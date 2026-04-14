@@ -70,6 +70,12 @@ interface TLoadable<T> extends LoadableBase<T> {
 	state: LoadableState;
 }
 
+export const isLoadable = <T>(v: any): v is Loadable<T> => v instanceof Loadable; 
+export const isLoading = <T>(v: any): v is Loading<T> => v instanceof Loadable && v.isLoading(); 
+export const isLoaded = <T>(v: any): v is Loaded<T> => v instanceof Loadable && v.isLoaded(); 
+export const isError = <T>(v: any): v is LoadingError<T> => v instanceof Loadable && v.isError(); 
+export const isEmpty = <T>(v: any): v is Empty<T> => v instanceof Loadable && v.isEmpty(); 
+
 export class Loadable<T> implements TLoadable<T> {
 	protected constructor(
 		public state: LoadableState,
@@ -83,11 +89,11 @@ export class Loadable<T> implements TLoadable<T> {
 	public isError(): this is LoadingError<T> { return this.state === LoadableState.Error; }
 	public isEmpty(): this is Empty<T> { return this.state === LoadableState.Empty; }
 
-	public static isLoadable<T>(v: any): v is Loadable<T> { return v instanceof Loadable; }
-	public static isLoading<T>(v: any): v is Loading<T> { return v instanceof Loadable && v.isLoading(); }
-	public static isLoaded<T>(v: any): v is Loaded<T> { return v instanceof Loadable && v.isLoaded(); }
-	public static isError<T>(v: any): v is LoadingError<T> { return v instanceof Loadable && v.isError(); }
-	public static isEmpty<T>(v: any): v is Empty<T> { return v instanceof Loadable && v.isEmpty(); }
+	public static isLoadable = isLoadable;
+	public static isLoading = isLoading;
+	public static isLoaded = isLoaded;
+	public static isError = isError;
+	public static isEmpty = isEmpty;
 
 	public static Loading<T>(): Loading<T> { return new Loadable<T>(LoadableState.Loading, undefined, undefined) as Loading<T>; }
 	public static Loaded<T>(value: T): Loaded<T> { return new Loadable<T>(LoadableState.Loaded, value, undefined) as Loaded<T>; }
@@ -159,8 +165,8 @@ export namespace L {
 		// if we know the state, we can return the value directly
 		T extends Loaded<infer L> ? L :
 		T extends Loading<infer L> ? L :
-		T extends Empty<infer L> ? undefined :
-		T extends LoadingError<infer L> ? never :
+		T extends Empty<unknown> ? undefined :
+		T extends LoadingError<unknown> ? never :
 		// if we have a loadable with an unknown state, return the value
 		T extends Loadable<infer L> ? L|undefined :
 		T;
@@ -169,8 +175,8 @@ export namespace L {
 		// if we know the state, we can return the value directly
 		T extends Loaded<infer L> ? L :
 		T extends Loading<infer L> ? L :
-		T extends Empty<infer L> ? never :
-		T extends LoadingError<infer L> ? ApiError :
+		T extends Empty<unknown> ? never :
+		T extends LoadingError<unknown> ? ApiError :
 		// if we have a loadable with an unknown state, return the value
 		T extends Loadable<infer L> ? L|ApiError :
 		T;
@@ -179,8 +185,8 @@ export namespace L {
 		// if we know the state, we can return the value directly
 		T extends Loaded<infer L> ? L :
 		T extends Loading<infer L> ? L :
-		T extends Empty<infer L> ? undefined :
-		T extends LoadingError<infer L> ? ApiError :
+		T extends Empty<unknown> ? undefined :
+		T extends LoadingError<unknown> ? ApiError :
 		// if we have a loadable with an unknown state, return the value
 		T extends Loadable<infer L> ? L|undefined|ApiError :
 		T;
@@ -242,9 +248,9 @@ export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableSt
 	})
 }
 export const flatMapLoaded = flatMapLoadable.Loaded =   <T, U extends Loadable<any>>(mapper: (v: T) => U) => flatMapLoadable(LoadableState.Loaded, mapper);
-export const flatMapError = flatMapLoadable.Error =     <T, U extends Loadable<any>>(mapper: (v: ApiError) => U) => flatMapLoadable(LoadableState.Error, mapper);
-export const flatMapEmpty = flatMapLoadable.Empty =     <T, U extends Loadable<any>>(mapper: (v: undefined) => U) => flatMapLoadable(LoadableState.Empty, mapper);
-export const flatMapLoading = flatMapLoadable.Loading = <T, U extends Loadable<any>>(mapper: (v: undefined) => U) => flatMapLoadable(LoadableState.Loading, mapper);
+export const flatMapError = flatMapLoadable.Error =     <U extends Loadable<any>>(mapper: (v: ApiError) => U) => flatMapLoadable(LoadableState.Error, mapper);
+export const flatMapEmpty = flatMapLoadable.Empty =     <U extends Loadable<any>>(mapper: (v: undefined) => U) => flatMapLoadable(LoadableState.Empty, mapper);
+export const flatMapLoading = flatMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => U) => flatMapLoadable(LoadableState.Loading, mapper);
 
 
 /**
@@ -286,9 +292,9 @@ export function switchMapLoadable<T, U extends Loadable<any>, S extends Loadable
 	})
 }
 export const switchMapLoaded = switchMapLoadable.Loaded =   <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => switchMapLoadable(LoadableState.Loaded, mapper);
-export const switchMapError = switchMapLoadable.Error =     <T, U extends Loadable<any>>(mapper: (v: ApiError) => ObservableInput<U>) => switchMapLoadable(LoadableState.Error, mapper);
-export const switchMapEmpty = switchMapLoadable.Empty =     <T, U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => switchMapLoadable(LoadableState.Empty, mapper);
-export const switchMapLoading = switchMapLoadable.Loading = <T, U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => switchMapLoadable(LoadableState.Loading, mapper);
+export const switchMapError = switchMapLoadable.Error =     <U extends Loadable<any>>(mapper: (v: ApiError) => ObservableInput<U>) => switchMapLoadable(LoadableState.Error, mapper);
+export const switchMapEmpty = switchMapLoadable.Empty =     <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => switchMapLoadable(LoadableState.Empty, mapper);
+export const switchMapLoading = switchMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => switchMapLoadable(LoadableState.Loading, mapper);
 
 
 /**

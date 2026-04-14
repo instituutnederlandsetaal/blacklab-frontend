@@ -13,11 +13,9 @@ import * as UIModule from '@/store/ui';
 
 // Form
 import * as FormManager from '@/store/form';
-import * as ConceptModule from '@/store/form/conceptStore';
 import * as ExploreModule from '@/store/form/explore';
 import * as FilterModule from '@/store/form/filters';
 import * as GapModule from '@/store/form/gap';
-import * as GlossModule from '@/store/form/glossStore';
 import * as InterfaceModule from '@/store/form/interface';
 import * as PatternModule from '@/store/form/patterns';
 

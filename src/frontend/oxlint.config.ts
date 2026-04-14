@@ -13,8 +13,9 @@ export default defineConfig({
       prefer: "type-imports",
     }],
     "typescript/consistent-type-exports": "error",
-    "eslint/no-unused-vars": ["error", {
+    "eslint/no-unused-vars": ["warn", {
       args: "none",
+      varsIgnorePattern: "^_.*"
     }]
   },
   settings: {},

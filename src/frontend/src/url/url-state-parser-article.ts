@@ -6,17 +6,15 @@ import * as CorpusModule from '@/store/corpus';
 import type * as HistoryModule from '@/store/history';
 
 // Form
+import * as ExploreModule from '@/store/form/explore';
 import type * as FilterModule from '@/store/form/filters';
+import * as GapModule from '@/store/form/gap';
 import * as InterfaceModule from '@/store/form/interface';
 import * as PatternModule from '@/store/form/patterns';
-import * as ExploreModule from '@/store/form/explore';
-import * as GapModule from '@/store/form/gap';
-import * as ConceptModule from '@/store/form/conceptStore';
-import * as GlossModule from '@/store/form/glossStore';
 
 // Results
-import * as ViewModule from '@/store/results/views';
 import * as GlobalResultsModule from '@/store/results/global';
+import * as ViewModule from '@/store/results/views';
 
 // Article
 import * as ArticleStore from '@/store/article';
@@ -58,8 +56,6 @@ export default class UrlStateParserArticle extends BaseUrlStateParser<HistoryMod
 					query: pattern,
 				},
 			},
-			concepts: cloneDeep(ConceptModule.defaults),
-			glosses: cloneDeep(GlossModule.defaults),
 			article: this.article,
 		};
 	}

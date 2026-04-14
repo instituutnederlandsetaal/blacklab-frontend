@@ -189,7 +189,7 @@ const get = {
 
 }
 
-const init = (state: CorpusChange)=> {
+const init = async (state: CorpusChange)=> {
 	// Clear all views, delete the modules from the internal vuex-typex builders cache (hack! - depends on implementation details)
 	// and the vuex store.
 	Object.keys(moduleCache).forEach(key => {
@@ -203,7 +203,7 @@ const init = (state: CorpusChange)=> {
 	});
 	getOrCreateModule('hits');
 	getOrCreateModule('docs');
-	actions.resetAllViews({resetGroupBy: true});
+	await actions.resetAllViews({resetGroupBy: true});
 };
 
 type ViewModule = ReturnType<typeof createViewModule>;

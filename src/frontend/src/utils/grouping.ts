@@ -217,7 +217,7 @@ function parseCriterium(criterium: string, results?: BLSearchResult): SortingOrG
 		// these are a bit more complex, and we don't support all options in the UI.
 		// when we encounter one we can't parse fully, we'll just returns the parts we can parse.
 		case 'context': {
-			const [_, annot, caseSensitive, spec, targetField] = parts;
+			const [_, _annot, caseSensitive, spec, _targetField] = parts;
 			const parsedSpec = spec.match(/(L|R|H|E|B|A)(\d*)-?(\d*)/);
 			if (parsedSpec) { // this can contain more, like ; and a second(+) set of positions. We'll ignore that for now.
 				let [_, position, startMaybe, endMaybe] = parsedSpec;

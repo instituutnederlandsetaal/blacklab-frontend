@@ -11,8 +11,6 @@ import { debugLog } from '@/utils/debug';
 import parseLucene from '@/utils/luceneparser';
 
 import * as CorpusModule from '@/store/corpus';
-import type * as ConceptModule from '@/store/form/conceptStore';
-import type * as GlossModule from '@/store/form/glossStore';
 import type * as HistoryModule from '@/store/history';
 import * as TagsetModule from '@/store/tagset';
 import * as UIModule from '@/store/ui';

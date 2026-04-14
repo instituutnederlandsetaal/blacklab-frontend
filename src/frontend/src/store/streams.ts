@@ -1,30 +1,28 @@
 // Define a few pipelines to perform actions on streams of data
 import URI from 'urijs';
 
-import { ReplaySubject, fromEvent, of } from 'rxjs';
-import { map, filter, mergeMap } from 'rxjs/operators';
 import cloneDeep from 'clone-deep';
+import { ReplaySubject, fromEvent, of } from 'rxjs';
+import { filter, map, mergeMap } from 'rxjs/operators';
 
 import * as RootStore from '@/store/';
 import type * as ArticleStore from '@/store/article';
 import * as CorpusStore from '@/store/corpus';
-import * as HistoryStore from '@/store/history';
-import * as PatternStore from '@/store/form/patterns';
 import * as ExploreStore from '@/store/form/explore';
 import * as GapStore from '@/store/form/gap';
+import * as PatternStore from '@/store/form/patterns';
+import * as HistoryStore from '@/store/history';
 import * as QueryStore from '@/store/query';
-import * as ConceptStore from '@/store/form/conceptStore';
-import * as GlossStore from '@/store/form/glossStore';
 import * as ViewStore from '@/store/results/views';
 
-import UrlStateParserSearch from '@/url/url-state-parser-search';
-import UrlStateParserArticle from '@/url/url-state-parser-article';
-import { stateToUrl } from '@/url/state-to-url';
 import router from '@/route/router';
+import { stateToUrl } from '@/url/state-to-url';
+import UrlStateParserArticle from '@/url/url-state-parser-article';
+import UrlStateParserSearch from '@/url/url-state-parser-search';
 
 import type * as BLTypes from '@/types/blacklabtypes';
-import jsonStableStringify from 'json-stable-stringify';
 import { debugLogCat } from '@/utils/debug';
+import jsonStableStringify from 'json-stable-stringify';
 
 type QueryState = {
 	indexId?: string|null,
