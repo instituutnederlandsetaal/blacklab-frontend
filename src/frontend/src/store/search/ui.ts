@@ -375,14 +375,13 @@ const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneD
 
 // hide implementation detail
 // Sometimes this is used before store is actually created (in order to initialize other parts of the store)
+// (store instance is created when builder.vuexStore() is called in root store (store/search/index.ts))
 const getState = (() => {
 	const getter = b.state();
-
 	return (): ModuleRootState => {
-		try {
-			// throws if store not built yet
+		if ('_store' in b)  { // check if built. 
 			return getter();
-		} catch (e) {
+		} else {
 			// return the default state we already know
 			return cloneDeep(initialState);
 		}
