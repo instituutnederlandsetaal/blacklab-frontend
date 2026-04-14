@@ -69,18 +69,19 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
 import Axios from 'axios';
+import { defineComponent } from 'vue';
 
+import { blacklab } from '@/api';
 import UrlStateParserBase from '@/url/url-state-parser-base';
-import {blacklab} from '@/api';
 
-import type {OptGroup} from '@/components/SelectPicker.vue';
+import type { OptGroup } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { debugLogCat } from '@/utils/debug';
+import Vue from 'vue';
 
 class UrlStateParser extends UrlStateParserBase<{
 	file: string;
@@ -255,6 +256,7 @@ export default defineComponent({
 				file = new File([new Blob([r.data])], filename);
 
 			} catch (e) {
+				// @ts-expect-error message not in unknown
 				this.error = e.message;
 				this.retryError = this.download;
 				return;
@@ -294,6 +296,7 @@ export default defineComponent({
 					});
 				});
 			} catch (uploadError) {
+				// @ts-expect-error message not in unknown
 				this.error = uploadError.message;
 				this.retryError = this.download;
 				return;
@@ -307,6 +310,7 @@ export default defineComponent({
 					await new Promise(resolve => setTimeout(resolve, 1000));
 				}
 			} catch (e) {
+				// @ts-expect-error message not in unknown
 				indexError = e.message;
 			}
 

@@ -18,13 +18,14 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import type { NormalizedIndex } from '@/types/apptypes';
 import type { OptGroup } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
+import type { NormalizedIndex } from '@/types/apptypes';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
-import debug from '@/utils/debug';
 import { corpusCustomizations } from '@/utils/customization';
+import debug from '@/utils/debug';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
 export default defineComponent({
 	components: {
@@ -36,19 +37,19 @@ export default defineComponent({
 		groups: Boolean,
 		parallelCorpus: Boolean,
 
-		value: String,
+		modelValue: { type: String, required: true },
 
-		corpus: Object as () => NormalizedIndex,
-		annotations: Array as () => string[],
+		corpus: { type: Object as PropType<NormalizedIndex>, required: true },
+		annotations: { type: Array as PropType<string[]>, required: true },
 		annotationGroupLabels: Boolean,
-		metadata: Array as () => string[],
+		metadata: { type: Array as PropType<string[]>, required: true },
 		metadataGroupLabels: Boolean,
 		disabled: Boolean,
 	},
 	computed: {
 		model: {
-			get(): string { return this.value; },
-			set(v: string) { this.$emit('input', v); }
+			get(): string { return this.modelValue; },
+			set(v: string) { this.$emit('update:modelValue', v); }
 		},
 		sortOptions(): OptGroup[] {
 			const options = [] as OptGroup[];

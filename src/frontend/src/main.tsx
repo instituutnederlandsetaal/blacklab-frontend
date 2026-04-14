@@ -6,8 +6,8 @@ import '@/global.scss';
 
 // import $ from '@/utils/jquery-globals';
 // import 'bootstrap';
+import router from '@/route/router';
 import { createApp } from 'vue';
-import router, { initialUrlStateApplied } from '@/route/router';
 
 
 import FloatingVue from 'floating-vue';
@@ -17,45 +17,34 @@ import Filters from '@/components/filters';
 
 import AudioPlayer from '@/components/AudioPlayer.vue';
 import DebugComponent from '@/components/Debug.vue';
-import SearchPageComponent from '@/pages/search/SearchPage.vue';
 
 
 
 import { init as initApi } from '@/api';
 import * as i18n from '@/utils/i18n';
-import * as loginSystem from '@/utils/loginsystem';
 
-import '@/global.scss';
 import { debugLogCat } from '@/utils/debug';
 
-// --------------
-// Initialize vue
-// --------------
-const errorHandler = (err: Error, vm: unknown, info: string) => {
-	if (!err.message.includes('[vuex]' /* do not mutate vuex store state outside mutation handlers */)) { // already logged and annoying
-		console.error(err);
-	}
-};
 
-const renderErrorMixin = {
-	// tslint:disable
-	renderError(h: any, err: Error) {
-		// Retrieve component stack
-		let components = [this as unknown as Vue];
-		while(components[components.length-1].$options.parent) {
-			components.push(components[components.length-1].$options.parent as Vue)
-		}
-		return (
-			<div class="well">
-				<h3>Error in component! ({components.map(c => (c.$options as any)._componentTag).reverse().filter(v => !!v).join(' // ')})</h3>
-				<pre style="color: red;">
-					{err.stack}
-				</pre>
-			</div>
-		)
-	}
-	// tslint:enable
-};
+// const renderErrorMixin = {
+// 	// tslint:disable
+// 	renderError(h: any, err: Error) {
+// 		// Retrieve component stack
+// 		let components = [this as unknown as Vue];
+// 		while(components[components.length-1].$options.parent) {
+// 			components.push(components[components.length-1].$options.parent as Vue)
+// 		}
+// 		return (
+// 			<div class="well">
+// 				<h3>Error in component! ({components.map(c => (c.$options as any)._componentTag).reverse().filter(v => !!v).join(' // ')})</h3>
+// 				<pre style="color: red;">
+// 					{err.stack}
+// 				</pre>
+// 			</div>
+// 		)
+// 	}
+// 	// tslint:enable
+// };
 
 // if (PLAUSIBLE_DOMAIN && PLAUSIBLE_APIHOST) {
 // 	Vue.use(VuePlausible, {
@@ -135,8 +124,9 @@ async function runHook(hookName: string) {
 import App from '@/App.vue';
 
 
-import * as LoginSystem from '@/utils/loginsystem';
 import * as RootStore from '@/store';
+import * as LoginSystem from '@/utils/loginsystem';
+import type { ComponentPublicInstance } from 'vue';
 
 document.addEventListener('DOMContentLoaded', async () => {
 	const user = await LoginSystem.user;
@@ -145,8 +135,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 	RootStore.actions.user(user);
 	
 	const app = createApp(App);
-	app.config.errorHandler = errorHandler;
-	app.mixin(renderErrorMixin);
+	app.config.errorHandler = function(err: unknown, instance: ComponentPublicInstance|null, info: string) {
+		// ignore some known errors that are annoying
+		// yes we're doing it wrong technically, but it's not an issue in practice, as reactivity still works just as always
+		// @ts-expect-error
+		if (!err.message.includes('[vuex]' /* do not mutate vuex store state outside mutation handlers */)) { // already logged and annoying
+			console.error(err);
+		}
+	};
+	// app.mixin(renderErrorMixin);
 	app.use(Filters);
 	app.use(FloatingVue);
 	app.use(RootStore.store as any);

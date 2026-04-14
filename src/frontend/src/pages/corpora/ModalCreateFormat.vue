@@ -152,7 +152,7 @@ export default defineComponent({
 			.catch((e: Api.ApiError) => this.error = e.message)
 			.finally(() => this.downloading = false)
 		},
-		loadFormatFromDisk(e: InputEvent) {
+		loadFormatFromDisk(e: Event) {
 			const input = e.target as HTMLInputElement;
 			if (!input.files || !input.files.length) return;
 			const file = input.files[0];

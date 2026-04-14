@@ -14,18 +14,19 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
 import type { NormalizedAnnotation, NormalizedIndex, Option } from '@/types/apptypes';
+import { defineComponent } from 'vue';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 
-import Steps from './Steps.vue';
 import * as Step1 from './POS_1.vue';
 import * as Step2 from './POS_2.vue';
 import * as Step2_5 from './POS_2_5.vue';
 import * as Step3 from './POS_3.vue';
 import * as Step4 from './POS_4.vue';
 import * as Step5 from './POS_5.vue';
+import Steps from './Steps.vue';
+import type { PropType } from 'vue';
 
 export type ExclusionRule = {
 	annotationId: string;
@@ -87,7 +88,7 @@ const component = defineComponent({
 		Steps
 	},
 	props: {
-		index: Object as () => NormalizedIndex
+		index: {type: Object as PropType<NormalizedIndex>, required: true },
 	},
 	data: () => ({
 		steps,

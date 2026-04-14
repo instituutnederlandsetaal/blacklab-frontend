@@ -117,7 +117,7 @@
 
 			<div id="statistics" class="tab-pane" v-if="statisticsEnabled">
 				<Spinner v-if="snippetAndDocument.isLoading()" />
-				<ArticlePageStatistics v-else-if="snippetAndDocument.isLoaded()" :snippet="snippetAndDocument.value[0]"/>
+				<ArticlePageStatistics v-else-if="snippetAndDocument.isLoaded()" :data="snippetAndDocument"/>
 			</div>
 		</div>
 	</div>
@@ -126,8 +126,8 @@
 <script setup lang="ts">
 
 import * as ArticleStore from '@/store/article';
-import * as QueryStore from '@/store/query';
 import * as CorpusStore from '@/store/corpus';
+import * as QueryStore from '@/store/query';
 import * as UIStore from '@/store/ui';
 
 
@@ -135,9 +135,9 @@ import * as UIStore from '@/store/ui';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 // import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
 // import ArticlePageParallel from '@/pages/article/ArticlePageParallel.vue';
+import InstancedHtml from '@/components/InstancedHtml.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
-import InstancedHtml from '@/components/InstancedHtml.vue';
 
 // TODO
 // import initTooltips from '@/modules/expandable-tooltips';
@@ -160,11 +160,11 @@ import InstancedHtml from '@/components/InstancedHtml.vue';
 // Need to fix url-parsing
 
 
-import {input$, contents$, hitToHighlight$, hits$, metadata$, Input, validPaginationParameters$, snippetAndDocument$} from './article';
 import { fieldSubset } from '@/utils';
-import { L, loadableFromStream } from '@/utils/loadable-streams';
-import { computed, onMounted, onUnmounted, useTemplateRef, watch } from 'vue';
+import { loadableFromStream } from '@/utils/loadable-streams';
 import { UseDraggable } from '@vueuse/components';
+import { computed, onUnmounted, watch } from 'vue';
+import { contents$, hitToHighlight$, hits$, input$, metadata$, snippetAndDocument$, validPaginationParameters$ } from './article';
 
 
 const metadata = loadableFromStream(metadata$);

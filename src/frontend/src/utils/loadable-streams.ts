@@ -1,10 +1,10 @@
-import type { ObservableInput, OperatorFunction, Subscription} from 'rxjs';
-import { combineLatest, debounceTime, delay, distinctUntilChanged, EMPTY, filter, firstValueFrom, map, merge, mergeMap, Observable, of, partition, pipe, race, ReplaySubject, startWith, Subject, switchMap, take, takeUntil, tap, timer } from 'rxjs';
-import jsonStableStringify from 'json-stable-stringify';
-import type { MarkRequiredAndNotNull } from '@/types/helpers';
-import { getCurrentInstance, markRaw, onUnmounted, reactive, shallowReactive } from 'vue';
 import { ApiError } from '@/types/apptypes';
+import type { MarkRequiredAndNotNull } from '@/types/helpers';
 import type { Canceler } from 'axios';
+import jsonStableStringify from 'json-stable-stringify';
+import type { ObservableInput, OperatorFunction, Subscription } from 'rxjs';
+import { combineLatest, debounceTime, distinctUntilChanged, EMPTY, filter, map, mergeMap, Observable, of, ReplaySubject, startWith, Subject, switchMap, take, takeUntil, timer } from 'rxjs';
+import { getCurrentInstance, markRaw, onUnmounted, reactive, shallowReactive } from 'vue';
 
 /**
  * Bunch of code for interop of streams and asynchronous/optional values.
@@ -515,25 +515,22 @@ export function loadableFromStream<T>(
 		/** Defaults to false */
 		deepReactiveValue?: boolean;
 	} = {loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false}
-) {
+): MutableLoadable<ValueTypeFromLoadableOrObservable<T>> {
 	let unsubs: Subscription[]|undefined = [];
 	
 	function onDispose() {
 		unsubs?.forEach(s => s.unsubscribe());
 		unsubs = undefined;
 	}
-	
-	const l = settings.deepReactiveValue ? reactive(new MutableLoadable<ValueTypeFromLoadableOrObservable<T>>(
+	let l: MutableLoadable<ValueTypeFromLoadableOrObservable<T>> = new MutableLoadable<ValueTypeFromLoadableOrObservable<T>>(
 		settings.loadingOnStart ? LoadableState.Loading : LoadableState.Empty,
 		undefined, 
 		undefined,
 		onDispose
-	)) : shallowReactive(new MutableLoadable<ValueTypeFromLoadableOrObservable<T>>(
-		settings.loadingOnStart ? LoadableState.Loading : LoadableState.Empty,
-		undefined, 
-		undefined,
-		onDispose
-	));
+	);
+	// TODO: Need to figure this out
+	// @ts-expect-error ugh, reactive(l) somehow turns l.value into UnwrapRef<...> which makes typescript complain
+	if (settings.deepReactiveValue) l = reactive(l); else l = shallowReactive(l);
 
 	// tear down streams automatically if this is called from within a vue component,
 	// otherwise the caller has to call dispose() manually when they're done with it.

@@ -7,7 +7,7 @@ import { defineComponent } from 'vue';
 
 import { frontend } from '@/api';
 import * as CorpusStore from '@/store/corpus';
-import { loadableFromStream } from '@/utils/loadable-streams';
+import { loadableFromStream, type LoadableFromStream } from '@/utils/loadable-streams';
 
 import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
 

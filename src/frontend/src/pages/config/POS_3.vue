@@ -54,11 +54,12 @@ import { defineComponent } from 'vue';
 
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
-import type {StepState} from './POS.vue';
-import { mapReduce } from '@/utils';
 import { blacklab } from '@/api';
+import { mapReduce } from '@/utils';
+import type { StepState } from './POS.vue';
 
 import SelectPicker from '@/components/SelectPicker.vue';
+import type { PropType } from 'vue';
 
 
 export const value = 'Generate'
@@ -86,7 +87,7 @@ export const step = defineComponent({
 		SelectPicker
 	},
 	props: {
-		value: Object as () => StepState
+		value: { type: Object as PropType<StepState>, required: true }
 	},
 	data: () => ({
 		title,

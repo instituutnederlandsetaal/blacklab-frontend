@@ -21,12 +21,12 @@
 			<form v-if="!uploading">
 				<label for="data[]" class="btn btn-info file-input-button document-upload-button">
 					<span class="document-upload-button-text">{{ fileLabel }}</span>
-					<input type="file" name="data[]" multiple @change="documentFiles = $event.target.files">
+					<input type="file" name="data[]" multiple @change="documentFiles = ($event.target as HTMLInputElement).files">
 				</label>
 
 				<label for="linkeddata[]" class="btn btn-default file-input-button document-upload-button">
 					<span id="upload-metadata-label" class="document-upload-button-text">{{metadataFileLabel}}</span>
-					<input type="file" name="linkeddata[]" multiple @change="metadataFiles = $event.target.files">
+					<input type="file" name="linkeddata[]" multiple @change="metadataFiles = ($event.target as HTMLInputElement).files">
 				</label>
 
 				<small id="uploadFormatDescription" class="text-muted" style="display: block; margin: 12px 0px; width: 100%;">
@@ -52,17 +52,18 @@
 	</Modal>
 </template>
 <script lang="ts">
-import { defineComponent } from 'vue';
+import * as Api from '@/api';
 import Modal from '@/components/Modal.vue';
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
-import * as Api from '@/api';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
 
 export default defineComponent({
 	components: {Modal},
 	props: {
-		corpus: Object as () => NormalizedIndexBase,
-		formats: Array as () => NormalizedFormat[],
+		corpus: { type: Object as PropType<NormalizedIndexBase>, required: true },
+		formats: { type: Array as PropType<NormalizedFormat[]>, required: true },
 	},
 	data: () => ({
 		uploadProgress: 0,
@@ -71,8 +72,8 @@ export default defineComponent({
 		indexing: false,
 		uploadError: '',
 
-		documentFiles: undefined as FileList|undefined,
-		metadataFiles: undefined as FileList|undefined,
+		documentFiles: null as FileList|null,
+		metadataFiles: null as FileList|null,
 	}),
 	computed: {
 		format(): NormalizedFormat | undefined {

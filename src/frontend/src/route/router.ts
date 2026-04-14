@@ -1,6 +1,10 @@
 import connectStoreStreams from '@/store/streams';
 import { createRouter, createWebHistory } from 'vue-router';
 
+export type CustomRouteMeta = {
+	name: string;
+	getTitle?: (corpusDisplayName: string) => string;
+}
 
 const router = createRouter({
 	history: createWebHistory(CONTEXT_URL),
@@ -8,21 +12,21 @@ const router = createRouter({
 		{
 			name: 'corpora',
 			path: '/',
-			meta: { name: 'corpora', getTitle: () => 'Corpora' },
+			meta: { name: 'corpora', getTitle: () => 'Corpora' } satisfies CustomRouteMeta,
 			component: () => import('@/pages/corpora/CorporaPage.vue')
 		},
 		{
 			name: 'global-help',
 			path: '/help',
 			alias: '/help/:pathMatch(.*)*',
-			meta: { name: 'help', getTitle: (displayName: string) => displayName + ' Help' },
+			meta: { name: 'help', getTitle: (displayName: string) => displayName + ' Help' } satisfies CustomRouteMeta,
 			component: () => import('@/pages/help/HelpPage.vue')
 		},
 		{
 			name: 'global-about',
 			path: '/about',
 			alias: '/about/:pathMatch(.*)*',
-			meta: { name: 'about', getTitle: () => 'About' },
+			meta: { name: 'about', getTitle: () => 'About' } satisfies CustomRouteMeta,
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		
@@ -34,27 +38,27 @@ const router = createRouter({
 			name: 'search',
 			path: '/:corpus/search',
 			alias: '/:corpus/search/:pathMatch(.*)*',
-			meta: { name: 'search', getTitle: (displayName: string) => `${displayName} Search` },
+			meta: { name: 'search', getTitle: (displayName: string) => `${displayName} Search` } satisfies CustomRouteMeta,
 			component: () => import('@/pages/search/SearchPage.vue'),
 		},
 		{
 			name: 'article',
 			path: '/:corpus/docs/:docId',
-			meta: { name: 'article', getTitle: (displayName: string) => `${displayName} Article` },
+			meta: { name: 'article', getTitle: (displayName: string) => `${displayName} Article` } satisfies CustomRouteMeta,
 			component: () => import('@/pages/article/ArticlePage.vue')
 		},
 		{
 			name: 'about',
 			path: '/:corpus/about',
 			alias: '/:corpus/about/:pathMatch(.*)*',
-			meta: { name: 'about', getTitle: (displayName: string) => `About ${displayName}` },
+			meta: { name: 'about', getTitle: (displayName: string) => `About ${displayName}` } satisfies CustomRouteMeta,
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
 			name: 'help',
 			path: '/:corpus/help',
 			alias: '/:corpus/help/:pathMatch(.*)*',
-			meta: { name: 'help', getTitle: (displayName: string) => `${displayName} Help` },
+			meta: { name: 'help', getTitle: (displayName: string) => `${displayName} Help` } satisfies CustomRouteMeta,
 			component: () => import('@/pages/help/HelpPage.vue'),
 		},
 		{
@@ -74,7 +78,7 @@ const router = createRouter({
 		{
 			name: 'configwizard',
 			path: '/:corpus/configwizard',
-			meta: { name: 'configwizard' },
+			meta: { name: 'configwizard' } satisfies CustomRouteMeta,
 			component: () => import('@/pages/config/CorpusConfig.vue'),
 			props: route => ({
 				id: route.params.id,

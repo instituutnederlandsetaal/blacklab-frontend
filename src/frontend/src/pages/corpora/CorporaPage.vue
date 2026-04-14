@@ -193,6 +193,7 @@ export default defineComponent({
 				}
 				this.refreshingCorpora.delete(indexId);
 			} catch (error) {
+				// @ts-expect-error message not in unknown
 				this.errorMessage = `Could not retrieve status for corpus "${displayName}": ${error.message}`;
 			}
 		},
@@ -253,6 +254,7 @@ export default defineComponent({
 			this.loadingFormats = this.loadingCorpora = this.loadingServerInfo = true;
 			try { this.serverInfo = await Api.blacklab.getServerInfo(); }
 			catch (e) {
+				// @ts-expect-error message not in unknown
 				this.errorMessage = `Error loading BlackLab info: ${e.message}`;
 				this.loadingCorpora = this.loadingFormats = this.loadingServerInfo = false;
 				return;

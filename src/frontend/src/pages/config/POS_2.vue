@@ -42,7 +42,8 @@ import { defineComponent } from 'vue';
 
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
-import type {StepState} from './POS.vue';
+import type { PropType } from 'vue';
+import type { StepState } from './POS.vue';
 
 
 export const value = 'Choose sub'
@@ -56,7 +57,7 @@ export const defaultAction = (s: StepState): StepState => ({
 });
 export const step = defineComponent({
 	props: {
-		value: Object as () => StepState
+		value: { type: Object as PropType<StepState>, required: true }
 	},
 	data: () => ({
 		title,

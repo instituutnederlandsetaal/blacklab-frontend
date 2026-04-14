@@ -29,8 +29,9 @@ import { mapReduce } from '@/utils';
 import cloneDeep from 'clone-deep';
 import { defineComponent } from 'vue';
 
-import type {StepState} from './POS.vue';
 import type { Tagset } from '@/types/apptypes';
+import type { PropType } from 'vue';
+import type { StepState } from './POS.vue';
 
 export const value = 'Edit'
 export const label = value;
@@ -67,7 +68,7 @@ function getDisplayNamesFromTagset(
 
 export const step = defineComponent({
 	props: {
-		value: Object as () => StepState
+		value: { type: Object as PropType<StepState>, required: true }
 	},
 	data: () => ({
 		title,
@@ -130,16 +131,16 @@ export const step = defineComponent({
 
 		const mainValues = Object.keys(this.value.step3.main!)
 		const mainId = this.value.mainPosAnnotationId!;
-		this.$set(this.displays, mainId, this.displays[mainId] || mapReduce(mainValues, v => v));
+		this.displays[mainId] = this.displays[mainId] || mapReduce(mainValues, v => v);
 
 		const subs = Object.values(this.value.step3.main!)[0].subs;
 
 		// now create all missing entries
 		Object.entries(subs)
 		.forEach(([subId, subValues]) => {
-			this.$set(this.displays, subId, this.displays.subId || {});
+			this.displays[subId] = this.displays[subId] || {};
 			Object.entries(subValues).forEach(([value, {occurances}]) => {
-				this.$set(this.displays[subId], value, this.displays[subId][value] || value);
+				this.displays[subId][value] = this.displays[subId][value] || value;
 			});
 		});
 	},

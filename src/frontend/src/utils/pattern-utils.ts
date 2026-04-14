@@ -1,15 +1,15 @@
-import type * as AppTypes from '@/types/apptypes';
-import type {ModuleRootState as ModuleRootStateExplore} from '@/store/form/explore';
-import type {ModuleRootState as ModuleRootStatePatterns} from '@/store/form/patterns';
-import type {ModuleRootState as ModuleRootStateFilters} from '@/store/form/filters';
-import * as FilterModule from '@/store/form/filters';
-import cloneDeep from 'clone-deep';
-import type { RegexEscapeOptions} from '@/utils';
-import { applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel,
-	splitIntoTerms, uiTypeSupport } from '@/utils';
+import { CqlGenerator } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import { corpusCustomizations } from '@/utils/customization';
-import { CqlGenerator, CqlQueryBuilderData, CqlTokenData, CqlAttributeGroupData, CqlGroupEntry, CqlAttributeData } from '@/components/cql/cql-types';
+import type { ModuleRootState as ModuleRootStateExplore } from '@/store/form/explore';
+import type { ModuleRootState as ModuleRootStateFilters } from '@/store/form/filters';
+import type { ModuleRootState as ModuleRootStatePatterns } from '@/store/form/patterns';
+import type * as AppTypes from '@/types/apptypes';
+import type { RegexEscapeOptions } from '@/utils';
+import {
+	applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel,
+	splitIntoTerms, uiTypeSupport
+} from '@/utils';
+import cloneDeep from 'clone-deep';
 
 /** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */
 export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): string[] => {
@@ -236,7 +236,7 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
 		const withinAttr = Object.fromEntries(Object.entries(patternState.shared.withinAttributes)
 			.map(([k, v]) => [k, escapeRegex(v, { escapeWildcards: false })])); // wildcards->regex
 		withinClauses[withinEl] = {
-			...withinClauses[withinEl] || {},
+			...withinClauses[withinEl],
 			...withinAttr
 		};
 	}

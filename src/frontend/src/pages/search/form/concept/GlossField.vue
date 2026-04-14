@@ -7,9 +7,10 @@
 
 <script lang="ts">
 
-import { defineComponent } from 'vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 import * as GlossStore from '@/store/form/glossStore';
-import SelectPicker from '@/components/SelectPicker.vue'
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
 export default defineComponent ({
 	name: 'GlossField',
@@ -17,11 +18,11 @@ export default defineComponent ({
 		SelectPicker
 	},
 	props: {
-		fieldDescription: Object as () => GlossStore.GlossFieldDescription,
-		fieldName: String,
-		hitId : String,
-		hit_first_word_id: String,
-		hit_last_word_id: String
+		fieldDescription: { type: Object as PropType<GlossStore.GlossFieldDescription>, required: true },
+		fieldName: { type: String, required: true },
+		hitId : { type: String, required: true },
+		hit_first_word_id: { type: String, required: true },
+		hit_last_word_id: { type: String, required: true }
 	},
 	computed : {
 		currentValue: {

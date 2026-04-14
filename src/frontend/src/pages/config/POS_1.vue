@@ -8,10 +8,11 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import type { NormalizedAnnotation, Option } from '@/types/apptypes';
 import SelectPicker from '@/components/SelectPicker.vue';
-import type {StepState} from './POS.vue';
+import type { NormalizedAnnotation, Option } from '@/types/apptypes';
+import { defineComponent } from 'vue';
+import type { StepState } from './POS.vue';
+import type { PropType } from 'vue';
 
 export const value = 'Choose main'
 export const label = value;
@@ -28,7 +29,7 @@ export const defaultAction = (s: StepState): StepState => {
 export const step = defineComponent({
 	components: { SelectPicker },
 	props: {
-		value: Object as () => StepState
+		value: { type: Object as PropType<StepState>, required: true }
 	},
 	data: () => ({
 		title

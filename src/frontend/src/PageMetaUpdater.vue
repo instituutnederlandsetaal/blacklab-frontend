@@ -1,12 +1,13 @@
 <template>
-	<div id="custom-js-css-and-page-meta"></div>
+	<div id="custom-js-css-and-page-meta" ref="container"></div>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import type { CFCustomCssEntry, CFCustomJsEntry, CFPageConfig } from '@/types/apptypes';
 import * as UIStore from '@/store/ui';
+import type { CFCustomCssEntry, CFCustomJsEntry, CFPageConfig } from '@/types/apptypes';
 import { compareAsSortedJson } from '@/utils/loadable-streams';
+import { defineComponent } from 'vue';
+import type { CustomRouteMeta } from './route/router';
 
 export default defineComponent({
 	data: () => ({
@@ -25,7 +26,7 @@ export default defineComponent({
 		pageName(): string { return this.$route.meta?.name as string || ''; },
 		title(): string {
 			if (!this.routerIsInitialized || !this.config.displayName) return '';
-			return this.$route.meta?.getTitle?.(this.config.displayName) ?? this.config.displayName;
+			return (this.$route.meta as CustomRouteMeta)?.getTitle?.(this.config.displayName) ?? this.config.displayName;
 		},
 		customJs(): CFCustomJsEntry[] {
 			if (!this.routerIsInitialized) return [];
@@ -41,7 +42,7 @@ export default defineComponent({
 		meta(): Array<{tagName: string}&Record<string, string>> {
 			if (!this.routerIsInitialized) return [];
 
-			const descriptionContent = !!this.config.displayName?.length
+			const descriptionContent = this.config.displayName?.length
 				? `${this.config.displayName} provided by the Dutch Language Institute in Leiden.`
 				: 'AutoSearch provided by the Dutch Language Institute in Leiden.';
 
@@ -121,15 +122,15 @@ export default defineComponent({
 					const el = document.createElement(attrs.tagName) as HTMLElement;
 					Object.entries(attrs).forEach(([k, v]) => { if (k !== 'tagName') el.setAttribute(k, v); });
 					el.setAttribute(this.elementMarker, '');
-					document.head.appendChild(el);
+					document?.head?.appendChild(el);
 				});
 			}
 		}
 	},
 	methods: {
-		removeScripts() { this.$el?.querySelectorAll?.(`script[${this.elementMarker}]`).forEach(e => e.remove()); },
-		removeMeta() { document.head.querySelectorAll?.(`[${this.elementMarker}]`).forEach(e => e.remove()); },
-		removeCss() { this.$el?.querySelectorAll?.(`link[${this.elementMarker}]`).forEach(e => e.remove()); },
+		removeScripts() { (this.$refs.container as HTMLElement)?.querySelectorAll?.(`script[${this.elementMarker}]`).forEach(e => e.remove()); },
+		removeMeta() { document?.head?.querySelectorAll?.(`[${this.elementMarker}]`).forEach(e => e.remove()); },
+		removeCss() { (this.$refs.container as HTMLElement)?.querySelectorAll?.(`link[${this.elementMarker}]`).forEach(e => e.remove()); },
 	},
 	beforeUnmount() {
 		this.removeScripts();

@@ -60,12 +60,12 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import type { Option } from '@/types/apptypes';
-import { NormalizedAnnotation } from '@/types/apptypes';
-import SelectPicker from '@/components/SelectPicker.vue';
-import type { StepState, ExclusionRule } from './POS.vue';
 import { blacklab } from '@/api';
+import SelectPicker from '@/components/SelectPicker.vue';
+import type { Option } from '@/types/apptypes';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
+import type { ExclusionRule, StepState } from './POS.vue';
 
 export const value = 'Exclusions';
 export const label = value;
@@ -79,7 +79,7 @@ export const defaultAction = (s: StepState): StepState => {
 export const step = defineComponent({
 	components: { SelectPicker },
 	props: {
-		value: Object as () => StepState
+		value: { type: Object as PropType<StepState>, required: true }
 	},
 	data: () => ({
 		title,
@@ -129,14 +129,13 @@ export const step = defineComponent({
 			} else if (field === 'values') {
 				exclusion.values = Array.isArray(value) ? value : [value];
 			}
-			this.$set(this.localExclusions, index, exclusion);
+			this.localExclusions[index] = exclusion; 
 		},
 		async loadValuesForAnnotation(annotationId: string) {
 			if (!annotationId || this.annotationValues[annotationId] || this.loadingValues[annotationId]) {
 				return;
 			}
-
-			this.$set(this.loadingValues, annotationId, true);
+			this.loadingValues[annotationId] = true;
 
 			try {
 				const result = await blacklab.getTermFrequencies(
@@ -154,13 +153,12 @@ export const step = defineComponent({
 						value: v,
 						label: v
 					}));
-
-				this.$set(this.annotationValues, annotationId, values);
+				this.annotationValues[annotationId] = values;
 			} catch (error) {
 				console.error(`Failed to load values for ${annotationId}:`, error);
-				this.$set(this.annotationValues, annotationId, []);
+				this.annotationValues[annotationId] = [];
 			} finally {
-				this.$set(this.loadingValues, annotationId, false);
+				this.loadingValues[annotationId] = false;
 			}
 		},
 		getValuesForAnnotation(annotationId: string): Option[] {

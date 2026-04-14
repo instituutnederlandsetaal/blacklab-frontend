@@ -54,13 +54,14 @@ import type * as BLTypes from '@/types/blacklabtypes';
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
 import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
 
+import Spinner from '@/components/Spinner.vue';
+import type { Loadable } from '@/utils/loadable-streams';
 import * as Highcharts from 'highcharts';
 import HighchartsVue from 'highcharts-vue';
-import HighchartsExporting from 'highcharts/modules/exporting';
-import HighchartsExportingData from 'highcharts/modules/export-data';
 import HighchartsBoost from 'highcharts/modules/boost';
-import type { Loadable } from '@/utils/loadable-streams';
-import Spinner from '@/components/Spinner.vue';
+import HighchartsExportingData from 'highcharts/modules/export-data';
+import HighchartsExporting from 'highcharts/modules/exporting';
+import Vue, { type PropType } from 'vue';
 
 HighchartsExporting(Highcharts);
 HighchartsExportingData(Highcharts);
@@ -80,13 +81,10 @@ export default defineComponent({
 		AnnotationGrowths,
 	},
 	props: {
-		data: Object as () => Loadable<[BLTypes.BLHitSnippet, BLTypes.BLDocument]>,
+		data: { type: Object as PropType<Loadable<readonly [BLTypes.BLHitSnippet, BLTypes.BLDocument]>>, required: true },
 	},
 	computed: {
 		isEnabled: ArticleStore.get.statisticsEnabled,
-		docIdFromRoute(): string|undefined {
-			return this.$route.params.docId
-		},
 		baseColor: ArticleStore.get.baseColor,
 
 		getStatistics: ArticleStore.get.statisticsTableFn,

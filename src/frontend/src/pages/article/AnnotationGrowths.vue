@@ -12,7 +12,7 @@ import type { PropType } from 'vue';
 
 export default defineComponent({
 	props: {
-		snippet: { type: Object as PropType<() => BLTypes.BLHitSnippet>, required: true},
+		snippet: { type: Object as PropType<BLTypes.BLHitSnippet>, required: true},
 		annotations: Array as () => Array<{
 			id: string;
 			displayName?: string;

@@ -1,7 +1,5 @@
 <template>
 	<div>
-
-
 		<div>
 			<ul class="nav nav-tabs">
 				<li v-for="tab in tabs"
@@ -30,7 +28,7 @@ export default defineComponent({
 		POS
 	},
 	props: {
-		id: String,
+		id: { type: String, required: true },
 		tabs: Array as () => string[],
 		activeTab: String as () => string|undefined
 	},

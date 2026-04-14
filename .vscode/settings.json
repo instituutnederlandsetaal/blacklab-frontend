@@ -1,4 +1,5 @@
 {
+	"java.configuration.updateBuildConfiguration": "interactive",
 	"java.import.gradle.enabled": false,
 	"java.import.gradle.wrapper.enabled": false,
 	"java.import.projectSelection": "manual",
@@ -8,6 +9,10 @@
 		"/src/frontend/",
 		"/docs"
 	],
-	"typescript.tsserver.experimental.enableProjectDiagnostics": false,
-	"java.configuration.updateBuildConfiguration": "interactive"
+	"editor.codeActionsOnSave": {
+		"source.sortImports": "explicit",
+		"source.organizeImports": "explicit",
+		"source.addMissingImports.ts": "explicit",
+		"source.fixAll.oxc": "explicit",
+	}
 }

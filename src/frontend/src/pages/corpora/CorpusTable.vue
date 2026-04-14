@@ -64,7 +64,7 @@
               </td>
             </template>
             <td>
-              <a role="button" @click="$set(details, corpus.id, !details[corpus.id])"
+              <a role="button" @click="details[corpus.id] = !details[corpus.id]"
                 ><span class="icon fa fa-fw fa-caret-down" title="show details"></span
               ></a>
             </td>
@@ -131,6 +131,7 @@
 <script lang="ts">
 import Spinner from "@/components/Spinner.vue";
 import { type NormalizedFormat, type NormalizedIndexBase } from "@/types/apptypes";
+import type { PropType } from "vue";
 import { defineComponent } from "vue";
 
 type IndexWithExtraInfo = NormalizedIndexBase & {
@@ -147,8 +148,8 @@ type IndexWithExtraInfo = NormalizedIndexBase & {
 export default defineComponent({
   components: { Spinner },
   props: {
-    corpora: Array as () => NormalizedIndexBase[],
-    formats: Array as () => NormalizedFormat[],
+    corpora: { type: Array as PropType<NormalizedIndexBase[]>, required: true },
+    formats: { type: Array as PropType<NormalizedFormat[]>, required: true },
     title: String,
     isPrivate: Boolean,
     canCreateCorpus: Boolean,
