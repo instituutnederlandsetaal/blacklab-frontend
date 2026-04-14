@@ -295,7 +295,7 @@ const actions = {
       if (await isLatestMajor(branchMajor)) {
         console.log(`\nMerging release tag ${releaseVersion} to main...`);
         await git.checkout('main');
-        await git.merge([releaseVersion.toString(), '--no-ff', '-m', `Merge release ${releaseVersion} to main`]);
+        await git.merge([releaseVersion.toString(), '-m', `Merge release ${releaseVersion} to main`]);
         await git.checkout(currentBranch);
         additionalBranchesToPush.push('main');
       } else {
