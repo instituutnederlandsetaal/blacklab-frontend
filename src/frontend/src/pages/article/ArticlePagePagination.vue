@@ -181,8 +181,15 @@ export default Vue.extend({
 		// first: the hash as an index (#10 for the 10th hit on this page for example - this is when someone got sent the page from someone else, or when refreshing the page)
 		// second: the ?findhit parameter, contains the token offset where the hit starts
 
+		const urlParams = new URI().search(true);
+		const hasFindHit = urlParams.findhit != null && String(urlParams.findhit).length > 0;
+
 		const tryHighlightIndexOnCurrentPage = (): boolean => {
-			const hitInPage = window.location.hash ? Number(window.location.hash.substring(1)) : this.hitElements.length ? 0 : undefined;
+			if (!window.location.hash) {
+				return false;
+			}
+
+			const hitInPage = Number(window.location.hash.substring(1));
 			if (hitInPage == null || isNaN(hitInPage) || hitInPage >= this.hitElements.length || hitInPage < 0) {
 				// clean up the hash
 				const url = window.location.pathname + window.location.search;
@@ -257,12 +264,14 @@ export default Vue.extend({
 			.finally(() => {clearTimeout(spinnerTimeout); this.loadingForAwhile = false;})
 		}
 		
-		// We can do this immediately
-		const isHitHighlighted = tryHighlightIndexOnCurrentPage(); 
+		// If a hash is present, it takes precedence and can be highlighted immediately.
+		const isHitHighlighted = tryHighlightIndexOnCurrentPage();
 		loadHits()
 		.then(() => {
-			// This one requires the hits to be loaded first.
-			if (!isHitHighlighted) tryHighlightFromHitStart();
+			// Resolve findhit only if no valid hash target was highlighted.
+			if (!isHitHighlighted && hasFindHit) {
+				tryHighlightFromHitStart();
+			}
 		})
 	}
 });
