@@ -59,7 +59,7 @@ function wrapWithErrorHandling<T extends object>(obj: T) {
 				Reflect.set(target, prop, newValue, receiver);
 				// propagate the dontProxyMe marker to the new value
 				if (currentValue != null && currentValue[dontProxyMe]) mark(newValue, dontProxyMe);
-				return newValue;
+				return true;
 			}
 
 			// Someone is replacing one of the function!
