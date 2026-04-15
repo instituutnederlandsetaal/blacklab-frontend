@@ -6,13 +6,13 @@
 			</li>
 		</ul>
 		<div class="tab-content" style="padding: 10px;">
-			<VNode v-if="active && $slots[active]" :key="active" :vnode="$slots[active]"/>
+			<component  v-if="active && $slots[active]" :key="active" :is="$slots[active]"/>
 		</div>
 	</div>
 </template>
 
 <script lang="ts">
-import { defineComponent, type PropType } from 'vue';
+import { defineComponent } from 'vue';
 
 import VNode from './VNode.vue';
 export default defineComponent({
@@ -22,7 +22,7 @@ export default defineComponent({
 	emits: ['update:modelValue'],
 	props: {
 		modelValue: {
-			type: [String, null] as PropType<string|null>,
+			type: [String, null],
 			default: null
 		}
 	},

@@ -47,7 +47,7 @@
 					:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
 					@hover="hoverMatchInfos = $event; hoverMatchInfosId = row.hit_id"
 					@unhover="hoverMatchInfos = undefined"
-					@click.native="toggleRow(index)"
+					@click="toggleRow(index)"
 				/>
 				<component v-if="!disableDetails" v-show="openRows[row.hit_id || index]" :is="row.type === 'doc' ? 'DocRowDetails' : row.type === 'hit' ? 'HitRowDetails' : 'GroupRowDetails'"
 					:class="{

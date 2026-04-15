@@ -25,10 +25,7 @@ export default defineConfig(({ mode }): UserConfig => ({
     vue({
       template: {
         compilerOptions: {
-          compatConfig: {
-            MODE: 2,
-            COMPILER_V_BIND_OBJECT_ORDER: false,
-          },
+          
         },
       },
     }),
@@ -38,8 +35,6 @@ export default defineConfig(({ mode }): UserConfig => ({
     alias: {
       // allow importing from 'src' using '@/...' instead of relative paths
       '@': path.resolve(__dirname, 'src'),
-      // temporary vue compat mode
-      vue: '@vue/compat',
     },
     dedupe: ['vue', 'vuex', 'jquery'],
   },
@@ -48,9 +43,7 @@ export default defineConfig(({ mode }): UserConfig => ({
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(mode),
-    __VUE_OPTIONS_API__: true,
-    __VUE_PROD_DEVTOOLS__: false,
-    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
+    __VUE_PROD_DEVTOOLS__: false, // can enable for debugging prod builds, but larger bundle size
   },
   server: {
     host: '0.0.0.0',

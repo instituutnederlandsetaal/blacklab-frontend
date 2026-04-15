@@ -168,7 +168,7 @@
 					>
 						<span class="menu-value">
 							<slot name="option-label" :option="o">
-								<component v-if="allowHtml" v-html="o.label || '\u200C'"></component>
+								<span v-if="allowHtml" v-html="o.label || '\u200C'"></span>
 								<template v-else>{{ o.label || '\u200C' }}</template>
 							</slot>
 
@@ -200,7 +200,7 @@
 
 <script lang="ts">
 
-import Vue, { defineComponent } from 'vue';
+import { defineComponent } from 'vue';
 import { mapReduce } from '@/utils';
 import type { PropType } from 'vue';
 import { isOptGroup, isOption, isSimpleOption, type OptGroup, type Option, type Options, type SimpleOption } from '@/utils/options';
@@ -488,7 +488,7 @@ export default defineComponent({
 		doOpen(focusEl?: any): void {
 			this.isNaturallyOpen = true;
 			if (focusEl && this.isOpen) {
-				Vue.nextTick(() => focusEl.focus());
+				this.$nextTick(() => focusEl.focus());
 			}
 		},
 		doClose(event?: Event): void {
@@ -831,19 +831,21 @@ export default defineComponent({
 		}
 	},
 	watch: {
-		emitInputEventData() {
-			if (this.editable) {
-				this.$emit('update:modelValue', this.inputValue);
-			} else {
-				// Model only edited when actually required, so always fire input event
-				// So if this triggers we know for sure the value output also needs to change
-
-				// But maybe the model only changed because we got pushed a new value from props
-				// check that this is not the case.
-				const values = Object.keys(this.internalModel);
-				if (this.multiple && Array.isArray(this.modelValue) && values.length === this.modelValue.length && values.every(v => (this.modelValue as string[]).includes(v))) { return; } // our modelValue prop is already up to date - don't fire.
-				if (!this.multiple && typeof this.modelValue === 'string' && values.length == 1 && values[0] === this.modelValue) { return; }
-				this.$emit('update:modelValue', values.length ? this.multiple ? values : values[0] : null);
+		emitInputEventData: { 
+			deep: true, 
+			handler() {
+				if (this.editable) {
+					this.$emit('update:modelValue', this.inputValue);
+				} else {
+					// Model only edited when actually required, so always fire input event
+					// So if this triggers we know for sure the value output also needs to change
+					// But maybe the model only changed because we got pushed a new value from props
+					// check that this is not the case.
+					const values = Object.keys(this.internalModel);
+					if (this.multiple && Array.isArray(this.modelValue) && values.length === this.modelValue.length && values.every(v => (this.modelValue as string[]).includes(v))) { return; } // our modelValue prop is already up to date - don't fire.
+					if (!this.multiple && typeof this.modelValue === 'string' && values.length == 1 && values[0] === this.modelValue) { return; }
+					this.$emit('update:modelValue', values.length ? this.multiple ? values : values[0] : null);
+				}
 			}
 		},
 		isOpen: {

@@ -214,8 +214,8 @@ import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByO
 
 // @ts-ignore
 import jsonStableStringify from 'json-stable-stringify';
-import Slider from 'vue-slider-component';
-import 'vue-slider-component/theme/default.css';
+import Slider from 'vue-3-slider-component';
+
 
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';

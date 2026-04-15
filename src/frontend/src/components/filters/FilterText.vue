@@ -27,7 +27,7 @@ import createBaseFilterComponent from '@/components/filters/Filter';
 import { defineComponent } from 'vue';
 
 export default defineComponent({
-	extends: createBaseFilterComponent<string, any>(String, () => ''),
+	extends: createBaseFilterComponent<string, any>([String, null], () => ''),
 	computed: {
 		vmodel: {
 			get() { return this.modelValue; },

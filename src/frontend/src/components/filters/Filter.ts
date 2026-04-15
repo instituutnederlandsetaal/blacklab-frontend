@@ -6,7 +6,7 @@ import { defineComponent } from 'vue';
 
 export default function createBaseFilterComponent<T, M = never>(
 	valuePropType: true | PropType<T> | null | undefined,
-	valuePropDefault?: () => T
+	valuePropDefault?: () => NonNullable<T>
 )  {
 	
 	const component = defineComponent({

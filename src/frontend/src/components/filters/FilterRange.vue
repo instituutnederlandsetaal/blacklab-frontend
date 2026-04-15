@@ -37,16 +37,16 @@ import createBaseFilterComponent from '@/components/filters/Filter';
 import { defineComponent, type PropType } from 'vue';
 
 export default defineComponent({
-	extends: createBaseFilterComponent(Object as PropType<{low: string, high: string}>, () => ({low: '', high: ''})),
+	extends: createBaseFilterComponent([Object, null] as PropType<null|{low: string, high: string}>, () => ({low: '', high: ''})),
 
 	computed: {
 		lower: {
-			get() { return this.modelValue.low; },
-			set(value: string) { this.e_input({low: value, high: this.modelValue.high}); }
+			get(): string { return this.modelValue?.low ?? ''; },
+			set(value: string) { this.e_input({low: value, high: this.modelValue?.high ?? ''}); }
 		},
 		upper: {
-			get() { return this.modelValue.high; },
-			set(value: string) { this.e_input({low: this.modelValue.low, high: value}); }
+			get(): string { return this.modelValue?.high ?? ''; },
+			set(value: string) { this.e_input({low: this.modelValue?.low ?? '', high: value}); }
 		}
 	}
 });

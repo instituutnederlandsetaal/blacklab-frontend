@@ -34,7 +34,7 @@ import { defineComponent, type PropType } from 'vue';
 import SelectPicker from '../SelectPicker.vue';
 
 export default defineComponent({
-  extends: createBaseFilterComponent(Array as PropType<string[]>, () => []),
+  extends: createBaseFilterComponent([Array, null] as PropType<null|string[]>, () => []),
   components: { SelectPicker },
   computed: {
     vmodel: {
