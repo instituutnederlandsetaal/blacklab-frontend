@@ -24,7 +24,7 @@ const i18nManager = new I18nManager(LOCALE_STORAGE_KEY);
 i18nManager.registerLocale('en-us', 'English')
 i18nManager.registerLocale('zh-cn', '中文')
 i18nManager.registerLocale('nl-nl', 'Nederlands')
-i18nManager.setFallbackLocale('en-us')
+void i18nManager.setFallbackLocale('en-us')
 
 const vueI18nPlugin = createI18n({
 	legacy: false,

@@ -178,7 +178,7 @@ function parseCriterium(criterium: string, results?: BLSearchResult): SortingOrG
 		case 'before':
 		case 'right':
 		case 'after': {
-			const [_, annot, caseSensitive, howManyWords] = parts;
+			const [_, _annot, caseSensitive, howManyWords] = parts;
 			const start = 1; // these always start at 1. The number is just "how many words before or after"
 			const end = Number(howManyWords) ;
 			const fullContext = isNaN(end);

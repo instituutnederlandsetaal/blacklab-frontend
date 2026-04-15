@@ -29,7 +29,7 @@ export default defineComponent({
 	data: () => ({ observer: null as ResizeObserver|null, }),
 	computed: {
 		position(): 'left'|'center'|'right'|undefined {
-			if (this.left == this.right == this.center == null) return 'center';
+			if (this.left == null && this.right == null && this.center == null) return 'center';
 			if (this.inline || this.overlay) return undefined;
 			if (this.left) return 'left';
 			if (this.right) return 'right';

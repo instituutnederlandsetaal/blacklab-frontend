@@ -23,7 +23,6 @@ import DebugComponent from '@/components/Debug.vue';
 import { init as initApi } from '@/api';
 import * as i18n from '@/utils/i18n';
 
-import { debugLogCat } from '@/utils/debug';
 
 
 // const renderErrorMixin = {
@@ -96,28 +95,28 @@ globalThis.hooks = new Proxy({}, {
 	[key: string]: ((fn: Hook) => void) & Hook[];
 };
 
-// Helper to get all hooks for a given name
-function getHooks(name: string): Hook[] {
-	return _hooksStore[name] || [];
-}
+// // Helper to get all hooks for a given name
+// function getHooks(name: string): Hook[] {
+// 	return _hooksStore[name] || [];
+// }
 
 
-function isPromise(obj: any): obj is Promise<any> {
-	return !!obj && typeof obj.then === 'function';
-}
+// function isPromise(obj: any): obj is Promise<any> {
+// 	return !!obj && typeof obj.then === 'function';
+// }
 
-async function runHook(hookName: string) {
-	const hooksArr = getHooks(hookName);
-	debugLogCat('init', `Running hook ${hookName}...`);
-	for (const hook of hooksArr) {
-		if (typeof hook === 'function') {
-			await hook();
-		} else if (isPromise(hook)) {
-			await hook;
-		}
-	}
-	debugLogCat('init', `Finished running hook ${hookName}`);
-}
+// async function runHook(hookName: string) {
+// 	const hooksArr = getHooks(hookName);
+// 	debugLogCat('init', `Running hook ${hookName}...`);
+// 	for (const hook of hooksArr) {
+// 		if (typeof hook === 'function') {
+// 			await hook();
+// 		} else if (isPromise(hook)) {
+// 			await hook;
+// 		}
+// 	}
+// 	debugLogCat('init', `Finished running hook ${hookName}`);
+// }
 
 // --- END HOOKS SYSTEM ---
 

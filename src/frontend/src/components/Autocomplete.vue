@@ -22,10 +22,11 @@
 <script setup lang="ts">
 
 import { computed, ref, useTemplateRef } from 'vue';
-import type SelectPicker from './SelectPicker.vue';
+import SelectPicker from './SelectPicker.vue';
 
+void SelectPicker;
 
-import {splitIntoTerms} from '@/utils';
+import { splitIntoTerms } from '@/utils';
 
 const modelValue = defineModel<string>({default: ''});
 const props = withDefaults(defineProps<{

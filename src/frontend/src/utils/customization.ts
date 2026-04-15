@@ -3,6 +3,7 @@ import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { spanFilterId } from '@/utils';
 import type { Translate } from '@/utils/i18n';
+import { isObject } from '@vueuse/core';
 
 const unwrappedImplementation = Symbol('unwrappedImplementation');
 const isProxiedSym = Symbol('proxyMark');
@@ -136,39 +137,38 @@ export const corpusCustomizations = wrapWithErrorHandling({
 				this._customTabs.push({ name, fields });
 			},
 
+			// TODO refactor this to be more type-safe and more user-friendly for custom scripts.
 			/** Create a span filter for corpus.search.metadata.customTabs */
-			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: any = {}): AppTypes.FilterDefinition {
-				// No options specified; try to get them from the corpus.
-				let optionsFromCorpus;
-				const corpus = corpusCustomizations._corpus;
-				if (!metadata.options && corpus && corpus.relations.spans) {
-					const span: BLTypes.BLSpanInfo = corpus.relations.spans[spanName] ?? {};
-					const attr = span.attributes?.[attrName] ?? { values: {}, valueListComplete: false };
-					if (attr?.valueListComplete) {
-						optionsFromCorpus = Object.keys(attr.values).map((value: string) => ({ value }));
-					}
-				}
-
-				if (widget === 'auto') {
-					widget = optionsFromCorpus ? 'select' : 'text';
-				}
-
-				if (widget === 'select') {
+			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: unknown = {}): AppTypes.FilterDefinition<{name: string, attribute: string, options?: AppTypes.Option[]}> {
+				// Try and parse out options from provided info for the filter
+				let valuesForAttribute: AppTypes.Option[]|undefined = 
 					// If user passed in just an array, assume these are the options.
-					if (Array.isArray(metadata)) {
-						metadata = { options: metadata };
-					}
-
-					if (!metadata.options)
-						metadata.options = optionsFromCorpus ?? [];
-
-					// If the options are just strings, convert them to simple Option objects.
-					metadata.options = metadata.options.map((option: any) => {
-						return typeof option === 'string' ? { value: option } : option;
-					});
+					Array.isArray(metadata) ? metadata as AppTypes.Option[] :
+					// Otherwise, look for an options property in the metadata.
+					isObject(metadata) && 'options' in metadata && Array.isArray(metadata.options) ? metadata.options as AppTypes.Option[] : 
+					undefined;
+				// No options provided - retrieve from corpus.
+				if (!valuesForAttribute) {
+					// Find available values for this attribute from the corpus info
+					// If no explicit options are provided, we'll use those. (at least, if the widget is supposed to show options, i.e. select or autocomplete)
+					const corpus = corpusCustomizations._corpus;
+					const span = corpus?.relations.spans?.[spanName];
+					const attr = span?.attributes?.[attrName];
+					if (attr && attr.valueListComplete) valuesForAttribute = Object.keys(attr.values).map(value => ({ value }));
+				}
+				// ensure all entries in the array is valid options objects
+				valuesForAttribute = valuesForAttribute?.map(option => typeof option === 'string' ? { value: option } : option);
+				// Infer widget type if not provided, pretty basic, but it works for now: if there are options, we can show them in a select, otherwise we need a text input.
+				if (widget === 'auto') {
+					widget = valuesForAttribute ? 'select' : 'text';
 				}
 
-				const behaviourName = widget === 'select' || widget === 'range' ? `span-${widget}` : 'span-text';
+				// FilterValueFunctions entry
+				const behaviourName = (widget === 'select' || widget === 'range') ? `span-${widget}` : 'span-text';
+
+				// use an intermediate object to avoid setting the 'options' key if we have no options
+				// we want to avoid returning {options: Option[]|undefined}
+				const optionsMetadata = valuesForAttribute ? { options: valuesForAttribute } : {};
 
 				return {
 					id: spanFilterId(spanName, attrName),
@@ -178,7 +178,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 					metadata: {
 						name: spanName,
 						attribute: attrName,
-						...metadata
+						...optionsMetadata
 					},
 					// (groupId will be set automatically when creating the custom tabs)
 				};

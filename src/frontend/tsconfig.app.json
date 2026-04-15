@@ -45,10 +45,11 @@
 
 			// See https://github.com/sindresorhus/del/issues/88
 			"@types/jquery",
+			"vite/client",
 		],
 		"outDir": "dist",
 	},
-	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/*.vue"],
+	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/*.vue", "vue-shim.d.ts",],
 	// This tsconfig is meant for files that run in the browser. Therefor exclude files that run in nodejs.
 	// (this is basically anything that's used in Vite and linters/compilers).
 	// This is to prevent the typescript compiler from complaining about missing nodejs types.

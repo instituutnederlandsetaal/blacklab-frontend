@@ -52,7 +52,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		super(uri);
 		try {
 			this._interfaceStateFromUrl = JSON.parse(this.getString('interface', null, v => v.startsWith('{')?v:null)!);
-		} catch (e) {
+		} catch {
 			// No big deal if we can't parse the interface state from the url, we'll just determine it from the rest of the url parameters later.
 		}
 	}

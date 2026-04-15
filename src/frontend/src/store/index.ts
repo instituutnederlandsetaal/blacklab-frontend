@@ -151,7 +151,7 @@ const actions = {
 			return;
 		}
 		// Reset the grouping/page/sorting/etc, for all views
-		ViewModule.actions.resetAllViews({resetGroupBy: false});
+		void ViewModule.actions.resetAllViews({resetGroupBy: false});
 
 		// Apply the desired grouping for this form, if needed.
 		if (state.interface.form === 'explore') {
@@ -174,7 +174,7 @@ const actions = {
 					m.actions.groupBy(state.interface.exploreMode === 'ngram' ? [ExploreModule.get.ngram.groupBy()] : [ExploreModule.get.frequency.groupBy()]);
 					break;
 				}
-				default: throw new Error(`Unhandled explore mode ${state.interface.exploreMode} while submitting form`);
+				default: throw new Error(`Unhandled explore mode ${state.interface.exploreMode as any} while submitting form`);
 			}
 		}
 
@@ -338,7 +338,7 @@ const actions = {
 
 	reset: b.commit(state => {
 		FormManager.actions.reset();
-		ViewModule.actions.resetAllViews({resetGroupBy: true});
+		void ViewModule.actions.resetAllViews({resetGroupBy: true});
 		QueryModule.actions.reset();
 		ArticleModule.actions.reset();
 		// TODO check if everything is reset properly.
@@ -352,7 +352,7 @@ const actions = {
 		FormManager.actions.replace(payload);
 		GlobalResultsModule.actions.replace(payload.global);
 		// clear all views, otherwise inactive views would persist current settings.
-		ViewModule.actions.resetAllViews({resetGroupBy: true});
+		void ViewModule.actions.resetAllViews({resetGroupBy: true});
 		if (payload.article) {
 			ArticleModule.actions.replace(payload.article);
 		}

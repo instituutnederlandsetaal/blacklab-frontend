@@ -273,7 +273,7 @@ export interface BLMetadataField {
 	isAnnotatedField: boolean;
 	type: 'TOKENIZED'|'UNTOKENIZED'|'NUMERIC';
 	/** All the types we support are listed here, though the types are user-defined so in anything can show up. */
-	uiType: string|'select'|'range'|'combobox'|'text'|'checkbox'|'radio'|'autocomplete'|'dropdown';
+	uiType: (string&{})|'select'|'range'|'combobox'|'text'|'checkbox'|'radio'|'autocomplete'|'dropdown';
 	/** Internal blacklab property: when the unknownValue is used as the value for a document where the metadata for this field was unknown when indexing */
 	unknownCondition: 'NEVER'|'MISSING'|'EMPTY'|'MISSING_OR_EMPTY';
 	/** Internal blacklab property: what default value is substituted during indexing for document that are missing this metadata (depending on unknownCondition) */

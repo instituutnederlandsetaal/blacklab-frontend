@@ -1,16 +1,11 @@
 import { blacklab, frontend } from '@/api';
 import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
-import type { LogCategory } from '@/utils/debug';
-import { debugLogCat } from '@/utils/debug';
 
-import type { Loadable} from '@/utils/loadable-streams';
-import { combineLoadables, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, compareAsSortedJson, withRequiredKeys, mapLoaded, switchMapLoaded, toObservable } from '@/utils/loadable-streams';
-import type { Observable} from 'rxjs';
-import { combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareReplay, tap } from 'rxjs';
-
-
-const debug = <T>(cat: LogCategory, message: string) => tap<T>(v => debugLogCat(cat, message, v));
+import type { Loadable } from '@/utils/loadable-streams';
+import { combineLoadables, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, compareAsSortedJson, mapLoaded, switchMapLoaded, toObservable, withRequiredKeys } from '@/utils/loadable-streams';
+import type { Observable } from 'rxjs';
+import { combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareReplay } from 'rxjs';
 
 // Define some input/intermediate types and utils.
 
@@ -39,7 +34,7 @@ export type Input = { [K in keyof _Input]: _Input[K] | null; }
 
 /** The initial input */
 const inputsFromStore$  = new ReplaySubject<Input>(1);
-export {inputsFromStore$ as input$};
+export { inputsFromStore$ as input$ };
 const input$ = inputsFromStore$.pipe(distinctUntilChanged(compareAsSortedJson), shareReplay(1));
 
 // Document metadata

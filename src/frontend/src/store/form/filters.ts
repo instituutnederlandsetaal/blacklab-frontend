@@ -19,10 +19,10 @@ import { corpusCustomizations } from '@/utils/customization';
 import { debugLogCat } from '@/utils/debug';
 
 export type FilterState = {
-	value: unknown|null;
+	value: unknown;
 };
 
-export type FullFilterState = FilterDefinition<unknown, unknown>&FilterState;
+export type FullFilterState = FilterDefinition<unknown>&FilterState;
 
 /** A group of metadata filters (i.e. a tab in the search interface) */
 export type FilterGroupType = {
@@ -105,7 +105,7 @@ const actions = {
 
   registerFilter: b.commit((state, {filter, insertBefore}: {
 		/** Filter definition */
-		filter: FilterDefinition;
+		filter: FilterDefinition<unknown>;
 		/** Optional: ID of another filter in this group before which to insert this filter, if omitted, the filter is appended at the end. */
 		insertBefore?: string;
 	}) => {
@@ -226,13 +226,13 @@ const init = (state: CorpusChange) => {
     .filter(f => f.id)
     .forEach(f => {
       actions.registerFilter({
-        filter: f as FilterDefinition
+        filter: f as FilterDefinition<unknown>
       });
     });
 
   debugLogCat('init', 'Finished initializing filter module state shape');
 };
 
-export type { ModuleRootState as FullModuleRootState, ExternalModuleRootState as ModuleRootState };
 export { actions, get, getState, init, namespace };
+export type { ModuleRootState as FullModuleRootState, ExternalModuleRootState as ModuleRootState };
 

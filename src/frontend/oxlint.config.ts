@@ -2,7 +2,6 @@
 import { defineConfig } from "oxlint";
 
 export default defineConfig({
-  $schema: "./node_modules/oxlint/configuration_schema.json",
   plugins: ["typescript", "oxc", "vue", "vitest"],
   categories: {
     correctness: "error",
@@ -15,16 +14,23 @@ export default defineConfig({
     "typescript/consistent-type-exports": "error",
     "eslint/no-unused-vars": ["warn", {
       args: "none",
-      varsIgnorePattern: "^_.*"
+      varsIgnorePattern: "^_.*" // allow unused vars if they start with underscore, e.g. _unused
     }], 
-    "typescript/await-thenable": "ignore",
+    "typescript/await-thenable": "off",
+    "eslint/no-async-promise-executor": "off",
+    "eslint/no-debugger": "error",
+    "typescript/restrict-template-expressions": ["error", {
+      allowArray: true,
+    }]
   },
-  settings: {},
+  settings: {
+  },
   env: {
     builtin: true,
   },
   options: {
     typeAware: true,
     typeCheck: true,
-  }
+  },
+  
 });

@@ -120,7 +120,7 @@ const get = {
       try {
         const base64 = (fr.result as string).replace(/#.*(?:\r\n|\n|\r|$)/g, '').trim();
         let originalEntry: FullHistoryEntry&{version: number};
-        try { originalEntry = JSON.parse(atob(base64)); } catch (e) { throw new Error(`Could not read query file '${f.name}'.`); }
+        try { originalEntry = JSON.parse(atob(base64)); } catch { throw new Error(`Could not read query file '${f.name}'.`); }
         if (!originalEntry || originalEntry.version == null) { throw new Error('Cannot import: file does not appear to be a valid query.'); }
 
         // Roundtrip from url if not compatible.

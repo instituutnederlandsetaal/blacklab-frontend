@@ -219,7 +219,7 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
 			const value = typeof filterState.value === 'string' ?
 				escapeRegex(filterState.value, { escapeWildcards: false }) :
 				(Array.isArray(filterState.value) ?
-					filterState.value.map(v => escapeRegex(v, { escapeWildcards: false })).join('|') :
+					(filterState.value as string[]).map(v => escapeRegex(v, { escapeWildcards: false })).join('|') :
 					filterState.value);
 			withinClauses[elName][attrName] = value;
 		}

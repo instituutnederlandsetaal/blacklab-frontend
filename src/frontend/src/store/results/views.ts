@@ -10,7 +10,7 @@ import { getStoreBuilder } from 'vuex-typex';
 
 import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';
-import type { Module, Store } from 'vuex/types/index.d.ts';
+import type { Store } from 'vuex/types/index.d.ts';
 
 const namespace = 'views';
 
@@ -194,7 +194,6 @@ const init = async (state: CorpusChange)=> {
 	// and the vuex store.
 	Object.keys(moduleCache).forEach(key => {
 		const builder = viewsBuilder.module(key) as any;
-		const moduleInstance: Module<any, any> = builder._vuexModule;
 		const rootStoreInstance: Store<any> = builder._store;
 		rootStoreInstance.unregisterModule([namespace, key]);
 		// @ts-ignore

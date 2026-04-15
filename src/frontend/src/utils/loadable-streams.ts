@@ -155,8 +155,8 @@ export namespace L {
 		// if we know the state, we can return the value directly
 		T extends Loaded<infer L> ? L :
 		T extends Loading<infer L> ? L :
-		T extends Empty<infer L> ? never :
-		T extends LoadingError<infer L> ? never :
+		T extends Empty<any> ? never :
+		T extends LoadingError<any> ? never :
 		// if we have a loadable with an unknown state, return the value
 		T extends Loadable<infer L> ? L :
 		T;
@@ -217,9 +217,9 @@ export function mapLoadable<T, U, S extends LoadableState>(state: S, mapper: (v:
 	})
 }
 export const mapLoaded = mapLoadable.Loaded = <T, U>(mapper: (v: T) => U) => mapLoadable(LoadableState.Loaded, mapper);
-export const mapError = mapLoadable.Error = <T, U>(mapper: (v: ApiError) => U) => mapLoadable(LoadableState.Error, mapper);
-export const mapEmpty = mapLoadable.Empty = <T, U>(mapper: (v: undefined) => U) => mapLoadable(LoadableState.Empty, mapper);
-export const mapLoading = mapLoadable.Loading = <T, U>(mapper: (v: undefined) => U) => mapLoadable(LoadableState.Loading, mapper);
+export const mapError = mapLoadable.Error = <U>(mapper: (v: ApiError) => U) => mapLoadable(LoadableState.Error, mapper);
+export const mapEmpty = mapLoadable.Empty = <U>(mapper: (v: undefined) => U) => mapLoadable(LoadableState.Empty, mapper);
+export const mapLoading = mapLoadable.Loading = <U>(mapper: (v: undefined) => U) => mapLoadable(LoadableState.Loading, mapper);
 
 /**
  * Like map, but only call the mapper for Loadables of state S. The mapper can directly return a Loadable<U>.
@@ -270,9 +270,9 @@ export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableS
 	})
 }
 export const mergeMapLoaded = mergeMapLoadable.Loaded =   <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Loaded, mapper);
-export const mergeMapError = mergeMapLoadable.Error =     <T, U extends Loadable<any>>(mapper: (v: ApiError) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Error, mapper);
-export const mergeMapEmpty = mergeMapLoadable.Empty =     <T, U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Empty, mapper);
-export const mergeMapLoading = mergeMapLoadable.Loading = <T, U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Loading, mapper);
+export const mergeMapError = mergeMapLoadable.Error =     <U extends Loadable<any>>(mapper: (v: ApiError) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Error, mapper);
+export const mergeMapEmpty = mergeMapLoadable.Empty =     <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Empty, mapper);
+export const mergeMapLoading = mergeMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Loading, mapper);
 
 
 /**
@@ -339,8 +339,6 @@ export const toObservable = <T>({cancel, request}: CancelableRequest<T>) => new 
 	// When the observable is unsubscribed, cancel the request.
 	return cancel; // cleanup for when the observable is unsubscribed.
 });
-
-type ValueTypeFromLoadable<T> = T extends Loadable<infer U> ? U : T;
 
 /**
  * Unpack Observables and Loadables into their .value type.
