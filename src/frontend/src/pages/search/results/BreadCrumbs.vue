@@ -15,15 +15,19 @@
 </template>
 
 <script lang="ts">
+import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 export default defineComponent({
 	props: {
-		crumbs: Array as () => Array<{
-			label: string,
-			title?: string,
-			onClick?: () => void
-		}>,
+		crumbs: {
+			type: Array as PropType<Array<{
+				label: string,
+				title?: string,
+				onClick?: () => void
+			}>>,
+			required: true,
+		},
 		disabled: Boolean,
 	},
 	computed: {

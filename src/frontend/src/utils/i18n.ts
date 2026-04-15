@@ -1,7 +1,8 @@
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import type { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGroup, Option } from '@/types/apptypes';
+import type { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGroup } from '@/types/apptypes';
 import { elementAndAttributeNameFromFilterId } from '@/utils';
 import { I18nManager } from '@/utils/i18n-manager';
+import type { Option } from '@/utils/options';
 import type { App, FunctionPlugin, InjectionKey } from 'vue';
 import { inject, watch } from 'vue';
 import { createI18n } from 'vue-i18n';

@@ -1,99 +1,45 @@
 <template>
 	<div class="multi-value-picker">
 		<div class="selected" v-if="selected.length">
-			<button type="button" class="btn option" v-for="v in selected" :key="v ? v.value : 'x'" :data-value="v ? v.value : 'x'" :title="$t('widgets.clickToRemove').toString()" @click="clickLabel($event?.target)">
-				{{ v.label || v.value }}
+			<button v-for="v in selected" 
+				type="button" 
+				class="btn option" 
+				:key="optionValue(v)" 
+				:title="$t('widgets.clickToRemove')" 
+				@click="remove(optionValue(v))"
+			>
+				{{ optionLabel(v) }}
 			</button>
 		</div>
-		<div class="add" v-if="optionsNotYetSelected.length > 0">
-			<SelectPicker :options="optionsNotYetSelected" :modelValue="selectValue" @update:modelValue="add($event)" data-menu-width="grow" hideEmpty/>
+		<div class="add" v-if="notSelected.length > 0">
+			<SelectPicker 
+				:options="notSelected" 
+				:onBeforeSelect="add"
+				:value="null"
+				data-menu-width="grow" 
+				hideEmpty
+			/>
 		</div>
 	</div>
 </template>
 
-<script lang="ts">
+<script setup lang="ts">
 
 // tslint:disable
 
-import SelectPicker from '@/components/SelectPicker.vue';
-import { defineComponent } from 'vue';
+import { filterOptions, isOptGroup, optionLabel, optionValue, type Option, type Options } from '@/utils/options';
+import SelectPicker from './SelectPicker.vue';
 
-export type SimpleOption = string;
+const modelValue = defineModel<string[]|null>({required: true});
+const {options} = defineProps<{
+	options: Options;
+}>();
 
-export type Option = {
-	value: string;
-	label?: string;
-	title?: string|null;
-	disabled?: boolean;
-};
-export type OptGroup = {
-	label?: string;
-	title?: string|null;
-	disabled?: boolean;
-	options: Array<string|Option>;
-};
+const [_selected, notSelected] = filterOptions(options, new Set(modelValue.value || []));
+const selected = _selected.flatMap(o => isOptGroup(o) ? o.options : o);
+const add = (v: Option) => { modelValue.value = modelValue.value ? [...modelValue.value, v.value] : [v.value]; return true; }
+const remove = (v: string) => { modelValue.value = modelValue.value?.filter(o => optionValue(o) !== v) ?? null; }
 
-export type Options = Array<SimpleOption|Option|OptGroup>;
-
-export default defineComponent({
-	components:	{
-		SelectPicker,
-	},
-	emits: ['update:modelValue'],
-	props: {
-		options: {
-			type: Array as () => Option[],
-			default: () => [] as Option[]
-		},
-		modelValue: Array as () => string[]|null,
-		textNoneSelected: {
-			type: String,
-			default: ''
-		},
-		textSelected: {
-			type: String,
-			default: ''
-		},
-	},
-	computed: {
-		optionsNotYetSelected(): Option[] {
-			return this.options.filter(o => !this.selected.includes(o));
-		},
-		selected(): Option[] {
-			const result = this.modelValue?.map(v => this.options.find(o => (o as Option).value === v) as Option)
-				.filter(v => v !== undefined) || [];
-			return result;
-		},
-	},
-	methods: {
-		add(v: string) {
-			const opt = this.options.find(o => (o as Option).value === v);
-			if (opt) {
-				const i = this.selected.indexOf(opt);
-				if (i < 0) {
-					// Not yet selected: add it at the end
-					this.$emit('update:modelValue', this.selected.concat([opt]).map(o => o.value));
-				}
-			}
-		},
-		clickLabel(target: EventTarget|null) {
-			if (target && target instanceof HTMLElement) {
-				const v = target.getAttribute('data-value') || target.innerText;
-				this.remove(v);
-			}
-		},
-		remove(v: string) {
-			this.$emit('update:modelValue', this.selected.filter(o => o.value !== v).map(o => o.value));
-		},
-	},
-	data: () =>  ({
-		selectValue: null as string|null,
-	}),
-	mounted() {
-	},
-	beforeUnmount() {
-	},
-});
 </script>
 
 <style lang="scss" scoped>

@@ -7,7 +7,7 @@
 			<div class="crumbs-totals">
 				<BreadCrumbs :crumbs="breadCrumbs" :disabled="!!request" />
 				<Totals class="result-totals"
-					:initialResults="results"
+					:initialResults="loadedResults"
 					:type="id"
 					:indexId="indexId"
 					:annotatedFieldId="sourceAnnotatedFieldId"
@@ -65,7 +65,7 @@
 				:header="isHits ? cols.hitColumns : isDocs ? cols.docColumns : cols.groupColumns"
 				:showTitles="showTitles.value"
 				:disabled="!!request"
-				:query="results?.summary.searchParam"
+				:query="resultComponentData.query"
 				:sort="resultComponentData.sort"
 
 				@changeSort="sort = (sort === $event ? `-${sort}` : $event)"
@@ -489,6 +489,7 @@ export default defineComponent({
 		valid(): boolean {
 			return this.id !== 'hits' || isHitParams(RootStore.get.blacklabParameters());
 		},
+		loadedResults(): BLTypes.BLSearchResult { return this.results!; },
 		// simple view variables
 		indexId(): string { return CorpusStore.get.indexId()!; },
 		isHits(): boolean { return BLTypes.isHitResults(this.results); },
@@ -659,7 +660,10 @@ export default defineComponent({
 				otherAnnotations: annotationIdsToShow.map(id => CorpusStore.get.allAnnotationsMap()[id]),
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
 				annotationGroups: CorpusStore.get.annotationGroups(),
-				hasCustomHitInfoColumn: corpusCustomizations.results.hasCustomHitInfoColumn,
+				hasCustomHitInfoColumn: (results, isParallelCoprus) =>
+					(BLTypes.isHitResults(results) || BLTypes.isHitGroups(results))
+						? corpusCustomizations.results.hasCustomHitInfoColumn(results, isParallelCoprus)
+						: false,
 			}
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {

@@ -24,7 +24,7 @@
 			:name="dataName"
 			:style="dataStyle"
 			:title="dataTitle"
-			:placeholder="(placeholder || $attrs.title) ?? ''"
+			:placeholder="placeholderText"
 			:disabled="disabled"
 			:dir="dir"
 			:autofocus="autofocus"
@@ -66,7 +66,7 @@
 				<span class="menu-value" v-else :title="displayValues.join(', ')">{{displayValues.join(', ')}}</span>
 			</template>
 			<span v-else class="menu-value placeholder">{{
-				placeholder || $attrs.title || $t(multiple ? 'widgets.selectValues' : 'widgets.selectValue')
+				placeholderText || $t(multiple ? 'widgets.selectValues' : 'widgets.selectValue')
 			}}</span>
 			<span v-if="loading" class="menu-icon fa fa-spinner fa-spin text-muted"></span>
 			<span v-else-if="!showValues && multiple && showValueCount" :class="['menu-icon badge',{'active': displayValues.length}]">
@@ -89,7 +89,7 @@
 			:dir="dir"
 			:class="['combobox-menu', computedMenuClass, dataMenuClass]"
 
-			@keydown.prevent.stop.esc="$refs.focusOnEscClose.focus(); doClose(); /* order is important */"
+			@keydown.prevent.stop.esc="focusTrigger(); doClose(); /* order is important */"
 			@keydown.prevent.stop.down="focusDown"
 			@keydown.prevent.stop.right="focusDown"
 			@keydown.prevent.stop.up="focusUp"
@@ -203,23 +203,7 @@
 import Vue, { defineComponent } from 'vue';
 import { mapReduce } from '@/utils';
 import type { PropType } from 'vue';
-
-export type SimpleOption = string;
-
-export type Option = {
-	value: string;
-	label?: string;
-	title?: string|null;
-	disabled?: boolean;
-};
-export type OptGroup = {
-	label?: string;
-	title?: string|null;
-	disabled?: boolean;
-	options: Array<string|Option>;
-};
-
-export type Options = Array<SimpleOption|Option|OptGroup>;
+import { isOptGroup, isOption, isSimpleOption, type OptGroup, type Option, type Options, type SimpleOption } from '@/utils/options';
 
 type _uiOpt = {
 	type: 1;
@@ -247,9 +231,6 @@ type uiOption = _uiOpt|_uiOptGroup;
 /** Might also be any other valid css value for 'width', but these values have special behavior in the code */
 type MenuWidthMode = 'stretch'|'shrink'|'grow';
 
-function isSimpleOption(e: any): e is string { return typeof e === 'string'; }
-function isOption(e: any): e is Option { return e && isSimpleOption(e.value); }
-function isOptGroup(e: any): e is OptGroup { return e && typeof e.label === 'string' && Array.isArray(e.options); }
 
 let nextMenuId = 0;
 
@@ -261,7 +242,7 @@ export default defineComponent({
 			default: true
 		},
 
-		options: { type: Array as () => Options, default: () => [] as Options },
+		options: { type: Array as PropType<Options>, default: () => [] },
 		multiple: Boolean,
 		/** Is the dropdown list filtered by the current value (acts more as an autocomplete) */
 		searchable: {type: Boolean, default: undefined},
@@ -272,7 +253,7 @@ export default defineComponent({
 		/** Optional header content for inside the menu */
 		menuHeading: String,
 		disabled: Boolean,
-		placeholder: String,
+		placeholder: { type: [String, null] as PropType<string|null>, default: null },
 		noOptionsPlaceholder: {type: String, default: 'No available options.'},
 		/** Show a little spinner while the parent is fetching options, or something */
 		loading: Boolean,
@@ -305,7 +286,10 @@ export default defineComponent({
 		/** Force the menu open or closed */
 		open: { type: Boolean, default: undefined },
 
-		modelValue: [String, Array] as PropType<string|string[]|null>,
+		modelValue: {
+			type: [String, Array, null] as PropType<string|string[]|null>,
+			default: null,
+		},
 
 		/** attached to top-level container */
 		dataWidth: String,
@@ -334,7 +318,7 @@ export default defineComponent({
 		 * If passed, call this function instead of handling the select internally.
 		 * Return false to prevent the default internal handling of value updates.
 		 */
-		onSelect: Function as any as (() => (value: _uiOpt) => boolean|undefined),
+		onBeforeSelect: Function as PropType<(value: _uiOpt) => boolean|undefined>,
 	},
 	data: () =>  ({
 		/** Is the menu currently open, overridden by the 'open' prop, i.e. only used when 'open' not specified */
@@ -355,6 +339,10 @@ export default defineComponent({
 	computed: {
 		searchableModel(): boolean { return this.searchable ?? (this.uiOptions.length >= 10 && !this.editable); },
 		resettableModel(): boolean { return this.resettable ?? this.searchableModel },
+		placeholderText(): string {
+			const title = this.$attrs.title;
+			return this.placeholder ?? (typeof title === 'string' ? title : '');
+		},
 
 		menuId(): string { return this.$attrs.id as string ?? `combobox-${this.uid}`; },
 		isOpen(): boolean { return this.open ?? this.isNaturallyOpen; },
@@ -493,6 +481,10 @@ export default defineComponent({
 		}
 	},
 	methods: {
+		focusTrigger(): void {
+			const focusOnEscClose = this.$refs.focusOnEscClose as HTMLElement|undefined;
+			focusOnEscClose?.focus();
+		},
 		doOpen(focusEl?: any): void {
 			this.isNaturallyOpen = true;
 			if (focusEl && this.isOpen) {
@@ -715,8 +707,8 @@ export default defineComponent({
 				return;
 			}
 
-			if (this.onSelect) {
-				const defaultPrevented = !this.onSelect(opt);
+			if (this.onBeforeSelect) {
+				const defaultPrevented = !this.onBeforeSelect(opt);
 				if (defaultPrevented) {
 					return;
 				}
@@ -1087,9 +1079,6 @@ export default defineComponent({
 
 		&:empty { display: none; }
 
-		>.menu-reset {
-			// none
-		}
 		>.menu-search {
 			width: 100%;
 			display: block;

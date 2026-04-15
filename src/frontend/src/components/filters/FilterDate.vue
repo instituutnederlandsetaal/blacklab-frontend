@@ -7,17 +7,17 @@
 		<label v-if="showLabel" class="col-xs-12" :for="inputId">{{displayName}}
 			<small v-if="minDateDisplay && maxDateDisplay" class="text-muted" style="font-weight: normal;">({{minDateDisplay}} to {{maxDateDisplay}})</small>
 		</label>
-		<Debug v-if="definition.metadata.field"><label class="col-xs-12">(id: {{id}} [{{definition.metadata.field}}])</label></Debug>
-		<Debug v-else-if="definition.metadata.from_field"><label class="col-xs-12">(id: {{id}} [{{definition.metadata.from_field}} - {{definition.metadata.to_field}}])</label></Debug>
+		<Debug v-if="fieldName"><label class="col-xs-12">(id: {{id}} [{{fieldName}}])</label></Debug>
+		<Debug v-else-if="rangeFields"><label class="col-xs-12">(id: {{id}} [{{rangeFields.from}} - {{rangeFields.to}}])</label></Debug>
 
 		<div style="margin: 0 15px;">
 			<div class="dates">
-				<label v-if="definition.metadata.range">From: </label>
+				<label v-if="metadata.range">From: </label>
 				<input class="form-control" type="number" title="year" placeholder="year" v-model="yearFrom" :min="minYear" :max="maxYear"/>
 				<input class="form-control" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12"/>
 				<input class="form-control" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength"/>
 			</div>
-			<div v-if="definition.metadata.range" class="dates">
+			<div v-if="metadata.range" class="dates">
 				<label>To: </label>
 				<input class="form-control" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear"/>
 				<input class="form-control" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12"/>
@@ -25,14 +25,14 @@
 			</div>
 		</div>
 
-		<div class="btn-group col-xs-12" v-if="!definition.metadata.mode && definition.metadata.range" style="margin-left: calc(15px + 3em);"> <!-- only when mode isn't locked, and when we're defining ranges -->
+		<div class="btn-group col-xs-12" v-if="!lockedMode && metadata.range" style="margin-left: calc(15px + 3em);"> <!-- only when mode isn't locked, and when we're defining ranges -->
 			<button v-for="mode in modes"
 				type="button"
-				:class="['btn btn-default', {'active': modelValue.mode === mode.value}]"
+				:class="['btn btn-default', {'active': model.mode === mode.value}]"
 				:key="mode.value"
 				:value="mode.value"
 				:title="mode.title || ''"
-				@click="e_input({...modelValue, mode: mode.value})"
+				@click="e_input({...model, mode: mode.value})"
 			>{{mode.label}}</button>
 		</div>
 		<div class="col-xs-12" v-if="description">
@@ -43,15 +43,17 @@
 
 <script lang="ts">
 import createBaseFilterComponent from '@/components/filters/Filter';
-import type { Option } from '@/components/SelectPicker.vue';
+import type { Option } from '@/utils/options';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 import type { FilterDateValue, FilterDateMetadata as Metadata } from './filterValueFunctions';
 import { DateUtils } from './filterValueFunctions';
 
+type ModeOption = Option & { value: FilterDateValue['mode'] };
+
 export default defineComponent({
 	extends: createBaseFilterComponent(
-		Object as PropType<FilterDateValue&{isDefaultValue: boolean}>, 
+		Object as PropType<FilterDateValue&{isDefaultValue?: boolean}>, 
 		() => ({
 			startDate: {
 				y: '',
@@ -83,7 +85,7 @@ export default defineComponent({
 		})
 	),
 	computed: {
-		model(): FilterDateValue {
+		model(): FilterDateValue&{isDefaultValue?: boolean} {
 			return this.modelValue;
 		},
 		metadata(): Metadata {
@@ -91,6 +93,15 @@ export default defineComponent({
 				field: this.id,
 				range: false,
 			}
+		},
+		fieldName(): string|null {
+			return 'field' in this.metadata ? this.metadata.field : null;
+		},
+		rangeFields(): { from: string; to: string }|null {
+			return 'from_field' in this.metadata ? { from: this.metadata.from_field, to: this.metadata.to_field } : null;
+		},
+		lockedMode(): FilterDateValue['mode']|null {
+			return 'mode' in this.metadata ? this.metadata.mode ?? null : null;
 		},
 		// This can probably be a little simpler, but whatever.
 		minDate(): FilterDateValue['startDate']|null { return DateUtils.normalizeBoundaryDate(this.metadata.min); },
@@ -102,7 +113,7 @@ export default defineComponent({
 		startMonthLength(): string { return DateUtils.dateValueToLucene({...this.model.startDate, d: ''}, 'end')!.substring(6, 8); },
 		endMonthLength(): string { return DateUtils.dateValueToLucene({...this.model.endDate, d: ''}, 'end')!.substring(6, 8); },
 
-		modes(): Option[] {
+		modes(): ModeOption[] {
 			return [{
 				value: 'permissive',
 				label: this.$t('filter.range.permissive').toString(),

@@ -1,4 +1,4 @@
-import type { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, OptGroup, Option, TokenHighlight } from '@/types/apptypes';
+import type { HitContext, HitToken, NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataField, TokenHighlight } from '@/types/apptypes';
 import type { BLDoc, BLDocFields, BLDocGroupResult, BLDocGroupResults, BLDocInfo, BLDocResults, BLHit, BLHitGroupResult, BLHitGroupResults, BLHitInOtherField, BLHitResults, BLHitSnippet, BLHitSnippetPart, BLSearchParameters, BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 
@@ -7,6 +7,7 @@ import * as Highlights from './hit-highlighting';
 import { frontendPaths } from '@/api';
 import type { KeysOfType } from '@/types/helpers';
 import type { Translate } from '@/utils/i18n';
+import type { OptGroup, Option, Options } from '@/utils/options';
 import type { StyleValue } from 'vue';
 
 /**
@@ -706,7 +707,7 @@ type ColumnDefBase = {
 	key: string;
 	label: string;
 	title?: string;
-	sort?: Array<Option|OptGroup>|string;
+	sort?: Options|string;
 	debugLabel?: string;
 	class?: string;
 	style?: StyleValue;
@@ -798,7 +799,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		value: `${prefix}:${a.id}`,
 	})
 
-	const annotationColumnSortOptions = (prefix: string, annots?: NormalizedAnnotation[]): {sort?: string|Array<OptGroup|Option>, title?: string} => {
+	const annotationColumnSortOptions = (prefix: string, annots?: NormalizedAnnotation[]): {sort?: string|Options, title?: string} => {
 		const sortableIds = new Set(info.sortableAnnotations.map(a => a.id));
 		// If specific annotations are requested, filter to only those that are sortable
 		const annotsToShow = (annots ?? info.sortableAnnotations).filter(a => sortableIds.has(a.id));

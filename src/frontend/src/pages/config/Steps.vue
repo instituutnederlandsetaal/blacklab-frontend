@@ -22,7 +22,7 @@
 </template>
 
 <script lang="ts">
-import type { Option } from '@/types/apptypes';
+import type { Option } from '@/utils/options';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 

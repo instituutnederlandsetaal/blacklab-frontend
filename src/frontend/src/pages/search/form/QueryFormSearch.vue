@@ -134,13 +134,12 @@ import { blacklabPaths } from '@/api';
 import type * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
 
-import type { Option } from '@/components/SelectPicker.vue';
-
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
 import type { Result } from '@/utils/bcql-json-interpreter';
 import { parseBcql } from '@/utils/bcql-json-interpreter';
 import { corpusCustomizations } from '@/utils/customization';
+import type { Option } from '@/utils/options';
 import { getPatternStringFromCql, getPatternStringSearch } from '@/utils/pattern-utils';
 import ParallelFields from './parallel/ParallelFields';
 

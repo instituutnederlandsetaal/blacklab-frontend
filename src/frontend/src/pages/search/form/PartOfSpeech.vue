@@ -53,9 +53,9 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import * as TagsetStore from '@/store/tagset';
 import * as CorpusStore from '@/store/corpus';
+import * as TagsetStore from '@/store/tagset';
+import { defineComponent, type PropType } from 'vue';
 
 import type { Tagset } from '@/types/apptypes';
 import { escapeRegex } from '@/utils';
@@ -66,9 +66,10 @@ export default defineComponent({
 	components: {
 		Modal,
 	},
+	emits: ['close', 'submit'],
 	props: {
-		annotation: Object as () => CorpusStore.NormalizedAnnotation,
-		open: { default: true }
+		annotation: { type: Object as PropType<CorpusStore.NormalizedAnnotation>, required: true },
+		open: { type: Boolean, default: true }
 	},
 	data: () => ({
 		annotationValue: null as null|Tagset['values'][string],

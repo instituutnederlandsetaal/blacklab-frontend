@@ -18,12 +18,12 @@
 </template>
 
 <script lang="ts">
-import type { OptGroup } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { NormalizedIndex } from '@/types/apptypes';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
+import type { OptGroup } from '@/utils/options';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
@@ -37,7 +37,7 @@ export default defineComponent({
 		groups: Boolean,
 		parallelCorpus: Boolean,
 
-		modelValue: { type: String, required: true },
+		modelValue: { type: [String, null] as PropType<string|null>, default: null },
 
 		corpus: { type: Object as PropType<NormalizedIndex>, required: true },
 		annotations: { type: Array as PropType<string[]>, required: true },
@@ -48,8 +48,8 @@ export default defineComponent({
 	},
 	computed: {
 		model: {
-			get(): string { return this.modelValue; },
-			set(v: string) { this.$emit('update:modelValue', v); }
+			get(): string|null { return this.modelValue; },
+			set(v: string|null) { this.$emit('update:modelValue', v); }
 		},
 		sortOptions(): OptGroup[] {
 			const options = [] as OptGroup[];

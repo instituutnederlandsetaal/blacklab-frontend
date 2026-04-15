@@ -39,22 +39,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useVModel } from '@vueuse/core';
-import type { Option } from '@/types/apptypes';
 import type {
-	CqlAttributeGroupData,
-	CqlAttributeData,
-	CqlGroupEntry,
-	CqlQueryBuilderOptions,
-	CqlAnnotationCombinator} from '@/components/cql/cql-types';
-import {
-	isCqlAttributeData,
-	isCqlAttributeGroupData
+    CqlAnnotationCombinator,
+    CqlAttributeData,
+    CqlAttributeGroupData,
+    CqlGroupEntry,
+    CqlQueryBuilderOptions
 } from '@/components/cql/cql-types';
-import CqlAttribute from './CqlAttribute.vue';
-import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
+import {
+    isCqlAttributeData,
+    isCqlAttributeGroupData
+} from '@/components/cql/cql-types';
 import uid from '@/mixins/uid';
+import type { Option } from '@/utils/options';
+import { useVModel } from '@vueuse/core';
+import { computed } from 'vue';
+import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
+import CqlAttribute from './CqlAttribute.vue';
 
 defineOptions({ name: 'CqlAttributeGroup' });
 

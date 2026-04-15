@@ -27,19 +27,19 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
+import { defineComponent, type PropType } from 'vue';
 
 import * as CorpusStore from '@/store/corpus';
 import * as PatternStore from '@/store/form/patterns';
 import * as UIStore from '@/store/ui';
 
-import type { Option } from '@/components/SelectPicker.vue';
 import { corpusCustomizations } from '@/utils/customization';
+import type { Option } from '@/utils/options';
 
 export default defineComponent({
 	emits: ['update:modelValue'],
 	props: {
-		modelValue: { type: String, required: false },
+		modelValue: { type: [String, null] as PropType<string|null>, default: null },
 	},
 	computed: {
 		model: {

@@ -9,7 +9,8 @@
 
 <script lang="ts">
 import SelectPicker from '@/components/SelectPicker.vue';
-import type { NormalizedAnnotation, Option } from '@/types/apptypes';
+import type { NormalizedAnnotation } from '@/types/apptypes';
+import type { Option } from '@/utils/options';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 import type { StepState } from './POS.vue';

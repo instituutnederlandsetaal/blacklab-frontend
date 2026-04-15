@@ -82,12 +82,11 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
 import URI from 'urijs';
+import { defineComponent, nextTick } from 'vue';
 
 import * as RootStore from '@/store/';
 import * as HistoryStore from '@/store/history';
-import * as FilterStore from '@/store/form/filters';
 
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 
@@ -171,7 +170,7 @@ export default defineComponent({
 	watch: {
 		isSharingUrl(value: boolean) {
 			if (value) {
-				Vue.nextTick(() => {
+				nextTick(() => {
 					const input = (this.$refs.shareUrlInput as HTMLInputElement);
 					input.focus();
 					input.setSelectionRange(0, input.value.length);

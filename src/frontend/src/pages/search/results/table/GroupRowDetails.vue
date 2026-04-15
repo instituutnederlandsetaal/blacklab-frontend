@@ -36,7 +36,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
+import { defineComponent, type PropType } from 'vue';
 
 import { blacklab } from '@/api';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
@@ -54,7 +54,7 @@ export default defineComponent({
 	extends: IRow,
 	components: { Spinner },
 	// NOTE: also update the watcher on this prop if you change this name!
-	props: { row: Object as () => GroupRowData },
+	props: { row: { type: Object as PropType<GroupRowData>, required: true } },
 	data: () => ({
 		concordances: null as any as PaginatedGetter<Rows>,
 	}),

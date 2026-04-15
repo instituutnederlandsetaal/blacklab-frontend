@@ -18,12 +18,12 @@
 import IRow from '@/pages/search/results/table/IRow.vue';
 import type { DocRowData } from '@/pages/search/results/table/table-layout';
 
-import { defineComponent } from 'vue';
+import { defineComponent, type PropType } from 'vue';
 
 export default defineComponent({
 	name: 'DocRowDetails',	
 	extends: IRow,
-	props: { row: Object as () => DocRowData, },
+	props: { row: { type: Object as PropType<DocRowData>, required: true } },
 });
 </script>
 

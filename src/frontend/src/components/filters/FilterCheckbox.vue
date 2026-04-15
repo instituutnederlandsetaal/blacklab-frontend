@@ -17,7 +17,7 @@
 					:id="inputId+'_'+index"
 					:checked="modelValue[option.value]"
 
-					@change="toggleCheckbox(option.value, $event.target.checked);"
+					@change="toggleCheckboxFromEvent(option.value, $event)"
 				> {{option.label || option.value}}</label>
 			</div>
 		</div>
@@ -36,6 +36,14 @@ import { defineComponent } from 'vue';
 export default defineComponent({
 	extends: createBaseFilterComponent(Object as PropType<Record<string, boolean>>),
 	methods: {
+		toggleCheckboxFromEvent(value: string, event: Event) {
+			const target = event.target as HTMLInputElement|null;
+			if (!target) {
+				return;
+			}
+
+			this.toggleCheckbox(value, target.checked);
+		},
 		toggleCheckbox(value: string, checked: boolean) {
 			this.e_input({
 				...this.modelValue,

@@ -45,9 +45,11 @@
 <script lang="ts">
 
 import createBaseFilterComponent from '@/components/filters/Filter';
-import type { Option } from '@/types/apptypes';
+import type { Option } from '@/utils/options';
 import { defineComponent, type PropType } from 'vue';
 import type { FilterRangeMultipleFieldsMetadata, FilterRangeMultipleFieldsValue } from './filterValueFunctions';
+
+type ModeOption = Option & { value: FilterRangeMultipleFieldsValue['mode'] };
 
 export default defineComponent({
 	extends: createBaseFilterComponent<FilterRangeMultipleFieldsValue, FilterRangeMultipleFieldsMetadata>(Object as PropType<FilterRangeMultipleFieldsValue>, () => ({
@@ -57,7 +59,7 @@ export default defineComponent({
 	})),
 	computed: {
 		fields(): FilterRangeMultipleFieldsMetadata { return this.definition.metadata; },
-		modes(): Option[] {
+		modes(): ModeOption[] {
 			return [{
 				value: 'permissive',
 				label: this.$t('filter.range.permissive').toString(),

@@ -22,7 +22,8 @@
 						 -->
 						<DepTree
 							:data="row"
-							:fullSentence="sentenceShown ? sentence : undefined"
+							:fullSentence="sentenceShown ? sentence : null"
+							:dir="row.dir"
 							:mainAnnotation="info.mainAnnotation"
 							:otherAnnotations="info.depTreeAnnotations"
 						/>

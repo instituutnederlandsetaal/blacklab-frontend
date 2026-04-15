@@ -3,7 +3,7 @@
 		v-bind="$attrs"
 		
 		editable
-		@select="_autocompleteSelected"
+		:onBeforeSelect="_autocompleteSelected"
 		v-model="modelValue"
 		:options
 		:autocomplete="props.autocomplete ? 'on' : 'off'"
@@ -27,6 +27,7 @@ import SelectPicker from './SelectPicker.vue';
 void SelectPicker;
 
 import { splitIntoTerms } from '@/utils';
+import type { Option } from '@/utils/options';
 
 const modelValue = defineModel<string>({default: ''});
 const props = withDefaults(defineProps<{
@@ -140,7 +141,7 @@ function _getWordAroundCursor(inputElement: HTMLInputElement, lookForward: boole
 
 	return { start, end, value: value.substring(start, end) };
 }
-function _autocompleteSelected({value: v}: {value: string}) {
+function _autocompleteSelected({value: v}: Option) {
 	if (props.useQuoteAsWordBoundary && v.match(/\s/)) v = `"${v}"`;
 
 	const input = inputElement.value;

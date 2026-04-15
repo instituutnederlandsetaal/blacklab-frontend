@@ -1,7 +1,8 @@
-import type { FilterDefinition, Option } from '@/types/apptypes';
+import type { FilterDefinition } from '@/types/apptypes';
+import type { Option } from '@/utils/options';
 import { isObject } from '@vueuse/core';
+import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
-import type { PropType } from 'vue/dist/vue.js';
 
 export default function createBaseFilterComponent<T, M = never>(
 	valuePropType: true | PropType<T> | null | undefined,

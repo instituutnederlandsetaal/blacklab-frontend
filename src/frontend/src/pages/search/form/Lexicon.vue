@@ -65,7 +65,7 @@
 import Axios from 'axios';
 import * as Observable from 'rxjs';
 import { catchError, debounceTime, filter, map, mergeMap, switchMap, toArray } from 'rxjs/operators';
-import { defineComponent } from 'vue';
+import { defineComponent, type PropType } from 'vue';
 
 import * as api from '@/api';
 import SelectPicker from '@/components/SelectPicker.vue';
@@ -131,9 +131,12 @@ export default defineComponent({
 	inheritAttrs: false,
 	emits: ['update:modelValue'],
 	props: {
-		annotationId: String,
-		modelValue: null as any as () => null|string,
-		definition: Object as () => CorpusStore.NormalizedAnnotation
+		annotationId: { type: String, required: true },
+		modelValue: {
+			type: [String, null] as PropType<string|null>,
+			default: null,
+		},
+		definition: { type: Object as PropType<CorpusStore.NormalizedAnnotation>, required: true }
 	},
 	data: () => ({
 		uid: UID(),
@@ -279,7 +282,7 @@ export default defineComponent({
 			// We need to discern changed checkbox availability from actual changes
 			// Take care not to remove user-input value when an empty batch of alternatives comes in.
 			if (v.length !== prev.length && this.wordOptions && this.wordOptions.length > 0) {
-				this.modelValue = v.map(w => escapeRegex(w.word)).map(w => w.includes(' ') ? '"'+w+'"' : w).join('|');
+				this.currentValue = v.map(w => escapeRegex(w.word)).map(w => w.includes(' ') ? '"'+w+'"' : w).join('|');
 			}
 		},
 		posOptions: {

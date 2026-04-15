@@ -386,25 +386,6 @@ export class ApiError extends Error {
 	}
 }
 
-// Import quirks, duplicate these
-
-/** Generic object to represent an option in a dropdown multiple-choice, checkbox list, etc. */
-export type Option = {
-	value: string;
-	label?: string;
-	title?: string|null;
-	disabled?: boolean;
-};
-/** Generic object to represent a group of Options in a dropdown multiple-choide, checkbox list, etc. */
-export type OptGroup = {
-	label?: string;
-	title?: string|null;
-	disabled?: boolean;
-	options: Array<string|Option>;
-};
-
-
-
 export type CFCustomJsEntry = {
 	/** For global customJs, which index it should have on the page (for runtime dependency order) */
 	index: number;

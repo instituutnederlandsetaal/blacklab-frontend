@@ -4,6 +4,7 @@ import type * as BLTypes from '@/types/blacklabtypes';
 import { spanFilterId } from '@/utils';
 import type { Translate } from '@/utils/i18n';
 import { isObject } from '@vueuse/core';
+import type { OptGroup, Option } from './options';
 
 const unwrappedImplementation = Symbol('unwrappedImplementation');
 const isProxiedSym = Symbol('proxyMark');
@@ -139,13 +140,13 @@ export const corpusCustomizations = wrapWithErrorHandling({
 
 			// TODO refactor this to be more type-safe and more user-friendly for custom scripts.
 			/** Create a span filter for corpus.search.metadata.customTabs */
-			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: unknown = {}): AppTypes.FilterDefinition<{name: string, attribute: string, options?: AppTypes.Option[]}> {
+			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: unknown = {}): AppTypes.FilterDefinition<{name: string, attribute: string, options?: Option[]}> {
 				// Try and parse out options from provided info for the filter
-				let valuesForAttribute: AppTypes.Option[]|undefined = 
+				let valuesForAttribute: Option[]|undefined = 
 					// If user passed in just an array, assume these are the options.
-					Array.isArray(metadata) ? metadata as AppTypes.Option[] :
+					Array.isArray(metadata) ? metadata as Option[] :
 					// Otherwise, look for an options property in the metadata.
-					isObject(metadata) && 'options' in metadata && Array.isArray(metadata.options) ? metadata.options as AppTypes.Option[] : 
+					isObject(metadata) && 'options' in metadata && Array.isArray(metadata.options) ? metadata.options as Option[] : 
 					undefined;
 				// No options provided - retrieve from corpus.
 				if (!valuesForAttribute) {
@@ -253,7 +254,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 
 	sort: {
 		/** Perform customizations on these sort options */
-		customize(optGroup: AppTypes.OptGroup): AppTypes.OptGroup|null {
+		customize(optGroup: OptGroup): OptGroup|null {
 			return null; // use default behaviour [no change]
 		}
 	},
@@ -267,7 +268,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 		},
 
 		/** Perform customizations on these group options */
-		customize(optGroup: AppTypes.OptGroup, i18n: Translate): AppTypes.OptGroup|null {
+		customize(optGroup: OptGroup, i18n: Translate): OptGroup|null {
 			return null; // use default behaviour [no change]
 		}
 	}

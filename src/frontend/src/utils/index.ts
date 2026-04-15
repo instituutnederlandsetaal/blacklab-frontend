@@ -1,10 +1,9 @@
 // TODO split this file into patternUtils (DONE - JN), groupUtils and generic utils.
 
-
-
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import type { Translate } from '@/utils/i18n';
+import type { OptGroup, Option } from '@/utils/options';
 
 
 const defaultRegexEscapeOptions = {
@@ -473,17 +472,17 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 	/* show the <small/> labels at the end of options labels? */
 	showGroupLabels = true,
 	showFieldFunction?: (id: string) => boolean|null
-): Array<AppTypes.OptGroup&{entries: T[]}> {
+): Array<OptGroup&{entries: T[]}> {
 	const subset = fieldSubset(ids, groups, metadata);
 
 	// Map a metadata field's id + displayname + group to an option for rendering a groupby or sortby dropdown.
 	// This will map the value to be the string required for blacklab to sort/group by the field
 	// and the label to be the human-readable display name of the field.
-	function mapToOptions(value: string, displayName: string, groupId: string): AppTypes.Option[] {
+	function mapToOptions(value: string, displayName: string, groupId: string): Option[] {
 		const displayIdHtml = debug ? `<small><strong>[id: ${value}]</strong></small>` : '';
 		const displayNameHtml = displayName || value;
 		const displaySuffixHtml = showGroupLabels && groupId ? `<small class="text-muted">${groupId}</small>` : '';
-		const r: AppTypes.Option[] = [];
+		const r: Option[] = [];
 		const labelI18nKey = operation === 'Sort' ? 'results.table.sortBy' : 'results.table.groupBy';
 		r.push({
 			value: operation === 'Sort' ? `field:${value}` : value, // groupby prepends field: on its own
@@ -498,7 +497,7 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 		return r;
 	}
 
-	const r = subset.map<AppTypes.OptGroup&{entries: T[]}>(group => ({
+	const r = subset.map<OptGroup&{entries: T[]}>(group => ({
 		options: group.entries
 			.filter(e => showFieldFunction?.(e.id) ?? true)
 			.flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),
@@ -528,7 +527,7 @@ export function getAnnotationSubset(
 	corpusTextDirection: 'rtl'|'ltr' = 'ltr',
 	debug = false,
 	showGroupLabels = false
-): Array<AppTypes.OptGroup&{entries: AppTypes.NormalizedAnnotation[]}> {
+): Array<OptGroup&{entries: AppTypes.NormalizedAnnotation[]}> {
 	function findAnnotatedFieldId(groupId: string) {
 		return groups.find(g => g.id === groupId)?.annotatedFieldId || groups[0].annotatedFieldId;
 	}
@@ -565,10 +564,10 @@ export function getAnnotationSubset(
 			['before:', 'Before hit', 'before'],
 			['after:', 'After hit', 'after']
 		]
-		.map<AppTypes.OptGroup&{entries: AppTypes.NormalizedAnnotation[]}>(([prefix, groupname, suffix]) =>({
+		.map<OptGroup&{entries: AppTypes.NormalizedAnnotation[]}>(([prefix, groupname, suffix]) =>({
 			label: groupname,
 			entries: subset[0].entries,
-			options: ids.flatMap<AppTypes.Option>(id => {
+			options: ids.flatMap<Option>(id => {
 				// in debug mode - show IDs
 				const displayIdHtml = debug ? `<small><strong>[id: ${id}]</strong></small>` : '';
 				const displayNameHtml = i18n.$tAnnotDisplayName(annotations[id]);

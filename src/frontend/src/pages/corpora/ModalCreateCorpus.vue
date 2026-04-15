@@ -33,13 +33,13 @@
 	</Modal>
 </template>
 <script lang="ts">
-import { defineComponent } from 'vue';
+import * as Api from '@/api';
 import Modal from '@/components/Modal.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { NormalizedFormat } from '@/types/apptypes';
-import type { Options } from '@/components/SelectPicker.vue';
 import type { BLUser } from '@/types/blacklabtypes';
-import * as Api from '@/api';
+import type { Options } from '@/utils/options';
+import { defineComponent } from 'vue';
 
 
 

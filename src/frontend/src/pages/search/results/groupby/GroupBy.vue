@@ -192,7 +192,8 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
+import type { PropType } from 'vue';
+import { defineComponent, nextTick } from 'vue';
 
 import * as CorpusStore from '@/store/corpus';
 import * as FilterModule from '@/store/form/filters';
@@ -216,9 +217,8 @@ import jsonStableStringify from 'json-stable-stringify';
 import Slider from 'vue-slider-component';
 import 'vue-slider-component/theme/default.css';
 
-import type { OptGroup, Options } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
-import type { CaptureAndRelation, HitToken, Option, TokenHighlight } from '@/types/apptypes';
+import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
 
 
 import Tabs from '@/components/Tabs.vue';
@@ -226,6 +226,7 @@ import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
 import { snippetParts } from '@/pages/search/results/table/table-layout';
 import { corpusCustomizations } from '@/utils/customization';
+import { findOption, type OptGroup, type Option, type Options } from '@/utils/options';
 
 // What we prefix the tag attribute grouping option with so we can recognize it
 const OPT_PREFIX_SPAN_ATTRIBUTE = '$TAGATTR:';
@@ -255,9 +256,12 @@ export default defineComponent({
 		Tabs
 	},
 	props: {
-		type: String as () => 'hits'|'docs', // grouping hits or docs?
+		type: { type: String as PropType<'hits'|'docs'>, required: true }, // grouping hits or docs?
 		disabled: Boolean,
-		results: Object as () => BLSearchResult|undefined
+		results: {
+			type: [Object, null] as PropType<BLSearchResult|null>,
+			default: null,
+		}
 	},
 	data: () => ({
 		/** The criteria the user has added to group on */
@@ -674,19 +678,8 @@ export default defineComponent({
 						// because if we would make that reject unknown values
 						// it would clear the value when results are still pending
 						// (as the relations are not available yet)
-						Vue.nextTick(() => {
-							const opt = this.contextOptions.find(o => {
-								if (typeof o === 'string') {
-									return o === selectedLabel;
-								} else if ((o as OptGroup).options) {
-									return !!((o as OptGroup).options.find(o => {
-										const opt = (o as Option).value ?? o;
-										return opt === selectedLabel;
-									}));
-								} else {
-									return (o as Option).value === selectedLabel;
-								}
-							});
+						nextTick(() => {
+							const opt = findOption(this.contextOptions, selectedLabel);
 							if (opt) {
 								// Option is still in the list after changing field
 								const relPart = this.getInitialRelationPartValue(selectedLabel);
@@ -805,7 +798,8 @@ export default defineComponent({
 			// NOTE: we look at results.summary.pattern, not the QueryStore, so this also works
 			//       with Expert queries where the target version is not selected
 			//       in the GUI but part of the query.
-			const patt = hasPatternInfo(this.results) ? this.results.summary.pattern : undefined;
+			const summary = this.results?.summary;
+			const patt = hasPatternInfo(summary) ? summary.pattern : undefined;
 			const fields = patt ? [patt.fieldName, ...(patt.otherFields ?? [])] : [];
 			return fields.map(fieldName => CorpusStore.get.parallelAnnotatedFieldsMap()[fieldName]).map(field => ({
 				value: field.id,
@@ -943,7 +937,7 @@ export default defineComponent({
 					this.storeValueUpdateIsOurs = false;
 					return;
 				}
-				this.addedCriteria = parseGroupBy(this.storeValue, this.results);
+				this.addedCriteria = parseGroupBy(this.storeValue, this.results ?? undefined);
 				this.active = this.active || this.addedCriteria.length > 0;
 				if (this.selectedCriteriumIndex >= this.addedCriteria.length) {
 					this.selectedCriteriumIndex = this.addedCriteria.length - 1;

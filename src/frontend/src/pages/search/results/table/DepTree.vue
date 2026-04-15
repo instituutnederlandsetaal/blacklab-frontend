@@ -71,7 +71,7 @@ function flatten(h?: BLHitSnippetPart, values?: string[]): Array<Record<string, 
 export default defineComponent({
 	props: {
 		data: { type: Object as PropType<HitRowData>, required: true },
-		fullSentence: { type: Object as PropType<BLHit|undefined>, required: false },
+		fullSentence: { type: [Object, null] as PropType<BLHit|null>, default: null },
 
 		// TODO
 		dir: { type: String as PropType<'ltr'|'rtl'>, required: true },

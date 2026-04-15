@@ -25,13 +25,14 @@
 </template>
 
 <script lang="ts">
-import type { NormalizedFormat } from '@/types/apptypes';
-import { defineComponent } from 'vue';
 import Spinner from '@/components/Spinner.vue';
+import type { NormalizedFormat } from '@/types/apptypes';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 export default defineComponent({
 	components: {Spinner},
 	props: {
-		formats: Array as () => NormalizedFormat[],
+		formats: { type: Array as PropType<NormalizedFormat[]>, required: true },
 		loading: Boolean
 	},
 })

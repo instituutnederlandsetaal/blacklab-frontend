@@ -18,9 +18,9 @@
 </template>
 
 <script lang="ts">
-import type { Option } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import * as LoginSystem from '@/utils/loginsystem';
+import type { Option } from '@/utils/options';
 import { defineComponent } from 'vue';
 
 export default defineComponent({

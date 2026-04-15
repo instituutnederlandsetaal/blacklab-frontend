@@ -18,8 +18,7 @@ import { defineComponent } from 'vue';
 
 import * as PatternStore from '@/store/form/patterns';
 import * as UIStore from '@/store/ui';
-import type { Option } from '@/components/SelectPicker.vue';
-
+import type { Option } from '@/utils/options';
 export default defineComponent({
 	props: {
 		block: {default: false, type: Boolean},

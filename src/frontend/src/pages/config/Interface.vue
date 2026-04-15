@@ -22,10 +22,11 @@
 </template>
 
 <script lang="ts">
-import type { NormalizedAnnotation, NormalizedIndex, Option } from '@/types/apptypes';
+import type { NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
 import { defineComponent } from 'vue';
 
 import SelectPicker from '@/components/SelectPicker.vue';
+import type { Option } from '@/utils/options';
 import type { PropType } from 'vue';
 
 const component = defineComponent({

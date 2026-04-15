@@ -97,11 +97,11 @@ import * as CorpusStore from '@/store/corpus';
 import * as PatternStore from '@/store/form/patterns';
 
 import Autocomplete from '@/components/Autocomplete.vue';
-import type { Option } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import UID from '@/mixins/uid';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import PartOfSpeech from '@/pages/search/form/PartOfSpeech.vue';
+import type { Option } from '@/utils/options';
 
 import { blacklabPaths } from '@/api';
 import type { AnnotationValue, NormalizedAnnotation } from '@/types/apptypes';

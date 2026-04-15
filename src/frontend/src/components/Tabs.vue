@@ -36,20 +36,20 @@
 </template>
 
 <script lang="ts">
-import type { Option } from '@/types/apptypes';
-import type { PropType } from 'vue';
+import type { Option } from '@/utils/options';
+import type { PropType, StyleValue } from 'vue';
 import { defineComponent } from 'vue';
 
 export type Tab = Option&{
-	class?: any,
-	style?: CSSStyleDeclaration,
+	class?: string|Record<string, boolean>,
+	style?: StyleValue,
 }
 
 export default defineComponent({
 	emits: ['update:modelValue', 'middlemouse'],
 	props: {
-		modelValue: {required: false, type: [String, Number] },
-		tabs: { type: Array as PropType<Array<string|Option&{class?: string, style?: CSSStyleDeclaration}>>, required: true },
+		modelValue: { type: [String, Number, null] as PropType<string|number|null>, default: null },
+		tabs: { type: Array as PropType<Array<string|(Option&{class?: string|Record<string, boolean>, style?: StyleValue})>>, required: true },
 		vertical: Boolean,
 		flexy: Boolean,
 		wrap: Boolean,
@@ -63,7 +63,7 @@ export default defineComponent({
 				if (typeof tab === 'string') {
 					return { label: tab, value: tab };
 				}
-				return tab;
+				return tab as Tab;
 			});
 		},
 		selectedTab: {

@@ -42,9 +42,11 @@ import { defineComponent } from 'vue';
 
 const HIGHLIGHT_SEPARATOR = ' • '; // WAS: ' · '
 
+type PartialHitContext = Pick<HitContext, 'match'> & Partial<Pick<HitContext, 'before'|'after'>>;
+
 export default defineComponent({
 	props: {
-		data: { type: Object as PropType<HitContext>, required: true },
+		data: { type: Object as PropType<PartialHitContext>, required: true },
 		html: Boolean,
 		tag: {
 			default: 'div',
@@ -55,7 +57,7 @@ export default defineComponent({
 		highlight: {default: true},
 
 		// which match infos (capture/relation) should be highlighted because we're hovering over a token? (parallel corpora)
-		hoverMatchInfos: { type: Array as PropType<string[]>, required: false },
+		hoverMatchInfos: { type: Array as PropType<string[]>, default: () => [] },
 
 		before: Boolean,
 		after: Boolean,
@@ -69,7 +71,7 @@ export default defineComponent({
 	computed: {
 		doPunct(): boolean { return this.punct; }, // avoid conflict with props.data in template
 		renderInfo(): Array<{text: string, punct: string, punctBefore?: string, style?: StyleValue, title?: string, relationKeys?: string[]}> {
-			const tokens = this.before ? this.data.before : this.after ? this.data.after : this.data.match;
+			const tokens = this.before ? (this.data.before ?? []) : this.after ? (this.data.after ?? []) : this.data.match;
 
 			return tokens.map(token => {
 

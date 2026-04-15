@@ -72,8 +72,8 @@ import { defineComponent } from 'vue';
 import { blacklab } from '@/api';
 import UrlStateParserBase from '@/url/url-state-parser-base';
 
-import type { OptGroup } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
+import type { OptGroup } from '@/utils/options';
 
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';

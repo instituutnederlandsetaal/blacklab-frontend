@@ -13,7 +13,7 @@
 		:loading="i18n.loading.value"
 		:showValues="false"
 		:modelValue="i18n.localeState.value?.value"
-		@select="(v) => { i18n.setLocale(v.value); return false; }"
+		:onBeforeSelect="(v) => { i18n.setLocale(v.value); return false; }"
 	>
 		<template #option-label="{ option }">
 			<span :class="option.error ? 'text-danger' : ''" :title="option.error">

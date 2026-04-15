@@ -42,6 +42,7 @@
 
 
 <script lang="ts">
+import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import type * as Api from '@/api';
@@ -65,19 +66,19 @@ export default defineComponent({
 	props: {
 		initialResults: {
 			required: true,
-			type: Object as () => BLTypes.BLSearchResult
+			type: Object as PropType<BLTypes.BLSearchResult>
 		},
 		type: {
 			required: true,
-			type: String as () => 'hits'|'docs',
+			type: String as PropType<'hits'|'docs'>,
 		},
 		indexId: {
 			required: true,
-			type: String as () => string,
+			type: String,
 		},
 		annotatedFieldId: {
 			required: true,
-			type: String as () => string,
+			type: String,
 		}
 	},
 	computed: {

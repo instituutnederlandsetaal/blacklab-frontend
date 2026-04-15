@@ -62,7 +62,7 @@
 <script lang="ts">
 import { blacklab } from '@/api';
 import SelectPicker from '@/components/SelectPicker.vue';
-import type { Option } from '@/types/apptypes';
+import type { Option } from '@/utils/options';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 import type { ExclusionRule, StepState } from './POS.vue';

@@ -164,10 +164,10 @@ export const step = defineComponent({
 				const mainPosValues = await blacklab.getTermFrequencies(this.modelValue.index.id, this.main.id, undefined, undefined, 100);
 
 				const values = Object.keys(mainPosValues.termFreq).filter(v => !!v.trim());
-				this.$set(this.v, 'main', mapReduce(values, () => ({
+				this.v.main = mapReduce(values, () => ({
 					loading: true,
 					subs: {}
-				})));
+				}));
 				// update
 				this.$emit('update:modelValue', {...this.modelValue, step3: this.v});
 			}
@@ -187,10 +187,10 @@ export const step = defineComponent({
 
 				this.currentStep = `[${++i}/${numAnnotations}] Getting available options for annotations...`;
 
-				Object.entries(this.v.main!).forEach(([mainValue, {subs}]) => this.$set(subs, subAnnot.id, mapReduce(subValues, () => ({
+				Object.entries(this.v.main!).forEach(([mainValue, {subs}]) => subs[subAnnot.id] = mapReduce(subValues, () => ({
 					loading: false,
 					occurances: -1,
-				}))));
+				})));
 
 				this.$emit('update:modelValue', {...this.modelValue, step3: this.v});
 			}

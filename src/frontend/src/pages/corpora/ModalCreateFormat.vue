@@ -71,11 +71,11 @@
 <script lang="ts">
 import * as Api from '@/api';
 import Modal from '@/components/Modal.vue';
-import type { NormalizedFormat, Option } from '@/types/apptypes';
+import type { NormalizedFormat } from '@/types/apptypes';
 import { defineComponent } from 'vue';
 
-import type { Options } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
+import type { Option, Options } from '@/utils/options';
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import type { PropType } from 'vue';
 

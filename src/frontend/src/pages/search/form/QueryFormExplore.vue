@@ -177,11 +177,11 @@ import * as UIStore from '@/store/ui';
 
 import { blacklabPaths } from '@/api';
 import Autocomplete from '@/components/Autocomplete.vue';
-import type { OptGroup, Option } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import ParallelSource from '@/pages/search/form/ParallelSource.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
+import type { OptGroup, Option } from '@/utils/options';
 
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';

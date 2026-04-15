@@ -2,7 +2,7 @@ import { defineComponent } from 'vue';
 
 import * as CorpusStore from '@/store/corpus';
 import * as PatternStore from '@/store/form/patterns';
-import type { Option } from '@/types/apptypes';
+import type { Option } from '@/utils/options';
 
 /** Helper class to factor out some repeated fields and calculations from various parts of the UI that require knowledge of parallel fields (e.g. query input form sections). */
 const BaseParallelInfo = defineComponent({

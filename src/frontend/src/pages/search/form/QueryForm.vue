@@ -52,17 +52,17 @@
 </template>
 
 <script lang="ts">
+import { stripIndent } from 'common-tags';
 import { defineComponent } from 'vue';
-import {stripIndent} from 'common-tags';
 
 import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 import * as InterfaceStore from '@/store/form/interface';
 import * as PatternStore from '@/store/form/patterns';
 
-import QueryFormSearch from '@/pages/search/form/QueryFormSearch.vue';
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';
 import QueryFormFilters from '@/pages/search/form/QueryFormFilters.vue';
+import QueryFormSearch from '@/pages/search/form/QueryFormSearch.vue';
 import QueryFormSettings from '@/pages/search/form/QueryFormSettings.vue';
 
 import History from '@/pages/search/History.vue';
@@ -96,7 +96,9 @@ export default defineComponent({
 		},
 	},
 	methods: {
-		reset: RootStore.actions.reset,
+		reset(_event?: Event) {
+			RootStore.actions.reset();
+		},
 		submit() {
 			if (CorpusStore.get.isParallelCorpus() && PatternStore.getState().shared.source === null) {
 				// No source version selected. Required for most operations.

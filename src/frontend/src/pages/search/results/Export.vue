@@ -41,25 +41,25 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
 import cloneDeep from 'clone-deep';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
 import * as Api from '@/api';
 import * as CorpusStore from '@/store/corpus';
 
-import type { BLSearchResult} from '@/types/blacklabtypes';
+import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';
-import * as UIStore from '@/store/ui';
-import { debugLog } from '@/utils/debug';
 import { ensureCompleteFieldName } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
+import { debugLog } from '@/utils/debug';
 
 export default defineComponent({
 	props: {
-		results: Object as () => BLSearchResult,
-		type: String as () => 'hits'|'docs',
-		annotations: Array as () => string[],
-		metadata: Array as () => string[],
+		results: { type: [Object, null] as PropType<BLSearchResult|null>, default: null },
+		type: { type: String as PropType<'hits'|'docs'>, required: true },
+		annotations: { type: [Array, null] as PropType<string[]|null>, default: null },
+		metadata: { type: [Array, null] as PropType<string[]|null>, default: null },
 
 		disabled: Boolean
 	},
@@ -92,7 +92,8 @@ export default defineComponent({
 			(params as any).csvsepline = !!excel;
 			(params as any).csvsummary = true;
 			const fieldDisplayName = (name: string, baseFieldName: string = '') => {
-				const defaultField = (hasPatternInfo(this.results) ? this.results.summary.pattern?.fieldName : undefined) ?? CorpusStore.get.mainAnnotatedField();
+				const summary = this.results?.summary;
+				const defaultField = (hasPatternInfo(summary) ? summary.pattern?.fieldName : undefined) ?? CorpusStore.get.mainAnnotatedField();
 				name = ensureCompleteFieldName(name, defaultField); // don't just pass version name
 				const field = CorpusStore.get.allAnnotatedFieldsMap()[name];
 				return this.$tAnnotatedFieldDisplayName(field);

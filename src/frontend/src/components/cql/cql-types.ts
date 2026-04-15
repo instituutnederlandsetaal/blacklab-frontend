@@ -1,6 +1,7 @@
-import type { NormalizedAnnotation, OptGroup, Option } from '@/types/apptypes';
-import type { Condition, BooleanOp} from '@/utils/bcql-json-interpreter';
-import { type Result as CqlParseResult  } from '@/utils/bcql-json-interpreter';
+import type { NormalizedAnnotation } from '@/types/apptypes';
+import type { BooleanOp, Condition } from '@/utils/bcql-json-interpreter';
+import { type Result as CqlParseResult } from '@/utils/bcql-json-interpreter';
+import type { OptGroup, Option, Options } from '@/utils/options';
 
 // Updated types for the Vue implementation of CQL Query Builder
 
@@ -70,7 +71,7 @@ export interface CqlQueryBuilderOptions {
 	allAnnotationsMap: Record<string, NormalizedAnnotation>;
 
 	// Precomputed options (language-agnostic)
-	annotationOptions: (Option|OptGroup)[];
+	annotationOptions: Options;
 
 	// Default configurations (always the same)
 	operatorOptions: Option[];

@@ -1,9 +1,10 @@
-import type { FilterValue, Option } from '@/types/apptypes';
+import type { FilterValue } from '@/types/apptypes';
 import { cast, escapeLucene, mapReduce, spanFilterId, splitIntoTerms, unescapeLucene } from '@/utils';
 import type { ASTNode, ASTRange } from 'lucene-query-parser';
 // @ts-ignore - weird this doesn't work during builds
 import type { FullFilterState } from '@/store/form/filters';
 import { debugLog } from '@/utils/debug';
+import { findOption, optionLabel, optionValues, type Option } from '@/utils/options';
 
 /** month (m) and day (d) may be empty strings. Month field starts at 1 instead of javascript Date's 0. */
 export type DateValue = {
@@ -247,10 +248,11 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
   }),
   'filter-checkbox': cast<FilterValueFunctions<Option[], Record<string, boolean>>>({
     decodeInitialState(id, filterMetadata, filterValues) {
+      const allowedValues = new Set(optionValues(filterMetadata ?? []));
       const availableValues = filterValues[id]?.values
         ?.map(unescapeLucene)
         .filter(value => {
-          const valueIsPossible = filterMetadata.find(option => option.value === value);
+          const valueIsPossible = allowedValues.has(value);
           if (!valueIsPossible) { debugLog(`Filter ${id} ignoring requested value ${value} while decoding - value is not in the available options.`); }
           return valueIsPossible;
         });
@@ -276,21 +278,27 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
   }),
   'filter-radio': cast<FilterValueFunctions<Option[], string>>({
     decodeInitialState(id, filterMetadata, filterValues) {
-      const availableValues = filterValues[id]?.values
-        ?.map(unescapeLucene)
-        .filter(value => {
-          const valueIsPossible = filterMetadata.find(option => option.value === value);
-          if (!valueIsPossible) { debugLog(`Filter ${id} ignoring requested value ${value} while decoding - value is not in the available options.`); }
-          return valueIsPossible;
-        });
-
-      return availableValues?.length ? availableValues[0] : null;
+      const selectedValues = filterValues[id]?.values
+      const availableValues = new Set(optionValues(filterMetadata ?? []));
+      let chosenValue: string|null = null;
+      selectedValues?.forEach((value, i) => {
+        if (!availableValues.has(value)) {
+          debugLog(`Filter ${id} ignoring filter value ${value} while decoding - value is not in the available options.`);
+          return;
+        }
+        if (chosenValue != null) {
+          debugLog(`Filter ${id} has multiple values while decoding - only the first one will be used.`);
+          return;
+        }
+        chosenValue = unescapeLucene(value);
+      })
+      return chosenValue;
     },
     luceneQuery(id, filterMetadata, value) {
       return value ? `${id}:(${escapeLucene(value, false)})` : null;
     },
     luceneQuerySummary(id, filterMetadata, value) {
-      return filterMetadata.find(option => option.value === value)?.label || value || null;
+      return optionLabel((value && findOption(filterMetadata, value)) ?? '')
     },
     isActive(id, filterMetadata, value) {
       return this.luceneQuery(id, filterMetadata, value) !== null;

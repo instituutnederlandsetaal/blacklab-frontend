@@ -11,6 +11,7 @@
 <script lang="ts">
 import type { Tagset } from '@/types/apptypes';
 import { saveAs } from 'file-saver';
+import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import type { StepState } from './POS.vue';
@@ -22,7 +23,7 @@ export const defaultAction = (s: StepState): StepState => s;
 
 export const step = defineComponent({
 	props: {
-		modelValue: Object as () => StepState
+		modelValue: { type: Object as PropType<StepState>, required: true }
 	},
 	data: () => ({
 		title,

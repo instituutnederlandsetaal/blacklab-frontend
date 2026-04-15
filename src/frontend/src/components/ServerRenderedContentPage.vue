@@ -9,15 +9,17 @@
 
 <script lang="ts">
 import type { Loadable } from '@/utils/loadable-streams';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 import Spinner from './Spinner.vue';
 
-export default {
+export default defineComponent({
 	name: 'ServerRenderedContentPage',
 	components: {Spinner},
 	props: {
-		content: Object as () => Loadable<string>
+		content: { type: Object as PropType<Loadable<string>>, required: true }
 	},
-};
+});
 </script>
 
 <style scoped>

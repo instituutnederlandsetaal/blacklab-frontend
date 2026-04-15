@@ -24,9 +24,9 @@
 
 					:value="page+1"
 					:disabled="disabled"
-					@keypress.enter.prevent="isValid($event.target.value-1) ? changePage($event.target.value - 1) : $event.target.value=page+1"
-					@keyup.esc.prevent="$event.target.value=page+1; $event.target.blur();"
-					@change.prevent="isValid($event.target.value-1) ? changePage($event.target.value-1) : $event.target.value=page+1"
+					@keypress.enter.prevent="commitPageInput($event)"
+					@keyup.esc.prevent="resetPageInput($event)"
+					@change.prevent="commitPageInput($event)"
 					ref="maincontrol"
 				/>
 				<span v-if="editable" class="fa fa-pencil"></span>
@@ -131,6 +131,29 @@ export default defineComponent({
 		boundedUpperPage(): number { return Math.max(this.minPage, Math.min(this.page2 ?? this.page, this.maxPage)); }
 	},
 	methods: {
+		commitPageInput(event: Event) {
+			const target = event.target as HTMLInputElement|null;
+			if (!target) {
+				return;
+			}
+
+			const nextPage = Number(target.value) - 1;
+			if (this.isValid(nextPage)) {
+				this.changePage(nextPage);
+				return;
+			}
+
+			target.value = String(this.page + 1);
+		},
+		resetPageInput(event: Event) {
+			const target = event.target as HTMLInputElement|null;
+			if (!target) {
+				return;
+			}
+
+			target.value = String(this.page + 1);
+			target.blur();
+		},
 		calcOffsets(range: number) {
 			if (range <= 0) return [];
 			if (range <= 1) return [1];

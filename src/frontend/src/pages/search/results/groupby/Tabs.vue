@@ -12,7 +12,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
+import { defineComponent, type PropType } from 'vue';
 
 import VNode from './VNode.vue';
 export default defineComponent({
@@ -22,7 +22,7 @@ export default defineComponent({
 	emits: ['update:modelValue'],
 	props: {
 		modelValue: {
-			type: String as () => null|string,
+			type: [String, null] as PropType<string|null>,
 			default: null
 		}
 	},

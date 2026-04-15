@@ -48,7 +48,6 @@
 					@hover="hoverMatchInfos = $event; hoverMatchInfosId = row.hit_id"
 					@unhover="hoverMatchInfos = undefined"
 					@click.native="toggleRow(index)"
-					v-on="$listeners"
 				/>
 				<component v-if="!disableDetails" v-show="openRows[row.hit_id || index]" :is="row.type === 'doc' ? 'DocRowDetails' : row.type === 'hit' ? 'HitRowDetails' : 'GroupRowDetails'"
 					:class="{
@@ -70,7 +69,6 @@
 					@unhover="hoverMatchInfos = undefined"
 					@close="toggleRow(index)"
 					@openFullConcordances="openFullConcordances(row)"
-					v-on="$listeners"
 				/>
 			</template>
 			</template>
@@ -79,6 +77,7 @@
 </template>
 
 <script lang="ts">
+import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import '@/pages/search/results/table/TableHeader.vue';
@@ -98,19 +97,19 @@ import '@/pages/search/results/table/HitRowDetails.vue';
 export default defineComponent({
 	name: 'GenericTable',
 	props: {
-		cols: Object as () => ColumnDefs,
-		header: Array as () => ColumnDef[],
-		rows: Object as () => Rows,
-		info: Object as () => DisplaySettingsForRendering,
+		cols: { type: Object as PropType<ColumnDefs>, required: true },
+		header: { type: Array as PropType<ColumnDef[]>, required: true },
+		rows: { type: Object as PropType<Rows>, required: true },
+		info: { type: Object as PropType<DisplaySettingsForRendering>, required: true },
 		disabled: Boolean,
 		disableDetails: Boolean,
 
 		showTitles: { default: true },
-		sort: String,
+		sort: { type: [String, null] as PropType<string|null>, default: null },
 
 		/// UGH, required to get group contents as this is not exposed in the results directly.
-		type: String as () => 'hits'|'docs',
-		query: Object as () => BLSearchParameters,
+		type: { type: String as PropType<'hits'|'docs'>, required: false },
+		query: { type: Object as PropType<BLSearchParameters>, required: false },
 	},
 	data: () => ({
 		definitions,
