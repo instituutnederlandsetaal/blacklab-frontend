@@ -29,28 +29,29 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import * as UIStore from '@/store/ui';
-import * as PatternStore from '@/store/form/patterns';
 import * as CorpusStore from '@/store/corpus';
+import * as PatternStore from '@/store/form/patterns';
+import * as UIStore from '@/store/ui';
 
 import type { Option } from '@/components/SelectPicker.vue';
 import { corpusCustomizations } from '@/utils/customization';
 
 export default defineComponent({
+	emits: ['update:modelValue'],
 	props: {
-		value: { type: String, required: false },
+		modelValue: { type: String, required: false },
 	},
 	computed: {
 		model: {
-			get(): string | null | undefined { return this.value; },
-			set(v: string|null) { this.$emit('input', v); },
+			get(): string | null | undefined { return this.modelValue; },
+			set(v: string|null) { this.$emit('update:modelValue', v); },
 		},
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
 			return enabled ? elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
 		},
 		withinAttributes(): Option[] {
-			const option = this.value && this.withinOptions.find(o => o.value === this.value);
+			const option = this.modelValue && this.withinOptions.find(o => o.value === this.modelValue);
 			if (!option) return [];
 
 			// Which, if any, attribute filter fields should be displayed for this element?
@@ -63,13 +64,13 @@ export default defineComponent({
 	},
 	methods: {
 		withinAttributeValue(option: Option) {
-			if (this.value === null)
+			if (this.modelValue === null)
 			 	return '';
 			const within = PatternStore.getState().shared.withinAttributes;
 			return within ? within[option.value] ?? '' : '';
 		},
 		changeWithinAttribute(option: Option, event: Event) {
-			const spanName = this.value;
+			const spanName = this.modelValue;
 			if (spanName === null)
 				return;
 			const el = event.target as HTMLInputElement;

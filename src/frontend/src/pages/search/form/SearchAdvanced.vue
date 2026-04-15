@@ -35,7 +35,7 @@
 						 from the available options.
 						Deselecting happens in a list elsewhere in the UI.
 					-->
-					<SelectPicker :options="pTargetOptions" @input="addTarget($event)" hideEmpty/>
+					<SelectPicker :options="pTargetOptions" @update:modelValue="addTarget($event)" hideEmpty/>
 				</div>
 			</div>
 
@@ -47,18 +47,17 @@
 </template>
 
 <script lang="ts">
-import * as PatternStore from '@/store/form/patterns';
 import * as InterfaceStore from '@/store/form/interface';
-import * as CorpusStore from '@/store/corpus';
+import * as PatternStore from '@/store/form/patterns';
 
-import SelectPicker from '@/components/SelectPicker.vue';
-import MultiValuePicker from '@/components/MultiValuePicker.vue';
-import AlignBy from '@/pages/search/form/AlignBy.vue';
 import CqlQueryBuilder from '@/components/cql/CqlQueryBuilder.vue';
+import MultiValuePicker from '@/components/MultiValuePicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
+import AlignBy from '@/pages/search/form/AlignBy.vue';
 
-import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import { CqlGenerator } from '@/components/cql/cql-types';
+import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 import { defineComponent } from 'vue';
 
 export default defineComponent({
@@ -75,14 +74,12 @@ export default defineComponent({
 	computed: {
 		// The query (or source query, for parallel corpora)
 		mainQuery: {
-			get() { return PatternStore.getState().advanced.query; },
-			set(v: any) { PatternStore.actions.advanced.query(v); }
+			get(): CqlQueryBuilderData { return PatternStore.getState().advanced.query; },
+			set(v: CqlQueryBuilderData) { PatternStore.actions.advanced.query(v); }
 		},
 
 		// If this is a parallel corpus: the target queries
-		targetQueries: {
-			get() { return  PatternStore.getState().advanced.targetQueries; },
-		},
+		targetQueries(): CqlQueryBuilderData[] { return  PatternStore.getState().advanced.targetQueries; },
 	},
 	methods: {
 		copyAdvancedQuery() {

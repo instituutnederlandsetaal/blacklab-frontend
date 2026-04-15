@@ -86,8 +86,9 @@ export const step = defineComponent({
 	components: {
 		SelectPicker
 	},
+	emits: ['update:modelValue', 'submit'],
 	props: {
-		value: { type: Object as PropType<StepState>, required: true }
+		modelValue: { type: Object as PropType<StepState>, required: true }
 	},
 	data: () => ({
 		title,
@@ -100,15 +101,15 @@ export const step = defineComponent({
 		loading: true,
 	}),
 	computed: {
-		main(): NormalizedAnnotation { return this.value.annotations.find(a => a.id === this.value.mainPosAnnotationId)!; },
-		subs(): NormalizedAnnotation[] { return this.value.subAnnotations; },
+		main(): NormalizedAnnotation { return this.modelValue.annotations.find(a => a.id === this.modelValue.mainPosAnnotationId)!; },
+		subs(): NormalizedAnnotation[] { return this.modelValue.subAnnotations; },
 
 		exclusionClause(): string {
-			if (!this.value.exclusions || this.value.exclusions.length === 0) {
+			if (!this.modelValue.exclusions || this.modelValue.exclusions.length === 0) {
 				return '';
 			}
 
-			const clauses = this.value.exclusions
+			const clauses = this.modelValue.exclusions
 				.filter(e => e.annotationId && e.values.length > 0)
 				.map(e => {
 					if (e.values.length === 1) {
@@ -152,7 +153,7 @@ export const step = defineComponent({
 			this.activeValue = null;
 			this.loading = true;
 			this.currentStep = '';
-			this.$emit('input', {...this.value, step3: this.v});
+			this.$emit('update:modelValue', {...this.modelValue, step3: this.v});
 			this.getCombinations();
 		},
 		async getValues() {
@@ -160,7 +161,7 @@ export const step = defineComponent({
 			this.currentStep = `[0/${numAnnotations}] Getting available options for annotations...`;
 
 			if (!this.v.main) { // skip if already loaded
-				const mainPosValues = await blacklab.getTermFrequencies(this.value.index.id, this.main.id, undefined, undefined, 100);
+				const mainPosValues = await blacklab.getTermFrequencies(this.modelValue.index.id, this.main.id, undefined, undefined, 100);
 
 				const values = Object.keys(mainPosValues.termFreq).filter(v => !!v.trim());
 				this.$set(this.v, 'main', mapReduce(values, () => ({
@@ -168,7 +169,7 @@ export const step = defineComponent({
 					subs: {}
 				})));
 				// update
-				this.$emit('input', {...this.value, step3: this.v});
+				this.$emit('update:modelValue', {...this.modelValue, step3: this.v});
 			}
 
 			const firstValue = Object.keys(this.v.main!)[0];
@@ -181,7 +182,7 @@ export const step = defineComponent({
 					++i;
 					continue;
 				}
-				const r = await blacklab.getTermFrequencies(this.value.index.id, subAnnot.id, undefined, undefined, 100);
+				const r = await blacklab.getTermFrequencies(this.modelValue.index.id, subAnnot.id, undefined, undefined, 100);
 				const subValues = Object.keys(r.termFreq).filter(v => !!v.trim())
 
 				this.currentStep = `[${++i}/${numAnnotations}] Getting available options for annotations...`;
@@ -191,7 +192,7 @@ export const step = defineComponent({
 					occurances: -1,
 				}))));
 
-				this.$emit('input', {...this.value, step3: this.v});
+				this.$emit('update:modelValue', {...this.modelValue, step3: this.v});
 			}
 		},
 		async getCombinations() {
@@ -204,8 +205,8 @@ export const step = defineComponent({
 			const totalCombinations = numSubValues * numMainValues;
 
 			// now load actual combinations
-			const indexId = this.value.index.id;
-			const mainPosId = this.value.mainPosAnnotationId!;
+			const indexId = this.modelValue.index.id;
+			const mainPosId = this.modelValue.mainPosAnnotationId!;
 			let i = 0;
 			let performedWork = false;
 			for (const [mainPosValue, {subs: subAnnotations, loading: subLoading}] of Object.entries(this.v.main!)) {
@@ -240,20 +241,20 @@ export const step = defineComponent({
 					state.loading = false;
 					}
 					if (performedWork) {
-						this.$emit('input', {...this.value, step3: this.v});
+						this.$emit('update:modelValue', {...this.modelValue, step3: this.v});
 					}
 				}
 				this.v.main![mainPosValue].loading = false;
 			}
 			if (performedWork) {
-				this.$emit('input', {...this.value, step3: this.v});
+				this.$emit('update:modelValue', {...this.modelValue, step3: this.v});
 			}
 			this.currentStep = 'Finished!'
 			this.loading = false;
 		}
 	},
 	created() {
-		this.v = this.value.step3;
+		this.v = this.modelValue.step3;
 		this.getCombinations();
 	},
 	unmounted() {

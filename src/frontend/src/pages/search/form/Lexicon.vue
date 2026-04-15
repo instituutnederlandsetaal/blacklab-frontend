@@ -10,7 +10,7 @@
 			:placeholder="$tAnnotDisplayName(definition)"
 
 			v-bind="$attrs"
-			v-model="modelValue"
+			v-model="currentValue"
 		/>
 		<span v-if="!wordOptions" class="fa fa-spinner fa-spin text-muted"></span>
 
@@ -62,16 +62,16 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
 import Axios from 'axios';
 import * as Observable from 'rxjs';
-import { debounceTime, switchMap, mergeMap, map, toArray, catchError, mapTo, distinctUntilChanged, tap, filter } from 'rxjs/operators';
+import { catchError, debounceTime, filter, map, mergeMap, switchMap, toArray } from 'rxjs/operators';
+import { defineComponent } from 'vue';
 
-import * as CorpusStore from '@/store/corpus';
-import * as UIStore from '@/store/ui';
 import * as api from '@/api';
 import SelectPicker from '@/components/SelectPicker.vue';
 import UID from '@/mixins/uid';
+import * as CorpusStore from '@/store/corpus';
+import * as UIStore from '@/store/ui';
 import { escapeRegex, filterDuplicates, mapReduce } from '@/utils';
 
 type LexiconParams1 = {lemma: string}|{wordform: string}
@@ -129,9 +129,10 @@ type WordOption = {
 export default defineComponent({
 	components: { SelectPicker },
 	inheritAttrs: false,
+	emits: ['update:modelValue'],
 	props: {
 		annotationId: String,
-		value: null as any as () => null|string,
+		modelValue: null as any as () => null|string,
 		definition: Object as () => CorpusStore.NormalizedAnnotation
 	},
 	data: () => ({
@@ -154,13 +155,13 @@ export default defineComponent({
 		selectedWords(): WordOption[] { return this.renderedWords ? this.renderedWords.filter(w => w.selected) : []; },
 		renderedWords(): WordOption[] { return this.wordOptions ? this.wordOptions.filter(w => w.pos.some(pos => this.posOptions[pos])) : []; },
 
-		modelValue: {
-			get(): string { return this.value || ''; },
-			set(v: string) { this.$emit('input', v); this.input$.next(v); }
+		currentValue: {
+			get(): string { return this.modelValue || ''; },
+			set(v: string) { this.$emit('update:modelValue', v); this.input$.next(v); }
 		}
 	},
 	methods: {
-		reset() { this.wordOptions = []; this.posOptions = {}; this.modelValue = ''; }
+		reset() { this.wordOptions = []; this.posOptions = {}; this.currentValue = ''; }
 	},
 	created() {
 		const isValidWord = /^[\w]+$/;

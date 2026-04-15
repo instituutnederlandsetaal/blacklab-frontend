@@ -94,7 +94,7 @@
 
 							:options="annotationSearchOptions"
 							:disabled="index >= ngramSize"
-							:value="token.id"
+							:modelValue="token.id"
 							placeholder="Property"
 							hideEmpty
 							allowHtml
@@ -112,15 +112,15 @@
 							:options="token.annotation.values"
 							:disabled="index >= ngramSize"
 
-							:value="token.value"
+							:modelValue="token.value"
 							@change="updateTokenValue(index, $event)"
 						/>
 						<Lexicon v-else-if="token.annotation.uiType === 'lexicon'"
 							:annotationId="token.annotation.id"
 							:definition="token.annotation"
 
-							:value="token.value"
-							@input="updateTokenValue(index, $event)"
+							:modelValue="token.value"
+							@update:modelValue="updateTokenValue(index, $event)"
 							ref="reset"
 						/>
 
@@ -169,24 +169,24 @@
 
 <script lang="ts">
 
-import * as RootStore from '@/store/index';
 import * as CorpusStore from '@/store/corpus';
-import * as InterfaceStore from '@/store/form/interface';
 import * as ExploreStore from '@/store/form/explore';
+import * as InterfaceStore from '@/store/form/interface';
+import * as RootStore from '@/store/index';
 import * as UIStore from '@/store/ui';
 
-import type {Option, OptGroup} from '@/components/SelectPicker.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
+import { blacklabPaths } from '@/api';
 import Autocomplete from '@/components/Autocomplete.vue';
+import type { OptGroup, Option } from '@/components/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import ParallelSource from '@/pages/search/form/ParallelSource.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
-import { blacklabPaths } from '@/api';
 
-import debug from '@/utils/debug';
 import { corpusCustomizations } from '@/utils/customization';
-import ParallelFields from './parallel/ParallelFields';
+import debug from '@/utils/debug';
 import { defineComponent } from 'vue';
+import ParallelFields from './parallel/ParallelFields';
 
 export default defineComponent({
 	extends: ParallelFields,

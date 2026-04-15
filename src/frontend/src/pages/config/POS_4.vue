@@ -67,8 +67,9 @@ function getDisplayNamesFromTagset(
 
 
 export const step = defineComponent({
+	emits: ['update:modelValue', 'submit'],
 	props: {
-		value: { type: Object as PropType<StepState>, required: true }
+		modelValue: { type: Object as PropType<StepState>, required: true }
 	},
 	data: () => ({
 		title,
@@ -103,7 +104,7 @@ export const step = defineComponent({
 		},
 
 		decodedDisplayNames(): Record<string, Record<string, string>>|{default: Record<string, string>} {
-			if (this.importValueAsTagset) return getDisplayNamesFromTagset(this.importValueAsTagset, this.value.mainPosAnnotationId!, Object.fromEntries(this.value.annotations.map(a => [a.id, a.caseSensitive])));
+			if (this.importValueAsTagset) return getDisplayNamesFromTagset(this.importValueAsTagset, this.modelValue.mainPosAnnotationId!, Object.fromEntries(this.modelValue.annotations.map(a => [a.id, a.caseSensitive])));
 			else if (this.importValueAsRecord) return {default: this.importValueAsRecord };
 			else return {};
 		},
@@ -127,13 +128,13 @@ export const step = defineComponent({
 		}
 	},
 	created() {
-		this.displays = cloneDeep(this.value.step4);
+		this.displays = cloneDeep(this.modelValue.step4);
 
-		const mainValues = Object.keys(this.value.step3.main!)
-		const mainId = this.value.mainPosAnnotationId!;
+		const mainValues = Object.keys(this.modelValue.step3.main!)
+		const mainId = this.modelValue.mainPosAnnotationId!;
 		this.displays[mainId] = this.displays[mainId] || mapReduce(mainValues, v => v);
 
-		const subs = Object.values(this.value.step3.main!)[0].subs;
+		const subs = Object.values(this.modelValue.step3.main!)[0].subs;
 
 		// now create all missing entries
 		Object.entries(subs)
@@ -148,7 +149,7 @@ export const step = defineComponent({
 		displays: {
 			deep: true,
 			handler() {
-				this.$emit('input', {...this.value, step4: this.displays});
+				this.$emit('update:modelValue', {...this.modelValue, step4: this.displays});
 			}
 		}
 	}

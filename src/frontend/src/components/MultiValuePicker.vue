@@ -6,7 +6,7 @@
 			</button>
 		</div>
 		<div class="add" v-if="optionsNotYetSelected.length > 0">
-			<SelectPicker :options="optionsNotYetSelected" :value="selectValue" @input="add($event)" data-menu-width="grow" hideEmpty/>
+			<SelectPicker :options="optionsNotYetSelected" :modelValue="selectValue" @update:modelValue="add($event)" data-menu-width="grow" hideEmpty/>
 		</div>
 	</div>
 </template>
@@ -15,8 +15,8 @@
 
 // tslint:disable
 
-import { defineComponent } from 'vue';
 import SelectPicker from '@/components/SelectPicker.vue';
+import { defineComponent } from 'vue';
 
 export type SimpleOption = string;
 
@@ -39,12 +39,13 @@ export default defineComponent({
 	components:	{
 		SelectPicker,
 	},
+	emits: ['update:modelValue'],
 	props: {
 		options: {
 			type: Array as () => Option[],
 			default: () => [] as Option[]
 		},
-		value: Array as () => string[]|null,
+		modelValue: Array as () => string[]|null,
 		textNoneSelected: {
 			type: String,
 			default: ''
@@ -59,7 +60,7 @@ export default defineComponent({
 			return this.options.filter(o => !this.selected.includes(o));
 		},
 		selected(): Option[] {
-			const result = this.value?.map(v => this.options.find(o => (o as Option).value === v) as Option)
+			const result = this.modelValue?.map(v => this.options.find(o => (o as Option).value === v) as Option)
 				.filter(v => v !== undefined) || [];
 			return result;
 		},
@@ -71,7 +72,7 @@ export default defineComponent({
 				const i = this.selected.indexOf(opt);
 				if (i < 0) {
 					// Not yet selected: add it at the end
-					this.$emit('input', this.selected.concat([opt]).map(o => o.value));
+					this.$emit('update:modelValue', this.selected.concat([opt]).map(o => o.value));
 				}
 			}
 		},
@@ -82,7 +83,7 @@ export default defineComponent({
 			}
 		},
 		remove(v: string) {
-			this.$emit('input', this.selected.filter(o => o.value !== v).map(o => o.value));
+			this.$emit('update:modelValue', this.selected.filter(o => o.value !== v).map(o => o.value));
 		},
 	},
 	data: () =>  ({

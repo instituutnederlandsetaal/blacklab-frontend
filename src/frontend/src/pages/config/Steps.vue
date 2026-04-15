@@ -7,28 +7,30 @@
 
 				:title="s.title || ''"
 				:class="{
-					active: step > i,
-					active2: step === i
+					active: modelValue > i,
+					active2: modelValue === i
 				}"
 
-				@click="$emit('input', i)"
+				@click="$emit('update:modelValue', i)"
 			>
 				{{s.label}}
 			</button>
 
 		</div>
-		<div><em class="text-muted">{{steps[step].title}}</em></div>
+		<div><em class="text-muted">{{steps[modelValue].title}}</em></div>
 	</div>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
 import type { Option } from '@/types/apptypes';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
 
 export default defineComponent({
+	emits: ['update:modelValue'],
 	props: {
-		steps: Array as () => Option[],
-		step: Number
+		steps: { type: Array as PropType<Option[]>, required: true },
+		modelValue: { type: Number, required: true }
 	}
 })
 </script>

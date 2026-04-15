@@ -25,9 +25,6 @@
 							:disabled="isLoadingCorpora"
 
 							v-model="preselectedCorpus"
-
-							@input="log('input', $event)"
-							@change="log('change', $event)"
 						/>
 						<div class="input-group-btn">
 							<button type="submit" class="btn btn-primary" :disabled="!preselectedCorpus">{{ $t('remoteIndex.select') }}</button>

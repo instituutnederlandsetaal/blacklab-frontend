@@ -58,7 +58,7 @@
 				:language="formatLanguage"
 				:filename="fullFormatName"
 				v-model="formatContents"
-				@input="dirty = true"
+				@update:modelValue="dirty = true"
 			/>
 
 		</div>

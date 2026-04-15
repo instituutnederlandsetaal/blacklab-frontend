@@ -17,8 +17,7 @@
 			:tabs="tabs"
 
 			wrap
-			:value="selectedCriteriumIndex"
-			@input="selectedCriteriumIndex = $event"
+			v-model="selectedCriteriumIndex"
 			@middlemouse="$event.index < addedCriteria.length && removeGroup($event.index)"
 		>
 			<template #after="{tab, i}">
@@ -196,26 +195,26 @@
 import { defineComponent } from 'vue';
 
 import * as CorpusStore from '@/store/corpus';
-import * as UIStore from '@/store/ui';
-import * as ResultsStore from '@/store/results/views';
-import * as GlobalSearchSettingsStore from '@/store/results/global';
+import * as FilterModule from '@/store/form/filters';
 import * as SearchModule from '@/store/index';
 import * as QueryStore from '@/store/query';
-import * as FilterModule from '@/store/form/filters';
+import * as GlobalSearchSettingsStore from '@/store/results/global';
+import * as ResultsStore from '@/store/results/views';
+import * as UIStore from '@/store/ui';
 
-import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 import { blacklab } from '@/api';
+import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 
-import type { BLSearchResult, BLSearchParameters, BLHitResults, BLMatchInfoRelation, BLSummaryMatchInfo} from '@/types/blacklabtypes';
-import {isHitResults, hasPatternInfo } from '@/types/blacklabtypes';
-import type { ContextLabel, ContextPositional, GroupBy, GroupByContext} from '@/utils/grouping';
-import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
+import type { BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
+import { hasPatternInfo, isHitResults } from '@/types/blacklabtypes';
 import debug from '@/utils/debug';
+import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/utils/grouping';
+import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
 // @ts-ignore
-import Slider from 'vue-slider-component';
-import 'vue-slider-component/theme/default.css'
 import jsonStableStringify from 'json-stable-stringify';
+import Slider from 'vue-slider-component';
+import 'vue-slider-component/theme/default.css';
 
 import type { OptGroup, Options } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';

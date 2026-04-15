@@ -19,8 +19,9 @@ export default defineComponent({
 	components: {
 		VNode,
 	},
+	emits: ['update:modelValue'],
 	props: {
-		value: {
+		modelValue: {
 			type: String as () => null|string,
 			default: null
 		}
@@ -32,8 +33,8 @@ export default defineComponent({
 	computed: {
 		tabs(): string[] { return Object.keys(this.$slots || {}); },
 		active: {
-			get(): string { return this.value || this.internalValue; },
-			set(v: string) { this.$emit('input', this.internalValue = v); }
+			get(): string { return this.modelValue || this.internalValue; },
+			set(v: string) { this.$emit('update:modelValue', this.internalValue = v); }
 		},
 	},
 	watch: {

@@ -2,11 +2,11 @@
 	<div class="tabs" :class="{ vertical, flexy, wrap}">
 		<div v-for="tab, index in tabsModel"
 			:class="{
-				active: index === modelValue.index,
+				active: index === selectedTab.index,
 				tab: true,
 				disabled: tab.disabled,
-				'text-primary': index !== modelValue.index,
-				'text-body': index === modelValue.index,
+				'text-primary': index !== selectedTab.index,
+				'text-body': index === selectedTab.index,
 				...(function() {
 					if (typeof tab.class === 'string') return {[tab.class]: true}
 					else return tab.class
@@ -25,7 +25,7 @@
 					}"
 					:title="tab.title || ''"
 					:disabled="tab.disabled"
-					@click="modelValue = {tab, index}"
+					@click="selectedTab = {tab, index}"
 				>
 					{{ tab.label ?? tab.value }}
 				</button>
@@ -37,6 +37,7 @@
 
 <script lang="ts">
 import type { Option } from '@/types/apptypes';
+import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 export type Tab = Option&{
@@ -45,9 +46,10 @@ export type Tab = Option&{
 }
 
 export default defineComponent({
+	emits: ['update:modelValue', 'middlemouse'],
 	props: {
-		value: {required: false, type: [String, Number] },
-		tabs: Array as () => Array<string|Option&{class?: string, style?: CSSStyleDeclaration}>,
+		modelValue: {required: false, type: [String, Number] },
+		tabs: { type: Array as PropType<Array<string|Option&{class?: string, style?: CSSStyleDeclaration}>>, required: true },
 		vertical: Boolean,
 		flexy: Boolean,
 		wrap: Boolean,
@@ -64,13 +66,13 @@ export default defineComponent({
 				return tab;
 			});
 		},
-		modelValue: {
+		selectedTab: {
 			get(): {tab?: Tab, index: number} {
-				if (typeof this.value === 'number') {
-					return {tab: this.tabsModel[this.value], index: this.value};
+				if (typeof this.modelValue === 'number') {
+					return {tab: this.tabsModel[this.modelValue], index: this.modelValue};
 				}
-				if (typeof this.value === 'string') {
-					const i = this.tabsModel.findIndex(tab => tab.value === this.value);
+				if (typeof this.modelValue === 'string') {
+					const i = this.tabsModel.findIndex(tab => tab.value === this.modelValue);
 					return {tab: this.tabsModel[i], index: i};
 				}
 				else {
@@ -79,9 +81,9 @@ export default defineComponent({
 			},
 			set(value: {tab: Tab, index: number}) {
 				// emit either a number or a string, depending on what was put in.
-				const emitValue = typeof this.value === 'string' ? value.tab.value : value.index;
+				const emitValue = typeof this.modelValue === 'string' ? value.tab.value : value.index;
 
-				this.$emit('input', emitValue);
+				this.$emit('update:modelValue', emitValue);
 				this.internalModel = value.index;
 			}
 		}

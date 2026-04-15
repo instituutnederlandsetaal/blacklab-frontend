@@ -12,7 +12,7 @@
 			:options="col.sort"
 			:disabled="disabled"
 			@change="changeSort"
-			:value="sort?.replace(/^-/, '') || null /* strip inverted sort value for display purposes */"
+			:modelValue="sort?.replace(/^-/, '') || null /* strip inverted sort value for display purposes */"
 			:showValues="false"
 		/>
 		<a v-else-if="col.sort"

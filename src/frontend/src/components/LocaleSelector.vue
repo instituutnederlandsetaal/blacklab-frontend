@@ -12,7 +12,7 @@
 		:options="i18n.availableLocales.value"
 		:loading="i18n.loading.value"
 		:showValues="false"
-		:value="i18n.localeState.value?.value"
+		:modelValue="i18n.localeState.value?.value"
 		@select="(v) => { i18n.setLocale(v.value); return false; }"
 	>
 		<template #option-label="{ option }">
@@ -27,8 +27,8 @@
 
 <script setup lang="ts">
 import SelectPicker from '@/components/SelectPicker.vue';
-import {manager as i18n} from '@/utils/i18n';
 import Spinner from '@/components/Spinner.vue';
+import { manager as i18n } from '@/utils/i18n';
 </script>
 
 <style scoped>

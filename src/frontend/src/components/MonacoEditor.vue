@@ -3,7 +3,7 @@
 		<textarea
 			class="form-control"
 			:style="{ minHeight: '200px', fontFamily: 'monospace' }"
-			:value="value || ''"
+			:value="modelValue || ''"
 			@input="onInput"
 		></textarea>
 	</div>
@@ -13,8 +13,9 @@
 import { defineComponent } from 'vue';
 
 export default defineComponent({
+	emits: ['update:modelValue', 'change'],
 	props: {
-		value: String,
+		modelValue: String,
 		language: { default: 'text' },
 		filename: { default: 'file.text' },
 		options: Object,
@@ -22,7 +23,7 @@ export default defineComponent({
 	methods: {
 		onInput(event: Event) {
 			const target = event.target as HTMLTextAreaElement;
-			this.$emit('input', target.value);
+			this.$emit('update:modelValue', target.value);
 			this.$emit('change', target.value);
 		}
 	}

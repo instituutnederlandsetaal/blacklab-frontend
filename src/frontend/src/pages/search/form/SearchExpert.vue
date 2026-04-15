@@ -48,7 +48,7 @@
 						 from the available options.
 						Deselecting happens in a list elsewhere in the UI.
 					-->
-					<SelectPicker :options="pTargetOptions" @input="addTarget($event)" hideEmpty/>
+					<SelectPicker :options="pTargetOptions" @update:modelValue="addTarget($event)" hideEmpty/>
 				</div>
 			</div>
 
@@ -63,8 +63,8 @@ import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 
 import * as PatternStore from '@/store/form/patterns';
 
-import SelectPicker from '@/components/SelectPicker.vue';
 import MultiValuePicker from '@/components/MultiValuePicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 import AlignBy from '@/pages/search/form/AlignBy.vue';
 import { defineComponent } from 'vue';
 

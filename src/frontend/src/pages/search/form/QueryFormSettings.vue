@@ -27,7 +27,7 @@
 							hideEmpty
 							:options="sampleModeOptions"
 
-							@input="focusSampleSize"
+							@update:modelValue="focusSampleSize"
 
 							v-model="sampleMode"
 						/>

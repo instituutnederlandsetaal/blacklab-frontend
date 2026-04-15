@@ -62,8 +62,8 @@
 			ref="focusOnEscClose"
 		>
 			<template v-if="displayValues.length && showValues">
-				<span class="menu-value" v-if="allowHtml" :title="value + ''" v-html="displayValues.join(', ')"/>
-				<span class="menu-value" v-else :title="displayValues.join(',')">{{displayValues.join(', ')}}</span>
+				<span class="menu-value" v-if="allowHtml" :title="String(modelValue)" v-html="displayValues.join(', ')"/>
+				<span class="menu-value" v-else :title="displayValues.join(', ')">{{displayValues.join(', ')}}</span>
 			</template>
 			<span v-else class="menu-value placeholder">{{
 				placeholder || $attrs.title || $t(multiple ? 'widgets.selectValues' : 'widgets.selectValue')
@@ -146,7 +146,8 @@
 			<li class="menu-body">
 				<ul class="menu-options">
 					<li v-if="!filteredOptions.length" class="menu-option disabled">
-						<em class="menu-value" v-html="noOptionsPlaceholder"></em>
+						<em class="menu-value" v-if="allowHtml" v-html="noOptionsPlaceholder"></em>
+						<em class="menu-value" v-else>{{noOptionsPlaceholder}}</em>
 					</li>
 					<slot v-for="o in filteredOptions" :key="o.id"></slot>
 					<template v-for="o in filteredOptions" :key="o.id">
@@ -167,7 +168,7 @@
 					>
 						<span class="menu-value">
 							<slot name="option-label" :option="o">
-								<template v-if="allowHtml" v-html="o.label || '\u200C'"></template>
+								<component v-if="allowHtml" v-html="o.label || '\u200C'"></component>
 								<template v-else>{{ o.label || '\u200C' }}</template>
 							</slot>
 
@@ -199,10 +200,9 @@
 
 <script lang="ts">
 
-// tslint:disable
-
 import Vue, { defineComponent } from 'vue';
 import { mapReduce } from '@/utils';
+import type { PropType } from 'vue';
 
 export type SimpleOption = string;
 
@@ -254,6 +254,7 @@ function isOptGroup(e: any): e is OptGroup { return e && typeof e.label === 'str
 let nextMenuId = 0;
 
 export default defineComponent({
+	emits: ['update:modelValue', 'change', 'select'],
 	props: {
 		flip: {
 			type: Boolean,
@@ -304,7 +305,7 @@ export default defineComponent({
 		/** Force the menu open or closed */
 		open: { type: Boolean, default: undefined },
 
-		value: [String, Array] as any as () => string|string[]|null,
+		modelValue: [String, Array] as PropType<string|string[]|null>,
 
 		/** attached to top-level container */
 		dataWidth: String,
@@ -477,7 +478,7 @@ export default defineComponent({
 		/** We need to watch all these to react to changes and correct any possible stale value/internal state */
 		correctModelProps(): any {
 			return {
-				value: this.value,
+				modelValue: this.modelValue,
 				options: this.options,
 				editable: this.editable,
 				multiple: this.multiple,
@@ -840,7 +841,7 @@ export default defineComponent({
 	watch: {
 		emitInputEventData() {
 			if (this.editable) {
-				this.$emit('input', this.inputValue);
+				this.$emit('update:modelValue', this.inputValue);
 			} else {
 				// Model only edited when actually required, so always fire input event
 				// So if this triggers we know for sure the value output also needs to change
@@ -848,9 +849,9 @@ export default defineComponent({
 				// But maybe the model only changed because we got pushed a new value from props
 				// check that this is not the case.
 				const values = Object.keys(this.internalModel);
-				if (this.multiple && Array.isArray(this.value) && values.length === this.value.length && values.every(v => (this.value as string[]).includes(v))) { return; } // our value prop is already up to date - don't fire.
-				if (!this.multiple && typeof this.value === 'string' && values.length == 1 && values[0] === this.value) { return; }
-				this.$emit('input', values.length ? this.multiple ? values : values[0] : null);
+				if (this.multiple && Array.isArray(this.modelValue) && values.length === this.modelValue.length && values.every(v => (this.modelValue as string[]).includes(v))) { return; } // our modelValue prop is already up to date - don't fire.
+				if (!this.multiple && typeof this.modelValue === 'string' && values.length == 1 && values[0] === this.modelValue) { return; }
+				this.$emit('update:modelValue', values.length ? this.multiple ? values : values[0] : null);
 			}
 		},
 		isOpen: {
@@ -902,7 +903,7 @@ export default defineComponent({
 
 		correctModelProps: {
 			immediate: true,
-			handler() { this.correctModel(this.value); }
+			handler() { this.correctModel(this.modelValue); }
 		},
 		editable(v: boolean) { if (!v && !this.searchableModel) { this.inputValue = ''; } if (v) { this.internalModel = {}; }},
 		searchableModel(v: boolean) { if (!v && !this.editable) { this.inputValue = ''; } },
@@ -914,7 +915,7 @@ export default defineComponent({
 			this.containerEl = document.querySelector(this.container);
 		}
 		// @ts-ignore - interop for external scripts; expose a setValue method on our root element
-		(this.$el).setValue = (v: string|string[]) => this.$emit('input', this.multiple ? [v].flat().filter(v => v != null) : v || null);
+		(this.$el).setValue = (v: string|string[]) => this.$emit('update:modelValue', this.multiple ? [v].flat().filter(v => v != null) : v || null);
 	},
 	beforeUnmount() {
 		this.removeGlobalListeners();

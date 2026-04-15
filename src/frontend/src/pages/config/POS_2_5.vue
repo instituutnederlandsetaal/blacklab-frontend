@@ -13,9 +13,9 @@
 						<label>Annotation</label>
 						<SelectPicker
 							:options="annotationOptions"
-							:value="exclusion.annotationId"
+							:modelValue="exclusion.annotationId"
 							allowHtml
-							@input="updateExclusion(index, 'annotationId', $event)"
+							@update:modelValue="updateExclusion(index, 'annotationId', $event)"
 							placeholder="Select annotation to exclude"
 							searchable
 						/>
@@ -24,8 +24,8 @@
 						<label>Values to exclude</label>
 						<SelectPicker
 							:options="getValuesForAnnotation(exclusion.annotationId)"
-							:value="exclusion.values"
-							@input="updateExclusion(index, 'values', $event)"
+							:modelValue="exclusion.values"
+							@update:modelValue="updateExclusion(index, 'values', $event)"
 							placeholder="Select values"
 							multiple
 							searchable
@@ -78,8 +78,9 @@ export const defaultAction = (s: StepState): StepState => {
 
 export const step = defineComponent({
 	components: { SelectPicker },
+	emits: ['update:modelValue', 'submit'],
 	props: {
-		value: { type: Object as PropType<StepState>, required: true }
+		modelValue: { type: Object as PropType<StepState>, required: true }
 	},
 	data: () => ({
 		title,
@@ -89,7 +90,7 @@ export const step = defineComponent({
 	}),
 	computed: {
 		annotationOptions(): Option[] {
-			return this.value.annotations.map(a => ({
+			return this.modelValue.annotations.map(a => ({
 				value: a.id,
 				label: `${a.id} <small class="text-muted">${a.defaultDisplayName}</small>`,
 			}));
@@ -139,7 +140,7 @@ export const step = defineComponent({
 
 			try {
 				const result = await blacklab.getTermFrequencies(
-					this.value.index.id,
+					this.modelValue.index.id,
 					annotationId,
 					undefined,
 					undefined,
@@ -177,15 +178,15 @@ export const step = defineComponent({
 			const validExclusions = this.localExclusions.filter(
 				e => e.annotationId && e.values.length > 0
 			);
-			this.$emit('input', {
-				...this.value,
+			this.$emit('update:modelValue', {
+				...this.modelValue,
 				exclusions: validExclusions
 			});
 			this.$emit('submit');
 		},
 		skip() {
-			this.$emit('input', {
-				...this.value,
+			this.$emit('update:modelValue', {
+				...this.modelValue,
 				exclusions: []
 			});
 			this.$emit('submit');
@@ -193,8 +194,8 @@ export const step = defineComponent({
 	},
 	created() {
 		// Initialize from saved state if available
-		if (this.value.exclusions && this.value.exclusions.length > 0) {
-			this.localExclusions = JSON.parse(JSON.stringify(this.value.exclusions));
+		if (this.modelValue.exclusions && this.modelValue.exclusions.length > 0) {
+			this.localExclusions = JSON.parse(JSON.stringify(this.modelValue.exclusions));
 			// Preload values for existing exclusions
 			this.localExclusions.forEach(e => {
 				if (e.annotationId) {

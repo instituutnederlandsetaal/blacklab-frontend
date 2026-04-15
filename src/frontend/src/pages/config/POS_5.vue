@@ -10,10 +10,10 @@
 
 <script lang="ts">
 import type { Tagset } from '@/types/apptypes';
+import { saveAs } from 'file-saver';
 import { defineComponent } from 'vue';
-import {saveAs} from 'file-saver';
 
-import type {StepState} from './POS.vue';
+import type { StepState } from './POS.vue';
 
 export const value = 'Download'
 export const label = value;
@@ -22,7 +22,7 @@ export const defaultAction = (s: StepState): StepState => s;
 
 export const step = defineComponent({
 	props: {
-		value: Object as () => StepState
+		modelValue: Object as () => StepState
 	},
 	data: () => ({
 		title,
@@ -34,7 +34,7 @@ export const step = defineComponent({
 				subAnnotations: {}
 			};
 
-			const model = this.value.step3.main!;
+			const model = this.modelValue.step3.main!;
 			Object.entries(model).forEach(([mainValue, subAnnotations]) => {
 				const valuesPerSubAnnotations: Array<{annotationId: string, values: string[]}> = Object.entries(subAnnotations.subs).map(([annotId, annotValues]) => {
 					return {
@@ -45,7 +45,7 @@ export const step = defineComponent({
 
 				t.values[mainValue] = {
 					value: mainValue,
-					displayName: this.value.step4[this.value.mainPosAnnotationId!][mainValue],
+					displayName: this.modelValue.step4[this.modelValue.mainPosAnnotationId!][mainValue],
 					subAnnotationIds: valuesPerSubAnnotations.filter(sa => sa.values.length).map(sa => sa.annotationId).sort((a, b) => a.localeCompare(b)),
 				};
 			});
@@ -69,7 +69,7 @@ export const step = defineComponent({
 					id: subAnnotId,
 					values: Object.entries(subAnnotValues).map(([value, mainPosValues]) =>  ({
 						value,
-						displayName: this.value.step4[subAnnotId][value],
+						displayName: this.modelValue.step4[subAnnotId][value],
 						pos: mainPosValues.sort((a, b) => a.localeCompare(b))
 					})).sort((a, b) => a.displayName.localeCompare(b.displayName))
 				}

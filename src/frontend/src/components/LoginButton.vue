@@ -10,18 +10,18 @@
 		allowUnknownValues
 
 		:disabled="!canLogin"
-		:value="username"
+		:modelValue="username"
 		:options="options"
 
-		@input="handle"
+		@update:modelValue="handle"
 	/>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
 import type { Option } from '@/components/SelectPicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import * as LoginSystem from '@/utils/loginsystem';
+import { defineComponent } from 'vue';
 
 export default defineComponent({
 	components: {SelectPicker},

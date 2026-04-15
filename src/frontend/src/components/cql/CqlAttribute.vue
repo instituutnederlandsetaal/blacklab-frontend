@@ -58,8 +58,8 @@
 				data-menu-width="auto"
 				data-class="btn btn-default btn-sm bl-no-border-radius bl-token-attribute-main-input"
 				class="bl-token-attribute-main-input"
-				:value="model.values"
-				@input="model.values = $event || [] /* workaround for querbuilder emitting null sometimes */"
+				:modelValue="model.values"
+				@update:modelValue="model.values = $event || [] /* workaround for querbuilder emitting null sometimes */"
 			/>
 			<!-- Text input with optional autocomplete for free text -->
 			<Autocomplete v-else
@@ -131,12 +131,12 @@
 </template>
 
 <script setup lang="ts">
-import type { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
-import SelectPicker from '@/components/SelectPicker.vue';
-import Modal from '@/components/Modal.vue';
-import CqlAddAttributeButton from '@/components/cql/CqlAddAttributeButton.vue';
-import Autocomplete from '@/components/Autocomplete.vue';
 import { blacklabPaths } from '@/api';
+import Autocomplete from '@/components/Autocomplete.vue';
+import type { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
+import CqlAddAttributeButton from '@/components/cql/CqlAddAttributeButton.vue';
+import Modal from '@/components/Modal.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 
 // import useModel from './useModel';
 import { escapeRegex } from '@/utils';

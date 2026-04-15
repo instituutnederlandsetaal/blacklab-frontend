@@ -1,18 +1,18 @@
 <template>
 	<div>
 		<h3>{{title}}</h3>
-		<SelectPicker :options="options" :value="value.mainPosAnnotationId" @input="$emit('input', {...value, mainPosAnnotationId: $event})" placeholder="Select annotation" allowHtml searchable/>
-		<button type="button" class="btn btn-primary" @click="$emit('submit')" :disabled="!value.mainPosAnnotationId">OK</button>
-		<button type="button" class="btn btn-default" @click="$emit('input', {...value, mainPosAnnotationId: defaultPosAnnotation && defaultPosAnnotation.id})">Default</button>
+		<SelectPicker :options="options" :modelValue="modelValue.mainPosAnnotationId" @update:modelValue="$emit('update:modelValue', {...modelValue, mainPosAnnotationId: $event})" placeholder="Select annotation" allowHtml searchable/>
+		<button type="button" class="btn btn-primary" @click="$emit('submit')" :disabled="!modelValue.mainPosAnnotationId">OK</button>
+		<button type="button" class="btn btn-default" @click="$emit('update:modelValue', {...modelValue, mainPosAnnotationId: defaultPosAnnotation && defaultPosAnnotation.id})">Default</button>
 	</div>
 </template>
 
 <script lang="ts">
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { NormalizedAnnotation, Option } from '@/types/apptypes';
+import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 import type { StepState } from './POS.vue';
-import type { PropType } from 'vue';
 
 export const value = 'Choose main'
 export const label = value;
@@ -28,16 +28,17 @@ export const defaultAction = (s: StepState): StepState => {
 
 export const step = defineComponent({
 	components: { SelectPicker },
+	emits: ['update:modelValue', 'submit'],
 	props: {
-		value: { type: Object as PropType<StepState>, required: true }
+		modelValue: { type: Object as PropType<StepState>, required: true }
 	},
 	data: () => ({
 		title
 	}),
 	computed: {
-		defaultPosAnnotation(): NormalizedAnnotation|undefined { return this.value.annotations.find(a => a.uiType === 'pos'); },
+		defaultPosAnnotation(): NormalizedAnnotation|undefined { return this.modelValue.annotations.find(a => a.uiType === 'pos'); },
 		options(): Option[] {
-			return this.value.annotations.map(a => ({
+			return this.modelValue.annotations.map(a => ({
 				value: a.id,
 				label: `${a.id} <small class="text-muted">${a.defaultDisplayName}</small>`,
 				// disabled: !a.hasForwardIndex,
