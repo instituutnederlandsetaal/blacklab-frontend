@@ -1,9 +1,5 @@
-import Vue from 'vue';
-// @ts-ignore
-import Vuex from 'vuex';
-
+import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
-import { getStoreBuilder } from 'vuex-typex';
 
 import * as CorpusModule from '@/store/corpus';
 import * as HistoryModule from '@/store/history';
@@ -35,9 +31,6 @@ import type { Loadable } from '@/utils/loadable-streams';
 import { loadableFromStream } from '@/utils/loadable-streams';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
 import type { User } from 'oidc-client-ts';
-import type { Store } from 'vuex/types/index.js';
-
-Vue.use(Vuex);
 
 type RootState = {
 	/**
@@ -151,7 +144,7 @@ const actions = {
 			return;
 		}
 		// Reset the grouping/page/sorting/etc, for all views
-		void ViewModule.actions.resetAllViews({resetGroupBy: false});
+		ViewModule.actions.resetAllViews({resetGroupBy: false});
 
 		// Apply the desired grouping for this form, if needed.
 		if (state.interface.form === 'explore') {
@@ -338,7 +331,7 @@ const actions = {
 
 	reset: b.commit(state => {
 		FormManager.actions.reset();
-		void ViewModule.actions.resetAllViews({resetGroupBy: true});
+		ViewModule.actions.resetAllViews({resetGroupBy: true});
 		QueryModule.actions.reset();
 		ArticleModule.actions.reset();
 		// TODO check if everything is reset properly.
@@ -352,7 +345,7 @@ const actions = {
 		FormManager.actions.replace(payload);
 		GlobalResultsModule.actions.replace(payload.global);
 		// clear all views, otherwise inactive views would persist current settings.
-		void ViewModule.actions.resetAllViews({resetGroupBy: true});
+		ViewModule.actions.resetAllViews({resetGroupBy: true});
 		if (payload.article) {
 			ArticleModule.actions.replace(payload.article);
 		}
@@ -386,14 +379,11 @@ const actions = {
 	}, 'replaceRoot'),
 };
 
-const store: Store<RootState> = b.vuexStore({
+const store = b.vuexStore({
 	state: {
 		storeLoadingState: loadableFromStream(corpusData$) as Loadable<CorpusChange>,
 		indexId: null,
-	} as RootState, // shut up typescript, the state we pass here is merged with the modules initial states internally.
-	// Vue 3 compat makes several legacy reactive helpers observable to Vuex strict mode.
-	// Keep strict mode off until those helpers are migrated to commit-driven updates.
-	strict: false,
+	} as Partial<RootState>,
 });
 
 /**

@@ -1,4 +1,4 @@
-import { getStoreBuilder } from 'vuex-typex';
+import { getStoreBuilder } from '@/store/reactive-store';
 
 import type { RootState } from '@/store/';
 

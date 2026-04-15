@@ -1,9 +1,9 @@
+import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
-import {getStoreBuilder} from 'vuex-typex';
 
 import type * as BLTypes from '@/types/blacklabtypes';
 
-import type {RootState} from '@/store';
+import type { RootState } from '@/store';
 import type { CorpusChange } from '@/store/async-loaders';
 
 type ModuleRootState = {
@@ -131,5 +131,6 @@ const init = (state: CorpusChange) => {
 	else actions.reset();
 };
 
-export type { ModuleRootState, HistoryState };
-export { initialHistoryState, getState, get, actions, init, namespace };
+export { actions, get, getState, init, initialHistoryState, namespace };
+export type { HistoryState, ModuleRootState };
+

@@ -2,8 +2,8 @@
  * Contains the current ui state for n-gram form.
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
+import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
-import { getStoreBuilder } from 'vuex-typex';
 
 import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';

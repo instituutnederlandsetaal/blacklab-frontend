@@ -4,8 +4,8 @@
  * we need to track what the user is actually doing when a query is submitted,
  * so that we know how to construct the actual query that's sent to blacklab.
  */
+import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
-import { getStoreBuilder } from 'vuex-typex';
 
 import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';

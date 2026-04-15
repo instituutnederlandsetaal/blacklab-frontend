@@ -4,13 +4,12 @@
  * But addon scripts can add more views, if required.
  * Those will get their own sub-module here.
  */
+import type { ModuleBuilder } from '@/store/reactive-store';
+import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
-import type { ModuleBuilder } from 'vuex-typex';
-import { getStoreBuilder } from 'vuex-typex';
 
 import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';
-import type { Store } from 'vuex/types/index.d.ts';
 
 const namespace = 'views';
 
@@ -136,26 +135,6 @@ export const createViewModule = (viewName: string, customInitialState?: Partial<
 		namespace: viewName,
 		getState: b.state(),
 	};
-	// if already initialized, we need to construct the actual vuex module now.
-	// this is a bit hacky, since it isn't supported officially.
-	// On the root builder we could call registerModule(), but since this is a ModuleBuilder and not a StoreBuilder,
-	// we'll need to do it manually.
-	// This was reverse-engineered from the vuex-typex source code.
-	function registerModule(this: any, namespace: string) {
-		if (this._store && this._vuexModule) {
-			var mBuilder = this._moduleBuilders[namespace];
-			if (!mBuilder)
-				throw 'fail to register module: ' + namespace;
-			mBuilder._provideStore(this._store);
-			var vModule = mBuilder.vuexModule();
-			this._store.registerModule([this.namespace, namespace], vModule);
-			this._vuexModule.modules[namespace] = vModule;
-		}
-		else {
-			throw 'vuexStore hasn\'t been called yet, use module() instead.';
-		}
-	}
-	registerModule.call(viewsBuilder, viewName);
 
 	return m;
 };
@@ -190,14 +169,9 @@ const get = {
 }
 
 const init = async (state: CorpusChange)=> {
-	// Clear all views, delete the modules from the internal vuex-typex builders cache (hack! - depends on implementation details)
-	// and the vuex store.
+	// Clear all views so the default result modules can be recreated for the new corpus.
 	Object.keys(moduleCache).forEach(key => {
-		const builder = viewsBuilder.module(key) as any;
-		const rootStoreInstance: Store<any> = builder._store;
-		rootStoreInstance.unregisterModule([namespace, key]);
-		// @ts-ignore
-		delete viewsBuilder._moduleBuilders[key];
+		viewsBuilder.deleteModule(key);
 		delete moduleCache[key];
 	});
 	getOrCreateModule('hits');

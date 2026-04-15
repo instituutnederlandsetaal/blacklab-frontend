@@ -5,7 +5,7 @@
  * are the filters subdivided in groups, what is the text direction, and so on.
  */
 
-import { getStoreBuilder } from 'vuex-typex';
+import { getStoreBuilder } from '@/store/reactive-store';
 
 import type { RootState } from '@/store/';
 

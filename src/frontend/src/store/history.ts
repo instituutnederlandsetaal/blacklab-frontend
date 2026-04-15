@@ -3,8 +3,8 @@
  * A new entry is created every time the user executes a query,
  * but also when the user changes the grouping, and when they switch between viewing hits/documents.
  */
+import { getStoreBuilder } from '@/store/reactive-store';
 import URI from 'urijs';
-import { getStoreBuilder } from 'vuex-typex';
 
 import { stripIndent } from 'common-tags';
 import jsonStableStringify from 'json-stable-stringify';
@@ -281,8 +281,8 @@ function hashJavaDJB2(str: string) {
 // tslint:enable
 
 export {
-  actions, get, getState, init,
+    actions, get, getState, init,
 
-  namespace, type FullHistoryEntry, type HistoryEntry, type ModuleRootState
+    namespace, type FullHistoryEntry, type HistoryEntry, type ModuleRootState
 };
 

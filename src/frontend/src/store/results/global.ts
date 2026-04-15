@@ -3,7 +3,7 @@
  * Think things like context size, random sampling settings.
  */
 
-import { getStoreBuilder } from 'vuex-typex';
+import { getStoreBuilder } from '@/store/reactive-store';
 
 import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';

@@ -20,8 +20,8 @@
  * and the results settings (the grouping, viewed page number, etc).
  */
 
+import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
-import { getStoreBuilder } from 'vuex-typex';
 
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
 import type { RootState } from '@/store/';
@@ -150,6 +150,6 @@ const init = (state: CorpusChange) => {
   actions.reset();
 };
 
-export type { ModuleRootState };
 export { actions, get, getState, init, namespace };
+export type { ModuleRootState };
 

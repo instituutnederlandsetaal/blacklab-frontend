@@ -233,7 +233,7 @@ urlInputParameters$.pipe(
 export default () => {
 	debugLogCat('init', 'Begin attaching store to url and subcorpus calculations.');
 
-	// Because we use vuex-typex, getters are a little different
+	// Store getters are plain functions over the same reactive state instance.
 	// It doesn't matter though, they're attached to the same state instance, so just ignore the state argument.
 
 	RootStore.store.watch(

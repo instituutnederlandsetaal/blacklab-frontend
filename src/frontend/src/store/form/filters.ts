@@ -4,7 +4,7 @@
  *
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
-import { getStoreBuilder } from 'vuex-typex';
+import { getStoreBuilder } from '@/store/reactive-store';
 
 import type { RootState } from '@/store/';
 import * as CorpusModule from '@/store/corpus';

@@ -10,10 +10,10 @@ export default defineConfig(({ mode }): UserConfig => ({
     checker({
       vueTsc: {
         root: __dirname,
-        tsconfigPath: 'tsconfig.json', // relative to root prop above
+        tsconfigPath: 'tsconfig.app.json', // relative to root prop above
       },
       oxlint: {
-        lintCommand: 'oxlint --config oxlint.config.ts --tsconfig tsconfig.json .',
+        lintCommand: 'oxlint --config oxlint.config.ts --tsconfig tsconfig.app.json .',
       }
     }),
     inject({
@@ -40,15 +40,11 @@ export default defineConfig(({ mode }): UserConfig => ({
       '@': path.resolve(__dirname, 'src'),
       // temporary vue compat mode
       vue: '@vue/compat',
-
-      // hack: make vuex-typex import vuex 4 instead of 3, since it's not updated
-      vuex: path.resolve(__dirname, 'node_modules/vuex/dist/vuex.esm-bundler.js'),
-      'vuex-typex/node_modules/vuex': path.resolve(__dirname, 'node_modules/vuex/dist/vuex.esm-bundler.js'),
     },
     dedupe: ['vue', 'vuex', 'jquery'],
   },
   optimizeDeps: {
-    include: ['vuex-typex', 'vuex', 'jquery', 'bootstrap'],
+    include: ['jquery', 'bootstrap'],
   },
   define: {
     'process.env.NODE_ENV': JSON.stringify(mode),

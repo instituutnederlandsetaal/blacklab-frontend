@@ -6,7 +6,7 @@
  */
 
 import type { RootState } from '@/store/';
-import { getStoreBuilder } from 'vuex-typex';
+import { getStoreBuilder } from '@/store/reactive-store';
 
 import type { CorpusChange } from '@/store/async-loaders';
 import type { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex, NormalizedMetadataField, NormalizedMetadataGroup } from '@/types/apptypes';

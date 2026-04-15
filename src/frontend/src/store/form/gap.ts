@@ -3,8 +3,8 @@
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
 
+import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
-import { getStoreBuilder } from 'vuex-typex';
 
 import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';
@@ -32,7 +32,7 @@ const get = {
 
 const actions = {
 	gapValue: b.commit((state, payload: ModuleRootState['value']) => state.value = payload, 'setGapValue'),
-	gapValueFile: b.dispatch(({state, rootState}, payload: File) => new Promise((resolve, reject) => {
+	gapValueFile: b.dispatch(({state, rootState}, payload: File) => new Promise<void>((resolve, reject) => {
 		const fr = new FileReader();
 		fr.onload = () => {
 			actions.gapValue(fr.result as string);

@@ -6,9 +6,9 @@
  * Configure from external javascript through window.vuexModules.ui.getState() and assign things.
  */
 
+import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
 import { html, stripIndent } from 'common-tags';
-import { getStoreBuilder } from 'vuex-typex';
 
 import type { RootState } from '@/store/';
 import type { CorpusChange } from '@/store/async-loaders';
