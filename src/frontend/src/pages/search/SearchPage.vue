@@ -1,29 +1,29 @@
 <template>
-	<div :class="wideView.value ? 'container-fluid' : 'container'">
+	<div :class="wideView.value ? 'container-fluid' : 'container'" v-if="storeLoadingState.value?.index">
 		<QueryForm/>
-		<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary"/>
-		<Debug v-if="resultsVisible">
+		<!-- <QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary"/> -->
+		<!-- <Debug v-if="resultsVisible">
 			<div style="margin: 0 -15px; margin-bottom: 40px;">
 				<div>{{ $t('searchPage.fullQuery') }}: </div>
 				<pre><template v-for="(v, k) in debugQuery"><template v-if="v != null && v !== ''">{{k}}: {{ v }}<br></template></template></pre>
 			</div>
-		</Debug>
+		</Debug> -->
 
-		<Results v-show="resultsVisible" id="results"/>
+		<!-- <Results v-show="resultsVisible" id="results"/> -->
 	</div>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
 import * as RootStore from '@/store';
 import * as InterfaceStore from '@/store/form/interface';
+import { defineComponent } from 'vue';
 
+import Spinner from '@/components/Spinner.vue';
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 import Results from '@/pages/search/results/Results.vue';
-import Spinner from '@/components/Spinner.vue';
 
-import {wideView} from '@/pages/search/form/QueryFormSettings.vue';
+import { wideView } from '@/pages/search/form/QueryFormSettings.vue';
 
 export default defineComponent({
 	components: {
@@ -32,7 +32,10 @@ export default defineComponent({
 		Results,
 		Spinner
 	},
-	data: () => ({ wideView, }),
+	data: () => ({ 
+		wideView, 
+		storeLoadingState: RootStore.get.loadingState()
+	}),
 	computed: {
 		resultsVisible(): boolean { return InterfaceStore.getState().viewedResults != null; },
 		debugQuery: RootStore.get.blacklabParameters

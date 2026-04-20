@@ -57,16 +57,14 @@ import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
 import Spinner from '@/components/Spinner.vue';
 import type { Loadable } from '@/utils/loadable-streams';
 import * as Highcharts from 'highcharts';
-import HighchartsVue from 'highcharts-vue';
 import HighchartsBoost from 'highcharts/modules/boost';
 import HighchartsExportingData from 'highcharts/modules/export-data';
 import HighchartsExporting from 'highcharts/modules/exporting';
-import Vue, { type PropType } from 'vue';
+import { type PropType } from 'vue';
 
 HighchartsExporting(Highcharts);
 HighchartsExportingData(Highcharts);
 HighchartsBoost(Highcharts);
-Vue.use(HighchartsVue);
 
 function _preventClicks(e: Event) {
 	e.preventDefault();

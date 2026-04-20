@@ -6,18 +6,17 @@
  * Configure from external javascript through window.vuexModules.ui.getState() and assign things.
  */
 
-import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
 import { html, stripIndent } from 'common-tags';
 
-import type { RootState } from '@/store/';
-import type { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as CorpusStore from '@/store/corpus';
 import * as ViewsStore from '@/store/results/views';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { normalizeAnnotationUIType } from '@/utils/blacklabutils';
 import { corpusCustomizations } from '@/utils/customization';
+import { reactive } from 'vue';
 
 type CustomView = {
 	id: string;
@@ -381,19 +380,9 @@ const initialState: ModuleRootState = {
 	}
 };
 
-const namespace = 'ui';
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep(initialState));
+const state = reactive<ModuleRootState>(cloneDeep(initialState));
 
-// hide implementation detail
-// Sometimes this is used before store is actually created (in order to initialize other parts of the store)
-const getState = (() => {
-	const getter = b.state();
-	return (): ModuleRootState => {
-		// @ts-ignore
-		if (b._store) return getter();
-		return initialState;
-	};
-})();
+const getState = (): ModuleRootState => state;
 
 const get = {
 };
@@ -402,19 +391,19 @@ const get = {
 const actions = {
 	search: {
 		simple: {
-			searchAnnotationId: b.commit((state, id: string) => validateAnnotations([id], id => `Trying to display Annotation ${id} in the simple search, but it does not exist`, _ => true, _ => '', r => {
+			searchAnnotationId: (id: string) => validateAnnotations([id], id => `Trying to display Annotation ${id} in the simple search, but it does not exist`, _ => true, _ => '', r => {
 				state.search.simple.searchAnnotationId = r[0];
-			}), 'search_simple_searchAnnotationId'),
+			}),
 		},
 		extended: {
-			searchAnnotationIds: b.commit((state, ids: string[]) => validateAnnotations(ids,
+			searchAnnotationIds: (ids: string[]) => validateAnnotations(ids,
 				id => `Trying to display Annotation ${id} in the extended search, but it does not exist`,
 				_ => true, _ => '',
 				r => state.search.extended.searchAnnotationIds = r
-			), 'search_extended_searchAnnotationIds'),
+			),
 
 			splitBatch: {
-				enable: b.commit((state, payload: boolean) => state.search.extended.splitBatch.enabled = payload, 'search_extended_splitbatch_enable'),
+				enable: (payload: boolean) => state.search.extended.splitBatch.enabled = payload,
 			},
 
 			/** @deprecated 9-04-2024 backwards compatibility. Moved to search.shared.within */
@@ -426,7 +415,7 @@ const actions = {
 			},
 		},
 		advanced: {
-			searchAnnotationIds: b.commit((state, ids: string[]) => validateAnnotations(ids,
+			searchAnnotationIds: (ids: string[]) => validateAnnotations(ids,
 				id => `Trying to display Annotation ${id} in the querybuilder, but it does not exist`,
 				_ => true, _ => '',
 				r => {
@@ -439,28 +428,28 @@ const actions = {
 						state.search.advanced.defaultSearchAnnotationId = r[0];
 					}
 				}
-			), 'search_advanced_searchAnnotationIds'),
-			defaultSearchAnnotationId: b.commit((state, annotationId: string) => {
+			),
+			defaultSearchAnnotationId: (annotationId: string) => {
 				if (state.search.advanced.searchAnnotationIds.length === 0 || state.search.advanced.searchAnnotationIds.includes(annotationId)) {
 					state.explore.defaultGroupAnnotationId = annotationId;
 				} else {
 					console.warn(`[search.advanced.defaultSearchAnnotationId] - Trying to set default selection to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.search.advanced.searchAnnotationIds)})!`);
 				}
-			}, 'search_advanced_defaultSearchAnnotationId'),
+			},
 
-			enable: b.commit((state, enable: boolean) => state.search.advanced.enabled = enable, 'search_advanced_enabled'),
+			enable: (enable: boolean) => state.search.advanced.enabled = enable,
 		},
 		expert: {},
 
 		shared: {
-			searchMetadataIds: b.commit((state, ids: string[]) => validateMetadata(ids,
+			searchMetadataIds: (ids: string[]) => validateMetadata(ids,
 				id => `Trying to display metadata field '${id}' in the filters section, but it does not exist.`,
 			_ => true, _ => '',
 				r => state.search.shared.searchMetadataIds = r
-			), 'search_shared_searchMetadataIds'),
+			),
 			within: {
-				enable: b.commit((state, payload: boolean) => state.search.shared.within.enabled = payload, 'search_shared_within_enable'),
-				elements: b.commit((state, payload: ModuleRootState['search']['shared']['within']['elements']) => {
+				enable: (payload: boolean) => state.search.shared.within.enabled = payload,
+				elements: (payload: ModuleRootState['search']['shared']['within']['elements']) => {
 					const relations = CorpusStore.get.corpus().relations;
 					const validElements = payload.filter(v => relations.spans?.[v.value]);
 					if (!validElements.find(v => v.value === '')) {
@@ -471,47 +460,47 @@ const actions = {
 						});
 					}
 					state.search.shared.within.elements = validElements;
-				}, 'search_shared_within_annotations'),
-				sentenceElement: b.commit((state, payload: string|null) => {
+				},
+				sentenceElement: (payload: string|null) => {
 					if (state.search.shared.within.elements.findIndex(e => e.value === payload) >= 0 )
 						state.search.shared.within.sentenceElement = payload;
-				}, 'search_shared_within_sentenceElement')
+				},
 			},
 			/** Alignment relation types available in a parallel corpus, e.g. word, sentence or paragraph alignment. */
 			alignBy: {
-				enable: b.commit((state, payload: boolean) => state.search.shared.alignBy.enabled = payload, 'search_shared_alignBy_enable'),
-				elements: b.commit((state, payload: ModuleRootState['search']['shared']['alignBy']['elements']) => {
+				enable: (payload: boolean) => state.search.shared.alignBy.enabled = payload,
+				elements: (payload: ModuleRootState['search']['shared']['alignBy']['elements']) => {
 					state.search.shared.alignBy.elements = payload;
 					const defaultValue = payload[0]?.value ?? '';
 					state.search.shared.alignBy.defaultValue = defaultValue;
-				}, 'search_shared_alignBy_annotations'),
+				},
 			},
 		}
 	},
 	explore: {
-		defaultGroupAnnotationId: b.commit((state, annotationId: string) => {
+		defaultGroupAnnotationId: (annotationId: string) => {
 			if (state.results.shared.groupAnnotationIds.length === 0 || state.results.shared.groupAnnotationIds.includes(annotationId)) {
 				state.explore.defaultGroupAnnotationId = annotationId;
 			} else {
 				console.warn(`[explore.defaultGroupAnnotationId] - Trying to set default selection to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.results.shared.groupAnnotationIds)})!`);
 			}
-		}, 'explore_defaultGroupAnnotationId'),
-		defaultGroupMetadataId: b.commit((state, metadataFieldId: string) => {
+		},
+		defaultGroupMetadataId: (metadataFieldId: string) => {
 			if (state.results.shared.groupMetadataIds.length === 0 || state.results.shared.groupMetadataIds.includes(metadataFieldId)) {
 				state.explore.defaultGroupMetadataId = metadataFieldId;
 			} else {
 				console.warn(`[explore.defaultGroupMetadataId] - Trying to set default selection to '${metadataFieldId}', but it's not one of the configured options (${JSON.stringify(state.results.shared.groupMetadataIds)})!`);
 			}
-		}, 'explore_defaultGroupMetadataId'),
+		},
 
-		defaultSearchAnnotationId: b.commit((state, annotationId: string) => {
+		defaultSearchAnnotationId: (annotationId: string) => {
 			if (state.explore.searchAnnotationIds.length === 0 || state.explore.searchAnnotationIds.includes(annotationId)) {
 				state.explore.defaultSearchAnnotationId = annotationId;
 			} else {
 				console.warn(`[explore.defaultSearchAnnotationId] - Trying to set default selection to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.explore.searchAnnotationIds)})!`);
 			}
-		}, 'explore_defaultSearchAnnotationId'),
-		searchAnnotationIds: b.commit((state, ids: string[]) => validateAnnotations(ids,
+		},
+		searchAnnotationIds: (ids: string[]) => validateAnnotations(ids,
 			id => `Trying to display Annotation ${id} in the explore view (n-grams), but it does not exist`,
 			_ => true, _ => '',
 			r => {
@@ -524,62 +513,62 @@ const actions = {
 					state.explore.defaultSearchAnnotationId = r[0];
 				}
 			}
-		), 'explore_searchAnnotationIds'),
+		),
 	},
 	results: {
 		hits: {
-			shownAnnotationIds: b.commit((state, ids: string[]) => validateAnnotations(ids,
+			shownAnnotationIds: (ids: string[]) => validateAnnotations(ids,
 				id => `Trying to display Annotation '${id}' as column in the hits table, but it does not exist`,
 				a => a.hasForwardIndex,
 				id => `Trying to display Annotation '${id}' as column in the hits table, but it does not have the required forward index.`,
 				r => state.results.hits.shownAnnotationIds = r
-			), 'hits_shownAnnotationIds'),
+			),
 
-			shownMetadataIds: b.commit((state, ids: string[]) => validateMetadata(ids,
+			shownMetadataIds: (ids: string[]) => validateMetadata(ids,
 				id => `Trying to display metadata field '${id}' as column in the hits table, but it does not exist`,
 				_ => true, _ => '',
 				r => state.results.hits.shownMetadataIds = r
-			), 'hits_shownMetadataIds')
+			),
 		},
 		docs: {
-			shownMetadataIds: b.commit((state, ids: string[]) => validateMetadata(ids,
+			shownMetadataIds: (ids: string[]) => validateMetadata(ids,
 				id => `Trying to display metadata field '${id}' as column in the docs table, but it does not exist`,
 				_ => true, _ => '',
 				r => state.results.docs.shownMetadataIds = r
-			), 'docs_shownMetadataIds')
+			),
 		},
-		addResultView: b.commit((state, view: CustomView&{customInitialState: any}) => {
+		addResultView: (view: CustomView&{customInitialState: any}) => {
 			if (!state.results.customViews.find(v => v.id === view.id)) {
 				ViewsStore.getOrCreateModule(view.id);
 				state.results.customViews.push(view);
 			}
-		}, 'registerCustomView'),
-		removeResultView: b.commit((state, viewId: string) => {
+		},
+		removeResultView: (viewId: string) => {
 			const index = state.results.customViews.findIndex(v => v.id === viewId);
 			if (index !== -1) {
 				state.results.customViews.splice(index, 1);
 			} else {
 				console.warn(`[results.removeResultView] - Trying to remove custom view '${viewId}', but it doesn't exist!`);
 			}
-		}, 'removeCustomView'),
+		},
 		shared: {
-			concordanceAnnotationIdOptions: b.commit((state, ids: string[]) => validateAnnotations(ids,
+			concordanceAnnotationIdOptions: (ids: string[]) => validateAnnotations(ids,
 				id => `Trying to set available option for concordance Annotation '${id}', but it does not exist`,
 				a => a.hasForwardIndex,
 				id => `Trying to set available option for concordance Annotation '${id}', but it does not have the required forward index.`,
 				r => state.results.shared.concordanceAnnotationIdOptions = r
-			), 'shared_concordanceAnnotationIdOptions'),
-			concordanceAnnotationId: b.commit((state, id: string) => validateAnnotations([id],
+			),
+			concordanceAnnotationId: (id: string) => validateAnnotations([id],
 				_ => `Trying to display Annotation '${id}' as concordance and snippet text, but it does not exist`,
 				a => a.hasForwardIndex,
 				_ => `Trying to display Annotation '${id}' as concordance and snippet text, but it does not have the required forward index.`,
 				r => state.results.shared.concordanceAnnotationId = id
-			), 'shared_concordanceAnnotationId'),
-			concordanceAsHtml: b.commit((state, enable: boolean) => state.results.shared.concordanceAsHtml = enable, 'shared_concordanceAsHtml'),
-			concordanceSize: b.commit((state, size: number) => state.results.shared.concordanceSize = Math.min(Math.max(0, size), 1000), 'shared_concordanceSize'),
-			transformSnippets: b.commit((state, transform: (snippet: BLTypes.BLHitSnippet) => void) => state.results.shared.transformSnippets = transform, 'shared_transformSnippets'),
+			),
+			concordanceAsHtml: (enable: boolean) => state.results.shared.concordanceAsHtml = enable,
+			concordanceSize: (size: number) => state.results.shared.concordanceSize = Math.min(Math.max(0, size), 1000),
+			transformSnippets: (transform: (snippet: BLTypes.BLHitSnippet) => void) => state.results.shared.transformSnippets = transform,
 
-			detailedAnnotationIds: b.commit((state, ids: string[]|null) => {
+			detailedAnnotationIds: (ids: string[]|null) => {
 				if (ids != null) {
 					validateAnnotations(ids,
 						id => `Trying to display Annotation '${id}' in hit detail snippets, but it does not exist`,
@@ -590,9 +579,9 @@ const actions = {
 				} else {
 					state.results.shared.detailedAnnotationIds = ids;
 				}
-			}, 'shared_detailedAnnotationIds'),
+			},
 
-			detailedMetadataIds: b.commit((state, ids: string[]|null) => {
+			detailedMetadataIds: (ids: string[]|null) => {
 				if (ids != null) {
 					validateMetadata(ids,
 						id => `Trying to add document metadata field '${id}' to exports, but it does not exist`,
@@ -602,9 +591,9 @@ const actions = {
 				} else {
 					state.results.shared.detailedMetadataIds = ids;
 				}
-			}, 'shared_detailedMetadataIds'),
+			},
 
-			groupAnnotationIds: b.commit((state, ids: string[]) => validateAnnotations(ids,
+			groupAnnotationIds: (ids: string[]) => validateAnnotations(ids,
 				id => `Trying to allow grouping by Annotation '${id}', but it does not exist`,
 				a => a.hasForwardIndex,
 				id => `Trying to allow grouping by Annotation '${id}', but it does not have the required forward index.`,
@@ -618,9 +607,9 @@ const actions = {
 						state.explore.defaultGroupAnnotationId = r[0];
 					}
 				}
-			), 'shared_groupAnnotationIds'),
+			),
 
-			groupMetadataIds: b.commit((state, ids: string[]) => validateMetadata(ids,
+			groupMetadataIds: (ids: string[]) => validateMetadata(ids,
 				id => `Trying to allow grouping by metadata field '${id}', but it does not exist`,
 				_ => true, _ => '',
 				r => {
@@ -633,34 +622,34 @@ const actions = {
 						state.explore.defaultGroupMetadataId = r[0];
 					}
 				}
-			), 'shared_groupMetadataIds'),
+			),
 
-			sortAnnotationIds: b.commit((state, ids: string[]) => validateAnnotations(ids,
+			sortAnnotationIds: (ids: string[]) => validateAnnotations(ids,
 				id => `Trying to allow sorting by Annotation '${id}', but it does not exist`,
 				a => a.hasForwardIndex,
 				id => `Trying to allow sorting by Annotation '${id}', but it does not have the required forward index.`,
 				r => state.results.shared.sortAnnotationIds = r
-			), 'shared_sortAnnotationIds'),
+			),
 
-			sortMetadataIds: b.commit((state, ids: string[]) => validateMetadata(ids,
+			sortMetadataIds: (ids: string[]) => validateMetadata(ids,
 				id => `Trying to allow sorting by metadata field '${id}', but it does not exist`,
 				_ => true, _ => '',
 				r => state.results.shared.sortMetadataIds = r
-			), 'shared_sortMetadataIds'),
+			),
 
-			exportEnabled: b.commit((state, enabled: boolean) => state.results.shared.exportEnabled = enabled, 'exportEnabled'),
+			exportEnabled: (enabled: boolean) => state.results.shared.exportEnabled = enabled,
 
-			totalsTimeoutDurationMs: b.commit((state, timeoutMs: number) => {
+			totalsTimeoutDurationMs: (timeoutMs: number) => {
 				const n = Number(timeoutMs);
 				state.results.shared.totalsTimeoutDurationMs = isNaN(n) ? 90_000 : n;
-			}, 'totalsTimeoutDurationMs'),
-			totalsRefreshIntervalMs: b.commit((state, intervalMs: number) => {
+			},
+			totalsRefreshIntervalMs: (intervalMs: number) => {
 				const n = Number(intervalMs);
 				state.results.shared.totalsRefreshIntervalMs = isNaN(n) ? 2_000 : Math.max(100, n);
-			}, 'totalsRefreshIntervalMs'),
+			},
 
 			/** Edit which annotations are shown in the dependency tree in the hits result table. */
-			dependencies: b.commit((state, payload: {
+			dependencies: (payload: {
 				lemma: string|null,
 				upos: string|null,
 				xpos: string|null,
@@ -690,7 +679,7 @@ const actions = {
 					xpos: validate(payload.xpos, 'xpos'),
 					feats: validateArray([payload.feats].flat(), 'feats')
 				};
-			}, 'dependencies')
+			},
 		}
 	},
 	global: {
@@ -699,20 +688,20 @@ const actions = {
 				console.warn('Page guide has been removed.');
 			}
 		},
-		lexiconDb: b.commit((state, payload: string) => state.global.lexiconDb = payload, 'global_lexiconDb')
+		lexiconDb: (payload: string) => state.global.lexiconDb = payload,
 	},
 	dropdowns: {
 		groupBy: {
-			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.annotationGroupLabelsVisible = payload, 'groupBy.annotationGroupLabelsVisible'),
-			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.groupBy.metadataGroupLabelsVisible = payload, 'groupBy.metadataGroupLabelsVisible'),
+			annotationGroupLabelsVisible: (payload: boolean) => state.dropdowns.groupBy.annotationGroupLabelsVisible = payload,
+			metadataGroupLabelsVisible: (payload: boolean) => state.dropdowns.groupBy.metadataGroupLabelsVisible = payload,
 		},
 		sortBy: {
-			annotationGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.sortBy.annotationGroupLabelsVisible = payload, 'sortBy.annotationGroupLabelsVisible'),
-			metadataGroupLabelsVisible: b.commit((state, payload: boolean) => state.dropdowns.sortBy.metadataGroupLabelsVisible = payload, 'sortBy.metadataGroupLabelsVisible'),
+			annotationGroupLabelsVisible: (payload: boolean) => state.dropdowns.sortBy.annotationGroupLabelsVisible = payload,
+			metadataGroupLabelsVisible: (payload: boolean) => state.dropdowns.sortBy.metadataGroupLabelsVisible = payload,
 		},
 	},
 
-	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)), 'replace'),
+	replace: (payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)),
 
 	helpers: {
 		/**
@@ -1342,6 +1331,6 @@ function printCustomizations() {
 
 (window as any).printCustomJs = printCustomizations;
 
-export { actions, get, getState, init, namespace };
+export { actions, get, getState, init };
 export type { CustomView, ModuleRootState };
 

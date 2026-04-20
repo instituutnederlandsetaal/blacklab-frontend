@@ -39,16 +39,16 @@ import * as CorpusStore from '@/store/corpus';
 import * as FilterStore from '@/store/form/filters';
 import * as PatternStore from '@/store/form/patterns';
 
-import frac2Percent from '@/mixins/fractionalToPercent';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import { SelectedSubcorpusLoader } from '@/pages/search/results/TotalsCounterStream';
+import frac2Percent from '@/mixins/fractionalToPercent';
 
+import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
 import Spinner from '@/components/Spinner.vue';
 
 export default defineComponent({
 	components: {Spinner},
 	data: () => ({
-		subcorpus: SelectedSubcorpusLoader
+		subcorpus: selectedSubcorpusLoader
 	}),
 	computed: {
 		indexAndFilter() {
@@ -79,6 +79,7 @@ export default defineComponent({
 		indexAndFilter: {
 			handler() { this.subcorpus.next(this.indexAndFilter) },
 			immediate: true,
+			deep: true,
 		}
 	}
 });

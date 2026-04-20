@@ -172,7 +172,6 @@
 import * as CorpusStore from '@/store/corpus';
 import * as ExploreStore from '@/store/form/explore';
 import * as InterfaceStore from '@/store/form/interface';
-import * as RootStore from '@/store/index';
 import * as UIStore from '@/store/ui';
 
 import { blacklabPaths } from '@/api';
@@ -185,7 +184,7 @@ import type { OptGroup, Option } from '@/utils/options';
 
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
-import { defineComponent } from 'vue';
+import { defineComponent, watch } from 'vue';
 import ParallelFields from './parallel/ParallelFields';
 
 export default defineComponent({
@@ -325,10 +324,8 @@ export default defineComponent({
 	created() {
 		this.corporaGroupDisplayMode = this.corporaGroupDisplayModeOptions[0].value;
 
-		const eventId = `${ExploreStore.namespace}/reset`;
-
-		this.subscriptions.push(RootStore.store.subscribe((mutation, state) => {
-			if (this.$refs.reset && mutation.type === eventId) {
+		this.subscriptions.push(watch(ExploreStore.resetSignal, () => {
+			if (this.$refs.reset) {
 				(this.$refs.reset as any[]).forEach(v => v.reset());
 			}
 		}));

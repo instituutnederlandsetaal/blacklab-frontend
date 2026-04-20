@@ -1,4 +1,3 @@
-import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
 
 import * as CorpusModule from '@/store/corpus';
@@ -22,89 +21,65 @@ import * as ViewModule from '@/store/results/views';
 // Article
 import * as ArticleModule from '@/store/article';
 
-import type { CorpusChange } from '@/store/async-loaders';
-import { createStoreInitializer } from '@/store/async-loaders';
+import { corpusDataLoader } from '@/api/async/instances/corpus-data';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
 import type { Loadable } from '@/utils/loadable-streams';
-import { loadableFromStream } from '@/utils/loadable-streams';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import type { User } from 'oidc-client-ts';
+import { watch } from 'vue';
 
 type RootState = {
-	/**
-	 * After the corpus is loaded (or cleared), some further setup of the store needs to occur,
-	 * and before the page can render properly.
-	 * This loadable will only become loaded once that happens.
-	 */
 	storeLoadingState: Loadable<CorpusChange>;
 	indexId: string|null;
-	corpus: CorpusModule.ModuleRootState;
-	article: ArticleModule.ModuleRootState;
+};
 
-	history: HistoryModule.ModuleRootState;
-	query: QueryModule.ModuleRootState;
-	tagset: TagsetModule.ModuleRootState;
-	ui: UIModule.ModuleRootState;
-	views: ViewModule.ModuleRootState;
-	global: GlobalResultsModule.ModuleRootState;
-}&FormManager.PartialRootState;
-
-const b = getStoreBuilder<RootState>();
-
-const getState = b.state();
-
-const {corpusData$, indexId$, retry$, user$} = createStoreInitializer({
-	onCorpusChange: newCorpus => init(newCorpus)
-})
+watch(() => corpusDataLoader.value, () => {
+	const corpusData = corpusDataLoader.value;
+	console.log('Corpus data changed, reinitializing store if data is loaded', corpusData);
+	(globalThis as any).currentCorpusData = corpusDataLoader;
+	if (corpusData) void init(corpusData);
+}, {immediate: true});
 
 const get = {
-	indexId: b.read(s => s.indexId, 'indexId'),
+	indexId: () => CorpusModule.get.indexId(),
+	loadingState: () => corpusDataLoader as Loadable<CorpusChange>,
 
-	loadingState: b.read(s => s.storeLoadingState, 'loadingState'),
+	viewedResultsSettings: () => {
+		const viewName = InterfaceModule.get.viewedResults();
+		return viewName ? ViewModule.getOrCreateModule(viewName).getState() : null;
+	},
 
-	viewedResultsSettings: b.read(state => state.views[state.interface.viewedResults!] ?? null, 'getViewedResultsSettings'),
-
-	/** Whether the filters section should be active (as it isn't active when in specific search modes (e.g. simple or explore)) */
-	filtersActive: b.read(state => {
+	filtersActive: () => {
 		return !(InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'simple');
-	}, 'filtersActive'),
-	gapFillingActive: b.read(state => {
+	},
+	gapFillingActive: () => {
 		return (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'expert');
-	}, 'gapFillingActive'),
-	queryBuilderActive: b.read(state => {
+	},
+	queryBuilderActive: () => {
 		return InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'advanced';
-	}, 'queryBuilderActive'),
+	},
 
-	blacklabParameters: b.read((state): BLTypes.BLSearchParameters|undefined => {
+	blacklabParameters: (): BLTypes.BLSearchParameters|undefined => {
 		const activeView = get.viewedResultsSettings();
-		if (!activeView || !state.query) return undefined;
-		if (state.global.sampleSize && state.global.sampleSeed == null) {
+		if (!activeView || !QueryModule.getState().form) return undefined;
+		if (GlobalResultsModule.getState().sampleSize && GlobalResultsModule.getState().sampleSeed == null) {
 			throw new Error('Should provide a sampleSeed when random sampling, or every new page of results will use a different seed');
 		}
 
 		const patt = QueryModule.get.patternString() ?? '';
 
-		// These make debugging more convenient
 		const debugParams = debug.debug ? {
-			// Explain how the CQL was converted to a query and rewritten for optimization
 			explain: true,
-			// If you open a BLS request in a new tab and reload, it will default to XML unless this is specified
-			// (CHECK: frontend client doesn't use XML anywhere, does it...?)
 			outputformat: 'json',
-			// Skip the cache so we'll hit our breakpoints
-			// DANGEROUS! Polling will keep starting new searches.
-			//usecache: false
 		} : {};
 
-		const pageSize = state.global.pageSize;
-		// e.g. pagesize=50 first=120, first result to retrieve is 100
-		// basically use first, rounded down to nearest pagesize
+		const pageSize = GlobalResultsModule.getState().pageSize;
 		const lowerPageBoundary = Math.floor(activeView.first / pageSize) * pageSize;
-		// e.g. pagesize=50, number=70 (from URL), need to retrieve 100 results to cover the requested range
 		const numberOfResults = Math.ceil((activeView.first + activeView.number - lowerPageBoundary) / pageSize) * pageSize;
 
+		const globalState = GlobalResultsModule.getState();
 		return {
 			...debugParams,
 
@@ -116,62 +91,52 @@ const get = {
 			patt,
 			pattgapdata: (QueryModule.get.patternString() && QueryModule.getState().gap) ? QueryModule.getState().gap!.value || undefined : undefined,
 
-			sample: (state.global.sampleMode === 'percentage' && state.global.sampleSize) ? state.global.sampleSize : undefined,
-			samplenum: (state.global.sampleMode === 'count' && state.global.sampleSize) ? state.global.sampleSize : undefined,
-			sampleseed: state.global.sampleSize != null ? state.global.sampleSeed! /* non-null precondition checked above */ : undefined,
+			sample: (globalState.sampleMode === 'percentage' && globalState.sampleSize) ? globalState.sampleSize : undefined,
+			samplenum: (globalState.sampleMode === 'count' && globalState.sampleSize) ? globalState.sampleSize : undefined,
+			sampleseed: globalState.sampleSize != null ? globalState.sampleSeed! : undefined,
 
 			sort: activeView.sort != null ? activeView.sort : undefined,
 			group: activeView.groupBy.join(','),
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
-			context: state.global.context != null ? state.global.context : undefined,
+			context: globalState.context != null ? globalState.context : undefined,
 			adjusthits: true,
 			withspans: corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ??
 				(FilterModule.get.hasSpanFilters() || CorpusModule.get.hasRelations()),
 		};
-	}, 'blacklabParameters')
+	}
 };
 
 const actions = {
-	retryLoading: () => retry$.next(),
-	user: (user: User|null) => user$.next(user),
-	indexId: b.commit((state, indexId: string|null) => { indexId$.next(indexId); state.indexId = indexId; }, 'indexId'),
+	retryLoading: () => corpusDataLoader.retry(),
+	indexId: (newIndexId: string|undefined) => { CorpusModule.actions.setIndexId(newIndexId); },
 
-	/** Read the form state, build the query, reset the results page/grouping, etc. */
-	searchFromSubmit: b.commit(state => {
-		if (state.interface.form === 'search' && state.interface.patternMode === 'extended' && state.patterns.extended.splitBatch) {
-			// TODO tidy up implementation of split batch queries
+	searchFromSubmit: () => {
+		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
 			actions.searchSplitBatches();
 			return;
 		}
-		// Reset the grouping/page/sorting/etc, for all views
 		ViewModule.actions.resetAllViews({resetGroupBy: false});
 
-		// Apply the desired grouping for this form, if needed.
-		if (state.interface.form === 'explore') {
-			switch (state.interface.exploreMode) {
+		if (InterfaceModule.get.form() === 'explore') {
+			switch (InterfaceModule.get.exploreMode()) {
 				case 'corpora': {
-					// open the 'docs' tab
 					InterfaceModule.actions.viewedResults('docs');
-
-					// apply the groupings in the docs tab.
 					const m = ViewModule.getOrCreateModule('docs');
-					m.actions.groupDisplayMode(state.explore.corpora.groupDisplayMode);
-					m.actions.groupBy(state.explore.corpora.groupBy ? [state.explore.corpora.groupBy] : []);
+					m.actions.groupDisplayMode(ExploreModule.getState().corpora.groupDisplayMode);
+					m.actions.groupBy(ExploreModule.getState().corpora.groupBy ? [ExploreModule.getState().corpora.groupBy] : []);
 					break;
 				}
 				case 'frequency':
 				case 'ngram': {
-					// open the 'hits' tab
 					InterfaceModule.actions.viewedResults('hits');
 					const m = ViewModule.getOrCreateModule('hits');
-					m.actions.groupBy(state.interface.exploreMode === 'ngram' ? [ExploreModule.get.ngram.groupBy()] : [ExploreModule.get.frequency.groupBy()]);
+					m.actions.groupBy(InterfaceModule.get.exploreMode() === 'ngram' ? [ExploreModule.get.ngram.groupBy()] : [ExploreModule.get.frequency.groupBy()]);
 					break;
 				}
-				default: throw new Error(`Unhandled explore mode ${state.interface.exploreMode as any} while submitting form`);
+				default: throw new Error(`Unhandled explore mode ${InterfaceModule.get.exploreMode() as any} while submitting form`);
 			}
 		}
 
-		// Open the results, which actually executes the query.
 		const oldPattern = QueryModule.get.patternString();
 		actions.searchAfterRestore();
 		const newPattern = QueryModule.get.patternString();
@@ -186,20 +151,11 @@ const actions = {
 		}
 
 		InterfaceModule.actions.viewedResults(newView);
-	}, 'searchFromSubmit'),
+	},
 
-	/**
-	 * Same deal as searchFromSubmit, parse the form and generate the appropriate query, but do not change which, and how results are displayed
-	 * This is for when the page is first loaded, the url is decoded and might have contained information about how the results are displayed.
-	 * This data is now already in the store, we don't want to clear this.
-	 *
-	 * NOTE: this does make some assumption that the state shape is valid.
-	 * Namely that the groupBy parameter makes sense if the current search mode is ngrams or frequencies.
-	 */
-	searchAfterRestore: b.commit(state => {
+	searchAfterRestore: () => {
 		let submittedFormState: QueryModule.ModuleRootState;
 
-		// jump through some typescript hoops
 		const activeForm = InterfaceModule.get.form();
 		switch (activeForm) {
 			case 'explore': {
@@ -207,8 +163,6 @@ const actions = {
 				submittedFormState = {
 					form: activeForm,
 					subForm: exploreMode,
-					// Copy so we don't alias, we should "snapshot" the current form
-					// Also cast back into correct type after parsing/stringifying so we don't lose type-safety (parse returns any)
 					filters: get.filtersActive() ? cloneDeep(FilterModule.get.activeFiltersMap()) as ReturnType<typeof FilterModule['get']['activeFiltersMap']> : {},
 					formState: cloneDeep(ExploreModule.getState()[exploreMode]) as ExploreModule.ModuleRootState[typeof exploreMode],
 					shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
@@ -216,13 +170,11 @@ const actions = {
 				};
 				break;
 			}
-			case 'search': { // activeForm === 'search'
+			case 'search': {
 				const patternMode = InterfaceModule.get.patternMode();
 				submittedFormState = {
 					form: activeForm,
 					subForm: patternMode,
-					// Copy so we don't alias the objects, we should "snapshot" the current form
-					// Also cast back into correct type after parsing/stringifying so we don't lose type-safety (parse returns any)
 					filters: get.filtersActive() ? cloneDeep(FilterModule.get.activeFiltersMap()) as ReturnType<typeof FilterModule['get']['activeFiltersMap']> : {},
 					formState: cloneDeep(PatternModule.getState()[patternMode]) as PatternModule.ModuleRootState[typeof patternMode],
 					shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
@@ -235,40 +187,10 @@ const actions = {
 			}
 		}
 		QueryModule.actions.search(submittedFormState);
-	}, 'searchFromRestore'),
+	},
 
-	/**
-	 * TODO: this is ugly code, and heavily relies on knowledge about other parts of the codebase, mostly the history objects - clean it up in some manner.
-	 *
-	 * Split batch queries: allow batch submission of many cql patterns
-	 * Works by splitting OR'ed annotations into individual queries containing just that one value.
-	 * So say we have
-	 * ```typescript
-	 * [{
-	 *     id: 'lemma',
-	 *     value: 'a|b',
-	 *     ...
-	 * }, {
-	 *     id: 'word',
-	 *     value: 'c|d',
-	 *     ...
-	 * }]
-	 * ```
-	 * Normally the resulting query would be
-	 * ```typescript
-	 * - [lemma="a|b" & word="c|d"]
-	 * ```
-	 * But using split batches, the following 4 queries are generated:
-	 * ```typescript
-	 * - [lemma = "a"]
-	 * - [lemma = "b"]
-	 * - [word  = "c"]
-	 * - [word  = "d"]
-	 * ```
-	 * Then the first query in the list is submitted, and the rest is pushed into the history so the user can load them at a later moment.
-	 */
-	searchSplitBatches: b.commit(state => {
-		if (state.interface.form !== 'search' || state.interface.patternMode !== 'extended' || !state.patterns.extended.splitBatch) {
+	searchSplitBatches: () => {
+		if (InterfaceModule.get.form() !== 'search' || InterfaceModule.get.patternMode() !== 'extended' || !PatternModule.getState().extended.splitBatch) {
 			throw new Error('Attempting to submit split batches in wrong view');
 		}
 
@@ -283,7 +205,7 @@ const actions = {
 		};
 
 		const annotations = PatternModule.get.activeAnnotations();
-		const [withinClauses] = getWithinClausesFromFilters(state.filters.filters, state.patterns);
+		const [withinClauses] = getWithinClausesFromFilters(FilterModule.getState().filters, PatternModule.getState());
 		const submittedFormStates = annotations
 		.filter(a => a.type !== 'pos')
 		.flatMap(a => a.value.split('|').map(value => ({...a,value})))
@@ -307,49 +229,33 @@ const actions = {
 				}
 			},
 			pattern: getPatternString([a], withinClauses,
-				state.patterns.shared.targets,
-				state.patterns.shared.alignBy || state.ui.search.shared.alignBy.defaultValue),
-			// TODO :( url generation is too encapsulated to completely repro here
+				PatternModule.getState().shared.targets,
+				PatternModule.getState().shared.alignBy || UIModule.getState().search.shared.alignBy.defaultValue),
 			url: ''
 		}))
-		// remove vuex listeners from aliased parts of the store.
 		.map(v => cloneDeep(v));
-
-		// We can't just run a submit for every subquery, as that would be REALLY slow.
-		// Even if it were fast, mutations within a single vue frame are debounced,
-		// so listeners won't be called for any update except the last,
-		// preventing the history entries from being created.
-		// Unfortunately we need to copy the history entry generation code :(
-		// See streams.ts
 
 		submittedFormStates.forEach(HistoryModule.actions.addEntry);
 		const mostRecent = HistoryModule.getState()[0];
 		if (mostRecent) {
 			actions.replace(mostRecent);
 		}
-	}, 'searchSplitBatches'),
+	},
 
-	reset: b.commit(state => {
+	reset: () => {
 		FormManager.actions.reset();
 		ViewModule.actions.resetAllViews({resetGroupBy: true});
 		QueryModule.actions.reset();
 		ArticleModule.actions.reset();
-		// TODO check if everything is reset properly.
-	}, 'resetRoot'),
+	},
 
-	/**
-	 * Is called when loading a search history entry, or when navigating in browser history.
-	 * Should fully reset and overwrite form state, and then execute a search.
-	*/
-	replace: b.commit((_, payload: HistoryModule.HistoryEntry&{article?: ArticleModule.HistoryState} ) => {
+	replace: (payload: HistoryModule.HistoryEntry&{article?: ArticleModule.HistoryState} ) => {
 		FormManager.actions.replace(payload);
 		GlobalResultsModule.actions.replace(payload.global);
-		// clear all views, otherwise inactive views would persist current settings.
 		ViewModule.actions.resetAllViews({resetGroupBy: true});
 		if (payload.article) {
 			ArticleModule.actions.replace(payload.article);
 		}
-		// The state we just restored has results open, so execute a search.
 		if (payload.interface.viewedResults != null) {
 			const viewName = payload.interface.viewedResults;
 			ViewModule.actions.replaceView({view: viewName, data: payload.view});
@@ -371,29 +277,14 @@ const actions = {
 
 		}
 		if ((payload.article?.docId != null && payload.patterns.expert) || payload.interface.viewedResults != null ) {
-			// need to submit the search if we're in article view, otherwise the
-			// query won't be sent to blacklab
-			// as it uses the submitted query.
 			actions.searchAfterRestore();
 		}
-	}, 'replaceRoot'),
+	},
 };
 
-const store = b.vuexStore({
-	state: {
-		storeLoadingState: loadableFromStream(corpusData$) as Loadable<CorpusChange>,
-		indexId: null,
-	} as Partial<RootState>,
-});
-
-/**
- * The current corpus has changed or been cleared, re-run initialization.
- * Returns a promise that will resolve once all initialization has been completed.
-*/
 const init = async (state: CorpusChange) => {
 	console.log('Initializing store with new corpus data', state);
-	await CorpusModule.init(state)
-	// Do this one first as it customizes the UI and thus has impact on how the other stores behave
+	await CorpusModule.init(state);
 	await UIModule.init(state);
 
 	await FormManager.init(state);
@@ -406,8 +297,6 @@ const init = async (state: CorpusChange) => {
 
 	await ArticleModule.init(state);
 
-	// XXX: Changing the corpus recreates these modules, so replace them in window...
-	// Hack!
 	(globalThis as any).vuexModules.results = {
 		...ViewModule,
 		hits: ViewModule.getOrCreateModule('hits'),
@@ -418,8 +307,6 @@ const init = async (state: CorpusChange) => {
 // Debugging helpers.
 (globalThis as any).vuexModules = {
 	root: {
-		store,
-		getState,
 		get,
 		actions,
 		init
@@ -438,9 +325,6 @@ const init = async (state: CorpusChange) => {
 	gap: GapModule,
 	article: ArticleModule,
 
-	// backwards-compatibility.
-	// docs and hits used to be under results.docs and results.hits. Now they are under views.docs and views.hits
-	// While the main module used to be under results. Now it's under views, and the submodules (including hits and docs) are no longer visible directly.
 	results: {
 		...ViewModule,
 		hits: ViewModule.getOrCreateModule('hits'),
@@ -450,8 +334,6 @@ const init = async (state: CorpusChange) => {
 	global: GlobalResultsModule,
 };
 
-(window as any).vuexStore = store;
-
-export { actions, corpusData$, get, getState, init, store };
+export { actions, get, init };
 export type { RootState };
 

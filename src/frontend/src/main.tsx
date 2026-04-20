@@ -1,17 +1,23 @@
 import '@/utils/jquery-globals';
 import 'bootstrap';
 
+import App from '@/App.vue';
+
+
+import * as LoginSystem from '@/utils/loginsystem';
+
 // Global corpus-frontend styles.
 import '@/global.scss';
 
 // import $ from '@/utils/jquery-globals';
 // import 'bootstrap';
 import router from '@/route/router';
-import { createApp } from 'vue';
+import { createApp, watchEffect } from 'vue';
 
 
 import FloatingVue from 'floating-vue';
 import 'floating-vue/dist/style.css';
+import HighchartsVue from 'highcharts-vue';
 
 import Filters from '@/components/filters';
 
@@ -21,6 +27,7 @@ import DebugComponent from '@/components/Debug.vue';
 
 
 import { init as initApi } from '@/api';
+import { indexId } from '@/api/async/instances/reactive-variables';
 import * as i18n from '@/utils/i18n';
 
 
@@ -120,34 +127,20 @@ globalThis.hooks = new Proxy({}, {
 
 // --- END HOOKS SYSTEM ---
 
-import App from '@/App.vue';
-
-
-import * as RootStore from '@/store';
-import * as LoginSystem from '@/utils/loginsystem';
-import type { ComponentPublicInstance } from 'vue';
+watchEffect(() => void i18n.setIndexId(indexId.value));
 
 document.addEventListener('DOMContentLoaded', async () => {
 	const user = await LoginSystem.user;
 	initApi('blacklab', BLS_URL, user);
 	initApi('frontend', CONTEXT_URL, user);
-	RootStore.actions.user(user);
 	
 	const app = createApp(App);
-	app.config.errorHandler = function(err: unknown, instance: ComponentPublicInstance|null, info: string) {
-		// ignore some known errors that are annoying
-		// yes we're doing it wrong technically, but it's not an issue in practice, as reactivity still works just as always
-		// @ts-expect-error
-		if (!err.message.includes('[vuex]' /* do not mutate vuex store state outside mutation handlers */)) { // already logged and annoying
-			console.error(err);
-		}
-	};
-	// app.mixin(renderErrorMixin);
 	app.use(Filters);
 	app.use(FloatingVue);
-	app.use(RootStore.store as any);
 	app.use(router);
 	app.use(i18n);
+	app.use(HighchartsVue);
+
 	app.component('Debug', DebugComponent);
 	app.component('AudioPlayer', AudioPlayer);
 	

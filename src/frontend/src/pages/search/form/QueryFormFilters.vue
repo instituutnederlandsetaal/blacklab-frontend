@@ -70,8 +70,8 @@ import { mapReduce } from '@/utils';
 
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 
-import * as RootStore from '@/store';
 import { corpusCustomizations } from '@/utils/customization';
+import { watch } from 'vue';
 
 export default defineComponent({
   components: {
@@ -195,7 +195,7 @@ export default defineComponent({
             });
             // filthy! Reactivate filter query on global form reset (which otherwise removes it)
             this.cancelFilterWatch.push(
-              RootStore.store.watch(state => state.filters.filters[id].value, (cur, prev) => {
+              watch(() => FilterStore.getState().filters[id].value, (cur, prev) => {
                 if (cur != prev) {
                   FilterStore.actions.filterValue({
                     id,

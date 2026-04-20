@@ -2,9 +2,9 @@ import { ApiError } from '@/types/apptypes';
 import type { MarkRequiredAndNotNull } from '@/types/helpers';
 import type { Canceler } from 'axios';
 import jsonStableStringify from 'json-stable-stringify';
-import type { ObservableInput, OperatorFunction, Subscription } from 'rxjs';
-import { combineLatest, debounceTime, distinctUntilChanged, EMPTY, filter, map, mergeMap, Observable, of, ReplaySubject, startWith, Subject, switchMap, take, takeUntil, timer } from 'rxjs';
-import { getCurrentInstance, markRaw, onUnmounted, reactive, shallowReactive } from 'vue';
+import type { InteropObservable, ObservableInput, ObservedValueOf, OperatorFunction, Subscription } from 'rxjs';
+import { combineLatest, distinctUntilChanged, EMPTY, filter, map, mergeMap, Observable, of, ReplaySubject, startWith, Subject, switchMap, take, takeUntil, timer } from 'rxjs';
+import { getCurrentInstance, markRaw, onUnmounted, reactive, shallowReactive, shallowRef } from 'vue';
 
 /**
  * Bunch of code for interop of streams and asynchronous/optional values.
@@ -70,11 +70,13 @@ interface TLoadable<T> extends LoadableBase<T> {
 	state: LoadableState;
 }
 
-export const isLoadable = <T>(v: any): v is Loadable<T> => v instanceof Loadable; 
-export const isLoading = <T>(v: any): v is Loading<T> => v instanceof Loadable && v.isLoading(); 
-export const isLoaded = <T>(v: any): v is Loaded<T> => v instanceof Loadable && v.isLoaded(); 
-export const isError = <T>(v: any): v is LoadingError<T> => v instanceof Loadable && v.isError(); 
-export const isEmpty = <T>(v: any): v is Empty<T> => v instanceof Loadable && v.isEmpty(); 
+const hasLoadableState = (v: any): v is { state: LoadableState } => v != null && typeof v === 'object' && 'state' in v;
+
+export const isLoadable = <T>(v: any): v is Loadable<T> => v instanceof Loadable || (hasLoadableState(v) && (v.state === LoadableState.Loading || v.state === LoadableState.Loaded || v.state === LoadableState.Error || v.state === LoadableState.Empty)); // allow plain objects with a state to be considered loadables, for convenience.
+export const isLoading = <T>(v: any): v is Loading<T> => v instanceof Loadable && v.isLoading() || (hasLoadableState(v) && v.state === LoadableState.Loading); // allow plain objects with state: 'loading' to be considered loading loadables, for convenience.
+export const isLoaded = <T>(v: any): v is Loaded<T> => v instanceof Loadable && v.isLoaded() || (hasLoadableState(v) && v.state === LoadableState.Loaded); // allow plain objects with state: 'loaded' to be considered loaded loadables, for convenience. 
+export const isError = <T>(v: any): v is LoadingError<T> => v instanceof Loadable && v.isError() || (hasLoadableState(v) && v.state === LoadableState.Error); // allow plain objects with state: 'error' to be considered error loadables, for convenience.
+export const isEmpty = <T>(v: any): v is Empty<T> => v instanceof Loadable && v.isEmpty() || (hasLoadableState(v) && v.state === LoadableState.Empty); // allow plain objects with state: 'empty' to be considered empty loadables, for convenience.
 
 export class Loadable<T> implements TLoadable<T> {
 	protected constructor(
@@ -95,10 +97,14 @@ export class Loadable<T> implements TLoadable<T> {
 	public static isError = isError;
 	public static isEmpty = isEmpty;
 
-	public static Loading<T>(): Loading<T> { return new Loadable<T>(LoadableState.Loading, undefined, undefined) as Loading<T>; }
+	// default T to never, so it's removed when used in a conditional return:
+	// e.g. `input ? Loadable.Loaded(doSomethingWith(input)) : Loadable.Empty()` would otherwise decay to Loadable<unknown> because the T for empty wasn't provided,
+	// But this way, the T from empty is removed, and the T from loaded can be inferred from the value provided to loaded.
+	// Making the return type the correct Loadable<T> instead of Loadable<unknown>.
+	public static Loading<T = never>(): Loading<T> { return new Loadable<T>(LoadableState.Loading, undefined, undefined) as Loading<T>; }
 	public static Loaded<T>(value: T): Loaded<T> { return new Loadable<T>(LoadableState.Loaded, value, undefined) as Loaded<T>; }
-	public static LoadingError<T>(error: ApiError): LoadingError<T> { return new Loadable<T>(LoadableState.Error, undefined, error) as LoadingError<T>; }
-	public static Empty<T>(): Empty<T> { return new Loadable<T>(LoadableState.Empty, undefined, undefined) as Empty<T>; }
+	public static LoadingError<T = never>(error: ApiError): LoadingError<T> { return new Loadable<T>(LoadableState.Error, undefined, error) as LoadingError<T>; }
+	public static Empty<T = never>(): Empty<T> { return new Loadable<T>(LoadableState.Empty, undefined, undefined) as Empty<T>; }
 
 	/** Return a loadable of the value, if the value is already a loadable, return it as is. Otherwise, wrap it in a Loaded loadable. */
 	public static wrap<T, TV extends ValueTypeFromLoadableOrObservable<T>>(value: T): Loadable<TV> {
@@ -107,7 +113,7 @@ export class Loadable<T> implements TLoadable<T> {
 	}
 }
 
-export class CancelableRequest<T> implements Promise<T> {
+export class CancelableRequest<T> implements Promise<T>, InteropObservable<Loadable<T>> {
 	public request: Promise<T>;
 	public cancel: Canceler;
 	constructor(request: Promise<T>, cancel: Canceler) {
@@ -133,6 +139,10 @@ export class CancelableRequest<T> implements Promise<T> {
 
 	public toObservable(): Observable<Loadable<T>> {
 		return toObservable(this);
+	}
+
+	[Symbol.observable]() {
+		return this.toObservable();
 	}
 }
 
@@ -348,7 +358,7 @@ export const toObservable = <T>({cancel, request}: CancelableRequest<T>) => new 
  * @example ValueTypeFromLoadableOrObservable<Loadable<T>> -> T
  * @example ValueTypeFromLoadableOrObservable<T> -> T
  */
-type ValueTypeFromLoadableOrObservable<T> = T extends Observable<infer U> ? L.Val<U> : L.Val<T>;
+type ValueTypeFromLoadableOrObservable<T> = L.Val<T extends ArrayLike<any> ? T : T extends ObservableInput<any> ? ObservedValueOf<T> : T>;
 /**
  * Unpack Observables and Loadables into their .value type.
  * If the static type of the Loadable is known (e.g. Empty<T>), return the statically known type (e.g. T for Loaded<T>, never for Empty<T> and LoadingError<T>).
@@ -356,7 +366,7 @@ type ValueTypeFromLoadableOrObservable<T> = T extends Observable<infer U> ? L.Va
  * @example ValueTypeFromLoadableOrObservableIncludingEmpty<Loadable<T>> -> T|undefined
  * @example ValueTypeFromLoadableOrObservableIncludingEmpty<T> -> T
  */
-type ValueTypeFromLoadableOrObservableIncludingEmpty<T> = T extends Observable<infer U> ? L.ValEmpty<U> : L.ValEmpty<T>;
+type ValueTypeFromLoadableOrObservableIncludingEmpty<T> = L.ValEmpty<T extends ArrayLike<any> ? T : T extends ObservableInput<any> ? ObservedValueOf<T> : T>;
 
 export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => jsonStableStringify(a) === jsonStableStringify(b);
 
@@ -390,16 +400,21 @@ export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<s
 	else return Loadable.Loaded(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, Loadable.isLoaded(v) ? v.value : Loadable.isEmpty(v) ? undefined : v])) as any);
 }
 
-
-const defaultInteractiveLoadableSettings = {
-	/** How long old value is preserved when waiting for new values (in ms). < 0 means never. Defaults to -1*/
+type InteractiveLoadableSettings<TInput> = {
+	/** How long old value is preserved when waiting for new values (in ms). < 0 means never. Defaults to -1 */
+	delayClear: number;
+	/** Debounce inputs (in ms). <= 0 disables debouncing. Defaults to 1000. */
+	debounce: number|((input: TInput) => number);
+	/** Whether the last good value should be removed on errors. Defaults to true. */
+	clearOnError: boolean;
+}
+const defaultInteractiveLoadableSettings: InteractiveLoadableSettings<any> = {
 	delayClear: -1,
 	/** Debounce inputs (in ms). <= 0 disables debouncing. Defaults to 1000. */
 	debounce: 1000,
 	/** Whether the last good value should be removed on errors. Defaults to true. */
 	clearOnError: true,
 }
-type InteractiveLoadableSettings = typeof defaultInteractiveLoadableSettings;
 
 /**
  * A class that behaves like a Loadable, but has a next() function that can be called to trigger the loading of a new value.
@@ -428,21 +443,36 @@ type InteractiveLoadableSettings = typeof defaultInteractiveLoadableSettings;
  * };
  * ```
  */
-export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
-	private readonly settings: InteractiveLoadableSettings;
+export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 	private readonly i$: Subject<TInput> = markRaw(new Subject());
 	private readonly unsubs: Subscription[] = markRaw([]);
+	private readonly retry$ = markRaw(new Subject<void>());
 
-	constructor(processInput: (i$: Observable<TInput>) => Observable<Loadable<TOutput>>, settings?: Partial<InteractiveLoadableSettings>) {
-		super(LoadableState.Empty, undefined, undefined);
-		this.settings = markRaw({...defaultInteractiveLoadableSettings, ...settings})
-		const debouncedInput$ = this.settings.debounce > 0 ? this.i$.pipe(debounceTime(this.settings.debounce)) : this.i$;
-		const o$: Observable<Loadable<TOutput>> = processInput(debouncedInput$);
+	private readonly refs = markRaw({
+		state: shallowRef(LoadableState.Empty),
+		value: shallowRef<TOutput|undefined>(undefined),
+		error: shallowRef<ApiError|undefined>(undefined)
+	});
+
+	constructor(processInput: (i$: Observable<TInput>) => Observable<Loadable<TOutput>>, settings?: Partial<InteractiveLoadableSettings<TInput>>) {
+		const {debounce, delayClear, clearOnError} = {...defaultInteractiveLoadableSettings, ...settings};
+
+		const debouncedInput$ = 
+			typeof debounce === 'function' ? this.i$.pipe(switchMap(input => {
+				const delay = debounce(input);
+				return delay > 0 ? timer(delay).pipe(map(() => input)) : of(input);
+			})) : 
+			debounce > 0 ? this.i$.pipe(switchMap(input => timer(debounce).pipe(map(() => input)))) : 
+			this.i$;
+
+		const inputWithRetry$ = debouncedInput$.pipe(repeatLatestWhen(this.retry$));
+
+		const o$: Observable<Loadable<TOutput>> = processInput(inputWithRetry$);
 
 		const clear$ = this.i$.pipe(
 			switchMap(() => ( // every time an input comes in:
-				this.settings.delayClear < 0 ? EMPTY : // if we don't want to clear, no event is emitted
-				this.settings.delayClear > 0 ? timer(this.settings.delayClear) :  // if we have a delay, emit an event after the delay
+				delayClear < 0 ? EMPTY : // if we don't want to clear, no event is emitted
+				delayClear > 0 ? timer(delayClear) :  // if we have a delay, emit an event after the delay
 				of(0) // if clear === 0, emit an event immediately
 			).pipe(takeUntil(o$))) // swallow the event if the output emits something (assuming that's the new value for the inpout)
 		)
@@ -456,7 +486,7 @@ export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
 			},
 			error: e => {
 				this.state = LoadableState.Error;
-				if (this.settings.clearOnError) this.value = undefined;
+				if (clearOnError) this.value = undefined;
 				this.error = new ApiError(
 					e?.title || 'Unknown error',
 					e?.message || 'Unknown error',
@@ -470,20 +500,30 @@ export class InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {
 				this.error = undefined;
 			}
 		}));
-
-		// Make this object reactive. NOTE: make sure to markRaw() all things that should not be reactive!
-		// This means the streams and settings are not reactive, but the Loadable state + values are.
-		return reactive(this) as this;
 	}
+	public isLoading(): this is Loading<TOutput> { return Loadable.isLoading(this); }
+	public isLoaded(): this is Loaded<TOutput> { return Loadable.isLoaded(this); }
+	public isError(): this is LoadingError<TOutput> { return Loadable.isError(this); }
+	public isEmpty(): this is Empty<TOutput> { return Loadable.isEmpty(this); }
 
 	public next(i: TInput) {
 		this.i$.next(i);
+	}
+
+	public retry() {
+		this.retry$.next();
 	}
 
 	public dispose() {
 		this.unsubs.forEach(s => s.unsubscribe());
 		this.unsubs.splice(0);
 	}
+	public get state() { return this.refs.state.value; }
+	public set state(v: LoadableState) { this.refs.state.value = v; }
+	public get value() { return this.refs.value.value; }
+	public set value(v: TOutput|undefined) { this.refs.value.value = v; }
+	public get error() { return this.refs.error.value; }
+	public set error(v: ApiError|undefined) { this.refs.error.value = v; }
 }
 
 export interface LoadableFromStream<T> extends Loadable<T> {
@@ -514,12 +554,13 @@ export function loadableFromStream<T>(
 	settings: {
 		/** initial state is normally empty, but can be Loading if so desired. Defaults to false. */
 		loadingOnStart?: boolean
-		/** when stream finishes, can preserve or clear current state. Defaults to true. */
+		/** when the stream completes, preserve settled Loaded/Error states or clear back to Empty. Loading is always cleared. Defaults to true. */
 		keepValueAfterCompletion?: boolean;
 		/** Defaults to false */
 		deepReactiveValue?: boolean;
 	} = {loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false}
 ): MutableLoadable<ValueTypeFromLoadableOrObservable<T>> {
+	settings = {loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false, ...settings};
 	let unsubs: Subscription[]|undefined = [];
 	
 	function onDispose() {
@@ -546,7 +587,7 @@ export function loadableFromStream<T>(
 		next: nextState => Object.assign(l, Loadable.wrap(nextState)),
 		error: e => Object.assign(l, Loadable.LoadingError(ApiError.wrap(e))),
 		complete: () => {
-			if (settings.keepValueAfterCompletion) return;
+			if (settings.keepValueAfterCompletion && !l.isLoading()) return;
 			Object.assign(l, Loadable.Empty());
 		}
 	}));
@@ -599,8 +640,8 @@ export function loadableStreamFromPromise<T>(promise: Promise<T>): Observable<Lo
 	return subject;
 }
 
-function combineLoadableStreamsImpl(combiner: typeof combineLoadables|typeof combineLoadablesIncludingEmpty, streams: Observable<any>[]|Record<string, Observable<any>>): Observable<Loadable<any>> {
-	const combined$: Observable<Record<string, any>|any[]> = Array.isArray(streams)
+function combineLoadableStreamsImpl(combiner: typeof combineLoadables|typeof combineLoadablesIncludingEmpty, streams: ObservableInput<any>[]|Record<string, ObservableInput<any>>): Observable<Loadable<any>> {
+	const combined$: ObservableInput<Record<string, any>|any[]> = Array.isArray(streams)
 		? combineLatest(streams)
 		: combineLatest(streams as Record<string, Observable<any>>);
 
@@ -634,21 +675,28 @@ export function combineLoadableStreams(streams: Observable<any>[]|Record<string,
 	return combineLoadableStreamsImpl(combineLoadables, streams);
 }
 /**
+ * Combine streams of loadables, and return a stream that will emits the combined values as a single loadable.
  * Like combineLoadablesIncludingEmpty, but with streams.
- * Combine either a map of streams or an array of streams, and return a stream that will emit the latest values as a single loadable.
  * It will not emit repeated loading states.
  *
  * Might need 'as const' on argument to infer the types correctly.
  *
+ * All inputs Loading -> output Loading<br>
+ * Any input Error -> output Error, ignore Loaded, Empty, Loading inputs<br>
+ * Any input Loaded -> Loaded with the value of all Loaded inputs, and undefined for Empty inputs.<br>
+ * All inputs Empty -> output Empty<br>
+ * 
  * E.g.
  * ```
  * combineLoadableStreamsIncludingEmpty([stream1, stream2, stream3]) -> stream emitting Loadable<[T1|undefined, T2|undefined, T3|undefined]>
  * combineLoadableStreamsIncludingEmpty({a: stream1, b: stream2, c: stream3}) -> stream emitting Loadable<{a: T1|undefined, b: T2|undefined, c: T3|undefined}>
  * ```
+ * 
+ * If you only need the settled values and want to skip partially loaded states, use {@link combineLoadableStreams} instead.
  */
-export function combineLoadableStreamsIncludingEmpty<T extends readonly Observable<any>[]>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]> }>>;
-export function combineLoadableStreamsIncludingEmpty<T extends Record<string, Observable<any>>>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]> }>>;
-export function combineLoadableStreamsIncludingEmpty(streams: Observable<any>[]|Record<string, Observable<any>>): Observable<Loadable<any>> {
+export function combineLoadableStreamsIncludingEmpty<T extends readonly ObservableInput<any>[]>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]> }>>;
+export function combineLoadableStreamsIncludingEmpty<T extends Record<string, ObservableInput<any>>>(streams: T): Observable<Loadable<{ [K in keyof T]: ValueTypeFromLoadableOrObservableIncludingEmpty<T[K]> }>>;
+export function combineLoadableStreamsIncludingEmpty(streams: ObservableInput<any>[]|Record<string, ObservableInput<any>>): Observable<Loadable<any>> {
 	return combineLoadableStreamsImpl(combineLoadablesIncludingEmpty, streams);
 }
 /**
@@ -660,3 +708,6 @@ export function repeatLatestWhen<T>(notifier$: Observable<any>) {
 		notifier$.pipe(startWith(null)),
 	]).pipe(map(([val]) => val));
 }
+
+export const EMPTY_LOADABLE = Loadable.Empty();
+export const EMPTY_LOADABLE_STREAM = of(EMPTY_LOADABLE);

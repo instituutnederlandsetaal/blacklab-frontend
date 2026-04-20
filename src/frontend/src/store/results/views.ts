@@ -4,14 +4,11 @@
  * But addon scripts can add more views, if required.
  * Those will get their own sub-module here.
  */
-import type { ModuleBuilder } from '@/store/reactive-store';
-import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
 
-import type { RootState } from '@/store/';
-import type { CorpusChange } from '@/store/async-loaders';
-
-const namespace = 'views';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import * as GlobalResultsModule from '@/store/results/global';
+import { reactive } from 'vue';
 
 type ModuleRootState = Record<string, ViewRootState>;
 type RequestedRange = {
@@ -44,19 +41,17 @@ const initialViewState: ViewRootState = {
 	groupDisplayMode: null,
 };
 
-const viewsBuilder = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep(initialState));
-
-const createActions = (b: ModuleBuilder<ViewRootState, RootState>) => ({
-	customState: b.commit((state, payload: any) => state.customState = payload, 'customState'),
-	groupBy: b.commit((state, payload: string[]) => {
+const createActions = (state: ViewRootState) => ({
+	customState: (payload: any) => state.customState = payload,
+	groupBy: (payload: string[]) => {
 		// can't just replace array since listeners might be attached to properties in a single entry, and they won't be updated.
 		state.groupBy.splice(0, state.groupBy.length, ...payload);
 		state.viewGroup = null;
 		state.sort = null;
 		state.first = 0;
 		state.requestedRange = null;
-	}, 'groupBy'),
-	sort: b.commit((state, payload: string|null) => state.sort = payload, 'sort'),
+	},
+	sort: (payload: string|null) => state.sort = payload,
 
 	/*
 	 * Pagination flow overview (hits/docs each have their own view state):
@@ -73,53 +68,51 @@ const createActions = (b: ModuleBuilder<ViewRootState, RootState>) => ({
 
 
 	/** Set the first result offset */
-	first: b.commit((state, payload: number) => {
+	first: (payload: number) => {
 		state.first = Math.max(0, payload);
 		state.requestedRange = null;
-	}, 'first') ,
+	},
 	/** Set the number of results to retrieve */
-	number: b.commit((state, payload: number) => {
+	number: (payload: number) => {
 		state.number = Math.max(1, payload);
 		state.requestedRange = null;
-	}, 'number'),
+	},
 	/** Convenience action to set both first and number at once */
-	range: b.commit((state, payload: {first: number, number: number}) => {
+	range: (payload: {first: number, number: number}) => {
 		state.first = Math.max(0, payload.first);
 		state.number = Math.max(1, payload.number);
 		state.requestedRange = null;
-	}, 'range'),
-	setRequestedRange: b.commit((state, payload: RequestedRange) => {
+	},
+	setRequestedRange: (payload: RequestedRange) => {
 		state.requestedRange = {
 			first: Math.max(0, payload.first),
 			number: Math.max(1, payload.number)
 		};
-	}, 'setRequestedRange'),
-	clearRequestedRange: b.commit(state => {
-		state.requestedRange = null;
-	}, 'clearRequestedRange'),
-	viewGroup: b.commit((state, payload: string|null) => {
+	},
+	clearRequestedRange: () => state.requestedRange = null,
+	viewGroup: (payload: string|null) => {
 		state.viewGroup = payload;
 		state.sort = null;
 		state.first = 0;
 		state.requestedRange = null;
-	},'viewgroup'),
-	groupDisplayMode: b.commit((state, payload: string|null) => state.groupDisplayMode = payload, 'groupDisplayMode'),
+	},
+	groupDisplayMode: (payload: string|null) => state.groupDisplayMode = payload,
 
-	reset: b.commit((state, props: {resetGroupBy: boolean}) => {
+	reset: (payload: {resetGroupBy: boolean}) => {
 		// This may case an error if the current group settings are invalid for the new view.
 		let prevGroupBy = state.groupBy;
 		Object.assign(state, cloneDeep(initialViewState))
-		if (!props.resetGroupBy) state.groupBy = prevGroupBy;
-	}, 'reset'),
-	replace: b.commit((state, payload: ViewRootState) => {
+		if (!payload.resetGroupBy) state.groupBy = prevGroupBy;
+	},
+	replace: (payload: ViewRootState) => {
 		Object.assign(state, cloneDeep(payload));
 		if (state.requestedRange == null) {
 			state.requestedRange = null;
 		}
-	}, 'replace'),
+	},
 });
 
-const createGetters = (b: ModuleBuilder<ViewRootState, RootState>) => ({});
+const createGetters = (state: ViewRootState) => ({});
 
 /**
  * Create a module with the given namespace and initial state.
@@ -128,14 +121,12 @@ const createGetters = (b: ModuleBuilder<ViewRootState, RootState>) => ({});
  * @returns a module object with actions, getters, namespace, getState and a vuex module.
  */
 export const createViewModule = (viewName: string, customInitialState?: Partial<ViewRootState>) => {
-	const b = viewsBuilder.module<ViewRootState>(viewName, Object.assign(cloneDeep(initialViewState), customInitialState));
+	const state = reactive<ViewRootState>(Object.assign(cloneDeep(initialViewState), cloneDeep(customInitialState)));
 	const m = {
-		actions: createActions(b),
-		get: createGetters(b),
-		namespace: viewName,
-		getState: b.state(),
+		actions: createActions(state),
+		get: createGetters(state),
+		getState: () => state,
 	};
-
 	return m;
 };
 
@@ -151,17 +142,17 @@ function getOrCreateModule(view: string, initialState?: ViewRootState) {
 }
 
 const actions = {
-	resetFirst: viewsBuilder.commit(() => Object.values(moduleCache).forEach(m => m.actions.first(0)), 'resetFirst'),
-	resetViewGroup: viewsBuilder.commit(() => Object.values(moduleCache).forEach(m => m.actions.viewGroup(null)), 'resetViewGroup'),
-	resetAllViews: viewsBuilder.dispatch(({rootState}, props: {resetGroupBy: boolean}) => {
+	resetFirst: () => Object.values(moduleCache).forEach(m => m.actions.first(0)),
+	resetViewGroup: () => Object.values(moduleCache).forEach(m => m.actions.viewGroup(null)),
+	resetAllViews: (props: {resetGroupBy: boolean}) => {
 		Object.values(moduleCache).forEach(m => {
 			m.actions.reset(props);
-			m.actions.number(rootState.global.pageSize);
+			m.actions.number(GlobalResultsModule.getState().pageSize);
 		});
-	}, 'reset'),
-	replaceView: viewsBuilder.commit((_, payload: {view: string|null, data: ViewRootState}) => {
+	},
+	replaceView: (payload: {view: string|null, data: ViewRootState}) => {
 		if (payload.view) getOrCreateModule(payload.view).actions.replace(payload.data);
-	}, 'replaceResultsView'),
+	},
 };
 
 const get = {
@@ -171,7 +162,6 @@ const get = {
 const init = async (state: CorpusChange)=> {
 	// Clear all views so the default result modules can be recreated for the new corpus.
 	Object.keys(moduleCache).forEach(key => {
-		viewsBuilder.deleteModule(key);
 		delete moduleCache[key];
 	});
 	getOrCreateModule('hits');
@@ -179,8 +169,22 @@ const init = async (state: CorpusChange)=> {
 	await actions.resetAllViews({resetGroupBy: true});
 };
 
+/** Get a snapshot of all view states as a record keyed by view name. */
+function getState(): ModuleRootState {
+	const result: ModuleRootState = {};
+	for (const [key, mod] of Object.entries(moduleCache)) {
+		result[key] = mod.getState();
+	}
+	return result;
+}
+
+/** Iterate over all view states. Used by global module to adjust pagination on page-size change. */
+function forEachView(fn: (view: ViewRootState) => void) {
+	Object.values(moduleCache).forEach(m => fn(m.getState()));
+}
+
 type ViewModule = ReturnType<typeof createViewModule>;
 
-export { actions, get, getOrCreateModule, init, initialState, initialViewState };
+export { actions, forEachView, get, getOrCreateModule, getState, init, initialState, initialViewState };
 export type { ModuleRootState, ViewModule, ViewRootState };
 

@@ -67,7 +67,7 @@
 
 <script lang="ts">
 import Axios from 'axios';
-import { defineComponent } from 'vue';
+import { defineComponent, nextTick } from 'vue';
 
 import { blacklab } from '@/api';
 import UrlStateParserBase from '@/url/url-state-parser-base';
@@ -78,7 +78,6 @@ import type { OptGroup } from '@/utils/options';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { debugLogCat } from '@/utils/debug';
-import Vue from 'vue';
 
 class UrlStateParser extends UrlStateParserBase<{
 	file: string;
@@ -168,9 +167,9 @@ export default defineComponent({
 						this.urlParams.corpus = `${user.id}:${this.urlParams.corpus}`;
 					}
 
-					Vue.nextTick(() => {
+					nextTick(() => {
 						this.preselectedCorpus = this.urlParams!.corpus!;
-						Vue.nextTick(() => {
+						nextTick(() => {
 							// hack, if urlParams.corpus is invalid, the selectPicker will reset the value to empty the next frame
 							// check that here, then, initiate the download if it's valid, otherwise initiate corpus creation
 							if (this.preselectedCorpus) {

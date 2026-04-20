@@ -4,19 +4,19 @@
  *
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
-import { getStoreBuilder } from '@/store/reactive-store';
+import { memoize } from '@/store/reactive-store';
 
-import type { RootState } from '@/store/';
 import * as CorpusModule from '@/store/corpus';
 
 import type { FilterDefinition } from '@/types/apptypes';
 
 import { blacklabPaths } from '@/api';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
-import type { CorpusChange } from '@/store/async-loaders';
 import { mapReduce } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import { debugLogCat } from '@/utils/debug';
+import { reactive } from 'vue';
 
 export type FilterState = {
 	value: unknown;
@@ -47,49 +47,40 @@ type ModuleRootState = {
 
 type ExternalModuleRootState = ModuleRootState['filters'];
 
-
-
 /** Populated on store initialization and afterwards */
 const initialState: ModuleRootState = {
   filters: {},
   filterGroups: []
 };
 
-const namespace = 'filters';
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, Object.assign({}, initialState));
-const getState = b.state();
+const state = reactive(structuredClone(initialState));
+const getState = () => state;
 
 const get = {
   /** Return all filters holding a value */
-  activeFilters: b.read(state => Object.values(state.filters).filter(f => getValueFunctions(f).isActive(f.id, f.metadata, f.value)), 'activeFilters'),
+  activeFilters: memoize(() => Object
+    .values(state.filters)
+    .filter(f => getValueFunctions(f).isActive(f.id, f.metadata, f.value))
+    .sort((a, b) => a.id.localeCompare(b.id)) // sort by id for stable order, important for derived state comparisons (e.g. history entries)
+  ),
   /** Return activeFilters as associative map instead of array */
-  activeFiltersMap: b.read(state => {
+  activeFiltersMap: memoize(() => {
     const activeFilters: FullFilterState[] = get.activeFilters();
     return mapReduce(activeFilters, 'id');
-  }, 'activeFiltersMap'),
+  }),
 
-  luceneQuery: b.read(state => {
-    // NOTE: sort the filters so a stable query is created
-    // this is important for comparing history entries
-    const activeFilters: FullFilterState[] = get.activeFilters().concat().sort((l, r) => l.id.localeCompare(r.id));
-    return getFilterString(activeFilters);
-  } , 'luceneQuery'),
-  luceneQuerySummary: b.read(state => {
-    // NOTE: sort the filters so a stable query is created
-    // this is important for comparing history entries
-    const activeFilters: FullFilterState[] = get.activeFilters().concat().sort((l, r) => l.id.localeCompare(r.id));
-    return getFilterSummary(activeFilters);
-  }, 'luceneQuerySummary'),
+  luceneQuery: memoize((): string|undefined => getFilterString(get.activeFilters())),
+  luceneQuerySummary: memoize((): string|undefined => getFilterSummary(get.activeFilters())),
 
-  filterValue(id: string) { return getState().filters[id]; },
+  filterValue: (id: string) => state.filters[id],
 
-  hasSpanFilters: b.read(state => {
-    return !!Object.values(state.filters).find(f => getValueFunctions(f).isSpanFilter);
-  }, 'hasSpanFilters'),
+  hasSpanFilters: memoize(() => 
+   !!Object.values(state.filters).find(f => getValueFunctions(f).isSpanFilter)
+  ),
 };
 
 const actions = {
-  registerFilterGroup: b.commit((state, filterGroup: {id: string, filterIds: string[]}) => {
+  registerFilterGroup: (filterGroup: {id: string, filterIds: string[]}) => {
     if (state.filterGroups.find(g => g.tabname === filterGroup.id)) {
       console.warn(`Filter group ${filterGroup.id} already exists`);
       return;
@@ -101,9 +92,9 @@ const actions = {
         fields: filterGroup.filterIds.filter(id => state.filters[id] != null),
       }],
     });
-  }, 'registerFilterGroup'),
+  },
 
-  registerFilter: b.commit((state, {filter, insertBefore}: {
+  registerFilter: ({filter, insertBefore}: {
 		/** Filter definition */
 		filter: FilterDefinition<unknown>;
 		/** Optional: ID of another filter in this group before which to insert this filter, if omitted, the filter is appended at the end. */
@@ -133,26 +124,24 @@ const actions = {
     filter.defaultDescription = filter.defaultDescription || filter.description;
 
     state.filters[filter.id] = {...filter, value: null};
-  }, 'registerFilter'),
+  },
 
-  filterValue: b.commit((state, {id, value}: Pick<FullFilterState, 'id'|'value'>) => {
+  filterValue: ({id, value}: Pick<FullFilterState, 'id'|'value'>) => {
     const filterObj = state.filters[id];
     if (!filterObj) {
       console.error(`Filter ${id} does not exist`);
     }
     return (filterObj.value = value != null ? value : null);
-  }, 'filter_value'),
+  },
 
-  // filterLucene: b.commit((state, {id, lucene}: Pick<FullFilterState, 'id'|'lucene'>) => state.filters[id].lucene = lucene || null , 'filter_lucene'),
-  // filterSummary: b.commit((state, {id, summary}: Pick<FullFilterState, 'id'|'summary'>) => state.filters[id].summary = summary || null, 'filter_summary'),
-  reset: b.commit(state => Object.keys(state.filters).forEach(k => {
+  reset: () => Object.keys(state.filters).forEach(k => {
     state.filters[k].value = null;
-  }), 'filter_reset'),
+  }),
 
-  replace: b.commit((state, payload: ExternalModuleRootState) => {
+  replace: (payload: ExternalModuleRootState) => {
     actions.reset();
     Object.values(payload).forEach(actions.filterValue);
-  }, 'replace'),
+  },
 };
 
 const init = (state: CorpusChange) => {
@@ -233,6 +222,6 @@ const init = (state: CorpusChange) => {
   debugLogCat('init', 'Finished initializing filter module state shape');
 };
 
-export { actions, get, getState, init, namespace };
+export { actions, get, getState, init };
 export type { ModuleRootState as FullModuleRootState, ExternalModuleRootState as ModuleRootState };
 

@@ -1,10 +1,8 @@
-import { getStoreBuilder } from '@/store/reactive-store';
-import cloneDeep from 'clone-deep';
 
 import type * as BLTypes from '@/types/blacklabtypes';
 
-import type { RootState } from '@/store';
-import type { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import { reactive } from 'vue';
 
 type ModuleRootState = {
 	docId: string|null;
@@ -75,55 +73,55 @@ const initialState: ModuleRootState = {
 	baseColor: '#337ab7' // bootstrap primary
 };
 
-const namespace = 'article';
-const b = getStoreBuilder<RootState>().module(namespace, cloneDeep(initialState));
 
-const getState = b.state();
+
+const state = reactive(structuredClone(initialState));
+const getState = () => state;
 
 const get = {
-	baseColor: b.read(state => state.baseColor, 'baseColor'),
-	distributionAnnotation: b.read(state => state.distributionAnnotation, 'distributionAnnotation'),
-	growthAnnotations: b.read(state => state.growthAnnotations, 'growthAnnotations'),
-	statisticsTableFn: b.read(state => state.statisticsTableFn, 'statisticsTableFn'),
-	pageSize: b.read(state => state.pageSize, 'pageSize'),
-	statisticsEnabled: b.read(state => !!(state.statisticsTableFn || state.growthAnnotations || state.distributionAnnotation), 'statisticsEnabled'),
-	wordstart: b.read(state => state.wordstart, 'wordstart'),
-	wordend: b.read(state => state.wordend, 'wordend'),
-	findhit: b.read(state => state.findhit, 'findhit'),
+	baseColor: () => state.baseColor,
+	distributionAnnotation: () => state.distributionAnnotation,
+	growthAnnotations: () => state.growthAnnotations,
+	statisticsTableFn: () => state.statisticsTableFn,
+	pageSize: () => state.pageSize,
+	statisticsEnabled: () => !!(state.statisticsTableFn || state.growthAnnotations || state.distributionAnnotation),
+	wordstart: () => state.wordstart,
+	wordend: () => state.wordend,
+	findhit: () => state.findhit,
 };
 
 const actions = {
-	distributionAnnotation: b.commit((state, payload: ModuleRootState['distributionAnnotation']) => state.distributionAnnotation = payload, 'distributionAnnotation'),
-	growthAnnotations: b.commit((state, payload: ModuleRootState['growthAnnotations']) => state.growthAnnotations = payload, 'growthAnnotations'),
-	statisticsTableFn: b.commit((state, payload: ModuleRootState['statisticsTableFn']) => state.statisticsTableFn = payload, 'statisticsTableFn'),
-	baseColor: b.commit((state, payload: string) => state.baseColor = payload, 'baseColor'),
+	distributionAnnotation: (payload: ModuleRootState['distributionAnnotation']) => state.distributionAnnotation = payload,
+	growthAnnotations: (payload: ModuleRootState['growthAnnotations']) => state.growthAnnotations = payload,
+	statisticsTableFn: (payload: ModuleRootState['statisticsTableFn']) => state.statisticsTableFn = payload,
+	baseColor: (payload: string) => state.baseColor = payload,
 
-	docId: b.commit((state, payload: string|null) => state.docId = payload, 'docId'),
-	page: b.commit((state, payload: {wordstart: number|null, wordend: number|null}) => {
+	docId: (payload: string|null) => state.docId = payload,
+	page: (payload: {wordstart: number|null, wordend: number|null}) => {
 		state.wordstart = payload.wordstart ?? null;
 		state.wordend = payload.wordend ?? null;
-	}, 'page'),
-	findhit: b.commit((state, payload: number|null) => {
+	},
+	findhit: (payload: number|null) => {
 		state.wordstart = 0;
 		state.wordend = Number.MAX_SAFE_INTEGER;
 		state.findhit = payload
-	}, 'findhit'),
-	viewField: b.commit((state, payload: string|null) => state.viewField = payload, 'field'),
+	},
+	viewField: (payload: string|null) => state.viewField = payload,
 
-	reset: b.commit(state => {
+	reset: () => {
 		state.docId = null;
 		state.findhit = null;
 		state.viewField = null;
 		state.wordend = 2^31-1;
 		state.wordstart = 0;
 		// Don't reset the rest, is supplied by customJs, don't want to clear that on regular reset.
-	}, 'reset'),
-	replace: b.commit((state, payload: HistoryState) => {
+	},
+	replace: (payload: HistoryState) => {
 		actions.docId(payload.docId);
 		actions.page(payload);
 		actions.viewField(payload.viewField);
 		actions.findhit(payload.findhit);
-	}, 'replaceRoot'),
+	},
 };
 
 const init = (state: CorpusChange) => {
@@ -131,6 +129,6 @@ const init = (state: CorpusChange) => {
 	else actions.reset();
 };
 
-export { actions, get, getState, init, initialHistoryState, namespace };
+export { actions, get, getState, init, initialHistoryState };
 export type { HistoryState, ModuleRootState };
 

@@ -45,15 +45,14 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import type * as Api from '@/api';
+import * as Api from '@/api';
 import type * as BLTypes from '@/types/blacklabtypes';
-
-import type { TotalsOutput } from '@/pages/search/results/TotalsCounterStream';
-import { TotalsLoader } from '@/pages/search/results/TotalsCounterStream';
 
 
 import frac2Percent from '@/mixins/fractionalToPercent';
 
+import { IterativeResultCountLoader } from '@/api/async/logic/result-count/result-count-from-query';
+import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
 import Spinner from '@/components/Spinner.vue';
 
 /**
@@ -82,12 +81,16 @@ export default defineComponent({
 		}
 	},
 	computed: {
-		totals(): TotalsLoader { return new TotalsLoader({
-			indexId: this.indexId, 
-			annotatedFieldId: this.annotatedFieldId,
-			operation: this.type, 
-			results: this.initialResults 
-		}); },
+		totals(): IterativeResultCountLoader { 
+			return new IterativeResultCountLoader({
+				annotatedFieldId: this.annotatedFieldId,
+				indexId: this.indexId,
+				operation: this.type,
+				results: this.initialResults
+			},
+				Api.blacklab
+			);
+		},
 
 		value(): TotalsOutput|undefined { return this.totals.isLoaded() ? this.totals.value : undefined; },
 		error(): Api.ApiError|undefined { return this.totals.isError() ? this.totals.error : undefined; },
@@ -120,7 +123,7 @@ export default defineComponent({
 	},
 	watch: {
 		totals: {
-			handler(cur: TotalsLoader, prev: TotalsLoader) {
+			handler(cur: IterativeResultCountLoader, prev: IterativeResultCountLoader) {
 				if (cur !== prev) prev?.dispose();
 			},
 		}

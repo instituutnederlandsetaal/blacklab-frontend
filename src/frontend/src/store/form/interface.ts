@@ -4,13 +4,12 @@
  * we need to track what the user is actually doing when a query is submitted,
  * so that we know how to construct the actual query that's sent to blacklab.
  */
-import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
 
-import type { RootState } from '@/store/';
-import type { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import type { ModuleRootState as ExploreModuleRootState } from '@/store/form/explore';
 import type { ModuleRootState as PatternModuleRootState } from '@/store/form/patterns';
+import { reactive } from 'vue';
 
 type ModuleRootState = {
 	form: 'search'|'explore';
@@ -30,35 +29,36 @@ const defaults: ModuleRootState = {
 	activeFilterTab: null,
 };
 
-const namespace = 'interface';
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep(defaults)); // copy so we don't add listeners to defaults
-const getState = b.state();
+
+
+const state = reactive(structuredClone(defaults));
+const getState = () => state;
 
 const get = {
-	form: b.read(state => state.form, 'form'),
-	patternMode: b.read(state => state.patternMode, 'patternMode'),
-	exploreMode: b.read(state => state.exploreMode, 'exploreMode'),
-	viewedResults: b.read(state => state.viewedResults, 'viewedResults'),
-	activeAnnotationTab: b.read(state => state.activeAnnotationTab, 'activeAnnotationTab'),
-	activeFilterTab: b.read(state => state.activeFilterTab, 'activeFilterTab'),
+	form: () => state.form,
+	patternMode: () => state.patternMode,
+	exploreMode: () => state.exploreMode,
+	viewedResults: () => state.viewedResults,
+	activeAnnotationTab: () => state.activeAnnotationTab,
+	activeFilterTab: () => state.activeFilterTab,
 };
 
 const actions = {
-	form: b.commit((state, payload: ModuleRootState['form']) => state.form = payload, 'form'),
-	patternMode: b.commit((state, payload: ModuleRootState['patternMode']) => state.patternMode = payload, 'patternMode'),
-	exploreMode: b.commit((state, payload: ModuleRootState['exploreMode']) => state.exploreMode = payload, 'exploreMode'),
-	viewedResults: b.commit((state, payload: ModuleRootState['viewedResults']) => state.viewedResults = payload, 'viewedResults'),
-	activeAnnotationTab: b.commit((state, payload: ModuleRootState['activeAnnotationTab']) => state.activeAnnotationTab = payload, 'activeAnnotationTab'),
-	activeFilterTab: b.commit((state, payload: ModuleRootState['activeFilterTab']) => state.activeFilterTab = payload, 'activeFilterTab'),
+	form: (payload: ModuleRootState['form']) => state.form = payload,
+	patternMode: (payload: ModuleRootState['patternMode']) => state.patternMode = payload,
+	exploreMode: (payload: ModuleRootState['exploreMode']) => state.exploreMode = payload,
+	viewedResults: (payload: ModuleRootState['viewedResults']) => state.viewedResults = payload,
+	activeAnnotationTab: (payload: ModuleRootState['activeAnnotationTab']) => state.activeAnnotationTab = payload,
+	activeFilterTab: (payload: ModuleRootState['activeFilterTab']) => state.activeFilterTab = payload,
 
-	reset: b.commit(state => Object.assign(state, cloneDeep(defaults)), 'reset'),
-	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, payload), 'replace'),
+	reset: () => Object.assign(state, cloneDeep(defaults)),
+	replace: (payload: ModuleRootState) => Object.assign(state, payload),
 };
 
 const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
-export { actions, defaults, get, getState, init, namespace };
+export { actions, defaults, get, getState, init };
 export type { ModuleRootState };
 

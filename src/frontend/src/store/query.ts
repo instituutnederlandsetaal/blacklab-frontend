@@ -20,19 +20,19 @@
  * and the results settings (the grouping, viewed page number, etc).
  */
 
-import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
 
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
-import type { RootState } from '@/store/';
-import type { CorpusChange } from '@/store/async-loaders';
 import * as CorpusModule from '@/store/corpus';
 import type * as ExploreModule from '@/store/form/explore';
 import type * as FilterModule from '@/store/form/filters';
 import type * as GapModule from '@/store/form/gap';
 import type * as PatternModule from '@/store/form/patterns';
+import * as UIModule from '@/store/ui';
 import type { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
+import { reactive } from 'vue';
 
 
 // todo migrate these weirdo state shapes to mapped types?
@@ -80,21 +80,20 @@ const initialState: ModuleRootStateNone = {
   gap: null
 };
 
-const namespace = 'query';
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, Object.assign({}, initialState));
-const getState = b.state();
+const state = reactive<ModuleRootState>(Object.assign({}, initialState));
+const getState = () => state;
 
 const get = {
-  sourceField: b.read((state): CorpusModule.NormalizedAnnotatedField => {
+  sourceField: (): CorpusModule.NormalizedAnnotatedField => {
     const fieldName = state.shared?.source ?? CorpusModule.get.mainAnnotatedField();
     return CorpusModule.get.allAnnotatedFieldsMap()[fieldName];
-  }, 'sourceField'),
-  targetFields: b.read((state): NormalizedAnnotatedFieldParallel[] => {
+  },
+  targetFields: (): NormalizedAnnotatedFieldParallel[] => {
     const allFields = CorpusModule.get.allAnnotatedFieldsMap();
     return state.shared?.targets?.map(t => allFields[t]).filter(f => f.isParallel) ?? [];
-  }, 'targetFields'),
+  },
 
-  patternString: b.read((state, getters, rootState): string|undefined => {
+  patternString: (): string|undefined => {
     if (!state.subForm) return undefined;
 
     const formState = {
@@ -102,54 +101,52 @@ const get = {
       shared: state.shared,
     } as Partial<ModuleRootStateSearch<keyof PatternModule.ModuleRootState>>; /** egh, feel free to refactor */
     const annotations = CorpusModule.get.allAnnotationsMap();
+    const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
     switch (state.form) {
       case 'search':
-        return getPatternStringSearch(state.subForm, formState as any, rootState.ui.search.shared.alignBy.defaultValue, state.filters);
+        return getPatternStringSearch(state.subForm, formState as any, defaultAlignBy, state.filters);
       case 'explore':
         return getPatternStringExplore(state.subForm, formState as any, annotations);
       default:
         return undefined;
     }
   },
-  'patternString'),
   /** Human-readable version of the query for use in history, summaries, etc. */
-  patternSummary: b.read((state, getters, rootState): string|undefined => {
+  patternSummary: (): string|undefined => {
     const formState = {
       [state.subForm as string]: state.formState,
       shared: state.shared,
     } as any; /** egh, feel free to refactor */
+    const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
     switch (state.form) {
       case 'search':
-        return getPatternSummarySearch(state.subForm, formState, rootState.ui.search.shared.alignBy.defaultValue, state.filters);
+        return getPatternSummarySearch(state.subForm, formState, defaultAlignBy, state.filters);
       case 'explore':
         return getPatternSummaryExplore(state.subForm, formState, CorpusModule.get.allAnnotationsMap());
       default:
         return undefined;
     }
-  }, 'patternSummary'),
-  filterString: b.read((state): string|undefined => {
+  },
+  filterString: (): string|undefined => {
     if (!state.form) { return undefined; }
     return getFilterString(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
-  }, 'filterString'),
-  filterSummary: b.read((state): string|undefined => {
+  },
+  filterSummary: (): string|undefined => {
     if (!state.form) { return undefined; }
     return getFilterSummary(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
-  }, 'filterSummary')
+  }
 };
 
 const actions = {
-  // Deep copy these to prevent aliasing and the reactivity issues that come with it
-  // such as writing to current state causing updates in history entries
-  search: b.commit((state, payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)), 'search'),
-
-  reset: b.commit(state => Object.assign(state, Object.assign({}, initialState)), 'reset'),
-  replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)), 'replace'),
+  search: (payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)),
+  reset: () => Object.assign(state, Object.assign({}, initialState)),
+  replace: (payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)),
 };
 
-const init = (state: CorpusChange) => {
+const init = (payload: CorpusChange) => {
   actions.reset();
 };
 
-export { actions, get, getState, init, namespace };
+export { actions, get, getState, init };
 export type { ModuleRootState };
 

@@ -2,13 +2,11 @@
  * Contains the current ui state for n-gram form.
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
-import { getStoreBuilder } from '@/store/reactive-store';
-import cloneDeep from 'clone-deep';
 
-import type { RootState } from '@/store/';
-import type { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as UIStore from '@/store/ui'; // Is initialized before we are.
 import { escapeRegex } from '@/utils';
+import { computed, reactive, ref, watch } from 'vue';
 
 type Token = {
 	/** Annotation ID */
@@ -68,54 +66,56 @@ const defaults: ModuleRootState = {
 	}
 };
 
-const namespace = 'explore';
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep(defaults));
-const getState = b.state();
+// wrapper to enable memoization of getters and avoid unnecessary recomputations when getter is used in multiple places
+const memoize = <T>(getter: () => T): (() => T) => {
+	const v = computed(getter);
+	return () => v.value;
+};
+const state = reactive(structuredClone(defaults));
+const getState = () => state;
 
 const get = {
 	ngram: {
-		size: b.read(state => state.ngram.size, 'ngram_size'),
-		maxSize: b.read(state => state.ngram.maxSize, 'ngram_maxSize'),
-		tokens: b.read(state => state.ngram.tokens, 'ngram_tokens'),
-		groupAnnotationId: b.read(state => state.ngram.groupAnnotationId, 'ngram_groupAnnotationId'),
+		size: () => state.ngram.size,
+		maxSize: () => state.ngram.maxSize,
+		tokens: () => state.ngram.tokens,
+		groupAnnotationId: () => state.ngram.groupAnnotationId,
 
-		groupBy: b.read(state => `hit:${state.ngram.groupAnnotationId}`, 'ngram_groupBy'),
-		patternString: b.read(state => state.ngram.tokens
+		groupBy: memoize(() => `hit:${state.ngram.groupAnnotationId}`),
+		patternString: memoize(() => state.ngram.tokens
 			.slice(0, state.ngram.size)
 			.map(({id, value}) => id && value ? `[${id}="${escapeRegex(value, {escapePipes: false, escapeWildcards: false})}"]` : '[]')
 			.join('')
-		, 'ngram_patternString')
+		),
 	},
 
 	frequency: {
-		annotationId: b.read(state => state.frequency.annotationId, 'frequency_annotationId'),
-		patternString: b.read(() => '[]', 'frequency_patternString'), // always search for all tokens.
-		groupBy: b.read(state => `hit:${state.frequency.annotationId}`, 'frequency_groupBy')
+		annotationId: () => state.frequency.annotationId,
+		patternString: () => '[]', // always search for all tokens.
+		groupBy: memoize(() => `hit:${state.frequency.annotationId}`)
 	},
 
 	corpora: {
-		groupBy: b.read(state => state.corpora.groupBy, 'corpora_groupBy'),
-		groupDisplayMode: b.read(state => state.corpora.groupDisplayMode, 'corpora_groupDisplayMode'),
+		groupBy: () => state.corpora.groupBy,
+		groupDisplayMode: () => state.corpora.groupDisplayMode,
 	}
 };
 
-const internalActions = {
-	fixTokenArray: b.commit(state => {
-		const id = UIStore.getState().explore.defaultSearchAnnotationId;
-		state.ngram.tokens = state.ngram.tokens.slice(0, state.ngram.maxSize);
-		while (state.ngram.tokens.length < state.ngram.maxSize) {
-			state.ngram.tokens.push({
-				id,
-				value: '',
-			});
-		}
-	}, 'fixTokenArray')
-};
+watch(() => ({maxSize: state.ngram.maxSize, currentLength: state.ngram.tokens.length}), ({maxSize, currentLength}) => {
+	state.ngram.tokens = state.ngram.tokens.slice(0, maxSize);
+	while (state.ngram.tokens.length < maxSize) {
+		state.ngram.tokens.push({
+			id: UIStore.getState().explore.defaultSearchAnnotationId,
+			value: '',
+		});
+	}
+});
+
 
 const actions = {
 	ngram: {
-		size: b.commit((state, payload: number) => state.ngram.size = Math.min(state.ngram.maxSize, payload), 'ngram_size'),
-		token: b.commit((state, payload: { index: number, token: Partial<Token> }) => {
+		size: (payload: number) => state.ngram.size = Math.min(state.ngram.maxSize, payload),
+		token: (payload: { index: number, token: Partial<Token> }) => {
 			if (payload.index < state.ngram.maxSize) {
 				const storeValue = state.ngram.tokens[payload.index];
 				Object.assign(storeValue, payload.token);
@@ -123,50 +123,48 @@ const actions = {
 					storeValue.id = defaults.ngram.groupAnnotationId;
 				}
 			}
-		}, 'ngram_token'),
-		groupAnnotationId: b.commit((state, payload: string) => state.ngram.groupAnnotationId = payload, 'ngram_groupAnnotationId'),
-		maxSize: b.commit((state, payload: number) => {
+		},
+		groupAnnotationId: (payload: string) => state.ngram.groupAnnotationId = payload,
+		maxSize: (payload: number) => {
 			state.ngram.size = Math.min(state.ngram.size, payload);
 			state.ngram.tokens = state.ngram.tokens.slice(0, payload);
-			internalActions.fixTokenArray();
-		}, 'ngram_maxSize'),
+		},
 
 		// clone required so we don't insert a the default array and subsequent changes don't write back into it
-		reset: b.commit(state => Object.assign(state.ngram, cloneDeep(defaults.ngram)), 'ngram_reset'),
+		reset: () => Object.assign(state.ngram, structuredClone(defaults.ngram)),
 
-		replace: b.commit((state, payload: ModuleRootState['ngram']) => {
-			Object.assign(state.ngram, payload);
-			internalActions.fixTokenArray(); // for when new token array doesn't match maximum length
-		}, 'ngram_replace')
+		replace: (payload: ModuleRootState['ngram']) => Object.assign(state.ngram, payload),
 	},
 
 	frequency: {
-		annotationId: b.commit((state, payload: string) => state.frequency.annotationId = payload, 'frequency_annotationId'),
+		annotationId: (payload: string) => state.frequency.annotationId = payload,
 
-		reset: b.commit(state => Object.assign(state.frequency, defaults.frequency) , 'frequency_reset'),
-		replace: b.commit((state, payload: ModuleRootState['frequency']) => Object.assign(state.frequency, payload), 'frequency_replace'),
+		reset: () => Object.assign(state.frequency, structuredClone(defaults.frequency)),
+		replace: (payload: ModuleRootState['frequency']) => Object.assign(state.frequency, payload),
 	},
 
 	corpora: {
-		groupBy: b.commit((state, payload: string) => state.corpora.groupBy = payload, 'corpora_groupBy'),
-		groupDisplayMode: b.commit((state, payload: string) => state.corpora.groupDisplayMode = payload, 'corpora_groupDisplayMode'),
+		groupBy: (payload: string) => state.corpora.groupBy = payload,
+		groupDisplayMode: (payload: string) => state.corpora.groupDisplayMode = payload,
 
-		reset: b.commit(state => Object.assign(state.corpora, defaults.corpora), 'corpora_reset'),
-		replace: b.commit((state, payload: ModuleRootState['corpora']) => Object.assign(state.corpora, payload), 'corpora_replace'),
+		reset: () => Object.assign(state.corpora, structuredClone(defaults.corpora)),
+		replace: (payload: ModuleRootState['corpora']) => Object.assign(state.corpora, payload),
 	},
 
-	replace: b.commit((state, payload: ModuleRootState) => {
+	replace: (payload: ModuleRootState) => {
 		actions.corpora.replace(payload.corpora);
 		actions.frequency.replace(payload.frequency);
 		actions.ngram.replace(payload.ngram);
-	}, 'replace'),
-	reset: b.commit(state => Object.assign(state, cloneDeep(defaults)), 'reset'),
+	},
+	reset: () => { Object.assign(state, structuredClone(defaults)); resetSignal.value++; },
 };
+
+const resetSignal = ref(0);
 
 const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
-export { actions, defaults, get, getState, init, namespace };
+export { actions, defaults, get, getState, init, resetSignal };
 export type { ModuleRootState, Token };
 

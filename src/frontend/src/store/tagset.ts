@@ -5,26 +5,21 @@
  * are the filters subdivided in groups, what is the text direction, and so on.
  */
 
-import { getStoreBuilder } from '@/store/reactive-store';
-
-import type { RootState } from '@/store/';
-
 import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
-import type { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import { ref } from 'vue';
 
 type ModuleRootState = Tagset|null;
-const namespace = 'tagset';
 
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, null);
-
-const getState = b.state();
+const state = ref<ModuleRootState>(null);
+const getState = () => state.value;
 
 const get = {};
 
-const init = b.dispatch(({state, rootState}, payload: CorpusChange) => {
-	rootState.tagset = payload.tagset ?? null;
-}, 'tagset_init')
+const init = (payload: CorpusChange) => {
+	state.value = payload.tagset ?? null;
+};
 
 /**
  * Process a tagset: validate it against the corpus, normalize case, and merge values into corpus annotations.
@@ -184,7 +179,6 @@ const actions = {
 	load: () => { console.warn('Manual tagset loading is no longer required. Remove the call to tagset.actions.load() from customJS - instead, place the tagset in ${corpusName}/static/tagset.json'); }
 }
 
-export { actions, get, getState, init, namespace };
-export type { ModuleRootState };
+export { actions, get, getState, init };
+export type { ModuleRootState, Tagset };
 
-	export type { Tagset };

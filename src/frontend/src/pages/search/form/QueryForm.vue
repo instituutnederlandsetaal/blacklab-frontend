@@ -65,9 +65,9 @@ import QueryFormFilters from '@/pages/search/form/QueryFormFilters.vue';
 import QueryFormSearch from '@/pages/search/form/QueryFormSearch.vue';
 import QueryFormSettings from '@/pages/search/form/QueryFormSettings.vue';
 
+import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
 import History from '@/pages/search/History.vue';
 
-import { SelectedSubcorpusLoader } from '@/pages/search/results/TotalsCounterStream';
 
 export default defineComponent({
 	components: {
@@ -78,7 +78,7 @@ export default defineComponent({
 		History
 	},
 	data: () => ({
-		subcorpus: SelectedSubcorpusLoader,
+		subcorpus: selectedSubcorpusLoader,
 		settingsOpen: false,
 		historyOpen: false,
 		errorNoParallelSourceVersion: false,

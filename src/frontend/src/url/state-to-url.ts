@@ -1,12 +1,21 @@
 import URI from 'urijs';
 
 import type * as BLTypes from '@/types/blacklabtypes';
-import type * as RootStore from '@/store/';
+import type * as ArticleStore from '@/store/article';
 import type * as InterfaceStore from '@/store/form/interface';
+import type * as GlobalResultsStore from '@/store/results/global';
+import type * as QueryStore from '@/store/query';
+import type * as ViewStore from '@/store/results/views';
 
 const MAX_URL_LENGTH = 4000;
 
-type UrlStateSlice = Pick<RootStore.RootState, 'query'|'interface'|'global'|'views'|'article'>;
+type UrlStateSlice = {
+	query: QueryStore.ModuleRootState;
+	interface: InterfaceStore.ModuleRootState;
+	global: GlobalResultsStore.ModuleRootState;
+	views: ViewStore.ModuleRootState;
+	article: ArticleStore.ModuleRootState;
+};
 
 export type UrlTransformInput = {
 	contextUrl: string;

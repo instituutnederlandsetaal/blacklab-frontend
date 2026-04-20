@@ -6,13 +6,15 @@ import { ReplaySubject, fromEvent, of } from 'rxjs';
 import { filter, map, mergeMap } from 'rxjs/operators';
 
 import * as RootStore from '@/store/';
-import type * as ArticleStore from '@/store/article';
+import * as ArticleStore from '@/store/article';
 import * as CorpusStore from '@/store/corpus';
 import * as ExploreStore from '@/store/form/explore';
 import * as GapStore from '@/store/form/gap';
+import * as InterfaceStore from '@/store/form/interface';
 import * as PatternStore from '@/store/form/patterns';
 import * as HistoryStore from '@/store/history';
 import * as QueryStore from '@/store/query';
+import * as GlobalResultsStore from '@/store/results/global';
 import * as ViewStore from '@/store/results/views';
 
 import router from '@/route/router';
@@ -23,11 +25,18 @@ import UrlStateParserSearch from '@/url/url-state-parser-search';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { debugLogCat } from '@/utils/debug';
 import jsonStableStringify from 'json-stable-stringify';
+import { watch } from 'vue';
 
 type QueryState = {
 	indexId?: string|null,
 	params?: BLTypes.BLSearchParameters,
-	state: Pick<RootStore.RootState, 'query'|'interface'|'global'|'views'|'article'>
+	state: {
+		query: QueryStore.ModuleRootState,
+		interface: InterfaceStore.ModuleRootState,
+		global: GlobalResultsStore.ModuleRootState,
+		views: ViewStore.ModuleRootState,
+		article: ArticleStore.ModuleRootState,
+	}
 };
 
 type BrowserHistoryEntry = HistoryStore.HistoryEntry&{article: ArticleStore.HistoryState};
@@ -229,27 +238,23 @@ urlInputParameters$.pipe(
 	});
 });
 
-/** Here we attach listeners to the vuex store, and pump the relevant values into the streams defined above. That in turn runs the listeners on those streams, and we can compute the stuff we need. */
+/** Here we attach watchers to the store modules and pump the relevant values into the streams defined above. */
 export default () => {
 	debugLogCat('init', 'Begin attaching store to url and subcorpus calculations.');
 
-	// Store getters are plain functions over the same reactive state instance.
-	// It doesn't matter though, they're attached to the same state instance, so just ignore the state argument.
-
-	RootStore.store.watch(
-		(state): QueryState => ({
+	watch(
+		(): QueryState => ({
 			indexId: CorpusStore.get.indexId(),
 			params: RootStore.get.blacklabParameters(),
 			state: {
-				views: state.views,
-				global: state.global,
-				article: state.article,
-				interface: state.interface,
-				query: state.query
+				views: ViewStore.getState(),
+				global: GlobalResultsStore.getState(),
+				article: ArticleStore.getState(),
+				interface: InterfaceStore.getState(),
+				query: QueryStore.getState()
 			}
 		}),
-		(cur, prev) => {
-			// update the frontend URL according to the changes in the store
+		(cur) => {
 			urlInputParameters$.next(cloneDeep(cur));
 		},
 		{

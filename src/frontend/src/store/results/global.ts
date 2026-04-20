@@ -3,18 +3,17 @@
  * Think things like context size, random sampling settings.
  */
 
-import { getStoreBuilder } from '@/store/reactive-store';
 
-import type { RootState } from '@/store/';
-import type { CorpusChange } from '@/store/async-loaders';
-import { syncPropertyWithLocalStorage } from '@/utils/localstore';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import * as ViewModule from '@/store/results/views';
+import { useLocalStorage } from '@vueuse/core';
+import { reactive } from 'vue';
 
 const defaults = {
 	pageSize: 20,
 	sampleMode: 'percentage' as const // required to allow putting it in string enum types
 };
 
-const namespace = 'global';
 type ModuleRootState = {
 	pageSize: number;
 	sampleMode: 'percentage'|'count';
@@ -26,46 +25,45 @@ type ModuleRootState = {
 
 type ExternalModuleRootState = Omit<ModuleRootState, 'pageSize'>;
 
-const initialState: ModuleRootState = {
-	pageSize: defaults.pageSize as number,
+// Create state directly from defaults,
+// so we don't have to sync with local storage twice on initialization.
+const state: ModuleRootState = reactive({
+	pageSize: useLocalStorage('cf/pageSize', defaults.pageSize),
 	sampleMode: defaults.sampleMode,
 	sampleSeed: null,
 	sampleSize: null,
 	context: null,
-};
-syncPropertyWithLocalStorage('cf/pageSize', initialState, 'pageSize');
+});
+const getState = () => state;
 
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, Object.assign({}, initialState));
-
-const getState = b.state();
 const get = {}; //nothing for now.
 
 const actions = {
-	pageSize: b.dispatch(({state, rootState}, pageSize: number) => {
+	pageSize: (pageSize: number) => {
 		if (pageSize > 0 && pageSize <= 1000 && pageSize !== state.pageSize) {
 			state.pageSize = pageSize;
-			Object.values(rootState.views).forEach(view => {
+			ViewModule.forEachView(view => {
 				view.first = Math.floor(view.first / pageSize) * pageSize;
 				view.number = pageSize;
 				view.requestedRange = null;
 			});
 		}
-	}, 'pagesize'),
-	sampleMode: b.commit((state, payload?: 'percentage'|'count') => {
+	},
+	sampleMode: (payload?: 'percentage'|'count') => {
 		// reset on null, undefined, invalid strings
 		if (!['percentage', 'count'].includes(payload as any)) { payload = defaults.sampleMode; }
 		if (payload === state.sampleMode) { return; }
 		state.sampleMode =  payload as any;
 		state.sampleSize = null;
-	}, 'samplemode'),
-	sampleSeed: b.commit((state, payload: number|null) => {
+	},
+	sampleSeed: (payload: number|null) => {
 		// Must have a seed when there is a size (e.g. random sampling is active)
 		if (state.sampleSize != null && payload == null) {
-			payload = Number.MAX_SAFE_INTEGER - (Math.random() * 2 * Number.MAX_SAFE_INTEGER);
+			payload = Number.MAX_SAFE_INTEGER  * Math.random() * (Math.random() > 0 ? 1 : -1);
 		}
 		state.sampleSeed = payload;
-	}, 'sampleseed'),
-	sampleSize: b.commit((state, payload: number|null) => {
+	},
+	sampleSize: (payload: number|null) => {
 		if (payload == null) {
 			state.sampleSize = payload;
 			return;
@@ -79,21 +77,26 @@ const actions = {
 
 		// null check already passed
 		// if missing seed, randomize it now
-		if (state.sampleSeed == null) {
-			actions.sampleSeed(Number.MAX_SAFE_INTEGER - (Math.random() * 2 * Number.MAX_SAFE_INTEGER));
-		}
+		if (state.sampleSeed == null) { actions.sampleSeed(null); }
+	},
+	context: (payload: number|string|null) => {
+		state.context = payload;
+	},
 
-	}, 'samplesize'),
-	context: b.commit((state, payload: number|string|null) => state.context = payload, 'context'),
-
-	reset: b.commit(state => Object.assign(state, initialState), 'reset'),
-	replace: b.commit((state, payload: ExternalModuleRootState) => {
+	reset: () => {
+		// Do not reset page size, as this is a user preference that is stored in local storage. Reset everything else to defaults.
+		state.context = null;
+		state.sampleMode = 'percentage';
+		state.sampleSeed = null;
+		state.sampleSize = null;
+	},
+	replace: (payload: ExternalModuleRootState) => {
 		// Use actions so we can verify data
 		actions.sampleMode(payload.sampleMode);
 		actions.sampleSeed(payload.sampleSeed);
 		actions.sampleSize(payload.sampleSize);
 		actions.context(payload.context);
-	}, 'replace'),
+	},
 };
 
 // Reset on corpus change, defaults are already synced with storage
@@ -101,6 +104,6 @@ const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
-export { actions, defaults, get, getState, init, namespace };
+export { actions, defaults, get, getState, init };
 export type { ExternalModuleRootState, ModuleRootState };
 

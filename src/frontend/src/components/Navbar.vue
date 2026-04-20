@@ -33,14 +33,14 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
 import LocaleSelector from '@/components/LocaleSelector.vue';
 import LoginButton from '@/components/LoginButton.vue';
-import type { CFNavbarLink, CFPageConfig, NormalizedIndex } from '@/types/apptypes';
-import * as UIStore from '@/store/ui';
 import * as CorpusStore from '@/store/corpus';
-import { localStorageSynced } from '@/utils/localstore';
+import * as UIStore from '@/store/ui';
+import type { CFNavbarLink, CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 import { escapeRegex } from '@/utils';
+import { localStorageSynced } from '@/utils/localstore';
+import { defineComponent } from 'vue';
 
 export default defineComponent({
 	components: {LocaleSelector, LoginButton },
@@ -52,7 +52,7 @@ export default defineComponent({
 	},
 	computed: {
 		indexId: CorpusStore.get.indexId, // separate from index - the ID is available before the index is loaded
-		index(): NormalizedIndex|null { return CorpusStore.getState(); },
+		index(): NormalizedIndex|undefined { return CorpusStore.getState(); },
 		config(): CFPageConfig { return UIStore.getState().global.config; },
 		// A little speficic, but this way on purpose, since the config and index are loaded async, and we want to show something asap.
 		// If no index is loaded at all, show the default corpus-frontend name.

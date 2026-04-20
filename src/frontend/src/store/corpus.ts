@@ -5,115 +5,107 @@
  * are the filters subdivided in groups, what is the text direction, and so on.
  */
 
-import type { RootState } from '@/store/';
-import { getStoreBuilder } from '@/store/reactive-store';
 
-import type { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import type { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex, NormalizedMetadataField, NormalizedMetadataGroup } from '@/types/apptypes';
 import { mapReduce } from '@/utils';
+import { ref } from 'vue';
 
-type ModuleRootState = NormalizedIndex|null;
+type ModuleRootState = NormalizedIndex|undefined;
 
-const namespace = 'corpus';
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, null);
-const getState = b.state();
+const indexId = ref<string>();
+const state = ref<NormalizedIndex>();
+const getState = (): ModuleRootState => state.value;
 
 const get = {
 	/**
 	 * Util for when you're in a component where you are sure the corpus is loaded
-	 * @deprecated this is an antipattern. Instead we should use the regular getters.
+	 * @deprecated this is an antipattern. Instead we should use the regular getters and provide some empty defaults for when the corpus isn't loaded yet.
 	 */
-	corpus: b.read((state): NormalizedIndex => state!, 'corpus'),
+	corpus: (): NormalizedIndex => state.value!,
 
 	/** Get the indexId. Available before index has fully loaded. */
-	// @ts-ignore
-	indexId: b.read<string|null>((state, getters, rootState, rootGetters) => rootGetters.indexId, 'indexId'),
+	indexId: (): string|null => indexId.value ?? null,
 
 	/** List of annotated fields */
-	allAnnotatedFields: b.read((state): NormalizedAnnotatedField[] =>
-		state ? Object.values(state.annotatedFields) : []
-	, 'allAnnotatedFields'),
+	allAnnotatedFields: (): NormalizedAnnotatedField[] =>
+		state.value ? Object.values(state.value.annotatedFields) : []
+	,
 
 	/** Map of annotated fields */
-	allAnnotatedFieldsMap: b.read((state): Record<string, NormalizedAnnotatedField> =>
-		state ? state.annotatedFields : {}
-	, 'allAnnotatedFieldsMap'),
+	allAnnotatedFieldsMap: (): Record<string, NormalizedAnnotatedField> =>
+		state.value ? state.value.annotatedFields : {}
+	,
 
 	/** Main annotated field name */
-	mainAnnotatedField: b.read((state): string =>
-		state ? state.mainAnnotatedField : 'contents'
-	, 'mainAnnotatedField'),
+	mainAnnotatedField: (): string => state.value?.mainAnnotatedField ?? 'contents',
 
 	/** Is this a parallel corpus? */
-	isParallelCorpus: b.read((state): boolean =>
+	isParallelCorpus: (): boolean =>
 		get.allAnnotatedFields().some(f => f.isParallel)
-	, 'isParallelCorpus'),
+	,
 
-	parallelAnnotatedFields: b.read((state): NormalizedAnnotatedFieldParallel[] =>
+	parallelAnnotatedFields: (): NormalizedAnnotatedFieldParallel[] =>
 		get.allAnnotatedFields().filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel)
-	, 'parallelAnnotatedFields'),
+	,
 
-	parallelAnnotatedFieldsMap: b.read((state): Record<string, NormalizedAnnotatedFieldParallel> =>
+	parallelAnnotatedFieldsMap: (): Record<string, NormalizedAnnotatedFieldParallel> =>
 		mapReduce(get.parallelAnnotatedFields(), 'id')
-	, 'parallelAnnotatedFieldsMap'),
-
+	,
 
 	/** If this is a parallel corpus, what's the parallel field prefix?
 	 *  (e.g. "contents" if there's fields "contents__en" and "contents__nl")
 	 *  There is only ever one.
 	 */
-	parallelFieldPrefix: b.read((state): string => { return get.parallelAnnotatedFields()[0]?.prefix ?? ''; }, 'parallelFieldPrefix'),
+	parallelFieldPrefix: (): string => get.parallelAnnotatedFields()[0]?.prefix ?? '',
 
 	/** All annotations, without duplicates and in no specific order */
-	allAnnotations: b.read((state): NormalizedAnnotation[] =>
-		state ? Object.values(state.annotatedFields[state.mainAnnotatedField].annotations) : [], 'allAnnotations'),
+	allAnnotations: (): NormalizedAnnotation[] =>
+		state.value ? Object.values(state.value.annotatedFields[state.value.mainAnnotatedField].annotations) : [],
+	
+	allAnnotationsMap: (): Record<string, NormalizedAnnotation> => mapReduce(get.allAnnotations(), 'id'),
 
-	allAnnotationsMap: b.read((): Record<string, NormalizedAnnotation> => mapReduce(get.allAnnotations(), 'id'), 'allAnnotationsMap'),
+	allMetadataFields: (): NormalizedMetadataField[] => state.value ? Object.values(state.value.metadataFields) : [],
+	allMetadataFieldsMap: (): Record<string, NormalizedMetadataField> => state.value ? state.value.metadataFields : {},
 
-	allMetadataFields: b.read((state): NormalizedMetadataField[] => state ? Object.values(state.metadataFields) : [], 'allMetadataFields'),
-	allMetadataFieldsMap: b.read((state): Record<string, NormalizedMetadataField> => state ? state.metadataFields : {}, 'allMetadataFieldsMap'),
-
-	// TODO there can be multiple main annotations if there are multiple annotatedFields
-	// the ui needs to respect this (probably render more extensive results?)
-	firstMainAnnotation: () => get.allAnnotations().find(f => f.isMainAnnotation)!,
+	firstMainAnnotation: (): NormalizedAnnotation => get.allAnnotations().find(f => f.isMainAnnotation)!,
 
 	/**
 	 * Returns all metadatagroups from the indexstructure, unless there are no metadatagroups defined.
 	 * In that case a single generated group "metadata" is returned, containing all metadata fields.
 	 * If groups are defined, fields not in any group are omitted.
 	 */
-	metadataGroups: b.read((state): Array<NormalizedMetadataGroup&{fields: NormalizedMetadataField[]}> =>
-		state ? state.metadataFieldGroups.map(g => ({
+	metadataGroups: (): Array<NormalizedMetadataGroup&{fields: NormalizedMetadataField[]}> =>
+		state.value ? state.value.metadataFieldGroups.map(g => ({
 			...g,
-			fields: g.entries.map(id => state.metadataFields[id])
-		})) : [], 'metadataGroups'),
-
+			fields: g.entries.map(id => state.value!.metadataFields[id])
+		})) : [],
 	/**
 	 * Returns all annotationGroups from the indexstructure.
 	 * May contain internal annotations if groups were defined through indexconfig.yaml.
 	 */
-	annotationGroups: b.read((state): Array<NormalizedAnnotationGroup&{fields: NormalizedAnnotation[]}> =>
-		state ? state.annotationGroups.map(g => ({
+	annotationGroups: (): Array<NormalizedAnnotationGroup&{fields: NormalizedAnnotation[]}> =>
+		state.value ? state.value.annotationGroups.map(g => ({
 			...g,
-			fields: g.entries.map(id => state.annotatedFields[g.annotatedFieldId].annotations[id]),
-		})) : [], 'annotationGroups'),
+			fields: g.entries.map(id => state.value!.annotatedFields[g.annotatedFieldId].annotations[id]),
+		})) : [],
 
-	textDirection: b.read(state => state ? state.textDirection : 'ltr', 'getTextDirection'),
-	hasRelations: b.read(state => state ? state.relations.relations != null : false, 'hasRelations'),
+	textDirection: () => state.value?.textDirection ?? 'ltr',
+	hasRelations: () => state.value?.relations.relations != null,
 };
 
 const actions = {
+	setIndexId: (id: string|undefined) => { indexId.value = id; },
 };
 
-const init = b.dispatch(({state, rootState}, payload: CorpusChange) => rootState.corpus = payload.index ?? null, 'corpus_init');
+const init = (payload: CorpusChange) => state.value = payload.index;
 
-export { actions, get, getState, init, namespace };
-export type { ModuleRootState };
-
-	export type {
-		NormalizedAnnotatedField,
-		NormalizedAnnotation,
-		NormalizedIndex,
-		NormalizedMetadataField
-	};
+export { actions, get, getState, indexId, init };
+export type {
+	ModuleRootState,
+	NormalizedAnnotatedField,
+	NormalizedAnnotation,
+	NormalizedIndex,
+	NormalizedMetadataField
+};
 

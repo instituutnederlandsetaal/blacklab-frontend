@@ -90,9 +90,8 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
+import { defineComponent, watch } from 'vue';
 
-import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 import * as PatternStore from '@/store/form/patterns';
 
@@ -200,10 +199,8 @@ export default defineComponent({
 	},
 	mounted() {
 		if (this.$refs.reset) {
-			const eventId = `${PatternStore.namespace}/reset`;
-
-			this.subscriptions.push(RootStore.store.subscribe((mutation, state) => {
-				if (this.$refs.reset && mutation.type === eventId) {
+			this.subscriptions.push(watch(PatternStore.resetSignal, () => {
+				if (this.$refs.reset) {
 					(this.$refs.reset as any).reset();
 				}
 			}));

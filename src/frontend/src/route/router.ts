@@ -1,5 +1,9 @@
-import connectStoreStreams from '@/store/streams';
 import { createRouter, createWebHistory } from 'vue-router';
+
+import * as RootStore from '@/store';
+import UrlStateParserArticle from '@/url/url-state-parser-article';
+import UrlStateParserSearch from '@/url/url-state-parser-search';
+import { watch } from 'vue';
 
 export type CustomRouteMeta = {
 	name: string;
@@ -99,13 +103,6 @@ const router = createRouter({
 	],
 });
 
-import * as RootStore from '@/store';
-import * as ArticleStore from '@/store/article';
-import UrlStateParserArticle from '@/url/url-state-parser-article';
-import UrlStateParserSearch from '@/url/url-state-parser-search';
-import * as i18n from '@/utils/i18n';
-import { promiseFromLoadableStream } from '@/utils/loadable-streams';
-
 let pageLoadUrlDecoded = false;
 let initialUrlStateAppliedResolved = false;
 let resolveInitialUrlStateApplied: (() => void)|null = null;
@@ -122,25 +119,27 @@ function markInitialUrlStateApplied() {
 	resolveInitialUrlStateApplied?.();
 }
 
-router.beforeEach((to, from, next) => {
-	const corpus = typeof to.params.corpus === 'string' ? to.params.corpus : null;
-	const docId = typeof to.params.docId === 'string' ? to.params.docId : null;
 
-	RootStore.actions.indexId(corpus);
-	void i18n.setIndexId(corpus);
-	ArticleStore.actions.docId(docId ?? null);
+router.beforeEach((to, from, next) => {
 
 	// On first entry on the page, we need to decode the url.
-	if (!pageLoadUrlDecoded && corpus) {
+	if (!pageLoadUrlDecoded && to.params.corpus) {
 		pageLoadUrlDecoded = true;
 		if (to.name === 'article' || to.name === 'search') {
 			const parser = to.name === 'article' ? new UrlStateParserArticle() : new UrlStateParserSearch();
 			// wait for store to initialize.
-			void promiseFromLoadableStream(RootStore.corpusData$, 'root loading state')
-				.then(() => parser.get())
-				.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
-				.then(() => connectStoreStreams())
-				.finally(() => markInitialUrlStateApplied());
+			const unwatch = watch(() => RootStore.get.loadingState(), state => {
+				if (!state.isLoaded()) return;
+				unwatch();
+				// loaded, handle url parse now
+				void parser
+					.get()
+					.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
+					// .then(() => connectStoreStreams())
+					.finally(() => markInitialUrlStateApplied());
+			}, {
+				deep: true,
+			})	
 		} else {
 			markInitialUrlStateApplied();
 		}

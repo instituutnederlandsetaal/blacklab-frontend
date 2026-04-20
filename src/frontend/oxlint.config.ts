@@ -21,7 +21,7 @@ export default defineConfig({
     "eslint/no-debugger": "off",
     "typescript/restrict-template-expressions": ["error", {
       allowArray: true,
-    }]
+    }],
   },
   settings: {
   },

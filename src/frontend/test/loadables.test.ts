@@ -1,8 +1,8 @@
-import { EMPTY, Observable, of, Subject } from 'rxjs';
-import { describe, expect, test } from 'vitest';
+import { EMPTY, map, Observable, of, Subject } from 'rxjs';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { ApiError } from '@/api';
-import { CancelableRequest, combineLoadables, combineLoadablesIncludingEmpty, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, flatMapLoadable, Loadable, loadableFromStream, LoadableState, loadableStreamFromPromise, mapLoadable, mergeMapLoadable, promiseFromLoadableStream, switchMapLoadable, withRequiredKeys } from '@/utils/loadable-streams';
+import { CancelableRequest, combineLoadables, combineLoadablesIncludingEmpty, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, flatMapLoadable, InteractiveLoadable, Loadable, loadableFromStream, LoadableState, loadableStreamFromPromise, mapLoadable, mergeMapLoadable, promiseFromLoadableStream, switchMapLoadable, withRequiredKeys } from '@/utils/loadable-streams';
 
 const apiError: ApiError = new ApiError('', '', '', 0);
 const loading = Loadable.Loading();
@@ -173,16 +173,52 @@ describe('loadableFromStream', () => {
 	})
 	test('the state should be empty after the stream completes', () => {
 		const ob$ = new Subject<number>();
-		const o = loadableFromStream(ob$, {loadingOnStart: true});
+		const o = loadableFromStream(ob$, {loadingOnStart: true, keepValueAfterCompletion: false});
 		ob$.complete();
 		expect(o.state).toBe(LoadableState.Empty);
 		o.dispose();
 	})
-	test('if configured, the final should be preserved after the stream completes', () => {
+	test('keepValueAfterCompletion=true still clears a loading state on completion', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$, {loadingOnStart: true, keepValueAfterCompletion: true});
 		ob$.complete();
-		expect(o.state).toBe(LoadableState.Loading);
+		expect(o.state).toBe(LoadableState.Empty);
+		o.dispose();
+	})
+	test('keepValueAfterCompletion=true preserves a loaded state on completion', () => {
+		const ob$ = new Subject<number>();
+		const o = loadableFromStream(ob$, {keepValueAfterCompletion: true});
+		ob$.next(1);
+		ob$.complete();
+		expect(o.state).toBe(LoadableState.Loaded);
+		expect(o.value).toBe(1);
+		o.dispose();
+	})
+	test('keepValueAfterCompletion=true preserves an error state on completion', () => {
+		const ob$ = new Subject<Loadable<number>>();
+		const o = loadableFromStream(ob$, {keepValueAfterCompletion: true});
+		ob$.next(error as Loadable<number>);
+		ob$.complete();
+		expect(o.state).toBe(LoadableState.Error);
+		expect(o.error).toBe(apiError);
+		o.dispose();
+	})
+	test('keepValueAfterCompletion=false clears a loaded state on completion', () => {
+		const ob$ = new Subject<number>();
+		const o = loadableFromStream(ob$, {keepValueAfterCompletion: false});
+		ob$.next(1);
+		ob$.complete();
+		expect(o.state).toBe(LoadableState.Empty);
+		expect(o.value).toBe(undefined);
+		o.dispose();
+	})
+	test('keepValueAfterCompletion=false clears an error state on completion', () => {
+		const ob$ = new Subject<Loadable<number>>();
+		const o = loadableFromStream(ob$, {keepValueAfterCompletion: false});
+		ob$.next(error as Loadable<number>);
+		ob$.complete();
+		expect(o.state).toBe(LoadableState.Empty);
+		expect(o.error).toBe(undefined);
 		o.dispose();
 	})
 	test('its value should mirror the stream output', () => {
@@ -219,6 +255,34 @@ describe('loadableFromStream', () => {
 		expect(o.state).toBe(LoadableState.Error);
 		expect(o.error).toBeInstanceOf(ApiError);
 		o.dispose();
+	})
+})
+
+describe('InteractiveLoadable', () => {
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	test('supports per-input debounce', async () => {
+		vi.useFakeTimers();
+		const loadable = new InteractiveLoadable<number, number>(
+			input$ => input$.pipe(map(value => Loadable.Loaded(value))),
+			{ debounce: value => value < 0 ? 20 : 0 }
+		);
+
+		loadable.next(1);
+			expect(loadable.isLoaded()).toBe(true);
+			expect(loadable.value).toBe(1);
+
+		loadable.next(-1);
+			expect(loadable.isLoaded()).toBe(true);
+			expect(loadable.value).toBe(1);
+
+		await vi.advanceTimersByTimeAsync(20);
+			expect(loadable.isLoaded()).toBe(true);
+			expect(loadable.value).toBe(-1);
+
+		loadable.dispose();
 	})
 })
 
@@ -298,4 +362,13 @@ describe('combineLoadableStreamsIncludingEmpty', () => {
 		await expect(allValuesFrom(combineLoadableStreamsIncludingEmpty([of(loaded.value)]))).resolves.toEqual([Loadable.Loaded([loaded.value])]);
 		await expect(allValuesFrom(combineLoadableStreamsIncludingEmpty([of(loaded.value), of(loaded)]))).resolves.toEqual([Loadable.Loaded([loaded.value, loaded.value])]);
 	});
+})
+
+describe('Empty stream handling in combineLoadableStreams and combineLoadableStreamsIncludingEmpty', () => {
+	test('combineLoadableStreams does not emit if one stream is empty', async () =>
+		expect(allValuesFrom(combineLoadableStreams([of(loaded), EMPTY, of(loaded)]))).resolves.toEqual([])
+	);
+	test('combineLoadableStreamsIncludingEmpty does not emit if one stream is empty', async () =>
+		expect(allValuesFrom(combineLoadableStreamsIncludingEmpty([of(loaded), EMPTY, of(loaded)]))).resolves.toEqual([])
+	);
 })

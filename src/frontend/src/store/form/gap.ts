@@ -3,46 +3,37 @@
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
 
-import { getStoreBuilder } from '@/store/reactive-store';
-import cloneDeep from 'clone-deep';
 
-import type { RootState } from '@/store/';
-import type { CorpusChange } from '@/store/async-loaders';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import { reactive } from 'vue';
 
 type ModuleRootState = {
 	value: string|null;
 };
-
-// There are three levels of state initialization
-// First: the basic state shape (this)
-// Then: the basic state shape with the appropriate annotation and filters created
-// Finally: the values initialized from the page's url on first load.
-const defaults: ModuleRootState = {
+const initialState: ModuleRootState = {
 	value: null,
 };
 
-const namespace = 'gapfilling';
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep(defaults));
-
-const getState = b.state();
+const state = reactive(structuredClone(initialState));
+const getState = () => state;
 
 const get = {
-	gapValue: b.read(state => state.value, 'gapValue')
+	gapValue: () => state.value
 };
 
 const actions = {
-	gapValue: b.commit((state, payload: ModuleRootState['value']) => state.value = payload, 'setGapValue'),
-	gapValueFile: b.dispatch(({state, rootState}, payload: File) => new Promise<void>((resolve, reject) => {
+	gapValue: (payload: ModuleRootState['value']) => state.value = payload,
+	gapValueFile: (payload: File) => new Promise<void>((resolve, reject) => {
 		const fr = new FileReader();
 		fr.onload = () => {
 			actions.gapValue(fr.result as string);
 			resolve();
 		};
 		fr.readAsText(payload);
-	}), 'setGapValueFromFile'),
+	}),
 
-	reset: b.commit(state => state.value = null, 'reset'),
-	replace: b.commit((state, payload: ModuleRootState) => Object.assign(state, payload), 'replace'),
+	reset: () => state.value = null,
+	replace: (payload: ModuleRootState) => Object.assign(state, payload),
 };
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
@@ -50,6 +41,6 @@ const init = (state: CorpusChange)=> {
 	actions.reset();
 };
 
-export { actions, defaults, get, getState, init, namespace };
+export { actions, initialState as defaults, get, getState, init };
 export type { ModuleRootState };
 

@@ -4,7 +4,7 @@ import axios from 'axios';
 import { createEndpoint } from '@/api/apiutils';
 import { normalizeFormat, normalizeIndex, normalizeIndexBase } from '@/utils/blacklabutils';
 
-import type { CFPageConfig, Tagset } from '@/types/apptypes';
+import type { CFPageConfig, NormalizedFormat, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
 import { ApiError } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { isHitParams } from '@/utils';
@@ -131,52 +131,132 @@ export const blacklabPaths = {
 	termFrequencies: (indexId: string) =>           `${indexId}/termfreq/`,
 };
 
+export type ApiEndpoint<ResponseType = never, Params extends any[] = []> = (...args: [...Params, requestParameters?: AxiosRequestConfig]) => CancelableRequest<ResponseType>;
+
+export type ParsePatternResponse = {
+	parsed: {
+		bcql: string;
+		json: any;
+	};
+};
+
+export type DocumentContentsParameters = {
+	indexId: string,
+	docId: string,
+	patt?: string,
+	pattgapdata?: string,
+	wordstart?: number,
+	wordend?: number,
+	/** Annotated field for which to get contents */
+	viewField: string,
+	/** Annotated field in which to search (for parallel corpora) - only required if different from field */
+	searchfield?: string
+};
+
+export interface BlackLabApi {
+	getServerInfo: ApiEndpoint<BLTypes.BLServer>;
+	getUser: ApiEndpoint<BLTypes.BLUser>;
+	getCorpora: ApiEndpoint<NormalizedIndexBase[]>;
+	getCorpusStatus: ApiEndpoint<NormalizedIndexBase, [id: string]>;
+	getCorpus: ApiEndpoint<NormalizedIndex, [id: string]>;
+	getAnnotatedField: ApiEndpoint<BLTypes.BLAnnotatedField, [indexId: string, fieldName: string]>;
+	getShares: ApiEndpoint<BLTypes.BLShareInfo, [id: string]>;
+	getFormats: ApiEndpoint<NormalizedFormat[]>;
+	getFormatContent: ApiEndpoint<BLTypes.BLFormatContent, [id: string]>;
+	getFormatXslt: ApiEndpoint<string, [id: string]>;
+	postShares: ApiEndpoint<BLTypes.BLResponse, [id: string, users: BLTypes.BLShareInfo]>;
+	postFormat: ApiEndpoint<BLTypes.BLResponse, [name: string, contents: string]>;
+	postCorpus: ApiEndpoint<BLTypes.BLResponse, [id: string, displayName: string, format: string]>;
+	postDocuments: ApiEndpoint<BLTypes.BLResponse, [indexId: string, docs: File[], meta?: File[]|null, onProgress?: (percentage: number) => any]>;
+	deleteFormat: ApiEndpoint<BLTypes.BLResponse, [id: string]>;
+	deleteCorpus: ApiEndpoint<BLTypes.BLResponse, [id: string]>;
+	getDocumentInfo: ApiEndpoint<BLTypes.BLDocument, [indexId: string, documentId: string, params?: { query?: string }]>;
+	getRelations: ApiEndpoint<BLTypes.BLRelationInfo, [indexId: string]>;
+	getParsePattern: ApiEndpoint<ParsePatternResponse, [indexId: string, pattern: string]>;
+	getHits<T extends BLTypes.BLHitResults|BLTypes.BLHitGroupResults = BLTypes.BLHitResults|BLTypes.BLHitGroupResults>(indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig): CancelableRequest<T>;
+	getHitsCsv: ApiEndpoint<Blob, [indexId: string, params: BLTypes.BLSearchParameters]>;
+	getDocsCsv: ApiEndpoint<Blob, [indexId: string, params: BLTypes.BLSearchParameters]>;
+	getDocs<T extends BLTypes.BLDocResults|BLTypes.BLDocGroupResults = BLTypes.BLDocResults|BLTypes.BLDocGroupResults>(indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig): CancelableRequest<T>;
+	getSnippet: ApiEndpoint<BLTypes.BLHit, [indexId: string, docId: string, field: string|undefined, hitstart: number, hitend: number, context?: string|number]>;
+	getTermFrequencies: ApiEndpoint<BLTypes.BLTermOccurances, [indexId: string, annotationId: string, values?: string[], filter?: string, number?: number]>;
+	getTermAutocomplete: ApiEndpoint<string[], [indexId: string, annotatedFieldId: string, annotationId: string, prefix: string]>;
+}
+
+export interface FrontendApi {
+	getCorpus: ApiEndpoint<BLTypes.BLIndexMetadata, [indexId: string]>;
+	/** Retrieve the config for a given corpus/index, or return the default config (or overrides of the default config) if indexId is null */
+	getConfig: ApiEndpoint<CFPageConfig, [indexId: string|null]>;
+	getDocumentContents: ApiEndpoint<string, [params: DocumentContentsParameters]>;
+	getDocumentMetadata: ApiEndpoint<string, [indexId: string, pid: string]>;
+	/** Return the HTML of the help page for the corpus, or the default help page if indexId is not provided */
+	getHelp: ApiEndpoint<string, [indexId?: string]>;
+	/** Return the HTML of the about page for the corpus, or the default about page if indexId is not provided */
+	getAbout: ApiEndpoint<string, [indexId?: string]>;
+	getTagset: ApiEndpoint<Tagset, [indexId: string]>;
+}
+
+export interface ApiModule {
+	blacklab: BlackLabApi;
+	frontend: FrontendApi;
+}
+
+function rejectedRequest<T>(error: ApiError): CancelableRequest<T> {
+	return new CancelableRequest(Promise.reject(error), () => {});
+}
+
+function combineRequests<T>(requests: Array<CancelableRequest<unknown>>, request: Promise<T>): CancelableRequest<T> {
+	return new CancelableRequest(request, () => requests.forEach(request => request.cancel()));
+}
+
 /**
  * Blacklab api
  */
-export const blacklab = {
+export const blacklab: BlackLabApi = {
 	getServerInfo: (requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<BLTypes.BLServer>(blacklabPaths.root(), undefined, requestParameters),
+		.getCancelable<BLTypes.BLServer>(blacklabPaths.root(), undefined, requestParameters),
 
 	getUser: (requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<BLTypes.BLServer>(blacklabPaths.root(), undefined, requestParameters)
+		.getCancelable<BLTypes.BLServer>(blacklabPaths.root(), undefined, requestParameters)
 		.then(r => r.user),
 
 	getCorpora: (requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<BLTypes.BLServer>(blacklabPaths.root(), undefined, requestParameters)
+		.getCancelable<BLTypes.BLServer>(blacklabPaths.root(), undefined, requestParameters)
 		.then(r => Object.entries({...r.corpora, ...r.indices}).map(([id, c]) => normalizeIndexBase(c, id))),
 
 	getCorpusStatus: (id: string, requestParamers?: AxiosRequestConfig) => endpoints.blacklab
-		.get<BLTypes.BLIndex>(blacklabPaths.indexStatus(id), undefined, requestParamers)
+		.getCancelable<BLTypes.BLIndex>(blacklabPaths.indexStatus(id), undefined, requestParamers)
 		.then(r => normalizeIndexBase(r, id)),
 
-	getCorpus: (id: string, _requestParameters?: AxiosRequestConfig) => {
-		return Promise.all([
-			frontend. getCorpus(id),
-			blacklab.getRelations(id)
-		]).then(([index, relations]) => normalizeIndex(index, relations));
+	getCorpus: (id: string, requestParameters?: AxiosRequestConfig) => {
+		const indexRequest = frontend.getCorpus(id, requestParameters);
+		const relationsRequest = blacklab.getRelations(id, requestParameters);
+		return combineRequests(
+			[indexRequest, relationsRequest],
+			Promise.all([indexRequest.request, relationsRequest.request])
+				.then(([index, relations]) => normalizeIndex(index, relations))
+		);
 	},
 
 	getAnnotatedField: (indexId: string, fieldName: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<BLTypes.BLAnnotatedField>(blacklabPaths.field(indexId, fieldName), undefined, requestParameters),
+		.getCancelable<BLTypes.BLAnnotatedField>(blacklabPaths.field(indexId, fieldName), undefined, requestParameters),
 
 	getShares: (id: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<{'users[]': BLTypes.BLShareInfo}>(blacklabPaths.shares(id), undefined, requestParameters)
+		.getCancelable<{'users[]': BLTypes.BLShareInfo}>(blacklabPaths.shares(id), undefined, requestParameters)
 		.then(r => r['users[]']),
 
 	getFormats: (requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<BLTypes.BLFormats>(blacklabPaths.formats(), undefined, requestParameters)
+		.getCancelable<BLTypes.BLFormats>(blacklabPaths.formats(), undefined, requestParameters)
 		.then(r => Object.entries(r.supportedInputFormats))
 		.then(r => r.map(([id, format]) => normalizeFormat(id, format))),
 
 	getFormatContent: (id: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<BLTypes.BLFormatContent>(blacklabPaths.formatContent(id), undefined, requestParameters),
+		.getCancelable<BLTypes.BLFormatContent>(blacklabPaths.formatContent(id), undefined, requestParameters),
 
 	getFormatXslt: (id: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.get<string>(blacklabPaths.formatXslt(id), undefined, requestParameters),
+		.getCancelable<string>(blacklabPaths.formatXslt(id), undefined, requestParameters),
 
 	postShares: (id: string, users: BLTypes.BLShareInfo, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.post<BLTypes.BLResponse>(blacklabPaths.shares(id),
+		.postCancelable<BLTypes.BLResponse>(blacklabPaths.shares(id),
 			users.reduce((params, user) => {
 				const trimmed = user.trim();
 				if (trimmed) params.append('users[]', trimmed);
@@ -194,11 +274,11 @@ export const blacklab = {
 	postFormat: (name: string, contents: string, requestParameters?: AxiosRequestConfig) => {
 		const data = new FormData();
 		data.append('data', new File([contents], name, {type: 'text/plain'}), name);
-		return endpoints.blacklab.post<BLTypes.BLResponse>(blacklabPaths.formats(), data, requestParameters);
+		return endpoints.blacklab.postCancelable<BLTypes.BLResponse>(blacklabPaths.formats(), data, requestParameters);
 	},
 
 	postCorpus: (id: string, displayName: string, format: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
-		.post(blacklabPaths.root(),
+		.postCancelable<BLTypes.BLResponse>(blacklabPaths.root(),
 			new URLSearchParams({name: id, display: displayName, format}),
 			{
 				...requestParameters,
@@ -238,28 +318,30 @@ export const blacklab = {
 		});
 	},
 
-	deleteFormat: (id: string) => endpoints.blacklab
-		.delete<BLTypes.BLResponse>(blacklabPaths.formatContent(id)),
+	deleteFormat: (id: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
+		.deleteCancelable<BLTypes.BLResponse>(blacklabPaths.formatContent(id), requestParameters),
 
-	deleteCorpus: (id: string) => endpoints.blacklab
-		.delete<BLTypes.BLResponse>(blacklabPaths.index(id)),
+	deleteCorpus: (id: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
+		.deleteCancelable<BLTypes.BLResponse>(blacklabPaths.index(id), requestParameters),
 
 	getDocumentInfo: (indexId: string, documentId: string, params: { query?: string; } = {}, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
 		.getOrPostCancelable<BLTypes.BLDocument>(blacklabPaths.docInfo(indexId, documentId), params, requestParameters),
 
-	getRelations: (indexId: string) => endpoints.blacklab
-		.getCancelable<BLTypes.BLRelationInfo>(blacklabPaths.relations(indexId), { limitvalues: RELATIONS_LIMITVALUES }),
+	getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
+		.getCancelable<BLTypes.BLRelationInfo>(blacklabPaths.relations(indexId), { limitvalues: RELATIONS_LIMITVALUES }, requestParameters),
 
 	getParsePattern: (indexId: string, pattern: string, requestParameters?: AxiosRequestConfig) => {
-		let request: Promise<{ parsed: { bcql: string, json: any } }>;
 		if (!indexId) {
-			request = Promise.reject(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
+			return rejectedRequest(new ApiError('Error', 'No index specified.', 'Internal error', undefined));
 		} else if (!pattern) {
-			request = Promise.reject(new ApiError('Info', 'Cannot parse without pattern.', 'No results', undefined));
+			return rejectedRequest(new ApiError('Info', 'Cannot parse without pattern.', 'No results', undefined));
 		} else {
-			request = endpoints.blacklab.getOrPost<any>(blacklabPaths.parsePattern(indexId), { patt: pattern }, { ...requestParameters });
+			return endpoints.blacklab.getOrPostCancelable<ParsePatternResponse>(
+				blacklabPaths.parsePattern(indexId),
+				{ patt: pattern },
+				{ ...requestParameters }
+			);
 		}
-		return request;
 	},
 
 	getHits: <T extends BLTypes.BLHitResults|BLTypes.BLHitGroupResults = BLTypes.BLHitResults|BLTypes.BLHitGroupResults>(indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
@@ -317,7 +399,7 @@ export const blacklab = {
 	},
 
 	getDocs: <T extends BLTypes.BLDocResults|BLTypes.BLDocGroupResults = BLTypes.BLDocResults|BLTypes.BLDocGroupResults> (indexId: string, params: BLTypes.BLSearchParameters, requestParameters?: AxiosRequestConfig): CancelableRequest<T> => {
-		return endpoints.blacklab.getOrPostCancelable<T>(blacklabPaths.docs(indexId), params)
+		return endpoints.blacklab.getOrPostCancelable<T>(blacklabPaths.docs(indexId), params, requestParameters)
 	},
 
 	/**
@@ -348,7 +430,7 @@ export const blacklab = {
 	},
 
 	getTermFrequencies: (indexId: string, annotationId: string, values?: string[], filter?: string, number = 20, requestParameters?: AxiosRequestConfig) => {
-		return endpoints.blacklab.getOrPost<BLTypes.BLTermOccurances>(blacklabPaths.termFrequencies(indexId), {
+		return endpoints.blacklab.getOrPostCancelable<BLTypes.BLTermOccurances>(blacklabPaths.termFrequencies(indexId), {
 			annotation: annotationId,
 			filter,
 			terms: values && values.length ? values.join(',') : undefined,
@@ -357,7 +439,7 @@ export const blacklab = {
 	},
 
 	getTermAutocomplete: (indexId: string, annotatedFieldId: string, annotationId: string, prefix: string, requestParameters?: AxiosRequestConfig) => {
-		return endpoints.blacklab.getOrPost<string[]>(blacklabPaths.autocompleteAnnotation(
+		return endpoints.blacklab.getOrPostCancelable<string[]>(blacklabPaths.autocompleteAnnotation(
 			indexId,
 			annotatedFieldId,
 			annotationId
@@ -370,9 +452,9 @@ export const blacklab = {
 /**
  * API for blacklab-frontend's own webservice
  */
-export const frontend = {
-	getCorpus: (indexId: string) => endpoints.frontend
-		.getCancelable<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo(indexId))
+const frontendApi: FrontendApi = {
+	getCorpus: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoints.frontend
+		.getCancelable<BLTypes.BLIndexMetadata>(frontendPaths.indexInfo(indexId), undefined, requestParameters)
 		.catch<never>(e => {
 			if (!(e instanceof ApiError)) {
 				// Should never happen - API always returns ApiError, but just in case...
@@ -414,36 +496,28 @@ export const frontend = {
 				throw e;
 			}
 		}),
-	getConfig: (indexId: string|null) => endpoints.frontend.getCancelable<CFPageConfig>(frontendPaths.config(indexId)),
+	getConfig: (indexId: string|null, requestParameters?: AxiosRequestConfig) => endpoints.frontend.getCancelable<CFPageConfig>(frontendPaths.config(indexId), undefined, requestParameters),
 
 	/** Get transformed document contents */
-	getDocumentContents: (params: {
-		indexId: string,
-		docId: string,
-		patt?: string,
-		pattgapdata?: string,
-		wordstart?: number,
-		wordend?: number,
-		/** Annotated field for which to get contents */
-		viewField: string,
-		/** Annotated field in which to search (for parallel corpora) - only required if different from field */
-		searchfield?: string
-	}) => endpoints.frontend
-		.getCancelable<string>(frontendPaths.documentContents(params.indexId, params.docId), params),
+	getDocumentContents: (params: DocumentContentsParameters, requestParameters?: AxiosRequestConfig) => endpoints.frontend
+		.getCancelable<string>(frontendPaths.documentContents(params.indexId, params.docId), params, requestParameters),
 
 	/** Get transformed document metadata */
-	getDocumentMetadata: (indexId: string, pid: string) => endpoints.frontend
-		.getCancelable<string>(frontendPaths.documentMetadata(indexId, pid)),
+	getDocumentMetadata: (indexId: string, pid: string, requestParameters?: AxiosRequestConfig) => endpoints.frontend
+		.getCancelable<string>(frontendPaths.documentMetadata(indexId, pid), undefined, requestParameters),
 
 	/** Get html content of the help page. */
-	getHelp: (indexId?: string) => endpoints.frontend.getCancelable<string>(frontendPaths.help(indexId)),
+	getHelp: (indexId?: string, requestParameters?: AxiosRequestConfig) => endpoints.frontend.getCancelable<string>(frontendPaths.help(indexId), undefined, requestParameters),
 	/** Get html content of the about page. */
-	getAbout: (indexId?: string) => endpoints.frontend.getCancelable<string>(frontendPaths.about(indexId)),
-	getTagset: (indexId: string) => endpoints.frontend.getCancelable<Tagset>(frontendPaths.tagset(indexId), {
+	getAbout: (indexId?: string, requestParameters?: AxiosRequestConfig) => endpoints.frontend.getCancelable<string>(frontendPaths.about(indexId), undefined, requestParameters),
+	getTagset: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoints.frontend.getCancelable<Tagset>(frontendPaths.tagset(indexId), undefined, {
+		...requestParameters,
 		// Remove comment-lines in the returned json. (that's not strictly allowed by JSON, but we chose to support it)
 		transformResponse: [(r: string) => r.replace(/\/\/.*[\r\n]+/g, '')].concat(axios.defaults.transformResponse!)
 	})
-}
+};
+
+export const frontend: FrontendApi = frontendApi;
 
 export { ApiError };
 export type { Canceler };

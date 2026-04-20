@@ -175,6 +175,7 @@ import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 
 import debug, { debugLog, debugLogCat } from '@/utils/debug';
+import type { CancelableRequest } from '@/utils/loadable-streams';
 
 import type { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, Rows } from '@/pages/search/results/table/table-layout';
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
@@ -214,10 +215,9 @@ export default defineComponent({
 	},
 	data: () => ({
 		isDirty: true, // since we don't have any results yet
-		request: null as null|Promise<BLTypes.BLSearchResult>,
+		request: null as null|CancelableRequest<BLTypes.BLSearchResult>,
 		results: null as null|BLTypes.BLSearchResult,
 		error: null as null|string,
-		cancel: null as null|Api.Canceler,
 
 		_viewGroupName: null as string|null,
 
@@ -241,10 +241,9 @@ export default defineComponent({
 	methods: {
 		markDirty() {
 			this.isDirty = true;
-			if (this.cancel) {
+			if (this.request) {
 				debugLogCat('results', 'cancelling search request');
-				this.cancel();
-				this.cancel = null;
+				this.request.cancel();
 				this.request = null;
 			}
 			if (this.active) {
@@ -255,11 +254,10 @@ export default defineComponent({
 			this.isDirty = false;
 			debugLogCat('results', 'this is when the search should be refreshed');
 
-			if (this.cancel) {
+			if (this.request) {
 				debugLogCat('results', 'cancelling previous search request');
-				this.cancel();
+				this.request.cancel();
 				this.request = null;
-				this.cancel = null;
 			}
 
 			if (!this.valid) {
@@ -285,12 +283,11 @@ export default defineComponent({
 			const axiosParams = {headers: { 'Cache-Control': 'no-cache' }};
 			debugLog('starting search', this.id, params);
 			const r = this.id === 'hits' ? Api.blacklab.getHits(this.indexId, params, axiosParams) : Api.blacklab.getDocs(this.indexId, params, axiosParams);
-			this.request = r.request;
-			this.cancel = r.cancel;
+			this.request = r;
 
 			setTimeout(() => this.scrollToResults(), 1500);
 
-			this.request
+			r
 			.then(
 				r => { if (nonce === this.refreshParameters) this.setSuccess(r)},
 				e => {
@@ -317,7 +314,6 @@ export default defineComponent({
 			debugLogCat('results', 'search results', data);
 			this.error = null;
 			this.request = null;
-			this.cancel = null;
 			this.results = markRaw(data);
 			this.paginationResults = markRaw(data);
 		},
@@ -329,7 +325,6 @@ export default defineComponent({
 				this.paginationResults = null;
 			}
 			this.request = null;
-			this.cancel= null;
 		},
 
 		scrollToResults() {

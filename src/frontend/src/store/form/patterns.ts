@@ -3,42 +3,44 @@
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
 
-import { getStoreBuilder } from '@/store/reactive-store';
 import cloneDeep from 'clone-deep';
 
-import type { RootState } from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
 
 import { debugLogCat } from '@/utils/debug';
 
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
-import type { CorpusChange } from '@/store/async-loaders';
 import type { AnnotationValue } from '@/types/apptypes';
+import { reactive, ref } from 'vue';
+
+import { memoize } from '@/store/reactive-store';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
 	shared: {
-		/** Id of the annotated field that is the source we're searching in */
+		/** Id of the annotated field that is the source we're searching in. Note that this is the full id of the annotatedField (e.g. "contents__nl") */
 		source: string|null,
-		/** Ids of the annotated fields that we're comparing to */
+		/** Ids of the annotated fields that we're comparing to. Note that these are the full ids of the annotatedFields (e.g. "contents__nl") */
 		targets: string[],
+		/** tag to align by, e.g. <l>, or <p> or <s> for line, paragraph, or sentence (though these are just fictional examples for common usages, real values can be anything, depending on the corpus/dataset. */
 		alignBy: string|null,
 
-		/** Selected element in Within widget (extended/advanced) */
+		/** Selected element in Within widget (extended/advanced). Uses the same set of elements as the alignBy, e.g. <l>, <p>, <s> */
 		within: string|null,
 
-		/** Attribute values entered in Within widget, if any (extended/advanced) */
+		/** Attribute values entered in Within widget, if any (extended/advanced). E.g. 'id' for a <s> sentence.  */
 		withinAttributes: Record<string, string>,
 	},
+	/** Simple search only allows searching on a single annotation. Entered value stored in a fixed field: 'annotationValue' */
 	simple: {
 		annotationValue: AnnotationValue
 	},
+	/** Extended search allows searching on multiple annotations. Entered values are stored in a map: 'annotationValues' */
 	extended: {
 		annotationValues: {
-			// [annotatedFieldId: string]: {
-				[annotationId: string]: AnnotationValue
-			// }
+			[annotationId: string]: AnnotationValue
 		},
 
 		splitBatch: boolean,
@@ -58,6 +60,13 @@ type ModuleRootState = {
 // Then: the basic state shape with the appropriate annotation and filters created
 // Finally: the values initialized from the page's url on first load.
 const initialState: ModuleRootState = {
+	/**
+	 * State for 'within' and source/target (parallel) querying. 
+	 * This is shared between the different pattern modes (simple/extended/advanced/expert),
+	 * mostly for simplicity. 
+	 * From a UX standpoint it also doesn't really make a difference whether you select your parallel versions in the simple or advanced form, 
+	 * it's all part of the same "parallel search" feature, so it makes sense to keep this state shared.
+	 */
 	shared: {
 		source: null,
 		targets: [],
@@ -82,74 +91,46 @@ const initialState: ModuleRootState = {
 	},
 };
 
-const namespace = 'patterns';
-const b = getStoreBuilder<RootState>().module<ModuleRootState>(namespace, cloneDeep(initialState));
+const state = reactive(structuredClone(initialState));
+const getState = () => state;
 
-const getState = b.state();
 
 const get = {
 	/** Last submitted properties, these are already filtered to remove empty values, etc */
-	activeAnnotations: b.read(state => Object.values(state.extended.annotationValues)/*.flatMap(f => Object.values(f))*/.filter(p => !!p.value), 'activeAnnotations'),
-
+	activeAnnotations: memoize(() => Object.values(state.extended.annotationValues).filter(p => !!p.value)),
 	/** Get the annotation's search value in the extended form */
-	annotationValue(annotatedFieldId: string, id: string) {
-		return getState().extended.annotationValues/*[annotatedFieldId]*/[id];
-	},
-
-	simple: b.read(state => state.simple, 'simple'),
-
+	annotationValue: (annotatedFieldId: string, id: string) => state.extended.annotationValues[id],
+	simple: () => state.simple,
 	/** Selected parallel source and target versions. Note that these are the full ids of the annotatedFields (e.g. "contents__nl") */
-	shared: b.read(state => state.shared, 'shared'),
+	shared: () => state.shared,
 };
 
 const privateActions = {
-	clear: b.commit(state => Object.assign(state, cloneDeep(initialState)), 'clear'),
+	clear: () => Object.assign(state, structuredClone(initialState)),
 
-	// NOTE when re-integrating annotatedFieldId this needs to be updated to account.
-	initExtendedAnnotation: b.commit((state, payload: AnnotationValue) =>
-			state.extended.annotationValues[payload.id] = payload, 'annotation_init_extended'),
-	initSimpleAnnotation: b.commit((state, payload: ModuleRootState['simple']) => Object.assign<ModuleRootState['simple'],
-			ModuleRootState['simple']>(state.simple, payload), 'annotation_init_simple'),
-	initShared: b.commit((state, payload: ModuleRootState['shared']) => state.shared = payload, 'init_shared'),
-};
-
-const setTargetFields = (state: ModuleRootState, payload: string[]): string[] => {
-	// sanity check:
-	if (payload.find(annotatedFieldId => !CorpusStore.get.parallelAnnotatedFieldsMap()[annotatedFieldId])) {
-		console.error('Tried to set target fields to non-existent annotated field, maybe mixup between version and annotatedField');
-		return state.shared.targets;
-	}
-
-	if (payload && payload.length > 0) {
-		while (state.advanced.targetQueries.length < payload.length) {
-			state.advanced.targetQueries.push({tokens: [], within: ''});
-		}
-		while (state.expert.targetQueries.length < payload.length) {
-			state.expert.targetQueries.push('');
-		}
-	}
-	return (state.shared.targets = payload);
+	initExtendedAnnotation: (payload: AnnotationValue) => state.extended.annotationValues[payload.id] = payload,
+	initSimpleAnnotation: (payload: ModuleRootState['simple']) => Object.assign(state.simple, structuredClone(payload)),
+	initShared: (payload: ModuleRootState['shared']) => Object.assign(state.shared, structuredClone(payload)),
 };
 
 const actions = {
 	shared: {
-		sourceField: b.commit((state, payload: string|null) => {
+		sourceField: (payload: string|null) => {
 			if (payload && !CorpusStore.get.parallelAnnotatedFieldsMap()[payload]) {
 				console.error('Tried to set source version to non-existent annotated field. Ignoring');
 				return;
 			}
 			return (state.shared.source = payload);
-		}, 'shared_source_version'),
-		addTarget: b.commit((state, version: string) => {
+		},
+		addTarget: (version: string) => {
 			debugLogCat('parallel', `shared.addTargetVersion: Adding ${version}`);
 			if (!version) {
 				console.warn('tried to add null target version');
 				return;
 			}
-			const payload = state.shared.targets.concat([version]);
-			return setTargetFields(state, payload);
-		}, 'shared_addTarget'),
-		removeTarget: b.commit((state, version: string) => {
+			return actions.shared.targetFields([...state.shared.targets, version]);
+		},
+		removeTarget: (version: string) => {
 			if (!CorpusStore.get.parallelAnnotatedFieldsMap()[version]) {
 				console.error('Tried to remove non-existent target version');
 				return;
@@ -158,7 +139,7 @@ const actions = {
 			debugLogCat('parallel', `parallelFields.removeTargetVersion: Removing ${version}`);
 			const index = state.shared.targets.indexOf(version);
 			if (index < 0) {
-				console.warn('tried to remove non-existent target version');
+				console.warn('tried to remove a target version that is not currently selected');
 				return;
 			}
 			state.shared.targets.splice(index, 1);
@@ -166,99 +147,99 @@ const actions = {
 				state.advanced.targetQueries.splice(index, 1);
 			if (state.expert.targetQueries.length > index)
 				state.expert.targetQueries.splice(index, 1);
-		}, 'parallelFields_removeTarget'),
-		targetFields: b.commit(setTargetFields, 'parallelFields_targets'),
-		alignBy: b.commit((state, payload: string|null) => {
-			return (state.shared.alignBy = payload == null ? UIStore.getState().search.shared.alignBy.defaultValue : payload);
-		}, 'shared_align_by'),
-		within: b.commit((state, payload: string|null) => {
-			return (state.shared.within = payload);
-		}, 'shared_within'),
-		withinAttributes: b.commit((state, payload: Record<string, string>) => {
-			return (state.shared.withinAttributes = payload);
-		}, 'shared_within_attributes'),
-		reset: b.commit(state => {
+		},
+		/** Replace the entire set of selected target fields at once. */
+		targetFields: (payload: string[]) => {
+			// sanity check:
+			if (payload.find(annotatedFieldId => !CorpusStore.get.parallelAnnotatedFieldsMap()[annotatedFieldId])) {
+				console.error('Tried to set target fields to non-existent annotated field, maybe mixup between version and annotatedField');
+				return state.shared.targets;
+			}
+
+			if (payload?.length) {
+				while (state.advanced.targetQueries.length < payload.length) {
+					state.advanced.targetQueries.push({tokens: [], within: ''});
+				}
+				while (state.expert.targetQueries.length < payload.length) {
+					state.expert.targetQueries.push('');
+				}
+			}
+			return (state.shared.targets = payload);
+		},
+		alignBy: (payload: string|null) => state.shared.alignBy = payload ?? UIStore.getState().search.shared.alignBy.defaultValue,
+		within: (payload: string|null) => state.shared.within = payload,
+		withinAttributes: (payload: Record<string, string>) => state.shared.withinAttributes = payload,
+		reset: () => {
 			const defaultSourceField = CorpusStore.get.parallelAnnotatedFields()[0]?.id;
 			debugLogCat('shared', `shared.reset: Selecting default source version ${defaultSourceField}`);
 			state.shared.source = defaultSourceField;
 			state.shared.targets = [];
-			const v = UIStore.getState().search.shared.alignBy.defaultValue;
-			state.shared.alignBy = v;
+			state.shared.alignBy = UIStore.getState().search.shared.alignBy.defaultValue;
 			state.shared.within = null;
 			state.shared.withinAttributes = {};
-		}, 'shared_reset'),
+		},
 	},
 	simple: {
-		annotation: b.commit((state, {id, type, ...safeValues}: Partial<AnnotationValue>&{id: string}) => {
+		annotation: ({id, type, ...safeValues}: Partial<AnnotationValue>&{id: string}) => {
 			// Never overwrite annotatedFieldId or type, even when they're submitted through here.
 			Object.assign(state.simple.annotationValue, safeValues);
-		}, 'simple_annotation'),
-		reset: b.commit(state => {
+		},
+		reset: () => {
 			state.simple.annotationValue.value = '';
 			state.simple.annotationValue.case = false;
-		}, 'simple_reset'),
+		},
 	},
 	extended: {
-		annotation: b.commit((state, {id, type, ...safeValues}: Partial<AnnotationValue>&{id: string}) => {
+		annotation: ({id, type, ...safeValues}: Partial<AnnotationValue>&{id: string}) => {
 			// Never overwrite annotatedFieldId or type, even when they're submitted through here.
 			Object.assign(state.extended.annotationValues[id], safeValues);
-		}, 'extended_annotation'),
-		splitBatch: b.commit((state, payload: boolean) => state.extended.splitBatch = payload, 'extended_split_batch'),
-		reset: b.commit(state => {
+		},
+		splitBatch: (payload: boolean) => state.extended.splitBatch = payload,
+		reset: () => {
 			Object.values(state.extended.annotationValues).forEach(annot => {
 				annot.value = '';
 				annot.case = false;
 			});
 			state.extended.splitBatch = false;
-		}, 'extended_reset'),
+		},
 	},
 	advanced: {
-		query: b.commit((state, payload: CqlQueryBuilderData|null) => {
-			return (state.advanced.query = payload || {tokens: [], within: ''});
-		}, 'advanced_query'),
-		changeTargetQuery: b.commit((state, {index, value}: {index: number, value: CqlQueryBuilderData}) => {
+		query: (payload: CqlQueryBuilderData|null) => state.advanced.query = payload || structuredClone(initialState.advanced.query),
+		changeTargetQuery: ({index, value}: {index: number, value: CqlQueryBuilderData}) => {
 			if (index >= state.advanced.targetQueries.length) {
 				console.error('Tried to set target query for non-existent index');
 				return;
 			}
 			state.advanced.targetQueries[index] = value;
-		}, 'advanced_change_target_query'),
-		targetQueries: b.commit((state, payload: CqlQueryBuilderData[]) => {
-			return (state.advanced.targetQueries = [...payload]); // copy, don't reference
-		}, 'advanced_target_queries'),
-		reset: b.commit(state => {
-			state.advanced.query = {tokens: [], within: ''};
-			state.advanced.targetQueries = [];
-		}, 'advanced_reset'),
+		},
+		targetQueries: (payload: CqlQueryBuilderData[]) => state.advanced.targetQueries = structuredClone(payload), // copy, don't reference
+		reset: () => state.advanced = structuredClone(initialState.advanced),
 	},
 	expert: {
-		query: b.commit((state, payload: string|null) => {
-			return (state.expert.query = payload);
-		}, 'expert_query'),
-		changeTargetQuery: b.commit((state, {index, value}: {index: number, value: string}) => {
+		query: (payload: string|null) => state.expert.query = payload,
+		changeTargetQuery: ({index, value}: {index: number, value: string}) => {
 			if (index >= state.expert.targetQueries.length) {
 				console.error('Tried to set target query for non-existent index');
 				return;
 			}
 			state.expert.targetQueries[index] = value;
-		}, 'expert_change_target_query'),
-		targetQueries: b.commit((state, payload: string[]) => {
-			return (state.expert.targetQueries = [...payload]); // copy, don't reference
-		}, 'expert_target_queries'),
-		reset: b.commit(state => {
+		},
+		targetQueries: (payload: string[]) => state.expert.targetQueries = structuredClone(payload), // copy, don't reference
+		reset: () => {
 			state.expert.query = null;
 			state.expert.targetQueries = [];
-		}, 'expert_reset'),
+		},
 	},
-	reset: b.commit(() => {
+	reset: () => {
 		actions.shared.reset();
 		actions.simple.reset();
 		actions.extended.reset();
 		actions.advanced.reset();
 		actions.expert.reset();
-	}, 'reset'),
+		resetSignal.value++;
+	},
 
-	replace: b.commit((state, payload: ModuleRootState) => {
+	replace: (payload: ModuleRootState) => {
 		actions.shared.reset();
 		actions.shared.alignBy(payload.shared.alignBy);
 		actions.shared.sourceField(payload.shared.source);
@@ -280,7 +261,7 @@ const actions = {
 		actions.expert.reset();
 		actions.expert.query(payload.expert.query);
 		actions.expert.targetQueries(payload.expert.targetQueries);
-	}, 'replace'),
+	},
 };
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
@@ -321,6 +302,8 @@ const init = (state: CorpusChange) => {
 	debugLogCat('init', 'Finished initializing pattern module state shape');
 };
 
-export { actions, initialState as defaults, get, getState, init, namespace };
+const resetSignal = ref(0);
+
+export { actions, initialState as defaults, get, getState, init, resetSignal };
 export type { ModuleRootState };
 

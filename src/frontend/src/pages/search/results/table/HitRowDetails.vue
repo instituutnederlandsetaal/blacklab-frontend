@@ -99,6 +99,7 @@ import * as Api from '@/api';
 import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
 import { debugLog } from '@/utils/debug';
+import type { CancelableRequest } from '@/utils/loadable-streams';
 import type { PropType } from 'vue';
 
 /** TODO disconnect from the store? */
@@ -115,10 +116,10 @@ export default defineComponent({
 		row: { type: Object as PropType<HitRowData>, required: true },
 	},
 	data: () => ({
-		sentenceRequest: null as null|Promise<any>,
+		sentenceRequest: null as null|CancelableRequest<BLTypes.BLHit>,
 		sentence: null as null|BLTypes.BLHit,
 
-		snippetRequest: null as null|Promise<void>,
+		snippetRequest: null as null|CancelableRequest<BLTypes.BLHit>,
 		snippet: null as null|ContextOfHit,
 
 		error: null as null|string,
@@ -149,18 +150,20 @@ export default defineComponent({
 			const formatError = UIStore.getState().global.errorMessage;
 
 			const nonce = this.row.hit;
-			this.sentenceRequest = Api.blacklab.getSnippet(
+			const request = Api.blacklab.getSnippet(
 				CorpusStore.get.indexId()!,
 				this.row.doc.docPid,
 				this.row.annotatedField?.id,
 				this.row.hit.start,
 				this.row.hit.end,
 				context
-			)
-			.request
+			);
+			this.sentenceRequest = request;
+			request
 			// check if hit hasn't changed in the meantime (due to component reuse)
-			.then(r => { if (nonce === this.row.hit) { this.sentence = r; this.sentenceRequest = null; }})
-			.catch(e => { if (nonce === this.row.hit) { this.error = formatError(e, 'snippet'); this.sentenceRequest = null; }})
+			.then(r => { if (nonce === this.row.hit) this.sentence = r; })
+			.catch(e => { if (nonce === this.row.hit) this.error = formatError(e, 'snippet'); })
+			.finally(() => { if (this.sentenceRequest === request) this.sentenceRequest = null; })
 		},
 		loadSnippet() {
 			// If we don't have a fat hit, we can't get any larger context (because we don't know the start/end of the hit)
@@ -174,9 +177,10 @@ export default defineComponent({
 			const concordanceSize = UIStore.getState().results.shared.concordanceSize;
 
 			const nonce = this.row.hit;
-			this.snippetRequest = Api.blacklab
-			.getSnippet(CorpusStore.get.indexId()!, this.row.doc.docPid, this.row.annotatedField?.id, this.row.hit.start, this.row.hit.end, concordanceSize)
-			.request
+			const request = Api.blacklab
+			.getSnippet(CorpusStore.get.indexId()!, this.row.doc.docPid, this.row.annotatedField?.id, this.row.hit.start, this.row.hit.end, concordanceSize);
+			this.snippetRequest = request;
+			request
 			.then(s => {
 				if (nonce !== this.row.hit) return; // hit has changed in the meantime.
 
@@ -218,15 +222,13 @@ export default defineComponent({
 						}
 					})
 					.filter(a => a != null);
-
-				this.snippetRequest = null;
 			})
 			.catch((err: Api.ApiError) => {
 				if (nonce !== this.row.hit) return; // hit has changed in the meantime.
 				this.error = formatError(err, 'snippet');
-				this.snippetRequest = null;
 				if (err.stack) debugLog(err.stack);
 			})
+			.finally(() => { if (this.snippetRequest === request) this.snippetRequest = null; })
 		}
 	},
 	watch: {
@@ -240,6 +242,8 @@ export default defineComponent({
 		},
 		row() {
 			// Clear any data that's no longer relevant.
+			this.snippetRequest?.cancel();
+			this.sentenceRequest?.cancel();
 			this.snippetRequest = this.snippet = this.sentenceRequest = this.sentence = this.error = null;
 			this.addons = [];
 			this.sentenceShown = false;

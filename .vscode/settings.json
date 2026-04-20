@@ -17,5 +17,6 @@
 	},
 	"oxc.configPath": "src/frontend/oxlint.config.ts",
 	"oxc.tsConfigPath": "src/frontend/tsconfig.json",
-	"oxc.path.tsgolint": "src/frontend/node_modules/.bin/tsgolint"
+	"oxc.path.tsgolint": "src/frontend/node_modules/.bin/tsgolint",
+	"editor.insertSpaces": false
 }
