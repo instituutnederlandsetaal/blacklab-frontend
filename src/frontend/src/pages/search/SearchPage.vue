@@ -1,7 +1,7 @@
 <template>
 	<div :class="wideView.value ? 'container-fluid' : 'container'" v-if="storeLoadingState.value?.index">
 		<QueryForm/>
-		<!-- <QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary"/> -->
+		<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary"/>
 		<!-- <Debug v-if="resultsVisible">
 			<div style="margin: 0 -15px; margin-bottom: 40px;">
 				<div>{{ $t('searchPage.fullQuery') }}: </div>
@@ -9,7 +9,7 @@
 			</div>
 		</Debug> -->
 
-		<!-- <Results v-show="resultsVisible" id="results"/> -->
+		<Results v-show="resultsVisible" id="results"/>
 	</div>
 </template>
 

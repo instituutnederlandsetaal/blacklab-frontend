@@ -26,25 +26,18 @@ import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id'
 import type * as BLTypes from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
-import type { Loadable } from '@/utils/loadable-streams';
+import { Loadable } from '@/utils/loadable-streams';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import { watch } from 'vue';
+import { shallowRef } from 'vue';
 
-type RootState = {
-	storeLoadingState: Loadable<CorpusChange>;
-	indexId: string|null;
-};
-
-watch(() => corpusDataLoader.value, () => {
-	const corpusData = corpusDataLoader.value;
-	console.log('Corpus data changed, reinitializing store if data is loaded', corpusData);
-	(globalThis as any).currentCorpusData = corpusDataLoader;
-	if (corpusData) void init(corpusData);
-}, {immediate: true});
+// separate, because while the corpusloader might have settled, store init is async
+// and we don't want to report being done while submodules are still initializing
+// (We should solve this better in the future)
+const loadingState = shallowRef<Loadable<CorpusChange>>(Loadable.Empty());
 
 const get = {
 	indexId: () => CorpusModule.get.indexId(),
-	loadingState: () => corpusDataLoader as Loadable<CorpusChange>,
+	loadingState: () => loadingState,
 
 	viewedResultsSettings: () => {
 		const viewName = InterfaceModule.get.viewedResults();
@@ -283,6 +276,7 @@ const actions = {
 };
 
 const init = async (state: CorpusChange) => {
+	loadingState.value = Loadable.Loading();
 	console.log('Initializing store with new corpus data', state);
 	await CorpusModule.init(state);
 	await UIModule.init(state);
@@ -302,6 +296,7 @@ const init = async (state: CorpusChange) => {
 		hits: ViewModule.getOrCreateModule('hits'),
 		docs: ViewModule.getOrCreateModule('docs'),
 	};
+	loadingState.value = Loadable.Loaded(state);
 };
 
 // Debugging helpers.
@@ -335,5 +330,4 @@ const init = async (state: CorpusChange) => {
 };
 
 export { actions, get, init };
-export type { RootState };
 

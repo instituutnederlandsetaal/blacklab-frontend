@@ -1,5 +1,8 @@
 # Application Structure
 
+This page describes the current application structure.
+For the target module layout and implementation handoff for the ongoing frontend reorganization, see [Frontend Refactor Handoff](/development/frontend-refactor-handoff).
+
 BlackLab Frontend contains a small Java backend and a larger Vue.js frontend.
 The backend is responsible for serving the correct javascript files, setting up the page skeleton, and handling the document page.
 The BlackLab Frontend is responsible for the user interface, handling the search, displaying results, and managing the state of the application.

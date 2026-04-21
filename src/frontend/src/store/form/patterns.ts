@@ -282,14 +282,14 @@ const init = (state: CorpusChange) => {
 		within: null,
 		withinAttributes: {},
 	})
-	CorpusStore.get.allAnnotations().forEach(({id, uiType}) =>
+	CorpusStore.get.allAnnotations().forEach(({id, uiType}) => {
 		privateActions.initExtendedAnnotation({
 			id,
 			value: '',
 			case: false,
 			type: uiType
 		})
-	);
+	});
 	privateActions.initSimpleAnnotation({
 		annotationValue: {
 			id: CorpusStore.get.firstMainAnnotation().id,

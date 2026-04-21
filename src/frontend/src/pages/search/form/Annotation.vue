@@ -89,8 +89,8 @@
 
 </template>
 
-<script lang="ts">
-import { defineComponent, watch } from 'vue';
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue';
 
 import * as CorpusStore from '@/store/corpus';
 import * as PatternStore from '@/store/form/patterns';
@@ -103,113 +103,101 @@ import PartOfSpeech from '@/pages/search/form/PartOfSpeech.vue';
 import type { Option } from '@/utils/options';
 
 import { blacklabPaths } from '@/api';
-import type { AnnotationValue, NormalizedAnnotation } from '@/types/apptypes';
-import type { PropType } from 'vue';
+import type { NormalizedAnnotation } from '@/types/apptypes';
+import { translate } from '@/utils/i18n';
+import { useTemplateRef } from 'vue';
 
-export default defineComponent({
-	components: {
-		SelectPicker,
-		PartOfSpeech,
-		Autocomplete,
-		Lexicon
+
+const props = defineProps<{
+	annotation: NormalizedAnnotation,
+	htmlId: string,
+	bare?: boolean,
+	/**
+	 * Set to true if this annotation is the "simple" annotation. I.e. the Annotation in the "simple" tab of the search form.
+	 * This will change which field the value is written to the vuex store.
+	 */
+	simple?: boolean
+}>();
+
+
+const uid = UID();
+const posOpen = ref(false);
+
+
+const caseSensitive = computed<boolean>({
+	get() { 
+		if(props.simple) return PatternStore.get.simple().annotationValue.case
+		return PatternStore.get.annotationValue(props.annotation.annotatedFieldId, props.annotation.id).case
 	},
-	props: {
-		annotation: { type: Object as PropType<NormalizedAnnotation>, required: true },
-		htmlId: String,
-		bare: Boolean,
-		/**
-		 * Set to true if this annotation is the "simple" annotation. I.e. the Annotation in the "simple" tab of the search form.
-		 * This will change which field the value is written to the vuex store.
-		 */
-		simple: Boolean
-	},
-	data: () => ({
-		uid: UID(),
-		subscriptions: [] as Array<() => void>,
-		posOpen: false,
-	}),
-	computed: {
-		stateGetter(): () => AnnotationValue {
-			return this.simple ?
-				() => PatternStore.get.simple().annotationValue :
-				PatternStore.get.annotationValue.bind(this, this.annotation.annotatedFieldId, this.annotation.id);
-		},
-		stateSetter(): (payload: Partial<AnnotationValue> & { id: string }) => void {
-			return this.simple ? PatternStore.actions.simple.annotation : PatternStore.actions.extended.annotation;
-		},
-		textDirection(): string|undefined {
-			// only set direction if this is the main annotation
-			// so we don't set rtl mode on things like part-of-speech etc.
-			return this.annotation.isMainAnnotation ? CorpusStore.get.textDirection() : undefined;
-		},
-		inputId(): string { return this.htmlId + '_value'; },
-		fileInputId(): string { return this.htmlId + '_file'; },
-		caseInputId(): string { return this.htmlId + '_case'; },
-
-		displayName(): string { return this.$tAnnotDisplayName(this.annotation); },
-		description(): string { return this.$tAnnotDescription(this.annotation); },
-
-		options(): Option[] { return this.annotation.values || []; },
-
-		autocomplete(): boolean { return this.annotation.uiType === 'combobox' && this.annotation.annotatedFieldId !== ''; },
-		autocompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, this.annotation.annotatedFieldId, this.annotation.id); },
-
-		value: {
-			get(): string {
-				const state = this.stateGetter();
-				return this.stateGetter().value;
-			},
-			set(value: string) {
-				this.stateSetter({
-					id: this.annotation.id,
-					value
-				});
-			}
-		},
-		caseSensitive: {
-			get(): boolean {
-				return this.stateGetter().case;
-			},
-			set(caseSensitive: boolean) {
-				this.stateSetter({
-					id: this.annotation.id,
-					case: caseSensitive
-				});
-			}
+	set(caseSensitive: boolean) {	
+		if(props.simple) {
+			PatternStore.actions.simple.annotation({
+				id: props.annotation.id,
+				case: caseSensitive
+			});
+		} else {
+			PatternStore.actions.extended.annotation({
+				id: props.annotation.id,
+				case: caseSensitive
+			});
 		}
-	},
-	methods: {
-		onFileChanged(event: Event) {
-
-			const fileInput = event.target as HTMLInputElement;
-			const file = fileInput.files && fileInput.files[0];
-			if (file != null) {
-				const fr = new FileReader();
-				fr.onload = () => {
-					// Replace all whitespace with pipes,
-					// Same as the querybuilder wordlist upload
-					this.value = (fr.result as string).trim().replace(/\s+/g, '|');
-				};
-				fr.readAsText(file);
-			} else {
-				this.value = '';
-			}
-			(event.target as HTMLInputElement).value = '';
-		}
-	},
-	mounted() {
-		if (this.$refs.reset) {
-			this.subscriptions.push(watch(PatternStore.resetSignal, () => {
-				if (this.$refs.reset) {
-					(this.$refs.reset as any).reset();
-				}
-			}));
-		}
-	},
-	unmounted() {
-		this.subscriptions.forEach(unsub => unsub());
 	}
 });
+const value = computed<string>({
+	get(): string {
+		if(props.simple) return PatternStore.get.simple().annotationValue.value
+		else return PatternStore.get.annotationValue(props.annotation.annotatedFieldId, props.annotation.id).value
+	},
+	set(value: string) {
+		if(props.simple) {
+			PatternStore.actions.simple.annotation({
+				id: props.annotation.id,
+				value
+			});
+		} else {
+			PatternStore.actions.extended.annotation({
+				id: props.annotation.id,
+				value
+			});
+		}
+	}
+});
+
+const textDirection = computed<string|undefined>(() => props.annotation.isMainAnnotation ? CorpusStore.get.textDirection() : undefined);
+const inputId = computed(() => props.htmlId + '_value');
+const fileInputId = computed(() => props.htmlId + '_file');
+const caseInputId = computed(() => props.htmlId + '_case');
+const displayName = computed(() => translate.$tAnnotDisplayName(props.annotation));
+const description = computed(() => translate.$tAnnotDescription(props.annotation));
+const options = computed<Option[]>(() => props.annotation.values || []);
+const autocomplete = computed(() => props.annotation.uiType === 'combobox' && props.annotation.annotatedFieldId !== '');
+const autocompleteUrl = computed(() => blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, props.annotation.annotatedFieldId, props.annotation.id));
+
+	
+
+function onFileChanged(event: Event) {
+
+	const fileInput = event.target as HTMLInputElement;
+	const file = fileInput.files && fileInput.files[0];
+	if (file != null) {
+		const fr = new FileReader();
+		fr.onload = () => {
+			// Replace all whitespace with pipes,
+			// Same as the querybuilder wordlist upload
+			value.value = (fr.result as string).trim().replace(/\s+/g, '|');
+		};
+		fr.readAsText(file);
+	} else {
+		value.value = '';
+	}
+	(event.target as HTMLInputElement).value = '';
+}
+
+void Lexicon; // eslint wants to make this a type import? not correct.
+const lexicon = useTemplateRef<InstanceType<typeof Lexicon>>('reset');
+	
+watch(() => PatternStore.resetSignal, _ => lexicon.value?.reset());
+
 </script>
 
 <style lang="scss">

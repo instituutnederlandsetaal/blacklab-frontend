@@ -29,29 +29,24 @@ const get = {
 
 	/** List of annotated fields */
 	allAnnotatedFields: (): NormalizedAnnotatedField[] =>
-		state.value ? Object.values(state.value.annotatedFields) : []
-	,
+		state.value ? Object.values(state.value.annotatedFields) : [],
 
 	/** Map of annotated fields */
 	allAnnotatedFieldsMap: (): Record<string, NormalizedAnnotatedField> =>
-		state.value ? state.value.annotatedFields : {}
-	,
+		state.value ? state.value.annotatedFields : {},
 
 	/** Main annotated field name */
 	mainAnnotatedField: (): string => state.value?.mainAnnotatedField ?? 'contents',
 
 	/** Is this a parallel corpus? */
 	isParallelCorpus: (): boolean =>
-		get.allAnnotatedFields().some(f => f.isParallel)
-	,
+		get.allAnnotatedFields().some(f => f.isParallel),
 
 	parallelAnnotatedFields: (): NormalizedAnnotatedFieldParallel[] =>
-		get.allAnnotatedFields().filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel)
-	,
+		get.allAnnotatedFields().filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel),
 
 	parallelAnnotatedFieldsMap: (): Record<string, NormalizedAnnotatedFieldParallel> =>
-		mapReduce(get.parallelAnnotatedFields(), 'id')
-	,
+		mapReduce(get.parallelAnnotatedFields(), 'id'),
 
 	/** If this is a parallel corpus, what's the parallel field prefix?
 	 *  (e.g. "contents" if there's fields "contents__en" and "contents__nl")

@@ -5,7 +5,7 @@
 		<Navbar/>
 		<!-- <pre style="overflow: auto; width: 100%; max-height: 20vh">{{ completeStoreState }}</pre> -->
 
-		<pre>{{ {isLoading: storeLoadingState.isLoading(), isError: storeLoadingState.isError(), isEmpty: storeLoadingState.isEmpty(), isLoaded: storeLoadingState.isLoaded()} }}</pre>
+		<!-- <pre>{{ storeLoadingState }}</pre> -->
 		<div v-if="storeLoadingState.isLoading()" class="container main-content">
 			<Spinner center/>
 			<h2>Please wait while we load the corpus...</h2>

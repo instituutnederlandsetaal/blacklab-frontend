@@ -1,9 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
-import * as RootStore from '@/store';
-import UrlStateParserArticle from '@/url/url-state-parser-article';
-import UrlStateParserSearch from '@/url/url-state-parser-search';
-import { watch } from 'vue';
 
 export type CustomRouteMeta = {
 	name: string;
@@ -103,49 +99,60 @@ const router = createRouter({
 	],
 });
 
-let pageLoadUrlDecoded = false;
-let initialUrlStateAppliedResolved = false;
-let resolveInitialUrlStateApplied: (() => void)|null = null;
 
-export const initialUrlStateApplied = new Promise<void>(resolve => {
-	resolveInitialUrlStateApplied = resolve;
-});
+// NOTE: (21 april 2026) - commented out because startup was running into a reflection loop.
+// Code should be moved to app startup somewhere later in refactor cycle and cleaned up.
 
-function markInitialUrlStateApplied() {
-	if (initialUrlStateAppliedResolved) {
-		return;
-	}
-	initialUrlStateAppliedResolved = true;
-	resolveInitialUrlStateApplied?.();
-}
+// Temp fix to keep exports consistent while refactoring startup and url state handling.
+export const initialUrlStateApplied = Promise.resolve();
+
+// === BEGIN Initial route decode 
+
+// let pageLoadUrlDecoded = false;
+// let initialUrlStateAppliedResolved = false;
+// let resolveInitialUrlStateApplied: (() => void)|null = null;
+
+// export const initialUrlStateApplied = new Promise<void>(resolve => {
+// 	resolveInitialUrlStateApplied = resolve;
+// });
+
+// function markInitialUrlStateApplied() {
+// 	if (initialUrlStateAppliedResolved) {
+// 		return;
+// 	}
+// 	initialUrlStateAppliedResolved = true;
+// 	resolveInitialUrlStateApplied?.();
+// }
 
 
-router.beforeEach((to, from, next) => {
+// router.beforeEach((to, from, next) => {
 
-	// On first entry on the page, we need to decode the url.
-	if (!pageLoadUrlDecoded && to.params.corpus) {
-		pageLoadUrlDecoded = true;
-		if (to.name === 'article' || to.name === 'search') {
-			const parser = to.name === 'article' ? new UrlStateParserArticle() : new UrlStateParserSearch();
-			// wait for store to initialize.
-			const unwatch = watch(() => RootStore.get.loadingState(), state => {
-				if (!state.isLoaded()) return;
-				unwatch();
-				// loaded, handle url parse now
-				void parser
-					.get()
-					.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
-					// .then(() => connectStoreStreams())
-					.finally(() => markInitialUrlStateApplied());
-			}, {
-				deep: true,
-			})	
-		} else {
-			markInitialUrlStateApplied();
-		}
-	}
+// 	// On first entry on the page, we need to decode the url.
+// 	if (!pageLoadUrlDecoded && to.params.corpus) {
+// 		pageLoadUrlDecoded = true;
+// 		if (to.name === 'article' || to.name === 'search') {
+// 			const parser = to.name === 'article' ? new UrlStateParserArticle() : new UrlStateParserSearch();
+// 			// wait for store to initialize.
+// 			const unwatch = watch(() => RootStore.get.loadingState(), state => {
+// 				if (!state.isLoaded()) return;
+// 				unwatch();
+// 				// loaded, handle url parse now
+// 				void parser
+// 					.get()
+// 					.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
+// 					// .then(() => connectStoreStreams())
+// 					.finally(() => markInitialUrlStateApplied());
+// 			}, {
+// 				deep: true,
+// 			})	
+// 		} else {
+// 			markInitialUrlStateApplied();
+// 		}
+// 	}
 
-	next();
-})
+// 	next();
+// })
+
+// === END Initial route decode
 
 export default router;
