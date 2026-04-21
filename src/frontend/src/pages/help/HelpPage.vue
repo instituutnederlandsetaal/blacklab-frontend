@@ -3,13 +3,11 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-
 import { frontend } from '@/api';
+import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
 import * as CorpusStore from '@/store/corpus';
 import { loadableFromStream, type LoadableFromStream } from '@/utils/loadable-streams';
-
-import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
+import { defineComponent } from 'vue';
 
 export default defineComponent({
 	components: {

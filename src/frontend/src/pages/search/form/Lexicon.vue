@@ -72,6 +72,7 @@ import SelectPicker from '@/components/SelectPicker.vue';
 import UID from '@/mixins/uid';
 import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
+import type { NormalizedAnnotation } from '@/types/apptypes';
 import { escapeRegex, filterDuplicates, mapReduce } from '@/utils';
 
 type LexiconParams1 = {lemma: string}|{wordform: string}
@@ -136,7 +137,7 @@ export default defineComponent({
 			type: [String, null] as PropType<string|null>,
 			default: null,
 		},
-		definition: { type: Object as PropType<CorpusStore.NormalizedAnnotation>, required: true }
+		definition: { type: Object as PropType<NormalizedAnnotation>, required: true }
 	},
 	data: () => ({
 		uid: UID(),

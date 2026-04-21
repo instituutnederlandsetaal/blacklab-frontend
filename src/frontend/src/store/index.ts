@@ -36,7 +36,6 @@ import { shallowRef } from 'vue';
 const loadingState = shallowRef<Loadable<CorpusChange>>(Loadable.Empty());
 
 const get = {
-	indexId: () => CorpusModule.get.indexId(),
 	loadingState: () => loadingState,
 
 	viewedResultsSettings: () => {
@@ -101,7 +100,6 @@ const get = {
 
 const actions = {
 	retryLoading: () => corpusDataLoader.retry(),
-	indexId: (newIndexId: string|undefined) => { CorpusModule.actions.setIndexId(newIndexId); },
 
 	searchFromSubmit: () => {
 		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {

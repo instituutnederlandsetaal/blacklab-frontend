@@ -171,8 +171,7 @@ const displayName = computed(() => translate.$tAnnotDisplayName(props.annotation
 const description = computed(() => translate.$tAnnotDescription(props.annotation));
 const options = computed<Option[]>(() => props.annotation.values || []);
 const autocomplete = computed(() => props.annotation.uiType === 'combobox' && props.annotation.annotatedFieldId !== '');
-const autocompleteUrl = computed(() => blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, props.annotation.annotatedFieldId, props.annotation.id));
-
+const autocompleteUrl = computed(() => blacklabPaths.autocompleteAnnotation(CorpusStore.getState()!.id, props.annotation.annotatedFieldId, props.annotation.id));
 	
 
 function onFileChanged(event: Event) {

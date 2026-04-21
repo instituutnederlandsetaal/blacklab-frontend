@@ -35,23 +35,23 @@
 
 <script setup lang="ts">
 import type {
-	CqlTokenData,
 	CqlQueryBuilderData,
-	CqlQueryBuilderOptions} from '@/components/cql/cql-types';
+	CqlQueryBuilderOptions,
+	CqlTokenData
+} from '@/components/cql/cql-types';
 import {
 	COMPARATORS,
 	OPERATORS
 } from '@/components/cql/cql-types';
-import CqlToken from './CqlToken.vue';
-import Within from '@/pages/search/form/Within.vue';
 import uid from '@/mixins/uid';
-import { computed, watch } from 'vue';
-import { useVModel } from '@vueuse/core';
-
-import * as UIStore from '@/store/ui';
+import Within from '@/pages/search/form/Within.vue';
 import * as CorpusStore from '@/store/corpus';
-import { translate } from '@/utils/i18n';
+import * as UIStore from '@/store/ui';
 import { getAnnotationSubset } from '@/utils';
+import { translate } from '@/utils/i18n';
+import { useVModel } from '@vueuse/core';
+import { computed, watch } from 'vue';
+import CqlToken from './CqlToken.vue';
 
 const props = defineProps<{
 	modelValue: CqlQueryBuilderData,

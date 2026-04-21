@@ -13,19 +13,20 @@ import { ref } from 'vue';
 
 type ModuleRootState = NormalizedIndex|undefined;
 
-const indexId = ref<string>();
 const state = ref<NormalizedIndex>();
 const getState = (): ModuleRootState => state.value;
 
 const get = {
 	/**
 	 * Util for when you're in a component where you are sure the corpus is loaded
+	 */
+	indexId: (): string => state.value!.id,
+	
+	/**
+	 * Util for when you're in a component where you are sure the corpus is loaded
 	 * @deprecated this is an antipattern. Instead we should use the regular getters and provide some empty defaults for when the corpus isn't loaded yet.
 	 */
 	corpus: (): NormalizedIndex => state.value!,
-
-	/** Get the indexId. Available before index has fully loaded. */
-	indexId: (): string|null => indexId.value ?? null,
 
 	/** List of annotated fields */
 	allAnnotatedFields: (): NormalizedAnnotatedField[] =>
@@ -88,14 +89,11 @@ const get = {
 	textDirection: () => state.value?.textDirection ?? 'ltr',
 	hasRelations: () => state.value?.relations.relations != null,
 };
-
-const actions = {
-	setIndexId: (id: string|undefined) => { indexId.value = id; },
-};
+const actions = {}
 
 const init = (payload: CorpusChange) => state.value = payload.index;
 
-export { actions, get, getState, indexId, init };
+export { actions, get, getState, init };
 export type {
 	ModuleRootState,
 	NormalizedAnnotatedField,
