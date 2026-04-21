@@ -1,5 +1,5 @@
 <template>
-	<template v-if="debug.debug"><slot/></template>
+	<template v-if="debug"><slot/></template>
 </template>
 <script setup lang="ts">
 

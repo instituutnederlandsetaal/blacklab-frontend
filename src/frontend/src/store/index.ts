@@ -62,7 +62,7 @@ const get = {
 
 		const patt = QueryModule.get.patternString() ?? '';
 
-		const debugParams = debug.debug ? {
+		const debugParams = debug.value ? {
 			explain: true,
 			outputformat: 'json',
 		} : {};

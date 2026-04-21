@@ -1,22 +1,19 @@
-import { syncPropertyWithLocalStorage } from '@/utils/localstore';
-import { reactive } from 'vue';
+import { useLocalStorage } from '@vueuse/core';
+import { ref } from 'vue';
 
 
 export type LogCategory = 'history'|'parallel'|'init'|'shared'|'results';
 
 const isDebugMode = import.meta.env.DEV;
-let debug = reactive({
-	debug: false,
-	debug_visible: isDebugMode || (typeof DEBUG_INFO_VISIBLE !== 'undefined' ? DEBUG_INFO_VISIBLE : false),
-});
-syncPropertyWithLocalStorage('cf/debug', debug, 'debug');
+const debug = useLocalStorage<boolean>('cf/debug', isDebugMode, { writeDefaults: false });
+const debug_visible = ref(debug.value || !!DEBUG_INFO_VISIBLE);
 
 let queued: any[][] = [];
 
 // If you wish to see the original logging location, blackbox this script in the chrome devtools
 // For now, seeing the original location is not supported in firefox and edge/ie (and probably safari)
 export function debugLog(...args: any[]) {
-	if (debug.debug) {
+	if (debug.value) {
 		console.log(...args);
 	} else {
 		queued.push(args);
@@ -38,7 +35,7 @@ export function debugLogCat(category: LogCategory, ...args: any[]) {
 }
 
 export function enable() {
-	debug.debug = true;
+	debug.value = true;
 	for (const argArray of queued) {
 		debugLog(...argArray);
 	}
@@ -46,18 +43,19 @@ export function enable() {
 }
 
 export function disable() {
-	debug.debug = false;
+	debug.value = false;
 }
 
 export function show() {
-	debug.debug_visible = true;
+	debug_visible.value = true;
 }
 
 export function hide() {
-	debug.debug_visible = false;
+	debug_visible.value = false;
 }
 
 export default debug;
+export { debug_visible };
 
 // check in case of test environment
 if (typeof window !== 'undefined')

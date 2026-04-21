@@ -249,7 +249,7 @@ export default defineComponent({
 				'Search',
 				this,
 				CorpusStore.get.textDirection(),
-				debug.debug,
+				debug.value,
 				false
 			);
 			return optGroups.length > 1 ? optGroups : optGroups.flatMap(g => g.options as Option[]);
@@ -262,7 +262,7 @@ export default defineComponent({
 				'Search', // we don't want the before hit/after hit context options, just do search mode, it'll be fine
 				this,
 				CorpusStore.get.textDirection(),
-				debug.debug,
+				debug.value,
 				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible
 			);
 			return optGroups.length > 1 ? optGroups : optGroups.flatMap(g => g.options as Option[]);
@@ -281,7 +281,7 @@ export default defineComponent({
 				CorpusStore.get.allMetadataFieldsMap(),
 				'Group',
 				this,
-				debug.debug,
+				debug.value,
 				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
 				corpusCustomizations.search.metadata.showField
 			);

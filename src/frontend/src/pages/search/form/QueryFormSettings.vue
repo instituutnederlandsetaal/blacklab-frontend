@@ -55,12 +55,12 @@
 		<div class="checkbox-inline"><label for="wide-view"><input type="checkbox" id="wide-view" name="wide-view" v-model="wideView.value">{{$t('setting.wideView')}}</label></div>
 		<br>
 
-		<template v-if="debug.debug_visible || debug.debug">
+		<template v-if="debug_visible || debug">
 			<div class="checkbox-inline">
-				<label for="debug" class="text-muted"><input type="checkbox" id="debug" name="debug" v-model="debug.debug">{{ $t('setting.debug') }}</label>
+				<label for="debug" class="text-muted"><input type="checkbox" id="debug" name="debug" v-model="debug">{{ $t('setting.debug') }}</label>
 			</div>
 			<br>
-			<button type="button" class="btn btn-sm btn-default" @click="debug.debug_visible = false; debug.debug = false">
+			<button type="button" class="btn btn-sm btn-default" @click="debug_visible = debug = false">
 				{{ $t('setting.hideDebugUntilReload') }}
 			</button>
 		</template>
@@ -79,7 +79,7 @@ import Modal from '@/components/Modal.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { Option } from '@/utils/options';
 
-import debug from '@/utils/debug';
+import debug, { debug_visible } from '@/utils/debug';
 import { localStorageSynced } from '@/utils/localstore';
 import { defineComponent } from 'vue';
 
@@ -98,6 +98,7 @@ export default defineComponent({
 	data: () => ({
 		debug,
 		wideView,
+		debug_visible
 	}),
 	computed: {
 		viewedResultsSettings: RootStore.get.viewedResultsSettings,

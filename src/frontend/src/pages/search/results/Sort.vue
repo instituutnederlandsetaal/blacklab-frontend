@@ -88,7 +88,7 @@ export default defineComponent({
 					'Sort',
 					this,
 					this.corpus.textDirection,
-					debug.debug,
+					debug.value,
 					this.annotationGroupLabels
 				));
 
@@ -125,7 +125,7 @@ export default defineComponent({
 					this.corpus.metadataFields,
 					'Sort',
 					this,
-					debug.debug,
+					debug.value,
 					this.metadataGroupLabels,
 					corpusCustomizations.search.metadata.showField,
 				));

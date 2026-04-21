@@ -304,7 +304,7 @@ export default defineComponent({
 				this.metadataFieldsMap,
 				'Group',
 				this,
-				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
+				debug.value, // is debug enabled - i.e. show debug labels in dropdown
 				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
 				corpusCustomizations.search.metadata.showField
 			) as OptGroup[]).concat(this.tagAttributes)
@@ -319,7 +319,7 @@ export default defineComponent({
 				'Search',
 				this,
 				CorpusStore.get.textDirection(),
-				debug.debug, // is debug enabled - i.e. show debug labels in dropdown
+				debug.value, // is debug enabled - i.e. show debug labels in dropdown
 				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible
 			)
 			.flatMap(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
