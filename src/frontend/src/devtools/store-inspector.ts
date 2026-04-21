@@ -1,3 +1,4 @@
+import * as RootStore from '@/store';
 import * as ArticleStore from '@/store/article';
 import * as CorpusStore from '@/store/corpus';
 import * as ExploreStore from '@/store/form/explore';
@@ -13,11 +14,12 @@ import * as TagsetStore from '@/store/tagset';
 import * as UIStore from '@/store/ui';
 
 import { setupDevtoolsPlugin } from '@vue/devtools-api';
-import { toRaw, watch, type App } from 'vue';
+import { isRef, toRaw, unref, watch, type App } from 'vue';
 
 const DEVTOOLS_PLUGIN_ID = 'blacklab-frontend-store-devtools';
 const STORE_INSPECTOR_ID = 'blacklab-frontend-store-inspector';
 const ALL_STORE_STATE_ID = 'all-store-state';
+const ROOT_STORE_ID = 'store:root';
 
 type InspectorField = {
 	key: string;
@@ -36,7 +38,7 @@ type InspectorNode = {
 type StoreLeaf = {
 	id: string;
 	label: string;
-	readState: () => unknown;
+	readState?: () => unknown;
 	readGetters: () => unknown;
 	watchState?: () => unknown;
 };
@@ -48,6 +50,13 @@ type StoreGroup = {
 };
 
 type DevtoolsApi = Parameters<Parameters<typeof setupDevtoolsPlugin>[1]>[0];
+
+const ROOT_STORE: StoreLeaf = {
+	id: ROOT_STORE_ID,
+	label: 'Root Store',
+	readGetters: () => RootStore.get,
+	watchState: () => RootStore.get.loadingState().value,
+};
 
 const STORE_GROUPS: StoreGroup[] = [
 	{
@@ -91,9 +100,13 @@ const STORE_GROUPS: StoreGroup[] = [
 	},
 ];
 
-const STORE_LEAVES = STORE_GROUPS.flatMap(group => group.children);
+const STORE_LEAVES = [ROOT_STORE, ...STORE_GROUPS.flatMap(group => group.children)];
 
 function unwrapInspectorValue(value: unknown): unknown {
+	if (isRef(value)) {
+		return unwrapInspectorValue(unref(value));
+	}
+
 	return value != null && typeof value === 'object' ? toRaw(value as object) : value;
 }
 
@@ -158,9 +171,11 @@ function makeGetterSnapshot(store: StoreLeaf): Record<string, unknown> | null {
 }
 
 function makeStoreSnapshot(store: StoreLeaf): unknown {
-	const snapshot: Record<string, unknown> = {
-		state: unwrapInspectorValue(store.readState()),
-	};
+	const snapshot: Record<string, unknown> = {};
+
+	if (store.readState) {
+		snapshot.state = unwrapInspectorValue(store.readState());
+	}
 
 	const getters = makeGetterSnapshot(store);
 	if (getters) {
@@ -168,6 +183,16 @@ function makeStoreSnapshot(store: StoreLeaf): unknown {
 	}
 
 	return snapshot;
+}
+
+function makeRootStoreNode(filterText: string): InspectorNode | null {
+	const filter = filterText.trim().toLowerCase();
+	return !filter || ROOT_STORE.label.toLowerCase().includes(filter)
+		? {
+			id: ROOT_STORE.id,
+			label: ROOT_STORE.label,
+		}
+		: null;
 }
 
 function toInspectorNode(group: StoreGroup): InspectorNode {
@@ -217,6 +242,11 @@ function makeInspectorTree(filterText: string): InspectorNode[] {
 		});
 	}
 
+	const rootStoreNode = makeRootStoreNode(filterText);
+	if (rootStoreNode) {
+		nodes.push(rootStoreNode);
+	}
+
 	STORE_GROUPS.forEach(group => {
 		const node = filterGroup(group, filter);
 		if (node) {
@@ -236,10 +266,14 @@ function makeStoreField(store: StoreLeaf): InspectorField {
 }
 
 function makeAllStoreState(): InspectorState {
-	return STORE_GROUPS.reduce<InspectorState>((state, group) => {
-		state[group.label] = group.children.map(makeStoreField);
-		return state;
-	}, {});
+	const state: InspectorState = {
+		Root: [makeStoreField(ROOT_STORE)],
+	};
+
+	return STORE_GROUPS.reduce<InspectorState>((acc, group) => {
+		acc[group.label] = group.children.map(makeStoreField);
+		return acc;
+	}, state);
 }
 
 function makeGroupState(group: StoreGroup): InspectorState {
@@ -249,13 +283,15 @@ function makeGroupState(group: StoreGroup): InspectorState {
 }
 
 function makeLeafState(store: StoreLeaf): InspectorState {
-	const state: InspectorState = {
-		State: [{
+	const state: InspectorState = {};
+
+	if (store.readState) {
+		state.State = [{
 			key: 'state',
 			value: unwrapInspectorValue(store.readState()),
 			editable: false,
-		}],
-	};
+		}];
+	}
 
 	const getterFields = makeGetterFields(store.readGetters());
 	if (getterFields.length) {
@@ -340,7 +376,8 @@ export function installStoreInspectorDevtools(app: App): void {
 			});
 
 			STORE_LEAVES.forEach(store => {
-				watch(store.watchState ?? store.readState, () => {
+					const watchSource = store.watchState ?? store.readState ?? store.readGetters;
+					watch(watchSource, () => {
 					refreshInspector();
 				}, { deep: true });
 			});
