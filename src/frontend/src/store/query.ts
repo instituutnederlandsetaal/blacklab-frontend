@@ -85,7 +85,7 @@ const getState = () => state;
 
 const get = {
   sourceField: (): CorpusModule.NormalizedAnnotatedField => {
-    const fieldName = state.shared?.source ?? CorpusModule.get.mainAnnotatedField();
+    const fieldName = state.shared?.source || CorpusModule.get.mainAnnotatedField();
     return CorpusModule.get.allAnnotatedFieldsMap()[fieldName];
   },
   targetFields: (): NormalizedAnnotatedFieldParallel[] => {

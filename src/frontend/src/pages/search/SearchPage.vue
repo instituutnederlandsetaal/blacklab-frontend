@@ -8,6 +8,7 @@
 				<pre><template v-for="(v, k) in debugQuery"><template v-if="v != null && v !== ''">{{k}}: {{ v }}<br></template></template></pre>
 			</div>
 		</Debug> -->
+		<pre>{{ {resultsVisible} }}</pre>
 
 		<Results v-show="resultsVisible" id="results"/>
 	</div>

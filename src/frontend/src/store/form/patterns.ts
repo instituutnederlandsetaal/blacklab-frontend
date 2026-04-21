@@ -272,7 +272,7 @@ const init = (state: CorpusChange) => {
 	}
 
 	const parallelFields = CorpusStore.get.parallelAnnotatedFields();
-	const defaultParallelVersion = parallelFields[0]?.id || '';
+	const defaultParallelVersion = parallelFields[0]?.id ?? null; 
 
 	debugLogCat('parallel', `init: Set default parallel version: ${defaultParallelVersion}`);
 	privateActions.initShared({
