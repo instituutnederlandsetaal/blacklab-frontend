@@ -6,7 +6,7 @@
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as UIStore from '@/store/ui'; // Is initialized before we are.
 import { escapeRegex } from '@/utils';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref } from 'vue';
 
 type Token = {
 	/** Annotation ID */
@@ -74,6 +74,19 @@ const memoize = <T>(getter: () => T): (() => T) => {
 const state = reactive(structuredClone(defaults));
 const getState = () => state;
 
+const createDefaultToken = (): Token => ({
+	id: UIStore.getState().explore.defaultSearchAnnotationId,
+	value: '',
+});
+
+const normalizeNgramState = () => {
+	state.ngram.size = Math.min(state.ngram.size, state.ngram.maxSize);
+	state.ngram.tokens = state.ngram.tokens.slice(0, state.ngram.maxSize);
+	while (state.ngram.tokens.length < state.ngram.maxSize) {
+		state.ngram.tokens.push(createDefaultToken());
+	}
+};
+
 const get = {
 	ngram: {
 		size: () => state.ngram.size,
@@ -101,16 +114,6 @@ const get = {
 	}
 };
 
-watch(() => ({maxSize: state.ngram.maxSize, currentLength: state.ngram.tokens.length}), ({maxSize, currentLength}) => {
-	state.ngram.tokens = state.ngram.tokens.slice(0, maxSize);
-	while (state.ngram.tokens.length < maxSize) {
-		state.ngram.tokens.push({
-			id: UIStore.getState().explore.defaultSearchAnnotationId,
-			value: '',
-		});
-	}
-});
-
 
 const actions = {
 	ngram: {
@@ -126,14 +129,20 @@ const actions = {
 		},
 		groupAnnotationId: (payload: string) => state.ngram.groupAnnotationId = payload,
 		maxSize: (payload: number) => {
-			state.ngram.size = Math.min(state.ngram.size, payload);
-			state.ngram.tokens = state.ngram.tokens.slice(0, payload);
+			state.ngram.maxSize = payload;
+			normalizeNgramState();
 		},
 
 		// clone required so we don't insert a the default array and subsequent changes don't write back into it
-		reset: () => Object.assign(state.ngram, structuredClone(defaults.ngram)),
+		reset: () => {
+			Object.assign(state.ngram, structuredClone(defaults.ngram));
+			normalizeNgramState();
+		},
 
-		replace: (payload: ModuleRootState['ngram']) => Object.assign(state.ngram, payload),
+		replace: (payload: ModuleRootState['ngram']) => {
+			Object.assign(state.ngram, payload);
+			normalizeNgramState();
+		},
 	},
 
 	frequency: {
@@ -156,7 +165,11 @@ const actions = {
 		actions.frequency.replace(payload.frequency);
 		actions.ngram.replace(payload.ngram);
 	},
-	reset: () => { Object.assign(state, structuredClone(defaults)); resetSignal.value++; },
+	reset: () => {
+		Object.assign(state, structuredClone(defaults));
+		normalizeNgramState();
+		resetSignal.value++;
+	},
 };
 
 const resetSignal = ref(0);
