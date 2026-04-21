@@ -8,7 +8,7 @@ import cloneDeep from 'clone-deep';
 
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as GlobalResultsModule from '@/store/results/global';
-import { reactive } from 'vue';
+import { markRaw, reactive, shallowReactive } from 'vue';
 
 type ModuleRootState = Record<string, ViewRootState>;
 type RequestedRange = {
@@ -123,16 +123,18 @@ const createGetters = (state: ViewRootState) => ({});
 export const createViewModule = (viewName: string, customInitialState?: Partial<ViewRootState>) => {
 	const state = reactive<ViewRootState>(Object.assign(cloneDeep(initialViewState), cloneDeep(customInitialState)));
 	const m = {
-		actions: createActions(state),
-		get: createGetters(state),
+		actions: markRaw(createActions(state)),
+		get: markRaw(createGetters(state)),
 		getState: () => state,
 	};
 	return m;
 };
+type ViewModule = ReturnType<typeof createViewModule>;
+
 
 
 // store the sub-modules we create so we can access them later
-const moduleCache: Record<string, ReturnType<typeof createViewModule>> = {};
+const moduleCache: Record<string, ViewModule> = shallowReactive({});
 function getOrCreateModule(view: string, initialState?: ViewRootState) {
 	if (view == null) { throw new Error('view is null'); }
 	if (!moduleCache[view]) {
@@ -155,9 +157,7 @@ const actions = {
 	},
 };
 
-const get = {
-
-}
+const get = {}
 
 const init = async (state: CorpusChange)=> {
 	// Clear all views so the default result modules can be recreated for the new corpus.
@@ -183,7 +183,6 @@ function forEachView(fn: (view: ViewRootState) => void) {
 	Object.values(moduleCache).forEach(m => fn(m.getState()));
 }
 
-type ViewModule = ReturnType<typeof createViewModule>;
 
 export { actions, forEachView, get, getOrCreateModule, getState, init, initialState, initialViewState };
 export type { ModuleRootState, ViewModule, ViewRootState };

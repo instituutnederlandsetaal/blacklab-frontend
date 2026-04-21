@@ -3,6 +3,7 @@ import App from '@/App.vue';
 import { init as initApi } from '@/api';
 import { installApp } from '@/app/install-app';
 import { startAppEffects } from '@/app/start-app-effects';
+import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import { installHooksGlobal } from '@/interop/hooks';
 import { setMountedVueGlobals } from '@/interop/window-globals';
 import * as LoginSystem from '@/utils/loginsystem';
@@ -32,6 +33,7 @@ export async function createAppRuntime(): Promise<AppRuntime> {
 
 	const app = createApp(App);
 	installApp(app);
+	installStoreInspectorDevtools(app);
 	startAppEffects();
 
 	return {
