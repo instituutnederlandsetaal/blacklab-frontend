@@ -8,7 +8,7 @@ import cloneDeep from 'clone-deep';
 
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import type { ModuleRootState as ExploreModuleRootState } from '@/features/search/model/form/explore-state';
-import type { ModuleRootState as PatternModuleRootState } from '@/store/form/patterns';
+import type { ModuleRootState as PatternModuleRootState } from '@/features/search/model/form/pattern-state';
 import { reactive } from 'vue';
 
 type ModuleRootState = {

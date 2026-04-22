@@ -32,6 +32,11 @@ This document tracks implementation progress, current status, open questions, an
 - Last updated: 2026-04-22.
 - Last known verification: `npm run build` passed in `src/frontend` on 2026-04-22.
 - Current migration strategy: compatibility-first extraction. New owners are introduced first, while old import paths remain as shims.
+- Established move pattern for remaining store slices:
+	move the concrete implementation to its canonical owner,
+	reduce the old `src/store/*` path to a re-export shim,
+	update `app/state/root-store.ts`, devtools, and already-migrated canonical owners where touched,
+	then validate with `npm run build` in `src/frontend` before widening scope.
 - Current behavioral constraint: URL state is intentionally disconnected from page state. Only vue-router page routing and route-derived `indexId` / `docId` reads for async fetches remain active.
 - Current usability safeguard: query parameters, store-to-URL wiring, `popstate` restoration, and initial URL decode are inactive because the previous URL/store coupling was buggy and made the page unusable.
 - Temporary validation exception: `src/app/dirty/temporary-article-initial-url-parse.ts` re-enables initial URL decode only for direct article-page loads so the migrated article store can be validated; remove it after the validation pass.

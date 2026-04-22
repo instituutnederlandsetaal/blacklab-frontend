@@ -11,10 +11,10 @@ import jsonStableStringify from 'json-stable-stringify';
 
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
+import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as InterfaceModule from '@/features/search/model/form/interface-state';
-import type * as FilterModule from '@/store/form/filters';
-import type * as PatternModule from '@/store/form/patterns';
+import type * as PatternModule from '@/features/search/model/form/pattern-state';
 import type * as GlobalModule from '@/store/results/global';
 import type * as ViewModule from '@/store/results/views';
 import * as UIModule from '@/store/ui';
