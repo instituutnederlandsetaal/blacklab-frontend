@@ -15,8 +15,8 @@
 </template>
 
 <script lang="ts">
+import * as RootStore from '@/app/state/root-store';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import * as RootStore from '@/store';
 import { defineComponent } from 'vue';
 
 import Spinner from '@/components/Spinner.vue';

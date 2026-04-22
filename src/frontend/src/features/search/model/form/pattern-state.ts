@@ -5,8 +5,8 @@
 
 import cloneDeep from 'clone-deep';
 
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as UIStore from '@/app/state/ui-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 
 import { debugLogCat } from '@/utils/debug';
 
@@ -15,7 +15,7 @@ import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import type { AnnotationValue } from '@/types/apptypes';
 import { reactive, ref } from 'vue';
 
-import { memoize } from '@/store/reactive-store';
+import { memoize } from '@/features/search/model/form/reactive-store';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
@@ -307,3 +307,4 @@ const resetSignal = ref(0);
 
 export { actions, initialState as defaults, get, getState, init, resetSignal };
 export type { ModuleRootState };
+

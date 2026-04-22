@@ -4,6 +4,7 @@
 
 <script lang="ts">
 import * as UIStore from '@/app/state/ui-state';
+import { setLegacyIndexIdGlobal } from '@/interop/window-globals';
 import { isRouteBootstrapSettled } from '@/navigation/page-bootstrap';
 import type { CustomRouteMeta } from '@/navigation/router';
 import type { CFCustomCssEntry, CFCustomJsEntry, CFPageConfig } from '@/types/apptypes';
@@ -69,8 +70,7 @@ export default defineComponent({
 	watch: {
 		indexId: {
 			immediate: true,
-			// @ts-expect-error legacy script interop
-			handler() { window.INDEX_ID = this.indexId; }
+			handler() { setLegacyIndexIdGlobal(this.indexId); }
 		},
 		title: {
 			immediate: true,

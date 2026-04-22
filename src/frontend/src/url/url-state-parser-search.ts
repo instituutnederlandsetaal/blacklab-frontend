@@ -10,25 +10,25 @@ import { parseBcql } from '@/utils/bcql-json-interpreter';
 import { debugLog } from '@/utils/debug';
 import parseLucene from '@/utils/luceneparser';
 
-import * as CorpusModule from '@/store/corpus';
-import type * as HistoryModule from '@/store/history';
-import * as TagsetModule from '@/store/tagset';
-import * as UIModule from '@/store/ui';
-import * as UIStore from '@/store/ui';
+import * as UIModule from '@/app/state/ui-state';
+import * as UIStore from '@/app/state/ui-state';
+import * as CorpusModule from '@/features/corpus/model/corpus-state';
+import * as TagsetModule from '@/features/corpus/model/tagset-state';
+import type * as HistoryModule from '@/features/history/model/query-history-state';
 
 // Form
-import * as ExploreModule from '@/store/form/explore';
-import * as FilterModule from '@/store/form/filters';
-import * as GapModule from '@/store/form/gap';
-import * as InterfaceModule from '@/store/form/interface';
-import type * as PatternModule from '@/store/form/patterns';
+import * as ExploreModule from '@/features/search/model/form/explore-state';
+import * as FilterModule from '@/features/search/model/form/filter-state';
+import * as GapModule from '@/features/search/model/form/gap-state';
+import * as InterfaceModule from '@/features/search/model/form/interface-state';
+import type * as PatternModule from '@/features/search/model/form/pattern-state';
 
 // Results
-import * as GlobalResultsModule from '@/store/results/global';
-import * as ViewModule from '@/store/results/views';
+import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
+import * as ViewModule from '@/features/search/model/results/view-state';
 
 // Article
-import * as ArticleStore from '@/store/article';
+import * as ArticleStore from '@/features/article/model/article-state';
 
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
 

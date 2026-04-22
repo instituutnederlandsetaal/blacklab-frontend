@@ -6,16 +6,16 @@ import { ReplaySubject, fromEvent, of } from 'rxjs';
 import { filter, map, mergeMap } from 'rxjs/operators';
 
 import * as RootStore from '@/app/state/root-store';
-import * as ArticleStore from '@/store/article';
-import * as CorpusStore from '@/store/corpus';
-import * as ExploreStore from '@/store/form/explore';
-import * as GapStore from '@/store/form/gap';
-import * as InterfaceStore from '@/store/form/interface';
-import * as PatternStore from '@/store/form/patterns';
-import * as HistoryStore from '@/store/history';
-import * as QueryStore from '@/store/query';
-import * as GlobalResultsStore from '@/store/results/global';
-import * as ViewStore from '@/store/results/views';
+import * as ArticleStore from '@/features/article/model/article-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as HistoryStore from '@/features/history/model/query-history-state';
+import * as ExploreStore from '@/features/search/model/form/explore-state';
+import * as GapStore from '@/features/search/model/form/gap-state';
+import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import * as PatternStore from '@/features/search/model/form/pattern-state';
+import * as QueryStore from '@/features/search/model/query-state';
+import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
+import * as ViewStore from '@/features/search/model/results/view-state';
 
 import router, { initialUrlStateApplied } from '@/navigation/router';
 import { stateToUrl } from '@/url/state-to-url';

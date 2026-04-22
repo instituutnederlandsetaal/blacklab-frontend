@@ -1,10 +1,10 @@
 import URI from 'urijs';
 
-import type * as ArticleStore from '@/store/article';
-import type * as InterfaceStore from '@/store/form/interface';
-import type * as QueryStore from '@/store/query';
-import type * as GlobalResultsStore from '@/store/results/global';
-import type * as ViewStore from '@/store/results/views';
+import type * as ArticleStore from '@/features/article/model/article-state';
+import type * as InterfaceStore from '@/features/search/model/form/interface-state';
+import type * as QueryStore from '@/features/search/model/query-state';
+import type * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
+import type * as ViewStore from '@/features/search/model/results/view-state';
 import type * as BLTypes from '@/types/blacklabtypes';
 
 const MAX_URL_LENGTH = 4000;

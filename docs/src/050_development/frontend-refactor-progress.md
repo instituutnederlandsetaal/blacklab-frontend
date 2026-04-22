@@ -34,7 +34,8 @@ This document tracks implementation progress, current status, open questions, an
 - Current migration strategy: compatibility-first extraction. New owners are introduced first, while old import paths remain as shims.
 - Store-model migration status: all former synchronous `src/store/*` state slices now have canonical owners under `features/*/model/*` or `app/state/*`; the old `src/store/*` entrypoints are now compatibility re-export shims.
 - Canonical-import cleanup status: non-URL page, component, and helper consumers touched so far now import their `app/state/*` and `features/*/model/*` owners directly.
-- Remaining legacy `@/store/*` usage is now confined to the quarantined URL modules in `src/app/dirty/*` and `src/url/*`, plus the shared `src/store/reactive-store.ts` helper still used by migrated form-model modules.
+- The old `src/store/*` shim files and their now-empty directories have been removed after canonical imports stabilized and the frontend build stayed green.
+- Interop cleanup status: `window.vuexModules` and the legacy `window.INDEX_ID` exposure are now owned by `src/interop/window-globals.ts`; `PageMetaUpdater.vue` still owns the DOM/meta/custom-script lifecycle but no longer writes browser globals directly.
 - Established move pattern for store-slice migrations:
 	move the concrete implementation to its canonical owner,
 	reduce the old `src/store/*` path to a re-export shim,
@@ -110,7 +111,11 @@ This document tracks implementation progress, current status, open questions, an
 - Added a route-scoped page-bootstrap signal so `PageMetaUpdater.vue` can defer custom JS injection until article/help/about pages report that their primary async content has settled.
 - Updated app-owned consumers to use the canonical `app/state/root-store` owner where touched.
 - Updated a broad slice of non-URL page, component, and helper consumers to import canonical `app/state/*` and `features/*/model/*` owners directly instead of `@/store/*` shims.
-- Reduced remaining legacy `@/store/*` usage to the quarantined URL modules and the shared `src/store/reactive-store.ts` helper.
+- Updated the quarantined URL modules to import canonical app and feature owners directly while keeping URL behavior disconnected.
+- Moved the shared getter-memoization helper to `src/features/search/model/form/reactive-store.ts` and updated form-model modules to use the feature-local owner.
+- Eliminated live `@/store/*` imports from `src/frontend/src`.
+- Removed the obsolete `src/store/*` shim files and deleted the now-empty `src/store/` directory.
+- Removed the obsolete compatibility files `src/route/router.ts` and `src/api/async/instances/reactive-variables.ts` after their old paths went unused.
 - Verified the frontend with `npm run build` in `src/frontend`.
 
 ### 2026-04-21
@@ -210,7 +215,7 @@ Status: `done`
 Landed:
 
 - `src/navigation/route-context.ts` now owns `indexId`, `docId`, `user`, and `userName`.
-- `src/api/async/instances/reactive-variables.ts` now re-exports from the navigation owner.
+- The temporary compatibility file `src/api/async/instances/reactive-variables.ts` has been removed after the old path went unused.
 
 
 ### Milestone 5: Move Feature State Models Under `features/`
@@ -257,8 +262,7 @@ Landed:
 
 Notes:
 
-- The store-model move itself is complete; remaining `@/store/*` usage is now compatibility cleanup rather than ownership migration.
-- Keep the old store entrypoints valid until broader canonical-import cleanup is worth the churn, especially in the quarantined URL slice.
+- The store-model move itself is complete and the old `src/store/*` shim tree has now been removed.
 
 
 ### Milestone 6: Consolidate Interop Surfaces
@@ -271,11 +275,11 @@ Landed:
 - `window.vueApp`
 - `window.vueRoot`
 - `currentCorpusData`
+- `window.vuexModules` is now exposed from `src/interop/window-globals.ts` instead of being written from `src/app/state/root-store.ts`.
+- `window.INDEX_ID` is now exposed through `src/interop/window-globals.ts` instead of being assigned directly inside `PageMetaUpdater.vue`.
 
 Remaining:
 
-- `window.vuexModules`
-- `window.INDEX_ID`
 - DOM and meta customization surfaces currently centered around `PageMetaUpdater.vue`
 - Any remaining global customization glue that still lives outside `interop/`
 
@@ -292,23 +296,24 @@ Scope:
 Landed:
 
 - A first cleanup slice updated non-URL page, component, and helper consumers to import canonical app and feature owners directly.
+- The quarantined URL modules now also import canonical app and feature owners directly without reattaching URL behavior.
+- Live source imports no longer depend on `@/store/*` compatibility shims.
+- The obsolete `src/store/*` compatibility files have been deleted.
+- The obsolete compatibility files `src/route/router.ts` and `src/api/async/instances/reactive-variables.ts` have been deleted.
 
 Remaining:
 
-- Decide whether the quarantined URL modules should keep importing the legacy shims until URL reattachment work resumes, or whether that slice should also switch to canonical owners while staying behaviorally disconnected.
-- Remove old re-export shims only after canonical imports are stable across the remaining call sites.
+- Remove any other dead compatibility scaffolding only when a concrete owner replacement has already been validated.
 
 
 ## Near-Term Next Step
 
-The next implementation slice should keep shrinking compatibility usage while keeping URL behavior disconnected.
+The next implementation slice should keep shrinking compatibility scaffolding while keeping URL behavior disconnected.
 
 That means:
 
-- Prefer cleanup in ownership-adjacent areas that remain outside live URL behavior, such as interop surfaces or any remaining non-URL canonical-import call sites.
-- Keep the old `src/store/*` paths as temporary shims while that cleanup proceeds.
-- Treat the quarantined URL modules as a deliberate boundary; only clean them up when we are intentionally working in that dirty slice.
-- Consider interop cleanup next where it naturally overlaps, especially moving browser-global ownership out of state modules without removing the exposed customization surfaces.
+- Prefer cleanup in ownership-adjacent areas that remain outside live URL behavior, such as interop surfaces or unused compatibility shims.
+- Consider the next interop slice in the DOM/meta/custom-script area around `PageMetaUpdater.vue`, especially if more of that browser-global or customization lifecycle can move under `interop/` without changing the exposed surfaces.
 - Query parameters, store-to-URL reflection, browser-history restoration, and initial URL decode should remain inactive during the refactor.
 - Route-derived `indexId` and `docId` can still be used for async fetches that update corpus and form-related state.
 - After the refactor is complete, reintroduce URL behavior in this order: state-to-URL reflection and testing, `popstate` navigation, initial URL decode.
@@ -433,7 +438,7 @@ Examples:
 User response / notes:
 
 - Customization surfaces (vuexmodules) should remain, but exposing them/setting on window can be moved to the `interop/` directory.
-- `INDEX_ID` is a legacy artifact from the pre-SPA times that should be removed, but we can keep using it for now and defer that. 
+- `INDEX_ID` is a legacy artifact from the pre-SPA times that is used in some custom scripts that are loaded asynchronously. We should keep it around for now, and in the next major we will remove it. Aim should be to avoid usage inside the app itself and only expose it for interop purposes. 
 - Authentication, BLS_URL etc. are constant and global across corpora and pages, they are set by the backend in order to properly init the UI. Safe to use, don't change behavior.
 
 

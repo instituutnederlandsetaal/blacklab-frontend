@@ -4,9 +4,8 @@
  *
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
-import { memoize } from '@/store/reactive-store';
-
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
+import { memoize } from '@/features/search/model/form/reactive-store';
 
 import type { FilterDefinition } from '@/types/apptypes';
 
@@ -224,3 +223,4 @@ const init = (state: CorpusChange) => {
 
 export { actions, get, getState, init };
 export type { ModuleRootState as FullModuleRootState, ExternalModuleRootState as ModuleRootState };
+

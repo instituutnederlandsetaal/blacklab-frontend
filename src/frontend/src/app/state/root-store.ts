@@ -287,53 +287,7 @@ const init = async (state: CorpusChange) => {
 	await QueryModule.init(state);
 
 	await ArticleModule.init(state);
-
-	(globalThis as any).vuexModules.results = {
-		...ViewModule,
-		hits: ViewModule.getOrCreateModule('hits'),
-		docs: ViewModule.getOrCreateModule('docs'),
-	};
 	loadingState.value = Loadable.Loaded(state);
-};
-
-const rootInteropGet = {
-	...get,
-	...ArticleModule.get,
-};
-
-const rootInteropActions = {
-	...actions,
-	...ArticleModule.actions,
-};
-
-// Debugging helpers.
-(globalThis as any).vuexModules = {
-	root: {
-		get: rootInteropGet,
-		getState: ArticleModule.getState,
-		actions: rootInteropActions,
-		init
-	},
-
-	corpus: CorpusModule,
-	history: HistoryModule,
-	query: QueryModule,
-	tagset: TagsetModule,
-	ui: UIModule,
-	explore: ExploreModule,
-	form: FormManager,
-	filters: FilterModule,
-	interface: InterfaceModule,
-	patterns: PatternModule,
-	gap: GapModule,
-	article: ArticleModule,
-	results: {
-		...ViewModule,
-		hits: ViewModule.getOrCreateModule('hits'),
-		docs: ViewModule.getOrCreateModule('docs'),
-	},
-	views: ViewModule,
-	global: GlobalResultsModule,
 };
 
 export { actions, get, init };

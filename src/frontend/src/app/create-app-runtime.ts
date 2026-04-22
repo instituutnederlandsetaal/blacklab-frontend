@@ -5,7 +5,7 @@ import { installApp } from '@/app/install-app';
 import { startAppEffects } from '@/app/start-app-effects';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import { installHooksGlobal } from '@/interop/hooks';
-import { setMountedVueGlobals } from '@/interop/window-globals';
+import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
 import * as LoginSystem from '@/utils/loginsystem';
 import { createApp, type App as VueApp } from 'vue';
 
@@ -30,6 +30,7 @@ export async function createAppRuntime(): Promise<AppRuntime> {
 	const user = await LoginSystem.user;
 	initializeApiClients(user);
 	installHooksGlobal();
+	installLegacyStoreGlobals();
 
 	const app = createApp(App);
 	installApp(app);
