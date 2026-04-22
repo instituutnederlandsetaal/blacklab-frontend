@@ -19,9 +19,9 @@ import { defineComponent } from 'vue';
 
 import ResultsView from '@/pages/search/results/ResultsView.vue';
 
-import * as InterfaceStore from '@/store/form/interface';
-import * as UIStore from '@/store/ui';
-import * as ViewStore from '@/store/results/views';
+import * as UIStore from '@/app/state/ui-state';
+import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import * as ViewStore from '@/features/search/model/results/view-state';
 
 export default defineComponent({
 	components: {

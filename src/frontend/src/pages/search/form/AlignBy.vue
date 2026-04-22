@@ -16,8 +16,8 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import * as PatternStore from '@/store/form/patterns';
-import * as UIStore from '@/store/ui';
+import * as UIStore from '@/app/state/ui-state';
+import * as PatternStore from '@/features/search/model/form/pattern-state';
 import type { Option } from '@/utils/options';
 export default defineComponent({
 	props: {

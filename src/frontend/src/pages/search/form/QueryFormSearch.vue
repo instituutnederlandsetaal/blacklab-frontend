@@ -112,14 +112,14 @@
 
 import { defineComponent } from 'vue';
 
+import * as RootStore from '@/app/state/root-store';
+import * as UIStore from '@/app/state/ui-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import * as RootStore from '@/store/';
-import * as CorpusStore from '@/store/corpus';
-import * as FilterStore from '@/store/form/filters';
-import * as GapStore from '@/store/form/gap';
-import * as InterfaceStore from '@/store/form/interface';
-import * as PatternStore from '@/store/form/patterns';
-import * as UIStore from '@/store/ui';
+import * as FilterStore from '@/features/search/model/form/filter-state';
+import * as GapStore from '@/features/search/model/form/gap-state';
+import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import * as PatternStore from '@/features/search/model/form/pattern-state';
 
 import uid from '@/mixins/uid';
 import Annotation from '@/pages/search/form/Annotation.vue';

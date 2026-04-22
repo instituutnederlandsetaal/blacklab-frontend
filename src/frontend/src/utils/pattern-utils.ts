@@ -1,13 +1,13 @@
 import { CqlGenerator } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import type { ModuleRootState as ModuleRootStateExplore } from '@/store/form/explore';
-import type { ModuleRootState as ModuleRootStateFilters } from '@/store/form/filters';
-import type { ModuleRootState as ModuleRootStatePatterns } from '@/store/form/patterns';
+import type { ModuleRootState as ModuleRootStateExplore } from '@/features/search/model/form/explore-state';
+import type { ModuleRootState as ModuleRootStateFilters } from '@/features/search/model/form/filter-state';
+import type { ModuleRootState as ModuleRootStatePatterns } from '@/features/search/model/form/pattern-state';
 import type * as AppTypes from '@/types/apptypes';
 import type { RegexEscapeOptions } from '@/utils';
 import {
-	applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel,
-	splitIntoTerms, uiTypeSupport
+    applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel,
+    splitIntoTerms, uiTypeSupport
 } from '@/utils';
 import cloneDeep from 'clone-deep';
 

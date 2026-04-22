@@ -55,10 +55,10 @@
 import { stripIndent } from 'common-tags';
 import { defineComponent } from 'vue';
 
-import * as RootStore from '@/store/';
-import * as CorpusStore from '@/store/corpus';
-import * as InterfaceStore from '@/store/form/interface';
-import * as PatternStore from '@/store/form/patterns';
+import * as RootStore from '@/app/state/root-store';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import * as PatternStore from '@/features/search/model/form/pattern-state';
 
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';
 import QueryFormFilters from '@/pages/search/form/QueryFormFilters.vue';

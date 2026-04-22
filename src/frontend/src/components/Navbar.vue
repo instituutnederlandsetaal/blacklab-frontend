@@ -34,10 +34,10 @@
 </template>
 
 <script lang="ts">
+import * as UIStore from '@/app/state/ui-state';
 import LocaleSelector from '@/components/LocaleSelector.vue';
 import LoginButton from '@/components/LoginButton.vue';
-import * as CorpusStore from '@/store/corpus';
-import * as UIStore from '@/store/ui';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 import { localStorageSynced } from '@/utils/localstore';
 import { defineComponent } from 'vue';

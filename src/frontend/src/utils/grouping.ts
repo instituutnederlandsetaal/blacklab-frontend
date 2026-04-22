@@ -1,4 +1,4 @@
-import * as FilterModule from '@/store/form/filters';
+import * as FilterModule from '@/features/search/model/form/filter-state';
 import type { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes";
 import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';

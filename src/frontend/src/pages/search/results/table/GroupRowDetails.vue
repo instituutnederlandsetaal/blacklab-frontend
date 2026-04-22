@@ -39,12 +39,12 @@
 
 import { blacklab } from '@/api';
 import Spinner from '@/components/Spinner.vue';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
 import type { GroupRowData, Rows } from '@/pages/search/results/table/table-layout';
 import { makeRows } from '@/pages/search/results/table/table-layout';
-import * as CorpusStore from '@/store/corpus';
 import type { BLDocResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
 import { computed, watch } from 'vue';
 

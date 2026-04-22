@@ -29,9 +29,9 @@
 <script lang="ts">
 import { defineComponent, type PropType } from 'vue';
 
-import * as CorpusStore from '@/store/corpus';
-import * as PatternStore from '@/store/form/patterns';
-import * as UIStore from '@/store/ui';
+import * as UIStore from '@/app/state/ui-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as PatternStore from '@/features/search/model/form/pattern-state';
 
 import { corpusCustomizations } from '@/utils/customization';
 import type { Option } from '@/utils/options';

@@ -68,10 +68,10 @@ import { catchError, debounceTime, filter, map, mergeMap, switchMap, toArray } f
 import { defineComponent, type PropType } from 'vue';
 
 import * as api from '@/api';
+import * as UIStore from '@/app/state/ui-state';
 import SelectPicker from '@/components/SelectPicker.vue';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import UID from '@/mixins/uid';
-import * as CorpusStore from '@/store/corpus';
-import * as UIStore from '@/store/ui';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import { escapeRegex, filterDuplicates, mapReduce } from '@/utils';
 

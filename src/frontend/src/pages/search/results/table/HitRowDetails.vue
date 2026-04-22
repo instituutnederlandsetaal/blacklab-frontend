@@ -95,9 +95,9 @@ import type { HitRowData } from './table-layout';
 import { snippetParts } from './table-layout';
 
 import * as Api from '@/api';
+import * as UIStore from '@/app/state/ui-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';
-import * as CorpusStore from '@/store/corpus';
-import * as UIStore from '@/store/ui';
 import { debugLog } from '@/utils/debug';
 import type { CancelableRequest } from '@/utils/loadable-streams';
 

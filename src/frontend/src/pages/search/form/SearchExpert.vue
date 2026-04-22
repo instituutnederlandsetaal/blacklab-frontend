@@ -61,7 +61,7 @@
 
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 
-import * as PatternStore from '@/store/form/patterns';
+import * as PatternStore from '@/features/search/model/form/pattern-state';
 
 import MultiValuePicker from '@/components/MultiValuePicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';

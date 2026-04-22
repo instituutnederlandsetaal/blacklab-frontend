@@ -169,10 +169,10 @@
 
 <script lang="ts">
 
-import * as CorpusStore from '@/store/corpus';
-import * as ExploreStore from '@/store/form/explore';
-import * as InterfaceStore from '@/store/form/interface';
-import * as UIStore from '@/store/ui';
+import * as UIStore from '@/app/state/ui-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as ExploreStore from '@/features/search/model/form/explore-state';
+import * as InterfaceStore from '@/features/search/model/form/interface-state';
 
 import { blacklabPaths } from '@/api';
 import Autocomplete from '@/components/Autocomplete.vue';

@@ -92,8 +92,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-import * as CorpusStore from '@/store/corpus';
-import * as PatternStore from '@/store/form/patterns';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as PatternStore from '@/features/search/model/form/pattern-state';
 
 import Autocomplete from '@/components/Autocomplete.vue';
 import SelectPicker from '@/components/SelectPicker.vue';

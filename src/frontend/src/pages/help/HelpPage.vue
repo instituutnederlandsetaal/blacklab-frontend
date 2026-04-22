@@ -5,8 +5,8 @@
 <script setup lang="ts">
 import { ApiError, frontend } from '@/api';
 import ServerRenderedContentPage from '@/components/ServerRenderedContentPage.vue';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
-import * as CorpusStore from '@/store/corpus';
 import { Loadable } from '@/utils/loadable-streams';
 import { useAsyncState } from '@vueuse/core';
 import { computed } from 'vue';

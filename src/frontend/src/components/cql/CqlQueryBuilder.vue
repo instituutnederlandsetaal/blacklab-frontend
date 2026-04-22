@@ -34,19 +34,19 @@
 </template>
 
 <script setup lang="ts">
+import * as UIStore from '@/app/state/ui-state';
 import type {
-	CqlQueryBuilderData,
-	CqlQueryBuilderOptions,
-	CqlTokenData
+    CqlQueryBuilderData,
+    CqlQueryBuilderOptions,
+    CqlTokenData
 } from '@/components/cql/cql-types';
 import {
-	COMPARATORS,
-	OPERATORS
+    COMPARATORS,
+    OPERATORS
 } from '@/components/cql/cql-types';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import uid from '@/mixins/uid';
 import Within from '@/pages/search/form/Within.vue';
-import * as CorpusStore from '@/store/corpus';
-import * as UIStore from '@/store/ui';
 import { getAnnotationSubset } from '@/utils';
 import { translate } from '@/utils/i18n';
 import { useVModel } from '@vueuse/core';

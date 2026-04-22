@@ -46,7 +46,7 @@ import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import * as Api from '@/api';
-import * as CorpusStore from '@/store/corpus';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 
 import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';

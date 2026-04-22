@@ -157,12 +157,12 @@ import jsonStableStringify from 'json-stable-stringify';
 
 import * as Api from '@/api';
 
+import * as RootStore from '@/app/state/root-store';
+import * as UIStore from '@/app/state/ui-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as QueryStore from '@/features/search/model/query-state';
-import * as RootStore from '@/store/';
-import * as CorpusStore from '@/store/corpus';
-import * as GlobalStore from '@/store/results/global';
-import * as ResultsStore from '@/store/results/views';
-import * as UIStore from '@/store/ui';
+import * as GlobalStore from '@/features/search/model/results/global-results-state';
+import * as ResultsStore from '@/features/search/model/results/view-state';
 
 import Totals from '@/pages/search/results/ResultTotals.vue';
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';

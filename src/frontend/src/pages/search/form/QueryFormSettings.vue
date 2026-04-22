@@ -71,9 +71,9 @@
 <script lang="ts">
 import { watch } from 'vue';
 
-import * as RootStore from '@/store/';
-import * as GlobalViewSettings from '@/store/results/global';
-import * as ResultsViewSettings from '@/store/results/views';
+import * as RootStore from '@/app/state/root-store';
+import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
+import * as ResultsViewSettings from '@/features/search/model/results/view-state';
 
 import Modal from '@/components/Modal.vue';
 import SelectPicker from '@/components/SelectPicker.vue';

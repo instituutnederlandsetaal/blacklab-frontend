@@ -33,6 +33,8 @@ This document tracks implementation progress, current status, open questions, an
 - Last known verification: `npm run build` passed in `src/frontend` on 2026-04-22.
 - Current migration strategy: compatibility-first extraction. New owners are introduced first, while old import paths remain as shims.
 - Store-model migration status: all former synchronous `src/store/*` state slices now have canonical owners under `features/*/model/*` or `app/state/*`; the old `src/store/*` entrypoints are now compatibility re-export shims.
+- Canonical-import cleanup status: non-URL page, component, and helper consumers touched so far now import their `app/state/*` and `features/*/model/*` owners directly.
+- Remaining legacy `@/store/*` usage is now confined to the quarantined URL modules in `src/app/dirty/*` and `src/url/*`, plus the shared `src/store/reactive-store.ts` helper still used by migrated form-model modules.
 - Established move pattern for store-slice migrations:
 	move the concrete implementation to its canonical owner,
 	reduce the old `src/store/*` path to a re-export shim,
@@ -107,6 +109,8 @@ This document tracks implementation progress, current status, open questions, an
 - Added a temporary article-only initial URL decode effect in `src/app/dirty/temporary-article-initial-url-parse.ts` to support validating the article-store migration without reconnecting the broader URL sync subsystem.
 - Added a route-scoped page-bootstrap signal so `PageMetaUpdater.vue` can defer custom JS injection until article/help/about pages report that their primary async content has settled.
 - Updated app-owned consumers to use the canonical `app/state/root-store` owner where touched.
+- Updated a broad slice of non-URL page, component, and helper consumers to import canonical `app/state/*` and `features/*/model/*` owners directly instead of `@/store/*` shims.
+- Reduced remaining legacy `@/store/*` usage to the quarantined URL modules and the shared `src/store/reactive-store.ts` helper.
 - Verified the frontend with `npm run build` in `src/frontend`.
 
 ### 2026-04-21
@@ -278,23 +282,32 @@ Remaining:
 
 ### Milestone 7: Remove Compatibility Shims
 
-Status: `not started`
+Status: `in progress`
 
 Scope:
 
 - Update imports to canonical owners.
 - Remove old path aliases and re-export shims only after the new owners are stable.
 
+Landed:
+
+- A first cleanup slice updated non-URL page, component, and helper consumers to import canonical app and feature owners directly.
+
+Remaining:
+
+- Decide whether the quarantined URL modules should keep importing the legacy shims until URL reattachment work resumes, or whether that slice should also switch to canonical owners while staying behaviorally disconnected.
+- Remove old re-export shims only after canonical imports are stable across the remaining call sites.
+
 
 ## Near-Term Next Step
 
-The next implementation slice should stop creating new store owners and start shrinking compatibility usage while keeping URL behavior disconnected.
+The next implementation slice should keep shrinking compatibility usage while keeping URL behavior disconnected.
 
 That means:
 
-- Prefer small canonical-import cleanup slices outside the quarantined URL code first, such as page, helper, or app-owned consumers that still use `@/store/*`.
+- Prefer cleanup in ownership-adjacent areas that remain outside live URL behavior, such as interop surfaces or any remaining non-URL canonical-import call sites.
 - Keep the old `src/store/*` paths as temporary shims while that cleanup proceeds.
-- Treat the quarantined URL modules as a later cleanup pass unless a local change already touches them.
+- Treat the quarantined URL modules as a deliberate boundary; only clean them up when we are intentionally working in that dirty slice.
 - Consider interop cleanup next where it naturally overlaps, especially moving browser-global ownership out of state modules without removing the exposed customization surfaces.
 - Query parameters, store-to-URL reflection, browser-history restoration, and initial URL decode should remain inactive during the refactor.
 - Route-derived `indexId` and `docId` can still be used for async fetches that update corpus and form-related state.

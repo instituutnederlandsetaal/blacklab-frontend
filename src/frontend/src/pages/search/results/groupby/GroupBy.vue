@@ -195,13 +195,13 @@
 import type { PropType } from 'vue';
 import { defineComponent, nextTick } from 'vue';
 
+import * as SearchModule from '@/app/state/root-store';
+import * as UIStore from '@/app/state/ui-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as FilterModule from '@/features/search/model/form/filter-state';
 import * as QueryStore from '@/features/search/model/query-state';
-import * as CorpusStore from '@/store/corpus';
-import * as FilterModule from '@/store/form/filters';
-import * as SearchModule from '@/store/index';
-import * as GlobalSearchSettingsStore from '@/store/results/global';
-import * as ResultsStore from '@/store/results/views';
-import * as UIStore from '@/store/ui';
+import * as GlobalSearchSettingsStore from '@/features/search/model/results/global-results-state';
+import * as ResultsStore from '@/features/search/model/results/view-state';
 
 import { blacklab } from '@/api';
 import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';

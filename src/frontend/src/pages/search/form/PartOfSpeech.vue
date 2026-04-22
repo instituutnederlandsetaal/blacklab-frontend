@@ -53,8 +53,8 @@
 </template>
 
 <script lang="ts">
-import * as CorpusStore from '@/store/corpus';
-import * as TagsetStore from '@/store/tagset';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import { defineComponent, type PropType } from 'vue';
 
 import type { Tagset } from '@/types/apptypes';

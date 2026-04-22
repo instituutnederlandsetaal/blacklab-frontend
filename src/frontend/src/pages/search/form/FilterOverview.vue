@@ -35,9 +35,9 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import * as CorpusStore from '@/store/corpus';
-import * as FilterStore from '@/store/form/filters';
-import * as PatternStore from '@/store/form/patterns';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as FilterStore from '@/features/search/model/form/filter-state';
+import * as PatternStore from '@/features/search/model/form/pattern-state';
 
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import frac2Percent from '@/mixins/fractionalToPercent';

@@ -85,8 +85,8 @@
 import URI from 'urijs';
 import { defineComponent, nextTick } from 'vue';
 
+import * as RootStore from '@/app/state/root-store';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import * as RootStore from '@/store/';
 
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 
@@ -95,7 +95,7 @@ import Modal from '@/components/Modal.vue';
 import uid from '@/mixins/uid';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
-import * as CorpusStore from '@/store/corpus';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 
 export default defineComponent({
 	components: {

@@ -60,10 +60,10 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import * as CorpusStore from '@/store/corpus';
-import * as FilterStore from '@/store/form/filters';
-import * as InterfaceStore from '@/store/form/interface';
-import * as UIStore from '@/store/ui';
+import * as UIStore from '@/app/state/ui-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as FilterStore from '@/features/search/model/form/filter-state';
+import * as InterfaceStore from '@/features/search/model/form/interface-state';
 
 import FilterOverview from '@/pages/search/form/FilterOverview.vue';
 import { mapReduce } from '@/utils';

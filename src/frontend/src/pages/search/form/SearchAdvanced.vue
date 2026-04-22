@@ -47,8 +47,8 @@
 </template>
 
 <script lang="ts">
-import * as InterfaceStore from '@/store/form/interface';
-import * as PatternStore from '@/store/form/patterns';
+import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import * as PatternStore from '@/features/search/model/form/pattern-state';
 
 import CqlQueryBuilder from '@/components/cql/CqlQueryBuilder.vue';
 import MultiValuePicker from '@/components/MultiValuePicker.vue';

@@ -3,9 +3,9 @@
 </template>
 
 <script lang="ts">
+import * as UIStore from '@/app/state/ui-state';
 import { isRouteBootstrapSettled } from '@/navigation/page-bootstrap';
 import type { CustomRouteMeta } from '@/navigation/router';
-import * as UIStore from '@/store/ui';
 import type { CFCustomCssEntry, CFCustomJsEntry, CFPageConfig } from '@/types/apptypes';
 import { compareAsSortedJson } from '@/utils/loadable-streams';
 import { defineComponent } from 'vue';

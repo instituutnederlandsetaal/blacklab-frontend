@@ -2,7 +2,7 @@ import type { FilterValue } from '@/types/apptypes';
 import { cast, escapeLucene, mapReduce, spanFilterId, splitIntoTerms, unescapeLucene } from '@/utils';
 import type { ASTNode, ASTRange } from 'lucene-query-parser';
 // @ts-ignore - weird this doesn't work during builds
-import type { FullFilterState } from '@/store/form/filters';
+import type { FullFilterState } from '@/features/search/model/form/filter-state';
 import { debugLog } from '@/utils/debug';
 import { findOption, optionLabel, optionValues, type Option } from '@/utils/options';
 
