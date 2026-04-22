@@ -5,7 +5,7 @@
 
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import { memoize } from '@/store/reactive-store';
-import * as UIStore from '@/store/ui';
+import * as UIStore from '@/app/state/ui-state';
 import { escapeRegex } from '@/utils';
 import { reactive, ref } from 'vue';
 

@@ -14,10 +14,10 @@ import type * as ExploreModule from '@/features/search/model/form/explore-state'
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as InterfaceModule from '@/features/search/model/form/interface-state';
+import type * as GlobalModule from '@/features/search/model/results/global-results-state';
+import type * as ViewModule from '@/features/search/model/results/view-state';
 import type * as PatternModule from '@/features/search/model/form/pattern-state';
-import type * as GlobalModule from '@/store/results/global';
-import type * as ViewModule from '@/store/results/views';
-import * as UIModule from '@/store/ui';
+import * as UIModule from '@/app/state/ui-state';
 
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';

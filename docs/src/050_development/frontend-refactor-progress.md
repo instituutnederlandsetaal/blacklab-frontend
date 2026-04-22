@@ -32,7 +32,8 @@ This document tracks implementation progress, current status, open questions, an
 - Last updated: 2026-04-22.
 - Last known verification: `npm run build` passed in `src/frontend` on 2026-04-22.
 - Current migration strategy: compatibility-first extraction. New owners are introduced first, while old import paths remain as shims.
-- Established move pattern for remaining store slices:
+- Store-model migration status: all former synchronous `src/store/*` state slices now have canonical owners under `features/*/model/*` or `app/state/*`; the old `src/store/*` entrypoints are now compatibility re-export shims.
+- Established move pattern for store-slice migrations:
 	move the concrete implementation to its canonical owner,
 	reduce the old `src/store/*` path to a re-export shim,
 	update `app/state/root-store.ts`, devtools, and already-migrated canonical owners where touched,
@@ -60,10 +61,24 @@ This document tracks implementation progress, current status, open questions, an
 - Reduced `src/store/corpus.ts` to a compatibility re-export shim.
 - Moved the explore form store implementation into `src/features/search/model/form/explore-state.ts`.
 - Reduced `src/store/form/explore.ts` to a compatibility re-export shim.
+- Moved the filter form store implementation into `src/features/search/model/form/filter-state.ts`.
+- Reduced `src/store/form/filters.ts` to a compatibility re-export shim.
 - Moved the interface form store implementation into `src/features/search/model/form/interface-state.ts`.
 - Reduced `src/store/form/interface.ts` to a compatibility re-export shim.
 - Moved the gap form store implementation into `src/features/search/model/form/gap-state.ts`.
 - Reduced `src/store/form/gap.ts` to a compatibility re-export shim.
+- Moved the pattern form store implementation into `src/features/search/model/form/pattern-state.ts`.
+- Reduced `src/store/form/patterns.ts` to a compatibility re-export shim.
+- Moved the form aggregate implementation into `src/features/search/model/form/form-state.ts`.
+- Reduced `src/store/form/index.ts` to a compatibility re-export shim.
+- Moved the global results store implementation into `src/features/search/model/results/global-results-state.ts`.
+- Reduced `src/store/results/global.ts` to a compatibility re-export shim.
+- Moved the view-state store implementation into `src/features/search/model/results/view-state.ts`.
+- Reduced `src/store/results/views.ts` to a compatibility re-export shim.
+- Moved the tagset store implementation into `src/features/corpus/model/tagset-state.ts`.
+- Reduced `src/store/tagset.ts` to a compatibility re-export shim.
+- Moved the UI store implementation into `src/app/state/ui-state.ts`.
+- Reduced `src/store/ui.ts` to a compatibility re-export shim.
 - Updated touched article consumers to use the canonical feature-owned article model.
 - Updated touched history consumers to use the canonical feature-owned history model.
 - Updated touched query consumers to use the canonical feature-owned query model.
@@ -71,13 +86,24 @@ This document tracks implementation progress, current status, open questions, an
 - Updated app-owned and already-migrated feature-owned explore consumers to use the canonical feature-owned explore model.
 - Updated app-owned and already-migrated feature-owned interface consumers to use the canonical feature-owned interface model.
 - Updated app-owned and already-migrated feature-owned gap consumers to use the canonical feature-owned gap model.
+- Updated app-owned and already-migrated feature-owned filter consumers to use the canonical feature-owned filter model.
+- Updated app-owned and already-migrated feature-owned pattern consumers to use the canonical feature-owned pattern model.
+- Updated app-owned and already-migrated feature-owned form-aggregate consumers to use the canonical feature-owned form model.
+- Updated app-owned and already-migrated feature-owned results consumers to use the canonical feature-owned results models.
+- Updated app-owned and already-migrated feature-owned tagset consumers to use the canonical corpus-owned tagset model.
+- Updated app-owned and already-migrated feature-owned UI consumers to use the canonical app-owned UI model.
 - Left remaining legacy article imports only in the quarantined URL modules.
 - Left remaining legacy history imports only in the quarantined URL modules.
 - Left remaining legacy query imports only in the quarantined URL modules.
 - Left broader remaining legacy corpus imports in existing store, page, and URL modules for incremental cleanup.
 - Left remaining legacy explore imports in existing form, helper, page, and URL modules for incremental cleanup.
+- Left remaining legacy filter imports in existing helper, page, and URL modules for incremental cleanup.
 - Left remaining legacy interface imports in existing form, page, and URL modules for incremental cleanup.
 - Left remaining legacy gap imports in the form aggregate, one page component, and URL modules for incremental cleanup.
+- Left remaining legacy pattern imports in existing helper, page, and URL modules for incremental cleanup.
+- Left remaining legacy results imports in existing page and URL modules for incremental cleanup.
+- Left remaining legacy tagset imports in existing page and URL modules for incremental cleanup.
+- Left remaining legacy UI imports in existing page and URL modules for incremental cleanup.
 - Added a temporary article-only initial URL decode effect in `src/app/dirty/temporary-article-initial-url-parse.ts` to support validating the article-store migration without reconnecting the broader URL sync subsystem.
 - Added a route-scoped page-bootstrap signal so `PageMetaUpdater.vue` can defer custom JS injection until article/help/about pages report that their primary async content has settled.
 - Updated app-owned consumers to use the canonical `app/state/root-store` owner where touched.
@@ -185,7 +211,7 @@ Landed:
 
 ### Milestone 5: Move Feature State Models Under `features/`
 
-Status: `in progress`
+Status: `done`
 
 Scope:
 
@@ -206,25 +232,29 @@ Landed:
 - `src/store/corpus.ts` is now a compatibility shim that re-exports from the corpus feature owner.
 - `src/features/search/model/form/explore-state.ts` now owns the explore form store implementation.
 - `src/store/form/explore.ts` is now a compatibility shim that re-exports from the search feature owner.
+- `src/features/search/model/form/filter-state.ts` now owns the filter form store implementation.
+- `src/store/form/filters.ts` is now a compatibility shim that re-exports from the search feature owner.
 - `src/features/search/model/form/interface-state.ts` now owns the interface form store implementation.
 - `src/store/form/interface.ts` is now a compatibility shim that re-exports from the search feature owner.
 - `src/features/search/model/form/gap-state.ts` now owns the gap form store implementation.
 - `src/store/form/gap.ts` is now a compatibility shim that re-exports from the search feature owner.
+- `src/features/search/model/form/pattern-state.ts` now owns the pattern form store implementation.
+- `src/store/form/patterns.ts` is now a compatibility shim that re-exports from the search feature owner.
+- `src/features/search/model/form/form-state.ts` now owns the aggregate form store implementation.
+- `src/store/form/index.ts` is now a compatibility shim that re-exports from the search feature owner.
+- `src/features/search/model/results/global-results-state.ts` now owns the global results store implementation.
+- `src/store/results/global.ts` is now a compatibility shim that re-exports from the search feature owner.
+- `src/features/search/model/results/view-state.ts` now owns the results view-state implementation.
+- `src/store/results/views.ts` is now a compatibility shim that re-exports from the search feature owner.
+- `src/features/corpus/model/tagset-state.ts` now owns the tagset store implementation.
+- `src/store/tagset.ts` is now a compatibility shim that re-exports from the corpus feature owner.
+- `src/app/state/ui-state.ts` now owns the UI store implementation.
+- `src/store/ui.ts` is now a compatibility shim that re-exports from the app owner.
 
-Remaining:
+Notes:
 
-- Move synchronous store slices behind feature-owned model modules.
-- Keep `app/state/root-store.ts` as the composition point while the old `src/store/*` entrypoints are reduced to shims.
-- Update remaining legacy article, history, and query imports when the quarantined URL slice is revisited.
-- Update the broader remaining corpus imports across existing store, page, and URL modules when that dependency surface is worth the churn.
-- Update the remaining explore imports across existing form, helper, page, and URL modules when that dependency surface is worth the churn.
-- Update the remaining interface imports across existing form, page, and URL modules when that dependency surface is worth the churn.
-- Update the remaining gap imports across the form aggregate, page, and URL modules when that dependency surface is worth the churn.
-
-Expected targets:
-
-- `src/store/form/*`
-- `src/store/results/*`
+- The store-model move itself is complete; remaining `@/store/*` usage is now compatibility cleanup rather than ownership migration.
+- Keep the old store entrypoints valid until broader canonical-import cleanup is worth the churn, especially in the quarantined URL slice.
 
 
 ### Milestone 6: Consolidate Interop Surfaces
@@ -258,13 +288,14 @@ Scope:
 
 ## Near-Term Next Step
 
-The next implementation slice should start the synchronous store-model migration while keeping URL behavior disconnected.
+The next implementation slice should stop creating new store owners and start shrinking compatibility usage while keeping URL behavior disconnected.
 
 That means:
 
-- Move one or two smaller synchronous store slices to feature-owned `model/` modules and keep the old `src/store/*` paths as temporary shims.
-- Prefer another smaller form slice before tackling larger results state or broader import-rewrite work.
-- Keep `app/state/root-store.ts` as the aggregation owner while those feature-owned model modules are introduced.
+- Prefer small canonical-import cleanup slices outside the quarantined URL code first, such as page, helper, or app-owned consumers that still use `@/store/*`.
+- Keep the old `src/store/*` paths as temporary shims while that cleanup proceeds.
+- Treat the quarantined URL modules as a later cleanup pass unless a local change already touches them.
+- Consider interop cleanup next where it naturally overlaps, especially moving browser-global ownership out of state modules without removing the exposed customization surfaces.
 - Query parameters, store-to-URL reflection, browser-history restoration, and initial URL decode should remain inactive during the refactor.
 - Route-derived `indexId` and `docId` can still be used for async fetches that update corpus and form-related state.
 - After the refactor is complete, reintroduce URL behavior in this order: state-to-URL reflection and testing, `popstate` navigation, initial URL decode.
@@ -335,7 +366,7 @@ Examples:
 - `@/api/async/instances/*`
 - `@/route/router`
 
-Status: unanswered
+Status: answered
 
 User answer / notes:
 
@@ -424,6 +455,8 @@ Add new notes directly below this line:
 
 - Make `src/navigation/router.ts` the concrete router owner and keep `src/route/router.ts` as a compatibility shim during the migration.
 - Make `src/app/state/root-store.ts` the concrete aggregate-store owner and keep `src/store/index.ts` as a compatibility shim while feature model modules are introduced.
+- Finish the synchronous store-model migration by making `src/features/search/model/form/*`, `src/features/search/model/results/*`, `src/features/corpus/model/tagset-state.ts`, and `src/app/state/ui-state.ts` the concrete owners while keeping the old `src/store/*` paths as compatibility shims.
+- Keep legacy `@/store/*` paths valid until the migration is otherwise complete unless preserving a specific path becomes more expensive than updating imports directly.
 
 ### 2026-04-21
 

@@ -1,23 +1,22 @@
 import cloneDeep from 'clone-deep';
 
+import * as UIModule from '@/app/state/ui-state';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
+import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 import * as QueryModule from '@/features/search/model/query-state';
-import * as TagsetModule from '@/store/tagset';
-import * as UIModule from '@/store/ui';
 
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
+import * as FormManager from '@/features/search/model/form/form-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
 import * as InterfaceModule from '@/features/search/model/form/interface-state';
 import * as PatternModule from '@/features/search/model/form/pattern-state';
-import * as FormManager from '@/store/form';
+import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
+import * as ViewModule from '@/features/search/model/results/view-state';
 
 // Results
-import * as GlobalResultsModule from '@/store/results/global';
-import * as ViewModule from '@/store/results/views';
-
 // Article
 import * as ArticleModule from '@/features/article/model/article-state';
 

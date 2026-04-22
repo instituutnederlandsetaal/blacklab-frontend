@@ -3,7 +3,7 @@ import type { User } from 'oidc-client-ts';
 import { pipe, switchMap, tap, type Observable } from 'rxjs';
 
 import type { BlackLabApi, FrontendApi } from '@/api';
-import { processTagset } from '@/store/tagset';
+import { processTagset } from '@/features/corpus/model/tagset-state';
 import type { ApiError, CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
 import type { BLIndexMetadata, BLRelationInfo } from '@/types/blacklabtypes';
 import { normalizeIndex } from '@/utils/blacklabutils';

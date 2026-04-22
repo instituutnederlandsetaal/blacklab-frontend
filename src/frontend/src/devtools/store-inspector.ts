@@ -8,10 +8,10 @@ import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as QueryStore from '@/features/search/model/query-state';
-import * as GlobalResultsStore from '@/store/results/global';
-import * as ViewsStore from '@/store/results/views';
-import * as TagsetStore from '@/store/tagset';
-import * as UIStore from '@/store/ui';
+import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
+import * as ViewsStore from '@/features/search/model/results/view-state';
+import * as TagsetStore from '@/features/corpus/model/tagset-state';
+import * as UIStore from '@/app/state/ui-state';
 
 import { setupDevtoolsPlugin } from '@vue/devtools-api';
 import { isRef, toRaw, unref, watch, type App } from 'vue';

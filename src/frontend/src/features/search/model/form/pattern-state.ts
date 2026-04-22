@@ -6,7 +6,7 @@
 import cloneDeep from 'clone-deep';
 
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
-import * as UIStore from '@/store/ui';
+import * as UIStore from '@/app/state/ui-state';
 
 import { debugLogCat } from '@/utils/debug';
 
