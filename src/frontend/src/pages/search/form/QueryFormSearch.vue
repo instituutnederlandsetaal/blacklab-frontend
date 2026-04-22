@@ -114,13 +114,13 @@
 
 import { defineComponent } from 'vue';
 
+import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
 import * as FilterStore from '@/store/form/filters';
 import * as GapStore from '@/store/form/gap';
 import * as InterfaceStore from '@/store/form/interface';
 import * as PatternStore from '@/store/form/patterns';
-import * as HistoryStore from '@/store/history';
 import * as UIStore from '@/store/ui';
 
 import uid from '@/mixins/uid';

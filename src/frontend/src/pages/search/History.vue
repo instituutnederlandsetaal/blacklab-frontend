@@ -85,8 +85,8 @@
 import URI from 'urijs';
 import { defineComponent, nextTick } from 'vue';
 
+import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as RootStore from '@/store/';
-import * as HistoryStore from '@/store/history';
 
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 

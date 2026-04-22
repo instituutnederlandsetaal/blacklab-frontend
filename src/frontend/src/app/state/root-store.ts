@@ -1,7 +1,7 @@
 import cloneDeep from 'clone-deep';
 
+import * as HistoryModule from '@/features/history/model/query-history-state';
 import * as CorpusModule from '@/store/corpus';
-import * as HistoryModule from '@/store/history';
 import * as QueryModule from '@/store/query';
 import * as TagsetModule from '@/store/tagset';
 import * as UIModule from '@/store/ui';
