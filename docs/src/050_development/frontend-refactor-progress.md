@@ -53,14 +53,18 @@ This document tracks implementation progress, current status, open questions, an
 - Reduced `src/store/query.ts` to a compatibility re-export shim.
 - Moved the corpus store implementation into `src/features/corpus/model/corpus-state.ts`.
 - Reduced `src/store/corpus.ts` to a compatibility re-export shim.
+- Moved the explore form store implementation into `src/features/search/model/form/explore-state.ts`.
+- Reduced `src/store/form/explore.ts` to a compatibility re-export shim.
 - Updated touched article consumers to use the canonical feature-owned article model.
 - Updated touched history consumers to use the canonical feature-owned history model.
 - Updated touched query consumers to use the canonical feature-owned query model.
 - Updated app-owned and already-migrated feature-owned corpus consumers to use the canonical feature-owned corpus model.
+- Updated app-owned and already-migrated feature-owned explore consumers to use the canonical feature-owned explore model.
 - Left remaining legacy article imports only in the quarantined URL modules.
 - Left remaining legacy history imports only in the quarantined URL modules.
 - Left remaining legacy query imports only in the quarantined URL modules.
 - Left broader remaining legacy corpus imports in existing store, page, and URL modules for incremental cleanup.
+- Left remaining legacy explore imports in existing form, helper, page, and URL modules for incremental cleanup.
 - Added a temporary article-only initial URL decode effect in `src/app/dirty/temporary-article-initial-url-parse.ts` to support validating the article-store migration without reconnecting the broader URL sync subsystem.
 - Added a route-scoped page-bootstrap signal so `PageMetaUpdater.vue` can defer custom JS injection until article/help/about pages report that their primary async content has settled.
 - Updated app-owned consumers to use the canonical `app/state/root-store` owner where touched.
@@ -187,6 +191,8 @@ Landed:
 - `src/store/query.ts` is now a compatibility shim that re-exports from the search feature owner.
 - `src/features/corpus/model/corpus-state.ts` now owns the corpus store implementation.
 - `src/store/corpus.ts` is now a compatibility shim that re-exports from the corpus feature owner.
+- `src/features/search/model/form/explore-state.ts` now owns the explore form store implementation.
+- `src/store/form/explore.ts` is now a compatibility shim that re-exports from the search feature owner.
 
 Remaining:
 
@@ -194,6 +200,7 @@ Remaining:
 - Keep `app/state/root-store.ts` as the composition point while the old `src/store/*` entrypoints are reduced to shims.
 - Update remaining legacy article, history, and query imports when the quarantined URL slice is revisited.
 - Update the broader remaining corpus imports across existing store, page, and URL modules when that dependency surface is worth the churn.
+- Update the remaining explore imports across existing form, helper, page, and URL modules when that dependency surface is worth the churn.
 
 Expected targets:
 
@@ -237,7 +244,7 @@ The next implementation slice should start the synchronous store-model migration
 That means:
 
 - Move one or two smaller synchronous store slices to feature-owned `model/` modules and keep the old `src/store/*` paths as temporary shims.
-- Prefer a smaller form slice before tackling larger results state or broader import-rewrite work.
+- Prefer another smaller form slice before tackling larger results state or broader import-rewrite work.
 - Keep `app/state/root-store.ts` as the aggregation owner while those feature-owned model modules are introduced.
 - Query parameters, store-to-URL reflection, browser-history restoration, and initial URL decode should remain inactive during the refactor.
 - Route-derived `indexId` and `docId` can still be used for async fetches that update corpus and form-related state.

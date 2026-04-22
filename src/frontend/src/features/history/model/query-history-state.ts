@@ -10,7 +10,7 @@ import { stripIndent } from 'common-tags';
 import jsonStableStringify from 'json-stable-stringify';
 
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
-import type * as ExploreModule from '@/store/form/explore';
+import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/store/form/filters';
 import type * as GapModule from '@/store/form/gap';
 import type * as InterfaceModule from '@/store/form/interface';

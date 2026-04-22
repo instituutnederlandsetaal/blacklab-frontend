@@ -7,8 +7,8 @@ import * as TagsetModule from '@/store/tagset';
 import * as UIModule from '@/store/ui';
 
 // Form
+import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FormManager from '@/store/form';
-import * as ExploreModule from '@/store/form/explore';
 import * as FilterModule from '@/store/form/filters';
 import * as GapModule from '@/store/form/gap';
 import * as InterfaceModule from '@/store/form/interface';
