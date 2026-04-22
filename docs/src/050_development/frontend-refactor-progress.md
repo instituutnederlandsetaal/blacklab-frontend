@@ -29,14 +29,23 @@ This document tracks implementation progress, current status, open questions, an
 
 ## Current Snapshot
 
-- Last updated: 2026-04-21.
-- Last known verification: `npm run build` passed in `src/frontend`.
+- Last updated: 2026-04-22.
+- Last known verification: `npm run build` passed in `src/frontend` on 2026-04-22.
 - Current migration strategy: compatibility-first extraction. New owners are introduced first, while old import paths remain as shims.
 - Current behavioral constraint: URL state is intentionally disconnected from page state. Only vue-router page routing and route-derived `indexId` / `docId` reads for async fetches remain active.
 - Current usability safeguard: query parameters, store-to-URL wiring, `popstate` restoration, and initial URL decode are inactive because the previous URL/store coupling was buggy and made the page unusable.
 
 
 ## Progress Log
+
+### 2026-04-22
+
+- Moved the concrete router definition into `src/navigation/router.ts`.
+- Reduced `src/route/router.ts` to a compatibility re-export shim.
+- Moved the root-store implementation into `src/app/state/root-store.ts`.
+- Reduced `src/store/index.ts` to a compatibility re-export shim.
+- Updated app-owned consumers to use the canonical `app/state/root-store` owner where touched.
+- Verified the frontend with `npm run build` in `src/frontend`.
 
 ### 2026-04-21
 
@@ -84,7 +93,7 @@ Notes:
 
 ### Milestone 2: Move Import-Time Runtime Wiring Into Explicit Owners
 
-Status: `in progress`
+Status: `done`
 
 Goal:
 
@@ -96,11 +105,8 @@ Landed:
 - i18n index binding now starts from `src/app/start-app-effects.ts`.
 - Corpus and search async singleton resources now live under feature-owned `resources/` modules.
 - App/plugin installation now happens before effects are started.
-
-Remaining:
-
-- Router startup ownership still partly lives in the old router implementation.
-- Some app-wide behavior is still inferred from compatibility exports instead of explicit runtime ownership.
+- The concrete router definition now lives in `src/navigation/router.ts`, with `src/route/router.ts` kept as a compatibility shim.
+- `src/app/state/root-store.ts` now owns the root-store implementation instead of re-exporting it from `src/store/index.ts`.
 
 
 ### Milestone 3: Quarantine URL Synchronization And Keep It Disconnected
@@ -138,19 +144,25 @@ Landed:
 - `src/navigation/route-context.ts` now owns `indexId`, `docId`, `user`, and `userName`.
 - `src/api/async/instances/reactive-variables.ts` now re-exports from the navigation owner.
 
-Remaining:
-
-- The actual router implementation still needs to move out of `src/route/router.ts`.
-
 
 ### Milestone 5: Move Feature State Models Under `features/`
 
-Status: `not started`
+Status: `in progress`
 
 Scope:
 
 - Move synchronous store slices behind feature-owned model modules.
 - Make `app/state/root-store.ts` the actual composition owner instead of a re-export shim.
+
+Landed:
+
+- `src/app/state/root-store.ts` is now the actual composition owner for the aggregate root store.
+- `src/store/index.ts` is now a compatibility shim that re-exports from the app owner.
+
+Remaining:
+
+- Move synchronous store slices behind feature-owned model modules.
+- Keep `app/state/root-store.ts` as the composition point while the old `src/store/*` entrypoints are reduced to shims.
 
 Expected targets:
 
@@ -193,11 +205,12 @@ Scope:
 
 ## Near-Term Next Step
 
-The next implementation slice should continue the structural refactor while keeping URL behavior disconnected.
+The next implementation slice should start the synchronous store-model migration while keeping URL behavior disconnected.
 
 That means:
 
-- `navigation/router.ts` should become the real router owner instead of a compatibility export.
+- Move one or two smaller synchronous store slices to feature-owned `model/` modules and keep the old `src/store/*` paths as temporary shims.
+- Keep `app/state/root-store.ts` as the aggregation owner while those feature-owned model modules are introduced.
 - Query parameters, store-to-URL reflection, browser-history restoration, and initial URL decode should remain inactive during the refactor.
 - Route-derived `indexId` and `docId` can still be used for async fetches that update corpus and form-related state.
 - After the refactor is complete, reintroduce URL behavior in this order: state-to-URL reflection and testing, `popstate` navigation, initial URL decode.
@@ -335,7 +348,7 @@ Concern:
 
 User response / notes:
 
-- 
+- Resolved on 2026-04-22 by moving the implementation into `src/app/state/root-store.ts` and leaving `src/store/index.ts` as a compatibility shim.
 
 
 ## Parking Lot For Thoughts And Nitpicks
@@ -352,6 +365,11 @@ Add new notes directly below this line:
 - 
 
 ## Decision Log
+
+### 2026-04-22
+
+- Make `src/navigation/router.ts` the concrete router owner and keep `src/route/router.ts` as a compatibility shim during the migration.
+- Make `src/app/state/root-store.ts` the concrete aggregate-store owner and keep `src/store/index.ts` as a compatibility shim while feature model modules are introduced.
 
 ### 2026-04-21
 

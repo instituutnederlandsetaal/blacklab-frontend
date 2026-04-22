@@ -1,6 +1,6 @@
+import * as RootStore from '@/app/state/root-store';
 import { corpusDataLoader } from '@/features/corpus/resources/corpus-resource';
 import { setCurrentCorpusDataGlobal } from '@/interop/window-globals';
-import * as RootStore from '@/store';
 import { watch } from 'vue';
 
 let stopBootstrapEffect: (() => void)|null = null;

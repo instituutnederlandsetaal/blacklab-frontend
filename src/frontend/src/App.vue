@@ -26,7 +26,7 @@
 
 <script setup lang="ts">
 
-import * as RootStore from '@/store';
+import * as RootStore from '@/app/state/root-store';
 
 import Navbar from '@/components/Navbar.vue';
 import Spinner from '@/components/Spinner.vue';
