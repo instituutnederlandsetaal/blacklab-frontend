@@ -125,7 +125,7 @@
 
 <script setup lang="ts">
 
-import * as ArticleStore from '@/store/article';
+import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/store/corpus';
 import * as QueryStore from '@/store/query';
 import * as UIStore from '@/store/ui';
@@ -138,6 +138,7 @@ import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 import InstancedHtml from '@/components/InstancedHtml.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
+import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
 
 // TODO
 // import initTooltips from '@/modules/expandable-tooltips';
@@ -200,6 +201,11 @@ const metadataFieldsToShow = computed(() => fieldSubset(
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
 const isParallel = computed(() => CorpusStore.get.isParallelCorpus());
 const viewField = computed(() => CorpusStore.get.allAnnotatedFieldsMap()[inputs.value.viewField!]);
+
+useMarkPageBootstrapSettledWhen(computed(() =>
+	(contents.isLoaded() || contents.isError()) &&
+	(metadata.isLoaded() || metadata.isError())
+));
 	
 
 function stringifyWithHtml(v: any): string {

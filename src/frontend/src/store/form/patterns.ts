@@ -117,29 +117,29 @@ const actions = {
 	shared: {
 		sourceField: (payload: string|null) => {
 			if (payload && !CorpusStore.get.parallelAnnotatedFieldsMap()[payload]) {
-				console.error('Tried to set source version to non-existent annotated field. Ignoring');
+				console.error(`Tried to set source version to non-existent or non-parallel annotated field ('${payload}'). Ignoring`);
 				return;
 			}
 			return (state.shared.source = payload);
 		},
 		addTarget: (version: string) => {
-			debugLogCat('parallel', `shared.addTargetVersion: Adding ${version}`);
+			debugLogCat('parallel', `shared.addTargetVersion: Adding '${version}'`);
 			if (!version) {
-				console.warn('tried to add null target version');
+				console.warn('Tried to add null target version');
 				return;
 			}
 			return actions.shared.targetFields([...state.shared.targets, version]);
 		},
 		removeTarget: (version: string) => {
 			if (!CorpusStore.get.parallelAnnotatedFieldsMap()[version]) {
-				console.error('Tried to remove non-existent target version');
+				console.error(`Tried to remove non-existent or non-parallel target version ('${version}')`);
 				return;
 			}
 
-			debugLogCat('parallel', `parallelFields.removeTargetVersion: Removing ${version}`);
+			debugLogCat('parallel', `parallelFields.removeTargetVersion: Removing '${version}'`);
 			const index = state.shared.targets.indexOf(version);
 			if (index < 0) {
-				console.warn('tried to remove a target version that is not currently selected');
+				console.warn(`Tried to remove a target version ('${version}') that is not currently selected`);
 				return;
 			}
 			state.shared.targets.splice(index, 1);
@@ -151,8 +151,9 @@ const actions = {
 		/** Replace the entire set of selected target fields at once. */
 		targetFields: (payload: string[]) => {
 			// sanity check:
-			if (payload.find(annotatedFieldId => !CorpusStore.get.parallelAnnotatedFieldsMap()[annotatedFieldId])) {
-				console.error('Tried to set target fields to non-existent annotated field, maybe mixup between version and annotatedField');
+			const nonexistentFields = payload.filter(annotatedFieldId => !CorpusStore.get.parallelAnnotatedFieldsMap()[annotatedFieldId]);
+			if (nonexistentFields.length) {
+				console.error(`Tried to set target fields to non-existent annotated field(s): ${nonexistentFields}, maybe mixup between version and annotatedField`);
 				return state.shared.targets;
 			}
 
@@ -171,7 +172,7 @@ const actions = {
 		withinAttributes: (payload: Record<string, string>) => state.shared.withinAttributes = payload,
 		reset: () => {
 			const defaultSourceField = CorpusStore.get.parallelAnnotatedFields()[0]?.id;
-			debugLogCat('shared', `shared.reset: Selecting default source version ${defaultSourceField}`);
+			debugLogCat('shared', `shared.reset: Selecting default source version '${defaultSourceField}'`);
 			state.shared.source = defaultSourceField;
 			state.shared.targets = [];
 			state.shared.alignBy = UIStore.getState().search.shared.alignBy.defaultValue;

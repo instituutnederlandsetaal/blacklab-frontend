@@ -81,8 +81,8 @@ export const frontendPaths = {
 	indexInfo: (indexId: string) => `${indexId}/api/info`,
 	config: (indexId: string|null) => indexId ? `${indexId}/api/config` : `api/config`,
 	tagset: (indexId: string) => `${indexId}/static/tagset.json`,
-	documentContents: (indexId: string, pid: string) => `${indexId}/api/api/docs/${pid}/contents`,
-	documentMetadata: (indexId: string, pid: string) => `${indexId}/api/api/docs/${pid}`,
+	documentContents: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}/contents`,
+	documentMetadata: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}`,
 
 	help: (indexId?: string) => `${indexId ? indexId + '/' : '' }api/help`,
 	about: (indexId?: string) => `${indexId ? indexId + '/' : '' }api/about`,

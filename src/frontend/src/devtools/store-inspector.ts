@@ -1,5 +1,5 @@
 import * as RootStore from '@/app/state/root-store';
-import * as ArticleStore from '@/store/article';
+import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/store/corpus';
 import * as ExploreStore from '@/store/form/explore';
 import * as FilterStore from '@/store/form/filters';

@@ -3,11 +3,12 @@
 </template>
 
 <script lang="ts">
+import { isRouteBootstrapSettled } from '@/navigation/page-bootstrap';
+import type { CustomRouteMeta } from '@/navigation/router';
 import * as UIStore from '@/store/ui';
 import type { CFCustomCssEntry, CFCustomJsEntry, CFPageConfig } from '@/types/apptypes';
 import { compareAsSortedJson } from '@/utils/loadable-streams';
 import { defineComponent } from 'vue';
-import type { CustomRouteMeta } from './route/router';
 
 export default defineComponent({
 	data: () => ({
@@ -24,12 +25,13 @@ export default defineComponent({
 		config(): CFPageConfig { return UIStore.getState().global.config; },
 		indexId(): string { return this.$route.params.indexId as string || ''; },
 		pageName(): string { return this.$route.meta?.name as string || ''; },
+		pageBootstrapSettled(): boolean { return isRouteBootstrapSettled(this.$route); },
 		title(): string {
 			if (!this.routerIsInitialized || !this.config.displayName) return '';
 			return (this.$route.meta as CustomRouteMeta)?.getTitle?.(this.config.displayName) ?? this.config.displayName;
 		},
 		customJs(): CFCustomJsEntry[] {
-			if (!this.routerIsInitialized) return [];
+			if (!this.routerIsInitialized || !this.pageBootstrapSettled) return [];
 			const js = this.config.customJs;
 			const jses = [...(js[''] || []), ...(js[this.pageName] || [])].sort((a, b) => a.index - b.index);
 			return jses;
@@ -84,6 +86,9 @@ export default defineComponent({
 				// TODO refactor customizing to avoid having to reload the page.
 				// This is a large job however.
 				if (this.hasCustomJs) {
+					// This is commented out for now during development - as it's annoying to have the page reload constantly
+					// since we're still in the development phase of the SPA, this will be seen by noone except developers, 
+					// so let's consider this a temporary thing (like a console.log) that we turn on and off at will during development depending on what we're working on.
 					// console.info('%cTriggering page reload due to polluted global scope (customJs is present)', 'color: blue; font-weight: bold; border: 1px solid blue; padding: 2px 0; background: white;');
 					// window.location.reload();
 				}

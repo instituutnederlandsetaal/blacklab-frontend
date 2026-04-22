@@ -47,7 +47,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import * as ArticleStore from '@/store/article';
+import * as ArticleStore from '@/features/article/model/article-state';
 
 import type * as BLTypes from '@/types/blacklabtypes';
 

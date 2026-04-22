@@ -5,6 +5,7 @@
 <script setup lang="ts">
 import { ApiError, frontend } from '@/api';
 import ServerRenderedContentPage from '@/components/ServerRenderedContentPage.vue';
+import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
 import * as CorpusStore from '@/store/corpus';
 import { Loadable } from '@/utils/loadable-streams';
 import { useAsyncState } from '@vueuse/core';
@@ -18,6 +19,8 @@ const content = computed<Loadable<string>>(() => {
 	if (contentInput.isReady.value) return Loadable.Loaded(contentInput.state.value);
 	return Loadable.Empty();
 });
+
+useMarkPageBootstrapSettledWhen(computed(() => content.value.isLoaded() || content.value.isError()));
 
 </script>
 

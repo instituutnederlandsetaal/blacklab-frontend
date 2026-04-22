@@ -19,7 +19,7 @@ import * as GlobalResultsModule from '@/store/results/global';
 import * as ViewModule from '@/store/results/views';
 
 // Article
-import * as ArticleModule from '@/store/article';
+import * as ArticleModule from '@/features/article/model/article-state';
 
 import { corpusDataLoader } from '@/api/async/instances/corpus-data';
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
@@ -297,11 +297,22 @@ const init = async (state: CorpusChange) => {
 	loadingState.value = Loadable.Loaded(state);
 };
 
+const rootInteropGet = {
+	...get,
+	...ArticleModule.get,
+};
+
+const rootInteropActions = {
+	...actions,
+	...ArticleModule.actions,
+};
+
 // Debugging helpers.
 (globalThis as any).vuexModules = {
 	root: {
-		get,
-		actions,
+		get: rootInteropGet,
+		getState: ArticleModule.getState,
+		actions: rootInteropActions,
 		init
 	},
 

@@ -34,6 +34,7 @@ This document tracks implementation progress, current status, open questions, an
 - Current migration strategy: compatibility-first extraction. New owners are introduced first, while old import paths remain as shims.
 - Current behavioral constraint: URL state is intentionally disconnected from page state. Only vue-router page routing and route-derived `indexId` / `docId` reads for async fetches remain active.
 - Current usability safeguard: query parameters, store-to-URL wiring, `popstate` restoration, and initial URL decode are inactive because the previous URL/store coupling was buggy and made the page unusable.
+- Temporary validation exception: `src/app/dirty/temporary-article-initial-url-parse.ts` re-enables initial URL decode only for direct article-page loads so the migrated article store can be validated; remove it after the validation pass.
 
 
 ## Progress Log
@@ -44,6 +45,12 @@ This document tracks implementation progress, current status, open questions, an
 - Reduced `src/route/router.ts` to a compatibility re-export shim.
 - Moved the root-store implementation into `src/app/state/root-store.ts`.
 - Reduced `src/store/index.ts` to a compatibility re-export shim.
+- Moved the article store implementation into `src/features/article/model/article-state.ts`.
+- Reduced `src/store/article.ts` to a compatibility re-export shim.
+- Updated touched article consumers to use the canonical feature-owned article model.
+- Left remaining legacy article imports only in the quarantined URL modules.
+- Added a temporary article-only initial URL decode effect in `src/app/dirty/temporary-article-initial-url-parse.ts` to support validating the article-store migration without reconnecting the broader URL sync subsystem.
+- Added a route-scoped page-bootstrap signal so `PageMetaUpdater.vue` can defer custom JS injection until article/help/about pages report that their primary async content has settled.
 - Updated app-owned consumers to use the canonical `app/state/root-store` owner where touched.
 - Verified the frontend with `npm run build` in `src/frontend`.
 
@@ -124,6 +131,7 @@ Landed:
 - URL/store wiring is currently disconnected because the previous coupled behavior was buggy and made the page unusable.
 - Runtime routing currently relies only on vue-router plus route-derived `indexId` and `docId` reads for async fetches that update corpus and form-related state.
 - Query-parameter-driven state and browser-history restoration are currently inactive.
+- Temporary validation-only exception: direct article-page loads now run a one-shot initial URL decode from `src/app/dirty/temporary-article-initial-url-parse.ts`.
 
 Remaining:
 
@@ -133,6 +141,7 @@ Remaining:
 Guardrail:
 
 - Do not reattach query parameters or browser-history behavior during the refactor. The page is currently usable only because URL state is disconnected from store state.
+- Remove the temporary article-only initial URL decode again after the article-store validation pass.
 
 
 ### Milestone 4: Move Route-Derived State Into `navigation/`
@@ -158,11 +167,14 @@ Landed:
 
 - `src/app/state/root-store.ts` is now the actual composition owner for the aggregate root store.
 - `src/store/index.ts` is now a compatibility shim that re-exports from the app owner.
+- `src/features/article/model/article-state.ts` now owns the article store implementation.
+- `src/store/article.ts` is now a compatibility shim that re-exports from the article feature owner.
 
 Remaining:
 
 - Move synchronous store slices behind feature-owned model modules.
 - Keep `app/state/root-store.ts` as the composition point while the old `src/store/*` entrypoints are reduced to shims.
+- Update remaining legacy article imports when the quarantined URL slice is revisited.
 
 Expected targets:
 
@@ -171,7 +183,6 @@ Expected targets:
 - `src/store/history.ts`
 - `src/store/form/*`
 - `src/store/results/*`
-- `src/store/article.ts`
 
 
 ### Milestone 6: Consolidate Interop Surfaces
@@ -210,6 +221,7 @@ The next implementation slice should start the synchronous store-model migration
 That means:
 
 - Move one or two smaller synchronous store slices to feature-owned `model/` modules and keep the old `src/store/*` paths as temporary shims.
+- Prefer another narrower synchronous slice such as history before tackling larger query or results state.
 - Keep `app/state/root-store.ts` as the aggregation owner while those feature-owned model modules are introduced.
 - Query parameters, store-to-URL reflection, browser-history restoration, and initial URL decode should remain inactive during the refactor.
 - Route-derived `indexId` and `docId` can still be used for async fetches that update corpus and form-related state.

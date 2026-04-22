@@ -1,9 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
+import { resetPageBootstrapForRoute, type CustomScriptTiming } from '@/navigation/page-bootstrap';
+
 
 export type CustomRouteMeta = {
 	name: string;
 	getTitle?: (corpusDisplayName: string) => string;
+	customScriptTiming?: CustomScriptTiming;
 }
 
 const router = createRouter({
@@ -19,14 +22,14 @@ const router = createRouter({
 			name: 'global-help',
 			path: '/help',
 			alias: '/help/:pathMatch(.*)*',
-			meta: { name: 'help', getTitle: (displayName: string) => displayName + ' Help' } satisfies CustomRouteMeta,
+			meta: { name: 'help', getTitle: (displayName: string) => displayName + ' Help', customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
 			component: () => import('@/pages/help/HelpPage.vue')
 		},
 		{
 			name: 'global-about',
 			path: '/about',
 			alias: '/about/:pathMatch(.*)*',
-			meta: { name: 'about', getTitle: () => 'About' } satisfies CustomRouteMeta,
+			meta: { name: 'about', getTitle: () => 'About', customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		
@@ -44,21 +47,21 @@ const router = createRouter({
 		{
 			name: 'article',
 			path: '/:corpus/docs/:docId',
-			meta: { name: 'article', getTitle: (displayName: string) => `${displayName} Article` } satisfies CustomRouteMeta,
+			meta: { name: 'article', getTitle: (displayName: string) => `${displayName} Article`, customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
 			component: () => import('@/pages/article/ArticlePage.vue')
 		},
 		{
 			name: 'about',
 			path: '/:corpus/about',
 			alias: '/:corpus/about/:pathMatch(.*)*',
-			meta: { name: 'about', getTitle: (displayName: string) => `About ${displayName}` } satisfies CustomRouteMeta,
+			meta: { name: 'about', getTitle: (displayName: string) => `About ${displayName}`, customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
 			component: () => import('@/pages/about/AboutPage.vue')
 		},
 		{
 			name: 'help',
 			path: '/:corpus/help',
 			alias: '/:corpus/help/:pathMatch(.*)*',
-			meta: { name: 'help', getTitle: (displayName: string) => `${displayName} Help` } satisfies CustomRouteMeta,
+			meta: { name: 'help', getTitle: (displayName: string) => `${displayName} Help`, customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
 			component: () => import('@/pages/help/HelpPage.vue'),
 		},
 		{
@@ -97,6 +100,11 @@ const router = createRouter({
 			}]
 		},
 	],
+});
+
+router.beforeResolve((to, _from, next) => {
+	resetPageBootstrapForRoute(to, (to.meta as CustomRouteMeta).customScriptTiming ?? 'immediate');
+	next();
 });
 
 

@@ -26,7 +26,8 @@ import * as ArticleStore from '@/store/article';
 export default class UrlStateParserArticle extends BaseUrlStateParser<HistoryModule.HistoryEntry&{article: ArticleStore.HistoryState}> {
 	public async get(): Promise<HistoryModule.HistoryEntry&{article: ArticleStore.HistoryState}> {
 		const pattern = this.getString('patt') || this.getString('query') || null;
-		const sourceFromUrl = this.getString('searchField') || this.getString('searchfield') || this.getString('field');
+		// TODO figure out and document what is the canonical value, is 'field' legacy, I think so, but we need to look at the git history and document this. It was introduced when we implemented parallel search/documents.
+		const sourceFromUrl = this.getString('searchField') || this.getString('field');
 		const allAnnotatedFields = CorpusModule.get.allAnnotatedFieldsMap();
 		const source = sourceFromUrl && allAnnotatedFields[sourceFromUrl] ? sourceFromUrl : PatternModule.defaults.shared.source;
 

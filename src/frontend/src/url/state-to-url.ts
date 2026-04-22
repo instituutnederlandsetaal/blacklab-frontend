@@ -1,11 +1,11 @@
 import URI from 'urijs';
 
-import type * as BLTypes from '@/types/blacklabtypes';
 import type * as ArticleStore from '@/store/article';
 import type * as InterfaceStore from '@/store/form/interface';
-import type * as GlobalResultsStore from '@/store/results/global';
 import type * as QueryStore from '@/store/query';
+import type * as GlobalResultsStore from '@/store/results/global';
 import type * as ViewStore from '@/store/results/views';
+import type * as BLTypes from '@/types/blacklabtypes';
 
 const MAX_URL_LENGTH = 4000;
 
