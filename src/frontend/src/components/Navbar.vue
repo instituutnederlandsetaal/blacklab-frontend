@@ -7,7 +7,9 @@
 
 		<div class="navbar-main container">
 			<div class="navbar-logo-container">
-				<div class="navbar-logo"></div>
+				<router-link :to="indexId ? {name: 'search', params: {corpus: indexId}} : {name: 'corpora'}">
+					<div class="navbar-logo"></div>
+				</router-link>
 			</div>
 
 			<div class="navbar-content-container">
@@ -15,8 +17,7 @@
 
 				<ul class="nav navbar-nav navbar-collapse" :class="{visible: !collapsed}">
 					<li v-for="link in links" :key="link.attributes.href">
-						<!-- <router-link v-if="!link.isExternal" :to="link.attributes.href" v-bind="{...link.attributes, href: undefined}">{{ link.label }}</router-link> -->
-						<!-- <a v-else v-bind="link.attributes">{{ link.label }}</a> -->
+						<component :is="link.isExternal ? 'a' : 'router-link'" v-bind="link.attributes">{{ link.label }}</component>
 					</li>
 				</ul>
 
@@ -37,8 +38,7 @@ import LocaleSelector from '@/components/LocaleSelector.vue';
 import LoginButton from '@/components/LoginButton.vue';
 import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
-import type { CFNavbarLink, CFPageConfig, NormalizedIndex } from '@/types/apptypes';
-import { escapeRegex } from '@/utils';
+import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 import { localStorageSynced } from '@/utils/localstore';
 import { defineComponent } from 'vue';
 
@@ -57,16 +57,26 @@ export default defineComponent({
 		// A little speficic, but this way on purpose, since the config and index are loaded async, and we want to show something asap.
 		// If no index is loaded at all, show the default corpus-frontend name.
 		indexDisplayName(): string { return this.config.displayName || this.index?.displayName || this.indexId || 'Corpus-Frontend' },
-		links(): Array<CFNavbarLink&{isExternal: boolean}> { return this.config.navbarLinks.map(l => ({
-			...l,
-			attributes: {
-				...l.attributes,
-				// vue-router will automatically prepend the basepath to the href, so we need to remove it here
-				// to avoid double basepath in the final href
-				href: l.attributes.href.startsWith(CONTEXT_URL) ? l.attributes.href.replace(new RegExp('^' + escapeRegex(CONTEXT_URL)), '')  : l.attributes.href
-			},
-			isExternal: !l.attributes.href.startsWith(CONTEXT_URL)
-		})) },
+		links(): Array<{label: string, attributes: Record<string, string>, isExternal: boolean}> { 
+			return this.config.navbarLinks.map(l => {
+				const parsed = new URL(l.attributes.href, window.location.origin);
+				const routerBase = this.$router.options.history.base || '/';
+				const isExternal = parsed.origin !== window.location.origin || !parsed.pathname.startsWith(routerBase);
+				if (isExternal) return {...l, isExternal};
+				// else we need to remove the router's base from the link, or it will double up
+				// so reconstruct the link..
+				// Also we need to make sure that 'href' is not in the attributes (or router-link will not add the href attribute to its <a> at all???)
+				const {href, target, ...attributesWithoutHref} = l.attributes;
+				return {
+					isExternal,
+					...l,
+					attributes: {
+						...attributesWithoutHref,
+						to: parsed.pathname.substring(routerBase.length) + parsed.search + parsed.hash
+					}
+				}
+			})
+		},
 		showBanner(): boolean { return !!this.config.bannerMessage && this.bannerFromLocalStorage.value !== this.config.bannerMessage },
 	},
 	methods: {

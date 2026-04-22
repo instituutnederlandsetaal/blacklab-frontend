@@ -19,8 +19,10 @@ const getState = (): ModuleRootState => state.value;
 const get = {
 	/**
 	 * Util for when you're in a component where you are sure the corpus is loaded
+	 * TODO also add a version on the root store that can return undefined properly, 
+	 * and use that in non-corpus scoped components instead of this.
 	 */
-	indexId: (): string => state.value!.id,
+	indexId: (): string => state.value?.id as string,
 	
 	/**
 	 * Util for when you're in a component where you are sure the corpus is loaded

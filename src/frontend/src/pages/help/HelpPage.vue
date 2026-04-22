@@ -1,25 +1,24 @@
 <template>
-	<ServerRenderedComponent :content="content"/>
+	<ServerRenderedContentPage :content="content"/>
 </template>
 
-<script lang="ts">
-import { frontend } from '@/api';
-import ServerRenderedComponent from '@/components/ServerRenderedContentPage.vue';
+<script setup lang="ts">
+import { ApiError, frontend } from '@/api';
+import ServerRenderedContentPage from '@/components/ServerRenderedContentPage.vue';
 import * as CorpusStore from '@/store/corpus';
-import { loadableFromStream, type LoadableFromStream } from '@/utils/loadable-streams';
-import { defineComponent } from 'vue';
+import { Loadable } from '@/utils/loadable-streams';
+import { useAsyncState } from '@vueuse/core';
+import { computed } from 'vue';
 
-export default defineComponent({
-	components: {
-		ServerRenderedComponent
-	},
-	computed: {
-		content(): LoadableFromStream<string> {
-			// dispose shouldn't be necessary, web requests always complete eventually.
-			return loadableFromStream(frontend.getHelp(CorpusStore.get.indexId() ?? undefined).toObservable());
-		},
-	},
+
+const contentInput = useAsyncState(frontend.getHelp(CorpusStore.get.indexId() ?? undefined).request, '', { immediate: true });
+const content = computed<Loadable<string>>(() => {
+	if (contentInput.isLoading.value) return Loadable.Loading();
+	if (contentInput.error.value) return Loadable.LoadingError(ApiError.wrap(contentInput.error.value));
+	if (contentInput.isReady.value) return Loadable.Loaded(contentInput.state.value);
+	return Loadable.Empty();
 });
+
 </script>
 
 <style scoped>

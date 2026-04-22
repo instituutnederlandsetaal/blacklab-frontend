@@ -4,9 +4,10 @@
  */
 
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import { memoize } from '@/store/reactive-store';
 import * as UIStore from '@/store/ui'; // Is initialized before we are.
 import { escapeRegex } from '@/utils';
-import { computed, reactive, ref } from 'vue';
+import { reactive, ref } from 'vue';
 
 type Token = {
 	/** Annotation ID */
@@ -66,11 +67,6 @@ const defaults: ModuleRootState = {
 	}
 };
 
-// wrapper to enable memoization of getters and avoid unnecessary recomputations when getter is used in multiple places
-const memoize = <T>(getter: () => T): (() => T) => {
-	const v = computed(getter);
-	return () => v.value;
-};
 const state = reactive(structuredClone(defaults));
 const getState = () => state;
 

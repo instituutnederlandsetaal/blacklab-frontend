@@ -411,6 +411,7 @@ export type CFCustomCssEntry = {
 
 export type CFNavbarLink = {
 	label: string;
+	/** Not a complete set, as the backend passes through any attributes. But these make it so we can use it in templates on <a> and <router-link> elements */
 	attributes: {
 		href: string;
 		target: string;
