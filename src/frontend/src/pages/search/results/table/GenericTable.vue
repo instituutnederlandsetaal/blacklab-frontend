@@ -100,7 +100,7 @@ const emit = defineEmits<{
 	viewgroup: [id: string, displayname: string],
 	changeSort: [sortProp: string]
 }>();
-const props = defineProps<{
+const props = withDefaults(defineProps<{
 	cols: ColumnDefs,
 	header: ColumnDef[],
 	rows: Rows,
@@ -113,7 +113,9 @@ const props = defineProps<{
 
 	type: 'hits'|'docs',
 	query?: BLSearchParameters,
-}>();
+}>(), {
+	showTitles: true
+});
 
 const openRows = ref<Record<number|string, boolean>>({});
 const hoverMatchInfos = ref<undefined|string[]>(undefined);
