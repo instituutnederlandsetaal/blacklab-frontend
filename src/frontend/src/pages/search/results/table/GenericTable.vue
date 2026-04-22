@@ -5,7 +5,7 @@
 				<TableHeader v-for="(col, i) in header"
 					:key="col.key"
 					:col="col" :disabled="disabled"
-					@changeSort="$emit('changeSort', $event)"
+					@changeSort="emit('changeSort', $event)"
 					:sort="sort"
 				>
 					<v-dropdown v-if="i === 0 && col.field === 'group'" :distance="5" style="display:inline-block;">
@@ -27,7 +27,7 @@
 			<template v-for="(row, index) in rows.rows">
 				<template v-if="row.type === 'doc' && !showTitles"></template>
 				<template v-else>
-				<component :is="row.type === 'doc' ? 'DocRow' : row.type === 'hit' ? 'HitRow' : 'GroupRow'"
+				<component :is="row.type === 'doc' ? DocRow : row.type === 'hit' ? HitRow : GroupRow"
 					:class="{
 						rounded: true,
 						open: openRows[row.hit_id || index],
@@ -36,7 +36,7 @@
 						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1),
 						muted: row.muted
 					}"
-					:row="row"
+					:row="row as any"
 					:info="info"
 					:cols="cols"
 					:maxima="rows.maxima"
@@ -49,14 +49,14 @@
 					@unhover="hoverMatchInfos = undefined"
 					@click="toggleRow(index)"
 				/>
-				<component v-if="!disableDetails" v-show="openRows[row.hit_id || index]" :is="row.type === 'doc' ? 'DocRowDetails' : row.type === 'hit' ? 'HitRowDetails' : 'GroupRowDetails'"
+				<component v-if="!disableDetails" v-show="openRows[row.hit_id || index]" :is="row.type === 'doc' ? DocRowDetails : row.type === 'hit' ? HitRowDetails : GroupRowDetails"
 					:class="{
 						details: true,
 						rounded: true,
 						open: openRows[row.hit_id || index],
 						muted: row.muted
 					}"
-					:row="row"
+					:row="row as any"
 					:info="info"
 					:cols="cols"
 					:maxima="rows.maxima"
@@ -76,9 +76,7 @@
 	</table>
 </template>
 
-<script lang="ts">
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
+<script setup lang="ts">
 
 import '@/pages/search/results/table/TableHeader.vue';
 import type { ColumnDef, ColumnDefs, DisplaySettingsForRendering, DocRowData, GroupRowData, HitRowData, Rows } from '@/pages/search/results/table/table-layout';
@@ -86,66 +84,67 @@ import { definitions } from '@/pages/search/results/table/table-layout';
 import type { BLSearchParameters } from '@/types/blacklabtypes';
 
 
-// ensure we have these components loaded
-import '@/pages/search/results/table/DocRow.vue';
-import '@/pages/search/results/table/DocRowDetails.vue';
-import '@/pages/search/results/table/GroupRow.vue';
-import '@/pages/search/results/table/GroupRowDetails.vue';
-import '@/pages/search/results/table/HitRow.vue';
-import '@/pages/search/results/table/HitRowDetails.vue';
+import DocRow from '@/pages/search/results/table/DocRow.vue';
+import DocRowDetails from '@/pages/search/results/table/DocRowDetails.vue';
+import GroupRow from '@/pages/search/results/table/GroupRow.vue';
+import GroupRowDetails from '@/pages/search/results/table/GroupRowDetails.vue';
+import HitRow from '@/pages/search/results/table/HitRow.vue';
+import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue';
+import TableHeader from '@/pages/search/results/table/TableHeader.vue';
+import { ref, watch } from 'vue';
 
-export default defineComponent({
+defineOptions({
 	name: 'GenericTable',
-	props: {
-		cols: { type: Object as PropType<ColumnDefs>, required: true },
-		header: { type: Array as PropType<ColumnDef[]>, required: true },
-		rows: { type: Object as PropType<Rows>, required: true },
-		info: { type: Object as PropType<DisplaySettingsForRendering>, required: true },
-		disabled: Boolean,
-		disableDetails: Boolean,
+});
+const emit = defineEmits<{
+	viewgroup: [id: string, displayname: string],
+	changeSort: [sortProp: string]
+}>();
+const props = defineProps<{
+	cols: ColumnDefs,
+	header: ColumnDef[],
+	rows: Rows,
+	info: DisplaySettingsForRendering,
+	disabled?: boolean,
+	disableDetails?: boolean,
 
-		showTitles: { default: true },
-		sort: { type: [String, null] as PropType<string|null>, default: null },
+	showTitles?: boolean,
+	sort?: string|null,
 
-		/// UGH, required to get group contents as this is not exposed in the results directly.
-		type: { type: String as PropType<'hits'|'docs'>, required: false },
-		query: { type: Object as PropType<BLSearchParameters>, required: false },
-	},
-	data: () => ({
-		definitions,
-		openRows: {} as Record<number|string, boolean>,
+	type: 'hits'|'docs',
+	query?: BLSearchParameters,
+}>();
 
-		hoverMatchInfos: undefined as undefined|string[],
-		hoverMatchInfosId: undefined as undefined|string,
-	}),
-	methods: {
-		isOpenable(row: HitRowData|DocRowData|GroupRowData) {
-			if (this.disabled || this.disableDetails) return false;
-			if (row.type === 'group') return true;
-			if (row.type === 'hit' && this.type === 'hits') return true;
-			if (row.type === 'doc' && this.type === 'docs' && row.hits) return true;
-			return false;
-		},
-		hasForeignHit(rows: Rows) {
-			return rows.rows.some(row => row.type === 'hit' && row.isForeign);
-		},
-		toggleRow(index: number) {
-			const row = this.rows.rows[index];
-			if (!this.isOpenable(row)) return;
-			const id = row.hit_id || index;
-			const newState = !this.openRows[id];
-			this.openRows[id] = newState;
-		},
-		openFullConcordances(row: HitRowData|DocRowData|GroupRowData) {
-			if ('displayname' in row) {
-				this.$emit('viewgroup', row.id, row.displayname);
-			}
-		}
-	},
-	watch: {
-		query() { this.openRows = {}; }
+const openRows = ref<Record<number|string, boolean>>({});
+const hoverMatchInfos = ref<undefined|string[]>(undefined);
+const hoverMatchInfosId = ref<undefined|string>(undefined);
+
+function isOpenable(row: HitRowData|DocRowData|GroupRowData) {
+	if (props.disabled || props.disableDetails) return false;
+	if (row.type === 'group') return true;
+	if (row.type === 'hit' && props.type === 'hits') return true;
+	if (row.type === 'doc' && props.type === 'docs' && row.hits) return true;
+	return false;
+}
+function hasForeignHit(rows: Rows) {
+	return rows.rows.some(row => row.type === 'hit' && row.isForeign);
+};
+function toggleRow(index: number) {
+	const row = props.rows.rows[index];
+	if (!isOpenable(row)) return;
+	const id = row.hit_id || index;
+	const newState = !openRows.value[id];
+	openRows.value[id] = newState;
+}
+function openFullConcordances(row: HitRowData|DocRowData|GroupRowData) {
+	if ('displayname' in row) {
+		emit('viewgroup', row.id, row.displayname);
 	}
-})
+}
+
+
+watch(() => props.query, () => openRows.value = {});
+
 </script>
 
 <style lang="scss">

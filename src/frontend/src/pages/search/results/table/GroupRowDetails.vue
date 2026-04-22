@@ -35,72 +35,59 @@
 	</tr>
 </template>
 
-<script lang="ts">
-import { defineComponent, type PropType } from 'vue';
+<script setup lang="ts">
 
 import { blacklab } from '@/api';
+import Spinner from '@/components/Spinner.vue';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
-import type { BLDocResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
-
+import GenericTable from '@/pages/search/results/table/GenericTable.vue';
+import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
 import type { GroupRowData, Rows } from '@/pages/search/results/table/table-layout';
 import { makeRows } from '@/pages/search/results/table/table-layout';
-
-import Spinner from '@/components/Spinner.vue';
-import IRow from '@/pages/search/results/table/IRow.vue';
 import * as CorpusStore from '@/store/corpus';
+import type { BLDocResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
+import { computed, watch } from 'vue';
 
-export default defineComponent({
-	name: 'GroupRowDetails',
-	extends: IRow,
-	components: { Spinner },
-	// NOTE: also update the watcher on this prop if you change this name!
-	props: { row: { type: Object as PropType<GroupRowData>, required: true } },
-	data: () => ({
-		concordances: null as any as PaginatedGetter<Rows>,
-	}),
-	methods: {
-		createGetter() {
-			this.concordances = new PaginatedGetter((oldRows, first, number) => {
-				// make a copy of the parameters so we don't clear them for all components using the summary
-				const requestParameters: BLSearchParameters = {
-					...this.query,
-					// Do not clear sample/samplenum/samplecount,
-					// or we could retrieve concordances that weren't included in the input results for the grouping
-					number,
-					first,
-					viewgroup: this.row.id,
-					// if parallel corpus, show aligned hits first. (if not, we don't care about order)
-					sort: CorpusStore.get.isParallelCorpus() ? 'alignments' : undefined, 
-				}
-			
-				const indexId = CorpusStore.get.indexId()!;
-				const r = this.type === 'hits' 
-					? blacklab.getHits<BLHitResults>(indexId, requestParameters) 
-					: blacklab.getDocs<BLDocResults>(indexId, requestParameters);
-				
-				return r
-					.then(newResults => makeRows(newResults, this.info))
-					.then(newRows => {
-						if (this.type === 'hits') newRows.rows = newRows.rows.filter(r => r.type === 'hit');
-						else newRows.rows = newRows.rows.filter(r => r.type === 'doc');
+defineOptions({ name: 'GroupRowDetails' });
+const props = withDefaults(defineProps<IRowProps<GroupRowData>>(), IRowDefaultProps);
 
-						if (!oldRows) return newRows;
-						oldRows.rows.push(...newRows.rows);
-						return oldRows;
-					});
-			}, this.row.size)
-		}
-	},
-	watch: {
-		row: {
-			handler() { this.createGetter(); },
-			immediate: true
-		},
-		open() {
-			if (this.open && !this.concordances.done && !this.concordances.loading && !this.concordances.results?.rows.length) this.concordances.next();
-		}
+// NOTE: was initially created using a watcher on props.row only, 
+// but that leaves the type as T|undefined, so computed it is
+const concordances = computed(() => new PaginatedGetter<Rows>((oldRows, first, number) => {
+	// make a copy of the parameters so we don't clear them for all components using the summary
+	const requestParameters: BLSearchParameters = {
+		...props.query,
+		// Do not clear sample/samplenum/samplecount,
+		// or we could retrieve concordances that weren't included in the input results for the grouping
+		number,
+		first,
+		viewgroup: props.row.id,
+		// if parallel corpus, show aligned hits first. (if not, we don't care about order)
+		sort: CorpusStore.get.isParallelCorpus() ? 'alignments' : undefined, 
 	}
+
+	const indexId = CorpusStore.get.indexId()!;
+	const r = props.type === 'hits' 
+		? blacklab.getHits<BLHitResults>(indexId, requestParameters) 
+		: blacklab.getDocs<BLDocResults>(indexId, requestParameters);
+	
+	return r
+		.then(newResults => makeRows(newResults, props.info))
+		.then(newRows => {
+			if (props.type === 'hits') newRows.rows = newRows.rows.filter(r => r.type === 'hit');
+			else newRows.rows = newRows.rows.filter(r => r.type === 'doc');
+
+			if (!oldRows) return newRows;
+			oldRows.rows.push(...newRows.rows);
+			return oldRows;
+		});
+	}, props.row.size)
+);
+
+watch(() => props.open, (newVal) => {
+	if (newVal && concordances.value && !concordances.value.done && !concordances.value.loading && !concordances.value.results?.rows.length) concordances.value.next();
 });
+
 </script>
 
 <style lang="scss">

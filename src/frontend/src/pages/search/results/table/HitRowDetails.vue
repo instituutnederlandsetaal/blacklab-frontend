@@ -82,10 +82,9 @@
 	</tr>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue';
 
-import IRow from '@/pages/search/results/table/IRow.vue';
 import type * as BLTypes from '@/types/blacklabtypes';
 
 import Spinner from '@/components/Spinner.vue';
@@ -96,159 +95,141 @@ import type { HitRowData } from './table-layout';
 import { snippetParts } from './table-layout';
 
 import * as Api from '@/api';
+import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';
 import * as CorpusStore from '@/store/corpus';
 import * as UIStore from '@/store/ui';
 import { debugLog } from '@/utils/debug';
 import type { CancelableRequest } from '@/utils/loadable-streams';
-import type { PropType } from 'vue';
 
-/** TODO disconnect from the store? */
-export default defineComponent({
-	name: 'HitRowDetails',
-	extends: IRow,
-	components: {
-		HitContext,
-		DepTree,
-		Spinner
-	},
-	props: {
-		// NOTE: also update the watcher on this prop if you change this name!
-		row: { type: Object as PropType<HitRowData>, required: true },
-	},
-	data: () => ({
-		sentenceRequest: null as null|CancelableRequest<BLTypes.BLHit>,
-		sentence: null as null|BLTypes.BLHit,
+// TODO disconnect from the store?
 
-		snippetRequest: null as null|CancelableRequest<BLTypes.BLHit>,
-		snippet: null as null|ContextOfHit,
+defineOptions({ name: 'HitRowDetails' });
+const props = withDefaults(defineProps<IRowProps<HitRowData>>(), IRowDefaultProps);
 
-		error: null as null|string,
-		addons: [] as Array<ReturnType<UIStore.ModuleRootState['results']['hits']['addons'][number]>>,
+const sentenceRequest = ref<CancelableRequest<BLTypes.BLHit> | null>(null);
+const sentence = ref<BLTypes.BLHit | null>(null);
 
-		// whether full sentence is shown (instead of just n words before and after the hit)
-		// For this to be available, the sentenceElement must be set (in the ui store)
-		sentenceShown: false,
-	}),
-	computed: {
-		hasRelations: CorpusStore.get.hasRelations,
-		/** Exact surrounding sentence can only be loaded if we the start location of the current hit, and when the boundery element has been set. */
-		sentenceAvailable(): boolean { return this.hasRelations && !!UIStore.getState().search.shared.within.sentenceElement && 'start' in this.row.hit; },
+const snippetRequest = ref<CancelableRequest<BLTypes.BLHit> | null>(null);
+const snippet = ref<ContextOfHit | null>(null);
 
-	},
-	methods: {
-		/**
-		 * Separate from the snippet/context, as that can run over sentence boundaries, but this doesn't.
-		 * We use it to render the dependency tree for the entire sentence.
-		 */
-		loadSentence() {
-			// 'start' should always be true if this.sentenceAvailable is true, but typescript doesn't know this.
-			if (!this.sentenceAvailable || this.sentenceRequest || !('start' in this.row.hit)) return;
+const error = ref<string | null>(null);
+const addons = ref<Array<ReturnType<UIStore.ModuleRootState['results']['hits']['addons'][number]>>>([]);
 
-			const context = UIStore.getState().search.shared.within.sentenceElement;
-			if (!context) return; // unavailable.
+// whether full sentence is shown (instead of just n words before and after the hit)
+// For this to be available, the sentenceElement must be set (in the ui store)
+const sentenceShown = ref(false);
 
-			const formatError = UIStore.getState().global.errorMessage;
+const hasRelations = computed(CorpusStore.get.hasRelations);
+/** Exact surrounding sentence can only be loaded if we the start location of the current hit, and when the boundery element has been set. */
+const sentenceAvailable = computed(() => hasRelations.value && !!UIStore.getState().search.shared.within.sentenceElement && 'start' in props.row.hit);
 
-			const nonce = this.row.hit;
-			const request = Api.blacklab.getSnippet(
-				CorpusStore.get.indexId()!,
-				this.row.doc.docPid,
-				this.row.annotatedField?.id,
-				this.row.hit.start,
-				this.row.hit.end,
-				context
-			);
-			this.sentenceRequest = request;
-			request
-			// check if hit hasn't changed in the meantime (due to component reuse)
-			.then(r => { if (nonce === this.row.hit) this.sentence = r; })
-			.catch(e => { if (nonce === this.row.hit) this.error = formatError(e, 'snippet'); })
-			.finally(() => { if (this.sentenceRequest === request) this.sentenceRequest = null; })
-		},
-		loadSnippet() {
-			// If we don't have a fat hit, we can't get any larger context (because we don't know the start/end of the hit)
-			// Don't do anything else, we just won't render the larger context.
-			// The small table will still be shown.
-			if (this.snippetRequest || this.snippet || !('start' in this.row.hit)) return;
+/**
+ * Separate from the snippet/context, as that can run over sentence boundaries, but this doesn't.
+ * We use it to render the dependency tree for the entire sentence.
+ */
+function loadSentence() {
+	// 'start' should always be true if this.sentenceAvailable is true, but typescript doesn't know this.
+	if (!sentenceAvailable.value || sentenceRequest.value || !('start' in props.row.hit)) return;
 
-			const transformSnippets = UIStore.getState().results.shared.transformSnippets;
-			const addons = UIStore.getState().results.hits.addons;
-			const formatError = UIStore.getState().global.errorMessage;
-			const concordanceSize = UIStore.getState().results.shared.concordanceSize;
+	const context = UIStore.getState().search.shared.within.sentenceElement;
+	if (!context) return; // unavailable.
 
-			const nonce = this.row.hit;
-			const request = Api.blacklab
-			.getSnippet(CorpusStore.get.indexId()!, this.row.doc.docPid, this.row.annotatedField?.id, this.row.hit.start, this.row.hit.end, concordanceSize);
-			this.snippetRequest = request;
-			request
-			.then(s => {
-				if (nonce !== this.row.hit) return; // hit has changed in the meantime.
+	const formatError = UIStore.getState().global.errorMessage;
 
-				transformSnippets?.(s);
+	// Need to track this, because results pay be paginated and this component may be reused across renders
+	// We should probably use asyncComputed or something but that's for later.
+	const nonce = props.row.hit;
+	const request = Api.blacklab.getSnippet(
+		CorpusStore.get.indexId()!,
+		props.row.doc.docPid,
+		props.row.annotatedField?.id,
+		props.row.hit.start,
+		props.row.hit.end,
+		context
+	);
+	sentenceRequest.value = request;
+	request
+	// check if hit hasn't changed in the meantime (due to component reuse)
+	.then(r => { if (nonce === props.row.hit) sentence.value = r; })
+	.catch(e => { if (nonce === props.row.hit) error.value = formatError(e, 'snippet'); })
+	.finally(() => { if (sentenceRequest.value === request) sentenceRequest.value = null; })
+}
+		
+function loadSnippet() {
+	// If we don't have a fat hit, we can't get any larger context (because we don't know the start/end of the hit)
+	// Don't do anything else, we just won't render the larger context.
+	// The small table will still be shown.
+	if (snippetRequest.value || snippet.value || !('start' in props.row.hit)) return;
 
-				// HACK! copy the colors from the existing hit. There's no easy way to get the entire Results object here to get the colors from there.
-				// At least there's never be more highlights in the surrounding snippet than in the hit itself, so this works...
-				const highlightColors = [...this.row.context.before, ...this.row.context.match, ...this.row.context.after]
-					.reduce<Record<string, TokenHighlight>>((acc, t) => {
-						t.captureAndRelation?.forEach(c => acc[c.highlight.key] = c.highlight);
-						return acc;
-					}, {});
+	const transformSnippets = UIStore.getState().results.shared.transformSnippets;
+	const addonConstructors = UIStore.getState().results.hits.addons;
+	const formatError = UIStore.getState().global.errorMessage;
+	const concordanceSize = UIStore.getState().results.shared.concordanceSize;
 
-				this.snippet = snippetParts(
-					// @ts-ignore matchinfos not included in snippets. copy from the original hit.
-					{matchInfos: this.row.hit.matchInfos,...s},
-					highlightColors
-				);
+	const nonce = props.row.hit;
+	const request = Api.blacklab
+	.getSnippet(CorpusStore.get.indexId()!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, concordanceSize);
+	snippetRequest.value = request;
+	request
+	.then(s => {
+		if (nonce !== props.row.hit) return; // hit has changed in the meantime.
 
-				// Run plugins defined for this corpus (e.g. a copy to clipboard button, or an audio player/text to speech button)
-				this.addons = addons
-					.map((a, i) => {
-						try {
-							return a({
-								docId: this.row.doc.docPid,
-								corpus: CorpusStore.get.indexId()!,
-								document: this.row.doc.docInfo,
-								documentUrl: this.row.href || '',
-								wordAnnotationId: this.info.mainAnnotation.id,
-								dir: this.row.dir,
-								citation: s
-							});
-						} catch (e) {
-							console.error(e);
-							return {
-								name: 'error-' + i,
-								content: `<pre class="text-danger">Error in addon: ${e}</pre>`
-							}
-						}
-					})
-					.filter(a => a != null);
+		transformSnippets?.(s);
+
+		// HACK! copy the colors from the existing hit. There's no easy way to get the entire Results object here to get the colors from there.
+		// At least there's never be more highlights in the surrounding snippet than in the hit itself, so this works...
+		const highlightColors = [...props.row.context.before, ...props.row.context.match, ...props.row.context.after]
+			.reduce<Record<string, TokenHighlight>>((acc, t) => {
+				t.captureAndRelation?.forEach(c => acc[c.highlight.key] = c.highlight);
+				return acc;
+			}, {});
+
+		snippet.value = snippetParts(
+			// @ts-ignore matchinfos not included in snippets. copy from the original hit.
+			{matchInfos: props.row.hit.matchInfos,...s},
+			highlightColors
+		);
+
+		// Run plugins defined for this corpus (e.g. a copy to clipboard button, or an audio player/text to speech button)
+		addons.value = addonConstructors
+			.map((a, i) => {
+				try {
+					return a({
+						docId: props.row.doc.docPid,
+						corpus: CorpusStore.get.indexId()!,
+						document: props.row.doc.docInfo,
+						documentUrl: props.row.href || '',
+						wordAnnotationId: props.info.mainAnnotation.id,
+						dir: props.row.dir,
+						citation: s
+					});
+				} catch (e) {
+					console.error(e);
+					return {
+						name: 'error-' + i,
+						content: `<pre class="text-danger">Error in addon: ${e}</pre>`
+					}
+				}
 			})
-			.catch((err: Api.ApiError) => {
-				if (nonce !== this.row.hit) return; // hit has changed in the meantime.
-				this.error = formatError(err, 'snippet');
-				if (err.stack) debugLog(err.stack);
-			})
-			.finally(() => { if (this.snippetRequest === request) this.snippetRequest = null; })
-		}
-	},
-	watch: {
-		open: {
-			immediate: true,
-			handler() { if (this.open) this.loadSnippet(); }
-		},
-		sentenceShown: {
-			immediate: true,
-			handler() { if (this.sentenceShown) this.loadSentence(); }
-		},
-		row() {
-			// Clear any data that's no longer relevant.
-			this.snippetRequest?.cancel();
-			this.sentenceRequest?.cancel();
-			this.snippetRequest = this.snippet = this.sentenceRequest = this.sentence = this.error = null;
-			this.addons = [];
-			this.sentenceShown = false;
-		}
-	},
+			.filter(a => a != null);
+	})
+	.catch((err: Api.ApiError) => {
+		if (nonce !== props.row.hit) return; // hit has changed in the meantime.
+		error.value = formatError(err, 'snippet');
+		if (err.stack) debugLog(err.stack);
+	})
+	.finally(() => { if (snippetRequest.value === request) snippetRequest.value = null; })
+}
+
+watch(() => props.open, (open) => { if (open) loadSnippet(); });
+watch(sentenceShown, (shown) => { if (shown) loadSentence(); });
+watch(() => props.row, () => {
+	// Clear any data that's no longer relevant.
+	snippetRequest.value?.cancel();
+	sentenceRequest.value?.cancel();
+	snippetRequest.value = snippet.value = sentenceRequest.value = sentence.value = error.value = null;
+	addons.value = [];
+	sentenceShown.value = false;
 });
 </script>
 

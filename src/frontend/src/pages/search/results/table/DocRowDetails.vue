@@ -14,16 +14,12 @@
 	</tr>
 </template>
 
-<script lang="ts">
-import IRow from '@/pages/search/results/table/IRow.vue';
+<script setup lang="ts">
+import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
 import type { DocRowData } from '@/pages/search/results/table/table-layout';
 
-import { defineComponent, type PropType } from 'vue';
+defineOptions({ name: 'DocRowDetails' });
+const props = withDefaults(defineProps<IRowProps<DocRowData>>(), IRowDefaultProps);
 
-export default defineComponent({
-	name: 'DocRowDetails',	
-	extends: IRow,
-	props: { row: { type: Object as PropType<DocRowData>, required: true } },
-});
 </script>
 

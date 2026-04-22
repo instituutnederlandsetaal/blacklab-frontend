@@ -11,7 +11,7 @@
 			:placeholder="col.label"
 			:options="col.sort"
 			:disabled="disabled"
-			@change="changeSort"
+			@change="(sort) => emit('changeSort', sort)"
 			:modelValue="sort?.replace(/^-/, '') || null /* strip inverted sort value for display purposes */"
 			:showValues="false"
 		/>
@@ -19,30 +19,27 @@
 			role="button"
 			:class="['sort', {disabled: disabled}]"
 			:title="col.title"
-			@click="changeSort(col.sort)"
+			@click="emit('changeSort', col.sort)"
 		>
 			{{ col.label }} <debug><b>[{{ col.debugLabel || col.key }}]</b></debug>
 		</a>
 		<span v-else :title="col.title">{{ col.label }} <debug><b>[{{ col.debugLabel || col.key }}]</b></debug></span>
 	</th>
 </template>
-<script lang="ts">
+<script setup lang="ts">
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { ColumnDef } from '@/pages/search/results/table/table-layout';
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
-export default defineComponent({
-	name: 'TableHeader',
-	components: { SelectPicker },
-	props: {
-		disabled: Boolean,
-		col: { type: Object as PropType<ColumnDef>, required: true },
-		sort: String
-	},
-	methods: {
-		changeSort(sort: string) { this.$emit('changeSort', sort); }
-	}
-})
+
+defineOptions({ name: 'TableHeader', });
+defineProps<{
+	disabled: boolean,
+	col: ColumnDef,
+	sort?: string|null,
+}>();
+const emit = defineEmits<{
+	changeSort: [sort: string],
+}>();
+
 </script>
 
 <style lang="scss">

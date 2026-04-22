@@ -18,34 +18,26 @@
 				:style="col.style"
 
 				:hoverMatchInfos="hoverMatchInfos"
-				@hover="$emit('hover', $event)"
-				@unhover="$emit('unhover')"
+				@hover="emit('hover', $event)"
+				@unhover="emit('unhover')"
 			/>
 			<td v-else-if="col.field === 'metadata'" :key="col.key + col.metadata.id" :class="col.class" :style="col.style">{{ row.doc.docInfo[col.metadata.id]?.join(', ') || '' }}</td>
 		</template>
 	</tr>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-import IRow from '@/pages/search/results/table/IRow.vue';
+<script setup lang="ts">
+
 import HitContext from '@/pages/search/results/table/HitContext.vue';
-
 import type { HitRowData } from '@/pages/search/results/table/table-layout';
-import type { PropType } from 'vue';
+import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';
 
-export default defineComponent({
-	name: 'HitRow',
-	extends: IRow,
-	props: { row: { type: Object as PropType<HitRowData>, required: true } },
-	components: {
-		HitContext
-	},
-	methods: {
-		hover(v: any) { this.$emit('hover', v); },
-		unhover(v: any) { this.$emit('unhover', v); },
-	}
-});
+defineOptions({ name: 'HitRow' });
+withDefaults(defineProps<IRowProps<HitRowData>>(), IRowDefaultProps);
+const emit = defineEmits<{
+	hover: [relationKeys: string[]],
+	unhover: []
+}>();
 </script>
 
 <style lang="scss" scoped>

@@ -11,35 +11,30 @@
 	</tr>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
 
 import frac2Percent from '@/mixins/fractionalToPercent';
-import IRow from '@/pages/search/results/table/IRow.vue';
+import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
 import type { ColumnDefGroup, GroupRowData, } from '@/pages/search/results/table/table-layout';
-import type { PropType } from 'vue';
+import { useI18n } from '@/utils/i18n';
 
-export default defineComponent({
-	name: 'GroupRow',
-	extends: IRow,
-	props: {
-		row: { type: Object as PropType<GroupRowData>, required: true },
-	},
-	methods: {
-		frac2Percent,
-		barStyle(col: ColumnDefGroup): Record<string, string> {
-			// if (!col.barField || this.row[col.barField] == null) return { width: '0', minWidth: '0', maxWidth: '0', padding: '0', color: 'black', textShadow: 'none', marginLeft: '6px', fontWeight: 'bold', overflow: 'visible', opacity: '0.8' }
-			if (!col.barField || this.row[col.barField] == null) return { width: '100%', opacity: '0.8' }
-			return { minWidth: this.frac2Percent(this.row[col.barField]! / this.maxima[col.barField])}
-		},
-		valueForCell(col: ColumnDefGroup): string {
-			const v = this.row[col.labelField];
-			if (v == null) return this.$t('results.groupBy.groupNameWithoutValue').toString();
-			if (col.showAsPercentage && typeof v === 'number') return this.frac2Percent(v);
-			return v.toLocaleString();
-		}
-	},
-});
+defineOptions({ name: 'GroupRow' });
+const props = withDefaults(defineProps<IRowProps<GroupRowData>>(), IRowDefaultProps);
+
+const translate = useI18n();
+
+function barStyle(col: ColumnDefGroup): Record<string, string> {
+	// if (!col.barField || this.row[col.barField] == null) return { width: '0', minWidth: '0', maxWidth: '0', padding: '0', color: 'black', textShadow: 'none', marginLeft: '6px', fontWeight: 'bold', overflow: 'visible', opacity: '0.8' }
+	if (!col.barField || props.row[col.barField] == null) return { width: '100%', opacity: '0.8' }
+	return { minWidth: frac2Percent(props.row[col.barField]! / props.maxima![col.barField])}
+}
+function valueForCell(col: ColumnDefGroup): string {
+	const v = props.row[col.labelField];
+	if (v == null) return translate.$t('results.groupBy.groupNameWithoutValue').toString();
+	if (col.showAsPercentage && typeof v === 'number') return frac2Percent(v);
+	return v.toLocaleString();
+}
+
 </script>
 
 <style lang="scss">
