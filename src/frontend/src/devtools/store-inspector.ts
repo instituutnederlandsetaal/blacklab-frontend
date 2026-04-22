@@ -1,13 +1,13 @@
 import * as RootStore from '@/app/state/root-store';
 import * as ArticleStore from '@/features/article/model/article-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
+import * as QueryStore from '@/features/search/model/query-state';
 import * as CorpusStore from '@/store/corpus';
 import * as ExploreStore from '@/store/form/explore';
 import * as FilterStore from '@/store/form/filters';
 import * as GapStore from '@/store/form/gap';
 import * as InterfaceStore from '@/store/form/interface';
 import * as PatternStore from '@/store/form/patterns';
-import * as QueryStore from '@/store/query';
 import * as GlobalResultsStore from '@/store/results/global';
 import * as ViewsStore from '@/store/results/views';
 import * as TagsetStore from '@/store/tagset';

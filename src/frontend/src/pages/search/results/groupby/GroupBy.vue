@@ -195,10 +195,10 @@
 import type { PropType } from 'vue';
 import { defineComponent, nextTick } from 'vue';
 
+import * as QueryStore from '@/features/search/model/query-state';
 import * as CorpusStore from '@/store/corpus';
 import * as FilterModule from '@/store/form/filters';
 import * as SearchModule from '@/store/index';
-import * as QueryStore from '@/store/query';
 import * as GlobalSearchSettingsStore from '@/store/results/global';
 import * as ResultsStore from '@/store/results/views';
 import * as UIStore from '@/store/ui';

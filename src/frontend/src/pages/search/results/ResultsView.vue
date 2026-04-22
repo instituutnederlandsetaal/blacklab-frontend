@@ -157,9 +157,9 @@ import jsonStableStringify from 'json-stable-stringify';
 
 import * as Api from '@/api';
 
+import * as QueryStore from '@/features/search/model/query-state';
 import * as RootStore from '@/store/';
 import * as CorpusStore from '@/store/corpus';
-import * as QueryStore from '@/store/query';
 import * as GlobalStore from '@/store/results/global';
 import * as ResultsStore from '@/store/results/views';
 import * as UIStore from '@/store/ui';

@@ -1,7 +1,7 @@
 import { blacklab } from '@/api';
 import { FilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
+import * as QueryStore from '@/features/search/model/query-state';
 import * as CorpusStore from '@/store/corpus';
-import * as QueryStore from '@/store/query';
 
 import { watchEffect } from 'vue';
 

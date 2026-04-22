@@ -5,8 +5,8 @@
 </template>
 
 <script lang="ts">
+import * as QueryStore from '@/features/search/model/query-state';
 import { defineComponent } from 'vue';
-import * as QueryStore from '@/store/query';
 
 export default defineComponent({
 	computed: {
