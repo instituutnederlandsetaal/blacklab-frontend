@@ -1,8 +1,8 @@
 import * as RootStore from '@/app/state/root-store';
 import * as ArticleStore from '@/features/article/model/article-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as QueryStore from '@/features/search/model/query-state';
-import * as CorpusStore from '@/store/corpus';
 import * as ExploreStore from '@/store/form/explore';
 import * as FilterStore from '@/store/form/filters';
 import * as GapStore from '@/store/form/gap';

@@ -9,7 +9,7 @@ import URI from 'urijs';
 import { stripIndent } from 'common-tags';
 import jsonStableStringify from 'json-stable-stringify';
 
-import * as CorpusModule from '@/store/corpus';
+import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/store/form/explore';
 import type * as FilterModule from '@/store/form/filters';
 import type * as GapModule from '@/store/form/gap';

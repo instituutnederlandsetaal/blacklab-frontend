@@ -24,7 +24,7 @@ import cloneDeep from 'clone-deep';
 
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
-import * as CorpusModule from '@/store/corpus';
+import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/store/form/explore';
 import type * as FilterModule from '@/store/form/filters';
 import type * as GapModule from '@/store/form/gap';
