@@ -19,3 +19,4 @@ test moveMetadataFieldToGroup / moveAnnotationToGroup since we changed reactivit
 
 # General nitpicks
 - Footer version number is no longer in sync with the git version number. Need to re-apply the changes from dev branch
+- Gap store is redundant, should be somewhere in pattern store. Should be restored from URL on initial load, and should be shared with article view.

@@ -11,9 +11,9 @@ import jsonStableStringify from 'json-stable-stringify';
 
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
+import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as InterfaceModule from '@/features/search/model/form/interface-state';
 import type * as FilterModule from '@/store/form/filters';
-import type * as GapModule from '@/store/form/gap';
 import type * as PatternModule from '@/store/form/patterns';
 import type * as GlobalModule from '@/store/results/global';
 import type * as ViewModule from '@/store/results/views';
@@ -271,7 +271,8 @@ function hashJavaDJB2(str: string) {
 // tslint:enable
 
 export {
-	actions, get, getState, init,
+    actions, get, getState, init,
 
-	type FullHistoryEntry, type HistoryEntry, type ModuleRootState
+    type FullHistoryEntry, type HistoryEntry, type ModuleRootState
 };
+

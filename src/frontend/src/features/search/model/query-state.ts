@@ -26,8 +26,8 @@ import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id'
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
+import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as FilterModule from '@/store/form/filters';
-import type * as GapModule from '@/store/form/gap';
 import type * as PatternModule from '@/store/form/patterns';
 import * as UIModule from '@/store/ui';
 import type { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';

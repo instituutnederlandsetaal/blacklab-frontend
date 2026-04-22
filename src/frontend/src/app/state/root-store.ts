@@ -8,10 +8,10 @@ import * as UIModule from '@/store/ui';
 
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
+import * as GapModule from '@/features/search/model/form/gap-state';
 import * as InterfaceModule from '@/features/search/model/form/interface-state';
 import * as FormManager from '@/store/form';
 import * as FilterModule from '@/store/form/filters';
-import * as GapModule from '@/store/form/gap';
 import * as PatternModule from '@/store/form/patterns';
 
 // Results

@@ -57,18 +57,22 @@ This document tracks implementation progress, current status, open questions, an
 - Reduced `src/store/form/explore.ts` to a compatibility re-export shim.
 - Moved the interface form store implementation into `src/features/search/model/form/interface-state.ts`.
 - Reduced `src/store/form/interface.ts` to a compatibility re-export shim.
+- Moved the gap form store implementation into `src/features/search/model/form/gap-state.ts`.
+- Reduced `src/store/form/gap.ts` to a compatibility re-export shim.
 - Updated touched article consumers to use the canonical feature-owned article model.
 - Updated touched history consumers to use the canonical feature-owned history model.
 - Updated touched query consumers to use the canonical feature-owned query model.
 - Updated app-owned and already-migrated feature-owned corpus consumers to use the canonical feature-owned corpus model.
 - Updated app-owned and already-migrated feature-owned explore consumers to use the canonical feature-owned explore model.
 - Updated app-owned and already-migrated feature-owned interface consumers to use the canonical feature-owned interface model.
+- Updated app-owned and already-migrated feature-owned gap consumers to use the canonical feature-owned gap model.
 - Left remaining legacy article imports only in the quarantined URL modules.
 - Left remaining legacy history imports only in the quarantined URL modules.
 - Left remaining legacy query imports only in the quarantined URL modules.
 - Left broader remaining legacy corpus imports in existing store, page, and URL modules for incremental cleanup.
 - Left remaining legacy explore imports in existing form, helper, page, and URL modules for incremental cleanup.
 - Left remaining legacy interface imports in existing form, page, and URL modules for incremental cleanup.
+- Left remaining legacy gap imports in the form aggregate, one page component, and URL modules for incremental cleanup.
 - Added a temporary article-only initial URL decode effect in `src/app/dirty/temporary-article-initial-url-parse.ts` to support validating the article-store migration without reconnecting the broader URL sync subsystem.
 - Added a route-scoped page-bootstrap signal so `PageMetaUpdater.vue` can defer custom JS injection until article/help/about pages report that their primary async content has settled.
 - Updated app-owned consumers to use the canonical `app/state/root-store` owner where touched.
@@ -199,6 +203,8 @@ Landed:
 - `src/store/form/explore.ts` is now a compatibility shim that re-exports from the search feature owner.
 - `src/features/search/model/form/interface-state.ts` now owns the interface form store implementation.
 - `src/store/form/interface.ts` is now a compatibility shim that re-exports from the search feature owner.
+- `src/features/search/model/form/gap-state.ts` now owns the gap form store implementation.
+- `src/store/form/gap.ts` is now a compatibility shim that re-exports from the search feature owner.
 
 Remaining:
 
@@ -208,6 +214,7 @@ Remaining:
 - Update the broader remaining corpus imports across existing store, page, and URL modules when that dependency surface is worth the churn.
 - Update the remaining explore imports across existing form, helper, page, and URL modules when that dependency surface is worth the churn.
 - Update the remaining interface imports across existing form, page, and URL modules when that dependency surface is worth the churn.
+- Update the remaining gap imports across the form aggregate, page, and URL modules when that dependency surface is worth the churn.
 
 Expected targets:
 
