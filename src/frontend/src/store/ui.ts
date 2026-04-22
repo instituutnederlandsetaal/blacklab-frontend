@@ -423,7 +423,7 @@ const actions = {
 					const defaultId = state.search.advanced.defaultSearchAnnotationId;
 					if (!r.includes(defaultId)) {
 						if (defaultId) { // don't warn when it was unconfigured before (e.g. '')
-							console.warn(`[search.advanced.searchAnnotationIds] - Resetting default selection from '${defaultId}' to '${r[0]}' because it's not in the configured list ${JSON.stringify(r)}`);
+							console.warn(`[search.advanced.searchAnnotationIds] - Changing default annotation from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`);
 						}
 						state.search.advanced.defaultSearchAnnotationId = r[0];
 					}
@@ -482,14 +482,14 @@ const actions = {
 			if (state.results.shared.groupAnnotationIds.length === 0 || state.results.shared.groupAnnotationIds.includes(annotationId)) {
 				state.explore.defaultGroupAnnotationId = annotationId;
 			} else {
-				console.warn(`[explore.defaultGroupAnnotationId] - Trying to set default selection to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.results.shared.groupAnnotationIds)})!`);
+				console.warn(`[explore.defaultGroupAnnotationId] - Trying to set default annotation to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.results.shared.groupAnnotationIds)})!`);
 			}
 		},
 		defaultGroupMetadataId: (metadataFieldId: string) => {
 			if (state.results.shared.groupMetadataIds.length === 0 || state.results.shared.groupMetadataIds.includes(metadataFieldId)) {
 				state.explore.defaultGroupMetadataId = metadataFieldId;
 			} else {
-				console.warn(`[explore.defaultGroupMetadataId] - Trying to set default selection to '${metadataFieldId}', but it's not one of the configured options (${JSON.stringify(state.results.shared.groupMetadataIds)})!`);
+				console.warn(`[explore.defaultGroupMetadataId] - Trying to set default metadata field to '${metadataFieldId}', but it's not one of the configured options (${JSON.stringify(state.results.shared.groupMetadataIds)})!`);
 			}
 		},
 
@@ -497,7 +497,7 @@ const actions = {
 			if (state.explore.searchAnnotationIds.length === 0 || state.explore.searchAnnotationIds.includes(annotationId)) {
 				state.explore.defaultSearchAnnotationId = annotationId;
 			} else {
-				console.warn(`[explore.defaultSearchAnnotationId] - Trying to set default selection to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.explore.searchAnnotationIds)})!`);
+				console.warn(`[explore.defaultSearchAnnotationId] - Trying to set default annotation to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.explore.searchAnnotationIds)})!`);
 			}
 		},
 		searchAnnotationIds: (ids: string[]) => validateAnnotations(ids,
@@ -508,7 +508,7 @@ const actions = {
 				r = state.explore.searchAnnotationIds = r;
 				if (!r.includes(defaultId)) {
 					if (defaultId) { // don't warn when it was unconfigured before (e.g. '')
-						console.warn(`[explore.searchAnnotationIds] - Resetting default selection from '${defaultId}' to '${r[0]}' because it's not in the configured list ${JSON.stringify(r)}`);
+						console.warn(`[explore.searchAnnotationIds] - Changing default annotation from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`);
 					}
 					state.explore.defaultSearchAnnotationId = r[0];
 				}
@@ -602,7 +602,7 @@ const actions = {
 					state.results.shared.groupAnnotationIds = r;
 					if (!r.includes(defaultId)) {
 						if (defaultId) { // don't warn when it was unconfigured before (e.g. '')
-							console.warn(`[results.shared.groupAnnotationIds] - Resetting default selection for explore.defaultGroupAnnotationId from '${defaultId}' to '${r[0]}' because it's not in the configured list ${JSON.stringify(r)}`);
+							console.warn(`[results.shared.groupAnnotationIds] - Changing default annotation from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`);
 						}
 						state.explore.defaultGroupAnnotationId = r[0];
 					}
@@ -617,7 +617,7 @@ const actions = {
 					state.results.shared.groupMetadataIds = r;
 					if (!r.includes(defaultId)) {
 						if (defaultId) { // don't warn when it was unconfigured before (e.g. '')
-							console.warn(`[results.shared.groupMetadataIds] - Resetting default selection for explore.defaultGroupMetadataId from '${defaultId}' to '${r[0]}' because it's not in the configured list ${JSON.stringify(r)}`);
+							console.warn(`[results.shared.groupMetadataIds] - Changing default metadata field from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`);
 						}
 						state.explore.defaultGroupMetadataId = r[0];
 					}
