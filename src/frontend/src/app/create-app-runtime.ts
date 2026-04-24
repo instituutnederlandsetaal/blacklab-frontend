@@ -35,7 +35,7 @@ export async function createAppRuntime(): Promise<AppRuntime> {
 	const app = createApp(App);
 	installApp(app);
 	installStoreInspectorDevtools(app);
-	startAppEffects();
+	startAppEffects(app);
 
 	return {
 		app,

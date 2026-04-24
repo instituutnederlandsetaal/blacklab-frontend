@@ -1,7 +1,7 @@
 <template>
 	
 	<div>
-		<PageMetaUpdater/>
+		<!-- <PageMetaUpdater/> -->
 		<Navbar/>
 		<!-- <pre style="overflow: auto; width: 100%; max-height: 20vh">{{ completeStoreState }}</pre> -->
 
@@ -9,10 +9,6 @@
 		<div v-if="storeLoadingState.isLoading()" class="container main-content">
 			<Spinner center/>
 			<h2>Please wait while we load the corpus...</h2>
-		</div>
-		<div v-else-if="temporaryArticleInitialUrlParsePending" class="container main-content">
-			<Spinner center/>
-			<h2>Please wait while we restore the article view...</h2>
 		</div>
 		<div v-else-if="storeLoadingState.isError()" class="container main-content">
 			<!-- TODO requires login, forbidden states, retry -->
@@ -30,12 +26,11 @@
 
 <script setup lang="ts">
 
-import { temporaryArticleInitialUrlParsePending } from '@/app/dirty/temporary-article-initial-url-parse';
 import * as RootStore from '@/app/state/root-store';
 
 import Navbar from '@/components/Navbar.vue';
 import Spinner from '@/components/Spinner.vue';
-import PageMetaUpdater from '@/PageMetaUpdater.vue';
+// import PageMetaUpdater from '@/PageMetaUpdater.vue';
 
 const storeLoadingState = RootStore.get.loadingState();
 

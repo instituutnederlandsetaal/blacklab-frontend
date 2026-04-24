@@ -1,4 +1,4 @@
-import { computed, nextTick, ref, toValue, watch, type MaybeRefOrGetter } from 'vue';
+import { nextTick, ref, toValue, watch, type MaybeRefOrGetter } from 'vue';
 import { useRoute, type RouteLocationNormalizedLoaded } from 'vue-router';
 
 export type CustomScriptTiming = 'immediate' | 'after-page-bootstrap';
@@ -76,4 +76,3 @@ export function useMarkPageBootstrapSettledWhen(isSettled: MaybeRefOrGetter<bool
 	);
 }
 
-export const hasPendingPageBootstrap = computed(() => pendingBootstrapRouteKey.value != null);

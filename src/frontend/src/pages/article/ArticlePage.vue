@@ -1,5 +1,9 @@
 <template>
 	<!-- TODO: i18n -->
+	 <div v-if="!articleLoadPending">
+		<Spinner center/>
+		<h2>Loading article...</h2>
+	 </div>
 	<div class="container article">
 		<template v-for="(value, key) in {contents, metadata, hits, hitToHighlight, validPaginationInfo, snippetAndDocument}">
 			<details>
@@ -125,11 +129,11 @@
 
 <script setup lang="ts">
 
+import { articleLoadPending } from '@/app/dirty/temporary-article-initial-url-parse';
 import * as UIStore from '@/app/state/ui-state';
 import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as QueryStore from '@/features/search/model/query-state';
-
 
 
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
