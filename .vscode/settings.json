@@ -16,7 +16,9 @@
 		"source.fixAll.oxc": "explicit",
 	},
 	"oxc.configPath": "src/frontend/oxlint.config.ts",
-	"oxc.tsConfigPath": "src/frontend/tsconfig.json",
-	"oxc.path.tsgolint": "src/frontend/node_modules/.bin/tsgolint",
-	"editor.insertSpaces": false
+	"oxc.tsConfigPath": "src/frontend/tsconfig.app.json",
+	"oxc.path.tsgolint": "src/frontend/node_modules/",
+	"editor.insertSpaces": false,
+	"oxc.fixKind": "safe_fix",
+	"oxc.typeAware": true,
 }
