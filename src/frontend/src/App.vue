@@ -1,7 +1,6 @@
 <template>
 	
 	<div>
-		<!-- <PageMetaUpdater/> -->
 		<Navbar/>
 		<!-- <pre style="overflow: auto; width: 100%; max-height: 20vh">{{ completeStoreState }}</pre> -->
 
@@ -30,7 +29,6 @@ import * as RootStore from '@/app/state/root-store';
 
 import Navbar from '@/components/Navbar.vue';
 import Spinner from '@/components/Spinner.vue';
-// import PageMetaUpdater from '@/PageMetaUpdater.vue';
 
 const storeLoadingState = RootStore.get.loadingState();
 

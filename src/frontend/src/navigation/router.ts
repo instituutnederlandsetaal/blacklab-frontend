@@ -3,6 +3,10 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { resetPageBootstrapForRoute, type CustomScriptTiming } from '@/navigation/page-bootstrap';
 
 
+/** 
+ * We need some metadata about the current route in order for customJs and customCss to work correctly.
+ * Store it in a standardized object so we can be sure it's available as expected.
+ */
 export type CustomRouteMeta = {
 	name: string;
 	getTitle?: (corpusDisplayName: string) => string;
@@ -107,61 +111,9 @@ router.beforeResolve((to, _from, next) => {
 	next();
 });
 
-
-// NOTE: (21 april 2026) - commented out because startup was running into a reflection loop.
-// Code should be moved to app startup somewhere later in refactor cycle and cleaned up.
-
-// Temp fix to keep exports consistent while refactoring startup and url state handling.
+// URL initial decode remains disabled during the structural refactor.
+// Keep this resolved promise so parked URL-state code can await it without blocking startup.
 export const initialUrlStateApplied = Promise.resolve();
-
-// === BEGIN Initial route decode 
-
-// let pageLoadUrlDecoded = false;
-// let initialUrlStateAppliedResolved = false;
-// let resolveInitialUrlStateApplied: (() => void)|null = null;
-
-// export const initialUrlStateApplied = new Promise<void>(resolve => {
-// 	resolveInitialUrlStateApplied = resolve;
-// });
-
-// function markInitialUrlStateApplied() {
-// 	if (initialUrlStateAppliedResolved) {
-// 		return;
-// 	}
-// 	initialUrlStateAppliedResolved = true;
-// 	resolveInitialUrlStateApplied?.();
-// }
-
-
-// router.beforeEach((to, from, next) => {
-
-// 	// On first entry on the page, we need to decode the url.
-// 	if (!pageLoadUrlDecoded && to.params.corpus) {
-// 		pageLoadUrlDecoded = true;
-// 		if (to.name === 'article' || to.name === 'search') {
-// 			const parser = to.name === 'article' ? new UrlStateParserArticle() : new UrlStateParserSearch();
-// 			// wait for store to initialize.
-// 			const unwatch = watch(() => RootStore.get.loadingState(), state => {
-// 				if (!state.isLoaded()) return;
-// 				unwatch();
-// 				// loaded, handle url parse now
-// 				void parser
-// 					.get()
-// 					.then(stateFromUrl => RootStore.actions.replace(stateFromUrl))
-// 					// .then(() => connectStoreStreams())
-// 					.finally(() => markInitialUrlStateApplied());
-// 			}, {
-// 				deep: true,
-// 			})	
-// 		} else {
-// 			markInitialUrlStateApplied();
-// 		}
-// 	}
-
-// 	next();
-// })
-
-// === END Initial route decode
 
 export default router;
 

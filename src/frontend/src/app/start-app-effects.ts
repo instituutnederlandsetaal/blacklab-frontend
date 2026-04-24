@@ -1,4 +1,3 @@
-import { startTemporaryArticleInitialUrlParse } from '@/app/dirty/temporary-article-initial-url-parse';
 import { startCorpusBootstrapEffect } from '@/features/corpus/effects/corpus-bootstrap.effect';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
 import { indexId } from '@/navigation/route-context';
@@ -11,8 +10,6 @@ export function startAppEffects(app: App) {
 		scope.run(() => {
 			watchEffect(() => void i18n.setIndexId(indexId.value));
 			startCorpusBootstrapEffect();
-			// TEMPORARY VALIDATION PATCH: article-only initial URL decode for refactor verification.
-			startTemporaryArticleInitialUrlParse();
 			// startStoreToUrlReflection(),
 			startCustomizationInterop();
 		})
