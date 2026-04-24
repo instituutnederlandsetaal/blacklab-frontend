@@ -4,7 +4,7 @@ import type { Canceler } from 'axios';
 import jsonStableStringify from 'json-stable-stringify';
 import type { InteropObservable, ObservableInput, ObservedValueOf, OperatorFunction, Subscription } from 'rxjs';
 import { combineLatest, distinctUntilChanged, EMPTY, filter, map, mergeMap, Observable, of, ReplaySubject, startWith, Subject, switchMap, take, takeUntil, timer } from 'rxjs';
-import { getCurrentInstance, markRaw, onUnmounted, reactive, shallowReactive, shallowRef } from 'vue';
+import { markRaw, onScopeDispose, reactive, shallowReactive, shallowRef } from 'vue';
 
 /**
  * Bunch of code for interop of streams and asynchronous/optional values.
@@ -577,12 +577,10 @@ export function loadableFromStream<T>(
 	// @ts-expect-error ugh, reactive(l) somehow turns l.value into UnwrapRef<...> which makes typescript complain
 	if (settings.deepReactiveValue) l = reactive(l); else l = shallowReactive(l);
 
-	// tear down streams automatically if this is called from within a vue component,
+	// tear down streams automatically if this is called from within a reactive context
 	// otherwise the caller has to call dispose() manually when they're done with it.
-	if (getCurrentInstance()) {
-		onUnmounted(onDispose);
-	}
-
+	onScopeDispose(onDispose);
+	
 	unsubs.push(stream$.subscribe({
 		next: nextState => Object.assign(l, Loadable.wrap(nextState)),
 		error: e => Object.assign(l, Loadable.LoadingError(ApiError.wrap(e))),
