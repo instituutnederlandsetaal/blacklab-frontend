@@ -94,7 +94,7 @@ import type { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptype
 import type { HitRowData } from './table-layout';
 import { snippetParts } from './table-layout';
 
-import * as Api from '@/api';
+import * as Api from '@/_new/shared/api';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';

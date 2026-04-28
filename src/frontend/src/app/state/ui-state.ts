@@ -9,7 +9,7 @@
 import cloneDeep from 'clone-deep';
 import { html, stripIndent } from 'common-tags';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as ViewsStore from '@/features/search/model/results/view-state';
 import type * as AppTypes from '@/types/apptypes';

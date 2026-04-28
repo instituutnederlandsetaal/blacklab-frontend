@@ -102,7 +102,7 @@ import Lexicon from '@/pages/search/form/Lexicon.vue';
 import PartOfSpeech from '@/pages/search/form/PartOfSpeech.vue';
 import type { Option } from '@/utils/options';
 
-import { blacklabPaths } from '@/api';
+import { blacklabPaths } from '@/_new/shared/api';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import { translate } from '@/utils/i18n';
 import { useTemplateRef } from 'vue';

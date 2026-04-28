@@ -174,7 +174,7 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 
-import { blacklabPaths } from '@/api';
+import { blacklabPaths } from '@/_new/shared/api';
 import Autocomplete from '@/components/Autocomplete.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';

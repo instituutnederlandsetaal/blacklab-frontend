@@ -1,4 +1,4 @@
-import { blacklab } from '@/api';
+import { blacklab } from '@/_new/shared/api';
 import { FilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as QueryStore from '@/features/search/model/query-state';

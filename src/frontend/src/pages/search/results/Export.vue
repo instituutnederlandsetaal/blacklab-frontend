@@ -45,7 +45,7 @@ import cloneDeep from 'clone-deep';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import * as Api from '@/api';
+import * as Api from '@/_new/shared/api';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 
 import type { BLSearchResult } from '@/types/blacklabtypes';

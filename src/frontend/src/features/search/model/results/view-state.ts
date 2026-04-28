@@ -6,7 +6,7 @@
  */
 import cloneDeep from 'clone-deep';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import { markRaw, reactive, shallowReactive } from 'vue';
 
@@ -186,3 +186,4 @@ function forEachView(fn: (view: ViewRootState) => void) {
 
 export { actions, forEachView, get, getOrCreateModule, getState, init, initialState, initialViewState };
 export type { ModuleRootState, ViewModule, ViewRootState };
+

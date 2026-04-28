@@ -68,6 +68,7 @@
     "monaco-yaml": "^5.1.1",
     "mustache": "^2.3.2",
     "oidc-client-ts": "^2.4.0",
+    "pinia": "^3.0.4",
     "popper.js": "^1.15.0",
     "rxjs": "^7.8.1",
     "strip-json-comments": "^5.0.1",

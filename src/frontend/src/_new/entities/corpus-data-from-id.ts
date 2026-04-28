@@ -2,7 +2,7 @@ import { combineLoadableStreamsIncludingEmpty, EMPTY_LOADABLE_STREAM, Interactiv
 import type { User } from 'oidc-client-ts';
 import { pipe, switchMap, tap, type Observable } from 'rxjs';
 
-import type { BlackLabApi, FrontendApi } from '@/api';
+import type { BlackLabApi, FrontendApi } from '@/_new/shared/api';
 import { processTagset } from '@/features/corpus/model/tagset-state';
 import type { ApiError, CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
 import type { BLIndexMetadata, BLRelationInfo } from '@/types/blacklabtypes';

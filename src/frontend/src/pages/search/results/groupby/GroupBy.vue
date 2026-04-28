@@ -203,7 +203,7 @@ import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalSearchSettingsStore from '@/features/search/model/results/global-results-state';
 import * as ResultsStore from '@/features/search/model/results/view-state';
 
-import { blacklab } from '@/api';
+import { blacklab } from '@/_new/shared/api';
 import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 
 import type { BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';

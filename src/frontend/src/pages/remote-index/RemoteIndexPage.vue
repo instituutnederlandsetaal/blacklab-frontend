@@ -69,7 +69,7 @@
 import Axios from 'axios';
 import { defineComponent, nextTick } from 'vue';
 
-import { blacklab } from '@/api';
+import { blacklab } from '@/_new/shared/api';
 import UrlStateParserBase from '@/url/url-state-parser-base';
 
 import SelectPicker from '@/components/SelectPicker.vue';

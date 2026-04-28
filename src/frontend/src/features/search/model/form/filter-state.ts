@@ -9,8 +9,8 @@ import { memoize } from '@/features/search/model/form/reactive-store';
 
 import type { FilterDefinition } from '@/types/apptypes';
 
-import { blacklabPaths } from '@/api';
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
+import { blacklabPaths } from '@/_new/shared/api';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { mapReduce } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';

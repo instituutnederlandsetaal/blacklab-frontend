@@ -10,7 +10,7 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 
 import { debugLogCat } from '@/utils/debug';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import type { AnnotationValue } from '@/types/apptypes';
 import { reactive, ref } from 'vue';

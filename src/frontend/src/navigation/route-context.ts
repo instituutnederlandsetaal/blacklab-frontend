@@ -1,5 +1,5 @@
+import { userName as userNamePromise, user as userPromise } from '@/_new/shared/auth/loginsystem';
 import router from '@/navigation/router';
-import { userName as userNamePromise, user as userPromise } from '@/utils/loginsystem';
 import type { User } from 'oidc-client-ts';
 import { computed, ref } from 'vue';
 

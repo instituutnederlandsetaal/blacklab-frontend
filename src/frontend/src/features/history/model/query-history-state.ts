@@ -9,17 +9,17 @@ import URI from 'urijs';
 import { stripIndent } from 'common-tags';
 import jsonStableStringify from 'json-stable-stringify';
 
+import * as UIModule from '@/app/state/ui-state';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as InterfaceModule from '@/features/search/model/form/interface-state';
+import type * as PatternModule from '@/features/search/model/form/pattern-state';
 import type * as GlobalModule from '@/features/search/model/results/global-results-state';
 import type * as ViewModule from '@/features/search/model/results/view-state';
-import type * as PatternModule from '@/features/search/model/form/pattern-state';
-import * as UIModule from '@/app/state/ui-state';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 import { debugLog } from '@/utils/debug';
@@ -271,8 +271,8 @@ function hashJavaDJB2(str: string) {
 // tslint:enable
 
 export {
-    actions, get, getState, init,
+	actions, get, getState, init,
 
-    type FullHistoryEntry, type HistoryEntry, type ModuleRootState
+	type FullHistoryEntry, type HistoryEntry, type ModuleRootState
 };
 

@@ -155,7 +155,7 @@ import { markRaw } from 'vue';
 
 import jsonStableStringify from 'json-stable-stringify';
 
-import * as Api from '@/api';
+import * as Api from '@/_new/shared/api';
 
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';

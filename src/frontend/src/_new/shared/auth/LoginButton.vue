@@ -18,8 +18,8 @@
 </template>
 
 <script lang="ts">
+import * as LoginSystem from '@/_new/shared/auth/loginsystem';
 import SelectPicker from '@/components/SelectPicker.vue';
-import * as LoginSystem from '@/utils/loginsystem';
 import type { Option } from '@/utils/options';
 import { defineComponent } from 'vue';
 

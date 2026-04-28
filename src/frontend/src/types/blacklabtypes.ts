@@ -194,6 +194,14 @@ export interface BLServer {
 	user: BLUser;
 }
 
+export type BLParsePatternResponse = {
+	parsed: {
+		bcql: string;
+		json: any;
+	};
+};
+
+
 // ----------------------------
 // IndexStructure/IndexMetadata
 // ----------------------------
@@ -670,6 +678,7 @@ export interface BLHitResults {
 }
 
 export type BLSearchResult = BLHitResults|BLDocResults|BLHitGroupResults|BLDocGroupResults;
+
 
 export const isHitResults = (d: any): d is BLHitResults => !!(d && d.docInfos && d.hits);
 export const isDocResults = (d: any): d is BLDocResults => !!(d && d.docs);

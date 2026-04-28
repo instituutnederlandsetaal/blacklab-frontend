@@ -1,4 +1,4 @@
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
@@ -45,3 +45,4 @@ const init = (state: CorpusChange) => {
 
 export { actions, get, init };
 export type { ModuleRootState };
+

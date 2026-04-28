@@ -3,7 +3,7 @@
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import * as UIStore from '@/app/state/ui-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
 import { escapeRegex } from '@/utils';

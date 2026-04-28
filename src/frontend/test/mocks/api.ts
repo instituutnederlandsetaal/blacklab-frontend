@@ -1,4 +1,4 @@
-import type { ApiModule, BlackLabApi, FrontendApi, ParsePatternResponse } from '@/api';
+import type { ApiModule, BlackLabApi, FrontendApi, ParsePatternResponse } from '@/_new/shared/api';
 import type { CFPageConfig, Tagset } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { CancelableRequest } from '@/utils/loadable-streams';

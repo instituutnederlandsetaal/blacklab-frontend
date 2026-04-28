@@ -67,7 +67,7 @@ import * as Observable from 'rxjs';
 import { catchError, debounceTime, filter, map, mergeMap, switchMap, toArray } from 'rxjs/operators';
 import { defineComponent, type PropType } from 'vue';
 
-import * as api from '@/api';
+import * as api from '@/_new/shared/api';
 import * as UIStore from '@/app/state/ui-state';
 import SelectPicker from '@/components/SelectPicker.vue';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';

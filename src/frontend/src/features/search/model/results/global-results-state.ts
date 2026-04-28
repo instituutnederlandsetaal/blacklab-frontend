@@ -4,7 +4,7 @@
  */
 
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import { useLocalStorage } from '@vueuse/core';
 import { reactive } from 'vue';
@@ -106,3 +106,4 @@ const init = (_state: CorpusChange)=> {
 
 export { actions, defaults, get, getState, init };
 export type { ExternalModuleRootState, ModuleRootState };
+

@@ -1,6 +1,6 @@
 import type * as BLTypes from '@/types/blacklabtypes';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import { reactive } from 'vue';
 
 type ModuleRootState = {

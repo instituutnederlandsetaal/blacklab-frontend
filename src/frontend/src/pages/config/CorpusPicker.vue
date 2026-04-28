@@ -15,11 +15,11 @@
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-import { blacklab } from '@/api';
+import { blacklab } from '@/_new/shared/api';
 import type { NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
+import { defineComponent } from 'vue';
 
-import  CorpusConfig from './CorpusConfig.vue';
+import CorpusConfig from './CorpusConfig.vue';
 
 export default defineComponent({
 	components: {

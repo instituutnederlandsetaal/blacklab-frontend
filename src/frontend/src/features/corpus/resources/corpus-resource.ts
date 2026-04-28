@@ -1,5 +1,5 @@
-import { blacklab, frontend } from '@/api';
-import { CorpusDataLoader } from '@/api/async/logic/corpus/corpus-data-from-id';
+import { CorpusDataLoader } from '@/_new/entities/corpus-data-from-id';
+import { blacklab, frontend } from '@/_new/shared/api';
 import { indexId, user } from '@/navigation/route-context';
 import { watch } from 'vue';
 

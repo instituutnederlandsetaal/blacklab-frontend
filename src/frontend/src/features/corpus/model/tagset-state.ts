@@ -7,7 +7,7 @@
 
 import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import { ref } from 'vue';
 
 type ModuleRootState = Tagset|null;
@@ -181,3 +181,4 @@ const actions = {
 
 export { actions, get, getState, init };
 export type { ModuleRootState, Tagset };
+

@@ -60,7 +60,7 @@
 </template>
 
 <script lang="ts">
-import { blacklab } from '@/api';
+import { blacklab } from '@/_new/shared/api';
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { Option } from '@/utils/options';
 import type { PropType } from 'vue';

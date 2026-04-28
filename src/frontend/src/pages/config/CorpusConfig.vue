@@ -17,7 +17,7 @@
 </template>
 
 <script lang="ts">
-import { blacklab } from '@/api';
+import { blacklab } from '@/_new/shared/api';
 import type { NormalizedIndex } from '@/types/apptypes';
 import { defineComponent } from 'vue';
 

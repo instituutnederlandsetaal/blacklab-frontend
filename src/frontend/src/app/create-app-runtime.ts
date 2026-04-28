@@ -1,12 +1,12 @@
 import App from '@/App.vue';
 
-import { init as initApi } from '@/api';
+import { init as initApi } from '@/_new/shared/api';
+import * as LoginSystem from '@/_new/shared/auth/loginsystem';
 import { installApp } from '@/app/install-app';
 import { startAppEffects } from '@/app/start-app-effects';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
-import * as LoginSystem from '@/utils/loginsystem';
 import { createApp, type App as VueApp } from 'vue';
 
 let apiClientsInitialized = false;

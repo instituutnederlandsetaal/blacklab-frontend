@@ -1,4 +1,4 @@
-import { blacklab, frontend } from '@/api';
+import { blacklab, frontend } from '@/_new/shared/api';
 import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
 

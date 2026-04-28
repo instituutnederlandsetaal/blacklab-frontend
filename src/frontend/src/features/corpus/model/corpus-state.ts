@@ -5,7 +5,7 @@
  * are the filters subdivided in groups, what is the text direction, and so on.
  */
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import type { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex, NormalizedMetadataField, NormalizedMetadataGroup } from '@/types/apptypes';
 import { mapReduce } from '@/utils';
 import { ref } from 'vue';

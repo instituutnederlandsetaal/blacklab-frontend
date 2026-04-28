@@ -54,7 +54,7 @@ import { defineComponent } from 'vue';
 
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
-import { blacklab } from '@/api';
+import { blacklab } from '@/_new/shared/api';
 import { mapReduce } from '@/utils';
 import type { StepState } from './POS.vue';
 

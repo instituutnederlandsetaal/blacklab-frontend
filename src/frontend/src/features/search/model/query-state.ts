@@ -22,14 +22,14 @@
 
 import cloneDeep from 'clone-deep';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
+import * as UIModule from '@/app/state/ui-state';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as PatternModule from '@/features/search/model/form/pattern-state';
-import * as UIModule from '@/app/state/ui-state';
 import type { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
 import { reactive } from 'vue';

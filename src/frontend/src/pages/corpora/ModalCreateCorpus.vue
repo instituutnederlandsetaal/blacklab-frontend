@@ -33,7 +33,7 @@
 	</Modal>
 </template>
 <script lang="ts">
-import * as Api from '@/api';
+import * as Api from '@/_new/shared/api';
 import Modal from '@/components/Modal.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { NormalizedFormat } from '@/types/apptypes';

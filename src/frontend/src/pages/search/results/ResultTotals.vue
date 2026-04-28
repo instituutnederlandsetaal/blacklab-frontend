@@ -45,7 +45,7 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import * as Api from '@/api';
+import * as Api from '@/_new/shared/api';
 import type * as BLTypes from '@/types/blacklabtypes';
 
 

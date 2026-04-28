@@ -103,7 +103,7 @@
 
 </template>
 <script lang="ts">
-import * as Api from '@/api';
+import * as Api from '@/_new/shared/api';
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 import type { BLServer } from '@/types/blacklabtypes';
 import { normalizeIndexBase } from '@/utils/blacklabutils';

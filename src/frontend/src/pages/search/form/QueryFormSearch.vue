@@ -128,7 +128,7 @@ import SearchAdvanced from '@/pages/search/form/SearchAdvanced.vue';
 import SearchExpert from '@/pages/search/form/SearchExpert.vue';
 import Within from '@/pages/search/form/Within.vue';
 
-import { blacklabPaths } from '@/api';
+import { blacklabPaths } from '@/_new/shared/api';
 import type * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
 

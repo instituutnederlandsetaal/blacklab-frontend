@@ -34,9 +34,9 @@
 </template>
 
 <script lang="ts">
+import LoginButton from '@/_new/shared/auth/ui/LoginButton.vue';
 import * as UIStore from '@/app/state/ui-state';
 import LocaleSelector from '@/components/LocaleSelector.vue';
-import LoginButton from '@/components/LoginButton.vue';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 import { localStorageSynced } from '@/utils/localstore';

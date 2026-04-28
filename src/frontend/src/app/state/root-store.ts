@@ -20,8 +20,8 @@ import * as ViewModule from '@/features/search/model/results/view-state';
 // Article
 import * as ArticleModule from '@/features/article/model/article-state';
 
+import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
 import { corpusDataLoader } from '@/api/async/instances/corpus-data';
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';

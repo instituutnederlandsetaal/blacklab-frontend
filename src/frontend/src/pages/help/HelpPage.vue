@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ApiError, frontend } from '@/api';
+import { ApiError, frontend } from '@/_new/shared/api';
 import ServerRenderedContentPage from '@/components/ServerRenderedContentPage.vue';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';

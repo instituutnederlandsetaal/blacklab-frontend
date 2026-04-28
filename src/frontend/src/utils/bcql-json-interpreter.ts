@@ -11,7 +11,7 @@
  * https://blacklab.ivdnt.org/server/rest-api/corpus/parse-pattern/get.html#json-query-structure
  */
 
-import * as api from '@/api';
+import * as api from '@/_new/shared/api';
 import type { BCQLAndNode, BCQLCompareNode, BCQLOrNode, BCQLPositionFilterNode, BCQLQueryNode, BCQLRegexNode, BCQLTagAttributeExpressionNode, BCQLTextPatternNode, BCQLTextPatternStruct } from '@/types/blacklabcql';
 
 export type XmlTag = {
@@ -418,5 +418,6 @@ async function parseBcql(indexId: string, bcql: string, defaultAnnotation: strin
 }
 
 export {
-	parseBcql
+    parseBcql
 };
+
