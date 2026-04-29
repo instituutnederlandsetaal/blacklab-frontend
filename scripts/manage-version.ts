@@ -18,66 +18,139 @@ import os from 'os';
 
 import Version from './version.ts';
 
-const git = simpleGit();
+const DEV_BRANCH = 'dev';
+const MAIN_BRANCH = 'main';
+const MAINTENANCE_BRANCH_PATT = /^v(\d+)-maintenance$/;
+
 const rootDir = (await (Bun.$`git rev-parse --show-toplevel`).text()).trim();
+const git = simpleGit(rootDir);
 const frontendPath = path.join(rootDir, 'src/frontend/');
 const textEditor: string|undefined = (Bun.env.VSCODE_GIT_IPC_HANDLE || Bun.env.TERM_PROGRAM === 'vscode') ? 'code --wait' : (await git.getConfig('core.editor')).value || undefined;
-const GIT_BACKUP_TAG = 'VERSION_BUMP_CHECKPOINT';
 const RELEASE_NOTES_DIR = path.join(rootDir, 'docs/src/060_release_notes/');
 const RELEASE_NOTES_TEMPLATE_FILE = path.join(__dirname, 'release_notes.template.md');
 
-let backupTagCreated = false;
-let tagCreated: string | undefined = undefined;
+
+
+
+class BackupTagManager {
+  public BACKUP_TAG_PREFIX = 'VERSION_BUMP_CHECKPOINT_';
+  private backupTags: {[branchName: string]: string} = {};
+
+  async tagAndEnter(branch: string): Promise<void> {
+    await git.checkout(branch);
+    await this.createBackupTagForCurrentBranch();
+  }
+
+  async createBackupTagForCurrentBranch(): Promise<string> {
+    const branch = await git.branchLocal();
+    if (branch.detached) {
+      throw new Error('You are in a detached HEAD state. Please switch to a branch before running this script.');
+    }
+    const tagName = `${this.BACKUP_TAG_PREFIX}${branch.current}`;
+    if (this.backupTags[branch.current]) return tagName;
+    await git.addTag(tagName);
+    this.backupTags[branch.current] = tagName;
+    return tagName;
+  }
+
+  async restoreBackupTags() {
+    for (const [branch, tag] of Object.entries(this.backupTags)) {
+      console.log(`Restoring branch ${branch} to backup tag ${tag}...`);
+      await git.checkout(branch);
+      await git.reset(['--hard', tag]);
+      console.log(`Deleting backup tag ${tag}...`);
+      await git.tag(['-d', tag]);
+    }
+  }
+
+  async cleanupBackupTags() {
+    for (const tag of Object.values(this.backupTags)) {
+      try {
+        console.log(`Deleting backup tag ${tag}...`);
+        await git.tag(['-d', tag]);
+      } catch (error) {
+        // Ignore errors when cleaning up backup tags
+      }
+    }
+    this.backupTags = {};
+  }
+
+  public getTags(): string[] {
+    return Object.values(this.backupTags);
+  }
+}
+const tagManager = new BackupTagManager();
+
+
+let releaseTag: string | undefined = undefined;
+const additionalBranchesToPush: string[] = [];
+
+
+async function checkPreconditions() {
+  const status = await git.status();
+  if (!status.isClean()) {
+    throw new Error('You have uncommitted changes. Please commit or stash them first.');
+  }
+  const branch = await git.branchLocal();
+  if (branch.detached) {
+    throw new Error('You are in a detached HEAD state. Please switch to a branch before running this script.');
+  }
+  if (getMaintenanceBranchMajor(branch.current) == null) {
+    throw new Error(`You must be a maintenance branch to run this script, e.g. 'v5-maintenance'`);
+  }
+
+}
+
+async function gatherWorkspaceAndBranchInfo(): Promise<WorkspaceAndBranchInfo> {
+  const maintenanceBranch = (await git.branchLocal()).current;
+  if (!maintenanceBranch.match(MAINTENANCE_BRANCH_PATT)) {
+    throw new Error(`Current branch ${maintenanceBranch} does not match maintenance branch pattern ${MAINTENANCE_BRANCH_PATT}. Please switch to a maintenance branch.`);
+  }
+
+  const devVersion = Version.fromString((await git.tags(['--sort=-creatordate', '--merged', DEV_BRANCH])).all.find(Version.isVersionString)!);
+  const mainVersion = Version.fromString((await git.tags(['--sort=-creatordate', '--merged', MAIN_BRANCH])).all.find(Version.isVersionString)!);
+
+  return {
+    maintenance_branch: maintenanceBranch,
+    maintenance_branch_version: await getVersion(), // read repo instead of tag, because we're in progress on a release
+
+    main_branch: MAIN_BRANCH,
+    main_branch_version: mainVersion,
+
+    dev_branch: DEV_BRANCH,
+    dev_branch_version: devVersion
+  }
+}
 
 /**
  * Restores the git repository to the initial checkpoint created at the start of the script.
  * This is called when the user interrupts the process or when an error occurs.
  */
-async function restoreToCheckpoint() {
-  if (!backupTagCreated) return;
+async function restoreToInitialState() {
+  await tagManager.restoreBackupTags();
 
   try {
-    if (tagCreated) {
-      console.log(`Removing created tag: ${tagCreated}`);
-      await git.tag(['-d', tagCreated]);
-      tagCreated = undefined;
-    }
-
-    if (backupTagCreated) {
-      console.log('\nRestoring to git checkpoint...');
-      await git.reset(['--hard', GIT_BACKUP_TAG]);
-      console.log('Git state restored to initial checkpoint.');
-      await cleanupBackupTag();
+    if (releaseTag) {
+      console.log(`Removing created tag: ${releaseTag}`);
+      await git.tag(['-d', releaseTag]);
+      releaseTag = undefined;
     }
   } catch (error) {
     console.error('Failed to restore git checkpoint:', error);
   }
 }
 
-/**
- * Cleans up the backup tag when operations complete successfully.
- */
-async function cleanupBackupTag() {
-  if (!backupTagCreated) return;
-
-  try {
-    await git.tag(['-d', GIT_BACKUP_TAG]);
-    backupTagCreated = false;
-  } catch (error) {
-    // Ignore errors when cleaning up backup tag
-  }
-}
 
 // Handle user interruption (Ctrl+C)
 process.on('SIGINT', async () => {
   console.log('\nOperation interrupted by user.');
-  await restoreToCheckpoint();
+  await restoreToInitialState();
   process.exit(130); // Standard exit code for SIGINT
 });
 
 process.on('SIGTERM', async () => {
   console.log('\nOperation terminated.');
-  await restoreToCheckpoint();
+  await restoreToInitialState();
   process.exit(143); // Standard exit code for SIGTERM
 });
 
@@ -92,11 +165,27 @@ async function safePrompt<T>(promptConfig: Parameters<(typeof Enquirer<T>)['prom
     // Handle Ctrl+C during prompts
     if (error && typeof error === 'object' && 'message' in error && error.message === '') {
       console.log('\nOperation cancelled by user.');
-      await restoreToCheckpoint();
+      await restoreToInitialState();
       process.exit(130);
     }
     throw error;
   }
+}
+
+/** Returns the major version number if branch is a v<major>-maintenance branch, otherwise null. */
+function getMaintenanceBranchMajor(branch: string): number | null {
+  const m = branch.match(MAINTENANCE_BRANCH_PATT);
+  return m ? Number(m[1]) : null;
+}
+
+/** Returns true if no released tags with a higher major version exist than the given major. */
+async function isLatestMajor(major: number): Promise<boolean> {
+  const allTags = (await git.tags()).all;
+  return !allTags
+    .filter(t => Version.isVersionString(t))
+    .map(t => Version.fromString(t))
+    .filter(v => !v.snapshot)
+    .some(v => v.major > major);
 }
 
 async function getVersion(): Promise<Version> {
@@ -110,13 +199,6 @@ async function getVersion(): Promise<Version> {
 async function setVersion(newVersion: Version) {
   await (Bun.$`cd ${frontendPath} && npm version ${newVersion.toString()} --no-git-tag-version --silent`.quiet());
   await (Bun.$`cd ${rootDir} && mvn versions:set -DnewVersion=${newVersion.toString()} -DgenerateBackupPoms=false`.quiet());
-}
-
-async function ensureCleanGit(): Promise<void> {
-  const status = await git.status();
-  if (!status.isClean()) {
-    throw new Error('You have uncommitted changes. Please commit or stash them first.');
-  }
 }
 
 async function getGitLogSinceLastVersion(): Promise<string> {
@@ -195,6 +277,7 @@ async function promptUserForReleaseNotes(version: Version, gitLog: string): Prom
   return edited;
 }
 
+/** Return the absolute path to the release notes file for the given version. */
 function getReleaseNotesFile(version: Version): string {
   if (!fssync.existsSync(RELEASE_NOTES_DIR)) {
     throw new Error(`Release notes directory does not exist: ${RELEASE_NOTES_DIR}\n Please fix the ${__filename} script.`);
@@ -202,7 +285,20 @@ function getReleaseNotesFile(version: Version): string {
   return path.join(RELEASE_NOTES_DIR, `${version}.md`);
 }
 
-async function createReleaseNotes() {
+type WorkspaceAndBranchInfo = {
+  maintenance_branch: string;
+  maintenance_branch_version: Version;
+
+  main_branch: string;
+  main_branch_version: Version;
+  
+  dev_branch: string;
+  dev_branch_version: Version;
+}
+
+
+/** Let the user edit/create release notes, then move them to the final location in the repo and return it. */
+async function createReleaseNotes(): Promise<string> {
   const currentVersion = await getVersion();
   const rawChangelog = await getGitLogSinceLastVersion();
   const releaseNotes = await promptUserForReleaseNotes(currentVersion, rawChangelog);
@@ -210,6 +306,7 @@ async function createReleaseNotes() {
   const finalLocation = getReleaseNotesFile(currentVersion);
   console.log(`Writing changelog to ${finalLocation}`);
   await fs.writeFile(finalLocation, releaseNotes.trim() + '\n');
+  return finalLocation;
 }
 
 const actions = {
@@ -217,16 +314,17 @@ const actions = {
     order: 1,
     message: 'Update SNAPSHOT Version',
     hint: 'Create a new -SNAPSHOT version (prior to release).',
-    async handler() {
-      const currentVersion = await getVersion();
+    async handler(p: WorkspaceAndBranchInfo) {
+      await tagManager.tagAndEnter(p.maintenance_branch);
+
       const {nextVersion} = await safePrompt<{nextVersion: string}>({
         type: 'select',
         name: 'nextVersion',
-        message: `Current version is ${currentVersion}. Select the version part to increment:`,
+        message: `Current version is ${p.maintenance_branch_version}. Select the version part to increment:`,
         choices: [
-          { name: currentVersion.nextPatchSnapshot().toString(), message: `Patch (${currentVersion.nextPatchSnapshot()})`, },
-          { name: currentVersion.nextMinorSnapshot().toString(), message: `Minor (${currentVersion.nextMinorSnapshot()})`, },
-          { name: currentVersion.nextMajorSnapshot().toString(), message: `Major (${currentVersion.nextMajorSnapshot()})`, }
+          { name: p.maintenance_branch_version.nextPatchSnapshot().toString(), message: `Patch (${p.maintenance_branch_version.nextPatchSnapshot()})`, },
+          { name: p.maintenance_branch_version.nextMinorSnapshot().toString(), message: `Minor (${p.maintenance_branch_version.nextMinorSnapshot()})`, },
+          { name: p.maintenance_branch_version.nextMajorSnapshot().toString(), message: `Major (${p.maintenance_branch_version.nextMajorSnapshot()})`, }
         ]
       });
 
@@ -241,21 +339,47 @@ const actions = {
     order: 2,
     message: 'Create Release',
     hint: 'Create a release from current SNAPSHOT version.',
-    async handler(params?: { push?: boolean }) {
-      const currentVersion = await getVersion();
-      if (!currentVersion.snapshot) {
+    async handler(p: WorkspaceAndBranchInfo) {
+      if (!p.maintenance_branch_version.snapshot) {
         console.log('Current version is not a SNAPSHOT. Nothing to release.');
         return;
       }
 
-      const releaseVersion = currentVersion.nonSnapshotVersion();
+      await tagManager.tagAndEnter(p.maintenance_branch);
+
+      const releaseVersion = p.maintenance_branch_version.nonSnapshotVersion();
       await setVersion(releaseVersion);
-      await createReleaseNotes();
+      const releaseNotesFile = await createReleaseNotes();
       await git.add(rootDir);
       await git.commit(`Release version ${releaseVersion}`);
       await git.addTag(releaseVersion.toString());
-      tagCreated = releaseVersion.toString();
-      await actions.updateVersion.handler();
+      releaseTag = releaseVersion.toString();
+
+      // create next snapshot commit
+      await actions.updateVersion.handler({...p, maintenance_branch_version: releaseVersion});
+
+
+      // Merge the release notes file into dev (docs site is built from dev)
+      const releaseNotesRelPath = path.relative(rootDir, releaseNotesFile);
+      console.log(`\nMerging release notes to dev branch...`);
+      
+      await tagManager.tagAndEnter(p.dev_branch);
+      await git.checkout([p.maintenance_branch, '--', releaseNotesRelPath]);
+      await git.commit(`docs: Add release notes for ${releaseVersion}`);
+      await tagManager.tagAndEnter(p.maintenance_branch); // move back to maintenance branch
+      additionalBranchesToPush.push(p.maintenance_branch);
+
+
+      // merge the release tag itself to main if it matches the major version of the current main branch
+      if (p.main_branch_version.major === releaseVersion.major) {
+        console.log(`\nMerging release tag ${releaseVersion} to main...`);
+        await tagManager.tagAndEnter(p.main_branch);
+        await git.merge([releaseVersion.toString(), '-m', `Merge release ${releaseVersion} to main`]);
+        await git.checkout(p.maintenance_branch); // move back to maintenance branch
+        additionalBranchesToPush.push(p.main_branch);
+      } else {
+        console.log(`\nSkipping main merge: ${releaseVersion} is not the latest major version.`);
+      }
     }
   },
   cleanupAfterFailedRun: {
@@ -263,14 +387,7 @@ const actions = {
     message: 'Cleanup after failed run',
     hint: 'Restore git state to before running this script.',
     async handler() {
-      await git.tags(['--sort=creatordate', '--merged']).then(tags => {
-        for (const tag of tags.all) {
-          if (Version.isVersionString(tag)) { tagCreated = tag; } // a version newer than the last backup tag
-          backupTagCreated = tag === GIT_BACKUP_TAG;
-          if (backupTagCreated) { break; } // found the backup tag, stop going further
-        }
-      });
-      if (!backupTagCreated) {
+      if (!tagManager.getTags().length) {
         console.log('No backup tag found. Nothing to clean up.');
         return;
       }
@@ -278,21 +395,21 @@ const actions = {
       const {ok} = await safePrompt<{ok: boolean}>({
         type: 'confirm',
         name: 'ok',
-        message: `Found a backup tag${tagCreated ? ` and a version tag ${tagCreated}` : ''}. Delete tags and Restore to checkpoint now?`,
+        message: `Found a backup tag${releaseTag ? ` and a version tag ${releaseTag}` : ''}. Delete tags and Restore to checkpoint now?`,
         initial: true,
       });
       if (ok) {
-        restoreToCheckpoint();
+        await restoreToInitialState();
       } else {
-        console.log('Leaving git state as is. Please restore manually if needed.');
+        console.log('Leaving git state as is. You can now restore manually.');
       }
-    
     }
   }
 }
 
 async function main() {
-  await ensureCleanGit();
+  await checkPreconditions();
+  const versionAndBranchInfo = gatherWorkspaceAndBranchInfo();
 
   const actionsToPerform = await safePrompt<{actionsToPerform: Array<keyof typeof actions>, push: boolean}>({
     type: 'multiselect',
@@ -316,17 +433,14 @@ async function main() {
     return;
   }
 
-  // Create backup checkpoint
-  await git.addTag(GIT_BACKUP_TAG);
-  backupTagCreated = true;
 
   try {
     for (const action of actionsToPerform) {
-      await action.handler();
+      await action.handler(await versionAndBranchInfo);
     }
 
     // Clean up backup tag on success
-    await cleanupBackupTag();
+    await tagManager.cleanupBackupTags();
 
     const {push} = await safePrompt<{push: boolean}>({
       type: 'confirm',
@@ -336,6 +450,9 @@ async function main() {
 
     if (push) {
       await git.push();
+      for (const branch of additionalBranchesToPush) {
+        await git.push(['origin', branch]);
+      }
       await git.pushTags();
     }
 
@@ -349,7 +466,7 @@ main().catch(async e => {
   console.error('\nScript failed:', e.message);
 
   // Try to restore checkpoint if an error occurred
-  await restoreToCheckpoint();
+  await restoreToInitialState();
 
   process.exit(1);
 });
