@@ -1,5 +1,5 @@
 import { createEndpoint, type EndpointSettings } from "@/_new/shared/api/lib/api-endpoint";
-import type { DocumentContentsParameters, FrontendApi } from "@/_new/shared/api/lib/api-types";
+import type { ApiError, DocumentContentsParameters, FrontendApi } from "@/_new/shared/api/lib/api-types";
 import { type CFPageConfig, type Tagset } from "@/types/apptypes";
 import axios, { type AxiosRequestConfig } from "axios";
 
@@ -62,10 +62,14 @@ export const createFrontendApi = (settings: EndpointSettings): FrontendApi => {
 		getHelp: (indexId?: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<string>(frontendPaths.help(indexId), undefined, requestParameters),
 		/** Get html content of the about page. */
 		getAbout: (indexId?: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<string>(frontendPaths.about(indexId), undefined, requestParameters),
-		getTagset: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<Tagset>(frontendPaths.tagset(indexId), undefined, {
+		getTagset: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<Tagset|undefined>(frontendPaths.tagset(indexId), undefined, {
 			...requestParameters,
 			// Remove comment-lines in the returned json. (that's not strictly allowed by JSON, but we chose to support it)
 			transformResponse: [(r: string) => r.replace(/\/\/.*[\r\n]+/g, '')].concat(axios.defaults.transformResponse!)
+		}).catch((e: ApiError) => {
+			// tagset isn't required, so if not found return undefined.
+			if (e.httpCode === 404) return undefined;
+			throw e;
 		})
 	}
 };

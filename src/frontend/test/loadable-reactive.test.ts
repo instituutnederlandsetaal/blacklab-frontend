@@ -2,16 +2,13 @@ import { describe, expect, test, vi } from 'vitest';
 import { ref, type Ref } from 'vue';
 
 import { ApiError } from '@/_new/shared/api/lib/api-types';
+import { combineLoadablesValue, flatMapLoadedValue, mapLoadedValue } from '@/utils/loadable-operators';
 import {
 	combineLoadablesReactive,
-	combineLoadablesValue,
 	flatMapLoadedReactive,
-	flatMapLoadedValue,
+	loadableFromRefs,
 	mapLoadedReactive,
-	mapLoadedValue,
-	mergeMapLoadedReactive,
 	resolveMaybeRefLoadables,
-	switchMapLoadedReactive
 } from '@/utils/loadable-reactive';
 import { Loadable, LoadableState, type LoadableLike } from '@/utils/loadable-streams';
 
@@ -169,14 +166,14 @@ describe('flatMapLoadedReactive variants', () => {
 		expect(result.value.value).toBe(20);
 	});
 
-	test('switchMapLoadedReactive passes through non-loaded states', () => {
+	test('flatMapLoadedReactive passes through non-loaded states', () => {
 		const first: Ref<Loadable<number>> = ref(Loadable.Empty<number>());
 		const second: Ref<Loadable<number>> = ref(Loadable.Loaded(2));
 		const mapper = vi.fn<(values: { first: number; second: number }) => Loadable<number>>(({ first, second }) =>
 			Loadable.Loaded(first + second)
 		);
 
-		const result = switchMapLoadedReactive({ first, second }, mapper);
+		const result = flatMapLoadedReactive({ first, second }, mapper);
 
 		expect(result.value.state).toBe(LoadableState.empty);
 		expect(mapper).not.toHaveBeenCalled();
@@ -187,13 +184,18 @@ describe('flatMapLoadedReactive variants', () => {
 		expect(mapper).toHaveBeenCalledTimes(1);
 	});
 
-	test('mergeMapLoadedReactive is equivalent to flatMapLoadedReactive', () => {
-		const a: Ref<Loadable<number>> = ref(Loadable.Loaded(7));
-		const b: Ref<Loadable<number>> = ref(Loadable.Loaded(8));
-
-		const result = mergeMapLoadedReactive([a, b] as const, ([x, y]) => Loadable.Loaded(x + y));
-
-		expect(result.value.state).toBe(LoadableState.loaded);
-		expect(result.value.value).toBe(15);
-	});
+	test('loadableFromRefs state check functions work as expected', () => {
+		const state = ref(LoadableState.loaded);
+		const value = ref(42);
+		const error = ref<ApiError|undefined>(undefined);
+		const loadable = loadableFromRefs(state, value, error);
+		expect(loadable.state).toBe(LoadableState.loaded);
+		expect(loadable.value).toBe(42);
+		expect(loadable.error).toBeUndefined();
+		expect(loadable.isLoaded()).toBe(true);
+		
+		state.value = LoadableState.error;
+		expect(loadable.isError()).toBe(true);
+		expect(loadable.isLoaded()).toBe(false);
+	})
 });

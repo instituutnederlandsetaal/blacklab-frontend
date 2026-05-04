@@ -34,12 +34,12 @@ const init = (payload: CorpusChange) => {
  *   they are collapsed to use the tagset's value as the canonical form with its displayName.
  * - If the corpus has case variants but no tagset match, they remain distinct.
  *
- * @param mainAnnot The main annotation (with uiType 'pos') that the tagset is attached to.
+ * @param posAnnotation The main annotation (with uiType 'pos') that the tagset is attached to.
  * @param corpusAnnotations All annotations in the corpus.
  * @param tagset The tagset to process (will be mutated for case normalization).
  */
-export function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations: Record<string, NormalizedAnnotation>, tagset: Tagset) {
-	const mainAnnotationCS = mainAnnot.caseSensitive;
+export function processTagset(posAnnotation: NormalizedAnnotation, corpusAnnotations: Record<string, NormalizedAnnotation>, tagset: Tagset) {
+	const mainAnnotationCS = posAnnotation.caseSensitive;
 
 	// Build a case-insensitive lookup for main tagset values (for validating pos references in subannotations)
 	const tagsetValuesLower = new Set(Object.keys(tagset.values).map(k => k.toLowerCase()));
@@ -167,7 +167,7 @@ export function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations
 	}
 
 	// Process main annotation and subannotations within the store mutation
-	processAnnotation(mainAnnot.id, Object.values(tagset.values), mainAnnotationCS);
+	processAnnotation(posAnnotation.id, Object.values(tagset.values), mainAnnotationCS);
 	for (const subId in tagset.subAnnotations) {
 		const sub = tagset.subAnnotations[subId];
 		const subAnnot = corpusAnnotations[sub.id];

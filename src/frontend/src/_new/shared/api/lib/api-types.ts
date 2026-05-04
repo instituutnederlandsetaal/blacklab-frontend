@@ -27,7 +27,7 @@ export interface FrontendApi {
 	getHelp: ApiEndpoint<string, [indexId?: string]>;
 	/** Return the HTML of the about page for the corpus, or the default about page if indexId is not provided */
 	getAbout: ApiEndpoint<string, [indexId?: string]>;
-	getTagset: ApiEndpoint<Tagset, [indexId: string]>;
+	getTagset: ApiEndpoint<Tagset|undefined, [indexId: string]>;
 }
 
 export interface BlackLabApi {

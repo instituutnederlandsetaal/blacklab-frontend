@@ -1,10 +1,15 @@
 import { ApiError } from '@/_new/shared/api/lib/api-types';
 import type { MarkRequiredAndNotNull } from '@/types/helpers';
+import type { Empty, LoadableLike, Loaded, Loading, LoadingError, Val, ValEmpty, ValueTypeFromLoadableOrObservable } from '@/utils/loadable';
+import { isEmpty, isError, isLoaded, isLoading, Loadable, LoadableState } from '@/utils/loadable';
+import { loadableFromRefs } from '@/utils/loadable-reactive';
 import type { Canceler } from 'axios';
 import jsonStableStringify from 'json-stable-stringify';
 import type { InteropObservable, ObservableInput, ObservedValueOf, OperatorFunction, Subscription } from 'rxjs';
 import { combineLatest, distinctUntilChanged, EMPTY, filter, map, mergeMap, Observable, of, ReplaySubject, startWith, Subject, switchMap, take, takeUntil, timer } from 'rxjs';
-import { hasInjectionContext, markRaw, onScopeDispose, reactive, ref, shallowRef, type Ref } from 'vue';
+import { hasInjectionContext, markRaw, onScopeDispose, ref, shallowRef, type Ref } from 'vue';
+
+export * from '@/utils/loadable';
 
 /**
  * Helpers for async data and observable objects. 
@@ -28,145 +33,6 @@ import { hasInjectionContext, markRaw, onScopeDispose, reactive, ref, shallowRef
  *   tap(loadable => console.log(loadable))
  * )
  */
-
-export enum LoadableState {
-	loading,
-	loaded,
-	error,
-	empty,
-}
-
-interface LoadableBase<T> {
-	isLoading(): this is Loading<T>;
-	isLoaded(): this is Loaded<T>;
-	isError(): this is LoadingError<T>;
-	isEmpty(): this is Empty<T>;
-}
-
-
-export interface LoadingLike<T> extends LoadableLike<T> {
-	state: LoadableState.loading;
-	value: undefined;
-	error: undefined;
-}
-export interface Loading<T> extends LoadingLike<T>, LoadableBase<T> {}
-
-interface EmptyLike<T> extends LoadableLike<T> {
-	state: LoadableState.empty;
-	value: undefined;
-	error: undefined;
-}
-export interface Empty<T> extends EmptyLike<T>, LoadableBase<T> {}
-interface LoadedLike<T> extends LoadableLike<T> {
-	state: LoadableState.loaded;
-	value: T;
-	error: undefined;
-}
-export interface Loaded<T> extends LoadedLike<T>, LoadableBase<T> {}
-
-interface LoadingErrorLike<T> extends LoadableLike<T> {
-	state: LoadableState.error;
-	value: undefined;
-	error: ApiError;
-}
-export interface LoadingError<T> extends LoadingErrorLike<T>, LoadableBase<T> {}
-export interface LoadableLike<T> {
-	state: LoadableState;
-	value: T|undefined;
-	error: ApiError|undefined;
-}
-export interface Loadable<T> extends LoadableLike<T>, LoadableBase<T> {}
-
-
-export const isLoadableLike = <T>(v: any): v is LoadableLike<T> => v != null && typeof v === 'object' && 'state' in v && v.state in LoadableState && 'value' in v && 'error' in v;
-export const isLoadableBase = <T>(v: any): v is LoadableBase<T> => v != null && typeof v === 'object' && 'isLoading' in v && 'isLoaded' in v && 'isError' in v && 'isEmpty' in v;
-export const isLoadable = <T>(v: any): v is Loadable<T> => isLoadableBase<T>(v) && isLoadableLike<T>(v); // allow plain objects with the right shape to be considered loadables, for convenience.
-
-export function isLoading<T>(v: Loadable<T>): v is Loading<T>;
-export function isLoading<T>(v: LoadableLike<T>): v is LoadingLike<T>;
-export function isLoading<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.loading; } 
-
-export function isLoaded<T>(v: Loadable<T>): v is Loaded<T>;
-export function isLoaded<T>(v: LoadableLike<T>): v is LoadedLike<T>;
-export function isLoaded<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.loaded; }
-
-export function isError<T>(v: Loadable<T>): v is LoadingError<T>;
-export function isError<T>(v: LoadableLike<T>): v is LoadingErrorLike<T>;
-export function isError<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.error; }
-
-export function isEmpty<T>(v: Loadable<T>): v is Empty<T>;
-export function isEmpty<T>(v: LoadableLike<T>): v is EmptyLike<T>;
-export function isEmpty<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.empty; }
-
-function thisIsLoading(this: LoadableLike<any>): this is LoadingLike<any>;
-function thisIsLoading(this: Loadable<any>): this is Loading<any>;
-function thisIsLoading(this: any): boolean { return isLoading(this); }
-function thisIsLoaded(this: LoadableLike<any>): this is LoadedLike<any>;
-function thisIsLoaded(this: Loadable<any>): this is Loaded<any>;
-function thisIsLoaded(this: any): boolean { return isLoaded(this); }
-function thisIsError(this: LoadableLike<any>): this is LoadingErrorLike<any>;
-function thisIsError(this: Loadable<any>): this is LoadingError<any>;
-function thisIsError(this: any): boolean { return isError(this); }
-function thisIsEmpty(this: LoadableLike<any>): this is EmptyLike<any>;
-function thisIsEmpty(this: Loadable<any>): this is Empty<any>;
-function thisIsEmpty(this: any): boolean { return isEmpty(this); }
-
-const loadable = <T>(state: LoadableState, value?: T, error?: ApiError): Loadable<T> => ({
-	state, value, error, isLoading: thisIsLoading, isLoaded: thisIsLoaded, isError: thisIsError, isEmpty: thisIsEmpty
-});
-	
-export const wrap = <T, VT extends ValueTypeFromLoadableOrObservable<T> = ValueTypeFromLoadableOrObservable<T>>(value: T): Loadable<VT> => 
-	isLoadable(value) ? value as Loadable<VT> : 
-	isLoadableLike<VT>(value) ? loadable<VT>(value.state, value.value, value.error) :
-	value != null ? Loaded<VT>(value as VT) : 
-	Empty<VT>();
-
-export const Loading = <T = never>(): Loading<T> => loadable<T>(LoadableState.loading, undefined, undefined) as Loading<T>;
-export const Loaded = <T>(value: T): Loaded<T> => loadable<T>(LoadableState.loaded, value, undefined) as Loaded<T>;
-export const LoadingError = <T = never>(error: ApiError): LoadingError<T> => loadable<T>(LoadableState.error, undefined, error) as LoadingError<T>;
-export const Empty = <T = never>(): Empty<T> => loadable<T>(LoadableState.empty, undefined, undefined) as Empty<T>;
-
-export const Loadable = {
-	Loading, Loaded, LoadingError, Empty, isLoadable, isLoading, isLoaded, isError, isEmpty, wrap
-}
-
-// export class Loadable<T> implements TLoadable<T> {
-// 	protected constructor(
-// 		public state: LoadableState,
-// 		public value: T|undefined,
-// 		public error: ApiError|undefined
-// 	) {}
-
-// 	public static EMPTY = Object.freeze(new Loadable(LoadableState.Empty, undefined, undefined)) as Empty<never>;
-// 	public static LOADING = Object.freeze(new Loadable(LoadableState.Loading, undefined, undefined)) as Loading<never>;
-
-// 	// NOTE: don't do instanceof here, it breaks with InteractiveLoadble (which implements the behavior of these classes, but doesn't extend them)
-// 	public isLoading(): this is Loading<T> { return this.state === LoadableState.Loading; }
-// 	public isLoaded(): this is Loaded<T> { return this.state === LoadableState.Loaded; }
-// 	public isError(): this is LoadingError<T> { return this.state === LoadableState.Error; }
-// 	public isEmpty(): this is Empty<T> { return this.state === LoadableState.Empty; }
-
-// 	public static isLoadable = isLoadable;
-// 	public static isLoading = isLoading;
-// 	public static isLoaded = isLoaded;
-// 	public static isError = isError;
-// 	public static isEmpty = isEmpty;
-
-// 	// default T to never, so it's removed when used in a conditional return:
-// 	// e.g. `input ? Loadable.Loaded(doSomethingWith(input)) : Loadable.Empty()` would otherwise decay to Loadable<unknown> because the T for empty wasn't provided,
-// 	// But this way, the T from empty is removed, and the T from loaded can be inferred from the value provided to loaded.
-// 	// Making the return type the correct Loadable<T> instead of Loadable<unknown>.
-// 	public static Loading<T = never>(): Loading<T> { return new Loadable<T>(LoadableState.Loading, undefined, undefined) as Loading<T>; }
-// 	public static Loaded<T>(value: T): Loaded<T> { return new Loadable<T>(LoadableState.Loaded, value, undefined) as Loaded<T>; }
-// 	public static LoadingError<T = never>(error: ApiError): LoadingError<T> { return new Loadable<T>(LoadableState.Error, undefined, error) as LoadingError<T>; }
-// 	public static Empty<T = never>(): Empty<T> { return new Loadable<T>(LoadableState.Empty, undefined, undefined) as Empty<T>; }
-
-// 	/** Return a loadable of the value, if the value is already a loadable, return it as is. Otherwise, wrap it in a Loaded loadable. */
-// 	public static wrap<T, TV extends ValueTypeFromLoadableOrObservable<T>>(value: T): Loadable<TV> {
-// 		if (Loadable.isLoadable<TV>(value)) return value;
-// 		else return Loadable.Loaded<TV>(value as any);
-// 	}
-// }
 
 export class CancelableRequest<T> implements InteropObservable<Loadable<T>>, Promise<T> {
 	public request: Promise<T>;
@@ -200,63 +66,6 @@ export class CancelableRequest<T> implements InteropObservable<Loadable<T>>, Pro
 		return this.toObservable();
 	}
 }
-
-export namespace L {
-	/**
-	 * Given a type of Loadable<T>, return a Loadable<U>. Do it in such a way that the loading state is preserved if it is statically known.
-	 * E.g. Loaded<T> -> Loaded<U>, Empty<T> -> Empty<U> etc.
-	 */
-	export type Replace<T extends Loadable<any>, U> =
-		T extends Loaded<any> ? Loaded<U> :
-		T extends LoadingError<any> ? LoadingError<U> :
-		T extends Loading<any> ? Loading<U> :
-		T extends Empty<any> ? Empty<U> :
-		T extends Loadable<any> ? Loadable<U> :
-		never;
-
-
-	/** Given a Loadable<T>, return the T type. If the Loading state is statically known, return the statically known type of the .value. */
-	export type Val<T> =
-		// if we know the state, we can return the value directly
-		T extends Loaded<infer L> ? L :
-		T extends Loading<infer L> ? L :
-		T extends Empty<any> ? never :
-		T extends LoadingError<any> ? never :
-		// if we have a loadable with an unknown state, return the value
-		T extends Loadable<infer L> ? L :
-		T;
-
-	export type ValEmpty<T> =
-		// if we know the state, we can return the value directly
-		T extends Loaded<infer L> ? L :
-		T extends Loading<infer L> ? L :
-		T extends Empty<unknown> ? undefined :
-		T extends LoadingError<unknown> ? never :
-		// if we have a loadable with an unknown state, return the value
-		T extends Loadable<infer L> ? L|undefined :
-		T;
-
-	export type ValError<T> =
-		// if we know the state, we can return the value directly
-		T extends Loaded<infer L> ? L :
-		T extends Loading<infer L> ? L :
-		T extends Empty<unknown> ? never :
-		T extends LoadingError<unknown> ? ApiError :
-		// if we have a loadable with an unknown state, return the value
-		T extends Loadable<infer L> ? L|ApiError :
-		T;
-
-	export type ValEmptyAndError<T> =
-		// if we know the state, we can return the value directly
-		T extends Loaded<infer L> ? L :
-		T extends Loading<infer L> ? L :
-		T extends Empty<unknown> ? undefined :
-		T extends LoadingError<unknown> ? ApiError :
-		// if we have a loadable with an unknown state, return the value
-		T extends Loadable<infer L> ? L|undefined|ApiError :
-		T;
-}
-
 
 /**
  * Like map, but only call the mapper for Loadables of state S. The value the mapper returned is wrapped in a Loaded.
@@ -408,20 +217,11 @@ export const toObservable = <T>({cancel, request}: CancelableRequest<T>) => new 
 /**
  * Unpack Observables and Loadables into their .value type.
  * If the static type of the Loadable is known (e.g. Empty<T>), return the statically known type (e.g. T for Loaded<T>, never for Empty<T> and LoadingError<T>).
- * 
- * @example ValueTypeFromLoadableOrObservable<Observable<Loadable<T>>> -> T
- * @example ValueTypeFromLoadableOrObservable<Loadable<T>> -> T
- * @example ValueTypeFromLoadableOrObservable<T> -> T
- */
-type ValueTypeFromLoadableOrObservable<T> = L.Val<T extends ArrayLike<any> ? T : T extends ObservableInput<any> ? ObservedValueOf<T> : T>;
-/**
- * Unpack Observables and Loadables into their .value type.
- * If the static type of the Loadable is known (e.g. Empty<T>), return the statically known type (e.g. T for Loaded<T>, never for Empty<T> and LoadingError<T>).
  * @example ValueTypeFromLoadableOrObservableIncludingEmpty<Observable<Loadable<T>>> -> T|undefined
  * @example ValueTypeFromLoadableOrObservableIncludingEmpty<Loadable<T>> -> T|undefined
  * @example ValueTypeFromLoadableOrObservableIncludingEmpty<T> -> T
  */
-type ValueTypeFromLoadableOrObservableIncludingEmpty<T> = L.ValEmpty<T extends ArrayLike<any> ? T : T extends ObservableInput<any> ? ObservedValueOf<T> : T>;
+type ValueTypeFromLoadableOrObservableIncludingEmpty<T> = ValEmpty<T extends ArrayLike<any> ? T : T extends ObservableInput<any> ? ObservedValueOf<T> : T>;
 
 export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => jsonStableStringify(a) === jsonStableStringify(b);
 
@@ -435,7 +235,7 @@ export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => jsonStableStringify
  * E.g. [Loaded<T>, {a: number}, Loading<U>]      -> Loading<[T, {a: number}, U]>
  * E.g. {a: Loaded<T>, b: {a: number}, c: Loaded<U>} -> Loaded<{a: T, b: {a: number}, c: U}>
  */
-export function combineLoadables<T extends readonly any[]|Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: L.Val<T[K]> }> {
+export function combineLoadables<T extends readonly any[]|Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: Val<T[K]> }> {
 	const isUnloadedLoadable = (v: any): v is Loadable<any> => Loadable.isLoadable(v) && !Loadable.isLoaded(v);
 	if (t == null) return Loadable.Empty();
 	const loadingOrErrorOrEmpty: Loadable<any>|undefined = (Array.isArray(t) ? t : Object.values(t)).find(isUnloadedLoadable);
@@ -447,7 +247,7 @@ export function combineLoadables<T extends readonly any[]|Record<string, any>>(t
  * Same as combineLoadables, but also includes Empty states. So if an Empty is present, this will return Loaded<undefined> instead of Empty.
  * E.g. [Loaded<T>, {a: number}, Empty<U>] -> Loaded<[T, {a: number}, undefined]>
  */
-export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: L.ValEmpty<T[K]> }> {
+export function combineLoadablesIncludingEmpty<T extends readonly any[]|Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: ValEmpty<T[K]> }> {
 	if (t == null) return Loadable.Empty();
 	const loadingOrError: Loadable<any>|undefined = (Array.isArray(t) ? t : Object.values(t)).find(v => Loadable.isLoadable(v) && !Loadable.isLoaded(v) && !Loadable.isEmpty(v));
 	if (loadingOrError) return loadingOrError;
@@ -581,20 +381,6 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 	public set error(v: ApiError|undefined) { this.refs.error.value = v; }
 }
 
-function loadableFromRequestInternal<T>(value: Ref<T|undefined>, error: Ref<ApiError|undefined>, state: Ref<LoadableState>, retry: () => void, stop: () => void): LoadableFromRequest<T> {
-	return reactive({
-		state, 
-		value, 
-		error, 
-		retry, 
-		stop,
-		isLoading(this: Loadable<T>): this is Loading<T> { return Loadable.isLoading(this); },
-		isLoaded(this: Loadable<T>): this is Loaded<T> { return Loadable.isLoaded(this); },
-		isError(this: Loadable<T>): this is LoadingError<T> { return Loadable.isError(this); },
-		isEmpty(this: Loadable<T>): this is Empty<T> { return Loadable.isEmpty(this); },
-	});
-}
-
 
 export type LoadableFromRequest<T> = Loadable<T>&{ retry: () => void, stop: () => void };
 
@@ -629,7 +415,10 @@ export function loadableFromRequest<T>(makeRequest: () => CancelableRequest<T>):
 	if (hasInjectionContext()) {
 		onScopeDispose(() => unsub.unsubscribe());
 	}
-	return loadableFromRequestInternal(value, error, state, () => triggerRequest.next(), () => unsub.unsubscribe());
+	return loadableFromRefs(state, value, error, {
+		retry: () => triggerRequest.next(), 
+		stop: () => unsub.unsubscribe()
+	});
 }
 
 export interface LoadableFromStream<T> extends Loadable<T> {
@@ -684,7 +473,10 @@ export function loadableFromStream<T>(
 		onScopeDispose(() => unsub.unsubscribe());
 	}
 
-	return loadableFromRequestInternal(value, error, state, () => {}, () => unsub.unsubscribe());
+	return loadableFromRefs(state, value, error, {
+		retry: () => {}, 
+		stop: () => unsub.unsubscribe()
+	});
 }
 
 

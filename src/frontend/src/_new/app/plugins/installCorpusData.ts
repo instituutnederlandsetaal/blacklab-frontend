@@ -1,10 +1,10 @@
 import { null_cache_key } from "@/_new/app/plugins/installCache";
 import { CorpusDataLoader, type CorpusChange } from "@/_new/entities/corpus-data-from-id";
 import type { BlackLabApi, FrontendApi } from "@/_new/shared/api/lib/api-types";
-import type { CFPageConfig, Tagset } from "@/types/apptypes";
-import { Loadable, loadableFromRequest, type LoadableFromRequest } from "@/utils/loadable-streams";
+import type { CFPageConfig, NormalizedIndex, Tagset } from "@/types/apptypes";
+import { Loadable, loadableFromRequest, mapLoadable, type LoadableFromRequest } from "@/utils/loadable-streams";
 import type { User } from "oidc-client-ts";
-import { computed, effect, inject, provide, reactive, ref, toRef, watch, type InjectionKey, type MaybeRef, type ObjectPlugin, type Ref } from "vue";
+import { computed, effect, inject, provide, reactive, ref, toRef, toValue, watch, type InjectionKey, type MaybeRef, type ObjectPlugin, type Ref } from "vue";
 
 export type CorpusDataCache = Record<string|symbol, LoadableFromRequest<CorpusChange>>;
 
@@ -103,21 +103,72 @@ function useCorpusData(corpusId: MaybeRef<string|null>, getter: (corpusId: strin
 // }
 
 
+function normalizeCorpusData({config, index, tagset}: {config: CFPageConfig, index?: NormalizedIndex, tagset?: Tagset|undefined}): CorpusChange {
+	console.log('Preprocessing page data / corpus and UI config.');
+
+	const annots = index?.annotatedFields[index.mainAnnotatedField].annotations;
+	// TODO the 'pos' annotation should probably be sourced from the tagset, but our current tagset does't contain that info
+	// so we need to rely on the uiType, which we eventually want to remove from BlackLab if possible.
+	if (tagset) {
+		const mainAnnot = annots && Object.values(annots).find(a => a.uiType === 'pos');
+		if (!mainAnnot) {
+			console.warn('Corpus has a tagset, but no main pos annotation with uiType "pos" could be found. Skipping tagset processing.', {index, tagset});
+		} else {
+			processTagset(mainAnnot, annots, tagset)
+		}
+	}
+	// There's always a config
+	config.displayName = config.displayName || index?.displayName || 'Blacklab-Frontend'; // TODO externalize? (globalconfig?) Maybe supply from the server?
+	const r: CorpusChange = { index, config: config!, tagset}
+	return r;
+}
+
 
 import defaultPageConfig from '@/_new/entities/defaults/page-config.default';
 import { toReactive, useMemoize } from "@vueuse/core";
+import { combineLoadablesValue, mapLoadedValue } from "@/utils/loadable-operators";
+import { flatMapLoadedReactive, loadableFromRefs, mapLoadedReactive } from "@/utils/loadable-reactive";
+import { normalizeIndex } from "@/utils/blacklabutils";
+import { processTagset } from "@/features/corpus/model/tagset-state";
+import type { BLRelationInfo } from "@/types/blacklabtypes";
 
 export function createCorpusData(blacklab: BlackLabApi, frontend: FrontendApi, currentCorpusId: MaybeRef<string|null>, user: MaybeRef<User|null>): ObjectPlugin {
 	return {
 		install(app) {
 			app.runWithContext(() => {
-				const corpusData = useMemoize((corpusId: string|null) => {
-					const corpus = corpusId != null ? blacklab.getCorpus(corpusId) : Loadable.Empty();
-					const config = 
+				// set up initial caches
+				const getCorpus = useMemoize((corpusId: string|null) => corpusId != null ? loadableFromRequest(() => blacklab.getCorpus(corpusId)) : Loadable.Empty());
+				const getConfig = useMemoize((corpusId: string|null) => loadableFromRequest(() => frontend.getConfig(corpusId)));
+				const getTagset = useMemoize((corpusId: string|null) => corpusId != null ? loadableFromRequest(() => frontend.getTagset(corpusId)) : Loadable.Empty());
+
+				// set up cache for combined data from the initial caches
+				const getCorpusData = useMemoize((corpusId: string|null) => {
+					const corpus = getCorpus(corpusId);
+					const config = getConfig(corpusId);
+					const tagset = getTagset(corpusId);
+
+					// return something reactive here, will be returned when getCorpusData(someId) is called.
+					// so map the loadable to the actual return type now.
+					const base = mapLoadedReactive({corpus, config, tagset}, ({corpus, config, tagset}) => normalizeCorpusData({
+						index: corpus,
+						config: config,
+						tagset,
+					}))
+					return base;
 				});
+
+				// set up retry hook
+				// this is particularly annoying
+				// since getCorpusData returns a Loadable, but we want to return the loadable + retry function
+				// that means we need to somehow wrap it, or thread the retry function through all layers so it ends up in the inner loadable directly
+				// but threading through would then prevent the reuse of empty/loading/error loadables, 
+				// as the source loadables won't have the retry function necessarily.
 				
 
-				dataCache()
+				function useCurrentCorpusData() {
+					return toReactive(computed(() => getCorpusData(toValue(currentCorpusId))));
+				}
+
 				
 				
 				const currentCorpusIdRef = toRef(currentCorpusId);
@@ -125,15 +176,7 @@ export function createCorpusData(blacklab: BlackLabApi, frontend: FrontendApi, c
 
 				_provideCorpusDataCache(cache);
 				_provideCurrentCorpusId(currentCorpusIdRef);
-				const currentCorpusData = useCorpusData(currentCorpusIdRef, id => loadableFromRequest(async () => {
-					const [corpus, config, tagset] = await Promise.all([
-						blacklab.getCorpus(id!),
-						frontend.getConfig(id!),
-						frontend.getTagset(id!)
-					]);
-					const r: CorpusChange = {} as any;
-					return r;
-				}));
+		
 
 				_provideCurrentCorpusData(useCorpusData(currentCorpusIdRef));
 				_provideCurrentCorpus(computed(() => ))
