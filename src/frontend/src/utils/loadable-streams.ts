@@ -30,10 +30,10 @@ import { hasInjectionContext, markRaw, onScopeDispose, reactive, ref, shallowRef
  */
 
 export enum LoadableState {
-	Loading = 'loading',
-	Loaded = 'loaded',
-	Error = 'error',
-	Empty = 'empty'
+	loading,
+	loaded,
+	error,
+	empty,
 }
 
 interface LoadableBase<T> {
@@ -45,27 +45,27 @@ interface LoadableBase<T> {
 
 
 export interface LoadingLike<T> extends LoadableLike<T> {
-	state: LoadableState.Loading;
+	state: LoadableState.loading;
 	value: undefined;
 	error: undefined;
 }
 export interface Loading<T> extends LoadingLike<T>, LoadableBase<T> {}
 
 interface EmptyLike<T> extends LoadableLike<T> {
-	state: LoadableState.Empty;
+	state: LoadableState.empty;
 	value: undefined;
 	error: undefined;
 }
 export interface Empty<T> extends EmptyLike<T>, LoadableBase<T> {}
 interface LoadedLike<T> extends LoadableLike<T> {
-	state: LoadableState.Loaded;
+	state: LoadableState.loaded;
 	value: T;
 	error: undefined;
 }
 export interface Loaded<T> extends LoadedLike<T>, LoadableBase<T> {}
 
 interface LoadingErrorLike<T> extends LoadableLike<T> {
-	state: LoadableState.Error;
+	state: LoadableState.error;
 	value: undefined;
 	error: ApiError;
 }
@@ -84,27 +84,35 @@ export const isLoadable = <T>(v: any): v is Loadable<T> => isLoadableBase<T>(v) 
 
 export function isLoading<T>(v: Loadable<T>): v is Loading<T>;
 export function isLoading<T>(v: LoadableLike<T>): v is LoadingLike<T>;
-export function isLoading<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.Loading; } 
+export function isLoading<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.loading; } 
 
 export function isLoaded<T>(v: Loadable<T>): v is Loaded<T>;
 export function isLoaded<T>(v: LoadableLike<T>): v is LoadedLike<T>;
-export function isLoaded<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.Loaded; }
+export function isLoaded<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.loaded; }
 
 export function isError<T>(v: Loadable<T>): v is LoadingError<T>;
 export function isError<T>(v: LoadableLike<T>): v is LoadingErrorLike<T>;
-export function isError<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.Error; }
+export function isError<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.error; }
 
 export function isEmpty<T>(v: Loadable<T>): v is Empty<T>;
 export function isEmpty<T>(v: LoadableLike<T>): v is EmptyLike<T>;
-export function isEmpty<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.Empty; }
+export function isEmpty<T>(v: unknown): boolean { return isLoadableLike<T>(v) && v.state === LoadableState.empty; }
 
+function thisIsLoading(this: LoadableLike<any>): this is LoadingLike<any>;
+function thisIsLoading(this: Loadable<any>): this is Loading<any>;
+function thisIsLoading(this: any): boolean { return isLoading(this); }
+function thisIsLoaded(this: LoadableLike<any>): this is LoadedLike<any>;
+function thisIsLoaded(this: Loadable<any>): this is Loaded<any>;
+function thisIsLoaded(this: any): boolean { return isLoaded(this); }
+function thisIsError(this: LoadableLike<any>): this is LoadingErrorLike<any>;
+function thisIsError(this: Loadable<any>): this is LoadingError<any>;
+function thisIsError(this: any): boolean { return isError(this); }
+function thisIsEmpty(this: LoadableLike<any>): this is EmptyLike<any>;
+function thisIsEmpty(this: Loadable<any>): this is Empty<any>;
+function thisIsEmpty(this: any): boolean { return isEmpty(this); }
 
 const loadable = <T>(state: LoadableState, value?: T, error?: ApiError): Loadable<T> => ({
-	state, value, error, 
-	isLoading(): this is Loading<T> { return isLoading(this); },
-	isLoaded(): this is Loaded<T> { return isLoaded(this); },
-	isError(): this is LoadingError<T> { return isError(this); },
-	isEmpty(): this is Empty<T> { return isEmpty(this); }
+	state, value, error, isLoading: thisIsLoading, isLoaded: thisIsLoaded, isError: thisIsError, isEmpty: thisIsEmpty
 });
 	
 export const wrap = <T, VT extends ValueTypeFromLoadableOrObservable<T> = ValueTypeFromLoadableOrObservable<T>>(value: T): Loadable<VT> => 
@@ -113,10 +121,10 @@ export const wrap = <T, VT extends ValueTypeFromLoadableOrObservable<T> = ValueT
 	value != null ? Loaded<VT>(value as VT) : 
 	Empty<VT>();
 
-export const Loading = <T = never>(): Loading<T> => loadable<T>(LoadableState.Loading, undefined, undefined) as Loading<T>;
-export const Loaded = <T>(value: T): Loaded<T> => loadable<T>(LoadableState.Loaded, value, undefined) as Loaded<T>;
-export const LoadingError = <T = never>(error: ApiError): LoadingError<T> => loadable<T>(LoadableState.Error, undefined, error) as LoadingError<T>;
-export const Empty = <T = never>(): Empty<T> => loadable<T>(LoadableState.Empty, undefined, undefined) as Empty<T>;
+export const Loading = <T = never>(): Loading<T> => loadable<T>(LoadableState.loading, undefined, undefined) as Loading<T>;
+export const Loaded = <T>(value: T): Loaded<T> => loadable<T>(LoadableState.loaded, value, undefined) as Loaded<T>;
+export const LoadingError = <T = never>(error: ApiError): LoadingError<T> => loadable<T>(LoadableState.error, undefined, error) as LoadingError<T>;
+export const Empty = <T = never>(): Empty<T> => loadable<T>(LoadableState.empty, undefined, undefined) as Empty<T>;
 
 export const Loadable = {
 	Loading, Loaded, LoadingError, Empty, isLoadable, isLoading, isLoaded, isError, isEmpty, wrap
@@ -261,10 +269,10 @@ export namespace L {
  * mapLoadable<number, string>(LoadableState.Loaded, (v: number) => v + ' bananas')(Loadable.Empty()) -> Loadable.Empty()
  * ```
  */
-export function mapLoadable<T, U, S extends LoadableState.Loaded>(state: S, mapper: (v: T) => U): OperatorFunction<Loadable<T>, Loadable<U>>;
-export function mapLoadable<T, U, S extends LoadableState.Error>(state: S, mapper: (v: ApiError) => U): OperatorFunction<Loadable<T>, Loadable<U|T>>;
-export function mapLoadable<T, U, S extends LoadableState.Empty>(state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, Loadable<U|T>>;
-export function mapLoadable<T, U, S extends LoadableState.Loading>(state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, Loadable<U|T>>;
+export function mapLoadable<T, U, S extends LoadableState.loaded>(state: S, mapper: (v: T) => U): OperatorFunction<Loadable<T>, Loadable<U>>;
+export function mapLoadable<T, U, S extends LoadableState.error>(state: S, mapper: (v: ApiError) => U): OperatorFunction<Loadable<T>, Loadable<U|T>>;
+export function mapLoadable<T, U, S extends LoadableState.empty>(state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, Loadable<U|T>>;
+export function mapLoadable<T, U, S extends LoadableState.loading>(state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, Loadable<U|T>>;
 export function mapLoadable<T, U, S extends LoadableState>(state: S, mapper: (v: T|ApiError|undefined) => U): OperatorFunction<Loadable<T>, Loadable<U|T>> {
 	return map(v => {
 		if (v.state !== state) return v;
@@ -273,10 +281,10 @@ export function mapLoadable<T, U, S extends LoadableState>(state: S, mapper: (v:
 		return Loadable.Loaded(mapper(undefined));
 	})
 }
-export const mapLoaded = mapLoadable.Loaded = <T, U>(mapper: (v: T) => U) => mapLoadable(LoadableState.Loaded, mapper);
-export const mapError = mapLoadable.Error = <U>(mapper: (v: ApiError) => U) => mapLoadable(LoadableState.Error, mapper);
-export const mapEmpty = mapLoadable.Empty = <U>(mapper: (v: undefined) => U) => mapLoadable(LoadableState.Empty, mapper);
-export const mapLoading = mapLoadable.Loading = <U>(mapper: (v: undefined) => U) => mapLoadable(LoadableState.Loading, mapper);
+export const mapLoaded = mapLoadable.Loaded = <T, U>(mapper: (v: T) => U) => mapLoadable(LoadableState.loaded, mapper);
+export const mapError = mapLoadable.Error = <U>(mapper: (v: ApiError) => U) => mapLoadable(LoadableState.error, mapper);
+export const mapEmpty = mapLoadable.Empty = <U>(mapper: (v: undefined) => U) => mapLoadable(LoadableState.empty, mapper);
+export const mapLoading = mapLoadable.Loading = <U>(mapper: (v: undefined) => U) => mapLoadable(LoadableState.loading, mapper);
 
 /**
  * Like map, but only call the mapper for Loadables of state S. The mapper can directly return a Loadable<U>.
@@ -292,10 +300,10 @@ export const mapLoading = mapLoadable.Loading = <U>(mapper: (v: undefined) => U)
  * flatMapLoadable<number, Loadable<string>>(LoadableState.Empty, () => Loadable.Loaded('placeholder'))(Loadable.Empty()) -> Loadable.Loaded('placeholder')
  * ```
  */
-export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Loaded> (state: S, mapper: (v: T) => U): OperatorFunction<Loadable<T>, U>;
-export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Error>  (state: S, mapper: (v: ApiError) => U): OperatorFunction<Loadable<T>, U|Loadable<T>>;
-export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Empty>  (state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, U|Loadable<T>>;
-export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Loading>(state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, U|Loadable<T>>;
+export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loaded> (state: S, mapper: (v: T) => U): OperatorFunction<Loadable<T>, U>;
+export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.error>  (state: S, mapper: (v: ApiError) => U): OperatorFunction<Loadable<T>, U|Loadable<T>>;
+export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.empty>  (state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, U|Loadable<T>>;
+export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loading>(state: S, mapper: (v: undefined) => U): OperatorFunction<Loadable<T>, U|Loadable<T>>;
 export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState>        (state: S, mapper: (v: T|ApiError|undefined) => U): OperatorFunction<Loadable<T>, U|Loadable<T>> {
 	return map(v => {
 		if (v.state !== state) return v;
@@ -304,20 +312,20 @@ export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableSt
 		return mapper(undefined);
 	})
 }
-export const flatMapLoaded = flatMapLoadable.Loaded =   <T, U extends Loadable<any>>(mapper: (v: T) => U) => flatMapLoadable(LoadableState.Loaded, mapper);
-export const flatMapError = flatMapLoadable.Error =     <U extends Loadable<any>>(mapper: (v: ApiError) => U) => flatMapLoadable(LoadableState.Error, mapper);
-export const flatMapEmpty = flatMapLoadable.Empty =     <U extends Loadable<any>>(mapper: (v: undefined) => U) => flatMapLoadable(LoadableState.Empty, mapper);
-export const flatMapLoading = flatMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => U) => flatMapLoadable(LoadableState.Loading, mapper);
+export const flatMapLoaded = flatMapLoadable.Loaded =   <T, U extends Loadable<any>>(mapper: (v: T) => U) => flatMapLoadable(LoadableState.loaded, mapper);
+export const flatMapError = flatMapLoadable.Error =     <U extends Loadable<any>>(mapper: (v: ApiError) => U) => flatMapLoadable(LoadableState.error, mapper);
+export const flatMapEmpty = flatMapLoadable.Empty =     <U extends Loadable<any>>(mapper: (v: undefined) => U) => flatMapLoadable(LoadableState.empty, mapper);
+export const flatMapLoading = flatMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => U) => flatMapLoadable(LoadableState.loading, mapper);
 
 
 /**
  * Like mergeMap, but only call the mapper for Loadables of state S.
  * Other values are passed through.
  */
-export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Loaded>(state: S, mapper: (v: T) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
-export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Error>(state: S, mapper: (v: ApiError) => ObservableInput<U>): OperatorFunction<Loadable<T>, U|Loadable<T>>;
-export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Empty>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
-export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Loading>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
+export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loaded>(state: S, mapper: (v: T) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
+export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.error>(state: S, mapper: (v: ApiError) => ObservableInput<U>): OperatorFunction<Loadable<T>, U|Loadable<T>>;
+export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.empty>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
+export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loading>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
 export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState>(state: S, mapper: (v: any) => ObservableInput<U>): OperatorFunction<Loadable<T>, U|Loadable<T>> {
 	return mergeMap(v => {
 		if (v.state !== state) return of(v);
@@ -326,20 +334,20 @@ export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableS
 		return mapper(undefined);
 	})
 }
-export const mergeMapLoaded = mergeMapLoadable.Loaded =   <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Loaded, mapper);
-export const mergeMapError = mergeMapLoadable.Error =     <U extends Loadable<any>>(mapper: (v: ApiError) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Error, mapper);
-export const mergeMapEmpty = mergeMapLoadable.Empty =     <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Empty, mapper);
-export const mergeMapLoading = mergeMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => mergeMapLoadable(LoadableState.Loading, mapper);
+export const mergeMapLoaded = mergeMapLoadable.Loaded =   <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => mergeMapLoadable(LoadableState.loaded, mapper);
+export const mergeMapError = mergeMapLoadable.Error =     <U extends Loadable<any>>(mapper: (v: ApiError) => ObservableInput<U>) => mergeMapLoadable(LoadableState.error, mapper);
+export const mergeMapEmpty = mergeMapLoadable.Empty =     <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => mergeMapLoadable(LoadableState.empty, mapper);
+export const mergeMapLoading = mergeMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => mergeMapLoadable(LoadableState.loading, mapper);
 
 
 /**
  * Like switchMap, but only call the mapper for Loadables of state S.
  * Other values are passed through.
  */
-export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Loaded>(state: S, mapper: (v: T) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
-export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Error>(state: S, mapper: (v: ApiError) => ObservableInput<U>): OperatorFunction<Loadable<T>, U|Loadable<T>>;
-export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Empty>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
-export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.Loading>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
+export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loaded>(state: S, mapper: (v: T) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
+export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.error>(state: S, mapper: (v: ApiError) => ObservableInput<U>): OperatorFunction<Loadable<T>, U|Loadable<T>>;
+export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.empty>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
+export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState.loading>(state: S, mapper: (v: undefined) => ObservableInput<U>): OperatorFunction<Loadable<T>, U>;
 export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState>(state: S, mapper: (v: any) => ObservableInput<U>): OperatorFunction<Loadable<T>, U|Loadable<T>> {
 	return switchMap(v => {
 		if (v.state !== state) return of(v);
@@ -348,10 +356,10 @@ export function switchMapLoadable<T, U extends Loadable<any>, S extends Loadable
 		return mapper(undefined);
 	})
 }
-export const switchMapLoaded = switchMapLoadable.Loaded =   <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => switchMapLoadable(LoadableState.Loaded, mapper);
-export const switchMapError = switchMapLoadable.Error =     <U extends Loadable<any>>(mapper: (v: ApiError) => ObservableInput<U>) => switchMapLoadable(LoadableState.Error, mapper);
-export const switchMapEmpty = switchMapLoadable.Empty =     <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => switchMapLoadable(LoadableState.Empty, mapper);
-export const switchMapLoading = switchMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => switchMapLoadable(LoadableState.Loading, mapper);
+export const switchMapLoaded = switchMapLoadable.Loaded =   <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => switchMapLoadable(LoadableState.loaded, mapper);
+export const switchMapError = switchMapLoadable.Error =     <U extends Loadable<any>>(mapper: (v: ApiError) => ObservableInput<U>) => switchMapLoadable(LoadableState.error, mapper);
+export const switchMapEmpty = switchMapLoadable.Empty =     <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => switchMapLoadable(LoadableState.empty, mapper);
+export const switchMapLoading = switchMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => switchMapLoadable(LoadableState.loading, mapper);
 
 
 /**
@@ -496,7 +504,7 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 	private readonly retry$ = markRaw(new Subject<void>());
 
 	private readonly refs = markRaw({
-		state: shallowRef(LoadableState.Empty),
+		state: shallowRef(LoadableState.empty),
 		value: shallowRef<TOutput|undefined>(undefined),
 		error: shallowRef<ApiError|undefined>(undefined)
 	});
@@ -532,7 +540,7 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 				if (!v.isError()) this.error = v.error;
 			},
 			error: e => {
-				this.state = LoadableState.Error;
+				this.state = LoadableState.error;
 				if (clearOnError) this.value = undefined;
 				this.error = new ApiError(
 					e?.title || 'Unknown error',
@@ -542,7 +550,7 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 				)
 			},
 			complete: () => {
-				this.state = LoadableState.Empty;
+				this.state = LoadableState.empty;
 				this.value = undefined;
 				this.error = undefined;
 			}
@@ -603,17 +611,17 @@ export function loadableFromRequest<T>(makeRequest: () => CancelableRequest<T>):
 
 	const value = ref<T>();
 	const error = ref<ApiError>();
-	const state = ref<LoadableState>(LoadableState.Empty);
+	const state = ref<LoadableState>(LoadableState.empty);
 	
 	const unsub = triggerRequest.pipe(switchMap(() => makeRequest().toObservable())).subscribe({
 		next: v => { state.value = v.state; value.value = v.value; error.value = v.error; },
-		error: e => { state.value = LoadableState.Error; value.value = undefined; error.value = ApiError.wrap(e); },
+		error: e => { state.value = LoadableState.error; value.value = undefined; error.value = ApiError.wrap(e); },
 		complete: () => { 
 			state.value = 
-				state.value === LoadableState.Loading ? 
-					value.value != null ? LoadableState.Loaded : 
-					error.value != null ? LoadableState.Error :			
-					LoadableState.Empty : 
+				state.value === LoadableState.loading ? 
+					value.value != null ? LoadableState.loaded : 
+					error.value != null ? LoadableState.error :			
+					LoadableState.empty : 
 				state.value;
 		}
 	})
@@ -651,19 +659,24 @@ export function loadableFromStream<T>(
 	settings = {loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false, ...settings};
 	
 	const value: Ref<ValueTypeFromLoadableOrObservable<T>|undefined> = settings.deepReactiveValue ? ref() : shallowRef();
-	const state = ref<LoadableState>(settings.loadingOnStart ? LoadableState.Loading : LoadableState.Empty);
+	const state = ref<LoadableState>(settings.loadingOnStart ? LoadableState.loading : LoadableState.empty);
 	const error = ref<ApiError>();
 
 	const unsub = stream$.pipe(map(Loadable.wrap)).subscribe({
 		next: v => { state.value = v.state; value.value = v.value; error.value = v.error; },
-		error: e => { state.value = LoadableState.Error; value.value = undefined; error.value = ApiError.wrap(e); },
+		error: e => { state.value = LoadableState.error; value.value = undefined; error.value = ApiError.wrap(e); },
 		complete: () => { 
-			state.value = 
-				state.value === LoadableState.Loading ? 
-					value.value != null ? LoadableState.Loaded : 
-					error.value != null ? LoadableState.Error :			
-					LoadableState.Empty : 
-				state.value;
+			if (state.value === LoadableState.loading) { 
+				if (value.value != null) state.value = LoadableState.loaded;
+				else if (error.value != null) state.value = LoadableState.error;
+				else state.value = LoadableState.empty;
+			}
+			else if (settings.keepValueAfterCompletion) return;
+			else {
+				state.value = LoadableState.empty;
+				value.value = undefined;
+				error.value = undefined;
+			}
 		}
 	});
 	

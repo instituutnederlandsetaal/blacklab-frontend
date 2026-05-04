@@ -147,7 +147,7 @@ describe('loadable streams operators', () => {
 		for (const streamInput of [loaded, error, loading, empty]) {
 			const normalStreamOutput = streamInput;
 			const stream = of(streamInput);
-			for (const operateOnThisState of [LoadableState.Empty, LoadableState.Error, LoadableState.Loading, LoadableState.Loaded]) {
+			for (const operateOnThisState of [LoadableState.empty, LoadableState.error, LoadableState.loading, LoadableState.loaded]) {
 				const expectedStreamOutput = operateOnThisState === streamInput.state ? expectedLoadableOutput : normalStreamOutput;
 				const outputdescription = operateOnThisState === streamInput.state ? 'the replaced value' : 'the original value';
 				test(`${op.name} state ${operateOnThisState} in stream containing ${streamInput.state} should return ${outputdescription}`, () =>
@@ -162,99 +162,99 @@ describe('loadableFromStream', () => {
 	test('the default initial state should be empty', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$);
-		expect(o.state).toBe(LoadableState.Empty);
-		o.dispose();
+		expect(o.state).toBe(LoadableState.empty);
+		o.stop();
 	})
 	test('if configured, the initial state should be loading', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$, {loadingOnStart: true});
-		expect(o.state).toBe(LoadableState.Loading);
-		o.dispose();
+		expect(o.state).toBe(LoadableState.loading);
+		o.stop();
 	})
 	test('the state should be empty after the stream completes', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$, {loadingOnStart: true, keepValueAfterCompletion: false});
 		ob$.complete();
-		expect(o.state).toBe(LoadableState.Empty);
-		o.dispose();
+		expect(o.state).toBe(LoadableState.empty);
+		o.stop();
 	})
 	test('keepValueAfterCompletion=true still clears a loading state on completion', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$, {loadingOnStart: true, keepValueAfterCompletion: true});
 		ob$.complete();
-		expect(o.state).toBe(LoadableState.Empty);
-		o.dispose();
+		expect(o.state).toBe(LoadableState.empty);
+		o.stop();
 	})
 	test('keepValueAfterCompletion=true preserves a loaded state on completion', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$, {keepValueAfterCompletion: true});
 		ob$.next(1);
 		ob$.complete();
-		expect(o.state).toBe(LoadableState.Loaded);
+		expect(o.state).toBe(LoadableState.loaded);
 		expect(o.value).toBe(1);
-		o.dispose();
+		o.stop();
 	})
 	test('keepValueAfterCompletion=true preserves an error state on completion', () => {
 		const ob$ = new Subject<Loadable<number>>();
 		const o = loadableFromStream(ob$, {keepValueAfterCompletion: true});
 		ob$.next(error as Loadable<number>);
 		ob$.complete();
-		expect(o.state).toBe(LoadableState.Error);
+		expect(o.state).toBe(LoadableState.error);
 		expect(o.error).toBe(apiError);
-		o.dispose();
+		o.stop();
 	})
 	test('keepValueAfterCompletion=false clears a loaded state on completion', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$, {keepValueAfterCompletion: false});
 		ob$.next(1);
 		ob$.complete();
-		expect(o.state).toBe(LoadableState.Empty);
+		expect(o.state).toBe(LoadableState.empty);
 		expect(o.value).toBe(undefined);
-		o.dispose();
+		o.stop();
 	})
 	test('keepValueAfterCompletion=false clears an error state on completion', () => {
 		const ob$ = new Subject<Loadable<number>>();
 		const o = loadableFromStream(ob$, {keepValueAfterCompletion: false});
 		ob$.next(error as Loadable<number>);
 		ob$.complete();
-		expect(o.state).toBe(LoadableState.Empty);
+		expect(o.state).toBe(LoadableState.empty);
 		expect(o.error).toBe(undefined);
-		o.dispose();
+		o.stop();
 	})
 	test('its value should mirror the stream output', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$);
 		ob$.next(1);
-		expect(o.state).toBe(LoadableState.Loaded);
+		expect(o.state).toBe(LoadableState.loaded);
 		expect(o.value).toBe(1);
 		ob$.next(2);
-		expect(o.state).toBe(LoadableState.Loaded);
+		expect(o.state).toBe(LoadableState.loaded);
 		expect(o.value).toBe(2);
-		o.dispose();
+		o.stop();
 	})
 	test('it should unpack loadables in the stream', () => {
 		const ob$ = new Subject<Loadable<number>>();
 		const o = loadableFromStream(ob$);
 		ob$.next(Loadable.Loaded(1));
-		expect(o.state).toBe(LoadableState.Loaded);
+		expect(o.state).toBe(LoadableState.loaded);
 		expect(o.value).toBe(1);
 		ob$.next(Loadable.Loaded(2));
-		expect(o.state).toBe(LoadableState.Loaded);
+		expect(o.state).toBe(LoadableState.loaded);
 		expect(o.value).toBe(2);
 		ob$.next(error as Loadable<any>);
-		expect(o.state).toBe(LoadableState.Error);
+		expect(o.state).toBe(LoadableState.error);
 		expect(o.error).toBe(error.error);
 		ob$.next(empty as Loadable<any>);
-		expect(o.state).toBe(LoadableState.Empty);
-		o.dispose();
+		expect(o.state).toBe(LoadableState.empty);
+		o.stop();
 	})
 	test('it should capture errors in the stream', () => {
 		const ob$ = new Subject<number>();
 		const o = loadableFromStream(ob$);
 		ob$.error(apiError);
-		expect(o.state).toBe(LoadableState.Error);
+		expect(o.state).toBe(LoadableState.error);
 		expect(o.error).toBeInstanceOf(ApiError);
-		o.dispose();
+		o.stop();
 	})
 })
 
