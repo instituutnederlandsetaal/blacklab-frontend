@@ -128,10 +128,10 @@ import SearchAdvanced from '@/pages/search/form/SearchAdvanced.vue';
 import SearchExpert from '@/pages/search/form/SearchExpert.vue';
 import Within from '@/pages/search/form/Within.vue';
 
-import { blacklabPaths } from '@/_new/shared/api';
 import type * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
 
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
 import type { Result } from '@/utils/bcql-json-interpreter';
@@ -158,7 +158,8 @@ export default defineComponent({
 		parseQueryError: null as string|null,
 		importQueryError: null as string|null,
 
-		subscriptions: [] as Array<() => void>
+		subscriptions: [] as Array<() => void>,
+		blacklab: useBlackLabApi()
 	}),
 	computed: {
 		activePattern: {
@@ -217,7 +218,6 @@ export default defineComponent({
 				annotatedFieldId: field ?? '' // no autocomplete if no parallel version selected
 			};
 		},
-		simpleSearchAnnotationAutoCompleteUrl(): string { return blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id); },
 		textDirection: CorpusStore.get.textDirection,
 		withinOptions(): Option[] {
 			const {enabled, elements} = UIStore.getState().search.shared.within;
@@ -271,7 +271,7 @@ export default defineComponent({
 				PatternStore.getState().shared.alignBy
 			);
 			let parsed: Result[]|null = null;
-			try { parsed = await parseBcql(CorpusStore.get.indexId()!, builtQuery, mainAnnotationId); }
+			try { parsed = await parseBcql(useBlackLabApi(), CorpusStore.get.indexId()!, builtQuery, mainAnnotationId); }
 			catch {}
 			if (!parsed) {
 				this.parseQueryError = 'The querybuilder could not parse your query.';
@@ -326,6 +326,14 @@ export default defineComponent({
 		synchronizeActiveTab() {
 			if (this.activeAnnotationTab == null || !this.tabs.find(t => t.id === this.activeAnnotationTab)) 
 				this.activeAnnotationTab = this.tabs[0]?.id ?? null;
+		},
+		autocompleteSimpleSearch(q: string): Promise<string[]> {
+			return this.blacklab.getTermAutocomplete(
+				CorpusStore.get.indexId()!, 
+				this.simpleSearchAnnotation.annotatedFieldId, 
+				this.simpleSearchAnnotation.id,
+				q
+			); 
 		}
 	},
 	watch: {

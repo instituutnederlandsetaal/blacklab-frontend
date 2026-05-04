@@ -54,6 +54,7 @@ export type FilterRangeMultipleFieldsMetadata = {
 	/** Disable permissive/strict selector and force the range filter to the selected mode */
 	mode?: 'permissive'|'strict';
 }
+export type FilterAutocompleteMetadata = (v: string) => Promise<string[]>;
 
 
 type FilterValueFunctions<M, V> = {

@@ -45,15 +45,16 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import * as Api from '@/_new/shared/api';
 import type * as BLTypes from '@/types/blacklabtypes';
 
 
 import frac2Percent from '@/mixins/fractionalToPercent';
 
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import { IterativeResultCountLoader } from '@/api/async/logic/result-count/result-count-from-query';
 import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
 import Spinner from '@/components/Spinner.vue';
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
 
 /**
  * Emits update events that contain the new set of totals, so we can update the pagination through our parent components
@@ -88,12 +89,12 @@ export default defineComponent({
 				operation: this.type,
 				results: this.initialResults
 			},
-				Api.blacklab
+				useBlackLabApi()
 			);
 		},
 
 		value(): TotalsOutput|undefined { return this.totals.isLoaded() ? this.totals.value : undefined; },
-		error(): Api.ApiError|undefined { return this.totals.isError() ? this.totals.error : undefined; },
+		error(): ApiError|undefined { return this.totals.isError() ? this.totals.error : undefined; },
 		isCounting(): boolean { return this.value?.state === 'counting'; },
 		isLimited(): boolean { return this.value?.state === 'limited'; },
 		isPaused(): boolean { return this.value?.state === 'paused'; },

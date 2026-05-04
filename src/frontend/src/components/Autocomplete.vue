@@ -31,9 +31,7 @@ import type { Option } from '@/utils/options';
 
 const modelValue = defineModel<string>({default: ''});
 const props = withDefaults(defineProps<{
-	url?: string,
-	/** alternative to url, use this to get the data yourself. */
-	getData?: (term: string) => Promise<string[]>,
+	getData: (term: string) => Promise<string[]>,
 	autocomplete?: boolean,
 	useQuoteAsWordBoundary?: boolean,
 }>(), {
@@ -72,7 +70,7 @@ let lastSearchValue = '';
 
 function _refreshList() {
 	// console.log('refreshing list');
-	if (!props.url && !props.getData) return;
+	if (!props.getData) return;
 	
 	const input = inputElement.value;
 	if (!input) return;
@@ -83,24 +81,7 @@ function _refreshList() {
 	lastSearchValue = v;
 	if (!v.length) return;
 
-	let r: Promise<string[]>|undefined;
-	if (props.getData) {
-		r = props.getData(v);
-	} else if (props.url){
-		const url = new URL(props.url);
-		const qs = new URLSearchParams(url.search);
-		qs.set('term', v);
-		qs.set('api', '4');
-		r = fetch(`${url.protocol}//${url.host}${url.pathname}?${qs.toString()}`, {
-			method: 'GET',
-			credentials: WITH_CREDENTIALS ? 'include' : 'same-origin',
-			headers: {
-				'Accept': 'application/json'
-			}
-		})
-		.then(res => res.json());
-	}
-
+	let r: Promise<string[]> = props.getData(v);
 	if (!r) return;
 	r.then(suggestions => {
 		if (v === lastSearchValue) options.value = suggestions;

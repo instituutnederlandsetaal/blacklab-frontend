@@ -34,15 +34,16 @@
 </template>
 
 <script setup lang="ts">
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import * as UIStore from '@/app/state/ui-state';
 import type {
-    CqlQueryBuilderData,
-    CqlQueryBuilderOptions,
-    CqlTokenData
+	CqlQueryBuilderData,
+	CqlQueryBuilderOptions,
+	CqlTokenData
 } from '@/components/cql/cql-types';
 import {
-    COMPARATORS,
-    OPERATORS
+	COMPARATORS,
+	OPERATORS
 } from '@/components/cql/cql-types';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import uid from '@/mixins/uid';
@@ -103,6 +104,9 @@ const options = computed<CqlQueryBuilderOptions>(() => {
 				value: comp,
 			})),
 		})),
+		autocomplete(annotation: CorpusStore.NormalizedAnnotation, term: string): Promise<string[]> {
+			return useBlackLabApi().getTermAutocomplete(indexId, annotation.annotatedFieldId, annotation.id, term);
+		},
 	};
 });
 

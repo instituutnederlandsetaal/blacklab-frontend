@@ -69,6 +69,7 @@ export interface CqlQueryBuilderOptions {
 	// searchAnnotationIds: string[];
 	textDirection: 'ltr' | 'rtl';
 	allAnnotationsMap: Record<string, NormalizedAnnotation>;
+	autocomplete: (annot: NormalizedAnnotation, query: string) => Promise<string[]>;
 
 	// Precomputed options (language-agnostic)
 	annotationOptions: Options;

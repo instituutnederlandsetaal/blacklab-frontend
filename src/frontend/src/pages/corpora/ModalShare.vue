@@ -13,7 +13,8 @@
 </template>
 
 <script lang="ts">
-import * as Api from '@/_new/shared/api';
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
 import Modal from '@/components/Modal.vue';
 import type { NormalizedIndexBase } from '@/types/apptypes';
 import type { PropType } from 'vue';
@@ -31,20 +32,20 @@ export default defineComponent({
 	methods: {
 		save() {
 			this.loading = true;
-			Api.blacklab.postShares(this.corpus.id, this.content.split('\n'))
+			useBlackLabApi().postShares(this.corpus.id, this.content.split('\n'))
 			.then(r => {
 				this.$emit('success', r.status.message)
 				this.$emit('close');
 			})
-			.catch((e: Api.ApiError) => this.error = `Could not save shares for corpus "${this.corpus.displayName}": ${e.message}`)
+			.catch((e: ApiError) => this.error = `Could not save shares for corpus "${this.corpus.displayName}": ${e.message}`)
 			.finally(() => this.loading = false);
 		}
 	},
 	created() {
 		this.loading = true;
-		Api.blacklab.getShares(this.corpus.id)
+		useBlackLabApi().getShares(this.corpus.id)
 		.then(shares => this.content = shares.join('\n'))
-		.catch((e: Api.ApiError) => this.error = `Could not retrieve share list for corpus "${this.corpus.displayName}": ${e.message}`)
+		.catch((e: ApiError) => this.error = `Could not retrieve share list for corpus "${this.corpus.displayName}": ${e.message}`)
 		.finally(() => this.loading = false);
 	}
 });

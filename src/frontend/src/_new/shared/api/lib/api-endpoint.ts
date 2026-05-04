@@ -2,22 +2,8 @@ import { cleanQueryParams, handleError } from "@/_new/shared/api/lib/api-utils";
 import { CancelableRequest } from "@/utils/loadable-streams";
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 import type { User } from "oidc-client-ts";
-import { toValue, type MaybeRef } from "vue/dist/vue.js";
+import { toValue, type MaybeRef } from "vue";
 
-// TODO extract to callsite/app bootstrap
-const settings = {
-	// use a builtin delay to simulate network latency (in ms)
-	delay: 0,
-	// whether to set withCredentials in axios settings
-	// This will send cookies with requests, which is required for authentication
-	// HOWEVER, it requires a very specific setup to work, either of the following must be true:
-	// a) the server must not set the Access-Control-Allow-Origin header to '*'
-	// b) the client and the server must use the same protocol + domain + port
-	// Any other case will result in a CORS error, even when there are no cookies.
-	// so it's best to turn this off during development.
-
-	withCredentials: typeof WITH_CREDENTIALS !== 'undefined' ? WITH_CREDENTIALS : false,
-};
 
 export type Endpoint = Omit<AxiosInstance, 'get' | 'post' | 'delete'> & {
 	getCancelable<T>(url: string, queryParams?: Record<string, string|number|boolean|Record<string, any>>, config?: AxiosRequestConfig): CancelableRequest<T>;
@@ -34,17 +20,27 @@ export type Endpoint = Omit<AxiosInstance, 'get' | 'post' | 'delete'> & {
 }
 
 
-export function createEndpoint(p: {
+export type EndpointSettings = {
 	baseUrl: string;
 	user: MaybeRef<User|null>;
 	headers?: Record<string, string>;
 	axiosOptions?: Omit<AxiosRequestConfig, 'baseURL'|'headers'>;
-}): Endpoint {
+}
+
+export function createEndpoint(p: EndpointSettings): Endpoint {
 	const endpoint = axios.create({
 		...p.axiosOptions,
 		baseURL: p.baseUrl.replace(/\/*$/, '/'),
 		headers: p.headers,
 		paramsSerializer: params => new URLSearchParams(cleanQueryParams(params)).toString(),
+		// whether to set withCredentials in axios settings
+		// This will send cookies with requests, which is required for authentication
+		// HOWEVER, it requires a very specific setup to work, either of the following must be true:
+		// a) the server must not set the Access-Control-Allow-Origin header to '*'
+		// b) the client and the server must use the same protocol + domain + port
+		// Any other case will result in a CORS error, even when there are no cookies.
+		// so it's best to turn this off during development.
+		withCredentials: WITH_CREDENTIALS ?? false
 	})
 	
 	endpoint.interceptors.request.use(config => {

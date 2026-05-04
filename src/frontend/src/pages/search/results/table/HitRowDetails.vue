@@ -94,12 +94,13 @@ import type { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptype
 import type { HitRowData } from './table-layout';
 import { snippetParts } from './table-layout';
 
-import * as Api from '@/_new/shared/api';
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';
 import { debugLog } from '@/utils/debug';
 import type { CancelableRequest } from '@/utils/loadable-streams';
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
 
 // TODO disconnect from the store?
 
@@ -139,7 +140,7 @@ function loadSentence() {
 	// Need to track this, because results pay be paginated and this component may be reused across renders
 	// We should probably use asyncComputed or something but that's for later.
 	const nonce = props.row.hit;
-	const request = Api.blacklab.getSnippet(
+	const request = useBlackLabApi().getSnippet(
 		CorpusStore.get.indexId()!,
 		props.row.doc.docPid,
 		props.row.annotatedField?.id,
@@ -167,8 +168,14 @@ function loadSnippet() {
 	const concordanceSize = UIStore.getState().results.shared.concordanceSize;
 
 	const nonce = props.row.hit;
-	const request = Api.blacklab
-	.getSnippet(CorpusStore.get.indexId()!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, concordanceSize);
+	const request = useBlackLabApi().getSnippet(
+		CorpusStore.get.indexId()!,
+		props.row.doc.docPid,
+		props.row.annotatedField?.id,
+		props.row.hit.start,
+		props.row.hit.end,
+		concordanceSize
+	);
 	snippetRequest.value = request;
 	request
 	.then(s => {
@@ -213,7 +220,7 @@ function loadSnippet() {
 			})
 			.filter(a => a != null);
 	})
-	.catch((err: Api.ApiError) => {
+	.catch((err: ApiError) => {
 		if (nonce !== props.row.hit) return; // hit has changed in the meantime.
 		error.value = formatError(err, 'snippet');
 		if (err.stack) debugLog(err.stack);

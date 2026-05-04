@@ -47,6 +47,7 @@
     "vue-tsc": "^3.2.6"
   },
   "dependencies": {
+    "@tanstack/vue-query": "5.97",
     "@types/jquery": "^4.0.0",
     "@vue/devtools-api": "^8.1.1",
     "@vueuse/components": "^14.2.1",

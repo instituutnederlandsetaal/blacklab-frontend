@@ -1,8 +1,8 @@
 import { type BLSearchResult } from "@/types/blacklabtypes";
 import { InteractiveLoadable, Loadable, mapLoaded } from "@/utils/loadable-streams";
 import { concat, EMPTY, expand, filter, lastValueFrom, of, switchMap, takeUntil, timer } from "rxjs";
-import type { BlackLabApi } from "../../../../_new/shared/api";
 import { getTotals, type TotalsOutput } from "./result-count-helpers";
+import type { BlackLabApi } from "@/_new/shared/api/lib/api-types";
 
 export type TotalsInput = {
 	indexId: string;

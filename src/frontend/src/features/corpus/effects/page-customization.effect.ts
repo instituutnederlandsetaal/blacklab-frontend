@@ -1,4 +1,4 @@
-import { corpusDataLoader } from "@/features/corpus/resources/corpus-resource";
+import { useCurrentCorpusData, useCurrentCorpusId } from "@/_new/app/plugins/installCorpusData";
 import { useCustomCss, useCustomJs, useFavicon, useTitle } from "@/interop/page-customization";
 import { setLegacyIndexIdGlobal } from "@/interop/window-globals";
 import { isRouteBootstrapSettled } from "@/navigation/page-bootstrap";
@@ -15,25 +15,28 @@ export function startCustomizationInterop() {
 	const route = useRoute();
 	const routeMeta = computed(() => route.meta as CustomRouteMeta);
 	const pageName = computed(() => routeMeta.value?.name ?? '');
-	const displayName = computed(() => corpusDataLoader.value?.config.displayName ?? '');
+	const config = computed(() => useCurrentCorpusData().value?.config);
+	const displayName = computed(() => config.value?.displayName ?? '');
+
 
 	// Set this one up first, so the variable is guaranteed to be set before dependent custom js is executed.
-	watchEffect(() => setLegacyIndexIdGlobal(route.params.indexId as string || ''));
+	// TODO?
+	watchEffect(() => setLegacyIndexIdGlobal(useCurrentCorpusId().value || ''));
 
 	useTitle(computed(() => routeMeta.value?.getTitle?.(displayName.value) ?? displayName.value));
 
 	const _css = useCustomCss(computed(() => {
-		const css = corpusDataLoader.value?.config.customCss ?? {};
+		const css = config.value?.customCss ?? {};
 		return sortCustomizationEntries([...(css[''] ?? []), ...(pageName.value ? css[pageName.value] ?? [] : [])]);
 	}))
 
 	const js = useCustomJs(computed(() => {
-		const js = corpusDataLoader.value?.config.customJs ?? {};
+		const js = config.value?.customJs ?? {};
 		return sortCustomizationEntries([...(js[''] ?? []), ...(pageName.value ? js[pageName.value] ?? [] : [])]);
 	}), {immediate: false});
 
 	const _fav = useFavicon(computed(() => {
-		const path = corpusDataLoader.value?.config?.faviconDir;
+		const path = config.value?.faviconDir;
 		return path ? `${path}/favicon.ico` : '';
 	}), {
 		rel: 'icon'

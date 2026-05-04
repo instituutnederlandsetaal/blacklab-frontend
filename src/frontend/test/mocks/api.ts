@@ -1,24 +1,14 @@
-import type { ApiModule, BlackLabApi, FrontendApi, ParsePatternResponse } from '@/_new/shared/api';
-import type { CFPageConfig, Tagset } from '@/types/apptypes';
+import { ApiError, type BlackLabApi, type FrontendApi } from '@/_new/shared/api/lib/api-types';
+import { rejectedRequest, resolvedRequest } from '@/_new/shared/api/lib/api-utils';
+import { type CFPageConfig, type Tagset } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
-import { CancelableRequest } from '@/utils/loadable-streams';
-
-function resolvedRequest<T>(value: T): CancelableRequest<T> {
-	return new CancelableRequest(Promise.resolve(value), () => {});
-}
-
-function rejectedRequest<T>(message: string): CancelableRequest<T> {
-	return new CancelableRequest(Promise.reject(new Error(message)), () => {});
-}
+import { type CancelableRequest } from '@/utils/loadable-streams';
 
 function unimplemented<T>(name: string): CancelableRequest<T> {
-	return rejectedRequest<T>(`Unimplemented API mock: ${name}`);
+	return rejectedRequest<T>(ApiError.wrap(`Unimplemented API mock: ${name}`));
 }
 
-type ApiMockOverrides = {
-	blacklab?: Partial<BlackLabApi>;
-	frontend?: Partial<FrontendApi>;
-};
+type ApiMockOverrides<T extends BlackLabApi|FrontendApi> = Partial<T>;
 
 function createBlackLabApiMock(): BlackLabApi {
 	return {
@@ -40,7 +30,7 @@ function createBlackLabApiMock(): BlackLabApi {
 		deleteCorpus: () => unimplemented('blacklab.deleteCorpus'),
 		getDocumentInfo: () => unimplemented('blacklab.getDocumentInfo'),
 		getRelations: () => unimplemented('blacklab.getRelations'),
-		getParsePattern: () => unimplemented<ParsePatternResponse>('blacklab.getParsePattern'),
+		getParsePattern: () => unimplemented<BLTypes.BLParsePatternResponse>('blacklab.getParsePattern'),
 		getHits: <T extends BLTypes.BLHitResults|BLTypes.BLHitGroupResults>() => unimplemented<T>('blacklab.getHits'),
 		getHitsCsv: () => unimplemented<Blob>('blacklab.getHitsCsv'),
 		getDocsCsv: () => unimplemented<Blob>('blacklab.getDocsCsv'),
@@ -48,12 +38,12 @@ function createBlackLabApiMock(): BlackLabApi {
 		getSnippet: () => unimplemented('blacklab.getSnippet'),
 		getTermFrequencies: () => unimplemented('blacklab.getTermFrequencies'),
 		getTermAutocomplete: () => unimplemented<string[]>('blacklab.getTermAutocomplete'),
+		getMetadataAutocomplete: () => unimplemented<string[]>('blacklab.getMetadataAutocomplete'),
 	};
 }
 
 function createFrontendApiMock(): FrontendApi {
 	return {
-		getCorpus: () => unimplemented('frontend.getCorpus'),
 		getConfig: () => unimplemented<CFPageConfig>('frontend.getConfig'),
 		getDocumentContents: () => unimplemented<string>('frontend.getDocumentContents'),
 		getDocumentMetadata: () => unimplemented<string>('frontend.getDocumentMetadata'),
@@ -63,17 +53,11 @@ function createFrontendApiMock(): FrontendApi {
 	};
 }
 
-export function createApiMock(overrides: ApiMockOverrides = {}): ApiModule {
-	return {
-		blacklab: {
-			...createBlackLabApiMock(),
-			...overrides.blacklab,
-		},
-		frontend: {
-			...createFrontendApiMock(),
-			...overrides.frontend,
-		},
-	};
+export function createBlackLabMock(overrides: ApiMockOverrides<BlackLabApi> = {}): BlackLabApi {
+	return { ...createBlackLabApiMock(), ...overrides, }
+}
+export function createFrontendMock(overrides: ApiMockOverrides<FrontendApi> = {}): FrontendApi {
+	return { ...createFrontendApiMock(), ...overrides, }
 }
 
 export { rejectedRequest, resolvedRequest };

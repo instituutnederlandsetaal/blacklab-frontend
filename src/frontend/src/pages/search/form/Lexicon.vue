@@ -67,13 +67,13 @@ import * as Observable from 'rxjs';
 import { catchError, debounceTime, filter, map, mergeMap, switchMap, toArray } from 'rxjs/operators';
 import { defineComponent, type PropType } from 'vue';
 
-import * as api from '@/_new/shared/api';
 import * as UIStore from '@/app/state/ui-state';
 import SelectPicker from '@/components/SelectPicker.vue';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import UID from '@/mixins/uid';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import { escapeRegex, filterDuplicates, mapReduce } from '@/utils';
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 
 type LexiconParams1 = {lemma: string}|{wordform: string}
 type LexiconParams = LexiconParams1&{
@@ -218,7 +218,7 @@ export default defineComponent({
 						lemmata.forEach(l => l.pos = `${l.lemma} (${l.pos || 'unknown'})`);
 
 						// Request occurance counts in the corpus from blacklab. Note we also request occurance count for the entered search term.
-						const {termFreq: frequencies} = await api.blacklab.getTermFrequencies(CorpusStore.get.indexId()!, this.annotationId, lemmata.flatMap(r => r.wordforms).concat(term));
+						const {termFreq: frequencies} = await useBlackLabApi().getTermFrequencies(CorpusStore.get.indexId()!, this.annotationId, lemmata.flatMap(r => r.wordforms).concat(term));
 
 						const options: Record<string, WordOption> = {};
 						lemmata.forEach(({pos, wordforms, lemma}) => {

@@ -21,21 +21,12 @@ import * as ViewModule from '@/features/search/model/results/view-state';
 import * as ArticleModule from '@/features/article/model/article-state';
 
 import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
-import { corpusDataLoader } from '@/api/async/instances/corpus-data';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
-import { Loadable } from '@/utils/loadable-streams';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
-import { shallowRef } from 'vue';
-
-// separate, because while the corpusloader might have settled, store init is async
-// and we don't want to report being done while submodules are still initializing
-// (We should solve this better in the future)
-const loadingState = shallowRef<Loadable<CorpusChange>>(Loadable.Empty());
 
 const get = {
-	loadingState: () => loadingState,
 
 	viewedResultsSettings: () => {
 		const viewName = InterfaceModule.get.viewedResults();
@@ -98,8 +89,6 @@ const get = {
 };
 
 const actions = {
-	retryLoading: () => corpusDataLoader.retry(),
-
 	searchFromSubmit: () => {
 		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
 			actions.searchSplitBatches();
@@ -272,22 +261,20 @@ const actions = {
 	},
 };
 
-const init = async (state: CorpusChange) => {
-	loadingState.value = Loadable.Loading();
+const init = (state: CorpusChange) => {
 	console.log('Initializing store with new corpus data', state);
-	await CorpusModule.init(state);
-	await UIModule.init(state);
+	CorpusModule.init(state);
+	UIModule.init(state);
 
-	await FormManager.init(state);
-	await ViewModule.init(state);
-	await GlobalResultsModule.init(state);
+	FormManager.init(state);
+	ViewModule.init(state);
+	GlobalResultsModule.init(state);
 
-	await TagsetModule.init(state);
-	await HistoryModule.init(state);
-	await QueryModule.init(state);
+	TagsetModule.init(state);
+	HistoryModule.init(state);
+	QueryModule.init(state);
 
-	await ArticleModule.init(state);
-	loadingState.value = Loadable.Loaded(state);
+	ArticleModule.init(state);
 };
 
 export { actions, get, init };

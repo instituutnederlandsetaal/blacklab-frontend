@@ -10,6 +10,7 @@ import cloneDeep from 'clone-deep';
 import { html, stripIndent } from 'common-tags';
 
 import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as ViewsStore from '@/features/search/model/results/view-state';
 import type * as AppTypes from '@/types/apptypes';
@@ -235,15 +236,13 @@ type ModuleRootState = {
 	};
 
 	global: {
-		config: AppTypes.CFPageConfig,
-
 		/** Database to use in the lexicon service component. To allow switching early dutch/middle dutch etc. */
 		lexiconDb: string;
 		/**
 		 * @param e the error
 		 * @param context snippet = large context around a hit, concordances = hits within a group. NOTE: context may be expanded in the future.
 		 */
-		errorMessage(e: AppTypes.ApiError, context: 'snippet'|'concordances'|'hits'|'docs'|'groups'): string;
+		errorMessage(e: ApiError, context: 'snippet'|'concordances'|'hits'|'docs'|'groups'): string;
 	}
 };
 
@@ -347,19 +346,7 @@ const initialState: ModuleRootState = {
 		}
 	},
 	global: {
-		config: {
-			analytics: {
-				google: null,
-				plausible: null,
-			},
-			bannerMessage: null,
-			customCss: {},
-			customJs: {},
-			displayName: null,
-			faviconDir: '',
-			navbarLinks: [],
-			pageSize: null,
-		},
+	
 		lexiconDb: 'lexiconservice_mnw_wnt',
 		errorMessage: (e, c) => {
 			switch (c) {

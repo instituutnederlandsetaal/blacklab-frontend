@@ -60,7 +60,7 @@
 </template>
 
 <script lang="ts">
-import { blacklab } from '@/_new/shared/api';
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { Option } from '@/utils/options';
 import type { PropType } from 'vue';
@@ -139,7 +139,7 @@ export const step = defineComponent({
 			this.loadingValues[annotationId] = true;
 
 			try {
-				const result = await blacklab.getTermFrequencies(
+				const result = await useBlackLabApi().getTermFrequencies(
 					this.modelValue.index.id,
 					annotationId,
 					undefined,

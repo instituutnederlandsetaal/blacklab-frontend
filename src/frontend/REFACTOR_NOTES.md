@@ -20,3 +20,5 @@ test moveMetadataFieldToGroup / moveAnnotationToGroup since we changed reactivit
 # General nitpicks
 - Footer version number is no longer in sync with the git version number. Need to re-apply the changes from dev branch
 - Gap store is redundant, should be somewhere in pattern store. Should be restored from URL on initial load, and should be shared with article view.
+- useBlackLabApi()/useFrontendApi() is used all over the place, should only ever be used from within components, and be passed as parameter elsewhere.
+- FilterAutocomplete is dirty, needs to have the getter for autocomplete provided through props, which is okay, but makes it so that the store has to know the API suddenly because that's where initial registration + prop initialization takes place.

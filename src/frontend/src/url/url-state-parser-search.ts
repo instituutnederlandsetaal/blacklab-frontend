@@ -36,6 +36,7 @@ import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { corpusCustomizations } from '@/utils/customization';
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -789,7 +790,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			// Let BlackLab parse it, then try to interpret the parse tree
 			// for use in the simple, extended or advanced search forms.
 			this._parsedCql = bcql == null ? null :
-				await parseBcql(this.paths[0], bcql, CorpusModule.get.firstMainAnnotation().id);
+				await parseBcql(useBlackLabApi(), this.paths[0], bcql, CorpusModule.get.firstMainAnnotation().id);
 			if (this._parsedCql && this._parsedCql.length === 0)
 				this._parsedCql = null;
 			if (this._parsedCql && this._parsedCql.length > 1) {

@@ -69,12 +69,12 @@
 import Axios from 'axios';
 import { defineComponent, nextTick } from 'vue';
 
-import { blacklab } from '@/_new/shared/api';
 import UrlStateParserBase from '@/url/url-state-parser-base';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { OptGroup } from '@/utils/options';
 
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { debugLogCat } from '@/utils/debug';
@@ -155,8 +155,8 @@ export default defineComponent({
 
 			this.isLoadingCorpora = true;
 			Promise.all([
-				blacklab.getCorpora(),
-				blacklab.getUser()
+				useBlackLabApi().getCorpora(),
+				useBlackLabApi().getUser()
 			])
 			.then(([corpora, user]) => {
 				this.blacklabData.corpora = corpora;
@@ -200,12 +200,12 @@ export default defineComponent({
 
 			const id = `${this.blacklabData.user!.id}:${this.newCorpusName.replace(/[^\w-]/g, '_')}`;
 			this.isCreatingCorpus = true;
-			blacklab.postCorpus(id, this.newCorpusName, this.urlParams!.format)
+			useBlackLabApi().postCorpus(id, this.newCorpusName, this.urlParams!.format)
 			.then(() => {
 				this.isCreatingCorpus = false;
 				this.isLoadingCorpora = true;
 				this.newCorpusName = '';
-				return blacklab.getCorpora();
+				return useBlackLabApi().getCorpora();
 			})
 			.then(corpora => {
 				this.isLoadingCorpora = false;
@@ -268,7 +268,7 @@ export default defineComponent({
 			try {
 				await new Promise<void>((resolve, reject) => {
 					let resolved = false;
-					const { request, cancel } = blacklab.postDocuments(
+					const { request, cancel } = useBlackLabApi().postDocuments(
 						this.selectedCorpus!.id,
 						[file],
 						undefined,
@@ -300,7 +300,7 @@ export default defineComponent({
 
 			try {
 				let r: AppTypes.NormalizedIndexBase;
-				while ((r = await blacklab.getCorpusStatus(this.selectedCorpus!.id)) && r.indexProgress && !indexError) {
+				while ((r = await useBlackLabApi().getCorpusStatus(this.selectedCorpus!.id)) && r.indexProgress && !indexError) {
 					const {filesProcessed: files, docsDone: docs, tokensProcessed: tokens} = r.indexProgress!;
 					this.action = `Indexing... - ${files} files, ${docs} documents, and ${tokens} tokens indexed so far...`;
 					await new Promise(resolve => setTimeout(resolve, 1000));

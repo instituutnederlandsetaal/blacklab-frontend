@@ -48,6 +48,9 @@ export default defineConfig(({ mode }): UserConfig => ({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    // Ensure CSS url(...) assets resolve against the Vite dev server even when
+    // styles are consumed from another origin (e.g. Java backend on a different port).
+    origin: process.env.VITE_DEV_SERVER_ORIGIN ?? 'http://localhost:5173',
     strictPort: true,
     cors: true,
     headers: {

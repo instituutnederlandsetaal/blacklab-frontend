@@ -15,11 +15,11 @@
 </template>
 
 <script lang="ts">
-import { blacklab } from '@/_new/shared/api';
 import type { NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
 import { defineComponent } from 'vue';
 
 import CorpusConfig from './CorpusConfig.vue';
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 
 export default defineComponent({
 	components: {
@@ -36,7 +36,7 @@ export default defineComponent({
 			if (this.loading) { return; }
 			this.loading = true;
 
-			blacklab.getCorpora()
+			useBlackLabApi().getCorpora()
 			.then(c => this.corpora = c)
 			.catch(e => this.error = e.message)
 			.finally(() => this.loading = false);

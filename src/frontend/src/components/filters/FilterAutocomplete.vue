@@ -9,15 +9,14 @@
 		<div class="col-xs-12">
 			<Autocomplete
 				type="text"
-				
-
+			
 				useQuoteAsWordBoundary
 
 				:id="inputId"
 				:placeholder="displayName"
 				:dir="textDirection"
 
-				:url="autocompleteUrl"
+				:getData="definition.metadata"
 				v-model="vmodel"
 			/>
 		</div>
@@ -29,18 +28,18 @@
 
 <script lang="ts">
 import Autocomplete from '@/components/Autocomplete.vue';
-import FilterText from '@/components/filters/FilterText.vue';
+import createBaseFilterComponent from '@/components/filters/Filter';
+import type { FilterAutocompleteMetadata } from '@/components/filters/filterValueFunctions';
 import { defineComponent } from 'vue';
 
 export default defineComponent({
-	extends: FilterText,
+	extends: createBaseFilterComponent<string, FilterAutocompleteMetadata>([String, null], () => ''),
 	components: { Autocomplete },
 	computed: {
-		autocompleteUrl(): string { return this.definition.metadata as string; },
 		vmodel: {
-			get(): string { return this.modelValue; },
-			set(v: string) { this.e_input(v); }
-		}
+			get() { return this.modelValue; },
+			set(value: string) { this.e_input(value); }
+		},
 	}
 })
 

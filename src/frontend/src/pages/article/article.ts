@@ -1,4 +1,4 @@
-import { blacklab, frontend } from '@/_new/shared/api';
+import { useBlackLabApi, useFrontendApi } from '@/_new/app/plugins/installApi';
 import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
 
@@ -42,7 +42,7 @@ export const metadata$ =  input$.pipe(
 	map(withRequiredKeys('indexId', 'docId')),
 	mapLoaded(i => ({indexId: i.indexId, docId: i.docId})),
 	distinctUntilChanged(compareAsSortedJson),
-	switchMapLoaded(i => blacklab.getDocumentInfo(i.indexId, i.docId).toObservable()),
+	switchMapLoaded(i => useBlackLabApi().getDocumentInfo(i.indexId, i.docId).toObservable()),
 	shareReplay(1)
 );
 
@@ -57,7 +57,7 @@ export const hits$ = input$.pipe(
 		pattgapdata: i.pattgapdata || undefined,
 	})),
 	distinctUntilChanged(compareAsSortedJson),
-	switchMapLoaded(i => blacklab.getHits<BLHitResults>(i.indexId, {
+	switchMapLoaded(i => useBlackLabApi().getHits<BLHitResults>(i.indexId, {
 		...i,
 		first: 0,
 		number: Math.pow(2, 31)-1, // JAVA BACKEND: max_safe_integer is 2^31-1
@@ -130,7 +130,7 @@ export const contents$ = validPaginationParameters$.pipe(
 		wordend: input.wordend,
 	})),
 	distinctUntilChanged(compareAsSortedJson),
-	switchMapLoaded(input => frontend.getDocumentContents(input).toObservable()),
+	switchMapLoaded(input => useFrontendApi().getDocumentContents(input).toObservable()),
 	mapLoaded(v => {
 		const container = document.createElement('div');
 		container.innerHTML = v;
@@ -159,7 +159,7 @@ export const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$,
 );
 
 const snippet$ = validPaginationParameters$.pipe(
-	switchMapLoaded(p => toObservable(blacklab.getSnippet(
+	switchMapLoaded(p => toObservable(useBlackLabApi().getSnippet(
 		p.indexId,
 		p.docId,
 		p.viewField,

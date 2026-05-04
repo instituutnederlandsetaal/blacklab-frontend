@@ -9,8 +9,8 @@ import { memoize } from '@/features/search/model/form/reactive-store';
 
 import type { FilterDefinition } from '@/types/apptypes';
 
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import type { CorpusChange } from '@/_new/entities/corpus-data-from-id';
-import { blacklabPaths } from '@/_new/shared/api';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { mapReduce } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
@@ -167,7 +167,9 @@ const init = (state: CorpusChange) => {
 					break;
 				case 'combobox':
 					componentName = 'filter-autocomplete';
-					metadata = blacklabPaths.autocompleteMetadata(state.index!.id, f.id);
+					metadata = function autocompleteMetadata(v: string): Promise<string[]> {
+						return useBlackLabApi().getMetadataAutocomplete(state.index!.id, f.id, v);
+					}
 					break;
 				case 'radio':
 					componentName = 'filter-radio';

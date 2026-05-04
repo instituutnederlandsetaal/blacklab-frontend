@@ -155,8 +155,6 @@ import { markRaw } from 'vue';
 
 import jsonStableStringify from 'json-stable-stringify';
 
-import * as Api from '@/_new/shared/api';
-
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
@@ -186,11 +184,13 @@ import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parse
 import type { TranslateResult } from 'vue-i18n';
 
 
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 import { corpusCustomizations } from '@/utils/customization';
 import { localStorageSynced } from '@/utils/localstore';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
 
 export default defineComponent({
 	components: {
@@ -282,7 +282,7 @@ export default defineComponent({
 			const params = RootStore.get.blacklabParameters()!;
 			const axiosParams = {headers: { 'Cache-Control': 'no-cache' }};
 			debugLog('starting search', this.id, params);
-			const r = this.id === 'hits' ? Api.blacklab.getHits(this.indexId, params, axiosParams) : Api.blacklab.getDocs(this.indexId, params, axiosParams);
+			const r = this.id === 'hits' ? useBlackLabApi().getHits(this.indexId, params, axiosParams) : useBlackLabApi().getDocs(this.indexId, params, axiosParams);
 			this.request = r;
 
 			setTimeout(() => this.scrollToResults(), 1500);
@@ -317,7 +317,7 @@ export default defineComponent({
 			this.results = markRaw(data);
 			this.paginationResults = markRaw(data);
 		},
-		setError(data: Api.ApiError, isGrouped?: boolean) {
+		setError(data: ApiError, isGrouped?: boolean) {
 			if (!data.isCancelledRequest) {
 				debugLogCat('results', 'Request failed: ', data);
 				this.error = UIStore.getState().global.errorMessage(data, isGrouped ? 'groups' : this.id as 'hits'|'docs');

@@ -1,7 +1,7 @@
 import { EMPTY, map, Observable, of, Subject } from 'rxjs';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { ApiError } from '@/_new/shared/api';
+import { ApiError } from '@/_new/shared/api/lib/api-types';
 import { CancelableRequest, combineLoadables, combineLoadablesIncludingEmpty, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, flatMapLoadable, InteractiveLoadable, Loadable, loadableFromStream, LoadableState, loadableStreamFromPromise, mapLoadable, mergeMapLoadable, promiseFromLoadableStream, switchMapLoadable, withRequiredKeys } from '@/utils/loadable-streams';
 
 const apiError: ApiError = new ApiError('', '', '', 0);

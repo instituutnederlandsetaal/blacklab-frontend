@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 
-import { blacklab } from '@/_new/shared/api';
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import Spinner from '@/components/Spinner.vue';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
@@ -68,8 +68,8 @@ const concordances = computed(() => new PaginatedGetter<Rows>((oldRows, first, n
 
 	const indexId = CorpusStore.get.indexId()!;
 	const r = props.type === 'hits' 
-		? blacklab.getHits<BLHitResults>(indexId, requestParameters) 
-		: blacklab.getDocs<BLDocResults>(indexId, requestParameters);
+		? useBlackLabApi().getHits<BLHitResults>(indexId, requestParameters) 
+		: useBlackLabApi().getDocs<BLDocResults>(indexId, requestParameters);
 	
 	return r
 		.then(newResults => makeRows(newResults, props.info))

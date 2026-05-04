@@ -67,7 +67,7 @@
 				type="text"
 				data-class="form-control input-sm bl-no-border-radius bl-token-attribute-main-input"
 				:dir="options.textDirection"
-				:url="autocompleteUrl"
+				:getData="autocomplete"
 				useQuoteAsWordBoundary
 				v-model="textValue"
 			/>
@@ -131,7 +131,6 @@
 </template>
 
 <script setup lang="ts">
-import { blacklabPaths } from '@/api';
 import Autocomplete from '@/components/Autocomplete.vue';
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
 import CqlAddAttributeButton from '@/components/cql/CqlAddAttributeButton.vue';
@@ -160,10 +159,10 @@ const model = useVModel(props, 'modelValue', emit, {
 });
 const showModal = ref(false);
 const currentAnnotation = computed(() => props.options.allAnnotationsMap[model.value.annotationId]);
-const autocompleteUrl = computed(() => {
-	if (!currentAnnotation.value) return '';
-	return blacklabPaths.autocompleteAnnotation(props.options.indexId, currentAnnotation.value.annotatedFieldId, currentAnnotation.value.id);
-});
+function autocomplete(term: string): Promise<string[]> {
+	if (!currentAnnotation.value) return Promise.resolve([]);
+	return props.options.autocomplete(currentAnnotation.value, term);
+}
 const hasUploadedValue = computed(() => !!model.value.uploadedValue);
 const uploadedValuesSummary = computed(() => {
 	if (!hasUploadedValue.value) return '';

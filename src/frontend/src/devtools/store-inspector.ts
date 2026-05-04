@@ -1,6 +1,8 @@
 import * as RootStore from '@/app/state/root-store';
+import * as UIStore from '@/app/state/ui-state';
 import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
@@ -10,8 +12,6 @@ import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewsStore from '@/features/search/model/results/view-state';
-import * as TagsetStore from '@/features/corpus/model/tagset-state';
-import * as UIStore from '@/app/state/ui-state';
 
 import { setupDevtoolsPlugin } from '@vue/devtools-api';
 import { isRef, toRaw, unref, watch, type App } from 'vue';
@@ -55,7 +55,7 @@ const ROOT_STORE: StoreLeaf = {
 	id: ROOT_STORE_ID,
 	label: 'Root Store',
 	readGetters: () => RootStore.get,
-	watchState: () => RootStore.get.loadingState().value,
+	watchState: () => ({}),
 };
 
 const STORE_GROUPS: StoreGroup[] = [

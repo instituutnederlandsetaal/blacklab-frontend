@@ -1,5 +1,5 @@
 import type { CFPageConfig, NormalizedFormat, NormalizedIndex, NormalizedIndexBase, Tagset } from "@/types/apptypes";
-import type { BLAnnotatedField, BLDocGroupResults, BLDocResults, BLDocument, BLFormatContent, BLHit, BLHitGroupResults, BLHitResults, BLIndexMetadata, BLParsePatternResponse, BLRelationInfo, BLResponse, BLSearchParameters, BLServer, BLShareInfo, BLTermOccurances, BLUser } from "@/types/blacklabtypes";
+import type { BLAnnotatedField, BLDocGroupResults, BLDocResults, BLDocument, BLFormatContent, BLHit, BLHitGroupResults, BLHitResults, BLParsePatternResponse, BLRelationInfo, BLResponse, BLSearchParameters, BLServer, BLShareInfo, BLTermOccurances, BLUser } from "@/types/blacklabtypes";
 import type { CancelableRequest } from "@/utils/loadable-streams";
 import type { AxiosRequestConfig } from "axios";
 
@@ -19,7 +19,6 @@ export type DocumentContentsParameters = {
 };
 
 export interface FrontendApi {
-	getCorpus: ApiEndpoint<BLIndexMetadata, [indexId: string]>;
 	/** Retrieve the config for a given corpus/index, or return the default config (or overrides of the default config) if indexId is null */
 	getConfig: ApiEndpoint<CFPageConfig, [indexId: string|null]>;
 	getDocumentContents: ApiEndpoint<string, [params: DocumentContentsParameters]>;
@@ -58,4 +57,32 @@ export interface BlackLabApi {
 	getSnippet: ApiEndpoint<BLHit, [indexId: string, docId: string, field: string|undefined, hitstart: number, hitend: number, context?: string|number]>;
 	getTermFrequencies: ApiEndpoint<BLTermOccurances, [indexId: string, annotationId: string, values?: string[], filter?: string, number?: number]>;
 	getTermAutocomplete: ApiEndpoint<string[], [indexId: string, annotatedFieldId: string, annotationId: string, prefix: string]>;
+	getMetadataAutocomplete: ApiEndpoint<string[], [indexId: string, metadataFieldId: string, prefix: string]>;
+}
+
+export class ApiError extends Error {
+	public readonly title: string;
+	public readonly message: string;
+	/** Message representing the httpCode, like "Not Found" for 404 */
+	public readonly statusText: string;
+	/** Http code, -1 if generic network error, http code otherwise, or none if no network error at all. */
+	public readonly httpCode: number|undefined;
+
+	public static CANCELLED = new ApiError('Request Cancelled', 'The request was cancelled by the user.', 'Cancelled', -1);
+
+	constructor(title: string, message: string, statusText: string, httpCode: number|undefined) {
+		super(message);
+		this.title = title;
+		this.message = message;
+		this.statusText = statusText;
+		this.httpCode = httpCode;
+	}
+
+	get isCancelledRequest() { return this === ApiError.CANCELLED; }
+
+	public static wrap(error: any): ApiError {
+		if (error instanceof ApiError) return error;
+		if (error instanceof Error) return new ApiError('Unknown Error', `${error.message}`, 'Error', undefined);
+		return new ApiError(error?.title ?? 'Unknown Error', error?.message ?? `${JSON.stringify(error)}`, error?.statusText ?? 'Error', error?.httpCode ?? undefined);
+	}
 }

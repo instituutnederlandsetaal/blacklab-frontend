@@ -125,16 +125,12 @@
 						/>
 
 						<Autocomplete v-else
-							
-							
-
 							useQuoteAsWordBoundary
 
 							:placeholder="$tAnnotDisplayName(token.annotation)"
 							:dir="token.annotation.isMainAnnotation ? mainTokenTextDirection : undefined"
 							:disabled="index >= ngramSize"
-
-							:url="autocompleteUrl(token.annotation)"
+							:getData="autocomplete(token.annotation)"
 
 							:value="token.value"
 							@change="updateTokenValue(index, $event)"
@@ -174,7 +170,6 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 
-import { blacklabPaths } from '@/_new/shared/api';
 import Autocomplete from '@/components/Autocomplete.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
@@ -182,6 +177,7 @@ import ParallelSource from '@/pages/search/form/ParallelSource.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import type { OptGroup, Option } from '@/utils/options';
 
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
 import { defineComponent, watch } from 'vue';
@@ -201,6 +197,7 @@ export default defineComponent({
 	data: () => ({
 		debug,
 		subscriptions: [] as Array<() => void>,
+		blacklab: useBlackLabApi()
 	}),
 	computed: {
 		exploreMode: {
@@ -317,8 +314,8 @@ export default defineComponent({
 				token: { value }
 			});
 		},
-		autocompleteUrl(annot: CorpusStore.NormalizedAnnotation) {
-			return blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, annot.annotatedFieldId, annot.id);
+		autocomplete(annot: CorpusStore.NormalizedAnnotation): ((q: string) => Promise<string[]>) {
+			return (q: string) => this.blacklab.getTermAutocomplete(CorpusStore.get.indexId()!, annot.annotatedFieldId, annot.id, q);
 		}
 	},
 	created() {

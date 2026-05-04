@@ -69,11 +69,12 @@
 </template>
 
 <script lang="ts">
-import * as Api from '@/_new/shared/api';
 import Modal from '@/components/Modal.vue';
 import type { NormalizedFormat } from '@/types/apptypes';
 import { defineComponent } from 'vue';
 
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { Option, Options } from '@/utils/options';
 import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
@@ -136,7 +137,7 @@ export default defineComponent({
 			const presetName = this.formatPresetName;
 			this.downloading = true;
 
-			Api.blacklab.getFormatContent(this.formatPresetName)
+			useBlackLabApi().getFormatContent(this.formatPresetName)
 			.then(data => {
 				let configFileType = data.configFileType.toLowerCase();
 				if (configFileType === 'yml') {
@@ -149,7 +150,7 @@ export default defineComponent({
 					this.formatName = presetName.split(':')[1] || presetName; // default to the preset name
 				this.dirty = false;
 			})
-			.catch((e: Api.ApiError) => this.error = e.message)
+			.catch((e: ApiError) => this.error = e.message)
 			.finally(() => this.downloading = false)
 		},
 		loadFormatFromDisk(e: Event) {
@@ -212,14 +213,14 @@ export default defineComponent({
 		},
 		uploadFormat() {
 			this.uploading = true;
-			Api.blacklab.postFormat(`${this.formatName}.blf.${this.formatLanguage.toLowerCase()}`, this.formatContents)
+			useBlackLabApi().postFormat(`${this.formatName}.blf.${this.formatLanguage.toLowerCase()}`, this.formatContents)
 			.then(data => {
 				this.$emit('create');
 				this.$emit('success', data.status.message);
 				this.dirty = false;
 				this.error = '';
 			})
-			.catch((e: Api.ApiError) => this.error = e.message)
+			.catch((e: ApiError) => this.error = e.message)
 			.finally(() => this.uploading = false);
 		}
 	},

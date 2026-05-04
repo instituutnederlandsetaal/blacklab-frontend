@@ -1,38 +1,43 @@
 import App from '@/App.vue';
+import { createApi } from '@/_new/app/plugins/installApi';
+import { createCorpusData } from '@/_new/app/plugins/installCorpusData';
 
-import { init as initApi } from '@/_new/shared/api';
+
 import * as LoginSystem from '@/_new/shared/auth/loginsystem';
 import { installApp } from '@/app/install-app';
 import { startAppEffects } from '@/app/start-app-effects';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
-import { createApp, type App as VueApp } from 'vue';
+import router from '@/navigation/router';
+import { computed, createApp, type App as VueApp } from 'vue';
 
-let apiClientsInitialized = false;
 
 export type AppRuntime = {
 	app: VueApp;
 	mount: (selector?: string) => unknown;
 };
 
-function initializeApiClients(user: Awaited<typeof LoginSystem.user>) {
-	if (apiClientsInitialized) {
-		return;
-	}
 
-	initApi('blacklab', BLS_URL, user);
-	initApi('frontend', CONTEXT_URL, user);
-	apiClientsInitialized = true;
-}
 
 export async function createAppRuntime(): Promise<AppRuntime> {
 	const user = await LoginSystem.user;
-	initializeApiClients(user);
+
+	const api = createApi({
+		frontend: {	baseUrl: CONTEXT_URL, user },
+		blacklab: {	baseUrl: BLS_URL, user },
+	});
+	const currentCorpusId = computed(() => router.currentRoute.value.params.indexId as string || null);
+	const corpusData = createCorpusData(api.blacklabApi, api.frontendApi, currentCorpusId, user);
+
+	const app = createApp(App);
+	app.use(api);
+	app.use(corpusData);
+
+
 	installHooksGlobal();
 	installLegacyStoreGlobals();
 
-	const app = createApp(App);
 	installApp(app);
 	installStoreInspectorDevtools(app);
 	startAppEffects(app);

@@ -1,12 +1,13 @@
-import { combineLoadableStreamsIncludingEmpty, EMPTY_LOADABLE_STREAM, InteractiveLoadable, mapLoaded, type Loadable } from '@/utils/loadable-streams';
+import { CancelableRequest, combineLoadableStreamsIncludingEmpty, EMPTY_LOADABLE_STREAM, InteractiveLoadable, mapLoaded, type Loadable } from '@/utils/loadable-streams';
 import type { User } from 'oidc-client-ts';
 import { pipe, switchMap, tap, type Observable } from 'rxjs';
 
-import type { BlackLabApi, FrontendApi } from '@/_new/shared/api';
+import type { ApiEndpoint, ApiError, BlackLabApi, FrontendApi } from '@/_new/shared/api/lib/api-types';
 import { processTagset } from '@/features/corpus/model/tagset-state';
-import type { ApiError, CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
+import type { CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
 import type { BLIndexMetadata, BLRelationInfo } from '@/types/blacklabtypes';
 import { normalizeIndex } from '@/utils/blacklabutils';
+import { type QueryFunction } from '@tanstack/vue-query';
 
 export type CorpusChange = {
 	index: NormalizedIndex|undefined;
@@ -20,7 +21,7 @@ function indexIdToResponses(blacklab: BlackLabApi, frontend: FrontendApi, indexI
 		// Requesting config is valid for null index, will return the builtin default config (with customizations if applicable).
 		config: frontend.getConfig(indexId),
 
-		index: indexId ? frontend.getCorpus(indexId) : EMPTY_LOADABLE_STREAM,
+		index: indexId ? blacklab.getCorpus(indexId) : EMPTY_LOADABLE_STREAM,
 		relations: indexId ? blacklab.getRelations(indexId) : EMPTY_LOADABLE_STREAM,
 		tagset: indexId ? frontend
 			.getTagset(indexId)
@@ -74,3 +75,20 @@ export class CorpusDataLoader extends InteractiveLoadable<CorpusDataInput, Corpu
 	};
 }
 
+/**
+ * Wrap an ApiEndpoint (which is just a function of shape (...args, axiosRequestConfig) => CancelableRequest<R>)
+ * into a Tanstack QueryFunction of the same shape, except it has an extra string param at the front (for the querykey constant part).
+ * It also takes care of propagating cancelation from tanstack query to the CancelableRequest
+ * 
+ * Basically in non-typescript-magic code, we do this...
+ * `const wrap(apiFn) => ({queryKey: [cacheKey, ...apiFnArgs]}) => apiFn(...apiFnArgs)`
+ */
+export function adaptApiFunction<ApiFn extends ApiEndpoint<any, any>>(apiFn: ApiFn): QueryFunction<ReturnType<ApiFn>['request'], readonly [string, ...Parameters<ApiFn>]> {
+	const r: QueryFunction<ReturnType<ApiFn>['request'], readonly [string, ...Parameters<ApiFn>]> = ({queryKey: [, ...argsToApi], signal}) => {
+		const responseAndCancel = apiFn(...argsToApi);
+		if (responseAndCancel instanceof CancelableRequest)
+			signal.addEventListener('abort', () => responseAndCancel.cancel(signal.reason));
+		return responseAndCancel.request;
+	}
+	return r;
+}

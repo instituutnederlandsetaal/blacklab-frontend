@@ -52,7 +52,8 @@
 	</Modal>
 </template>
 <script lang="ts">
-import * as Api from '@/_new/shared/api';
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
 import Modal from '@/components/Modal.vue';
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 import type { PropType } from 'vue';
@@ -117,7 +118,7 @@ export default defineComponent({
 			// Uploads are a little annoying, the request "hangs" until indexing is complete.
 			// So what we do, we start the upload, once the progress hits 100% we start polling the index status.
 			// Then once the original request succeeds, we stop polling and show the success message.
-			const {request, cancel} = Api.blacklab.postDocuments(
+			const {request, cancel} = useBlackLabApi().postDocuments(
 				corpus.id,
 				Array.from(this.documentFiles || []),
 				Array.from(this.metadataFiles || []),
@@ -131,7 +132,7 @@ export default defineComponent({
 				this.$emit('success', 'Data added to ' + this.corpus.displayName);
 				this.$emit('close');
 			})
-			.catch((e: Api.ApiError) => {
+			.catch((e: ApiError) => {
 				const msg = e.message;
 				this.uploadError = msg;
 			})

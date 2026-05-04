@@ -25,8 +25,6 @@
 			/>
 			<div v-else :class="bare ? undefined : 'input-group'">
 				<Autocomplete
-
-
 					useQuoteAsWordBoundary
 
 					:id="inputId"
@@ -36,7 +34,7 @@
 					:dir="textDirection"
 
 					:autocomplete="autocomplete"
-					:url="autocompleteUrl"
+					:getData="autocompleteFn"
 					v-model="value"
 				/>
 				<div v-if="!bare" class="input-group-btn">
@@ -102,7 +100,7 @@ import Lexicon from '@/pages/search/form/Lexicon.vue';
 import PartOfSpeech from '@/pages/search/form/PartOfSpeech.vue';
 import type { Option } from '@/utils/options';
 
-import { blacklabPaths } from '@/_new/shared/api';
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import { translate } from '@/utils/i18n';
 import { useTemplateRef } from 'vue';
@@ -119,6 +117,7 @@ const props = defineProps<{
 	simple?: boolean
 }>();
 
+const blacklab = useBlackLabApi();
 
 const uid = UID();
 const posOpen = ref(false);
@@ -171,8 +170,10 @@ const displayName = computed(() => translate.$tAnnotDisplayName(props.annotation
 const description = computed(() => translate.$tAnnotDescription(props.annotation));
 const options = computed<Option[]>(() => props.annotation.values || []);
 const autocomplete = computed(() => props.annotation.uiType === 'combobox' && props.annotation.annotatedFieldId !== '');
-const autocompleteUrl = computed(() => blacklabPaths.autocompleteAnnotation(CorpusStore.getState()!.id, props.annotation.annotatedFieldId, props.annotation.id));
-	
+function autocompleteFn(term: string): Promise<string[]> {
+	if (!props.annotation.annotatedFieldId) return Promise.resolve([]);
+	return blacklab.getTermAutocomplete(CorpusStore.get.indexId(), props.annotation.annotatedFieldId, props.annotation.id, term);
+}	
 
 function onFileChanged(event: Event) {
 

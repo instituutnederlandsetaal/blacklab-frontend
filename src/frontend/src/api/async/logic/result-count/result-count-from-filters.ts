@@ -2,10 +2,10 @@ import { of } from "rxjs";
 import { switchMap } from "rxjs/internal/operators/switchMap";
 import type { ObservableInput } from "rxjs/internal/types";
 
-import type { BlackLabApi } from "@/_new/shared/api";
 import type { NormalizedIndex } from "@/types/apptypes";
 import { InteractiveLoadable, Loadable } from "@/utils/loadable-streams";
 import { getCorpusTotals, getTotals } from "./result-count-helpers";
+import type { BlackLabApi } from "@/_new/shared/api/lib/api-types";
 
 export type SubcorpusInput = {
 	index: NormalizedIndex;

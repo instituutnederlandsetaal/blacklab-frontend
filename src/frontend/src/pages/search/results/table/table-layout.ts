@@ -4,7 +4,8 @@ import { hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHit
 
 import * as Highlights from './hit-highlighting';
 
-import { frontendPaths } from '@/_new/shared/api';
+
+import { frontendPaths } from '@/_new/shared/api/frontendApi';
 import type { KeysOfType } from '@/types/helpers';
 import type { Translate } from '@/utils/i18n';
 import type { OptGroup, Option, Options } from '@/utils/options';

@@ -11,7 +11,7 @@
  * https://blacklab.ivdnt.org/server/rest-api/corpus/parse-pattern/get.html#json-query-structure
  */
 
-import * as api from '@/_new/shared/api';
+import type { BlackLabApi } from '@/_new/shared/api/lib/api-types';
 import type { BCQLAndNode, BCQLCompareNode, BCQLOrNode, BCQLPositionFilterNode, BCQLQueryNode, BCQLRegexNode, BCQLTagAttributeExpressionNode, BCQLTextPatternNode, BCQLTextPatternStruct } from '@/types/blacklabcql';
 
 export type XmlTag = {
@@ -407,17 +407,17 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 
 const parsePatternCache: Map<string, Result[]> = new Map();
 
-async function parseBcql(indexId: string, bcql: string, defaultAnnotation: string): Promise<Result[]> {
+async function parseBcql(blacklab: BlackLabApi, indexId: string, bcql: string, defaultAnnotation: string): Promise<Result[]> {
 	const cacheKey = indexId + ':::' + bcql;
 	if (parsePatternCache.has(cacheKey))
 		return parsePatternCache.get(cacheKey)!;
-	const response = await api.blacklab.getParsePattern(indexId, bcql);
+	const response = await blacklab.getParsePattern(indexId, bcql);
 	const result = interpretBcqlJson(bcql, response.parsed.json, defaultAnnotation);
 	parsePatternCache.set(cacheKey, result);
 	return result;
 }
 
 export {
-    parseBcql
+	parseBcql
 };
 

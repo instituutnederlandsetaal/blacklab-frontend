@@ -1,7 +1,7 @@
 import type { AxiosError } from 'axios';
 import axios from 'axios';
 
-import { ApiError } from '@/types/apptypes';
+import { ApiError } from '@/_new/shared/api/lib/api-types';
 import { isBLError } from '@/types/blacklabtypes';
 import { CancelableRequest } from '@/utils/loadable-streams';
 import { isObject } from '@vueuse/core';
@@ -108,11 +108,12 @@ export async function handleError(error: AxiosError): Promise<never> {
 }
 
 
-
+export function resolvedRequest<T>(value: T): CancelableRequest<T> {
+	return new CancelableRequest(Promise.resolve(value), () => {});
+}
 export function rejectedRequest<T>(error: ApiError): CancelableRequest<T> {
 	return new CancelableRequest(Promise.reject(error), () => {});
 }
-
 export function combineRequests<T>(requests: Array<CancelableRequest<unknown>>, request: Promise<T>): CancelableRequest<T> {
 	return new CancelableRequest(request, () => requests.forEach(request => request.cancel()));
 }

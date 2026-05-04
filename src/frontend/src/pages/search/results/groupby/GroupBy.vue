@@ -203,7 +203,6 @@ import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalSearchSettingsStore from '@/features/search/model/results/global-results-state';
 import * as ResultsStore from '@/features/search/model/results/view-state';
 
-import { blacklab } from '@/_new/shared/api';
 import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 
 import type { BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
@@ -221,6 +220,7 @@ import SelectPicker from '@/components/SelectPicker.vue';
 import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
 
 
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 import Tabs from '@/components/Tabs.vue';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
@@ -952,7 +952,7 @@ export default defineComponent({
 
 				this.hits = undefined;
 				if (this.firstHitPreviewQuery && this.type === 'hits') {
-					blacklab.getHits(CorpusStore.get.indexId()!, this.firstHitPreviewQuery).request.then(r => {
+					useBlackLabApi().getHits(CorpusStore.get.indexId()!, this.firstHitPreviewQuery).request.then(r => {
 						const data = r as BLHitResults;
 						if (isHitResults(data)) {
 							// Make sure the target hits (otherFields) 'know' they are the target of a relation.

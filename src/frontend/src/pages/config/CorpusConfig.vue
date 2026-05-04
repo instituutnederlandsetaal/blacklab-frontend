@@ -17,11 +17,11 @@
 </template>
 
 <script lang="ts">
-import { blacklab } from '@/_new/shared/api';
 import type { NormalizedIndex } from '@/types/apptypes';
 import { defineComponent } from 'vue';
 
 import POS from './POS.vue';
+import { useBlackLabApi } from '@/_new/app/plugins/installApi';
 
 export default defineComponent({
 	components: {
@@ -43,7 +43,7 @@ export default defineComponent({
 	methods: {
 		load() {
 			this.loading = true;
-			blacklab.getCorpus(this.id)
+			useBlackLabApi().getCorpus(this.id)
 			.then(c => this.index = c)
 			.catch(e => this.error = e.message)
 			.finally(() => this.loading = false)
