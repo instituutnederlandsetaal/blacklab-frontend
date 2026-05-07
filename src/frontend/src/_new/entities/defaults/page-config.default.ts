@@ -1,4 +1,4 @@
-import type { CFPageConfig } from "@/types/apptypes";
+import type { CFPageConfig } from '@/_new/types/apptypes';
 
 const defaultConfig: CFPageConfig = {
 	analytics: {

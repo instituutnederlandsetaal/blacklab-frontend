@@ -3,17 +3,14 @@
 	"java.import.gradle.enabled": false,
 	"java.import.gradle.wrapper.enabled": false,
 	"java.import.projectSelection": "manual",
-	"java.project.resourceFilters": [
-		"node_modules",
-		"\\.git",
-		"/src/frontend/",
-		"/docs"
-	],
+	"java.project.resourceFilters": ["node_modules", "\\.git", "/src/frontend/", "/docs"],
 	"editor.codeActionsOnSave": {
-		"source.sortImports": "explicit",
-		"source.organizeImports": "explicit",
+		"source.sortImports": "never",
+		"source.organizeImports": "never",
 		"source.addMissingImports.ts": "explicit",
+		"source.removeUnusedImports": "explicit",
 		"source.fixAll.oxc": "explicit",
+		"source.format.oxc": "explicit"
 	},
 	"oxc.configPath": "src/frontend/oxlint.config.ts",
 	"oxc.tsConfigPath": "src/frontend/tsconfig.app.json",
@@ -21,4 +18,9 @@
 	"editor.insertSpaces": false,
 	"oxc.fixKind": "safe_fix",
 	"oxc.typeAware": true,
+	"oxc.fmt.configPath": "src/frontend/oxfmt.config.ts",
+	"editor.defaultFormatter": "oxc.oxc-vscode",
+	"[typescript]": {
+		"editor.defaultFormatter": "oxc.oxc-vscode"
+	}
 }

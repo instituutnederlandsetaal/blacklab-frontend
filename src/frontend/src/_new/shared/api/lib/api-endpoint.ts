@@ -1,5 +1,5 @@
 import { cleanQueryParams, handleError } from "@/_new/shared/api/lib/api-utils";
-import { CancelableRequest } from "@/utils/loadable-streams";
+import { CancelableRequest } from "@/_new/utils/loadable/loadable-streams";
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 import type { User } from "oidc-client-ts";
 import { toValue, type MaybeRef } from "vue";

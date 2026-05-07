@@ -5,19 +5,19 @@ import { map } from 'rxjs';
 import { describe, expect, test } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 
-import { InteractiveLoadable, Loadable } from '@/utils/loadable-streams';
+import { Loadable } from '@/_new/utils/loadable/loadable';
+import { InteractiveLoadable } from '@/_new/utils/loadable/loadable-streams';
 
 describe('InteractiveLoadable Vue template interop', () => {
 	test('renders .value from a component template', async () => {
-		const loadable = new InteractiveLoadable<number, string>(
-			input$ => input$.pipe(map(value => Loadable.Loaded(`value:${value}`))),
-			{ debounce: 0 }
-		);
+		const loadable = new InteractiveLoadable<number, string>(input$ => input$.pipe(map(value => Loadable.Loaded(`value:${value}`))), { debounce: 0 });
 
-		const wrapper = mount(defineComponent({
-			data: () => ({ loadable }),
-			template: '<div>{{ loadable.value }}</div>'
-		}));
+		const wrapper = mount(
+			defineComponent({
+				data: () => ({ loadable }),
+				template: '<div>{{ loadable.value }}</div>',
+			}),
+		);
 
 		loadable.next(5);
 		await nextTick();

@@ -1,5 +1,6 @@
 <template>
-	<SelectPicker v-if="enabled"
+	<SelectPicker
+		v-if="enabled"
 		class="username"
 		data-class="btn-navbar"
 		data-width="auto"
@@ -8,55 +9,60 @@
 		hideEmpty
 		placeholder="Not logged in"
 		allowUnknownValues
-
 		:disabled="!canLogin"
 		:modelValue="username"
 		:options="options"
-
 		@update:modelValue="handle"
 	/>
 </template>
 
 <script lang="ts">
-import * as LoginSystem from '@/_new/shared/auth/loginsystem';
-import SelectPicker from '@/components/SelectPicker.vue';
-import type { Option } from '@/utils/options';
 import { defineComponent } from 'vue';
 
+import * as LoginSystem from '@/_new/shared/auth/loginsystem';
+import type { Option } from '@/_new/utils/options';
+
+import SelectPicker from '@/_new/widgets/SelectPicker.vue';
+
 export default defineComponent({
-	components: {SelectPicker},
+	components: { SelectPicker },
 	data: () => ({
-		username: null as string|null,
+		username: null as string | null,
 	}),
 	computed: {
-		canLogin(): boolean { return !!LoginSystem.userManager; },
-		enabled(): boolean { return this.canLogin || !!this.username; },
+		canLogin(): boolean {
+			return !!LoginSystem.userManager;
+		},
+		enabled(): boolean {
+			return this.canLogin || !!this.username;
+		},
 		options(): Option[] {
 			const r: Option[] = [];
 			if (this.canLogin && !this.username) {
-				r.push({label: 'Log in', value: 'login'});
+				r.push({ label: 'Log in', value: 'login' });
 			}
 			if (this.canLogin && this.username) {
-				r.push({label: 'Log out', value: 'logout'});
+				r.push({ label: 'Log out', value: 'logout' });
 			}
 			return r;
-		}
+		},
 	},
 	methods: {
 		handle(value: string) {
-			if (value === 'login') { LoginSystem.login(); }
-			else if (value === 'logout') { LoginSystem.logout(); }
-		}
+			if (value === 'login') {
+				LoginSystem.login();
+			} else if (value === 'logout') {
+				LoginSystem.logout();
+			}
+		},
 	},
 	created() {
-		LoginSystem.userName.then(username => this.username = username);
-	}
-})
-
+		LoginSystem.userName.then(username => (this.username = username));
+	},
+});
 </script>
 
 <style lang="scss">
-
 .username *:disabled .menu-caret {
 	display: none;
 }
@@ -67,6 +73,4 @@ export default defineComponent({
 	display: inline-block;
 	width: 1em;
 }
-
-
 </style>

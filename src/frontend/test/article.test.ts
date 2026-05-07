@@ -1,43 +1,45 @@
+import { afterAll, describe, expect, test, vi } from 'vitest';
+
+import type { BLDoc } from '@/_new/types/blacklabtypes';
+import { Loadable, LoadableState } from '@/_new/utils/loadable/loadable';
+import { CancelableRequest, loadableFromStream, promiseFromLoadableStream } from '@/_new/utils/loadable/loadable-streams';
 import type { Input } from '@/pages/article/article';
 import { hits$, input$, metadata$, validPaginationParameters$ } from '@/pages/article/article';
-import type { BLDoc } from '@/types/blacklabtypes';
-import { CancelableRequest, Loadable, loadableFromStream, LoadableState, promiseFromLoadableStream } from '@/utils/loadable-streams';
-import { afterAll, describe, expect, test, vi } from 'vitest';
 
 const ids = vi.hoisted(() => ({
 	MOCK_INDEX_ID: 'test',
 	MOCK_DOC_ID: 'test',
-}))
+}));
 
 const values = vi.hoisted(() => ({
 	MOCK_HITS: {
-		"hits": [
-			{"docPid": ids.MOCK_DOC_ID, "start": 53,"end": 54,"left": {},"match": {},"right": {}},
-			{"docPid": ids.MOCK_DOC_ID, "start": 125,"end": 126,"left": {},"match": {},"right": {}},
-			{"docPid": ids.MOCK_DOC_ID, "start": 187,"end": 188,"left": {},"match": {},"right": {}}
+		hits: [
+			{ docPid: ids.MOCK_DOC_ID, start: 53, end: 54, left: {}, match: {}, right: {} },
+			{ docPid: ids.MOCK_DOC_ID, start: 125, end: 126, left: {}, match: {}, right: {} },
+			{ docPid: ids.MOCK_DOC_ID, start: 187, end: 188, left: {}, match: {}, right: {} },
 		],
-		"docInfos": {
+		docInfos: {
 			[ids.MOCK_DOC_ID]: {
-				"tokenCounts": [{"fieldName": "contents","tokenCount": 246}],
-				"lengthInTokens": 246,
-				"mayView": true,
-			}
-		}
+				tokenCounts: [{ fieldName: 'contents', tokenCount: 246 }],
+				lengthInTokens: 246,
+				mayView: true,
+			},
+		},
 	},
 	MOCK_DOC: {
-		"docPid": ids.MOCK_DOC_ID,
-		"docInfo": {
-			"tokenCounts": [{"fieldName": "contents","tokenCount": 246}],
-			"lengthInTokens": 246,
-			"mayView": true,
-			"pid": [ids.MOCK_DOC_ID],
-			"title": [""],
-			"date": [""],
+		docPid: ids.MOCK_DOC_ID,
+		docInfo: {
+			tokenCounts: [{ fieldName: 'contents', tokenCount: 246 }],
+			lengthInTokens: 246,
+			mayView: true,
+			pid: [ids.MOCK_DOC_ID],
+			title: [''],
+			date: [''],
 		},
-		"docFields": {
-			"pidField": "pid",
-			"titleField": "title",
-			"dateField": "date"
+		docFields: {
+			pidField: 'pid',
+			titleField: 'title',
+			dateField: 'date',
 		},
 	} as any as BLDoc, // blech, could probably remove the any, but hard
 
@@ -45,9 +47,9 @@ const values = vi.hoisted(() => ({
 		title: 'test',
 		message: 'test',
 		statusText: 'test',
-		httpCode: undefined
-	}
-}))
+		httpCode: undefined,
+	},
+}));
 
 function r<T>(v: T): (...params: any[]) => CancelableRequest<T> {
 	return () => new CancelableRequest(Promise.resolve(v), () => {});
@@ -60,12 +62,12 @@ function e<T>(): CancelableRequest<T> {
 vi.mock('@/api', () => ({
 	blacklab: {
 		getHits: r(values.MOCK_HITS),
-		getDocumentInfo: (_indexId: string, docId: string) => docId === values.MOCK_DOC.docPid ? r(values.MOCK_DOC)() : e(),
+		getDocumentInfo: (_indexId: string, docId: string) => (docId === values.MOCK_DOC.docPid ? r(values.MOCK_DOC)() : e()),
 	},
 	frontend: {
 		getDocumentContents: r<string>(''),
 	},
-}))
+}));
 
 const baseInputs: Input = {
 	patt: '"test"',
@@ -75,7 +77,7 @@ const baseInputs: Input = {
 	pageSize: 10,
 	indexId: ids.MOCK_INDEX_ID,
 	docId: ids.MOCK_DOC_ID,
-}
+};
 
 describe('hits$', () => {
 	// For ease of use, we'll use a LoadableFromStream object to test the hits$ observable.
@@ -86,18 +88,18 @@ describe('hits$', () => {
 		input$.next(baseInputs);
 		await promiseFromLoadableStream(hits$); // needs a moment to get the hits.
 		expect(hitsOutput).toMatchObject(Loadable.Loaded(values.MOCK_HITS.hits.map(h => [h.start, h.end])));
-	})
+	});
 	test('Should clear if no docId', async () => {
-		input$.next({...baseInputs, docId: undefined});
+		input$.next({ ...baseInputs, docId: undefined });
 		await promiseFromLoadableStream(hits$);
 		expect(hitsOutput).toMatchObject(Loadable.Empty());
 	});
 	test('Should clear if no indexId', async () => {
-		input$.next({...baseInputs, indexId: undefined});
+		input$.next({ ...baseInputs, indexId: undefined });
 		await promiseFromLoadableStream(hits$);
 		expect(hitsOutput).toMatchObject(Loadable.Empty());
 	});
-	afterAll(() => hitsOutput.dispose());
+	afterAll(() => hitsOutput.stop());
 });
 
 describe('metadata$', () => {
@@ -112,11 +114,10 @@ describe('metadata$', () => {
 		input$.next(baseInputs);
 		await promiseFromLoadableStream(metadata$); // wait for the metadata to load.
 		expect(output).toMatchObject(Loadable.Loaded(values.MOCK_DOC));
-	})
+	});
 
-	afterAll(() => output.dispose());
+	afterAll(() => output.stop());
 });
-
 
 // Take care to perform setup code ONLY inside beforeEach, beforeAll, or the test itself.
 // Code in test() calls is not guaranteed to run immediately.
@@ -125,8 +126,8 @@ describe('metadata$', () => {
 describe('validPaginationParameters$', () => {
 	const output = loadableFromStream(validPaginationParameters$);
 	test('Should be empty initially', () => {
-		input$.next({})
-		expect(output).toMatchObject(Loadable.Empty())
+		input$.next({});
+		expect(output).toMatchObject(Loadable.Empty());
 	});
 	test('Should fix the pagination parameters to match the findHit', async () => {
 		input$.next({
@@ -134,12 +135,12 @@ describe('validPaginationParameters$', () => {
 			findhit: values.MOCK_HITS.hits[0].start,
 			pageSize: 10,
 			wordstart: 0,
-			wordend: 1000
+			wordend: 1000,
 		});
 		await promiseFromLoadableStream(validPaginationParameters$);
 		expect(output.value).toMatchObject({
 			wordstart: 50,
-			wordend: 60
+			wordend: 60,
 		});
 
 		input$.next({
@@ -147,22 +148,22 @@ describe('validPaginationParameters$', () => {
 			findhit: values.MOCK_HITS.hits[0].start,
 			pageSize: 100,
 			wordstart: 0,
-			wordend: 1000
+			wordend: 1000,
 		});
 		await promiseFromLoadableStream(validPaginationParameters$);
 		expect(output.value).toMatchObject({
 			wordstart: 0,
 			wordend: 100,
-			findhit: values.MOCK_HITS.hits[0].start
+			findhit: values.MOCK_HITS.hits[0].start,
 		});
-	})
+	});
 	test('Should clear the findhit if invalid', async () => {
 		input$.next({
 			...baseInputs,
 			findhit: 10000,
 		});
 		await promiseFromLoadableStream(validPaginationParameters$);
-		expect(output.value).toMatchObject({findhit: undefined});
+		expect(output.value).toMatchObject({ findhit: undefined });
 	});
 	test('Should set the pageSize to the doclength if not provided', async () => {
 		input$.next({
@@ -170,16 +171,16 @@ describe('validPaginationParameters$', () => {
 			pageSize: undefined,
 		});
 		await promiseFromLoadableStream(validPaginationParameters$);
-		expect(output.value).toMatchObject({wordend: values.MOCK_DOC.docInfo.lengthInTokens});
+		expect(output.value).toMatchObject({ wordend: values.MOCK_DOC.docInfo.lengthInTokens });
 	});
 	test('Should expose the error as a Loadable if the doc is not found', async () => {
 		input$.next({
 			...baseInputs,
-			docId: 'notfound'
+			docId: 'notfound',
 		});
-		await expect(promiseFromLoadableStream(validPaginationParameters$)).rejects.toMatchObject({statusText: 'test'});
-		expect(output).toMatchObject({state: LoadableState.error});
+		await expect(promiseFromLoadableStream(validPaginationParameters$)).rejects.toMatchObject({ statusText: 'test' });
+		expect(output).toMatchObject({ state: LoadableState.error });
 	});
 
-	afterAll(() => output.dispose());
+	afterAll(() => output.stop());
 });
