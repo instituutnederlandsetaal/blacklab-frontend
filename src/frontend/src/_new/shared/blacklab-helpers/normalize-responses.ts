@@ -1,4 +1,3 @@
-import { getParallelFieldParts, PARALLEL_FIELD_SEPARATOR } from '@/_new/shared/blacklab-helpers/parallel-helper';
 import type {
 	NormalizedIndex,
 	NormalizedAnnotation,
@@ -10,7 +9,9 @@ import type {
 	NormalizedIndexBase,
 } from '@/_new/types/apptypes';
 import * as BLTypes from '@/_new/types/blacklabtypes';
-import { mapReduce } from '@/_new/utils/map-reduce';
+
+import { getParallelFieldParts, PARALLEL_FIELD_SEPARATOR } from '@/_new/shared/blacklab-helpers/parallel-helper';
+import { mapReduce } from '@/_new/shared/utils/map-reduce';
 
 /** Find the annotation that contains annotationId as on of its subAnnotations. */
 function findParentAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string): string | undefined {
@@ -260,8 +261,8 @@ export function normalizeIndexBase(blIndex: BLTypes.BLIndex, id: string): Normal
 		owner: id.substring(0, id.indexOf(':')) || null,
 		status: blIndex.status,
 		timeModified: blIndex.timeModified,
-		tokenCount: blIndex.tokenCount || 0,
-		documentCount: blIndex.documentCount || 0,
+		tokenCount: blIndex.count.tokens || 0,
+		documentCount: blIndex.count.documents || 0,
 	};
 }
 

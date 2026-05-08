@@ -87,19 +87,20 @@ import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
 import { useBlackLabApi } from '@/_new/app/plugins/installApi';
-import type { ApiError } from '@/_new/shared/api/lib/api-types';
 import type { NormalizedFormat } from '@/_new/types/apptypes';
-import type { Option, Options } from '@/_new/utils/options';
 
-import Modal from '@/_new/widgets/Modal.vue';
-import SelectPicker from '@/_new/widgets/SelectPicker.vue';
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
+import type { Option, Options } from '@/_new/shared/utils/options';
+
+import Modal from '@/_new/shared/ui/Modal.vue';
+import SelectPicker from '@/_new/shared/ui/SelectPicker.vue';
 
 export default defineComponent({
 	components: {
 		Modal,
 		SelectPicker,
 		// this causes the monaco editor to become its own js bundle, nice, since it's literally bigger than all of our other code combined
-		MonacoEditor: () => import('@/_new/widgets/MonacoEditor.vue'),
+		MonacoEditor: () => import('@/_new/shared/ui/MonacoEditor.vue'),
 	},
 	props: {
 		/** When clicking the pencil to edit an existing format. */

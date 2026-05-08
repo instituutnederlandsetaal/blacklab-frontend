@@ -1,8 +1,8 @@
 import { computed, watchEffect } from 'vue';
 import { useRoute } from 'vue-router';
 
-import { useCustomCss, useCustomJs, useFavicon, useTitle } from '@/_new/app/features/interop/page-customization';
-import { setLegacyIndexIdGlobal } from '@/_new/app/features/interop/window-globals';
+import { useCustomCss, useCustomJs, useFavicon, useTitle } from '@/_new/app/interop/page-customization';
+import { setLegacyIndexIdGlobal } from '@/_new/app/interop/window-globals';
 import { useCurrentConfig } from '@/_new/app/plugins/installCorpusData';
 import { useRouteBootstrap } from '@/_new/app/plugins/installRoutePageBootstrapped';
 import { useCurrentCorpusId } from '@/_new/app/plugins/installRouter';

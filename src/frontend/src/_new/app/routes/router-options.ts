@@ -48,7 +48,7 @@ export default {
 			alias: '/:corpus/search/:pathMatch(.*)*',
 			meta: { name: 'search', getTitle: (displayName: string) => `${displayName} Search` } satisfies CustomRouteMeta,
 			// component: () => import('@/pages/search/SearchPage.vue'),
-			component: () => import('@/_new/pages/PlaceholderPage.vue'),
+			component: () => import('@/_new/pages/search/SearchPage.vue'),
 		},
 		// {
 		// 	name: 'article',

@@ -12,7 +12,6 @@
 		},
 		"extended": {
 			"heading": "Extended",
-			"splitBatch": "Split batch queries",
 			"within": "Within:"
 		},
 		"advanced": {

@@ -101,10 +101,11 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import debug from '@/_new/app/features/debug/debug';
 import type { NormalizedIndexBase, NormalizedFormat } from '@/_new/types/apptypes';
 
-import Spinner from '@/_new/widgets/Spinner.vue';
+import debug from '@/_new/shared/debug/debug';
+
+import Spinner from '@/_new/shared/ui/Spinner.vue';
 
 type IndexWithExtraInfo = NormalizedIndexBase & {
 	canSearch: boolean;

@@ -12,13 +12,11 @@
 		},
 		"extended": {
 			"heading": "Uitgebreid",
-			"splitBatch": "Split batch queries",
 			"within": "Binnen:"
 		},
 		"advanced": {
 			"heading": "Geavanceerd",
 			"copyAdvancedQuery": "Kopiëren naar CQL-editor",
-
 
 			"queryBuilder": {
 				"$comment": "we use underscores here because mustachejs keys cannot contain dots",
@@ -195,8 +193,6 @@
 				"afterTheHit": "na het resultaat",
 				"fromTheEnd": "vanaf het einde van het resultaat"
 			},
-
-
 
 			"relationPartByClass": {
 				"default": {

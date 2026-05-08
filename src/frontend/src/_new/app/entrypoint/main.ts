@@ -1,4 +1,4 @@
-import '@/_new/app/features/interop/jquery-globals';
+import '@/_new/app/interop/jquery-globals';
 import 'bootstrap';
 
 // import { installStoreInspectorDevtools } from '@/_new/app/features/devtools/store-inspector';
@@ -10,7 +10,7 @@ import HighchartsVue from 'highcharts-vue';
 import { createApp, effectScope, type App, type ObjectPlugin } from 'vue';
 
 // import { installHooksGlobal } from '@/interop/hooks';
-import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/_new/app/features/interop/window-globals';
+import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/_new/app/interop/window-globals';
 import { startCorpusDataToLegacyStoreInterop } from '@/_new/app/plugins/effects/corpus-bootstrap.effect';
 import { startCustomizationInterop } from '@/_new/app/plugins/effects/page-customization.effect';
 import { createApi } from '@/_new/app/plugins/installApi';
@@ -18,12 +18,13 @@ import { createCorpusData } from '@/_new/app/plugins/installCorpusData';
 import { createRouteBootstrapPlugin } from '@/_new/app/plugins/installRoutePageBootstrapped';
 // import Filters from '@/components/filters';
 import createRouter from '@/_new/app/plugins/installRouter';
+
 import * as LoginSystem from '@/_new/shared/auth/loginsystem';
 import * as i18n from '@/_new/shared/i18n/i18n';
 
-import DebugComponent from '@/_new/app/features/debug/Debug.vue';
 import AppComponent from '@/_new/app/ui/App.vue';
-import AudioPlayer from '@/_new/widgets/AudioPlayer.vue';
+import DebugComponent from '@/_new/shared/debug/Debug.vue';
+import AudioPlayer from '@/_new/shared/ui//AudioPlayer.vue';
 
 const globalComponents: ObjectPlugin = {
 	install(app: App) {

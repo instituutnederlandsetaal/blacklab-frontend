@@ -2,9 +2,8 @@ import { isObject } from '@vueuse/core';
 import type { AxiosError } from 'axios';
 import axios from 'axios';
 
-import { ApiError } from '@/_new/shared/api/lib/api-types';
+import { ApiError, CancelableRequest } from '@/_new/shared/api/lib/api-types';
 import { isBLError } from '@/_new/types/blacklabtypes';
-import { CancelableRequest } from '@/_new/utils/loadable/loadable-streams';
 
 export function cleanQueryParams(params: any): any {
 	if (isObject(params))

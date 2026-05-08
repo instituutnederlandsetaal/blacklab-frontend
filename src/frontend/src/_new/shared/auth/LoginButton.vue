@@ -20,9 +20,9 @@
 import { defineComponent } from 'vue';
 
 import * as LoginSystem from '@/_new/shared/auth/loginsystem';
-import type { Option } from '@/_new/utils/options';
+import type { Option } from '@/_new/shared/utils/options';
 
-import SelectPicker from '@/_new/widgets/SelectPicker.vue';
+import SelectPicker from '@/_new/shared/ui/SelectPicker.vue';
 
 export default defineComponent({
 	components: { SelectPicker },

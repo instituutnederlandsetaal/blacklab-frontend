@@ -11,8 +11,8 @@
 		<button @click="loadingState.retry()" type="button" class="btn btn-primary">Retry</button>
 	</div>
 	<!-- <div :class="wideView.value ? 'container-fluid' : 'container'" v-if="loadingState.value?.index"> -->
-	<!-- <QueryForm/> -->
-	<!-- <QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary"/> -->
+	<QueryForm @reset="reset" />
+	<!-- <QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary" /> -->
 
 	<!-- <pre>{{ { resultsVisible } }}</pre> -->
 
@@ -22,13 +22,19 @@
 
 <script setup lang="ts">
 import { useCurrentCorpusData } from '@/_new/app/plugins/installCorpusData';
-// import QueryForm from '@/pages/search/form/QueryForm.vue';
-// import QuerySummary from '@/pages/search/results/QuerySummary.vue';
+
+import * as SearchStore from './search-store';
+
 // import Results from '@/pages/search/results/Results.vue';
 // import * as InterfaceStore from '@/features/search/model/form/interface-state';
-
-import Spinner from '@/_new/widgets/Spinner.vue';
+import QueryForm from './form/ui/QueryForm.vue';
+// import QuerySummary from '@/pages/search/results/QuerySummary.vue';
 // import { wideView } from '@/pages/search/form/QueryFormSettings.vue';
+import Spinner from '@/_new/shared/ui/Spinner.vue';
+
+function reset() {
+	SearchStore.actions.reset();
+}
 
 const loadingState = useCurrentCorpusData();
 // const resultsVisible = computed(() => InterfaceStore.getState().viewedResults != null);

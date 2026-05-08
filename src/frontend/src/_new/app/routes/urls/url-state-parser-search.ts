@@ -11,7 +11,7 @@
 // import parseLucene from '@/utils/luceneparser';
 
 // import * as UIModule from '@/app/state/ui-state';
-// import * as UIStore from '@/app/state/ui-state';
+// import * as UIStore from '@/_new/pages/search/config/ui-customization-store';;
 // import * as CorpusModule from '@/features/corpus/model/corpus-state';
 // import * as TagsetModule from '@/features/corpus/model/tagset-state';
 // import type * as HistoryModule from '@/features/history/model/query-history-state';
@@ -33,8 +33,8 @@
 // import type { AnnotationValue, FilterValue } from '@/_new/types/apptypes';
 
 // import { useBlackLabApi } from '@/_new/app/plugins/installApi';
-// import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
-// import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
+// import type { CqlQueryBuilderData } from '@/_new/widgets/cql-query-builder/cql-types';
+// import { getQueryBuilderStateFromParsedQuery } from '@/_new/widgets/cql-query-builder/cql-types';
 // import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 // import { corpusCustomizations } from '@/utils/customization';
 
@@ -411,7 +411,7 @@
 // 		return {
 // 			shared: this.shared,
 // 			simple: this.simplePattern || {annotationValue: { id: '', value: '', case: false }},
-// 			extended: this.extendedPattern || {annotationValues: {}, splitBatch: false },
+// 			extended: this.extendedPattern || {annotationValues: {},  },
 // 			advanced: this.advancedPattern || {query: '', targetQueries: []},
 // 			expert: this.expertPattern,
 // 		};
@@ -658,8 +658,6 @@
 // 		if (Object.keys(parsedAnnotationValues).length === 0) return undefined;
 // 		return {
 // 			annotationValues: parsedAnnotationValues,
-// 			// This is always false, it's just a checkbox that will split up the query when it's submitted, then untick itself
-// 			splitBatch: false
 // 		};
 // 	}
 

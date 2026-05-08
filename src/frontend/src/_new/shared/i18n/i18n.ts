@@ -2,10 +2,11 @@ import type { App, FunctionPlugin, InjectionKey } from 'vue';
 import { inject, watch } from 'vue';
 import { createI18n } from 'vue-i18n';
 
-import { I18nManager } from '@/_new/shared/i18n/i18n-manager';
 import type { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGroup } from '@/_new/types/apptypes';
-import type { Option } from '@/_new/utils/options';
+
 import { elementAndAttributeNameFromFilterId } from '@/_new/shared/blacklab-helpers/span-filters-helper';
+import { I18nManager } from '@/_new/shared/i18n/i18n-manager';
+import type { Option } from '@/_new/shared/utils/options';
 
 /**
  * This module contains the glue code between our internal i18n message bundle manager (i18n-manager) and the Vue I18n plugin.

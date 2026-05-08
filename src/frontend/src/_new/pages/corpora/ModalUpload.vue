@@ -53,10 +53,11 @@ import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import { useBlackLabApi } from '@/_new/app/plugins/installApi';
-import type { ApiError } from '@/_new/shared/api/lib/api-types';
 import type { NormalizedFormat, NormalizedIndexBase } from '@/_new/types/apptypes';
 
-import Modal from '@/_new/widgets/Modal.vue';
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
+
+import Modal from '@/_new/shared/ui/Modal.vue';
 
 export default defineComponent({
 	components: { Modal },

@@ -31,8 +31,8 @@
 <script setup lang="ts">
 import { manager as i18n } from '@/_new/shared/i18n/i18n';
 
-import SelectPicker from '@/_new/widgets/SelectPicker.vue';
-import Spinner from '@/_new/widgets/Spinner.vue';
+import SelectPicker from '@/_new/shared/ui/SelectPicker.vue';
+import Spinner from '@/_new/shared/ui/Spinner.vue';
 </script>
 
 <style scoped>

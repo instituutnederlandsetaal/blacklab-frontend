@@ -5,10 +5,10 @@ import useInjectable from '@/_new/app/plugins/lib/useInjectable';
 import defaultPageConfig from '@/_new/entities/defaults/page-config.default';
 import type { BlackLabApi, FrontendApi } from '@/_new/shared/api/lib/api-types';
 import { processTagset } from '@/_new/shared/blacklab-helpers/tagset-helper';
+import { Loadable } from '@/_new/shared/utils/loadable/loadable';
+import { loadableFromRefs, loadableFromRequest, type LoadableFromRequest } from '@/_new/shared/utils/loadable/loadable-reactive';
+import { combineLoadablesIncludingEmpty } from '@/_new/shared/utils/loadable/loadable-streams';
 import type { CFPageConfig, NormalizedIndex, Tagset } from '@/_new/types/apptypes';
-import { Loadable } from '@/_new/utils/loadable/loadable';
-import { loadableFromRefs, loadableFromRequest, type LoadableFromRequest } from '@/_new/utils/loadable/loadable-reactive';
-import { combineLoadablesIncludingEmpty } from '@/_new/utils/loadable/loadable-streams';
 
 export type CorpusChange = {
 	index: NormalizedIndex | undefined;

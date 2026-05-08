@@ -34,13 +34,14 @@
 import { defineComponent } from 'vue';
 
 import { useBlackLabApi } from '@/_new/app/plugins/installApi';
-import type { ApiError } from '@/_new/shared/api/lib/api-types';
 import type { NormalizedFormat } from '@/_new/types/apptypes';
 import type { BLUser } from '@/_new/types/blacklabtypes';
-import type { Options } from '@/_new/utils/options';
 
-import Modal from '@/_new/widgets/Modal.vue';
-import SelectPicker from '@/_new/widgets/SelectPicker.vue';
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
+import type { Options } from '@/_new/shared/utils/options';
+
+import Modal from '@/_new/shared/ui/Modal.vue';
+import SelectPicker from '@/_new/shared/ui/SelectPicker.vue';
 
 export default defineComponent({
 	components: { Modal, SelectPicker },

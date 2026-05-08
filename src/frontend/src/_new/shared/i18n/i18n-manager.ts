@@ -2,7 +2,7 @@ import stripJsonComments from 'strip-json-comments';
 import { merge } from 'ts-deepmerge';
 import { computed, reactive, ref, watch } from 'vue';
 
-import { localStorageSynced } from '@/_new/utils/localstore';
+import { localStorageSynced } from '@/_new/shared/utils/localstore';
 
 /**
  * A helper for managing and caching locale message bundles.

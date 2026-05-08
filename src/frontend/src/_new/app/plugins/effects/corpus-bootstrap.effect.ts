@@ -1,8 +1,9 @@
-// import * as RootStore from '@/app/state/root-store';
 import { watchEffect } from 'vue';
 
-import { setCurrentCorpusDataGlobal } from '@/_new/app/features/interop/window-globals';
+import { setCurrentCorpusDataGlobal } from '@/_new/app/interop/window-globals';
 import { useCurrentCorpusData } from '@/_new/app/plugins/installCorpusData';
+import * as CorpusStore from '@/_new/features/corpus/store/corpus-store';
+import * as RootStore from '@/_new/pages/search/search-store';
 
 export function startCorpusDataToLegacyStoreInterop() {
 	// start reactive effects for legacy store
@@ -10,7 +11,8 @@ export function startCorpusDataToLegacyStoreInterop() {
 	setCurrentCorpusDataGlobal(currentCorpusData);
 	watchEffect(() => {
 		if (currentCorpusData.isLoaded()) {
-			// RootStore.init(currentCorpusData.value);
+			CorpusStore.init(currentCorpusData.value);
+			RootStore.init(currentCorpusData.value);
 			console.log('should put in store now');
 		}
 	});

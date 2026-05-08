@@ -104,10 +104,11 @@ export interface BLIndex {
 	status: 'empty' | 'available' | 'indexing' | 'opening';
 	/** yyyy-mm-dd hh:mm:ss */
 	timeModified: string;
-	/** Number of tokens in this index (excluding those tokens added in any currently running indexing action). */
-	tokenCount?: number;
-	/** v4 and up: token count per annotatedField. */
-	tokenCounts?: Array<{ fieldName: string; tokenCount: number }>;
+	/** Number of tokens and docs in this index (excluding those tokens added in any currently running indexing action). */
+	count: {
+		tokens: number;
+		documents: number;
+	};
 	/** Number of documents in this index (excluding any added in a currently running indexing action). Not present pre-v4 */
 	documentCount?: number;
 }

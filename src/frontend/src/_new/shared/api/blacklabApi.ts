@@ -1,10 +1,6 @@
 import type { AxiosRequestConfig } from 'axios';
 import { stripIndent } from 'common-tags';
 
-import { type EndpointSettings, createEndpoint } from '@/_new/shared/api/lib/api-endpoint';
-import { ApiError, type BlackLabApi } from '@/_new/shared/api/lib/api-types';
-import { rejectedRequest } from '@/_new/shared/api/lib/api-utils';
-import { normalizeFormat, normalizeIndex, normalizeIndexBase } from '@/_new/shared/blacklab-helpers/normalize-responses';
 import {
 	isHitParams,
 	type BLAnnotatedField,
@@ -27,7 +23,11 @@ import {
 	type BLShareInfo,
 	type BLTermOccurances,
 } from '@/_new/types/blacklabtypes';
-import { CancelableRequest } from '@/_new/utils/loadable/loadable-streams';
+
+import { type EndpointSettings, createEndpoint } from '@/_new/shared/api/lib/api-endpoint';
+import { ApiError, CancelableRequest, type BlackLabApi } from '@/_new/shared/api/lib/api-types';
+import { rejectedRequest } from '@/_new/shared/api/lib/api-utils';
+import { normalizeFormat, normalizeIndex, normalizeIndexBase } from '@/_new/shared/blacklab-helpers/normalize-responses';
 
 /** Contains url mappings for different requests to blacklab-server */
 export const blacklabPaths = {

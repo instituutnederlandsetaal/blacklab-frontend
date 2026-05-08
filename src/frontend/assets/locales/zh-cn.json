@@ -12,7 +12,6 @@
 		},
 		"extended": {
 			"heading": "扩展级",
-			"splitBatch": "拆分批量查询",
 			"within": "范围:"
 		},
 		"advanced": {
@@ -147,7 +146,7 @@
 		"reset": "重置",
 		"history": "历史"
 	},
-	"partOfSpeech":{
+	"partOfSpeech": {
 		"noOptions": "没有选项",
 		"submit": "确定",
 		"reset": "重置"

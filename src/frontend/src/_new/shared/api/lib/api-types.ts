@@ -1,5 +1,8 @@
-import type { AxiosRequestConfig } from 'axios';
+import type { AxiosRequestConfig, Canceler } from 'axios';
+import type { InteropObservable, Observable } from 'rxjs';
 
+import type { Loadable } from '@/_new/shared/utils/loadable/loadable';
+import { toObservable } from '@/_new/shared/utils/loadable/loadable-streams';
 import type { CFPageConfig, NormalizedFormat, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/_new/types/apptypes';
 import type {
 	BLAnnotatedField,
@@ -19,7 +22,6 @@ import type {
 	BLTermOccurances,
 	BLUser,
 } from '@/_new/types/blacklabtypes';
-import type { CancelableRequest } from '@/_new/utils/loadable/loadable-streams';
 
 export type ApiEndpoint<ResponseType = never, Params extends any[] = []> = (...args: [...Params, requestParameters?: AxiosRequestConfig]) => CancelableRequest<ResponseType>;
 
@@ -76,6 +78,44 @@ export interface BlackLabApi {
 	getTermFrequencies: ApiEndpoint<BLTermOccurances, [indexId: string, annotationId: string, values?: string[], filter?: string, number?: number]>;
 	getTermAutocomplete: ApiEndpoint<string[], [indexId: string, annotatedFieldId: string, annotationId: string, prefix: string]>;
 	getMetadataAutocomplete: ApiEndpoint<string[], [indexId: string, metadataFieldId: string, prefix: string]>;
+}
+
+export class CancelableRequest<T> implements InteropObservable<Loadable<T>>, Promise<T> {
+	public request: Promise<T>;
+	public cancel: Canceler;
+	constructor(request: Promise<T>, cancel: Canceler) {
+		this.request = request;
+		this.cancel = cancel;
+	}
+
+	get [Symbol.toStringTag]() {
+		return 'CancelableRequest';
+	}
+
+	public then<TResult1 = T, TResult2 = never>(
+		onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+		onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null,
+	): CancelableRequest<TResult1 | TResult2> {
+		return new CancelableRequest(this.request.then(onfulfilled, onrejected), this.cancel);
+	}
+	public catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null): CancelableRequest<T | TResult> {
+		return new CancelableRequest(this.request.catch(onrejected), this.cancel);
+	}
+	public finally(onfinally?: (() => void) | null): CancelableRequest<T> {
+		return new CancelableRequest(this.request.finally(onfinally), this.cancel);
+	}
+
+	public static isCancelableRequest<T>(value: any): value is CancelableRequest<T> {
+		return value instanceof CancelableRequest;
+	}
+
+	public toObservable(): Observable<Loadable<T>> {
+		return toObservable(this);
+	}
+
+	[Symbol.observable]() {
+		return this.toObservable();
+	}
 }
 
 export class ApiError extends Error {

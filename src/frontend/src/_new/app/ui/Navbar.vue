@@ -22,8 +22,8 @@
 				</ul>
 
 				<div class="navbar-buttons">
-					<LoginButton />
-					<LocaleSelector />
+					<LoginButton style="display: inline-block" />
+					<LocaleSelector style="display: inline-block" />
 					<button class="btn btn-navbar navbar-toggle" type="button" @click="collapsed = !collapsed">
 						<span class="fa fa-bars"></span>
 					</button>
@@ -39,7 +39,8 @@ import { useRouter } from 'vue-router';
 
 import { useCurrentConfig } from '@/_new/app/plugins/installCorpusData';
 import { useCurrentCorpusId } from '@/_new/app/plugins/installRouter';
-import { localStorageSynced } from '@/_new/utils/localstore';
+
+import { localStorageSynced } from '@/_new/shared/utils/localstore';
 
 import LoginButton from '@/_new/shared/auth/LoginButton.vue';
 import LocaleSelector from '@/_new/shared/i18n/LocaleSelector.vue';
@@ -188,7 +189,10 @@ body {
 		> .navbar-nav > li {
 			display: inline-block;
 		}
-		// > .navbar-buttons { flex-grow: 1; text-align: right; }
+		> .navbar-buttons {
+			flex-grow: 1;
+			text-align: right;
+		}
 
 		@media (max-width: 767px) {
 			justify-content: space-between;
