@@ -32,6 +32,13 @@ export const uiTypeSupport: {
 	},
 };
 
+export function getCorpusOwner(indexId: string): string | null {
+	return indexId.substring(0, indexId.indexOf(':')) || null;
+}
+export function getCorpusIdWithoutOwner(indexId: string): string {
+	return indexId.split(':')[1] || indexId;
+}
+
 export function getCorrectUiType<T extends NormalizedAnnotation['uiType']>(allowed: T[], actual: T): T {
 	return allowed.includes(actual) ? actual : ('text' as any);
 }
@@ -327,7 +334,7 @@ export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata, relations: BLTy
 		annotationGroups: annotationGroupsNormalized,
 		contentViewable: blIndex.contentViewable,
 		description: custom?.description || blIndex.description || '',
-		displayName: custom?.displayName || blIndex.displayName || indexId.split(':')[1] || indexId,
+		displayName: custom?.displayName || blIndex.displayName || getCorpusIdWithoutOwner(indexId),
 		// If BlackLab is an old format, this property doesn't exist
 		// If BlackLab is new, and the property is still missing, it's 0 (tokenCount and documentCount are always omitted when 0)
 		// Encode this in the fallback value, then later request the actual number of documents
@@ -340,7 +347,7 @@ export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata, relations: BLTy
 			Object.entries(blIndex.metadataFields).map(([id, field]) => normalizeMetadata(id, field)),
 			'id',
 		),
-		owner: indexId.substring(0, indexId.indexOf(':')) || null,
+		owner: getCorpusOwner(indexId),
 		textDirection: custom?.textDirection || blIndex.textDirection || 'ltr',
 		timeModified: blIndex.timeModified || blIndex.versionInfo?.timeModified || '',
 		tokenCount: blIndex.tokenCount || 0,

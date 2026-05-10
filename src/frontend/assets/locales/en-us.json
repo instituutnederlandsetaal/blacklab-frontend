@@ -1,4 +1,7 @@
 {
+	"navbar": {
+		"myCorpora": "My corpora"
+	},
 	"widgets": {
 		"learnMore": "Learn more",
 		"clickToRemove": "Click to remove",

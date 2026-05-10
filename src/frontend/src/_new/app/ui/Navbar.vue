@@ -16,6 +16,9 @@
 				<!-- <router-link class="navbar-brand" :to="indexId ? {name: 'search', params: {corpus: indexId}} : {name: 'corpora'}" >{{ indexDisplayName }}</router-link> -->
 
 				<ul class="nav navbar-nav navbar-collapse" :class="{ visible: !collapsed }">
+					<li v-if="isUserCorpus">
+						<router-link :to="{ name: 'corpora' }">{{ $t('navbar.myCorpora') }}</router-link>
+					</li>
 					<li v-for="link in links" :key="link.attributes.href">
 						<component :is="link.isExternal ? 'a' : 'router-link'" v-bind="link.attributes">{{ link.label }}</component>
 					</li>
@@ -40,6 +43,7 @@ import { useRouter } from 'vue-router';
 import { useCurrentConfig } from '@/_new/app/plugins/installCorpusData';
 import { useCurrentCorpusId } from '@/_new/app/plugins/installRouter';
 
+import { getCorpusOwner } from '@/_new/shared/blacklab-helpers/normalize-responses';
 import { localStorageSynced } from '@/_new/shared/utils/localstore';
 
 import LoginButton from '@/_new/shared/auth/LoginButton.vue';
@@ -51,6 +55,8 @@ const bannerFromLocalStorage = localStorageSynced<string>('cf/banner-hidden', ''
 const indexId = useCurrentCorpusId();
 const config = useCurrentConfig();
 const router = useRouter();
+
+const isUserCorpus = computed(() => Boolean(indexId.value && getCorpusOwner(indexId.value)));
 
 const links = computed(() =>
 	config.navbarLinks.map<{ label: string; attributes: Record<string, string>; isExternal: boolean }>(l => {
