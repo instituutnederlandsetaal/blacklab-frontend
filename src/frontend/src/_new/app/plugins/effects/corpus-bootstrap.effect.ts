@@ -11,9 +11,9 @@ export function startCorpusDataToLegacyStoreInterop() {
 	setCurrentCorpusDataGlobal(currentCorpusData);
 	watchEffect(() => {
 		if (currentCorpusData.isLoaded()) {
+			console.log('putting corpus in store');
 			CorpusStore.init(currentCorpusData.value);
 			RootStore.init(currentCorpusData.value);
-			console.log('should put in store now');
 		}
 	});
 }

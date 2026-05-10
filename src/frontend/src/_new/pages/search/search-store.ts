@@ -20,6 +20,7 @@ import type { CorpusChange } from '@/_new/app/plugins/installCorpusData';
 // import { corpusCustomizations } from '@/utils/customization';
 // import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
 
+import * as UIStore from './config/ui-customization-store';
 import * as FilterModule from './form/filters/store/filter-store';
 import * as ExploreModule from './form/store/explore-state';
 import * as InterfaceModule from './form/store/interface-state';
@@ -201,6 +202,7 @@ const actions = {
 const init = (state: CorpusChange) => {
 	console.log('Initializing store with new corpus data', state);
 
+	UIStore.init(state);
 	FilterModule.init(state);
 	ExploreModule.init(state);
 	InterfaceModule.init(state);

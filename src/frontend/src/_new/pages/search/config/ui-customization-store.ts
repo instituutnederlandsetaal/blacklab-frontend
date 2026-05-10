@@ -13,10 +13,11 @@ import { reactive } from 'vue';
 import type { CorpusChange } from '@/_new/app/plugins/installCorpusData';
 import * as CorpusStore from '@/_new/features/corpus/store/corpus-store';
 import { corpusCustomizations } from '@/_new/pages/search/config/customization-callback-store';
-import type { ApiError } from '@/_new/shared/api/lib/api-types';
-import { normalizeAnnotationUIType } from '@/_new/shared/blacklab-helpers/normalize-responses';
 import type * as AppTypes from '@/_new/types/apptypes';
 import type * as BLTypes from '@/_new/types/blacklabtypes';
+
+import type { ApiError } from '@/_new/shared/api/lib/api-types';
+import { normalizeAnnotationUIType } from '@/_new/shared/blacklab-helpers/normalize-responses';
 
 type ModuleRootState = {
 	search: {
@@ -938,13 +939,14 @@ const init = (state: CorpusChange) => {
 				// an arbitrary limit
 				actions.search.shared.within.elements(validValues);
 			} else {
-				console.warn(`Within clause can contain ${validValues.length} different values, ignoring...`);
+				console.warn(`Within clause can contain ${validValues.length} different values, ignoring beyond the first 6...`);
+				actions.search.shared.within.elements(validValues.slice(0, 6));
 			}
 		}
 
 		function setValuesForAlignBy(validValues?: AppTypes.NormalizedAnnotation['values']) {
 			if (!validValues?.length) {
-				console.warn('Align by not supported in this corpus, no parallel relations indexed');
+				console.debug('Align by not supported in this corpus, no parallel relations indexed');
 				actions.search.shared.alignBy.enable(false);
 				return;
 			}

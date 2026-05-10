@@ -11,7 +11,8 @@
 		<button @click="loadingState.retry()" type="button" class="btn btn-primary">Retry</button>
 	</div>
 	<!-- <div :class="wideView.value ? 'container-fluid' : 'container'" v-if="loadingState.value?.index"> -->
-	<QueryForm @reset="reset" />
+	<QueryForm v-else-if="loadingState.isLoaded() && loadingState.value.index" @reset="reset" />
+	<pre v-else>LoadingState is empty or doesn't have a corpus? {{ loadingState }}</pre>
 	<!-- <QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary" /> -->
 
 	<!-- <pre>{{ { resultsVisible } }}</pre> -->

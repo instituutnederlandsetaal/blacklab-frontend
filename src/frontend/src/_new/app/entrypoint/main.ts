@@ -30,7 +30,6 @@ const globalComponents: ObjectPlugin = {
 	install(app: App) {
 		// app.use(Filters);
 		app.use(FloatingVue);
-		app.use(i18n);
 		app.use(HighchartsVue);
 
 		app.component('Debug', DebugComponent);

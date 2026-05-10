@@ -53,6 +53,10 @@ export default defineConfig(
 			headers: {
 				'Access-Control-Allow-Origin': '*',
 			},
+			proxy: {
+				'/blacklab-server': 'http://localhost:8080',
+				'/blacklab-frontend': 'http://localhost:8080',
+			},
 		},
 		build: {
 			outDir: 'dist',

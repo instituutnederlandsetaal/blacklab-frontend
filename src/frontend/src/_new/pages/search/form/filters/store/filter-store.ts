@@ -150,10 +150,16 @@ const actions = {
 	},
 };
 
+const internalActions = {
+	clearState: () => {
+		state.filterGroups = [];
+		state.filters = {};
+	},
+};
+
 const init = (state: CorpusChange) => {
+	internalActions.clearState();
 	if (!state.index) {
-		getState().filters = {};
-		getState().filterGroups = [];
 		return;
 	}
 

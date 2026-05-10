@@ -217,17 +217,41 @@ export type BLDocFields = {
 	titleField?: string;
 };
 
+export type BLMetadataGroup = {
+	name: string;
+	/** Keys in metadataFields */
+	fields: string[];
+};
+
+export type BLAnnotationGroup = {
+	name: string;
+	/** Refers to BLAnnotatedField.annotations keys */
+	annotations: string[];
+};
+
+export type BLAnnotationGroupMap = {
+	[annotatedFieldId: string]: BLAnnotationGroup[];
+};
+
 /** Property of a word, usually 'lemma', 'pos', 'word' */
 export interface BLAnnotation {
-	description: string;
-	displayName: string;
+	/** Legacy top-level ui config. New schema stores this under custom. */
+	description?: string;
+	/** Legacy top-level ui config. New schema stores this under custom. */
+	displayName?: string;
 	hasForwardIndex: boolean;
 	isInternal: boolean;
 	offsetsAlternative: string;
 	sensitivity: 'SENSITIVE_AND_INSENSITIVE' | 'ONLY_SENSITIVE' | 'ONLY_INSENSITIVE' | 'CASE_AND_DIACRITICS_SEPARATE';
 	/** Contains ids of other BLAnnotations in the parent annotatedField if this field has subannotations. */
 	subannotations?: string[];
-	uiType: (string & {}) | 'select' | 'combobox' | 'text' | 'pos' | 'dropdown' | 'autocomplete';
+	/** Legacy top-level ui config. New schema stores this under custom. */
+	uiType?: (string & {}) | 'select' | 'combobox' | 'text' | 'pos' | 'dropdown' | 'autocomplete';
+	custom?: {
+		description: string;
+		displayName: string;
+		uiType: (string & {}) | 'select' | 'combobox' | 'text' | 'pos' | 'dropdown' | 'autocomplete';
+	};
 	/** Only when the indexMetadata was requested with ?listvalues=annotationId,annotationId etc. */
 	values?: string[];
 	/** Only when values present. */
@@ -236,16 +260,23 @@ export interface BLAnnotation {
 
 /** A set of annotations that form one data set on a token, usually there is only one of these in an index, called 'contents' */
 interface BLAnnotatedFieldInternal {
-	description: string;
-	displayName: string;
-	/** Identical to key for this annotatedField */
-	fieldName: string;
+	/** Legacy top-level ui config. New schema stores this under custom. */
+	description?: string;
+	/** Legacy top-level ui config. New schema stores this under custom. */
+	displayName?: string;
+	/** Identical to key for this annotatedField. No longer present in new schema. */
+	fieldName?: string;
 	hasContentStore: boolean;
-	hasLengthTokens: boolean;
+	hasLengthTokens?: boolean;
 	hasXmlTags: boolean;
-	isAnnotatedField: boolean;
+	isAnnotatedField?: boolean;
 	tokenCount?: number;
 	documentCount?: number;
+	custom?: {
+		description: string;
+		displayName: string;
+		displayOrder?: string[];
+	};
 }
 type BLAnnotatedFieldV1 = BLAnnotatedFieldInternal & {
 	/** Indexed token properties/annotations for this field */
@@ -256,7 +287,7 @@ type BLAnnotatedFieldV1 = BLAnnotatedFieldInternal & {
 type BLAnnotatedFieldV2 = BLAnnotatedFieldInternal & {
 	/** Indexed token properties/annotations for this field */
 	annotations: { [key: string]: BLAnnotation };
-	/** Ids of the annotations, in the order they should be displayed by the ui */
+	/** Legacy top-level order. New schema stores this under custom.displayOrder */
 	displayOrder?: string[];
 	/** If a cql query is fired that is just "searchterm", this is the annotation that is searched, usually 'word' - key in annotations */
 	mainAnnotation: string;
@@ -268,22 +299,34 @@ export function isAnnotatedFieldV1(v: BLAnnotatedField): v is BLAnnotatedFieldV1
 
 export interface BLMetadataField {
 	analyzer: string;
-	description: string;
-	displayName: string;
-	displayValues: {
+	/** Legacy top-level ui config. New schema stores this under custom. */
+	description?: string;
+	/** Legacy top-level ui config. New schema stores this under custom. */
+	displayName?: string;
+	/** Legacy top-level ui config. New schema stores this under custom. */
+	displayValues?: {
 		/** Alternate display names/values for values in this field. */
 		[key: string]: string;
 	};
-	/** Key of this metadataField */
-	fieldName: string;
+	/** Key of this metadataField. No longer present in new schema. */
+	fieldName?: string;
 	fieldValues: {
 		/** Keys are the values for this field, whereas the value for each key is the number of occurances */
-		[key: string]: string;
+		[key: string]: number | string;
 	};
-	isAnnotatedField: boolean;
+	isAnnotatedField?: boolean;
 	type: 'TOKENIZED' | 'UNTOKENIZED' | 'NUMERIC';
 	/** All the types we support are listed here, though the types are user-defined so in anything can show up. */
-	uiType: (string & {}) | 'select' | 'range' | 'combobox' | 'text' | 'checkbox' | 'radio' | 'autocomplete' | 'dropdown';
+	uiType?: (string & {}) | 'select' | 'range' | 'combobox' | 'text' | 'checkbox' | 'radio' | 'autocomplete' | 'dropdown';
+	custom?: {
+		description: string;
+		displayName: string;
+		displayValues?: {
+			/** Alternate display names/values for values in this field. */
+			[key: string]: string;
+		};
+		uiType: (string & {}) | 'select' | 'range' | 'combobox' | 'text' | 'checkbox' | 'radio' | 'autocomplete' | 'dropdown';
+	};
 	/** Internal blacklab property: when the unknownValue is used as the value for a document where the metadata for this field was unknown when indexing */
 	unknownCondition: 'NEVER' | 'MISSING' | 'EMPTY' | 'MISSING_OR_EMPTY';
 	/** Internal blacklab property: what default value is substituted during indexing for document that are missing this metadata (depending on unknownCondition) */
@@ -294,37 +337,58 @@ export interface BLMetadataField {
 
 /** Contains information about the internal structure of the index - which fields exist for tokens, which metadata fields exist for documents, etc */
 export interface BLIndexMetadata {
-	/** Always present, except in really old versions of blacklab */
-	annotationGroups?: {
-		[annotatedFieldId: string]: Array<{
-			name: string;
-			/** Referring to BLAnnotatedField in the annotatedFields[annotatedFieldId] */
-			annotations: string[];
-		}>;
-	};
+	/** Id of this index. Renamed from indexName. */
+	name: string;
+	/** Legacy name, kept for compatibility. */
+	indexName?: string;
+
+	tokenCount?: number;
+	documentCount: number;
+	/** yyyy-mm-dd hh:mm:ss */
+	timeCreated?: string;
+	/** yyyy-mm-dd hh:mm:ss */
+	timeModified: string;
+	/** pulled up from specialFields/pidField */
+	pidField?: string;
 	contentViewable: boolean;
-	/** Description of the main index */
-	description: string;
-	displayName: string;
-	/** key of a BLFormat */
-	documentFormat?: string;
-	fieldInfo: BLDocFields;
-	/** Id of this index */
-	indexName: string;
 	/** Only available when status === 'indexing' */
 	indexProgress?: BLIndexProgress;
-	/** Always present, but may be empty if no metadata groups are defined in the index config. */
-	metadataFieldGroups: Array<{
-		name: string;
-		/** Keys in metadataFields */
-		fields: string[];
-	}>;
+	/** pulled up from versionInfo/indexFormat */
+	indexFormat?: string;
+	createdBy?: {
+		implementation: string;
+		version: string;
+		buildTime: string;
+	};
+
+	custom?: {
+		displayName: string;
+		description: string;
+		/** key of a BLFormat */
+		documentFormat?: string;
+		textDirection: 'ltr' | 'rtl';
+		specialFields: BLDocFields;
+		metadataFieldGroups?: BLMetadataGroup[];
+		annotationGroups?: BLAnnotationGroupMap;
+	};
+
+	/** Legacy top-level custom UI info, moved under custom in the new schema. */
+	annotationGroups?: BLAnnotationGroupMap;
+	/** Legacy top-level custom UI info, moved under custom in the new schema. */
+	metadataFieldGroups?: BLMetadataGroup[];
+	/** Legacy top-level custom UI info, moved under custom in the new schema. */
+	description?: string;
+	/** Legacy top-level custom UI info, moved under custom in the new schema. */
+	displayName?: string;
+	/** Legacy top-level custom UI info, moved under custom in the new schema. */
+	documentFormat?: string;
+	/** Legacy top-level custom UI info, moved under custom in the new schema. */
+	fieldInfo?: BLDocFields;
 	metadataFields: { [key: string]: BLMetadataField };
 	status: 'empty' | 'available' | 'indexing' | 'opening';
-	textDirection: 'ltr' | 'rtl';
-	/** Number of tokens in this index (excluding those tokens added in any currently running indexing action). - not available if status === 'empty' */
-	tokenCount?: number;
-	versionInfo: {
+	/** Legacy top-level custom UI info, moved under custom in the new schema. */
+	textDirection?: 'ltr' | 'rtl';
+	versionInfo?: {
 		blackLabBuildTime: string;
 		/** BlackLab version when the index was created. In Maven format */
 		blackLabVersion: string;
@@ -339,8 +403,6 @@ export interface BLIndexMetadata {
 	annotatedFields: { [id: string]: BLAnnotatedFieldV2 };
 	/** key into annotatedFields */
 	mainAnnotatedField?: string;
-	/** Only available if index contains actual documents and if versionInfo.blackLabVersion >= 2.0.0 */
-	documentCount: number;
 }
 
 // --------------

@@ -107,13 +107,15 @@ import useParallel from '@/_new/pages/search/form/composables/useParallel';
 import * as InterfaceStore from '@/_new/pages/search/form/store/interface-state';
 import * as PatternStore from '@/_new/pages/search/form/store/pattern-store';
 import { getPatternStringFromCql } from '@/_new/pages/search/form/utils/pattern-utils';
+import type { NormalizedAnnotation } from '@/_new/types/apptypes';
+import { getQueryBuilderStateFromParsedQuery } from '@/_new/widgets/cql-query-builder/model';
+
 import { type Result, parseBcql } from '@/_new/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { getAnnotationSubset } from '@/_new/shared/blacklab-helpers/field-groups';
 import { useI18n } from '@/_new/shared/i18n/i18n';
 import useUid from '@/_new/shared/utils/useUid';
-import type { NormalizedAnnotation } from '@/_new/types/apptypes';
-import { getQueryBuilderStateFromParsedQuery } from '@/_new/widgets/cql-query-builder/model';
 
+import Annotation from '@/_new/pages/search/form/annotations/Annotation.vue';
 import ParallelSourceAndTargets from '@/_new/pages/search/form/parallel/ParallelSourceAndTargets.vue';
 
 // import uid from '@/mixins/uid';
