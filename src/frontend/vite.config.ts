@@ -14,9 +14,9 @@ export default defineConfig(
 					root: __dirname,
 					tsconfigPath: 'tsconfig.app.json', // relative to root prop above
 				},
-				// oxlint: {
-				// 	lintCommand: 'oxlint --config oxlint.config.ts --tsconfig tsconfig.app.json ./src/_new/',
-				// },
+				oxlint: {
+					lintCommand: 'oxlint --config oxlint.config.ts --tsconfig tsconfig.app.json ./src/_new/',
+				},
 			}),
 			inject({
 				$: 'jquery',

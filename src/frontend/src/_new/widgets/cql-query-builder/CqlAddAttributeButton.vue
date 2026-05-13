@@ -15,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import type { CqlAnnotationCombinator, CqlQueryBuilderOptions } from '@/_new/widgets/cql-query-builder/model';
+import type { CqlAnnotationCombinator, CqlQueryBuilderOptions } from './model';
 defineProps<{
 	options: CqlQueryBuilderOptions;
 }>();
