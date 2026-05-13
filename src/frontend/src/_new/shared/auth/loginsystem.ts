@@ -4,6 +4,7 @@ import { Log, UserManager } from 'oidc-client-ts';
 
 import type { BLServer } from '@/_new/types/blacklabtypes';
 
+// TODO unify duplicate UserManager instantiation code in callback.ts and here.
 export const userManager =
 	OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL
 		? new UserManager({
@@ -11,16 +12,14 @@ export const userManager =
 				prompt: 'login',
 				redirect_uri: window.location.origin + CONTEXT_URL + '/callback',
 				// prevent hitting timeouts while debugging. Don't set this ridiculously high, or the system breaks and timeout hits instantly.
-				// @ts-ignore
-				silentRequestTimeoutInSeconds: process.env.NODE_ENV === 'development' ? 300 : 10,
+				silentRequestTimeoutInSeconds: import.meta.env.MODE === 'development' ? 300 : 10,
 				authority: OIDC_AUTHORITY,
 				client_id: OIDC_CLIENT_ID,
 				metadataUrl: OIDC_METADATA_URL,
 			})
 		: null;
 
-//@ts-ignore
-if (process.env.NODE_ENV === 'development') Log.setLogger(console);
+if (import.meta.env.MODE === 'development') Log.setLogger(console);
 
 export const user: Promise<User | null> = new Promise(async (resolve, reject) => {
 	if (!userManager) {

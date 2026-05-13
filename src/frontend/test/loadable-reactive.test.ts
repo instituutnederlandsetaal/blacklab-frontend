@@ -2,9 +2,9 @@ import { describe, expect, test, vi } from 'vitest';
 import { ref, type Ref } from 'vue';
 
 import { ApiError } from '@/_new/shared/api/lib/api-types';
-import { Loadable, LoadableState, type LoadableLike } from '@/_new/utils/loadable/loadable';
-import { combineLoadablesValue, mapLoadedValue, flatMapLoadedValue } from '@/_new/utils/loadable/loadable-operators';
-import { combineLoadablesReactive, flatMapLoadedReactive, mapLoadedReactive, resolveMaybeRefLoadables, loadableFromRefs } from '@/_new/utils/loadable/loadable-reactive';
+import { Loadable, LoadableState, type LoadableLike } from '@/_new/shared/utils/loadable/loadable';
+import { combineLoadablesValue, mapLoadedValue, flatMapLoadedValue } from '@/_new/shared/utils/loadable/loadable-operators';
+import { combineLoadablesReactive, flatMapLoadedReactive, mapLoadedReactive, resolveMaybeRefLoadables, loadableFromRefs } from '@/_new/shared/utils/loadable/loadable-reactive';
 
 describe('non-reactive loadable primitives', () => {
 	test('combineLoadablesValue combines loaded arrays', () => {

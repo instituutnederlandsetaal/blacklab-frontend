@@ -12,21 +12,19 @@
 
 import { Log, UserManager } from 'oidc-client-ts';
 
-//@ts-ignore
-if (process.env.NODE_ENV === 'development') Log.setLogger(console);
+if (import.meta.env.MODE === 'development') Log.setLogger(console);
 
 if (OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL) {
 	// loading doesn't apply for OIDC flow.
 	// Think about it: it would be weird to show loading status when the outcome is you're not logged in yet.
 	// And we don't know the outcome yet, so we can't show a loading status.
 	// When actually performing an in-flow login, you're not on the page anymore, so you can't show a loading status either.
-	const userManager =  new UserManager({
+	const userManager = new UserManager({
 		checkSessionIntervalInSeconds: 10,
 		prompt: 'login',
 		redirect_uri: window.location.origin + CONTEXT_URL + '/callback',
 		// prevent hitting timeouts while debugging. Don't set this ridiculously high, or the system breaks and timeout hits instantly.
-		// @ts-ignore
-		silentRequestTimeoutInSeconds: process.env.NODE_ENV === 'development' ? 300 : 10,
+		silentRequestTimeoutInSeconds: import.meta.env.MODE === 'development' ? 300 : 10,
 		authority: OIDC_AUTHORITY,
 		client_id: OIDC_CLIENT_ID,
 		metadataUrl: OIDC_METADATA_URL,

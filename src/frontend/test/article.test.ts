@@ -1,10 +1,12 @@
 import { afterAll, describe, expect, test, vi } from 'vitest';
 
 import type { BLDoc } from '@/_new/types/blacklabtypes';
-import { Loadable, LoadableState } from '@/_new/utils/loadable/loadable';
-import { CancelableRequest, loadableFromStream, promiseFromLoadableStream } from '@/_new/utils/loadable/loadable-streams';
 import type { Input } from '@/pages/article/article';
 import { hits$, input$, metadata$, validPaginationParameters$ } from '@/pages/article/article';
+
+import { CancelableRequest } from '@/_new/shared/api/lib/api-types';
+import { Loadable, LoadableState } from '@/_new/shared/utils/loadable/loadable';
+import { loadableFromStream, promiseFromLoadableStream } from '@/_new/shared/utils/loadable/loadable-streams';
 
 const ids = vi.hoisted(() => ({
 	MOCK_INDEX_ID: 'test',
