@@ -6,7 +6,7 @@
  */
 import cloneDeep from 'clone-deep';
 
-import type { CorpusChange } from '@/_new/app/plugins/installCorpusData';
+import type { CorpusChange } from '@/app/plugins/installCorpusData';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import { markRaw, reactive, shallowReactive } from 'vue';
 

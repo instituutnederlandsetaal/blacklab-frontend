@@ -34,7 +34,7 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 
 import { corpusCustomizations } from '@/utils/customization';
-import type { Option } from '@/_new/utils/options/options';
+import type { Option } from '@/utils/options/options';
 
 export default defineComponent({
 	emits: ['update:modelValue'],

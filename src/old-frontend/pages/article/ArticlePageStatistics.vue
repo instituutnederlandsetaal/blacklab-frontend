@@ -54,7 +54,7 @@ import type * as BLTypes from '@/types/blacklabtypes';
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
 import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
 
-import type { Loadable } from '@/_new/utils/loadable/loadable-streams';
+import type { Loadable } from '@/utils/loadable/loadable-streams';
 import Spinner from '@/components/Spinner.vue';
 import * as Highcharts from 'highcharts';
 import HighchartsBoost from 'highcharts/modules/boost';

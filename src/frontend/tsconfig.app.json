@@ -18,6 +18,7 @@
 		*/
 		"jsx": "preserve",
 		"resolveJsonModule": true,
+		"allowArbitraryExtensions": true,
 
 		// Allow @decorator
 		"experimentalDecorators": true,
@@ -46,7 +47,7 @@
 		],
 		"outDir": "dist"
 	},
-	"include": ["src/_new/**/*.ts", "src/_new/**/*.tsx", "src/_new/**/*.d.ts", "src/_new/**/*.vue"],
+	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/*.vue"],
 	// This tsconfig is meant for files that run in the browser. Therefor exclude files that run in nodejs.
 	// (this is basically anything that's used in Vite and linters/compilers).
 	// This is to prevent the typescript compiler from complaining about missing nodejs types.

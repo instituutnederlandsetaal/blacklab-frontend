@@ -69,7 +69,7 @@
 import Axios from 'axios';
 import { defineComponent, nextTick } from 'vue';
 
-import UrlStateParserBase from '@/_new/app/routes/urls/url-state-parser-base';
+import UrlStateParserBase from '@/app/routes/urls/url-state-parser-base';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { OptGroup } from '@/utils/options';

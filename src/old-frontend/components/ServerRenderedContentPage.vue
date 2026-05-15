@@ -8,7 +8,7 @@
 </template>
 
 <script lang="ts">
-import type { Loadable } from '@/_new/utils/loadable/loadable-streams';
+import type { Loadable } from '@/utils/loadable/loadable-streams';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 import Spinner from './Spinner.vue';

@@ -134,7 +134,7 @@ import * as QueryStore from '@/features/search/model/query-state';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 // import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
 // import ArticlePageParallel from '@/pages/article/ArticlePageParallel.vue';
-import { useMarkPageBootstrapSettledWhen } from '@/_new/app/routes/page-bootstrap';
+import { useMarkPageBootstrapSettledWhen } from '@/app/routes/page-bootstrap';
 import InstancedHtml from '@/components/InstancedHtml.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
@@ -160,7 +160,7 @@ import Spinner from '@/components/Spinner.vue';
 // Need to fix url-parsing
 
 
-import { loadableFromStream } from '@/_new/utils/loadable/loadable-streams';
+import { loadableFromStream } from '@/utils/loadable/loadable-streams';
 import { fieldSubset } from '@/utils';
 import { UseDraggable } from '@vueuse/components';
 import { computed, onUnmounted, watch } from 'vue';

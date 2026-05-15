@@ -18,12 +18,12 @@
 </template>
 
 <script lang="ts">
-import debug from '@/_new/app/features/debug/debug';
+import debug from '@/app/features/debug/debug';
 import SelectPicker from '@/components/SelectPicker.vue';
 import type { NormalizedIndex } from '@/types/apptypes';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
-import type { OptGroup } from '@/_new/utils/options/options';
+import type { OptGroup } from '@/utils/options/options';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 

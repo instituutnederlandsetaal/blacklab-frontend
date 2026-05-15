@@ -1,23 +1,23 @@
 import { EMPTY, map, Observable, of, Subject } from 'rxjs';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { ApiError, CancelableRequest } from '@/_new/shared/api/lib/api-types';
-import { isLoadable, isError, isLoading, isEmpty, Loadable, LoadableState } from '@/_new/shared/utils/loadable/loadable';
+import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
+import { isLoadable, isError, isLoading, isEmpty, Loadable, LoadableState } from '@/shared/utils/loadable/loadable';
 import {
-	combineLoadables,
-	combineLoadablesIncludingEmpty,
-	withRequiredKeys,
-	mapLoadable,
-	mergeMapLoadable,
-	switchMapLoadable,
-	flatMapLoadable,
-	loadableFromStream,
-	InteractiveLoadable,
-	promiseFromLoadableStream,
-	loadableStreamFromPromise,
-	combineLoadableStreams,
-	combineLoadableStreamsIncludingEmpty,
-} from '@/_new/shared/utils/loadable/loadable-streams';
+    combineLoadables,
+    combineLoadablesIncludingEmpty,
+    withRequiredKeys,
+    mapLoadable,
+    mergeMapLoadable,
+    switchMapLoadable,
+    flatMapLoadable,
+    loadableFromStream,
+    InteractiveLoadable,
+    promiseFromLoadableStream,
+    loadableStreamFromPromise,
+    combineLoadableStreams,
+    combineLoadableStreamsIncludingEmpty,
+} from '@/shared/utils/loadable/loadable-streams';
 
 const apiError: ApiError = new ApiError('', '', '', 0);
 const loading = Loadable.Loading();

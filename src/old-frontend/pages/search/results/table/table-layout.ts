@@ -1,39 +1,39 @@
 import type { StyleValue } from 'vue';
 
-import { frontendPaths } from '@/_new/shared/api/frontendApi';
-import type { Translate } from '@/_new/shared/i18n/i18n';
-import type { OptGroup, Option, Options } from '@/_new/utils/options/options';
+import { frontendPaths } from '@/shared/api/frontendApi';
+import type { Translate } from '@/shared/i18n/i18n';
+import type { OptGroup, Option, Options } from '@/utils/options/options';
 import type {
-	HitContext,
-	HitToken,
-	NormalizedAnnotatedField,
-	NormalizedAnnotatedFieldParallel,
-	NormalizedAnnotation,
-	NormalizedAnnotationGroup,
-	NormalizedMetadataField,
-	TokenHighlight,
+    HitContext,
+    HitToken,
+    NormalizedAnnotatedField,
+    NormalizedAnnotatedFieldParallel,
+    NormalizedAnnotation,
+    NormalizedAnnotationGroup,
+    NormalizedMetadataField,
+    TokenHighlight,
 } from '@/types/apptypes';
 import type {
-	BLDoc,
-	BLDocFields,
-	BLDocGroupResult,
-	BLDocGroupResults,
-	BLDocInfo,
-	BLDocResults,
-	BLHit,
-	BLHitGroupResult,
-	BLHitGroupResults,
-	BLHitInOtherField,
-	BLHitResults,
-	BLHitSnippet,
-	BLHitSnippetPart,
-	BLSearchParameters,
-	BLSearchResult,
+    BLDoc,
+    BLDocFields,
+    BLDocGroupResult,
+    BLDocGroupResults,
+    BLDocInfo,
+    BLDocResults,
+    BLHit,
+    BLHitGroupResult,
+    BLHitGroupResults,
+    BLHitInOtherField,
+    BLHitResults,
+    BLHitSnippet,
+    BLHitSnippetPart,
+    BLSearchParameters,
+    BLSearchResult,
 } from '@/types/blacklabtypes';
 import { hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 import type { KeysOfType } from '@/types/helpers';
 
-import * as Highlights from '../../../../../frontend/src/_new/shared/hit-highlighting';
+import * as Highlights from '../../../../../frontend/src/shared/hit-highlighting';
 
 /**
  * The columns can display various computed data, such as relative group size, or relative frequency.

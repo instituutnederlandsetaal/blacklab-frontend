@@ -172,8 +172,8 @@ import Sort from '@/pages/search/results/Sort.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 
-import debug, { debugLog, debugLogCat } from '@/_new/app/features/debug/debug';
-import type { CancelableRequest } from '@/_new/utils/loadable/loadable-streams';
+import debug, { debugLog, debugLogCat } from '@/app/features/debug/debug';
+import type { CancelableRequest } from '@/utils/loadable/loadable-streams';
 
 import type { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, Rows } from '@/pages/search/results/table/table-layout';
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
@@ -184,8 +184,8 @@ import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parse
 import type { TranslateResult } from 'vue-i18n';
 
 
-import { useBlackLabApi } from '@/_new/app/plugins/installApi';
-import type { ApiError } from '@/_new/shared/api/lib/api-types';
+import { useBlackLabApi } from '@/app/plugins/installApi';
+import type { ApiError } from '@/shared/api/lib/api-types';
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 import { corpusCustomizations } from '@/utils/customization';
 import { localStorageSynced } from '@/utils/localstore';

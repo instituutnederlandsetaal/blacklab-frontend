@@ -1,4 +1,4 @@
-import type { CorpusChange } from '@/_new/app/plugins/installCorpusData';
+import type { CorpusChange } from '@/app/plugins/installCorpusData';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
 import * as GapModule from '@/features/search/model/form/gap-state';

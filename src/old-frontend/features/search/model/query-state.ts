@@ -22,7 +22,7 @@
 
 import cloneDeep from 'clone-deep';
 
-import type { CorpusChange } from '@/_new/app/plugins/installCorpusData';
+import type { CorpusChange } from '@/app/plugins/installCorpusData';
 import * as UIModule from '@/app/state/ui-state';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';

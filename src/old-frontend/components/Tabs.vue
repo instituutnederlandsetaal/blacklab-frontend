@@ -36,7 +36,7 @@
 </template>
 
 <script lang="ts">
-import type { Option } from '@/_new/utils/options/options';
+import type { Option } from '@/utils/options/options';
 import type { PropType, StyleValue } from 'vue';
 import { defineComponent } from 'vue';
 

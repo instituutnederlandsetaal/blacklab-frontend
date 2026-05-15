@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 
-import { useBlackLabApi } from '@/_new/app/plugins/installApi';
+import { useBlackLabApi } from '@/app/plugins/installApi';
 import Spinner from '@/components/Spinner.vue';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';

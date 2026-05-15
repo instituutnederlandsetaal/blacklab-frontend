@@ -9,7 +9,7 @@ export default defineConfig({
 				modifiers: [],
 			},
 			{
-				elementNamePattern: ['@/_new/shared/**'],
+				elementNamePattern: ['@/shared/**'],
 				groupName: 'shared',
 				modifiers: [],
 			},

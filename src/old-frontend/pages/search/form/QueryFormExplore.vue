@@ -175,10 +175,10 @@ import SelectPicker from '@/components/SelectPicker.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import ParallelSource from '@/pages/search/form/ParallelSource.vue';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
-import type { OptGroup, Option } from '@/_new/utils/options/options';
+import type { OptGroup, Option } from '@/utils/options/options';
 
-import debug from '@/_new/app/features/debug/debug';
-import { useBlackLabApi } from '@/_new/app/plugins/installApi';
+import debug from '@/app/features/debug/debug';
+import { useBlackLabApi } from '@/app/plugins/installApi';
 import { corpusCustomizations } from '@/utils/customization';
 import { defineComponent, watch } from 'vue';
 import ParallelFields from './parallel/ParallelFields';

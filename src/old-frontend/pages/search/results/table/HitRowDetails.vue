@@ -94,10 +94,10 @@ import type { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptype
 import type { HitRowData } from './table-layout';
 import { snippetParts } from './table-layout';
 
-import { debugLog } from '@/_new/app/features/debug/debug';
-import { useBlackLabApi } from '@/_new/app/plugins/installApi';
-import type { ApiError } from '@/_new/shared/api/lib/api-types';
-import type { CancelableRequest } from '@/_new/utils/loadable/loadable-streams';
+import { debugLog } from '@/app/features/debug/debug';
+import { useBlackLabApi } from '@/app/plugins/installApi';
+import type { ApiError } from '@/shared/api/lib/api-types';
+import type { CancelableRequest } from '@/utils/loadable/loadable-streams';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';

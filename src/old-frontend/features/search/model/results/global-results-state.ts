@@ -4,7 +4,7 @@
  */
 
 
-import type { CorpusChange } from '@/_new/app/plugins/installCorpusData';
+import type { CorpusChange } from '@/app/plugins/installCorpusData';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import { useLocalStorage } from '@vueuse/core';
 import { reactive } from 'vue';

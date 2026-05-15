@@ -1,6 +1,6 @@
 import type * as BLTypes from '@/types/blacklabtypes';
 
-import type { CorpusChange } from '@/_new/app/plugins/installCorpusData';
+import type { CorpusChange } from '@/app/plugins/installCorpusData';
 import { reactive } from 'vue';
 
 type ModuleRootState = {

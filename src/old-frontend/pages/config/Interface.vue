@@ -26,7 +26,7 @@ import type { NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
 import { defineComponent } from 'vue';
 
 import SelectPicker from '@/components/SelectPicker.vue';
-import type { Option } from '@/_new/utils/options/options';
+import type { Option } from '@/utils/options/options';
 import type { PropType } from 'vue';
 
 const component = defineComponent({

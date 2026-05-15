@@ -1,4 +1,4 @@
-import type { Translate } from '@/_new/shared/i18n/i18n';
+import type { Translate } from '@/shared/i18n/i18n';
 import * as FilterModule from '@/features/search/model/form/filter-state';
 import type { NormalizedAnnotation, NormalizedMetadataField } from "@/types/apptypes";
 import type { BLSearchResult } from '@/types/blacklabtypes';

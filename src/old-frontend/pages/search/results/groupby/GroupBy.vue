@@ -205,7 +205,7 @@ import * as ResultsStore from '@/features/search/model/results/view-state';
 
 import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
 
-import debug from '@/_new/app/features/debug/debug';
+import debug from '@/app/features/debug/debug';
 import type { BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
 import { hasPatternInfo, isHitResults } from '@/types/blacklabtypes';
 import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/utils/grouping';
@@ -220,13 +220,13 @@ import SelectPicker from '@/components/SelectPicker.vue';
 import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
 
 
-import { useBlackLabApi } from '@/_new/app/plugins/installApi';
+import { useBlackLabApi } from '@/app/plugins/installApi';
 import Tabs from '@/components/Tabs.vue';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
 import { snippetParts } from '@/pages/search/results/table/table-layout';
 import { corpusCustomizations } from '@/utils/customization';
-import { findOption, type OptGroup, type Option, type Options } from '@/_new/utils/options/options';
+import { findOption, type OptGroup, type Option, type Options } from '@/utils/options/options';
 
 // What we prefix the tag attribute grouping option with so we can recognize it
 const OPT_PREFIX_SPAN_ATTRIBUTE = '$TAGATTR:';

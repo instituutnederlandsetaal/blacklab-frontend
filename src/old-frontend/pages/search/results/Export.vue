@@ -47,8 +47,8 @@ import { defineComponent } from 'vue';
 
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 
-import { debugLog } from '@/_new/app/features/debug/debug';
-import { useBlackLabApi } from '@/_new/app/plugins/installApi';
+import { debugLog } from '@/app/features/debug/debug';
+import { useBlackLabApi } from '@/app/plugins/installApi';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';
 import { ensureCompleteFieldName } from '@/utils';

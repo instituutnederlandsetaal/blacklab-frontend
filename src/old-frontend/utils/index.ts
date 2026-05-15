@@ -1,9 +1,7 @@
 // TODO split this file into patternUtils (DONE - JN), groupUtils and generic utils.
 
-import type { Translate } from '@/_new/shared/i18n/i18n';
-import type * as AppTypes from '@/_new/types/apptypes';
-import type * as BLTypes from '@/_new/types/blacklabtypes';
-import type { OptGroup, Option } from '@/_new/utils/options/options';
+import type * as AppTypes from '@/types/apptypes';
+import type * as BLTypes from '@/types/blacklabtypes';
 
 /**
  * @param context

@@ -1,12 +1,17 @@
+import { fileURLToPath } from 'node:url';
 /// <reference types="vitest/config" />
 import path from 'path';
 
 import inject from '@rollup/plugin-inject';
+import { storybookTest } from '@storybook/addon-vitest/vitest-plugin';
 import vue from '@vitejs/plugin-vue';
-import { defineConfig, type UserConfig } from 'vite';
+import { playwright } from '@vitest/browser-playwright';
+import { defineConfig } from 'vite';
 import checker from 'vite-plugin-checker';
+const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
-const config: UserConfig = {
+// More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
+export default defineConfig({
 	plugins: [
 		checker({
 			vueTsc: {
@@ -14,7 +19,7 @@ const config: UserConfig = {
 				tsconfigPath: 'tsconfig.app.json', // relative to root prop above
 			},
 			oxlint: {
-				lintCommand: 'oxlint --config oxlint.config.ts --tsconfig tsconfig.app.json ./src/_new/',
+				lintCommand: 'oxlint --config oxlint.config.ts  ./src/',
 			},
 		}),
 		inject({
@@ -64,8 +69,8 @@ const config: UserConfig = {
 		assetsDir: 'assets',
 		rollupOptions: {
 			input: {
-				main: path.resolve(__dirname, 'src/_new/app/entrypoint/main.ts'),
-				callback: path.resolve(__dirname, 'src/_new/app/entrypoint/callback.ts'),
+				main: path.resolve(__dirname, 'src/app/entrypoint/main.ts'),
+				callback: path.resolve(__dirname, 'src/app/entrypoint/callback.ts'),
 			},
 			output: {
 				entryFileNames: '[name].js',
@@ -106,6 +111,31 @@ const config: UserConfig = {
 	// 		return true;
 	// 	},
 	// },
-};
-
-export default defineConfig(config);
+	test: {
+		projects: [
+			{
+				extends: true,
+				plugins: [
+					// The plugin will run tests for the stories defined in your Storybook config
+					// See options at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon#storybooktest
+					storybookTest({
+						configDir: path.join(dirname, '.storybook'),
+					}),
+				],
+				test: {
+					name: 'storybook',
+					browser: {
+						enabled: true,
+						headless: true,
+						provider: playwright({}),
+						instances: [
+							{
+								browser: 'chromium',
+							},
+						],
+					},
+				},
+			},
+		],
+	},
+});

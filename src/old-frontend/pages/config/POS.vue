@@ -19,7 +19,7 @@ import { defineComponent } from 'vue';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 
-import type { Option } from '@/_new/utils/options/options';
+import type { Option } from '@/utils/options/options';
 import type { PropType } from 'vue';
 import * as Step1 from './POS_1.vue';
 import * as Step2 from './POS_2.vue';

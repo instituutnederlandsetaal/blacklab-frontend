@@ -1,9 +1,9 @@
-import { useBlackLabApi, useFrontendApi } from '@/_new/app/plugins/installApi';
+import { useBlackLabApi, useFrontendApi } from '@/app/plugins/installApi';
 import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
 
-import type { Loadable } from '@/_new/utils/loadable/loadable-streams';
-import { combineLoadables, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, compareAsSortedJson, mapLoaded, switchMapLoaded, toObservable, withRequiredKeys } from '@/_new/utils/loadable/loadable-streams';
+import type { Loadable } from '@/utils/loadable/loadable-streams';
+import { combineLoadables, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, compareAsSortedJson, mapLoaded, switchMapLoaded, toObservable, withRequiredKeys } from '@/utils/loadable/loadable-streams';
 import type { Observable } from 'rxjs';
 import { combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareReplay } from 'rxjs';
 

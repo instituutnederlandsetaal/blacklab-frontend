@@ -88,7 +88,7 @@ import { defineComponent, nextTick } from 'vue';
 import * as RootStore from '@/app/state/root-store';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 
-import UrlStateParserSearch from '@/_new/app/routes/urls/url-state-parser-search';
+import UrlStateParserSearch from '@/app/routes/urls/url-state-parser-search';
 
 import Modal from '@/components/Modal.vue';
 

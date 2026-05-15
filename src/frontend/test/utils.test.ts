@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { splitIntoTerms } from '@/_new/shared/utils/string-utils';
+import { splitIntoTerms } from '@/shared/utils/string-utils';
 
 type ExpectedPart = {
 	start: number;

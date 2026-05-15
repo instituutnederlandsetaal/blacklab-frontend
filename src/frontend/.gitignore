@@ -3,3 +3,6 @@ node_modules/
 # maven installs nodejs locally
 node/
 npm.tar.gz
+
+*storybook.log
+storybook-static

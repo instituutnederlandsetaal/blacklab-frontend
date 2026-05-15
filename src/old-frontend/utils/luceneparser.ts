@@ -1,6 +1,6 @@
 import luceneQueryParser from 'lucene-query-parser';
 
-import { debugLog } from '@/_new/app/features/debug/debug';
+import { debugLog } from '@/app/features/debug/debug';
 
 import type { FilterValue } from '@/types/apptypes';
 

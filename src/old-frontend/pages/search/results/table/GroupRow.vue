@@ -13,7 +13,7 @@
 
 <script setup lang="ts">
 
-import { useI18n } from '@/_new/shared/i18n/i18n';
+import { useI18n } from '@/shared/i18n/i18n';
 import frac2Percent from '@/mixins/fractionalToPercent';
 import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
 import type { ColumnDefGroup, GroupRowData, } from '@/pages/search/results/table/table-layout';

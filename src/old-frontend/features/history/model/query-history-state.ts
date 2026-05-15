@@ -15,9 +15,9 @@ import type * as PatternModule from '@/features/search/model/form/pattern-state'
 import type * as GlobalModule from '@/features/search/model/results/global-results-state';
 import type * as ViewModule from '@/features/search/model/results/view-state';
 
-import { debugLog } from '@/_new/app/features/debug/debug';
-import type { CorpusChange } from '@/_new/app/plugins/installCorpusData';
-import UrlStateParserSearch from '@/_new/app/routes/urls/url-state-parser-search';
+import { debugLog } from '@/app/features/debug/debug';
+import type { CorpusChange } from '@/app/plugins/installCorpusData';
+import UrlStateParserSearch from '@/app/routes/urls/url-state-parser-search';
 import type { NormalizedIndex } from '@/types/apptypes';
 import { markRaw, shallowRef } from 'vue';
 

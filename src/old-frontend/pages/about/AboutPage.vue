@@ -3,10 +3,10 @@
 </template>
 
 <script setup lang="ts">
-import { useFrontendApi } from '@/_new/app/plugins/installApi';
-import { useMarkPageBootstrapSettledWhen } from '@/_new/app/routes/page-bootstrap';
-import { ApiError } from '@/_new/shared/api/lib/api-types';
-import { Loadable } from '@/_new/utils/loadable/loadable-streams';
+import { useFrontendApi } from '@/app/plugins/installApi';
+import { useMarkPageBootstrapSettledWhen } from '@/app/routes/page-bootstrap';
+import { ApiError } from '@/shared/api/lib/api-types';
+import { Loadable } from '@/utils/loadable/loadable-streams';
 import ServerRenderedContentPage from '@/components/ServerRenderedContentPage.vue';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { useAsyncState } from '@vueuse/core';
