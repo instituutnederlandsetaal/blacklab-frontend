@@ -17,7 +17,7 @@
 <script lang="ts">
 import { type PropType, defineComponent } from 'vue';
 
-import { useBlackLabApi } from '@/app/plugins/installApi';
+import { useBlackLabApi } from '@/shared/api/useApi';
 import type { NormalizedIndexBase } from '@/types/apptypes';
 
 import type { ApiError } from '@/shared/api/lib/api-types';

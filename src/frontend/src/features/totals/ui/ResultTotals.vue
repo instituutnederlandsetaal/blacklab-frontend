@@ -57,7 +57,7 @@
 <script lang="ts">
 import { defineComponent, type PropType } from 'vue';
 
-import { useBlackLabApi } from '@/app/plugins/installApi';
+import { useBlackLabApi } from '@/shared/api/useApi';
 import { IterativeResultCountLoader } from '@/features/totals/lib/result-count-from-query';
 import type { TotalsOutput } from '@/features/totals/lib/result-count-helpers';
 import type { BLSearchResult } from '@/types/blacklabtypes';

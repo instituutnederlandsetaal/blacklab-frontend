@@ -1,4 +1,4 @@
-// import type { CorpusChange } from '@/app/plugins/installCorpusData';
+// import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
 // import * as RootStore from '@/app/state/root-store';
 // import * as UIModule from '@/app/state/ui-state';
 // import * as ArticleModule from '@/features/article/model/article-state';
@@ -19,7 +19,7 @@
 
 import type { App } from 'vue';
 
-import type { CorpusChange } from '@/app/plugins/installCorpusData';
+import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
 
 import type { Loadable } from '@/shared/utils/loadable/loadable';
 
@@ -27,7 +27,7 @@ type InteropGlobal = typeof globalThis & {
 	vueApp?: App;
 	vueRoot?: unknown;
 	INDEX_ID?: string;
-	currentCorpusData?: Loadable<CorpusChange>;
+	currentCorpusData?: Loadable<CorpusContext>;
 	vuexModules?: unknown;
 };
 
@@ -80,7 +80,7 @@ export function setMountedVueGlobals(app: App, root: unknown) {
 	(window as InteropGlobal).vueRoot = root;
 }
 
-export function setCurrentCorpusDataGlobal(value: Loadable<CorpusChange>) {
+export function setCurrentCorpusDataGlobal(value: Loadable<CorpusContext>) {
 	(globalThis as InteropGlobal).currentCorpusData = value;
 }
 

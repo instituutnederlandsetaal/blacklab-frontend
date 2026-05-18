@@ -1,8 +1,8 @@
-import { ApiError, type BlackLabApi, type FrontendApi } from '@/shared/api/lib/api-types';
-import { rejectedRequest, resolvedRequest } from '@/shared/api/lib/api-utils';
 import type { CFPageConfig, Tagset } from '@/types/apptypes';
 import type { BLDocGroupResults, BLDocResults, BLHitGroupResults, BLHitResults, BLParsePatternResponse, BLServer, BLUser } from '@/types/blacklabtypes';
-import type { CancelableRequest } from '@/utils/loadable/loadable-streams';
+
+import { ApiError, type BlackLabApi, type CancelableRequest, type FrontendApi } from '@/shared/api/lib/api-types';
+import { rejectedRequest, resolvedRequest } from '@/shared/api/lib/api-utils';
 
 function unimplemented<T>(name: string): CancelableRequest<T> {
 	return rejectedRequest<T>(ApiError.wrap(`Unimplemented API mock: ${name}`));

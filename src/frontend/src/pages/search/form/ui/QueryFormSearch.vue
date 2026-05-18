@@ -96,8 +96,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-import { useBlackLabApi } from '@/app/plugins/installApi';
-import * as CorpusStore from '@/features/corpus/store/corpus-store';
+import { useBlackLabApi } from '@/shared/api/useApi';
+import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 // import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/pages/search/config/ui-customization-store';
 import useParallel from '@/pages/search/form/composables/useParallel';

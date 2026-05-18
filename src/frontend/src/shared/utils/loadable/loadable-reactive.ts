@@ -1,10 +1,11 @@
+import { tryOnScopeDispose } from '@vueuse/core';
 import axios from 'axios';
-import { computed, hasInjectionContext, onScopeDispose, reactive, ref, toRef, toValue, unref, watch, type ComputedRef, type MaybeRef } from 'vue';
-
-import { ApiError, type CancelableRequest } from '@/shared/api/lib/api-types';
+import { computed, reactive, ref, toRef, toValue, unref, watch, type ComputedRef, type MaybeRef } from 'vue';
 
 import { isLoaded, Loadable, LoadableState, thisIsEmpty, thisIsError, thisIsLoaded, thisIsLoading } from './loadable';
 import { combineLoadablesValue, type MaybeLoadable, type MaybeLoadablesInput } from './loadable-operators';
+
+import { ApiError, type CancelableRequest } from '@/shared/api/lib/api-types';
 
 type MaybeRefLoadable<T> = MaybeRef<MaybeLoadable<T>>;
 type MaybeRefLoadablesArray = readonly MaybeRefLoadable<unknown>[];
@@ -113,9 +114,8 @@ export function loadableFromRequest<T>(makeRequest: () => CancelableRequest<T>):
 		r?.cancel();
 	}
 
-	if (hasInjectionContext()) {
-		onScopeDispose(stop);
-	}
+	tryOnScopeDispose(stop);
+
 	retry(); // initial request.
 	return loadableFromRefs(state, value, error, { retry, stop });
 }

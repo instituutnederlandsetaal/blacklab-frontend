@@ -10,14 +10,14 @@ import HighchartsVue from 'highcharts-vue';
 import { createApp, effectScope, type App, type ObjectPlugin } from 'vue';
 
 // import { installHooksGlobal } from '@/interop/hooks';
+import { startCurrentCorpusGlobalInterop } from '@/app/effects/current-corpus-global-interop.effect';
+import { startCustomizationInterop } from '@/app/effects/page-customization.effect';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/app/interop/window-globals';
-import { startCorpusDataToLegacyStoreInterop } from '@/app/plugins/effects/corpus-bootstrap.effect';
-import { startCustomizationInterop } from '@/app/plugins/effects/page-customization.effect';
-import { createApi } from '@/app/plugins/installApi';
-import { createCorpusData } from '@/app/plugins/installCorpusData';
-import { createRouteBootstrapPlugin } from '@/app/plugins/installRoutePageBootstrapped';
+import { createApi } from '@/app/providers/provideApi';
+import { createCorpusData } from '@/app/providers/provideCorpusData';
+import { createRouteBootstrapPlugin } from '@/app/providers/providePageBootstrapState';
 // import Filters from '@/components/filters';
-import createRouter from '@/app/plugins/installRouter';
+import createRouter from '@/app/providers/provideRouter';
 
 import * as LoginSystem from '@/shared/auth/loginsystem';
 import * as i18n from '@/shared/i18n/i18n';
@@ -67,7 +67,7 @@ async function main() {
 	const eff = effectScope();
 	eff.run(() =>
 		app.runWithContext(() => {
-			startCorpusDataToLegacyStoreInterop();
+			startCurrentCorpusGlobalInterop();
 			startCustomizationInterop();
 		}),
 	);

@@ -6,7 +6,7 @@
 import { useMemoize } from '@vueuse/core';
 import { reactive, ref } from 'vue';
 
-import type { CorpusChange } from '@/app/plugins/installCorpusData';
+import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
 import * as UIStore from '@/pages/search/config/ui-customization-store';
 
 import { escapeRegex } from '@/shared/utils/string-utils';
@@ -176,7 +176,7 @@ const actions = {
 
 const resetSignal = ref(0);
 
-const init = (_state: CorpusChange) => {
+const init = (_state: CorpusContext) => {
 	actions.reset();
 };
 

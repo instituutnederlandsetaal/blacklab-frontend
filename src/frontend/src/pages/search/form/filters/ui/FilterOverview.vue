@@ -16,7 +16,7 @@
 
 import { computed } from 'vue';
 
-import { useBlackLabApi } from '@/app/plugins/installApi';
+import { useBlackLabApi } from '@/shared/api/useApi';
 import { FilteredResultCountLoader } from '@/features/totals/lib/result-count-from-filters';
 
 import SubcorpusTotals from '@/features/totals/ui/SubcorpusTotals.vue';

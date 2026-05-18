@@ -2,8 +2,9 @@ import { isObject } from '@vueuse/core';
 import type { AxiosError } from 'axios';
 import axios from 'axios';
 
-import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { isBLError } from '@/types/blacklabtypes';
+
+import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 
 export function cleanQueryParams(params: any): any {
 	if (isObject(params))

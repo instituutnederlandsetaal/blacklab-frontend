@@ -7,8 +7,8 @@ import { useMemoize } from '@vueuse/core';
 import cloneDeep from 'clone-deep';
 import { reactive, ref } from 'vue';
 
-import type { CorpusChange } from '@/app/plugins/installCorpusData';
-import * as CorpusStore from '@/features/corpus/store/corpus-store';
+import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
+import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 import * as UIStore from '@/pages/search/config/ui-customization-store';
 import { debugLogCat } from '@/shared/debug/debug';
 import type { AnnotationValue } from '@/types/apptypes';
@@ -267,7 +267,7 @@ const actions = {
 };
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = (state: CorpusChange) => {
+const init = (state: CorpusContext) => {
 	if (!state.index) {
 		Object.assign(getState(), cloneDeep(initialState));
 		return;

@@ -6,12 +6,12 @@
 import { isObject } from '@vueuse/core';
 import { nextTick } from 'vue';
 
-import type { CorpusChange } from '@/app/plugins/installCorpusData';
+import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
 import type { FilterDefinition, NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
 import type { BLHitResults, BLHitGroupResults, BLDoc, BLHit, BLHitInOtherField, BLHitSnippet } from '@/types/blacklabtypes';
 
 import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
-import type { HighlightSection } from '@/shared/hit-highlighting';
+import type { HighlightSection } from '@/pages/search/lib/hit-highlighting';
 import type { Translate } from '@/shared/i18n/i18n';
 import type { OptGroup, Option } from '@/shared/utils/options';
 
@@ -288,7 +288,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 	},
 });
 
-export function init(state: CorpusChange) {
+export function init(state: CorpusContext) {
 	if (state.index) corpusCustomizations._corpus = state.index;
 	void nextTick(() => {
 		corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));

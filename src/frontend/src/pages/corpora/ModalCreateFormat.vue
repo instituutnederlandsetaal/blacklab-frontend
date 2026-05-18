@@ -86,7 +86,7 @@ import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import { useBlackLabApi } from '@/app/plugins/installApi';
+import { useBlackLabApi } from '@/shared/api/useApi';
 import type { NormalizedFormat } from '@/types/apptypes';
 
 import type { ApiError } from '@/shared/api/lib/api-types';

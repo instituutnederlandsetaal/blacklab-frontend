@@ -33,7 +33,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import { useBlackLabApi } from '@/app/plugins/installApi';
+import { useBlackLabApi } from '@/shared/api/useApi';
 import type { NormalizedFormat } from '@/types/apptypes';
 import type { BLUser } from '@/types/blacklabtypes';
 

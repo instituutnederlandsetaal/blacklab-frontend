@@ -7,8 +7,9 @@
 import { computed, readonly, ref, watch, type App, type ObjectPlugin, type Ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import useInjectable from '@/app/plugins/lib/useInjectable';
 import type { CustomRouteMeta, CustomScriptTiming } from '@/app/routes/router-options';
+
+import useInjectable from '@/shared/lib/vue/useInjectable';
 
 type UseRouteBootstrapReturn = {
 	pageName: Ref<string>;

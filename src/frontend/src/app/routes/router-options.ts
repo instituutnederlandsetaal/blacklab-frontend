@@ -40,15 +40,20 @@ export default {
 
 		{
 			path: '/:corpus/',
-			redirect: '/:corpus/search',
-		},
-		{
-			name: 'search',
-			path: '/:corpus/search',
-			alias: '/:corpus/search/:pathMatch(.*)*',
-			meta: { name: 'search', getTitle: (displayName: string) => `${displayName} Search` } satisfies CustomRouteMeta,
-			// component: () => import('@/pages/search/SearchPage.vue'),
-			component: () => import('@/pages/search/SearchPage.vue'),
+			component: () => import('@/pages/corpus/CorpusPage.vue'),
+			children: [
+				{
+					path: '',
+					redirect: to => ({ name: 'search', params: { corpus: to.params.corpus } }),
+				},
+				{
+					name: 'search',
+					path: 'search',
+					alias: ['search/:pathMatch(.*)*'],
+					meta: { name: 'search', getTitle: (displayName: string) => `${displayName} Search` } satisfies CustomRouteMeta,
+					component: () => import('@/pages/search/SearchPage.vue'),
+				},
+			],
 		},
 		// {
 		// 	name: 'article',

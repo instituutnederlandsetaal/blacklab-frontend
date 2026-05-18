@@ -27,12 +27,13 @@ import type { ObservableInput, ObservedValueOf, OperatorFunction, Subscription }
 import { combineLatest, distinctUntilChanged, EMPTY, filter, map, mergeMap, Observable, of, ReplaySubject, startWith, Subject, switchMap, take, takeUntil, timer } from 'rxjs';
 import { hasInjectionContext, markRaw, onScopeDispose, ref, shallowRef, type Ref } from 'vue';
 
-import { ApiError } from '@/shared/api/lib/api-types';
 import type { MarkRequiredAndNotNull } from '@/types/helpers';
 
 import type { Empty, LoadableLike, Loaded, Loading, LoadingError, Val, ValEmpty, ValueTypeFromLoadableOrObservable } from './loadable';
 import { isEmpty, isError, isLoaded, isLoading, Loadable, LoadableState } from './loadable';
 import { loadableFromRefs, type LoadableFromRequest } from './loadable-reactive';
+
+import { ApiError } from '@/shared/api/lib/api-types';
 
 /**
  * Like map, but only call the mapper for Loadables of state S. The value the mapper returned is wrapped in a Loaded.

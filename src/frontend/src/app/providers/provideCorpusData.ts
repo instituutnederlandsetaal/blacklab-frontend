@@ -1,26 +1,16 @@
 import { toReactive, useMemoize } from '@vueuse/core';
-import { computed, effectScope, toRef, type MaybeRef, type ObjectPlugin, type Ref } from 'vue';
+import { computed, effectScope, toRef, type MaybeRef, type ObjectPlugin } from 'vue';
 
-import useInjectable from '@/app/plugins/lib/useInjectable';
-import defaultPageConfig from '@/entities/defaults/page-config.default';
+import { provideCurrentCorpus, provideCurrentCorpusData, provideCurrentTagset, type CorpusContext, type CorpusContextLoadable } from '@/entities/corpus/model/corpus-context';
+import { provideCurrentConfig } from '@/entities/page-config/page-config';
+import defaultPageConfig from '@/entities/page-config/page-config.default';
+import type { CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
+
 import type { BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
 import { processTagset } from '@/shared/blacklab-helpers/tagset-helper';
 import { Loadable } from '@/shared/utils/loadable/loadable';
 import { loadableFromRefs, loadableFromRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-reactive';
 import { combineLoadablesIncludingEmpty } from '@/shared/utils/loadable/loadable-streams';
-import type { CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
-
-export type CorpusChange = {
-	index: NormalizedIndex | undefined;
-	tagset: Tagset | undefined;
-	config: CFPageConfig;
-};
-export type CorpusDataLoadable = LoadableFromRequest<CorpusChange>;
-
-const [_currentCorpusDataInjectionKey, _provideCurrentCorpusData, useCurrentCorpusData] = useInjectable<CorpusDataLoadable>('currentCorpusData');
-const [_currentCorpusInjectionKey, _provideCurrentCorpus, useCurrentCorpus] = useInjectable<NormalizedIndex>('currentCorpus');
-const [_currentConfigInjectionKey, _provideCurrentConfig, useCurrentConfig] = useInjectable<CFPageConfig>('currentConfig');
-const [_currentTagsetInjectionKey, _provideCurrentTagset, useCurrentTagset] = useInjectable<Ref<Tagset | undefined>>('currentTagset');
 
 function isRetryableLoadable<T>(loadable: Loadable<T>): loadable is LoadableFromRequest<T> {
 	return typeof (loadable as Partial<LoadableFromRequest<T>>).retry === 'function' && typeof (loadable as Partial<LoadableFromRequest<T>>).stop === 'function';
@@ -34,7 +24,7 @@ function stopIfPossible(loadable: Loadable<unknown>) {
 	if (isRetryableLoadable(loadable)) loadable.stop();
 }
 
-function normalizeCorpusData({ config, index, tagset }: { config: CFPageConfig; index?: NormalizedIndex; tagset?: Tagset }): CorpusChange {
+function normalizeCorpusData({ config, index, tagset }: { config: CFPageConfig; index?: NormalizedIndex; tagset?: Tagset }): CorpusContext {
 	const annots = index?.annotatedFields[index.mainAnnotatedField].annotations;
 	if (tagset) {
 		const mainAnnot = annots && Object.values(annots).find(a => a.uiType === 'pos');
@@ -52,25 +42,25 @@ function createCorpusDataLoadable(
 	getCorpus: (corpusId: string | null) => Loadable<NormalizedIndex>,
 	getConfig: (corpusId: string | null) => LoadableFromRequest<CFPageConfig>,
 	getTagset: (corpusId: string | null) => Loadable<Tagset | undefined>,
-): CorpusDataLoadable {
+): CorpusContextLoadable {
 	const corpus = getCorpus(corpusId);
 	const config = getConfig(corpusId);
 	const tagset = getTagset(corpusId);
 
-	const combined = computed<Loadable<CorpusChange>>(() => {
+	const combined = computed<Loadable<CorpusContext>>(() => {
 		const settled = combineLoadablesIncludingEmpty({ corpus, config, tagset });
 		if (!settled.isLoaded()) {
-			if (settled.isLoading()) return Loadable.Loading<CorpusChange>();
-			if (settled.isError()) return Loadable.LoadingError<CorpusChange>(settled.error);
-			return Loadable.Empty<CorpusChange>();
+			if (settled.isLoading()) return Loadable.Loading<CorpusContext>();
+			if (settled.isError()) return Loadable.LoadingError<CorpusContext>(settled.error);
+			return Loadable.Empty<CorpusContext>();
 		}
 
 		const { corpus: index, config: resolvedConfig, tagset: resolvedTagset } = settled.value;
-		if (!resolvedConfig) return Loadable.Empty<CorpusChange>();
+		if (!resolvedConfig) return Loadable.Empty<CorpusContext>();
 		return Loadable.Loaded(normalizeCorpusData({ index, config: resolvedConfig, tagset: resolvedTagset }));
 	});
 
-	const result = loadableFromRefs(
+	return loadableFromRefs(
 		computed(() => combined.value.state),
 		computed(() => combined.value.value),
 		computed(() => combined.value.error),
@@ -87,8 +77,6 @@ function createCorpusDataLoadable(
 			},
 		},
 	);
-
-	return result;
 }
 
 export function createCorpusData(blacklab: BlackLabApi, frontend: FrontendApi, currentCorpusId: MaybeRef<string | null>): ObjectPlugin {
@@ -106,25 +94,16 @@ export function createCorpusData(blacklab: BlackLabApi, frontend: FrontendApi, c
 					const getCorpusData = useMemoize((corpusId: string | null) => createCorpusDataLoadable(corpusId, getCorpus, getConfig, getTagset));
 
 					const currentCorpusIdRef = toRef(currentCorpusId);
-					// Note: since the actual inner of the getCorpus can be an empty (if ID is null)
-					// but we pretend to always provide a value
-					// we need to make sure to sometimes return a dummy (the {} object)
-					// we do this to avoid having to add checks on the presence of the corpus in every single component that needs it, since it's a core part of the app and most components will require it.
-					// In practice, we'll need to make sure to never call useCurrentCorpus() when we're unsure of the corpus presence.
-					// In the component tree, we have a loading guard at the top level
-					// (use the useCurrentCorpusData() to get the loading state/retry function)
-					_provideCurrentCorpus(app, toReactive(computed<NormalizedIndex>(() => getCorpus(currentCorpusIdRef.value).value || ({} as any as NormalizedIndex))));
-					_provideCurrentConfig(app, toReactive(computed(() => getConfig(currentCorpusIdRef.value).value || defaultPageConfig)));
-					_provideCurrentTagset(
+					provideCurrentCorpus(app, toReactive(computed<NormalizedIndex>(() => getCorpus(currentCorpusIdRef.value).value || ({} as any as NormalizedIndex))));
+					provideCurrentConfig(app, toReactive(computed(() => getConfig(currentCorpusIdRef.value).value || defaultPageConfig)));
+					provideCurrentTagset(
 						app,
 						computed(() => getTagset(currentCorpusIdRef.value).value),
 					);
-					_provideCurrentCorpusData(app, toReactive(computed(() => getCorpusData(currentCorpusIdRef.value))));
+					provideCurrentCorpusData(app, toReactive(computed(() => getCorpusData(currentCorpusIdRef.value))));
 				}),
 			);
 			app.onUnmount(() => effect.stop());
 		},
 	};
 }
-
-export { useCurrentConfig, useCurrentCorpus, useCurrentCorpusData, useCurrentTagset };

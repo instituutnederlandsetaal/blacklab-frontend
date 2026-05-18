@@ -7,15 +7,15 @@ This is the current implementation map in `_new`, grouped by responsibility.
 Relevant files:
 
 - `src/frontend/src/app/entrypoint/main.ts`
-- `src/frontend/src/app/plugins/installCorpusData.ts`
-- `src/frontend/src/app/plugins/installRoutePageBootstrapped.ts`
-- `src/frontend/src/app/plugins/effects/page-customization.effect.ts`
+- `src/frontend/src/app/providers/provideCorpusData.ts`
+- `src/frontend/src/app/providers/providePageBootstrapState.ts`
+- `src/frontend/src/app/effects/page-customization.effect.ts`
 - `src/frontend/src/app/interop/page-customization.ts`
 - `src/frontend/src/app/routes/router-options.ts`
 
 Current behavior:
 
-- Corpus metadata, page config, and tagset are loaded together through `installCorpusData.ts`.
+- Corpus metadata, page config, and tagset are loaded together through `provideCorpusData.ts`.
 - Custom CSS is inserted immediately after config is available.
 - Custom JS is inserted either immediately or after the page marks itself bootstrapped, based on route meta.
 - Search route currently uses immediate custom-script timing.

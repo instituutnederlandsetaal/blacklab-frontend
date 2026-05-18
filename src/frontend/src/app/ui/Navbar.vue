@@ -40,8 +40,8 @@
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { useCurrentConfig } from '@/app/plugins/installCorpusData';
-import { useCurrentCorpusId } from '@/app/plugins/installRouter';
+import { useCurrentCorpusId } from '@/entities/corpus/model/current-corpus-id';
+import { useCurrentConfig } from '@/entities/page-config/page-config';
 
 import { getCorpusOwner } from '@/shared/blacklab-helpers/normalize-responses';
 import { localStorageSynced } from '@/shared/utils/localstore';

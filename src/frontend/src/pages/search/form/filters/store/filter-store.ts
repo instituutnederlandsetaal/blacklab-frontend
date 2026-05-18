@@ -8,9 +8,9 @@
 import { useMemoize } from '@vueuse/core';
 import { reactive } from 'vue';
 
-import { useBlackLabApi } from '@/app/plugins/installApi';
-import type { CorpusChange } from '@/app/plugins/installCorpusData';
-import * as CorpusModule from '@/features/corpus/store/corpus-store';
+import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
+import { useBlackLabApi } from '@/shared/api/useApi';
+import * as CorpusModule from '@/entities/corpus/model/legacy-corpus-store';
 import { corpusCustomizations } from '@/pages/search/config/customization-callback-store';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/pages/search/form/filters/lib/filterValueFunctions';
 import type { FilterDefinition } from '@/types/apptypes';
@@ -157,7 +157,7 @@ const internalActions = {
 	},
 };
 
-const init = (state: CorpusChange) => {
+const init = (state: CorpusContext) => {
 	internalActions.clearState();
 	if (!state.index) {
 		return;

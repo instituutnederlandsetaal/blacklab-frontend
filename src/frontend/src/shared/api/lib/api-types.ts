@@ -1,27 +1,28 @@
 import type { AxiosRequestConfig, Canceler } from 'axios';
 import type { InteropObservable, Observable } from 'rxjs';
 
-import type { Loadable } from '@/shared/utils/loadable/loadable';
-import { toObservable } from '@/shared/utils/loadable/loadable-streams';
 import type { CFPageConfig, NormalizedFormat, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
 import type {
-    BLAnnotatedField,
-    BLDocGroupResults,
-    BLDocResults,
-    BLDocument,
-    BLFormatContent,
-    BLHit,
-    BLHitGroupResults,
-    BLHitResults,
-    BLParsePatternResponse,
-    BLRelationInfo,
-    BLResponse,
-    BLSearchParameters,
-    BLServer,
-    BLShareInfo,
-    BLTermOccurances,
-    BLUser,
+	BLAnnotatedField,
+	BLDocGroupResults,
+	BLDocResults,
+	BLDocument,
+	BLFormatContent,
+	BLHit,
+	BLHitGroupResults,
+	BLHitResults,
+	BLParsePatternResponse,
+	BLRelationInfo,
+	BLResponse,
+	BLSearchParameters,
+	BLServer,
+	BLShareInfo,
+	BLTermOccurances,
+	BLUser,
 } from '@/types/blacklabtypes';
+
+import type { Loadable } from '@/shared/utils/loadable/loadable';
+import { toObservable } from '@/shared/utils/loadable/loadable-streams';
 
 export type ApiEndpoint<ResponseType = never, Params extends any[] = []> = (...args: [...Params, requestParameters?: AxiosRequestConfig]) => CancelableRequest<ResponseType>;
 

@@ -62,8 +62,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import { useBlackLabApi } from '@/app/plugins/installApi';
-import * as CorpusStore from '@/features/corpus/store/corpus-store';
+import { useBlackLabApi } from '@/shared/api/useApi';
+import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 import * as PatternStore from '@/pages/search/form/store/pattern-store';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 

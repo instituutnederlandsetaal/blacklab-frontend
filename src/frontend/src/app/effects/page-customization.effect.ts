@@ -3,16 +3,15 @@ import { useRoute } from 'vue-router';
 
 import { useCustomCss, useCustomJs, useFavicon, useTitle } from '@/app/interop/page-customization';
 import { setLegacyIndexIdGlobal } from '@/app/interop/window-globals';
-import { useCurrentConfig } from '@/app/plugins/installCorpusData';
-import { useRouteBootstrap } from '@/app/plugins/installRoutePageBootstrapped';
-import { useCurrentCorpusId } from '@/app/plugins/installRouter';
+import { useRouteBootstrap } from '@/app/providers/providePageBootstrapState';
 import type { CustomRouteMeta } from '@/app/routes/router-options';
+import { useCurrentCorpusId } from '@/entities/corpus/model/current-corpus-id';
+import { useCurrentConfig } from '@/entities/page-config/page-config';
 
 function sortedEntries<T extends { index: number }>(entries: Record<string, T[]>, pageName: string) {
 	const base = entries[''] ?? [];
 	const page = pageName ? (entries[pageName] ?? []) : [];
-	const values = base.concat(page).sort((a, b) => a.index - b.index);
-	return values;
+	return base.concat(page).sort((a, b) => a.index - b.index);
 }
 
 export function startCustomizationInterop() {
@@ -22,12 +21,10 @@ export function startCustomizationInterop() {
 	const route = useRoute();
 	const getPageTitle = computed<(v: string) => string>(() => (route.meta as CustomRouteMeta)?.getTitle ?? (v => v));
 
-	// Set this one up first, so the variable is guaranteed to be set before dependent custom js is executed.
-	// TODO?
 	watchEffect(() => setLegacyIndexIdGlobal(corpusId.value || ''));
 	useTitle(computed(() => getPageTitle.value(config.displayName ?? 'unknown')));
 
-	const _css = useCustomCss(
+	useCustomCss(
 		computed(() => sortedEntries(config.customCss, pageBootstrap.pageName.value)),
 		{ immediate: true },
 	);
@@ -35,13 +32,11 @@ export function startCustomizationInterop() {
 		computed(() => sortedEntries(config.customJs, pageBootstrap.pageName.value)),
 		{ immediate: false },
 	);
-	const _fav = useFavicon(
+	useFavicon(
 		computed(() => (config.faviconDir ? `${config.faviconDir}/favicon.ico` : '')),
 		{ rel: 'icon' },
 	);
 
-	// Only insert JS when page is loaded, or before that if the timing is set to immediate
-	// to prevent js from trying to interact with page properties or DOM that isn't present yet.
 	watchEffect(() => {
 		if (pageBootstrap.pageCustomScriptTiming.value === 'immediate' || pageBootstrap.pageBootstrapped.value) js.enable();
 		else js.disable();

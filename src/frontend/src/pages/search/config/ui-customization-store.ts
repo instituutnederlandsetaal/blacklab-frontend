@@ -10,8 +10,8 @@ import cloneDeep from 'clone-deep';
 import { html, stripIndent } from 'common-tags';
 import { reactive } from 'vue';
 
-import type { CorpusChange } from '@/app/plugins/installCorpusData';
-import * as CorpusStore from '@/features/corpus/store/corpus-store';
+import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
+import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 import { corpusCustomizations } from '@/pages/search/config/customization-callback-store';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
@@ -818,7 +818,7 @@ const actions = {
  *   This is where we are now.
  *
  */
-const init = (state: CorpusChange) => {
+const init = (state: CorpusContext) => {
 	if (!state.index) {
 		// Reset to completely blank slate if no corpus loaded.
 		Object.assign(getState(), cloneDeep(initialState));

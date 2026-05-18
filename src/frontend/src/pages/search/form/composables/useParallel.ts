@@ -1,6 +1,6 @@
 import { computed, reactive } from 'vue';
 
-import * as CorpusStore from '@/features/corpus/store/corpus-store';
+import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 import * as UIStore from '@/pages/search/config/ui-customization-store';
 import * as PatternStore from '@/pages/search/form/store/pattern-store';
 
