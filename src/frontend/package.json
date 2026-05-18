@@ -4,7 +4,7 @@
 	"description": "BlackLab Frontend javascript code",
 	"private": true,
 	"scripts": {
-		"test": "vitest --dir test --config test/vitest.config.js",
+		"test": "vitest",
 		"build": "npm run build:blfschema && npm run build:source",
 		"build:blfschema": "cd assets && node compile-schema.js && cd ..",
 		"build:source": "vite build",
