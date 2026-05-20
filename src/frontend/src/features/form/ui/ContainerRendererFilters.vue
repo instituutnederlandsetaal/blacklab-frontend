@@ -20,45 +20,6 @@
 		<!-- TODO i18n -->
 		<div v-else class="empty">No filters configured.</div>
 	</section>
-
-	<!-- <template v-if="useTabs">
-		<nav class="blf-tabs small">
-			<button v-for="tab in groups" :key="tab.id" type="button" :class="{ active: activeTabModel === tab.id }" @click="activeTabModel = tab.id">
-				{{ tab.title || 'Common' }}
-				<span v-if="activeFiltersMap[tab.id]" class="badge">{{ activeFiltersMap[tab.id] }}</span>
-			</button>
-		</nav>
-
-		<div class="filter-container">
-			<template v-for="(subtab, index) in activeGroup?.subtabs || []" :key="subtab.id">
-				<h4 v-if="subtab.title">{{ subtab.title }}</h4>
-				<hr v-else-if="index !== 0" />
-				<Component
-					v-for="id in subtab.fields"
-					:key="id"
-					:is="componentFor(filters[id])"
-					:html-id="`filter_${id}`"
-					:definition="filters[id]"
-					:text-direction="textDirection"
-					:model-value="values[id]"
-					@update:model-value="updateFilterValue(id, $event)"
-				/>
-			</template>
-		</div>
-	</template>
-	<div v-else-if="allFilters.length" class="filter-container">
-		<Component
-			v-for="filter in allFilters"
-			:key="filter.id"
-			:is="componentFor(filter)"
-			:html-id="`filter_${filter.id}`"
-			:definition="filter"
-			:text-direction="textDirection"
-			:model-value="values[filter.id]"
-			@update:model-value="updateFilterValue(filter.id, $event)"
-		/>
-	</div>
-	<div v-else class="empty">No filters configured.</div> -->
 </template>
 
 <script setup lang="ts">
@@ -69,14 +30,6 @@ import { useParentForm } from '@/features/form/model/runtime';
 import type { FormContainerNode } from '@/features/form/model/types/form-shape';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 
-import FilterAutocomplete from '../fields/filters/FilterAutocomplete.vue';
-import FilterCheckbox from '../fields/filters/FilterCheckbox.vue';
-import FilterDate from '../fields/filters/FilterDate.vue';
-import FilterRadio from '../fields/filters/FilterRadio.vue';
-import FilterRange from '../fields/filters/FilterRange.vue';
-import FilterRangeMultipleFields from '../fields/filters/FilterRangeMultipleFields.vue';
-import FilterSelect from '../fields/filters/FilterSelect.vue';
-import FilterText from '../fields/filters/FilterText.vue';
 import NodeRenderer from '@/features/form/ui/NodeRenderer.vue';
 
 defineOptions({ name: 'ContainerRendererFilters' });
@@ -101,17 +54,6 @@ const activeFiltersMap = computed<Record<string, number>>(() =>
 		return acc;
 	}, {}),
 );
-
-const components = {
-	'filter-autocomplete': FilterAutocomplete,
-	'filter-checkbox': FilterCheckbox,
-	'filter-date': FilterDate,
-	'filter-radio': FilterRadio,
-	'filter-range': FilterRange,
-	'filter-range-multiple-fields': FilterRangeMultipleFields,
-	'filter-select': FilterSelect,
-	'filter-text': FilterText,
-};
 </script>
 
 <style lang="scss" scoped>

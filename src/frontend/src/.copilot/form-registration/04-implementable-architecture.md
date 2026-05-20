@@ -1,250 +1,142 @@
-# Implementable Architecture
+# Implemented Architecture
 
-This is the recommended design for dynamic form registration in `_new`.
+This document describes the form system as it exists now, plus the target boundaries that still matter before app integration.
 
-## Design principles
+## Current principles
 
-- Prefer a tree-shaped composition model for UI definitions.
-- Store presentation metadata on nodes when it simplifies the implementation.
-- Container presentation is bounded and boring: list, tabs, small-tabs, a class escape-hatch for styling.
-- Leaf node presentation can be richer: headings, form summary, etc.
-- Draft state is unified by controller identity. A controller may contribute Lucene, CQL, both, or neither.
-- Forms are the submit and state boundary.
-- Leaf controllers own their own draft state shape, summaries, and query contributions.
-- Parent containers own sibling combine semantics.
-- Submission produces both raw BlackLab parameters and opaque UI state.
-- Restore uses opaque state first and raw strings as fallback.
-- A persistence codec is a first-class architectural concern, not a late add-on.
-- Non-field built-in UI nodes such as summaries and totals are first-class.
-- External scripts can compose built-in controllers through a typed callback API.
-- Internal Vue code owns final rendering.
-- External configuration may choose from a bounded set of primitives, but not arbitrary components or DOM layout.
+- The form system is an isolated feature under `features/form`.
+- A form definition is a graph rooted at a `container` or `form` node.
+- `form` nodes are submit boundaries.
+- `field` nodes own controller-specific state and query contributions.
+- `view` nodes display derived or static UI without contributing query clauses.
+- Runtime state is mutable inside `FormSystemRuntime` and keyed by node ID.
+- Submitted/persisted state is produced by copying the relevant live state at submit/persist time.
+- Metadata filters are regular fields; grouped filters are a specialized container renderer.
+- Vue rendering is internal. External/public API design is still unsettled.
 
-## Proposed conceptual layers
+## Node model
 
-### 1. Registration and composition layer
-
-Responsibility:
-
-- collect external and built-in form registrations
-- validate them against the current corpus
-- materialize an immutable composition tree for the active corpus
-
-Input sources:
-
-- built-in registrations shipped in `_new`
-- external callbacks registered by custom scripts
-- corpus metadata and page config
-
-Important property:
-
-- this layer should be recomputable when corpus or registrations change
-- it should not depend on mutating internal stores directly
-
-### 2. Form-state, query-artifact, submission, and persistence layer
-
-Responsibility:
-
-- hold widget or controller state while the user edits a form
-- track active form and nested container selections
-- build query artifacts and projections from a submitted form
-- encode and decode browser history, in-app history, and URL state
-
-Target shape:
-
-- one `FormState` per registered form
-- controller state keyed by controller ID. Controllers may appear multiple times per form, with shared state.
-- one small UI-state map per form for active nested containers such as tabs
-- one submitted snapshot that stores `form + formState + compiled query projections`
-
-Migration note:
-
-- early migration spikes may temporarily adapt `pattern-store.ts`, `explore-state.ts`, `filter-store.ts`, and `interface-state.ts`
-- that is a migration tactic, not the intended final boundary
-
-### 3. Rendering and runtime-context layer
-
-Responsibility:
-
-- render the composition tree using internal Vue components
-- provide read-only runtime context to fields and views
-- expose convenience composables such as `useParentForm()` for derived views
-- never expose arbitrary Vue component references to external scripts
-
-## Composition primitives
-
-The composition model should use four primitives.
+The current primitives are defined in `model/types/form-shape.ts`.
 
 ### `container`
 
 Purpose:
 
-- simple structural grouping
-- tab switching
-- CSS-driven horizontal or vertical lists
+- group children
+- render list or tabs
+- define child query combination semantics
+- optionally use an internal specialized renderer
 
-Allowed children:
+Current shape:
 
-- `container`
-- `form`
-- `field`
-- `view`
-
-Core built-in presentation properties:
-
-- `presentation: 'list' | 'tabs' | 'small-tabs'`
-- `class?: string` escape hatch for horizontal/vertical layer, and customization.
-- `title?` so user can provide context without being required to add i18n entries
+```ts
+type FormContainerNode = FormNodeBase & {
+	kind: 'container';
+	component?: Component;
+	config?: {
+		variant?: 'list' | 'tabs' | 'small-tabs';
+		combine?: 'allOf' | 'anyOf' | 'sequence';
+	};
+	children: FormNode[];
+};
+```
 
 Notes:
 
-- The page will typically contain one or more levels of `container` before the actual forms. E.g. `search` vs `explore`, and inside that `simple/extended/advanced/expert` and `corpus/n-gram/statistics`
-- A `container` inside a form is just nested presentation.
+- `config.variant` replaced the old `presentation` property.
+- `config.combine` is read by the query compiler.
+- `class` remains a small styling escape hatch on the node base.
 
 ### `form`
 
 Purpose:
 
-- define the submit boundary
-- wrap a root list container with non-optional internal actions such as submit and reset
+- submit/reset boundary
+- parent-form provider boundary for views
+- owner of optional result presets
 
-Allowed parent:
+Current shape:
 
-- must not have a parent form
-- should appear directly under a `container`
-
-Allowed children:
-
-- `container, field, view` nodes
-
-Core built-in presentation properties:
-
-- `class`
-- `title`
-- optional simple layout props passed through to the implicit root container
+```ts
+type FormBoundaryNode = FormNodeBase & {
+	kind: 'form';
+	children: FormChildNode[];
+	resultPreset?: Partial<ResultPreset>;
+};
+```
 
 ### `field`
 
 Purpose:
 
-- terminal query-generating controller node
+- render a controller component
+- store controller state under `controllerState[node.id]`
+- contribute query artifact and summaries through the controller
 
-Invariant:
+Current shape:
 
-- a `field` cannot exist outside a form
-
-Typical properties:
-
-- `controllerKind`
-- small renderer variant hints such as `variant: 'large' | 'inline'`
+```ts
+type FormFieldNode<Config extends FieldControllerConfig = FieldControllerConfig> = FormNodeBase & {
+	kind: 'field';
+	controller: FieldController<string, any, Config>;
+	config: Config;
+};
+```
 
 ### `view`
 
 Purpose:
 
-- terminal non-query node such as a heading, summary, totals panel, or toolbar
+- render static or derived UI such as headings, summaries, and totals
+- read parent-form runtime where needed
 
-Typical properties:
+Current shape:
 
-- `viewKind`
-- view-specific configuration
+```ts
+type FormViewNode<Config = unknown> = FormNodeBase & {
+	kind: 'view';
+	view: ViewDefinition<string, Config>;
+	config: Config;
+	variant?: string;
+};
+```
 
-Notes:
+## Builder and graph ownership
 
-- some views are self-contained and presentation-only, such as headings
-- some views require read access to the parent form, such as summary and totals panels
+`FormBuilder` is the current construction tool.
 
-## Limited node-level presentation model
+Current flow:
 
-The goal is not to reintroduce a layout DSL. The goal is to stop paying the complexity cost of a separate attachment model for a very small presentation vocabulary.
+```ts
+const registry = new ControllerRegistry();
+registerBuiltinControllers(registry);
+registerBuiltinViews(registry);
 
-Rules:
+const builder = new FormBuilder(registry);
+const root = builder.newContainer('search', { config: { variant: 'tabs' } });
+const form = builder.newForm('search.simple', { title: 'Simple' });
+form.addChildren(builder.newField('search.simple.word', annotationController, config));
+root.addChildren(form);
 
-- keep presentation props on the nodes themselves
-- keep the presentation prop set intentionally tiny
-- prefer CSS classes and internal renderers for the final look
-- if a later use case needs richer placement semantics, add them deliberately rather than pre-optimizing now
+const definition = builder.build();
+```
 
-This is a practical compromise: less pure than a strict logic and presentation split, but much easier to reason about.
+Current behavior:
 
-## Sharing Fields
+- `FormBuilder` rejects duplicate node IDs.
+- `build()` checks loops and generates a schema hash.
+- Reused fields/containers are represented by reusing the same node object in multiple places.
+- Manual definitions can still create duplicate IDs; runtime state will then be shared because state maps are keyed by ID.
 
-Fields and containers are "global" and separately registered from forms
-A form simply contains one or more containers, keyed by their ID.
-Two forms containing the same container or Field will render that instance from the same state.
+Architectural consequence:
 
-Example strategy:
+- `stateKey` is gone. Sharing is no longer a separate field property.
+- Helper factories are the safest way to share form pieces because they can return the same node object deliberately.
+- The builder should eventually validate form invariants more explicitly, especially field-inside-form and duplicate-ID behavior in manually authored definitions.
 
-- both `extended` and `expert` may render “the same filters”
-- they do this by including the global filters container, e.g. `shared.filters`
-- reusable helper functions can generate the default containers and field structures that the forms can then reference
+## Runtime state
 
-## Field controllers and view nodes
-
-Each `field` node should be backed by a built-in controller or driver.
-
-Minimum controller responsibilities:
-
-- create default draft state
-- validate corpus compatibility
-- contribute query fragments or wrappers
-- restore from opaque payload
-- provide optional human-readable summary entries
-
-Suggested built-in controller families:
-
-- annotation input
-- filter input
-- within selector
-- parallel source selector
-- parallel target selector
-- align-by selector
-- query builder
-- expert raw query editor
-- explore n-gram builder
-- explore frequency selector
-- explore corpora preset
-
-Suggested built-in view-node families:
-
-- heading
-- summary panel
-- totals panel
-
-The `summary` view is intentionally a small exception: it is not self-contained in the same way as a heading, but its dependency is very limited. It needs read access to the parent form.
-
-Future extension point:
-
-- internal code may later support custom controller registration
-- do not make that part of the first external API unless a real use case demands it
-
-## Runtime context and `useParentForm()`
-
-Built-in renderers, fields, and views need a small read-only runtime context.
-
-Recommended core composable:
-
-- `useParentForm()`
-
-It should expose computed read-only access to:
-
-- `formId`
-- `formState`
-- `filter-summary`, `query-summary`, `filter`, `query`
-- current corpus metadata
-- currently active nested container selections
-
-This is enough for the odd-but-important cases:
-
-- a filter summary view can call `useParentForm()['filter']`
-- a totals view can use the same projection to drive `FilteredResultCountLoader`
-- a heading view does not need form context at all
-
-Fields should generally use controller-specific helpers instead of rummaging through the entire form state directly, but the form context must still exist as an escape hatch for carefully bounded built-in cases.
-
-## Draft and submitted state model
-
-Recommended shape:
+Current state shape:
 
 ```ts
 type FormState = {
@@ -253,369 +145,196 @@ type FormState = {
 		activeContainers: Record<string, string | null>;
 	};
 };
-
-type DraftSearchState = {
-	activeForm: string;
-	forms: Record<string, FormState>;
-};
-
-type SubmittedSearchState = {
-	form: string;
-	state: FormState;
-	compiled: {
-		cql: string | null;
-		filter: string | null;
-		searchField: string | null;
-		resultPreset?: {
-			viewedResults?: 'hits' | 'docs' | string;
-			groupBy?: string[];
-			sort?: string | null;
-			groupDisplayMode?: string | null;
-		};
-	};
-	schemaVersion: string;
-};
 ```
 
-Why both are needed:
+Runtime responsibilities:
 
-- the submitted snapshot is centered on `form + form state`, which keeps the model aligned with the actual submit boundary
-- `compiled` is portable and always interpretable by the backend or expert fallback
-- `state` is what lets the UI restore without decompiling raw query strings
-- `uiState` preserves selected nested tabs and subforms all the way down
+- initialize controller state from the definition
+- hold mutable live editing state
+- track active container/form children for tabs
+- compile live state for a specific form
+- summarize live state for a specific form
+- copy active form state for persistence/submission
+- reset live state back to controller defaults
 
-## Query artifact and projections
-
-The accumulator model should not be a narrow purpose-built object that permanently limits expressiveness.
-
-Recommendation:
-
-- accumulate into a minimal internal query artifact with separate pattern and filter trees plus wrapper requests
-- keep simple helpers for common leaf cases
-- let parent containers decide how sibling contributions combine
-- allow advanced controllers to emit raw subtrees at their own boundary when necessary
-
-Minimal shape:
+Runtime API:
 
 ```ts
-type QueryArtifact = {
-	pattern: PatternNode | null;
-	filter: FilterNode | null;
-	wrappers: QueryWrapper[];
-	resultPreset: Partial<ResultPreset>;
-	summaries: SummaryEntry[];
+type FormSystemRuntime = {
+	definition: FormSystemDefinition;
+	context: FormRuntimeContext;
+	state: Ref<FormState>;
+	activeFormNode: Ref<FormBoundaryNode | null>;
+	forms: Record<string, FormBoundaryNode>;
+	compile(formId: string): CompiledFormState;
+	persist(formId: string): PersistableFormState;
+	submit(formId: string): PersistableSubmittableFormState;
+	summarize(formId: string): SummaryEntry[];
+	reset(): void;
 };
-
-type PatternNode =
-	| { type: 'sequence'; children: PatternNode[] }
-	| { type: 'token'; clauses: TokenClauseNode[] }
-	| { type: 'boolean'; operator: 'and' | 'or'; children: PatternNode[] }
-	| { type: 'parallel'; source: PatternNode; targets: ParallelTargetNode[] }
-	| { type: 'raw'; cql: string };
-
-type FilterNode =
-	| { type: 'term'; field: string; values: string[] }
-	| { type: 'range'; field: string; low?: string; high?: string }
-	| { type: 'boolean'; operator: 'and' | 'or'; children: FilterNode[] }
-	| { type: 'raw'; lucene: string };
-
-type QueryWrapper = { type: 'within'; element: string; attributes: Record<string, FilterNode | string> } | { type: 'with-spans'; enabled: boolean };
 ```
 
 Important behavior:
 
-- leaves do not normally decide how siblings join
-- containers open a build scope and combine child outputs according to declared semantics such as `allOf`, `anyOf`, `sequence`, or `parallel-targets`
-- wrapper-style controllers such as `within` attach wrappers to the current scope instead of trying to post-process finished strings
-- advanced controllers can emit `raw` subtrees when they intentionally operate at a larger semantic granularity
+- The runtime mutates live state directly.
+- `persist()` copies only the active form subtree state.
+- `submit()` currently returns a combined persistable/submittable object.
+- The app-level submitted-query store does not exist yet; callers must own submitted snapshots outside the form runtime.
 
-This keeps simple cases easy while still leaving room for richer future widgets.
+## Query artifact
 
-Helper API expectation:
+Controllers contribute `CompilableQuery` objects.
 
-- `builder.pattern.tokenEq(name, value, options)`
-- `builder.pattern.regex(name, value, options)`
-- `builder.filter.term(field, values)`
-- `builder.filter.range(field, low, high)`
-- `builder.wrap.within(element, attributes)`
-- `builder.summary.add(entry)`
-
-The build pipeline must also be able to compile the artifact into at least these projections:
-
-- full raw submission output
-- `filter-only`
-- `pattern-only`
-- subtree-scoped previews for summaries and totals
-
-This is the missing primitive needed for the old filter summary and count panel.
-
-## Submission flow
-
-At submit time:
-
-1. determine the active form
-2. traverse the active form tree
-3. build a scoped query artifact
-4. compile artifact projections
-5. store a submitted snapshot separate from draft state
-6. hand the same submitted snapshot to history and URL codecs
-
-This traversal model is what makes arbitrary nesting possible without coupling parent containers to child controller implementation details.
-
-## Worked examples
-
-These are not final API names. They are shape tests for the design.
-
-### Example: old extended form
-
-Pseudo registration:
+Current shape:
 
 ```ts
-frontend.registerSearchForms(api => {
-	const search = api.container('search', {
-		presentation: 'tabs',
-	});
-
-	const extended = api.form('search.extended');
-
-	const body = api.container('search.extended.body', {
-		presentation: 'list',
-		class: 'horizontal',
-	});
-
-	const patternColumn = api.container('search.extended.patternColumn', {
-		presentation: 'list',
-	});
-
-	if (api.corpus.isParallel) {
-		patternColumn.addView(api.view.parallelControls('search.shared.parallelControls'));
-	}
-
-	const annotationTabs = api.container('search.extended.annotationTabs', {
-		presentation: 'tabs',
-	});
-
-	for (const group of api.corpus.searchAnnotationGroups()) {
-		const groupContainer = api.container(`search.extended.annotationGroup.${group.id}`, {
-			presentation: 'list',
-		});
-
-		for (const annotation of group.annotations) {
-			groupContainer.addField(
-				api.field.annotation(`search.extended.annotation.${annotation.id}`, {
-					annotationId: annotation.id,
-				}),
-			);
-		}
-
-		annotationTabs.addContainer(groupContainer);
-	}
-
-	patternColumn.addContainer(annotationTabs);
-	patternColumn.addField(api.field.within('search.shared.within'));
-	patternColumn.addView(
-		api.view.toolbar('search.extended.actions', {
-			actions: [{ id: 'copyToExpert', action: 'copy-to-expert' }],
-		}),
-	);
-
-	const filterColumn = api.container('search.extended.filterColumn', {
-		presentation: 'list',
-		title: 'Filter by...',
-	});
-
-	const filterTabs = api.container('search.shared.filters', {
-		presentation: 'small-tabs',
-	});
-
-	for (const group of api.corpus.metadataGroups()) {
-		const groupContainer = api.container(`search.shared.filters.${group.id}`, {
-			presentation: 'list',
-			title: group.title,
-		});
-
-		for (const field of group.fields) {
-			groupContainer.addField(
-				api.field.metadataFilter(`search.shared.filter.${field.id}`, {
-					definition: field,
-				}),
-			);
-		}
-
-		filterTabs.addContainer(groupContainer);
-	}
-
-	filterColumn.addContainer(filterTabs);
-	filterColumn.addView(
-		api.view.summary('search.extended.filterSummary', {
-			source: form => form.preview('filter-only'),
-		}),
-	);
-	filterColumn.addView(
-		api.view.totals('search.extended.filterTotals', {
-			source: form => form.preview('filter-only'),
-		}),
-	);
-
-	body.addContainer(patternColumn);
-	body.addContainer(filterColumn);
-	extended.addContainer(body);
-	search.addForm(extended);
-});
+type CompilableQuery = {
+	pattern: QueryPatternNode | null;
+	filter: QueryFilterNode | null;
+	wrappers: QueryWrapper[];
+	searchField: string | null;
+	summaries: SummaryEntry[];
+};
 ```
 
-Rough internal Vue components:
+Compilation currently supports:
 
-- `SearchFormsRenderer`
-- `ContainerRenderer`
-- `FormRenderer`
-- `FieldHost`
-- `ViewHost`
-- `SummaryView`
-- `TotalsView`
-- `ToolbarView`
+- CQL token clauses
+- raw CQL
+- boolean and sequence pattern nodes
+- raw/term/range/boolean Lucene filters
+- `within` wrappers
+- a single selected search field
 
-What this exposes:
+Combination rules:
 
-- a horizontal `list` plus `tabs` and `small-tabs` is enough for the old extended layout
-- shared fields can reuse the same underlying state through reusing `id`
-- summary and totals are just built-in views that read through `useParentForm()`
-- no attachment metadata is required to express the layout cleanly
+- Containers combine child artifacts with `config.combine`.
+- Missing `config.combine` defaults to `allOf`.
+- `anyOf` maps to boolean OR for patterns and filters.
+- `sequence` maps to sequence for patterns and AND for filters.
 
-### Example: old simple form
+Known limitations:
 
-Pseudo registration:
+- Parallel target query compilation is not implemented beyond `searchField` and summaries.
+- Span filter behavior is not represented as a first-class wrapper yet.
+- There are no first-class `filter-only`, `pattern-only`, or subtree previews.
+- Summary entries are one flat list and do not distinguish query, filter, span, and submitted-result summaries.
+
+## Controller contract
+
+Current field controller contract:
 
 ```ts
-frontend.registerSearchForms(api => {
-	const search = api.container('search', {
-		presentation: 'tabs',
-		title: 'Search for...',
-	});
-
-	const simple = api.form('search.simple', {
-		title: 'simple',
-	});
-
-	const body = api.container('search.simple.body', {
-		presentation: 'list',
-	});
-
-	if (api.corpus.isParallel) {
-		body.addView(api.view.parallelControls('search.shared.parallelControls'));
-	}
-
-	body.addField(
-		api.field.annotation('search.simple.mainAnnotation', {
-			annotationId: api.corpus.defaultSimpleAnnotation(),
-			stateKey: 'pattern.simple.main',
-			variant: 'large',
-		}),
-	);
-
-	simple.addContainer(body);
-	search.addForm(simple);
-});
+type FieldController<Kind extends string, State, Config extends FieldControllerConfig> = {
+	kind: Kind;
+	component: Component;
+	createDefaultState(node, runtime): State;
+	buildQuery?(input): CompilableQuery;
+	restore?(payload, node, runtime): State;
+	encode?(state, node, runtime): unknown;
+	validate?(node, runtime): string[];
+	toJSON(): unknown;
+};
 ```
 
-Rough internal Vue components:
+Current built-in controllers:
 
-- `SearchFormsRenderer`
-- `ContainerRenderer`
-- `FormRenderer`
-- `ViewHost`
-- `FieldHost`
+- `annotation`
+- `metadata-filter`
+- `within`
+- `parallel`
+- `raw-cql-query`
 
-This is intentionally much smaller, but it fits the same system.
+Open controller work:
 
-## URL and history strategy
+- advanced query builder controller
+- explore/frequency/n-gram controllers
+- richer parallel controller semantics
+- controller-level encode/restore coverage
+- validation surfaced in builder/runtime output
 
-Recommended restore precedence:
+## View contract
 
-1. compatible submitted snapshot from browser history state or explicit persisted blob
-2. compatible submitted snapshot from URL when present
-3. raw `patt` and `filter` fallback into expert or minimal compatible modes
+Current view contract:
 
-Rules:
+```ts
+type ViewDefinition<Kind extends string, Config> = {
+	kind: Kind;
+	component: Component;
+};
+```
 
-- never require full raw-query decompilation to get the page usable
-- treat raw strings as the universal fallback, not the canonical UI state
-- version submitted snapshots explicitly so incompatible configs can fail gracefully
-- preserve enough visible state in URL to reach legacy parity over time
+Current built-in views:
 
-Practical recommendation:
+- `heading`
+- `summary`
+- `totals`
 
-- keep full submitted snapshots in browser history and local history entries
-- give URL state a shared codec schema from the beginning
-- include submitted form id, form controller state, nested container selection state, and visible result state in that schema
-- prefer a reasonably legible parameter layout where possible, even if some controller payload remains opaque
+Open view work:
 
-## How this should map onto the current `_new` code
+- summary source/projection selection
+- submitted-versus-live summary display
+- real totals loader integration
+- toolbar/action views if needed for copy-to-expert or similar behavior
 
-### Reuse immediately
+## Rendering architecture
 
-- `filterValueFunctions.ts` as the filter controller behavior core
-- `pattern-utils.ts` as the pattern submission core
-- `widgets/cql-query-builder/model.ts` as the advanced controller model
-- `field-groups.ts` to derive corpus-driven registration defaults
+Current renderer chain:
 
-### Temporary migration inputs
+```text
+FormSystem
+  NodeRenderer
+    ContainerRenderer | custom container component
+    FormRenderer
+    FieldHost
+    ViewHost
+```
 
-- `pattern-store.ts`
-- `explore-state.ts`
-- `filter-store.ts`
-- `interface-state.ts`
+Current runtime providers:
 
-These may still be wrapped during a migration spike, but the target architecture is `forms[formId].controllerState`, not long-lived parallel stores.
+- `provideFormSystemRuntime()` at `FormSystem`.
+- `provideParentForm()` inside `FormRenderer` through `createAndProvideParentForm()`.
+- `useFormSystemRuntime()` for field hosts and container renderers.
+- `useParentForm()` for summary/totals/filter-container views.
 
-### Replace or narrow later
+Important rendering details:
 
-- `ui-customization-store.ts` as the public extension surface
-- direct store mutation from UI widgets
-- hard-coded top-level tab components
+- `FieldHost` binds `v-model:state` to `runtime.state.value.controllerState[node.id]`.
+- `NodeRenderer` respects `container.component`, allowing specialized internal containers.
+- `ContainerRendererFilters` relies on summary `group` values matching child container IDs for active badges.
 
-## External API shape
+## Persistence shape
 
-Recommendation:
+Current persisted encoding:
 
-- expose a dedicated public module, not the internal stores
-- keep it callback-based and corpus-aware
+```ts
+type EncodedPersistableFormState = {
+	v: string;
+	form: string;
+	state: string;
+	cql?: string;
+	filter?: string;
+	searchField?: string;
+};
+```
 
-Example direction:
-See above for exploratory simple/extended form definition code.
+Current limitations:
 
-Important limitation for v1:
+- Encoded state is JSON-in-string, not URL-optimized.
+- Controller `encode()`/`restore()` hooks are not used by the codec yet.
+- Result preset and summaries are not encoded.
+- Schema compatibility handling is caller-owned.
+- Raw CQL/filter fallback restore is not implemented.
 
-- external code should compose built-in field and view kinds
-- do not let external code mount arbitrary components or raw render functions
+## Integration target
 
-## Type-generation plan
+Before app wiring, the system still needs these boundaries:
 
-Current state:
+- search-owned submitted-query store
+- URL/history codec that stores submitted snapshots and raw fallback strings
+- corpus-driven form factory
+- result preset bridge
+- result/totals loaders driven from submitted state
+- public customization callback API with generated declarations
 
-- `package.json` has no dedicated declaration build for a public customization API
-- `tsconfig.app.json` does not emit declarations
-
-Recommended addition:
-
-- create a dedicated feature-owned entrypoint under something like `src/frontend/src/pages/search/config/form-registration/`
-- create a focused tsconfig for declaration emit only
-- add a script such as `build:types:form-registration`
-
-Placement rule:
-
-- `app` should only wire config scripts into feature registration
-- the feature-owned module should define the public search-form registration surface and declaration entrypoint
-
-Reason for a separate entrypoint:
-
-- it avoids leaking internal store types
-- it lets the API stabilize independently from implementation files
-- it gives customization scripts a small, intentional declaration surface for triple-slash references or future package publishing
-
-## What this architecture explicitly avoids
-
-- a configuration language for raw DOM layout
-- store mutation as the extension protocol
-- mandatory reverse parsing from raw queries into widgets
-- coupling results to live draft state instead of submitted state
+The current implementation is a good reviewable form/runtime slice, but it is not yet the full search-page architecture.

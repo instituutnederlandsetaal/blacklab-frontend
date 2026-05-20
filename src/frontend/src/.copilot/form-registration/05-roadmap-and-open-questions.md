@@ -1,238 +1,196 @@
-# Roadmap And Open Questions
+# Roadmap And Gaps
 
-This file turns the architecture proposal into an execution sequence.
+This file records the current gaps found after the refactor under `features/form`. It is intentionally focused on what remains before integration, not on the already-retired `stateKey`/draft-state design.
 
-This revision integrates the first review pass, front-loads persistence and query projections, and simplifies the composition model to containers, forms, fields, and views.
+## Current status
 
-## Settled decisions
+Implemented now:
 
-These points should be treated as decided unless implementation reveals a concrete blocker.
+- node graph with `container`, `form`, `field`, and `view`
+- class-based `FormBuilder`
+- builtin controller/view registries
+- mutable runtime `FormState`
+- submit/persist snapshots copied from live state
+- query artifact compiler for CQL/filter/searchField
+- metadata filter fields through the preserved filter value functions
+- specialized grouped filter container renderer
+- colocated Storybook review pages
 
-- The composition model should be a tree of `container`, `form`, `field`, and `view` nodes.
-- Limited node-level presentation metadata is acceptable if it stays bounded to simple container and field or view variants.
-- Shared behavior should usually happen through helper factories and explicit `stateKey` reuse, not shared presentation nodes.
-- V1 supports composition of built-in controller kinds only.
-- Draft state should converge to one `FormState` per form; filters are not a permanent separate store boundary.
-- The submitted snapshot should be centered on `form + form state`, with compiled projections stored alongside it.
-- URL-visible state must eventually reach legacy parity for visible form and result state.
-- Search-form registration and public types should live under the search feature, not under a generic `public` directory.
-- `app` owns wiring from config scripts to feature registration, not the feature API itself.
-- Compatibility with old `window.frontend.customize(...)` scripts is deferred. An adapter will eventually be created if desired.
+Not implemented yet:
 
-## Recommended implementation phases
+- app/search-page integration
+- submitted-query store outside the form runtime
+- URL/history roundtrip
+- generated public customization declarations
+- corpus-driven default form construction
+- tests for the form slice
 
-### Phase 0: define the contracts and placement
+## Gaps identified in the current implementation
 
-Deliverables:
+### State ownership and sharing
 
-- create a dedicated search-owned form-registration module under something like `pages/search/config/form-registration/`
-- define the composition primitives, runtime context, query artifact shape, and persistence codec interfaces
-- decide the declaration-build entrypoint and script layout
-- keep `app` responsible only for wiring external scripts into this feature-owned API
+- State is keyed by node ID. This is simple, but duplicate IDs in manual definitions silently share state.
+- `FormBuilder` prevents duplicate IDs, so builder-authored sharing currently requires reusing the same node object.
+- There is no explicit validation that fields only appear under a form boundary.
+- `activeFormNode` is initialized from the first discovered form and is not restored from `uiState.activeContainers`.
+- `reset()` resets the whole runtime, not just the active form.
 
-Acceptance criteria:
+Recommended next work:
 
-- the public API shape is defined without leaking internal store types
-- query build and persistence contracts exist before controller porting begins
-- the primitive invariants are explicit: forms are submit boundaries, fields require a parent form, and containers own simple list or tab rendering
-- feature ownership versus app wiring is explicit in code placement
+- add invariant validation in `FormBuilder.build()` or a dedicated validator
+- decide whether duplicate ID sharing should be allowed in manual definitions or rejected
+- derive active form from active container state when initializing from persisted state
+- decide whether form-scoped reset is required
 
-### Phase 1: bring back a submitted-query store and persistence skeleton early
+### Query artifact and projections
 
-Deliverables:
+- The compiler exposes only full `cql`, full `filter`, and `searchField` projections.
+- There is no `filter-only`, `pattern-only`, or subtree preview API.
+- `summary` view currently reads one flat summary list and raw full projections.
+- `totals` view uses placeholder estimates instead of the real totals loaders.
+- `parallel` currently contributes `searchField` and summaries, but not target query structure.
+- Span filters and span wrappers are not first-class artifact nodes.
 
-- introduce a submitted snapshot store for search submissions
-- separate live draft editing from active results state again
-- wire search submit to produce `form + form state + compiled projections`
-- create thin browser-history and URL codec wiring that can already roundtrip:
-  - active form
-  - submitted form state
-  - nested container selection state
-  - placeholder result state shell
+Recommended next work:
 
-Acceptance criteria:
+- add projection/source selection to summary and totals views
+- introduce summary categories or scopes such as `pattern`, `filter`, `span`, and `submission`
+- complete parallel query semantics
+- model span filters explicitly in the artifact instead of relying on raw strings
 
-- editing the form no longer implicitly means changing the active query
-- simple search can submit into a submitted snapshot even before full results views exist
-- the submission path already feeds history and URL codecs through the same state contract
+### Persistence and restore
 
-### Phase 2: pilot the tree registry with simplified composition
+- `encodeSubmittedForm()` serializes the copied `FormState` as JSON in a string field.
+- Controller `encode()` and `restore()` hooks exist in the type but are not wired into persistence.
+- Result presets and summaries are not encoded.
+- Schema-version mismatches are not handled beyond carrying `schemaVersion`/`v`.
+- Raw CQL/Lucene fallback restore is not implemented.
 
-Deliverables:
+Recommended next work:
 
-- define `container`, `form`, `field`, and `view` nodes plus bounded presentation props such as `list`, `tabs`, and `small-tabs`
-- add the `useParentForm()` runtime context and parent-form preview path
-- start converging toward `forms[formId].controllerState`, using adapters only where needed for migration speed
-- prove helper-factory plus `stateKey` reuse for shared logical filters or controls
+- decide the canonical persisted snapshot shape before URL wiring
+- use controller encode/restore hooks or remove them until needed
+- keep raw fallback fields in URL/history even when opaque state exists
+- add compatibility behavior for stale schema versions
 
-Acceptance criteria:
+### Builder and external API
 
-- simple search can be rendered from the registry rather than hard-coded templates
-- the registry can represent at least one nested tabbed or horizontal layout without attachment metadata
-- the `stateKey` sharing model is explicit and validated
+- `FormBuilder` is useful for internal composition, but it exposes controller objects and Vue-aware implementation details.
+- The public callback API is not designed yet.
+- There is no generated declaration entrypoint for custom scripts.
+- The builder currently uses broad `any` at several generic boundaries to keep concrete controllers composable.
 
-### Phase 3: port filter UI plus derived summary and totals views
+Recommended next work:
 
-Deliverables:
+- keep `FormBuilder` internal until a public API is deliberately designed
+- design a corpus-aware callback API that composes builtin kinds without exposing raw component refs
+- add a declaration-only build once the public API is stable enough
+- tighten builder typings after the concrete API shape settles
 
-- port or rebuild `QueryFormFilters` in `_new`
-- render fields dynamically from controller kinds and feature config
-- expose query projections such as `filter-only` and subtree previews from the same build path
-- add built-in view nodes for filter summary and subcorpus totals
-- keep `filterValueFunctions.ts` as the logic layer where applicable
+### Rendering and UI
 
-Acceptance criteria:
+- `ContainerRenderer` assumes tab children are containers or forms; field/view tab children do not become active.
+- `ContainerRendererFilters` active badges rely on summary `group` matching direct child container IDs.
+- Field and view variants are not consistently implemented.
+- i18n is mostly TODO in form labels, action labels, summaries, and totals.
 
-- built-in metadata filters render from definitions
-- custom span filters and custom tabs still work
-- filter summaries and subcorpus totals compose through the same form-preview pipeline, not bespoke globals
+Recommended next work:
 
-### Phase 4: port the remaining query modes and wrapper semantics
+- decide whether tabbed containers may contain fields/views directly
+- formalize summary group IDs for filter badges
+- replace TODO text with i18n hooks before app integration
+- either implement or remove unused `variant` surfaces
 
-Deliverables:
+### Built-in controller coverage
 
-- extended mode
-- advanced query-builder mode
-- expert mode
-- within and parallel controls as shared logical sections
-- wrapper-aware query artifact logic for `within`, span filters, and raw subtree escape hatches
+- Annotation, metadata filter, within, parallel, and raw CQL exist.
+- Advanced query builder is not ported.
+- Explore modes are not represented.
+- Metadata filter behavior is preserved, but custom span filters need a new artifact model.
+- Controller validation is not surfaced in the UI or builder output.
 
-Acceptance criteria:
+Recommended next work:
 
-- these modes are registered, not hard-coded
-- shared logical sections reuse the same underlying draft state where appropriate through explicit `stateKey` or helper-factory conventions
-- wrapper behavior does not require brittle string post-processing as the primary implementation strategy
+- port the advanced query builder as a builtin controller
+- add explore controllers only after result presets have a stable submitted-state home
+- wire controller validation into build/runtime diagnostics
 
-### Phase 5: restore explore modes as result-presets plus query builders
+## Logic and usage mistakes fixed in this pass
 
-Deliverables:
+- Public barrel exports pointed at removed registry/state modules.
+- `model/types` lacked an index export while the public barrel exported it.
+- Container combine was read from `node.combine` instead of `node.config.combine`.
+- Custom container components were defined in the node type but ignored by `NodeRenderer`.
+- The old stories imported removed `DraftFormState`/`stateKey` APIs.
+- `MetadataFilterField` made `state` optional from Vue's point of view.
+- `WithinField` required an unused top-level `config` prop that `FieldHost` never passed.
+- `AnnotationField` still rendered a debug `<pre>` for the node object.
+- Generic node unions were too narrow for concrete controller/view config types.
+- Graph traversal used stack order that could reverse discovered form order.
 
-- corpora
-- n-grams
-- frequency
+## Recommended next implementation phases
 
-Acceptance criteria:
+### Phase 1: add tests around the isolated slice
 
-- each explore mode can submit a raw query plus a result preset
-- hits versus docs default selection is derived from submitted mode behavior, not scattered UI conditions
+Cover:
 
-### Phase 6: widen URL and history fidelity toward legacy parity
+- `createFormState()` default state
+- node traversal order and DAG reuse
+- container `config.combine`
+- metadata filter Lucene output and summaries
+- submit/persist copied state
+- encode/decode roundtrip
 
-Deliverables:
+### Phase 2: enrich projections and summaries
 
-- persist submitted form snapshots in history and local history
-- widen URL codec coverage to include visible result state such as grouping, display mode, and pagination
-- refine the URL schema toward a reasonably legible representation where possible
-- keep raw fallback fields in place for universal recovery
+Deliver:
 
-Acceptance criteria:
+- projection selection for `summary` and `totals`
+- category/scoped summary entries
+- filter-only and pattern-only compile helpers
+- real totals integration surface
 
-- no critical-path backend request is needed just to reopen a compatible saved state
-- incompatible saved opaque state still restores a usable expert/raw experience
-- visible state roundtrips in a way that can eventually match legacy shared URLs
+### Phase 3: formalize persistence
 
-## Immediate best next step
+Deliver:
 
-If implementation starts now, the best first code slice is:
+- canonical submitted snapshot type for search
+- controller encode/restore use or removal
+- schema compatibility behavior
+- raw fallback restore story
 
-- define the submitted snapshot and persistence codec contracts
-- reintroduce a submitted-query store in `_new`
-- keep using the existing pattern and filter serialization utilities while the new query artifact builder is introduced
-- pilot a tiny tree registry that renders `search/simple` and already roundtrips its state through history and URL codecs
+### Phase 4: complete controller coverage
 
-Reason:
+Deliver:
 
-- it exercises the draft-versus-submitted split
-- it brings persistence pressure onto the system before the controller catalog gets large
-- it proves the registry boundary without forcing the full old feature set back at once
-- it keeps the first migration slice small and testable
+- advanced query builder controller
+- complete parallel query behavior
+- first-class span filters/wrappers
+- explore/result-preset controllers
 
-## Major risks
+### Phase 5: design the public API
 
-### Risk: shared state without shared presentation nodes drifts
+Deliver:
 
-If repeated containers are duplicated per form while state is shared by `stateKey`, the UI trees can drift apart accidentally.
+- callback collection and rebuild flow
+- corpus-aware builtin-kind builders
+- generated declaration entrypoint
+- app wiring limited to loading external scripts and handing callbacks to the search feature
 
-Mitigation:
+### Phase 6: integrate into search
 
-- use helper factories for repeated structures such as metadata filters or parallel controls
-- validate `stateKey` collisions and expected sharing during registry build
-- add targeted tests for forms that intentionally share state namespaces
+Deliver:
 
-### Risk: presentation props start creeping into a layout DSL
+- search-owned form factory
+- submitted-query store
+- result preset bridge
+- URL/history sync
+- result/totals loaders driven by submitted snapshots
 
-The simplified model only works if node-level presentation stays small and boring.
+## Open questions
 
-Mitigation:
-
-- whitelist the presentation vocabulary explicitly
-- keep final CSS and component choice inside internal renderers
-- reject arbitrary regions, custom component refs, and free-form DOM config in v1
-
-### Risk: query artifact grows too narrow or too magical
-
-If the artifact is too narrow, future widgets will not fit. If it is too magical, simple controllers become hard to write.
-
-Mitigation:
-
-- use a minimal internal AST with helper APIs for common cases
-- let parent containers own combine semantics
-- allow advanced controllers to emit raw subtrees only at explicit boundaries
-
-### Risk: public API leaks internal implementation details
-
-If the public registration API exposes store shapes or Vue components, it will be hard to evolve.
-
-Mitigation:
-
-- expose stable builders and public types only
-- keep renderers and store adapters internal
-
-### Risk: registry rebuilds against async corpus changes
-
-Registrations are corpus-dependent, and external scripts may register before or after corpus load.
-
-Mitigation:
-
-- make registration callback collection independent from corpus data
-- rebuild and validate the registry against the current corpus snapshot
-
-### Risk: URL payload size
-
-Opaque widget state can become too large for URLs.
-
-Mitigation:
-
-- keep full opaque state in browser history and saved query history
-- share one codec schema across history and URL
-- keep visible-state parity goals explicit so URL tradeoffs happen intentionally
-- only place compact opaque payload in URL opportunistically where needed
-- always include raw `patt` and `filter` fallback
-
-### Risk: over-generalizing before the first slice works
-
-It is easy to design a framework instead of landing behavior.
-
-Mitigation:
-
-- phase the work around real built-in modes
-- treat custom controller registration as a later capability, not a phase-1 requirement
-
-## Open questions still worth deciding before implementation goes wide
-
-1. Should result presets live inside the same submitted snapshot object as raw query state, or in a sibling result-intent object?
-2. Which node-level presentation props should be mandatory versus optional in v1?
-3. Which URL parameters should stay legible first, and which controller payloads can remain opaque initially?
-
-## Conclusions to treat as settled unless new evidence appears
-
-- A submitted-query snapshot store is required.
-- A persistence codec must be part of the first implementation slices.
-- The future restore path should be opaque-state-first and raw-fallback-second.
-- `filterValueFunctions.ts` is a keeper.
-- Layout must stay inside internal renderers, but a bounded set of `container` presentation variants is acceptable.
-- Prefer sharing `stateKey`s over sharing presentation nodes.
-- Filters should converge into the unified controller-state model.
-- Built-in non-field nodes such as summary and totals panels are required.
-- V1 should expose built-in controller kinds only.
-- The public extension API needs generated declaration files.
+1. Should manually authored duplicate node IDs be rejected, warned, or treated as intentional shared state?
+2. Should the builder support explicit aliases for state sharing, or is node object reuse enough?
+3. Should `submit()` return the combined persistable/submittable snapshot long-term, or should persistence be a separate caller decision?
+4. What is the minimum projection API needed by real filter summaries and totals?
+5. How much of `FormBuilder` should become public, and how much should be hidden behind a smaller callback API?

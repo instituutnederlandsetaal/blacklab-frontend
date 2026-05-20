@@ -38,10 +38,7 @@ import type { ParallelFieldConfig, ParallelFieldState } from '@/features/form/mo
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
 // import type { FormFieldNode, ParallelFieldConfig, ParallelFieldState } from '../model/types';
-const {
-	state,
-	node: { config, ...node },
-} = defineProps<{
+const props = defineProps<{
 	node: FormFieldNode<ParallelFieldConfig>;
 	state: ParallelFieldState;
 }>();
@@ -50,23 +47,26 @@ const emit = defineEmits<{
 	'update:state': [state: ParallelFieldState];
 }>();
 
-const targetOptions = computed(() => (config.targetOptions ?? config.sourceOptions).filter(option => option.value !== state.source));
+const node = computed(() => props.node);
+const config = computed(() => props.node.config);
+const state = computed(() => props.state);
+const targetOptions = computed(() => (config.value.targetOptions ?? config.value.sourceOptions).filter(option => option.value !== props.state.source));
 
 function updateSource(source: string) {
 	emit('update:state', {
-		...state,
+		...props.state,
 		source: source || null,
-		targets: state.targets.filter(target => target !== source),
+		targets: props.state.targets.filter(target => target !== source),
 	});
 }
 
 function toggleTarget(target: string) {
-	const targets = state.targets.includes(target) ? state.targets.filter(value => value !== target) : [...state.targets, target];
-	emit('update:state', { ...state, targets });
+	const targets = props.state.targets.includes(target) ? props.state.targets.filter(value => value !== target) : [...props.state.targets, target];
+	emit('update:state', { ...props.state, targets });
 }
 
 function updateAlignBy(alignBy: string) {
-	emit('update:state', { ...state, alignBy: alignBy || null });
+	emit('update:state', { ...props.state, alignBy: alignBy || null });
 }
 </script>
 

@@ -9,13 +9,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
 import type { RawCqlQueryFieldConfig, RawCqlQueryFieldState } from '@/features/form/model/controllers/raw-cql-query-controller';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
-const {
-	node: { config, ...node },
-	state,
-} = defineProps<{
+const props = defineProps<{
 	node: FormFieldNode<RawCqlQueryFieldConfig>;
 	state: RawCqlQueryFieldState;
 }>();
@@ -24,8 +23,12 @@ const emit = defineEmits<{
 	'update:state': [state: RawCqlQueryFieldState];
 }>();
 
+const node = computed(() => props.node);
+const config = computed(() => props.node.config);
+const state = computed(() => props.state);
+
 function updateQuery(query: string) {
-	emit('update:state', { ...state, query });
+	emit('update:state', { ...props.state, query });
 }
 </script>
 

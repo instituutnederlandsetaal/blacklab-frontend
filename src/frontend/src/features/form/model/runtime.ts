@@ -1,35 +1,38 @@
-import { computed, inject, provide, ref, shallowRef, type ComputedRef, type InjectionKey } from 'vue';
+import { computed, inject, provide, ref, shallowRef, toValue, type ComputedRef, type InjectionKey, type MaybeRefOrGetter } from 'vue';
 
 import { buildFormQuery, summarizeForm } from '@/features/form/model/compile';
 import { createCompiledQueryProjections } from '@/features/form/model/compile/query-artifact';
 import { getAllNodes, pickActiveFormState } from '@/features/form/model/form-utils';
-import { createFormState } from '@/features/form/model/state';
+import { cloneFormState, createFormState } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { CompiledFormState, PersistableFormState, SubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
+import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
 import type { FormBoundaryNode } from '@/features/form/model/types/form-shape';
-import type { FormSystemRuntime, FormSystemDefinition, UseParentFormReturn } from '@/features/form/model/types/form-state';
+import type { FormState, FormSystemRuntime, FormSystemDefinition, UseParentFormReturn } from '@/features/form/model/types/form-state';
 
 const formSystemRuntimeKey: InjectionKey<FormSystemRuntime> = Symbol('formSystemRuntime');
 const parentFormRuntimeKey: InjectionKey<ComputedRef<UseParentFormReturn>> = Symbol('parentFormRuntime');
 
-export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: string) {
-	return computed(() => ({
-		compiled: rootRuntime.compile(formId),
-		corpus: rootRuntime.context.corpus,
-		formId,
-		formState: pickActiveFormState(rootRuntime.forms[formId], rootRuntime.state.value),
-		summaries: rootRuntime.summarize(formId),
-	}));
+export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: MaybeRefOrGetter<string>) {
+	return computed(() => {
+		const currentFormId = toValue(formId);
+		return {
+			compiled: rootRuntime.compile(currentFormId),
+			corpus: rootRuntime.context.corpus,
+			formId: currentFormId,
+			formState: pickActiveFormState(rootRuntime.forms[currentFormId], rootRuntime.state.value),
+			summaries: rootRuntime.summarize(currentFormId),
+		};
+	});
 }
 
-export function createFormSystemRuntime(definition: FormSystemDefinition, context: FormRuntimeContext): FormSystemRuntime {
+export function createFormSystemRuntime(definition: FormSystemDefinition, context: FormRuntimeContext, initialState?: FormState): FormSystemRuntime {
 	const formsList = getAllNodes(definition.root, 'form');
 	const formsById = Object.fromEntries(formsList.map(form => [form.id, form]));
 	const activeFormNode = shallowRef<FormBoundaryNode | null>(formsList[0] ?? null);
-	const state = ref(createFormState(definition, context));
+	const state = ref(initialState ? cloneFormState(initialState) : createFormState(definition, context));
 
 	const compileListeners: ((formId: string, compiled: CompiledFormState) => void)[] = [];
-	const submitListeners: ((formId: string, submitted: SubmittableFormState) => void)[] = [];
+	const submitListeners: ((formId: string, submitted: PersistableSubmittableFormState) => void)[] = [];
 	const summarizeListeners: ((formId: string, summaries: SummaryEntry[]) => void)[] = [];
 	const persistListeners: ((formId: string, persisted: PersistableFormState) => void)[] = [];
 
@@ -54,7 +57,7 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 			persistListeners.forEach(callback => callback(formId, persisted));
 			return persisted;
 		},
-		submit(formId: string): SubmittableFormState {
+		submit(formId: string): PersistableSubmittableFormState {
 			const submitted = {
 				...this.persist(formId),
 				summaries: this.summarize(formId),
@@ -76,7 +79,7 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 		onCompile(callback: (formId: string, compiled: CompiledFormState) => void) {
 			compileListeners.push(callback);
 		},
-		onSubmit(callback: (formId: string, submitted: SubmittableFormState) => void) {
+		onSubmit(callback: (formId: string, submitted: PersistableSubmittableFormState) => void) {
 			submitListeners.push(callback);
 		},
 		onSummarize(callback: (formId: string, summaries: SummaryEntry[]) => void) {
@@ -105,10 +108,26 @@ export function provideParentForm(runtime: ComputedRef<UseParentFormReturn>) {
 export function useParentForm(): UseParentFormReturn {
 	const runtime = inject(parentFormRuntimeKey);
 	if (!runtime) throw new Error('No parent form runtime has been provided.');
-	return runtime.value;
+	return {
+		get compiled() {
+			return runtime.value.compiled;
+		},
+		get corpus() {
+			return runtime.value.corpus;
+		},
+		get formId() {
+			return runtime.value.formId;
+		},
+		get formState() {
+			return runtime.value.formState;
+		},
+		get summaries() {
+			return runtime.value.summaries;
+		},
+	};
 }
 
-export function createAndProvideParentForm(rootFormSystem: FormSystemRuntime, formId: string): UseParentFormReturn {
+export function createAndProvideParentForm(rootFormSystem: FormSystemRuntime, formId: MaybeRefOrGetter<string>): UseParentFormReturn {
 	const runtime = createParentFormRuntime(rootFormSystem, formId);
 	provideParentForm(runtime);
 	return runtime.value;

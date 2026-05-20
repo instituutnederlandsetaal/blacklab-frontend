@@ -125,5 +125,6 @@ These requirements were added or clarified during the first review pass.
 - Forms and containers need stable i18n keys. Reused behavior should prefer local tree paths plus explicit `titleKey` overrides instead of attachment-level label logic.
 - URL-visible state must eventually reach feature parity with the legacy visible state: active form path, controller state, and visible result configuration.
 - URL state may be partially opaque, but a reasonably legible scheme is preferred over compressed blobs where practical.
-- Implementation should live under the search feature, such as `pages/search/config/...`; `app` should only contain wiring from config scripts into feature registration.
-- V1 should support composition of built-in controller kinds only. User-defined controller kinds are a later phase.
+- The current implementation slice lives under `features/form` so it can be reviewed without search-page wiring. Search integration should still keep `app` limited to wiring once the slice is adopted.
+- `stateKey` has been removed from the current slice. Controller state is keyed by node ID; intentional sharing happens by reusing node IDs or, preferably, reusing helper-created node objects.
+- V1 should support composition of built-in controller and view kinds. User-defined public controller kinds are still a later phase, even though internal code can register controller objects today.

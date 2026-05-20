@@ -39,7 +39,7 @@ export type FieldControllerConfig = {
 export type FormContainerNode<Config extends ContainerControllerConfig = ContainerControllerConfig> = FormNodeBase & {
 	kind: 'container';
 	/** If not set, uses the default container renderer. */
-	component?: Component<{ node: FormContainerNode<Config> }>;
+	component?: Component;
 	config?: Config;
 	children: FormNode[];
 };
@@ -92,13 +92,13 @@ export type FormViewNode<Config = unknown> = FormNodeBase & {
 	variant?: string; // e.g. 'large', 'small', etc. should make this explicit?
 };
 
-export type FormChildNode = FormContainerNode | FormFieldNode | FormViewNode;
-export type FormNode = FormContainerNode | FormFieldNode | FormViewNode | FormBoundaryNode;
+export type FormChildNode = FormContainerNode<any> | FormFieldNode<any> | FormViewNode<any>;
+export type FormNode = FormContainerNode<any> | FormFieldNode<any> | FormViewNode<any> | FormBoundaryNode;
 
 export type NodeKindMap = {
-	container: FormContainerNode;
+	container: FormContainerNode<any>;
 	form: FormBoundaryNode;
-	field: FormFieldNode;
-	view: FormViewNode;
+	field: FormFieldNode<any>;
+	view: FormViewNode<any>;
 };
 export type NodeKind = keyof NodeKindMap;

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { createControllerCatalogDefinition } from '../stories/sample-form-system';
+import { createControllerCatalogStoryModel } from '../stories/sample-form-system';
 
 import FormSystemStoryHarness from '../stories/FormSystemStoryHarness.vue';
 
@@ -10,12 +10,16 @@ const meta = {
 	parameters: {
 		layout: 'fullscreen',
 	},
-	args: {
-		definition: createControllerCatalogDefinition(),
-	},
 } satisfies Meta<typeof FormSystemStoryHarness>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const BuiltInControllers: Story = {};
+export const BuiltInControllers: Story = {
+	args: {} as any,
+	render: () => ({
+		components: { FormSystemStoryHarness },
+		setup: () => createControllerCatalogStoryModel(),
+		template: '<FormSystemStoryHarness :definition="definition" :context="context" />',
+	}),
+};

@@ -1,3 +1,5 @@
+import { toRaw } from 'vue';
+
 import { getAllFields, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { FormControllerStates, FormState, FormSystemDefinition } from '@/features/form/model/types/form-state';
@@ -10,6 +12,10 @@ export function createFormState(definition: FormSystemDefinition, context: FormR
 			activeContainers: createInitialContainerUiStates(definition),
 		},
 	};
+}
+
+export function cloneFormState(state: FormState): FormState {
+	return structuredClone(toRaw(state));
 }
 
 /**

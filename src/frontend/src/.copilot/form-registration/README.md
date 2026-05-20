@@ -1,6 +1,6 @@
 # Form Registration Knowledge Base
 
-Snapshot date: 2026-05-13.
+Snapshot date: 2026-05-20.
 
 This folder is a long-lived working dossier for the dynamic form-registration effort in the new frontend. It is intentionally limited to the `_new` codebase for implementation work, but it references `old-frontend` where the old behavior still matters as a migration input.
 
@@ -14,17 +14,18 @@ Read these files in order:
 
 Short version:
 
-- The new search page already has useful state and serialization building blocks, but only the simple search UI is actually wired.
-- The filter subsystem is the clearest prototype for a future registration system: it already separates logical definition, rendering key, and serialization behavior.
-- The old app solved submission/history/results by keeping a submitted-query snapshot separate from the live form state. That idea should return.
-- The old URL hydrate path tried to decompile raw CQL/Lucene back into widgets. That should not return as the primary restore strategy.
-- The new external API should be callback-based, corpus-aware, and backed by generated declaration files instead of mutable global store access.
+- The isolated implementation now lives in `src/frontend/src/features/form` and is intentionally not wired into the search page yet.
+- Forms are described as a node tree of `container`, `form`, `field`, and `view` nodes.
+- `FormBuilder` and `ControllerRegistry` are the current internal composition API. The older `stateKey`/`DraftFormState` registry API has been removed.
+- Runtime state is one mutable `FormState` keyed by node ID. Reusing the same node ID or the same node object means shared state.
+- `FormSystemRuntime.submit()` produces a persisted/submittable snapshot containing compiled CQL, Lucene filter, search field, summaries, result preset, schema version, form id, and copied form state.
+- The query artifact builder currently has full CQL/filter projections only. Separate `filter-only`, `pattern-only`, and subtree preview projections are still future work.
+- Metadata filters are now regular field nodes; the grouped filter UI is a specialized container renderer.
+- Storybook pages under `features/form` are the review surface for this slice.
 
-Recommended north star:
+Recommended next direction:
 
-- Compose forms as a tree of `container`, `form`, `field`, and `view` nodes.
-- Keep layout decisions inside internal Vue renderers, with only a tiny bounded set of node-level presentation props.
-- Share state through explicit `stateKey` reuse and helper factories, not shared presentation nodes.
-- Persist both raw BlackLab query strings and opaque widget state.
-- Use raw strings only as universal fallback, not as the primary source of truth for UI restore.
-- Start by defining the submitted snapshot and persistence codec contract, then pilot the registry while reusing existing pattern and filter utilities as migration inputs.
+- Keep `features/form` isolated until the search submission/result-store boundary is ready.
+- Add focused tests around node traversal, shared node state, query compilation, persistence, and filter summaries.
+- Introduce a richer summary/projection interface before wiring totals and filter-only previews into the real app.
+- Decide the public customization API separately from the internal `FormBuilder`; the current builder is useful but still exposes implementation details.

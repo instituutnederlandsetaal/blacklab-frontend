@@ -23,11 +23,10 @@ const props = defineProps<{
 }>();
 
 const runtime = useFormSystemRuntime();
-createAndProvideParentForm(runtime, props.node.id);
+createAndProvideParentForm(runtime, () => props.node.id);
 
 function submit() {
-	// TODO wire submitted state to the runtime, maybe emit it ourselves?
-	const submittedState = runtime.submit(props.node.id);
+	runtime.submit(props.node.id);
 }
 
 function reset() {

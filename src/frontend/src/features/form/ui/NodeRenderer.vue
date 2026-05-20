@@ -1,5 +1,6 @@
 <template>
-	<ContainerRenderer v-if="node.kind === 'container'" :node="node" />
+	<Component v-if="node.kind === 'container' && node.component" :is="node.component" :node="node" />
+	<ContainerRenderer v-else-if="node.kind === 'container'" :node="node" />
 	<FormRenderer v-else-if="node.kind === 'form'" :node="node" />
 	<FieldHost v-else-if="node.kind === 'field'" :node="node" />
 	<ViewHost v-else-if="node.kind === 'view'" :node="node" />

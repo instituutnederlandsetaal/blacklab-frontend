@@ -1,4 +1,29 @@
-import { buildRegisteredFormSystem, builtinFieldControllers, builtinViews, type FilterPanelGroup, type FormFilterDefinition, type FormRegistrationApi, type FormSystemDefinition } from '../index';
+import { markRaw } from 'vue';
+
+import {
+	annotationController,
+	ControllerRegistry,
+	createFormState,
+	createFormSystemRuntime,
+	expertQueryController,
+	filterController,
+	FormBuilder,
+	headingView,
+	parallelController,
+	registerBuiltinControllers,
+	registerBuiltinViews,
+	summaryView,
+	totalsView,
+	type FormRuntimeContext,
+	type FormState,
+	type FormSystemDefinition,
+	type PersistableSubmittableFormState,
+	withinController,
+} from '../index';
+import type { MetadataFilterFieldConfig } from '../model/controllers/metadata-filter-controller';
+import type { FormContainerNode, FormFieldNode } from '../model/types/form-shape';
+
+import ContainerRendererFilters from '../ui/ContainerRendererFilters.vue';
 
 const languageOptions = [
 	{ value: 'en', label: 'English' },
@@ -47,9 +72,21 @@ export const metadataFilters = {
 		groupId: 'technical',
 		metadata: { field: 'date', range: true, min: '16000101', max: '20251231' },
 	},
-} satisfies Record<string, FormFilterDefinition>;
+} satisfies Record<string, MetadataFilterFieldConfig>;
 
-export const filterGroups: FilterPanelGroup[] = [
+type MetadataFilterId = keyof typeof metadataFilters;
+
+type FilterGroup = {
+	id: string;
+	title: string;
+	subtabs: Array<{
+		id: string;
+		title?: string;
+		fields: MetadataFilterId[];
+	}>;
+};
+
+export const filterGroups: FilterGroup[] = [
 	{
 		id: 'bibliographic',
 		title: 'Bibliographic',
@@ -78,176 +115,247 @@ export const filterGroups: FilterPanelGroup[] = [
 	},
 ];
 
-export function createSearchFormDefinition(): FormSystemDefinition {
-	return buildRegisteredFormSystem({
-		controllers: builtinFieldControllers,
-		views: builtinViews,
-		schemaVersion: 'storybook-search-v1',
-		runtime: {
+export type StoryFormSystemModel = {
+	context: FormRuntimeContext;
+	definition: FormSystemDefinition;
+	initialState?: FormState;
+	initialSubmitted?: PersistableSubmittableFormState;
+};
+
+function createStoryBuilder(indexId: string) {
+	const controllerRegistry = new ControllerRegistry();
+	registerBuiltinControllers(controllerRegistry);
+	registerBuiltinViews(controllerRegistry);
+
+	return {
+		builder: new FormBuilder(controllerRegistry),
+		context: {
+			controllerRegistry,
 			corpus: {
-				indexId: 'storybook-corpus',
+				indexId,
 				textDirection: 'ltr',
 			},
-		},
-		registration: api => {
-			const root = api.container('search', { presentation: 'tabs', title: 'Search' });
-			root.add(createSimpleForm(api), createExtendedForm(api), createExpertForm(api));
-			return root;
-		},
+		} satisfies FormRuntimeContext,
+	};
+}
+
+export function createSearchFormStoryModel(): StoryFormSystemModel {
+	const { builder, context } = createStoryBuilder('storybook-corpus');
+	const root = builder.newContainer('search', { title: 'Search', config: { variant: 'tabs' } });
+	const shared = createSharedSearchSections(builder, 'search.shared');
+
+	root.addChildren(createSimpleForm(builder, shared), createExtendedForm(builder, shared), createExpertForm(builder, shared));
+
+	return {
+		context,
+		definition: builder.build(),
+	};
+}
+
+export function createRestoredSearchFormStoryModel(): StoryFormSystemModel {
+	const model = createSearchFormStoryModel();
+	const initialState = createFormState(model.definition, model.context);
+
+	initialState.uiState.activeContainers.search = 'search.extended';
+	initialState.uiState.activeContainers['search.extended.annotations'] = 'search.extended.annotations.main';
+	initialState.uiState.activeContainers['search.shared.filters'] = 'search.shared.filters.bibliographic';
+	initialState.controllerState['search.shared.parallel'] = { source: 'contents__en', targets: ['contents__nl'], alignBy: 's' };
+	initialState.controllerState['search.extended.word'] = { value: 'water', caseSensitive: false };
+	initialState.controllerState['search.shared.within'] = { element: 's', attributes: { speaker: 'narrator' } };
+	initialState.controllerState['search.shared.filter.genre'] = { fiction: true, essay: false, newspaper: false };
+
+	return {
+		...model,
+		initialState,
+		initialSubmitted: createFormSystemRuntime(model.definition, model.context, initialState).submit('search.extended'),
+	};
+}
+
+export function createControllerCatalogStoryModel(): StoryFormSystemModel {
+	const { builder, context } = createStoryBuilder('storybook-catalog');
+	const root = builder.newContainer('catalog', { title: 'Controller Catalog', config: { variant: 'tabs' } });
+	const fields = builder.newForm('catalog.fields', { title: 'Built-in fields' });
+
+	fields.addChildren(
+		builder.newField('catalog.annotation.word', annotationController, {
+			annotationId: 'word',
+			displayName: 'Word',
+			caseSensitive: true,
+			uiType: 'combobox',
+		}),
+		builder.newField('catalog.annotation.pos', annotationController, {
+			annotationId: 'pos',
+			displayName: 'Part of speech',
+			uiType: 'select',
+			options: [
+				{ value: 'NOU', label: 'Noun' },
+				{ value: 'VRB', label: 'Verb' },
+				{ value: 'ADJ', label: 'Adjective' },
+			],
+		}),
+		builder.newField('catalog.parallel', parallelController, createParallelConfig()),
+		builder.newField('catalog.within', withinController, createWithinConfig()),
+		builder.newField('catalog.raw-cql', expertQueryController, {
+			label: 'Expert CQL',
+			helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
+			rows: 4,
+		}),
+		builder.newView('catalog.summary', summaryView, { showRaw: true }),
+	);
+
+	const filters = builder.newForm('catalog.filters', { title: 'Filter controllers' });
+	filters.addChildren(createFilterContainer(builder, 'catalog'));
+	root.addChildren(fields, filters);
+
+	return {
+		context,
+		definition: builder.build(),
+	};
+}
+
+export function createFilterPanelStoryModel(): StoryFormSystemModel {
+	const { builder, context } = createStoryBuilder('storybook-filters');
+	const root = builder.newForm('filter-panel.form', { title: 'Metadata filters' });
+	root.addChildren(
+		builder.newView('filter-panel.heading', headingView, {
+			title: 'Metadata filters',
+			description: 'Specialized container rendering with grouped filter summaries.',
+		}),
+		createFilterContainer(builder, 'filter-panel'),
+		builder.newView('filter-panel.summary', summaryView, { title: 'Live filter query', showRaw: true }),
+	);
+
+	const definition = builder.build();
+	const initialState = createFormState(definition, context);
+	initialState.uiState.activeContainers['filter-panel.filters'] = 'filter-panel.filters.bibliographic';
+	initialState.controllerState['filter-panel.filter.author'] = 'Austen';
+	initialState.controllerState['filter-panel.filter.genre'] = { fiction: true };
+	initialState.controllerState['filter-panel.filter.year'] = { low: '1800', high: '1900' };
+
+	return {
+		context,
+		definition,
+		initialState,
+		initialSubmitted: createFormSystemRuntime(definition, context, initialState).submit('filter-panel.form'),
+	};
+}
+
+type SharedSearchSections = {
+	filters: FormContainerNode;
+	parallel: FormFieldNode<any>;
+	within: FormFieldNode<any>;
+};
+
+function createSharedSearchSections(builder: FormBuilder, prefix: string): SharedSearchSections {
+	return {
+		filters: createFilterContainer(builder, prefix),
+		parallel: builder.newField(`${prefix}.parallel`, parallelController, createParallelConfig()),
+		within: builder.newField(`${prefix}.within`, withinController, createWithinConfig()),
+	};
+}
+
+function createSimpleForm(builder: FormBuilder, shared: SharedSearchSections) {
+	const form = builder.newForm('search.simple', { title: 'Simple' });
+	form.addChildren(
+		shared.parallel,
+		builder.newField('search.simple.word', annotationController, {
+			annotationId: 'word',
+			displayName: 'Word',
+			description: 'Search the main annotation.',
+			caseSensitive: true,
+			uiType: 'combobox',
+			variant: 'large',
+		}),
+		builder.newView('search.simple.summary', summaryView, { title: 'Live query preview', showRaw: true }),
+		builder.newView('search.simple.totals', totalsView, { baseDocuments: 128345, baseTokens: 48291032 }),
+	);
+	return form;
+}
+
+function createExtendedForm(builder: FormBuilder, shared: SharedSearchSections) {
+	const form = builder.newForm('search.extended', { title: 'Extended' });
+	const body = builder.newContainer('search.extended.body', { class: 'blf-columns' });
+	const patternColumn = builder.newContainer('search.extended.pattern', { title: 'Pattern' });
+	const annotationTabs = builder.newContainer('search.extended.annotations', { config: { variant: 'tabs' } });
+	const mainAnnotations = builder.newContainer('search.extended.annotations.main', { title: 'Main', config: { combine: 'allOf' } });
+	const grammarAnnotations = builder.newContainer('search.extended.annotations.grammar', { title: 'Grammar', config: { combine: 'allOf' } });
+
+	mainAnnotations.addChildren(
+		builder.newField('search.extended.word', annotationController, { annotationId: 'word', displayName: 'Word', caseSensitive: true, uiType: 'combobox' }),
+		builder.newField('search.extended.lemma', annotationController, { annotationId: 'lemma', displayName: 'Lemma', caseSensitive: true, uiType: 'combobox' }),
+	);
+	grammarAnnotations.addChildren(
+		builder.newField('search.extended.pos', annotationController, {
+			annotationId: 'pos',
+			displayName: 'Part of speech',
+			uiType: 'select',
+			options: [
+				{ value: 'NOU', label: 'Noun' },
+				{ value: 'VRB', label: 'Verb' },
+				{ value: 'ADJ', label: 'Adjective' },
+			],
+		}),
+	);
+	annotationTabs.addChildren(mainAnnotations, grammarAnnotations);
+	patternColumn.addChildren(shared.parallel, annotationTabs, shared.within);
+
+	const filterColumn = builder.newContainer('search.extended.filters.column', { title: 'Filters' });
+	filterColumn.addChildren(
+		shared.filters,
+		builder.newView('search.extended.filterSummary', summaryView, { title: 'Filter summary', showRaw: true }),
+		builder.newView('search.extended.filterTotals', totalsView, { baseDocuments: 128345, baseTokens: 48291032 }),
+	);
+
+	body.addChildren(patternColumn, filterColumn);
+	form.addChildren(body);
+	return form;
+}
+
+function createExpertForm(builder: FormBuilder, shared: SharedSearchSections) {
+	const form = builder.newForm('search.expert', { title: 'Expert' });
+	const body = builder.newContainer('search.expert.body', { class: 'blf-columns' });
+	const queryColumn = builder.newContainer('search.expert.query');
+	const filtersColumn = builder.newContainer('search.expert.filters.column', { title: 'Filters' });
+
+	queryColumn.addChildren(
+		shared.parallel,
+		builder.newField('search.expert.querybox', expertQueryController, {
+			label: 'Corpus Query Language',
+			rows: 8,
+			helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
+		}),
+		shared.within,
+	);
+	filtersColumn.addChildren(shared.filters, builder.newView('search.expert.summary', summaryView, { title: 'Submitted shape', showRaw: true }));
+	body.addChildren(queryColumn, filtersColumn);
+	form.addChildren(body);
+	return form;
+}
+
+function createFilterContainer(builder: FormBuilder, prefix: string) {
+	const tabs = builder.newContainer(`${prefix}.filters`, {
+		class: 'blf-filter-panel',
+		component: markRaw(ContainerRendererFilters),
+		config: { variant: 'small-tabs', combine: 'allOf' },
 	});
-}
 
-export function createControllerCatalogDefinition(): FormSystemDefinition {
-	return buildRegisteredFormSystem({
-		controllers: builtinFieldControllers,
-		views: builtinViews,
-		schemaVersion: 'storybook-catalog-v1',
-		registration: api => {
-			const root = api.container('catalog', { presentation: 'tabs', title: 'Controller Catalog' });
-			const fields = api.form('catalog.fields', { title: 'Built-in Fields' });
-			fields.add(
-				api.field('catalog.annotation.word', 'annotation', {
-					annotationId: 'word',
-					displayName: 'Word',
-					caseSensitive: true,
-					uiType: 'combobox',
-				}),
-				api.field('catalog.annotation.pos', 'annotation', {
-					annotationId: 'pos',
-					displayName: 'Part of speech',
-					uiType: 'select',
-					options: [
-						{ value: 'NOU', label: 'Noun' },
-						{ value: 'VRB', label: 'Verb' },
-						{ value: 'ADJ', label: 'Adjective' },
-					],
-				}),
-				api.field('catalog.within', 'within', {
-					options: [
-						{ value: '', label: 'Document' },
-						{ value: 's', label: 'Sentence', attributes: [{ value: 'speaker', label: 'Speaker' }] },
-						{ value: 'p', label: 'Paragraph' },
-					],
-				}),
-				api.field('catalog.expert', 'expert', {
-					label: 'Expert CQL',
-					helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
-					rows: 4,
-				}),
-				api.view('catalog.summary', 'summary', { showRaw: true }),
-			);
-
-			const filters = api.form('catalog.filters', { title: 'Filter Controllers' });
-			filters.add(createFilterContainer(api, 'catalog.filters'));
-			root.add(fields, filters);
-			return root;
-		},
-	});
-}
-
-function createSimpleForm(api: FormRegistrationApi) {
-	const form = api.form('search.simple', { title: 'Simple' });
-	form.add(
-		api.field('search.simple.parallel', 'parallel', createParallelConfig(), { stateKey: 'search.parallel' }),
-		api.field(
-			'search.simple.word',
-			'annotation',
-			{
-				annotationId: 'word',
-				displayName: 'Word',
-				description: 'Search the main annotation.',
-				caseSensitive: true,
-				uiType: 'combobox',
-			},
-			{ stateKey: 'search.simple.word', variant: 'large' },
-		),
-		api.view('search.simple.summary', 'summary', { title: 'Live query preview', showRaw: true }),
-		api.view('search.simple.totals', 'totals', { baseDocuments: 128345, baseTokens: 48291032 }),
-	);
-	return form;
-}
-
-function createExtendedForm(api: FormRegistrationApi) {
-	const form = api.form('search.extended', { title: 'Extended' });
-	const body = api.container('search.extended.body', { class: 'blf-columns' });
-	const patternColumn = api.container('search.extended.pattern', { title: 'Pattern' });
-	const annotationTabs = api.container('search.extended.annotations', { presentation: 'tabs' });
-	annotationTabs.add(
-		api
-			.container('search.extended.annotations.main', { title: 'Main', combine: 'allOf' })
-			.add(
-				api.field('search.extended.word', 'annotation', { annotationId: 'word', displayName: 'Word', caseSensitive: true, uiType: 'combobox' }, { stateKey: 'search.extended.word' }),
-				api.field('search.extended.lemma', 'annotation', { annotationId: 'lemma', displayName: 'Lemma', caseSensitive: true, uiType: 'combobox' }, { stateKey: 'search.extended.lemma' }),
-			),
-		api.container('search.extended.annotations.grammar', { title: 'Grammar', combine: 'allOf' }).add(
-			api.field(
-				'search.extended.pos',
-				'annotation',
-				{
-					annotationId: 'pos',
-					displayName: 'Part of speech',
-					uiType: 'select',
-					options: [
-						{ value: 'NOU', label: 'Noun' },
-						{ value: 'VRB', label: 'Verb' },
-						{ value: 'ADJ', label: 'Adjective' },
-					],
-				},
-				{ stateKey: 'search.extended.pos' },
-			),
-		),
-	);
-	patternColumn.add(
-		api.field('search.extended.parallel', 'parallel', createParallelConfig(), { stateKey: 'search.parallel' }),
-		annotationTabs,
-		api.field('search.extended.within', 'within', createWithinConfig(), { stateKey: 'search.within' }),
-	);
-
-	const filterColumn = api.container('search.extended.filters.column', { title: 'Filters' });
-	filterColumn.add(createFilterContainer(api, 'search.extended'));
-	filterColumn.add(api.view('search.extended.filterSummary', 'summary', { title: 'Filter summary', source: 'filter-only', showRaw: true }));
-	filterColumn.add(api.view('search.extended.filterTotals', 'totals', { baseDocuments: 128345, baseTokens: 48291032 }));
-
-	body.add(patternColumn, filterColumn);
-	form.add(body);
-	return form;
-}
-
-function createExpertForm(api: FormRegistrationApi) {
-	const form = api.form('search.expert', { title: 'Expert' });
-	const body = api.container('search.expert.body', { class: 'blf-columns' });
-	body.add(
-		api
-			.container('search.expert.query')
-			.add(
-				api.field('search.expert.parallel', 'parallel', createParallelConfig(), { stateKey: 'search.parallel' }),
-				api.field(
-					'search.expert.querybox',
-					'expert',
-					{ label: 'Corpus Query Language', rows: 8, helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html' },
-					{ stateKey: 'search.expert.query' },
-				),
-				api.field('search.expert.within', 'within', createWithinConfig(), { stateKey: 'search.within' }),
-			),
-		api.container('search.expert.filters').add(createFilterContainer(api, 'search.expert'), api.view('search.expert.summary', 'summary', { title: 'Submitted shape', showRaw: true })),
-	);
-	form.add(body);
-	return form;
-}
-
-function createFilterContainer(api: FormRegistrationApi, prefix: string) {
-	const tabs = api.container(`${prefix}.filters`, { presentation: 'small-tabs', combine: 'allOf' });
 	for (const group of filterGroups) {
-		const groupContainer = api.container(`${prefix}.filters.${group.id}`, { title: group.title, combine: 'allOf' });
+		const groupContainer = builder.newContainer(`${prefix}.filters.${group.id}`, { title: group.title, config: { combine: 'allOf' } });
 		for (const subtab of group.subtabs) {
-			const subtabContainer = api.container(`${prefix}.filters.${group.id}.${subtab.id}`, { title: subtab.title, combine: 'allOf' });
+			const subtabContainer = builder.newContainer(`${prefix}.filters.${group.id}.${subtab.id}`, { title: subtab.title, config: { combine: 'allOf' } });
 			for (const fieldId of subtab.fields) {
-				subtabContainer.add(api.field(`${prefix}.filter.${fieldId}`, 'metadata-filter', { definition: metadataFilters[fieldId as keyof typeof metadataFilters] }, { stateKey: `metadata.${fieldId}` }));
+				subtabContainer.addChildren(
+					builder.newField(`${prefix}.filter.${fieldId}`, filterController, {
+						...metadataFilters[fieldId],
+						groupId: groupContainer.id,
+					}),
+				);
 			}
-			groupContainer.add(subtabContainer);
+			groupContainer.addChildren(subtabContainer);
 		}
-		tabs.add(groupContainer);
+		tabs.addChildren(groupContainer);
 	}
+
 	return tabs;
 }
 

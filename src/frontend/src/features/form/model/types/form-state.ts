@@ -5,7 +5,7 @@
 import type { Ref } from 'vue';
 
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { SummaryEntry, CompiledFormState, SubmittableFormState, PersistableFormState } from '@/features/form/model/types/form-query';
+import type { SummaryEntry, CompiledFormState, PersistableSubmittableFormState, PersistableFormState } from '@/features/form/model/types/form-query';
 import type { FormContainerNode, FormBoundaryNode } from '@/features/form/model/types/form-shape';
 
 export type ControllerState = unknown;
@@ -55,8 +55,8 @@ export type FormSystemRuntime = {
 
 	compile(formId: string): CompiledFormState;
 	onCompile(callback: (formId: string, compiled: CompiledFormState) => void): void;
-	submit(formId: string): SubmittableFormState;
-	onSubmit(callback: (formId: string, submitted: SubmittableFormState) => void): void;
+	submit(formId: string): PersistableSubmittableFormState;
+	onSubmit(callback: (formId: string, submitted: PersistableSubmittableFormState) => void): void;
 	summarize(formId: string): SummaryEntry[];
 	onSummarize(callback: (formId: string, summaries: SummaryEntry[]) => void): void;
 	persist(formId: string): PersistableFormState;

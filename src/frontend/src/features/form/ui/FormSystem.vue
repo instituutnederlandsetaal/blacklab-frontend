@@ -6,8 +6,8 @@
 
 <script setup lang="ts">
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { SubmittableFormState } from '@/features/form/model/types/form-query';
-import type { FormSystemDefinition } from '@/features/form/model/types/form-state';
+import type { PersistableSubmittableFormState } from '@/features/form/model/types/form-query';
+import type { FormState, FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
 
 import { createFormSystemRuntime, provideFormSystemRuntime } from '../model/runtime';
 
@@ -16,15 +16,18 @@ import NodeRenderer from '@/features/form/ui/NodeRenderer.vue';
 const props = defineProps<{
 	definition: FormSystemDefinition;
 	context: FormRuntimeContext;
+	initialState?: FormState;
 }>();
 
 const emit = defineEmits<{
-	submit: [formId: string, snapshot: SubmittableFormState];
+	ready: [runtime: FormSystemRuntime];
+	submit: [formId: string, snapshot: PersistableSubmittableFormState];
 }>();
 
-const runtime = createFormSystemRuntime(props.definition, props.context);
+const runtime = createFormSystemRuntime(props.definition, props.context, props.initialState);
 provideFormSystemRuntime(runtime);
 runtime.onSubmit((formId, snapshot) => emit('submit', formId, snapshot));
+emit('ready', runtime);
 </script>
 
 <style lang="scss">

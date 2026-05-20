@@ -24,7 +24,7 @@ function buildQueryFromContainer(node: FormContainerNode | FormBoundaryNode, for
 		return acc;
 	}, [] as CompilableQuery[]);
 
-	return combineQueries(childClauses, node.kind === 'container' ? node.combine : 'allOf');
+	return combineQueries(childClauses, node.kind === 'container' ? node.config?.combine : 'allOf');
 }
 
 function buildQueryFromField(node: FormFieldNode, context: FormRuntimeContext, formState: FormState): CompilableQuery {

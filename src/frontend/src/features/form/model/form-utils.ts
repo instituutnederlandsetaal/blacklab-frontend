@@ -16,7 +16,10 @@ export function* walkFormNodes(root: FormNode) {
 		seen.add(node);
 		yield node;
 		if (node.kind === 'container' || node.kind === 'form') {
-			stack.push(...node.children);
+			// Push in reverse order so traversal is in the order you would expect
+			for (let i = node.children.length - 1; i >= 0; i--) {
+				stack.push(node.children[i]);
+			}
 		}
 	}
 }
@@ -75,8 +78,54 @@ export function checkNoLoops(root: FormNode, completedSubgraphs = new Set<FormNo
 
 export function generateSchemaVersion(root: FormNode): string {
 	// pretty naive hash function, just to get a different version string when the form changes. We could use a proper hash function if needed.
-	const str = JSON.stringify(root);
+	const str = JSON.stringify(toSchemaVersionPayload(root), (_key, value) => (typeof value === 'function' ? '[Function]' : value));
 	return hashJavaDJB2(str).toString();
+}
+
+function toSchemaVersionPayload(node: FormNode, seen = new Set<FormNode>()): unknown {
+	const base = {
+		class: node.class,
+		id: node.id,
+		kind: node.kind,
+		title: node.title,
+		titleKey: node.titleKey,
+	};
+
+	if (seen.has(node)) {
+		return { ...base, ref: true };
+	}
+	seen.add(node);
+
+	if (node.kind === 'field') {
+		return {
+			...base,
+			config: node.config,
+			controller: node.controller.toJSON(),
+		};
+	}
+
+	if (node.kind === 'view') {
+		return {
+			...base,
+			config: node.config,
+			view: { kind: node.view.kind },
+			variant: node.variant,
+		};
+	}
+
+	if (node.kind === 'form') {
+		return {
+			...base,
+			children: node.children.map(child => toSchemaVersionPayload(child, seen)),
+			resultPreset: node.resultPreset,
+		};
+	}
+
+	return {
+		...base,
+		children: node.children.map(child => toSchemaVersionPayload(child, seen)),
+		config: node.config,
+	};
 }
 
 export function isContainerNode(node: FormNode): node is Extract<FormNode, { children: FormNode[] }> {

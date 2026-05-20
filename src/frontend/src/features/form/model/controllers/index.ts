@@ -6,13 +6,13 @@ import parallelController from './parallel-controller';
 import expertQueryController from './raw-cql-query-controller';
 import withinController from './within-controller';
 
-export interface RegisteredControllers {
+export type RegisteredControllers = ControllerRegistryMap & {
 	[filterController.kind]: typeof filterController;
 	[withinController.kind]: typeof withinController;
 	[expertQueryController.kind]: typeof expertQueryController;
 	[parallelController.kind]: typeof parallelController;
 	[annotationController.kind]: typeof annotationController;
-}
+};
 
 export function registerBuiltinControllers<C extends ControllerRegistryMap, V extends ViewRegistryMap>(
 	registry: ControllerRegistry<C, V>,

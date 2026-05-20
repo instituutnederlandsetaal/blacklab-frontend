@@ -6,14 +6,16 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
 import type { FormViewNode } from '@/features/form/model/types/form-shape';
 import type { HeadingViewConfig } from '@/features/form/model/views/heading-view';
 
-const {
-	node: { config },
-} = defineProps<{
+const props = defineProps<{
 	node: FormViewNode<HeadingViewConfig>;
 }>();
+
+const config = computed(() => props.node.config);
 </script>
 
 <style lang="scss" scoped>

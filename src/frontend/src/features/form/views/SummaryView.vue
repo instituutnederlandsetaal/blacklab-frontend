@@ -27,13 +27,12 @@ import type { SummaryViewConfig } from '@/features/form/model/views/summary-view
 
 import { useParentForm } from '../model/runtime';
 
-const {
-	node: { config },
-} = defineProps<{
+const props = defineProps<{
 	node: FormViewNode<SummaryViewConfig>;
 }>();
 
 const parentForm = useParentForm();
+const config = computed(() => props.node.config);
 const projection = computed(() => parentForm.compiled);
 const entries = computed(() => parentForm.summaries);
 </script>

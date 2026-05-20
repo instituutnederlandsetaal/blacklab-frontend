@@ -1,4 +1,4 @@
-import type { ResultPreset } from '@/features/form/model/types';
+import type { ResultPreset } from '@/features/form/model/types/form-shape';
 import type { FormState } from '@/features/form/model/types/form-state';
 
 export type QueryTokenClauseNode = {

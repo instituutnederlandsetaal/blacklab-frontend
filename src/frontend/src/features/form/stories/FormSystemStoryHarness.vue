@@ -1,19 +1,19 @@
 <template>
 	<div class="story-harness">
 		<div class="surface">
-			<FormSystem v-model:state="draftState" v-model:submitted="submittedState" :definition="definition" />
+			<FormSystem :definition="definition" :context="context" :initial-state="initialState" @ready="handleReady" @submit="handleSubmit" />
 		</div>
 		<aside class="inspector">
 			<section>
-				<h3>Draft</h3>
-				<pre>{{ draftState }}</pre>
+				<h3>Live state</h3>
+				<pre>{{ runtimeState || 'Waiting for runtime.' }}</pre>
 			</section>
 			<section>
 				<h3>Submitted</h3>
 				<pre>{{ submittedState || 'Submit the active form.' }}</pre>
 			</section>
 			<section>
-				<h3>URL Codec</h3>
+				<h3>URL codec</h3>
 				<pre>{{ encodedSubmitted || 'No submitted snapshot yet.' }}</pre>
 			</section>
 		</aside>
@@ -21,19 +21,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, shallowRef } from 'vue';
 
-import { createDraftFormState, encodeSubmittedSnapshot, FormSystem, type DraftFormState, type FormSystemDefinition, type SubmittedFormSnapshot } from '../index';
+import { encodeSubmittedForm, FormSystem, type FormRuntimeContext, type FormState, type FormSystemDefinition, type FormSystemRuntime, type PersistableSubmittableFormState } from '../index';
 
 const props = defineProps<{
+	context: FormRuntimeContext;
 	definition: FormSystemDefinition;
-	initialState?: DraftFormState;
-	initialSubmitted?: SubmittedFormSnapshot | null;
+	initialState?: FormState;
+	initialSubmitted?: PersistableSubmittableFormState | null;
 }>();
 
-const draftState = ref<DraftFormState>(props.initialState ?? createDraftFormState(props.definition));
-const submittedState = ref<SubmittedFormSnapshot | null>(props.initialSubmitted ?? null);
-const encodedSubmitted = computed(() => (submittedState.value ? encodeSubmittedSnapshot(submittedState.value) : null));
+const runtime = shallowRef<FormSystemRuntime | null>(null);
+const submittedState = ref<PersistableSubmittableFormState | null>(props.initialSubmitted ?? null);
+const runtimeState = computed(() => runtime.value?.state.value ?? props.initialState ?? null);
+const encodedSubmitted = computed(() => (submittedState.value ? encodeSubmittedForm(submittedState.value) : null));
+
+function handleReady(nextRuntime: FormSystemRuntime) {
+	runtime.value = nextRuntime;
+}
+
+function handleSubmit(_formId: string, snapshot: PersistableSubmittableFormState) {
+	submittedState.value = snapshot;
+}
 </script>
 
 <style lang="scss" scoped>

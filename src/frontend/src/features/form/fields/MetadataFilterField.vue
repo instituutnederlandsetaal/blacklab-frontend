@@ -20,13 +20,11 @@ import FilterRangeMultipleFields from './filters/FilterRangeMultipleFields.vue';
 import FilterSelect from './filters/FilterSelect.vue';
 import FilterText from './filters/FilterText.vue';
 
-const {
-	node: { config, ...node },
-} = defineProps<{
+const props = defineProps<{
 	node: FormFieldNode<MetadataFilterFieldConfig>;
 }>();
 
-const modelValue = defineModel<MetadataFilterFieldState>('state');
+const modelValue = defineModel<MetadataFilterFieldState>('state', { required: true });
 
 // TODO these should not be decided here, but be contained in the different controller instances
 // Some controllers can be shared between identical-ish UI, as their state is identical
@@ -47,13 +45,15 @@ const components = {
 
 const uid = useUid();
 
+const node = computed(() => props.node);
+const config = computed(() => props.node.config);
 const filterComponentProps = computed<BaseFilterProps<any, any>>(() => ({
-	definition: config,
-	modelValue,
-	textDirection: config.textDirection || 'ltr',
-	htmlId: `node.id-${uid}`,
+	definition: config.value,
+	modelValue: modelValue.value,
+	textDirection: config.value.textDirection || 'ltr',
+	htmlId: `${node.value.id}-${uid}`,
 	showLabel: true, // todo??
 }));
 
-const filterComponent = computed(() => components[config.componentName as keyof typeof components] ?? FilterText);
+const filterComponent = computed(() => components[config.value.componentName as keyof typeof components] ?? FilterText);
 </script>

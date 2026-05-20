@@ -3,7 +3,6 @@
 		<label :for="inputId">
 			{{ config.displayName }}
 		</label>
-		<pre>{{ node }}</pre>
 
 		<select v-if="config.uiType === 'select'" :id="inputId" class="blf-input" :value="state.value" @change="updateValue(($event.target as HTMLSelectElement).value)">
 			<option value=""></option>
@@ -30,10 +29,7 @@ import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 import { isOption, isSimpleOption, type Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/useUid';
 
-const {
-	state,
-	node: { config, ...node },
-} = defineProps<{
+const props = defineProps<{
 	node: FormFieldNode<AnnotationFieldConfig>;
 	state: AnnotationFieldState;
 }>();
@@ -44,9 +40,11 @@ const emit = defineEmits<{
 
 const uid = useUid();
 
-const inputId = computed(() => `${node.id}_${uid}_value`);
+const config = computed(() => props.node.config);
+const state = computed(() => props.state);
+const inputId = computed(() => `${props.node.id}_${uid}_value`);
 const options = computed<Option[]>(() =>
-	(config.options ?? []).flatMap(option => {
+	(config.value.options ?? []).flatMap(option => {
 		if (isSimpleOption(option)) return { value: option };
 		if (isOption(option)) return option;
 		return option.options.map(groupOption => (isSimpleOption(groupOption) ? { value: groupOption } : groupOption));
@@ -54,10 +52,10 @@ const options = computed<Option[]>(() =>
 );
 
 function updateValue(value: string) {
-	emit('update:state', { ...state, value });
+	emit('update:state', { ...props.state, value });
 }
 
 function updateCase(caseSensitive: boolean) {
-	emit('update:state', { ...state, caseSensitive });
+	emit('update:state', { ...props.state, caseSensitive });
 }
 </script>

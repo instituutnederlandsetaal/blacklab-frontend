@@ -34,12 +34,8 @@ import { computed } from 'vue';
 import type { WithinFieldConfig, WithinFieldState } from '@/features/form/model/controllers/within-controller';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
-const {
-	node: { config, ...node },
-	state,
-} = defineProps<{
+const props = defineProps<{
 	node: FormFieldNode<WithinFieldConfig>;
-	config: WithinFieldConfig;
 	state: WithinFieldState;
 }>();
 
@@ -47,7 +43,10 @@ const emit = defineEmits<{
 	'update:state': [state: WithinFieldState];
 }>();
 
-const selectedAttributes = computed(() => config.options.find(option => option.value === state.element)?.attributes ?? []);
+const node = computed(() => props.node);
+const config = computed(() => props.node.config);
+const state = computed(() => props.state);
+const selectedAttributes = computed(() => config.value.options.find(option => option.value === props.state.element)?.attributes ?? []);
 
 function selectElement(element: string) {
 	emit('update:state', {
@@ -58,9 +57,9 @@ function selectElement(element: string) {
 
 function changeWithinAttribute(attribute: string, value: string) {
 	emit('update:state', {
-		...state,
+		...props.state,
 		attributes: {
-			...state.attributes,
+			...props.state.attributes,
 			[attribute]: value,
 		},
 	});

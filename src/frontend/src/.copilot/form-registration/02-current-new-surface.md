@@ -1,303 +1,226 @@
-# Current New Surface
+# Current Form Surface
 
-This is the current implementation map in `_new`, grouped by responsibility.
+This file describes the implementation that currently exists under `src/frontend/src/features/form`. It does not describe app wiring; the slice is still isolated for review in Storybook.
 
-## Runtime boot and customization timing
+## Placement and public surface
 
-Relevant files:
+Current files of interest:
 
-- `src/frontend/src/app/entrypoint/main.ts`
-- `src/frontend/src/app/providers/provideCorpusData.ts`
-- `src/frontend/src/app/providers/providePageBootstrapState.ts`
-- `src/frontend/src/app/effects/page-customization.effect.ts`
-- `src/frontend/src/app/interop/page-customization.ts`
-- `src/frontend/src/app/routes/router-options.ts`
+- `features/form/index.ts`
+- `features/form/model/types/*`
+- `features/form/model/builder/form-shape-builder.ts`
+- `features/form/model/runtime.ts`
+- `features/form/ui/FormSystem.vue`
+- `features/form/stories/*`
 
-Current behavior:
+Current public barrel exports:
 
-- Corpus metadata, page config, and tagset are loaded together through `provideCorpusData.ts`.
-- Custom CSS is inserted immediately after config is available.
-- Custom JS is inserted either immediately or after the page marks itself bootstrapped, based on route meta.
-- Search route currently uses immediate custom-script timing.
-- Legacy globals are mostly gone. `window` now exposes only a very small surface such as `INDEX_ID`, `currentCorpusData`, `vueApp`, and `vueRoot`.
+- `FormSystem` and the internal renderer components.
+- `FormBuilder` and `ControllerRegistry`.
+- builtin controller registration and controller instances.
+- builtin view registration and view instances.
+- runtime helpers such as `createFormSystemRuntime`, `useFormSystemRuntime`, and `useParentForm`.
+- state helpers such as `createFormState` and `cloneFormState`.
+- compile helpers such as `buildFormQuery`, `summarizeForm`, and `createCompiledQueryProjections`.
+- persistence helpers `encodeSubmittedForm` and `decodeSubmittedSnapshot`.
 
-Implication for form registration:
+This is an internal feature surface, not yet the stable external customization API.
 
-- A future external API cannot rely on the old `window.vuexModules` surface.
-- Registration needs its own stable runtime hook.
-- Registration can safely be callback-based because page customization already inserts external scripts after config load.
+## Composition model
 
-## Search page status
+The current node model is defined in `model/types/form-shape.ts`.
 
-Relevant files:
+Supported node kinds:
 
-- `src/frontend/src/pages/search/SearchPage.vue`
-- `src/frontend/src/pages/search/search-store.ts`
-- `src/frontend/src/pages/search/form/ui/QueryForm.vue`
-- `src/frontend/src/pages/search/form/ui/QueryFormSearch.vue`
+- `container`: structural group, optional custom component, optional `config.variant`, optional `config.combine`.
+- `form`: submit boundary with children and optional `resultPreset`.
+- `field`: query-producing controller node with controller object and field-specific config.
+- `view`: non-query node with view definition and view-specific config.
 
-What is actually live:
+Important current details:
 
-- Search page loads corpus data, initializes the search stores, and renders the form.
-- The live form UI currently only renders the `search/simple` path.
-- Results UI is commented out.
-- Explore UI is commented out.
-- Filters UI is commented out.
-- History and settings dialogs are commented out.
-- Submit logic is commented out.
+- Container presentation uses `config.variant: 'list' | 'tabs' | 'small-tabs'`.
+- Container query combination uses `config.combine: 'allOf' | 'anyOf' | 'sequence'`.
+- Field/view variants are still lightly typed and not consistently used.
+- Containers may specify a custom internal Vue component; this is used for the grouped filter renderer.
 
-Implication:
+## Builder and registry
 
-- There is no end-to-end query pipeline in `_new` yet.
-- The current code is best viewed as state and utility scaffolding plus a minimal simple-search pilot.
+Current builder files:
 
-## Stores that already exist
+- `model/builder/form-shape-builder.ts`
+- `model/controllers/index.ts`
+- `model/views/index.ts`
 
-### Interface state
+The current builder is class-based:
 
-Relevant file:
+- create a `ControllerRegistry`
+- call `registerBuiltinControllers()` and `registerBuiltinViews()`
+- create a `FormBuilder`
+- call `newContainer()`, `newForm()`, `newField()`, and `newView()`
+- call `addChildren()` to compose a graph
+- call `build()` to validate loops and generate `schemaVersion`
 
-- `src/frontend/src/pages/search/form/store/interface-state.ts`
+State sharing now follows node IDs and object reuse. There is no `stateKey` field. The builder currently prevents creating a second node with the same ID, so intentional sharing in builder-authored forms should reuse the same node object via helper functions.
 
-Owns:
+## Runtime and state
 
-- top-level form mode: `search | explore`
-- active query subform
-- active explore subform
-- active results view
-- active annotation tab
-- active filter tab
+Current files:
 
-Assessment:
+- `model/types/form-state.ts`
+- `model/state.ts`
+- `model/runtime.ts`
+- `model/form-utils.ts`
 
-- Small and usable.
-- Good candidate to remain as UI navigation state even after registration exists.
+Current `FormState` shape:
 
-### Pattern store
+```ts
+type FormState = {
+	controllerState: Record<string, unknown>;
+	uiState: {
+		activeContainers: Record<string, string | null>;
+	};
+};
+```
 
-Relevant file:
+Current runtime behavior:
 
-- `src/frontend/src/pages/search/form/store/pattern-store.ts`
+- `createFormState()` initializes controller state by walking fields and calling `controller.createDefaultState()`.
+- `createInitialContainerUiStates()` picks the first child container/form for tab-like containers.
+- `FormSystemRuntime.state` is a mutable `Ref<FormState>`.
+- `compile(formId)` builds live projections for a form.
+- `summarize(formId)` asks field controllers for summary entries.
+- `persist(formId)` copies the active form state plus compiled raw query projections and schema version.
+- `submit(formId)` adds summaries and `resultPreset` to the persisted snapshot.
+- `reset()` recreates the internal form state.
 
-Owns:
+There is no separate draft object in this slice. The runtime's internal `FormState` is the editable state. A submitted snapshot is produced by copying state during `persist()`/`submit()`.
 
-- shared parallel state: source, targets, alignBy, within, withinAttributes
-- `simple` state
-- `extended` state
-- `advanced` query-builder state
-- `expert` raw-query state
+## Query artifact and compile path
 
-Assessment:
+Current files:
 
-- This is one of the most valuable existing assets.
-- It already models draft state separately from query serialization.
-- It is still store-shaped around the old hard-coded modes, so it is not itself the future registry.
+- `model/compile/index.ts`
+- `model/compile/query-artifact.ts`
 
-### Explore store
+Controllers contribute a `CompilableQuery` with these parts:
 
-Relevant file:
+- `pattern`
+- `filter`
+- `wrappers`
+- `searchField`
+- `summaries`
 
-- `src/frontend/src/pages/search/form/store/explore-state.ts`
+The compile path supports:
 
-Owns:
+- token patterns
+- boolean pattern grouping
+- sequence pattern grouping
+- raw CQL patterns
+- term/range/raw/boolean filters
+- `within` wrappers
+- a single `searchField`
 
-- n-gram inputs
-- frequency annotation selection
-- corpora grouping preset
+Current projections are:
 
-Assessment:
+- `cql`
+- `filter`
+- `searchField`
 
-- Another useful draft-state container.
-- Still hard-coded per explore mode.
+Missing projections:
 
-### Filter store
+- `filter-only`
+- `pattern-only`
+- subtree-scoped previews for totals and localized summaries
+- richer separation between filter summaries, pattern summaries, and submitted-query summaries
 
-Relevant file:
+## Built-in controllers
 
-- `src/frontend/src/pages/search/form/filters/store/filter-store.ts`
+Current files:
 
-Owns:
+- `model/controllers/annotation-controller.ts`
+- `model/controllers/metadata-filter-controller.ts`
+- `model/controllers/within-controller.ts`
+- `model/controllers/parallel-controller.ts`
+- `model/controllers/raw-cql-query-controller.ts`
 
-- logical filter definitions keyed by `id`
-- filter groups and subtabs
-- active filter values
-- custom filter registration via `registerFilterGroup()` and `registerFilter()`
+Current built-ins:
 
-Why it matters:
+- `annotation`: token annotation input, emits token CQL.
+- `metadata-filter`: wraps moved legacy filter behavior, emits Lucene filter and summary.
+- `within`: emits a CQL wrapper and summary.
+- `parallel`: currently sets `searchField` and summary entries; target query compilation is not complete.
+- `raw-cql-query`: emits raw CQL.
 
-- This is already a mini registry.
-- A filter is defined by logical metadata, a render key (`componentName`), and a behavior key (`behaviourName`).
-- Custom tabs and custom span filters are already supported.
+The metadata filter controller uses `filter-value-functions.ts`, which remains the main preserved logic from the old filter system.
 
-Assessment:
+## Built-in views
 
-- This is the clearest prototype for the lower layer of the future registration system.
+Current files:
 
-## Serialization and reusable logic
+- `model/views/*`
+- `views/HeadingView.vue`
+- `views/SummaryView.vue`
+- `views/TotalsView.vue`
 
-### Filter behavior layer
+Current built-ins:
 
-Relevant file:
+- `heading`: static title/description.
+- `summary`: reads `useParentForm()` and displays live summaries plus raw projections.
+- `totals`: placeholder estimate based on whether a filter exists.
 
-- `src/frontend/src/pages/search/form/filters/lib/filterValueFunctions.ts`
+The summary and totals views are useful review scaffolding, but the summary interface needs to become richer before real app integration.
 
-Provides:
+## Rendering
 
-- decode from parsed URL state into widget value
-- serialize filter value into Lucene
-- human-readable filter summary
-- active-state checks
-- special span-filter behavior using `behaviourName`
+Current files:
 
-Assessment:
+- `ui/FormSystem.vue`
+- `ui/NodeRenderer.vue`
+- `ui/ContainerRenderer.vue`
+- `ui/ContainerRendererFilters.vue`
+- `ui/FormRenderer.vue`
+- `ui/FieldHost.vue`
+- `ui/ViewHost.vue`
 
-- This is exactly the kind of UI-agnostic leaf-controller logic worth preserving.
-- It should likely become a formal controller or driver interface in the new system.
+Rendering flow:
 
-### Pattern serialization layer
+- `FormSystem` creates/provides the runtime and renders the root node.
+- `NodeRenderer` dispatches by node kind and now respects custom container components.
+- `ContainerRenderer` renders list/tabs/small-tabs.
+- `ContainerRendererFilters` is the specialized grouped filter container.
+- `FormRenderer` provides parent form context and calls `runtime.submit()`/`runtime.reset()`.
+- `FieldHost` binds field state by node ID with `v-model:state`.
+- `ViewHost` renders the configured view component.
 
-Relevant file:
+## Storybook review surface
 
-- `src/frontend/src/pages/search/form/utils/pattern-utils.ts`
+Current story files:
 
-Provides:
+- `ui/FormSystem.stories.ts`
+- `ui/FilterPanel.stories.ts`
+- `fields/FieldCatalog.stories.ts`
+- `stories/sample-form-system.ts`
+- `stories/FormSystemStoryHarness.vue`
 
-- simple and extended annotation value serialization to CQL
-- parallel query assembly
-- within-clause derivation from filters and within widget state
-- explore query serialization
-- query-builder and expert serialization bridge
+The stories are colocated next to the form feature and use `FormBuilder` directly. They cover:
 
-Assessment:
+- search form tabs with simple, extended, and expert modes
+- restored submitted snapshot shape
+- grouped metadata filter container
+- built-in field/controller catalog
 
-- This is the existing submission core for pattern generation.
-- It should be reused behind a registration facade instead of rewritten immediately.
+The harness shows live runtime state, the last submitted snapshot, and the encoded persistable state.
 
-### Query builder model
+## Search page integration status
 
-Relevant file:
+The current form feature is still not wired into `pages/search`. Existing search-page stores and URL/result code remain separate migration inputs.
 
-- `src/frontend/src/widgets/cql-query-builder/model.ts`
+Integration still needs:
 
-Provides:
-
-- typed builder state model
-- CQL generator
-- parser bridge from parsed BCQL JSON back into builder state
-
-Assessment:
-
-- Strong candidate to remain an internal built-in field driver.
-- Important proof that a widget can have its own rich opaque state shape and still emit raw CQL when needed.
-
-## UI building blocks already present
-
-### Annotation widget
-
-Relevant file:
-
-- `src/frontend/src/pages/search/form/annotations/Annotation.vue`
-
-What it does:
-
-- renders a concrete annotation input based on annotation metadata
-- handles select, autocomplete, case sensitivity, uploads
-- writes directly into the pattern store
-
-Assessment:
-
-- Good reusable UI primitive.
-- Still too coupled to the current store shape to be the public abstraction.
-- In a future registry it should become an internal renderer for an `annotation` field driver.
-
-### Corpus-driven field grouping helpers
-
-Relevant file:
-
-- `src/frontend/src/shared/blacklab-helpers/field-groups.ts`
-
-What it does:
-
-- converts annotation and metadata groups into grouped option lists
-- already supports search, group-by, and sort-by option generation
-
-Assessment:
-
-- This should stay a shared utility behind registration callbacks.
-
-## Customization surfaces still in play
-
-### Push-based UI customization store
-
-Relevant file:
-
-- `src/frontend/src/pages/search/config/ui-customization-store.ts`
-
-Current role:
-
-- giant mutable config object for search, explore, results, dropdowns, and some helper methods
-- validates customization state after corpus load
-- still exposes global customization entry points
-
-Assessment:
-
-- Useful as a compatibility layer and corpus-derived defaults source.
-- Not a good long-term public API boundary.
-- The file itself documents why its current init-order model is problematic.
-
-### Callback customization store
-
-Relevant file:
-
-- `src/frontend/src/pages/search/config/customization-callback-store.ts`
-
-Current role:
-
-- proxy-wrapped callback hooks with fallback behavior
-- supports custom search metadata tabs and span filters
-
-Assessment:
-
-- Closer to the desired timing model than the push store.
-- Still too broad, too dynamic, and too error-prone to be the final form-registration API.
-
-## Results and URL state in `_new`
-
-Relevant files:
-
-- `src/frontend/src/pages/search/search-store.ts`
-- `src/frontend/src/app/routes/urls/url-state-parser-search.ts`
-- `src/frontend/src/app/routes/urls/state-to-url.ts`
-- `src/frontend/src/app/plugins/effects/url-sync/index.ts`
-- `src/frontend/src/app/plugins/effects/url-state-sync.ts`
-- `src/frontend/src/features/totals/*`
-
-Current reality:
-
-- The totals loaders and result-count helpers are implemented and reusable.
-- The broader search submission, result-view stores, URL parsing, and URL reflection paths are still commented out or absent.
-
-Implication:
-
-- The future registration work must explicitly include a submitted-query pipeline.
-- There is no hidden finished results architecture waiting to be plugged in.
-
-## Bottom line on the current `_new` surface
-
-Pieces worth building on:
-
-- `pattern-store.ts`
-- `explore-state.ts`
-- `filter-store.ts`
-- `filterValueFunctions.ts`
-- `pattern-utils.ts`
-- `widgets/cql-query-builder/model.ts`
-- `field-groups.ts`
-- the new page customization timing path
-
-Pieces that are still transitional scaffolding:
-
-- `search-store.ts` submission flow
-- `QueryForm.vue` and `QueryFormSearch.vue` commented sections
-- route URL parsing/reflection code
-- the broad mutable `ui-customization-store.ts` as a public extension surface
+- submitted-query store ownership outside `features/form`
+- URL/history codec wiring
+- result preset handling
+- totals/result loaders connected to submitted snapshots rather than live editing state
+- corpus-driven default form construction
+- a stable external customization API and generated declarations
