@@ -2,7 +2,7 @@ import { markRaw } from 'vue';
 
 import { checkNoLoops, generateSchemaVersion } from '@/features/form/model/form-utils';
 import type { FieldController, ViewDefinition } from '@/features/form/model/types/form-controllers';
-import type { FormContainerNode, FormNode, FormBoundaryNode, FormChildNode, FormFieldNode, FormViewNode, NodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
+import type { FormContainerNode, FormNode, FormBoundaryNode, FormChildNode, FormFieldNode, FormViewNode, NodeKind, NodeKindMap, FieldControllerConfig } from '@/features/form/model/types/form-shape';
 import type { FormSystemDefinition } from '@/features/form/model/types/form-state';
 
 export type FormRegistrationCallback = (api: FormBuilder) => FormContainerNode | void;
@@ -132,7 +132,7 @@ export class FormBuilder {
 		if (!this.root) this.root = node;
 		return (this.nodeMap[id] = node as any);
 	}
-	newField<Config>(
+	newField<Config extends FieldControllerConfig>(
 		id: string,
 		controller: FieldController<string, any, Config>,
 		config: Config,
