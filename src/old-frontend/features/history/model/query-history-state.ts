@@ -4,22 +4,20 @@
  * but also when the user changes the grouping, and when they switch between viewing hits/documents.
  */
 
-import URI from 'urijs';
-
 import { stripIndent } from 'common-tags';
 import jsonStableStringify from 'json-stable-stringify';
+import URI from 'urijs';
+import { markRaw, shallowRef } from 'vue';
 
+import { debugLog } from '@/app/features/debug/debug';
+import type { CorpusChange } from '@/app/plugins/installCorpusData';
+import UrlStateParserSearch from '@/app/routes/urls/url-state-parser-search';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as PatternModule from '@/features/search/model/form/pattern-state';
 import type * as GlobalModule from '@/features/search/model/results/global-results-state';
 import type * as ViewModule from '@/features/search/model/results/view-state';
-
-import { debugLog } from '@/app/features/debug/debug';
-import type { CorpusChange } from '@/app/plugins/installCorpusData';
-import UrlStateParserSearch from '@/app/routes/urls/url-state-parser-search';
 import type { NormalizedIndex } from '@/types/apptypes';
-import { markRaw, shallowRef } from 'vue';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
@@ -37,23 +35,23 @@ type HistoryEntry = {
 
 	/** The state of the currently active view. */
 	query: (
-		|({form: 'pattern-simple'}&PatternModule.ModuleRootState['simple']['annotationValue']&PatternModule.ModuleRootState['shared'])
-		|({form: 'pattern-extended'}&PatternModule.ModuleRootState['extended']&PatternModule.ModuleRootState['shared'])
-		|({form: 'pattern-advanced'}&PatternModule.ModuleRootState['advanced']&PatternModule.ModuleRootState['shared'])
-		|({form: 'pattern-expert'}&PatternModule.ModuleRootState['expert']&PatternModule.ModuleRootState['shared'])
-		|({form: 'explore-corpora'}&ExploreModule.ModuleRootState['corpora'])
-		|({form: 'explore-frequency'}&ExploreModule.ModuleRootState['frequency'])
-		|({form: 'explore-ngram'}&ExploreModule.ModuleRootState['ngram'])
-	)&{
+		| ({ form: 'pattern-simple' } & PatternModule.ModuleRootState['simple']['annotationValue'] & PatternModule.ModuleRootState['shared'])
+		| ({ form: 'pattern-extended' } & PatternModule.ModuleRootState['extended'] & PatternModule.ModuleRootState['shared'])
+		| ({ form: 'pattern-advanced' } & PatternModule.ModuleRootState['advanced'] & PatternModule.ModuleRootState['shared'])
+		| ({ form: 'pattern-expert' } & PatternModule.ModuleRootState['expert'] & PatternModule.ModuleRootState['shared'])
+		| ({ form: 'explore-corpora' } & ExploreModule.ModuleRootState['corpora'])
+		| ({ form: 'explore-frequency' } & ExploreModule.ModuleRootState['frequency'])
+		| ({ form: 'explore-ngram' } & ExploreModule.ModuleRootState['ngram'])
+	) & {
 		/** The raw cql string */
-		cql: string|null;
+		cql: string | null;
 		/** A human-readable summary of the query. */
 		summary: string;
 	};
-	results: ViewModule.ViewRootState&{id: string}&GlobalModule.ModuleRootState;
+	results: ViewModule.ViewRootState & { id: string } & GlobalModule.ModuleRootState;
 };
 
-type FullHistoryEntry = HistoryEntry&{
+type FullHistoryEntry = HistoryEntry & {
 	hash: number;
 	url: string;
 	timestamp: number;
@@ -68,7 +66,7 @@ type LocalStorageState = {
 };
 
 // Track current corpus for localStorage keying
-let corpus: NormalizedIndex|null = null;
+let corpus: NormalizedIndex | null = null;
 
 // Shallow ref: entries are frozen+markRaw, so no deep reactivity needed.
 // We replace the array reference when entries change.
@@ -90,52 +88,59 @@ const get = {
 		const fileName = `query_${date}.txt`;
 		const fileContents = stripIndent`
 			# Date: ${date}
-			# Results: ${entry.query.form.startsWith('explore') ? entry.query.form : entry.results.id }
+			# Results: ${entry.query.form.startsWith('explore') ? entry.query.form : entry.results.id}
 			# Pattern: ${entry.query.summary}
 			# Filters: ${entry.filters.summary}
 			# Grouping: ${entry.results.groupBy}
 			# Contains gap values: ${entry.query.form === 'pattern-expert' && entry.query.gapValue ? 'yes' : 'no'}
 
 			#####
-			${btoa(JSON.stringify({...entry, version}))}
+			${btoa(JSON.stringify({ ...entry, version }))}
 			#####`;
 
-		const file = new Blob([fileContents], {type: 'text/plain;charset=utf-8'});
-		return {file, fileName};
+		const file = new Blob([fileContents], { type: 'text/plain;charset=utf-8' });
+		return { file, fileName };
 	},
-	fromFile: (f: File) => new Promise<FullHistoryEntry>((resolve, reject) => {
-		const fr = new FileReader();
-		fr.onload = async function() {
-			try {
-				const base64 = (fr.result as string).replace(/#.*(?:\r\n|\n|\r|$)/g, '').trim();
-				let originalEntry: FullHistoryEntry&{version: number};
-				try { originalEntry = JSON.parse(atob(base64)); } catch { throw new Error(`Could not read query file '${f.name}'.`); }
-				if (!originalEntry || originalEntry.version == null) { throw new Error('Cannot import: file does not appear to be a valid query.'); }
+	fromFile: (f: File) =>
+		new Promise<FullHistoryEntry>((resolve, reject) => {
+			const fr = new FileReader();
+			fr.onload = async function () {
+				try {
+					const base64 = (fr.result as string).replace(/#.*(?:\r\n|\n|\r|$)/g, '').trim();
+					let originalEntry: FullHistoryEntry & { version: number };
+					try {
+						originalEntry = JSON.parse(atob(base64));
+					} catch {
+						throw new Error(`Could not read query file '${f.name}'.`);
+					}
+					if (!originalEntry || originalEntry.version == null) {
+						throw new Error('Cannot import: file does not appear to be a valid query.');
+					}
 
-				if (originalEntry.version === version) {
-					resolve(originalEntry); 
-					return;
-				} else {
-					// Roundtrip from url if not compatible.
-					const entry = await new UrlStateParserSearch(new URI(originalEntry.url)).get();
-					resolve({
-						...entry,
-						hash: originalEntry.hash,
-						url: originalEntry.url,
-						timestamp: originalEntry.timestamp,
-					});
+					if (originalEntry.version === version) {
+						resolve(originalEntry);
+						return;
+					} else {
+						// Roundtrip from url if not compatible.
+						const entry = await new UrlStateParserSearch(new URI(originalEntry.url)).get();
+						resolve({
+							...entry,
+							hash: originalEntry.hash,
+							url: originalEntry.url,
+							timestamp: originalEntry.timestamp,
+						});
+					}
+				} catch (e) {
+					debugLog('Cannot import query from file: ', f.name, e);
+					reject(e);
 				}
-			} catch (e) {
-				debugLog('Cannot import query from file: ', f.name, e);
-				reject(e);
-			}
-		};
-		fr.readAsText(f);
-	})
+			};
+			fr.readAsText(f);
+		}),
 };
 
 const actions = {
-	addEntry: (entry: HistoryEntry&{url: string}) => {
+	addEntry: (entry: HistoryEntry & { url: string }) => {
 		// Should only contain items that uniquely identify a query
 		// Normally this would only be the pattern (including gap values) and filters,
 		// but we've agreed that grouping differently constitutes a new query, so we also need to compare those
@@ -149,12 +154,14 @@ const actions = {
 			groupBy: entry.results.groupBy.sort((l, r) => l.localeCompare(r)),
 		};
 
-		const fullEntry: FullHistoryEntry = Object.freeze(markRaw({
-			...entry,
-			hash: hashJavaDJB2(jsonStableStringify(hashBase)),
-			url: entry.url,
-			timestamp: new Date().getTime(),
-		}));
+		const fullEntry: FullHistoryEntry = Object.freeze(
+			markRaw({
+				...entry,
+				hash: hashJavaDJB2(jsonStableStringify(hashBase)),
+				url: entry.url,
+				timestamp: new Date().getTime(),
+			}),
+		);
 
 		const entries = [...state.value];
 		const i = entries.findIndex(v => v.hash === fullEntry.hash);
@@ -175,7 +182,7 @@ const actions = {
 	clear: () => {
 		state.value = [];
 		saveToLocalStorage([]);
-	}
+	},
 };
 
 const init = (change: CorpusChange) => {
@@ -228,31 +235,10 @@ const saveToLocalStorage = (entries: ModuleRootState) => {
 	const stored: LocalStorageState = {
 		version,
 		history: entries,
-		indexLastModified: corpus.timeModified
+		indexLastModified: corpus.timeModified,
 	};
 
 	window.localStorage.setItem(key, JSON.stringify(stored));
 };
 
-// tslint:disable
-function hashJavaDJB2(str: string) {
-	let hash = 0;
-	let i = 0;
-	let char: number;
-	const l = str.length;
-	while (i < l) {
-		char  = str.charCodeAt(i);
-		hash  = ((hash<<5)-hash)+char;
-		hash |= 0;
-		++i
-	}
-	return hash;
-};
-// tslint:enable
-
-export {
-	actions, get, getState, init,
-
-	type FullHistoryEntry, type HistoryEntry, type ModuleRootState
-};
-
+export { actions, get, getState, init, type FullHistoryEntry, type HistoryEntry, type ModuleRootState };
