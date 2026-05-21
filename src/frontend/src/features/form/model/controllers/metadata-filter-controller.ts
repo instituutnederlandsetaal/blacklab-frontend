@@ -25,6 +25,8 @@ import type { FieldControllerConfig } from '@/features/form/model/types/form-sha
 
 import type { CheckboxFieldUiConfig } from '@/features/form/fields/generic/checkbox-field';
 import type { DateFieldUiConfig } from '@/features/form/fields/generic/date-field';
+import type { RangeFieldUiConfig } from '@/features/form/fields/generic/range-field';
+import type { RangeMultipleFieldsFieldUiConfig } from '@/features/form/fields/generic/range-multiple-fields-field';
 import type { RadioFieldUiConfig } from '@/features/form/fields/generic/radio-field';
 import type { SelectFieldState, SelectFieldUiConfig } from '@/features/form/fields/generic/select-field';
 import type { TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
@@ -32,8 +34,8 @@ import type { TextFieldUiConfig } from '@/features/form/fields/generic/text-fiel
 import CheckboxField from '@/features/form/fields/generic/CheckboxField.vue';
 import DateField from '@/features/form/fields/generic/DateField.vue';
 import RadioField from '@/features/form/fields/generic/RadioField.vue';
-import FilterRange from '@/features/form/fields/filters/FilterRange.vue';
-import FilterRangeMultipleFields from '@/features/form/fields/filters/FilterRangeMultipleFields.vue';
+import RangeField from '@/features/form/fields/generic/RangeField.vue';
+import RangeMultipleFieldsField from '@/features/form/fields/generic/RangeMultipleFieldsField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 
@@ -65,6 +67,14 @@ export type MetadataFilterRadioFieldConfig = MetadataFilterFieldConfig & Pick<Ra
 
 export type MetadataFilterDateFieldConfig = MetadataFilterFieldConfig & Omit<DateFieldUiConfig, 'displayName' | 'description'> & ({ field: string } | { fromField: string; toField: string });
 
+export type MetadataFilterRangeFieldConfig = MetadataFilterFieldConfig & Omit<RangeFieldUiConfig, 'displayName' | 'description'>;
+
+export type MetadataFilterRangeMultipleFieldsFieldConfig = MetadataFilterFieldConfig &
+	Omit<RangeMultipleFieldsFieldUiConfig, 'displayName' | 'description'> & {
+		lowField: string;
+		highField: string;
+	};
+
 export type MetadataFilterConfig =
 	| MetadataFilterFieldConfig
 	| MetadataFilterTextFieldConfig
@@ -72,6 +82,8 @@ export type MetadataFilterConfig =
 	| MetadataFilterCheckboxFieldConfig
 	| MetadataFilterRadioFieldConfig
 	| MetadataFilterDateFieldConfig
+	| MetadataFilterRangeFieldConfig
+	| MetadataFilterRangeMultipleFieldsFieldConfig
 	| MetadataFilterSelectFieldConfig;
 
 export type MetadataFilterSelectFieldConfig = MetadataFilterControllerConfig & Omit<SelectFieldUiConfig, 'caseSensitive' | 'caseSensitiveLabel'> & {
@@ -159,20 +171,25 @@ export const filterRangeController = createMetadataFilterController<
 	'metadata-filter-range',
 	FilterRangeValue,
 	FilterRangeMetadata,
-	MetadataFilterFieldConfig<FilterRangeMetadata>,
-	MetadataFilterFieldConfig<FilterRangeMetadata>
->('metadata-filter-range', FilterRange, 'filter-range');
+	RangeFieldUiConfig,
+	MetadataFilterRangeFieldConfig
+>('metadata-filter-range', RangeField, 'filter-range');
 
 export const filterRangeMultipleFieldsController = createMetadataFilterController<
 	'metadata-filter-range-multiple-fields',
 	FilterRangeMultipleFieldsValue,
 	FilterRangeMultipleFieldsMetadata,
-	MetadataFilterFieldConfig<FilterRangeMultipleFieldsMetadata>,
-	MetadataFilterFieldConfig<FilterRangeMultipleFieldsMetadata>
+	RangeMultipleFieldsFieldUiConfig,
+	MetadataFilterRangeMultipleFieldsFieldConfig
 >(
 	'metadata-filter-range-multiple-fields',
-	FilterRangeMultipleFields,
+	RangeMultipleFieldsField,
 	'filter-range-multiple-fields',
+	config => ({
+		low: config.lowField,
+		high: config.highField,
+		mode: config.mode,
+	}),
 );
 
 export const filterSelectController = createFieldController<'metadata-filter-select', MetadataFilterSelectFieldState, SelectFieldUiConfig, MetadataFilterSelectFieldConfig>({
