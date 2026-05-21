@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { createControllerCatalogStoryModel } from '../stories/sample-form-system';
+import { createControllerCatalogStoryModel } from './sample-form-system';
 
 import FormSystemStoryHarness from '../stories/FormSystemStoryHarness.vue';
 

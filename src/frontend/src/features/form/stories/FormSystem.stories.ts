@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { createRestoredSearchFormStoryModel, createSearchFormStoryModel } from '../stories/sample-form-system';
+import { createRestoredSearchFormStoryModel, createSearchFormStoryModel } from './sample-form-system';
 
 import FormSystemStoryHarness from '../stories/FormSystemStoryHarness.vue';
 
