@@ -3,12 +3,9 @@ import { defineComponent } from 'vue';
 
 import type { MetadataFilterFieldConfig } from '@/features/form/model/controllers/metadata-filter-controller';
 
-import type { Option } from '@/shared/utils/options';
-
 export type BaseFilterProps<T, M = never> = {
-	definition: MetadataFilterFieldConfig<M>;
+	config: MetadataFilterFieldConfig<M>;
 	modelValue: T;
-	textDirection: 'ltr' | 'rtl';
 	htmlId: string;
 	showLabel: boolean;
 };
@@ -19,17 +16,13 @@ type PropOptions<T> = Exclude<Prop<T>, PropType<any>>;
 
 export function createBaseFilterPropsRuntimeObject<T, M = never>(valueProp: PropOptions<T>) {
 	return {
-		definition: {
+		config: {
 			type: Object as PropType<MetadataFilterFieldConfig<M>>,
 			required: true,
 		},
 		modelValue: {
 			...valueProp,
 			required: true,
-		},
-		textDirection: {
-			type: String as PropType<'ltr' | 'rtl'>,
-			default: 'ltr',
 		},
 		htmlId: {
 			type: String,
@@ -60,23 +53,16 @@ export default function createBaseFilterComponent<T, M = never>(valueProp: PropO
 		},
 		computed: {
 			id(): string {
-				return this.definition.id;
+				return this.config.id;
 			},
 			inputId(): string {
 				return `${this.htmlId}_value`;
 			},
 			displayName(): string {
-				return this.definition.defaultDisplayName || this.definition.id;
+				return this.config.displayName || this.config.id;
 			},
 			description(): string | undefined {
-				return this.definition.defaultDescription;
-			},
-			/** Return the options but with their localized labels */
-			options(): Option[] {
-				if (Array.isArray(this.definition.metadata)) return this.definition.metadata as Option[];
-				if (this.definition.metadata && typeof this.definition.metadata === 'object' && 'options' in this.definition.metadata && Array.isArray(this.definition.metadata.options))
-					return this.definition.metadata.options as Option[];
-				return [];
+				return this.config.description;
 			},
 		},
 	});

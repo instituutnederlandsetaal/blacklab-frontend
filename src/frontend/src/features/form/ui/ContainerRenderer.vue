@@ -21,8 +21,7 @@
 
 <script setup lang="ts">
 import type { FormContainerNode } from '@/features/form/model/types/form-shape';
-
-import containerRendererSetup from './ContainerRendererSetup';
+import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 
 import NodeRenderer from './NodeRenderer.vue';
 

@@ -1,6 +1,23 @@
 export { combineQueries, createCompiledQueryProjections, createQueryArtifact } from './model/compile/query-artifact';
 export { buildFormQuery, summarizeForm } from './model/compile';
-export { annotationController, expertQueryController, filterController, parallelController, registerBuiltinControllers, withinController } from './model/controllers';
+export {
+	annotationAutocompleteController,
+	annotationSelectController,
+	annotationTextController,
+	expertQueryController,
+	filterAutocompleteController,
+	filterCheckboxController,
+	filterDateController,
+	filterRadioController,
+	filterRangeController,
+	filterRangeMultipleFieldsController,
+	filterSelectController,
+	filterTextController,
+	parallelController,
+	registerBuiltinControllers,
+	resolveMetadataFilterController,
+	withinController,
+} from './model/controllers';
 export { ControllerRegistry, FormBuilder, type FormRegistrationCallback } from './model/builder/form-shape-builder';
 export { decodeSubmittedSnapshot, encodeSubmittedForm, type EncodedPersistableFormState } from './model/persistence';
 export { cloneFormState, createFormState, createInitialContainerUiStates, createInitialFormFieldStates } from './model/state';

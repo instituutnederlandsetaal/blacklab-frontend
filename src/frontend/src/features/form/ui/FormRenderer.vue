@@ -38,18 +38,11 @@ function reset() {
 <style lang="scss" scoped>
 .blf-form {
 	display: grid;
-	// gap: 16px;
-	// border: 1px solid var(--blf-border);
-	// border-radius: 6px;
-	// background: var(--blf-panel);
-	// padding: 16px;
-
-	// border: 0;
-	// border-radius: 0;
-	// background: transparent;
-	// padding: 0;
-	// gap: 0;
-	// box-shadow: none;
+	gap: 16px;
+	border: 1px solid var(--blf-border);
+	border-radius: 6px;
+	background: var(--blf-panel);
+	padding: 16px;
 }
 
 .blf-form-title {

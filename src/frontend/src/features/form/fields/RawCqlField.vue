@@ -1,10 +1,10 @@
 <template>
 	<div class="blf-field blf-expert-query-field">
-		<label :for="`${node.id}_query`">
+		<label :for="`${htmlId}_query`">
 			{{ config.label || 'Corpus Query Language' }}
 			<a v-if="config.helpUrl" class="help" target="_blank" :href="config.helpUrl" title="Learn more">?</a>
 		</label>
-		<textarea class="blf-input querybox" :id="`${node.id}_query`" :rows="config.rows || 7" :value="state.query" @input="updateQuery(($event.target as HTMLTextAreaElement).value)" />
+		<textarea class="blf-input querybox" :id="`${htmlId}_query`" :rows="config.rows || 7" :value="modelValue.query" @input="updateQuery(($event.target as HTMLTextAreaElement).value)" />
 	</div>
 </template>
 
@@ -12,23 +12,22 @@
 import { computed } from 'vue';
 
 import type { RawCqlQueryFieldConfig, RawCqlQueryFieldState } from '@/features/form/model/controllers/raw-cql-query-controller';
-import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
 const props = defineProps<{
-	node: FormFieldNode<RawCqlQueryFieldConfig>;
-	state: RawCqlQueryFieldState;
+	config: RawCqlQueryFieldConfig;
+	htmlId: string;
+	modelValue: RawCqlQueryFieldState;
 }>();
 
 const emit = defineEmits<{
-	'update:state': [state: RawCqlQueryFieldState];
+	'update:modelValue': [value: RawCqlQueryFieldState];
 }>();
 
-const node = computed(() => props.node);
-const config = computed(() => props.node.config);
-const state = computed(() => props.state);
+const config = computed(() => props.config);
+const htmlId = computed(() => props.htmlId);
 
 function updateQuery(query: string) {
-	emit('update:state', { ...props.state, query });
+	emit('update:modelValue', { ...props.modelValue, query });
 }
 </script>
 

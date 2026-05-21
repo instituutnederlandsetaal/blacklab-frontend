@@ -1,11 +1,13 @@
 <template>
-	<Component :is="node.controller.component" :node="node" v-model:state="state" />
+	<Component :is="node.controller.component" :config="node.config" :html-id="htmlId" v-model="state" />
 </template>
 
-<script setup lang="ts" generic="State, Config">
+<script setup lang="ts" generic="State">
 import { computed } from 'vue';
 
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
+
+import useUid from '@/shared/utils/useUid';
 
 import { useFormSystemRuntime } from '../model/runtime';
 
@@ -14,6 +16,8 @@ const props = defineProps<{
 }>();
 
 const runtime = useFormSystemRuntime();
+const uid = useUid();
+const htmlId = computed(() => `${props.node.id}_${uid}`);
 const state = computed({
 	get(): State {
 		return runtime.state.value.controllerState[props.node.id] as State;

@@ -1,17 +1,19 @@
 import { markRaw } from 'vue';
 
 import {
-	annotationController,
+	annotationAutocompleteController,
+	annotationSelectController,
 	ControllerRegistry,
 	createFormState,
 	createFormSystemRuntime,
 	expertQueryController,
-	filterController,
 	FormBuilder,
 	headingView,
 	parallelController,
+	filterSelectController,
 	registerBuiltinControllers,
 	registerBuiltinViews,
+	resolveMetadataFilterController,
 	summaryView,
 	totalsView,
 	type FormRuntimeContext,
@@ -20,7 +22,7 @@ import {
 	type PersistableSubmittableFormState,
 	withinController,
 } from '../index';
-import type { MetadataFilterFieldConfig } from '../model/controllers/metadata-filter-controller';
+import type { MetadataFilterConfig, MetadataFilterFieldConfig, MetadataFilterSelectFieldConfig } from '../model/controllers/metadata-filter-controller';
 import type { FormContainerNode, FormFieldNode } from '../model/types/form-shape';
 
 import ContainerRendererFilters from '../ui/ContainerRendererFilters.vue';
@@ -36,17 +38,17 @@ export const metadataFilters = {
 	author: {
 		id: 'author',
 		componentName: 'filter-autocomplete',
-		defaultDisplayName: 'Author',
-		defaultDescription: 'One or more author names.',
+		displayName: 'Author',
+		description: 'One or more author names.',
 		groupId: 'bibliographic',
-		metadata: async (term: string) => ['Austen', 'Baldwin', 'Brinkman', 'Couperus', 'Diderot', 'Eliot'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+		autocomplete: async (term: string) => ['Austen', 'Baldwin', 'Brinkman', 'Couperus', 'Diderot', 'Eliot'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
 	},
 	genre: {
 		id: 'genre',
 		componentName: 'filter-checkbox',
-		defaultDisplayName: 'Genre',
+		displayName: 'Genre',
 		groupId: 'bibliographic',
-		metadata: [
+		options: [
 			{ value: 'fiction', label: 'Fiction' },
 			{ value: 'essay', label: 'Essay' },
 			{ value: 'newspaper', label: 'Newspaper' },
@@ -55,24 +57,28 @@ export const metadataFilters = {
 	year: {
 		id: 'year',
 		componentName: 'filter-range',
-		defaultDisplayName: 'Year',
+		displayName: 'Year',
 		groupId: 'bibliographic',
 	},
 	language: {
 		id: 'language',
 		componentName: 'filter-select',
-		defaultDisplayName: 'Language',
+		displayName: 'Language',
 		groupId: 'technical',
-		metadata: languageOptions,
+		multiple: true,
+		options: languageOptions,
 	},
 	date: {
 		id: 'date',
 		componentName: 'filter-date',
-		defaultDisplayName: 'Publication date',
+		displayName: 'Publication date',
 		groupId: 'technical',
-		metadata: { field: 'date', range: true, min: '16000101', max: '20251231' },
+		field: 'date',
+		range: true,
+		min: '16000101',
+		max: '20251231',
 	},
-} satisfies Record<string, MetadataFilterFieldConfig>;
+} satisfies Record<string, MetadataFilterConfig>;
 
 type MetadataFilterId = keyof typeof metadataFilters;
 
@@ -85,6 +91,10 @@ type FilterGroup = {
 		fields: MetadataFilterId[];
 	}>;
 };
+
+function isSelectMetadataFilterConfig(definition: MetadataFilterFieldConfig | MetadataFilterSelectFieldConfig): definition is MetadataFilterSelectFieldConfig {
+	return definition.componentName === 'filter-select';
+}
 
 export const filterGroups: FilterGroup[] = [
 	{
@@ -176,16 +186,14 @@ export function createControllerCatalogStoryModel(): StoryFormSystemModel {
 	const fields = builder.newForm('catalog.fields', { title: 'Built-in fields' });
 
 	fields.addChildren(
-		builder.newField('catalog.annotation.word', annotationController, {
+		builder.newField('catalog.annotation.word', annotationAutocompleteController, {
 			annotationId: 'word',
 			displayName: 'Word',
 			caseSensitive: true,
-			uiType: 'combobox',
 		}),
-		builder.newField('catalog.annotation.pos', annotationController, {
+		builder.newField('catalog.annotation.pos', annotationSelectController, {
 			annotationId: 'pos',
 			displayName: 'Part of speech',
-			uiType: 'select',
 			options: [
 				{ value: 'NOU', label: 'Noun' },
 				{ value: 'VRB', label: 'Verb' },
@@ -227,7 +235,7 @@ export function createFilterPanelStoryModel(): StoryFormSystemModel {
 	const definition = builder.build();
 	const initialState = createFormState(definition, context);
 	initialState.uiState.activeContainers['filter-panel.filters'] = 'filter-panel.filters.bibliographic';
-	initialState.controllerState['filter-panel.filter.author'] = 'Austen';
+	initialState.controllerState['filter-panel.filter.author'] = { value: 'Austen', caseSensitive: false };
 	initialState.controllerState['filter-panel.filter.genre'] = { fiction: true };
 	initialState.controllerState['filter-panel.filter.year'] = { low: '1800', high: '1900' };
 
@@ -244,21 +252,20 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 	const root = builder.newForm('legacy-filter-comparison.form');
 	const tabs = builder.newContainer('legacy-filter-comparison.filters', {
 		component: markRaw(ContainerRendererFilters),
-		config: { variant: 'tabs', combine: 'allOf' },
+		config: { variant: 'small-tabs', combine: 'allOf' },
 	});
 
 	const letter = builder.newContainer('legacy-filter-comparison.filters.letter', { title: 'Letter', config: { combine: 'allOf' } });
 	letter.addChildren(
-		builder.newField('legacy-filter-comparison.filter.year', filterController, {
+		builder.newField('legacy-filter-comparison.filter.year', resolveMetadataFilterController('filter-range'), {
 			id: 'datum_jaar',
 			componentName: 'filter-range',
-			defaultDisplayName: 'Year (id: datum_jaar)',
+			displayName: 'Year (id: datum_jaar)',
 			groupId: letter.id,
 		}),
-		builder.newField('legacy-filter-comparison.field.type', annotationController, {
+		builder.newField('legacy-filter-comparison.field.type', annotationSelectController, {
 			annotationId: 'type_brief',
 			displayName: 'Text type (id: type_brief)',
-			uiType: 'select',
 			options: [
 				{ value: '', label: 'Text type' },
 				{ value: 'personal', label: 'Personal' },
@@ -266,20 +273,18 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 				{ value: 'business', label: 'Business' },
 			],
 		}),
-		builder.newField('legacy-filter-comparison.field.autograph', annotationController, {
+		builder.newField('legacy-filter-comparison.field.autograph', annotationSelectController, {
 			annotationId: 'autograaf',
 			displayName: 'Autograph (id: autograaf)',
-			uiType: 'select',
 			options: [
 				{ value: '', label: 'Autograph' },
 				{ value: 'yes', label: 'Yes' },
 				{ value: 'no', label: 'No' },
 			],
 		}),
-		builder.newField('legacy-filter-comparison.field.signature', annotationController, {
+		builder.newField('legacy-filter-comparison.field.signature', annotationSelectController, {
 			annotationId: 'signatuur',
 			displayName: 'Signature (id: signatuur)',
-			uiType: 'select',
 			options: [
 				{ value: '', label: 'Signature' },
 				{ value: 'signed', label: 'Signed' },
@@ -290,34 +295,34 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 
 	const sender = builder.newContainer('legacy-filter-comparison.filters.sender', { title: 'Sender', config: { combine: 'allOf' } });
 	sender.addChildren(
-		builder.newField('legacy-filter-comparison.sender.name', filterController, {
+		builder.newField('legacy-filter-comparison.sender.name', resolveMetadataFilterController('filter-autocomplete'), {
 			id: 'afz_naam',
 			componentName: 'filter-autocomplete',
-			defaultDisplayName: 'Sender (id: afz_naam)',
+			displayName: 'Sender (id: afz_naam)',
 			groupId: sender.id,
-			metadata: async (term: string) => ['Anna', 'Brecht', 'Clara', 'Diderik'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+			autocomplete: async (term: string) => ['Anna', 'Brecht', 'Clara', 'Diderik'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
 		}),
 	);
 
 	const addressee = builder.newContainer('legacy-filter-comparison.filters.addressee', { title: 'Addressee', config: { combine: 'allOf' } });
 	addressee.addChildren(
-		builder.newField('legacy-filter-comparison.addressee.name', filterController, {
+		builder.newField('legacy-filter-comparison.addressee.name', resolveMetadataFilterController('filter-autocomplete'), {
 			id: 'adr_naam',
 			componentName: 'filter-autocomplete',
-			defaultDisplayName: 'Addressee (id: adr_naam)',
+			displayName: 'Addressee (id: adr_naam)',
 			groupId: addressee.id,
-			metadata: async (term: string) => ['Beatrix', 'Cornelia', 'Dirk', 'Els'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+			autocomplete: async (term: string) => ['Beatrix', 'Cornelia', 'Dirk', 'Els'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
 		}),
 	);
 
 	const sentFrom = builder.newContainer('legacy-filter-comparison.filters.sent-from', { title: 'Sent from', config: { combine: 'allOf' } });
 	sentFrom.addChildren(
-		builder.newField('legacy-filter-comparison.sent-from.place', filterController, {
+		builder.newField('legacy-filter-comparison.sent-from.place', resolveMetadataFilterController('filter-autocomplete'), {
 			id: 'verz_plaats',
 			componentName: 'filter-autocomplete',
-			defaultDisplayName: 'Sent from (id: verz_plaats)',
+			displayName: 'Sent from (id: verz_plaats)',
 			groupId: sentFrom.id,
-			metadata: async (term: string) => ['Amsterdam', 'Bruges', 'Ghent', 'Leiden'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+			autocomplete: async (term: string) => ['Amsterdam', 'Bruges', 'Ghent', 'Leiden'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
 		}),
 	);
 
@@ -353,12 +358,11 @@ function createSimpleForm(builder: FormBuilder, shared: SharedSearchSections) {
 	const form = builder.newForm('search.simple', { title: 'Simple' });
 	form.addChildren(
 		shared.parallel,
-		builder.newField('search.simple.word', annotationController, {
+		builder.newField('search.simple.word', annotationAutocompleteController, {
 			annotationId: 'word',
 			displayName: 'Word',
 			description: 'Search the main annotation.',
 			caseSensitive: true,
-			uiType: 'combobox',
 			variant: 'large',
 		}),
 		builder.newView('search.simple.summary', summaryView, { title: 'Live query preview', showRaw: true }),
@@ -376,14 +380,13 @@ function createExtendedForm(builder: FormBuilder, shared: SharedSearchSections) 
 	const grammarAnnotations = builder.newContainer('search.extended.annotations.grammar', { title: 'Grammar', config: { combine: 'allOf' } });
 
 	mainAnnotations.addChildren(
-		builder.newField('search.extended.word', annotationController, { annotationId: 'word', displayName: 'Word', caseSensitive: true, uiType: 'combobox' }),
-		builder.newField('search.extended.lemma', annotationController, { annotationId: 'lemma', displayName: 'Lemma', caseSensitive: true, uiType: 'combobox' }),
+		builder.newField('search.extended.word', annotationAutocompleteController, { annotationId: 'word', displayName: 'Word', caseSensitive: true }),
+		builder.newField('search.extended.lemma', annotationAutocompleteController, { annotationId: 'lemma', displayName: 'Lemma', caseSensitive: true }),
 	);
 	grammarAnnotations.addChildren(
-		builder.newField('search.extended.pos', annotationController, {
+		builder.newField('search.extended.pos', annotationSelectController, {
 			annotationId: 'pos',
 			displayName: 'Part of speech',
-			uiType: 'select',
 			options: [
 				{ value: 'NOU', label: 'Noun' },
 				{ value: 'VRB', label: 'Verb' },
@@ -439,9 +442,20 @@ function createFilterContainer(builder: FormBuilder, prefix: string) {
 		for (const subtab of group.subtabs) {
 			const subtabContainer = builder.newContainer(`${prefix}.filters.${group.id}.${subtab.id}`, { title: subtab.title, config: { combine: 'allOf' } });
 			for (const fieldId of subtab.fields) {
+				const definition = metadataFilters[fieldId];
+				if (isSelectMetadataFilterConfig(definition)) {
+					subtabContainer.addChildren(
+						builder.newField(`${prefix}.filter.${fieldId}`, filterSelectController, {
+							...definition,
+							groupId: groupContainer.id,
+						}),
+					);
+					continue;
+				}
+
 				subtabContainer.addChildren(
-					builder.newField(`${prefix}.filter.${fieldId}`, filterController, {
-						...metadataFilters[fieldId],
+					builder.newField(`${prefix}.filter.${fieldId}`, resolveMetadataFilterController(definition.componentName), {
+						...definition,
 						groupId: groupContainer.id,
 					}),
 				);

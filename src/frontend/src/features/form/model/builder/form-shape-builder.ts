@@ -7,7 +7,7 @@ import type { FormSystemDefinition } from '@/features/form/model/types/form-stat
 
 export type FormRegistrationCallback = (api: FormBuilder) => FormContainerNode | void;
 
-export type AnyFieldController = FieldController<string, any, any>;
+export type AnyFieldController = FieldController<string, any, any, any>;
 export type AnyViewDefinition = ViewDefinition<string, any>;
 export type ControllerRegistryMap = Partial<Record<string, AnyFieldController>>;
 export type ViewRegistryMap = Partial<Record<string, AnyViewDefinition>>;
@@ -134,7 +134,7 @@ export class FormBuilder {
 	}
 	newField<Config extends FieldControllerConfig>(
 		id: string,
-		controller: FieldController<string, any, Config>,
+		controller: FieldController<string, any, Config, any>,
 		config: Config,
 		options?: Partial<Omit<FormFieldNode<Config>, 'id' | 'kind' | 'controller' | 'config'>>,
 	): FormFieldNode<Config> {

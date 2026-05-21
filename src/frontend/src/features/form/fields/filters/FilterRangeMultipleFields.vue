@@ -1,5 +1,5 @@
 <template>
-	<div class="blf-field" :id="htmlId" :data-filterfield-type="definition.componentName">
+	<div class="blf-field" :id="htmlId" data-filterfield-type="filter-range-multiple-fields">
 		<label v-if="showLabel" :for="inputId + '_lower'">{{ displayName }}</label>
 		<div class="blf-dual-input">
 			<input type="number" placeholder="From" class="blf-input" autocomplete="off" :id="inputId + '_lower'" v-model="lower" />
@@ -43,7 +43,7 @@ export default defineComponent({
 	}),
 	computed: {
 		fields(): FilterRangeMultipleFieldsMetadata {
-			return this.definition.metadata ?? { low: this.id, high: this.id };
+			return this.config.metadata ?? { low: this.id, high: this.id };
 		},
 		modes(): ModeOption[] {
 			return [

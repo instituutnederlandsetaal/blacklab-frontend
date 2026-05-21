@@ -5,7 +5,7 @@
 			<button
 				v-for="option in config.options"
 				type="button"
-				:class="{ active: state.element === option.value || (state.element === null && option.value === '') }"
+				:class="{ active: modelValue.element === option.value || (modelValue.element === null && option.value === '') }"
 				:key="option.value"
 				:title="option.title || undefined"
 				@click="selectElement(option.value)"
@@ -15,13 +15,13 @@
 		</div>
 
 		<div class="blf-within-attributes" v-for="attr in selectedAttributes" :key="attr.value">
-			<label :for="`${node.id}_${attr.value}`">{{ attr.label || attr.value }}</label>
+			<label :for="`${htmlId}_${attr.value}`">{{ attr.label || attr.value }}</label>
 			<input
 				class="blf-input"
 				type="text"
-				:id="`${node.id}_${attr.value}`"
+				:id="`${htmlId}_${attr.value}`"
 				:title="attr.title || undefined"
-				:value="state.attributes[attr.value] || ''"
+				:value="modelValue.attributes[attr.value] || ''"
 				@input="changeWithinAttribute(attr.value, ($event.target as HTMLInputElement).value)"
 			/>
 		</div>
@@ -32,34 +32,33 @@
 import { computed } from 'vue';
 
 import type { WithinFieldConfig, WithinFieldState } from '@/features/form/model/controllers/within-controller';
-import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
 const props = defineProps<{
-	node: FormFieldNode<WithinFieldConfig>;
-	state: WithinFieldState;
+	config: WithinFieldConfig;
+	htmlId: string;
+	modelValue: WithinFieldState;
 }>();
 
 const emit = defineEmits<{
-	'update:state': [state: WithinFieldState];
+	'update:modelValue': [value: WithinFieldState];
 }>();
 
-const node = computed(() => props.node);
-const config = computed(() => props.node.config);
-const state = computed(() => props.state);
-const selectedAttributes = computed(() => config.value.options.find(option => option.value === props.state.element)?.attributes ?? []);
+const config = computed(() => props.config);
+const htmlId = computed(() => props.htmlId);
+const selectedAttributes = computed(() => config.value.options.find(option => option.value === props.modelValue.element)?.attributes ?? []);
 
 function selectElement(element: string) {
-	emit('update:state', {
+	emit('update:modelValue', {
 		element: element || null,
 		attributes: {},
 	});
 }
 
 function changeWithinAttribute(attribute: string, value: string) {
-	emit('update:state', {
-		...props.state,
+	emit('update:modelValue', {
+		...props.modelValue,
 		attributes: {
-			...props.state.attributes,
+			...props.modelValue.attributes,
 			[attribute]: value,
 		},
 	});

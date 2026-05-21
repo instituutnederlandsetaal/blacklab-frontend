@@ -31,14 +31,14 @@ h3 {
 	margin: 0 0 20px;
 }
 
-// .legacy-filter-comparison-surface :deep(.blf-form) {
-// 	border: 0;
-// 	border-radius: 0;
-// 	background: transparent;
-// 	padding: 0;
-// 	gap: 0;
-// 	box-shadow: none;
-// }
+.legacy-filter-comparison-surface :deep(.blf-form) {
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	padding: 0;
+	gap: 0;
+	box-shadow: none;
+}
 
 .legacy-filter-comparison-surface :deep(.blf-form-title),
 .legacy-filter-comparison-surface :deep(.blf-form-actions) {

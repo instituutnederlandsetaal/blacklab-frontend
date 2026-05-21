@@ -73,7 +73,7 @@ export type FormBoundaryNode = FormNodeBase & {
 export type FormFieldNode<Config extends FieldControllerConfig = FieldControllerConfig> = FormNodeBase & {
 	kind: 'field';
 	/** The backing controller for this field. Used to manage the state and conversion from/to query. */
-	controller: FieldController<string, any, Config>;
+	controller: FieldController<string, any, Config, any>;
 	/** Configuration for this specific instance of the field */
 	config: Config;
 };

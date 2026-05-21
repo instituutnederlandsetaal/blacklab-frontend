@@ -2,8 +2,8 @@
 	<div class="blf-field blf-parallel-field">
 		<label>{{ config.label || 'Parallel search' }}</label>
 		<div class="blf-parallel-grid">
-			<label :for="`${node.id}_source`">{{ config.sourceLabel || 'Source' }}</label>
-			<select :id="`${node.id}_source`" class="blf-input" :value="state.source || ''" @change="updateSource(($event.target as HTMLSelectElement).value)">
+			<label :for="`${htmlId}_source`">{{ config.sourceLabel || 'Source' }}</label>
+			<select :id="`${htmlId}_source`" class="blf-input" :value="modelValue.source || ''" @change="updateSource(($event.target as HTMLSelectElement).value)">
 				<option value=""></option>
 				<option v-for="option in config.sourceOptions" :key="option.value" :value="option.value" :title="option.title || undefined">{{ option.label || option.value }}</option>
 			</select>
@@ -14,7 +14,7 @@
 					v-for="option in targetOptions"
 					:key="option.value"
 					type="button"
-					:class="{ active: state.targets.includes(option.value) }"
+					:class="{ active: modelValue.targets.includes(option.value) }"
 					:title="option.title || undefined"
 					@click="toggleTarget(option.value)"
 				>
@@ -22,8 +22,8 @@
 				</button>
 			</div>
 
-			<label v-if="config.alignByOptions?.length" :for="`${node.id}_align`">{{ config.alignByLabel || 'Align by' }}</label>
-			<select v-if="config.alignByOptions?.length" :id="`${node.id}_align`" class="blf-input" :value="state.alignBy || ''" @change="updateAlignBy(($event.target as HTMLSelectElement).value)">
+			<label v-if="config.alignByOptions?.length" :for="`${htmlId}_align`">{{ config.alignByLabel || 'Align by' }}</label>
+			<select v-if="config.alignByOptions?.length" :id="`${htmlId}_align`" class="blf-input" :value="modelValue.alignBy || ''" @change="updateAlignBy(($event.target as HTMLSelectElement).value)">
 				<option value=""></option>
 				<option v-for="option in config.alignByOptions" :key="option.value" :value="option.value" :title="option.title || undefined">{{ option.label || option.value }}</option>
 			</select>
@@ -35,38 +35,35 @@
 import { computed } from 'vue';
 
 import type { ParallelFieldConfig, ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
-import type { FormFieldNode } from '@/features/form/model/types/form-shape';
-
-// import type { FormFieldNode, ParallelFieldConfig, ParallelFieldState } from '../model/types';
 const props = defineProps<{
-	node: FormFieldNode<ParallelFieldConfig>;
-	state: ParallelFieldState;
+	config: ParallelFieldConfig;
+	htmlId: string;
+	modelValue: ParallelFieldState;
 }>();
 
 const emit = defineEmits<{
-	'update:state': [state: ParallelFieldState];
+	'update:modelValue': [value: ParallelFieldState];
 }>();
 
-const node = computed(() => props.node);
-const config = computed(() => props.node.config);
-const state = computed(() => props.state);
-const targetOptions = computed(() => (config.value.targetOptions ?? config.value.sourceOptions).filter(option => option.value !== props.state.source));
+const config = computed(() => props.config);
+const htmlId = computed(() => props.htmlId);
+const targetOptions = computed(() => (config.value.targetOptions ?? config.value.sourceOptions).filter(option => option.value !== props.modelValue.source));
 
 function updateSource(source: string) {
-	emit('update:state', {
-		...props.state,
+	emit('update:modelValue', {
+		...props.modelValue,
 		source: source || null,
-		targets: props.state.targets.filter(target => target !== source),
+		targets: props.modelValue.targets.filter(target => target !== source),
 	});
 }
 
 function toggleTarget(target: string) {
-	const targets = props.state.targets.includes(target) ? props.state.targets.filter(value => value !== target) : [...props.state.targets, target];
-	emit('update:state', { ...props.state, targets });
+	const targets = props.modelValue.targets.includes(target) ? props.modelValue.targets.filter(value => value !== target) : [...props.modelValue.targets, target];
+	emit('update:modelValue', { ...props.modelValue, targets });
 }
 
 function updateAlignBy(alignBy: string) {
-	emit('update:state', { ...props.state, alignBy: alignBy || null });
+	emit('update:modelValue', { ...props.modelValue, alignBy: alignBy || null });
 }
 </script>
 

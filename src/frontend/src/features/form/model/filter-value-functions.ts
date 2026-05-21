@@ -1,4 +1,5 @@
 import type { MetadataFilterFieldConfig } from '@/features/form/model/controllers/metadata-filter-controller';
+import type { TextFieldState } from '@/features/form/fields/generic/text-field';
 
 import { mapReduce } from '@/shared/utils/map-reduce';
 import { findOption, optionLabel, optionValues, type Option } from '@/shared/utils/options';
@@ -56,10 +57,10 @@ export type FilterSelectMetadata = Option[];
 export type FilterRadioValue = string;
 export type FilterRadioMetadata = Option[];
 
-export type FilterAutocompleteValue = string;
+export type FilterAutocompleteValue = TextFieldState;
 export type FilterAutocompleteMetadata = (value: string) => Promise<string[]>;
 
-export type FilterTextValue = string;
+export type FilterTextValue = TextFieldState;
 export type FilterTextMetadata = never;
 
 type FilterValueFunctions<Metadata, Value> = {
@@ -107,15 +108,15 @@ export const DateUtils = {
 
 const valueFunctions = {
 	'filter-autocomplete': {
-		createDefaultValue: () => '',
+		createDefaultValue: () => ({ value: '', caseSensitive: false }),
 		luceneQuery(id, _filterMetadata, value) {
-			if (!value?.trim()) return null;
-			return `${id}:(${splitIntoTerms(value, true)
+			if (!value?.value.trim()) return null;
+			return `${id}:(${splitIntoTerms(value.value, true)
 				.map(term => escapeLucene(term.value, !term.isQuoted))
 				.join(' ')})`;
 		},
 		luceneQuerySummary(_id, _filterMetadata, value) {
-			const split = value ? splitIntoTerms(value, true) : [];
+			const split = value?.value ? splitIntoTerms(value.value, true) : [];
 			return split.map(term => (term.isQuoted || split.length > 1 ? `"${term.value}"` : term.value)).join(', ') || null;
 		},
 		isActive(id, filterMetadata, value) {
@@ -124,15 +125,15 @@ const valueFunctions = {
 	} satisfies FilterValueFunctions<FilterAutocompleteMetadata, FilterAutocompleteValue>,
 
 	'filter-text': {
-		createDefaultValue: () => '',
+		createDefaultValue: () => ({ value: '', caseSensitive: false }),
 		luceneQuery(id, _filterMetadata, value) {
-			if (!value?.trim()) return null;
-			return `${id}:(${splitIntoTerms(value, true)
+			if (!value?.value.trim()) return null;
+			return `${id}:(${splitIntoTerms(value.value, true)
 				.map(term => escapeLucene(term.value, !term.isQuoted))
 				.join(' ')})`;
 		},
 		luceneQuerySummary(_id, _filterMetadata, value) {
-			const split = value ? splitIntoTerms(value, true) : [];
+			const split = value?.value ? splitIntoTerms(value.value, true) : [];
 			return split.map(term => (term.isQuoted || split.length > 1 ? `"${term.value}"` : term.value)).join(', ') || null;
 		},
 		isActive(id, filterMetadata, value) {
@@ -160,7 +161,7 @@ const valueFunctions = {
 	} satisfies FilterValueFunctions<FilterCheckboxMetadata, FilterCheckboxValue>,
 
 	'filter-radio': {
-		createDefaultValue: () => null,
+		createDefaultValue: () => '',
 		luceneQuery(id, _filterMetadata, value) {
 			return value ? `${id}:(${escapeLucene(value, false)})` : null;
 		},
@@ -251,9 +252,17 @@ const valueFunctions = {
 
 export type FilterValueFunctionKey = keyof typeof valueFunctions;
 
+export function isFilterValueFunctionKey(value: string): value is FilterValueFunctionKey {
+	return value in valueFunctions;
+}
+
+export function getValueFunctionsByKey(key: FilterValueFunctionKey): FilterValueFunctions<any, any> {
+	return valueFunctions[key];
+}
+
 export function getValueFunctions(definition: Pick<MetadataFilterFieldConfig, 'componentName' | 'behaviourName'>): FilterValueFunctions<any, any> {
 	const key = (definition.behaviourName || definition.componentName) as FilterValueFunctionKey;
-	return valueFunctions[key] ?? valueFunctions['filter-text'];
+	return (key && isFilterValueFunctionKey(key) ? getValueFunctionsByKey(key) : undefined) ?? valueFunctions['filter-text'];
 }
 
 export function getDefaultFilterValue(definition: MetadataFilterFieldConfig): unknown {

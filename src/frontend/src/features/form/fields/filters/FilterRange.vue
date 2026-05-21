@@ -1,5 +1,5 @@
 <template>
-	<div class="blf-field" :id="htmlId" :data-filterfield-type="definition.componentName">
+	<div class="blf-field" :id="htmlId" data-filterfield-type="filter-range">
 		<label v-if="showLabel" :for="inputId + '_lower'">{{ displayName }}</label>
 		<div class="blf-dual-input">
 			<input type="text" placeholder="From" class="blf-input" autocomplete="off" :id="inputId + '_lower'" v-model="lower" />

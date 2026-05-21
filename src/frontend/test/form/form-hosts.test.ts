@@ -5,26 +5,26 @@ import { describe, expect, test } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
 import {
-	ControllerRegistry,
-	FormBuilder,
-	annotationController,
-	createFormSystemRuntime,
-	expertQueryController,
-	filterController,
-	headingView,
-	parallelController,
-	registerBuiltinControllers,
-	registerBuiltinViews,
-	summaryView,
-	totalsView,
-	withinController,
-	type CompiledFormState,
-	type FormBoundaryNode,
-	type FormFieldNode,
-	type FormRuntimeContext,
-	type FormSystemRuntime,
-	type FormViewNode,
-	type SummaryEntry,
+    ControllerRegistry,
+    FormBuilder,
+    annotationTextController,
+    createFormSystemRuntime,
+    expertQueryController,
+    filterTextController,
+    headingView,
+    parallelController,
+    registerBuiltinControllers,
+    registerBuiltinViews,
+    summaryView,
+    totalsView,
+    withinController,
+    type CompiledFormState,
+    type FormBoundaryNode,
+    type FormFieldNode,
+    type FormRuntimeContext,
+    type FormSystemRuntime,
+    type FormViewNode,
+    type SummaryEntry,
 } from '@/features/form';
 import { createAndProvideParentForm, provideFormSystemRuntime } from '@/features/form/model/runtime';
 
@@ -212,11 +212,10 @@ function normalizedText(wrapper: VueWrapper<any>) {
 describe('field host', () => {
 	test('renders and wires the annotation field host', async () => {
 		const harness = mountFieldHarness(builder =>
-			builder.newField('harness.annotation', annotationController, {
+			builder.newField('harness.annotation', annotationTextController, {
 				annotationId: 'word',
 				caseSensitive: true,
 				displayName: 'Word',
-				uiType: 'text',
 			}),
 		);
 
@@ -228,7 +227,7 @@ describe('field host', () => {
 
 	test('renders and wires the metadata filter field host', async () => {
 		const harness = mountFieldHarness(builder =>
-			builder.newField('harness.filter', filterController, {
+			builder.newField('harness.filter', filterTextController, {
 				componentName: 'filter-text',
 				defaultDisplayName: 'Author',
 				id: 'author',
@@ -306,10 +305,9 @@ describe('view host', () => {
 
 	test('renders the summary view host against provided parent-form state', async () => {
 		const harness = mountViewHarness((builder, form) => {
-			const field = builder.newField('harness.word', annotationController, {
+			const field = builder.newField('harness.word', annotationTextController, {
 				annotationId: 'word',
 				displayName: 'Word',
-				uiType: 'text',
 			});
 			const view = builder.newView('harness.summary', summaryView, {
 				showRaw: true,
@@ -333,7 +331,7 @@ describe('view host', () => {
 
 	test('renders the totals view host against provided parent-form state', async () => {
 		const harness = mountViewHarness((builder, form) => {
-			const field = builder.newField('harness.filter', filterController, {
+			const field = builder.newField('harness.filter', filterTextController, {
 				componentName: 'filter-text',
 				defaultDisplayName: 'Author',
 				id: 'author',

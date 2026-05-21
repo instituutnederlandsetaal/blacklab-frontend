@@ -8,9 +8,10 @@
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { PersistableSubmittableFormState } from '@/features/form/model/types/form-query';
 import type { FormState, FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
-import NodeRenderer from '@/features/form/ui/NodeRenderer.vue';
 
 import { createFormSystemRuntime, provideFormSystemRuntime } from '../model/runtime';
+
+import NodeRenderer from '@/features/form/ui/NodeRenderer.vue';
 
 const props = defineProps<{
 	definition: FormSystemDefinition;
