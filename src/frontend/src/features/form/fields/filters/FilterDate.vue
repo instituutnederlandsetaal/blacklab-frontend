@@ -1,5 +1,5 @@
 <template>
-	<div class="blf-filter-field" :id="htmlId" :data-filterfield-type="definition.componentName">
+	<div class="blf-field" :id="htmlId" :data-filterfield-type="definition.componentName">
 		<label v-if="showLabel" :for="inputId + '_year_from'"
 			>{{ displayName }}
 			<small v-if="minDateDisplay && maxDateDisplay" class="blf-muted">({{ minDateDisplay }} to {{ maxDateDisplay }})</small>
@@ -20,11 +20,11 @@
 			</div>
 		</div>
 
-		<div class="blf-segmented" v-if="!lockedMode && metadata.range">
+		<div class="btn-group" v-if="!lockedMode && metadata.range">
 			<button
 				v-for="mode in modes"
 				type="button"
-				:class="{ active: model.mode === mode.value }"
+				:class="['btn btn-default', { active: model.mode === mode.value }]"
 				:key="mode.value"
 				:value="mode.value"
 				:title="mode.title || ''"
@@ -201,11 +201,13 @@ export default defineComponent({
 <style lang="scss" scoped>
 .dates {
 	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
+	flex-wrap: nowrap;
 	width: 100%;
 	align-items: baseline;
 	margin-bottom: 10px;
+	> *:not(:last-child) {
+		margin-right: 15px;
+	}
 	> label {
 		width: 3em;
 		flex: none;

@@ -1,9 +1,9 @@
 <template>
-	<div class="blf-filter-field" :id="htmlId" :data-filterfield-type="definition.componentName">
+	<div class="blf-field" :id="htmlId" :data-filterfield-type="definition.componentName">
 		<fieldset>
 			<legend v-if="showLabel">{{ displayName }}</legend>
-			<div class="blf-choice" v-for="(option, index) in options" :key="index">
-				<label :for="inputId + '_' + index"
+			<div class="radio" v-for="(option, index) in options" :key="index">
+				<label :for="inputId + '_' + index" :title="option.title || ''"
 					><input
 						type="radio"
 						:value="option.value"

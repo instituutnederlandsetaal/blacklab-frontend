@@ -8,10 +8,9 @@
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { PersistableSubmittableFormState } from '@/features/form/model/types/form-query';
 import type { FormState, FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
+import NodeRenderer from '@/features/form/ui/NodeRenderer.vue';
 
 import { createFormSystemRuntime, provideFormSystemRuntime } from '../model/runtime';
-
-import NodeRenderer from '@/features/form/ui/NodeRenderer.vue';
 
 const props = defineProps<{
 	definition: FormSystemDefinition;
@@ -32,13 +31,13 @@ emit('ready', runtime);
 
 <style lang="scss">
 .blf-form-system {
-	--blf-accent: #216ba5;
-	--blf-accent-soft: #d9ebf7;
-	--blf-border: #ccd5df;
-	--blf-border-strong: #9fb0c0;
+	--blf-accent: #337ab7;
+	--blf-accent-soft: #d9edf7;
+	--blf-border: #ccc;
+	--blf-border-strong: #adadad;
 	--blf-panel: #f7f9fb;
-	--blf-text-muted: #66717d;
-	color: #1f2933;
+	--blf-text-muted: #777;
+	color: #333;
 	font-size: 14px;
 }
 
@@ -62,32 +61,112 @@ emit('ready', runtime);
 	border: 1px solid var(--blf-border);
 	border-radius: 4px;
 	background: #fff;
-	padding: 6px 8px;
-	color: inherit;
+	padding: 6px 12px;
+	color: #555;
+	line-height: 1.42857143;
+	box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
+	transition:
+		border-color ease-in-out 0.15s,
+		box-shadow ease-in-out 0.15s;
 }
 
 .blf-input:focus {
-	border-color: var(--blf-accent);
-	box-shadow: 0 0 0 2px rgba(33, 107, 165, 0.15);
+	border-color: #66afe9;
+	box-shadow:
+		inset 0 1px 1px rgba(0, 0, 0, 0.075),
+		0 0 8px rgba(102, 175, 233, 0.6);
 	outline: none;
 }
 
-.blf-field,
-.blf-filter-field {
+.blf-field {
 	display: grid;
 	gap: 6px;
 	min-width: 0;
 }
 
+.blf-container {
+	min-width: 0;
+}
+
+.blf-container-title {
+	font-weight: 700;
+	margin: 0 0 8px;
+}
+
+.blf-container-list {
+	display: grid;
+	gap: 14px;
+	min-width: 0;
+	align-content: start;
+}
+
+.blf-container.blf-columns > .blf-container-list {
+	grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+	align-items: start;
+}
+
+.blf-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	gap: 2px;
+	margin: 0 0 15px;
+	padding-left: 0;
+	border-bottom: 1px solid #ddd;
+	list-style: none;
+}
+
+.blf-tabs button {
+	margin: 0 0 -1px;
+	border: 1px solid transparent;
+	border-radius: 4px 4px 0 0;
+	background: transparent;
+	padding: 10px 15px;
+	color: #337ab7;
+	line-height: 1.42857143;
+	cursor: pointer;
+}
+
+.blf-tabs button:hover,
+.blf-tabs button:focus-visible {
+	border-color: #eee #eee #ddd;
+	background: #eee;
+	color: #23527c;
+	outline: none;
+}
+
+.blf-tabs button.active {
+	border-color: #ddd #ddd transparent;
+	background: #fff;
+	color: #555;
+	font-weight: 400;
+	cursor: default;
+}
+
+.blf-tabs.blf-tabs-small button {
+	padding: 4px 15px;
+	font-size: 0.95em;
+}
+
+.blf-tab-panel {
+	min-width: 0;
+}
+
+.presentation-small-tabs > .blf-tab-panel > .blf-container > .blf-container-list {
+	max-height: 385px;
+	overflow: auto;
+	overflow-x: hidden;
+	padding-right: 4px;
+}
+
 .blf-field > label,
-.blf-filter-field > label,
-.blf-filter-field legend {
+.blf-field legend {
 	font-weight: 600;
 	font-size: 0.95em;
 	margin: 0;
 }
 
-.blf-filter-field fieldset {
+.blf-field fieldset {
 	border: 0;
 	margin: 0;
 	padding: 0;
@@ -107,7 +186,7 @@ emit('ready', runtime);
 	font-weight: 400;
 }
 
-.blf-filter-range {
+.blf-dual-input {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 8px;
@@ -141,5 +220,11 @@ emit('ready', runtime);
 	border-color: var(--blf-accent);
 	color: #fff;
 	z-index: 1;
+}
+
+@media (max-width: 760px) {
+	.blf-container.blf-columns > .blf-container-list {
+		grid-template-columns: 1fr;
+	}
 }
 </style>

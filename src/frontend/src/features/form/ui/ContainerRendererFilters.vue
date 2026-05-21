@@ -1,16 +1,16 @@
 <template>
 	<section :class="containerClasses">
-		<header v-if="node.title" class="blf-container-title">{{ node.title }}</header>
+		<header v-if="node.title && !hideTitle" class="blf-container-title">{{ node.title }}</header>
 
 		<template v-if="isTabbed">
-			<nav :class="['blf-tabs', node.config?.variant === 'small-tabs' ? 'small' : '']" aria-label="Form section tabs">
+			<nav :class="['blf-tabs', { 'blf-tabs-small': node.config?.variant === 'small-tabs' }]" aria-label="Form section tabs">
 				<button v-for="child in node.children" :key="child.id" type="button" :class="{ active: activeChild?.id === child.id }" @click="activateChildContainer(child.id)">
 					{{ child.title || child.id }}
-					<span v-if="activeFiltersMap[child.id]" class="badge">{{ activeFiltersMap[child.id] }}</span>
+					<span v-if="activeSummaryCounts[child.id]" class="blf-tab-count">{{ activeSummaryCounts[child.id] }}</span>
 				</button>
 			</nav>
 			<div class="blf-tab-panel">
-				<NodeRenderer v-if="activeChild" :node="activeChild" />
+				<NodeRenderer v-if="activeChild" :node="activeChild" hide-title />
 			</div>
 		</template>
 
@@ -18,7 +18,7 @@
 			<NodeRenderer v-for="child in node.children" :key="child.id" :node="child" />
 		</div>
 		<!-- TODO i18n -->
-		<div v-else class="empty">No filters configured.</div>
+		<div v-else class="blf-empty-state">Nothing configured.</div>
 	</section>
 </template>
 
@@ -36,6 +36,7 @@ defineOptions({ name: 'ContainerRendererFilters' });
 
 const props = defineProps<{
 	node: FormContainerNode;
+	hideTitle?: boolean;
 }>();
 
 const { runtime, isTabbed, activeChild, containerClasses, activateChildContainer } = containerRendererSetup(props);
@@ -43,10 +44,8 @@ const parentForm = useParentForm();
 
 const childGroups = computed<Set<string>>(() => new Set(props.node.children.filter(isContainerNode).map(child => child.id)));
 
-// TODO need to filter descendants to filters only. Might need to manually traverse and collect?
-// Should probably just improve the automatic summary system to support this natively.
-// also assumes that the summaries include the group id, which might not be the case.
-const activeFiltersMap = computed<Record<string, number>>(() =>
+// TODO: count summaries for the active top-level child group more reliably by traversing descendants.
+const activeSummaryCounts = computed<Record<string, number>>(() =>
 	parentForm.summaries.reduce<Record<string, number>>((acc, summary) => {
 		if (summary.group != null && childGroups.value.has(summary.group) && summary.value) {
 			acc[summary.group] = (acc[summary.group] ?? 0) + 1;
@@ -57,45 +56,21 @@ const activeFiltersMap = computed<Record<string, number>>(() =>
 </script>
 
 <style lang="scss" scoped>
-.blf-filter-panel {
-	display: grid;
-	gap: 10px;
-}
-
-header {
-	font-weight: 700;
-}
-
-.filter-container {
-	display: grid;
-	gap: 12px;
-	max-height: 385px;
-	overflow: auto;
-	overflow-x: hidden;
-	padding-right: 4px;
-}
-
-h4 {
-	font-size: 0.95em;
-	margin: 0;
-}
-
-hr {
-	border: 0;
-	border-top: 1px solid var(--blf-border);
-	width: 100%;
-}
-
-.badge {
+.blf-tab-count {
 	display: inline-block;
-	min-width: 1.5em;
-	border-radius: 999px;
-	background: var(--blf-accent-soft);
-	padding: 1px 6px;
-	font-size: 0.85em;
+	min-width: 10px;
+	border-radius: 10px;
+	background: #aaa;
+	color: #fff;
+	padding: 3px 7px;
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1;
+	vertical-align: baseline;
+	margin-left: 6px;
 }
 
-.empty {
+.blf-empty-state {
 	color: var(--blf-text-muted);
 	font-style: italic;
 }

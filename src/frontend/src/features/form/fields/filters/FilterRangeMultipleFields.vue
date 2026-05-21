@@ -1,15 +1,15 @@
 <template>
-	<div class="blf-filter-field" :id="htmlId" :data-filterfield-type="definition.componentName">
+	<div class="blf-field" :id="htmlId" :data-filterfield-type="definition.componentName">
 		<label v-if="showLabel" :for="inputId + '_lower'">{{ displayName }}</label>
-		<div class="blf-filter-range">
+		<div class="blf-dual-input">
 			<input type="number" placeholder="From" class="blf-input" autocomplete="off" :id="inputId + '_lower'" v-model="lower" />
 			<input type="number" placeholder="To" class="blf-input" autocomplete="off" :id="inputId + '_upper'" v-model="upper" />
 		</div>
-		<div class="blf-segmented" v-if="!fields.mode">
+		<div class="btn-group" style="margin-top: 12px" v-if="!fields.mode">
 			<button
 				v-for="mode in modes"
 				type="button"
-				:class="{ active: modelValue.mode === mode.value }"
+				:class="['btn btn-default', { active: modelValue.mode === mode.value }]"
 				:key="mode.value"
 				:value="mode.value"
 				:title="mode.title || ''"

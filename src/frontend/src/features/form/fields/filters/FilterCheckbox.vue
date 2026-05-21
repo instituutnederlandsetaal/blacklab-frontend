@@ -1,11 +1,11 @@
 <template>
-	<div class="blf-filter-field" :id="htmlId" :data-filterfield-type="definition.componentName">
+	<div class="blf-field" :id="htmlId" :data-filterfield-type="definition.componentName">
 		<fieldset>
 			<legend v-if="showLabel">{{ displayName }}</legend>
-			<div class="blf-choice" v-for="(option, index) in options" :key="index">
+			<div class="checkbox" v-for="(option, index) in options" :key="index">
 				<!-- TODO optimize this, currently rewriting all values, ergo rerendering all checkboxes every time one changes -->
-				<label :for="inputId + '_' + index" :title="option.title || ''"
-					><input
+				<label :for="inputId + '_' + index" :title="option.title || ''">
+					<input
 						type="checkbox"
 						:value="option.value"
 						:name="inputId + '_' + index"
@@ -13,8 +13,8 @@
 						:checked="selectedValues[option.value]"
 						@change="toggleCheckboxFromEvent(option.value, $event)"
 					/>
-					{{ option.label || option.value }}</label
-				>
+					{{ option.label || option.value }}
+				</label>
 			</div>
 		</fieldset>
 		<small v-if="description" class="blf-help-text">{{ description }}</small>

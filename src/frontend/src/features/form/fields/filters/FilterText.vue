@@ -1,5 +1,5 @@
 <template>
-	<div class="blf-filter-field" :id="htmlId" :data-filterfield-type="definition.componentName">
+	<div class="blf-field" :id="htmlId" :data-filterfield-type="definition.componentName">
 		<label v-if="showLabel" :for="inputId">{{ displayName }}</label>
 		<div>
 			<input type="text" class="blf-input" :id="inputId" :placeholder="displayName" :dir="textDirection" v-model="vmodel" />

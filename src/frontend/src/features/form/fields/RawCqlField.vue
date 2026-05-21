@@ -33,9 +33,7 @@ function updateQuery(query: string) {
 </script>
 
 <style lang="scss" scoped>
-@use 'sass:color';
-
-h3 .help {
+.blf-expert-query-field .help {
 	font-size: 0.8em;
 
 	// superscript
@@ -43,6 +41,7 @@ h3 .help {
 	top: -0.5em;
 	color: black;
 	opacity: 0.5;
+	margin-left: 4px;
 }
 
 .querybox {

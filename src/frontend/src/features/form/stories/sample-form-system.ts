@@ -214,10 +214,10 @@ export function createControllerCatalogStoryModel(): StoryFormSystemModel {
 
 export function createFilterPanelStoryModel(): StoryFormSystemModel {
 	const { builder, context } = createStoryBuilder('storybook-filters');
-	const root = builder.newForm('filter-panel.form', { title: 'Metadata filters' });
+	const root = builder.newForm('filter-panel.form');
 	root.addChildren(
 		builder.newView('filter-panel.heading', headingView, {
-			title: 'Metadata filters',
+			title: 'Filter search by ...',
 			description: 'Specialized container rendering with grouped filter summaries.',
 		}),
 		createFilterContainer(builder, 'filter-panel'),
@@ -236,6 +236,102 @@ export function createFilterPanelStoryModel(): StoryFormSystemModel {
 		definition,
 		initialState,
 		initialSubmitted: createFormSystemRuntime(definition, context, initialState).submit('filter-panel.form'),
+	};
+}
+
+export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
+	const { builder, context } = createStoryBuilder('storybook-legacy-filter-comparison');
+	const root = builder.newForm('legacy-filter-comparison.form');
+	const tabs = builder.newContainer('legacy-filter-comparison.filters', {
+		component: markRaw(ContainerRendererFilters),
+		config: { variant: 'tabs', combine: 'allOf' },
+	});
+
+	const letter = builder.newContainer('legacy-filter-comparison.filters.letter', { title: 'Letter', config: { combine: 'allOf' } });
+	letter.addChildren(
+		builder.newField('legacy-filter-comparison.filter.year', filterController, {
+			id: 'datum_jaar',
+			componentName: 'filter-range',
+			defaultDisplayName: 'Year (id: datum_jaar)',
+			groupId: letter.id,
+		}),
+		builder.newField('legacy-filter-comparison.field.type', annotationController, {
+			annotationId: 'type_brief',
+			displayName: 'Text type (id: type_brief)',
+			uiType: 'select',
+			options: [
+				{ value: '', label: 'Text type' },
+				{ value: 'personal', label: 'Personal' },
+				{ value: 'official', label: 'Official' },
+				{ value: 'business', label: 'Business' },
+			],
+		}),
+		builder.newField('legacy-filter-comparison.field.autograph', annotationController, {
+			annotationId: 'autograaf',
+			displayName: 'Autograph (id: autograaf)',
+			uiType: 'select',
+			options: [
+				{ value: '', label: 'Autograph' },
+				{ value: 'yes', label: 'Yes' },
+				{ value: 'no', label: 'No' },
+			],
+		}),
+		builder.newField('legacy-filter-comparison.field.signature', annotationController, {
+			annotationId: 'signatuur',
+			displayName: 'Signature (id: signatuur)',
+			uiType: 'select',
+			options: [
+				{ value: '', label: 'Signature' },
+				{ value: 'signed', label: 'Signed' },
+				{ value: 'unsigned', label: 'Unsigned' },
+			],
+		}),
+	);
+
+	const sender = builder.newContainer('legacy-filter-comparison.filters.sender', { title: 'Sender', config: { combine: 'allOf' } });
+	sender.addChildren(
+		builder.newField('legacy-filter-comparison.sender.name', filterController, {
+			id: 'afz_naam',
+			componentName: 'filter-autocomplete',
+			defaultDisplayName: 'Sender (id: afz_naam)',
+			groupId: sender.id,
+			metadata: async (term: string) => ['Anna', 'Brecht', 'Clara', 'Diderik'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+		}),
+	);
+
+	const addressee = builder.newContainer('legacy-filter-comparison.filters.addressee', { title: 'Addressee', config: { combine: 'allOf' } });
+	addressee.addChildren(
+		builder.newField('legacy-filter-comparison.addressee.name', filterController, {
+			id: 'adr_naam',
+			componentName: 'filter-autocomplete',
+			defaultDisplayName: 'Addressee (id: adr_naam)',
+			groupId: addressee.id,
+			metadata: async (term: string) => ['Beatrix', 'Cornelia', 'Dirk', 'Els'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+		}),
+	);
+
+	const sentFrom = builder.newContainer('legacy-filter-comparison.filters.sent-from', { title: 'Sent from', config: { combine: 'allOf' } });
+	sentFrom.addChildren(
+		builder.newField('legacy-filter-comparison.sent-from.place', filterController, {
+			id: 'verz_plaats',
+			componentName: 'filter-autocomplete',
+			defaultDisplayName: 'Sent from (id: verz_plaats)',
+			groupId: sentFrom.id,
+			metadata: async (term: string) => ['Amsterdam', 'Bruges', 'Ghent', 'Leiden'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+		}),
+	);
+
+	tabs.addChildren(letter, sender, addressee, sentFrom);
+	root.addChildren(tabs);
+
+	const definition = builder.build();
+	const initialState = createFormState(definition, context);
+	initialState.uiState.activeContainers['legacy-filter-comparison.filters'] = letter.id;
+
+	return {
+		context,
+		definition,
+		initialState,
 	};
 }
 

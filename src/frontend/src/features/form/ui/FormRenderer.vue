@@ -1,6 +1,6 @@
 <template>
 	<form class="blf-form" @submit.prevent="submit" @reset.prevent="reset">
-		<header v-if="node.title" class="blf-form-title">{{ node.title }}</header>
+		<header v-if="node.title && !hideTitle" class="blf-form-title">{{ node.title }}</header>
 		<div class="blf-form-body">
 			<NodeRenderer v-for="child in node.children" :key="child.id" :node="child" />
 		</div>
@@ -20,6 +20,7 @@ import NodeRenderer from '@/features/form/ui/NodeRenderer.vue';
 
 const props = defineProps<{
 	node: FormBoundaryNode;
+	hideTitle?: boolean;
 }>();
 
 const runtime = useFormSystemRuntime();
@@ -37,11 +38,18 @@ function reset() {
 <style lang="scss" scoped>
 .blf-form {
 	display: grid;
-	gap: 16px;
-	border: 1px solid var(--blf-border);
-	border-radius: 6px;
-	background: var(--blf-panel);
-	padding: 16px;
+	// gap: 16px;
+	// border: 1px solid var(--blf-border);
+	// border-radius: 6px;
+	// background: var(--blf-panel);
+	// padding: 16px;
+
+	// border: 0;
+	// border-radius: 0;
+	// background: transparent;
+	// padding: 0;
+	// gap: 0;
+	// box-shadow: none;
 }
 
 .blf-form-title {

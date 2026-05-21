@@ -52,7 +52,7 @@ function handleSubmit(_formId: string, snapshot: PersistableSubmittableFormState
 	grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
 	gap: 18px;
 	min-height: 100vh;
-	background: #eef3f7;
+	// background: #eef3f7;
 	padding: 18px;
 }
 
