@@ -7,22 +7,26 @@ import {
 	createFormState,
 	createFormSystemRuntime,
 	expertQueryController,
+	filterAutocompleteController,
+	filterCheckboxController,
+	filterDateController,
+	filterRangeController,
 	FormBuilder,
 	headingView,
 	parallelController,
 	filterSelectController,
 	registerBuiltinControllers,
 	registerBuiltinViews,
-	resolveMetadataFilterController,
 	summaryView,
 	totalsView,
 	type FormRuntimeContext,
 	type FormState,
 	type FormSystemDefinition,
+	type FieldController,
 	type PersistableSubmittableFormState,
 	withinController,
 } from '../index';
-import type { MetadataFilterConfig, MetadataFilterFieldConfig, MetadataFilterSelectFieldConfig } from '../model/controllers/metadata-filter-controller';
+import type { MetadataFilterConfig } from '../model/controllers/metadata-filter-controller';
 import type { FormContainerNode, FormFieldNode } from '../model/types/form-shape';
 
 import ContainerRendererFilters from '../ui/ContainerRendererFilters.vue';
@@ -34,51 +38,61 @@ const languageOptions = [
 	{ value: 'fr', label: 'French' },
 ];
 
+type MetadataFilterDefinition = {
+	buildField: (builder: FormBuilder, id: string, groupId: string) => FormFieldNode<any>;
+};
+
+function defineMetadataFilter<Config extends MetadataFilterConfig>(controller: FieldController<string, any, Config, any>, config: Config): MetadataFilterDefinition {
+	return {
+		buildField(builder, id, groupId) {
+			return builder.newField(id, controller, {
+				...config,
+				groupId,
+			});
+		},
+	};
+}
+
 export const metadataFilters = {
-	author: {
-		id: 'author',
-		componentName: 'filter-autocomplete',
-		displayName: 'Author',
-		description: 'One or more author names.',
-		groupId: 'bibliographic',
-		autocomplete: async (term: string) => ['Austen', 'Baldwin', 'Brinkman', 'Couperus', 'Diderot', 'Eliot'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
-	},
-	genre: {
-		id: 'genre',
-		componentName: 'filter-checkbox',
-		displayName: 'Genre',
-		groupId: 'bibliographic',
-		options: [
-			{ value: 'fiction', label: 'Fiction' },
-			{ value: 'essay', label: 'Essay' },
-			{ value: 'newspaper', label: 'Newspaper' },
-		],
-	},
-	year: {
-		id: 'year',
-		componentName: 'filter-range',
-		displayName: 'Year',
-		groupId: 'bibliographic',
-	},
-	language: {
-		id: 'language',
-		componentName: 'filter-select',
-		displayName: 'Language',
-		groupId: 'technical',
-		multiple: true,
-		options: languageOptions,
-	},
-	date: {
-		id: 'date',
-		componentName: 'filter-date',
-		displayName: 'Publication date',
-		groupId: 'technical',
-		field: 'date',
-		range: true,
-		min: '16000101',
-		max: '20251231',
-	},
-} satisfies Record<string, MetadataFilterConfig>;
+	author: defineMetadataFilter(filterAutocompleteController, {
+			id: 'author',
+			displayName: 'Author',
+			description: 'One or more author names.',
+			groupId: 'bibliographic',
+			autocomplete: async (term: string) => ['Austen', 'Baldwin', 'Brinkman', 'Couperus', 'Diderot', 'Eliot'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+		}),
+	genre: defineMetadataFilter(filterCheckboxController, {
+			id: 'genre',
+			displayName: 'Genre',
+			groupId: 'bibliographic',
+			options: [
+				{ value: 'fiction', label: 'Fiction' },
+				{ value: 'essay', label: 'Essay' },
+				{ value: 'newspaper', label: 'Newspaper' },
+			],
+		}),
+	year: defineMetadataFilter(filterRangeController, {
+			id: 'year',
+			displayName: 'Year',
+			groupId: 'bibliographic',
+		}),
+	language: defineMetadataFilter(filterSelectController, {
+			id: 'language',
+			displayName: 'Language',
+			groupId: 'technical',
+			multiple: true,
+			options: languageOptions,
+		}),
+	date: defineMetadataFilter(filterDateController, {
+			id: 'date',
+			displayName: 'Publication date',
+			groupId: 'technical',
+			field: 'date',
+			range: true,
+			min: '16000101',
+			max: '20251231',
+		}),
+} satisfies Record<string, MetadataFilterDefinition>;
 
 type MetadataFilterId = keyof typeof metadataFilters;
 
@@ -91,10 +105,6 @@ type FilterGroup = {
 		fields: MetadataFilterId[];
 	}>;
 };
-
-function isSelectMetadataFilterConfig(definition: MetadataFilterFieldConfig | MetadataFilterSelectFieldConfig): definition is MetadataFilterSelectFieldConfig {
-	return definition.componentName === 'filter-select';
-}
 
 export const filterGroups: FilterGroup[] = [
 	{
@@ -257,9 +267,8 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 
 	const letter = builder.newContainer('legacy-filter-comparison.filters.letter', { title: 'Letter', config: { combine: 'allOf' } });
 	letter.addChildren(
-		builder.newField('legacy-filter-comparison.filter.year', resolveMetadataFilterController('filter-range'), {
+		builder.newField('legacy-filter-comparison.filter.year', filterRangeController, {
 			id: 'datum_jaar',
-			componentName: 'filter-range',
 			displayName: 'Year (id: datum_jaar)',
 			groupId: letter.id,
 		}),
@@ -295,9 +304,8 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 
 	const sender = builder.newContainer('legacy-filter-comparison.filters.sender', { title: 'Sender', config: { combine: 'allOf' } });
 	sender.addChildren(
-		builder.newField('legacy-filter-comparison.sender.name', resolveMetadataFilterController('filter-autocomplete'), {
+		builder.newField('legacy-filter-comparison.sender.name', filterAutocompleteController, {
 			id: 'afz_naam',
-			componentName: 'filter-autocomplete',
 			displayName: 'Sender (id: afz_naam)',
 			groupId: sender.id,
 			autocomplete: async (term: string) => ['Anna', 'Brecht', 'Clara', 'Diderik'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
@@ -306,9 +314,8 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 
 	const addressee = builder.newContainer('legacy-filter-comparison.filters.addressee', { title: 'Addressee', config: { combine: 'allOf' } });
 	addressee.addChildren(
-		builder.newField('legacy-filter-comparison.addressee.name', resolveMetadataFilterController('filter-autocomplete'), {
+		builder.newField('legacy-filter-comparison.addressee.name', filterAutocompleteController, {
 			id: 'adr_naam',
-			componentName: 'filter-autocomplete',
 			displayName: 'Addressee (id: adr_naam)',
 			groupId: addressee.id,
 			autocomplete: async (term: string) => ['Beatrix', 'Cornelia', 'Dirk', 'Els'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
@@ -317,9 +324,8 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 
 	const sentFrom = builder.newContainer('legacy-filter-comparison.filters.sent-from', { title: 'Sent from', config: { combine: 'allOf' } });
 	sentFrom.addChildren(
-		builder.newField('legacy-filter-comparison.sent-from.place', resolveMetadataFilterController('filter-autocomplete'), {
+		builder.newField('legacy-filter-comparison.sent-from.place', filterAutocompleteController, {
 			id: 'verz_plaats',
-			componentName: 'filter-autocomplete',
 			displayName: 'Sent from (id: verz_plaats)',
 			groupId: sentFrom.id,
 			autocomplete: async (term: string) => ['Amsterdam', 'Bruges', 'Ghent', 'Leiden'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
@@ -443,22 +449,7 @@ function createFilterContainer(builder: FormBuilder, prefix: string) {
 			const subtabContainer = builder.newContainer(`${prefix}.filters.${group.id}.${subtab.id}`, { title: subtab.title, config: { combine: 'allOf' } });
 			for (const fieldId of subtab.fields) {
 				const definition = metadataFilters[fieldId];
-				if (isSelectMetadataFilterConfig(definition)) {
-					subtabContainer.addChildren(
-						builder.newField(`${prefix}.filter.${fieldId}`, filterSelectController, {
-							...definition,
-							groupId: groupContainer.id,
-						}),
-					);
-					continue;
-				}
-
-				subtabContainer.addChildren(
-					builder.newField(`${prefix}.filter.${fieldId}`, resolveMetadataFilterController(definition.componentName), {
-						...definition,
-						groupId: groupContainer.id,
-					}),
-				);
+				subtabContainer.addChildren(definition.buildField(builder, `${prefix}.filter.${fieldId}`, groupContainer.id));
 			}
 			groupContainer.addChildren(subtabContainer);
 		}

@@ -1,6 +1,49 @@
-import type { DateValue, FilterDateValue } from '@/features/form/model/filter-value-functions';
+export type DateValue = {
+	d: string;
+	m: string;
+	y: string;
+};
 
-export type DateFieldState = FilterDateValue;
+export type DateFieldState = {
+	startDate: DateValue;
+	endDate: DateValue;
+	mode: 'strict' | 'permissive';
+};
+
+export const DateUtils = {
+	dateValueToLucene(date: DateValue | null | undefined, mode: 'start' | 'end'): string {
+		if (!date) return '';
+		let { y, m, d } = date;
+		if (!y.length || !y.match(/^[0-9]{1,4}$/)) return '';
+		if (!m.length || !m.match(/^[0-9]{1,2}$/)) m = mode === 'start' ? '1' : '12';
+		if (!d.length || !d.match(/^[0-9]{1,2}$/)) d = mode === 'start' ? '1' : new Date(Number(y), Number(m), 0).getDate().toString();
+		return `${y.padStart(4, '0')}${m.padStart(2, '0')}${d.padStart(2, '0')}`;
+	},
+	luceneToDisplayString(date: string): string {
+		const match = date.match(/([\d]{4})-?([\d]{2})-?([\d]{2})/);
+		if (!match) return date;
+		const [, y, m, d] = match;
+		return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+	},
+	normalizeBoundaryDate(date?: DateValue | Date | string): DateValue | null {
+		if (!date) return null;
+		if (date instanceof Date) return this.dateToValue(date);
+		if (typeof date === 'string') {
+			const match = date.match(/([\d]{4})-?([\d]{2})-?([\d]{2})/);
+			if (!match) return null;
+			const [, y, m, d] = match;
+			return { y, m, d };
+		}
+		return date;
+	},
+	dateToValue(date: Date): DateValue {
+		return {
+			y: date.getFullYear().toString().padStart(4, '0'),
+			m: (date.getMonth() + 1).toString().padStart(2, '0'),
+			d: date.getDate().toString().padStart(2, '0'),
+		};
+	},
+};
 
 export type DateFieldUiConfig = {
 	displayName: string;
@@ -8,5 +51,5 @@ export type DateFieldUiConfig = {
 	range: boolean;
 	min?: string | Date | DateValue;
 	max?: string | Date | DateValue;
-	mode?: FilterDateValue['mode'];
+	mode?: DateFieldState['mode'];
 };

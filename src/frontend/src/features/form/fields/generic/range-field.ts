@@ -1,6 +1,7 @@
-import type { FilterRangeValue } from '@/features/form/model/filter-value-functions';
-
-export type RangeFieldState = FilterRangeValue;
+export type RangeFieldState = {
+	low: string;
+	high: string;
+};
 
 export type RangeFieldUiConfig = {
 	displayName: string;

@@ -15,7 +15,6 @@ export {
 	filterTextController,
 	parallelController,
 	registerBuiltinControllers,
-	resolveMetadataFilterController,
 	withinController,
 } from './model/controllers';
 export { ControllerRegistry, FormBuilder, type FormRegistrationCallback } from './model/builder/form-shape-builder';

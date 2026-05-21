@@ -40,9 +40,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { DateUtils } from '@/features/form/model/filter-value-functions';
-
-import type { DateFieldState, DateFieldUiConfig } from './date-field';
+import { DateUtils, type DateFieldState, type DateFieldUiConfig } from './date-field';
 
 import type { Option } from '@/shared/utils/options';
 

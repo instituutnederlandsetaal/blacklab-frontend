@@ -9,8 +9,7 @@ import {
     filterRangeController,
     filterRangeMultipleFieldsController,
     filterSelectController,
-    filterTextController,
-    resolveMetadataFilterController,
+	filterTextController,
 } from './metadata-filter-controller';
 import parallelController from './parallel-controller';
 import expertQueryController from './raw-cql-query-controller';
@@ -64,7 +63,6 @@ export {
 	filterRangeMultipleFieldsController,
 	filterSelectController,
 	filterTextController,
-	resolveMetadataFilterController,
 	withinController,
 	expertQueryController,
 	parallelController,
