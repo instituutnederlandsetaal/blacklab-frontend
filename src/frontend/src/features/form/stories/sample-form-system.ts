@@ -130,7 +130,6 @@ function createStoryBuilder(indexId: string) {
 	return {
 		builder: new FormBuilder(controllerRegistry),
 		context: {
-			controllerRegistry,
 			corpus: {
 				indexId,
 				textDirection: 'ltr',
@@ -203,7 +202,7 @@ export function createControllerCatalogStoryModel(): StoryFormSystemModel {
 		builder.newView('catalog.summary', summaryView, { showRaw: true }),
 	);
 
-	const filters = builder.newForm('catalog.filters', { title: 'Filter controllers' });
+	const filters = builder.newForm('catalog.filter-controllers', { title: 'Filter controllers' });
 	filters.addChildren(createFilterContainer(builder, 'catalog'));
 	root.addChildren(fields, filters);
 

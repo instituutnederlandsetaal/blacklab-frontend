@@ -1,6 +1,5 @@
 import type { Component } from 'vue';
 
-import type { ControllerRegistry } from '@/features/form/model/builder/form-shape-builder';
 import type { CompilableQuery } from '@/features/form/model/types/form-query';
 import type { FieldControllerConfig, FormFieldNode, FormViewNode } from '@/features/form/model/types/form-shape';
 
@@ -14,7 +13,6 @@ export type FormRuntimeCorpus = {
 export type FormRuntimeContext = {
 	corpus?: FormRuntimeCorpus;
 	translate?: Translate;
-	controllerRegistry: ControllerRegistry;
 };
 
 export type FieldControllerBuildInput<State = any, Config extends FieldControllerConfig = FieldControllerConfig> = {

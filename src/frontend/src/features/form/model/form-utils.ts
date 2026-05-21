@@ -170,11 +170,13 @@ export function reactivePickActiveFormState(form: FormBoundaryNode, formState: F
 	});
 
 	const fieldsToInclude = new Set<string>();
+	const containersToInclude = new Set<string>();
 	for (const node of getAllNodes(form, 'field', 'container', 'form')) {
 		if (node.kind === 'field') fieldsToInclude.add(node.id);
-		else r.uiState.activeContainers[node.id] = formState.uiState.activeContainers[node.id];
+		else containersToInclude.add(node.id);
 	}
 
 	r.controllerState = reactivePick(formState.controllerState, ...fieldsToInclude);
+	r.uiState.activeContainers = reactivePick(formState.uiState.activeContainers, ...containersToInclude);
 	return r;
 }

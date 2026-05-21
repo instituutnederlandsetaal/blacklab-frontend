@@ -14,6 +14,7 @@ import {
 	type FormFieldNode,
 	type FormRuntimeContext,
 	type FormSystemDefinition,
+	type FormViewNode,
 	type PersistableSubmittableFormState,
 	type ViewDefinition,
 } from '@/features/form';
@@ -82,7 +83,9 @@ const textController: FieldController<'test-text', TextFieldState, TextFieldConf
 	},
 };
 
+/** Helper component that renders out some of the parentForm state, so we can inspect what's really going on from within a test. */
 const ParentFormProbe = defineComponent({
+	props: { node: { type: Object as PropType<FormViewNode<Record<string, never>>>, required: true } },
 	setup() {
 		const parentForm = useParentForm();
 
@@ -123,7 +126,6 @@ function createSingleFormFixture(): FormFixture {
 
 	return {
 		context: {
-			controllerRegistry: registry,
 			corpus: { indexId: 'test-corpus', textDirection: 'ltr' },
 		},
 		definition: builder.build(),
@@ -147,7 +149,6 @@ function createSharedFieldTabsFixture(): FormFixture {
 
 	return {
 		context: {
-			controllerRegistry: registry,
 			corpus: { indexId: 'test-corpus', textDirection: 'ltr' },
 		},
 		definition: builder.build(),
@@ -172,7 +173,7 @@ describe('form system integration', () => {
 		expect(wrapper.get('[data-testid="parent-form-probe"] .state').text()).toContain('water');
 	});
 
-	test('form submit emits a copied snapshot of the current live state', async () => {
+	test('editing the form after submit does not affect the snapshot returned by submit', async () => {
 		const fixture = createSingleFormFixture();
 		const submitted: Array<[string, PersistableSubmittableFormState]> = [];
 		const wrapper = mount(FormSystem, {

@@ -1,8 +1,8 @@
-import { computed, inject, provide, ref, shallowRef, toValue, type ComputedRef, type InjectionKey, type MaybeRefOrGetter } from 'vue';
+import { computed, inject, provide, ref, shallowRef, toValue, watch, type ComputedRef, type InjectionKey, type MaybeRefOrGetter, type ShallowRef } from 'vue';
 
 import { buildFormQuery, summarizeForm } from '@/features/form/model/compile';
 import { createCompiledQueryProjections } from '@/features/form/model/compile/query-artifact';
-import { getAllNodes, pickActiveFormState } from '@/features/form/model/form-utils';
+import { getAllNodes, pickActiveFormState, reactivePickActiveFormState } from '@/features/form/model/form-utils';
 import { cloneFormState, createFormState } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
@@ -10,19 +10,41 @@ import type { FormBoundaryNode } from '@/features/form/model/types/form-shape';
 import type { FormState, FormSystemRuntime, FormSystemDefinition, UseParentFormReturn } from '@/features/form/model/types/form-state';
 
 const formSystemRuntimeKey: InjectionKey<FormSystemRuntime> = Symbol('formSystemRuntime');
-const parentFormRuntimeKey: InjectionKey<ComputedRef<UseParentFormReturn>> = Symbol('parentFormRuntime');
+
+type ParentFormRuntime = {
+	compiled: ComputedRef<CompiledFormState>;
+	corpus: FormRuntimeContext['corpus'];
+	formId: ComputedRef<string>;
+	formState: ShallowRef<FormState>;
+	summaries: ComputedRef<SummaryEntry[]>;
+};
+
+const parentFormRuntimeKey: InjectionKey<ParentFormRuntime> = Symbol('parentFormRuntime');
 
 export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: MaybeRefOrGetter<string>) {
-	return computed(() => {
-		const currentFormId = toValue(formId);
-		return {
-			compiled: rootRuntime.compile(currentFormId),
-			corpus: rootRuntime.context.corpus,
-			formId: currentFormId,
-			formState: pickActiveFormState(rootRuntime.forms[currentFormId], rootRuntime.state.value),
-			summaries: rootRuntime.summarize(currentFormId),
-		};
+	const currentFormId = computed(() => toValue(formId));
+	const currentForm = computed(() => {
+		const form = rootRuntime.forms[currentFormId.value];
+		if (!form) throw new Error(`Form with id ${currentFormId.value} is not registered.`);
+		return form;
 	});
+	const formState = shallowRef<FormState>(reactivePickActiveFormState(currentForm.value, rootRuntime.state.value));
+
+	watch(
+		currentForm,
+		form => {
+			formState.value = reactivePickActiveFormState(form, rootRuntime.state.value);
+		},
+		{ flush: 'sync' },
+	);
+
+	return {
+		compiled: computed(() => rootRuntime.compile(currentFormId.value)),
+		corpus: rootRuntime.context.corpus,
+		formId: currentFormId,
+		formState,
+		summaries: computed(() => rootRuntime.summarize(currentFormId.value)),
+	};
 }
 
 export function createFormSystemRuntime(definition: FormSystemDefinition, context: FormRuntimeContext, initialState?: FormState): FormSystemRuntime {
@@ -101,34 +123,38 @@ export function useFormSystemRuntime(): FormSystemRuntime {
 	return runtime;
 }
 
-export function provideParentForm(runtime: ComputedRef<UseParentFormReturn>) {
+export function provideParentForm(runtime: ParentFormRuntime) {
 	provide(parentFormRuntimeKey, runtime);
+}
+
+function createParentFormAccess(runtime: ParentFormRuntime): UseParentFormReturn {
+	return {
+		get compiled() {
+			return runtime.compiled.value;
+		},
+		get corpus() {
+			return runtime.corpus;
+		},
+		get formId() {
+			return runtime.formId.value;
+		},
+		get formState() {
+			return runtime.formState.value;
+		},
+		get summaries() {
+			return runtime.summaries.value;
+		},
+	};
 }
 
 export function useParentForm(): UseParentFormReturn {
 	const runtime = inject(parentFormRuntimeKey);
 	if (!runtime) throw new Error('No parent form runtime has been provided.');
-	return {
-		get compiled() {
-			return runtime.value.compiled;
-		},
-		get corpus() {
-			return runtime.value.corpus;
-		},
-		get formId() {
-			return runtime.value.formId;
-		},
-		get formState() {
-			return runtime.value.formState;
-		},
-		get summaries() {
-			return runtime.value.summaries;
-		},
-	};
+	return createParentFormAccess(runtime);
 }
 
 export function createAndProvideParentForm(rootFormSystem: FormSystemRuntime, formId: MaybeRefOrGetter<string>): UseParentFormReturn {
 	const runtime = createParentFormRuntime(rootFormSystem, formId);
 	provideParentForm(runtime);
-	return runtime.value;
+	return createParentFormAccess(runtime);
 }

@@ -101,7 +101,7 @@ export class FormBuilder {
 			},
 		};
 		if (!this.root) this.root = node;
-		return (this.nodeMap[id] = node as any);
+		return (this.nodeMap[id] = node);
 	}
 	newForm(id: string, options?: Partial<Omit<FormBoundaryNode, 'id' | 'kind' | 'children'>>): FormBoundaryNodeBuilder {
 		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
@@ -130,7 +130,7 @@ export class FormBuilder {
 			},
 		};
 		if (!this.root) this.root = node;
-		return (this.nodeMap[id] = node as any);
+		return (this.nodeMap[id] = node);
 	}
 	newField<Config extends FieldControllerConfig>(
 		id: string,
@@ -146,7 +146,7 @@ export class FormBuilder {
 			controller,
 			config,
 		} as FormFieldNode<Config>;
-		return (this.nodeMap[id] = node as any);
+		return (this.nodeMap[id] = node);
 	}
 	newView<Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>): FormViewNode<Config> {
 		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
@@ -157,7 +157,7 @@ export class FormBuilder {
 			view,
 			config,
 		} as FormViewNode<Config>;
-		return (this.nodeMap[id] = node as any);
+		return (this.nodeMap[id] = node);
 	}
 
 	getField(id: string) {
