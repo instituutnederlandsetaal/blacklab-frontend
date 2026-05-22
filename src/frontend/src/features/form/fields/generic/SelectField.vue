@@ -12,10 +12,6 @@
 			:options="config.options"
 			v-model="pickerValue"
 		/>
-		<label v-if="config.caseSensitive" class="blf-checkbox-inline">
-			<input type="checkbox" :checked="modelValue.caseSensitive" @change="updateCaseSensitive(($event.target as HTMLInputElement).checked)" />
-			{{ caseSensitiveLabel }}
-		</label>
 		<small v-if="config.description" class="blf-help-text">{{ config.description }}</small>
 	</div>
 </template>
@@ -48,29 +44,18 @@ const emit = defineEmits<{
 const inputId = computed(() => `${props.htmlId}_value`);
 const placeholderText = computed(() => props.config.placeholder ?? props.config.displayName);
 const textDirection = computed(() => props.config.textDirection ?? 'ltr');
-const caseSensitiveLabel = computed(() => props.config.caseSensitiveLabel ?? 'Case sensitive');
 
 const pickerValue = computed<SelectPickerModelValue>({
 	get() {
 		if (props.config.multiple) {
-			return props.modelValue.selectedValues;
+			return props.modelValue;
 		}
 
-		return props.modelValue.selectedValues[0] ?? '';
+		return props.modelValue[0] ?? '';
 	},
 	set(value) {
-		const selectedValues = props.config.multiple ? (Array.isArray(value) ? value : value ? [value] : []) : Array.isArray(value) ? value.slice(0, 1) : value ? [value] : [];
-		emit('update:modelValue', {
-			...props.modelValue,
-			selectedValues,
-		});
+		if (!Array.isArray(value)) value = value ? [value] : [];
+		emit('update:modelValue', value);
 	},
 });
-
-function updateCaseSensitive(value: boolean) {
-	emit('update:modelValue', {
-		...props.modelValue,
-		caseSensitive: value,
-	});
-}
 </script>

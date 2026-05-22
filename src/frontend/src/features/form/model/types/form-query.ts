@@ -1,8 +1,10 @@
 import type { ResultPreset } from '@/features/form/model/types/form-shape';
 import type { FormState } from '@/features/form/model/types/form-state';
 
+export type QueryTokenClauseType = 'equals' | 'regex' | 'wildcard';
+
 export type QueryTokenClauseNode = {
-	type: 'equals' | 'regex';
+	type: QueryTokenClauseType;
 	annotationId: string;
 	value: string;
 	caseSensitive?: boolean;

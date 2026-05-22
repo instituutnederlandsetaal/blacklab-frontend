@@ -9,7 +9,7 @@ import type { Component } from 'vue';
 import type { FieldController, ViewDefinition } from '@/features/form/model/types/form-controllers';
 
 export type FormNodeKind = 'container' | 'form' | 'field' | 'view';
-export type ContainerPresentation = 'list' | 'tabs' | 'small-tabs';
+export type ContainerPresentation = 'list' | 'tabs' | 'small-tabs' | (string & {});
 export type QueryCombineMode = 'allOf' | 'anyOf' | 'sequence';
 
 /** The base for all form nodes */
@@ -20,26 +20,26 @@ export type FormNodeBase = {
 	class?: string;
 };
 
-export type ContainerControllerConfig = {
+export type ContainerNodeConfig = {
 	/** UI hint for this container, e.g. "tabs", "small-tabs" */
 	variant?: ContainerPresentation;
 	/** How child fields should be combined in the query */
 	combine?: QueryCombineMode;
 };
 
-export type FieldControllerConfig = {
-	/** UI hint for this field, e.g. "simple" */
-	variant?: string;
-};
+// export type FieldControllerConfig = {
+// 	/** UI hint for this field, e.g. "simple" */
+// 	variant?: string;
+// };
 
 /**
  * A container contains any number of child forms, containers, or search fields/widgets.
  * A limitation is that a container can only contain fields if the container has a form somewhere in its ancestry.
  */
-export type FormContainerNode<Config extends ContainerControllerConfig = ContainerControllerConfig> = FormNodeBase & {
+export type FormContainerNode<Config extends ContainerNodeConfig = ContainerNodeConfig> = FormNodeBase & {
 	kind: 'container';
 	/** If not set, uses the default container renderer. */
-	component?: Component;
+	component?: Component<{ config: Config }>;
 	config?: Config;
 	children: FormNode[];
 };
@@ -70,10 +70,10 @@ export type FormBoundaryNode = FormNodeBase & {
  * A field represents a widget that the user can interact with to define part of their search query.
  * It is associated with a controller that defines how the field's state is built, encoded, and validated.
  */
-export type FormFieldNode<Config extends FieldControllerConfig = FieldControllerConfig> = FormNodeBase & {
+export type FormFieldNode<Config extends object> = FormNodeBase & {
 	kind: 'field';
 	/** The backing controller for this field. Used to manage the state and conversion from/to query. */
-	controller: FieldController<string, any, Config, any>;
+	controller: FieldController<string, unknown, Config, any>;
 	/** Configuration for this specific instance of the field */
 	config: Config;
 };

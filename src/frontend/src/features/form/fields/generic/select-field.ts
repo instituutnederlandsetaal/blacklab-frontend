@@ -1,17 +1,13 @@
+import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
+
 import type { Options } from '@/shared/utils/options';
 
-export type SelectFieldState = {
-	caseSensitive: boolean;
-	selectedValues: string[];
-};
+export type SelectFieldState = string[];
 
-export type SelectFieldUiConfig = {
-	displayName: string;
-	description?: string;
+export const createDefaultSelectFieldState = (): SelectFieldState => [];
+
+export type SelectFieldUiConfig = GenericFieldUiConfig & {
 	options: Options;
-	placeholder?: string | null;
-	textDirection?: 'ltr' | 'rtl';
+	placeholder?: string;
 	multiple?: boolean;
-	caseSensitive?: boolean;
-	caseSensitiveLabel?: string;
 };

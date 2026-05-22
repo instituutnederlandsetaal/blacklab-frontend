@@ -24,12 +24,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { RadioFieldUiConfig } from './radio-field';
+import type { RadioFieldState, RadioFieldUiConfig } from './radio-field';
 
 const props = withDefaults(
 	defineProps<{
 		config: RadioFieldUiConfig;
-		modelValue: string;
+		modelValue: RadioFieldState;
 		htmlId: string;
 		showLabel?: boolean;
 	}>(),
@@ -39,7 +39,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-	'update:modelValue': [value: string];
+	'update:modelValue': [value: RadioFieldState];
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);

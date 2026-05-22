@@ -1,8 +1,8 @@
 export type SimpleOption = string;
 
 /** Generic object to represent an option in a dropdown multiple-choice, checkbox list, etc. */
-export type Option = {
-	value: string;
+export type Option<T extends string = string> = {
+	value: T;
 	label?: string;
 	title?: string | null;
 	disabled?: boolean;

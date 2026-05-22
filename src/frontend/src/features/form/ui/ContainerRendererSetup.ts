@@ -2,9 +2,9 @@ import { computed } from 'vue';
 
 import { isContainerNode } from '@/features/form/model/form-utils';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
-import type { ContainerControllerConfig, FormContainerNode, FormNode } from '@/features/form/model/types/form-shape';
+import type { ContainerNodeConfig, FormContainerNode, FormNode } from '@/features/form/model/types/form-shape';
 
-export default function containerRendererSetup<Config extends ContainerControllerConfig>(props: { node: FormContainerNode<Config> }) {
+export default function containerRendererSetup<Config extends ContainerNodeConfig>(props: { node: FormContainerNode<Config> }) {
 	const runtime = useFormSystemRuntime();
 
 	const isTabbed = computed(() => props.node.config?.variant === 'tabs' || props.node.config?.variant === 'small-tabs');

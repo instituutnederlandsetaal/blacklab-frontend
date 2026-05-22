@@ -1,3 +1,7 @@
+import type { GenericFieldUiConfig, RangeMode } from '@/features/form/fields/generic/shared-ui-config';
+
+export type { RangeMode } from '@/features/form/fields/generic/shared-ui-config';
+
 export type DateValue = {
 	d: string;
 	m: string;
@@ -7,8 +11,14 @@ export type DateValue = {
 export type DateFieldState = {
 	startDate: DateValue;
 	endDate: DateValue;
-	mode: 'strict' | 'permissive';
+	mode: RangeMode;
 };
+
+export const createDefaultDateFieldState = (): DateFieldState => ({
+	startDate: { y: '', m: '', d: '' },
+	endDate: { y: '', m: '', d: '' },
+	mode: 'strict',
+});
 
 export const DateUtils = {
 	dateValueToLucene(date: DateValue | null | undefined, mode: 'start' | 'end'): string {
@@ -19,12 +29,17 @@ export const DateUtils = {
 		if (!d.length || !d.match(/^[0-9]{1,2}$/)) d = mode === 'start' ? '1' : new Date(Number(y), Number(m), 0).getDate().toString();
 		return `${y.padStart(4, '0')}${m.padStart(2, '0')}${d.padStart(2, '0')}`;
 	},
-	luceneToDisplayString(date: string): string {
-		const match = date.match(/([\d]{4})-?([\d]{2})-?([\d]{2})/);
-		if (!match) return date;
-		const [, y, m, d] = match;
+	dateValueToDisplayString(date: DateValue | null | undefined): string {
+		if (!date) return '';
+		const { y, m, d } = date;
 		return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 	},
+	// luceneToDisplayString(date: string): string {
+	// 	const match = date.match(/([\d]{4})-?([\d]{2})-?([\d]{2})/);
+	// 	if (!match) return date;
+	// 	const [, y, m, d] = match;
+	// 	return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+	// },
 	normalizeBoundaryDate(date?: DateValue | Date | string): DateValue | null {
 		if (!date) return null;
 		if (date instanceof Date) return this.dateToValue(date);
@@ -45,11 +60,10 @@ export const DateUtils = {
 	},
 };
 
-export type DateFieldUiConfig = {
-	displayName: string;
-	description?: string;
+export type DateFieldUiConfig = GenericFieldUiConfig & {
 	range: boolean;
 	min?: string | Date | DateValue;
 	max?: string | Date | DateValue;
-	mode?: DateFieldState['mode'];
+	/** Lock the mode to a fixed value if present. */
+	mode?: RangeMode;
 };

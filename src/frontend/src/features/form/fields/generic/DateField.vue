@@ -40,11 +40,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { DateUtils, type DateFieldState, type DateFieldUiConfig } from './date-field';
+import { DateUtils, type RangeMode, type DateFieldState, type DateFieldUiConfig } from './date-field';
 
 import type { Option } from '@/shared/utils/options';
 
-type ModeOption = Option & { value: DateFieldState['mode'] };
+type ModeOption = Option<RangeMode>;
 
 const props = withDefaults(
 	defineProps<{
@@ -65,8 +65,8 @@ const emit = defineEmits<{
 const inputId = computed(() => `${props.htmlId}_value`);
 const minDate = computed(() => DateUtils.normalizeBoundaryDate(props.config.min));
 const maxDate = computed(() => DateUtils.normalizeBoundaryDate(props.config.max));
-const minDateDisplay = computed(() => (minDate.value ? DateUtils.luceneToDisplayString(DateUtils.dateValueToLucene(minDate.value, 'start')) : null));
-const maxDateDisplay = computed(() => (maxDate.value ? DateUtils.luceneToDisplayString(DateUtils.dateValueToLucene(maxDate.value, 'end')) : null));
+const minDateDisplay = computed(() => (minDate.value ? DateUtils.dateValueToDisplayString(minDate.value) : null));
+const maxDateDisplay = computed(() => (maxDate.value ? DateUtils.dateValueToDisplayString(maxDate.value) : null));
 const minYear = computed(() => minDate.value?.y);
 const maxYear = computed(() => maxDate.value?.y);
 const startMonthLength = computed(() => DateUtils.dateValueToLucene({ ...props.modelValue.startDate, d: '' }, 'end').substring(6, 8));
@@ -131,7 +131,7 @@ function updateEndDate(next: Partial<DateFieldState['endDate']>) {
 	});
 }
 
-function updateMode(mode: DateFieldState['mode']) {
+function updateMode(mode: RangeMode) {
 	emit('update:modelValue', {
 		...props.modelValue,
 		mode,

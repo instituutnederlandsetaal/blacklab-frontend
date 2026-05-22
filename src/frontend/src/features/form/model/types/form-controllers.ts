@@ -21,9 +21,9 @@ export type FieldRendererProps<ModelValue = any, Config = unknown> = {
 	modelValue: ModelValue;
 };
 
-export type FieldControllerComponent<ModelValue = any, Config = FieldControllerConfig> = Component<FieldRendererProps<ModelValue, Config>>;
+export type FieldControllerComponent<ModelValue, Config extends object> = Component<FieldRendererProps<ModelValue, Config>>;
 
-export type FieldControllerBuildInput<State = any, Config extends FieldControllerConfig = FieldControllerConfig> = {
+export type FieldControllerBuildQueryInputs<State, Config> = {
 	node: FormFieldNode<Config>;
 	state: State;
 	// formState: FormState; // shouldn't be required?
@@ -34,24 +34,24 @@ export type FieldControllerBuildInput<State = any, Config extends FieldControlle
  * Unbound controller, i.e. one per field/widget type, not per instance.
  * Contains the logic to create the default state for a field, and to build a query from the state of a field.
  */
-export type FieldController<Kind extends string = string, State = any, Config extends FieldControllerConfig = FieldControllerConfig, UiConfig extends object = Config> = {
+export type FieldController<Kind extends string = string, State = any, ControllerConfig extends object = object, UiConfig extends object = object> = {
 	// Unique key for this controller, used in the form shape definition to bind it to a node/field.
 	kind: Kind;
 	// Which vue component
 	component: FieldControllerComponent<State, UiConfig>;
-	createDefaultState: (node: FormFieldNode<Config>, runtime: FormRuntimeContext) => State;
-	buildQuery?: (input: FieldControllerBuildInput<State, Config>) => CompilableQuery;
-	restore?: (payload: unknown, node: FormFieldNode<Config>, runtime: FormRuntimeContext) => State;
-	encode?: (state: State, node: FormFieldNode<Config>, runtime: FormRuntimeContext) => unknown;
-	validate?: (node: FormFieldNode<Config>, runtime: FormRuntimeContext) => string[];
+	createDefaultState: (node: FormFieldNode<ControllerConfig>, runtime: FormRuntimeContext) => State;
+	buildQuery?: (input: FieldControllerBuildQueryInputs<State, ControllerConfig & UiConfig>) => CompilableQuery;
+	restore?: (payload: unknown, node: FormFieldNode<ControllerConfig>, runtime: FormRuntimeContext) => State;
+	encode?: (state: State, node: FormFieldNode<ControllerConfig>, runtime: FormRuntimeContext) => unknown;
+	validate?: (node: FormFieldNode<ControllerConfig>, runtime: FormRuntimeContext) => string[];
 
 	/** Required for form versioning - return something that uniquely identifies the configuration of this controller,
 	 * so that when restoring from history we can check if the controller has changed in a non-compatible way. */
 	toJSON(): any;
 };
 
-export type FieldControllerDefinition<Kind extends string, State, Config extends FieldControllerConfig, UiConfig extends object = Config> = Omit<
-	FieldController<Kind, State, Config, UiConfig>,
+export type CreateFieldControllerInput<Kind extends string, State, ControllerConfig extends FieldControllerConfig, UiConfig extends object> = Omit<
+	FieldController<Kind, State, ControllerConfig, UiConfig>,
 	'toJSON'
 > & {
 	version?: number;
@@ -59,9 +59,9 @@ export type FieldControllerDefinition<Kind extends string, State, Config extends
 	toJSON?: () => any;
 };
 
-export function createFieldController<Kind extends string, State, UiConfig extends object, Config extends FieldControllerConfig & UiConfig>(
-	definition: FieldControllerDefinition<Kind, State, Config, UiConfig>,
-): FieldController<Kind, State, Config, UiConfig> {
+export function createFieldController<Kind extends string, State, ControllerConfig extends object, UiConfig extends object>(
+	definition: CreateFieldControllerInput<Kind, State, ControllerConfig, UiConfig>,
+): FieldController<Kind, State, ControllerConfig, UiConfig> {
 	const { configVersion = 1, toJSON, version = 1, ...controller } = definition;
 	return markRaw({
 		...controller,

@@ -55,43 +55,48 @@ function defineMetadataFilter<Config extends MetadataFilterConfig>(controller: F
 
 export const metadataFilters = {
 	author: defineMetadataFilter(filterAutocompleteController, {
-			id: 'author',
-			displayName: 'Author',
-			description: 'One or more author names.',
-			groupId: 'bibliographic',
-			autocomplete: async (term: string) => ['Austen', 'Baldwin', 'Brinkman', 'Couperus', 'Diderot', 'Eliot'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
-		}),
+		id: 'author',
+		metadataFieldId: 'author',
+		displayName: 'Author',
+		description: 'One or more author names.',
+		groupId: 'bibliographic',
+		autocomplete: async (term: string) => ['Austen', 'Baldwin', 'Brinkman', 'Couperus', 'Diderot', 'Eliot'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+	}),
 	genre: defineMetadataFilter(filterCheckboxController, {
-			id: 'genre',
-			displayName: 'Genre',
-			groupId: 'bibliographic',
-			options: [
-				{ value: 'fiction', label: 'Fiction' },
-				{ value: 'essay', label: 'Essay' },
-				{ value: 'newspaper', label: 'Newspaper' },
-			],
-		}),
+		id: 'genre',
+		metadataFieldId: 'genre',
+		displayName: 'Genre',
+		groupId: 'bibliographic',
+		options: [
+			{ value: 'fiction', label: 'Fiction' },
+			{ value: 'essay', label: 'Essay' },
+			{ value: 'newspaper', label: 'Newspaper' },
+		],
+	}),
 	year: defineMetadataFilter(filterRangeController, {
-			id: 'year',
-			displayName: 'Year',
-			groupId: 'bibliographic',
-		}),
+		id: 'year',
+		metadataFieldId: 'year',
+		displayName: 'Year',
+		groupId: 'bibliographic',
+	}),
 	language: defineMetadataFilter(filterSelectController, {
-			id: 'language',
-			displayName: 'Language',
-			groupId: 'technical',
-			multiple: true,
-			options: languageOptions,
-		}),
+		id: 'language',
+		metadataFieldId: 'language',
+		displayName: 'Language',
+		groupId: 'technical',
+		multiple: true,
+		options: languageOptions,
+	}),
 	date: defineMetadataFilter(filterDateController, {
-			id: 'date',
-			displayName: 'Publication date',
-			groupId: 'technical',
-			field: 'date',
-			range: true,
-			min: '16000101',
-			max: '20251231',
-		}),
+		id: 'date',
+		metadataFieldId: 'publication_date',
+		displayName: 'Publication date',
+		groupId: 'technical',
+		field: 'date',
+		range: true,
+		min: '16000101',
+		max: '20251231',
+	}),
 } satisfies Record<string, MetadataFilterDefinition>;
 
 type MetadataFilterId = keyof typeof metadataFilters;
@@ -269,6 +274,7 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 	letter.addChildren(
 		builder.newField('legacy-filter-comparison.filter.year', filterRangeController, {
 			id: 'datum_jaar',
+			metadataFieldId: 'datum_jaar',
 			displayName: 'Year (id: datum_jaar)',
 			groupId: letter.id,
 		}),
@@ -306,6 +312,7 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 	sender.addChildren(
 		builder.newField('legacy-filter-comparison.sender.name', filterAutocompleteController, {
 			id: 'afz_naam',
+			metadataFieldId: 'afz_naam',
 			displayName: 'Sender (id: afz_naam)',
 			groupId: sender.id,
 			autocomplete: async (term: string) => ['Anna', 'Brecht', 'Clara', 'Diderik'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
@@ -316,6 +323,7 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 	addressee.addChildren(
 		builder.newField('legacy-filter-comparison.addressee.name', filterAutocompleteController, {
 			id: 'adr_naam',
+			metadataFieldId: 'adr_naam',
 			displayName: 'Addressee (id: adr_naam)',
 			groupId: addressee.id,
 			autocomplete: async (term: string) => ['Beatrix', 'Cornelia', 'Dirk', 'Els'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
@@ -326,6 +334,7 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 	sentFrom.addChildren(
 		builder.newField('legacy-filter-comparison.sent-from.place', filterAutocompleteController, {
 			id: 'verz_plaats',
+			metadataFieldId: 'verz_plaats',
 			displayName: 'Sent from (id: verz_plaats)',
 			groupId: sentFrom.id,
 			autocomplete: async (term: string) => ['Amsterdam', 'Bruges', 'Ghent', 'Leiden'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),

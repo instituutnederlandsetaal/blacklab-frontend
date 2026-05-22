@@ -23,12 +23,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { CheckboxFieldUiConfig } from './checkbox-field';
+import type { CheckboxFieldState, CheckboxFieldUiConfig } from './checkbox-field';
 
 const props = withDefaults(
 	defineProps<{
 		config: CheckboxFieldUiConfig;
-		modelValue: Record<string, boolean>;
+		modelValue: CheckboxFieldState;
 		htmlId: string;
 		showLabel?: boolean;
 	}>(),
@@ -38,7 +38,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-	'update:modelValue': [value: Record<string, boolean>];
+	'update:modelValue': [value: CheckboxFieldState];
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);

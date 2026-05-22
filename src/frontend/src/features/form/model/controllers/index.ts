@@ -1,14 +1,14 @@
 import type { ControllerRegistry, ControllerRegistryMap, ViewRegistryMap } from '@/features/form/model/builder/form-shape-builder';
 
-import { annotationAutocompleteController, annotationSelectController, annotationTextController } from './annotation-controller';
+import { annotationSelectController, annotationTextController } from './annotation-controllers';
 import {
-    filterAutocompleteController,
-    filterCheckboxController,
-    filterDateController,
-    filterRadioController,
-    filterRangeController,
-    filterRangeMultipleFieldsController,
-    filterSelectController,
+	filterAutocompleteController,
+	filterCheckboxController,
+	filterDateController,
+	filterRadioController,
+	filterRangeController,
+	filterRangeMultipleFieldsController,
+	filterSelectController,
 	filterTextController,
 } from './metadata-filter-controller';
 import parallelController from './parallel-controller';
@@ -29,7 +29,6 @@ export type RegisteredControllers = ControllerRegistryMap & {
 	[parallelController.kind]: typeof parallelController;
 	[annotationTextController.kind]: typeof annotationTextController;
 	[annotationSelectController.kind]: typeof annotationSelectController;
-	[annotationAutocompleteController.kind]: typeof annotationAutocompleteController;
 };
 
 export function registerBuiltinControllers<C extends ControllerRegistryMap, V extends ViewRegistryMap>(
@@ -48,11 +47,9 @@ export function registerBuiltinControllers<C extends ControllerRegistryMap, V ex
 	registry.registerController(parallelController);
 	registry.registerController(annotationTextController);
 	registry.registerController(annotationSelectController);
-	registry.registerController(annotationAutocompleteController);
 }
 
 export {
-	annotationAutocompleteController,
 	annotationSelectController,
 	annotationTextController,
 	filterAutocompleteController,
