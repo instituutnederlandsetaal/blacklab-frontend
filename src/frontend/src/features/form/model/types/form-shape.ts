@@ -6,11 +6,16 @@
 
 import type { Component } from 'vue';
 
-import type { FieldController, ViewDefinition } from '@/features/form/model/types/form-controllers';
+import type { FieldComponent, FieldController, FieldNodeConfig, ViewDefinition } from '@/features/form/model/types/form-controllers';
 
 export type FormNodeKind = 'container' | 'form' | 'field' | 'view';
 export type ContainerPresentation = 'list' | 'tabs' | 'small-tabs' | (string & {});
 export type QueryCombineMode = 'allOf' | 'anyOf' | 'sequence';
+
+export type UiConfig<Variant extends string = string> = {
+	/** UI hint for this node, e.g. "tabs" or "large" */
+	variant?: Variant;
+};
 
 /** The base for all form nodes */
 export type FormNodeBase = {
@@ -20,17 +25,10 @@ export type FormNodeBase = {
 	class?: string;
 };
 
-export type ContainerNodeConfig = {
-	/** UI hint for this container, e.g. "tabs", "small-tabs" */
-	variant?: ContainerPresentation;
+export type ContainerNodeConfig = UiConfig<ContainerPresentation> & {
 	/** How child fields should be combined in the query */
 	combine?: QueryCombineMode;
 };
-
-// export type FieldControllerConfig = {
-// 	/** UI hint for this field, e.g. "simple" */
-// 	variant?: string;
-// };
 
 /**
  * A container contains any number of child forms, containers, or search fields/widgets.
@@ -39,7 +37,7 @@ export type ContainerNodeConfig = {
 export type FormContainerNode<Config extends ContainerNodeConfig = ContainerNodeConfig> = FormNodeBase & {
 	kind: 'container';
 	/** If not set, uses the default container renderer. */
-	component?: Component<{ config: Config }>;
+	component?: Component<{ node: FormContainerNode<Config>; hideTitle?: boolean }>;
 	config?: Config;
 	children: FormNode[];
 };
@@ -68,14 +66,17 @@ export type FormBoundaryNode = FormNodeBase & {
 
 /**
  * A field represents a widget that the user can interact with to define part of their search query.
- * It is associated with a controller that defines how the field's state is built, encoded, and validated.
+ * It is associated with a controller that defines how the field's state is built, encoded, and validated,
+ * while the node itself carries the concrete component used to render that field.
  */
-export type FormFieldNode<Config extends object> = FormNodeBase & {
+export type FormFieldNode<Config extends object = object, State = any> = FormNodeBase & {
 	kind: 'field';
 	/** The backing controller for this field. Used to manage the state and conversion from/to query. */
-	controller: FieldController<string, unknown, Config, any>;
+	controller: FieldController<string, State, Config>;
+	/** The concrete Vue component used to render this field instance. */
+	component: FieldComponent<State>;
 	/** Configuration for this specific instance of the field */
-	config: Config;
+	config: FieldNodeConfig<Config>;
 };
 
 /**
@@ -92,13 +93,13 @@ export type FormViewNode<Config = unknown> = FormNodeBase & {
 	variant?: string; // e.g. 'large', 'small', etc. should make this explicit?
 };
 
-export type FormChildNode = FormContainerNode<any> | FormFieldNode<any> | FormViewNode<any>;
-export type FormNode = FormContainerNode<any> | FormFieldNode<any> | FormViewNode<any> | FormBoundaryNode;
+export type FormChildNode = FormContainerNode<any> | FormFieldNode<any, any> | FormViewNode<any>;
+export type FormNode = FormContainerNode<any> | FormFieldNode<any, any> | FormViewNode<any> | FormBoundaryNode;
 
 export type NodeKindMap = {
 	container: FormContainerNode<any>;
 	form: FormBoundaryNode;
-	field: FormFieldNode<any>;
+	field: FormFieldNode<any, any>;
 	view: FormViewNode<any>;
 };
 export type NodeKind = keyof NodeKindMap;

@@ -1,5 +1,5 @@
 <template>
-	<Component :is="node.controller.component" :config="node.config" :html-id="htmlId" v-model="state" />
+	<Component :is="node.component" :config="node.config" :html-id="htmlId" v-model="state" />
 </template>
 
 <script setup lang="ts" generic="State">
@@ -12,7 +12,7 @@ import useUid from '@/shared/utils/useUid';
 import { useFormSystemRuntime } from '../model/runtime';
 
 const props = defineProps<{
-	node: FormFieldNode;
+	node: FormFieldNode<any, State>;
 }>();
 
 const runtime = useFormSystemRuntime();

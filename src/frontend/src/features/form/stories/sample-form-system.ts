@@ -1,8 +1,8 @@
 import { markRaw } from 'vue';
 
 import {
-	annotationAutocompleteController,
 	annotationSelectController,
+	annotationTextController,
 	ControllerRegistry,
 	createFormState,
 	createFormSystemRuntime,
@@ -42,7 +42,7 @@ type MetadataFilterDefinition = {
 	buildField: (builder: FormBuilder, id: string, groupId: string) => FormFieldNode<any>;
 };
 
-function defineMetadataFilter<Config extends MetadataFilterConfig>(controller: FieldController<string, any, Config, any>, config: Config): MetadataFilterDefinition {
+function defineMetadataFilter<Config extends MetadataFilterConfig>(controller: FieldController<string, any, Config>, config: Config): MetadataFilterDefinition {
 	return {
 		buildField(builder, id, groupId) {
 			return builder.newField(id, controller, {
@@ -201,7 +201,7 @@ export function createControllerCatalogStoryModel(): StoryFormSystemModel {
 	const fields = builder.newForm('catalog.fields', { title: 'Built-in fields' });
 
 	fields.addChildren(
-		builder.newField('catalog.annotation.word', annotationAutocompleteController, {
+		builder.newField('catalog.annotation.word', annotationTextController, {
 			annotationId: 'word',
 			displayName: 'Word',
 			caseSensitive: true,
@@ -373,7 +373,7 @@ function createSimpleForm(builder: FormBuilder, shared: SharedSearchSections) {
 	const form = builder.newForm('search.simple', { title: 'Simple' });
 	form.addChildren(
 		shared.parallel,
-		builder.newField('search.simple.word', annotationAutocompleteController, {
+		builder.newField('search.simple.word', annotationTextController, {
 			annotationId: 'word',
 			displayName: 'Word',
 			description: 'Search the main annotation.',
@@ -395,8 +395,8 @@ function createExtendedForm(builder: FormBuilder, shared: SharedSearchSections) 
 	const grammarAnnotations = builder.newContainer('search.extended.annotations.grammar', { title: 'Grammar', config: { combine: 'allOf' } });
 
 	mainAnnotations.addChildren(
-		builder.newField('search.extended.word', annotationAutocompleteController, { annotationId: 'word', displayName: 'Word', caseSensitive: true }),
-		builder.newField('search.extended.lemma', annotationAutocompleteController, { annotationId: 'lemma', displayName: 'Lemma', caseSensitive: true }),
+		builder.newField('search.extended.word', annotationTextController, { annotationId: 'word', displayName: 'Word', caseSensitive: true }),
+		builder.newField('search.extended.lemma', annotationTextController, { annotationId: 'lemma', displayName: 'Lemma', caseSensitive: true }),
 	);
 	grammarAnnotations.addChildren(
 		builder.newField('search.extended.pos', annotationSelectController, {

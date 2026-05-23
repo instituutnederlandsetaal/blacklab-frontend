@@ -1,28 +1,41 @@
 import { markRaw } from 'vue';
 
 import { checkNoLoops, generateSchemaVersion } from '@/features/form/model/form-utils';
-import type { FieldController, ViewDefinition } from '@/features/form/model/types/form-controllers';
-import type { FormContainerNode, FormNode, FormBoundaryNode, FormChildNode, FormFieldNode, FormViewNode, NodeKind, NodeKindMap, FieldControllerConfig } from '@/features/form/model/types/form-shape';
+import type { FieldComponent, FieldController, FieldNodeConfig as ControllerFieldNodeConfig, ViewDefinition } from '@/features/form/model/types/form-controllers';
+import type { FormContainerNode, FormNode, FormBoundaryNode, FormChildNode, FormFieldNode, FormViewNode, NodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 import type { FormSystemDefinition } from '@/features/form/model/types/form-state';
 
 export type FormRegistrationCallback = (api: FormBuilder) => FormContainerNode | void;
 
-export type AnyFieldController = FieldController<string, any, any, any>;
+export type AnyFieldController = FieldController<string, any, any>;
+export type AnyFieldComponent = FieldComponent<any, any>;
 export type AnyViewDefinition = ViewDefinition<string, any>;
 export type ControllerRegistryMap = Partial<Record<string, AnyFieldController>>;
 export type ViewRegistryMap = Partial<Record<string, AnyViewDefinition>>;
 export type WithRegisteredController<C extends ControllerRegistryMap, Controller extends AnyFieldController> = Omit<C, Controller['kind']> & Record<Controller['kind'], Controller>;
 export type WithRegisteredView<V extends ViewRegistryMap, View extends AnyViewDefinition> = Omit<V, View['kind']> & Record<View['kind'], View>;
 
+type FieldStateFor<Controller extends AnyFieldController> = Controller extends FieldController<string, infer State, any> ? State : never;
+type FieldConfigFor<Controller extends AnyFieldController> = Controller extends FieldController<string, any, infer Config> ? Config : never;
+type FieldNodeConfigFor<Controller extends AnyFieldController> = ControllerFieldNodeConfig<FieldConfigFor<Controller>>;
+type FieldComponentFor<Controller extends AnyFieldController> = FieldComponent<FieldStateFor<Controller>>;
+type FieldNodeFor<Controller extends AnyFieldController> = FormFieldNode<FieldConfigFor<Controller>, FieldStateFor<Controller>>;
+type FieldNodeOptionsFor<Controller extends AnyFieldController> = Partial<Omit<FieldNodeFor<Controller>, 'id' | 'kind' | 'controller' | 'config'>>;
+
 export class ControllerRegistry<C extends ControllerRegistryMap = {}, V extends ViewRegistryMap = {}> {
 	controllers: C = markRaw({} as C);
+	fieldComponents: Partial<Record<string, AnyFieldComponent>> = markRaw({});
 	views: V = markRaw({} as V);
 
-	public registerController<Controller extends AnyFieldController>(controller: Controller): asserts this is ControllerRegistry<WithRegisteredController<C, Controller>, V> {
+	public registerController<Controller extends AnyFieldController>(
+		controller: Controller,
+		component: FieldComponentFor<Controller>,
+	): asserts this is ControllerRegistry<WithRegisteredController<C, Controller>, V> {
 		// @ts-ignore
 		if (this.controllers[controller.kind]) throw new Error(`Controller with kind ${controller.kind} is already registered`);
 		// @ts-ignore
 		this.controllers[controller.kind] = markRaw(controller);
+		this.fieldComponents[controller.kind] = markRaw(component) as AnyFieldComponent;
 	}
 
 	public registerView<View extends AnyViewDefinition>(view: View): asserts this is ControllerRegistry<C, WithRegisteredView<V, View>> {
@@ -40,6 +53,11 @@ export class ControllerRegistry<C extends ControllerRegistryMap = {}, V extends 
 		const view = this.views[kind];
 		if (!view) throw new Error(`View with kind ${String(kind)} is not registered`);
 		return view as V[Kind];
+	}
+
+	public getFieldComponent<Controller extends AnyFieldController>(controller: Controller): FieldComponentFor<Controller> | null {
+		const component = this.fieldComponents[controller.kind];
+		return (component as FieldComponentFor<Controller> | undefined) ?? null;
 	}
 }
 
@@ -132,20 +150,19 @@ export class FormBuilder {
 		if (!this.root) this.root = node;
 		return (this.nodeMap[id] = node);
 	}
-	newField<Config extends FieldControllerConfig>(
-		id: string,
-		controller: FieldController<string, any, Config, any>,
-		config: Config,
-		options?: Partial<Omit<FormFieldNode<Config>, 'id' | 'kind' | 'controller' | 'config'>>,
-	): FormFieldNode<Config> {
+	newField<Controller extends AnyFieldController>(id: string, controller: Controller, config: FieldNodeConfigFor<Controller>, options?: FieldNodeOptionsFor<Controller>): FieldNodeFor<Controller> {
 		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
-		const node: FormFieldNode<Config> = {
-			...options,
+		const { component: componentOverride, ...nodeOptions } = options ?? {};
+		const component = componentOverride ?? this.controllerRegistry.getFieldComponent(controller);
+		if (!component) throw new Error(`Field ${id} with controller kind ${controller.kind} is missing a registered component`);
+		const node: FieldNodeFor<Controller> = {
+			...nodeOptions,
 			id,
 			kind: 'field',
 			controller,
+			component,
 			config,
-		} as FormFieldNode<Config>;
+		};
 		return (this.nodeMap[id] = node);
 	}
 	newView<Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>): FormViewNode<Config> {

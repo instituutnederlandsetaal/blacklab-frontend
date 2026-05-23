@@ -45,7 +45,9 @@ const emit = defineEmits<{
 
 const config = computed(() => props.config);
 const htmlId = computed(() => props.htmlId);
-const selectedAttributes = computed(() => config.value.options.find(option => option.value === props.modelValue.element)?.attributes ?? []);
+const selectedAttributes = computed(() =>
+	config.value.options.find((option: WithinFieldConfig['options'][number]) => option.value === props.modelValue.element)?.attributes ?? [],
+);
 
 function selectElement(element: string) {
 	emit('update:modelValue', {

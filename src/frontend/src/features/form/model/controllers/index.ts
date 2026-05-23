@@ -1,6 +1,17 @@
 import type { ControllerRegistry, ControllerRegistryMap, ViewRegistryMap } from '@/features/form/model/builder/form-shape-builder';
 
-import { annotationSelectController, annotationTextController } from './annotation-controllers';
+import CheckboxField from '@/features/form/fields/generic/CheckboxField.vue';
+import DateField from '@/features/form/fields/generic/DateField.vue';
+import RadioField from '@/features/form/fields/generic/RadioField.vue';
+import RangeField from '@/features/form/fields/generic/RangeField.vue';
+import RangeMultipleFieldsField from '@/features/form/fields/generic/RangeMultipleFieldsField.vue';
+import SelectField from '@/features/form/fields/generic/SelectField.vue';
+import TextField from '@/features/form/fields/generic/TextField.vue';
+import ParallelField from '@/features/form/fields/ParallelField.vue';
+import RawCqlField from '@/features/form/fields/RawCqlField.vue';
+import WithinField from '@/features/form/fields/WithinField.vue';
+
+import { annotationSelectController, annotationTextController } from './annotation-controller';
 import {
 	filterAutocompleteController,
 	filterCheckboxController,
@@ -34,19 +45,19 @@ export type RegisteredControllers = ControllerRegistryMap & {
 export function registerBuiltinControllers<C extends ControllerRegistryMap, V extends ViewRegistryMap>(
 	registry: ControllerRegistry<C, V>,
 ): asserts registry is ControllerRegistry<C & RegisteredControllers, V> {
-	registry.registerController(filterAutocompleteController);
-	registry.registerController(filterCheckboxController);
-	registry.registerController(filterDateController);
-	registry.registerController(filterRadioController);
-	registry.registerController(filterRangeController);
-	registry.registerController(filterRangeMultipleFieldsController);
-	registry.registerController(filterSelectController);
-	registry.registerController(filterTextController);
-	registry.registerController(withinController);
-	registry.registerController(expertQueryController);
-	registry.registerController(parallelController);
-	registry.registerController(annotationTextController);
-	registry.registerController(annotationSelectController);
+	registry.registerController(filterAutocompleteController, TextField);
+	registry.registerController(filterCheckboxController, CheckboxField);
+	registry.registerController(filterDateController, DateField);
+	registry.registerController(filterRadioController, RadioField);
+	registry.registerController(filterRangeController, RangeField);
+	registry.registerController(filterRangeMultipleFieldsController, RangeMultipleFieldsField);
+	registry.registerController(filterSelectController, SelectField);
+	registry.registerController(filterTextController, TextField);
+	registry.registerController(withinController, WithinField);
+	registry.registerController(expertQueryController, RawCqlField);
+	registry.registerController(parallelController, ParallelField);
+	registry.registerController(annotationTextController, TextField);
+	registry.registerController(annotationSelectController, SelectField);
 }
 
 export {

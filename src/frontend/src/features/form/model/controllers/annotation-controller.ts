@@ -1,25 +1,24 @@
 import { createDefaultSelectFieldState, type SelectFieldState, type SelectFieldUiConfig } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
-import { tokenPattern, withSummary, artifactFromPattern } from '@/features/form/model/compile/query-artifact';
+import { tokenPattern, withSummary, artifactFromPattern, createQueryContribution } from '@/features/form/model/compile/query-artifact';
 import type { SummaryEntry } from '@/features/form/model/types';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
 import { findOptions, optionValues } from '@/shared/utils/options';
 import { escapeRegex } from '@/shared/utils/string-utils';
 
-import SelectField from '@/features/form/fields/generic/SelectField.vue';
-import TextField from '@/features/form/fields/generic/TextField.vue';
-
 export type AnnotationControllerConfig = {
 	annotationId: string;
 	annotatedFieldId?: string;
 };
 
-export const annotationTextController = createFieldController<'annotation-text', TextFieldState, AnnotationControllerConfig, TextFieldUiConfig>({
+export type AnnotationTextFieldConfig = AnnotationControllerConfig & TextFieldUiConfig;
+export type AnnotationSelectFieldConfig = AnnotationControllerConfig & SelectFieldUiConfig;
+
+export const annotationTextController = createFieldController<'annotation-text', TextFieldState, AnnotationTextFieldConfig>({
 	kind: 'annotation-text',
-	component: TextField,
 	createDefaultState: createDefaultTextFieldState,
-	buildQuery({ node, state }) {
+	getQueryContribution({ node, state }) {
 		const clause = tokenPattern([
 			{
 				type: 'wildcard',
@@ -42,12 +41,11 @@ export const annotationTextController = createFieldController<'annotation-text',
 	},
 });
 
-export const annotationSelectController = createFieldController<'annotation-select', SelectFieldState, AnnotationControllerConfig, SelectFieldUiConfig>({
+export const annotationSelectController = createFieldController<'annotation-select', SelectFieldState, AnnotationSelectFieldConfig>({
 	kind: 'annotation-select',
-	component: SelectField,
 	createDefaultState: createDefaultSelectFieldState,
-	buildQuery({ node, state }) {
-		if (!state.length) return artifactFromPattern(null);
+	getQueryContribution({ node, state }) {
+		if (!state.length) return createQueryContribution();
 		const escaped = state.map(v => escapeRegex(v)).join('|');
 		return withSummary(
 			artifactFromPattern(

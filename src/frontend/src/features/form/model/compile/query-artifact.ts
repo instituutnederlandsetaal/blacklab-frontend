@@ -1,4 +1,4 @@
-import type { CompilableQuery, CompiledFormState, QueryFilterNode, QueryPatternNode, QueryTokenClauseNode, QueryWrapper, SummaryEntry } from '@/features/form/model/types/form-query';
+import type { CompilableQuery, CompiledFormState, QueryContribution, QueryFilterNode, QueryPatternNode, QueryTokenClauseNode, QueryWrapper, SummaryEntry } from '@/features/form/model/types/form-query';
 import type { QueryCombineMode } from '@/features/form/model/types/form-shape';
 
 const EMPTY_PROJECTION = createQueryArtifact();
@@ -10,7 +10,13 @@ export function createQueryArtifact(): CompilableQuery {
 		wrappers: [],
 		searchField: null,
 		// resultPreset: {},
-		summaries: [],
+	};
+}
+
+export function createQueryContribution(query: CompilableQuery = createQueryArtifact(), summaries: SummaryEntry[] = []): QueryContribution {
+	return {
+		query,
+		summaries,
 	};
 }
 
@@ -25,7 +31,7 @@ export function createCompiledQueryProjections(artifact: CompilableQuery): Compi
 }
 
 export function combineQueries(artifacts: CompilableQuery[], combine: QueryCombineMode = 'allOf'): CompilableQuery {
-	const nonEmpty = artifacts.filter(artifact => hasContributions(artifact));
+	const nonEmpty = artifacts.filter(artifact => hasQueryContributions(artifact));
 	const merged = createQueryArtifact();
 
 	merged.pattern = combinePatterns(nonEmpty.map(artifact => artifact.pattern).filter(isNonNull), combine);
@@ -33,9 +39,19 @@ export function combineQueries(artifacts: CompilableQuery[], combine: QueryCombi
 	merged.wrappers = nonEmpty.flatMap(artifact => artifact.wrappers);
 	merged.searchField = nonEmpty.find(artifact => artifact.searchField)?.searchField ?? null;
 	// merged.resultPreset = Object.assign({}, ...nonEmpty.map(artifact => artifact.resultPreset)) as Partial<ResultPreset>;
-	merged.summaries = nonEmpty.flatMap(artifact => artifact.summaries);
 
 	return merged;
+}
+
+export function combineQueryContributions(contributions: QueryContribution[], combine: QueryCombineMode = 'allOf'): QueryContribution {
+	const nonEmpty = contributions.filter(contribution => hasContribution(contribution));
+	return createQueryContribution(
+		combineQueries(
+			nonEmpty.map(contribution => contribution.query),
+			combine,
+		),
+		nonEmpty.flatMap(contribution => contribution.summaries),
+	);
 }
 
 export function artifactFromPattern(pattern: QueryPatternNode | null): CompilableQuery {
@@ -76,12 +92,8 @@ export function rangeFilter(field: string, low?: string, high?: string): QueryFi
 	return low || high ? { type: 'range', field, low, high } : null;
 }
 
-export function withSummary(artifact: CompilableQuery, entry: SummaryEntry | null): CompilableQuery {
-	if (!entry) return artifact;
-	return {
-		...artifact,
-		summaries: [...artifact.summaries, entry],
-	};
+export function withSummary(query: CompilableQuery, entry: SummaryEntry | null): QueryContribution {
+	return createQueryContribution(query, entry ? [entry] : []);
 }
 
 export function withWrapper(artifact: CompilableQuery, wrapper: QueryWrapper | null): CompilableQuery {
@@ -182,8 +194,12 @@ function combineFilters(filters: QueryFilterNode[], operator: 'and' | 'or'): Que
 	return { type: 'boolean', operator, children: filters };
 }
 
-function hasContributions(artifact: CompilableQuery): boolean {
-	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchField || artifact.summaries.length);
+function hasContribution(contribution: QueryContribution): boolean {
+	return hasQueryContributions(contribution.query) || contribution.summaries.length > 0;
+}
+
+function hasQueryContributions(artifact: CompilableQuery): boolean {
+	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchField);
 }
 
 function escapeCql(value: string): string {

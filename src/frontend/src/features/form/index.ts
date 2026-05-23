@@ -1,7 +1,6 @@
 export { combineQueries, createCompiledQueryProjections, createQueryArtifact } from './model/compile/query-artifact';
 export { buildFormQuery, summarizeForm } from './model/compile';
 export {
-	annotationAutocompleteController,
 	annotationSelectController,
 	annotationTextController,
 	expertQueryController,

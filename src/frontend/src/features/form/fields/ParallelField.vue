@@ -47,7 +47,11 @@ const emit = defineEmits<{
 
 const config = computed(() => props.config);
 const htmlId = computed(() => props.htmlId);
-const targetOptions = computed(() => (config.value.targetOptions ?? config.value.sourceOptions).filter(option => option.value !== props.modelValue.source));
+const targetOptions = computed(() =>
+	(config.value.targetOptions ?? config.value.sourceOptions).filter(
+		(option: ParallelFieldConfig['sourceOptions'][number]) => option.value !== props.modelValue.source,
+	),
+);
 
 function updateSource(source: string) {
 	emit('update:modelValue', {

@@ -1,6 +1,8 @@
-export type GenericFieldUiConfig = {
+import type { UiConfig } from '@/features/form/model/types/form-shape';
+
+export type GenericFieldUiConfig = UiConfig & {
 	/** Access for debug rendering of the field */
-	id: string;
+	id?: string;
 	groupId?: string;
 	displayName: string;
 	description?: string;

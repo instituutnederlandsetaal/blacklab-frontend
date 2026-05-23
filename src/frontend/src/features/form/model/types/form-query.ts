@@ -44,7 +44,6 @@ export type CompilableQuery = {
 	filter: QueryFilterNode | null;
 	wrappers: QueryWrapper[];
 	searchField: string | null;
-	summaries: SummaryEntry[];
 };
 
 /**
@@ -60,6 +59,11 @@ export type SummaryEntry = {
 	label: string;
 	value: string;
 	group?: string;
+};
+
+export type QueryContribution = {
+	query: CompilableQuery;
+	summaries: SummaryEntry[];
 };
 
 export type CompiledFormState = {

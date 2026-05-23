@@ -13,14 +13,6 @@ import { createFieldController } from '@/features/form/model/types/form-controll
 import { findOption, optionLabel } from '@/shared/utils/options';
 import { escapeLucene, splitIntoTerms } from '@/shared/utils/string-utils';
 
-import CheckboxField from '@/features/form/fields/generic/CheckboxField.vue';
-import DateField from '@/features/form/fields/generic/DateField.vue';
-import RadioField from '@/features/form/fields/generic/RadioField.vue';
-import RangeField from '@/features/form/fields/generic/RangeField.vue';
-import RangeMultipleFieldsField from '@/features/form/fields/generic/RangeMultipleFieldsField.vue';
-import SelectField from '@/features/form/fields/generic/SelectField.vue';
-import TextField from '@/features/form/fields/generic/TextField.vue';
-
 export type MetadataFilterControllerConfig = {
 	metadataFieldId: string;
 };
@@ -32,14 +24,22 @@ export type MetadataFilterRangeMultipleFieldsControllerConfig = {
 	highField: string;
 };
 
+export type MetadataFilterTextConfig = MetadataFilterControllerConfig & TextFieldUiConfig;
+export type MetadataFilterCheckboxConfig = MetadataFilterControllerConfig & CheckboxFieldUiConfig;
+export type MetadataFilterRadioConfig = MetadataFilterControllerConfig & RadioFieldUiConfig;
+export type MetadataFilterDateConfig = MetadataFilterDateControllerConfig & DateFieldUiConfig;
+export type MetadataFilterRangeConfig = MetadataFilterControllerConfig & RangeFieldUiConfig;
+export type MetadataFilterRangeMultipleFieldsConfig = MetadataFilterRangeMultipleFieldsControllerConfig & RangeMultipleFieldsFieldUiConfig;
+export type MetadataFilterSelectConfig = MetadataFilterControllerConfig & SelectFieldUiConfig;
+
 export type MetadataFilterConfig =
-	| (MetadataFilterControllerConfig & TextFieldUiConfig)
-	| (MetadataFilterControllerConfig & CheckboxFieldUiConfig)
-	| (MetadataFilterControllerConfig & RadioFieldUiConfig)
-	| (MetadataFilterDateControllerConfig & DateFieldUiConfig)
-	| (MetadataFilterControllerConfig & RangeFieldUiConfig)
-	| (MetadataFilterRangeMultipleFieldsControllerConfig & RangeMultipleFieldsFieldUiConfig)
-	| (MetadataFilterControllerConfig & SelectFieldUiConfig);
+	| MetadataFilterTextConfig
+	| MetadataFilterCheckboxConfig
+	| MetadataFilterRadioConfig
+	| MetadataFilterDateConfig
+	| MetadataFilterRangeConfig
+	| MetadataFilterRangeMultipleFieldsConfig
+	| MetadataFilterSelectConfig;
 
 function createSummaryEntry(nodeId: string, config: GenericFieldUiConfig, value: string | null): SummaryEntry | null {
 	return value
@@ -77,21 +77,19 @@ function summarizeSelectField(config: SelectFieldUiConfig, values: string[]): st
 	return summarizeValues(labels);
 }
 
-export const filterAutocompleteController = createFieldController<'metadata-filter-autocomplete', TextFieldState, MetadataFilterControllerConfig, TextFieldUiConfig>({
+export const filterAutocompleteController = createFieldController<'metadata-filter-autocomplete', TextFieldState, MetadataFilterTextConfig>({
 	kind: 'metadata-filter-autocomplete',
-	component: TextField,
 	createDefaultState: createDefaultTextFieldState,
-	buildQuery({ node, state }) {
+	getQueryContribution({ node, state }) {
 		const lucene = buildTextLucene(node.config.metadataFieldId, state);
 		return createRawFilterQuery(node.id, node.config, lucene, summarizeText(state));
 	},
 });
 
-export const filterCheckboxController = createFieldController<'metadata-filter-checkbox', CheckboxFieldState, MetadataFilterControllerConfig, CheckboxFieldUiConfig>({
+export const filterCheckboxController = createFieldController<'metadata-filter-checkbox', CheckboxFieldState, MetadataFilterCheckboxConfig>({
 	kind: 'metadata-filter-checkbox',
-	component: CheckboxField,
 	createDefaultState: createDefaultCheckboxFieldState,
-	buildQuery({ node, state }) {
+	getQueryContribution({ node, state }) {
 		const selectedValues = Object.entries(state || {})
 			.filter(([, isSelected]) => isSelected)
 			.map(([value]) => value);
@@ -101,11 +99,10 @@ export const filterCheckboxController = createFieldController<'metadata-filter-c
 	},
 });
 
-export const filterDateController = createFieldController<'metadata-filter-date', DateFieldState, MetadataFilterDateControllerConfig, DateFieldUiConfig>({
+export const filterDateController = createFieldController<'metadata-filter-date', DateFieldState, MetadataFilterDateConfig>({
 	kind: 'metadata-filter-date',
-	component: DateField,
 	createDefaultState: createDefaultDateFieldState,
-	buildQuery({ node, state }) {
+	getQueryContribution({ node, state }) {
 		const start = DateUtils.dateValueToLucene(state.startDate, 'start');
 		const end = DateUtils.dateValueToLucene(node.config.range ? state.endDate : state.startDate, 'end');
 
@@ -125,22 +122,20 @@ export const filterDateController = createFieldController<'metadata-filter-date'
 	},
 });
 
-export const filterRadioController = createFieldController<'metadata-filter-radio', RadioFieldState, MetadataFilterControllerConfig, RadioFieldUiConfig>({
+export const filterRadioController = createFieldController<'metadata-filter-radio', RadioFieldState, MetadataFilterRadioConfig>({
 	kind: 'metadata-filter-radio',
-	component: RadioField,
 	createDefaultState: createDefaultRadioFieldState,
-	buildQuery({ node, state }) {
+	getQueryContribution({ node, state }) {
 		const lucene = state ? `${node.config.metadataFieldId}:(${escapeLucene(state, false)})` : null;
 		const summary = state ? optionLabel(findOption(node.config.options, state) ?? state) : null;
 		return createRawFilterQuery(node.id, node.config, lucene, summary);
 	},
 });
 
-export const filterRangeController = createFieldController<'metadata-filter-range', RangeFieldState, MetadataFilterControllerConfig, RangeFieldUiConfig>({
+export const filterRangeController = createFieldController<'metadata-filter-range', RangeFieldState, MetadataFilterRangeConfig>({
 	kind: 'metadata-filter-range',
-	component: RangeField,
 	createDefaultState: createDefaultRangeFieldState,
-	buildQuery({ node, state }) {
+	getQueryContribution({ node, state }) {
 		const lucene = state.low || state.high ? `${node.config.metadataFieldId}:[${state.low || '0'} TO ${state.high || '9999'}]` : null;
 		const summary = state.low || state.high ? `${state.low || '0'} - ${state.high || '9999'}` : null;
 		return createRawFilterQuery(node.id, node.config, lucene, summary);
@@ -150,13 +145,11 @@ export const filterRangeController = createFieldController<'metadata-filter-rang
 export const filterRangeMultipleFieldsController = createFieldController<
 	'metadata-filter-range-multiple-fields',
 	RangeMultipleFieldsFieldState,
-	MetadataFilterRangeMultipleFieldsControllerConfig,
-	RangeMultipleFieldsFieldUiConfig
+	MetadataFilterRangeMultipleFieldsConfig
 >({
 	kind: 'metadata-filter-range-multiple-fields',
-	component: RangeMultipleFieldsField,
 	createDefaultState: createDefaultRangeMultipleFieldsFieldState,
-	buildQuery({ node, state }) {
+	getQueryContribution({ node, state }) {
 		const lucene =
 			state.low || state.high
 				? (() => {
@@ -171,11 +164,10 @@ export const filterRangeMultipleFieldsController = createFieldController<
 	},
 });
 
-export const filterSelectController = createFieldController<'metadata-filter-select', SelectFieldState, MetadataFilterControllerConfig, SelectFieldUiConfig>({
+export const filterSelectController = createFieldController<'metadata-filter-select', SelectFieldState, MetadataFilterSelectConfig>({
 	kind: 'metadata-filter-select',
-	component: SelectField,
 	createDefaultState: createDefaultSelectFieldState,
-	buildQuery({ node, state }) {
+	getQueryContribution({ node, state }) {
 		const selectedValues = state.filter(value => value.trim());
 		const summary = summarizeSelectField(node.config, selectedValues);
 		return withSummary(
@@ -192,11 +184,10 @@ export const filterSelectController = createFieldController<'metadata-filter-sel
 	},
 });
 
-export const filterTextController = createFieldController<'metadata-filter-text', TextFieldState, MetadataFilterControllerConfig, TextFieldUiConfig>({
+export const filterTextController = createFieldController<'metadata-filter-text', TextFieldState, MetadataFilterTextConfig>({
 	kind: 'metadata-filter-text',
-	component: TextField,
 	createDefaultState: createDefaultTextFieldState,
-	buildQuery({ node, state }) {
+	getQueryContribution({ node, state }) {
 		const lucene = buildTextLucene(node.config.metadataFieldId, state);
 		return createRawFilterQuery(node.id, node.config, lucene, summarizeText(state));
 	},
