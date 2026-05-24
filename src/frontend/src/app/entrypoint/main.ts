@@ -20,7 +20,7 @@ import { createRouteBootstrapPlugin } from '@/app/providers/providePageBootstrap
 import createRouter from '@/app/providers/provideRouter';
 
 import * as LoginSystem from '@/shared/auth/loginsystem';
-import * as i18n from '@/shared/i18n/i18n';
+import { createI18n } from '@/shared/i18n';
 
 import AppComponent from '@/app/ui/App.vue';
 import DebugComponent from '@/shared/debug/Debug.vue';
@@ -46,6 +46,7 @@ async function main() {
 	const { currentCorpusId, ...router } = createRouter();
 	const corpusData = createCorpusData(api.blacklabApi, api.frontendApi, currentCorpusId);
 	const pageBootstrap = createRouteBootstrapPlugin();
+	const i18n = createI18n();
 
 	const app = createApp(AppComponent);
 	app.use(api);

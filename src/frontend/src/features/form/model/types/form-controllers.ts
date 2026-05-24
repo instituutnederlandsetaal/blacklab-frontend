@@ -3,7 +3,7 @@ import { markRaw, type Component } from 'vue';
 import type { QueryContribution } from '@/features/form/model/types/form-query';
 import type { FormFieldNode, FormViewNode } from '@/features/form/model/types/form-shape';
 
-import type { Translate } from '@/shared/i18n/i18n';
+import type { Translate } from '@/shared/i18n';
 
 export type FormRuntimeCorpus = {
 	indexId?: string;

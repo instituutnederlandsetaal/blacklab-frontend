@@ -5,82 +5,19 @@ import { describe, expect, test } from 'vitest';
 import { computed, defineComponent, h, nextTick, ref, watchEffect, type PropType } from 'vue';
 
 import {
-	ControllerRegistry,
-	FormBuilder,
 	FormSystem,
 	createFormSystemRuntime,
 	useParentForm,
-	type FieldController,
-	type FieldControllerConfig,
-	type FormFieldNode,
-	type FormRuntimeContext,
 	type FormViewNode,
 	type ViewDefinition,
 } from '@/features/form';
-import { artifactFromPattern, tokenPattern, withSummary } from '@/features/form/model/compile/query-artifact';
 import { createAndProvideParentForm, createParentFormRuntime, provideFormSystemRuntime } from '@/features/form/model/runtime';
 
-type TextFieldState = {
-	value: string;
-};
-
-type TextFieldConfig = FieldControllerConfig & {
-	annotationId: string;
-	label: string;
-};
+import { createTestBuilder, createTestContext, testTextController } from './helpers';
 
 type ParentFormMetrics = {
 	compiledEvaluations: number;
 	summariesEvaluations: number;
-};
-
-const TextField = defineComponent({
-	props: {
-		node: {
-			type: Object as PropType<FormFieldNode<TextFieldConfig>>,
-			required: true,
-		},
-		state: {
-			type: Object as PropType<TextFieldState>,
-			required: true,
-		},
-	},
-	emits: {
-		'update:state': (_state: TextFieldState) => true,
-	},
-	setup(props, { emit }) {
-		return () =>
-			h('input', {
-				'aria-label': props.node.config.label,
-				value: props.state.value,
-				onInput(event: Event) {
-					emit('update:state', {
-						...props.state,
-						value: (event.target as HTMLInputElement).value,
-					});
-				},
-			});
-	},
-});
-
-const textController: FieldController<'test-text', TextFieldState, TextFieldConfig> = {
-	kind: 'test-text',
-	component: TextField,
-	createDefaultState: () => ({ value: '' }),
-	buildQuery({ node, state }) {
-		const pattern = tokenPattern([
-			{
-				type: 'equals',
-				annotationId: node.config.annotationId,
-				value: state.value,
-			},
-		]);
-
-		return withSummary(artifactFromPattern(pattern), state.value ? { id: node.id, label: node.config.label, value: state.value } : null);
-	},
-	toJSON() {
-		return { kind: this.kind, version: 1 };
-	},
 };
 
 function createMetricsView(metrics: ParentFormMetrics) {
@@ -112,43 +49,34 @@ function createMetricsView(metrics: ParentFormMetrics) {
 	});
 }
 
-function createFixture(metrics: ParentFormMetrics) {
-	const registry: ControllerRegistry = new ControllerRegistry();
-	registry.registerController(textController);
-
+function createProjectionMetricsFixture(metrics: ParentFormMetrics) {
 	const metricsView: ViewDefinition<'metrics-probe', Record<string, never>> = {
 		kind: 'metrics-probe',
 		component: createMetricsView(metrics),
 	};
-	registry.registerView(metricsView);
-
-	const builder = new FormBuilder(registry);
+	const builder = createTestBuilder(metricsView);
 	const form = builder.newForm('search.form', { title: 'Search' });
 	const tabs = builder.newContainer('search.tabs', { title: 'Modes', config: { variant: 'tabs' } });
 	const first = builder.newContainer('search.tabs.first', { title: 'First' });
 	const second = builder.newContainer('search.tabs.second', { title: 'Second' });
 
 	first.addChildren(
-		builder.newField('search.word', textController, {
+		builder.newField('search.word', testTextController, {
 			annotationId: 'word',
-			label: 'Word',
+			displayName: 'Word',
 		}),
 	);
 	second.addChildren(
-		builder.newField('search.lemma', textController, {
+		builder.newField('search.lemma', testTextController, {
 			annotationId: 'lemma',
-			label: 'Lemma',
+			displayName: 'Lemma',
 		}),
 	);
 	tabs.addChildren(first, second);
 	form.addChildren(tabs, builder.newView('search.metrics', metricsView, {}));
 
-	const context: FormRuntimeContext = {
-		corpus: { indexId: 'test-corpus', textDirection: 'ltr' },
-	};
-
 	return {
-		context,
+		context: createTestContext(),
 		definition: {
 			root: form,
 			schemaVersion: 'test',
@@ -174,32 +102,25 @@ const switchingExpectations = {
 } as const;
 
 function createSwitchingRuntimeFixture() {
-	const registry: ControllerRegistry = new ControllerRegistry();
-	registry.registerController(textController);
-
-	const builder = new FormBuilder(registry);
+	const builder = createTestBuilder();
 	const root = builder.newContainer('search', { title: 'Search', config: { variant: 'tabs' } });
 	const firstForm = builder.newForm(switchingExpectations.first.formId, { title: 'Word' });
 	const secondForm = builder.newForm(switchingExpectations.second.formId, { title: 'Lemma' });
 
 	firstForm.addChildren(
-		builder.newField(switchingExpectations.first.fieldId, textController, {
+		builder.newField(switchingExpectations.first.fieldId, testTextController, {
 			annotationId: 'word',
-			label: 'Word',
+			displayName: 'Word',
 		}),
 	);
 	secondForm.addChildren(
-		builder.newField(switchingExpectations.second.fieldId, textController, {
+		builder.newField(switchingExpectations.second.fieldId, testTextController, {
 			annotationId: 'lemma',
-			label: 'Lemma',
+			displayName: 'Lemma',
 		}),
 	);
 	root.addChildren(firstForm, secondForm);
-
-	const context: FormRuntimeContext = {
-		corpus: { indexId: 'test-corpus', textDirection: 'ltr' },
-	};
-	const runtime = createFormSystemRuntime(builder.build(), context);
+	const runtime = createFormSystemRuntime(builder.build(), createTestContext());
 
 	runtime.state.value.controllerState[switchingExpectations.first.fieldId] = { value: 'water' };
 	runtime.state.value.controllerState[switchingExpectations.second.fieldId] = { value: 'lopen' };
@@ -222,26 +143,50 @@ const InjectedParentFormProbe = defineComponent({
 	},
 });
 
-describe('parent form runtime', () => {
-	test('does not recompute compiled and summary projections when only active tab ui state changes', async () => {
-		const metrics: ParentFormMetrics = {
-			compiledEvaluations: 0,
-			summariesEvaluations: 0,
-		};
-		const fixture = createFixture(metrics);
-		const wrapper = mount(FormSystem, {
-			props: fixture,
+	describe('form system runtime', () => {
+		test('submit returns a snapshot isolated from later state changes', () => {
+			const builder = createTestBuilder();
+			const form = builder.newForm('search.simple', { title: 'Simple' });
+			const field = builder.newField('search.simple.word', testTextController, {
+				annotationId: 'word',
+				displayName: 'Word',
+			});
+
+			form.addChildren(field);
+
+			const runtime = createFormSystemRuntime(builder.build(), createTestContext());
+			runtime.state.value.controllerState[field.id] = { value: 'water' };
+
+			const submitted = runtime.submit(form.id);
+			runtime.state.value.controllerState[field.id] = { value: 'fire' };
+
+			expect(submitted.formId).toBe(form.id);
+			expect(submitted.cql).toBe('[word="(?i)water"]');
+			expect(submitted.summaries).toEqual([{ id: field.id, label: 'Word', value: 'water' }]);
+			expect(submitted.state.controllerState[field.id]).toEqual({ value: 'water' });
 		});
-
-		expect(metrics.compiledEvaluations).toBe(1);
-		expect(metrics.summariesEvaluations).toBe(1);
-
-		await wrapper.findAll('nav button')[1].trigger('click');
-		await nextTick();
-
-		expect(metrics.compiledEvaluations).toBe(1);
-		expect(metrics.summariesEvaluations).toBe(1);
 	});
+
+	describe('parent form runtime', () => {
+		test('keeps compiled and summary projections stable when only tab ui state changes', async () => {
+			const metrics: ParentFormMetrics = {
+				compiledEvaluations: 0,
+				summariesEvaluations: 0,
+			};
+			const fixture = createProjectionMetricsFixture(metrics);
+			const wrapper = mount(FormSystem, {
+				props: fixture,
+			});
+
+			expect(metrics.compiledEvaluations).toBe(1);
+			expect(metrics.summariesEvaluations).toBe(1);
+
+			await wrapper.findAll('nav button')[1].trigger('click');
+			await nextTick();
+
+			expect(metrics.compiledEvaluations).toBe(1);
+			expect(metrics.summariesEvaluations).toBe(1);
+		});
 
 	test('createParentFormRuntime switches projections when a ref formId changes', async () => {
 		const fixture = createSwitchingRuntimeFixture();

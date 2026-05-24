@@ -29,10 +29,12 @@
 </template>
 
 <script setup lang="ts">
-import { manager as i18n } from '@/shared/i18n/i18n';
+import { useI18nManager } from '@/shared/i18n';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
+
+const i18n = useI18nManager();
 </script>
 
 <style scoped>

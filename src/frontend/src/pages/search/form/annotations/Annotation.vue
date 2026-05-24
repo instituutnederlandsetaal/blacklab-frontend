@@ -67,7 +67,7 @@ import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 import * as PatternStore from '@/pages/search/form/store/pattern-store';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
-import { translate } from '@/shared/i18n/i18n';
+import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/useUid';
 
@@ -86,6 +86,7 @@ const props = defineProps<{
 }>();
 
 const blacklab = useBlackLabApi();
+const translate = useI18n();
 
 const uid = useUid();
 const posOpen = ref(false);

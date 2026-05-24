@@ -4,7 +4,7 @@ import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 import * as UIStore from '@/pages/search/config/ui-customization-store';
 import * as PatternStore from '@/pages/search/form/store/pattern-store';
 
-import { useI18n } from '@/shared/i18n/i18n';
+import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 
 const useParallel = () => {

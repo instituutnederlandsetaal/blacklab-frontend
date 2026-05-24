@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { createRestoredSearchFormStoryModel, createSearchFormStoryModel } from './sample-form-system';
+import { createAnnotationPosStoryModel, createRestoredSearchFormStoryModel, createSearchFormStoryModel } from './sample-form-system';
 
 import FormSystemStoryHarness from '../stories/FormSystemStoryHarness.vue';
 
@@ -29,6 +29,15 @@ export const RestoredSubmittedSnapshot: Story = {
 	render: () => ({
 		components: { FormSystemStoryHarness },
 		setup: () => createRestoredSearchFormStoryModel(),
+		template: '<FormSystemStoryHarness :definition="definition" :context="context" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
+	}),
+};
+
+export const ProductionTagsetPosEditor: Story = {
+	args: {} as any,
+	render: () => ({
+		components: { FormSystemStoryHarness },
+		setup: () => createAnnotationPosStoryModel(),
 		template: '<FormSystemStoryHarness :definition="definition" :context="context" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
 	}),
 };

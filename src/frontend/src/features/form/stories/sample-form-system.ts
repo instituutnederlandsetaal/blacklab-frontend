@@ -1,6 +1,7 @@
 import { markRaw } from 'vue';
 
 import {
+	annotationPosController,
 	annotationSelectController,
 	annotationTextController,
 	ControllerRegistry,
@@ -26,10 +27,17 @@ import {
 	type PersistableSubmittableFormState,
 	withinController,
 } from '../index';
+import { createAnnotationPosSelectionKey, type AnnotationPosFieldConfig, type AnnotationReference } from '../fields/annotation-pos-field';
 import type { MetadataFilterConfig } from '../model/controllers/metadata-filter-controller';
 import type { FormContainerNode, FormFieldNode } from '../model/types/form-shape';
 
 import ContainerRendererFilters from '../ui/ContainerRendererFilters.vue';
+import { createMockI18n } from '@/shared/i18n';
+import type { Tagset } from '@/types/apptypes';
+
+import sampleTagsetJson from './sample-tagset.json';
+
+const translate = createMockI18n().translate;
 
 const languageOptions = [
 	{ value: 'en', label: 'English' },
@@ -37,6 +45,42 @@ const languageOptions = [
 	{ value: 'de', label: 'German' },
 	{ value: 'fr', label: 'French' },
 ];
+
+const posAnnotation: AnnotationReference = {
+	id: 'pos',
+	defaultDisplayName: 'Part of speech',
+	defaultDescription: 'Filter by part of speech and compatible grammatical features.',
+};
+
+const posTagset: Tagset = sampleTagsetJson;
+
+function humanizeAnnotationId(value: string): string {
+	return value
+		.split(/[_-]+/)
+		.map(part => (part.toLowerCase() === 'pos' ? 'PoS' : part.charAt(0).toUpperCase() + part.slice(1)))
+		.join(' ');
+}
+
+const posSubAnnotations = Object.fromEntries(
+	Object.keys(posTagset.subAnnotations).map(id => [
+		id,
+		{
+			id,
+			defaultDisplayName: humanizeAnnotationId(id),
+			defaultDescription: '',
+		},
+	]),
+) satisfies Record<string, AnnotationReference>;
+
+function createAnnotationPosConfig(overrides: Partial<AnnotationPosFieldConfig> = {}): AnnotationPosFieldConfig {
+	return {
+		annotation: posAnnotation,
+		subAnnotations: posSubAnnotations,
+		tagset: posTagset,
+		showQueryPreview: true,
+		...overrides,
+	};
+}
 
 type MetadataFilterDefinition = {
 	buildField: (builder: FormBuilder, id: string, groupId: string) => FormFieldNode<any>;
@@ -159,6 +203,7 @@ function createStoryBuilder(indexId: string) {
 				indexId,
 				textDirection: 'ltr',
 			},
+			translate,
 		} satisfies FormRuntimeContext,
 	};
 }
@@ -206,15 +251,7 @@ export function createControllerCatalogStoryModel(): StoryFormSystemModel {
 			displayName: 'Word',
 			caseSensitive: true,
 		}),
-		builder.newField('catalog.annotation.pos', annotationSelectController, {
-			annotationId: 'pos',
-			displayName: 'Part of speech',
-			options: [
-				{ value: 'NOU', label: 'Noun' },
-				{ value: 'VRB', label: 'Verb' },
-				{ value: 'ADJ', label: 'Adjective' },
-			],
-		}),
+		builder.newField('catalog.annotation.pos', annotationPosController, createAnnotationPosConfig()),
 		builder.newField('catalog.parallel', parallelController, createParallelConfig()),
 		builder.newField('catalog.within', withinController, createWithinConfig()),
 		builder.newField('catalog.raw-cql', expertQueryController, {
@@ -232,6 +269,39 @@ export function createControllerCatalogStoryModel(): StoryFormSystemModel {
 	return {
 		context,
 		definition: builder.build(),
+	};
+}
+
+export function createAnnotationPosStoryModel(): StoryFormSystemModel {
+	const { builder, context } = createStoryBuilder('storybook-pos-tagset');
+	const form = builder.newForm('pos-editor.form', { title: 'PoS editor' });
+
+	form.addChildren(
+		builder.newView('pos-editor.heading', headingView, {
+			title: 'Production tagset PoS editor',
+			description: 'Loaded from sample-tagset.json. Open the editor, adjust the PoS value and subtags, and inspect the live query and serialized snapshot.',
+		}),
+		builder.newField('pos-editor.field', annotationPosController, createAnnotationPosConfig()),
+		builder.newView('pos-editor.summary', summaryView, {
+			title: 'Live query preview',
+			showRaw: true,
+		}),
+	);
+
+	const definition = builder.build();
+	const initialState = createFormState(definition, context);
+	initialState.controllerState['pos-editor.field'] = {
+		annotationValue: 'NOU-P',
+		selected: {
+			[createAnnotationPosSelectionKey('NOU-P', 'pos_type', 'per')]: true,
+		},
+	};
+
+	return {
+		context,
+		definition,
+		initialState,
+		initialSubmitted: createFormSystemRuntime(definition, context, initialState).submit('pos-editor.form'),
 	};
 }
 
@@ -399,15 +469,7 @@ function createExtendedForm(builder: FormBuilder, shared: SharedSearchSections) 
 		builder.newField('search.extended.lemma', annotationTextController, { annotationId: 'lemma', displayName: 'Lemma', caseSensitive: true }),
 	);
 	grammarAnnotations.addChildren(
-		builder.newField('search.extended.pos', annotationSelectController, {
-			annotationId: 'pos',
-			displayName: 'Part of speech',
-			options: [
-				{ value: 'NOU', label: 'Noun' },
-				{ value: 'VRB', label: 'Verb' },
-				{ value: 'ADJ', label: 'Adjective' },
-			],
-		}),
+		builder.newField('search.extended.pos', annotationPosController, createAnnotationPosConfig({ groupId: grammarAnnotations.id })),
 	);
 	annotationTabs.addChildren(mainAnnotations, grammarAnnotations);
 	patternColumn.addChildren(shared.parallel, annotationTabs, shared.within);

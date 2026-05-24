@@ -22,7 +22,6 @@ import { FilteredResultCountLoader } from '@/features/totals/lib/result-count-fr
 import SubcorpusTotals from '@/features/totals/ui/SubcorpusTotals.vue';
 // import { useCurrentCorpus } from '@/app/plugins/installCorpusData';
 // import { frac2Percent } from '@/utils/numbers-utils';
-// import { useI18n } from '@/shared/i18n/i18n';
 
 type FilterSummaryEntry = {
 	id: string;

@@ -118,6 +118,7 @@ export default defineConfig({
 				test: {
 					name: 'unit',
 					include: ['test/**/*.{test,spec}.?(c|m)[jt]s?(x)'],
+						setupFiles: ['./test/setup.ts'],
 				},
 			},
 			{

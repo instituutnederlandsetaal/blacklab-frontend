@@ -4,7 +4,13 @@ import 'bootstrap/dist/css/bootstrap.css';
 import '../src/global.scss';
 import 'floating-vue/dist/style.css';
 
-import type { Preview } from '@storybook/vue3-vite';
+import { setup, type Preview } from '@storybook/vue3-vite';
+
+import { createMockI18n } from '../src/shared/i18n';
+
+setup(app => {
+	app.use(createMockI18n());
+});
 
 const preview: Preview = {
   parameters: {

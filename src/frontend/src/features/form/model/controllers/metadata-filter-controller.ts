@@ -41,10 +41,10 @@ export type MetadataFilterConfig =
 	| MetadataFilterRangeMultipleFieldsConfig
 	| MetadataFilterSelectConfig;
 
-function createSummaryEntry(nodeId: string, config: GenericFieldUiConfig, value: string | null): SummaryEntry | null {
+function createSummaryEntry(annotationOrFieldOrNodeId: string, config: GenericFieldUiConfig, value: string | null): SummaryEntry | null {
 	return value
 		? {
-				id: nodeId,
+				id: annotationOrFieldOrNodeId,
 				label: config.displayName,
 				value,
 				group: config.groupId,
@@ -52,8 +52,8 @@ function createSummaryEntry(nodeId: string, config: GenericFieldUiConfig, value:
 		: null;
 }
 
-function createRawFilterQuery(nodeId: string, config: GenericFieldUiConfig, lucene: string | null, summary: string | null) {
-	return withSummary(artifactFromFilter(rawFilter(lucene)), createSummaryEntry(nodeId, config, summary));
+function createRawFilterQuery(annotationOrFieldOrNodeId: string, config: GenericFieldUiConfig, lucene: string | null, summary: string | null) {
+	return withSummary(artifactFromFilter(rawFilter(lucene)), createSummaryEntry(annotationOrFieldOrNodeId, config, summary));
 }
 
 function summarizeValues(values: string[]): string | null {
@@ -67,7 +67,7 @@ function buildTextLucene(metadataFieldId: string, state: TextFieldState | null):
 		.join(' ')})`;
 }
 
-function summarizeText(state: TextFieldState | null): string | null {
+function summarizeTextField(state: TextFieldState | null): string | null {
 	const split = state?.value ? splitIntoTerms(state.value, true) : [];
 	return split.map(term => (term.isQuoted || split.length > 1 ? `"${term.value}"` : term.value)).join(', ') || null;
 }
@@ -82,7 +82,7 @@ export const filterAutocompleteController = createFieldController<'metadata-filt
 	createDefaultState: createDefaultTextFieldState,
 	getQueryContribution({ node, state }) {
 		const lucene = buildTextLucene(node.config.metadataFieldId, state);
-		return createRawFilterQuery(node.id, node.config, lucene, summarizeText(state));
+		return createRawFilterQuery(node.id, node.config, lucene, summarizeTextField(state));
 	},
 });
 
@@ -142,11 +142,7 @@ export const filterRangeController = createFieldController<'metadata-filter-rang
 	},
 });
 
-export const filterRangeMultipleFieldsController = createFieldController<
-	'metadata-filter-range-multiple-fields',
-	RangeMultipleFieldsFieldState,
-	MetadataFilterRangeMultipleFieldsConfig
->({
+export const filterRangeMultipleFieldsController = createFieldController<'metadata-filter-range-multiple-fields', RangeMultipleFieldsFieldState, MetadataFilterRangeMultipleFieldsConfig>({
 	kind: 'metadata-filter-range-multiple-fields',
 	createDefaultState: createDefaultRangeMultipleFieldsFieldState,
 	getQueryContribution({ node, state }) {
@@ -189,6 +185,6 @@ export const filterTextController = createFieldController<'metadata-filter-text'
 	createDefaultState: createDefaultTextFieldState,
 	getQueryContribution({ node, state }) {
 		const lucene = buildTextLucene(node.config.metadataFieldId, state);
-		return createRawFilterQuery(node.id, node.config, lucene, summarizeText(state));
+		return createRawFilterQuery(node.id, node.config, lucene, summarizeTextField(state));
 	},
 });

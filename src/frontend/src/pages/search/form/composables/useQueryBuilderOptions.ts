@@ -5,7 +5,7 @@ import { useBlackLabApi } from '@/shared/api/useApi';
 import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 import * as UIStore from '@/pages/search/config/ui-customization-store';
 import { getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';
-import { useI18n } from '@/shared/i18n/i18n';
+import { useI18n } from '@/shared/i18n';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import { type CqlQueryBuilderOptions, OPERATORS, COMPARATORS } from '@/widgets/cql-query-builder/model';
 

@@ -112,7 +112,7 @@ import { getQueryBuilderStateFromParsedQuery } from '@/widgets/cql-query-builder
 
 import { type Result, parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';
-import { useI18n } from '@/shared/i18n/i18n';
+import { useI18n } from '@/shared/i18n';
 import useUid from '@/shared/utils/useUid';
 
 import Annotation from '@/pages/search/form/annotations/Annotation.vue';

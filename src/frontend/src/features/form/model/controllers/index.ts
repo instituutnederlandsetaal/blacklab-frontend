@@ -7,20 +7,22 @@ import RangeField from '@/features/form/fields/generic/RangeField.vue';
 import RangeMultipleFieldsField from '@/features/form/fields/generic/RangeMultipleFieldsField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
+import AnnotationPosField from '@/features/form/fields/AnnotationPosField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import WithinField from '@/features/form/fields/WithinField.vue';
 
+import { annotationPosController } from './annotation-pos-controller';
 import { annotationSelectController, annotationTextController } from './annotation-controller';
 import {
-	filterAutocompleteController,
-	filterCheckboxController,
-	filterDateController,
-	filterRadioController,
-	filterRangeController,
-	filterRangeMultipleFieldsController,
-	filterSelectController,
-	filterTextController,
+    filterAutocompleteController,
+    filterCheckboxController,
+    filterDateController,
+    filterRadioController,
+    filterRangeController,
+    filterRangeMultipleFieldsController,
+    filterSelectController,
+    filterTextController,
 } from './metadata-filter-controller';
 import parallelController from './parallel-controller';
 import expertQueryController from './raw-cql-query-controller';
@@ -38,6 +40,7 @@ export type RegisteredControllers = ControllerRegistryMap & {
 	[withinController.kind]: typeof withinController;
 	[expertQueryController.kind]: typeof expertQueryController;
 	[parallelController.kind]: typeof parallelController;
+	[annotationPosController.kind]: typeof annotationPosController;
 	[annotationTextController.kind]: typeof annotationTextController;
 	[annotationSelectController.kind]: typeof annotationSelectController;
 };
@@ -56,11 +59,13 @@ export function registerBuiltinControllers<C extends ControllerRegistryMap, V ex
 	registry.registerController(withinController, WithinField);
 	registry.registerController(expertQueryController, RawCqlField);
 	registry.registerController(parallelController, ParallelField);
+	registry.registerController(annotationPosController, AnnotationPosField);
 	registry.registerController(annotationTextController, TextField);
 	registry.registerController(annotationSelectController, SelectField);
 }
 
 export {
+	annotationPosController,
 	annotationSelectController,
 	annotationTextController,
 	filterAutocompleteController,

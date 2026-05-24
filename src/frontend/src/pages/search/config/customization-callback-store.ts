@@ -12,7 +12,7 @@ import type { BLHitResults, BLHitGroupResults, BLDoc, BLHit, BLHitInOtherField, 
 
 import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import type { HighlightSection } from '@/pages/search/lib/hit-highlighting';
-import type { Translate } from '@/shared/i18n/i18n';
+import type { Translate } from '@/shared/i18n';
 import type { OptGroup, Option } from '@/shared/utils/options';
 
 const unwrappedImplementation = Symbol('unwrappedImplementation');

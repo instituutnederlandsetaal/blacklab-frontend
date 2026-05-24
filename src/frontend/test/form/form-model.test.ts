@@ -1,64 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { defineComponent, type PropType } from 'vue';
 
-import { ControllerRegistry, FormBuilder, createInitialContainerUiStates, createFormState, type FieldController, type FieldControllerConfig, type FormRuntimeContext } from '@/features/form';
-import { buildFormQuery, summarizeForm } from '@/features/form/model/compile';
+import { buildFormQuery, createFormState, createInitialContainerUiStates, summarizeForm, type QueryCombineMode } from '@/features/form';
 import { createCompiledQueryProjections } from '@/features/form/model/compile/query-artifact';
-import type { QueryCombineMode, FormFieldNode } from '@/features/form/model/types/form-shape';
 
-type TextFieldState = {
-	value: string;
-};
-
-type TextFieldConfig = FieldControllerConfig & {
-	annotationId: string;
-	label: string;
-};
-
-const DummyField = defineComponent({
-	props: {
-		node: {
-			type: Object as PropType<FormFieldNode<TextFieldConfig>>,
-			required: true,
-		},
-		state: {
-			type: Object as PropType<TextFieldState>,
-			required: true,
-		},
-	},
-	setup: () => () => null,
-});
-
-const textController: FieldController<'test-text', TextFieldState, TextFieldConfig> = {
-	kind: 'test-text',
-	component: DummyField,
-	createDefaultState: () => ({ value: '' }),
-	buildQuery({ node, state }) {
-		if (!state.value.trim()) {
-			return { pattern: null, filter: null, wrappers: [], searchField: null, summaries: [] };
-		}
-
-		return {
-			pattern: {
-				type: 'token',
-				clauses: [
-					{
-						type: 'equals',
-						annotationId: node.config.annotationId,
-						value: state.value,
-					},
-				],
-			},
-			filter: null,
-			wrappers: [],
-			searchField: null,
-			summaries: [{ id: node.id, label: node.config.label, value: state.value }],
-		};
-	},
-	toJSON() {
-		return { kind: this.kind, version: 1 };
-	},
-};
+import { createTestBuilder, createTestContext, testTextController } from './helpers';
 
 const sharedStateExpectation = {
 	lemma: { value: 'lopen' },
@@ -120,44 +65,31 @@ const compositionExpectations: Array<{
 	},
 ];
 
-function createRegistry() {
-	const registry: ControllerRegistry = new ControllerRegistry();
-	registry.registerController(textController);
-	return registry;
-}
-
-function createContext(): FormRuntimeContext {
-	return {
-		corpus: { indexId: 'test-corpus', textDirection: 'ltr' },
-	};
-}
-
-function assignState(field: FormFieldNode<TextFieldConfig>, value: string, formState: ReturnType<typeof createFormState>) {
-	formState.controllerState[field.id] = { value };
+function assignState(fieldId: string, value: string, formState: ReturnType<typeof createFormState>) {
+	formState.controllerState[fieldId] = { value };
 }
 
 function createCompositionFixture(combine: QueryCombineMode) {
-	const registry = createRegistry();
-	const builder = new FormBuilder(registry);
+	const builder = createTestBuilder();
 	const form = builder.newForm('search.form', { title: 'Search' });
 	const group = builder.newContainer('search.group', { config: { combine } });
-	const word = builder.newField('search.word', textController, {
+	const word = builder.newField('search.word', testTextController, {
 		annotationId: 'word',
-		label: 'Word',
+		displayName: 'Word',
 	});
-	const lemma = builder.newField('search.lemma', textController, {
+	const lemma = builder.newField('search.lemma', testTextController, {
 		annotationId: 'lemma',
-		label: 'Lemma',
+		displayName: 'Lemma',
 	});
 
 	group.addChildren(word, lemma);
 	form.addChildren(group);
 
 	const definition = builder.build();
-	const context = createContext();
+	const context = createTestContext();
 	const state = createFormState(definition, context);
-	assignState(word, sharedStateExpectation.word.value, state);
-	assignState(lemma, sharedStateExpectation.lemma.value, state);
+	assignState(word.id, sharedStateExpectation.word.value, state);
+	assignState(lemma.id, sharedStateExpectation.lemma.value, state);
 
 	return {
 		context,
@@ -166,7 +98,26 @@ function createCompositionFixture(combine: QueryCombineMode) {
 	};
 }
 
-describe('form model composition', () => {
+describe('form model state', () => {
+	test('createFormState initializes each reused field once', () => {
+		const builder = createTestBuilder();
+		const root = builder.newContainer('search', { config: { variant: 'tabs' } });
+		const sharedField = builder.newField('shared.word', testTextController, {
+			annotationId: 'word',
+			displayName: 'Shared word',
+		});
+		const firstForm = builder.newForm('search.first', { title: 'First' });
+		const secondForm = builder.newForm('search.second', { title: 'Second' });
+
+		firstForm.addChildren(sharedField);
+		secondForm.addChildren(sharedField);
+		root.addChildren(firstForm, secondForm);
+
+		expect(createFormState(builder.build(), createTestContext()).controllerState).toEqual({
+			'shared.word': { value: '' },
+		});
+	});
+
 	test.each(compositionExpectations)('$name', ({ combine, expected }) => {
 		const fixture = createCompositionFixture(combine);
 		const compiled = createCompiledQueryProjections(buildFormQuery(fixture.form, fixture.state, fixture.context));
@@ -176,9 +127,8 @@ describe('form model composition', () => {
 		expect(summaries).toEqual(expected.summaries);
 	});
 
-	test('initial container ui state picks the first child container or form for each container-like node', () => {
-		const registry = createRegistry();
-		const builder = new FormBuilder(registry);
+	test('createInitialContainerUiStates picks the first active branch for nested container-like nodes', () => {
+		const builder = createTestBuilder();
 		const root = builder.newContainer('search', { config: { variant: 'tabs' } });
 		const simple = builder.newForm('search.simple', { title: 'Simple' });
 		const extended = builder.newForm('search.extended', { title: 'Extended' });
