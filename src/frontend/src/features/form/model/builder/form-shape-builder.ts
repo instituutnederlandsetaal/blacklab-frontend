@@ -66,13 +66,13 @@ export type FormContainerNodeBuilder = FormContainerNode & {
 	newContainer: (...args: Parameters<FormBuilder['newContainer']>) => FormContainerNodeBuilder;
 	newForm: (...args: Parameters<FormBuilder['newForm']>) => FormContainerNodeBuilder;
 	newField: (...args: Parameters<FormBuilder['newField']>) => FormContainerNodeBuilder;
-	newView: (...args: Parameters<FormBuilder['newView']>) => FormContainerNodeBuilder;
+	newView: <Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>) => FormContainerNodeBuilder;
 	addChildren: (...children: FormNode[]) => FormContainerNodeBuilder;
 };
 export type FormBoundaryNodeBuilder = FormBoundaryNode & {
 	builder: FormBuilder;
 	addField: (...args: Parameters<FormBuilder['newField']>) => FormBoundaryNodeBuilder;
-	addView: (...args: Parameters<FormBuilder['newView']>) => FormBoundaryNodeBuilder;
+	addView: <Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>) => FormBoundaryNodeBuilder;
 	addChildren: (...children: FormChildNode[]) => FormBoundaryNodeBuilder;
 };
 
@@ -82,6 +82,10 @@ export class FormBuilder {
 	private root: FormContainerNode | FormBoundaryNode | null = null;
 
 	constructor(public readonly controllerRegistry: ControllerRegistry) {}
+
+	public hasNode(id: string): boolean {
+		return !!this.nodeMap[id];
+	}
 
 	newContainer(id: string, options?: Partial<Omit<FormContainerNode, 'id' | 'kind' | 'children'>>) {
 		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
@@ -101,11 +105,11 @@ export class FormBuilder {
 				return this;
 			},
 			newField(...args: Parameters<FormBuilder['newField']>) {
-				node.children.push(this.builder.newField(...args));
+				this.children.push(this.builder.newField(...args));
 				return this;
 			},
-			newView(...args: Parameters<FormBuilder['newView']>) {
-				node.children.push(this.builder.newView(...args));
+			newView<Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>) {
+				this.children.push(this.builder.newView(id, view, config, options));
 				return this;
 			},
 			addChildren(...children: FormNode[]) {
@@ -130,11 +134,11 @@ export class FormBuilder {
 			kind: 'form',
 			children: [],
 			addField(...args: Parameters<FormBuilder['newField']>) {
-				node.children.push(this.builder.newField(...args));
+				this.children.push(this.builder.newField(...args));
 				return this;
 			},
-			addView(...args: Parameters<FormBuilder['newView']>) {
-				node.children.push(this.builder.newView(...args));
+			addView<Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>) {
+				this.children.push(this.builder.newView(id, view, config, options));
 				return this;
 			},
 			addChildren(...children: FormChildNode[]) {
@@ -143,7 +147,7 @@ export class FormBuilder {
 						throw new Error(`Node with id ${child.id} does not belong to this form builder`);
 					}
 				}
-				node.children.push(...children);
+				this.children.push(...children);
 				return this;
 			},
 		};

@@ -1,5 +1,5 @@
 <template>
-	<div class="blf-field" :id="htmlId">
+	<div :class="fieldClasses" :id="htmlId">
 		<label v-if="showLabel" :for="`${inputId}_year_from`">
 			{{ config.displayName }}
 			<small v-if="minDateDisplay && maxDateDisplay" class="blf-muted">({{ minDateDisplay }} to {{ maxDateDisplay }})</small>
@@ -8,15 +8,15 @@
 		<div>
 			<div class="dates">
 				<label v-if="config.range">From: </label>
-				<input class="blf-input" :id="`${inputId}_year_from`" type="number" title="year" placeholder="year" v-model="yearFrom" :min="minYear" :max="maxYear" />
-				<input class="blf-input" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" />
-				<input class="blf-input" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" />
+				<input class="blf-input form-control" :id="`${inputId}_year_from`" type="number" title="year" placeholder="year" v-model="yearFrom" :min="minYear" :max="maxYear" />
+				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" />
+				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" />
 			</div>
 			<div v-if="config.range" class="dates">
 				<label>To: </label>
-				<input class="blf-input" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" />
-				<input class="blf-input" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" />
-				<input class="blf-input" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" />
+				<input class="blf-input form-control" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" />
+				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" />
+				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" />
 			</div>
 		</div>
 
@@ -39,6 +39,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+
+import { getVariantClassNames } from '@/features/form/model/types/form-shape';
 
 import { DateUtils, type RangeMode, type DateFieldState, type DateFieldUiConfig } from './date-field';
 
@@ -63,6 +65,7 @@ const emit = defineEmits<{
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
+const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.config, 'blf-field')]);
 const minDate = computed(() => DateUtils.normalizeBoundaryDate(props.config.min));
 const maxDate = computed(() => DateUtils.normalizeBoundaryDate(props.config.max));
 const minDateDisplay = computed(() => (minDate.value ? DateUtils.dateValueToDisplayString(minDate.value) : null));

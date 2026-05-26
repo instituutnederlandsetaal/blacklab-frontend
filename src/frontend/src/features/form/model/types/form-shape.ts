@@ -12,10 +12,36 @@ export type FormNodeKind = 'container' | 'form' | 'field' | 'view';
 export type ContainerPresentation = 'list' | 'tabs' | 'small-tabs' | (string & {});
 export type QueryCombineMode = 'allOf' | 'anyOf' | 'sequence';
 
+export type UiVariant<Variant extends string = string> = Variant | readonly Variant[];
+
 export type UiConfig<Variant extends string = string> = {
 	/** UI hint for this node, e.g. "tabs" or "large" */
-	variant?: Variant;
+	variant?: UiVariant<Variant>;
 };
+
+export function getUiVariants<Variant extends string>(variant?: UiVariant<Variant>): Variant[] {
+	if (variant == null) {
+		return [];
+	}
+
+	return Array.isArray(variant) ? [...variant] : [variant as Variant];
+}
+
+export function getConfigVariants<Variant extends string>(config?: { variant?: UiVariant<Variant> }): Variant[] {
+	return getUiVariants(config?.variant);
+}
+
+export function getPrimaryVariant<Variant extends string>(config?: { variant?: UiVariant<Variant> }): Variant | undefined {
+	return getConfigVariants(config)[0];
+}
+
+export function hasVariant<Variant extends string>(config: { variant?: UiVariant<Variant> } | undefined, expected: Variant): boolean {
+	return getConfigVariants(config).includes(expected);
+}
+
+export function getVariantClassNames(config: { variant?: UiVariant<string> } | undefined, prefix: string): string[] {
+	return getConfigVariants(config).map(variant => `${prefix}--variant-${variant}`);
+}
 
 /** The base for all form nodes */
 export type FormNodeBase = {
@@ -90,7 +116,7 @@ export type FormViewNode<Config = unknown> = FormNodeBase & {
 	kind: 'view';
 	view: ViewDefinition<string, Config>;
 	config: Config;
-	variant?: string; // e.g. 'large', 'small', etc. should make this explicit?
+	variant?: UiVariant<string>; // e.g. 'large', 'small', etc. should make this explicit?
 };
 
 export type FormChildNode = FormContainerNode<any> | FormFieldNode<any, any> | FormViewNode<any>;

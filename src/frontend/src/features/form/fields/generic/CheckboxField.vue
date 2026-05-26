@@ -1,5 +1,5 @@
 <template>
-	<div class="blf-field" :id="htmlId">
+	<div :class="fieldClasses" :id="htmlId">
 		<fieldset>
 			<legend v-if="showLabel">{{ config.displayName }}</legend>
 			<div v-for="(option, index) in config.options" :key="index" class="checkbox">
@@ -25,6 +25,8 @@ import { computed } from 'vue';
 
 import type { CheckboxFieldState, CheckboxFieldUiConfig } from './checkbox-field';
 
+import { getVariantClassNames } from '@/features/form/model/types/form-shape';
+
 const props = withDefaults(
 	defineProps<{
 		config: CheckboxFieldUiConfig;
@@ -42,6 +44,7 @@ const emit = defineEmits<{
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
+const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.config, 'blf-field')]);
 
 function toggleCheckbox(value: string, checked: boolean) {
 	emit('update:modelValue', {

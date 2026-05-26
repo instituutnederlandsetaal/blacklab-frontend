@@ -1,5 +1,5 @@
 <template>
-	<div class="blf-field" :id="htmlId">
+	<div :class="fieldClasses" :id="htmlId">
 		<label v-if="showLabel" :for="inputId">{{ config.displayName }}</label>
 		<SelectPicker
 			data-width="100%"
@@ -20,6 +20,8 @@
 import { computed } from 'vue';
 
 import type { SelectFieldState, SelectFieldUiConfig } from './select-field';
+
+import { getVariantClassNames } from '@/features/form/model/types/form-shape';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
@@ -42,6 +44,7 @@ const emit = defineEmits<{
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
+const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.config, 'blf-field')]);
 const placeholderText = computed(() => props.config.placeholder ?? props.config.displayName);
 const textDirection = computed(() => props.config.textDirection ?? 'ltr');
 

@@ -85,6 +85,47 @@ emit('ready', runtime);
 	min-width: 0;
 }
 
+.blf-field--variant-simple {
+	gap: 4px;
+	padding: 12px 14px;
+	border: 1px solid color-mix(in srgb, var(--blf-border) 72%, white);
+	border-radius: 10px;
+	background: linear-gradient(180deg, #fff 0%, #f9fbfd 100%);
+}
+
+.blf-field--variant-simple > label,
+.blf-field--variant-simple legend {
+	font-size: 0.82em;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--blf-text-muted);
+}
+
+.blf-field--variant-simple .blf-help-text {
+	display: none;
+}
+
+.blf-field--variant-large > label,
+.blf-field--variant-large legend {
+	font-size: 1em;
+}
+
+.blf-field--variant-large :is(.blf-input, textarea, select, .dropdown-toggle) {
+	min-height: 44px;
+	padding: 10px 14px;
+	font-size: 1.05em;
+	line-height: 1.5;
+}
+
+.blf-field--variant-large :is(.btn, .blf-segmented button, .blf-targets button, .list-group-item) {
+	font-size: 1.02em;
+	padding: 9px 14px;
+}
+
+.blf-field--variant-large .querybox {
+	min-height: 11rem;
+}
+
 .blf-container {
 	min-width: 0;
 }

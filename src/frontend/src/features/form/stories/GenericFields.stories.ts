@@ -8,10 +8,12 @@ import RangeField from '../fields/generic/RangeField.vue';
 import RangeMultipleFieldsField from '../fields/generic/RangeMultipleFieldsField.vue';
 import SelectField from '../fields/generic/SelectField.vue';
 import TextField from '../fields/generic/TextField.vue';
+import FormSystemStoryHarness from '../stories/FormSystemStoryHarness.vue';
 import GenericFieldStoryHarness from './GenericFieldStoryHarness.vue';
+import { createAnnotationPosStoryModel, createExpertQueryFieldStoryModel, createParallelFieldStoryModel, createWithinFieldStoryModel } from './sample-form-system';
 
 const meta = {
-	title: 'Features/Form/Generic Fields',
+	title: 'Features/Form/UI Elements',
 	component: GenericFieldStoryHarness,
 	parameters: {
 		layout: 'padded',
@@ -174,3 +176,39 @@ export const RangeMultipleFields: Story = createGenericFieldStory({
 	},
 	htmlId: 'generic-range-multiple',
 });
+
+export const PartOfSpeech: Story = {
+	args: {} as any,
+	render: () => ({
+		components: { FormSystemStoryHarness },
+		setup: () => createAnnotationPosStoryModel(),
+		template: '<FormSystemStoryHarness :definition="definition" :context="context" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
+	}),
+};
+
+export const Parallel: Story = {
+	args: {} as any,
+	render: () => ({
+		components: { FormSystemStoryHarness },
+		setup: () => createParallelFieldStoryModel(),
+		template: '<FormSystemStoryHarness :definition="definition" :context="context" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
+	}),
+};
+
+export const Within: Story = {
+	args: {} as any,
+	render: () => ({
+		components: { FormSystemStoryHarness },
+		setup: () => createWithinFieldStoryModel(),
+		template: '<FormSystemStoryHarness :definition="definition" :context="context" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
+	}),
+};
+
+export const ExpertQuery: Story = {
+	args: {} as any,
+	render: () => ({
+		components: { FormSystemStoryHarness },
+		setup: () => createExpertQueryFieldStoryModel(),
+		template: '<FormSystemStoryHarness :definition="definition" :context="context" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
+	}),
+};

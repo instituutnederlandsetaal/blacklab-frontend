@@ -3,7 +3,7 @@
 		<header v-if="node.title && !hideTitle" class="blf-container-title">{{ node.title }}</header>
 
 		<template v-if="isTabbed">
-			<nav :class="['blf-tabs', { 'blf-tabs-small': node.config?.variant === 'small-tabs' }]" aria-label="Form section tabs">
+			<nav :class="['blf-tabs', { 'blf-tabs-small': isSmallTabs }]" aria-label="Form section tabs">
 				<button v-for="child in node.children" :key="child.id" type="button" :class="{ active: activeChild?.id === child.id }" @click="activateChildContainer(child.id)">
 					{{ child.title || child.id }}
 				</button>
@@ -32,5 +32,5 @@ const props = defineProps<{
 	hideTitle?: boolean;
 }>();
 
-const { runtime, isTabbed, activeChild, containerClasses, activateChildContainer } = containerRendererSetup(props);
+const { runtime, isTabbed, isSmallTabs, activeChild, containerClasses, activateChildContainer } = containerRendererSetup(props);
 </script>

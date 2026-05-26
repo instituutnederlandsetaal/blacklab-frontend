@@ -1,5 +1,5 @@
 <template>
-	<div class="blf-field blf-annotation-pos" :id="htmlId">
+	<div :class="fieldClasses" :id="htmlId">
 		<label v-if="showLabel" :for="buttonId">{{ fieldLabel }}</label>
 		<div class="blf-annotation-pos__controls">
 			<div class="blf-annotation-pos__preview" :class="{ 'is-empty': !selectionSummary }">
@@ -84,6 +84,8 @@ import {
     type AnnotationPosFieldState,
 } from './annotation-pos-field';
 
+import { getVariantClassNames } from '@/features/form/model/types/form-shape';
+
 import { useI18n } from '@/shared/i18n';
 import Modal from '@/shared/ui/Modal.vue';
 
@@ -118,6 +120,7 @@ watch(
 );
 
 const buttonId = computed(() => `${props.htmlId}_editor`);
+const fieldClasses = computed(() => ['blf-field', 'blf-annotation-pos', ...getVariantClassNames(props.config, 'blf-field')]);
 const mainValues = computed(() => Object.values(props.config.tagset.values));
 const currentAnnotationValue = computed(() => findTagsetValue(props.config.tagset, draftState.value.annotationValue));
 const fieldLabel = computed(() => i18n.$tAnnotDisplayName(props.config.annotation));

@@ -1,5 +1,5 @@
 <template>
-	<div class="blf-field" :id="htmlId">
+	<div :class="fieldClasses" :id="htmlId">
 		<label v-if="showLabel" :for="inputId">{{ config.displayName }}</label>
 		<Autocomplete
 			v-if="config.autocomplete"
@@ -12,7 +12,7 @@
 			:getData="config.autocomplete"
 			v-model="value"
 		/>
-		<input v-else :id="inputId" class="blf-input" type="text" :placeholder="placeholderText" :dir="textDirection" v-model="value" />
+		<input v-else :id="inputId" class="blf-input form-control" type="text" :placeholder="placeholderText" :dir="textDirection" v-model="value" />
 		<label v-if="config.caseSensitive" class="blf-checkbox-inline">
 			<input type="checkbox" :checked="modelValue.caseSensitive" @change="updateCaseSensitive(($event.target as HTMLInputElement).checked)" />
 			{{ caseSensitiveLabel }}
@@ -23,6 +23,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+
+import { getVariantClassNames } from '@/features/form/model/types/form-shape';
 
 import type { TextFieldState, TextFieldUiConfig } from './text-field';
 
@@ -45,6 +47,7 @@ const emit = defineEmits<{
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
+const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.config, 'blf-field')]);
 const placeholderText = computed(() => props.config.placeholder ?? props.config.displayName);
 const textDirection = computed(() => props.config.textDirection ?? 'ltr');
 const caseSensitiveLabel = computed(() => props.config.caseSensitiveLabel ?? 'Case sensitive');

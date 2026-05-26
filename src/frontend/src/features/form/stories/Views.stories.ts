@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { createContainerTypesStoryModel } from './sample-form-system';
+import { createViewStoryModel } from './sample-form-system';
 
 import FormSystemStoryHarness from '../stories/FormSystemStoryHarness.vue';
 
 const meta = {
-	title: 'Features/Form/Container Types',
+	title: 'Features/Form/Views',
 	component: FormSystemStoryHarness,
 	parameters: {
 		layout: 'fullscreen',
@@ -15,11 +15,11 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const ContainerTypes: Story = {
+export const BuiltInViews: Story = {
 	args: {} as any,
 	render: () => ({
 		components: { FormSystemStoryHarness },
-		setup: () => createContainerTypesStoryModel(),
-		template: '<FormSystemStoryHarness :definition="definition" :context="context" />',
+		setup: () => createViewStoryModel(),
+		template: '<FormSystemStoryHarness :definition="definition" :context="context" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
 	}),
 };

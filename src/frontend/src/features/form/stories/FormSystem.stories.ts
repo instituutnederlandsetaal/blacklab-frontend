@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { createAnnotationPosStoryModel, createRestoredSearchFormStoryModel, createSearchFormStoryModel } from './sample-form-system';
+import { createFullFormStoryModel } from './sample-form-system';
 
 import FormSystemStoryHarness from '../stories/FormSystemStoryHarness.vue';
 
 const meta = {
-	title: 'Features/Form/Form System',
+	title: 'Features/Form/App Surface',
 	component: FormSystemStoryHarness,
 	parameters: {
 		layout: 'fullscreen',
@@ -15,29 +15,11 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const SearchForms: Story = {
+export const SearchAndExploreTabs: Story = {
 	args: {} as any,
 	render: () => ({
 		components: { FormSystemStoryHarness },
-		setup: () => createSearchFormStoryModel(),
-		template: '<FormSystemStoryHarness :definition="definition" :context="context" />',
-	}),
-};
-
-export const RestoredSubmittedSnapshot: Story = {
-	args: {} as any,
-	render: () => ({
-		components: { FormSystemStoryHarness },
-		setup: () => createRestoredSearchFormStoryModel(),
-		template: '<FormSystemStoryHarness :definition="definition" :context="context" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
-	}),
-};
-
-export const ProductionTagsetPosEditor: Story = {
-	args: {} as any,
-	render: () => ({
-		components: { FormSystemStoryHarness },
-		setup: () => createAnnotationPosStoryModel(),
+		setup: () => createFullFormStoryModel(),
 		template: '<FormSystemStoryHarness :definition="definition" :context="context" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
 	}),
 };

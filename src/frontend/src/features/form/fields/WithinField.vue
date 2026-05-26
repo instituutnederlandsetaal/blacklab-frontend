@@ -1,5 +1,5 @@
 <template>
-	<div class="blf-field blf-within-field">
+	<div :class="fieldClasses">
 		<label>{{ config.label || 'Within' }}</label>
 		<div class="blf-segmented">
 			<button
@@ -17,7 +17,7 @@
 		<div class="blf-within-attributes" v-for="attr in selectedAttributes" :key="attr.value">
 			<label :for="`${htmlId}_${attr.value}`">{{ attr.label || attr.value }}</label>
 			<input
-				class="blf-input"
+				class="blf-input form-control"
 				type="text"
 				:id="`${htmlId}_${attr.value}`"
 				:title="attr.title || undefined"
@@ -32,6 +32,7 @@
 import { computed } from 'vue';
 
 import type { WithinFieldConfig, WithinFieldState } from '@/features/form/model/controllers/within-controller';
+import { getVariantClassNames } from '@/features/form/model/types/form-shape';
 
 const props = defineProps<{
 	config: WithinFieldConfig;
@@ -44,10 +45,9 @@ const emit = defineEmits<{
 }>();
 
 const config = computed(() => props.config);
+const fieldClasses = computed(() => ['blf-field', 'blf-within-field', ...getVariantClassNames(props.config, 'blf-field')]);
 const htmlId = computed(() => props.htmlId);
-const selectedAttributes = computed(() =>
-	config.value.options.find((option: WithinFieldConfig['options'][number]) => option.value === props.modelValue.element)?.attributes ?? [],
-);
+const selectedAttributes = computed(() => config.value.options.find((option: WithinFieldConfig['options'][number]) => option.value === props.modelValue.element)?.attributes ?? []);
 
 function selectElement(element: string) {
 	emit('update:modelValue', {
