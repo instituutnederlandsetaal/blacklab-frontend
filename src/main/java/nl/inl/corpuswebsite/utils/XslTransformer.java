@@ -18,21 +18,21 @@ import javax.xml.transform.Source;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamSource;
 
+import org.w3c.dom.Document;
+
+import net.sf.saxon.lib.ErrorReporter;
 import net.sf.saxon.s9api.DocumentBuilder;
 import net.sf.saxon.s9api.Message;
 import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.s9api.QName;
 import net.sf.saxon.s9api.SaxonApiException;
 import net.sf.saxon.s9api.Serializer;
-import net.sf.saxon.s9api.XdmAtomicValue;
 import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XdmValue;
+import net.sf.saxon.s9api.XmlProcessingError;
 import net.sf.saxon.s9api.XsltCompiler;
 import net.sf.saxon.s9api.XsltExecutable;
 import net.sf.saxon.s9api.XsltTransformer;
-import net.sf.saxon.lib.ErrorReporter;
-import net.sf.saxon.s9api.XmlProcessingError;
-import org.w3c.dom.Document;
 
 
 public class XslTransformer {
@@ -41,8 +41,9 @@ public class XslTransformer {
     /**
      * Error reporter that captures compilation errors.
      */
-    private static class CapturingErrorReporter implements ErrorReporter {
+    private static class CapturingErrorReporter implements ErrorReporter, Consumer<Message> {
         private final List<String> errors = new ArrayList<>();
+        private final List<String> messages = new ArrayList<>();
 
         @Override
         public void report(XmlProcessingError error) {
@@ -51,15 +52,30 @@ public class XslTransformer {
                 message = error.getLocation().getSystemId() + " line " + error.getLocation().getLineNumber() + ": " + message;
             }
             errors.add(message);
-            logger.warning("XSLT compilation error: " + message);
+            logger.warning("XSLT compilation/execution error: " + message);
         }
 
         public String getErrorMessages() {
             return String.join("\n", errors);
         }
 
+        public String getMessages() {
+            return String.join("\n", messages);
+        }
+
         public boolean hasErrors() {
             return !errors.isEmpty();
+        }
+
+        public boolean hasMessages() {
+            return !messages.isEmpty();
+        }
+
+        @Override
+        public void accept(Message message) {
+            String content = message.getContent().getStringValue();
+            messages.add(content);
+            logger.info("XSLT message: " + content);
         }
     }
 
@@ -101,11 +117,7 @@ public class XslTransformer {
 
                 return exec;
             } catch (SaxonApiException e) {
-                // If we captured error details, include them in the exception
-                if (errorReporter.hasErrors()) {
-                    throw new SaxonApiException(errorReporter.getErrorMessages(), e);
-                }
-                throw e;
+                throw new SaxonApiException(errorReporter.getErrorMessages() + '\n' + errorReporter.getMessages(), e);
             }
         }
     }
@@ -137,19 +149,11 @@ public class XslTransformer {
     }
 
     public <W extends Writer> W streamTransform(Reader source, W result) throws SaxonApiException {
+        CapturingErrorReporter errorReporter = new CapturingErrorReporter();
         XsltTransformer transformer = executable.load();
 
-        // Capture xsl:message output
-        StringBuilder capturedMessages = new StringBuilder();
-        Consumer<Message> messageHandler = (Message message) -> {
-            String content = message.getContent().getStringValue();
-            if (capturedMessages.length() > 0) {
-                capturedMessages.append("\n");
-            }
-            capturedMessages.append(content);
-            logger.info("XSLT message: " + content);
-        };
-        transformer.setMessageHandler(messageHandler);
+        transformer.setMessageHandler(errorReporter);
+        transformer.setErrorReporter(errorReporter);
 
         // Set parameters
         for (Map.Entry<String, Object> entry : params.entrySet()) {
@@ -173,14 +177,11 @@ public class XslTransformer {
 
         try {
             transformer.transform();
-        } catch (SaxonApiException e) {
-            // Include captured messages in the exception
-            String messages = capturedMessages.toString();
-            if (!messages.isEmpty() && !messages.equals(e.getMessage())) {
-                throw new SaxonApiException(messages, e);
-            }
-            throw e;
-        }
+        } catch (Exception e) {
+            String errors = errorReporter.getErrorMessages();
+            String messages = errorReporter.getMessages();
+            throw new SaxonApiException(messages + '\n' + errors, e);
+        } 
 
         return result;
     }

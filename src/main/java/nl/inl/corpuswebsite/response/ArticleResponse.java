@@ -2,10 +2,10 @@ package nl.inl.corpuswebsite.response;
 
 import java.io.IOException;
 
-import jakarta.servlet.http.HttpServletResponse;
-
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
+import jakarta.servlet.http.HttpServletResponse;
 import nl.inl.corpuswebsite.BaseResponse;
 import nl.inl.corpuswebsite.utils.ArticleUtil;
 import nl.inl.corpuswebsite.utils.CorpusConfig;
@@ -61,10 +61,10 @@ public class ArticleResponse extends BaseResponse {
             });
 
         model.put("article_meta", transformedMetadata.getResult().orElse(""));
-        model.put("article_meta_error", transformedMetadata.getError().orElse(null));
+        model.put("article_meta_error", transformedMetadata.getError().map(ExceptionUtils::getStackTrace).orElse(null));
         model.put("article_content_restricted", transformedContent.getError().filter(e -> e instanceof ArticleContentRestrictedException).isPresent());
         model.put("article_content", transformedContent.getResult().orElse("An error occurred while retrieving the document contents"));
-        model.put("article_content_error", transformedContent.getError().orElse(null));
+        model.put("article_content_error", transformedContent.getError().map(ExceptionUtils::getStackTrace).orElse(null));
         model.put("docId", pid);
         model.put("docLength", pagination.documentLength);
         model.put("pageSize", pagination.pageSize);
