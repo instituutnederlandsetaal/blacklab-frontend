@@ -8,17 +8,16 @@ import java.util.regex.Pattern;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 
 import org.apache.commons.lang3.StringUtils;
-
-import nl.inl.corpuswebsite.MainServlet;
-import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 import org.w3c.dom.Document;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
+import nl.inl.corpuswebsite.MainServlet;
+import nl.inl.corpuswebsite.utils.GlobalConfig.Keys;
 
 /**
  * <pre>
@@ -160,6 +159,7 @@ public class ArticleUtil {
         Result<String, QueryException> metadata = docMetadata.or(() -> getDocumentMetadata(corpus, config, docId));
         PaginationInfo pagination = getPaginationInfo(corpus, request, metadata);
         Result<String, QueryException> contents = getDocumentContent(corpus, config, docId, pagination);
+
         return transformDocument(corpus, corpusMetadata, config, contents, metadata);
     }
 
@@ -188,9 +188,7 @@ public class ArticleUtil {
             return servlet.getStylesheet(corpusMetadata, "article", request, response)
                     .tap(trans -> this.addStandardXsltParameters(trans, config, corpus, metadata))
                     .mapWithErrorHandling(trans -> trans.transform(c))
-                    .mapError(e ->
-                        new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                                "Error transforming document: " + e.getMessage()));
+                    .mapError(e -> QueryException.wrap(e, "Error transforming document: " + e.getMessage()));
         });
     }
 

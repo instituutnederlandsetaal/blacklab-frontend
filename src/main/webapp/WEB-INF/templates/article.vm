@@ -34,20 +34,7 @@
                       Click here to see errors
                     </a><br>
                     <div class="collapse" id="content_error"><div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line;">
-                       $article_content_error.getMessage()
-                       #foreach($stack in $article_content_error.getStackTrace())
-                           $stack.toString()
-                       #end
-                    #if ($article_content_error.getSuppressed() && $article_content_error.getSuppressed().size() > 0)
-                        <br>Suppressed Errors:
-                        #foreach($suppressed in $article_content_error.getSuppressed())
-                            $suppressed.toString()
-                        #end
-                    #end
-                    #if ($article_content_error.getCause())
-                        <br>Causal Error:
-                        $article_content_error.getCause().toString()
-                    #end
+                       $article_content_error
                     </div></div>
                 #end
             </div>
@@ -62,20 +49,7 @@
                   Click here to see errors
                 </a><br>
                 <div class="collapse" id="meta_error"><div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line;">
-                   $article_meta_error.getMessage()
-                   #foreach($stack in $article_meta_error.getStackTrace())
-                       $stack.toString()
-                   #end
-                #if ($article_meta_error.getSuppressed() && $article_meta_error.getSuppressed().size() > 0)
-                    <br>Suppressed Errors:
-                    #foreach($suppressed in $article_meta_error.getSuppressed())
-                        $suppressed.toString()
-                    #end
-                #end
-                #if ($article_meta_error.getCause())
-                    <br>Causal Error:
-                    $article_meta_error.getCause().toString()
-                #end
+                    $article_meta_error~
                 </div></div>
             #end
         </div>
