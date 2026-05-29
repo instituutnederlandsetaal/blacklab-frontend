@@ -26,11 +26,11 @@ configs:
       ---
       # https://blacklab.ivdnt.org/server/configuration.html
       authentication:
-          system: 
-            class: AuthDebugFixed
-            userId: test_user
+        system: 
+          class: AuthDebugFixed
+          userId: test_user
       indexLocations:
-      - /data/index
+        - /data/index
       userIndexes: /data/user-index
       parameters: 
         processHits:
