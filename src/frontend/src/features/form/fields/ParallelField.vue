@@ -1,14 +1,14 @@
 <template>
 	<div :class="fieldClasses">
-		<label>{{ config.label || 'Parallel search' }}</label>
+		<label>{{ label || 'Parallel search' }}</label>
 		<div class="blf-parallel-grid">
-			<label :for="`${htmlId}_source`">{{ config.sourceLabel || 'Source' }}</label>
+			<label :for="`${htmlId}_source`">{{ sourceLabel || 'Source' }}</label>
 			<select :id="`${htmlId}_source`" class="blf-input form-control" :value="modelValue.source || ''" @change="updateSource(($event.target as HTMLSelectElement).value)">
 				<option value=""></option>
-				<option v-for="option in config.sourceOptions" :key="option.value" :value="option.value" :title="option.title || undefined">{{ option.label || option.value }}</option>
+				<option v-for="option in sourceOptions" :key="option.value" :value="option.value" :title="option.title || undefined">{{ option.label || option.value }}</option>
 			</select>
 
-			<label>{{ config.targetLabel || 'Targets' }}</label>
+			<label>{{ targetLabel || 'Targets' }}</label>
 			<div class="blf-targets">
 				<button
 					v-for="option in targetOptions"
@@ -22,16 +22,16 @@
 				</button>
 			</div>
 
-			<label v-if="config.alignByOptions?.length" :for="`${htmlId}_align`">{{ config.alignByLabel || 'Align by' }}</label>
+			<label v-if="alignByOptions?.length" :for="`${htmlId}_align`">{{ alignByLabel || 'Align by' }}</label>
 			<select
-				v-if="config.alignByOptions?.length"
+				v-if="alignByOptions?.length"
 				:id="`${htmlId}_align`"
 				class="blf-input form-control"
 				:value="modelValue.alignBy || ''"
 				@change="updateAlignBy(($event.target as HTMLSelectElement).value)"
 			>
 				<option value=""></option>
-				<option v-for="option in config.alignByOptions" :key="option.value" :value="option.value" :title="option.title || undefined">{{ option.label || option.value }}</option>
+				<option v-for="option in alignByOptions" :key="option.value" :value="option.value" :title="option.title || undefined">{{ option.label || option.value }}</option>
 			</select>
 		</div>
 	</div>
@@ -40,24 +40,17 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { ParallelFieldConfig, ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
-import { getVariantClassNames } from '@/features/form/model/types/form-shape';
-const props = defineProps<{
-	config: ParallelFieldConfig;
-	htmlId: string;
-	modelValue: ParallelFieldState;
-}>();
+import type { ParallelFieldComponentProps, ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
+import { getVariantClassNames } from '@/features/form/model/form-utils';
+const props = defineProps<ParallelFieldComponentProps>();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: ParallelFieldState];
 }>();
 
-const config = computed(() => props.config);
-const fieldClasses = computed(() => ['blf-field', 'blf-parallel-field', ...getVariantClassNames(props.config, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', 'blf-parallel-field', ...getVariantClassNames(props.variant, 'blf-field')]);
 const htmlId = computed(() => props.htmlId);
-const targetOptions = computed(() =>
-	(config.value.targetOptions ?? config.value.sourceOptions).filter((option: ParallelFieldConfig['sourceOptions'][number]) => option.value !== props.modelValue.source),
-);
+const targetOptions = computed(() => (props.targetOptions ?? props.sourceOptions).filter(option => option.value !== props.modelValue.source));
 
 function updateSource(source: string) {
 	emit('update:modelValue', {

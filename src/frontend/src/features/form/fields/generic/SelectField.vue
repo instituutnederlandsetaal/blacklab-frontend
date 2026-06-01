@@ -1,18 +1,18 @@
 <template>
 	<div :class="fieldClasses" :id="htmlId">
-		<label v-if="showLabel" :for="inputId">{{ config.displayName }}</label>
+		<label v-if="showLabel" :for="inputId">{{ displayName }}</label>
 		<SelectPicker
 			data-width="100%"
-			:multiple="config.multiple"
+			:multiple="multiple"
 			container="body"
 			:data-id="inputId"
 			:data-name="inputId"
 			:placeholder="placeholderText"
 			:dir="textDirection"
-			:options="config.options"
+			:options="options"
 			v-model="pickerValue"
 		/>
-		<small v-if="config.description" class="blf-help-text">{{ config.description }}</small>
+		<small v-if="description" class="blf-help-text">{{ description }}</small>
 	</div>
 </template>
 
@@ -21,19 +21,15 @@ import { computed } from 'vue';
 
 import type { SelectFieldState, SelectFieldUiConfig } from './select-field';
 
-import { getVariantClassNames } from '@/features/form/model/types/form-shape';
+import { getVariantClassNames } from '@/features/form/model/form-utils';
+import type { FormComponentProps } from '@/features/form/model/types/form-shape';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 type SelectPickerModelValue = string | string[] | null;
 
 const props = withDefaults(
-	defineProps<{
-		config: SelectFieldUiConfig;
-		modelValue: SelectFieldState;
-		htmlId: string;
-		showLabel?: boolean;
-	}>(),
+	defineProps<FormComponentProps<SelectFieldUiConfig, SelectFieldState> & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},
@@ -44,13 +40,13 @@ const emit = defineEmits<{
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.config, 'blf-field')]);
-const placeholderText = computed(() => props.config.placeholder ?? props.config.displayName);
-const textDirection = computed(() => props.config.textDirection ?? 'ltr');
+const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const placeholderText = computed(() => props.placeholder ?? props.displayName);
+const textDirection = computed(() => props.textDirection ?? 'ltr');
 
 const pickerValue = computed<SelectPickerModelValue>({
 	get() {
-		if (props.config.multiple) {
+		if (props.multiple) {
 			return props.modelValue;
 		}
 

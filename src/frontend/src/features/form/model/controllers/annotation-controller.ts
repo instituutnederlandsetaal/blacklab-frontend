@@ -18,11 +18,11 @@ export type AnnotationSelectFieldConfig = AnnotationControllerConfig & SelectFie
 export const annotationTextController = createFieldController<'annotation-text', TextFieldState, AnnotationTextFieldConfig>({
 	kind: 'annotation-text',
 	createDefaultState: createDefaultTextFieldState,
-	getQueryContribution({ node, state }) {
+	getQueryContribution(config, runtime, state) {
 		const clause = tokenPattern([
 			{
 				type: 'wildcard',
-				annotationId: node.config.annotationId,
+				annotationId: config.annotationId,
 				value: state.value,
 				caseSensitive: state.caseSensitive,
 			},
@@ -30,10 +30,10 @@ export const annotationTextController = createFieldController<'annotation-text',
 
 		const summary: SummaryEntry | null = state.value
 			? {
-					id: node.config.annotationId,
-					label: node.config.displayName,
+					id: config.annotationId,
+					label: config.displayName,
 					value: state.value,
-					group: node.config.groupId,
+					group: config.groupId,
 				}
 			: null;
 
@@ -44,7 +44,7 @@ export const annotationTextController = createFieldController<'annotation-text',
 export const annotationSelectController = createFieldController<'annotation-select', SelectFieldState, AnnotationSelectFieldConfig>({
 	kind: 'annotation-select',
 	createDefaultState: createDefaultSelectFieldState,
-	getQueryContribution({ node, state }) {
+	getQueryContribution(config, runtime, state) {
 		if (!state.length) return createQueryContribution();
 		const escaped = state.map(v => escapeRegex(v)).join('|');
 		return withSummary(
@@ -52,16 +52,16 @@ export const annotationSelectController = createFieldController<'annotation-sele
 				tokenPattern([
 					{
 						type: 'regex',
-						annotationId: node.config.annotationId,
+						annotationId: config.annotationId,
 						value: escaped,
 						caseSensitive: false,
 					},
 				]),
 			),
 			{
-				id: node.config.annotationId,
-				label: node.config.displayName,
-				value: optionValues(findOptions(node.config.options, state)).join(', '),
+				id: config.annotationId,
+				label: config.displayName,
+				value: optionValues(findOptions(config.options, state)).join(', '),
 			},
 		);
 	},

@@ -1,7 +1,7 @@
 <template>
 	<section class="blf-totals-view">
 		<!-- TODO i18n -->
-		<header>{{ config.title || 'Subcorpus totals' }}</header>
+		<header>{{ title || 'Subcorpus totals' }}</header>
 		<div class="totals-grid">
 			<span>Documents</span>
 			<strong>{{ estimatedDocuments.toLocaleString() }}</strong>
@@ -15,17 +15,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { FormViewNode } from '@/features/form/model/types/form-shape';
 import type { TotalsViewConfig } from '@/features/form/model/views/totals-view';
 
 import { useParentForm } from '../model/runtime';
 
-const props = defineProps<{
-	node: FormViewNode<TotalsViewConfig>;
-}>();
+const props = defineProps<TotalsViewConfig>();
 
 const parentForm = useParentForm();
-const config = computed(() => props.node.config);
 const filterProjection = computed(() => parentForm.compiled.filter);
 const filterActive = computed(() => !!filterProjection.value);
 // TODO wire up properly, will need some fancy injections or otherwise connected imports
@@ -33,8 +29,8 @@ const filterActive = computed(() => !!filterProjection.value);
 // and the whole remains testable and maintainable without tight coupling to the form implementation
 // Might use a composable to just provide it upfront, we can swap it out during dev, and test it in isolation as well.
 const estimateFactor = computed(() => (filterActive.value ? 0.38 : 1));
-const estimatedDocuments = computed(() => Math.max(0, Math.round(config.value.baseDocuments * estimateFactor.value)));
-const estimatedTokens = computed(() => Math.max(0, Math.round(config.value.baseTokens * estimateFactor.value)));
+const estimatedDocuments = computed(() => Math.max(0, Math.round(props.baseDocuments * estimateFactor.value)));
+const estimatedTokens = computed(() => Math.max(0, Math.round(props.baseTokens * estimateFactor.value)));
 </script>
 
 <style lang="scss" scoped>

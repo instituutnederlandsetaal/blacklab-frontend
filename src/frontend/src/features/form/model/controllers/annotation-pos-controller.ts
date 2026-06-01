@@ -11,15 +11,15 @@ import { createFieldController } from '@/features/form/model/types/form-controll
 export const annotationPosController = createFieldController<'annotation-pos', AnnotationPosFieldState, AnnotationPosFieldConfig>({
 	kind: 'annotation-pos',
 	createDefaultState: createDefaultAnnotationPosFieldState,
-	getQueryContribution({ node, runtime, state }) {
-		const pattern = buildAnnotationPosPattern(node.config, state);
+	getQueryContribution(config, runtime, state) {
+		const pattern = buildAnnotationPosPattern(config, state);
 		if (!pattern) return createQueryContribution();
 
 		return withSummary(artifactFromPattern(rawPattern(pattern)), {
-			id: node.config.annotation.id,
-			label: runtime.translate?.$tAnnotDisplayName(node.config.annotation) ?? node.config.annotation.defaultDisplayName ?? node.config.annotation.id,
-			value: summarizeAnnotationPosState(node.config, state, runtime.translate) || state.annotationValue || '',
-			group: node.config.groupId,
+			id: config.annotation.id,
+			label: runtime.translate?.$tAnnotDisplayName(config.annotation) ?? config.annotation.defaultDisplayName ?? config.annotation.id,
+			value: summarizeAnnotationPosState(config, state, runtime.translate) || state.annotationValue || '',
+			group: config.groupId,
 		});
 	},
 });

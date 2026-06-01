@@ -35,7 +35,7 @@ export function createInitialFormFieldStates(definition: FormSystemDefinition, c
 }
 
 /**
- * For every container in the form, find its first child container (if any) and set that as the current active child.
+ * For every container-like node in the form, find its first child (if any) and set that as the current active child.
  * This is used to set up the initial ui state of the form, so that tabs and similar container types will have an active child by default.
  *
  * @param definition the form graph
@@ -45,9 +45,8 @@ export function createInitialContainerUiStates(definition: FormSystemDefinition)
 	const activeContainers: Record<string, string | null> = {};
 	for (const node of walkFormNodes(definition.root)) {
 		if (isContainerNode(node)) {
-			const containerId = node.id;
-			const firstChildContainer = node.children.find(isContainerNode);
-			if (firstChildContainer) activeContainers[containerId] = firstChildContainer.id;
+			const firstChild = node.children[0];
+			if (firstChild) activeContainers[node.id] = firstChild.id;
 		}
 	}
 	return activeContainers;

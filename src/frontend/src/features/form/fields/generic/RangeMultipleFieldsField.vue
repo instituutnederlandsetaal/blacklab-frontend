@@ -1,6 +1,6 @@
 <template>
 	<div :class="fieldClasses" :id="htmlId">
-		<label v-if="showLabel" :for="`${inputId}_lower`">{{ config.displayName }}</label>
+		<label v-if="showLabel" :for="`${inputId}_lower`">{{ displayName }}</label>
 		<div class="blf-dual-input">
 			<input :id="`${inputId}_lower`" v-model="lower" :type="inputType" :placeholder="lowPlaceholder" class="blf-input form-control" autocomplete="off" />
 			<input :id="`${inputId}_upper`" v-model="upper" :type="inputType" :placeholder="highPlaceholder" class="blf-input form-control" autocomplete="off" />
@@ -18,14 +18,15 @@
 				{{ mode.label }}
 			</button>
 		</div>
-		<small v-if="config.description" class="blf-help-text">{{ config.description }}</small>
+		<small v-if="description" class="blf-help-text">{{ description }}</small>
 	</div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { getVariantClassNames } from '@/features/form/model/types/form-shape';
+import { getVariantClassNames } from '@/features/form/model/form-utils';
+import type { FormComponentProps } from '@/features/form/model/types/form-shape';
 
 import type { RangeMultipleFieldsFieldState, RangeMultipleFieldsFieldUiConfig } from './range-multiple-fields-field';
 
@@ -34,12 +35,7 @@ import type { Option } from '@/shared/utils/options';
 type ModeOption = Option & { value: RangeMultipleFieldsFieldState['mode'] };
 
 const props = withDefaults(
-	defineProps<{
-		config: RangeMultipleFieldsFieldUiConfig;
-		modelValue: RangeMultipleFieldsFieldState;
-		htmlId: string;
-		showLabel?: boolean;
-	}>(),
+	defineProps<FormComponentProps<RangeMultipleFieldsFieldUiConfig, RangeMultipleFieldsFieldState> & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},
@@ -50,11 +46,11 @@ const emit = defineEmits<{
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.config, 'blf-field')]);
-const inputType = computed(() => props.config.inputType ?? 'number');
-const lowPlaceholder = computed(() => props.config.lowPlaceholder ?? 'From');
-const highPlaceholder = computed(() => props.config.highPlaceholder ?? 'To');
-const lockedMode = computed(() => props.config.mode ?? null);
+const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const inputType = computed(() => props.inputType ?? 'number');
+const lowPlaceholder = computed(() => props.lowPlaceholder ?? 'From');
+const highPlaceholder = computed(() => props.highPlaceholder ?? 'To');
+const lockedMode = computed(() => props.mode ?? null);
 
 const modes: ModeOption[] = [
 	{

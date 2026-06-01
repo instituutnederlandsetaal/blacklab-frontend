@@ -6,7 +6,7 @@ import type { Ref } from 'vue';
 
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { SummaryEntry, CompiledFormState, PersistableSubmittableFormState, PersistableFormState } from '@/features/form/model/types/form-query';
-import type { FormContainerNode, FormBoundaryNode } from '@/features/form/model/types/form-shape';
+import type { FormBoundaryNode, FormContainerLikeNode } from '@/features/form/model/types/form-shape';
 
 export type ControllerState = unknown;
 export type FormControllerStates = Record<string, ControllerState>;
@@ -19,8 +19,8 @@ export type FormState = {
 	 */
 	controllerState: FormControllerStates;
 	/**
-	 * For every container in the form system, contains which child-container is active (if any).
-	 * Used to manage tabs..
+	 * For every container-like node in the form system, contains which child is active (if any).
+	 * Used to manage tabs.
 	 */
 	uiState: {
 		activeContainers: Record<string, string | null>;
@@ -32,7 +32,7 @@ export type FormSystemDefinition = {
 	schemaVersion: string;
 
 	/** The tree/structure of the form system */
-	root: FormContainerNode | FormBoundaryNode;
+	root: FormContainerLikeNode;
 };
 
 export type UseParentFormReturn = {
@@ -57,6 +57,7 @@ export type FormSystemRuntime = {
 	onCompile(callback: (formId: string, compiled: CompiledFormState) => void): void;
 	submit(formId: string): PersistableSubmittableFormState;
 	onSubmit(callback: (formId: string, submitted: PersistableSubmittableFormState) => void): void;
+	onReset(callback: () => void): void;
 	summarize(formId: string): SummaryEntry[];
 	onSummarize(callback: (formId: string, summaries: SummaryEntry[]) => void): void;
 	persist(formId: string): PersistableFormState;

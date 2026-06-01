@@ -1,7 +1,7 @@
 import { reactivePick } from '@vueuse/core';
 import { reactive, toRaw } from 'vue';
 
-import type { FormNodeBase, FormNode, FormFieldNode, NodeKindMap, FormNodeKind, FormBoundaryNode } from '@/features/form/model/types/form-shape';
+import type { FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeBase, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 import type { FormState } from '@/features/form/model/types/form-state';
 
 import { hashJavaDJB2 } from '@/shared/utils/string-utils';
@@ -15,7 +15,7 @@ export function* walkFormNodes(root: FormNode) {
 		if (seen.has(node)) continue;
 		seen.add(node);
 		yield node;
-		if (node.kind === 'container' || node.kind === 'form') {
+		if (isContainerNode(node)) {
 			// Push in reverse order so traversal is in the order you would expect
 			for (let i = node.children.length - 1; i >= 0; i--) {
 				stack.push(node.children[i]);
@@ -62,7 +62,7 @@ export function checkNoLoops(root: FormNode, completedSubgraphs = new Set<FormNo
 
 		visiting.add(node);
 
-		if (node.kind === 'container' || node.kind === 'form') {
+		if (isContainerNode(node)) {
 			for (const child of node.children) {
 				visit(child);
 			}
@@ -97,39 +97,38 @@ function toSchemaVersionPayload(node: FormNode, seen = new Set<FormNode>()): unk
 	seen.add(node);
 
 	if (node.kind === 'field') {
+		const { component, controller, ...config } = node;
 		return {
-			...base,
-			config: node.config,
-			controller: node.controller.toJSON(),
+			...config,
+			controller: controller.toJSON(),
 		};
 	}
 
 	if (node.kind === 'view') {
+		const { component, ...config } = node;
+		return config;
+	}
+
+	if (isContainerNode(node)) {
+		const { addChildren, addContainer, addField, addForm, addView, builder, children, component, ...config } = node as typeof node & {
+			addChildren?: unknown;
+			addContainer?: unknown;
+			addField?: unknown;
+			addForm?: unknown;
+			addView?: unknown;
+			builder?: unknown;
+		};
 		return {
-			...base,
-			config: node.config,
-			view: { kind: node.view.kind },
-			variant: node.variant,
+			...config,
+			children: children.map(child => toSchemaVersionPayload(child, seen)),
 		};
 	}
 
-	if (node.kind === 'form') {
-		return {
-			...base,
-			children: node.children.map(child => toSchemaVersionPayload(child, seen)),
-			resultPreset: node.resultPreset,
-		};
-	}
-
-	return {
-		...base,
-		children: node.children.map(child => toSchemaVersionPayload(child, seen)),
-		config: node.config,
-	};
+	return base;
 }
 
-export function isContainerNode(node: FormNode): node is Extract<FormNode, { children: FormNode[] }> {
-	return 'children' in node;
+export function isContainerNode(node: FormNode): node is FormContainerLikeNode {
+	return node.kind === 'container' || node.kind === 'form';
 }
 
 /**
@@ -179,4 +178,11 @@ export function reactivePickActiveFormState(form: FormBoundaryNode, formState: F
 	r.controllerState = reactivePick(formState.controllerState, ...fieldsToInclude);
 	r.uiState.activeContainers = reactivePick(formState.uiState.activeContainers, ...containersToInclude);
 	return r;
+}
+
+export function getVariantClassNames(variants: string | undefined | null | Array<string | undefined | null>, prefix: string) {
+	return [variants]
+		.flat()
+		.filter((v): v is string => !!v)
+		.map(v => `${prefix}--${v}`);
 }

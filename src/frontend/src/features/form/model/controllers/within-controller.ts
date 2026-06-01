@@ -2,7 +2,7 @@ import { markRaw } from 'vue';
 
 import { createQueryArtifact, createQueryContribution, withSummary, withWrapper } from '@/features/form/model/compile/query-artifact';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
-import type { UiConfig } from '@/features/form/model/types/form-shape';
+import type { FormComponentProps } from '@/features/form/model/types/form-shape';
 
 import type { Option } from '@/shared/utils/options';
 
@@ -15,18 +15,20 @@ export type WithinFieldOption = Option & {
 	attributes?: Option[];
 };
 
-export type WithinFieldConfig = UiConfig & {
+export type WithinFieldConfig = {
 	label?: string;
 	options: WithinFieldOption[];
 };
 
-export const withinController: FieldController<'within', WithinFieldState, WithinFieldConfig> = markRaw({
+export type WithFieldComponentProps = FormComponentProps<WithinFieldConfig, WithinFieldState>;
+
+export const withinController: FieldController<'within', WithinFieldState, Omit<WithinFieldConfig, 'htmlId'>> = markRaw({
 	kind: 'within',
 	createDefaultState: () => ({ element: null, attributes: {} }),
-	getQueryContribution({ node, state }) {
+	getQueryContribution(config, runtime, state) {
 		const artifact = createQueryArtifact();
 		if (!state.element) return createQueryContribution();
-		const option = node.config.options.find((option: WithinFieldOption) => option.value === state.element);
+		const option = config.options.find((option: WithinFieldOption) => option.value === state.element);
 		return withSummary(
 			withWrapper(artifact, {
 				type: 'within',
@@ -34,8 +36,8 @@ export const withinController: FieldController<'within', WithinFieldState, Withi
 				attributes: state.attributes,
 			}),
 			{
-				id: node.id,
-				label: node.config.label ?? 'Within',
+				id: config.id,
+				label: config.label ?? 'Within',
 				value: option?.label ?? state.element,
 			},
 		);

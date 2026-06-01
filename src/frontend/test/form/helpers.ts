@@ -7,7 +7,6 @@ import {
     registerBuiltinViews,
     useParentForm,
     type FormRuntimeContext,
-    type FormViewNode,
     type ViewDefinition,
 } from '@/features/form';
 import { artifactFromPattern, tokenPattern, withSummary } from '@/features/form/model/compile/query-artifact';
@@ -22,7 +21,7 @@ export type TestTextFieldConfig = {
 	displayName: string;
 };
 
-const TestTextField = defineComponent({
+export const TestTextField = defineComponent({
 	props: {
 		config: {
 			type: Object as PropType<TestTextFieldConfig>,
@@ -82,8 +81,8 @@ export const testTextController = createFieldController<'test-text', TestTextFie
 
 const ParentFormProbe = defineComponent({
 	props: {
-		node: {
-			type: Object as PropType<FormViewNode<Record<string, never>>>,
+		config: {
+			type: Object as PropType<Record<string, never>>,
 			required: true,
 		},
 	},

@@ -1,16 +1,16 @@
 import { computed } from 'vue';
 
-import { isContainerNode } from '@/features/form/model/form-utils';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
-import { getPrimaryVariant, getVariantClassNames, hasVariant, type ContainerNodeConfig, type FormContainerNode, type FormNode } from '@/features/form/model/types/form-shape';
+import { getVariantClassNames } from '@/features/form/model/form-utils';
+import type { FormContainerLikeNode, FormNode } from '@/features/form/model/types/form-shape';
 
-export default function containerRendererSetup<Config extends ContainerNodeConfig>(props: { node: FormContainerNode<Config> }) {
+export default function containerRendererSetup(props: { node: FormContainerLikeNode }) {
 	const runtime = useFormSystemRuntime();
 
-	const isTabbed = computed(() => hasVariant(props.node.config, 'tabs') || hasVariant(props.node.config, 'small-tabs'));
-	const isSmallTabs = computed(() => hasVariant(props.node.config, 'small-tabs'));
+	const isTabbed = computed(() => props.node.variant === 'tabs' || props.node.variant === 'small-tabs');
+	const isSmallTabs = computed(() => props.node.variant === 'small-tabs');
 	const childrenById = computed(() => Object.fromEntries(props.node.children.map(child => [child.id, child])));
-	const presentationVariant = computed(() => getPrimaryVariant(props.node.config) ?? 'list');
+	const presentationVariant = computed(() => props.node.variant ?? 'list');
 
 	const activeChild = computed<FormNode | null>(() => {
 		const activeChildId = runtime.state.value.uiState.activeContainers[props.node.id] ?? null;
@@ -19,16 +19,16 @@ export default function containerRendererSetup<Config extends ContainerNodeConfi
 
 	const containerClasses = computed(() => [
 		'blf-container',
-		...getVariantClassNames(props.node.config, 'blf-container'),
+		props.node.kind === 'form' ? 'blf-form' : null,
+		...getVariantClassNames(props.node.variant, 'blf-container'),
 		`presentation-${presentationVariant.value}`,
 		props.node.class,
 	]);
 
-	function activateChildContainer(childId: string) {
+	function activateChild(childId: string) {
 		const child = childrenById.value[childId];
-		if (isContainerNode(child)) {
-			runtime.state.value.uiState.activeContainers[props.node.id] = childId;
-		}
+		if (!child) return;
+		runtime.state.value.uiState.activeContainers[props.node.id] = childId;
 		if (child.kind === 'form') {
 			runtime.activeFormNode.value = child;
 		}
@@ -40,6 +40,6 @@ export default function containerRendererSetup<Config extends ContainerNodeConfi
 		isSmallTabs,
 		activeChild,
 		containerClasses,
-		activateChildContainer,
+		activateChild,
 	};
 }

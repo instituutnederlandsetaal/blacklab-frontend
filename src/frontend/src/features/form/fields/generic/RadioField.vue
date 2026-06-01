@@ -1,8 +1,8 @@
 <template>
 	<div :class="fieldClasses" :id="htmlId">
 		<fieldset>
-			<legend v-if="showLabel">{{ config.displayName }}</legend>
-			<div v-for="(option, index) in config.options" :key="index" class="radio">
+			<legend v-if="showLabel">{{ displayName }}</legend>
+			<div v-for="(option, index) in options" :key="index" class="radio">
 				<label :for="`${inputId}_${index}`" :title="option.title || ''">
 					<input
 						type="radio"
@@ -17,7 +17,7 @@
 				</label>
 			</div>
 		</fieldset>
-		<small v-if="config.description" class="blf-help-text">{{ config.description }}</small>
+		<small v-if="description" class="blf-help-text">{{ description }}</small>
 	</div>
 </template>
 
@@ -26,15 +26,11 @@ import { computed } from 'vue';
 
 import type { RadioFieldState, RadioFieldUiConfig } from './radio-field';
 
-import { getVariantClassNames } from '@/features/form/model/types/form-shape';
+import { getVariantClassNames } from '@/features/form/model/form-utils';
+import type { FormComponentProps } from '@/features/form/model/types/form-shape';
 
 const props = withDefaults(
-	defineProps<{
-		config: RadioFieldUiConfig;
-		modelValue: RadioFieldState;
-		htmlId: string;
-		showLabel?: boolean;
-	}>(),
+	defineProps<FormComponentProps<RadioFieldUiConfig, RadioFieldState> & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},
@@ -45,7 +41,7 @@ const emit = defineEmits<{
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.config, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.variant, 'blf-field')]);
 
 function changeValue(event: Event, value: string) {
 	const target = event.target as HTMLInputElement | null;

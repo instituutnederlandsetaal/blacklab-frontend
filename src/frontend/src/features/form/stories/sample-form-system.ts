@@ -15,6 +15,7 @@ import {
 	filterCheckboxController,
 	filterDateController,
 	filterRangeController,
+	filterTextController,
 	FormBuilder,
 	headingView,
 	parallelController,
@@ -27,15 +28,26 @@ import {
 	type FormState,
 	type FormSystemDefinition,
 	type FieldController,
+	type ViewDefinition,
 	type PersistableSubmittableFormState,
 	withinController,
 } from '../index';
+import type { BuiltContainerNode } from '../model/builder/form-shape-builder';
 import type { MetadataFilterConfig } from '../model/controllers/metadata-filter-controller';
-import type { FormContainerNode, FormFieldNode } from '../model/types/form-shape';
+import type { ContainerNode, FormBoundaryNode, FormFieldNode } from '../model/types/form-shape';
 import sampleTagsetJson from './sample-tagset.json';
 
 import { createMockI18n } from '@/shared/i18n';
 
+import AnnotationPosField from '../fields/AnnotationPosField.vue';
+import CheckboxField from '../fields/generic/CheckboxField.vue';
+import DateField from '../fields/generic/DateField.vue';
+import RangeField from '../fields/generic/RangeField.vue';
+import SelectField from '../fields/generic/SelectField.vue';
+import TextField from '../fields/generic/TextField.vue';
+import ParallelField from '../fields/ParallelField.vue';
+import RawCqlField from '../fields/RawCqlField.vue';
+import WithinField from '../fields/WithinField.vue';
 import ContainerRendererFilters from '../ui/ContainerRendererFilters.vue';
 
 const translate = createMockI18n().translate;
@@ -77,6 +89,48 @@ function createAnnotationPosConfig(overrides: Partial<AnnotationPosFieldConfig> 
 	};
 }
 
+function addFormNode(parent: BuiltContainerNode<any>, id: string, options: Omit<FormBoundaryNode<any>, 'children' | 'config' | 'id' | 'kind'> & { config?: FormBoundaryNode['config'] }) {
+	return parent.addForm(id, {
+		...options,
+		config: options.config ?? {},
+	});
+}
+
+function createViewNode<Config extends object>(builder: FormBuilder, id: string, view: ViewDefinition<string, Config>, config: Config) {
+	return builder.newView(id, {
+		component: view.component,
+		config,
+	});
+}
+
+function createFieldNode(builder: FormBuilder, id: string, controller: FieldController<string, any, any>, config: any): FormFieldNode<any> {
+	switch (controller.kind) {
+		case annotationPosController.kind:
+			return builder.newField(id, { controller, component: AnnotationPosField, config });
+		case annotationSelectController.kind:
+		case filterSelectController.kind:
+			return builder.newField(id, { controller, component: SelectField, config });
+		case annotationTextController.kind:
+		case filterAutocompleteController.kind:
+		case filterTextController.kind:
+			return builder.newField(id, { controller, component: TextField, config });
+		case filterCheckboxController.kind:
+			return builder.newField(id, { controller, component: CheckboxField, config });
+		case filterDateController.kind:
+			return builder.newField(id, { controller, component: DateField, config });
+		case filterRangeController.kind:
+			return builder.newField(id, { controller, component: RangeField, config });
+		case parallelController.kind:
+			return builder.newField(id, { controller, component: ParallelField, config });
+		case expertQueryController.kind:
+			return builder.newField(id, { controller, component: RawCqlField, config });
+		case withinController.kind:
+			return builder.newField(id, { controller, component: WithinField, config });
+		default:
+			throw new Error(`Unsupported story field controller: ${controller.kind}`);
+	}
+}
+
 type MetadataFilterDefinition = {
 	buildField: (builder: FormBuilder, id: string, groupId: string) => FormFieldNode<any>;
 };
@@ -84,7 +138,7 @@ type MetadataFilterDefinition = {
 function defineMetadataFilter<Config extends MetadataFilterConfig>(controller: FieldController<string, any, Config>, config: Config): MetadataFilterDefinition {
 	return {
 		buildField(builder, id, groupId) {
-			return builder.newField(id, controller, {
+			return createFieldNode(builder, id, controller, {
 				...config,
 				groupId,
 			});
@@ -208,11 +262,13 @@ export function createSearchFormStoryModel(): StoryFormSystemModel {
 	const root = builder.newContainer('search', { title: 'Search', config: { variant: 'tabs' } });
 	const shared: SharedSearchSections = {
 		filters: createFilterContainer(builder, 'search.shared'),
-		parallel: builder.newField('search.shared.parallel', parallelController, createParallelConfig()),
-		within: builder.newField('search.shared.within', withinController, createWithinConfig()),
+		parallel: createFieldNode(builder, 'search.shared.parallel', parallelController, createParallelConfig()),
+		within: createFieldNode(builder, 'search.shared.within', withinController, createWithinConfig()),
 	};
 
-	root.addChildren(createSimpleForm(builder, shared), createExtendedForm(builder, shared), createExpertForm(builder, shared));
+	createSimpleForm(root, builder, shared);
+	createExtendedForm(root, builder, shared);
+	createExpertForm(root, builder, shared);
 
 	return {
 		context,
@@ -242,25 +298,25 @@ export function createRestoredSearchFormStoryModel(): StoryFormSystemModel {
 export function createControllerCatalogStoryModel(): StoryFormSystemModel {
 	const { builder, context } = createStoryBuilder('storybook-catalog');
 	const root = builder.newContainer('catalog', { title: 'Controller Catalog', config: { variant: 'tabs' } });
-	const fields = builder
-		.newForm('catalog.fields', { title: 'Built-in fields' })
-		.addField('catalog.annotation.word', annotationTextController, {
+	addFormNode(root, 'catalog.fields', { title: 'Built-in fields' }).addChildren(
+		createFieldNode(builder, 'catalog.annotation.word', annotationTextController, {
 			annotationId: 'word',
 			displayName: 'Word',
 			caseSensitive: true,
-		})
-		.addField('catalog.annotation.pos', annotationPosController, createAnnotationPosConfig())
-		.addField('catalog.parallel', parallelController, createParallelConfig())
-		.addField('catalog.within', withinController, createWithinConfig())
-		.addField('catalog.raw-cql', expertQueryController, {
+		}),
+		createFieldNode(builder, 'catalog.annotation.pos', annotationPosController, createAnnotationPosConfig()),
+		createFieldNode(builder, 'catalog.parallel', parallelController, createParallelConfig()),
+		createFieldNode(builder, 'catalog.within', withinController, createWithinConfig()),
+		createFieldNode(builder, 'catalog.raw-cql', expertQueryController, {
+			displayName: 'Expert CQL',
 			label: 'Expert CQL',
 			helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
 			rows: 4,
-		})
-		.addChildren(builder.newView('catalog.summary', summaryView, { showRaw: true }));
+		}),
+		createViewNode(builder, 'catalog.summary', summaryView, { showRaw: true }),
+	);
 
-	const filters = builder.newForm('catalog.filter-controllers', { title: 'Filter controllers' }).addChildren(createFilterContainer(builder, 'catalog'));
-	root.addChildren(fields, filters);
+	addFormNode(root, 'catalog.filter-controllers', { title: 'Filter controllers' }).addChildren(createFilterContainer(builder, 'catalog'));
 
 	return {
 		context,
@@ -270,17 +326,17 @@ export function createControllerCatalogStoryModel(): StoryFormSystemModel {
 
 export function createAnnotationPosStoryModel(): StoryFormSystemModel {
 	const { builder, context } = createStoryBuilder('storybook-pos-tagset');
-	builder
-		.newForm('pos-editor.form', { title: 'PoS editor' })
-		.addView('pos-editor.form.heading', headingView, {
+	builder.newForm('pos-editor.form', { title: 'PoS editor' }).addChildren(
+		createViewNode(builder, 'pos-editor.form.heading', headingView, {
 			title: 'Production tagset PoS editor',
 			description: 'Loaded from sample-tagset.json. Open the editor, adjust the PoS value and subtags, and inspect the live query and serialized snapshot.',
-		})
-		.addField('pos-editor.field', annotationPosController, createAnnotationPosConfig())
-		.addView('pos-editor.summary', summaryView, {
+		}),
+		createFieldNode(builder, 'pos-editor.field', annotationPosController, createAnnotationPosConfig()),
+		createViewNode(builder, 'pos-editor.summary', summaryView, {
 			title: 'Live query preview',
 			showRaw: true,
-		});
+		}),
+	);
 
 	const definition = builder.build();
 	const initialState = createFormState(definition, context);
@@ -302,15 +358,17 @@ export function createAnnotationPosStoryModel(): StoryFormSystemModel {
 export function createFilterPanelStoryModel(): StoryFormSystemModel {
 	const { builder, context } = createStoryBuilder('storybook-filters');
 	builder
-		.newForm('filter-panel.form')
-		.addChildren(
-			builder.newView('filter-panel.heading', headingView, {
+		.newForm('filter-panel.form', { config: {} })
+		.addView('filter-panel.heading', {
+			component: headingView,
+			config: {
 				title: 'Filter search by ...',
 				description: 'Specialized container rendering with grouped filter summaries.',
-			}),
-		)
+			},
+		})
+
 		.addChildren(createFilterContainer(builder, 'filter-panel'))
-		.addChildren(builder.newView('filter-panel.summary', summaryView, { title: 'Live filter query', showRaw: true }));
+		.addChildren(createViewNode(builder, 'filter-panel.summary', summaryView, { title: 'Live filter query', showRaw: true }));
 
 	const definition = builder.build();
 	const initialState = createFormState(definition, context);
@@ -329,7 +387,7 @@ export function createFilterPanelStoryModel(): StoryFormSystemModel {
 
 export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 	const { builder, context } = createStoryBuilder('storybook-legacy-filter-comparison');
-	const root = builder.newForm('legacy-filter-comparison.form');
+	const root = builder.newForm('legacy-filter-comparison.form', {});
 	const tabs = builder.newContainer('legacy-filter-comparison.filters', {
 		component: markRaw(ContainerRendererFilters),
 		config: { variant: 'small-tabs', combine: 'allOf' },
@@ -337,67 +395,81 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 
 	const letter = builder.newContainer('legacy-filter-comparison.filters.letter', { title: 'Letter', config: { combine: 'allOf' } });
 	letter
-		.newField('legacy-filter-comparison.filter.year', filterRangeController, {
-			id: 'datum_jaar',
-			metadataFieldId: 'datum_jaar',
-			displayName: 'Year (id: datum_jaar)',
-			groupId: letter.id,
-		})
-		.newField('legacy-filter-comparison.field.type', annotationSelectController, {
-			annotationId: 'type_brief',
-			displayName: 'Text type (id: type_brief)',
-			options: [
-				{ value: '', label: 'Text type' },
-				{ value: 'personal', label: 'Personal' },
-				{ value: 'official', label: 'Official' },
-				{ value: 'business', label: 'Business' },
-			],
-		})
-		.newField('legacy-filter-comparison.field.autograph', annotationSelectController, {
-			annotationId: 'autograaf',
-			displayName: 'Autograph (id: autograaf)',
-			options: [
-				{ value: '', label: 'Autograph' },
-				{ value: 'yes', label: 'Yes' },
-				{ value: 'no', label: 'No' },
-			],
-		})
-		.newField('legacy-filter-comparison.field.signature', annotationSelectController, {
-			annotationId: 'signatuur',
-			displayName: 'Signature (id: signatuur)',
-			options: [
-				{ value: '', label: 'Signature' },
-				{ value: 'signed', label: 'Signed' },
-				{ value: 'unsigned', label: 'Unsigned' },
-			],
-		});
+		.addChildren(
+			createFieldNode(builder, 'legacy-filter-comparison.filter.year', filterRangeController, {
+				id: 'datum_jaar',
+				metadataFieldId: 'datum_jaar',
+				displayName: 'Year (id: datum_jaar)',
+				groupId: letter.id,
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'legacy-filter-comparison.field.type', annotationSelectController, {
+				annotationId: 'type_brief',
+				displayName: 'Text type (id: type_brief)',
+				options: [
+					{ value: '', label: 'Text type' },
+					{ value: 'personal', label: 'Personal' },
+					{ value: 'official', label: 'Official' },
+					{ value: 'business', label: 'Business' },
+				],
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'legacy-filter-comparison.field.autograph', annotationSelectController, {
+				annotationId: 'autograaf',
+				displayName: 'Autograph (id: autograaf)',
+				options: [
+					{ value: '', label: 'Autograph' },
+					{ value: 'yes', label: 'Yes' },
+					{ value: 'no', label: 'No' },
+				],
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'legacy-filter-comparison.field.signature', annotationSelectController, {
+				annotationId: 'signatuur',
+				displayName: 'Signature (id: signatuur)',
+				options: [
+					{ value: '', label: 'Signature' },
+					{ value: 'signed', label: 'Signed' },
+					{ value: 'unsigned', label: 'Unsigned' },
+				],
+			}),
+		);
 
 	const sender = builder.newContainer('legacy-filter-comparison.filters.sender', { title: 'Sender', config: { combine: 'allOf' } });
-	sender.newField('legacy-filter-comparison.sender.name', filterAutocompleteController, {
-		id: 'afz_naam',
-		metadataFieldId: 'afz_naam',
-		displayName: 'Sender (id: afz_naam)',
-		groupId: sender.id,
-		autocomplete: async (term: string) => ['Anna', 'Brecht', 'Clara', 'Diderik'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
-	});
+	sender.addChildren(
+		createFieldNode(builder, 'legacy-filter-comparison.sender.name', filterAutocompleteController, {
+			id: 'afz_naam',
+			metadataFieldId: 'afz_naam',
+			displayName: 'Sender (id: afz_naam)',
+			groupId: sender.id,
+			autocomplete: async (term: string) => ['Anna', 'Brecht', 'Clara', 'Diderik'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+		}),
+	);
 
 	const addressee = builder.newContainer('legacy-filter-comparison.filters.addressee', { title: 'Addressee', config: { combine: 'allOf' } });
-	addressee.newField('legacy-filter-comparison.addressee.name', filterAutocompleteController, {
-		id: 'adr_naam',
-		metadataFieldId: 'adr_naam',
-		displayName: 'Addressee (id: adr_naam)',
-		groupId: addressee.id,
-		autocomplete: async (term: string) => ['Beatrix', 'Cornelia', 'Dirk', 'Els'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
-	});
+	addressee.addChildren(
+		createFieldNode(builder, 'legacy-filter-comparison.addressee.name', filterAutocompleteController, {
+			id: 'adr_naam',
+			metadataFieldId: 'adr_naam',
+			displayName: 'Addressee (id: adr_naam)',
+			groupId: addressee.id,
+			autocomplete: async (term: string) => ['Beatrix', 'Cornelia', 'Dirk', 'Els'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+		}),
+	);
 
 	const sentFrom = builder.newContainer('legacy-filter-comparison.filters.sent-from', { title: 'Sent from', config: { combine: 'allOf' } });
-	sentFrom.newField('legacy-filter-comparison.sent-from.place', filterAutocompleteController, {
-		id: 'verz_plaats',
-		metadataFieldId: 'verz_plaats',
-		displayName: 'Sent from (id: verz_plaats)',
-		groupId: sentFrom.id,
-		autocomplete: async (term: string) => ['Amsterdam', 'Bruges', 'Ghent', 'Leiden'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
-	});
+	sentFrom.addChildren(
+		createFieldNode(builder, 'legacy-filter-comparison.sent-from.place', filterAutocompleteController, {
+			id: 'verz_plaats',
+			metadataFieldId: 'verz_plaats',
+			displayName: 'Sent from (id: verz_plaats)',
+			groupId: sentFrom.id,
+			autocomplete: async (term: string) => ['Amsterdam', 'Bruges', 'Ghent', 'Leiden'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+		}),
+	);
 
 	tabs.addChildren(letter, sender, addressee, sentFrom);
 	root.addChildren(tabs);
@@ -429,14 +501,14 @@ function createStandaloneFieldStoryModel<Config extends object, State>(input: St
 	const form = builder
 		.newForm(input.formId, { title: input.title })
 		.addChildren(
-			builder.newView(`${input.formId}.heading`, headingView, {
+			createViewNode(builder, `${input.formId}.heading`, headingView, {
 				title: input.title,
 				description: input.description,
 			}),
 		)
-		.addField(fieldId, input.controller, input.config)
+		.addChildren(createFieldNode(builder, fieldId, input.controller, input.config))
 		.addChildren(
-			builder.newView(`${input.formId}.summary`, summaryView, {
+			createViewNode(builder, `${input.formId}.summary`, summaryView, {
 				title: 'Live query preview',
 				showRaw: true,
 			}),
@@ -495,6 +567,7 @@ export function createExpertQueryFieldStoryModel(): StoryFormSystemModel {
 		description: 'Raw CQL entry with the same live summary and serialization used by the full form runtime.',
 		controller: expertQueryController,
 		config: {
+			displayName: 'Corpus Query Language',
 			label: 'Corpus Query Language',
 			helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
 			rows: 6,
@@ -515,18 +588,22 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 			title: 'List container',
 			config: { combine: 'allOf' },
 		})
-		.newField('container-types.list.word', annotationTextController, {
-			annotationId: 'word',
-			displayName: 'Word',
-			placeholder: 'List child field',
-			caseSensitive: true,
-		})
-		.newField('container-types.list.lemma', annotationTextController, {
-			annotationId: 'lemma',
-			displayName: 'Lemma',
-			placeholder: 'Second list child',
-			caseSensitive: true,
-		});
+		.addChildren(
+			createFieldNode(builder, 'container-types.list.word', annotationTextController, {
+				annotationId: 'word',
+				displayName: 'Word',
+				placeholder: 'List child field',
+				caseSensitive: true,
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'container-types.list.lemma', annotationTextController, {
+				annotationId: 'lemma',
+				displayName: 'Lemma',
+				placeholder: 'Second list child',
+				caseSensitive: true,
+			}),
+		);
 
 	const tabbedContainer = builder.newContainer('container-types.tabs', {
 		title: 'Tabbed container',
@@ -534,16 +611,18 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 	});
 	const patternTab = builder.newContainer('container-types.tabs.pattern', { title: 'Pattern', config: { combine: 'allOf' } });
 	patternTab
-		.newField('container-types.tabs.pattern.word', annotationTextController, {
-			annotationId: 'word',
-			displayName: 'Word',
-			caseSensitive: true,
-		})
-		.newField('container-types.tabs.pattern.pos', annotationPosController, createAnnotationPosConfig({ groupId: patternTab.id }));
+		.addChildren(
+			createFieldNode(builder, 'container-types.tabs.pattern.word', annotationTextController, {
+				annotationId: 'word',
+				displayName: 'Word',
+				caseSensitive: true,
+			}),
+		)
+		.addChildren(createFieldNode(builder, 'container-types.tabs.pattern.pos', annotationPosController, createAnnotationPosConfig({ groupId: patternTab.id })));
 	const scopeTab = builder
 		.newContainer('container-types.tabs.scope', { title: 'Scope', config: { combine: 'allOf' } })
-		.newField('container-types.tabs.scope.parallel', parallelController, createParallelConfig())
-		.newField('container-types.tabs.scope.within', withinController, createWithinConfig());
+		.addChildren(createFieldNode(builder, 'container-types.tabs.scope.parallel', parallelController, createParallelConfig()))
+		.addChildren(createFieldNode(builder, 'container-types.tabs.scope.within', withinController, createWithinConfig()));
 	tabbedContainer.addChildren(patternTab, scopeTab);
 
 	const smallTabsContainer = builder.newContainer('container-types.small-tabs', {
@@ -570,7 +649,7 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 		.addChildren(createFilterContainer(builder, 'container-types.custom'));
 
 	form.addChildren(
-		builder.newView('container-types.heading', headingView, {
+		createViewNode(builder, 'container-types.heading', headingView, {
 			title: 'Container presentations',
 			description: 'The same form tree can render as a list, large tabs, compact tabs, or through a custom filter container component.',
 		}),
@@ -603,53 +682,51 @@ export function createViewStoryModel(): StoryFormSystemModel {
 		config: { variant: 'tabs' },
 	});
 
-	const headingForm = builder.newForm('view-catalog.heading', { title: 'Heading' }).addChildren(
-		builder.newView('view-catalog.heading.demo', headingView, {
+	addFormNode(root, 'view-catalog.heading', { title: 'Heading' }).addChildren(
+		createViewNode(builder, 'view-catalog.heading.demo', headingView, {
 			title: 'Heading view',
 			description: 'Static titles and descriptions for form sections, placeholders, or explanatory copy.',
 		}),
 	);
 
-	const summaryForm = builder
-		.newForm('view-catalog.summary', { title: 'Summary' })
+	const summaryForm = addFormNode(root, 'view-catalog.summary', { title: 'Summary' })
 		.addChildren(
-			builder.newView('view-catalog.summary.heading', headingView, {
+			createViewNode(builder, 'view-catalog.summary.heading', headingView, {
 				title: 'Summary view',
 				description: 'Reflects the compiled query and summary entries for the active form.',
 			}),
 		)
-		.addField('view-catalog.summary.word', annotationTextController, {
-			annotationId: 'word',
-			displayName: 'Word',
-			caseSensitive: true,
-		})
-		.addField('view-catalog.summary.pos', annotationPosController, createAnnotationPosConfig())
 		.addChildren(
-			builder.newView('view-catalog.summary.output', summaryView, {
+			createFieldNode(builder, 'view-catalog.summary.word', annotationTextController, {
+				annotationId: 'word',
+				displayName: 'Word',
+				caseSensitive: true,
+			}),
+		)
+		.addChildren(createFieldNode(builder, 'view-catalog.summary.pos', annotationPosController, createAnnotationPosConfig()))
+		.addChildren(
+			createViewNode(builder, 'view-catalog.summary.output', summaryView, {
 				title: 'Compiled summary',
 				showRaw: true,
 			}),
 		);
 
-	const totalsForm = builder
-		.newForm('view-catalog.totals', { title: 'Totals' })
+	addFormNode(root, 'view-catalog.totals', { title: 'Totals' })
 		.addChildren(
-			builder.newView('view-catalog.totals.heading', headingView, {
+			createViewNode(builder, 'view-catalog.totals.heading', headingView, {
 				title: 'Totals view',
 				description: 'Uses the active form state to estimate the scoped document and token totals.',
 			}),
 		)
-		.addField('view-catalog.totals.parallel', parallelController, createParallelConfig())
-		.addField('view-catalog.totals.within', withinController, createWithinConfig())
+		.addChildren(createFieldNode(builder, 'view-catalog.totals.parallel', parallelController, createParallelConfig()))
+		.addChildren(createFieldNode(builder, 'view-catalog.totals.within', withinController, createWithinConfig()))
 		.addChildren(
-			builder.newView('view-catalog.totals.output', totalsView, {
+			createViewNode(builder, 'view-catalog.totals.output', totalsView, {
 				title: 'Estimated totals',
 				baseDocuments: 128345,
 				baseTokens: 48291032,
 			}),
 		);
-
-	root.addChildren(headingForm, summaryForm, totalsForm);
 
 	const definition = builder.build();
 	const initialState = createFormState(definition, context);
@@ -766,38 +843,39 @@ export function createFullFormStoryModel(): StoryFormSystemModel {
 }
 
 type SharedSearchSections = {
-	filters: FormContainerNode;
+	filters: ContainerNode;
 	parallel: FormFieldNode<any>;
 	within: FormFieldNode<any>;
 };
 
-function createSimpleForm(builder: FormBuilder, shared: SharedSearchSections) {
-	return builder
-		.newForm('search.simple', { title: 'Simple' })
+function createSimpleForm(parent: BuiltContainerNode<any>, builder: FormBuilder, shared: SharedSearchSections) {
+	return addFormNode(parent, 'search.simple', { title: 'Simple' })
 		.addChildren(shared.parallel)
-		.addField('search.simple.word', annotationTextController, {
-			annotationId: 'word',
-			displayName: 'Word',
-			description: 'Search the main annotation.',
-			caseSensitive: true,
-			variant: 'large',
-		})
 		.addChildren(
-			builder.newView('search.simple.summary', summaryView, { title: 'Live query preview', showRaw: true }),
-			builder.newView('search.simple.totals', totalsView, { baseDocuments: 128345, baseTokens: 48291032 }),
+			createFieldNode(builder, 'search.simple.word', annotationTextController, {
+				annotationId: 'word',
+				displayName: 'Word',
+				description: 'Search the main annotation.',
+				caseSensitive: true,
+				variant: 'large',
+			}),
+		)
+		.addChildren(
+			createViewNode(builder, 'search.simple.summary', summaryView, { title: 'Live query preview', showRaw: true }),
+			createViewNode(builder, 'search.simple.totals', totalsView, { baseDocuments: 128345, baseTokens: 48291032 }),
 		);
 }
 
-function createExtendedForm(builder: FormBuilder, shared: SharedSearchSections) {
+function createExtendedForm(parent: BuiltContainerNode<any>, builder: FormBuilder, shared: SharedSearchSections) {
 	const body = builder.newContainer('search.extended.body', { class: 'blf-columns' });
 	const patternColumn = builder.newContainer('search.extended.pattern', { title: 'Pattern' });
 	const annotationTabs = builder.newContainer('search.extended.annotations', { config: { variant: 'tabs' } });
 	const mainAnnotations = builder
 		.newContainer('search.extended.annotations.main', { title: 'Main', config: { combine: 'allOf' } })
-		.newField('search.extended.word', annotationTextController, { annotationId: 'word', displayName: 'Word', caseSensitive: true })
-		.newField('search.extended.lemma', annotationTextController, { annotationId: 'lemma', displayName: 'Lemma', caseSensitive: true });
+		.addChildren(createFieldNode(builder, 'search.extended.word', annotationTextController, { annotationId: 'word', displayName: 'Word', caseSensitive: true }))
+		.addChildren(createFieldNode(builder, 'search.extended.lemma', annotationTextController, { annotationId: 'lemma', displayName: 'Lemma', caseSensitive: true }));
 	const grammarAnnotations = builder.newContainer('search.extended.annotations.grammar', { title: 'Grammar', config: { combine: 'allOf' } });
-	grammarAnnotations.newField('search.extended.pos', annotationPosController, createAnnotationPosConfig({ groupId: grammarAnnotations.id }));
+	grammarAnnotations.addChildren(createFieldNode(builder, 'search.extended.pos', annotationPosController, createAnnotationPosConfig({ groupId: grammarAnnotations.id })));
 	annotationTabs.addChildren(mainAnnotations, grammarAnnotations);
 	patternColumn.addChildren(shared.parallel, annotationTabs, shared.within);
 
@@ -805,29 +883,32 @@ function createExtendedForm(builder: FormBuilder, shared: SharedSearchSections) 
 		.newContainer('search.extended.filters.column', { title: 'Filters' })
 		.addChildren(
 			shared.filters,
-			builder.newView('search.extended.filterSummary', summaryView, { title: 'Filter summary', showRaw: true }),
-			builder.newView('search.extended.filterTotals', totalsView, { baseDocuments: 128345, baseTokens: 48291032 }),
+			createViewNode(builder, 'search.extended.filterSummary', summaryView, { title: 'Filter summary', showRaw: true }),
+			createViewNode(builder, 'search.extended.filterTotals', totalsView, { baseDocuments: 128345, baseTokens: 48291032 }),
 		);
 
 	body.addChildren(patternColumn, filterColumn);
-	return builder.newForm('search.extended', { title: 'Extended' }).addChildren(body);
+	return addFormNode(parent, 'search.extended', { title: 'Extended' }).addChildren(body);
 }
 
-function createExpertForm(builder: FormBuilder, shared: SharedSearchSections) {
+function createExpertForm(parent: BuiltContainerNode<any>, builder: FormBuilder, shared: SharedSearchSections) {
 	const queryColumn = builder
-		.newContainer('search.expert.query')
+		.newContainer('search.expert.query', {})
 		.addChildren(shared.parallel)
-		.newField('search.expert.querybox', expertQueryController, {
-			label: 'Corpus Query Language',
-			rows: 8,
-			helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
-		})
+		.addChildren(
+			createFieldNode(builder, 'search.expert.querybox', expertQueryController, {
+				displayName: 'Corpus Query Language',
+				label: 'Corpus Query Language',
+				rows: 8,
+				helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
+			}),
+		)
 		.addChildren(shared.within);
 	const filtersColumn = builder
 		.newContainer('search.expert.filters.column', { title: 'Filters' })
-		.addChildren(shared.filters, builder.newView('search.expert.summary', summaryView, { title: 'Submitted shape', showRaw: true }));
+		.addChildren(shared.filters, createViewNode(builder, 'search.expert.summary', summaryView, { title: 'Submitted shape', showRaw: true }));
 	const body = builder.newContainer('search.expert.body', { class: 'blf-columns' }).addChildren(queryColumn, filtersColumn);
-	return builder.newForm('search.expert', { title: 'Expert' }).addChildren(body);
+	return addFormNode(parent, 'search.expert', { title: 'Expert' }).addChildren(body);
 }
 
 function createFilterContainer(builder: FormBuilder, prefix: string) {
@@ -874,14 +955,14 @@ function createWithinConfig() {
 	};
 }
 
-function createSharedFilterColumn(builder: FormBuilder, prefix: string, sharedFilters: FormContainerNode) {
+function createSharedFilterColumn(builder: FormBuilder, prefix: string, sharedFilters: ContainerNode) {
 	return builder.newContainer(`${prefix}.filters`, { title: 'Shared filters' }).addChildren(
 		sharedFilters,
-		builder.newView(`${prefix}.filters.summary`, summaryView, {
+		createViewNode(builder, `${prefix}.filters.summary`, summaryView, {
 			title: 'Shared filter summary',
 			showRaw: true,
 		}),
-		builder.newView(`${prefix}.filters.totals`, totalsView, {
+		createViewNode(builder, `${prefix}.filters.totals`, totalsView, {
 			title: 'Estimated totals',
 			baseDocuments: 128345,
 			baseTokens: 48291032,
@@ -889,269 +970,299 @@ function createSharedFilterColumn(builder: FormBuilder, prefix: string, sharedFi
 	);
 }
 
-function createAppSearchModesContainer(builder: FormBuilder, sharedFilters: FormContainerNode) {
-	return builder
-		.newContainer('app.search', {
-			title: 'Search',
-			config: { variant: 'tabs' },
-		})
-		.addChildren(
-			createAppSimpleSearchForm(builder, sharedFilters),
-			createAppExtendedSearchForm(builder, sharedFilters),
-			createAppAdvancedSearchForm(builder, sharedFilters),
-			createAppExpertSearchForm(builder, sharedFilters),
-		);
+function createAppSearchModesContainer(builder: FormBuilder, sharedFilters: ContainerNode) {
+	const container = builder.newContainer('app.search', {
+		title: 'Search',
+		config: { variant: 'tabs' },
+	});
+	createAppSimpleSearchForm(container, builder, sharedFilters);
+	createAppExtendedSearchForm(container, builder, sharedFilters);
+	createAppAdvancedSearchForm(container, builder, sharedFilters);
+	createAppExpertSearchForm(container, builder, sharedFilters);
+	return container;
 }
 
-function createAppExploreModesContainer(builder: FormBuilder, sharedFilters: FormContainerNode) {
-	return builder
-		.newContainer('app.explore', {
-			title: 'Explore',
-			config: { variant: 'tabs' },
-		})
-		.addChildren(createAppDocumentsExploreForm(builder, sharedFilters), createAppNgramExploreForm(builder, sharedFilters), createAppFrequencyExploreForm(builder, sharedFilters));
+function createAppExploreModesContainer(builder: FormBuilder, sharedFilters: ContainerNode) {
+	const container = builder.newContainer('app.explore', {
+		title: 'Explore',
+		config: { variant: 'tabs' },
+	});
+	createAppDocumentsExploreForm(container, builder, sharedFilters);
+	createAppNgramExploreForm(container, builder, sharedFilters);
+	createAppFrequencyExploreForm(container, builder, sharedFilters);
+	return container;
 }
 
-function createAppSimpleSearchForm(builder: FormBuilder, sharedFilters: FormContainerNode) {
-	const queryColumn = builder.newContainer('app.search.simple.query');
+function createAppSimpleSearchForm(parent: BuiltContainerNode<any>, builder: FormBuilder, sharedFilters: ContainerNode) {
+	const queryColumn = builder.newContainer('app.search.simple.query', {});
 	queryColumn.addChildren(
-		builder.newView('app.search.simple.heading', headingView, {
+		createViewNode(builder, 'app.search.simple.heading', headingView, {
 			title: 'Simple search',
 			description: 'This form combines the new simple and large variants on built-in fields while keeping the shared filters alongside it.',
 		}),
 	);
 	queryColumn
-		.newField('app.search.simple.parallel', parallelController, {
-			...createParallelConfig(),
-			label: 'Parallel search',
-			variant: 'simple',
-		})
-		.newField('app.search.simple.word', annotationTextController, {
-			annotationId: 'word',
-			displayName: 'Word or phrase',
-			description: 'Large primary input rendered with the simple shell.',
-			placeholder: 'Type a word, lemma, or phrase',
-			caseSensitive: true,
-			variant: ['simple', 'large'],
-		})
-		.newField('app.search.simple.within', withinController, {
-			...createWithinConfig(),
-			label: 'Scope',
-			variant: 'simple',
-		});
+		.addChildren(
+			createFieldNode(builder, 'app.search.simple.parallel', parallelController, {
+				...createParallelConfig(),
+				label: 'Parallel search',
+				variant: 'simple',
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'app.search.simple.word', annotationTextController, {
+				annotationId: 'word',
+				displayName: 'Word or phrase',
+				description: 'Large primary input rendered with the simple shell.',
+				placeholder: 'Type a word, lemma, or phrase',
+				caseSensitive: true,
+				variant: ['simple', 'large'],
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'app.search.simple.within', withinController, {
+				...createWithinConfig(),
+				label: 'Scope',
+				variant: 'simple',
+			}),
+		);
 	queryColumn.addChildren(
-		builder.newView('app.search.simple.summary', summaryView, {
+		createViewNode(builder, 'app.search.simple.summary', summaryView, {
 			title: 'Live query preview',
 			showRaw: true,
 		}),
 	);
 
-	return builder
-		.newForm('app.search.simple', { title: 'Simple' })
-		.addChildren(builder.newContainer('app.search.simple.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.search.simple', sharedFilters)));
+	return addFormNode(parent, 'app.search.simple', { title: 'Simple' }).addChildren(
+		builder.newContainer('app.search.simple.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.search.simple', sharedFilters)),
+	);
 }
 
-function createAppExtendedSearchForm(builder: FormBuilder, sharedFilters: FormContainerNode) {
+function createAppExtendedSearchForm(parent: BuiltContainerNode<any>, builder: FormBuilder, sharedFilters: ContainerNode) {
 	const patternColumn = builder.newContainer('app.search.extended.pattern', { title: 'Pattern' });
 	const annotationTabs = builder.newContainer('app.search.extended.annotations', { config: { variant: 'tabs' } });
 	const mainAnnotations = builder
 		.newContainer('app.search.extended.annotations.main', { title: 'Main', config: { combine: 'allOf' } })
-		.newField('app.search.extended.word', annotationTextController, {
-			annotationId: 'word',
-			displayName: 'Word',
-			caseSensitive: true,
-		})
-		.newField('app.search.extended.lemma', annotationTextController, {
-			annotationId: 'lemma',
-			displayName: 'Lemma',
-			caseSensitive: true,
-		});
+		.addChildren(
+			createFieldNode(builder, 'app.search.extended.word', annotationTextController, {
+				annotationId: 'word',
+				displayName: 'Word',
+				caseSensitive: true,
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'app.search.extended.lemma', annotationTextController, {
+				annotationId: 'lemma',
+				displayName: 'Lemma',
+				caseSensitive: true,
+			}),
+		);
 	const grammarAnnotations = builder.newContainer('app.search.extended.annotations.grammar', { title: 'Grammar', config: { combine: 'allOf' } });
-	grammarAnnotations.newField('app.search.extended.pos', annotationPosController, createAnnotationPosConfig({ groupId: grammarAnnotations.id }));
+	grammarAnnotations.addChildren(createFieldNode(builder, 'app.search.extended.pos', annotationPosController, createAnnotationPosConfig({ groupId: grammarAnnotations.id })));
 	annotationTabs.addChildren(mainAnnotations, grammarAnnotations);
 
 	patternColumn.addChildren(
-		builder.newField('app.search.extended.parallel', parallelController, createParallelConfig()),
+		createFieldNode(builder, 'app.search.extended.parallel', parallelController, createParallelConfig()),
 		annotationTabs,
-		builder.newField('app.search.extended.within', withinController, createWithinConfig()),
-		builder.newView('app.search.extended.summary', summaryView, {
+		createFieldNode(builder, 'app.search.extended.within', withinController, createWithinConfig()),
+		createViewNode(builder, 'app.search.extended.summary', summaryView, {
 			title: 'Compiled query',
 			showRaw: true,
 		}),
 	);
 
-	return builder
-		.newForm('app.search.extended', { title: 'Extended' })
-		.addChildren(builder.newContainer('app.search.extended.body', { class: 'blf-columns' }).addChildren(patternColumn, createSharedFilterColumn(builder, 'app.search.extended', sharedFilters)));
+	return addFormNode(parent, 'app.search.extended', { title: 'Extended' }).addChildren(
+		builder.newContainer('app.search.extended.body', { class: 'blf-columns' }).addChildren(patternColumn, createSharedFilterColumn(builder, 'app.search.extended', sharedFilters)),
+	);
 }
 
-function createAppAdvancedSearchForm(builder: FormBuilder, sharedFilters: FormContainerNode) {
-	const queryColumn = builder.newContainer('app.search.advanced.query');
+function createAppAdvancedSearchForm(parent: BuiltContainerNode<any>, builder: FormBuilder, sharedFilters: ContainerNode) {
+	const queryColumn = builder.newContainer('app.search.advanced.query', {});
 	queryColumn.addChildren(
-		builder.newView('app.search.advanced.heading', headingView, {
+		createViewNode(builder, 'app.search.advanced.heading', headingView, {
 			title: 'Advanced query builder',
 			description: 'Placeholder for the advanced builder surface. The story still shows how it will live inside the same search tab stack with the shared filters.',
 		}),
 	);
-	queryColumn.newField('app.search.advanced.preview', expertQueryController, {
-		label: 'Planned advanced output',
-		rows: 5,
-	});
 	queryColumn.addChildren(
-		builder.newView('app.search.advanced.summary', summaryView, {
+		createFieldNode(builder, 'app.search.advanced.preview', expertQueryController, {
+			displayName: 'Planned advanced output',
+			label: 'Planned advanced output',
+			rows: 5,
+		}),
+	);
+	queryColumn.addChildren(
+		createViewNode(builder, 'app.search.advanced.summary', summaryView, {
 			title: 'Current placeholder state',
 			showRaw: true,
 		}),
 	);
 
-	return builder
-		.newForm('app.search.advanced', { title: 'Advanced (todo)' })
-		.addChildren(builder.newContainer('app.search.advanced.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.search.advanced', sharedFilters)));
+	return addFormNode(parent, 'app.search.advanced', { title: 'Advanced (todo)' }).addChildren(
+		builder.newContainer('app.search.advanced.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.search.advanced', sharedFilters)),
+	);
 }
 
-function createAppExpertSearchForm(builder: FormBuilder, sharedFilters: FormContainerNode) {
-	const queryColumn = builder.newContainer('app.search.expert.query');
+function createAppExpertSearchForm(parent: BuiltContainerNode<any>, builder: FormBuilder, sharedFilters: ContainerNode) {
+	const queryColumn = builder.newContainer('app.search.expert.query', {});
 	queryColumn
-		.newField('app.search.expert.parallel', parallelController, createParallelConfig())
-		.newField('app.search.expert.querybox', expertQueryController, {
-			label: 'Corpus Query Language',
-			rows: 8,
-			helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
-		})
-		.newField('app.search.expert.within', withinController, createWithinConfig());
+		.addChildren(createFieldNode(builder, 'app.search.expert.parallel', parallelController, createParallelConfig()))
+		.addChildren(
+			createFieldNode(builder, 'app.search.expert.querybox', expertQueryController, {
+				displayName: 'Corpus Query Language',
+				label: 'Corpus Query Language',
+				rows: 8,
+				helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
+			}),
+		)
+		.addChildren(createFieldNode(builder, 'app.search.expert.within', withinController, createWithinConfig()));
 	queryColumn.addChildren(
-		builder.newView('app.search.expert.summary', summaryView, {
+		createViewNode(builder, 'app.search.expert.summary', summaryView, {
 			title: 'Submitted shape',
 			showRaw: true,
 		}),
 	);
 
-	return builder
-		.newForm('app.search.expert', { title: 'Expert' })
-		.addChildren(builder.newContainer('app.search.expert.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.search.expert', sharedFilters)));
+	return addFormNode(parent, 'app.search.expert', { title: 'Expert' }).addChildren(
+		builder.newContainer('app.search.expert.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.search.expert', sharedFilters)),
+	);
 }
 
-function createAppDocumentsExploreForm(builder: FormBuilder, sharedFilters: FormContainerNode) {
-	const queryColumn = builder.newContainer('app.explore.documents.query');
+function createAppDocumentsExploreForm(parent: BuiltContainerNode<any>, builder: FormBuilder, sharedFilters: ContainerNode) {
+	const queryColumn = builder.newContainer('app.explore.documents.query', {});
 	queryColumn.addChildren(
-		builder.newView('app.explore.documents.heading', headingView, {
+		createViewNode(builder, 'app.explore.documents.heading', headingView, {
 			title: 'Documents explore mode',
 			description: 'Mirrors the explore tab with document grouping and presentation controls next to the same shared filters.',
 		}),
 	);
 	queryColumn
-		.newField('app.explore.documents.groupBy', filterSelectController, {
-			id: 'documents-group-by',
-			metadataFieldId: 'documents_group_by',
-			displayName: 'Group documents by',
-			groupId: 'app.explore.documents',
-			options: [
-				{ value: 'author', label: 'Author' },
-				{ value: 'genre', label: 'Genre' },
-				{ value: 'year', label: 'Year' },
-			],
-		})
-		.newField('app.explore.documents.showAs', filterSelectController, {
-			id: 'documents-show-as',
-			metadataFieldId: 'documents_show_as',
-			displayName: 'Show as',
-			groupId: 'app.explore.documents',
-			options: [
-				{ value: 'table', label: 'Table' },
-				{ value: 'documents', label: 'Documents' },
-				{ value: 'tokens', label: 'Tokens' },
-			],
-		});
+		.addChildren(
+			createFieldNode(builder, 'app.explore.documents.groupBy', filterSelectController, {
+				id: 'documents-group-by',
+				metadataFieldId: 'documents_group_by',
+				displayName: 'Group documents by',
+				groupId: 'app.explore.documents',
+				options: [
+					{ value: 'author', label: 'Author' },
+					{ value: 'genre', label: 'Genre' },
+					{ value: 'year', label: 'Year' },
+				],
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'app.explore.documents.showAs', filterSelectController, {
+				id: 'documents-show-as',
+				metadataFieldId: 'documents_show_as',
+				displayName: 'Show as',
+				groupId: 'app.explore.documents',
+				options: [
+					{ value: 'table', label: 'Table' },
+					{ value: 'documents', label: 'Documents' },
+					{ value: 'tokens', label: 'Tokens' },
+				],
+			}),
+		);
 	queryColumn.addChildren(
-		builder.newView('app.explore.documents.summary', summaryView, {
+		createViewNode(builder, 'app.explore.documents.summary', summaryView, {
 			title: 'Explore query',
 			showRaw: true,
 		}),
 	);
 
-	return builder
-		.newForm('app.explore.documents', { title: 'Documents' })
-		.addChildren(builder.newContainer('app.explore.documents.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.explore.documents', sharedFilters)));
+	return addFormNode(parent, 'app.explore.documents', { title: 'Documents' }).addChildren(
+		builder.newContainer('app.explore.documents.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.explore.documents', sharedFilters)),
+	);
 }
 
-function createAppNgramExploreForm(builder: FormBuilder, sharedFilters: FormContainerNode) {
-	const queryColumn = builder.newContainer('app.explore.ngram.query');
+function createAppNgramExploreForm(parent: BuiltContainerNode<any>, builder: FormBuilder, sharedFilters: ContainerNode) {
+	const queryColumn = builder.newContainer('app.explore.ngram.query', {});
 	queryColumn.addChildren(
-		builder.newView('app.explore.ngram.heading', headingView, {
+		createViewNode(builder, 'app.explore.ngram.heading', headingView, {
 			title: 'N-gram explore mode',
 			description: 'A lightweight stand-in for the n-gram controls while the shared filters remain fixed across top-level tabs.',
 		}),
 	);
 	queryColumn
-		.newField('app.explore.ngram.size', filterRangeController, {
-			id: 'ngram-size',
-			metadataFieldId: 'ngram_size',
-			displayName: 'N-gram size',
-			groupId: 'app.explore.ngram',
-			inputType: 'number',
-			lowPlaceholder: 'From',
-			highPlaceholder: 'To',
-		})
-		.newField('app.explore.ngram.property', annotationSelectController, {
-			annotationId: 'ngram_property',
-			displayName: 'Token property',
-			options: [
-				{ value: 'word', label: 'Word' },
-				{ value: 'lemma', label: 'Lemma' },
-				{ value: 'pos', label: 'Part of speech' },
-			],
-		})
-		.newField('app.explore.ngram.seed', annotationTextController, {
-			annotationId: 'word',
-			displayName: 'Seed term',
-			placeholder: 'Optional seed value',
-			caseSensitive: true,
-		});
+		.addChildren(
+			createFieldNode(builder, 'app.explore.ngram.size', filterRangeController, {
+				id: 'ngram-size',
+				metadataFieldId: 'ngram_size',
+				displayName: 'N-gram size',
+				groupId: 'app.explore.ngram',
+				inputType: 'number',
+				lowPlaceholder: 'From',
+				highPlaceholder: 'To',
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'app.explore.ngram.property', annotationSelectController, {
+				annotationId: 'ngram_property',
+				displayName: 'Token property',
+				options: [
+					{ value: 'word', label: 'Word' },
+					{ value: 'lemma', label: 'Lemma' },
+					{ value: 'pos', label: 'Part of speech' },
+				],
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'app.explore.ngram.seed', annotationTextController, {
+				annotationId: 'word',
+				displayName: 'Seed term',
+				placeholder: 'Optional seed value',
+				caseSensitive: true,
+			}),
+		);
 	queryColumn.addChildren(
-		builder.newView('app.explore.ngram.summary', summaryView, {
+		createViewNode(builder, 'app.explore.ngram.summary', summaryView, {
 			title: 'Explore query',
 			showRaw: true,
 		}),
 	);
 
-	return builder
-		.newForm('app.explore.ngram', { title: 'N-gram' })
-		.addChildren(builder.newContainer('app.explore.ngram.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.explore.ngram', sharedFilters)));
+	return addFormNode(parent, 'app.explore.ngram', { title: 'N-gram' }).addChildren(
+		builder.newContainer('app.explore.ngram.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.explore.ngram', sharedFilters)),
+	);
 }
 
-function createAppFrequencyExploreForm(builder: FormBuilder, sharedFilters: FormContainerNode) {
-	const queryColumn = builder.newContainer('app.explore.frequency.query');
+function createAppFrequencyExploreForm(parent: BuiltContainerNode<any>, builder: FormBuilder, sharedFilters: ContainerNode) {
+	const queryColumn = builder.newContainer('app.explore.frequency.query', {});
 	queryColumn.addChildren(
-		builder.newView('app.explore.frequency.heading', headingView, {
+		createViewNode(builder, 'app.explore.frequency.heading', headingView, {
 			title: 'Frequency explore mode',
 			description: 'Emulates the third explore tab with grouping controls and a parallel source selector.',
 		}),
 	);
 	queryColumn
-		.newField('app.explore.frequency.parallel', parallelController, createParallelConfig())
-		.newField('app.explore.frequency.annotation', annotationSelectController, {
-			annotationId: 'frequency_annotation',
-			displayName: 'Frequency by',
-			options: [
-				{ value: 'word', label: 'Word' },
-				{ value: 'lemma', label: 'Lemma' },
-				{ value: 'pos', label: 'Part of speech' },
-			],
-		})
-		.newField('app.explore.frequency.seed', annotationTextController, {
-			annotationId: 'word',
-			displayName: 'Seed term',
-			placeholder: 'Optional focus term',
-			caseSensitive: true,
-		});
+		.addChildren(createFieldNode(builder, 'app.explore.frequency.parallel', parallelController, createParallelConfig()))
+		.addChildren(
+			createFieldNode(builder, 'app.explore.frequency.annotation', annotationSelectController, {
+				annotationId: 'frequency_annotation',
+				displayName: 'Frequency by',
+				options: [
+					{ value: 'word', label: 'Word' },
+					{ value: 'lemma', label: 'Lemma' },
+					{ value: 'pos', label: 'Part of speech' },
+				],
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'app.explore.frequency.seed', annotationTextController, {
+				annotationId: 'word',
+				displayName: 'Seed term',
+				placeholder: 'Optional focus term',
+				caseSensitive: true,
+			}),
+		);
 	queryColumn.addChildren(
-		builder.newView('app.explore.frequency.summary', summaryView, {
+		createViewNode(builder, 'app.explore.frequency.summary', summaryView, {
 			title: 'Explore query',
 			showRaw: true,
 		}),
 	);
 
-	return builder
-		.newForm('app.explore.frequency', { title: 'Explore' })
-		.addChildren(builder.newContainer('app.explore.frequency.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.explore.frequency', sharedFilters)));
+	return addFormNode(parent, 'app.explore.frequency', { title: 'Explore' }).addChildren(
+		builder.newContainer('app.explore.frequency.body', { class: 'blf-columns' }).addChildren(queryColumn, createSharedFilterColumn(builder, 'app.explore.frequency', sharedFilters)),
+	);
 }

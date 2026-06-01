@@ -1,7 +1,7 @@
 <template>
 	<section class="blf-summary-view">
 		<!-- TODO i18n -->
-		<header>{{ config.title || 'Summary' }}</header>
+		<header>{{ title || 'Summary' }}</header>
 		<div v-if="entries.length" class="entries">
 			<div v-for="entry in entries" :key="entry.id" class="entry">
 				<span class="label">{{ entry.label }}</span>
@@ -10,7 +10,7 @@
 		</div>
 		<div v-else class="empty">No active inputs.</div>
 
-		<dl v-if="config.showRaw" class="raw">
+		<dl v-if="showRaw" class="raw">
 			<dt>CQL</dt>
 			<dd>{{ projection.cql || 'None' }}</dd>
 			<dt>Lucene</dt>
@@ -22,17 +22,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { FormViewNode } from '@/features/form/model/types/form-shape';
 import type { SummaryViewConfig } from '@/features/form/model/views/summary-view';
 
 import { useParentForm } from '../model/runtime';
 
-const props = defineProps<{
-	node: FormViewNode<SummaryViewConfig>;
-}>();
+defineProps<SummaryViewConfig>();
 
 const parentForm = useParentForm();
-const config = computed(() => props.node.config);
 const projection = computed(() => parentForm.compiled);
 const entries = computed(() => parentForm.summaries);
 </script>

@@ -1,0 +1,216 @@
+import { markRaw } from 'vue';
+
+import { checkNoLoops, generateSchemaVersion } from '@/features/form/model/form-utils';
+import type { FieldComponent, ViewDefinition, FieldController } from '@/features/form/model/types/form-controllers';
+import type {
+	ContainerNode,
+	FormChildNode,
+	FormContainerLikeNode,
+	FormNode,
+	FormBoundaryNode,
+	FormFieldNode,
+	FormViewNode,
+	NodeKind,
+	NodeKindMap,
+	NewFormFieldNodeConfig,
+	AnyVueComponent,
+	NewFormViewNodeConfig,
+	NewContainerNodeConfig,
+	NewFormBoundaryNodeConfig
+} from '@/features/form/model/types/form-shape';
+import type { FormSystemDefinition } from '@/features/form/model/types/form-state';
+
+export type AnyFieldController = FieldController<string, any, any>;
+export type AnyFieldComponent = FieldComponent<any, any>;
+export type AnyViewDefinition = ViewDefinition<string, any>;
+export type ControllerRegistryMap = Partial<Record<string, AnyFieldController>>;
+export type ViewRegistryMap = Partial<Record<string, AnyViewDefinition>>;
+export type WithRegisteredController<C extends ControllerRegistryMap, Controller extends AnyFieldController> = Omit<C, Controller['kind']> & Record<Controller['kind'], Controller>;
+export type WithRegisteredView<V extends ViewRegistryMap, View extends AnyViewDefinition> = Omit<V, View['kind']> & Record<View['kind'], View>;
+
+// type NewFieldNodeOptions<Controller extends AnyFieldController> = Omit<FormFieldNode<FieldConfigFor<Controller>, FieldStateFor<Controller>>, 'kind' | 'id' | 'controller'> & { controller: Controller };
+// type NewViewNodeOptions<Config extends ViewNodeConfig> = Omit<FormViewNode<Config>, 'kind' | 'id'>;
+// type NewContainerNodeOptions<Config extends ContainerNodeConfig> = Omit<ContainerNode<Config>, 'kind' | 'id' | 'children'>;
+// type NewFormNodeOptions<Config extends FormNodeConfig> = Omit<FormBoundaryNode<Config>, 'kind' | 'id' | 'children'>;
+
+export type BuiltFormNode<Extra extends object = object, C extends AnyVueComponent = AnyVueComponent> = FormBoundaryNode<Extra, C> & {
+	builder: FormBuilder;
+	addField<_Extra extends object, _C extends AnyVueComponent, State>(id: string, config: NewFormFieldNodeConfig<_Extra, _C, State>): BuiltFormNode<Extra, C>;
+	addView<_Extra extends object, _C extends AnyVueComponent>(id: string, config: NewFormViewNodeConfig<_Extra, _C>): BuiltFormNode<Extra, C>;
+	addChildren(...children: Array<ContainerNode | FormFieldNode | FormViewNode | null | undefined>): BuiltFormNode<Extra, C>;
+};
+
+export type BuiltContainerNode<Extra extends object = object, C extends AnyVueComponent = AnyVueComponent> = ContainerNode<Extra, C> & {
+	builder: FormBuilder;
+	addContainer<_Extra extends object, _C extends AnyVueComponent>(id: string, config: NewContainerNodeConfig<_Extra, _C>): BuiltContainerNode<_Extra, _C>;
+	addForm<_Extra extends object, _C extends AnyVueComponent>(id: string, config: NewFormBoundaryNodeConfig<_Extra, _C>): BuiltFormNode<_Extra, _C>;
+	addField<_Extra extends object, _C extends AnyVueComponent, State>(id: string, config: NewFormFieldNodeConfig<_Extra, _C, State>): BuiltContainerNode<Extra, C>;
+	addView<_Extra extends object, _C extends AnyVueComponent>(id: string, config: NewFormViewNodeConfig<_Extra, _C>): BuiltContainerNode<Extra, C>;
+	addChildren(...children: Array<FormNode | null | undefined>): BuiltContainerNode<Extra, C>;
+};
+
+export type FormRegistrationCallback = (api: FormBuilder) => FormContainerLikeNode | void;
+
+export class ControllerRegistry<C extends ControllerRegistryMap = {}, V extends ViewRegistryMap = {}> {
+	controllers: C = markRaw({} as C);
+	views: V = markRaw({} as V);
+
+	public registerController<Controller extends AnyFieldController>(controller: Controller): asserts this is ControllerRegistry<WithRegisteredController<C, Controller>, V> {
+		// @ts-ignore
+		if (this.controllers[controller.kind]) throw new Error(`Controller with kind ${controller.kind} is already registered`);
+		// @ts-ignore
+		this.controllers[controller.kind] = markRaw(controller);
+	}
+
+	public registerView<View extends AnyViewDefinition>(view: View): asserts this is ControllerRegistry<C, WithRegisteredView<V, View>> {
+		// @ts-ignore
+		if (this.views[view.kind]) throw new Error(`View with kind ${view.kind} is already registered`);
+		// @ts-ignore
+		this.views[view.kind] = markRaw(view);
+	}
+	public getController<Kind extends keyof C>(kind: Kind): C[Kind] {
+		const controller = this.controllers[kind];
+		if (!controller) throw new Error(`Controller with kind ${String(kind)} is not registered`);
+		return controller as C[Kind];
+	}
+	public getView<Kind extends keyof V>(kind: Kind): V[Kind] {
+		const view = this.views[kind];
+		if (!view) throw new Error(`View with kind ${String(kind)} is not registered`);
+		return view as V[Kind];
+	}
+}
+
+export class FormBuilder {
+	private nodeMap: Record<string, FormNode> = {};
+
+	private root: FormContainerLikeNode | null = null;
+
+	constructor(public readonly controllerRegistry: ControllerRegistry) {}
+
+	public hasNode(id: string): boolean {
+		return !!this.nodeMap[id];
+	}
+
+	newContainer<__Extra extends object, __C extends AnyVueComponent>(id: string, config: NewContainerNodeConfig<__Extra, __C>): BuiltContainerNode<__Extra, __C> {
+		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
+
+		const node: BuiltContainerNode<__Extra, __C> = {
+			...config,
+			builder: this,
+			id,
+			kind: 'container' as const,
+			children: [] as FormNode[],
+			addContainer<_Extra extends object, _C extends AnyVueComponent>(childId: string, childConfig: NewContainerNodeConfig<_Extra, _C>) {
+				const childNode = this.builder.newContainer(childId, childConfig);
+				node.children.push(childNode);
+				return childNode;
+			},
+			addForm<_Extra extends object, _C extends AnyVueComponent>(childId: string, childConfig: NewFormBoundaryNodeConfig<_Extra, _C>) {
+				const childNode = this.builder.newForm(childId, childConfig);
+				this.children.push(childNode);
+				return childNode;
+			},
+			addField<_Extra extends object, _C extends AnyVueComponent, State>(id: string, config: NewFormFieldNodeConfig<_Extra, _C, State>) {
+				this.children.push(this.builder.newField(id, config));
+				return this;
+			},
+			addView<_Extra extends object, _C extends AnyVueComponent>(id: string, config: NewFormViewNodeConfig<_Extra, _C>) {
+				this.children.push(this.builder.newView(id, config));
+				return this;
+			},
+			addChildren(...children: Array<FormNode | null | undefined>) {
+				for (const child of children) {
+					if (!child) continue;
+					if (!this.builder.nodeMap[child.id]) {
+						throw new Error(`Node with id ${child.id} does not belong to this form builder`);
+					}
+					node.children.push(child);
+				}
+				return this;
+			},
+		};
+		if (!this.root) this.root = node;
+		this.nodeMap[id] = node;
+		return node;
+	}
+	newForm<Extra extends object, C extends AnyVueComponent>(id: string, config: NewFormBoundaryNodeConfig<Extra, C>): BuiltFormNode<Extra, C> {
+		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
+		const node: BuiltFormNode<Extra, C> = {
+			...config,
+			builder: this,
+			id,
+			kind: 'form' as const,
+			children: [] as FormChildNode[],
+			addField<Extra extends object, C extends AnyVueComponent, State>(id: string, config: NewFormFieldNodeConfig<Extra, C, State>) {
+				this.children.push(this.builder.newField(id, config));
+				return this;
+			},
+			addView<Extra extends object, C extends AnyVueComponent>(id: string, config: NewFormViewNodeConfig<Extra, C>) {
+				this.children.push(this.builder.newView(id, config));
+				return this;
+			},
+			addChildren(...children: Array<FormChildNode | null | undefined>) {
+				for (const child of children) {
+					if (!child) continue;
+					if (!this.builder.nodeMap[child.id]) {
+						throw new Error(`Node with id ${child.id} does not belong to this form builder`);
+					}
+					node.children.push(child);
+				}
+				return node;
+			},
+		};
+		if (!this.root) this.root = node;
+		this.nodeMap[id] = node;
+		return node;
+	}
+	newField<Extra extends object, C extends AnyVueComponent, State>(id: string, config: NewFormFieldNodeConfig<Extra, C, State>): FormFieldNode<Extra, C, State> {
+		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
+		const node: FormFieldNode<Extra, C, State> = {
+			...config,
+			kind: 'field' as const,
+			id,
+		};
+		this.nodeMap[id] = node;
+		return node;
+	}
+	newView<Extra extends object, C extends AnyVueComponent>(id: string, config: NewFormViewNodeConfig<Extra, C>): FormViewNode<Extra, C> {
+		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
+		const node: FormViewNode<Extra, C> = {
+			...config,
+			id,
+			kind: 'view' as const,
+		};
+		this.nodeMap[id] = node;
+		return node;
+	}
+
+	getField(id: string) {
+		return this.getTypedNode(id, 'field');
+	}
+	getView(id: string) {
+		return this.getTypedNode(id, 'view');
+	}
+	getForm(id: string) {
+		return this.getTypedNode(id, 'form');
+	}
+	getContainer(id: string) {
+		return this.getTypedNode(id, 'container');
+	}
+
+	private getTypedNode<Kind extends NodeKind>(id: string, type: Kind): NodeKindMap[Kind] | null {
+		const node = this.nodeMap[id];
+		if (!node || node.kind !== type) return null;
+		return node as NodeKindMap[Kind];
+	}
+
+	build(): FormSystemDefinition {
+		if (!this.root) throw new Error('Form must have at least one node');
+		checkNoLoops(this.root);
+
+		return {
+			schemaVersion: generateSchemaVersion(this.root),
+			root: this.root,
+		};
+	}
+}

@@ -1,11 +1,11 @@
-import type { UiConfig } from '@/features/form/model/types/form-shape';
+import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
+
 import type { Translate } from '@/shared/i18n';
 import { escapeRegex } from '@/shared/utils/string-utils';
-import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 export type AnnotationReference = Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName' | 'defaultDescription'>;
 
-export type AnnotationPosFieldConfig = UiConfig & {
+export type AnnotationPosFieldConfig = {
 	annotation: AnnotationReference;
 	subAnnotations?: Record<string, AnnotationReference>;
 	tagset: Tagset;
@@ -106,8 +106,8 @@ export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, st
 
 	const detailParts = selectedValue.subAnnotationIds
 		.map(subAnnotationId => {
-			const selectedValues = getVisibleSubAnnotationValues(config.tagset, selectedValue.value, subAnnotationId).filter(subValue =>
-				state.selected[createAnnotationPosSelectionKey(selectedValue.value, subAnnotationId, subValue.value)],
+			const selectedValues = getVisibleSubAnnotationValues(config.tagset, selectedValue.value, subAnnotationId).filter(
+				subValue => state.selected[createAnnotationPosSelectionKey(selectedValue.value, subAnnotationId, subValue.value)],
 			);
 
 			if (!selectedValues.length) return null;

@@ -1,185 +1,376 @@
-import { markRaw } from 'vue';
-
+// import type { ControllerRegistry } from '@/features/form';
 import { checkNoLoops, generateSchemaVersion } from '@/features/form/model/form-utils';
-import type { FieldComponent, FieldController, FieldNodeConfig as ControllerFieldNodeConfig, ViewDefinition } from '@/features/form/model/types/form-controllers';
-import type { FormContainerNode, FormNode, FormBoundaryNode, FormChildNode, FormFieldNode, FormViewNode, NodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
-import type { FormSystemDefinition } from '@/features/form/model/types/form-state';
+import type { AnyFieldController, FieldController, FormSystemDefinition } from '@/features/form/model/types';
+import type {
+	AnyRealFormNode,
+	BaseContainerNode,
+	BaseFieldNode,
+	BaseFormNode,
+	BaseViewNode,
+	ImplicitContainerComponentProps,
+	ImplicitComponentProps,
+	NodeKind,
+	NodeKindMap,
+	RealContainerNode,
+	RealFieldNode,
+	RealFormNode,
+	RealViewNode,
+} from '@/features/form/model/types/form-shape';
+import type { AnyVueComponent, ConstrainComponentToProvidedProps, DistributiveOmit, NoExtraProperties, PublicPropsOf } from '@/types/helpers';
 
-export type FormRegistrationCallback = (api: FormBuilder) => FormContainerNode | void;
+// Tests
+// ==========================================================================================================================
 
-export type AnyFieldController = FieldController<string, any, any>;
-export type AnyFieldComponent = FieldComponent<any, any>;
-export type AnyViewDefinition = ViewDefinition<string, any>;
-export type ControllerRegistryMap = Partial<Record<string, AnyFieldController>>;
-export type ViewRegistryMap = Partial<Record<string, AnyViewDefinition>>;
-export type WithRegisteredController<C extends ControllerRegistryMap, Controller extends AnyFieldController> = Omit<C, Controller['kind']> & Record<Controller['kind'], Controller>;
-export type WithRegisteredView<V extends ViewRegistryMap, View extends AnyViewDefinition> = Omit<V, View['kind']> & Record<View['kind'], View>;
+// const newContainerNode: NewContainerNodeFn = (id, component, config) => {
+// 	return {} as any;
+// };
 
-type FieldStateFor<Controller extends AnyFieldController> = Controller extends FieldController<string, infer State, any> ? State : never;
-type FieldConfigFor<Controller extends AnyFieldController> = Controller extends FieldController<string, any, infer Config> ? Config : never;
-type FieldNodeConfigFor<Controller extends AnyFieldController> = ControllerFieldNodeConfig<FieldConfigFor<Controller>>;
-type FieldComponentFor<Controller extends AnyFieldController> = FieldComponent<FieldStateFor<Controller>>;
-type FieldNodeFor<Controller extends AnyFieldController> = FormFieldNode<FieldConfigFor<Controller>, FieldStateFor<Controller>>;
-type FieldNodeOptionsFor<Controller extends AnyFieldController> = Partial<Omit<FieldNodeFor<Controller>, 'id' | 'kind' | 'controller' | 'config'>>;
+// const TestContainerComponent = defineComponent({
+// 	props: {
+// 		foo: { type: String, required: true },
+// 		// variant: { type: String, required: false },
+// 		optional: { type: Array, required: false },
+// 		required: { type: String, required: true },
+// 	},
+// });
 
-export class ControllerRegistry<C extends ControllerRegistryMap = {}, V extends ViewRegistryMap = {}> {
-	controllers: C = markRaw({} as C);
-	fieldComponents: Partial<Record<string, AnyFieldComponent>> = markRaw({});
-	views: V = markRaw({} as V);
+// const testContainerNode = newContainerNode('test-node', TestContainerComponent, {
+// 	variant: 'list',
+// 	foo: 'bar',
+// 	required: 'string',
+// });
 
-	public registerController<Controller extends AnyFieldController>(
-		controller: Controller,
-		component: FieldComponentFor<Controller>,
-	): asserts this is ControllerRegistry<WithRegisteredController<C, Controller>, V> {
-		// @ts-ignore
-		if (this.controllers[controller.kind]) throw new Error(`Controller with kind ${controller.kind} is already registered`);
-		// @ts-ignore
-		this.controllers[controller.kind] = markRaw(controller);
-		this.fieldComponents[controller.kind] = markRaw(component) as AnyFieldComponent;
-	}
+// const newFormNode: NewFormNodeFn = (id, component, config) => {
+// 	return {} as any;
+// };
 
-	public registerView<View extends AnyViewDefinition>(view: View): asserts this is ControllerRegistry<C, WithRegisteredView<V, View>> {
-		// @ts-ignore
-		if (this.views[view.kind]) throw new Error(`View with kind ${view.kind} is already registered`);
-		// @ts-ignore
-		this.views[view.kind] = markRaw(view);
-	}
-	public getController<Kind extends keyof C>(kind: Kind): C[Kind] {
-		const controller = this.controllers[kind];
-		if (!controller) throw new Error(`Controller with kind ${String(kind)} is not registered`);
-		return controller as C[Kind];
-	}
-	public getView<Kind extends keyof V>(kind: Kind): V[Kind] {
-		const view = this.views[kind];
-		if (!view) throw new Error(`View with kind ${String(kind)} is not registered`);
-		return view as V[Kind];
-	}
+// const TestFormComponent = defineComponent({
+// 	props: {
+// 		foo: { type: String, required: true },
+// 		id: { type: String, required: true },
+// 		required: { type: String, required: true },
+// 		optional: { type: String, required: false },
+// 	},
+// });
 
-	public getFieldComponent<Controller extends AnyFieldController>(controller: Controller): FieldComponentFor<Controller> | null {
-		const component = this.fieldComponents[controller.kind];
-		return (component as FieldComponentFor<Controller> | undefined) ?? null;
-	}
+// const testFormNode = newFormNode('test-form-node', TestFormComponent, {
+// 	foo: 'bar',
+// 	required: 'true',
+// 	resultPreset: {
+// 		viewedResults: 'list',
+// 	},
+// 	// htmlId: 'forbidden',
+// });
+
+// const testController: FieldController<string, any, { foo: string; test: any[] }> = {
+// 	kind: 'test',
+// 	createDefaultState: (node, runtime) => {
+// 		return 'default';
+// 	},
+// 	toJSON() {
+// 		return { foo: 'string', test: [] };
+// 	},
+// };
+
+// const TestComponent = defineComponent({
+// 	props: {
+// 		foo: { type: String, required: true },
+// 		test: { type: Array, required: true },
+// 		id: { type: String, required: true },
+// 	},
+// });
+
+// const newFieldNode: NewFieldNodeFn = (id, controller, component, config) => {
+// 	return {} as any;
+// };
+
+// const testNode = newFieldNode('test-node', testController, TestComponent, {
+// 	foo: 'string',
+// 	variant: 'list',
+// 	test: [],
+// });
+
+// const TestViewComponent = defineComponent({
+// 	props: {
+// 		foo: { type: String, required: true },
+// 		id: { type: String, required: true },
+// 	},
+// });
+
+// const newViewNode: NewViewNodeFn = (id, component, config) => {
+// 	return {} as any;
+// };
+
+// const TestViewNodeConfig: NewViewNodeFnConfig<typeof TestViewComponent> = {
+// 	foo: 'string',
+// 	// variant: 'list' as const,
+// 	// htmlId: 'forbidden',
+// 	extraneous: 'value',
+// };
+
+// const testViewNode = newViewNode('test-view-node', TestViewComponent, {
+// 	modelValue: 'test',
+// 	foo: 'bar',
+// 	htmlId: 'forbidden',
+// 	extraneous: 'value',
+// });
+
+// Helpers
+// ==========================================================================================================================
+
+type ForbiddenConfigKeys = 'id' | 'children' | 'kind' | 'component' | 'controller' | 'htmlId' | 'modelValue';
+type ImplicitComponentPropKeys = keyof ImplicitComponentProps<unknown>;
+type ImplicitContainerComponentPropKeys = keyof ImplicitContainerComponentProps;
+
+type ConstrainComponentFromController<C extends AnyVueComponent, Controller> =
+	Controller extends FieldController<string, infer State, infer Extra> ? ConstrainComponentToProvidedProps<C, ImplicitComponentProps<State> & Extra> : never;
+
+type ExtractExtraPropsFromComponent<C extends AnyVueComponent, ImplicitKeys extends PropertyKey = ImplicitComponentPropKeys> = Omit<PublicPropsOf<C>, ImplicitKeys>;
+type ExtractExtraPropsFromController<Controller> = Controller extends FieldController<string, any, infer Extra> ? Extra : never;
+type ExtractExtraPropsFromConfig<Config> = Omit<Config, ForbiddenConfigKeys>;
+
+// Container
+// ==========================================================================================================================
+
+type NewContainerNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFromComponent<C, ImplicitContainerComponentPropKeys> & BaseContainerNode, ForbiddenConfigKeys>;
+type NewContainerNodeFnReturn<C extends AnyVueComponent, Config extends NewContainerNodeFnConfig<C>> = AddContainerNode &
+	AddFormNode &
+	AddViewNode &
+	AddFieldNode &
+	AddChildNodes &
+	RealContainerNode<ExtractExtraPropsFromConfig<Config>, C>;
+type NewContainerNodeFnArgs<C extends AnyVueComponent, Config extends NewContainerNodeFnConfig<C>> = [
+	id: string,
+	component: ConstrainComponentToProvidedProps<C, ImplicitContainerComponentProps & ExtractExtraPropsFromConfig<Config>>,
+	config: NoExtraProperties<NewContainerNodeFnConfig<C>, Config>,
+];
+
+interface NewContainerNodeFn {
+	<C extends AnyVueComponent, Config extends NewContainerNodeFnConfig<C>>(...args: NewContainerNodeFnArgs<C, Config>): NewContainerNodeFnReturn<C, Config>;
+}
+interface AddContainerNodeFn extends NewContainerNodeFn {}
+// new container is a terminal operation - returning the container.
+interface NewContainerNode {
+	newContainer: NewContainerNodeFn;
+}
+// adding a container is a terminal operation - returning the container for chaining.
+interface AddContainerNode {
+	addContainer: AddContainerNodeFn;
 }
 
-export type FormContainerNodeBuilder = FormContainerNode & {
-	builder: FormBuilder;
-	newContainer: (...args: Parameters<FormBuilder['newContainer']>) => FormContainerNodeBuilder;
-	newForm: (...args: Parameters<FormBuilder['newForm']>) => FormContainerNodeBuilder;
-	newField: (...args: Parameters<FormBuilder['newField']>) => FormContainerNodeBuilder;
-	newView: <Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>) => FormContainerNodeBuilder;
-	addChildren: (...children: FormNode[]) => FormContainerNodeBuilder;
-};
-export type FormBoundaryNodeBuilder = FormBoundaryNode & {
-	builder: FormBuilder;
-	addField: (...args: Parameters<FormBuilder['newField']>) => FormBoundaryNodeBuilder;
-	addView: <Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>) => FormBoundaryNodeBuilder;
-	addChildren: (...children: FormChildNode[]) => FormBoundaryNodeBuilder;
-};
+// Form
+// ==========================================================================================================================
 
-export class FormBuilder {
-	private nodeMap: Record<string, FormNode> = {};
+type NewFormNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFromComponent<C, ImplicitContainerComponentPropKeys> & BaseFormNode, ForbiddenConfigKeys>;
+type NewFormNodeFnReturn<C extends AnyVueComponent, Config extends NewFormNodeFnConfig<C>> = AddContainerNode &
+	AddFieldNode &
+	AddViewNode &
+	AddChildNodes &
+	RealFormNode<ExtractExtraPropsFromConfig<Config>, C>;
+type NewFormNodeFnArgs<C extends AnyVueComponent, Config extends NewFormNodeFnConfig<C>> = [
+	id: string,
+	component: ConstrainComponentToProvidedProps<C, ImplicitContainerComponentProps & ExtractExtraPropsFromConfig<Config>>,
+	config: NoExtraProperties<NewFormNodeFnConfig<C>, Config>,
+];
 
-	private root: FormContainerNode | FormBoundaryNode | null = null;
+interface NewFormNodeFn {
+	<C extends AnyVueComponent, Config extends NewFormNodeFnConfig<C>>(...args: NewFormNodeFnArgs<C, Config>): NewFormNodeFnReturn<C, Config>;
+}
+interface AddFormNodeFn extends NewFormNodeFn {}
+// new form is a terminal operation - returning the form.
+interface NewFormNode {
+	newForm: NewFormNodeFn;
+}
+// adding a form is a terminal operation - returning the form for chaining
+interface AddFormNode {
+	addForm: AddFormNodeFn;
+}
 
-	constructor(public readonly controllerRegistry: ControllerRegistry) {}
+// Field
+// ==========================================================================================================================
+
+type NewFieldNodeFnConfig<C extends AnyVueComponent, Controller extends AnyFieldController> = DistributiveOmit<
+	ExtractExtraPropsFromController<Controller> & ExtractExtraPropsFromComponent<C> & BaseFieldNode,
+	ForbiddenConfigKeys
+>;
+type NewFieldNodeFnReturn<C extends AnyVueComponent, Controller extends AnyFieldController, Config extends NewFieldNodeFnConfig<C, Controller>> = RealFieldNode<ExtractExtraPropsFromConfig<Config>, C>;
+type NewFieldNodeFnArgs<C extends AnyVueComponent, Controller extends AnyFieldController, Config extends NewFieldNodeFnConfig<C, Controller>> = [
+	id: string,
+	controller: Controller,
+	component: ConstrainComponentFromController<C, Controller>,
+	config: NoExtraProperties<NewFieldNodeFnConfig<C, Controller>, Config>,
+];
+interface NewFieldNodeFn {
+	<Controller extends AnyFieldController, C extends AnyVueComponent, Config extends NewFieldNodeFnConfig<C, Controller>>(
+		...args: NewFieldNodeFnArgs<C, Controller, Config>
+	): NewFieldNodeFnReturn<C, Controller, Config>;
+}
+
+// new field is a terminal operation - returning the field.
+interface NewFieldNode {
+	newField: NewFieldNodeFn;
+}
+
+// adding a field is a chainable operation - returning this.
+interface AddFieldNode {
+	addField<Controller extends AnyFieldController, C extends AnyVueComponent, Config extends NewFieldNodeFnConfig<C, Controller>>(...args: NewFieldNodeFnArgs<C, Controller, Config>): this;
+}
+
+// View
+// ==========================================================================================================================
+
+type NewViewNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFromComponent<C> & BaseViewNode, ForbiddenConfigKeys>;
+type NewViewNodeFnReturn<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>> = RealViewNode<ExtractExtraPropsFromConfig<Config>, C>;
+type NewViewNodeFnArgs<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>> = [
+	id: string,
+	component: ConstrainComponentToProvidedProps<C, ImplicitComponentProps<never> & ExtractExtraPropsFromConfig<Config>>,
+	config: NoExtraProperties<NewViewNodeFnConfig<C>, Config>,
+];
+
+interface NewViewNodeFn {
+	<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>>(...args: NewViewNodeFnArgs<C, Config>): NewViewNodeFnReturn<C, Config>;
+}
+// new view is a terminal operation - returning the view.
+interface NewViewNode {
+	newView: NewViewNodeFn;
+}
+// Adding a view is a chainable operation - returning this.
+interface AddViewNode {
+	addView<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>>(...args: NewViewNodeFnArgs<C, Config>): this;
+}
+
+// Children
+// ==========================================================================================================================
+
+interface AddChildNodes {
+	addChildren(...children: Array<AnyRealFormNode | null | undefined>): this;
+}
+
+// Builder
+// ==========================================================================================================================
+
+export type FormRegistrationCallback = (api: FormBuilder) => RealContainerNode<unknown, AnyVueComponent> | RealFormNode<unknown, AnyVueComponent> | void;
+
+export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode, NewViewNode {
+	private nodeMap: Record<string, AnyRealFormNode> = {};
+
+	private root: RealContainerNode<unknown, any> | RealFormNode<unknown, any> | null = null;
 
 	public hasNode(id: string): boolean {
 		return !!this.nodeMap[id];
 	}
 
-	newContainer(id: string, options?: Partial<Omit<FormContainerNode, 'id' | 'kind' | 'children'>>) {
+	newContainer: NewContainerNodeFn = (id, component, config) => {
+		const node = {
+			...config,
+			builder: this,
+			kind: 'container',
+			id,
+			children: [] as any[],
+			component: component as any,
+			addContainer(id, component, config) {
+				const childNode = this.builder.newContainer(id, component, config);
+				this.children.push(childNode);
+				return childNode;
+			},
+			addForm(id, component, config) {
+				const childNode = this.builder.newForm(id, component, config);
+				this.children.push(childNode);
+				return childNode;
+			},
+			addView(id, component, config) {
+				const childNode = this.builder.newView(id, component, config);
+				this.children.push(childNode);
+				return this;
+			},
+			addField(id, controller, component, config) {
+				const childNode = this.builder.newField(id, controller, component, config);
+				this.children.push(childNode);
+				return this;
+			},
+			addChildren(...children: Array<AnyRealFormNode | null | undefined>) {
+				for (const child of children) {
+					if (!child) continue;
+					if (this.builder.nodeMap[child.id] && this.builder.nodeMap[child.id] !== child) {
+						throw new Error(`Node with id ${child.id} already exists in this form builder`);
+					}
+					this.builder.nodeMap[child.id] = child;
+					this.children.push(child);
+				}
+				return this;
+			},
+		} satisfies NewContainerNodeFnReturn<AnyVueComponent, any> & { builder: FormBuilder };
+		if (!this.root) this.root = node;
+		this.nodeMap[id] = node;
+		return node;
+	};
+
+	newForm: NewFormNodeFn = (id, component, config) => {
 		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
 
-		const node: FormContainerNodeBuilder = {
-			...options,
+		const node = {
+			...config,
 			builder: this,
-			id,
-			kind: 'container',
-			children: [],
-			newContainer(...args: Parameters<FormBuilder['newContainer']>) {
-				node.children.push(this.builder.newContainer(...args));
-				return this;
-			},
-			newForm(...args: Parameters<FormBuilder['newForm']>) {
-				this.children.push(this.builder.newForm(...args));
-				return this;
-			},
-			newField(...args: Parameters<FormBuilder['newField']>) {
-				this.children.push(this.builder.newField(...args));
-				return this;
-			},
-			newView<Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>) {
-				this.children.push(this.builder.newView(id, view, config, options));
-				return this;
-			},
-			addChildren(...children: FormNode[]) {
-				for (const child of children) {
-					if (!this.builder.nodeMap[child.id]) {
-						throw new Error(`Node with id ${child.id} does not belong to this form builder`);
-					}
-				}
-				node.children.push(...children);
-				return this;
-			},
-		};
-		if (!this.root) this.root = node;
-		return (this.nodeMap[id] = node);
-	}
-	newForm(id: string, options?: Partial<Omit<FormBoundaryNode, 'id' | 'kind' | 'children'>>): FormBoundaryNodeBuilder {
-		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
-		const node: FormBoundaryNodeBuilder = {
-			...options,
-			builder: this,
-			id,
 			kind: 'form',
-			children: [],
-			addField(...args: Parameters<FormBuilder['newField']>) {
-				this.children.push(this.builder.newField(...args));
+			id,
+			component: component as any,
+			children: [] as AnyRealFormNode[],
+			addContainer(id, component, config) {
+				const childNode = this.builder.newContainer(id, component, config);
+				this.children.push(childNode);
+				return childNode;
+			},
+			addView(id, component, config) {
+				const childNode = this.builder.newView(id, component, config);
+				this.children.push(childNode);
 				return this;
 			},
-			addView<Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>) {
-				this.children.push(this.builder.newView(id, view, config, options));
+			addField(id, controller, component, config) {
+				const childNode = this.builder.newField(id, controller, component, config);
+				this.children.push(childNode);
 				return this;
 			},
-			addChildren(...children: FormChildNode[]) {
+			addChildren(...children: Array<AnyRealFormNode | null | undefined>) {
 				for (const child of children) {
-					if (!this.builder.nodeMap[child.id]) {
-						throw new Error(`Node with id ${child.id} does not belong to this form builder`);
+					if (!child) continue;
+					if (this.builder.nodeMap[child.id] && this.builder.nodeMap[child.id] !== child) {
+						throw new Error(`Node with id ${child.id} already exists in this form builder`);
 					}
+					this.builder.nodeMap[child.id] = child;
+					this.children.push(child);
 				}
-				this.children.push(...children);
 				return this;
 			},
-		};
+		} satisfies NewFormNodeFnReturn<AnyVueComponent, {}> & { builder: FormBuilder };
 		if (!this.root) this.root = node;
-		return (this.nodeMap[id] = node);
-	}
-	newField<Controller extends AnyFieldController>(id: string, controller: Controller, config: FieldNodeConfigFor<Controller>, options?: FieldNodeOptionsFor<Controller>): FieldNodeFor<Controller> {
+		this.nodeMap[id] = node;
+		return node;
+	};
+
+	newField: NewFieldNodeFn = (id, controller, component, config) => {
 		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
-		const { component: componentOverride, ...nodeOptions } = options ?? {};
-		const component = componentOverride ?? this.controllerRegistry.getFieldComponent(controller);
-		if (!component) throw new Error(`Field ${id} with controller kind ${controller.kind} is missing a registered component`);
-		const node: FieldNodeFor<Controller> = {
-			...nodeOptions,
-			id,
-			kind: 'field',
+		const node = {
+			...config,
+			component: component as any,
 			controller,
-			component,
-			config,
-		};
-		return (this.nodeMap[id] = node);
-	}
-	newView<Config>(id: string, view: ViewDefinition<string, Config>, config?: Config, options?: Partial<Omit<FormViewNode<Config>, 'id' | 'view' | 'config'>>): FormViewNode<Config> {
-		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
-		const node: FormViewNode<Config> = {
-			...options,
+			kind: 'field' as const,
 			id,
-			kind: 'view',
-			view,
-			config,
-		} as FormViewNode<Config>;
-		return (this.nodeMap[id] = node);
-	}
+		} satisfies NewFieldNodeFnReturn<AnyVueComponent, AnyFieldController, {}>;
+		this.nodeMap[id] = node;
+		return node;
+	};
+
+	newView: NewViewNodeFn = (id, component, config) => {
+		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
+		const node = {
+			...config,
+			component: component as any,
+			id,
+			kind: 'view' as const,
+		} satisfies NewViewNodeFnReturn<AnyVueComponent, {}>;
+		this.nodeMap[id] = node;
+		return node;
+	};
 
 	getField(id: string) {
 		return this.getTypedNode(id, 'field');

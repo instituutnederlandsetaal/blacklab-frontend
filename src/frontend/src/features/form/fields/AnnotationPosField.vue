@@ -84,18 +84,14 @@ import {
     type AnnotationPosFieldState,
 } from './annotation-pos-field';
 
-import { getVariantClassNames } from '@/features/form/model/types/form-shape';
+import { getVariantClassNames } from '@/features/form/model/form-utils';
+import type { FormComponentProps } from '@/features/form/model/types/form-shape';
 
 import { useI18n } from '@/shared/i18n';
 import Modal from '@/shared/ui/Modal.vue';
 
 const props = withDefaults(
-	defineProps<{
-		config: AnnotationPosFieldConfig;
-		modelValue: AnnotationPosFieldState;
-		htmlId: string;
-		showLabel?: boolean;
-	}>(),
+	defineProps<FormComponentProps<AnnotationPosFieldConfig, AnnotationPosFieldState> & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},
@@ -120,20 +116,20 @@ watch(
 );
 
 const buttonId = computed(() => `${props.htmlId}_editor`);
-const fieldClasses = computed(() => ['blf-field', 'blf-annotation-pos', ...getVariantClassNames(props.config, 'blf-field')]);
-const mainValues = computed(() => Object.values(props.config.tagset.values));
-const currentAnnotationValue = computed(() => findTagsetValue(props.config.tagset, draftState.value.annotationValue));
-const fieldLabel = computed(() => i18n.$tAnnotDisplayName(props.config.annotation));
-const fieldDescription = computed(() => i18n.$td(`index.annotations.${props.config.annotation.id}_description`, props.config.annotation.defaultDescription));
+const fieldClasses = computed(() => ['blf-field', 'blf-annotation-pos', ...getVariantClassNames(props.variant, 'blf-field')]);
+const mainValues = computed(() => Object.values(props.tagset.values));
+const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value.annotationValue));
+const fieldLabel = computed(() => i18n.$tAnnotDisplayName(props.annotation));
+const fieldDescription = computed(() => i18n.$td(`index.annotations.${props.annotation.id}_description`, props.annotation.defaultDescription));
 const editLabel = computed(() => i18n.$td('partOfSpeech.edit', 'Edit'));
 const resetLabel = computed(() => i18n.$td('partOfSpeech.reset', 'Reset'));
 const submitLabel = computed(() => i18n.$td('partOfSpeech.submit', 'Apply'));
 const cancelLabel = computed(() => i18n.$td('common.cancel', 'Cancel'));
 const emptySelectionLabel = computed(() => i18n.$td('partOfSpeech.noneSelected', 'No part of speech selected'));
 const noOptionsLabel = computed(() => i18n.$td('partOfSpeech.noOptions', 'No additional options'));
-const modalSize = computed(() => props.config.modalSize ?? 'lg');
-const queryPreview = computed(() => (props.config.showQueryPreview === false ? '' : buildAnnotationPosQueryPreview(props.config, draftState.value)));
-const selectionSummary = computed(() => summarizeAnnotationPosState(props.config, props.modelValue, i18n));
+const modalSize = computed(() => props.modalSize ?? 'lg');
+const queryPreview = computed(() => (props.showQueryPreview === false ? '' : buildAnnotationPosQueryPreview(props, draftState.value)));
+const selectionSummary = computed(() => summarizeAnnotationPosState(props, props.modelValue, i18n));
 const hasSelection = computed(() => !!props.modelValue.annotationValue);
 
 function openEditor() {
@@ -167,11 +163,11 @@ function toggleAnnotationValue(value: string) {
 }
 
 function visibleSubAnnotationValues(subAnnotationId: string) {
-	return getVisibleSubAnnotationValues(props.config.tagset, draftState.value.annotationValue, subAnnotationId);
+	return getVisibleSubAnnotationValues(props.tagset, draftState.value.annotationValue, subAnnotationId);
 }
 
 function subAnnotationLabel(subAnnotationId: string): string {
-	const subAnnotation = props.config.subAnnotations?.[subAnnotationId] ?? {
+	const subAnnotation = props.subAnnotations?.[subAnnotationId] ?? {
 		id: subAnnotationId,
 		defaultDisplayName: subAnnotationId,
 		defaultDescription: undefined,

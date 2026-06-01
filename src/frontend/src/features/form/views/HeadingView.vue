@@ -1,21 +1,15 @@
 <template>
 	<header class="blf-heading-view">
-		<h3>{{ config.title }}</h3>
-		<p v-if="config.description">{{ config.description }}</p>
+		<h3>{{ title }}</h3>
+		<p v-if="description">{{ description }}</p>
 	</header>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 
-import type { FormViewNode } from '@/features/form/model/types/form-shape';
 import type { HeadingViewConfig } from '@/features/form/model/views/heading-view';
 
-const props = defineProps<{
-	node: FormViewNode<HeadingViewConfig>;
-}>();
-
-const config = computed(() => props.node.config);
+defineProps<HeadingViewConfig>();
 </script>
 
 <style lang="scss" scoped>

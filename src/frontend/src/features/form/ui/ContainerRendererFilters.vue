@@ -4,18 +4,18 @@
 
 		<template v-if="isTabbed">
 			<nav :class="['blf-tabs', { 'blf-tabs-small': isSmallTabs }]" aria-label="Form section tabs">
-				<button v-for="child in node.children" :key="child.id" type="button" :class="{ active: activeChild?.id === child.id }" @click="activateChildContainer(child.id)">
+				<button v-for="child in node.children" :key="child.id" type="button" :class="{ active: activeChild?.id === child.id }" @click="activateChild(child.id)">
 					{{ child.title || child.id }}
 					<span v-if="activeSummaryCounts[child.id]" class="blf-tab-count">{{ activeSummaryCounts[child.id] }}</span>
 				</button>
 			</nav>
 			<div class="blf-tab-panel">
-				<NodeRenderer v-if="activeChild" :node="activeChild" hide-title />
+				<Component v-if="activeChild" :is="resolveNodeComponent(activeChild)" :key="activeChild.id" v-bind="nodeProps(activeChild, true)" />
 			</div>
 		</template>
 
 		<div v-else-if="node.children.length" class="blf-container-list">
-			<NodeRenderer v-for="child in node.children" :key="child.id" :node="child" />
+			<Component v-for="child in node.children" :is="resolveNodeComponent(child)" :key="child.id" v-bind="nodeProps(child)" />
 		</div>
 		<!-- TODO i18n -->
 		<div v-else class="blf-empty-state">Nothing configured.</div>
@@ -27,20 +27,29 @@ import { computed } from 'vue';
 
 import { isContainerNode } from '@/features/form/model/form-utils';
 import { useParentForm } from '@/features/form/model/runtime';
-import type { FormContainerNode } from '@/features/form/model/types/form-shape';
+import type { ContainerNode, FormNode } from '@/features/form/model/types/form-shape';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
-
-import NodeRenderer from '@/features/form/ui/NodeRenderer.vue';
+import useUid from '@/shared/utils/useUid';
+import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
 
 defineOptions({ name: 'ContainerRendererFilters' });
 
 const props = defineProps<{
-	node: FormContainerNode;
+	node: ContainerNode;
 	hideTitle?: boolean;
 }>();
 
-const { runtime, isTabbed, isSmallTabs, activeChild, containerClasses, activateChildContainer } = containerRendererSetup(props);
+const { runtime, isTabbed, isSmallTabs, activeChild, containerClasses, activateChild } = containerRendererSetup(props);
 const parentForm = useParentForm();
+const renderScopeId = useUid();
+
+function nodeProps(node: FormNode, hideTitle = false) {
+	return getNodeProps(node, {
+		hideTitle,
+		runtime,
+		scopeId: renderScopeId,
+	});
+}
 
 const childGroups = computed<Set<string>>(() => new Set(props.node.children.filter(isContainerNode).map(child => child.id)));
 

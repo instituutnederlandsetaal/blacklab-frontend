@@ -57,6 +57,7 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 	const submitListeners: ((formId: string, submitted: PersistableSubmittableFormState) => void)[] = [];
 	const summarizeListeners: ((formId: string, summaries: SummaryEntry[]) => void)[] = [];
 	const persistListeners: ((formId: string, persisted: PersistableFormState) => void)[] = [];
+	const resetListeners: (() => void)[] = [];
 
 	return {
 		activeFormNode,
@@ -96,6 +97,7 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 		},
 		reset() {
 			this.state.value = createFormState(this.definition, this.context);
+			resetListeners.forEach(callback => callback());
 		},
 
 		onCompile(callback: (formId: string, compiled: CompiledFormState) => void) {
@@ -103,6 +105,9 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 		},
 		onSubmit(callback: (formId: string, submitted: PersistableSubmittableFormState) => void) {
 			submitListeners.push(callback);
+		},
+		onReset(callback: () => void) {
+			resetListeners.push(callback);
 		},
 		onSummarize(callback: (formId: string, summaries: SummaryEntry[]) => void) {
 			summarizeListeners.push(callback);

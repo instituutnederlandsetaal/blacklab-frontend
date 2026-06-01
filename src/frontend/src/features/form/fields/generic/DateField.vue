@@ -1,18 +1,18 @@
 <template>
 	<div :class="fieldClasses" :id="htmlId">
 		<label v-if="showLabel" :for="`${inputId}_year_from`">
-			{{ config.displayName }}
+			{{ displayName }}
 			<small v-if="minDateDisplay && maxDateDisplay" class="blf-muted">({{ minDateDisplay }} to {{ maxDateDisplay }})</small>
 		</label>
 
 		<div>
 			<div class="dates">
-				<label v-if="config.range">From: </label>
+				<label v-if="range">From: </label>
 				<input class="blf-input form-control" :id="`${inputId}_year_from`" type="number" title="year" placeholder="year" v-model="yearFrom" :min="minYear" :max="maxYear" />
 				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" />
 				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" />
 			</div>
-			<div v-if="config.range" class="dates">
+			<div v-if="range" class="dates">
 				<label>To: </label>
 				<input class="blf-input form-control" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" />
 				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" />
@@ -20,7 +20,7 @@
 			</div>
 		</div>
 
-		<div v-if="!lockedMode && config.range" class="btn-group">
+		<div v-if="!lockedMode && range" class="btn-group">
 			<button
 				v-for="mode in modes"
 				type="button"
@@ -33,14 +33,15 @@
 				{{ mode.label }}
 			</button>
 		</div>
-		<small v-if="config.description" class="blf-help-text">{{ config.description }}</small>
+		<small v-if="description" class="blf-help-text">{{ description }}</small>
 	</div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { getVariantClassNames } from '@/features/form/model/types/form-shape';
+import { getVariantClassNames } from '@/features/form/model/form-utils';
+import type { FormComponentProps } from '@/features/form/model/types/form-shape';
 
 import { DateUtils, type RangeMode, type DateFieldState, type DateFieldUiConfig } from './date-field';
 
@@ -49,12 +50,7 @@ import type { Option } from '@/shared/utils/options';
 type ModeOption = Option<RangeMode>;
 
 const props = withDefaults(
-	defineProps<{
-		config: DateFieldUiConfig;
-		modelValue: DateFieldState;
-		htmlId: string;
-		showLabel?: boolean;
-	}>(),
+	defineProps<FormComponentProps<DateFieldUiConfig, DateFieldState> & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},
@@ -65,16 +61,16 @@ const emit = defineEmits<{
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.config, 'blf-field')]);
-const minDate = computed(() => DateUtils.normalizeBoundaryDate(props.config.min));
-const maxDate = computed(() => DateUtils.normalizeBoundaryDate(props.config.max));
+const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const minDate = computed(() => DateUtils.normalizeBoundaryDate(props.min));
+const maxDate = computed(() => DateUtils.normalizeBoundaryDate(props.max));
 const minDateDisplay = computed(() => (minDate.value ? DateUtils.dateValueToDisplayString(minDate.value) : null));
 const maxDateDisplay = computed(() => (maxDate.value ? DateUtils.dateValueToDisplayString(maxDate.value) : null));
 const minYear = computed(() => minDate.value?.y);
 const maxYear = computed(() => maxDate.value?.y);
 const startMonthLength = computed(() => DateUtils.dateValueToLucene({ ...props.modelValue.startDate, d: '' }, 'end').substring(6, 8));
 const endMonthLength = computed(() => DateUtils.dateValueToLucene({ ...props.modelValue.endDate, d: '' }, 'end').substring(6, 8));
-const lockedMode = computed(() => props.config.mode ?? null);
+const lockedMode = computed(() => props.mode ?? null);
 
 const modes: ModeOption[] = [
 	{

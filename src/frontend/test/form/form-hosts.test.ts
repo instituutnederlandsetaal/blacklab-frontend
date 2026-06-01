@@ -21,10 +21,12 @@ import {
 	type FormViewNode,
 	type SummaryEntry,
 } from '@/features/form';
+import ParallelField from '@/features/form/fields/ParallelField.vue';
+import RawCqlField from '@/features/form/fields/RawCqlField.vue';
+import WithinField from '@/features/form/fields/WithinField.vue';
+import TextField from '@/features/form/fields/generic/TextField.vue';
 import { createAndProvideParentForm, provideFormSystemRuntime } from '@/features/form/model/runtime';
-
-import FieldHost from '@/features/form/ui/FieldHost.vue';
-import ViewHost from '@/features/form/ui/ViewHost.vue';
+import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
 
 import { createBuiltinRegistry, createTestContext } from './helpers';
 
@@ -144,7 +146,13 @@ function createHostHarness(node: FormFieldNode<any> | FormViewNode<any>, form: F
 			provideFormSystemRuntime(runtime);
 			createAndProvideParentForm(runtime, () => form.id);
 
-			return () => (host === 'field' ? h(FieldHost as any, { node: node as FormFieldNode<any> }) : h(ViewHost as any, { node: node as FormViewNode<any> }));
+			return () =>
+				h(resolveNodeComponent(node), {
+					...getNodeProps(node, {
+						runtime,
+						scopeId: host,
+					}),
+				});
 		},
 	});
 }
@@ -173,7 +181,7 @@ function createFieldRuntime<TField extends FormFieldNode<any>>(
 	placement: FieldPlacement = 'direct',
 ): RuntimeFieldHarness<TField> {
 	const builder = new FormBuilder(createBuiltinRegistry());
-	const form = builder.newForm('harness.form', { title: 'Harness' });
+	const form = builder.newForm('harness.form', { title: 'Harness', config: {} });
 	const field = buildField(builder, form);
 	addFieldToForm(builder, form, field, placement);
 	const runtime = createFormSystemRuntime(builder.build(), createTestContext());
@@ -201,7 +209,7 @@ function mountViewHarness<TExtra, TView extends FormViewNode<any>>(
 	},
 ) {
 	const builder = new FormBuilder(createBuiltinRegistry());
-	const form = builder.newForm('harness.form', { title: 'Harness' });
+	const form = builder.newForm('harness.form', { title: 'Harness', config: {} });
 	const { extra, view } = buildView(builder, form);
 	const runtime = createFormSystemRuntime(builder.build(), createTestContext());
 	const wrapper = mount(createHostHarness(view, form, runtime, 'view'));
@@ -230,11 +238,15 @@ function normalizedText(wrapper: VueWrapper<any>) {
 describe('builtin controller hosts', () => {
 	test('updates annotation controller state from the host', async () => {
 		const harness = mountFieldHarness(builder =>
-			builder.newField('shouldNotEndUpInSummaryId.annotation.node', annotationTextController, {
-				annotationId: 'shouldEndUpInSummaryId.annotation',
-				caseSensitive: true,
-				displayName: 'shouldEndUpInSummaryLabel.annotation',
-				groupId: 'shouldEndUpInSummaryGroup.annotation',
+			builder.newField('shouldNotEndUpInSummaryId.annotation.node', {
+				controller: annotationTextController,
+				component: TextField,
+				config: {
+					annotationId: 'shouldEndUpInSummaryId.annotation',
+					caseSensitive: true,
+					displayName: 'shouldEndUpInSummaryLabel.annotation',
+					groupId: 'shouldEndUpInSummaryGroup.annotation',
+				},
 			}),
 		);
 
@@ -246,9 +258,13 @@ describe('builtin controller hosts', () => {
 
 	test('updates metadata filter state from the host', async () => {
 		const harness = mountFieldHarness(builder =>
-			builder.newField('shouldEndUpInSummaryId.metadata.node', filterTextController, {
-				displayName: 'shouldEndUpInSummaryLabel.metadata',
-				metadataFieldId: 'shouldNotEndUpInSummaryId.metadata.field',
+			builder.newField('shouldEndUpInSummaryId.metadata.node', {
+				controller: filterTextController,
+				component: TextField,
+				config: {
+					displayName: 'shouldEndUpInSummaryLabel.metadata',
+					metadataFieldId: 'shouldNotEndUpInSummaryId.metadata.field',
+				},
 			}),
 		);
 
@@ -259,13 +275,17 @@ describe('builtin controller hosts', () => {
 
 	test('updates parallel controller state from the host', async () => {
 		const harness = mountFieldHarness(builder =>
-			builder.newField('shouldEndUpInSummaryId.parallel.node', parallelController, {
-				alignByOptions: [
-					{ value: 'parallel-state.align.other', label: 'shouldNotEndUpInSummaryValue.parallel.alignBy' },
-					{ value: 'parallel-state.align.selected', label: 'shouldEndUpInSummaryValue.parallel.alignBy' },
-				],
-				sourceOptions: languageOptions,
-				targetOptions: languageOptions,
+			builder.newField('shouldEndUpInSummaryId.parallel.node', {
+				controller: parallelController,
+				component: ParallelField,
+				config: {
+					alignByOptions: [
+						{ value: 'parallel-state.align.other', label: 'shouldNotEndUpInSummaryValue.parallel.alignBy' },
+						{ value: 'parallel-state.align.selected', label: 'shouldEndUpInSummaryValue.parallel.alignBy' },
+					],
+					sourceOptions: languageOptions,
+					targetOptions: languageOptions,
+				},
 			}),
 		);
 
@@ -279,10 +299,15 @@ describe('builtin controller hosts', () => {
 
 	test('updates raw cql state from the host', async () => {
 		const harness = mountFieldHarness(builder =>
-			builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, {
-				helpUrl: 'https://example.test/help',
-				label: 'shouldEndUpInSummaryLabel.raw-cql',
-				rows: 4,
+			builder.newField('shouldEndUpInSummaryId.raw-cql.node', {
+				controller: expertQueryController,
+				component: RawCqlField,
+				config: {
+					displayName: 'shouldEndUpInSummaryLabel.raw-cql',
+					helpUrl: 'https://example.test/help',
+					label: 'shouldEndUpInSummaryLabel.raw-cql',
+					rows: 4,
+				},
 			}),
 		);
 
@@ -293,10 +318,15 @@ describe('builtin controller hosts', () => {
 
 	test('renders the raw cql help link', () => {
 		const harness = mountFieldHarness(builder =>
-			builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, {
-				helpUrl: 'https://example.test/help',
-				label: 'shouldEndUpInSummaryLabel.raw-cql',
-				rows: 4,
+			builder.newField('shouldEndUpInSummaryId.raw-cql.node', {
+				controller: expertQueryController,
+				component: RawCqlField,
+				config: {
+					displayName: 'shouldEndUpInSummaryLabel.raw-cql',
+					helpUrl: 'https://example.test/help',
+					label: 'shouldEndUpInSummaryLabel.raw-cql',
+					rows: 4,
+				},
 			}),
 		);
 
@@ -305,9 +335,13 @@ describe('builtin controller hosts', () => {
 
 	test('updates within controller state from the host', async () => {
 		const harness = mountFieldHarness(builder =>
-			builder.newField('shouldEndUpInSummaryId.within.node', withinController, {
-				label: 'shouldEndUpInSummaryLabel.within',
-				options: withinOptions,
+			builder.newField('shouldEndUpInSummaryId.within.node', {
+				controller: withinController,
+				component: WithinField,
+				config: {
+					label: 'shouldEndUpInSummaryLabel.within',
+					options: withinOptions,
+				},
 			}),
 		);
 
@@ -321,11 +355,15 @@ describe('builtin controller hosts', () => {
 describe('builtin controller summaries', () => {
 	test('uses the annotation config id in summaries for direct form children', () => {
 		const harness = createFieldRuntime(builder =>
-			builder.newField('shouldNotEndUpInSummaryId.annotation.node', annotationTextController, {
-				annotationId: 'shouldEndUpInSummaryId.annotation',
-				caseSensitive: true,
-				displayName: 'shouldEndUpInSummaryLabel.annotation',
-				groupId: 'shouldEndUpInSummaryGroup.annotation',
+			builder.newField('shouldNotEndUpInSummaryId.annotation.node', {
+				controller: annotationTextController,
+				component: TextField,
+				config: {
+					annotationId: 'shouldEndUpInSummaryId.annotation',
+					caseSensitive: true,
+					displayName: 'shouldEndUpInSummaryLabel.annotation',
+					groupId: 'shouldEndUpInSummaryGroup.annotation',
+				},
 			}),
 		);
 
@@ -337,9 +375,13 @@ describe('builtin controller summaries', () => {
 	test('uses the field node id in metadata summaries through a container', () => {
 		const harness = createFieldRuntime(
 			builder =>
-				builder.newField('shouldEndUpInSummaryId.metadata.node', filterTextController, {
-					displayName: 'shouldEndUpInSummaryLabel.metadata',
-					metadataFieldId: 'shouldNotEndUpInSummaryId.metadata.field',
+				builder.newField('shouldEndUpInSummaryId.metadata.node', {
+					controller: filterTextController,
+					component: TextField,
+					config: {
+						displayName: 'shouldEndUpInSummaryLabel.metadata',
+						metadataFieldId: 'shouldNotEndUpInSummaryId.metadata.field',
+					},
 				}),
 			'container',
 		);
@@ -352,13 +394,17 @@ describe('builtin controller summaries', () => {
 	test('uses derived node-based ids in parallel summaries through nested containers', () => {
 		const harness = createFieldRuntime(
 			builder =>
-				builder.newField('shouldEndUpInSummaryId.parallel.node', parallelController, {
-					alignByOptions: [
-						{ value: 'parallel-state.align.other', label: 'shouldNotEndUpInSummaryValue.parallel.alignBy' },
-						{ value: 'parallel-state.align.selected', label: 'shouldEndUpInSummaryValue.parallel.alignBy' },
-					],
-					sourceOptions: languageOptions,
-					targetOptions: languageOptions,
+				builder.newField('shouldEndUpInSummaryId.parallel.node', {
+					controller: parallelController,
+					component: ParallelField,
+					config: {
+						alignByOptions: [
+							{ value: 'parallel-state.align.other', label: 'shouldNotEndUpInSummaryValue.parallel.alignBy' },
+							{ value: 'parallel-state.align.selected', label: 'shouldEndUpInSummaryValue.parallel.alignBy' },
+						],
+						sourceOptions: languageOptions,
+						targetOptions: languageOptions,
+					},
 				}),
 			'nested-container',
 		);
@@ -370,9 +416,14 @@ describe('builtin controller summaries', () => {
 
 	test('uses the field node id in raw cql summaries for direct form children', () => {
 		const harness = createFieldRuntime(builder =>
-			builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, {
-				label: 'shouldEndUpInSummaryLabel.raw-cql',
-				rows: 4,
+			builder.newField('shouldEndUpInSummaryId.raw-cql.node', {
+				controller: expertQueryController,
+				component: RawCqlField,
+				config: {
+					displayName: 'shouldEndUpInSummaryLabel.raw-cql',
+					label: 'shouldEndUpInSummaryLabel.raw-cql',
+					rows: 4,
+				},
 			}),
 		);
 
@@ -384,9 +435,13 @@ describe('builtin controller summaries', () => {
 	test('uses the field node id in within summaries through a container', () => {
 		const harness = createFieldRuntime(
 			builder =>
-				builder.newField('shouldEndUpInSummaryId.within.node', withinController, {
-					label: 'shouldEndUpInSummaryLabel.within',
-					options: withinOptions,
+				builder.newField('shouldEndUpInSummaryId.within.node', {
+					controller: withinController,
+					component: WithinField,
+					config: {
+						label: 'shouldEndUpInSummaryLabel.within',
+						options: withinOptions,
+					},
 				}),
 			'container',
 		);
@@ -400,9 +455,12 @@ describe('builtin controller summaries', () => {
 describe('builtin view hosts', () => {
 	test('renders the heading view host', () => {
 		const harness = mountViewHarness((builder, form) => {
-			const view = builder.newView('harness.heading', headingView, {
-				description: 'Overview of the current form slice.',
-				title: 'Search heading',
+			const view = builder.newView('harness.heading', {
+				component: headingView.component,
+				config: {
+					description: 'Overview of the current form slice.',
+					title: 'Search heading',
+				},
 			});
 			form.addChildren(view);
 			return { extra: {}, view };
@@ -414,12 +472,19 @@ describe('builtin view hosts', () => {
 
 	test('renders the summary view host against provided parent-form state', async () => {
 		const harness = mountViewHarness((builder, form) => {
-			const field = builder.newField('harness.summary.field', annotationTextController, {
-				annotationId: 'shouldEndUpInSummaryId.summary-view',
-				displayName: summaryViewExpectation.entryLabel,
+			const field = builder.newField('harness.summary.field', {
+				controller: annotationTextController,
+				component: TextField,
+				config: {
+					annotationId: 'shouldEndUpInSummaryId.summary-view',
+					displayName: summaryViewExpectation.entryLabel,
+				},
 			});
-			const view = builder.newView('harness.summary', summaryView, {
-				title: summaryViewExpectation.title,
+			const view = builder.newView('harness.summary', {
+				component: summaryView.component,
+				config: {
+					title: summaryViewExpectation.title,
+				},
 			});
 			form.addChildren(field, view);
 			return { extra: { fieldId: field.id }, view };
@@ -437,14 +502,21 @@ describe('builtin view hosts', () => {
 
 	test('renders the totals view host against provided parent-form state', async () => {
 		const harness = mountViewHarness((builder, form) => {
-			const field = builder.newField('harness.filter', filterTextController, {
-				displayName: 'shouldActivateTotalsProjection.filter',
-				metadataFieldId: 'shouldActivateTotalsProjection.metadata-field',
+			const field = builder.newField('harness.filter', {
+				controller: filterTextController,
+				component: TextField,
+				config: {
+					displayName: 'shouldActivateTotalsProjection.filter',
+					metadataFieldId: 'shouldActivateTotalsProjection.metadata-field',
+				},
 			});
-			const view = builder.newView('harness.totals', totalsView, {
-				baseDocuments: 1000,
-				baseTokens: 2000,
-				title: 'Totals',
+			const view = builder.newView('harness.totals', {
+				component: totalsView.component,
+				config: {
+					baseDocuments: 1000,
+					baseTokens: 2000,
+					title: 'Totals',
+				},
 			});
 			form.addChildren(field, view);
 			return { extra: { fieldId: field.id }, view };

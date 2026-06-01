@@ -1,7 +1,7 @@
 import { withSearchField, createQueryArtifact, createQueryContribution } from '@/features/form/model/compile/query-artifact';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { SummaryEntry } from '@/features/form/model/types/form-query';
-import type { UiConfig } from '@/features/form/model/types/form-shape';
+import type { FormComponentProps } from '@/features/form/model/types/form-shape';
 
 import { findOption, optionLabel, type Option } from '@/shared/utils/options';
 
@@ -11,7 +11,7 @@ export type ParallelFieldState = {
 	alignBy: string | null;
 };
 
-export type ParallelFieldConfig = UiConfig & {
+export type ParallelFieldConfig = {
 	label?: string;
 
 	// TODO these are i18n values
@@ -20,29 +20,31 @@ export type ParallelFieldConfig = UiConfig & {
 	targetLabel?: string;
 	alignByLabel?: string;
 	sourceOptions: Option[];
-	targetOptions?: Option[];
+	targetOptions: Option[];
 	alignByOptions?: Option[];
 };
 
+export type ParallelFieldComponentProps = FormComponentProps<ParallelFieldConfig, ParallelFieldState>;
+
 export const parallelController: FieldController<'parallel', ParallelFieldState, ParallelFieldConfig> = {
 	kind: 'parallel',
-	createDefaultState: node => ({
-		source: node.config.sourceOptions[0]?.value ?? null,
+	createDefaultState: config => ({
+		source: config.sourceOptions[0]?.value ?? null,
 		targets: [],
-		alignBy: node.config.alignByOptions?.[0]?.value ?? null,
+		alignBy: config.alignByOptions?.[0]?.value ?? null,
 	}),
 	// TODO i18n of summary labels, could use existing Translate system though.
-	getQueryContribution({ node, state }) {
+	getQueryContribution(config, runtime, state) {
 		const artifact = withSearchField(createQueryArtifact(), state.source);
 		const entries: SummaryEntry[] = [];
-		if (state.source) entries.push({ id: `${node.id}.source`, label: 'Source', value: optionLabel(findOption(node.config.sourceOptions, state.source) ?? state.source) });
+		if (state.source) entries.push({ id: `${config.id}.source`, label: 'Source', value: optionLabel(findOption(config.sourceOptions, state.source) ?? state.source) });
 		if (state.targets.length)
 			entries.push({
-				id: `${node.id}.targets`,
+				id: `${config.id}.targets`,
 				label: 'Targets',
-				value: state.targets.map(target => optionLabel(findOption(node.config.targetOptions ?? node.config.sourceOptions, target) ?? target)).join(', '),
+				value: state.targets.map(target => optionLabel(findOption(config.targetOptions ?? config.sourceOptions, target) ?? target)).join(', '),
 			});
-		if (state.alignBy) entries.push({ id: `${node.id}.alignBy`, label: 'Align by', value: optionLabel(findOption(node.config.alignByOptions ?? [], state.alignBy) ?? state.alignBy) });
+		if (state.alignBy) entries.push({ id: `${config.id}.alignBy`, label: 'Align by', value: optionLabel(findOption(config.alignByOptions ?? [], state.alignBy) ?? state.alignBy) });
 		return createQueryContribution(artifact, entries);
 	},
 	// Return something unique for this controller

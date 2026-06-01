@@ -8,12 +8,11 @@ import {
 	FormSystem,
 	createFormSystemRuntime,
 	useParentForm,
-	type FormViewNode,
 	type ViewDefinition,
 } from '@/features/form';
 import { createAndProvideParentForm, createParentFormRuntime, provideFormSystemRuntime } from '@/features/form/model/runtime';
 
-import { createTestBuilder, createTestContext, testTextController } from './helpers';
+import { TestTextField, createTestBuilder, createTestContext, testTextController } from './helpers';
 
 type ParentFormMetrics = {
 	compiledEvaluations: number;
@@ -23,8 +22,8 @@ type ParentFormMetrics = {
 function createMetricsView(metrics: ParentFormMetrics) {
 	return defineComponent({
 		props: {
-			node: {
-				type: Object as PropType<FormViewNode<Record<string, never>>>,
+			config: {
+				type: Object as PropType<Record<string, never>>,
 				required: true,
 			},
 		},
@@ -55,25 +54,39 @@ function createProjectionMetricsFixture(metrics: ParentFormMetrics) {
 		component: createMetricsView(metrics),
 	};
 	const builder = createTestBuilder(metricsView);
-	const form = builder.newForm('search.form', { title: 'Search' });
+	const form = builder.newForm('search.form', { title: 'Search', config: {} });
 	const tabs = builder.newContainer('search.tabs', { title: 'Modes', config: { variant: 'tabs' } });
-	const first = builder.newContainer('search.tabs.first', { title: 'First' });
-	const second = builder.newContainer('search.tabs.second', { title: 'Second' });
+	const first = builder.newContainer('search.tabs.first', { title: 'First', config: {} });
+	const second = builder.newContainer('search.tabs.second', { title: 'Second', config: {} });
 
 	first.addChildren(
-		builder.newField('search.word', testTextController, {
-			annotationId: 'word',
-			displayName: 'Word',
+		builder.newField('search.word', {
+			controller: testTextController,
+			component: TestTextField,
+			config: {
+				annotationId: 'word',
+				displayName: 'Word',
+			},
 		}),
 	);
 	second.addChildren(
-		builder.newField('search.lemma', testTextController, {
-			annotationId: 'lemma',
-			displayName: 'Lemma',
+		builder.newField('search.lemma', {
+			controller: testTextController,
+			component: TestTextField,
+			config: {
+				annotationId: 'lemma',
+				displayName: 'Lemma',
+			},
 		}),
 	);
 	tabs.addChildren(first, second);
-	form.addChildren(tabs, builder.newView('search.metrics', metricsView, {}));
+	form.addChildren(
+		tabs,
+		builder.newView('search.metrics', {
+			component: metricsView.component,
+			config: {},
+		}),
+	);
 
 	return {
 		context: createTestContext(),
@@ -104,22 +117,29 @@ const switchingExpectations = {
 function createSwitchingRuntimeFixture() {
 	const builder = createTestBuilder();
 	const root = builder.newContainer('search', { title: 'Search', config: { variant: 'tabs' } });
-	const firstForm = builder.newForm(switchingExpectations.first.formId, { title: 'Word' });
-	const secondForm = builder.newForm(switchingExpectations.second.formId, { title: 'Lemma' });
+	const firstForm = root.addForm(switchingExpectations.first.formId, { title: 'Word', config: {} });
+	const secondForm = root.addForm(switchingExpectations.second.formId, { title: 'Lemma', config: {} });
 
 	firstForm.addChildren(
-		builder.newField(switchingExpectations.first.fieldId, testTextController, {
-			annotationId: 'word',
-			displayName: 'Word',
+		builder.newField(switchingExpectations.first.fieldId, {
+			controller: testTextController,
+			component: TestTextField,
+			config: {
+				annotationId: 'word',
+				displayName: 'Word',
+			},
 		}),
 	);
 	secondForm.addChildren(
-		builder.newField(switchingExpectations.second.fieldId, testTextController, {
-			annotationId: 'lemma',
-			displayName: 'Lemma',
+		builder.newField(switchingExpectations.second.fieldId, {
+			controller: testTextController,
+			component: TestTextField,
+			config: {
+				annotationId: 'lemma',
+				displayName: 'Lemma',
+			},
 		}),
 	);
-	root.addChildren(firstForm, secondForm);
 	const runtime = createFormSystemRuntime(builder.build(), createTestContext());
 
 	runtime.state.value.controllerState[switchingExpectations.first.fieldId] = { value: 'water' };
@@ -146,10 +166,14 @@ const InjectedParentFormProbe = defineComponent({
 	describe('form system runtime', () => {
 		test('submit returns a snapshot isolated from later state changes', () => {
 			const builder = createTestBuilder();
-			const form = builder.newForm('search.simple', { title: 'Simple' });
-			const field = builder.newField('search.simple.word', testTextController, {
-				annotationId: 'word',
-				displayName: 'Word',
+			const form = builder.newForm('search.simple', { title: 'Simple', config: {} });
+			const field = builder.newField('search.simple.word', {
+				controller: testTextController,
+				component: TestTextField,
+				config: {
+					annotationId: 'word',
+					displayName: 'Word',
+				},
 			});
 
 			form.addChildren(field);

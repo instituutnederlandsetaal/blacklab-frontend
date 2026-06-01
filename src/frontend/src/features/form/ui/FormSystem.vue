@@ -1,6 +1,6 @@
 <template>
 	<div class="blf-form-system">
-		<NodeRenderer :node="definition.root" />
+		<Component :is="resolveNodeComponent(definition.root)" v-bind="rootProps()" />
 	</div>
 </template>
 
@@ -10,8 +10,8 @@ import type { PersistableSubmittableFormState } from '@/features/form/model/type
 import type { FormState, FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
 
 import { createFormSystemRuntime, provideFormSystemRuntime } from '../model/runtime';
-
-import NodeRenderer from '@/features/form/ui/NodeRenderer.vue';
+import useUid from '@/shared/utils/useUid';
+import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
 
 const props = defineProps<{
 	definition: FormSystemDefinition;
@@ -25,9 +25,17 @@ const emit = defineEmits<{
 }>();
 
 const runtime = createFormSystemRuntime(props.definition, props.context, props.initialState);
+const renderScopeId = useUid();
 provideFormSystemRuntime(runtime);
 runtime.onSubmit((formId, snapshot) => emit('submit', formId, snapshot));
 emit('ready', runtime);
+
+function rootProps() {
+	return getNodeProps(props.definition.root, {
+		runtime,
+		scopeId: renderScopeId,
+	});
+}
 </script>
 
 <style lang="scss">

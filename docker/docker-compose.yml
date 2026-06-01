@@ -6,22 +6,22 @@ services:
     build:
       context: ..
       dockerfile: docker/frontend-bls.dockerfile
-      args: 
+      args:
         BLACKLAB_IMAGE_VERSION: dev
     ports:
-      - "8080:8080" # frontend and BLS will both be available on 8080
+      - '8080:8080' # frontend and BLS will both be available on 8080
     volumes:
       - ./data/index:/data/index
       - ./data/user-index:/data/user-index
       - ./data/index-configs:/etc/blacklab/projectconfigs
-      
-    configs: 
+
+    configs:
       - source: blacklab-server
         target: /etc/blacklab/blacklab-server.yaml
         mode: 0444 # read-only for the container
-    
-configs: 
-  blacklab-server: 
+
+configs:
+  blacklab-server:
     content: |
       ---
       # https://blacklab.ivdnt.org/server/configuration.html
@@ -41,4 +41,4 @@ configs:
           max: -1
         pageSize:
           max: -1
-        
+

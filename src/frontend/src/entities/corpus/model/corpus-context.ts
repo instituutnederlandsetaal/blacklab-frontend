@@ -10,6 +10,11 @@ export type CorpusContext = {
 	tagset: Tagset | undefined;
 	config: CFPageConfig;
 };
+export type FilledCorpusContext = {
+	index: NormalizedIndex;
+	tagset: Tagset | undefined;
+	config: CFPageConfig;
+};
 
 export type CorpusContextLoadable = LoadableFromRequest<CorpusContext>;
 
