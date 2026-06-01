@@ -13,7 +13,11 @@ type NonNullableObject<T> = {
 	[P in keyof T]: NonNullable<T[P]>;
 };
 
-export type MarkRequiredAndNotNull<T, K extends keyof T = keyof T> = T extends string | number | boolean ? T : T extends undefined | null ? never : Required<NonNullableObject<T>>;
+export type MarkRequiredAndNotNull<T, K extends keyof T = keyof T> = T extends string | number | boolean
+	? T
+	: T extends undefined | null
+		? never
+		: Omit<T, K> & Required<Pick<NonNullableObject<T>, K>>;
 
 /** Keep only those properties assignable to T  */
 export type FilterProps<TObj, T> = {
@@ -84,8 +88,4 @@ export type ConstrainComponentToProvidedProps<C extends AnyVueComponent, Provide
 
 export type DistributiveOmit<T, Keys extends PropertyKey> = T extends unknown ? Omit<T, Keys> : never;
 
-export type NoExtraProperties<Expected, Actual extends Expected> = Expected extends unknown
-	? Actual extends Expected
-		? Actual & Record<Exclude<keyof Actual, keyof Expected>, never>
-		: never
-	: never;
+export type NoExtraProperties<Expected, Actual extends Expected> = Expected extends unknown ? (Actual extends Expected ? Actual & Record<Exclude<keyof Actual, keyof Expected>, never> : never) : never;

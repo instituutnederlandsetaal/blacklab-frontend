@@ -15,42 +15,9 @@ export type FormRuntimeContext = {
 	translate?: Translate;
 };
 
-export type FieldRendererProps<ModelValue = any, Config = unknown> = {
-	config: Config;
-	htmlId: string;
-	modelValue: ModelValue;
-};
-
-// export type FieldComponent<ModelValue, Config extends object = any> = Component<FieldRendererProps<ModelValue, Config>>;
-// export type ViewComponent<Config extends object = object> = Component<{ config: Config }>;
-
-// export type FieldControllerGetQueryContributionInputs<State, Extra extends object> = {
-// 	node: FormFieldNode<Extra, any>;
-// 	state: State;
-// 	runtime: FormRuntimeContext;
-// };
-
-// /**
-//  * Unbound controller, i.e. one per field/widget type, not per instance.
-//  * Contains the logic to create the default state for a field, and to derive its query contribution from the state.
-//  */
-// export type FieldController<Kind extends string = string, State = any, Extra extends object = object> = {
-// 	// Unique key for this controller, used in the form shape definition to bind it to a node/field.
-// 	kind: Kind;
-// 	createDefaultState: (node: FormFieldNode<Extra, any>, runtime: FormRuntimeContext) => State;
-// 	getQueryContribution?: (input: FieldControllerGetQueryContributionInputs<State, Extra>) => QueryContribution;
-// 	restore?: (payload: unknown, node: FormFieldNode<Extra, any>, runtime: FormRuntimeContext) => State;
-// 	encode?: (state: State, node: FormFieldNode<Extra, any>, runtime: FormRuntimeContext) => unknown;
-// 	validate?: (node: FormFieldNode<Extra, any>, runtime: FormRuntimeContext) => string[];
-
-// 	/** Required for form versioning - return something that uniquely identifies the configuration of this controller,
-// 	 * so that when restoring from history we can check if the controller has changed in a non-compatible way. */
-// 	toJSON(): any;
-// };
-
 export type FieldControllerProps<Extra> = BaseFieldNode & Extra;
 export type FieldController<Kind extends string = string, State = any, Extra = object> = {
-	/** Unique key for this controller, used to return strongly typed controllers from the registry. */
+	/** Unique key for this controller. */
 	kind: Kind;
 	createDefaultState: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => State;
 	getQueryContribution?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => QueryContribution;
@@ -79,10 +46,3 @@ export function createFieldController<Kind extends string, State, Extra extends 
 		},
 	});
 }
-
-// export type ViewDefinition<Kind extends string = string, Config extends object = object> = {
-// 	// Unique key for this view, used in the form shape definition to bind it to a node/view.
-// 	kind: Kind;
-// 	// Vue component for this view
-// 	component: ViewComponent<Config>;
-// };

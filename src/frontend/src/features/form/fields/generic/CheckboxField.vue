@@ -29,7 +29,7 @@ import { getVariantClassNames } from '@/features/form/model/form-utils';
 import type { FormComponentProps } from '@/features/form/model/types/form-shape';
 
 const props = withDefaults(
-	defineProps<FormComponentProps<CheckboxFieldUiConfig, CheckboxFieldState> & { showLabel?: boolean }>(),
+	defineProps<FormComponentProps<CheckboxFieldState> & CheckboxFieldUiConfig & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},

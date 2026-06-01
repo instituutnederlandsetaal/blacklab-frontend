@@ -20,10 +20,10 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "types": ["node"],
-    
+
     "paths": {
       "@/*": ["./src/*"]
-    },
+    }
   },
-  "include": ["vite.config.ts", "oxlint.config.ts", "oxfmt.config.ts"],
+	"include": ["vite.config.ts", "oxlint.config.mts", "oxfmt.config.ts"]
 }

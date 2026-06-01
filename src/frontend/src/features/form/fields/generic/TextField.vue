@@ -32,7 +32,7 @@ import type { TextFieldState, TextFieldUiConfig } from './text-field';
 import Autocomplete from '@/shared/ui/Autocomplete.vue';
 
 const props = withDefaults(
-	defineProps<FormComponentProps<TextFieldUiConfig, TextFieldState> & { showLabel?: boolean }>(),
+	defineProps<FormComponentProps<TextFieldState> & TextFieldUiConfig & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},

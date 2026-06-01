@@ -1,7 +1,7 @@
 <template>
 	<div class="blf-generic-field-story">
 		<div class="blf-generic-field-story__field">
-			<component :is="fieldComponent" :config="config" :html-id="htmlId" :model-value="modelValue" :show-label="showLabel" @update:model-value="updateValue" />
+			<component :is="fieldComponent" v-bind="config" :html-id="htmlId" :model-value="modelValue" :show-label="showLabel" @update:model-value="updateValue" />
 		</div>
 		<pre class="blf-generic-field-story__state">{{ serializedState }}</pre>
 	</div>

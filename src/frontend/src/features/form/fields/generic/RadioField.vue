@@ -30,7 +30,7 @@ import { getVariantClassNames } from '@/features/form/model/form-utils';
 import type { FormComponentProps } from '@/features/form/model/types/form-shape';
 
 const props = withDefaults(
-	defineProps<FormComponentProps<RadioFieldUiConfig, RadioFieldState> & { showLabel?: boolean }>(),
+	defineProps<FormComponentProps<RadioFieldState> & RadioFieldUiConfig & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},

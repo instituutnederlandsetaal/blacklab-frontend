@@ -16,7 +16,7 @@ export type RawCqlQueryFieldConfig = GenericFieldUiConfig & {
 export const expertQueryController: FieldController<'raw-cql-query', RawCqlQueryFieldState, RawCqlQueryFieldConfig> = {
 	kind: 'raw-cql-query',
 	createDefaultState: () => ({ query: '', targetQueries: [] }),
-	getQueryContribution(config, runtime, state) {
+	getQueryContribution(config, _runtime, state) {
 		return withSummary(artifactFromPattern(rawPattern(state.query)), state.query ? { id: config.id, label: config.label ?? 'Expert query', value: state.query } : null);
 	},
 

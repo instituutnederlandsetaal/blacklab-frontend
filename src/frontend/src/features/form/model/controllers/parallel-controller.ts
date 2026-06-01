@@ -24,7 +24,7 @@ export type ParallelFieldConfig = {
 	alignByOptions?: Option[];
 };
 
-export type ParallelFieldComponentProps = FormComponentProps<ParallelFieldConfig, ParallelFieldState>;
+export type ParallelFieldComponentProps = FormComponentProps<ParallelFieldState> & ParallelFieldConfig;
 
 export const parallelController: FieldController<'parallel', ParallelFieldState, ParallelFieldConfig> = {
 	kind: 'parallel',
@@ -34,7 +34,7 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 		alignBy: config.alignByOptions?.[0]?.value ?? null,
 	}),
 	// TODO i18n of summary labels, could use existing Translate system though.
-	getQueryContribution(config, runtime, state) {
+	getQueryContribution(config, _runtime, state) {
 		const artifact = withSearchField(createQueryArtifact(), state.source);
 		const entries: SummaryEntry[] = [];
 		if (state.source) entries.push({ id: `${config.id}.source`, label: 'Source', value: optionLabel(findOption(config.sourceOptions, state.source) ?? state.source) });

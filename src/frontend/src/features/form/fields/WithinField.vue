@@ -31,8 +31,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { WithFieldComponentProps, WithinFieldConfig, WithinFieldState } from '@/features/form/model/controllers/within-controller';
 import { getVariantClassNames } from '@/features/form/model/form-utils';
+
+import type { WithFieldComponentProps, WithinFieldConfig, WithinFieldState } from '../model/controllers/within-controller';
 
 const props = defineProps<WithFieldComponentProps>();
 

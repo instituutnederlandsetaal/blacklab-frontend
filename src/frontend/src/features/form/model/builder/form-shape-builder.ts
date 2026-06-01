@@ -1,4 +1,3 @@
-// import type { ControllerRegistry } from '@/features/form';
 import { checkNoLoops, generateSchemaVersion } from '@/features/form/model/form-utils';
 import type { AnyFieldController, FieldController, FormSystemDefinition } from '@/features/form/model/types';
 import type {

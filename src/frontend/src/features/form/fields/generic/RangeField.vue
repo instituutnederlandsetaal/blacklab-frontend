@@ -18,7 +18,7 @@ import type { FormComponentProps } from '@/features/form/model/types/form-shape'
 import type { RangeFieldState, RangeFieldUiConfig } from './range-field';
 
 const props = withDefaults(
-	defineProps<FormComponentProps<RangeFieldUiConfig, RangeFieldState> & { showLabel?: boolean }>(),
+	defineProps<FormComponentProps<RangeFieldState> & RangeFieldUiConfig & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},

@@ -97,7 +97,7 @@ function toSchemaVersionPayload(node: FormNode, seen = new Set<FormNode>()): unk
 	seen.add(node);
 
 	if (node.kind === 'field') {
-		const { component, controller, ...config } = node;
+		const { component: _component, controller, ...config } = node;
 		return {
 			...config,
 			controller: controller.toJSON(),
@@ -105,12 +105,22 @@ function toSchemaVersionPayload(node: FormNode, seen = new Set<FormNode>()): unk
 	}
 
 	if (node.kind === 'view') {
-		const { component, ...config } = node;
+		const { component: _component, ...config } = node;
 		return config;
 	}
 
 	if (isContainerNode(node)) {
-		const { addChildren, addContainer, addField, addForm, addView, builder, children, component, ...config } = node as typeof node & {
+		const {
+			addChildren: _addChildren,
+			addContainer: _addContainer,
+			addField: _addField,
+			addForm: _addForm,
+			addView: _addView,
+			builder: _builder,
+			children,
+			component: _component,
+			...config
+		} = node as typeof node & {
 			addChildren?: unknown;
 			addContainer?: unknown;
 			addField?: unknown;

@@ -13,7 +13,7 @@ export type ImplicitComponentProps<State> = BaseNode & {
 	modelValue: State;
 	variant?: string | string[];
 };
-export type FormComponentProps<Extra, State> = ImplicitComponentProps<State> & Omit<Extra, keyof ImplicitComponentProps<State>>;
+export type FormComponentProps<State> = ImplicitComponentProps<State>;
 export type FormControllerProps<Extra> = BaseNode & Extra;
 
 // Container

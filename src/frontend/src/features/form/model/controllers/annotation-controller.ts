@@ -18,7 +18,7 @@ export type AnnotationSelectFieldConfig = AnnotationControllerConfig & SelectFie
 export const annotationTextController = createFieldController<'annotation-text', TextFieldState, AnnotationTextFieldConfig>({
 	kind: 'annotation-text',
 	createDefaultState: createDefaultTextFieldState,
-	getQueryContribution(config, runtime, state) {
+	getQueryContribution(config, _runtime, state) {
 		const clause = tokenPattern([
 			{
 				type: 'wildcard',
@@ -44,7 +44,7 @@ export const annotationTextController = createFieldController<'annotation-text',
 export const annotationSelectController = createFieldController<'annotation-select', SelectFieldState, AnnotationSelectFieldConfig>({
 	kind: 'annotation-select',
 	createDefaultState: createDefaultSelectFieldState,
-	getQueryContribution(config, runtime, state) {
+	getQueryContribution(config, _runtime, state) {
 		if (!state.length) return createQueryContribution();
 		const escaped = state.map(v => escapeRegex(v)).join('|');
 		return withSummary(

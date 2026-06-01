@@ -35,7 +35,7 @@ import type { Option } from '@/shared/utils/options';
 type ModeOption = Option & { value: RangeMultipleFieldsFieldState['mode'] };
 
 const props = withDefaults(
-	defineProps<FormComponentProps<RangeMultipleFieldsFieldUiConfig, RangeMultipleFieldsFieldState> & { showLabel?: boolean }>(),
+	defineProps<FormComponentProps<RangeMultipleFieldsFieldState> & RangeMultipleFieldsFieldUiConfig & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},

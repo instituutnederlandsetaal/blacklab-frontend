@@ -1,5 +1,7 @@
-import type { Component } from 'vue';
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
+import { h, type Component } from 'vue';
+
+import { createAnnotationPosStoryModel, createExpertQueryFieldStoryModel, createParallelFieldStoryModel, createWithinFieldStoryModel } from './sample-form-system';
 
 import CheckboxField from '../fields/generic/CheckboxField.vue';
 import DateField from '../fields/generic/DateField.vue';
@@ -10,7 +12,6 @@ import SelectField from '../fields/generic/SelectField.vue';
 import TextField from '../fields/generic/TextField.vue';
 import FormSystemStoryHarness from '../stories/FormSystemStoryHarness.vue';
 import GenericFieldStoryHarness from './GenericFieldStoryHarness.vue';
-import { createAnnotationPosStoryModel, createExpertQueryFieldStoryModel, createParallelFieldStoryModel, createWithinFieldStoryModel } from './sample-form-system';
 
 const meta = {
 	title: 'Features/Form/UI Elements',
@@ -35,10 +36,7 @@ function createGenericFieldStory(definition: GenericFieldStoryDefinition): Story
 	return {
 		args: {} as any,
 		render: () => ({
-			components: { GenericFieldStoryHarness },
-			setup: () => definition,
-			template:
-				'<GenericFieldStoryHarness :field-component="fieldComponent" :config="config" :initial-value="initialValue" :html-id="htmlId" :show-label="showLabel" />',
+			setup: () => () => h(GenericFieldStoryHarness, definition),
 		}),
 	};
 }
@@ -118,12 +116,8 @@ export const Select: Story = createGenericFieldStory({
 			{ value: 'nl', label: 'Dutch' },
 			{ value: 'de', label: 'German' },
 		],
-		caseSensitive: true,
 	},
-	initialValue: {
-		selectedValues: ['en', 'nl'],
-		caseSensitive: false,
-	},
+	initialValue: ['en', 'nl'],
 	htmlId: 'generic-select',
 });
 

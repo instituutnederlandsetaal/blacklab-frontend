@@ -15,7 +15,7 @@ import type { RawCqlQueryFieldConfig, RawCqlQueryFieldState } from '@/features/f
 import { getVariantClassNames } from '@/features/form/model/form-utils';
 import type { FormComponentProps } from '@/features/form/model/types/form-shape';
 
-const props = defineProps<FormComponentProps<RawCqlQueryFieldConfig, RawCqlQueryFieldState>>();
+const props = defineProps<FormComponentProps<RawCqlQueryFieldState> & RawCqlQueryFieldConfig>();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: RawCqlQueryFieldState];

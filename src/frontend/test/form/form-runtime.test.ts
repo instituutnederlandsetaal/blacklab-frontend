@@ -2,17 +2,14 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
-import { computed, defineComponent, h, nextTick, ref, watchEffect, type PropType } from 'vue';
+import { computed, defineComponent, h, nextTick, ref, watchEffect } from 'vue';
 
-import {
-	FormSystem,
-	createFormSystemRuntime,
-	useParentForm,
-	type ViewDefinition,
-} from '@/features/form';
+import { FormSystem, createFormSystemRuntime, useParentForm } from '@/features/form';
 import { createAndProvideParentForm, createParentFormRuntime, provideFormSystemRuntime } from '@/features/form/model/runtime';
 
 import { TestTextField, createTestBuilder, createTestContext, testTextController } from './helpers';
+
+import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
 type ParentFormMetrics = {
 	compiledEvaluations: number;
@@ -21,12 +18,6 @@ type ParentFormMetrics = {
 
 function createMetricsView(metrics: ParentFormMetrics) {
 	return defineComponent({
-		props: {
-			config: {
-				type: Object as PropType<Record<string, never>>,
-				required: true,
-			},
-		},
 		setup() {
 			const parentForm = useParentForm();
 			const compiled = computed(() => {
@@ -49,44 +40,22 @@ function createMetricsView(metrics: ParentFormMetrics) {
 }
 
 function createProjectionMetricsFixture(metrics: ParentFormMetrics) {
-	const metricsView: ViewDefinition<'metrics-probe', Record<string, never>> = {
-		kind: 'metrics-probe',
-		component: createMetricsView(metrics),
-	};
-	const builder = createTestBuilder(metricsView);
-	const form = builder.newForm('search.form', { title: 'Search', config: {} });
-	const tabs = builder.newContainer('search.tabs', { title: 'Modes', config: { variant: 'tabs' } });
-	const first = builder.newContainer('search.tabs.first', { title: 'First', config: {} });
-	const second = builder.newContainer('search.tabs.second', { title: 'Second', config: {} });
+	const metricsView = createMetricsView(metrics);
+	const builder = createTestBuilder();
+	const form = builder.newForm('search.form', ContainerRenderer, { title: 'Search' });
+	const tabs = form.addContainer('search.tabs', ContainerRenderer, { title: 'Modes', variant: 'tabs' });
+	const first = tabs.addContainer('search.tabs.first', ContainerRenderer, { title: 'First' });
+	const second = tabs.addContainer('search.tabs.second', ContainerRenderer, { title: 'Second' });
 
-	first.addChildren(
-		builder.newField('search.word', {
-			controller: testTextController,
-			component: TestTextField,
-			config: {
-				annotationId: 'word',
-				displayName: 'Word',
-			},
-		}),
-	);
-	second.addChildren(
-		builder.newField('search.lemma', {
-			controller: testTextController,
-			component: TestTextField,
-			config: {
-				annotationId: 'lemma',
-				displayName: 'Lemma',
-			},
-		}),
-	);
-	tabs.addChildren(first, second);
-	form.addChildren(
-		tabs,
-		builder.newView('search.metrics', {
-			component: metricsView.component,
-			config: {},
-		}),
-	);
+	first.addField('search.word', testTextController, TestTextField, {
+		annotationId: 'word',
+		displayName: 'Word',
+	});
+	second.addField('search.lemma', testTextController, TestTextField, {
+		annotationId: 'lemma',
+		displayName: 'Lemma',
+	});
+	form.addView('search.metrics', metricsView, {});
 
 	return {
 		context: createTestContext(),
@@ -116,30 +85,18 @@ const switchingExpectations = {
 
 function createSwitchingRuntimeFixture() {
 	const builder = createTestBuilder();
-	const root = builder.newContainer('search', { title: 'Search', config: { variant: 'tabs' } });
-	const firstForm = root.addForm(switchingExpectations.first.formId, { title: 'Word', config: {} });
-	const secondForm = root.addForm(switchingExpectations.second.formId, { title: 'Lemma', config: {} });
+	const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', variant: 'tabs' });
+	const firstForm = root.addForm(switchingExpectations.first.formId, ContainerRenderer, { title: 'Word' });
+	const secondForm = root.addForm(switchingExpectations.second.formId, ContainerRenderer, { title: 'Lemma' });
 
-	firstForm.addChildren(
-		builder.newField(switchingExpectations.first.fieldId, {
-			controller: testTextController,
-			component: TestTextField,
-			config: {
-				annotationId: 'word',
-				displayName: 'Word',
-			},
-		}),
-	);
-	secondForm.addChildren(
-		builder.newField(switchingExpectations.second.fieldId, {
-			controller: testTextController,
-			component: TestTextField,
-			config: {
-				annotationId: 'lemma',
-				displayName: 'Lemma',
-			},
-		}),
-	);
+	firstForm.addField(switchingExpectations.first.fieldId, testTextController, TestTextField, {
+		annotationId: 'word',
+		displayName: 'Word',
+	});
+	secondForm.addField(switchingExpectations.second.fieldId, testTextController, TestTextField, {
+		annotationId: 'lemma',
+		displayName: 'Lemma',
+	});
 	const runtime = createFormSystemRuntime(builder.build(), createTestContext());
 
 	runtime.state.value.controllerState[switchingExpectations.first.fieldId] = { value: 'water' };
@@ -163,54 +120,50 @@ const InjectedParentFormProbe = defineComponent({
 	},
 });
 
-	describe('form system runtime', () => {
-		test('submit returns a snapshot isolated from later state changes', () => {
-			const builder = createTestBuilder();
-			const form = builder.newForm('search.simple', { title: 'Simple', config: {} });
-			const field = builder.newField('search.simple.word', {
-				controller: testTextController,
-				component: TestTextField,
-				config: {
-					annotationId: 'word',
-					displayName: 'Word',
-				},
-			});
-
-			form.addChildren(field);
-
-			const runtime = createFormSystemRuntime(builder.build(), createTestContext());
-			runtime.state.value.controllerState[field.id] = { value: 'water' };
-
-			const submitted = runtime.submit(form.id);
-			runtime.state.value.controllerState[field.id] = { value: 'fire' };
-
-			expect(submitted.formId).toBe(form.id);
-			expect(submitted.cql).toBe('[word="(?i)water"]');
-			expect(submitted.summaries).toEqual([{ id: field.id, label: 'Word', value: 'water' }]);
-			expect(submitted.state.controllerState[field.id]).toEqual({ value: 'water' });
+describe('form system runtime', () => {
+	test('submit returns a snapshot isolated from later state changes', () => {
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+		const field = builder.newField('search.simple.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
 		});
+
+		form.addChildren(field);
+
+		const runtime = createFormSystemRuntime(builder.build(), createTestContext());
+		runtime.state.value.controllerState[field.id] = { value: 'water' };
+
+		const submitted = runtime.submit(form.id);
+		runtime.state.value.controllerState[field.id] = { value: 'fire' };
+
+		expect(submitted.formId).toBe(form.id);
+		expect(submitted.cql).toBe('[word="(?i)water"]');
+		expect(submitted.summaries).toEqual([{ id: field.id, label: 'Word', value: 'water' }]);
+		expect(submitted.state.controllerState[field.id]).toEqual({ value: 'water' });
 	});
+});
 
-	describe('parent form runtime', () => {
-		test('keeps compiled and summary projections stable when only tab ui state changes', async () => {
-			const metrics: ParentFormMetrics = {
-				compiledEvaluations: 0,
-				summariesEvaluations: 0,
-			};
-			const fixture = createProjectionMetricsFixture(metrics);
-			const wrapper = mount(FormSystem, {
-				props: fixture,
-			});
-
-			expect(metrics.compiledEvaluations).toBe(1);
-			expect(metrics.summariesEvaluations).toBe(1);
-
-			await wrapper.findAll('nav button')[1].trigger('click');
-			await nextTick();
-
-			expect(metrics.compiledEvaluations).toBe(1);
-			expect(metrics.summariesEvaluations).toBe(1);
+describe('parent form runtime', () => {
+	test('keeps compiled and summary projections stable when only tab ui state changes', async () => {
+		const metrics: ParentFormMetrics = {
+			compiledEvaluations: 0,
+			summariesEvaluations: 0,
+		};
+		const fixture = createProjectionMetricsFixture(metrics);
+		const wrapper = mount(FormSystem, {
+			props: fixture,
 		});
+
+		expect(metrics.compiledEvaluations).toBe(1);
+		expect(metrics.summariesEvaluations).toBe(1);
+
+		await wrapper.findAll('nav button')[1].trigger('click');
+		await nextTick();
+
+		expect(metrics.compiledEvaluations).toBe(1);
+		expect(metrics.summariesEvaluations).toBe(1);
+	});
 
 	test('createParentFormRuntime switches projections when a ref formId changes', async () => {
 		const fixture = createSwitchingRuntimeFixture();

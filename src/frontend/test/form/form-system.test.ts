@@ -8,29 +8,23 @@ import { FormSystem, type FormRuntimeContext, type FormSystemDefinition, type Pe
 
 import { TestTextField, createTestBuilder, createTestContext, parentFormProbeView, testTextController } from './helpers';
 
+import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
+
 type FormFixture = {
 	context: FormRuntimeContext;
 	definition: FormSystemDefinition;
 };
 
 function createSingleFormFixture(): FormFixture {
-	const builder = createTestBuilder(parentFormProbeView);
-	const form = builder.newForm('search.simple', { title: 'Simple', config: {} });
+	const builder = createTestBuilder();
+	const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
 
-	form.addChildren(
-		builder.newField('search.simple.word', {
-			controller: testTextController,
-			component: TestTextField,
-			config: {
-				annotationId: 'word',
-				displayName: 'Word',
-			},
-		}),
-		builder.newView('search.simple.probe', {
-			component: parentFormProbeView.component,
-			config: {},
-		}),
-	);
+	form
+		.addField('search.simple.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		})
+		.addView('search.simple.probe', parentFormProbeView, {});
 
 	return {
 		context: createTestContext(),
@@ -39,27 +33,17 @@ function createSingleFormFixture(): FormFixture {
 }
 
 function createSharedFieldTabsFixture(): FormFixture {
-	const builder = createTestBuilder(parentFormProbeView);
-	const root = builder.newContainer('search', { title: 'Search', config: { variant: 'tabs' } });
-	const sharedField = builder.newField('shared.word', {
-		controller: testTextController,
-		component: TestTextField,
-		config: {
-			annotationId: 'word',
-			displayName: 'Shared word',
-		},
+	const builder = createTestBuilder();
+	const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', variant: 'tabs' });
+	const sharedField = builder.newField('shared.word', testTextController, TestTextField, {
+		annotationId: 'word',
+		displayName: 'Shared word',
 	});
-	const firstForm = root.addForm('search.first', { title: 'First', config: {} });
-	const secondForm = root.addForm('search.second', { title: 'Second', config: {} });
+	const firstForm = root.addForm('search.first', ContainerRenderer, { title: 'First' });
+	const secondForm = root.addForm('search.second', ContainerRenderer, { title: 'Second' });
 
 	firstForm.addChildren(sharedField);
-	secondForm.addChildren(
-		sharedField,
-		builder.newView('search.second.probe', {
-			component: parentFormProbeView.component,
-			config: {},
-		}),
-	);
+	secondForm.addChildren(sharedField, builder.newView('search.second.probe', parentFormProbeView, {}));
 
 	return {
 		context: createTestContext(),
@@ -68,37 +52,21 @@ function createSharedFieldTabsFixture(): FormFixture {
 }
 
 function createTabbedFormFixture(): FormFixture {
-	const builder = createTestBuilder(parentFormProbeView);
-	const form = builder.newForm('search.tabbed', { title: 'Tabbed search', config: { variant: 'tabs' } });
-	const wordTab = builder.newContainer('search.tabbed.word', { title: 'Word', config: { combine: 'allOf' } });
-	const lemmaTab = builder.newContainer('search.tabbed.lemma', { title: 'Lemma', config: { combine: 'allOf' } });
+	const builder = createTestBuilder();
+	const form = builder.newForm('search.tabbed', ContainerRenderer, { title: 'Tabbed search', variant: 'tabs' });
+	const wordTab = form.addContainer('search.tabbed.word', ContainerRenderer, { title: 'Word', combine: 'allOf' });
+	const lemmaTab = form.addContainer('search.tabbed.lemma', ContainerRenderer, { title: 'Lemma', combine: 'allOf' });
 
-	wordTab.addChildren(
-		builder.newField('search.tabbed.word.field', {
-			controller: testTextController,
-			component: TestTextField,
-			config: {
-				annotationId: 'word',
-				displayName: 'Word',
-			},
-		}),
-	);
-	lemmaTab.addChildren(
-		builder.newField('search.tabbed.lemma.field', {
-			controller: testTextController,
-			component: TestTextField,
-			config: {
-				annotationId: 'lemma',
-				displayName: 'Lemma',
-			},
-		}),
-		builder.newView('search.tabbed.lemma.probe', {
-			component: parentFormProbeView.component,
-			config: {},
-		}),
-	);
-	form.addChildren(wordTab, lemmaTab);
-
+	wordTab.addField('search.tabbed.word.field', testTextController, TestTextField, {
+		annotationId: 'word',
+		displayName: 'Word',
+	});
+	lemmaTab
+		.addField('search.tabbed.lemma.field', testTextController, TestTextField, {
+			annotationId: 'lemma',
+			displayName: 'Lemma',
+		})
+		.addView('search.tabbed.lemma.probe', parentFormProbeView, {});
 	return {
 		context: createTestContext(),
 		definition: builder.build(),

@@ -91,7 +91,7 @@ import { useI18n } from '@/shared/i18n';
 import Modal from '@/shared/ui/Modal.vue';
 
 const props = withDefaults(
-	defineProps<FormComponentProps<AnnotationPosFieldConfig, AnnotationPosFieldState> & { showLabel?: boolean }>(),
+	defineProps<FormComponentProps<AnnotationPosFieldState> & AnnotationPosFieldConfig & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},

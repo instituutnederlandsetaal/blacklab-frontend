@@ -50,7 +50,7 @@ import type { Option } from '@/shared/utils/options';
 type ModeOption = Option<RangeMode>;
 
 const props = withDefaults(
-	defineProps<FormComponentProps<DateFieldUiConfig, DateFieldState> & { showLabel?: boolean }>(),
+	defineProps<FormComponentProps<DateFieldState> & DateFieldUiConfig & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},

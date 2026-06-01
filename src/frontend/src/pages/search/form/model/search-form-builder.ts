@@ -232,14 +232,12 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
 	}
 
 	return builder
-			.newContainer('shared.filters.wrapper', ContainerRendererFilters, { variant: 'list' })
-		.addChildren(
-			tabs,
-				builder.newView('shared.filters.summary', SummaryView, {
-					showRaw: true,
-					title: translate.$td('search.filters.summary.heading', 'Selected filters'),
-			}),
-		);
+		.newContainer('shared.filters.wrapper', ContainerRendererFilters, { variant: 'list' })
+		.addChildren(tabs)
+		.addView('shared.filters.summary', SummaryView, {
+			showRaw: true,
+			title: translate.$td('search.filters.summary.heading', 'Selected filters'),
+		});
 }
 
 /**
@@ -313,7 +311,7 @@ export function createSearchFormDefinition(
 
 	const root = builder.newContainer('root', ContainerRenderer, { variant: 'tabs' });
 	const searchTab = root.addContainer('search', ContainerRenderer, { variant: 'tabs', title: translate.$td('search.heading', 'Search') });
-	const exploreTab = root.addContainer('explore', ContainerRenderer, { variant: 'tabs', title: translate.$td('explore.heading', 'Explore') });
+	root.addContainer('explore', ContainerRenderer, { variant: 'tabs', title: translate.$td('explore.heading', 'Explore') });
 
 	const sharedFilters = createSharedFilters(builder, index, translate);
 	const sharedParallel = createParallelField(builder, corpus, translate);
@@ -325,40 +323,34 @@ export function createSearchFormDefinition(
 		throw new Error(`Main annotation ${index.annotatedFields[index.mainAnnotatedField].mainAnnotationId} is missing from ${index.mainAnnotatedField}.`);
 	}
 
-	const simpleSearchForm = searchTab
+	searchTab
 		.addForm('search.simple', ContainerRenderer, {
 			variant: 'list',
 			title: translate.$td('search.simple.heading', 'Simple'),
 		})
 		.addChildren(createAnnotationField(builder, 'search.simple.annotation', simpleField, corpus, translate));
 
-	const extendedSearchForm = searchTab
-		.addForm('search.extended', ContainerRenderer, {
-			title: translate.$td('search.extended.heading', 'Extended'),
-			variant: 'columns',
-		})
-		.addChildren(builder.newContainer('search.extended.query', ContainerRenderer, {}).addChildren(createAnnotationTabs(builder, corpus, translate), sharedParallel, sharedWithin), sharedFilters);
+	const extendedSearchForm = searchTab.addForm('search.extended', ContainerRenderer, {
+		title: translate.$td('search.extended.heading', 'Extended'),
+		variant: 'columns',
+	});
+	extendedSearchForm.addContainer('search.extended.query', ContainerRenderer, {}).addChildren(createAnnotationTabs(builder, corpus, translate), sharedParallel, sharedWithin);
+	extendedSearchForm.addChildren(sharedFilters);
 
 	// TODO querybuilder
 	// const advancedSearchForm = searchTab.
 
-	const expertSearchForm = searchTab
-		.addForm('search.expert', ContainerRenderer, {
-			title: translate.$td('search.expert.heading', 'Expert'),
-			variant: 'columns',
+	const expertSearchForm = searchTab.addForm('search.expert', ContainerRenderer, {
+		title: translate.$td('search.expert.heading', 'Expert'),
+		variant: 'columns',
+	});
+	expertSearchForm
+		.addContainer('search.expert.query', ContainerRenderer, {})
+		.addField('search.expert.querybox', expertQueryController, RawCqlField, {
+			displayName: translate.$td('search.expert.cqlQuery', 'CQL query'),
 		})
-		.addChildren(
-			builder.newContainer('search.expert.query', ContainerRenderer, {}).addChildren(
-				builder.newField('search.expert.querybox', expertQueryController, RawCqlField, {
-					displayName: translate.$td('search.expert.cqlQuery', 'CQL query'),
-				}),
-				sharedParallel,
-				sharedWithin,
-			),
-			sharedFilters,
-		);
-
-	root.addChildren(searchTab, exploreTab);
+		.addChildren(sharedParallel, sharedWithin);
+	expertSearchForm.addChildren(sharedFilters);
 
 	runSearchFormCustomizations({
 		builder,

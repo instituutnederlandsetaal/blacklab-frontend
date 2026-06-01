@@ -40,8 +40,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { ParallelFieldComponentProps, ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
 import { getVariantClassNames } from '@/features/form/model/form-utils';
+
+import type { ParallelFieldComponentProps, ParallelFieldState } from '../model/controllers/parallel-controller';
 const props = defineProps<ParallelFieldComponentProps>();
 
 const emit = defineEmits<{

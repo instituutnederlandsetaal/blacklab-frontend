@@ -15,9 +15,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { TotalsViewConfig } from '@/features/form/model/views/totals-view';
-
 import { useParentForm } from '../model/runtime';
+import type { TotalsViewConfig } from '../model/views/totals-view';
 
 const props = defineProps<TotalsViewConfig>();
 

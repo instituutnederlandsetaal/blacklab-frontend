@@ -6,8 +6,7 @@
 </template>
 
 <script setup lang="ts">
-
-import type { HeadingViewConfig } from '@/features/form/model/views/heading-view';
+import type { HeadingViewConfig } from '../model/views/heading-view';
 
 defineProps<HeadingViewConfig>();
 </script>

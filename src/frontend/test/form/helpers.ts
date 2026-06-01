@@ -1,14 +1,6 @@
 import { defineComponent, h, type PropType } from 'vue';
 
-import {
-    ControllerRegistry,
-    FormBuilder,
-    registerBuiltinControllers,
-    registerBuiltinViews,
-    useParentForm,
-    type FormRuntimeContext,
-    type ViewDefinition,
-} from '@/features/form';
+import { FormBuilder, useParentForm, type FormRuntimeContext } from '@/features/form';
 import { artifactFromPattern, tokenPattern, withSummary } from '@/features/form/model/compile/query-artifact';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
@@ -23,8 +15,12 @@ export type TestTextFieldConfig = {
 
 export const TestTextField = defineComponent({
 	props: {
-		config: {
-			type: Object as PropType<TestTextFieldConfig>,
+		annotationId: {
+			type: String,
+			required: true,
+		},
+		displayName: {
+			type: String,
 			required: true,
 		},
 		htmlId: {
@@ -43,7 +39,7 @@ export const TestTextField = defineComponent({
 		return () =>
 			h('input', {
 				id: `${props.htmlId}_value`,
-				'aria-label': props.config.displayName,
+				'aria-label': props.displayName,
 				value: props.modelValue.value,
 				onInput(event: Event) {
 					emit('update:modelValue', {
@@ -57,11 +53,11 @@ export const TestTextField = defineComponent({
 export const testTextController = createFieldController<'test-text', TestTextFieldState, TestTextFieldConfig>({
 	kind: 'test-text',
 	createDefaultState: () => ({ value: '' }),
-	getQueryContribution({ node, state }) {
+	getQueryContribution(config, _runtime, state) {
 		const pattern = tokenPattern([
 			{
 				type: 'equals',
-				annotationId: node.config.annotationId,
+				annotationId: config.annotationId,
 				value: state.value,
 			},
 		]);
@@ -70,8 +66,8 @@ export const testTextController = createFieldController<'test-text', TestTextFie
 			artifactFromPattern(pattern),
 			state.value
 				? {
-						id: node.id,
-						label: node.config.displayName,
+						id: config.id,
+						label: config.displayName,
 						value: state.value,
 					}
 				: null,
@@ -80,12 +76,6 @@ export const testTextController = createFieldController<'test-text', TestTextFie
 });
 
 const ParentFormProbe = defineComponent({
-	props: {
-		config: {
-			type: Object as PropType<Record<string, never>>,
-			required: true,
-		},
-	},
 	setup() {
 		const parentForm = useParentForm();
 
@@ -99,10 +89,7 @@ const ParentFormProbe = defineComponent({
 	},
 });
 
-export const parentFormProbeView: ViewDefinition<'parent-probe', Record<string, never>> = {
-	kind: 'parent-probe',
-	component: ParentFormProbe,
-};
+export const parentFormProbeView = ParentFormProbe;
 
 export function createTestContext(): FormRuntimeContext {
 	return {
@@ -110,22 +97,6 @@ export function createTestContext(): FormRuntimeContext {
 	};
 }
 
-export function createTestRegistry(...views: ViewDefinition<string, any>[]) {
-	const registry = new ControllerRegistry();
-	registry.registerController(testTextController, TestTextField);
-	for (const view of views) {
-		registry.registerView(view);
-	}
-	return registry;
-}
-
-export function createTestBuilder(...views: ViewDefinition<string, any>[]) {
-	return new FormBuilder(createTestRegistry(...views));
-}
-
-export function createBuiltinRegistry() {
-	const registry = new ControllerRegistry();
-	registerBuiltinControllers(registry);
-	registerBuiltinViews(registry);
-	return registry;
+export function createTestBuilder() {
+	return new FormBuilder();
 }

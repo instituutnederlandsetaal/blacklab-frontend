@@ -29,7 +29,7 @@ import SelectPicker from '@/shared/ui/SelectPicker.vue';
 type SelectPickerModelValue = string | string[] | null;
 
 const props = withDefaults(
-	defineProps<FormComponentProps<SelectFieldUiConfig, SelectFieldState> & { showLabel?: boolean }>(),
+	defineProps<FormComponentProps<SelectFieldState> & SelectFieldUiConfig & { showLabel?: boolean }>(),
 	{
 		showLabel: true,
 	},

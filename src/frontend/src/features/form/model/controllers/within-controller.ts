@@ -20,12 +20,12 @@ export type WithinFieldConfig = {
 	options: WithinFieldOption[];
 };
 
-export type WithFieldComponentProps = FormComponentProps<WithinFieldConfig, WithinFieldState>;
+export type WithFieldComponentProps = FormComponentProps<WithinFieldState> & WithinFieldConfig;
 
 export const withinController: FieldController<'within', WithinFieldState, Omit<WithinFieldConfig, 'htmlId'>> = markRaw({
 	kind: 'within',
 	createDefaultState: () => ({ element: null, attributes: {} }),
-	getQueryContribution(config, runtime, state) {
+	getQueryContribution(config, _runtime, state) {
 		const artifact = createQueryArtifact();
 		if (!state.element) return createQueryContribution();
 		const option = config.options.find((option: WithinFieldOption) => option.value === state.element);

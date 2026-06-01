@@ -22,9 +22,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { SummaryViewConfig } from '@/features/form/model/views/summary-view';
-
 import { useParentForm } from '../model/runtime';
+import type { SummaryViewConfig } from '../model/views/summary-view';
 
 defineProps<SummaryViewConfig>();
 
