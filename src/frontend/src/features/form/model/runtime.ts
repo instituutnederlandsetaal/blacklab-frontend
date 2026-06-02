@@ -6,7 +6,7 @@ import { getAllNodes, pickActiveFormState, reactivePickActiveFormState } from '@
 import { cloneFormState, createFormState } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
-import type { FormBoundaryNode } from '@/features/form/model/types/form-shape';
+import type { FormBoundaryNode, FormNode } from '@/features/form/model/types/form-shape';
 import type { FormState, FormSystemRuntime, FormSystemDefinition, UseParentFormReturn } from '@/features/form/model/types/form-state';
 
 const formSystemRuntimeKey: InjectionKey<FormSystemRuntime> = Symbol('formSystemRuntime');
@@ -16,6 +16,8 @@ type ParentFormRuntime = {
 	corpus: FormRuntimeContext['corpus'];
 	formId: ComputedRef<string>;
 	formState: ShallowRef<FormState>;
+	getNode(nodeId: string): FormNode | undefined;
+	getSummariesForNode(nodeId: string): SummaryEntry[];
 	summaries: ComputedRef<SummaryEntry[]>;
 };
 
@@ -29,6 +31,8 @@ export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: 
 		return form;
 	});
 	const formState = shallowRef<FormState>(reactivePickActiveFormState(currentForm.value, rootRuntime.state.value));
+	const nodesById = computed<Record<string, FormNode>>(() => Object.fromEntries(getAllNodes(currentForm.value).map(node => [node.id, node])));
+	const summaries = computed(() => rootRuntime.summarize(currentFormId.value));
 
 	watch(
 		currentForm,
@@ -43,7 +47,27 @@ export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: 
 		corpus: rootRuntime.context.corpus,
 		formId: currentFormId,
 		formState,
-		summaries: computed(() => rootRuntime.summarize(currentFormId.value)),
+		getNode(nodeId: string) {
+			return nodesById.value[nodeId];
+		},
+		getSummariesForNode(nodeId: string) {
+			const node = nodesById.value[nodeId];
+			if (!node) return [];
+
+			const descendants = getAllNodes(node);
+			const descendantIds = new Set(descendants.map(descendant => descendant.id));
+			const summaryGroups = new Set(
+				descendants
+					.filter(descendant => descendant.kind === 'field')
+					.map(descendant => ('groupId' in descendant && typeof descendant.groupId === 'string' ? descendant.groupId : null))
+					.filter((groupId): groupId is string => groupId != null),
+			);
+
+			return summaries.value.filter(summary => {
+				return descendantIds.has(summary.id) || (summary.group != null && (descendantIds.has(summary.group) || summaryGroups.has(summary.group)));
+			});
+		},
+		summaries,
 	};
 }
 
@@ -145,6 +169,12 @@ function createParentFormAccess(runtime: ParentFormRuntime): UseParentFormReturn
 		},
 		get formState() {
 			return runtime.formState.value;
+		},
+		getNode(nodeId: string) {
+			return runtime.getNode(nodeId);
+		},
+		getSummariesForNode(nodeId: string) {
+			return runtime.getSummariesForNode(nodeId);
 		},
 		get summaries() {
 			return runtime.summaries.value;

@@ -3,14 +3,18 @@
 		<header v-if="title && !hideTitle" class="blf-container-title">{{ title }}</header>
 
 		<template v-if="isTabbed">
-			<nav :class="['blf-tabs', { 'blf-tabs-small': isSmallTabs }]" aria-label="Form section tabs">
-				<button v-for="child in children" :key="child.id" type="button" :class="{ active: activeChildId === child.id }" @click="activeChildId = child.id">
-					{{ child.title || child.id }}
-					<span v-if="activeSummaryCounts[child.id]" class="blf-tab-count">{{ activeSummaryCounts[child.id] }}</span>
-				</button>
-			</nav>
-			<div class="blf-tab-panel">
-				<Component v-if="activeChild" :is="resolveNodeComponent(activeChild)" :key="activeChild.id" v-bind="nodeProps(activeChild, true)" />
+			<ul :class="['nav', 'nav-tabs', { 'nav-tabs-small': isSmallTabs }]" role="tablist">
+				<li v-for="child in children" :key="child.id" :class="{ active: activeChildId === child.id }" role="presentation">
+					<a href="#" role="tab" :aria-selected="activeChildId === child.id" @click.prevent="activeChildId = child.id">
+						{{ child.title || child.id }}
+						<span v-if="activeSummaryCounts[child.id]" class="badge">{{ activeSummaryCounts[child.id] }}</span>
+					</a>
+				</li>
+			</ul>
+			<div class="tab-content">
+				<div v-if="activeChild" class="tab-pane active" role="tabpanel">
+					<Component :is="resolveNodeComponent(activeChild)" :key="activeChild.id" v-bind="nodeProps(activeChild, true)" />
+				</div>
 			</div>
 		</template>
 
@@ -25,7 +29,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { isContainerNode } from '@/features/form/model/form-utils';
 import { useParentForm } from '@/features/form/model/runtime';
 import type { FormNode, ImplicitContainerComponentProps } from '@/features/form/model/types/form-shape';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
@@ -37,9 +40,12 @@ defineOptions({ name: 'ContainerRendererFilters' });
 
 const props = defineProps<ImplicitContainerComponentProps>();
 
-const { runtime, isTabbed, isSmallTabs, activeChild, containerClasses, activeChildId } = containerRendererSetup(props);
+const { runtime, presentation, activeChild, activeChildId } = containerRendererSetup(props);
 const parentForm = useParentForm();
 const renderScopeId = useUid();
+const isTabbed = computed(() => !!(presentation.value.tabs || presentation.value['small-tabs']));
+const isSmallTabs = computed(() => !!presentation.value['small-tabs']);
+const containerClasses = computed(() => ['blf-container', presentation.value, props.class]);
 
 function nodeProps(node: FormNode, hideTitle = false) {
 	return getNodeProps(node, {
@@ -49,34 +55,12 @@ function nodeProps(node: FormNode, hideTitle = false) {
 	});
 }
 
-const childGroups = computed<Set<string>>(() => new Set(props.children.filter(isContainerNode).map(child => child.id)));
-
-// TODO: count summaries for the active top-level child group more reliably by traversing descendants.
 const activeSummaryCounts = computed<Record<string, number>>(() =>
-	parentForm.summaries.reduce<Record<string, number>>((acc, summary) => {
-		if (summary.group != null && childGroups.value.has(summary.group) && summary.value) {
-			acc[summary.group] = (acc[summary.group] ?? 0) + 1;
-		}
-		return acc;
-	}, {}),
+	Object.fromEntries(props.children.map(child => [child.id, parentForm.getSummariesForNode(child.id).filter(summary => summary.value).length])),
 );
 </script>
 
 <style lang="scss" scoped>
-.blf-tab-count {
-	display: inline-block;
-	min-width: 10px;
-	border-radius: 10px;
-	background: #aaa;
-	color: #fff;
-	padding: 3px 7px;
-	font-size: 12px;
-	font-weight: 700;
-	line-height: 1;
-	vertical-align: baseline;
-	margin-left: 6px;
-}
-
 .blf-empty-state {
 	color: var(--blf-text-muted);
 	font-style: italic;

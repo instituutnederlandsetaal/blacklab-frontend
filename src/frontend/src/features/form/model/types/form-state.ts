@@ -6,7 +6,7 @@ import type { Ref } from 'vue';
 
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { SummaryEntry, CompiledFormState, PersistableSubmittableFormState, PersistableFormState } from '@/features/form/model/types/form-query';
-import type { FormBoundaryNode, FormContainerLikeNode } from '@/features/form/model/types/form-shape';
+import type { FormBoundaryNode, FormContainerLikeNode, FormNode } from '@/features/form/model/types/form-shape';
 
 export type ControllerState = unknown;
 export type FormControllerStates = Record<string, ControllerState>;
@@ -41,6 +41,8 @@ export type UseParentFormReturn = {
 	summaries: SummaryEntry[];
 	compiled: CompiledFormState;
 	corpus: FormRuntimeContext['corpus'];
+	getNode(nodeId: string): FormNode | undefined;
+	getSummariesForNode(nodeId: string): SummaryEntry[];
 };
 
 // what should the form hold

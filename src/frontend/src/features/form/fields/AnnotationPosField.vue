@@ -1,20 +1,28 @@
 <template>
 	<div :class="fieldClasses" :id="htmlId">
-		<label v-if="showLabel" :for="buttonId">{{ fieldLabel }}</label>
+		<label v-if="showLabel" :for="buttonId">{{ $tAnnotDisplayName(annotation) }}</label>
 		<div class="blf-annotation-pos__controls">
 			<div class="blf-annotation-pos__preview" :class="{ 'is-empty': !selectionSummary }">
-				{{ selectionSummary || emptySelectionLabel }}
+				{{ selectionSummary || $td('partOfSpeech.noneSelected', 'No part of speech selected') }}
 			</div>
 			<div class="blf-annotation-pos__actions">
-				<button :id="buttonId" type="button" class="btn btn-default" @click="openEditor">{{ editLabel }}</button>
-				<button v-if="hasSelection" type="button" class="btn btn-link" @click="clearSelection">{{ resetLabel }}</button>
+				<button :id="buttonId" type="button" class="btn btn-default" @click="openEditor">{{ $td('partOfSpeech.edit', 'Edit') }}</button>
+				<button v-if="hasSelection" type="button" class="btn btn-link" @click="clearSelection">{{ $t('partOfSpeech.reset') }}</button>
 			</div>
 		</div>
-		<small v-if="fieldDescription" class="blf-help-text">{{ fieldDescription }}</small>
+		<small class="blf-help-text">{{ $tAnnotDescription(annotation) }}</small>
 
-		<Modal v-if="editorOpen" :title="fieldLabel" :confirm-message="submitLabel" :close-message="cancelLabel" :size="modalSize" @confirm="commitDraft" @close="closeEditor">
-			<div class="blf-annotation-pos__list-group-container">
-				<div class="list-group blf-annotation-pos__main-list">
+		<Modal
+			v-if="editorOpen"
+			:title="$tAnnotDisplayName(annotation)"
+			:confirm-message="$t('partOfSpeech.submit')"
+			:close-message="$t('partOfSpeech.cancel')"
+			:size="modalSize"
+			@confirm="commitDraft"
+			@close="closeEditor"
+		>
+			<div class="list-group-container">
+				<div class="list-group main">
 					<button
 						v-for="value in mainValues"
 						type="button"
@@ -29,12 +37,12 @@
 					</button>
 				</div>
 
-				<div v-if="currentAnnotationValue" class="blf-annotation-pos__category-container">
-					<ul v-for="subId in currentAnnotationValue.subAnnotationIds" :key="subId" class="list-group blf-annotation-pos__category-list">
-						<li class="list-group-item active blf-annotation-pos__category-name">
+				<div v-if="currentAnnotationValue" class="category-container">
+					<ul v-for="subId in currentAnnotationValue.subAnnotationIds" :key="subId" class="list-group category">
+						<li class="list-group-item active category-name">
 							{{ subAnnotationLabel(subId) }}
 						</li>
-						<li class="list-group-item blf-annotation-pos__category-value" v-for="subValue in visibleSubAnnotationValues(subId)" :key="subValue.value">
+						<li class="list-group-item category-value" v-for="subValue in visibleSubAnnotationValues(subId)" :key="subValue.value">
 							<label>
 								<input
 									type="checkbox"
@@ -45,7 +53,7 @@
 							</label>
 						</li>
 					</ul>
-					<em v-if="currentAnnotationValue.subAnnotationIds.length === 0">{{ noOptionsLabel }}</em>
+					<em v-if="currentAnnotationValue.subAnnotationIds.length === 0">{{ $t('partOfSpeech.noOptions') }}</em>
 				</div>
 			</div>
 
@@ -55,7 +63,7 @@
 			</template>
 
 			<template #footer>
-				<button type="button" class="btn btn-default" @click="resetDraft">{{ resetLabel }}</button>
+				<button type="button" class="btn btn-default" @click="resetDraft">{{ $t('partOfSpeech.reset') }}</button>
 			</template>
 		</Modal>
 	</div>
@@ -109,14 +117,6 @@ const buttonId = computed(() => `${props.htmlId}_editor`);
 const fieldClasses = computed(() => ['blf-field', 'blf-annotation-pos', decodeVariants(props.variant)]);
 const mainValues = computed(() => Object.values(props.tagset.values));
 const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value.annotationValue));
-const fieldLabel = computed(() => i18n.$tAnnotDisplayName(props.annotation));
-const fieldDescription = computed(() => i18n.$td(`index.annotations.${props.annotation.id}_description`, props.annotation.defaultDescription));
-const editLabel = computed(() => i18n.$td('partOfSpeech.edit', 'Edit'));
-const resetLabel = computed(() => i18n.$td('partOfSpeech.reset', 'Reset'));
-const submitLabel = computed(() => i18n.$td('partOfSpeech.submit', 'Apply'));
-const cancelLabel = computed(() => i18n.$td('common.cancel', 'Cancel'));
-const emptySelectionLabel = computed(() => i18n.$td('partOfSpeech.noneSelected', 'No part of speech selected'));
-const noOptionsLabel = computed(() => i18n.$td('partOfSpeech.noOptions', 'No additional options'));
 const modalSize = computed(() => props.modalSize ?? 'lg');
 const queryPreview = computed(() => (props.showQueryPreview === false ? '' : buildAnnotationPosQueryPreview(props, draftState.value)));
 const selectionSummary = computed(() => summarizeAnnotationPosState(props, props.modelValue, i18n));
@@ -204,61 +204,53 @@ function handleSelectionChange(annotationValue: string, subAnnotationId: string,
 	flex: none;
 }
 
-.blf-annotation-pos__list-group-container {
+.list-group-container {
 	display: flex;
 	flex-wrap: nowrap;
-	gap: 20px;
 
-	> .blf-annotation-pos__main-list,
-	> .blf-annotation-pos__category-container {
+	> .list-group.main,
+	> .category-container {
 		max-height: calc(100vh - 305px);
 		min-height: 200px;
 		overflow: auto;
 	}
 }
 
-.blf-annotation-pos__main-list {
-	display: inline-block;
-	flex: none;
-	margin: 0;
-	padding: 0;
-	min-width: 200px;
-}
-
-.blf-annotation-pos__category-container {
+.category-container {
+	overflow: auto;
 	flex-grow: 1;
 	display: flex;
 	flex-wrap: wrap;
-	overflow: auto;
 
 	.list-group {
 		margin-right: 12px;
-		min-width: 140px;
-	}
-
-	.list-group-item {
-		padding: 6px 10px;
-	}
-
-	label {
-		margin: 0;
-		font-weight: 400;
-	}
-
-	input {
-		margin-right: 8px;
+		min-width: 120px;
+		> .list-group-item {
+			padding: 6px 10px;
+		}
 	}
 }
 
-.blf-annotation-pos__category-list {
-	display: inline-block;
-	vertical-align: top;
-	white-space: nowrap;
+.list-group {
 	padding: 0;
-	flex: none;
-}
 
-.blf-annotation-pos__category-name {
-	font-weight: 600;
+	&.main {
+		display: inline-block;
+		flex: none;
+		flex-basis: auto;
+		margin: 0 20px 0 0;
+	}
+
+	&.category {
+		display: inline-block;
+		vertical-align: top;
+		white-space: nowrap;
+		flex: none;
+
+		label {
+			margin: 0;
+			padding: 0;
+		}
+	}
 }
 </style>

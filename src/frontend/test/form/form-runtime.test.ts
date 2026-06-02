@@ -158,7 +158,7 @@ describe('parent form runtime', () => {
 		expect(metrics.compiledEvaluations).toBe(1);
 		expect(metrics.summariesEvaluations).toBe(1);
 
-		await wrapper.findAll('nav button')[1].trigger('click');
+		await wrapper.findAll('.nav-tabs a')[1].trigger('click');
 		await nextTick();
 
 		expect(metrics.compiledEvaluations).toBe(1);

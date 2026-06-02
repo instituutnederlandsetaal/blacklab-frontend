@@ -47,9 +47,10 @@ h3 {
 
 .legacy-filter-comparison-surface :deep(.blf-form-body) {
 	gap: 0;
+	padding: 0;
 }
 
-.legacy-filter-comparison-surface :deep(.blf-tabs) {
+.legacy-filter-comparison-surface :deep(.nav-tabs) {
 	margin-bottom: 26px;
 }
 

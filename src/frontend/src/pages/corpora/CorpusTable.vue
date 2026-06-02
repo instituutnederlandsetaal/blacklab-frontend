@@ -1,8 +1,9 @@
 <template>
-	<div class="cf-panel cf-panel-lg">
+	<div class="panel panel-default">
 		<Spinner v-if="loading" overlay />
-		<h2>{{ title }}</h2>
-		<table class="corpora public table">
+		<div class="panel-heading"><h2 class="panel-title">{{ title }}</h2></div>
+		<div class="panel-body">
+			<table class="corpora public table">
 			<thead>
 				<tr>
 					<th class="table-icon"></th>
@@ -87,11 +88,12 @@
 					</tr>
 				</template>
 			</tbody>
-		</table>
-		<div v-if="isPrivate">
-			<button v-if="canCreateCorpus" class="btn btn-default btn-lg" id="create-corpus" type="button" @click="$emit('create')">New corpus</button>
-			<div v-else class="text-danger" style="padding-left: 8px">
-				<em>You have reached the private corpora limit.<br />You will have to delete one of your corpora before you may create another.</em>
+			</table>
+			<div v-if="isPrivate">
+				<button v-if="canCreateCorpus" class="btn btn-default btn-lg" id="create-corpus" type="button" @click="$emit('create')">New corpus</button>
+				<div v-else class="text-danger" style="padding-left: 8px">
+					<em>You have reached the private corpora limit.<br />You will have to delete one of your corpora before you may create another.</em>
+				</div>
 			</div>
 		</div>
 	</div>

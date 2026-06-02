@@ -30,13 +30,13 @@ const useQueryBuilderOptions = () =>
 			allAnnotationsMap,
 			annotationOptions,
 			operatorOptions: OPERATORS.map(op => ({
-				label: translate.$td(`search.advanced.queryBuilder.boolean_operators.${op}`, op),
+				label: translate.$t(`search.advanced.queryBuilder.boolean_operators.${op}`),
 				value: op,
 			})),
 			comparatorOptions: COMPARATORS.map(comp => ({
 				label: '',
 				options: comp.map(comp => ({
-					label: translate.$td(`search.advanced.queryBuilder.comparators.${comp}`, comp),
+					label: translate.$t(`search.advanced.queryBuilder.comparators.${comp}`),
 					value: comp,
 				})),
 			})),

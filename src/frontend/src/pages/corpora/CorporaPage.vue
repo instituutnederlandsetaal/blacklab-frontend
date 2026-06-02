@@ -16,9 +16,11 @@
 		</div>
 
 		<template v-if="serverInfo">
-			<div v-if="!publicCorpora.length && !loadingCorpora && !canCreateCorpus" class="cf-panel cf-panel-lg">
-				<h2>No corpora available</h2>
-				<p>No corpora have been added to BlackLab. Corpora will appear here when when they become available.</p>
+			<div v-if="!publicCorpora.length && !loadingCorpora && !canCreateCorpus" class="panel panel-default">
+				<div class="panel-heading"><h2 class="panel-title">No corpora available</h2></div>
+				<div class="panel-body">
+					<p>No corpora have been added to BlackLab. Corpora will appear here when when they become available.</p>
+				</div>
 			</div>
 			<CorpusTable v-if="publicCorpora.length" :loading="loadingCorpora" :corpora="publicCorpora" :formats="formats" title="Public corpora" />
 

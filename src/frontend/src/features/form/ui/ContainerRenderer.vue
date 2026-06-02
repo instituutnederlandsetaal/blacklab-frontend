@@ -1,29 +1,27 @@
 <template>
 	<Component :is="isForm ? 'form' : 'section'" :class="containerClasses" @submit.prevent="submit" @reset.prevent="reset">
-		<header v-if="title && !hideTitle" :class="isForm ? 'blf-form-title' : 'blf-container-title'">{{ title }}</header>
+		<header v-if="title && !hideTitle" :class="isForm ? 'panel-heading blf-form-title' : 'blf-container-title'">{{ title }}</header>
 
 		<template v-if="presentation.tabs || presentation['small-tabs']">
-			<Tabs
-				:tabs="
-					children.map(c => ({
-						value: c.id,
-						label: c.title,
-					}))
-				"
-				:small="presentation['small-tabs']"
-				wrap
-				v-model="activeChildId"
-			/>
-			<Component v-if="activeChild" :is="resolveNodeComponent(activeChild)" v-bind="nodeProps(activeChild, true)" :key="activeChildId" />
+			<ul :class="['nav', 'nav-tabs', { 'nav-tabs-small': presentation['small-tabs'] }]" role="tablist">
+				<li v-for="child in children" :key="child.id" :class="{ active: activeChildId === child.id }" role="presentation">
+					<a href="#" role="tab" :aria-selected="activeChildId === child.id" @click.prevent="activeChildId = child.id">{{ child.title || child.id }}</a>
+				</li>
+			</ul>
+			<div :class="['tab-content', { 'panel-body': isForm }]">
+				<div v-if="activeChild" class="tab-pane active" role="tabpanel">
+					<Component :is="resolveNodeComponent(activeChild)" v-bind="nodeProps(activeChild, true)" :key="activeChildId" />
+				</div>
+			</div>
 		</template>
 
-		<div v-else :class="isForm ? 'blf-form-body' : 'blf-container-list'">
+		<div v-else :class="isForm ? 'panel-body blf-form-body' : 'blf-container-list'">
 			<Component v-for="child in children" :is="resolveNodeComponent(child)" :key="child.id" v-bind="nodeProps(child)" />
 		</div>
 
-		<footer v-if="isForm" class="blf-form-actions">
-			<button class="primary" type="submit">Submit</button>
-			<button type="reset">Reset</button>
+		<footer v-if="isForm" class="panel-footer blf-form-actions">
+			<button class="btn btn-primary" type="submit">Submit</button>
+			<button class="btn btn-default" type="reset">Reset</button>
 		</footer>
 	</Component>
 </template>
@@ -39,8 +37,6 @@ import { getNodeProps, resolveNodeComponent } from './node-render';
 
 import useUid from '@/shared/utils/useUid';
 
-import Tabs from '@/shared/ui/Tabs.vue';
-
 // InheritAttrs false to prevent rendering extra properties in dom, such as functions passed as props
 // Due to how we pass props, this component would otherwise render a lot of unwanted attributes on the container element, such as util methods on the form node object etc.
 defineOptions({ name: 'ContainerRenderer', inheritAttrs: false });
@@ -51,7 +47,7 @@ const { runtime, presentation, activeChildId, activeChild } = containerRendererS
 const isForm = computed(() => props.kind === 'form');
 const renderScopeId = useUid();
 
-const containerClasses = computed(() => ['blf-container', props.kind === 'form' ? 'blf-form' : null, presentation.value, props.class]);
+const containerClasses = computed(() => ['blf-container', props.kind === 'form' ? 'blf-form panel panel-default' : null, presentation.value, props.class]);
 
 if (props.kind === 'form') {
 	createAndProvideParentForm(runtime, () => props.id);
@@ -76,12 +72,7 @@ function reset() {
 
 <style lang="scss" scoped>
 .blf-form {
-	display: grid;
-	gap: 16px;
-	border: 1px solid var(--blf-border);
-	border-radius: 6px;
-	background: var(--blf-panel);
-	padding: 16px;
+	margin-bottom: 0;
 }
 
 .blf-form-title {
@@ -98,21 +89,5 @@ function reset() {
 	display: flex;
 	gap: 8px;
 	justify-content: flex-start;
-	border-top: 1px solid var(--blf-border);
-	padding-top: 12px;
-}
-
-.blf-form-actions button {
-	border: 1px solid var(--blf-border-strong);
-	background: #fff;
-	border-radius: 4px;
-	padding: 7px 12px;
-	cursor: pointer;
-}
-
-.blf-form-actions button.primary {
-	background: var(--blf-accent);
-	border-color: var(--blf-accent);
-	color: #fff;
 }
 </style>

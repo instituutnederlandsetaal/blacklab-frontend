@@ -9,11 +9,11 @@ export type Translate = {
 	/** Get the localized display name for an annotated field or the default value.
 	 * Note that the field ID should be *including* the parallel suffix. So just e.g. "contents__en" for a parallel field. */
 	$tAnnotatedFieldDisplayName: (field: { id: string; defaultDisplayName?: string; version?: string; isParallel?: boolean }) => string;
-	$tAnnotatedFieldDescription: (field: NormalizedAnnotatedField) => string;
+	$tAnnotatedFieldDescription: (field: Pick<NormalizedAnnotatedField, 'id' | 'defaultDescription'>) => string;
 	/** Get the localized display name for an annotation or the default value */
 	$tAnnotDisplayName: (annotation: Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName'>) => string;
 	/** Get the localized description for an annotation or the default value */
-	$tAnnotDescription: (annotation: NormalizedAnnotation) => string;
+	$tAnnotDescription: (annotation: Pick<NormalizedAnnotation, 'id' | 'defaultDescription'>) => string;
 	// We decided not to allow translation individual field values for now, as it is a footgun
 	// users would no longer be able to to see the canonical contents of their corpus
 	// as well as it being a neverending source of drift and missing translations

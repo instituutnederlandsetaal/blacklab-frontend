@@ -100,6 +100,8 @@ export function createI18n(): AppI18n {
 	const vueI18nPlugin = createVueI18n({
 		legacy: false,
 		globalInjection: false,
+		missingWarn: true,
+		fallbackWarn: true,
 	});
 	const vueI18n = vueI18nPlugin.global as unknown as VueI18nBridge;
 	const translate = createTranslate(vueI18nPlugin.global as Parameters<typeof createTranslate>[0]);

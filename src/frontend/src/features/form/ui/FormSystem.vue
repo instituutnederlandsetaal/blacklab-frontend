@@ -165,54 +165,16 @@ function rootProps() {
 	align-items: start;
 }
 
-.blf-tabs {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-end;
-	gap: 2px;
-	margin: 0 0 15px;
-	padding-left: 0;
-	border-bottom: 1px solid #ddd;
-	list-style: none;
-}
-
-.blf-tabs button {
-	margin: 0 0 -1px;
-	border: 1px solid transparent;
-	border-radius: 4px 4px 0 0;
-	background: transparent;
-	padding: 10px 15px;
-	color: #337ab7;
-	line-height: 1.42857143;
-	cursor: pointer;
-}
-
-.blf-tabs button:hover,
-.blf-tabs button:focus-visible {
-	border-color: #eee #eee #ddd;
-	background: #eee;
-	color: #23527c;
-	outline: none;
-}
-
-.blf-tabs button.active {
-	border-color: #ddd #ddd transparent;
-	background: #fff;
-	color: #555;
-	font-weight: 400;
-	cursor: default;
-}
-
-.blf-tabs.blf-tabs-small button {
+.nav-tabs-small > li > a {
 	padding: 4px 15px;
 	font-size: 0.95em;
 }
 
-.blf-tab-panel {
+.blf-container > .tab-content {
 	min-width: 0;
 }
 
-.blf-container.small-tabs > .blf-tab-panel > .blf-container > .blf-container-list {
+.blf-container.small-tabs > .tab-content > .tab-pane > .blf-container > .blf-container-list {
 	max-height: 385px;
 	overflow: auto;
 	overflow-x: hidden;

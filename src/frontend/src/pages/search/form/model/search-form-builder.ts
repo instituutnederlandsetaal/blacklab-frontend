@@ -79,7 +79,7 @@ function createWithinField(builder: FormBuilder, corpus: CorpusContext, translat
 	if (!spans || !Object.keys(spans).length) return null;
 
 	const options = [
-		{ value: '', label: translate.$td('search.within.document', 'Document') },
+		{ value: '', label: translate.$t(`search.within.document`) },
 		...Object.keys(spans)
 			.sort((left, right) => translate.$tSpanDisplayName({ value: left, label: left }).localeCompare(translate.$tSpanDisplayName({ value: right, label: right })))
 			.map(spanName => ({
@@ -95,7 +95,7 @@ function createWithinField(builder: FormBuilder, corpus: CorpusContext, translat
 	];
 
 	return builder.newField('shared.within', withinController, WithinField, {
-		label: translate.$td('search.within.heading', 'Within'),
+		label: translate.$t(`search.within.heading`),
 		options,
 	});
 }
@@ -217,7 +217,7 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
 	const tabs = builder.newContainer('shared.filters', ContainerRendererFilters, {
 		combine: 'allOf',
 		variant: 'tabs',
-		title: translate.$td('search.filters.heading', 'Filters'),
+		title: translate.$t(`filter.heading`),
 	});
 
 	for (const { fields, group } of groups) {
@@ -233,11 +233,10 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
 	}
 
 	const rootFilterContainer = builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
-		builder.newView('shared.filters.heading', HeadingView, { title: translate.$td('search.filters.heading', 'Filter Search By...') }),
+		builder.newView('shared.filters.heading', HeadingView, { title: translate.$t(`filter.heading`) }),
 		tabs,
 		builder.newView('shared.filters.summary', SummaryView, {
 			showRaw: true,
-			title: translate.$td('search.filters.summary.heading', 'Selected filters'),
 		}),
 	);
 
@@ -276,7 +275,7 @@ function createAnnotationTabs(builder: FormBuilder, corpus: { index: NormalizedI
 
 	const tabs = builder.newContainer(`extended.annotations`, ContainerRenderer, {
 		variant: 'small-tabs',
-		title: translate.$td('search.extended.annotations', 'Annotations'),
+		title: translate.$t(`search.extended.annotations`),
 	});
 
 	for (const { annotations, group } of groups) {
@@ -314,8 +313,8 @@ export function createSearchFormDefinition(
 	};
 
 	const root = builder.newContainer('root', ContainerRenderer, { variant: 'tabs' });
-	const searchTab = root.addContainer('search', ContainerRenderer, { variant: 'tabs', title: translate.$td('search.heading', 'Search') });
-	root.addContainer('explore', ContainerRenderer, { variant: 'tabs', title: translate.$td('explore.heading', 'Explore') });
+	const searchTab = root.addContainer('search', ContainerRenderer, { variant: 'tabs', title: translate.$t(`search.heading`) });
+	root.addContainer('explore', ContainerRenderer, { variant: 'tabs', title: translate.$t(`explore.heading`) });
 
 	const sharedFilters = createSharedFilters(builder, index, translate);
 	const sharedParallel = createParallelField(builder, corpus, translate);
@@ -330,12 +329,12 @@ export function createSearchFormDefinition(
 	searchTab
 		.addForm('search.simple', ContainerRenderer, {
 			variant: 'list',
-			title: translate.$td('search.simple.heading', 'Simple'),
+			title: translate.$t(`search.simple.heading`),
 		})
 		.addChildren(createAnnotationField(builder, 'search.simple.annotation', simpleField, corpus, translate));
 
 	const extendedSearchForm = searchTab.addForm('search.extended', ContainerRenderer, {
-		title: translate.$td('search.extended.heading', 'Extended'),
+		title: translate.$t(`search.extended.heading`),
 		variant: 'columns',
 	});
 	extendedSearchForm
@@ -343,12 +342,7 @@ export function createSearchFormDefinition(
 		.addChildren(
 			builder
 				.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' })
-				.addChildren(
-					builder.newView('search.extended.query.heading', HeadingView, { title: translate.$td('search.extended.query.heading', 'Search for ...') }),
-					createAnnotationTabs(builder, corpus, translate),
-					sharedParallel,
-					sharedWithin,
-				),
+				.addChildren(builder.newView('search.heading', HeadingView, { title: translate.$t(`search.heading`) }), createAnnotationTabs(builder, corpus, translate), sharedParallel, sharedWithin),
 			sharedFilters,
 		);
 
@@ -356,14 +350,14 @@ export function createSearchFormDefinition(
 	// const advancedSearchForm = searchTab.
 
 	const expertSearchForm = searchTab.addForm('search.expert', ContainerRenderer, {
-		title: translate.$td('search.expert.heading', 'Expert'),
+		title: translate.$t(`search.expert.heading`),
 		variant: 'columns',
 	});
 	expertSearchForm
 		.addContainer('search.expert.query', ContainerRenderer, {})
-		.addView('search.expert.query.heading', HeadingView, { title: translate.$td('search.expert.query.heading', 'Enter CQL query') })
+		.addView('search.expert.query.heading', HeadingView, { title: translate.$t(`search.expert.query.heading`) })
 		.addField('search.expert.querybox', expertQueryController, RawCqlField, {
-			displayName: translate.$td('search.expert.cqlQuery', 'CQL query'),
+			displayName: translate.$t(`search.expert.cqlQuery`),
 		})
 		.addChildren(sharedParallel, sharedWithin);
 	expertSearchForm.addChildren(sharedFilters);
