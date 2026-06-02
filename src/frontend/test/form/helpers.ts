@@ -4,6 +4,8 @@ import { FormBuilder, useParentForm, type FormRuntimeContext } from '@/features/
 import { artifactFromPattern, tokenPattern, withSummary } from '@/features/form/model/compile/query-artifact';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
+import { createMockI18n } from '@/shared/i18n';
+
 export type TestTextFieldState = {
 	value: string;
 };
@@ -94,6 +96,7 @@ export const parentFormProbeView = ParentFormProbe;
 export function createTestContext(): FormRuntimeContext {
 	return {
 		corpus: { indexId: 'test-corpus', textDirection: 'ltr' },
+		translate: createMockI18n().translate,
 	};
 }
 

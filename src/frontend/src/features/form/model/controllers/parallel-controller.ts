@@ -21,12 +21,12 @@ export type ParallelFieldComponentProps = ImplicitFieldComponentProps<ParallelFi
 
 type ParallelAnnotatedField = Parameters<Translate['$tAnnotatedFieldDisplayName']>[0];
 
-function translatedAnnotatedField(runtime: Parameters<NonNullable<FieldController['getQueryContribution']>>[1], field: ParallelAnnotatedField | undefined, fallback: string) {
-	return field ? (runtime.translate?.$tAnnotatedFieldDisplayName(field) ?? field.defaultDisplayName ?? field.version ?? field.id) : fallback;
+function translatedAnnotatedField(runtime: Parameters<NonNullable<FieldController['getQueryContribution']>>[1], field: ParallelAnnotatedField) {
+	return runtime.translate.$tAnnotatedFieldDisplayName(field);
 }
 
 function translatedAlignBy(runtime: Parameters<NonNullable<FieldController['getQueryContribution']>>[1], alignBy: string) {
-	return runtime.translate?.$tAlignByDisplayName({ value: alignBy }) ?? alignBy;
+	return runtime.translate.$tAlignByDisplayName({ value: alignBy });
 }
 
 export const parallelController: FieldController<'parallel', ParallelFieldState, ParallelFieldConfig> = {
@@ -42,31 +42,21 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 		if (state.source)
 			entries.push({
 				id: `${config.id}.source`,
-				label: runtime.translate?.$t(`search.parallel.searchSourceVersion`) ?? 'Source',
-				value: translatedAnnotatedField(
-					runtime,
-					config.sourceOptions.find(field => field.id === state.source),
-					state.source,
-				),
+				label: runtime.translate.$t(`search.parallel.searchSourceVersion`),
+				value: translatedAnnotatedField(runtime, config.sourceOptions.find(field => field.id === state.source) ?? { id: state.source }),
 			});
 		if (state.targets.length)
 			entries.push({
 				id: `${config.id}.targets`,
-				label: runtime.translate?.$t(`search.parallel.andCompareWithTargetVersions`) ?? 'Targets',
+				label: runtime.translate.$t(`search.parallel.andCompareWithTargetVersions`),
 				value: state.targets
-					.map(target =>
-						translatedAnnotatedField(
-							runtime,
-							config.targetOptions.find(field => field.id === target),
-							target,
-						),
-					)
+					.map(target => translatedAnnotatedField(runtime, config.targetOptions.find(field => field.id === target) ?? { id: target }))
 					.join(', '),
 			});
 		if (state.alignBy)
 			entries.push({
 				id: `${config.id}.alignBy`,
-				label: runtime.translate?.$t(`search.parallel.alignBy`) ?? 'Align by',
+				label: runtime.translate.$t(`search.parallel.alignBy`),
 				value: translatedAlignBy(runtime, state.alignBy),
 			});
 		return createQueryContribution(artifact, entries);

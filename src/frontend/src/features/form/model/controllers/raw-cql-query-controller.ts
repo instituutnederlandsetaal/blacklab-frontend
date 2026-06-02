@@ -14,13 +14,13 @@ export type RawCqlQueryFieldConfig = {
 export const expertQueryController: FieldController<'raw-cql-query', RawCqlQueryFieldState, RawCqlQueryFieldConfig> = {
 	kind: 'raw-cql-query',
 	createDefaultState: () => ({ query: '', targetQueries: [] }),
-	getQueryContribution(config, _runtime, state) {
+	getQueryContribution(config, runtime, state) {
 		return withSummary(
 			artifactFromPattern(rawPattern(state.query)),
 			state.query
 				? {
 						id: config.id,
-						label: _runtime.translate?.$t(`search.expert.corpusQueryLanguage`) ?? 'Corpus Query Language',
+						label: runtime.translate.$t(`search.expert.corpusQueryLanguage`),
 						value: state.query,
 					}
 				: null,

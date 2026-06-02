@@ -36,8 +36,8 @@ export const withinController: FieldController<'within', WithinFieldState, Omit<
 			}),
 			{
 				id: config.id,
-				label: runtime.translate?.$t(`search.extended.within`) ?? 'Within',
-				value: option ? (runtime.translate?.$tSpanDisplayName(option) ?? option.label ?? option.value) : state.element,
+				label: runtime.translate.$t(`search.extended.within`),
+				value: runtime.translate.$tSpanDisplayName(option ?? { value: state.element }),
 			},
 		);
 	},

@@ -109,17 +109,17 @@ const fieldExpectations = {
 		summaries: [
 			{
 				id: 'shouldEndUpInSummaryId.parallel.node.source',
-				label: 'Source',
+				label: 'search.parallel.searchSourceVersion',
 				value: 'shouldEndUpInSummaryValue.parallel.source',
 			},
 			{
 				id: 'shouldEndUpInSummaryId.parallel.node.targets',
-				label: 'Targets',
+				label: 'search.parallel.andCompareWithTargetVersions',
 				value: 'shouldEndUpInSummaryValue.parallel.target',
 			},
 			{
 				id: 'shouldEndUpInSummaryId.parallel.node.alignBy',
-				label: 'Align by',
+				label: 'search.parallel.alignBy',
 				value: 'parallel-state.align.selected',
 			},
 		],
@@ -132,7 +132,7 @@ const fieldExpectations = {
 		summaries: [
 			{
 				id: 'shouldEndUpInSummaryId.raw-cql.node',
-				label: 'Corpus Query Language',
+				label: 'search.expert.corpusQueryLanguage',
 				value: '[summaryField="shouldEndUpInSummaryValue.raw-cql"]',
 			},
 		],
@@ -147,7 +147,7 @@ const fieldExpectations = {
 		summaries: [
 			{
 				id: 'shouldEndUpInSummaryId.within.node',
-				label: 'Within',
+				label: 'search.extended.within',
 				value: 'shouldEndUpInSummaryValue.within',
 			},
 		],

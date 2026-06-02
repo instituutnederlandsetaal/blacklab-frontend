@@ -17,7 +17,7 @@ export const annotationPosController = createFieldController<'annotation-pos', A
 
 		return withSummary(artifactFromPattern(rawPattern(pattern)), {
 			id: config.annotation.id,
-			label: runtime.translate?.$tAnnotDisplayName(config.annotation) ?? config.annotation.defaultDisplayName ?? config.annotation.id,
+			label: runtime.translate.$tAnnotDisplayName(config.annotation),
 			value: summarizeAnnotationPosState(config, state, runtime.translate) || state.annotationValue || '',
 			group: config.groupId,
 		});

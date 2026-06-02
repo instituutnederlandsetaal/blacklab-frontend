@@ -100,7 +100,7 @@ export function buildAnnotationPosPattern(config: AnnotationPosFieldConfig, stat
 	return `[${parts.map(formatQueryPart).join(' & ')}]`;
 }
 
-export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, state: AnnotationPosFieldState, translate?: Translate): string {
+export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, state: AnnotationPosFieldState, translate: Translate): string {
 	const selectedValue = findTagsetValue(config.tagset, state.annotationValue);
 	if (!selectedValue) return '';
 
@@ -118,7 +118,7 @@ export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, st
 				defaultDescription: undefined,
 			};
 
-			const label = translate?.$tAnnotDisplayName(subAnnotation) ?? subAnnotation.defaultDisplayName ?? subAnnotation.id;
+			const label = translate.$tAnnotDisplayName(subAnnotation);
 			const values = selectedValues.map(value => value.displayName || value.value).join(', ');
 			return `${label}: ${values}`;
 		})

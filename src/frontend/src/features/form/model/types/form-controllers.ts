@@ -11,8 +11,8 @@ export type FormRuntimeCorpus = {
 };
 
 export type FormRuntimeContext = {
-	corpus?: FormRuntimeCorpus;
-	translate?: Translate;
+	corpus: FormRuntimeCorpus;
+	translate: Translate;
 };
 
 export type FieldControllerProps<Extra> = BaseFieldNode & Extra;
