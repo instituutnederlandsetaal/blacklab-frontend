@@ -2,7 +2,6 @@ import { fileURLToPath } from "node:url";
 /// <reference types="vitest/config" />
 import path from "path";
 
-import inject from "@rollup/plugin-inject";
 import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
 import vue from "@vitejs/plugin-vue";
 import { playwright } from "@vitest/browser-playwright";
@@ -27,12 +26,6 @@ export default defineConfig({
             },
           }),
         ]),
-    inject({
-      $: "jquery",
-      jQuery: "jquery",
-      include: ["**/*.js", "**/*.mjs", "**/*.cjs"],
-      exclude: ["**/*.vue"],
-    }),
     vue(),
   ],
   resolve: {
@@ -72,7 +65,13 @@ export default defineConfig({
     sourcemap: true,
     target: "esnext",
     assetsDir: "assets",
-    rollupOptions: {
+    rolldownOptions: {
+      transform: {
+        inject: {
+          $: "jquery",
+          jQuery: "jquery",
+        },
+      },
       input: {
         main: path.resolve(dirname, "src/app/entrypoint/main.ts"),
         callback: path.resolve(dirname, "src/app/entrypoint/callback.ts"),
