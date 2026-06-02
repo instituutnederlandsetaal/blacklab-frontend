@@ -10,9 +10,10 @@ import { reactive, ref } from 'vue';
 import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
 import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 import * as UIStore from '@/pages/search/config/ui-customization-store';
-import { debugLogCat } from '@/shared/debug/debug';
 import type { AnnotationValue } from '@/types/apptypes';
 import type { CqlQueryBuilderData } from '@/widgets/cql-query-builder/model';
+
+import { debugLogCat } from '@/shared/debug/debug';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)

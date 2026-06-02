@@ -1,3 +1,5 @@
+import { toValue } from 'vue';
+
 import { createDefaultCheckboxFieldState, type CheckboxFieldState, type CheckboxFieldUiConfig } from '@/features/form/fields/generic/checkbox-field';
 import { createDefaultDateFieldState, DateUtils, type DateFieldState, type DateFieldUiConfig } from '@/features/form/fields/generic/date-field';
 import { createDefaultRadioFieldState, type RadioFieldState, type RadioFieldUiConfig } from '@/features/form/fields/generic/radio-field';
@@ -9,7 +11,6 @@ import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfi
 import { artifactFromFilter, rawFilter, termFilter, withSummary } from '@/features/form/model/compile/query-artifact';
 import type { SummaryEntry } from '@/features/form/model/types';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
-import { toValue } from 'vue';
 
 import { findOption, optionLabel } from '@/shared/utils/options';
 import { escapeLucene, splitIntoTerms } from '@/shared/utils/string-utils';

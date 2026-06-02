@@ -25,7 +25,11 @@ export default {
 			name: 'global-help',
 			path: '/help',
 			alias: '/help/:pathMatch(.*)*',
-			meta: { name: 'help', getTitle: (displayName: string) => displayName + ' Help', customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
+			meta: {
+				name: 'help',
+				getTitle: (displayName: string) => displayName + ' Help',
+				customScriptTiming: 'after-page-bootstrap',
+			} satisfies CustomRouteMeta,
 			component: () => import('@/pages/PlaceholderPage.vue'),
 			// component: () => import('@/pages/help/HelpPage.vue')
 		},
@@ -33,7 +37,11 @@ export default {
 			name: 'global-about',
 			path: '/about',
 			alias: '/about/:pathMatch(.*)*',
-			meta: { name: 'about', getTitle: () => 'About', customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
+			meta: {
+				name: 'about',
+				getTitle: () => 'About',
+				customScriptTiming: 'after-page-bootstrap',
+			} satisfies CustomRouteMeta,
 			// component: () => import('@/pages/about/AboutPage.vue')
 			component: () => import('@/pages/PlaceholderPage.vue'),
 		},
@@ -50,7 +58,10 @@ export default {
 					name: 'search',
 					path: 'search',
 					alias: ['search/:pathMatch(.*)*'],
-					meta: { name: 'search', getTitle: (displayName: string) => `${displayName} Search` } satisfies CustomRouteMeta,
+					meta: {
+						name: 'search',
+						getTitle: (displayName: string) => `${displayName} Search`,
+					} satisfies CustomRouteMeta,
 					component: () => import('@/pages/search/SearchPage.vue'),
 				},
 			],

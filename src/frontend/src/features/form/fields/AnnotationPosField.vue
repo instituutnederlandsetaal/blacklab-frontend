@@ -6,8 +6,12 @@
 				{{ selectionSummary || $t('partOfSpeech.noneSelected') }}
 			</div>
 			<div class="blf-annotation-pos__actions">
-				<button :id="buttonId" type="button" class="btn btn-default" @click="openEditor">{{ $t('partOfSpeech.edit') }}</button>
-				<button v-if="hasSelection" type="button" class="btn btn-link" @click="clearSelection">{{ $t('partOfSpeech.reset') }}</button>
+				<button :id="buttonId" type="button" class="btn btn-default" @click="openEditor">
+					{{ $t('partOfSpeech.edit') }}
+				</button>
+				<button v-if="hasSelection" type="button" class="btn btn-link" @click="clearSelection">
+					{{ $t('partOfSpeech.reset') }}
+				</button>
 			</div>
 		</div>
 		<small class="blf-help-text">{{ $tAnnotDescription(annotation) }}</small>
@@ -63,7 +67,9 @@
 			</template>
 
 			<template #footer>
-				<button type="button" class="btn btn-default" @click="resetDraft">{{ $t('partOfSpeech.reset') }}</button>
+				<button type="button" class="btn btn-default" @click="resetDraft">
+					{{ $t('partOfSpeech.reset') }}
+				</button>
 			</template>
 		</Modal>
 	</div>

@@ -81,7 +81,12 @@ class I18nManager {
 	private readonly registeredLocales = ref<{ value: string; label: string }[]>([]);
 
 	public readonly availableLocales = computed(() =>
-		this.registeredLocales.value.map<{ value: string; label: string; loading?: boolean; error?: string }>(l => ({
+		this.registeredLocales.value.map<{
+			value: string;
+			label: string;
+			loading?: boolean;
+			error?: string;
+		}>(l => ({
 			value: l.value,
 			label: l.label,
 			loading: this.localeStates[l.value]?.loading ? true : undefined,
@@ -324,7 +329,11 @@ class I18nManager {
 			// vite async module import, as string
 			// https://vite.dev/guide/features#custom-queries
 			processImportResult(importBuiltinLocale(localeId)),
-			processFetchResult(fetch(`${CONTEXT_URL}${indexId ? `/${indexId}` : ''}/static/locales/${localeId}.json`, { headers: { accept: 'application/json' } })),
+			processFetchResult(
+				fetch(`${CONTEXT_URL}${indexId ? `/${indexId}` : ''}/static/locales/${localeId}.json`, {
+					headers: { accept: 'application/json' },
+				}),
+			),
 		]).then(results => {
 			const rejected: PromiseRejectedResult[] = [],
 				fulfilled: Record<string, any>[] = [];

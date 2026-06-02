@@ -9,12 +9,12 @@ import { useMemoize } from '@vueuse/core';
 import { reactive } from 'vue';
 
 import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
-import { useBlackLabApi } from '@/shared/api/useApi';
 import * as CorpusModule from '@/entities/corpus/model/legacy-corpus-store';
 import { corpusCustomizations } from '@/pages/search/config/customization-callback-store';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/pages/search/form/filters/lib/filterValueFunctions';
 import type { FilterDefinition } from '@/types/apptypes';
 
+import { useBlackLabApi } from '@/shared/api/useApi';
 import { debugLogCat } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/map-reduce';
 

@@ -1,7 +1,8 @@
 <template>
 	<div class="filter-overview">
 		<div v-for="filter in summary" :key="filter.id">
-			{{ filter.displayName }}<small v-if="filter.group"> ({{ filter.group }})</small>: <i>{{ filter.summary }}</i>
+			{{ filter.displayName }}<small v-if="filter.group"> ({{ filter.group }})</small>:
+			<i>{{ filter.summary }}</i>
 		</div>
 		<!-- <div v-for="filter in activeFilters" :key="filter.id + '_lucene'">{{filter.displayName}}: <i>{{filter.lucene}}</i></div> -->
 
@@ -16,8 +17,9 @@
 
 import { computed } from 'vue';
 
-import { useBlackLabApi } from '@/shared/api/useApi';
 import { FilteredResultCountLoader } from '@/features/totals/lib/result-count-from-filters';
+
+import { useBlackLabApi } from '@/shared/api/useApi';
 
 import SubcorpusTotals from '@/features/totals/ui/SubcorpusTotals.vue';
 // import { useCurrentCorpus } from '@/app/plugins/installCorpusData';

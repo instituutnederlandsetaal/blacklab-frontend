@@ -6,7 +6,6 @@
 import { ref } from 'vue';
 
 import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
-import { mapReduce } from '@/shared/utils/map-reduce';
 import type {
 	NormalizedAnnotatedField,
 	NormalizedAnnotatedFieldParallel,
@@ -16,6 +15,8 @@ import type {
 	NormalizedMetadataField,
 	NormalizedMetadataGroup,
 } from '@/types/apptypes';
+
+import { mapReduce } from '@/shared/utils/map-reduce';
 
 type ModuleRootState = NormalizedIndex | undefined;
 

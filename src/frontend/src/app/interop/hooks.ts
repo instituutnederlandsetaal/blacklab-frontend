@@ -14,27 +14,30 @@ export function installHooksGlobal(): HookRegistry {
 	}
 
 	const store = hookGlobal.__cfHooksStore ?? (hookGlobal.__cfHooksStore = {});
-	hookGlobal.hooks = new Proxy({}, {
-		get(target, prop: string|symbol) {
-			if (typeof prop !== 'string') {
-				return Reflect.get(target, prop);
-			}
+	hookGlobal.hooks = new Proxy(
+		{},
+		{
+			get(target, prop: string | symbol) {
+				if (typeof prop !== 'string') {
+					return Reflect.get(target, prop);
+				}
 
-			return (fn: Hook) => {
+				return (fn: Hook) => {
+					if (!store[prop]) store[prop] = [];
+					store[prop].push(fn);
+				};
+			},
+			set(target, prop: string | symbol, value: Hook) {
+				if (typeof prop !== 'string') {
+					return Reflect.set(target, prop, value);
+				}
+
 				if (!store[prop]) store[prop] = [];
-				store[prop].push(fn);
-			};
+				store[prop].push(value);
+				return true;
+			},
 		},
-		set(target, prop: string|symbol, value: Hook) {
-			if (typeof prop !== 'string') {
-				return Reflect.set(target, prop, value);
-			}
-
-			if (!store[prop]) store[prop] = [];
-			store[prop].push(value);
-			return true;
-		}
-	}) as HookRegistry;
+	) as HookRegistry;
 
 	return hookGlobal.hooks;
 }

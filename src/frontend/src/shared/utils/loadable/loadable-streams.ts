@@ -276,7 +276,10 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 	});
 
 	constructor(processInput: (i$: Observable<TInput>) => Observable<Loadable<TOutput>>, settings?: Partial<InteractiveLoadableSettings<TInput>>) {
-		const { debounce, delayClear, clearOnError } = { ...defaultInteractiveLoadableSettings, ...settings };
+		const { debounce, delayClear, clearOnError } = {
+			...defaultInteractiveLoadableSettings,
+			...settings,
+		};
 
 		const debouncedInput$ =
 			typeof debounce === 'function'
@@ -397,7 +400,12 @@ export function loadableFromStream<T>(
 		deepReactiveValue?: boolean;
 	} = { loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false },
 ): LoadableFromRequest<ValueTypeFromLoadableOrObservable<T>> {
-	settings = { loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false, ...settings };
+	settings = {
+		loadingOnStart: false,
+		keepValueAfterCompletion: true,
+		deepReactiveValue: false,
+		...settings,
+	};
 
 	const value: Ref<ValueTypeFromLoadableOrObservable<T> | undefined> = settings.deepReactiveValue ? ref() : shallowRef();
 	const state = ref<LoadableState>(settings.loadingOnStart ? LoadableState.loading : LoadableState.empty);

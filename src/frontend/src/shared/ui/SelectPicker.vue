@@ -101,7 +101,9 @@
 				</template>
 				<!-- note: don't insert whitespace in the heading or :empty css rule will not work -->
 				<li class="menu-header">
-					<div v-if="loading && editable /* not visible in button when editable */" class="text-center"><span class="fa fa-spinner fa-spin text-muted"></span></div>
+					<div v-if="loading && editable /* not visible in button when editable */" class="text-center">
+						<span class="fa fa-spinner fa-spin text-muted"></span>
+					</div>
 					<input
 						v-if="searchableModel && !editable /* When it's available, edit box handles searching */"
 						type="text"

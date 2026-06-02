@@ -13,15 +13,15 @@
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import type {
-    BCQLAndNode,
-    BCQLCompareNode,
-    BCQLOrNode,
-    BCQLPositionFilterNode,
-    BCQLQueryNode,
-    BCQLRegexNode,
-    BCQLTagAttributeExpressionNode,
-    BCQLTextPatternNode,
-    BCQLTextPatternStruct,
+	BCQLAndNode,
+	BCQLCompareNode,
+	BCQLOrNode,
+	BCQLPositionFilterNode,
+	BCQLQueryNode,
+	BCQLRegexNode,
+	BCQLTagAttributeExpressionNode,
+	BCQLTextPatternNode,
+	BCQLTextPatternStruct,
 } from '@/shared/blacklab-helpers/cql/bcql-json-ast';
 
 export type XmlTag = {
@@ -170,7 +170,10 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 		if (!attributes) return r;
 		for (const [k, v] of Object.entries(attributes)) {
 			if (v.type === 'int-range') {
-				r[k] = { low: v.min == 0 ? '' : v.min.toString(), high: v.max == 9999 ? '' : v.max.toString() };
+				r[k] = {
+					low: v.min == 0 ? '' : v.min.toString(),
+					high: v.max == 9999 ? '' : v.max.toString(),
+				};
 			} else if (v.type === 'string' || v.type === 'integer' || v.type === 'boolean') {
 				r[k] = v.value.toString();
 			} else {
@@ -246,7 +249,8 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 
 	function _token(input: any): Token | null {
 		switch (input.type) {
-			case 'anytoken': { // [] or []{min,max}
+			case 'anytoken': {
+				// [] or []{min,max}
 				const min = 'min' in input ? input.min : 1;
 				const max = 'max' in input ? input.max : null;
 				if (min === 0 && max === 1) {

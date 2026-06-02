@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { mount } from '@vue/test-utils';
-import { defineComponent, h } from 'vue';
 import { describe, expect, test } from 'vitest';
+import { defineComponent, h } from 'vue';
 
 import { useI18n, useI18nManager } from '@/shared/i18n';
 

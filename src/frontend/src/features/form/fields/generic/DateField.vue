@@ -43,10 +43,10 @@ import { computed } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
-import { useI18n } from '@/shared/i18n';
 
 import { DateUtils, type RangeMode, type DateFieldState, type DateFieldUiConfig } from './date-field';
 
+import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 
 type ModeOption = Option<RangeMode>;

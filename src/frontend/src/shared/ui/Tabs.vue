@@ -50,7 +50,10 @@ export default defineComponent({
 	emits: ['update:modelValue', 'middlemouse'],
 	props: {
 		modelValue: { type: [String, Number, null] as PropType<string | number | null>, default: null },
-		tabs: { type: Array as PropType<Array<string | (Option & { class?: string | Record<string, boolean>; style?: StyleValue })>>, required: true },
+		tabs: {
+			type: Array as PropType<Array<string | (Option & { class?: string | Record<string, boolean>; style?: StyleValue })>>,
+			required: true,
+		},
 		vertical: Boolean,
 		flexy: Boolean,
 		wrap: Boolean,

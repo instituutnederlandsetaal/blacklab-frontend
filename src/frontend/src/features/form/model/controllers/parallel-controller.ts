@@ -43,13 +43,25 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 			entries.push({
 				id: `${config.id}.source`,
 				label: runtime.translate?.$t(`search.parallel.searchSourceVersion`) ?? 'Source',
-				value: translatedAnnotatedField(runtime, config.sourceOptions.find(field => field.id === state.source), state.source),
+				value: translatedAnnotatedField(
+					runtime,
+					config.sourceOptions.find(field => field.id === state.source),
+					state.source,
+				),
 			});
 		if (state.targets.length)
 			entries.push({
 				id: `${config.id}.targets`,
 				label: runtime.translate?.$t(`search.parallel.andCompareWithTargetVersions`) ?? 'Targets',
-				value: state.targets.map(target => translatedAnnotatedField(runtime, config.targetOptions.find(field => field.id === target), target)).join(', '),
+				value: state.targets
+					.map(target =>
+						translatedAnnotatedField(
+							runtime,
+							config.targetOptions.find(field => field.id === target),
+							target,
+						),
+					)
+					.join(', '),
 			});
 		if (state.alignBy)
 			entries.push({

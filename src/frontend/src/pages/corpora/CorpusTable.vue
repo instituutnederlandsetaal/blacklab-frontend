@@ -1,93 +1,95 @@
 <template>
 	<div class="panel panel-default">
 		<Spinner v-if="loading" overlay />
-		<div class="panel-heading"><h2 class="panel-title">{{ title }}</h2></div>
+		<div class="panel-heading">
+			<h2 class="panel-title">{{ title }}</h2>
+		</div>
 		<div class="panel-body">
 			<table class="corpora public table">
-			<thead>
-				<tr>
-					<th class="table-icon"></th>
-					<th>Corpus</th>
-					<debug><th>ID [debug]</th></debug>
-					<th>Size</th>
-					<th class="table-icon"></th>
-					<th v-if="isPrivate" class="table-icon"></th>
-					<th v-if="isPrivate" class="table-icon"></th>
-					<th v-if="isPrivate" class="table-icon"></th>
-				</tr>
-			</thead>
-			<tbody>
-				<template v-for="corpus in withExtraInfo">
+				<thead>
 					<tr>
-						<td>
-							<router-link
-								:to="{ name: 'search', params: { corpus: corpus.id } }"
-								:title="`Search the '${corpus.displayName}' corpus`"
-								:class="`icon fa fa-search ${!corpus.canSearch ? 'disabled' : ''}`"
-							></router-link>
-						</td>
-						<td class="corpus-name">
-							<router-link :to="{ name: 'search', params: { corpus: corpus.id } }" :title="`Search the '${corpus.displayName}' corpus`" :class="`${!corpus.canSearch ? 'disabled' : ''}`"
-								>{{ corpusDisplayName(corpus) }} {{ corpus.statusText }}</router-link
+						<th class="table-icon"></th>
+						<th>Corpus</th>
+						<debug><th>ID [debug]</th></debug>
+						<th>Size</th>
+						<th class="table-icon"></th>
+						<th v-if="isPrivate" class="table-icon"></th>
+						<th v-if="isPrivate" class="table-icon"></th>
+						<th v-if="isPrivate" class="table-icon"></th>
+					</tr>
+				</thead>
+				<tbody>
+					<template v-for="corpus in withExtraInfo">
+						<tr>
+							<td>
+								<router-link
+									:to="{ name: 'search', params: { corpus: corpus.id } }"
+									:title="`Search the '${corpus.displayName}' corpus`"
+									:class="`icon fa fa-search ${!corpus.canSearch ? 'disabled' : ''}`"
+								></router-link>
+							</td>
+							<td class="corpus-name">
+								<router-link :to="{ name: 'search', params: { corpus: corpus.id } }" :title="`Search the '${corpus.displayName}' corpus`" :class="`${!corpus.canSearch ? 'disabled' : ''}`"
+									>{{ corpusDisplayName(corpus) }} {{ corpus.statusText }}</router-link
+								>
+							</td>
+							<debug
+								><td>{{ corpus.id }}</td></debug
 							>
-						</td>
-						<debug
-							><td>{{ corpus.id }}</td></debug
-						>
-						<td>{{ corpus.sizeString }}</td>
-						<template v-if="isPrivate">
+							<td>{{ corpus.sizeString }}</td>
+							<template v-if="isPrivate">
+								<td>
+									<a
+										role="button"
+										:title="`Upload documents to the '${corpus.displayName}' corpus`"
+										:class="`icon fa fa-fw fa-cloud-upload ${!corpus.canIndex ? 'disabled' : ''}`"
+										@click="$emit('upload', corpus.id)"
+									></a>
+								</td>
+								<td>
+									<a role="button" :title="`Share the '${corpus.displayName}' corpus`" class="icon fa fa-fw fa-user-plus" @click="$emit('share', corpus.id)"></a>
+								</td>
+								<td>
+									<a role="button" :title="`Delete the '${corpus.displayName}' corpus`" :class="`icon fa fa-fw fa-trash ${!corpus.canIndex ? 'disabled' : ''}`" @click="$emit('delete', corpus.id)"></a>
+								</td>
+							</template>
 							<td>
-								<a
-									role="button"
-									:title="`Upload documents to the '${corpus.displayName}' corpus`"
-									:class="`icon fa fa-fw fa-cloud-upload ${!corpus.canIndex ? 'disabled' : ''}`"
-									@click="$emit('upload', corpus.id)"
-								></a>
+								<a role="button" @click="details[corpus.id] = !details[corpus.id]"><span class="icon fa fa-fw fa-caret-down" title="show details"></span></a>
 							</td>
-							<td>
-								<a role="button" :title="`Share the '${corpus.displayName}' corpus`" class="icon fa fa-fw fa-user-plus" @click="$emit('share', corpus.id)"></a>
+						</tr>
+						<tr v-if="details[corpus.id]">
+							<td :colspan="(isPrivate ? 7 : 4) + (debug ? 1 : 0)">
+								<table>
+									<tbody>
+										<tr :title="corpus.timeModifiedFull">
+											<th>Last modified</th>
+											<td>{{ corpus.timeModified }}</td>
+										</tr>
+										<!-- If the corpus has a format and the format is in the list, corpus.format != null, and the format is ours. (blacklab only returns our own formats.) -->
+										<tr v-if="isPrivate">
+											<th>Format</th>
+											<td :title="corpus.format && corpus.format.owner ? 'Format owned by ' + corpus.format.owner : ''">
+												{{ corpus.format && corpus.format.owner ? '*' : '' }}{{ corpus.format ? corpus.format.shortId : corpus.documentFormat }}
+											</td>
+										</tr>
+										<tr>
+											<th>Description</th>
+											<td>{{ corpus.description || 'No description' }}</td>
+										</tr>
+										<tr>
+											<th>Documents</th>
+											<td>{{ corpus.documentCount.toLocaleString() }}</td>
+										</tr>
+										<tr>
+											<th>Tokens</th>
+											<td>{{ corpus.tokenCount.toLocaleString() }}</td>
+										</tr>
+									</tbody>
+								</table>
 							</td>
-							<td>
-								<a role="button" :title="`Delete the '${corpus.displayName}' corpus`" :class="`icon fa fa-fw fa-trash ${!corpus.canIndex ? 'disabled' : ''}`" @click="$emit('delete', corpus.id)"></a>
-							</td>
-						</template>
-						<td>
-							<a role="button" @click="details[corpus.id] = !details[corpus.id]"><span class="icon fa fa-fw fa-caret-down" title="show details"></span></a>
-						</td>
-					</tr>
-					<tr v-if="details[corpus.id]">
-						<td :colspan="(isPrivate ? 7 : 4) + (debug ? 1 : 0)">
-							<table>
-								<tbody>
-									<tr :title="corpus.timeModifiedFull">
-										<th>Last modified</th>
-										<td>{{ corpus.timeModified }}</td>
-									</tr>
-									<!-- If the corpus has a format and the format is in the list, corpus.format != null, and the format is ours. (blacklab only returns our own formats.) -->
-									<tr v-if="isPrivate">
-										<th>Format</th>
-										<td :title="corpus.format && corpus.format.owner ? 'Format owned by ' + corpus.format.owner : ''">
-											{{ corpus.format && corpus.format.owner ? '*' : '' }}{{ corpus.format ? corpus.format.shortId : corpus.documentFormat }}
-										</td>
-									</tr>
-									<tr>
-										<th>Description</th>
-										<td>{{ corpus.description || 'No description' }}</td>
-									</tr>
-									<tr>
-										<th>Documents</th>
-										<td>{{ corpus.documentCount.toLocaleString() }}</td>
-									</tr>
-									<tr>
-										<th>Tokens</th>
-										<td>{{ corpus.tokenCount.toLocaleString() }}</td>
-									</tr>
-								</tbody>
-							</table>
-						</td>
-					</tr>
-				</template>
-			</tbody>
+						</tr>
+					</template>
+				</tbody>
 			</table>
 			<div v-if="isPrivate">
 				<button v-if="canCreateCorpus" class="btn btn-default btn-lg" id="create-corpus" type="button" @click="$emit('create')">New corpus</button>

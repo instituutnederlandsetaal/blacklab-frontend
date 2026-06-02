@@ -1,5 +1,5 @@
-import { describe, test } from "vitest";
+import { describe, test } from 'vitest';
 
-describe.skip("article page", () => {
-  test("legacy tests require the article page migration", () => {});
+describe.skip('article page', () => {
+	test('legacy tests require the article page migration', () => {});
 });

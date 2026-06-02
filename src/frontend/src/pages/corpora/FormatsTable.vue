@@ -16,8 +16,12 @@
 					<tr v-for="f in formats">
 						<td>{{ f.shortId }}</td>
 						<td>{{ f.displayName }}</td>
-						<td><a role="button" class="fa fa-fw fa-pencil" :title="`Edit format '${f.displayName}'`" @click="$emit('edit', f.id)"></a></td>
-						<td><a role="button" class="fa fa-fw fa-trash" :title="`Delete format '${f.displayName}'`" @click="$emit('delete', f.id)"></a></td>
+						<td>
+							<a role="button" class="fa fa-fw fa-pencil" :title="`Edit format '${f.displayName}'`" @click="$emit('edit', f.id)"></a>
+						</td>
+						<td>
+							<a role="button" class="fa fa-fw fa-trash" :title="`Delete format '${f.displayName}'`" @click="$emit('delete', f.id)"></a>
+						</td>
 					</tr>
 				</tbody>
 			</table>

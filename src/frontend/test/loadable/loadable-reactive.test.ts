@@ -15,7 +15,11 @@ function createControlledLoadable<T>(initial: Loadable<T>, extra: Partial<{ retr
 		state,
 		value,
 		error,
-		loadable: loadableFromRefs(state, value, error, { retry: vi.fn<() => void>(), stop: vi.fn<() => void>(), ...extra }),
+		loadable: loadableFromRefs(state, value, error, {
+			retry: vi.fn<() => void>(),
+			stop: vi.fn<() => void>(),
+			...extra,
+		}),
 	};
 }
 
@@ -72,7 +76,11 @@ describe('non-reactive loadable primitives', () => {
 	});
 
 	test('combineLoadablesValue passes through original non-loaded LoadableLike', () => {
-		const loadingLike: LoadableLike<number> = { state: LoadableState.loading, value: undefined, error: undefined };
+		const loadingLike: LoadableLike<number> = {
+			state: LoadableState.loading,
+			value: undefined,
+			error: undefined,
+		};
 		const result = combineLoadablesValue([loadingLike, Loadable.Loaded(2)] as const);
 
 		expect(result).toBe(loadingLike);
@@ -135,8 +143,14 @@ describe('loadableFromLoadables', () => {
 		const stopA = vi.fn<() => void>();
 		const retryB = vi.fn<() => void>();
 		const stopB = vi.fn<() => void>();
-		const first = createControlledLoadable(Loadable.Loading<number>(), { retry: retryA, stop: stopA });
-		const second = createControlledLoadable(Loadable.Loading<number>(), { retry: retryB, stop: stopB });
+		const first = createControlledLoadable(Loadable.Loading<number>(), {
+			retry: retryA,
+			stop: stopA,
+		});
+		const second = createControlledLoadable(Loadable.Loading<number>(), {
+			retry: retryB,
+			stop: stopB,
+		});
 		const combined = loadableFromLoadables([first.loadable, second.loadable, Loadable.Loaded(3)] as const);
 
 		combined.retry();
@@ -151,7 +165,9 @@ describe('loadableFromLoadables', () => {
 	test('supports treating empty inputs as settled', () => {
 		const loaded = createControlledLoadable(Loadable.Loaded(1));
 		const empty = createControlledLoadable(Loadable.Empty<number>());
-		const combined = loadableFromLoadables([loaded.loadable, empty.loadable] as const, { includeEmpty: true });
+		const combined = loadableFromLoadables([loaded.loadable, empty.loadable] as const, {
+			includeEmpty: true,
+		});
 
 		expect(combined.state).toBe(LoadableState.loaded);
 		expect(combined.value).toEqual([1, undefined]);
@@ -267,8 +283,14 @@ describe('flatMapLoadedReactive variants', () => {
 		const stopSource = vi.fn<() => void>();
 		const retryInner = vi.fn<() => void>();
 		const stopInner = vi.fn<() => void>();
-		const source = createControlledLoadable(Loadable.Loaded(2), { retry: retrySource, stop: stopSource });
-		const inner = createControlledLoadable(Loadable.Loaded(4), { retry: retryInner, stop: stopInner });
+		const source = createControlledLoadable(Loadable.Loaded(2), {
+			retry: retrySource,
+			stop: stopSource,
+		});
+		const inner = createControlledLoadable(Loadable.Loaded(4), {
+			retry: retryInner,
+			stop: stopInner,
+		});
 
 		const result = flatMapLoadedReactive(source.loadable, value => {
 			expect(value).toBe(2);

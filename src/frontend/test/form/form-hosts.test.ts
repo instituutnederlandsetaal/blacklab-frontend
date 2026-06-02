@@ -49,9 +49,18 @@ type FieldHarness<TField extends FormFieldNode = FormFieldNode> = {
 type RuntimeFieldHarness<TField extends FormFieldNode = FormFieldNode> = Omit<FieldHarness<TField>, 'wrapper'>;
 
 const languageOptions = [
-	{ id: 'parallel-state.source.other', defaultDisplayName: 'shouldNotEndUpInSummaryValue.parallel.source' },
-	{ id: 'parallel-state.source.selected', defaultDisplayName: 'shouldEndUpInSummaryValue.parallel.source' },
-	{ id: 'parallel-state.target.selected', defaultDisplayName: 'shouldEndUpInSummaryValue.parallel.target' },
+	{
+		id: 'parallel-state.source.other',
+		defaultDisplayName: 'shouldNotEndUpInSummaryValue.parallel.source',
+	},
+	{
+		id: 'parallel-state.source.selected',
+		defaultDisplayName: 'shouldEndUpInSummaryValue.parallel.source',
+	},
+	{
+		id: 'parallel-state.target.selected',
+		defaultDisplayName: 'shouldEndUpInSummaryValue.parallel.target',
+	},
 ];
 
 const withinOptions = [
@@ -59,7 +68,12 @@ const withinOptions = [
 	{
 		value: 'within-state.element.selected',
 		label: 'shouldEndUpInSummaryValue.within',
-		attributes: [{ value: 'shouldEndUpInState.within.attribute', label: 'shouldEndUpInState.within.attribute.label' }],
+		attributes: [
+			{
+				value: 'shouldEndUpInState.within.attribute',
+				label: 'shouldEndUpInState.within.attribute.label',
+			},
+		],
 	},
 	{ value: 'within-state.element.other', label: 'shouldNotEndUpInSummaryValue.within.other' },
 ];
@@ -93,9 +107,21 @@ const fieldExpectations = {
 			alignBy: 'parallel-state.align.selected',
 		},
 		summaries: [
-			{ id: 'shouldEndUpInSummaryId.parallel.node.source', label: 'Source', value: 'shouldEndUpInSummaryValue.parallel.source' },
-			{ id: 'shouldEndUpInSummaryId.parallel.node.targets', label: 'Targets', value: 'shouldEndUpInSummaryValue.parallel.target' },
-			{ id: 'shouldEndUpInSummaryId.parallel.node.alignBy', label: 'Align by', value: 'parallel-state.align.selected' },
+			{
+				id: 'shouldEndUpInSummaryId.parallel.node.source',
+				label: 'Source',
+				value: 'shouldEndUpInSummaryValue.parallel.source',
+			},
+			{
+				id: 'shouldEndUpInSummaryId.parallel.node.targets',
+				label: 'Targets',
+				value: 'shouldEndUpInSummaryValue.parallel.target',
+			},
+			{
+				id: 'shouldEndUpInSummaryId.parallel.node.alignBy',
+				label: 'Align by',
+				value: 'parallel-state.align.selected',
+			},
 		],
 	},
 	rawCql: {
@@ -114,7 +140,9 @@ const fieldExpectations = {
 	within: {
 		controllerState: {
 			element: 'within-state.element.selected',
-			attributes: { 'shouldEndUpInState.within.attribute': 'shouldEndUpInState.within.attribute.value' },
+			attributes: {
+				'shouldEndUpInState.within.attribute': 'shouldEndUpInState.within.attribute.value',
+			},
 		},
 		summaries: [
 			{
@@ -165,13 +193,17 @@ function addFieldToForm(form: ReturnType<FormBuilder['newForm']>, field: FormFie
 		return;
 	}
 
-	const container = form.addContainer(`${field.id}.container`, ContainerRenderer, { combine: 'allOf' });
+	const container = form.addContainer(`${field.id}.container`, ContainerRenderer, {
+		combine: 'allOf',
+	});
 	if (placement === 'container') {
 		container.addChildren(field);
 		return;
 	}
 
-	const nestedContainer = container.addContainer(`${field.id}.nested`, ContainerRenderer, { combine: 'allOf' });
+	const nestedContainer = container.addContainer(`${field.id}.nested`, ContainerRenderer, {
+		combine: 'allOf',
+	});
 	nestedContainer.addChildren(field);
 }
 
@@ -442,7 +474,10 @@ describe('builtin view hosts', () => {
 
 		expect(harness.wrapper.text()).toContain(summaryViewExpectation.emptyText);
 
-		harness.runtime.state.value.controllerState[harness.extra.fieldId] = { value: summaryViewExpectation.entryValue, caseSensitive: false };
+		harness.runtime.state.value.controllerState[harness.extra.fieldId] = {
+			value: summaryViewExpectation.entryValue,
+			caseSensitive: false,
+		};
 		await nextTick();
 
 		expect(harness.wrapper.text()).toContain(summaryViewExpectation.title);

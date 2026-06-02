@@ -2,7 +2,9 @@
 	<div class="navbar-inverse navbar-fixed-top">
 		<div class="navbar-alert container" v-if="showBanner">
 			<div class="navbar-brand" v-html="config.bannerMessage"></div>
-			<button type="button" class="btn btn-navbar" title="Hide banner for one week" @click="hideBanner"><span class="fa fa-times"></span></button>
+			<button type="button" class="btn btn-navbar" title="Hide banner for one week" @click="hideBanner">
+				<span class="fa fa-times"></span>
+			</button>
 		</div>
 
 		<div class="navbar-main container">
@@ -59,7 +61,11 @@ const router = useRouter();
 const isUserCorpus = computed(() => Boolean(indexId.value && getCorpusOwner(indexId.value)));
 
 const links = computed(() =>
-	config.navbarLinks.map<{ label: string; attributes: Record<string, string>; isExternal: boolean }>(l => {
+	config.navbarLinks.map<{
+		label: string;
+		attributes: Record<string, string>;
+		isExternal: boolean;
+	}>(l => {
 		const parsed = new URL(l.attributes.href, window.location.origin);
 		const routerBase = router.options.history.base || '/';
 		const isExternal = parsed.origin !== window.location.origin || !parsed.pathname.startsWith(routerBase);

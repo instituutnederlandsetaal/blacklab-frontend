@@ -1,6 +1,8 @@
 <template>
 	<Component :is="isForm ? 'form' : 'section'" :class="containerClasses" @submit.prevent="submit" @reset.prevent="reset">
-		<header v-if="title && !hideTitle" :class="isForm ? 'panel-heading blf-form-title' : 'blf-container-title'">{{ title }}</header>
+		<header v-if="title && !hideTitle" :class="isForm ? 'panel-heading blf-form-title' : 'blf-container-title'">
+			{{ title }}
+		</header>
 
 		<template v-if="presentation.tabs || presentation['small-tabs']">
 			<ul :class="['nav', 'nav-tabs', { 'nav-tabs-small': presentation['small-tabs'] }]" role="tablist">

@@ -14,7 +14,6 @@ export default defineComponent({
 		sm: Boolean,
 		size: [Number, String],
 
-
 		// Only one of these should be set
 		// inline is inline-block
 		// overlay is absolute center of parent element
@@ -26,9 +25,9 @@ export default defineComponent({
 		center: Boolean,
 		right: Boolean,
 	},
-	data: () => ({ observer: null as ResizeObserver|null, }),
+	data: () => ({ observer: null as ResizeObserver | null }),
 	computed: {
-		position(): 'left'|'center'|'right'|undefined {
+		position(): 'left' | 'center' | 'right' | undefined {
 			if (this.left == null && this.right == null && this.center == null) return 'center';
 			if (this.inline || this.overlay) return undefined;
 			if (this.left) return 'left';
@@ -36,18 +35,24 @@ export default defineComponent({
 			if (this.center) return 'center';
 			return undefined;
 		},
-		classes(): any { return {lg: this.lg, sm: this.sm, overlay: this.overlay, inline: this.inline, xs: this.xs} },
-		style(): any { return { fontSize: this.size ? (typeof this.size === 'number' || this.size.match(/^\d+$/)) ? this.size + 'px' : this.size : undefined,} }
+		classes(): any {
+			return { lg: this.lg, sm: this.sm, overlay: this.overlay, inline: this.inline, xs: this.xs };
+		},
+		style(): any {
+			return {
+				fontSize: this.size ? (typeof this.size === 'number' || this.size.match(/^\d+$/) ? this.size + 'px' : this.size) : undefined,
+			};
+		},
 	},
 	mounted() {
 		if (this.overlay) {
 			const parent = this.$el.parentElement as HTMLElement;
-			parent.style.position='relative';
+			parent.style.position = 'relative';
 			// size observer and center spinner
 			this.observer = new ResizeObserver(() => {
-				const {width, height} = parent.getBoundingClientRect();
+				const { width, height } = parent.getBoundingClientRect();
 				// don't use boundingClientRect for ourselves. It changes when the our element rotates
-				const ownWidth =  this.$el.scrollWidth;
+				const ownWidth = this.$el.scrollWidth;
 				const ownHeight = this.$el.scrollHeight;
 				const left = width / 2 - ownWidth / 2;
 				const top = height / 2 - ownHeight / 2;
@@ -57,15 +62,15 @@ export default defineComponent({
 				this.$el.style.top = `${top}px`;
 			});
 			this.observer.observe(parent);
-
 		}
 	},
-	onBeforeUnmount() { if (this.observer) this.observer.disconnect(); }
-})
+	onBeforeUnmount() {
+		if (this.observer) this.observer.disconnect();
+	},
+});
 </script>
 
 <style lang="scss" scoped>
-
 .cf-spinner-center {
 	text-align: center;
 }

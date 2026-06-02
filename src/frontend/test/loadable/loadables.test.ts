@@ -4,19 +4,19 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { isLoadable, isError, isLoading, isEmpty, Loadable, LoadableState } from '@/shared/utils/loadable/loadable';
 import {
-    combineLoadables,
-    combineLoadablesIncludingEmpty,
-    withRequiredKeys,
-    mapLoadable,
-    mergeMapLoadable,
-    switchMapLoadable,
-    flatMapLoadable,
-    loadableFromStream,
-    InteractiveLoadable,
-    promiseFromLoadableStream,
-    loadableStreamFromPromise,
-    combineLoadableStreams,
-    combineLoadableStreamsIncludingEmpty,
+	combineLoadables,
+	combineLoadablesIncludingEmpty,
+	withRequiredKeys,
+	mapLoadable,
+	mergeMapLoadable,
+	switchMapLoadable,
+	flatMapLoadable,
+	loadableFromStream,
+	InteractiveLoadable,
+	promiseFromLoadableStream,
+	loadableStreamFromPromise,
+	combineLoadableStreams,
+	combineLoadableStreamsIncludingEmpty,
 } from '@/shared/utils/loadable/loadable-streams';
 
 const apiError: ApiError = new ApiError('', '', '', 0);
@@ -103,7 +103,12 @@ describe('combineLoadables', () => {
 			expect(combinedObj.error).toBe(apiError);
 		});
 		test(name + ' should handle null and undefined', () => {
-			const combinedWithNull = combiner({ a: null, b: undefined, c: Loadable.Loaded(undefined), d: Loadable.Loaded(null) });
+			const combinedWithNull = combiner({
+				a: null,
+				b: undefined,
+				c: Loadable.Loaded(undefined),
+				d: Loadable.Loaded(null),
+			});
 			expect(combinedWithNull.isLoaded()).toBe(true);
 			expect(combinedWithNull.value!.a).toBe(null);
 			expect(combinedWithNull.value!.b).toBe(undefined);
@@ -127,7 +132,9 @@ describe('combineLoadables', () => {
 });
 
 describe('loadedIfNotNull', () => {
-	type T = { [K in keyof typeof dummyObject]?: undefined | null | (typeof dummyObject)[K] } & { b?: number | null | undefined };
+	type T = { [K in keyof typeof dummyObject]?: undefined | null | (typeof dummyObject)[K] } & {
+		b?: number | null | undefined;
+	};
 	test('returns a loaded if the keys are not null', () => {
 		// When given a (set of) keys, check inside the object.
 		expect(withRequiredKeys<T>('a' as const)(dummyObject)).toEqual(Loadable.Loaded(dummyObject));

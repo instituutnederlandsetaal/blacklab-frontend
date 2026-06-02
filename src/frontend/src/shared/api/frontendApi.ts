@@ -1,8 +1,9 @@
 import axios, { type AxiosRequestConfig } from 'axios';
 
+import { type CFPageConfig, type Tagset } from '@/types/apptypes';
+
 import { createEndpoint, type EndpointSettings } from '@/shared/api/lib/api-endpoint';
 import type { ApiError, DocumentContentsParameters, FrontendApi } from '@/shared/api/lib/api-types';
-import { type CFPageConfig, type Tagset } from '@/types/apptypes';
 
 export const frontendPaths = {
 	root: () => CONTEXT_URL,

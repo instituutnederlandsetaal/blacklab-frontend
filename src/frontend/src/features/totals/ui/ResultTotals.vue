@@ -32,7 +32,8 @@
 		</div>
 
 		<div v-if="error" class="totals-message text-danger" @click="totals.continueCounting" :title="error.message">
-			<span class="fa fa-exclamation-triangle text-danger" /> {{ $t('results.resultsTotals.networkError') }}!
+			<span class="fa fa-exclamation-triangle text-danger" />
+			{{ $t('results.resultsTotals.networkError') }}!
 			<button type="button" class="totals-button" @click="totals.continueCounting"><span class="fa fa-rotate-right text-danger"></span> {{ $t('results.resultsTotals.retry') }}</button>
 		</div>
 		<div
@@ -40,16 +41,21 @@
 			class="totals-message text-danger"
 			:title="`You may view up to ${numResultsRetrieved.toLocaleString()}. Additionally, BlackLab stopped counting after ${numResults.toLocaleString()}.`"
 		>
-			<span class="fa fa-exclamation-triangle text-danger" /> <b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{ numResultsRetrieved.toLocaleString() }} from a total of more than
+			<span class="fa fa-exclamation-triangle text-danger" />
+			<b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{ numResultsRetrieved.toLocaleString() }} from a total of more than
 			{{ numResults.toLocaleString() }}
 		</div>
 		<div v-else-if="isFinished && numResults > numResultsRetrieved" class="totals-message text-danger" :title="`You may only view up to ${numResultsRetrieved.toLocaleString()} results`">
-			<span class="fa fa-exclamation-triangle text-danger" /> <b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{ numResultsRetrieved.toLocaleString() }} from a total of
+			<span class="fa fa-exclamation-triangle text-danger" />
+			<b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{ numResultsRetrieved.toLocaleString() }} from a total of
 			{{ numResults.toLocaleString() }}
 		</div>
 		<div v-else-if="isPaused" class="totals-message text-info">
 			{{ $t('results.resultsTotals.heavyQuery') }} - search paused
-			<button type="button" class="totals-button" @click="totals.continueCounting()"><span class="fa fa-rotate-right text-info"></span> {{ $t('results.resultsTotals.continue') }}</button>
+			<button type="button" class="totals-button" @click="totals.continueCounting()">
+				<span class="fa fa-rotate-right text-info"></span>
+				{{ $t('results.resultsTotals.continue') }}
+			</button>
 		</div>
 	</div>
 </template>
@@ -57,12 +63,12 @@
 <script lang="ts">
 import { defineComponent, type PropType } from 'vue';
 
-import { useBlackLabApi } from '@/shared/api/useApi';
 import { IterativeResultCountLoader } from '@/features/totals/lib/result-count-from-query';
 import type { TotalsOutput } from '@/features/totals/lib/result-count-helpers';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 
 import type { ApiError } from '@/shared/api/lib/api-types';
+import { useBlackLabApi } from '@/shared/api/useApi';
 import { frac2Percent } from '@/shared/utils/numbers-utils';
 
 import Spinner from '@/shared/ui/Spinner.vue';

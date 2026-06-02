@@ -2,9 +2,10 @@
  * Helper functions to return groups of fields, e.g. for dropdown options or partitioning of widgets in the UI, etc.
  */
 
+import type { NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataGroup } from '@/types/apptypes';
+
 import type { Translate } from '@/shared/i18n';
 import type { OptGroup, Option } from '@/shared/utils/options';
-import type { NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataGroup } from '@/types/apptypes';
 
 /** Groups always have at least one member, empty array is returned if no groups would have members. */
 export function fieldSubset<T extends { id: string }>(

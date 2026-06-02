@@ -15,8 +15,12 @@
 				</div>
 				<div class="modal-footer">
 					<slot name="footer"></slot>
-					<button v-if="close" type="button" class="btn" :class="closeClass" :disabled="!closeEnabled" @click="$emit('close')">{{ closeMessage }}</button>
-					<button v-if="confirm" type="button" class="btn" :class="confirmClass" :disabled="!confirmEnabled" @click="$emit('confirm')">{{ confirmMessage }}</button>
+					<button v-if="close" type="button" class="btn" :class="closeClass" :disabled="!closeEnabled" @click="$emit('close')">
+						{{ closeMessage }}
+					</button>
+					<button v-if="confirm" type="button" class="btn" :class="confirmClass" :disabled="!confirmEnabled" @click="$emit('confirm')">
+						{{ confirmMessage }}
+					</button>
 				</div>
 			</div>
 		</div>

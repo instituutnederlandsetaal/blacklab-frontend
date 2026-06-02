@@ -39,10 +39,11 @@
 import { useVModel } from '@vueuse/core';
 import { computed } from 'vue';
 
-import type { Option } from '@/shared/utils/options';
-import uid from '@/shared/utils/useUid';
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry, CqlQueryBuilderOptions } from '@/widgets/cql-query-builder/model';
 import { isCqlAttributeData, isCqlAttributeGroupData } from '@/widgets/cql-query-builder/model';
+
+import type { Option } from '@/shared/utils/options';
+import uid from '@/shared/utils/useUid';
 
 import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
 import CqlAttribute from './CqlAttribute.vue';

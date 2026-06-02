@@ -33,11 +33,11 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import { useBlackLabApi } from '@/shared/api/useApi';
 import type { NormalizedFormat } from '@/types/apptypes';
 import type { BLUser } from '@/types/blacklabtypes';
 
 import type { ApiError } from '@/shared/api/lib/api-types';
+import { useBlackLabApi } from '@/shared/api/useApi';
 import type { Options } from '@/shared/utils/options';
 
 import Modal from '@/shared/ui/Modal.vue';
@@ -63,8 +63,22 @@ export default defineComponent({
 		},
 		formatOptions(): Options {
 			const r: Options = [];
-			if (this.privateFormats) r.push({ label: 'Custom', options: this.privateFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) });
-			if (this.publicFormats) r.push({ label: 'Public', options: this.publicFormats.map(f => ({ value: f.id, label: `${f.displayName} <small class="text-muted">${f.id}</small>` })) });
+			if (this.privateFormats)
+				r.push({
+					label: 'Custom',
+					options: this.privateFormats.map(f => ({
+						value: f.id,
+						label: `${f.displayName} <small class="text-muted">${f.id}</small>`,
+					})),
+				});
+			if (this.publicFormats)
+				r.push({
+					label: 'Public',
+					options: this.publicFormats.map(f => ({
+						value: f.id,
+						label: `${f.displayName} <small class="text-muted">${f.id}</small>`,
+					})),
+				});
 			return r;
 		},
 	},

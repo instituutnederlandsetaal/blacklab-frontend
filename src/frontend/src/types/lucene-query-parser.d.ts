@@ -1,17 +1,17 @@
 declare module 'lucene-query-parser' {
 	export type ASTNode = {
-		left: ASTNode|ASTField|ASTRange;
+		left: ASTNode | ASTField | ASTRange;
 		/** Can apparently contain multiple operator (a OR NOT b) though we should never encounter this */
 		operator: string;
-		right: ASTNode|ASTField|ASTRange;
+		right: ASTNode | ASTField | ASTRange;
 		/** field name (for field group syntax) not present if top level looks like (field:value OPERATOR field:value) */
 		field?: string;
 	};
 
 	export type ASTField = {
-		field: '<implicit>'|(string&{});
+		field: '<implicit>' | (string & {});
 		term: string;
-		prefix?: '+'|'-';
+		prefix?: '+' | '-';
 		boost?: number;
 		/** 0..1 */
 		similarity?: number;
@@ -19,7 +19,7 @@ declare module 'lucene-query-parser' {
 	};
 
 	export type ASTRange = {
-		field: '<implicit>'|(string&{});
+		field: '<implicit>' | (string & {});
 		/** Lower bound */
 		term_min: string;
 		/** Upper bound */

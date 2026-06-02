@@ -62,11 +62,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 
-import { useBlackLabApi } from '@/shared/api/useApi';
 import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 import * as PatternStore from '@/pages/search/form/store/pattern-store';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
+import { useBlackLabApi } from '@/shared/api/useApi';
 import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/useUid';

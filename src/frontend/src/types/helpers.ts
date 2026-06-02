@@ -52,7 +52,9 @@ export namespace UnionHelpers {
 	 * type C = Merge<A|B>; //  {a: string|number|undefined, b: string|undefined}
 	 * ```
 	 */
-	export type Merge<T extends object> = { [k in CommonKeys<T>]: PickTypeOf<T, k> } & { [k in NonCommonKeys<T>]?: PickTypeOf<T, k> };
+	export type Merge<T extends object> = { [k in CommonKeys<T>]: PickTypeOf<T, k> } & {
+		[k in NonCommonKeys<T>]?: PickTypeOf<T, k>;
+	};
 }
 
 type IsKeyOptional<T, Keys extends keyof T> = { [Key in Keys]?: T[Key] } extends Pick<T, Keys> ? true : false;

@@ -31,101 +31,100 @@ a,
 }
 
 .pagination > li {
-
 	&:not(.disabled) {
-		>span,
-		>a {
-			color: $text!important;
+		> span,
+		> a {
+			color: $text !important;
 		}
 	}
 
 	&.active,
 	&.current {
-		>span,
-		>a {
-			color: white!important;
-			background: $block-bg-1!important;
-			border-color: $block-bg-1!important;
+		> span,
+		> a {
+			color: white !important;
+			background: $block-bg-1 !important;
+			border-color: $block-bg-1 !important;
 		}
 
-		>input {
-			color: $text!important;
-			border-color: $block-bg-1!important;
+		> input {
+			color: $text !important;
+			border-color: $block-bg-1 !important;
 		}
 		> .fa {
-			color: $text!important;
-			background: none!important;
+			color: $text !important;
+			background: none !important;
 		}
 	}
 }
 
-
 .dropdown-menu > .active > a,
 .combobox-menu .menu-option.active {
-	background-color: $block-bg-2!important;
+	background-color: $block-bg-2 !important;
 }
 
 ul.nav-tabs.cf-panel-tab-header {
-	background-color: $block-bg-1!important;
-	border-top-color: $block-bg-1!important;
-	border-bottom-color: $block-bg-1!important;
+	background-color: $block-bg-1 !important;
+	border-top-color: $block-bg-1 !important;
+	border-bottom-color: $block-bg-1 !important;
 
-	>li.active > a,
-	>li:not(.active):hover > a {
-		border-right-color: $block-bg-1!important;
-		border-left-color: $block-bg-1!important;
+	> li.active > a,
+	> li:not(.active):hover > a {
+		border-right-color: $block-bg-1 !important;
+		border-left-color: $block-bg-1 !important;
 	}
 }
 
 .group-size-indicator > .progress-bar {
-	background-color: $block-bg-1!important;
+	background-color: $block-bg-1 !important;
 }
 
 .panel-primary {
 	border-color: $block-border-1;
-	>.panel-heading {
+	> .panel-heading {
 		background-color: $block-bg-1;
 		border-color: $block-border-1;
 	}
 }
 
 .btn-primary,
-.open>.dropdown-toggle.btn-primary {
+.open > .dropdown-toggle.btn-primary {
 	&,
 	&[disabled],
 	&.disabled {
-		background-color: $block-bg-1!important;
-		border-color: $block-border-1!important;
+		background-color: $block-bg-1 !important;
+		border-color: $block-border-1 !important;
 	}
 
 	&:not([disabled]):not(.disabled) {
 		&:hover,
 		&:focus {
-			background-color: $block-bg-2!important;
-			border-color: $block-border-2!important;
+			background-color: $block-bg-2 !important;
+			border-color: $block-border-2 !important;
 		}
 
 		&:active {
-			background-color: $block-bg-3!important;
-			border-color: $block-border-3!important;
+			background-color: $block-bg-3 !important;
+			border-color: $block-border-3 !important;
 		}
 
 		&:active:focus {
-			background-color: $block-bg-4!important;
-			border-color: $block-border-4!important;
+			background-color: $block-bg-4 !important;
+			border-color: $block-border-4 !important;
 		}
 	}
 }
 
 .list-group-item.active {
-	&,&:focus,&:hover {
+	&,
+	&:focus,
+	&:hover {
 		background-color: $block-bg-1;
-		border-color: $block-bg-1
+		border-color: $block-bg-1;
 	}
 }
 
-.groupby-editor-slider > .vue-slider  {
-
+.groupby-editor-slider > .vue-slider {
 	background: #ccc;
 
 	&:hover,
@@ -147,7 +146,6 @@ ul.nav-tabs.cf-panel-tab-header {
 			background: $block-bg-3;
 		}
 	}
-
 }
 .groupby-editor-slider-handle {
 	background-color: $block-bg-1;
@@ -162,7 +160,6 @@ ul.nav-tabs.cf-panel-tab-header {
 		background-color: $block-bg-3;
 		border-color: $block-bg-3;
 	}
-
 }
 
 .hl {

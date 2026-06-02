@@ -34,7 +34,12 @@ function createMetricsView(metrics: ParentFormMetrics) {
 				void summaries.value;
 			});
 
-			return () => h('div', { 'data-testid': 'metrics-probe', 'data-compiled': compiled.value, 'data-summaries': summaries.value });
+			return () =>
+				h('div', {
+					'data-testid': 'metrics-probe',
+					'data-compiled': compiled.value,
+					'data-summaries': summaries.value,
+				});
 		},
 	});
 }
@@ -43,7 +48,10 @@ function createProjectionMetricsFixture(metrics: ParentFormMetrics) {
 	const metricsView = createMetricsView(metrics);
 	const builder = createTestBuilder();
 	const form = builder.newForm('search.form', ContainerRenderer, { title: 'Search' });
-	const tabs = form.addContainer('search.tabs', ContainerRenderer, { title: 'Modes', variant: 'tabs' });
+	const tabs = form.addContainer('search.tabs', ContainerRenderer, {
+		title: 'Modes',
+		variant: 'tabs',
+	});
 	const first = tabs.addContainer('search.tabs.first', ContainerRenderer, { title: 'First' });
 	const second = tabs.addContainer('search.tabs.second', ContainerRenderer, { title: 'Second' });
 
@@ -85,9 +93,16 @@ const switchingExpectations = {
 
 function createSwitchingRuntimeFixture() {
 	const builder = createTestBuilder();
-	const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', variant: 'tabs' });
-	const firstForm = root.addForm(switchingExpectations.first.formId, ContainerRenderer, { title: 'Word' });
-	const secondForm = root.addForm(switchingExpectations.second.formId, ContainerRenderer, { title: 'Lemma' });
+	const root = builder.newContainer('search', ContainerRenderer, {
+		title: 'Search',
+		variant: 'tabs',
+	});
+	const firstForm = root.addForm(switchingExpectations.first.formId, ContainerRenderer, {
+		title: 'Word',
+	});
+	const secondForm = root.addForm(switchingExpectations.second.formId, ContainerRenderer, {
+		title: 'Lemma',
+	});
 
 	firstForm.addField(switchingExpectations.first.fieldId, testTextController, TestTextField, {
 		annotationId: 'word',

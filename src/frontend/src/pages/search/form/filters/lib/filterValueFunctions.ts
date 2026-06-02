@@ -627,7 +627,10 @@ export const getFilterSummary = (filters: FullFilterState[]): string | undefined
 	filters
 		.map(f => {
 			const vf = getValueFunctions(f);
-			return { f, summary: vf.isSpanFilter ? null : vf.luceneQuerySummary(f.id, f.metadata, f.value) };
+			return {
+				f,
+				summary: vf.isSpanFilter ? null : vf.luceneQuerySummary(f.id, f.metadata, f.value),
+			};
 		})
 		.filter(f => !!f.summary)
 		.map(f => `${f.f.defaultDisplayName}: ${f.summary}`)

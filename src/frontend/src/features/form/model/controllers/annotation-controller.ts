@@ -1,9 +1,10 @@
+import { toValue } from 'vue';
+
 import { createDefaultSelectFieldState, type SelectFieldState, type SelectFieldUiConfig } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
 import { tokenPattern, withSummary, artifactFromPattern, createQueryContribution } from '@/features/form/model/compile/query-artifact';
 import type { SummaryEntry } from '@/features/form/model/types';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
-import { toValue } from 'vue';
 
 import { findOptions, optionValues } from '@/shared/utils/options';
 import { escapeRegex } from '@/shared/utils/string-utils';

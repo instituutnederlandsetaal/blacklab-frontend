@@ -1,6 +1,7 @@
+import type { MaybeRefOrGetter } from 'vue';
+
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { AnyVueComponent } from '@/types/helpers';
-import type { MaybeRefOrGetter } from 'vue';
 
 export type MaybeComputed<T> = MaybeRefOrGetter<T>;
 

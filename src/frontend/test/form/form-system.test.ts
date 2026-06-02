@@ -37,7 +37,10 @@ function createSingleFormFixture(): FormFixture {
 
 function createSharedFieldTabsFixture(): FormFixture {
 	const builder = createTestBuilder();
-	const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', variant: 'tabs' });
+	const root = builder.newContainer('search', ContainerRenderer, {
+		title: 'Search',
+		variant: 'tabs',
+	});
 	const sharedField = builder.newField('shared.word', testTextController, TestTextField, {
 		annotationId: 'word',
 		displayName: 'Shared word',
@@ -56,9 +59,18 @@ function createSharedFieldTabsFixture(): FormFixture {
 
 function createTabbedFormFixture(): FormFixture {
 	const builder = createTestBuilder();
-	const form = builder.newForm('search.tabbed', ContainerRenderer, { title: 'Tabbed search', variant: 'tabs' });
-	const wordTab = form.addContainer('search.tabbed.word', ContainerRenderer, { title: 'Word', combine: 'allOf' });
-	const lemmaTab = form.addContainer('search.tabbed.lemma', ContainerRenderer, { title: 'Lemma', combine: 'allOf' });
+	const form = builder.newForm('search.tabbed', ContainerRenderer, {
+		title: 'Tabbed search',
+		variant: 'tabs',
+	});
+	const wordTab = form.addContainer('search.tabbed.word', ContainerRenderer, {
+		title: 'Word',
+		combine: 'allOf',
+	});
+	const lemmaTab = form.addContainer('search.tabbed.lemma', ContainerRenderer, {
+		title: 'Lemma',
+		combine: 'allOf',
+	});
 
 	wordTab.addField('search.tabbed.word.field', testTextController, TestTextField, {
 		annotationId: 'word',
@@ -80,8 +92,12 @@ function createFilterTabsFixture(): FormFixture {
 	const builder = createTestBuilder();
 	const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 	const wrapper = form.addContainer('shared.filters.wrapper', ContainerRenderer, {});
-	const tabs = builder.newContainer('shared.filters', ContainerRendererFilters, { variant: 'tabs' });
-	const tab = tabs.addContainer('shared.filters.bibliographic', ContainerRenderer, { title: 'Bibliographic' });
+	const tabs = builder.newContainer('shared.filters', ContainerRendererFilters, {
+		variant: 'tabs',
+	});
+	const tab = tabs.addContainer('shared.filters.bibliographic', ContainerRenderer, {
+		title: 'Bibliographic',
+	});
 	const fields = tab.addContainer('shared.filters.bibliographic.fields', ContainerRenderer, {});
 
 	fields.addField('shared.filters.bibliographic.author', filterTextController, TextField, {

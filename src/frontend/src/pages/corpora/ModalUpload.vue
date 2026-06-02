@@ -52,10 +52,10 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import { useBlackLabApi } from '@/shared/api/useApi';
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 
 import type { ApiError } from '@/shared/api/lib/api-types';
+import { useBlackLabApi } from '@/shared/api/useApi';
 
 import Modal from '@/shared/ui/Modal.vue';
 

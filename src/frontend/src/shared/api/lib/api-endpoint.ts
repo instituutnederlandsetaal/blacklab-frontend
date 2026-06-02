@@ -44,7 +44,10 @@ export function createEndpoint(p: EndpointSettings): Endpoint {
 
 	endpoint.interceptors.request.use(config => {
 		const user = toValue(p.user);
-		if (user && user.access_token) config.headers = Object.assign(config.headers ?? {}, { Authorization: `Bearer ${user.access_token}` });
+		if (user && user.access_token)
+			config.headers = Object.assign(config.headers ?? {}, {
+				Authorization: `Bearer ${user.access_token}`,
+			});
 		return config;
 	});
 
@@ -52,7 +55,13 @@ export function createEndpoint(p: EndpointSettings): Endpoint {
 		...endpoint,
 		getCancelable<T>(url: string, queryParams?: Record<string, string | number | boolean | Record<string, any>>, config?: AxiosRequestConfig): CancelableRequest<T> {
 			const source = axios.CancelToken.source();
-			const request = endpoint.get<T>(url, { ...config, params: cleanQueryParams(queryParams), cancelToken: source.token }).then(r => r.data, handleError);
+			const request = endpoint
+				.get<T>(url, {
+					...config,
+					params: cleanQueryParams(queryParams),
+					cancelToken: source.token,
+				})
+				.then(r => r.data, handleError);
 			return new CancelableRequest(request, source.cancel);
 		},
 		get<T>(url: string, queryParams?: Record<string, string | number | boolean | Record<string, any>>, config?: AxiosRequestConfig): Promise<T> {

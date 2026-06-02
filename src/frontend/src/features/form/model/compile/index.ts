@@ -27,7 +27,5 @@ function getQueryContributionFromContainer(node: FormContainerLikeNode, formStat
 }
 
 function getQueryContributionFromField(node: FormFieldNode, context: FormRuntimeContext, formState: FormState): QueryContribution {
-	return (
-		node.controller.getQueryContribution?.(node, context, formState.controllerState[node.id]) ?? createQueryContribution()
-	);
+	return node.controller.getQueryContribution?.(node, context, formState.controllerState[node.id]) ?? createQueryContribution();
 }

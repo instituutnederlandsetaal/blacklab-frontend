@@ -160,20 +160,33 @@ function createFilterField(
 
 	if (field.uiType === 'checkbox') {
 		if (field.values?.length) {
-			return builder.newField(nodeId, filterCheckboxController, CheckboxField, { ...common, options: field.values });
+			return builder.newField(nodeId, filterCheckboxController, CheckboxField, {
+				...common,
+				options: field.values,
+			});
 		}
 	} else if (field.uiType === 'radio') {
 		if (field.values?.length) {
-			return builder.newField(nodeId, filterRadioController, RadioField, { ...common, options: field.values });
+			return builder.newField(nodeId, filterRadioController, RadioField, {
+				...common,
+				options: field.values,
+			});
 		}
 	} else if (field.uiType === 'select' || field.uiType === 'combobox') {
 		if (field.values?.length) {
-			return builder.newField(nodeId, filterSelectController, SelectField, { ...common, multiple: true, options: field.values });
+			return builder.newField(nodeId, filterSelectController, SelectField, {
+				...common,
+				multiple: true,
+				options: field.values,
+			});
 		}
 	} else if (field.uiType === 'date') {
 		return builder.newField(nodeId, filterDateController, DateField, { ...common, range: true });
 	} else if (field.uiType === 'range') {
-		return builder.newField(nodeId, filterRangeController, RangeField, { ...common, inputType: 'number' });
+		return builder.newField(nodeId, filterRangeController, RangeField, {
+			...common,
+			inputType: 'number',
+		});
 	}
 
 	if (field.uiType !== 'text' && field.uiType !== 'combobox') {
@@ -225,7 +238,9 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
 	}
 
 	const rootFilterContainer = builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
-		builder.newView('shared.filters.heading', HeadingView, { title: computed(() => translate.$t(`filter.heading`)) }),
+		builder.newView('shared.filters.heading', HeadingView, {
+			title: computed(() => translate.$t(`filter.heading`)),
+		}),
 		tabs,
 		builder.newView('shared.filters.summary', SummaryView, {
 			showRaw: true,
@@ -260,7 +275,9 @@ function createAnnotationTabs(builder: FormBuilder, corpus: { index: NormalizedI
 	// If there's only one group, we can skip the tabs and just show the annotations directly
 	if (groups.length === 1) {
 		const group = groups[0];
-		const single = builder.newContainer(`extended.annotations`, ContainerRenderer, { variant: 'list' });
+		const single = builder.newContainer(`extended.annotations`, ContainerRenderer, {
+			variant: 'list',
+		});
 		populateTab(single, group.annotations, group.group.id);
 		return single;
 	}
@@ -305,8 +322,14 @@ export function createSearchFormDefinition(
 	};
 
 	const root = builder.newContainer('root', ContainerRenderer, { variant: 'tabs' });
-	const searchTab = root.addContainer('search', ContainerRenderer, { variant: 'tabs', title: computed(() => translate.$t(`search.heading`)) });
-	root.addContainer('explore', ContainerRenderer, { variant: 'tabs', title: computed(() => translate.$t(`explore.heading`)) });
+	const searchTab = root.addContainer('search', ContainerRenderer, {
+		variant: 'tabs',
+		title: computed(() => translate.$t(`search.heading`)),
+	});
+	root.addContainer('explore', ContainerRenderer, {
+		variant: 'tabs',
+		title: computed(() => translate.$t(`explore.heading`)),
+	});
 
 	const sharedFilters = createSharedFilters(builder, index, translate);
 	const sharedParallel = createParallelField(builder, corpus, translate);
@@ -329,19 +352,17 @@ export function createSearchFormDefinition(
 		title: computed(() => translate.$t(`search.extended.heading`)),
 		variant: 'columns',
 	});
-	extendedSearchForm
-		.addContainer('search.extended.query', ContainerRenderer, {})
-		.addChildren(
-			builder
-				.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' })
-				.addChildren(
-					builder.newView('search.heading', HeadingView, { title: computed(() => translate.$t(`search.heading`)) }),
-					createAnnotationTabs(builder, corpus, translate),
-					sharedParallel,
-					sharedWithin,
-				),
-			sharedFilters,
-		);
+	extendedSearchForm.addContainer('search.extended.query', ContainerRenderer, {}).addChildren(
+		builder.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
+			builder.newView('search.heading', HeadingView, {
+				title: computed(() => translate.$t(`search.heading`)),
+			}),
+			createAnnotationTabs(builder, corpus, translate),
+			sharedParallel,
+			sharedWithin,
+		),
+		sharedFilters,
+	);
 
 	// TODO querybuilder
 	// const advancedSearchForm = searchTab.
@@ -352,7 +373,9 @@ export function createSearchFormDefinition(
 	});
 	expertSearchForm
 		.addContainer('search.expert.query', ContainerRenderer, {})
-		.addView('search.expert.query.heading', HeadingView, { title: computed(() => translate.$t(`search.expert.corpusQueryLanguage`)) })
+		.addView('search.expert.query.heading', HeadingView, {
+			title: computed(() => translate.$t(`search.expert.corpusQueryLanguage`)),
+		})
 		.addField('search.expert.querybox', expertQueryController, RawCqlField, {})
 		.addChildren(sharedParallel, sharedWithin);
 	expertSearchForm.addChildren(sharedFilters);

@@ -33,7 +33,12 @@ export class IterativeResultCountLoader extends InteractiveLoadable<TotalsInput,
 		super(
 			switchMap(({ indexId, operation, results }) => {
 				// Override some settings from the original search, we're not interested in the results, but we need the totals.
-				const params = { ...results.summary.searchParam, number: 0, first: 0, includeTokenCount: true };
+				const params = {
+					...results.summary.searchParam,
+					number: 0,
+					first: 0,
+					includeTokenCount: true,
+				};
 				const recursiveTotal$ = of(Loadable.Loaded(getTotals(results, initial.annotatedFieldId))).pipe(
 					expand((cur: Loadable<TotalsOutput>) => {
 						// Expand is recursive: called for each input + each of its own outputs.

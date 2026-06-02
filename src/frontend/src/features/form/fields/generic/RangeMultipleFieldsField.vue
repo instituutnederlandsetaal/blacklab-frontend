@@ -29,10 +29,10 @@ import { computed } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
-import { useI18n } from '@/shared/i18n';
 
 import type { RangeMultipleFieldsFieldState, RangeMultipleFieldsFieldUiConfig } from './range-multiple-fields-field';
 
+import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 
 type ModeOption = Option & { value: RangeMultipleFieldsFieldState['mode'] };

@@ -4,18 +4,14 @@
 			<label :for="`${htmlId}_source`">{{ $t(`search.parallel.searchSourceVersion`) }}</label>
 			<select :id="`${htmlId}_source`" class="blf-input form-control" :value="modelValue.source || ''" @change="updateSource(($event.target as HTMLSelectElement).value)">
 				<option value=""></option>
-				<option v-for="field in sourceOptions" :key="field.id" :value="field.id">{{ $tAnnotatedFieldDisplayName(field) }}</option>
+				<option v-for="field in sourceOptions" :key="field.id" :value="field.id">
+					{{ $tAnnotatedFieldDisplayName(field) }}
+				</option>
 			</select>
 
 			<label>{{ $t(`search.parallel.andCompareWithTargetVersions`) }}</label>
 			<div class="blf-targets">
-				<button
-					v-for="field in targetOptions"
-					:key="field.id"
-					type="button"
-					:class="{ active: modelValue.targets.includes(field.id) }"
-					@click="toggleTarget(field.id)"
-				>
+				<button v-for="field in targetOptions" :key="field.id" type="button" :class="{ active: modelValue.targets.includes(field.id) }" @click="toggleTarget(field.id)">
 					{{ $tAnnotatedFieldDisplayName(field) }}
 				</button>
 			</div>
@@ -29,7 +25,9 @@
 				@change="updateAlignBy(($event.target as HTMLSelectElement).value)"
 			>
 				<option value=""></option>
-				<option v-for="alignBy in alignByOptions" :key="alignBy" :value="alignBy">{{ $tAlignByDisplayName({ value: alignBy }) }}</option>
+				<option v-for="alignBy in alignByOptions" :key="alignBy" :value="alignBy">
+					{{ $tAlignByDisplayName({ value: alignBy }) }}
+				</option>
 			</select>
 		</div>
 	</div>
@@ -39,6 +37,7 @@
 import { computed } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
+
 import type { ParallelFieldComponentProps, ParallelFieldState } from '../model/controllers/parallel-controller';
 const props = defineProps<ParallelFieldComponentProps>();
 

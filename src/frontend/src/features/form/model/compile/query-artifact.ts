@@ -1,4 +1,13 @@
-import type { CompilableQuery, CompiledFormState, QueryContribution, QueryFilterNode, QueryPatternNode, QueryTokenClauseNode, QueryWrapper, SummaryEntry } from '@/features/form/model/types/form-query';
+import type {
+	CompilableQuery,
+	CompiledFormState,
+	QueryContribution,
+	QueryFilterNode,
+	QueryPatternNode,
+	QueryTokenClauseNode,
+	QueryWrapper,
+	SummaryEntry,
+} from '@/features/form/model/types/form-query';
 import type { QueryCombineMode } from '@/features/form/model/types/form-shape';
 
 const EMPTY_PROJECTION = createQueryArtifact();

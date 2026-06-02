@@ -76,11 +76,11 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import { useBlackLabApi } from '@/shared/api/useApi';
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 import type { BLServer } from '@/types/blacklabtypes';
 
 import { ApiError } from '@/shared/api/lib/api-types';
+import { useBlackLabApi } from '@/shared/api/useApi';
 import { normalizeIndexBase } from '@/shared/blacklab-helpers/normalize-responses';
 
 import CorpusTable from './CorpusTable.vue';
@@ -93,7 +93,16 @@ import Modal from '@/shared/ui/Modal.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
 
 export default defineComponent({
-	components: { Spinner, CorpusTable, FormatsTable, ModalCreateCorpus, ModalCreateFormat, ModalUpload, ModalShareCorpus, Modal },
+	components: {
+		Spinner,
+		CorpusTable,
+		FormatsTable,
+		ModalCreateCorpus,
+		ModalCreateFormat,
+		ModalUpload,
+		ModalShareCorpus,
+		Modal,
+	},
 	data: () => ({
 		corpora: [] as NormalizedIndexBase[],
 		formats: [] as NormalizedFormat[],

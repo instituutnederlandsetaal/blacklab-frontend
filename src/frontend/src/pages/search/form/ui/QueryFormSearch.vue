@@ -96,7 +96,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-import { useBlackLabApi } from '@/shared/api/useApi';
 import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
 // import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/pages/search/config/ui-customization-store';
@@ -110,6 +109,7 @@ import { getPatternStringFromCql } from '@/pages/search/form/utils/pattern-utils
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import { getQueryBuilderStateFromParsedQuery } from '@/widgets/cql-query-builder/model';
 
+import { useBlackLabApi } from '@/shared/api/useApi';
 import { type Result, parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';
 import { useI18n } from '@/shared/i18n';

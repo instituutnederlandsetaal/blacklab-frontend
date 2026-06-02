@@ -145,9 +145,15 @@ describe('form model state', () => {
 		const root = builder.newContainer('search', ContainerRenderer, { variant: 'tabs' });
 		const simple = root.addForm('search.simple', ContainerRenderer, { title: 'Simple' });
 		root.addForm('search.extended', ContainerRenderer, { title: 'Extended' });
-		const filters = simple.addContainer('search.simple.filters', ContainerRenderer, { variant: 'small-tabs' });
-		filters.addContainer('search.simple.filters.bibliographic', ContainerRenderer, { title: 'Bibliographic' });
-		filters.addContainer('search.simple.filters.technical', ContainerRenderer, { title: 'Technical' });
+		const filters = simple.addContainer('search.simple.filters', ContainerRenderer, {
+			variant: 'small-tabs',
+		});
+		filters.addContainer('search.simple.filters.bibliographic', ContainerRenderer, {
+			title: 'Bibliographic',
+		});
+		filters.addContainer('search.simple.filters.technical', ContainerRenderer, {
+			title: 'Technical',
+		});
 
 		expect(createInitialContainerUiStates(builder.build())).toEqual({
 			search: 'search.simple',

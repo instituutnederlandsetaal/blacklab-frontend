@@ -1,11 +1,6 @@
 <template>
 	<div class="monaco-editor-fallback">
-		<textarea
-			class="form-control"
-			:style="{ minHeight: '200px', fontFamily: 'monospace' }"
-			:value="modelValue || ''"
-			@input="onInput"
-		></textarea>
+		<textarea class="form-control" :style="{ minHeight: '200px', fontFamily: 'monospace' }" :value="modelValue || ''" @input="onInput"></textarea>
 	</div>
 </template>
 
@@ -25,9 +20,7 @@ export default defineComponent({
 			const target = event.target as HTMLTextAreaElement;
 			this.$emit('update:modelValue', target.value);
 			this.$emit('change', target.value);
-		}
-	}
+		},
+	},
 });
-
-
 </script>

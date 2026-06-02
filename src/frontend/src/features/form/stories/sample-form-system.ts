@@ -244,7 +244,10 @@ function createStoryBuilder(indexId: string) {
 
 export function createSearchFormStoryModel(): StoryFormSystemModel {
 	const { builder, context } = createStoryBuilder('storybook-corpus');
-	const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', variant: 'tabs' });
+	const root = builder.newContainer('search', ContainerRenderer, {
+		title: 'Search',
+		variant: 'tabs',
+	});
 	const shared: SharedSearchSections = {
 		filters: createFilterContainer(builder, 'search.shared'),
 		parallel: createFieldNode(builder, 'search.shared.parallel', parallelController, createParallelConfig()),
@@ -268,10 +271,21 @@ export function createRestoredSearchFormStoryModel(): StoryFormSystemModel {
 	initialState.uiState.activeContainers.search = 'search.extended';
 	initialState.uiState.activeContainers['search.extended.annotations'] = 'search.extended.annotations.main';
 	initialState.uiState.activeContainers['search.shared.filters'] = 'search.shared.filters.bibliographic';
-	initialState.controllerState['search.shared.parallel'] = { source: 'contents__en', targets: ['contents__nl'], alignBy: 's' };
+	initialState.controllerState['search.shared.parallel'] = {
+		source: 'contents__en',
+		targets: ['contents__nl'],
+		alignBy: 's',
+	};
 	initialState.controllerState['search.extended.word'] = { value: 'water', caseSensitive: false };
-	initialState.controllerState['search.shared.within'] = { element: 's', attributes: { speaker: 'narrator' } };
-	initialState.controllerState['search.shared.filter.genre'] = { fiction: true, essay: false, newspaper: false };
+	initialState.controllerState['search.shared.within'] = {
+		element: 's',
+		attributes: { speaker: 'narrator' },
+	};
+	initialState.controllerState['search.shared.filter.genre'] = {
+		fiction: true,
+		essay: false,
+		newspaper: false,
+	};
 
 	return {
 		...model,
@@ -282,7 +296,10 @@ export function createRestoredSearchFormStoryModel(): StoryFormSystemModel {
 
 export function createControllerCatalogStoryModel(): StoryFormSystemModel {
 	const { builder, context } = createStoryBuilder('storybook-catalog');
-	const root = builder.newContainer('catalog', ContainerRenderer, { title: 'Controller Catalog', variant: 'tabs' });
+	const root = builder.newContainer('catalog', ContainerRenderer, {
+		title: 'Controller Catalog',
+		variant: 'tabs',
+	});
 	addFormNode(root, 'catalog.fields', { title: 'Built-in fields' }).addChildren(
 		createFieldNode(builder, 'catalog.annotation.word', annotationTextController, {
 			annotationId: 'word',
@@ -350,12 +367,20 @@ export function createFilterPanelStoryModel(): StoryFormSystemModel {
 		})
 
 		.addChildren(createFilterContainer(builder, 'filter-panel'))
-		.addChildren(createViewNode(builder, 'filter-panel.summary', SummaryView, { title: 'Live filter query', showRaw: true }));
+		.addChildren(
+			createViewNode(builder, 'filter-panel.summary', SummaryView, {
+				title: 'Live filter query',
+				showRaw: true,
+			}),
+		);
 
 	const definition = builder.build();
 	const initialState = createFormState(definition, context);
 	initialState.uiState.activeContainers['filter-panel.filters'] = 'filter-panel.filters.bibliographic';
-	initialState.controllerState['filter-panel.filter.author'] = { value: 'Austen', caseSensitive: false };
+	initialState.controllerState['filter-panel.filter.author'] = {
+		value: 'Austen',
+		caseSensitive: false,
+	};
 	initialState.controllerState['filter-panel.filter.genre'] = { fiction: true };
 	initialState.controllerState['filter-panel.filter.year'] = { low: '1800', high: '1900' };
 
@@ -561,7 +586,9 @@ export function createExpertQueryFieldStoryModel(): StoryFormSystemModel {
 
 export function createContainerTypesStoryModel(): StoryFormSystemModel {
 	const { builder, context } = createStoryBuilder('storybook-container-types');
-	const form = builder.newForm('container-types.form', ContainerRenderer, { title: 'Container types' });
+	const form = builder.newForm('container-types.form', ContainerRenderer, {
+		title: 'Container types',
+	});
 
 	const listContainer = builder
 		.newContainer('container-types.list', ContainerRenderer, {
@@ -589,7 +616,10 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 		title: 'Tabbed container',
 		variant: 'tabs',
 	});
-	const patternTab = builder.newContainer('container-types.tabs.pattern', ContainerRenderer, { title: 'Pattern', combine: 'allOf' });
+	const patternTab = builder.newContainer('container-types.tabs.pattern', ContainerRenderer, {
+		title: 'Pattern',
+		combine: 'allOf',
+	});
 	patternTab
 		.addChildren(
 			createFieldNode(builder, 'container-types.tabs.pattern.word', annotationTextController, {
@@ -600,7 +630,10 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 		)
 		.addChildren(createFieldNode(builder, 'container-types.tabs.pattern.pos', annotationPosController, createAnnotationPosConfig({ groupId: patternTab.id })));
 	const scopeTab = builder
-		.newContainer('container-types.tabs.scope', ContainerRenderer, { title: 'Scope', combine: 'allOf' })
+		.newContainer('container-types.tabs.scope', ContainerRenderer, {
+			title: 'Scope',
+			combine: 'allOf',
+		})
 		.addChildren(createFieldNode(builder, 'container-types.tabs.scope.parallel', parallelController, createParallelConfig()))
 		.addChildren(createFieldNode(builder, 'container-types.tabs.scope.within', withinController, createWithinConfig()));
 	tabbedContainer.addChildren(patternTab, scopeTab);
@@ -614,7 +647,10 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 		metadataFilters.author.buildField(builder, 'container-types.small-tabs.filter.author', metadataTab.id),
 		metadataFilters.genre.buildField(builder, 'container-types.small-tabs.filter.genre', metadataTab.id),
 	);
-	const datesTab = builder.newContainer('container-types.small-tabs.dates', ContainerRenderer, { title: 'Dates', combine: 'allOf' });
+	const datesTab = builder.newContainer('container-types.small-tabs.dates', ContainerRenderer, {
+		title: 'Dates',
+		combine: 'allOf',
+	});
 	datesTab.addChildren(
 		metadataFilters.year.buildField(builder, 'container-types.small-tabs.filter.year', datesTab.id),
 		metadataFilters.date.buildField(builder, 'container-types.small-tabs.filter.date', datesTab.id),
@@ -644,8 +680,15 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 	initialState.uiState.activeContainers[tabbedContainer.id] = patternTab.id;
 	initialState.uiState.activeContainers[smallTabsContainer.id] = metadataTab.id;
 	initialState.uiState.activeContainers['container-types.custom.filters'] = 'container-types.custom.filters.bibliographic';
-	initialState.controllerState['container-types.custom.filter.author'] = { value: 'Austen', caseSensitive: false };
-	initialState.controllerState['container-types.custom.filter.genre'] = { fiction: true, essay: false, newspaper: false };
+	initialState.controllerState['container-types.custom.filter.author'] = {
+		value: 'Austen',
+		caseSensitive: false,
+	};
+	initialState.controllerState['container-types.custom.filter.genre'] = {
+		fiction: true,
+		essay: false,
+		newspaper: false,
+	};
 
 	return {
 		context,
@@ -711,7 +754,10 @@ export function createViewStoryModel(): StoryFormSystemModel {
 	const definition = builder.build();
 	const initialState = createFormState(definition, context);
 	initialState.uiState.activeContainers[root.id] = summaryForm.id;
-	initialState.controllerState['view-catalog.summary.word'] = { value: 'water', caseSensitive: false };
+	initialState.controllerState['view-catalog.summary.word'] = {
+		value: 'water',
+		caseSensitive: false,
+	};
 	initialState.controllerState['view-catalog.summary.pos'] = {
 		annotationValue: 'NOU-P',
 		selected: {
@@ -754,8 +800,15 @@ export function createFullFormStoryModel(): StoryFormSystemModel {
 	initialState.uiState.activeContainers[exploreModes.id] = 'app.explore.documents';
 	initialState.uiState.activeContainers['app.search.extended.annotations'] = 'app.search.extended.annotations.main';
 	initialState.uiState.activeContainers['app.shared.filters'] = 'app.shared.filters.bibliographic';
-	initialState.controllerState['app.shared.filter.author'] = { value: 'Austen', caseSensitive: false };
-	initialState.controllerState['app.shared.filter.genre'] = { fiction: true, essay: false, newspaper: false };
+	initialState.controllerState['app.shared.filter.author'] = {
+		value: 'Austen',
+		caseSensitive: false,
+	};
+	initialState.controllerState['app.shared.filter.genre'] = {
+		fiction: true,
+		essay: false,
+		newspaper: false,
+	};
 	initialState.controllerState['app.shared.filter.language'] = ['en', 'nl'];
 	initialState.controllerState['app.search.simple.parallel'] = {
 		source: 'contents__en',
@@ -772,8 +825,14 @@ export function createFullFormStoryModel(): StoryFormSystemModel {
 		targets: ['contents__de'],
 		alignBy: 'p',
 	};
-	initialState.controllerState['app.search.extended.word'] = { value: 'water', caseSensitive: false };
-	initialState.controllerState['app.search.extended.lemma'] = { value: 'ship', caseSensitive: false };
+	initialState.controllerState['app.search.extended.word'] = {
+		value: 'water',
+		caseSensitive: false,
+	};
+	initialState.controllerState['app.search.extended.lemma'] = {
+		value: 'ship',
+		caseSensitive: false,
+	};
 	initialState.controllerState['app.search.extended.pos'] = {
 		annotationValue: 'NOU-P',
 		selected: {
@@ -812,7 +871,10 @@ export function createFullFormStoryModel(): StoryFormSystemModel {
 		alignBy: 's',
 	};
 	initialState.controllerState['app.explore.frequency.annotation'] = ['pos'];
-	initialState.controllerState['app.explore.frequency.seed'] = { value: 'ship', caseSensitive: false };
+	initialState.controllerState['app.explore.frequency.seed'] = {
+		value: 'ship',
+		caseSensitive: false,
+	};
 
 	return {
 		context,
@@ -841,31 +903,62 @@ function createSimpleForm(parent: ReturnType<FormBuilder['newContainer']>, build
 			}),
 		)
 		.addChildren(
-			createViewNode(builder, 'search.simple.summary', SummaryView, { title: 'Live query preview', showRaw: true }),
-			createViewNode(builder, 'search.simple.totals', TotalsView, { baseDocuments: 128345, baseTokens: 48291032 }),
+			createViewNode(builder, 'search.simple.summary', SummaryView, {
+				title: 'Live query preview',
+				showRaw: true,
+			}),
+			createViewNode(builder, 'search.simple.totals', TotalsView, {
+				baseDocuments: 128345,
+				baseTokens: 48291032,
+			}),
 		);
 }
 
 function createExtendedForm(parent: ReturnType<FormBuilder['newContainer']>, builder: FormBuilder, shared: SharedSearchSections) {
-	const body = builder.newContainer('search.extended.body', ContainerRenderer, { class: 'blf-columns' });
-	const patternColumn = builder.newContainer('search.extended.pattern', ContainerRenderer, { title: 'Pattern' });
-	const annotationTabs = builder.newContainer('search.extended.annotations', ContainerRenderer, { variant: 'tabs' });
+	const body = builder.newContainer('search.extended.body', ContainerRenderer, {
+		class: 'blf-columns',
+	});
+	const patternColumn = builder.newContainer('search.extended.pattern', ContainerRenderer, {
+		title: 'Pattern',
+	});
+	const annotationTabs = builder.newContainer('search.extended.annotations', ContainerRenderer, {
+		variant: 'tabs',
+	});
 	const mainAnnotations = builder
-		.newContainer('search.extended.annotations.main', ContainerRenderer, { title: 'Main', combine: 'allOf' })
-		.addChildren(createFieldNode(builder, 'search.extended.word', annotationTextController, { annotationId: 'word', displayName: 'Word', caseSensitive: true }))
-		.addChildren(createFieldNode(builder, 'search.extended.lemma', annotationTextController, { annotationId: 'lemma', displayName: 'Lemma', caseSensitive: true }));
+		.newContainer('search.extended.annotations.main', ContainerRenderer, {
+			title: 'Main',
+			combine: 'allOf',
+		})
+		.addChildren(
+			createFieldNode(builder, 'search.extended.word', annotationTextController, {
+				annotationId: 'word',
+				displayName: 'Word',
+				caseSensitive: true,
+			}),
+		)
+		.addChildren(
+			createFieldNode(builder, 'search.extended.lemma', annotationTextController, {
+				annotationId: 'lemma',
+				displayName: 'Lemma',
+				caseSensitive: true,
+			}),
+		);
 	const grammarAnnotations = builder.newContainer('search.extended.annotations.grammar', ContainerRenderer, { title: 'Grammar', combine: 'allOf' });
 	grammarAnnotations.addChildren(createFieldNode(builder, 'search.extended.pos', annotationPosController, createAnnotationPosConfig({ groupId: grammarAnnotations.id })));
 	annotationTabs.addChildren(mainAnnotations, grammarAnnotations);
 	patternColumn.addChildren(shared.parallel, annotationTabs, shared.within);
 
-	const filterColumn = builder
-		.newContainer('search.extended.filters.column', ContainerRenderer, { title: 'Filters' })
-		.addChildren(
-			shared.filters,
-			createViewNode(builder, 'search.extended.filterSummary', SummaryView, { title: 'Filter summary', showRaw: true }),
-			createViewNode(builder, 'search.extended.filterTotals', TotalsView, { baseDocuments: 128345, baseTokens: 48291032 }),
-		);
+	const filterColumn = builder.newContainer('search.extended.filters.column', ContainerRenderer, { title: 'Filters' }).addChildren(
+		shared.filters,
+		createViewNode(builder, 'search.extended.filterSummary', SummaryView, {
+			title: 'Filter summary',
+			showRaw: true,
+		}),
+		createViewNode(builder, 'search.extended.filterTotals', TotalsView, {
+			baseDocuments: 128345,
+			baseTokens: 48291032,
+		}),
+	);
 
 	body.addChildren(patternColumn, filterColumn);
 	return addFormNode(parent, 'search.extended', { title: 'Extended' }).addChildren(body);
@@ -884,9 +977,13 @@ function createExpertForm(parent: ReturnType<FormBuilder['newContainer']>, build
 			}),
 		)
 		.addChildren(shared.within);
-	const filtersColumn = builder
-		.newContainer('search.expert.filters.column', ContainerRenderer, { title: 'Filters' })
-		.addChildren(shared.filters, createViewNode(builder, 'search.expert.summary', SummaryView, { title: 'Submitted shape', showRaw: true }));
+	const filtersColumn = builder.newContainer('search.expert.filters.column', ContainerRenderer, { title: 'Filters' }).addChildren(
+		shared.filters,
+		createViewNode(builder, 'search.expert.summary', SummaryView, {
+			title: 'Submitted shape',
+			showRaw: true,
+		}),
+	);
 	const body = builder.newContainer('search.expert.body', ContainerRenderer, { class: 'blf-columns' }).addChildren(queryColumn, filtersColumn);
 	return addFormNode(parent, 'search.expert', { title: 'Expert' }).addChildren(body);
 }
@@ -899,7 +996,10 @@ function createFilterContainer(builder: FormBuilder, prefix: string) {
 	});
 
 	for (const group of filterGroups) {
-		const groupContainer = tabs.addContainer(`${prefix}.filters.${group.id}`, ContainerRenderer, { title: group.title, combine: 'allOf' });
+		const groupContainer = tabs.addContainer(`${prefix}.filters.${group.id}`, ContainerRenderer, {
+			title: group.title,
+			combine: 'allOf',
+		});
 		for (const subtab of group.subtabs) {
 			const subtabContainer = groupContainer.addContainer(`${prefix}.filters.${group.id}.${subtab.id}`, ContainerRenderer, { title: subtab.title, combine: 'allOf' });
 			for (const fieldId of subtab.fields) {
@@ -914,8 +1014,14 @@ function createFilterContainer(builder: FormBuilder, prefix: string) {
 
 function createParallelConfig() {
 	return {
-		sourceOptions: languageOptions.map(option => ({ id: `contents__${option.value}`, defaultDisplayName: option.label })),
-		targetOptions: languageOptions.map(option => ({ id: `contents__${option.value}`, defaultDisplayName: option.label })),
+		sourceOptions: languageOptions.map(option => ({
+			id: `contents__${option.value}`,
+			defaultDisplayName: option.label,
+		})),
+		targetOptions: languageOptions.map(option => ({
+			id: `contents__${option.value}`,
+			defaultDisplayName: option.label,
+		})),
 		alignByOptions: ['s', 'p'],
 	};
 }
@@ -1014,10 +1120,15 @@ function createAppSimpleSearchForm(parent: ReturnType<FormBuilder['newContainer'
 }
 
 function createAppExtendedSearchForm(parent: ReturnType<FormBuilder['newContainer']>, builder: FormBuilder, sharedFilters: ContainerNode) {
-	const patternColumn = builder.newContainer('app.search.extended.pattern', ContainerRenderer, { title: 'Pattern' });
+	const patternColumn = builder.newContainer('app.search.extended.pattern', ContainerRenderer, {
+		title: 'Pattern',
+	});
 	const annotationTabs = builder.newContainer('app.search.extended.annotations', ContainerRenderer, { variant: 'tabs' });
 	const mainAnnotations = builder
-		.newContainer('app.search.extended.annotations.main', ContainerRenderer, { title: 'Main', combine: 'allOf' })
+		.newContainer('app.search.extended.annotations.main', ContainerRenderer, {
+			title: 'Main',
+			combine: 'allOf',
+		})
 		.addChildren(
 			createFieldNode(builder, 'app.search.extended.word', annotationTextController, {
 				annotationId: 'word',
