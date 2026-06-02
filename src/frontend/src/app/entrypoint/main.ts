@@ -39,7 +39,7 @@ const globalComponents: ObjectPlugin = {
 
 async function main() {
 	const user = await LoginSystem.user;
-	const api = createApi({
+	const api = await createApi({
 		frontend: { baseUrl: CONTEXT_URL, user },
 		blacklab: { baseUrl: BLS_URL, user },
 	});

@@ -10,12 +10,12 @@ import { provideBlackLabApi, provideFrontendApi } from '@/shared/api/useApi';
  * Create the BlackLab and Frontend api instances, return a plugin that can be installed on the vue app
  * to enable useBlackLabApi() and useFrontendApi() injectables.
  */
-export const createApi = (options: {
+export const createApi = async (options: {
 	frontend: { baseUrl: string; user: MaybeRef<User | null> };
 	blacklab: { baseUrl: string; user: MaybeRef<User | null> };
-}): ObjectPlugin & { blacklabApi: BlackLabApi; frontendApi: FrontendApi } => {
+}): Promise<ObjectPlugin & { blacklabApi: BlackLabApi; frontendApi: FrontendApi }> => {
 	const frontendApi = createFrontendApi(options.frontend);
-	const blacklabApi = createBlackLabApi({ ...options.blacklab, headers: { api: '4' } });
+	const blacklabApi = await createBlackLabApi({ ...options.blacklab });
 	return {
 		install(app) {
 			provideFrontendApi(app, frontendApi);

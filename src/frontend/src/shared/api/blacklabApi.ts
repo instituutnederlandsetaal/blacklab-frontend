@@ -2,26 +2,26 @@ import type { AxiosRequestConfig } from 'axios';
 import { stripIndent } from 'common-tags';
 
 import {
-    isHitParams,
-    type BLAnnotatedField,
-    type BLDocGroupResults,
-    type BLDocResults,
-    type BLDocument,
-    type BLFormatContent,
-    type BLFormats,
-    type BLHit,
-    type BLHitGroupResults,
-    type BLHitResults,
-    type BLHitSnippetPart,
-    type BLIndex,
-    type BLIndexMetadata,
-    type BLParsePatternResponse,
-    type BLRelationInfo,
-    type BLResponse,
-    type BLSearchParameters,
-    type BLServer,
-    type BLShareInfo,
-    type BLTermOccurances,
+	isHitParams,
+	type BLAnnotatedField,
+	type BLDocGroupResults,
+	type BLDocResults,
+	type BLDocument,
+	type BLFormatContent,
+	type BLFormats,
+	type BLHit,
+	type BLHitGroupResults,
+	type BLHitResults,
+	type BLHitSnippetPart,
+	type BLIndex,
+	type BLIndexMetadata,
+	type BLParsePatternResponse,
+	type BLRelationInfo,
+	type BLResponse,
+	type BLSearchParameters,
+	type BLServer,
+	type BLShareInfo,
+	type BLTermOccurances,
 } from '@/types/blacklabtypes';
 
 import { type EndpointSettings, createEndpoint } from '@/shared/api/lib/api-endpoint';
@@ -30,7 +30,45 @@ import { rejectedRequest } from '@/shared/api/lib/api-utils';
 import { normalizeFormat, normalizeIndex, normalizeIndexBase } from '@/shared/blacklab-helpers/normalize-responses';
 
 /** Contains url mappings for different requests to blacklab-server */
-export const blacklabPaths = {
+export const blacklabPathsV4 = {
+	/*
+		Stupid issue, sending a request to /blacklab-server redirects to /blacklab-server/
+		Problem is, the redirect response is missing the CORS header
+		so the browser doesn't allow the redirect.
+		There doesn't seem to be a way to fix this in the server as the redirect
+		is performed by the servlet container and runs before any application code.
+		So ensure our requests end with a trailing slash to prevent the server from redirecting
+	*/
+	root: () => './',
+	index: (indexId: string) => `${indexId}/`,
+	indexStatus: (indexId: string) => `${indexId}/status/`,
+	field: (indexId: string, fieldName: string) => `${indexId}/fields/${encodeURIComponent(fieldName)}/`,
+
+	/** Retrieve the relations/inline tags in the corpus. Since 4.0 */
+	relations: (indexId: string) => `${indexId}/relations/`,
+	documentUpload: (indexId: string) => `${indexId}/docs/`,
+	shares: (indexId: string) => `${indexId}/sharing/`,
+	formats: () => `input-formats/`,
+	formatContent: (id: string) => `input-formats/${encodeURIComponent(id)}/`,
+	formatXslt: (id: string) => `input-formats/${encodeURIComponent(id)}/xslt`,
+
+	docInfo: (indexId: string, docId: string) => `${indexId}/docs/${encodeURIComponent(docId)}/`,
+	hits: (indexId: string) => `${indexId}/hits/`,
+	hitsCsv: (indexId: string) => `${indexId}/hits-csv/`,
+	docs: (indexId: string) => `${indexId}/docs/`,
+	docsCsv: (indexId: string) => `${indexId}/docs-csv/`,
+	snippet: (indexId: string, docId: string) => `${indexId}/docs/${encodeURIComponent(docId)}/snippet/`,
+	parsePattern: (indexId: string) => `${indexId}/parse-pattern/`,
+
+	// Is used outside the axios endpoint we created above, so prefix with the correct location
+	autocompleteAnnotation: (indexId: string, annotatedFieldId: string, annotationId: string) => `${indexId}/autocomplete/${encodeURIComponent(annotatedFieldId)}/${encodeURIComponent(annotationId)}/`,
+	// Is used outside the axios endpoint we created above, so prefix with the correct location
+	autocompleteMetadata: (indexId: string, metadataFieldId: string) => `${indexId}/autocomplete/${encodeURIComponent(metadataFieldId)}/`,
+	termFrequencies: (indexId: string) => `${indexId}/termfreq/`,
+};
+
+/** Contains url mappings for different requests to blacklab-server */
+export const blacklabPathsV5 = {
 	/*
 		Stupid issue, sending a request to /blacklab-server redirects to /blacklab-server/
 		Problem is, the redirect response is missing the CORS header
@@ -68,24 +106,47 @@ export const blacklabPaths = {
 	termFrequencies: (indexId: string) => `corpora/${indexId}/termfreq/`,
 };
 
+async function getBlackLabVersion(endpoint: string): Promise<'4' | '5'> {
+	const { origin, pathname, searchParams } = new URL(endpoint);
+	searchParams.set('outputformat', 'json');
+	const url = `${origin}${pathname}?${searchParams.toString()}`;
+
+	const response = await fetch(url, { method: 'GET' }).then<{
+		/** "4.0", "5.0" or something newer? */
+		apiVersion: string;
+	}>(r => r.json());
+
+	if (!response.apiVersion) {
+		throw new Error('Invalid response from BlackLab server: missing apiVersion');
+	}
+	if (response.apiVersion.startsWith('4')) return '4';
+	if (response.apiVersion.startsWith('5')) return '5';
+	console.warn('Unsupported BlackLab version: ' + response.apiVersion);
+	// best effort? Just to prevent a potential compatible version bump in the future from
+	// retroactively breaking all old frontends
+	return '5';
+}
+
 /**
  * Blacklab api
  */
-export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
+export const createBlackLabApi = async (settings: EndpointSettings): Promise<BlackLabApi> => {
+	const version = await getBlackLabVersion(settings.baseUrl);
+	const paths = version === '4' ? blacklabPathsV4 : blacklabPathsV5;
+
 	const endpoint = createEndpoint(settings);
 	const api: BlackLabApi = {
-		getServerInfo: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer>(blacklabPaths.root(), undefined, requestParameters),
+		getServerInfo: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer>(paths.root(), undefined, requestParameters),
 
-		getUser: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer>(blacklabPaths.root(), undefined, requestParameters).then(r => r.user),
+		getUser: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer>(paths.root(), undefined, requestParameters).then(r => r.user),
 
 		getCorpora: (requestParameters?: AxiosRequestConfig) =>
-			endpoint.getCancelable<BLServer>(blacklabPaths.root(), undefined, requestParameters).then(r => Object.entries({ ...r.corpora, ...r.indices }).map(([id, c]) => normalizeIndexBase(c, id))),
+			endpoint.getCancelable<BLServer>(paths.root(), undefined, requestParameters).then(r => Object.entries({ ...r.corpora, ...r.indices }).map(([id, c]) => normalizeIndexBase(c, id))),
 
-		getCorpusStatus: (id: string, requestParamers?: AxiosRequestConfig) =>
-			endpoint.getCancelable<BLIndex>(blacklabPaths.indexStatus(id), undefined, requestParamers).then(r => normalizeIndexBase(r, id)),
+		getCorpusStatus: (id: string, requestParamers?: AxiosRequestConfig) => endpoint.getCancelable<BLIndex>(paths.indexStatus(id), undefined, requestParamers).then(r => normalizeIndexBase(r, id)),
 
 		getCorpus: (id: string, requestParameters?: AxiosRequestConfig) => {
-			const indexRequest = endpoint.getCancelable<BLIndexMetadata>(blacklabPaths.index(id), undefined, requestParameters);
+			const indexRequest = endpoint.getCancelable<BLIndexMetadata>(paths.index(id), undefined, requestParameters);
 			const relationsRequest = api.getRelations(id, requestParameters);
 			return new CancelableRequest(Promise.all([indexRequest, relationsRequest]), () => {
 				indexRequest.cancel();
@@ -138,24 +199,23 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 		},
 
 		getAnnotatedField: (indexId: string, fieldName: string, requestParameters?: AxiosRequestConfig) =>
-			endpoint.getCancelable<BLAnnotatedField>(blacklabPaths.field(indexId, fieldName), undefined, requestParameters),
+			endpoint.getCancelable<BLAnnotatedField>(paths.field(indexId, fieldName), undefined, requestParameters),
 
-		getShares: (id: string, requestParameters?: AxiosRequestConfig) =>
-			endpoint.getCancelable<{ 'users[]': BLShareInfo }>(blacklabPaths.shares(id), undefined, requestParameters).then(r => r['users[]']),
+		getShares: (id: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<{ 'users[]': BLShareInfo }>(paths.shares(id), undefined, requestParameters).then(r => r['users[]']),
 
 		getFormats: (requestParameters?: AxiosRequestConfig) =>
 			endpoint
-				.getCancelable<BLFormats>(blacklabPaths.formats(), undefined, requestParameters)
+				.getCancelable<BLFormats>(paths.formats(), undefined, requestParameters)
 				.then(r => Object.entries(r.supportedInputFormats))
 				.then(r => r.map(([id, format]) => normalizeFormat(id, format))),
 
-		getFormatContent: (id: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLFormatContent>(blacklabPaths.formatContent(id), undefined, requestParameters),
+		getFormatContent: (id: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLFormatContent>(paths.formatContent(id), undefined, requestParameters),
 
-		getFormatXslt: (id: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<string>(blacklabPaths.formatXslt(id), undefined, requestParameters),
+		getFormatXslt: (id: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<string>(paths.formatXslt(id), undefined, requestParameters),
 
 		postShares: (id: string, users: BLShareInfo, requestParameters?: AxiosRequestConfig) =>
 			endpoint.postCancelable<BLResponse>(
-				blacklabPaths.shares(id),
+				paths.shares(id),
 				users.reduce((params, user) => {
 					const trimmed = user.trim();
 					if (trimmed) params.append('users[]', trimmed);
@@ -173,11 +233,11 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 		postFormat: (name: string, contents: string, requestParameters?: AxiosRequestConfig) => {
 			const data = new FormData();
 			data.append('data', new File([contents], name, { type: 'text/plain' }), name);
-			return endpoint.postCancelable<BLResponse>(blacklabPaths.formats(), data, requestParameters);
+			return endpoint.postCancelable<BLResponse>(paths.formats(), data, requestParameters);
 		},
 
 		postCorpus: (id: string, displayName: string, format: string, requestParameters?: AxiosRequestConfig) =>
-			endpoint.postCancelable<BLResponse>(blacklabPaths.root(), new URLSearchParams({ name: id, display: displayName, format }), {
+			endpoint.postCancelable<BLResponse>(paths.root(), new URLSearchParams({ name: id, display: displayName, format }), {
 				...requestParameters,
 				headers: {
 					...(requestParameters || {}).headers,
@@ -194,7 +254,7 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 				formData.append('linkeddata', meta![i], meta![i].name);
 			}
 
-			return endpoint.postCancelable<BLResponse>(blacklabPaths.documentUpload(indexId), formData, {
+			return endpoint.postCancelable<BLResponse>(paths.documentUpload(indexId), formData, {
 				...requestParameters,
 				headers: {
 					...(requestParameters || {}).headers,
@@ -208,14 +268,14 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 			});
 		},
 
-		deleteFormat: (id: string, requestParameters?: AxiosRequestConfig) => endpoint.deleteCancelable<BLResponse>(blacklabPaths.formatContent(id) + '?api=4', requestParameters),
+		deleteFormat: (id: string, requestParameters?: AxiosRequestConfig) => endpoint.deleteCancelable<BLResponse>(paths.formatContent(id) + '?api=4', requestParameters),
 
-		deleteCorpus: (id: string, requestParameters?: AxiosRequestConfig) => endpoint.deleteCancelable<BLResponse>(blacklabPaths.index(id), requestParameters),
+		deleteCorpus: (id: string, requestParameters?: AxiosRequestConfig) => endpoint.deleteCancelable<BLResponse>(paths.index(id), requestParameters),
 
 		getDocumentInfo: (indexId: string, documentId: string, params: { query?: string } = {}, requestParameters?: AxiosRequestConfig) =>
-			endpoint.getOrPostCancelable<BLDocument>(blacklabPaths.docInfo(indexId, documentId), params, requestParameters),
+			endpoint.getOrPostCancelable<BLDocument>(paths.docInfo(indexId, documentId), params, requestParameters),
 
-		getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLRelationInfo>(blacklabPaths.relations(indexId), { limitvalues: 1000 }, requestParameters),
+		getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLRelationInfo>(paths.relations(indexId), { limitvalues: 1000 }, requestParameters),
 
 		getParsePattern: (indexId: string, pattern: string, requestParameters?: AxiosRequestConfig) => {
 			if (!indexId) {
@@ -223,13 +283,13 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 			} else if (!pattern) {
 				return rejectedRequest(new ApiError('Info', 'Cannot parse without pattern.', 'No results', undefined));
 			} else {
-				return endpoint.getOrPostCancelable<BLParsePatternResponse>(blacklabPaths.parsePattern(indexId), { patt: pattern }, { ...requestParameters });
+				return endpoint.getOrPostCancelable<BLParsePatternResponse>(paths.parsePattern(indexId), { patt: pattern }, { ...requestParameters });
 			}
 		},
 
 		getHits: <T extends BLHitResults | BLHitGroupResults = BLHitResults | BLHitGroupResults>(indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
 			if (!isHitParams(params)) return rejectedRequest(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
-			else return endpoint.getOrPostCancelable<T>(blacklabPaths.hits(indexId), params, requestParameters);
+			else return endpoint.getOrPostCancelable<T>(paths.hits(indexId), params, requestParameters);
 		},
 
 		getHitsCsv: (indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
@@ -242,7 +302,7 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 			if (!isHitParams(params)) {
 				return rejectedRequest(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
 			} else {
-				return endpoint.getOrPostCancelable<Blob>(blacklabPaths.hitsCsv(indexId), csvParams, {
+				return endpoint.getOrPostCancelable<Blob>(paths.hitsCsv(indexId), csvParams, {
 					...requestParameters,
 					headers: {
 						...(requestParameters || {}).headers,
@@ -261,7 +321,7 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 				outputformat: 'csv',
 			});
 
-			return endpoint.getOrPostCancelable<Blob>(blacklabPaths.docsCsv(indexId), csvParams, {
+			return endpoint.getOrPostCancelable<Blob>(paths.docsCsv(indexId), csvParams, {
 				...requestParameters,
 				headers: {
 					...(requestParameters || {}).headers,
@@ -277,7 +337,7 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 			params: BLSearchParameters,
 			requestParameters?: AxiosRequestConfig,
 		): CancelableRequest<T> => {
-			return endpoint.getOrPostCancelable<T>(blacklabPaths.docs(indexId), params, requestParameters);
+			return endpoint.getOrPostCancelable<T>(paths.docs(indexId), params, requestParameters);
 		},
 
 		/**
@@ -294,7 +354,7 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 		getSnippet: (indexId: string, docId: string, field: string | undefined, hitstart: number, hitend: number, context?: string | number, requestParameters?: AxiosRequestConfig) => {
 			return endpoint
 				.getOrPostCancelable<BLHit>(
-					blacklabPaths.snippet(indexId, docId),
+					paths.snippet(indexId, docId),
 					{
 						hitstart,
 						hitend,
@@ -322,7 +382,7 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 
 		getTermFrequencies: (indexId: string, annotationId: string, values?: string[], filter?: string, number = 20, requestParameters?: AxiosRequestConfig) => {
 			return endpoint.getOrPostCancelable<BLTermOccurances>(
-				blacklabPaths.termFrequencies(indexId),
+				paths.termFrequencies(indexId),
 				{
 					annotation: annotationId,
 					filter,
@@ -334,11 +394,11 @@ export const createBlackLabApi = (settings: EndpointSettings): BlackLabApi => {
 		},
 
 		getTermAutocomplete: (indexId: string, annotatedFieldId: string, annotationId: string, prefix: string, requestParameters?: AxiosRequestConfig) => {
-			return endpoint.getOrPostCancelable<string[]>(blacklabPaths.autocompleteAnnotation(indexId, annotatedFieldId, annotationId), { term: prefix }, requestParameters);
+			return endpoint.getOrPostCancelable<string[]>(paths.autocompleteAnnotation(indexId, annotatedFieldId, annotationId), { term: prefix }, requestParameters);
 		},
 
 		getMetadataAutocomplete: (indexId: string, metadataFieldId: string, prefix: string, requestParameters?: AxiosRequestConfig) => {
-			return endpoint.getOrPostCancelable<string[]>(blacklabPaths.autocompleteMetadata(indexId, metadataFieldId), { term: prefix }, requestParameters);
+			return endpoint.getOrPostCancelable<string[]>(paths.autocompleteMetadata(indexId, metadataFieldId), { term: prefix }, requestParameters);
 		},
 	};
 	return api;

@@ -11,7 +11,7 @@
 			<button @click="loadingState.retry()" type="button" class="btn btn-primary">Retry</button>
 		</div>
 		<router-view v-else-if="loadingState.isLoaded() && loadingState.value.index" />
-		<pre v-else class="container main-content">LoadingState is empty or doesn't have a corpus? {{ loadingState }}</pre>
+		<!-- <pre v-else class="container main-content">LoadingState is empty or doesn't have a corpus? {{ loadingState }}</pre> -->
 	</div>
 </template>
 
