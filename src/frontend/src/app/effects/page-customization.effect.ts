@@ -3,10 +3,11 @@ import { useRoute } from 'vue-router';
 
 import { useCustomCss, useCustomJs, useFavicon, useTitle } from '@/app/interop/page-customization';
 import { setLegacyIndexIdGlobal } from '@/app/interop/window-globals';
-import { useRouteBootstrap } from '@/app/providers/providePageBootstrapState';
 import type { CustomRouteMeta } from '@/app/routes/router-options';
 import { useCurrentCorpusId } from '@/entities/corpus/model/current-corpus-id';
 import { useCurrentConfig } from '@/entities/page-config/page-config';
+
+import { useRouteBootstrap } from '@/shared/route-bootstrap/useRouteBootstrap';
 
 function sortedEntries<T extends { index: number }>(entries: Record<string, T[]>, pageName: string) {
 	const base = entries[''] ?? [];

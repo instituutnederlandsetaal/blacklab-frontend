@@ -45,7 +45,7 @@
 		"playwright": "^1.59.1",
 		"sass": "^1.92.1",
 		"storybook": "10.3.6",
-		"ts-json-schema-generator": "^1.5.0",
+		"ts-json-schema-generator": "^2.9.0",
 		"typescript": "^6.0.3",
 		"vite": "^8.0.3",
 		"vite-plugin-checker": "^0.12.0",

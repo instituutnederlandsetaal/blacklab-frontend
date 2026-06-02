@@ -228,6 +228,11 @@ type _uiOptGroup = {
 	disabled?: boolean;
 };
 type uiOption = _uiOpt | _uiOptGroup;
+type NormalizedUiOptions = {
+	options: uiOption[];
+	map: Record<string, _uiOpt>;
+	count: number;
+};
 
 /** Might also be any other valid css value for 'width', but these values have special behavior in the code */
 type MenuWidthMode = 'stretch' | 'shrink' | 'grow';
@@ -355,7 +360,7 @@ export default defineComponent({
 			return this.open ?? this.isNaturallyOpen;
 		},
 
-		uiOptions(): uiOption[] {
+		normalizedUiOptions(): NormalizedUiOptions {
 			let id = 0;
 			const mapSimple = (o: SimpleOption, group?: OptGroup): _uiOpt => ({
 				type: 1,
@@ -394,18 +399,23 @@ export default defineComponent({
 				disabled: o.disabled,
 			});
 
-			let uiOptions = this.options.flatMap(o => {
+			let uiOptions: uiOption[] = [];
+			for (const o of this.options) {
 				if (isSimpleOption(o)) {
-					return mapSimple(o);
+					uiOptions.push(mapSimple(o));
 				} else if (isOption(o)) {
-					return mapOption(o);
+					uiOptions.push(mapOption(o));
 				} else {
 					const h = mapGroup(o);
 					const subs: uiOption[] = o.options.map(sub => (isSimpleOption(sub) ? mapSimple(sub, o) : mapOption(sub, o)));
 					subs.unshift(h);
-					return this.allowEmptyGroups || subs.length > 1 ? subs : [];
+					if (this.allowEmptyGroups || subs.length > 1) {
+						for (const sub of subs) {
+							uiOptions.push(sub);
+						}
+					}
 				}
-			});
+			}
 
 			// Sometimes we get dropdowns with only a single, empty value. Detect this and remove the option, since it's silly.
 			if (!this.multiple && !uiOptions.some(o => o.type === 1 && !!(o.label || o.value))) {
@@ -429,16 +439,22 @@ export default defineComponent({
 				uiOptions = uiOptions.filter(o => !(o.type === 1 && !o.value && !o.label));
 			}
 
-			return uiOptions;
-		},
-		uiOptionsMap(): Record<string, _uiOpt> {
-			const r = {} as Record<string, _uiOpt>;
-			for (const o of this.uiOptions) {
+			const map = Object.create(null) as Record<string, _uiOpt>;
+			let count = 0;
+			for (const o of uiOptions) {
 				if (o.type === 1) {
-					r[o.value] = o;
+					map[o.value] = o;
+					count++;
 				}
 			}
-			return r;
+
+			return { options: uiOptions, map, count };
+		},
+		uiOptions(): uiOption[] {
+			return this.normalizedUiOptions.options;
+		},
+		uiOptionsMap(): Record<string, _uiOpt> {
+			return this.normalizedUiOptions.map;
 		},
 
 		filteredOptions(): uiOption[] {
@@ -472,7 +488,7 @@ export default defineComponent({
 				.reverse();
 		},
 		totalOptionCount(): number {
-			return this.uiOptions.filter(o => o.type === 1).length;
+			return this.normalizedUiOptions.count;
 		},
 
 		///////////////
@@ -873,15 +889,24 @@ export default defineComponent({
 				const newValues = new Set<string>(newVal as string[]);
 				const oldValues = this.internalModel;
 				const availableOptions = this.uiOptionsMap;
+				const nextValues = Object.create(null) as Record<string, boolean>;
 
-				/** no longer in :value array - guaranteed deselect or is actually in :value array but not available as option (and unknowns are not allowed) */
-				const deselectedValues: string[] = Object.keys(oldValues).filter(v => !newValues.has(v) || (!availableOptions[v] && !this.allowUnknownValues));
+				for (const value of Object.keys(oldValues)) {
+					if (newValues.has(value) && (availableOptions[value] || this.allowUnknownValues)) {
+						nextValues[value] = true;
+					}
+				}
+				for (const value of newVal as string[]) {
+					if (!oldValues[value] && (availableOptions[value] || this.allowUnknownValues)) {
+						nextValues[value] = true;
+					}
+				}
 
-				/** wasn't in previous :value array but is now - guaranteed selected and a corresponding option exists, or we allow unknowns */
-				const newSelectedValues: string[] = (newVal as string[]).filter(v => !oldValues[v] && (availableOptions[v] || this.allowUnknownValues));
-
-				deselectedValues.forEach(v => delete this.internalModel[v]);
-				newSelectedValues.forEach(v => (this.internalModel[v] = true));
+				const oldKeys = Object.keys(oldValues);
+				const nextKeys = Object.keys(nextValues);
+				if (oldKeys.length !== nextKeys.length || oldKeys.some(value => !nextValues[value])) {
+					this.internalModel = nextValues;
+				}
 			}
 		},
 		/** This method exists just to deal with weirdness with TypeScript in Vue templates. */
@@ -901,8 +926,11 @@ export default defineComponent({
 					// But maybe the model only changed because we got pushed a new value from props
 					// check that this is not the case.
 					const values = Object.keys(this.internalModel);
-					if (this.multiple && Array.isArray(this.modelValue) && values.length === this.modelValue.length && values.every(v => (this.modelValue as string[]).includes(v))) {
-						return;
+					if (this.multiple && Array.isArray(this.modelValue) && values.length === this.modelValue.length) {
+						const modelValues = new Set(this.modelValue);
+						if (values.every(v => modelValues.has(v))) {
+							return;
+						}
 					} // our modelValue prop is already up to date - don't fire.
 					if (!this.multiple && typeof this.modelValue === 'string' && values.length == 1 && values[0] === this.modelValue) {
 						return;

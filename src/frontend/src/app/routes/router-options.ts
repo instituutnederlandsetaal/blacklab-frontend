@@ -1,6 +1,6 @@
 import { createWebHistory, type RouterOptions } from 'vue-router';
 
-export type CustomScriptTiming = 'immediate' | 'after-page-bootstrap';
+import type { CustomScriptTiming } from '@/shared/route-bootstrap/useRouteBootstrap';
 
 /**
  * We need some metadata about the current route in order for customJs and customCss to work correctly.

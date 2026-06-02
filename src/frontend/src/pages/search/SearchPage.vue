@@ -7,7 +7,7 @@
 // import * as InterfaceStore from '@/features/search/model/form/interface-state';
 // import { useRouteBootstrap } from '@/app/providers/providePageBootstrapState.ts';
 
-import { useRouteBootstrap } from '@/app/providers/providePageBootstrapState.ts';
+import { useRouteBootstrap } from '@/shared/route-bootstrap/useRouteBootstrap.ts';
 
 import SearchForm from './form/ui/SearchForm.vue';
 // import QuerySummary from '@/pages/search/results/QuerySummary.vue';

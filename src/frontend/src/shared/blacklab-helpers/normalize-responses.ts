@@ -313,8 +313,8 @@ export function normalizeIndexBase(blIndex: BLTypes.BLIndex, id: string): Normal
 		owner: id.substring(0, id.indexOf(':')) || null,
 		status: blIndex.status,
 		timeModified: blIndex.timeModified,
-		tokenCount: blIndex.count.tokens || 0,
-		documentCount: blIndex.count.documents || 0,
+		tokenCount: blIndex.count?.tokens || blIndex.tokenCount || 0,
+		documentCount: blIndex.count?.documents || blIndex.documentCount || 0,
 	};
 }
 

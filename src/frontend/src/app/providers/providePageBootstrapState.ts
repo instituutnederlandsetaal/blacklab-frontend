@@ -4,23 +4,12 @@
  * This listens to the current route, and can coordinate the state of the page
  */
 
-import { computed, readonly, ref, watch, type App, type ObjectPlugin, type Ref } from 'vue';
+import { computed, readonly, ref, watch, type App, type ObjectPlugin } from 'vue';
 import { useRouter } from 'vue-router';
 
-import type { CustomRouteMeta, CustomScriptTiming } from '@/app/routes/router-options';
+import type { CustomRouteMeta } from '@/app/routes/router-options';
 
-import useInjectable from '@/shared/lib/vue/useInjectable';
-
-type UseRouteBootstrapReturn = {
-	pageName: Ref<string>;
-	pageBootstrapped: Ref<boolean>;
-	pageUrlParsed: Ref<boolean>;
-	markPageBootstrapped(): void;
-	markPageUrlParsed(): void;
-	pageCustomScriptTiming: Ref<CustomScriptTiming>;
-};
-
-const [_key, providePageBootstrap, useRouteBootstrap] = useInjectable<UseRouteBootstrapReturn>('pageBootstrap');
+import { providePageBootstrap } from '@/shared/route-bootstrap/useRouteBootstrap';
 
 export function createRouteBootstrapPlugin(): ObjectPlugin {
 	return {
@@ -58,5 +47,3 @@ export function createRouteBootstrapPlugin(): ObjectPlugin {
 		},
 	};
 }
-
-export { useRouteBootstrap };
