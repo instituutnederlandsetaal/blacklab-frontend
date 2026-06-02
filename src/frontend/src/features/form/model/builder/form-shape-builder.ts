@@ -7,7 +7,7 @@ import type {
 	BaseFormNode,
 	BaseViewNode,
 	ImplicitContainerComponentProps,
-	ImplicitComponentProps,
+	ImplicitFieldComponentProps,
 	NodeKind,
 	NodeKindMap,
 	RealContainerNode,
@@ -118,11 +118,11 @@ import type { AnyVueComponent, ConstrainComponentToProvidedProps, DistributiveOm
 // ==========================================================================================================================
 
 type ForbiddenConfigKeys = 'id' | 'children' | 'kind' | 'component' | 'controller' | 'htmlId' | 'modelValue';
-type ImplicitComponentPropKeys = keyof ImplicitComponentProps<unknown>;
+type ImplicitComponentPropKeys = keyof ImplicitFieldComponentProps<unknown>;
 type ImplicitContainerComponentPropKeys = keyof ImplicitContainerComponentProps;
 
 type ConstrainComponentFromController<C extends AnyVueComponent, Controller> =
-	Controller extends FieldController<string, infer State, infer Extra> ? ConstrainComponentToProvidedProps<C, ImplicitComponentProps<State> & Extra> : never;
+	Controller extends FieldController<string, infer State, infer Extra> ? ConstrainComponentToProvidedProps<C, ImplicitFieldComponentProps<State> & Extra> : never;
 
 type ExtractExtraPropsFromComponent<C extends AnyVueComponent, ImplicitKeys extends PropertyKey = ImplicitComponentPropKeys> = Omit<PublicPropsOf<C>, ImplicitKeys>;
 type ExtractExtraPropsFromController<Controller> = Controller extends FieldController<string, any, infer Extra> ? Extra : never;
@@ -222,7 +222,7 @@ type NewViewNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFrom
 type NewViewNodeFnReturn<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>> = RealViewNode<ExtractExtraPropsFromConfig<Config>, C>;
 type NewViewNodeFnArgs<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>> = [
 	id: string,
-	component: ConstrainComponentToProvidedProps<C, ImplicitComponentProps<never> & ExtractExtraPropsFromConfig<Config>>,
+	component: ConstrainComponentToProvidedProps<C, ImplicitFieldComponentProps<never> & ExtractExtraPropsFromConfig<Config>>,
 	config: NoExtraProperties<NewViewNodeFnConfig<C>, Config>,
 ];
 

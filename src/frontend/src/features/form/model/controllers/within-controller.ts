@@ -2,7 +2,7 @@ import { markRaw } from 'vue';
 
 import { createQueryArtifact, createQueryContribution, withSummary, withWrapper } from '@/features/form/model/compile/query-artifact';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
-import type { FormComponentProps } from '@/features/form/model/types/form-shape';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
 
 import type { Option } from '@/shared/utils/options';
 
@@ -20,7 +20,7 @@ export type WithinFieldConfig = {
 	options: WithinFieldOption[];
 };
 
-export type WithFieldComponentProps = FormComponentProps<WithinFieldState> & WithinFieldConfig;
+export type WithFieldComponentProps = ImplicitFieldComponentProps<WithinFieldState> & WithinFieldConfig;
 
 export const withinController: FieldController<'within', WithinFieldState, Omit<WithinFieldConfig, 'htmlId'>> = markRaw({
 	kind: 'within',

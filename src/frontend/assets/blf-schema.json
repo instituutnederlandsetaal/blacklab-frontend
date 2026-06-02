@@ -3055,7 +3055,19 @@
                   "description": "Xpath: What element (relative to documentPath) contains the metadata? (If omitted, entire document is used.)"
                 },
                 "defaultAnalyzer": {
-                  "type": "string",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "default",
+                        "standard",
+                        "whitespace"
+                      ]
+                    }
+                  ],
                   "description": "Analyzer to use for metadata fields. Unless overridden in the field through"
                 },
                 "fields": {
@@ -3530,7 +3542,19 @@
               "description": "Embedded metadata in document"
             },
             "metadataDefaultAnalyzer": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "default",
+                    "standard",
+                    "whitespace"
+                  ]
+                }
+              ],
               "description": "Analyzer to use for metadata fields. Unless overridden in the field"
             },
             "metadataDefaultUnknownCondition": {
@@ -7038,7 +7062,19 @@
                   "description": "Xpath: What element (relative to documentPath) contains the metadata? (If omitted, entire document is used.)"
                 },
                 "defaultAnalyzer": {
-                  "type": "string",
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "string",
+                      "enum": [
+                        "default",
+                        "standard",
+                        "whitespace"
+                      ]
+                    }
+                  ],
                   "description": "Analyzer to use for metadata fields. Unless overridden in the field through"
                 },
                 "fields": {
@@ -7513,7 +7549,19 @@
               "description": "Embedded metadata in document"
             },
             "metadataDefaultAnalyzer": {
-              "type": "string",
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "default",
+                    "standard",
+                    "whitespace"
+                  ]
+                }
+              ],
               "description": "Analyzer to use for metadata fields. Unless overridden in the field"
             },
             "metadataDefaultUnknownCondition": {

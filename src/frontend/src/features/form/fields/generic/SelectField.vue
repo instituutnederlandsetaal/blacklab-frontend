@@ -19,28 +19,25 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { SelectFieldState, SelectFieldUiConfig } from './select-field';
+import { decodeVariants } from '@/features/form/model/form-utils';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
 
-import { getVariantClassNames } from '@/features/form/model/form-utils';
-import type { FormComponentProps } from '@/features/form/model/types/form-shape';
+import type { SelectFieldState, SelectFieldUiConfig } from './select-field';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 type SelectPickerModelValue = string | string[] | null;
 
-const props = withDefaults(
-	defineProps<FormComponentProps<SelectFieldState> & SelectFieldUiConfig & { showLabel?: boolean }>(),
-	{
-		showLabel: true,
-	},
-);
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<SelectFieldState> & SelectFieldUiConfig & { showLabel?: boolean }>(), {
+	showLabel: true,
+});
 
 const emit = defineEmits<{
 	'update:modelValue': [value: SelectFieldState];
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
 const placeholderText = computed(() => props.placeholder ?? props.displayName);
 const textDirection = computed(() => props.textDirection ?? 'ltr');
 

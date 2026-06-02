@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { getVariantClassNames } from '@/features/form/model/form-utils';
+import { decodeVariants } from '@/features/form/model/form-utils';
 
 import type { WithFieldComponentProps, WithinFieldConfig, WithinFieldState } from '../model/controllers/within-controller';
 
@@ -43,7 +43,7 @@ const emit = defineEmits<{
 	'update:modelValue': [value: WithinFieldState];
 }>();
 
-const fieldClasses = computed(() => ['blf-field', 'blf-within-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', 'blf-within-field', decodeVariants(props.variant)]);
 const htmlId = computed(() => props.htmlId);
 const selectedAttributes = computed(() => props.options.find((option: WithinFieldConfig['options'][number]) => option.value === state.value.element)?.attributes ?? []);
 

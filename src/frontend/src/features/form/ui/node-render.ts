@@ -28,7 +28,7 @@ type NodeRenderContext = {
 
 export function getNodeProps(node: FormNode, { hideTitle = false, runtime, scopeId }: NodeRenderContext) {
 	if (node.kind === 'container' || node.kind === 'form') {
-		return hideTitle ? { hideTitle, node } : { node };
+		return hideTitle ? { ...node, hideTitle } : node;
 	} else if (node.kind === 'field') {
 		return {
 			...node,

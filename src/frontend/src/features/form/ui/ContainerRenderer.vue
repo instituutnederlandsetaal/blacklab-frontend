@@ -1,10 +1,10 @@
 <template>
 	<Component :is="isForm ? 'form' : 'section'" :class="containerClasses" @submit.prevent="submit" @reset.prevent="reset">
-		<header v-if="node.title && !hideTitle" :class="isForm ? 'blf-form-title' : 'blf-container-title'">{{ node.title }}</header>
+		<header v-if="title && !hideTitle" :class="isForm ? 'blf-form-title' : 'blf-container-title'">{{ title }}</header>
 
 		<template v-if="isTabbed">
 			<nav :class="['blf-tabs', { 'blf-tabs-small': isSmallTabs }]" aria-label="Form section tabs">
-				<button v-for="child in node.children" :key="child.id" type="button" :class="{ active: activeChild?.id === child.id }" @click="activateChild(child.id)">
+				<button v-for="child in children" :key="child.id" type="button" :class="{ active: activeChild?.id === child.id }" @click="activateChild(child.id)">
 					{{ child.title || child.id }}
 				</button>
 			</nav>
@@ -14,7 +14,7 @@
 		</template>
 
 		<div v-else :class="isForm ? 'blf-form-body' : 'blf-container-list'">
-			<Component v-for="child in node.children" :is="resolveNodeComponent(child)" :key="child.id" v-bind="nodeProps(child)" />
+			<Component v-for="child in children" :is="resolveNodeComponent(child)" :key="child.id" v-bind="nodeProps(child)" />
 		</div>
 
 		<footer v-if="isForm" class="blf-form-actions">
@@ -27,7 +27,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { FormContainerLikeNode, FormNode } from '@/features/form/model/types/form-shape';
+import type { FormNode, ImplicitContainerComponentProps } from '@/features/form/model/types/form-shape';
 import { createAndProvideParentForm } from '../model/runtime';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 import useUid from '@/shared/utils/useUid';
@@ -35,17 +35,14 @@ import { getNodeProps, resolveNodeComponent } from './node-render';
 
 defineOptions({ name: 'ContainerRenderer' });
 
-const props = defineProps<{
-	node: FormContainerLikeNode;
-	hideTitle?: boolean;
-}>();
+const props = defineProps<ImplicitContainerComponentProps>();
 
 const { runtime, isTabbed, isSmallTabs, activeChild, containerClasses, activateChild } = containerRendererSetup(props);
-const isForm = computed(() => props.node.kind === 'form');
+const isForm = computed(() => props.kind === 'form');
 const renderScopeId = useUid();
 
-if (props.node.kind === 'form') {
-	createAndProvideParentForm(runtime, () => props.node.id);
+if (props.kind === 'form') {
+	createAndProvideParentForm(runtime, () => props.id);
 }
 
 function nodeProps(node: FormNode, hideTitle = false) {
@@ -57,11 +54,11 @@ function nodeProps(node: FormNode, hideTitle = false) {
 }
 
 function submit() {
-	if (props.node.kind === 'form') runtime.submit(props.node.id);
+	if (props.kind === 'form') runtime.submit(props.id);
 }
 
 function reset() {
-	if (props.node.kind === 'form') runtime.reset();
+	if (props.kind === 'form') runtime.reset();
 }
 </script>
 

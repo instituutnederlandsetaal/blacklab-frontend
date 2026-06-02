@@ -25,8 +25,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { getVariantClassNames } from '@/features/form/model/form-utils';
-import type { FormComponentProps } from '@/features/form/model/types/form-shape';
+import { decodeVariants } from '@/features/form/model/form-utils';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
 
 import type { RangeMultipleFieldsFieldState, RangeMultipleFieldsFieldUiConfig } from './range-multiple-fields-field';
 
@@ -34,19 +34,16 @@ import type { Option } from '@/shared/utils/options';
 
 type ModeOption = Option & { value: RangeMultipleFieldsFieldState['mode'] };
 
-const props = withDefaults(
-	defineProps<FormComponentProps<RangeMultipleFieldsFieldState> & RangeMultipleFieldsFieldUiConfig & { showLabel?: boolean }>(),
-	{
-		showLabel: true,
-	},
-);
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<RangeMultipleFieldsFieldState> & RangeMultipleFieldsFieldUiConfig & { showLabel?: boolean }>(), {
+	showLabel: true,
+});
 
 const emit = defineEmits<{
 	'update:modelValue': [value: RangeMultipleFieldsFieldState];
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
 const inputType = computed(() => props.inputType ?? 'number');
 const lowPlaceholder = computed(() => props.lowPlaceholder ?? 'From');
 const highPlaceholder = computed(() => props.highPlaceholder ?? 'To');

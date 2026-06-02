@@ -1,10 +1,10 @@
 <template>
 	<section :class="containerClasses">
-		<header v-if="node.title && !hideTitle" class="blf-container-title">{{ node.title }}</header>
+		<header v-if="title && !hideTitle" class="blf-container-title">{{ title }}</header>
 
 		<template v-if="isTabbed">
 			<nav :class="['blf-tabs', { 'blf-tabs-small': isSmallTabs }]" aria-label="Form section tabs">
-				<button v-for="child in node.children" :key="child.id" type="button" :class="{ active: activeChild?.id === child.id }" @click="activateChild(child.id)">
+				<button v-for="child in children" :key="child.id" type="button" :class="{ active: activeChild?.id === child.id }" @click="activateChild(child.id)">
 					{{ child.title || child.id }}
 					<span v-if="activeSummaryCounts[child.id]" class="blf-tab-count">{{ activeSummaryCounts[child.id] }}</span>
 				</button>
@@ -14,8 +14,8 @@
 			</div>
 		</template>
 
-		<div v-else-if="node.children.length" class="blf-container-list">
-			<Component v-for="child in node.children" :is="resolveNodeComponent(child)" :key="child.id" v-bind="nodeProps(child)" />
+		<div v-else-if="children.length" class="blf-container-list">
+			<Component v-for="child in children" :is="resolveNodeComponent(child)" :key="child.id" v-bind="nodeProps(child)" />
 		</div>
 		<!-- TODO i18n -->
 		<div v-else class="blf-empty-state">Nothing configured.</div>
@@ -27,17 +27,14 @@ import { computed } from 'vue';
 
 import { isContainerNode } from '@/features/form/model/form-utils';
 import { useParentForm } from '@/features/form/model/runtime';
-import type { ContainerNode, FormNode } from '@/features/form/model/types/form-shape';
+import type { FormNode, ImplicitContainerComponentProps } from '@/features/form/model/types/form-shape';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 import useUid from '@/shared/utils/useUid';
 import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
 
 defineOptions({ name: 'ContainerRendererFilters' });
 
-const props = defineProps<{
-	node: ContainerNode;
-	hideTitle?: boolean;
-}>();
+const props = defineProps<ImplicitContainerComponentProps>();
 
 const { runtime, isTabbed, isSmallTabs, activeChild, containerClasses, activateChild } = containerRendererSetup(props);
 const parentForm = useParentForm();
@@ -51,7 +48,7 @@ function nodeProps(node: FormNode, hideTitle = false) {
 	});
 }
 
-const childGroups = computed<Set<string>>(() => new Set(props.node.children.filter(isContainerNode).map(child => child.id)));
+const childGroups = computed<Set<string>>(() => new Set(props.children.filter(isContainerNode).map(child => child.id)));
 
 // TODO: count summaries for the active top-level child group more reliably by traversing descendants.
 const activeSummaryCounts = computed<Record<string, number>>(() =>

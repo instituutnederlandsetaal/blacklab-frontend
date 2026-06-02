@@ -40,8 +40,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { getVariantClassNames } from '@/features/form/model/form-utils';
-import type { FormComponentProps } from '@/features/form/model/types/form-shape';
+import { decodeVariants } from '@/features/form/model/form-utils';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
 
 import { DateUtils, type RangeMode, type DateFieldState, type DateFieldUiConfig } from './date-field';
 
@@ -49,19 +49,16 @@ import type { Option } from '@/shared/utils/options';
 
 type ModeOption = Option<RangeMode>;
 
-const props = withDefaults(
-	defineProps<FormComponentProps<DateFieldState> & DateFieldUiConfig & { showLabel?: boolean }>(),
-	{
-		showLabel: true,
-	},
-);
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<DateFieldState> & DateFieldUiConfig & { showLabel?: boolean }>(), {
+	showLabel: true,
+});
 
 const emit = defineEmits<{
 	'update:modelValue': [value: DateFieldState];
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
 const minDate = computed(() => DateUtils.normalizeBoundaryDate(props.min));
 const maxDate = computed(() => DateUtils.normalizeBoundaryDate(props.max));
 const minDateDisplay = computed(() => (minDate.value ? DateUtils.dateValueToDisplayString(minDate.value) : null));

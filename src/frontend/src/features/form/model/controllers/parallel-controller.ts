@@ -1,7 +1,7 @@
 import { withSearchField, createQueryArtifact, createQueryContribution } from '@/features/form/model/compile/query-artifact';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { SummaryEntry } from '@/features/form/model/types/form-query';
-import type { FormComponentProps } from '@/features/form/model/types/form-shape';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
 
 import { findOption, optionLabel, type Option } from '@/shared/utils/options';
 
@@ -24,7 +24,7 @@ export type ParallelFieldConfig = {
 	alignByOptions?: Option[];
 };
 
-export type ParallelFieldComponentProps = FormComponentProps<ParallelFieldState> & ParallelFieldConfig;
+export type ParallelFieldComponentProps = ImplicitFieldComponentProps<ParallelFieldState> & ParallelFieldConfig;
 
 export const parallelController: FieldController<'parallel', ParallelFieldState, ParallelFieldConfig> = {
 	kind: 'parallel',

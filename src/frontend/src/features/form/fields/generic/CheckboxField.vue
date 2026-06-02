@@ -23,24 +23,21 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
+import { decodeVariants } from '@/features/form/model/form-utils';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
+
 import type { CheckboxFieldState, CheckboxFieldUiConfig } from './checkbox-field';
 
-import { getVariantClassNames } from '@/features/form/model/form-utils';
-import type { FormComponentProps } from '@/features/form/model/types/form-shape';
-
-const props = withDefaults(
-	defineProps<FormComponentProps<CheckboxFieldState> & CheckboxFieldUiConfig & { showLabel?: boolean }>(),
-	{
-		showLabel: true,
-	},
-);
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<CheckboxFieldState> & CheckboxFieldUiConfig & { showLabel?: boolean }>(), {
+	showLabel: true,
+});
 
 const emit = defineEmits<{
 	'update:modelValue': [value: CheckboxFieldState];
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
 
 function toggleCheckbox(value: string, checked: boolean) {
 	emit('update:modelValue', {

@@ -4,6 +4,7 @@ import { reactive, toRaw } from 'vue';
 import type { FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeBase, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 import type { FormState } from '@/features/form/model/types/form-state';
 
+import { iter } from '@/shared/utils/array-utils';
 import { hashJavaDJB2 } from '@/shared/utils/string-utils';
 
 /** Iterate all nodes in the form graph, filtered by uniqueness. Duplicate nodes are skipped. */
@@ -190,9 +191,8 @@ export function reactivePickActiveFormState(form: FormBoundaryNode, formState: F
 	return r;
 }
 
-export function getVariantClassNames(variants: string | undefined | null | Array<string | undefined | null>, prefix: string) {
-	return [variants]
-		.flat()
-		.filter((v): v is string => !!v)
-		.map(v => `${prefix}--${v}`);
+export function decodeVariants<Variant extends string>(variants: Variant | undefined | null | Array<Variant | undefined | null>): Partial<Record<Variant, boolean>> {
+	const r: Partial<Record<Variant, boolean>> = {};
+	for (const v of iter(variants)) r[v] = true;
+	return r;
 }

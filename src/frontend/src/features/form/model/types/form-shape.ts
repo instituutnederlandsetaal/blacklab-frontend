@@ -8,14 +8,6 @@ export type BaseNode = {
 	titleKey?: string;
 	class?: string;
 };
-export type ImplicitComponentProps<State> = BaseNode & {
-	htmlId: string;
-	modelValue: State;
-	variant?: string | string[];
-};
-export type FormComponentProps<State> = ImplicitComponentProps<State>;
-export type FormControllerProps<Extra> = BaseNode & Extra;
-
 // Container
 // ==========================================================================================================================
 
@@ -25,7 +17,7 @@ export type QueryCombineMode = 'allOf' | 'anyOf' | 'sequence';
 export type BaseContainerNode = BaseNode & {
 	kind: 'container';
 	/** Defaults to list if unset */
-	variant?: ContainerPresentation;
+	variant?: ContainerPresentation | ContainerPresentation[];
 	children: any[];
 	/** Defaults to 'allOf' if unset */
 	combine?: QueryCombineMode;
@@ -49,6 +41,13 @@ export type BaseFormNode = Omit<BaseContainerNode, 'kind' | 'combine'> & {
 };
 export type RealFormNode<Extra, C extends AnyVueComponent> = BaseFormNode & Extra & { component: C };
 
+export type ImplicitContainerComponentProps = BaseNode & {
+	kind: BaseContainerNode['kind'] | BaseFormNode['kind'];
+	variant?: BaseContainerNode['variant'];
+	children: BaseContainerNode['children'];
+	hideTitle?: boolean;
+};
+
 // Field
 // ==========================================================================================================================
 
@@ -56,7 +55,7 @@ export type FieldPresentation = 'simple' | 'large' | 'default' | (string & {}); 
 
 export type BaseFieldNode = BaseNode & {
 	kind: 'field';
-	/** Defaults to list if unset */
+	/** Defaults to default if unset */
 	variant?: FieldPresentation | FieldPresentation[];
 };
 export type RealFieldNode<Extra, C extends AnyVueComponent> = BaseFieldNode &
@@ -64,6 +63,13 @@ export type RealFieldNode<Extra, C extends AnyVueComponent> = BaseFieldNode &
 		controller: FieldController<string, any, any>;
 		component: C;
 	};
+
+export type ImplicitFieldComponentProps<State> = BaseNode & {
+	htmlId: string;
+	modelValue: State;
+	variant?: BaseFieldNode['variant'];
+};
+export type FormControllerProps<Extra> = BaseNode & Extra;
 
 // View
 // ==========================================================================================================================
@@ -78,10 +84,7 @@ export type AnyRealFormNode = RealContainerNode<unknown, any> | RealFormNode<unk
 export type ContainerNode = RealContainerNode<unknown, any>;
 export type FormBoundaryNode = RealFormNode<unknown, any>;
 export type FormContainerLikeNode = ContainerNode | FormBoundaryNode;
-export type ImplicitContainerComponentProps = {
-	node: FormContainerLikeNode;
-	hideTitle?: boolean;
-};
+
 export type FormFieldNode = RealFieldNode<unknown, any>;
 export type FormViewNode = RealViewNode<unknown, any>;
 export type FormNode = FormContainerLikeNode | FormFieldNode | FormViewNode;

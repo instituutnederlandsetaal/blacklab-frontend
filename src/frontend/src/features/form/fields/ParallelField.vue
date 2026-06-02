@@ -40,7 +40,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { getVariantClassNames } from '@/features/form/model/form-utils';
+import { decodeVariants } from '@/features/form/model/form-utils';
 
 import type { ParallelFieldComponentProps, ParallelFieldState } from '../model/controllers/parallel-controller';
 const props = defineProps<ParallelFieldComponentProps>();
@@ -49,7 +49,7 @@ const emit = defineEmits<{
 	'update:modelValue': [value: ParallelFieldState];
 }>();
 
-const fieldClasses = computed(() => ['blf-field', 'blf-parallel-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', 'blf-parallel-field', decodeVariants(props.variant)]);
 const htmlId = computed(() => props.htmlId);
 const targetOptions = computed(() => (props.targetOptions ?? props.sourceOptions).filter(option => option.value !== props.modelValue.source));
 

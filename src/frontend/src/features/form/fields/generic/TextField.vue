@@ -24,26 +24,23 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { getVariantClassNames } from '@/features/form/model/form-utils';
-import type { FormComponentProps } from '@/features/form/model/types/form-shape';
+import { decodeVariants } from '@/features/form/model/form-utils';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
 
 import type { TextFieldState, TextFieldUiConfig } from './text-field';
 
 import Autocomplete from '@/shared/ui/Autocomplete.vue';
 
-const props = withDefaults(
-	defineProps<FormComponentProps<TextFieldState> & TextFieldUiConfig & { showLabel?: boolean }>(),
-	{
-		showLabel: true,
-	},
-);
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<TextFieldState> & TextFieldUiConfig & { showLabel?: boolean }>(), {
+	showLabel: true,
+});
 
 const emit = defineEmits<{
 	'update:modelValue': [value: TextFieldState];
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
 const placeholderText = computed(() => props.placeholder ?? props.displayName);
 const textDirection = computed(() => props.textDirection ?? 'ltr');
 const caseSensitiveLabel = computed(() => props.caseSensitiveLabel ?? 'Case sensitive');

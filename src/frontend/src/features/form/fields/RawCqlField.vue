@@ -12,16 +12,16 @@
 import { computed } from 'vue';
 
 import type { RawCqlQueryFieldConfig, RawCqlQueryFieldState } from '@/features/form/model/controllers/raw-cql-query-controller';
-import { getVariantClassNames } from '@/features/form/model/form-utils';
-import type { FormComponentProps } from '@/features/form/model/types/form-shape';
+import { decodeVariants } from '@/features/form/model/form-utils';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
 
-const props = defineProps<FormComponentProps<RawCqlQueryFieldState> & RawCqlQueryFieldConfig>();
+const props = defineProps<ImplicitFieldComponentProps<RawCqlQueryFieldState> & RawCqlQueryFieldConfig>();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: RawCqlQueryFieldState];
 }>();
 
-const fieldClasses = computed(() => ['blf-field', 'blf-expert-query-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', 'blf-expert-query-field', decodeVariants(props.variant)]);
 const htmlId = computed(() => props.htmlId);
 
 function updateQuery(query: string) {

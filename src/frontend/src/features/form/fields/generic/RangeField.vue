@@ -12,24 +12,21 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { getVariantClassNames } from '@/features/form/model/form-utils';
-import type { FormComponentProps } from '@/features/form/model/types/form-shape';
+import { decodeVariants } from '@/features/form/model/form-utils';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
 
 import type { RangeFieldState, RangeFieldUiConfig } from './range-field';
 
-const props = withDefaults(
-	defineProps<FormComponentProps<RangeFieldState> & RangeFieldUiConfig & { showLabel?: boolean }>(),
-	{
-		showLabel: true,
-	},
-);
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<RangeFieldState> & RangeFieldUiConfig & { showLabel?: boolean }>(), {
+	showLabel: true,
+});
 
 const emit = defineEmits<{
 	'update:modelValue': [value: RangeFieldState];
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', ...getVariantClassNames(props.variant, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
 const inputType = computed(() => props.inputType ?? 'text');
 const lowPlaceholder = computed(() => props.lowPlaceholder ?? 'From');
 const highPlaceholder = computed(() => props.highPlaceholder ?? 'To');

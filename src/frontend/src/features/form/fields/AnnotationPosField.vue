@@ -12,15 +12,7 @@
 		</div>
 		<small v-if="fieldDescription" class="blf-help-text">{{ fieldDescription }}</small>
 
-		<Modal
-			v-if="editorOpen"
-			:title="fieldLabel"
-			:confirm-message="submitLabel"
-			:close-message="cancelLabel"
-			:size="modalSize"
-			@confirm="commitDraft"
-			@close="closeEditor"
-		>
+		<Modal v-if="editorOpen" :title="fieldLabel" :confirm-message="submitLabel" :close-message="cancelLabel" :size="modalSize" @confirm="commitDraft" @close="closeEditor">
 			<div class="blf-annotation-pos__list-group-container">
 				<div class="list-group blf-annotation-pos__main-list">
 					<button
@@ -72,30 +64,28 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
+import { decodeVariants } from '@/features/form/model/form-utils';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
+
 import {
-    buildAnnotationPosQueryPreview,
-    cloneAnnotationPosFieldState,
-    createAnnotationPosSelectionKey,
-    createDefaultAnnotationPosFieldState,
-    findTagsetValue,
-    getVisibleSubAnnotationValues,
-    summarizeAnnotationPosState,
-    type AnnotationPosFieldConfig,
-    type AnnotationPosFieldState,
+	buildAnnotationPosQueryPreview,
+	cloneAnnotationPosFieldState,
+	createAnnotationPosSelectionKey,
+	createDefaultAnnotationPosFieldState,
+	findTagsetValue,
+	getVisibleSubAnnotationValues,
+	summarizeAnnotationPosState,
+	type AnnotationPosFieldConfig,
+	type AnnotationPosFieldState,
 } from './annotation-pos-field';
 
-import { getVariantClassNames } from '@/features/form/model/form-utils';
-import type { FormComponentProps } from '@/features/form/model/types/form-shape';
-
 import { useI18n } from '@/shared/i18n';
+
 import Modal from '@/shared/ui/Modal.vue';
 
-const props = withDefaults(
-	defineProps<FormComponentProps<AnnotationPosFieldState> & AnnotationPosFieldConfig & { showLabel?: boolean }>(),
-	{
-		showLabel: true,
-	},
-);
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<AnnotationPosFieldState> & AnnotationPosFieldConfig & { showLabel?: boolean }>(), {
+	showLabel: true,
+});
 
 const emit = defineEmits<{
 	'update:modelValue': [value: AnnotationPosFieldState];
@@ -116,7 +106,7 @@ watch(
 );
 
 const buttonId = computed(() => `${props.htmlId}_editor`);
-const fieldClasses = computed(() => ['blf-field', 'blf-annotation-pos', ...getVariantClassNames(props.variant, 'blf-field')]);
+const fieldClasses = computed(() => ['blf-field', 'blf-annotation-pos', decodeVariants(props.variant)]);
 const mainValues = computed(() => Object.values(props.tagset.values));
 const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value.annotationValue));
 const fieldLabel = computed(() => i18n.$tAnnotDisplayName(props.annotation));
@@ -258,7 +248,7 @@ function handleSelectionChange(annotationValue: string, subAnnotationId: string,
 	input {
 		margin-right: 8px;
 	}
-	}
+}
 
 .blf-annotation-pos__category-list {
 	display: inline-block;
