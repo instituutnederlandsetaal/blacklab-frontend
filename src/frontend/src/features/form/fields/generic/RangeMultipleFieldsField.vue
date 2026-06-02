@@ -4,8 +4,8 @@
 			>{{ displayName }}<debug> [{{ id }}]</debug></label
 		>
 		<div class="blf-dual-input">
-			<input :id="`${inputId}_lower`" v-model="lower" :type="inputType" :placeholder="lowPlaceholder" class="blf-input form-control" autocomplete="off" />
-			<input :id="`${inputId}_upper`" v-model="upper" :type="inputType" :placeholder="highPlaceholder" class="blf-input form-control" autocomplete="off" />
+			<input :id="`${inputId}_lower`" v-model="lower" :type="inputType" :placeholder="lowPlaceholder || $t(`filter.range.from`)" class="blf-input form-control" autocomplete="off" />
+			<input :id="`${inputId}_upper`" v-model="upper" :type="inputType" :placeholder="highPlaceholder || $t(`filter.range.to`)" class="blf-input form-control" autocomplete="off" />
 		</div>
 		<div v-if="!lockedMode" class="btn-group blf-range-modes">
 			<button
@@ -29,6 +29,7 @@ import { computed } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
+import { useI18n } from '@/shared/i18n';
 
 import type { RangeMultipleFieldsFieldState, RangeMultipleFieldsFieldUiConfig } from './range-multiple-fields-field';
 
@@ -39,6 +40,7 @@ type ModeOption = Option & { value: RangeMultipleFieldsFieldState['mode'] };
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<RangeMultipleFieldsFieldState> & RangeMultipleFieldsFieldUiConfig & { showLabel?: boolean }>(), {
 	showLabel: true,
 });
+const i18n = useI18n();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: RangeMultipleFieldsFieldState];
@@ -47,22 +49,20 @@ const emit = defineEmits<{
 const inputId = computed(() => `${props.htmlId}_value`);
 const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
 const inputType = computed(() => props.inputType ?? 'number');
-const lowPlaceholder = computed(() => props.lowPlaceholder ?? 'From');
-const highPlaceholder = computed(() => props.highPlaceholder ?? 'To');
 const lockedMode = computed(() => props.mode ?? null);
 
-const modes: ModeOption[] = [
+const modes = computed<ModeOption[]>(() => [
 	{
 		value: 'permissive',
-		label: 'Permissive',
-		title: 'Match overlapping ranges.',
+		label: i18n.$t(`filter.range.permissive`),
+		title: i18n.$t(`filter.range.permissiveDescription`),
 	},
 	{
 		value: 'strict',
-		label: 'Strict',
-		title: 'Match ranges fully inside the selected bounds.',
+		label: i18n.$t(`filter.range.strict`),
+		title: i18n.$t(`filter.range.strictDescription`),
 	},
-];
+]);
 
 const lower = computed({
 	get: () => props.modelValue.low,

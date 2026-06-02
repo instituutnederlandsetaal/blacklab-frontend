@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toValue } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
@@ -40,7 +40,7 @@ const emit = defineEmits<{
 
 const inputId = computed(() => `${props.htmlId}_value`);
 const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
-const placeholderText = computed(() => props.placeholder ?? props.displayName);
+const placeholderText = computed(() => props.placeholder ?? toValue(props.displayName));
 const textDirection = computed(() => props.textDirection ?? 'ltr');
 
 const pickerValue = computed<SelectPickerModelValue>({

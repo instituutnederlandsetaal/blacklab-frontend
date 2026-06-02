@@ -3,7 +3,22 @@
 		"learnMore": "Meer informatie",
 		"clickToRemove": "Klik om te verwijderen",
 		"selectValue": "Selecteer een waarde...",
-		"selectValues": "Selecteer waarde(s)..."
+		"selectValues": "Selecteer waarde(s)...",
+		"caseSensitive": "Hoofdletter- en diakrietgevoelig"
+	},
+	"form": {
+		"summary": {
+			"heading": "Samenvatting",
+			"empty": "Geen actieve invoer.",
+			"none": "Geen"
+		},
+		"totals": {
+			"heading": "Subcorpustotalen",
+			"documents": "Documenten",
+			"tokens": "Tokens",
+			"filtered": "Voorvertoning gebruikt de huidige filterselectie.",
+			"unfiltered": "Geen actieve filters."
+		}
 	},
 	"search": {
 		"heading": "Zoeken naar ...",
@@ -88,6 +103,9 @@
 			"queryForSourceVersion": "Bronversie",
 			"queryForTargetVersion": "Doelversie",
 			"addTargetVersion": "Voeg nog een doelversie toe"
+		},
+		"within": {
+			"document": "Document"
 		}
 	},
 	"filter": {
@@ -147,6 +165,9 @@
 		"history": "Geschiedenis"
 	},
 	"partOfSpeech": {
+		"cancel": "Annuleren",
+		"edit": "Bewerken",
+		"noneSelected": "Geen woordsoort geselecteerd",
 		"noOptions": "Geen opties",
 		"submit": "Ok",
 		"reset": "Wissen"

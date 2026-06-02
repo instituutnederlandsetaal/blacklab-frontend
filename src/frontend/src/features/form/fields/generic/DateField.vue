@@ -8,13 +8,13 @@
 
 		<div>
 			<div class="dates">
-				<label v-if="range">From: </label>
+				<label v-if="range">{{ $t(`filter.range.from`) }}: </label>
 				<input class="blf-input form-control" :id="`${inputId}_year_from`" type="number" title="year" placeholder="year" v-model="yearFrom" :min="minYear" :max="maxYear" />
 				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" />
 				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" />
 			</div>
 			<div v-if="range" class="dates">
-				<label>To: </label>
+				<label>{{ $t(`filter.range.to`) }}: </label>
 				<input class="blf-input form-control" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" />
 				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" />
 				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" />
@@ -43,6 +43,7 @@ import { computed } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
+import { useI18n } from '@/shared/i18n';
 
 import { DateUtils, type RangeMode, type DateFieldState, type DateFieldUiConfig } from './date-field';
 
@@ -53,6 +54,7 @@ type ModeOption = Option<RangeMode>;
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<DateFieldState> & DateFieldUiConfig & { showLabel?: boolean }>(), {
 	showLabel: true,
 });
+const i18n = useI18n();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: DateFieldState];
@@ -70,18 +72,18 @@ const startMonthLength = computed(() => DateUtils.dateValueToLucene({ ...props.m
 const endMonthLength = computed(() => DateUtils.dateValueToLucene({ ...props.modelValue.endDate, d: '' }, 'end').substring(6, 8));
 const lockedMode = computed(() => props.mode ?? null);
 
-const modes: ModeOption[] = [
+const modes = computed<ModeOption[]>(() => [
 	{
 		value: 'permissive',
-		label: 'Permissive',
-		title: 'Match overlapping date ranges.',
+		label: i18n.$t(`filter.range.permissive`),
+		title: i18n.$t(`filter.range.permissiveDescription`),
 	},
 	{
 		value: 'strict',
-		label: 'Strict',
-		title: 'Match date ranges fully inside the selected bounds.',
+		label: i18n.$t(`filter.range.strict`),
+		title: i18n.$t(`filter.range.strictDescription`),
 	},
-];
+]);
 
 const yearFrom = computed({
 	get: () => props.modelValue.startDate.y,

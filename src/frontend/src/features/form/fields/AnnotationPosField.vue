@@ -3,10 +3,10 @@
 		<label v-if="showLabel" :for="buttonId">{{ $tAnnotDisplayName(annotation) }}</label>
 		<div class="blf-annotation-pos__controls">
 			<div class="blf-annotation-pos__preview" :class="{ 'is-empty': !selectionSummary }">
-				{{ selectionSummary || $td('partOfSpeech.noneSelected', 'No part of speech selected') }}
+				{{ selectionSummary || $t('partOfSpeech.noneSelected') }}
 			</div>
 			<div class="blf-annotation-pos__actions">
-				<button :id="buttonId" type="button" class="btn btn-default" @click="openEditor">{{ $td('partOfSpeech.edit', 'Edit') }}</button>
+				<button :id="buttonId" type="button" class="btn btn-default" @click="openEditor">{{ $t('partOfSpeech.edit') }}</button>
 				<button v-if="hasSelection" type="button" class="btn btn-link" @click="clearSelection">{{ $t('partOfSpeech.reset') }}</button>
 			</div>
 		</div>

@@ -3,6 +3,7 @@ import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfi
 import { tokenPattern, withSummary, artifactFromPattern, createQueryContribution } from '@/features/form/model/compile/query-artifact';
 import type { SummaryEntry } from '@/features/form/model/types';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
+import { toValue } from 'vue';
 
 import { findOptions, optionValues } from '@/shared/utils/options';
 import { escapeRegex } from '@/shared/utils/string-utils';
@@ -31,7 +32,7 @@ export const annotationTextController = createFieldController<'annotation-text',
 		const summary: SummaryEntry | null = state.value
 			? {
 					id: config.annotationId,
-					label: config.displayName,
+					label: toValue(config.displayName),
 					value: state.value,
 					group: config.groupId,
 				}
@@ -60,7 +61,7 @@ export const annotationSelectController = createFieldController<'annotation-sele
 			),
 			{
 				id: config.annotationId,
-				label: config.displayName,
+				label: toValue(config.displayName),
 				value: optionValues(findOptions(config.options, state)).join(', '),
 			},
 		);

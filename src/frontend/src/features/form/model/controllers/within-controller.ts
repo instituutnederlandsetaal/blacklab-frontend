@@ -16,7 +16,6 @@ export type WithinFieldOption = Option & {
 };
 
 export type WithinFieldConfig = {
-	label?: string;
 	options: WithinFieldOption[];
 };
 
@@ -25,7 +24,7 @@ export type WithFieldComponentProps = ImplicitFieldComponentProps<WithinFieldSta
 export const withinController: FieldController<'within', WithinFieldState, Omit<WithinFieldConfig, 'htmlId'>> = markRaw({
 	kind: 'within',
 	createDefaultState: () => ({ element: null, attributes: {} }),
-	getQueryContribution(config, _runtime, state) {
+	getQueryContribution(config, runtime, state) {
 		const artifact = createQueryArtifact();
 		if (!state.element) return createQueryContribution();
 		const option = config.options.find((option: WithinFieldOption) => option.value === state.element);
@@ -37,8 +36,8 @@ export const withinController: FieldController<'within', WithinFieldState, Omit<
 			}),
 			{
 				id: config.id,
-				label: config.label ?? 'Within',
-				value: option?.label ?? state.element,
+				label: runtime.translate?.$t(`search.extended.within`) ?? 'Within',
+				value: option ? (runtime.translate?.$tSpanDisplayName(option) ?? option.label ?? option.value) : state.element,
 			},
 		);
 	},

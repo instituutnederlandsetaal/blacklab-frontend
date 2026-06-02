@@ -1,14 +1,13 @@
 <template>
 	<section class="blf-totals-view">
-		<!-- TODO i18n -->
-		<header>{{ title || 'Subcorpus totals' }}</header>
+		<header>{{ title || $t(`form.totals.heading`) }}</header>
 		<div class="totals-grid">
-			<span>Documents</span>
+			<span>{{ $t(`form.totals.documents`) }}</span>
 			<strong>{{ estimatedDocuments.toLocaleString() }}</strong>
-			<span>Tokens</span>
+			<span>{{ $t(`form.totals.tokens`) }}</span>
 			<strong>{{ estimatedTokens.toLocaleString() }}</strong>
 		</div>
-		<small>{{ filterActive ? 'Preview uses the current filter projection.' : 'No filters active.' }}</small>
+		<small>{{ filterActive ? $t(`form.totals.filtered`) : $t(`form.totals.unfiltered`) }}</small>
 	</section>
 </template>
 
@@ -19,7 +18,6 @@ import { useParentForm } from '../model/runtime';
 import type { TotalsViewConfig } from '../model/views/totals-view';
 
 const props = defineProps<TotalsViewConfig>();
-
 const parentForm = useParentForm();
 const filterProjection = computed(() => parentForm.compiled.filter);
 const filterActive = computed(() => !!filterProjection.value);

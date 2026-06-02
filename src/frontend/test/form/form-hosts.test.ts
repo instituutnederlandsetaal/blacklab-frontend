@@ -2,7 +2,7 @@
 
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
-import { defineComponent, h, nextTick } from 'vue';
+import { computed, defineComponent, h, nextTick, ref } from 'vue';
 
 import {
 	FormBuilder,
@@ -49,9 +49,9 @@ type FieldHarness<TField extends FormFieldNode = FormFieldNode> = {
 type RuntimeFieldHarness<TField extends FormFieldNode = FormFieldNode> = Omit<FieldHarness<TField>, 'wrapper'>;
 
 const languageOptions = [
-	{ value: 'parallel-state.source.other', label: 'shouldNotEndUpInSummaryValue.parallel.source' },
-	{ value: 'parallel-state.source.selected', label: 'shouldEndUpInSummaryValue.parallel.source' },
-	{ value: 'parallel-state.target.selected', label: 'shouldEndUpInSummaryValue.parallel.target' },
+	{ id: 'parallel-state.source.other', defaultDisplayName: 'shouldNotEndUpInSummaryValue.parallel.source' },
+	{ id: 'parallel-state.source.selected', defaultDisplayName: 'shouldEndUpInSummaryValue.parallel.source' },
+	{ id: 'parallel-state.target.selected', defaultDisplayName: 'shouldEndUpInSummaryValue.parallel.target' },
 ];
 
 const withinOptions = [
@@ -95,7 +95,7 @@ const fieldExpectations = {
 		summaries: [
 			{ id: 'shouldEndUpInSummaryId.parallel.node.source', label: 'Source', value: 'shouldEndUpInSummaryValue.parallel.source' },
 			{ id: 'shouldEndUpInSummaryId.parallel.node.targets', label: 'Targets', value: 'shouldEndUpInSummaryValue.parallel.target' },
-			{ id: 'shouldEndUpInSummaryId.parallel.node.alignBy', label: 'Align by', value: 'shouldEndUpInSummaryValue.parallel.alignBy' },
+			{ id: 'shouldEndUpInSummaryId.parallel.node.alignBy', label: 'Align by', value: 'parallel-state.align.selected' },
 		],
 	},
 	rawCql: {
@@ -106,7 +106,7 @@ const fieldExpectations = {
 		summaries: [
 			{
 				id: 'shouldEndUpInSummaryId.raw-cql.node',
-				label: 'shouldEndUpInSummaryLabel.raw-cql',
+				label: 'Corpus Query Language',
 				value: '[summaryField="shouldEndUpInSummaryValue.raw-cql"]',
 			},
 		],
@@ -119,7 +119,7 @@ const fieldExpectations = {
 		summaries: [
 			{
 				id: 'shouldEndUpInSummaryId.within.node',
-				label: 'shouldEndUpInSummaryLabel.within',
+				label: 'Within',
 				value: 'shouldEndUpInSummaryValue.within',
 			},
 		],
@@ -129,15 +129,15 @@ const fieldExpectations = {
 const summaryViewExpectation = {
 	entryLabel: 'shouldRenderSummaryLabel.summary-view',
 	entryValue: 'shouldRenderSummaryValue.summary-view',
-	emptyText: 'No active inputs.',
+	emptyText: 'form.summary.empty',
 	title: 'shouldRenderSummaryTitle.summary-view',
 };
 
 const totalsViewExpectation = {
-	activeHint: 'Preview uses the current filter projection.',
+	activeHint: 'form.totals.filtered',
 	filteredDocuments: '380',
 	filteredTokens: '760',
-	inactiveHint: 'No filters active.',
+	inactiveHint: 'form.totals.unfiltered',
 	initialDocuments: '1000',
 	initialTokens: '2000',
 };
@@ -235,6 +235,25 @@ function normalizedText(wrapper: VueWrapper<any>) {
 }
 
 describe('builtin controller hosts', () => {
+	test('renders computed generic field text passed through a node', async () => {
+		const label = ref('Initial annotation label');
+		const harness = mountFieldHarness(builder =>
+			builder.newField('computed-label.annotation.node', annotationTextController, TextField, {
+				annotationId: 'computed-label.annotation',
+				displayName: computed(() => label.value),
+			}),
+		);
+
+		expect(harness.wrapper.get('label').text()).toContain('Initial annotation label');
+		expect(harness.wrapper.get('input[type="text"]').attributes('placeholder')).toBe('Initial annotation label');
+
+		label.value = 'Updated annotation label';
+		await nextTick();
+
+		expect(harness.wrapper.get('label').text()).toContain('Updated annotation label');
+		expect(harness.wrapper.get('input[type="text"]').attributes('placeholder')).toBe('Updated annotation label');
+	});
+
 	test('updates annotation controller state from the host', async () => {
 		const harness = mountFieldHarness(builder =>
 			builder.newField('shouldNotEndUpInSummaryId.annotation.node', annotationTextController, TextField, {
@@ -267,10 +286,7 @@ describe('builtin controller hosts', () => {
 	test('updates parallel controller state from the host', async () => {
 		const harness = mountFieldHarness(builder =>
 			builder.newField('shouldEndUpInSummaryId.parallel.node', parallelController, ParallelField, {
-				alignByOptions: [
-					{ value: 'parallel-state.align.other', label: 'shouldNotEndUpInSummaryValue.parallel.alignBy' },
-					{ value: 'parallel-state.align.selected', label: 'shouldEndUpInSummaryValue.parallel.alignBy' },
-				],
+				alignByOptions: ['parallel-state.align.other', 'parallel-state.align.selected'],
 				sourceOptions: languageOptions,
 				targetOptions: languageOptions,
 			}),
@@ -287,9 +303,7 @@ describe('builtin controller hosts', () => {
 	test('updates raw cql state from the host', async () => {
 		const harness = mountFieldHarness(builder =>
 			builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {
-				displayName: 'shouldEndUpInSummaryLabel.raw-cql',
 				helpUrl: 'https://example.test/help',
-				label: 'shouldEndUpInSummaryLabel.raw-cql',
 				rows: 4,
 			}),
 		);
@@ -302,9 +316,7 @@ describe('builtin controller hosts', () => {
 	test('renders the raw cql help link', () => {
 		const harness = mountFieldHarness(builder =>
 			builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {
-				displayName: 'shouldEndUpInSummaryLabel.raw-cql',
 				helpUrl: 'https://example.test/help',
-				label: 'shouldEndUpInSummaryLabel.raw-cql',
 				rows: 4,
 			}),
 		);
@@ -315,7 +327,6 @@ describe('builtin controller hosts', () => {
 	test('updates within controller state from the host', async () => {
 		const harness = mountFieldHarness(builder =>
 			builder.newField('shouldEndUpInSummaryId.within.node', withinController, WithinField, {
-				label: 'shouldEndUpInSummaryLabel.within',
 				options: withinOptions,
 			}),
 		);
@@ -362,10 +373,7 @@ describe('builtin controller summaries', () => {
 		const harness = createFieldRuntime(
 			builder =>
 				builder.newField('shouldEndUpInSummaryId.parallel.node', parallelController, ParallelField, {
-					alignByOptions: [
-						{ value: 'parallel-state.align.other', label: 'shouldNotEndUpInSummaryValue.parallel.alignBy' },
-						{ value: 'parallel-state.align.selected', label: 'shouldEndUpInSummaryValue.parallel.alignBy' },
-					],
+					alignByOptions: ['parallel-state.align.other', 'parallel-state.align.selected'],
 					sourceOptions: languageOptions,
 					targetOptions: languageOptions,
 				}),
@@ -380,8 +388,6 @@ describe('builtin controller summaries', () => {
 	test('uses the field node id in raw cql summaries for direct form children', () => {
 		const harness = createFieldRuntime(builder =>
 			builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {
-				displayName: 'shouldEndUpInSummaryLabel.raw-cql',
-				label: 'shouldEndUpInSummaryLabel.raw-cql',
 				rows: 4,
 			}),
 		);
@@ -395,7 +401,6 @@ describe('builtin controller summaries', () => {
 		const harness = createFieldRuntime(
 			builder =>
 				builder.newField('shouldEndUpInSummaryId.within.node', withinController, WithinField, {
-					label: 'shouldEndUpInSummaryLabel.within',
 					options: withinOptions,
 				}),
 			'container',

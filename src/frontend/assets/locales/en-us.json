@@ -6,7 +6,22 @@
 		"learnMore": "Learn more",
 		"clickToRemove": "Click to remove",
 		"selectValue": "Select a value...",
-		"selectValues": "Select value(s)..."
+		"selectValues": "Select value(s)...",
+		"caseSensitive": "Case- and diacritics-sensitive"
+	},
+	"form": {
+		"summary": {
+			"heading": "Summary",
+			"empty": "No active inputs.",
+			"none": "None"
+		},
+		"totals": {
+			"heading": "Subcorpus totals",
+			"documents": "Documents",
+			"tokens": "Tokens",
+			"filtered": "Preview uses the current filter projection.",
+			"unfiltered": "No filters active."
+		}
 	},
 	"search": {
 		"heading": "Search for …",
@@ -91,6 +106,9 @@
 			"queryForSourceVersion": "Query for source version",
 			"queryForTargetVersion": "Query for target version",
 			"addTargetVersion": "Add another target version"
+		},
+		"within": {
+			"document": "Document"
 		}
 	},
 	"filter": {
@@ -150,6 +168,9 @@
 		"history": "History"
 	},
 	"partOfSpeech": {
+		"cancel": "Cancel",
+		"edit": "Edit",
+		"noneSelected": "No part of speech selected",
 		"noOptions": "No options",
 		"submit": "Ok",
 		"reset": "Reset"

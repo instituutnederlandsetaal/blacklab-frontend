@@ -15,5 +15,4 @@ export type TextFieldUiConfig = GenericFieldUiConfig & {
 	autocomplete?: (term: string) => Promise<string[]>;
 	/** Does the field have the option to toggle case-sensitivity */
 	caseSensitive?: boolean;
-	caseSensitiveLabel?: string;
 };

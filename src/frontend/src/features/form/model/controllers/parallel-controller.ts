@@ -3,7 +3,7 @@ import type { FieldController } from '@/features/form/model/types/form-controlle
 import type { SummaryEntry } from '@/features/form/model/types/form-query';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
 
-import { findOption, optionLabel, type Option } from '@/shared/utils/options';
+import type { Translate } from '@/shared/i18n';
 
 export type ParallelFieldState = {
 	source: string | null;
@@ -12,39 +12,51 @@ export type ParallelFieldState = {
 };
 
 export type ParallelFieldConfig = {
-	label?: string;
-
-	// TODO these are i18n values
-	// We should just use the system directly in the component/controller
-	sourceLabel?: string;
-	targetLabel?: string;
-	alignByLabel?: string;
-	sourceOptions: Option[];
-	targetOptions: Option[];
-	alignByOptions?: Option[];
+	sourceOptions: ParallelAnnotatedField[];
+	targetOptions: ParallelAnnotatedField[];
+	alignByOptions?: string[];
 };
 
 export type ParallelFieldComponentProps = ImplicitFieldComponentProps<ParallelFieldState> & ParallelFieldConfig;
 
+type ParallelAnnotatedField = Parameters<Translate['$tAnnotatedFieldDisplayName']>[0];
+
+function translatedAnnotatedField(runtime: Parameters<NonNullable<FieldController['getQueryContribution']>>[1], field: ParallelAnnotatedField | undefined, fallback: string) {
+	return field ? (runtime.translate?.$tAnnotatedFieldDisplayName(field) ?? field.defaultDisplayName ?? field.version ?? field.id) : fallback;
+}
+
+function translatedAlignBy(runtime: Parameters<NonNullable<FieldController['getQueryContribution']>>[1], alignBy: string) {
+	return runtime.translate?.$tAlignByDisplayName({ value: alignBy }) ?? alignBy;
+}
+
 export const parallelController: FieldController<'parallel', ParallelFieldState, ParallelFieldConfig> = {
 	kind: 'parallel',
 	createDefaultState: config => ({
-		source: config.sourceOptions[0]?.value ?? null,
+		source: config.sourceOptions[0]?.id ?? null,
 		targets: [],
-		alignBy: config.alignByOptions?.[0]?.value ?? null,
+		alignBy: config.alignByOptions?.[0] ?? null,
 	}),
-	// TODO i18n of summary labels, could use existing Translate system though.
-	getQueryContribution(config, _runtime, state) {
+	getQueryContribution(config, runtime, state) {
 		const artifact = withSearchField(createQueryArtifact(), state.source);
 		const entries: SummaryEntry[] = [];
-		if (state.source) entries.push({ id: `${config.id}.source`, label: 'Source', value: optionLabel(findOption(config.sourceOptions, state.source) ?? state.source) });
+		if (state.source)
+			entries.push({
+				id: `${config.id}.source`,
+				label: runtime.translate?.$t(`search.parallel.searchSourceVersion`) ?? 'Source',
+				value: translatedAnnotatedField(runtime, config.sourceOptions.find(field => field.id === state.source), state.source),
+			});
 		if (state.targets.length)
 			entries.push({
 				id: `${config.id}.targets`,
-				label: 'Targets',
-				value: state.targets.map(target => optionLabel(findOption(config.targetOptions ?? config.sourceOptions, target) ?? target)).join(', '),
+				label: runtime.translate?.$t(`search.parallel.andCompareWithTargetVersions`) ?? 'Targets',
+				value: state.targets.map(target => translatedAnnotatedField(runtime, config.targetOptions.find(field => field.id === target), target)).join(', '),
 			});
-		if (state.alignBy) entries.push({ id: `${config.id}.alignBy`, label: 'Align by', value: optionLabel(findOption(config.alignByOptions ?? [], state.alignBy) ?? state.alignBy) });
+		if (state.alignBy)
+			entries.push({
+				id: `${config.id}.alignBy`,
+				label: runtime.translate?.$t(`search.parallel.alignBy`) ?? 'Align by',
+				value: translatedAlignBy(runtime, state.alignBy),
+			});
 		return createQueryContribution(artifact, entries);
 	},
 	// Return something unique for this controller

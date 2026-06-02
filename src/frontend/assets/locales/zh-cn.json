@@ -3,7 +3,22 @@
 		"learnMore": "Learn more",
 		"clickToRemove": "Click to remove",
 		"selectValue": "Select a value...",
-		"selectValues": "Select value(s)..."
+		"selectValues": "Select value(s)...",
+		"caseSensitive": "区分大小写和变音符号"
+	},
+	"form": {
+		"summary": {
+			"heading": "摘要",
+			"empty": "没有活动输入。",
+			"none": "无"
+		},
+		"totals": {
+			"heading": "子语料库总计",
+			"documents": "文档",
+			"tokens": "Tokens",
+			"filtered": "预览使用当前筛选器。",
+			"unfiltered": "没有活动筛选器。"
+		}
 	},
 	"search": {
 		"heading": "搜索方式",
@@ -88,6 +103,9 @@
 			"queryForSourceVersion": "源版本查询",
 			"queryForTargetVersion": "目标版本查询",
 			"addTargetVersion": "添加另一个目标版本"
+		},
+		"within": {
+			"document": "文档"
 		}
 	},
 	"filter": {
@@ -147,6 +165,9 @@
 		"history": "历史"
 	},
 	"partOfSpeech": {
+		"cancel": "取消",
+		"edit": "编辑",
+		"noneSelected": "未选择词性",
 		"noOptions": "没有选项",
 		"submit": "确定",
 		"reset": "重置"

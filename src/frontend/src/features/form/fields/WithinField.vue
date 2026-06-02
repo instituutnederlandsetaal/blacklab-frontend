@@ -1,6 +1,6 @@
 <template>
 	<div :class="fieldClasses">
-		<label>{{ label || 'Within' }}</label>
+		<label>{{ $t(`search.extended.within`) }}</label>
 		<div class="blf-segmented">
 			<button
 				v-for="option in options"
@@ -10,12 +10,12 @@
 				:title="option.title || undefined"
 				@click="selectElement(option.value)"
 			>
-				{{ option.label || option.value || 'Document' }}
+				{{ option.value ? $tSpanDisplayName(option) : $t(`search.within.document`) }}
 			</button>
 		</div>
 
 		<div class="blf-within-attributes" v-for="attr in selectedAttributes" :key="attr.value">
-			<label :for="`${htmlId}_${attr.value}`">{{ attr.label || attr.value }}</label>
+			<label :for="`${htmlId}_${attr.value}`">{{ $tSpanAttributeDisplay(state.element!, attr.value) }}</label>
 			<input
 				class="blf-input form-control"
 				type="text"
@@ -36,7 +36,6 @@ import { decodeVariants } from '@/features/form/model/form-utils';
 import type { WithFieldComponentProps, WithinFieldConfig, WithinFieldState } from '../model/controllers/within-controller';
 
 const props = defineProps<WithFieldComponentProps>();
-
 const state = defineModel<WithinFieldState>({ required: true });
 
 const emit = defineEmits<{

@@ -1,8 +1,8 @@
 <template>
 	<div :class="fieldClasses">
 		<label :for="`${htmlId}_query`">
-			{{ label || 'Corpus Query Language' }}
-			<a v-if="helpUrl" class="help" target="_blank" :href="helpUrl" title="Learn more">?</a>
+			{{ $t(`search.expert.corpusQueryLanguage`) }}
+			<a v-if="helpUrl" class="help" target="_blank" :href="helpUrl" :title="$t(`widgets.learnMore`)">?</a>
 		</label>
 		<textarea class="blf-input form-control querybox" :id="`${htmlId}_query`" :rows="rows || 7" :value="modelValue.query" @input="updateQuery(($event.target as HTMLTextAreaElement).value)" />
 	</div>

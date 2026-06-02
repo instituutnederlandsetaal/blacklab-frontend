@@ -914,12 +914,9 @@ function createFilterContainer(builder: FormBuilder, prefix: string) {
 
 function createParallelConfig() {
 	return {
-		sourceOptions: languageOptions.map(option => ({ ...option, value: `contents__${option.value}` })),
-		targetOptions: languageOptions.map(option => ({ ...option, value: `contents__${option.value}` })),
-		alignByOptions: [
-			{ value: 's', label: 'Sentence' },
-			{ value: 'p', label: 'Paragraph' },
-		],
+		sourceOptions: languageOptions.map(option => ({ id: `contents__${option.value}`, defaultDisplayName: option.label })),
+		targetOptions: languageOptions.map(option => ({ id: `contents__${option.value}`, defaultDisplayName: option.label })),
+		alignByOptions: ['s', 'p'],
 	};
 }
 

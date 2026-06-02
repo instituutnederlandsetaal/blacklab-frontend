@@ -5,7 +5,7 @@
 		<template v-if="presentation.tabs || presentation['small-tabs']">
 			<ul :class="['nav', 'nav-tabs', { 'nav-tabs-small': presentation['small-tabs'] }]" role="tablist">
 				<li v-for="child in children" :key="child.id" :class="{ active: activeChildId === child.id }" role="presentation">
-					<a href="#" role="tab" :aria-selected="activeChildId === child.id" @click.prevent="activeChildId = child.id">{{ child.title || child.id }}</a>
+					<a href="#" role="tab" :aria-selected="activeChildId === child.id" @click.prevent="activeChildId = child.id">{{ resolveTitle(child) }}</a>
 				</li>
 			</ul>
 			<div :class="['tab-content', { 'panel-body': isForm }]">
@@ -20,14 +20,14 @@
 		</div>
 
 		<footer v-if="isForm" class="panel-footer blf-form-actions">
-			<button class="btn btn-primary" type="submit">Submit</button>
-			<button class="btn btn-default" type="reset">Reset</button>
+			<button class="btn btn-primary" type="submit">{{ $t(`queryForm.search`) }}</button>
+			<button class="btn btn-default" type="reset">{{ $t(`queryForm.reset`) }}</button>
 		</footer>
 	</Component>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toValue } from 'vue';
 
 import type { FormNode, ImplicitContainerComponentProps } from '@/features/form/model/types/form-shape';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
@@ -42,7 +42,6 @@ import useUid from '@/shared/utils/useUid';
 defineOptions({ name: 'ContainerRenderer', inheritAttrs: false });
 
 const props = defineProps<ImplicitContainerComponentProps>();
-
 const { runtime, presentation, activeChildId, activeChild } = containerRendererSetup(props);
 const isForm = computed(() => props.kind === 'form');
 const renderScopeId = useUid();
@@ -59,6 +58,10 @@ function nodeProps(node: FormNode, hideTitle = false) {
 		runtime,
 		scopeId: renderScopeId,
 	});
+}
+
+function resolveTitle(node: FormNode) {
+	return node.title ? toValue(node.title) : node.id;
 }
 
 function submit() {

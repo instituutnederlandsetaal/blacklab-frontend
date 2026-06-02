@@ -1,20 +1,19 @@
 <template>
 	<section class="blf-summary-view">
-		<!-- TODO i18n -->
-		<header>{{ title || 'Summary' }}</header>
+		<header>{{ title || $t(`form.summary.heading`) }}</header>
 		<div v-if="entries.length" class="entries">
 			<div v-for="entry in entries" :key="entry.id" class="entry">
 				<span class="label">{{ entry.label }}</span>
 				<span class="value">{{ entry.value }}</span>
 			</div>
 		</div>
-		<div v-else class="empty">No active inputs.</div>
+		<div v-else class="empty">{{ $t(`form.summary.empty`) }}</div>
 
 		<dl v-if="showRaw" class="raw">
 			<dt>CQL</dt>
-			<dd>{{ projection.cql || 'None' }}</dd>
+			<dd>{{ projection.cql || $t(`form.summary.none`) }}</dd>
 			<dt>Lucene</dt>
-			<dd>{{ projection.filter || 'None' }}</dd>
+			<dd>{{ projection.filter || $t(`form.summary.none`) }}</dd>
 		</dl>
 	</section>
 </template>
@@ -26,7 +25,6 @@ import { useParentForm } from '../model/runtime';
 import type { SummaryViewConfig } from '../model/views/summary-view';
 
 defineProps<SummaryViewConfig>();
-
 const parentForm = useParentForm();
 const projection = computed(() => parentForm.compiled);
 const entries = computed(() => parentForm.summaries);

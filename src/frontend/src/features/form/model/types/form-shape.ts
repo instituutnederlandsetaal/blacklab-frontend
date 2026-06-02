@@ -1,11 +1,13 @@
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { AnyVueComponent } from '@/types/helpers';
+import type { MaybeRefOrGetter } from 'vue';
+
+export type MaybeComputed<T> = MaybeRefOrGetter<T>;
 
 /** The base for all form nodes */
 export type BaseNode = {
 	id: string;
-	title?: string;
-	titleKey?: string;
+	title?: MaybeComputed<string>;
 	class?: string;
 };
 // Container

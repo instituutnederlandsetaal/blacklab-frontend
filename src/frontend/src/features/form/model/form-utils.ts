@@ -1,5 +1,5 @@
 import { reactivePick } from '@vueuse/core';
-import { reactive, toRaw } from 'vue';
+import { isRef, reactive, toRaw } from 'vue';
 
 import type { FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeBase, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 import type { FormState } from '@/features/form/model/types/form-state';
@@ -79,7 +79,7 @@ export function checkNoLoops(root: FormNode, completedSubgraphs = new Set<FormNo
 
 export function generateSchemaVersion(root: FormNode): string {
 	// pretty naive hash function, just to get a different version string when the form changes. We could use a proper hash function if needed.
-	const str = JSON.stringify(toSchemaVersionPayload(root), (_key, value) => (typeof value === 'function' ? '[Function]' : value));
+	const str = JSON.stringify(toSchemaVersionPayload(root), (_key, value) => (typeof value === 'function' ? '[Function]' : isRef(value) ? '[Ref]' : value));
 	return hashJavaDJB2(str).toString();
 }
 
@@ -89,7 +89,6 @@ function toSchemaVersionPayload(node: FormNode, seen = new Set<FormNode>()): unk
 		id: node.id,
 		kind: node.kind,
 		title: node.title,
-		titleKey: node.titleKey,
 	};
 
 	if (seen.has(node)) {

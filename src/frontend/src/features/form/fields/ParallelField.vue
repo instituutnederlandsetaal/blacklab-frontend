@@ -1,28 +1,26 @@
 <template>
 	<div :class="fieldClasses">
-		<label>{{ label || 'Parallel search' }}</label>
 		<div class="blf-parallel-grid">
-			<label :for="`${htmlId}_source`">{{ sourceLabel || 'Source' }}</label>
+			<label :for="`${htmlId}_source`">{{ $t(`search.parallel.searchSourceVersion`) }}</label>
 			<select :id="`${htmlId}_source`" class="blf-input form-control" :value="modelValue.source || ''" @change="updateSource(($event.target as HTMLSelectElement).value)">
 				<option value=""></option>
-				<option v-for="option in sourceOptions" :key="option.value" :value="option.value" :title="option.title || undefined">{{ option.label || option.value }}</option>
+				<option v-for="field in sourceOptions" :key="field.id" :value="field.id">{{ $tAnnotatedFieldDisplayName(field) }}</option>
 			</select>
 
-			<label>{{ targetLabel || 'Targets' }}</label>
+			<label>{{ $t(`search.parallel.andCompareWithTargetVersions`) }}</label>
 			<div class="blf-targets">
 				<button
-					v-for="option in targetOptions"
-					:key="option.value"
+					v-for="field in targetOptions"
+					:key="field.id"
 					type="button"
-					:class="{ active: modelValue.targets.includes(option.value) }"
-					:title="option.title || undefined"
-					@click="toggleTarget(option.value)"
+					:class="{ active: modelValue.targets.includes(field.id) }"
+					@click="toggleTarget(field.id)"
 				>
-					{{ option.label || option.value }}
+					{{ $tAnnotatedFieldDisplayName(field) }}
 				</button>
 			</div>
 
-			<label v-if="alignByOptions?.length" :for="`${htmlId}_align`">{{ alignByLabel || 'Align by' }}</label>
+			<label v-if="alignByOptions?.length" :for="`${htmlId}_align`">{{ $t(`search.parallel.alignBy`) }}</label>
 			<select
 				v-if="alignByOptions?.length"
 				:id="`${htmlId}_align`"
@@ -31,7 +29,7 @@
 				@change="updateAlignBy(($event.target as HTMLSelectElement).value)"
 			>
 				<option value=""></option>
-				<option v-for="option in alignByOptions" :key="option.value" :value="option.value" :title="option.title || undefined">{{ option.label || option.value }}</option>
+				<option v-for="alignBy in alignByOptions" :key="alignBy" :value="alignBy">{{ $tAlignByDisplayName({ value: alignBy }) }}</option>
 			</select>
 		</div>
 	</div>
@@ -41,7 +39,6 @@
 import { computed } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
-
 import type { ParallelFieldComponentProps, ParallelFieldState } from '../model/controllers/parallel-controller';
 const props = defineProps<ParallelFieldComponentProps>();
 
@@ -51,7 +48,7 @@ const emit = defineEmits<{
 
 const fieldClasses = computed(() => ['blf-field', 'blf-parallel-field', decodeVariants(props.variant)]);
 const htmlId = computed(() => props.htmlId);
-const targetOptions = computed(() => (props.targetOptions ?? props.sourceOptions).filter(option => option.value !== props.modelValue.source));
+const targetOptions = computed(() => props.targetOptions.filter(field => field.id !== props.modelValue.source));
 
 function updateSource(source: string) {
 	emit('update:modelValue', {

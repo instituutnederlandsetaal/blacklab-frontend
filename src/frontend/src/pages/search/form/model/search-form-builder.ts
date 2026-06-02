@@ -1,3 +1,5 @@
+import { computed } from 'vue';
+
 import type { CorpusContext, FilledCorpusContext } from '@/entities/corpus/model/corpus-context';
 import {
 	FormBuilder,
@@ -49,7 +51,7 @@ function createParallelField(builder: FormBuilder, corpus: CorpusContext, transl
 	if (!index) return null;
 
 	const parallelFields = Object.values(index.annotatedFields)
-		.filter((field): field is Extract<(typeof index.annotatedFields)[string], { isParallel: true }> => field.isParallel)
+		.filter(f => f.isParallel)
 		.sort((left, right) => translate.$tAnnotatedFieldDisplayName(left).localeCompare(translate.$tAnnotatedFieldDisplayName(right)));
 	if (!parallelFields.length) return null;
 
@@ -57,19 +59,12 @@ function createParallelField(builder: FormBuilder, corpus: CorpusContext, transl
 		.filter(relationClass => relationClass.startsWith('al__'))
 		.flatMap(relationClass => Object.keys(index.relations.relations?.[relationClass] ?? {}))
 		.filter((value, position, values) => values.indexOf(value) === position)
-		.sort((left, right) => left.localeCompare(right))
-		.map(value => ({ value, label: translate.$tAlignByDisplayName({ value, label: value }) }));
+		.sort((left, right) => left.localeCompare(right));
 
 	return builder.newField('shared.parallel', parallelController, ParallelField, {
 		alignByOptions,
-		sourceOptions: parallelFields.map(field => ({
-			value: field.id,
-			label: translate.$tAnnotatedFieldDisplayName(field),
-		})),
-		targetOptions: parallelFields.map(field => ({
-			value: field.id,
-			label: translate.$tAnnotatedFieldDisplayName(field),
-		})),
+		sourceOptions: parallelFields,
+		targetOptions: parallelFields,
 		// variant: 'large',
 	});
 }
@@ -79,30 +74,27 @@ function createWithinField(builder: FormBuilder, corpus: CorpusContext, translat
 	if (!spans || !Object.keys(spans).length) return null;
 
 	const options = [
-		{ value: '', label: translate.$t(`search.within.document`) },
+		{ value: '' },
 		...Object.keys(spans)
 			.sort((left, right) => translate.$tSpanDisplayName({ value: left, label: left }).localeCompare(translate.$tSpanDisplayName({ value: right, label: right })))
 			.map(spanName => ({
 				value: spanName,
-				label: translate.$tSpanDisplayName({ value: spanName, label: spanName }),
+				label: spanName,
 				attributes: Object.keys(spans[spanName]?.attributes ?? {})
 					.sort((left, right) => translate.$tSpanAttributeDisplay(spanName, left).localeCompare(translate.$tSpanAttributeDisplay(spanName, right)))
 					.map(attribute => ({
 						value: attribute,
-						label: translate.$tSpanAttributeDisplay(spanName, attribute),
+						label: attribute,
 					})),
 			})),
 	];
 
-	return builder.newField('shared.within', withinController, WithinField, {
-		label: translate.$t(`search.within.heading`),
-		options,
-	});
+	return builder.newField('shared.within', withinController, WithinField, { options });
 }
 
 function createAnnotationField(builder: FormBuilder, nodeId: string, annotation: NormalizedAnnotation, corpus: { index: NormalizedIndex; tagset?: Tagset }, translate: Translate, groupId?: string) {
-	const displayName = translate.$tAnnotDisplayName(annotation);
-	const description = translate.$tAnnotDescription(annotation);
+	const displayName = computed(() => translate.$tAnnotDisplayName(annotation));
+	const description = computed(() => translate.$tAnnotDescription(annotation));
 	const textDirection = corpus.index.textDirection;
 
 	if (annotation.uiType === 'pos') {
@@ -159,8 +151,8 @@ function createFilterField(
 	api?: BlackLabApi,
 ) {
 	const common = {
-		description: translate.$tMetaDescription(field),
-		displayName: translate.$tMetaDisplayName(field),
+		description: computed(() => translate.$tMetaDescription(field)),
+		displayName: computed(() => translate.$tMetaDisplayName(field)),
 		groupId,
 		metadataFieldId: field.id,
 		textDirection,
@@ -217,12 +209,12 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
 	const tabs = builder.newContainer('shared.filters', ContainerRendererFilters, {
 		combine: 'allOf',
 		variant: 'tabs',
-		title: translate.$t(`filter.heading`),
+		title: computed(() => translate.$t(`filter.heading`)),
 	});
 
 	for (const { fields, group } of groups) {
 		const tab = tabs.addContainer(`${tabs.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
-			title: translate.$tMetaGroupName(group.id) || group.id,
+			title: computed(() => translate.$tMetaGroupName(group.id) || group.id),
 		});
 		for (const field of fields) {
 			const nodeId = `${tab.id}.${toSafeHtmlId(field.id)}`;
@@ -233,7 +225,7 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
 	}
 
 	const rootFilterContainer = builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
-		builder.newView('shared.filters.heading', HeadingView, { title: translate.$t(`filter.heading`) }),
+		builder.newView('shared.filters.heading', HeadingView, { title: computed(() => translate.$t(`filter.heading`)) }),
 		tabs,
 		builder.newView('shared.filters.summary', SummaryView, {
 			showRaw: true,
@@ -275,13 +267,13 @@ function createAnnotationTabs(builder: FormBuilder, corpus: { index: NormalizedI
 
 	const tabs = builder.newContainer(`extended.annotations`, ContainerRenderer, {
 		variant: 'small-tabs',
-		title: translate.$t(`search.extended.annotations`),
+		title: computed(() => translate.$t(`search.extended.annotations`)),
 	});
 
 	for (const { annotations, group } of groups) {
 		const tab = tabs.addContainer(`extended.annotations.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
 			variant: 'list',
-			title: translate.$tAnnotGroupName(group),
+			title: computed(() => translate.$tAnnotGroupName(group)),
 		});
 		populateTab(tab, annotations, group.id);
 	}
@@ -313,8 +305,8 @@ export function createSearchFormDefinition(
 	};
 
 	const root = builder.newContainer('root', ContainerRenderer, { variant: 'tabs' });
-	const searchTab = root.addContainer('search', ContainerRenderer, { variant: 'tabs', title: translate.$t(`search.heading`) });
-	root.addContainer('explore', ContainerRenderer, { variant: 'tabs', title: translate.$t(`explore.heading`) });
+	const searchTab = root.addContainer('search', ContainerRenderer, { variant: 'tabs', title: computed(() => translate.$t(`search.heading`)) });
+	root.addContainer('explore', ContainerRenderer, { variant: 'tabs', title: computed(() => translate.$t(`explore.heading`)) });
 
 	const sharedFilters = createSharedFilters(builder, index, translate);
 	const sharedParallel = createParallelField(builder, corpus, translate);
@@ -329,12 +321,12 @@ export function createSearchFormDefinition(
 	searchTab
 		.addForm('search.simple', ContainerRenderer, {
 			variant: 'list',
-			title: translate.$t(`search.simple.heading`),
+			title: computed(() => translate.$t(`search.simple.heading`)),
 		})
 		.addChildren(createAnnotationField(builder, 'search.simple.annotation', simpleField, corpus, translate));
 
 	const extendedSearchForm = searchTab.addForm('search.extended', ContainerRenderer, {
-		title: translate.$t(`search.extended.heading`),
+		title: computed(() => translate.$t(`search.extended.heading`)),
 		variant: 'columns',
 	});
 	extendedSearchForm
@@ -342,7 +334,12 @@ export function createSearchFormDefinition(
 		.addChildren(
 			builder
 				.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' })
-				.addChildren(builder.newView('search.heading', HeadingView, { title: translate.$t(`search.heading`) }), createAnnotationTabs(builder, corpus, translate), sharedParallel, sharedWithin),
+				.addChildren(
+					builder.newView('search.heading', HeadingView, { title: computed(() => translate.$t(`search.heading`)) }),
+					createAnnotationTabs(builder, corpus, translate),
+					sharedParallel,
+					sharedWithin,
+				),
 			sharedFilters,
 		);
 
@@ -350,15 +347,13 @@ export function createSearchFormDefinition(
 	// const advancedSearchForm = searchTab.
 
 	const expertSearchForm = searchTab.addForm('search.expert', ContainerRenderer, {
-		title: translate.$t(`search.expert.heading`),
+		title: computed(() => translate.$t(`search.expert.heading`)),
 		variant: 'columns',
 	});
 	expertSearchForm
 		.addContainer('search.expert.query', ContainerRenderer, {})
-		.addView('search.expert.query.heading', HeadingView, { title: translate.$t(`search.expert.query.heading`) })
-		.addField('search.expert.querybox', expertQueryController, RawCqlField, {
-			displayName: translate.$t(`search.expert.cqlQuery`),
-		})
+		.addView('search.expert.query.heading', HeadingView, { title: computed(() => translate.$t(`search.expert.corpusQueryLanguage`)) })
+		.addField('search.expert.querybox', expertQueryController, RawCqlField, {})
 		.addChildren(sharedParallel, sharedWithin);
 	expertSearchForm.addChildren(sharedFilters);
 

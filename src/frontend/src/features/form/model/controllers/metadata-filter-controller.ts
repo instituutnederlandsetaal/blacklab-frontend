@@ -9,6 +9,7 @@ import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfi
 import { artifactFromFilter, rawFilter, termFilter, withSummary } from '@/features/form/model/compile/query-artifact';
 import type { SummaryEntry } from '@/features/form/model/types';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
+import { toValue } from 'vue';
 
 import { findOption, optionLabel } from '@/shared/utils/options';
 import { escapeLucene, splitIntoTerms } from '@/shared/utils/string-utils';
@@ -45,7 +46,7 @@ function createSummaryEntry(annotationOrFieldOrNodeId: string, config: GenericFi
 	return value
 		? {
 				id: annotationOrFieldOrNodeId,
-				label: config.displayName,
+				label: toValue(config.displayName),
 				value,
 				group: config.groupId,
 			}
@@ -171,7 +172,7 @@ export const filterSelectController = createFieldController<'metadata-filter-sel
 			summary
 				? {
 						id: config.id,
-						label: config.displayName,
+						label: toValue(config.displayName),
 						value: summary,
 						group: config.groupId,
 					}

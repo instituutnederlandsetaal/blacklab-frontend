@@ -1,4 +1,6 @@
+import type { MaybeComputed } from '@/features/form/model/types/form-shape';
+
 export type HeadingViewConfig = {
-	title: string;
-	description?: string;
+	title: MaybeComputed<string>;
+	description?: MaybeComputed<string>;
 };

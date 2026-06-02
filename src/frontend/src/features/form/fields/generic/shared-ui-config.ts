@@ -1,9 +1,11 @@
+import type { MaybeComputed } from '@/features/form/model/types/form-shape';
+
 export type GenericFieldUiConfig = {
 	/** Access for debug rendering of the field */
 	id?: string;
 	groupId?: string;
-	displayName: string;
-	description?: string;
+	displayName: MaybeComputed<string>;
+	description?: MaybeComputed<string | undefined>;
 	textDirection?: 'ltr' | 'rtl';
 };
 
