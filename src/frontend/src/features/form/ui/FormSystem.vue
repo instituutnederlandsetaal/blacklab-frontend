@@ -6,12 +6,13 @@
 
 <script setup lang="ts">
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { PersistableSubmittableFormState } from '@/features/form/model/types/form-query';
-import type { FormState, FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
+import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
+import type { FormState, FormSystemDefinition } from '@/features/form/model/types/form-state';
+import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
 
 import { createFormSystemRuntime, provideFormSystemRuntime } from '../model/runtime';
+
 import useUid from '@/shared/utils/useUid';
-import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
 
 const props = defineProps<{
 	definition: FormSystemDefinition;
@@ -20,15 +21,24 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-	ready: [runtime: FormSystemRuntime];
+	// ready: [runtime: FormSystemRuntime];
 	submit: [formId: string, snapshot: PersistableSubmittableFormState];
+	compile: [formId: string, snapshot: CompiledFormState];
+	persist: [formId: string, snapshot: PersistableFormState];
+	summarize: [formId: string, summaries: SummaryEntry[]];
+	reset: [];
 }>();
 
+// TODO should we be reactive on our props?
+// What if the form changes
 const runtime = createFormSystemRuntime(props.definition, props.context, props.initialState);
 const renderScopeId = useUid();
 provideFormSystemRuntime(runtime);
 runtime.onSubmit((formId, snapshot) => emit('submit', formId, snapshot));
-emit('ready', runtime);
+runtime.onCompile((formId, snapshot) => emit('compile', formId, snapshot));
+runtime.onPersist((formId, snapshot) => emit('persist', formId, snapshot));
+runtime.onSummarize((formId, summaries) => emit('summarize', formId, summaries));
+runtime.onReset(() => emit('reset'));
 
 function rootProps() {
 	return getNodeProps(props.definition.root, {

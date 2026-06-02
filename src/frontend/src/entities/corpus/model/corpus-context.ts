@@ -25,7 +25,4 @@ const [_currentCorpusDataInjectionKey, provideCurrentCorpusData, useCurrentCorpu
 const [_currentCorpusInjectionKey, provideCurrentCorpus, useCurrentCorpus] = useInjectable<NormalizedIndex>('currentCorpus');
 const [_currentTagsetInjectionKey, provideCurrentTagset, useCurrentTagset] = useInjectable<Ref<Tagset | undefined>>('currentTagset');
 
-const provideCurrentCorpusContext = provideCurrentCorpusData;
-const useCurrentCorpusContextData = useCurrentCorpusData;
-
-export { provideCurrentCorpus, provideCurrentCorpusContext, provideCurrentCorpusData, provideCurrentTagset, useCurrentCorpus, useCurrentCorpusContextData, useCurrentCorpusData, useCurrentTagset };
+export { provideCurrentCorpus, provideCurrentCorpusData, provideCurrentTagset, useCurrentCorpus, useCurrentCorpusData, useCurrentTagset };
