@@ -1,34 +1,29 @@
 {
-	"[typescript]": {
-		"editor.defaultFormatter": "oxc.oxc-vscode"
-	},
-	"editor.codeActionsOnSave": {
-		"source.addMissingImports.ts": "explicit",
-		"source.fixAll.oxc": "explicit",
-		"source.format.oxc": "explicit",
-		"source.organizeImports": "never",
-		"source.removeUnusedImports": "explicit",
-		"source.sortImports": "never"
-	},
-	"editor.defaultFormatter": "oxc.oxc-vscode",
-	"editor.insertSpaces": false,
-	"java.configuration.updateBuildConfiguration": "interactive",
-	"java.import.gradle.enabled": false,
-	"java.import.gradle.wrapper.enabled": false,
-	"java.import.projectSelection": "manual",
-	"java.project.resourceFilters": [
-		"node_modules",
-		"\\.git",
-		"/src/frontend/",
-		"/docs"
-	],
-	"oxc.configPath": "src/frontend/oxlint.config.ts",
-	"oxc.enable": true,
-	"oxc.fixKind": "safe_fix",
-	"oxc.fmt.configPath": "src/frontend/oxfmt.config.ts",
-	"oxc.path.oxfmt": "src/frontend/node_modules/.bin/oxfmt",
-	"oxc.path.oxlint": "src/frontend/node_modules/.bin/oxlint",
-	"oxc.path.tsgolint": "src/frontend/node_modules/.bin/tsgolint",
-	"oxc.tsConfigPath": "src/frontend/tsconfig.app.json",
-	"oxc.typeAware": true
+  "[typescript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "editor.codeActionsOnSave": {
+    "source.addMissingImports.ts": "explicit",
+    "source.fixAll.oxc": "explicit",
+    "source.format.oxc": "explicit",
+    "source.organizeImports": "never",
+    "source.removeUnusedImports": "explicit",
+    "source.sortImports": "never"
+  },
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "editor.insertSpaces": false,
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "java.import.gradle.enabled": false,
+  "java.import.gradle.wrapper.enabled": false,
+  "java.import.projectSelection": "manual",
+  "java.project.resourceFilters": ["node_modules", "\\.git", "/src/frontend/", "/docs"],
+  "oxc.configPath": "src/frontend/oxlint.config.mts",
+  "oxc.enable": true,
+  "oxc.fixKind": "safe_fix",
+  "oxc.fmt.configPath": "src/frontend/oxfmt.config.mts",
+  "oxc.path.oxfmt": "src/frontend/node_modules/.bin/oxfmt",
+  "oxc.path.oxlint": "src/frontend/node_modules/.bin/oxlint",
+  "oxc.path.tsgolint": "src/frontend/node_modules/.bin/tsgolint",
+  "oxc.tsConfigPath": "src/frontend/tsconfig.app.json",
+  "oxc.typeAware": true
 }
