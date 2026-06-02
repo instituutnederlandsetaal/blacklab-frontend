@@ -3,6 +3,7 @@
 		<label v-if="showLabel" :for="`${inputId}_year_from`">
 			{{ displayName }}
 			<small v-if="minDateDisplay && maxDateDisplay" class="blf-muted">({{ minDateDisplay }} to {{ maxDateDisplay }})</small>
+			<debug> [{{ id }}]</debug>
 		</label>
 
 		<div>

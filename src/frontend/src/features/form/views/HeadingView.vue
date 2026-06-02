@@ -22,10 +22,6 @@ p {
 	margin: 0;
 }
 
-h3 {
-	font-size: 1.05em;
-}
-
 p {
 	color: var(--blf-text-muted);
 }

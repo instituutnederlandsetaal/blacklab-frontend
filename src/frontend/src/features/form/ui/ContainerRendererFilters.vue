@@ -4,7 +4,7 @@
 
 		<template v-if="isTabbed">
 			<nav :class="['blf-tabs', { 'blf-tabs-small': isSmallTabs }]" aria-label="Form section tabs">
-				<button v-for="child in children" :key="child.id" type="button" :class="{ active: activeChild?.id === child.id }" @click="activateChild(child.id)">
+				<button v-for="child in children" :key="child.id" type="button" :class="{ active: activeChildId === child.id }" @click="activeChildId = child.id">
 					{{ child.title || child.id }}
 					<span v-if="activeSummaryCounts[child.id]" class="blf-tab-count">{{ activeSummaryCounts[child.id] }}</span>
 				</button>
@@ -29,14 +29,15 @@ import { isContainerNode } from '@/features/form/model/form-utils';
 import { useParentForm } from '@/features/form/model/runtime';
 import type { FormNode, ImplicitContainerComponentProps } from '@/features/form/model/types/form-shape';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
-import useUid from '@/shared/utils/useUid';
 import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
+
+import useUid from '@/shared/utils/useUid';
 
 defineOptions({ name: 'ContainerRendererFilters' });
 
 const props = defineProps<ImplicitContainerComponentProps>();
 
-const { runtime, isTabbed, isSmallTabs, activeChild, containerClasses, activateChild } = containerRendererSetup(props);
+const { runtime, isTabbed, isSmallTabs, activeChild, containerClasses, activeChildId } = containerRendererSetup(props);
 const parentForm = useParentForm();
 const renderScopeId = useUid();
 

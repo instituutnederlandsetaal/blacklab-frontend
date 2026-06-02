@@ -1,6 +1,8 @@
 <template>
 	<div :class="fieldClasses" :id="htmlId">
-		<label v-if="showLabel" :for="`${inputId}_lower`">{{ displayName }}</label>
+		<label v-if="showLabel" :for="`${inputId}_lower`"
+			>{{ displayName }}<debug> [{{ id }}]</debug></label
+		>
 		<div class="blf-dual-input">
 			<input :id="`${inputId}_lower`" v-model="lower" :type="inputType" :placeholder="lowPlaceholder" class="blf-input form-control" autocomplete="off" />
 			<input :id="`${inputId}_upper`" v-model="upper" :type="inputType" :placeholder="highPlaceholder" class="blf-input form-control" autocomplete="off" />

@@ -1,44 +1,40 @@
 import { computed } from 'vue';
 
-import { useFormSystemRuntime } from '@/features/form/model/runtime';
 import { decodeVariants } from '@/features/form/model/form-utils';
+import { useFormSystemRuntime } from '@/features/form/model/runtime';
 import type { FormNode, ImplicitContainerComponentProps } from '@/features/form/model/types/form-shape';
 
 export default function containerRendererSetup(props: ImplicitContainerComponentProps) {
 	const runtime = useFormSystemRuntime();
 
 	const presentation = computed(() => decodeVariants(props.variant));
-	const isTabbed = computed(() => !!(presentation.value.tabs || presentation.value['small-tabs']));
-	const isSmallTabs = computed(() => !!presentation.value['small-tabs']);
 	const childrenById = computed(() => Object.fromEntries(props.children.map(child => [child.id, child])));
 
-	const activeChild = computed<FormNode | null>(() => {
-		const activeChildId = runtime.state.value.uiState.activeContainers[props.id] ?? null;
-		return activeChildId ? childrenById.value[activeChildId] : null;
+	const activeChildId = computed({
+		get(): string | null {
+			return runtime.state.value.uiState.activeContainers[props.id] ?? props.children[0]?.id ?? null;
+		},
+		set(value: string) {
+			const child = childrenById.value[value];
+			if (!child) {
+				console.warn(`Attempted to activate child with id ${value} in container ${props.id}, but no such child exists.`);
+				return;
+			}
+
+			if (child.kind === 'form') {
+				runtime.activeFormNode.value = child;
+			}
+			runtime.state.value.uiState.activeContainers[props.id] = value;
+		},
 	});
 
-	const containerClasses = computed(() => [
-		'blf-container',
-		props.kind === 'form' ? 'blf-form' : null,
-		presentation.value,
-		props.class,
-	]);
-
-	function activateChild(childId: string) {
-		const child = childrenById.value[childId];
-		if (!child) return;
-		runtime.state.value.uiState.activeContainers[props.id] = childId;
-		if (child.kind === 'form') {
-			runtime.activeFormNode.value = child;
-		}
-	}
+	const activeChild = computed<FormNode | null>(() => (activeChildId.value ? childrenById.value[activeChildId.value] : null));
 
 	return {
 		runtime,
-		isTabbed,
-		isSmallTabs,
+		presentation,
+		activeChildId,
 		activeChild,
-		containerClasses,
-		activateChild,
+		activeTab: activeChildId,
 	};
 }

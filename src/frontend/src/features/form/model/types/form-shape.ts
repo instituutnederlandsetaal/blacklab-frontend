@@ -18,7 +18,7 @@ export type BaseContainerNode = BaseNode & {
 	kind: 'container';
 	/** Defaults to list if unset */
 	variant?: ContainerPresentation | ContainerPresentation[];
-	children: any[];
+	children: AnyRealFormNode[];
 	/** Defaults to 'allOf' if unset */
 	combine?: QueryCombineMode;
 };

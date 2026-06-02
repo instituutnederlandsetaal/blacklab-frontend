@@ -1,7 +1,9 @@
 <template>
 	<div :class="fieldClasses" :id="htmlId">
 		<fieldset>
-			<legend v-if="showLabel">{{ displayName }}</legend>
+			<legend v-if="showLabel">
+				{{ displayName }}<debug> [{{ id }}]</debug>
+			</legend>
 			<div v-for="(option, index) in options" :key="index" class="radio">
 				<label :for="`${inputId}_${index}`" :title="option.title || ''">
 					<input

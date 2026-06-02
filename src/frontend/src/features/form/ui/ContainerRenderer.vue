@@ -2,15 +2,19 @@
 	<Component :is="isForm ? 'form' : 'section'" :class="containerClasses" @submit.prevent="submit" @reset.prevent="reset">
 		<header v-if="title && !hideTitle" :class="isForm ? 'blf-form-title' : 'blf-container-title'">{{ title }}</header>
 
-		<template v-if="isTabbed">
-			<nav :class="['blf-tabs', { 'blf-tabs-small': isSmallTabs }]" aria-label="Form section tabs">
-				<button v-for="child in children" :key="child.id" type="button" :class="{ active: activeChild?.id === child.id }" @click="activateChild(child.id)">
-					{{ child.title || child.id }}
-				</button>
-			</nav>
-			<div :class="['blf-tab-panel', isForm ? 'blf-form-body' : null]">
-				<Component v-if="activeChild" :is="resolveNodeComponent(activeChild)" :key="activeChild.id" v-bind="nodeProps(activeChild, true)" />
-			</div>
+		<template v-if="presentation.tabs || presentation['small-tabs']">
+			<Tabs
+				:tabs="
+					children.map(c => ({
+						value: c.id,
+						label: c.title,
+					}))
+				"
+				:small="presentation['small-tabs']"
+				wrap
+				v-model="activeChildId"
+			/>
+			<Component v-if="activeChild" :is="resolveNodeComponent(activeChild)" v-bind="nodeProps(activeChild, true)" :key="activeChildId" />
 		</template>
 
 		<div v-else :class="isForm ? 'blf-form-body' : 'blf-container-list'">
@@ -28,18 +32,26 @@
 import { computed } from 'vue';
 
 import type { FormNode, ImplicitContainerComponentProps } from '@/features/form/model/types/form-shape';
-import { createAndProvideParentForm } from '../model/runtime';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
-import useUid from '@/shared/utils/useUid';
+
+import { createAndProvideParentForm } from '../model/runtime';
 import { getNodeProps, resolveNodeComponent } from './node-render';
 
-defineOptions({ name: 'ContainerRenderer' });
+import useUid from '@/shared/utils/useUid';
+
+import Tabs from '@/shared/ui/Tabs.vue';
+
+// InheritAttrs false to prevent rendering extra properties in dom, such as functions passed as props
+// Due to how we pass props, this component would otherwise render a lot of unwanted attributes on the container element, such as util methods on the form node object etc.
+defineOptions({ name: 'ContainerRenderer', inheritAttrs: false });
 
 const props = defineProps<ImplicitContainerComponentProps>();
 
-const { runtime, isTabbed, isSmallTabs, activeChild, containerClasses, activateChild } = containerRendererSetup(props);
+const { runtime, presentation, activeChildId, activeChild } = containerRendererSetup(props);
 const isForm = computed(() => props.kind === 'form');
 const renderScopeId = useUid();
+
+const containerClasses = computed(() => ['blf-container', props.kind === 'form' ? 'blf-form' : null, presentation.value, props.class]);
 
 if (props.kind === 'form') {
 	createAndProvideParentForm(runtime, () => props.id);

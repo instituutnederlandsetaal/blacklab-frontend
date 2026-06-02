@@ -1,19 +1,19 @@
 <template>
-	<div class="tabs" :class="{ vertical, flexy, wrap}">
-		<div v-for="tab, index in tabsModel"
-			:class="{
-				active: index === selectedTab.index,
-				tab: true,
-				disabled: tab.disabled,
-				'text-primary': index !== selectedTab.index,
-				'text-body': index === selectedTab.index,
-				...(function() {
-					if (typeof tab.class === 'string') return {[tab.class]: true}
-					else return tab.class
-				})()
-			}"
+	<div class="tabs" :class="{ vertical, flexy, wrap }">
+		<div
+			v-for="(tab, index) in tabsModel"
+			:class="[
+				'tab',
+				tab.class,
+				{
+					active: index === selectedTab.index,
+					disabled: tab.disabled,
+					'text-primary': index !== selectedTab.index,
+					'text-body': index === selectedTab.index,
+				},
+			]"
 			:style="tab.style"
-			@click.middle="$emit('middlemouse', {tab, index})"
+			@click.middle="$emit('middlemouse', { tab, index })"
 		>
 			<slot name="default" :tab="tab" :i="index">
 				<slot name="before" :tab="tab" :i="index"></slot>
@@ -21,11 +21,11 @@
 					type="button"
 					:class="{
 						'tab-content': true,
-						disabled: tab.disabled
+						disabled: tab.disabled,
 					}"
 					:title="tab.title || ''"
 					:disabled="tab.disabled"
-					@click="selectedTab = {tab, index}"
+					@click="selectedTab = { tab, index }"
 				>
 					{{ tab.label ?? tab.value }}
 				</button>
@@ -36,30 +36,32 @@
 </template>
 
 <script lang="ts">
-import type { Option } from '@/utils/options/options';
 import type { PropType, StyleValue } from 'vue';
 import { defineComponent } from 'vue';
 
-export type Tab = Option&{
-	class?: string|Record<string, boolean>,
-	style?: StyleValue,
-}
+import type { Option } from '@/shared/utils/options';
+
+export type Tab = Option & {
+	class?: string | Record<string, boolean>;
+	style?: StyleValue;
+};
 
 export default defineComponent({
 	emits: ['update:modelValue', 'middlemouse'],
 	props: {
-		modelValue: { type: [String, Number, null] as PropType<string|number|null>, default: null },
-		tabs: { type: Array as PropType<Array<string|(Option&{class?: string|Record<string, boolean>, style?: StyleValue})>>, required: true },
+		modelValue: { type: [String, Number, null] as PropType<string | number | null>, default: null },
+		tabs: { type: Array as PropType<Array<string | (Option & { class?: string | Record<string, boolean>; style?: StyleValue })>>, required: true },
 		vertical: Boolean,
 		flexy: Boolean,
 		wrap: Boolean,
+		small: Boolean,
 	},
 	data: () => ({
 		internalModel: -1,
 	}),
 	computed: {
 		tabsModel(): Tab[] {
-			return this.tabs.map((tab: Option|string) => {
+			return this.tabs.map((tab: Option | string) => {
 				if (typeof tab === 'string') {
 					return { label: tab, value: tab };
 				}
@@ -67,33 +69,30 @@ export default defineComponent({
 			});
 		},
 		selectedTab: {
-			get(): {tab?: Tab, index: number} {
+			get(): { tab?: Tab; index: number } {
 				if (typeof this.modelValue === 'number') {
-					return {tab: this.tabsModel[this.modelValue], index: this.modelValue};
+					return { tab: this.tabsModel[this.modelValue], index: this.modelValue };
 				}
 				if (typeof this.modelValue === 'string') {
 					const i = this.tabsModel.findIndex(tab => tab.value === this.modelValue);
-					return {tab: this.tabsModel[i], index: i};
-				}
-				else {
-					return {tab: this.tabsModel[this.internalModel], index: this.internalModel};
+					return { tab: this.tabsModel[i], index: i };
+				} else {
+					return { tab: this.tabsModel[this.internalModel], index: this.internalModel };
 				}
 			},
-			set(value: {tab: Tab, index: number}) {
+			set(value: { tab: Tab; index: number }) {
 				// emit either a number or a string, depending on what was put in.
 				const emitValue = typeof this.modelValue === 'string' ? value.tab.value : value.index;
 
 				this.$emit('update:modelValue', emitValue);
 				this.internalModel = value.index;
-			}
-		}
-	}
-})
-
+			},
+		},
+	},
+});
 </script>
 
 <style lang="scss" scoped>
-
 .tabs {
 	--inactiveColor: #white;
 	--activeColor: white;
@@ -103,7 +102,8 @@ export default defineComponent({
 }
 
 @mixin roundover-blocks($zindex, $color, $size, $radius) {
-	&:before, &:after {
+	&:before,
+	&:after {
 		content: ' ';
 		position: absolute;
 		width: $size;
@@ -148,15 +148,37 @@ export default defineComponent({
 
 @mixin roundoverHorizontal($size, $active, $inactive) {
 	&:not(:first-child) {
-		@include block('before', $size, $inactive, 3) {bottom: -1px; left: -$size; border-bottom-right-radius: 100%; border-top-left-radius: 100%; border-right: 1px solid var(--activeBorderColor); border-bottom: 1px solid var(--activeBorderColor);}
+		@include block('before', $size, $inactive, 3) {
+			bottom: -1px;
+			left: -$size;
+			border-bottom-right-radius: 100%;
+			border-top-left-radius: 100%;
+			border-right: 1px solid var(--activeBorderColor);
+			border-bottom: 1px solid var(--activeBorderColor);
+		}
 		> *:first-child {
-			@include block('before', $size, $active, 2) {bottom: -1px; left: -$size; border-top-left-radius: 100%;}
+			@include block('before', $size, $active, 2) {
+				bottom: -1px;
+				left: -$size;
+				border-top-left-radius: 100%;
+			}
 		}
 	}
 	&:not(:last-child) {
-		@include block('after',  $size, $inactive, 3) {bottom: -1px; right: -$size; border-bottom-left-radius: 100%; border-top-right-radius: 100%; border-left: 1px solid var(--activeBorderColor); border-bottom: 1px solid var(--activeBorderColor);}
+		@include block('after', $size, $inactive, 3) {
+			bottom: -1px;
+			right: -$size;
+			border-bottom-left-radius: 100%;
+			border-top-right-radius: 100%;
+			border-left: 1px solid var(--activeBorderColor);
+			border-bottom: 1px solid var(--activeBorderColor);
+		}
 		> *:first-child {
-			@include block('after',  $size, $active, 2) {bottom: -1px; right: -$size; border-top-right-radius: 100%;}
+			@include block('after', $size, $active, 2) {
+				bottom: -1px;
+				right: -$size;
+				border-top-right-radius: 100%;
+			}
 		}
 	}
 }
@@ -164,22 +186,42 @@ export default defineComponent({
 @mixin roundoverVertical($size, $active, $inactive) {
 	&:not(:first-child) {
 		// pill in front
-		@include block('before', $size, $inactive, 3) {right: -1px; top: -$size; border-bottom-right-radius: 100%; border-top-left-radius: 100%; border-right: 1px solid var(--activeBorderColor); border-bottom: 1px solid var(--activeBorderColor);}
+		@include block('before', $size, $inactive, 3) {
+			right: -1px;
+			top: -$size;
+			border-bottom-right-radius: 100%;
+			border-top-left-radius: 100%;
+			border-right: 1px solid var(--activeBorderColor);
+			border-bottom: 1px solid var(--activeBorderColor);
+		}
 		// square in back
 		> *:first-child {
-			@include block('before', $size, $active, 2) {right: -1px; top: -$size; border-top-left-radius: 100%}
+			@include block('before', $size, $active, 2) {
+				right: -1px;
+				top: -$size;
+				border-top-left-radius: 100%;
+			}
 		}
 	}
 
 	&:not(:last-child) {
-		@include block('after',  $size, $inactive, 3) {right: -1px; bottom: -$size; border-bottom-left-radius: 100%; border-top-right-radius: 100%; border-right: 1px solid var(--activeBorderColor); border-top: 1px solid var(--activeBorderColor);}
+		@include block('after', $size, $inactive, 3) {
+			right: -1px;
+			bottom: -$size;
+			border-bottom-left-radius: 100%;
+			border-top-right-radius: 100%;
+			border-right: 1px solid var(--activeBorderColor);
+			border-top: 1px solid var(--activeBorderColor);
+		}
 		> *:first-child {
-			@include block('after',  $size, $active, 2) {right: -1px; bottom: -$size; border-bottom-left-radius: 100%;}
+			@include block('after', $size, $active, 2) {
+				right: -1px;
+				bottom: -$size;
+				border-bottom-left-radius: 100%;
+			}
 		}
 	}
 }
-
-
 
 $radius: 4px;
 
@@ -233,7 +275,9 @@ $radius: 4px;
 		> .tab {
 			// border-top: 0;
 			// &:first-child { border-left: 0; }
-			&:last-child { margin-right: -1px; } // collapse border with container.
+			&:last-child {
+				margin-right: -1px;
+			} // collapse border with container.
 
 			border-top-left-radius: $radius;
 			border-top-right-radius: $radius;
@@ -257,8 +301,12 @@ $radius: 4px;
 
 		> .tab {
 			// border-left: 0;
-			&:first-child { border-top: 0; }
-			&:last-child { margin-bottom: -1px; } // collapse border with container.
+			&:first-child {
+				border-top: 0;
+			}
+			&:last-child {
+				margin-bottom: -1px;
+			} // collapse border with container.
 
 			text-align: right;
 			border-top-left-radius: $radius;
@@ -277,6 +325,4 @@ $radius: 4px;
 		}
 	}
 }
-
-
 </style>

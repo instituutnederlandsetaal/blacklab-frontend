@@ -1,6 +1,6 @@
 <template>
 	<div class="blf-form-system">
-		<Component :is="resolveNodeComponent(definition.root)" v-bind="rootProps()" />
+		<Component :is="resolveNodeComponent(definition.root)" v-bind="rootProps()" :key="definition.root.id" />
 	</div>
 </template>
 

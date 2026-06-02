@@ -36,6 +36,7 @@ import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import WithinField from '@/features/form/fields/WithinField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import ContainerRendererFilters from '@/features/form/ui/ContainerRendererFilters.vue';
+import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
 
 /** Create a valid HTML id from a string. Replacing whitespace with dashes and removing leading or trailing dashes */
@@ -197,7 +198,7 @@ function createFilterField(
 }
 
 /**
- * Build the root filter container. Excluding the 'filter by...' heading.
+ * Build the root filter container. Including the 'filter by...' heading.
  * Does not attach the filters to the node graph yet, that way we can reuse the same filters for multiple forms by inserting them multiple times.
  */
 function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, translate: Translate) {
@@ -215,12 +216,12 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
 
 	const tabs = builder.newContainer('shared.filters', ContainerRendererFilters, {
 		combine: 'allOf',
-		variant: 'small-tabs',
+		variant: 'tabs',
 		title: translate.$td('search.filters.heading', 'Filters'),
 	});
 
 	for (const { fields, group } of groups) {
-		const tab = tabs.addContainer(`${tabs.id}.${toSafeHtmlId(group.id)}`, ContainerRendererFilters, {
+		const tab = tabs.addContainer(`${tabs.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
 			title: translate.$tMetaGroupName(group.id) || group.id,
 		});
 		for (const field of fields) {
@@ -231,13 +232,16 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
 		}
 	}
 
-	return builder
-		.newContainer('shared.filters.wrapper', ContainerRendererFilters, { variant: 'list' })
-		.addChildren(tabs)
-		.addView('shared.filters.summary', SummaryView, {
+	const rootFilterContainer = builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
+		builder.newView('shared.filters.heading', HeadingView, { title: translate.$td('search.filters.heading', 'Filter Search By...') }),
+		tabs,
+		builder.newView('shared.filters.summary', SummaryView, {
 			showRaw: true,
 			title: translate.$td('search.filters.summary.heading', 'Selected filters'),
-		});
+		}),
+	);
+
+	return rootFilterContainer;
 }
 
 /**
@@ -334,8 +338,19 @@ export function createSearchFormDefinition(
 		title: translate.$td('search.extended.heading', 'Extended'),
 		variant: 'columns',
 	});
-	extendedSearchForm.addContainer('search.extended.query', ContainerRenderer, {}).addChildren(createAnnotationTabs(builder, corpus, translate), sharedParallel, sharedWithin);
-	extendedSearchForm.addChildren(sharedFilters);
+	extendedSearchForm
+		.addContainer('search.extended.query', ContainerRenderer, {})
+		.addChildren(
+			builder
+				.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' })
+				.addChildren(
+					builder.newView('search.extended.query.heading', HeadingView, { title: translate.$td('search.extended.query.heading', 'Search for ...') }),
+					createAnnotationTabs(builder, corpus, translate),
+					sharedParallel,
+					sharedWithin,
+				),
+			sharedFilters,
+		);
 
 	// TODO querybuilder
 	// const advancedSearchForm = searchTab.
@@ -346,6 +361,7 @@ export function createSearchFormDefinition(
 	});
 	expertSearchForm
 		.addContainer('search.expert.query', ContainerRenderer, {})
+		.addView('search.expert.query.heading', HeadingView, { title: translate.$td('search.expert.query.heading', 'Enter CQL query') })
 		.addField('search.expert.querybox', expertQueryController, RawCqlField, {
 			displayName: translate.$td('search.expert.cqlQuery', 'CQL query'),
 		})

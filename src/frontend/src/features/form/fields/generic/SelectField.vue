@@ -1,6 +1,8 @@
 <template>
 	<div :class="fieldClasses" :id="htmlId">
-		<label v-if="showLabel" :for="inputId">{{ displayName }}</label>
+		<label v-if="showLabel" :for="inputId"
+			>{{ displayName }}<debug> [{{ id }}]</debug>
+		</label>
 		<SelectPicker
 			data-width="100%"
 			:multiple="multiple"
