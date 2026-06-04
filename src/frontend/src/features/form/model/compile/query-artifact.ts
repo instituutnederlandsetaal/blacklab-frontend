@@ -3,6 +3,7 @@ import type {
 	CompiledFormState,
 	QueryContribution,
 	QueryFilterNode,
+	QueryTokenConditionNode,
 	QueryPatternNode,
 	QueryTokenClauseNode,
 	QueryWrapper,
@@ -131,8 +132,8 @@ function compilePattern(pattern: QueryPatternNode | null): string | null {
 		case 'raw':
 			return pattern.cql.trim() || null;
 		case 'token': {
-			const clauses = pattern.clauses.map(compileTokenClause).filter(isNonNull);
-			return clauses.length ? `[${clauses.join(' & ')}]` : null;
+			const condition = compileTokenCondition(normalizeTokenCondition(pattern));
+			return condition ? `[${condition}]` : null;
 		}
 		case 'sequence': {
 			const children = pattern.children.map(compilePattern).filter(isNonNull);
@@ -172,6 +173,26 @@ function compileFilter(filter: QueryFilterNode | null): string | null {
 	}
 }
 
+function normalizeTokenCondition(token: Extract<QueryPatternNode, { type: 'token' }>): QueryTokenConditionNode {
+	return simplifyTokenCondition({
+		type: 'boolean',
+		operator: token.operator ?? 'and',
+		children: token.clauses,
+	});
+}
+
+function compileTokenCondition(condition: QueryTokenConditionNode, parentOperator?: 'and' | 'or'): string | null {
+	if (!isTokenBooleanCondition(condition)) return compileTokenClause(condition);
+
+	const children = condition.children.map(child => compileTokenCondition(child, condition.operator)).filter(isNonNull);
+	if (!children.length) return null;
+	if (children.length === 1) return children[0];
+
+	const operator = condition.operator === 'and' ? ' & ' : ' | ';
+	const compiled = children.join(operator);
+	return parentOperator && parentOperator !== condition.operator ? `(${compiled})` : compiled;
+}
+
 function compileTokenClause(clause: QueryTokenClauseNode): string | null {
 	const value = clause.value.trim();
 	if (!value) return null;
@@ -194,7 +215,15 @@ function combinePatterns(patterns: QueryPatternNode[], combine: QueryCombineMode
 	if (!patterns.length) return null;
 	if (patterns.length === 1) return patterns[0];
 	if (combine === 'sequence') return { type: 'sequence', children: patterns };
-	return { type: 'boolean', operator: combine === 'anyOf' ? 'or' : 'and', children: patterns };
+	if (combine === 'allOf') {
+		const folded = foldTokenSequences(patterns, 'and');
+		if (folded) return folded;
+	}
+	return simplifyPatternBoolean({
+		type: 'boolean',
+		operator: combine === 'anyOf' ? 'or' : 'and',
+		children: patterns,
+	});
 }
 
 function combineFilters(filters: QueryFilterNode[], operator: 'and' | 'or'): QueryFilterNode | null {
@@ -209,6 +238,56 @@ function hasContribution(contribution: QueryContribution): boolean {
 
 function hasQueryContributions(artifact: CompilableQuery): boolean {
 	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchField);
+}
+
+function foldTokenSequences(patterns: QueryPatternNode[], operator: 'and' | 'or'): QueryPatternNode | null {
+	const sequences = patterns.map(asTokenSequence);
+	if (sequences.some(sequence => !sequence)) return null;
+
+	const maxLength = Math.max(...sequences.map(sequence => sequence?.length ?? 0));
+	const children: QueryPatternNode[] = [];
+	for (let index = 0; index < maxLength; index += 1) {
+		const tokens = sequences.map(sequence => sequence?.[index]).filter(isNonNull);
+		if (tokens.length) children.push(combineTokens(tokens, operator));
+	}
+
+	if (!children.length) return null;
+	return children.length === 1 ? children[0] : { type: 'sequence', children };
+}
+
+function asTokenSequence(pattern: QueryPatternNode): Extract<QueryPatternNode, { type: 'token' }>[] | null {
+	if (pattern.type === 'token') return [pattern];
+	if (pattern.type === 'sequence' && pattern.children.every(child => child.type === 'token')) {
+		return pattern.children as Extract<QueryPatternNode, { type: 'token' }>[];
+	}
+	return null;
+}
+
+function combineTokens(tokens: Extract<QueryPatternNode, { type: 'token' }>[], operator: 'and' | 'or'): QueryPatternNode {
+	return {
+		type: 'token',
+		operator,
+		clauses: tokens.map(token => normalizeTokenCondition(token)),
+	};
+}
+
+function simplifyPatternBoolean(pattern: Extract<QueryPatternNode, { type: 'boolean' }>): QueryPatternNode {
+	const children = pattern.children.flatMap(child => (child.type === 'boolean' && child.operator === pattern.operator ? child.children : [child]));
+	if (children.length === 1) return children[0];
+	return { ...pattern, children };
+}
+
+function simplifyTokenCondition(condition: QueryTokenConditionNode): QueryTokenConditionNode {
+	if (!isTokenBooleanCondition(condition)) return condition;
+
+	const children = condition.children.map(simplifyTokenCondition).flatMap(child => (isTokenBooleanCondition(child) && child.operator === condition.operator ? child.children : [child]));
+
+	if (children.length === 1) return children[0];
+	return { ...condition, children };
+}
+
+function isTokenBooleanCondition(condition: QueryTokenConditionNode): condition is Extract<QueryTokenConditionNode, { type: 'boolean' }> {
+	return condition.type === 'boolean';
 }
 
 function escapeLucene(value: string): string {

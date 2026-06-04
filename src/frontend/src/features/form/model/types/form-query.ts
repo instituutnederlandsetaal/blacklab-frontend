@@ -10,9 +10,11 @@ export type QueryTokenClauseNode = {
 	caseSensitive?: boolean;
 };
 
+export type QueryTokenConditionNode = QueryTokenClauseNode | { type: 'boolean'; operator: 'and' | 'or'; children: QueryTokenConditionNode[] };
+
 export type QueryPatternNode =
 	| { type: 'sequence'; children: QueryPatternNode[] }
-	| { type: 'token'; clauses: QueryTokenClauseNode[] }
+	| { type: 'token'; clauses: QueryTokenConditionNode[]; operator?: 'and' | 'or' }
 	| { type: 'boolean'; operator: 'and' | 'or'; children: QueryPatternNode[] }
 	| { type: 'parallel'; source: QueryPatternNode; targets: QueryParallelTargetNode[] }
 	| { type: 'raw'; cql: string };
