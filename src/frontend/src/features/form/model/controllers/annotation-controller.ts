@@ -2,9 +2,9 @@ import { toValue } from 'vue';
 
 import { createDefaultSelectFieldState, type SelectFieldState, type SelectFieldUiConfig } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
-import { createQueryContribution } from '@/features/form/model/compile/query-artifact';
+import { queryFragment, queryIR, token, tokenPredicate, tokenSequence } from '@/features/form/model/compile/query-artifact';
 import { firstEncodedValue, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
-import type { QueryContribution, QueryPatternNode } from '@/features/form/model/types';
+import { booleanExpr, type QueryFragment } from '@/features/form/model/types';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
 import { findOptions, optionValues } from '@/shared/utils/options';
@@ -46,28 +46,12 @@ export const annotationTextController = createFieldController<'annotation-text',
 		};
 	},
 	getQueryContribution(config, _runtime, state) {
-		if (!state.value.trim()) return createQueryContribution();
+		if (!state.value.trim()) return queryFragment();
 
-		const r: QueryContribution = {
-			query: {
-				pattern: {
-					type: 'sequence',
-					children: tokenizeString(state.value, true).map<QueryPatternNode>(token => ({
-						type: 'token',
-						clauses: [
-							{
-								type: 'wildcard',
-								annotationId: config.annotationId,
-								value: token.value,
-								caseSensitive: state.caseSensitive,
-							},
-						],
-					})),
-				},
-				filter: null,
-				searchField: null,
-				wrappers: [],
-			},
+		const r: QueryFragment = {
+			query: queryIR({
+				pattern: tokenSequence(tokenizeString(state.value, true).map(term => token(tokenPredicate('wildcard', config.annotationId, term.value, state.caseSensitive)))),
+			}),
 			summaries: state.value
 				? [
 						{
@@ -95,30 +79,11 @@ export const annotationSelectController = createFieldController<'annotation-sele
 		return splitPersistValue(firstEncodedValue(payload)).filter(Boolean);
 	},
 	getQueryContribution(config, _runtime, state) {
-		if (!state.length) return createQueryContribution();
-
-		const r: QueryContribution = {
-			query: {
-				pattern: {
-					type: 'token',
-					clauses: state.map(value => ({
-						type: 'equals',
-						annotationId: config.annotationId,
-						value,
-					})),
-				},
-				filter: null,
-				searchField: null,
-				wrappers: [],
-			},
-			summaries: [
-				{
-					id: config.annotationId,
-					label: toValue(config.displayName),
-					value: optionValues(findOptions(config.options, state)).join(', '),
-				},
-			],
-		};
-		return r;
+		if (!state.length) return queryFragment();
+		return queryFragment(token(booleanExpr('or', ...state.map(v => tokenPredicate('equals', config.annotationId, v)))), {
+			id: config.annotationId,
+			label: toValue(config.displayName),
+			value: optionValues(findOptions(config.options, state)).join(', '),
+		});
 	},
 });

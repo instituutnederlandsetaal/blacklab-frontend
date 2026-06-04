@@ -65,11 +65,11 @@ function createTabbedFormFixture(): FormFixture {
 	});
 	const wordTab = form.addContainer('search.tabbed.word', ContainerRenderer, {
 		title: 'Word',
-		combine: 'allOf',
+		combine: 'and',
 	});
 	const lemmaTab = form.addContainer('search.tabbed.lemma', ContainerRenderer, {
 		title: 'Lemma',
-		combine: 'allOf',
+		combine: 'and',
 	});
 
 	wordTab.addField('search.tabbed.word.field', testTextController, TestTextField, {

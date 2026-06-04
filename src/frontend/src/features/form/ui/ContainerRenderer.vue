@@ -31,7 +31,7 @@
 <script setup lang="ts">
 import { computed, toValue } from 'vue';
 
-import type { FormNode, ImplicitContainerComponentProps } from '@/features/form/model/types/form-shape';
+import type { FormNode, ImplicitContainerComponentProps } from '../model/types';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 
 import { createAndProvideParentForm } from '../model/runtime';

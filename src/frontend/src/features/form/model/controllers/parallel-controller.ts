@@ -1,4 +1,4 @@
-import { withSearchField, createQueryArtifact, createQueryContribution } from '@/features/form/model/compile/query-artifact';
+import { queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { SummaryEntry } from '@/features/form/model/types/form-query';
@@ -61,29 +61,27 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 		};
 	},
 	getQueryContribution(config, runtime, state) {
-		const artifact = withSearchField(createQueryArtifact(), state.source);
-		const entries: SummaryEntry[] = [];
+		const query = queryIR({ searchField: state.source });
+		const summaries: SummaryEntry[] = [];
 		if (state.source)
-			entries.push({
+			summaries.push({
 				id: `${config.id}.source`,
 				label: runtime.translate.$t(`search.parallel.searchSourceVersion`),
 				value: translatedAnnotatedField(runtime, config.sourceOptions.find(field => field.id === state.source) ?? { id: state.source }),
 			});
 		if (state.targets.length)
-			entries.push({
+			summaries.push({
 				id: `${config.id}.targets`,
 				label: runtime.translate.$t(`search.parallel.andCompareWithTargetVersions`),
-				value: state.targets
-					.map(target => translatedAnnotatedField(runtime, config.targetOptions.find(field => field.id === target) ?? { id: target }))
-					.join(', '),
+				value: state.targets.map(target => translatedAnnotatedField(runtime, config.targetOptions.find(field => field.id === target) ?? { id: target })).join(', '),
 			});
 		if (state.alignBy)
-			entries.push({
+			summaries.push({
 				id: `${config.id}.alignBy`,
 				label: runtime.translate.$t(`search.parallel.alignBy`),
 				value: translatedAlignBy(runtime, state.alignBy),
 			});
-		return createQueryContribution(artifact, entries);
+		return queryFragment({ query, summaries });
 	},
 	// Return something unique for this controller
 	toJSON() {

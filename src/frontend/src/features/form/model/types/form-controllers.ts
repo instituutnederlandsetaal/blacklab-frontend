@@ -1,6 +1,6 @@
 import { markRaw } from 'vue';
 
-import type { QueryContribution } from '@/features/form/model/types/form-query';
+import type { QueryFragment } from '@/features/form/model/types/form-query';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import type { Translate } from '@/shared/i18n';
@@ -29,7 +29,7 @@ export type FieldController<Kind extends string = string, State = any, Extra = o
 	/** Unique key for this controller. */
 	kind: Kind;
 	createDefaultState: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => State;
-	getQueryContribution?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => QueryContribution;
+	getQueryContribution?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => QueryFragment;
 	/** Short stable key used under the scoped f.* URL namespace. Must be unique within the active form. */
 	getPersistKey?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => string;
 	restore?: (payload: EncodedFieldValue, config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => RestoreFieldResult<State>;

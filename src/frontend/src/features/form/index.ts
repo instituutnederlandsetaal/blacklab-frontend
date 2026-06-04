@@ -1,43 +1,12 @@
-export { combineQueries, createCompiledQueryProjections, createQueryArtifact } from './model/compile/query-artifact';
-export { buildFormQuery, summarizeForm } from './model/compile';
-export {
-	annotationPosController,
-	annotationSelectController,
-	annotationTextController,
-	expertQueryController,
-	filterAutocompleteController,
-	filterCheckboxController,
-	filterDateController,
-	filterRadioController,
-	filterRangeController,
-	filterRangeMultipleFieldsController,
-	filterSelectController,
-	filterTextController,
-	parallelController,
-	withinController,
-} from './model/controllers';
-export { FormBuilder, type FormRegistrationCallback } from './model/builder/form-shape-builder';
-export {
-	decodeSubmittedSnapshot,
-	encodeScopedFormQuery,
-	encodeSubmittedForm,
-	FORM_CODEC_VERSION,
-	FORM_QUERY_PREFIX,
-	restoreScopedFormState,
-	type CanonicalBlackLabFormParameters,
-	type EncodedPersistableFormState,
-	type RestoreIssue,
-	type RestoredScopedFormState,
-	type ScopedFormQuery,
-} from './model/persistence';
-export { cloneFormState, createFormState, createInitialContainerUiStates, createInitialFormFieldStates } from './model/state';
-export { createFormSystemRuntime, useFormSystemRuntime, useParentForm } from './model/runtime';
-export type * from './model/views';
-export type * from './model/types/form-controllers';
-export type * from './model/types/form-query';
-export type * from './model/types/form-shape';
-export type * from './model/types/form-state';
+export * from './model/compile';
 
-export { default as FormSystem } from './ui/FormSystem.vue';
-export { default as ContainerRenderer, default as FormRenderer } from './ui/ContainerRenderer.vue';
-export { default as ContainerRendererFilters } from './ui/ContainerRendererFilters.vue';
+export * from './fields';
+export * from './model/controllers';
+export * from './model/builder/form-shape-builder';
+export * from './model/persistence.ts';
+export * from './model/runtime.ts';
+export * from './model/state';
+export type * from './model/views';
+export * from './model/types';
+
+export * from './ui';

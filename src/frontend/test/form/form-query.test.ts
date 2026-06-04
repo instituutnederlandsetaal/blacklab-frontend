@@ -2,31 +2,11 @@
 
 import { describe, expect, test } from 'vitest';
 
-import { annotationTextController, type FieldControllerProps, type FormRuntimeContext, type QueryContribution, type QueryPatternNode } from '@/features/form';
-import { combineQueryContributions, createCompiledQueryProjections } from '@/features/form/model/compile/query-artifact';
+import { annotationTextController, booleanExpr, type FieldControllerProps, type FormRuntimeContext, type QueryFragment } from '@/features/form';
+import { combineQueryFragments, compileQueryIR, cqlRaw, queryFragment, queryIR, rawFilter, termFilter, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import type { AnnotationTextFieldConfig } from '@/features/form/model/controllers/annotation-controller';
 
-import { TestTextField, createTestBuilder, createTestContext, testTextController } from './helpers';
-
 import { createMockTranslate } from '@/shared/i18n/mock';
-
-import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
-
-function createSingleTextForm() {
-	const builder = createTestBuilder();
-	const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended', persistKey: 'extended' });
-	const field = builder.newField('search.extended.word', testTextController, TestTextField, {
-		annotationId: 'word',
-		displayName: 'Word',
-	});
-	form.addChildren(field);
-	return {
-		context: createTestContext(),
-		definition: builder.build(),
-		field,
-		form,
-	};
-}
 
 describe('generated query correctness', () => {
 	const context: FormRuntimeContext = {
@@ -34,7 +14,7 @@ describe('generated query correctness', () => {
 		translate: createMockTranslate(),
 	};
 
-	function contribForAnnotation(annotId: string, value: string, caseSensitive = false): QueryContribution {
+	function contribForAnnotation(annotId: string, value: string, caseSensitive = false): QueryFragment {
 		const field: FieldControllerProps<AnnotationTextFieldConfig> = {
 			annotationId: annotId,
 			displayName: '',
@@ -49,19 +29,7 @@ describe('generated query correctness', () => {
 	}
 
 	function compileValueForAnnotation(annotId: string, value: string, caseSensitive = false) {
-		return createCompiledQueryProjections(contribForAnnotation(annotId, value, caseSensitive).query).cql;
-	}
-
-	function contribForPattern(pattern: QueryPatternNode): QueryContribution {
-		return {
-			query: {
-				pattern,
-				filter: null,
-				searchField: null,
-				wrappers: [],
-			},
-			summaries: [],
-		};
+		return compileQueryIR(contribForAnnotation(annotId, value, caseSensitive).query).cql;
 	}
 
 	test('Text field controller tokenizes input and treats wildcards correctly', () => {
@@ -86,63 +54,92 @@ describe('generated query correctness', () => {
 	});
 
 	test('Combines multiple text controllers per-token', () => {
-		const compiled = createCompiledQueryProjections(
-			combineQueryContributions('allOf', contribForAnnotation('lemma', 'example sentence', true), contribForAnnotation('word', 'example sentence', true)).query,
-		).cql;
+		const compiled = compileQueryIR(combineQueryFragments('and', contribForAnnotation('lemma', 'example sentence', true), contribForAnnotation('word', 'example sentence', true)).query).cql;
 
 		const expected = String.raw`[lemma="example" & word="example"] [lemma="sentence" & word="sentence"]`;
 		expect(compiled).toBe(expected);
 	});
 
 	test('Combines multiple text controllers per-token with trailing unmatched tokens', () => {
-		const compiled = createCompiledQueryProjections(combineQueryContributions('allOf', contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)).query).cql;
+		const compiled = compileQueryIR(combineQueryFragments('and', contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)).query).cql;
 
 		const expected = String.raw`[word="a" & lemma="c"] [word="b" & lemma="d"] [lemma="e"]`;
 		expect(compiled).toBe(expected);
 	});
 
-	test('Simplifies matching token joiners while combining per-token conditions', () => {
-		const compiled = createCompiledQueryProjections(
-			combineQueryContributions(
-				'allOf',
-				contribForPattern({
-					type: 'token',
-					clauses: [
-						{ type: 'wildcard', annotationId: 'word', value: 'a', caseSensitive: true },
-						{ type: 'wildcard', annotationId: 'word', value: 'b', caseSensitive: true },
-					],
-				}),
-				contribForPattern({
-					type: 'token',
-					clauses: [{ type: 'wildcard', annotationId: 'lemma', value: 'c', caseSensitive: true }],
-				}),
+	test('Combines or text controllers per-token', () => {
+		const compiled = compileQueryIR(combineQueryFragments('or', contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)).query).cql;
+
+		const expected = String.raw`[word="a" | lemma="c"] [word="b" | lemma="d"] [lemma="e"]`;
+		expect(compiled).toBe(expected);
+	});
+
+	const combiners = [
+		{
+			mode: 'and' as const,
+			insert: '&',
+		},
+		{
+			mode: 'or' as const,
+			insert: '|',
+		},
+	];
+	test.each(combiners)('Simplifies matching token joiners while combining per-token conditions: $mode', ({ mode, insert }) => {
+		const compiled = compileQueryIR(
+			combineQueryFragments(
+				mode,
+				queryFragment(token(booleanExpr(mode, tokenPredicate('wildcard', 'word', 'a', true), tokenPredicate('wildcard', 'word', 'b', true)))),
+				queryFragment(token(tokenPredicate('wildcard', 'lemma', 'c', true))),
+			).query,
+		);
+
+		const expected = `[word="a" ${insert} word="b" ${insert} lemma="c"]`;
+		expect(compiled.cql).toBe(expected);
+	});
+
+	test('Preserves precedence when combining or per-token conditions with different joiners', () => {
+		const compiled = compileQueryIR(
+			combineQueryFragments(
+				'or',
+				queryFragment(token(booleanExpr('and', tokenPredicate('wildcard', 'word', 'a', true), tokenPredicate('wildcard', 'word', 'b', true)))),
+				queryFragment(token(tokenPredicate('wildcard', 'lemma', 'c', true))),
 			).query,
 		).cql;
 
-		const expected = String.raw`[word="a" & word="b" & lemma="c"]`;
+		const expected = String.raw`[(word="a" & word="b") | lemma="c"]`;
 		expect(compiled).toBe(expected);
 	});
 
 	test('Preserves precedence when combining per-token conditions with different joiners', () => {
-		const compiled = createCompiledQueryProjections(
-			combineQueryContributions(
-				'allOf',
-				contribForPattern({
-					type: 'token',
-					operator: 'or',
-					clauses: [
-						{ type: 'wildcard', annotationId: 'word', value: 'a', caseSensitive: true },
-						{ type: 'wildcard', annotationId: 'word', value: 'b', caseSensitive: true },
-					],
-				}),
-				contribForPattern({
-					type: 'token',
-					clauses: [{ type: 'wildcard', annotationId: 'lemma', value: 'c', caseSensitive: true }],
-				}),
+		const compiled = compileQueryIR(
+			combineQueryFragments(
+				'and',
+				queryFragment(token(booleanExpr('or', tokenPredicate('wildcard', 'word', 'a', true), tokenPredicate('wildcard', 'word', 'b', true)))),
+				queryFragment(token(tokenPredicate('wildcard', 'lemma', 'c', true))),
 			).query,
 		).cql;
 
 		const expected = String.raw`[(word="a" | word="b") & lemma="c"]`;
 		expect(compiled).toBe(expected);
+	});
+
+	test('Simplifies matching CQL pattern joiners', () => {
+		const compiled = compileQueryIR(
+			queryIR({
+				pattern: booleanExpr('and', cqlRaw('[word="a"]')!, booleanExpr('and', cqlRaw('[lemma="b"]')!, cqlRaw('[pos="N"]')!)),
+			}),
+		).cql;
+
+		expect(compiled).toBe('([word="a"] & [lemma="b"] & [pos="N"])');
+	});
+
+	test('Simplifies matching filter joiners', () => {
+		const compiled = compileQueryIR(
+			queryIR({
+				filter: booleanExpr('and', termFilter('author', ['alice'])!, booleanExpr('and', termFilter('title', ['water'])!, rawFilter(' year:2020 ')!)),
+			}),
+		).filter;
+
+		expect(compiled).toBe('(author:(alice) AND title:(water) AND year:2020)');
 	});
 });

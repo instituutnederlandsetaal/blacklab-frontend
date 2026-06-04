@@ -1,11 +1,11 @@
 import { markRaw } from 'vue';
 
-import { createQueryArtifact, createQueryContribution, withSummary, withWrapper } from '@/features/form/model/compile/query-artifact';
+import { queryFragment } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, encodePersistObject } from '@/features/form/model/controllers/persistence-codec';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
 
-import type { Option } from '@/shared/utils/options';
+import { findOption, type Option } from '@/shared/utils/options';
 
 export type WithinFieldState = {
 	element: string | null;
@@ -37,25 +37,21 @@ export const withinController: FieldController<'within', WithinFieldState, Omit<
 		const restored = decodePersistObject(payload);
 		return {
 			element: restored.element || null,
-			attributes: Object.fromEntries(Object.entries(restored).filter(([key]) => key.startsWith('attr.')).map(([key, value]) => [key.slice(5), value])),
+			attributes: Object.fromEntries(
+				Object.entries(restored)
+					.filter(([key]) => key.startsWith('attr.'))
+					.map(([key, value]) => [key.slice(5), value]),
+			),
 		};
 	},
 	getQueryContribution(config, runtime, state) {
-		const artifact = createQueryArtifact();
-		if (!state.element) return createQueryContribution();
-		const option = config.options.find((option: WithinFieldOption) => option.value === state.element);
-		return withSummary(
-			withWrapper(artifact, {
-				type: 'within',
-				element: state.element,
-				attributes: state.attributes,
-			}),
-			{
-				id: config.id,
-				label: runtime.translate.$t(`search.extended.within`),
-				value: runtime.translate.$tSpanDisplayName(option ?? { value: state.element }),
-			},
-		);
+		if (!state.element) return queryFragment();
+		const option = findOption(config.options, state.element) ?? { value: state.element };
+		return queryFragment([{ type: 'within', element: state.element, attributes: state.attributes }], {
+			id: config.id,
+			label: runtime.translate.$t(`search.extended.within`),
+			value: runtime.translate.$tSpanDisplayName(option),
+		});
 	},
 
 	// Return something unique for this controller

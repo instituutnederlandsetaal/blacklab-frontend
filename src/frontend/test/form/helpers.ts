@@ -1,7 +1,7 @@
 import { defineComponent, h, type PropType } from 'vue';
 
 import { FormBuilder, useParentForm, type FormRuntimeContext } from '@/features/form';
-import { artifactFromPattern, withSummary } from '@/features/form/model/compile/query-artifact';
+import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
 import { createMockI18n } from '@/shared/i18n';
@@ -71,20 +71,9 @@ export const testTextController = createFieldController<'test-text', TestTextFie
 		};
 	},
 	getQueryContribution(config, _runtime, state) {
-		const pattern = {
-			type: 'token' as const,
-			clauses: [
-				{
-					type: 'wildcard' as const,
-					annotationId: config.annotationId,
-					value: state.value,
-					caseSensitive: false,
-				},
-			],
-		};
-
-		return withSummary(
-			artifactFromPattern(pattern),
+		const pattern = token(tokenPredicate('wildcard', config.annotationId, state.value, false));
+		return queryFragment(
+			pattern,
 			state.value
 				? {
 						id: config.id,

@@ -397,10 +397,10 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 	const root = builder.newForm('legacy-filter-comparison.form', ContainerRenderer, {});
 	const tabs = root.addContainer('legacy-filter-comparison.filters', ContainerRendererFilters, {
 		variant: 'small-tabs',
-		combine: 'allOf',
+		combine: 'and',
 	});
 
-	const letter = builder.newContainer('legacy-filter-comparison.filters.letter', ContainerRenderer, { title: 'Letter', combine: 'allOf' });
+	const letter = builder.newContainer('legacy-filter-comparison.filters.letter', ContainerRenderer, { title: 'Letter', combine: 'and' });
 	letter
 		.addChildren(
 			createFieldNode(builder, 'legacy-filter-comparison.filter.year', filterRangeController, {
@@ -445,7 +445,7 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 			}),
 		);
 
-	const sender = builder.newContainer('legacy-filter-comparison.filters.sender', ContainerRenderer, { title: 'Sender', combine: 'allOf' });
+	const sender = builder.newContainer('legacy-filter-comparison.filters.sender', ContainerRenderer, { title: 'Sender', combine: 'and' });
 	sender.addChildren(
 		createFieldNode(builder, 'legacy-filter-comparison.sender.name', filterAutocompleteController, {
 			id: 'afz_naam',
@@ -456,7 +456,7 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 		}),
 	);
 
-	const addressee = builder.newContainer('legacy-filter-comparison.filters.addressee', ContainerRenderer, { title: 'Addressee', combine: 'allOf' });
+	const addressee = builder.newContainer('legacy-filter-comparison.filters.addressee', ContainerRenderer, { title: 'Addressee', combine: 'and' });
 	addressee.addChildren(
 		createFieldNode(builder, 'legacy-filter-comparison.addressee.name', filterAutocompleteController, {
 			id: 'adr_naam',
@@ -467,7 +467,7 @@ export function createLegacyFilterComparisonStoryModel(): StoryFormSystemModel {
 		}),
 	);
 
-	const sentFrom = builder.newContainer('legacy-filter-comparison.filters.sent-from', ContainerRenderer, { title: 'Sent from', combine: 'allOf' });
+	const sentFrom = builder.newContainer('legacy-filter-comparison.filters.sent-from', ContainerRenderer, { title: 'Sent from', combine: 'and' });
 	sentFrom.addChildren(
 		createFieldNode(builder, 'legacy-filter-comparison.sent-from.place', filterAutocompleteController, {
 			id: 'verz_plaats',
@@ -593,7 +593,7 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 	const listContainer = builder
 		.newContainer('container-types.list', ContainerRenderer, {
 			title: 'List container',
-			combine: 'allOf',
+			combine: 'and',
 		})
 		.addChildren(
 			createFieldNode(builder, 'container-types.list.word', annotationTextController, {
@@ -618,7 +618,7 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 	});
 	const patternTab = builder.newContainer('container-types.tabs.pattern', ContainerRenderer, {
 		title: 'Pattern',
-		combine: 'allOf',
+		combine: 'and',
 	});
 	patternTab
 		.addChildren(
@@ -632,7 +632,7 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 	const scopeTab = builder
 		.newContainer('container-types.tabs.scope', ContainerRenderer, {
 			title: 'Scope',
-			combine: 'allOf',
+			combine: 'and',
 		})
 		.addChildren(createFieldNode(builder, 'container-types.tabs.scope.parallel', parallelController, createParallelConfig()))
 		.addChildren(createFieldNode(builder, 'container-types.tabs.scope.within', withinController, createWithinConfig()));
@@ -642,14 +642,14 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 		title: 'Small tabs container',
 		variant: 'small-tabs',
 	});
-	const metadataTab = builder.newContainer('container-types.small-tabs.metadata', ContainerRenderer, { title: 'Metadata', combine: 'allOf' });
+	const metadataTab = builder.newContainer('container-types.small-tabs.metadata', ContainerRenderer, { title: 'Metadata', combine: 'and' });
 	metadataTab.addChildren(
 		metadataFilters.author.buildField(builder, 'container-types.small-tabs.filter.author', metadataTab.id),
 		metadataFilters.genre.buildField(builder, 'container-types.small-tabs.filter.genre', metadataTab.id),
 	);
 	const datesTab = builder.newContainer('container-types.small-tabs.dates', ContainerRenderer, {
 		title: 'Dates',
-		combine: 'allOf',
+		combine: 'and',
 	});
 	datesTab.addChildren(
 		metadataFilters.year.buildField(builder, 'container-types.small-tabs.filter.year', datesTab.id),
@@ -660,7 +660,7 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 	const filterRendererWrapper = builder
 		.newContainer('container-types.filter-renderer', ContainerRenderer, {
 			title: 'Custom filter renderer',
-			combine: 'allOf',
+			combine: 'and',
 		})
 		.addChildren(createFilterContainer(builder, 'container-types.custom'));
 
@@ -927,7 +927,7 @@ function createExtendedForm(parent: ReturnType<FormBuilder['newContainer']>, bui
 	const mainAnnotations = builder
 		.newContainer('search.extended.annotations.main', ContainerRenderer, {
 			title: 'Main',
-			combine: 'allOf',
+			combine: 'and',
 		})
 		.addChildren(
 			createFieldNode(builder, 'search.extended.word', annotationTextController, {
@@ -943,7 +943,7 @@ function createExtendedForm(parent: ReturnType<FormBuilder['newContainer']>, bui
 				caseSensitive: true,
 			}),
 		);
-	const grammarAnnotations = builder.newContainer('search.extended.annotations.grammar', ContainerRenderer, { title: 'Grammar', combine: 'allOf' });
+	const grammarAnnotations = builder.newContainer('search.extended.annotations.grammar', ContainerRenderer, { title: 'Grammar', combine: 'and' });
 	grammarAnnotations.addChildren(createFieldNode(builder, 'search.extended.pos', annotationPosController, createAnnotationPosConfig({ groupId: grammarAnnotations.id })));
 	annotationTabs.addChildren(mainAnnotations, grammarAnnotations);
 	patternColumn.addChildren(shared.parallel, annotationTabs, shared.within);
@@ -992,16 +992,16 @@ function createFilterContainer(builder: FormBuilder, prefix: string) {
 	const tabs = builder.newContainer(`${prefix}.filters`, ContainerRendererFilters, {
 		class: 'blf-filter-panel',
 		variant: 'small-tabs',
-		combine: 'allOf',
+		combine: 'and',
 	});
 
 	for (const group of filterGroups) {
 		const groupContainer = tabs.addContainer(`${prefix}.filters.${group.id}`, ContainerRenderer, {
 			title: group.title,
-			combine: 'allOf',
+			combine: 'and',
 		});
 		for (const subtab of group.subtabs) {
-			const subtabContainer = groupContainer.addContainer(`${prefix}.filters.${group.id}.${subtab.id}`, ContainerRenderer, { title: subtab.title, combine: 'allOf' });
+			const subtabContainer = groupContainer.addContainer(`${prefix}.filters.${group.id}.${subtab.id}`, ContainerRenderer, { title: subtab.title, combine: 'and' });
 			for (const fieldId of subtab.fields) {
 				const definition = metadataFilters[fieldId];
 				subtabContainer.addChildren(definition.buildField(builder, `${prefix}.filter.${fieldId}`, groupContainer.id));
@@ -1127,7 +1127,7 @@ function createAppExtendedSearchForm(parent: ReturnType<FormBuilder['newContaine
 	const mainAnnotations = builder
 		.newContainer('app.search.extended.annotations.main', ContainerRenderer, {
 			title: 'Main',
-			combine: 'allOf',
+			combine: 'and',
 		})
 		.addChildren(
 			createFieldNode(builder, 'app.search.extended.word', annotationTextController, {
@@ -1143,7 +1143,7 @@ function createAppExtendedSearchForm(parent: ReturnType<FormBuilder['newContaine
 				caseSensitive: true,
 			}),
 		);
-	const grammarAnnotations = builder.newContainer('app.search.extended.annotations.grammar', ContainerRenderer, { title: 'Grammar', combine: 'allOf' });
+	const grammarAnnotations = builder.newContainer('app.search.extended.annotations.grammar', ContainerRenderer, { title: 'Grammar', combine: 'and' });
 	grammarAnnotations.addChildren(createFieldNode(builder, 'app.search.extended.pos', annotationPosController, createAnnotationPosConfig({ groupId: grammarAnnotations.id })));
 	annotationTabs.addChildren(mainAnnotations, grammarAnnotations);
 

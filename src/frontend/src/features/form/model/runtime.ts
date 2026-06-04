@@ -1,7 +1,7 @@
 import { computed, inject, provide, ref, shallowRef, toValue, watch, type ComputedRef, type InjectionKey, type MaybeRefOrGetter, type ShallowRef } from 'vue';
 
 import { buildFormQuery, summarizeForm } from '@/features/form/model/compile';
-import { createCompiledQueryProjections } from '@/features/form/model/compile/query-artifact';
+import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { getAllNodes, pickActiveFormState, reactivePickActiveFormState } from '@/features/form/model/form-utils';
 import { cloneFormState, createFormState } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
@@ -99,7 +99,7 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 		state,
 		forms: formsById,
 		compile(formId: string): CompiledFormState {
-			const compiled = applyRawOverrides(createCompiledQueryProjections(buildFormQuery(formsById[formId], this.state.value, this.context)), this.state.value);
+			const compiled = applyRawOverrides(compileQueryIR(buildFormQuery(formsById[formId], this.state.value, this.context)), this.state.value);
 			compileListeners.forEach(callback => callback(formId, compiled));
 			return compiled;
 		},

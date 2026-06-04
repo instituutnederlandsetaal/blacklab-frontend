@@ -1,7 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue';
 
 import type { FieldController } from '@/features/form/model/types/form-controllers';
-import type { QueryContribution } from '@/features/form/model/types/form-query';
+import type { BooleanType, QueryFragment } from '@/features/form/model/types/form-query';
 import type { AnyVueComponent } from '@/types/helpers';
 
 /** The base for all form nodes */
@@ -16,20 +16,20 @@ export type BaseNode = {
 // ==========================================================================================================================
 
 export type ContainerPresentation = 'list' | 'tabs' | 'small-tabs' | (string & {}); // open-ended but with some fixed types we support internally.
-export type QueryCombineMode = 'allOf' | 'anyOf' | 'sequence';
+export type QueryCombineMode = BooleanType | 'sequence';
 
 export type BaseContainerNode = BaseNode & {
 	kind: 'container';
 	/** Defaults to list if unset */
 	variant?: ContainerPresentation | ContainerPresentation[];
 	children: AnyRealFormNode[];
-	/** Defaults to 'allOf' if unset */
+	/** Defaults to 'and' if unset */
 	combine?: QueryCombineMode;
 	/**
 	 * Optional query contribution applied only while this container/form is the active child of its parent.
 	 * This provisions semantic tabs such as "newspapers" adding an implicit filter.
 	 */
-	activeQueryContribution?: QueryContribution | ((activeNode: BaseContainerNode | BaseFormNode) => QueryContribution);
+	activeQueryContribution?: QueryFragment | ((activeNode: BaseContainerNode | BaseFormNode) => QueryFragment);
 };
 export type RealContainerNode<Extra, C extends AnyVueComponent> = BaseContainerNode & Extra & { component: C };
 

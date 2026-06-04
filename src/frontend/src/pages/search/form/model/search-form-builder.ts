@@ -220,7 +220,6 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
 	if (!groups?.length) return null;
 
 	const tabs = builder.newContainer('shared.filters', ContainerRendererFilters, {
-		combine: 'allOf',
 		variant: 'tabs',
 		title: computed(() => translate.$t(`filter.heading`)),
 	});

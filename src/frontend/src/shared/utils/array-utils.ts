@@ -1,4 +1,5 @@
-export function* iter<T>(value: T | undefined | null | Array<T | undefined | null>) {
+export type LenientArray<T> = T | Array<T | undefined | null> | undefined | null;
+export function* lenientIter<T>(value: LenientArray<T>): Iterable<T> {
 	if (value === undefined || value === null) return;
 	if (Array.isArray(value)) {
 		for (const v of value) {
@@ -7,4 +8,7 @@ export function* iter<T>(value: T | undefined | null | Array<T | undefined | nul
 	} else {
 		yield value;
 	}
+}
+export function unwrapLenientArray<T>(value: LenientArray<T>): T[] {
+	return Array.from(lenientIter(value));
 }

@@ -1,81 +1,87 @@
-import type {
-	CompilableQuery,
-	CompiledFormState,
-	QueryContribution,
-	QueryFilterNode,
-	QueryTokenConditionNode,
-	QueryPatternNode,
-	QueryTokenClauseNode,
-	QueryWrapper,
-	SummaryEntry,
+import {
+	booleanExpr,
+	isCqlPattern,
+	isPartialQueryIR,
+	isQueryFilterNode,
+	simplifyBooleanExpr,
+	type BooleanType,
+	type CompiledFormState,
+	type CqlPattern,
+	type QueryFilterNode,
+	type QueryFragment,
+	type QueryIR,
+	type QueryWrapper,
+	type SummaryEntry,
+	type TokenPredicate as expr,
+	type TokenPredicateMatch,
+	type TokenPredicate,
 } from '@/features/form/model/types/form-query';
 import type { QueryCombineMode } from '@/features/form/model/types/form-shape';
 
+import { unwrapLenientArray } from '@/shared/utils/array-utils';
 import { escapeRegex } from '@/shared/utils/string-utils';
 
-const EMPTY_PROJECTION = createQueryArtifact();
+const EMPTY_PROJECTION = queryIR();
 
-export function createQueryArtifact(): CompilableQuery {
+// Builders
+// =========================================================================================================================
+
+export function queryIR(parts?: null | Partial<QueryIR>): QueryIR {
 	return {
-		pattern: null,
-		filter: null,
-		wrappers: [],
-		searchField: null,
+		pattern: parts?.pattern ?? null,
+		filter: parts?.filter ?? null,
+		wrappers: parts?.wrappers ?? [],
+		searchField: parts?.searchField ?? null,
 	};
 }
 
-export function artifactFromPattern(pattern: QueryPatternNode | null): CompilableQuery {
+type LenientSummaries = SummaryEntry | Array<SummaryEntry | null | undefined> | null | undefined;
+type LenientQueryFragment = Omit<QueryFragment, 'summaries'> & {
+	summaries?: LenientSummaries;
+};
+
+export function queryFragment(query?: null | QueryIR, summary?: LenientSummaries): QueryFragment;
+export function queryFragment(query?: null | CqlPattern, summary?: LenientSummaries): QueryFragment;
+export function queryFragment(query?: null | QueryFilterNode, summary?: LenientSummaries): QueryFragment;
+export function queryFragment(query?: null | Partial<LenientQueryFragment>, summary?: LenientSummaries): QueryFragment;
+export function queryFragment(query?: null | QueryWrapper[], summary?: LenientSummaries): QueryFragment;
+export function queryFragment(query?: null | QueryIR | CqlPattern | QueryFilterNode | Partial<LenientQueryFragment> | QueryWrapper[], summary?: LenientSummaries): QueryFragment {
+	if (isPartialQueryIR(query))
+		return {
+			query: queryIR(query),
+			summaries: unwrapLenientArray(summary),
+		};
+	if (isCqlPattern(query)) return queryFragment(queryIR({ pattern: query }), summary);
+	if (isQueryFilterNode(query)) return queryFragment(queryIR({ filter: query }), summary);
+	if (Array.isArray(query)) return queryFragment(queryIR({ wrappers: query }), summary);
 	return {
-		...createQueryArtifact(),
-		pattern,
+		query: queryIR(query?.query),
+		summaries: unwrapLenientArray(query?.summaries),
 	};
 }
 
-export function artifactFromFilter(filter: QueryFilterNode | null): CompilableQuery {
-	return {
-		...createQueryArtifact(),
-		filter,
-	};
-}
-export function createQueryContribution(query: CompilableQuery = createQueryArtifact(), summaries: SummaryEntry[] = []): QueryContribution {
-	return {
-		query,
-		summaries,
-	};
+export function cqlRaw(cql: string | null | undefined): CqlPattern | null {
+	const value = cql?.trim();
+	return value ? { type: 'raw', cql: value } : null;
 }
 
-export function createCompiledQueryProjections(artifact: CompilableQuery): CompiledFormState {
+export function tokenPredicate(match: TokenPredicateMatch, annotation: string, value: string, caseSensitive?: boolean): expr {
 	return {
-		cql: compilePatternWithWrappers(artifact.pattern, artifact.wrappers),
-		filter: compileFilter(artifact.filter),
-		searchField: artifact.searchField,
-		// resultPreset: artifact.resultPreset,
-		// summaries: artifact.summaries,
+		type: 'predicate',
+		match,
+		annotation,
+		value,
+		caseSensitive,
 	};
 }
 
-export function combineQueries(artifacts: CompilableQuery[], combine: QueryCombineMode = 'allOf'): CompilableQuery {
-	const nonEmpty = artifacts.filter(artifact => hasQueryContributions(artifact));
-	const merged = createQueryArtifact();
-
-	merged.pattern = combinePatterns(nonEmpty.map(artifact => artifact.pattern).filter(isNonNull), combine);
-	merged.filter = combineFilters(nonEmpty.map(artifact => artifact.filter).filter(isNonNull), combine === 'anyOf' ? 'or' : 'and');
-	merged.wrappers = nonEmpty.flatMap(artifact => artifact.wrappers);
-	merged.searchField = nonEmpty.find(artifact => artifact.searchField)?.searchField ?? null;
-	// merged.resultPreset = Object.assign({}, ...nonEmpty.map(artifact => artifact.resultPreset)) as Partial<ResultPreset>;
-
-	return merged;
+export function token(predicate: expr | null): CqlPattern | null {
+	return predicate ? { type: 'token', predicate } : null;
 }
 
-export function combineQueryContributions(combine: QueryCombineMode = 'allOf', ...contributions: QueryContribution[]): QueryContribution {
-	const nonEmpty = contributions.filter(contribution => hasContribution(contribution));
-	return createQueryContribution(
-		combineQueries(
-			nonEmpty.map(contribution => contribution.query),
-			combine,
-		),
-		nonEmpty.flatMap(contribution => contribution.summaries),
-	);
+export function tokenSequence(children: Array<CqlPattern | null>): CqlPattern | null {
+	const activeChildren = children.filter(isNonNull);
+	return activeChildren.length ? { type: 'sequence', children: activeChildren } : null;
 }
 
 export function rawFilter(lucene: string | null | undefined): QueryFilterNode | null {
@@ -92,27 +98,178 @@ export function rangeFilter(field: string, low?: string, high?: string): QueryFi
 	return low || high ? { type: 'range', field, low, high } : null;
 }
 
-export function withSummary(query: CompilableQuery, entry: SummaryEntry | null): QueryContribution {
-	return createQueryContribution(query, entry ? [entry] : []);
+export function withSummary(query: QueryIR, entry: SummaryEntry | null): QueryFragment {
+	return queryFragment({ query, summaries: entry ? [entry] : [] });
 }
 
-export function withWrapper(artifact: CompilableQuery, wrapper: QueryWrapper | null): CompilableQuery {
+export function withWrapper(artifact: QueryIR, wrapper: QueryWrapper | null): QueryIR {
 	if (!wrapper) return artifact;
-	return {
+	return queryIR({
 		...artifact,
 		wrappers: [...artifact.wrappers, wrapper],
-	};
+	});
 }
 
-export function withSearchField(artifact: CompilableQuery, searchField: string | null): CompilableQuery {
-	return {
+export function withSearchField(artifact: QueryIR, searchField: string | null): QueryIR {
+	return queryIR({
 		...artifact,
 		searchField,
+	});
+}
+
+// Pipeline
+// =========================================================================================================================
+
+export function compileQueryIR(artifact: QueryIR): CompiledFormState {
+	const normalized = simplifyQueryIR(artifact);
+	return {
+		cql: emitCqlWithWrappers(normalized.pattern, normalized.wrappers),
+		filter: emitFilter(normalized.filter),
+		searchField: normalized.searchField,
+		// resultPreset: artifact.resultPreset,
+		// summaries: artifact.summaries,
 	};
 }
 
-function compilePatternWithWrappers(pattern: QueryPatternNode | null, wrappers: QueryWrapper[]): string | null {
-	let cql = compilePattern(pattern);
+export function combineQueries(artifacts: QueryIR[], combine: QueryCombineMode = 'and'): QueryIR {
+	const nonEmpty = artifacts.filter(artifact => hasQueryContributions(artifact));
+	return queryIR({
+		pattern: combineCql(nonEmpty.map(artifact => artifact.pattern).filter(isNonNull), combine),
+		filter: combineFilters(nonEmpty.map(artifact => artifact.filter).filter(isNonNull), combine === 'or' ? 'or' : 'and'),
+		wrappers: nonEmpty.flatMap(artifact => artifact.wrappers),
+		searchField: nonEmpty.find(artifact => artifact.searchField)?.searchField ?? null,
+		// resultPreset = Object.assign({}, ...nonEmpty.map(artifact => artifact.resultPreset)) as Partial<ResultPreset>;
+	});
+}
+
+export function combineQueryFragments(combine: QueryCombineMode = 'and', ...contributions: QueryFragment[]): QueryFragment {
+	const nonEmpty = contributions.filter(contribution => hasContribution(contribution));
+	return queryFragment({
+		query: combineQueries(
+			nonEmpty.map(contribution => contribution.query),
+			combine,
+		),
+		summaries: nonEmpty.flatMap(c => c.summaries),
+	});
+}
+
+// Simplify
+// =========================================================================================================================
+
+export function simplifyQueryIR(artifact: QueryIR): QueryIR {
+	return queryIR({
+		...artifact,
+		pattern: simplifyCql(artifact.pattern),
+		filter: simplifyFilter(artifact.filter),
+	});
+}
+
+function simplifyCql(pattern: CqlPattern | null): CqlPattern | null {
+	if (!pattern) return null;
+
+	switch (pattern.type) {
+		case 'raw':
+			return cqlRaw(pattern.cql);
+		case 'token':
+			return token(simplifyTokenPredicate(pattern.predicate));
+		case 'parallel': {
+			const source = simplifyCql(pattern.source);
+			if (!source) return null;
+			return {
+				...pattern,
+				source,
+				targets: pattern.targets.map(target => ({ ...target, pattern: simplifyCql(target.pattern) })).filter(target => target.pattern),
+			};
+		}
+		case 'sequence': {
+			const children = pattern.children
+				.map(simplifyCql)
+				.filter(isNonNull)
+				.flatMap(child => (child.type === 'sequence' ? child.children : [child]));
+			if (!children.length) return null;
+			if (children.length === 1) return children[0];
+			return { type: 'sequence', children };
+		}
+		case 'and':
+		case 'or': {
+			const simplified = simplifyBooleanExpr({
+				...pattern,
+				children: pattern.children.map(simplifyCql).filter(isNonNull),
+			}) as CqlPattern | null;
+
+			if (!simplified || (simplified.type !== 'and' && simplified.type !== 'or')) return simplified;
+			const folded = foldTokenSequences(simplified.children, simplified.type);
+			return folded ? simplifyCql(folded) : simplified;
+		}
+	}
+}
+
+function simplifyFilter(filter: QueryFilterNode | null): QueryFilterNode | null {
+	if (!filter) return null;
+	if (filter.type === 'raw') return rawFilter(filter.lucene);
+	if (filter.type === 'term') return termFilter(filter.field, filter.values);
+	if (filter.type === 'range') return rangeFilter(filter.field, filter.low, filter.high);
+
+	return simplifyBooleanExpr({
+		...filter,
+		children: filter.children.map(simplifyFilter).filter(isNonNull),
+	}) as QueryFilterNode | null;
+}
+
+function simplifyTokenPredicate(expr: expr): expr | null {
+	if (expr.type === 'predicate') return expr.value.trim() ? expr : null;
+
+	return simplifyBooleanExpr({
+		...expr,
+		children: expr.children.map(simplifyTokenPredicate).filter(isNonNull),
+	}) as expr | null;
+}
+
+function combineCql(patterns: CqlPattern[], combine: QueryCombineMode): CqlPattern | null {
+	if (!patterns.length) return null;
+	if (patterns.length === 1) return patterns[0];
+	return { type: combine, children: patterns };
+}
+
+function combineFilters(filters: QueryFilterNode[], operator: BooleanType): QueryFilterNode | null {
+	if (!filters.length) return null;
+	if (filters.length === 1) return filters[0];
+	return { type: operator, children: filters };
+}
+
+function foldTokenSequences(patterns: CqlPattern[], operator: BooleanType): CqlPattern | null {
+	const sequences = patterns.map(asTokenSequence);
+	if (sequences.some(sequence => !sequence)) return null;
+
+	const maxLength = Math.max(...sequences.map(sequence => sequence?.length ?? 0));
+	const children: CqlPattern[] = [];
+	for (let index = 0; index < maxLength; index += 1) {
+		const tokens = sequences.map(sequence => sequence?.[index]).filter(isNonNull);
+		const combined = combineTokens(tokens, operator);
+		if (combined) children.push(combined);
+	}
+
+	if (!children.length) return null;
+	return children.length === 1 ? children[0] : { type: 'sequence', children };
+}
+
+function asTokenSequence(pattern: CqlPattern): Extract<CqlPattern, { type: 'token' }>[] | null {
+	if (pattern.type === 'token') return [pattern];
+	if (pattern.type === 'sequence' && pattern.children.every(child => child.type === 'token')) {
+		return pattern.children as Extract<CqlPattern, { type: 'token' }>[];
+	}
+	return null;
+}
+
+function combineTokens(tokens: Extract<CqlPattern, { type: 'token' }>[], operator: BooleanType): CqlPattern | null {
+	return token(booleanExpr(operator, ...tokens.map(token => token.predicate)));
+}
+
+// Emit
+// =========================================================================================================================
+
+function emitCqlWithWrappers(pattern: CqlPattern | null, wrappers: QueryWrapper[]): string | null {
+	let cql = emitCql(pattern);
 	for (const wrapper of wrappers) {
 		if (wrapper.type === 'within' && wrapper.element) {
 			const attrs = Object.entries(wrapper.attributes)
@@ -126,168 +283,80 @@ function compilePatternWithWrappers(pattern: QueryPatternNode | null, wrappers: 
 	return cql;
 }
 
-function compilePattern(pattern: QueryPatternNode | null): string | null {
-	if (!pattern) return null;
+function emitCql(pattern: CqlPattern | null): string | null {
+	return pattern ? emitRequiredCql(pattern) : null;
+}
+
+function emitRequiredCql(pattern: CqlPattern): string {
 	switch (pattern.type) {
 		case 'raw':
-			return pattern.cql.trim() || null;
+			return pattern.cql;
 		case 'token': {
-			const condition = compileTokenCondition(normalizeTokenCondition(pattern));
-			return condition ? `[${condition}]` : null;
+			const condition = emitTokenPredicate(pattern.predicate);
+			return `[${condition}]`;
 		}
 		case 'sequence': {
-			const children = pattern.children.map(compilePattern).filter(isNonNull);
-			return children.length ? children.join(' ') : null;
+			return pattern.children.map(emitRequiredCql).join(' ');
 		}
-		case 'boolean': {
-			const children = pattern.children.map(compilePattern).filter(isNonNull);
-			if (!children.length) return null;
-			if (children.length === 1) return children[0];
-			const operator = pattern.operator === 'and' ? ' & ' : ' | ';
-			return `(${children.join(operator)})`;
+		case 'and':
+		case 'or': {
+			const operator = pattern.type === 'and' ? ' & ' : ' | ';
+			return `(${pattern.children.map(emitRequiredCql).join(operator)})`;
 		}
 		case 'parallel': {
-			const source = compilePattern(pattern.source);
-			const targets = pattern.targets.map(target => compilePattern(target.pattern)).filter(isNonNull);
-			return [source, ...targets].filter(isNonNull).join(' :: ') || null;
+			return [emitRequiredCql(pattern.source), ...pattern.targets.map(target => emitRequiredCql(target.pattern!))].join(' :: ');
 		}
 	}
 }
 
-function compileFilter(filter: QueryFilterNode | null): string | null {
-	if (!filter) return null;
+function emitFilter(filter: QueryFilterNode | null): string | null {
+	return filter ? emitRequiredFilter(filter) : null;
+}
+
+function emitRequiredFilter(filter: QueryFilterNode): string {
 	switch (filter.type) {
 		case 'raw':
-			return filter.lucene.trim() || null;
+			return filter.lucene;
 		case 'term':
-			return filter.values.length ? `${filter.field}:(${filter.values.map(value => escapeLucene(value)).join(' ')})` : null;
+			return `${filter.field}:(${filter.values.map(value => escapeLucene(value)).join(' ')})`;
 		case 'range':
 			return `${filter.field}:[${filter.low || '*'} TO ${filter.high || '*'}]`;
-		case 'boolean': {
-			const children = filter.children.map(compileFilter).filter(isNonNull);
-			if (!children.length) return null;
-			if (children.length === 1) return children[0];
-			const operator = filter.operator === 'and' ? ' AND ' : ' OR ';
-			return `(${children.join(operator)})`;
+		case 'or':
+		case 'and': {
+			const operator = filter.type === 'and' ? ' AND ' : ' OR ';
+			return `(${filter.children.map(emitRequiredFilter).join(operator)})`;
 		}
 	}
 }
 
-function normalizeTokenCondition(token: Extract<QueryPatternNode, { type: 'token' }>): QueryTokenConditionNode {
-	return simplifyTokenCondition({
-		type: 'boolean',
-		operator: token.operator ?? 'and',
-		children: token.clauses,
-	});
-}
+function emitTokenPredicate(expr: TokenPredicate, parentOperator?: BooleanType): string {
+	if (expr.type === 'predicate') {
+		const literalFlag = expr.match === 'equals' ? 'l' : '';
+		const caseFlag = expr.caseSensitive ? '' : '(?i)';
 
-function compileTokenCondition(condition: QueryTokenConditionNode, parentOperator?: 'and' | 'or'): string | null {
-	if (!isTokenBooleanCondition(condition)) return compileTokenClause(condition);
+		const escapedValue =
+			expr.match === 'regex'
+				? expr.value
+				: expr.match === 'wildcard'
+					? escapeRegex(expr.value, { escapePipes: false, escapeWildcards: false, escapeQuotes: true })
+					: expr.match === 'equals'
+						? escapeRegex(expr.value)
+						: expr.value; // Should not happen, but just return the raw value if an unknown match is encountered
 
-	const children = condition.children.map(child => compileTokenCondition(child, condition.operator)).filter(isNonNull);
-	if (!children.length) return null;
-	if (children.length === 1) return children[0];
-
-	const operator = condition.operator === 'and' ? ' & ' : ' | ';
-	const compiled = children.join(operator);
-	return parentOperator && parentOperator !== condition.operator ? `(${compiled})` : compiled;
-}
-
-function compileTokenClause(clause: QueryTokenClauseNode): string | null {
-	const value = clause.value.trim();
-	if (!value) return null;
-	const literalFlag = clause.type === 'equals' ? 'l' : '';
-	const caseFlag = clause.caseSensitive ? '' : '(?i)';
-
-	const escapedValue =
-		clause.type === 'regex'
-			? clause.value
-			: clause.type === 'wildcard'
-				? escapeRegex(clause.value, { escapePipes: false, escapeWildcards: false, escapeQuotes: true })
-				: clause.type === 'equals'
-					? escapeRegex(clause.value)
-					: clause.value; // Should not happen, but just return the raw value if an unknown type is encountered
-
-	return `${clause.annotationId}=${literalFlag}"${caseFlag}${escapedValue}"`;
-}
-
-function combinePatterns(patterns: QueryPatternNode[], combine: QueryCombineMode): QueryPatternNode | null {
-	if (!patterns.length) return null;
-	if (patterns.length === 1) return patterns[0];
-	if (combine === 'sequence') return { type: 'sequence', children: patterns };
-	if (combine === 'allOf') {
-		const folded = foldTokenSequences(patterns, 'and');
-		if (folded) return folded;
+		return `${expr.annotation}=${literalFlag}"${caseFlag}${escapedValue}"`;
 	}
-	return simplifyPatternBoolean({
-		type: 'boolean',
-		operator: combine === 'anyOf' ? 'or' : 'and',
-		children: patterns,
-	});
+
+	const operator = expr.type === 'and' ? ' & ' : ' | ';
+	const compiled = expr.children.map(child => emitTokenPredicate(child, expr.type)).join(operator);
+	return parentOperator && parentOperator !== expr.type ? `(${compiled})` : compiled;
 }
 
-function combineFilters(filters: QueryFilterNode[], operator: 'and' | 'or'): QueryFilterNode | null {
-	if (!filters.length) return null;
-	if (filters.length === 1) return filters[0];
-	return { type: 'boolean', operator, children: filters };
-}
-
-function hasContribution(contribution: QueryContribution): boolean {
+function hasContribution(contribution: QueryFragment): boolean {
 	return hasQueryContributions(contribution.query) || contribution.summaries.length > 0;
 }
 
-function hasQueryContributions(artifact: CompilableQuery): boolean {
+function hasQueryContributions(artifact: QueryIR): boolean {
 	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchField);
-}
-
-function foldTokenSequences(patterns: QueryPatternNode[], operator: 'and' | 'or'): QueryPatternNode | null {
-	const sequences = patterns.map(asTokenSequence);
-	if (sequences.some(sequence => !sequence)) return null;
-
-	const maxLength = Math.max(...sequences.map(sequence => sequence?.length ?? 0));
-	const children: QueryPatternNode[] = [];
-	for (let index = 0; index < maxLength; index += 1) {
-		const tokens = sequences.map(sequence => sequence?.[index]).filter(isNonNull);
-		if (tokens.length) children.push(combineTokens(tokens, operator));
-	}
-
-	if (!children.length) return null;
-	return children.length === 1 ? children[0] : { type: 'sequence', children };
-}
-
-function asTokenSequence(pattern: QueryPatternNode): Extract<QueryPatternNode, { type: 'token' }>[] | null {
-	if (pattern.type === 'token') return [pattern];
-	if (pattern.type === 'sequence' && pattern.children.every(child => child.type === 'token')) {
-		return pattern.children as Extract<QueryPatternNode, { type: 'token' }>[];
-	}
-	return null;
-}
-
-function combineTokens(tokens: Extract<QueryPatternNode, { type: 'token' }>[], operator: 'and' | 'or'): QueryPatternNode {
-	return {
-		type: 'token',
-		operator,
-		clauses: tokens.map(token => normalizeTokenCondition(token)),
-	};
-}
-
-function simplifyPatternBoolean(pattern: Extract<QueryPatternNode, { type: 'boolean' }>): QueryPatternNode {
-	const children = pattern.children.flatMap(child => (child.type === 'boolean' && child.operator === pattern.operator ? child.children : [child]));
-	if (children.length === 1) return children[0];
-	return { ...pattern, children };
-}
-
-function simplifyTokenCondition(condition: QueryTokenConditionNode): QueryTokenConditionNode {
-	if (!isTokenBooleanCondition(condition)) return condition;
-
-	const children = condition.children.map(simplifyTokenCondition).flatMap(child => (isTokenBooleanCondition(child) && child.operator === condition.operator ? child.children : [child]));
-
-	if (children.length === 1) return children[0];
-	return { ...condition, children };
-}
-
-function isTokenBooleanCondition(condition: QueryTokenConditionNode): condition is Extract<QueryTokenConditionNode, { type: 'boolean' }> {
-	return condition.type === 'boolean';
 }
 
 function escapeLucene(value: string): string {

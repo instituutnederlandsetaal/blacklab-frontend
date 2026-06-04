@@ -5,9 +5,9 @@ import {
 	type AnnotationPosFieldConfig,
 	type AnnotationPosFieldState,
 } from '@/features/form/fields/annotation-pos-field';
-import { createQueryContribution } from '@/features/form/model/compile/query-artifact';
+import { cqlRaw, queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
-import type { QueryContribution } from '@/features/form/model/types';
+import type { QueryFragment } from '@/features/form/model/types';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
 export const annotationPosController = createFieldController<'annotation-pos', AnnotationPosFieldState, AnnotationPosFieldConfig>({
@@ -37,17 +37,9 @@ export const annotationPosController = createFieldController<'annotation-pos', A
 	},
 	getQueryContribution(config, runtime, state) {
 		const pattern = buildAnnotationPosPattern(config, state);
-		if (!pattern) return createQueryContribution();
-		const r: QueryContribution = {
-			query: {
-				pattern: {
-					type: 'raw',
-					cql: pattern,
-				},
-				filter: null,
-				searchField: null,
-				wrappers: [],
-			},
+		if (!pattern) return queryFragment();
+		const r: QueryFragment = {
+			query: queryIR({ pattern: cqlRaw(pattern) }),
 			summaries: state.annotationValue
 				? [
 						{

@@ -13,15 +13,15 @@
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import type {
-	BCQLAndNode,
-	BCQLCompareNode,
-	BCQLOrNode,
-	BCQLPositionFilterNode,
-	BCQLQueryNode,
-	BCQLRegexNode,
-	BCQLTagAttributeExpressionNode,
-	BCQLTextPatternNode,
-	BCQLTextPatternStruct,
+    BCQLAndNode,
+    BCQLCompareNode,
+    BCQLOrNode,
+    BCQLPositionFilterNode,
+    BCQLQueryNode,
+    BCQLRegexNode,
+    BCQLTagAttributeExpressionNode,
+    BCQLTextPatternNode,
+    BCQLTextPatternStruct,
 } from '@/shared/blacklab-helpers/cql/bcql-json-ast';
 
 export type XmlTag = {
@@ -117,11 +117,11 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 		return {
 			type: 'booleanOp',
 			operator: type === 'and' ? '&' : '|',
-			clauses: clauses.map(_tokenExpression).filter(c => c != null),
+			clauses: clauses.map(_TokenPredicateession).filter(c => c != null),
 		};
 	}
 
-	function _tokenExpression(input: BCQLTextPatternNode): BooleanOp | Condition | null {
+	function _TokenPredicateession(input: BCQLTextPatternNode): BooleanOp | Condition | null {
 		switch (input.type) {
 			case 'regex':
 				return _regex(input);
@@ -285,7 +285,7 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 
 			default:
 				// Excluded any special token-level nodes; must be a token expression
-				const expression = _tokenExpression(input);
+				const expression = _TokenPredicateession(input);
 				if (expression === null) {
 					return null;
 				}

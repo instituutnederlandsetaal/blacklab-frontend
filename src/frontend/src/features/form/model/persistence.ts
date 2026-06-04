@@ -1,5 +1,5 @@
 import { buildFormQuery } from '@/features/form/model/compile';
-import { createCompiledQueryProjections } from '@/features/form/model/compile/query-artifact';
+import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
 import { createFormState } from '@/features/form/model/state';
 import type { BlackLabParameter, EncodedFieldValue, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
@@ -135,7 +135,7 @@ function compileWithoutRawOverrides(form: FormBoundaryNode, state: FormState, co
 	const saved = state.rawOverrides;
 	state.rawOverrides = {};
 	try {
-		return createCompiledQueryProjections(buildFormQuery(form, state, context));
+		return compileQueryIR(buildFormQuery(form, state, context));
 	} finally {
 		state.rawOverrides = saved;
 	}

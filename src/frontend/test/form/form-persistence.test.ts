@@ -3,21 +3,13 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 
-import {
-	createFormState,
-	encodeScopedFormQuery,
-	expertQueryController,
-	filterTextController,
-	FormSystem,
-	restoreScopedFormState,
-	type FieldController,
-} from '@/features/form';
-import { artifactFromFilter, createQueryContribution, rawFilter } from '@/features/form/model/compile/query-artifact';
+import { createFormState, encodeScopedFormQuery, expertQueryController, filterTextController, FormSystem, restoreScopedFormState, type FieldController } from '@/features/form';
+import { queryFragment, rawFilter } from '@/features/form/model/compile/query-artifact';
 
 import { TestTextField, createTestBuilder, createTestContext, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
-import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
+import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
 function createSingleTextForm() {
@@ -168,9 +160,7 @@ describe('scoped form persistence', () => {
 		const newspapers = filters.addContainer('search.extended.filters.newspapers', ContainerRenderer, {
 			title: 'Newspapers',
 			persistKey: 'newspapers',
-			activeQueryContribution: createQueryContribution(artifactFromFilter(rawFilter('category("newspaper")')), [
-				{ id: 'category', label: 'Category', value: 'Newspapers' },
-			]),
+			activeQueryContribution: queryFragment(rawFilter('category("newspaper")')),
 		});
 		const definition = builder.build();
 		const context = createTestContext();

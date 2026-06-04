@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import { buildFormQuery, createFormState, createInitialContainerUiStates, summarizeForm, type QueryCombineMode } from '@/features/form';
-import { createCompiledQueryProjections } from '@/features/form/model/compile/query-artifact';
+import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 
 import { TestTextField, createTestBuilder, createTestContext, parentFormProbeView, testTextController } from './helpers';
 
@@ -30,11 +30,11 @@ const compositionExpectations: Array<{
 	};
 }> = [
 	{
-		combine: 'allOf',
-		name: 'allOf combines child fields with an AND boolean projection',
+		combine: 'and',
+		name: 'and folds child token fields into one token projection',
 		expected: {
 			compiled: {
-				cql: '([word="(?i)water"] & [lemma="(?i)lopen"])',
+				cql: '[word="(?i)water" & lemma="(?i)lopen"]',
 				filter: null,
 				searchField: null,
 			},
@@ -42,11 +42,11 @@ const compositionExpectations: Array<{
 		},
 	},
 	{
-		combine: 'anyOf',
-		name: 'anyOf combines child fields with an OR boolean projection',
+		combine: 'or',
+		name: 'or folds child token fields into one token projection',
 		expected: {
 			compiled: {
-				cql: '([word="(?i)water"] | [lemma="(?i)lopen"])',
+				cql: '[word="(?i)water" | lemma="(?i)lopen"]',
 				filter: null,
 				searchField: null,
 			},
@@ -133,7 +133,7 @@ describe('form model state', () => {
 
 	test.each(compositionExpectations)('$name', ({ combine, expected }) => {
 		const fixture = createCompositionFixture(combine);
-		const compiled = createCompiledQueryProjections(buildFormQuery(fixture.form, fixture.state, fixture.context));
+		const compiled = compileQueryIR(buildFormQuery(fixture.form, fixture.state, fixture.context));
 		const summaries = summarizeForm(fixture.form, fixture.state, fixture.context);
 
 		expect(compiled).toEqual(expected.compiled);

@@ -1,10 +1,12 @@
-import { combineQueryContributions, createQueryContribution } from '@/features/form/model/compile/query-artifact';
+import { combineQueryFragments, queryFragment } from '@/features/form/model/compile/query-artifact';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { CompilableQuery, QueryContribution, SummaryEntry } from '@/features/form/model/types/form-query';
+import type { QueryFragment, QueryIR, SummaryEntry } from '@/features/form/model/types/form-query';
 import type { FormBoundaryNode, FormContainerLikeNode, FormFieldNode } from '@/features/form/model/types/form-shape';
 import type { FormState } from '@/features/form/model/types/form-state';
 
-export function buildFormQuery(form: FormBoundaryNode, formState: FormState, context: FormRuntimeContext): CompilableQuery {
+export * from './query-artifact';
+
+export function buildFormQuery(form: FormBoundaryNode, formState: FormState, context: FormRuntimeContext): QueryIR {
 	return getFormQueryContribution(form, formState, context).query;
 }
 
@@ -12,12 +14,12 @@ export function summarizeForm(form: FormBoundaryNode, formState: FormState, cont
 	return getFormQueryContribution(form, formState, context).summaries;
 }
 
-export function getFormQueryContribution(form: FormBoundaryNode, formState: FormState, context: FormRuntimeContext): QueryContribution {
+export function getFormQueryContribution(form: FormBoundaryNode, formState: FormState, context: FormRuntimeContext): QueryFragment {
 	return getQueryContributionFromContainer(form, formState, context);
 }
 
-function getQueryContributionFromContainer(node: FormContainerLikeNode, formState: FormState, context: FormRuntimeContext): QueryContribution {
-	const childContributions = node.children.reduce<QueryContribution[]>((acc, child) => {
+function getQueryContributionFromContainer(node: FormContainerLikeNode, formState: FormState, context: FormRuntimeContext): QueryFragment {
+	const childContributions = node.children.reduce<QueryFragment[]>((acc, child) => {
 		if (child.kind === 'field') acc.push(getQueryContributionFromField(child, context, formState));
 		else if (child.kind === 'container' || child.kind === 'form') {
 			acc.push(getQueryContributionFromContainer(child, formState, context));
@@ -26,12 +28,12 @@ function getQueryContributionFromContainer(node: FormContainerLikeNode, formStat
 			}
 		}
 		return acc;
-	}, [] as QueryContribution[]);
+	}, [] as QueryFragment[]);
 
 	const combineMode = node.kind === 'container' ? node.combine : undefined;
-	return combineQueryContributions(combineMode, ...childContributions);
+	return combineQueryFragments(combineMode, ...childContributions);
 }
 
-function getQueryContributionFromField(node: FormFieldNode, context: FormRuntimeContext, formState: FormState): QueryContribution {
-	return node.controller.getQueryContribution?.(node, context, formState.controllerState[node.id]) ?? createQueryContribution();
+function getQueryContributionFromField(node: FormFieldNode, context: FormRuntimeContext, formState: FormState): QueryFragment {
+	return node.controller.getQueryContribution?.(node, context, formState.controllerState[node.id]) ?? queryFragment();
 }

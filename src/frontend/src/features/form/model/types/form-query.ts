@@ -1,34 +1,95 @@
 import type { ResultPreset } from '@/features/form/model/types/form-shape';
 import type { FormState } from '@/features/form/model/types/form-state';
 
-export type QueryTokenClauseType = 'equals' | 'regex' | 'wildcard';
+export type TokenPredicateMatch = 'equals' | 'regex' | 'wildcard';
 
-export type QueryTokenClauseNode = {
-	type: QueryTokenClauseType;
-	annotationId: string;
+export type BooleanType = 'and' | 'or';
+export type BooleanExpr<TLeaf> = { type: BooleanType; children: Array<BooleanExpr<TLeaf> | TLeaf> };
+export function booleanExpr<TLeaf>(type: BooleanType, ...children: Array<BooleanExpr<TLeaf> | TLeaf>): BooleanExpr<TLeaf> {
+	return { type, children };
+}
+export function isBooleanExpr<TLeaf>(node: any): node is BooleanExpr<TLeaf> {
+	return node && typeof node === 'object' && 'type' in node && (node.type === 'and' || node.type === 'or') && Array.isArray(node.children);
+}
+
+export function simplifyBooleanExpr<TLeaf>(expr: BooleanExpr<TLeaf> | TLeaf): BooleanExpr<NonNullable<TLeaf>> | TLeaf;
+export function simplifyBooleanExpr<TLeaf>(expr: BooleanExpr<TLeaf> | TLeaf, removeLeaf: (leaf: TLeaf) => boolean): BooleanExpr<TLeaf> | TLeaf | null;
+export function simplifyBooleanExpr<TLeaf>(expr: BooleanExpr<TLeaf> | TLeaf, removeLeaf?: (leaf: TLeaf) => boolean): BooleanExpr<TLeaf> | TLeaf | null {
+	if (!isBooleanExpr(expr)) {
+		return removeLeaf?.(expr) ? null : expr;
+	}
+
+	const children = expr.children
+		.map(c => simplifyBooleanExpr(c, removeLeaf as any))
+		.filter(c => c != null)
+		.flatMap(child => (isBooleanExpr(child) && child.type === expr.type ? child.children : [child]));
+	if (!children.length) return null;
+	if (children.length === 1) return children[0];
+	return { ...expr, children };
+}
+
+type TokenPredicateLeaf = {
+	type: 'predicate';
+	match: TokenPredicateMatch;
+	annotation: string;
 	value: string;
 	caseSensitive?: boolean;
 };
+export type TokenPredicate = TokenPredicateLeaf | BooleanExpr<TokenPredicateLeaf>;
 
-export type QueryTokenConditionNode = QueryTokenClauseNode | { type: 'boolean'; operator: 'and' | 'or'; children: QueryTokenConditionNode[] };
-
-export type QueryPatternNode =
-	| { type: 'sequence'; children: QueryPatternNode[] }
-	| { type: 'token'; clauses: QueryTokenConditionNode[]; operator?: 'and' | 'or' }
-	| { type: 'boolean'; operator: 'and' | 'or'; children: QueryPatternNode[] }
-	| { type: 'parallel'; source: QueryPatternNode; targets: QueryParallelTargetNode[] }
+type CqlPatternLeaf =
+	| { type: 'sequence'; children: CqlPattern[] }
+	| { type: 'token'; predicate: TokenPredicate }
+	| { type: 'parallel'; source: CqlPattern; targets: QueryParallelTargetPattern[] }
 	| { type: 'raw'; cql: string };
+export type CqlPattern = CqlPatternLeaf | BooleanExpr<CqlPatternLeaf>;
 
-export type QueryParallelTargetNode = {
+export function isCqlPattern(node: any): node is CqlPattern {
+	if (!node || typeof node !== 'object' || !('type' in node)) return false;
+	switch (node.type as CqlPattern['type']) {
+		case 'and':
+		case 'or':
+			return Array.isArray(node.children) && node.children.every((child: any) => isCqlPattern(child));
+		case 'sequence':
+			return Array.isArray(node.children);
+		case 'token':
+			return 'predicate' in node && typeof node.predicate === 'object';
+		case 'parallel':
+			return 'source' in node && isCqlPattern(node.source) && Array.isArray(node.targets) && node.targets.every(isQueryParallelTargetPattern);
+		case 'raw':
+			return 'cql' in node && typeof node.cql === 'string';
+		default:
+			return false;
+	}
+}
+
+export type QueryParallelTargetPattern = {
 	fieldId: string;
-	pattern: QueryPatternNode | null;
+	pattern: CqlPattern | null;
 };
+export function isQueryParallelTargetPattern(node: any): node is QueryParallelTargetPattern {
+	return node && typeof node === 'object' && 'fieldId' in node && typeof node.fieldId === 'string' && 'pattern' in node && (node.pattern === null || isCqlPattern(node.pattern));
+}
 
-export type QueryFilterNode =
-	| { type: 'term'; field: string; values: string[] }
-	| { type: 'range'; field: string; low?: string; high?: string }
-	| { type: 'boolean'; operator: 'and' | 'or'; children: QueryFilterNode[] }
-	| { type: 'raw'; lucene: string };
+type QueryFilterNodeLeaf = { type: 'term'; field: string; values: string[] } | { type: 'range'; field: string; low?: string; high?: string } | { type: 'raw'; lucene: string };
+export type QueryFilterNode = QueryFilterNodeLeaf | BooleanExpr<QueryFilterNodeLeaf>;
+
+export function isQueryFilterNode(node: any): node is QueryFilterNode {
+	if (!node || typeof node !== 'object' || !('type' in node)) return false;
+	switch (node.type as QueryFilterNode['type']) {
+		case 'and':
+		case 'or':
+			return 'children' in node && Array.isArray(node.children) && node.children.every(isQueryFilterNode);
+		case 'term':
+			return 'field' in node && typeof node.field === 'string' && 'values' in node && Array.isArray(node.values) && node.values.every((v: unknown) => typeof v === 'string');
+		case 'range':
+			return 'field' in node && typeof node.field === 'string' && ('low' in node ? typeof node.low === 'string' : true) && ('high' in node ? typeof node.high === 'string' : true);
+		case 'raw':
+			return 'lucene' in node && typeof node.lucene === 'string';
+		default:
+			return false;
+	}
+}
 
 export type QueryWrapper =
 	| {
@@ -41,12 +102,18 @@ export type QueryWrapper =
 			enabled: boolean;
 	  };
 
-export type CompilableQuery = {
-	pattern: QueryPatternNode | null;
+export type QueryIR = {
+	pattern: CqlPattern | null;
 	filter: QueryFilterNode | null;
 	wrappers: QueryWrapper[];
 	searchField: string | null;
 };
+export function isQueryIR(artifact: any): artifact is QueryIR {
+	return artifact && typeof artifact === 'object' && ('pattern' in artifact || 'filter' in artifact || 'wrappers' in artifact || 'searchField' in artifact);
+}
+export function isPartialQueryIR(artifact: any): artifact is Partial<QueryIR> {
+	return artifact && typeof artifact === 'object' && ('pattern' in artifact || 'filter' in artifact || 'wrappers' in artifact || 'searchField' in artifact);
+}
 
 /**
  * A human-readable summary for a field in the form.
@@ -63,8 +130,8 @@ export type SummaryEntry = {
 	group?: string;
 };
 
-export type QueryContribution = {
-	query: CompilableQuery;
+export type QueryFragment = {
+	query: QueryIR;
 	summaries: SummaryEntry[];
 };
 

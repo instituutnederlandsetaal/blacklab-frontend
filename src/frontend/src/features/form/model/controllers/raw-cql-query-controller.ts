@@ -1,3 +1,4 @@
+import { cqlRaw, queryFragment } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, encodePersistObject, firstEncodedValue, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 
@@ -34,26 +35,16 @@ export const expertQueryController: FieldController<'raw-cql-query', RawCqlQuery
 		};
 	},
 	getQueryContribution(config, runtime, state) {
-		return {
-			query: {
-				pattern: {
-					type: 'raw',
-					cql: state.query,
-				},
-				filter: null,
-				searchField: null,
-				wrappers: [],
-			},
-			summaries: state.query
-				? [
-						{
-							id: config.id,
-							label: runtime.translate.$t(`search.expert.corpusQueryLanguage`),
-							value: state.query,
-						},
-					]
-				: [],
-		};
+		return queryFragment(
+			cqlRaw(state.query),
+			state.query.trim()
+				? {
+						id: config.id,
+						label: runtime.translate.$t(`search.expert.corpusQueryLanguage`),
+						value: state.query,
+					}
+				: null,
+		);
 	},
 
 	// Return something unique for this controller

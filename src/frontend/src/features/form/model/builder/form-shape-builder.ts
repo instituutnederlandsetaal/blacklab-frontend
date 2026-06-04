@@ -1,3 +1,5 @@
+import { markRaw } from 'vue';
+
 import { checkNoLoops, generateSchemaVersion } from '@/features/form/model/form-utils';
 import type { AnyFieldController, FieldController, FormSystemDefinition } from '@/features/form/model/types';
 import type {
@@ -16,103 +18,6 @@ import type {
 	RealViewNode,
 } from '@/features/form/model/types/form-shape';
 import type { AnyVueComponent, ConstrainComponentToProvidedProps, DistributiveOmit, NoExtraProperties, PublicPropsOf } from '@/types/helpers';
-
-// Tests
-// ==========================================================================================================================
-
-// const newContainerNode: NewContainerNodeFn = (id, component, config) => {
-// 	return {} as any;
-// };
-
-// const TestContainerComponent = defineComponent({
-// 	props: {
-// 		foo: { type: String, required: true },
-// 		// variant: { type: String, required: false },
-// 		optional: { type: Array, required: false },
-// 		required: { type: String, required: true },
-// 	},
-// });
-
-// const testContainerNode = newContainerNode('test-node', TestContainerComponent, {
-// 	variant: 'list',
-// 	foo: 'bar',
-// 	required: 'string',
-// });
-
-// const newFormNode: NewFormNodeFn = (id, component, config) => {
-// 	return {} as any;
-// };
-
-// const TestFormComponent = defineComponent({
-// 	props: {
-// 		foo: { type: String, required: true },
-// 		id: { type: String, required: true },
-// 		required: { type: String, required: true },
-// 		optional: { type: String, required: false },
-// 	},
-// });
-
-// const testFormNode = newFormNode('test-form-node', TestFormComponent, {
-// 	foo: 'bar',
-// 	required: 'true',
-// 	resultPreset: {
-// 		viewedResults: 'list',
-// 	},
-// 	// htmlId: 'forbidden',
-// });
-
-// const testController: FieldController<string, any, { foo: string; test: any[] }> = {
-// 	kind: 'test',
-// 	createDefaultState: (node, runtime) => {
-// 		return 'default';
-// 	},
-// 	toJSON() {
-// 		return { foo: 'string', test: [] };
-// 	},
-// };
-
-// const TestComponent = defineComponent({
-// 	props: {
-// 		foo: { type: String, required: true },
-// 		test: { type: Array, required: true },
-// 		id: { type: String, required: true },
-// 	},
-// });
-
-// const newFieldNode: NewFieldNodeFn = (id, controller, component, config) => {
-// 	return {} as any;
-// };
-
-// const testNode = newFieldNode('test-node', testController, TestComponent, {
-// 	foo: 'string',
-// 	variant: 'list',
-// 	test: [],
-// });
-
-// const TestViewComponent = defineComponent({
-// 	props: {
-// 		foo: { type: String, required: true },
-// 		id: { type: String, required: true },
-// 	},
-// });
-
-// const newViewNode: NewViewNodeFn = (id, component, config) => {
-// 	return {} as any;
-// };
-
-// const TestViewNodeConfig: NewViewNodeFnConfig<typeof TestViewComponent> = {
-// 	foo: 'string',
-// 	// variant: 'list' as const,
-// 	// htmlId: 'forbidden',
-// 	extraneous: 'value',
-// };
-
-// const testViewNode = newViewNode('test-view-node', TestViewComponent, {
-// 	modelValue: 'test',
-// 	foo: 'bar',
-// 	htmlId: 'forbidden',
-// 	extraneous: 'value',
-// });
 
 // Helpers
 // ==========================================================================================================================
@@ -266,7 +171,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 			kind: 'container',
 			id,
 			children: [] as any[],
-			component: component as any,
+			component: markRaw(component as any),
 			addContainer(id, component, config) {
 				const childNode = this.builder.newContainer(id, component, config);
 				this.children.push(childNode);
@@ -312,7 +217,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 			builder: this,
 			kind: 'form',
 			id,
-			component: component as any,
+			component: markRaw(component as any),
 			children: [] as AnyRealFormNode[],
 			addContainer(id, component, config) {
 				const childNode = this.builder.newContainer(id, component, config);
@@ -350,7 +255,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
 		const node = {
 			...config,
-			component: component as any,
+			component: markRaw(component as any),
 			controller,
 			kind: 'field' as const,
 			id,
@@ -363,7 +268,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 		if (this.nodeMap[id]) throw new Error(`Node with id ${id} already exists`);
 		const node = {
 			...config,
-			component: component as any,
+			component: markRaw(component as any),
 			id,
 			kind: 'view' as const,
 		} satisfies NewViewNodeFnReturn<AnyVueComponent, {}>;

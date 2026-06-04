@@ -8,7 +8,7 @@ import { createDefaultRangeMultipleFieldsFieldState, type RangeMultipleFieldsFie
 import { createDefaultSelectFieldState, type SelectFieldState, type SelectFieldUiConfig } from '@/features/form/fields/generic/select-field';
 import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
 import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
-import { artifactFromFilter, rawFilter, termFilter, withSummary } from '@/features/form/model/compile/query-artifact';
+import { queryFragment, queryIR, rawFilter, termFilter, withSummary } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, encodePersistObject, firstEncodedValue, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
 import type { SummaryEntry } from '@/features/form/model/types';
 import { createFieldController, type EncodedFieldValue } from '@/features/form/model/types/form-controllers';
@@ -56,7 +56,7 @@ function createSummaryEntry(annotationOrFieldOrNodeId: string, config: GenericFi
 }
 
 function createRawFilterQuery(annotationOrFieldOrNodeId: string, config: GenericFieldUiConfig, lucene: string | null, summary: string | null) {
-	return withSummary(artifactFromFilter(rawFilter(lucene)), createSummaryEntry(annotationOrFieldOrNodeId, config, summary));
+	return withSummary(queryIR({ filter: rawFilter(lucene) }), createSummaryEntry(annotationOrFieldOrNodeId, config, summary));
 }
 
 function summarizeValues(values: string[]): string | null {
@@ -289,8 +289,9 @@ export const filterSelectController = createFieldController<'metadata-filter-sel
 	getQueryContribution(config, _runtime, state) {
 		const selectedValues = state.filter(value => value.trim());
 		const summary = summarizeSelectField(config, selectedValues);
-		return withSummary(
-			artifactFromFilter(termFilter(config.metadataFieldId, selectedValues)),
+
+		return queryFragment(
+			termFilter(config.metadataFieldId, selectedValues),
 			summary
 				? {
 						id: config.id,

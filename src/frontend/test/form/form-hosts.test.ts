@@ -5,18 +5,18 @@ import { describe, expect, test } from 'vitest';
 import { computed, defineComponent, h, nextTick, ref } from 'vue';
 
 import {
-	FormBuilder,
-	annotationTextController,
-	createFormSystemRuntime,
-	expertQueryController,
-	filterTextController,
-	parallelController,
-	withinController,
-	type FormBoundaryNode,
-	type FormFieldNode,
-	type FormSystemRuntime,
-	type FormViewNode,
-	type SummaryEntry,
+    FormBuilder,
+    annotationTextController,
+    createFormSystemRuntime,
+    expertQueryController,
+    filterTextController,
+    parallelController,
+    withinController,
+    type FormBoundaryNode,
+    type FormFieldNode,
+    type FormSystemRuntime,
+    type FormViewNode,
+    type SummaryEntry,
 } from '@/features/form';
 import { createAndProvideParentForm, provideFormSystemRuntime } from '@/features/form/model/runtime';
 import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
@@ -194,7 +194,7 @@ function addFieldToForm(form: ReturnType<FormBuilder['newForm']>, field: FormFie
 	}
 
 	const container = form.addContainer(`${field.id}.container`, ContainerRenderer, {
-		combine: 'allOf',
+		combine: 'and',
 	});
 	if (placement === 'container') {
 		container.addChildren(field);
@@ -202,7 +202,7 @@ function addFieldToForm(form: ReturnType<FormBuilder['newForm']>, field: FormFie
 	}
 
 	const nestedContainer = container.addContainer(`${field.id}.nested`, ContainerRenderer, {
-		combine: 'allOf',
+		combine: 'and',
 	});
 	nestedContainer.addChildren(field);
 }
