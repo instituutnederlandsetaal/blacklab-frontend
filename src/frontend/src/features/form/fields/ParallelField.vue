@@ -2,7 +2,7 @@
 	<div :class="fieldClasses">
 		<div class="blf-parallel-grid">
 			<label :for="`${htmlId}_source`">{{ $t(`search.parallel.searchSourceVersion`) }}</label>
-			<select :id="`${htmlId}_source`" class="blf-input form-control" :value="modelValue.source || ''" @change="updateSource(($event.target as HTMLSelectElement).value)">
+			<select :id="`${htmlId}_source`" class="blf-input form-control" :value="modelValue.source || ''" :disabled="disabled" @change="updateSource(($event.target as HTMLSelectElement).value)">
 				<option value=""></option>
 				<option v-for="field in sourceOptions" :key="field.id" :value="field.id">
 					{{ $tAnnotatedFieldDisplayName(field) }}
@@ -11,7 +11,7 @@
 
 			<label>{{ $t(`search.parallel.andCompareWithTargetVersions`) }}</label>
 			<div class="blf-targets">
-				<button v-for="field in targetOptions" :key="field.id" type="button" :class="{ active: modelValue.targets.includes(field.id) }" @click="toggleTarget(field.id)">
+				<button v-for="field in targetOptions" :key="field.id" type="button" :class="{ active: modelValue.targets.includes(field.id) }" :disabled="disabled" @click="toggleTarget(field.id)">
 					{{ $tAnnotatedFieldDisplayName(field) }}
 				</button>
 			</div>
@@ -22,6 +22,7 @@
 				:id="`${htmlId}_align`"
 				class="blf-input form-control"
 				:value="modelValue.alignBy || ''"
+				:disabled="disabled"
 				@change="updateAlignBy(($event.target as HTMLSelectElement).value)"
 			>
 				<option value=""></option>
@@ -39,7 +40,9 @@ import { computed } from 'vue';
 import { decodeVariants } from '@/features/form/model/form-utils';
 
 import type { ParallelFieldComponentProps, ParallelFieldState } from '../model/controllers/parallel-controller';
-const props = defineProps<ParallelFieldComponentProps>();
+const props = withDefaults(defineProps<ParallelFieldComponentProps>(), {
+	disabled: false,
+});
 
 const emit = defineEmits<{
 	'update:modelValue': [value: ParallelFieldState];

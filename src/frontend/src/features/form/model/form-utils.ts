@@ -153,6 +153,7 @@ export function pickActiveFormState(form: FormBoundaryNode, formState: FormState
 		uiState: {
 			activeContainers: {},
 		},
+		rawOverrides: structuredClone(toRaw(formState.rawOverrides ?? {})),
 	};
 
 	for (const field of getAllNodes(form, 'field', 'container', 'form')) {
@@ -176,6 +177,7 @@ export function reactivePickActiveFormState(form: FormBoundaryNode, formState: F
 		uiState: {
 			activeContainers: {},
 		},
+		rawOverrides: formState.rawOverrides ?? {},
 	});
 
 	const fieldsToInclude = new Set<string>();

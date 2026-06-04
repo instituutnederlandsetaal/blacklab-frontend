@@ -1,7 +1,7 @@
-import type { MaybeComputed } from '@/features/form/model/types/form-shape';
+import type { MaybeRefOrGetter } from 'vue';
 
 export type TotalsViewConfig = {
-	title?: MaybeComputed<string>;
+	title?: MaybeRefOrGetter<string>;
 	baseDocuments: number;
 	baseTokens: number;
 };

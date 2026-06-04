@@ -12,6 +12,7 @@
 			:placeholder="placeholderText"
 			:dir="textDirection"
 			:options="options"
+			:disabled="disabled"
 			v-model="pickerValue"
 		/>
 		<small v-if="description" class="blf-help-text">{{ description }}</small>
@@ -32,6 +33,7 @@ type SelectPickerModelValue = string | string[] | null;
 
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<SelectFieldState> & SelectFieldUiConfig & { showLabel?: boolean }>(), {
 	showLabel: true,
+	disabled: false,
 });
 
 const emit = defineEmits<{

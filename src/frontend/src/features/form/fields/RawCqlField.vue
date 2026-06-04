@@ -4,7 +4,7 @@
 			{{ $t(`search.expert.corpusQueryLanguage`) }}
 			<a v-if="helpUrl" class="help" target="_blank" :href="helpUrl" :title="$t(`widgets.learnMore`)">?</a>
 		</label>
-		<textarea class="blf-input form-control querybox" :id="`${htmlId}_query`" :rows="rows || 7" :value="modelValue.query" @input="updateQuery(($event.target as HTMLTextAreaElement).value)" />
+		<textarea class="blf-input form-control querybox" :id="`${htmlId}_query`" :rows="rows || 7" :value="modelValue.query" :disabled="disabled" @input="updateQuery(($event.target as HTMLTextAreaElement).value)" />
 	</div>
 </template>
 
@@ -15,7 +15,9 @@ import type { RawCqlQueryFieldConfig, RawCqlQueryFieldState } from '@/features/f
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
 
-const props = defineProps<ImplicitFieldComponentProps<RawCqlQueryFieldState> & RawCqlQueryFieldConfig>();
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<RawCqlQueryFieldState> & RawCqlQueryFieldConfig>(), {
+	disabled: false,
+});
 
 const emit = defineEmits<{
 	'update:modelValue': [value: RawCqlQueryFieldState];

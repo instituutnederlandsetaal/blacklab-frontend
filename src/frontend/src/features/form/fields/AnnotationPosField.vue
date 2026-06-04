@@ -6,10 +6,10 @@
 				{{ selectionSummary || $t('partOfSpeech.noneSelected') }}
 			</div>
 			<div class="blf-annotation-pos__actions">
-				<button :id="buttonId" type="button" class="btn btn-default" @click="openEditor">
+				<button :id="buttonId" type="button" class="btn btn-default" :disabled="disabled" @click="openEditor">
 					{{ $t('partOfSpeech.edit') }}
 				</button>
-				<button v-if="hasSelection" type="button" class="btn btn-link" @click="clearSelection">
+				<button v-if="hasSelection" type="button" class="btn btn-link" :disabled="disabled" @click="clearSelection">
 					{{ $t('partOfSpeech.reset') }}
 				</button>
 			</div>
@@ -36,6 +36,7 @@
 							active: draftState.annotationValue === value.value,
 						}"
 						@click="toggleAnnotationValue(value.value)"
+						:disabled="disabled"
 					>
 						{{ value.displayName }}
 					</button>
@@ -99,6 +100,7 @@ import Modal from '@/shared/ui/Modal.vue';
 
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<AnnotationPosFieldState> & AnnotationPosFieldConfig & { showLabel?: boolean }>(), {
 	showLabel: true,
+	disabled: false,
 });
 
 const emit = defineEmits<{

@@ -11,7 +11,7 @@ import { applyWithinClauses, parenQueryPartParallel } from '@/shared/blacklab-he
 import { getCorrectUiType, uiTypeSupport } from '@/shared/blacklab-helpers/normalize-responses';
 import { getParallelFieldParts } from '@/shared/blacklab-helpers/parallel-helper';
 import { elementAndAttributeNameFromFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
-import { escapeRegex, splitIntoTerms, type RegexEscapeOptions } from '@/shared/utils/string-utils';
+import { escapeRegex, tokenizeString, type RegexEscapeOptions } from '@/shared/utils/string-utils';
 
 /** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */
 export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): string[] => {
@@ -33,7 +33,7 @@ export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue)
 			// if multiple tokens, split on quotes (removing them), and whitespace outside quotes, and then transform
 			// the values individually
 			const regexOptions = { escapePipes: false, escapeWildcards: false };
-			let resultParts = splitIntoTerms(value, true).map(v => escapeRegex(v.value, regexOptions));
+			let resultParts = tokenizeString(value, true).map(v => escapeRegex(v.value, regexOptions));
 			if (caseSensitive) {
 				resultParts = resultParts.map(v => `(?-i)${v}`);
 			}

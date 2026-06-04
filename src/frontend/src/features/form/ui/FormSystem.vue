@@ -1,10 +1,20 @@
 <template>
 	<div class="blf-form-system">
+		<section v-if="activeOverrides.length" class="blf-raw-overrides">
+			<div v-for="override in activeOverrides" :key="override.parameter" class="blf-raw-override">
+				<strong>{{ override.label }}</strong>
+				<code>{{ override.value }}</code>
+				<button type="button" class="btn btn-xs btn-default" @click="runtime.clearRawOverride(override.parameter)">Clear</button>
+			</div>
+		</section>
 		<Component :is="resolveNodeComponent(definition.root)" v-bind="rootProps()" :key="definition.root.id" />
 	</div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
+import type { BlackLabParameter } from '@/features/form/model/types/form-controllers';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
 import type { FormState, FormSystemDefinition } from '@/features/form/model/types/form-state';
@@ -46,6 +56,22 @@ function rootProps() {
 		scopeId: renderScopeId,
 	});
 }
+
+const rawOverrideLabels: Record<BlackLabParameter, string> = {
+	patt: 'Restored CQL',
+	filter: 'Restored Lucene filter',
+	searchField: 'Restored search field',
+};
+
+const activeOverrides = computed(() =>
+	(Object.entries(runtime.state.value.rawOverrides ?? {}) as Array<[BlackLabParameter, string | null | undefined]>)
+		.filter((entry): entry is [BlackLabParameter, string] => !!entry[1])
+		.map(([parameter, value]) => ({
+			parameter,
+			value,
+			label: rawOverrideLabels[parameter],
+		})),
+);
 </script>
 
 <style lang="scss">
@@ -58,6 +84,28 @@ function rootProps() {
 	--blf-text-muted: #777;
 	color: #333;
 	font-size: 14px;
+}
+
+.blf-raw-overrides {
+	display: grid;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.blf-raw-override {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr) max-content;
+	gap: 8px;
+	align-items: center;
+	border: 1px solid var(--blf-border);
+	border-radius: 4px;
+	background: #fff8e5;
+	padding: 8px 10px;
+}
+
+.blf-raw-override code {
+	white-space: pre-wrap;
+	word-break: break-word;
 }
 
 .blf-form-system *,

@@ -16,14 +16,27 @@ export type FormRuntimeContext = {
 };
 
 export type FieldControllerProps<Extra> = BaseFieldNode & Extra;
+export type BlackLabParameter = 'patt' | 'filter' | 'searchField';
+export type EncodedFieldValue = string | string[];
+export type RestoreFieldResult<State> =
+	| State
+	| {
+			state: State;
+			warnings?: string[];
+	  };
+
 export type FieldController<Kind extends string = string, State = any, Extra = object> = {
 	/** Unique key for this controller. */
 	kind: Kind;
 	createDefaultState: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => State;
 	getQueryContribution?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => QueryContribution;
-	restore?: (payload: unknown, config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => State;
-	encode?: (state: State, config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => unknown;
+	/** Short stable key used under the scoped f.* URL namespace. Must be unique within the active form. */
+	getPersistKey?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => string;
+	restore?: (payload: EncodedFieldValue, config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => RestoreFieldResult<State>;
+	encode?: (state: State, config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => EncodedFieldValue | null | undefined;
 	validate?: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => string[];
+	/** BlackLab query parameters this field may affect. Used for locking controls while raw overrides are active. */
+	affectsBlackLabParameters: BlackLabParameter[] | ((config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => BlackLabParameter[]);
 
 	/** Required for form versioning - return something that uniquely identifies the configuration of this controller,
 	 * so that when restoring from history we can check if the controller has changed in a non-compatible way. */

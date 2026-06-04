@@ -9,11 +9,12 @@ import { createDefaultSelectFieldState, type SelectFieldState, type SelectFieldU
 import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
 import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
 import { artifactFromFilter, rawFilter, termFilter, withSummary } from '@/features/form/model/compile/query-artifact';
+import { decodePersistObject, encodePersistObject, firstEncodedValue, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
 import type { SummaryEntry } from '@/features/form/model/types';
-import { createFieldController } from '@/features/form/model/types/form-controllers';
+import { createFieldController, type EncodedFieldValue } from '@/features/form/model/types/form-controllers';
 
 import { findOption, optionLabel } from '@/shared/utils/options';
-import { escapeLucene, splitIntoTerms } from '@/shared/utils/string-utils';
+import { escapeLucene, tokenizeString } from '@/shared/utils/string-utils';
 
 export type MetadataFilterControllerConfig = {
 	metadataFieldId: string;
@@ -64,13 +65,13 @@ function summarizeValues(values: string[]): string | null {
 
 function buildTextLucene(metadataFieldId: string, state: TextFieldState | null): string | null {
 	if (!state?.value.trim()) return null;
-	return `${metadataFieldId}:(${splitIntoTerms(state.value, true)
+	return `${metadataFieldId}:(${tokenizeString(state.value, true)
 		.map(term => escapeLucene(term.value, !term.isQuoted))
 		.join(' ')})`;
 }
 
 function summarizeTextField(state: TextFieldState | null): string | null {
-	const split = state?.value ? splitIntoTerms(state.value, true) : [];
+	const split = state?.value ? tokenizeString(state.value, true) : [];
 	return split.map(term => (term.isQuoted || split.length > 1 ? `"${term.value}"` : term.value)).join(', ') || null;
 }
 
@@ -79,9 +80,59 @@ function summarizeSelectField(config: SelectFieldUiConfig, values: string[]): st
 	return summarizeValues(labels);
 }
 
+function metadataPersistKey(config: MetadataFilterControllerConfig) {
+	return config.metadataFieldId;
+}
+
+function metadataDatePersistKey(config: MetadataFilterDateControllerConfig) {
+	return 'metadataFieldId' in config ? config.metadataFieldId : `${config.fromField}-${config.toField}`;
+}
+
+function textEncode(state: TextFieldState | null) {
+	const value = state?.value.trim() ?? '';
+	if (!value && !state?.caseSensitive) return null;
+	return state?.caseSensitive ? `${joinPersistValues([value], ';')};c=1` : value;
+}
+
+function textRestore(payload: EncodedFieldValue): TextFieldState {
+	const parts = splitPersistValue(firstEncodedValue(payload), ';');
+	return {
+		value: parts[0] ?? '',
+		caseSensitive: parts.includes('c=1'),
+	};
+}
+
+function rangeEncode(state: RangeFieldState | null) {
+	return encodePersistObject({
+		low: state?.low,
+		high: state?.high,
+	});
+}
+
+function rangeRestore(payload: EncodedFieldValue): RangeFieldState {
+	const restored = decodePersistObject(payload);
+	return {
+		low: restored.low ?? '',
+		high: restored.high ?? '',
+	};
+}
+
+function dateValueToPersist(value: DateFieldState['startDate']) {
+	return [value.y, value.m, value.d].filter(Boolean).join('-');
+}
+
+function persistToDateValue(value: string | undefined) {
+	const [y = '', m = '', d = ''] = (value ?? '').split('-');
+	return { y, m, d };
+}
+
 export const filterAutocompleteController = createFieldController<'metadata-filter-autocomplete', TextFieldState, MetadataFilterTextConfig>({
 	kind: 'metadata-filter-autocomplete',
 	createDefaultState: createDefaultTextFieldState,
+	getPersistKey: metadataPersistKey,
+	affectsBlackLabParameters: ['filter'],
+	encode: textEncode,
+	restore: textRestore,
 	getQueryContribution(config, _runtime, state) {
 		const lucene = buildTextLucene(config.metadataFieldId, state);
 		return createRawFilterQuery(config.id, config, lucene, summarizeTextField(state));
@@ -91,6 +142,21 @@ export const filterAutocompleteController = createFieldController<'metadata-filt
 export const filterCheckboxController = createFieldController<'metadata-filter-checkbox', CheckboxFieldState, MetadataFilterCheckboxConfig>({
 	kind: 'metadata-filter-checkbox',
 	createDefaultState: createDefaultCheckboxFieldState,
+	getPersistKey: metadataPersistKey,
+	affectsBlackLabParameters: ['filter'],
+	encode(state) {
+		const selected = Object.entries(state ?? {})
+			.filter(([, isSelected]) => isSelected)
+			.map(([value]) => value);
+		return selected.length ? joinPersistValues(selected) : null;
+	},
+	restore(payload) {
+		return Object.fromEntries(
+			splitPersistValue(firstEncodedValue(payload))
+				.filter(Boolean)
+				.map(value => [value, true]),
+		);
+	},
 	getQueryContribution(config, _runtime, state) {
 		const selectedValues = Object.entries(state || {})
 			.filter(([, isSelected]) => isSelected)
@@ -104,21 +170,43 @@ export const filterCheckboxController = createFieldController<'metadata-filter-c
 export const filterDateController = createFieldController<'metadata-filter-date', DateFieldState, MetadataFilterDateConfig>({
 	kind: 'metadata-filter-date',
 	createDefaultState: createDefaultDateFieldState,
+	getPersistKey: metadataDatePersistKey,
+	affectsBlackLabParameters: ['filter'],
+	encode(state, config) {
+		return encodePersistObject({
+			start: dateValueToPersist(state.startDate),
+			end: config.range ? dateValueToPersist(state.endDate) : undefined,
+			mode: !config.mode && state.mode !== 'strict' ? state.mode : undefined,
+		});
+	},
+	restore(payload, config) {
+		const restored = decodePersistObject(payload);
+		return {
+			startDate: persistToDateValue(restored.start),
+			endDate: config.range ? persistToDateValue(restored.end) : { y: '', m: '', d: '' },
+			mode: config.mode ?? (restored.mode === 'permissive' ? 'permissive' : 'strict'),
+		};
+	},
 	getQueryContribution(config, _runtime, state) {
-		const start = DateUtils.dateValueToLucene(state.startDate, 'start');
-		const end = DateUtils.dateValueToLucene(config.range ? state.endDate : state.startDate, 'end');
+		let start = DateUtils.dateValueToLucene(state.startDate, 'start');
+		let end = DateUtils.dateValueToLucene(config.range ? state.endDate : state.startDate, 'end');
 
 		let lucene: string | null = null;
+		let summary: string | null = null;
 		if (start || end) {
-			const range = `[${start || DateUtils.dateValueToLucene({ d: '1', m: '1', y: '0' }, 'start')} TO ${end || DateUtils.dateValueToLucene({ d: '31', m: '12', y: '9999' }, 'end')}]`;
+			start ??= DateUtils.dateValueToLucene({ d: '1', m: '1', y: '0' }, 'start');
+			end ??= DateUtils.dateValueToLucene({ d: '31', m: '12', y: '9999' }, 'end');
+
+			// If both sides are equal, collapse to a single value query
+			const range = start === end ? start : `[${start} TO ${end}]`;
 			if ('fromField' in config) {
 				const op = (config.mode ?? state.mode) === 'permissive' ? 'OR' : 'AND';
 				lucene = `(${config.fromField}:${range} ${op} ${config.toField}:${range})`;
 			} else {
 				lucene = `${config.metadataFieldId}:${range}`;
 			}
+			summary = [start && DateUtils.dateValueToDisplayString(state.startDate), end && DateUtils.dateValueToDisplayString(state.endDate)].filter(Boolean).join(' - ') || null;
 		}
-		const summary = [start && DateUtils.dateValueToDisplayString(state.startDate), end && DateUtils.dateValueToDisplayString(state.endDate)].filter(Boolean).join(' - ') || null;
 
 		return createRawFilterQuery(config.id, config, lucene, summary);
 	},
@@ -127,6 +215,10 @@ export const filterDateController = createFieldController<'metadata-filter-date'
 export const filterRadioController = createFieldController<'metadata-filter-radio', RadioFieldState, MetadataFilterRadioConfig>({
 	kind: 'metadata-filter-radio',
 	createDefaultState: createDefaultRadioFieldState,
+	getPersistKey: metadataPersistKey,
+	affectsBlackLabParameters: ['filter'],
+	encode: state => state || null,
+	restore: firstEncodedValue,
 	getQueryContribution(config, _runtime, state) {
 		const lucene = state ? `${config.metadataFieldId}:(${escapeLucene(state, false)})` : null;
 		const summary = state ? optionLabel(findOption(config.options, state) ?? state) : null;
@@ -137,6 +229,10 @@ export const filterRadioController = createFieldController<'metadata-filter-radi
 export const filterRangeController = createFieldController<'metadata-filter-range', RangeFieldState, MetadataFilterRangeConfig>({
 	kind: 'metadata-filter-range',
 	createDefaultState: createDefaultRangeFieldState,
+	getPersistKey: metadataPersistKey,
+	affectsBlackLabParameters: ['filter'],
+	encode: rangeEncode,
+	restore: rangeRestore,
 	getQueryContribution(config, _runtime, state) {
 		const lucene = state.low || state.high ? `${config.metadataFieldId}:[${state.low || '0'} TO ${state.high || '9999'}]` : null;
 		const summary = state.low || state.high ? `${state.low || '0'} - ${state.high || '9999'}` : null;
@@ -147,6 +243,23 @@ export const filterRangeController = createFieldController<'metadata-filter-rang
 export const filterRangeMultipleFieldsController = createFieldController<'metadata-filter-range-multiple-fields', RangeMultipleFieldsFieldState, MetadataFilterRangeMultipleFieldsConfig>({
 	kind: 'metadata-filter-range-multiple-fields',
 	createDefaultState: createDefaultRangeMultipleFieldsFieldState,
+	getPersistKey: config => `${config.lowField}-${config.highField}`,
+	affectsBlackLabParameters: ['filter'],
+	encode(state, config) {
+		return encodePersistObject({
+			low: state.low,
+			high: state.high,
+			mode: !config.mode && state.mode !== 'strict' ? state.mode : undefined,
+		});
+	},
+	restore(payload, config) {
+		const restored = decodePersistObject(payload);
+		return {
+			low: restored.low ?? '',
+			high: restored.high ?? '',
+			mode: config.mode ?? (restored.mode === 'permissive' ? 'permissive' : 'strict'),
+		};
+	},
 	getQueryContribution(config, _runtime, state) {
 		const lucene =
 			state.low || state.high
@@ -165,6 +278,14 @@ export const filterRangeMultipleFieldsController = createFieldController<'metada
 export const filterSelectController = createFieldController<'metadata-filter-select', SelectFieldState, MetadataFilterSelectConfig>({
 	kind: 'metadata-filter-select',
 	createDefaultState: createDefaultSelectFieldState,
+	getPersistKey: metadataPersistKey,
+	affectsBlackLabParameters: ['filter'],
+	encode(state) {
+		return state.length ? joinPersistValues(state) : null;
+	},
+	restore(payload) {
+		return splitPersistValue(firstEncodedValue(payload)).filter(Boolean);
+	},
 	getQueryContribution(config, _runtime, state) {
 		const selectedValues = state.filter(value => value.trim());
 		const summary = summarizeSelectField(config, selectedValues);
@@ -185,6 +306,10 @@ export const filterSelectController = createFieldController<'metadata-filter-sel
 export const filterTextController = createFieldController<'metadata-filter-text', TextFieldState, MetadataFilterTextConfig>({
 	kind: 'metadata-filter-text',
 	createDefaultState: createDefaultTextFieldState,
+	getPersistKey: metadataPersistKey,
+	affectsBlackLabParameters: ['filter'],
+	encode: textEncode,
+	restore: textRestore,
 	getQueryContribution(config, _runtime, state) {
 		const lucene = buildTextLucene(config.metadataFieldId, state);
 		return createRawFilterQuery(config.id, config, lucene, summarizeTextField(state));

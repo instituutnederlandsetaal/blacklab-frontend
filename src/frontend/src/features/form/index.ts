@@ -17,7 +17,19 @@ export {
 	withinController,
 } from './model/controllers';
 export { FormBuilder, type FormRegistrationCallback } from './model/builder/form-shape-builder';
-export { decodeSubmittedSnapshot, encodeSubmittedForm, type EncodedPersistableFormState } from './model/persistence';
+export {
+	decodeSubmittedSnapshot,
+	encodeScopedFormQuery,
+	encodeSubmittedForm,
+	FORM_CODEC_VERSION,
+	FORM_QUERY_PREFIX,
+	restoreScopedFormState,
+	type CanonicalBlackLabFormParameters,
+	type EncodedPersistableFormState,
+	type RestoreIssue,
+	type RestoredScopedFormState,
+	type ScopedFormQuery,
+} from './model/persistence';
 export { cloneFormState, createFormState, createInitialContainerUiStates, createInitialFormFieldStates } from './model/state';
 export { createFormSystemRuntime, useFormSystemRuntime, useParentForm } from './model/runtime';
 export type * from './model/views';

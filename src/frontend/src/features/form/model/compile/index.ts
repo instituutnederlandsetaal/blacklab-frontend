@@ -19,11 +19,17 @@ export function getFormQueryContribution(form: FormBoundaryNode, formState: Form
 function getQueryContributionFromContainer(node: FormContainerLikeNode, formState: FormState, context: FormRuntimeContext): QueryContribution {
 	const childContributions = node.children.reduce<QueryContribution[]>((acc, child) => {
 		if (child.kind === 'field') acc.push(getQueryContributionFromField(child, context, formState));
-		else if (child.kind === 'container') acc.push(getQueryContributionFromContainer(child, formState, context));
+		else if (child.kind === 'container' || child.kind === 'form') {
+			acc.push(getQueryContributionFromContainer(child, formState, context));
+			if (child.activeQueryContribution && formState.uiState.activeContainers[node.id] === child.id) {
+				acc.push(typeof child.activeQueryContribution === 'function' ? child.activeQueryContribution(child) : child.activeQueryContribution);
+			}
+		}
 		return acc;
 	}, [] as QueryContribution[]);
 
-	return combineQueryContributions(childContributions, (node.kind === 'container' ? node.combine : undefined) ?? 'allOf');
+	const combineMode = node.kind === 'container' ? node.combine : undefined;
+	return combineQueryContributions(combineMode, ...childContributions);
 }
 
 function getQueryContributionFromField(node: FormFieldNode, context: FormRuntimeContext, formState: FormState): QueryContribution {

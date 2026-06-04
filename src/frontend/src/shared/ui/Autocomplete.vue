@@ -21,7 +21,7 @@
 import { computed, ref, useTemplateRef } from 'vue';
 
 import type { Option } from '@/shared/utils/options';
-import { splitIntoTerms } from '@/shared/utils/string-utils';
+import { tokenizeString } from '@/shared/utils/string-utils';
 
 import SelectPicker from './SelectPicker.vue';
 void SelectPicker; // need to use this or oxlint will complain about it not being used, even though it is in the template
@@ -109,7 +109,7 @@ function _getWordAroundCursor(inputElement: HTMLInputElement, lookForward: boole
 	if (start === end) {
 		// just a caret; no selection, find whitespace boundaries around cursor
 		// start - 1 because splitIntoTerms takes quotes into consideration by default, but we do not.
-		const term = splitIntoTerms(value, props.useQuoteAsWordBoundary).find(t => t.end >= start - 1);
+		const term = tokenizeString(value, props.useQuoteAsWordBoundary).find(t => t.end >= start - 1);
 		if (!term) {
 			return nothingFound;
 		}

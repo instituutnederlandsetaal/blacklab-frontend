@@ -4,8 +4,8 @@
 			>{{ displayName }}<debug> [{{ id }}]</debug></label
 		>
 		<div class="blf-dual-input">
-			<input :id="`${inputId}_lower`" v-model="lower" :type="inputType" :placeholder="lowPlaceholder || $t(`filter.range.from`)" class="blf-input form-control" autocomplete="off" />
-			<input :id="`${inputId}_upper`" v-model="upper" :type="inputType" :placeholder="highPlaceholder || $t(`filter.range.to`)" class="blf-input form-control" autocomplete="off" />
+			<input :id="`${inputId}_lower`" v-model="lower" :type="inputType" :placeholder="lowPlaceholder || $t(`filter.range.from`)" class="blf-input form-control" autocomplete="off" :disabled="disabled" />
+			<input :id="`${inputId}_upper`" v-model="upper" :type="inputType" :placeholder="highPlaceholder || $t(`filter.range.to`)" class="blf-input form-control" autocomplete="off" :disabled="disabled" />
 		</div>
 		<small v-if="description" class="blf-help-text">{{ description }}</small>
 	</div>
@@ -22,6 +22,7 @@ import type { RangeFieldState, RangeFieldUiConfig } from './range-field';
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<RangeFieldState> & RangeFieldUiConfig & { showLabel?: boolean }>(), {
 	inputType: 'text',
 	showLabel: true,
+	disabled: false,
 });
 const emit = defineEmits<{
 	'update:modelValue': [value: RangeFieldState];

@@ -10,6 +10,8 @@ import type {
 } from '@/features/form/model/types/form-query';
 import type { QueryCombineMode } from '@/features/form/model/types/form-shape';
 
+import { escapeRegex } from '@/shared/utils/string-utils';
+
 const EMPTY_PROJECTION = createQueryArtifact();
 
 export function createQueryArtifact(): CompilableQuery {
@@ -18,10 +20,22 @@ export function createQueryArtifact(): CompilableQuery {
 		filter: null,
 		wrappers: [],
 		searchField: null,
-		// resultPreset: {},
 	};
 }
 
+export function artifactFromPattern(pattern: QueryPatternNode | null): CompilableQuery {
+	return {
+		...createQueryArtifact(),
+		pattern,
+	};
+}
+
+export function artifactFromFilter(filter: QueryFilterNode | null): CompilableQuery {
+	return {
+		...createQueryArtifact(),
+		filter,
+	};
+}
 export function createQueryContribution(query: CompilableQuery = createQueryArtifact(), summaries: SummaryEntry[] = []): QueryContribution {
 	return {
 		query,
@@ -52,7 +66,7 @@ export function combineQueries(artifacts: CompilableQuery[], combine: QueryCombi
 	return merged;
 }
 
-export function combineQueryContributions(contributions: QueryContribution[], combine: QueryCombineMode = 'allOf'): QueryContribution {
+export function combineQueryContributions(combine: QueryCombineMode = 'allOf', ...contributions: QueryContribution[]): QueryContribution {
 	const nonEmpty = contributions.filter(contribution => hasContribution(contribution));
 	return createQueryContribution(
 		combineQueries(
@@ -61,30 +75,6 @@ export function combineQueryContributions(contributions: QueryContribution[], co
 		),
 		nonEmpty.flatMap(contribution => contribution.summaries),
 	);
-}
-
-export function artifactFromPattern(pattern: QueryPatternNode | null): CompilableQuery {
-	return {
-		...createQueryArtifact(),
-		pattern,
-	};
-}
-
-export function artifactFromFilter(filter: QueryFilterNode | null): CompilableQuery {
-	return {
-		...createQueryArtifact(),
-		filter,
-	};
-}
-
-export function tokenPattern(clauses: QueryTokenClauseNode[]): QueryPatternNode | null {
-	const activeClauses = clauses.filter(clause => clause.value.trim());
-	return activeClauses.length ? { type: 'token', clauses: activeClauses } : null;
-}
-
-export function rawPattern(cql: string | null | undefined): QueryPatternNode | null {
-	const value = cql?.trim();
-	return value ? { type: 'raw', cql: value } : null;
 }
 
 export function rawFilter(lucene: string | null | undefined): QueryFilterNode | null {
@@ -125,7 +115,7 @@ function compilePatternWithWrappers(pattern: QueryPatternNode | null, wrappers: 
 	for (const wrapper of wrappers) {
 		if (wrapper.type === 'within' && wrapper.element) {
 			const attrs = Object.entries(wrapper.attributes)
-				.map(([key, value]) => (typeof value === 'string' && value.trim() ? `${key}="${escapeCql(value)}"` : null))
+				.map(([key, value]) => (typeof value === 'string' && value.trim() ? `${key}="${escapeRegex(value)}"` : null))
 				.filter(isNonNull)
 				.join(' ');
 			const element = attrs ? `${wrapper.element} ${attrs}` : wrapper.element;
@@ -185,9 +175,19 @@ function compileFilter(filter: QueryFilterNode | null): string | null {
 function compileTokenClause(clause: QueryTokenClauseNode): string | null {
 	const value = clause.value.trim();
 	if (!value) return null;
-	const operator = clause.type === 'regex' ? '=' : '=';
+	const literalFlag = clause.type === 'equals' ? 'l' : '';
 	const caseFlag = clause.caseSensitive ? '' : '(?i)';
-	return `${clause.annotationId}${operator}"${caseFlag}${escapeCql(value)}"`;
+
+	const escapedValue =
+		clause.type === 'regex'
+			? clause.value
+			: clause.type === 'wildcard'
+				? escapeRegex(clause.value, { escapePipes: false, escapeWildcards: false, escapeQuotes: true })
+				: clause.type === 'equals'
+					? escapeRegex(clause.value)
+					: clause.value; // Should not happen, but just return the raw value if an unknown type is encountered
+
+	return `${clause.annotationId}=${literalFlag}"${caseFlag}${escapedValue}"`;
 }
 
 function combinePatterns(patterns: QueryPatternNode[], combine: QueryCombineMode): QueryPatternNode | null {
@@ -209,10 +209,6 @@ function hasContribution(contribution: QueryContribution): boolean {
 
 function hasQueryContributions(artifact: CompilableQuery): boolean {
 	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchField);
-}
-
-function escapeCql(value: string): string {
-	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 function escapeLucene(value: string): string {

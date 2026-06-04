@@ -11,6 +11,7 @@ export function createFormState(definition: FormSystemDefinition, context: FormR
 		uiState: {
 			activeContainers: createInitialContainerUiStates(definition),
 		},
+		rawOverrides: {},
 	};
 }
 

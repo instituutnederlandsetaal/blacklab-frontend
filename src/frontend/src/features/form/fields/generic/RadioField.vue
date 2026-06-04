@@ -12,6 +12,7 @@
 						:name="inputId"
 						:id="`${inputId}_${index}`"
 						:checked="modelValue === option.value"
+						:disabled="disabled"
 						@click="changeValue($event, option.value)"
 						@input.space="changeValue($event, option.value)"
 					/>
@@ -33,6 +34,7 @@ import type { RadioFieldState, RadioFieldUiConfig } from './radio-field';
 
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<RadioFieldState> & RadioFieldUiConfig & { showLabel?: boolean }>(), {
 	showLabel: true,
+	disabled: false,
 });
 
 const emit = defineEmits<{

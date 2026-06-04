@@ -12,6 +12,7 @@
 						:name="`${inputId}_${index}`"
 						:id="`${inputId}_${index}`"
 						:checked="modelValue[option.value]"
+						:disabled="disabled"
 						@change="toggleCheckbox(option.value, ($event.target as HTMLInputElement).checked)"
 					/>
 					{{ option.label || option.value }}
@@ -32,6 +33,7 @@ import type { CheckboxFieldState, CheckboxFieldUiConfig } from './checkbox-field
 
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<CheckboxFieldState> & CheckboxFieldUiConfig & { showLabel?: boolean }>(), {
 	showLabel: true,
+	disabled: false,
 });
 
 const emit = defineEmits<{

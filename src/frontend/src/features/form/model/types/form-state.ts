@@ -4,7 +4,7 @@
 
 import type { Ref } from 'vue';
 
-import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import type { BlackLabParameter, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { SummaryEntry, CompiledFormState, PersistableSubmittableFormState, PersistableFormState } from '@/features/form/model/types/form-query';
 import type { FormBoundaryNode, FormContainerLikeNode, FormNode } from '@/features/form/model/types/form-shape';
 
@@ -25,6 +25,7 @@ export type FormState = {
 	uiState: {
 		activeContainers: Record<string, string | null>;
 	};
+	rawOverrides: Partial<Record<BlackLabParameter, string | null>>;
 };
 
 export type FormSystemDefinition = {
@@ -65,4 +66,5 @@ export type FormSystemRuntime = {
 	persist(formId: string): PersistableFormState;
 	onPersist(callback: (formId: string, persisted: PersistableFormState) => void): void;
 	reset(): void;
+	clearRawOverride(parameter: BlackLabParameter): void;
 };

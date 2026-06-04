@@ -1,4 +1,5 @@
 import { withSearchField, createQueryArtifact, createQueryContribution } from '@/features/form/model/compile/query-artifact';
+import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { SummaryEntry } from '@/features/form/model/types/form-query';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
@@ -29,13 +30,36 @@ function translatedAlignBy(runtime: Parameters<NonNullable<FieldController['getQ
 	return runtime.translate.$tAlignByDisplayName({ value: alignBy });
 }
 
-export const parallelController: FieldController<'parallel', ParallelFieldState, ParallelFieldConfig> = {
-	kind: 'parallel',
-	createDefaultState: config => ({
+function createDefaultParallelFieldState(config: ParallelFieldConfig): ParallelFieldState {
+	return {
 		source: config.sourceOptions[0]?.id ?? null,
 		targets: [],
 		alignBy: config.alignByOptions?.[0] ?? null,
-	}),
+	};
+}
+
+export const parallelController: FieldController<'parallel', ParallelFieldState, ParallelFieldConfig> = {
+	kind: 'parallel',
+	createDefaultState: createDefaultParallelFieldState,
+	getPersistKey: () => 'parallel',
+	affectsBlackLabParameters: ['searchField'],
+	encode(state, config) {
+		const defaultState = createDefaultParallelFieldState(config);
+		return encodePersistObject({
+			source: state.source !== defaultState.source ? state.source : undefined,
+			targets: state.targets.length ? joinPersistValues(state.targets) : undefined,
+			align: state.alignBy !== defaultState.alignBy ? state.alignBy : undefined,
+		});
+	},
+	restore(payload, config) {
+		const restored = decodePersistObject(payload);
+		const defaults = createDefaultParallelFieldState(config);
+		return {
+			source: restored.source ?? defaults.source,
+			targets: splitPersistValue(restored.targets ?? '').filter(Boolean),
+			alignBy: restored.align ?? defaults.alignBy,
+		};
+	},
 	getQueryContribution(config, runtime, state) {
 		const artifact = withSearchField(createQueryArtifact(), state.source);
 		const entries: SummaryEntry[] = [];

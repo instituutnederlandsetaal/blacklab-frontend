@@ -1,5 +1,6 @@
 import { h, type Component } from 'vue';
 
+import type { BlackLabParameter } from '@/features/form/model/types/form-controllers';
 import type { FormNode } from '@/features/form/model/types/form-shape';
 import type { FormSystemRuntime } from '@/features/form/model/types/form-state';
 
@@ -26,6 +27,13 @@ type NodeRenderContext = {
 	scopeId: string;
 };
 
+function affectsOverriddenParameter(node: FormNode, runtime: FormSystemRuntime): boolean {
+	if (node.kind !== 'field') return false;
+	const affected = node.controller.affectsBlackLabParameters;
+	const parameters: BlackLabParameter[] = typeof affected === 'function' ? affected(node, runtime.context) : (affected ?? []);
+	return parameters.some(parameter => !!runtime.state.value.rawOverrides?.[parameter]);
+}
+
 export function getNodeProps(node: FormNode, { hideTitle = false, runtime, scopeId }: NodeRenderContext) {
 	if (node.kind === 'container' || node.kind === 'form') {
 		return hideTitle ? { ...node, hideTitle } : node;
@@ -34,7 +42,9 @@ export function getNodeProps(node: FormNode, { hideTitle = false, runtime, scope
 			...node,
 			htmlId: `${node.id}_${scopeId}`,
 			modelValue: runtime.state.value.controllerState[node.id],
+			disabled: affectsOverriddenParameter(node, runtime),
 			'onUpdate:modelValue': (value: unknown) => {
+				if (affectsOverriddenParameter(node, runtime)) return;
 				runtime.state.value.controllerState[node.id] = value;
 			},
 		};

@@ -1,7 +1,7 @@
 import { defineComponent, h, type PropType } from 'vue';
 
 import { FormBuilder, useParentForm, type FormRuntimeContext } from '@/features/form';
-import { artifactFromPattern, tokenPattern, withSummary } from '@/features/form/model/compile/query-artifact';
+import { artifactFromPattern, withSummary } from '@/features/form/model/compile/query-artifact';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
 import { createMockI18n } from '@/shared/i18n';
@@ -33,6 +33,10 @@ export const TestTextField = defineComponent({
 			type: Object as PropType<TestTextFieldState>,
 			required: true,
 		},
+		disabled: {
+			type: Boolean,
+			default: false,
+		},
 	},
 	emits: {
 		'update:modelValue': (_value: TestTextFieldState) => true,
@@ -42,6 +46,7 @@ export const TestTextField = defineComponent({
 			h('input', {
 				id: `${props.htmlId}_value`,
 				'aria-label': props.displayName,
+				disabled: props.disabled,
 				value: props.modelValue.value,
 				onInput(event: Event) {
 					emit('update:modelValue', {
@@ -55,14 +60,28 @@ export const TestTextField = defineComponent({
 export const testTextController = createFieldController<'test-text', TestTextFieldState, TestTextFieldConfig>({
 	kind: 'test-text',
 	createDefaultState: () => ({ value: '' }),
+	getPersistKey: config => config.annotationId,
+	affectsBlackLabParameters: ['patt'],
+	encode(state) {
+		return state.value || null;
+	},
+	restore(payload) {
+		return {
+			value: Array.isArray(payload) ? (payload[0] ?? '') : payload,
+		};
+	},
 	getQueryContribution(config, _runtime, state) {
-		const pattern = tokenPattern([
-			{
-				type: 'equals',
-				annotationId: config.annotationId,
-				value: state.value,
-			},
-		]);
+		const pattern = {
+			type: 'token' as const,
+			clauses: [
+				{
+					type: 'wildcard' as const,
+					annotationId: config.annotationId,
+					value: state.value,
+					caseSensitive: false,
+				},
+			],
+		};
 
 		return withSummary(
 			artifactFromPattern(pattern),

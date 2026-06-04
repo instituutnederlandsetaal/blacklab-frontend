@@ -1,6 +1,6 @@
-import type { MaybeComputed } from '@/features/form/model/types/form-shape';
+import type { MaybeRefOrGetter } from 'vue';
 
 export type HeadingViewConfig = {
-	title: MaybeComputed<string>;
-	description?: MaybeComputed<string>;
+	title: MaybeRefOrGetter<string>;
+	description?: MaybeRefOrGetter<string>;
 };

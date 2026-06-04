@@ -1,11 +1,11 @@
-import type { MaybeComputed } from '@/features/form/model/types/form-shape';
+import type { MaybeRefOrGetter } from 'vue';
 
 export type GenericFieldUiConfig = {
 	/** Access for debug rendering of the field */
 	id?: string;
 	groupId?: string;
-	displayName: MaybeComputed<string>;
-	description?: MaybeComputed<string | undefined>;
+	displayName: MaybeRefOrGetter<string>;
+	description?: MaybeRefOrGetter<string | undefined>;
 	textDirection?: 'ltr' | 'rtl';
 };
 

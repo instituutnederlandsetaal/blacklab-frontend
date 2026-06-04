@@ -23,6 +23,15 @@ type ParentFormRuntime = {
 
 const parentFormRuntimeKey: InjectionKey<ParentFormRuntime> = Symbol('parentFormRuntime');
 
+function applyRawOverrides(compiled: CompiledFormState, state: FormState): CompiledFormState {
+	const overrides = state.rawOverrides ?? {};
+	return {
+		cql: overrides.patt || compiled.cql,
+		filter: overrides.filter || compiled.filter,
+		searchField: overrides.searchField || compiled.searchField,
+	};
+}
+
 export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: MaybeRefOrGetter<string>) {
 	const currentFormId = computed(() => toValue(formId));
 	const currentForm = computed(() => {
@@ -90,7 +99,7 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 		state,
 		forms: formsById,
 		compile(formId: string): CompiledFormState {
-			const compiled = createCompiledQueryProjections(buildFormQuery(formsById[formId], this.state.value, this.context));
+			const compiled = applyRawOverrides(createCompiledQueryProjections(buildFormQuery(formsById[formId], this.state.value, this.context)), this.state.value);
 			compileListeners.forEach(callback => callback(formId, compiled));
 			return compiled;
 		},
@@ -122,6 +131,9 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 		reset() {
 			this.state.value = createFormState(this.definition, this.context);
 			resetListeners.forEach(callback => callback());
+		},
+		clearRawOverride(parameter) {
+			delete this.state.value.rawOverrides[parameter];
 		},
 
 		onCompile(callback: (formId: string, compiled: CompiledFormState) => void) {

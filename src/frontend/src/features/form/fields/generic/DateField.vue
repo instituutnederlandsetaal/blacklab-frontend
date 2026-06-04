@@ -9,15 +9,15 @@
 		<div>
 			<div class="dates">
 				<label v-if="range">{{ $t(`filter.range.from`) }}: </label>
-				<input class="blf-input form-control" :id="`${inputId}_year_from`" type="number" title="year" placeholder="year" v-model="yearFrom" :min="minYear" :max="maxYear" />
-				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" />
-				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" />
+				<input class="blf-input form-control" :id="`${inputId}_year_from`" type="number" title="year" placeholder="year" v-model="yearFrom" :min="minYear" :max="maxYear" :disabled="disabled" />
+				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" :disabled="disabled" />
+				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" :disabled="disabled" />
 			</div>
 			<div v-if="range" class="dates">
 				<label>{{ $t(`filter.range.to`) }}: </label>
-				<input class="blf-input form-control" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" />
-				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" />
-				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" />
+				<input class="blf-input form-control" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" :disabled="disabled" />
+				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" :disabled="disabled" />
+				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" :disabled="disabled" />
 			</div>
 		</div>
 
@@ -29,6 +29,7 @@
 				:key="mode.value"
 				:value="mode.value"
 				:title="mode.title || ''"
+				:disabled="disabled"
 				@click="updateMode(mode.value)"
 			>
 				{{ mode.label }}
@@ -53,6 +54,7 @@ type ModeOption = Option<RangeMode>;
 
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<DateFieldState> & DateFieldUiConfig & { showLabel?: boolean }>(), {
 	showLabel: true,
+	disabled: false,
 });
 const i18n = useI18n();
 

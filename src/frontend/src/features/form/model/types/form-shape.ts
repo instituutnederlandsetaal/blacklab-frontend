@@ -1,14 +1,15 @@
 import type { MaybeRefOrGetter } from 'vue';
 
 import type { FieldController } from '@/features/form/model/types/form-controllers';
+import type { QueryContribution } from '@/features/form/model/types/form-query';
 import type { AnyVueComponent } from '@/types/helpers';
-
-export type MaybeComputed<T> = MaybeRefOrGetter<T>;
 
 /** The base for all form nodes */
 export type BaseNode = {
 	id: string;
-	title?: MaybeComputed<string>;
+	/** Short stable key for URL/history persistence. Falls back to controller/node defaults when omitted. */
+	persistKey?: string;
+	title?: MaybeRefOrGetter<string>;
 	class?: string;
 };
 // Container
@@ -24,6 +25,11 @@ export type BaseContainerNode = BaseNode & {
 	children: AnyRealFormNode[];
 	/** Defaults to 'allOf' if unset */
 	combine?: QueryCombineMode;
+	/**
+	 * Optional query contribution applied only while this container/form is the active child of its parent.
+	 * This provisions semantic tabs such as "newspapers" adding an implicit filter.
+	 */
+	activeQueryContribution?: QueryContribution | ((activeNode: BaseContainerNode | BaseFormNode) => QueryContribution);
 };
 export type RealContainerNode<Extra, C extends AnyVueComponent> = BaseContainerNode & Extra & { component: C };
 
@@ -70,6 +76,7 @@ export type RealFieldNode<Extra, C extends AnyVueComponent> = BaseFieldNode &
 export type ImplicitFieldComponentProps<State> = BaseNode & {
 	htmlId: string;
 	modelValue: State;
+	disabled?: boolean;
 	variant?: BaseFieldNode['variant'];
 };
 export type FormControllerProps<Extra> = BaseNode & Extra;

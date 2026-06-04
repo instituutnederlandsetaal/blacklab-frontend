@@ -7,7 +7,7 @@ import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/map-reduce';
 import { optionLabel, findOption, optionValues, type Option } from '@/shared/utils/options';
-import { escapeLucene, splitIntoTerms, unescapeLucene } from '@/shared/utils/string-utils';
+import { escapeLucene, tokenizeString, unescapeLucene } from '@/shared/utils/string-utils';
 
 /** month (m) and day (d) may be empty strings. Month field starts at 1 instead of javascript Date's 0. */
 export type DateValue = {
@@ -249,12 +249,12 @@ export const valueFunctions = {
 			if (!value || !value.trim()) {
 				return null;
 			}
-			return `${id}:(${splitIntoTerms(value, true)
+			return `${id}:(${tokenizeString(value, true)
 				.map(t => escapeLucene(t.value, !t.isQuoted))
 				.join(' ')})`;
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
-			const split = value ? splitIntoTerms(value, true) : [];
+			const split = value ? tokenizeString(value, true) : [];
 			return split.map(t => (t.isQuoted || split.length > 1 ? `"${t.value}"` : t.value)).join(', ') || null;
 		},
 		isActive(id, filterMetadata, value) {
@@ -432,12 +432,12 @@ export const valueFunctions = {
 			if (!value || !value.trim()) {
 				return null;
 			}
-			return `${id}:(${splitIntoTerms(value, true)
+			return `${id}:(${tokenizeString(value, true)
 				.map(t => escapeLucene(t.value, !t.isQuoted))
 				.join(' ')})`;
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
-			const split = value ? splitIntoTerms(value, true) : [];
+			const split = value ? tokenizeString(value, true) : [];
 			return split.map(t => (t.isQuoted || split.length > 1 ? `"${t.value}"` : t.value)).join(', ') || null;
 		},
 		isActive(id, filterMetadata, value) {

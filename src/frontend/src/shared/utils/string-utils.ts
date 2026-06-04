@@ -18,82 +18,67 @@ const defaultRegexEscapeOptions = {
 	escapeQuotes: true,
 };
 export type RegexEscapeOptions = Partial<typeof defaultRegexEscapeOptions>;
+
+const regexSpecialChars = new Set(['\\', '^', '$', '#', '@', '&', '+', '.', '(', ')', '{', '}', '[', ']']);
+const preservedRegexEscapes = new Set(['|', '*', '?', '"']);
+
 /** Escape special characters in a string for use in a regular expression, the default escaping options are to escape wildcards, pipes, and quotes */
 export function escapeRegex(value: string, settings: RegexEscapeOptions = {}) {
 	settings = { ...defaultRegexEscapeOptions, ...settings };
 
-	// NOTE: take special care for characters we might let through.
-	// We want to be able to also let the user search for those characters verbatim.
-	// In which case they will have to escape them using a backslash.
-	// We must make sure that we do not double escape these already-present backslashes (but only when they're meaningful.)
-	// There might be a better way to accomplish this, but for now we'll just replace them with a placeholder and replace them back afterwards.
+	const escapeChar = (char: string) => {
+		if (regexSpecialChars.has(char)) return `\\${char}`;
+		if (char === '*' || char === '?') return settings.escapeWildcards ? `\\${char}` : char === '*' ? '.*' : '.';
+		if (char === '|') return settings.escapePipes ? '\\|' : '|';
+		if (char === '"') return settings.escapeQuotes ? '\\"' : '"';
+		return char;
+	};
+	const shouldEscape = (char: string) => {
+		if (char === '*' || char === '?') return settings.escapeWildcards;
+		if (char === '|') return settings.escapePipes;
+		if (char === '"') return settings.escapeQuotes;
+		return false;
+	};
 
-	const specialEscapeSequences = [
-		{ input: '\\|', output: '__PIPE__', active: !settings.escapePipes },
-		{ input: '\\*', output: '__STAR__', active: !settings.escapeWildcards },
-		{ input: '\\?', output: '__QUESTION__', active: !settings.escapeWildcards },
-		{ input: '\\"', output: '__QUOTE__', active: !settings.escapeQuotes },
-	];
-	for (const { input, output, active } of specialEscapeSequences) {
-		if (active) value = value.replaceAll(input, output);
+	let result = '';
+	for (let i = 0; i < value.length; i += 1) {
+		const char = value[i];
+		const next = value[i + 1];
+		if (char === '\\' && preservedRegexEscapes.has(next) && !shouldEscape(next)) {
+			result += `\\${next}`;
+			i += 1;
+			continue;
+		}
+		result += escapeChar(char);
 	}
-
-	const escapeBase = (s: string) => s.replace(/([\\^$#@&+.(){}[\]])/g, '\\$1');
-	const escapeWildcards = (s: string) => s.replace(/([*?])/g, '\\$1');
-	const activateWildcards = (s: string) => s.replace(/\*/g, '.*').replace(/\?/g, '.');
-	const escapePipes = (s: string) => s.replace(/\|/g, '\\|');
-	const escapeQuotes = (s: string) => s.replace(/"/g, '\\"');
-	const identity = (s: string) => s;
-
-	const operations = [escapeBase, settings.escapeWildcards ? escapeWildcards : activateWildcards, settings.escapePipes ? escapePipes : identity, settings.escapeQuotes ? escapeQuotes : identity];
-
-	value = operations.reduce((acc, op) => op(acc), value);
-	// Unescape the special escape sequences
-	for (const { input, output, active } of specialEscapeSequences) {
-		if (active) value = value.replaceAll(output, input);
-	}
-	return value;
+	return result;
 }
 
 export function unescapeRegex(value: string, settings: RegexEscapeOptions = {}) {
 	settings = { ...defaultRegexEscapeOptions, ...settings };
 
-	// NOTE: take special care for characters we might let through.
-	// We want to be able to also let the user search for those characters verbatim.
-	// In which case they will have to escape them using a backslash.
-	// We must make sure that we do not remove these already-present backslashes (but only when they're meaningful.)
-	// There might be a better way to accomplish this, but for now we'll just replace them with a placeholder and replace them back afterwards.
-	const specialEscapeSequences = [
-		{ input: '\\|', output: '__PIPE__', active: !settings.escapePipes },
-		{ input: '\\*', output: '__STAR__', active: !settings.escapeWildcards },
-		{ input: '\\?', output: '__QUESTION__', active: !settings.escapeWildcards },
-		{ input: '\\"', output: '__QUOTE__', active: !settings.escapeQuotes },
-	];
-	for (const { input, output, active } of specialEscapeSequences) {
-		if (active) value = value.replaceAll(input, output);
+	const unescapeChar = (char: string) => {
+		if (char === '*' || char === '?') return settings.escapeWildcards ? char : `\\${char}`;
+		if (char === '|') return settings.escapePipes ? '|' : '\\|';
+		if (char === '"') return settings.escapeQuotes ? '"' : '\\"';
+		return regexSpecialChars.has(char) ? char : `\\${char}`;
+	};
+
+	let result = '';
+	for (let i = 0; i < value.length; i += 1) {
+		const char = value[i];
+		const next = value[i + 1];
+		if (char === '\\' && next) {
+			result += unescapeChar(next);
+			i += 1;
+		} else if (!settings.escapeWildcards && char === '.' && next === '*') {
+			result += '*';
+			i += 1;
+		} else {
+			result += !settings.escapeWildcards && char === '.' ? '?' : char;
+		}
 	}
-
-	const unescapeBase = (s: string) => s.replace(/\\([\\^$#@&+.(){}[\]])/g, '$1');
-	const unescapeWildcards = (s: string) => s.replace(/\\([*?])/g, '$1');
-	const deactivateWildcards = (s: string) => s.replace(/\.\*/g, '*').replace(/\./g, '?');
-	const unescapePipes = (s: string) => s.replace(/\\[|]/g, '|');
-	const unescapeQuotes = (s: string) => s.replace(/\\"/g, '"');
-	const identity = (s: string) => s;
-
-	// in reverse order, otherwise the base unescape could produce something that looks like a wildcard
-	const operations = [
-		settings.escapeQuotes ? unescapeQuotes : identity,
-		settings.escapePipes ? unescapePipes : identity,
-		settings.escapeWildcards ? unescapeWildcards : deactivateWildcards,
-		unescapeBase,
-	];
-
-	value = operations.reduce((acc, op) => op(acc), value);
-	// Unescape the special escape sequences
-	for (const { input, output, active } of specialEscapeSequences) {
-		if (active) value = value.replaceAll(output, input);
-	}
-	return value;
+	return result;
 }
 
 /**
@@ -128,21 +113,21 @@ type SplitString = {
 };
 
 /**
- * Split a search pattern string into its terms.
+ * Tokenizes a string into words.
  * For example strings input in the "Simple Search" input.
  * This works by splitting the string on all whitespace (ignoring it), except where (a part of) the string is enclosed in double quotes (""), between which whitespace is preserved.
  * Double quotes and whitespace that has been used as separator is stripped from the value field of the returned structs.
  * Returned indices use half-open ranges: start is inclusive, end is exclusive (same convention as substring(start, end)).
  * Stripped quotes (not whitespace!) are however still reflected in the start and end properties. (meaning for a string that isQuoted, (end-start) === (value.length + 2))
  * This is because this function is also used to split out (and replace) the currently selected word/sequence of words for autocompleted annotations.
- * Note: quote escaping is not taken into consideration. Backslashes are treated as any other character
+ * Escaped quotes (\") are treated as regular characters.
  * Examples:
  * "split word" behind another few --> ["split word", "behind", "another", "few"]
- * "wild* in split words" and such --> ["wild.* in split words", "and", "such"]
+ * "wild* in split words" and such --> ["wild* in split words", "and", "such"]
  * @param v the input string.
  * @param useQuoteDelimiters whether to use double quotes (") as delimiters or not. If not, the quotes are treated as regular characters.
  */
-export const splitIntoTerms = (value: string, useQuoteDelimiters: boolean): SplitString[] => {
+export const tokenizeString = (value: string, useQuoteDelimiters: boolean): SplitString[] => {
 	let i = 0;
 	let inQuotes = false;
 	let seg = '';
@@ -151,7 +136,7 @@ export const splitIntoTerms = (value: string, useQuoteDelimiters: boolean): Spli
 	for (const c of value) {
 		switch (c) {
 			case '"':
-				if (useQuoteDelimiters) {
+				if (useQuoteDelimiters && !isEscapedAt(value, i)) {
 					// start or end of section (possibly both?)
 					if (seg) {
 						segs.push({ start, end: i + 1, value: seg, isQuoted: inQuotes });
@@ -160,6 +145,9 @@ export const splitIntoTerms = (value: string, useQuoteDelimiters: boolean): Spli
 					inQuotes = !inQuotes;
 					start = i;
 				} else {
+					if (useQuoteDelimiters && seg.endsWith('\\')) {
+						seg = seg.slice(0, -1);
+					}
 					seg += c;
 				}
 				break;
@@ -190,6 +178,14 @@ export const splitIntoTerms = (value: string, useQuoteDelimiters: boolean): Spli
 	}
 	return segs;
 };
+
+function isEscapedAt(value: string, index: number): boolean {
+	let backslashes = 0;
+	for (let i = index - 1; i >= 0 && value[i] === '\\'; i--) {
+		backslashes += 1;
+	}
+	return backslashes % 2 === 1;
+}
 
 export function hashJavaDJB2(str: string) {
 	let hash = 0;

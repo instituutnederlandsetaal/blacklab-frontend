@@ -21,6 +21,12 @@ export const createDefaultDateFieldState = (): DateFieldState => ({
 });
 
 export const DateUtils = {
+	/**
+	 * Return the date as a string in the format YYYYMMDD,
+	 * Missing/invalid months/days are filled in as either the earliest or latest possible value depending on the mode.
+	 * Null dates or dates with invalid years return an empty string.
+	 * Works for years in the range 0000-9999.
+	 */
 	dateValueToLucene(date: DateValue | null | undefined, mode: 'start' | 'end'): string {
 		if (!date) return '';
 		let { y, m, d } = date;
