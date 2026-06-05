@@ -109,10 +109,12 @@ export type QueryIR = {
 	searchField: string | null;
 };
 export function isQueryIR(artifact: any): artifact is QueryIR {
-	return artifact && typeof artifact === 'object' && ('pattern' in artifact || 'filter' in artifact || 'wrappers' in artifact || 'searchField' in artifact);
+	// NOTE: if artifact is an array, 'filter' in artifact is true,
+	// but that doesn't mean it's a QueryIR, so we need to check that it's not an array first.
+	return !Array.isArray(artifact) && artifact && typeof artifact === 'object' && 'pattern' in artifact && 'filter' in artifact && 'wrappers' in artifact && 'searchField' in artifact;
 }
 export function isPartialQueryIR(artifact: any): artifact is Partial<QueryIR> {
-	return artifact && typeof artifact === 'object' && ('pattern' in artifact || 'filter' in artifact || 'wrappers' in artifact || 'searchField' in artifact);
+	return !Array.isArray(artifact) && artifact && typeof artifact === 'object' && ('pattern' in artifact || 'filter' in artifact || 'wrappers' in artifact || 'searchField' in artifact);
 }
 
 /**

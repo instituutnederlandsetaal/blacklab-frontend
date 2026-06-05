@@ -5,18 +5,18 @@ import { describe, expect, test } from 'vitest';
 import { computed, defineComponent, h, nextTick, ref } from 'vue';
 
 import {
-    FormBuilder,
-    annotationTextController,
-    createFormSystemRuntime,
-    expertQueryController,
-    filterTextController,
-    parallelController,
-    withinController,
-    type FormBoundaryNode,
-    type FormFieldNode,
-    type FormSystemRuntime,
-    type FormViewNode,
-    type SummaryEntry,
+	FormBuilder,
+	annotationTextController,
+	createFormSystemRuntime,
+	expertQueryController,
+	filterTextController,
+	parallelController,
+	withinController,
+	type FormBoundaryNode,
+	type FormFieldNode,
+	type FormSystemRuntime,
+	type FormViewNode,
+	type SummaryEntry,
 } from '@/features/form';
 import { createAndProvideParentForm, provideFormSystemRuntime } from '@/features/form/model/runtime';
 import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
@@ -367,6 +367,11 @@ describe('builtin controller hosts', () => {
 		await harness.wrapper.get('input[type="text"]').setValue('shouldEndUpInState.within.attribute.value');
 
 		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.within.controllerState);
+		expect(harness.runtime.compile(harness.form.id)).toEqual({
+			cql: '<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState.within.attribute.value"/>',
+			filter: null,
+			searchField: null,
+		});
 	});
 });
 
