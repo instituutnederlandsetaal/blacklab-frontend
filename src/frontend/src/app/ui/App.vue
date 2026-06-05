@@ -17,13 +17,22 @@ body {
 	min-height: 100vh;
 	display: flex;
 	flex-direction: column;
-	> div {
-		flex-grow: 1;
-		display: flex;
-		flex-direction: column;
-		> .main-content {
-			flex-grow: 1;
-		}
+}
+
+#vue-root {
+	display: contents;
+}
+.main-content {
+	display: block;
+	flex-grow: 1;
+}
+
+@media (max-width: 767px) {
+	.container:not(.container-fluid) {
+		width: min(750px, 100%);
 	}
+}
+.container-fluid {
+	width: 100%;
 }
 </style>
