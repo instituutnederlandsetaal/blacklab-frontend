@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef } from 'vue';
 
-import { encodeScopedFormQuery, FormSystem, type FormRuntimeContext, type FormState, type FormSystemDefinition, type FormSystemRuntime, type PersistableSubmittableFormState } from '../index';
+import { FormSystem, type FormRuntimeContext, type FormState, type FormSystemDefinition, type FormSystemRuntime, type PersistableSubmittableFormState } from '../index';
 
 const props = defineProps<{
 	context: FormRuntimeContext;
@@ -35,7 +35,7 @@ const props = defineProps<{
 const runtime = shallowRef<FormSystemRuntime | null>(null);
 const submittedState = ref<PersistableSubmittableFormState | null>(props.initialSubmitted ?? null);
 const runtimeState = computed(() => runtime.value?.state.value ?? props.initialState ?? null);
-const encodedSubmitted = computed(() => (submittedState.value ? encodeScopedFormQuery(props.definition, props.context, submittedState.value) : null));
+const encodedSubmitted = computed(() => submittedState.value?.encoded ?? null);
 
 function handleReady(nextRuntime: FormSystemRuntime) {
 	runtime.value = nextRuntime;

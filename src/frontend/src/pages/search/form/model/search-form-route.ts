@@ -1,14 +1,12 @@
 import type { LocationQuery, LocationQueryRaw, LocationQueryValue } from 'vue-router';
 
-import { FORM_QUERY_PREFIX, type CompiledFormState, type ScopedFormQuery } from '@/features/form';
+import { FORM_QUERY_PREFIX, type CompiledFormState } from '@/features/form';
+import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameter } from '@/features/form/model/types/blacklab-params';
 
-export const FORM_CANONICAL_QUERY_KEYS = ['patt', 'filter', 'searchfield'] as const;
-
-type FormCanonicalQueryKey = (typeof FORM_CANONICAL_QUERY_KEYS)[number];
-type CanonicalFormQuery = Record<FormCanonicalQueryKey, string | null>;
+type CanonicalFormQuery = Record<BlackLabParameter, string | null>;
 
 export function isFormOwnedQueryParameter(key: string): boolean {
-	return key.startsWith(FORM_QUERY_PREFIX) || FORM_CANONICAL_QUERY_KEYS.includes(key as any);
+	return key.startsWith(FORM_QUERY_PREFIX) || NATIVE_BLACKLAB_PARAMETERS.includes(key as BlackLabParameter);
 }
 
 function firstQueryValue(value: LocationQueryValue | LocationQueryValue[] | undefined): string | null {
@@ -16,7 +14,7 @@ function firstQueryValue(value: LocationQueryValue | LocationQueryValue[] | unde
 }
 
 export function readCanonicalFormQuery(query: LocationQuery): CanonicalFormQuery {
-	return Object.fromEntries(FORM_CANONICAL_QUERY_KEYS.map(key => [key, firstQueryValue(query[key])])) as CanonicalFormQuery;
+	return Object.fromEntries(NATIVE_BLACKLAB_PARAMETERS.map(key => [key, firstQueryValue(query[key])])) as CanonicalFormQuery;
 }
 
 export function pickFormOwnedQueryParameters(query: LocationQuery): LocationQuery {
@@ -31,7 +29,7 @@ export function formRouteFingerprint(query: LocationQuery): string {
 	);
 }
 
-export function replaceFormRouteQuery(current: LocationQuery, scoped: ScopedFormQuery, compiled: CompiledFormState): LocationQueryRaw {
+export function replaceFormRouteQuery(current: LocationQuery, compiled: CompiledFormState): LocationQueryRaw {
 	const query: LocationQueryRaw = {};
 
 	// Copy over everything that's not owned by the form system, to preserve unrelated query parameters (e.g. from other components or the app itself)
@@ -40,12 +38,12 @@ export function replaceFormRouteQuery(current: LocationQuery, scoped: ScopedForm
 		query[key] = current[key];
 	}
 	// copy compiled query params
-	for (const key of FORM_CANONICAL_QUERY_KEYS) {
+	for (const key of NATIVE_BLACKLAB_PARAMETERS) {
 		if (compiled[key]) query[key] = compiled[key];
 	}
 	// copy scoped params
-	for (const key in scoped) {
-		if (scoped[key]) query[key] = scoped[key];
+	for (const key in compiled.encoded) {
+		if (compiled.encoded[key]) query[key] = compiled.encoded[key];
 	}
 
 	return query;

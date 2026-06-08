@@ -1,11 +1,11 @@
 import {
 	booleanExpr,
+	type CompiledBlackLabParameters,
 	isCqlPattern,
 	isPartialQueryIR,
 	isQueryFilterNode,
 	simplifyBooleanExpr,
 	type BooleanType,
-	type CompiledFormState,
 	type CqlPattern,
 	type QueryFilterNode,
 	type QueryFragment,
@@ -120,7 +120,7 @@ export function withSearchField(artifact: QueryIR, searchfield: string | null): 
 // Pipeline
 // =========================================================================================================================
 
-export function compileQueryIR(artifact: QueryIR): CompiledFormState {
+export function compileQueryIR(artifact: QueryIR): CompiledBlackLabParameters {
 	const normalized = simplifyQueryIR(artifact);
 	return {
 		patt: emitCqlWithWrappers(normalized.pattern, normalized.wrappers),

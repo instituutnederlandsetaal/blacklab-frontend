@@ -10,7 +10,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useCurrentCorpus, useCurrentTagset } from '@/entities/corpus/model/corpus-context';
 import { useCurrentConfig } from '@/entities/page-config/page-config';
-import { encodeScopedFormQuery, FormSystem, restoreScopedFormState, type FormSystemRuntime, type PersistableSubmittableFormState } from '@/features/form';
+import { FormSystem, restoreScopedFormState, type FormSystemRuntime, type PersistableSubmittableFormState } from '@/features/form';
 import { createSearchFormDefinition as createFormBlueprint } from '@/pages/search/form/model/search-form-builder';
 import { formRouteFingerprint, readCanonicalFormQuery, replaceFormRouteQuery } from '@/pages/search/form/model/search-form-route';
 
@@ -48,11 +48,8 @@ watchEffect(() => {
 });
 
 function handleSubmit(_formId: string, state: PersistableSubmittableFormState) {
-	// TODO why do we need to re-encode this
-	// the state should already be in a format we can use.
-	const scopedFormQuery = encodeScopedFormQuery(formBlueprint.value.definition, formBlueprint.value.context, state);
 	void router.push({
-		query: replaceFormRouteQuery(route.query, scopedFormQuery, state),
+		query: replaceFormRouteQuery(route.query, state),
 	});
 }
 </script>

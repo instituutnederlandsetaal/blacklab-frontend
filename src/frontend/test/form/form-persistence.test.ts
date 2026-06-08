@@ -8,7 +8,7 @@ import {
 	annotationTextController,
 	annotationPosController,
 	createFormState,
-	encodeScopedFormQuery,
+	compileFormState,
 	expertQueryController,
 	filterAutocompleteController,
 	filterCheckboxController,
@@ -56,7 +56,7 @@ function createCanonicalFallbackFixture() {
 		displayName: 'Word',
 	});
 	simple.addChildren(simpleField);
-	const expert = root.addForm('expert', ContainerRenderer, { title: 'Expert' });
+	const expert = root.addForm('search.expert', ContainerRenderer, { title: 'Expert' });
 	const rawField = builder.newField('search.expert.cql', expertQueryController, RawCqlField, {});
 	expert.addChildren(rawField);
 	return {
@@ -75,13 +75,7 @@ describe('scoped form persistence', () => {
 		const state = createFormState(fixture.definition, fixture.context);
 		state.controllerState[fixture.field.id] = { value: 'water' };
 
-		const encoded = encodeScopedFormQuery(fixture.definition, fixture.context, {
-			formId: fixture.form.id,
-			state,
-			patt: '[word="(?i)water"]',
-			filter: null,
-			searchfield: null,
-		});
+		const encoded = compileFormState(fixture.form, state, fixture.context).encoded;
 
 		expect(encoded).toEqual({
 			'f.form': 'search.extended',
@@ -264,13 +258,7 @@ describe('scoped form persistence', () => {
 		const state = createFormState(definition, context);
 		state.uiState.activeContainers[filters.id] = newspapers.id;
 
-		const encoded = encodeScopedFormQuery(definition, context, {
-			formId: form.id,
-			state,
-			patt: null,
-			filter: 'category("newspaper")',
-			searchfield: null,
-		});
+		const encoded = compileFormState(form, state, context).encoded;
 
 		expect(encoded['f.tab']).toEqual(['search.extended.filters:search.extended.filters.newspapers']);
 
@@ -318,13 +306,7 @@ describe('scoped form persistence', () => {
 		duplicateState.controllerState[secondDuplicateField.id] = { value: 'fire' };
 
 		expect(() =>
-			encodeScopedFormQuery(duplicateDefinition, duplicateContext, {
-				formId: duplicateForm.id,
-				state: duplicateState,
-				patt: null,
-				filter: null,
-				searchfield: null,
-			}),
+			compileFormState(duplicateForm, duplicateState, duplicateContext),
 		).toThrow(/Duplicate form persistence key 'word'/);
 
 		const reservedController: FieldController<'reserved-text', TestTextFieldState, TestTextFieldConfig> = {
@@ -342,13 +324,7 @@ describe('scoped form persistence', () => {
 		const reservedContext = createTestContext();
 
 		expect(() =>
-			encodeScopedFormQuery(reservedDefinition, reservedContext, {
-				formId: form.id,
-				state: createFormState(reservedDefinition, reservedContext),
-				patt: null,
-				filter: null,
-				searchfield: null,
-			}),
+			compileFormState(form, createFormState(reservedDefinition, reservedContext), reservedContext),
 		).toThrow(/reserved form persistence key 'form'/);
 	});
 });

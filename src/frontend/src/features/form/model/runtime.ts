@@ -1,8 +1,8 @@
 import { computed, inject, provide, ref, shallowRef, toValue, watch, type ComputedRef, type InjectionKey, type MaybeRefOrGetter, type ShallowRef } from 'vue';
 
-import { buildFormQuery, summarizeForm } from '@/features/form/model/compile';
-import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
+import { summarizeForm } from '@/features/form/model/compile';
 import { getAllNodes, pickActiveFormState, reactivePickActiveFormState } from '@/features/form/model/form-utils';
+import { compileFormState } from '@/features/form/model/persistence';
 import { cloneFormState, createFormState } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
@@ -22,15 +22,6 @@ type ParentFormRuntime = {
 };
 
 const parentFormRuntimeKey: InjectionKey<ParentFormRuntime> = Symbol('parentFormRuntime');
-
-function applyRawOverrides(compiled: CompiledFormState, state: FormState): CompiledFormState {
-	const overrides = state.rawOverrides ?? {};
-	return {
-		patt: overrides.patt || compiled.patt,
-		filter: overrides.filter || compiled.filter,
-		searchfield: overrides.searchfield || compiled.searchfield,
-	};
-}
 
 export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: MaybeRefOrGetter<string>) {
 	const currentFormId = computed(() => toValue(formId));
@@ -92,7 +83,7 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 	const resetListeners: (() => void)[] = [];
 
 	const compile: FormSystemRuntime['compile'] = (formId: string): CompiledFormState => {
-		const compiled = applyRawOverrides(compileQueryIR(buildFormQuery(formsById[formId], state.value, context)), state.value);
+		const compiled = compileFormState(formsById[formId], state.value, context);
 		compileListeners.forEach(callback => callback(formId, compiled));
 		return compiled;
 	};

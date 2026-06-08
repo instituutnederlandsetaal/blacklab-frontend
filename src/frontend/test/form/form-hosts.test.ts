@@ -368,6 +368,11 @@ describe('builtin controller hosts', () => {
 
 		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.within.controllerState);
 		expect(harness.runtime.compile(harness.form.id)).toEqual({
+			formId: 'harness.form',
+			encoded: {
+				'f.form': 'harness.form',
+				'f.within': 'element=within-state.element.selected;attr.shouldEndUpInState.within.attribute=shouldEndUpInState.within.attribute.value',
+			},
 			patt: '<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState\\.within\\.attribute\\.value"/>',
 			filter: null,
 			searchfield: null,

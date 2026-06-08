@@ -49,7 +49,15 @@ describe('search form route ownership', () => {
 			filter: 'old-filter',
 			searchfield: 'old-field',
 		});
-		expect(replaceFormRouteQuery(current, { 'f.form': 'extended', 'f.word': 'water' }, { patt: '[word="water"]', filter: null, searchfield: null })).toEqual({
+		expect(
+			replaceFormRouteQuery(current, {
+				formId: 'extended',
+				encoded: { 'f.form': 'extended', 'f.word': 'water' },
+				patt: '[word="water"]',
+				filter: null,
+				searchfield: null,
+			}),
+		).toEqual({
 			page: '4',
 			sort: ['year', 'asc'],
 			patt: '[word="water"]',

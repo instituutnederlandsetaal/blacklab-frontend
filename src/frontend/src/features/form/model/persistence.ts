@@ -2,10 +2,10 @@ import { buildFormQuery } from '@/features/form/model/compile';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { expertQueryController } from '@/features/form/model/controllers';
 import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
-import { cloneFormState, createFormState } from '@/features/form/model/state';
-import type { BlackLabParameter, BlackLabParameters } from '@/features/form/model/types/blacklab-params';
+import { createFormState } from '@/features/form/model/state';
+import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import type { EncodedFieldValue, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { CompiledFormState, PersistableFormState } from '@/features/form/model/types/form-query';
+import type { CompiledFormState, PersistableFormState, ScopedFormQuery } from '@/features/form/model/types/form-query';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 import type { FormState, FormSystemDefinition } from '@/features/form/model/types/form-state';
 
@@ -18,9 +18,7 @@ export type RestoreIssue = {
 	message: string;
 };
 
-export type RestoredScopedFormState = {
-	formId: string;
-	state: FormState;
+export type RestoredScopedFormState = PersistableFormState & {
 	issues: RestoreIssue[];
 };
 
@@ -28,8 +26,6 @@ type FieldCodecEntry = {
 	field: FormFieldNode;
 	key: string;
 };
-
-export type ScopedFormQuery = Record<string, string | string[]>;
 
 function isNonEmpty(value: string | null | undefined): value is string {
 	return value != null && value !== '';
@@ -93,6 +89,11 @@ function buildFieldCodec(form: FormBoundaryNode, context: FormRuntimeContext, is
 	return entries;
 }
 
+function throwCodecIssues(issues: RestoreIssue[]) {
+	if (!issues.length) return;
+	throw new Error(issues.map(issue => issue.message).join('\n'));
+}
+
 function setActivePath(root: FormNode, targetId: string, activeContainers: Record<string, string | null>): boolean {
 	if (!isContainerNode(root)) return root.id === targetId;
 	for (const child of root.children) {
@@ -106,12 +107,6 @@ function setActivePath(root: FormNode, targetId: string, activeContainers: Recor
 
 function valueDiffers(left: string | null | undefined, right: string | null | undefined): boolean {
 	return (left ?? null) !== (right ?? null);
-}
-
-function compileWithoutRawOverrides(form: FormBoundaryNode, state: FormState, context: FormRuntimeContext): CompiledFormState {
-	const comparableState = cloneFormState(state);
-	comparableState.rawOverrides = {};
-	return compileQueryIR(buildFormQuery(form, comparableState, context));
 }
 
 function hasPersistedValue(state: FormState, field: FormFieldNode, context: FormRuntimeContext): boolean {
@@ -211,12 +206,50 @@ function applyTabState(form: FormBoundaryNode, payload: EncodedFieldValue | unde
 function queryAffectingTabParams(form: FormBoundaryNode, state: FormState): string[] {
 	const tabs: string[] = [];
 	for (const container of getAllNodes(form, 'container', 'form')) {
+		if (!container.children.some(child => (child.kind === 'container' || child.kind === 'form') && child.activeQueryContribution)) continue;
 		const activeChildId = state.uiState.activeContainers[container.id];
 		const activeChild = container.children.find(child => child.id === activeChildId);
 		if (!activeChild || (activeChild.kind !== 'container' && activeChild.kind !== 'form') || !activeChild.activeQueryContribution) continue;
 		tabs.push(`${container.id}:${activeChild.id}`);
 	}
 	return tabs;
+}
+
+function encodeScopedFormState(form: FormBoundaryNode, context: FormRuntimeContext, state: FormState, issues?: RestoreIssue[]): ScopedFormQuery {
+	const codecIssues: RestoreIssue[] = [];
+	const codec = buildFieldCodec(form, context, codecIssues);
+	if (issues) issues.push(...codecIssues);
+	else throwCodecIssues(codecIssues);
+
+	const query: ScopedFormQuery = {
+		[`${FORM_QUERY_PREFIX}form`]: form.id,
+	};
+
+	for (const { field, key } of codec) {
+		const encoded = field.controller.encode(state.controllerState[field.id], field, context);
+		if (encoded == null || (Array.isArray(encoded) && !encoded.length) || encoded === '') continue;
+		query[`${FORM_QUERY_PREFIX}${key}`] = encoded;
+	}
+
+	const tabs = queryAffectingTabParams(form, state);
+	if (tabs.length) query[`${FORM_QUERY_PREFIX}tab`] = tabs;
+
+	return query;
+}
+
+export function compileFormState(form: FormBoundaryNode, state: FormState, context: FormRuntimeContext, issues?: RestoreIssue[]): CompiledFormState {
+	// Compile what's in the form
+	const compiled = compileQueryIR(buildFormQuery(form, state, context));
+	// overwrite with raw overrides
+	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
+		if (state.rawOverrides?.[parameter]) compiled[parameter] = state.rawOverrides[parameter];
+	}
+
+	return {
+		...compiled,
+		formId: form.id,
+		encoded: encodeScopedFormState(form, context, state, issues),
+	};
 }
 
 export function restoreScopedFormState(definition: FormSystemDefinition, context: FormRuntimeContext, query: Record<string, unknown>, canonical: BlackLabParameters = {}): RestoredScopedFormState {
@@ -275,38 +308,15 @@ export function restoreScopedFormState(definition: FormSystemDefinition, context
 
 	inferActiveContainersFromValues(formNode, state, context);
 
-	const compiled = compileWithoutRawOverrides(formNode, state, context);
-	if (valueDiffers(compiled.patt, canonical.patt)) state.rawOverrides.patt = canonical.patt ?? null;
-	if (valueDiffers(compiled.filter, canonical.filter)) state.rawOverrides.filter = canonical.filter ?? null;
-	if (valueDiffers(compiled.searchfield, canonical.searchfield)) state.rawOverrides.searchfield = canonical.searchfield ?? null;
-
-	for (const key of Object.keys(state.rawOverrides) as BlackLabParameter[]) {
-		if (!isNonEmpty(state.rawOverrides[key])) delete state.rawOverrides[key];
+	const compiled = compileQueryIR(buildFormQuery(formNode, state, context));
+	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
+		if (valueDiffers(compiled[parameter], canonical[parameter])) state.rawOverrides[parameter] = canonical[parameter] ?? null;
+		if (!isNonEmpty(state.rawOverrides[parameter])) delete state.rawOverrides[parameter];
 	}
 
 	return {
-		formId: formNode.id,
+		...compileFormState(formNode, state, context, []),
 		state,
 		issues,
 	};
-}
-
-export function encodeScopedFormQuery(definition: FormSystemDefinition, context: FormRuntimeContext, snapshot: PersistableFormState): ScopedFormQuery {
-	const form = findForm(definition, snapshot.formId);
-	const codec = buildFieldCodec(form, context, []);
-
-	const query: ScopedFormQuery = {
-		[`${FORM_QUERY_PREFIX}form`]: form.id,
-	};
-
-	for (const { field, key } of codec) {
-		const encoded = field.controller.encode(snapshot.state.controllerState[field.id], field, context);
-		if (encoded == null || (Array.isArray(encoded) && !encoded.length) || encoded === '') continue;
-		query[`${FORM_QUERY_PREFIX}${key}`] = encoded;
-	}
-
-	const tabs = queryAffectingTabParams(form, snapshot.state);
-	if (tabs.length) query[`${FORM_QUERY_PREFIX}tab`] = tabs;
-
-	return query;
 }

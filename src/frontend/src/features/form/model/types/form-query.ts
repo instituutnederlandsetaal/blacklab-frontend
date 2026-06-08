@@ -138,10 +138,16 @@ export type QueryFragment = {
 	summaries: SummaryEntry[];
 };
 
-export type CompiledFormState = Required<BlackLabParameters>;
+export type CompiledBlackLabParameters = Required<BlackLabParameters>;
+
+export type ScopedFormQuery = Record<string, string | string[]>;
+
+export type CompiledFormState = CompiledBlackLabParameters & {
+	formId: string;
+	encoded: ScopedFormQuery;
+};
 
 export type PersistableFormState = CompiledFormState & {
-	formId: string;
 	state: FormState;
 };
 export type SubmittableFormState = CompiledFormState & {
