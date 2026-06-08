@@ -1,3 +1,4 @@
+import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import type { ResultPreset } from '@/features/form/model/types/form-shape';
 import type { FormState } from '@/features/form/model/types/form-state';
 
@@ -106,7 +107,7 @@ export type QueryIR = {
 	pattern: CqlPattern | null;
 	filter: QueryFilterNode | null;
 	wrappers: QueryWrapper[];
-	searchField: string | null;
+	searchfield: string | null;
 };
 export function isQueryIR(artifact: any): artifact is QueryIR {
 	// NOTE: if artifact is an array, 'filter' in artifact is true,
@@ -137,11 +138,8 @@ export type QueryFragment = {
 	summaries: SummaryEntry[];
 };
 
-export type CompiledFormState = {
-	filter: string | null;
-	cql: string | null;
-	searchField: string | null;
-};
+export type CompiledFormState = Required<BlackLabParameters>;
+
 export type PersistableFormState = CompiledFormState & {
 	formId: string;
 	state: FormState;

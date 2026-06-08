@@ -268,25 +268,6 @@ export function createRestoredSearchFormStoryModel(): StoryFormSystemModel {
 	const model = createSearchFormStoryModel();
 	const initialState = createFormState(model.definition, model.context);
 
-	initialState.uiState.activeContainers.search = 'search.extended';
-	initialState.uiState.activeContainers['search.extended.annotations'] = 'search.extended.annotations.main';
-	initialState.uiState.activeContainers['search.shared.filters'] = 'search.shared.filters.bibliographic';
-	initialState.controllerState['search.shared.parallel'] = {
-		source: 'contents__en',
-		targets: ['contents__nl'],
-		alignBy: 's',
-	};
-	initialState.controllerState['search.extended.word'] = { value: 'water', caseSensitive: false };
-	initialState.controllerState['search.shared.within'] = {
-		element: 's',
-		attributes: { speaker: 'narrator' },
-	};
-	initialState.controllerState['search.shared.filter.genre'] = {
-		fiction: true,
-		essay: false,
-		newspaper: false,
-	};
-
 	return {
 		...model,
 		initialState,

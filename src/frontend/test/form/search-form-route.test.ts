@@ -4,7 +4,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { nextTick, watch } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
-import { formRouteFingerprint, projectFormRouteQuery, readCanonicalFormQuery, replaceFormRouteQuery } from '@/pages/search/form/model/search-form-route';
+import { formRouteFingerprint, isFormOwnedQueryParameter, pickFormOwnedQueryParameters, readCanonicalFormQuery, replaceFormRouteQuery } from '@/pages/search/form/model/search-form-route';
 
 function createTestRouter() {
 	return createRouter({
@@ -14,6 +14,18 @@ function createTestRouter() {
 }
 
 describe('search form route ownership', () => {
+	test('identifies query parameters that participate in form restoration', () => {
+		expect(isFormOwnedQueryParameter('f.form')).toBe(true);
+		expect(isFormOwnedQueryParameter('f.word')).toBe(true);
+		expect(isFormOwnedQueryParameter('patt')).toBe(true);
+		expect(isFormOwnedQueryParameter('filter')).toBe(true);
+		expect(isFormOwnedQueryParameter('searchfield')).toBe(true);
+
+		expect(isFormOwnedQueryParameter('query')).toBe(false);
+		expect(isFormOwnedQueryParameter('cql')).toBe(false);
+		expect(isFormOwnedQueryParameter('page')).toBe(false);
+	});
+
 	test('projects and replaces only form-owned query parameters', () => {
 		const current = {
 			'f.form': 'old',
@@ -25,7 +37,7 @@ describe('search form route ownership', () => {
 			sort: ['year', 'asc'],
 		};
 
-		expect(projectFormRouteQuery(current)).toEqual({
+		expect(pickFormOwnedQueryParameters(current)).toEqual({
 			'f.form': 'old',
 			'f.word': 'old',
 			patt: 'old-pattern',
@@ -35,9 +47,9 @@ describe('search form route ownership', () => {
 		expect(readCanonicalFormQuery(current)).toEqual({
 			patt: 'old-pattern',
 			filter: 'old-filter',
-			searchField: 'old-field',
+			searchfield: 'old-field',
 		});
-		expect(replaceFormRouteQuery(current, { 'f.form': 'extended', 'f.word': 'water' }, { cql: '[word="water"]', filter: null, searchField: null })).toEqual({
+		expect(replaceFormRouteQuery(current, { 'f.form': 'extended', 'f.word': 'water' }, { patt: '[word="water"]', filter: null, searchfield: null })).toEqual({
 			page: '4',
 			sort: ['year', 'asc'],
 			patt: '[word="water"]',

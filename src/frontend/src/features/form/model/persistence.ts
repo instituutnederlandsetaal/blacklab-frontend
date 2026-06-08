@@ -2,21 +2,15 @@ import { buildFormQuery } from '@/features/form/model/compile';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { expertQueryController } from '@/features/form/model/controllers';
 import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
-import { createFormState } from '@/features/form/model/state';
-import type { BlackLabParameter, EncodedFieldValue, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import { cloneFormState, createFormState } from '@/features/form/model/state';
+import type { BlackLabParameter, BlackLabParameters } from '@/features/form/model/types/blacklab-params';
+import type { EncodedFieldValue, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormState, PersistableFormState } from '@/features/form/model/types/form-query';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 import type { FormState, FormSystemDefinition } from '@/features/form/model/types/form-state';
 
 export const FORM_QUERY_PREFIX = 'f.';
-
-export type CanonicalBlackLabFormParameters = {
-	patt?: string | null;
-	filter?: string | null;
-	searchField?: string | null;
-};
-
-export type ScopedFormQuery = Record<string, string | string[] | undefined>;
+const RESERVED_SCOPED_FORM_KEYS = new Set(['form', 'tab']);
 
 export type RestoreIssue = {
 	key?: string;
@@ -33,9 +27,9 @@ export type RestoredScopedFormState = {
 export type EncodedPersistableFormState = {
 	form: string;
 	state?: string;
-	cql?: string;
+	patt?: string;
 	filter?: string;
-	searchField?: string;
+	searchfield?: string;
 	resultPreset?: string;
 };
 
@@ -44,10 +38,7 @@ type FieldCodecEntry = {
 	key: string;
 };
 
-function formPersistKey(form: FormBoundaryNode): string {
-	const key = (form as FormBoundaryNode & { persistKey?: unknown }).persistKey;
-	return typeof key === 'string' && key ? key : form.id;
-}
+export type ScopedFormQuery = Record<string, string | string[]>;
 
 function isNonEmpty(value: string | null | undefined): value is string {
 	return value != null && value !== '';
@@ -66,9 +57,13 @@ function stripPrefix(key: string): string | null {
 	return key.startsWith(FORM_QUERY_PREFIX) ? key.slice(FORM_QUERY_PREFIX.length) : null;
 }
 
+export function isReservedScopedFormKey(key: string): boolean {
+	return RESERVED_SCOPED_FORM_KEYS.has(key);
+}
+
 function findForm(definition: FormSystemDefinition, requested: string | null): FormBoundaryNode {
 	const forms = getAllNodes(definition.root, 'form');
-	return forms.find(form => formPersistKey(form) === requested || form.id === requested) ?? forms[0];
+	return forms.find(form => form.id === requested) ?? forms[0];
 }
 
 function findExpertForm(definition: FormSystemDefinition): { form: FormBoundaryNode; field: FormFieldNode } | null {
@@ -79,17 +74,25 @@ function findExpertForm(definition: FormSystemDefinition): { form: FormBoundaryN
 	return null;
 }
 
-function buildFieldCodec(form: FormBoundaryNode, context: FormRuntimeContext, issues: RestoreIssue[] = []): FieldCodecEntry[] {
+function buildFieldCodec(form: FormBoundaryNode, context: FormRuntimeContext, issues: RestoreIssue[]): FieldCodecEntry[] {
 	const seen = new Map<string, FormFieldNode>();
 	const entries: FieldCodecEntry[] = [];
+
 	for (const field of getAllNodes(form, 'field')) {
 		const key = field.controller.getPersistKey(field, context);
-		const previous = seen.get(key);
-		if (previous && previous !== field) {
+		if (isReservedScopedFormKey(key)) {
 			issues.push({
 				key,
 				nodeId: field.id,
-				message: `Duplicate form persistence key '${key}' for '${previous.id}' and '${field.id}'.`,
+				message: `Field '${field.id}' uses reserved form persistence key '${key}'.`,
+			});
+			continue;
+		}
+		if (seen.has(key)) {
+			issues.push({
+				key,
+				nodeId: field.id,
+				message: `Duplicate form persistence key '${key}' for '${field.id}' and '${seen.get(key)!.id}'.`,
 			});
 			continue;
 		}
@@ -115,13 +118,9 @@ function valueDiffers(left: string | null | undefined, right: string | null | un
 }
 
 function compileWithoutRawOverrides(form: FormBoundaryNode, state: FormState, context: FormRuntimeContext): CompiledFormState {
-	const saved = state.rawOverrides;
-	state.rawOverrides = {};
-	try {
-		return compileQueryIR(buildFormQuery(form, state, context));
-	} finally {
-		state.rawOverrides = saved;
-	}
+	const comparableState = cloneFormState(state);
+	comparableState.rawOverrides = {};
+	return compileQueryIR(buildFormQuery(form, comparableState, context));
 }
 
 function hasPersistedValue(state: FormState, field: FormFieldNode, context: FormRuntimeContext): boolean {
@@ -165,14 +164,14 @@ function readScopedQuery(query: Record<string, unknown>): { keys: Set<string>; v
 	return { keys, values: scoped };
 }
 
-function restoreField(entry: FieldCodecEntry, payload: EncodedFieldValue, context: FormRuntimeContext, state: FormState, issues: RestoreIssue[]) {
+function restoreField(entry: FieldCodecEntry, payload: EncodedFieldValue, context: FormRuntimeContext, state: FormState, issues: RestoreIssue[]): boolean {
 	if (!entry.field.controller.restore) {
 		issues.push({
 			key: entry.key,
 			nodeId: entry.field.id,
 			message: `Field '${entry.field.id}' cannot restore persisted value '${entry.key}'.`,
 		});
-		return;
+		return false;
 	}
 	try {
 		const restored = entry.field.controller.restore(payload, entry.field, context);
@@ -183,16 +182,19 @@ function restoreField(entry: FieldCodecEntry, payload: EncodedFieldValue, contex
 		} else {
 			state.controllerState[entry.field.id] = restored;
 		}
+		return true;
 	} catch (error) {
 		issues.push({
 			key: entry.key,
 			nodeId: entry.field.id,
 			message: error instanceof Error ? error.message : `Could not restore field '${entry.field.id}'.`,
 		});
+		return false;
 	}
 }
 
-function applyTabState(form: FormBoundaryNode, payload: EncodedFieldValue | undefined, state: FormState, issues: RestoreIssue[]) {
+function applyTabState(form: FormBoundaryNode, payload: EncodedFieldValue | undefined, state: FormState, issues: RestoreIssue[]): number {
+	let applied = 0;
 	for (const tab of asArray(payload)) {
 		const [containerKey, childKey] = tab.split(':');
 		if (!containerKey || !childKey || tab.split(':').length !== 2) {
@@ -210,7 +212,9 @@ function applyTabState(form: FormBoundaryNode, payload: EncodedFieldValue | unde
 			continue;
 		}
 		state.uiState.activeContainers[container.id] = child.id;
+		applied += 1;
 	}
+	return applied;
 }
 
 function queryAffectingTabParams(form: FormBoundaryNode, state: FormState): string[] {
@@ -224,23 +228,21 @@ function queryAffectingTabParams(form: FormBoundaryNode, state: FormState): stri
 	return tabs;
 }
 
-export function restoreScopedFormState(
-	definition: FormSystemDefinition,
-	context: FormRuntimeContext,
-	query: Record<string, unknown>,
-	canonical: CanonicalBlackLabFormParameters = {},
-): RestoredScopedFormState {
+export function restoreScopedFormState(definition: FormSystemDefinition, context: FormRuntimeContext, query: Record<string, unknown>, canonical: BlackLabParameters = {}): RestoredScopedFormState {
 	const issues: RestoreIssue[] = [];
 	const scoped = readScopedQuery(query);
 	const consumed = new Set<string>();
 	const expert = findExpertForm(definition);
 	const requestedFormId = first(scoped.values.form);
 	let formNode = findForm(definition, requestedFormId);
-	const isFormNodeTheRequestedForm = formPersistKey(formNode) === requestedFormId || formNode.id === requestedFormId;
+	const isFormNodeTheRequestedForm = formNode.id === requestedFormId;
+	let hasUsableScopedState = false;
 
 	if (scoped.keys.has('form')) {
 		consumed.add('form');
-		if (!isFormNodeTheRequestedForm) {
+		if (isFormNodeTheRequestedForm && requestedFormId) {
+			hasUsableScopedState = true;
+		} else {
 			issues.push({
 				key: 'form',
 				message: requestedFormId ? `No current form accepts persisted selector '${requestedFormId}'.` : 'Persisted form selector has no value.',
@@ -261,21 +263,20 @@ export function restoreScopedFormState(
 			issues.push({ key, nodeId: entry.field.id, message: `Persisted field '${key}' has no value.` });
 			continue;
 		}
-		restoreField(entry, payload, context, state, issues);
+		if (restoreField(entry, payload, context, state, issues)) hasUsableScopedState = true;
 	}
 
 	if (scoped.keys.has('tab')) {
 		consumed.add('tab');
 		if (scoped.values.tab == null) issues.push({ key: 'tab', message: 'Persisted tab selection has no value.' });
-		else applyTabState(formNode, scoped.values.tab, state, issues);
+		else if (applyTabState(formNode, scoped.values.tab, state, issues) > 0) hasUsableScopedState = true;
 	}
 
 	for (const key of scoped.keys) {
 		if (!consumed.has(key)) issues.push({ key, message: `No current form field accepts persisted key '${key}'.` });
 	}
 
-	const hasRecognizedScopedState = consumed.size > 0;
-	if (!hasRecognizedScopedState && isNonEmpty(canonical.patt) && expert) {
+	if (!hasUsableScopedState && isNonEmpty(canonical.patt) && expert) {
 		formNode = expert.form;
 		setActivePath(definition.root, formNode.id, state.uiState.activeContainers);
 		state.controllerState[expert.field.id] = { query: canonical.patt, targetQueries: [] };
@@ -284,9 +285,9 @@ export function restoreScopedFormState(
 	inferActiveContainersFromValues(formNode, state, context);
 
 	const compiled = compileWithoutRawOverrides(formNode, state, context);
-	if (valueDiffers(compiled.cql, canonical.patt)) state.rawOverrides.patt = canonical.patt ?? null;
+	if (valueDiffers(compiled.patt, canonical.patt)) state.rawOverrides.patt = canonical.patt ?? null;
 	if (valueDiffers(compiled.filter, canonical.filter)) state.rawOverrides.filter = canonical.filter ?? null;
-	if (valueDiffers(compiled.searchField, canonical.searchField)) state.rawOverrides.searchField = canonical.searchField ?? null;
+	if (valueDiffers(compiled.searchfield, canonical.searchfield)) state.rawOverrides.searchfield = canonical.searchfield ?? null;
 
 	for (const key of Object.keys(state.rawOverrides) as BlackLabParameter[]) {
 		if (!isNonEmpty(state.rawOverrides[key])) delete state.rawOverrides[key];
@@ -301,14 +302,14 @@ export function restoreScopedFormState(
 
 export function encodeScopedFormQuery(definition: FormSystemDefinition, context: FormRuntimeContext, snapshot: PersistableFormState): ScopedFormQuery {
 	const form = findForm(definition, snapshot.formId);
-	const issues: RestoreIssue[] = [];
-	const codec = buildFieldCodec(form, context, issues);
+	const codec = buildFieldCodec(form, context, []);
+
 	const query: ScopedFormQuery = {
-		[`${FORM_QUERY_PREFIX}form`]: formPersistKey(form),
+		[`${FORM_QUERY_PREFIX}form`]: form.id,
 	};
 
 	for (const { field, key } of codec) {
-		const encoded = field.controller.encode?.(snapshot.state.controllerState[field.id], field, context);
+		const encoded = field.controller.encode(snapshot.state.controllerState[field.id], field, context);
 		if (encoded == null || (Array.isArray(encoded) && !encoded.length) || encoded === '') continue;
 		query[`${FORM_QUERY_PREFIX}${key}`] = encoded;
 	}
@@ -327,9 +328,9 @@ export function encodeSubmittedForm(snapshot: PersistableFormState): EncodedPers
 	return {
 		form: snapshot.formId,
 		state: JSON.stringify(snapshot.state),
-		cql: snapshot.cql ?? undefined,
+		patt: snapshot.patt ?? undefined,
 		filter: snapshot.filter ?? undefined,
-		searchField: snapshot.searchField ?? undefined,
+		searchfield: snapshot.searchfield ?? undefined,
 	};
 }
 
@@ -339,9 +340,9 @@ export function decodeSubmittedSnapshot(encoded: EncodedPersistableFormState): P
 		return {
 			formId: encoded.form,
 			state,
-			cql: encoded.cql ?? null,
+			patt: encoded.patt ?? null,
 			filter: encoded.filter ?? null,
-			searchField: encoded.searchField ?? null,
+			searchfield: encoded.searchfield ?? null,
 		};
 	} catch {
 		return null;

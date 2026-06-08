@@ -13,9 +13,20 @@
 			:dir="textDirection"
 			:getData="autocomplete"
 			:disabled="disabled"
-			v-model="value"
+			:value="value"
+			@update:model-value="value = $event"
 		/>
-		<input v-else :id="inputId" class="blf-input form-control" type="text" :placeholder="placeholderText" :dir="textDirection" :disabled="disabled" v-model="value" />
+		<input
+			v-else
+			:id="inputId"
+			class="blf-input form-control"
+			type="text"
+			:placeholder="placeholderText"
+			:dir="textDirection"
+			:disabled="disabled"
+			:value="value"
+			@input="value = ($event.target as HTMLInputElement).value"
+		/>
 		<label v-if="caseSensitive" class="blf-checkbox-inline">
 			<input type="checkbox" :checked="modelValue.caseSensitive" :disabled="disabled" @change="updateCaseSensitive(($event.target as HTMLInputElement).checked)" />
 			{{ $t(`widgets.caseSensitive`) }}

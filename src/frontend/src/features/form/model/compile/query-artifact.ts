@@ -31,7 +31,7 @@ export function queryIR(parts?: null | Partial<QueryIR>): QueryIR {
 		pattern: parts?.pattern ?? null,
 		filter: parts?.filter ?? null,
 		wrappers: parts?.wrappers ?? [],
-		searchField: parts?.searchField ?? null,
+		searchfield: parts?.searchfield ?? null,
 	};
 }
 
@@ -110,10 +110,10 @@ export function withWrapper(artifact: QueryIR, wrapper: QueryWrapper | null): Qu
 	});
 }
 
-export function withSearchField(artifact: QueryIR, searchField: string | null): QueryIR {
+export function withSearchField(artifact: QueryIR, searchfield: string | null): QueryIR {
 	return queryIR({
 		...artifact,
-		searchField,
+		searchfield,
 	});
 }
 
@@ -123,9 +123,9 @@ export function withSearchField(artifact: QueryIR, searchField: string | null): 
 export function compileQueryIR(artifact: QueryIR): CompiledFormState {
 	const normalized = simplifyQueryIR(artifact);
 	return {
-		cql: emitCqlWithWrappers(normalized.pattern, normalized.wrappers),
+		patt: emitCqlWithWrappers(normalized.pattern, normalized.wrappers),
 		filter: emitFilter(normalized.filter),
-		searchField: normalized.searchField,
+		searchfield: normalized.searchfield,
 		// resultPreset: artifact.resultPreset,
 		// summaries: artifact.summaries,
 	};
@@ -137,7 +137,7 @@ export function combineQueries(artifacts: QueryIR[], combine: QueryCombineMode =
 		pattern: combineCql(nonEmpty.map(artifact => artifact.pattern).filter(isNonNull), combine),
 		filter: combineFilters(nonEmpty.map(artifact => artifact.filter).filter(isNonNull), combine === 'or' ? 'or' : 'and'),
 		wrappers: nonEmpty.flatMap(artifact => artifact.wrappers),
-		searchField: nonEmpty.find(artifact => artifact.searchField)?.searchField ?? null,
+		searchfield: nonEmpty.find(artifact => artifact.searchfield)?.searchfield ?? null,
 		// resultPreset = Object.assign({}, ...nonEmpty.map(artifact => artifact.resultPreset)) as Partial<ResultPreset>;
 	});
 }
@@ -356,7 +356,7 @@ function hasContribution(contribution: QueryFragment): boolean {
 }
 
 function hasQueryContributions(artifact: QueryIR): boolean {
-	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchField);
+	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchfield);
 }
 
 function escapeLucene(value: string): string {

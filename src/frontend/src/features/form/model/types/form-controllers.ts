@@ -1,5 +1,6 @@
 import { markRaw } from 'vue';
 
+import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
 import type { QueryFragment } from '@/features/form/model/types/form-query';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
@@ -16,7 +17,6 @@ export type FormRuntimeContext = {
 };
 
 export type FieldControllerProps<Extra> = BaseFieldNode & Extra;
-export type BlackLabParameter = 'patt' | 'filter' | 'searchField';
 export type EncodedFieldValue = string | string[];
 export type RestoreFieldResult<State> =
 	| State

@@ -1,6 +1,6 @@
 import { h, type Component } from 'vue';
 
-import type { BlackLabParameter } from '@/features/form/model/types/form-controllers';
+import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params.ts';
 import type { FormNode } from '@/features/form/model/types/form-shape';
 import type { FormSystemRuntime } from '@/features/form/model/types/form-state';
 

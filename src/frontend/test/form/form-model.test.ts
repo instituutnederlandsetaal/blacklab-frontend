@@ -22,9 +22,9 @@ const compositionExpectations: Array<{
 	name: string;
 	expected: {
 		compiled: {
-			cql: string;
+			patt: string;
 			filter: null;
-			searchField: null;
+			searchfield: null;
 		};
 		summaries: typeof sharedSummaryExpectation;
 	};
@@ -34,9 +34,9 @@ const compositionExpectations: Array<{
 		name: 'and folds child token fields into one token projection',
 		expected: {
 			compiled: {
-				cql: '[word="(?i)water" & lemma="(?i)lopen"]',
+				patt: '[word="(?i)water" & lemma="(?i)lopen"]',
 				filter: null,
-				searchField: null,
+				searchfield: null,
 			},
 			summaries: sharedSummaryExpectation,
 		},
@@ -46,9 +46,9 @@ const compositionExpectations: Array<{
 		name: 'or folds child token fields into one token projection',
 		expected: {
 			compiled: {
-				cql: '[word="(?i)water" | lemma="(?i)lopen"]',
+				patt: '[word="(?i)water" | lemma="(?i)lopen"]',
 				filter: null,
-				searchField: null,
+				searchfield: null,
 			},
 			summaries: sharedSummaryExpectation,
 		},
@@ -58,9 +58,9 @@ const compositionExpectations: Array<{
 		name: 'sequence preserves child order when composing the query projection',
 		expected: {
 			compiled: {
-				cql: '[word="(?i)water"] [lemma="(?i)lopen"]',
+				patt: '[word="(?i)water"] [lemma="(?i)lopen"]',
 				filter: null,
-				searchField: null,
+				searchfield: null,
 			},
 			summaries: sharedSummaryExpectation,
 		},

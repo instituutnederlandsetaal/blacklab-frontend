@@ -368,9 +368,9 @@ describe('builtin controller hosts', () => {
 
 		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.within.controllerState);
 		expect(harness.runtime.compile(harness.form.id)).toEqual({
-			cql: '<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState\\.within\\.attribute\\.value"/>',
+			patt: '<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState\\.within\\.attribute\\.value"/>',
 			filter: null,
-			searchField: null,
+			searchfield: null,
 		});
 	});
 });

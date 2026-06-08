@@ -34,7 +34,7 @@ export const withinController: FieldController<'within', WithinFieldState, Omit<
 		});
 	},
 	restore(payload) {
-		const restored = decodePersistRecord(payload, ['element'], 'within field');
+		const restored = decodePersistRecord(payload, ['element'], 'within field', { allowUnknownKeys: key => key === 'element' || key.startsWith('attr.') });
 		return {
 			element: restored.element || null,
 			attributes: Object.fromEntries(

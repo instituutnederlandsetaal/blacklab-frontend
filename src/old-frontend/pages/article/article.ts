@@ -17,7 +17,7 @@ export type HitsInput = {
 	indexId: string;
 	docId: string;
 	patt: string;
-	searchField?: string|undefined;
+	searchfield?: string|undefined;
 	pattgapdata?: string|undefined;
 }
 
@@ -53,7 +53,7 @@ export const hits$ = input$.pipe(
 		indexId: i.indexId,
 		docpid: i.docId, // NOTE: blacklab requires docpid (lowercased), not docId!
 		patt: i.patt,
-		searchField: i.searchField || undefined,
+		searchfield: i.searchfield || undefined,
 		pattgapdata: i.pattgapdata || undefined,
 	})),
 	distinctUntilChanged(compareAsSortedJson),
@@ -86,7 +86,7 @@ type ValidPaginationAndDocDisplayParameters = {
 	patt?: string;
 	pattgapdata?: string;
 
-	searchField: string;
+	searchfield: string;
 	viewField: string;
 }
 
@@ -232,7 +232,7 @@ function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPag
 		page: Math.floor(wordstart / pageSize),
 		maxPage: Math.floor(docLength / pageSize),
 
-		searchField: input.searchField!,
+		searchfield: input.searchfield!,
 		viewField: input.viewField!
 	}
 }

@@ -13,6 +13,10 @@ export type CustomRouteMeta = {
 };
 
 export default {
+	stringifyQuery(query) {
+		const encoded = new URLSearchParams(query as Record<string, string>).toString();
+		return encoded.replace('[', '%5B').replace(']', '%5D'); // firefox is dumb, won't encode, but on refresh will complain
+	},
 	history: createWebHistory(CONTEXT_URL),
 	routes: [
 		{

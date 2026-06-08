@@ -29,7 +29,7 @@ describe('generated query correctness', () => {
 	}
 
 	function compileValueForAnnotation(annotId: string, value: string, caseSensitive = false) {
-		return compileQueryIR(contribForAnnotation(annotId, value, caseSensitive).query).cql;
+		return compileQueryIR(contribForAnnotation(annotId, value, caseSensitive).query).patt;
 	}
 
 	test('Text field controller tokenizes input and treats wildcards correctly', () => {
@@ -54,21 +54,21 @@ describe('generated query correctness', () => {
 	});
 
 	test('Combines multiple text controllers per-token', () => {
-		const compiled = compileQueryIR(combineQueryFragments('and', contribForAnnotation('lemma', 'example sentence', true), contribForAnnotation('word', 'example sentence', true)).query).cql;
+		const compiled = compileQueryIR(combineQueryFragments('and', contribForAnnotation('lemma', 'example sentence', true), contribForAnnotation('word', 'example sentence', true)).query).patt;
 
 		const expected = String.raw`[lemma="example" & word="example"] [lemma="sentence" & word="sentence"]`;
 		expect(compiled).toBe(expected);
 	});
 
 	test('Combines multiple text controllers per-token with trailing unmatched tokens', () => {
-		const compiled = compileQueryIR(combineQueryFragments('and', contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)).query).cql;
+		const compiled = compileQueryIR(combineQueryFragments('and', contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)).query).patt;
 
 		const expected = String.raw`[word="a" & lemma="c"] [word="b" & lemma="d"] [lemma="e"]`;
 		expect(compiled).toBe(expected);
 	});
 
 	test('Combines or text controllers per-token', () => {
-		const compiled = compileQueryIR(combineQueryFragments('or', contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)).query).cql;
+		const compiled = compileQueryIR(combineQueryFragments('or', contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)).query).patt;
 
 		const expected = String.raw`[word="a" | lemma="c"] [word="b" | lemma="d"] [lemma="e"]`;
 		expect(compiled).toBe(expected);
@@ -94,7 +94,7 @@ describe('generated query correctness', () => {
 		);
 
 		const expected = `[word="a" ${insert} word="b" ${insert} lemma="c"]`;
-		expect(compiled.cql).toBe(expected);
+		expect(compiled.patt).toBe(expected);
 	});
 
 	test('Preserves precedence when combining or per-token conditions with different joiners', () => {
@@ -104,7 +104,7 @@ describe('generated query correctness', () => {
 				queryFragment(token(booleanExpr('and', tokenPredicate('wildcard', 'word', 'a', true), tokenPredicate('wildcard', 'word', 'b', true)))),
 				queryFragment(token(tokenPredicate('wildcard', 'lemma', 'c', true))),
 			).query,
-		).cql;
+		).patt;
 
 		const expected = String.raw`[(word="a" & word="b") | lemma="c"]`;
 		expect(compiled).toBe(expected);
@@ -117,7 +117,7 @@ describe('generated query correctness', () => {
 				queryFragment(token(booleanExpr('or', tokenPredicate('wildcard', 'word', 'a', true), tokenPredicate('wildcard', 'word', 'b', true)))),
 				queryFragment(token(tokenPredicate('wildcard', 'lemma', 'c', true))),
 			).query,
-		).cql;
+		).patt;
 
 		const expected = String.raw`[(word="a" | word="b") & lemma="c"]`;
 		expect(compiled).toBe(expected);
@@ -128,7 +128,7 @@ describe('generated query correctness', () => {
 			queryIR({
 				pattern: booleanExpr('and', cqlRaw('[word="a"]')!, booleanExpr('and', cqlRaw('[lemma="b"]')!, cqlRaw('[pos="N"]')!)),
 			}),
-		).cql;
+		).patt;
 
 		expect(compiled).toBe('([word="a"] & [lemma="b"] & [pos="N"])');
 	});

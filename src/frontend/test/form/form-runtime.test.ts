@@ -22,7 +22,7 @@ function createMetricsView(metrics: ParentFormMetrics) {
 			const parentForm = useParentForm();
 			const compiled = computed(() => {
 				metrics.compiledEvaluations += 1;
-				return parentForm.compiled.cql ?? '';
+				return parentForm.compiled.patt ?? '';
 			});
 			const summaries = computed(() => {
 				metrics.summariesEvaluations += 1;
@@ -75,14 +75,14 @@ function createProjectionMetricsFixture(metrics: ParentFormMetrics) {
 
 const switchingExpectations = {
 	first: {
-		cql: '[word="(?i)water"]',
+		patt: '[word="(?i)water"]',
 		fieldId: 'search.word-form.word',
 		formId: 'search.word-form',
 		summaries: [{ id: 'search.word-form.word', label: 'Word', value: 'water' }],
 		summaryText: 'Word:water',
 	},
 	second: {
-		cql: '[lemma="(?i)lopen"]',
+		patt: '[lemma="(?i)lopen"]',
 		fieldId: 'search.lemma-form.lemma',
 		formId: 'search.lemma-form',
 		summaries: [{ id: 'search.lemma-form.lemma', label: 'Lemma', value: 'lopen' }],
@@ -128,7 +128,7 @@ const InjectedParentFormProbe = defineComponent({
 		return () =>
 			h('section', { 'data-testid': 'injected-parent-form-probe' }, [
 				h('span', { class: 'form-id' }, parentForm.formId),
-				h('span', { class: 'cql' }, parentForm.compiled.cql ?? ''),
+				h('span', { class: 'cql' }, parentForm.compiled.patt ?? ''),
 				h('span', { class: 'summaries' }, parentForm.summaries.map(summary => `${summary.label}:${summary.value}`).join('|')),
 			]);
 	},
@@ -152,7 +152,7 @@ describe('form system runtime', () => {
 		runtime.state.value.controllerState[field.id] = { value: 'fire' };
 
 		expect(submitted.formId).toBe(form.id);
-		expect(submitted.cql).toBe('[word="(?i)water"]');
+		expect(submitted.patt).toBe('[word="(?i)water"]');
 		expect(submitted.summaries).toEqual([{ id: field.id, label: 'Word', value: 'water' }]);
 		expect(submitted.state.controllerState[field.id]).toEqual({ value: 'water' });
 	});
@@ -175,7 +175,7 @@ describe('form system runtime', () => {
 
 		expect(runtime.state.value.controllerState[field.id]).toEqual({ value: 'water' });
 		expect(parentForm.formState.value.controllerState[field.id]).toEqual({ value: 'water' });
-		expect(runtime.compile(form.id).cql).toBe('[word="(?i)water"]');
+		expect(runtime.compile(form.id).patt).toBe('[word="(?i)water"]');
 	});
 
 	test('switching form tabs updates container ui state', async () => {
@@ -238,7 +238,7 @@ describe('parent form runtime', () => {
 		const parentFormRuntime = createParentFormRuntime(fixture.runtime, activeFormId);
 
 		expect(parentFormRuntime.formId.value).toBe(switchingExpectations.first.formId);
-		expect(parentFormRuntime.compiled.value.cql).toBe(switchingExpectations.first.cql);
+		expect(parentFormRuntime.compiled.value.patt).toBe(switchingExpectations.first.patt);
 		expect(parentFormRuntime.summaries.value).toEqual(switchingExpectations.first.summaries);
 		expect(parentFormRuntime.formState.value.controllerState).toEqual({
 			[switchingExpectations.first.fieldId]: { value: 'water' },
@@ -248,7 +248,7 @@ describe('parent form runtime', () => {
 		await nextTick();
 
 		expect(parentFormRuntime.formId.value).toBe(switchingExpectations.second.formId);
-		expect(parentFormRuntime.compiled.value.cql).toBe(switchingExpectations.second.cql);
+		expect(parentFormRuntime.compiled.value.patt).toBe(switchingExpectations.second.patt);
 		expect(parentFormRuntime.summaries.value).toEqual(switchingExpectations.second.summaries);
 		expect(parentFormRuntime.formState.value.controllerState).toEqual({
 			[switchingExpectations.second.fieldId]: { value: 'lopen' },
@@ -272,19 +272,19 @@ describe('parent form runtime', () => {
 		const wrapper = mount(ProviderHarness);
 
 		expect(providedParentForm.formId).toBe(switchingExpectations.first.formId);
-		expect(providedParentForm.compiled.cql).toBe(switchingExpectations.first.cql);
+		expect(providedParentForm.compiled.patt).toBe(switchingExpectations.first.patt);
 		expect(wrapper.get('[data-testid="injected-parent-form-probe"] .form-id').text()).toBe(switchingExpectations.first.formId);
-		expect(wrapper.get('[data-testid="injected-parent-form-probe"] .cql').text()).toBe(switchingExpectations.first.cql);
+		expect(wrapper.get('[data-testid="injected-parent-form-probe"] .cql').text()).toBe(switchingExpectations.first.patt);
 		expect(wrapper.get('[data-testid="injected-parent-form-probe"] .summaries').text()).toBe(switchingExpectations.first.summaryText);
 
 		activeFormId.value = switchingExpectations.second.formId;
 		await nextTick();
 
 		expect(providedParentForm.formId).toBe(switchingExpectations.second.formId);
-		expect(providedParentForm.compiled.cql).toBe(switchingExpectations.second.cql);
+		expect(providedParentForm.compiled.patt).toBe(switchingExpectations.second.patt);
 		expect(providedParentForm.summaries).toEqual(switchingExpectations.second.summaries);
 		expect(wrapper.get('[data-testid="injected-parent-form-probe"] .form-id').text()).toBe(switchingExpectations.second.formId);
-		expect(wrapper.get('[data-testid="injected-parent-form-probe"] .cql').text()).toBe(switchingExpectations.second.cql);
+		expect(wrapper.get('[data-testid="injected-parent-form-probe"] .cql').text()).toBe(switchingExpectations.second.patt);
 		expect(wrapper.get('[data-testid="injected-parent-form-probe"] .summaries').text()).toBe(switchingExpectations.second.summaryText);
 	});
 });

@@ -26,9 +26,9 @@ const parentFormRuntimeKey: InjectionKey<ParentFormRuntime> = Symbol('parentForm
 function applyRawOverrides(compiled: CompiledFormState, state: FormState): CompiledFormState {
 	const overrides = state.rawOverrides ?? {};
 	return {
-		cql: overrides.patt || compiled.cql,
+		patt: overrides.patt || compiled.patt,
 		filter: overrides.filter || compiled.filter,
-		searchField: overrides.searchField || compiled.searchField,
+		searchfield: overrides.searchfield || compiled.searchfield,
 	};
 }
 
@@ -44,7 +44,7 @@ export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: 
 	const summaries = computed(() => rootRuntime.summarize(currentFormId.value));
 
 	watch(
-		[currentForm, rootRuntime.state],
+		[currentForm, () => rootRuntime.state.value],
 		([form, state]) => {
 			formState.value = reactivePickActiveFormState(form, state);
 		},
@@ -56,10 +56,10 @@ export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: 
 		corpus: rootRuntime.context.corpus,
 		formId: currentFormId,
 		formState,
-		getNode(nodeId: string) {
+		getNode: (nodeId: string) => {
 			return nodesById.value[nodeId];
 		},
-		getSummariesForNode(nodeId: string) {
+		getSummariesForNode: (nodeId: string) => {
 			const node = nodesById.value[nodeId];
 			if (!node) return [];
 
@@ -83,7 +83,7 @@ export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: 
 export function createFormSystemRuntime(definition: FormSystemDefinition, context: FormRuntimeContext, initialState?: FormState): FormSystemRuntime {
 	const formsList = getAllNodes(definition.root, 'form');
 	const formsById = Object.fromEntries(formsList.map(form => [form.id, form]));
-	const state = ref(initialState ? cloneFormState(initialState) : createFormState(definition, context));
+	const state = ref<FormState>(initialState ? cloneFormState(initialState) : createFormState(definition, context));
 
 	const compileListeners: ((formId: string, compiled: CompiledFormState) => void)[] = [];
 	const submitListeners: ((formId: string, submitted: PersistableSubmittableFormState) => void)[] = [];
@@ -91,65 +91,82 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 	const persistListeners: ((formId: string, persisted: PersistableFormState) => void)[] = [];
 	const resetListeners: (() => void)[] = [];
 
+	const compile: FormSystemRuntime['compile'] = (formId: string): CompiledFormState => {
+		const compiled = applyRawOverrides(compileQueryIR(buildFormQuery(formsById[formId], state.value, context)), state.value);
+		compileListeners.forEach(callback => callback(formId, compiled));
+		return compiled;
+	};
+
+	const persist: FormSystemRuntime['persist'] = (formId: string): PersistableFormState => {
+		const persisted = {
+			...compile(formId),
+			formId,
+			state: pickActiveFormState(formsById[formId], state.value),
+		};
+		persistListeners.forEach(callback => callback(formId, persisted));
+		return persisted;
+	};
+
+	const submit: FormSystemRuntime['submit'] = (formId: string): PersistableSubmittableFormState => {
+		const submitted = {
+			...persist(formId),
+			summaries: summarize(formId),
+			resultPreset: formsById[formId]?.resultPreset ?? {},
+		};
+		submitListeners.forEach(callback => callback(formId, submitted));
+		return submitted;
+	};
+
+	const summarize: FormSystemRuntime['summarize'] = (formId: string): SummaryEntry[] => {
+		const summaries = summarizeForm(formsById[formId], state.value, context);
+		summarizeListeners.forEach(callback => callback(formId, summaries));
+		return summaries;
+	};
+
 	return {
 		definition,
 		context,
 		state,
 		forms: formsById,
-		compile(formId: string): CompiledFormState {
-			const compiled = applyRawOverrides(compileQueryIR(buildFormQuery(formsById[formId], this.state.value, this.context)), this.state.value);
-			compileListeners.forEach(callback => callback(formId, compiled));
-			return compiled;
-		},
-		persist(formId: string): PersistableFormState {
-			const persisted = {
-				...this.compile(formId),
-				formId,
-				state: pickActiveFormState(formsById[formId], this.state.value),
-			};
-			persistListeners.forEach(callback => callback(formId, persisted));
-			return persisted;
-		},
-		submit(formId: string): PersistableSubmittableFormState {
-			const submitted = {
-				...this.persist(formId),
-				summaries: this.summarize(formId),
-				resultPreset: formsById[formId]?.resultPreset ?? {},
-			};
-			submitListeners.forEach(callback => callback(formId, submitted));
-			return submitted;
-		},
+
+		compile,
+		persist,
+
+		submit,
 		// TODO perhaps introduce SummarizedFormState that contains a bit of a richer interface?
-		summarize(formId: string): SummaryEntry[] {
-			const summaries = summarizeForm(formsById[formId], this.state.value, this.context);
-			summarizeListeners.forEach(callback => callback(formId, summaries));
-			return summaries;
-		},
-		reset() {
-			this.state.value = createFormState(this.definition, this.context);
+		summarize,
+		reset: () => {
+			state.value = createFormState(definition, context);
 			resetListeners.forEach(callback => callback());
 		},
-		clearRawOverride(parameter) {
-			delete this.state.value.rawOverrides[parameter];
+		clearRawOverride: parameter => {
+			delete state.value.rawOverrides[parameter];
 		},
 
-		onCompile(callback: (formId: string, compiled: CompiledFormState) => void) {
+		onCompile: (callback: (formId: string, compiled: CompiledFormState) => void) => {
 			compileListeners.push(callback);
 		},
-		onSubmit(callback: (formId: string, submitted: PersistableSubmittableFormState) => void) {
+		onSubmit: (callback: (formId: string, submitted: PersistableSubmittableFormState) => void) => {
 			submitListeners.push(callback);
 		},
-		onReset(callback: () => void) {
+		onReset: (callback: () => void) => {
 			resetListeners.push(callback);
 		},
-		onSummarize(callback: (formId: string, summaries: SummaryEntry[]) => void) {
+		onSummarize: (callback: (formId: string, summaries: SummaryEntry[]) => void) => {
 			summarizeListeners.push(callback);
 		},
-		onPersist(callback: (formId: string, persisted: PersistableFormState) => void) {
+		onPersist: (callback: (formId: string, persisted: PersistableFormState) => void) => {
 			persistListeners.push(callback);
 		},
-		replaceState(nextState) {
-			this.state.value = cloneFormState(nextState);
+		replaceState: (nextState: FormState) => {
+			state.value = cloneFormState(nextState);
+		},
+		shutdown: () => {
+			compileListeners.length = 0;
+			submitListeners.length = 0;
+			summarizeListeners.length = 0;
+			persistListeners.length = 0;
+			resetListeners.length = 0;
 		},
 	};
 }

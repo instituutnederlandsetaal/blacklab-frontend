@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 import { nextTick } from 'vue';
 
-import { filterTextController, FormSystem, type FormRuntimeContext, type FormSystemDefinition, type PersistableSubmittableFormState } from '@/features/form';
+import { cloneFormState, filterTextController, FormSystem, type FormRuntimeContext, type FormSystemDefinition, type FormSystemRuntime, type PersistableSubmittableFormState } from '@/features/form';
 
 import { TestTextField, createTestBuilder, createTestContext, parentFormProbeView, testTextController } from './helpers';
 
@@ -145,13 +145,52 @@ describe('form system integration', () => {
 		const [formId, snapshot] = emitted![0];
 
 		expect(formId).toBe('search.simple');
-		expect(snapshot.cql).toBe('[word="(?i)water"]');
+		expect(snapshot.patt).toBe('[word="(?i)water"]');
 		expect(snapshot.summaries).toEqual([{ id: 'search.simple.word', label: 'Word', value: 'water' }]);
 		expect(snapshot.state.controllerState['search.simple.word']).toEqual({ value: 'water' });
 
 		await wrapper.get('input[aria-label="Word"]').setValue('fire');
 
 		expect(snapshot.state.controllerState['search.simple.word']).toEqual({ value: 'water' });
+	});
+
+	test('replaceState updates rendered field state after mount', async () => {
+		const fixture = createSingleFormFixture();
+		const wrapper = mount(FormSystem, {
+			props: fixture,
+		});
+		const runtime = wrapper.emitted('ready')?.[0]?.[0] as FormSystemRuntime;
+		const replacement = cloneFormState(runtime.state.value);
+		replacement.controllerState['search.simple.word'] = { value: 'water' };
+
+		runtime.replaceState(replacement);
+		await nextTick();
+
+		expect((wrapper.get('input[aria-label="Word"]').element as HTMLInputElement).value).toBe('water');
+
+		await wrapper.get('input[aria-label="Word"]').setValue('fire');
+
+		expect(runtime.state.value.controllerState['search.simple.word']).toEqual({ value: 'fire' });
+	});
+
+	test('runtime is stable and replaceState updates rendered fields', async () => {
+		const fixture = createSingleFormFixture();
+		const wrapper = mount(FormSystem, {
+			props: fixture,
+		});
+		const runtime = wrapper.emitted('ready')?.[0]?.[0] as FormSystemRuntime;
+
+		const replacement = cloneFormState(runtime.state.value);
+		replacement.controllerState['search.simple.word'] = { value: 'water' };
+
+		runtime.replaceState(replacement);
+		await nextTick();
+
+		expect((wrapper.get('input[aria-label="Word"]').element as HTMLInputElement).value).toBe('water');
+
+		await wrapper.get('input[aria-label="Word"]').setValue('fire');
+
+		expect(runtime.state.value.controllerState['search.simple.word']).toEqual({ value: 'fire' });
 	});
 
 	test('reused field nodes share state across tabbed forms', async () => {

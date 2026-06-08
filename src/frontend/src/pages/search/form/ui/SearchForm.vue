@@ -1,24 +1,17 @@
 <template>
-	<FormSystem v-if="host" :key="host.lifecycleGeneration" :context="host.context" :definition="host.definition" :initial-state="host.initialState" @ready="handleReady" @submit="handleSubmit" />
+	<FormSystem v-if="formBlueprint" :context="formBlueprint.context" :definition="formBlueprint.definition" @ready="handleReady" @submit="handleSubmit" />
+	<pre>{{ form?.state }}</pre>
 </template>
 
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue';
+import { computedWithControl } from '@vueuse/core';
+import { computed, ref, watchEffect } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useCurrentCorpus, useCurrentTagset } from '@/entities/corpus/model/corpus-context';
 import { useCurrentConfig } from '@/entities/page-config/page-config';
-import {
-	encodeScopedFormQuery,
-	FormSystem,
-	restoreScopedFormState,
-	type FormRuntimeContext,
-	type FormState,
-	type FormSystemDefinition,
-	type FormSystemRuntime,
-	type PersistableSubmittableFormState,
-} from '@/features/form';
-import { createSearchFormDefinition } from '@/pages/search/form/model/search-form-builder';
+import { encodeScopedFormQuery, FormSystem, restoreScopedFormState, type FormSystemRuntime, type PersistableSubmittableFormState } from '@/features/form';
+import { createSearchFormDefinition as createFormBlueprint } from '@/pages/search/form/model/search-form-builder';
 import { formRouteFingerprint, readCanonicalFormQuery, replaceFormRouteQuery } from '@/pages/search/form/model/search-form-route';
 
 import { useI18n } from '@/shared/i18n';
@@ -34,71 +27,30 @@ const translate = useI18n();
 const route = useRoute();
 const router = useRouter();
 
-type FormHost = {
-	context: FormRuntimeContext;
-	definition: FormSystemDefinition;
-	initialState: FormState;
-	lifecycleGeneration: number;
-};
+const formBlueprint = computed(() => createFormBlueprint({ config, index: corpus, tagset: tagset.value }, translate));
+const form = ref<FormSystemRuntime>(); // passed up from below when ready
 
-const definitionBundle = computed(() => createSearchFormDefinition({ config, index: corpus, tagset: tagset.value }, translate));
-const host = shallowRef<FormHost | null>(null);
-const runtime = shallowRef<FormSystemRuntime | null>(null);
-let lifecycleGeneration = 0;
-let lastAppliedRouteFingerprint = '';
-let hasEmittedUrlParsed = false;
-let pendingRouteState: FormState | null = null;
-
-function restoreCurrentRoute(definition: FormSystemDefinition, context: FormRuntimeContext) {
-	return restoreScopedFormState(definition, context, route.query, readCanonicalFormQuery(route.query));
+function handleReady(runtime: FormSystemRuntime) {
+	form.value = runtime;
 }
 
-watch(
-	definitionBundle,
-	({ context, definition }) => {
-		runtime.value = null;
-		pendingRouteState = null;
-		lastAppliedRouteFingerprint = formRouteFingerprint(route.query);
-		host.value = {
-			context,
-			definition,
-			initialState: restoreCurrentRoute(definition, context).state,
-			lifecycleGeneration: ++lifecycleGeneration,
-		};
-		if (!hasEmittedUrlParsed) {
-			hasEmittedUrlParsed = true;
-			emit('url-parsed');
-		}
-	},
-	{ immediate: true, flush: 'sync' },
-);
+const routeFormStateFingerprint = computed(() => formRouteFingerprint(route.query));
+const decodedUrl = computedWithControl(routeFormStateFingerprint, () => {
+	const rawBlacklabParams = readCanonicalFormQuery(route.query);
+	const formState = restoreScopedFormState(formBlueprint.value.definition, formBlueprint.value.context, route.query, rawBlacklabParams);
+	return formState;
+});
 
-watch(
-	() => formRouteFingerprint(route.query),
-	fingerprint => {
-		if (!host.value || fingerprint === lastAppliedRouteFingerprint) return;
-		lastAppliedRouteFingerprint = fingerprint;
-		const restored = restoreCurrentRoute(host.value.definition, host.value.context);
-		if (runtime.value) runtime.value.replaceState(restored.state);
-		else {
-			pendingRouteState = restored.state;
-			host.value = { ...host.value, initialState: restored.state };
-		}
-	},
-	{ flush: 'sync' },
-);
-
-function handleReady(nextRuntime: FormSystemRuntime) {
-	runtime.value = nextRuntime;
-	if (pendingRouteState) {
-		nextRuntime.replaceState(pendingRouteState);
-		pendingRouteState = null;
-	}
-}
+watchEffect(() => {
+	if (!form.value) return;
+	// form has initialized, decode the URL
+	form.value.replaceState(decodedUrl.value.state);
+});
 
 function handleSubmit(_formId: string, state: PersistableSubmittableFormState) {
-	if (!host.value) return;
-	const scopedFormQuery = encodeScopedFormQuery(host.value.definition, host.value.context, state);
+	// TODO why do we need to re-encode this
+	// the state should already be in a format we can use.
+	const scopedFormQuery = encodeScopedFormQuery(formBlueprint.value.definition, formBlueprint.value.context, state);
 	void router.push({
 		query: replaceFormRouteQuery(route.query, scopedFormQuery, state),
 	});

@@ -7,27 +7,24 @@
 				<button type="button" class="btn btn-xs btn-default" @click="runtime.clearRawOverride(override.parameter)">Clear</button>
 			</div>
 		</section>
-		<Component :is="resolveNodeComponent(definition.root)" v-bind="rootProps()" :key="definition.root.id" />
+		<Component :is="resolveNodeComponent(definition.root)" v-bind="getNodeProps(props.definition.root, { runtime, scopeId: '' })" :key="definition.root.id" />
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onUnmounted } from 'vue';
 
-import type { BlackLabParameter } from '@/features/form/model/types/form-controllers';
+import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
-import type { FormState, FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
+import type { FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
 import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
 
 import { createFormSystemRuntime, provideFormSystemRuntime } from '../model/runtime';
 
-import useUid from '@/shared/utils/useUid';
-
 const props = defineProps<{
 	definition: FormSystemDefinition;
 	context: FormRuntimeContext;
-	initialState?: FormState;
 }>();
 
 const emit = defineEmits<{
@@ -39,29 +36,22 @@ const emit = defineEmits<{
 	reset: [];
 }>();
 
-// TODO should we be reactive on our props?
-// What if the form changes
-const runtime = createFormSystemRuntime(props.definition, props.context, props.initialState);
-const renderScopeId = useUid();
+const runtime = createFormSystemRuntime(props.definition, props.context);
 provideFormSystemRuntime(runtime);
+
 runtime.onSubmit((formId, snapshot) => emit('submit', formId, snapshot));
 runtime.onCompile((formId, snapshot) => emit('compile', formId, snapshot));
 runtime.onPersist((formId, snapshot) => emit('persist', formId, snapshot));
 runtime.onSummarize((formId, summaries) => emit('summarize', formId, summaries));
 runtime.onReset(() => emit('reset'));
-onMounted(() => emit('ready', runtime));
+emit('ready', runtime);
 
-function rootProps() {
-	return getNodeProps(props.definition.root, {
-		runtime,
-		scopeId: renderScopeId,
-	});
-}
+onUnmounted(() => runtime.shutdown());
 
 const rawOverrideLabels: Record<BlackLabParameter, string> = {
 	patt: 'Restored CQL',
 	filter: 'Restored Lucene filter',
-	searchField: 'Restored search field',
+	searchfield: 'Restored search field',
 };
 
 const activeOverrides = computed(() =>

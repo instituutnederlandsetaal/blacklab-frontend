@@ -92,7 +92,7 @@ const ParentFormProbe = defineComponent({
 		return () =>
 			h('section', { 'data-testid': 'parent-form-probe' }, [
 				h('span', { class: 'form-id' }, parentForm.formId),
-				h('span', { class: 'cql' }, parentForm.compiled.cql ?? ''),
+				h('span', { class: 'cql' }, parentForm.compiled.patt ?? ''),
 				h('span', { class: 'summaries' }, parentForm.summaries.map(summary => `${summary.label}:${summary.value}`).join('|')),
 				h('span', { class: 'state' }, JSON.stringify(parentForm.formState.controllerState)),
 			]);

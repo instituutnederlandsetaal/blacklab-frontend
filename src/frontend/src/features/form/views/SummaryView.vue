@@ -11,7 +11,7 @@
 
 		<dl v-if="showRaw" class="raw">
 			<dt>CQL</dt>
-			<dd>{{ projection.cql || $t(`form.summary.none`) }}</dd>
+			<dd>{{ projection.patt || $t(`form.summary.none`) }}</dd>
 			<dt>Lucene</dt>
 			<dd>{{ projection.filter || $t(`form.summary.none`) }}</dd>
 		</dl>

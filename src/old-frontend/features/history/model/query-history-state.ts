@@ -44,7 +44,7 @@ type HistoryEntry = {
 		| ({ form: 'explore-ngram' } & ExploreModule.ModuleRootState['ngram'])
 	) & {
 		/** The raw cql string */
-		cql: string | null;
+		patt: string | null;
 		/** A human-readable summary of the query. */
 		summary: string;
 	};

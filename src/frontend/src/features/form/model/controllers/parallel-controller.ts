@@ -42,7 +42,7 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 	kind: 'parallel',
 	createDefaultState: createDefaultParallelFieldState,
 	getPersistKey: () => 'parallel',
-	affectsBlackLabParameters: ['searchField'],
+	affectsBlackLabParameters: ['searchfield'],
 	encode(state, config) {
 		const defaultState = createDefaultParallelFieldState(config);
 		return encodePersistObject({
@@ -61,7 +61,7 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 		};
 	},
 	getQueryContribution(config, runtime, state) {
-		const query = queryIR({ searchField: state.source });
+		const query = queryIR({ searchfield: state.source });
 		const summaries: SummaryEntry[] = [];
 		if (state.source)
 			summaries.push({

@@ -19,7 +19,7 @@ export const frontendPaths = {
 		/** HACK: make the backend figure out which page to display based on the start index of the hit -- see ArticlePagination.vue/PaginationInfo.java */
 		findhit?: number;
 		/** Field on which the cql query is run. if searchfield differs from field (parallel corpus) */
-		searchField?: string;
+		searchfield?: string;
 		/** Field for which to show the document contents (important when this is a parallel corpus, as there are multiple "copies" of the same document then, e.g. an English and Dutch version) */
 		fieldName?: string;
 	}) => {
@@ -28,7 +28,7 @@ export const frontendPaths = {
 		if (p.patt) url.searchParams.append('query', p.patt); // TODO support patt, like the regular search page.
 		if (p.pattgapdata) url.searchParams.append('pattgapdata', p.pattgapdata);
 		if (p.findhit !== undefined) url.searchParams.append('findhit', p.findhit.toString());
-		if (p.searchField) url.searchParams.append('searchfield', p.searchField);
+		if (p.searchfield) url.searchParams.append('searchfield', p.searchfield);
 		if (p.fieldName) url.searchParams.append('field', p.fieldName);
 		return url.toString();
 	},

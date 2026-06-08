@@ -28,7 +28,6 @@ import { decodePersistObject, decodePersistSelection, encodePersistObject, joinP
 
 import { TestTextField, createTestBuilder, createTestContext, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
-import TextField from '@/features/form/fields/generic/TextField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
@@ -48,6 +47,28 @@ function createSingleTextForm() {
 	};
 }
 
+function createCanonicalFallbackFixture() {
+	const builder = createTestBuilder();
+	const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', variant: 'tabs' });
+	const simple = root.addForm('search.simple', ContainerRenderer, { title: 'Simple' });
+	const simpleField = builder.newField('search.simple.word', testTextController, TestTextField, {
+		annotationId: 'word',
+		displayName: 'Word',
+	});
+	simple.addChildren(simpleField);
+	const expert = root.addForm('expert', ContainerRenderer, { title: 'Expert' });
+	const rawField = builder.newField('search.expert.cql', expertQueryController, RawCqlField, {});
+	expert.addChildren(rawField);
+	return {
+		context: createTestContext(),
+		definition: builder.build(),
+		expert,
+		rawField,
+		simple,
+		simpleField,
+	};
+}
+
 describe('scoped form persistence', () => {
 	test('encodes readable f.* state and ignores unscoped unknown query parameters when restoring', () => {
 		const fixture = createSingleTextForm();
@@ -57,13 +78,13 @@ describe('scoped form persistence', () => {
 		const encoded = encodeScopedFormQuery(fixture.definition, fixture.context, {
 			formId: fixture.form.id,
 			state,
-			cql: '[word="(?i)water"]',
+			patt: '[word="(?i)water"]',
 			filter: null,
-			searchField: null,
+			searchfield: null,
 		});
 
 		expect(encoded).toEqual({
-			'f.form': 'extended',
+			'f.form': 'search.extended',
 			'f.word': 'water',
 		});
 
@@ -73,7 +94,7 @@ describe('scoped form persistence', () => {
 			{
 				unknown: 'not-form-owned',
 				word: 'fire',
-				'f.form': 'extended',
+				'f.form': 'search.extended',
 				'f.word': 'water',
 			},
 			{ patt: '[word="(?i)water"]' },
@@ -142,9 +163,12 @@ describe('scoped form persistence', () => {
 			props: {
 				context: fixture.context,
 				definition: fixture.definition,
-				initialState: restored.state,
 			},
 		});
+		const runtime = wrapper.emitted('ready')?.[0]?.[0] as { replaceState(state: typeof restored.state): void };
+
+		runtime.replaceState(restored.state);
+		await wrapper.vm.$nextTick();
 
 		expect(wrapper.get('.blf-raw-override code').text()).toBe('[word="(?i)fire"]');
 		expect((wrapper.get('input').element as HTMLInputElement).disabled).toBe(true);
@@ -183,27 +207,44 @@ describe('scoped form persistence', () => {
 	});
 
 	test('uses the expert CQL field for old raw URLs that only contain canonical patt', () => {
-		const builder = createTestBuilder();
-		const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', variant: 'tabs' });
-		root.addForm('search.simple', ContainerRenderer, { title: 'Simple', persistKey: 'simple' }).addField('search.simple.word', testTextController, TestTextField, {
-			annotationId: 'word',
-			displayName: 'Word',
-		});
-		const expert = root.addForm('search.expert', ContainerRenderer, { title: 'Expert', persistKey: 'expert' });
-		const expertField = builder.newField('search.expert.query', filterTextController, TextField, {
-			metadataFieldId: 'unused',
-			displayName: 'Unused',
-		});
-		const rawField = builder.newField('search.expert.cql', expertQueryController, RawCqlField, {});
-		expert.addChildren(expertField, rawField);
-		const definition = builder.build();
-		const context = createTestContext();
+		const fixture = createCanonicalFallbackFixture();
 
-		const restored = restoreScopedFormState(definition, context, {}, { patt: '[word="water"]' });
+		const restored = restoreScopedFormState(fixture.definition, fixture.context, {}, { patt: '[word="water"]' });
 
 		expect(restored.formId).toBe('search.expert');
-		expect(restored.state.controllerState[rawField.id]).toEqual({ query: '[word="water"]', targetQueries: [] });
+		expect(restored.state.controllerState[fixture.rawField.id]).toEqual({ query: '[word="water"]', targetQueries: [] });
 		expect(restored.state.rawOverrides).toEqual({});
+	});
+
+	test('ignores unusable scoped noise when falling back to canonical patt', () => {
+		const fixture = createCanonicalFallbackFixture();
+
+		const restored = restoreScopedFormState(
+			fixture.definition,
+			fixture.context,
+			{
+				'f.form': 'removed-form',
+				'f.tab': 'missing:child',
+				'f.removed': 'stale',
+			},
+			{ patt: '[word="water"]' },
+		);
+
+		expect(restored.formId).toBe(fixture.expert.id);
+		expect(restored.state.controllerState[fixture.rawField.id]).toEqual({ query: '[word="water"]', targetQueries: [] });
+		expect(restored.state.rawOverrides).toEqual({});
+		expect(restored.issues.map(issue => issue.key)).toEqual(['form', 'tab', 'removed']);
+	});
+
+	test('uses valid scoped field state instead of canonical-only fallback', () => {
+		const fixture = createCanonicalFallbackFixture();
+
+		const restored = restoreScopedFormState(fixture.definition, fixture.context, { 'f.word': 'water' }, { patt: '[word="fire"]' });
+
+		expect(restored.formId).toBe(fixture.simple.id);
+		expect(restored.state.controllerState[fixture.simpleField.id]).toEqual({ value: 'water' });
+		expect(restored.state.controllerState[fixture.rawField.id]).toEqual({ query: '', targetQueries: [] });
+		expect(restored.state.rawOverrides).toEqual({ patt: '[word="fire"]' });
 	});
 
 	test('persists and restores query-affecting tabs with implicit filter contributions', () => {
@@ -226,9 +267,9 @@ describe('scoped form persistence', () => {
 		const encoded = encodeScopedFormQuery(definition, context, {
 			formId: form.id,
 			state,
-			cql: null,
+			patt: null,
 			filter: 'category("newspaper")',
-			searchField: null,
+			searchfield: null,
 		});
 
 		expect(encoded['f.tab']).toEqual(['search.extended.filters:search.extended.filters.newspapers']);
@@ -256,6 +297,59 @@ describe('scoped form persistence', () => {
 		expect(restored.issues[0].message).contains('missing');
 		expect(restored.issues[1].message).contains('search.extended.tabs.removed');
 		expect(restored.issues[2].message).contains('malformed');
+	});
+
+	test('throws during encode when field persistence keys are duplicate or reserved', () => {
+		const duplicateBuilder = createTestBuilder();
+		const duplicateForm = duplicateBuilder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
+		const firstDuplicateField = duplicateBuilder.newField('search.extended.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+		const secondDuplicateField = duplicateBuilder.newField('search.extended.lemma', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Duplicate word',
+		});
+		duplicateForm.addChildren(firstDuplicateField, secondDuplicateField);
+		const duplicateDefinition = duplicateBuilder.build();
+		const duplicateContext = createTestContext();
+		const duplicateState = createFormState(duplicateDefinition, duplicateContext);
+		duplicateState.controllerState[firstDuplicateField.id] = { value: 'water' };
+		duplicateState.controllerState[secondDuplicateField.id] = { value: 'fire' };
+
+		expect(() =>
+			encodeScopedFormQuery(duplicateDefinition, duplicateContext, {
+				formId: duplicateForm.id,
+				state: duplicateState,
+				patt: null,
+				filter: null,
+				searchfield: null,
+			}),
+		).toThrow(/Duplicate form persistence key 'word'/);
+
+		const reservedController: FieldController<'reserved-text', TestTextFieldState, TestTextFieldConfig> = {
+			...testTextController,
+			kind: 'reserved-text',
+			getPersistKey: () => 'form',
+		};
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.reserved', ContainerRenderer, { title: 'Reserved' });
+		form.addField('search.reserved.word', reservedController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+		const reservedDefinition = builder.build();
+		const reservedContext = createTestContext();
+
+		expect(() =>
+			encodeScopedFormQuery(reservedDefinition, reservedContext, {
+				formId: form.id,
+				state: createFormState(reservedDefinition, reservedContext),
+				patt: null,
+				filter: null,
+				searchfield: null,
+			}),
+		).toThrow(/reserved form persistence key 'form'/);
 	});
 });
 
@@ -340,5 +434,12 @@ describe('controller persistence compatibility', () => {
 		const record = encodePersistObject({ value: 'a;b,c=d\\e' });
 		expect(record).not.toBeNull();
 		expect(decodePersistObject(record!)).toEqual({ value: 'a;b,c=d\\e' });
+	});
+
+	test('rejects duplicate and unsupported structured record keys', () => {
+		expect(() => decodePersistObject('value=one;value=two')).toThrow(/duplicate key 'value'/);
+		expect(() => filterDateController.restore('start=2020;unexpected=value', { id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true }, context)).toThrow(
+			/unsupported persisted keys: unexpected/,
+		);
 	});
 });

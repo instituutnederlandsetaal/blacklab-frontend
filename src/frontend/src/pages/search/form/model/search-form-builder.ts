@@ -17,6 +17,7 @@ import {
 	type FormRuntimeContext,
 	type FormSystemDefinition,
 	withinController,
+	RangeField,
 } from '@/features/form';
 import type { TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField, Tagset } from '@/types/apptypes';
@@ -30,7 +31,6 @@ import AnnotationPosField from '@/features/form/fields/AnnotationPosField.vue';
 import CheckboxField from '@/features/form/fields/generic/CheckboxField.vue';
 import DateField from '@/features/form/fields/generic/DateField.vue';
 import RadioField from '@/features/form/fields/generic/RadioField.vue';
-import RangeField from '@/features/form/fields/generic/RangeField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
@@ -283,7 +283,7 @@ function createAnnotationTabs(builder: FormBuilder, corpus: { index: NormalizedI
 
 	const tabs = builder.newContainer(`extended.annotations`, ContainerRenderer, {
 		variant: 'small-tabs',
-		title: computed(() => translate.$t(`search.extended.annotations`)),
+		// title: computed(() => translate.$t(`search.extended.annotations`)),
 	});
 
 	for (const { annotations, group } of groups) {
@@ -341,18 +341,18 @@ export function createSearchFormDefinition(
 	}
 
 	searchTab
-		.addForm('search.simple', ContainerRenderer, {
+		.addForm('simple', ContainerRenderer, {
 			variant: 'list',
 			title: computed(() => translate.$t(`search.simple.heading`)),
 		})
 		.addChildren(createAnnotationField(builder, 'search.simple.annotation', simpleField, corpus, translate));
 
-	const extendedSearchForm = searchTab.addForm('search.extended', ContainerRenderer, {
+	const extendedSearchForm = searchTab.addForm('extended', ContainerRenderer, {
 		title: computed(() => translate.$t(`search.extended.heading`)),
 		variant: 'columns',
 	});
-	extendedSearchForm.addContainer('search.extended.query', ContainerRenderer, {}).addChildren(
-		builder.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
+	extendedSearchForm.addContainer('extended.query', ContainerRenderer, {}).addChildren(
+		builder.newContainer('extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
 			builder.newView('search.heading', HeadingView, {
 				title: computed(() => translate.$t(`search.heading`)),
 			}),
@@ -366,13 +366,13 @@ export function createSearchFormDefinition(
 	// TODO querybuilder
 	// const advancedSearchForm = searchTab.
 
-	const expertSearchForm = searchTab.addForm('search.expert', ContainerRenderer, {
+	const expertSearchForm = searchTab.addForm('expert', ContainerRenderer, {
 		title: computed(() => translate.$t(`search.expert.heading`)),
 		variant: 'columns',
 	});
 	expertSearchForm
-		.addContainer('search.expert.query', ContainerRenderer, {})
-		.addView('search.expert.query.heading', HeadingView, {
+		.addContainer('expert.query', ContainerRenderer, {})
+		.addView('expert.query.heading', HeadingView, {
 			title: computed(() => translate.$t(`search.expert.corpusQueryLanguage`)),
 		})
 		.addField('search.expert.querybox', expertQueryController, RawCqlField, {})

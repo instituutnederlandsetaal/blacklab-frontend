@@ -1,4 +1,4 @@
-import type { EncodedFieldValue } from '@/features/form/model/types/form-controllers';
+import type { EncodedFieldValue } from '@/features/form/model/types';
 
 import { findOption, type Options } from '@/shared/utils/options';
 
@@ -85,19 +85,32 @@ export function encodePersistObject(values: Record<string, string | null | undef
 export function decodePersistObject(payload: EncodedFieldValue): Record<string, string> {
 	const value = singleEncodedValue(payload, 'structured value');
 	const result: Record<string, string> = {};
+	const seen = new Set<string>();
 	for (const part of splitPersistValue(value, ';')) {
 		if (!part) continue;
 		const index = part.indexOf('=');
-		if (index === -1) result.value = part;
-		else result[part.slice(0, index)] = part.slice(index + 1);
+		const key = index === -1 ? 'value' : part.slice(0, index);
+		if (seen.has(key)) throw new Error(`Cannot restore structured value with duplicate key '${key}'.`);
+		seen.add(key);
+		result[key] = index === -1 ? part : part.slice(index + 1);
 	}
 	return result;
 }
 
-export function decodePersistRecord(payload: EncodedFieldValue, expectedKeys: readonly string[], label: string): Record<string, string> {
+export function decodePersistRecord(
+	payload: EncodedFieldValue,
+	expectedKeys: readonly string[],
+	label: string,
+	options: { allowUnknownKeys?: boolean | ((key: string) => boolean) } = {},
+): Record<string, string> {
 	const restored = decodePersistObject(payload);
 	if (!Object.keys(restored).some(key => expectedKeys.includes(key))) {
 		throw new Error(`Cannot restore ${label} from an incompatible persisted value.`);
+	}
+	if (options.allowUnknownKeys !== true) {
+		const allowsKey = typeof options.allowUnknownKeys === 'function' ? options.allowUnknownKeys : (key: string) => expectedKeys.includes(key);
+		const unknown = Object.keys(restored).filter(key => !allowsKey(key));
+		if (unknown.length) throw new Error(`Cannot restore ${label} with unsupported persisted keys: ${unknown.join(', ')}.`);
 	}
 	return restored;
 }
