@@ -6,7 +6,7 @@ import { getAllNodes, pickActiveFormState, reactivePickActiveFormState } from '@
 import { cloneFormState, createFormState } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
-import type { FormBoundaryNode, FormNode } from '@/features/form/model/types/form-shape';
+import type { FormNode } from '@/features/form/model/types/form-shape';
 import type { FormState, FormSystemRuntime, FormSystemDefinition, UseParentFormReturn } from '@/features/form/model/types/form-state';
 
 const formSystemRuntimeKey: InjectionKey<FormSystemRuntime> = Symbol('formSystemRuntime');
@@ -83,7 +83,6 @@ export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: 
 export function createFormSystemRuntime(definition: FormSystemDefinition, context: FormRuntimeContext, initialState?: FormState): FormSystemRuntime {
 	const formsList = getAllNodes(definition.root, 'form');
 	const formsById = Object.fromEntries(formsList.map(form => [form.id, form]));
-	const activeFormNode = shallowRef<FormBoundaryNode | null>(formsList[0] ?? null);
 	const state = ref(initialState ? cloneFormState(initialState) : createFormState(definition, context));
 
 	const compileListeners: ((formId: string, compiled: CompiledFormState) => void)[] = [];
@@ -93,7 +92,6 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 	const resetListeners: (() => void)[] = [];
 
 	return {
-		activeFormNode,
 		definition,
 		context,
 		state,

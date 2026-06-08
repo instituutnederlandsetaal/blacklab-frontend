@@ -50,7 +50,6 @@ export type FormSystemRuntime = {
 	context: FormRuntimeContext;
 
 	state: Ref<FormState>;
-	activeFormNode: Ref<FormBoundaryNode | null>;
 	forms: Record<string, FormBoundaryNode>;
 
 	compile(formId: string): CompiledFormState;

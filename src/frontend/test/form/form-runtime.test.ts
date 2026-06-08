@@ -177,6 +177,38 @@ describe('form system runtime', () => {
 		expect(parentForm.formState.value.controllerState[field.id]).toEqual({ value: 'water' });
 		expect(runtime.compile(form.id).cql).toBe('[word="(?i)water"]');
 	});
+
+	test('switching form tabs updates container ui state', async () => {
+		const builder = createTestBuilder();
+		const root = builder.newContainer('search', ContainerRenderer, {
+			title: 'Search',
+			variant: 'tabs',
+		});
+		const firstForm = root.addForm('search.first', ContainerRenderer, { title: 'First' });
+		const secondForm = root.addForm('search.second', ContainerRenderer, { title: 'Second' });
+		firstForm.addField('search.first.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+		secondForm.addField('search.second.lemma', testTextController, TestTextField, {
+			annotationId: 'lemma',
+			displayName: 'Lemma',
+		});
+
+		const wrapper = mount(FormSystem, {
+			props: {
+				context: createTestContext(),
+				definition: builder.build(),
+			},
+		});
+		const runtime = wrapper.emitted('ready')?.[0]?.[0] as ReturnType<typeof createFormSystemRuntime>;
+
+		expect(runtime.state.value.uiState.activeContainers[root.id]).toBe(firstForm.id);
+
+		await wrapper.findAll('.nav-tabs a')[1].trigger('click');
+
+		expect(runtime.state.value.uiState.activeContainers[root.id]).toBe(secondForm.id);
+	});
 });
 
 describe('parent form runtime', () => {

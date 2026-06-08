@@ -21,9 +21,6 @@ export default function containerRendererSetup(props: ImplicitContainerComponent
 				return;
 			}
 
-			if (child.kind === 'form') {
-				runtime.activeFormNode.value = child;
-			}
 			runtime.state.value.uiState.activeContainers[props.id] = value;
 		},
 	});
