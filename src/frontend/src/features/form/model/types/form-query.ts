@@ -145,7 +145,6 @@ export type CompiledFormState = {
 export type PersistableFormState = CompiledFormState & {
 	formId: string;
 	state: FormState;
-	schemaVersion: string;
 };
 export type SubmittableFormState = CompiledFormState & {
 	resultPreset: Partial<ResultPreset>;

@@ -35,13 +35,41 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type PropType } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 
-import type { ParallelFieldComponentProps, ParallelFieldState } from '../model/controllers/parallel-controller';
-const props = withDefaults(defineProps<ParallelFieldComponentProps>(), {
-	disabled: false,
+import type { ParallelFieldComponentProps, ParallelFieldConfig, ParallelFieldState } from '../model/controllers/parallel-controller';
+
+const props = defineProps({
+	htmlId: {
+		type: String,
+		required: true,
+	},
+	modelValue: {
+		type: Object as PropType<ParallelFieldState>,
+		required: true,
+	},
+	disabled: {
+		type: Boolean,
+		default: false,
+	},
+	variant: {
+		type: [String, Array] as PropType<ParallelFieldComponentProps['variant']>,
+		default: undefined,
+	},
+	sourceOptions: {
+		type: Array as PropType<ParallelFieldConfig['sourceOptions']>,
+		required: true,
+	},
+	targetOptions: {
+		type: Array as PropType<ParallelFieldConfig['targetOptions']>,
+		required: true,
+	},
+	alignByOptions: {
+		type: Array as PropType<ParallelFieldConfig['alignByOptions']>,
+		default: undefined,
+	},
 });
 
 const emit = defineEmits<{

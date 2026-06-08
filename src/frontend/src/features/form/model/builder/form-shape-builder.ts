@@ -1,6 +1,6 @@
 import { markRaw } from 'vue';
 
-import { checkNoLoops, generateSchemaVersion } from '@/features/form/model/form-utils';
+import { checkNoLoops } from '@/features/form/model/form-utils';
 import type { AnyFieldController, FieldController, FormSystemDefinition } from '@/features/form/model/types';
 import type {
 	AnyRealFormNode,
@@ -300,7 +300,6 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 		checkNoLoops(this.root);
 
 		return {
-			schemaVersion: generateSchemaVersion(this.root),
 			root: this.root,
 		};
 	}

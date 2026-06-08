@@ -29,9 +29,10 @@
 import { computed, toValue } from 'vue';
 
 import { useParentForm } from '@/features/form/model/runtime';
-import type { FormNode, ImplicitContainerComponentProps } from '../model/types';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
+
+import type { FormNode, ImplicitContainerComponentProps } from '../model/types';
 
 import useUid from '@/shared/utils/useUid';
 

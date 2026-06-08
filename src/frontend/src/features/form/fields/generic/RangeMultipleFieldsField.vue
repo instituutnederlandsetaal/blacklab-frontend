@@ -4,8 +4,24 @@
 			>{{ displayName }}<debug> [{{ id }}]</debug></label
 		>
 		<div class="blf-dual-input">
-			<input :id="`${inputId}_lower`" v-model="lower" :type="inputType" :placeholder="lowPlaceholder || $t(`filter.range.from`)" class="blf-input form-control" autocomplete="off" :disabled="disabled" />
-			<input :id="`${inputId}_upper`" v-model="upper" :type="inputType" :placeholder="highPlaceholder || $t(`filter.range.to`)" class="blf-input form-control" autocomplete="off" :disabled="disabled" />
+			<input
+				:id="`${inputId}_lower`"
+				v-model="lower"
+				:type="inputType"
+				:placeholder="lowPlaceholder || $t(`filter.range.from`)"
+				class="blf-input form-control"
+				autocomplete="off"
+				:disabled="disabled"
+			/>
+			<input
+				:id="`${inputId}_upper`"
+				v-model="upper"
+				:type="inputType"
+				:placeholder="highPlaceholder || $t(`filter.range.to`)"
+				class="blf-input form-control"
+				autocomplete="off"
+				:disabled="disabled"
+			/>
 		</div>
 		<div v-if="!lockedMode" class="btn-group blf-range-modes">
 			<button
@@ -13,10 +29,10 @@
 				type="button"
 				:class="['btn btn-default', { active: modelValue.mode === mode.value }]"
 				:key="mode.value"
-					:value="mode.value"
-					:title="mode.title || ''"
-					:disabled="disabled"
-					@click="updateMode(mode.value)"
+				:value="mode.value"
+				:title="mode.title || ''"
+				:disabled="disabled"
+				@click="updateMode(mode.value)"
 			>
 				{{ mode.label }}
 			</button>

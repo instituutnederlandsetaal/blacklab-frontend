@@ -31,10 +31,10 @@
 <script setup lang="ts">
 import { computed, toValue } from 'vue';
 
-import type { FormNode, ImplicitContainerComponentProps } from '../model/types';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 
 import { createAndProvideParentForm } from '../model/runtime';
+import type { FormNode, ImplicitContainerComponentProps } from '../model/types';
 import { getNodeProps, resolveNodeComponent } from './node-render';
 
 import useUid from '@/shared/utils/useUid';

@@ -29,9 +29,6 @@ export type FormState = {
 };
 
 export type FormSystemDefinition = {
-	/** Version, for schema compatibility when using history */
-	schemaVersion: string;
-
 	/** The tree/structure of the form system */
 	root: FormContainerLikeNode;
 };
@@ -65,6 +62,7 @@ export type FormSystemRuntime = {
 	onSummarize(callback: (formId: string, summaries: SummaryEntry[]) => void): void;
 	persist(formId: string): PersistableFormState;
 	onPersist(callback: (formId: string, persisted: PersistableFormState) => void): void;
+	replaceState(state: FormState): void;
 	reset(): void;
 	clearRawOverride(parameter: BlackLabParameter): void;
 };

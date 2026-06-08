@@ -7,8 +7,6 @@ import type { AnyVueComponent } from '@/types/helpers';
 /** The base for all form nodes */
 export type BaseNode = {
 	id: string;
-	/** Short stable key for URL/history persistence. Falls back to controller/node defaults when omitted. */
-	persistKey?: string;
 	title?: MaybeRefOrGetter<string>;
 	class?: string;
 };

@@ -1,5 +1,5 @@
 import { cqlRaw, queryFragment } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, encodePersistObject, firstEncodedValue, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import { decodePersistObject, encodePersistObject, joinPersistValues, singleEncodedValue, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 
 export type RawCqlQueryFieldState = {
@@ -26,7 +26,7 @@ export const expertQueryController: FieldController<'raw-cql-query', RawCqlQuery
 		});
 	},
 	restore(payload) {
-		const value = firstEncodedValue(payload);
+		const value = singleEncodedValue(payload, 'raw CQL field');
 		if (!value.startsWith('query=') && !value.includes(';targets=')) return { query: value, targetQueries: [] };
 		const restored = decodePersistObject(payload);
 		return {
@@ -45,11 +45,6 @@ export const expertQueryController: FieldController<'raw-cql-query', RawCqlQuery
 					}
 				: null,
 		);
-	},
-
-	// Return something unique for this controller
-	toJSON() {
-		return { kind: this.kind, version: 1, configVersion: 1 };
 	},
 };
 export default expertQueryController;

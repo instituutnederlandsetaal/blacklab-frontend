@@ -4,8 +4,24 @@
 			>{{ displayName }}<debug> [{{ id }}]</debug></label
 		>
 		<div class="blf-dual-input">
-			<input :id="`${inputId}_lower`" v-model="lower" :type="inputType" :placeholder="lowPlaceholder || $t(`filter.range.from`)" class="blf-input form-control" autocomplete="off" :disabled="disabled" />
-			<input :id="`${inputId}_upper`" v-model="upper" :type="inputType" :placeholder="highPlaceholder || $t(`filter.range.to`)" class="blf-input form-control" autocomplete="off" :disabled="disabled" />
+			<input
+				:id="`${inputId}_lower`"
+				v-model="lower"
+				:type="inputType"
+				:placeholder="lowPlaceholder || $t(`filter.range.from`)"
+				class="blf-input form-control"
+				autocomplete="off"
+				:disabled="disabled"
+			/>
+			<input
+				:id="`${inputId}_upper`"
+				v-model="upper"
+				:type="inputType"
+				:placeholder="highPlaceholder || $t(`filter.range.to`)"
+				class="blf-input form-control"
+				autocomplete="off"
+				:disabled="disabled"
+			/>
 		</div>
 		<small v-if="description" class="blf-help-text">{{ description }}</small>
 	</div>

@@ -44,11 +44,11 @@ export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: 
 	const summaries = computed(() => rootRuntime.summarize(currentFormId.value));
 
 	watch(
-		currentForm,
-		form => {
-			formState.value = reactivePickActiveFormState(form, rootRuntime.state.value);
+		[currentForm, rootRuntime.state],
+		([form, state]) => {
+			formState.value = reactivePickActiveFormState(form, state);
 		},
-		{ flush: 'sync' },
+		{ flush: 'sync', deep: false },
 	);
 
 	return {
@@ -108,7 +108,6 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 				...this.compile(formId),
 				formId,
 				state: pickActiveFormState(formsById[formId], this.state.value),
-				schemaVersion: this.definition.schemaVersion,
 			};
 			persistListeners.forEach(callback => callback(formId, persisted));
 			return persisted;
@@ -150,6 +149,9 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 		},
 		onPersist(callback: (formId: string, persisted: PersistableFormState) => void) {
 			persistListeners.push(callback);
+		},
+		replaceState(nextState) {
+			this.state.value = cloneFormState(nextState);
 		},
 	};
 }

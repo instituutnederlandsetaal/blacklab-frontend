@@ -13,15 +13,15 @@
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import type {
-    BCQLAndNode,
-    BCQLCompareNode,
-    BCQLOrNode,
-    BCQLPositionFilterNode,
-    BCQLQueryNode,
-    BCQLRegexNode,
-    BCQLTagAttributeExpressionNode,
-    BCQLTextPatternNode,
-    BCQLTextPatternStruct,
+	BCQLAndNode,
+	BCQLCompareNode,
+	BCQLOrNode,
+	BCQLPositionFilterNode,
+	BCQLQueryNode,
+	BCQLRegexNode,
+	BCQLTagAttributeExpressionNode,
+	BCQLTextPatternNode,
+	BCQLTextPatternStruct,
 } from '@/shared/blacklab-helpers/cql/bcql-json-ast';
 
 export type XmlTag = {

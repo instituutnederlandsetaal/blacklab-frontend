@@ -4,7 +4,14 @@
 			{{ $t(`search.expert.corpusQueryLanguage`) }}
 			<a v-if="helpUrl" class="help" target="_blank" :href="helpUrl" :title="$t(`widgets.learnMore`)">?</a>
 		</label>
-		<textarea class="blf-input form-control querybox" :id="`${htmlId}_query`" :rows="rows || 7" :value="modelValue.query" :disabled="disabled" @input="updateQuery(($event.target as HTMLTextAreaElement).value)" />
+		<textarea
+			class="blf-input form-control querybox"
+			:id="`${htmlId}_query`"
+			:rows="rows || 7"
+			:value="modelValue.query"
+			:disabled="disabled"
+			@input="updateQuery(($event.target as HTMLTextAreaElement).value)"
+		/>
 	</div>
 </template>
 

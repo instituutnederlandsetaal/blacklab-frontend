@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 import { computed, defineComponent, h, nextTick, ref, watchEffect } from 'vue';
 
-import { FormSystem, createFormSystemRuntime, useParentForm } from '@/features/form';
+import { cloneFormState, FormSystem, createFormSystemRuntime, useParentForm } from '@/features/form';
 import { createAndProvideParentForm, createParentFormRuntime, provideFormSystemRuntime } from '@/features/form/model/runtime';
 
 import { TestTextField, createTestBuilder, createTestContext, testTextController } from './helpers';
@@ -69,7 +69,6 @@ function createProjectionMetricsFixture(metrics: ParentFormMetrics) {
 		context: createTestContext(),
 		definition: {
 			root: form,
-			schemaVersion: 'test',
 		},
 	};
 }
@@ -156,6 +155,27 @@ describe('form system runtime', () => {
 		expect(submitted.cql).toBe('[word="(?i)water"]');
 		expect(submitted.summaries).toEqual([{ id: field.id, label: 'Word', value: 'water' }]);
 		expect(submitted.state.controllerState[field.id]).toEqual({ value: 'water' });
+	});
+
+	test('replaceState atomically replaces runtime state with an isolated clone', () => {
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+		const field = builder.newField('search.simple.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+		form.addChildren(field);
+		const runtime = createFormSystemRuntime(builder.build(), createTestContext());
+		const parentForm = createParentFormRuntime(runtime, form.id);
+		const replacement = cloneFormState(runtime.state.value);
+		replacement.controllerState[field.id] = { value: 'water' };
+
+		runtime.replaceState(replacement);
+		replacement.controllerState[field.id] = { value: 'changed later' };
+
+		expect(runtime.state.value.controllerState[field.id]).toEqual({ value: 'water' });
+		expect(parentForm.formState.value.controllerState[field.id]).toEqual({ value: 'water' });
+		expect(runtime.compile(form.id).cql).toBe('[word="(?i)water"]');
 	});
 });
 

@@ -6,7 +6,7 @@ import {
 	type AnnotationPosFieldState,
 } from '@/features/form/fields/annotation-pos-field';
 import { cqlRaw, queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import { decodePersistRecord, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
 import type { QueryFragment } from '@/features/form/model/types';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
@@ -25,7 +25,7 @@ export const annotationPosController = createFieldController<'annotation-pos', A
 		});
 	},
 	restore(payload) {
-		const restored = decodePersistObject(payload);
+		const restored = decodePersistRecord(payload, ['value', 'selected'], 'part-of-speech field');
 		return {
 			annotationValue: restored.value || null,
 			selected: Object.fromEntries(

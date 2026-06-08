@@ -1,11 +1,10 @@
 import { reactivePick } from '@vueuse/core';
-import { isRef, reactive, toRaw } from 'vue';
+import { reactive, toRaw } from 'vue';
 
 import type { FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeBase, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 import type { FormState } from '@/features/form/model/types/form-state';
 
 import { lenientIter } from '@/shared/utils/array-utils';
-import { hashJavaDJB2 } from '@/shared/utils/string-utils';
 
 /** Iterate all nodes in the form graph, filtered by uniqueness. Duplicate nodes are skipped. */
 export function* walkFormNodes(root: FormNode) {
@@ -75,66 +74,6 @@ export function checkNoLoops(root: FormNode, completedSubgraphs = new Set<FormNo
 	};
 
 	visit(root);
-}
-
-export function generateSchemaVersion(root: FormNode): string {
-	// pretty naive hash function, just to get a different version string when the form changes. We could use a proper hash function if needed.
-	const str = JSON.stringify(toSchemaVersionPayload(root), (_key, value) => (typeof value === 'function' ? '[Function]' : isRef(value) ? '[Ref]' : value));
-	return hashJavaDJB2(str).toString();
-}
-
-function toSchemaVersionPayload(node: FormNode, seen = new Set<FormNode>()): unknown {
-	const base = {
-		class: node.class,
-		id: node.id,
-		kind: node.kind,
-		title: node.title,
-	};
-
-	if (seen.has(node)) {
-		return { ...base, ref: true };
-	}
-	seen.add(node);
-
-	if (node.kind === 'field') {
-		const { component: _component, controller, ...config } = node;
-		return {
-			...config,
-			controller: controller.toJSON(),
-		};
-	}
-
-	if (node.kind === 'view') {
-		const { component: _component, ...config } = node;
-		return config;
-	}
-
-	if (isContainerNode(node)) {
-		const {
-			addChildren: _addChildren,
-			addContainer: _addContainer,
-			addField: _addField,
-			addForm: _addForm,
-			addView: _addView,
-			builder: _builder,
-			children,
-			component: _component,
-			...config
-		} = node as typeof node & {
-			addChildren?: unknown;
-			addContainer?: unknown;
-			addField?: unknown;
-			addForm?: unknown;
-			addView?: unknown;
-			builder?: unknown;
-		};
-		return {
-			...config,
-			children: children.map(child => toSchemaVersionPayload(child, seen)),
-		};
-	}
-
-	return base;
 }
 
 export function isContainerNode(node: FormNode): node is FormContainerLikeNode {

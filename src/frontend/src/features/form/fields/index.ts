@@ -24,4 +24,4 @@ export { default as SelectField } from './generic/SelectField.vue';
 export * from './generic/text-field.ts';
 export { default as TextField } from './generic/TextField.vue';
 
-export type * from './generic/shared-ui-config.ts';
+export * from './generic/shared-ui-config.ts';

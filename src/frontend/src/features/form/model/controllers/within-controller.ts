@@ -1,7 +1,7 @@
 import { markRaw } from 'vue';
 
 import { queryFragment } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, encodePersistObject } from '@/features/form/model/controllers/persistence-codec';
+import { decodePersistRecord, encodePersistObject } from '@/features/form/model/controllers/persistence-codec';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
 
@@ -34,7 +34,7 @@ export const withinController: FieldController<'within', WithinFieldState, Omit<
 		});
 	},
 	restore(payload) {
-		const restored = decodePersistObject(payload);
+		const restored = decodePersistRecord(payload, ['element'], 'within field');
 		return {
 			element: restored.element || null,
 			attributes: Object.fromEntries(
@@ -52,11 +52,6 @@ export const withinController: FieldController<'within', WithinFieldState, Omit<
 			label: runtime.translate.$t(`search.extended.within`),
 			value: runtime.translate.$tSpanDisplayName(option),
 		});
-	},
-
-	// Return something unique for this controller
-	toJSON() {
-		return { kind: this.kind, version: 1, configVersion: 1 };
 	},
 });
 export default withinController;

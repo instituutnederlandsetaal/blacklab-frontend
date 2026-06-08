@@ -12,12 +12,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 
 import type { BlackLabParameter } from '@/features/form/model/types/form-controllers';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
-import type { FormState, FormSystemDefinition } from '@/features/form/model/types/form-state';
+import type { FormState, FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
 import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
 
 import { createFormSystemRuntime, provideFormSystemRuntime } from '../model/runtime';
@@ -31,7 +31,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-	// ready: [runtime: FormSystemRuntime];
+	ready: [runtime: FormSystemRuntime];
 	submit: [formId: string, snapshot: PersistableSubmittableFormState];
 	compile: [formId: string, snapshot: CompiledFormState];
 	persist: [formId: string, snapshot: PersistableFormState];
@@ -49,6 +49,7 @@ runtime.onCompile((formId, snapshot) => emit('compile', formId, snapshot));
 runtime.onPersist((formId, snapshot) => emit('persist', formId, snapshot));
 runtime.onSummarize((formId, summaries) => emit('summarize', formId, summaries));
 runtime.onReset(() => emit('reset'));
+onMounted(() => emit('ready', runtime));
 
 function rootProps() {
 	return getNodeProps(props.definition.root, {

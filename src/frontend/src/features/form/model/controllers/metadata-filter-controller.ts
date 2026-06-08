@@ -9,7 +9,17 @@ import { createDefaultSelectFieldState, type SelectFieldState, type SelectFieldU
 import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
 import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
 import { queryFragment, queryIR, rawFilter, termFilter, withSummary } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, encodePersistObject, firstEncodedValue, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import {
+	decodePersistRecord,
+	decodePersistRangeMode,
+	decodePersistSelection,
+	decodePersistSingleSelection,
+	encodePersistObject,
+	joinPersistValues,
+	singleEncodedValue,
+	splitPersistValue,
+	unknownOptionWarnings,
+} from '@/features/form/model/controllers/persistence-codec';
 import type { SummaryEntry } from '@/features/form/model/types';
 import { createFieldController, type EncodedFieldValue } from '@/features/form/model/types/form-controllers';
 
@@ -95,7 +105,7 @@ function textEncode(state: TextFieldState | null) {
 }
 
 function textRestore(payload: EncodedFieldValue): TextFieldState {
-	const parts = splitPersistValue(firstEncodedValue(payload), ';');
+	const parts = splitPersistValue(singleEncodedValue(payload, 'text field'), ';');
 	return {
 		value: parts[0] ?? '',
 		caseSensitive: parts.includes('c=1'),
@@ -110,7 +120,7 @@ function rangeEncode(state: RangeFieldState | null) {
 }
 
 function rangeRestore(payload: EncodedFieldValue): RangeFieldState {
-	const restored = decodePersistObject(payload);
+	const restored = decodePersistRecord(payload, ['low', 'high'], 'range field');
 	return {
 		low: restored.low ?? '',
 		high: restored.high ?? '',
@@ -150,12 +160,12 @@ export const filterCheckboxController = createFieldController<'metadata-filter-c
 			.map(([value]) => value);
 		return selected.length ? joinPersistValues(selected) : null;
 	},
-	restore(payload) {
-		return Object.fromEntries(
-			splitPersistValue(firstEncodedValue(payload))
-				.filter(Boolean)
-				.map(value => [value, true]),
-		);
+	restore(payload, config) {
+		const values = decodePersistSelection(payload);
+		return {
+			state: Object.fromEntries(values.map(value => [value, true])),
+			warnings: unknownOptionWarnings(values, config.options),
+		};
 	},
 	getQueryContribution(config, _runtime, state) {
 		const selectedValues = Object.entries(state || {})
@@ -180,11 +190,12 @@ export const filterDateController = createFieldController<'metadata-filter-date'
 		});
 	},
 	restore(payload, config) {
-		const restored = decodePersistObject(payload);
+		const restored = decodePersistRecord(payload, ['start', 'end', 'mode'], 'date field');
+		const restoredMode = decodePersistRangeMode(restored.mode);
 		return {
 			startDate: persistToDateValue(restored.start),
 			endDate: config.range ? persistToDateValue(restored.end) : { y: '', m: '', d: '' },
-			mode: config.mode ?? (restored.mode === 'permissive' ? 'permissive' : 'strict'),
+			mode: config.mode ?? restoredMode ?? 'strict',
 		};
 	},
 	getQueryContribution(config, _runtime, state) {
@@ -218,7 +229,13 @@ export const filterRadioController = createFieldController<'metadata-filter-radi
 	getPersistKey: metadataPersistKey,
 	affectsBlackLabParameters: ['filter'],
 	encode: state => state || null,
-	restore: firstEncodedValue,
+	restore(payload, config) {
+		const value = decodePersistSingleSelection(payload);
+		return {
+			state: value,
+			warnings: unknownOptionWarnings(value ? [value] : [], config.options),
+		};
+	},
 	getQueryContribution(config, _runtime, state) {
 		const lucene = state ? `${config.metadataFieldId}:(${escapeLucene(state, false)})` : null;
 		const summary = state ? optionLabel(findOption(config.options, state) ?? state) : null;
@@ -253,11 +270,12 @@ export const filterRangeMultipleFieldsController = createFieldController<'metada
 		});
 	},
 	restore(payload, config) {
-		const restored = decodePersistObject(payload);
+		const restored = decodePersistRecord(payload, ['low', 'high', 'mode'], 'multi-field range');
+		const restoredMode = decodePersistRangeMode(restored.mode);
 		return {
 			low: restored.low ?? '',
 			high: restored.high ?? '',
-			mode: config.mode ?? (restored.mode === 'permissive' ? 'permissive' : 'strict'),
+			mode: config.mode ?? restoredMode ?? 'strict',
 		};
 	},
 	getQueryContribution(config, _runtime, state) {
@@ -283,8 +301,12 @@ export const filterSelectController = createFieldController<'metadata-filter-sel
 	encode(state) {
 		return state.length ? joinPersistValues(state) : null;
 	},
-	restore(payload) {
-		return splitPersistValue(firstEncodedValue(payload)).filter(Boolean);
+	restore(payload, config) {
+		const values = decodePersistSelection(payload);
+		return {
+			state: values,
+			warnings: unknownOptionWarnings(values, config.options),
+		};
 	},
 	getQueryContribution(config, _runtime, state) {
 		const selectedValues = state.filter(value => value.trim());

@@ -3,7 +3,7 @@ import { toValue } from 'vue';
 import { createDefaultSelectFieldState, type SelectFieldState, type SelectFieldUiConfig } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
 import { queryFragment, queryIR, token, tokenPredicate, tokenSequence } from '@/features/form/model/compile/query-artifact';
-import { firstEncodedValue, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import { decodePersistSelection, joinPersistValues, singleEncodedValue, splitPersistValue, unknownOptionWarnings } from '@/features/form/model/controllers/persistence-codec';
 import { booleanExpr, type QueryFragment } from '@/features/form/model/types';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
@@ -35,11 +35,11 @@ export const annotationTextController = createFieldController<'annotation-text',
 	affectsBlackLabParameters: ['patt'],
 	encode(state) {
 		const value = state.value.trim();
-		if (!value && !state.caseSensitive) return null;
+		if (!value) return null;
 		return state.caseSensitive ? `${joinPersistValues([value], ';')};c=1` : value;
 	},
 	restore(payload) {
-		const parts = splitPersistValue(firstEncodedValue(payload), ';');
+		const parts = splitPersistValue(singleEncodedValue(payload, 'annotation text'), ';');
 		return {
 			value: parts[0] ?? '',
 			caseSensitive: parts.includes('c=1'),
@@ -75,8 +75,12 @@ export const annotationSelectController = createFieldController<'annotation-sele
 	encode(state) {
 		return state.length ? joinPersistValues(state) : null;
 	},
-	restore(payload) {
-		return splitPersistValue(firstEncodedValue(payload)).filter(Boolean);
+	restore(payload, config) {
+		const values = decodePersistSelection(payload);
+		return {
+			state: values,
+			warnings: unknownOptionWarnings(values, config.options),
+		};
 	},
 	getQueryContribution(config, _runtime, state) {
 		if (!state.length) return queryFragment();

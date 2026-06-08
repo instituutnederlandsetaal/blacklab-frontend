@@ -1,15 +1,25 @@
 <template>
-	<FormSystem :key="def.instanceKey" :context="def.context" :definition="def.definition" :initial-state="def.initialState" @submit="handleSubmit" />
+	<FormSystem v-if="host" :key="host.lifecycleGeneration" :context="host.context" :definition="host.definition" :initial-state="host.initialState" @ready="handleReady" @submit="handleSubmit" />
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import { useRoute, useRouter, type LocationQueryValue } from 'vue-router';
+import { computed, shallowRef, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import { useCurrentCorpus, useCurrentTagset } from '@/entities/corpus/model/corpus-context';
 import { useCurrentConfig } from '@/entities/page-config/page-config';
-import { encodeScopedFormQuery, FORM_QUERY_PREFIX, FormSystem, restoreScopedFormState, type CanonicalBlackLabFormParameters, type PersistableSubmittableFormState } from '@/features/form';
+import {
+	encodeScopedFormQuery,
+	FormSystem,
+	restoreScopedFormState,
+	type FormRuntimeContext,
+	type FormState,
+	type FormSystemDefinition,
+	type FormSystemRuntime,
+	type PersistableSubmittableFormState,
+} from '@/features/form';
 import { createSearchFormDefinition } from '@/pages/search/form/model/search-form-builder';
+import { formRouteFingerprint, readCanonicalFormQuery, replaceFormRouteQuery } from '@/pages/search/form/model/search-form-route';
 
 import { useI18n } from '@/shared/i18n';
 
@@ -24,71 +34,73 @@ const translate = useI18n();
 const route = useRoute();
 const router = useRouter();
 
-const queryKeys = {
-	cql: 'patt',
-	filter: 'filter',
-	searchField: 'searchfield',
-} as const;
+type FormHost = {
+	context: FormRuntimeContext;
+	definition: FormSystemDefinition;
+	initialState: FormState;
+	lifecycleGeneration: number;
+};
 
-function getQueryValue(value: LocationQueryValue | LocationQueryValue[] | undefined) {
-	return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+const definitionBundle = computed(() => createSearchFormDefinition({ config, index: corpus, tagset: tagset.value }, translate));
+const host = shallowRef<FormHost | null>(null);
+const runtime = shallowRef<FormSystemRuntime | null>(null);
+let lifecycleGeneration = 0;
+let lastAppliedRouteFingerprint = '';
+let hasEmittedUrlParsed = false;
+let pendingRouteState: FormState | null = null;
+
+function restoreCurrentRoute(definition: FormSystemDefinition, context: FormRuntimeContext) {
+	return restoreScopedFormState(definition, context, route.query, readCanonicalFormQuery(route.query));
 }
 
-function getCanonicalQuery(): CanonicalBlackLabFormParameters {
-	return {
-		patt: getQueryValue(route.query[queryKeys.cql]),
-		filter: getQueryValue(route.query[queryKeys.filter]),
-		searchField: getQueryValue(route.query[queryKeys.searchField]),
-	};
+watch(
+	definitionBundle,
+	({ context, definition }) => {
+		runtime.value = null;
+		pendingRouteState = null;
+		lastAppliedRouteFingerprint = formRouteFingerprint(route.query);
+		host.value = {
+			context,
+			definition,
+			initialState: restoreCurrentRoute(definition, context).state,
+			lifecycleGeneration: ++lifecycleGeneration,
+		};
+		if (!hasEmittedUrlParsed) {
+			hasEmittedUrlParsed = true;
+			emit('url-parsed');
+		}
+	},
+	{ immediate: true, flush: 'sync' },
+);
+
+watch(
+	() => formRouteFingerprint(route.query),
+	fingerprint => {
+		if (!host.value || fingerprint === lastAppliedRouteFingerprint) return;
+		lastAppliedRouteFingerprint = fingerprint;
+		const restored = restoreCurrentRoute(host.value.definition, host.value.context);
+		if (runtime.value) runtime.value.replaceState(restored.state);
+		else {
+			pendingRouteState = restored.state;
+			host.value = { ...host.value, initialState: restored.state };
+		}
+	},
+	{ flush: 'sync' },
+);
+
+function handleReady(nextRuntime: FormSystemRuntime) {
+	runtime.value = nextRuntime;
+	if (pendingRouteState) {
+		nextRuntime.replaceState(pendingRouteState);
+		pendingRouteState = null;
+	}
 }
-
-function isFormOwnedQueryKey(key: string) {
-	return key.startsWith(FORM_QUERY_PREFIX);
-}
-
-function isCanonicalFormQueryKey(key: string) {
-	return key === queryKeys.cql || key === queryKeys.filter || key === queryKeys.searchField;
-}
-
-function formRouteKey() {
-	return Object.entries(route.query)
-		.filter(([key]) => isFormOwnedQueryKey(key) || isCanonicalFormQueryKey(key))
-		.map(([key, value]) => `${key}=${Array.isArray(value) ? value.join(',') : (value ?? '')}`)
-		.sort()
-		.join('&');
-}
-
-const def = computed(() => {
-	const { context, definition } = createSearchFormDefinition({ config: config, index: corpus, tagset: tagset.value }, translate);
-	const restored = restoreScopedFormState(definition, context, route.query, getCanonicalQuery());
-	emit('url-parsed');
-
-	return {
-		context,
-		definition,
-		initialState: restored.state,
-		instanceKey: `${definition.schemaVersion}:${formRouteKey()}`,
-	};
-});
 
 function handleSubmit(_formId: string, state: PersistableSubmittableFormState) {
-	const scopedFormQuery = encodeScopedFormQuery(def.value.definition, def.value.context, state);
-	const query: Record<string, string | string[]> = {};
-
-	for (const [key, value] of Object.entries(route.query)) {
-		if (isFormOwnedQueryKey(key) || isCanonicalFormQueryKey(key) || value == null) continue;
-		query[key] = Array.isArray(value) ? value.filter((item): item is string => item != null) : value;
-	}
-
-	if (state.cql) query[queryKeys.cql] = state.cql;
-	if (state.filter) query[queryKeys.filter] = state.filter;
-	if (state.searchField) query[queryKeys.searchField] = state.searchField;
-
-	for (const [key, value] of Object.entries(scopedFormQuery)) {
-		if (value == null) continue;
-		query[key] = value;
-	}
-
-	void router.push({ query });
+	if (!host.value) return;
+	const scopedFormQuery = encodeScopedFormQuery(host.value.definition, host.value.context, state);
+	void router.push({
+		query: replaceFormRouteQuery(route.query, scopedFormQuery, state),
+	});
 }
 </script>

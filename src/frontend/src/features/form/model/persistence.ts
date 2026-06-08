@@ -1,5 +1,6 @@
 import { buildFormQuery } from '@/features/form/model/compile';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
+import { expertQueryController } from '@/features/form/model/controllers';
 import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
 import { createFormState } from '@/features/form/model/state';
 import type { BlackLabParameter, EncodedFieldValue, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
@@ -8,7 +9,6 @@ import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/
 import type { FormState, FormSystemDefinition } from '@/features/form/model/types/form-state';
 
 export const FORM_QUERY_PREFIX = 'f.';
-export const FORM_CODEC_VERSION = '1';
 
 export type CanonicalBlackLabFormParameters = {
 	patt?: string | null;
@@ -31,7 +31,6 @@ export type RestoredScopedFormState = {
 };
 
 export type EncodedPersistableFormState = {
-	v: string;
 	form: string;
 	state?: string;
 	cql?: string;
@@ -44,6 +43,11 @@ type FieldCodecEntry = {
 	field: FormFieldNode;
 	key: string;
 };
+
+function formPersistKey(form: FormBoundaryNode): string {
+	const key = (form as FormBoundaryNode & { persistKey?: unknown }).persistKey;
+	return typeof key === 'string' && key ? key : form.id;
+}
 
 function isNonEmpty(value: string | null | undefined): value is string {
 	return value != null && value !== '';
@@ -62,35 +66,14 @@ function stripPrefix(key: string): string | null {
 	return key.startsWith(FORM_QUERY_PREFIX) ? key.slice(FORM_QUERY_PREFIX.length) : null;
 }
 
-function shortKey(id: string): string {
-	const parts = id.split('.').filter(Boolean);
-	return parts[parts.length - 1] || id;
-}
-
-function formAlias(form: FormBoundaryNode): string {
-	return form.persistKey ?? shortKey(form.id);
-}
-
-function nodeAlias(node: FormNode): string {
-	return node.persistKey ?? shortKey(node.id);
-}
-
-function fieldPersistKey(field: FormFieldNode, context: FormRuntimeContext): string {
-	return field.persistKey ?? field.controller.getPersistKey?.(field, context) ?? shortKey(field.id);
-}
-
-function allForms(definition: FormSystemDefinition): FormBoundaryNode[] {
-	return getAllNodes(definition.root, 'form');
-}
-
 function findForm(definition: FormSystemDefinition, requested: string | null): FormBoundaryNode {
-	const forms = allForms(definition);
-	return forms.find(form => form.id === requested || formAlias(form) === requested) ?? forms[0];
+	const forms = getAllNodes(definition.root, 'form');
+	return forms.find(form => formPersistKey(form) === requested || form.id === requested) ?? forms[0];
 }
 
 function findExpertForm(definition: FormSystemDefinition): { form: FormBoundaryNode; field: FormFieldNode } | null {
-	for (const form of allForms(definition)) {
-		const field = getAllNodes(form, 'field').find(field => field.controller.kind === 'raw-cql-query');
+	for (const form of getAllNodes(definition.root, 'form')) {
+		const field = getAllNodes(form, 'field').find(field => field.controller.kind === expertQueryController.kind);
 		if (field) return { form, field };
 	}
 	return null;
@@ -100,7 +83,7 @@ function buildFieldCodec(form: FormBoundaryNode, context: FormRuntimeContext, is
 	const seen = new Map<string, FormFieldNode>();
 	const entries: FieldCodecEntry[] = [];
 	for (const field of getAllNodes(form, 'field')) {
-		const key = fieldPersistKey(field, context);
+		const key = field.controller.getPersistKey(field, context);
 		const previous = seen.get(key);
 		if (previous && previous !== field) {
 			issues.push({
@@ -168,16 +151,18 @@ function inferActiveContainersFromValues(form: FormBoundaryNode, state: FormStat
 	visit(form);
 }
 
-function readScopedQuery(query: Record<string, unknown>): Record<string, EncodedFieldValue> {
+function readScopedQuery(query: Record<string, unknown>): { keys: Set<string>; values: Record<string, EncodedFieldValue> } {
+	const keys = new Set<string>();
 	const scoped: Record<string, EncodedFieldValue> = {};
 	for (const [key, value] of Object.entries(query)) {
 		const unscoped = stripPrefix(key);
 		if (!unscoped) continue;
+		keys.add(unscoped);
 		const values = asArray(value);
 		if (!values.length) continue;
 		scoped[unscoped] = values.length === 1 ? values[0] : values;
 	}
-	return scoped;
+	return { keys, values: scoped };
 }
 
 function restoreField(entry: FieldCodecEntry, payload: EncodedFieldValue, context: FormRuntimeContext, state: FormState, issues: RestoreIssue[]) {
@@ -194,6 +179,7 @@ function restoreField(entry: FieldCodecEntry, payload: EncodedFieldValue, contex
 		if (restored && typeof restored === 'object' && 'state' in restored) {
 			state.controllerState[entry.field.id] = restored.state;
 			for (const warning of restored.warnings ?? []) issues.push({ key: entry.key, nodeId: entry.field.id, message: warning });
+			for (const error of restored.errors ?? []) issues.push({ key: entry.key, nodeId: entry.field.id, message: error });
 		} else {
 			state.controllerState[entry.field.id] = restored;
 		}
@@ -206,14 +192,24 @@ function restoreField(entry: FieldCodecEntry, payload: EncodedFieldValue, contex
 	}
 }
 
-function applyTabState(form: FormBoundaryNode, scoped: Record<string, EncodedFieldValue>, state: FormState) {
-	for (const tab of asArray(scoped.tab)) {
+function applyTabState(form: FormBoundaryNode, payload: EncodedFieldValue | undefined, state: FormState, issues: RestoreIssue[]) {
+	for (const tab of asArray(payload)) {
 		const [containerKey, childKey] = tab.split(':');
-		if (!containerKey || !childKey) continue;
-		const container = getAllNodes(form, 'container', 'form').find(node => nodeAlias(node) === containerKey || node.id === containerKey);
-		if (!container) continue;
-		const child = container.children.find(child => nodeAlias(child) === childKey || child.id === childKey);
-		if (child) state.uiState.activeContainers[container.id] = child.id;
+		if (!containerKey || !childKey || tab.split(':').length !== 2) {
+			issues.push({ key: 'tab', message: `Invalid persisted tab selection '${tab}'.` });
+			continue;
+		}
+		const container = getAllNodes(form, 'container', 'form').find(node => node.id === containerKey);
+		if (!container) {
+			issues.push({ key: 'tab', message: `No current form container accepts persisted tab key '${containerKey}'.` });
+			continue;
+		}
+		const child = container.children.find(child => child.id === childKey);
+		if (!child) {
+			issues.push({ key: 'tab', nodeId: container.id, message: `No child '${childKey}' exists in persisted tab container '${containerKey}'.` });
+			continue;
+		}
+		state.uiState.activeContainers[container.id] = child.id;
 	}
 }
 
@@ -223,7 +219,7 @@ function queryAffectingTabParams(form: FormBoundaryNode, state: FormState): stri
 		const activeChildId = state.uiState.activeContainers[container.id];
 		const activeChild = container.children.find(child => child.id === activeChildId);
 		if (!activeChild || (activeChild.kind !== 'container' && activeChild.kind !== 'form') || !activeChild.activeQueryContribution) continue;
-		tabs.push(`${nodeAlias(container)}:${nodeAlias(activeChild)}`);
+		tabs.push(`${container.id}:${activeChild.id}`);
 	}
 	return tabs;
 }
@@ -236,38 +232,58 @@ export function restoreScopedFormState(
 ): RestoredScopedFormState {
 	const issues: RestoreIssue[] = [];
 	const scoped = readScopedQuery(query);
-	const hasScopedState = Object.keys(scoped).length > 0;
+	const consumed = new Set<string>();
 	const expert = findExpertForm(definition);
-	const requestedForm = first(scoped.form);
-	let form = findForm(definition, requestedForm);
+	const requestedFormId = first(scoped.values.form);
+	let formNode = findForm(definition, requestedFormId);
+	const isFormNodeTheRequestedForm = formPersistKey(formNode) === requestedFormId || formNode.id === requestedFormId;
 
-	if (!hasScopedState && isNonEmpty(canonical.patt) && expert) {
-		form = expert.form;
+	if (scoped.keys.has('form')) {
+		consumed.add('form');
+		if (!isFormNodeTheRequestedForm) {
+			issues.push({
+				key: 'form',
+				message: requestedFormId ? `No current form accepts persisted selector '${requestedFormId}'.` : 'Persisted form selector has no value.',
+			});
+		}
 	}
 
 	const state = createFormState(definition, context);
-	setActivePath(definition.root, form.id, state.uiState.activeContainers);
+	setActivePath(definition.root, formNode.id, state.uiState.activeContainers);
 
-	const codec = buildFieldCodec(form, context, issues);
+	const codec = buildFieldCodec(formNode, context, issues);
 	const byKey = new Map(codec.map(entry => [entry.key, entry]));
-	for (const [key, payload] of Object.entries(scoped)) {
-		if (key === 'v' || key === 'form' || key === 'tab') continue;
-		const entry = byKey.get(key);
-		if (!entry) {
-			issues.push({ key, message: `No current form field accepts persisted key '${key}'.` });
+	for (const [key, entry] of byKey) {
+		if (!scoped.keys.has(key)) continue;
+		consumed.add(key);
+		const payload = scoped.values[key];
+		if (payload == null) {
+			issues.push({ key, nodeId: entry.field.id, message: `Persisted field '${key}' has no value.` });
 			continue;
 		}
 		restoreField(entry, payload, context, state, issues);
 	}
 
-	if (!hasScopedState && isNonEmpty(canonical.patt) && expert) {
+	if (scoped.keys.has('tab')) {
+		consumed.add('tab');
+		if (scoped.values.tab == null) issues.push({ key: 'tab', message: 'Persisted tab selection has no value.' });
+		else applyTabState(formNode, scoped.values.tab, state, issues);
+	}
+
+	for (const key of scoped.keys) {
+		if (!consumed.has(key)) issues.push({ key, message: `No current form field accepts persisted key '${key}'.` });
+	}
+
+	const hasRecognizedScopedState = consumed.size > 0;
+	if (!hasRecognizedScopedState && isNonEmpty(canonical.patt) && expert) {
+		formNode = expert.form;
+		setActivePath(definition.root, formNode.id, state.uiState.activeContainers);
 		state.controllerState[expert.field.id] = { query: canonical.patt, targetQueries: [] };
 	}
 
-	applyTabState(form, scoped, state);
-	inferActiveContainersFromValues(form, state, context);
+	inferActiveContainersFromValues(formNode, state, context);
 
-	const compiled = compileWithoutRawOverrides(form, state, context);
+	const compiled = compileWithoutRawOverrides(formNode, state, context);
 	if (valueDiffers(compiled.cql, canonical.patt)) state.rawOverrides.patt = canonical.patt ?? null;
 	if (valueDiffers(compiled.filter, canonical.filter)) state.rawOverrides.filter = canonical.filter ?? null;
 	if (valueDiffers(compiled.searchField, canonical.searchField)) state.rawOverrides.searchField = canonical.searchField ?? null;
@@ -277,7 +293,7 @@ export function restoreScopedFormState(
 	}
 
 	return {
-		formId: form.id,
+		formId: formNode.id,
 		state,
 		issues,
 	};
@@ -288,8 +304,7 @@ export function encodeScopedFormQuery(definition: FormSystemDefinition, context:
 	const issues: RestoreIssue[] = [];
 	const codec = buildFieldCodec(form, context, issues);
 	const query: ScopedFormQuery = {
-		[`${FORM_QUERY_PREFIX}v`]: FORM_CODEC_VERSION,
-		[`${FORM_QUERY_PREFIX}form`]: formAlias(form),
+		[`${FORM_QUERY_PREFIX}form`]: formPersistKey(form),
 	};
 
 	for (const { field, key } of codec) {
@@ -310,7 +325,6 @@ export function encodeScopedFormQuery(definition: FormSystemDefinition, context:
  */
 export function encodeSubmittedForm(snapshot: PersistableFormState): EncodedPersistableFormState {
 	return {
-		v: snapshot.schemaVersion,
 		form: snapshot.formId,
 		state: JSON.stringify(snapshot.state),
 		cql: snapshot.cql ?? undefined,
@@ -328,7 +342,6 @@ export function decodeSubmittedSnapshot(encoded: EncodedPersistableFormState): P
 			cql: encoded.cql ?? null,
 			filter: encoded.filter ?? null,
 			searchField: encoded.searchField ?? null,
-			schemaVersion: encoded.v,
 		};
 	} catch {
 		return null;

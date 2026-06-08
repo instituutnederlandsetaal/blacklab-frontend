@@ -1,5 +1,5 @@
 import { queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import { decodePersistRecord, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { SummaryEntry } from '@/features/form/model/types/form-query';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
@@ -52,7 +52,7 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 		});
 	},
 	restore(payload, config) {
-		const restored = decodePersistObject(payload);
+		const restored = decodePersistRecord(payload, ['source', 'targets', 'align'], 'parallel field');
 		const defaults = createDefaultParallelFieldState(config);
 		return {
 			source: restored.source ?? defaults.source,
@@ -82,10 +82,6 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 				value: translatedAlignBy(runtime, state.alignBy),
 			});
 		return queryFragment({ query, summaries });
-	},
-	// Return something unique for this controller
-	toJSON() {
-		return { kind: this.kind, version: 1, configVersion: 1 };
 	},
 };
 export default parallelController;
