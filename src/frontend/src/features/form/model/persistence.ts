@@ -24,15 +24,6 @@ export type RestoredScopedFormState = {
 	issues: RestoreIssue[];
 };
 
-export type EncodedPersistableFormState = {
-	form: string;
-	state?: string;
-	patt?: string;
-	filter?: string;
-	searchfield?: string;
-	resultPreset?: string;
-};
-
 type FieldCodecEntry = {
 	field: FormFieldNode;
 	key: string;
@@ -318,33 +309,4 @@ export function encodeScopedFormQuery(definition: FormSystemDefinition, context:
 	if (tabs.length) query[`${FORM_QUERY_PREFIX}tab`] = tabs;
 
 	return query;
-}
-
-/**
- * Backwards-compatible JSON codec kept for story/debug callers that have only a snapshot.
- * URL integration should use encodeScopedFormQuery/restoreScopedFormState.
- */
-export function encodeSubmittedForm(snapshot: PersistableFormState): EncodedPersistableFormState {
-	return {
-		form: snapshot.formId,
-		state: JSON.stringify(snapshot.state),
-		patt: snapshot.patt ?? undefined,
-		filter: snapshot.filter ?? undefined,
-		searchfield: snapshot.searchfield ?? undefined,
-	};
-}
-
-export function decodeSubmittedSnapshot(encoded: EncodedPersistableFormState): PersistableFormState | null {
-	try {
-		const state = JSON.parse(encoded.state ?? '') as FormState;
-		return {
-			formId: encoded.form,
-			state,
-			patt: encoded.patt ?? null,
-			filter: encoded.filter ?? null,
-			searchfield: encoded.searchfield ?? null,
-		};
-	} catch {
-		return null;
-	}
 }

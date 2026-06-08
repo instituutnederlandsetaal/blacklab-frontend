@@ -33,7 +33,7 @@ import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
 function createSingleTextForm() {
 	const builder = createTestBuilder();
-	const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended', persistKey: 'extended' });
+	const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 	const field = builder.newField('search.extended.word', testTextController, TestTextField, {
 		annotationId: 'word',
 		displayName: 'Word',
@@ -191,7 +191,7 @@ describe('scoped form persistence', () => {
 			},
 		};
 		const builder = createTestBuilder();
-		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended', persistKey: 'extended' });
+		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 		const field = builder.newField('search.extended.word', warningController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
