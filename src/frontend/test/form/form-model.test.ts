@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { buildFormQuery, createFormState, createInitialContainerUiStates, summarizeForm, type QueryCombineMode } from '@/features/form';
+import { buildQueryIR, createFormState, createInitialContainerUiStates, type QueryCombineMode } from '@/features/form';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 
 import { TestTextField, createTestBuilder, createTestContext, parentFormProbeView, testTextController } from './helpers';
@@ -133,8 +133,8 @@ describe('form model state', () => {
 
 	test.each(compositionExpectations)('$name', ({ combine, expected }) => {
 		const fixture = createCompositionFixture(combine);
-		const compiled = compileQueryIR(buildFormQuery(fixture.form, fixture.state, fixture.context));
-		const summaries = summarizeForm(fixture.form, fixture.state, fixture.context);
+		const { query, summaries } = buildQueryIR(fixture.form, fixture.state, fixture.context);
+		const compiled = compileQueryIR(query);
 
 		expect(compiled).toEqual(expected.compiled);
 		expect(summaries).toEqual(expected.summaries);

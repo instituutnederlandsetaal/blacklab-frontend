@@ -23,17 +23,17 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef } from 'vue';
 
-import { FormSystem, type FormRuntimeContext, type FormState, type FormSystemDefinition, type FormSystemRuntime, type PersistableSubmittableFormState } from '../index';
+import { FormSystem, type CompiledFormStateWithSummaries, type FormRuntimeContext, type FormState, type FormSystemDefinition, type FormSystemRuntime } from '../index';
 
 const props = defineProps<{
 	context: FormRuntimeContext;
 	definition: FormSystemDefinition;
 	initialState?: FormState;
-	initialSubmitted?: PersistableSubmittableFormState | null;
+	initialSubmitted?: CompiledFormStateWithSummaries | null;
 }>();
 
 const runtime = shallowRef<FormSystemRuntime | null>(null);
-const submittedState = ref<PersistableSubmittableFormState | null>(props.initialSubmitted ?? null);
+const submittedState = ref<CompiledFormStateWithSummaries | null>(props.initialSubmitted ?? null);
 const runtimeState = computed(() => runtime.value?.state.value ?? props.initialState ?? null);
 const encodedSubmitted = computed(() => submittedState.value?.encoded ?? null);
 
@@ -41,7 +41,7 @@ function handleReady(nextRuntime: FormSystemRuntime) {
 	runtime.value = nextRuntime;
 }
 
-function handleSubmit(_formId: string, snapshot: PersistableSubmittableFormState) {
+function handleSubmit(_formId: string, snapshot: CompiledFormStateWithSummaries) {
 	submittedState.value = snapshot;
 }
 </script>

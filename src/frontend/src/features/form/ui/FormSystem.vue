@@ -16,8 +16,8 @@ import { computed, onUnmounted } from 'vue';
 
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
-import type { FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
+import type { CompiledFormStateWithSummaries } from '@/features/form/model/types/form-query';
+import type { FormState, FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
 import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
 
 import { createFormSystemRuntime, provideFormSystemRuntime } from '../model/runtime';
@@ -25,24 +25,19 @@ import { createFormSystemRuntime, provideFormSystemRuntime } from '../model/runt
 const props = defineProps<{
 	definition: FormSystemDefinition;
 	context: FormRuntimeContext;
+	initialState?: FormState;
 }>();
 
 const emit = defineEmits<{
 	ready: [runtime: FormSystemRuntime];
-	submit: [formId: string, snapshot: PersistableSubmittableFormState];
-	compile: [formId: string, snapshot: CompiledFormState];
-	persist: [formId: string, snapshot: PersistableFormState];
-	summarize: [formId: string, summaries: SummaryEntry[]];
+	submit: [formId: string, snapshot: CompiledFormStateWithSummaries];
 	reset: [];
 }>();
 
-const runtime = createFormSystemRuntime(props.definition, props.context);
+const runtime = createFormSystemRuntime(props.definition, props.context, props.initialState);
 provideFormSystemRuntime(runtime);
 
 runtime.onSubmit((formId, snapshot) => emit('submit', formId, snapshot));
-runtime.onCompile((formId, snapshot) => emit('compile', formId, snapshot));
-runtime.onPersist((formId, snapshot) => emit('persist', formId, snapshot));
-runtime.onSummarize((formId, summaries) => emit('summarize', formId, summaries));
 runtime.onReset(() => emit('reset'));
 emit('ready', runtime);
 

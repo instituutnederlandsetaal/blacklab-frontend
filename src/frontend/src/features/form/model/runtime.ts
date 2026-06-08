@@ -1,18 +1,17 @@
 import { computed, inject, provide, ref, shallowRef, toValue, watch, type ComputedRef, type InjectionKey, type MaybeRefOrGetter, type ShallowRef } from 'vue';
 
-import { summarizeForm } from '@/features/form/model/compile';
-import { getAllNodes, pickActiveFormState, reactivePickActiveFormState } from '@/features/form/model/form-utils';
+import { getAllNodes, reactivePickActiveFormState } from '@/features/form/model/form-utils';
 import { compileFormState } from '@/features/form/model/persistence';
 import { cloneFormState, createFormState } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { CompiledFormState, PersistableFormState, PersistableSubmittableFormState, SummaryEntry } from '@/features/form/model/types/form-query';
+import type { CompiledFormStateWithSummaries, SummaryEntry } from '@/features/form/model/types/form-query';
 import type { FormNode } from '@/features/form/model/types/form-shape';
 import type { FormState, FormSystemRuntime, FormSystemDefinition, UseParentFormReturn } from '@/features/form/model/types/form-state';
 
 const formSystemRuntimeKey: InjectionKey<FormSystemRuntime> = Symbol('formSystemRuntime');
 
 type ParentFormRuntime = {
-	compiled: ComputedRef<CompiledFormState>;
+	compiled: ComputedRef<CompiledFormStateWithSummaries>;
 	corpus: FormRuntimeContext['corpus'];
 	formId: ComputedRef<string>;
 	formState: ShallowRef<FormState>;
@@ -32,7 +31,7 @@ export function createParentFormRuntime(rootRuntime: FormSystemRuntime, formId: 
 	});
 	const formState = shallowRef<FormState>(reactivePickActiveFormState(currentForm.value, rootRuntime.state.value));
 	const nodesById = computed<Record<string, FormNode>>(() => Object.fromEntries(getAllNodes(currentForm.value).map(node => [node.id, node])));
-	const summaries = computed(() => rootRuntime.summarize(currentFormId.value));
+	const summaries = computed(() => rootRuntime.compile(currentFormId.value).summaries);
 
 	watch(
 		[currentForm, () => rootRuntime.state.value],
@@ -76,42 +75,14 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 	const formsById = Object.fromEntries(formsList.map(form => [form.id, form]));
 	const state = ref<FormState>(initialState ? cloneFormState(initialState) : createFormState(definition, context));
 
-	const compileListeners: ((formId: string, compiled: CompiledFormState) => void)[] = [];
-	const submitListeners: ((formId: string, submitted: PersistableSubmittableFormState) => void)[] = [];
-	const summarizeListeners: ((formId: string, summaries: SummaryEntry[]) => void)[] = [];
-	const persistListeners: ((formId: string, persisted: PersistableFormState) => void)[] = [];
+	const submitListeners: ((formId: string, submitted: CompiledFormStateWithSummaries) => void)[] = [];
 	const resetListeners: (() => void)[] = [];
 
-	const compile: FormSystemRuntime['compile'] = (formId: string): CompiledFormState => {
-		const compiled = compileFormState(formsById[formId], state.value, context);
-		compileListeners.forEach(callback => callback(formId, compiled));
+	const compile = (formId: string) => compileFormState(formsById[formId], state.value, context);
+	const submit = (formId: string) => {
+		const compiled = compile(formId);
+		submitListeners.forEach(callback => callback(formId, compiled));
 		return compiled;
-	};
-
-	const persist: FormSystemRuntime['persist'] = (formId: string): PersistableFormState => {
-		const persisted = {
-			...compile(formId),
-			formId,
-			state: pickActiveFormState(formsById[formId], state.value),
-		};
-		persistListeners.forEach(callback => callback(formId, persisted));
-		return persisted;
-	};
-
-	const submit: FormSystemRuntime['submit'] = (formId: string): PersistableSubmittableFormState => {
-		const submitted = {
-			...persist(formId),
-			summaries: summarize(formId),
-			resultPreset: formsById[formId]?.resultPreset ?? {},
-		};
-		submitListeners.forEach(callback => callback(formId, submitted));
-		return submitted;
-	};
-
-	const summarize: FormSystemRuntime['summarize'] = (formId: string): SummaryEntry[] => {
-		const summaries = summarizeForm(formsById[formId], state.value, context);
-		summarizeListeners.forEach(callback => callback(formId, summaries));
-		return summaries;
 	};
 
 	return {
@@ -121,11 +92,8 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 		forms: formsById,
 
 		compile,
-		persist,
-
 		submit,
-		// TODO perhaps introduce SummarizedFormState that contains a bit of a richer interface?
-		summarize,
+
 		reset: () => {
 			state.value = createFormState(definition, context);
 			resetListeners.forEach(callback => callback());
@@ -134,29 +102,17 @@ export function createFormSystemRuntime(definition: FormSystemDefinition, contex
 			delete state.value.rawOverrides[parameter];
 		},
 
-		onCompile: (callback: (formId: string, compiled: CompiledFormState) => void) => {
-			compileListeners.push(callback);
-		},
-		onSubmit: (callback: (formId: string, submitted: PersistableSubmittableFormState) => void) => {
+		onSubmit: (callback: (formId: string, submitted: CompiledFormStateWithSummaries) => void) => {
 			submitListeners.push(callback);
 		},
 		onReset: (callback: () => void) => {
 			resetListeners.push(callback);
 		},
-		onSummarize: (callback: (formId: string, summaries: SummaryEntry[]) => void) => {
-			summarizeListeners.push(callback);
-		},
-		onPersist: (callback: (formId: string, persisted: PersistableFormState) => void) => {
-			persistListeners.push(callback);
-		},
 		replaceState: (nextState: FormState) => {
 			state.value = cloneFormState(nextState);
 		},
 		shutdown: () => {
-			compileListeners.length = 0;
 			submitListeners.length = 0;
-			summarizeListeners.length = 0;
-			persistListeners.length = 0;
 			resetListeners.length = 0;
 		},
 	};

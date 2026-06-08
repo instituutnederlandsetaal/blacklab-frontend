@@ -95,8 +95,8 @@ describe('scoped form persistence', () => {
 		);
 
 		expect(restored.issues).toEqual([]);
-		expect(restored.state.controllerState[fixture.field.id]).toEqual({ value: 'water' });
-		expect(restored.state.rawOverrides).toEqual({});
+		expect(restored.controllerState[fixture.field.id]).toEqual({ value: 'water' });
+		expect(restored.rawOverrides).toEqual({});
 	});
 
 	test('reports dangling scoped parameters and restores fields accepted by the default form for an unknown selector', () => {
@@ -108,8 +108,7 @@ describe('scoped form persistence', () => {
 			'f.removed': 'stale',
 		});
 
-		expect(restored.formId).toBe(fixture.form.id);
-		expect(restored.state.controllerState[fixture.field.id]).toEqual({ value: 'water' });
+		expect(restored.controllerState[fixture.field.id]).toEqual({ value: 'water' });
 		expect(restored.issues).toEqual([
 			{ key: 'form', message: "No current form accepts persisted selector 'removed-form'." },
 			{ key: 'v', message: "No current form field accepts persisted key 'v'." },
@@ -135,7 +134,7 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreScopedFormState(builder.build(), createTestContext(), { 'f.word': 'old' });
 
-		expect(restored.state.controllerState[field.id]).toEqual({ value: '' });
+		expect(restored.controllerState[field.id]).toEqual({ value: '' });
 		expect(restored.issues).toEqual([{ key: 'word', nodeId: field.id, message: 'Unsupported historical value.' }]);
 	});
 
@@ -151,7 +150,7 @@ describe('scoped form persistence', () => {
 			{ patt: '[word="(?i)fire"]' },
 		);
 
-		expect(restored.state.rawOverrides).toEqual({ patt: '[word="(?i)fire"]' });
+		expect(restored.rawOverrides).toEqual({ patt: '[word="(?i)fire"]' });
 
 		const wrapper = mount(FormSystem, {
 			props: {
@@ -159,9 +158,9 @@ describe('scoped form persistence', () => {
 				definition: fixture.definition,
 			},
 		});
-		const runtime = wrapper.emitted('ready')?.[0]?.[0] as { replaceState(state: typeof restored.state): void };
+		const runtime = wrapper.emitted('ready')?.[0]?.[0] as { replaceState(state: typeof restored): void };
 
-		runtime.replaceState(restored.state);
+		runtime.replaceState(restored);
 		await wrapper.vm.$nextTick();
 
 		expect(wrapper.get('.blf-raw-override code').text()).toBe('[word="(?i)fire"]');
@@ -197,7 +196,7 @@ describe('scoped form persistence', () => {
 		const restored = restoreScopedFormState(definition, context, { 'f.word': 'water' }, { patt: '[word="(?i)water"]' });
 
 		expect(restored.issues).toEqual([{ key: 'word', nodeId: field.id, message: 'Restored with a harmless adjustment.' }]);
-		expect(restored.state.rawOverrides).toEqual({});
+		expect(restored.rawOverrides).toEqual({});
 	});
 
 	test('uses the expert CQL field for old raw URLs that only contain canonical patt', () => {
@@ -205,9 +204,9 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreScopedFormState(fixture.definition, fixture.context, {}, { patt: '[word="water"]' });
 
-		expect(restored.formId).toBe('search.expert');
-		expect(restored.state.controllerState[fixture.rawField.id]).toEqual({ query: '[word="water"]', targetQueries: [] });
-		expect(restored.state.rawOverrides).toEqual({});
+		expect(restored.uiState.activeContainers.search).toBe('search.expert');
+		expect(restored.controllerState[fixture.rawField.id]).toEqual({ query: '[word="water"]', targetQueries: [] });
+		expect(restored.rawOverrides).toEqual({});
 	});
 
 	test('ignores unusable scoped noise when falling back to canonical patt', () => {
@@ -224,9 +223,9 @@ describe('scoped form persistence', () => {
 			{ patt: '[word="water"]' },
 		);
 
-		expect(restored.formId).toBe(fixture.expert.id);
-		expect(restored.state.controllerState[fixture.rawField.id]).toEqual({ query: '[word="water"]', targetQueries: [] });
-		expect(restored.state.rawOverrides).toEqual({});
+		expect(restored.uiState.activeContainers.search).toBe(fixture.expert.id);
+		expect(restored.controllerState[fixture.rawField.id]).toEqual({ query: '[word="water"]', targetQueries: [] });
+		expect(restored.rawOverrides).toEqual({});
 		expect(restored.issues.map(issue => issue.key)).toEqual(['form', 'tab', 'removed']);
 	});
 
@@ -235,10 +234,10 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreScopedFormState(fixture.definition, fixture.context, { 'f.word': 'water' }, { patt: '[word="fire"]' });
 
-		expect(restored.formId).toBe(fixture.simple.id);
-		expect(restored.state.controllerState[fixture.simpleField.id]).toEqual({ value: 'water' });
-		expect(restored.state.controllerState[fixture.rawField.id]).toEqual({ query: '', targetQueries: [] });
-		expect(restored.state.rawOverrides).toEqual({ patt: '[word="fire"]' });
+		expect(restored.uiState.activeContainers.search).toBe(fixture.simple.id);
+		expect(restored.controllerState[fixture.simpleField.id]).toEqual({ value: 'water' });
+		expect(restored.controllerState[fixture.rawField.id]).toEqual({ query: '', targetQueries: [] });
+		expect(restored.rawOverrides).toEqual({ patt: '[word="fire"]' });
 	});
 
 	test('persists and restores query-affecting tabs with implicit filter contributions', () => {
@@ -264,8 +263,8 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreScopedFormState(definition, context, encoded, { filter: 'category("newspaper")' });
 
-		expect(restored.state.uiState.activeContainers[filters.id]).toBe(newspapers.id);
-		expect(restored.state.rawOverrides).toEqual({});
+		expect(restored.uiState.activeContainers[filters.id]).toBe(newspapers.id);
+		expect(restored.rawOverrides).toEqual({});
 	});
 
 	test('retains valid tab selections and reports invalid entries', () => {
@@ -280,7 +279,7 @@ describe('scoped form persistence', () => {
 			'f.tab': ['search.extended.tabs:search.extended.tabs.first', 'missing:child', 'search.extended.tabs:search.extended.tabs.removed', 'malformed'],
 		});
 
-		expect(restored.state.uiState.activeContainers[tabs.id]).toBe(first.id);
+		expect(restored.uiState.activeContainers[tabs.id]).toBe(first.id);
 		expect(restored.issues.length).toBe(3);
 		expect(restored.issues[0].message).contains('missing');
 		expect(restored.issues[1].message).contains('search.extended.tabs.removed');
@@ -331,9 +330,12 @@ describe('scoped form persistence', () => {
 
 describe('controller persistence compatibility', () => {
 	const context = createTestContext();
-	const options = ['one', 'two'];
-	const selectConfig = { id: 'field', metadataFieldId: 'field', options };
-	const annotationConfig = { id: 'field', annotationId: 'field', options };
+	const options = [
+		{ value: 'one', label: 'One' },
+		{ value: 'two', label: 'Two' },
+	];
+	const selectConfig = { kind: 'field' as const, id: 'field', displayName: 'Field', metadataFieldId: 'field', options };
+	const annotationConfig = { kind: 'field' as const, id: 'field', displayName: 'Field', annotationId: 'field', options };
 
 	test('shares scalar and selection representations across compatible controllers', () => {
 		expect(filterSelectController.restore('one', selectConfig, context)).toEqual({ state: ['one'], warnings: [] });
@@ -360,18 +362,20 @@ describe('controller persistence compatibility', () => {
 	});
 
 	test('only restores ranges from their structured representation', () => {
-		const rangeConfig = { id: 'range', displayName: 'Range', metadataFieldId: 'range' };
+		const rangeConfig = { kind: 'field' as const, id: 'range', displayName: 'Range', metadataFieldId: 'range' };
 		expect(filterRangeController.restore('low=10;high=20', rangeConfig, context)).toEqual({ low: '10', high: '20' });
 		expect(() => filterRangeController.restore('10', rangeConfig, context)).toThrow(/incompatible persisted value/);
 	});
 
 	test('restores dates and specialized records only through supported representations', () => {
-		expect(filterDateController.restore('start=2020-01-02;end=2021-03-04;mode=permissive', { id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true }, context)).toEqual({
+		const dateConfig = { kind: 'field' as const, id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true };
+
+		expect(filterDateController.restore('start=2020-01-02;end=2021-03-04;mode=permissive', dateConfig, context)).toEqual({
 			startDate: { y: '2020', m: '01', d: '02' },
 			endDate: { y: '2021', m: '03', d: '04' },
 			mode: 'permissive',
 		});
-		expect(() => filterDateController.restore('start=2020;mode=unknown', { id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true }, context)).toThrow(/unknown range mode/);
+		expect(() => filterDateController.restore('start=2020;mode=unknown', dateConfig, context)).toThrow(/unknown range mode/);
 
 		expect(annotationPosController.restore('value=VERB;selected=past,plural', {} as never, context)).toEqual({
 			annotationValue: 'VERB',
@@ -413,8 +417,10 @@ describe('controller persistence compatibility', () => {
 	});
 
 	test('rejects duplicate and unsupported structured record keys', () => {
+		const dateConfig = { kind: 'field' as const, id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true };
+
 		expect(() => decodePersistObject('value=one;value=two')).toThrow(/duplicate key 'value'/);
-		expect(() => filterDateController.restore('start=2020;unexpected=value', { id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true }, context)).toThrow(
+		expect(() => filterDateController.restore('start=2020;unexpected=value', dateConfig, context)).toThrow(
 			/unsupported persisted keys: unexpected/,
 		);
 	});

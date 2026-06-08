@@ -259,7 +259,7 @@ function expectFieldState(runtime: FormSystemRuntime, fieldId: string, controlle
 }
 
 function expectFormSummaries(runtime: FormSystemRuntime, expected: SummaryEntry[]) {
-	expect(runtime.summarize('harness.form')).toEqual(expected);
+	expect(runtime.compile('harness.form').summaries).toEqual(expected);
 }
 
 function normalizedText(wrapper: VueWrapper<any>) {
@@ -376,6 +376,7 @@ describe('builtin controller hosts', () => {
 			patt: '<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState\\.within\\.attribute\\.value"/>',
 			filter: null,
 			searchfield: null,
+			summaries: fieldExpectations.within.summaries,
 		});
 	});
 });

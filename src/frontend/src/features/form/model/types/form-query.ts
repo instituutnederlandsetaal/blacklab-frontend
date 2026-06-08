@@ -1,6 +1,4 @@
 import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
-import type { ResultPreset } from '@/features/form/model/types/form-shape';
-import type { FormState } from '@/features/form/model/types/form-state';
 
 export type TokenPredicateMatch = 'equals' | 'regex' | 'wildcard';
 
@@ -112,10 +110,10 @@ export type QueryIR = {
 export function isQueryIR(artifact: any): artifact is QueryIR {
 	// NOTE: if artifact is an array, 'filter' in artifact is true,
 	// but that doesn't mean it's a QueryIR, so we need to check that it's not an array first.
-	return !Array.isArray(artifact) && artifact && typeof artifact === 'object' && 'pattern' in artifact && 'filter' in artifact && 'wrappers' in artifact && 'searchField' in artifact;
+	return !Array.isArray(artifact) && artifact && typeof artifact === 'object' && 'pattern' in artifact && 'filter' in artifact && 'wrappers' in artifact && 'searchfield' in artifact;
 }
 export function isPartialQueryIR(artifact: any): artifact is Partial<QueryIR> {
-	return !Array.isArray(artifact) && artifact && typeof artifact === 'object' && ('pattern' in artifact || 'filter' in artifact || 'wrappers' in artifact || 'searchField' in artifact);
+	return !Array.isArray(artifact) && artifact && typeof artifact === 'object' && ('pattern' in artifact || 'filter' in artifact || 'wrappers' in artifact || 'searchfield' in artifact);
 }
 
 /**
@@ -146,12 +144,6 @@ export type CompiledFormState = CompiledBlackLabParameters & {
 	formId: string;
 	encoded: ScopedFormQuery;
 };
-
-export type PersistableFormState = CompiledFormState & {
-	state: FormState;
-};
-export type SubmittableFormState = CompiledFormState & {
-	resultPreset: Partial<ResultPreset>;
+export type CompiledFormStateWithSummaries = CompiledFormState & {
 	summaries: SummaryEntry[];
 };
-export type PersistableSubmittableFormState = PersistableFormState & SubmittableFormState;

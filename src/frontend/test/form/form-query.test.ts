@@ -142,4 +142,14 @@ describe('generated query correctness', () => {
 
 		expect(compiled).toBe('(author:(alice) AND title:(water) AND year:2020)');
 	});
+
+	test('Preserves searchfield-only query fragments', () => {
+		const compiled = compileQueryIR(queryFragment({ searchfield: 'contents__nl' }));
+
+		expect(compiled).toEqual({
+			patt: null,
+			filter: null,
+			searchfield: 'contents__nl',
+		});
+	});
 });

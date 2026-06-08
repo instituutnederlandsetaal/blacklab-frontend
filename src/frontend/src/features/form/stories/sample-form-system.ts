@@ -17,11 +17,11 @@ import {
 	FormBuilder,
 	parallelController,
 	filterSelectController,
+	type CompiledFormStateWithSummaries,
 	type FormRuntimeContext,
 	type FormState,
 	type FormSystemDefinition,
 	type FieldController,
-	type PersistableSubmittableFormState,
 	withinController,
 } from '../index';
 import type { MetadataFilterConfig } from '../model/controllers/metadata-filter-controller';
@@ -226,7 +226,7 @@ export type StoryFormSystemModel = {
 	context: FormRuntimeContext;
 	definition: FormSystemDefinition;
 	initialState?: FormState;
-	initialSubmitted?: PersistableSubmittableFormState;
+	initialSubmitted?: CompiledFormStateWithSummaries;
 };
 
 function createStoryBuilder(indexId: string) {
@@ -578,7 +578,7 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 		})
 		.addChildren(
 			createFieldNode(builder, 'container-types.list.word', annotationTextController, {
-				annotationId: 'word',
+				annotationId: 'list_word',
 				displayName: 'Word',
 				placeholder: 'List child field',
 				caseSensitive: true,
@@ -586,7 +586,7 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 		)
 		.addChildren(
 			createFieldNode(builder, 'container-types.list.lemma', annotationTextController, {
-				annotationId: 'lemma',
+				annotationId: 'list_lemma',
 				displayName: 'Lemma',
 				placeholder: 'Second list child',
 				caseSensitive: true,
@@ -604,7 +604,7 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 	patternTab
 		.addChildren(
 			createFieldNode(builder, 'container-types.tabs.pattern.word', annotationTextController, {
-				annotationId: 'word',
+				annotationId: 'tab_word',
 				displayName: 'Word',
 				caseSensitive: true,
 			}),
@@ -643,7 +643,7 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 			title: 'Custom filter renderer',
 			combine: 'and',
 		})
-		.addChildren(createFilterContainer(builder, 'container-types.custom'));
+		.addChildren(createUniqueFilterContainer(builder, 'container-types.custom'));
 
 	form.addChildren(
 		createViewNode(builder, 'container-types.heading', HeadingView, {
@@ -677,6 +677,39 @@ export function createContainerTypesStoryModel(): StoryFormSystemModel {
 		initialState,
 		initialSubmitted: createFormSystemRuntime(definition, context, initialState).submit(form.id),
 	};
+}
+
+function createUniqueFilterContainer(builder: FormBuilder, prefix: string) {
+	const tabs = builder.newContainer(`${prefix}.filters`, ContainerRendererFilters, {
+		class: 'blf-filter-panel',
+		variant: 'small-tabs',
+		combine: 'and',
+	});
+	const group = tabs.addContainer(`${prefix}.filters.bibliographic`, ContainerRenderer, {
+		title: 'Bibliographic',
+		combine: 'and',
+	});
+	group.addChildren(
+		createFieldNode(builder, `${prefix}.filter.author`, filterAutocompleteController, {
+			id: `${prefix}.author`,
+			metadataFieldId: `${prefix}.author`,
+			displayName: 'Author',
+			groupId: group.id,
+			autocomplete: async (term: string) => ['Austen', 'Baldwin', 'Brinkman', 'Couperus'].filter(value => value.toLowerCase().startsWith(term.toLowerCase())),
+		}),
+		createFieldNode(builder, `${prefix}.filter.genre`, filterCheckboxController, {
+			id: `${prefix}.genre`,
+			metadataFieldId: `${prefix}.genre`,
+			displayName: 'Genre',
+			groupId: group.id,
+			options: [
+				{ value: 'fiction', label: 'Fiction' },
+				{ value: 'essay', label: 'Essay' },
+				{ value: 'newspaper', label: 'Newspaper' },
+			],
+		}),
+	);
+	return tabs;
 }
 
 export function createViewStoryModel(): StoryFormSystemModel {

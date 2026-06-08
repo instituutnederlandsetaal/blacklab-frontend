@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 import { nextTick } from 'vue';
 
-import { cloneFormState, filterTextController, FormSystem, type FormRuntimeContext, type FormSystemDefinition, type FormSystemRuntime, type PersistableSubmittableFormState } from '@/features/form';
+import { cloneFormState, filterTextController, FormSystem, type CompiledFormStateWithSummaries, type FormRuntimeContext, type FormSystemDefinition, type FormSystemRuntime } from '@/features/form';
 
 import { TestTextField, createTestBuilder, createTestContext, parentFormProbeView, testTextController } from './helpers';
 
@@ -140,18 +140,18 @@ describe('form system integration', () => {
 		await wrapper.get('input[aria-label="Word"]').setValue('water');
 		await wrapper.get('form').trigger('submit');
 
-		const emitted = wrapper.emitted('submit') as Array<[string, PersistableSubmittableFormState]> | undefined;
+		const emitted = wrapper.emitted('submit') as Array<[string, CompiledFormStateWithSummaries]> | undefined;
 		expect(emitted).toHaveLength(1);
 		const [formId, snapshot] = emitted![0];
 
 		expect(formId).toBe('search.simple');
 		expect(snapshot.patt).toBe('[word="(?i)water"]');
 		expect(snapshot.summaries).toEqual([{ id: 'search.simple.word', label: 'Word', value: 'water' }]);
-		expect(snapshot.state.controllerState['search.simple.word']).toEqual({ value: 'water' });
 
 		await wrapper.get('input[aria-label="Word"]').setValue('fire');
 
-		expect(snapshot.state.controllerState['search.simple.word']).toEqual({ value: 'water' });
+		expect(snapshot.patt).toBe('[word="(?i)water"]');
+		expect(snapshot.summaries).toEqual([{ id: 'search.simple.word', label: 'Word', value: 'water' }]);
 	});
 
 	test('replaceState updates rendered field state after mount', async () => {

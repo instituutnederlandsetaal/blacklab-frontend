@@ -10,7 +10,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useCurrentCorpus, useCurrentTagset } from '@/entities/corpus/model/corpus-context';
 import { useCurrentConfig } from '@/entities/page-config/page-config';
-import { FormSystem, restoreScopedFormState, type FormSystemRuntime, type PersistableSubmittableFormState } from '@/features/form';
+import { FormSystem, restoreScopedFormState, type CompiledFormStateWithSummaries, type FormSystemRuntime } from '@/features/form';
 import { createSearchFormDefinition as createFormBlueprint } from '@/pages/search/form/model/search-form-builder';
 import { formRouteFingerprint, readCanonicalFormQuery, replaceFormRouteQuery } from '@/pages/search/form/model/search-form-route';
 
@@ -44,10 +44,10 @@ const decodedUrl = computedWithControl(routeFormStateFingerprint, () => {
 watchEffect(() => {
 	if (!form.value) return;
 	// form has initialized, decode the URL
-	form.value.replaceState(decodedUrl.value.state);
+	form.value.replaceState(decodedUrl.value);
 });
 
-function handleSubmit(_formId: string, state: PersistableSubmittableFormState) {
+function handleSubmit(_formId: string, state: CompiledFormStateWithSummaries) {
 	void router.push({
 		query: replaceFormRouteQuery(route.query, state),
 	});

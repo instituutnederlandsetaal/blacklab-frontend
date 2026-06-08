@@ -1,20 +1,10 @@
 import { combineQueryFragments, queryFragment } from '@/features/form/model/compile/query-artifact';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { QueryFragment, QueryIR, SummaryEntry } from '@/features/form/model/types/form-query';
+import type { QueryFragment } from '@/features/form/model/types/form-query';
 import type { FormBoundaryNode, FormContainerLikeNode, FormFieldNode } from '@/features/form/model/types/form-shape';
 import type { FormState } from '@/features/form/model/types/form-state';
 
-export * from './query-artifact';
-
-export function buildFormQuery(form: FormBoundaryNode, formState: FormState, context: FormRuntimeContext): QueryIR {
-	return getFormQueryContribution(form, formState, context).query;
-}
-
-export function summarizeForm(form: FormBoundaryNode, formState: FormState, context: FormRuntimeContext): SummaryEntry[] {
-	return getFormQueryContribution(form, formState, context).summaries;
-}
-
-export function getFormQueryContribution(form: FormBoundaryNode, formState: FormState, context: FormRuntimeContext): QueryFragment {
+export function buildQueryIR(form: FormBoundaryNode, formState: FormState, context: FormRuntimeContext): QueryFragment {
 	return getQueryContributionFromContainer(form, formState, context);
 }
 

@@ -40,12 +40,12 @@ type LenientQueryFragment = Omit<QueryFragment, 'summaries'> & {
 	summaries?: LenientSummaries;
 };
 
-export function queryFragment(query?: null | QueryIR, summary?: LenientSummaries): QueryFragment;
+export function queryFragment(query?: null | Partial<QueryIR>, summary?: LenientSummaries): QueryFragment;
 export function queryFragment(query?: null | CqlPattern, summary?: LenientSummaries): QueryFragment;
 export function queryFragment(query?: null | QueryFilterNode, summary?: LenientSummaries): QueryFragment;
 export function queryFragment(query?: null | Partial<LenientQueryFragment>, summary?: LenientSummaries): QueryFragment;
 export function queryFragment(query?: null | QueryWrapper[], summary?: LenientSummaries): QueryFragment;
-export function queryFragment(query?: null | QueryIR | CqlPattern | QueryFilterNode | Partial<LenientQueryFragment> | QueryWrapper[], summary?: LenientSummaries): QueryFragment {
+export function queryFragment(query?: null | Partial<QueryIR> | CqlPattern | QueryFilterNode | Partial<LenientQueryFragment> | QueryWrapper[], summary?: LenientSummaries): QueryFragment {
 	if (isPartialQueryIR(query))
 		return {
 			query: queryIR(query),
@@ -120,14 +120,12 @@ export function withSearchField(artifact: QueryIR, searchfield: string | null): 
 // Pipeline
 // =========================================================================================================================
 
-export function compileQueryIR(artifact: QueryIR): CompiledBlackLabParameters {
-	const normalized = simplifyQueryIR(artifact);
+export function compileQueryIR(artifact: QueryIR | QueryFragment): CompiledBlackLabParameters {
+	const normalized = simplifyQueryIR('query' in artifact ? artifact.query : artifact);
 	return {
 		patt: emitCqlWithWrappers(normalized.pattern, normalized.wrappers),
 		filter: emitFilter(normalized.filter),
 		searchfield: normalized.searchfield,
-		// resultPreset: artifact.resultPreset,
-		// summaries: artifact.summaries,
 	};
 }
 

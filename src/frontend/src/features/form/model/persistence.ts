@@ -1,11 +1,11 @@
-import { buildFormQuery } from '@/features/form/model/compile';
+import { buildQueryIR } from '@/features/form/model/compile';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { expertQueryController } from '@/features/form/model/controllers';
 import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
 import { createFormState } from '@/features/form/model/state';
 import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import type { EncodedFieldValue, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { CompiledFormState, PersistableFormState, ScopedFormQuery } from '@/features/form/model/types/form-query';
+import type { CompiledFormStateWithSummaries, ScopedFormQuery } from '@/features/form/model/types/form-query';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 import type { FormState, FormSystemDefinition } from '@/features/form/model/types/form-state';
 
@@ -18,9 +18,7 @@ export type RestoreIssue = {
 	message: string;
 };
 
-export type RestoredScopedFormState = PersistableFormState & {
-	issues: RestoreIssue[];
-};
+export type RestoredFormState = FormState & { issues: RestoreIssue[] };
 
 type FieldCodecEntry = {
 	field: FormFieldNode;
@@ -237,9 +235,10 @@ function encodeScopedFormState(form: FormBoundaryNode, context: FormRuntimeConte
 	return query;
 }
 
-export function compileFormState(form: FormBoundaryNode, state: FormState, context: FormRuntimeContext, issues?: RestoreIssue[]): CompiledFormState {
+export function compileFormState(form: FormBoundaryNode, state: FormState, context: FormRuntimeContext, issues?: RestoreIssue[]): CompiledFormStateWithSummaries {
 	// Compile what's in the form
-	const compiled = compileQueryIR(buildFormQuery(form, state, context));
+	const { query, summaries } = buildQueryIR(form, state, context);
+	const compiled = compileQueryIR(query);
 	// overwrite with raw overrides
 	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
 		if (state.rawOverrides?.[parameter]) compiled[parameter] = state.rawOverrides[parameter];
@@ -249,10 +248,11 @@ export function compileFormState(form: FormBoundaryNode, state: FormState, conte
 		...compiled,
 		formId: form.id,
 		encoded: encodeScopedFormState(form, context, state, issues),
+		summaries,
 	};
 }
 
-export function restoreScopedFormState(definition: FormSystemDefinition, context: FormRuntimeContext, query: Record<string, unknown>, canonical: BlackLabParameters = {}): RestoredScopedFormState {
+export function restoreScopedFormState(definition: FormSystemDefinition, context: FormRuntimeContext, query: Record<string, unknown>, canonical: BlackLabParameters = {}): RestoredFormState {
 	const issues: RestoreIssue[] = [];
 	const scoped = readScopedQuery(query);
 	const consumed = new Set<string>();
@@ -308,15 +308,14 @@ export function restoreScopedFormState(definition: FormSystemDefinition, context
 
 	inferActiveContainersFromValues(formNode, state, context);
 
-	const compiled = compileQueryIR(buildFormQuery(formNode, state, context));
+	const compiled = compileQueryIR(buildQueryIR(formNode, state, context).query);
 	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
 		if (valueDiffers(compiled[parameter], canonical[parameter])) state.rawOverrides[parameter] = canonical[parameter] ?? null;
 		if (!isNonEmpty(state.rawOverrides[parameter])) delete state.rawOverrides[parameter];
 	}
 
 	return {
-		...compileFormState(formNode, state, context, []),
-		state,
+		...state,
 		issues,
 	};
 }
