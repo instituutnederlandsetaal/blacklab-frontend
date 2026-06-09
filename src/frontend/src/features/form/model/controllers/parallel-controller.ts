@@ -1,26 +1,42 @@
 import { queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
-import { decodePersistRecord, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
-import type { FieldController } from '@/features/form/model/types/form-controllers';
-import type { SummaryEntry } from '@/features/form/model/types/form-query';
+import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import type { EncodedFieldValue, FieldController, FieldControllerProps, FormRuntimeContext, RestoreFieldResult } from '@/features/form/model/types/form-controllers';
+import type { CqlPattern, SummaryEntry } from '@/features/form/model/types/form-query';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
+import type { AnyVueComponent } from '@/types/helpers';
 
 import type { Translate } from '@/shared/i18n';
 
-export type ParallelFieldState = {
+export type ParallelFieldState<ChildState = unknown> = {
 	source: string | null;
 	targets: string[];
 	alignBy: string | null;
+	sourceState: ChildState;
+	targetStates: Record<string, ChildState>;
+};
+
+export type ParallelChildFieldConfig = {
+	id: string;
+	controller: FieldController<string, any, any>;
+	component: AnyVueComponent;
+	config: object;
 };
 
 export type ParallelFieldConfig = {
-	sourceOptions: ParallelAnnotatedField[];
-	targetOptions: ParallelAnnotatedField[];
+	fieldOptions: ParallelAnnotatedField[];
 	alignByOptions?: string[];
+	child: ParallelChildFieldConfig;
 };
 
 export type ParallelFieldComponentProps = ImplicitFieldComponentProps<ParallelFieldState> & ParallelFieldConfig;
 
 type ParallelAnnotatedField = Parameters<Translate['$tAnnotatedFieldDisplayName']>[0];
+type ParallelChildNamespace = { scope: 'source' } | { scope: 'target'; fieldId: string };
+type DecodedChildPersistKey = ParallelChildNamespace & { persistKey: string };
+
+const CHILD_KEY_SEPARATOR = '.';
+const SOURCE_CHILD_SCOPE = 'source';
+const TARGET_CHILD_SCOPE = 'target';
 
 function translatedAnnotatedField(runtime: Parameters<NonNullable<FieldController['getQueryContribution']>>[1], field: ParallelAnnotatedField) {
 	return runtime.translate.$tAnnotatedFieldDisplayName(field);
@@ -30,50 +46,225 @@ function translatedAlignBy(runtime: Parameters<NonNullable<FieldController['getQ
 	return runtime.translate.$tAlignByDisplayName({ value: alignBy });
 }
 
-function createDefaultParallelFieldState(config: ParallelFieldConfig): ParallelFieldState {
+function encodeChildNamespaceSegment(value: string, label: string) {
+	if (!value) throw new Error(`Cannot encode empty parallel child ${label}.`);
+	return encodeURIComponent(value).replace(/\./g, '%2E');
+}
+
+function decodeChildNamespaceSegment(value: string): string | null {
+	if (!value) return null;
+	try {
+		return decodeURIComponent(value);
+	} catch {
+		return null;
+	}
+}
+
+function childStateKey(namespace: ParallelChildNamespace): string {
+	return namespace.scope === SOURCE_CHILD_SCOPE ? SOURCE_CHILD_SCOPE : namespace.fieldId;
+}
+
+function childFieldId(config: FieldControllerProps<ParallelFieldConfig>, namespace: ParallelChildNamespace) {
+	return `${config.id}${CHILD_KEY_SEPARATOR}${childStateKey(namespace)}${CHILD_KEY_SEPARATOR}${config.child.id}`;
+}
+
+function encodeChildPersistKey(namespace: ParallelChildNamespace, persistKey: string): string {
+	const encodedPersistKey = encodeChildNamespaceSegment(persistKey, 'persist key');
+	if (namespace.scope === SOURCE_CHILD_SCOPE) return [SOURCE_CHILD_SCOPE, encodedPersistKey].join(CHILD_KEY_SEPARATOR);
+	return [TARGET_CHILD_SCOPE, encodeChildNamespaceSegment(namespace.fieldId, 'target field id'), encodedPersistKey].join(CHILD_KEY_SEPARATOR);
+}
+
+function decodeChildPersistKey(key: string): DecodedChildPersistKey | null {
+	const parts = key.split(CHILD_KEY_SEPARATOR);
+	if (parts.length === 1) return null;
+	if (parts[0] === SOURCE_CHILD_SCOPE && parts.length === 2 && parts[1]) {
+		const persistKey = decodeChildNamespaceSegment(parts[1]);
+		return persistKey ? { scope: SOURCE_CHILD_SCOPE, persistKey } : { scope: TARGET_CHILD_SCOPE, fieldId: '', persistKey: '' };
+	}
+	if (parts[0] === TARGET_CHILD_SCOPE && parts.length === 3 && parts[1] && parts[2]) {
+		const fieldId = decodeChildNamespaceSegment(parts[1]);
+		const persistKey = decodeChildNamespaceSegment(parts[2]);
+		return fieldId && persistKey ? { scope: TARGET_CHILD_SCOPE, fieldId, persistKey } : { scope: TARGET_CHILD_SCOPE, fieldId: '', persistKey: '' };
+	}
+	if (parts[0] === SOURCE_CHILD_SCOPE || parts[0] === TARGET_CHILD_SCOPE) {
+		return { scope: TARGET_CHILD_SCOPE, fieldId: '', persistKey: '' };
+	}
+	return null;
+}
+
+function createChildFieldConfig(config: FieldControllerProps<ParallelFieldConfig>, namespace: ParallelChildNamespace): FieldControllerProps<any> {
 	return {
-		source: config.sourceOptions[0]?.id ?? null,
+		...config.child.config,
+		id: childFieldId(config, namespace),
+		kind: 'field',
+		variant: config.variant,
+	};
+}
+
+function createDefaultChildState(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, namespace: ParallelChildNamespace = { scope: SOURCE_CHILD_SCOPE }) {
+	return config.child.controller.createDefaultState(createChildFieldConfig(config, namespace), runtime);
+}
+
+function createDefaultParallelFieldState(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext): ParallelFieldState {
+	return {
+		source: null,
 		targets: [],
 		alignBy: config.alignByOptions?.[0] ?? null,
+		sourceState: createDefaultChildState(config, runtime, { scope: SOURCE_CHILD_SCOPE }),
+		targetStates: {},
 	};
+}
+
+function containsParallelPattern(pattern: CqlPattern | null): boolean {
+	if (!pattern) return false;
+	if (pattern.type === 'parallel') return true;
+	if (pattern.type === 'and' || pattern.type === 'or' || pattern.type === 'sequence') return pattern.children.some(containsParallelPattern);
+	return false;
+}
+
+function getChildPattern(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown, namespace: ParallelChildNamespace): CqlPattern | null {
+	const childConfig = createChildFieldConfig(config, namespace);
+	const pattern = config.child.controller.getQueryContribution(childConfig, runtime, state).query.pattern;
+	if (containsParallelPattern(pattern)) {
+		console.warn(`Parallel field '${config.id}' ignored nested parallel child contribution from '${childConfig.id}'.`);
+		return null;
+	}
+	return pattern;
+}
+
+function encodedValueToNestedValue(value: EncodedFieldValue | null | undefined): string | undefined {
+	if (value == null || value === '') return undefined;
+	if (Array.isArray(value)) return value.length ? joinPersistValues(value) : undefined;
+	return value;
+}
+
+function isRestoreObject<State>(result: RestoreFieldResult<State>): result is { state: State; warnings?: string[]; errors?: string[] } {
+	return !!result && typeof result === 'object' && 'state' in result;
+}
+
+function restoredState<State>(result: RestoreFieldResult<State>, warnings: string[]): State {
+	if (isRestoreObject(result)) {
+		warnings.push(...(result.warnings ?? []), ...(result.errors ?? []));
+		return result.state;
+	}
+	return result;
 }
 
 export const parallelController: FieldController<'parallel', ParallelFieldState, ParallelFieldConfig> = {
 	kind: 'parallel',
 	createDefaultState: createDefaultParallelFieldState,
 	getPersistKey: () => 'parallel',
-	affectsBlackLabParameters: ['searchfield'],
-	encode(state, config) {
-		const defaultState = createDefaultParallelFieldState(config);
-		return encodePersistObject({
+	affectsBlackLabParameters: ['searchfield', 'patt'],
+	encode(state, config, runtime) {
+		const defaultState = createDefaultParallelFieldState(config, runtime);
+		const sourceNamespace: ParallelChildNamespace = { scope: SOURCE_CHILD_SCOPE };
+		const sourceChildConfig = createChildFieldConfig(config, sourceNamespace);
+		const childPersistKey = config.child.controller.getPersistKey(sourceChildConfig, runtime);
+		const values: Record<string, string | null | undefined> = {
 			source: state.source !== defaultState.source ? state.source : undefined,
 			targets: state.targets.length ? joinPersistValues(state.targets) : undefined,
 			align: state.alignBy !== defaultState.alignBy ? state.alignBy : undefined,
-		});
-	},
-	restore(payload, config) {
-		const restored = decodePersistRecord(payload, ['source', 'targets', 'align'], 'parallel field');
-		const defaults = createDefaultParallelFieldState(config);
-		return {
-			source: restored.source ?? defaults.source,
-			targets: splitPersistValue(restored.targets ?? '').filter(Boolean),
-			alignBy: restored.align ?? defaults.alignBy,
+			[encodeChildPersistKey(sourceNamespace, childPersistKey)]: encodedValueToNestedValue(config.child.controller.encode(state.sourceState, sourceChildConfig, runtime)),
 		};
+
+		for (const target of state.targets) {
+			const targetState = state.targetStates[target];
+			if (targetState == null) continue;
+			const targetNamespace: ParallelChildNamespace = { scope: TARGET_CHILD_SCOPE, fieldId: target };
+			const targetChildConfig = createChildFieldConfig(config, targetNamespace);
+			const targetPersistKey = config.child.controller.getPersistKey(targetChildConfig, runtime);
+			values[encodeChildPersistKey(targetNamespace, targetPersistKey)] = encodedValueToNestedValue(config.child.controller.encode(targetState, targetChildConfig, runtime));
+		}
+
+		return encodePersistObject(values);
+	},
+	restore(payload, config, runtime) {
+		const restored = decodePersistObject(payload);
+		const defaults = createDefaultParallelFieldState(config, runtime);
+		const warnings: string[] = [];
+		const fieldOptionIds = new Set(config.fieldOptions.map(option => option.id));
+		const sourceNamespace: ParallelChildNamespace = { scope: SOURCE_CHILD_SCOPE };
+		const sourceChildConfig = createChildFieldConfig(config, sourceNamespace);
+		const childPersistKey = config.child.controller.getPersistKey(sourceChildConfig, runtime);
+		const selectedTargets = splitPersistValue(restored.targets ?? '').filter(Boolean);
+		const validTargets = selectedTargets.filter(target => {
+			const valid = fieldOptionIds.has(target);
+			if (!valid) warnings.push(`Dropped restored target '${target}' because it is no longer present in the current parallel target options.`);
+			return valid;
+		});
+		const targetStates: Record<string, unknown> = {};
+		let sourceState = defaults.sourceState;
+
+		for (const key of Object.keys(restored)) {
+			const decoded = decodeChildPersistKey(key);
+			if (!decoded) continue;
+			if (!decoded.persistKey) {
+				warnings.push(`Ignored malformed restored parallel child key '${key}'.`);
+				continue;
+			}
+
+			if (decoded.scope === SOURCE_CHILD_SCOPE) {
+				if (decoded.persistKey !== childPersistKey) {
+					warnings.push(`Ignored unsupported restored parallel source key '${key}'.`);
+					continue;
+				}
+				sourceState = restoredState(config.child.controller.restore(restored[key], sourceChildConfig, runtime), warnings);
+				continue;
+			}
+
+			if (!fieldOptionIds.has(decoded.fieldId)) {
+				warnings.push(`Dropped restored target state for '${decoded.fieldId}' because it is no longer present in the current parallel target options.`);
+				continue;
+			}
+			if (decoded.persistKey !== childPersistKey) {
+				warnings.push(`Ignored unsupported restored parallel target key '${key}'.`);
+				continue;
+			}
+			targetStates[decoded.fieldId] = restoredState(config.child.controller.restore(restored[key], createChildFieldConfig(config, decoded), runtime), warnings);
+		}
+
+		const state = {
+			source: restored.source ?? defaults.source,
+			targets: validTargets,
+			alignBy: restored.align ?? defaults.alignBy,
+			sourceState,
+			targetStates,
+		};
+		return warnings.length ? { state, warnings } : state;
 	},
 	getQueryContribution(config, runtime, state) {
-		const query = queryIR({ searchfield: state.source });
+		const selectedTargetPatterns = state.targets.map(fieldId => {
+			const targetNamespace: ParallelChildNamespace = { scope: TARGET_CHILD_SCOPE, fieldId };
+			const targetState = state.targetStates[fieldId] ?? createDefaultChildState(config, runtime, targetNamespace);
+			return {
+				fieldId,
+				relationType: state.alignBy,
+				pattern: getChildPattern(config, runtime, targetState, targetNamespace),
+			};
+		});
+		const sourcePattern = getChildPattern(config, runtime, state.sourceState, { scope: SOURCE_CHILD_SCOPE });
+		const query = queryIR({
+			searchfield: state.source,
+			pattern: selectedTargetPatterns.length
+				? {
+						type: 'parallel',
+						source: sourcePattern,
+						targets: selectedTargetPatterns,
+					}
+				: sourcePattern,
+		});
 		const summaries: SummaryEntry[] = [];
 		if (state.source)
 			summaries.push({
 				id: `${config.id}.source`,
 				label: runtime.translate.$t(`search.parallel.searchSourceVersion`),
-				value: translatedAnnotatedField(runtime, config.sourceOptions.find(field => field.id === state.source) ?? { id: state.source }),
+				value: translatedAnnotatedField(runtime, config.fieldOptions.find(field => field.id === state.source) ?? { id: state.source }),
 			});
 		if (state.targets.length)
 			summaries.push({
 				id: `${config.id}.targets`,
 				label: runtime.translate.$t(`search.parallel.andCompareWithTargetVersions`),
-				value: state.targets.map(target => translatedAnnotatedField(runtime, config.targetOptions.find(field => field.id === target) ?? { id: target })).join(', '),
+				value: state.targets.map(target => translatedAnnotatedField(runtime, config.fieldOptions.find(field => field.id === target) ?? { id: target })).join(', '),
 			});
 		if (state.alignBy)
 			summaries.push({

@@ -290,12 +290,7 @@ export function createControllerCatalogStoryModel(): StoryFormSystemModel {
 		createFieldNode(builder, 'catalog.annotation.pos', annotationPosController, createAnnotationPosConfig()),
 		createFieldNode(builder, 'catalog.parallel', parallelController, createParallelConfig()),
 		createFieldNode(builder, 'catalog.within', withinController, createWithinConfig()),
-		createFieldNode(builder, 'catalog.raw-cql', expertQueryController, {
-			displayName: 'Expert CQL',
-			label: 'Expert CQL',
-			helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
-			rows: 4,
-		}),
+		createFieldNode(builder, 'catalog.raw-cql', expertQueryController, {}),
 		createViewNode(builder, 'catalog.summary', SummaryView, { showRaw: true }),
 	);
 
@@ -526,6 +521,10 @@ export function createParallelFieldStoryModel(): StoryFormSystemModel {
 			source: 'contents__en',
 			targets: ['contents__nl'],
 			alignBy: 's',
+			sourceState: '[lemma="water"]',
+			targetStates: {
+				contents__nl: '[lemma="water"]',
+			},
 		},
 	});
 }
@@ -552,16 +551,8 @@ export function createExpertQueryFieldStoryModel(): StoryFormSystemModel {
 		title: 'Expert query field',
 		description: 'Raw CQL entry with the same live summary and serialization used by the full form runtime.',
 		controller: expertQueryController,
-		config: {
-			displayName: 'Corpus Query Language',
-			label: 'Corpus Query Language',
-			helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
-			rows: 6,
-		},
-		initialState: {
-			query: '[lemma="water"]',
-			targetQueries: [],
-		},
+		config: {},
+		initialState: '[lemma="water"]',
 	});
 }
 
@@ -782,6 +773,10 @@ export function createViewStoryModel(): StoryFormSystemModel {
 		source: 'contents__en',
 		targets: ['contents__nl'],
 		alignBy: 's',
+		sourceState: '',
+		targetStates: {
+			contents__nl: '',
+		},
 	};
 	initialState.controllerState['view-catalog.totals.within'] = {
 		element: 's',
@@ -828,6 +823,10 @@ export function createFullFormStoryModel(): StoryFormSystemModel {
 		source: 'contents__en',
 		targets: ['contents__nl'],
 		alignBy: 's',
+		sourceState: '',
+		targetStates: {
+			contents__nl: '',
+		},
 	};
 	initialState.controllerState['app.search.simple.word'] = { value: 'water', caseSensitive: false };
 	initialState.controllerState['app.search.simple.within'] = {
@@ -838,6 +837,10 @@ export function createFullFormStoryModel(): StoryFormSystemModel {
 		source: 'contents__en',
 		targets: ['contents__de'],
 		alignBy: 'p',
+		sourceState: '',
+		targetStates: {
+			contents__de: '',
+		},
 	};
 	initialState.controllerState['app.search.extended.word'] = {
 		value: 'water',
@@ -857,18 +860,16 @@ export function createFullFormStoryModel(): StoryFormSystemModel {
 		element: 'p',
 		attributes: {},
 	};
-	initialState.controllerState['app.search.advanced.preview'] = {
-		query: '[word="water"][]{0,2}[lemma="ship"]',
-		targetQueries: [],
-	};
-	initialState.controllerState['app.search.expert.querybox'] = {
-		query: '[lemma="water"] within <s/>',
-		targetQueries: [],
-	};
+	initialState.controllerState['app.search.advanced.preview'] = '[word="water"][]{0,2}[lemma="ship"]';
+	initialState.controllerState['app.search.expert.querybox'] = '[lemma="water"] within <s/>';
 	initialState.controllerState['app.search.expert.parallel'] = {
 		source: 'contents__en',
 		targets: ['contents__fr'],
 		alignBy: 's',
+		sourceState: '',
+		targetStates: {
+			contents__fr: '',
+		},
 	};
 	initialState.controllerState['app.search.expert.within'] = {
 		element: 's',
@@ -883,6 +884,10 @@ export function createFullFormStoryModel(): StoryFormSystemModel {
 		source: 'contents__en',
 		targets: ['contents__nl'],
 		alignBy: 's',
+		sourceState: '',
+		targetStates: {
+			contents__nl: '',
+		},
 	};
 	initialState.controllerState['app.explore.frequency.annotation'] = ['pos'];
 	initialState.controllerState['app.explore.frequency.seed'] = {
@@ -983,12 +988,7 @@ function createExpertForm(parent: ReturnType<FormBuilder['newContainer']>, build
 		.newContainer('search.expert.query', ContainerRenderer, {})
 		.addChildren(shared.parallel)
 		.addChildren(
-			createFieldNode(builder, 'search.expert.querybox', expertQueryController, {
-				displayName: 'Corpus Query Language',
-				label: 'Corpus Query Language',
-				rows: 8,
-				helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
-			}),
+			createFieldNode(builder, 'search.expert.querybox', expertQueryController, {}),
 		)
 		.addChildren(shared.within);
 	const filtersColumn = builder.newContainer('search.expert.filters.column', ContainerRenderer, { title: 'Filters' }).addChildren(
@@ -1028,11 +1028,13 @@ function createFilterContainer(builder: FormBuilder, prefix: string) {
 
 function createParallelConfig() {
 	return {
-		sourceOptions: languageOptions.map(option => ({
-			id: `contents__${option.value}`,
-			defaultDisplayName: option.label,
-		})),
-		targetOptions: languageOptions.map(option => ({
+		child: {
+			id: 'query',
+			controller: expertQueryController,
+			component: RawCqlField,
+			config: {},
+		},
+		fieldOptions: languageOptions.map(option => ({
 			id: `contents__${option.value}`,
 			defaultDisplayName: option.label,
 		})),
@@ -1185,11 +1187,7 @@ function createAppAdvancedSearchForm(parent: ReturnType<FormBuilder['newContaine
 		}),
 	);
 	queryColumn.addChildren(
-		createFieldNode(builder, 'app.search.advanced.preview', expertQueryController, {
-			displayName: 'Planned advanced output',
-			label: 'Planned advanced output',
-			rows: 5,
-		}),
+		createFieldNode(builder, 'app.search.advanced.preview', expertQueryController, {}),
 	);
 	queryColumn.addChildren(
 		createViewNode(builder, 'app.search.advanced.summary', SummaryView, {
@@ -1208,12 +1206,7 @@ function createAppExpertSearchForm(parent: ReturnType<FormBuilder['newContainer'
 	queryColumn
 		.addChildren(createFieldNode(builder, 'app.search.expert.parallel', parallelController, createParallelConfig()))
 		.addChildren(
-			createFieldNode(builder, 'app.search.expert.querybox', expertQueryController, {
-				displayName: 'Corpus Query Language',
-				label: 'Corpus Query Language',
-				rows: 8,
-				helpUrl: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
-			}),
+			createFieldNode(builder, 'app.search.expert.querybox', expertQueryController, {}),
 		)
 		.addChildren(createFieldNode(builder, 'app.search.expert.within', withinController, createWithinConfig()));
 	queryColumn.addChildren(

@@ -205,7 +205,7 @@ describe('scoped form persistence', () => {
 		const restored = restoreScopedFormState(fixture.definition, fixture.context, {}, { patt: '[word="water"]' });
 
 		expect(restored.uiState.activeContainers.search).toBe('search.expert');
-		expect(restored.controllerState[fixture.rawField.id]).toEqual({ query: '[word="water"]', targetQueries: [] });
+		expect(restored.controllerState[fixture.rawField.id]).toBe('[word="water"]');
 		expect(restored.rawOverrides).toEqual({});
 	});
 
@@ -224,7 +224,7 @@ describe('scoped form persistence', () => {
 		);
 
 		expect(restored.uiState.activeContainers.search).toBe(fixture.expert.id);
-		expect(restored.controllerState[fixture.rawField.id]).toEqual({ query: '[word="water"]', targetQueries: [] });
+		expect(restored.controllerState[fixture.rawField.id]).toBe('[word="water"]');
 		expect(restored.rawOverrides).toEqual({});
 		expect(restored.issues.map(issue => issue.key)).toEqual(['form', 'tab', 'removed']);
 	});
@@ -236,7 +236,7 @@ describe('scoped form persistence', () => {
 
 		expect(restored.uiState.activeContainers.search).toBe(fixture.simple.id);
 		expect(restored.controllerState[fixture.simpleField.id]).toEqual({ value: 'water' });
-		expect(restored.controllerState[fixture.rawField.id]).toEqual({ query: '', targetQueries: [] });
+		expect(restored.controllerState[fixture.rawField.id]).toBe('');
 		expect(restored.rawOverrides).toEqual({ patt: '[word="fire"]' });
 	});
 
@@ -336,6 +336,18 @@ describe('controller persistence compatibility', () => {
 	];
 	const selectConfig = { kind: 'field' as const, id: 'field', displayName: 'Field', metadataFieldId: 'field', options };
 	const annotationConfig = { kind: 'field' as const, id: 'field', displayName: 'Field', annotationId: 'field', options };
+	const parallelConfig = {
+		kind: 'field' as const,
+		id: 'parallel',
+		child: {
+			id: 'query',
+			controller: expertQueryController,
+			component: RawCqlField,
+			config: {},
+		},
+		fieldOptions: [{ id: 'contents__en' }, { id: 'contents__nl' }, { id: 'contents__de' }],
+		alignByOptions: ['word-alignment'],
+	};
 
 	test('shares scalar and selection representations across compatible controllers', () => {
 		expect(filterSelectController.restore('one', selectConfig, context)).toEqual({ state: ['one'], warnings: [] });
@@ -390,8 +402,13 @@ describe('controller persistence compatibility', () => {
 				'source=contents;targets=translation;align=sentence',
 				{
 					id: 'parallel',
-					sourceOptions: [{ id: 'default' }],
-					targetOptions: [],
+					child: {
+						id: 'query',
+						controller: expertQueryController,
+						component: RawCqlField,
+						config: {},
+					},
+					fieldOptions: [{ id: 'default' }, { id: 'translation' }],
 					alignByOptions: ['word'],
 				} as never,
 				context,
@@ -400,10 +417,76 @@ describe('controller persistence compatibility', () => {
 			source: 'contents',
 			targets: ['translation'],
 			alignBy: 'sentence',
+			sourceState: '',
+			targetStates: {},
 		});
-		expect(expertQueryController.restore('query=[word="water"];targets=[word="water"]', {} as never, context)).toEqual({
-			query: '[word="water"]',
-			targetQueries: ['[word="water"]'],
+		expect(expertQueryController.restore('query=[word="water"];targets=[word="water"]', {} as never, context)).toBe('[word="water"]');
+	});
+
+	test('persists parallel wrapper child source and selected target payloads under namespaced keys', () => {
+		const encoded = parallelController.encode(
+			{
+				source: 'contents__en',
+				targets: ['contents__nl'],
+				alignBy: 'word-alignment',
+				sourceState: '[lemma="test"]',
+				targetStates: {
+					contents__nl: '[lemma="proef"]',
+					contents__de: '[lemma="Test"]',
+				},
+			},
+			parallelConfig,
+			context,
+		);
+
+		expect(decodePersistObject(encoded!)).toEqual({
+			source: 'contents__en',
+			targets: 'contents__nl',
+			'source.query': '[lemma="test"]',
+			'target.contents__nl.query': '[lemma="proef"]',
+		});
+	});
+
+	test('restores parallel wrapper child source and target payloads', () => {
+		const encoded = encodePersistObject({
+			source: 'contents__en',
+			targets: 'contents__nl',
+			align: 'word-alignment',
+			'source.query': '[lemma="test"]',
+			'target.contents__nl.query': '[lemma="proef"]',
+		});
+
+		expect(parallelController.restore(encoded!, parallelConfig, context)).toEqual({
+			source: 'contents__en',
+			targets: ['contents__nl'],
+			alignBy: 'word-alignment',
+			sourceState: '[lemma="test"]',
+			targetStates: {
+				contents__nl: '[lemma="proef"]',
+			},
+		});
+	});
+
+	test('drops unknown restored parallel target states with warnings', () => {
+		const encoded = encodePersistObject({
+			targets: 'contents__fr',
+			'target.contents__fr.query': '[lemma="essai"]',
+		});
+
+		const restored = parallelController.restore(encoded!, parallelConfig, context);
+
+		expect(restored).toEqual({
+			state: {
+				source: null,
+				targets: [],
+				alignBy: 'word-alignment',
+				sourceState: '',
+				targetStates: {},
+			},
+			warnings: [
+				"Dropped restored target 'contents__fr' because it is no longer present in the current parallel target options.",
+				"Dropped restored target state for 'contents__fr' because it is no longer present in the current parallel target options.",
+			],
 		});
 	});
 

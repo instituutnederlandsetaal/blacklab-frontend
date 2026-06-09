@@ -1,47 +1,32 @@
 import { cqlRaw, queryFragment } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, encodePersistObject, joinPersistValues, singleEncodedValue, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import { decodePersistObject, singleEncodedValue } from '@/features/form/model/controllers/persistence-codec';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 
-export type RawCqlQueryFieldState = {
-	query: string;
-	targetQueries: string[];
-};
+export type RawCqlQueryFieldState = string;
 
-export type RawCqlQueryFieldConfig = {
-	helpUrl?: string;
-	rows?: number;
-};
+export type RawCqlQueryFieldConfig = object;
 
 export const expertQueryController: FieldController<'raw-cql-query', RawCqlQueryFieldState, RawCqlQueryFieldConfig> = {
 	kind: 'raw-cql-query',
-	createDefaultState: () => ({ query: '', targetQueries: [] }),
+	createDefaultState: () => '',
 	getPersistKey: () => 'query',
 	affectsBlackLabParameters: ['patt'],
 	encode(state) {
-		if (!state.query.trim() && !state.targetQueries.length) return null;
-		if (!state.targetQueries.length) return state.query.trim();
-		return encodePersistObject({
-			query: state.query,
-			targets: joinPersistValues(state.targetQueries),
-		});
+		return state.trim() || null;
 	},
 	restore(payload) {
 		const value = singleEncodedValue(payload, 'raw CQL field');
-		if (!value.startsWith('query=') && !value.includes(';targets=')) return { query: value, targetQueries: [] };
-		const restored = decodePersistObject(payload);
-		return {
-			query: restored.query ?? '',
-			targetQueries: splitPersistValue(restored.targets ?? '').filter(Boolean),
-		};
+		if (!value.startsWith('query=') && !value.includes(';targets=')) return value;
+		return decodePersistObject(payload).query ?? '';
 	},
 	getQueryContribution(config, runtime, state) {
 		return queryFragment(
-			cqlRaw(state.query),
-			state.query.trim()
+			cqlRaw(state),
+			state.trim()
 				? {
 						id: config.id,
 						label: runtime.translate.$t(`search.expert.corpusQueryLanguage`),
-						value: state.query,
+						value: state,
 					}
 				: null,
 		);

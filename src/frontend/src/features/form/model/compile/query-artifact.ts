@@ -18,6 +18,8 @@ import {
 } from '@/features/form/model/types/form-query';
 import type { QueryCombineMode } from '@/features/form/model/types/form-shape';
 
+import { parenQueryPartParallel } from '@/shared/blacklab-helpers/cql/bcql-pattern-helpers';
+import { getParallelFieldParts } from '@/shared/blacklab-helpers/parallel-helper';
 import { unwrapLenientArray } from '@/shared/utils/array-utils';
 import { escapeRegex } from '@/shared/utils/string-utils';
 
@@ -171,12 +173,11 @@ function simplifyCql(pattern: CqlPattern | null): CqlPattern | null {
 		case 'token':
 			return token(simplifyTokenPredicate(pattern.predicate));
 		case 'parallel': {
-			const source = simplifyCql(pattern.source);
-			if (!source) return null;
+			const source = simplifyCql(pattern.source) ?? cqlRaw('_')!;
 			return {
 				...pattern,
 				source,
-				targets: pattern.targets.map(target => ({ ...target, pattern: simplifyCql(target.pattern) })).filter(target => target.pattern),
+				targets: pattern.targets.map(target => ({ ...target, pattern: simplifyCql(target.pattern) ?? cqlRaw('_')! })),
 			};
 		}
 		case 'sequence': {
@@ -302,9 +303,16 @@ function emitRequiredCql(pattern: CqlPattern): string {
 			return `(${pattern.children.map(emitRequiredCql).join(operator)})`;
 		}
 		case 'parallel': {
-			return [emitRequiredCql(pattern.source), ...pattern.targets.map(target => emitRequiredCql(target.pattern!))].join(' :: ');
+			const source = emitParallelPart(pattern.source!);
+			if (!pattern.targets.length) return source;
+			const targetRelations = pattern.targets.map(target => `=${target.relationType ?? ''}=>${getParallelFieldParts(target.fieldId).version}? ${emitParallelPart(target.pattern!)}`);
+			return `${source} ${targetRelations.join(' ; ')}`;
 		}
 	}
+}
+
+function emitParallelPart(pattern: CqlPattern): string {
+	return parenQueryPartParallel(emitRequiredCql(pattern));
 }
 
 function emitFilter(filter: QueryFilterNode | null): string | null {

@@ -39,7 +39,7 @@ export type TokenPredicate = TokenPredicateLeaf | BooleanExpr<TokenPredicateLeaf
 type CqlPatternLeaf =
 	| { type: 'sequence'; children: CqlPattern[] }
 	| { type: 'token'; predicate: TokenPredicate }
-	| { type: 'parallel'; source: CqlPattern; targets: QueryParallelTargetPattern[] }
+	| { type: 'parallel'; source: CqlPattern | null; targets: QueryParallelTargetPattern[] }
 	| { type: 'raw'; cql: string };
 export type CqlPattern = CqlPatternLeaf | BooleanExpr<CqlPatternLeaf>;
 
@@ -54,7 +54,7 @@ export function isCqlPattern(node: any): node is CqlPattern {
 		case 'token':
 			return 'predicate' in node && typeof node.predicate === 'object';
 		case 'parallel':
-			return 'source' in node && isCqlPattern(node.source) && Array.isArray(node.targets) && node.targets.every(isQueryParallelTargetPattern);
+			return 'source' in node && (node.source === null || isCqlPattern(node.source)) && Array.isArray(node.targets) && node.targets.every(isQueryParallelTargetPattern);
 		case 'raw':
 			return 'cql' in node && typeof node.cql === 'string';
 		default:
@@ -64,10 +64,20 @@ export function isCqlPattern(node: any): node is CqlPattern {
 
 export type QueryParallelTargetPattern = {
 	fieldId: string;
+	relationType: string | null;
 	pattern: CqlPattern | null;
 };
 export function isQueryParallelTargetPattern(node: any): node is QueryParallelTargetPattern {
-	return node && typeof node === 'object' && 'fieldId' in node && typeof node.fieldId === 'string' && 'pattern' in node && (node.pattern === null || isCqlPattern(node.pattern));
+	return (
+		node &&
+		typeof node === 'object' &&
+		'fieldId' in node &&
+		typeof node.fieldId === 'string' &&
+		'relationType' in node &&
+		(node.relationType === null || typeof node.relationType === 'string') &&
+		'pattern' in node &&
+		(node.pattern === null || isCqlPattern(node.pattern))
+	);
 }
 
 type QueryFilterNodeLeaf = { type: 'term'; field: string; values: string[] } | { type: 'range'; field: string; low?: string; high?: string } | { type: 'raw'; lucene: string };

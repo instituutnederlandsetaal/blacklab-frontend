@@ -303,7 +303,7 @@ export function restoreScopedFormState(definition: FormSystemDefinition, context
 	if (!hasUsableScopedState && isNonEmpty(canonical.patt) && expert) {
 		formNode = expert.form;
 		setActivePath(definition.root, formNode.id, state.uiState.activeContainers);
-		state.controllerState[expert.field.id] = { query: canonical.patt, targetQueries: [] };
+		state.controllerState[expert.field.id] = canonical.patt;
 	}
 
 	inferActiveContainersFromValues(formNode, state, context);

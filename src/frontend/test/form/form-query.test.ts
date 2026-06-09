@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
-import { annotationTextController, booleanExpr, type FieldControllerProps, type FormRuntimeContext, type QueryFragment } from '@/features/form';
+import { annotationTextController, booleanExpr, expertQueryController, parallelController, type FieldController, type FieldControllerProps, type FormRuntimeContext, type QueryFragment } from '@/features/form';
 import { combineQueryFragments, compileQueryIR, cqlRaw, queryFragment, queryIR, rawFilter, termFilter, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import type { AnnotationTextFieldConfig } from '@/features/form/model/controllers/annotation-controller';
 
 import { createMockTranslate } from '@/shared/i18n/mock';
+
+import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 
 describe('generated query correctness', () => {
 	const context: FormRuntimeContext = {
@@ -151,5 +153,139 @@ describe('generated query correctness', () => {
 			filter: null,
 			searchfield: 'contents__nl',
 		});
+	});
+
+	const parallelField = {
+		id: 'parallel',
+		kind: 'field' as const,
+		fieldOptions: [
+			{ id: 'contents__en', defaultDisplayName: 'English' },
+			{ id: 'contents__nl', defaultDisplayName: 'Dutch' },
+			{ id: 'contents__de', defaultDisplayName: 'German' },
+		],
+		alignByOptions: ['word-alignment'],
+		child: {
+			id: 'query',
+			controller: expertQueryController,
+			component: RawCqlField,
+			config: {},
+		},
+	};
+
+	test('Parallel wrapper emits a source-only query in the selected source field', () => {
+		const compiled = compileQueryIR(
+			parallelController.getQueryContribution(parallelField, context, {
+				source: 'contents__en',
+				targets: [],
+				alignBy: 'word-alignment',
+				sourceState: '[lemma="test"]',
+				targetStates: {},
+			}).query,
+		);
+
+		expect(compiled).toEqual({
+			patt: '[lemma="test"]',
+			filter: null,
+			searchfield: 'contents__en',
+		});
+	});
+
+	test('Parallel wrapper emits relation syntax for source plus one target', () => {
+		const compiled = compileQueryIR(
+			parallelController.getQueryContribution(parallelField, context, {
+				source: 'contents__en',
+				targets: ['contents__nl'],
+				alignBy: 'word-alignment',
+				sourceState: '[lemma="test"]',
+				targetStates: {
+					contents__nl: '[lemma="proef"]',
+				},
+			}).query,
+		);
+
+		expect(compiled.patt).toBe('[lemma="test"] =word-alignment=>nl? [lemma="proef"]');
+		expect(compiled.searchfield).toBe('contents__en');
+	});
+
+	test('Parallel wrapper joins multiple target relations', () => {
+		const compiled = compileQueryIR(
+			parallelController.getQueryContribution(parallelField, context, {
+				source: 'contents__en',
+				targets: ['contents__nl', 'contents__de'],
+				alignBy: 'word-alignment',
+				sourceState: '[lemma="test"]',
+				targetStates: {
+					contents__nl: '[lemma="proef"]',
+					contents__de: '[lemma="test"]',
+				},
+			}).query,
+		);
+
+		expect(compiled.patt).toBe('[lemma="test"] =word-alignment=>nl? [lemma="proef"] ; =word-alignment=>de? [lemma="test"]');
+	});
+
+	test('Parallel wrapper defaults empty source and target parts to underscore placeholders', () => {
+		const compiled = compileQueryIR(
+			parallelController.getQueryContribution(parallelField, context, {
+				source: 'contents__en',
+				targets: ['contents__nl'],
+				alignBy: 'word-alignment',
+				sourceState: '',
+				targetStates: {
+					contents__nl: '',
+				},
+			}).query,
+		);
+
+		expect(compiled.patt).toBe('_ =word-alignment=>nl? _');
+	});
+
+	test('Parallel wrapper skips nested parallel child output', () => {
+		const nestedParallelChildController: FieldController<'nested-parallel-child', unknown, object> = {
+			kind: 'nested-parallel-child',
+			createDefaultState: () => ({}),
+			getPersistKey: () => 'query',
+			affectsBlackLabParameters: ['patt'],
+			encode: () => null,
+			restore: () => ({}),
+			getQueryContribution: () =>
+				queryFragment(
+					queryIR({
+						pattern: {
+							type: 'parallel',
+							source: cqlRaw('[word="nested"]')!,
+							targets: [],
+						},
+					}),
+				),
+		};
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		const compiled = compileQueryIR(
+			parallelController.getQueryContribution(
+				{
+					...parallelField,
+					child: {
+						id: 'nested',
+						controller: nestedParallelChildController,
+						component: RawCqlField,
+						config: {},
+					},
+				},
+				context,
+				{
+					source: 'contents__en',
+					targets: ['contents__nl'],
+					alignBy: 'word-alignment',
+					sourceState: {},
+					targetStates: {
+						contents__nl: {},
+					},
+				},
+			).query,
+		);
+
+		expect(compiled.patt).toBe('_ =word-alignment=>nl? _');
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining("ignored nested parallel child contribution"));
+		warn.mockRestore();
 	});
 });

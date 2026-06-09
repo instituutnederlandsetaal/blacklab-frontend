@@ -31,6 +31,8 @@ import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
 import TotalsView from '@/features/form/views/TotalsView.vue';
+import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 type FieldExpectation = {
 	controllerState: unknown;
@@ -50,16 +52,16 @@ type RuntimeFieldHarness<TField extends FormFieldNode = FormFieldNode> = Omit<Fi
 
 const languageOptions = [
 	{
-		id: 'parallel-state.source.other',
-		defaultDisplayName: 'shouldNotEndUpInSummaryValue.parallel.source',
+		id: 'contents__de',
+		defaultDisplayName: 'German',
 	},
 	{
-		id: 'parallel-state.source.selected',
-		defaultDisplayName: 'shouldEndUpInSummaryValue.parallel.source',
+		id: 'contents__en',
+		defaultDisplayName: 'English',
 	},
 	{
-		id: 'parallel-state.target.selected',
-		defaultDisplayName: 'shouldEndUpInSummaryValue.parallel.target',
+		id: 'contents__nl',
+		defaultDisplayName: 'Dutch',
 	},
 ];
 
@@ -102,20 +104,24 @@ const fieldExpectations = {
 	},
 	parallel: {
 		controllerState: {
-			source: 'parallel-state.source.selected',
-			targets: ['parallel-state.target.selected'],
+			source: 'contents__en',
+			targets: ['contents__nl'],
 			alignBy: 'parallel-state.align.selected',
+			sourceState: '[lemma="house"]',
+			targetStates: {
+				contents__nl: '[lemma="huis"]',
+			},
 		},
 		summaries: [
 			{
 				id: 'shouldEndUpInSummaryId.parallel.node.source',
 				label: 'search.parallel.searchSourceVersion',
-				value: 'shouldEndUpInSummaryValue.parallel.source',
+				value: 'English',
 			},
 			{
 				id: 'shouldEndUpInSummaryId.parallel.node.targets',
 				label: 'search.parallel.andCompareWithTargetVersions',
-				value: 'shouldEndUpInSummaryValue.parallel.target',
+				value: 'Dutch',
 			},
 			{
 				id: 'shouldEndUpInSummaryId.parallel.node.alignBy',
@@ -125,10 +131,7 @@ const fieldExpectations = {
 		],
 	},
 	rawCql: {
-		controllerState: {
-			query: '[summaryField="shouldEndUpInSummaryValue.raw-cql"]',
-			targetQueries: [],
-		},
+		controllerState: '[summaryField="shouldEndUpInSummaryValue.raw-cql"]',
 		summaries: [
 			{
 				id: 'shouldEndUpInSummaryId.raw-cql.node',
@@ -319,26 +322,29 @@ describe('builtin controller hosts', () => {
 		const harness = mountFieldHarness(builder =>
 			builder.newField('shouldEndUpInSummaryId.parallel.node', parallelController, ParallelField, {
 				alignByOptions: ['parallel-state.align.other', 'parallel-state.align.selected'],
-				sourceOptions: languageOptions,
-				targetOptions: languageOptions,
+				child: {
+					id: 'query',
+					controller: expertQueryController,
+					component: RawCqlField,
+					config: {},
+				},
+				fieldOptions: languageOptions,
 			}),
 		);
 
-		const [sourceSelect, alignBySelect] = harness.wrapper.findAll('select');
-		await sourceSelect.setValue('parallel-state.source.selected');
-		await findButtonByText(harness.wrapper, 'shouldEndUpInSummaryValue.parallel.target').trigger('click');
-		await alignBySelect.setValue('parallel-state.align.selected');
+		harness.wrapper.findComponent(SelectPicker).vm.$emit('update:modelValue', 'contents__en');
+		await nextTick();
+		await harness.wrapper.get('textarea').setValue('[lemma="house"]');
+		harness.wrapper.findComponent(MultiValuePicker).vm.$emit('update:modelValue', ['contents__nl']);
+		await nextTick();
+		await harness.wrapper.findAll('textarea')[1].setValue('[lemma="huis"]');
+		await findButtonByText(harness.wrapper, 'parallel-state.align.selected').trigger('click');
 
 		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.parallel.controllerState);
 	});
 
 	test('updates raw cql state from the host', async () => {
-		const harness = mountFieldHarness(builder =>
-			builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {
-				helpUrl: 'https://example.test/help',
-				rows: 4,
-			}),
-		);
+		const harness = mountFieldHarness(builder => builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {}));
 
 		await harness.wrapper.get('textarea').setValue('[summaryField="shouldEndUpInSummaryValue.raw-cql"]');
 
@@ -346,14 +352,9 @@ describe('builtin controller hosts', () => {
 	});
 
 	test('renders the raw cql help link', () => {
-		const harness = mountFieldHarness(builder =>
-			builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {
-				helpUrl: 'https://example.test/help',
-				rows: 4,
-			}),
-		);
+		const harness = mountFieldHarness(builder => builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {}));
 
-		expect(harness.wrapper.get('a.help').attributes('href')).toBe('https://example.test/help');
+		expect(harness.wrapper.get('a.help').attributes('href')).toBe('https://blacklab.ivdnt.org/guide/corpus-query-language.html');
 	});
 
 	test('updates within controller state from the host', async () => {
@@ -417,8 +418,13 @@ describe('builtin controller summaries', () => {
 			builder =>
 				builder.newField('shouldEndUpInSummaryId.parallel.node', parallelController, ParallelField, {
 					alignByOptions: ['parallel-state.align.other', 'parallel-state.align.selected'],
-					sourceOptions: languageOptions,
-					targetOptions: languageOptions,
+					child: {
+						id: 'query',
+						controller: expertQueryController,
+						component: RawCqlField,
+						config: {},
+					},
+					fieldOptions: languageOptions,
 				}),
 			'nested-container',
 		);
@@ -429,11 +435,7 @@ describe('builtin controller summaries', () => {
 	});
 
 	test('uses the field node id in raw cql summaries for direct form children', () => {
-		const harness = createFieldRuntime(builder =>
-			builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {
-				rows: 4,
-			}),
-		);
+		const harness = createFieldRuntime(builder => builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {}));
 
 		harness.runtime.state.value.controllerState[harness.field.id] = fieldExpectations.rawCql.controllerState;
 

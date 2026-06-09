@@ -2,13 +2,13 @@
 	<div :class="fieldClasses">
 		<label :for="`${htmlId}_query`">
 			{{ $t(`search.expert.corpusQueryLanguage`) }}
-			<a v-if="helpUrl" class="help" target="_blank" :href="helpUrl" :title="$t(`widgets.learnMore`)">?</a>
+			<a class="help" target="_blank" href="https://blacklab.ivdnt.org/guide/corpus-query-language.html" :title="$t(`widgets.learnMore`)">?</a>
 		</label>
 		<textarea
 			class="blf-input form-control querybox"
 			:id="`${htmlId}_query`"
-			:rows="rows || 7"
-			:value="modelValue.query"
+			rows="7"
+			:value="modelValue"
 			:disabled="disabled"
 			@input="updateQuery(($event.target as HTMLTextAreaElement).value)"
 		/>
@@ -18,11 +18,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { RawCqlQueryFieldConfig, RawCqlQueryFieldState } from '@/features/form/model/controllers/raw-cql-query-controller';
+import type { RawCqlQueryFieldState } from '@/features/form/model/controllers/raw-cql-query-controller';
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
 
-const props = withDefaults(defineProps<ImplicitFieldComponentProps<RawCqlQueryFieldState> & RawCqlQueryFieldConfig>(), {
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<RawCqlQueryFieldState>>(), {
 	disabled: false,
 });
 
@@ -34,7 +34,7 @@ const fieldClasses = computed(() => ['blf-field', 'blf-expert-query-field', deco
 const htmlId = computed(() => props.htmlId);
 
 function updateQuery(query: string) {
-	emit('update:modelValue', { ...props.modelValue, query });
+	emit('update:modelValue', query);
 }
 </script>
 

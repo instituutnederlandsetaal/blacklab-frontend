@@ -63,8 +63,13 @@ function createParallelField(builder: FormBuilder, corpus: CorpusContext, transl
 
 	return builder.newField('shared.parallel', parallelController, ParallelField, {
 		alignByOptions,
-		sourceOptions: parallelFields,
-		targetOptions: parallelFields,
+		child: {
+			id: 'query',
+			controller: expertQueryController,
+			component: RawCqlField,
+			config: {},
+		},
+		fieldOptions: parallelFields,
 		// variant: 'large',
 	});
 }
