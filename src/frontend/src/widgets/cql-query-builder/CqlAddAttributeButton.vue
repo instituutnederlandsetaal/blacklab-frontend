@@ -1,11 +1,11 @@
 <template>
 	<div class="dropup bl-create-attribute-dropdown">
-		<button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown" :title="$t('search.advanced.queryBuilder.attribute_create_button_title').toString()">
+		<button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown" :title="$t('search.advanced.queryBuilder.attribute_create_button_title').toString()" :disabled="disabled">
 			<span class="glyphicon glyphicon-plus"></span>&#8203;
 		</button>
 		<ul class="dropdown-menu">
 			<li v-for="op in options.operatorOptions" :key="op.value">
-				<a href="#" @click.prevent="emit('click', op.value as CqlAnnotationCombinator)">
+				<a href="#" @click.prevent="emitClick(op.value as CqlAnnotationCombinator)">
 					<span class="glyphicon glyphicon-plus-sign text-success"></span>
 					{{ op.label }}
 				</a>
@@ -16,12 +16,23 @@
 
 <script setup lang="ts">
 import type { CqlAnnotationCombinator, CqlQueryBuilderOptions } from './model';
-defineProps<{
+const props = withDefaults(
+	defineProps<{
 	options: CqlQueryBuilderOptions;
-}>();
+	disabled?: boolean;
+}>(),
+	{
+		disabled: false,
+	},
+);
 const emit = defineEmits<{
 	click: [operator: CqlAnnotationCombinator];
 }>();
+
+function emitClick(operator: CqlAnnotationCombinator) {
+	if (props.disabled) return;
+	emit('click', operator);
+}
 </script>
 
 <style lang="scss">

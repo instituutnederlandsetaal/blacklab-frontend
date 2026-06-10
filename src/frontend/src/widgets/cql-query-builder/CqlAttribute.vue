@@ -15,6 +15,7 @@
 				data-menu-width="auto"
 				container="body"
 				data-class="btn btn-sm btn-default bl-no-border-radius-right"
+				:disabled="disabled"
 				v-model="model.annotationId"
 			/>
 
@@ -28,6 +29,7 @@
 				hideCaret
 				container="body"
 				data-class="btn btn-sm btn-primary bl-no-border-radius"
+				:disabled="disabled"
 				v-model="model.comparator"
 			/>
 
@@ -39,6 +41,7 @@
 				class="btn btn-default btn-sm bl-no-border-radius bl-token-attribute-main-input"
 				style="text-align: auto"
 				:title="$t('search.advanced.queryBuilder.attribute_file_upload_edit_button_title').toString()"
+				:disabled="disabled"
 				@click="openModalEditor"
 			>
 				<span class="glyphicon glyphicon-edit"></span>
@@ -55,6 +58,7 @@
 				data-menu-width="auto"
 				data-class="btn btn-default btn-sm bl-no-border-radius bl-token-attribute-main-input"
 				class="bl-token-attribute-main-input"
+				:disabled="disabled"
 				:modelValue="model.values"
 				@update:modelValue="model.values = $event || [] /* workaround for querbuilder emitting null sometimes */"
 			/>
@@ -66,6 +70,7 @@
 				data-class="form-control input-sm bl-no-border-radius bl-token-attribute-main-input"
 				:dir="options.textDirection"
 				:getData="autocomplete"
+				:disabled="disabled"
 				useQuoteAsWordBoundary
 				v-model="textValue"
 			/>
@@ -75,20 +80,21 @@
 			<label
 				v-if="!hasUploadedValue"
 				class="btn btn-sm btn-default bl-no-border-radius bl-input-upload-button"
+				:class="{ disabled }"
 				:title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title').toString()"
 			>
-				<input type="file" accept="text/*" style="display: none" :title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title')" @change="handleFileUpload" />
+				<input type="file" accept="text/*" style="display: none" :title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title')" :disabled="disabled" @change="handleFileUpload" />
 				<span class="glyphicon glyphicon-open"></span>
 				<span class="sr-only">{{ $t('search.advanced.queryBuilder.attribute_file_upload_button_title').toString() }}</span>
 			</label>
 
 			<!-- Add Controls -->
-			<CqlAddAttributeButton @click="emit('add-attribute-group', $event)" :options="options" />
+			<CqlAddAttributeButton @click="emit('add-attribute-group', $event)" :options="options" :disabled="disabled" />
 		</div>
 
 		<!-- Case Sensitive Checkbox -->
 		<label v-if="currentAnnotation && currentAnnotation.caseSensitive" class="bl-token-attribute-case-and-diacritics-sensitive">
-			<input type="checkbox" v-model="model.caseSensitive" />
+			<input type="checkbox" v-model="model.caseSensitive" :disabled="disabled" />
 			{{ $t('search.advanced.queryBuilder.attribute_caseAndDiacriticsSensitive') }}
 		</label>
 		<Modal
@@ -101,7 +107,7 @@
 			@confirm="confirmModalEditor"
 		>
 			<template #body>
-				<textarea v-model="model.uploadedValue" class="form-control" rows="10" style="width: 100%; overflow: auto; resize: none; white-space: pre"></textarea>
+				<textarea v-model="model.uploadedValue" class="form-control" rows="10" style="width: 100%; overflow: auto; resize: none; white-space: pre" :disabled="disabled"></textarea>
 			</template>
 			<template #footer>
 				<button type="button" class="btn btn-danger pull-left" @click="clearModalEditor">
@@ -129,6 +135,7 @@ import SelectPicker from '@/shared/ui/SelectPicker.vue';
 const props = defineProps<{
 	options: CqlQueryBuilderOptions;
 	modelValue: CqlAttributeData;
+	disabled?: boolean;
 }>();
 const emit = defineEmits<{
 	'update:modelValue': [value: CqlAttributeData];
@@ -169,6 +176,7 @@ function parseUploadedFile(contents: string): string[] {
 		.filter(line => line);
 }
 function handleFileUpload(event: Event) {
+	if (props.disabled) return;
 	const target = event.target as HTMLInputElement;
 	const file = target.files?.[0];
 	if (!file) return;
@@ -186,15 +194,18 @@ function handleFileUpload(event: Event) {
 }
 
 function confirmModalEditor() {
+	if (props.disabled) return;
 	model.value.values = parseUploadedFile(model.value.uploadedValue!);
 	closeModalEditor();
 }
 function clearModalEditor() {
+	if (props.disabled) return;
 	model.value.uploadedValue = undefined;
 	model.value.values = [''];
 	closeModalEditor();
 }
 function openModalEditor() {
+	if (props.disabled) return;
 	showModal.value = true;
 }
 function closeModalEditor() {

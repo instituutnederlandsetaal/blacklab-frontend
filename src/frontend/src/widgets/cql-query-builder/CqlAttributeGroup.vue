@@ -12,6 +12,7 @@
 				v-if="isCqlAttributeData(entry)"
 				:key="`attr-${entry.id}`"
 				:options="options"
+				:disabled="disabled"
 				:model-value="entry"
 				@update:model-value="updateAttributeAtIndex(index, $event)"
 				@add-attribute-group="addAttribute($event as CqlAnnotationCombinator, entry)"
@@ -24,6 +25,7 @@
 				:key="`group-${entry.id}`"
 				:is-root="false"
 				:options="options"
+				:disabled="disabled"
 				@delete-group="deleteNestedGroup"
 				:model-value="entry"
 				@update:model-value="updateGroupAtIndex(index, $event)"
@@ -31,7 +33,7 @@
 		</template>
 
 		<!-- Add Controls -->
-		<CqlAddAttributeButton v-if="shouldShowAddControls" @click="addAttribute($event)" :options="options" />
+		<CqlAddAttributeButton v-if="shouldShowAddControls" @click="addAttribute($event)" :options="options" :disabled="disabled" />
 	</div>
 </template>
 
@@ -55,9 +57,11 @@ const props = withDefaults(
 		isRoot?: boolean;
 		options: CqlQueryBuilderOptions;
 		modelValue: CqlAttributeGroupData;
+		disabled?: boolean;
 	}>(),
 	{
 		isRoot: false,
+		disabled: false,
 	},
 );
 
@@ -93,6 +97,7 @@ function createDefaultAttribute(): CqlAttributeData {
 }
 
 function addAttribute(operator: CqlAnnotationCombinator, calledForAttribute?: CqlAttributeData) {
+	if (props.disabled) return;
 	// Optimization: if there is only one attribute, keep a flat group by switching operator.
 	if (model.value.entries.length <= 1) {
 		model.value.operator = operator;
@@ -124,6 +129,7 @@ function addAttribute(operator: CqlAnnotationCombinator, calledForAttribute?: Cq
 }
 
 function deleteAttribute(attributeId: string) {
+	if (props.disabled) return;
 	const index = model.value.entries.findIndex((entry: CqlGroupEntry) => isCqlAttributeData(entry) && entry.id === attributeId);
 	if (index !== -1) {
 		model.value.entries.splice(index, 1);
@@ -132,18 +138,21 @@ function deleteAttribute(attributeId: string) {
 }
 
 function updateAttributeAtIndex(index: number, updatedAttribute: CqlAttributeData) {
+	if (props.disabled) return;
 	if (index >= 0 && index < model.value.entries.length) {
 		model.value.entries.splice(index, 1, updatedAttribute);
 	}
 }
 
 function updateGroupAtIndex(index: number, updatedGroup: CqlAttributeGroupData) {
+	if (props.disabled) return;
 	if (index >= 0 && index < model.value.entries.length) {
 		model.value.entries.splice(index, 1, updatedGroup);
 	}
 }
 
 function deleteNestedGroup(groupId: string, replaceWith?: CqlGroupEntry) {
+	if (props.disabled) return;
 	const index = model.value.entries.findIndex((entry: CqlGroupEntry) => isCqlAttributeGroupData(entry) && entry.id === groupId);
 	if (index !== -1) {
 		if (replaceWith) {

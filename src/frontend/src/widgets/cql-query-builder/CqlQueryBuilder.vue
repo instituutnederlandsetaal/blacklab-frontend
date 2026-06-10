@@ -7,6 +7,7 @@
 				:key="token.id"
 				:model-value="model.tokens[index]"
 				:options="options"
+				:disabled="disabled"
 				:can-move-left="index > 0"
 				:can-move-right="index < model.tokens.length - 1"
 				@update:model-value="model.tokens[index] = $event"
@@ -16,7 +17,7 @@
 			/>
 
 			<!-- Add Token Button -->
-			<button type="button" class="btn btn-primary bl-token-create" :title="$t('search.advanced.queryBuilder.createTokenButton_label').toString()" @click="addToken">
+			<button type="button" class="btn btn-primary bl-token-create" :title="$t('search.advanced.queryBuilder.createTokenButton_label').toString()" :disabled="disabled" @click="addToken">
 				<span class="glyphicon glyphicon-plus"></span>
 			</button>
 		</div>
@@ -27,20 +28,23 @@
 
 <script setup lang="ts">
 import { useVModel } from '@vueuse/core';
-import { options } from 'floating-vue';
 import { watch } from 'vue';
 
-import type { CqlQueryBuilderData, CqlQueryBuilderOptions, CqlTokenData } from '@/widgets/cql-query-builder/model';
-import { COMPARATORS, OPERATORS } from '@/widgets/cql-query-builder/model';
-
-import useUid from '@/shared/utils/useUid';
+import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/widgets/cql-query-builder/model';
+import { createDefaultCqlToken } from '@/widgets/cql-query-builder/model';
 
 import CqlToken from './CqlToken.vue';
 
-const props = defineProps<{
-	modelValue: CqlQueryBuilderData;
-	options: CqlQueryBuilderOptions;
-}>();
+const props = withDefaults(
+	defineProps<{
+		modelValue: CqlQueryBuilderData;
+		options: CqlQueryBuilderOptions;
+		disabled?: boolean;
+	}>(),
+	{
+		disabled: false,
+	},
+);
 
 const emit = defineEmits<{
 	'update:modelValue': [value: CqlQueryBuilderData];
@@ -53,31 +57,7 @@ const model = useVModel(props, 'modelValue', emit, {
 });
 
 function addToken() {
-	const newToken: CqlTokenData = {
-		id: `token_${useUid()}`,
-		properties: {
-			optional: false,
-			minRepeats: 1,
-			maxRepeats: 1,
-			beginOfSentence: false,
-			endOfSentence: false,
-		},
-		rootAttributeGroup: {
-			id: `group_${useUid()}`,
-			operator: OPERATORS[0],
-			entries: [
-				{
-					id: `attr_${useUid()}`,
-					annotationId: options.value.defaultAnnotationId,
-					comparator: COMPARATORS[0][0],
-					values: [''],
-					caseSensitive: false,
-				},
-			],
-		},
-	};
-
-	model.value.tokens.push(newToken);
+	model.value.tokens.push(createDefaultCqlToken(props.options.defaultAnnotationId));
 }
 
 function deleteToken(tokenId: string) {
@@ -112,9 +92,6 @@ watch(
 	() => {
 		if (!Array.isArray(model.value.tokens)) {
 			model.value.tokens = [];
-		}
-		if (typeof model.value.within !== 'string') {
-			model.value.within = '';
 		}
 		if (!model.value.tokens.length) {
 			addToken();
