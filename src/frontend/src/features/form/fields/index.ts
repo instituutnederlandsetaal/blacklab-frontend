@@ -1,4 +1,5 @@
 export { default as ParallelField } from './ParallelField.vue';
+export { default as QueryBuilderField } from './QueryBuilderField.vue';
 export { default as RawCqlField } from './RawCqlField.vue';
 export { default as AnnotationPosField } from './AnnotationPosField.vue';
 export * from './annotation-pos-field.ts';

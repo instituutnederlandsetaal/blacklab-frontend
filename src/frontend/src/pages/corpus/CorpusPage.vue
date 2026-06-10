@@ -17,12 +17,10 @@
 
 <script setup lang="ts">
 import { useCurrentCorpusData } from '@/entities/corpus/model/corpus-context';
-import { startLegacyCorpusStoreWiring } from '@/pages/corpus/effects/legacy-corpus-store-wiring.effect';
 
 import Spinner from '@/shared/ui/Spinner.vue';
 
 const loadingState = useCurrentCorpusData();
-startLegacyCorpusStoreWiring();
 </script>
 
 <style lang="scss"></style>

@@ -11,7 +11,7 @@ import { html, stripIndent } from 'common-tags';
 import { reactive } from 'vue';
 
 import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
-import * as CorpusStore from '@/entities/corpus/model/legacy-corpus-store';
+import { useLegacyCorpusStore } from '@/entities/corpus/model/legacy-corpus-store';
 import { corpusCustomizations } from '@/pages/search/config/customization-callback-store';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
@@ -418,8 +418,8 @@ const actions = {
 			within: {
 				enable: (payload: boolean) => (state.search.shared.within.enabled = payload),
 				elements: (payload: ModuleRootState['search']['shared']['within']['elements']) => {
-					const relations = CorpusStore.get.corpus().relations;
-					const validElements = payload.filter(v => relations.spans?.[v.value]);
+					const relations = useLegacyCorpusStore().index?.relations;
+					const validElements = payload.filter(v => relations?.spans?.[v.value]);
 					if (!validElements.find(v => v.value === '')) {
 						validElements.unshift({
 							value: '',
@@ -652,7 +652,7 @@ const actions = {
 				/** It's possible to show multiple feats by passing multiple annotations here. */
 				feats: string | null | string[];
 			}) => {
-				const allAnnotations = CorpusStore.get.allAnnotationsMap();
+				const allAnnotations = useLegacyCorpusStore().allAnnotationsMap;
 				const storeIsInitialized = Object.keys(allAnnotations).length > 0;
 
 				const validate = (id: string | null, key: string): string | null => {
@@ -748,7 +748,7 @@ const actions = {
 		moveAnnotationToGroup: (annotationId: string, targetGroupName: string, removeFromExistingGroup = true) => {
 			// NOTE: is frozen object, though not deeply.
 			// Need to reassign to trigger reactivity.
-			const corpus = CorpusStore.getState();
+			const corpus = useLegacyCorpusStore().index;
 			if (!corpus) {
 				console.warn(`[moveAnnotationToGroup] - Trying to move annotation '${annotationId}' to group '${targetGroupName}', but the corpus is not loaded yet!`);
 				return;
@@ -771,7 +771,7 @@ const actions = {
 		moveMetadataToGroup: (metadataFieldId: string, targetGroupName: string, removeFromExistingGroup = true) => {
 			// NOTE: is frozen object, though not deeply.
 			// Need to reassign to trigger reactivity.
-			const corpus = CorpusStore.getState();
+			const corpus = useLegacyCorpusStore().index;
 			if (!corpus) {
 				console.warn(`[moveMetadataToGroup] - Trying to move metadata field '${metadataFieldId}' to group '${targetGroupName}', but the corpus is not loaded yet!`);
 				return;
@@ -826,7 +826,7 @@ const init = (state: CorpusContext) => {
 	}
 
 	// Update uiTypes for annotations where necessary
-	CorpusStore.get.allAnnotatedFields().forEach(field => {
+	useLegacyCorpusStore().allAnnotatedFields.forEach(field => {
 		Object.values(field.annotations).forEach(annotation => {
 			const uiType = corpusCustomizations.search.pattern.uiType(annotation.annotatedFieldId, annotation.id);
 			if (uiType) {
@@ -861,10 +861,10 @@ const init = (state: CorpusContext) => {
 	// Set up some defaults
 	// ====================
 
-	const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
-	const annotationGroups = CorpusStore.get.annotationGroups();
-	const metadataGroups = CorpusStore.get.metadataGroups();
-	const mainAnnotation = CorpusStore.get.firstMainAnnotation();
+	const allAnnotationsMap = useLegacyCorpusStore().allAnnotationsMap;
+	const annotationGroups = useLegacyCorpusStore().annotationGroups;
+	const metadataGroups = useLegacyCorpusStore().metadataGroups;
+	const mainAnnotation = useLegacyCorpusStore().firstMainAnnotation!;
 
 	// Annotations (extended, advanced, explore [n-grams], sorting, grouping, hit details)
 	// If unconfigured, show the following annotations:
@@ -981,7 +981,7 @@ const init = (state: CorpusContext) => {
 		// (dependency, parallel) relations as well. We could get the list of values for this annotation and
 		// decode them, but this makes us depend on implementation details. The new /relations endpoint gives
 		// us the same information in a portable way.
-		const relations = CorpusStore.get.corpus()!.relations;
+		const relations = useLegacyCorpusStore().index!.relations;
 		setValuesForWithin(Object.keys(relations.spans || {}).map(v => ({ value: v, label: v, title: null })));
 
 		// Set default sentence boundary element. For use with dependency trees and getting the sentence around a hit.
@@ -1050,7 +1050,7 @@ const init = (state: CorpusContext) => {
 
 	// Docs table: Show the date column if it is configured
 	if (!getState().results.docs.shownMetadataIds.length) {
-		const dateField = CorpusStore.get.corpus()!.fieldInfo.dateField;
+		const dateField = useLegacyCorpusStore().index!.fieldInfo.dateField;
 		if (dateField) {
 			actions.results.docs.shownMetadataIds([dateField]);
 		}
@@ -1177,13 +1177,13 @@ function createConfigurator<T extends Record<string, string[]>>(proppaths: T) {
 let alwaysCallbackAfterValidating = false;
 /** Validate all ids, triggering callbacks for failed ids, and triggering a final callback if there is any valid annotation. */
 function validateAnnotations(ids: string[], missing: (id: string) => string, validate: (a: AppTypes.NormalizedAnnotation) => boolean, invalid: (id: string) => string, cb: (ids: string[]) => void) {
-	if (!CorpusStore.getState()) {
+	if (!useLegacyCorpusStore().index) {
 		// not loaded yet
 		cb(ids);
 		return;
 		// we will re-check this on init()?
 	}
-	const all = CorpusStore.get.allAnnotationsMap();
+	const all = useLegacyCorpusStore().allAnnotationsMap;
 	const results = ids.filter(id => {
 		if (!all[id]) {
 			console.warn(missing(id));
@@ -1204,13 +1204,13 @@ function validateAnnotations(ids: string[], missing: (id: string) => string, val
 
 /** Validate all ids, triggering callbacks for failed ids, and triggering a final callback if there is any valid annotation. */
 function validateMetadata(ids: string[], missing: (id: string) => string, validate: (m: AppTypes.NormalizedMetadataField) => boolean, invalid: (id: string) => string, cb: (ids: string[]) => void) {
-	if (!CorpusStore.getState()) {
+	if (!useLegacyCorpusStore().index) {
 		cb(ids);
 		return;
 		// assume we will re-check this on init()?
 	}
 
-	const all = CorpusStore.get.allMetadataFieldsMap();
+	const all = useLegacyCorpusStore().allMetadataFieldsMap;
 	const results = ids.filter(id => {
 		if (!all[id]) {
 			console.warn(missing(id));
@@ -1282,8 +1282,8 @@ function printCustomizations() {
 	const metadataColumns = actions.helpers.configureMetadata.config;
 
 	// output stuff
-	const annotationData = getCheckmarks(annotColumns, CorpusStore.get.annotationGroups(), defaultGroupName);
-	const metadataData = getCheckmarks(metadataColumns, CorpusStore.get.metadataGroups(), defaultGroupName);
+	const annotationData = getCheckmarks(annotColumns, useLegacyCorpusStore().annotationGroups, defaultGroupName);
+	const metadataData = getCheckmarks(metadataColumns, useLegacyCorpusStore().metadataGroups, defaultGroupName);
 	const annotationCells = getCells(Object.keys(annotColumns));
 	const metadataCells = getCells(Object.keys(metadataColumns));
 	const longestAnnotId = annotationData.flatMap(g => g.entries).reduce((longest, cur) => Math.max(longest, cur.id.length), 0);

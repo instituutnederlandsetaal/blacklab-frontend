@@ -2,7 +2,7 @@ import { type OxlintConfig, type OxlintOverride } from 'oxlint';
 
 // === START feature-sliced cross-layer config
 
-const FS_LAYERS = ['app', 'processes', 'pages', 'widgets', 'features', 'entities', 'shared'] as const;
+const FS_LAYERS = ['app', 'processes', 'pages', 'features', 'widgets', 'entities', 'shared'] as const;
 type Layer = (typeof FS_LAYERS)[number];
 const MAX_RELATIVE_LAYER_IMPORT_DEPTH = 12;
 

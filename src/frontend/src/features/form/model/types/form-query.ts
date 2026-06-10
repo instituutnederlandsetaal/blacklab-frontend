@@ -33,12 +33,17 @@ type TokenPredicateLeaf = {
 	annotation: string;
 	value: string;
 	caseSensitive?: boolean;
+	operator?: '=' | '!=';
+	caseMode?: 'default' | 'insensitive' | 'sensitive';
 };
 export type TokenPredicate = TokenPredicateLeaf | BooleanExpr<TokenPredicateLeaf>;
 
 type CqlPatternLeaf =
 	| { type: 'sequence'; children: CqlPattern[] }
 	| { type: 'token'; predicate: TokenPredicate }
+	| { type: 'any-token' }
+	| { type: 'repeat'; child: CqlPattern; minRepeats: number; maxRepeats: number; optional: boolean }
+	| { type: 'xml-tag'; name: string; closing?: boolean }
 	| { type: 'parallel'; source: CqlPattern | null; targets: QueryParallelTargetPattern[] }
 	| { type: 'raw'; cql: string };
 export type CqlPattern = CqlPatternLeaf | BooleanExpr<CqlPatternLeaf>;
@@ -53,6 +58,12 @@ export function isCqlPattern(node: any): node is CqlPattern {
 			return Array.isArray(node.children);
 		case 'token':
 			return 'predicate' in node && typeof node.predicate === 'object';
+		case 'any-token':
+			return true;
+		case 'repeat':
+			return 'child' in node && isCqlPattern(node.child);
+		case 'xml-tag':
+			return 'name' in node && typeof node.name === 'string';
 		case 'parallel':
 			return 'source' in node && (node.source === null || isCqlPattern(node.source)) && Array.isArray(node.targets) && node.targets.every(isQueryParallelTargetPattern);
 		case 'raw':

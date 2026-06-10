@@ -19,16 +19,19 @@ import {
 	filterTextController,
 	FormSystem,
 	parallelController,
+	queryBuilderController,
 	restoreScopedFormState,
 	withinController,
 	type FieldController,
 } from '@/features/form';
 import { queryFragment, rawFilter } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, decodePersistSelection, encodePersistObject, joinPersistValues } from '@/features/form/model/controllers/persistence-codec';
+import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/widgets/cql-query-builder/model';
 
 import { TestTextField, createTestBuilder, createTestContext, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
+import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
 function createSingleTextForm() {
@@ -348,6 +351,90 @@ describe('controller persistence compatibility', () => {
 		fieldOptions: [{ id: 'contents__en' }, { id: 'contents__nl' }, { id: 'contents__de' }],
 		alignByOptions: ['word-alignment'],
 	};
+	const queryBuilderOptions: CqlQueryBuilderOptions = {
+		indexId: 'test-corpus',
+		defaultAnnotationId: 'word',
+		textDirection: 'ltr',
+		allAnnotationsMap: {},
+		annotationOptions: [],
+		operatorOptions: [
+			{ value: '&', label: 'AND' },
+			{ value: '|', label: 'OR' },
+		],
+		comparatorOptions: [],
+		autocomplete: async () => [],
+	};
+	const queryBuilderConfig = {
+		kind: 'field' as const,
+		id: 'querybuilder',
+		options: queryBuilderOptions,
+		displayName: 'Query',
+	};
+	const queryBuilderState: CqlQueryBuilderData = {
+		tokens: [
+			{
+				id: 'token_original',
+				properties: {
+					optional: true,
+					minRepeats: 1,
+					maxRepeats: 3,
+					beginOfSentence: true,
+					endOfSentence: false,
+				},
+				rootAttributeGroup: {
+					id: 'group_original',
+					operator: '&',
+					entries: [
+						{
+							id: 'attr_original',
+							annotationId: 'word',
+							comparator: '=',
+							values: ['water;ship', 'literal,comma', 'literal=equals', 'literal\\slash'],
+							caseSensitive: false,
+							uploadedValue: 'water;ship\nliteral,comma\nliteral=equals\nliteral\\slash',
+						},
+						{
+							id: 'group_nested',
+							operator: '|',
+							entries: [
+								{
+									id: 'attr_nested',
+									annotationId: 'lemma',
+									comparator: 'startsWith',
+									values: ['boot'],
+									caseSensitive: true,
+								},
+							],
+						},
+					],
+				},
+			},
+		],
+	};
+
+	function stripQueryBuilderIds(value: CqlQueryBuilderData): CqlQueryBuilderData {
+		return {
+			tokens: value.tokens.map(token => ({
+				id: '',
+				properties: token.properties,
+				rootAttributeGroup: stripGroupIds(token.rootAttributeGroup),
+			})),
+		};
+	}
+
+	function stripGroupIds(group: CqlQueryBuilderData['tokens'][number]['rootAttributeGroup']): CqlQueryBuilderData['tokens'][number]['rootAttributeGroup'] {
+		return {
+			id: '',
+			operator: group.operator,
+			entries: group.entries.map(entry => {
+				if ('annotationId' in entry) {
+					const { uploadedValue: _uploadedValue, ...attribute } = entry;
+					return { ...attribute, id: '' };
+				}
+				return stripGroupIds(entry);
+			}),
+		};
+	}
 
 	test('shares scalar and selection representations across compatible controllers', () => {
 		expect(filterSelectController.restore('one', selectConfig, context)).toEqual({ state: ['one'], warnings: [] });
@@ -497,6 +584,66 @@ describe('controller persistence compatibility', () => {
 		const record = encodePersistObject({ value: 'a;b,c=d\\e' });
 		expect(record).not.toBeNull();
 		expect(decodePersistObject(record!)).toEqual({ value: 'a;b,c=d\\e' });
+	});
+
+	test('persists querybuilder state as a compact structured value and restores generated ids', () => {
+		const encoded = queryBuilderController.encode(queryBuilderState, queryBuilderConfig, context);
+		expect(encoded).toEqual(expect.stringContaining('v=1'));
+
+		const restored = queryBuilderController.restore(encoded!, queryBuilderConfig, context);
+
+		expect(stripQueryBuilderIds(restored)).toEqual(stripQueryBuilderIds(queryBuilderState));
+		expect(restored.tokens[0].id).not.toBe(queryBuilderState.tokens[0].id);
+	});
+
+	test('omits default and uploaded querybuilder-only state from persistence', () => {
+		const defaultState = queryBuilderController.createDefaultState(queryBuilderConfig, context);
+		expect(queryBuilderController.encode(defaultState, queryBuilderConfig, context)).toBeNull();
+
+		const encoded = queryBuilderController.encode(queryBuilderState, queryBuilderConfig, context);
+		const restored = queryBuilderController.restore(encoded!, queryBuilderConfig, context);
+		const restoredAttribute = restored.tokens[0].rootAttributeGroup.entries[0];
+
+		expect('annotationId' in restoredAttribute ? restoredAttribute.uploadedValue : null).toBeUndefined();
+		expect('annotationId' in restoredAttribute ? restoredAttribute.values : null).toEqual(['water;ship', 'literal,comma', 'literal=equals', 'literal\\slash']);
+	});
+
+	test('round-trips querybuilder state through the parallel wrapper child payloads', () => {
+		const config = {
+			...parallelConfig,
+			child: {
+				id: 'query',
+				controller: queryBuilderController,
+				component: QueryBuilderField,
+				config: queryBuilderConfig,
+			},
+		};
+		const encoded = parallelController.encode(
+			{
+				source: 'contents__en',
+				targets: ['contents__nl'],
+				alignBy: 'word-alignment',
+				sourceState: queryBuilderState,
+				targetStates: {
+					contents__nl: queryBuilderState,
+				},
+			},
+			config,
+			context,
+		);
+
+		expect(decodePersistObject(encoded!)).toEqual(
+			expect.objectContaining({
+				'source.query': expect.stringContaining('v=1'),
+				'target.contents__nl.query': expect.stringContaining('v=1'),
+			}),
+		);
+
+		const restored = parallelController.restore(encoded!, config, context);
+		const restoredState = 'state' in restored ? restored.state : restored;
+
+		expect(stripQueryBuilderIds(restoredState.sourceState as CqlQueryBuilderData)).toEqual(stripQueryBuilderIds(queryBuilderState));
+		expect(stripQueryBuilderIds(restoredState.targetStates.contents__nl as CqlQueryBuilderData)).toEqual(stripQueryBuilderIds(queryBuilderState));
 	});
 
 	test('rejects duplicate and unsupported structured record keys', () => {

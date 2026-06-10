@@ -11,8 +11,11 @@ import {
 	filterTextController,
 } from './metadata-filter-controller';
 import parallelController from './parallel-controller';
+import queryBuilderController from './query-builder-controller';
 import expertQueryController from './raw-cql-query-controller';
 import withinController from './within-controller';
+
+export type { QueryBuilderFieldConfig, QueryBuilderFieldState } from './query-builder-controller';
 
 export {
 	annotationPosController,
@@ -29,4 +32,5 @@ export {
 	withinController,
 	expertQueryController,
 	parallelController,
+	queryBuilderController,
 };

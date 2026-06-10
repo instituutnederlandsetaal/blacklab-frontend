@@ -7,7 +7,7 @@ import 'floating-vue/dist/style.css';
 
 import FloatingVue from 'floating-vue';
 import HighchartsVue from 'highcharts-vue';
-import { createApp, effectScope, type App, type ObjectPlugin } from 'vue';
+import { createApp, effectScope, watch, type App, type ObjectPlugin } from 'vue';
 
 // import { installHooksGlobal } from '@/interop/hooks';
 import { startCurrentCorpusGlobalInterop } from '@/app/effects/current-corpus-global-interop.effect';
@@ -15,9 +15,12 @@ import { startCustomizationInterop } from '@/app/effects/page-customization.effe
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/app/interop/window-globals';
 import { createApi } from '@/app/providers/provideApi';
 import { createCorpusData } from '@/app/providers/provideCorpusData';
+import { createLegacyCorpusStore } from '@/app/providers/provideLegacyCorpusStore';
 import { createRouteBootstrapPlugin } from '@/app/providers/providePageBootstrapState';
 // import Filters from '@/components/filters';
 import createRouter from '@/app/providers/provideRouter';
+import { useCurrentCorpusData } from '@/entities/corpus/model/corpus-context';
+import * as UIStore from '@/pages/search/config/ui-customization-store';
 
 import * as LoginSystem from '@/shared/auth/loginsystem';
 import { createI18n } from '@/shared/i18n';
@@ -45,6 +48,7 @@ async function main() {
 	});
 	const { currentCorpusId, ...router } = createRouter();
 	const corpusData = createCorpusData(api.blacklabApi, api.frontendApi, currentCorpusId);
+	const legacyCorpusStore = createLegacyCorpusStore();
 	const pageBootstrap = createRouteBootstrapPlugin();
 	const i18n = createI18n();
 
@@ -52,6 +56,7 @@ async function main() {
 	app.use(api);
 	app.use(router);
 	app.use(corpusData);
+	app.use(legacyCorpusStore);
 	app.use(pageBootstrap);
 	app.use(i18n);
 	app.use(globalComponents);
@@ -70,6 +75,15 @@ async function main() {
 		app.runWithContext(() => {
 			startCurrentCorpusGlobalInterop();
 			startCustomizationInterop();
+			const corpusData = useCurrentCorpusData();
+			watch(
+				() => corpusData.value,
+				index => {
+					if (index && index.index) {
+						UIStore.init(index);
+					}
+				},
+			);
 		}),
 	);
 	app.onUnmount(() => eff.stop());

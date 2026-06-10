@@ -120,7 +120,6 @@ export function getAnnotationSubset(
 	annotations: Record<string, NormalizedAnnotation>,
 	operation: 'Search' | 'Sort',
 	i18n: Translate,
-	corpusTextDirection: 'rtl' | 'ltr' = 'ltr',
 	debug = false,
 	showGroupLabels = false,
 ): Array<OptGroup & { entries: NormalizedAnnotation[] }> {

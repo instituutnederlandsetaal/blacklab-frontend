@@ -1,3 +1,4 @@
+import { toReactive } from '@vueuse/core';
 import { computed } from 'vue';
 
 import type { CorpusContext, FilledCorpusContext } from '@/entities/corpus/model/corpus-context';
@@ -18,8 +19,11 @@ import {
 	type FormSystemDefinition,
 	withinController,
 	RangeField,
+	queryBuilderController,
+	QueryBuilderField,
 } from '@/features/form';
 import type { TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
+import useQueryBuilderOptions from '@/pages/search/form/composables/useQueryBuilderOptions';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField, Tagset } from '@/types/apptypes';
 
 import { runSearchFormCustomizations } from './search-form-customizations';
@@ -46,14 +50,11 @@ function toSafeHtmlId(value: string) {
 	return value.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'group';
 }
 
-function createParallelField(builder: FormBuilder, corpus: CorpusContext, translate: Translate) {
-	const index = corpus.index;
-	if (!index) return null;
-
+function getParallelFieldOptions(index: NormalizedIndex, translate: Translate) {
 	const parallelFields = Object.values(index.annotatedFields)
 		.filter(f => f.isParallel)
 		.sort((left, right) => translate.$tAnnotatedFieldDisplayName(left).localeCompare(translate.$tAnnotatedFieldDisplayName(right)));
-	if (!parallelFields.length) return null;
+	if (!parallelFields.length) return { parallelFields: null, alignByOptions: null };
 
 	const alignByOptions = Object.keys(index.relations.relations ?? {})
 		.filter(relationClass => relationClass.startsWith('al__'))
@@ -61,21 +62,42 @@ function createParallelField(builder: FormBuilder, corpus: CorpusContext, transl
 		.filter((value, position, values) => values.indexOf(value) === position)
 		.sort((left, right) => left.localeCompare(right));
 
-	return builder.newField('shared.parallel', parallelController, ParallelField, {
+	return { parallelFields, alignByOptions };
+}
+
+function createAdvancedQueryBuilderBox(builder: FormBuilder, index: NormalizedIndex, translate: Translate) {
+	const queryBuilderOptions = toReactive(useQueryBuilderOptions());
+
+	const { parallelFields, alignByOptions } = getParallelFieldOptions(index, translate);
+	if (!parallelFields || !alignByOptions)
+		return builder.newField('advanced.cql', queryBuilderController, QueryBuilderField, {
+			options: queryBuilderOptions,
+		});
+
+	return builder.newField('advanced.parallel', parallelController, ParallelField, {
 		alignByOptions,
-		child: {
-			id: 'query',
-			controller: expertQueryController,
-			component: RawCqlField,
-			config: {},
-		},
 		fieldOptions: parallelFields,
-		// variant: 'large',
+		child: {
+			id: 'advanced.cql',
+			controller: queryBuilderController,
+			component: QueryBuilderField,
+			config: { options: queryBuilderOptions },
+		},
 	});
 }
 
-function createWithinField(builder: FormBuilder, corpus: CorpusContext, translate: Translate) {
-	const spans = corpus.index?.relations.spans;
+function createExpertCqlBox(builder: FormBuilder, index: NormalizedIndex, translate: Translate) {
+	const { parallelFields, alignByOptions } = getParallelFieldOptions(index, translate);
+	if (!parallelFields || !alignByOptions) return builder.newField('expert.cql', expertQueryController, RawCqlField, {});
+	return builder.newField('expert.parallel', parallelController, ParallelField, {
+		alignByOptions,
+		child: { id: 'expert.cql', component: RawCqlField, controller: expertQueryController, config: {} },
+		fieldOptions: parallelFields,
+	});
+}
+
+function createWithinField(builder: FormBuilder, index: NormalizedIndex, translate: Translate) {
+	const spans = index.relations?.spans;
 	if (!spans || !Object.keys(spans).length) return null;
 
 	const options = [
@@ -336,8 +358,7 @@ export function createSearchFormDefinition(
 	});
 
 	const sharedFilters = createSharedFilters(builder, index, translate);
-	const sharedParallel = createParallelField(builder, corpus, translate);
-	const sharedWithin = createWithinField(builder, corpus, translate);
+	const sharedWithin = createWithinField(builder, index, translate);
 
 	// TODO use customized annot
 	const simpleField = index.annotatedFields[index.mainAnnotatedField].annotations[index.annotatedFields[index.mainAnnotatedField].mainAnnotationId];
@@ -362,14 +383,22 @@ export function createSearchFormDefinition(
 				title: computed(() => translate.$t(`search.heading`)),
 			}),
 			createAnnotationTabs(builder, corpus, translate),
-			sharedParallel,
 			sharedWithin,
 		),
 		sharedFilters,
 	);
 
 	// TODO querybuilder
-	// const advancedSearchForm = searchTab.
+	const advancedSearchForm = searchTab.addForm('advanced', ContainerRenderer, {
+		title: computed(() => translate.$t(`search.advanced.heading`)),
+		variant: 'columns',
+	});
+	advancedSearchForm
+		.addView('advanced.query.heading', HeadingView, {
+			title: computed(() => translate.$t(`search.advanced.corpusQueryLanguage`)),
+		})
+		.addChildren(createAdvancedQueryBuilderBox(builder, index, translate))
+		.addChildren(sharedWithin, sharedFilters);
 
 	const expertSearchForm = searchTab.addForm('expert', ContainerRenderer, {
 		title: computed(() => translate.$t(`search.expert.heading`)),
@@ -380,9 +409,7 @@ export function createSearchFormDefinition(
 		.addView('expert.query.heading', HeadingView, {
 			title: computed(() => translate.$t(`search.expert.corpusQueryLanguage`)),
 		})
-		.addField('search.expert.querybox', expertQueryController, RawCqlField, {})
-		.addChildren(sharedParallel, sharedWithin);
-	expertSearchForm.addChildren(sharedFilters);
+		.addChildren(createExpertCqlBox(builder, index, translate), sharedWithin, sharedFilters);
 
 	runSearchFormCustomizations({
 		builder,

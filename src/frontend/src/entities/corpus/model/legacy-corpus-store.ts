@@ -3,68 +3,71 @@
  * New code should prefer useCurrentCorpus()/useCurrentCorpusData() directly where practical.
  */
 
-import { ref } from 'vue';
+import { computed, reactive, toRef, type MaybeRefOrGetter } from 'vue';
 
-import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
-import type {
-	NormalizedAnnotatedField,
-	NormalizedAnnotatedFieldParallel,
-	NormalizedAnnotation,
-	NormalizedAnnotationGroup,
-	NormalizedIndex,
-	NormalizedMetadataField,
-	NormalizedMetadataGroup,
-} from '@/types/apptypes';
+import type { NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex, NormalizedMetadataField, NormalizedMetadataGroup } from '@/types/apptypes';
 
+import useInjectable from '@/shared/lib/vue/useInjectable';
 import { mapReduce } from '@/shared/utils/map-reduce';
 
-type ModuleRootState = NormalizedIndex | undefined;
+export default function createLegacyCorpusStore(_index: MaybeRefOrGetter<NormalizedIndex | null>) {
+	const index = toRef(_index);
+	const indexId = computed(() => index.value?.id ?? '');
+	const allAnnotatedFields = computed(() => Object.values(index.value?.annotatedFields ?? {}));
+	const allAnnotatedFieldsMap = computed(() => index.value?.annotatedFields ?? {});
+	const mainAnnotatedField = computed(() => index.value?.annotatedFields[index.value?.mainAnnotatedField ?? '']);
+	const isParallelCorpus = computed(() => allAnnotatedFields.value.some(f => f.isParallel));
+	const parallelAnnotatedFields = computed(() => allAnnotatedFields.value.filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel));
+	const parallelAnnotatedFieldsMap = computed(() => mapReduce(parallelAnnotatedFields.value, 'id'));
+	const parallelFieldPrefix = computed(() => parallelAnnotatedFields.value[0]?.prefix ?? '');
+	const allAnnotations = computed(() => Object.values(mainAnnotatedField.value?.annotations ?? {}));
+	const allAnnotationsMap = computed(() => mainAnnotatedField.value?.annotations ?? {});
 
-const state = ref<NormalizedIndex>();
-const getState = (): ModuleRootState => state.value;
+	const allMetadataFields = computed(() => Object.values(index.value?.metadataFields ?? {}));
+	const allMetadataFieldsMap = computed(() => index.value?.metadataFields ?? {});
+	const firstMainAnnotation = computed(() => allAnnotations.value.find(f => f.isMainAnnotation));
+	const metadataGroups = computed<Array<NormalizedMetadataGroup & { fields: NormalizedMetadataField[] }>>(
+		() =>
+			index.value?.metadataFieldGroups.map(g => ({
+				...g,
+				fields: g.entries.map(id => index.value!.metadataFields[id]),
+			})) ?? [],
+	);
+	const annotationGroups = computed<Array<NormalizedAnnotationGroup & { fields: NormalizedAnnotation[] }>>(
+		() =>
+			index.value?.annotationGroups.map(g => ({
+				...g,
+				fields: g.entries.map(id => index.value!.annotatedFields[g.annotatedFieldId].annotations[id]),
+			})) ?? [],
+	);
+	const textDirection = computed(() => index.value?.textDirection ?? 'ltr');
+	const hasRelations = computed(() => index.value?.relations.relations != null);
 
-const get = {
-	indexId: (): string => state.value?.id as string,
-	corpus: (): NormalizedIndex => state.value!,
-	allAnnotatedFields: (): NormalizedAnnotatedField[] => (state.value ? Object.values(state.value.annotatedFields) : []),
-	allAnnotatedFieldsMap: (): Record<string, NormalizedAnnotatedField> => (state.value ? state.value.annotatedFields : {}),
-	mainAnnotatedField: (): string => state.value?.mainAnnotatedField ?? 'contents',
-	isParallelCorpus: (): boolean => get.allAnnotatedFields().some(f => f.isParallel),
-	parallelAnnotatedFields: (): NormalizedAnnotatedFieldParallel[] => get.allAnnotatedFields().filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel),
-	parallelAnnotatedFieldsMap: (): Record<string, NormalizedAnnotatedFieldParallel> => mapReduce(get.parallelAnnotatedFields(), 'id'),
-	parallelFieldPrefix: (): string => get.parallelAnnotatedFields()[0]?.prefix ?? '',
-	allAnnotations: (): NormalizedAnnotation[] => (state.value ? Object.values(state.value.annotatedFields[state.value.mainAnnotatedField].annotations) : []),
-	allAnnotationsMap: (): Record<string, NormalizedAnnotation> => mapReduce(get.allAnnotations(), 'id'),
-	allMetadataFields: (): NormalizedMetadataField[] => (state.value ? Object.values(state.value.metadataFields) : []),
-	allMetadataFieldsMap: (): Record<string, NormalizedMetadataField> => (state.value ? state.value.metadataFields : {}),
-	firstMainAnnotation: (): NormalizedAnnotation => get.allAnnotations().find(f => f.isMainAnnotation)!,
-	metadataGroups: (): Array<NormalizedMetadataGroup & { fields: NormalizedMetadataField[] }> =>
-		state.value
-			? state.value.metadataFieldGroups.map(g => ({
-					...g,
-					fields: g.entries.map(id => state.value!.metadataFields[id]),
-				}))
-			: [],
-	annotationGroups: (): Array<NormalizedAnnotationGroup & { fields: NormalizedAnnotation[] }> =>
-		state.value
-			? state.value.annotationGroups.map(g => ({
-					...g,
-					fields: g.entries.map(id => state.value!.annotatedFields[g.annotatedFieldId].annotations[id]),
-				}))
-			: [],
-	textDirection: () => state.value?.textDirection ?? 'ltr',
-	hasRelations: () => state.value?.relations.relations != null,
-};
+	return reactive({
+		index,
+		indexId,
+		allAnnotatedFields,
+		allAnnotatedFieldsMap,
+		mainAnnotatedField,
+		isParallelCorpus,
+		parallelAnnotatedFields,
+		parallelAnnotatedFieldsMap,
+		parallelFieldPrefix,
+		allAnnotations,
+		allAnnotationsMap,
+		allMetadataFields,
+		allMetadataFieldsMap,
+		firstMainAnnotation,
+		metadataGroups,
+		annotationGroups,
+		textDirection,
+		hasRelations,
+	});
+}
 
-const actions = {
-	reset: () => {
-		state.value = undefined;
-	},
-};
+type LegacyCorpusStore = ReturnType<typeof createLegacyCorpusStore>;
 
-const init = (payload: CorpusContext) => {
-	state.value = payload.index;
-};
+const [_legacyCorpusStoreInjectionKey, provideLegacyCorpusStore, useLegacyCorpusStore] = useInjectable<LegacyCorpusStore>('legacyCorpusStore');
 
-export { actions, get, getState, init };
-export type { ModuleRootState };
+export { createLegacyCorpusStore, provideLegacyCorpusStore, useLegacyCorpusStore };
+export type { LegacyCorpusStore };

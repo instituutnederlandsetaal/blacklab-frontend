@@ -81,6 +81,19 @@ export function token(predicate: expr | null): CqlPattern | null {
 	return predicate ? { type: 'token', predicate } : null;
 }
 
+export function anyToken(): CqlPattern {
+	return { type: 'any-token' };
+}
+
+export function repeat(child: CqlPattern | null, minRepeats: number, maxRepeats: number, optional = false): CqlPattern | null {
+	if (!child) return null;
+	return { type: 'repeat', child, minRepeats, maxRepeats, optional };
+}
+
+export function xmlTag(name: string, closing = false): CqlPattern | null {
+	return name ? { type: 'xml-tag', name, closing } : null;
+}
+
 export function tokenSequence(children: Array<CqlPattern | null>): CqlPattern | null {
 	const activeChildren = children.filter(isNonNull);
 	return activeChildren.length ? { type: 'sequence', children: activeChildren } : null;
@@ -172,6 +185,14 @@ function simplifyCql(pattern: CqlPattern | null): CqlPattern | null {
 			return cqlRaw(pattern.cql);
 		case 'token':
 			return token(simplifyTokenPredicate(pattern.predicate));
+		case 'any-token':
+			return pattern;
+		case 'repeat': {
+			const child = simplifyCql(pattern.child);
+			return child ? { ...pattern, child } : null;
+		}
+		case 'xml-tag':
+			return pattern.name ? pattern : null;
 		case 'parallel': {
 			const source = simplifyCql(pattern.source) ?? cqlRaw('_')!;
 			return {
@@ -294,6 +315,12 @@ function emitRequiredCql(pattern: CqlPattern): string {
 			const condition = emitTokenPredicate(pattern.predicate);
 			return `[${condition}]`;
 		}
+		case 'any-token':
+			return '[]';
+		case 'repeat':
+			return `${emitRequiredCql(pattern.child)}${emitRepeat(pattern)}`;
+		case 'xml-tag':
+			return pattern.closing ? `</${pattern.name}>` : `<${pattern.name}>`;
 		case 'sequence': {
 			return pattern.children.map(emitRequiredCql).join(' ');
 		}
@@ -335,10 +362,31 @@ function emitRequiredFilter(filter: QueryFilterNode): string {
 	}
 }
 
+function emitRepeat(pattern: Extract<CqlPattern, { type: 'repeat' }>): string {
+	const min = Number.isNaN(pattern.minRepeats) ? 1 : pattern.minRepeats;
+	const max = Number.isNaN(pattern.maxRepeats) ? 1 : pattern.maxRepeats;
+	let range = '';
+	if (min === max) {
+		range = min === 1 ? '' : `{${min}}`;
+	} else {
+		range = `{${Number.isNaN(pattern.minRepeats) ? '' : min},${Number.isNaN(pattern.maxRepeats) ? '' : max}}`;
+	}
+	return `${range}${pattern.optional && min !== 0 ? '?' : ''}`;
+}
+
 function emitTokenPredicate(expr: TokenPredicate, parentOperator?: BooleanType): string {
 	if (expr.type === 'predicate') {
 		const literalFlag = expr.match === 'equals' ? 'l' : '';
-		const caseFlag = expr.caseSensitive ? '' : '(?i)';
+		const caseFlag =
+			expr.caseMode === 'sensitive'
+				? '(?-i)'
+				: expr.caseMode === 'insensitive'
+					? '(?i)'
+					: expr.caseMode === 'default'
+						? ''
+						: expr.caseSensitive
+							? ''
+							: '(?i)';
 
 		const escapedValue =
 			expr.match === 'regex'
@@ -349,7 +397,7 @@ function emitTokenPredicate(expr: TokenPredicate, parentOperator?: BooleanType):
 						? escapeRegex(expr.value)
 						: expr.value; // Should not happen, but just return the raw value if an unknown match is encountered
 
-		return `${expr.annotation}=${literalFlag}"${caseFlag}${escapedValue}"`;
+		return `${expr.annotation}${expr.operator ?? '='}${literalFlag}"${caseFlag}${escapedValue}"`;
 	}
 
 	const operator = expr.type === 'and' ? ' & ' : ' | ';
