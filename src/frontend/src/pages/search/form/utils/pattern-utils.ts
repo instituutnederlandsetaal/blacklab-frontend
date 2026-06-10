@@ -1,16 +1,10 @@
-import cloneDeep from 'clone-deep';
 
-import { getValueFunctions } from '@/pages/search/form/filters/lib/filterValueFunctions';
-import type { ModuleRootState as ModuleRootStateFilters } from '@/pages/search/form/filters/store/filter-store';
 import type { ModuleRootState as ModuleRootStateExplore } from '@/pages/search/form/store/explore-state';
-import type { ModuleRootState as ModuleRootStatePatterns } from '@/pages/search/form/store/pattern-store';
 import type * as AppTypes from '@/types/apptypes';
-import { CqlGenerator } from '@/widgets/cql-query-builder/model';
 
 import { applyWithinClauses, parenQueryPartParallel } from '@/shared/blacklab-helpers/cql/bcql-pattern-helpers';
 import { getCorrectUiType, uiTypeSupport } from '@/shared/blacklab-helpers/normalize-responses';
 import { getParallelFieldParts } from '@/shared/blacklab-helpers/parallel-helper';
-import { elementAndAttributeNameFromFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import { escapeRegex, tokenizeString, type RegexEscapeOptions } from '@/shared/utils/string-utils';
 
 /** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */
@@ -149,75 +143,3 @@ export const getPatternStringFromCql = (sourceCql: string, withinClauses: Record
 
 	return query;
 };
-
-export function getPatternStringSearch(subForm: keyof ModuleRootStatePatterns, state: ModuleRootStatePatterns, defaultAlignBy: string, filtersState: ModuleRootStateFilters): string | undefined {
-	// For the normal search form,
-	// the simple and extended views require the values to be processed before converting them to cql.
-	// The advanced and expert views already contain a good-to-go cql query. We only need to take care not to emit an
-	// empty string.
-	const alignBy = state.shared.alignBy || defaultAlignBy;
-	const targets = state.shared.targets || [];
-
-	// Derive within clauses from filters
-	const [withinClauses, withinClausesNoWithinWidget] = getWithinClausesFromFilters(filtersState, state);
-
-	switch (subForm) {
-		case 'simple':
-			const q = state.simple.annotationValue.value ? [state.simple.annotationValue] : [];
-			return q.length ? getPatternString(q, {}, targets, alignBy) : undefined;
-		case 'extended': {
-			const r = cloneDeep(Object.values(state.extended.annotationValues))
-				.filter(annot => !!annot.value)
-				.map(annot => ({
-					...annot,
-					type: getCorrectUiType(uiTypeSupport.search.extended, annot.type!),
-				}));
-			return r.length || Object.keys(withinClauses).length > 0 ? getPatternString(r, withinClauses, targets, alignBy) : undefined;
-		}
-		case 'advanced':
-			const sourceQuery = state.advanced?.query && CqlGenerator.rootCql(state.advanced.query);
-			if (!sourceQuery) return undefined;
-			return getPatternStringFromCql(sourceQuery, withinClauses, targets, state.advanced?.targetQueries.map(tq => CqlGenerator.rootCql(tq)).filter(q => q != null) ?? [], alignBy);
-		case 'expert':
-			return getPatternStringFromCql(state.expert.query || '', withinClausesNoWithinWidget, targets, state.expert.targetQueries, alignBy);
-		default:
-			throw new Error('Unimplemented pattern generation.');
-	}
-}
-
-export function getPatternSummarySearch<K extends keyof ModuleRootStatePatterns>(subForm: K, state: ModuleRootStatePatterns, defaultAlignBy: string, filterState: ModuleRootStateFilters) {
-	return getPatternStringSearch(subForm, state, defaultAlignBy, filterState);
-}
-
-/** Derive within clauses from filters and the within widget (on the left), if any */
-export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters, patternState: ModuleRootStatePatterns) {
-	const withinClauses: Record<string, Record<string, any>> = {};
-	Object.entries(filtersState).forEach(([id, filterState]) => {
-		const vf = getValueFunctions(filterState);
-		if (vf.isSpanFilter) {
-			const [elName, attrName] = elementAndAttributeNameFromFilterId(id);
-			withinClauses[elName] = withinClauses[elName] || {};
-			const value =
-				typeof filterState.value === 'string'
-					? escapeRegex(filterState.value, { escapeWildcards: false })
-					: Array.isArray(filterState.value)
-						? (filterState.value as string[]).map(v => escapeRegex(v, { escapeWildcards: false })).join('|')
-						: filterState.value;
-			withinClauses[elName][attrName] = value;
-		}
-	});
-
-	// We need these for the Expert view, which doesn't have a within widget.
-	const withinClausesNoWithinWidget = cloneDeep(withinClauses);
-
-	const withinEl = patternState.shared.within;
-	if (withinEl) {
-		// Add within clause plus any attribute from the within widget as well.
-		const withinAttr = Object.fromEntries(Object.entries(patternState.shared.withinAttributes).map(([k, v]) => [k, escapeRegex(v, { escapeWildcards: false })])); // wildcards->regex
-		withinClauses[withinEl] = {
-			...withinClauses[withinEl],
-			...withinAttr,
-		};
-	}
-	return [withinClauses, withinClausesNoWithinWidget];
-}
