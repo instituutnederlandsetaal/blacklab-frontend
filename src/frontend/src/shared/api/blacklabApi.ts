@@ -146,7 +146,7 @@ export const createBlackLabApi = async (settings: EndpointSettings): Promise<Bla
 		getCorpusStatus: (id: string, requestParamers?: AxiosRequestConfig) => endpoint.getCancelable<BLIndex>(paths.indexStatus(id), undefined, requestParamers).then(r => normalizeIndexBase(r, id)),
 
 		getCorpus: (id: string, requestParameters?: AxiosRequestConfig) => {
-			const indexRequest = endpoint.getCancelable<BLIndexMetadata>(paths.index(id), undefined, requestParameters);
+			const indexRequest = endpoint.getCancelable<BLIndexMetadata>(paths.index(id), version === '5' ? { custom: true } : undefined, requestParameters);
 			const relationsRequest = api.getRelations(id, requestParameters);
 			return new CancelableRequest(Promise.all([indexRequest, relationsRequest]), () => {
 				indexRequest.cancel();

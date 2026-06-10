@@ -222,7 +222,7 @@ function normalizeAnnotationGroups(blIndex: BLTypes.BLIndexMetadata): Normalized
 		for (const group of annotationGroups[fieldId]) {
 			const normalizedGroup: NormalizedAnnotationGroup = {
 				annotatedFieldId: fieldId,
-				id: group.name,
+				id: group.groupName ?? group.name!,
 				entries: group.annotations.filter(annotationName => annotations[annotationName] != null),
 				isRemainderGroup: false,
 			};
@@ -238,23 +238,20 @@ function normalizeAnnotationGroups(blIndex: BLTypes.BLIndexMetadata): Normalized
 	// First add all explicitly ordered annotations (annotatedField.displayOrder).
 	// Finally add everything else at the end, sorted by their displayNames.
 	if (annotationNamesNotInGroups.size) {
-		const remainingAnnotationsToAdd = new Set(annotationNamesNotInGroups);
+		const unseen = new Set(annotationNamesNotInGroups);
 		const annotationNamesInRemainderGroup: string[] = [];
 
 		// annotations in displayOrder
 		if (!BLTypes.isAnnotatedFieldV1(field) && getAnnotatedFieldDisplayOrder(field)) {
 			getAnnotatedFieldDisplayOrder(field)!.forEach(annotationName => {
-				if (remainingAnnotationsToAdd.has(annotationName)) {
-					remainingAnnotationsToAdd.delete(annotationName);
+				if (unseen.has(annotationName)) {
+					unseen.delete(annotationName);
 					annotationNamesInRemainderGroup.push(annotationName);
 				}
 			});
 		}
 		// Finally all non-internal annotations without entry in displayOrder
-		const sortedFilteredAnnotations = [...remainingAnnotationsToAdd]
-			.filter(annotationName => !annotations[annotationName].isInternal) // don't add _relation, punct, etc.
-			.sort((a, b) => getAnnotationDisplayName(annotations[a], a).localeCompare(getAnnotationDisplayName(annotations[b], b)));
-		annotationNamesInRemainderGroup.push(...sortedFilteredAnnotations);
+		annotationNamesInRemainderGroup.filter(a => !annotations[a].isInternal).sort((a, b) => getAnnotationDisplayName(annotations[a], a).localeCompare(getAnnotationDisplayName(annotations[b], b)));
 		// And create the group.
 		annotationGroupsNormalized.push({
 			annotatedFieldId: fieldId,
@@ -277,8 +274,10 @@ function normalizeMetadataGroups(blIndex: BLTypes.BLIndexMetadata): NormalizedMe
 
 	// Copy predefined groups, removing nonexistant fields and empty groups
 	for (const group of metadataGroups ?? []) {
+		const fields = group.fields ?? group.fieldNamesInGroup;
+
 		const normalizedGroup: NormalizedMetadataGroup = {
-			entries: group.fields.filter(id => blIndex.metadataFields[id] != null),
+			entries: fields!.filter(id => blIndex.metadataFields[id] != null),
 			isRemainderGroup: false,
 			id: group.name,
 		};

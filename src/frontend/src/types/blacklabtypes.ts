@@ -226,12 +226,17 @@ export type BLDocFields = {
 
 export type BLMetadataGroup = {
 	name: string;
-	/** Keys in metadataFields */
-	fields: string[];
+	/** Legacy (v4) - Keys in metadataFields. Moved to fieldNamesInGroup in v5 */
+	fields?: string[];
+	/** v5 - Keys in metadataFields group */
+	fieldNamesInGroup?: string[];
 };
 
 export type BLAnnotationGroup = {
-	name: string;
+	/** Legacy (V4) - moved to GroupName. */
+	name?: string;
+	/** v5 - name of the group */
+	groupName?: string;
 	/** Refers to BLAnnotatedField.annotations keys */
 	annotations: string[];
 };
@@ -391,6 +396,7 @@ export interface BLIndexMetadata {
 	documentFormat?: string;
 	/** Legacy top-level custom UI info, moved under custom in the new schema. */
 	fieldInfo?: BLDocFields;
+
 	metadataFields: { [key: string]: BLMetadataField };
 	status: 'empty' | 'available' | 'indexing' | 'opening';
 	/** Legacy top-level custom UI info, moved under custom in the new schema. */
