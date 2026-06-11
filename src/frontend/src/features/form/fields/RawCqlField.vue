@@ -4,7 +4,7 @@
 			{{ $t(`search.expert.corpusQueryLanguage`) }}
 			<a class="help" target="_blank" href="https://blacklab.ivdnt.org/guide/corpus-query-language.html" :title="$t(`widgets.learnMore`)">?</a>
 		</label>
-		<textarea class="form-control querybox" :id="`${htmlId}_query`" rows="7" :value="modelValue" :disabled="disabled" @input="updateQuery(($event.target as HTMLTextAreaElement).value)" />
+		<textarea class="form-control querybox" :id="`${htmlId}_query`" rows="7" :value="modelValue" :disabled @input="updateQuery(($event.target as HTMLTextAreaElement).value)" />
 	</div>
 </template>
 

@@ -7,7 +7,7 @@ export const SearchAndExploreTabs: Story = {
 	render: () => ({
 		components: { FormSystemStoryHarness },
 		setup: () => createFullFormStoryModel(),
-		template: '<FormSystemStoryHarness :definition="definition" :context="context" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
+		template: '<FormSystemStoryHarness :definition :context :initial-state="initialState" :initial-submitted="initialSubmitted" />',
 	}),
 };
 */

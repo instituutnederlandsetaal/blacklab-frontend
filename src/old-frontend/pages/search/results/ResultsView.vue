@@ -9,7 +9,7 @@
 				<Totals class="result-totals"
 					:initialResults="loadedResults"
 					:type="id"
-					:indexId="indexId"
+					:indexId
 					:annotatedFieldId="sourceAnnotatedFieldId"
 					@update="paginationResults = $event"
 				/>
@@ -17,7 +17,7 @@
 
 			<GroupBy v-if="!viewGroup"
 				:type="id"
-				:results="results"
+				:results
 				:disabled="!!request"
 			/>
 
@@ -101,7 +101,7 @@
 					:groups="isGroups"
 					:parallelCorpus="isParallelCorpus"
 
-					:corpus="corpus"
+					:corpus
 					:annotations="sortAnnotations"
 					:annotationGroupLabels="sortAnnotationLabels"
 					:metadata="sortMetadata"
@@ -111,7 +111,7 @@
 				/>
 
 				<Export v-if="exportEnabled"
-					:results="results"
+					:results
 					:type="id"
 					:disabled="!!request"
 					:annotations="exportAnnotations"
@@ -132,7 +132,7 @@
 		<div v-if="!request && !(resultComponentData && cols && renderDisplaySettings)">
 			<GroupBy v-if="groupBy.length"
 				:type="id"
-				:results="results"
+				:results
 				:disabled="!!request"
 			/>
 			<Pagination v-if="pagination.shownPage != 0"

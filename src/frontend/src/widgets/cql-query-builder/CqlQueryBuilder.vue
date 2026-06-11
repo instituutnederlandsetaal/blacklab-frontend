@@ -6,8 +6,8 @@
 				v-for="(token, index) in model.tokens"
 				:key="token.id"
 				:model-value="model.tokens[index]"
-				:options="options"
-				:disabled="disabled"
+				:options
+				:disabled
 				:can-move-left="index > 0"
 				:can-move-right="index < model.tokens.length - 1"
 				@update:model-value="model.tokens[index] = $event"
@@ -17,7 +17,7 @@
 			/>
 
 			<!-- Add Token Button -->
-			<button type="button" class="btn btn-primary bl-token-create" :title="$t('search.advanced.queryBuilder.createTokenButton_label').toString()" :disabled="disabled" @click="addToken">
+			<button type="button" class="btn btn-primary bl-token-create" :title="$t('search.advanced.queryBuilder.createTokenButton_label').toString()" :disabled @click="addToken">
 				<span class="glyphicon glyphicon-plus"></span>
 			</button>
 		</div>

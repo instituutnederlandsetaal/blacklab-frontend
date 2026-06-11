@@ -14,8 +14,8 @@
 				:placeholder="placeholderText"
 				:dir="textDirection"
 				:getData="autocomplete"
-				:disabled="disabled"
-				:value="value"
+				:disabled
+				:value
 				@update:model-value="value = $event"
 			/>
 			<input
@@ -25,8 +25,8 @@
 				type="text"
 				:placeholder="placeholderText"
 				:dir="textDirection"
-				:disabled="disabled"
-				:value="value"
+				:disabled
+				:value
 				@input="value = ($event.target as HTMLInputElement).value"
 			/>
 
@@ -40,9 +40,9 @@
 
 		<small v-if="description" class="help-block">{{ description }}</small>
 
-		<div class="checkbox" v-if="caseSensitive">
+		<div class="checkbox" :class="{ disabled }" v-if="caseSensitive">
 			<label>
-				<input type="checkbox" :checked="modelValue.caseSensitive" :disabled="disabled" @change="updateCaseSensitive(($event.target as HTMLInputElement).checked)" />
+				<input type="checkbox" :checked="modelValue.caseSensitive" :disabled @change="updateCaseSensitive(($event.target as HTMLInputElement).checked)" />
 				{{ $t(`widgets.caseSensitive`) }}
 			</label>
 		</div>

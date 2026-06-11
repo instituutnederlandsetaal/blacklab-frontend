@@ -8,7 +8,7 @@
 				:class="['btn', 'btn-default', btnSizeClass, { active: state.element === option.value || (!state.element && !option.value) }]"
 				:key="option.value"
 				:title="option.title || undefined"
-				:disabled="disabled"
+				:disabled
 				@click="selectElement(option.value)"
 			>
 				{{ option.value ? $tSpanDisplayName(option) : $t(`search.within.document`) }}
@@ -23,7 +23,7 @@
 				:id="`${htmlId}_${attr.value}`"
 				:title="attr.title || undefined"
 				:value="state.attributes[attr.value] || ''"
-				:disabled="disabled"
+				:disabled
 				@input="changeWithinAttribute(attr.value, ($event.target as HTMLInputElement).value)"
 			/>
 		</div>

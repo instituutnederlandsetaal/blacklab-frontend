@@ -48,7 +48,7 @@
 				<div class="form-group" v-if="isParallelCorpus">
 					<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('search.parallel.searchSourceVersion') }}</label>
 					<div class="col-xs-8">
-						<ParallelSource block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+						<ParallelSource block lg :errorNoParallelSourceVersion />
 					</div>
 				</div>
 				<div class="form-group">
@@ -141,7 +141,7 @@
 			<div id="explore-frequency" :class="['tab-pane form-horizontal', {'active': exploreMode==='frequency'}]">
 				<div v-if="isParallelCorpus" class="form-group form-group-lg" style="margin: 0;">
 					<label class="control-label">{{ $t('search.parallel.searchSourceVersion') }}</label>
-					<ParallelSource block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+					<ParallelSource block lg :errorNoParallelSourceVersion />
 				</div>
 				<div class="form-group form-group-lg" style="margin: 0;">
 					<label for="frequency-type" class="control-label">{{$t('explore.frequency.frequencyType')}}</label>

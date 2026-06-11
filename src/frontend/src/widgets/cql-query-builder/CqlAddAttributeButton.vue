@@ -1,6 +1,6 @@
 <template>
 	<div class="dropup bl-create-attribute-dropdown">
-		<button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown" :title="$t('search.advanced.queryBuilder.attribute_create_button_title').toString()" :disabled="disabled">
+		<button type="button" class="btn btn-sm btn-default dropdown-toggle" data-toggle="dropdown" :title="$t('search.advanced.queryBuilder.attribute_create_button_title').toString()" :disabled>
 			<span class="glyphicon glyphicon-plus"></span>&#8203;
 		</button>
 		<ul class="dropdown-menu">

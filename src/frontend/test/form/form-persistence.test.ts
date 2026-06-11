@@ -164,10 +164,12 @@ describe('scoped form persistence', () => {
 		await wrapper.vm.$nextTick();
 
 		expect(wrapper.get('.blf-raw-override code').text()).toBe('[word="(?i)fire"]');
+		expect((wrapper.get('input[aria-label="Word"]').element as HTMLInputElement).disabled).toBe(true);
 
 		await wrapper.get('.blf-raw-override button').trigger('click');
 
 		expect(wrapper.find('.blf-raw-override').exists()).toBe(false);
+		expect((wrapper.get('input[aria-label="Word"]').element as HTMLInputElement).disabled).toBe(false);
 	});
 
 	test('keeps controller warnings informational when canonical comparison succeeds', () => {

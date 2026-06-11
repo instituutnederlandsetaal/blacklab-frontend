@@ -1,5 +1,5 @@
 <template>
-	<ServerRenderedContentPage :content="content"/>
+	<ServerRenderedContentPage :content/>
 </template>
 
 <script setup lang="ts">

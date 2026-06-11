@@ -12,7 +12,7 @@
 						:name="`${inputId}_${index}`"
 						:id="`${inputId}_${index}`"
 						:checked="modelValue.includes(option.value)"
-						:disabled="disabled"
+						:disabled
 						@change="toggleCheckbox(option.value, ($event.target as HTMLInputElement).checked)"
 					/>
 					{{ option.label || option.value }}

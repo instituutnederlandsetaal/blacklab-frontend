@@ -1,7 +1,7 @@
 <template>
 	<div class="story-harness">
 		<div class="surface">
-			<FormSystem :definition="definition" @submit="handleSubmit" />
+			<FormSystem :definition @submit="handleSubmit" />
 		</div>
 		<aside class="inspector">
 			<section class="toggles">

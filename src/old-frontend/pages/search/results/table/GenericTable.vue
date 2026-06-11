@@ -4,9 +4,9 @@
 			<tr>
 				<TableHeader v-for="(col, i) in header"
 					:key="col.key"
-					:col="col" :disabled="disabled"
+					:col :disabled
 					@changeSort="emit('changeSort', $event)"
-					:sort="sort"
+					:sort
 				>
 					<v-dropdown v-if="i === 0 && col.field === 'group'" :distance="5" style="display:inline-block;">
 						<a role="button" title="Column meanings"><span class="fa fa-lg fa-question-circle"></span></a>
@@ -37,13 +37,13 @@
 						muted: row.muted
 					}"
 					:row="row as any"
-					:info="info"
-					:cols="cols"
+					:info
+					:cols
 					:maxima="rows.maxima"
 					:open="!!openRows[row.hit_id || index]"
-					:disabled="disabled"
-					:type="type"
-					:query="query"
+					:disabled
+					:type
+					:query
 					:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
 					@hover="hoverMatchInfos = $event; hoverMatchInfosId = row.hit_id"
 					@unhover="hoverMatchInfos = undefined"
@@ -57,13 +57,13 @@
 						muted: row.muted
 					}"
 					:row="row as any"
-					:info="info"
-					:cols="cols"
+					:info
+					:cols
 					:maxima="rows.maxima"
 					:open="!!openRows[row.hit_id || index]"
-					:disabled="disabled"
-					:type="type"
-					:query="query"
+					:disabled
+					:type
+					:query
 					:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
 					@hover="hoverMatchInfos = $event; hoverMatchInfosId = row.hit_id"
 					@unhover="hoverMatchInfos = undefined"

@@ -1,8 +1,8 @@
 <template>
 	<div v-if="position" :class="`cf-spinner-${position}`">
-		<div class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style="style">&ZeroWidthSpace;</div>
+		<div class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style>&ZeroWidthSpace;</div>
 	</div>
-	<div v-else class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style="style">&ZeroWidthSpace;</div>
+	<div v-else class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style>&ZeroWidthSpace;</div>
 </template>
 
 <script lang="ts">

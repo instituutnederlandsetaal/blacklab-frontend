@@ -17,7 +17,7 @@
 				:class="col.class"
 				:style="col.style"
 
-				:hoverMatchInfos="hoverMatchInfos"
+				:hoverMatchInfos
 				@hover="emit('hover', $event)"
 				@unhover="emit('unhover')"
 			/>

@@ -3,7 +3,7 @@
 		<td colspan="10" class="well-light">
 			<template v-if="concordances.results">
 				<div class="concordance-controls clearfix">
-					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
+					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
 					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
 						<template v-if="concordances.loading"><Spinner :inline="true"/> {{$t('results.table.loading')}} HOI</template>
 						<template v-else>{{$t('results.table.loadMoreConcordances')}}</template>
@@ -16,12 +16,12 @@
 					style="margin: 8px 0;"
 					:rows="concordances.results"
 					:header="type === 'hits' ? cols.hitColumns : cols.docColumns"
-					:cols="cols"
+					:cols
 					:info="{...info, detailedAnnotations: []}"
-					:type="type"
+					:type
 				/>
 				<div class="concordance-controls clearfix" v-if="concordances.results?.rows.length > 10">
-					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled="disabled" @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
+					<button type="button" class="btn btn-sm btn-primary open-concordances" :disabled @click="$emit('openFullConcordances')"><span class="fa fa-angle-double-left"></span> {{$t('results.table.viewDetailedConcordances')}}</button>
 					<button type="button" v-if="!concordances.done" :disabled="concordances.loading" class="btn btn-sm btn-default" @click="concordances.next()">
 						<template v-if="concordances.loading"><Spinner inline/> {{$t('results.table.loading')}} HOI</template>
 						<template v-else>{{$t('results.table.loadMoreConcordances')}}</template>

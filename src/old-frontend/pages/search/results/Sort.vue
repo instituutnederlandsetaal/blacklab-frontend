@@ -11,7 +11,7 @@
 		right
 
 		:options="sortOptions"
-		:disabled="disabled"
+		:disabled
 
 		v-model="model"
 	/>

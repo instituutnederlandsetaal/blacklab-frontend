@@ -4,7 +4,7 @@
 			<div :class="{ 'form-group': true, 'form-group-lg': lg }">
 				<label :class="{ 'col-xs-12': !block, 'col-md-3': !block, 'control-label': block }">{{ $t('search.parallel.searchSourceVersion') }}</label>
 				<div :class="{ 'col-xs-12': !block, 'col-md-9': !block }">
-					<SelectPicker :options="sourceOptions" v-model="sourceModel" data-menu-width="grow" hideEmpty :disabled="disabled" />
+					<SelectPicker :options="sourceOptions" v-model="sourceModel" data-menu-width="grow" hideEmpty :disabled />
 					<transition name="flash">
 						<span v-if="errorNoParallelSourceVersion" class="error">
 							{{ $t('search.parallel.errorNoSourceVersion') }}
@@ -15,7 +15,7 @@
 			<div :class="{ 'form-group': true, 'form-group-lg': lg }">
 				<label :class="{ 'col-xs-12': !block, 'col-md-3': !block, 'control-label': block }">{{ $t('search.parallel.andCompareWithTargetVersions') }}</label>
 				<div :class="{ 'col-xs-12': !block, 'col-md-9': !block }">
-					<MultiValuePicker :options="targetOptions" v-model="targetModel" />
+					<MultiValuePicker :options="targetOptions" v-model="targetModel" :disabled />
 				</div>
 			</div>
 			<div v-if="alignByOptions?.length" :class="{ 'form-group': true, 'form-group-lg': lg }">
@@ -28,7 +28,7 @@
 						:key="option.value"
 						:value="option.value"
 						:title="option.title || option.value"
-						:disabled="disabled"
+						:disabled
 						@click="updateAlignBy(option.value)"
 					>
 						{{ option.label || option.value || 'document' }}

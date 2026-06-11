@@ -6,8 +6,8 @@
 			><span v-if="doPunct && punctBefore" v-html="punctBefore"></span
 			><span v-if="style"
 				v-html="text"
-				:style="style"
-				:title="title"
+				:style
+				:title
 				@mouseover="$emit('hover', relationKeys)"
 				@mouseout="$emit('unhover')"
 				:class="{ hoverable: true, hover: (relationKeys && hoverMatchInfos) ? relationKeys.some(c => hoverMatchInfos.includes(c)) : false }"
@@ -22,8 +22,8 @@
 		><template v-for="{text, punct, punctBefore, style, title, relationKeys}, i in renderInfo"
 			><template v-if="doPunct && punctBefore">{{ punctBefore }}</template
 			><span v-if="style"
-				:style="style"
-				:title="title"
+				:style
+				:title
 				@mouseover="$emit('hover', relationKeys)"
 				@mouseout="$emit('unhover')"
 				:class="{ hoverable: true, hover: !!(relationKeys && hoverMatchInfos) ? relationKeys.some(c => hoverMatchInfos.includes(c)) : false }"

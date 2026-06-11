@@ -15,8 +15,8 @@
 			:style="tab.style"
 			@click.middle="$emit('middlemouse', { tab, index })"
 		>
-			<slot name="default" :tab="tab" :i="index">
-				<slot name="before" :tab="tab" :i="index"></slot>
+			<slot name="default" :tab :i="index">
+				<slot name="before" :tab :i="index"></slot>
 				<button
 					type="button"
 					:class="{
@@ -29,7 +29,7 @@
 				>
 					{{ tab.label ?? tab.value }}
 				</button>
-				<slot name="after" :tab="tab" :i="index"></slot>
+				<slot name="after" :tab :i="index"></slot>
 			</slot>
 		</div>
 	</div>

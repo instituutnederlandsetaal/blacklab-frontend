@@ -12,7 +12,7 @@
 		</div>
 
 		<span v-if="loading" class="fa fa-spinner fa-spin fa-4x"></span>
-		<router-view v-else :index="index"/>
+		<router-view v-else :index/>
 	</div>
 </template>
 

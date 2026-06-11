@@ -12,7 +12,7 @@
 						:name="inputId"
 						:id="`${inputId}_${index}`"
 						:checked="modelValue === option.value"
-						:disabled="disabled"
+						:disabled
 						@click="changeValue($event, option.value)"
 						@input.space="changeValue($event, option.value)"
 					/>

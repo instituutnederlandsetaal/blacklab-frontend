@@ -51,12 +51,12 @@
 						</template>
 
 						<HitContext tag="span" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" :before="true" :after="false"
-							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
+							:hoverMatchInfos @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
 						<HitContext tag="strong" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" bold
-							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
+							:hoverMatchInfos @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
 						<a v-if="row.href" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank"><sup class="fa fa-link" style="margin-left: -5px;"></sup></a>
 						<HitContext tag="span" :dir="row.dir" :data="snippet" :html="info.html" :annotation="info.mainAnnotation.id" :after="true"  :before="false"
-							:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
+							:hoverMatchInfos @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
 					</p>
 					<table v-if="info.detailedAnnotations?.length" class="concordance-details-table">
 						<thead>
@@ -69,7 +69,7 @@
 							<tr v-for="(annot, index) in info.detailedAnnotations" :key="annot.id">
 								<th>{{$tAnnotDisplayName(annot)}}</th>
 								<HitContext v-for="(token, ti) in snippet.match" tag="td" :data="{match: [token]}" :html="info.html" :dir="row.dir" :key="annot.id + ti" :punct="false" :highlight="false" :annotation="annot.id"
-									:hoverMatchInfos="hoverMatchInfos" @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
+									:hoverMatchInfos @hover="$emit('hover', $event)" @unhover="$emit('unhover')" />
 							</tr>
 						</tbody>
 					</table>

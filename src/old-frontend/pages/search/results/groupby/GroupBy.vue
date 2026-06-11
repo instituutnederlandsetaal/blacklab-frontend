@@ -9,12 +9,12 @@
 			<h3 class="panel-title" style="padding-right: 0.5em;">{{$t('results.groupBy.groupResults')}}</h3>
 			<button v-if="type === 'hits'" class="btn btn-default" type="button" @click="addAnnotation">+ {{$t('results.groupBy.annotation')}}</button>
 			<button class="btn btn-default" type="button" @click="addMetadata">+ {{$t('results.groupBy.metadata')}}</button>
-			<button type="button" :disabled="disabled" class="close" style="margin-left: auto;" @click="clear" :title="addedCriteria.length ? $t('results.groupBy.clear').toString() : $t('results.groupBy.close').toString()">&times;</button>
+			<button type="button" :disabled class="close" style="margin-left: auto;" @click="clear" :title="addedCriteria.length ? $t('results.groupBy.clear').toString() : $t('results.groupBy.close').toString()">&times;</button>
 		</div>
 
 		<Tabs v-if="tabs.length"
 			style="margin-top: 6px; padding: 0 0.5em;"
-			:tabs="tabs"
+			:tabs
 
 			wrap
 			v-model="selectedCriteriumIndex"
@@ -169,7 +169,7 @@
 							'text-primary': active,
 							'bold': i === 1
 						}"
-						:style="style"
+						:style
 						@click="handlePreviewClick($event, i, j)"
 					>
 						<div v-if="!wordAsHtml" :title="word" class="main">{{ word }}</div>
@@ -185,7 +185,7 @@
 		</div>
 
 		<div class="panel-footer text-right">
-			<button type="button" :disabled="disabled" class="btn btn-default" @click="clear">{{addedCriteria.length ? $t('results.groupBy.clear') : $t('results.groupBy.close')}}</button>
+			<button type="button" :disabled class="btn btn-default" @click="clear">{{addedCriteria.length ? $t('results.groupBy.clear') : $t('results.groupBy.close')}}</button>
 			<button type="button" :disabled="disabled || !addedCriteria.length" class="btn btn-primary" @click="apply">{{ $t('results.groupBy.apply') }}</button>
 		</div>
 	</div>

@@ -23,7 +23,7 @@
 						<tr><th colspan="2" class="text-center">Document Statistics</th></tr>
 					</thead>
 					<tbody>
-						<tr v-for="(value, key) in statisticsTableData" :key="key">
+						<tr v-for="(value, key) in statisticsTableData" :key>
 							<td><strong>{{key}}</strong> </td><td>{{value}}</td>
 						</tr>
 					</tbody>

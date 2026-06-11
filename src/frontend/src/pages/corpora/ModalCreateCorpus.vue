@@ -20,7 +20,7 @@
 					container="body"
 					data-menu-width="auto"
 					data-width="100%"
-					:loading="loading"
+					:loading
 					:options="formatOptions"
 					v-model="documentType"
 				/>

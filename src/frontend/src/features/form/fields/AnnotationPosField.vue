@@ -37,7 +37,7 @@
 							active: draftState.annotationValue === value.value,
 						}"
 						@click="toggleAnnotationValue(value.value)"
-						:disabled="disabled"
+						:disabled
 					>
 						{{ value.displayName }}
 					</button>

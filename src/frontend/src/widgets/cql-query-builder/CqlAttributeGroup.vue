@@ -11,8 +11,8 @@
 			<CqlAttribute
 				v-if="isCqlAttributeData(entry)"
 				:key="`attr-${entry.id}`"
-				:options="options"
-				:disabled="disabled"
+				:options
+				:disabled
 				:model-value="entry"
 				@update:model-value="updateAttributeAtIndex(index, $event)"
 				@add-attribute-group="addAttribute($event as CqlAnnotationCombinator, entry)"
@@ -24,8 +24,8 @@
 				v-else-if="isCqlAttributeGroupData(entry)"
 				:key="`group-${entry.id}`"
 				:is-root="false"
-				:options="options"
-				:disabled="disabled"
+				:options
+				:disabled
 				@delete-group="deleteNestedGroup"
 				:model-value="entry"
 				@update:model-value="updateGroupAtIndex(index, $event)"
@@ -33,7 +33,7 @@
 		</template>
 
 		<!-- Add Controls -->
-		<CqlAddAttributeButton v-if="shouldShowAddControls" @click="addAttribute($event)" :options="options" :disabled="disabled" />
+		<CqlAddAttributeButton v-if="shouldShowAddControls" @click="addAttribute($event)" :options :disabled />
 	</div>
 </template>
 

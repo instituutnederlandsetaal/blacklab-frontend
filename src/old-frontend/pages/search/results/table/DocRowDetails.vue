@@ -4,8 +4,8 @@
 			<GenericTable
 				type="hits"
 				:rows="{rows: row.hits}"
-				:cols="cols"
-				:info="info"
+				:cols
+				:info
 				:header="cols.hitColumns"
 				
 				:disableDetails="true"

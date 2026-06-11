@@ -155,6 +155,15 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 			controller: undefined,
 			// add these to the component props
 
+			disabled: computed(() => {
+				if (node.kind !== 'field') return false;
+				const affects = node.controller.affectsBlackLabParameters;
+				const values = typeof affects === 'function' ? affects(node, this.context) : affects;
+
+				if (!values.length) return false;
+				return values.some(param => this.state.rawOverrides.value[param] !== undefined);
+			}),
+
 			htmlId: computed(() => `${node.id}_${useUid()}`),
 			hideTitle: computed(() => isContainerNode(parentNode) && (parentNode.variant === 'tabs' || parentNode.variant === 'small-tabs')),
 		} satisfies Record<string, undefined | Ref<any>>;

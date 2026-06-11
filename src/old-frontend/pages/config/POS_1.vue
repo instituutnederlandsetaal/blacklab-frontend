@@ -1,7 +1,7 @@
 <template>
 	<div>
 		<h3>{{title}}</h3>
-		<SelectPicker :options="options" :modelValue="modelValue.mainPosAnnotationId" @update:modelValue="$emit('update:modelValue', {...modelValue, mainPosAnnotationId: $event})" placeholder="Select annotation" allowHtml searchable/>
+		<SelectPicker :options :modelValue="modelValue.mainPosAnnotationId" @update:modelValue="$emit('update:modelValue', {...modelValue, mainPosAnnotationId: $event})" placeholder="Select annotation" allowHtml searchable/>
 		<button type="button" class="btn btn-primary" @click="$emit('submit')" :disabled="!modelValue.mainPosAnnotationId">OK</button>
 		<button type="button" class="btn btn-default" @click="$emit('update:modelValue', {...modelValue, mainPosAnnotationId: defaultPosAnnotation && defaultPosAnnotation.id})">Default</button>
 	</div>

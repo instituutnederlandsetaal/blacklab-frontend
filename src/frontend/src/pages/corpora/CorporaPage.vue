@@ -22,7 +22,7 @@
 					<p>No corpora have been added to BlackLab. Corpora will appear here when when they become available.</p>
 				</div>
 			</div>
-			<CorpusTable v-if="publicCorpora.length" :loading="loadingCorpora" :corpora="publicCorpora" :formats="formats" title="Public corpora" />
+			<CorpusTable v-if="publicCorpora.length" :loading="loadingCorpora" :corpora="publicCorpora" :formats title="Public corpora" />
 
 			<!-- always shown if logged in -->
 			<CorpusTable
@@ -31,8 +31,8 @@
 				isPrivate
 				:loading="loadingCorpora"
 				:corpora="privateCorpora"
-				:formats="formats"
-				:canCreateCorpus="canCreateCorpus"
+				:formats
+				:canCreateCorpus
 				@share="doShareCorpus"
 				@upload="doUploadCorpus"
 				@delete="doDeleteCorpus"
@@ -44,10 +44,10 @@
 			<!-- Modals -->
 			<ModalCreateFormat
 				v-if="modal === 'create-format' && format"
-				:publicFormats="publicFormats"
-				:privateFormats="privateFormats"
+				:publicFormats
+				:privateFormats
 				:loading="loadingFormats"
-				:format="format"
+				:format
 				@create="refreshFormats"
 				@success="success"
 				@error="error"
@@ -55,8 +55,8 @@
 			/>
 			<ModalCreateCorpus
 				v-if="modal === 'create-corpus'"
-				:publicFormats="publicFormats"
-				:privateFormats="privateFormats"
+				:publicFormats
+				:privateFormats
 				:loading="loadingFormats"
 				:user="serverInfo.user"
 				@create="refreshCorpora"
@@ -64,8 +64,8 @@
 				@error="error"
 				@close="close"
 			/>
-			<ModalUpload v-if="modal === 'upload' && corpus" :corpus="corpus" :formats="formats" @indexing="refreshCorpus" @success="success" @error="error" @close="close" />
-			<ModalShareCorpus v-if="modal === 'share-corpus' && corpus" :corpus="corpus" @success="success" @error="error" @close="close" />
+			<ModalUpload v-if="modal === 'upload' && corpus" :corpus :formats @indexing="refreshCorpus" @success="success" @error="error" @close="close" />
+			<ModalShareCorpus v-if="modal === 'share-corpus' && corpus" :corpus @success="success" @error="error" @close="close" />
 			<Modal v-if="modal === 'confirm'" closeMessage="Cancel" confirmMessage="Delete" confirmClass="btn-danger" @confirm="confirmAction" @close="close">
 				<template #title><h4 v-html="confirmTitle" class="modal-title"></h4></template>
 				<p v-html="confirmMessage"></p>

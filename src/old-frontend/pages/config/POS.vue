@@ -1,6 +1,6 @@
 <template>
 	<div>
-		<Steps :steps="steps" :modelValue="step" @update:modelValue="goToStep($event)"/>
+		<Steps :steps :modelValue="step" @update:modelValue="goToStep($event)"/>
 		<h2 v-if="warning">{{warning}}</h2>
 		<div class="panel panel-default">
 			<component :is="steps[step].step" class="panel-body"

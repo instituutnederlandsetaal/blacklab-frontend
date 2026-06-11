@@ -1,12 +1,12 @@
 <template>
 	<div class="multi-value-picker">
 		<div class="selected" v-if="selected.length">
-			<button v-for="v in selected" type="button" class="btn option" :key="optionValue(v)" :title="$t('widgets.clickToRemove')" @click="remove(optionValue(v))">
+			<button v-for="v in selected" type="button" class="btn option" :key="optionValue(v)" :title="$t('widgets.clickToRemove')" :disabled @click="remove(optionValue(v))">
 				{{ optionLabel(v) }}
 			</button>
 		</div>
 		<div class="add" v-if="notSelected.length > 0">
-			<SelectPicker :options="notSelected" :onBeforeSelect="add" :value="null" data-menu-width="grow" hideEmpty />
+			<SelectPicker :options="notSelected" :onBeforeSelect="add" :value="null" data-menu-width="grow" hideEmpty :disabled />
 		</div>
 	</div>
 </template>
@@ -17,7 +17,8 @@ import { filterOptions, isOptGroup, optionLabel, optionValue, type Option, type 
 import SelectPicker from './SelectPicker.vue';
 
 const modelValue = defineModel<string[] | null>({ required: true });
-const { options } = defineProps<{
+const { disabled = false, options } = defineProps<{
+	disabled?: boolean;
 	options: Options;
 }>();
 

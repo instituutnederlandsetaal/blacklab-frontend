@@ -119,6 +119,6 @@ export const BuiltInViews: Story = {
 	render: () => ({
 		components: { FormSystemStoryHarness },
 		setup: createViewStoryModel,
-		template: '<FormSystemStoryHarness :definition="definition" :initial-state="initialState" :initial-submitted="initialSubmitted" />',
+		template: '<FormSystemStoryHarness :definition :initial-state="initialState" :initial-submitted="initialSubmitted" />',
 	}),
 };

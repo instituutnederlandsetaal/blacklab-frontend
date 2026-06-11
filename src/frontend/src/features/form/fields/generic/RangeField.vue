@@ -3,8 +3,8 @@
 		<label v-if="showLabel" :for="`${inputId}_lower`" class="control-label">{{ displayName }}</label>
 		<debug>[{{ id }}]</debug>
 		<div class="blf-dual-input">
-			<input :id="`${inputId}_lower`" v-model="lower" :type="resolvedInputType" :placeholder="lowPlaceholder || $t(`filter.range.from`)" class="form-control" autocomplete="off" :disabled="disabled" />
-			<input :id="`${inputId}_upper`" v-model="upper" :type="resolvedInputType" :placeholder="highPlaceholder || $t(`filter.range.to`)" class="form-control" autocomplete="off" :disabled="disabled" />
+			<input :id="`${inputId}_lower`" v-model="lower" :type="resolvedInputType" :placeholder="lowPlaceholder || $t(`filter.range.from`)" class="form-control" autocomplete="off" :disabled />
+			<input :id="`${inputId}_upper`" v-model="upper" :type="resolvedInputType" :placeholder="highPlaceholder || $t(`filter.range.to`)" class="form-control" autocomplete="off" :disabled />
 		</div>
 		<div v-if="showModeSelector" :class="btnGroupClasses">
 			<button
@@ -14,7 +14,7 @@
 				:key="mode.value"
 				:value="mode.value"
 				:title="mode.title || ''"
-				:disabled="disabled"
+				:disabled
 				@click="updateMode(mode.value)"
 			>
 				{{ mode.label }}

@@ -4,15 +4,15 @@
 		<debug> [{{ id }}]</debug>
 		<SelectPicker
 			data-width="100%"
-			:multiple="multiple"
+			:multiple
 			container="body"
 			:data-id="inputId"
 			:data-name="inputId"
 			:data-class="['btn btn-default', btnClass]"
 			:placeholder="placeholderText"
 			:dir="textDirection"
-			:options="options"
-			:disabled="disabled"
+			:options
+			:disabled
 			v-model="pickerValue"
 		/>
 		<small v-if="description" class="help-block">{{ description }}</small>

@@ -3,7 +3,7 @@
 		class="combobox"
 		:style="{ width: dataWidth }"
 		:data-menu-id="menuId"
-		:dir="dir"
+		:dir
 		@keydown.prevent.exact.down="isOpen || !$refs.focusOnClickOpen ? focusDown() : doOpen($refs.focusOnClickOpen)"
 		@keydown.prevent.exact.up="focusUp"
 	>
@@ -27,10 +27,10 @@
 			:style="dataStyle"
 			:title="dataTitle"
 			:placeholder="placeholderText"
-			:disabled="disabled"
-			:dir="dir"
-			:autofocus="autofocus"
-			:autocomplete="autocomplete"
+			:disabled
+			:dir
+			:autofocus
+			:autocomplete
 			@focus="doOpen() /*call directly, don't pass focusIn event*/"
 			@keydown.tab="doClose() /*focus shifts to next element, close menu*/"
 			@keydown.esc="doClose()"
@@ -48,9 +48,9 @@
 			:name="dataName"
 			:style="dataStyle"
 			:title="dataTitle"
-			:disabled="disabled"
-			:dir="dir"
-			:autofocus="autofocus"
+			:disabled
+			:dir
+			:autofocus
 			@click="isOpen ? doClose() : doOpen($refs.focusOnClickOpen)"
 			@keydown.tab="doClose() /*focus shifts to next element, close menu*/"
 			@keydown.esc="doClose()"
@@ -78,7 +78,7 @@
 			<ul
 				v-show="isOpen && (filteredOptions.length || !editable)"
 				:data-menu-id="menuId"
-				:dir="dir"
+				:dir
 				:class="['combobox-menu', computedMenuClass, dataMenuClass]"
 				@keydown.prevent.stop.esc="
 					focusTrigger();
@@ -110,7 +110,7 @@
 						class="form-control input-sm menu-search"
 						placeholder="Filter..."
 						tabindex="-1"
-						:dir="dir"
+						:dir
 						@keydown.stop.left
 						@keydown.stop.right
 						@keydown.stop.home

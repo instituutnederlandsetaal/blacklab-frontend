@@ -143,7 +143,7 @@ function createFieldStory<State>(buildField: (builder: FormBuilder) => FormField
 				const variant = computed(() => normalizeVariantArg(args.variant));
 				return { definition, variant };
 			},
-			template: '<FormSystemStoryHarness :definition="definition" :variant="variant" />',
+			template: '<FormSystemStoryHarness :definition :variant />',
 		}),
 	};
 }

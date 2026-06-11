@@ -23,7 +23,7 @@
 					class="form-control"
 
 					:value="page+1"
-					:disabled="disabled"
+					:disabled
 					@keypress.enter.prevent="commitPageInput($event)"
 					@keyup.esc.prevent="resetPageInput($event)"
 					@change.prevent="commitPageInput($event)"

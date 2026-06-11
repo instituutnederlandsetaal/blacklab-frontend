@@ -10,7 +10,7 @@
 			:title=" $t('results.sort.sortBy')"
 			:placeholder="col.label"
 			:options="col.sort"
-			:disabled="disabled"
+			:disabled
 			@change="(sort) => emit('changeSort', sort)"
 			:modelValue="sort?.replace(/^-/, '') || null /* strip inverted sort value for display purposes */"
 			:showValues="false"

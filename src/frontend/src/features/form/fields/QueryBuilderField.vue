@@ -1,6 +1,6 @@
 <template>
 	<div :class="fieldClasses">
-		<CqlQueryBuilder :model-value="modelValue" :options="options" :disabled="disabled" @update:model-value="emit('update:modelValue', $event)" />
+		<CqlQueryBuilder :model-value="modelValue" :options :disabled @update:model-value="emit('update:modelValue', $event)" />
 	</div>
 </template>
 

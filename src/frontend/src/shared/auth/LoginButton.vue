@@ -11,7 +11,7 @@
 		allowUnknownValues
 		:disabled="!canLogin"
 		:modelValue="username"
-		:options="options"
+		:options
 		@update:modelValue="handle"
 	/>
 </template>

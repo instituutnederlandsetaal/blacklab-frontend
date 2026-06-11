@@ -5,7 +5,7 @@
 			<a v-if="crumb.onClick && !disabled"
 				role="button"
 				:title="crumb.title"
-				:disabled="disabled"
+				:disabled
 				:class="disabled ? 'disabled' : undefined"
 				@click.prevent="!disabled && crumb.onClick ? crumb.onClick() : undefined"
 			>{{crumb.label}}</a>
