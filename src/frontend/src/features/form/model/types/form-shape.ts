@@ -58,7 +58,7 @@ export type ImplicitContainerComponentProps = BaseNode & {
 // Field
 // ==========================================================================================================================
 
-export type FieldPresentation = 'simple' | 'large' | 'default' | (string & {}); // open-ended but with some fixed types we support internally.
+export type FieldPresentation = 'simple' | 'large' | 'small' | 'default' | (string & {}); // open-ended but with some fixed types we support internally.
 
 export type BaseFieldNode = BaseNode & {
 	kind: 'field';

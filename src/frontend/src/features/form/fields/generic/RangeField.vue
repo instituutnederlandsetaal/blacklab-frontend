@@ -1,29 +1,26 @@
 <template>
-	<div :class="fieldClasses" :id="htmlId">
-		<label v-if="showLabel" :for="`${inputId}_lower`"
-			>{{ displayName }}<debug> [{{ id }}]</debug></label
-		>
+	<div :class="formGroupClasses" :id="htmlId">
+		<label v-if="showLabel" :for="`${inputId}_lower`" class="control-label">{{ displayName }}</label>
+		<debug>[{{ id }}]</debug>
 		<div class="blf-dual-input">
-			<input
-				:id="`${inputId}_lower`"
-				v-model="lower"
-				:type="inputType"
-				:placeholder="lowPlaceholder || $t(`filter.range.from`)"
-				class="blf-input form-control"
-				autocomplete="off"
-				:disabled="disabled"
-			/>
-			<input
-				:id="`${inputId}_upper`"
-				v-model="upper"
-				:type="inputType"
-				:placeholder="highPlaceholder || $t(`filter.range.to`)"
-				class="blf-input form-control"
-				autocomplete="off"
-				:disabled="disabled"
-			/>
+			<input :id="`${inputId}_lower`" v-model="lower" :type="resolvedInputType" :placeholder="lowPlaceholder || $t(`filter.range.from`)" class="form-control" autocomplete="off" :disabled="disabled" />
+			<input :id="`${inputId}_upper`" v-model="upper" :type="resolvedInputType" :placeholder="highPlaceholder || $t(`filter.range.to`)" class="form-control" autocomplete="off" :disabled="disabled" />
 		</div>
-		<small v-if="description" class="blf-help-text">{{ description }}</small>
+		<div v-if="showModeSelector" :class="btnGroupClasses">
+			<button
+				v-for="mode in modes"
+				type="button"
+				:class="['btn btn-default', { active: currentMode === mode.value }]"
+				:key="mode.value"
+				:value="mode.value"
+				:title="mode.title || ''"
+				:disabled="disabled"
+				@click="updateMode(mode.value)"
+			>
+				{{ mode.label }}
+			</button>
+		</div>
+		<small v-if="description" class="help-block">{{ description }}</small>
 	</div>
 </template>
 
@@ -34,18 +31,45 @@ import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
 
 import type { RangeFieldState, RangeFieldUiConfig } from './range-field';
+import type { RangeMode } from './shared-ui-config';
 
-const props = withDefaults(defineProps<ImplicitFieldComponentProps<RangeFieldState> & RangeFieldUiConfig & { showLabel?: boolean }>(), {
-	inputType: 'text',
+import { useI18n } from '@/shared/i18n';
+import type { Option } from '@/shared/utils/options';
+
+type ModeOption = Option<RangeMode>;
+
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<RangeFieldState> & RangeFieldUiConfig & { showLabel?: boolean; lowField?: string; highField?: string }>(), {
 	showLabel: true,
 	disabled: false,
 });
+const i18n = useI18n();
 const emit = defineEmits<{
 	'update:modelValue': [value: RangeFieldState];
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
+const variant = computed(() => decodeVariants(props.variant));
+const formGroupClasses = computed(() => ['form-group', variant.value.large ? 'form-group-lg' : variant.value.small ? 'form-group-sm' : '']);
+
+const btnGroupClasses = computed(() => ['btn-group', 'blf-range-modes', variant.value.large ? 'btn-group-lg' : variant.value.small ? 'btn-group-sm' : '']);
+const lockedMode = computed(() => props.mode ?? null);
+const modeEnabled = computed(() => props.showMode || Boolean(props.lowField && props.highField));
+const showModeSelector = computed(() => !lockedMode.value && modeEnabled.value);
+const currentMode = computed(() => props.mode ?? props.modelValue.mode);
+const resolvedInputType = computed(() => props.inputType ?? (modeEnabled.value ? 'number' : 'text'));
+
+const modes = computed<ModeOption[]>(() => [
+	{
+		value: 'permissive',
+		label: i18n.$t(`filter.range.permissive`),
+		title: i18n.$t(`filter.range.permissiveDescription`),
+	},
+	{
+		value: 'strict',
+		label: i18n.$t(`filter.range.strict`),
+		title: i18n.$t(`filter.range.strictDescription`),
+	},
+]);
 
 const lower = computed({
 	get: () => props.modelValue.low,
@@ -66,4 +90,17 @@ const upper = computed({
 		});
 	},
 });
+
+function updateMode(mode: RangeMode) {
+	emit('update:modelValue', {
+		...props.modelValue,
+		mode,
+	});
+}
 </script>
+
+<style lang="scss" scoped>
+.blf-range-modes {
+	margin-top: 12px;
+}
+</style>

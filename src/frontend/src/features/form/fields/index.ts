@@ -16,9 +16,6 @@ export { default as RadioField } from './generic/RadioField.vue';
 export * from './generic/range-field.ts';
 export { default as RangeField } from './generic/RangeField.vue';
 
-export * from './generic/range-multiple-fields-field.ts';
-export { default as RangeMultipleFieldsField } from './generic/RangeMultipleFieldsField.vue';
-
 export * from './generic/select-field.ts';
 export { default as SelectField } from './generic/SelectField.vue';
 

@@ -320,7 +320,8 @@ export function normalizeIndexBase(blIndex: BLTypes.BLIndex, id: string): Normal
 export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata, relations: BLTypes.BLRelationInfo): NormalizedIndex {
 	const annotationGroupsNormalized = normalizeAnnotationGroups(blIndex);
 	const metadataGroupsNormalized = normalizeMetadataGroups(blIndex);
-	const indexId = blIndex.name || blIndex.indexName || '';
+	const indexId = blIndex.name ?? blIndex.indexName ?? blIndex.corpusName;
+	if (!indexId) throw new Error('Index metadata is missing an id (name, indexName or corpusName)');
 	const annotatedFields: Array<[string, BLTypes.BLAnnotatedField]> = Object.entries(blIndex.annotatedFields);
 	const custom = blIndex.custom;
 	const fieldInfo = custom?.specialFields || blIndex.fieldInfo || (blIndex.pidField ? { pidField: blIndex.pidField } : {});

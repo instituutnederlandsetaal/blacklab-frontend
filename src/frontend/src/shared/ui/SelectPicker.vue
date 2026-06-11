@@ -1069,12 +1069,6 @@ export default defineComponent({
 			width: 100%;
 		}
 	}
-	&.input-group-btn:first-child,
-	&.input-group-addon:first-child {
-		> .menu-button {
-			border-right-width: 0;
-		}
-	}
 
 	> .menu-button {
 		display: flex;
@@ -1201,7 +1195,7 @@ export default defineComponent({
 
 	> .menu-body {
 		display: flex;
-		flex-direction: vertical;
+		flex-direction: column;
 		max-height: 300px;
 		overflow: auto;
 	}
@@ -1293,19 +1287,52 @@ export default defineComponent({
 }
 
 .input-group {
-	.combobox:not(:last-child) {
-		> button,
-		> input[type='text'] {
-			border-top-right-radius: 0;
-			border-bottom-right-radius: 0;
+	> .combobox {
+		> .menu-input {
+			// Bootstrap 3 floats .form-control anywhere inside .input-group.
+			// If this input floats, the combobox wrapper collapses to zero height,
+			// and teleported menus are positioned at the input's top instead of bottom.
+			float: none;
 		}
-	}
 
-	.combobox:not(:first-child) {
-		> button,
-		> input[type='text'] {
-			border-top-left-radius: 0;
-			border-bottom-left-radius: 0;
+		// need to override this because we're in a wrapper, and the bootstrap 3 classes actually have a bug
+		// they look at first/last child, but not just at direct children,
+		// so this doesn't have borders unless we fix it:
+		// .input-group
+		//   .combobox
+		//     .form-control, .btn
+		//   .input-group-addon, .input-group-btn
+
+		&:first-child {
+			> .menu-input,
+			> .menu-button {
+				border-top-left-radius: 4px;
+				border-bottom-left-radius: 4px;
+			}
+		}
+
+		&:last-child {
+			> .menu-input,
+			> .menu-button {
+				border-top-right-radius: 4px;
+				border-bottom-right-radius: 4px;
+			}
+		}
+
+		&:not(:last-child) {
+			> .menu-input,
+			> .menu-button {
+				border-top-right-radius: 0;
+				border-bottom-right-radius: 0;
+			}
+		}
+
+		&:not(:first-child) {
+			> .menu-input,
+			> .menu-button {
+				border-top-left-radius: 0;
+				border-bottom-left-radius: 0;
+			}
 		}
 	}
 }

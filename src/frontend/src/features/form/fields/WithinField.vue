@@ -1,11 +1,11 @@
 <template>
 	<div :class="fieldClasses">
 		<label>{{ $t(`search.extended.within`) }}</label>
-		<div class="blf-segmented">
+		<div class="btn-group">
 			<button
 				v-for="option in options"
 				type="button"
-				:class="{ active: state.element === option.value || (!state.element && !option.value) }"
+				:class="['btn', 'btn-default', btnSizeClass, { active: state.element === option.value || (!state.element && !option.value) }]"
 				:key="option.value"
 				:title="option.title || undefined"
 				:disabled="disabled"
@@ -18,7 +18,7 @@
 		<div class="blf-within-attributes" v-for="attr in selectedAttributes" :key="attr.value">
 			<label :for="`${htmlId}_${attr.value}`">{{ $tSpanAttributeDisplay(state.element!, attr.value) }}</label>
 			<input
-				class="blf-input form-control"
+				:class="['form-control', inputSizeClass]"
 				type="text"
 				:id="`${htmlId}_${attr.value}`"
 				:title="attr.title || undefined"
@@ -46,9 +46,13 @@ const emit = defineEmits<{
 	'update:modelValue': [value: WithinFieldState];
 }>();
 
-const fieldClasses = computed(() => ['blf-field', 'blf-within-field', decodeVariants(props.variant)]);
+const variants = computed(() => decodeVariants(props.variant));
+const fieldClasses = computed(() => ['blf-field', 'blf-within-field', variants.value]);
 const htmlId = computed(() => props.htmlId);
 const selectedAttributes = computed(() => props.options.find((option: WithinFieldConfig['options'][number]) => option.value === state.value.element)?.attributes ?? []);
+
+const btnSizeClass = computed(() => (variants.value.large ? 'btn-lg' : variants.value.small ? 'btn-sm' : ''));
+const inputSizeClass = computed(() => (variants.value.large ? 'input-lg' : variants.value.small ? 'input-sm' : ''));
 
 function selectElement(element: string) {
 	emit('update:modelValue', {

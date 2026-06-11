@@ -20,7 +20,7 @@
 				</label>
 			</div>
 		</fieldset>
-		<small v-if="description" class="blf-help-text">{{ description }}</small>
+		<small v-if="description" class="help-block">{{ description }}</small>
 	</div>
 </template>
 

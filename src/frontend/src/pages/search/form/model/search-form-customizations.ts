@@ -1,7 +1,8 @@
 import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
 import type { FormBuilder, ContainerNode, FormRuntimeContext } from '@/features/form';
+import type { SearchUiConfig } from '@/pages/search/config/search-ui-config';
 
-type SearchFormCustomization = (input: { builder: FormBuilder; context: FormRuntimeContext; corpus: CorpusContext; root: ContainerNode }) => void;
+type SearchFormCustomization = (input: { builder: FormBuilder; context: FormRuntimeContext; corpus: CorpusContext; root: ContainerNode; searchUi: SearchUiConfig }) => void;
 
 const listeners: SearchFormCustomization[] = [];
 

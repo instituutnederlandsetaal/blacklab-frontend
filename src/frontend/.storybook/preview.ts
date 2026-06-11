@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 
-import 'bootstrap/dist/css/bootstrap.css';
 import '../src/global.scss';
 import 'floating-vue/dist/style.css';
 

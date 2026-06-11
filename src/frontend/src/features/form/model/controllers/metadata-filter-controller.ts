@@ -4,7 +4,6 @@ import { createDefaultCheckboxFieldState, type CheckboxFieldState, type Checkbox
 import { createDefaultDateFieldState, DateUtils, type DateFieldState, type DateFieldUiConfig } from '@/features/form/fields/generic/date-field';
 import { createDefaultRadioFieldState, type RadioFieldState, type RadioFieldUiConfig } from '@/features/form/fields/generic/radio-field';
 import { createDefaultRangeFieldState, type RangeFieldState, type RangeFieldUiConfig } from '@/features/form/fields/generic/range-field';
-import { createDefaultRangeMultipleFieldsFieldState, type RangeMultipleFieldsFieldState, type RangeMultipleFieldsFieldUiConfig } from '@/features/form/fields/generic/range-multiple-fields-field';
 import { createDefaultSelectFieldState, type SelectFieldState, type SelectFieldUiConfig } from '@/features/form/fields/generic/select-field';
 import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
 import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
@@ -42,7 +41,7 @@ export type MetadataFilterCheckboxConfig = MetadataFilterControllerConfig & Chec
 export type MetadataFilterRadioConfig = MetadataFilterControllerConfig & RadioFieldUiConfig;
 export type MetadataFilterDateConfig = MetadataFilterDateControllerConfig & DateFieldUiConfig;
 export type MetadataFilterRangeConfig = MetadataFilterControllerConfig & RangeFieldUiConfig;
-export type MetadataFilterRangeMultipleFieldsConfig = MetadataFilterRangeMultipleFieldsControllerConfig & RangeMultipleFieldsFieldUiConfig;
+export type MetadataFilterRangeMultipleFieldsConfig = MetadataFilterRangeMultipleFieldsControllerConfig & RangeFieldUiConfig;
 export type MetadataFilterSelectConfig = MetadataFilterControllerConfig & SelectFieldUiConfig;
 
 export type MetadataFilterConfig =
@@ -124,6 +123,7 @@ function rangeRestore(payload: EncodedFieldValue): RangeFieldState {
 	return {
 		low: restored.low ?? '',
 		high: restored.high ?? '',
+		mode: 'strict',
 	};
 }
 
@@ -257,9 +257,9 @@ export const filterRangeController = createFieldController<'metadata-filter-rang
 	},
 });
 
-export const filterRangeMultipleFieldsController = createFieldController<'metadata-filter-range-multiple-fields', RangeMultipleFieldsFieldState, MetadataFilterRangeMultipleFieldsConfig>({
+export const filterRangeMultipleFieldsController = createFieldController<'metadata-filter-range-multiple-fields', RangeFieldState, MetadataFilterRangeMultipleFieldsConfig>({
 	kind: 'metadata-filter-range-multiple-fields',
-	createDefaultState: createDefaultRangeMultipleFieldsFieldState,
+	createDefaultState: createDefaultRangeFieldState,
 	getPersistKey: config => `${config.lowField}-${config.highField}`,
 	affectsBlackLabParameters: ['filter'],
 	encode(state, config) {

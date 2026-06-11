@@ -462,7 +462,7 @@ describe('controller persistence compatibility', () => {
 
 	test('only restores ranges from their structured representation', () => {
 		const rangeConfig = { kind: 'field' as const, id: 'range', displayName: 'Range', metadataFieldId: 'range' };
-		expect(filterRangeController.restore('low=10;high=20', rangeConfig, context)).toEqual({ low: '10', high: '20' });
+		expect(filterRangeController.restore('low=10;high=20', rangeConfig, context)).toEqual({ low: '10', high: '20', mode: 'strict' });
 		expect(() => filterRangeController.restore('10', rangeConfig, context)).toThrow(/incompatible persisted value/);
 	});
 

@@ -1,5 +1,5 @@
 <template>
-	<div :class="fieldClasses" :id="htmlId">
+	<div class="form-group" :id="htmlId">
 		<fieldset>
 			<legend v-if="showLabel">
 				{{ displayName }}<debug> [{{ id }}]</debug>
@@ -19,7 +19,7 @@
 				</label>
 			</div>
 		</fieldset>
-		<small v-if="description" class="blf-help-text">{{ description }}</small>
+		<small v-if="description" class="help-block">{{ description }}</small>
 	</div>
 </template>
 

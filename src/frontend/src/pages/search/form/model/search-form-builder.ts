@@ -1,4 +1,3 @@
-import { toReactive } from '@vueuse/core';
 import { computed } from 'vue';
 
 import type { CorpusContext, FilledCorpusContext } from '@/entities/corpus/model/corpus-context';
@@ -23,10 +22,9 @@ import {
 	QueryBuilderField,
 } from '@/features/form';
 import type { TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
-import useQueryBuilderOptions from '@/pages/search/form/composables/useQueryBuilderOptions';
+import type { SearchUiConfig } from '@/pages/search/config/search-ui-config';
+import { createQueryBuilderOptions } from '@/pages/search/form/model/query-builder-options';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField, Tagset } from '@/types/apptypes';
-
-import { runSearchFormCustomizations } from './search-form-customizations';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import type { Translate } from '@/shared/i18n';
@@ -65,8 +63,8 @@ function getParallelFieldOptions(index: NormalizedIndex, translate: Translate) {
 	return { parallelFields, alignByOptions };
 }
 
-function createAdvancedQueryBuilderBox(builder: FormBuilder, index: NormalizedIndex, translate: Translate) {
-	const queryBuilderOptions = toReactive(useQueryBuilderOptions());
+function createAdvancedQueryBuilderBox(builder: FormBuilder, index: NormalizedIndex, searchUi: SearchUiConfig, api: BlackLabApi, translate: Translate) {
+	const queryBuilderOptions = createQueryBuilderOptions({ index, searchUi, api, translate });
 
 	const { parallelFields, alignByOptions } = getParallelFieldOptions(index, translate);
 	if (!parallelFields || !alignByOptions)
@@ -148,6 +146,7 @@ function createAnnotationField(builder: FormBuilder, nodeId: string, annotation:
 				multiple: true,
 				options: annotation.values,
 				textDirection,
+				variant: ['large', 'simple'],
 			});
 		}
 	} else if (annotation.uiType === 'lexicon') {
@@ -233,11 +232,15 @@ function createFilterField(
  * Build the root filter container. Including the 'filter by...' heading.
  * Does not attach the filters to the node graph yet, that way we can reuse the same filters for multiple forms by inserting them multiple times.
  */
-function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, translate: Translate) {
+function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, searchUi: SearchUiConfig, translate: Translate, api: BlackLabApi) {
+	const filterIds = searchUi.search.shared.searchMetadataIds;
 	const groups = index.metadataFieldGroups
 		.map(group => ({
 			// Remove bogus entries, there was a moment when BlackLab let through configs specifying nonexistent fields
-			fields: group.entries.map(fieldId => index.metadataFields[fieldId]).filter((field): field is NormalizedMetadataField => !!field),
+			fields: group.entries
+				.filter(fieldId => filterIds.includes(fieldId))
+				.map(fieldId => index.metadataFields[fieldId])
+				.filter((field): field is NormalizedMetadataField => !!field),
 			group,
 		}))
 		// Remove empty groups
@@ -258,7 +261,7 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
 		for (const field of fields) {
 			const nodeId = `${tab.id}.${toSafeHtmlId(field.id)}`;
 			// See if the node already exists, because filters might be present in more than one tab.
-			const node = builder.getField(nodeId) ?? createFilterField(builder, nodeId, index.id, field, translate, group.id, index.textDirection);
+			const node = builder.getField(nodeId) ?? createFilterField(builder, nodeId, index.id, field, translate, group.id, index.textDirection, api);
 			tab.addChildren(node);
 		}
 	}
@@ -280,12 +283,16 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, trans
  * Create the annotation widgets for the extended search form, grouped in tabs if there are annotation groups defined for the main annotated field.
  * Does not attach the annotations to the node graph yet.
  */
-function createAnnotationTabs(builder: FormBuilder, corpus: { index: NormalizedIndex; tagset?: Tagset }, translate: Translate) {
+function createAnnotationTabs(builder: FormBuilder, corpus: { index: NormalizedIndex; tagset?: Tagset }, searchUi: SearchUiConfig, translate: Translate) {
 	const mainField = corpus.index.annotatedFields[corpus.index.mainAnnotatedField];
+	const annotationIds = searchUi.search.extended.searchAnnotationIds;
 	const groups = corpus.index.annotationGroups
 		.filter(group => group.annotatedFieldId === corpus.index.mainAnnotatedField)
 		.map(group => ({
-			annotations: group.entries.map(annotationId => mainField.annotations[annotationId]).filter(a => !a.isInternal),
+			annotations: group.entries
+				.filter(annotationId => annotationIds.includes(annotationId))
+				.map(annotationId => mainField.annotations[annotationId])
+				.filter((annotation): annotation is NormalizedAnnotation => !!annotation && !annotation.isInternal),
 			group,
 		}))
 		.filter(({ annotations }) => annotations.length);
@@ -332,6 +339,8 @@ function verifyIndexPresent(corpus: CorpusContext): asserts corpus is FilledCorp
 
 export function createSearchFormDefinition(
 	corpus: CorpusContext,
+	searchUi: SearchUiConfig,
+	api: BlackLabApi,
 	translate: Translate,
 ): {
 	context: FormRuntimeContext;
@@ -357,13 +366,12 @@ export function createSearchFormDefinition(
 		title: computed(() => translate.$t(`explore.heading`)),
 	});
 
-	const sharedFilters = createSharedFilters(builder, index, translate);
+	const sharedFilters = createSharedFilters(builder, index, searchUi, translate, api);
 	const sharedWithin = createWithinField(builder, index, translate);
 
-	// TODO use customized annot
-	const simpleField = index.annotatedFields[index.mainAnnotatedField].annotations[index.annotatedFields[index.mainAnnotatedField].mainAnnotationId];
+	const simpleField = index.annotatedFields[index.mainAnnotatedField].annotations[searchUi.search.simple.searchAnnotationId];
 	if (!simpleField) {
-		throw new Error(`Main annotation ${index.annotatedFields[index.mainAnnotatedField].mainAnnotationId} is missing from ${index.mainAnnotatedField}.`);
+		throw new Error(`Simple search annotation ${searchUi.search.simple.searchAnnotationId} is missing from ${index.mainAnnotatedField}.`);
 	}
 
 	searchTab
@@ -382,23 +390,24 @@ export function createSearchFormDefinition(
 			builder.newView('search.heading', HeadingView, {
 				title: computed(() => translate.$t(`search.heading`)),
 			}),
-			createAnnotationTabs(builder, corpus, translate),
+			createAnnotationTabs(builder, corpus, searchUi, translate),
 			sharedWithin,
 		),
 		sharedFilters,
 	);
 
-	// TODO querybuilder
-	const advancedSearchForm = searchTab.addForm('advanced', ContainerRenderer, {
-		title: computed(() => translate.$t(`search.advanced.heading`)),
-		variant: 'columns',
-	});
-	advancedSearchForm
-		.addView('advanced.query.heading', HeadingView, {
-			title: computed(() => translate.$t(`search.advanced.corpusQueryLanguage`)),
-		})
-		.addChildren(createAdvancedQueryBuilderBox(builder, index, translate))
-		.addChildren(sharedWithin, sharedFilters);
+	if (searchUi.search.advanced.enabled) {
+		const advancedSearchForm = searchTab.addForm('advanced', ContainerRenderer, {
+			title: computed(() => translate.$t(`search.advanced.heading`)),
+			variant: 'columns',
+		});
+		advancedSearchForm
+			.addView('advanced.query.heading', HeadingView, {
+				title: computed(() => translate.$t(`search.advanced.corpusQueryLanguage`)),
+			})
+			.addChildren(createAdvancedQueryBuilderBox(builder, index, searchUi, api, translate))
+			.addChildren(sharedWithin, sharedFilters);
+	}
 
 	const expertSearchForm = searchTab.addForm('expert', ContainerRenderer, {
 		title: computed(() => translate.$t(`search.expert.heading`)),
@@ -411,12 +420,12 @@ export function createSearchFormDefinition(
 		})
 		.addChildren(createExpertCqlBox(builder, index, translate), sharedWithin, sharedFilters);
 
-	runSearchFormCustomizations({
-		builder,
-		context,
-		corpus,
-		root,
-	});
+	// runSearchFormCustomizations({
+	// 	builder,
+	// 	context,
+	// 	corpus,
+	// 	root,
+	// });
 
 	return {
 		context,

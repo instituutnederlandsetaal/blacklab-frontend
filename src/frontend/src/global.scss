@@ -1,4 +1,6 @@
 @use 'sass:color';
+@import 'bootstrap/dist/css/bootstrap.css';
+@import 'font-awesome/css/font-awesome.min.css';
 
 hr {
 	border-color: #000;
@@ -340,4 +342,20 @@ a.ui-menu-item-wrapper {
 table {
 	table-layout: fixed;
 	width: 100%;
+}
+
+fieldset {
+	legend {
+		border: none;
+		margin-bottom: 5px;
+		padding: 0;
+		font-size: unset;
+		font-weight: 700;
+	}
+	// .checkbox:first-child {
+	// 	margin-top: 0;
+	// }
+	// .checkbox:last-child {
+	// 	margin-bottom: 0;
+	// }
 }

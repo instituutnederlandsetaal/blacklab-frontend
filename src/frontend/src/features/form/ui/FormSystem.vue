@@ -94,90 +94,6 @@ const activeOverrides = computed(() =>
 	word-break: break-word;
 }
 
-.blf-form-system *,
-.blf-form-system *::before,
-.blf-form-system *::after {
-	box-sizing: border-box;
-}
-
-.blf-form-system button,
-.blf-form-system input,
-.blf-form-system select,
-.blf-form-system textarea {
-	font: inherit;
-}
-
-.blf-input {
-	display: block;
-	width: 100%;
-	min-height: 34px;
-	border: 1px solid var(--blf-border);
-	border-radius: 4px;
-	background: #fff;
-	padding: 6px 12px;
-	color: #555;
-	line-height: 1.42857143;
-	box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075);
-	transition:
-		border-color ease-in-out 0.15s,
-		box-shadow ease-in-out 0.15s;
-}
-
-.blf-input:focus {
-	border-color: #66afe9;
-	box-shadow:
-		inset 0 1px 1px rgba(0, 0, 0, 0.075),
-		0 0 8px rgba(102, 175, 233, 0.6);
-	outline: none;
-}
-
-.blf-field {
-	display: grid;
-	gap: 6px;
-	min-width: 0;
-}
-
-.blf-field.simple {
-	gap: 4px;
-	padding: 12px 14px;
-	border: 1px solid color-mix(in srgb, var(--blf-border) 72%, white);
-	border-radius: 10px;
-	background: linear-gradient(180deg, #fff 0%, #f9fbfd 100%);
-}
-
-.blf-field.simple > label,
-.blf-field.simple legend {
-	font-size: 0.82em;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var(--blf-text-muted);
-}
-
-.blf-field.simple .blf-help-text {
-	display: none;
-}
-
-.blf-field.large > label,
-.blf-field.large legend {
-	font-size: 1em;
-}
-
-.blf-field.large :is(.blf-input, textarea, select, .dropdown-toggle) {
-	min-height: 44px;
-	padding: 10px 14px;
-	font-size: 1.05em;
-	line-height: 1.5;
-}
-
-.blf-field.large :is(.btn, .blf-segmented button, .blf-targets button, .list-group-item) {
-	font-size: 1.02em;
-	padding: 9px 14px;
-}
-
-.blf-field.large .querybox {
-	min-height: 11rem;
-}
-
 .blf-container {
 	min-width: 0;
 }
@@ -215,26 +131,6 @@ const activeOverrides = computed(() =>
 	padding-right: 4px;
 }
 
-.blf-field > label,
-.blf-field legend {
-	font-weight: 600;
-	font-size: 0.95em;
-	margin: 0;
-}
-
-.blf-field fieldset {
-	border: 0;
-	margin: 0;
-	padding: 0;
-}
-
-.blf-help-text,
-.blf-muted {
-	color: var(--blf-text-muted);
-	font-size: 0.85em;
-}
-
-.blf-checkbox-inline,
 .blf-choice label {
 	display: inline-flex;
 	gap: 6px;

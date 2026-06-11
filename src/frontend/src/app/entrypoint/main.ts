@@ -7,7 +7,7 @@ import 'floating-vue/dist/style.css';
 
 import FloatingVue from 'floating-vue';
 import HighchartsVue from 'highcharts-vue';
-import { createApp, effectScope, watch, type App, type ObjectPlugin } from 'vue';
+import { createApp, effectScope, type App, type ObjectPlugin } from 'vue';
 
 // import { installHooksGlobal } from '@/interop/hooks';
 import { startCurrentCorpusGlobalInterop } from '@/app/effects/current-corpus-global-interop.effect';
@@ -19,8 +19,6 @@ import { createLegacyCorpusStore } from '@/app/providers/provideLegacyCorpusStor
 import { createRouteBootstrapPlugin } from '@/app/providers/providePageBootstrapState';
 // import Filters from '@/components/filters';
 import createRouter from '@/app/providers/provideRouter';
-import { useCurrentCorpusData } from '@/entities/corpus/model/corpus-context';
-import * as UIStore from '@/pages/search/config/ui-customization-store';
 
 import * as LoginSystem from '@/shared/auth/loginsystem';
 import { createI18n } from '@/shared/i18n';
@@ -75,15 +73,6 @@ async function main() {
 		app.runWithContext(() => {
 			startCurrentCorpusGlobalInterop();
 			startCustomizationInterop();
-			const corpusData = useCurrentCorpusData();
-			watch(
-				() => corpusData.value,
-				index => {
-					if (index && index.index) {
-						UIStore.init(index);
-					}
-				},
-			);
 		}),
 	);
 	app.onUnmount(() => eff.stop());

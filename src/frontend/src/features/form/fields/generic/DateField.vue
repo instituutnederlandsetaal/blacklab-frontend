@@ -1,27 +1,27 @@
 <template>
-	<div :class="fieldClasses" :id="htmlId">
-		<label v-if="showLabel" :for="`${inputId}_year_from`">
+	<div :class="formGroupClasses" :id="htmlId">
+		<label v-if="showLabel" :for="`${inputId}_year_from`" class="control-label">
 			{{ displayName }}
-			<small v-if="minDateDisplay && maxDateDisplay" class="blf-muted">({{ minDateDisplay }} to {{ maxDateDisplay }})</small>
-			<debug> [{{ id }}]</debug>
+			<small v-if="minDateDisplay && maxDateDisplay" class="text-muted">({{ minDateDisplay }} to {{ maxDateDisplay }})</small>
 		</label>
+		<debug> [{{ id }}]</debug>
 
 		<div>
 			<div class="dates">
 				<label v-if="range">{{ $t(`filter.range.from`) }}: </label>
-				<input class="blf-input form-control" :id="`${inputId}_year_from`" type="number" title="year" placeholder="year" v-model="yearFrom" :min="minYear" :max="maxYear" :disabled="disabled" />
-				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" :disabled="disabled" />
-				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" :disabled="disabled" />
+				<input class="form-control" :id="`${inputId}_year_from`" type="number" title="year" placeholder="year" v-model="yearFrom" :min="minYear" :max="maxYear" :disabled="disabled" />
+				<input class="form-control" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" :disabled="disabled" />
+				<input class="form-control" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" :disabled="disabled" />
 			</div>
 			<div v-if="range" class="dates">
 				<label>{{ $t(`filter.range.to`) }}: </label>
-				<input class="blf-input form-control" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" :disabled="disabled" />
-				<input class="blf-input form-control" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" :disabled="disabled" />
-				<input class="blf-input form-control" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" :disabled="disabled" />
+				<input class="form-control" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" :disabled="disabled" />
+				<input class="form-control" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" :disabled="disabled" />
+				<input class="form-control" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" :disabled="disabled" />
 			</div>
 		</div>
 
-		<div v-if="!lockedMode && range" class="btn-group">
+		<div v-if="!lockedMode && range" :class="btnGroupClasses">
 			<button
 				v-for="mode in modes"
 				type="button"
@@ -35,7 +35,7 @@
 				{{ mode.label }}
 			</button>
 		</div>
-		<small v-if="description" class="blf-help-text">{{ description }}</small>
+		<small v-if="description" class="help-block">{{ description }}</small>
 	</div>
 </template>
 
@@ -62,8 +62,11 @@ const emit = defineEmits<{
 	'update:modelValue': [value: DateFieldState];
 }>();
 
+const variant = computed(() => decodeVariants(props.variant));
+const formGroupClasses = computed(() => ['form-group', variant.value.large ? 'form-group-lg' : variant.value.small ? 'form-group-sm' : '']);
+const btnGroupClasses = computed(() => ['btn-group', variant.value.large ? 'btn-group-lg' : variant.value.small ? 'btn-group-sm' : '']);
+
 const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
 const minDate = computed(() => DateUtils.normalizeBoundaryDate(props.min));
 const maxDate = computed(() => DateUtils.normalizeBoundaryDate(props.max));
 const minDateDisplay = computed(() => (minDate.value ? DateUtils.dateValueToDisplayString(minDate.value) : null));

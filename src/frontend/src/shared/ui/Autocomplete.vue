@@ -24,7 +24,6 @@ import type { Option } from '@/shared/utils/options';
 import { tokenizeString } from '@/shared/utils/string-utils';
 
 import SelectPicker from './SelectPicker.vue';
-void SelectPicker; // need to use this or oxlint will complain about it not being used, even though it is in the template
 
 const modelValue = defineModel<string>({ default: '' });
 const props = withDefaults(

@@ -1,20 +1,21 @@
 <template>
-	<div :class="fieldClasses" :id="htmlId">
+	<div :class="formGroupClasses" :id="htmlId">
 		<label v-if="showLabel" :for="buttonId">{{ $tAnnotDisplayName(annotation) }}</label>
-		<div class="blf-annotation-pos__controls">
-			<div class="blf-annotation-pos__preview" :class="{ 'is-empty': !selectionSummary }">
-				{{ selectionSummary || $t('partOfSpeech.noneSelected') }}
-			</div>
-			<div class="blf-annotation-pos__actions">
-				<button :id="buttonId" type="button" class="btn btn-default" :disabled="disabled" @click="openEditor">
-					{{ $t('partOfSpeech.edit') }}
+		<div class="input-group">
+			<input :id="buttonId" type="text" class="form-control" :value="selectionSummary" readonly :placeholder="$t('partOfSpeech.noneSelected')" />
+			<div class="input-group-btn">
+				<button v-if="hasSelection" type="button" class="btn btn-default" :disabled @click="clearSelection">
+					<span class="fa fa-times fa-fw"></span>
+					<span class="sr-only">{{ $t('partO	fSpeech.reset') }}</span>
 				</button>
-				<button v-if="hasSelection" type="button" class="btn btn-link" :disabled="disabled" @click="clearSelection">
-					{{ $t('partOfSpeech.reset') }}
+				<button type="button" class="btn btn-default" :disabled @click="openEditor">
+					<span class="fa fa-pencil fa-fw"></span>
+					<span class="sr-only">{{ $t('partOfSpeech.edit') }}</span>
 				</button>
 			</div>
 		</div>
-		<small class="blf-help-text">{{ $tAnnotDescription(annotation) }}</small>
+
+		<small class="help-block">{{ $tAnnotDescription(annotation) }}</small>
 
 		<Modal
 			v-if="editorOpen"
@@ -121,8 +122,10 @@ watch(
 	{ deep: true },
 );
 
+const variant = computed(() => decodeVariants(props.variant));
+const formGroupClasses = computed(() => ['form-group', variant.value.large ? 'form-group-lg' : variant.value.small ? 'form-group-sm' : '']);
+
 const buttonId = computed(() => `${props.htmlId}_editor`);
-const fieldClasses = computed(() => ['blf-field', 'blf-annotation-pos', decodeVariants(props.variant)]);
 const mainValues = computed(() => Object.values(props.tagset.values));
 const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value.annotationValue));
 const modalSize = computed(() => props.modalSize ?? 'lg');

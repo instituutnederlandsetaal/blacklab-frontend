@@ -83,9 +83,7 @@ const emit = defineEmits<{
 const fieldClasses = computed(() => ['blf-field', 'blf-parallel-field', decodeVariants(props.variant)]);
 const htmlId = computed(() => props.htmlId);
 const sourceOptions = computed<Option[]>(() =>
-	props.fieldOptions
-		.filter(field => !props.modelValue.targets.includes(field.id))
-		.map(field => ({ value: field.id, label: translate.$tAnnotatedFieldDisplayName(field) })),
+	props.fieldOptions.filter(field => !props.modelValue.targets.includes(field.id)).map(field => ({ value: field.id, label: translate.$tAnnotatedFieldDisplayName(field) })),
 );
 const targetOptions = computed<Option[]>(() =>
 	props.fieldOptions.filter(field => field.id !== props.modelValue.source).map(field => ({ value: field.id, label: translate.$tAnnotatedFieldDisplayName(field) })),

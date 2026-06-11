@@ -74,7 +74,7 @@ const posSubAnnotations = Object.keys(posTagset.subAnnotations).reduce<Record<st
 	return annotations;
 }, {});
 
-function createAnnotationPosConfig(overrides: Partial<AnnotationPosFieldConfig> = {}): AnnotationPosFieldConfig {
+export function createAnnotationPosConfig(overrides: Partial<AnnotationPosFieldConfig> = {}): AnnotationPosFieldConfig {
 	return {
 		annotation: posAnnotation,
 		subAnnotations: posSubAnnotations,
@@ -358,7 +358,7 @@ export function createFilterPanelStoryModel(): StoryFormSystemModel {
 		caseSensitive: false,
 	};
 	initialState.controllerState['filter-panel.filter.genre'] = { fiction: true };
-	initialState.controllerState['filter-panel.filter.year'] = { low: '1800', high: '1900' };
+	initialState.controllerState['filter-panel.filter.year'] = { low: '1800', high: '1900', mode: 'strict' };
 
 	return {
 		context,
@@ -877,7 +877,7 @@ export function createFullFormStoryModel(): StoryFormSystemModel {
 	};
 	initialState.controllerState['app.explore.documents.groupBy'] = ['author'];
 	initialState.controllerState['app.explore.documents.showAs'] = ['documents'];
-	initialState.controllerState['app.explore.ngram.size'] = { low: '2', high: '3' };
+	initialState.controllerState['app.explore.ngram.size'] = { low: '2', high: '3', mode: 'strict' };
 	initialState.controllerState['app.explore.ngram.property'] = ['lemma'];
 	initialState.controllerState['app.explore.ngram.seed'] = { value: 'water', caseSensitive: false };
 	initialState.controllerState['app.explore.frequency.parallel'] = {
@@ -987,9 +987,7 @@ function createExpertForm(parent: ReturnType<FormBuilder['newContainer']>, build
 	const queryColumn = builder
 		.newContainer('search.expert.query', ContainerRenderer, {})
 		.addChildren(shared.parallel)
-		.addChildren(
-			createFieldNode(builder, 'search.expert.querybox', expertQueryController, {}),
-		)
+		.addChildren(createFieldNode(builder, 'search.expert.querybox', expertQueryController, {}))
 		.addChildren(shared.within);
 	const filtersColumn = builder.newContainer('search.expert.filters.column', ContainerRenderer, { title: 'Filters' }).addChildren(
 		shared.filters,
@@ -1186,9 +1184,7 @@ function createAppAdvancedSearchForm(parent: ReturnType<FormBuilder['newContaine
 			description: 'Placeholder for the advanced builder surface. The story still shows how it will live inside the same search tab stack with the shared filters.',
 		}),
 	);
-	queryColumn.addChildren(
-		createFieldNode(builder, 'app.search.advanced.preview', expertQueryController, {}),
-	);
+	queryColumn.addChildren(createFieldNode(builder, 'app.search.advanced.preview', expertQueryController, {}));
 	queryColumn.addChildren(
 		createViewNode(builder, 'app.search.advanced.summary', SummaryView, {
 			title: 'Current placeholder state',
@@ -1205,9 +1201,7 @@ function createAppExpertSearchForm(parent: ReturnType<FormBuilder['newContainer'
 	const queryColumn = builder.newContainer('app.search.expert.query', ContainerRenderer, {});
 	queryColumn
 		.addChildren(createFieldNode(builder, 'app.search.expert.parallel', parallelController, createParallelConfig()))
-		.addChildren(
-			createFieldNode(builder, 'app.search.expert.querybox', expertQueryController, {}),
-		)
+		.addChildren(createFieldNode(builder, 'app.search.expert.querybox', expertQueryController, {}))
 		.addChildren(createFieldNode(builder, 'app.search.expert.within', withinController, createWithinConfig()));
 	queryColumn.addChildren(
 		createViewNode(builder, 'app.search.expert.summary', SummaryView, {
