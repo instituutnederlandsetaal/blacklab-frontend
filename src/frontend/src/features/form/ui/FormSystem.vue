@@ -4,44 +4,37 @@
 			<div v-for="override in activeOverrides" :key="override.parameter" class="blf-raw-override">
 				<strong>{{ override.label }}</strong>
 				<code>{{ override.value }}</code>
-				<button type="button" class="btn btn-xs btn-default" @click="runtime.clearRawOverride(override.parameter)">Clear</button>
+				<button type="button" class="btn btn-xs btn-default" @click="props.definition.clearRawOverride(override.parameter)">Clear</button>
 			</div>
 		</section>
-		<Component :is="resolveNodeComponent(definition.root)" v-bind="getNodeProps(props.definition.root, { runtime, scopeId: '' })" :key="definition.root.id" />
+		<Component v-if="renderTree" :is="renderTree.is" v-bind="renderTree.props" />
 	</div>
 </template>
 
 <script setup lang="ts">
 import { computed, onUnmounted } from 'vue';
 
+import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
-import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormStateWithSummaries } from '@/features/form/model/types/form-query';
-import type { FormState, FormSystemDefinition, FormSystemRuntime } from '@/features/form/model/types/form-state';
-import { getNodeProps, resolveNodeComponent } from '@/features/form/ui/node-render';
 
-import { createFormSystemRuntime, provideFormSystemRuntime } from '../model/runtime';
+import { provideFormSystemRuntime } from '../model/runtime';
 
 const props = defineProps<{
-	definition: FormSystemDefinition;
-	context: FormRuntimeContext;
-	initialState?: FormState;
+	definition: FormBuilder;
 }>();
 
 const emit = defineEmits<{
-	ready: [runtime: FormSystemRuntime];
 	submit: [formId: string, snapshot: CompiledFormStateWithSummaries];
 	reset: [];
 }>();
 
-const runtime = createFormSystemRuntime(props.definition, props.context, props.initialState);
-provideFormSystemRuntime(runtime);
+provideFormSystemRuntime(props.definition);
 
-runtime.onSubmit((formId, snapshot) => emit('submit', formId, snapshot));
-runtime.onReset(() => emit('reset'));
-emit('ready', runtime);
+props.definition.onSubmit((formId, snapshot) => emit('submit', formId, snapshot));
+props.definition.onReset(() => emit('reset'));
 
-onUnmounted(() => runtime.shutdown());
+onUnmounted(() => props.definition.shutdown());
 
 const rawOverrideLabels: Record<BlackLabParameter, string> = {
 	patt: 'Restored CQL',
@@ -49,8 +42,10 @@ const rawOverrideLabels: Record<BlackLabParameter, string> = {
 	searchfield: 'Restored search field',
 };
 
+const renderTree = computed(() => props.definition.renderableGraph());
+
 const activeOverrides = computed(() =>
-	(Object.entries(runtime.state.value.rawOverrides ?? {}) as Array<[BlackLabParameter, string | null | undefined]>)
+	(Object.entries(props.definition.state.rawOverrides.value ?? {}) as Array<[BlackLabParameter, string | null | undefined]>)
 		.filter((entry): entry is [BlackLabParameter, string] => !!entry[1])
 		.map(([parameter, value]) => ({
 			parameter,

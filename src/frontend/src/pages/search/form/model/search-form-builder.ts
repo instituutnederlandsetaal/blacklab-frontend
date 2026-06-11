@@ -13,13 +13,10 @@ import {
 	filterRangeController,
 	filterSelectController,
 	filterTextController,
-	parallelController,
-	type FormRuntimeContext,
-	type FormSystemDefinition,
-	withinController,
+	parallelController, withinController,
 	RangeField,
 	queryBuilderController,
-	QueryBuilderField,
+	QueryBuilderField
 } from '@/features/form';
 import type { TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
 import type { SearchUiConfig } from '@/pages/search/config/search-ui-config';
@@ -89,7 +86,12 @@ function createExpertCqlBox(builder: FormBuilder, index: NormalizedIndex, transl
 	if (!parallelFields || !alignByOptions) return builder.newField('expert.cql', expertQueryController, RawCqlField, {});
 	return builder.newField('expert.parallel', parallelController, ParallelField, {
 		alignByOptions,
-		child: { id: 'expert.cql', component: RawCqlField, controller: expertQueryController, config: {} },
+		child: {
+			id: 'expert.cql',
+			component: RawCqlField,
+			controller: expertQueryController,
+			config: {},
+		},
 		fieldOptions: parallelFields,
 	});
 }
@@ -255,7 +257,7 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, searc
 	});
 
 	for (const { fields, group } of groups) {
-		const tab = tabs.addContainer(`${tabs.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
+		const tab = builder.newContainer(`${tabs.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
 			title: computed(() => translate.$tMetaGroupName(group.id) || group.id),
 		});
 		for (const field of fields) {
@@ -264,6 +266,7 @@ function createSharedFilters(builder: FormBuilder, index: NormalizedIndex, searc
 			const node = builder.getField(nodeId) ?? createFilterField(builder, nodeId, index.id, field, translate, group.id, index.textDirection, api);
 			tab.addChildren(node);
 		}
+		tabs.addChildren(tab);
 	}
 
 	const rootFilterContainer = builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
@@ -321,11 +324,12 @@ function createAnnotationTabs(builder: FormBuilder, corpus: { index: NormalizedI
 	});
 
 	for (const { annotations, group } of groups) {
-		const tab = tabs.addContainer(`extended.annotations.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
+		const tab = builder.newContainer(`extended.annotations.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
 			variant: 'list',
 			title: computed(() => translate.$tAnnotGroupName(group)),
 		});
 		populateTab(tab, annotations, group.id);
+		tabs.addChildren(tab);
 	}
 
 	return tabs;
@@ -337,34 +341,24 @@ function verifyIndexPresent(corpus: CorpusContext): asserts corpus is FilledCorp
 	}
 }
 
-export function createSearchFormDefinition(
-	corpus: CorpusContext,
-	searchUi: SearchUiConfig,
-	api: BlackLabApi,
-	translate: Translate,
-): {
-	context: FormRuntimeContext;
-	definition: FormSystemDefinition;
-	rootId: string;
-} {
+export function createSearchFormDefinition(corpus: CorpusContext, searchUi: SearchUiConfig, api: BlackLabApi, translate: Translate): FormBuilder {
 	verifyIndexPresent(corpus);
 	const index = corpus.index;
 
-	const builder = new FormBuilder();
-	const context: FormRuntimeContext = {
-		corpus: index,
-		translate,
-	};
+	const builder = new FormBuilder({ corpus: corpus.index, translate });
 
 	const root = builder.newContainer('root', ContainerRenderer, { variant: 'tabs' });
-	const searchTab = root.addContainer('search', ContainerRenderer, {
+	const searchTab = builder.newContainer('search', ContainerRenderer, {
 		variant: 'tabs',
 		title: computed(() => translate.$t(`search.heading`)),
 	});
-	root.addContainer('explore', ContainerRenderer, {
-		variant: 'tabs',
-		title: computed(() => translate.$t(`explore.heading`)),
-	});
+	root.addChildren(
+		searchTab,
+		builder.newContainer('explore', ContainerRenderer, {
+			variant: 'tabs',
+			title: computed(() => translate.$t(`explore.heading`)),
+		}),
+	);
 
 	const sharedFilters = createSharedFilters(builder, index, searchUi, translate, api);
 	const sharedWithin = createWithinField(builder, index, translate);
@@ -374,51 +368,68 @@ export function createSearchFormDefinition(
 		throw new Error(`Simple search annotation ${searchUi.search.simple.searchAnnotationId} is missing from ${index.mainAnnotatedField}.`);
 	}
 
-	searchTab
-		.addForm('simple', ContainerRenderer, {
-			variant: 'list',
-			title: computed(() => translate.$t(`search.simple.heading`)),
-		})
-		.addChildren(createAnnotationField(builder, 'search.simple.annotation', simpleField, corpus, translate));
+	searchTab.addChildren(
+		builder
+			.newForm('simple', ContainerRenderer, {
+				variant: 'list',
+				title: computed(() => translate.$t(`search.simple.heading`)),
+			})
+			.addChildren(createAnnotationField(builder, 'search.simple.annotation', simpleField, corpus, translate)),
+	);
 
-	const extendedSearchForm = searchTab.addForm('extended', ContainerRenderer, {
-		title: computed(() => translate.$t(`search.extended.heading`)),
-		variant: 'columns',
-	});
-	extendedSearchForm.addContainer('extended.query', ContainerRenderer, {}).addChildren(
-		builder.newContainer('extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
-			builder.newView('search.heading', HeadingView, {
-				title: computed(() => translate.$t(`search.heading`)),
-			}),
-			createAnnotationTabs(builder, corpus, searchUi, translate),
-			sharedWithin,
-		),
-		sharedFilters,
+	searchTab.addChildren(
+		builder
+			.newForm('extended', ContainerRenderer, {
+				title: computed(() => translate.$t(`search.extended.heading`)),
+				variant: 'columns',
+			})
+			.addChildren(
+				builder.newContainer('extended.query', ContainerRenderer, {}).addChildren(
+					builder.newContainer('extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
+						builder.newView('search.heading', HeadingView, {
+							title: computed(() => translate.$t(`search.heading`)),
+						}),
+						createAnnotationTabs(builder, corpus, searchUi, translate),
+						sharedWithin,
+					),
+					sharedFilters,
+				),
+			),
 	);
 
 	if (searchUi.search.advanced.enabled) {
-		const advancedSearchForm = searchTab.addForm('advanced', ContainerRenderer, {
-			title: computed(() => translate.$t(`search.advanced.heading`)),
-			variant: 'columns',
-		});
-		advancedSearchForm
-			.addView('advanced.query.heading', HeadingView, {
-				title: computed(() => translate.$t(`search.advanced.corpusQueryLanguage`)),
-			})
-			.addChildren(createAdvancedQueryBuilderBox(builder, index, searchUi, api, translate))
-			.addChildren(sharedWithin, sharedFilters);
+		searchTab.addChildren(
+			builder
+				.newForm('advanced', ContainerRenderer, {
+					title: computed(() => translate.$t(`search.advanced.heading`)),
+					variant: 'columns',
+				})
+				.addChildren(
+					builder.newView('advanced.query.heading', HeadingView, {
+						title: computed(() => translate.$t(`search.advanced.corpusQueryLanguage`)),
+					}),
+				)
+				.addChildren(createAdvancedQueryBuilderBox(builder, index, searchUi, api, translate), sharedWithin, sharedFilters),
+		);
 	}
 
-	const expertSearchForm = searchTab.addForm('expert', ContainerRenderer, {
-		title: computed(() => translate.$t(`search.expert.heading`)),
-		variant: 'columns',
-	});
-	expertSearchForm
-		.addContainer('expert.query', ContainerRenderer, {})
-		.addView('expert.query.heading', HeadingView, {
-			title: computed(() => translate.$t(`search.expert.corpusQueryLanguage`)),
-		})
-		.addChildren(createExpertCqlBox(builder, index, translate), sharedWithin, sharedFilters);
+	searchTab.addChildren(
+		builder
+			.newForm('expert', ContainerRenderer, {
+				title: computed(() => translate.$t(`search.expert.heading`)),
+				variant: 'columns',
+			})
+			.addChildren(
+				builder.newContainer('expert.query', ContainerRenderer, {}).addChildren(
+					builder.newView('expert.query.heading', HeadingView, {
+						title: computed(() => translate.$t(`search.expert.corpusQueryLanguage`)),
+					}),
+					createExpertCqlBox(builder, index, translate),
+					sharedWithin,
+					sharedFilters,
+				),
+			),
+	);
 
 	// runSearchFormCustomizations({
 	// 	builder,
@@ -427,9 +438,5 @@ export function createSearchFormDefinition(
 	// 	root,
 	// });
 
-	return {
-		context,
-		definition: builder.build(),
-		rootId: root.id,
-	};
+	return builder;
 }

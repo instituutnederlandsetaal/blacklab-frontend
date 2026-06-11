@@ -1,20 +1,20 @@
 import { reactivePick } from '@vueuse/core';
-import { reactive, toRaw } from 'vue';
+import { computed, reactive, toRaw } from 'vue';
 
-import type { FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeBase, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
-import type { FormState } from '@/features/form/model/types/form-state';
+import type { NewFormState } from '@/features/form/model/state';
+import type { AnyBaseFormNode, FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeBase, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 
 import { lenientIter } from '@/shared/utils/array-utils';
 
 /** Iterate all nodes in the form graph, filtered by uniqueness. Duplicate nodes are skipped. */
-export function* walkFormNodes(root: FormNode) {
+export function* walkFormNodes<K extends FormNodeKind>(root: FormNode, ...kind: K[]): Generator<NodeKindMap[K]> {
 	const seen = new Set<FormNode>();
 	const stack = [root];
 	while (stack.length) {
 		const node = stack.pop()!;
 		if (seen.has(node)) continue;
 		seen.add(node);
-		yield node;
+		if (kind && kind.includes(node.kind as K)) yield node as any;
 		if (isContainerNode(node)) {
 			// Push in reverse order so traversal is in the order you would expect
 			for (let i = node.children.length - 1; i >= 0; i--) {
@@ -35,8 +35,8 @@ export function* walkFormNodeChildren(root: FormNode) {
 /** Get all nodes in the form graph, deduplicated, and optionally filtered by kind. */
 export function getAllNodes(root: FormNode): FormNode[];
 export function getAllNodes<K extends FormNodeKind>(root: FormNode, ...kind: K[]): NodeKindMap[K][];
-export function getAllNodes(root: FormNode, ...kind: string[]): FormNode[] {
-	return Array.from(walkFormNodes(root)).filter(node => (kind?.length ? kind.includes(node.kind) : true));
+export function getAllNodes(root: FormNode, ...kind: FormNodeKind[]): FormNode[] {
+	return Array.from(walkFormNodes(root, ...kind));
 }
 export function getAllFields(root: FormNode): FormFieldNode[] {
 	return getAllNodes(root, 'field');
@@ -52,11 +52,11 @@ export function getFormsWithFields(root: FormNode): { form: FormNodeBase; fields
 	return forms;
 }
 
-export function checkNoLoops(root: FormNode, completedSubgraphs = new Set<FormNode>()): void {
-	const visited = new Set<FormNode>();
-	const visiting = new Set<FormNode>();
+export function checkNoLoops(root: AnyBaseFormNode, completedSubgraphs = new Set<AnyBaseFormNode>()): void {
+	const visited = new Set<AnyBaseFormNode>();
+	const visiting = new Set<AnyBaseFormNode>();
 
-	const visit = (node: FormNode): void => {
+	const visit = (node: AnyBaseFormNode): void => {
 		if (completedSubgraphs.has(node) || visited.has(node)) return;
 		if (visiting.has(node)) throw new Error(`Node with id ${node.id} is part of a loop`);
 
@@ -76,8 +76,11 @@ export function checkNoLoops(root: FormNode, completedSubgraphs = new Set<FormNo
 	visit(root);
 }
 
-export function isContainerNode(node: FormNode): node is FormContainerLikeNode {
-	return node.kind === 'container' || node.kind === 'form';
+export function isContainerNode(node: AnyBaseFormNode | null | undefined): node is FormContainerLikeNode {
+	return !!node && 'kind' in node && 'children' in node && Array.isArray(node.children);
+}
+export function isFieldNode(node: AnyBaseFormNode | null | undefined): node is FormFieldNode {
+	return !!node && node.kind === 'field';
 }
 
 /**
@@ -86,18 +89,16 @@ export function isContainerNode(node: FormNode): node is FormContainerLikeNode {
  * @param formState the current state of the form.
  * @returns a new FormState object containing only the active branches.
  */
-export function pickActiveFormState(form: FormBoundaryNode, formState: FormState): FormState {
-	const r: FormState = {
-		controllerState: {},
-		uiState: {
-			activeContainers: {},
-		},
+export function pickActiveFormState(form: FormBoundaryNode, formState: NewFormState): NewFormState {
+	const r: NewFormState = {
+		state: {},
+		uiState: {},
 		rawOverrides: structuredClone(toRaw(formState.rawOverrides ?? {})),
 	};
 
 	for (const field of getAllNodes(form, 'field', 'container', 'form')) {
-		if (field.kind === 'field') r.controllerState[field.id] = structuredClone(toRaw(formState.controllerState[field.id]));
-		else r.uiState.activeContainers[field.id] = formState.uiState.activeContainers[field.id];
+		if (field.kind === 'field') r.state[field.id] = structuredClone(toRaw(formState.state[field.id]));
+		else r.uiState[field.id] = formState.uiState[field.id];
 	}
 
 	return r;
@@ -110,25 +111,15 @@ export function pickActiveFormState(form: FormBoundaryNode, formState: FormState
  * @param formState
  * @returns
  */
-export function reactivePickActiveFormState(form: FormBoundaryNode, formState: FormState): FormState {
-	const r: FormState = reactive({
-		controllerState: {},
-		uiState: {
-			activeContainers: {},
-		},
-		rawOverrides: formState.rawOverrides ?? {},
+export function reactivePickActiveFormState(form: FormBoundaryNode, formState: NewFormState): NewFormState {
+	const fieldsInForm = computed(() => new Set(getAllNodes(form, 'field').map(field => field.id)));
+	const containersInForm = computed(() => new Set([...walkFormNodes(form, 'field', 'container')].map(node => node.id)));
+
+	return reactive({
+		state: reactivePick(formState.state, (v, k) => fieldsInForm.value.has(k)),
+		uiState: reactivePick(formState.uiState, (v, k) => containersInForm.value.has(k)),
+		rawOverrides: formState.rawOverrides,
 	});
-
-	const fieldsToInclude = new Set<string>();
-	const containersToInclude = new Set<string>();
-	for (const node of getAllNodes(form, 'field', 'container', 'form')) {
-		if (node.kind === 'field') fieldsToInclude.add(node.id);
-		else containersToInclude.add(node.id);
-	}
-
-	r.controllerState = reactivePick(formState.controllerState, ...fieldsToInclude);
-	r.uiState.activeContainers = reactivePick(formState.uiState.activeContainers, ...containersToInclude);
-	return r;
 }
 
 export function decodeVariants<Variant extends string>(variants: Variant | undefined | null | Array<Variant | undefined | null>): Partial<Record<Variant, boolean>> {

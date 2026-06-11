@@ -2,8 +2,8 @@ import { describe, expect, test, vi } from 'vitest';
 
 import defaultPageConfig from '@/entities/page-config/page-config.default';
 import { resolveSearchUiConfig } from '@/pages/search/config/search-ui-config';
-import { createSearchFormDefinition } from '@/pages/search/form/model/search-form-builder';
 import { createQueryBuilderOptions } from '@/pages/search/form/model/query-builder-options';
+import { createSearchFormDefinition } from '@/pages/search/form/model/search-form-builder';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField } from '@/types/apptypes';
 
 import { resolvedRequest } from '../mocks/api';
@@ -172,7 +172,7 @@ describe('search form dependency boundaries', () => {
 			createMockTranslate(),
 		);
 
-		expect(blueprint.rootId).toBe('root');
-		expect(blueprint.definition.root.children.map(child => child.id)).toContain('search');
+		expect(blueprint.getRoot().id).toBe('root');
+		expect(blueprint.getRoot().children.map(child => child.id)).toContain('search');
 	});
 });

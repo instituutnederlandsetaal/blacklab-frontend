@@ -4,34 +4,34 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 import { nextTick } from 'vue';
 
-import { cloneFormState, filterTextController, FormSystem, type CompiledFormStateWithSummaries, type FormRuntimeContext, type FormSystemDefinition, type FormSystemRuntime } from '@/features/form';
+import { filterTextController, FormSystem, type CompiledFormStateWithSummaries, type FormBuilder } from '@/features/form';
 
-import { TestTextField, createTestBuilder, createTestContext, parentFormProbeView, testTextController } from './helpers';
+import { TestTextField, createTestBuilder, parentFormProbeView, testTextController } from './helpers';
 
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import ContainerRendererFilters from '@/features/form/ui/ContainerRendererFilters.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
+import SummaryView from '@/features/form/views/SummaryView.vue';
 
 type FormFixture = {
-	context: FormRuntimeContext;
-	definition: FormSystemDefinition;
+	definition: FormBuilder;
 };
 
 function createSingleFormFixture(): FormFixture {
 	const builder = createTestBuilder();
 	const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
 
-	form
-		.addField('search.simple.word', testTextController, TestTextField, {
+	form.addChildren(
+		builder.newField('search.simple.word', testTextController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
-		})
-		.addView('search.simple.probe', parentFormProbeView, {});
+		}),
+		builder.newView('search.simple.probe', parentFormProbeView, {}),
+	);
 
 	return {
-		context: createTestContext(),
-		definition: builder.build(),
+		definition: builder,
 	};
 }
 
@@ -45,71 +45,65 @@ function createSharedFieldTabsFixture(): FormFixture {
 		annotationId: 'word',
 		displayName: 'Shared word',
 	});
-	const firstForm = root.addForm('search.first', ContainerRenderer, { title: 'First' });
-	const secondForm = root.addForm('search.second', ContainerRenderer, { title: 'Second' });
-
-	firstForm.addChildren(sharedField);
-	secondForm.addChildren(sharedField, builder.newView('search.second.probe', parentFormProbeView, {}));
+	root.addChildren(
+		builder.newForm('search.first', ContainerRenderer, { title: 'First' }).addChildren(sharedField),
+		builder.newForm('search.second', ContainerRenderer, { title: 'Second' }).addChildren(sharedField, builder.newView('search.second.probe', parentFormProbeView, {})),
+	);
 
 	return {
-		context: createTestContext(),
-		definition: builder.build(),
+		definition: builder,
 	};
 }
 
 function createTabbedFormFixture(): FormFixture {
 	const builder = createTestBuilder();
-	const form = builder.newForm('search.tabbed', ContainerRenderer, {
-		title: 'Tabbed search',
-		variant: 'tabs',
-	});
-	const wordTab = form.addContainer('search.tabbed.word', ContainerRenderer, {
-		title: 'Word',
-		combine: 'and',
-	});
-	const lemmaTab = form.addContainer('search.tabbed.lemma', ContainerRenderer, {
-		title: 'Lemma',
-		combine: 'and',
-	});
-
-	wordTab.addField('search.tabbed.word.field', testTextController, TestTextField, {
-		annotationId: 'word',
-		displayName: 'Word',
-	});
-	lemmaTab
-		.addField('search.tabbed.lemma.field', testTextController, TestTextField, {
-			annotationId: 'lemma',
-			displayName: 'Lemma',
+	builder
+		.newForm('search.tabbed', ContainerRenderer, {
+			title: 'Tabbed search',
+			variant: 'tabs',
 		})
-		.addView('search.tabbed.lemma.probe', parentFormProbeView, {});
+		.addChildren(
+			builder.newContainer('search.tabbed.word', ContainerRenderer, { title: 'Word', combine: 'and' }).addChildren(
+				builder.newField('search.tabbed.word.field', testTextController, TestTextField, {
+					annotationId: 'word',
+					displayName: 'Word',
+				}),
+			),
+			builder.newContainer('search.tabbed.lemma', ContainerRenderer, { title: 'Lemma', combine: 'and' }).addChildren(
+				builder.newField('search.tabbed.lemma.field', testTextController, TestTextField, {
+					annotationId: 'lemma',
+					displayName: 'Lemma',
+				}),
+				builder.newView('search.tabbed.lemma.probe', parentFormProbeView, {}),
+			),
+		);
 	return {
-		context: createTestContext(),
-		definition: builder.build(),
+		definition: builder,
 	};
 }
 
 function createFilterTabsFixture(): FormFixture {
 	const builder = createTestBuilder();
-	const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
-	const wrapper = form.addContainer('shared.filters.wrapper', ContainerRenderer, {});
-	const tabs = builder.newContainer('shared.filters', ContainerRendererFilters, {
-		variant: 'tabs',
-	});
-	const tab = tabs.addContainer('shared.filters.bibliographic', ContainerRenderer, {
-		title: 'Bibliographic',
-	});
-	const fields = tab.addContainer('shared.filters.bibliographic.fields', ContainerRenderer, {});
-
-	fields.addField('shared.filters.bibliographic.author', filterTextController, TextField, {
-		displayName: 'Author',
-		groupId: 'bibliographic',
-		metadataFieldId: 'author',
-	});
-	wrapper.addView('shared.filters.heading', HeadingView, { title: 'Filter Search By...' }).addChildren(tabs);
+	builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(
+		builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
+			builder.newView('shared.filters.heading', HeadingView, { title: 'Filter Search By...' }),
+			builder.newContainer('shared.filters', ContainerRendererFilters, { variant: 'tabs' }).addChildren(
+				builder.newContainer('shared.filters.bibliographic', ContainerRenderer, { title: 'Bibliographic' }).addChildren(
+					builder.newContainer('shared.filters.bibliographic.fields', ContainerRenderer, {}).addChildren(
+						builder.newField('shared.filters.bibliographic.author', filterTextController, TextField, {
+							displayName: 'Author',
+							groupId: 'bibliographic',
+							metadataFieldId: 'author',
+						}),
+					),
+				),
+			),
+			builder.newView('shared.filters.summary', SummaryView, { title: 'Filter summary' }),
+		),
+	);
 
 	return {
-		context: createTestContext(),
-		definition: builder.build(),
+		definition: builder,
 	};
 }
 
@@ -159,38 +153,18 @@ describe('form system integration', () => {
 		const wrapper = mount(FormSystem, {
 			props: fixture,
 		});
-		const runtime = wrapper.emitted('ready')?.[0]?.[0] as FormSystemRuntime;
-		const replacement = cloneFormState(runtime.state.value);
-		replacement.controllerState['search.simple.word'] = { value: 'water' };
+		const runtime = fixture.definition;
+		const replacement = structuredClone(runtime.state.getRawState());
+		replacement.state['search.simple.word'] = { value: 'water' };
 
-		runtime.replaceState(replacement);
+		runtime.state.replaceState(replacement);
 		await nextTick();
 
 		expect((wrapper.get('input[aria-label="Word"]').element as HTMLInputElement).value).toBe('water');
 
 		await wrapper.get('input[aria-label="Word"]').setValue('fire');
 
-		expect(runtime.state.value.controllerState['search.simple.word']).toEqual({ value: 'fire' });
-	});
-
-	test('runtime is stable and replaceState updates rendered fields', async () => {
-		const fixture = createSingleFormFixture();
-		const wrapper = mount(FormSystem, {
-			props: fixture,
-		});
-		const runtime = wrapper.emitted('ready')?.[0]?.[0] as FormSystemRuntime;
-
-		const replacement = cloneFormState(runtime.state.value);
-		replacement.controllerState['search.simple.word'] = { value: 'water' };
-
-		runtime.replaceState(replacement);
-		await nextTick();
-
-		expect((wrapper.get('input[aria-label="Word"]').element as HTMLInputElement).value).toBe('water');
-
-		await wrapper.get('input[aria-label="Word"]').setValue('fire');
-
-		expect(runtime.state.value.controllerState['search.simple.word']).toEqual({ value: 'fire' });
+		expect(runtime.state.state.value['search.simple.word']).toEqual({ value: 'fire' });
 	});
 
 	test('reused field nodes share state across tabbed forms', async () => {
@@ -238,10 +212,13 @@ describe('form system integration', () => {
 		});
 
 		expect(wrapper.find('.nav-tabs .badge').exists()).toBe(false);
+		expect(wrapper.find('.blf-summary-view .entry').exists()).toBe(false);
 
 		await wrapper.get('input[type="text"]').setValue('Austen');
 		await nextTick();
 
 		expect(wrapper.get('.nav-tabs .badge').text()).toBe('1');
+		expect(wrapper.get('.blf-summary-view .entry .label').text()).toBe('Author');
+		expect(wrapper.get('.blf-summary-view .entry .value').text()).toBe('Austen');
 	});
 });

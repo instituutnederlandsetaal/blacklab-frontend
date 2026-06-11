@@ -1,8 +1,8 @@
 <template>
 	<section class="blf-summary-view">
 		<header>{{ title || $t(`form.summary.heading`) }}</header>
-		<div v-if="entries.length" class="entries">
-			<div v-for="entry in entries" :key="entry.id" class="entry">
+		<div v-if="compiled.summaries.length" class="entries">
+			<div v-for="entry in compiled.summaries" :key="entry.id" class="entry">
 				<span class="label">{{ entry.label }}</span>
 				<span class="value">{{ entry.value }}</span>
 			</div>
@@ -11,9 +11,9 @@
 
 		<dl v-if="showRaw" class="raw">
 			<dt>CQL</dt>
-			<dd>{{ projection.patt || $t(`form.summary.none`) }}</dd>
+			<dd>{{ compiled.patt || $t(`form.summary.none`) }}</dd>
 			<dt>Lucene</dt>
-			<dd>{{ projection.filter || $t(`form.summary.none`) }}</dd>
+			<dd>{{ compiled.filter || $t(`form.summary.none`) }}</dd>
 		</dl>
 	</section>
 </template>
@@ -21,13 +21,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { useParentForm } from '../model/runtime';
+import { useFormSystemRuntime, useParentForm } from '../model/runtime';
 import type { SummaryViewConfig } from '../model/views/summary-view';
 
 defineProps<SummaryViewConfig>();
 const parentForm = useParentForm();
-const projection = computed(() => parentForm.compiled);
-const entries = computed(() => parentForm.summaries);
+const runtime = useFormSystemRuntime();
+const compiled = computed(() => runtime.compile(parentForm.value));
 </script>
 
 <style lang="scss" scoped>

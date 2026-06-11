@@ -13,7 +13,7 @@ import { computed } from 'vue';
 
 import type { RawCqlQueryFieldState } from '@/features/form/model/controllers/raw-cql-query-controller';
 import { decodeVariants } from '@/features/form/model/form-utils';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
 
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<RawCqlQueryFieldState>>(), {
 	disabled: false,

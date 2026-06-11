@@ -1,9 +1,7 @@
 import type { LocationQuery, LocationQueryRaw, LocationQueryValue } from 'vue-router';
 
 import { FORM_QUERY_PREFIX, type CompiledFormState } from '@/features/form';
-import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameter } from '@/features/form/model/types/blacklab-params';
-
-type CanonicalFormQuery = Record<BlackLabParameter, string | null>;
+import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameter, type BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 
 export function isFormOwnedQueryParameter(key: string): boolean {
 	return key.startsWith(FORM_QUERY_PREFIX) || NATIVE_BLACKLAB_PARAMETERS.includes(key as BlackLabParameter);
@@ -13,8 +11,8 @@ function firstQueryValue(value: LocationQueryValue | LocationQueryValue[] | unde
 	return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
 }
 
-export function readCanonicalFormQuery(query: LocationQuery): CanonicalFormQuery {
-	return Object.fromEntries(NATIVE_BLACKLAB_PARAMETERS.map(key => [key, firstQueryValue(query[key])])) as CanonicalFormQuery;
+export function readCanonicalFormQuery(query: LocationQuery): BlackLabParameters {
+	return Object.fromEntries(NATIVE_BLACKLAB_PARAMETERS.map(key => [key, firstQueryValue(query[key])])) as BlackLabParameters;
 }
 
 export function pickFormOwnedQueryParameters(query: LocationQuery): LocationQuery {

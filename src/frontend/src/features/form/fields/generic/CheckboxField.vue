@@ -11,7 +11,7 @@
 						:value="option.value"
 						:name="`${inputId}_${index}`"
 						:id="`${inputId}_${index}`"
-						:checked="modelValue[option.value]"
+						:checked="modelValue.includes(option.value)"
 						:disabled="disabled"
 						@change="toggleCheckbox(option.value, ($event.target as HTMLInputElement).checked)"
 					/>
@@ -44,9 +44,6 @@ const inputId = computed(() => `${props.htmlId}_value`);
 const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
 
 function toggleCheckbox(value: string, checked: boolean) {
-	emit('update:modelValue', {
-		...props.modelValue,
-		[value]: checked,
-	});
+	emit('update:modelValue', checked ? [...props.modelValue, value] : props.modelValue.filter(selected => selected !== value));
 }
 </script>

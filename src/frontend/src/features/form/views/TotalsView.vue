@@ -14,12 +14,15 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { useParentForm } from '../model/runtime';
+import { useFormSystemRuntime, useParentForm } from '../model/runtime';
 import type { TotalsViewConfig } from '../model/views/totals-view';
 
 const props = defineProps<TotalsViewConfig>();
 const parentForm = useParentForm();
-const filterProjection = computed(() => parentForm.compiled.filter);
+const form = useFormSystemRuntime();
+
+// TODO make available directly, instead of requiring recompilation in multiple places.
+const filterProjection = computed(() => form.compile(parentForm.value).filter);
 const filterActive = computed(() => !!filterProjection.value);
 // TODO wire up properly, will need some fancy injections or otherwise connected imports
 // need a good abstraction for that so external components can use the functionality as well

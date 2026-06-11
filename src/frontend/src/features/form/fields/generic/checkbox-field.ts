@@ -2,9 +2,9 @@ import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared
 
 import type { Option } from '@/shared/utils/options';
 
-export type CheckboxFieldState = Record<string, boolean>;
+export type CheckboxFieldState = string[];
 
-export const createDefaultCheckboxFieldState = (): CheckboxFieldState => ({});
+export const createDefaultCheckboxFieldState = (): CheckboxFieldState => [];
 
 export type CheckboxFieldUiConfig = GenericFieldUiConfig & {
 	options: Option[];

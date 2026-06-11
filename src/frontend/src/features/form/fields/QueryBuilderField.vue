@@ -9,7 +9,7 @@ import { computed } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { QueryBuilderFieldConfig, QueryBuilderFieldState } from '@/features/form/model/controllers/query-builder-controller';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
+import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
 import CqlQueryBuilder from '@/widgets/cql-query-builder/CqlQueryBuilder.vue';
 
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<QueryBuilderFieldState> & QueryBuilderFieldConfig>(), {

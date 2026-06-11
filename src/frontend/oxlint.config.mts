@@ -77,6 +77,7 @@ const config: OxlintConfig = {
 				allowArray: true,
 			},
 		],
+		'vitest/require-mock-type-parameters': 'allow',
 	},
 };
 

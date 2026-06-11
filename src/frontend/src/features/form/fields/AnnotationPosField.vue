@@ -3,7 +3,7 @@
 		<label v-if="showLabel" :for="buttonId">{{ $tAnnotDisplayName(annotation) }}</label>
 		<div class="input-group">
 			<input :id="buttonId" type="text" class="form-control" :value="selectionSummary" readonly :placeholder="$t('partOfSpeech.noneSelected')" />
-			<div class="input-group-btn">
+			<div :class="btnGroupClasses">
 				<button v-if="hasSelection" type="button" class="btn btn-default" :disabled @click="clearSelection">
 					<span class="fa fa-times fa-fw"></span>
 					<span class="sr-only">{{ $t('partO	fSpeech.reset') }}</span>
@@ -124,6 +124,7 @@ watch(
 
 const variant = computed(() => decodeVariants(props.variant));
 const formGroupClasses = computed(() => ['form-group', variant.value.large ? 'form-group-lg' : variant.value.small ? 'form-group-sm' : '']);
+const btnGroupClasses = computed(() => ['input-group-btn', variant.value.large ? 'btn-group-lg' : variant.value.small ? 'btn-group-sm' : '']);
 
 const buttonId = computed(() => `${props.htmlId}_editor`);
 const mainValues = computed(() => Object.values(props.tagset.values));

@@ -155,24 +155,18 @@ export const filterCheckboxController = createFieldController<'metadata-filter-c
 	getPersistKey: metadataPersistKey,
 	affectsBlackLabParameters: ['filter'],
 	encode(state) {
-		const selected = Object.entries(state ?? {})
-			.filter(([, isSelected]) => isSelected)
-			.map(([value]) => value);
-		return selected.length ? joinPersistValues(selected) : null;
+		return state.length ? joinPersistValues(state) : null;
 	},
 	restore(payload, config) {
 		const values = decodePersistSelection(payload);
 		return {
-			state: Object.fromEntries(values.map(value => [value, true])),
+			state: values,
 			warnings: unknownOptionWarnings(values, config.options),
 		};
 	},
 	getQueryContribution(config, _runtime, state) {
-		const selectedValues = Object.entries(state || {})
-			.filter(([, isSelected]) => isSelected)
-			.map(([value]) => value);
-		const lucene = selectedValues.length ? `${config.metadataFieldId}:(${selectedValues.map(value => escapeLucene(value, false)).join(' ')})` : null;
-		const summary = summarizeValues(selectedValues.map(value => optionLabel(findOption(config.options, value) ?? value)));
+		const lucene = state.length ? `${config.metadataFieldId}:(${state.map(value => escapeLucene(value, false)).join(' ')})` : null;
+		const summary = summarizeValues(state.map(value => optionLabel(findOption(config.options, value) ?? value)));
 		return createRawFilterQuery(config.id, config, lucene, summary);
 	},
 });

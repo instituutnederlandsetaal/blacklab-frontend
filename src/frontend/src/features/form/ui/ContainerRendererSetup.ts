@@ -2,17 +2,22 @@ import { computed } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
-import type { FormNode, ImplicitContainerComponentProps } from '@/features/form/model/types/form-shape';
+import type { ImplicitContainerComponentProps } from '@/features/form/model/types/form-shape';
 
 export default function containerRendererSetup(props: ImplicitContainerComponentProps) {
 	const runtime = useFormSystemRuntime();
 
 	const presentation = computed(() => decodeVariants(props.variant));
-	const childrenById = computed(() => Object.fromEntries(props.children.map(child => [child.id, child])));
+	const childrenById = computed(() =>
+		props.children.reduce<Record<string, (typeof props)['children'][number]>>((acc, child) => {
+			acc[child.props.id] = child;
+			return acc;
+		}, {}),
+	);
 
 	const activeChildId = computed({
 		get(): string | null {
-			return runtime.state.value.uiState.activeContainers[props.id] ?? props.children[0]?.id ?? null;
+			return runtime.state.uiState.value[props.id] ?? props.children[0]?.props.id ?? null;
 		},
 		set(value: string) {
 			const child = childrenById.value[value];
@@ -21,11 +26,11 @@ export default function containerRendererSetup(props: ImplicitContainerComponent
 				return;
 			}
 
-			runtime.state.value.uiState.activeContainers[props.id] = value;
+			runtime.state.uiState.value[props.id] = value;
 		},
 	});
 
-	const activeChild = computed<FormNode | null>(() => (activeChildId.value ? childrenById.value[activeChildId.value] : null));
+	const activeChild = computed(() => (activeChildId.value ? childrenById.value[activeChildId.value] : null));
 
 	return {
 		runtime,

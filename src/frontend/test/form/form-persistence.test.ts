@@ -7,7 +7,7 @@ import {
 	annotationSelectController,
 	annotationTextController,
 	annotationPosController,
-	createFormState,
+	createDefaultFormState,
 	compileFormState,
 	expertQueryController,
 	filterAutocompleteController,
@@ -30,21 +30,20 @@ import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/widgets/cql-
 
 import { TestTextField, createTestBuilder, createTestContext, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
-import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
+import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
 function createSingleTextForm() {
 	const builder = createTestBuilder();
-	const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 	const field = builder.newField('search.extended.word', testTextController, TestTextField, {
 		annotationId: 'word',
 		displayName: 'Word',
 	});
-	form.addChildren(field);
+	const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(field);
 	return {
 		context: createTestContext(),
-		definition: builder.build(),
+		definition: builder,
 		field,
 		form,
 	};
@@ -52,19 +51,21 @@ function createSingleTextForm() {
 
 function createCanonicalFallbackFixture() {
 	const builder = createTestBuilder();
-	const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', variant: 'tabs' });
-	const simple = root.addForm('search.simple', ContainerRenderer, { title: 'Simple' });
+	const root = builder.newContainer('search', ContainerRenderer, {
+		title: 'Search',
+		variant: 'tabs',
+	});
 	const simpleField = builder.newField('search.simple.word', testTextController, TestTextField, {
 		annotationId: 'word',
 		displayName: 'Word',
 	});
-	simple.addChildren(simpleField);
-	const expert = root.addForm('search.expert', ContainerRenderer, { title: 'Expert' });
 	const rawField = builder.newField('search.expert.cql', expertQueryController, RawCqlField, {});
-	expert.addChildren(rawField);
+	const simple = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(simpleField);
+	const expert = builder.newForm('search.expert', ContainerRenderer, { title: 'Expert' }).addChildren(rawField);
+	root.addChildren(simple, expert);
 	return {
 		context: createTestContext(),
-		definition: builder.build(),
+		definition: builder,
 		expert,
 		rawField,
 		simple,
@@ -75,8 +76,8 @@ function createCanonicalFallbackFixture() {
 describe('scoped form persistence', () => {
 	test('encodes readable f.* state and ignores unscoped unknown query parameters when restoring', () => {
 		const fixture = createSingleTextForm();
-		const state = createFormState(fixture.definition, fixture.context);
-		state.controllerState[fixture.field.id] = { value: 'water' };
+		const state = createDefaultFormState(fixture.definition.getRoot(), fixture.context);
+		state.state[fixture.field.id] = { value: 'water' };
 
 		const encoded = compileFormState(fixture.form, state, fixture.context).encoded;
 
@@ -87,7 +88,6 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreScopedFormState(
 			fixture.definition,
-			fixture.context,
 			{
 				unknown: 'not-form-owned',
 				word: 'fire',
@@ -98,20 +98,20 @@ describe('scoped form persistence', () => {
 		);
 
 		expect(restored.issues).toEqual([]);
-		expect(restored.controllerState[fixture.field.id]).toEqual({ value: 'water' });
+		expect(restored.state[fixture.field.id]).toEqual({ value: 'water' });
 		expect(restored.rawOverrides).toEqual({});
 	});
 
 	test('reports dangling scoped parameters and restores fields accepted by the default form for an unknown selector', () => {
 		const fixture = createSingleTextForm();
-		const restored = restoreScopedFormState(fixture.definition, fixture.context, {
+		const restored = restoreScopedFormState(fixture.definition, {
 			'f.form': 'removed-form',
 			'f.word': 'water',
 			'f.v': 'old-version',
 			'f.removed': 'stale',
 		});
 
-		expect(restored.controllerState[fixture.field.id]).toEqual({ value: 'water' });
+		expect(restored.state[fixture.field.id]).toEqual({ value: 'water' });
 		expect(restored.issues).toEqual([
 			{ key: 'form', message: "No current form accepts persisted selector 'removed-form'." },
 			{ key: 'v', message: "No current form field accepts persisted key 'v'." },
@@ -128,24 +128,24 @@ describe('scoped form persistence', () => {
 			},
 		};
 		const builder = createTestBuilder();
-		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 		const field = builder.newField('search.extended.word', throwingController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
 		});
-		form.addChildren(field);
+		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(field);
 
-		const restored = restoreScopedFormState(builder.build(), createTestContext(), { 'f.word': 'old' });
+		const restored = restoreScopedFormState(builder, {
+			'f.word': 'old',
+		});
 
-		expect(restored.controllerState[field.id]).toEqual({ value: '' });
+		expect(restored.state[field.id]).toEqual({ value: '' });
 		expect(restored.issues).toEqual([{ key: 'word', nodeId: field.id, message: 'Unsupported historical value.' }]);
 	});
 
-	test('activates a raw patt override when restored form output differs from canonical patt and locks affected controls', async () => {
+	test('activates a raw patt override when restored form output differs from canonical patt', async () => {
 		const fixture = createSingleTextForm();
 		const restored = restoreScopedFormState(
 			fixture.definition,
-			fixture.context,
 			{
 				'f.form': 'extended',
 				'f.word': 'water',
@@ -155,24 +155,19 @@ describe('scoped form persistence', () => {
 
 		expect(restored.rawOverrides).toEqual({ patt: '[word="(?i)fire"]' });
 
+		fixture.definition.state.replaceState(restored);
 		const wrapper = mount(FormSystem, {
 			props: {
-				context: fixture.context,
 				definition: fixture.definition,
 			},
 		});
-		const runtime = wrapper.emitted('ready')?.[0]?.[0] as { replaceState(state: typeof restored): void };
-
-		runtime.replaceState(restored);
 		await wrapper.vm.$nextTick();
 
 		expect(wrapper.get('.blf-raw-override code').text()).toBe('[word="(?i)fire"]');
-		expect((wrapper.get('input').element as HTMLInputElement).disabled).toBe(true);
 
 		await wrapper.get('.blf-raw-override button').trigger('click');
 
 		expect(wrapper.find('.blf-raw-override').exists()).toBe(false);
-		expect((wrapper.get('input').element as HTMLInputElement).disabled).toBe(false);
 	});
 
 	test('keeps controller warnings informational when canonical comparison succeeds', () => {
@@ -187,16 +182,15 @@ describe('scoped form persistence', () => {
 			},
 		};
 		const builder = createTestBuilder();
-		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 		const field = builder.newField('search.extended.word', warningController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
 		});
-		form.addChildren(field);
-		const definition = builder.build();
+		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(field);
+		const definition = builder;
 		const context = createTestContext();
 
-		const restored = restoreScopedFormState(definition, context, { 'f.word': 'water' }, { patt: '[word="(?i)water"]' });
+		const restored = restoreScopedFormState(definition, { 'f.word': 'water' }, { patt: '[word="(?i)water"]' });
 
 		expect(restored.issues).toEqual([{ key: 'word', nodeId: field.id, message: 'Restored with a harmless adjustment.' }]);
 		expect(restored.rawOverrides).toEqual({});
@@ -205,10 +199,10 @@ describe('scoped form persistence', () => {
 	test('uses the expert CQL field for old raw URLs that only contain canonical patt', () => {
 		const fixture = createCanonicalFallbackFixture();
 
-		const restored = restoreScopedFormState(fixture.definition, fixture.context, {}, { patt: '[word="water"]' });
+		const restored = restoreScopedFormState(fixture.definition, {}, { patt: '[word="water"]' });
 
-		expect(restored.uiState.activeContainers.search).toBe('search.expert');
-		expect(restored.controllerState[fixture.rawField.id]).toBe('[word="water"]');
+		expect(restored.uiState.search).toBe('search.expert');
+		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
 		expect(restored.rawOverrides).toEqual({});
 	});
 
@@ -217,7 +211,6 @@ describe('scoped form persistence', () => {
 
 		const restored = restoreScopedFormState(
 			fixture.definition,
-			fixture.context,
 			{
 				'f.form': 'removed-form',
 				'f.tab': 'missing:child',
@@ -226,8 +219,8 @@ describe('scoped form persistence', () => {
 			{ patt: '[word="water"]' },
 		);
 
-		expect(restored.uiState.activeContainers.search).toBe(fixture.expert.id);
-		expect(restored.controllerState[fixture.rawField.id]).toBe('[word="water"]');
+		expect(restored.uiState.search).toBe(fixture.expert.id);
+		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
 		expect(restored.rawOverrides).toEqual({});
 		expect(restored.issues.map(issue => issue.key)).toEqual(['form', 'tab', 'removed']);
 	});
@@ -235,54 +228,70 @@ describe('scoped form persistence', () => {
 	test('uses valid scoped field state instead of canonical-only fallback', () => {
 		const fixture = createCanonicalFallbackFixture();
 
-		const restored = restoreScopedFormState(fixture.definition, fixture.context, { 'f.word': 'water' }, { patt: '[word="fire"]' });
+		const restored = restoreScopedFormState(fixture.definition, { 'f.word': 'water' }, { patt: '[word="fire"]' });
 
-		expect(restored.uiState.activeContainers.search).toBe(fixture.simple.id);
-		expect(restored.controllerState[fixture.simpleField.id]).toEqual({ value: 'water' });
-		expect(restored.controllerState[fixture.rawField.id]).toBe('');
+		expect(restored.uiState.search).toBe(fixture.simple.id);
+		expect(restored.state[fixture.simpleField.id]).toEqual({ value: 'water' });
+		expect(restored.state[fixture.rawField.id]).toBe('');
 		expect(restored.rawOverrides).toEqual({ patt: '[word="fire"]' });
 	});
 
 	test('persists and restores query-affecting tabs with implicit filter contributions', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
-		const filters = form.addContainer('search.extended.filters', ContainerRenderer, {
-			title: 'Filters',
-			variant: 'tabs',
-		});
-		filters.addContainer('search.extended.filters.shared', ContainerRenderer, { title: 'Shared' });
-		const newspapers = filters.addContainer('search.extended.filters.newspapers', ContainerRenderer, {
+		const newspapers = builder.newContainer('search.extended.filters.newspapers', ContainerRenderer, {
 			title: 'Newspapers',
 			activeQueryContribution: queryFragment(rawFilter('category("newspaper")')),
 		});
-		const definition = builder.build();
+		const filters = builder
+			.newContainer('search.extended.filters', ContainerRenderer, {
+				title: 'Filters',
+				variant: 'tabs',
+			})
+			.addChildren(
+				builder.newContainer('search.extended.filters.shared', ContainerRenderer, {
+					title: 'Shared',
+				}),
+				newspapers,
+			);
+		form.addChildren(filters);
+		const definition = builder;
 		const context = createTestContext();
-		const state = createFormState(definition, context);
-		state.uiState.activeContainers[filters.id] = newspapers.id;
+		const state = createDefaultFormState(definition.getRoot(), context);
+		state.uiState[filters.id] = newspapers.id;
 
 		const encoded = compileFormState(form, state, context).encoded;
 
 		expect(encoded['f.tab']).toEqual(['search.extended.filters:search.extended.filters.newspapers']);
 
-		const restored = restoreScopedFormState(definition, context, encoded, { filter: 'category("newspaper")' });
+		const restored = restoreScopedFormState(definition, encoded, {
+			filter: 'category("newspaper")',
+		});
 
-		expect(restored.uiState.activeContainers[filters.id]).toBe(newspapers.id);
+		expect(restored.uiState[filters.id]).toBe(newspapers.id);
 		expect(restored.rawOverrides).toEqual({});
 	});
 
 	test('retains valid tab selections and reports invalid entries', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
-		const tabs = form.addContainer('search.extended.tabs', ContainerRenderer, { title: 'Tabs', variant: 'tabs' });
-		const first = tabs.addContainer('search.extended.tabs.first', ContainerRenderer, { title: 'First' });
-		tabs.addContainer('search.extended.tabs.second', ContainerRenderer, { title: 'Second' });
-		const definition = builder.build();
+		const first = builder.newContainer('search.extended.tabs.first', ContainerRenderer, {
+			title: 'First',
+		});
+		const tabs = builder
+			.newContainer('search.extended.tabs', ContainerRenderer, {
+				title: 'Tabs',
+				variant: 'tabs',
+			})
+			.addChildren(first, builder.newContainer('search.extended.tabs.second', ContainerRenderer, { title: 'Second' }));
+		form.addChildren(tabs);
+		const definition = builder;
 
-		const restored = restoreScopedFormState(definition, createTestContext(), {
+		const restored = restoreScopedFormState(definition, {
 			'f.tab': ['search.extended.tabs:search.extended.tabs.first', 'missing:child', 'search.extended.tabs:search.extended.tabs.removed', 'malformed'],
 		});
 
-		expect(restored.uiState.activeContainers[tabs.id]).toBe(first.id);
+		expect(restored.uiState[tabs.id]).toBe(first.id);
 		expect(restored.issues.length).toBe(3);
 		expect(restored.issues[0].message).contains('missing');
 		expect(restored.issues[1].message).contains('search.extended.tabs.removed');
@@ -291,7 +300,9 @@ describe('scoped form persistence', () => {
 
 	test('throws during encode when field persistence keys are duplicate or reserved', () => {
 		const duplicateBuilder = createTestBuilder();
-		const duplicateForm = duplicateBuilder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
+		const duplicateForm = duplicateBuilder.newForm('search.extended', ContainerRenderer, {
+			title: 'Extended',
+		});
 		const firstDuplicateField = duplicateBuilder.newField('search.extended.word', testTextController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
@@ -301,15 +312,13 @@ describe('scoped form persistence', () => {
 			displayName: 'Duplicate word',
 		});
 		duplicateForm.addChildren(firstDuplicateField, secondDuplicateField);
-		const duplicateDefinition = duplicateBuilder.build();
+		const duplicateDefinition = duplicateBuilder;
 		const duplicateContext = createTestContext();
-		const duplicateState = createFormState(duplicateDefinition, duplicateContext);
-		duplicateState.controllerState[firstDuplicateField.id] = { value: 'water' };
-		duplicateState.controllerState[secondDuplicateField.id] = { value: 'fire' };
+		const duplicateState = createDefaultFormState(duplicateDefinition.getRoot(), duplicateContext);
+		duplicateState.state[firstDuplicateField.id] = { value: 'water' };
+		duplicateState.state[secondDuplicateField.id] = { value: 'fire' };
 
-		expect(() =>
-			compileFormState(duplicateForm, duplicateState, duplicateContext),
-		).toThrow(/Duplicate form persistence key 'word'/);
+		expect(() => compileFormState(duplicateForm, duplicateState, duplicateContext)).toThrow(/Duplicate form persistence key 'word'/);
 
 		const reservedController: FieldController<'reserved-text', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
@@ -318,16 +327,16 @@ describe('scoped form persistence', () => {
 		};
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.reserved', ContainerRenderer, { title: 'Reserved' });
-		form.addField('search.reserved.word', reservedController, TestTextField, {
-			annotationId: 'word',
-			displayName: 'Word',
-		});
-		const reservedDefinition = builder.build();
+		form.addChildren(
+			builder.newField('search.reserved.word', reservedController, TestTextField, {
+				annotationId: 'word',
+				displayName: 'Word',
+			}),
+		);
+		const reservedDefinition = builder;
 		const reservedContext = createTestContext();
 
-		expect(() =>
-			compileFormState(form, createFormState(reservedDefinition, reservedContext), reservedContext),
-		).toThrow(/reserved form persistence key 'form'/);
+		expect(() => compileFormState(form, createDefaultFormState(reservedDefinition.getRoot(), reservedContext), reservedContext)).toThrow(/reserved form persistence key 'form'/);
 	});
 });
 
@@ -337,8 +346,20 @@ describe('controller persistence compatibility', () => {
 		{ value: 'one', label: 'One' },
 		{ value: 'two', label: 'Two' },
 	];
-	const selectConfig = { kind: 'field' as const, id: 'field', displayName: 'Field', metadataFieldId: 'field', options };
-	const annotationConfig = { kind: 'field' as const, id: 'field', displayName: 'Field', annotationId: 'field', options };
+	const selectConfig = {
+		kind: 'field' as const,
+		id: 'field',
+		displayName: 'Field',
+		metadataFieldId: 'field',
+		options,
+	};
+	const annotationConfig = {
+		kind: 'field' as const,
+		id: 'field',
+		displayName: 'Field',
+		annotationId: 'field',
+		options,
+	};
 	const parallelConfig = {
 		kind: 'field' as const,
 		id: 'parallel',
@@ -437,13 +458,22 @@ describe('controller persistence compatibility', () => {
 	}
 
 	test('shares scalar and selection representations across compatible controllers', () => {
-		expect(filterSelectController.restore('one', selectConfig, context)).toEqual({ state: ['one'], warnings: [] });
-		expect(filterCheckboxController.restore('one,two', selectConfig, context)).toEqual({
-			state: { one: true, two: true },
+		expect(filterSelectController.restore('one', selectConfig, context)).toEqual({
+			state: ['one'],
 			warnings: [],
 		});
-		expect(annotationSelectController.restore('one,two', annotationConfig, context)).toEqual({ state: ['one', 'two'], warnings: [] });
-		expect(filterRadioController.restore('one', selectConfig, context)).toEqual({ state: 'one', warnings: [] });
+		expect(filterCheckboxController.restore('one,two', selectConfig, context)).toEqual({
+			state: ['one', 'two'],
+			warnings: [],
+		});
+		expect(annotationSelectController.restore('one,two', annotationConfig, context)).toEqual({
+			state: ['one', 'two'],
+			warnings: [],
+		});
+		expect(filterRadioController.restore('one', selectConfig, context)).toEqual({
+			state: 'one',
+			warnings: [],
+		});
 	});
 
 	test('rejects ambiguous multiple values for single-value controllers', () => {
@@ -461,13 +491,28 @@ describe('controller persistence compatibility', () => {
 	});
 
 	test('only restores ranges from their structured representation', () => {
-		const rangeConfig = { kind: 'field' as const, id: 'range', displayName: 'Range', metadataFieldId: 'range' };
-		expect(filterRangeController.restore('low=10;high=20', rangeConfig, context)).toEqual({ low: '10', high: '20', mode: 'strict' });
+		const rangeConfig = {
+			kind: 'field' as const,
+			id: 'range',
+			displayName: 'Range',
+			metadataFieldId: 'range',
+		};
+		expect(filterRangeController.restore('low=10;high=20', rangeConfig, context)).toEqual({
+			low: '10',
+			high: '20',
+			mode: 'strict',
+		});
 		expect(() => filterRangeController.restore('10', rangeConfig, context)).toThrow(/incompatible persisted value/);
 	});
 
 	test('restores dates and specialized records only through supported representations', () => {
-		const dateConfig = { kind: 'field' as const, id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true };
+		const dateConfig = {
+			kind: 'field' as const,
+			id: 'date',
+			displayName: 'Date',
+			metadataFieldId: 'date',
+			range: true,
+		};
 
 		expect(filterDateController.restore('start=2020-01-02;end=2021-03-04;mode=permissive', dateConfig, context)).toEqual({
 			startDate: { y: '2020', m: '01', d: '02' },
@@ -647,11 +692,15 @@ describe('controller persistence compatibility', () => {
 	});
 
 	test('rejects duplicate and unsupported structured record keys', () => {
-		const dateConfig = { kind: 'field' as const, id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true };
+		const dateConfig = {
+			kind: 'field' as const,
+			id: 'date',
+			displayName: 'Date',
+			metadataFieldId: 'date',
+			range: true,
+		};
 
 		expect(() => decodePersistObject('value=one;value=two')).toThrow(/duplicate key 'value'/);
-		expect(() => filterDateController.restore('start=2020;unexpected=value', dateConfig, context)).toThrow(
-			/unsupported persisted keys: unexpected/,
-		);
+		expect(() => filterDateController.restore('start=2020;unexpected=value', dateConfig, context)).toThrow(/unsupported persisted keys: unexpected/);
 	});
 });

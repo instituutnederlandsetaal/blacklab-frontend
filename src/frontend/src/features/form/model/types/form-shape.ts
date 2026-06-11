@@ -51,7 +51,7 @@ export type RealFormNode<Extra, C extends AnyVueComponent> = BaseFormNode & Extr
 export type ImplicitContainerComponentProps = BaseNode & {
 	kind: BaseContainerNode['kind'] | BaseFormNode['kind'];
 	variant?: BaseContainerNode['variant'];
-	children: BaseContainerNode['children'];
+	children: Array<{ is: AnyVueComponent; props: any }>;
 	hideTitle?: boolean;
 };
 

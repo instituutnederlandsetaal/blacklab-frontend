@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
 
-import { buildQueryIR, createFormState, createInitialContainerUiStates, type QueryCombineMode } from '@/features/form';
+import { buildQueryIR, createDefaultFormState, type QueryCombineMode } from '@/features/form';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 
-import { TestTextField, createTestBuilder, createTestContext, parentFormProbeView, testTextController } from './helpers';
+import { TestTextField, createTestBuilder, parentFormProbeView, testTextController } from './helpers';
 
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
@@ -67,14 +67,8 @@ const compositionExpectations: Array<{
 	},
 ];
 
-function assignState(fieldId: string, value: string, formState: ReturnType<typeof createFormState>) {
-	formState.controllerState[fieldId] = { value };
-}
-
 function createCompositionFixture(combine: QueryCombineMode) {
 	const builder = createTestBuilder();
-	const form = builder.newForm('search.form', ContainerRenderer, { title: 'Search' });
-	const group = form.addContainer('search.group', ContainerRenderer, { combine });
 	const word = builder.newField('search.word', testTextController, TestTextField, {
 		annotationId: 'word',
 		displayName: 'Word',
@@ -83,37 +77,25 @@ function createCompositionFixture(combine: QueryCombineMode) {
 		annotationId: 'lemma',
 		displayName: 'Lemma',
 	});
+	builder.newForm('search.form', ContainerRenderer, { title: 'Search' }).addChildren(builder.newContainer('search.group', ContainerRenderer, { combine }).addChildren(word, lemma));
 
-	group.addChildren(word, lemma);
-
-	const definition = builder.build();
-	const context = createTestContext();
-	const state = createFormState(definition, context);
-	assignState(word.id, sharedStateExpectation.word.value, state);
-	assignState(lemma.id, sharedStateExpectation.lemma.value, state);
-
-	return {
-		context,
-		form,
-		state,
-	};
+	return builder;
 }
 
 describe('form model state', () => {
-	test('createFormState initializes each reused field once', () => {
+	test('createDefaultFormState initializes each reused field once', () => {
 		const builder = createTestBuilder();
 		const root = builder.newContainer('search', ContainerRenderer, { variant: 'tabs' });
 		const sharedField = builder.newField('shared.word', testTextController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Shared word',
 		});
-		const firstForm = root.addForm('search.first', ContainerRenderer, { title: 'First' });
-		const secondForm = root.addForm('search.second', ContainerRenderer, { title: 'Second' });
+		root.addChildren(
+			builder.newForm('search.first', ContainerRenderer, { title: 'First' }).addChildren(sharedField),
+			builder.newForm('search.second', ContainerRenderer, { title: 'Second' }).addChildren(sharedField),
+		);
 
-		firstForm.addChildren(sharedField);
-		secondForm.addChildren(sharedField);
-
-		expect(createFormState(builder.build(), createTestContext()).controllerState).toEqual({
+		expect(createDefaultFormState(builder.getRoot(), builder.context).state).toEqual({
 			'shared.word': { value: '' },
 		});
 	});
@@ -133,29 +115,34 @@ describe('form model state', () => {
 
 	test.each(compositionExpectations)('$name', ({ combine, expected }) => {
 		const fixture = createCompositionFixture(combine);
-		const { query, summaries } = buildQueryIR(fixture.form, fixture.state, fixture.context);
+		const { query, summaries } = buildQueryIR(fixture.getRoot(), fixture.state.getRawState(), fixture.context);
 		const compiled = compileQueryIR(query);
 
 		expect(compiled).toEqual(expected.compiled);
 		expect(summaries).toEqual(expected.summaries);
 	});
 
-	test('createInitialContainerUiStates picks the first active branch for nested container-like nodes', () => {
+	test('builder state picks the first active branch for nested container-like nodes', () => {
 		const builder = createTestBuilder();
-		const root = builder.newContainer('search', ContainerRenderer, { variant: 'tabs' });
-		const simple = root.addForm('search.simple', ContainerRenderer, { title: 'Simple' });
-		root.addForm('search.extended', ContainerRenderer, { title: 'Extended' });
-		const filters = simple.addContainer('search.simple.filters', ContainerRenderer, {
-			variant: 'small-tabs',
-		});
-		filters.addContainer('search.simple.filters.bibliographic', ContainerRenderer, {
-			title: 'Bibliographic',
-		});
-		filters.addContainer('search.simple.filters.technical', ContainerRenderer, {
-			title: 'Technical',
-		});
+		builder.newContainer('search', ContainerRenderer, { variant: 'tabs' }).addChildren(
+			builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(
+				builder
+					.newContainer('search.simple.filters', ContainerRenderer, {
+						variant: 'small-tabs',
+					})
+					.addChildren(
+						builder.newContainer('search.simple.filters.bibliographic', ContainerRenderer, {
+							title: 'Bibliographic',
+						}),
+						builder.newContainer('search.simple.filters.technical', ContainerRenderer, {
+							title: 'Technical',
+						}),
+					),
+			),
+			builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }),
+		);
 
-		expect(createInitialContainerUiStates(builder.build())).toEqual({
+		expect(builder.state.uiState.value).toEqual({
 			search: 'search.simple',
 			'search.simple': 'search.simple.filters',
 			'search.simple.filters': 'search.simple.filters.bibliographic',

@@ -10,6 +10,10 @@ Edit luceneparser.ts to also return AST, so url-state-parser-search doesn't need
 
 test moveMetadataFieldToGroup / moveAnnotationToGroup since we changed reactivity
 
+# Form system
+
+- Restore raw override field locking in the new render preparation path. The removed node-render helper used to disable fields whose controllers affected an active raw override parameter; that logic should move into FormBuilder.renderableNode().
+
 # Document page
 
 - Iets met suppressed errors in content en metadata die zijn toegevoegd in dev, maar in de spa versie straks niet meer gerenderd worden?

@@ -1,6 +1,6 @@
 import { defineComponent, h, type PropType } from 'vue';
 
-import { FormBuilder, useParentForm, type FormRuntimeContext } from '@/features/form';
+import { FormBuilder, useFormSystemRuntime, useParentForm, type FormRuntimeContext } from '@/features/form';
 import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
@@ -88,13 +88,21 @@ export const testTextController = createFieldController<'test-text', TestTextFie
 const ParentFormProbe = defineComponent({
 	setup() {
 		const parentForm = useParentForm();
+		const runtime = useFormSystemRuntime();
 
 		return () =>
 			h('section', { 'data-testid': 'parent-form-probe' }, [
-				h('span', { class: 'form-id' }, parentForm.formId),
-				h('span', { class: 'cql' }, parentForm.compiled.patt ?? ''),
-				h('span', { class: 'summaries' }, parentForm.summaries.map(summary => `${summary.label}:${summary.value}`).join('|')),
-				h('span', { class: 'state' }, JSON.stringify(parentForm.formState.controllerState)),
+				h('span', { class: 'form-id' }, parentForm.value),
+				h('span', { class: 'cql' }, runtime.compile(parentForm.value).patt ?? ''),
+				h(
+					'span',
+					{ class: 'summaries' },
+					runtime
+						.compile(parentForm.value)
+						.summaries.map(summary => `${summary.label}:${summary.value}`)
+						.join('|'),
+				),
+				h('span', { class: 'state' }, JSON.stringify(runtime.state.state.value)),
 			]);
 	},
 });
@@ -109,5 +117,5 @@ export function createTestContext(): FormRuntimeContext {
 }
 
 export function createTestBuilder() {
-	return new FormBuilder();
+	return new FormBuilder(createTestContext());
 }
