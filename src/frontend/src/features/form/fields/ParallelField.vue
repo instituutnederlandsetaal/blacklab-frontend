@@ -1,53 +1,44 @@
 <template>
-	<div :class="fieldClasses">
-		<div>
-			<div :class="{ 'form-group': true, 'form-group-lg': lg }">
-				<label :class="{ 'col-xs-12': !block, 'col-md-3': !block, 'control-label': block }">{{ $t('search.parallel.searchSourceVersion') }}</label>
-				<div :class="{ 'col-xs-12': !block, 'col-md-9': !block }">
-					<SelectPicker :options="sourceOptions" v-model="sourceModel" data-menu-width="grow" hideEmpty :disabled />
-					<transition name="flash">
-						<span v-if="errorNoParallelSourceVersion" class="error">
-							{{ $t('search.parallel.errorNoSourceVersion') }}
-						</span>
-					</transition>
-				</div>
-			</div>
-			<div :class="{ 'form-group': true, 'form-group-lg': lg }">
-				<label :class="{ 'col-xs-12': !block, 'col-md-3': !block, 'control-label': block }">{{ $t('search.parallel.andCompareWithTargetVersions') }}</label>
-				<div :class="{ 'col-xs-12': !block, 'col-md-9': !block }">
-					<MultiValuePicker :options="targetOptions" v-model="targetModel" :disabled />
-				</div>
-			</div>
-			<div v-if="alignByOptions?.length" :class="{ 'form-group': true, 'form-group-lg': lg }">
-				<label :class="{ 'col-xs-12': !block, 'col-md-3': !block, 'control-label': block }">{{ $t('search.parallel.alignBy') }}</label>
-				<div class="btn-group clearfix" style="display: block" :class="{ 'col-xs-12': !block, 'col-md-9': !block }">
-					<button
-						v-for="option in alignByPickerOptions"
-						type="button"
-						:class="['btn', modelValue.alignBy === option.value ? 'active btn-primary' : 'btn-default']"
-						:key="option.value"
-						:value="option.value"
-						:title="option.title || option.value"
-						:disabled
-						@click="updateAlignBy(option.value)"
-					>
-						{{ option.label || option.value || 'document' }}
-					</button>
-					<!-- empty value searches across entire documents -->
-				</div>
-			</div>
-		</div>
+	<div :class="formGroupClasses">
+		<label class="control-label" :for="`${htmlId}_picker`">{{ $t('search.parallel.searchSourceVersion') }}</label>
+		<SelectPicker :options="sourceOptions" v-model="sourceModel" data-menu-width="grow" hideEmpty :disabled :data-id="`${htmlId}_picker`" />
+		<transition name="flash">
+			<span v-if="errorNoParallelSourceVersion" class="error">
+				{{ $t('search.parallel.errorNoSourceVersion') }}
+			</span>
+		</transition>
+	</div>
 
-		<div class="blf-parallel-queries">
-			<section class="blf-parallel-query">
-				<h4>{{ $t(`search.parallel.searchSourceVersion`) }}</h4>
-				<component :is="child.component" v-bind="sourceChildProps" @update:modelValue="updateSourceState" />
-			</section>
+	<section class="blf-parallel-query">
+		<h4>{{ $t(`search.parallel.searchSourceVersion`) }}</h4>
+		<component :is="child.component" v-bind="sourceChildProps" @update:modelValue="updateSourceState" />
+	</section>
 
-			<section v-for="field in selectedTargetOptions" :key="field.id" class="blf-parallel-query">
-				<h4>{{ $tAnnotatedFieldDisplayName(field) }}</h4>
-				<component :is="child.component" v-bind="targetChildProps(field.id)" @update:modelValue="updateTargetState(field.id, $event)" />
-			</section>
+	<div :class="formGroupClasses">
+		<label class="control-label">{{ $t('search.parallel.andCompareWithTargetVersions') }}</label>
+		<MultiValuePicker :options="targetOptions" v-model="targetModel" :disabled />
+	</div>
+	<section v-for="field in selectedTargetOptions" :key="field.id" class="blf-parallel-query">
+		<h4>{{ $tAnnotatedFieldDisplayName(field) }}</h4>
+		<component :is="child.component" v-bind="targetChildProps(field.id)" @update:modelValue="updateTargetState(field.id, $event)" />
+	</section>
+
+	<div v-if="alignByOptions?.length" :class="formGroupClasses">
+		<label class="control-label">{{ $t('search.parallel.alignBy') }}</label>
+		<div :class="buttonGroupClasses" style="display: block">
+			<button
+				v-for="option in alignByPickerOptions"
+				type="button"
+				:class="['btn', modelValue.alignBy === option.value ? 'active btn-primary' : 'btn-default']"
+				:key="option.value"
+				:value="option.value"
+				:title="option.title || option.value"
+				:disabled
+				@click="updateAlignBy(option.value)"
+			>
+				{{ option.label || option.value || 'document' }}
+			</button>
+			<!-- empty value searches across entire documents -->
 		</div>
 	</div>
 </template>
@@ -68,8 +59,6 @@ import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 const props = defineProps<
 	ParallelFieldComponentProps & {
-		block?: boolean;
-		lg?: boolean;
 		errorNoParallelSourceVersion?: boolean;
 	}
 >();
@@ -79,6 +68,10 @@ const translate = useI18n();
 const emit = defineEmits<{
 	'update:modelValue': [value: ParallelFieldState];
 }>();
+
+const variants = computed(() => decodeVariants(props.variant));
+const formGroupClasses = computed(() => ['form-group', variants.value.large ? 'form-group-lg' : variants.value.small ? 'form-group-sm' : '']);
+const buttonGroupClasses = computed(() => ['btn-group', variants.value.large ? 'btn-group-lg' : variants.value.small ? 'btn-group-sm' : '']);
 
 const fieldClasses = computed(() => ['blf-field', 'blf-parallel-field', decodeVariants(props.variant)]);
 const htmlId = computed(() => props.htmlId);
