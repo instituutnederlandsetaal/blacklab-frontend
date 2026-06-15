@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted } from 'vue';
+import { computed, onUnmounted, watch } from 'vue';
 
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
@@ -31,8 +31,16 @@ const emit = defineEmits<{
 
 provideFormSystemRuntime(props.definition);
 
-props.definition.onSubmit((formId, snapshot) => emit('submit', formId, snapshot));
-props.definition.onReset(() => emit('reset'));
+watch(
+	() => props.definition,
+	(newForm, oldForm) => {
+		newForm.onSubmit((formId, snapshot) => {
+			emit('submit', formId, snapshot);
+		});
+		newForm.onReset(() => emit('reset'));
+	},
+	{ immediate: true },
+);
 
 onUnmounted(() => props.definition.shutdown());
 

@@ -1,5 +1,6 @@
 <template>
 	<SearchForm @url-parsed="onUrlParsed" />
+	<router-view />
 </template>
 
 <script setup lang="ts">

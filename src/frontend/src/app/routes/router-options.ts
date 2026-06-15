@@ -61,12 +61,18 @@ export default {
 				{
 					name: 'search',
 					path: 'search',
-					alias: ['search/:pathMatch(.*)*'],
 					meta: {
 						name: 'search',
 						getTitle: (displayName: string) => `${displayName} Search`,
 					} satisfies CustomRouteMeta,
 					component: () => import('@/pages/search/SearchPage.vue'),
+					children: [
+						{
+							name: 'search-results',
+							path: ':results',
+							component: () => import('@/pages/results/ResultsPage.vue'),
+						},
+					],
 				},
 			],
 		},

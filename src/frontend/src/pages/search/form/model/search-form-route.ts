@@ -44,5 +44,7 @@ export function replaceFormRouteQuery(current: LocationQuery, compiled: Compiled
 		if (compiled.encoded[key]) query[key] = compiled.encoded[key];
 	}
 
+	console.log(current, compiled, query);
+
 	return query;
 }
