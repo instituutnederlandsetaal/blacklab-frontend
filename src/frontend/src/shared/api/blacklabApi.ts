@@ -107,7 +107,7 @@ export const blacklabPathsV5 = {
 };
 
 async function getBlackLabVersion(endpoint: string): Promise<'4' | '5'> {
-	const { origin, pathname, searchParams } = new URL(endpoint);
+	const { origin, pathname, searchParams } = new URL(endpoint, window.location.origin);
 	searchParams.set('outputformat', 'json');
 	const url = `${origin}${pathname}?${searchParams.toString()}`;
 
