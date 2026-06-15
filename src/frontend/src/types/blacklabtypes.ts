@@ -239,6 +239,11 @@ export type BLAnnotationGroup = {
 	groupName?: string;
 	/** Refers to BLAnnotatedField.annotations keys */
 	annotations: string[];
+	/**
+	 * Add all annotations not in any other group.
+	 * If omitted, the frontend creates its own remainder group.
+	 */
+	addRemainingAnnotations?: boolean;
 };
 
 export type BLAnnotationGroupMap = {

@@ -22,7 +22,7 @@
 
 		// Allow @decorator
 		"experimentalDecorators": true,
-		"lib": ["dom", "dom.iterable", "ES2021"],
+		"lib": ["dom", "dom.iterable", "ES2025"],
 
 		// Enable importing source files by their absolute path by prefixing with "@/"
 		// Note: this also requires Vite to be able to find the imports, see vite.config.ts
