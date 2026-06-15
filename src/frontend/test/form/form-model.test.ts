@@ -78,6 +78,8 @@ function createCompositionFixture(combine: QueryCombineMode) {
 		displayName: 'Lemma',
 	});
 	builder.newForm('search.form', ContainerRenderer, { title: 'Search' }).addChildren(builder.newContainer('search.group', ContainerRenderer, { combine }).addChildren(word, lemma));
+	builder.state.state.value[word.id] = sharedStateExpectation.word;
+	builder.state.state.value[lemma.id] = sharedStateExpectation.lemma;
 
 	return builder;
 }

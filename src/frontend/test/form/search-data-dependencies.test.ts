@@ -4,6 +4,7 @@ import defaultPageConfig from '@/entities/page-config/page-config.default';
 import { resolveSearchUiConfig } from '@/pages/search/config/search-ui-config';
 import { createQueryBuilderOptions } from '@/pages/search/form/model/query-builder-options';
 import { createSearchFormDefinition } from '@/pages/search/form/model/search-form-builder';
+import { normalizeIndex } from '@/shared/blacklab-helpers/normalize-responses';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField } from '@/types/apptypes';
 
 import { resolvedRequest } from '../mocks/api';
@@ -91,6 +92,46 @@ function createIndex(): NormalizedIndex {
 }
 
 describe('search UI config resolution', () => {
+	test('keeps an empty annotation group that requests remaining annotations', () => {
+		const index = normalizeIndex(
+			{
+				annotatedFields: {
+					contents: {
+						annotations: {
+							word: { displayName: 'Word' },
+							lemma: { displayName: 'Lemma' },
+							pos: { displayName: 'Part of speech' },
+						},
+						displayOrder: ['word', 'lemma', 'pos'],
+						hasContentStore: true,
+						hasXmlTags: true,
+						mainAnnotation: 'word',
+					},
+				},
+				contentViewable: true,
+				custom: {
+					annotationGroups: {
+						contents: [{ name: 'Basics', annotations: [], addRemainingAnnotations: true }],
+					},
+					description: '',
+					displayName: 'Test corpus',
+					specialFields: {},
+					textDirection: 'ltr',
+				},
+				documentCount: 1,
+				mainAnnotatedField: 'contents',
+				metadataFields: {},
+				name: 'test-corpus',
+				status: 'available',
+				timeModified: '',
+				tokenCount: 1,
+			} as any,
+			{ relations: {}, spans: {} },
+		);
+
+		expect(index.annotationGroups).toEqual([{ annotatedFieldId: 'contents', id: 'Basics', entries: ['word', 'lemma', 'pos'], isRemainderGroup: false }]);
+	});
+
 	test('derives defaults from the loaded corpus shape', () => {
 		const config = resolveSearchUiConfig(createIndex());
 
