@@ -1,10 +1,9 @@
 <template>
-	<FormSystem v-if="formBlueprint" :definition="formBlueprint" @submit="handleSubmit" />
+	<FormSystem v-if="formBlueprint" :key="formBlueprint" :definition="formBlueprint" @submit="handleSubmit" />
 </template>
 
 <script setup lang="ts">
-import { computedWithControl } from '@vueuse/core';
-import { computed, watchEffect } from 'vue';
+import { computed, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useCurrentCorpus, useCurrentTagset } from '@/entities/corpus/model/corpus-context';
@@ -30,22 +29,30 @@ const translate = useI18n();
 const route = useRoute();
 const router = useRouter();
 
-const searchUi = computed(() => resolveSearchUiConfig(corpus, UIStore.getState()));
-const formBlueprint = computed(() => createFormBlueprint({ config, index: corpus, tagset: tagset.value }, searchUi.value, api, translate));
-
 const routeFormStateFingerprint = computed(() => formRouteFingerprint(route.query));
-const decodedUrl = computedWithControl(routeFormStateFingerprint, () => {
-	const rawBlacklabParams = readCanonicalFormQuery(route.query);
-	const formState = restoreScopedFormState(formBlueprint.value, route.query, rawBlacklabParams);
-	return formState;
-});
+const routeFormQuery = shallowRef(route.query);
+watch(routeFormStateFingerprint, () => {
+	routeFormQuery.value = route.query;
+}, { flush: 'sync', immediate: true });
 
-watchEffect(() => {
-	formBlueprint.value.state.replaceState(decodedUrl.value);
+const searchUi = computed(() => resolveSearchUiConfig(corpus, UIStore.getState()));
+const formBlueprint = computed(() => {
+	const blueprint = createFormBlueprint({ config, index: corpus, tagset: tagset.value }, searchUi.value, api, translate);
+	const rawBlacklabParams = readCanonicalFormQuery(routeFormQuery.value);
+	const formState = restoreScopedFormState(blueprint, routeFormQuery.value, rawBlacklabParams);
+	blueprint.state.replaceState(formState);
+	return blueprint;
 });
 
 function handleSubmit(_formId: string, state: CompiledFormStateWithSummaries) {
+	// check if we have a pattern or not, decide results to show
+	let resultsPage = 'hits';
+
+	if (!state.patt) resultsPage = 'docs';
+
 	void router.push({
+		name: 'search-results',
+		params: { ...route.params, results: resultsPage },
 		query: replaceFormRouteQuery(route.query, state),
 	});
 }
