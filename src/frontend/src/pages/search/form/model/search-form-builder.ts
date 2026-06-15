@@ -13,10 +13,11 @@ import {
 	filterRangeController,
 	filterSelectController,
 	filterTextController,
-	parallelController, withinController,
+	parallelController,
+	withinController,
 	RangeField,
 	queryBuilderController,
-	QueryBuilderField
+	QueryBuilderField,
 } from '@/features/form';
 import type { TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
 import type { SearchUiConfig } from '@/pages/search/config/search-ui-config';
@@ -148,7 +149,6 @@ function createAnnotationField(builder: FormBuilder, nodeId: string, annotation:
 				multiple: true,
 				options: annotation.values,
 				textDirection,
-				variant: ['large', 'simple'],
 			});
 		}
 	} else if (annotation.uiType === 'lexicon') {
