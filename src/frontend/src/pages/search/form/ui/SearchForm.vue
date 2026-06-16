@@ -1,9 +1,9 @@
 <template>
-	<FormSystem v-if="formBlueprint" :key="formBlueprint" :definition="formBlueprint" @submit="handleSubmit" />
+	<FormSystem v-if="formBlueprint" :definition="formBlueprint" @submit="handleSubmit" />
 </template>
 
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue';
+import { computed, onMounted, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useCurrentCorpus, useCurrentTagset } from '@/entities/corpus/model/corpus-context';
@@ -31,17 +31,48 @@ const router = useRouter();
 
 const routeFormStateFingerprint = computed(() => formRouteFingerprint(route.query));
 const routeFormQuery = shallowRef(route.query);
-watch(routeFormStateFingerprint, () => {
-	routeFormQuery.value = route.query;
-}, { flush: 'sync', immediate: true });
+watch(
+	routeFormStateFingerprint,
+	() => {
+		routeFormQuery.value = route.query;
+	},
+	{ flush: 'sync', immediate: true },
+);
 
 const searchUi = computed(() => resolveSearchUiConfig(corpus, UIStore.getState()));
+
+// TODO
+// this is broken - it reads the URL as part of form instancing
+// which makes the form recompute whenever the URL changes.
+// That's not what we want.
+
+const formInputs = computed(() => [config, corpus, tagset.value, searchUi.value, api, translate] as const);
+watch(
+	formInputs,
+	(cur, prev) => {
+		for (let i = 0; i < cur.length; i++) {
+			if (cur[i] !== prev[i]) {
+				console.log('Form recomputed!', cur, prev);
+				break;
+			}
+		}
+	},
+	{ immediate: true },
+);
+
 const formBlueprint = computed(() => {
-	const blueprint = createFormBlueprint({ config, index: corpus, tagset: tagset.value }, searchUi.value, api, translate);
-	const rawBlacklabParams = readCanonicalFormQuery(routeFormQuery.value);
-	const formState = restoreScopedFormState(blueprint, routeFormQuery.value, rawBlacklabParams);
-	blueprint.state.replaceState(formState);
+	const [config, corpus, tagset, searchUi, api, translate] = formInputs.value;
+	const blueprint = createFormBlueprint({ config, index: corpus, tagset: tagset }, searchUi, api, translate);
+	// console.log('Form recomputed!', blueprint);
 	return blueprint;
+});
+
+// decode URL
+
+onMounted(() => {
+	const rawBlacklabParams = readCanonicalFormQuery(routeFormQuery.value);
+	const formState = restoreScopedFormState(formBlueprint.value, routeFormQuery.value, rawBlacklabParams);
+	formBlueprint.value.state.replaceState(formState);
 });
 
 function handleSubmit(_formId: string, state: CompiledFormStateWithSummaries) {
