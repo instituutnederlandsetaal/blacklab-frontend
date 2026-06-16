@@ -41,8 +41,8 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 import { localStorageSynced } from '@/utils/localstore';
 
-import LocaleSelector from '@/components/LocaleSelector.vue';
 import LoginButton from '@/components/LoginButton.vue';
+import LocaleSelector from '@/shared/i18n/LocaleSelector.vue';
 
 export default defineComponent({
 	components: { LocaleSelector, LoginButton },

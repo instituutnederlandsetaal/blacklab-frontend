@@ -15,7 +15,7 @@
 import frac2Percent from '@/mixins/fractionalToPercent';
 import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
 import type { ColumnDefGroup, GroupRowData } from '@/pages/search/results/table/table-layout';
-import { useI18n } from '@/utils/i18n';
+import { useI18n } from '@/shared/i18n';
 
 defineOptions({ name: 'GroupRow' });
 const props = withDefaults(defineProps<IRowProps<GroupRowData>>(), IRowDefaultProps);

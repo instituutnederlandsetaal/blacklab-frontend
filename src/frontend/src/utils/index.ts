@@ -2,7 +2,7 @@
 
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
-import type { Translate } from '@/utils/i18n';
+import type { Translate } from '@/shared/i18n';
 import type { OptGroup, Option } from '@/utils/options';
 
 const defaultRegexEscapeOptions = {

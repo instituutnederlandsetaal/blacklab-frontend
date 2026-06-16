@@ -36,7 +36,8 @@ import { COMPARATORS, OPERATORS } from '@/components/cql/cql-types';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import uid from '@/mixins/uid';
 import { getAnnotationSubset } from '@/utils';
-import { translate } from '@/utils/i18n';
+
+import { useI18n } from '@/shared/i18n/';
 
 import CqlToken from './CqlToken.vue';
 import Within from '@/pages/search/form/Within.vue';
@@ -54,6 +55,8 @@ const model = useVModel(props, 'modelValue', emit, {
 	passive: true,
 	clone: true,
 });
+
+const translate = useI18n();
 
 const options = computed<CqlQueryBuilderOptions>(() => {
 	const indexId = CorpusStore.get.indexId()!;

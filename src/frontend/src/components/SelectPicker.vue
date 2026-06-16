@@ -3,7 +3,7 @@
 		class="combobox"
 		:style="{ width: dataWidth }"
 		:data-menu-id="menuId"
-		:dir="dir"
+		:dir
 		@keydown.prevent.exact.down="isOpen || !$refs.focusOnClickOpen ? focusDown() : doOpen($refs.focusOnClickOpen)"
 		@keydown.prevent.exact.up="focusUp"
 	>
@@ -27,10 +27,10 @@
 			:style="dataStyle"
 			:title="dataTitle"
 			:placeholder="placeholderText"
-			:disabled="disabled"
-			:dir="dir"
-			:autofocus="autofocus"
-			:autocomplete="autocomplete"
+			:disabled
+			:dir
+			:autofocus
+			:autocomplete
 			@focus="doOpen() /*call directly, don't pass focusIn event*/"
 			@keydown.tab="doClose() /*focus shifts to next element, close menu*/"
 			@keydown.esc="doClose()"
@@ -48,9 +48,9 @@
 			:name="dataName"
 			:style="dataStyle"
 			:title="dataTitle"
-			:disabled="disabled"
-			:dir="dir"
-			:autofocus="autofocus"
+			:disabled
+			:dir
+			:autofocus
 			@click="isOpen ? doClose() : doOpen($refs.focusOnClickOpen)"
 			@keydown.tab="doClose() /*focus shifts to next element, close menu*/"
 			@keydown.esc="doClose()"
@@ -66,19 +66,7 @@
 			<span v-else-if="!showValues && multiple && showValueCount" :class="['menu-icon badge', { active: displayValues.length }]">
 				{{ displayValues.length || totalOptionCount }}
 			</span>
-			<span
-				v-if="!hideCaret"
-				:class="[
-					'menu-icon',
-					'menu-caret',
-					'fa',
-					'fa-caret-down',
-					{
-						//'fa-rotate-180': isOpen
-						'fa-flip-vertical': isOpen,
-					},
-				]"
-			></span>
+			<span v-if="!hideCaret" :class="['menu-icon', 'menu-caret', 'fa', 'fa-caret-down', { 'fa-flip-vertical': isOpen }]"></span>
 		</button>
 
 		<slot name="after"></slot>
@@ -90,7 +78,7 @@
 			<ul
 				v-show="isOpen && (filteredOptions.length || !editable)"
 				:data-menu-id="menuId"
-				:dir="dir"
+				:dir
 				:class="['combobox-menu', computedMenuClass, dataMenuClass]"
 				@keydown.prevent.stop.esc="
 					focusTrigger();
@@ -113,14 +101,16 @@
 				</template>
 				<!-- note: don't insert whitespace in the heading or :empty css rule will not work -->
 				<li class="menu-header">
-					<div v-if="loading && editable /* not visible in button when editable */" class="text-center"><span class="fa fa-spinner fa-spin text-muted"></span></div>
+					<div v-if="loading && editable /* not visible in button when editable */" class="text-center">
+						<span class="fa fa-spinner fa-spin text-muted"></span>
+					</div>
 					<input
 						v-if="searchableModel && !editable /* When it's available, edit box handles searching */"
 						type="text"
 						class="form-control input-sm menu-search"
 						placeholder="Filter..."
 						tabindex="-1"
-						:dir="dir"
+						:dir
 						@keydown.stop.left
 						@keydown.stop.right
 						@keydown.stop.home
@@ -216,8 +206,7 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import { mapReduce } from '@/utils';
-import { isOptGroup, isOption, isSimpleOption, type OptGroup, type Option, type Options, type SimpleOption } from '@/utils/options';
+import { isSimpleOption, type Options, type SimpleOption, type OptGroup, isOption, isOptGroup, type Option } from '@/utils/options';
 
 type _uiOpt = {
 	type: 1;
@@ -241,6 +230,11 @@ type _uiOptGroup = {
 	disabled?: boolean;
 };
 type uiOption = _uiOpt | _uiOptGroup;
+type NormalizedUiOptions = {
+	options: uiOption[];
+	map: Record<string, _uiOpt>;
+	count: number;
+};
 
 /** Might also be any other valid css value for 'width', but these values have special behavior in the code */
 type MenuWidthMode = 'stretch' | 'shrink' | 'grow';
@@ -368,7 +362,7 @@ export default defineComponent({
 			return this.open ?? this.isNaturallyOpen;
 		},
 
-		uiOptions(): uiOption[] {
+		normalizedUiOptions(): NormalizedUiOptions {
 			let id = 0;
 			const mapSimple = (o: SimpleOption, group?: OptGroup): _uiOpt => ({
 				type: 1,
@@ -407,18 +401,23 @@ export default defineComponent({
 				disabled: o.disabled,
 			});
 
-			let uiOptions = this.options.flatMap(o => {
+			let uiOptions: uiOption[] = [];
+			for (const o of this.options) {
 				if (isSimpleOption(o)) {
-					return mapSimple(o);
+					uiOptions.push(mapSimple(o));
 				} else if (isOption(o)) {
-					return mapOption(o);
+					uiOptions.push(mapOption(o));
 				} else {
 					const h = mapGroup(o);
 					const subs: uiOption[] = o.options.map(sub => (isSimpleOption(sub) ? mapSimple(sub, o) : mapOption(sub, o)));
 					subs.unshift(h);
-					return this.allowEmptyGroups || subs.length > 1 ? subs : [];
+					if (this.allowEmptyGroups || subs.length > 1) {
+						for (const sub of subs) {
+							uiOptions.push(sub);
+						}
+					}
 				}
-			});
+			}
 
 			// Sometimes we get dropdowns with only a single, empty value. Detect this and remove the option, since it's silly.
 			if (!this.multiple && !uiOptions.some(o => o.type === 1 && !!(o.label || o.value))) {
@@ -442,10 +441,22 @@ export default defineComponent({
 				uiOptions = uiOptions.filter(o => !(o.type === 1 && !o.value && !o.label));
 			}
 
-			return uiOptions;
+			const map = Object.create(null) as Record<string, _uiOpt>;
+			let count = 0;
+			for (const o of uiOptions) {
+				if (o.type === 1) {
+					map[o.value] = o;
+					count++;
+				}
+			}
+
+			return { options: uiOptions, map, count };
+		},
+		uiOptions(): uiOption[] {
+			return this.normalizedUiOptions.options;
 		},
 		uiOptionsMap(): Record<string, _uiOpt> {
-			return mapReduce(this.uiOptions.filter(o => o.type === 1) as _uiOpt[], 'value');
+			return this.normalizedUiOptions.map;
 		},
 
 		filteredOptions(): uiOption[] {
@@ -479,7 +490,7 @@ export default defineComponent({
 				.reverse();
 		},
 		totalOptionCount(): number {
-			return this.uiOptions.filter(o => o.type === 1).length;
+			return this.normalizedUiOptions.count;
 		},
 
 		///////////////
@@ -880,15 +891,24 @@ export default defineComponent({
 				const newValues = new Set<string>(newVal as string[]);
 				const oldValues = this.internalModel;
 				const availableOptions = this.uiOptionsMap;
+				const nextValues = Object.create(null) as Record<string, boolean>;
 
-				/** no longer in :value array - guaranteed deselect or is actually in :value array but not available as option (and unknowns are not allowed) */
-				const deselectedValues: string[] = Object.keys(oldValues).filter(v => !newValues.has(v) || (!availableOptions[v] && !this.allowUnknownValues));
+				for (const value of Object.keys(oldValues)) {
+					if (newValues.has(value) && (availableOptions[value] || this.allowUnknownValues)) {
+						nextValues[value] = true;
+					}
+				}
+				for (const value of newVal as string[]) {
+					if (!oldValues[value] && (availableOptions[value] || this.allowUnknownValues)) {
+						nextValues[value] = true;
+					}
+				}
 
-				/** wasn't in previous :value array but is now - guaranteed selected and a corresponding option exists, or we allow unknowns */
-				const newSelectedValues: string[] = (newVal as string[]).filter(v => !oldValues[v] && (availableOptions[v] || this.allowUnknownValues));
-
-				deselectedValues.forEach(v => delete this.internalModel[v]);
-				newSelectedValues.forEach(v => (this.internalModel[v] = true));
+				const oldKeys = Object.keys(oldValues);
+				const nextKeys = Object.keys(nextValues);
+				if (oldKeys.length !== nextKeys.length || oldKeys.some(value => !nextValues[value])) {
+					this.internalModel = nextValues;
+				}
 			}
 		},
 		/** This method exists just to deal with weirdness with TypeScript in Vue templates. */
@@ -908,8 +928,11 @@ export default defineComponent({
 					// But maybe the model only changed because we got pushed a new value from props
 					// check that this is not the case.
 					const values = Object.keys(this.internalModel);
-					if (this.multiple && Array.isArray(this.modelValue) && values.length === this.modelValue.length && values.every(v => (this.modelValue as string[]).includes(v))) {
-						return;
+					if (this.multiple && Array.isArray(this.modelValue) && values.length === this.modelValue.length) {
+						const modelValues = new Set(this.modelValue);
+						if (values.every(v => modelValues.has(v))) {
+							return;
+						}
 					} // our modelValue prop is already up to date - don't fire.
 					if (!this.multiple && typeof this.modelValue === 'string' && values.length == 1 && values[0] === this.modelValue) {
 						return;
@@ -1046,12 +1069,6 @@ export default defineComponent({
 			width: 100%;
 		}
 	}
-	&.input-group-btn:first-child,
-	&.input-group-addon:first-child {
-		> .menu-button {
-			border-right-width: 0;
-		}
-	}
 
 	> .menu-button {
 		display: flex;
@@ -1178,7 +1195,7 @@ export default defineComponent({
 
 	> .menu-body {
 		display: flex;
-		flex-direction: vertical;
+		flex-direction: column;
 		max-height: 300px;
 		overflow: auto;
 	}
@@ -1270,19 +1287,52 @@ export default defineComponent({
 }
 
 .input-group {
-	.combobox:not(:last-child) {
-		> button,
-		> input[type='text'] {
-			border-top-right-radius: 0;
-			border-bottom-right-radius: 0;
+	> .combobox {
+		> .menu-input {
+			// Bootstrap 3 floats .form-control anywhere inside .input-group.
+			// If this input floats, the combobox wrapper collapses to zero height,
+			// and teleported menus are positioned at the input's top instead of bottom.
+			float: none;
 		}
-	}
 
-	.combobox:not(:first-child) {
-		> button,
-		> input[type='text'] {
-			border-top-left-radius: 0;
-			border-bottom-left-radius: 0;
+		// need to override this because we're in a wrapper, and the bootstrap 3 classes actually have a bug
+		// they look at first/last child, but not just at direct children,
+		// so this doesn't have borders unless we fix it:
+		// .input-group
+		//   .combobox
+		//     .form-control, .btn
+		//   .input-group-addon, .input-group-btn
+
+		&:first-child {
+			> .menu-input,
+			> .menu-button {
+				border-top-left-radius: 4px;
+				border-bottom-left-radius: 4px;
+			}
+		}
+
+		&:last-child {
+			> .menu-input,
+			> .menu-button {
+				border-top-right-radius: 4px;
+				border-bottom-right-radius: 4px;
+			}
+		}
+
+		&:not(:last-child) {
+			> .menu-input,
+			> .menu-button {
+				border-top-right-radius: 0;
+				border-bottom-right-radius: 0;
+			}
+		}
+
+		&:not(:first-child) {
+			> .menu-input,
+			> .menu-button {
+				border-top-left-radius: 0;
+				border-bottom-left-radius: 0;
+			}
 		}
 	}
 }

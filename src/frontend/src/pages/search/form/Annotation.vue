@@ -68,8 +68,9 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import UID from '@/mixins/uid';
 import type { NormalizedAnnotation } from '@/types/apptypes';
-import { translate } from '@/utils/i18n';
 import type { Option } from '@/utils/options';
+
+import { useI18n } from '@/shared/i18n';
 
 import Autocomplete from '@/components/Autocomplete.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
@@ -86,6 +87,7 @@ const props = defineProps<{
 	 */
 	simple?: boolean;
 }>();
+const translate = useI18n();
 
 const uid = UID();
 const posOpen = ref(false);

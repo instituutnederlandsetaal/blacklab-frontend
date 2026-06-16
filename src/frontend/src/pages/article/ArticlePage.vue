@@ -110,7 +110,7 @@
 							</template>
 							<tr>
 								<td>Document length (tokens)</td>
-								<td id="docLengthTokens">{{ metadata.value.docInfo.tokenCounts?.find(tc => tc.fieldName === inputs.viewField)?.tokenCount }}</td>
+								<td id="docLengthTokens">{{ metadata.value.docInfo.tokenCounts?.find(tc => tc.fieldName === inputs!.viewField)?.tokenCount }}</td>
 							</tr>
 						</tbody>
 					</table>
@@ -195,7 +195,7 @@ const metadataFieldsToShow = computed(() =>
 
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
 const isParallel = computed(() => CorpusStore.get.isParallelCorpus());
-const viewField = computed(() => CorpusStore.get.allAnnotatedFieldsMap()[inputs.value.viewField!]);
+const viewField = computed(() => CorpusStore.get.allAnnotatedFieldsMap()[inputs.value?.viewField ?? '']);
 
 useMarkPageBootstrapSettledWhen(computed(() => (contents.isLoaded() || contents.isError()) && (metadata.isLoaded() || metadata.isError())));
 

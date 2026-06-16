@@ -3,7 +3,8 @@ import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/appt
 import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';
 import { spanFilterId } from '@/utils';
-import type { Translate } from '@/utils/i18n';
+
+import type { Translate } from '@/shared/i18n';
 
 /** Group by some tokens at a fixed position in the hit. */
 export type ContextPositional = {
