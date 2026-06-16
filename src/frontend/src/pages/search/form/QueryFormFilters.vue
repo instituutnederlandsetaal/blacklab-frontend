@@ -65,8 +65,9 @@ import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import { mapReduce } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
+
+import { mapReduce } from '@/shared/utils/map-reduce';
 
 import FilterOverview from '@/pages/search/form/FilterOverview.vue';
 

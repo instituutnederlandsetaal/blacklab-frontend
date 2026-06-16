@@ -17,7 +17,8 @@ import type {
 	NormalizedMetadataField,
 	NormalizedMetadataGroup,
 } from '@/types/apptypes';
-import { mapReduce } from '@/utils';
+
+import { mapReduce } from '@/shared/utils/map-reduce';
 
 type ModuleRootState = NormalizedIndex | undefined;
 

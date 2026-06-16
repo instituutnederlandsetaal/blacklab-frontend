@@ -9,7 +9,9 @@ import type {
 	NormalizedIndexBase,
 } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
-import { getParallelFieldParts, mapReduce, PARALLEL_FIELD_SEPARATOR } from '@/utils';
+import { getParallelFieldParts, PARALLEL_FIELD_SEPARATOR } from '@/utils';
+
+import { mapReduce } from '@/shared/utils/map-reduce';
 
 /** Find the annotation that contains annotationId as on of its subAnnotations. */
 function findParentAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string): string | undefined {

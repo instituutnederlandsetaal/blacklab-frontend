@@ -22,7 +22,7 @@ import type * as PatternModule from '@/features/search/model/form/pattern-state'
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
-import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, getParallelFieldName, mapReduce, spanFilterId, uiTypeSupport, unparenQueryPart } from '@/utils';
+import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, getParallelFieldName, spanFilterId, uiTypeSupport, unparenQueryPart } from '@/utils';
 import type { Condition, Result, Token } from '@/utils/bcql-json-interpreter';
 import { parseBcql } from '@/utils/bcql-json-interpreter';
 import { corpusCustomizations } from '@/utils/customization';
@@ -31,6 +31,7 @@ import parseLucene from '@/utils/luceneparser';
 
 import BaseUrlStateParser from './url-state-parser-base';
 
+import { mapReduce } from '@/shared/utils/map-reduce';
 import { unescapeRegex } from '@/shared/utils/string-utils';
 
 /**

@@ -3,9 +3,10 @@ import type { ASTNode, ASTRange } from 'lucene-query-parser';
 // @ts-ignore - weird this doesn't work during builds
 import type { FullFilterState } from '@/features/search/model/form/filter-state';
 import type { FilterValue } from '@/types/apptypes';
-import { cast, mapReduce, spanFilterId } from '@/utils';
+import { cast, spanFilterId } from '@/utils';
 import { debugLog } from '@/utils/debug';
 
+import { mapReduce } from '@/shared/utils/map-reduce';
 import { findOption, optionLabel, optionValues, type Option } from '@/shared/utils/options';
 import { unescapeLucene, escapeLucene, tokenizeString } from '@/shared/utils/string-utils';
 

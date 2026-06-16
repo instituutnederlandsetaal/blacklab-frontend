@@ -12,9 +12,10 @@ import { getFilterString, getFilterSummary, getValueFunctions } from '@/componen
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
 import type { FilterDefinition } from '@/types/apptypes';
-import { mapReduce } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import { debugLogCat } from '@/utils/debug';
+
+import { mapReduce } from '@/shared/utils/map-reduce';
 
 export type FilterState = {
 	value: unknown;
