@@ -13,7 +13,7 @@
  * 0.10001 -> 10.001% with significants: 5
  */
 
-export default function (n: number, significants: number = 3): string {
+export function frac2Percent(n: number, significants: number = 3): string {
 	n = n * 100;
 	const str = n.toFixed(20);
 	const p = /(\d+)\.?(0*)(\d*)$/; // toString divider character is always '.' as defined by the standard
@@ -31,4 +31,12 @@ export default function (n: number, significants: number = 3): string {
 	// That causes it to output trailing zeroes we didn't anticipate, so strip those.
 	// (but only when they are in the fractional portion, or we would strip '10' and '100' to '1')
 	return (significants > 0 ? ret.replace(/\.?0*$/, '') : ret) + '%';
+}
+
+export function NaNToNull(n: number) {
+	return isNaN(n) ? null : n;
+}
+
+export function clamp(value: number, min: number, max: number) {
+	return Math.min(Math.max(value, min), max);
 }

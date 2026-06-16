@@ -61,8 +61,9 @@ import { defineComponent } from 'vue';
 import * as Api from '@/api';
 import { IterativeResultCountLoader } from '@/api/async/logic/result-count/result-count-from-query';
 import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
-import frac2Percent from '@/mixins/fractionalToPercent';
 import type * as BLTypes from '@/types/blacklabtypes';
+
+import { frac2Percent } from '@/shared/utils/number-utils';
 
 import Spinner from '@/components/Spinner.vue';
 

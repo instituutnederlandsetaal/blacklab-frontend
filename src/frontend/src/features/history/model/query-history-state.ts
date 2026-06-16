@@ -24,6 +24,8 @@ import UrlStateParserSearch from '@/url/url-state-parser-search';
 import { debugLog } from '@/utils/debug';
 import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
 
+import { hashJavaDJB2 } from '@/shared/utils/string-utils';
+
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
 const version = 10;
@@ -262,21 +264,5 @@ const saveToLocalStorage = (entries: ModuleRootState) => {
 
 	window.localStorage.setItem(key, JSON.stringify(stored));
 };
-
-// tslint:disable
-function hashJavaDJB2(str: string) {
-	let hash = 0;
-	let i = 0;
-	let char: number;
-	const l = str.length;
-	while (i < l) {
-		char = str.charCodeAt(i);
-		hash = (hash << 5) - hash + char;
-		hash |= 0;
-		++i;
-	}
-	return hash;
-}
-// tslint:enable
 
 export { actions, get, getState, init, type FullHistoryEntry, type HistoryEntry, type ModuleRootState };

@@ -3,7 +3,7 @@ import { combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareRepla
 
 import { blacklab, frontend } from '@/api';
 import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
-import { binarySearch, clamp } from '@/utils';
+import { binarySearch } from '@/utils';
 import type { Loadable } from '@/utils/loadable-streams';
 import {
 	combineLoadables,
@@ -15,6 +15,8 @@ import {
 	toObservable,
 	withRequiredKeys,
 } from '@/utils/loadable-streams';
+
+import { clamp } from '@/shared/utils/number-utils';
 
 // Define some input/intermediate types and utils.
 

@@ -3,9 +3,11 @@ import type { ASTNode, ASTRange } from 'lucene-query-parser';
 // @ts-ignore - weird this doesn't work during builds
 import type { FullFilterState } from '@/features/search/model/form/filter-state';
 import type { FilterValue } from '@/types/apptypes';
-import { cast, escapeLucene, mapReduce, spanFilterId, splitIntoTerms, unescapeLucene } from '@/utils';
+import { cast, mapReduce, spanFilterId } from '@/utils';
 import { debugLog } from '@/utils/debug';
+
 import { findOption, optionLabel, optionValues, type Option } from '@/shared/utils/options';
+import { unescapeLucene, escapeLucene, tokenizeString } from '@/shared/utils/string-utils';
 
 /** month (m) and day (d) may be empty strings. Month field starts at 1 instead of javascript Date's 0. */
 export type DateValue = {
@@ -246,12 +248,12 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			if (!value || !value.trim()) {
 				return null;
 			}
-			return `${id}:(${splitIntoTerms(value, true)
+			return `${id}:(${tokenizeString(value, true)
 				.map(t => escapeLucene(t.value, !t.isQuoted))
 				.join(' ')})`;
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
-			const split = value ? splitIntoTerms(value, true) : [];
+			const split = value ? tokenizeString(value, true) : [];
 			return split.map(t => (t.isQuoted || split.length > 1 ? `"${t.value}"` : t.value)).join(', ') || null;
 		},
 		isActive(id, filterMetadata, value) {
@@ -423,12 +425,12 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			if (!value || !value.trim()) {
 				return null;
 			}
-			return `${id}:(${splitIntoTerms(value, true)
+			return `${id}:(${tokenizeString(value, true)
 				.map(t => escapeLucene(t.value, !t.isQuoted))
 				.join(' ')})`;
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
-			const split = value ? splitIntoTerms(value, true) : [];
+			const split = value ? tokenizeString(value, true) : [];
 			return split.map(t => (t.isQuoted || split.length > 1 ? `"${t.value}"` : t.value)).join(', ') || null;
 		},
 		isActive(id, filterMetadata, value) {

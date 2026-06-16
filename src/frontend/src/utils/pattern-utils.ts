@@ -6,8 +6,9 @@ import type { ModuleRootState as ModuleRootStateExplore } from '@/features/searc
 import type { ModuleRootState as ModuleRootStateFilters } from '@/features/search/model/form/filter-state';
 import type { ModuleRootState as ModuleRootStatePatterns } from '@/features/search/model/form/pattern-state';
 import type * as AppTypes from '@/types/apptypes';
-import type { RegexEscapeOptions } from '@/utils';
-import { applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel, splitIntoTerms, uiTypeSupport } from '@/utils';
+import { applyWithinClauses, elementAndAttributeNameFromFilterId, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel, uiTypeSupport } from '@/utils';
+
+import { escapeRegex, tokenizeString, type RegexEscapeOptions } from '@/shared/utils/string-utils';
 
 /** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */
 export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): string[] => {
@@ -29,7 +30,7 @@ export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue)
 			// if multiple tokens, split on quotes (removing them), and whitespace outside quotes, and then transform
 			// the values individually
 			const regexOptions = { escapePipes: false, escapeWildcards: false };
-			let resultParts = splitIntoTerms(value, true).map(v => escapeRegex(v.value, regexOptions));
+			let resultParts = tokenizeString(value, true).map(v => escapeRegex(v.value, regexOptions));
 			if (caseSensitive) {
 				resultParts = resultParts.map(v => `(?-i)${v}`);
 			}

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { splitIntoTerms } from '@/utils';
+import { tokenizeString } from '@/shared/utils/string-utils';
 
 type ExpectedPart = {
 	start: number;
@@ -116,9 +116,9 @@ const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
 	},
 ];
 
-describe('splitIntoTerms', () => {
+describe('tokenizeString', () => {
 	test.each(cases)('splits %j into expected terms', ({ value: fullValue, expect: expected }) => {
-		const split = splitIntoTerms(fullValue, true);
+		const split = tokenizeString(fullValue, true);
 		expect(split).toHaveLength(expected.length);
 
 		split.forEach((part, index) => {

@@ -12,10 +12,11 @@
 </template>
 
 <script setup lang="ts">
-import frac2Percent from '@/mixins/fractionalToPercent';
 import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
 import type { ColumnDefGroup, GroupRowData } from '@/pages/search/results/table/table-layout';
+
 import { useI18n } from '@/shared/i18n';
+import { frac2Percent } from '@/shared/utils/number-utils';
 
 defineOptions({ name: 'GroupRow' });
 const props = withDefaults(defineProps<IRowProps<GroupRowData>>(), IRowDefaultProps);

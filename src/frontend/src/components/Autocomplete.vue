@@ -24,9 +24,8 @@ import SelectPicker from './SelectPicker.vue';
 
 void SelectPicker;
 
-import { splitIntoTerms } from '@/utils';
-
 import type { Option } from '@/shared/utils/options';
+import { tokenizeString } from '@/shared/utils/string-utils.ts';
 
 const modelValue = defineModel<string>({ default: '' });
 const props = withDefaults(
@@ -128,8 +127,8 @@ function _getWordAroundCursor(inputElement: HTMLInputElement, lookForward: boole
 
 	if (start === end) {
 		// just a caret; no selection, find whitespace boundaries around cursor
-		// start - 1 because splitIntoTerms takes quotes into consideration by default, but we do not.
-		const term = splitIntoTerms(value, props.useQuoteAsWordBoundary).find(t => t.end >= start - 1);
+		// start - 1 because tokenizeString takes quotes into consideration by default, but we do not.
+		const term = tokenizeString(value, props.useQuoteAsWordBoundary).find(t => t.end >= start - 1);
 		if (!term) {
 			return nothingFound;
 		}

@@ -8,7 +8,7 @@ import { reactive, ref } from 'vue';
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as UIStore from '@/app/state/ui-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
-import { escapeRegex } from '@/utils';
+import { escapeRegex } from '@/shared/utils/string-utils';
 
 type Token = {
 	/** Annotation ID */

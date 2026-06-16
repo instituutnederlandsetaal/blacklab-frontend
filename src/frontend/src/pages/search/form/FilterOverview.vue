@@ -38,7 +38,8 @@ import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-import frac2Percent from '@/mixins/fractionalToPercent';
+
+import { frac2Percent } from '@/shared/utils/number-utils';
 
 import Spinner from '@/components/Spinner.vue';
 

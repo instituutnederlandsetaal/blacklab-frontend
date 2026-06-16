@@ -119,7 +119,7 @@ import { computed, ref } from 'vue';
 import { blacklabPaths } from '@/api';
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
 // import useModel from './useModel';
-import { escapeRegex } from '@/utils';
+import { escapeRegex } from '@/shared/utils/string-utils';
 
 import Autocomplete from '@/components/Autocomplete.vue';
 import CqlAddAttributeButton from '@/components/cql/CqlAddAttributeButton.vue';

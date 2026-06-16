@@ -55,7 +55,9 @@ import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import UID from '@/mixins/uid';
 import type { NormalizedAnnotation } from '@/types/apptypes';
-import { escapeRegex, filterDuplicates, mapReduce } from '@/utils';
+import { filterDuplicates, mapReduce } from '@/utils';
+
+import { escapeRegex } from '@/shared/utils/string-utils';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 

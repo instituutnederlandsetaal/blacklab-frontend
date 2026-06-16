@@ -67,7 +67,7 @@ import { defineComponent, type PropType } from 'vue';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import type { Tagset } from '@/types/apptypes';
-import { escapeRegex } from '@/utils';
+import { escapeRegex } from '@/shared/utils/string-utils';
 
 import Modal from '@/components/Modal.vue';
 
