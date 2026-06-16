@@ -75,7 +75,7 @@ import * as RootStore from '@/app/state/root-store';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
 import * as ResultsViewSettings from '@/features/search/model/results/view-state';
 import debug, { debug_visible } from '@/utils/debug';
-import { localStorageSynced } from '@/utils/localstore';
+import { localStorageSynced } from '@/shared/utils/localstore';
 import type { Option } from '@/shared/utils/options';
 
 import Modal from '@/components/Modal.vue';

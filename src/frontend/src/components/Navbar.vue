@@ -39,7 +39,7 @@ import { defineComponent } from 'vue';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
-import { localStorageSynced } from '@/utils/localstore';
+import { localStorageSynced } from '@/shared/utils/localstore';
 
 import LoginButton from '@/components/LoginButton.vue';
 import LocaleSelector from '@/shared/i18n/LocaleSelector.vue';
