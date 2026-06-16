@@ -99,9 +99,10 @@ import { defineComponent, nextTick } from 'vue';
 import * as RootStore from '@/app/state/root-store';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import uid from '@/mixins/uid';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
+
+import useUid from '@/shared/utils/uid';
 
 import Modal from '@/components/Modal.vue';
 
@@ -116,7 +117,7 @@ export default defineComponent({
 		importUrlError: null as null | string,
 		importUrlVisible: false,
 		clearHistoryVisible: false,
-		uid: uid(),
+		uid: useUid(),
 	}),
 	computed: {
 		history(): HistoryStore.ModuleRootState {

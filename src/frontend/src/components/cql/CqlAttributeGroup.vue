@@ -41,8 +41,9 @@ import { computed } from 'vue';
 
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
 import { isCqlAttributeData, isCqlAttributeGroupData } from '@/components/cql/cql-types';
-import uid from '@/mixins/uid';
+
 import type { Option } from '@/shared/utils/options';
+import useUid from '@/shared/utils/uid.ts';
 
 import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
 import CqlAttribute from './CqlAttribute.vue';
@@ -83,7 +84,7 @@ const currentOperatorOption = computed<Option>(() => {
 
 function createDefaultAttribute(): CqlAttributeData {
 	return {
-		id: `attr_${uid()}`,
+		id: `attr_${useUid()}`,
 		annotationId: props.options.defaultAnnotationId,
 		comparator: '=',
 		values: [''],
@@ -105,7 +106,7 @@ function addAttribute(operator: CqlAnnotationCombinator, calledForAttribute?: Cq
 
 	if (calledForAttribute) {
 		const newGroup: CqlAttributeGroupData = {
-			id: `group_${uid()}`,
+			id: `group_${useUid()}`,
 			operator,
 			entries: [calledForAttribute, createDefaultAttribute()],
 		};
@@ -116,7 +117,7 @@ function addAttribute(operator: CqlAnnotationCombinator, calledForAttribute?: Cq
 
 	const previousGroup = model.value;
 	model.value = {
-		id: `group_${uid()}`,
+		id: `group_${useUid()}`,
 		operator,
 		entries: [previousGroup, createDefaultAttribute()],
 	};

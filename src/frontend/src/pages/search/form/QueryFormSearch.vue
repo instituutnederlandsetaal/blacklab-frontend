@@ -102,16 +102,17 @@ import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-import uid from '@/mixins/uid';
 import type * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
 import type { Result } from '@/utils/bcql-json-interpreter';
 import { parseBcql } from '@/utils/bcql-json-interpreter';
 import { corpusCustomizations } from '@/utils/customization';
-import type { Option } from '@/shared/utils/options';
 import { getPatternStringFromCql, getPatternStringSearch } from '@/utils/pattern-utils';
 
 import ParallelFields from './parallel/ParallelFields';
+
+import type { Option } from '@/shared/utils/options';
+import useUid from '@/shared/utils/uid';
 
 import Annotation from '@/pages/search/form/Annotation.vue';
 import ParallelSourceAndTargets from '@/pages/search/form/ParallelSourceAndTargets.vue';
@@ -132,7 +133,7 @@ export default defineComponent({
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
 	data: () => ({
-		uid: uid(),
+		uid: useUid(),
 		parseQueryError: null as string | null,
 		importQueryError: null as string | null,
 

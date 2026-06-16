@@ -34,10 +34,10 @@ import * as UIStore from '@/app/state/ui-state';
 import type { CqlQueryBuilderData, CqlQueryBuilderOptions, CqlTokenData } from '@/components/cql/cql-types';
 import { COMPARATORS, OPERATORS } from '@/components/cql/cql-types';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
-import uid from '@/mixins/uid';
 import { getAnnotationSubset } from '@/utils';
 
 import { useI18n } from '@/shared/i18n/';
+import useUid from '@/shared/utils/uid.ts';
 
 import CqlToken from './CqlToken.vue';
 import Within from '@/pages/search/form/Within.vue';
@@ -90,7 +90,7 @@ const options = computed<CqlQueryBuilderOptions>(() => {
 
 function addToken() {
 	const newToken: CqlTokenData = {
-		id: `token_${uid()}`,
+		id: `token_${useUid()}`,
 		properties: {
 			optional: false,
 			minRepeats: 1,
@@ -99,11 +99,11 @@ function addToken() {
 			endOfSentence: false,
 		},
 		rootAttributeGroup: {
-			id: `group_${uid()}`,
+			id: `group_${useUid()}`,
 			operator: OPERATORS[0],
 			entries: [
 				{
-					id: `attr_${uid()}`,
+					id: `attr_${useUid()}`,
 					annotationId: options.value.defaultAnnotationId,
 					comparator: COMPARATORS[0][0],
 					values: [''],

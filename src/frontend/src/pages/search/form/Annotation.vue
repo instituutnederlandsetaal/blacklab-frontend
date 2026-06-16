@@ -66,11 +66,11 @@ import { useTemplateRef } from 'vue';
 import { blacklabPaths } from '@/api';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-import UID from '@/mixins/uid';
 import type { NormalizedAnnotation } from '@/types/apptypes';
-import type { Option } from '@/shared/utils/options';
 
 import { useI18n } from '@/shared/i18n';
+import type { Option } from '@/shared/utils/options';
+import useUid from '@/shared/utils/uid';
 
 import Autocomplete from '@/components/Autocomplete.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
@@ -89,7 +89,7 @@ const props = defineProps<{
 }>();
 const translate = useI18n();
 
-const uid = UID();
+const uid = useUid();
 const posOpen = ref(false);
 
 const caseSensitive = computed<boolean>({

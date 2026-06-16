@@ -53,11 +53,11 @@ import { defineComponent, type PropType } from 'vue';
 import * as api from '@/api';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
-import UID from '@/mixins/uid';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import { filterDuplicates, mapReduce } from '@/utils';
 
 import { escapeRegex } from '@/shared/utils/string-utils';
+import useUid from '@/shared/utils/uid';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 
@@ -126,7 +126,7 @@ export default defineComponent({
 		definition: { type: Object as PropType<NormalizedAnnotation>, required: true },
 	},
 	data: () => ({
-		uid: UID(),
+		uid: useUid(),
 		input$: new Observable.BehaviorSubject<string>(''),
 		subscriptions: [] as Observable.Subscription[],
 
