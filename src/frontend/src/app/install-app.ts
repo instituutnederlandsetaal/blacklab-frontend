@@ -1,5 +1,3 @@
-import 'floating-vue/dist/style.css';
-
 import FloatingVue from 'floating-vue';
 import HighchartsVue from 'highcharts-vue';
 import type { App } from 'vue';

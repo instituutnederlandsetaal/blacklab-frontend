@@ -1,13 +1,7 @@
 @use 'sass:color';
-
-hr {
-	border-color: #000;
-	opacity: 0.1;
-}
-
-.progress-bar {
-	text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
-}
+@import 'bootstrap/dist/css/bootstrap.css';
+@import 'font-awesome/css/font-awesome.min.css';
+@import 'floating-vue/dist/style.css';
 
 $panel-color: #337ab7;
 $accent: color.adjust($panel-color, $lightness: -3%);
@@ -286,24 +280,24 @@ a.disabled {
 
 @font-face {
 	font-family: 'Inl vmnw wnt';
-	src: url('@/assets/font/INLVRG__.TTF') format('truetype');
+	src: url('@assets/font/INLVRG__.TTF') format('truetype');
 }
 
 @font-face {
 	font-family: 'Inl vmnw wnt';
-	src: url('@/assets/font/INLVI___.TTF') format('truetype');
+	src: url('@assets/font/INLVI___.TTF') format('truetype');
 	font-style: italic;
 }
 
 @font-face {
 	font-family: 'Inl vmnw wnt';
-	src: url('@/assets/font/INLVB___.TTF') format('truetype');
+	src: url('@assets/font/INLVB___.TTF') format('truetype');
 	font-weight: bold;
 }
 
 @font-face {
 	font-family: 'Inl vmnw wnt';
-	src: url('@/assets/font/INLVBI__.TTF') format('truetype');
+	src: url('@assets/font/INLVBI__.TTF') format('truetype');
 	font-weight: bold;
 	font-style: italic;
 }
@@ -340,4 +334,12 @@ a.ui-menu-item-wrapper {
 table {
 	table-layout: fixed;
 	width: 100%;
+}
+hr {
+	border-color: #000;
+	opacity: 0.1;
+}
+
+.progress-bar {
+	text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
 }

@@ -80,6 +80,7 @@ export const step = defineComponent({
 			try {
 				const t = JSON.parse(this.displayNamesImport);
 				if (typeof t === 'object' && t != null) return t;
+				return undefined;
 			} catch {
 				return undefined;
 			}

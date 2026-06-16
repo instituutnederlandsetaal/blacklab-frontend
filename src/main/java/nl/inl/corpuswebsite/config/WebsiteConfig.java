@@ -251,8 +251,7 @@ public class WebsiteConfig {
         pagination = getBoolean("//InterfaceProperties/Article/Pagination").orElse(false);
         pageSize = getInt("//InterfaceProperties/Article/PageSize").filter(p -> p > 0).orElse(1000);
 
-        linksInTopBar = Stream.concat(
-            corpusOwner.isPresent() ? Stream.of(new ElementOnPage("My corpora", i.getAndIncrement())) : Stream.empty(),
+        linksInTopBar = 
             xp.evaluate("//InterfaceProperties/NavLinks/Link", doc).stream().map(sub -> {
                 String label = sub.getStringValue();
                 String href = getString("@value", (XdmNode) sub).orElse(label);
@@ -277,7 +276,7 @@ public class WebsiteConfig {
                 link.getAttributes().remove("value");
                 return link;
             })
-        ).collect(Collectors.toList());
+            .collect(Collectors.toList());
 
         xsltParameters = xp.evaluate("//XsltParameters/XsltParameter", doc).stream()
                 .collect(Collectors.toMap(sub -> getString("@name", (XdmNode) sub).orElse(""), sub -> getString("@value", (XdmNode) sub).orElse("")));

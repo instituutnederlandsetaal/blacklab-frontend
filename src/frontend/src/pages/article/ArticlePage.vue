@@ -1,6 +1,6 @@
 <template>
 	<!-- TODO: i18n -->
-	<div class="container article">
+	<div class="container article" v-if="inputs">
 		<template v-for="(value, key) in { contents, metadata, hits, hitToHighlight, validPaginationInfo, snippetAndDocument }">
 			<details>
 				<summary>{{ key }}</summary>
@@ -168,20 +168,26 @@ const hitToHighlight = loadableFromStream(hitToHighlight$);
 const validPaginationInfo = loadableFromStream(validPaginationParameters$);
 const snippetAndDocument = loadableFromStream(snippetAndDocument$);
 
-const inputs = computed(() => ({
-	indexId: CorpusStore.get.indexId()!,
-	docId: ArticleStore.getState().docId,
+const inputs = computed(() => {
+	if (!CorpusStore.get.corpus()) {
+		return undefined;
+	}
 
-	viewField: ArticleStore.getState().viewField,
-	searchField: QueryStore.get.sourceField().id,
+	return {
+		indexId: CorpusStore.get.indexId()!,
+		docId: ArticleStore.getState().docId,
 
-	wordstart: ArticleStore.get.wordstart(),
-	wordend: ArticleStore.get.wordend(),
-	pageSize: ArticleStore.get.pageSize(),
-	findhit: ArticleStore.get.findhit(),
-	patt: QueryStore.get.patternString(),
-	pattgapdata: QueryStore.getState().gap?.value,
-}));
+		viewField: ArticleStore.getState().viewField,
+		searchField: QueryStore.get.sourceField().id,
+
+		wordstart: ArticleStore.get.wordstart(),
+		wordend: ArticleStore.get.wordend(),
+		pageSize: ArticleStore.get.pageSize(),
+		findhit: ArticleStore.get.findhit(),
+		patt: QueryStore.get.patternString(),
+		pattgapdata: QueryStore.getState().gap?.value,
+	};
+});
 
 const metadataFieldsToShow = computed(() =>
 	fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(CorpusStore.get.allMetadataFieldsMap()), CorpusStore.get.metadataGroups(), CorpusStore.get.allMetadataFieldsMap()),
@@ -214,7 +220,13 @@ function handleHitNavigation(hitStart: number) {
 	ArticleStore.actions.findhit(hitStart);
 }
 
-watch(inputs, v => input$.next(v), { immediate: true });
+watch(
+	inputs,
+	v => {
+		if (v) input$.next(v);
+	},
+	{ immediate: true },
+);
 watch(
 	() => hitToHighlight.value,
 	(cur, prev) => {
