@@ -1,10 +1,11 @@
-import type { CancelableRequest } from '@/utils/loadable-streams';
 import { reactive } from 'vue';
+
+import type { CancelableRequest } from '@/utils/loadable-streams';
 
 /** A class that can retrieve items in a paginated way and exposes them along with an error and loading state. */
 export default class PaginatedGetter<T> {
 	public count: number = 0;
-	public results: T|undefined = undefined;
+	public results: T | undefined = undefined;
 	public loading = false;
 	public error = null as string | null;
 	public done = false;
@@ -13,9 +14,9 @@ export default class PaginatedGetter<T> {
 
 	constructor(
 		/** first is 0-indexed, meaning first=20 here means we already have 20 results (index 1...19), and want starting at index 20 */
-		private readonly getter: (acc: T|undefined, first: number, count: number) => CancelableRequest<T>,
+		private readonly getter: (acc: T | undefined, first: number, count: number) => CancelableRequest<T>,
 		public totalCount: number,
-		public pageSize: number = 20
+		public pageSize: number = 20,
 	) {
 		// make it so we can render this in a vue component reactively, etc.
 		return reactive(this) as this;
@@ -37,8 +38,15 @@ export default class PaginatedGetter<T> {
 		const request = this.getter(this.results, first, count);
 		this.request = request;
 		request
-			.then(r => { if (this.request === request) { this.results = r; this.count += this.pageSize; } })
-			.catch(e => { if (this.request === request) this.error = e.toString(); })
+			.then(r => {
+				if (this.request === request) {
+					this.results = r;
+					this.count += this.pageSize;
+				}
+			})
+			.catch(e => {
+				if (this.request === request) this.error = e.toString();
+			})
 			.finally(() => {
 				if (this.request === request) {
 					this.loading = false;

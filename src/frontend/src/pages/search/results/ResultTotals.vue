@@ -1,58 +1,69 @@
 <template>
-<div class="totals">
-	<div class="totals-content">
-		<Spinner v-if="(isCounting || !totals.isLoaded()) && !error" size="25" style="margin-right: 0.25em;"/>
+	<div class="totals">
+		<div class="totals-content">
+			<Spinner v-if="(isCounting || !totals.isLoaded()) && !error" size="25" style="margin-right: 0.25em" />
 
-		<div class="totals-text" :title="percentOfSearchSpaceClarification">
-			<div class="totals-type">
-				<div>{{ $t('results.resultsTotals.total') }} {{resultType}}<template v-if="!isFinished"> {{ $t('results.resultsTotals.soFar') }}</template>:</div>
-				<div v-if="isGroups">{{ $t('results.resultsTotals.totalGroups') }}<template v-if="!isFinished"> {{ $t('results.resultsTotals.soFar') }}</template>:</div>
-				<div>{{ $t('results.resultsTotals.searchTime') }}:</div>
-				<!-- <div>Total pages<template v-if="!isFinished"> so far</template>:</div> -->
-			</div>
-			<div class="totals-count">
-				<div>{{numPrefix}}{{numResults.toLocaleString()}}{{numSuffix}}</div>
-				<div v-if="isGroups">{{numPrefix}}{{numGroups.toLocaleString()}}{{numSuffix}}</div>
-				<div>{{searchTime}}</div>
-				<!-- <div>{{numPrefix}}{{numPages.toLocaleString()}}{{numSuffix}}</div> -->
-			</div>
+			<div class="totals-text" :title="percentOfSearchSpaceClarification">
+				<div class="totals-type">
+					<div>
+						{{ $t('results.resultsTotals.total') }} {{ resultType }}<template v-if="!isFinished"> {{ $t('results.resultsTotals.soFar') }}</template
+						>:
+					</div>
+					<div v-if="isGroups">
+						{{ $t('results.resultsTotals.totalGroups') }}<template v-if="!isFinished"> {{ $t('results.resultsTotals.soFar') }}</template
+						>:
+					</div>
+					<div>{{ $t('results.resultsTotals.searchTime') }}:</div>
+					<!-- <div>Total pages<template v-if="!isFinished"> so far</template>:</div> -->
+				</div>
+				<div class="totals-count">
+					<div>{{ numPrefix }}{{ numResults.toLocaleString() }}{{ numSuffix }}</div>
+					<div v-if="isGroups">{{ numPrefix }}{{ numGroups.toLocaleString() }}{{ numSuffix }}</div>
+					<div>{{ searchTime }}</div>
+					<!-- <div>{{numPrefix}}{{numPages.toLocaleString()}}{{numSuffix}}</div> -->
+				</div>
 
-			<span class="totals-percentage">
-				<template v-if="searchSpaceCount > 0 /* might also be -1, in this case don't render -- see corpus store documentCount property */">
-				({{frac2Percent(numResults / searchSpaceCount)}})
-				</template>
-			</span>
+				<span class="totals-percentage">
+					<template v-if="searchSpaceCount > 0 /* might also be -1, in this case don't render -- see corpus store documentCount property */">
+						({{ frac2Percent(numResults / searchSpaceCount) }})
+					</template>
+				</span>
+			</div>
+		</div>
+
+		<div v-if="error" class="totals-message text-danger" @click="totals.continueCounting" :title="error.message">
+			<span class="fa fa-exclamation-triangle text-danger" /> {{ $t('results.resultsTotals.networkError') }}!
+			<button type="button" class="totals-button" @click="totals.continueCounting"><span class="fa fa-rotate-right text-danger"></span> {{ $t('results.resultsTotals.retry') }}</button>
+		</div>
+		<div
+			v-else-if="isLimited"
+			class="totals-message text-danger"
+			:title="`You may view up to ${numResultsRetrieved.toLocaleString()}. Additionally, BlackLab stopped counting after ${numResults.toLocaleString()}.`"
+		>
+			<span class="fa fa-exclamation-triangle text-danger" /> <b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{ numResultsRetrieved.toLocaleString() }} from a total of more than
+			{{ numResults.toLocaleString() }}
+		</div>
+		<div v-else-if="isFinished && numResults > numResultsRetrieved" class="totals-message text-danger" :title="`You may only view up to ${numResultsRetrieved.toLocaleString()} results`">
+			<span class="fa fa-exclamation-triangle text-danger" /> <b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{ numResultsRetrieved.toLocaleString() }} from a total of
+			{{ numResults.toLocaleString() }}
+		</div>
+		<div v-else-if="isPaused" class="totals-message text-info">
+			{{ $t('results.resultsTotals.heavyQuery') }} - search paused
+			<button type="button" class="totals-button" @click="totals.continueCounting()"><span class="fa fa-rotate-right text-info"></span> {{ $t('results.resultsTotals.continue') }}</button>
 		</div>
 	</div>
-
-	<div v-if="error" class="totals-message text-danger" @click="totals.continueCounting" :title="error.message">
-		<span class="fa fa-exclamation-triangle text-danger"/> {{ $t('results.resultsTotals.networkError') }}! <button type="button" class="totals-button" @click="totals.continueCounting"><span class="fa fa-rotate-right text-danger"></span> {{ $t('results.resultsTotals.retry') }}</button>
-	</div>
-	<div v-else-if="isLimited" class="totals-message text-danger" :title="`You may view up to ${numResultsRetrieved.toLocaleString()}. Additionally, BlackLab stopped counting after ${numResults.toLocaleString()}.`">
-		<span class="fa fa-exclamation-triangle text-danger"/> <b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{numResultsRetrieved.toLocaleString()}} from a total of more than {{numResults.toLocaleString()}}
-	</div>
-	<div v-else-if="isFinished && numResults > numResultsRetrieved" class="totals-message text-danger" :title="`You may only view up to ${numResultsRetrieved.toLocaleString()} results` ">
-		<span class="fa fa-exclamation-triangle text-danger"/> <b>{{ $t('results.resultsTotals.queryLimited') }};</b> stopped after {{numResultsRetrieved.toLocaleString()}} from a total of {{numResults.toLocaleString()}}
-	</div>
-	<div v-else-if="isPaused" class="totals-message text-info">
-		{{ $t('results.resultsTotals.heavyQuery') }} - search paused <button type="button" class="totals-button" @click="totals.continueCounting()"><span class="fa fa-rotate-right text-info"></span> {{ $t('results.resultsTotals.continue') }} </button>
-	</div>
-</div>
 </template>
-
 
 <script lang="ts">
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import * as Api from '@/api';
-import type * as BLTypes from '@/types/blacklabtypes';
-
-
-import frac2Percent from '@/mixins/fractionalToPercent';
-
 import { IterativeResultCountLoader } from '@/api/async/logic/result-count/result-count-from-query';
 import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
+import frac2Percent from '@/mixins/fractionalToPercent';
+import type * as BLTypes from '@/types/blacklabtypes';
+
 import Spinner from '@/components/Spinner.vue';
 
 /**
@@ -61,15 +72,15 @@ import Spinner from '@/components/Spinner.vue';
  */
 
 export default defineComponent({
-	components: {Spinner},
+	components: { Spinner },
 	props: {
 		initialResults: {
 			required: true,
-			type: Object as PropType<BLTypes.BLSearchResult>
+			type: Object as PropType<BLTypes.BLSearchResult>,
 		},
 		type: {
 			required: true,
-			type: String as PropType<'hits'|'docs'>,
+			type: String as PropType<'hits' | 'docs'>,
 		},
 		indexId: {
 			required: true,
@@ -78,45 +89,78 @@ export default defineComponent({
 		annotatedFieldId: {
 			required: true,
 			type: String,
-		}
+		},
 	},
 	computed: {
-		totals(): IterativeResultCountLoader { 
-			return new IterativeResultCountLoader({
-				annotatedFieldId: this.annotatedFieldId,
-				indexId: this.indexId,
-				operation: this.type,
-				results: this.initialResults
-			},
-				Api.blacklab
+		totals(): IterativeResultCountLoader {
+			return new IterativeResultCountLoader(
+				{
+					annotatedFieldId: this.annotatedFieldId,
+					indexId: this.indexId,
+					operation: this.type,
+					results: this.initialResults,
+				},
+				Api.blacklab,
 			);
 		},
 
-		value(): TotalsOutput|undefined { return this.totals.isLoaded() ? this.totals.value : undefined; },
-		error(): Api.ApiError|undefined { return this.totals.isError() ? this.totals.error : undefined; },
-		isCounting(): boolean { return this.value?.state === 'counting'; },
-		isLimited(): boolean { return this.value?.state === 'limited'; },
-		isPaused(): boolean { return this.value?.state === 'paused'; },
-		isFinished(): boolean { return this.value?.state === 'finished'; },
+		value(): TotalsOutput | undefined {
+			return this.totals.isLoaded() ? this.totals.value : undefined;
+		},
+		error(): Api.ApiError | undefined {
+			return this.totals.isError() ? this.totals.error : undefined;
+		},
+		isCounting(): boolean {
+			return this.value?.state === 'counting';
+		},
+		isLimited(): boolean {
+			return this.value?.state === 'limited';
+		},
+		isPaused(): boolean {
+			return this.value?.state === 'paused';
+		},
+		isFinished(): boolean {
+			return this.value?.state === 'finished';
+		},
 
-		resultType(): string { return this.type === 'hits' ? this.$t('results.resultsTotals.hits').toString() : this.$t('results.resultsTotals.documents').toString() },
-		isGroups(): boolean { return this.value?.groups != null; },
-		searchTime(): string { return this.value ? frac2Percent(this.value.searchTime / 100000, 1).replace('%', 's') : ''; },
+		resultType(): string {
+			return this.type === 'hits' ? this.$t('results.resultsTotals.hits').toString() : this.$t('results.resultsTotals.documents').toString();
+		},
+		isGroups(): boolean {
+			return this.value?.groups != null;
+		},
+		searchTime(): string {
+			return this.value ? frac2Percent(this.value.searchTime / 100000, 1).replace('%', 's') : '';
+		},
 
-		numPrefix(): string { return (this.isLimited || this.isPaused) ? '≥' : ''; },
-		numSuffix(): string { return (this.isCounting || this.isPaused) ? '…' : ''; },
-		numResults(): number { return this.type === 'hits' ? this.value?.hitsCounted ?? 0 : this.value?.docsCounted ?? 0; },
-		numResultsRetrieved(): number { return this.type === 'hits' ? this.value?.hitsRetrieved ?? 0 : this.value?.docsRetrieved ?? 0; },
-		numGroups(): number { return this.value?.groups ?? 0; },
+		numPrefix(): string {
+			return this.isLimited || this.isPaused ? '≥' : '';
+		},
+		numSuffix(): string {
+			return this.isCounting || this.isPaused ? '…' : '';
+		},
+		numResults(): number {
+			return this.type === 'hits' ? (this.value?.hitsCounted ?? 0) : (this.value?.docsCounted ?? 0);
+		},
+		numResultsRetrieved(): number {
+			return this.type === 'hits' ? (this.value?.hitsRetrieved ?? 0) : (this.value?.docsRetrieved ?? 0);
+		},
+		numGroups(): number {
+			return this.value?.groups ?? 0;
+		},
 		// numPages(): number { return Math.ceil((this.isGroups ? this.numGroups : this.numResultsRetrieved) / this.initialResults.summary.searchParam.number); },
 
-		searchSpaceType(): string { return this.type === 'hits' ? this.$t('results.resultsTotals.tokens').toString() : this.$t('results.resultsTotals.documents').toString(); },
+		searchSpaceType(): string {
+			return this.type === 'hits' ? this.$t('results.resultsTotals.tokens').toString() : this.$t('results.resultsTotals.documents').toString();
+		},
 		/** The total number of relevant items in the searched subcorpus, tokens if viewing tokens, docs if viewing documents */
-		searchSpaceCount(): number { return this.type === 'hits' ? this.value?.tokensInMatchingDocuments ?? 0 : this.value?.numberOfMatchingDocuments ?? 0 },
+		searchSpaceCount(): number {
+			return this.type === 'hits' ? (this.value?.tokensInMatchingDocuments ?? 0) : (this.value?.numberOfMatchingDocuments ?? 0);
+		},
 		percentOfSearchSpaceClarification(): string {
 			// TODO i18n
 			return `Matched ${this.numResults.toLocaleString()} ${this.resultType} in a total of ${this.isLimited ? ' more than' : ''} ${this.searchSpaceCount.toLocaleString()} ${this.searchSpaceType} in the searched subcorpus.`;
-		}
+		},
 	},
 	methods: {
 		frac2Percent,
@@ -126,16 +170,15 @@ export default defineComponent({
 			handler(cur: IterativeResultCountLoader, prev: IterativeResultCountLoader) {
 				if (cur !== prev) prev?.dispose();
 			},
-		}
+		},
 	},
 	unmounted() {
 		this.totals.dispose();
-	}
+	},
 });
 </script>
 
 <style lang="scss">
-
 .totals {
 	color: #888;
 	font-size: 85%;
@@ -189,5 +232,4 @@ export default defineComponent({
 		padding: 2px 4px;
 	}
 }
-
 </style>

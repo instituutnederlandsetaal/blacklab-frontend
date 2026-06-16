@@ -1,0 +1,398 @@
+{
+	"navbar": {
+		"myCorpora": "My corpora"
+	},
+	"widgets": {
+		"learnMore": "Learn more",
+		"clickToRemove": "Click to remove",
+		"selectValue": "Select a value...",
+		"selectValues": "Select value(s)...",
+		"caseSensitive": "Case- and diacritics-sensitive"
+	},
+	"form": {
+		"summary": {
+			"heading": "Summary",
+			"empty": "No active inputs.",
+			"none": "None"
+		},
+		"totals": {
+			"heading": "Subcorpus totals",
+			"documents": "Documents",
+			"tokens": "Tokens",
+			"filtered": "Preview uses the current filter projection.",
+			"unfiltered": "No filters active."
+		}
+	},
+	"search": {
+		"heading": "Search for …",
+		"simple": {
+			"heading": "Simple"
+		},
+		"extended": {
+			"heading": "Extended",
+			"within": "Within:"
+		},
+		"advanced": {
+			"heading": "Advanced",
+			"copyAdvancedQuery": "Copy to CQL editor",
+
+			"queryBuilder": {
+				"$comment": "we use underscores here because mustachejs keys cannot contain dots",
+
+				"createTokenButton_label": "Insert another token",
+
+				"modalEditor_title": "Edit",
+				"modalEditor_clear": "Clear",
+				"modalEditor_cancel": "Cancel",
+				"modalEditor_save": "Save changes",
+
+				"withinSelect_label": "Within:",
+
+				"token_head_move_right_title": "Move this token one position to the right",
+				"token_head_move_left_title": "Move this token one position to the left",
+				"token_head_deleteButton_title": "Remove token",
+
+				"body_tab_header_search": "Search",
+				"body_tab_header_properties": "Context",
+
+				"body_tab_properties_optional": "Optional",
+				"body_tab_properties_optional_title": "Token is optional",
+				"body_tab_properties_beginOfSentence": "Begin of sentence",
+				"body_tab_properties_beginOfSentence_title": "Token must occur at the beginning of a sentence",
+				"body_tab_properties_endOfSentence": "End of sentence",
+				"body_tab_properties_endOfSentence_title": "Token must occur at the end of a sentence",
+
+				"body_tab_properties_repeats_label": "repeats",
+				"body_tab_properties_repeats_to": "to",
+				"body_tab_properties_repeats_times": "times",
+
+				"attribute_caseAndDiacriticsSensitive": "Case-\u00a0and\u00a0diacritics-sensitive",
+				"attribute_delete_attribute_button_title": "Remove this attribute",
+
+				"attribute_file_upload_button_title": "Upload a list of values",
+				"attribute_file_upload_edit_button_title": "Edit your uploaded values",
+				"attribute_file_upload_clear_button_title": "Clear uploaded values",
+
+				"attribute_create_button_title": "Add another attribute",
+
+				"boolean_operators": {
+					"&": "AND",
+					"|": "OR"
+				},
+				"comparators": {
+					"=": "=",
+					"!=": "≠",
+					"startsWith": "starts with",
+					"endsWith": "ends with"
+				}
+			}
+		},
+		"expert": {
+			"heading": "Expert",
+			"corpusQueryLanguage": "Corpus Query Language",
+			"parseQuery": "Copy to query builder",
+			"parseQueryTitle": "Edit your query in the querybuilder",
+			"importQuery": "Import query",
+			"importQueryTitle": "Import a previously downloaded query",
+			"gapFilling": "Gap-filling",
+			"gapFillingTitle": "Upload a tab-separated list of values to substitute for gap values ('{'@'}{'@'}'; in your query).",
+			"clearGapValues": "Clear gap values"
+		},
+		"parallel": {
+			"alignBy": "Align by",
+			"searchSourceVersion": "Search source version",
+			"errorNoSourceVersion": "Please select a source version.",
+			"andCompareWithTargetVersions": "And compare with target version(s)",
+			"queryForSourceVersion": "Query for source version",
+			"queryForTargetVersion": "Query for target version",
+			"addTargetVersion": "Add another target version"
+		},
+		"within": {
+			"document": "Document"
+		}
+	},
+	"filter": {
+		"heading": "Filter search by …",
+		"noFilter": {
+			"title": "No filters available",
+			"content": "This corpus does not contain metadata, or the author has chosen not to allow filtering on metadata."
+		},
+		"range": {
+			"from": "From",
+			"to": "To",
+			"permissive": "Permissive",
+			"permissiveDescription": "Matches documents that are partially contained within the entered range",
+			"strict": "Strict",
+			"strictDescription": "Matches documents that are completely contained within the entered range"
+		}
+	},
+	"explore": {
+		"heading": "Explore ...",
+		"corpora": {
+			"heading": "Documents",
+			"groupBy": "Group documents by metadata",
+			"showAs": {
+				"heading": "Show groups as",
+				"table": "Table",
+				"docs": "Docs",
+				"tokens": "Tokens"
+			}
+		},
+		"ngram": {
+			"heading": "N-grams",
+			"ngramSize": "N-gram size",
+			"ngramType": "N-gram type"
+		},
+		"frequency": {
+			"heading": "Statistics",
+			"frequencyType": "Frequency list type"
+		}
+	},
+	"setting": {
+		"heading": "Global settings",
+		"resultsPerPage": "Results per page",
+		"sampleSize": "Sample size",
+		"sampleSizeCount": "count",
+		"sampleSizePercentage": "percentage",
+		"sampleSeed": "Seed",
+		"context": "Context size",
+		"wideView": "Wide View",
+		"debug": "Debug info",
+		"hideDebugUntilReload": "Hide debug checkbox until next reload",
+		"close": "Close"
+	},
+	"queryForm": {
+		"search": "Search",
+		"explore": "Explore",
+		"reset": "Reset",
+		"history": "History"
+	},
+	"partOfSpeech": {
+		"cancel": "Cancel",
+		"edit": "Edit",
+		"noneSelected": "No part of speech selected",
+		"noOptions": "No options",
+		"submit": "Ok",
+		"reset": "Reset"
+	},
+	"lexicon": {
+		"selectAll": "Select all",
+		"deselectAll": "Deselect all",
+		"limit": "Limit to Part of Speech"
+	},
+	"filterOverview": {
+		"error": "Error",
+		"subCorpus": "Selected subcorpus",
+		"totalDocuments": "Total documents",
+		"totalTokens": "Total tokens",
+		"calculating": "Calculating size of selected subcorpus..."
+	},
+	"annotation": {
+		"caseSensitive": "Case- and diacritics-sensitive"
+	},
+	"results": {
+		"groupBy": {
+			"groupNameWithoutValue": "[no value]",
+
+			"groupResults": "Group Results",
+			"close": "Close",
+			"clear": "Clear",
+			"apply": "Group",
+			"invalidGrouping": "This grouping is not valid.",
+
+			"parallelCorpusVersion": "Looking at version ",
+			"iWantToGroupOnAnnotation": "I want to group on {some_words} {in_this_location_with_text} using annotation {this_annotation}.",
+			"in_this_location_with_text": "{in_this_location}",
+
+			"some_words": {
+				"theFirstWord": "the first word",
+				"allWords": "all words",
+				"specificWords": "specific words",
+				"captureGroupsLabel": "Labels and relations",
+				"spanFiltersLabel": "Span filters"
+			},
+			"in_this_location": {
+				"beforeTheHit": "before the hit",
+				"inTheHit": "within the hit",
+				"afterTheHit": "after the hit",
+				"fromTheEnd": "from the end of the hit"
+			},
+
+			"relationPartByClass": {
+				"default": {
+					"label": "Relation part",
+					"source": "source",
+					"target": "target"
+				},
+				"dep": {
+					"source": "head",
+					"target": "dependent"
+				}
+			},
+
+			"tipClickOnHighlightedWords": "Tip: click on highlighted words for syntactic grouping.",
+
+			"caseSensitive": "Case sensitive",
+			"chooseWordPositions": "Choose the <strong>specific word</strong> positions to group on here, the preview sentence will show you which words you have selected.",
+			"selectDocumentMetadata": "Select the metadata to group on.",
+			"clickButtonsToStart": "Click on Annotation or Metadata to define grouping criteria.",
+			"metadata": "Metadata",
+			"annotation": "Annotation",
+			"specify": "Specify",
+
+			"summary": {
+				"indexedWord": "{field} [{index}] {position}",
+				"firstWord": "first {field} {position}",
+				"allWords": "{field} {position}",
+				"labelledWord": "label {label} on {field}",
+				"spanAttribute": "tag {span}, attribute {attribute}",
+				"metadata": "Document {field}",
+
+				"position": {
+					"before": "before hit",
+					"hit": "within hit",
+					"after": "after hit",
+					"end": "within hit"
+				}
+			}
+		},
+		"table": {
+			"showFullSentence": "Display sentence analysis",
+			"loading": "Loading...",
+			"loadMoreConcordances": "Load more concordances",
+			"viewDetailedConcordances": "View detailed concordances",
+			"document": "Document",
+			"hits": "Hits",
+			"columnLabelBeforeHit": "Before Hit",
+			"columnLabelHit": "Hit",
+			"columnLabelAfterHit": "After Hit",
+			"sortBy": "Sort by {field}",
+			"sortByDescending": "Sort by {field} (reverse)",
+			"sort_numberOfHits": "number of hits",
+			"sort_groupName": "group name",
+			"sort_groupSize": "group size",
+			"sort_alignments": "alignments",
+			"groupBy": "Group by {field}",
+			"sortByDocument": "Sort by document title",
+			"moreHiddenHits": "more hidden hits",
+			"close": "close",
+			"hide": "Hide",
+			"show": "Show",
+			"titles": "Titles",
+			"property": "Property",
+			"value": "value",
+			"noContext": "No context available.",
+			"customColumnHeader": "Version",
+			"goToHitInDocument": "Go to hit in document"
+		},
+		"export": {
+			"downloading": "Downloading...",
+			"csvTooltip": "Export results as a CSV file",
+			"excelTooltip": "Export Results as a CSV file for use with Excel",
+			"exportCSV": "Export",
+			"exportExcel": "Export for Excel"
+		},
+		"querySummary": {
+			"heading": "Results for: ",
+			"allDocuments": "all documents",
+			"within": "within",
+			"documentsWhere": "documents where"
+		},
+		"resultsView": {
+			"navigation": {
+				"backToGroupedResults": "Go back to grouped results",
+				"backToUngroupedResults": "Go vack to ungrouped results",
+				"hits": "Hits",
+				"documents": "Documents",
+				"viewingGroup": "Viewing group {group}",
+				"groupedBy": "Grouped by {group}",
+				"sortedBy": "Sorted by {sort}",
+				"randomSample": "Random sample ({sample})"
+			},
+
+			"noResultsFound": "No results found.",
+			"inactiveView": "This view is inactive because no search criteria for words were specified.",
+			"tryAgainTitle": "Try again with current search settings",
+			"tryAgain": "Try again",
+			"selectAnnotation": "Select annotation"
+		},
+		"resultsTotals": {
+			"total": "Total",
+			"soFar": "so far",
+			"totalGroups": "Total groups",
+			"searchTime": "Search time",
+			"networkError": "Network error",
+			"retry": "Retry",
+			"queryLimited": "Query limited",
+			"heavyQuery": "Heavy query",
+			"continue": "Continue",
+			"hits": "hits",
+			"documents": "documents",
+			"tokens": "tokens"
+		},
+		"sort": {
+			"sortBy": "Sort by…"
+		}
+	},
+	"history": {
+		"heading": "History",
+		"results": "Results",
+		"pattern": "Pattern",
+		"filters": "Filters",
+		"grouping": "Grouping",
+		"search": "Search",
+		"copyAsLink": "Copy as link",
+		"downloadAsFile": "Download as file",
+		"delete": "Delete",
+		"deleteAll": "Delete all",
+		"loadMore": "Load more",
+		"importUrl": "Import url",
+		"copyUrlHere": "Copy your url here",
+		"importFromLink": "Import from a link",
+		"close": "Close",
+		"clearSearchHistory": "Clear search history",
+		"clearSearchHistoryConfirmation": "Are you sure you want to clear your search history?",
+		"clear": "Clear",
+		"cancel": "Cancel"
+	},
+	"searchPage": {
+		"fullQuery": "Full query"
+	},
+	"remoteIndex": {
+		"loadingCorpora": "Loading your corpora...",
+		"pickCorpus": "Please pick a corpus",
+		"addFilesToCorpus": "Add files to an existing corpus...",
+		"selectCorpus": "Select a corpus",
+		"createNewCorpus": "or create a new corpus and add to that...",
+		"name": "Name",
+		"create": "Create",
+		"select": "Select",
+		"illegalCorpusName": "Illegal corpus name. Corpus name must be between 3 and 30 characters and may not contain special characters.",
+		"retry": "Retry"
+	},
+	"index": {
+		"annotatedFields": {
+			"$exampleAnnotatedField": "Translated display name for annotated field $exampleAnnotatedField",
+			"$exampleAnnotatedField_description": "Translated description for annotated field $exampleAnnotatedField"
+		},
+		"annotations": {
+			"$exampleAnnotation": "Translated display name for annotation $exampleAnnotation",
+			"$exampleAnnotation_description": "Translated description for annotation $exampleAnnotation"
+		},
+		"annotationGroups": {
+			"$exampleAnnotationGroup": "Translated display name for annotation group $exampleAnnotationGroup"
+		},
+		"metadata": {
+			"$exampleMetadataField": "Translated display name for metadata field $exampleMetadataField"
+		},
+		"metadataGroups": {
+			"$exampleMetadataGroup": "Translated display name for metadata group $exampleMetadataGroup"
+		},
+		"within": {
+			"$exampleWithinValue": "Translated display name for within value $exampleWithinValue"
+		},
+		"alignBy": {
+			"$exampleAlignByValue": "Translated display name for align by relation $exampleAlignByValue"
+		}
+	}
+}

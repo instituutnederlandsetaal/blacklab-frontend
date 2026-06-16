@@ -12,7 +12,17 @@
  */
 
 import * as api from '@/api';
-import type { BCQLAndNode, BCQLCompareNode, BCQLOrNode, BCQLPositionFilterNode, BCQLQueryNode, BCQLRegexNode, BCQLTagAttributeExpressionNode, BCQLTextPatternNode, BCQLTextPatternStruct } from '@/types/blacklabcql';
+import type {
+	BCQLAndNode,
+	BCQLCompareNode,
+	BCQLOrNode,
+	BCQLPositionFilterNode,
+	BCQLQueryNode,
+	BCQLRegexNode,
+	BCQLTagAttributeExpressionNode,
+	BCQLTextPatternNode,
+	BCQLTextPatternStruct,
+} from '@/types/blacklabcql';
 
 export type XmlTag = {
 	type: 'xml';
@@ -26,7 +36,7 @@ export type Condition = {
 	/** A word property(/annotatedField) id, such as lemma, pos, word, etc... */
 	name: string;
 	/** Comparison type, usually '=' or '!=' */
-	operator: '='|'!=';
+	operator: '=' | '!=';
 	/** Regex to compare the attribute to */
 	value: string;
 };
@@ -34,19 +44,19 @@ export type Condition = {
 export type BooleanOp = {
 	type: 'booleanOp';
 	/** typically 'OR', 'AND', '|', '&' */
-	operator: '|'|'&';
-	clauses: (Condition|BooleanOp)[];
+	operator: '|' | '&';
+	clauses: (Condition | BooleanOp)[];
 };
 
 export type Token = {
 	leadingXmlTag?: XmlTag;
 	trailingXmlTag?: XmlTag;
-	expression?: BooleanOp|Condition;
+	expression?: BooleanOp | Condition;
 	optional: boolean;
 	repeats?: {
 		min: number;
 		/** When null, maximum repetitions is unbounded */
-		max: number|null;
+		max: number | null;
 	};
 };
 
@@ -57,7 +67,7 @@ export type Result = {
 	/** Tokens parsed from the query; undefined means "could not parse for simple/extended/advanced" */
 	tokens?: Token[];
 	/** Any within clauses on this query. Usually in the form of {[]} */
-	withinClauses?: Record<string, Record<string, string|{ low: string; high: string }>>;
+	withinClauses?: Record<string, Record<string, string | { low: string; high: string }>>;
 	/** Target version for this query, or undefined if this is the source query */
 	targetVersion?: string;
 	/** Relation type for this (target) query, or undefined if this is the source query */
@@ -66,11 +76,7 @@ export type Result = {
 	optional?: boolean;
 };
 
-
-
-
 function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnnotation: string): Result[] {
-
 	function _not(clause: BCQLTextPatternNode): Condition {
 		if (clause.type !== 'regex') {
 			throw new Error('Can only interpret not on regex');
@@ -82,62 +88,58 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 	}
 
 	// BL4 will return [word="de"] as a single regex node
-	function _regex({annotation, value}: BCQLRegexNode): Condition {
+	function _regex({ annotation, value }: BCQLRegexNode): Condition {
 		return {
 			type: 'condition',
 			name: annotation ?? defaultAnnotation,
 			operator: '=',
-			value
+			value,
 		};
 	}
 	// BL5 will return [word="de"] as a compare node with symbol and string clauses
-	function _compare({clauses, operation}: BCQLCompareNode): Condition {
-		if (operation !== '=' && operation !== '!=')
-			throw new Error('Cannot interpret compare operation: ' + operation);
+	function _compare({ clauses, operation }: BCQLCompareNode): Condition {
+		if (operation !== '=' && operation !== '!=') throw new Error('Cannot interpret compare operation: ' + operation);
 
 		const [compareWhat, compareWith] = clauses;
 
-		if (compareWhat.type !== 'defval' && compareWhat.type !== 'string')
-			throw new Error('Cannot interpret compare left clause of type: ' + compareWhat.type);
-		if (compareWith.type !== 'string')
-			throw new Error('Cannot interpret compare right clause of type: ' + compareWith.type);
+		if (compareWhat.type !== 'defval' && compareWhat.type !== 'string') throw new Error('Cannot interpret compare left clause of type: ' + compareWhat.type);
+		if (compareWith.type !== 'string') throw new Error('Cannot interpret compare right clause of type: ' + compareWith.type);
 		let annotation = compareWhat.type === 'defval' ? defaultAnnotation : compareWhat.value;
 		return {
 			name: annotation,
 			operator: operation,
 			value: compareWith.value,
 			type: 'condition',
-		}
+		};
 	}
 
-	function _boolean({type, clauses}: BCQLAndNode|BCQLOrNode): BooleanOp|null {
+	function _boolean({ type, clauses }: BCQLAndNode | BCQLOrNode): BooleanOp | null {
 		return {
 			type: 'booleanOp',
 			operator: type === 'and' ? '&' : '|',
-			clauses: clauses.map(_tokenExpression).filter(c => c != null)
-		}
+			clauses: clauses.map(_tokenExpression).filter(c => c != null),
+		};
 	}
 
-	function _tokenExpression(input: BCQLTextPatternNode): BooleanOp|Condition|null {
+	function _tokenExpression(input: BCQLTextPatternNode): BooleanOp | Condition | null {
 		switch (input.type) {
-		case 'regex':
-			return _regex(input);
-		case 'compare':
-			return _compare(input);
-		case 'not':
-			return _not(input.clause);
-		case 'and':
-		case 'or':
-			return _boolean(input);
+			case 'regex':
+				return _regex(input);
+			case 'compare':
+				return _compare(input);
+			case 'not':
+				return _not(input.clause);
+			case 'and':
+			case 'or':
+				return _boolean(input);
 		}
 		//throw new Error('Unknown token expression type: ' + input.type);
 		return null; // indicates an error occurred, but we can keep going (for e.g. withinClauses)
 	}
 
-	function _sequence(clauses: BCQLQueryNode[]): Token[]|null {
+	function _sequence(clauses: BCQLQueryNode[]): Token[] | null {
 		const tokens1 = clauses.map(_token);
-		if (tokens1.indexOf(null) >= 0)
-			return null;
+		if (tokens1.indexOf(null) >= 0) return null;
 		const tokens: Token[] = tokens1 as Token[];
 
 		// <s> and </s> are still separate "tokens"; join them with the appropriate real token
@@ -147,7 +149,7 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 				tokens[i] = {
 					...tokens[i + 1],
 					leadingXmlTag: tokens[i].leadingXmlTag,
-				}
+				};
 				tokens.splice(i + 1, 1);
 				i--;
 				continue;
@@ -163,12 +165,9 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 		return tokens;
 	}
 
-
-
-	function interpretTagsAttributes(attributes?: Record<string, BCQLTagAttributeExpressionNode>): Record<string, string|{ low: string; high: string }> {
-		const r: Record<string, string|{ low: string; high: string }> = {};
-		if (!attributes)
-			return r;
+	function interpretTagsAttributes(attributes?: Record<string, BCQLTagAttributeExpressionNode>): Record<string, string | { low: string; high: string }> {
+		const r: Record<string, string | { low: string; high: string }> = {};
+		if (!attributes) return r;
 		for (const [k, v] of Object.entries(attributes)) {
 			if (v.type === 'int-range') {
 				r[k] = { low: v.min == 0 ? '' : v.min.toString(), high: v.max == 9999 ? '' : v.max.toString() };
@@ -181,11 +180,9 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 		return r;
 	}
 
-	function _posFilter({producer, operation, filter}: BCQLPositionFilterNode): Result {
-		if (operation !== 'within')
-			throw new Error('Unknown posfilter operation: ' + operation);
-		if (filter.type !== 'tags' && filter.type !== 'overlapping' && filter.type != 'posfilter')
-			throw new Error('Unknown posfilter filter type: ' + filter.type);
+	function _posFilter({ producer, operation, filter }: BCQLPositionFilterNode): Result {
+		if (operation !== 'within') throw new Error('Unknown posfilter operation: ' + operation);
+		if (filter.type !== 'tags' && filter.type !== 'overlapping' && filter.type != 'posfilter') throw new Error('Unknown posfilter filter type: ' + filter.type);
 		const query = _query(producer);
 		query.withinClauses = query.withinClauses ?? {};
 
@@ -194,11 +191,9 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 			query.withinClauses[filter.name.toString()] = interpretTagsAttributes(filter.attributes);
 		} else if (filter.type === 'overlapping') {
 			// "within (overlap of) all these tags"; combine withinClauses
-			if (filter.operation !== 'overlap')
-				throw new Error('Unknown overlapping operation: ' + operation);
+			if (filter.operation !== 'overlap') throw new Error('Unknown overlapping operation: ' + operation);
 			filter.clauses.forEach((c: any) => {
-				if (c.type !== 'tags')
-					throw new Error('Unsupported overlapping clause type: ' + c.type);
+				if (c.type !== 'tags') throw new Error('Unsupported overlapping clause type: ' + c.type);
 				query.withinClauses![c.name.toString()] = interpretTagsAttributes(c.attributes);
 			});
 		} else if (filter.type === 'posfilter') {
@@ -208,27 +203,23 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 		return query;
 	}
 
-	function _repeat(input: any): Token|null {
+	function _repeat(input: any): Token | null {
 		const token = _token(input.clause);
-		if (token === null)
-			return null;
+		if (token === null) return null;
 		const min = 'min' in input ? input.min : 1;
 		const max = 'max' in input ? input.max : null;
 		if (min === 0 && max === 1) {
 			token.optional = true;
 		} else {
-			if (token.repeats)
-				throw new Error('Can\'t repeat a repeated token');
+			if (token.repeats) throw new Error("Can't repeat a repeated token");
 			token.repeats = { min, max };
 		}
 		return token;
 	}
 
 	function _tags(input: any): Token {
-		if (input.attribute || input.capture)
-			throw new Error('Unsupported tags attribute or capture');
-		if (input.name !== 's')
-			throw new Error('Unsupported tag type: ' + input.name);
+		if (input.attribute || input.capture) throw new Error('Unsupported tags attribute or capture');
+		if (input.name !== 's') throw new Error('Unsupported tag type: ' + input.name);
 		const token: Token = {
 			optional: false,
 			leadingXmlTag: {
@@ -242,21 +233,21 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 			},
 		};
 		switch (input.adjust) {
-		case 'leading_edge':
-			break;
-		case 'trailing_edge':
-			token.leadingXmlTag!.isClosingTag = true;
-			break;
-		default:
-			throw new Error('Unsupported tags adjust: ' + input.adjust);
+			case 'leading_edge':
+				break;
+			case 'trailing_edge':
+				token.leadingXmlTag!.isClosingTag = true;
+				break;
+			default:
+				throw new Error('Unsupported tags adjust: ' + input.adjust);
 		}
 		return token;
 	}
 
-	function _token(input: any): Token|null {
+	function _token(input: any): Token | null {
 		switch (input.type) {
-		case 'anytoken': // [] or []{min,max}
-			{
+			case 'anytoken': {
+				// [] or []{min,max}
 				const min = 'min' in input ? input.min : 1;
 				const max = 'max' in input ? input.max : null;
 				if (min === 0 && max === 1) {
@@ -274,78 +265,73 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 				}
 			}
 
-		case 'defval':   // _, which generally means []*
-			return {
-				optional: true,
-				repeats: {
-					min: 0,
-					max: null,
-				},
-			};
+			case 'defval': // _, which generally means []*
+				return {
+					optional: true,
+					repeats: {
+						min: 0,
+						max: null,
+					},
+				};
 
-		case 'repeat':   // {min,max} or ?, *, +
-			return _repeat(input);
+			case 'repeat': // {min,max} or ?, *, +
+				return _repeat(input);
 
-		case 'tags':     // <s> or </s>   (and eventually <s/> also)
-			return _tags(input);
+			case 'tags': // <s> or </s>   (and eventually <s/> also)
+				return _tags(input);
 
-		default:
-			// Excluded any special token-level nodes; must be a token expression
-			const expression = _tokenExpression(input);
-			if (expression === null) {
-				return null;
-			}
-			return {
-				expression,
-				optional: false,
-			};
+			default:
+				// Excluded any special token-level nodes; must be a token expression
+				const expression = _tokenExpression(input);
+				if (expression === null) {
+					return null;
+				}
+				return {
+					expression,
+					optional: false,
+				};
 		}
 	}
 
 	function _query(input: BCQLQueryNode): Result {
 		switch (input.type) {
-		case 'sequence':
-			return {
-				query: input.bcqlFragment,
-				tokens: _sequence(input.clauses) ?? undefined,
-			};
+			case 'sequence':
+				return {
+					query: input.bcqlFragment,
+					tokens: _sequence(input.clauses) ?? undefined,
+				};
 
-		case 'posfilter': // (within expression)
-			return _posFilter(input);
+			case 'posfilter': // (within expression)
+				return _posFilter(input);
 
-		case 'tags':
-			// "show me these tags" (not really within, no query given)
-			return {
-				query: input.bcqlFragment,
-				withinClauses: {
-					[input.name]: interpretTagsAttributes(input.attributes),
-				},
-			};
+			case 'tags':
+				// "show me these tags" (not really within, no query given)
+				return {
+					query: input.bcqlFragment,
+					withinClauses: {
+						[input.name]: interpretTagsAttributes(input.attributes),
+					},
+				};
 
-		case 'overlapping':
-			// "show me the overlaps of these tags" (no query given)
-			return {
-				query: input.bcqlFragment,
-				withinClauses: Object.fromEntries(input
-					.clauses
-					.filter(c => c.type === 'tags')
-					.map(c => [c.name, interpretTagsAttributes(c.attributes)])
-				),
-			};
+			case 'overlapping':
+				// "show me the overlaps of these tags" (no query given)
+				return {
+					query: input.bcqlFragment,
+					withinClauses: Object.fromEntries(input.clauses.filter(c => c.type === 'tags').map(c => [c.name, interpretTagsAttributes(c.attributes)])),
+				};
 
-		default:
-			// Must be a single token
-			const token = _token(input);
-			return {
-				query: input.bcqlFragment,
-				tokens: token === null ? undefined : [token],
-			}
+			default:
+				// Must be a single token
+				const token = _token(input);
+				return {
+					query: input.bcqlFragment,
+					tokens: token === null ? undefined : [token],
+				};
 		}
 	}
 
 	function _relTarget(input: any): Result {
-		if (input.type !== 'reltarget')
-			throw new Error('Unknown reltarget type: ' + input.type);
+		if (input.type !== 'reltarget') throw new Error('Unknown reltarget type: ' + input.type);
 		const clause = input.clause;
 		return {
 			..._query(clause),
@@ -358,31 +344,27 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 	function _parallelQuery(bcql: string, input: any): Result[] {
 		if (input.type == 'relmatch') {
 			const isParallel = input.children.every((c: any) => !!c.targetVersion);
-			if (!isParallel)
-				throw new Error('Cannot interpret non-parallel relmatch queries in the frontend');
+			if (!isParallel) throw new Error('Cannot interpret non-parallel relmatch queries in the frontend');
 			// Determine what relationtype we're filtering by
 			// (must all be the same for the query to be interpretable here)
-			let relationType: string|undefined = undefined;
+			let relationType: string | undefined = undefined;
 			input.children.forEach((c: any) => {
-				if (c.type !== 'reltarget')
-					throw new Error('Unknown relmatch child type: ' + c.type);
-				if (relationType === undefined)
-					relationType = c.relType;
-				if (relationType !== c.relType)
-					throw new Error('Mismatch in relation types: ' + relationType + ' / ' + c.relType);
+				if (c.type !== 'reltarget') throw new Error('Unknown relmatch child type: ' + c.type);
+				if (relationType === undefined) relationType = c.relType;
+				if (relationType !== c.relType) throw new Error('Mismatch in relation types: ' + relationType + ' / ' + c.relType);
 			});
 
 			const parent = {
-				..._query(input.parent)
+				..._query(input.parent),
 			};
-			const children: Result[] = input.children.map(_relTarget).map( (r: Result, index: number) => ({
+			const children: Result[] = input.children.map(_relTarget).map((r: Result, index: number) => ({
 				...r,
-				relationType
+				relationType,
 			}));
 			return [parent, ...children];
 		}
 
-		return [ { ..._query(input) } ];
+		return [{ ..._query(input) }];
 	}
 
 	/** Strip the automatically added rspan(..., 'all') call.
@@ -409,14 +391,11 @@ const parsePatternCache: Map<string, Result[]> = new Map();
 
 async function parseBcql(indexId: string, bcql: string, defaultAnnotation: string): Promise<Result[]> {
 	const cacheKey = indexId + ':::' + bcql;
-	if (parsePatternCache.has(cacheKey))
-		return parsePatternCache.get(cacheKey)!;
+	if (parsePatternCache.has(cacheKey)) return parsePatternCache.get(cacheKey)!;
 	const response = await api.blacklab.getParsePattern(indexId, bcql);
 	const result = interpretBcqlJson(bcql, response.parsed.json, defaultAnnotation);
 	parsePatternCache.set(cacheKey, result);
 	return result;
 }
 
-export {
-	parseBcql
-};
+export { parseBcql };

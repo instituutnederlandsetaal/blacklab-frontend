@@ -1,30 +1,27 @@
 import cloneDeep from 'clone-deep';
 
-import BaseUrlStateParser from './url-state-parser-base';
-
+// Article
+import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as HistoryModule from '@/features/history/model/query-history-state';
-
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
 import * as InterfaceModule from '@/features/search/model/form/interface-state';
 import * as PatternModule from '@/features/search/model/form/pattern-state';
-
 // Results
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 
-// Article
-import * as ArticleStore from '@/features/article/model/article-state';
+import BaseUrlStateParser from './url-state-parser-base';
 
 /**
  * Decode the current url into a state payload for the article page.
  * Search form/results state is kept at defaults, while article state is restored from url.
  */
-export default class UrlStateParserArticle extends BaseUrlStateParser<HistoryModule.HistoryEntry&{article: ArticleStore.HistoryState}> {
-	public async get(): Promise<HistoryModule.HistoryEntry&{article: ArticleStore.HistoryState}> {
+export default class UrlStateParserArticle extends BaseUrlStateParser<HistoryModule.HistoryEntry & { article: ArticleStore.HistoryState }> {
+	public async get(): Promise<HistoryModule.HistoryEntry & { article: ArticleStore.HistoryState }> {
 		const pattern = this.getString('patt') || this.getString('query') || null;
 		// TODO figure out and document what is the canonical value, is 'field' legacy, I think so, but we need to look at the git history and document this. It was introduced when we implemented parallel search/documents.
 		const sourceFromUrl = this.getString('searchField') || this.getString('field');

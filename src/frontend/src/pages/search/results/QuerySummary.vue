@@ -1,12 +1,13 @@
 <template>
 	<div class="querysummary" ref="root">
-		{{ $t('results.querySummary.heading') }}<span class="small text-muted content" :title="summary">{{summary.substr(0, 1000)}}</span>
+		{{ $t('results.querySummary.heading') }}<span class="small text-muted content" :title="summary">{{ summary.substr(0, 1000) }}</span>
 	</div>
 </template>
 
 <script lang="ts">
-import * as QueryStore from '@/features/search/model/query-state';
 import { defineComponent } from 'vue';
+
+import * as QueryStore from '@/features/search/model/query-state';
 
 export default defineComponent({
 	computed: {
@@ -14,7 +15,7 @@ export default defineComponent({
 		filters: QueryStore.get.filterSummary,
 		summary(): string {
 			if (!this.pattern && !this.filters) {
-				return this.$t('results.querySummary.allDocuments') as string ;
+				return this.$t('results.querySummary.allDocuments') as string;
 			}
 
 			let ret = '';
@@ -28,13 +29,12 @@ export default defineComponent({
 			}
 
 			return ret;
-		}
+		},
 	},
 });
 </script>
 
 <style lang="scss">
-
 .querysummary {
 	background: white;
 	font-size: 18px;

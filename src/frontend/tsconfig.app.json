@@ -2,7 +2,7 @@
 	"extends": "@vue/tsconfig/tsconfig.dom.json",
 	"compilerOptions": {
 		"allowJs": true,
-		// Output the most modern javascript instead of downcompiling, 
+		// Output the most modern javascript instead of downcompiling,
 		// we'll use a dedicated tool in vite if we need to.
 		"target": "esnext",
 		// Output the most modern import/export statements, instead of converting modules to CommonJs
@@ -18,19 +18,17 @@
 		*/
 		"jsx": "preserve",
 		"resolveJsonModule": true,
+		"allowArbitraryExtensions": true,
 
 		// Allow @decorator
 		"experimentalDecorators": true,
-		"lib": [
-			"dom",
-			"dom.iterable",
-			"ES2021"
-		],
+		"lib": ["dom", "dom.iterable", "ES2025"],
 
 		// Enable importing source files by their absolute path by prefixing with "@/"
 		// Note: this also requires Vite to be able to find the imports, see vite.config.ts
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": ["./src/*"],
+			"@assets/*": ["./assets/*"]
 		},
 		"types": [
 			// Only declare "global" typings here (or typings that augment other typings, such as jqueryui, which adds methods)
@@ -45,14 +43,14 @@
 
 			// See https://github.com/sindresorhus/del/issues/88
 			"@types/jquery",
-			"vite/client",
+			"vite/client"
 		],
-		"outDir": "dist",
+		"outDir": "dist"
 	},
-	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/*.vue", "vue-shim.d.ts",],
+	"include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts", "src/**/*.vue"],
 	// This tsconfig is meant for files that run in the browser. Therefor exclude files that run in nodejs.
 	// (this is basically anything that's used in Vite and linters/compilers).
 	// This is to prevent the typescript compiler from complaining about missing nodejs types.
 	// And likewise, to prevent nodejs global functions/types from being autocompleted/polluting files containing code meant to run in the browser.
-	"exclude": ["dist", "vite.config.ts", "eslint.config.js"],
+	"exclude": ["dist", "vite.config.ts", "eslint.config.js", "*.test.ts"]
 }

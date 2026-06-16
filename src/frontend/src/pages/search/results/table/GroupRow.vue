@@ -3,7 +3,7 @@
 		<td v-for="col in cols.groupColumns" :key="col.key" :colspan="col.colspan" :class="col.class" :style="col.style">
 			<div v-if="col.barField" class="progress group-size-indicator">
 				<div class="progress-bar progress-bar-primary" :style="barStyle(col)">
-					{{row[col.labelField]?.toLocaleString() ?? $t('results.groupBy.groupNameWithoutValue')}}
+					{{ row[col.labelField]?.toLocaleString() ?? $t('results.groupBy.groupNameWithoutValue') }}
 				</div>
 			</div>
 			<template v-else>{{ valueForCell(col) }}</template>
@@ -12,10 +12,9 @@
 </template>
 
 <script setup lang="ts">
-
 import frac2Percent from '@/mixins/fractionalToPercent';
 import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
-import type { ColumnDefGroup, GroupRowData, } from '@/pages/search/results/table/table-layout';
+import type { ColumnDefGroup, GroupRowData } from '@/pages/search/results/table/table-layout';
 import { useI18n } from '@/utils/i18n';
 
 defineOptions({ name: 'GroupRow' });
@@ -25,8 +24,8 @@ const translate = useI18n();
 
 function barStyle(col: ColumnDefGroup): Record<string, string> {
 	// if (!col.barField || this.row[col.barField] == null) return { width: '0', minWidth: '0', maxWidth: '0', padding: '0', color: 'black', textShadow: 'none', marginLeft: '6px', fontWeight: 'bold', overflow: 'visible', opacity: '0.8' }
-	if (!col.barField || props.row[col.barField] == null) return { width: '100%', opacity: '0.8' }
-	return { minWidth: frac2Percent(props.row[col.barField]! / props.maxima![col.barField])}
+	if (!col.barField || props.row[col.barField] == null) return { width: '100%', opacity: '0.8' };
+	return { minWidth: frac2Percent(props.row[col.barField]! / props.maxima![col.barField]) };
 }
 function valueForCell(col: ColumnDefGroup): string {
 	const v = props.row[col.labelField];
@@ -34,11 +33,9 @@ function valueForCell(col: ColumnDefGroup): string {
 	if (col.showAsPercentage && typeof v === 'number') return frac2Percent(v);
 	return v.toLocaleString();
 }
-
 </script>
 
 <style lang="scss">
-
 .grouprow > td {
 	border-bottom: 2px solid transparent;
 }
@@ -54,7 +51,7 @@ function valueForCell(col: ColumnDefGroup): string {
 	}
 
 	> .progress-bar {
-		background-image: linear-gradient(to right, rgba(0,0,0,0.15) 0px, rgba(0,0,0,0) 250px);
+		background-image: linear-gradient(to right, rgba(0, 0, 0, 0.15) 0px, rgba(0, 0, 0, 0) 250px);
 		// Do not shrink smaller than the text inside the bar.
 		// Greater widths are set using min-width.
 		padding: 0px 2px;
@@ -62,5 +59,4 @@ function valueForCell(col: ColumnDefGroup): string {
 		white-space: nowrap;
 	}
 }
-
 </style>

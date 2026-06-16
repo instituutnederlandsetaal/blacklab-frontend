@@ -1,19 +1,16 @@
-import type { FilterDefinition } from '@/types/apptypes';
-import type { Option } from '@/utils/options';
 import { isObject } from '@vueuse/core';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-export default function createBaseFilterComponent<T, M = never>(
-	valuePropType: true | PropType<T> | null | undefined,
-	valuePropDefault?: () => NonNullable<T>
-)  {
-	
+import type { FilterDefinition } from '@/types/apptypes';
+import type { Option } from '@/utils/options';
+
+export default function createBaseFilterComponent<T, M = never>(valuePropType: true | PropType<T> | null | undefined, valuePropDefault?: () => NonNullable<T>) {
 	const component = defineComponent({
 		props: {
 			definition: {
 				type: Object as PropType<FilterDefinition<M>>,
-				required: true
+				required: true,
 			},
 			modelValue: {
 				type: valuePropType,
@@ -21,35 +18,42 @@ export default function createBaseFilterComponent<T, M = never>(
 				required: true,
 			},
 			textDirection: {
-				type: String as PropType<'ltr'|'rtl'>,
-				required: true
+				type: String as PropType<'ltr' | 'rtl'>,
+				required: true,
 			},
 			htmlId: {
 				type: String,
-				required: true
+				required: true,
 			},
 			showLabel: {
 				type: Boolean,
-				default: true
-			}
+				default: true,
+			},
 		},
 		methods: {
-			e_input(value: T) { this.$emit('update:modelValue', value); },
+			e_input(value: T) {
+				this.$emit('update:modelValue', value);
+			},
 		},
 		computed: {
-			id(): string { return this.definition.id; },
-			inputId(): string { return `${this.htmlId}_value`; },
-			displayName(): string { return this.$tMetaDisplayName(this.definition); },
-			description(): string|undefined { return this.$tMetaDescription(this.definition); },
+			id(): string {
+				return this.definition.id;
+			},
+			inputId(): string {
+				return `${this.htmlId}_value`;
+			},
+			displayName(): string {
+				return this.$tMetaDisplayName(this.definition);
+			},
+			description(): string | undefined {
+				return this.$tMetaDescription(this.definition);
+			},
 			/** Return the options but with their localized labels */
-			options(): Option[]|undefined {
-				if (Array.isArray(this.definition.metadata))
-					return this.definition.metadata;
-				else if (isObject(this.definition.metadata) && 'options' in this.definition.metadata && Array.isArray(this.definition.metadata.options)) 
-					return this.definition.metadata.options;
-
-			}
+			options(): Option[] | undefined {
+				if (Array.isArray(this.definition.metadata)) return this.definition.metadata;
+				else if (isObject(this.definition.metadata) && 'options' in this.definition.metadata && Array.isArray(this.definition.metadata.options)) return this.definition.metadata.options;
+			},
 		},
 	});
 	return component;
-};
+}

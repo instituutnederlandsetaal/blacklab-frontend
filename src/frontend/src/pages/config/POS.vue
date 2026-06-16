@@ -1,26 +1,21 @@
 <template>
 	<div>
-		<Steps :steps="steps" :modelValue="step" @update:modelValue="goToStep($event)"/>
-		<h2 v-if="warning">{{warning}}</h2>
+		<Steps :steps="steps" :modelValue="step" @update:modelValue="goToStep($event)" />
+		<h2 v-if="warning">{{ warning }}</h2>
 		<div class="panel panel-default">
-			<component :is="steps[step].step" class="panel-body"
-				@submit="step = steps[step+1] ? step+1 : step"
-
-				v-model="stepstate"
-			/>
+			<component :is="steps[step].step" class="panel-body" @submit="step = steps[step + 1] ? step + 1 : step" v-model="stepstate" />
 		</div>
 		<button @click="reset">Reset everything and start over</button>
 	</div>
 </template>
 
 <script lang="ts">
-import type { NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
 import { defineComponent } from 'vue';
-
-import SelectPicker from '@/components/SelectPicker.vue';
-
-import type { Option } from '@/utils/options';
 import type { PropType } from 'vue';
+
+import type { NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
+import type { Option } from '@/utils/options';
+
 import * as Step1 from './POS_1.vue';
 import * as Step2 from './POS_2.vue';
 import * as Step2_5 from './POS_2_5.vue';
@@ -28,6 +23,7 @@ import * as Step3 from './POS_3.vue';
 import * as Step4 from './POS_4.vue';
 import * as Step5 from './POS_5.vue';
 import Steps from './Steps.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 
 export type ExclusionRule = {
 	annotationId: string;
@@ -48,48 +44,40 @@ export type StepState = {
 	step3: {
 		main?: {
 			[value: string]: {
-				loading: boolean,
+				loading: boolean;
 				subs: {
 					[sub: string]: {
 						[value: string]: {
 							loading: boolean;
 							occurances: number;
-						}
-					}
-				}
-			}
-		}
-	},
+						};
+					};
+				};
+			};
+		};
+	};
 
 	step4: {
 		[annotationId: string]: {
 			[value: string]: string;
-		}
-	}
+		};
+	};
 };
 
-const steps: Array<Option&{
-	step: any,
-	defaultAction: (state: any) => any,
-}> = [
-	Step1,
-	Step2,
-	Step2_5,
-	Step3,
-	Step4,
-	Step5
-]
-
-
-
+const steps: Array<
+	Option & {
+		step: any;
+		defaultAction: (state: any) => any;
+	}
+> = [Step1, Step2, Step2_5, Step3, Step4, Step5];
 
 const component = defineComponent({
 	components: {
 		SelectPicker,
-		Steps
+		Steps,
 	},
 	props: {
-		index: {type: Object as PropType<NormalizedIndex>, required: true },
+		index: { type: Object as PropType<NormalizedIndex>, required: true },
 	},
 	data: () => ({
 		steps,
@@ -102,13 +90,15 @@ const component = defineComponent({
 			exclusions: [],
 			index: undefined as any, // correct on created
 			step3: {},
-			step4: {}
+			step4: {},
 		} as StepState,
 
-		warning: ''
+		warning: '',
 	}),
 	computed: {
-		localStorageKey(): string { return `cf/config/${this.index.id}/stepstate`; }
+		localStorageKey(): string {
+			return `cf/config/${this.index.id}/stepstate`;
+		},
 	},
 	methods: {
 		reset() {
@@ -121,7 +111,7 @@ const component = defineComponent({
 				exclusions: [],
 				index: this.index,
 				step3: {},
-				step4: {}
+				step4: {},
 			};
 			localStorage.removeItem(this.localStorageKey);
 			this.warning = '';
@@ -135,20 +125,19 @@ const component = defineComponent({
 					++this.step;
 				}
 
-				if (this.step > targetstep)
-					this.step = targetstep;
+				if (this.step > targetstep) this.step = targetstep;
 			} catch (e) {
 				// nop, exception just indicates user action is required.
 			}
-		}
+		},
 	},
 	watch: {
 		stepstate() {
-			localStorage.setItem(this.localStorageKey, JSON.stringify(Object.assign({}, this.stepstate, {index: {}, annotations: []})));
-		}
+			localStorage.setItem(this.localStorageKey, JSON.stringify(Object.assign({}, this.stepstate, { index: {}, annotations: [] })));
+		},
 	},
 	created() {
-		const savedState: null|Partial<StepState> = JSON.parse(localStorage.getItem(this.localStorageKey) || 'null');
+		const savedState: null | Partial<StepState> = JSON.parse(localStorage.getItem(this.localStorageKey) || 'null');
 		let valid = !!savedState;
 		if (savedState) {
 			const allAnnotations = Object.values(this.index.annotatedFields).flatMap(e => Object.keys(e.annotations));
@@ -161,7 +150,6 @@ const component = defineComponent({
 			}
 		}
 
-
 		if (!valid) {
 			localStorage.removeItem(this.localStorageKey);
 		}
@@ -172,11 +160,10 @@ const component = defineComponent({
 			...(valid ? savedState : {}),
 			annotations,
 			index: this.index,
-		}
-	}
+		};
+	},
 });
 
 export default component;
 export const step = component;
-
 </script>

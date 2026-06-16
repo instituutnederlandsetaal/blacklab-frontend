@@ -1,22 +1,22 @@
 <template>
 	<div>
-		<h3>{{$t('search.expert.corpusQueryLanguage') + (isParallelCorpus ? '' : ':') }}
-			<a class='help' target='_blank' href='https://blacklab.ivdnt.org/guide/corpus-query-language.html'
-				:title="$t('widgets.learnMore').toString()">🛈</a>
+		<h3>
+			{{ $t('search.expert.corpusQueryLanguage') + (isParallelCorpus ? '' : ':') }}
+			<a class="help" target="_blank" href="https://blacklab.ivdnt.org/guide/corpus-query-language.html" :title="$t('widgets.learnMore').toString()">🛈</a>
 		</h3>
 		<template v-if="!isParallelCorpus">
 			<!-- Regular (non-parallel) corpus -->
 			<textarea class="form-control querybox" name="querybox" rows="7" v-model="mainQuery"></textarea>
 		</template>
-		<div v-else class="parallel ">
+		<div v-else class="parallel">
 			<!-- TODO see if we can reuse the ParallelSourceAndTarget component for this section. -->
 			<!-- Parallel corpus -->
 
 			<!-- Parallel source + its input box -->
 			<div class="form-group">
-				<label class="control-label" for="sourceVersion">{{$t('search.parallel.queryForSourceVersion')}}
-					<SelectPicker id="sourceVersion" :options="pSourceOptions"
-						v-model="pSourceValue" data-menu-width="grow" hideEmpty/>
+				<label class="control-label" for="sourceVersion"
+					>{{ $t('search.parallel.queryForSourceVersion') }}
+					<SelectPicker id="sourceVersion" :options="pSourceOptions" v-model="pSourceValue" data-menu-width="grow" hideEmpty />
 				</label>
 				<span v-if="errorNoParallelSourceVersion" class="error">
 					{{ $t('search.parallel.errorNoSourceVersion') }}
@@ -27,16 +27,13 @@
 			<!-- Parallel targets + their input boxes -->
 			<div v-for="(field, index) in pTargets" :key="field.value" class="form-group">
 				<label @click.prevent>
-					{{$t('search.parallel.queryForTargetVersion')}}
+					{{ $t('search.parallel.queryForTargetVersion') }}
 					<button type="button" class="targetVersion" @click="removeTarget(field.value)" :title="$t('widgets.clickToRemove').toString()">
 						{{ field.label }}
 					</button>
 				</label>
 
-				<textarea class="form-control querybox" rows="7"
-					:value="targetQueries[index]"
-					@input="changeTargetQuery(index, $event)"
-				></textarea>
+				<textarea class="form-control querybox" rows="7" :value="targetQueries[index]" @input="changeTargetQuery(index, $event)"></textarea>
 			</div>
 
 			<div v-if="pTargetOptions.length" class="form-group">
@@ -48,25 +45,24 @@
 						 from the available options.
 						Deselecting happens in a list elsewhere in the UI.
 					-->
-					<SelectPicker :options="pTargetOptions" @update:modelValue="addTarget($event)" hideEmpty/>
+					<SelectPicker :options="pTargetOptions" @update:modelValue="addTarget($event)" hideEmpty />
 				</div>
 			</div>
 
-			<AlignBy block/>
+			<AlignBy block />
 		</div>
 	</div>
 </template>
 
 <script lang="ts">
-
-import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
+import { defineComponent } from 'vue';
 
 import * as PatternStore from '@/features/search/model/form/pattern-state';
+import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 
 import MultiValuePicker from '@/components/MultiValuePicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import AlignBy from '@/pages/search/form/AlignBy.vue';
-import { defineComponent } from 'vue';
 
 export default defineComponent({
 	extends: ParallelFields,
@@ -81,27 +77,33 @@ export default defineComponent({
 	computed: {
 		// The query (or source query, for parallel corpora)
 		mainQuery: {
-			get(): string { return PatternStore.getState().expert.query || ''; },
-			set: (v: string|undefined) => { PatternStore.actions.expert.query(v ?? null) },
+			get(): string {
+				return PatternStore.getState().expert.query || '';
+			},
+			set: (v: string | undefined) => {
+				PatternStore.actions.expert.query(v ?? null);
+			},
 		},
 
 		// If this is a parallel corpus: the target queries
 		targetQueries: {
-			get() { return PatternStore.getState().expert.targetQueries; },
+			get() {
+				return PatternStore.getState().expert.targetQueries;
+			},
 			set: PatternStore.actions.expert.targetQueries,
 		},
 	},
 	methods: {
 		changeTargetQuery(index: number, event: Event): void {
 			const textarea = event.target as HTMLTextAreaElement;
-			PatternStore.actions.expert.changeTargetQuery({index, value: textarea.value});
+			PatternStore.actions.expert.changeTargetQuery({ index, value: textarea.value });
 		},
-	}
+	},
 });
 </script>
 
 <style lang="scss" scoped>
-@use "sass:color";
+@use 'sass:color';
 
 h3 .help {
 	font-size: 0.8em;
@@ -125,12 +127,14 @@ h3 .help {
 	label {
 		margin-top: 10px;
 	}
-	textarea, .querybox {
+	textarea,
+	.querybox {
 		width: 100%;
 		resize: none;
 		margin: 0;
 	}
-	#sourceVersion, .targetVersion {
+	#sourceVersion,
+	.targetVersion {
 		font-weight: normal;
 	}
 	button.targetVersion {
@@ -154,5 +158,4 @@ h3 .help {
 		}
 	}
 }
-
 </style>

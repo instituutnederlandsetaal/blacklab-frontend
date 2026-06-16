@@ -1,3 +1,5 @@
+import cloneDeep from 'clone-deep';
+
 import { CqlGenerator } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import type { ModuleRootState as ModuleRootStateExplore } from '@/features/search/model/form/explore-state';
@@ -5,15 +7,11 @@ import type { ModuleRootState as ModuleRootStateFilters } from '@/features/searc
 import type { ModuleRootState as ModuleRootStatePatterns } from '@/features/search/model/form/pattern-state';
 import type * as AppTypes from '@/types/apptypes';
 import type { RegexEscapeOptions } from '@/utils';
-import {
-    applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel,
-    splitIntoTerms, uiTypeSupport
-} from '@/utils';
-import cloneDeep from 'clone-deep';
+import { applyWithinClauses, elementAndAttributeNameFromFilterId, escapeRegex, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel, splitIntoTerms, uiTypeSupport } from '@/utils';
 
 /** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */
 export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): string[] => {
-	const {id, case: caseSensitive, value, type} = annotation;
+	const { id, case: caseSensitive, value, type } = annotation;
 
 	if (!value.trim()) {
 		return [''];
@@ -38,7 +36,8 @@ export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue)
 
 			return resultParts.map(word => `${id}="${word}"`);
 		}
-		default: throw new Error('Unimplemented cql serialization for annotation type ' + type);
+		default:
+			throw new Error('Unimplemented cql serialization for annotation type ' + type);
 	}
 };
 
@@ -50,14 +49,15 @@ export const getPatternString = (
 	 * Note that the generated query will only contain the version suffix, not the full field id.
 	 */
 	parallelTargetFields: string[] = [],
-	alignBy?: string
+	alignBy?: string,
 ) => {
-
 	const tokens = [] as string[][];
 
-	annotations.forEach(annot => getAnnotationPatternString(annot).forEach((value, index) => {
-		(tokens[index] = tokens[index] || []).push(value);
-	}));
+	annotations.forEach(annot =>
+		getAnnotationPatternString(annot).forEach((value, index) => {
+			(tokens[index] = tokens[index] || []).push(value);
+		}),
+	);
 
 	let query = tokens.map(t => `[${t.join('&')}]`).join('');
 
@@ -65,63 +65,62 @@ export const getPatternString = (
 
 	if (parallelTargetFields.length > 0) {
 		const relationType = alignBy ?? '';
-		query = `${parenQueryPartParallel(query)}` +
-			parallelTargetFields.map(v => {
-				const targetVersion = getParallelFieldParts(v).version;
-				const targetQuery = parenQueryPartParallel(applyWithinClauses('_', withinClauses));
-				return ` =${relationType}=>${targetVersion}? ${targetQuery}`;
-			}).join(' ; ');
+		query =
+			`${parenQueryPartParallel(query)}` +
+			parallelTargetFields
+				.map(v => {
+					const targetVersion = getParallelFieldParts(v).version;
+					const targetQuery = parenQueryPartParallel(applyWithinClauses('_', withinClauses));
+					return ` =${relationType}=>${targetVersion}? ${targetQuery}`;
+				})
+				.join(' ; ');
 	}
 
 	return query || undefined;
 };
 
-export function getPatternStringExplore(
-	subForm: keyof ModuleRootStateExplore,
-	state: ModuleRootStateExplore,
-	annots: Record<string, AppTypes.NormalizedAnnotation>
-): string|undefined {
+export function getPatternStringExplore(subForm: keyof ModuleRootStateExplore, state: ModuleRootStateExplore, annots: Record<string, AppTypes.NormalizedAnnotation>): string | undefined {
 	switch (subForm) {
-		case 'corpora': return undefined;
-		case 'frequency': return '[]';
-		case 'ngram': return state.ngram.tokens
-				.slice(0, state.ngram.size)
-				// type select because we only ever want to output one cql token per n-gram input
-				.map(token => {
-					const tokenType = annots[token.id].uiType;
-					const correctedType = getCorrectUiType(uiTypeSupport.explore.ngram, tokenType);
+		case 'corpora':
+			return undefined;
+		case 'frequency':
+			return '[]';
+		case 'ngram':
+			return (
+				state.ngram.tokens
+					.slice(0, state.ngram.size)
+					// type select because we only ever want to output one cql token per n-gram input
+					.map(token => {
+						const tokenType = annots[token.id].uiType;
+						const correctedType = getCorrectUiType(uiTypeSupport.explore.ngram, tokenType);
 
-					const escapeSettings: RegexEscapeOptions = {
-						escapePipes: correctedType === 'select',
-						escapeWildcards: correctedType === 'select',
-					}
-					return token.value ? `[${token.id}="${escapeRegex(token.value, escapeSettings)}"]` : '[]';
-				})
-				.join('');
-		default: throw new Error('Unknown submitted form - cannot generate cql query');
+						const escapeSettings: RegexEscapeOptions = {
+							escapePipes: correctedType === 'select',
+							escapeWildcards: correctedType === 'select',
+						};
+						return token.value ? `[${token.id}="${escapeRegex(token.value, escapeSettings)}"]` : '[]';
+					})
+					.join('')
+			);
+		default:
+			throw new Error('Unknown submitted form - cannot generate cql query');
 	}
 }
 
-export function getPatternSummaryExplore<K extends keyof ModuleRootStateExplore>(
-	subForm: K,
-	state: ModuleRootStateExplore,
-	annots: Record<string, AppTypes.NormalizedAnnotation>
-): string|undefined {
+export function getPatternSummaryExplore<K extends keyof ModuleRootStateExplore>(subForm: K, state: ModuleRootStateExplore, annots: Record<string, AppTypes.NormalizedAnnotation>): string | undefined {
 	switch (subForm) {
-		case 'corpora': return undefined;
-		case 'frequency': return `${annots[state.frequency.annotationId].defaultDisplayName} frequency`;
-		case 'ngram': return `${annots[state.ngram.groupAnnotationId].defaultDisplayName} ${state.ngram.size}-grams`
-		default: return undefined;
+		case 'corpora':
+			return undefined;
+		case 'frequency':
+			return `${annots[state.frequency.annotationId].defaultDisplayName} frequency`;
+		case 'ngram':
+			return `${annots[state.ngram.groupAnnotationId].defaultDisplayName} ${state.ngram.size}-grams`;
+		default:
+			return undefined;
 	}
 }
 
-export const getPatternStringFromCql = (
-	sourceCql: string,
-	withinClauses: Record<string, Record<string, any>>,
-	targetVersions: string[],
-	targetCql: string[],
-	alignBy?: string|null
-) => {
+export const getPatternStringFromCql = (sourceCql: string, withinClauses: Record<string, Record<string, any>>, targetVersions: string[], targetCql: string[], alignBy?: string | null) => {
 	if (targetVersions.length > targetCql.length) {
 		console.error('There must be a CQL query for each selected parallel version!', targetVersions, targetCql);
 		throw new Error(`There must be a CQL query for each selected parallel version!`);
@@ -131,16 +130,15 @@ export const getPatternStringFromCql = (
 		return applyWithinClauses(sourceCql, withinClauses);
 	}
 
-	const defaultSourceQuery = targetVersions.length > 0 ? '_': '';
+	const defaultSourceQuery = targetVersions.length > 0 ? '_' : '';
 	const sourceQuery = applyWithinClauses(sourceCql.trim() || defaultSourceQuery, withinClauses);
 	const queryParts = [parenQueryPartParallel(sourceQuery)];
 	const relationType = alignBy ?? '';
 	for (let i = 0; i < targetVersions.length; i++) {
-		if (i > 0)
-			queryParts.push(' ; ');
+		if (i > 0) queryParts.push(' ; ');
 		const targetVersion = getParallelFieldParts(targetVersions[i]).version;
 		const targetQuery = parenQueryPartParallel(applyWithinClauses(targetCql[i].trim() || '_', withinClauses));
-		queryParts.push(` =${relationType}=>${targetVersion}? ${targetQuery}`)
+		queryParts.push(` =${relationType}=>${targetVersion}? ${targetQuery}`);
 	}
 
 	const query = queryParts.join('');
@@ -148,12 +146,7 @@ export const getPatternStringFromCql = (
 	return query;
 };
 
-export function getPatternStringSearch(
-	subForm: keyof ModuleRootStatePatterns,
-	state: ModuleRootStatePatterns,
-	defaultAlignBy: string,
-	filtersState: ModuleRootStateFilters,
-): string|undefined {
+export function getPatternStringSearch(subForm: keyof ModuleRootStatePatterns, state: ModuleRootStatePatterns, defaultAlignBy: string, filtersState: ModuleRootStateFilters): string | undefined {
 	// For the normal search form,
 	// the simple and extended views require the values to be processed before converting them to cql.
 	// The advanced and expert views already contain a good-to-go cql query. We only need to take care not to emit an
@@ -167,44 +160,28 @@ export function getPatternStringSearch(
 	switch (subForm) {
 		case 'simple':
 			const q = state.simple.annotationValue.value ? [state.simple.annotationValue] : [];
-			return q.length ?
-				getPatternString(q, {}, targets, alignBy) :
-				undefined;
+			return q.length ? getPatternString(q, {}, targets, alignBy) : undefined;
 		case 'extended': {
 			const r = cloneDeep(Object.values(state.extended.annotationValues))
 				.filter(annot => !!annot.value)
 				.map(annot => ({
 					...annot,
-					type: getCorrectUiType(uiTypeSupport.search.extended, annot.type!)
+					type: getCorrectUiType(uiTypeSupport.search.extended, annot.type!),
 				}));
-			return r.length || Object.keys(withinClauses).length > 0 ?
-				getPatternString(r, withinClauses, targets, alignBy) :
-				undefined;
+			return r.length || Object.keys(withinClauses).length > 0 ? getPatternString(r, withinClauses, targets, alignBy) : undefined;
 		}
 		case 'advanced':
 			const sourceQuery = state.advanced?.query && CqlGenerator.rootCql(state.advanced.query);
-			if (!sourceQuery)
-				return undefined;
-			return getPatternStringFromCql(
-				sourceQuery,
-				withinClauses,
-				targets,
-				state.advanced?.targetQueries.map(tq => CqlGenerator.rootCql(tq)).filter(q => q != null) ?? [],
-				alignBy
-			);
+			if (!sourceQuery) return undefined;
+			return getPatternStringFromCql(sourceQuery, withinClauses, targets, state.advanced?.targetQueries.map(tq => CqlGenerator.rootCql(tq)).filter(q => q != null) ?? [], alignBy);
 		case 'expert':
-			return getPatternStringFromCql(state.expert.query || '', withinClausesNoWithinWidget, targets,
-				state.expert.targetQueries, alignBy);
-		default: throw new Error('Unimplemented pattern generation.');
+			return getPatternStringFromCql(state.expert.query || '', withinClausesNoWithinWidget, targets, state.expert.targetQueries, alignBy);
+		default:
+			throw new Error('Unimplemented pattern generation.');
 	}
 }
 
-export function getPatternSummarySearch<K extends keyof ModuleRootStatePatterns>(
-	subForm: K,
-	state: ModuleRootStatePatterns,
-	defaultAlignBy: string,
-	filterState: ModuleRootStateFilters
-) {
+export function getPatternSummarySearch<K extends keyof ModuleRootStatePatterns>(subForm: K, state: ModuleRootStatePatterns, defaultAlignBy: string, filterState: ModuleRootStateFilters) {
 	return getPatternStringSearch(subForm, state, defaultAlignBy, filterState);
 }
 
@@ -214,13 +191,14 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
 	Object.entries(filtersState).forEach(([id, filterState]) => {
 		const vf = getValueFunctions(filterState);
 		if (vf.isSpanFilter) {
-			const [ elName, attrName ] = elementAndAttributeNameFromFilterId(id);
+			const [elName, attrName] = elementAndAttributeNameFromFilterId(id);
 			withinClauses[elName] = withinClauses[elName] || {};
-			const value = typeof filterState.value === 'string' ?
-				escapeRegex(filterState.value, { escapeWildcards: false }) :
-				(Array.isArray(filterState.value) ?
-					(filterState.value as string[]).map(v => escapeRegex(v, { escapeWildcards: false })).join('|') :
-					filterState.value);
+			const value =
+				typeof filterState.value === 'string'
+					? escapeRegex(filterState.value, { escapeWildcards: false })
+					: Array.isArray(filterState.value)
+						? (filterState.value as string[]).map(v => escapeRegex(v, { escapeWildcards: false })).join('|')
+						: filterState.value;
 			withinClauses[elName][attrName] = value;
 		}
 	});
@@ -231,11 +209,10 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
 	const withinEl = patternState.shared.within;
 	if (withinEl) {
 		// Add within clause plus any attribute from the within widget as well.
-		const withinAttr = Object.fromEntries(Object.entries(patternState.shared.withinAttributes)
-			.map(([k, v]) => [k, escapeRegex(v, { escapeWildcards: false })])); // wildcards->regex
+		const withinAttr = Object.fromEntries(Object.entries(patternState.shared.withinAttributes).map(([k, v]) => [k, escapeRegex(v, { escapeWildcards: false })])); // wildcards->regex
 		withinClauses[withinEl] = {
 			...withinClauses[withinEl],
-			...withinAttr
+			...withinAttr,
 		};
 	}
 	return [withinClauses, withinClausesNoWithinWidget];

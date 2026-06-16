@@ -2,8 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import { resetPageBootstrapForRoute, type CustomScriptTiming } from '@/navigation/page-bootstrap';
 
-
-/** 
+/**
  * We need some metadata about the current route in order for customJs and customCss to work correctly.
  * Store it in a standardized object so we can be sure it's available as expected.
  */
@@ -11,7 +10,7 @@ export type CustomRouteMeta = {
 	name: string;
 	getTitle?: (corpusDisplayName: string) => string;
 	customScriptTiming?: CustomScriptTiming;
-}
+};
 
 const router = createRouter({
 	history: createWebHistory(CONTEXT_URL),
@@ -20,23 +19,23 @@ const router = createRouter({
 			name: 'corpora',
 			path: '/',
 			meta: { name: 'corpora', getTitle: () => 'Corpora' } satisfies CustomRouteMeta,
-			component: () => import('@/pages/corpora/CorporaPage.vue')
+			component: () => import('@/pages/corpora/CorporaPage.vue'),
 		},
 		{
 			name: 'global-help',
 			path: '/help',
 			alias: '/help/:pathMatch(.*)*',
 			meta: { name: 'help', getTitle: (displayName: string) => displayName + ' Help', customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
-			component: () => import('@/pages/help/HelpPage.vue')
+			component: () => import('@/pages/help/HelpPage.vue'),
 		},
 		{
 			name: 'global-about',
 			path: '/about',
 			alias: '/about/:pathMatch(.*)*',
 			meta: { name: 'about', getTitle: () => 'About', customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
-			component: () => import('@/pages/about/AboutPage.vue')
+			component: () => import('@/pages/about/AboutPage.vue'),
 		},
-		
+
 		{
 			path: '/:corpus/',
 			redirect: '/:corpus/search',
@@ -52,14 +51,14 @@ const router = createRouter({
 			name: 'article',
 			path: '/:corpus/docs/:docId',
 			meta: { name: 'article', getTitle: (displayName: string) => `${displayName} Article`, customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
-			component: () => import('@/pages/article/ArticlePage.vue')
+			component: () => import('@/pages/article/ArticlePage.vue'),
 		},
 		{
 			name: 'about',
 			path: '/:corpus/about',
 			alias: '/:corpus/about/:pathMatch(.*)*',
 			meta: { name: 'about', getTitle: (displayName: string) => `About ${displayName}`, customScriptTiming: 'after-page-bootstrap' } satisfies CustomRouteMeta,
-			component: () => import('@/pages/about/AboutPage.vue')
+			component: () => import('@/pages/about/AboutPage.vue'),
 		},
 		{
 			name: 'help',
@@ -79,8 +78,8 @@ const router = createRouter({
 					path: '/:pathMatch(.*)*',
 					name: 'global-configwizard',
 					component: () => import('@/pages/config/CorpusPicker.vue'),
-				}
-			]
+				},
+			],
 		},
 		{
 			name: 'configwizard',
@@ -90,18 +89,20 @@ const router = createRouter({
 			props: route => ({
 				id: route.params.id,
 				activeTab: route.params.tab,
-				tabs: ['tagset builder', 'interface']
+				tabs: ['tagset builder', 'interface'],
 			}),
-			children: [{
-				path: '/:corpus/configwizard/pos',
-				name: 'tagset builder',
-				component: () => import('@/pages/config/POS.vue')
-			},
-			{
-				path: '/:corpus/configwizard/interface',
-				name: 'interface',
-				component: () => import('@/pages/config/Interface.vue')
-			}]
+			children: [
+				{
+					path: '/:corpus/configwizard/pos',
+					name: 'tagset builder',
+					component: () => import('@/pages/config/POS.vue'),
+				},
+				{
+					path: '/:corpus/configwizard/interface',
+					name: 'interface',
+					component: () => import('@/pages/config/Interface.vue'),
+				},
+			],
 		},
 	],
 });
@@ -116,4 +117,3 @@ router.beforeResolve((to, _from, next) => {
 export const initialUrlStateApplied = Promise.resolve();
 
 export default router;
-

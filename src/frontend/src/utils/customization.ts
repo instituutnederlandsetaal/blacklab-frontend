@@ -1,15 +1,16 @@
+import { isObject } from '@vueuse/core';
+
 import type { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { spanFilterId } from '@/utils';
 import type { Translate } from '@/utils/i18n';
-import { isObject } from '@vueuse/core';
+
 import type { OptGroup, Option } from './options';
 
 const unwrappedImplementation = Symbol('unwrappedImplementation');
 const isProxiedSym = Symbol('proxyMark');
 const dontProxyMe = Symbol('dontProxyMe');
-
 
 function mark(obj: any, marker: symbol) {
 	if (typeof obj === 'object' && obj !== null && !Object.isFrozen(obj) && !(isProxiedSym in obj) && !(dontProxyMe in obj)) {
@@ -17,7 +18,7 @@ function mark(obj: any, marker: symbol) {
 			value: true,
 			enumerable: false,
 			configurable: false,
-			writable: false
+			writable: false,
 		});
 	}
 	return obj;
@@ -27,7 +28,9 @@ function mark(obj: any, marker: symbol) {
 function canAndShouldProxy(obj: any): obj is object {
 	return typeof obj === 'object' && obj !== null && !Object.isFrozen(obj) && !(isProxiedSym in obj) && !(dontProxyMe in obj);
 }
-function dontProxy<T>(obj: T): T { return mark(obj, dontProxyMe); }
+function dontProxy<T>(obj: T): T {
+	return mark(obj, dontProxyMe);
+}
 /**
  * Looks scary, is pretty mundane really
  * Recursively wrap everything in the object in a getter/setter pair.
@@ -68,13 +71,14 @@ function wrapWithErrorHandling<T extends object>(obj: T) {
 			// Someone is replacing one of the function!
 			// wrap their implementation, and use the original implementation if the new implementation ever errors.
 			const defaultImplementation = currentValue[unwrappedImplementation] || currentValue;
-			currentValue = function(this: any, ...args: any[]) {
-				try { return newValue.apply(this, args); }
-				catch (e) {
+			currentValue = function (this: any, ...args: any[]) {
+				try {
+					return newValue.apply(this, args);
+				} catch (e) {
 					console.error(`Error in customization function ${String(prop)}:`, e);
 					return defaultImplementation.apply(this, args);
 				}
-			}
+			};
 			// Store the default implementation so we don't stack multiple wrappers if the function is every replaced another time
 			currentValue[unwrappedImplementation] = defaultImplementation;
 			// Finally store and return the wrapped function
@@ -93,14 +97,14 @@ export const corpusCustomizations = wrapWithErrorHandling({
 	customizeFunctions: dontProxy([] as ((corpus: any) => void)[]),
 
 	/** index information */
-	_corpus: dontProxy({}) as AppTypes.NormalizedIndex|null,
+	_corpus: dontProxy({}) as AppTypes.NormalizedIndex | null,
 
 	search: {
 		pattern: {
 			/** Customize the uiType for an annotation.
 			 *  Return null to use the default (value specified by BLS).
 			 */
-			uiType(fieldName: string, annotationName: string): AppTypes.NormalizedAnnotation['uiType']|null {
+			uiType(fieldName: string, annotationName: string): AppTypes.NormalizedAnnotation['uiType'] | null {
 				return null;
 			},
 
@@ -109,7 +113,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 				[Default: only if there's span filters defined] */
 			shouldAddWithSpans(q: string) {
 				return null;
-			}
+			},
 		},
 
 		within: {
@@ -126,7 +130,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 
 		metadata: {
 			/** Show this metadata search field? */
-			showField(filterId: string): boolean|null {
+			showField(filterId: string): boolean | null {
 				return null;
 			},
 
@@ -140,14 +144,22 @@ export const corpusCustomizations = wrapWithErrorHandling({
 
 			// TODO refactor this to be more type-safe and more user-friendly for custom scripts.
 			/** Create a span filter for corpus.search.metadata.customTabs */
-			createSpanFilter(spanName: string, attrName: string, widget: string = 'auto', displayName: string, metadata: unknown = {}): AppTypes.FilterDefinition<{name: string, attribute: string, options?: Option[]}> {
+			createSpanFilter(
+				spanName: string,
+				attrName: string,
+				widget: string = 'auto',
+				displayName: string,
+				metadata: unknown = {},
+			): AppTypes.FilterDefinition<{ name: string; attribute: string; options?: Option[] }> {
 				// Try and parse out options from provided info for the filter
-				let valuesForAttribute: Option[]|undefined = 
+				let valuesForAttribute: Option[] | undefined =
 					// If user passed in just an array, assume these are the options.
-					Array.isArray(metadata) ? metadata as Option[] :
-					// Otherwise, look for an options property in the metadata.
-					isObject(metadata) && 'options' in metadata && Array.isArray(metadata.options) ? metadata.options as Option[] : 
-					undefined;
+					Array.isArray(metadata)
+						? (metadata as Option[])
+						: // Otherwise, look for an options property in the metadata.
+							isObject(metadata) && 'options' in metadata && Array.isArray(metadata.options)
+							? (metadata.options as Option[])
+							: undefined;
 				// No options provided - retrieve from corpus.
 				if (!valuesForAttribute) {
 					// Find available values for this attribute from the corpus info
@@ -158,14 +170,14 @@ export const corpusCustomizations = wrapWithErrorHandling({
 					if (attr && attr.valueListComplete) valuesForAttribute = Object.keys(attr.values).map(value => ({ value }));
 				}
 				// ensure all entries in the array is valid options objects
-				valuesForAttribute = valuesForAttribute?.map(option => typeof option === 'string' ? { value: option } : option);
+				valuesForAttribute = valuesForAttribute?.map(option => (typeof option === 'string' ? { value: option } : option));
 				// Infer widget type if not provided, pretty basic, but it works for now: if there are options, we can show them in a select, otherwise we need a text input.
 				if (widget === 'auto') {
 					widget = valuesForAttribute ? 'select' : 'text';
 				}
 
 				// FilterValueFunctions entry
-				const behaviourName = (widget === 'select' || widget === 'range') ? `span-${widget}` : 'span-text';
+				const behaviourName = widget === 'select' || widget === 'range' ? `span-${widget}` : 'span-text';
 
 				// use an intermediate object to avoid setting the 'options' key if we have no options
 				// we want to avoid returning {options: Option[]|undefined}
@@ -179,7 +191,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 					metadata: {
 						name: spanName,
 						attribute: attrName,
-						...optionsMetadata
+						...optionsMetadata,
 					},
 					// (groupId will be set automatically when creating the custom tabs)
 				};
@@ -199,13 +211,12 @@ export const corpusCustomizations = wrapWithErrorHandling({
 		 * @returns 'none' (no highlighting), 'static' (always highlight), 'hover'
 		 *   (highlight on mouseover) or null for default behaviour.
 		 */
-		matchInfoHighlightStyle: (matchInfo: HighlightSection): 'none'|'static'|'hover'|null => {
+		matchInfoHighlightStyle: (matchInfo: HighlightSection): 'none' | 'static' | 'hover' | null => {
 			return null; // use default behaviour
 		},
 
 		/** CSV export customizations */
 		export: {
-
 			/**
 			 * Description of the search query to add to the CSV export. Default: none.
 			 */
@@ -216,10 +227,9 @@ export const corpusCustomizations = wrapWithErrorHandling({
 			/** Should this span attribute be included in the export?
 			 *  (default: no)
 			 */
-			includeSpanAttribute(spanName: string, attrName: string): boolean|null {
+			includeSpanAttribute(spanName: string, attrName: string): boolean | null {
 				return null; // use default behaviour
 			},
-
 		},
 
 		// #region docscustomhitinfocolumn
@@ -227,7 +237,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 		 *
 		 * If true, uses the customHitInfo function to determine what to show.
 		 */
-		hasCustomHitInfoColumn: (results: BLTypes.BLHitResults|BLTypes.BLHitGroupResults, isParallelCorpus: boolean): boolean => {
+		hasCustomHitInfoColumn: (results: BLTypes.BLHitResults | BLTypes.BLHitGroupResults, isParallelCorpus: boolean): boolean => {
 			return isParallelCorpus;
 		},
 
@@ -243,33 +253,30 @@ export const corpusCustomizations = wrapWithErrorHandling({
 		 *  In the case of non-parallel corpora, this will always be the main annotated field.
 		 * @param docInfo document metadata
 		 */
-		customHitInfo: (
-				hit: BLTypes.BLHit|BLTypes.BLHitSnippet|BLTypes.BLHitInOtherField,
-				annotatedFieldDisplayName: string|null,
-				docInfo: BLTypes.BLDoc): string|null => {
+		customHitInfo: (hit: BLTypes.BLHit | BLTypes.BLHitSnippet | BLTypes.BLHitInOtherField, annotatedFieldDisplayName: string | null, docInfo: BLTypes.BLDoc): string | null => {
 			return annotatedFieldDisplayName;
-		}
+		},
 		// #endregion docscustomhitinfocolumn
 	},
 
 	sort: {
 		/** Perform customizations on these sort options */
-		customize(optGroup: OptGroup): OptGroup|null {
+		customize(optGroup: OptGroup): OptGroup | null {
 			return null; // use default behaviour [no change]
-		}
+		},
 	},
 
 	group: {
 		/** Should this span attribute be included in group by?
 		 *  (return null to fall back to default: "only if there's a span filter defined for it")
 		 */
-		includeSpanAttribute(spanName: string, attrName: string): boolean|null {
+		includeSpanAttribute(spanName: string, attrName: string): boolean | null {
 			return null; // use default behaviour
 		},
 
 		/** Perform customizations on these group options */
-		customize(optGroup: OptGroup, i18n: Translate): OptGroup|null {
+		customize(optGroup: OptGroup, i18n: Translate): OptGroup | null {
 			return null; // use default behaviour [no change]
-		}
-	}
+		},
+	},
 });

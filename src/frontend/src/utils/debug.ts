@@ -1,8 +1,7 @@
 import { useLocalStorage } from '@vueuse/core';
 import { ref } from 'vue';
 
-
-export type LogCategory = 'history'|'parallel'|'init'|'shared'|'results';
+export type LogCategory = 'history' | 'parallel' | 'init' | 'shared' | 'results';
 
 const isDebugMode = import.meta.env.DEV;
 const debug = useLocalStorage<boolean>('cf/debug', isDebugMode, { writeDefaults: false });
@@ -21,7 +20,7 @@ export function debugLog(...args: any[]) {
 }
 
 /** Enable/disable categories of debug messages here, or add '*' to show everything */
-const SHOW_DEBUG_CATEGORIES: null|Set<LogCategory> = null; // e.g. ['parallel', 'history'];
+const SHOW_DEBUG_CATEGORIES: null | Set<LogCategory> = null; // e.g. ['parallel', 'history'];
 
 export function showDebugCat(category: LogCategory) {
 	return !SHOW_DEBUG_CATEGORIES || SHOW_DEBUG_CATEGORIES.has(category);
@@ -64,4 +63,4 @@ if (typeof window !== 'undefined')
 		disable,
 		show,
 		hide,
-	}
+	};

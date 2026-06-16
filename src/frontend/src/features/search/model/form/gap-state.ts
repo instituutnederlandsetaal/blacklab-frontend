@@ -3,11 +3,12 @@
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import { reactive } from 'vue';
 
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+
 type ModuleRootState = {
-	value: string|null;
+	value: string | null;
 };
 
 const initialState: ModuleRootState = {
@@ -18,21 +19,22 @@ const state = reactive(structuredClone(initialState));
 const getState = () => state;
 
 const get = {
-	gapValue: () => state.value
+	gapValue: () => state.value,
 };
 
 const actions = {
-	gapValue: (payload: ModuleRootState['value']) => state.value = payload,
-	gapValueFile: (payload: File) => new Promise<void>((resolve, reject) => {
-		const fr = new FileReader();
-		fr.onload = () => {
-			actions.gapValue(fr.result as string);
-			resolve();
-		};
-		fr.readAsText(payload);
-	}),
+	gapValue: (payload: ModuleRootState['value']) => (state.value = payload),
+	gapValueFile: (payload: File) =>
+		new Promise<void>((resolve, reject) => {
+			const fr = new FileReader();
+			fr.onload = () => {
+				actions.gapValue(fr.result as string);
+				resolve();
+			};
+			fr.readAsText(payload);
+		}),
 
-	reset: () => state.value = null,
+	reset: () => (state.value = null),
 	replace: (payload: ModuleRootState) => Object.assign(state, payload),
 };
 
@@ -43,4 +45,3 @@ const init = (_state: CorpusChange) => {
 
 export { actions, initialState as defaults, get, getState, init };
 export type { ModuleRootState };
-

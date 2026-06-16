@@ -1,13 +1,15 @@
-import AudioPlayer from '@/components/AudioPlayer.vue';
-import DebugComponent from '@/components/Debug.vue';
+import 'floating-vue/dist/style.css';
+
+import FloatingVue from 'floating-vue';
+import HighchartsVue from 'highcharts-vue';
+import type { App } from 'vue';
+
 import Filters from '@/components/filters';
 import router from '@/navigation/router';
 import * as i18n from '@/utils/i18n';
 
-import FloatingVue from 'floating-vue';
-import 'floating-vue/dist/style.css';
-import HighchartsVue from 'highcharts-vue';
-import type { App } from 'vue';
+import AudioPlayer from '@/components/AudioPlayer.vue';
+import DebugComponent from '@/components/Debug.vue';
 
 export function installApp(app: App) {
 	app.use(Filters);

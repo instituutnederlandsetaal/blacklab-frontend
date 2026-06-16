@@ -26,13 +26,13 @@ export type NormalizedAnnotation = {
 	/** List of annotationIds in the same annotatedField, only present when the field has actual subAnnotations */
 	subAnnotations?: string[];
 	/** Based on the uiType of the original annotion, but select falls back to combobox if not all values are known */
-	uiType: 'select'|'combobox'|'text'|'pos'|'lexicon';
+	uiType: 'select' | 'combobox' | 'text' | 'pos' | 'lexicon';
 	/** Contains all known values for this field. Undefined if no values known or list was incomplete. */
-	values?: Array<{value: string, label: string, title: string|null}>;
+	values?: Array<{ value: string; label: string; title: string | null }>;
 };
 
 /** A set of annotations that form one data set on a token, usually there is only one of these in an index, called 'content' */
-type NormalizedAnnotatedFieldBase  = {
+type NormalizedAnnotatedFieldBase = {
 	annotations: { [annotationId: string]: NormalizedAnnotation };
 	defaultDescription: string;
 	defaultDisplayName: string;
@@ -55,17 +55,17 @@ type NormalizedAnnotatedFieldBase  = {
 	documentCount?: number;
 };
 
-export type NormalizedAnnotatedFieldParallel = NormalizedAnnotatedFieldBase&{
+export type NormalizedAnnotatedFieldParallel = NormalizedAnnotatedFieldBase & {
 	isParallel: true;
 	/** The prefix of the parallel field. e.g. "contents" */
 	prefix: string;
 	/** The version of the parallel field. e.g. "nl" or "en" */
 	version: string;
-}
-export type NormalizedAnnotatedFieldNotParallel = NormalizedAnnotatedFieldBase&{
+};
+export type NormalizedAnnotatedFieldNotParallel = NormalizedAnnotatedFieldBase & {
 	isParallel: false;
-}
-export type NormalizedAnnotatedField = NormalizedAnnotatedFieldParallel|NormalizedAnnotatedFieldNotParallel;
+};
+export type NormalizedAnnotatedField = NormalizedAnnotatedFieldParallel | NormalizedAnnotatedFieldNotParallel;
 
 export type NormalizedMetadataField = {
 	defaultDescription: string;
@@ -76,9 +76,9 @@ export type NormalizedMetadataField = {
 	 * but 'select' is replaced by 'combobox' if not all values are known.
 	 * Unknown types are replaced by 'text'
 	 */
-	uiType: 'select'|'combobox'|'text'|'range'|'checkbox'|'radio'|'date';
+	uiType: 'select' | 'combobox' | 'text' | 'range' | 'checkbox' | 'radio' | 'date';
 	/** Only when uiType === 'select', 'checkbox' or 'radio'. See blacklabutils::normalizeMetadata */
-	values?: Array<{value: string, label: string, title: string|null}>;
+	values?: Array<{ value: string; label: string; title: string | null }>;
 };
 
 export type NormalizedAnnotationGroup = {
@@ -126,9 +126,9 @@ export type NormalizedIndexBase = {
 	/** Id of this index. Contains the username if this is a user-owned index. (username:indexname) */
 	id: string;
 	/** Progress of indexing new documents, if currently indexing. Null otherwise. */
-	indexProgress: BLTypes.BLIndexProgress|null;
+	indexProgress: BLTypes.BLIndexProgress | null;
 	/** Owner of the corpus, if is a user owned corpus */
-	owner: string|null;
+	owner: string | null;
 	/** Whether the index is indexing new documents or is available for searching, etc. */
 	status: BLTypes.BLIndex['status'];
 	/** yyyy-mm-dd hh:mm:ss */
@@ -139,11 +139,11 @@ export type NormalizedIndexBase = {
 	documentCount: number;
 	/** Number of document versions in this index, if parallel corpus. */
 	docVersions?: number;
-}
+};
 
 /** Contains information about the internal structure of the index - which fields exist for tokens, which metadata fields exist for documents, etc */
-export type NormalizedIndex = NormalizedIndexBase&{
-	annotatedFields: { [id: string]: NormalizedAnnotatedField; };
+export type NormalizedIndex = NormalizedIndexBase & {
+	annotatedFields: { [id: string]: NormalizedAnnotatedField };
 	/** Default Annotated Field that BlackLab searches in, if not explicity overridden in the query. */
 	mainAnnotatedField: string;
 	/**
@@ -164,9 +164,9 @@ export type NormalizedIndex = NormalizedIndexBase&{
 	 * Sorted in order of appearance.
 	 */
 	metadataFieldGroups: NormalizedMetadataGroup[];
-	metadataFields: { [key: string]: NormalizedMetadataField; };
+	metadataFields: { [key: string]: NormalizedMetadataField };
 
-	textDirection: 'ltr'|'rtl';
+	textDirection: 'ltr' | 'rtl';
 
 	/**
 	 * BlackLab doesn't return this with the normal index metadata, but we pull them together for ease of use.
@@ -182,15 +182,15 @@ interface INormalizedFormat {
 	// new props
 	id: string;
 	/** Username extracted */
-	owner: string|null;
+	owner: string | null;
 	/** internal name extracted */
 	shortId: string;
 
 	// original props, with normalized values
 	/** Null if would be empty originally */
-	helpUrl: string|null;
+	helpUrl: string | null;
 	/** Null if would be empty originally */
-	description: string|null;
+	description: string | null;
 	/** set to shortId if originally empty */
 	displayName: string;
 }
@@ -301,15 +301,15 @@ export type CaptureAndRelation = {
 
 	/** Should we permanently highlight this? If not, we may still highlight it on hover (parallel corpora) */
 	showHighlight: boolean;
-}
+};
 export type HitToken = {
 	/** Raw values of the extracted annotations. */
-	annotations: Record<string, string>
+	annotations: Record<string, string>;
 	/** after the text */
 	punct: string;
 	punctBefore?: string;
 	captureAndRelation?: CaptureAndRelation[];
-}
+};
 
 /**
  * Interop between blacklab Hit objects and the UI.
@@ -319,7 +319,7 @@ export type HitContext = {
 	before: HitToken[];
 	match: HitToken[];
 	after: HitToken[];
-}
+};
 
 // -------------------
 // Configuration types
@@ -337,7 +337,7 @@ export type Tagset = {
 			displayName: string;
 			/** All subannotations that can be used on this type of part-of-speech */
 			subAnnotationIds: string[];
-		}
+		};
 	};
 	/** All subannotations of the main annotation */
 	subAnnotations: {
@@ -365,11 +365,11 @@ export class ApiError extends Error {
 	/** Message representing the httpCode, like "Not Found" for 404 */
 	public readonly statusText: string;
 	/** Http code, -1 if generic network error, http code otherwise, or none if no network error at all. */
-	public readonly httpCode: number|undefined;
+	public readonly httpCode: number | undefined;
 
 	public static CANCELLED = new ApiError('Request Cancelled', 'The request was cancelled by the user.', 'Cancelled', -1);
 
-	constructor(title: string, message: string, statusText: string, httpCode: number|undefined) {
+	constructor(title: string, message: string, statusText: string, httpCode: number | undefined) {
 		super(message);
 		this.title = title;
 		this.message = message;
@@ -377,7 +377,9 @@ export class ApiError extends Error {
 		this.httpCode = httpCode;
 	}
 
-	get isCancelledRequest() { return this === ApiError.CANCELLED; }
+	get isCancelledRequest() {
+		return this === ApiError.CANCELLED;
+	}
 
 	public static wrap(error: any): ApiError {
 		if (error instanceof ApiError) return error;
@@ -425,7 +427,7 @@ export type CFGoogleAnalyticsSettings = {
 export type CFPlausibleAnalyticsSettings = {
 	apiHost: string;
 	domain: string;
-}
+};
 
 export type CFPageConfig = {
 	analytics: {
@@ -435,7 +437,7 @@ export type CFPageConfig = {
 	bannerMessage: string | null;
 	customCss: Record<string, CFCustomCssEntry[]>;
 	customJs: Record<string, CFCustomJsEntry[]>;
-	displayName: string|null;
+	displayName: string | null;
 	faviconDir: string;
 	navbarLinks: CFNavbarLink[];
 	/** Page size of the document view (in tokens). */

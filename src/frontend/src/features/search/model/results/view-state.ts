@@ -5,10 +5,10 @@
  * Those will get their own sub-module here.
  */
 import cloneDeep from 'clone-deep';
+import { markRaw, reactive, shallowReactive } from 'vue';
 
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
-import { markRaw, reactive, shallowReactive } from 'vue';
 
 type ModuleRootState = Record<string, ViewRootState>;
 type RequestedRange = {
@@ -23,10 +23,10 @@ type ViewRootState = {
 	/** The number of results to retrieve */
 	number: number;
 	/** The original range requested via URL. Null means no shared URL-range context is active. */
-	requestedRange: RequestedRange|null;
-	sort: string|null;
-	viewGroup: string|null;
-	groupDisplayMode: string|null;
+	requestedRange: RequestedRange | null;
+	sort: string | null;
+	viewGroup: string | null;
+	groupDisplayMode: string | null;
 };
 
 const initialState: ModuleRootState = {};
@@ -42,7 +42,7 @@ const initialViewState: ViewRootState = {
 };
 
 const createActions = (state: ViewRootState) => ({
-	customState: (payload: any) => state.customState = payload,
+	customState: (payload: any) => (state.customState = payload),
 	groupBy: (payload: string[]) => {
 		// can't just replace array since listeners might be attached to properties in a single entry, and they won't be updated.
 		state.groupBy.splice(0, state.groupBy.length, ...payload);
@@ -51,7 +51,7 @@ const createActions = (state: ViewRootState) => ({
 		state.first = 0;
 		state.requestedRange = null;
 	},
-	sort: (payload: string|null) => state.sort = payload,
+	sort: (payload: string | null) => (state.sort = payload),
 
 	/*
 	 * Pagination flow overview (hits/docs each have their own view state):
@@ -66,7 +66,6 @@ const createActions = (state: ViewRootState) => ({
 	 *    requestedRange is cleared, because the user is now navigating in local state, not shared URL context.
 	 */
 
-
 	/** Set the first result offset */
 	first: (payload: number) => {
 		state.first = Math.max(0, payload);
@@ -78,7 +77,7 @@ const createActions = (state: ViewRootState) => ({
 		state.requestedRange = null;
 	},
 	/** Convenience action to set both first and number at once */
-	range: (payload: {first: number, number: number}) => {
+	range: (payload: { first: number; number: number }) => {
 		state.first = Math.max(0, payload.first);
 		state.number = Math.max(1, payload.number);
 		state.requestedRange = null;
@@ -86,19 +85,19 @@ const createActions = (state: ViewRootState) => ({
 	setRequestedRange: (payload: RequestedRange) => {
 		state.requestedRange = {
 			first: Math.max(0, payload.first),
-			number: Math.max(1, payload.number)
+			number: Math.max(1, payload.number),
 		};
 	},
-	clearRequestedRange: () => state.requestedRange = null,
-	viewGroup: (payload: string|null) => {
+	clearRequestedRange: () => (state.requestedRange = null),
+	viewGroup: (payload: string | null) => {
 		state.viewGroup = payload;
 		state.sort = null;
 		state.first = 0;
 		state.requestedRange = null;
 	},
-	groupDisplayMode: (payload: string|null) => state.groupDisplayMode = payload,
+	groupDisplayMode: (payload: string | null) => (state.groupDisplayMode = payload),
 
-	reset: (payload: {resetGroupBy: boolean}) => {
+	reset: (payload: { resetGroupBy: boolean }) => {
 		// This may case an error if the current group settings are invalid for the new view.
 		let prevGroupBy = state.groupBy;
 		Object.assign(state, cloneDeep(initialViewState));
@@ -131,12 +130,12 @@ export const createViewModule = (viewName: string, customInitialState?: Partial<
 };
 type ViewModule = ReturnType<typeof createViewModule>;
 
-
-
 // store the sub-modules we create so we can access them later
-const moduleCache: Record<string, ViewModule> = shallowReactive({});
+const moduleCache = shallowReactive<Record<string, ViewModule>>({});
 function getOrCreateModule(view: string, initialState?: ViewRootState) {
-	if (view == null) { throw new Error('view is null'); }
+	if (view == null) {
+		throw new Error('view is null');
+	}
 	if (!moduleCache[view]) {
 		moduleCache[view] = createViewModule(view, initialState);
 	}
@@ -146,27 +145,27 @@ function getOrCreateModule(view: string, initialState?: ViewRootState) {
 const actions = {
 	resetFirst: () => Object.values(moduleCache).forEach(m => m.actions.first(0)),
 	resetViewGroup: () => Object.values(moduleCache).forEach(m => m.actions.viewGroup(null)),
-	resetAllViews: (props: {resetGroupBy: boolean}) => {
+	resetAllViews: (props: { resetGroupBy: boolean }) => {
 		Object.values(moduleCache).forEach(m => {
 			m.actions.reset(props);
 			m.actions.number(GlobalResultsModule.getState().pageSize);
 		});
 	},
-	replaceView: (payload: {view: string|null, data: ViewRootState}) => {
+	replaceView: (payload: { view: string | null; data: ViewRootState }) => {
 		if (payload.view) getOrCreateModule(payload.view).actions.replace(payload.data);
 	},
 };
 
 const get = {};
 
-const init = async (_state: CorpusChange)=> {
+const init = async (_state: CorpusChange) => {
 	// Clear all views so the default result modules can be recreated for the new corpus.
 	Object.keys(moduleCache).forEach(key => {
 		delete moduleCache[key];
 	});
 	getOrCreateModule('hits');
 	getOrCreateModule('docs');
-	await actions.resetAllViews({resetGroupBy: true});
+	await actions.resetAllViews({ resetGroupBy: true });
 };
 
 /** Get a snapshot of all view states as a record keyed by view name. */
@@ -182,7 +181,6 @@ function getState(): ModuleRootState {
 function forEachView(fn: (view: ViewRootState) => void) {
 	Object.values(moduleCache).forEach(m => fn(m.getState()));
 }
-
 
 export { actions, forEachView, get, getOrCreateModule, getState, init, initialState, initialViewState };
 export type { ModuleRootState, ViewModule, ViewRootState };

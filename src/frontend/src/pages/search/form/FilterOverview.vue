@@ -1,32 +1,30 @@
 <template>
 	<div class="filter-overview">
 		<div v-for="filter in activeFilters" :key="filter.id">
-			{{$tMetaDisplayName(filter)}}<small v-if="filter.groupId"> ({{filter.groupId}})</small>: <i>{{summaryMap[filter.id]}}</i>
+			{{ $tMetaDisplayName(filter) }}<small v-if="filter.groupId"> ({{ filter.groupId }})</small>: <i>{{ summaryMap[filter.id] }}</i>
 		</div>
 		<!-- <div v-for="filter in activeFilters" :key="filter.id + '_lucene'">{{filter.displayName}}: <i>{{filter.lucene}}</i></div> -->
 
 		<div class="sub-corpus-size">
-			<template v-if="subcorpus.isError()">
-				{{$t('filterOverview.error')}}: {{subcorpus.error.message}}
-			</template>
+			<template v-if="subcorpus.isError()"> {{ $t('filterOverview.error') }}: {{ subcorpus.error.message }} </template>
 			<template v-else-if="subcorpus.isLoaded()">
-				{{$t('filterOverview.subCorpus')}}:<br>
-				<span style="display: inline-block; vertical-align:top;">
-					{{$t('filterOverview.totalDocuments')}}:<br>
-					{{$t('filterOverview.totalTokens')}}:
+				{{ $t('filterOverview.subCorpus') }}:<br />
+				<span style="display: inline-block; vertical-align: top">
+					{{ $t('filterOverview.totalDocuments') }}:<br />
+					{{ $t('filterOverview.totalTokens') }}:
 				</span>
-				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 {{subcorpus.value.numberOfMatchingDocuments.toLocaleString()}}<br>
-					 {{subcorpus.value.tokensInMatchingDocuments.toLocaleString()}}
+				<span style="display: inline-block; vertical-align: top; text-align: right; font-family: monospace">
+					{{ subcorpus.value.numberOfMatchingDocuments.toLocaleString() }}<br />
+					{{ subcorpus.value.tokensInMatchingDocuments.toLocaleString() }}
 				</span>
-				<span style="display: inline-block; vertical-align:top; text-align: right; font-family: monospace;">
-					 ({{ frac2Percent(subcorpus.value.numberOfMatchingDocuments / subcorpus.value.totalDocsInIndex) }})<br>
-					 ({{ frac2Percent(subcorpus.value.tokensInMatchingDocuments / subcorpus.value.totalTokensInIndex) }})
+				<span style="display: inline-block; vertical-align: top; text-align: right; font-family: monospace">
+					({{ frac2Percent(subcorpus.value.numberOfMatchingDocuments / subcorpus.value.totalDocsInIndex) }})<br />
+					({{ frac2Percent(subcorpus.value.tokensInMatchingDocuments / subcorpus.value.totalTokensInIndex) }})
 				</span>
 			</template>
 			<template v-else>
-				<Spinner xs inline/>
-				{{$t('filterOverview.calculating')}}
+				<Spinner xs inline />
+				{{ $t('filterOverview.calculating') }}
 			</template>
 		</div>
 	</div>
@@ -35,27 +33,26 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
+import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
+import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-
-import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import frac2Percent from '@/mixins/fractionalToPercent';
 
-import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
 import Spinner from '@/components/Spinner.vue';
 
 export default defineComponent({
-	components: {Spinner},
+	components: { Spinner },
 	data: () => ({
-		subcorpus: selectedSubcorpusLoader
+		subcorpus: selectedSubcorpusLoader,
 	}),
 	computed: {
 		indexAndFilter() {
 			return {
 				index: CorpusStore.getState()!,
 				filter: FilterStore.get.luceneQuery(),
-				annotatedFieldId: PatternStore.get.shared().source || CorpusStore.get.mainAnnotatedField()
+				annotatedFieldId: PatternStore.get.shared().source || CorpusStore.get.mainAnnotatedField(),
 			};
 		},
 		activeFilters: FilterStore.get.activeFilters,
@@ -64,24 +61,32 @@ export default defineComponent({
 			const r: Record<string, string> = {};
 			this.activeFilters.forEach(f => {
 				const summary = getValueFunctions(f).luceneQuerySummary(f.id, f.metadata, f.value);
-				if (summary) { r[f.id] = summary; }
+				if (summary) {
+					r[f.id] = summary;
+				}
 			});
 			return r;
 		},
 
-		totalCorpusTokens(): number { return CorpusStore.getState()!.tokenCount; },
-		totalCorpusDocs(): number { return CorpusStore.getState()!.documentCount; }
+		totalCorpusTokens(): number {
+			return CorpusStore.getState()!.tokenCount;
+		},
+		totalCorpusDocs(): number {
+			return CorpusStore.getState()!.documentCount;
+		},
 	},
 	methods: {
-		frac2Percent
+		frac2Percent,
 	},
 	watch: {
 		indexAndFilter: {
-			handler() { this.subcorpus.next(this.indexAndFilter) },
+			handler() {
+				this.subcorpus.next(this.indexAndFilter);
+			},
 			immediate: true,
 			deep: true,
-		}
-	}
+		},
+	},
 });
 </script>
 

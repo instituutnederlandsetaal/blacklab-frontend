@@ -49,7 +49,6 @@ export function markPageBootstrapSettled(route: Pick<RouteLocationNormalizedLoad
 	}
 }
 
-
 export function isRouteBootstrapSettled(route: Pick<RouteLocationNormalizedLoaded, 'name' | 'meta'>): boolean {
 	const timing = (route.meta.customScriptTiming ?? 'immediate') as CustomScriptTiming;
 	const routeKey = getRouteKey(route);
@@ -72,7 +71,6 @@ export function useMarkPageBootstrapSettledWhen(isSettled: MaybeRefOrGetter<bool
 				}
 			});
 		},
-		{ immediate: true }
+		{ immediate: true },
 	);
 }
-

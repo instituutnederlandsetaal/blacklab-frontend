@@ -1,18 +1,15 @@
 <template>
-	<div v-if="connlu" class="text-muted dep-tree-disabled">
-		Dependency tree rendering is temporarily disabled during the Vue 3 migration.
-	</div>
+	<div v-if="connlu" class="text-muted dep-tree-disabled">Dependency tree rendering is temporarily disabled during the Vue 3 migration.</div>
 </template>
 
 <script lang="ts">
 // https://github.com/kirianguiller/reactive-dep-tree/
 import { defineComponent } from 'vue';
+import type { PropType } from 'vue';
 
 import type { DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import type { BLHit, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
-import type { PropType } from 'vue';
-
 
 /* https://universaldependencies.org/format.html
 Sentences consist of one or more word lines, and word lines contain the following fields:
@@ -54,7 +51,7 @@ function flatten(h?: BLHitSnippetPart, values?: string[]): Array<Record<string, 
 				h[k].forEach((v, i) => {
 					r[i] = r[i] || {};
 					r[i][k] = v;
-				})
+				});
 			}
 		});
 	} else {
@@ -62,8 +59,8 @@ function flatten(h?: BLHitSnippetPart, values?: string[]): Array<Record<string, 
 			v.forEach((vv, i) => {
 				r[i] = r[i] || {};
 				r[i][k] = vv;
-			})
-		})
+			});
+		});
 	}
 	return r;
 }
@@ -71,37 +68,48 @@ function flatten(h?: BLHitSnippetPart, values?: string[]): Array<Record<string, 
 export default defineComponent({
 	props: {
 		data: { type: Object as PropType<HitRowData>, required: true },
-		fullSentence: { type: [Object, null] as PropType<BLHit|null>, default: null },
+		fullSentence: { type: [Object, null] as PropType<BLHit | null>, default: null },
 
 		// TODO
-		dir: { type: String as PropType<'ltr'|'rtl'>, required: true },
+		dir: { type: String as PropType<'ltr' | 'rtl'>, required: true },
 		mainAnnotation: { type: Object as PropType<NormalizedAnnotation>, required: true },
 		otherAnnotations: { type: Object as PropType<DisplaySettingsForRendering['depTreeAnnotations']>, required: true },
 	},
 	computed: {
-		shownFeatures(): string { // FORM,LEMMA,UPOS,XPOS,FEATS.someFeat,FEATS.someOtherFeat (probably, we only provide 1 feat hardcoded to the name of the annotation, i.e. FEATS.annotationName)
+		shownFeatures(): string {
+			// FORM,LEMMA,UPOS,XPOS,FEATS.someFeat,FEATS.someOtherFeat (probably, we only provide 1 feat hardcoded to the name of the annotation, i.e. FEATS.annotationName)
 			// E.g. FEATS.some_annot, FEATS.some_other_annot
 			const featureAnnots = this.otherAnnotations.feats?.map(a => `FEATS.${a.id}`) || [];
 			// E.g. UPOS, XPOS, LEMMA
-			const regularAnnots = Object.entries(this.otherAnnotations).filter(([k, v]) => v != null && k !== 'feats')
-				.map(([k]) => k.toUpperCase())
+			const regularAnnots = Object.entries(this.otherAnnotations)
+				.filter(([k, v]) => v != null && k !== 'feats')
+				.map(([k]) => k.toUpperCase());
 
 			// FORM is the word itself, so we always include it.
 			return ['FORM', ...regularAnnots, ...featureAnnots].join(',');
 		},
 
 		// We only need this to know where our hit starts and ends.
-		hit(): BLHit|undefined { return 'start' in this.data.hit ? this.data.hit : undefined; },
+		hit(): BLHit | undefined {
+			return 'start' in this.data.hit ? this.data.hit : undefined;
+		},
 		// The full sentence is the context in which the hit was found. Unless we don't have the sentence (yet), then it's the same hit ;)
-		context(): BLHit|undefined { return this.fullSentence || this.hit },
+		context(): BLHit | undefined {
+			return this.fullSentence || this.hit;
+		},
 
 		// Make the hit array make sense, since indexing into three non-0 indexed objects is a bit of a pain.
 		// Basically just make an array of key-value maps that contain the annotations for each token. e.g. [{word: 'I', lemma: 'i'}, {word: 'am', lemma: 'be'}, ...]
-		sensibleArray(): undefined|Array<Record<string, string>> {
+		sensibleArray(): undefined | Array<Record<string, string>> {
 			if (!this.context?.matchInfos) return undefined;
 			/** Which annotations are we interested in, punct and the main annotation, but maybe more. */
-			const extract = ['punct', this.mainAnnotation.id].concat(Object.values(this.otherAnnotations).flat().filter((a): a is NormalizedAnnotation => !!a).map(a => a.id));
-			const {left, match, right} =  this.context;
+			const extract = ['punct', this.mainAnnotation.id].concat(
+				Object.values(this.otherAnnotations)
+					.flat()
+					.filter((a): a is NormalizedAnnotation => !!a)
+					.map(a => a.id),
+			);
+			const { left, match, right } = this.context;
 			return flatten(left, extract).concat(flatten(match, extract)).concat(flatten(right, extract));
 		},
 
@@ -109,14 +117,14 @@ export default defineComponent({
 		 * Convert BlackLab's returned relation object into something representing connl-u relations.
 		 * Meaning a list of "tokens" (i.e. positions in the sentence), pointing at their parent ("sourceIndex" property).
 		 */
-		relationInfo(): undefined|Array<undefined|{parentIndex: number; label: string;}> {
+		relationInfo(): undefined | Array<undefined | { parentIndex: number; label: string }> {
 			if (!this.hit || !this.context || !this.sensibleArray) return undefined;
 
-			const {start} = this.hit!;
+			const { start } = this.hit!;
 			const leftLength = this.context!.left?.punct?.length || 0;
 			const indexOffset = start - leftLength;
 
-			const r: Array<{parentIndex: number;label: string;}> = [];
+			const r: Array<{ parentIndex: number; label: string }> = [];
 			const doRelation = (v: BLMatchInfoRelation) => {
 				// Skip cross-field relations here as they don't make sense for the dependency tree.
 				//
@@ -128,8 +136,7 @@ export default defineComponent({
 				//
 				// Otherwise if our corpus e.g. contains both dependency and constituency relations,
 				// we might be trying to draw both as a single tree, which doesn't make sense.
-				if (v.targetField)
-					return;
+				if (v.targetField) return;
 
 				// CoNNL-U can only have one parent, so skip if the relation is not one-to-one
 				if (!(v.targetEnd - v.targetStart > 1) && (v.sourceStart == null || !(v.sourceEnd! - v.sourceStart > 1))) {
@@ -142,9 +149,9 @@ export default defineComponent({
 						// might be undefined for root?
 						parentIndex: sourceIndex,
 						label: v.relType,
-					}
+					};
 				}
-			}
+			};
 
 			Object.entries(this.context.matchInfos || {}).forEach(mi => {
 				const [k, v] = mi;
@@ -153,11 +160,10 @@ export default defineComponent({
 					doRelation(v);
 				} else if (v.type === 'list') {
 					v.infos.forEach(info => {
-						if (info.type === 'relation')
-							doRelation(info);
+						if (info.type === 'relation') doRelation(info);
 					});
 				}
-			})
+			});
 			return r.length ? r : undefined;
 		},
 		connlu(): string {
@@ -167,7 +173,7 @@ export default defineComponent({
 			 * Connlu features look like feat1=val1|feat2=val2
 			 * We only map a single annotation, e.g. 'some_token_annotation' in BlackLab -> 'FEATS.some_token_annotation' in CoNNL-U shown-features,
 			 * and 'some_token_annotation=val1' in the feats column.
-			*/
+			 */
 			function connluFeatValues(annotations: NormalizedAnnotation[], token: Record<string, string>): string {
 				return annotations
 					.map(a => [a.id, token[a.id]])
@@ -175,7 +181,8 @@ export default defineComponent({
 						if (!value) return '_'; // no value for this feature.
 						if (value.includes('=')) return value; // If the value already contains an '=', we assume it's a feature and return it as is.
 						return `${id}=${value}`;
-					}).join('|');
+					})
+					.join('|');
 			}
 
 			let header = '# text = ';
@@ -202,13 +209,17 @@ export default defineComponent({
 				header += token[this.mainAnnotation.id];
 
 				const row = [] as string[];
-				row.push((1+i).toString()); // index
+				row.push((1 + i).toString()); // index
 				row.push(token[this.mainAnnotation.id]); // form (usually word)
-				if (this.otherAnnotations.lemma) row.push(token[this.otherAnnotations.lemma.id] || '_'); else row.push('_'); // lemma
-				if (this.otherAnnotations.upos)  row.push(token[this.otherAnnotations.upos.id] || '_');  else row.push('_'); // upos
-				if (this.otherAnnotations.xpos)  row.push(token[this.otherAnnotations.xpos.id] || '_');  else row.push('_'); // xpos
-				if (this.otherAnnotations.feats) row.push(connluFeatValues(this.otherAnnotations.feats, token)); else row.push('_'); // feats
-				row.push((rel && rel.parentIndex < this.sensibleArray!.length) ? (rel.parentIndex + 1).toString() : '_'); // head
+				if (this.otherAnnotations.lemma) row.push(token[this.otherAnnotations.lemma.id] || '_');
+				else row.push('_'); // lemma
+				if (this.otherAnnotations.upos) row.push(token[this.otherAnnotations.upos.id] || '_');
+				else row.push('_'); // upos
+				if (this.otherAnnotations.xpos) row.push(token[this.otherAnnotations.xpos.id] || '_');
+				else row.push('_'); // xpos
+				if (this.otherAnnotations.feats) row.push(connluFeatValues(this.otherAnnotations.feats, token));
+				else row.push('_'); // feats
+				row.push(rel && rel.parentIndex < this.sensibleArray!.length ? (rel.parentIndex + 1).toString() : '_'); // head
 				row.push(rel ? rel.label : '_'); // deprel
 				row.push('_'); // deps
 				row.push('_'); // highlight.
@@ -221,9 +232,8 @@ export default defineComponent({
 
 			return header + '\n' + rows.map(row => row.join('\t')).join('\n');
 		},
-	}
+	},
 });
 </script>
 
-<style lang="scss" scoped>
-</style>
+<style lang="scss" scoped></style>

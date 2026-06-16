@@ -3,10 +3,7 @@
 		<!-- Mixed Entries with Operators -->
 		<template v-for="(entry, index) in model.entries" class="bl-attribute-entry-wrapper">
 			<!-- Operator Label (shown before each entry except the first one) -->
-			<div v-if="index > 0"
-				:key="`operator-${entry.id}`"
-				class="bl-token-attribute-group-label"
-			>
+			<div v-if="index > 0" :key="`operator-${entry.id}`" class="bl-token-attribute-group-label">
 				{{ currentOperatorOption.label }}
 			</div>
 
@@ -34,42 +31,38 @@
 		</template>
 
 		<!-- Add Controls -->
-		<CqlAddAttributeButton v-if="shouldShowAddControls" @click="addAttribute($event)" :options="options"/>
+		<CqlAddAttributeButton v-if="shouldShowAddControls" @click="addAttribute($event)" :options="options" />
 	</div>
 </template>
 
 <script setup lang="ts">
-import type {
-    CqlAnnotationCombinator,
-    CqlAttributeData,
-    CqlAttributeGroupData,
-    CqlGroupEntry,
-    CqlQueryBuilderOptions
-} from '@/components/cql/cql-types';
-import {
-    isCqlAttributeData,
-    isCqlAttributeGroupData
-} from '@/components/cql/cql-types';
-import uid from '@/mixins/uid';
-import type { Option } from '@/utils/options';
 import { useVModel } from '@vueuse/core';
 import { computed } from 'vue';
+
+import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
+import { isCqlAttributeData, isCqlAttributeGroupData } from '@/components/cql/cql-types';
+import uid from '@/mixins/uid';
+import type { Option } from '@/utils/options';
+
 import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
 import CqlAttribute from './CqlAttribute.vue';
 
 defineOptions({ name: 'CqlAttributeGroup' });
 
-const props = withDefaults(defineProps<{
-	isRoot?: boolean,
-	options: CqlQueryBuilderOptions,
-	modelValue: CqlAttributeGroupData,
-}>(), {
-	isRoot: false,
-});
+const props = withDefaults(
+	defineProps<{
+		isRoot?: boolean;
+		options: CqlQueryBuilderOptions;
+		modelValue: CqlAttributeGroupData;
+	}>(),
+	{
+		isRoot: false,
+	},
+);
 
 const emit = defineEmits<{
-	'update:modelValue': [value: CqlAttributeGroupData],
-	'delete-group': [groupId: string, replaceWith?: CqlGroupEntry],
+	'update:modelValue': [value: CqlAttributeGroupData];
+	'delete-group': [groupId: string, replaceWith?: CqlGroupEntry];
 }>();
 
 const model = useVModel(props, 'modelValue', emit, {
@@ -80,10 +73,12 @@ const model = useVModel(props, 'modelValue', emit, {
 
 const shouldShowAddControls = computed(() => props.isRoot || model.value.entries.length > 0);
 const currentOperatorOption = computed<Option>(() => {
-	return props.options.operatorOptions.find(op => op.value === model.value.operator) || {
-		value: model.value.operator,
-		label: model.value.operator,
-	};
+	return (
+		props.options.operatorOptions.find(op => op.value === model.value.operator) || {
+			value: model.value.operator,
+			label: model.value.operator,
+		}
+	);
 });
 
 function createDefaultAttribute(): CqlAttributeData {
@@ -103,9 +98,7 @@ function addAttribute(operator: CqlAnnotationCombinator, calledForAttribute?: Cq
 	}
 
 	if (operator === model.value.operator) {
-		const index = calledForAttribute
-			? model.value.entries.findIndex(e => e.id === calledForAttribute.id) + 1
-			: model.value.entries.length;
+		const index = calledForAttribute ? model.value.entries.findIndex(e => e.id === calledForAttribute.id) + 1 : model.value.entries.length;
 		model.value.entries.splice(index, 0, createDefaultAttribute());
 		return;
 	}
@@ -130,8 +123,7 @@ function addAttribute(operator: CqlAnnotationCombinator, calledForAttribute?: Cq
 }
 
 function deleteAttribute(attributeId: string) {
-	const index = model.value.entries.findIndex((entry: CqlGroupEntry) =>
-		isCqlAttributeData(entry) && entry.id === attributeId);
+	const index = model.value.entries.findIndex((entry: CqlGroupEntry) => isCqlAttributeData(entry) && entry.id === attributeId);
 	if (index !== -1) {
 		model.value.entries.splice(index, 1);
 		checkIfShouldRemoveSingleEntryGroup();
@@ -151,8 +143,7 @@ function updateGroupAtIndex(index: number, updatedGroup: CqlAttributeGroupData) 
 }
 
 function deleteNestedGroup(groupId: string, replaceWith?: CqlGroupEntry) {
-	const index = model.value.entries.findIndex((entry: CqlGroupEntry) =>
-		isCqlAttributeGroupData(entry) && entry.id === groupId);
+	const index = model.value.entries.findIndex((entry: CqlGroupEntry) => isCqlAttributeGroupData(entry) && entry.id === groupId);
 	if (index !== -1) {
 		if (replaceWith) {
 			model.value.entries.splice(index, 1, replaceWith);
@@ -171,7 +162,6 @@ function checkIfShouldRemoveSingleEntryGroup() {
 </script>
 
 <style lang="scss">
-
 .bl-token-attribute-group {
 	padding: 0px;
 	/* 	No margin-top here, as the topmost group does not require spacing above it
@@ -183,15 +173,12 @@ function checkIfShouldRemoveSingleEntryGroup() {
 	&.well {
 		padding: 8px;
 		margin: 0;
-		box-shadow: 4px 4px 7px -3px rgba(0,0,0,0.38);
-		border: 1px solid rgba(0,0,0,0.15);
+		box-shadow: 4px 4px 7px -3px rgba(0, 0, 0, 0.38);
+		border: 1px solid rgba(0, 0, 0, 0.15);
 	}
 }
-
-
 
 .bl-create-attribute-dropdown {
 	align-self: center;
 }
-
 </style>

@@ -1,9 +1,11 @@
 <template>
 	<div class="row">
-		<Spinner v-if="data.isLoading()" center size="60px"/>
+		<Spinner v-if="data.isLoading()" center size="60px" />
 		<div v-else-if="data.isError()" class="text-center">
-			<h3 class="text-danger"><em>{{data.error.message}}</em></h3>
-			<br>
+			<h3 class="text-danger">
+				<em>{{ data.error.message }}</em>
+			</h3>
+			<br />
 			<!-- TODO retry mechanic -->
 			<!-- <button type="button" class="btn btn-lg btn-default" @click="error = null; load()">Retry</button> -->
 		</div>
@@ -12,55 +14,60 @@
 			<em>No statistics have been configured for this corpus.</em>
 		</h4>
 		<template v-else-if="data.isLoaded()">
-			<div v-if="statisticsTableData"
+			<div
+				v-if="statisticsTableData"
 				:class="{
 					'col-xs-12': true,
-					'col-md-6': !!statisticsTableData
+					'col-md-6': !!statisticsTableData,
 				}"
 			>
-				<table class="table" style="table-layout: auto; width: 100%;">
+				<table class="table" style="table-layout: auto; width: 100%">
 					<thead>
-						<tr><th colspan="2" class="text-center">Document Statistics</th></tr>
+						<tr>
+							<th colspan="2" class="text-center">Document Statistics</th>
+						</tr>
 					</thead>
 					<tbody>
 						<tr v-for="(value, key) in statisticsTableData" :key="key">
-							<td><strong>{{key}}</strong> </td><td>{{value}}</td>
+							<td>
+								<strong>{{ key }}</strong>
+							</td>
+							<td>{{ value }}</td>
 						</tr>
 					</tbody>
 				</table>
 			</div>
 
-			<AnnotationDistributions v-if="distributionData"
+			<AnnotationDistributions
+				v-if="distributionData"
 				:class="{
 					'col-xs-12': true,
-					'col-md-6': !!statisticsTableData
+					'col-md-6': !!statisticsTableData,
 				}"
 				:snippet="data.value[0]"
 				v-bind="distributionData"
 			/>
 
-			<AnnotationGrowths v-if="growthData" class="col-xs-12" :snippet="data.value[0]" v-bind="growthData"/>
+			<AnnotationGrowths v-if="growthData" class="col-xs-12" :snippet="data.value[0]" v-bind="growthData" />
 		</template>
 	</div>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue';
-
-import * as ArticleStore from '@/features/article/model/article-state';
-
-import type * as BLTypes from '@/types/blacklabtypes';
-
-import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
-import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
-
-import Spinner from '@/components/Spinner.vue';
-import type { Loadable } from '@/utils/loadable-streams';
 import * as Highcharts from 'highcharts';
 import HighchartsBoost from 'highcharts/modules/boost';
 import HighchartsExportingData from 'highcharts/modules/export-data';
 import HighchartsExporting from 'highcharts/modules/exporting';
+import { defineComponent } from 'vue';
 import { type PropType } from 'vue';
+
+import * as ArticleStore from '@/features/article/model/article-state';
+import type * as BLTypes from '@/types/blacklabtypes';
+import type { Loadable } from '@/utils/loadable-streams';
+
+import Spinner from '@/components/Spinner.vue';
+import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
+import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
 
 HighchartsExporting(Highcharts);
 HighchartsExportingData(Highcharts);
@@ -87,65 +94,69 @@ export default defineComponent({
 
 		getStatistics: ArticleStore.get.statisticsTableFn,
 		statisticsTableData(): any {
-			return (this.getStatistics && this.data.isLoaded()) ? this.getStatistics(this.data.value[1], this.data.value[0]) : null;
+			return this.getStatistics && this.data.isLoaded() ? this.getStatistics(this.data.value[1], this.data.value[0]) : null;
 		},
 		distributionData(): any {
 			const data = ArticleStore.get.distributionAnnotation();
-			return data ? {
-				annotationId: data.id,
-				chartTitle: data.displayName,
-				baseColor: this.baseColor,
-			} : null;
+			return data
+				? {
+						annotationId: data.id,
+						chartTitle: data.displayName,
+						baseColor: this.baseColor,
+					}
+				: null;
 		},
 		growthData(): any {
 			const data = ArticleStore.get.growthAnnotations();
-			return data ? {
-				annotations: data.annotations,
-				chartTitle: data.displayName,
-				baseColor: this.baseColor
-			} : null;
+			return data
+				? {
+						annotations: data.annotations,
+						chartTitle: data.displayName,
+						baseColor: this.baseColor,
+					}
+				: null;
 		},
-	}
+	},
 });
-
 </script>
 
 <style lang="scss">
 // Only contains styles for classes used in the built in xsl files (article_tei.xsl, article_folia.xsl). And some styles for the navigation controls (next hit, next page)
 
 .hl {
-  --bg-color: #337ab7;
-  
-  font-weight: bold;
-  background-color: hsl(from var(--bg-color) h min(s * 1.2, 100) 92.5);
-  color: black;
-  border-radius: 3px;
-  padding: 0 2px;
-  font-size: 105%;
+	--bg-color: #337ab7;
 
-  &.active {
-    /*text-decoration: underline;*/
-    
-    text-shadow:
-      -1px -1px 0 white,
-      1px -1px 0 white,
-      -1px 1px 0 white,
-      1px 1px 0 white;
-    color: black;
-    background-color: var(--bg-color);
-    box-shadow: 0 0 10px var(--bg-color);
-  }
+	font-weight: bold;
+	background-color: hsl(from var(--bg-color) h min(s * 1.2, 100) 92.5);
+	color: black;
+	border-radius: 3px;
+	padding: 0 2px;
+	font-size: 105%;
+
+	&.active {
+		/*text-decoration: underline;*/
+
+		text-shadow:
+			-1px -1px 0 white,
+			1px -1px 0 white,
+			-1px 1px 0 white,
+			1px 1px 0 white;
+		color: black;
+		background-color: var(--bg-color);
+		box-shadow: 0 0 10px var(--bg-color);
+	}
 }
 
-.word, .tooltip-hover {
+.word,
+.tooltip-hover {
 	// Defined in main.css in the main webapp
-	font-family: "Helvetica Neue", "Helvetica", "Arial,sans-serif", "Inl vmnw wnt";
+	font-family: 'Helvetica Neue', 'Helvetica', 'Arial,sans-serif', 'Inl vmnw wnt';
 }
 .tooltip-open {
-  text-decoration: underline;
+	text-decoration: underline;
 }
 .tooltip-hover {
-  box-shadow: 0px 1px 7px -1px rgba(0,0,0,0.2);
+	box-shadow: 0px 1px 7px -1px rgba(0, 0, 0, 0.2);
 }
 
 .p,
@@ -161,7 +172,6 @@ export default defineComponent({
 }
 
 #content-title:empty {
-  display: none !important;
+	display: none !important;
 }
-
 </style>

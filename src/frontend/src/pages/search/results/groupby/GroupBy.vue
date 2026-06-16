@@ -1,32 +1,35 @@
 <template>
-
-	<button v-if="!active && !addedCriteria.length" class="btn btn-default btn-secondary btn-sm groupselect" type="button" @click="active=true">
-		{{$t('results.groupBy.groupResults')}}
+	<button v-if="!active && !addedCriteria.length" class="btn btn-default btn-secondary btn-sm groupselect" type="button" @click="active = true">
+		{{ $t('results.groupBy.groupResults') }}
 	</button>
 
 	<div v-else class="panel panel-primary">
-		<div class="panel-heading" style="display: flex; align-items: first baseline; gap: 0.25em;">
-			<h3 class="panel-title" style="padding-right: 0.5em;">{{$t('results.groupBy.groupResults')}}</h3>
-			<button v-if="type === 'hits'" class="btn btn-default" type="button" @click="addAnnotation">+ {{$t('results.groupBy.annotation')}}</button>
-			<button class="btn btn-default" type="button" @click="addMetadata">+ {{$t('results.groupBy.metadata')}}</button>
-			<button type="button" :disabled="disabled" class="close" style="margin-left: auto;" @click="clear" :title="addedCriteria.length ? $t('results.groupBy.clear').toString() : $t('results.groupBy.close').toString()">&times;</button>
+		<div class="panel-heading" style="display: flex; align-items: first baseline; gap: 0.25em">
+			<h3 class="panel-title" style="padding-right: 0.5em">{{ $t('results.groupBy.groupResults') }}</h3>
+			<button v-if="type === 'hits'" class="btn btn-default" type="button" @click="addAnnotation">+ {{ $t('results.groupBy.annotation') }}</button>
+			<button class="btn btn-default" type="button" @click="addMetadata">+ {{ $t('results.groupBy.metadata') }}</button>
+			<button
+				type="button"
+				:disabled="disabled"
+				class="close"
+				style="margin-left: auto"
+				@click="clear"
+				:title="addedCriteria.length ? $t('results.groupBy.clear').toString() : $t('results.groupBy.close').toString()"
+			>
+				&times;
+			</button>
 		</div>
 
-		<Tabs v-if="tabs.length"
-			style="margin-top: 6px; padding: 0 0.5em;"
+		<Tabs
+			v-if="tabs.length"
+			style="margin-top: 6px; padding: 0 0.5em"
 			:tabs="tabs"
-
 			wrap
 			v-model="selectedCriteriumIndex"
 			@middlemouse="$event.index < addedCriteria.length && removeGroup($event.index)"
 		>
-			<template #after="{tab, i}">
-				<button
-					type="button"
-					@click="removeGroup(i)"
-					class="btn btn-link remove-group-button"
-					style="align-self: flex-start;margin-top: -0.25em;font-size: 150%"
-				>
+			<template #after="{ tab, i }">
+				<button type="button" @click="removeGroup(i)" class="btn btn-link remove-group-button" style="align-self: flex-start; margin-top: -0.25em; font-size: 150%">
 					<strong class="text-danger">&times;</strong>
 				</button>
 			</template>
@@ -35,53 +38,33 @@
 		<div class="panel-body" v-if="!addedCriteria.length || selectedCriterium">
 			<template v-if="selectedCriterium?.type === 'context'">
 				<span v-if="isParallel">{{ $t('results.groupBy.parallelCorpusVersion') }}</span>
-				<SelectPicker v-if="isParallel"
-					:options="parallelVersionOptions"
-					v-model="fieldName"
-					allowUnknownValues
-					data-width="auto"
-					data-menu-width="auto"
-					hideEmpty />
+				<SelectPicker v-if="isParallel" :options="parallelVersionOptions" v-model="fieldName" allowUnknownValues data-width="auto" data-menu-width="auto" hideEmpty />
 				<i18n-t keypath="results.groupBy.iWantToGroupOnAnnotation" tag="div">
 					<!-- allow unknown values here. If grouping on a capture group/relation, they're not always available immediately (we need the first hit to decode them). -->
-					<template #some_words><SelectPicker
-						:options="contextOptions"
-						v-model="contextValue"
-						allowUnknownValues
-						data-width="auto"
-						data-menu-width="auto"
-						hideEmpty
-						allowHtml
-					/></template>
+					<template #some_words><SelectPicker :options="contextOptions" v-model="contextValue" allowUnknownValues data-width="auto" data-menu-width="auto" hideEmpty allowHtml /></template>
 					<!-- Specific layout, we want to hide the selectpicker, but there might be surrounding text that also needs to be hidden... -->
 					<template #in_this_location_with_text>
 						<!-- if not grouping on a label but on a specific position, then show the position picker. -->
 						<i18n-t v-if="selectedCriteriumAsPositional" keypath="results.groupBy.in_this_location_with_text">
-							<template #in_this_location> <!-- doesn't seem to work if we don't wrap the selectpicker in a template. -->
-								<SelectPicker
-									v-model="positionValue"
-									hideEmpty
-									data-width="auto"
-									data-menu-width="auto"
-									:options="positionOptions"
-								/>
+							<template #in_this_location>
+								<!-- doesn't seem to work if we don't wrap the selectpicker in a template. -->
+								<SelectPicker v-model="positionValue" hideEmpty data-width="auto" data-menu-width="auto" :options="positionOptions" />
 							</template>
 						</i18n-t>
 					</template>
 					<template #this_annotation>
-					<SelectPicker
-						:placeholder="'...' + '\xa0'.repeat(20) /*nbsp*/"
-						data-width="auto"
-						data-menu-width="auto"
-						right
-						searchable
-						hideEmpty
-						:options="annotationDropdownOptions"
-						allowHtml
-						v-model="selectedCriterium.annotation"
+						<SelectPicker
+							:placeholder="'...' + '\xa0'.repeat(20) /*nbsp*/"
+							data-width="auto"
+							data-menu-width="auto"
+							right
+							searchable
+							hideEmpty
+							:options="annotationDropdownOptions"
+							allowHtml
+							v-model="selectedCriterium.annotation"
 					/></template>
 				</i18n-t>
-
 
 				<form class="case-and-context">
 					<div class="labels">
@@ -89,20 +72,26 @@
 						<label v-if="showRelationPartWidget" for="group-relation">{{ relationPartByClass('label') }}:</label>
 					</div>
 					<div class="inputs">
-						<input id="group-case-sensitive" type="checkbox" v-model="selectedCriterium.caseSensitive">
+						<input id="group-case-sensitive" type="checkbox" v-model="selectedCriterium.caseSensitive" />
 						<div v-if="showRelationPartWidget" class="btn-group">
-							<button type="button"
+							<button
+								type="button"
 								v-if="relationSourceInThisField(relationMatchInfoDefByLabel(selectedCriteriumAsLabel ? selectedCriteriumAsLabel.context.label : ''))"
 								class="btn btn-default btn-sm"
-								:class="{active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'source'}"
+								:class="{ active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'source' }"
 								@click="selectedCriteriumAsLabel && (selectedCriteriumAsLabel.context.relation = 'source')"
-							>{{relationPartByClass('source')}}</button>
-							<button type="button"
+							>
+								{{ relationPartByClass('source') }}
+							</button>
+							<button
+								type="button"
 								v-if="relationTargetInThisField(relationMatchInfoDefByLabel(selectedCriteriumAsLabel ? selectedCriteriumAsLabel.context.label : ''))"
 								class="btn btn-default btn-sm"
-								:class="{active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'target'}"
+								:class="{ active: selectedCriterium.context.type === 'label' && selectedCriterium.context.relation === 'target' }"
 								@click="selectedCriteriumAsLabel && (selectedCriteriumAsLabel.context.relation = 'target')"
-								>{{relationPartByClass('target')}}</button>
+							>
+								{{ relationPartByClass('target') }}
+							</button>
 							<!-- Never want to group on things in between source and target of a relation apparently. So don't show this button. -->
 							<!-- <button type="button"
 								class="btn btn-default btn-sm"
@@ -113,23 +102,15 @@
 					</div>
 				</form>
 
-
-				<div style="padding: 10px 0 25px;"  v-if="sliderVisible">
+				<div style="padding: 10px 0 25px" v-if="sliderVisible">
 					<div v-html="$t('results.groupBy.chooseWordPositions')"></div>
-					<Slider
-						:direction="sliderInverted ? 'rtl' : 'ltr'"
-						inline
-						:min="1"
-						:max="contextsize"
-						:data="sliderLabels"
-						v-model="sliderValue"
-					/>
+					<Slider :direction="sliderInverted ? 'rtl' : 'ltr'" inline :min="1" :max="contextsize" :data="sliderLabels" v-model="sliderValue" />
 				</div>
 
-				<em class="text-muted" v-if="relations.length + captures.length"><span class="fa fa-exclamation-triangle text-primary"></span> {{$t('results.groupBy.tipClickOnHighlightedWords')}} ⤵</em>
+				<em class="text-muted" v-if="relations.length + captures.length"><span class="fa fa-exclamation-triangle text-primary"></span> {{ $t('results.groupBy.tipClickOnHighlightedWords') }} ⤵</em>
 			</template>
 			<template v-else-if="selectedCriterium?.type === 'metadata'" class="content">
-				{{ $t('results.groupBy.selectDocumentMetadata') }}<br>
+				{{ $t('results.groupBy.selectDocumentMetadata') }}<br />
 				<SelectPicker
 					:placeholder="$t('results.groupBy.metadata')"
 					allowHtml
@@ -147,12 +128,12 @@
 						<label for="group-case-sensitive">{{ $t('results.groupBy.caseSensitive') }}: </label>
 					</div>
 					<div class="inputs">
-						<input id="group-case-sensitive" type="checkbox" v-model="selectedCriterium.caseSensitive">
+						<input id="group-case-sensitive" type="checkbox" v-model="selectedCriterium.caseSensitive" />
 					</div>
 				</form>
 			</template>
 			<template v-else-if="selectedCriterium?.type === 'custom'">
-				{{selectedCriterium.value}}
+				{{ selectedCriterium.value }}
 			</template>
 			<em v-else class="h5 text-muted">{{ $t('results.groupBy.clickButtonsToStart') }}</em>
 		</div>
@@ -160,73 +141,67 @@
 		<div v-if="selectedCriterium?.type === 'context'" class="hit-preview panel-footer">
 			<template v-for="(section, i) of preview">
 				<div v-if="i !== 0" class="separator"></div>
-				<template v-for="({selectedAnnotation, word, punct, active, style, wordAsHtml, selectedAnnotationAsHtml}, j) of section" :key="word + i + '_' + j">
+				<template v-for="({ selectedAnnotation, word, punct, active, style, wordAsHtml, selectedAnnotationAsHtml }, j) of section" :key="word + i + '_' + j">
 					<component
 						:is="active ? 'section' : 'div'"
 						:class="{
-							'word': true,
-							'active': active,
+							word: true,
+							active: active,
 							'text-primary': active,
-							'bold': i === 1
+							bold: i === 1,
 						}"
 						:style="style"
 						@click="handlePreviewClick($event, i, j)"
 					>
 						<div v-if="!wordAsHtml" :title="word" class="main">{{ word }}</div>
 						<div v-else class="main" v-html="word"></div>
-						
+
 						<div v-if="selectedAnnotationAsHtml" :title="selectedAnnotation" class="annotation" v-html="selectedAnnotation"></div>
 						<div v-else :title="selectedAnnotation" class="annotation">{{ selectedAnnotation }}</div>
 					</component>
 					<!-- punctuation between words. -->
-					<component :is="active && section[j+1]?.active ? 'section' : 'div'" :class="{punct: true, active: active && section[j+1]?.active}" :title="punct">{{ punct || ' ' }}</component>
+					<component :is="active && section[j + 1]?.active ? 'section' : 'div'" :class="{ punct: true, active: active && section[j + 1]?.active }" :title="punct">{{ punct || ' ' }}</component>
 				</template>
 			</template>
 		</div>
 
 		<div class="panel-footer text-right">
-			<button type="button" :disabled="disabled" class="btn btn-default" @click="clear">{{addedCriteria.length ? $t('results.groupBy.clear') : $t('results.groupBy.close')}}</button>
+			<button type="button" :disabled="disabled" class="btn btn-default" @click="clear">{{ addedCriteria.length ? $t('results.groupBy.clear') : $t('results.groupBy.close') }}</button>
 			<button type="button" :disabled="disabled || !addedCriteria.length" class="btn btn-primary" @click="apply">{{ $t('results.groupBy.apply') }}</button>
 		</div>
 	</div>
 </template>
 
 <script lang="ts">
+// @ts-ignore
+import jsonStableStringify from 'json-stable-stringify';
 import type { PropType } from 'vue';
 import { defineComponent, nextTick } from 'vue';
+import Slider from 'vue-3-slider-component';
 
+import { blacklab } from '@/api';
 import * as SearchModule from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
+import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalSearchSettingsStore from '@/features/search/model/results/global-results-state';
 import * as ResultsStore from '@/features/search/model/results/view-state';
-
-import { blacklab } from '@/api';
-import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
-
+import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
+import { snippetParts } from '@/pages/search/results/table/table-layout';
+import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
 import type { BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
 import { hasPatternInfo, isHitResults } from '@/types/blacklabtypes';
+import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
+import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
 import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/utils/grouping';
 import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
-
-// @ts-ignore
-import jsonStableStringify from 'json-stable-stringify';
-import Slider from 'vue-3-slider-component';
-
+import { findOption, type OptGroup, type Option, type Options } from '@/utils/options';
 
 import SelectPicker from '@/components/SelectPicker.vue';
-import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
-
-
 import Tabs from '@/components/Tabs.vue';
-import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/table/hit-highlighting';
-import { snippetParts } from '@/pages/search/results/table/table-layout';
-import { corpusCustomizations } from '@/utils/customization';
-import { findOption, type OptGroup, type Option, type Options } from '@/utils/options';
 
 // What we prefix the tag attribute grouping option with so we can recognize it
 const OPT_PREFIX_SPAN_ATTRIBUTE = '$TAGATTR:';
@@ -240,7 +215,7 @@ function spanAttributeOptionValue(name: string, attrName: string, listName?: str
 	return `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([groupByName, attrName])}`;
 }
 
-function splitSpanAttributeOptionValue(value: string): { name: string, attrName: string } {
+function splitSpanAttributeOptionValue(value: string): { name: string; attrName: string } {
 	if (value.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE)) {
 		// grouping on a span attribute
 		const [name, attrName] = JSON.parse(value.slice(OPT_PREFIX_SPAN_ATTRIBUTE.length));
@@ -253,15 +228,15 @@ export default defineComponent({
 	components: {
 		SelectPicker,
 		Slider,
-		Tabs
+		Tabs,
 	},
 	props: {
-		type: { type: String as PropType<'hits'|'docs'>, required: true }, // grouping hits or docs?
+		type: { type: String as PropType<'hits' | 'docs'>, required: true }, // grouping hits or docs?
 		disabled: Boolean,
 		results: {
-			type: [Object, null] as PropType<BLSearchResult|null>,
+			type: [Object, null] as PropType<BLSearchResult | null>,
 			default: null,
-		}
+		},
 	},
 	data: () => ({
 		/** The criteria the user has added to group on */
@@ -273,43 +248,56 @@ export default defineComponent({
 		storeValueUpdateIsOurs: false,
 
 		/** For the preview. Results from props can also be grouped, so we need to request these ourselves. */
-		hits: undefined as undefined|BLHitResults,
+		hits: undefined as undefined | BLHitResults,
 
 		active: false,
 	}),
 	computed: {
-		storeModule(): ResultsStore.ViewModule { return ResultsStore.getOrCreateModule(this.type); },
+		storeModule(): ResultsStore.ViewModule {
+			return ResultsStore.getOrCreateModule(this.type);
+		},
 		/** NOTE: this may contain grouping criteria this corpus doesn't support! On page load, it comes directly from the URL! */
-		storeValue(): string[] { return this.storeModule.getState().groupBy; },
+		storeValue(): string[] {
+			return this.storeModule.getState().groupBy;
+		},
 
-		metadataGroups() { return CorpusStore.get.metadataGroups() },
-		metadataFieldsMap() { return CorpusStore.get.allMetadataFieldsMap() },
-		annotationGroups() { return CorpusStore.get.annotationGroups() },
-		annotationsMap() { return CorpusStore.get.allAnnotationsMap() },
-		defaultAnnotation(): string { 
+		metadataGroups() {
+			return CorpusStore.get.metadataGroups();
+		},
+		metadataFieldsMap() {
+			return CorpusStore.get.allMetadataFieldsMap();
+		},
+		annotationGroups() {
+			return CorpusStore.get.annotationGroups();
+		},
+		annotationsMap() {
+			return CorpusStore.get.allAnnotationsMap();
+		},
+		defaultAnnotation(): string {
 			// sometimes grouping by the shown annotation itself isn't allowed (e.g. when it contains inline HTML)
 			// in which case usually the corpus allows grouping on the plain version of that annotation.
 			// so check if this one's allowed, and if not, find the first allowed one.
-			const concordanceAnnotation = UIStore.getState().results.shared.concordanceAnnotationId; 
+			const concordanceAnnotation = UIStore.getState().results.shared.concordanceAnnotationId;
 			const allowedAnnotations = UIStore.getState().results.shared.groupAnnotationIds;
-			return allowedAnnotations.includes(concordanceAnnotation) ?
-				concordanceAnnotation :
-				(allowedAnnotations.length > 0 ? allowedAnnotations[0] : '');
+			return allowedAnnotations.includes(concordanceAnnotation) ? concordanceAnnotation : allowedAnnotations.length > 0 ? allowedAnnotations[0] : '';
 		},
 
 		metadataDropdownOptions(): Options {
-			return (getMetadataSubset(
-				UIStore.getState().results.shared.groupMetadataIds,
-				this.metadataGroups,
-				this.metadataFieldsMap,
-				'Group',
-				this,
-				debug.value, // is debug enabled - i.e. show debug labels in dropdown
-				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
-				corpusCustomizations.search.metadata.showField
-			) as OptGroup[]).concat(this.tagAttributes)
-			.map(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
-			.flatMap<Options[number]>(optGroup => optGroup.label ? optGroup : optGroup.options)
+			return (
+				getMetadataSubset(
+					UIStore.getState().results.shared.groupMetadataIds,
+					this.metadataGroups,
+					this.metadataFieldsMap,
+					'Group',
+					this,
+					debug.value, // is debug enabled - i.e. show debug labels in dropdown
+					UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
+					corpusCustomizations.search.metadata.showField,
+				) as OptGroup[]
+			)
+				.concat(this.tagAttributes)
+				.map(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
+				.flatMap<Options[number]>(optGroup => (optGroup.label ? optGroup : optGroup.options));
 		},
 		annotationDropdownOptions(): Options {
 			return getAnnotationSubset(
@@ -320,10 +308,10 @@ export default defineComponent({
 				this,
 				CorpusStore.get.textDirection(),
 				debug.value, // is debug enabled - i.e. show debug labels in dropdown
-				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible
+				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible,
 			)
-			.flatMap(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
-			.flatMap<Options[number]>(optGroup => optGroup.label ? optGroup : optGroup.options)
+				.flatMap(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
+				.flatMap<Options[number]>(optGroup => (optGroup.label ? optGroup : optGroup.options));
 		},
 
 		tabs(): Option[] {
@@ -334,18 +322,20 @@ export default defineComponent({
 			}));
 		},
 
-		firstHitPreviewQuery(): BLSearchParameters|undefined {
+		firstHitPreviewQuery(): BLSearchParameters | undefined {
 			let params = SearchModule.get.blacklabParameters();
-			if (!isHitParams(params))
-				return undefined; // can't get hits without a query
+			if (!isHitParams(params)) return undefined; // can't get hits without a query
 
-			params = {...params}; // make a copy before modifying
-			if (!params.viewgroup)
-				delete params.group;
+			params = { ...params }; // make a copy before modifying
+			if (!params.viewgroup) delete params.group;
 			delete params.includetokencount;
 			delete params.listvalues;
 			// Only available for doc queries, remove it if present
-			if (params.sort && params.sort.includes('numhits')) params.sort.split(',').filter(s => s != 'numhits').join(',');
+			if (params.sort && params.sort.includes('numhits'))
+				params.sort
+					.split(',')
+					.filter(s => s != 'numhits')
+					.join(',');
 			params.listmetadatavalues = '__nothing__';
 			params.first = 0;
 			params.number = 10; // not 1 but 10 because for parallel corpus we need a hit with otherFields (hopefully we'll get one)
@@ -357,33 +347,33 @@ export default defineComponent({
 		},
 		contextsize(): number {
 			let params = SearchModule.get.blacklabParameters();
-			if (!isHitParams(params))
-				return 5; // default
-			return typeof params.context === 'number' ? params.context as number :  // use actual value from query if set
-			    (typeof GlobalSearchSettingsStore.getState().context === 'number' ?
-			        GlobalSearchSettingsStore.getState().context as number :  // use global default if set
-			        5); // use default
+			if (!isHitParams(params)) return 5; // default
+			return typeof params.context === 'number'
+				? (params.context as number) // use actual value from query if set
+				: typeof GlobalSearchSettingsStore.getState().context === 'number'
+					? (GlobalSearchSettingsStore.getState().context as number) // use global default if set
+					: 5; // use default
 		},
 
-		captures(): { name: string, label: string, targetField: string|undefined }[] {
+		captures(): { name: string; label: string; targetField: string | undefined }[] {
 			const mi = this.hits?.summary?.pattern?.matchInfos;
 			const sourceField = this.mainSearchField;
-			return Object.entries(mi|| {})
+			return Object.entries(mi || {})
 				.filter(([k, v]) => v.type === 'span' && (v.fieldName ?? sourceField) === (this.selectedCriteriumAsContext?.fieldName ?? sourceField))
-				.map(([k,v]) => {
+				.map(([k, v]) => {
 					return {
 						name: k,
 						label: k,
 						targetField: v.fieldName,
-					}
+					};
 				});
 		},
 		relations() {
 			const mi = this.hits?.summary?.pattern?.matchInfos;
-			const result: { name: string, label: string, targetField: string|undefined }[] = [];
-			Object.entries(mi|| {})
+			const result: { name: string; label: string; targetField: string | undefined }[] = [];
+			Object.entries(mi || {})
 				.filter(([k, v]) => v.type === 'relation')
-				.forEach(([k,v]) => {
+				.forEach(([k, v]) => {
 					const sourceInThisField = this.relationSourceInThisField(v);
 					const targetInThisField = this.relationTargetInThisField(v);
 					if (sourceInThisField || targetInThisField) {
@@ -407,11 +397,9 @@ export default defineComponent({
 				if (shouldInclude === null) {
 					// By default, you may group on any span attribute for which a
 					// span filter exists, or which occurs in the within widget.
-					const isSpanFilter = filter ? getValueFunctions(filter)?.isSpanFilter ?? null : false;
+					const isSpanFilter = filter ? (getValueFunctions(filter)?.isSpanFilter ?? null) : false;
 					const customWithin = corpusCustomizations.search.within;
-					const isWithinAttr =
-						customWithin.includeSpan(tagName) &&
-						customWithin.includeAttribute(tagName, attributeName);
+					const isWithinAttr = customWithin.includeSpan(tagName) && customWithin.includeAttribute(tagName, attributeName);
 					shouldInclude = isSpanFilter || isWithinAttr;
 				}
 				if (shouldInclude) {
@@ -421,12 +409,12 @@ export default defineComponent({
 						value,
 					});
 				}
-			}
+			};
 
 			// Check if we have a list of matches (e.g. from withspans=true)
 			const matchInfos = this.hits?.summary?.pattern?.matchInfos || {};
-			const listEntry = Object.entries(matchInfos).find( ([name, mi]) => mi.type === 'list');
-			let options: { label?: string, value: string, title?: string }[];
+			const listEntry = Object.entries(matchInfos).find(([name, mi]) => mi.type === 'list');
+			let options: { label?: string; value: string; title?: string }[];
 			const optGroups: OptGroup[] = [];
 			if (listEntry) {
 				// We capture lists of tags, but we don't know all the captured tags at this point.
@@ -434,22 +422,21 @@ export default defineComponent({
 				// (e.g. with-spans[ab] to mean "group on the ab tag in the with-spans list")
 				const listName = listEntry[0];
 				if (CorpusStore.get.corpus().relations.spans) {
-					Object.entries(CorpusStore.get.corpus().relations.spans!)
-						.forEach(([tagName, spanInfo]) => {
-							if (spanInfo.attributes) {
-								options = [];
-								const attr = Object.keys(spanInfo.attributes);
-								attr.forEach(attributeName => {
-									optAdd(tagName, attributeName, listName);
+					Object.entries(CorpusStore.get.corpus().relations.spans!).forEach(([tagName, spanInfo]) => {
+						if (spanInfo.attributes) {
+							options = [];
+							const attr = Object.keys(spanInfo.attributes);
+							attr.forEach(attributeName => {
+								optAdd(tagName, attributeName, listName);
+							});
+							if (options.length > 0) {
+								optGroups.push({
+									label: this.groupLabelTag(tagName),
+									options: options,
 								});
-								if (options.length > 0) {
-									optGroups.push({
-										label: this.groupLabelTag(tagName),
-										options: options,
-									});
-								}
 							}
-						});
+						}
+					});
 				}
 			} else {
 				// We don't capture any lists. Only (possibly) include the tags we know we've captured.
@@ -479,53 +466,63 @@ export default defineComponent({
 			return this.relations.map(c => c.name);
 		},
 		showRelationPartWidget(): boolean {
-			return this.selectedCriterium?.type === 'context' &&
-				this.selectedCriterium.context.type === 'label' &&
-				this.relationNames.includes(this.selectedCriterium.context.label)
+			return this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'label' && this.relationNames.includes(this.selectedCriterium.context.label);
 		},
 
-		mainSearchField(): string { return QueryStore.get.sourceField().id; },
+		mainSearchField(): string {
+			return QueryStore.get.sourceField().id;
+		},
 
 		colors(): Record<string, TokenHighlight> {
 			return this.hits ? getHighlightColors(this.hits.summary) : {};
 		},
 
-		selectedCriterium(): GroupBy|undefined { return this.addedCriteria[this.selectedCriteriumIndex]; },
+		selectedCriterium(): GroupBy | undefined {
+			return this.addedCriteria[this.selectedCriteriumIndex];
+		},
 		// Some utils to cast the current group to a specific type.
 		// so we can use it in computeds for the template.
 		/** When grouping on either: capture group, or relation source/target. */
-		selectedCriteriumAsContext(): undefined|GroupByContext<ContextLabel|ContextPositional> {
-			if (this.selectedCriterium?.type === 'context')
-				return this.selectedCriterium as GroupByContext<ContextLabel|ContextPositional>;
+		selectedCriteriumAsContext(): undefined | GroupByContext<ContextLabel | ContextPositional> {
+			if (this.selectedCriterium?.type === 'context') return this.selectedCriterium as GroupByContext<ContextLabel | ContextPositional>;
+			return undefined;
 		},
-		selectedCriteriumAsLabel(): undefined|GroupByContext<ContextLabel> {
-			if (this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'label')
-				return this.selectedCriterium as GroupByContext<ContextLabel>;
+		selectedCriteriumAsLabel(): undefined | GroupByContext<ContextLabel> {
+			if (this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'label') return this.selectedCriterium as GroupByContext<ContextLabel>;
+			return undefined;
 		},
-		selectedCriteriumAsPositional(): undefined|GroupByContext<ContextPositional> {
-			if (this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional')
-				return this.selectedCriterium as GroupByContext<ContextPositional>;
+		selectedCriteriumAsPositional(): undefined | GroupByContext<ContextPositional> {
+			if (this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional') return this.selectedCriterium as GroupByContext<ContextPositional>;
+			return undefined;
 		},
-		selectedCriteriumAsSlider(): undefined|GroupByContext<ContextPositional> {
-			if (this.selectedCriteriumAsPositional?.context.whichTokens === 'specific')
-				return this.selectedCriteriumAsPositional;
+		selectedCriteriumAsSlider(): undefined | GroupByContext<ContextPositional> {
+			if (this.selectedCriteriumAsPositional?.context.whichTokens === 'specific') return this.selectedCriteriumAsPositional;
+			return undefined;
 		},
 		showCaseSensitive(): boolean {
-			return this.selectedCriterium?.type === 'metadata' &&
-				this.selectedCriterium.metadata.type === 'document';
+			return this.selectedCriterium?.type === 'metadata' && this.selectedCriterium.metadata.type === 'document';
 		},
 
-		sliderVisible(): boolean { return !!this.selectedCriteriumAsSlider; },
-		sliderInverted(): boolean { const p = this.selectedCriteriumAsSlider?.context.position; return p === 'E' || p === 'B'; },
-		sliderLabels(): any[] { return Array.from({length: this.contextsize}, (_, i) => i + 1).map(i => ({value: i, label: i})); },
+		sliderVisible(): boolean {
+			return !!this.selectedCriteriumAsSlider;
+		},
+		sliderInverted(): boolean {
+			const p = this.selectedCriteriumAsSlider?.context.position;
+			return p === 'E' || p === 'B';
+		},
+		sliderLabels(): any[] {
+			return Array.from({ length: this.contextsize }, (_, i) => i + 1).map(i => ({ value: i, label: i }));
+		},
 		sliderValue: {
-			get(): [number, number] { return [this.selectedCriteriumAsSlider?.context.start ?? 1, this.selectedCriteriumAsSlider?.context.end ?? 1]; },
+			get(): [number, number] {
+				return [this.selectedCriteriumAsSlider?.context.start ?? 1, this.selectedCriteriumAsSlider?.context.end ?? 1];
+			},
 			set(v: [number, number]) {
 				if (this.selectedCriteriumAsSlider) {
 					this.selectedCriteriumAsSlider.context.start = v[0];
 					this.selectedCriteriumAsSlider.context.end = v[1];
 				}
-			}
+			},
 		},
 
 		preview(): {
@@ -536,26 +533,24 @@ export default defineComponent({
 			selectedAnnotationAsHtml: boolean;
 			punct: string;
 			style: object;
-			captureAndRelation: CaptureAndRelation[]|undefined;
+			captureAndRelation: CaptureAndRelation[] | undefined;
 		}[][] {
-			if (this.selectedCriterium?.type !== 'context' ||
-				!isHitResults(this.hits) ||
-				!this.hits.hits.length) {
-					return [];
+			if (this.selectedCriterium?.type !== 'context' || !isHitResults(this.hits) || !this.hits.hits.length) {
+				return [];
 			}
 
 			const wordAnnotation = UIStore.getState().results.shared.concordanceAnnotationId;
 			const wordAsHtml = UIStore.getState().results.shared.concordanceAsHtml;
-			
+
 			const firstHit = this.hits.hits.find(v => !!v.otherFields) ?? this.hits.hits[0];
 			const targetField = this.selectedCriterium?.fieldName;
 			const hitInField = targetField && targetField.length > 0 && targetField !== this.mainSearchField && firstHit.otherFields ? firstHit.otherFields[targetField] : firstHit;
-			const {annotation, context} = this.selectedCriterium;
+			const { annotation, context } = this.selectedCriterium;
 
-			const snippet = snippetParts(hitInField, this.colors)
+			const snippet = snippetParts(hitInField, this.colors);
 
 			// Don't highlight the list of relations matchInfo; it doesn't make sense to group on those
-			const removeListMatchInfo = (t: HitToken) => t.captureAndRelation = t.captureAndRelation?.filter(c => c.key.indexOf('[') < 0);
+			const removeListMatchInfo = (t: HitToken) => (t.captureAndRelation = t.captureAndRelation?.filter(c => c.key.indexOf('[') < 0));
 			snippet.before.forEach(removeListMatchInfo);
 			snippet.match.forEach(removeListMatchInfo);
 			snippet.after.forEach(removeListMatchInfo);
@@ -565,13 +560,20 @@ export default defineComponent({
 			// Now extract the indices of the tokens that are active (i.e. being grouped on).
 			// start and end here are INCLUSIVE and 0-indexed. While start + end in the GroupBy object are 1-indexed.
 			// If we're not grouping on a specific word, we'll just show the entire snippet without anything highlighted.
-			let start =  Number.MAX_SAFE_INTEGER;
+			let start = Number.MAX_SAFE_INTEGER;
 			let end = -Number.MAX_SAFE_INTEGER;
 			if (context.type === 'positional') {
 				const whichTokens = context.whichTokens;
-				if (whichTokens === 'all') { start = 0; end = Number.MAX_SAFE_INTEGER; }
-				else if (whichTokens === 'first') { start = 0; end = 0; }
-				else { start = context.start! - 1; end = context.end! - 1; }
+				if (whichTokens === 'all') {
+					start = 0;
+					end = Number.MAX_SAFE_INTEGER;
+				} else if (whichTokens === 'first') {
+					start = 0;
+					end = 0;
+				} else {
+					start = context.start! - 1;
+					end = context.end! - 1;
+				}
 
 				// left/before context ('B') and hit-from-end context ('E') use inverted index in BlackLab, mimic this.
 				if (position === 'E' || position === 'B') {
@@ -587,22 +589,26 @@ export default defineComponent({
 
 			const isActiveRelationOrCapture = (t: HitToken): boolean => {
 				/** might be null if not grouping on a capture at the moment */
-				const currentlyGroupedOnCaptureOrRelation =  t.captureAndRelation?.find(c => c.key === this.selectedCriteriumAsLabel?.context.label);
+				const currentlyGroupedOnCaptureOrRelation = t.captureAndRelation?.find(c => c.key === this.selectedCriteriumAsLabel?.context.label);
 				if (!currentlyGroupedOnCaptureOrRelation) return false;
 
-				if (this.selectedCriteriumAsLabel?.context.relation === 'source') { return currentlyGroupedOnCaptureOrRelation.isSource; }
-				else if (this.selectedCriteriumAsLabel?.context.relation === 'target') { return currentlyGroupedOnCaptureOrRelation.isTarget; }
-				else return true;
-			}
+				if (this.selectedCriteriumAsLabel?.context.relation === 'source') {
+					return currentlyGroupedOnCaptureOrRelation.isSource;
+				} else if (this.selectedCriteriumAsLabel?.context.relation === 'target') {
+					return currentlyGroupedOnCaptureOrRelation.isTarget;
+				} else return true;
+			};
 
 			const getPreviewStyle = (t: HitToken): object => {
-				return t.captureAndRelation?.length ? {
-					background: `linear-gradient(90deg, ${t.captureAndRelation.map((c, i) => `${c.highlight.color} ${i / t.captureAndRelation!.length * 100}%, ${c.highlight.color} ${(i + 1) / t.captureAndRelation!.length * 100}%`)})`,
-					color: t.captureAndRelation[0].highlight.textcolor,
-					textShadow: `0 0 1.25px ${t.captureAndRelation[0].highlight.textcolorcontrast},`.repeat(10).replace(/,$/, ''),
-					cursor: 'pointer',
-				} : {}
-			}
+				return t.captureAndRelation?.length
+					? {
+							background: `linear-gradient(90deg, ${t.captureAndRelation.map((c, i) => `${c.highlight.color} ${(i / t.captureAndRelation!.length) * 100}%, ${c.highlight.color} ${((i + 1) / t.captureAndRelation!.length) * 100}%`)})`,
+							color: t.captureAndRelation[0].highlight.textcolor,
+							textShadow: `0 0 1.25px ${t.captureAndRelation[0].highlight.textcolorcontrast},`.repeat(10).replace(/,$/, ''),
+							cursor: 'pointer',
+						}
+					: {};
+			};
 
 			return [
 				snippet.before.map((t, i) => ({
@@ -634,36 +640,43 @@ export default defineComponent({
 					active: (position === 'A' && isActiveIndex(i)) || isActiveRelationOrCapture(t),
 					style: getPreviewStyle(t),
 					captureAndRelation: t.captureAndRelation,
-				}))
+				})),
 			];
 		},
 
 		contextOptions(): Options {
-			return [{
-				label: this.$t('results.groupBy.some_words.theFirstWord').toString(),
-				value: 'first'
-			}, {
-				label: this.$t('results.groupBy.some_words.allWords').toString(),
-				value: 'all'
-			}, {
-				label: this.$t('results.groupBy.some_words.specificWords').toString(),
-				value: 'specific'
-			}, {
-				label: this.$t('results.groupBy.some_words.captureGroupsLabel').toString(),
-				options: [
-					...this.relations.map(c => ({
-						label: `<span class="color-ball" style="background-color: ${this.colors[c.label].color};">&nbsp;</span> relation ${c.name}`,
-						value: c.name
-					})),
-					...this.captures.map(c => ({
-						label: `<span class="color-ball" style="background-color: ${this.colors[c.label].color};">&nbsp;</span> capture ${c.name}`,
-						value: c.name
-					})),
-				]
-			}];
+			return [
+				{
+					label: this.$t('results.groupBy.some_words.theFirstWord').toString(),
+					value: 'first',
+				},
+				{
+					label: this.$t('results.groupBy.some_words.allWords').toString(),
+					value: 'all',
+				},
+				{
+					label: this.$t('results.groupBy.some_words.specificWords').toString(),
+					value: 'specific',
+				},
+				{
+					label: this.$t('results.groupBy.some_words.captureGroupsLabel').toString(),
+					options: [
+						...this.relations.map(c => ({
+							label: `<span class="color-ball" style="background-color: ${this.colors[c.label].color};">&nbsp;</span> relation ${c.name}`,
+							value: c.name,
+						})),
+						...this.captures.map(c => ({
+							label: `<span class="color-ball" style="background-color: ${this.colors[c.label].color};">&nbsp;</span> capture ${c.name}`,
+							value: c.name,
+						})),
+					],
+				},
+			];
 		},
 		fieldName: {
-			get(): string { return this.selectedCriteriumAsContext?.fieldName ?? this.mainSearchField; },
+			get(): string {
+				return this.selectedCriteriumAsContext?.fieldName ?? this.mainSearchField;
+			},
 			set(v: string) {
 				if (this.selectedCriteriumAsContext) {
 					this.selectedCriteriumAsContext.fieldName = v;
@@ -692,25 +705,22 @@ export default defineComponent({
 								// set to "all words".
 								selectedContext.label = 'all';
 							}
-						})
+						});
 					}
 				}
-			}
+			},
 		},
 		contextValue: {
 			/** The string value is when grouping on a capture group or relation. */
-			get(): 'first'|'all'|'context'|string {
+			get(): 'first' | 'all' | 'context' | string {
 				// if grouping on a label: return the label, if grouping on a position: return the position.
 				// Otherwise blank.
-				if (this.selectedCriterium?.type !== 'context')
-					return '';
-				else if (this.selectedCriterium.context.type === 'label')
-					return this.selectedCriterium.context.label;
-				else
-					return this.selectedCriteriumAsPositional?.context.whichTokens ?? '';
+				if (this.selectedCriterium?.type !== 'context') return '';
+				else if (this.selectedCriterium.context.type === 'label') return this.selectedCriterium.context.label;
+				else return this.selectedCriteriumAsPositional?.context.whichTokens ?? '';
 			},
 			/** The string value is when grouping on a capture group or relation. */
-			set(v: 'first'|'all'|'specific'|string) {
+			set(v: 'first' | 'all' | 'specific' | string) {
 				if (this.selectedCriterium?.type !== 'context') return;
 
 				// should never happen we receive one of these options when type is not 'positional'
@@ -726,7 +736,7 @@ export default defineComponent({
 							whichTokens: v,
 							start: 1,
 							end: this.contextsize,
-						}
+						};
 					}
 					// if we're grouping on the entire hit, we can't group from the end. (blacklab limitation)
 					if (v === 'all' && this.selectedCriteriumAsPositional?.context.position === 'E') {
@@ -737,8 +747,8 @@ export default defineComponent({
 					this.selectedCriterium.context = {
 						type: 'label',
 						label: v,
-						relation: this.relationNames?.includes(v) ? this.getInitialRelationPartValue(v) : undefined
-					}
+						relation: this.relationNames?.includes(v) ? this.getInitialRelationPartValue(v) : undefined,
+					};
 				}
 			},
 		},
@@ -746,10 +756,8 @@ export default defineComponent({
 			get(): string {
 				if (this.selectedCriterium?.type === 'metadata') {
 					const meta = this.selectedCriterium.metadata;
-					if (meta.type === 'document')
-						return meta.field;
-					else
-						return spanAttributeOptionValue(meta.spanName, meta.attributeName);
+					if (meta.type === 'document') return meta.field;
+					else return spanAttributeOptionValue(meta.spanName, meta.attributeName);
 				}
 				return '';
 			},
@@ -757,42 +765,45 @@ export default defineComponent({
 				if (v && this.selectedCriterium?.type === 'metadata') {
 					const isSpanAttr = isSpanAttributeOptionValue(v);
 					if (!isSpanAttr) {
-						this.selectedCriterium.metadata ={
+						this.selectedCriterium.metadata = {
 							type: 'document',
 							field: v,
 						};
 					} else {
 						const { name, attrName } = splitSpanAttributeOptionValue(v);
-						this.selectedCriterium.metadata ={
+						this.selectedCriterium.metadata = {
 							type: 'span-attribute',
 							spanName: name,
 							attributeName: attrName,
 						};
 					}
 				}
-			}
+			},
 		},
 
 		positionOptions(): Options {
 			if (!(this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional')) return [];
 
 			return [
-			{ label: this.$t('results.groupBy.in_this_location.beforeTheHit').toString(), value: 'B'},
-			{ label: this.$t('results.groupBy.in_this_location.inTheHit').toString(), value: 'H' },
-			// grouping from the end of the hit when grouping on entire hit is not possible (causes an exception in BlackLab)
-			...(this.selectedCriterium?.context.whichTokens !== 'all' ? [{label: this.$t('results.groupBy.in_this_location.fromTheEnd').toString(), value: 'E'}] : []),
-			{ label: this.$t('results.groupBy.in_this_location.afterTheHit').toString(), value: 'A' }];
+				{ label: this.$t('results.groupBy.in_this_location.beforeTheHit').toString(), value: 'B' },
+				{ label: this.$t('results.groupBy.in_this_location.inTheHit').toString(), value: 'H' },
+				// grouping from the end of the hit when grouping on entire hit is not possible (causes an exception in BlackLab)
+				...(this.selectedCriterium?.context.whichTokens !== 'all' ? [{ label: this.$t('results.groupBy.in_this_location.fromTheEnd').toString(), value: 'E' }] : []),
+				{ label: this.$t('results.groupBy.in_this_location.afterTheHit').toString(), value: 'A' },
+			];
 		},
 		positionValue: {
-			get(): 'B'|'H'|'E'|'A' { return this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional' ? this.selectedCriterium.context.position : 'H'; },
-			set(v: 'B'|'H'|'E'|'A') {
-				if (this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional')
-					this.selectedCriterium.context.position = v ;
-			}
+			get(): 'B' | 'H' | 'E' | 'A' {
+				return this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional' ? this.selectedCriterium.context.position : 'H';
+			},
+			set(v: 'B' | 'H' | 'E' | 'A') {
+				if (this.selectedCriterium?.type === 'context' && this.selectedCriterium.context.type === 'positional') this.selectedCriterium.context.position = v;
+			},
 		},
 
-
-		isParallel(): boolean { return CorpusStore.get.isParallelCorpus() ?? false; },
+		isParallel(): boolean {
+			return CorpusStore.get.isParallelCorpus() ?? false;
+		},
 
 		parallelVersionOptions(): Option[] {
 			// NOTE: we look at results.summary.pattern, not the QueryStore, so this also works
@@ -801,16 +812,17 @@ export default defineComponent({
 			const summary = this.results?.summary;
 			const patt = hasPatternInfo(summary) ? summary.pattern : undefined;
 			const fields = patt ? [patt.fieldName, ...(patt.otherFields ?? [])] : [];
-			return fields.map(fieldName => CorpusStore.get.parallelAnnotatedFieldsMap()[fieldName]).map(field => ({
-				value: field.id,
-				label: this.$tAnnotatedFieldDisplayName(field)
-			}));
-		}
+			return fields
+				.map(fieldName => CorpusStore.get.parallelAnnotatedFieldsMap()[fieldName])
+				.map(field => ({
+					value: field.id,
+					label: this.$tAnnotatedFieldDisplayName(field),
+				}));
+		},
 	},
 	methods: {
 		groupLabelTag(tagName: string): string {
-			if (this.$te(`results.groupBy.groupLabel.tag ${tagName}`))
-				return this.$t(`results.groupBy.groupLabel.tag ${tagName}`).toString();
+			if (this.$te(`results.groupBy.groupLabel.tag ${tagName}`)) return this.$t(`results.groupBy.groupLabel.tag ${tagName}`).toString();
 			return this.$td(`index.spans.${tagName}`, `Tag ${tagName}`);
 		},
 		apply() {
@@ -825,12 +837,15 @@ export default defineComponent({
 		},
 
 		isEmptyGroup(group: GroupBy) {
-			return (group.type === 'context' && !group.annotation) ||
-				(group.type === 'metadata' && (
-					group.metadata.type === 'document' && !group.metadata.field ||
-					group.metadata.type === 'span-attribute' && !group.metadata.spanName && !group.metadata.attributeName));
+			return (
+				(group.type === 'context' && !group.annotation) ||
+				(group.type === 'metadata' &&
+					((group.metadata.type === 'document' && !group.metadata.field) || (group.metadata.type === 'span-attribute' && !group.metadata.spanName && !group.metadata.attributeName)))
+			);
 		},
-		isInvalidGroup(group: GroupBy) { return !this.isEmptyGroup(group) && !isValidGroupBy(group); },
+		isInvalidGroup(group: GroupBy) {
+			return !this.isEmptyGroup(group) && !isValidGroupBy(group);
+		},
 		removeGroup(i: number) {
 			if (this.selectedCriteriumIndex >= i) this.selectedCriteriumIndex--;
 			this.addedCriteria.splice(i, 1);
@@ -839,8 +854,7 @@ export default defineComponent({
 			this.addedCriteria = [];
 			this.selectedCriteriumIndex = -1;
 			this.active = false;
-			if (this.storeValue.length > 0)
-				this.apply(); // only when actually removing something, otherwise we reset the results for no reason.
+			if (this.storeValue.length > 0) this.apply(); // only when actually removing something, otherwise we reset the results for no reason.
 		},
 		addAnnotation() {
 			this.addedCriteria.push({
@@ -852,9 +866,9 @@ export default defineComponent({
 					position: 'H',
 					whichTokens: 'all',
 					start: 1,
-					end: this.contextsize
+					end: this.contextsize,
 				},
-				caseSensitive: false
+				caseSensitive: false,
 			});
 			this.selectedCriteriumIndex = this.addedCriteria.length - 1;
 		},
@@ -864,8 +878,8 @@ export default defineComponent({
 				caseSensitive: false,
 				metadata: {
 					type: 'document',
-					field: ''
-				}
+					field: '',
+				},
 			});
 			this.selectedCriteriumIndex = this.addedCriteria.length - 1;
 		},
@@ -893,18 +907,17 @@ export default defineComponent({
 				type: 'label',
 				label: relation.key,
 				relation: relation.isSource ? 'source' : relation.isTarget ? 'target' : undefined,
-			}
+			};
 		},
-		relationPartByClass(part: 'source'|'target'|'label'): string {
+		relationPartByClass(part: 'source' | 'target' | 'label'): string {
 			const relName = this.selectedCriteriumAsLabel?.context.label;
-			const relation = relName ? this.hits?.hits[0].matchInfos?.[relName] as BLMatchInfoRelation : null;
+			const relation = relName ? (this.hits?.hits[0].matchInfos?.[relName] as BLMatchInfoRelation) : null;
 			const relClass = relation?.relClass ?? null;
 			if (relClass) {
 				// Get the specific name for this relClass;
 				// i.e. 'head' instead of 'source' for the 'dep' relationClass (dependency relations)
 				const key = `results.groupBy.relationPartByClass.${relClass}.${part}`;
-				if (this.$te(key))
-					return this.$t(key).toString();
+				if (this.$te(key)) return this.$t(key).toString();
 			}
 			// No specific name for this relation class; fall back to the default relation part name.
 			return this.$t(`results.groupBy.relationPartByClass.default.${part}`).toString();
@@ -926,7 +939,7 @@ export default defineComponent({
 			const matchInfoDef = this.relationMatchInfoDefByLabel(relationName);
 			const source = this.relationSourceInThisField(matchInfoDef);
 			const target = this.relationTargetInThisField(matchInfoDef);
-			return source == target ? undefined : (source ? 'source' : 'target');
+			return source == target ? undefined : source ? 'source' : 'target';
 		},
 	},
 	watch: {
@@ -961,14 +974,13 @@ export default defineComponent({
 						this.hits = data;
 					});
 				}
-			}
+			},
 		},
 	},
 });
 </script>
 
 <style lang="scss">
-
 .case-and-context {
 	display: flex;
 	flex-direction: row;
@@ -986,7 +998,7 @@ export default defineComponent({
 			line-height: 30px;
 		}
 	}
-	>.inputs {
+	> .inputs {
 		flex-grow: 1;
 		flex-basis: auto;
 		> * {
@@ -994,7 +1006,6 @@ export default defineComponent({
 			height: 30px;
 			display: block;
 		}
-
 	}
 }
 
@@ -1020,7 +1031,9 @@ export default defineComponent({
 		// Always round the borders of inactive words
 		// Otherwise highlights look bad.
 		// (active words have their own border radius logic.)
-		&:not(.active) { border-radius: 6px; }
+		&:not(.active) {
+			border-radius: 6px;
+		}
 	}
 
 	/** In between words. Is separate from the word container because in the past words could be shrunk, but punctuation was exempt from that. */
@@ -1103,5 +1116,4 @@ export default defineComponent({
 		}
 	}
 }
-
 </style>

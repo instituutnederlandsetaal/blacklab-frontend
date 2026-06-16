@@ -1,3 +1,8 @@
+import { reactive } from 'vue';
+
+import { blacklabPaths } from '@/api';
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
 /**
  * This module contains a single entry for every metadata field in this corpus.
  * It contains the current ui state for frequency list form.
@@ -6,22 +11,16 @@
  */
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
-
 import type { FilterDefinition } from '@/types/apptypes';
-
-import { blacklabPaths } from '@/api';
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
-import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { mapReduce } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import { debugLogCat } from '@/utils/debug';
-import { reactive } from 'vue';
 
 export type FilterState = {
 	value: unknown;
 };
 
-export type FullFilterState = FilterDefinition<unknown>&FilterState;
+export type FullFilterState = FilterDefinition<unknown> & FilterState;
 
 /** A group of metadata filters (i.e. a tab in the search interface) */
 export type FilterGroupType = {
@@ -39,7 +38,7 @@ export type FilterGroupType = {
 type ModuleRootState = {
 	filters: {
 		[filterId: string]: FullFilterState;
-	},
+	};
 	// Differently structured from the normal BlackLab MetadataFieldGroups, because we allow inserting subheaders between fields, and activating a query on tab activation
 	filterGroups: FilterGroupType[];
 };
@@ -49,7 +48,7 @@ type ExternalModuleRootState = ModuleRootState['filters'];
 /** Populated on store initialization and afterwards */
 const initialState: ModuleRootState = {
 	filters: {},
-	filterGroups: []
+	filterGroups: [],
 };
 
 const state = reactive(structuredClone(initialState));
@@ -57,10 +56,11 @@ const getState = () => state;
 
 const get = {
 	/** Return all filters holding a value */
-	activeFilters: memoize(() => Object
-		.values(state.filters)
-		.filter(f => getValueFunctions(f).isActive(f.id, f.metadata, f.value))
-		.sort((a, b) => a.id.localeCompare(b.id)) // sort by id for stable order, important for derived state comparisons (e.g. history entries)
+	activeFilters: memoize(
+		() =>
+			Object.values(state.filters)
+				.filter(f => getValueFunctions(f).isActive(f.id, f.metadata, f.value))
+				.sort((a, b) => a.id.localeCompare(b.id)), // sort by id for stable order, important for derived state comparisons (e.g. history entries)
 	),
 	/** Return activeFilters as associative map instead of array */
 	activeFiltersMap: memoize(() => {
@@ -68,32 +68,35 @@ const get = {
 		return mapReduce(activeFilters, 'id');
 	}),
 
-	luceneQuery: memoize((): string|undefined => getFilterString(get.activeFilters())),
-	luceneQuerySummary: memoize((): string|undefined => getFilterSummary(get.activeFilters())),
+	luceneQuery: memoize((): string | undefined => getFilterString(get.activeFilters())),
+	luceneQuerySummary: memoize((): string | undefined => getFilterSummary(get.activeFilters())),
 
 	filterValue: (id: string) => state.filters[id],
 
-	hasSpanFilters: memoize(() =>
-		!!Object.values(state.filters).find(f => getValueFunctions(f).isSpanFilter)
-	),
+	hasSpanFilters: memoize(() => !!Object.values(state.filters).find(f => getValueFunctions(f).isSpanFilter)),
 };
 
 const actions = {
-	registerFilterGroup: (filterGroup: {id: string, filterIds: string[]}) => {
+	registerFilterGroup: (filterGroup: { id: string; filterIds: string[] }) => {
 		if (state.filterGroups.find(g => g.tabname === filterGroup.id)) {
 			console.warn(`Filter group ${filterGroup.id} already exists`);
 			return;
 		}
 		state.filterGroups.push({
 			tabname: filterGroup.id,
-			subtabs: [{
-				tabname: undefined,
-				fields: filterGroup.filterIds.filter(id => state.filters[id] != null),
-			}],
+			subtabs: [
+				{
+					tabname: undefined,
+					fields: filterGroup.filterIds.filter(id => state.filters[id] != null),
+				},
+			],
 		});
 	},
 
-	registerFilter: ({filter, insertBefore}: {
+	registerFilter: ({
+		filter,
+		insertBefore,
+	}: {
 		/** Filter definition */
 		filter: FilterDefinition<unknown>;
 		/** Optional: ID of another filter in this group before which to insert this filter, if omitted, the filter is appended at the end. */
@@ -112,7 +115,8 @@ const actions = {
 			group.subtabs[subtabIndex].fields.splice(index !== -1 ? index : group.subtabs[subtabIndex].fields.length, 0, filter.id);
 		}
 
-		if (state.filters[filter.id]) { // already exists, might be registered twice because it's in multiple groups
+		if (state.filters[filter.id]) {
+			// already exists, might be registered twice because it's in multiple groups
 			return;
 		}
 
@@ -122,10 +126,10 @@ const actions = {
 		//@ts-ignore
 		filter.defaultDescription = filter.defaultDescription || filter.description;
 
-		state.filters[filter.id] = {...filter, value: null};
+		state.filters[filter.id] = { ...filter, value: null };
 	},
 
-	filterValue: ({id, value}: Pick<FullFilterState, 'id'|'value'>) => {
+	filterValue: ({ id, value }: Pick<FullFilterState, 'id' | 'value'>) => {
 		const filterObj = state.filters[id];
 		if (!filterObj) {
 			console.error(`Filter ${id} does not exist`);
@@ -133,9 +137,10 @@ const actions = {
 		return (filterObj.value = value != null ? value : null);
 	},
 
-	reset: () => Object.keys(state.filters).forEach(k => {
-		state.filters[k].value = null;
-	}),
+	reset: () =>
+		Object.keys(state.filters).forEach(k => {
+			state.filters[k].value = null;
+		}),
 
 	replace: (payload: ExternalModuleRootState) => {
 		actions.reset();
@@ -154,7 +159,7 @@ const init = (state: CorpusChange) => {
 	CorpusModule.get.metadataGroups().forEach(g => {
 		actions.registerFilterGroup({
 			filterIds: [],
-			id: g.id
+			id: g.id,
 		});
 
 		g.fields.forEach(f => {
@@ -184,7 +189,7 @@ const init = (state: CorpusChange) => {
 				case 'date':
 					componentName = 'filter-date';
 					metadata = {
-						field: f.id
+						field: f.id,
 					};
 				case 'text':
 				default:
@@ -201,20 +206,20 @@ const init = (state: CorpusChange) => {
 					groupId: g.id,
 					id: f.id,
 					metadata,
-				}
+				},
 			});
 		});
 	});
 
 	// Make sure we register all fields in any custom tabs
 	corpusCustomizations.search.metadata._customTabs
-		.map(t => ({ name: t.name, fields: t.fields ?? t.subtabs.flatMap((s: any) => s.fields)})) // flatten subtabs
+		.map(t => ({ name: t.name, fields: t.fields ?? t.subtabs.flatMap((s: any) => s.fields) })) // flatten subtabs
 		.map(t => t.fields.map((f: any) => ({ groupId: t.name, ...f }))) // fill in missing groupId if any
 		.flat() // flatten tabs
 		.filter(f => f.id)
 		.forEach(f => {
 			actions.registerFilter({
-				filter: f as FilterDefinition<unknown>
+				filter: f as FilterDefinition<unknown>,
 			});
 		});
 
@@ -223,4 +228,3 @@ const init = (state: CorpusChange) => {
 
 export { actions, get, getState, init };
 export type { ModuleRootState as FullModuleRootState, ExternalModuleRootState as ModuleRootState };
-

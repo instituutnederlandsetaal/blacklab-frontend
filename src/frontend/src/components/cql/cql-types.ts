@@ -54,12 +54,12 @@ export interface CqlQueryBuilderData {
 	within: string;
 }
 
-export const COMPARATORS: CqlAnnotationValueComparator[][]= [
+export const COMPARATORS: CqlAnnotationValueComparator[][] = [
 	['=', '!='],
-	['startsWith', 'endsWith']
+	['startsWith', 'endsWith'],
 ];
 
-export const OPERATORS: CqlAnnotationCombinator[] = ['&','|'];
+export const OPERATORS: CqlAnnotationCombinator[] = ['&', '|'];
 
 // Options type for CQL Query Builder - contains all precomputed store data
 export interface CqlQueryBuilderOptions {
@@ -165,15 +165,12 @@ export const CqlGenerator = {
 	rootCql,
 	tokenCql,
 	groupCql,
-	attributeCql
+	attributeCql,
 };
 
-
-
-
 export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): {
-	query: CqlQueryBuilderData,
-	targetQueries: CqlQueryBuilderData[],
+	query: CqlQueryBuilderData;
+	targetQueries: CqlQueryBuilderData[];
 } {
 	// Find source query (no targetVersion) and target queries (with targetVersion)
 	const sourceQuery = queries.find(q => !q.targetVersion);
@@ -198,13 +195,13 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 					minRepeats: token.repeats?.min ?? 1,
 					maxRepeats: token.repeats?.max ?? 1,
 					beginOfSentence: !!token.leadingXmlTag && token.leadingXmlTag.name === 's',
-					endOfSentence: !!token.trailingXmlTag && token.trailingXmlTag.name === 's'
+					endOfSentence: !!token.trailingXmlTag && token.trailingXmlTag.name === 's',
 				},
 				rootAttributeGroup: {
 					id: generateId(),
 					operator: '&', // default operator
-					entries: []
-				}
+					entries: [],
+				},
 			};
 
 			// Parse the token expression into the root attribute group
@@ -228,13 +225,10 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 	};
 
 	// Parse expression tree into CQL entries
-	const parseExpression = (
-		expression: BooleanOp|Condition,
-		generateId: () => string
-	): CqlAttributeGroupData|CqlAttributeData => {
+	const parseExpression = (expression: BooleanOp | Condition, generateId: () => string): CqlAttributeGroupData | CqlAttributeData => {
 		if (expression.type === 'booleanOp') {
 			const operator = expression.operator;
-			
+
 			const firstGroupWithOperator = new Map<string, CqlAttributeGroupData>();
 			const ourEntries = [] as CqlGroupEntry[];
 			for (const entry of expression.clauses.map(c => parseExpression(c, generateId))) {
@@ -255,9 +249,10 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 			return {
 				id: generateId(),
 				operator,
-				entries: ourEntries
-			}
-		} else { // (expression.type === 'condition') 
+				entries: ourEntries,
+			};
+		} else {
+			// (expression.type === 'condition')
 			// Parse attribute value for case sensitivity and special operators
 			let value = expression.value;
 			let caseSensitive = false;
@@ -274,9 +269,13 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 
 			// decode starts-with / ends-with from value regex
 			let comparator: CqlAnnotationValueComparator = '=';
-			if (operator === '=' && value.startsWith('.*')) { comparator = 'endsWith'; }
-			else if (operator === '=' && value.endsWith('.*')) { comparator = 'startsWith'; }
-			else { comparator = operator }
+			if (operator === '=' && value.startsWith('.*')) {
+				comparator = 'endsWith';
+			} else if (operator === '=' && value.endsWith('.*')) {
+				comparator = 'startsWith';
+			} else {
+				comparator = operator;
+			}
 
 			// Split values on pipe character for multi-value attributes
 			const values = value.split('|');
@@ -286,7 +285,7 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 				annotationId: expression.name,
 				comparator,
 				values,
-				caseSensitive
+				caseSensitive,
 			};
 
 			return attributeData;
@@ -294,16 +293,18 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 	};
 
 	// Parse source query or create empty state
-	const query = sourceQuery ? parseQuery(sourceQuery) : {
-		tokens: [],
-		within: '',
-	};
+	const query = sourceQuery
+		? parseQuery(sourceQuery)
+		: {
+				tokens: [],
+				within: '',
+			};
 
 	// Parse target queries
 	const parsedTargetQueries = targetQueries.map(parseQuery);
 
 	return {
 		query,
-		targetQueries: parsedTargetQueries
+		targetQueries: parsedTargetQueries,
 	};
 }

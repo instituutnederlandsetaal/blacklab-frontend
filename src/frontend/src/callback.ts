@@ -10,7 +10,6 @@
  * If we're logging in, the callback page will redirect to the main page, with the tokens in the url.
  */
 
-
 import { UserManager, Log } from 'oidc-client-ts';
 
 //@ts-ignore
@@ -31,7 +30,7 @@ if (OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL) {
 	// Think about it: it would be weird to show loading status when the outcome is you're not logged in yet.
 	// And we don't know the outcome yet, so we can't show a loading status.
 	// When actually performing an in-flow login, you're not on the page anymore, so you can't show a loading status either.
-	const userManager =  new UserManager({
+	const userManager = new UserManager({
 		checkSessionIntervalInSeconds: 10,
 		prompt: 'login',
 		redirect_uri: window.location.origin + CONTEXT_URL + '/callback',

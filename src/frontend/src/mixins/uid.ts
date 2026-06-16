@@ -6,5 +6,6 @@ let next = 0;
 // So this.kljsdfkhsdkfhs becomes any, and it's not a good thing
 
 /** Generate the next UID */
-export default function() { return (next++).toString(); }
-
+export default function () {
+	return (next++).toString();
+}

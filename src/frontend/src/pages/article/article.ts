@@ -1,25 +1,34 @@
+import type { Observable } from 'rxjs';
+import { combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareReplay } from 'rxjs';
+
 import { blacklab, frontend } from '@/api';
 import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 import { binarySearch, clamp } from '@/utils';
-
 import type { Loadable } from '@/utils/loadable-streams';
-import { combineLoadables, combineLoadableStreams, combineLoadableStreamsIncludingEmpty, compareAsSortedJson, mapLoaded, switchMapLoaded, toObservable, withRequiredKeys } from '@/utils/loadable-streams';
-import type { Observable } from 'rxjs';
-import { combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareReplay } from 'rxjs';
+import {
+	combineLoadables,
+	combineLoadableStreams,
+	combineLoadableStreamsIncludingEmpty,
+	compareAsSortedJson,
+	mapLoaded,
+	switchMapLoaded,
+	toObservable,
+	withRequiredKeys,
+} from '@/utils/loadable-streams';
 
 // Define some input/intermediate types and utils.
 
 export type DocInput = {
 	indexId: string;
 	docId: string;
-}
+};
 export type HitsInput = {
 	indexId: string;
 	docId: string;
 	patt: string;
-	searchField?: string|undefined;
-	pattgapdata?: string|undefined;
-}
+	searchField?: string | undefined;
+	pattgapdata?: string | undefined;
+};
 
 export type PageInput = {
 	wordstart: number;
@@ -27,23 +36,23 @@ export type PageInput = {
 	findhit?: number;
 	pageSize: number;
 	viewField: string;
-}
+};
 
-type _Input = Partial<DocInput & HitsInput & PageInput>
-export type Input = { [K in keyof _Input]: _Input[K] | null; }
+type _Input = Partial<DocInput & HitsInput & PageInput>;
+export type Input = { [K in keyof _Input]: _Input[K] | null };
 
 /** The initial input */
-const inputsFromStore$  = new ReplaySubject<Input>(1);
+const inputsFromStore$ = new ReplaySubject<Input>(1);
 export { inputsFromStore$ as input$ };
 const input$ = inputsFromStore$.pipe(distinctUntilChanged(compareAsSortedJson), shareReplay(1));
 
 // Document metadata
-export const metadata$ =  input$.pipe(
+export const metadata$ = input$.pipe(
 	map(withRequiredKeys('indexId', 'docId')),
-	mapLoaded(i => ({indexId: i.indexId, docId: i.docId})),
+	mapLoaded(i => ({ indexId: i.indexId, docId: i.docId })),
 	distinctUntilChanged(compareAsSortedJson),
 	switchMapLoaded(i => blacklab.getDocumentInfo(i.indexId, i.docId).toObservable()),
-	shareReplay(1)
+	shareReplay(1),
 );
 
 // Document hits
@@ -57,14 +66,18 @@ export const hits$ = input$.pipe(
 		pattgapdata: i.pattgapdata || undefined,
 	})),
 	distinctUntilChanged(compareAsSortedJson),
-	switchMapLoaded(i => blacklab.getHits<BLHitResults>(i.indexId, {
-		...i,
-		first: 0,
-		number: Math.pow(2, 31)-1, // JAVA BACKEND: max_safe_integer is 2^31-1
-		context: 0,
-		includetokencount: false,
-		listvalues: "__do_not_send_anything__", // we don't need this info
-	}).toObservable()),
+	switchMapLoaded(i =>
+		blacklab
+			.getHits<BLHitResults>(i.indexId, {
+				...i,
+				first: 0,
+				number: Math.pow(2, 31) - 1, // JAVA BACKEND: max_safe_integer is 2^31-1
+				context: 0,
+				includetokencount: false,
+				listvalues: '__do_not_send_anything__', // we don't need this info
+			})
+			.toObservable(),
+	),
 	mapLoaded(hits => hits.hits.map(h => [h.start, h.end] as [number, number])),
 	shareReplay(1),
 );
@@ -88,19 +101,18 @@ type ValidPaginationAndDocDisplayParameters = {
 
 	searchField: string;
 	viewField: string;
-}
+};
 
 /**
  * This is only available after the metadata and hits are loaded.
  * It is a guaranteed valid set of pagination parameters.
  */
-export const validPaginationParameters$: Observable<Loadable<ValidPaginationAndDocDisplayParameters>> =
-	metadata$.pipe(
-		switchMapLoaded(m => combineLoadableStreamsIncludingEmpty({doc: of(m), input: input$, hits: hits$})),
-		mapLoaded(({input, doc, hits}) => fixInput(input, doc, hits)),
-		distinctUntilChanged(compareAsSortedJson),
-		shareReplay(1)
-	)
+export const validPaginationParameters$: Observable<Loadable<ValidPaginationAndDocDisplayParameters>> = metadata$.pipe(
+	switchMapLoaded(m => combineLoadableStreamsIncludingEmpty({ doc: of(m), input: input$, hits: hits$ })),
+	mapLoaded(({ input, doc, hits }) => fixInput(input, doc, hits)),
+	distinctUntilChanged(compareAsSortedJson),
+	shareReplay(1),
+);
 
 // This observable is used to correct the store when the user enters on or navigates to a page that is out of bounds or otherwise invalid.
 export const correctionsForStore$ = combineLatest([input$, validPaginationParameters$]).pipe(
@@ -108,18 +120,22 @@ export const correctionsForStore$ = combineLatest([input$, validPaginationParame
 	mapLoaded(([maybeInvalid, valid]) => {
 		const commonKeys = Object.keys(maybeInvalid).filter(k => k in valid) as Extract<keyof typeof maybeInvalid, keyof typeof valid>[];
 		// extract those properties that are different
-		const difference = commonKeys.reduce((acc, key) => {
-			if (maybeInvalid[key] !== valid[key]) acc[key] = maybeInvalid[key] as any;
-			return acc;
-		}, {} as Partial<Pick<Input, typeof commonKeys[number]>>);
+		const difference = commonKeys.reduce(
+			(acc, key) => {
+				if (maybeInvalid[key] !== valid[key]) acc[key] = maybeInvalid[key] as any;
+				return acc;
+			},
+			{} as Partial<Pick<Input, (typeof commonKeys)[number]>>,
+		);
 
 		return difference;
 	}),
-	shareReplay(1)
-)
+	shareReplay(1),
+);
 
 export const contents$ = validPaginationParameters$.pipe(
-	mapLoaded(input => ({ // only let through the necessary parameters, otherwise we might refresh unnecessarily
+	mapLoaded(input => ({
+		// only let through the necessary parameters, otherwise we might refresh unnecessarily
 		indexId: input.indexId,
 		docId: input.docId,
 		viewField: input.viewField,
@@ -135,14 +151,14 @@ export const contents$ = validPaginationParameters$.pipe(
 		const container = document.createElement('div');
 		container.innerHTML = v;
 		const highlights = Array.from(container.querySelectorAll('.hl')) as HTMLElement[];
-		return { container, highlights }
+		return { container, highlights };
 	}),
-	shareReplay(1)
-)
+	shareReplay(1),
+);
 
 export const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$, contents$]).pipe(
 	map(combineLoadables),
-	mapLoaded(([pagination, hits, {container, highlights}]) => {
+	mapLoaded(([pagination, hits, { container, highlights }]) => {
 		const firstVisibleHitIndex = Math.abs(binarySearch(hits, h => pagination.wordstart - h[0]));
 		const hitIndexToHighlight = pagination.findhit ? binarySearch(hits, h => pagination.findhit! - h[0]) : firstVisibleHitIndex;
 		const localHitIndexToHighlight = hitIndexToHighlight - firstVisibleHitIndex;
@@ -151,38 +167,42 @@ export const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$,
 			hitIndexToHighlight,
 			firstVisibleHitIndex,
 			localHitIndexToHighlight,
-			hl: highlights[localHitIndexToHighlight] as HTMLElement|undefined, // when out of bounds, this will be undefined
+			hl: highlights[localHitIndexToHighlight] as HTMLElement | undefined, // when out of bounds, this will be undefined
 			container,
-		}
+		};
 	}),
-	shareReplay(1)
+	shareReplay(1),
 );
 
 const snippet$ = validPaginationParameters$.pipe(
-	switchMapLoaded(p => toObservable(blacklab.getSnippet(
-		p.indexId,
-		p.docId,
-		p.viewField,
-		0, // start
-		p.docLength, // end
-		0 // context
-	))),
-	shareReplay(1)
+	switchMapLoaded(p =>
+		toObservable(
+			blacklab.getSnippet(
+				p.indexId,
+				p.docId,
+				p.viewField,
+				0, // start
+				p.docLength, // end
+				0, // context
+			),
+		),
+	),
+	shareReplay(1),
 );
 export const snippetAndDocument$ = combineLoadableStreams([snippet$, metadata$] as const);
 
 /** Given unvalidated pagination parameters and the size of the document, return the validated/fixed pagination parameters. */
-function getDefaultPagination(input: Input, doclength: number): {wordstart: number, wordend: number} {
+function getDefaultPagination(input: Input, doclength: number): { wordstart: number; wordend: number } {
 	// Defaults.
 	let wordstart = input.wordstart ?? 0;
-	let wordend = input.wordend ?? doclength
+	let wordend = input.wordend ?? doclength;
 	// Fix order (just in case)
 	if (wordstart > wordend) [wordstart, wordend] = [wordend, wordstart];
 	// Fix bounds.
 	return {
 		wordstart: clamp(wordstart, 0, doclength),
-		wordend: clamp(wordend, 0, input.pageSize ? wordstart + input.pageSize : doclength)
-	}
+		wordend: clamp(wordend, 0, input.pageSize ? wordstart + input.pageSize : doclength),
+	};
 }
 
 /**
@@ -191,29 +211,32 @@ function getDefaultPagination(input: Input, doclength: number): {wordstart: numb
  * @param hits the hits in the document (if any)
  * @returns
  */
-function getValidfindhit(findhit: number|undefined|null, hits?: [number, number][]): number|undefined {
+function getValidfindhit(findhit: number | undefined | null, hits?: [number, number][]): number | undefined {
 	if (!findhit || !hits) return undefined;
 	const hitIndex = binarySearch(hits, h => findhit - h[0]);
 	return hitIndex >= 0 ? findhit : undefined;
 }
 
 /** Given a set of unvalidated pagination parameters, return a set of validated pagination parameters. */
-function fixPagination({wordstart, wordend, pageSize, findhit, docLength}: {wordstart: number, wordend: number, pageSize: number, findhit?: number, docLength: number}): {wordstart: number, wordend: number} {
-	if (!findhit || (findhit >= wordstart && findhit < wordend)) return {wordstart, wordend};
+function fixPagination({ wordstart, wordend, pageSize, findhit, docLength }: { wordstart: number; wordend: number; pageSize: number; findhit?: number; docLength: number }): {
+	wordstart: number;
+	wordend: number;
+} {
+	if (!findhit || (findhit >= wordstart && findhit < wordend)) return { wordstart, wordend };
 	const newPageStart = Math.floor(findhit / pageSize) * pageSize;
 	return {
 		wordstart: newPageStart,
-		wordend: clamp(newPageStart + pageSize, 0, docLength)
-	}
+		wordend: clamp(newPageStart + pageSize, 0, docLength),
+	};
 }
 
 function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPaginationAndDocDisplayParameters {
 	const docLength = doc.docInfo.lengthInTokens;
-	let {wordstart, wordend} = getDefaultPagination(input, docLength);
+	let { wordstart, wordend } = getDefaultPagination(input, docLength);
 	const findhit = getValidfindhit(input.findhit, hits);
 	const pageSize = input.pageSize || doc.docInfo.lengthInTokens;
 
-	({wordstart, wordend} = fixPagination({wordstart, wordend, pageSize, findhit, docLength}));
+	({ wordstart, wordend } = fixPagination({ wordstart, wordend, pageSize, findhit, docLength }));
 
 	return {
 		indexId: input.indexId!,
@@ -233,6 +256,6 @@ function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPag
 		maxPage: Math.floor(docLength / pageSize),
 
 		searchField: input.searchField!,
-		viewField: input.viewField!
-	}
+		viewField: input.viewField!,
+	};
 }

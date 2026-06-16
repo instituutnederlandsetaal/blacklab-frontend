@@ -4,9 +4,10 @@
  * The actual API logic is implemented in result-count-from-query and result-count-from-filters.
  */
 
-import type { NormalizedIndex } from "@/types/apptypes";
-import { hasGroupInfo, hasPatternInfo, type BLSearchResult, type BLSearchSummary } from "@/types/blacklabtypes";
-import type { SubcorpusOutput } from "./result-count-from-filters";
+import type { NormalizedIndex } from '@/types/apptypes';
+import { hasGroupInfo, hasPatternInfo, type BLSearchResult, type BLSearchSummary } from '@/types/blacklabtypes';
+
+import type { SubcorpusOutput } from './result-count-from-filters';
 
 export type TotalsOutput = {
 	results: BLSearchResult;
@@ -18,8 +19,8 @@ export type TotalsOutput = {
 	searchTime: number;
 	tokensInMatchingDocuments: number;
 	numberOfMatchingDocuments: number;
-	state: 'counting'|'finished'|'limited'|'paused';
-}
+	state: 'counting' | 'finished' | 'limited' | 'paused';
+};
 
 // TODO remove this type - can probably be captured directly in blacklab api response types.
 type SummaryWithAnnotatedFieldSubcorpus = {
@@ -39,7 +40,7 @@ export function getCorpusTotals(index: NormalizedIndex, annotatedFieldId: string
 		numberOfMatchingDocuments: index.annotatedFields[annotatedFieldId].documentCount || index.documentCount,
 		tokensInMatchingDocuments: index.annotatedFields[annotatedFieldId].tokenCount || index.tokenCount,
 		totalDocsInIndex: index.documentCount,
-		totalTokensInIndex: index.tokenCount
+		totalTokensInIndex: index.tokenCount,
 	};
 }
 
@@ -58,14 +59,14 @@ export function getTotals(r: BLSearchResult, annotatedFieldId: string): TotalsOu
 		searchTime: r.summary.searchTime,
 		tokensInMatchingDocuments: fieldSubcorpusSize?.tokens ?? r.summary.tokensInMatchingDocuments ?? 0,
 		numberOfMatchingDocuments: fieldSubcorpusSize?.documents ?? r.summary.numberOfDocs ?? 0,
-		state: r.summary.stillCounting ? 'counting' : (hasPatternInfo_ && r.summary.stoppedCountingHits) ? 'limited' : 'finished'
+		state: r.summary.stillCounting ? 'counting' : hasPatternInfo_ && r.summary.stoppedCountingHits ? 'limited' : 'finished',
 	};
 }
 
-export function getAnnotatedFieldSubcorpusSize(summary: BLSearchSummary|BLSearchResult['summary'], annotatedFieldId: string) {
+export function getAnnotatedFieldSubcorpusSize(summary: BLSearchSummary | BLSearchResult['summary'], annotatedFieldId: string) {
 	const subcorpusSize = (summary as SummaryWithAnnotatedFieldSubcorpus).subcorpusSize;
 	if (!subcorpusSize) return null;
-	const annotatedField = subcorpusSize.annotatedFields?.find((field) => field.fieldName === annotatedFieldId);
+	const annotatedField = subcorpusSize.annotatedFields?.find(field => field.fieldName === annotatedFieldId);
 	if (annotatedField) {
 		return {
 			documents: annotatedField.documents,

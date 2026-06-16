@@ -1,23 +1,25 @@
 <template>
-	<div class="combobox" :style="{ width: dataWidth }"
+	<div
+		class="combobox"
+		:style="{ width: dataWidth }"
 		:data-menu-id="menuId"
 		:dir="dir"
-
-		@keydown.prevent.exact.down="(isOpen || !$refs.focusOnClickOpen) ? focusDown() : doOpen($refs.focusOnClickOpen)"
+		@keydown.prevent.exact.down="isOpen || !$refs.focusOnClickOpen ? focusDown() : doOpen($refs.focusOnClickOpen)"
 		@keydown.prevent.exact.up="focusUp"
 	>
 		<slot name="before"></slot>
-		<input v-if="editable && multiple"
+		<input
+			v-if="editable && multiple"
 			:class="dataClass || 'form-control'"
 			:style="dataStyle"
 			title="Editable and Multiple are not supported on the same selectpicker!"
 			value="Editable and Multiple are not supported on the same selectpicker!"
-			style="background-color: #f2dede; border-color: #ebccd1; color: #a94442;"
+			style="background-color: #f2dede; border-color: #ebccd1; color: #a94442"
 			type="text"
-
 			disabled
-		>
-		<input v-else-if="editable"
+		/>
+		<input
+			v-else-if="editable"
 			type="text"
 			:class="['menu-input', dataClass || 'form-control']"
 			:id="dataId"
@@ -29,23 +31,19 @@
 			:dir="dir"
 			:autofocus="autofocus"
 			:autocomplete="autocomplete"
-
-			@focus="doOpen()/*call directly, don't pass focusIn event*/"
-			@keydown.tab="doClose()/*focus shifts to next element, close menu*/"
+			@focus="doOpen() /*call directly, don't pass focusIn event*/"
+			@keydown.tab="doClose() /*focus shifts to next element, close menu*/"
 			@keydown.esc="doClose()"
 			@keydown.enter="doClose()"
-
 			@input.stop="emitChangeOnClose = true"
 			@change.stop=""
-
 			v-model="inputValue"
-
 			ref="focusOnEscClose"
 		/>
-		<button v-else
+		<button
+			v-else
 			type="button"
-
-			:class="['menu-button', 'btn', dataClass || 'btn-default', { 'active': isOpen }]"
+			:class="['menu-button', 'btn', dataClass || 'btn-default', { active: isOpen }]"
 			:id="dataId"
 			:name="dataName"
 			:style="dataStyle"
@@ -53,156 +51,172 @@
 			:disabled="disabled"
 			:dir="dir"
 			:autofocus="autofocus"
-
 			@click="isOpen ? doClose() : doOpen($refs.focusOnClickOpen)"
-			@keydown.tab="doClose()/*focus shifts to next element, close menu*/"
+			@keydown.tab="doClose() /*focus shifts to next element, close menu*/"
 			@keydown.esc="doClose()"
-			@keydown.prevent.enter="clickTarget($event)/*stop to prevent submitting any parent form*/"
-
+			@keydown.prevent.enter="clickTarget($event) /*stop to prevent submitting any parent form*/"
 			ref="focusOnEscClose"
 		>
 			<template v-if="displayValues.length && showValues">
-				<span class="menu-value" v-if="allowHtml" :title="String(modelValue)" v-html="displayValues.join(', ')"/>
-				<span class="menu-value" v-else :title="displayValues.join(', ')">{{displayValues.join(', ')}}</span>
+				<span class="menu-value" v-if="allowHtml" :title="String(modelValue)" v-html="displayValues.join(', ')" />
+				<span class="menu-value" v-else :title="displayValues.join(', ')">{{ displayValues.join(', ') }}</span>
 			</template>
-			<span v-else class="menu-value placeholder">{{
-				placeholderText || $t(multiple ? 'widgets.selectValues' : 'widgets.selectValue')
-			}}</span>
+			<span v-else class="menu-value placeholder">{{ placeholderText || $t(multiple ? 'widgets.selectValues' : 'widgets.selectValue') }}</span>
 			<span v-if="loading" class="menu-icon fa fa-spinner fa-spin text-muted"></span>
-			<span v-else-if="!showValues && multiple && showValueCount" :class="['menu-icon badge',{'active': displayValues.length}]">
-				{{displayValues.length || totalOptionCount}}
+			<span v-else-if="!showValues && multiple && showValueCount" :class="['menu-icon badge', { active: displayValues.length }]">
+				{{ displayValues.length || totalOptionCount }}
 			</span>
-			<span v-if="!hideCaret" :class="['menu-icon', 'menu-caret', 'fa', 'fa-caret-down', {
-				//'fa-rotate-180': isOpen
-				'fa-flip-vertical': isOpen
-			}]"></span>
+			<span
+				v-if="!hideCaret"
+				:class="[
+					'menu-icon',
+					'menu-caret',
+					'fa',
+					'fa-caret-down',
+					{
+						//'fa-rotate-180': isOpen
+						'fa-flip-vertical': isOpen,
+					},
+				]"
+			></span>
 		</button>
 
 		<slot name="after"></slot>
 
 		<teleport :to="containerEl" :disabled="!containerEl">
-		<!-- NOTE: might not actually be a child of root element at runtime! Event handling is rather specific -->
-		<!-- NOTE: use v-show, we call reposition() as soon as :open becomes true, which triggers before dom has updated
+			<!-- NOTE: might not actually be a child of root element at runtime! Event handling is rather specific -->
+			<!-- NOTE: use v-show, we call reposition() as soon as :open becomes true, which triggers before dom has updated
 		  if we were to use v-if, the menu ref would not be available yet -->
-		<ul v-show="isOpen && (filteredOptions.length || !editable)"
-			:data-menu-id="menuId"
-			:dir="dir"
-			:class="['combobox-menu', computedMenuClass, dataMenuClass]"
-
-			@keydown.prevent.stop.esc="focusTrigger(); doClose(); /* order is important */"
-			@keydown.prevent.stop.down="focusDown"
-			@keydown.prevent.stop.right="focusDown"
-			@keydown.prevent.stop.up="focusUp"
-			@keydown.prevent.stop.left="focusUp"
-			@keydown.prevent.stop.tab="$event.shiftKey ? focusUp() : focusDown()"
-			@keydown.prevent.stop.page-down="focusOffset(10, false)"
-			@keydown.prevent.stop.page-up="focusOffset(-10, false)"
-			@keydown.prevent.stop.home="focus(0)"
-			@keydown.prevent.stop.end="focus(Number.MAX_SAFE_INTEGER)"
-
-			ref="menu"
-		>
-			<template v-if="menuHeading">
-				<li v-if="allowHtml" class="menu-heading" v-html="menuHeading"></li>
-				<li v-else class="menu-heading">{{menuHeading}}</li>
-			</template>
-			<!-- note: don't insert whitespace in the heading or :empty css rule will not work -->
-			<li class="menu-header"
-				><div v-if="loading && editable /* not visible in button when editable */" class="text-center"
-					><span class="fa fa-spinner fa-spin text-muted"></span
-				></div
-				><input v-if="searchableModel && !editable /* When it's available, edit box handles searching */"
-					type="text"
-					class="form-control input-sm menu-search"
-					placeholder="Filter..."
-					tabindex="-1"
-
-					:dir="dir"
-
-					@keydown.stop.left
-					@keydown.stop.right
-					@keydown.stop.home
-					@keydown.stop.end
-					@keydown.prevent.enter="
-						filteredOptions.length < 5 &&
-						filteredOptions.filter(o => o.type === 1).length === 1 ?
-							select(filteredOptions.filter(o => o.type === 1)[0]) :
-							undefined/*prevent submission when embedded in a form*/
-					"
-					v-model="inputValue"
-
-					ref="focusOnClickOpen"
-			/><button v-if="resettableModel && filteredOptions.length"
-					type="button"
-					tabindex="-1"
-					:class="['menu-button menu-reset', 'btn btn-sm btn-default']"
-
-					@click="internalModel = {}; inputValue=''"
-				>
-					Reset
-				</button
-			></li>
-
-			<li class="menu-body">
-				<ul class="menu-options">
-					<li v-if="!filteredOptions.length" class="menu-option disabled">
-						<em class="menu-value" v-if="allowHtml" v-html="noOptionsPlaceholder"></em>
-						<em class="menu-value" v-else>{{noOptionsPlaceholder}}</em>
-					</li>
-					<slot v-for="o in filteredOptions" :key="o.id"></slot>
-					<template v-for="o in filteredOptions" :key="o.id">
-					<li v-if="o.type === 1"
-						:class="{
-							'menu-option': true,
-							'active': !multiple && internalModel[o.value],
-							'checked': multiple && internalModel[o.value],
-							'disabled': o.disabled,
-						}"
-						:tabindex="o.disabled ? undefined : -1"
-						:title="o.title"
-						:data-value="o.value"
-
-						@click="select(o); emitChangeOnClose = true;"
-						@keydown.prevent.enter="select(o); emitChangeOnClose = true;"
-						@keydown.prevent.space="select(o); emitChangeOnClose = true;"
+			<ul
+				v-show="isOpen && (filteredOptions.length || !editable)"
+				:data-menu-id="menuId"
+				:dir="dir"
+				:class="['combobox-menu', computedMenuClass, dataMenuClass]"
+				@keydown.prevent.stop.esc="
+					focusTrigger();
+					doClose(); /* order is important */
+				"
+				@keydown.prevent.stop.down="focusDown"
+				@keydown.prevent.stop.right="focusDown"
+				@keydown.prevent.stop.up="focusUp"
+				@keydown.prevent.stop.left="focusUp"
+				@keydown.prevent.stop.tab="$event.shiftKey ? focusUp() : focusDown()"
+				@keydown.prevent.stop.page-down="focusOffset(10, false)"
+				@keydown.prevent.stop.page-up="focusOffset(-10, false)"
+				@keydown.prevent.stop.home="focus(0)"
+				@keydown.prevent.stop.end="focus(Number.MAX_SAFE_INTEGER)"
+				ref="menu"
+			>
+				<template v-if="menuHeading">
+					<li v-if="allowHtml" class="menu-heading" v-html="menuHeading"></li>
+					<li v-else class="menu-heading">{{ menuHeading }}</li>
+				</template>
+				<!-- note: don't insert whitespace in the heading or :empty css rule will not work -->
+				<li class="menu-header">
+					<div v-if="loading && editable /* not visible in button when editable */" class="text-center"><span class="fa fa-spinner fa-spin text-muted"></span></div>
+					<input
+						v-if="searchableModel && !editable /* When it's available, edit box handles searching */"
+						type="text"
+						class="form-control input-sm menu-search"
+						placeholder="Filter..."
+						tabindex="-1"
+						:dir="dir"
+						@keydown.stop.left
+						@keydown.stop.right
+						@keydown.stop.home
+						@keydown.stop.end
+						@keydown.prevent.enter="
+							filteredOptions.length < 5 && filteredOptions.filter(o => o.type === 1).length === 1
+								? select(filteredOptions.filter(o => o.type === 1)[0])
+								: undefined /*prevent submission when embedded in a form*/
+						"
+						v-model="inputValue"
+						ref="focusOnClickOpen"
+					/><button
+						v-if="resettableModel && filteredOptions.length"
+						type="button"
+						tabindex="-1"
+						:class="['menu-button menu-reset', 'btn btn-sm btn-default']"
+						@click="
+							internalModel = {};
+							inputValue = '';
+						"
 					>
-						<span class="menu-value">
-							<slot name="option-label" :option="o">
-								<span v-if="allowHtml" v-html="o.label || '\u200C'"></span>
-								<template v-else>{{ o.label || '\u200C' }}</template>
-							</slot>
+						Reset
+					</button>
+				</li>
 
-							<slot name="option-check" v-if="multiple && internalModel[o.value]">
-								<span class="menu-icon fa fa-check"></span>
-							</slot>
-						</span>
-					</li>
-					<li v-else-if="o.type === 2"
-						:class="{
-							'menu-group': true,
-							'disabled': o.disabled,
-							'spacer-only': !o.label?.trim()
-						}"
-						:title="o.title"
-					>
-						<template v-if="o.label?.trim()">
-							<span v-if="allowHtml" class="menu-value" v-html="o.label"></span> <!-- don't zero-width-non-joiner fallback here, we want the height to collapse if there's no label -->
-							<span v-else class="menu-value">{{o.label || ' '}}</span>
+				<li class="menu-body">
+					<ul class="menu-options">
+						<li v-if="!filteredOptions.length" class="menu-option disabled">
+							<em class="menu-value" v-if="allowHtml" v-html="noOptionsPlaceholder"></em>
+							<em class="menu-value" v-else>{{ noOptionsPlaceholder }}</em>
+						</li>
+						<slot v-for="o in filteredOptions" :key="o.id"></slot>
+						<template v-for="o in filteredOptions" :key="o.id">
+							<li
+								v-if="o.type === 1"
+								:class="{
+									'menu-option': true,
+									active: !multiple && internalModel[o.value],
+									checked: multiple && internalModel[o.value],
+									disabled: o.disabled,
+								}"
+								:tabindex="o.disabled ? undefined : -1"
+								:title="o.title"
+								:data-value="o.value"
+								@click="
+									select(o);
+									emitChangeOnClose = true;
+								"
+								@keydown.prevent.enter="
+									select(o);
+									emitChangeOnClose = true;
+								"
+								@keydown.prevent.space="
+									select(o);
+									emitChangeOnClose = true;
+								"
+							>
+								<span class="menu-value">
+									<slot name="option-label" :option="o">
+										<span v-if="allowHtml" v-html="o.label || '\u200C'"></span>
+										<template v-else>{{ o.label || '\u200C' }}</template>
+									</slot>
+
+									<slot name="option-check" v-if="multiple && internalModel[o.value]">
+										<span class="menu-icon fa fa-check"></span>
+									</slot>
+								</span>
+							</li>
+							<li
+								v-else-if="o.type === 2"
+								:class="{
+									'menu-group': true,
+									disabled: o.disabled,
+									'spacer-only': !o.label?.trim(),
+								}"
+								:title="o.title"
+							>
+								<template v-if="o.label?.trim()">
+									<span v-if="allowHtml" class="menu-value" v-html="o.label"></span>
+									<!-- don't zero-width-non-joiner fallback here, we want the height to collapse if there's no label -->
+									<span v-else class="menu-value">{{ o.label || ' ' }}</span>
+								</template>
+							</li>
 						</template>
-					</li>
-					</template>
-				</ul>
-			</li>
-		</ul>
+					</ul>
+				</li>
+			</ul>
 		</teleport>
 	</div>
 </template>
 
 <script lang="ts">
-
 import { defineComponent } from 'vue';
-import { mapReduce } from '@/utils';
 import type { PropType } from 'vue';
+
+import { mapReduce } from '@/utils';
 import { isOptGroup, isOption, isSimpleOption, type OptGroup, type Option, type Options, type SimpleOption } from '@/utils/options';
 
 type _uiOpt = {
@@ -226,11 +240,10 @@ type _uiOptGroup = {
 	title?: string;
 	disabled?: boolean;
 };
-type uiOption = _uiOpt|_uiOptGroup;
+type uiOption = _uiOpt | _uiOptGroup;
 
 /** Might also be any other valid css value for 'width', but these values have special behavior in the code */
-type MenuWidthMode = 'stretch'|'shrink'|'grow';
-
+type MenuWidthMode = 'stretch' | 'shrink' | 'grow';
 
 let nextMenuId = 0;
 
@@ -239,22 +252,22 @@ export default defineComponent({
 	props: {
 		flip: {
 			type: Boolean,
-			default: true
+			default: true,
 		},
 
 		options: { type: Array as PropType<Options>, default: () => [] },
 		multiple: Boolean,
 		/** Is the dropdown list filtered by the current value (acts more as an autocomplete) */
-		searchable: {type: Boolean, default: undefined},
+		searchable: { type: Boolean, default: undefined },
 		/** Allow custom values by the user? */
 		editable: Boolean,
 		/** Show reset button at top of menu? */
-		resettable: {type: Boolean, default: undefined},
+		resettable: { type: Boolean, default: undefined },
 		/** Optional header content for inside the menu */
 		menuHeading: String,
 		disabled: Boolean,
-		placeholder: { type: [String, null] as PropType<string|null>, default: null },
-		noOptionsPlaceholder: {type: String, default: 'No available options.'},
+		placeholder: { type: [String, null] as PropType<string | null>, default: null },
+		noOptionsPlaceholder: { type: String, default: 'No available options.' },
 		/** Show a little spinner while the parent is fetching options, or something */
 		loading: Boolean,
 		/**
@@ -287,7 +300,7 @@ export default defineComponent({
 		open: { type: Boolean, default: undefined },
 
 		modelValue: {
-			type: [String, Array, null] as PropType<string|string[]|null>,
+			type: [String, Array, null] as PropType<string | string[] | null>,
 			default: null,
 		},
 
@@ -307,8 +320,8 @@ export default defineComponent({
 		 * - anything else: used as css-value ('auto' works!)
 		 */
 		dataMenuWidth: {
-			type: String as any as () => MenuWidthMode|(string&{}), // hack to allow string literals and arbitrary strings while still showing the options in IDEs
-			default: 'stretch'
+			type: String as any as () => MenuWidthMode | (string & {}), // hack to allow string literals and arbitrary strings while still showing the options in IDEs
+			default: 'stretch',
 		},
 		dataMenuClass: [Array, String, Object],
 		/** Right-align the dropdown menu, only when menuWidth != 'stretch' */
@@ -318,9 +331,9 @@ export default defineComponent({
 		 * If passed, call this function instead of handling the select internally.
 		 * Return false to prevent the default internal handling of value updates.
 		 */
-		onBeforeSelect: Function as PropType<(value: _uiOpt) => boolean|undefined>,
+		onBeforeSelect: Function as PropType<(value: _uiOpt) => boolean | undefined>,
 	},
-	data: () =>  ({
+	data: () => ({
 		/** Is the menu currently open, overridden by the 'open' prop, i.e. only used when 'open' not specified */
 		isNaturallyOpen: false,
 		emitChangeOnClose: false,
@@ -332,20 +345,28 @@ export default defineComponent({
 
 		// Can't be computed, need to wait until we are mounted
 		// (as container might be a parent element that hasn't fully mounted yet when we init)
-		containerEl: null as null|HTMLElement,
+		containerEl: null as null | HTMLElement,
 
 		uid: nextMenuId++,
 	}),
 	computed: {
-		searchableModel(): boolean { return this.searchable ?? (this.uiOptions.length >= 10 && !this.editable); },
-		resettableModel(): boolean { return this.resettable ?? this.searchableModel },
+		searchableModel(): boolean {
+			return this.searchable ?? (this.uiOptions.length >= 10 && !this.editable);
+		},
+		resettableModel(): boolean {
+			return this.resettable ?? this.searchableModel;
+		},
 		placeholderText(): string {
 			const title = this.$attrs.title;
 			return this.placeholder ?? (typeof title === 'string' ? title : '');
 		},
 
-		menuId(): string { return this.$attrs.id as string ?? `combobox-${this.uid}`; },
-		isOpen(): boolean { return this.open ?? this.isNaturallyOpen; },
+		menuId(): string {
+			return (this.$attrs.id as string) ?? `combobox-${this.uid}`;
+		},
+		isOpen(): boolean {
+			return this.open ?? this.isNaturallyOpen;
+		},
 
 		uiOptions(): uiOption[] {
 			let id = 0;
@@ -375,7 +396,7 @@ export default defineComponent({
 				disabled: o.disabled || (group && group.disabled),
 
 				lowerValue: o.value.toLowerCase(),
-				lowerLabel: (o.label || o.value).toLowerCase()
+				lowerLabel: (o.label || o.value).toLowerCase(),
 			});
 
 			const mapGroup = (o: OptGroup): _uiOptGroup => ({
@@ -387,13 +408,15 @@ export default defineComponent({
 			});
 
 			let uiOptions = this.options.flatMap(o => {
-				if (isSimpleOption(o)) { return mapSimple(o); }
-				else if (isOption(o)) { return mapOption(o); }
-				else {
+				if (isSimpleOption(o)) {
+					return mapSimple(o);
+				} else if (isOption(o)) {
+					return mapOption(o);
+				} else {
 					const h = mapGroup(o);
-					const subs: uiOption[] = o.options.map(sub => isSimpleOption(sub) ? mapSimple(sub, o) : mapOption(sub, o));
+					const subs: uiOption[] = o.options.map(sub => (isSimpleOption(sub) ? mapSimple(sub, o) : mapOption(sub, o)));
 					subs.unshift(h);
-					return (this.allowEmptyGroups || subs.length > 1) ? subs : [];
+					return this.allowEmptyGroups || subs.length > 1 ? subs : [];
 				}
 			});
 
@@ -421,45 +444,54 @@ export default defineComponent({
 
 			return uiOptions;
 		},
-		uiOptionsMap(): Record<string, _uiOpt> { return mapReduce(this.uiOptions.filter(o => o.type === 1) as _uiOpt[], 'value'); },
+		uiOptionsMap(): Record<string, _uiOpt> {
+			return mapReduce(this.uiOptions.filter(o => o.type === 1) as _uiOpt[], 'value');
+		},
 
 		filteredOptions(): uiOption[] {
 			let options = this.uiOptions;
 			if (this.hideDisabled) {
 				let disabledGroup = false;
 				options = options.filter(o => {
-					if (isOptGroup(o)) { disabledGroup = !!o.disabled; }
+					if (isOptGroup(o)) {
+						disabledGroup = !!o.disabled;
+					}
 					return !(disabledGroup || o.disabled);
 				});
 			}
 
 			const filter = this.inputValue;
-			if (!filter || !this.searchableModel) { return options; }
+			if (!filter || !this.searchableModel) {
+				return options;
+			}
 
 			let hideNextOptGroup = true;
 			return options
-			.filter(o => o.type !== 1 || o.lowerLabel.includes(filter) || o.lowerValue.includes(filter) || o.label.includes(filter) || o.value.includes(filter))
-			.reverse()
-			.filter(o => {
-				if (o.type === 2 && hideNextOptGroup) { return false; }
-				hideNextOptGroup = o.type !== 1;
-				return true;
-			})
-			.reverse();
+				.filter(o => o.type !== 1 || o.lowerLabel.includes(filter) || o.lowerValue.includes(filter) || o.label.includes(filter) || o.value.includes(filter))
+				.reverse()
+				.filter(o => {
+					if (o.type === 2 && hideNextOptGroup) {
+						return false;
+					}
+					hideNextOptGroup = o.type !== 1;
+					return true;
+				})
+				.reverse();
 		},
-		totalOptionCount(): number { return this.uiOptions.filter(o => o.type === 1).length; },
+		totalOptionCount(): number {
+			return this.uiOptions.filter(o => o.type === 1).length;
+		},
 
 		///////////////
 
 		displayValues(): string[] {
-			return Object.keys(this.internalModel)
-					.map(k => this.uiOptionsMap[k] /* check first - might be unknown value */ ? this.uiOptionsMap[k].label : k);
+			return Object.keys(this.internalModel).map(k => (this.uiOptionsMap[k] /* check first - might be unknown value */ ? this.uiOptionsMap[k].label : k));
 		},
 		computedMenuClass(): any {
 			return {
 				[(this as any).dataMenuWidth]: ['grow', 'shrink', 'stretch'].includes((this as any).dataMenuWidth),
 				right: this.right,
-				static: this.noTransform
+				static: this.noTransform,
 			};
 		},
 
@@ -476,13 +508,13 @@ export default defineComponent({
 		emitInputEventData(): any {
 			return {
 				internalModel: this.internalModel,
-				inputValue: this.inputValue
+				inputValue: this.inputValue,
 			};
-		}
+		},
 	},
 	methods: {
 		focusTrigger(): void {
-			const focusOnEscClose = this.$refs.focusOnEscClose as HTMLElement|undefined;
+			const focusOnEscClose = this.$refs.focusOnEscClose as HTMLElement | undefined;
 			focusOnEscClose?.focus();
 		},
 		doOpen(focusEl?: any): void {
@@ -522,7 +554,7 @@ export default defineComponent({
 			const width = ownRootBoundingRect.width;
 
 			if (widthMode === 'stretch') {
-				r.width =  width + 'px';
+				r.width = width + 'px';
 				r.maxWidth = '';
 				r.minWidth = '';
 			} else if (widthMode === 'shrink') {
@@ -581,7 +613,9 @@ export default defineComponent({
 		},
 
 		reposition(): void {
-			if (this.noTransform) { return; }
+			if (this.noTransform) {
+				return;
+			}
 
 			const root = this.$el as HTMLElement;
 			const menu = this.$refs.menu as HTMLElement;
@@ -628,7 +662,7 @@ export default defineComponent({
 				const visibleWindowHeight: number = document.documentElement.clientHeight;
 				const menuMargin: number = Number(liveMenuStyle.marginTop!.slice(0, -2)) + Number(liveMenuStyle.marginBottom!.slice(0, -2)); // remove 'px' suffixes and convert to number
 
-				const spaceBelow =  Math.max(0, visibleWindowHeight - ownRootBoundingRect.bottom);
+				const spaceBelow = Math.max(0, visibleWindowHeight - ownRootBoundingRect.bottom);
 				const spaceAbove = Math.max(0, ownRootBoundingRect.top);
 				const wantedHeight = menuMargin + menuBoundingRect.height;
 
@@ -662,8 +696,12 @@ export default defineComponent({
 			Object.assign(menu.style, css);
 		},
 
-		focusDown(): void {this.focusOffset(1); },
-		focusUp(): void { this.focusOffset(-1); },
+		focusDown(): void {
+			this.focusOffset(1);
+		},
+		focusUp(): void {
+			this.focusOffset(-1);
+		},
 		focusOffset(offset: number, loop = true): void {
 			const menu = this.$refs.menu as HTMLElement;
 			const items = [...menu.querySelectorAll('[tabindex]')];
@@ -678,13 +716,11 @@ export default defineComponent({
 			if (currentFocusIndex < 0 && offset < 0) {
 				offset++;
 			}
-			const focusIndex = loop ?
-				this.loopingIncrementor(currentFocusIndex, items.length, offset).next() :
-				Math.max(0, Math.min(currentFocusIndex + offset, items.length - 1));
+			const focusIndex = loop ? this.loopingIncrementor(currentFocusIndex, items.length, offset).next() : Math.max(0, Math.min(currentFocusIndex + offset, items.length - 1));
 			this.focus(items[focusIndex] as HTMLElement);
 		},
-		focus(v?: HTMLElement|number): void {
-			let el: HTMLElement|undefined;
+		focus(v?: HTMLElement | number): void {
+			let el: HTMLElement | undefined;
 
 			if (typeof v === 'number') {
 				const items = [...(this.$refs.menu as HTMLElement).querySelectorAll('.menu-option:not(.disabled)')];
@@ -701,7 +737,7 @@ export default defineComponent({
 		},
 
 		select(opt: _uiOpt): void {
-			const {disabled, value} = opt;
+			const { disabled, value } = opt;
 
 			if (disabled) {
 				return;
@@ -722,14 +758,18 @@ export default defineComponent({
 			}
 
 			const deleteFromModel =
-				this.multiple && this.internalModel[value] ? [value] : // multiple values and value already selected -> delete value
-				!this.multiple && !this.internalModel[value] ? Object.keys(this.internalModel) : // single value allowed and value not already selected -> delete all previous values
-				[]; // Single select and already selected, or something.
+				this.multiple && this.internalModel[value]
+					? [value] // multiple values and value already selected -> delete value
+					: !this.multiple && !this.internalModel[value]
+						? Object.keys(this.internalModel) // single value allowed and value not already selected -> delete all previous values
+						: []; // Single select and already selected, or something.
 
 			const addToModel =
-				this.multiple && !this.internalModel[value] ? value : // multiple values and value not already selected -> add value
-				!this.multiple && !!value && !this.internalModel[value] ? value : // single value and not '' (clear selection) and not already selected -> add as well
-				undefined;
+				this.multiple && !this.internalModel[value]
+					? value // multiple values and value not already selected -> add value
+					: !this.multiple && !!value && !this.internalModel[value]
+						? value // single value and not '' (clear selection) and not already selected -> add as well
+						: undefined;
 
 			for (const key of deleteFromModel) {
 				delete this.internalModel[key];
@@ -745,10 +785,20 @@ export default defineComponent({
 		},
 
 		//////////////////
-		addGlobalListeners() { this.addGlobalCloseListeners(); this.addGlobalScrollListeners(); },
-		removeGlobalListeners() { this.removeGlobalCloseListeners(); this.removeGlobalScrollListeners(); },
-		addGlobalCloseListeners() { document.addEventListener('click', this.doClose); },
-		removeGlobalCloseListeners() { document.removeEventListener('click', this.doClose); },
+		addGlobalListeners() {
+			this.addGlobalCloseListeners();
+			this.addGlobalScrollListeners();
+		},
+		removeGlobalListeners() {
+			this.removeGlobalCloseListeners();
+			this.removeGlobalScrollListeners();
+		},
+		addGlobalCloseListeners() {
+			document.addEventListener('click', this.doClose);
+		},
+		removeGlobalCloseListeners() {
+			document.removeEventListener('click', this.doClose);
+		},
 		addGlobalScrollListeners() {
 			window.addEventListener('resize', this.reposition);
 			document.addEventListener('scroll', this.reposition); // required if any of our parents has for position:sticky
@@ -772,38 +822,54 @@ export default defineComponent({
 					cur = next < 0 ? next + max : next;
 					return cur;
 				},
-				get current() { return cur; }
+				get current() {
+					return cur;
+				},
 			};
 		},
 
-		correctModel(newVal: null|undefined|string|string[]) {
+		correctModel(newVal: null | undefined | string | string[]) {
 			if (this.editable) {
-				this.inputValue = (newVal ? typeof newVal === 'string' ? newVal : newVal[0] || '' : '');
+				this.inputValue = newVal ? (typeof newVal === 'string' ? newVal : newVal[0] || '') : '';
 				return;
 			}
 
 			// Correct type of the new value. e.g. array for multiple, otherwise string
-			if (!newVal) { newVal = this.multiple ? [] : null; }
-			else if (this.multiple && typeof newVal === 'string') { newVal = [newVal]; }
-			else if (!this.multiple && Array.isArray(newVal)) { newVal = typeof newVal[0] === 'string' ? newVal[0] : null; }
+			if (!newVal) {
+				newVal = this.multiple ? [] : null;
+			} else if (this.multiple && typeof newVal === 'string') {
+				newVal = [newVal];
+			} else if (!this.multiple && Array.isArray(newVal)) {
+				newVal = typeof newVal[0] === 'string' ? newVal[0] : null;
+			}
 
 			if (!this.multiple) {
-				newVal = newVal as string|null; // we verified above, but can't declare it to be a type...
+				newVal = newVal as string | null; // we verified above, but can't declare it to be a type...
 				const oldVals = Object.keys(this.internalModel);
 
 				if (newVal == null) {
-					if (oldVals.length !== 0) { this.internalModel = {}; }
+					if (oldVals.length !== 0) {
+						this.internalModel = {};
+					}
 					// else oldvals.length === 0 -- already at "unset" state, so a null value is perfectly fine
 					return;
 				} else {
 					if (oldVals.length === 0) {
-						if (this.uiOptionsMap[newVal] || this.allowUnknownValues) { this.internalModel = { [newVal]: true }; }
-						else { this.internalModel = {}; } // unknown value. Replace model with an empty one so we re-emit our correct "unset" value
+						if (this.uiOptionsMap[newVal] || this.allowUnknownValues) {
+							this.internalModel = { [newVal]: true };
+						} else {
+							this.internalModel = {};
+						} // unknown value. Replace model with an empty one so we re-emit our correct "unset" value
 					} else {
 						// have (one or more) old value(s), and a new value, compare.
-						if (oldVals.length === 1 && oldVals[0] === newVal) { return; }
-						else if (this.uiOptionsMap[newVal] || this.allowUnknownValues) { this.internalModel = { [newVal]: true }; } // replace whatever we had with the new value, seeing as its different.
-						else { this.internalModel = {}; } // unknown value. Replace model with an empty one so we re-emit our correct "unset" value
+						if (oldVals.length === 1 && oldVals[0] === newVal) {
+							return;
+						} else if (this.uiOptionsMap[newVal] || this.allowUnknownValues) {
+							this.internalModel = { [newVal]: true };
+						}  // replace whatever we had with the new value, seeing as its different.
+						else {
+							this.internalModel = {};
+						} // unknown value. Replace model with an empty one so we re-emit our correct "unset" value
 					}
 				}
 			} else {
@@ -822,17 +888,17 @@ export default defineComponent({
 				const newSelectedValues: string[] = (newVal as string[]).filter(v => !oldValues[v] && (availableOptions[v] || this.allowUnknownValues));
 
 				deselectedValues.forEach(v => delete this.internalModel[v]);
-				newSelectedValues.forEach(v => this.internalModel[v] = true);
+				newSelectedValues.forEach(v => (this.internalModel[v] = true));
 			}
 		},
 		/** This method exists just to deal with weirdness with TypeScript in Vue templates. */
 		clickTarget(event: Event) {
 			return event.target && (event.target as HTMLElement).click();
-		}
+		},
 	},
 	watch: {
-		emitInputEventData: { 
-			deep: true, 
+		emitInputEventData: {
+			deep: true,
 			handler() {
 				if (this.editable) {
 					this.$emit('update:modelValue', this.inputValue);
@@ -842,11 +908,15 @@ export default defineComponent({
 					// But maybe the model only changed because we got pushed a new value from props
 					// check that this is not the case.
 					const values = Object.keys(this.internalModel);
-					if (this.multiple && Array.isArray(this.modelValue) && values.length === this.modelValue.length && values.every(v => (this.modelValue as string[]).includes(v))) { return; } // our modelValue prop is already up to date - don't fire.
-					if (!this.multiple && typeof this.modelValue === 'string' && values.length == 1 && values[0] === this.modelValue) { return; }
-					this.$emit('update:modelValue', values.length ? this.multiple ? values : values[0] : null);
+					if (this.multiple && Array.isArray(this.modelValue) && values.length === this.modelValue.length && values.every(v => (this.modelValue as string[]).includes(v))) {
+						return;
+					} // our modelValue prop is already up to date - don't fire.
+					if (!this.multiple && typeof this.modelValue === 'string' && values.length == 1 && values[0] === this.modelValue) {
+						return;
+					}
+					this.$emit('update:modelValue', values.length ? (this.multiple ? values : values[0]) : null);
 				}
-			}
+			},
 		},
 		isOpen: {
 			immediate: true,
@@ -864,14 +934,13 @@ export default defineComponent({
 					if (this.emitChangeOnClose) {
 						this.emitChangeOnClose = false;
 						const values = Object.keys(this.internalModel);
-						this.$emit('change',
-							this.editable ? this.inputValue :
-							this.multiple ? values :
-							values.length ? values[0] : null // not multiple - single value
+						this.$emit(
+							'change',
+							this.editable ? this.inputValue : this.multiple ? values : values.length ? values[0] : null, // not multiple - single value
 						);
 					}
 				}
-			}
+			},
 		},
 
 		// Not immediate on purpose, as the element might be part of a nother vue component that needs some time to mount
@@ -881,10 +950,14 @@ export default defineComponent({
 		},
 		containerEl: {
 			immediate: true,
-			handler(cur: HTMLElement|null, prev: HTMLElement|null) {
+			handler(cur: HTMLElement | null, prev: HTMLElement | null) {
 				if (this.isOpen) {
-					if (prev) { this.removeGlobalScrollListeners(); }
-					if (cur) { this.addGlobalScrollListeners(); }
+					if (prev) {
+						this.removeGlobalScrollListeners();
+					}
+					if (cur) {
+						this.addGlobalScrollListeners();
+					}
 				}
 
 				if (cur) {
@@ -892,15 +965,28 @@ export default defineComponent({
 						this.reposition();
 					}
 				}
-			}
+			},
 		},
 
 		correctModelProps: {
 			immediate: true,
-			handler() { this.correctModel(this.modelValue); }
+			handler() {
+				this.correctModel(this.modelValue);
+			},
 		},
-		editable(v: boolean) { if (!v && !this.searchableModel) { this.inputValue = ''; } if (v) { this.internalModel = {}; }},
-		searchableModel(v: boolean) { if (!v && !this.editable) { this.inputValue = ''; } },
+		editable(v: boolean) {
+			if (!v && !this.searchableModel) {
+				this.inputValue = '';
+			}
+			if (v) {
+				this.internalModel = {};
+			}
+		},
+		searchableModel(v: boolean) {
+			if (!v && !this.editable) {
+				this.inputValue = '';
+			}
+		},
 	},
 	mounted() {
 		// Only do this when mounted, the container selector may refer to a parent element
@@ -909,7 +995,7 @@ export default defineComponent({
 			this.containerEl = document.querySelector(this.container);
 		}
 		// @ts-ignore - interop for external scripts; expose a setValue method on our root element
-		(this.$el).setValue = (v: string|string[]) => this.$emit('update:modelValue', this.multiple ? [v].flat().filter(v => v != null) : v || null);
+		this.$el.setValue = (v: string | string[]) => this.$emit('update:modelValue', this.multiple ? [v].flat().filter(v => v != null) : v || null);
 	},
 	beforeUnmount() {
 		this.removeGlobalListeners();
@@ -921,7 +1007,6 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
-
 .combobox,
 .combobox-menu {
 	.menu-value {
@@ -947,10 +1032,9 @@ export default defineComponent({
 	}
 }
 
-
 .combobox {
 	text-align: left;
-	&[dir="rtl"] {
+	&[dir='rtl'] {
 		text-align: right;
 	}
 
@@ -958,40 +1042,42 @@ export default defineComponent({
 	&:not(.input-group-btn):not(.input-group-addon) {
 		position: relative;
 
-		>.menu-button {
+		> .menu-button {
 			width: 100%;
 		}
 	}
 	&.input-group-btn:first-child,
 	&.input-group-addon:first-child {
-		>.menu-button { border-right-width: 0; }
+		> .menu-button {
+			border-right-width: 0;
+		}
 	}
 
-	>.menu-button {
+	> .menu-button {
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
 		text-align: inherit;
 
-		>.menu-icon {
+		> .menu-icon {
 			flex: none;
 			flex-grow: 0;
 			flex-shrink: 0;
 			flex-basis: auto;
 			margin-right: 0;
 		}
-		>.badge {
+		> .badge {
 			background-color: #999;
 			&.active {
-				background-color: #333
+				background-color: #333;
 			}
 		}
-		>.menu-value {
+		> .menu-value {
 			flex-grow: 1;
 		}
 	}
 
-	>.combobox-menu {
+	> .combobox-menu {
 		top: auto;
 
 		&.stretch {
@@ -1021,7 +1107,7 @@ export default defineComponent({
 	background: white;
 	border: 1px solid #e5e5e5;
 	border-radius: 4px;
-	box-shadow: 0 6px 12px rgba(0,0,0,.175);
+	box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
 	display: flex;
 	flex-direction: column;
 	font-size: 14px;
@@ -1050,10 +1136,9 @@ export default defineComponent({
 	}
 
 	text-align: left;
-	&[dir="rtl"] {
+	&[dir='rtl'] {
 		text-align: right;
 	}
-
 
 	ul {
 		padding: 0;
@@ -1061,16 +1146,18 @@ export default defineComponent({
 		list-style: none;
 	}
 
-	>.menu-heading {
+	> .menu-heading {
 		padding: 6px;
 		// background: #337ab7;
 		font-weight: bold;
 		color: #333;
 		border-bottom: 1px solid #e5e5e5;
-		&:first-child { margin-top: -5px; }
+		&:first-child {
+			margin-top: -5px;
+		}
 	}
 
-	>.menu-header {
+	> .menu-header {
 		border-bottom: 1px solid #e5e5e5;
 		display: flex;
 		flex-direction: row;
@@ -1079,15 +1166,17 @@ export default defineComponent({
 		gap: 6px;
 		padding: 6px;
 
-		&:empty { display: none; }
+		&:empty {
+			display: none;
+		}
 
-		>.menu-search {
+		> .menu-search {
 			width: 100%;
 			display: block;
 		}
 	}
 
-	>.menu-body {
+	> .menu-body {
 		display: flex;
 		flex-direction: vertical;
 		max-height: 300px;
@@ -1116,14 +1205,16 @@ export default defineComponent({
 			background: #337ab7;
 			color: white;
 			font-weight: bold;
-			.text-muted { color :white; }
+			.text-muted {
+				color: white;
+			}
 		}
 		&.checked {
 			font-weight: bold;
 		}
 		&.active.disabled,
 		&.checked.disabled {
-			opacity: .65;
+			opacity: 0.65;
 		}
 
 		&:not(.active):not(.disabled):not(.checked) {
@@ -1150,27 +1241,38 @@ export default defineComponent({
 			cursor: not-allowed;
 		}
 		&.spacer-only {
-			&:first-child, &:last-child { display: none; }
+			&:first-child,
+			&:last-child {
+				display: none;
+			}
 			height: 0;
 			padding: 0;
 			margin: 3px 0;
 		}
 	}
 
-	&:not([dir="rtl"]) {
-		.menu-option { padding-left: 22px; }
-		.menu-group { padding-left: 12px; }
+	&:not([dir='rtl']) {
+		.menu-option {
+			padding-left: 22px;
+		}
+		.menu-group {
+			padding-left: 12px;
+		}
 	}
-	&[dir="rtl"] {
-		.menu-option { padding-right: 22px; }
-		.menu-group { padding-right: 12px; }
+	&[dir='rtl'] {
+		.menu-option {
+			padding-right: 22px;
+		}
+		.menu-group {
+			padding-right: 12px;
+		}
 	}
 }
 
 .input-group {
 	.combobox:not(:last-child) {
 		> button,
-		> input[type="text"] {
+		> input[type='text'] {
 			border-top-right-radius: 0;
 			border-bottom-right-radius: 0;
 		}
@@ -1178,11 +1280,10 @@ export default defineComponent({
 
 	.combobox:not(:first-child) {
 		> button,
-		> input[type="text"] {
+		> input[type='text'] {
 			border-top-left-radius: 0;
 			border-bottom-left-radius: 0;
 		}
 	}
 }
-
 </style>

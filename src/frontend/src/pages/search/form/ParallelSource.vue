@@ -1,7 +1,7 @@
 <template>
 	<div>
-		<div :class="{'col-xs-12': !block, 'col-md-9': !block}">
-			<SelectPicker :options="pSourceOptions" v-model="pSourceValue" data-menu-width="grow" hideEmpty/>
+		<div :class="{ 'col-xs-12': !block, 'col-md-9': !block }">
+			<SelectPicker :options="pSourceOptions" v-model="pSourceValue" data-menu-width="grow" hideEmpty />
 			<transition name="flash">
 				<span v-if="errorNoParallelSourceVersion" class="error">
 					{{ $t('search.parallel.errorNoSourceVersion') }}
@@ -12,11 +12,12 @@
 </template>
 
 <script lang="ts">
+import { defineComponent } from 'vue';
+
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 import AlignBy from '@/pages/search/form/AlignBy.vue';
-import { defineComponent } from 'vue';
 
 export default defineComponent({
 	extends: ParallelFields,
@@ -25,16 +26,17 @@ export default defineComponent({
 		AlignBy,
 	},
 	props: {
-		block: {default: false, type: Boolean},
-		lg: {default: false, type: Boolean},
-		errorNoParallelSourceVersion: {default: false, type: Boolean},
+		block: { default: false, type: Boolean },
+		lg: { default: false, type: Boolean },
+		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
 });
 </script>
 
 <style lang="scss" scoped>
-
-label { font-weight: bold; }
+label {
+	font-weight: bold;
+}
 
 .error {
 	color: red;
@@ -43,12 +45,16 @@ label { font-weight: bold; }
 }
 
 @keyframes flash {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.1; }
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.1;
+	}
 }
 
 .flash-enter-active {
-  animation: flash 0.5s ease-in-out 2;
+	animation: flash 0.5s ease-in-out 2;
 }
-
 </style>

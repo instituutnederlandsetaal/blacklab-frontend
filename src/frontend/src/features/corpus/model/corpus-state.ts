@@ -5,12 +5,21 @@
  * are the filters subdivided in groups, what is the text direction, and so on.
  */
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
-import type { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel, NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex, NormalizedMetadataField, NormalizedMetadataGroup } from '@/types/apptypes';
-import { mapReduce } from '@/utils';
 import { ref } from 'vue';
 
-type ModuleRootState = NormalizedIndex|undefined;
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type {
+	NormalizedAnnotatedField,
+	NormalizedAnnotatedFieldParallel,
+	NormalizedAnnotation,
+	NormalizedAnnotationGroup,
+	NormalizedIndex,
+	NormalizedMetadataField,
+	NormalizedMetadataGroup,
+} from '@/types/apptypes';
+import { mapReduce } from '@/utils';
+
+type ModuleRootState = NormalizedIndex | undefined;
 
 const state = ref<NormalizedIndex>();
 const getState = (): ModuleRootState => state.value;
@@ -30,25 +39,20 @@ const get = {
 	corpus: (): NormalizedIndex => state.value!,
 
 	/** List of annotated fields */
-	allAnnotatedFields: (): NormalizedAnnotatedField[] =>
-		state.value ? Object.values(state.value.annotatedFields) : [],
+	allAnnotatedFields: (): NormalizedAnnotatedField[] => (state.value ? Object.values(state.value.annotatedFields) : []),
 
 	/** Map of annotated fields */
-	allAnnotatedFieldsMap: (): Record<string, NormalizedAnnotatedField> =>
-		state.value ? state.value.annotatedFields : {},
+	allAnnotatedFieldsMap: (): Record<string, NormalizedAnnotatedField> => (state.value ? state.value.annotatedFields : {}),
 
 	/** Main annotated field name */
 	mainAnnotatedField: (): string => state.value?.mainAnnotatedField ?? 'contents',
 
 	/** Is this a parallel corpus? */
-	isParallelCorpus: (): boolean =>
-		get.allAnnotatedFields().some(f => f.isParallel),
+	isParallelCorpus: (): boolean => get.allAnnotatedFields().some(f => f.isParallel),
 
-	parallelAnnotatedFields: (): NormalizedAnnotatedFieldParallel[] =>
-		get.allAnnotatedFields().filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel),
+	parallelAnnotatedFields: (): NormalizedAnnotatedFieldParallel[] => get.allAnnotatedFields().filter((f): f is NormalizedAnnotatedFieldParallel => f.isParallel),
 
-	parallelAnnotatedFieldsMap: (): Record<string, NormalizedAnnotatedFieldParallel> =>
-		mapReduce(get.parallelAnnotatedFields(), 'id'),
+	parallelAnnotatedFieldsMap: (): Record<string, NormalizedAnnotatedFieldParallel> => mapReduce(get.parallelAnnotatedFields(), 'id'),
 
 	/** If this is a parallel corpus, what's the parallel field prefix?
 	 *  (e.g. "contents" if there's fields "contents__en" and "contents__nl")
@@ -57,13 +61,12 @@ const get = {
 	parallelFieldPrefix: (): string => get.parallelAnnotatedFields()[0]?.prefix ?? '',
 
 	/** All annotations, without duplicates and in no specific order */
-	allAnnotations: (): NormalizedAnnotation[] =>
-		state.value ? Object.values(state.value.annotatedFields[state.value.mainAnnotatedField].annotations) : [],
+	allAnnotations: (): NormalizedAnnotation[] => (state.value ? Object.values(state.value.annotatedFields[state.value.mainAnnotatedField].annotations) : []),
 
 	allAnnotationsMap: (): Record<string, NormalizedAnnotation> => mapReduce(get.allAnnotations(), 'id'),
 
-	allMetadataFields: (): NormalizedMetadataField[] => state.value ? Object.values(state.value.metadataFields) : [],
-	allMetadataFieldsMap: (): Record<string, NormalizedMetadataField> => state.value ? state.value.metadataFields : {},
+	allMetadataFields: (): NormalizedMetadataField[] => (state.value ? Object.values(state.value.metadataFields) : []),
+	allMetadataFieldsMap: (): Record<string, NormalizedMetadataField> => (state.value ? state.value.metadataFields : {}),
 
 	firstMainAnnotation: (): NormalizedAnnotation => get.allAnnotations().find(f => f.isMainAnnotation)!,
 
@@ -72,20 +75,24 @@ const get = {
 	 * In that case a single generated group "metadata" is returned, containing all metadata fields.
 	 * If groups are defined, fields not in any group are omitted.
 	 */
-	metadataGroups: (): Array<NormalizedMetadataGroup&{fields: NormalizedMetadataField[]}> =>
-		state.value ? state.value.metadataFieldGroups.map(g => ({
-			...g,
-			fields: g.entries.map(id => state.value!.metadataFields[id])
-		})) : [],
+	metadataGroups: (): Array<NormalizedMetadataGroup & { fields: NormalizedMetadataField[] }> =>
+		state.value
+			? state.value.metadataFieldGroups.map(g => ({
+					...g,
+					fields: g.entries.map(id => state.value!.metadataFields[id]),
+				}))
+			: [],
 	/**
 	 * Returns all annotationGroups from the indexstructure.
 	 * May contain internal annotations if groups were defined through indexconfig.yaml.
 	 */
-	annotationGroups: (): Array<NormalizedAnnotationGroup&{fields: NormalizedAnnotation[]}> =>
-		state.value ? state.value.annotationGroups.map(g => ({
-			...g,
-			fields: g.entries.map(id => state.value!.annotatedFields[g.annotatedFieldId].annotations[id]),
-		})) : [],
+	annotationGroups: (): Array<NormalizedAnnotationGroup & { fields: NormalizedAnnotation[] }> =>
+		state.value
+			? state.value.annotationGroups.map(g => ({
+					...g,
+					fields: g.entries.map(id => state.value!.annotatedFields[g.annotatedFieldId].annotations[id]),
+				}))
+			: [],
 
 	textDirection: () => state.value?.textDirection ?? 'ltr',
 	hasRelations: () => state.value?.relations.relations != null,
@@ -93,14 +100,7 @@ const get = {
 
 const actions = {};
 
-const init = (payload: CorpusChange) => state.value = payload.index;
+const init = (payload: CorpusChange) => (state.value = payload.index);
 
 export { actions, get, getState, init };
-export type {
-	ModuleRootState,
-	NormalizedAnnotatedField,
-	NormalizedAnnotation,
-	NormalizedIndex,
-	NormalizedMetadataField
-};
-
+export type { ModuleRootState, NormalizedAnnotatedField, NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField };

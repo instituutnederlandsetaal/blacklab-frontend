@@ -1,9 +1,9 @@
+import '@/modules/expandable-tooltips.scss';
+
 import type { PopperOptions } from 'popper.js';
 import Popper from 'popper.js';
 import { asyncScheduler, fromEvent, merge } from 'rxjs';
 import { distinctUntilChanged, filter, map, throttleTime } from 'rxjs/operators';
-
-import '@/modules/expandable-tooltips.scss';
 
 type ConfigCommon = {
 	/** Class(es) to apply to the tooltip bubble. Defaults to 'tooltip-hover' */
@@ -28,34 +28,43 @@ type ConfigContentAttributes = {
  * that attribute is used as preview.
  */
 type ConfigTitle = {
-	mode: 'title',
+	mode: 'title';
 	/** Query selector to find the elements on which to attach a tooltip (such as '[data-tooltip]') */
 	tooltippableSelector: string;
 	/** List of data-* attributes to ignore when gathering tooltip contents. Should NOT contain the 'data-' portion of the names. */
 	excludeAttributes: string[];
 };
 
-export type Config = ConfigCommon&(ConfigContentAttributes|ConfigTitle);
+export type Config = ConfigCommon & (ConfigContentAttributes | ConfigTitle);
 
 export default function init(_config: Config) {
-	const _config2 = Object.assign({
-		tooltipClass: 'tooltip-hover',
-		tooltipPreviewClass: 'preview',
-		tooltipExpandedClass: 'expanded'
-	}, _config);
+	const _config2 = Object.assign(
+		{
+			tooltipClass: 'tooltip-hover',
+			tooltipPreviewClass: 'preview',
+			tooltipExpandedClass: 'expanded',
+		},
+		_config,
+	);
 
 	const settings = {
 		..._config2,
 
 		// Query selector for the tooltip bubble
-		tooltipSelector: '.' + _config2.tooltipClass!.split(/\s+/g).filter(c => !!c).join('.'),
+		tooltipSelector:
+			'.' +
+			_config2
+				.tooltipClass!.split(/\s+/g)
+				.filter(c => !!c)
+				.join('.'),
 		// Query selector for the element to which it is attached.
 		tooltippableSelector:
-			_config2.mode === 'title' ? _config2.tooltippableSelector :
-			[_config2.contentAttribute, _config2.previewAttribute]
-			.filter(attributeName => !!attributeName)
-			.map(attributeName => `*[${attributeName}]`)
-			.join(', '),
+			_config2.mode === 'title'
+				? _config2.tooltippableSelector
+				: [_config2.contentAttribute, _config2.previewAttribute]
+						.filter(attributeName => !!attributeName)
+						.map(attributeName => `*[${attributeName}]`)
+						.join(', '),
 
 		popperOptions: {
 			removeOnDestroy: true,
@@ -67,34 +76,34 @@ export default function init(_config: Config) {
 						top: 100,
 						bottom: 25,
 						left: 25,
-						right: 25
-					}
-				}
-			}
+						right: 25,
+					},
+				},
+			},
 		} as PopperOptions,
 
 		// state
-		activeTooltip: null as null|InstanceType<typeof Popper>,
+		activeTooltip: null as null | InstanceType<typeof Popper>,
 		explicitlyOpened: false,
 	};
 
-	const event$ = merge(fromEvent<MouseEvent>(document, 'mouseover'),fromEvent<MouseEvent>(document, 'click'));
+	const event$ = merge(fromEvent<MouseEvent>(document, 'mouseover'), fromEvent<MouseEvent>(document, 'click'));
 	const activeTooltippable$ = event$.pipe(
-		throttleTime(25, asyncScheduler, {leading: true, trailing: true}),
+		throttleTime(25, asyncScheduler, { leading: true, trailing: true }),
 		map(e => ({
-			eventType: e.type as 'click'|'mouseover',
-			element: e.target && (e.target as HTMLElement).closest ? e.target as HTMLElement : null
+			eventType: e.type as 'click' | 'mouseover',
+			element: e.target && (e.target as HTMLElement).closest ? (e.target as HTMLElement) : null,
 		})),
 		// not clicking/hovering over the tooltip itself
 		filter(e => !(e.element && e.element.closest(settings.tooltipSelector))),
 		map(e => ({
-			element: e.element ? e.element.closest(settings.tooltippableSelector) as HTMLElement : null,
-			eventType: e.eventType
+			element: e.element ? (e.element.closest(settings.tooltippableSelector) as HTMLElement) : null,
+			eventType: e.eventType,
 		})),
 		distinctUntilChanged((a, b) => a.element === b.element && a.eventType === b.eventType),
 	);
 
-	activeTooltippable$.subscribe(({element, eventType}) => {
+	activeTooltippable$.subscribe(({ element, eventType }) => {
 		const destroyExistingTooltip = !settings.explicitlyOpened || (settings.explicitlyOpened && eventType === 'click');
 		if (settings.activeTooltip && destroyExistingTooltip) {
 			(settings.activeTooltip?.reference as HTMLElement)?.classList.toggle('tooltip-open', false);
@@ -112,12 +121,12 @@ export default function init(_config: Config) {
 		(settings.activeTooltip?.reference as HTMLElement)?.classList.toggle('tooltip-open', true);
 	});
 
-	function createNewTooltip(element: HTMLElement|null) {
+	function createNewTooltip(element: HTMLElement | null) {
 		if (!element) {
 			return null;
 		}
 
-		const {content, preview} = getTooltipContent(settings, element);
+		const { content, preview } = getTooltipContent(settings, element);
 
 		const tooltip = createElement(`<div class="${settings.tooltipClass} ${settings.tooltipPreviewClass}">${preview}</div>`);
 		if (content) {
@@ -128,19 +137,21 @@ export default function init(_config: Config) {
 			`);
 			tooltip.appendChild(openFullTooltip);
 
-			openFullTooltip.addEventListener('submit', (submit: Event) => {
-				tooltip.innerHTML = content;
-				[...settings.tooltipPreviewClass.split(/\s+/g), ...settings.tooltipExpandedClass.split(/\s+/g)]
-					.filter(c => !!c)
-					.forEach(c => tooltip.classList.toggle(c));
+			openFullTooltip.addEventListener(
+				'submit',
+				(submit: Event) => {
+					tooltip.innerHTML = content;
+					[...settings.tooltipPreviewClass.split(/\s+/g), ...settings.tooltipExpandedClass.split(/\s+/g)].filter(c => !!c).forEach(c => tooltip.classList.toggle(c));
 
-				submit.preventDefault();
-				submit.stopPropagation();
-				settings.activeTooltip!.scheduleUpdate();
-				settings.explicitlyOpened = true;
-			}, { once:true });
+					submit.preventDefault();
+					submit.stopPropagation();
+					settings.activeTooltip!.scheduleUpdate();
+					settings.explicitlyOpened = true;
+				},
+				{ once: true },
+			);
 		}
-		tooltip.addEventListener('click', () => settings.explicitlyOpened = true, { once: true });
+		tooltip.addEventListener('click', () => (settings.explicitlyOpened = true), { once: true });
 
 		document.body.appendChild(tooltip);
 		return new Popper(element, tooltip, settings.popperOptions);
@@ -157,20 +168,23 @@ function getDataAttributes(element: Element) {
 
 	let key: string;
 	let value: string;
-	for ({name: key, value} of element.attributes) {
+	for ({ name: key, value } of element.attributes) {
 		if (key.startsWith('data-') && value /* && key !== 'data-toggle' */) {
-			ret.push({key: key.substring(5), value});
+			ret.push({ key: key.substring(5), value });
 		}
 	}
 	return ret;
 }
 
-function getTooltipContent(config: Config, el: HTMLElement): {
-	preview: string|undefined;
-	content: string|undefined;
+function getTooltipContent(
+	config: Config,
+	el: HTMLElement,
+): {
+	preview: string | undefined;
+	content: string | undefined;
 } {
-	let preview: string|undefined;
-	let content: string|undefined;
+	let preview: string | undefined;
+	let content: string | undefined;
 	if (config.mode === 'title') {
 		const dataAttributes = getDataAttributes(el).filter(a => !(config as ConfigTitle).excludeAttributes.includes(a.key));
 
@@ -178,16 +192,21 @@ function getTooltipContent(config: Config, el: HTMLElement): {
 		if ((preview && dataAttributes.length) || dataAttributes.length > 1) {
 			content = `
 				<table class="table" style="table-layout:fixed;width:auto;min-width:300px; margin: 0">
-				<tbody>${dataAttributes.map(a => `
+				<tbody>${dataAttributes
+					.map(
+						a => `
 					<tr>
 						<td>${a.key}</td>
 						<td>${a.value}</td>
 					</tr>
-				`).join('')}
+				`,
+					)
+					.join('')}
 				</tbody>
 				</table>
 			`;
-		} else if (dataAttributes.length) { // length === 1
+		} else if (dataAttributes.length) {
+			// length === 1
 			content = dataAttributes[0].value;
 		}
 	} else {
@@ -201,8 +220,12 @@ function getTooltipContent(config: Config, el: HTMLElement): {
 	}
 
 	// Unescape tokens that must always be escaped in attributes
-	if (preview) { preview = preview.replace(/&quot;/g, '"').replace(/&amp;/g, '&'); }
-	if (content) { content = content.replace(/&quot;/g, '"').replace(/&amp;/g, '&'); }
+	if (preview) {
+		preview = preview.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+	}
+	if (content) {
+		content = content.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+	}
 
-	return {preview, content};
+	return { preview, content };
 }

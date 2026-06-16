@@ -4,27 +4,25 @@
  * but also when the user changes the grouping, and when they switch between viewing hits/documents.
  */
 
-import URI from 'urijs';
-
 import { stripIndent } from 'common-tags';
 import jsonStableStringify from 'json-stable-stringify';
+import URI from 'urijs';
+import { markRaw, shallowRef } from 'vue';
 
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import * as UIModule from '@/app/state/ui-state';
+import { getFilterSummary } from '@/components/filters/filterValueFunctions';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as InterfaceModule from '@/features/search/model/form/interface-state';
+import type * as PatternModule from '@/features/search/model/form/pattern-state';
 import type * as GlobalModule from '@/features/search/model/results/global-results-state';
 import type * as ViewModule from '@/features/search/model/results/view-state';
-import type * as PatternModule from '@/features/search/model/form/pattern-state';
-import * as UIModule from '@/app/state/ui-state';
-
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
-import { getFilterSummary } from '@/components/filters/filterValueFunctions';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 import { debugLog } from '@/utils/debug';
 import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
-import { markRaw, shallowRef } from 'vue';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
@@ -39,7 +37,7 @@ type HistoryEntry = {
 
 	/** The state of the currently active view.
 	Name of the active view is contained in interface.viewedResults */
-	view: ViewModule.ViewRootState,
+	view: ViewModule.ViewRootState;
 
 	// Depending on interface.form, one of these should contain the values, the other contains defaults.
 	// Depending on interface.subForm, one of the subproperties is set, the others contain defaults.
@@ -55,7 +53,7 @@ export type HistoryEntryPatternAndUrl = {
 	url: string;
 };
 
-type FullHistoryEntry = HistoryEntry&{
+type FullHistoryEntry = HistoryEntry & {
 	/** String representations of the query, for simpler displaying of the entry in UI */
 	displayValues: {
 		filters: string;
@@ -76,7 +74,7 @@ type LocalStorageState = {
 };
 
 // Track current corpus for localStorage keying
-let corpus: CorpusModule.NormalizedIndex|null = null;
+let corpus: CorpusModule.NormalizedIndex | null = null;
 
 // Shallow ref: entries are frozen+markRaw, so no deep reactivity needed.
 // We replace the array reference when entries change.
@@ -105,52 +103,61 @@ const get = {
 			# Contains gap values: ${entry.gap.value ? 'yes' : 'no'}
 
 			#####
-			${btoa(JSON.stringify(Object.assign({version}, entry)))}
+			${btoa(JSON.stringify(Object.assign({ version }, entry)))}
 			#####`;
 
-		const file = new Blob([fileContents], {type: 'text/plain;charset=utf-8'});
-		return {file, fileName};
+		const file = new Blob([fileContents], { type: 'text/plain;charset=utf-8' });
+		return { file, fileName };
 	},
-	fromFile: (f: File) => new Promise<{entry: HistoryEntry, pattern: string, url: string}>((resolve, reject) => {
-		const fr = new FileReader();
-		fr.onload = async function() {
-			try {
-				const base64 = (fr.result as string).replace(/#.*(?:\r\n|\n|\r|$)/g, '').trim();
-				let originalEntry: FullHistoryEntry&{version: number};
-				try { originalEntry = JSON.parse(atob(base64)); } catch { throw new Error(`Could not read query file '${f.name}'.`); }
-				if (!originalEntry || originalEntry.version == null) { throw new Error('Cannot import: file does not appear to be a valid query.'); }
+	fromFile: (f: File) =>
+		new Promise<{ entry: HistoryEntry; pattern: string; url: string }>((resolve, reject) => {
+			const fr = new FileReader();
+			fr.onload = async function () {
+				try {
+					const base64 = (fr.result as string).replace(/#.*(?:\r\n|\n|\r|$)/g, '').trim();
+					let originalEntry: FullHistoryEntry & { version: number };
+					try {
+						originalEntry = JSON.parse(atob(base64));
+					} catch {
+						throw new Error(`Could not read query file '${f.name}'.`);
+					}
+					if (!originalEntry || originalEntry.version == null) {
+						throw new Error('Cannot import: file does not appear to be a valid query.');
+					}
 
-				// Roundtrip from url if not compatible.
-				const entry = originalEntry.version === version ? originalEntry : await new UrlStateParserSearch(new URI(originalEntry.url)).get();
+					// Roundtrip from url if not compatible.
+					const entry = originalEntry.version === version ? originalEntry : await new UrlStateParserSearch(new URI(originalEntry.url)).get();
 
-				resolve({
-					entry,
-					pattern: originalEntry.displayValues.pattern,
-					url: originalEntry.url
-				});
-			} catch (e) {
-				debugLog('Cannot import query from file: ', f.name, e);
-				reject(e);
-			}
-		};
-		fr.readAsText(f);
-	})
+					resolve({
+						entry,
+						pattern: originalEntry.displayValues.pattern,
+						url: originalEntry.url,
+					});
+				} catch (e) {
+					debugLog('Cannot import query from file: ', f.name, e);
+					reject(e);
+				}
+			};
+			fr.readAsText(f);
+		}),
 };
 
 const actions = {
-	addEntry: ({entry, pattern, url}: HistoryEntryPatternAndUrl) => {
+	addEntry: ({ entry, pattern, url }: HistoryEntryPatternAndUrl) => {
 		// history is updated together with page url, so we don't always receive a state we need to store.
 		if (entry.interface.viewedResults == null) {
 			return;
 		}
 
 		// Order needs to be consistent or hash will be different.
-		const filterSummary: string|undefined = getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
+		const filterSummary: string | undefined = getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
 		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
-		const patternSummary: string|undefined =
-			entry.interface.form === 'search' ? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy, entry.filters) :
-				entry.interface.form === 'explore' ? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, CorpusModule.get.allAnnotationsMap()) :
-					undefined;
+		const patternSummary: string | undefined =
+			entry.interface.form === 'search'
+				? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy, entry.filters)
+				: entry.interface.form === 'explore'
+					? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, CorpusModule.get.allAnnotationsMap())
+					: undefined;
 
 		// Should only contain items that uniquely identify a query
 		// Normally this would only be the pattern (including gap values) and filters,
@@ -165,16 +172,18 @@ const actions = {
 			groupBy: entry.view.groupBy.sort((l, r) => l.localeCompare(r)),
 		};
 
-		const fullEntry: FullHistoryEntry = Object.freeze(markRaw({
-			...entry,
-			hash: hashJavaDJB2(jsonStableStringify(hashBase)),
-			url,
-			timestamp: new Date().getTime(),
-			displayValues: {
-				filters: filterSummary || '-',
-				pattern: patternSummary || '-'
-			}
-		}));
+		const fullEntry: FullHistoryEntry = Object.freeze(
+			markRaw({
+				...entry,
+				hash: hashJavaDJB2(jsonStableStringify(hashBase)),
+				url,
+				timestamp: new Date().getTime(),
+				displayValues: {
+					filters: filterSummary || '-',
+					pattern: patternSummary || '-',
+				},
+			}),
+		);
 
 		const entries = [...state.value];
 		const i = entries.findIndex(v => v.hash === fullEntry.hash);
@@ -195,7 +204,7 @@ const actions = {
 	clear: () => {
 		state.value = [];
 		saveToLocalStorage([]);
-	}
+	},
 };
 
 const init = (change: CorpusChange) => {
@@ -248,7 +257,7 @@ const saveToLocalStorage = (entries: ModuleRootState) => {
 	const stored: LocalStorageState = {
 		version,
 		history: entries,
-		indexLastModified: corpus.timeModified
+		indexLastModified: corpus.timeModified,
 	};
 
 	window.localStorage.setItem(key, JSON.stringify(stored));
@@ -261,18 +270,13 @@ function hashJavaDJB2(str: string) {
 	let char: number;
 	const l = str.length;
 	while (i < l) {
-		char  = str.charCodeAt(i);
-		hash  = ((hash<<5)-hash)+char;
+		char = str.charCodeAt(i);
+		hash = (hash << 5) - hash + char;
 		hash |= 0;
-		++i
+		++i;
 	}
 	return hash;
-};
+}
 // tslint:enable
 
-export {
-    actions, get, getState, init,
-
-    type FullHistoryEntry, type HistoryEntry, type ModuleRootState
-};
-
+export { actions, get, getState, init, type FullHistoryEntry, type HistoryEntry, type ModuleRootState };

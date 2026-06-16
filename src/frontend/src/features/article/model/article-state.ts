@@ -1,10 +1,10 @@
-import type * as BLTypes from '@/types/blacklabtypes';
-
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import { reactive } from 'vue';
 
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type * as BLTypes from '@/types/blacklabtypes';
+
 type ModuleRootState = {
-	docId: string|null;
+	docId: string | null;
 	/**
 	 * Name of the AnnotatedField in which we're viewing the document.
 	 * Relevant for parallel corpora, where a document perhaps has a Dutch and an English version (or perhaps event more).
@@ -19,25 +19,25 @@ type ModuleRootState = {
 	 *
 	 * This causes a little wrinkle for url-decoding, as we try to mimic BlackLab there however.
 	 */
-	viewField: string|null;
+	viewField: string | null;
 	// For searchField, see QueryStore.
 
 	/** null if pagination disabled */
-	pageSize: number|null;
+	pageSize: number | null;
 	/** null if pagination disabled */
-	wordstart: number|null;
+	wordstart: number | null;
 	/** null if pagination disabled */
-	wordend: number|null;
+	wordend: number | null;
 	/** wordstart of the hit to highlight/currently highlighted hit. */
-	findhit: number|null;
+	findhit: number | null;
 
-	distributionAnnotation: null|{
+	distributionAnnotation: null | {
 		/** Id of the annotation */
 		id: string;
 		/** Label/displayName of the chart */
 		displayName: string;
 	};
-	growthAnnotations: null|{
+	growthAnnotations: null | {
 		/** Label/displayName of the chart */
 		displayName: string;
 		annotations: Array<{
@@ -48,18 +48,18 @@ type ModuleRootState = {
 		}>;
 	};
 	/** Injectable function to calculate whichever properties about a document */
-	statisticsTableFn: null|((document: BLTypes.BLDocument, snippet: BLTypes.BLHitSnippet) => {[key: string]: string});
+	statisticsTableFn: null | ((document: BLTypes.BLDocument, snippet: BLTypes.BLHitSnippet) => { [key: string]: string });
 
 	baseColor: string; // TODO make ui store shared.
 };
 
-type HistoryState = Pick<ModuleRootState, 'docId'|'viewField'|'wordstart'|'wordend'|'findhit'>;
+type HistoryState = Pick<ModuleRootState, 'docId' | 'viewField' | 'wordstart' | 'wordend' | 'findhit'>;
 const initialHistoryState: HistoryState = {
 	docId: null,
 	viewField: null,
 	wordstart: 0,
-	wordend: 2^31-1, // JAVA interop
-	findhit: null
+	wordend: 2 ^ (31 - 1), // JAVA interop
+	findhit: null,
 };
 
 const initialState: ModuleRootState = {
@@ -69,10 +69,8 @@ const initialState: ModuleRootState = {
 	distributionAnnotation: null,
 	growthAnnotations: null,
 	statisticsTableFn: null,
-	baseColor: '#337ab7' // bootstrap primary
+	baseColor: '#337ab7', // bootstrap primary
 };
-
-
 
 const state = reactive(structuredClone(initialState));
 const getState = () => state;
@@ -90,28 +88,28 @@ const get = {
 };
 
 const actions = {
-	distributionAnnotation: (payload: ModuleRootState['distributionAnnotation']) => state.distributionAnnotation = payload,
-	growthAnnotations: (payload: ModuleRootState['growthAnnotations']) => state.growthAnnotations = payload,
-	statisticsTableFn: (payload: ModuleRootState['statisticsTableFn']) => state.statisticsTableFn = payload,
-	baseColor: (payload: string) => state.baseColor = payload,
+	distributionAnnotation: (payload: ModuleRootState['distributionAnnotation']) => (state.distributionAnnotation = payload),
+	growthAnnotations: (payload: ModuleRootState['growthAnnotations']) => (state.growthAnnotations = payload),
+	statisticsTableFn: (payload: ModuleRootState['statisticsTableFn']) => (state.statisticsTableFn = payload),
+	baseColor: (payload: string) => (state.baseColor = payload),
 
-	docId: (payload: string|null) => state.docId = payload,
-	page: (payload: {wordstart: number|null, wordend: number|null}) => {
+	docId: (payload: string | null) => (state.docId = payload),
+	page: (payload: { wordstart: number | null; wordend: number | null }) => {
 		state.wordstart = payload.wordstart ?? null;
 		state.wordend = payload.wordend ?? null;
 	},
-	findhit: (payload: number|null) => {
+	findhit: (payload: number | null) => {
 		state.wordstart = 0;
 		state.wordend = Number.MAX_SAFE_INTEGER;
-		state.findhit = payload
+		state.findhit = payload;
 	},
-	viewField: (payload: string|null) => state.viewField = payload,
+	viewField: (payload: string | null) => (state.viewField = payload),
 
 	reset: () => {
 		state.docId = null;
 		state.findhit = null;
 		state.viewField = null;
-		state.wordend = 2^31-1;
+		state.wordend = 2 ^ (31 - 1);
 		state.wordstart = 0;
 		// Don't reset the rest, is supplied by customJs, don't want to clear that on regular reset.
 	},
@@ -130,4 +128,3 @@ const init = (state: CorpusChange) => {
 
 export { actions, get, getState, init, initialHistoryState };
 export type { HistoryState, ModuleRootState };
-

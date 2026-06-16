@@ -5,7 +5,6 @@
 			class="btn btn-default btn-sm"
 			:disabled="downloadInProgress || disabled"
 			:title="(downloadInProgress ? $t('results.export.downloading') : $t('results.export.csvTooltip')).toLocaleString()"
-
 			@click="downloadCsv(false)"
 		>
 			<template v-if="downloadInProgress">&nbsp;<span class="fa fa-spinner fa-spin"></span>&nbsp;</template>
@@ -16,7 +15,6 @@
 			class="btn btn-default btn-sm"
 			:disabled="downloadInProgress || disabled"
 			:title="(downloadInProgress ? $t('results.export.downloading') : $t('results.export.excelTooltip')).toLocaleString()"
-
 			@click="downloadCsv(true)"
 		>
 			<template v-if="downloadInProgress">&nbsp;<span class="fa fa-spinner fa-spin"></span>&nbsp;</template>
@@ -47,7 +45,6 @@ import { defineComponent } from 'vue';
 
 import * as Api from '@/api';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
-
 import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';
 import { ensureCompleteFieldName } from '@/utils';
@@ -56,12 +53,12 @@ import { debugLog } from '@/utils/debug';
 
 export default defineComponent({
 	props: {
-		results: { type: [Object, null] as PropType<BLSearchResult|null>, default: null },
-		type: { type: String as PropType<'hits'|'docs'>, required: true },
-		annotations: { type: [Array, null] as PropType<string[]|null>, default: null },
-		metadata: { type: [Array, null] as PropType<string[]|null>, default: null },
+		results: { type: [Object, null] as PropType<BLSearchResult | null>, default: null },
+		type: { type: String as PropType<'hits' | 'docs'>, required: true },
+		annotations: { type: [Array, null] as PropType<string[] | null>, default: null },
+		metadata: { type: [Array, null] as PropType<string[] | null>, default: null },
 
-		disabled: Boolean
+		disabled: Boolean,
 	},
 	data: () => ({
 		downloadInProgress: false,
@@ -71,11 +68,11 @@ export default defineComponent({
 			const spans = Object.entries(CorpusStore.get.corpus()!.relations.spans || {});
 			return spans.flatMap(([spanName, spanInfo]) =>
 				Object.keys(spanInfo.attributes || {})
-					.map(attrName => [ spanName, attrName ])
+					.map(attrName => [spanName, attrName])
 					.filter(([spanName, attrName]) => corpusCustomizations.results.export.includeSpanAttribute(spanName, attrName))
-						.map(([spanName, attrName]) => `${spanName}.${attrName}`)
-				);
-		}
+					.map(([spanName, attrName]) => `${spanName}.${attrName}`),
+			);
+		},
 	},
 	methods: {
 		downloadCsv(excel: boolean) {
@@ -97,22 +94,22 @@ export default defineComponent({
 				name = ensureCompleteFieldName(name, defaultField); // don't just pass version name
 				const field = CorpusStore.get.allAnnotatedFieldsMap()[name];
 				return this.$tAnnotatedFieldDisplayName(field);
-			}
+			};
 			(params as any).csvdescription = corpusCustomizations.results.export.description(this.results.summary, fieldDisplayName) || '';
 
 			const apir = apiCall(CorpusStore.get.indexId()!, params);
 
 			debugLog('starting csv download', this.type, params);
-			apiCall(CorpusStore.get.indexId()!, params).request
-			.then(
-				async blob => {
-					const { saveAs } = await import('file-saver');
-					saveAs(blob, 'data.csv');
-				},
-				error => debugLog('Error downloading csv file', error)
-			)
-			.finally(() => this.downloadInProgress = false);
+			apiCall(CorpusStore.get.indexId()!, params)
+				.request.then(
+					async blob => {
+						const { saveAs } = await import('file-saver');
+						saveAs(blob, 'data.csv');
+					},
+					error => debugLog('Error downloading csv file', error),
+				)
+				.finally(() => (this.downloadInProgress = false));
 		},
-	}
-})
+	},
+});
 </script>

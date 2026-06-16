@@ -13,7 +13,7 @@ export type BLSearchParameters = {
 	/** Seed from which the samples are generated */
 	sampleseed?: number;
 	/** Context size, may be limited by blacklab. A number for words before and after the hit, or an inline element such as "s", "p", etc. Depending on corpus. See "inlineTags" in input format (*.blf.yaml), or available from getRelations in the api. */
-	context?: number|string;
+	context?: number | string;
 	/** How to filter results: a lucene query */
 	filter?: string;
 	/** How to sort results, comma-separated list of field:${someMetadataFieldId} or (wordleft|hit|wordright):${someAnnotationId} */
@@ -101,13 +101,13 @@ export interface BLIndex {
 	/** Only available when status === 'indexing' */
 	indexProgress?: BLIndexProgress;
 	/** status opening is currently unused, but should be treated as generally unavailable */
-	status: 'empty'|'available'|'indexing'|'opening';
+	status: 'empty' | 'available' | 'indexing' | 'opening';
 	/** yyyy-mm-dd hh:mm:ss */
 	timeModified: string;
 	/** Number of tokens in this index (excluding those tokens added in any currently running indexing action). */
 	tokenCount?: number;
 	/** v4 and up: token count per annotatedField. */
-	tokenCounts?: Array<{fieldName: string; tokenCount: number}>
+	tokenCounts?: Array<{ fieldName: string; tokenCount: number }>;
 	/** Number of documents in this index (excluding any added in a currently running indexing action). Not present pre-v4 */
 	documentCount?: number;
 }
@@ -118,10 +118,10 @@ export interface BLSpanInfo {
 	attributes?: {
 		[attributeName: string]: {
 			/** Every value encountered for this attribute on this span, and number of occurances */
-			values: {[value: string]: number};
+			values: { [value: string]: number };
 			/** Does the values property contain all values or was it truncated? */
 			valueListComplete: boolean;
-		}
+		};
 	};
 }
 
@@ -131,7 +131,7 @@ export interface BLRelationInfo {
 	 * A Span is a set of two markers in the text, such as <s> and </s> for a sentence.
 	 * They can optionally have attributes, etc.
 	 * BlackLab can ensure queries fully occur within these spans, etc.
-	*/
+	 */
 	spans?: Record<string, BLSpanInfo>;
 	/** Only when relations have been indexed in this corpus. */
 	relations?: Record<string, Record<string, number>>; // {relClass: {relType: count}}
@@ -171,7 +171,7 @@ export interface BLFormatContent {
 	/** id */
 	formatName: string;
 	/** usually one of 'yml', 'yaml', 'json', lowercased */
-	configFileType: 'json'|'yml'|'yaml'|(string&{});
+	configFileType: 'json' | 'yml' | 'yaml' | (string & {});
 	/** contents of the file, treat with caution: user content! */
 	configFile: string;
 }
@@ -189,7 +189,7 @@ export interface BLServer {
 	cacheStatus?: BLCacheStatus;
 	helpPageUrl: string;
 	// Interop with older servers.
-	corpora?: Record<string, BLIndex>
+	corpora?: Record<string, BLIndex>;
 	indices?: Record<string, BLIndex>;
 	user: BLUser;
 }
@@ -216,10 +216,10 @@ export interface BLAnnotation {
 	hasForwardIndex: boolean;
 	isInternal: boolean;
 	offsetsAlternative: string;
-	sensitivity: 'SENSITIVE_AND_INSENSITIVE'|'ONLY_SENSITIVE'|'ONLY_INSENSITIVE'|'CASE_AND_DIACRITICS_SEPARATE';
+	sensitivity: 'SENSITIVE_AND_INSENSITIVE' | 'ONLY_SENSITIVE' | 'ONLY_INSENSITIVE' | 'CASE_AND_DIACRITICS_SEPARATE';
 	/** Contains ids of other BLAnnotations in the parent annotatedField if this field has subannotations. */
 	subannotations?: string[];
-	uiType: (string&{})|'select'|'combobox'|'text'|'pos'|'dropdown'|'autocomplete';
+	uiType: (string & {}) | 'select' | 'combobox' | 'text' | 'pos' | 'dropdown' | 'autocomplete';
 	/** Only when the indexMetadata was requested with ?listvalues=annotationId,annotationId etc. */
 	values?: string[];
 	/** Only when values present. */
@@ -227,7 +227,7 @@ export interface BLAnnotation {
 }
 
 /** A set of annotations that form one data set on a token, usually there is only one of these in an index, called 'contents' */
-interface BLAnnotatedFieldInternal  {
+interface BLAnnotatedFieldInternal {
 	description: string;
 	displayName: string;
 	/** Identical to key for this annotatedField */
@@ -239,22 +239,24 @@ interface BLAnnotatedFieldInternal  {
 	tokenCount?: number;
 	documentCount?: number;
 }
-type BLAnnotatedFieldV1 = BLAnnotatedFieldInternal&{
+type BLAnnotatedFieldV1 = BLAnnotatedFieldInternal & {
 	/** Indexed token properties/annotations for this field */
-	properties: { [key: string]: BLAnnotation; };
+	properties: { [key: string]: BLAnnotation };
 	/** If a cql query is fired that is just "searchterm", this is the annotation that is searched, usually 'word' - key in annotations */
 	mainProperty: string;
 };
-type BLAnnotatedFieldV2 = BLAnnotatedFieldInternal&{
+type BLAnnotatedFieldV2 = BLAnnotatedFieldInternal & {
 	/** Indexed token properties/annotations for this field */
-	annotations: { [key: string]: BLAnnotation; },
+	annotations: { [key: string]: BLAnnotation };
 	/** Ids of the annotations, in the order they should be displayed by the ui */
 	displayOrder?: string[];
 	/** If a cql query is fired that is just "searchterm", this is the annotation that is searched, usually 'word' - key in annotations */
 	mainAnnotation: string;
 };
-export type BLAnnotatedField = BLAnnotatedFieldV1|BLAnnotatedFieldV2;
-export function isAnnotatedFieldV1(v: BLAnnotatedField): v is BLAnnotatedFieldV1 { return (v as any).properties != null; }
+export type BLAnnotatedField = BLAnnotatedFieldV1 | BLAnnotatedFieldV2;
+export function isAnnotatedFieldV1(v: BLAnnotatedField): v is BLAnnotatedFieldV1 {
+	return (v as any).properties != null;
+}
 
 export interface BLMetadataField {
 	analyzer: string;
@@ -271,11 +273,11 @@ export interface BLMetadataField {
 		[key: string]: string;
 	};
 	isAnnotatedField: boolean;
-	type: 'TOKENIZED'|'UNTOKENIZED'|'NUMERIC';
+	type: 'TOKENIZED' | 'UNTOKENIZED' | 'NUMERIC';
 	/** All the types we support are listed here, though the types are user-defined so in anything can show up. */
-	uiType: (string&{})|'select'|'range'|'combobox'|'text'|'checkbox'|'radio'|'autocomplete'|'dropdown';
+	uiType: (string & {}) | 'select' | 'range' | 'combobox' | 'text' | 'checkbox' | 'radio' | 'autocomplete' | 'dropdown';
 	/** Internal blacklab property: when the unknownValue is used as the value for a document where the metadata for this field was unknown when indexing */
-	unknownCondition: 'NEVER'|'MISSING'|'EMPTY'|'MISSING_OR_EMPTY';
+	unknownCondition: 'NEVER' | 'MISSING' | 'EMPTY' | 'MISSING_OR_EMPTY';
 	/** Internal blacklab property: what default value is substituted during indexing for document that are missing this metadata (depending on unknownCondition) */
 	unknownValue: string;
 	/** Are all values contained within the fieldValues */
@@ -290,7 +292,7 @@ export interface BLIndexMetadata {
 			name: string;
 			/** Referring to BLAnnotatedField in the annotatedFields[annotatedFieldId] */
 			annotations: string[];
-		}>
+		}>;
 	};
 	contentViewable: boolean;
 	/** Description of the main index */
@@ -309,9 +311,9 @@ export interface BLIndexMetadata {
 		/** Keys in metadataFields */
 		fields: string[];
 	}>;
-	metadataFields: { [key: string]: BLMetadataField; };
-	status: 'empty'|'available'|'indexing'|'opening';
-	textDirection: 'ltr'|'rtl';
+	metadataFields: { [key: string]: BLMetadataField };
+	status: 'empty' | 'available' | 'indexing' | 'opening';
+	textDirection: 'ltr' | 'rtl';
 	/** Number of tokens in this index (excluding those tokens added in any currently running indexing action). - not available if status === 'empty' */
 	tokenCount?: number;
 	versionInfo: {
@@ -326,12 +328,12 @@ export interface BLIndexMetadata {
 		timeModified: string;
 	};
 
-	annotatedFields: {[id: string]: BLAnnotatedFieldV2};
+	annotatedFields: { [id: string]: BLAnnotatedFieldV2 };
 	/** key into annotatedFields */
 	mainAnnotatedField?: string;
 	/** Only available if index contains actual documents and if versionInfo.blackLabVersion >= 2.0.0 */
 	documentCount: number;
-};
+}
 
 // --------------
 // Search results
@@ -339,19 +341,22 @@ export interface BLIndexMetadata {
 
 // #region docssearchsummary
 
-export type BLSearchSummarySampleSettings = {} | {
-	samplePercentage: number;
-	sampleSeed: number;
-} | {
-	sampleSeed: number;
-	sampleSize: number;
-};
+export type BLSearchSummarySampleSettings =
+	| {}
+	| {
+			samplePercentage: number;
+			sampleSeed: number;
+	  }
+	| {
+			sampleSeed: number;
+			sampleSize: number;
+	  };
 
 /** Match info definition in summary */
 export type BLSummaryMatchInfo = {
-	type: 'span'|'tag'|'relation'|'list';
-	fieldName?: string;     // field this capture is in (if not default field)
-	targetField?: string;   // field the relation target is in (if not default field)
+	type: 'span' | 'tag' | 'relation' | 'list';
+	fieldName?: string; // field this capture is in (if not default field)
+	targetField?: string; // field the relation target is in (if not default field)
 };
 
 export type BLSearchSummary = {
@@ -395,8 +400,8 @@ export type BLSearchSummaryPattern = {
 		/* MatchInfos only available when hits are returned (i.e. not a docs request, not grouped) */
 		matchInfos?: {
 			[key: string]: BLSummaryMatchInfo;
-		}
-	}
+		};
+	};
 	/** Total number of counted hits (so far), -1 if some error occured */
 	numberOfHits: number;
 	/** Total number of retrieved hits (so far) */
@@ -414,7 +419,7 @@ export type BLSearchSummaryPattern = {
 			tokens: number;
 		}[];
 	};
-}
+};
 
 /** Only when results have been grouped. */
 export interface BLSearchSummaryGrouped {
@@ -444,9 +449,9 @@ export interface BLGroupResult {
 	size: number;
 	/** Individual property values that identify this group. Whereas identity and identityDisplay are encoded cq. preformatted, these are the raw values. */
 	properties: Array<{
-		name: string,
-		value: string
-	}>
+		name: string;
+		value: string;
+	}>;
 }
 
 export interface BLHitGroupResult extends BLGroupResult {
@@ -484,7 +489,6 @@ export interface BLDocGroupResults {
 	summary: BLSearchSummary & BLSearchSummaryGrouped;
 }
 
-
 // #region docssnippettypes
 
 /**
@@ -512,7 +516,7 @@ export type BLHitSnippet = {
 	/** Omitted if snippet is at end of document */
 	right?: BLHitSnippetPart;
 	match: BLHitSnippetPart;
-}
+};
 
 // #endregion docssnippettypes
 
@@ -579,16 +583,16 @@ export interface BLMatchInfoList {
 	type: 'list';
 	start: number;
 	end: number;
-	infos: Array<BLMatchInfoRelation|BLMatchInfoTag>
+	infos: Array<BLMatchInfoRelation | BLMatchInfoTag>;
 }
 
-export type BLMatchInfo = BLMatchInfoSpan|BLMatchInfoRelation|BLMatchInfoTag|BLMatchInfoList;
+export type BLMatchInfo = BLMatchInfoSpan | BLMatchInfoRelation | BLMatchInfoTag | BLMatchInfoList;
 
 /** One of the otherFields hits (parallel corpus query, hit in one of the target fields) */
-export type BLHitInOtherField = Omit<BLHit, 'otherFields'|'docPid'>;
+export type BLHitInOtherField = Omit<BLHit, 'otherFields' | 'docPid'>;
 
 /** A hit in the BlackLab hits response. */
-export type BLHit = BLHitSnippet&{
+export type BLHit = BLHitSnippet & {
 	start: number;
 	end: number;
 	/**
@@ -614,21 +618,21 @@ export type BLHit = BLHitSnippet&{
 	otherFields?: Record<string, BLHitInOtherField>; //
 };
 
-export function hitHasParallelInfo(h: BLHit|BLHitSnippet): h is Required<BLHit> {
+export function hitHasParallelInfo(h: BLHit | BLHitSnippet): h is Required<BLHit> {
 	return !!(h as BLHit).matchInfos && !!(h as BLHit).otherFields;
 }
 
 /** Contains occurance counts of terms in the index */
 export interface BLTermOccurances {
 	termFreq: {
-		[term: string]: number
+		[term: string]: number;
 	};
 }
 
 /** Contains all metadata for a document. Fields without indexed values are omitted! */
 export type BLDocInfo = {
 	lengthInTokens: number;
-	tokenCounts?: Array<{fieldName: string; tokenCount: number}>
+	tokenCounts?: Array<{ fieldName: string; tokenCount: number }>;
 	mayView: boolean;
 	// ts is particular about dictionaries with some hardcoded keys, see
 	// https://old.reddit.com/r/typescript/comments/13mcx7p/how_to_define_the_record_type_with_known_required/
@@ -636,7 +640,7 @@ export type BLDocInfo = {
 	// Either it breaks when trying to read properties (in the above example), or it
 	// breaks when trying to write properties (in this setup)
 	// Since we only read from this object, we can use the first setup.
-}&{[key: string]: string[];};
+} & { [key: string]: string[] };
 
 /** Info returned when getting hits or documents. */
 export type BLDoc = {
@@ -646,7 +650,7 @@ export type BLDoc = {
 	numberOfHits?: number;
 	/* Only when query was performed with a cql pattern */
 	snippets?: BLHitSnippet[];
-}
+};
 
 /** Info returned when getting a document's metadata directly. */
 export type BLDocument = {
@@ -669,18 +673,20 @@ export interface BLHitResults {
 	summary: BLSearchSummary & BLSearchSummaryPattern;
 }
 
-export type BLSearchResult = BLHitResults|BLDocResults|BLHitGroupResults|BLDocGroupResults;
+export type BLSearchResult = BLHitResults | BLDocResults | BLHitGroupResults | BLDocGroupResults;
 
 export const isHitResults = (d: any): d is BLHitResults => !!(d && d.docInfos && d.hits);
 export const isDocResults = (d: any): d is BLDocResults => !!(d && d.docs);
 export const isHitGroups = (d: any): d is BLHitGroupResults => !!(d && d.hitGroups);
 export const isDocGroups = (d: any): d is BLDocGroupResults => !!(d && d.docGroups);
-export const isHitGroupsOrResults = (d: any): d is BLHitResults|BLHitGroupResults => isHitGroups(d) || isHitResults(d);
-export const isDocGroupsOrResults = (d: any): d is BLDocResults|BLDocGroupResults => isDocGroups(d) || isDocResults(d);
-export const isGroups = (d: any): d is BLHitGroupResults|BLDocGroupResults => isHitGroups(d) || isDocGroups(d);
+export const isHitGroupsOrResults = (d: any): d is BLHitResults | BLHitGroupResults => isHitGroups(d) || isHitResults(d);
+export const isDocGroupsOrResults = (d: any): d is BLDocResults | BLDocGroupResults => isDocGroups(d) || isDocResults(d);
+export const isGroups = (d: any): d is BLHitGroupResults | BLDocGroupResults => isHitGroups(d) || isDocGroups(d);
 export const isBLError = (e: any): e is BLError => !!(e && e.error && e.error.code && e.error.message);
 
-export function hasPatternInfo(e?: BLSearchResult): e is BLSearchResult&{summary: BLSearchSummary&BLSearchSummaryPattern};
-export function hasPatternInfo(e?: BLSearchSummary): e is BLSearchSummary&BLSearchSummaryPattern;
-export function hasPatternInfo(e?: BLSearchResult|BLSearchSummary) { return e != null && (('summary' in e && 'numberOfHits' in e.summary) || ('numberOfHits' in e)); };
-export const hasGroupInfo = <T extends BLSearchResult>(e?: T): e is T&{summary: T['summary']&BLSearchSummaryGrouped} => e != null && 'numberOfGroups' in e.summary;
+export function hasPatternInfo(e?: BLSearchResult): e is BLSearchResult & { summary: BLSearchSummary & BLSearchSummaryPattern };
+export function hasPatternInfo(e?: BLSearchSummary): e is BLSearchSummary & BLSearchSummaryPattern;
+export function hasPatternInfo(e?: BLSearchResult | BLSearchSummary) {
+	return e != null && (('summary' in e && 'numberOfHits' in e.summary) || 'numberOfHits' in e);
+}
+export const hasGroupInfo = <T extends BLSearchResult>(e?: T): e is T & { summary: T['summary'] & BLSearchSummaryGrouped } => e != null && 'numberOfGroups' in e.summary;

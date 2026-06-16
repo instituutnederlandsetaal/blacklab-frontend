@@ -5,19 +5,19 @@
  * so that we know how to construct the actual query that's sent to blacklab.
  */
 import cloneDeep from 'clone-deep';
+import { reactive } from 'vue';
 
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import type { ModuleRootState as ExploreModuleRootState } from '@/features/search/model/form/explore-state';
 import type { ModuleRootState as PatternModuleRootState } from '@/features/search/model/form/pattern-state';
-import { reactive } from 'vue';
 
 type ModuleRootState = {
-	form: 'search'|'explore';
+	form: 'search' | 'explore';
 	patternMode: keyof PatternModuleRootState;
 	exploreMode: keyof ExploreModuleRootState;
-	viewedResults: null|string;
-	activeAnnotationTab: null|string;
-	activeFilterTab: null|string;
+	viewedResults: null | string;
+	activeAnnotationTab: null | string;
+	activeFilterTab: null | string;
 };
 
 const defaults: ModuleRootState = {
@@ -42,12 +42,12 @@ const get = {
 };
 
 const actions = {
-	form: (payload: ModuleRootState['form']) => state.form = payload,
-	patternMode: (payload: ModuleRootState['patternMode']) => state.patternMode = payload,
-	exploreMode: (payload: ModuleRootState['exploreMode']) => state.exploreMode = payload,
-	viewedResults: (payload: ModuleRootState['viewedResults']) => state.viewedResults = payload,
-	activeAnnotationTab: (payload: ModuleRootState['activeAnnotationTab']) => state.activeAnnotationTab = payload,
-	activeFilterTab: (payload: ModuleRootState['activeFilterTab']) => state.activeFilterTab = payload,
+	form: (payload: ModuleRootState['form']) => (state.form = payload),
+	patternMode: (payload: ModuleRootState['patternMode']) => (state.patternMode = payload),
+	exploreMode: (payload: ModuleRootState['exploreMode']) => (state.exploreMode = payload),
+	viewedResults: (payload: ModuleRootState['viewedResults']) => (state.viewedResults = payload),
+	activeAnnotationTab: (payload: ModuleRootState['activeAnnotationTab']) => (state.activeAnnotationTab = payload),
+	activeFilterTab: (payload: ModuleRootState['activeFilterTab']) => (state.activeFilterTab = payload),
 
 	reset: () => Object.assign(state, cloneDeep(defaults)),
 	replace: (payload: ModuleRootState) => Object.assign(state, payload),
@@ -59,4 +59,3 @@ const init = (_state: CorpusChange) => {
 
 export { actions, defaults, get, getState, init };
 export type { ModuleRootState };
-

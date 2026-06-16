@@ -25,16 +25,9 @@
 			<span :id="model.id + '_cql_preview'" class="bl-token-cql-preview">{{ tokenCql }}</span>
 
 			<!-- Delete Button -->
-			<button
-				type="button"
-				class="close"
-				area-label="delete"
-				:title="$t('search.advanced.queryBuilder.token_head_deleteButton_title').toString()"
-				@click="emit('delete-token', model.id)"
-			>
+			<button type="button" class="close" area-label="delete" :title="$t('search.advanced.queryBuilder.token_head_deleteButton_title').toString()" @click="emit('delete-token', model.id)">
 				<span aria-hidden="true">&times;</span>
 			</button>
-
 		</div>
 
 		<!-- Token Body -->
@@ -52,74 +45,37 @@
 			<!-- Tab Content -->
 			<div class="tab-content">
 				<!-- Attributes Tab -->
-				<div
-					:id="model.id + '_tab_attributes'"
-					class="tab-pane"
-					:class="{ active: activeTab === 'attributes' }"
-					style="padding: 15px;"
-				>
-					<CqlAttributeGroup
-						:is-root="true"
-						:model-value="model.rootAttributeGroup"
-						:options="options"
-						@update:model-value="model.rootAttributeGroup = $event"
-					/>
+				<div :id="model.id + '_tab_attributes'" class="tab-pane" :class="{ active: activeTab === 'attributes' }" style="padding: 15px">
+					<CqlAttributeGroup :is-root="true" :model-value="model.rootAttributeGroup" :options="options" @update:model-value="model.rootAttributeGroup = $event" />
 				</div>
 
 				<!-- Properties Tab -->
-				<div
-					:id="model.id + '_tab_properties'"
-					class="tab-pane"
-					:class="{ active: activeTab === 'properties' }"
-					style="padding: 15px;"
-				>
+				<div :id="model.id + '_tab_properties'" class="tab-pane" :class="{ active: activeTab === 'properties' }" style="padding: 15px">
 					<div class="checkbox">
 						<label :title="$t('search.advanced.queryBuilder.body_tab_properties_optional_title').toString()">
-							<input
-								type="checkbox"
-								:id="model.id + '_property_optional'"
-								v-model="model.properties.optional"
-							>
+							<input type="checkbox" :id="model.id + '_property_optional'" v-model="model.properties.optional" />
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_optional') }}
 						</label>
 					</div>
 					<div class="checkbox">
 						<label :title="$t('search.advanced.queryBuilder.body_tab_properties_beginOfSentence_title').toString()">
-							<input
-								type="checkbox"
-								:id="model.id + '_property_sentence_start'"
-								v-model="model.properties.beginOfSentence"
-							>
+							<input type="checkbox" :id="model.id + '_property_sentence_start'" v-model="model.properties.beginOfSentence" />
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_beginOfSentence') }}
 						</label>
 					</div>
 					<div class="checkbox">
 						<label :title="$t('search.advanced.queryBuilder.body_tab_properties_endOfSentence_title').toString()">
-							<input
-								type="checkbox"
-								:id="model.id + '_property_sentence_end'"
-								v-model="model.properties.endOfSentence"
-							>
+							<input type="checkbox" :id="model.id + '_property_sentence_end'" v-model="model.properties.endOfSentence" />
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_endOfSentence') }}
 						</label>
 					</div>
-					<div class="input-group" style="width:318px;">
+					<div class="input-group" style="width: 318px">
 						<span class="input-group-addon">{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_label') }}</span>
-						<input
-							type="text"
-							class="form-control"
-							:id="model.id + '_property_repeats_min'"
-							v-model.number="model.properties.minRepeats"
-						>
-						<span class="input-group-addon" style="border-left-width:0px; border-right-width:0px;">
+						<input type="text" class="form-control" :id="model.id + '_property_repeats_min'" v-model.number="model.properties.minRepeats" />
+						<span class="input-group-addon" style="border-left-width: 0px; border-right-width: 0px">
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_to') }}
 						</span>
-						<input
-							type="text"
-							class="form-control"
-							:id="model.id + '_property_repeats_max'"
-							v-model.number="model.properties.maxRepeats"
-						>
+						<input type="text" class="form-control" :id="model.id + '_property_repeats_max'" v-model.number="model.properties.maxRepeats" />
 						<span class="input-group-addon">{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_times') }}</span>
 					</div>
 				</div>
@@ -129,31 +85,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
 import { useVModel } from '@vueuse/core';
-import type {
-	CqlTokenData,
-	CqlQueryBuilderOptions} from '@/components/cql/cql-types';
-import {
-	CqlGenerator
-} from '@/components/cql/cql-types';
+import { computed, ref } from 'vue';
+
+import type { CqlTokenData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
+import { CqlGenerator } from '@/components/cql/cql-types';
+
 import CqlAttributeGroup from './CqlAttributeGroup.vue';
 
-const props = withDefaults(defineProps<{
-	options: CqlQueryBuilderOptions,
-	modelValue: CqlTokenData,
-	canMoveLeft?: boolean,
-	canMoveRight?: boolean,
-}>(), {
-	canMoveLeft: false,
-	canMoveRight: false,
-});
+const props = withDefaults(
+	defineProps<{
+		options: CqlQueryBuilderOptions;
+		modelValue: CqlTokenData;
+		canMoveLeft?: boolean;
+		canMoveRight?: boolean;
+	}>(),
+	{
+		canMoveLeft: false,
+		canMoveRight: false,
+	},
+);
 
 const emit = defineEmits<{
-	'update:modelValue': [value: CqlTokenData],
-	'move-token-left': [tokenId: string],
-	'move-token-right': [tokenId: string],
-	'delete-token': [tokenId: string],
+	'update:modelValue': [value: CqlTokenData];
+	'move-token-left': [tokenId: string];
+	'move-token-right': [tokenId: string];
+	'delete-token': [tokenId: string];
 }>();
 
 const model = useVModel(props, 'modelValue', emit, {
@@ -168,7 +125,6 @@ const tokenCql = computed(() => CqlGenerator.tokenCql(model.value));
 
 <style lang="scss">
 /* Using original CSS classes from cql_querybuilder.scss - no additional styles needed */
-
 
 .bl-token {
 	display: inline-block; // Shrink-wrap to widest child (the body)
@@ -190,14 +146,13 @@ const tokenCql = computed(() => CqlGenerator.tokenCql(model.value));
 		}
 	}
 
-	.nav-tabs>li:first-child>a {
-		border-left: none!important;
+	.nav-tabs > li:first-child > a {
+		border-left: none !important;
 	}
 
-
-	.panel-body, .tab-content {
+	.panel-body,
+	.tab-content {
 		padding: 0;
 	}
 }
-
 </style>

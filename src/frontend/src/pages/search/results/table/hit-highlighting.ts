@@ -1,6 +1,5 @@
 import type { CaptureAndRelation, TokenHighlight } from '@/types/apptypes';
 import type { BLHit, BLHitInOtherField, BLHitResults, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummaryPattern } from '@/types/blacklabtypes';
-
 // TODO this is a bit dirty, make it a function argument if possible
 import type { UnionHelpers } from '@/types/helpers';
 import { corpusCustomizations } from '@/utils/customization';
@@ -34,30 +33,19 @@ export type HighlightSection = {
 
 	/** Display string, key if !isRelation, relation value + arrow if isRelation == true */
 	display: string;
-}
+};
 // #endregion docsmatchinfohighlightstyle
 
 // these should be alright for colorblind people.
 // taken from https://personal.sron.nl/~pault/#sec:qualitative
-const colors = [
-	'#77AADD',
-	'#EE8866',
-	'#EEDD88',
-	'#FFAABB',
-	'#99DDFF',
-	'#44BB99',
-	'#BBCC33',
-	'#AAAA00',
-	'#DDDDDD',
-]
+const colors = ['#77AADD', '#EE8866', '#EEDD88', '#FFAABB', '#99DDFF', '#44BB99', '#BBCC33', '#AAAA00', '#DDDDDD'];
 
 const color = (key: string, i: number): TokenHighlight => ({
 	key,
 	color: colors[i % colors.length],
 	textcolor: 'black',
-	textcolorcontrast: 'white'
+	textcolorcontrast: 'white',
 });
-
 
 function mapCaptureList(key: string, list: BLMatchInfoList): HighlightSection[] {
 	return list.infos.map<HighlightSection>((info: UnionHelpers.Merge<BLMatchInfoList['infos'][number]>, index) => ({
@@ -109,27 +97,28 @@ function mapCaptureSpan(key: string, span: BLMatchInfoSpan): HighlightSection {
  * @returns
  */
 export function getHighlightSections(matchInfos: NonNullable<BLHit['matchInfos']>): HighlightSection[] {
-	let interestingCaptures = Object.entries(matchInfos).flatMap<HighlightSection>(([key, info]) => {
-		// captured_rels happens when we ask BlackLab to explicitly return all relations in the hit,
-		// So ignore that, as we'd be highlighting every word in the sentence if we did.
-		// (this happens when requesting context to display in the UI, for example.)
-		// (NOTE: "captured_rels" is the default capture name for rcap() operations,
-		//        so if the query is "(...SOME_QUERY...) within rcap(<s/>)", the "captured_rels" capture
-		//        will contain all relations in the sentence)
-		if (key === 'captured_rels') return [];
+	let interestingCaptures = Object.entries(matchInfos)
+		.flatMap<HighlightSection>(([key, info]) => {
+			// captured_rels happens when we ask BlackLab to explicitly return all relations in the hit,
+			// So ignore that, as we'd be highlighting every word in the sentence if we did.
+			// (this happens when requesting context to display in the UI, for example.)
+			// (NOTE: "captured_rels" is the default capture name for rcap() operations,
+			//        so if the query is "(...SOME_QUERY...) within rcap(<s/>)", the "captured_rels" capture
+			//        will contain all relations in the sentence)
+			if (key === 'captured_rels') return [];
 
-		// A list of relations, such as returned by the ==>TARGETVERSION (parallel alignment) operator
-		// or a call to rcap(). Return the captured relations, but include the list index in the name.
-		if (info.type === 'list') return mapCaptureList(key, info);
-		// A single relation
-		else if (info.type === 'relation') return mapCaptureRelation(key, info);
-		// A span, e.g. an explicit capture.
-		// Set the source and target to the same span so it's the same structure as a relation.
-		else if (info.type === 'span') return mapCaptureSpan(key, info);
-		else return []; // type === 'tag'. We don't care about highlighting stuff in between tags (that would be for example every word in a sentence - not very useful)
-	})
-	// Important that this returns a sorted list, as we assign colors based on the index.
-	.sort((a, b) => a.key.localeCompare(b.key))
+			// A list of relations, such as returned by the ==>TARGETVERSION (parallel alignment) operator
+			// or a call to rcap(). Return the captured relations, but include the list index in the name.
+			if (info.type === 'list') return mapCaptureList(key, info);
+			// A single relation
+			else if (info.type === 'relation') return mapCaptureRelation(key, info);
+			// A span, e.g. an explicit capture.
+			// Set the source and target to the same span so it's the same structure as a relation.
+			else if (info.type === 'span') return mapCaptureSpan(key, info);
+			else return []; // type === 'tag'. We don't care about highlighting stuff in between tags (that would be for example every word in a sentence - not very useful)
+		})
+		// Important that this returns a sorted list, as we assign colors based on the index.
+		.sort((a, b) => a.key.localeCompare(b.key));
 
 	// Allow custom script to determine what to highlight for this hit
 	// (i.e. "do (hover)highlight word alignments, but not verse alignments")
@@ -163,14 +152,13 @@ export function getHighlightSections(matchInfos: NonNullable<BLHit['matchInfos']
 
 			return mi;
 		})
-		.filter(mi => mi !== null)
+		.filter(mi => mi !== null);
 
 	return result;
 }
 
-
 /** Return those entries in the highlights array where source/target overlaps with the globalTokenIndex */
-export function findHighlightsByTokenIndex(highlights: HighlightSection[], globalTokenIndex: number, colorsBySectionKey: Record<string, TokenHighlight>): undefined|CaptureAndRelation[] {
+export function findHighlightsByTokenIndex(highlights: HighlightSection[], globalTokenIndex: number, colorsBySectionKey: Record<string, TokenHighlight>): undefined | CaptureAndRelation[] {
 	const matches: CaptureAndRelation[] = [];
 	for (const c of highlights) {
 		// For cross-field relations in parallel corpora, we want to make sure we only
@@ -189,7 +177,7 @@ export function findHighlightsByTokenIndex(highlights: HighlightSection[], globa
 			const colorIndex = c.key.replace(/\[\d+\]$/g, '');
 
 			// "fix" for not having highlight colors in otherFields....
-			const FALLBACK_COLOR = {color: 'black', textcolor: 'white', textcolorcontrast: 'black'};
+			const FALLBACK_COLOR = { color: 'black', textcolor: 'white', textcolorcontrast: 'black' };
 
 			matches.push({
 				key: c.key,
@@ -197,12 +185,12 @@ export function findHighlightsByTokenIndex(highlights: HighlightSection[], globa
 				highlight: colorsBySectionKey[colorIndex] || FALLBACK_COLOR,
 				showHighlight: c.showHighlight,
 				isSource: c.isRelation && isSource,
-				isTarget: c.isRelation && isTarget
+				isTarget: c.isRelation && isTarget,
 			});
 		}
 	}
 	return matches.length ? matches : undefined;
-};
+}
 
 /**
  * For hits with parallel information (e.g. hit in english with dutch alignments from other fields).
@@ -215,19 +203,11 @@ export function mergeMatchInfos(data: BLHitResults): BLHitResults {
 	// (the matchInfo is copied there, with targetField set to the special string __THIS__)
 	data.hits.forEach(hit => {
 		if (!hit.matchInfos || !hit.otherFields || Object.keys(hit.matchInfos).length === 0) return;
-		hit.otherFields = Object.fromEntries(
-			Object
-				.entries(hit.otherFields)
-				.map(([k, v] : [string, BLHitInOtherField]) => [k, processHit(k, v, hit.matchInfos!)])
-		);
+		hit.otherFields = Object.fromEntries(Object.entries(hit.otherFields).map(([k, v]: [string, BLHitInOtherField]) => [k, processHit(k, v, hit.matchInfos!)]));
 	});
 
 	// Actually copy the matchInfos to the target field hit from the main hit matchInfos
-	function processHit(
-		targetFieldName: string,
-		targetHit: BLHitInOtherField,
-		sourceHitMatchInfos: Record<string, BLMatchInfo>
-	): BLHitInOtherField {
+	function processHit(targetFieldName: string, targetHit: BLHitInOtherField, sourceHitMatchInfos: Record<string, BLMatchInfo>): BLHitInOtherField {
 		if (Object.keys(sourceHitMatchInfos).length === 0) {
 			// Nothing to merge
 			return targetHit;
@@ -237,47 +217,48 @@ export function mergeMatchInfos(data: BLHitResults): BLHitResults {
 		 * If it's a list, do any of the list's elements target us?
 		 */
 		function matchInfoHasUsAsTargets([name, matchInfo]: [string, BLMatchInfo]): boolean {
-			if ('targetField' in matchInfo && matchInfo.targetField === targetFieldName)
-				return true;
+			if ('targetField' in matchInfo && matchInfo.targetField === targetFieldName) return true;
 			if (matchInfo.type === 'list') {
 				const infos = matchInfo.infos as BLMatchInfo[];
-				if (infos.some(l => 'targetField' in l && l.targetField === targetFieldName))
-					return true;
+				if (infos.some(l => 'targetField' in l && l.targetField === targetFieldName)) return true;
 			}
 			return false;
-		};
+		}
 
 		// Mark targetField as __THIS__ so we'll know it is us later
 		function markTargetField(matchInfo: BLMatchInfo) {
-			return 'targetField' in matchInfo ? ({ ...matchInfo, targetField: '__THIS__'}) : matchInfo;
+			return 'targetField' in matchInfo ? { ...matchInfo, targetField: '__THIS__' } : matchInfo;
 		}
 
 		// Keep only relations with us as the target field (and mark it, see above)
 		const toMerge = Object.entries(sourceHitMatchInfos)
 			.filter(matchInfoHasUsAsTargets)
-			.reduce((acc, [name, matchInfo]) => {
-				if ('infos' in matchInfo) {
-					acc[name] = {
-						...matchInfo,
-						infos: matchInfo.infos.map(markTargetField) as BLMatchInfoRelation[]
-					};
-				} else {
-					acc[name] = markTargetField(matchInfo);
-				}
-				return acc;
-			}, {} as Record<string, BLMatchInfo>);
+			.reduce(
+				(acc, [name, matchInfo]) => {
+					if ('infos' in matchInfo) {
+						acc[name] = {
+							...matchInfo,
+							infos: matchInfo.infos.map(markTargetField) as BLMatchInfoRelation[],
+						};
+					} else {
+						acc[name] = markTargetField(matchInfo);
+					}
+					return acc;
+				},
+				{} as Record<string, BLMatchInfo>,
+			);
 
 		if (!targetHit.matchInfos || Object.keys(targetHit.matchInfos).length === 0) {
 			// Hit has no matchInfos of its own; just use the infos from the main hit
 			return {
 				...targetHit,
-				matchInfos: toMerge
+				matchInfos: toMerge,
 			};
 		}
 
 		// Construct a new hit with matchInfos merged together
-		const newHit = {...targetHit};
-		newHit.matchInfos = {...toMerge, ...targetHit.matchInfos};
+		const newHit = { ...targetHit };
+		newHit.matchInfos = { ...toMerge, ...targetHit.matchInfos };
 		return newHit;
 	}
 	return data;
@@ -295,5 +276,9 @@ export function mergeMatchInfos(data: BLHitResults): BLHitResults {
  * We use this for highlighting the hits in the UI.
  */
 export function getHighlightColors(summary: BLSearchSummaryPattern): Record<string, TokenHighlight> {
-	return Object.fromEntries(Object.keys(summary.pattern?.matchInfos ?? {}).sort().map((key, i) => [key, color(key,i)]));
+	return Object.fromEntries(
+		Object.keys(summary.pattern?.matchInfos ?? {})
+			.sort()
+			.map((key, i) => [key, color(key, i)]),
+	);
 }

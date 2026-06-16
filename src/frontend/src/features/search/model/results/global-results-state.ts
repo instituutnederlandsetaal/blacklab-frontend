@@ -3,24 +3,24 @@
  * Think things like context size, random sampling settings.
  */
 
-
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
-import * as ViewModule from '@/features/search/model/results/view-state';
 import { useLocalStorage } from '@vueuse/core';
 import { reactive } from 'vue';
 
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import * as ViewModule from '@/features/search/model/results/view-state';
+
 const defaults = {
 	pageSize: 20,
-	sampleMode: 'percentage' as const // required to allow putting it in string enum types
+	sampleMode: 'percentage' as const, // required to allow putting it in string enum types
 };
 
 type ModuleRootState = {
 	pageSize: number;
-	sampleMode: 'percentage'|'count';
-	sampleSeed: number|null;
-	sampleSize: number|null;
+	sampleMode: 'percentage' | 'count';
+	sampleSeed: number | null;
+	sampleSize: number | null;
 	/** context can be a string or number in BlackLab, but for now in the form we only allow numbers. */
-	context: number|string|null;
+	context: number | string | null;
 };
 
 type ExternalModuleRootState = Omit<ModuleRootState, 'pageSize'>;
@@ -49,21 +49,25 @@ const actions = {
 			});
 		}
 	},
-	sampleMode: (payload?: 'percentage'|'count') => {
+	sampleMode: (payload?: 'percentage' | 'count') => {
 		// reset on null, undefined, invalid strings
-		if (!['percentage', 'count'].includes(payload as any)) { payload = defaults.sampleMode; }
-		if (payload === state.sampleMode) { return; }
+		if (!['percentage', 'count'].includes(payload as any)) {
+			payload = defaults.sampleMode;
+		}
+		if (payload === state.sampleMode) {
+			return;
+		}
 		state.sampleMode = payload as any;
 		state.sampleSize = null;
 	},
-	sampleSeed: (payload: number|null) => {
+	sampleSeed: (payload: number | null) => {
 		// Must have a seed when there is a size (e.g. random sampling is active)
 		if (state.sampleSize != null && payload == null) {
 			payload = Number.MAX_SAFE_INTEGER * Math.random() * (Math.random() > 0 ? 1 : -1);
 		}
 		state.sampleSeed = payload;
 	},
-	sampleSize: (payload: number|null) => {
+	sampleSize: (payload: number | null) => {
 		if (payload == null) {
 			state.sampleSize = payload;
 			return;
@@ -77,9 +81,11 @@ const actions = {
 
 		// null check already passed
 		// if missing seed, randomize it now
-		if (state.sampleSeed == null) { actions.sampleSeed(null); }
+		if (state.sampleSeed == null) {
+			actions.sampleSeed(null);
+		}
 	},
-	context: (payload: number|string|null) => {
+	context: (payload: number | string | null) => {
 		state.context = payload;
 	},
 
@@ -100,7 +106,7 @@ const actions = {
 };
 
 // Reset on corpus change, defaults are already synced with storage
-const init = (_state: CorpusChange)=> {
+const init = (_state: CorpusChange) => {
 	actions.reset();
 };
 

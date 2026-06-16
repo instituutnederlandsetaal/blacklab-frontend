@@ -13,9 +13,9 @@ declare global {
 	/** Guaranteed to end in a slash. Does not contain the corpus id. */
 	const BLS_URL: string;
 
-	const OIDC_METADATA_URL: string|null;
-	const OIDC_CLIENT_ID: string|null;
-	const OIDC_AUTHORITY: string|null;
+	const OIDC_METADATA_URL: string | null;
+	const OIDC_CLIENT_ID: string | null;
+	const OIDC_AUTHORITY: string | null;
 
 	// ---------------------------
 	// only valid on the article page (/docs/...)

@@ -1,10 +1,12 @@
 <template>
 	<button type="button" class="btn btn-default audio-player" @click="toggle">
-		<span :class="{
-			'fa': true,
-			'fa-play': !isPlaying,
-			'fa-pause': isPlaying
-		}"></span>
+		<span
+			:class="{
+				fa: true,
+				'fa-play': !isPlaying,
+				'fa-pause': isPlaying,
+			}"
+		></span>
 	</button>
 </template>
 
@@ -12,12 +14,12 @@
 import { defineComponent } from 'vue';
 let activePlayer: any = null;
 
-const audioPlayerCache: {[key: string]: HTMLAudioElement} = {};
+const audioPlayerCache: { [key: string]: HTMLAudioElement } = {};
 export default defineComponent({
 	props: {
 		url: { type: String, required: true },
 		startTime: { type: Number, required: true },
-		endTime: { type: Number, required: true }
+		endTime: { type: Number, required: true },
 	},
 	data: () => ({
 		isPlaying: false,
@@ -27,7 +29,7 @@ export default defineComponent({
 			if (audioPlayerCache[this.url]) {
 				return audioPlayerCache[this.url];
 			}
-			return audioPlayerCache[this.url] = new Audio(this.url);
+			return (audioPlayerCache[this.url] = new Audio(this.url));
 		},
 	},
 	methods: {
@@ -71,14 +73,12 @@ export default defineComponent({
 		},
 		ended(event: Event) {
 			this.stop();
-		}
+		},
 	},
 	beforeUnmount() {
 		this.stop();
-	}
+	},
 });
-
-
 </script>
 
 <style>

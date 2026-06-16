@@ -8,31 +8,34 @@
 		hideEmpty
 		placeholder="🌐"
 		allowUnknownValues
-
 		:options="i18n.availableLocales.value"
 		:loading="i18n.loading.value"
 		:showValues="false"
 		:modelValue="i18n.localeState.value?.value"
-		:onBeforeSelect="(v) => { i18n.setLocale(v.value); return false; }"
+		:onBeforeSelect="
+			v => {
+				i18n.setLocale(v.value);
+				return false;
+			}
+		"
 	>
 		<template #option-label="{ option }">
 			<span :class="option.error ? 'text-danger' : ''" :title="option.error">
-				<Spinner inline v-if="option.loading"/>
+				<Spinner inline v-if="option.loading" />
 				<span class="fa fa-exclamation-triangle" v-if="option.error"></span> {{ option.label }}
 			</span>
 		</template>
 	</SelectPicker>
 </template>
 
-
 <script setup lang="ts">
+import { manager as i18n } from '@/utils/i18n';
+
 import SelectPicker from '@/components/SelectPicker.vue';
 import Spinner from '@/components/Spinner.vue';
-import { manager as i18n } from '@/utils/i18n';
 </script>
 
 <style scoped>
-
 .locale-select {
 	display: inline-block;
 }

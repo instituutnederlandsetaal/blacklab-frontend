@@ -1,50 +1,47 @@
 <template>
-	<Modal
-		confirmMessage="Upload"
-		:closeEnabled="!uploading || indexing"
-		:confirmEnabled="canUpload"
-		@confirm="upload"
-		@close="$emit('close')"
-	>
-		<template #title>Upload new data to corpus <em>{{ corpus.displayName }}</em></template>
+	<Modal confirmMessage="Upload" :closeEnabled="!uploading || indexing" :confirmEnabled="canUpload" @confirm="upload" @close="$emit('close')">
+		<template #title
+			>Upload new data to corpus <em>{{ corpus.displayName }}</em></template
+		>
 
 		<p>You may upload:</p>
 		<ul>
 			<li>Normal files to be indexed</li>
-			<li><em>.zip</em> or <em>.tar.gz</em> archives containing multiple files at once.
-				Archives should not contain files that cannot be indexed!
-			</li>
+			<li><em>.zip</em> or <em>.tar.gz</em> archives containing multiple files at once. Archives should not contain files that cannot be indexed!</li>
 			<li>External metadata files separately</li>
 		</ul>
 
-		<div style="padding: 10px 25px 0px;">
+		<div style="padding: 10px 25px 0px">
 			<form v-if="!uploading">
 				<label for="data[]" class="btn btn-info file-input-button document-upload-button">
 					<span class="document-upload-button-text">{{ fileLabel }}</span>
-					<input type="file" name="data[]" multiple @change="documentFiles = ($event.target as HTMLInputElement).files">
+					<input type="file" name="data[]" multiple @change="documentFiles = ($event.target as HTMLInputElement).files" />
 				</label>
 
 				<label for="linkeddata[]" class="btn btn-default file-input-button document-upload-button">
-					<span id="upload-metadata-label" class="document-upload-button-text">{{metadataFileLabel}}</span>
-					<input type="file" name="linkeddata[]" multiple @change="metadataFiles = ($event.target as HTMLInputElement).files">
+					<span id="upload-metadata-label" class="document-upload-button-text">{{ metadataFileLabel }}</span>
+					<input type="file" name="linkeddata[]" multiple @change="metadataFiles = ($event.target as HTMLInputElement).files" />
 				</label>
 
-				<small id="uploadFormatDescription" class="text-muted" style="display: block; margin: 12px 0px; width: 100%;">
-					The corpus accepts the following files:<br>
+				<small id="uploadFormatDescription" class="text-muted" style="display: block; margin: 12px 0px; width: 100%">
+					The corpus accepts the following files:<br />
 					<template v-if="format">{{ format.description }}</template>
 					<template v-else>Unknown format (it may have been deleted from the server), uploads might fail</template>
 				</small>
 			</form>
 
 			<div class="progress" v-if="uploading">
-				<div id="uploadProgress"
+				<div
+					id="uploadProgress"
 					:class="`progress-bar progress-bar-info progress-bar-striped ${indexing ? 'indexing' : ''}`"
 					role="progressbar"
 					aria-valuemin="0"
 					aria-valuemax="100"
 					:aria-valuenow="uploadProgress"
 					:style="`width: ${uploadProgress}%;`"
-				>{{indexing ? indexProgressMessage : uploadProgressMessage}}</div>
+				>
+					{{ indexing ? indexProgressMessage : uploadProgressMessage }}
+				</div>
 			</div>
 
 			<div v-if="uploadError" class="alert alert-danger">{{ uploadError }}</div>
@@ -52,15 +49,16 @@
 	</Modal>
 </template>
 <script lang="ts">
-import * as Api from '@/api';
-import Modal from '@/components/Modal.vue';
-import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
+import * as Api from '@/api';
+import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
+
+import Modal from '@/components/Modal.vue';
 
 export default defineComponent({
-	components: {Modal},
+	components: { Modal },
 	props: {
 		corpus: { type: Object as PropType<NormalizedIndexBase>, required: true },
 		formats: { type: Array as PropType<NormalizedFormat[]>, required: true },
@@ -72,8 +70,8 @@ export default defineComponent({
 		indexing: false,
 		uploadError: '',
 
-		documentFiles: null as FileList|null,
-		metadataFiles: null as FileList|null,
+		documentFiles: null as FileList | null,
+		metadataFiles: null as FileList | null,
 	}),
 	computed: {
 		format(): NormalizedFormat | undefined {
@@ -96,14 +94,14 @@ export default defineComponent({
 		canUpload(): boolean {
 			return !!this.documentFiles?.length && !this.uploading;
 		},
-		indexProgressMessage(): string|null {
+		indexProgressMessage(): string | null {
 			const corpus = this.corpus;
 			if (corpus && corpus.status === 'indexing') {
-				const {filesProcessed: files, docsDone: docs, tokensProcessed: tokens} = corpus.indexProgress!;
-				return  `${files} files, ' ${docs} documents, and ${tokens} tokens indexed so far...`;
+				const { filesProcessed: files, docsDone: docs, tokensProcessed: tokens } = corpus.indexProgress!;
+				return `${files} files, ' ${docs} documents, and ${tokens} tokens indexed so far...`;
 			}
 			return null;
-		}
+		},
 	},
 	methods: {
 		upload() {
@@ -117,29 +115,24 @@ export default defineComponent({
 			// Uploads are a little annoying, the request "hangs" until indexing is complete.
 			// So what we do, we start the upload, once the progress hits 100% we start polling the index status.
 			// Then once the original request succeeds, we stop polling and show the success message.
-			const {request, cancel} = Api.blacklab.postDocuments(
-				corpus.id,
-				Array.from(this.documentFiles || []),
-				Array.from(this.metadataFiles || []),
-				progress => this.handleUploadProgress(progress),
-			);
+			const { request, cancel } = Api.blacklab.postDocuments(corpus.id, Array.from(this.documentFiles || []), Array.from(this.metadataFiles || []), progress => this.handleUploadProgress(progress));
 
-			request.then(r => {
-				// But if it does, close our model and pop a success message.
-				// do one more refresh, sometimes the regular refresh actually happens _before_ the indexing begins
-				this.$emit('indexing', this.corpus.id);
-				this.$emit('success', 'Data added to ' + this.corpus.displayName);
-				this.$emit('close');
-			})
-			.catch((e: Api.ApiError) => {
-				const msg = e.message;
-				this.uploadError = msg;
-			})
-			.finally(() => {
-				this.uploading = false;
-				this.indexing = false;
-
-			})
+			request
+				.then(r => {
+					// But if it does, close our model and pop a success message.
+					// do one more refresh, sometimes the regular refresh actually happens _before_ the indexing begins
+					this.$emit('indexing', this.corpus.id);
+					this.$emit('success', 'Data added to ' + this.corpus.displayName);
+					this.$emit('close');
+				})
+				.catch((e: Api.ApiError) => {
+					const msg = e.message;
+					this.uploadError = msg;
+				})
+				.finally(() => {
+					this.uploading = false;
+					this.indexing = false;
+				});
 		},
 		handleUploadProgress(event: number): void {
 			const progress = event;
@@ -154,8 +147,7 @@ export default defineComponent({
 			}
 		},
 	},
-})
-
+});
 </script>
 
 <style>
@@ -169,15 +161,15 @@ export default defineComponent({
 	white-space: normal;
 }
 .document-upload-button:before {
-	content: "\f093";
+	content: '\f093';
 	color: black;
-    font: normal normal normal 14px/1 FontAwesome;
-    font-size: 80px;
-    left: 50%;
-    opacity: 0.08;
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
+	font: normal normal normal 14px/1 FontAwesome;
+	font-size: 80px;
+	left: 50%;
+	opacity: 0.08;
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
 }
 
 .document-upload-button-text {
@@ -193,8 +185,12 @@ export default defineComponent({
 }
 
 @keyframes grow {
-	0%   { width: 0%; }
-	100% { width: 95%; }
+	0% {
+		width: 0%;
+	}
+	100% {
+		width: 95%;
+	}
 }
 
 #uploadProgress {
@@ -205,10 +201,9 @@ export default defineComponent({
 #uploadProgress.indexing {
 	animation: 40s grow;
 	width: 95%; /* stay wide at end of animation */
-	-webkit-transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
-	   -moz-transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
-		 -o-transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
-			transition-timing-function: cubic-bezier(0.050, 0.895, 0.000, 0.995);
+	-webkit-transition-timing-function: cubic-bezier(0.05, 0.895, 0, 0.995);
+	-moz-transition-timing-function: cubic-bezier(0.05, 0.895, 0, 0.995);
+	-o-transition-timing-function: cubic-bezier(0.05, 0.895, 0, 0.995);
+	transition-timing-function: cubic-bezier(0.05, 0.895, 0, 0.995);
 }
-
 </style>

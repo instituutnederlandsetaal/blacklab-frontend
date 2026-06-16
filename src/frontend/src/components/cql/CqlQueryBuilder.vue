@@ -7,58 +7,46 @@
 				:key="token.id"
 				:model-value="model.tokens[index]"
 				:options="options"
-
 				:can-move-left="index > 0"
 				:can-move-right="index < model.tokens.length - 1"
 				@update:model-value="model.tokens[index] = $event"
-
 				@delete-token="deleteToken"
 				@move-token-left="moveTokenLeft"
 				@move-token-right="moveTokenRight"
 			/>
 
 			<!-- Add Token Button -->
-			<button
-				type="button"
-				class="btn btn-primary bl-token-create"
-				:title="$t('search.advanced.queryBuilder.createTokenButton_label').toString()"
-				@click="addToken"
-			>
+			<button type="button" class="btn btn-primary bl-token-create" :title="$t('search.advanced.queryBuilder.createTokenButton_label').toString()" @click="addToken">
 				<span class="glyphicon glyphicon-plus"></span>
 			</button>
 		</div>
 
 		<!-- Within Select -->
-		<Within class="bl-querybuilder-within" v-model="model.within"/>
+		<Within class="bl-querybuilder-within" v-model="model.within" />
 	</div>
 </template>
 
 <script setup lang="ts">
-import * as UIStore from '@/app/state/ui-state';
-import type {
-    CqlQueryBuilderData,
-    CqlQueryBuilderOptions,
-    CqlTokenData
-} from '@/components/cql/cql-types';
-import {
-    COMPARATORS,
-    OPERATORS
-} from '@/components/cql/cql-types';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
-import uid from '@/mixins/uid';
-import Within from '@/pages/search/form/Within.vue';
-import { getAnnotationSubset } from '@/utils';
-import { translate } from '@/utils/i18n';
 import { useVModel } from '@vueuse/core';
 import { computed, watch } from 'vue';
+
+import * as UIStore from '@/app/state/ui-state';
+import type { CqlQueryBuilderData, CqlQueryBuilderOptions, CqlTokenData } from '@/components/cql/cql-types';
+import { COMPARATORS, OPERATORS } from '@/components/cql/cql-types';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import uid from '@/mixins/uid';
+import { getAnnotationSubset } from '@/utils';
+import { translate } from '@/utils/i18n';
+
 import CqlToken from './CqlToken.vue';
+import Within from '@/pages/search/form/Within.vue';
 
 const props = defineProps<{
-	modelValue: CqlQueryBuilderData,
+	modelValue: CqlQueryBuilderData;
 }>();
 
 const emit = defineEmits<{
-	'update:modelValue': [value: CqlQueryBuilderData],
+	'update:modelValue': [value: CqlQueryBuilderData];
 }>();
 
 const model = useVModel(props, 'modelValue', emit, {
@@ -73,16 +61,7 @@ const options = computed<CqlQueryBuilderOptions>(() => {
 	const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
 	const searchAnnotationIds = UIStore.getState().search.advanced.searchAnnotationIds;
 
-	const annotationGroups = getAnnotationSubset(
-		searchAnnotationIds,
-		CorpusStore.get.annotationGroups(),
-		allAnnotationsMap,
-		'Search',
-		translate,
-		textDirection,
-		false,
-		false
-	);
+	const annotationGroups = getAnnotationSubset(searchAnnotationIds, CorpusStore.get.annotationGroups(), allAnnotationsMap, 'Search', translate, textDirection, false, false);
 
 	const annotationOptions = (annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options)) as any;
 
@@ -119,13 +98,15 @@ function addToken() {
 		rootAttributeGroup: {
 			id: `group_${uid()}`,
 			operator: OPERATORS[0],
-			entries: [{
-				id: `attr_${uid()}`,
-				annotationId: options.value.defaultAnnotationId,
-				comparator: COMPARATORS[0][0],
-				values: [''],
-				caseSensitive: false,
-			}],
+			entries: [
+				{
+					id: `attr_${uid()}`,
+					annotationId: options.value.defaultAnnotationId,
+					comparator: COMPARATORS[0][0],
+					values: [''],
+					caseSensitive: false,
+				},
+			],
 		},
 	};
 
@@ -159,20 +140,24 @@ function moveTokenRight(tokenId: string) {
 	}
 }
 
-watch(model, () => {
-	if (!Array.isArray(model.value.tokens)) {
-		model.value.tokens = [];
-	}
-	if (typeof model.value.within !== 'string') {
-		model.value.within = '';
-	}
-	if (!model.value.tokens.length) {
-		addToken();
-	}
-}, {
-	deep: true,
-	immediate: true,
-});
+watch(
+	model,
+	() => {
+		if (!Array.isArray(model.value.tokens)) {
+			model.value.tokens = [];
+		}
+		if (typeof model.value.within !== 'string') {
+			model.value.within = '';
+		}
+		if (!model.value.tokens.length) {
+			addToken();
+		}
+	},
+	{
+		deep: true,
+		immediate: true,
+	},
+);
 </script>
 
 <style lang="scss">
@@ -183,7 +168,6 @@ watch(model, () => {
 	gap: 15px;
 }
 
-
 .bl-token-container {
 	display: flex;
 	flex-direction: row;
@@ -192,13 +176,9 @@ watch(model, () => {
 	overflow-x: auto;
 }
 
-
 .bl-token-create {
 	align-self: flex-start;
-
 }
-
-
 
 .bl-querybuilder-within {
 	display: flex;

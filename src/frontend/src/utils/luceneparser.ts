@@ -1,8 +1,7 @@
 import luceneQueryParser from 'lucene-query-parser';
 
-import {debugLog} from '@/utils/debug';
-
-import type {FilterValue} from '@/types/apptypes';
+import type { FilterValue } from '@/types/apptypes';
+import { debugLog } from '@/utils/debug';
 
 /** Parse the expression into an array of filter fields for easy displaying. Throws error if the query is too complex or contains errors. */
 export default (luceneQuery?: string): FilterValue[] => {
@@ -17,7 +16,7 @@ export default (luceneQuery?: string): FilterValue[] => {
 	 * We need to recurse to extract all the values.
 	 * To simplify keeping track of what part of the query we're parsing, we store the current field here.
 	 */
-	let context: FilterValue|null = null;
+	let context: FilterValue | null = null;
 	/** Once we're done with a field, we store it here and clear the context. */
 	const parsedValues: FilterValue[] = [];
 
@@ -36,7 +35,7 @@ export default (luceneQuery?: string): FilterValue[] => {
 	 * So if the Node contains a 'field' property we know all children will be Field instances defining the values
 	 * and we can open a new context that we can store the values in later parsing steps.
 	 */
-	function node(val: luceneQueryParser.ASTNode|null) {
+	function node(val: luceneQueryParser.ASTNode | null) {
 		if (val == null) {
 			return;
 		}
@@ -48,7 +47,7 @@ export default (luceneQuery?: string): FilterValue[] => {
 			if (context == null && val.field && val.field !== '<implicit>') {
 				context = {
 					id: val.field,
-					values: []
+					values: [],
 				};
 				createdContext = true;
 			} else if (context != null && val.field && val.field !== '<implicit>') {
@@ -60,7 +59,13 @@ export default (luceneQuery?: string): FilterValue[] => {
 		}
 
 		let cur = val.left; // left always present
-		if ('left' in cur) { node(cur); } else if ('term' in cur) { field(cur); } else if ('term_min' in cur) { range(cur); }
+		if ('left' in cur) {
+			node(cur);
+		} else if ('term' in cur) {
+			field(cur);
+		} else if ('term_min' in cur) {
+			range(cur);
+		}
 
 		/**
 		 * We need to know what the right side contains if we're to handle it.
@@ -72,17 +77,24 @@ export default (luceneQuery?: string): FilterValue[] => {
 		 * The current Node is then the OR/AND token in a query like 'field1:value1 AND field2:value2'
 		 * In thise case, the interface can only handle AND'ing all the different fields, so check that too.
 		 */
-		if (val.right &&
+		if (
+			val.right &&
 			((context == null && !(val.operator === 'OR' || val.operator === '<implicit>')) || // implicit operator between field means OR
-			(context != null && !(val.operator === 'AND' )))
+				(context != null && !(val.operator === 'AND')))
 		) {
 			cur = val.right;
-			if ('left' in cur) { node(cur); } else if ('term' in cur) { field(cur); } else if ('term_min' in cur) { range(cur); }
+			if ('left' in cur) {
+				node(cur);
+			} else if ('term' in cur) {
+				field(cur);
+			} else if ('term_min' in cur) {
+				range(cur);
+			}
 		}
 
 		if (createdContext) {
 			if (context == null) {
-				debugLog('We started a context but didn\'t end with one, some other function pushed it, that shouldn\'t happen...');
+				debugLog("We started a context but didn't end with one, some other function pushed it, that shouldn't happen...");
 			} else {
 				parsedValues.push(context);
 				context = null;
@@ -91,20 +103,21 @@ export default (luceneQuery?: string): FilterValue[] => {
 		// else we're already inside inside an existing context and are just recursing over the values
 	}
 
-	function field(val: luceneQueryParser.ASTField|null) {
+	function field(val: luceneQueryParser.ASTField | null) {
 		if (val == null) {
 			return;
 		}
 
 		let createdContext = false;
 		if (context == null) {
-			if (val.field === '<implicit>') { // default field name, query only specifies a value but no field, such as the query 'value', interface can't display this
+			if (val.field === '<implicit>') {
+				// default field name, query only specifies a value but no field, such as the query 'value', interface can't display this
 				return;
 			}
 
 			context = {
 				id: val.field,
-				values: []
+				values: [],
 			};
 			createdContext = true;
 		} else if (context != null && val.field && val.field !== '<implicit>') {
@@ -137,7 +150,7 @@ export default (luceneQuery?: string): FilterValue[] => {
 		// Ignore in/exclusivity
 		parsedValues.push({
 			id: val.field,
-			values: [val.term_min, val.term_max]
+			values: [val.term_min, val.term_max],
 		});
 	}
 

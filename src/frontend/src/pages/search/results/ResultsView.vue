@@ -1,57 +1,46 @@
 <template>
-	<div class="results-container" :disabled="request" :style="{minHeight: request ? '100px' : undefined}">
-		<Spinner v-if="request" overlay size="75"/>
-
+	<div class="results-container" :disabled="request" :style="{ minHeight: request ? '100px' : undefined }">
+		<Spinner v-if="request" overlay size="75" />
 
 		<template v-if="resultComponentData && cols && renderDisplaySettings">
 			<div class="crumbs-totals">
 				<BreadCrumbs :crumbs="breadCrumbs" :disabled="!!request" />
-				<Totals class="result-totals"
-					:initialResults="loadedResults"
-					:type="id"
-					:indexId="indexId"
-					:annotatedFieldId="sourceAnnotatedFieldId"
-					@update="paginationResults = $event"
-				/>
+				<Totals class="result-totals" :initialResults="loadedResults" :type="id" :indexId="indexId" :annotatedFieldId="sourceAnnotatedFieldId" @update="paginationResults = $event" />
 			</div>
 
-			<GroupBy v-if="!viewGroup"
-				:type="id"
-				:results="results"
-				:disabled="!!request"
-			/>
-
+			<GroupBy v-if="!viewGroup" :type="id" :results="results" :disabled="!!request" />
 
 			<div class="result-buttons-layout">
-				<Pagination slot="pagination"
-					:page="pagination.shownPage"
-					:page2="pagination.shownPage2"
-					:maxPage="pagination.maxShownPage"
-					:disabled="!!request"
+				<Pagination slot="pagination" :page="pagination.shownPage" :page2="pagination.shownPage2" :maxPage="pagination.maxShownPage" :disabled="!!request" @change="page = $event" />
 
-					@change="page = $event"
-				/>
-
-				<div class="btn-group" v-if="isGroups" style="flex: none;">
-					<button v-for="option in cols.groupModeOptions"
+				<div class="btn-group" v-if="isGroups" style="flex: none">
+					<button
+						v-for="option in cols.groupModeOptions"
 						type="button"
-						:class="['btn btn-default btn-sm', {'active': renderDisplaySettings.groupDisplayMode === option}]"
+						:class="['btn btn-default btn-sm', { active: renderDisplaySettings.groupDisplayMode === option }]"
 						:key="option"
 						@click="groupDisplayMode = option"
-					>{{option}}</button>
+					>
+						{{ option }}
+					</button>
 				</div>
 				<button v-if="viewGroup" class="btn btn-sm btn-primary" @click="leaveViewgroup">
 					<span class="fa fa-angle-double-left"></span> {{ $t('results.resultsView.navigation.backToGroupedResults') }}
 				</button>
 
-				<div style="flex-grow: 1;"></div>
+				<div style="flex-grow: 1"></div>
 				<div v-if="concordanceAnnotationOptions.length > 1 && id === 'hits'">
-					<label>{{$t('results.resultsView.selectAnnotation')}}: </label>
-					<div class="btn-group" >
-						<button v-for="a in concordanceAnnotationOptions" type="button"
+					<label>{{ $t('results.resultsView.selectAnnotation') }}: </label>
+					<div class="btn-group">
+						<button
+							v-for="a in concordanceAnnotationOptions"
+							type="button"
 							class="btn btn-default btn-sm"
-							:class="{active: a.id === concordanceAnnotationId}"
-							@click="concordanceAnnotationId = a.id">{{ $tAnnotDisplayName(a) }}</button>
+							:class="{ active: a.id === concordanceAnnotationId }"
+							@click="concordanceAnnotationId = a.id"
+						>
+							{{ $tAnnotDisplayName(a) }}
+						</button>
 					</div>
 				</div>
 			</div>
@@ -67,31 +56,16 @@
 				:disabled="!!request"
 				:query="resultComponentData.query"
 				:sort="resultComponentData.sort"
-
-				@changeSort="sort = (sort === $event ? `-${sort}` : $event)"
+				@changeSort="sort = sort === $event ? `-${sort}` : $event"
 				@viewgroup="changeViewGroup"
 			/>
 
-			<div class="result-buttons-layout" style="border-top: 1px solid #ccc; padding-top: 15px;">
-				<Pagination
-					style="display: block;"
+			<div class="result-buttons-layout" style="border-top: 1px solid #ccc; padding-top: 15px">
+				<Pagination style="display: block" :page="pagination.shownPage" :page2="pagination.shownPage2" :maxPage="pagination.maxShownPage" :disabled="!!request" @change="page = $event" />
+				<div style="flex-grow: 1"></div>
 
-					:page="pagination.shownPage"
-					:page2="pagination.shownPage2"
-					:maxPage="pagination.maxShownPage"
-					:disabled="!!request"
-
-					@change="page = $event"
-				/>
-				<div style="flex-grow: 1;"></div>
-
-				<button v-if="isHits"
-					type="button"
-					class="btn btn-primary btn-sm show-titles"
-
-					@click="showTitles.value = !showTitles.value"
-				>
-					{{showTitles.value ? $t('results.table.hide') : $t('results.table.show')}} {{ $t('results.table.titles') }}
+				<button v-if="isHits" type="button" class="btn btn-primary btn-sm show-titles" @click="showTitles.value = !showTitles.value">
+					{{ showTitles.value ? $t('results.table.hide') : $t('results.table.show') }} {{ $t('results.table.titles') }}
 				</button>
 
 				<Sort
@@ -100,29 +74,21 @@
 					:docs="isDocs"
 					:groups="isGroups"
 					:parallelCorpus="isParallelCorpus"
-
 					:corpus="corpus"
 					:annotations="sortAnnotations"
 					:annotationGroupLabels="sortAnnotationLabels"
 					:metadata="sortMetadata"
 					:metadataGroupLabels="sortMetadataLabels"
-
 					:disabled="!!request"
 				/>
 
-				<Export v-if="exportEnabled"
-					:results="results"
-					:type="id"
-					:disabled="!!request"
-					:annotations="exportAnnotations"
-					:metadata="exportMetadata"
-				/>
+				<Export v-if="exportEnabled" :results="results" :type="id" :disabled="!!request" :annotations="exportAnnotations" :metadata="exportMetadata" />
 			</div>
 		</template>
 		<div v-else-if="error != null" class="no-results-found">
-			<span class="fa fa-exclamation-triangle text-danger"></span><br>
-			<div style="text-align: initial;">{{error}}</div>
-			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty();">{{ $t('results.resultsView.tryAgain') }}</button>
+			<span class="fa fa-exclamation-triangle text-danger"></span><br />
+			<div style="text-align: initial">{{ error }}</div>
+			<button type="button" class="btn btn-default" :title="$t('results.resultsView.tryAgainTitle').toString()" @click="markDirty()">{{ $t('results.resultsView.tryAgain') }}</button>
 		</div>
 		<div v-else-if="!valid" class="no-results-found">
 			{{ $t('results.resultsView.inactiveView') }}
@@ -130,67 +96,53 @@
 		<div v-else-if="results" class="no-results-found">{{ $t('results.resultsView.noResultsFound') }}</div>
 		<!-- Allow the user to clear grouping or pagination if something's wrong. -->
 		<div v-if="!request && !(resultComponentData && cols && renderDisplaySettings)">
-			<GroupBy v-if="groupBy.length"
-				:type="id"
-				:results="results"
-				:disabled="!!request"
-			/>
-			<Pagination v-if="pagination.shownPage != 0"
-				style="display: block;"
-
+			<GroupBy v-if="groupBy.length" :type="id" :results="results" :disabled="!!request" />
+			<Pagination
+				v-if="pagination.shownPage != 0"
+				style="display: block"
 				:page="pagination.shownPage"
 				:page2="pagination.shownPage2"
 				:maxPage="pagination.maxShownPage"
 				:disabled="!!request"
-
 				@change="page = $event"
 			/>
-
 		</div>
 	</div>
 </template>
 
 <script lang="ts">
-import { markRaw } from 'vue';
-
 import jsonStableStringify from 'json-stable-stringify';
+import { markRaw } from 'vue';
+import type { PropType } from 'vue';
+import { defineComponent } from 'vue';
+import type { TranslateResult } from 'vue-i18n';
 
 import * as Api from '@/api';
-
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import * as ResultsStore from '@/features/search/model/results/view-state';
-
-import Totals from '@/pages/search/results/ResultTotals.vue';
-import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
-
-import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
-import Export from '@/pages/search/results/Export.vue';
-import Sort from '@/pages/search/results/Sort.vue';
-
-import Pagination from '@/components/Pagination.vue';
-import Spinner from '@/components/Spinner.vue';
-
-import debug, { debugLog, debugLogCat } from '@/utils/debug';
-import type { CancelableRequest } from '@/utils/loadable-streams';
-
 import type { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, Rows } from '@/pages/search/results/table/table-layout';
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
 import type { NormalizedIndex } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 import { isHitParams } from '@/utils';
-import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
-import type { TranslateResult } from 'vue-i18n';
-
-
-import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 import { corpusCustomizations } from '@/utils/customization';
+import debug, { debugLog, debugLogCat } from '@/utils/debug';
+import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
+import type { CancelableRequest } from '@/utils/loadable-streams';
 import { localStorageSynced } from '@/utils/localstore';
-import type { PropType } from 'vue';
-import { defineComponent } from 'vue';
+
+import Pagination from '@/components/Pagination.vue';
+import Spinner from '@/components/Spinner.vue';
+import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
+import Export from '@/pages/search/results/Export.vue';
+import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
+import Totals from '@/pages/search/results/ResultTotals.vue';
+import Sort from '@/pages/search/results/Sort.vue';
+import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 
 export default defineComponent({
 	components: {
@@ -201,27 +153,27 @@ export default defineComponent({
 		BreadCrumbs,
 		Export,
 		Spinner,
-		GenericTable
+		GenericTable,
 	},
 	props: {
 		/**
 		 * In our case, always 'hits' or 'docs', we don't support adding another ResultsView tab with a different ID.
 		 * Since we use this ID to determine whether we're getting hits or docs from blacklab, and some rendering or logic may depend on it being 'hits' or 'docs' as well.
 		 */
-		id: { type: String as PropType<'hits'|'docs'>, required: true },
+		id: { type: String as PropType<'hits' | 'docs'>, required: true },
 		active: { type: Boolean, required: true },
 
 		store: { type: Object as PropType<ResultsStore.ViewModule>, required: true },
 	},
 	data: () => ({
 		isDirty: true, // since we don't have any results yet
-		request: null as null|CancelableRequest<BLTypes.BLSearchResult>,
-		results: null as null|BLTypes.BLSearchResult,
-		error: null as null|string,
+		request: null as null | CancelableRequest<BLTypes.BLSearchResult>,
+		results: null as null | BLTypes.BLSearchResult,
+		error: null as null | string,
 
-		_viewGroupName: null as string|null,
+		_viewGroupName: null as string | null,
 
-		paginationResults: null as null|BLTypes.BLSearchResult,
+		paginationResults: null as null | BLTypes.BLSearchResult,
 
 		// Should we scroll when next results arrive - set when main form submitted
 		scroll: true,
@@ -229,14 +181,14 @@ export default defineComponent({
 		clearResults: false,
 
 		/** When no longer viewing contents of a group, restore the result range and sorting (i.e. user's position in the results). */
-		restoreOnViewGroupLeave: null as null|{
+		restoreOnViewGroupLeave: null as null | {
 			first: number;
 			number: number;
-			sort: string|null;
+			sort: string | null;
 		},
 		showTitles: localStorageSynced('cf/results/showTitles', true),
 
-		debug
+		debug,
 	}),
 	methods: {
 		markDirty() {
@@ -268,7 +220,10 @@ export default defineComponent({
 				return;
 			}
 
-			if (this.clearResults) { this.results = this.error = null; this.clearResults = false; }
+			if (this.clearResults) {
+				this.results = this.error = null;
+				this.clearResults = false;
+			}
 
 			const nonce = this.refreshParameters;
 
@@ -280,16 +235,17 @@ export default defineComponent({
 			}
 
 			const params = RootStore.get.blacklabParameters()!;
-			const axiosParams = {headers: { 'Cache-Control': 'no-cache' }};
+			const axiosParams = { headers: { 'Cache-Control': 'no-cache' } };
 			debugLog('starting search', this.id, params);
 			const r = this.id === 'hits' ? Api.blacklab.getHits(this.indexId, params, axiosParams) : Api.blacklab.getDocs(this.indexId, params, axiosParams);
 			this.request = r;
 
 			setTimeout(() => this.scrollToResults(), 1500);
 
-			r
-			.then(
-				r => { if (nonce === this.refreshParameters) this.setSuccess(r)},
+			r.then(
+				r => {
+					if (nonce === this.refreshParameters) this.setSuccess(r);
+				},
 				e => {
 					if (nonce === this.refreshParameters) {
 						// This happens when grouping on a capture group that no longer exists.
@@ -299,16 +255,16 @@ export default defineComponent({
 						if (e.title === 'UNKNOWN_MATCH_INFO' && this.groupBy.length > 0) {
 							// remove the group on label.
 							debugLogCat('results', 'grouping failed, clearing groupBy');
-							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined)
-								.filter(g => !((g.type === 'context' && g.context.type === 'label') || (g.type === 'metadata' && g.metadata.type === 'span-attribute')));
+							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined).filter(
+								g => !((g.type === 'context' && g.context.type === 'label') || (g.type === 'metadata' && g.metadata.type === 'span-attribute')),
+							);
 							const newGroupBy = serializeSortByOrGroupBy(okayGroups);
 							this.groupBy = newGroupBy;
 						}
-						this.setError(e, !!params.group)
+						this.setError(e, !!params.group);
 					}
-				}
-			)
-			.finally(() => this.scrollToResults())
+				},
+			).finally(() => this.scrollToResults());
 		},
 		setSuccess(data: BLTypes.BLSearchResult) {
 			debugLogCat('results', 'search results', data);
@@ -320,7 +276,7 @@ export default defineComponent({
 		setError(data: Api.ApiError, isGrouped?: boolean) {
 			if (!data.isCancelledRequest) {
 				debugLogCat('results', 'Request failed: ', data);
-				this.error = UIStore.getState().global.errorMessage(data, isGrouped ? 'groups' : this.id as 'hits'|'docs');
+				this.error = UIStore.getState().global.errorMessage(data, isGrouped ? 'groups' : (this.id as 'hits' | 'docs'));
 				this.results = null;
 				this.paginationResults = null;
 			}
@@ -332,7 +288,7 @@ export default defineComponent({
 				this.scroll = false;
 				window.scroll({
 					behavior: 'smooth',
-					top: (this.$el as HTMLElement).offsetTop - 150
+					top: (this.$el as HTMLElement).offsetTop - 150,
 				});
 			}
 		},
@@ -341,7 +297,7 @@ export default defineComponent({
 			if (this.restoreOnViewGroupLeave) {
 				this.store.actions.range({
 					first: this.restoreOnViewGroupLeave.first,
-					number: this.restoreOnViewGroupLeave.number
+					number: this.restoreOnViewGroupLeave.number,
 				});
 				this.sort = this.restoreOnViewGroupLeave.sort;
 			} else {
@@ -356,50 +312,94 @@ export default defineComponent({
 			this.restoreOnViewGroupLeave = {
 				first: viewState.first,
 				number: viewState.number,
-				sort: this.sort
+				sort: this.sort,
 			};
 			this.viewGroup = groupId;
 			this._viewGroupName = groupDisplay;
-		}
+		},
 	},
 	computed: {
 		groupBy: {
-			get(): string[] { return this.store.getState().groupBy; },
-			set(v: string[]) { this.store.actions.groupBy(v); }
+			get(): string[] {
+				return this.store.getState().groupBy;
+			},
+			set(v: string[]) {
+				this.store.actions.groupBy(v);
+			},
 		},
 		page: {
-			get(): number { return 0; /** page is not always a singular clean number */ },
-			set(v: number) { this.store.actions.range({first: v * this.pageSize, number: this.pageSize});  }
+			get(): number {
+				return 0; /** page is not always a singular clean number */
+			},
+			set(v: number) {
+				this.store.actions.range({ first: v * this.pageSize, number: this.pageSize });
+			},
 		},
 		sort: {
-			get(): string|null { return this.store.getState().sort; },
-			set(v: string|null) { if (!this.request) this.store.actions.sort(v); }
+			get(): string | null {
+				return this.store.getState().sort;
+			},
+			set(v: string | null) {
+				if (!this.request) this.store.actions.sort(v);
+			},
 		},
 		viewGroup: {
-			get(): string|null { return this.store.getState().viewGroup; },
-			set(v: string|null) { this.store.actions.viewGroup(v); }
+			get(): string | null {
+				return this.store.getState().viewGroup;
+			},
+			set(v: string | null) {
+				this.store.actions.viewGroup(v);
+			},
 		},
 		groupDisplayMode: {
-			get(): string|null { return this.store.getState().groupDisplayMode; },
-			set(v: string|null) { this.store.actions.groupDisplayMode(v); }
+			get(): string | null {
+				return this.store.getState().groupDisplayMode;
+			},
+			set(v: string | null) {
+				this.store.actions.groupDisplayMode(v);
+			},
 		},
 
-		corpus(): NormalizedIndex { return CorpusStore.get.corpus()!; },
-		sourceAnnotatedFieldId(): string { return QueryStore.get.sourceField()!.id; },
-		concordanceAnnotationOptions(): CorpusStore.NormalizedAnnotation[] { return UIStore.getState().results.shared.concordanceAnnotationIdOptions.map(id => CorpusStore.get.allAnnotationsMap()[id]); },
+		corpus(): NormalizedIndex {
+			return CorpusStore.get.corpus()!;
+		},
+		sourceAnnotatedFieldId(): string {
+			return QueryStore.get.sourceField()!.id;
+		},
+		concordanceAnnotationOptions(): CorpusStore.NormalizedAnnotation[] {
+			return UIStore.getState().results.shared.concordanceAnnotationIdOptions.map(id => CorpusStore.get.allAnnotationsMap()[id]);
+		},
 		concordanceAnnotationId: {
-			get(): string { return UIStore.getState().results.shared.concordanceAnnotationId; },
-			set(v: string) { UIStore.actions.results.shared.concordanceAnnotationId(v); }
+			get(): string {
+				return UIStore.getState().results.shared.concordanceAnnotationId;
+			},
+			set(v: string) {
+				UIStore.actions.results.shared.concordanceAnnotationId(v);
+			},
 		},
 
-		sortAnnotations(): string[] { return UIStore.getState().results.shared.sortAnnotationIds; },
-		sortAnnotationLabels(): boolean { return UIStore.getState().dropdowns.sortBy.annotationGroupLabelsVisible; },
-		sortMetadata(): string[] { return UIStore.getState().results.shared.sortMetadataIds; },
-		sortMetadataLabels(): boolean { return UIStore.getState().dropdowns.sortBy.metadataGroupLabelsVisible; },
-		exportAnnotations(): string[]|null { return UIStore.getState().results.shared.detailedAnnotationIds; },
-		exportMetadata(): string[]|null { return UIStore.getState().results.shared.detailedMetadataIds; },
+		sortAnnotations(): string[] {
+			return UIStore.getState().results.shared.sortAnnotationIds;
+		},
+		sortAnnotationLabels(): boolean {
+			return UIStore.getState().dropdowns.sortBy.annotationGroupLabelsVisible;
+		},
+		sortMetadata(): string[] {
+			return UIStore.getState().results.shared.sortMetadataIds;
+		},
+		sortMetadataLabels(): boolean {
+			return UIStore.getState().dropdowns.sortBy.metadataGroupLabelsVisible;
+		},
+		exportAnnotations(): string[] | null {
+			return UIStore.getState().results.shared.detailedAnnotationIds;
+		},
+		exportMetadata(): string[] | null {
+			return UIStore.getState().results.shared.detailedMetadataIds;
+		},
 
-		exportEnabled(): boolean { return UIStore.getState().results.shared.exportEnabled; },
+		exportEnabled(): boolean {
+			return UIStore.getState().results.shared.exportEnabled;
+		},
 
 		refreshParameters(): string {
 			/*
@@ -412,16 +412,20 @@ export default defineComponent({
 				global: GlobalStore.getState(),
 				self: {
 					...this.store.getState(),
-					groupDisplayMode: null // ignore this property
+					groupDisplayMode: null, // ignore this property
 				} as Partial<ResultsStore.ViewRootState>,
-				query: QueryStore.getState()
+				query: QueryStore.getState(),
 			});
 		},
 
 		/** When these change, the form has been resubmitted, so we need to initiate a scroll event */
-		querySettings() { return QueryStore.getState(); },
+		querySettings() {
+			return QueryStore.getState();
+		},
 
-		pageSize(): number { return GlobalStore.getState().pageSize; },
+		pageSize(): number {
+			return GlobalStore.getState().pageSize;
+		},
 		/**
 		 * Pagination state for the current view.
 		 *
@@ -435,10 +439,10 @@ export default defineComponent({
 		 */
 		pagination(): {
 			/** The primary page to show as current (first page of the shown range) */
-			shownPage: number,
-			shownPage2?: number,
+			shownPage: number;
+			shownPage2?: number;
 			/** Maximum page number available */
-			maxShownPage: number,
+			maxShownPage: number;
 		} {
 			// Take care to use this.results for page size, but this.paginationResults for total number of results.
 			// This is because pagination results are requested with a window size of 0!
@@ -458,12 +462,13 @@ export default defineComponent({
 			const endPage = Math.floor(last / pageSize);
 
 			// Check if this is an exact page (aligned to page boundaries)
-			const isExactPage = (first % pageSize === 0) && (number === pageSize);
+			const isExactPage = first % pageSize === 0 && number === pageSize;
 
-			const totalResults =
-				BLTypes.isGroups(this.paginationResults) ? this.paginationResults.summary.numberOfGroups :
-				BLTypes.isHitResults(this.paginationResults) ? this.paginationResults.summary.numberOfHitsRetrieved :
-				this.paginationResults.summary.numberOfDocsRetrieved;
+			const totalResults = BLTypes.isGroups(this.paginationResults)
+				? this.paginationResults.summary.numberOfGroups
+				: BLTypes.isHitResults(this.paginationResults)
+					? this.paginationResults.summary.numberOfHitsRetrieved
+					: this.paginationResults.summary.numberOfDocsRetrieved;
 
 			// Calculate max page (subtract one if exactly divisible to avoid empty last page)
 			const maxPage = Math.max(0, Math.floor((totalResults - 1) / pageSize));
@@ -484,23 +489,35 @@ export default defineComponent({
 		valid(): boolean {
 			return this.id !== 'hits' || isHitParams(RootStore.get.blacklabParameters());
 		},
-		loadedResults(): BLTypes.BLSearchResult { return this.results!; },
+		loadedResults(): BLTypes.BLSearchResult {
+			return this.results!;
+		},
 		// simple view variables
-		indexId(): string { return CorpusStore.get.indexId()!; },
-		isHits(): boolean { return BLTypes.isHitResults(this.results); },
-		isDocs(): boolean { return BLTypes.isDocResults(this.results); },
-		isGroups(): boolean { return BLTypes.isGroups(this.results); },
+		indexId(): string {
+			return CorpusStore.get.indexId()!;
+		},
+		isHits(): boolean {
+			return BLTypes.isHitResults(this.results);
+		},
+		isDocs(): boolean {
+			return BLTypes.isDocResults(this.results);
+		},
+		isGroups(): boolean {
+			return BLTypes.isGroups(this.results);
+		},
 		isParallelCorpus: CorpusStore.get.isParallelCorpus,
 
 		viewGroupName(): string {
-			if (this.viewGroup == null) { return ''; }
-			return this._viewGroupName ?? this.viewGroup.substring(this.viewGroup.indexOf(':')+1) ?? this.$t('results.groupBy.groupNameWithoutValue').toString();
+			if (this.viewGroup == null) {
+				return '';
+			}
+			return this._viewGroupName ?? this.viewGroup.substring(this.viewGroup.indexOf(':') + 1) ?? this.$t('results.groupBy.groupNameWithoutValue').toString();
 		},
 
 		breadCrumbs(): Array<{
-			label: TranslateResult,
-			title: TranslateResult,
-			onClick?: () => void
+			label: TranslateResult;
+			title: TranslateResult;
+			onClick?: () => void;
 		}> {
 			// Labels and titles might look confusing
 			// but, the label is what the uses is currently looking at
@@ -511,11 +528,11 @@ export default defineComponent({
 			// if clicking specific group -> go to specific group
 
 			const r: {
-				label: TranslateResult,
-				title: TranslateResult,
-				onClick?: () => void,
-				deactivate: (() => void)|undefined,
-				toggle?: () => void,
+				label: TranslateResult;
+				title: TranslateResult;
+				onClick?: () => void;
+				deactivate: (() => void) | undefined;
+				toggle?: () => void;
 			}[] = [];
 
 			r.push({
@@ -525,35 +542,43 @@ export default defineComponent({
 			});
 			if (this.groupBy.length > 0) {
 				r.push({
-					label: this.$t('results.resultsView.navigation.groupedBy', {group: humanizeSerializedGroupBy(this, this.groupBy, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap()).join(', ')}),
+					label: this.$t('results.resultsView.navigation.groupedBy', {
+						group: humanizeSerializedGroupBy(this, this.groupBy, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap()).join(', '),
+					}),
 					title: this.$t('results.resultsView.navigation.backToGroupedResults'),
-					deactivate: () => { this.groupBy = []; }
+					deactivate: () => {
+						this.groupBy = [];
+					},
 				});
 			}
 			if (this.viewGroup != null) {
 				r.push({
-					label: this.$t('results.resultsView.navigation.viewingGroup', {group: this.viewGroupName}),
+					label: this.$t('results.resultsView.navigation.viewingGroup', { group: this.viewGroupName }),
 					title: '',
 					deactivate: () => this.leaveViewgroup(),
 				});
 			}
-			const {sampleMode, sampleSize} = GlobalStore.getState();
+			const { sampleMode, sampleSize } = GlobalStore.getState();
 			if (sampleSize != null) {
 				r.push({
-					label: this.$t('results.resultsView.navigation.randomSample', {sample: `${sampleSize}${sampleMode === 'percentage' ? '%' : ''}`}),
+					label: this.$t('results.resultsView.navigation.randomSample', { sample: `${sampleSize}${sampleMode === 'percentage' ? '%' : ''}` }),
 					title: '',
-					deactivate: () => { GlobalStore.actions.sampleSize(null); }
-				})
+					deactivate: () => {
+						GlobalStore.actions.sampleSize(null);
+					},
+				});
 			}
 			if (this.sort) {
 				r.push({
-					label: this.$t('results.resultsView.navigation.sortedBy', {sort: humanizeGroupByOrSortBy(this, parseSortBy(this.sort), CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap())}),
+					label: this.$t('results.resultsView.navigation.sortedBy', {
+						sort: humanizeGroupByOrSortBy(this, parseSortBy(this.sort), CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap()),
+					}),
 					title: '',
-					deactivate: () => this.sort = null,
+					deactivate: () => (this.sort = null),
 					toggle: () => {
 						this.sort = this.sort?.startsWith('-') ? this.sort!.substring(1) : '-' + this.sort!;
-					}
-				})
+					},
+				});
 			}
 
 			// Clicking a breadcrumb deactivates all breadcrumbs after it.
@@ -561,14 +586,14 @@ export default defineComponent({
 			// If a breadcrumb has a toggle() function, and it's the last one, call the toggle instead (onClick takes precedence).
 			for (let i = 0; i < r.length; i++) {
 				const entry = r[i];
-				const isLast = (i === r.length - 1);
+				const isLast = i === r.length - 1;
 
 				if (!isLast) {
 					entry.onClick = () => {
-						for (let j = r.length -1; j > i; j--) {
+						for (let j = r.length - 1; j > i; j--) {
 							r[j].deactivate?.();
 						}
-					}
+					};
 				} else if (entry.toggle) {
 					entry.onClick = entry.toggle;
 				}
@@ -587,7 +612,7 @@ export default defineComponent({
 			}
 		},
 
-		resultComponentData(): {cols: ColumnDefs, rows: Rows, info: DisplaySettingsForRendering, query: BLTypes.BLSearchParameters, type: string, sort: string|null, disabled: boolean} | undefined {
+		resultComponentData(): { cols: ColumnDefs; rows: Rows; info: DisplaySettingsForRendering; query: BLTypes.BLSearchParameters; type: string; sort: string | null; disabled: boolean } | undefined {
 			if (!this.results || !this.cols || !this.rows?.rows.length || !this.renderDisplaySettings) return undefined;
 			return {
 				cols: this.cols,
@@ -597,12 +622,12 @@ export default defineComponent({
 				query: this.results.summary.searchParam,
 				type: this.id,
 				sort: this.sort,
-				disabled: !!this.request
+				disabled: !!this.request,
 			};
 		},
 
 		commonDisplaySettings(): DisplaySettingsCommon {
-			const summaryOtherFields = BLTypes.hasPatternInfo(this.results?.summary) ? this.results.summary.pattern.otherFields ?? [] : [];
+			const summaryOtherFields = BLTypes.hasPatternInfo(this.results?.summary) ? (this.results.summary.pattern.otherFields ?? []) : [];
 			const { first, number, requestedRange } = this.store.getState();
 			return {
 				dir: CorpusStore.get.textDirection(),
@@ -612,8 +637,8 @@ export default defineComponent({
 				first,
 				number,
 				requestedRange,
-				pageSize: this.pageSize
-			}
+				pageSize: this.pageSize,
+			};
 		},
 		rowDisplaySettings(): DisplaySettingsForRows {
 			return {
@@ -622,7 +647,7 @@ export default defineComponent({
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
 				sourceField: QueryStore.get.sourceField()!, // if no field, there would be no results...
 				getCustomHitInfo: corpusCustomizations.results.customHitInfo,
-			}
+			};
 		},
 		columnDisplaySettings(): DisplaySettingsForColumns {
 			// Parse sort to extract annotation or metadata field being sorted on
@@ -632,22 +657,14 @@ export default defineComponent({
 
 			// Get shown columns and append sort column if not already shown
 			const shownAnnotationIds = this.isHits ? UIStore.getState().results.hits.shownAnnotationIds : [];
-			const annotationIdsToShow = (sortAnnotationId && !shownAnnotationIds.includes(sortAnnotationId))
-				? shownAnnotationIds.concat(sortAnnotationId)
-				: shownAnnotationIds;
+			const annotationIdsToShow = sortAnnotationId && !shownAnnotationIds.includes(sortAnnotationId) ? shownAnnotationIds.concat(sortAnnotationId) : shownAnnotationIds;
 
-			const shownMetadataIds = this.isHits
-				? UIStore.getState().results.hits.shownMetadataIds
-				: this.isDocs
-					? UIStore.getState().results.docs.shownMetadataIds
-					: [];
-			const metadataIdsToShow = (sortMetadataId && !shownMetadataIds.includes(sortMetadataId))
-				? shownMetadataIds.concat(sortMetadataId)
-				: shownMetadataIds;
+			const shownMetadataIds = this.isHits ? UIStore.getState().results.hits.shownMetadataIds : this.isDocs ? UIStore.getState().results.docs.shownMetadataIds : [];
+			const metadataIdsToShow = sortMetadataId && !shownMetadataIds.includes(sortMetadataId) ? shownMetadataIds.concat(sortMetadataId) : shownMetadataIds;
 
 			return {
 				...this.commonDisplaySettings,
-				groupDisplayMode: this.groupDisplayMode as any || (BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
+				groupDisplayMode: (this.groupDisplayMode as any) || (BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
 				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
 				// If groups, don't show any metadata columns. Automatically append sort column if not already shown.
 				metadata: metadataIdsToShow.map(id => CorpusStore.get.allMetadataFieldsMap()[id]),
@@ -656,10 +673,8 @@ export default defineComponent({
 				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
 				annotationGroups: CorpusStore.get.annotationGroups(),
 				hasCustomHitInfoColumn: (results, isParallelCoprus) =>
-					(BLTypes.isHitResults(results) || BLTypes.isHitGroups(results))
-						? corpusCustomizations.results.hasCustomHitInfoColumn(results, isParallelCoprus)
-						: false,
-			}
+					BLTypes.isHitResults(results) || BLTypes.isHitGroups(results) ? corpusCustomizations.results.hasCustomHitInfoColumn(results, isParallelCoprus) : false,
+			};
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {
 			const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
@@ -667,17 +682,22 @@ export default defineComponent({
 				...this.rowDisplaySettings,
 				...this.columnDisplaySettings,
 				// Don't show details table in expanded rows when showing groups or hits in docs.
-				detailedAnnotations: this.isHits ? UIStore.getState().results.shared.detailedAnnotationIds?.map(id => allAnnotationsMap[id]) ?? CorpusStore.get.allAnnotations().filter(a => !a.isInternal && a.hasForwardIndex) : [],
-				depTreeAnnotations: Object.fromEntries(Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [
-					key,
-					Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null
-				])) as any,
+				detailedAnnotations: this.isHits
+					? (UIStore.getState().results.shared.detailedAnnotationIds?.map(id => allAnnotationsMap[id]) ?? CorpusStore.get.allAnnotations().filter(a => !a.isInternal && a.hasForwardIndex))
+					: [],
+				depTreeAnnotations: Object.fromEntries(
+					Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null]),
+				) as any,
 				html: UIStore.getState().results.shared.concordanceAsHtml,
-			}
+			};
 		},
 
-		cols(): ColumnDefs|null { return this.results && makeColumns(this.results, this.columnDisplaySettings); },
-		rows(): Rows|null { return this.results && makeRows(this.results, this.rowDisplaySettings); },
+		cols(): ColumnDefs | null {
+			return this.results && makeColumns(this.results, this.columnDisplaySettings);
+		},
+		rows(): Rows | null {
+			return this.results && makeRows(this.results, this.rowDisplaySettings);
+		},
 	},
 	watch: {
 		querySettings: {
@@ -702,14 +722,13 @@ export default defineComponent({
 					this.refresh();
 				}
 			},
-			immediate: true
+			immediate: true,
 		},
-	}
+	},
 });
 </script>
 
 <style lang="scss">
-
 .no-results-found {
 	padding: 1.25em;
 	text-align: center;
@@ -717,7 +736,6 @@ export default defineComponent({
 	font-size: 16px;
 	color: #777;
 }
-
 
 .results-container {
 	position: relative;
@@ -736,7 +754,4 @@ export default defineComponent({
 	margin: 10px 0;
 	gap: 10px;
 }
-
-
-
 </style>

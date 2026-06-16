@@ -5,12 +5,12 @@
  * are the filters subdivided in groups, what is the text direction, and so on.
  */
 
-import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
-
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import { ref } from 'vue';
 
-type ModuleRootState = Tagset|null;
+import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
+
+type ModuleRootState = Tagset | null;
 
 const state = ref<ModuleRootState>(null);
 const getState = () => state.value;
@@ -45,7 +45,7 @@ export function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations
 	const tagsetValuesLower = new Set(Object.keys(tagset.values).map(k => k.toLowerCase()));
 
 	// Validate that the main annotation doesn't reference any subannotations that don't exist
-	Object.values(tagset.values).forEach(({value, subAnnotationIds}) => {
+	Object.values(tagset.values).forEach(({ value, subAnnotationIds }) => {
 		const subAnnotsNotInTagset = subAnnotationIds.filter(id => tagset.subAnnotations[id] == null);
 		if (subAnnotsNotInTagset.length) {
 			throw new Error(`Value "${value}" declares subAnnotation(s) "${subAnnotsNotInTagset}" that do not exist in the tagset.`);
@@ -59,11 +59,7 @@ export function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations
 	/**
 	 * Process a single annotation: validate, normalize case in tagset, and merge into corpus.
 	 */
-	function processAnnotation(
-		annotationId: string,
-		tagsetValues: Array<{value: string, displayName: string, pos?: string[]}>,
-		isCaseSensitive: boolean
-	) {
+	function processAnnotation(annotationId: string, tagsetValues: Array<{ value: string; displayName: string; pos?: string[] }>, isCaseSensitive: boolean) {
 		const annotationInCorpus = corpusAnnotations[annotationId];
 		if (!annotationInCorpus) {
 			console.error(`Annotation "${annotationId}" does not exist in the corpus, but is referenced in the tagset.`);
@@ -103,13 +99,13 @@ export function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations
 		}
 
 		// Build case-insensitive lookup from (now normalized) tagset values
-		const tagsetByLower: Record<string, {value: string, displayName: string}> = {};
+		const tagsetByLower: Record<string, { value: string; displayName: string }> = {};
 		for (const tv of tagsetValues) {
 			tagsetByLower[tv.value.toLowerCase()] = tv;
 		}
 
 		// Merge: collapse corpus values to tagset canonical forms where applicable
-		const resultValues: Record<string, {value: string, label: string, title: string|null}> = {};
+		const resultValues: Record<string, { value: string; label: string; title: string | null }> = {};
 
 		// Process original corpus values
 		if (annotationInCorpus.values) {
@@ -124,7 +120,7 @@ export function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations
 						resultValues[canonicalValue] = {
 							value: canonicalValue,
 							label: tagsetMatch.displayName || canonicalValue,
-							title: origValue.title
+							title: origValue.title,
 						};
 					}
 				} else {
@@ -133,7 +129,7 @@ export function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations
 						resultValues[origValue.value] = {
 							value: origValue.value,
 							label: origValue.label,
-							title: origValue.title
+							title: origValue.title,
 						};
 					}
 				}
@@ -146,7 +142,7 @@ export function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations
 				resultValues[tv.value] = {
 					value: tv.value,
 					label: tv.displayName || tv.value,
-					title: null
+					title: null,
 				};
 			}
 		}
@@ -176,7 +172,9 @@ export function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations
 }
 
 const actions = {
-	load: () => { console.warn('Manual tagset loading is no longer required. Remove the call to tagset.actions.load() from customJS - instead, place the tagset in ${corpusName}/static/tagset.json'); }
+	load: () => {
+		console.warn('Manual tagset loading is no longer required. Remove the call to tagset.actions.load() from customJS - instead, place the tagset in ${corpusName}/static/tagset.json');
+	},
 };
 
 export { actions, get, getState, init };

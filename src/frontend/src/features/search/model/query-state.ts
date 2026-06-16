@@ -21,18 +21,18 @@
  */
 
 import cloneDeep from 'clone-deep';
+import { reactive } from 'vue';
 
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import * as UIModule from '@/app/state/ui-state';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as PatternModule from '@/features/search/model/form/pattern-state';
-import * as UIModule from '@/app/state/ui-state';
 import type { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
-import { reactive } from 'vue';
 
 // todo migrate these weirdo state shapes to mapped types?
 // might be a cleaner way of doing this...
@@ -50,7 +50,7 @@ type ModuleRootStateSearch<K extends keyof PatternModule.ModuleRootState> = {
 };
 
 type ModuleRootStateExplore<K extends keyof ExploreModule.ModuleRootState> = {
-	form:'explore';
+	form: 'explore';
 	subForm: K;
 
 	formState: ExploreModule.ModuleRootState[K];
@@ -68,7 +68,7 @@ type ModuleRootStateNone = {
 	gap: null;
 };
 
-type ModuleRootState = ModuleRootStateNone|ModuleRootStateSearch<keyof PatternModule.ModuleRootState>|ModuleRootStateExplore<keyof ExploreModule.ModuleRootState>;
+type ModuleRootState = ModuleRootStateNone | ModuleRootStateSearch<keyof PatternModule.ModuleRootState> | ModuleRootStateExplore<keyof ExploreModule.ModuleRootState>;
 
 const initialState: ModuleRootStateNone = {
 	form: null,
@@ -76,7 +76,7 @@ const initialState: ModuleRootStateNone = {
 	formState: null,
 	shared: null,
 	filters: null,
-	gap: null
+	gap: null,
 };
 
 const state = reactive<ModuleRootState>(Object.assign({}, initialState));
@@ -92,7 +92,7 @@ const get = {
 		return state.shared?.targets?.map(t => allFields[t]).filter(f => f.isParallel) ?? [];
 	},
 
-	patternString: (): string|undefined => {
+	patternString: (): string | undefined => {
 		if (!state.subForm) return undefined;
 
 		const formState = {
@@ -111,7 +111,7 @@ const get = {
 		}
 	},
 	/** Human-readable version of the query for use in history, summaries, etc. */
-	patternSummary: (): string|undefined => {
+	patternSummary: (): string | undefined => {
 		const formState = {
 			[state.subForm as string]: state.formState,
 			shared: state.shared,
@@ -126,14 +126,18 @@ const get = {
 				return undefined;
 		}
 	},
-	filterString: (): string|undefined => {
-		if (!state.form) { return undefined; }
+	filterString: (): string | undefined => {
+		if (!state.form) {
+			return undefined;
+		}
 		return getFilterString(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
 	},
-	filterSummary: (): string|undefined => {
-		if (!state.form) { return undefined; }
+	filterSummary: (): string | undefined => {
+		if (!state.form) {
+			return undefined;
+		}
 		return getFilterSummary(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
-	}
+	},
 };
 
 const actions = {
@@ -148,4 +152,3 @@ const init = (_payload: CorpusChange) => {
 
 export { actions, get, getState, init };
 export type { ModuleRootState };
-

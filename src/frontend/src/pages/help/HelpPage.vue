@@ -1,16 +1,17 @@
 <template>
-	<ServerRenderedContentPage :content="content"/>
+	<ServerRenderedContentPage :content="content" />
 </template>
 
 <script setup lang="ts">
-import { ApiError, frontend } from '@/api';
-import ServerRenderedContentPage from '@/components/ServerRenderedContentPage.vue';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
-import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
-import { Loadable } from '@/utils/loadable-streams';
 import { useAsyncState } from '@vueuse/core';
 import { computed } from 'vue';
 
+import { ApiError, frontend } from '@/api';
+import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
+import { Loadable } from '@/utils/loadable-streams';
+
+import ServerRenderedContentPage from '@/components/ServerRenderedContentPage.vue';
 
 const contentInput = useAsyncState(frontend.getHelp(CorpusStore.get.indexId() ?? undefined).request, '', { immediate: true });
 const content = computed<Loadable<string>>(() => {
@@ -21,7 +22,6 @@ const content = computed<Loadable<string>>(() => {
 });
 
 useMarkPageBootstrapSettledWhen(computed(() => content.value.isLoaded() || content.value.isError()));
-
 </script>
 
 <style scoped>

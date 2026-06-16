@@ -1,4 +1,4 @@
-@use "sass:color";
+@use 'sass:color';
 
 hr {
 	border-color: #000;
@@ -25,11 +25,13 @@ $border-radius-lg: 4px;
 	// border-top: 3px solid $panel-color;
 	// box-shadow: 0px 1px 7px -1px rgba(0,0,0,0.2);
 	border-radius: $border-radius;
-	background: rgba(255,255,255,0.8);
+	background: rgba(255, 255, 255, 0.8);
 	margin-left: -15px;
 	margin-right: -15px;
 	margin-bottom: 20px;
-	transition: 0.25s border-color, 0.4s background-color;
+	transition:
+		0.25s border-color,
+		0.4s background-color;
 
 	padding: 15px 0;
 	@media (min-width: 576px) {
@@ -70,7 +72,6 @@ $border-radius-lg: 4px;
 	}
 }
 
-
 ul.nav-tabs.cf-panel-tab-header {
 	background-color: $panel-color;
 	border-bottom-color: $accent;
@@ -87,7 +88,9 @@ ul.nav-tabs.cf-panel-tab-header {
 		// border-top-width: 6px;
 		> li:first-child.active,
 		> li:first-child:hover {
-			> a { border-left-color: $border-dark!important; }
+			> a {
+				border-left-color: $border-dark !important;
+			}
 		}
 	}
 
@@ -111,7 +114,7 @@ ul.nav-tabs.cf-panel-tab-header {
 		&:first-child.active,
 		&:first-child:hover {
 			> a {
-				border-left-color: $border-default!important;
+				border-left-color: $border-default !important;
 			}
 		}
 	}
@@ -139,7 +142,7 @@ ul.nav-tabs.cf-panel-tab-header {
 .file-input-button {
 	position: relative;
 	overflow: hidden;
-	> input[type="file"] {
+	> input[type='file'] {
 		position: absolute;
 		opacity: 0;
 		font-size: 100px;
@@ -151,7 +154,9 @@ ul.nav-tabs.cf-panel-tab-header {
 		max-height: 100%;
 		cursor: pointer;
 		height: 100%;
-		&::-webkit-file-upload-button { cursor:pointer; } // chrome doesn't adhere to cursor: pointer on the (invisible) input label
+		&::-webkit-file-upload-button {
+			cursor: pointer;
+		} // chrome doesn't adhere to cursor: pointer on the (invisible) input label
 	}
 }
 
@@ -191,7 +196,7 @@ ul.nav-tabs.cf-panel-tab-header {
 		z-index: 1;
 	}
 
-	&[x-placement^="top"] {
+	&[x-placement^='top'] {
 		margin-bottom: 5px;
 
 		.arrow {
@@ -206,7 +211,7 @@ ul.nav-tabs.cf-panel-tab-header {
 		}
 	}
 
-	&[x-placement^="bottom"] {
+	&[x-placement^='bottom'] {
 		margin-top: 5px;
 
 		.arrow {
@@ -221,7 +226,7 @@ ul.nav-tabs.cf-panel-tab-header {
 		}
 	}
 
-	&[x-placement^="right"] {
+	&[x-placement^='right'] {
 		margin-left: 5px;
 
 		.arrow {
@@ -236,7 +241,7 @@ ul.nav-tabs.cf-panel-tab-header {
 		}
 	}
 
-	&[x-placement^="left"] {
+	&[x-placement^='left'] {
 		margin-right: 5px;
 
 		.arrow {
@@ -273,32 +278,30 @@ ul.nav-tabs.cf-panel-tab-header {
 	border-top: 1px solid #ddd;
 }
 
-
 a.disabled {
 	opacity: 0.65;
 	cursor: not-allowed;
 	pointer-events: none;
 }
 
-
-@font-face{
+@font-face {
 	font-family: 'Inl vmnw wnt';
 	src: url('@/assets/font/INLVRG__.TTF') format('truetype');
 }
 
-@font-face{
+@font-face {
 	font-family: 'Inl vmnw wnt';
 	src: url('@/assets/font/INLVI___.TTF') format('truetype');
 	font-style: italic;
 }
 
-@font-face{
+@font-face {
 	font-family: 'Inl vmnw wnt';
 	src: url('@/assets/font/INLVB___.TTF') format('truetype');
 	font-weight: bold;
 }
 
-@font-face{
+@font-face {
 	font-family: 'Inl vmnw wnt';
 	src: url('@/assets/font/INLVBI__.TTF') format('truetype');
 	font-weight: bold;
@@ -306,10 +309,13 @@ a.disabled {
 }
 
 body {
-	font-family: "Helvetica Neue",Helvetica,Arial,sans-serif,"Inl vmnw wnt";
+	font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif, 'Inl vmnw wnt';
 }
 
-a:link, a:visited, a:active, a:hover {
+a:link,
+a:visited,
+a:active,
+a:hover {
 	text-decoration: none;
 }
 

@@ -2,59 +2,42 @@
 	<div class="lexicon">
 		<input
 			type="text"
-			:class="{'form-control': true, 'loading': !posOptions || !wordOptions}"
+			:class="{ 'form-control': true, loading: !posOptions || !wordOptions }"
 			autocomplete="off"
-
 			:id="inputId"
 			:name="inputId"
 			:placeholder="$tAnnotDisplayName(definition)"
-
 			v-bind="$attrs"
 			v-model="currentValue"
 		/>
 		<span v-if="!wordOptions" class="fa fa-spinner fa-spin text-muted"></span>
 
-		<div v-if="wordOptions && wordOptions.length" style="display: flex; flex-wrap: wrap; gap: 0.25em; margin: 10px 0;">
-			<button
-				type="button"
-				class="btn btn-default"
-				:disabled="selectedWords.length === renderedWords.length"
-				@click="renderedWords.forEach(w => w.selected = w.count > 0)">{{$t('lexicon.selectAll')}}
+		<div v-if="wordOptions && wordOptions.length" style="display: flex; flex-wrap: wrap; gap: 0.25em; margin: 10px 0">
+			<button type="button" class="btn btn-default" :disabled="selectedWords.length === renderedWords.length" @click="renderedWords.forEach(w => (w.selected = w.count > 0))">
+				{{ $t('lexicon.selectAll') }}
 			</button>
-			<button
-				type="button"
-				class="btn btn-default"
-				:disabled="!selectedWords.length"
-				@click="renderedWords.forEach(w => w.selected = false)">{{$t('lexicon.deselectAll')}}
-			</button>
+			<button type="button" class="btn btn-default" :disabled="!selectedWords.length" @click="renderedWords.forEach(w => (w.selected = false))">{{ $t('lexicon.deselectAll') }}</button>
 		</div>
 
-		<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">
-			<label v-for="opt in renderedWords" :key="opt.word"
-				style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+		<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden">
+			<label
+				v-for="opt in renderedWords"
+				:key="opt.word"
+				style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
 				:role="opt.count > 0 ? 'button' : undefined"
-				:class="{'disabled': opt.count === 0}"
+				:class="{ disabled: opt.count === 0 }"
 				:title="`${opt.word} (${opt.count})`"
 			>
-				<input type="checkbox"
-					:value="opt"
-					:disabled="opt.count === 0"
-	
-					v-model="opt.selected"
-				> {{opt.word}}<!-- ({{opt.count}})-->
+				<input type="checkbox" :value="opt" :disabled="opt.count === 0" v-model="opt.selected" /> {{ opt.word
+				}}<!-- ({{opt.count}})-->
 			</label>
 		</div>
-		<template v-if="wordOptions && wordOptions.length"> <!-- if we have wordOptions, we also have pos options -->
-			<h4>{{$t('lexicon.limit')}}</h4>
-			<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden;">
-				<label v-for="(checked, pos) in posOptions" :key="pos"
-					style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
-					role="button"
-				>
-					<input type="checkbox"
-						v-model="posOptions[pos]"
-						:value="pos"
-					> {{pos}}
+		<template v-if="wordOptions && wordOptions.length">
+			<!-- if we have wordOptions, we also have pos options -->
+			<h4>{{ $t('lexicon.limit') }}</h4>
+			<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden">
+				<label v-for="(checked, pos) in posOptions" :key="pos" style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap" role="button">
+					<input type="checkbox" v-model="posOptions[pos]" :value="pos" /> {{ pos }}
 				</label>
 			</div>
 		</template>
@@ -69,14 +52,15 @@ import { defineComponent, type PropType } from 'vue';
 
 import * as api from '@/api';
 import * as UIStore from '@/app/state/ui-state';
-import SelectPicker from '@/components/SelectPicker.vue';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import UID from '@/mixins/uid';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import { escapeRegex, filterDuplicates, mapReduce } from '@/utils';
 
-type LexiconParams1 = {lemma: string}|{wordform: string}
-type LexiconParams = LexiconParams1&{
+import SelectPicker from '@/components/SelectPicker.vue';
+
+type LexiconParams1 = { lemma: string } | { wordform: string };
+type LexiconParams = LexiconParams1 & {
 	database: string;
 
 	dataset?: string;
@@ -134,17 +118,17 @@ export default defineComponent({
 	props: {
 		annotationId: { type: String, required: true },
 		modelValue: {
-			type: [String, null] as PropType<string|null>,
+			type: [String, null] as PropType<string | null>,
 			default: null,
 		},
-		definition: { type: Object as PropType<NormalizedAnnotation>, required: true }
+		definition: { type: Object as PropType<NormalizedAnnotation>, required: true },
 	},
 	data: () => ({
 		uid: UID(),
 		input$: new Observable.BehaviorSubject<string>(''),
 		subscriptions: [] as Observable.Subscription[],
 
-		wordOptions: [] as null|WordOption[],
+		wordOptions: [] as null | WordOption[],
 
 		posOptions: {} as Record<string, boolean>,
 
@@ -152,31 +136,48 @@ export default defineComponent({
 	}),
 	computed: {
 		/** Lexicon database to use */
-		database(): string { return UIStore.getState().global.lexiconDb; },
+		database(): string {
+			return UIStore.getState().global.lexiconDb;
+		},
 
-		inputId(): string { return this.definition.id + '_' + (this as any).uid; },
+		inputId(): string {
+			return this.definition.id + '_' + (this as any).uid;
+		},
 
-		selectedWords(): WordOption[] { return this.renderedWords ? this.renderedWords.filter(w => w.selected) : []; },
-		renderedWords(): WordOption[] { return this.wordOptions ? this.wordOptions.filter(w => w.pos.some(pos => this.posOptions[pos])) : []; },
+		selectedWords(): WordOption[] {
+			return this.renderedWords ? this.renderedWords.filter(w => w.selected) : [];
+		},
+		renderedWords(): WordOption[] {
+			return this.wordOptions ? this.wordOptions.filter(w => w.pos.some(pos => this.posOptions[pos])) : [];
+		},
 
 		currentValue: {
-			get(): string { return this.modelValue || ''; },
-			set(v: string) { this.$emit('update:modelValue', v); this.input$.next(v); }
-		}
+			get(): string {
+				return this.modelValue || '';
+			},
+			set(v: string) {
+				this.$emit('update:modelValue', v);
+				this.input$.next(v);
+			},
+		},
 	},
 	methods: {
-		reset() { this.wordOptions = []; this.posOptions = {}; this.currentValue = ''; }
+		reset() {
+			this.wordOptions = [];
+			this.posOptions = {};
+			this.currentValue = '';
+		},
 	},
 	created() {
 		const isValidWord = /^[\w]+$/;
-		const emptyResult = {posOptions: {} as Record<string, boolean>, wordList: [] as WordOption[]};
+		const emptyResult = { posOptions: {} as Record<string, boolean>, wordList: [] as WordOption[] };
 
 		// don't ever do anything (clear or search...) while a suggestion is selected, also not when search term is emptied (such as when deselecting all suggestions)
 		const filteredInput$ = this.input$.pipe(filter(v => !this.selectedWords.length && !!v));
 
 		// we need two outcome streams:
 		// one that clears immediately to either: empty when something is typed that seems invalid, or to null (indicating pending results) otherwise
-		const clearResults$ = filteredInput$.pipe(map(v => !v.match(isValidWord) ? emptyResult : null));
+		const clearResults$ = filteredInput$.pipe(map(v => (!v.match(isValidWord) ? emptyResult : null)));
 		// and one that (for valid inputs) gets the results
 		const suggestions$: Observable.Observable<typeof emptyResult> = filteredInput$.pipe(
 			debounceTime(1500),
@@ -184,63 +185,71 @@ export default defineComponent({
 				// non-actionable input, don't show any suggestions, they should already have been cleared.
 				// We need to let these invalid inputs trickle through to here so that
 				// old requests are not given an oppertunity to complete and show stale results
-				if (!term.match(isValidWord)) { return Observable.empty(); }
+				if (!term.match(isValidWord)) {
+					return Observable.empty();
+				}
 				const lemmata1 = Axios.get<LexiconLemmaIdResponse>(config.getLemmaIdFromWordform, { params: { database: this.database, wordform: term, case_sensitive: config.case_sensitive } });
 				const lemmata2 = Axios.get<LexiconLemmaIdResponse>(config.getLemmaIdFromLemma, { params: { database: this.database, lemma: term, case_sensitive: config.case_sensitive } });
 				const lemmataRequest = Promise.all([lemmata1, lemmata2]).then(r => r.flatMap(rr => rr.data.lemmata_list.flatMap(l => l.found_lemmata)));
 
 				// Do this inside an observable, the pending stages of pipe() will not be ran if this observable is old (e.g. a new lemma came in)
 				// Whereas if we .then().then().then() chain a promise, it will all run regardless of whether the results are still needed.
-				return Observable
-				.from(lemmataRequest)
-				.pipe(
+				return Observable.from(lemmataRequest).pipe(
 					// Phase 2: get associated words
 					mergeMap(lemmata => filterDuplicates(lemmata, 'lemma_id')), // unpack the array of found lemmata into one message per lemma, for ease of use
 					// Get the words that map to this lemma
-					mergeMap(lemma => Axios.get<LexiconWordformsResponse>(config.getWordformsFromLemmaId, {
-						params: {
-							database: this.database,
-							lemma_id: lemma.lemma_id
-						}
-					}).then(response => ({...response.data, ...lemma}))),
+					mergeMap(lemma =>
+						Axios.get<LexiconWordformsResponse>(config.getWordformsFromLemmaId, {
+							params: {
+								database: this.database,
+								lemma_id: lemma.lemma_id,
+							},
+						}).then(response => ({ ...response.data, ...lemma })),
+					),
 					map(lemma => ({
 						lemma: lemma.lemma,
 						pos: lemma.pos,
-						wordforms: lemma.message === 'OK' ? lemma.wordforms_list.flatMap(wfl => wfl.found_wordforms) : []
+						wordforms: lemma.message === 'OK' ? lemma.wordforms_list.flatMap(wfl => wfl.found_wordforms) : [],
 					})),
 
 					// Phase 3: wait for all requests to the lexicon service to complete,
 					// then coordinate with BlackLab to find out which of the found words actually exist in the corpus.
 					toArray(),
-					mergeMap(async (lemmata) => {
-						if (!lemmata.length) { return emptyResult; }
+					mergeMap(async lemmata => {
+						if (!lemmata.length) {
+							return emptyResult;
+						}
 
-						lemmata.forEach(l => l.pos = `${l.lemma} (${l.pos || 'unknown'})`);
+						lemmata.forEach(l => (l.pos = `${l.lemma} (${l.pos || 'unknown'})`));
 
 						// Request occurance counts in the corpus from blacklab. Note we also request occurance count for the entered search term.
-						const {termFreq: frequencies} = await api.blacklab.getTermFrequencies(CorpusStore.get.indexId()!, this.annotationId, lemmata.flatMap(r => r.wordforms).concat(term));
+						const { termFreq: frequencies } = await api.blacklab.getTermFrequencies(CorpusStore.get.indexId()!, this.annotationId, lemmata.flatMap(r => r.wordforms).concat(term));
 
 						const options: Record<string, WordOption> = {};
-						lemmata.forEach(({pos, wordforms, lemma}) => {
+						lemmata.forEach(({ pos, wordforms, lemma }) => {
 							wordforms.forEach((word, i) => {
-								options[word] = options[word] || {
-									lemma,
-									pos: [],
-									count: frequencies[word],
-									word,
-									selected: false
-								} as WordOption;
+								options[word] =
+									options[word] ||
+									({
+										lemma,
+										pos: [],
+										count: frequencies[word],
+										word,
+										selected: false,
+									} as WordOption);
 
 								options[word].pos.push(pos);
 							});
 
-							options[lemma] = options[lemma] || {
-								lemma,
-								pos: [],
-								count: frequencies[lemma],
-								word: lemma,
-								selected: false
-							} as WordOption;
+							options[lemma] =
+								options[lemma] ||
+								({
+									lemma,
+									pos: [],
+									count: frequencies[lemma],
+									word: lemma,
+									selected: false,
+								} as WordOption);
 							options[lemma].pos.push(pos);
 						});
 						const posList = filterDuplicates(lemmata, 'pos').map(l => l.pos);
@@ -253,17 +262,17 @@ export default defineComponent({
 								pos: posList, // always show
 								count: frequencies[term],
 								word: term,
-								selected: false
+								selected: false,
 							};
 						}
 
 						const wordList = Object.values(options).filter(word => word.count > 0);
 						const posOptions = mapReduce(posList);
-						return {posOptions, wordList};
+						return { posOptions, wordList };
 					}),
-					catchError(e => [emptyResult])
+					catchError(e => [emptyResult]),
 				);
-			})
+			}),
 		);
 
 		const results$ = Observable.merge(clearResults$, suggestions$);
@@ -271,7 +280,7 @@ export default defineComponent({
 		this.subscriptions.push(
 			results$.subscribe(r => {
 				this.posOptions = r ? r.posOptions : {};
-				this.wordOptions = r ? r.wordList.sort((a, b) => ((a.count === 0) !== (b.count === 0)) ? (a.count === 0 ? 1 : -1) : 0) : null;
+				this.wordOptions = r ? r.wordList.sort((a, b) => ((a.count === 0) !== (b.count === 0) ? (a.count === 0 ? 1 : -1) : 0)) : null;
 			}),
 		);
 	},
@@ -283,23 +292,25 @@ export default defineComponent({
 			// We need to discern changed checkbox availability from actual changes
 			// Take care not to remove user-input value when an empty batch of alternatives comes in.
 			if (v.length !== prev.length && this.wordOptions && this.wordOptions.length > 0) {
-				this.currentValue = v.map(w => escapeRegex(w.word)).map(w => w.includes(' ') ? '"'+w+'"' : w).join('|');
+				this.currentValue = v
+					.map(w => escapeRegex(w.word))
+					.map(w => (w.includes(' ') ? '"' + w + '"' : w))
+					.join('|');
 			}
 		},
 		posOptions: {
 			handler(cur, prev) {
 				if (Object.entries(prev).length) {
-					this.renderedWords.forEach(wo => wo.selected = wo.pos.some(pos => this.posOptions[pos]));
+					this.renderedWords.forEach(wo => (wo.selected = wo.pos.some(pos => this.posOptions[pos])));
 				}
 			},
-			deep: true
-		}
-	}
+			deep: true,
+		},
+	},
 });
 </script>
 
 <style lang="scss" scoped>
-
 .lexicon {
 	position: relative;
 }
@@ -331,5 +342,4 @@ label.disabled {
 	text-overflow: ellipsis;
 	padding-right: 2.5em;
 }
-
 </style>

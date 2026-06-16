@@ -8,16 +8,18 @@
 </template>
 
 <script lang="ts">
-import type { Loadable } from '@/utils/loadable-streams';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
+
+import type { Loadable } from '@/utils/loadable-streams';
+
 import Spinner from './Spinner.vue';
 
 export default defineComponent({
 	name: 'ServerRenderedContentPage',
-	components: {Spinner},
+	components: { Spinner },
 	props: {
-		content: { type: Object as PropType<Loadable<string>>, required: true }
+		content: { type: Object as PropType<Loadable<string>>, required: true },
 	},
 });
 </script>

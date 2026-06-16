@@ -32,7 +32,7 @@ const actions = {
 		PatternModule.actions.replace(payload.patterns);
 		InterfaceModule.actions.replace(payload.interface);
 		GapModule.actions.replace(payload.gap);
-	}
+	},
 };
 
 const init = (state: CorpusChange) => {

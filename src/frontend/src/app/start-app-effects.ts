@@ -1,8 +1,9 @@
+import { effectScope, watchEffect, type App } from 'vue';
+
 import { startCorpusBootstrapEffect } from '@/features/corpus/effects/corpus-bootstrap.effect';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
 import { indexId } from '@/navigation/route-context';
 import * as i18n from '@/utils/i18n';
-import { effectScope, watchEffect, type App } from 'vue';
 
 export function startAppEffects(app: App) {
 	app.runWithContext(() => {
@@ -12,8 +13,8 @@ export function startAppEffects(app: App) {
 			startCorpusBootstrapEffect();
 			// startStoreToUrlReflection(),
 			startCustomizationInterop();
-		})
-	
+		});
+
 		app.onUnmount(() => scope.stop());
-	})
+	});
 }

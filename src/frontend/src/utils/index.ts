@@ -5,7 +5,6 @@ import type * as BLTypes from '@/types/blacklabtypes';
 import type { Translate } from '@/utils/i18n';
 import type { OptGroup, Option } from '@/utils/options';
 
-
 const defaultRegexEscapeOptions = {
 	/**
 	 * In our inputs, wildcards are special characters that can be used to match any character or sequence of characters.
@@ -23,13 +22,12 @@ const defaultRegexEscapeOptions = {
 	/** Default to true. If true, escape | to \|. If false, leave alone. */
 	escapePipes: true,
 	/** Defaults to true. If true, escape " to \". If false, leave alone. */
-	escapeQuotes: true
-}
+	escapeQuotes: true,
+};
 export type RegexEscapeOptions = Partial<typeof defaultRegexEscapeOptions>;
 /** Escape special characters in a string for use in a regular expression, the default escaping options are to escape wildcards, pipes, and quotes */
 export function escapeRegex(value: string, settings: RegexEscapeOptions = {}) {
-	settings = {...defaultRegexEscapeOptions, ...settings};
-
+	settings = { ...defaultRegexEscapeOptions, ...settings };
 
 	// NOTE: take special care for characters we might let through.
 	// We want to be able to also let the user search for those characters verbatim.
@@ -38,12 +36,12 @@ export function escapeRegex(value: string, settings: RegexEscapeOptions = {}) {
 	// There might be a better way to accomplish this, but for now we'll just replace them with a placeholder and replace them back afterwards.
 
 	const specialEscapeSequences = [
-		{ input: '\\|', output: '__PIPE__', active: !settings.escapePipes},
-		{ input: '\\*', output: '__STAR__', active: !settings.escapeWildcards},
-		{ input: '\\?', output: '__QUESTION__', active: !settings.escapeWildcards},
-		{ input: '\\"', output: '__QUOTE__', active: !settings.escapeQuotes}
+		{ input: '\\|', output: '__PIPE__', active: !settings.escapePipes },
+		{ input: '\\*', output: '__STAR__', active: !settings.escapeWildcards },
+		{ input: '\\?', output: '__QUESTION__', active: !settings.escapeWildcards },
+		{ input: '\\"', output: '__QUOTE__', active: !settings.escapeQuotes },
 	];
-	for (const {input, output, active} of specialEscapeSequences) {
+	for (const { input, output, active } of specialEscapeSequences) {
 		if (active) value = value.replaceAll(input, output);
 	}
 
@@ -54,23 +52,18 @@ export function escapeRegex(value: string, settings: RegexEscapeOptions = {}) {
 	const escapeQuotes = (s: string) => s.replace(/"/g, '\\"');
 	const identity = (s: string) => s;
 
-	const operations = [
-		escapeBase,
-		settings.escapeWildcards ? escapeWildcards : activateWildcards,
-		settings.escapePipes ? escapePipes : identity,
-		settings.escapeQuotes ? escapeQuotes : identity
-	]
+	const operations = [escapeBase, settings.escapeWildcards ? escapeWildcards : activateWildcards, settings.escapePipes ? escapePipes : identity, settings.escapeQuotes ? escapeQuotes : identity];
 
 	value = operations.reduce((acc, op) => op(acc), value);
 	// Unescape the special escape sequences
-	for (const {input, output, active} of specialEscapeSequences) {
+	for (const { input, output, active } of specialEscapeSequences) {
 		if (active) value = value.replaceAll(output, input);
 	}
 	return value;
 }
 
 export function unescapeRegex(value: string, settings: RegexEscapeOptions = {}) {
-	settings = {...defaultRegexEscapeOptions, ...settings};
+	settings = { ...defaultRegexEscapeOptions, ...settings };
 
 	// NOTE: take special care for characters we might let through.
 	// We want to be able to also let the user search for those characters verbatim.
@@ -78,12 +71,12 @@ export function unescapeRegex(value: string, settings: RegexEscapeOptions = {}) 
 	// We must make sure that we do not remove these already-present backslashes (but only when they're meaningful.)
 	// There might be a better way to accomplish this, but for now we'll just replace them with a placeholder and replace them back afterwards.
 	const specialEscapeSequences = [
-		{ input: '\\|', output: '__PIPE__', active: !settings.escapePipes},
-		{ input: '\\*', output: '__STAR__', active: !settings.escapeWildcards},
-		{ input: '\\?', output: '__QUESTION__', active: !settings.escapeWildcards},
-		{ input: '\\"', output: '__QUOTE__', active: !settings.escapeQuotes}
+		{ input: '\\|', output: '__PIPE__', active: !settings.escapePipes },
+		{ input: '\\*', output: '__STAR__', active: !settings.escapeWildcards },
+		{ input: '\\?', output: '__QUESTION__', active: !settings.escapeWildcards },
+		{ input: '\\"', output: '__QUOTE__', active: !settings.escapeQuotes },
 	];
-	for (const {input, output, active} of specialEscapeSequences) {
+	for (const { input, output, active } of specialEscapeSequences) {
 		if (active) value = value.replaceAll(input, output);
 	}
 
@@ -99,12 +92,12 @@ export function unescapeRegex(value: string, settings: RegexEscapeOptions = {}) 
 		settings.escapeQuotes ? unescapeQuotes : identity,
 		settings.escapePipes ? unescapePipes : identity,
 		settings.escapeWildcards ? unescapeWildcards : deactivateWildcards,
-		unescapeBase
-	]
+		unescapeBase,
+	];
 
 	value = operations.reduce((acc, op) => op(acc), value);
 	// Unescape the special escape sequences
-	for (const {input, output, active} of specialEscapeSequences) {
+	for (const { input, output, active } of specialEscapeSequences) {
 		if (active) value = value.replaceAll(output, input);
 	}
 	return value;
@@ -134,8 +127,9 @@ export function unescapeLucene(original: string) {
 	return original.replace(/\\(\+|-|&&|\|\||!|\(|\)|{|}|\[|]|\^|"|~|:|\\|\/|\*|\?)/g, '$1');
 }
 
-export function NaNToNull(n: number) { return isNaN(n) ? null : n; }
-
+export function NaNToNull(n: number) {
+	return isNaN(n) ? null : n;
+}
 
 /**
  * @param context
@@ -162,27 +156,34 @@ export function words(context: BLTypes.BLHitSnippetPart, prop: string, doPunctBe
  * @param value the value to be parsed
  * @param type the type that the value should be parsed to, see uiType in the annotation object. Different annotation search widgets have different escaping properties (i.e. can they contain multiple values, or just one, etc.)
  */
-export const decodeAnnotationValue = (value: string|string[], type: Required<AppTypes.AnnotationValue>['type']): {case: boolean; value: string} => {
-	function isCase(v: string) { return v.startsWith('(?-i)') || v.startsWith('(?c)'); }
-	function stripCase(v: string) { return v.substr(v.startsWith('(?-i)') ? 5 : 4); }
+export const decodeAnnotationValue = (value: string | string[], type: Required<AppTypes.AnnotationValue>['type']): { case: boolean; value: string } => {
+	function isCase(v: string) {
+		return v.startsWith('(?-i)') || v.startsWith('(?c)');
+	}
+	function stripCase(v: string) {
+		return v.substr(v.startsWith('(?-i)') ? 5 : 4);
+	}
 	switch (type) {
 		case 'text':
 		case 'lexicon':
 		case 'combobox': {
 			let caseSensitive = false;
-			const annotationValue = [value].flat().map(v => {
-				if (isCase(v)) {
-					v = stripCase(v);
-					caseSensitive = true;
-				}
-				v = unescapeRegex(v, {escapePipes: false, escapeWildcards: false});
-				// Only surround with quotes when we're joining multiple values into one string and this sub-value contains whitespace
-				return Array.isArray(value) && v.match(/\s+/) ? `"${v}"` : v;
-			}).join(' ');
+			const annotationValue = [value]
+				.flat()
+				.map(v => {
+					if (isCase(v)) {
+						v = stripCase(v);
+						caseSensitive = true;
+					}
+					v = unescapeRegex(v, { escapePipes: false, escapeWildcards: false });
+					// Only surround with quotes when we're joining multiple values into one string and this sub-value contains whitespace
+					return Array.isArray(value) && v.match(/\s+/) ? `"${v}"` : v;
+				})
+				.join(' ');
 
 			return {
 				case: caseSensitive,
-				value: annotationValue
+				value: annotationValue,
 			};
 		}
 		case 'select': {
@@ -192,11 +193,12 @@ export const decodeAnnotationValue = (value: string|string[], type: Required<App
 			value = unescapeRegex(value);
 			return {
 				case: caseSensitive,
-				value
+				value,
 			};
 		}
 		case 'pos': // pos is handled separately (url-state-parser)
-		default: throw new Error('Unimplemented uitype query decoder');
+		default:
+			throw new Error('Unimplemented uitype query decoder');
 	}
 };
 
@@ -222,19 +224,19 @@ type SplitString = {
  * @param v the input string.
  * @param useQuoteDelimiters whether to use double quotes (") as delimiters or not. If not, the quotes are treated as regular characters.
  */
-export const splitIntoTerms = (value: string, useQuoteDelimiters: boolean): SplitString[]  => {
+export const splitIntoTerms = (value: string, useQuoteDelimiters: boolean): SplitString[] => {
 	let i = 0;
 	let inQuotes = false;
 	let seg = '';
 	let start = 0;
-	let segs: Array<{start: number, end: number, value: string, isQuoted: boolean}> = [];
+	let segs: Array<{ start: number; end: number; value: string; isQuoted: boolean }> = [];
 	for (const c of value) {
 		switch (c) {
 			case '"':
 				if (useQuoteDelimiters) {
 					// start or end of section (possibly both?)
 					if (seg) {
-						segs.push({start, end: i+1, value: seg, isQuoted: inQuotes})
+						segs.push({ start, end: i + 1, value: seg, isQuoted: inQuotes });
 						seg = '';
 					}
 					inQuotes = !inQuotes;
@@ -252,11 +254,11 @@ export const splitIntoTerms = (value: string, useQuoteDelimiters: boolean): Spli
 				if (inQuotes) seg += c;
 				else if (seg) {
 					// this character is already no longer a part of the segment - hence no +1 on end
-					segs.push({start, end: i, value: seg, isQuoted: inQuotes});
+					segs.push({ start, end: i, value: seg, isQuoted: inQuotes });
 					seg = '';
 				}
 				break;
-				// ignorable whitespace
+			// ignorable whitespace
 			default:
 				if (!seg && !inQuotes) start = i;
 				seg += c;
@@ -265,7 +267,7 @@ export const splitIntoTerms = (value: string, useQuoteDelimiters: boolean): Spli
 		++i;
 	}
 	if (seg) {
-		segs.push({start, end: i, value: seg, isQuoted: inQuotes});
+		segs.push({ start, end: i, value: seg, isQuoted: inQuotes });
 		seg = '';
 	}
 	return segs;
@@ -290,7 +292,6 @@ export function parenQueryPartParallel(query: string) {
  */
 export function unparenQueryPart(query?: string) {
 	if (query) {
-
 		query = query.trim();
 		while (query.match(/^\([^()]*\)$/)) {
 			query = query.substring(1, query.length - 1).trim();
@@ -302,37 +303,43 @@ export function unparenQueryPart(query?: string) {
 export function applyWithinClauses(query: string, withinClauses: Record<string, Record<string, any>>) {
 	const overlapClauses = Object.entries(withinClauses)
 		.map(([elName, attributes]) => {
-			const attr = attributes ?
-			Object.entries(attributes).filter(([k, v]) => !!v)
-				.map(([k, v]) => {
-					if (typeof v === 'string') {
-						// Regex query
-						return ` ${k}="${v.replace(/"/g, '\\"')}"`;
-					} else if (v.low || v.high) {
-						// Range query
-						return ` ${k}=in[${v.low || 0},${v.high || 9999}]`;
-					} else
-						return '';
-				})
-				.join('') : '';
+			const attr = attributes
+				? Object.entries(attributes)
+						.filter(([k, v]) => !!v)
+						.map(([k, v]) => {
+							if (typeof v === 'string') {
+								// Regex query
+								return ` ${k}="${v.replace(/"/g, '\\"')}"`;
+							} else if (v.low || v.high) {
+								// Range query
+								return ` ${k}=in[${v.low || 0},${v.high || 9999}]`;
+							} else return '';
+						})
+						.join('')
+				: '';
 			return `<${elName}${attr}/>`;
 		})
 		.join(' overlap ');
-	if (query.length > 0 && overlapClauses.length > 0)
-		return `(${query}) within ${overlapClauses}`;
+	if (query.length > 0 && overlapClauses.length > 0) return `(${query}) within ${overlapClauses}`;
 	return query.length > 0 ? query : overlapClauses;
 }
 
-type KeysOfType<Base, Condition> = keyof Pick<Base, {
-	[Key in keyof Base]: Base[Key] extends Condition ? Key : never
-}[keyof Base]>;
+type KeysOfType<Base, Condition> = keyof Pick<
+	Base,
+	{
+		[Key in keyof Base]: Base[Key] extends Condition ? Key : never;
+	}[keyof Base]
+>;
 
 /**
  * Returns a reducer function that will place all values into a map/object at the key defined by the passed string.
  * @param k key to pick from the objects
  * @param m optional mapping function to transform the objects after picking the key
  */
-export function makeMapReducer<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(k: KeysOfType<T, string>, m?: V): (m: Record<string, ReturnType<V>>, t: T, i: number) => Record<string, ReturnType<V>> {
+export function makeMapReducer<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(
+	k: KeysOfType<T, string>,
+	m?: V,
+): (m: Record<string, ReturnType<V>>, t: T, i: number) => Record<string, ReturnType<V>> {
 	return (acc: Record<string, ReturnType<V>>, v: T, i: number): Record<string, ReturnType<V>> => {
 		const kv = v[k] as any as string;
 		acc[kv] = m ? m(v, i) : v;
@@ -340,7 +347,10 @@ export function makeMapReducer<T, V extends (t: T, i: number) => any = (t: T, i:
 	};
 }
 
-export function makeMultimapReducer<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(k: KeysOfType<T, string>, m?: V): (m: Record<string, Array<ReturnType<V>>>, t: T, i: number) => Record<string, Array<ReturnType<V>>> {
+export function makeMultimapReducer<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(
+	k: KeysOfType<T, string>,
+	m?: V,
+): (m: Record<string, Array<ReturnType<V>>>, t: T, i: number) => Record<string, Array<ReturnType<V>>> {
 	return (acc: Record<string, Array<ReturnType<V>>>, v: T, i: number): Record<string, Array<ReturnType<V>>> => {
 		const kv = v[k] as any as string;
 		(acc[kv] ??= []).push(m ? m(v, i) : v);
@@ -355,7 +365,7 @@ export function makeMultimapReducer<T, V extends (t: T, i: number) => any = (t: 
  * @param t the array of strings to place in a map.
  * @param m (optional) a mapping function to apply to values.
  */
-export function mapReduce<VS extends (t: string, i: number) => any = (t: string, i: number) => true>(t: string[]|undefined|null, m?: VS): Record<string, ReturnType<VS>>;
+export function mapReduce<VS extends (t: string, i: number) => any = (t: string, i: number) => true>(t: string[] | undefined | null, m?: VS): Record<string, ReturnType<VS>>;
 /**
  * Turn an array of type T[] into a map of type {[key: string]: T}.
  * Optionally mapping the values to be something other than T.
@@ -364,25 +374,21 @@ export function mapReduce<VS extends (t: string, i: number) => any = (t: string,
  * @param k a key in the objects to use as key in the map.
  * @param m (optional) a mapping function to apply to values.
  */
-export function mapReduce<T, VT extends (t: T, i: number) => any = (t: T, i: number) => T>(t: T[]|undefined|null, k: KeysOfType<T, string>, m?: VT): Record<string, ReturnType<VT>>;
-export function mapReduce<
-	T,
-	VT extends (t: T, i: number) => any = (t: T, i: number) => T,
-	VS extends (t: string, i: number) => any = (t: string, i: number) => true
->(
-	t: string[]|T[]|undefined|null,
-	a?: VS|KeysOfType<T, string>,
-	b?: VT
+export function mapReduce<T, VT extends (t: T, i: number) => any = (t: T, i: number) => T>(t: T[] | undefined | null, k: KeysOfType<T, string>, m?: VT): Record<string, ReturnType<VT>>;
+export function mapReduce<T, VT extends (t: T, i: number) => any = (t: T, i: number) => T, VS extends (t: string, i: number) => any = (t: string, i: number) => true>(
+	t: string[] | T[] | undefined | null,
+	a?: VS | KeysOfType<T, string>,
+	b?: VT,
 ): any {
 	if (t && t.length > 0 && typeof t[0] === 'string') {
 		const values = t as string[];
-		const mapper = a as VS|undefined;
+		const mapper = a as VS | undefined;
 		return values.reduce<Record<string, ReturnType<VS>>>((acc, cur, index) => {
 			acc[cur] = mapper ? mapper(cur, index) : true;
 			return acc;
 		}, {});
 	} else {
-		const values = t as T[]|undefined|null;
+		const values = t as T[] | undefined | null;
 		const key = a as KeysOfType<T, string>;
 		return values ? values.reduce(makeMapReducer<T, VT>(key, b), {}) : {};
 	}
@@ -396,37 +402,39 @@ export function mapReduce<
  * @param k a key in the objects to use as key in the map.
  * @param m (optional) a mapping function to apply to values.
  */
-export function multimapReduce<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(t: T[]|undefined|null, k: KeysOfType<T, string>, m?: V): Record<string, Array<ReturnType<V>>> {
+export function multimapReduce<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(t: T[] | undefined | null, k: KeysOfType<T, string>, m?: V): Record<string, Array<ReturnType<V>>> {
 	return t ? t.reduce(makeMultimapReducer<T, V>(k, m), {}) : {};
 }
 
-export function filterDuplicates<T>(t: T[]|null|undefined, k: KeysOfType<T, string|number>): T[] {
-	const found = new Set<T[KeysOfType<T, string|number>]>();
-	return t ? t.filter(v => {
-		if (!found.has(v[k])) {
-			found.add(v[k]);
-			return true;
-		}
-		return false;
-	}) : [];
+export function filterDuplicates<T>(t: T[] | null | undefined, k: KeysOfType<T, string | number>): T[] {
+	const found = new Set<T[KeysOfType<T, string | number>]>();
+	return t
+		? t.filter(v => {
+				if (!found.has(v[k])) {
+					found.add(v[k]);
+					return true;
+				}
+				return false;
+			})
+		: [];
 }
 
 // --------------
 
 /** Groups always have at least one member, empty array is returned if no groups would have members. */
-export function fieldSubset<T extends {id: string}>(
+export function fieldSubset<T extends { id: string }>(
 	ids: string[],
-	groups: Array<{id: string, entries: string[]}>,
+	groups: Array<{ id: string; entries: string[] }>,
 	fields: Record<string, T>,
 	/** Reduce all groups to a single group with this id. Duplicates are removed. */
-	addAllToOneGroup?: string
-): Array<{id: string, entries: T[]}> {
-	let ret: Array<{id: string, entries: T[]}> = groups
-	.map(g => ({
-		id: g.id,
-		entries: g.entries.filter(e => ids.includes(e)).map(id => fields[id]),
-	}))
-	.filter(g => g.entries.length);
+	addAllToOneGroup?: string,
+): Array<{ id: string; entries: T[] }> {
+	let ret: Array<{ id: string; entries: T[] }> = groups
+		.map(g => ({
+			id: g.id,
+			entries: g.entries.filter(e => ids.includes(e)).map(id => fields[id]),
+		}))
+		.filter(g => g.entries.length);
 
 	if (addAllToOneGroup != null) {
 		const seenIds = new Set<string>();
@@ -462,17 +470,17 @@ export function fieldSubset<T extends {id: string}>(
  * @param showGroupLabels show little group name suffixes at the end of options?
  * @param showFieldFunction a function that returns whether a field should be shown in the list of options. If not provided, all requested fields are shown. For 'customization' (see customization.ts).
  */
-export function getMetadataSubset<T extends {id: string, defaultDisplayName?: string}>(
+export function getMetadataSubset<T extends { id: string; defaultDisplayName?: string }>(
 	ids: string[],
 	groups: AppTypes.NormalizedMetadataGroup[],
 	metadata: Record<string, T>,
-	operation: 'Sort'|'Group',
+	operation: 'Sort' | 'Group',
 	i18n: Translate,
 	debug = false,
 	/* show the <small/> labels at the end of options labels? */
 	showGroupLabels = true,
-	showFieldFunction?: (id: string) => boolean|null
-): Array<OptGroup&{entries: T[]}> {
+	showFieldFunction?: (id: string) => boolean | null,
+): Array<OptGroup & { entries: T[] }> {
 	const subset = fieldSubset(ids, groups, metadata);
 
 	// Map a metadata field's id + displayname + group to an option for rendering a groupby or sortby dropdown.
@@ -486,23 +494,21 @@ export function getMetadataSubset<T extends {id: string, defaultDisplayName?: st
 		const labelI18nKey = operation === 'Sort' ? 'results.table.sortBy' : 'results.table.groupBy';
 		r.push({
 			value: operation === 'Sort' ? `field:${value}` : value, // groupby prepends field: on its own
-			label: i18n.$t(labelI18nKey, {field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`}).toString(),
+			label: i18n.$t(labelI18nKey, { field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}` }).toString(),
 		});
 		if (operation === 'Sort') {
 			r.push({
 				value: `-field:${value}`,
-				label: i18n.$t('results.table.sortByDescending', {field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`}).toString(),
+				label: i18n.$t('results.table.sortByDescending', { field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}` }).toString(),
 			});
 		}
 		return r;
 	}
 
-	const r = subset.map<OptGroup&{entries: T[]}>(group => ({
-		options: group.entries
-			.filter(e => showFieldFunction?.(e.id) ?? true)
-			.flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),
+	const r = subset.map<OptGroup & { entries: T[] }>(group => ({
+		options: group.entries.filter(e => showFieldFunction?.(e.id) ?? true).flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),
 		entries: group.entries,
-		label: i18n.$tMetaGroupName(group.id)
+		label: i18n.$tMetaGroupName(group.id),
 	}));
 
 	return r;
@@ -522,25 +528,25 @@ export function getAnnotationSubset(
 	ids: string[],
 	groups: AppTypes.NormalizedAnnotationGroup[],
 	annotations: Record<string, AppTypes.NormalizedAnnotation>,
-	operation: 'Search'|'Sort',
+	operation: 'Search' | 'Sort',
 	i18n: Translate,
-	corpusTextDirection: 'rtl'|'ltr' = 'ltr',
+	corpusTextDirection: 'rtl' | 'ltr' = 'ltr',
 	debug = false,
-	showGroupLabels = false
-): Array<OptGroup&{entries: AppTypes.NormalizedAnnotation[]}> {
+	showGroupLabels = false,
+): Array<OptGroup & { entries: AppTypes.NormalizedAnnotation[] }> {
 	function findAnnotatedFieldId(groupId: string) {
 		return groups.find(g => g.id === groupId)?.annotatedFieldId || groups[0].annotatedFieldId;
 	}
 
 	const subset = fieldSubset(ids, groups, annotations, operation !== 'Search' ? 'Other' : undefined);
-	if (operation === 'Search')	{
+	if (operation === 'Search') {
 		return subset.map(group => {
 			const annotationGroupMock: AppTypes.NormalizedAnnotationGroup = {
 				annotatedFieldId: findAnnotatedFieldId(group.id),
 				entries: [],
 				id: group.id,
-				isRemainderGroup: false
-			}
+				isRemainderGroup: false,
+			};
 			const groupNameLocalized = i18n.$tAnnotGroupName(annotationGroupMock);
 
 			return {
@@ -548,12 +554,12 @@ export function getAnnotationSubset(
 				options: group.entries.map(a => ({
 					value: a.id,
 					label: i18n.$tAnnotDisplayName(a) + (showGroupLabels ? ` <small class="text-muted">${groupNameLocalized}</small>` : '') + (debug ? ` <small><strong>[id: ${a.id}]</strong></small>` : ''),
-					title: i18n.$tAnnotDescription(a)
+					title: i18n.$tAnnotDescription(a),
 				})),
 				// hack, when using a default group we need to come up with an annotated field
 				// So just use the first annotated field we come across.
-				label: i18n.$tAnnotGroupName({id: group.id, annotatedFieldId: findAnnotatedFieldId(group.id), entries: [], isRemainderGroup: false}),
-			}
+				label: i18n.$tAnnotGroupName({ id: group.id, annotatedFieldId: findAnnotatedFieldId(group.id), entries: [], isRemainderGroup: false }),
+			};
 		});
 	} else {
 		// Generate options for sorting by annotation.
@@ -562,28 +568,29 @@ export function getAnnotationSubset(
 		return [
 			['hit:', 'Hit', ''],
 			['before:', 'Before hit', 'before'],
-			['after:', 'After hit', 'after']
-		]
-		.map<OptGroup&{entries: AppTypes.NormalizedAnnotation[]}>(([prefix, groupname, suffix]) =>({
+			['after:', 'After hit', 'after'],
+		].map<OptGroup & { entries: AppTypes.NormalizedAnnotation[] }>(([prefix, groupname, suffix]) => ({
 			label: groupname,
 			entries: subset[0].entries,
 			options: ids.flatMap<Option>(id => {
 				// in debug mode - show IDs
 				const displayIdHtml = debug ? `<small><strong>[id: ${id}]</strong></small>` : '';
 				const displayNameHtml = i18n.$tAnnotDisplayName(annotations[id]);
-				const displaySuffixHtml = (showGroupLabels && suffix) ? `<small class="text-muted">${suffix}</small>` : '';
+				const displaySuffixHtml = showGroupLabels && suffix ? `<small class="text-muted">${suffix}</small>` : '';
 
-				return [{
-					label: i18n.$t('results.table.sortBy', {field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`}).toString(),
-					value: `${prefix}${id}`
-				}, {
-					label: i18n.$t('results.table.sortByDescending', {field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`}).toString(),
-					value: `-${prefix}${id}`
-				}]
-			})
+				return [
+					{
+						label: i18n.$t('results.table.sortBy', { field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}` }).toString(),
+						value: `${prefix}${id}`,
+					},
+					{
+						label: i18n.$t('results.table.sortByDescending', { field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}` }).toString(),
+						value: `-${prefix}${id}`,
+					},
+				];
+			}),
 		}));
 	}
-
 }
 
 /**
@@ -597,36 +604,35 @@ export function binarySearch<T>(a: T[], compare: (el: T) => number) {
 	let high = a.length - 1;
 
 	while (low <= high) {
-		let mid = Math.floor(low + ((high - low) / 2));
+		let mid = Math.floor(low + (high - low) / 2);
 		let midVal = a[mid];
 
 		const cmp = compare(midVal);
-		if (cmp > 0)
-			low = mid + 1
-		else if (cmp < 0)
-			high = mid - 1;
-		else
-			return mid; // key found
+		if (cmp > 0) low = mid + 1;
+		else if (cmp < 0) high = mid - 1;
+		else return mid; // key found
 	}
-	return -low;  // key not found.
+	return -low; // key not found.
 }
 
 /** Compile time checking: ensure the passed parameter is of the template type and return it (no-op).
  * Can use while setting variables initial value for example. */
-export function cast<T>(t: T): T { return t; }
+export function cast<T>(t: T): T {
+	return t;
+}
 
-export const uiTypeSupport: {[key: string]: {[key: string]: Array<AppTypes.NormalizedAnnotation['uiType']>}} = {
+export const uiTypeSupport: { [key: string]: { [key: string]: Array<AppTypes.NormalizedAnnotation['uiType']> } } = {
 	search: {
 		simple: ['combobox', 'select', 'lexicon'],
 		extended: ['combobox', 'select', 'pos'],
 	},
 	explore: {
-		ngram: ['combobox', 'select']
-	}
+		ngram: ['combobox', 'select'],
+	},
 };
 
 export function getCorrectUiType<T extends AppTypes.NormalizedAnnotation['uiType']>(allowed: T[], actual: T): T {
-	return allowed.includes(actual) ? actual : 'text' as any;
+	return allowed.includes(actual) ? actual : ('text' as any);
 }
 
 // Must be here to avoid recursive dependencies
@@ -653,7 +659,7 @@ export function getParallelFieldParts(fieldName: string) {
 		/** The base field, e.g. "contents" */
 		prefix: parts[0],
 		/** The suffix, e.g. "en" or "nl". Empty string when the field is not parallel. */
-		version: parts[1]
+		version: parts[1],
 	};
 }
 
@@ -678,21 +684,20 @@ export function ensureCompleteFieldName(fieldOrVersion: string, defaultFieldName
 	}
 }
 
-
 /** Does the specified field name denote a field in a parallel corpus? */
 export function isParallelField(fieldName: string) {
 	return fieldName.includes(PARALLEL_FIELD_SEPARATOR);
 }
 
 /** Are these valid parameters with a pattern that will yield results with hits? */
-export function isHitParams(params: BLTypes.BLSearchParameters|null|undefined): params is BLTypes.BLSearchParameters {
-	return !! (params && params.patt);
+export function isHitParams(params: BLTypes.BLSearchParameters | null | undefined): params is BLTypes.BLSearchParameters {
+	return !!(params && params.patt);
 }
 
-/** 
- * We need to generate filter IDs for spans, which should never collide with filters for builtin metadata fields of the corpus 
- * (which always have a filter with that same ID) 
- * To that end, we always combine the spans ("inlineTags") with a fixed prefix, 
+/**
+ * We need to generate filter IDs for spans, which should never collide with filters for builtin metadata fields of the corpus
+ * (which always have a filter with that same ID)
+ * To that end, we always combine the spans ("inlineTags") with a fixed prefix,
  * This also happens during e.g. query parsing (for blacklab patterns like `<speech person="Smith">`)
  * Will be parsed (roughly) into a filter mapping of { "span:speech:person": "Smith" }
  */

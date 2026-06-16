@@ -4,20 +4,26 @@ export type SimpleOption = string;
 export type Option = {
 	value: string;
 	label?: string;
-	title?: string|null;
+	title?: string | null;
 	disabled?: boolean;
 };
 /** Generic object to represent a group of Options in a dropdown multiple-choide, checkbox list, etc. */
 export type OptGroup = {
 	label?: string;
-	title?: string|null;
+	title?: string | null;
 	disabled?: boolean;
-	options: Array<string|Option>;
+	options: Array<string | Option>;
 };
-export type Options = Array<SimpleOption|Option|OptGroup>;
-export function isSimpleOption(e: any): e is SimpleOption { return typeof e === 'string'; }
-export function isOption(e: any): e is Option { return e && isSimpleOption(e.value); }
-export function isOptGroup(e: any): e is OptGroup { return e && typeof e.label === 'string' && Array.isArray(e.options); }
+export type Options = Array<SimpleOption | Option | OptGroup>;
+export function isSimpleOption(e: any): e is SimpleOption {
+	return typeof e === 'string';
+}
+export function isOption(e: any): e is Option {
+	return e && isSimpleOption(e.value);
+}
+export function isOptGroup(e: any): e is OptGroup {
+	return e && typeof e.label === 'string' && Array.isArray(e.options);
+}
 export function findOption(options: Options, value: string): Option | null {
 	for (const option of options) {
 		if (isSimpleOption(option)) {
@@ -39,16 +45,16 @@ export function findOptions(options: Options, values: string[]): Option[] {
 	}
 	return foundOptions;
 }
-export function optionValue(option: SimpleOption|Option): string {
+export function optionValue(option: SimpleOption | Option): string {
 	return isSimpleOption(option) ? option : option.value;
 }
-export function optionLabel(option: SimpleOption|Option): string {
+export function optionLabel(option: SimpleOption | Option): string {
 	return isSimpleOption(option) ? option : (option.label ?? option.value);
 }
-export function optionTitle(option: SimpleOption|Option): string {
+export function optionTitle(option: SimpleOption | Option): string {
 	return isSimpleOption(option) ? option : (option.title ?? option.label ?? option.value);
 }
-export function optionDisabled(option: SimpleOption|Option): boolean {
+export function optionDisabled(option: SimpleOption | Option): boolean {
 	return isSimpleOption(option) ? false : !!option.disabled;
 }
 export function optionValues(options: Options): string[] {
@@ -65,7 +71,7 @@ export function optionValues(options: Options): string[] {
 	return values;
 }
 
-export function filterOptions(options: Array<SimpleOption|Option>, keep: Set<string>): [Array<SimpleOption|Option>, Array<SimpleOption|Option>];
+export function filterOptions(options: Array<SimpleOption | Option>, keep: Set<string>): [Array<SimpleOption | Option>, Array<SimpleOption | Option>];
 export function filterOptions(options: Options, keep: Set<string>): [Options, Options];
 export function filterOptions(options: Options, keep: Set<string>): [Options, Options] {
 	const keptOptions: Options = [];

@@ -10,11 +10,12 @@ const BaseParallelInfo = defineComponent({
 		isParallelCorpus: CorpusStore.get.isParallelCorpus,
 		/** If this is a parallel corpus: the vailable source version options (all except current targets) */
 		pSourceOptions(): Option[] {
-			const opt = CorpusStore.get.parallelAnnotatedFields()
+			const opt = CorpusStore.get
+				.parallelAnnotatedFields()
 				.filter(f => !this.pTargetValue.includes(f.id))
 				.map(f => ({
 					value: f.id,
-					label: this.$tAnnotatedFieldDisplayName(f)
+					label: this.$tAnnotatedFieldDisplayName(f),
 				}));
 			return opt.sort((a, b) => a.label.localeCompare(b.label));
 		},
@@ -24,21 +25,24 @@ const BaseParallelInfo = defineComponent({
 		},
 		/** If this is a parallel corpus: the available target version options (all except current source) */
 		pTargetOptionsWithCurrent(): Option[] {
-			const opt = CorpusStore.get.parallelAnnotatedFields()
+			const opt = CorpusStore.get
+				.parallelAnnotatedFields()
 				.filter(f => f.id !== this.pSourceValue)
 				.map(f => ({
 					value: f.id,
-					label: this.$tAnnotatedFieldDisplayName(f)
-				}))
+					label: this.$tAnnotatedFieldDisplayName(f),
+				}));
 			return opt.sort((a, b) => a.label.localeCompare(b.label));
 		},
 		/** For rendering, contains the localized display name as label and the field's id as value. */
-		pSource(): Option|undefined {
+		pSource(): Option | undefined {
 			const sourceField = CorpusStore.get.parallelAnnotatedFieldsMap()[this.pSourceValue!];
-			return sourceField && {
-				value: sourceField.id,
-				label: this.$tAnnotatedFieldDisplayName(sourceField),
-			}
+			return (
+				sourceField && {
+					value: sourceField.id,
+					label: this.$tAnnotatedFieldDisplayName(sourceField),
+				}
+			);
 		},
 		/** For rendering, contains the localized display name as label and the field's id as value. */
 		pTargets(): Option[] {
@@ -51,14 +55,22 @@ const BaseParallelInfo = defineComponent({
 
 		/** For binding to e.g. SelectPicker v-model */
 		pSourceValue: {
-			get(): string|null { return PatternStore.get.shared().source; },
-			set(value: string) { PatternStore.actions.shared.sourceField(value); }
+			get(): string | null {
+				return PatternStore.get.shared().source;
+			},
+			set(value: string) {
+				PatternStore.actions.shared.sourceField(value);
+			},
 		},
 		/** For binding to e.g. SelectPicker v-model */
 		pTargetValue: {
-			get(): string[] { return PatternStore.get.shared().targets; },
-			set(value: string[]) { PatternStore.actions.shared.targetFields(value); }
-		}
+			get(): string[] {
+				return PatternStore.get.shared().targets;
+			},
+			set(value: string[]) {
+				PatternStore.actions.shared.targetFields(value);
+			},
+		},
 	},
 	methods: {
 		addTarget(targetAnnotatedFieldId: string) {
@@ -69,8 +81,8 @@ const BaseParallelInfo = defineComponent({
 		},
 		setSource(sourceAnnotatedFieldId: string) {
 			PatternStore.actions.shared.sourceField(sourceAnnotatedFieldId);
-		}
-	}
-})
+		},
+	},
+});
 
 export default BaseParallelInfo;

@@ -2,19 +2,14 @@
 	<table class="results-table">
 		<thead>
 			<tr>
-				<TableHeader v-for="(col, i) in header"
-					:key="col.key"
-					:col="col" :disabled="disabled"
-					@changeSort="emit('changeSort', $event)"
-					:sort="sort"
-				>
-					<v-dropdown v-if="i === 0 && col.field === 'group'" :distance="5" style="display:inline-block;">
+				<TableHeader v-for="(col, i) in header" :key="col.key" :col="col" :disabled="disabled" @changeSort="emit('changeSort', $event)" :sort="sort">
+					<v-dropdown v-if="i === 0 && col.field === 'group'" :distance="5" style="display: inline-block">
 						<a role="button" title="Column meanings"><span class="fa fa-lg fa-question-circle"></span></a>
 						<template #popper>
-							<table class="table table-condensed" style="table-layout:auto; max-width:calc(100vw - 75px);width:500px;">
+							<table class="table table-condensed" style="table-layout: auto; max-width: calc(100vw - 75px); width: 500px">
 								<tbody>
 									<tr v-for="(row, i) in definitions" :key="i">
-										<td v-for="(cell, j) in row" :key="j">{{cell}}</td>
+										<td v-for="(cell, j) in row" :key="j">{{ cell }}</td>
 									</tr>
 								</tbody>
 							</table>
@@ -27,63 +22,73 @@
 			<template v-for="(row, index) in rows.rows">
 				<template v-if="row.type === 'doc' && !showTitles"></template>
 				<template v-else>
-				<component :is="row.type === 'doc' ? DocRow : row.type === 'hit' ? HitRow : GroupRow"
-					:class="{
-						rounded: true,
-						open: openRows[row.hit_id || index],
-						interactable: isOpenable(row),
-						topborder: index > 0 && 'first_of_hit' in row && row.first_of_hit,
-						bottomborder: 'last_of_hit' in row && row.last_of_hit && (index < rows.rows.length - 1),
-						muted: row.muted
-					}"
-					:row="row as any"
-					:info="info"
-					:cols="cols"
-					:maxima="rows.maxima"
-					:open="!!openRows[row.hit_id || index]"
-					:disabled="disabled"
-					:type="type"
-					:query="query"
-					:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
-					@hover="hoverMatchInfos = $event; hoverMatchInfosId = row.hit_id"
-					@unhover="hoverMatchInfos = undefined"
-					@click="toggleRow(index)"
-				/>
-				<component v-if="!disableDetails" v-show="openRows[row.hit_id || index]" :is="row.type === 'doc' ? DocRowDetails : row.type === 'hit' ? HitRowDetails : GroupRowDetails"
-					:class="{
-						details: true,
-						rounded: true,
-						open: openRows[row.hit_id || index],
-						muted: row.muted
-					}"
-					:row="row as any"
-					:info="info"
-					:cols="cols"
-					:maxima="rows.maxima"
-					:open="!!openRows[row.hit_id || index]"
-					:disabled="disabled"
-					:type="type"
-					:query="query"
-					:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
-					@hover="hoverMatchInfos = $event; hoverMatchInfosId = row.hit_id"
-					@unhover="hoverMatchInfos = undefined"
-					@close="toggleRow(index)"
-					@openFullConcordances="openFullConcordances(row)"
-				/>
-			</template>
+					<component
+						:is="row.type === 'doc' ? DocRow : row.type === 'hit' ? HitRow : GroupRow"
+						:class="{
+							rounded: true,
+							open: openRows[row.hit_id || index],
+							interactable: isOpenable(row),
+							topborder: index > 0 && 'first_of_hit' in row && row.first_of_hit,
+							bottomborder: 'last_of_hit' in row && row.last_of_hit && index < rows.rows.length - 1,
+							muted: row.muted,
+						}"
+						:row="row as any"
+						:info="info"
+						:cols="cols"
+						:maxima="rows.maxima"
+						:open="!!openRows[row.hit_id || index]"
+						:disabled="disabled"
+						:type="type"
+						:query="query"
+						:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
+						@hover="
+							hoverMatchInfos = $event;
+							hoverMatchInfosId = row.hit_id;
+						"
+						@unhover="hoverMatchInfos = undefined"
+						@click="toggleRow(index)"
+					/>
+					<component
+						v-if="!disableDetails"
+						v-show="openRows[row.hit_id || index]"
+						:is="row.type === 'doc' ? DocRowDetails : row.type === 'hit' ? HitRowDetails : GroupRowDetails"
+						:class="{
+							details: true,
+							rounded: true,
+							open: openRows[row.hit_id || index],
+							muted: row.muted,
+						}"
+						:row="row as any"
+						:info="info"
+						:cols="cols"
+						:maxima="rows.maxima"
+						:open="!!openRows[row.hit_id || index]"
+						:disabled="disabled"
+						:type="type"
+						:query="query"
+						:hoverMatchInfos="row.hit_id === hoverMatchInfosId ? hoverMatchInfos : undefined"
+						@hover="
+							hoverMatchInfos = $event;
+							hoverMatchInfosId = row.hit_id;
+						"
+						@unhover="hoverMatchInfos = undefined"
+						@close="toggleRow(index)"
+						@openFullConcordances="openFullConcordances(row)"
+					/>
+				</template>
 			</template>
 		</tbody>
 	</table>
 </template>
 
 <script setup lang="ts">
+import { ref, watch } from 'vue';
 
-import '@/pages/search/results/table/TableHeader.vue';
 import type { ColumnDef, ColumnDefs, DisplaySettingsForRendering, DocRowData, GroupRowData, HitRowData, Rows } from '@/pages/search/results/table/table-layout';
 import { definitions } from '@/pages/search/results/table/table-layout';
 import type { BLSearchParameters } from '@/types/blacklabtypes';
 
-
+import '@/pages/search/results/table/TableHeader.vue';
 import DocRow from '@/pages/search/results/table/DocRow.vue';
 import DocRowDetails from '@/pages/search/results/table/DocRowDetails.vue';
 import GroupRow from '@/pages/search/results/table/GroupRow.vue';
@@ -91,37 +96,39 @@ import GroupRowDetails from '@/pages/search/results/table/GroupRowDetails.vue';
 import HitRow from '@/pages/search/results/table/HitRow.vue';
 import HitRowDetails from '@/pages/search/results/table/HitRowDetails.vue';
 import TableHeader from '@/pages/search/results/table/TableHeader.vue';
-import { ref, watch } from 'vue';
 
 defineOptions({
 	name: 'GenericTable',
 });
 const emit = defineEmits<{
-	viewgroup: [id: string, displayname: string],
-	changeSort: [sortProp: string]
+	viewgroup: [id: string, displayname: string];
+	changeSort: [sortProp: string];
 }>();
-const props = withDefaults(defineProps<{
-	cols: ColumnDefs,
-	header: ColumnDef[],
-	rows: Rows,
-	info: DisplaySettingsForRendering,
-	disabled?: boolean,
-	disableDetails?: boolean,
+const props = withDefaults(
+	defineProps<{
+		cols: ColumnDefs;
+		header: ColumnDef[];
+		rows: Rows;
+		info: DisplaySettingsForRendering;
+		disabled?: boolean;
+		disableDetails?: boolean;
 
-	showTitles?: boolean,
-	sort?: string|null,
+		showTitles?: boolean;
+		sort?: string | null;
 
-	type: 'hits'|'docs',
-	query?: BLSearchParameters,
-}>(), {
-	showTitles: true
-});
+		type: 'hits' | 'docs';
+		query?: BLSearchParameters;
+	}>(),
+	{
+		showTitles: true,
+	},
+);
 
-const openRows = ref<Record<number|string, boolean>>({});
-const hoverMatchInfos = ref<undefined|string[]>(undefined);
-const hoverMatchInfosId = ref<undefined|string>(undefined);
+const openRows = ref<Record<number | string, boolean>>({});
+const hoverMatchInfos = ref<undefined | string[]>(undefined);
+const hoverMatchInfosId = ref<undefined | string>(undefined);
 
-function isOpenable(row: HitRowData|DocRowData|GroupRowData) {
+function isOpenable(row: HitRowData | DocRowData | GroupRowData) {
 	if (props.disabled || props.disableDetails) return false;
 	if (row.type === 'group') return true;
 	if (row.type === 'hit' && props.type === 'hits') return true;
@@ -130,7 +137,7 @@ function isOpenable(row: HitRowData|DocRowData|GroupRowData) {
 }
 function hasForeignHit(rows: Rows) {
 	return rows.rows.some(row => row.type === 'hit' && row.isForeign);
-};
+}
 function toggleRow(index: number) {
 	const row = props.rows.rows[index];
 	if (!isOpenable(row)) return;
@@ -138,21 +145,19 @@ function toggleRow(index: number) {
 	const newState = !openRows.value[id];
 	openRows.value[id] = newState;
 }
-function openFullConcordances(row: HitRowData|DocRowData|GroupRowData) {
+function openFullConcordances(row: HitRowData | DocRowData | GroupRowData) {
 	if ('displayname' in row) {
 		emit('viewgroup', row.id, row.displayname);
 	}
 }
 
-
-watch(() => props.query, () => openRows.value = {});
-
+watch(
+	() => props.query,
+	() => (openRows.value = {}),
+);
 </script>
 
 <style lang="scss">
-
-
-
 table.results-table {
 	table-layout: auto;
 	// border-collapse: separate;
@@ -175,15 +180,16 @@ table.results-table {
 
 		&:hover,
 		&:focus {
-			background-color: #eee!important;
+			background-color: #eee !important;
 		}
 		&:active {
-			background-color: #ddd!important;
+			background-color: #ddd !important;
 		}
 	}
 
 	tr.rounded {
-		> th, > td {
+		> th,
+		> td {
 			padding: 0 4px;
 
 			&:first-child {
@@ -196,11 +202,13 @@ table.results-table {
 			}
 		}
 
-		&.open:not(.details) > td, &.open > th {
+		&.open:not(.details) > td,
+		&.open > th {
 			border-bottom-left-radius: 0;
 			border-bottom-right-radius: 0;
 		}
-		&.open.details > td, &.open > th {
+		&.open.details > td,
+		&.open > th {
 			border-top-left-radius: 0;
 			border-top-right-radius: 0;
 		}
@@ -214,14 +222,20 @@ table.results-table {
 				border-bottom: 1px solid #ddd;
 				padding-top: 8px;
 				padding-bottom: 8px;
-				&:first-child { border-left: 2px solid #ddd; }
-				&:last-child { border-right: 2px solid #ddd; }
+				&:first-child {
+					border-left: 2px solid #ddd;
+				}
+				&:last-child {
+					border-right: 2px solid #ddd;
+				}
 			}
 			&.details > td {
 				border-top: none;
 				border-bottom: 2px solid #ddd;
 				padding: 15px 20px;
-				> p { margin: 0 6px 10px; }
+				> p {
+					margin: 0 6px 10px;
+				}
 			}
 		}
 	}
@@ -240,8 +254,12 @@ table.results-table {
 		font-style: italic;
 	}
 
-	tr.muted + tr:not(.muted) { border-top: 2px dashed #aaa; }
-	tr:not(.muted) + tr.muted { border-top: 2px dashed #aaa; }
+	tr.muted + tr:not(.muted) {
+		border-top: 2px dashed #aaa;
+	}
+	tr:not(.muted) + tr.muted {
+		border-top: 2px dashed #aaa;
+	}
 
 	// Subtly style rows outside the shared URL-requested range
 	tr.muted {
@@ -252,5 +270,4 @@ table.results-table {
 		}
 	}
 }
-
 </style>

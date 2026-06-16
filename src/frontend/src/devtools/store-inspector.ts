@@ -1,6 +1,11 @@
+import { setupDevtoolsPlugin } from '@vue/devtools-api';
+import { isRef, toRaw, unref, watch, type App } from 'vue';
+
 import * as RootStore from '@/app/state/root-store';
+import * as UIStore from '@/app/state/ui-state';
 import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
@@ -10,11 +15,6 @@ import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewsStore from '@/features/search/model/results/view-state';
-import * as TagsetStore from '@/features/corpus/model/tagset-state';
-import * as UIStore from '@/app/state/ui-state';
-
-import { setupDevtoolsPlugin } from '@vue/devtools-api';
-import { isRef, toRaw, unref, watch, type App } from 'vue';
 
 const DEVTOOLS_PLUGIN_ID = 'blacklab-frontend-store-devtools';
 const STORE_INSPECTOR_ID = 'blacklab-frontend-store-inspector';
@@ -141,11 +141,13 @@ function evaluateGetterValue(value: unknown): unknown {
 function makeGetterFields(getterTree: unknown, path: string[] = []): InspectorField[] {
 	if (!isPlainRecord(getterTree)) {
 		return path.length
-			? [{
-				key: path.join('.'),
-				value: evaluateGetterValue(getterTree),
-				editable: false,
-			}]
+			? [
+					{
+						key: path.join('.'),
+						value: evaluateGetterValue(getterTree),
+						editable: false,
+					},
+				]
 			: [];
 	}
 
@@ -153,11 +155,13 @@ function makeGetterFields(getterTree: unknown, path: string[] = []): InspectorFi
 		const nextPath = [...path, key];
 		return isPlainRecord(value)
 			? makeGetterFields(value, nextPath)
-			: [{
-				key: nextPath.join('.'),
-				value: evaluateGetterValue(value),
-				editable: false,
-			}];
+			: [
+					{
+						key: nextPath.join('.'),
+						value: evaluateGetterValue(value),
+						editable: false,
+					},
+				];
 	});
 }
 
@@ -189,9 +193,9 @@ function makeRootStoreNode(filterText: string): InspectorNode | null {
 	const filter = filterText.trim().toLowerCase();
 	return !filter || ROOT_STORE.label.toLowerCase().includes(filter)
 		? {
-			id: ROOT_STORE.id,
-			label: ROOT_STORE.label,
-		}
+				id: ROOT_STORE.id,
+				label: ROOT_STORE.label,
+			}
 		: null;
 }
 
@@ -224,10 +228,10 @@ function filterGroup(group: StoreGroup, filter: string): InspectorNode | null {
 
 	return children.length
 		? {
-			id: group.id,
-			label: group.label,
-			children,
-		}
+				id: group.id,
+				label: group.label,
+				children,
+			}
 		: null;
 }
 
@@ -286,11 +290,13 @@ function makeLeafState(store: StoreLeaf): InspectorState {
 	const state: InspectorState = {};
 
 	if (store.readState) {
-		state.State = [{
-			key: 'state',
-			value: unwrapInspectorValue(store.readState()),
-			editable: false,
-		}];
+		state.State = [
+			{
+				key: 'state',
+				value: unwrapInspectorValue(store.readState()),
+				editable: false,
+			},
+		];
 	}
 
 	const getterFields = makeGetterFields(store.readGetters());
@@ -376,13 +382,17 @@ export function installStoreInspectorDevtools(app: App): void {
 			});
 
 			STORE_LEAVES.forEach(store => {
-					const watchSource = store.watchState ?? store.readState ?? store.readGetters;
-					watch(watchSource, () => {
-					refreshInspector();
-				}, { deep: true });
+				const watchSource = store.watchState ?? store.readState ?? store.readGetters;
+				watch(
+					watchSource,
+					() => {
+						refreshInspector();
+					},
+					{ deep: true },
+				);
 			});
 
 			refreshInspector(true);
-		}
+		},
 	);
 }

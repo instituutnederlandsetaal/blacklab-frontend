@@ -1,35 +1,35 @@
-import { of } from "rxjs";
-import { switchMap } from "rxjs/internal/operators/switchMap";
-import type { ObservableInput } from "rxjs/internal/types";
+import { of } from 'rxjs';
+import { switchMap } from 'rxjs/internal/operators/switchMap';
+import type { ObservableInput } from 'rxjs/internal/types';
 
-import type { BlackLabApi } from "@/api";
-import type { NormalizedIndex } from "@/types/apptypes";
-import { InteractiveLoadable, Loadable } from "@/utils/loadable-streams";
-import { getCorpusTotals, getTotals } from "./result-count-helpers";
+import type { BlackLabApi } from '@/api';
+import type { NormalizedIndex } from '@/types/apptypes';
+import { InteractiveLoadable, Loadable } from '@/utils/loadable-streams';
+
+import { getCorpusTotals, getTotals } from './result-count-helpers';
 
 export type SubcorpusInput = {
 	index: NormalizedIndex;
-	filter: string|undefined|null;
+	filter: string | undefined | null;
 	annotatedFieldId: string;
-}
+};
 
 export type SubcorpusOutput = {
 	numberOfMatchingDocuments: number;
 	tokensInMatchingDocuments: number;
 	totalDocsInIndex: number;
 	totalTokensInIndex: number;
-}
-
+};
 
 export function getFilteredSubcorpus(api: BlackLabApi, input: SubcorpusInput & { filter: string }) {
 	return api
-		.getDocs(input.index.id, {filter: input.filter, first: 0, number: 0, includetokencount: true, waitfortotal: true})
+		.getDocs(input.index.id, { filter: input.filter, first: 0, number: 0, includetokencount: true, waitfortotal: true })
 		.then(r => getTotals(r, input.annotatedFieldId))
 		.then(totals => ({
 			numberOfMatchingDocuments: totals.numberOfMatchingDocuments,
 			tokensInMatchingDocuments: totals.tokensInMatchingDocuments,
 			totalDocsInIndex: input.index.documentCount,
-			totalTokensInIndex: input.index.tokenCount
+			totalTokensInIndex: input.index.tokenCount,
 		}));
 }
 
@@ -39,14 +39,17 @@ export function getFilteredSubcorpus(api: BlackLabApi, input: SubcorpusInput & {
  */
 export class FilteredResultCountLoader extends InteractiveLoadable<SubcorpusInput, SubcorpusOutput> {
 	constructor(api: BlackLabApi, debounceMs = 1000) {
-		super(switchMap<SubcorpusInput, ObservableInput<Loadable<SubcorpusOutput>>>(input => {
-			if (!input.filter) {
-				return of(Loadable.Loaded(getCorpusTotals(input.index, input.annotatedFieldId)));
-			}
+		super(
+			switchMap<SubcorpusInput, ObservableInput<Loadable<SubcorpusOutput>>>(input => {
+				if (!input.filter) {
+					return of(Loadable.Loaded(getCorpusTotals(input.index, input.annotatedFieldId)));
+				}
 
-			return getFilteredSubcorpus(api, {...input, filter: input.filter}).toObservable();
-		}), {
-			debounce: input => input.filter ? debounceMs : 0,
-		});
+				return getFilteredSubcorpus(api, { ...input, filter: input.filter }).toObservable();
+			}),
+			{
+				debounce: input => (input.filter ? debounceMs : 0),
+			},
+		);
 	}
 }

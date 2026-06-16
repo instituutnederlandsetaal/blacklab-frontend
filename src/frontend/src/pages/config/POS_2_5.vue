@@ -1,15 +1,15 @@
 <template>
 	<div>
-		<h3>{{title}}</h3>
+		<h3>{{ title }}</h3>
 		<p class="text-muted">
-			Add exclusion criteria to filter out tokens that shouldn't be included in the tagset generation.
-			For example, tokens with <code>isclitic="true"</code> that might contain mixed lemma/POS information.
+			Add exclusion criteria to filter out tokens that shouldn't be included in the tagset generation. For example, tokens with <code>isclitic="true"</code> that might contain mixed lemma/POS
+			information.
 		</p>
 
-		<div v-for="(exclusion, index) in localExclusions" :key="index" class="panel panel-default" style="margin-bottom: 10px;">
+		<div v-for="(exclusion, index) in localExclusions" :key="index" class="panel panel-default" style="margin-bottom: 10px">
 			<div class="panel-body">
-				<div style="display: flex; gap: 10px; width: 100%; align-items: flex-start;">
-					<div style="display: flex; flex-direction: column; flex-grow: 0;">
+				<div style="display: flex; gap: 10px; width: 100%; align-items: flex-start">
+					<div style="display: flex; flex-direction: column; flex-grow: 0">
 						<label>Annotation</label>
 						<SelectPicker
 							:options="annotationOptions"
@@ -20,7 +20,7 @@
 							searchable
 						/>
 					</div>
-					<div style="display: flex; flex-direction: column; flex-grow: 0;">
+					<div style="display: flex; flex-direction: column; flex-grow: 0">
 						<label>Values to exclude</label>
 						<SelectPicker
 							:options="getValuesForAnnotation(exclusion.annotationId)"
@@ -32,7 +32,7 @@
 							:disabled="!exclusion.annotationId"
 						/>
 					</div>
-					<div style="align-self: flex-end;">
+					<div style="align-self: flex-end">
 						<button type="button" class="btn btn-danger" @click="removeExclusion(index)">
 							<span class="fa fa-trash"></span>
 						</button>
@@ -41,18 +41,16 @@
 			</div>
 		</div>
 
-		<button type="button" class="btn btn-default" @click="addExclusion">
-			<span class="fa fa-plus"></span> Add exclusion
-		</button>
+		<button type="button" class="btn btn-default" @click="addExclusion"><span class="fa fa-plus"></span> Add exclusion</button>
 
-		<div v-if="localExclusions.some(e => e.annotationId && e.values.length)" style="margin-top: 20px;" class="panel panel-info">
+		<div v-if="localExclusions.some(e => e.annotationId && e.values.length)" style="margin-top: 20px" class="panel panel-info">
 			<div class="panel-heading">Query clause that will be added</div>
 			<div class="panel-body">
-				<code>{{queryClause}}</code>
+				<code>{{ queryClause }}</code>
 			</div>
 		</div>
 
-		<div style="margin-top: 20px;">
+		<div style="margin-top: 20px">
 			<button type="button" class="btn btn-primary" @click="submit">OK</button>
 			<button type="button" class="btn btn-default" @click="skip">Skip (no exclusions)</button>
 		</div>
@@ -60,12 +58,14 @@
 </template>
 
 <script lang="ts">
-import { blacklab } from '@/api';
-import SelectPicker from '@/components/SelectPicker.vue';
-import type { Option } from '@/utils/options';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
+
+import { blacklab } from '@/api';
+import type { Option } from '@/utils/options';
+
 import type { ExclusionRule, StepState } from './POS.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 
 export const value = 'Exclusions';
 export const label = value;
@@ -80,13 +80,13 @@ export const step = defineComponent({
 	components: { SelectPicker },
 	emits: ['update:modelValue', 'submit'],
 	props: {
-		modelValue: { type: Object as PropType<StepState>, required: true }
+		modelValue: { type: Object as PropType<StepState>, required: true },
 	},
 	data: () => ({
 		title,
 		localExclusions: [] as ExclusionRule[],
-		annotationValues: {} as Record<string, Array<{ value: string, label: string }>>,
-		loadingValues: {} as Record<string, boolean>
+		annotationValues: {} as Record<string, Array<{ value: string; label: string }>>,
+		loadingValues: {} as Record<string, boolean>,
 	}),
 	computed: {
 		annotationOptions(): Option[] {
@@ -109,13 +109,13 @@ export const step = defineComponent({
 				});
 
 			return clauses.length > 0 ? `& ${clauses.join(' & ')}` : '';
-		}
+		},
 	},
 	methods: {
 		addExclusion() {
 			this.localExclusions.push({
 				annotationId: '',
-				values: []
+				values: [],
 			});
 		},
 		removeExclusion(index: number) {
@@ -130,7 +130,7 @@ export const step = defineComponent({
 			} else if (field === 'values') {
 				exclusion.values = Array.isArray(value) ? value : [value];
 			}
-			this.localExclusions[index] = exclusion; 
+			this.localExclusions[index] = exclusion;
 		},
 		async loadValuesForAnnotation(annotationId: string) {
 			if (!annotationId || this.annotationValues[annotationId] || this.loadingValues[annotationId]) {
@@ -139,20 +139,14 @@ export const step = defineComponent({
 			this.loadingValues[annotationId] = true;
 
 			try {
-				const result = await blacklab.getTermFrequencies(
-					this.modelValue.index.id,
-					annotationId,
-					undefined,
-					undefined,
-					100
-				);
+				const result = await blacklab.getTermFrequencies(this.modelValue.index.id, annotationId, undefined, undefined, 100);
 
 				const values = Object.keys(result.termFreq)
 					.filter(v => !!v.trim())
 					.sort()
 					.map(v => ({
 						value: v,
-						label: v
+						label: v,
 					}));
 				this.annotationValues[annotationId] = values;
 			} catch (error) {
@@ -167,30 +161,26 @@ export const step = defineComponent({
 
 			if (!this.annotationValues[annotationId]) {
 				this.loadValuesForAnnotation(annotationId);
-				return this.loadingValues[annotationId]
-					? [{ value: '', label: 'Loading...', disabled: true }]
-					: [];
+				return this.loadingValues[annotationId] ? [{ value: '', label: 'Loading...', disabled: true }] : [];
 			}
 
 			return this.annotationValues[annotationId];
 		},
 		submit() {
-			const validExclusions = this.localExclusions.filter(
-				e => e.annotationId && e.values.length > 0
-			);
+			const validExclusions = this.localExclusions.filter(e => e.annotationId && e.values.length > 0);
 			this.$emit('update:modelValue', {
 				...this.modelValue,
-				exclusions: validExclusions
+				exclusions: validExclusions,
 			});
 			this.$emit('submit');
 		},
 		skip() {
 			this.$emit('update:modelValue', {
 				...this.modelValue,
-				exclusions: []
+				exclusions: [],
 			});
 			this.$emit('submit');
-		}
+		},
 	},
 	created() {
 		// Initialize from saved state if available
@@ -203,7 +193,7 @@ export const step = defineComponent({
 				}
 			});
 		}
-	}
+	},
 });
 
 export default step;

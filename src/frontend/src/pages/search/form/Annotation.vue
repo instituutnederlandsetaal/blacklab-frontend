@@ -1,40 +1,30 @@
 <template>
-	<div :class="bare ? '' : 'form-group propertyfield'" :id="htmlId"> <!-- behaves as .row when in .form-horizontal so .row may be omitted -->
-		<label v-if="!bare" :for="inputId" class="col-xs-12 col-md-3" :title="description">{{displayName}} <Debug>(id: {{annotation.id}})</Debug></label>
+	<div :class="bare ? '' : 'form-group propertyfield'" :id="htmlId">
+		<!-- behaves as .row when in .form-horizontal so .row may be omitted -->
+		<label v-if="!bare" :for="inputId" class="col-xs-12 col-md-3" :title="description"
+			>{{ displayName }} <Debug>(id: {{ annotation.id }})</Debug></label
+		>
 		<div :class="bare ? '' : 'col-xs-12 col-md-9'">
-			<SelectPicker v-if="annotation.uiType === 'select'"
+			<SelectPicker
+				v-if="annotation.uiType === 'select'"
 				data-width="100%"
 				container="body"
-
 				:placeholder="displayName"
 				:data-id="inputId"
 				:data-name="inputId"
 				:data-dir="textDirection"
-
 				:options="options"
-
 				v-model="value"
 			/>
-			<Lexicon v-else-if="annotation.uiType === 'lexicon'"
-				:annotationId="annotation.id"
-				:definition="annotation"
-
-				v-model="value"
-
-				ref="reset"
-			/>
+			<Lexicon v-else-if="annotation.uiType === 'lexicon'" :annotationId="annotation.id" :definition="annotation" v-model="value" ref="reset" />
 			<div v-else :class="bare ? undefined : 'input-group'">
 				<Autocomplete
-
-
 					useQuoteAsWordBoundary
-
 					:id="inputId"
 					:name="inputId"
 					:placeholder="displayName"
 					:disabled="annotation.uiType === 'pos'"
 					:dir="textDirection"
-
 					:autocomplete="autocomplete"
 					:url="autocompleteUrl"
 					v-model="value"
@@ -46,124 +36,100 @@
 
 					<label class="btn btn-default file-input-button" :for="fileInputId" v-if="annotation.uiType !== 'pos'">
 						<span class="fa fa-upload fa-fw"></span>
-						<input
-							type="file"
-							title="Upload a list of values"
-
-							:id="fileInputId"
-
-							@change="onFileChanged"
-						>
+						<input type="file" title="Upload a list of values" :id="fileInputId" @change="onFileChanged" />
 					</label>
 				</div>
 			</div>
 
 			<!-- Don't destroy the component on close, it keeps some state. -->
-			<PartOfSpeech v-if="annotation.uiType === 'pos'" :open="posOpen" @close="posOpen = false"
-				:id="`pos_editor${uid}`"
-				:annotation="annotation"
-
-				@submit="value = $event"
-
-				ref="reset"
-			/>
+			<PartOfSpeech v-if="annotation.uiType === 'pos'" :open="posOpen" @close="posOpen = false" :id="`pos_editor${uid}`" :annotation="annotation" @submit="value = $event" ref="reset" />
 
 			<div v-if="annotation.caseSensitive && !bare && annotation.uiType !== 'pos'" class="checkbox">
 				<label :for="caseInputId">
-					<input
-						type="checkbox"
-
-						:id="caseInputId"
-						:name="caseInputId"
-
-						v-model="caseSensitive"
-					>
-					{{$t('annotation.caseSensitive')}}
+					<input type="checkbox" :id="caseInputId" :name="caseInputId" v-model="caseSensitive" />
+					{{ $t('annotation.caseSensitive') }}
 				</label>
 			</div>
 		</div>
 		<div v-if="!bare && description" :class="bare ? '' : 'col-xs-12 col-md-push-3 col-md-9'">
-			<small class="text-muted"><em>{{ description }}</em></small>
+			<small class="text-muted"
+				><em>{{ description }}</em></small
+			>
 		</div>
 	</div>
-
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useTemplateRef } from 'vue';
 
+import { blacklabPaths } from '@/api';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
+import UID from '@/mixins/uid';
+import type { NormalizedAnnotation } from '@/types/apptypes';
+import { translate } from '@/utils/i18n';
+import type { Option } from '@/utils/options';
 
 import Autocomplete from '@/components/Autocomplete.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
-import UID from '@/mixins/uid';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import PartOfSpeech from '@/pages/search/form/PartOfSpeech.vue';
-import type { Option } from '@/utils/options';
-
-import { blacklabPaths } from '@/api';
-import type { NormalizedAnnotation } from '@/types/apptypes';
-import { translate } from '@/utils/i18n';
-import { useTemplateRef } from 'vue';
-
 
 const props = defineProps<{
-	annotation: NormalizedAnnotation,
-	htmlId: string,
-	bare?: boolean,
+	annotation: NormalizedAnnotation;
+	htmlId: string;
+	bare?: boolean;
 	/**
 	 * Set to true if this annotation is the "simple" annotation. I.e. the Annotation in the "simple" tab of the search form.
 	 * This will change which field the value is written to the vuex store.
 	 */
-	simple?: boolean
+	simple?: boolean;
 }>();
-
 
 const uid = UID();
 const posOpen = ref(false);
 
-
 const caseSensitive = computed<boolean>({
-	get() { 
-		if(props.simple) return PatternStore.get.simple().annotationValue.case
-		return PatternStore.get.annotationValue(props.annotation.annotatedFieldId, props.annotation.id).case
+	get() {
+		if (props.simple) return PatternStore.get.simple().annotationValue.case;
+		return PatternStore.get.annotationValue(props.annotation.annotatedFieldId, props.annotation.id).case;
 	},
-	set(caseSensitive: boolean) {	
-		if(props.simple) {
+	set(caseSensitive: boolean) {
+		if (props.simple) {
 			PatternStore.actions.simple.annotation({
 				id: props.annotation.id,
-				case: caseSensitive
+				case: caseSensitive,
 			});
 		} else {
 			PatternStore.actions.extended.annotation({
 				id: props.annotation.id,
-				case: caseSensitive
+				case: caseSensitive,
 			});
 		}
-	}
+	},
 });
 const value = computed<string>({
 	get(): string {
-		if(props.simple) return PatternStore.get.simple().annotationValue.value
-		else return PatternStore.get.annotationValue(props.annotation.annotatedFieldId, props.annotation.id).value
+		if (props.simple) return PatternStore.get.simple().annotationValue.value;
+		else return PatternStore.get.annotationValue(props.annotation.annotatedFieldId, props.annotation.id).value;
 	},
 	set(value: string) {
-		if(props.simple) {
+		if (props.simple) {
 			PatternStore.actions.simple.annotation({
 				id: props.annotation.id,
-				value
+				value,
 			});
 		} else {
 			PatternStore.actions.extended.annotation({
 				id: props.annotation.id,
-				value
+				value,
 			});
 		}
-	}
+	},
 });
 
-const textDirection = computed<string|undefined>(() => props.annotation.isMainAnnotation ? CorpusStore.get.textDirection() : undefined);
+const textDirection = computed<string | undefined>(() => (props.annotation.isMainAnnotation ? CorpusStore.get.textDirection() : undefined));
 const inputId = computed(() => props.htmlId + '_value');
 const fileInputId = computed(() => props.htmlId + '_file');
 const caseInputId = computed(() => props.htmlId + '_case');
@@ -172,10 +138,8 @@ const description = computed(() => translate.$tAnnotDescription(props.annotation
 const options = computed<Option[]>(() => props.annotation.values || []);
 const autocomplete = computed(() => props.annotation.uiType === 'combobox' && props.annotation.annotatedFieldId !== '');
 const autocompleteUrl = computed(() => blacklabPaths.autocompleteAnnotation(CorpusStore.getState()!.id, props.annotation.annotatedFieldId, props.annotation.id));
-	
 
 function onFileChanged(event: Event) {
-
 	const fileInput = event.target as HTMLInputElement;
 	const file = fileInput.files && fileInput.files[0];
 	if (file != null) {
@@ -194,10 +158,11 @@ function onFileChanged(event: Event) {
 
 void Lexicon; // eslint wants to make this a type import? not correct.
 const lexicon = useTemplateRef<InstanceType<typeof Lexicon>>('reset');
-	
-watch(() => PatternStore.resetSignal, _ => lexicon.value?.reset());
 
+watch(
+	() => PatternStore.resetSignal,
+	_ => lexicon.value?.reset(),
+);
 </script>
 
-<style lang="scss">
-</style>
+<style lang="scss"></style>

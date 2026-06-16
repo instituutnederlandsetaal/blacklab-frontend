@@ -1,11 +1,20 @@
-import type {NormalizedIndex, NormalizedAnnotation, NormalizedAnnotatedField, NormalizedMetadataField, NormalizedFormat, NormalizedMetadataGroup, NormalizedAnnotationGroup, NormalizedIndexBase} from '@/types/apptypes';
+import type {
+	NormalizedIndex,
+	NormalizedAnnotation,
+	NormalizedAnnotatedField,
+	NormalizedMetadataField,
+	NormalizedFormat,
+	NormalizedMetadataGroup,
+	NormalizedAnnotationGroup,
+	NormalizedIndexBase,
+} from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 import { getParallelFieldParts, mapReduce, PARALLEL_FIELD_SEPARATOR } from '@/utils';
 
 /** Find the annotation that contains annotationId as on of its subAnnotations. */
-function findParentAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string): string|undefined {
+function findParentAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string): string | undefined {
 	const annotations = BLTypes.isAnnotatedFieldV1(annotatedField) ? Object.entries(annotatedField.properties) : Object.entries(annotatedField.annotations);
-	const parent: [string, BLTypes.BLAnnotation]|undefined = annotations.find(a => a[1].subannotations ? a[1].subannotations!.includes(annotationId) : false);
+	const parent: [string, BLTypes.BLAnnotation] | undefined = annotations.find(a => (a[1].subannotations ? a[1].subannotations!.includes(annotationId) : false));
 	return parent ? parent[0] : undefined;
 }
 
@@ -13,7 +22,7 @@ function normalizeMetadataUIType(field: BLTypes.BLMetadataField): NormalizedMeta
 	const uiType = field.uiType.trim().toLowerCase();
 
 	if (!uiType) {
-		return Object.keys(field.fieldValues).length > 0 ? field.valueListComplete ? 'select' : 'combobox' : 'text';
+		return Object.keys(field.fieldValues).length > 0 ? (field.valueListComplete ? 'select' : 'combobox') : 'text';
 	}
 
 	switch (uiType) {
@@ -30,11 +39,12 @@ function normalizeMetadataUIType(field: BLTypes.BLMetadataField): NormalizedMeta
 			return field.valueListComplete ? uiType : 'combobox';
 		case 'date':
 			return 'date';
-		default: return 'text';
+		default:
+			return 'text';
 	}
 }
 
-export function normalizeAnnotationUIType(field: BLTypes.BLAnnotation|NormalizedAnnotation): NormalizedAnnotation['uiType'] {
+export function normalizeAnnotationUIType(field: BLTypes.BLAnnotation | NormalizedAnnotation): NormalizedAnnotation['uiType'] {
 	const uiType = field.uiType.trim().toLowerCase();
 
 	// valueListComplete only present on non-normalized annotation
@@ -42,7 +52,7 @@ export function normalizeAnnotationUIType(field: BLTypes.BLAnnotation|Normalized
 	const hasAllValues = field.values && ('valueListComplete' in field ? !!field.valueListComplete : true);
 
 	if (!uiType) {
-		return field.values ? hasAllValues ? 'select' : 'combobox' : 'text';
+		return field.values ? (hasAllValues ? 'select' : 'combobox') : 'text';
 	}
 
 	switch (uiType) {
@@ -55,11 +65,12 @@ export function normalizeAnnotationUIType(field: BLTypes.BLAnnotation|Normalized
 		case 'lexicon':
 		case 'pos':
 			return uiType;
-		default: return 'text';
+		default:
+			return 'text';
 	}
 }
 
-function normalizeAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string, annotation: BLTypes.BLAnnotation): NormalizedAnnotation{
+function normalizeAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string, annotation: BLTypes.BLAnnotation): NormalizedAnnotation {
 	const annotatedFieldId = annotatedField.fieldName;
 	const mainAnnotationId = BLTypes.isAnnotatedFieldV1(annotatedField) ? annotatedField.mainProperty : annotatedField.mainAnnotation;
 
@@ -76,7 +87,7 @@ function normalizeAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotatio
 		subAnnotations: annotation.subannotations,
 		parentAnnotationId: findParentAnnotation(annotatedField, annotationId),
 		uiType: normalizeAnnotationUIType(annotation),
-		values: annotation.valueListComplete && annotation.values && annotation.values.length > 0 ? annotation.values.map(v => ({label: v, value: v, title: null})) : undefined,
+		values: annotation.valueListComplete && annotation.values && annotation.values.length > 0 ? annotation.values.map(v => ({ label: v, value: v, title: null })) : undefined,
 	};
 }
 
@@ -86,13 +97,17 @@ function normalizeMetadata(field: BLTypes.BLMetadataField): NormalizedMetadataFi
 		defaultDisplayName: field.displayName || field.fieldName,
 		id: field.fieldName,
 		uiType: normalizeMetadataUIType(field),
-		values: ['select', 'checkbox', 'radio'].includes(normalizeMetadataUIType(field)) ? Object.keys(field.fieldValues).map(value => {
-			return {
-				value,
-				label: field.displayValues[value] != null ? field.displayValues[value] : value,
-				title: null
-			};
-		}).sort((a, b) => a.value.localeCompare(b.value)) : undefined,
+		values: ['select', 'checkbox', 'radio'].includes(normalizeMetadataUIType(field))
+			? Object.keys(field.fieldValues)
+					.map(value => {
+						return {
+							value,
+							label: field.displayValues[value] != null ? field.displayValues[value] : value,
+							title: null,
+						};
+					})
+					.sort((a, b) => a.value.localeCompare(b.value))
+			: undefined,
 	};
 }
 
@@ -103,7 +118,10 @@ function normalizeAnnotatedField(field: BLTypes.BLAnnotatedField): NormalizedAnn
 	const isParallel = field.fieldName.includes(PARALLEL_FIELD_SEPARATOR);
 	const parallelFieldParts = getParallelFieldParts(field.fieldName);
 	return {
-		annotations: mapReduce(annotations.map(([id, annot]) => normalizeAnnotation(field, id, annot)), 'id'),
+		annotations: mapReduce(
+			annotations.map(([id, annot]) => normalizeAnnotation(field, id, annot)),
+			'id',
+		),
 		defaultDescription: field.description,
 		defaultDisplayName: field.displayName,
 		hasContentStore: field.hasContentStore,
@@ -137,7 +155,7 @@ function normalizeAnnotationGroups(blIndex: BLTypes.BLIndexMetadata): Normalized
 				annotatedFieldId: fieldId,
 				id: group.name,
 				entries: group.annotations.filter(annotationName => annotations[annotationName] != null),
-				isRemainderGroup: false
+				isRemainderGroup: false,
 			};
 			if (normalizedGroup.entries.length) {
 				annotationGroupsNormalized.push(normalizedGroup);
@@ -174,7 +192,7 @@ function normalizeAnnotationGroups(blIndex: BLTypes.BLIndexMetadata): Normalized
 			entries: annotationNamesInRemainderGroup,
 			id: 'Other',
 			// If there was a group defined from the index config, this is indeed the remainder group, otherwise this is just a normal group.
-			isRemainderGroup: hasUserDefinedGroup
+			isRemainderGroup: hasUserDefinedGroup,
 		});
 	}
 
@@ -192,7 +210,7 @@ function normalizeMetadataGroups(blIndex: BLTypes.BLIndexMetadata): NormalizedMe
 		const normalizedGroup: NormalizedMetadataGroup = {
 			entries: group.fields.filter(id => blIndex.metadataFields[id] != null),
 			isRemainderGroup: false,
-			id: group.name
+			id: group.name,
 		};
 		if (normalizedGroup.entries.length) {
 			metadataGroupsNormalized.push(normalizedGroup);
@@ -202,12 +220,12 @@ function normalizeMetadataGroups(blIndex: BLTypes.BLIndexMetadata): NormalizedMe
 	}
 
 	// Create remainder group
-	if(idsNotInGroups.size) {
+	if (idsNotInGroups.size) {
 		metadataGroupsNormalized.push({
 			entries: [...idsNotInGroups].sort((a, b) => blIndex.metadataFields[a].displayName.localeCompare(blIndex.metadataFields[b].displayName)),
 			// If there was a group defined from the index config, this is indeed the remainder group, otherwise this is just a normal group.
 			isRemainderGroup: hasUserDefinedGroup,
-			id: 'Metadata'
+			id: 'Metadata',
 		});
 	}
 	return metadataGroupsNormalized;
@@ -217,7 +235,7 @@ function normalizeMetadataGroups(blIndex: BLTypes.BLIndexMetadata): NormalizedMe
 
 export function normalizeIndexBase(blIndex: BLTypes.BLIndex, id: string): NormalizedIndexBase {
 	return {
-		description: blIndex.description || "",
+		description: blIndex.description || '',
 		displayName: blIndex.displayName || id.split(':')[1] || id,
 		documentFormat: blIndex.documentFormat,
 		id,
@@ -226,8 +244,8 @@ export function normalizeIndexBase(blIndex: BLTypes.BLIndex, id: string): Normal
 		status: blIndex.status,
 		timeModified: blIndex.timeModified,
 		tokenCount: blIndex.tokenCount || 0,
-		documentCount: blIndex.documentCount || 0
-	}
+		documentCount: blIndex.documentCount || 0,
+	};
 }
 
 export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata, relations: BLTypes.BLRelationInfo): NormalizedIndex {
@@ -257,10 +275,9 @@ export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata, relations: BLTy
 		status: blIndex.status,
 		indexProgress: blIndex.indexProgress || null,
 		mainAnnotatedField: blIndex.mainAnnotatedField || Object.keys(blIndex.annotatedFields)[0],
-		relations
+		relations,
 	};
 }
-
 
 /**
  * @param id - full id of the format, including userName portion (if applicable)
@@ -281,6 +298,5 @@ export function normalizeFormat(id: string, format: BLTypes.BLFormat): Normalize
 }
 
 export function normalizeFormats(formats: BLTypes.BLFormats): NormalizedFormat[] {
-	return Object.entries(formats.supportedInputFormats)
-	.map(([key, value]) => normalizeFormat(key, value));
+	return Object.entries(formats.supportedInputFormats).map(([key, value]) => normalizeFormat(key, value));
 }

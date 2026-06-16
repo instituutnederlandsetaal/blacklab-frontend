@@ -11,7 +11,7 @@ export default abstract class UrlStateParser<T> {
 	 */
 	protected paths: string[];
 	/** Query parameters parsed into an object, repeated fields are turned into an array, though all values are kept as-is as strings */
-	protected params: {[key: string]: string|string[]|null};
+	protected params: { [key: string]: string | string[] | null };
 
 	constructor(uri = new URI()) {
 		const fullPath = uri.segmentCoded().filter(p => !!p); // Remove empty path segment if there's a trailing slash.
@@ -27,8 +27,8 @@ export default abstract class UrlStateParser<T> {
 	 * If the parameter is missing or is NaN, the fallback will be returned,
 	 * otherwise, the parameter is passed to the validate function (if present), and the result is returned.
 	 */
-	protected getNumber(paramname: string, fallback: number|null = null, validate?: (value: number)=>number|null): number|null {
-		const {[paramname]: prop} = this.params;
+	protected getNumber(paramname: string, fallback: number | null = null, validate?: (value: number) => number | null): number | null {
+		const { [paramname]: prop } = this.params;
 		if (typeof prop !== 'string') {
 			return fallback;
 		}
@@ -44,16 +44,16 @@ export default abstract class UrlStateParser<T> {
 	 * otherwise, the parameter is passed to the validate function (if present), and the result is returned.
 	 * NOTE: empty strings are preserved and need to removed using the validation function if needed.
 	 */
-	protected getString(paramname: string, fallback: string|null = null, mapValue?: (value: string)=>string|null): string|null {
-		const {[paramname]: prop} = this.params;
+	protected getString(paramname: string, fallback: string | null = null, mapValue?: (value: string) => string | null): string | null {
+		const { [paramname]: prop } = this.params;
 		if (typeof prop !== 'string') {
 			return fallback;
 		}
 		return mapValue ? mapValue(prop) : prop;
 	}
 	/** If the property is missing altogether or can't be parsed, fallback is returned, otherwise the value is parsed */
-	protected getBoolean(paramname: string, fallback: boolean|null = null, validate?: (value: boolean)=>boolean): boolean|null {
-		const {[paramname]: prop} = this.params;
+	protected getBoolean(paramname: string, fallback: boolean | null = null, validate?: (value: boolean) => boolean): boolean | null {
+		const { [paramname]: prop } = this.params;
 		if (typeof prop !== 'string') {
 			return fallback;
 		}

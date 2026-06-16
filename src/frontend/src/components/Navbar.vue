@@ -7,7 +7,7 @@
 
 		<div class="navbar-main container">
 			<div class="navbar-logo-container">
-				<router-link :to="indexId ? {name: 'search', params: {corpus: indexId}} : {name: 'corpora'}">
+				<router-link :to="indexId ? { name: 'search', params: { corpus: indexId } } : { name: 'corpora' }">
 					<div class="navbar-logo"></div>
 				</router-link>
 			</div>
@@ -15,15 +15,15 @@
 			<div class="navbar-content-container">
 				<!-- <router-link class="navbar-brand" :to="indexId ? {name: 'search', params: {corpus: indexId}} : {name: 'corpora'}" >{{ indexDisplayName }}</router-link> -->
 
-				<ul class="nav navbar-nav navbar-collapse" :class="{visible: !collapsed}">
+				<ul class="nav navbar-nav navbar-collapse" :class="{ visible: !collapsed }">
 					<li v-for="link in links" :key="link.attributes.href">
 						<component :is="link.isExternal ? 'a' : 'router-link'" v-bind="link.attributes">{{ link.label }}</component>
 					</li>
 				</ul>
 
 				<div class="navbar-buttons">
-					<LoginButton/>
-					<LocaleSelector/>
+					<LoginButton />
+					<LocaleSelector />
 					<button class="btn btn-navbar navbar-toggle" type="button" @click="collapsed = !collapsed">
 						<span class="fa fa-bars"></span>
 					</button>
@@ -34,87 +34,119 @@
 </template>
 
 <script lang="ts">
+import { defineComponent } from 'vue';
+
 import * as UIStore from '@/app/state/ui-state';
-import LocaleSelector from '@/components/LocaleSelector.vue';
-import LoginButton from '@/components/LoginButton.vue';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 import { localStorageSynced } from '@/utils/localstore';
-import { defineComponent } from 'vue';
+
+import LocaleSelector from '@/components/LocaleSelector.vue';
+import LoginButton from '@/components/LoginButton.vue';
 
 export default defineComponent({
-	components: {LocaleSelector, LoginButton },
+	components: { LocaleSelector, LoginButton },
 	data() {
 		return {
 			collapsed: true,
-			bannerFromLocalStorage: localStorageSynced<string>('cf/banner-hidden', '', false, 24*7*3600)
+			bannerFromLocalStorage: localStorageSynced<string>('cf/banner-hidden', '', false, 24 * 7 * 3600),
 		};
 	},
 	computed: {
 		indexId: CorpusStore.get.indexId, // separate from index - the ID is available before the index is loaded
-		index(): NormalizedIndex|undefined { return CorpusStore.getState(); },
-		config(): CFPageConfig { return UIStore.getState().global.config; },
+		index(): NormalizedIndex | undefined {
+			return CorpusStore.getState();
+		},
+		config(): CFPageConfig {
+			return UIStore.getState().global.config;
+		},
 		// A little speficic, but this way on purpose, since the config and index are loaded async, and we want to show something asap.
 		// If no index is loaded at all, show the default corpus-frontend name.
-		indexDisplayName(): string { return this.config.displayName || this.index?.displayName || this.indexId || 'Corpus-Frontend' },
-		links(): Array<{label: string, attributes: Record<string, string>, isExternal: boolean}> { 
+		indexDisplayName(): string {
+			return this.config.displayName || this.index?.displayName || this.indexId || 'Corpus-Frontend';
+		},
+		links(): Array<{ label: string; attributes: Record<string, string>; isExternal: boolean }> {
 			return this.config.navbarLinks.map(l => {
 				const parsed = new URL(l.attributes.href, window.location.origin);
 				const routerBase = this.$router.options.history.base || '/';
 				const isExternal = parsed.origin !== window.location.origin || !parsed.pathname.startsWith(routerBase);
-				if (isExternal) return {...l, isExternal};
+				if (isExternal) return { ...l, isExternal };
 				// else we need to remove the router's base from the link, or it will double up
 				// so reconstruct the link..
 				// Also we need to make sure that 'href' is not in the attributes (or router-link will not add the href attribute to its <a> at all???)
-				const {href, target, ...attributesWithoutHref} = l.attributes;
+				const { href, target, ...attributesWithoutHref } = l.attributes;
 				return {
 					isExternal,
 					...l,
 					attributes: {
 						...attributesWithoutHref,
-						to: parsed.pathname.substring(routerBase.length) + parsed.search + parsed.hash
-					}
-				}
-			})
+						to: parsed.pathname.substring(routerBase.length) + parsed.search + parsed.hash,
+					},
+				};
+			});
 		},
-		showBanner(): boolean { return !!this.config.bannerMessage && this.bannerFromLocalStorage.value !== this.config.bannerMessage },
+		showBanner(): boolean {
+			return !!this.config.bannerMessage && this.bannerFromLocalStorage.value !== this.config.bannerMessage;
+		},
 	},
 	methods: {
 		hideBanner() {
 			this.bannerFromLocalStorage.value = this.config.bannerMessage!;
-		}
+		},
 	},
-})
+});
 </script>
 
 <style lang="scss">
-
-body { padding-top: 60px; }
+body {
+	padding-top: 60px;
+}
 
 .btn.btn-navbar {
 	border: none;
 	color: #9d9d9d;
-	* { color: inherit; }
+	* {
+		color: inherit;
+	}
 	background: transparent;
 	background-color: transparent;
 	margin: 0;
-	&:not(:disabled, .disabled) { &:active, &:focus, &:hover {
-		color: #ddd;
-		background-color: #333;
-	}}
-	&:disabled {opacity: 1;}
+	&:not(:disabled, .disabled) {
+		&:active,
+		&:focus,
+		&:hover {
+			color: #ddd;
+			background-color: #333;
+		}
+	}
+	&:disabled {
+		opacity: 1;
+	}
 }
-.combobox {vertical-align: baseline!important;} // selectpicker
-.menu-caret { margin: 0; }
+.combobox {
+	vertical-align: baseline !important;
+} // selectpicker
+.menu-caret {
+	margin: 0;
+}
 
 // clear some bootstrap float, padding and clearfix stuff
 .navbar-inverse {
-	&, * {
-		float: none!important;
-		&:not(.fa, .menu-value) { &:before, &:after {display: none!important; content: "";} }
+	&,
+	* {
+		float: none !important;
+		&:not(.fa, .menu-value) {
+			&:before,
+			&:after {
+				display: none !important;
+				content: '';
+			}
+		}
 	}
 
-	> .container { padding: 0; } // padding comes from content, we only use this for margin/width
+	> .container {
+		padding: 0;
+	} // padding comes from content, we only use this for margin/width
 
 	button.btn {
 		padding: 15px;
@@ -123,9 +155,8 @@ body { padding-top: 60px; }
 }
 .navbar-brand {
 	height: unset;
-	color: #ddd!important;
+	color: #ddd !important;
 }
-
 
 // own layout.
 .navbar-alert {
@@ -137,7 +168,7 @@ body { padding-top: 60px; }
 		color: #ddd;
 	}
 	& + .navbar-main {
-		box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 		border-top: 1px solid #101010;
 	}
 }
@@ -168,11 +199,17 @@ body { padding-top: 60px; }
 		flex-grow: 1;
 		align-items: baseline;
 
-		> .navbar-nav { margin: 0; padding: 0; flex-grow: 1; }
-		> .navbar-nav > li { display: inline-block; }
+		> .navbar-nav {
+			margin: 0;
+			padding: 0;
+			flex-grow: 1;
+		}
+		> .navbar-nav > li {
+			display: inline-block;
+		}
 		// > .navbar-buttons { flex-grow: 1; text-align: right; }
 
-		@media(max-width: 767px) {
+		@media (max-width: 767px) {
 			justify-content: space-between;
 
 			.navbar-nav {
@@ -180,11 +217,14 @@ body { padding-top: 60px; }
 				order: 3;
 				padding: 7.5px 0;
 
-				> li { display: block; }
-				&:not(.visible) { display: none; }
+				> li {
+					display: block;
+				}
+				&:not(.visible) {
+					display: none;
+				}
 			}
 		}
 	}
 }
-
 </style>

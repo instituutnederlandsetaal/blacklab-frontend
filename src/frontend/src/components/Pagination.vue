@@ -1,28 +1,29 @@
 <template>
 	<ul class="pagination pagination-sm">
-		<li :class="['first', {'disabled': !prevEnabled || disabled}]">
+		<li :class="['first', { disabled: !prevEnabled || disabled }]">
 			<a v-if="prevEnabled" role="button" title="first" @click.prevent="changePage(minPage)">&laquo;</a>
 			<span v-else title="first">&laquo;</span>
-		</li
-		><li v-if="prevEnabled" :class="['prev', {'disabled': !prevEnabled || disabled}]">
-			<a role="button" title="previous" @click.prevent="changePage(page-1)">&lsaquo;</a>
-		</li
-		><template v-if="showOffsets"
-			><li v-for="i in lowerPages" :key="i" :class="{'disabled': disabled}">
-				<a role="button" @click.prevent="changePage(i)">{{(i+1).toLocaleString()}}</a>
-			</li
-		></template
-		><li :class="{
-			current: pageActive,
-			active: pageActive,
-			disabled,
-		}">
+		</li>
+		<li v-if="prevEnabled" :class="['prev', { disabled: !prevEnabled || disabled }]">
+			<a role="button" title="previous" @click.prevent="changePage(page - 1)">&lsaquo;</a>
+		</li>
+		<template v-if="showOffsets"
+			><li v-for="i in lowerPages" :key="i" :class="{ disabled: disabled }">
+				<a role="button" @click.prevent="changePage(i)">{{ (i + 1).toLocaleString() }}</a>
+			</li></template
+		>
+		<li
+			:class="{
+				current: pageActive,
+				active: pageActive,
+				disabled,
+			}"
+		>
 			<template v-if="editable && !hasPageRange">
 				<input
 					type="number"
 					class="form-control"
-
-					:value="page+1"
+					:value="page + 1"
 					:disabled="disabled"
 					@keypress.enter.prevent="commitPageInput($event)"
 					@keyup.esc.prevent="resetPageInput($event)"
@@ -32,19 +33,19 @@
 				<span v-if="editable" class="fa fa-pencil"></span>
 			</template>
 			<a v-else-if="!pageActive" role="button" @click.prevent="changePage(page)">{{ currentPageLabel }}</a>
-			<span v-else>{{ currentPageLabel}}</span>
-		</li
-		><template v-if="showOffsets"
-			><li v-for="i in higherPages" :key="i" :class="{'disabled': disabled}">
-				<a role="button" @click.prevent="changePage(i)">{{(i+1).toLocaleString()}}</a>
-			</li
-		></template
-		><li v-if="nextEnabled" :class="['next', {'disabled': !nextEnabled || disabled}]">
-			<a role="button" title="next" @click.prevent="changePage(page+1)">&rsaquo;</a>
-		</li
-		><li :class="['last', {'disabled': !nextEnabled || disabled}]">
-			<a v-if="nextEnabled" role="button" :title="(maxPage+1).toLocaleString() +' (last)'" @click.prevent="changePage(maxPage)">&raquo;</a>
-			<span v-else :title="(maxPage+1).toLocaleString() + ' (last)'">&raquo;</span>
+			<span v-else>{{ currentPageLabel }}</span>
+		</li>
+		<template v-if="showOffsets"
+			><li v-for="i in higherPages" :key="i" :class="{ disabled: disabled }">
+				<a role="button" @click.prevent="changePage(i)">{{ (i + 1).toLocaleString() }}</a>
+			</li></template
+		>
+		<li v-if="nextEnabled" :class="['next', { disabled: !nextEnabled || disabled }]">
+			<a role="button" title="next" @click.prevent="changePage(page + 1)">&rsaquo;</a>
+		</li>
+		<li :class="['last', { disabled: !nextEnabled || disabled }]">
+			<a v-if="nextEnabled" role="button" :title="(maxPage + 1).toLocaleString() + ' (last)'" @click.prevent="changePage(maxPage)">&raquo;</a>
+			<span v-else :title="(maxPage + 1).toLocaleString() + ' (last)'">&raquo;</span>
 		</li>
 	</ul>
 </template>
@@ -60,8 +61,7 @@ export type PaginationInfo = {
 	disabled?: boolean;
 	editable?: boolean;
 	showOffsets?: boolean;
-}
-
+};
 
 /** Renders pagination controls, inputs are 0-based, meaning page === 0 will render as 1 on the label */
 export default defineComponent({
@@ -74,7 +74,7 @@ export default defineComponent({
 		},
 		pageActive: {
 			type: Boolean,
-			default: true
+			default: true,
 		},
 		/** 0-indexed. The interface will display this number + 1 */
 		maxPage: {
@@ -89,11 +89,11 @@ export default defineComponent({
 		disabled: Boolean,
 		editable: {
 			type: Boolean,
-			default: true
+			default: true,
 		},
 		showOffsets: {
 			type: Boolean,
-			default: true
+			default: true,
 		},
 		/** Show e.g. 1/10 instead of just '1' in the centre button. Only has an effect when editable is false. */
 		showTotal: {
@@ -106,16 +106,18 @@ export default defineComponent({
 	}),
 	computed: {
 		/** Whether we're showing a range of pages (from a shared URL with different page size) */
-		hasPageRange(): boolean { return this.page2 != null && this.page2 !== this.page; },
+		hasPageRange(): boolean {
+			return this.page2 != null && this.page2 !== this.page;
+		},
 		currentPageLabel(): string {
-			const baseRangeString = this.hasPageRange
-				? `${(this.boundedLowerPage+1).toLocaleString()} - ${(this.boundedUpperPage+1).toLocaleString()}`
-				: (this.boundedLowerPage+1).toLocaleString();
-			return this.showTotal ? `${baseRangeString}/${(this.maxPage+1).toLocaleString()}` : baseRangeString;
+			const baseRangeString = this.hasPageRange ? `${(this.boundedLowerPage + 1).toLocaleString()} - ${(this.boundedUpperPage + 1).toLocaleString()}` : (this.boundedLowerPage + 1).toLocaleString();
+			return this.showTotal ? `${baseRangeString}/${(this.maxPage + 1).toLocaleString()}` : baseRangeString;
 		},
 
 		lowerPages(): number[] {
-			return this.calcOffsets(this.boundedLowerPage - this.minPage).reverse().map(o => this.boundedLowerPage - o);
+			return this.calcOffsets(this.boundedLowerPage - this.minPage)
+				.reverse()
+				.map(o => this.boundedLowerPage - o);
 		},
 		higherPages(): number[] {
 			return this.calcOffsets(this.maxPage - this.boundedUpperPage).map(o => this.boundedUpperPage + o);
@@ -127,12 +129,16 @@ export default defineComponent({
 			return this.boundedLowerPage > this.minPage;
 		},
 
-		boundedLowerPage(): number { return Math.max(this.minPage, Math.min(this.page, this.maxPage)); },
-		boundedUpperPage(): number { return Math.max(this.minPage, Math.min(this.page2 ?? this.page, this.maxPage)); }
+		boundedLowerPage(): number {
+			return Math.max(this.minPage, Math.min(this.page, this.maxPage));
+		},
+		boundedUpperPage(): number {
+			return Math.max(this.minPage, Math.min(this.page2 ?? this.page, this.maxPage));
+		},
 	},
 	methods: {
 		commitPageInput(event: Event) {
-			const target = event.target as HTMLInputElement|null;
+			const target = event.target as HTMLInputElement | null;
 			if (!target) {
 				return;
 			}
@@ -146,7 +152,7 @@ export default defineComponent({
 			target.value = String(this.page + 1);
 		},
 		resetPageInput(event: Event) {
-			const target = event.target as HTMLInputElement|null;
+			const target = event.target as HTMLInputElement | null;
 			if (!target) {
 				return;
 			}
@@ -157,23 +163,25 @@ export default defineComponent({
 		calcOffsets(range: number) {
 			if (range <= 0) return [];
 			if (range <= 1) return [1];
-			if (range <= 2) return [1,2];
-			if (range <= 5) return [1,2,range];
-			if (range <= 10) return [1,2,5,range];
-			return [1,2,3,5,10];
+			if (range <= 2) return [1, 2];
+			if (range <= 5) return [1, 2, range];
+			if (range <= 10) return [1, 2, 5, range];
+			return [1, 2, 3, 5, 10];
 		},
 		isValid(page: any): page is number {
-			return typeof page === 'number' &&
+			return (
+				typeof page === 'number' &&
 				!isNaN(page) &&
 				(page !== this.page || !this.pageActive) && // emit event for current page if the page is not active (i.e. is page is just center of the pagination, but not the "current" page)
 				page >= this.minPage &&
 				page <= this.maxPage
+			);
 		},
 		changePage(page: any) {
 			if (!this.disabled && this.isValid(page)) {
-				this.$emit('change', page)
+				this.$emit('change', page);
 			}
-		}
+		},
 	},
 	beforeUpdate() {
 		this.focus = document.activeElement === this.$refs.maincontrol;
@@ -183,22 +191,21 @@ export default defineComponent({
 			(this.$refs.maincontrol as HTMLInputElement).focus();
 		}
 	},
-
-})
+});
 </script>
 
 <style lang="scss" scoped>
-@use "sass:color";
+@use 'sass:color';
 
 .pagination {
 	$color: color.adjust(#337ab7, $lightness: -5%);
 	$border-color: color.adjust(#337ab7, $lightness: 20%);
 	margin: 0;
-	display: inline-block!important;
+	display: inline-block !important;
 
 	vertical-align: middle; // this is done for buttons, but not for ul? align with neighboring buttons.
 
-	>li {
+	> li {
 		> a,
 		> span {
 			display: inline-block;
@@ -269,7 +276,7 @@ export default defineComponent({
 			}
 		}
 	}
-	li+li.current {
+	li + li.current {
 		margin-left: -1px;
 	}
 }

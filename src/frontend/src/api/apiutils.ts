@@ -1,10 +1,10 @@
+import { isObject } from '@vueuse/core';
 import type { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import axios from 'axios';
 
 import { ApiError } from '@/types/apptypes';
 import { isBLError } from '@/types/blacklabtypes';
 import { CancelableRequest } from '@/utils/loadable-streams';
-import { isObject } from '@vueuse/core';
 
 const settings = {
 	// use a builtin delay to simulate network latency (in ms)
@@ -34,7 +34,12 @@ export function delayError(e: AxiosError): Promise<AxiosResponse<never>> {
 }
 
 function cleanQueryParams(params: any): any {
-	if (isObject(params)) return Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null).map(([k, v]) => [k, cleanQueryParams(v)]));
+	if (isObject(params))
+		return Object.fromEntries(
+			Object.entries(params)
+				.filter(([_, v]) => v != null)
+				.map(([k, v]) => [k, cleanQueryParams(v)]),
+		);
 	if (params instanceof URLSearchParams) {
 		const cleaned = new URLSearchParams();
 		for (const [k, v] of params.entries()) {
@@ -53,7 +58,8 @@ function cleanQueryParams(params: any): any {
  * For use with axios. Always returns a rejected promise containing the error.
  */
 export async function handleError(error: AxiosError): Promise<never> {
-	if (axios.isCancel(error)) { // is a cancelled request, message containing details
+	if (axios.isCancel(error)) {
+		// is a cancelled request, message containing details
 		return Promise.reject(ApiError.CANCELLED);
 	}
 
@@ -66,23 +72,20 @@ export async function handleError(error: AxiosError): Promise<never> {
 			url = [error.config.baseURL || '', error.config.url].join('');
 		}
 
-		return Promise.reject(new ApiError(
-			error.message,
-			'Could not connect to server at ' + url,
-			'Server Offline',
-			undefined
-		));
+		return Promise.reject(new ApiError(error.message, 'Could not connect to server at ' + url, 'Server Offline', undefined));
 	}
 
 	// Something else is going on, assume it's a blacklab-server error
-	const contentType: string = (response.headers['content-type'] || '');
+	const contentType: string = response.headers['content-type'] || '';
 	if (isBLError(response.data)) {
-		return Promise.reject(new ApiError(
-			response.data.error.code,
-			response.data.error.message + (response.data.error.stackTrace ? '\nStack Trace:\n' + response.data.error.stackTrace : ''),
-			response.statusText,
-			response.status
-		));
+		return Promise.reject(
+			new ApiError(
+				response.data.error.code,
+				response.data.error.message + (response.data.error.stackTrace ? '\nStack Trace:\n' + response.data.error.stackTrace : ''),
+				response.statusText,
+				response.status,
+			),
+		);
 	} else if (contentType.match(/xml/i) && typeof response.data === 'string' && response.data.length) {
 		try {
 			const text = response.data;
@@ -101,62 +104,58 @@ export async function handleError(error: AxiosError): Promise<never> {
 			const stackTrace = xml.querySelector('stackTrace');
 
 			if (code && message) {
-				return Promise.reject(new ApiError(
-					code.textContent!,
-					message.textContent! + (stackTrace ? '\nStack Trace:\n' + stackTrace.textContent : ''),
-					response.statusText,
-					response.status
-				));
+				return Promise.reject(new ApiError(code.textContent!, message.textContent! + (stackTrace ? '\nStack Trace:\n' + stackTrace.textContent : ''), response.statusText, response.status));
 			} else {
-				return Promise.reject(new ApiError(
-					`Server returned an error (${response.statusText}) at: ${response.config.url}`,
-					xml.textContent || response.data, // return just the text of the xml document.
-					response.statusText,
-					response.status
-				));
+				return Promise.reject(
+					new ApiError(
+						`Server returned an error (${response.statusText}) at: ${response.config.url}`,
+						xml.textContent || response.data, // return just the text of the xml document.
+						response.statusText,
+						response.status,
+					),
+				);
 			}
 		} catch {
 			// failed to parse xml but response indicated it was xml... Return the raw text instead.
-			return Promise.reject(new ApiError(
-				`Server returned an error (${response.statusText}) at: ${response.config.url}`,
-				response.data, // just print the raw text we received
-				response.statusText,
-				response.status
-			));
+			return Promise.reject(
+				new ApiError(
+					`Server returned an error (${response.statusText}) at: ${response.config.url}`,
+					response.data, // just print the raw text we received
+					response.statusText,
+					response.status,
+				),
+			);
 		}
 	} else {
-		return Promise.reject(new ApiError(
-			`Server returned an unexpected error at: ${response.config.url}`,
-			response.data,
-			response.statusText,
-			response.status
-		));
+		return Promise.reject(new ApiError(`Server returned an unexpected error at: ${response.config.url}`, response.data, response.statusText, response.status));
 	}
 }
 
 export function createEndpoint(options: AxiosRequestConfig) {
 	const endpoint = axios.create({
 		withCredentials: settings.withCredentials,
-		...options
+		...options,
 	});
 
 	return {
 		...endpoint,
-		getCancelable<T>(url: string, queryParams?: Record<string, string|number|boolean|Record<string, any>>, config?: AxiosRequestConfig): CancelableRequest<T> {
+		getCancelable<T>(url: string, queryParams?: Record<string, string | number | boolean | Record<string, any>>, config?: AxiosRequestConfig): CancelableRequest<T> {
 			const source = axios.CancelToken.source();
-			const request = endpoint.get<T>(url, {...config, params: cleanQueryParams(queryParams), cancelToken: source.token})
-			.then(delayResponse, delayError)
-			.then(r => r.data, handleError);
+			const request = endpoint
+				.get<T>(url, { ...config, params: cleanQueryParams(queryParams), cancelToken: source.token })
+				.then(delayResponse, delayError)
+				.then(r => r.data, handleError);
 			return new CancelableRequest(request, source.cancel);
 		},
-		get<T>(url: string, queryParams?: Record<string, string|number|boolean|Record<string, any>>, config?: AxiosRequestConfig): Promise<T> {
+		get<T>(url: string, queryParams?: Record<string, string | number | boolean | Record<string, any>>, config?: AxiosRequestConfig): Promise<T> {
 			return this.getCancelable<T>(url, queryParams, config).request;
 		},
 		postCancelable<T>(url: string, formData?: any, config?: AxiosRequestConfig): CancelableRequest<T> {
 			const source = axios.CancelToken.source();
-			const request = endpoint.post<T>(url, cleanQueryParams(formData), {...config, cancelToken: source.token})
-			.then(delayResponse, delayError)
-			.then(r => r.data, handleError);
+			const request = endpoint
+				.post<T>(url, cleanQueryParams(formData), { ...config, cancelToken: source.token })
+				.then(delayResponse, delayError)
+				.then(r => r.data, handleError);
 			return new CancelableRequest(request, source.cancel);
 		},
 		post<T>(url: string, formData?: any, config?: AxiosRequestConfig): Promise<T> {
@@ -191,9 +190,10 @@ export function createEndpoint(options: AxiosRequestConfig) {
 			const source = axios.CancelToken.source();
 			// Need to use the generic .request function because .delete
 			// returns a void promise by design, yet blacklab sends response bodies
-			const request = endpoint.request<T>({...config, method: 'DELETE', url, cancelToken: source.token})
-			.then(delayResponse, delayError)
-			.then(r => r.data, handleError);
+			const request = endpoint
+				.request<T>({ ...config, method: 'DELETE', url, cancelToken: source.token })
+				.then(delayResponse, delayError)
+				.then(r => r.data, handleError);
 			return new CancelableRequest(request, source.cancel);
 		},
 		delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {

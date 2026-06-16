@@ -1,3 +1,5 @@
+import type { App } from 'vue';
+
 import * as RootStore from '@/app/state/root-store';
 import * as UIModule from '@/app/state/ui-state';
 import * as ArticleModule from '@/features/article/model/article-state';
@@ -13,7 +15,6 @@ import * as PatternModule from '@/features/search/model/form/pattern-state';
 import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
-import type { App } from 'vue';
 
 type InteropWindow = Window & {
 	vueApp?: App;

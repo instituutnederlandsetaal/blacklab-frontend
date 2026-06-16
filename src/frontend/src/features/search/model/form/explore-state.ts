@@ -3,11 +3,12 @@
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
 
+import { reactive, ref } from 'vue';
+
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as UIStore from '@/app/state/ui-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
 import { escapeRegex } from '@/utils';
-import { reactive, ref } from 'vue';
 
 type Token = {
 	/** Annotation ID */
@@ -48,22 +49,28 @@ const defaults: ModuleRootState = {
 			for (let i = 0; i < defaults.ngram.maxSize; ++i) {
 				ret.push({
 					id: UIStore.getState().explore.defaultSearchAnnotationId,
-					value: ''
+					value: '',
 				});
 			}
 			return ret;
 		},
-		get groupAnnotationId() { return UIStore.getState().explore.defaultGroupAnnotationId; }
+		get groupAnnotationId() {
+			return UIStore.getState().explore.defaultGroupAnnotationId;
+		},
 	},
 
 	frequency: {
-		get annotationId() { return UIStore.getState().explore.defaultGroupAnnotationId; }
+		get annotationId() {
+			return UIStore.getState().explore.defaultGroupAnnotationId;
+		},
 	},
 
 	corpora: {
-		get groupBy() { return `field:${UIStore.getState().explore.defaultGroupMetadataId}`; },
-		groupDisplayMode: 'table'
-	}
+		get groupBy() {
+			return `field:${UIStore.getState().explore.defaultGroupMetadataId}`;
+		},
+		groupDisplayMode: 'table',
+	},
 };
 
 const state = reactive(structuredClone(defaults));
@@ -90,29 +97,30 @@ const get = {
 		groupAnnotationId: () => state.ngram.groupAnnotationId,
 
 		groupBy: memoize(() => `hit:${state.ngram.groupAnnotationId}`),
-		patternString: memoize(() => state.ngram.tokens
-			.slice(0, state.ngram.size)
-			.map(({id, value}) => id && value ? `[${id}="${escapeRegex(value, {escapePipes: false, escapeWildcards: false})}"]` : '[]')
-			.join('')
+		patternString: memoize(() =>
+			state.ngram.tokens
+				.slice(0, state.ngram.size)
+				.map(({ id, value }) => (id && value ? `[${id}="${escapeRegex(value, { escapePipes: false, escapeWildcards: false })}"]` : '[]'))
+				.join(''),
 		),
 	},
 
 	frequency: {
 		annotationId: () => state.frequency.annotationId,
 		patternString: () => '[]',
-		groupBy: memoize(() => `hit:${state.frequency.annotationId}`)
+		groupBy: memoize(() => `hit:${state.frequency.annotationId}`),
 	},
 
 	corpora: {
 		groupBy: () => state.corpora.groupBy,
 		groupDisplayMode: () => state.corpora.groupDisplayMode,
-	}
+	},
 };
 
 const actions = {
 	ngram: {
-		size: (payload: number) => state.ngram.size = Math.min(state.ngram.maxSize, payload),
-		token: (payload: { index: number, token: Partial<Token> }) => {
+		size: (payload: number) => (state.ngram.size = Math.min(state.ngram.maxSize, payload)),
+		token: (payload: { index: number; token: Partial<Token> }) => {
 			if (payload.index < state.ngram.maxSize) {
 				const storeValue = state.ngram.tokens[payload.index];
 				Object.assign(storeValue, payload.token);
@@ -121,7 +129,7 @@ const actions = {
 				}
 			}
 		},
-		groupAnnotationId: (payload: string) => state.ngram.groupAnnotationId = payload,
+		groupAnnotationId: (payload: string) => (state.ngram.groupAnnotationId = payload),
 		maxSize: (payload: number) => {
 			state.ngram.maxSize = payload;
 			normalizeNgramState();
@@ -139,15 +147,15 @@ const actions = {
 	},
 
 	frequency: {
-		annotationId: (payload: string) => state.frequency.annotationId = payload,
+		annotationId: (payload: string) => (state.frequency.annotationId = payload),
 
 		reset: () => Object.assign(state.frequency, structuredClone(defaults.frequency)),
 		replace: (payload: ModuleRootState['frequency']) => Object.assign(state.frequency, payload),
 	},
 
 	corpora: {
-		groupBy: (payload: string) => state.corpora.groupBy = payload,
-		groupDisplayMode: (payload: string) => state.corpora.groupDisplayMode = payload,
+		groupBy: (payload: string) => (state.corpora.groupBy = payload),
+		groupDisplayMode: (payload: string) => (state.corpora.groupDisplayMode = payload),
 
 		reset: () => Object.assign(state.corpora, structuredClone(defaults.corpora)),
 		replace: (payload: ModuleRootState['corpora']) => Object.assign(state.corpora, payload),
@@ -173,4 +181,3 @@ const init = (_state: CorpusChange) => {
 
 export { actions, defaults, get, getState, init, resetSignal };
 export type { ModuleRootState, Token };
-

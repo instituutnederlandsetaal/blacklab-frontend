@@ -8,6 +8,7 @@
 
 import cloneDeep from 'clone-deep';
 import { html, stripIndent } from 'common-tags';
+import { reactive } from 'vue';
 
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
@@ -16,8 +17,6 @@ import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { normalizeAnnotationUIType } from '@/utils/blacklabutils';
 import { corpusCustomizations } from '@/utils/customization';
-import { reactive } from 'vue';
-
 
 type CustomView = {
 	id: string;
@@ -27,7 +26,7 @@ type CustomView = {
 	title: string;
 	/** Vue component name or a compiled component. */
 	component: string;
-}
+};
 
 type ModuleRootState = {
 	search: {
@@ -37,13 +36,13 @@ type ModuleRootState = {
 		};
 		extended: {
 			/** Available annotation inputs in the extended search */
-			searchAnnotationIds: string[],
+			searchAnnotationIds: string[];
 			splitBatch: {
 				enabled: boolean;
 			};
 		};
 		advanced: {
-			enabled: boolean,
+			enabled: boolean;
 			/** Annotation selection options in querybuilder. Sorted by global annotation order. */
 			searchAnnotationIds: string[];
 			defaultSearchAnnotationId: string;
@@ -63,7 +62,7 @@ type ModuleRootState = {
 			within: {
 				enabled: boolean;
 				elements: Array<{
-					title: string|null;
+					title: string | null;
 					label?: string;
 					value: string;
 				}>;
@@ -72,20 +71,20 @@ type ModuleRootState = {
 				 * Used when (for example) requesting surrounding context in the dependency tree.
 				 * Defaults to the first element in the within.elements array, but null if none are defined.
 				 */
-				sentenceElement: string|null;
+				sentenceElement: string | null;
 			};
 
 			/** Alignment relation types available in a parallel corpus, e.g. word, sentence or paragraph alignment. */
 			alignBy: {
 				enabled: boolean;
 				elements: Array<{
-					title: string|null;
+					title: string | null;
 					label?: string;
 					value: string;
 				}>;
 				defaultValue: string;
 			};
-		}
+		};
 	};
 
 	explore: {
@@ -129,22 +128,16 @@ type ModuleRootState = {
 			 * Otherwise, a div is rendered.
 			 * The 'content' is provided as content for the default slot when rendering a component, and provided as v-html for the div.
 			 */
-			addons: Array<((context: {
-				corpus: string,
-				docId: string,
-				document: BLTypes.BLDocInfo,
-				documentUrl: string,
-				wordAnnotationId: string,
-				dir: 'ltr'|'rtl',
-				citation: BLTypes.BLHitSnippet
-			}) => {
-				name: string;
-				component?: string;
-				element?: string;
-				props?: any;
-				content?: string
-				listeners?: any;
-			})>;
+			addons: Array<
+				(context: { corpus: string; docId: string; document: BLTypes.BLDocInfo; documentUrl: string; wordAnnotationId: string; dir: 'ltr' | 'rtl'; citation: BLTypes.BLHitSnippet }) => {
+					name: string;
+					component?: string;
+					element?: string;
+					props?: any;
+					content?: string;
+					listeners?: any;
+				}
+			>;
 		};
 		docs: {
 			/**
@@ -155,19 +148,19 @@ type ModuleRootState = {
 			shownMetadataIds: string[];
 		};
 
-		customViews: CustomView[],
+		customViews: CustomView[];
 
 		shared: {
 			/** Show a widget to enable quick switching of the concordanceAnnotationId if there are multiple possibilities (example - show phonetic texts vs written texts ?). */
-			concordanceAnnotationIdOptions: string[],
+			concordanceAnnotationIdOptions: string[];
 			/** What annotation to use for displaying of [before, hit, after] and snippets. Conventionally the main annotation. */
 			concordanceAnnotationId: string;
 			/** Optionally run a function on all retrieved snippets to arbitrarily process the data (we use this to format the values in some annotations for display purposes). */
-			transformSnippets: null|((snippet: BLTypes.BLHitSnippet) => void);
+			transformSnippets: null | ((snippet: BLTypes.BLHitSnippet) => void);
 			/** Size of the details hit (number of words loaded before/after the hit when expanding a hit result). Max 1000 */
 			concordanceSize: number;
 			concordanceAsHtml: boolean;
-			getDocumentSummary: ((doc: BLTypes.BLDocInfo, fields: BLTypes.BLDocFields) => string);
+			getDocumentSummary: (doc: BLTypes.BLDocInfo, fields: BLTypes.BLDocFields) => string;
 
 			/**
 			 * Annotations IDs to include in expanded hit rows (meaning in the table there), and csv exports containing hits.
@@ -175,14 +168,14 @@ type ModuleRootState = {
 			 * and the interface will then display all non-internal annotations, in their displayOrder.
 			 * Sorted by global annotation order.
 			 */
-			detailedAnnotationIds: null|string[];
+			detailedAnnotationIds: null | string[];
 			/**
 			 * Document Metadata field IDs to include in exported results.
 			 * Has no influence over shown metadata in the opened documents/articles on the /docs/${docId} page.
 			 * Server returns all fields if this is null.
 			 * Sorted by global metadata order.
 			 */
-			detailedMetadataIds: null|string[];
+			detailedMetadataIds: null | string[];
 
 			/**
 			 * Available options for grouping by annotation, in Explore//N-grams, Explore//Statistics, and the Per Hit results.
@@ -199,7 +192,7 @@ type ModuleRootState = {
 			sortMetadataIds: string[];
 
 			/** Used for calculating page offsets in links to documents */
-			pageSize: number|undefined;
+			pageSize: number | undefined;
 
 			/** Are the export buttons allowed in the interface */
 			exportEnabled: boolean;
@@ -211,31 +204,31 @@ type ModuleRootState = {
 
 			/** Which annotations should be shown in the dependency tree. (for corpora with dependencies indexed) */
 			dependencies: {
-				lemma: string|null;
-				upos: string|null;
-				xpos: string|null;
-				feats: string[]|null;
-			}
+				lemma: string | null;
+				upos: string | null;
+				xpos: string | null;
+				feats: string[] | null;
+			};
 		};
 	};
 
 	dropdowns: {
 		groupBy: {
 			/** Shows or hides the small muted text label showing the group of an annotation. Also hides the hit/before/after label. */
-			annotationGroupLabelsVisible: boolean
+			annotationGroupLabelsVisible: boolean;
 			/** Shows or hides the small muted text label showing the group of a metadata field. */
-			metadataGroupLabelsVisible: boolean,
+			metadataGroupLabelsVisible: boolean;
 		};
 		sortBy: {
 			/** Shows or hides the small muted text label showing the group of an annotation. Also hides the hit/before/after label. */
 			annotationGroupLabelsVisible: boolean;
 			/** Shows or hides the small muted text label showing the group of a metadata field. */
 			metadataGroupLabelsVisible: boolean;
-		}
+		};
 	};
 
 	global: {
-		config: AppTypes.CFPageConfig,
+		config: AppTypes.CFPageConfig;
 
 		/** Database to use in the lexicon service component. To allow switching early dutch/middle dutch etc. */
 		lexiconDb: string;
@@ -243,8 +236,8 @@ type ModuleRootState = {
 		 * @param e the error
 		 * @param context snippet = large context around a hit, concordances = hits within a group. NOTE: context may be expanded in the future.
 		 */
-		errorMessage(e: AppTypes.ApiError, context: 'snippet'|'concordances'|'hits'|'docs'|'groups'): string;
-	}
+		errorMessage(e: AppTypes.ApiError, context: 'snippet' | 'concordances' | 'hits' | 'docs' | 'groups'): string;
+	};
 };
 
 // Will be corrected on store init
@@ -266,7 +259,7 @@ const initialState: ModuleRootState = {
 		advanced: {
 			enabled: true,
 			searchAnnotationIds: [],
-			defaultSearchAnnotationId: ''
+			defaultSearchAnnotationId: '',
 		},
 		expert: {},
 
@@ -276,7 +269,7 @@ const initialState: ModuleRootState = {
 			within: {
 				enabled: true,
 				elements: [],
-				sentenceElement: null
+				sentenceElement: null,
 			},
 
 			alignBy: {
@@ -284,7 +277,7 @@ const initialState: ModuleRootState = {
 				elements: [],
 				defaultValue: '',
 			},
-		}
+		},
 	},
 	explore: {
 		defaultSearchAnnotationId: '',
@@ -297,22 +290,25 @@ const initialState: ModuleRootState = {
 		hits: {
 			shownAnnotationIds: [],
 			shownMetadataIds: [],
-			addons: []
+			addons: [],
 		},
 		docs: {
 			shownMetadataIds: [],
 		},
 		// we have to do this here already, otherwise these views would be undefined during customjs evaluation.
 		// (which is done before the store is initialized)
-		customViews: [{
-			id: 'hits',
-			title: 'Per Hit',
-			component: 'ResultsView'
-		}, {
-			id: 'docs',
-			title: 'Per Document',
-			component: 'ResultsView'
-		}],
+		customViews: [
+			{
+				id: 'hits',
+				title: 'Per Hit',
+				component: 'ResultsView',
+			},
+			{
+				id: 'docs',
+				title: 'Per Document',
+				component: 'ResultsView',
+			},
+		],
 		shared: {
 			concordanceAnnotationIdOptions: [],
 			concordanceAnnotationId: '',
@@ -342,9 +338,9 @@ const initialState: ModuleRootState = {
 				feats: null,
 				lemma: null,
 				upos: null,
-				xpos: null
-			}
-		}
+				xpos: null,
+			},
+		},
 	},
 	global: {
 		config: {
@@ -363,48 +359,58 @@ const initialState: ModuleRootState = {
 		lexiconDb: 'lexiconservice_mnw_wnt',
 		errorMessage: (e, c) => {
 			switch (c) {
-				case 'concordances': return `${e.title}<br>${e.message}`;
-				default: return e.message;
+				case 'concordances':
+					return `${e.title}<br>${e.message}`;
+				default:
+					return e.message;
 			}
-		}
+		},
 	},
 
 	dropdowns: {
 		groupBy: {
 			metadataGroupLabelsVisible: false,
-			annotationGroupLabelsVisible: false
+			annotationGroupLabelsVisible: false,
 		},
 		sortBy: {
 			metadataGroupLabelsVisible: false,
-			annotationGroupLabelsVisible: false
-		}
-	}
+			annotationGroupLabelsVisible: false,
+		},
+	},
 };
 
 const state = reactive<ModuleRootState>(cloneDeep(initialState));
 
 const getState = (): ModuleRootState => state;
 
-const get = {
-};
-
+const get = {};
 
 const actions = {
 	search: {
 		simple: {
-			searchAnnotationId: (id: string) => validateAnnotations([id], id => `Trying to display Annotation ${id} in the simple search, but it does not exist`, _ => true, _ => '', r => {
-				state.search.simple.searchAnnotationId = r[0];
-			}),
+			searchAnnotationId: (id: string) =>
+				validateAnnotations(
+					[id],
+					id => `Trying to display Annotation ${id} in the simple search, but it does not exist`,
+					_ => true,
+					_ => '',
+					r => {
+						state.search.simple.searchAnnotationId = r[0];
+					},
+				),
 		},
 		extended: {
-			searchAnnotationIds: (ids: string[]) => validateAnnotations(ids,
-				id => `Trying to display Annotation ${id} in the extended search, but it does not exist`,
-				_ => true, _ => '',
-				r => state.search.extended.searchAnnotationIds = r
-			),
+			searchAnnotationIds: (ids: string[]) =>
+				validateAnnotations(
+					ids,
+					id => `Trying to display Annotation ${id} in the extended search, but it does not exist`,
+					_ => true,
+					_ => '',
+					r => (state.search.extended.searchAnnotationIds = r),
+				),
 
 			splitBatch: {
-				enable: (payload: boolean) => state.search.extended.splitBatch.enabled = payload,
+				enable: (payload: boolean) => (state.search.extended.splitBatch.enabled = payload),
 			},
 
 			/** @deprecated 9-04-2024 backwards compatibility. Moved to search.shared.within */
@@ -412,44 +418,55 @@ const actions = {
 				/** @deprecated 9-04-2024 backwards compatibility. Moved to search.shared.within */
 				enable: (p: boolean) => actions.search.shared.within.enable(p),
 				/** @deprecated 9-04-2024 backwards compatibility. Moved to search.shared.within */
-				elements: (e: ModuleRootState['search']['shared']['within']['elements']) => actions.search.shared.within.elements(e)
+				elements: (e: ModuleRootState['search']['shared']['within']['elements']) => actions.search.shared.within.elements(e),
 			},
 		},
 		advanced: {
-			searchAnnotationIds: (ids: string[]) => validateAnnotations(ids,
-				id => `Trying to display Annotation ${id} in the querybuilder, but it does not exist`,
-				_ => true, _ => '',
-				r => {
-					r = state.search.advanced.searchAnnotationIds = r;
-					const defaultId = state.search.advanced.defaultSearchAnnotationId;
-					if (!r.includes(defaultId)) {
-						if (defaultId) { // don't warn when it was unconfigured before (e.g. '')
-							console.warn(`[search.advanced.searchAnnotationIds] - Changing default annotation from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`);
+			searchAnnotationIds: (ids: string[]) =>
+				validateAnnotations(
+					ids,
+					id => `Trying to display Annotation ${id} in the querybuilder, but it does not exist`,
+					_ => true,
+					_ => '',
+					r => {
+						r = state.search.advanced.searchAnnotationIds = r;
+						const defaultId = state.search.advanced.defaultSearchAnnotationId;
+						if (!r.includes(defaultId)) {
+							if (defaultId) {
+								// don't warn when it was unconfigured before (e.g. '')
+								console.warn(
+									`[search.advanced.searchAnnotationIds] - Changing default annotation from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`,
+								);
+							}
+							state.search.advanced.defaultSearchAnnotationId = r[0];
 						}
-						state.search.advanced.defaultSearchAnnotationId = r[0];
-					}
-				}
-			),
+					},
+				),
 			defaultSearchAnnotationId: (annotationId: string) => {
 				if (state.search.advanced.searchAnnotationIds.length === 0 || state.search.advanced.searchAnnotationIds.includes(annotationId)) {
 					state.explore.defaultGroupAnnotationId = annotationId;
 				} else {
-					console.warn(`[search.advanced.defaultSearchAnnotationId] - Trying to set default selection to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.search.advanced.searchAnnotationIds)})!`);
+					console.warn(
+						`[search.advanced.defaultSearchAnnotationId] - Trying to set default selection to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.search.advanced.searchAnnotationIds)})!`,
+					);
 				}
 			},
 
-			enable: (enable: boolean) => state.search.advanced.enabled = enable,
+			enable: (enable: boolean) => (state.search.advanced.enabled = enable),
 		},
 		expert: {},
 
 		shared: {
-			searchMetadataIds: (ids: string[]) => validateMetadata(ids,
-				id => `Trying to display metadata field '${id}' in the filters section, but it does not exist.`,
-			_ => true, _ => '',
-				r => state.search.shared.searchMetadataIds = r
-			),
+			searchMetadataIds: (ids: string[]) =>
+				validateMetadata(
+					ids,
+					id => `Trying to display metadata field '${id}' in the filters section, but it does not exist.`,
+					_ => true,
+					_ => '',
+					r => (state.search.shared.searchMetadataIds = r),
+				),
 			within: {
-				enable: (payload: boolean) => state.search.shared.within.enabled = payload,
+				enable: (payload: boolean) => (state.search.shared.within.enabled = payload),
 				elements: (payload: ModuleRootState['search']['shared']['within']['elements']) => {
 					const relations = CorpusStore.get.corpus().relations;
 					const validElements = payload.filter(v => relations.spans?.[v.value]);
@@ -457,40 +474,43 @@ const actions = {
 						validElements.unshift({
 							value: '',
 							label: 'Document',
-							title: null
+							title: null,
 						});
 					}
 					state.search.shared.within.elements = validElements;
 				},
-				sentenceElement: (payload: string|null) => {
-					if (state.search.shared.within.elements.findIndex(e => e.value === payload) >= 0 )
-						state.search.shared.within.sentenceElement = payload;
+				sentenceElement: (payload: string | null) => {
+					if (state.search.shared.within.elements.findIndex(e => e.value === payload) >= 0) state.search.shared.within.sentenceElement = payload;
 				},
 			},
 			/** Alignment relation types available in a parallel corpus, e.g. word, sentence or paragraph alignment. */
 			alignBy: {
-				enable: (payload: boolean) => state.search.shared.alignBy.enabled = payload,
+				enable: (payload: boolean) => (state.search.shared.alignBy.enabled = payload),
 				elements: (payload: ModuleRootState['search']['shared']['alignBy']['elements']) => {
 					state.search.shared.alignBy.elements = payload;
 					const defaultValue = payload[0]?.value ?? '';
 					state.search.shared.alignBy.defaultValue = defaultValue;
 				},
 			},
-		}
+		},
 	},
 	explore: {
 		defaultGroupAnnotationId: (annotationId: string) => {
 			if (state.results.shared.groupAnnotationIds.length === 0 || state.results.shared.groupAnnotationIds.includes(annotationId)) {
 				state.explore.defaultGroupAnnotationId = annotationId;
 			} else {
-				console.warn(`[explore.defaultGroupAnnotationId] - Trying to set default annotation to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.results.shared.groupAnnotationIds)})!`);
+				console.warn(
+					`[explore.defaultGroupAnnotationId] - Trying to set default annotation to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.results.shared.groupAnnotationIds)})!`,
+				);
 			}
 		},
 		defaultGroupMetadataId: (metadataFieldId: string) => {
 			if (state.results.shared.groupMetadataIds.length === 0 || state.results.shared.groupMetadataIds.includes(metadataFieldId)) {
 				state.explore.defaultGroupMetadataId = metadataFieldId;
 			} else {
-				console.warn(`[explore.defaultGroupMetadataId] - Trying to set default metadata field to '${metadataFieldId}', but it's not one of the configured options (${JSON.stringify(state.results.shared.groupMetadataIds)})!`);
+				console.warn(
+					`[explore.defaultGroupMetadataId] - Trying to set default metadata field to '${metadataFieldId}', but it's not one of the configured options (${JSON.stringify(state.results.shared.groupMetadataIds)})!`,
+				);
 			}
 		},
 
@@ -498,47 +518,63 @@ const actions = {
 			if (state.explore.searchAnnotationIds.length === 0 || state.explore.searchAnnotationIds.includes(annotationId)) {
 				state.explore.defaultSearchAnnotationId = annotationId;
 			} else {
-				console.warn(`[explore.defaultSearchAnnotationId] - Trying to set default annotation to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.explore.searchAnnotationIds)})!`);
+				console.warn(
+					`[explore.defaultSearchAnnotationId] - Trying to set default annotation to '${annotationId}', but it's not one of the configured options (${JSON.stringify(state.explore.searchAnnotationIds)})!`,
+				);
 			}
 		},
-		searchAnnotationIds: (ids: string[]) => validateAnnotations(ids,
-			id => `Trying to display Annotation ${id} in the explore view (n-grams), but it does not exist`,
-			_ => true, _ => '',
-			r => {
-				const defaultId = state.explore.defaultSearchAnnotationId;
-				r = state.explore.searchAnnotationIds = r;
-				if (!r.includes(defaultId)) {
-					if (defaultId) { // don't warn when it was unconfigured before (e.g. '')
-						console.warn(`[explore.searchAnnotationIds] - Changing default annotation from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`);
+		searchAnnotationIds: (ids: string[]) =>
+			validateAnnotations(
+				ids,
+				id => `Trying to display Annotation ${id} in the explore view (n-grams), but it does not exist`,
+				_ => true,
+				_ => '',
+				r => {
+					const defaultId = state.explore.defaultSearchAnnotationId;
+					r = state.explore.searchAnnotationIds = r;
+					if (!r.includes(defaultId)) {
+						if (defaultId) {
+							// don't warn when it was unconfigured before (e.g. '')
+							console.warn(
+								`[explore.searchAnnotationIds] - Changing default annotation from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`,
+							);
+						}
+						state.explore.defaultSearchAnnotationId = r[0];
 					}
-					state.explore.defaultSearchAnnotationId = r[0];
-				}
-			}
-		),
+				},
+			),
 	},
 	results: {
 		hits: {
-			shownAnnotationIds: (ids: string[]) => validateAnnotations(ids,
-				id => `Trying to display Annotation '${id}' as column in the hits table, but it does not exist`,
-				a => a.hasForwardIndex,
-				id => `Trying to display Annotation '${id}' as column in the hits table, but it does not have the required forward index.`,
-				r => state.results.hits.shownAnnotationIds = r
-			),
+			shownAnnotationIds: (ids: string[]) =>
+				validateAnnotations(
+					ids,
+					id => `Trying to display Annotation '${id}' as column in the hits table, but it does not exist`,
+					a => a.hasForwardIndex,
+					id => `Trying to display Annotation '${id}' as column in the hits table, but it does not have the required forward index.`,
+					r => (state.results.hits.shownAnnotationIds = r),
+				),
 
-			shownMetadataIds: (ids: string[]) => validateMetadata(ids,
-				id => `Trying to display metadata field '${id}' as column in the hits table, but it does not exist`,
-				_ => true, _ => '',
-				r => state.results.hits.shownMetadataIds = r
-			),
+			shownMetadataIds: (ids: string[]) =>
+				validateMetadata(
+					ids,
+					id => `Trying to display metadata field '${id}' as column in the hits table, but it does not exist`,
+					_ => true,
+					_ => '',
+					r => (state.results.hits.shownMetadataIds = r),
+				),
 		},
 		docs: {
-			shownMetadataIds: (ids: string[]) => validateMetadata(ids,
-				id => `Trying to display metadata field '${id}' as column in the docs table, but it does not exist`,
-				_ => true, _ => '',
-				r => state.results.docs.shownMetadataIds = r
-			),
+			shownMetadataIds: (ids: string[]) =>
+				validateMetadata(
+					ids,
+					id => `Trying to display metadata field '${id}' as column in the docs table, but it does not exist`,
+					_ => true,
+					_ => '',
+					r => (state.results.docs.shownMetadataIds = r),
+				),
 		},
-		addResultView: (view: CustomView&{customInitialState: any}) => {
+		addResultView: (view: CustomView & { customInitialState: any }) => {
 			if (!state.results.customViews.find(v => v.id === view.id)) {
 				ViewsStore.getOrCreateModule(view.id);
 				state.results.customViews.push(view);
@@ -553,92 +589,115 @@ const actions = {
 			}
 		},
 		shared: {
-			concordanceAnnotationIdOptions: (ids: string[]) => validateAnnotations(ids,
-				id => `Trying to set available option for concordance Annotation '${id}', but it does not exist`,
-				a => a.hasForwardIndex,
-				id => `Trying to set available option for concordance Annotation '${id}', but it does not have the required forward index.`,
-				r => state.results.shared.concordanceAnnotationIdOptions = r
-			),
-			concordanceAnnotationId: (id: string) => validateAnnotations([id],
-				_ => `Trying to display Annotation '${id}' as concordance and snippet text, but it does not exist`,
-				a => a.hasForwardIndex,
-				_ => `Trying to display Annotation '${id}' as concordance and snippet text, but it does not have the required forward index.`,
-				r => state.results.shared.concordanceAnnotationId = id
-			),
-			concordanceAsHtml: (enable: boolean) => state.results.shared.concordanceAsHtml = enable,
-			concordanceSize: (size: number) => state.results.shared.concordanceSize = Math.min(Math.max(0, size), 1000),
-			transformSnippets: (transform: (snippet: BLTypes.BLHitSnippet) => void) => state.results.shared.transformSnippets = transform,
+			concordanceAnnotationIdOptions: (ids: string[]) =>
+				validateAnnotations(
+					ids,
+					id => `Trying to set available option for concordance Annotation '${id}', but it does not exist`,
+					a => a.hasForwardIndex,
+					id => `Trying to set available option for concordance Annotation '${id}', but it does not have the required forward index.`,
+					r => (state.results.shared.concordanceAnnotationIdOptions = r),
+				),
+			concordanceAnnotationId: (id: string) =>
+				validateAnnotations(
+					[id],
+					_ => `Trying to display Annotation '${id}' as concordance and snippet text, but it does not exist`,
+					a => a.hasForwardIndex,
+					_ => `Trying to display Annotation '${id}' as concordance and snippet text, but it does not have the required forward index.`,
+					r => (state.results.shared.concordanceAnnotationId = id),
+				),
+			concordanceAsHtml: (enable: boolean) => (state.results.shared.concordanceAsHtml = enable),
+			concordanceSize: (size: number) => (state.results.shared.concordanceSize = Math.min(Math.max(0, size), 1000)),
+			transformSnippets: (transform: (snippet: BLTypes.BLHitSnippet) => void) => (state.results.shared.transformSnippets = transform),
 
-			detailedAnnotationIds: (ids: string[]|null) => {
+			detailedAnnotationIds: (ids: string[] | null) => {
 				if (ids != null) {
-					validateAnnotations(ids,
+					validateAnnotations(
+						ids,
 						id => `Trying to display Annotation '${id}' in hit detail snippets, but it does not exist`,
 						a => a.hasForwardIndex,
 						id => `Trying to display Annotation '${id}' in hit detail snippets, but it does not have the required forward index.`,
-						r => state.results.shared.detailedAnnotationIds = r
+						r => (state.results.shared.detailedAnnotationIds = r),
 					);
 				} else {
 					state.results.shared.detailedAnnotationIds = ids;
 				}
 			},
 
-			detailedMetadataIds: (ids: string[]|null) => {
+			detailedMetadataIds: (ids: string[] | null) => {
 				if (ids != null) {
-					validateMetadata(ids,
+					validateMetadata(
+						ids,
 						id => `Trying to add document metadata field '${id}' to exports, but it does not exist`,
-						_ => true, _ => '',
-						r => state.results.shared.detailedMetadataIds = r
+						_ => true,
+						_ => '',
+						r => (state.results.shared.detailedMetadataIds = r),
 					);
 				} else {
 					state.results.shared.detailedMetadataIds = ids;
 				}
 			},
 
-			groupAnnotationIds: (ids: string[]) => validateAnnotations(ids,
-				id => `Trying to allow grouping by Annotation '${id}', but it does not exist`,
-				a => a.hasForwardIndex,
-				id => `Trying to allow grouping by Annotation '${id}', but it does not have the required forward index.`,
-				r => {
-					const defaultId = state.explore.defaultGroupAnnotationId;
-					state.results.shared.groupAnnotationIds = r;
-					if (!r.includes(defaultId)) {
-						if (defaultId) { // don't warn when it was unconfigured before (e.g. '')
-							console.warn(`[results.shared.groupAnnotationIds] - Changing default annotation from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`);
+			groupAnnotationIds: (ids: string[]) =>
+				validateAnnotations(
+					ids,
+					id => `Trying to allow grouping by Annotation '${id}', but it does not exist`,
+					a => a.hasForwardIndex,
+					id => `Trying to allow grouping by Annotation '${id}', but it does not have the required forward index.`,
+					r => {
+						const defaultId = state.explore.defaultGroupAnnotationId;
+						state.results.shared.groupAnnotationIds = r;
+						if (!r.includes(defaultId)) {
+							if (defaultId) {
+								// don't warn when it was unconfigured before (e.g. '')
+								console.warn(
+									`[results.shared.groupAnnotationIds] - Changing default annotation from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`,
+								);
+							}
+							state.explore.defaultGroupAnnotationId = r[0];
 						}
-						state.explore.defaultGroupAnnotationId = r[0];
-					}
-				}
-			),
+					},
+				),
 
-			groupMetadataIds: (ids: string[]) => validateMetadata(ids,
-				id => `Trying to allow grouping by metadata field '${id}', but it does not exist`,
-				_ => true, _ => '',
-				r => {
-					const defaultId = state.explore.defaultGroupMetadataId;
-					state.results.shared.groupMetadataIds = r;
-					if (!r.includes(defaultId)) {
-						if (defaultId) { // don't warn when it was unconfigured before (e.g. '')
-							console.warn(`[results.shared.groupMetadataIds] - Changing default metadata field from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`);
+			groupMetadataIds: (ids: string[]) =>
+				validateMetadata(
+					ids,
+					id => `Trying to allow grouping by metadata field '${id}', but it does not exist`,
+					_ => true,
+					_ => '',
+					r => {
+						const defaultId = state.explore.defaultGroupMetadataId;
+						state.results.shared.groupMetadataIds = r;
+						if (!r.includes(defaultId)) {
+							if (defaultId) {
+								// don't warn when it was unconfigured before (e.g. '')
+								console.warn(
+									`[results.shared.groupMetadataIds] - Changing default metadata field from '${defaultId}' to '${r[0]}' because the new list of options disallows the old value: ${JSON.stringify(r)}`,
+								);
+							}
+							state.explore.defaultGroupMetadataId = r[0];
 						}
-						state.explore.defaultGroupMetadataId = r[0];
-					}
-				}
-			),
+					},
+				),
 
-			sortAnnotationIds: (ids: string[]) => validateAnnotations(ids,
-				id => `Trying to allow sorting by Annotation '${id}', but it does not exist`,
-				a => a.hasForwardIndex,
-				id => `Trying to allow sorting by Annotation '${id}', but it does not have the required forward index.`,
-				r => state.results.shared.sortAnnotationIds = r
-			),
+			sortAnnotationIds: (ids: string[]) =>
+				validateAnnotations(
+					ids,
+					id => `Trying to allow sorting by Annotation '${id}', but it does not exist`,
+					a => a.hasForwardIndex,
+					id => `Trying to allow sorting by Annotation '${id}', but it does not have the required forward index.`,
+					r => (state.results.shared.sortAnnotationIds = r),
+				),
 
-			sortMetadataIds: (ids: string[]) => validateMetadata(ids,
-				id => `Trying to allow sorting by metadata field '${id}', but it does not exist`,
-				_ => true, _ => '',
-				r => state.results.shared.sortMetadataIds = r
-			),
+			sortMetadataIds: (ids: string[]) =>
+				validateMetadata(
+					ids,
+					id => `Trying to allow sorting by metadata field '${id}', but it does not exist`,
+					_ => true,
+					_ => '',
+					r => (state.results.shared.sortMetadataIds = r),
+				),
 
-			exportEnabled: (enabled: boolean) => state.results.shared.exportEnabled = enabled,
+			exportEnabled: (enabled: boolean) => (state.results.shared.exportEnabled = enabled),
 
 			totalsTimeoutDurationMs: (timeoutMs: number) => {
 				const n = Number(timeoutMs);
@@ -651,26 +710,27 @@ const actions = {
 
 			/** Edit which annotations are shown in the dependency tree in the hits result table. */
 			dependencies: (payload: {
-				lemma: string|null,
-				upos: string|null,
-				xpos: string|null,
+				lemma: string | null;
+				upos: string | null;
+				xpos: string | null;
 				/** It's possible to show multiple feats by passing multiple annotations here. */
-				feats: string|null|string[]
+				feats: string | null | string[];
 			}) => {
-				const allAnnotations= CorpusStore.get.allAnnotationsMap();
+				const allAnnotations = CorpusStore.get.allAnnotationsMap();
 				const storeIsInitialized = Object.keys(allAnnotations).length > 0;
 
-				const validate = (id: string|null, key: string): string|null => {
+				const validate = (id: string | null, key: string): string | null => {
 					if (!storeIsInitialized) return id; // validate in this module's init() function. allow for now.
 					if (!id) return null; // empty.
 					if (allAnnotations[id]?.hasForwardIndex) return id;
 
 					if (!allAnnotations[id]) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for feature '${key}', but it does not exist.`);
-					if (!allAnnotations[id]?.hasForwardIndex) console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for features '${key}', but it does not have the required forward index.`);
+					if (!allAnnotations[id]?.hasForwardIndex)
+						console.warn(`[results.shared.dependencies] - Trying to show Annotation '${id}' for features '${key}', but it does not have the required forward index.`);
 					return null;
-				}
+				};
 
-				function validateArray(ids: Array<string|null>, key: string): string[] {
+				function validateArray(ids: Array<string | null>, key: string): string[] {
 					return ids.map(id => validate(id, key)).filter(v => !!v) as string[];
 				}
 
@@ -678,27 +738,27 @@ const actions = {
 					lemma: validate(payload.lemma, 'lemma'),
 					upos: validate(payload.upos, 'upos'),
 					xpos: validate(payload.xpos, 'xpos'),
-					feats: validateArray([payload.feats].flat(), 'feats')
+					feats: validateArray([payload.feats].flat(), 'feats'),
 				};
 			},
-		}
+		},
 	},
 	global: {
 		pageGuide: {
 			enable: () => {
 				console.warn('Page guide has been removed.');
-			}
+			},
 		},
-		lexiconDb: (payload: string) => state.global.lexiconDb = payload,
+		lexiconDb: (payload: string) => (state.global.lexiconDb = payload),
 	},
 	dropdowns: {
 		groupBy: {
-			annotationGroupLabelsVisible: (payload: boolean) => state.dropdowns.groupBy.annotationGroupLabelsVisible = payload,
-			metadataGroupLabelsVisible: (payload: boolean) => state.dropdowns.groupBy.metadataGroupLabelsVisible = payload,
+			annotationGroupLabelsVisible: (payload: boolean) => (state.dropdowns.groupBy.annotationGroupLabelsVisible = payload),
+			metadataGroupLabelsVisible: (payload: boolean) => (state.dropdowns.groupBy.metadataGroupLabelsVisible = payload),
 		},
 		sortBy: {
-			annotationGroupLabelsVisible: (payload: boolean) => state.dropdowns.sortBy.annotationGroupLabelsVisible = payload,
-			metadataGroupLabelsVisible: (payload: boolean) => state.dropdowns.sortBy.metadataGroupLabelsVisible = payload,
+			annotationGroupLabelsVisible: (payload: boolean) => (state.dropdowns.sortBy.annotationGroupLabelsVisible = payload),
+			metadataGroupLabelsVisible: (payload: boolean) => (state.dropdowns.sortBy.metadataGroupLabelsVisible = payload),
 		},
 	},
 
@@ -719,13 +779,13 @@ const actions = {
 		 * ```
 		 */
 		configureAnnotations: createConfigurator({
-			'EXTENDED':    ['search', 'extended', 'searchAnnotationIds'],
-			'ADVANCED':    ['search', 'advanced', 'searchAnnotationIds'],
-			'EXPLORE':     ['explore', 'searchAnnotationIds'],
-			'SORT':        ['results', 'shared', 'sortAnnotationIds'],
-			'GROUP':       ['results', 'shared', 'groupAnnotationIds'],
-			'RESULTS':     ['results', 'hits', 'shownAnnotationIds'],
-			'CONCORDANCE': ['results', 'shared', 'detailedAnnotationIds'],
+			EXTENDED: ['search', 'extended', 'searchAnnotationIds'],
+			ADVANCED: ['search', 'advanced', 'searchAnnotationIds'],
+			EXPLORE: ['explore', 'searchAnnotationIds'],
+			SORT: ['results', 'shared', 'sortAnnotationIds'],
+			GROUP: ['results', 'shared', 'groupAnnotationIds'],
+			RESULTS: ['results', 'hits', 'shownAnnotationIds'],
+			CONCORDANCE: ['results', 'shared', 'detailedAnnotationIds'],
 		}),
 
 		/**
@@ -741,12 +801,12 @@ const actions = {
 		 * ```
 		 */
 		configureMetadata: createConfigurator({
-			'FILTER':       ['search', 'shared', 'searchMetadataIds'],
-			'SORT':         ['results', 'shared', 'sortMetadataIds'],
-			'GROUP':        ['results', 'shared', 'groupMetadataIds'],
+			FILTER: ['search', 'shared', 'searchMetadataIds'],
+			SORT: ['results', 'shared', 'sortMetadataIds'],
+			GROUP: ['results', 'shared', 'groupMetadataIds'],
 			'RESULTS/HITS': ['results', 'hits', 'shownMetadataIds'],
 			'RESULTS/DOCS': ['results', 'docs', 'shownMetadataIds'],
-			'EXPORT':       ['results', 'shared', 'detailedMetadataIds']
+			EXPORT: ['results', 'shared', 'detailedMetadataIds'],
 		}),
 
 		moveAnnotationToGroup: (annotationId: string, targetGroupName: string, removeFromExistingGroup = true) => {
@@ -766,11 +826,11 @@ const actions = {
 				return;
 			}
 			if (removeFromExistingGroup) {
-				currentGroups.forEach(g => g.entries = g.entries.filter(e => e !== annotationId))
+				currentGroups.forEach(g => (g.entries = g.entries.filter(e => e !== annotationId)));
 			}
 			if (!targetGroup.entries.includes(annotationId)) {
 				targetGroup.entries.push(annotationId);
-			};
+			}
 		},
 		moveMetadataToGroup: (metadataFieldId: string, targetGroupName: string, removeFromExistingGroup = true) => {
 			// NOTE: is frozen object, though not deeply.
@@ -789,13 +849,13 @@ const actions = {
 				return;
 			}
 			if (removeFromExistingGroup) {
-				currentGroups.forEach(g => g.entries = g.entries.filter(e => e !== metadataFieldId))
+				currentGroups.forEach(g => (g.entries = g.entries.filter(e => e !== metadataFieldId)));
 			}
 			if (!targetGroup.entries.includes(metadataFieldId)) {
 				targetGroup.entries.push(metadataFieldId);
-			};
-		}
-	}
+			}
+		},
+	},
 };
 
 /**
@@ -836,8 +896,8 @@ const init = (state: CorpusChange) => {
 	corpusCustomizations._corpus = CorpusStore.getState()!;
 	corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));
 	// Update uiTypes for annotations where necessary
-	CorpusStore.get.allAnnotatedFields().forEach((field) => {
-		Object.values(field.annotations).forEach((annotation) => {
+	CorpusStore.get.allAnnotatedFields().forEach(field => {
+		Object.values(field.annotations).forEach(annotation => {
 			const uiType = corpusCustomizations.search.pattern.uiType(annotation.annotatedFieldId, annotation.id);
 			if (uiType) {
 				annotation.uiType = uiType;
@@ -867,8 +927,6 @@ const init = (state: CorpusChange) => {
 	 */
 	alwaysCallbackAfterValidating = true;
 
-
-
 	// ====================
 	// Set up some defaults
 	// ====================
@@ -883,7 +941,9 @@ const init = (state: CorpusChange) => {
 	// - Those in non-remainder groups (which are the user-configured groups)
 	// - Non-internal annotations in the remainder group (which is the catch-all/fallback group), iff there are no other groups.
 	const defaultAnnotationsToShow = annotationGroups.flatMap((g, i) => {
-		if (!g.isRemainderGroup) { return g.entries; }
+		if (!g.isRemainderGroup) {
+			return g.entries;
+		}
 		const hasNonRemainderGroup = i > 0; // remainder groups is always at the end
 		// remainder group is hidden unless there's no other group. Also internal annotations in the remainder group are always hidden.
 		return hasNonRemainderGroup ? [] : g.entries.filter(annotationName => allAnnotationsMap[annotationName]?.isInternal === false);
@@ -893,11 +953,12 @@ const init = (state: CorpusChange) => {
 	// Metadata/filters (extended, advanced, expert, explore)
 	// If unconfigured: show all metadata in groups (groups are defined in the index format yaml file)
 	const defaultMetadataToShow = metadataGroups.flatMap((g, i) => {
-		if (!g.isRemainderGroup) { return g.entries; }
+		if (!g.isRemainderGroup) {
+			return g.entries;
+		}
 		const hasNonRemainderGroup = i > 0; // remainder group is always at the end
 		return hasNonRemainderGroup ? [] : g.entries;
 	});
-
 
 	// ============================================
 	// Now validate the settings one by one (ugh..)
@@ -928,18 +989,24 @@ const init = (state: CorpusChange) => {
 				console.info('Within clause not supported in this corpus, no relations indexed');
 				actions.search.shared.within.enable(false);
 				return;
-			};
+			}
 
 			validValues.forEach(v => {
 				if (!v.label.trim() || v.label === v.value) {
-					if (v.value === 'p') { v.label = 'paragraph'; }
-					else if (v.value === 's') { v.label = 'sentence'; }
-					else if (!v.value) { v.label = 'document'; }
-					else { v.label = v.value; }
+					if (v.value === 'p') {
+						v.label = 'paragraph';
+					} else if (v.value === 's') {
+						v.label = 'sentence';
+					} else if (!v.value) {
+						v.label = 'document';
+					} else {
+						v.label = v.value;
+					}
 				}
 			});
 
-			if (validValues.length <= 6) { // an arbitrary limit
+			if (validValues.length <= 6) {
+				// an arbitrary limit
 				actions.search.shared.within.elements(validValues);
 			} else {
 				console.warn(`Within clause can contain ${validValues.length} different values, ignoring...`);
@@ -951,27 +1018,29 @@ const init = (state: CorpusChange) => {
 				console.warn('Align by not supported in this corpus, no parallel relations indexed');
 				actions.search.shared.alignBy.enable(false);
 				return;
-			};
+			}
 
 			validValues.forEach(v => {
 				if (!v.label.trim() || v.label === v.value) {
 					if (v.value.endsWith('-alignment'))
 						v.label = v.value.slice(0, -10); // e.g. word-alignment -> word
-					else if (!v.value) { v.label = 'EMPTY'; }
-					else { v.label = v.value; }
+					else if (!v.value) {
+						v.label = 'EMPTY';
+					} else {
+						v.label = v.value;
+					}
 				}
 			});
 
 			validValues.sort((a, b) => {
 				// "word" should be the first option, if it exists
 				if (a.label.toLowerCase() === 'word') {
-					if (a.label === b.label)
-						return 0;
+					if (a.label === b.label) return 0;
 					return -1;
 				} else if (b.label.toLowerCase() === 'word') {
 					return 1;
 				}
-				return a.label.localeCompare(b.label)
+				return a.label.localeCompare(b.label);
 			});
 
 			actions.search.shared.alignBy.elements(validValues);
@@ -982,14 +1051,14 @@ const init = (state: CorpusChange) => {
 		// decode them, but this makes us depend on implementation details. The new /relations endpoint gives
 		// us the same information in a portable way.
 		const relations = CorpusStore.get.corpus()!.relations;
-		setValuesForWithin(Object.keys(relations.spans||{}).map(v => ({value: v, label: v, title: null})));
+		setValuesForWithin(Object.keys(relations.spans || {}).map(v => ({ value: v, label: v, title: null })));
 
 		// Set default sentence boundary element. For use with dependency trees and getting the sentence around a hit.
 		const state = getState(); // since we did it async, the init is already finished, and the data we set is not in the initial state anymore.
 		if (!getState().search.shared.within.sentenceElement && getState().search.shared.within.elements.length) {
 			const labelsOrValues = ['sentence', 's', 'sen', 'sent', 'paragraph', 'p', 'par', 'para', 'verse'];
 			// process the labels in order or preference.
-			const defaultWithin = labelsOrValues.flatMap(l => state.search.shared.within.elements.find(e => (e.label && e.label.includes(l)) || e.value.includes(l)) || [])[0]
+			const defaultWithin = labelsOrValues.flatMap(l => state.search.shared.within.elements.find(e => (e.label && e.label.includes(l)) || e.value.includes(l)) || [])[0];
 			if (defaultWithin) {
 				actions.search.shared.within.sentenceElement(defaultWithin.value);
 			}
@@ -998,10 +1067,12 @@ const init = (state: CorpusChange) => {
 		// get parallel relations types for "align by" selector
 		if (relations.relations) {
 			// Get relation types for parallel relations to all target fields in a set
-			const relTypes = new Set(Object.keys(relations.relations)
-				.filter(v => v.startsWith('al__')) // by convention, parallel relations use class 'al__TARGETVERSION', e.g. 'al__nl'
-				.flatMap(v => Object.keys(relations.relations![v])));
-			const alignByValues = [...relTypes].map(v => ({value: v, label: v, title: null}));
+			const relTypes = new Set(
+				Object.keys(relations.relations)
+					.filter(v => v.startsWith('al__')) // by convention, parallel relations use class 'al__TARGETVERSION', e.g. 'al__nl'
+					.flatMap(v => Object.keys(relations.relations![v])),
+			);
+			const alignByValues = [...relTypes].map(v => ({ value: v, label: v, title: null }));
 			setValuesForAlignBy(alignByValues);
 		}
 	}
@@ -1023,17 +1094,21 @@ const init = (state: CorpusChange) => {
 	if (!getState().results.hits.shownAnnotationIds.length) {
 		const shownAnnotations = [] as string[];
 		// These have precedence if they exist.
-		if (allAnnotationsMap.lemma?.hasForwardIndex) { shownAnnotations.push('lemma'); }
-		if (allAnnotationsMap.pos?.hasForwardIndex) { shownAnnotations.push('pos'); }
+		if (allAnnotationsMap.lemma?.hasForwardIndex) {
+			shownAnnotations.push('lemma');
+		}
+		if (allAnnotationsMap.pos?.hasForwardIndex) {
+			shownAnnotations.push('pos');
+		}
 
 		// Now add other annotations until we hit 3 annotations.
 		defaultAnnotationsToShow
-		.filter(id => id !== mainAnnotation.id && !shownAnnotations.includes(id))
-		.forEach(id => {
-			if (shownAnnotations.length < 3) {
-				shownAnnotations.push(id);
-			}
-		});
+			.filter(id => id !== mainAnnotation.id && !shownAnnotations.includes(id))
+			.forEach(id => {
+				if (shownAnnotations.length < 3) {
+					shownAnnotations.push(id);
+				}
+			});
 		actions.results.hits.shownAnnotationIds(shownAnnotations);
 	}
 
@@ -1082,7 +1157,6 @@ const init = (state: CorpusChange) => {
 	actions.results.shared.sortMetadataIds(customizedState.results.shared.sortMetadataIds);
 	if (!getState().results.shared.sortMetadataIds.length) actions.results.shared.sortMetadataIds(defaultMetadataToShow);
 
-
 	/* Validate the annotations shown in the dependency tree in the hits result table.
 	 * If none are set, search for likely annotations to map to the connlu properties in the tree.
 	 * find all likely matches, then dedupe them.
@@ -1099,9 +1173,9 @@ const init = (state: CorpusChange) => {
 			const matches = ids.flatMap(id => {
 				const matchIndex = keywords.findIndex(kw => id.toLowerCase().includes(kw));
 				if (matchIndex === -1) return [];
-				return {id, matchIndex};
+				return { id, matchIndex };
 			});
-			const sortedMatches = matches.sort((a, b) => a.matchIndex - b.matchIndex === 0 ? a.id.length - b.id.length : a.matchIndex - b.matchIndex);
+			const sortedMatches = matches.sort((a, b) => (a.matchIndex - b.matchIndex === 0 ? a.id.length - b.id.length : a.matchIndex - b.matchIndex));
 			return sortedMatches.map(m => m.id);
 		}
 		const lemmaCandidates = [getState().results.shared.dependencies.lemma || findAnnotation(['lemma', 'lem', 'lexeme', 'root', 'stem', 'canon'])].flat();
@@ -1112,7 +1186,7 @@ const init = (state: CorpusChange) => {
 		let upos = uposCandidates.find(candidate => candidate != lemma) || null;
 		let xpos = xposCandidates.find(candidate => candidate != lemma && candidate != upos) || null;
 		let feats = featsCandidates.find(candidate => candidate != lemma && candidate != upos && candidate != xpos) || null;
-		actions.results.shared.dependencies({lemma, upos, xpos, feats});
+		actions.results.shared.dependencies({ lemma, upos, xpos, feats });
 	}
 
 	Object.assign(customizedState, cloneDeep(getState()));
@@ -1126,21 +1200,23 @@ const init = (state: CorpusChange) => {
 // =======================
 
 function createConfigurator<T extends Record<string, string[]>>(proppaths: T) {
-	const r = function(config: [[undefined, ...Array<keyof T>],  [string, ...Array<boolean|undefined>]]) {
+	const r = function (config: [[undefined, ...Array<keyof T>], [string, ...Array<boolean | undefined>]]) {
 		const props = config.shift() as string[];
-		const propvalues = {} as {[K in keyof T]: string[]};
-		Object.keys(proppaths).forEach(function(propname: keyof T) { propvalues[propname] = []; });
-		(config as Array<[string, ...Array<boolean|undefined>]>).forEach(function(field) {
+		const propvalues = {} as { [K in keyof T]: string[] };
+		Object.keys(proppaths).forEach(function (propname: keyof T) {
+			propvalues[propname] = [];
+		});
+		(config as Array<[string, ...Array<boolean | undefined>]>).forEach(function (field) {
 			const id = field[0];
-			field.forEach(function(value, index) {
-				const propname: string|undefined = props[index]; // undefined at index 0
+			field.forEach(function (value, index) {
+				const propname: string | undefined = props[index]; // undefined at index 0
 				if (value && propname && proppaths[propname]) {
 					propvalues[propname].push(id);
 				}
 			});
 		});
 
-		Object.entries(propvalues).forEach(function(entry) {
+		Object.entries(propvalues).forEach(function (entry) {
 			const propname = entry[0];
 			const propvalue = entry[1];
 			const proppath = proppaths[propname];
@@ -1149,7 +1225,7 @@ function createConfigurator<T extends Record<string, string[]>>(proppaths: T) {
 				return;
 			}
 
-			const propfunction = proppath.reduce(function(scope, segment) {
+			const propfunction = proppath.reduce(function (scope, segment) {
 				return scope[segment];
 			}, actions as any);
 
@@ -1169,22 +1245,23 @@ function createConfigurator<T extends Record<string, string[]>>(proppaths: T) {
  */
 let alwaysCallbackAfterValidating = false;
 /** Validate all ids, triggering callbacks for failed ids, and triggering a final callback if there is any valid annotation. */
-function validateAnnotations(
-	ids: string[],
-	missing: (id: string) => string,
-	validate: (a: AppTypes.NormalizedAnnotation) => boolean,
-	invalid: (id: string) => string,
-	cb: (ids: string[]) => void
-) {
-	if (!CorpusStore.getState()) { // not loaded yet
+function validateAnnotations(ids: string[], missing: (id: string) => string, validate: (a: AppTypes.NormalizedAnnotation) => boolean, invalid: (id: string) => string, cb: (ids: string[]) => void) {
+	if (!CorpusStore.getState()) {
+		// not loaded yet
 		cb(ids);
 		return;
 		// we will re-check this on init()?
 	}
 	const all = CorpusStore.get.allAnnotationsMap();
 	const results = ids.filter(id => {
-		if (!all[id]) { console.warn(missing(id)); return false; }
-		if (!validate(all[id])) { console.warn(invalid(id)); return false; }
+		if (!all[id]) {
+			console.warn(missing(id));
+			return false;
+		}
+		if (!validate(all[id])) {
+			console.warn(invalid(id));
+			return false;
+		}
 		return true;
 	});
 
@@ -1195,13 +1272,7 @@ function validateAnnotations(
 }
 
 /** Validate all ids, triggering callbacks for failed ids, and triggering a final callback if there is any valid annotation. */
-function validateMetadata(
-	ids: string[],
-	missing: (id: string) => string,
-	validate: (m: AppTypes.NormalizedMetadataField) => boolean,
-	invalid: (id: string) => string,
-	cb: (ids: string[]) => void
-) {
+function validateMetadata(ids: string[], missing: (id: string) => string, validate: (m: AppTypes.NormalizedMetadataField) => boolean, invalid: (id: string) => string, cb: (ids: string[]) => void) {
 	if (!CorpusStore.getState()) {
 		cb(ids);
 		return;
@@ -1210,8 +1281,14 @@ function validateMetadata(
 
 	const all = CorpusStore.get.allMetadataFieldsMap();
 	const results = ids.filter(id => {
-		if (!all[id]) { console.warn(missing(id)); return false; }
-		if (!validate(all[id])) { console.warn(invalid(id)); return false; }
+		if (!all[id]) {
+			console.warn(missing(id));
+			return false;
+		}
+		if (!validate(all[id])) {
+			console.warn(invalid(id));
+			return false;
+		}
 		return true;
 	});
 
@@ -1225,33 +1302,35 @@ function validateMetadata(
 
 function getCheckmarks(
 	config: Record<string, string[]>,
-	groups: Array<{id: string, entries: string[], isRemainderGroup: boolean}>,
-	remainderGroupName: string
+	groups: Array<{ id: string; entries: string[]; isRemainderGroup: boolean }>,
+	remainderGroupName: string,
 ): Array<{
 	id: string;
-	entries: Array<{id: string, checkmarks: Record<string, boolean>}>
+	entries: Array<{ id: string; checkmarks: Record<string, boolean> }>;
 }> {
 	// Initialize outputs
-	const entryMap: Record<string, {id: string, checkmarks: Record<string, boolean>}> = {};
-	groups.forEach(g => g.entries.forEach(id => entryMap[id] = {id, checkmarks: {}}));
+	const entryMap: Record<string, { id: string; checkmarks: Record<string, boolean> }> = {};
+	groups.forEach(g => g.entries.forEach(id => (entryMap[id] = { id, checkmarks: {} })));
 
 	// Fill outputs
 	Object.entries(config).forEach(([checkmarkName, checkmarkPath]) => {
-		// Cursed code, the path is a property path like ['search', 'extended', 'searchAnnotationIds'], we need to get the value at that path in the state, 
+		// Cursed code, the path is a property path like ['search', 'extended', 'searchAnnotationIds'], we need to get the value at that path in the state,
 		// the terminal value is always a string[], but the intermediate objects are not really possible to type properly, so just use any.
 		const entriesToPutCheck: string[] = checkmarkPath.reduce<string[]>((context, path) => (context as any)[path], getState() as any) || [];
-		entriesToPutCheck.forEach(id => entryMap[id].checkmarks[checkmarkName] = true);
+		entriesToPutCheck.forEach(id => (entryMap[id].checkmarks[checkmarkName] = true));
 	});
 
 	// Transform outputs into return
 	const seenIds = new Set<string>();
 	return groups.map(g => ({
-		entries: g.entries.filter(id => {
-			const seen = seenIds.has(id);
-			seenIds.add(id);
-			return !seen;
-		}).map(id => entryMap[id]),
-		id: g.isRemainderGroup ? remainderGroupName : g.id
+		entries: g.entries
+			.filter(id => {
+				const seen = seenIds.has(id);
+				seenIds.add(id);
+				return !seen;
+			})
+			.map(id => entryMap[id]),
+		id: g.isRemainderGroup ? remainderGroupName : g.id,
 	}));
 }
 
@@ -1259,8 +1338,8 @@ function getCells(props: string[]) {
 	return props.map(p => ({
 		propName: p,
 		header: `    '${p}'    `,
-		checked: ' '.repeat(5 + Math.ceil(p.length / 2)-1) + 'x' + ' '.repeat(5 + Math.floor(p.length / 2)),
-		unchecked: ' '.repeat(10 + p.length)
+		checked: ' '.repeat(5 + Math.ceil(p.length / 2) - 1) + 'x' + ' '.repeat(5 + Math.floor(p.length / 2)),
+		unchecked: ' '.repeat(10 + p.length),
 	}));
 }
 
@@ -1280,58 +1359,54 @@ function printCustomizations() {
 	const longestMetadataId = metadataData.flatMap(g => g.entries).reduce((longest, cur) => Math.max(longest, cur.id.length), 0);
 
 	// Sort entries in the default groups by ID (instead of their original sorting by displayName) - Reads much better in output
-	(annotationData.find(g => g.id === defaultGroupName) || {entries: [] as {id: string}[]}).entries.sort((a, b) => a.id.localeCompare(b.id));
-	(metadataData.find(g => g.id === defaultGroupName) || {entries: [] as {id: string}[]}).entries.sort((a, b) => a.id.localeCompare(b.id));
+	(annotationData.find(g => g.id === defaultGroupName) || { entries: [] as { id: string }[] }).entries.sort((a, b) => a.id.localeCompare(b.id));
+	(metadataData.find(g => g.id === defaultGroupName) || { entries: [] as { id: string }[] }).entries.sort((a, b) => a.id.localeCompare(b.id));
 
 	// tslint:disable-next-line
 	console.log(html`
-		var x = true;
-		var ui = vuexModules.ui.actions;
-		ui.helpers.configureAnnotations([
-			[${' '.repeat(longestAnnotId+2)},${annotationCells.map(c => c.header).join(',')}],
-			${annotationData.flatMap(g => [
-				'',
-				`// ${g.id}`,
-				...g.entries.map(v => stripIndent`
-					['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestAnnotId - v.id.length)},${annotationCells.map(c => v.checkmarks[c.propName] ? c.checked : c.unchecked).join(',')}],
-				`)
-			])}
-		]);
-
-		ui.helpers.configureMetadata([
-			[${' '.repeat(longestMetadataId+2)},${metadataCells.map(c => c.header).join(',')}],
-			${metadataData.flatMap(g => [
-				'',
-				`// ${g.id}`,
-				...g.entries.map(v => stripIndent`
-					['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestMetadataId - v.id.length)},${metadataCells.map(c => v.checkmarks[c.propName] ? c.checked : c.unchecked).join(',')}],
-				`)
-			])}
+		var x = true; var ui = vuexModules.ui.actions; ui.helpers.configureAnnotations([ [${' '.repeat(longestAnnotId + 2)},${annotationCells.map(c => c.header).join(',')}],
+		${annotationData.flatMap(g => [
+			'',
+			`// ${g.id}`,
+			...g.entries.map(
+				v => stripIndent`
+					['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestAnnotId - v.id.length)},${annotationCells.map(c => (v.checkmarks[c.propName] ? c.checked : c.unchecked)).join(',')}],
+				`,
+			),
+		])}
+		]); ui.helpers.configureMetadata([ [${' '.repeat(longestMetadataId + 2)},${metadataCells.map(c => c.header).join(',')}],
+		${metadataData.flatMap(g => [
+			'',
+			`// ${g.id}`,
+			...g.entries.map(
+				v => stripIndent`
+					['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestMetadataId - v.id.length)},${metadataCells.map(c => (v.checkmarks[c.propName] ? c.checked : c.unchecked)).join(',')}],
+				`,
+			),
+		])}
 		]);
 	`);
 }
 
 /** This lets custom JS files call frontend.customize((corpus) => { ... });
-  * to customize any of the above "hooks". Doing this via a function instead of
-  * direct access to a global object gives us more flexibility to change things
-  * in the future.
-  *
-  * Example of a simple custom.js file using this:
-  * <code>
-  * frontend.customize((corpus) => {
-  *   corpus.search.within.includeSpan = (elementName) => elementName === 'p';
-  * });
-  * </code>
-  */
+ * to customize any of the above "hooks". Doing this via a function instead of
+ * direct access to a global object gives us more flexibility to change things
+ * in the future.
+ *
+ * Example of a simple custom.js file using this:
+ * <code>
+ * frontend.customize((corpus) => {
+ *   corpus.search.within.includeSpan = (elementName) => elementName === 'p';
+ * });
+ * </code>
+ */
 (window as any).frontend = {
-	customize(callback: ((corpus: any) => void)) {
+	customize(callback: (corpus: any) => void) {
 		corpusCustomizations.customizeFunctions.push(callback);
 	},
-
 };
 
 (window as any).printCustomJs = printCustomizations;
 
 export { actions, get, getState, init };
 export type { CustomView, ModuleRootState };
-

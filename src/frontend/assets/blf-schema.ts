@@ -12,11 +12,11 @@ type BLFSchemaCommon = {
 	/**
 	 * Plain text files don't allow you to use a lot of BlackLab's features and hence don't require a lot of configuration either. If you need specific indexing features for non-tabular, non-XML file formats, please let us know and we will consider adding them.
 	 */
-	fileType?: 'xml'|'tabular'|'text';
+	fileType?: 'xml' | 'tabular' | 'text';
 	/** Only relevant for 'tabular' fileType. Allows you to specificy some extra options. */
 	fileTypeOptions?: {
 		/** Tab-separated (tsv) or comma-separated (csv, like Excel sheets) */
-		type: 'tsv'|'csv';
+		type: 'tsv' | 'csv';
 		/** Defaults to '/' */
 		multipleValuesSeparator?: string;
 		/** Does the file have column names in the first line? [default: false] */
@@ -37,30 +37,30 @@ type BLFSchemaCommon = {
 		 * [default: false]
 		 */
 		allowSeparatorsAfterInlineTags: boolean;
-	}
+	};
 
 	/**
 	 * Which xml processor to use. Though the default is vtd, saxon is recommended and will become the default in the future.
 	 * See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#xpath-support-level
 	 */
-	processor?: 'saxon'|'vtd';
+	processor?: 'saxon' | 'vtd';
 
 	/** Namespace declarations for xpaths. The namespace under the empty string ('') will be the default namespace used. */
-	namespaces?: {[uri: string]: string};
+	namespaces?: { [uri: string]: string };
 
 	/** Xpath: what elements starts a new document? */
 	documentPath: string;
-	
+
 	/** Embedded metadata in document */
 	metadata: Metadata;
 	/** Analyzer to use for metadata fields. Unless overridden in the field */
-	metadataDefaultAnalyzer?: 'default'|'standard'|'whitespace'|{}&string;
+	metadataDefaultAnalyzer?: 'default' | 'standard' | 'whitespace' | ({} & string);
 	/** When to substitute default value for metadata. Defaults to 'never' */
-	metadataDefaultUnknownCondition?: 'never'|'missing'|'empty'|'missing_or_empty';
+	metadataDefaultUnknownCondition?: 'never' | 'missing' | 'empty' | 'missing_or_empty';
 	/** Value to substitute when a metadata field doesn't have a value. Defaults to 'unknown' */
 	metadataDefaultUnknownValue?: string;
 	/** Name replacements for metadata fields. Only has effect for fields created through forEachPath */
-	indexFieldAs?: {[originalName: string]: string};
+	indexFieldAs?: { [originalName: string]: string };
 
 	/** See https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#linking-to-external-document-metadata */
 	linkedDocuments?: { [fieldname: string]: LinkedDocument };
@@ -70,11 +70,10 @@ type BLFSchemaCommon = {
 
 	/** Whether to store the document contents in the content store. Disabling this removes the ability to view document's contents. Defaults to true. */
 	store?: boolean;
-}
-
+};
 
 /** @deprecated move to version 2. See https://blacklab.ivdnt.org/guide/index-your-data/miscellaneous.html#configuration-versions-1-and-2 */
-type BLFSchemaV1 = BLFSchemaCommon&{
+type BLFSchemaV1 = BLFSchemaCommon & {
 	/** @deprecated move to version 2. See https://blacklab.ivdnt.org/guide/index-your-data/miscellaneous.html#configuration-versions-1-and-2 */
 	version?: 1;
 	/** @deprecated DEPRECATED.  */
@@ -82,22 +81,22 @@ type BLFSchemaV1 = BLFSchemaCommon&{
 
 	/** What annotation sets are in the document? */
 	annotatedFields: { [annotatedFieldId: string]: AnnotatedFieldV1 };
-}
-type BLFSchemaV2 = BLFSchemaCommon&{
+};
+type BLFSchemaV2 = BLFSchemaCommon & {
 	version: 2;
 
 	/** What annotation sets are in the document? */
 	annotatedFields: { [annotatedFieldId: string]: AnnotatedFieldV2 };
-}
+};
 
 type Metadata = {
 	/** Xpath: What element (relative to documentPath) contains the metadata? (If omitted, entire document is used.) */
 	containerPath?: string;
 	/** Analyzer to use for metadata fields. Unless overridden in the field through */
-	defaultAnalyzer?: 'default'|'standard'|'whitespace'|(string&{});
+	defaultAnalyzer?: 'default' | 'standard' | 'whitespace' | (string & {});
 	/** The metadata fields. These are indexed in order of declaration. Their xpaths are relative to 'containerPath'  */
 	fields: MetadataField[];
-}
+};
 
 type AnnotatedFieldCommon = {
 	/** How to display the field in the interface (optional) */
@@ -113,12 +112,10 @@ type AnnotatedFieldCommon = {
 	tokenIdPath?: string;
 	/** Xpath: punctuation between words. */
 	punctPath?: string;
-	
-
-}
-type AnnotatedFieldV1 = AnnotatedFieldCommon&{
-	/** 
-	 * @description What tags occurring between the word tags do we wish to index? (relative to containerPath)  
+};
+type AnnotatedFieldV1 = AnnotatedFieldCommon & {
+	/**
+	 * @description What tags occurring between the word tags do we wish to index? (relative to containerPath)
 	 * @note your format is using the old version (version: 1), and this documentation is for the new version.
 	 * @see https://blacklab.ivdnt.org/guide/index-your-data/spans.html
 	 */
@@ -138,9 +135,9 @@ type AnnotatedFieldV1 = AnnotatedFieldCommon&{
 	 */
 	standoffAnnotations?: StandoffAnnotationV1[];
 };
-type AnnotatedFieldV2 = AnnotatedFieldCommon&{
-	/** 
-	 * @description What tags occurring between the word tags do we wish to index? (relative to containerPath) 
+type AnnotatedFieldV2 = AnnotatedFieldCommon & {
+	/**
+	 * @description What tags occurring between the word tags do we wish to index? (relative to containerPath)
 	 * @see https://blacklab.ivdnt.org/guide/index-your-data/spans.html
 	 */
 	inlineTags?: InlineTagV2[];
@@ -167,44 +164,44 @@ type InlineTagCommon = {
 	tokenIdPath?: string;
 	/** Css class to give these tags in the automatic xslt generation */
 	displayAs?: string;
-}
-type InlineTagV1 = InlineTagCommon&{
+};
+type InlineTagV1 = InlineTagCommon & {
 	/** E.g. "xml:id": Don't index Unique ids unless you need them; they slow down indexing and searching and increase index size */
 	excludeAttributes?: string[];
 	/** Acts as attribute whitelist: Only index these attributes. */
 	includeAttributes?: string[];
-}
-type InlineTagV2 = InlineTagCommon&{
+};
+type InlineTagV2 = InlineTagCommon & {
 	attributes?: Array<{
 		/** Exclude all attributes that aren't named in 'attributes' (i.e. this) list  */
 		exclude?: boolean;
 		/** Include the attribute with this name */
-		name?: string; 
-		/** 
-		 * Xpath: supply a value for this attribute yourself.  
-		 * This also works for attributes that don't exist in the original xml,  
+		name?: string;
+		/**
+		 * Xpath: supply a value for this attribute yourself.
+		 * This also works for attributes that don't exist in the original xml,
 		 * allowing you to create new attributes based on existing ones, or constant values.
-		 * 
-		 * E.g. for an element `<tag a="first" b="second"/>`,  
-		 * you could have an attribute with 
+		 *
+		 * E.g. for an element `<tag a="first" b="second"/>`,
+		 * you could have an attribute with
 		 * ```yaml
-		 * - name: c 
+		 * - name: c
 		 *   valuePath: concat(@a, "_from_a")
 		 *   # result c="first_from_a"
 		 * ```
-		*/
+		 */
 		valuePath?: string;
-		/** 
-		 * @description what CSS class to use (when using autogenerated XSLT) 
-		 * @see https://blacklab.ivdnt.org/guide/index-your-data/miscellaneous.html#automatic-xslt-generation 
+		/**
+		 * @description what CSS class to use (when using autogenerated XSLT)
+		 * @see https://blacklab.ivdnt.org/guide/index-your-data/miscellaneous.html#automatic-xslt-generation
 		 */
 		displayAs: string;
-	}>
-}
+	}>;
+};
 
 /** Base shared by root- and subannotation, without version-specific fields  */
 type AnnotationBaseCommon = {
-/** Name of the annotation */
+	/** Name of the annotation */
 	name: string;
 	/** Name of the annotation in the interface. Defaults to the regular name. */
 	displayName?: string;
@@ -215,14 +212,14 @@ type AnnotationBaseCommon = {
 	 * Xpath: Store some xpath results before evaluating valuePath,
 	 * the stored results can now be used in valuePath.
 	 * E.g. valuePath="/some/dynamic/path/$1/$2",
-	 * BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc. 
+	 * BlackLab will replace $1 with the result of the first captureValuePaths entry, $2 with the second, etc.
 	 */
 	captureValuePaths?: string[];
 	/**
 	 * What alternatives are indexed determines how specifically you can specify the desired sensitivity when searching. Each alternative increases index size.
 	 * Defaults to 'insensitive'
 	 */
-	sensitivity?: 'sensitive_insensitive'|'sensitive'|'insensitive'|'s'|'i'|'si'|'all';
+	sensitivity?: 'sensitive_insensitive' | 'sensitive' | 'insensitive' | 's' | 'i' | 'si' | 'all';
 
 	// subannotations?: SubAnnotation[];
 
@@ -239,7 +236,7 @@ type AnnotationBaseCommon = {
 	 *
 	 * Leaving this empty will default to 'dropdown' if all values are known and 'autocomplete' otherwise.
 	 */
-	uiType?: 'dropdown'|'select'|'autocomplete'|'combobox'|'lexicon'|'pos'|'text';
+	uiType?: 'dropdown' | 'select' | 'autocomplete' | 'combobox' | 'lexicon' | 'pos' | 'text';
 
 	/**
 	 * Whether to store the contents of this field in the forward index.
@@ -247,7 +244,7 @@ type AnnotationBaseCommon = {
 	 * Defaults to true.
 	 */
 	forwardIndex?: boolean;
-	
+
 	/** Hides the field in various parts of the blacklab-frontend. Not used by blacklab. Defaults to false. */
 	isInternal?: boolean;
 
@@ -255,7 +252,7 @@ type AnnotationBaseCommon = {
 	process?: Process[];
 };
 /** Base shared by root- and subannotation, with fields exclusive to v1 */
-type AnnotationBaseV1 = AnnotationBaseCommon&{
+type AnnotationBaseV1 = AnnotationBaseCommon & {
 	/** Defaults to false. */
 	multipleValues?: boolean;
 	/**
@@ -267,10 +264,10 @@ type AnnotationBaseV1 = AnnotationBaseCommon&{
 	/** Store the xml instead of the text when 'valuePath' results in an xml element. */
 	captureXml?: boolean;
 	/** Replace values with other values. Takes effect AFTER processing. */
-	mapValues?: {[originalValue: string]: string}
-}
+	mapValues?: { [originalValue: string]: string };
+};
 /** Base shared by root- and subannotation, with fields exclusive to v2 */
-type AnnotationBaseV2 = AnnotationBaseCommon&{
+type AnnotationBaseV2 = AnnotationBaseCommon & {
 	/** @deprecated use xpath "serialize(.)" */
 	captureXml: never;
 	/** @deprecated now always true. */
@@ -279,30 +276,29 @@ type AnnotationBaseV2 = AnnotationBaseCommon&{
 	allowDuplicateValues: never;
 	/** @deprecated use the 'map' processing step instead */
 	mapValues: never;
-}
-
+};
 
 type AnnotationRequiredValuePath = {
 	/** Xpath (optional): what element all other Xpaths in this block are relative to.  */
 	basePath?: string;
 	/** Xpath: what element contains the value of this annotation */
 	valuePath: string;
-}
+};
 type AnnotationOptionalValuePath = {
 	/** Xpath (optional): what element all other Xpaths in this block are relative to.  */
 	basePath?: string;
 	/** Xpath: what element contains the value of this annotation */
 	valuePath?: string;
-}
-type AnnotationV1 = AnnotationRequiredValuePath&AnnotationBaseV1&{subannotations?: SubAnnotationV1[]};
-type AnnotationV2 = AnnotationRequiredValuePath&AnnotationBaseV2&{subannotations?: SubAnnotationV2[]};
+};
+type AnnotationV1 = AnnotationRequiredValuePath & AnnotationBaseV1 & { subannotations?: SubAnnotationV1[] };
+type AnnotationV2 = AnnotationRequiredValuePath & AnnotationBaseV2 & { subannotations?: SubAnnotationV2[] };
 // Subannotations have optional valuePath, root annotations require it. Subannotations also allow for-each, root annotations do not.
 /** @name regular subannotation */
-type SubAnnotationV1 = (AnnotationOptionalValuePath&AnnotationBaseV1)|SubAnnotationForEach;
+type SubAnnotationV1 = (AnnotationOptionalValuePath & AnnotationBaseV1) | SubAnnotationForEach;
 /** @name regular subannotation */
-type SubAnnotationV2 = (AnnotationOptionalValuePath&AnnotationBaseV2)|SubAnnotationForEach;
+type SubAnnotationV2 = (AnnotationOptionalValuePath & AnnotationBaseV2) | SubAnnotationForEach;
 
-/** 
+/**
  * @name for-each subannotation
  * @description a subannotation that will create multiple distinct subannotations by looping over the forEachPath
  *              the generated subannotations can be further specified by adding extra subannotation blocks with a name that matches one of the 'namePath' results.
@@ -311,16 +307,16 @@ type SubAnnotationForEach = {
 	forEachPath: string;
 	namePath: string;
 	valuePath: string;
-}
-type StandoffAnnotationBase<T extends AnnotationBaseCommon&AnnotationRequiredValuePath>= StandoffAnnotationRegular<T> | StandoffAnnotationMultipleTokens<T> | StandoffAnnotationDependencyRelation;
+};
+type StandoffAnnotationBase<T extends AnnotationBaseCommon & AnnotationRequiredValuePath> = StandoffAnnotationRegular<T> | StandoffAnnotationMultipleTokens<T> | StandoffAnnotationDependencyRelation;
 type StandoffAnnotationV1 = StandoffAnnotationBase<AnnotationV1>;
 type StandoffAnnotationV2 = StandoffAnnotationBase<AnnotationV2>;
 
-/** 
+/**
  * @title single token standoff annotation
  * @description Standoff annotation representing annotations that apply to a single token/node.
  * @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
-type StandoffAnnotationRegular<T extends AnnotationBaseCommon&AnnotationRequiredValuePath> = {
+type StandoffAnnotationRegular<T extends AnnotationBaseCommon & AnnotationRequiredValuePath> = {
 	/** Xpath: where to find the standoff. */
 	path: string;
 	/**
@@ -330,13 +326,13 @@ type StandoffAnnotationRegular<T extends AnnotationBaseCommon&AnnotationRequired
 	tokenRefPath: string;
 	/** What new annotations to store in the referenced tokens. Relative to 'path'. */
 	annotations: T[];
-}
+};
 
-/** 
+/**
  * @title multiple token standoff annotation
  * @description Standoff annotation representing annotations that are the same for a stretch of multiple tokens.
  * @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
-type StandoffAnnotationMultipleTokens<T extends AnnotationBaseCommon&AnnotationRequiredValuePath> = {
+type StandoffAnnotationMultipleTokens<T extends AnnotationBaseCommon & AnnotationRequiredValuePath> = {
 	/** Xpath: where to find the standoff. */
 	path: string;
 	/** @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
@@ -348,28 +344,28 @@ type StandoffAnnotationMultipleTokens<T extends AnnotationBaseCommon&AnnotationR
 	/** @see https://blacklab.ivdnt.org/guide/how-to-configure-indexing.html#standoff-annotations */
 	valuePath: string;
 	annotations: T[];
-}
-/** 
+};
+/**
  * @title dependency standoff annotation
  * @description Standoff annotation representing a dependency relation between two tokens.
  * @see https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations */
 type StandoffAnnotationDependencyRelation = {
 	/** @see https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations */
 	type: 'relation';
-	/** Xpath: context relative to which the valuePath, sourcePath and targetPath are evaluated. 
+	/** Xpath: context relative to which the valuePath, sourcePath and targetPath are evaluated.
 	 * This Xpath itself is relative to the document's root node (i.e. containerPath). */
 	path?: string;
 
-	/** 
-	 * @see https://blacklab.ivdnt.org/guide/query-language/relations.html 
+	/**
+	 * @see https://blacklab.ivdnt.org/guide/query-language/relations.html
 	 * @see https://blacklab.ivdnt.org/guide/index-your-data/relations.html#relations
-	 * 
-	 * When indexing relations in BlackLab, you assign them a class, a short string indicating what family of relations it belongs to.  
-	 * For example, you could assign the class string dep to dependency relations. An obj relation would become dep::obj.  
-	 * To simplify things, rel is the default relation class in BlackLab.  
-	 * If you index relations without a class, they will automatically get this class.  
-	 * Similarly, when searching, if you don't specify a class, rel:: will be prepended to the relation type.  
-	 * So if you're not indexing different classes of relations, you can just ignore the classes.  
+	 *
+	 * When indexing relations in BlackLab, you assign them a class, a short string indicating what family of relations it belongs to.
+	 * For example, you could assign the class string dep to dependency relations. An obj relation would become dep::obj.
+	 * To simplify things, rel is the default relation class in BlackLab.
+	 * If you index relations without a class, they will automatically get this class.
+	 * Similarly, when searching, if you don't specify a class, rel:: will be prepended to the relation type.
+	 * So if you're not indexing different classes of relations, you can just ignore the classes.
 	 */
 	relationClass?: string;
 	/** Xpath: the value/name of the relation. Relative to 'path'. */
@@ -379,28 +375,28 @@ type StandoffAnnotationDependencyRelation = {
 	/** Xpath: for the ID of the target token/word/node. */
 	targetPath: string;
 
-	/** 
-	 * Xpath: What version does the target attribute refer to? 
-	 * 
+	/**
+	 * Xpath: What version does the target attribute refer to?
+	 *
 	 * For relations: how to find target version for the relation. Defaults to empty, meaning 'this version'.
 	 *
 	 * NOTE: targetField and targetVersion are combined into a single field in the index.
 	 * For example, if targetField is empty and targetVersion resolves to "de", and this field is "contents__nl",
 	 * the target field for the relations will be the field will be "contents__de".
-	 * 
-	*/
+	 *
+	 */
 	targetVersionPath?: string;
 
-	/** 
-	 * For relations: target field for the relation. Defaults to empty, meaning 'this field'. 
+	/**
+	 * For relations: target field for the relation. Defaults to empty, meaning 'this field'.
 	 * NOTE: targetField and targetVersion are combined into a single field in the index.
 	 * For example, if targetField is empty and targetVersion is "de", and this field is "contents__nl",
 	 * the target field for the relations will be the field will be "contents__de".
 	 */
 	targetField?: string;
-}
+};
 
-type MetadataField= MetadataFieldSingle | MetadataFieldForEach;
+type MetadataField = MetadataFieldSingle | MetadataFieldForEach;
 type MetadataFieldSingle = {
 	/** Name of the metadata field in BlackLab */
 	name: string;
@@ -416,7 +412,7 @@ type MetadataFieldSingle = {
 	/** Can this metadata field have multiple values? Useful for things like Authors. Defaults to true. */
 	multipleValues?: boolean;
 	/** Should metadata be split into words/tokens, or it a number (changes sorting, leading zeroes matching, etc.). Defaults to 'tokenized'. The pidField (see specialFields) should be untokenized usually, or viewing documents in BlackLab Frontend might not work when the document id contains spaces. */
-	type?: 'untokenized'|'tokenized'|'numeric';
+	type?: 'untokenized' | 'tokenized' | 'numeric';
 	// leave extra line breaks or they won't appear in the monaco editor :(
 	/**
 	 * Autocomplete/combobox: show a dropdown list with live search. The user can also type in a custom value.
@@ -435,19 +431,19 @@ type MetadataFieldSingle = {
 	 *
 	 * Leaving this empty will default to 'dropdown' if all values are known and 'autocomplete' otherwise.
 	 */
-	uiType?: 'autocomplete'|'combobox'|'range'|'select'|'dropdown'|'checkbox'|'radio'|'date'|'text';
+	uiType?: 'autocomplete' | 'combobox' | 'range' | 'select' | 'dropdown' | 'checkbox' | 'radio' | 'date' | 'text';
 	/** Post-process values. Every process entry is evaluated in order with the output of the previous one as input. */
 	process?: Process[];
 
 	/** When to replace value with default (or ignore it altogether). Defaults to 'never' */
-	unknownCondition?: 'never'|'missing'|'empty'|'missing_or_empty';
+	unknownCondition?: 'never' | 'missing' | 'empty' | 'missing_or_empty';
 	/** Default value when the field doesn't have one according to 'unknownCondition' */
 	unknownValue?: string;
 
 	analyzer?: string;
 	/** Sort values when there are multiple? Useful when sorting or grouping results, as [a,b] and [b,a] could otherwise be different groups. */
 	sortValues?: boolean;
-}
+};
 
 /** A for-each version of the metadata field, that will loop over the for-each path, and create a field for every match. Further settings should be in the named metadata entry. */
 type MetadataFieldForEach = {
@@ -457,7 +453,7 @@ type MetadataFieldForEach = {
 	namePath: string;
 	/** Xpath for the value(s) of the current metadata field. */
 	valuePath: string;
-}
+};
 
 type LinkedDocument = {
 	/**
@@ -469,7 +465,7 @@ type LinkedDocument = {
 	store: boolean;
 
 	/** Xpath: list of xpaths to perform for value substitutions in the inputFile property. */
-	linkValues?: Array<{valuePath: string, process: Process[]}>
+	linkValues?: Array<{ valuePath: string; process: Process[] }>;
 
 	/**
 	 * How to fetch the linked input file containing the linked document.
@@ -481,7 +477,7 @@ type LinkedDocument = {
 	/** If the linked input file is an archive, the path inside it. Is interpolated just like 'inputFile'. */
 	pathInsideArchive?: string;
 	/** Defaults to 'fail' */
-	ifLinkPathMissing?: 'ignore'|'warn'|'fail';
+	ifLinkPathMissing?: 'ignore' | 'warn' | 'fail';
 
 	/** Id of the format to use for indexing the linked file. */
 	inputFormat: string;
@@ -492,8 +488,8 @@ type LinkedDocument = {
 	 * May contain $x (x = 1-9), which will be replaced with (processed) linkValue.
 	 * E.g. /root/metadata[@docId = $2]
 	 */
-    documentPath?: string;
-}
+	documentPath?: string;
+};
 
 /** Metadata not used by BlackLab directly, but useful for configuring the BlackLab Frontend search interface. */
 type CorpusConfig = {
@@ -504,13 +500,13 @@ type CorpusConfig = {
 	/** Is the user allowed to view whole documents? [false]. Can also be specified per-document by creating a metadata field with this name containing a boolean. */
 	contentViewable?: boolean;
 	/** Defaults to 'ltr' */
-	textDirection?: 'ltr'|'rtl';
+	textDirection?: 'ltr' | 'rtl';
 
-	/** 
-	 * Put the names of metadata fields here that have a special semantic meaning here. The Frontend will use these to display your documents in a more user-friendly way. 
+	/**
+	 * Put the names of metadata fields here that have a special semantic meaning here. The Frontend will use these to display your documents in a more user-friendly way.
 	 * The pidField should always be set, as it is used to link to the document in the content store.
 	 * Note that the pidField should also be untokenized, as spaces and special characters in the pid of your document will cause issues otherwise.
-	*/
+	 */
 	specialFields?: {
 		/** Defaults to 'id' */
 		pidField?: string;
@@ -520,14 +516,13 @@ type CorpusConfig = {
 		authorField?: string;
 		/** Defaults to 'date' */
 		dateField?: string;
-	}
+	};
 
 	/** How to group together metadata fields in the BlackLab Frontend search interface. */
 	metadataFieldGroups?: MetadataFieldGroup[];
 	/** How to group together annotations in the BlackLab Frontend search interface. */
-	annotationGroups?: { [annotatedField: string]: AnnotationGroup[]; }
-
-}
+	annotationGroups?: { [annotatedField: string]: AnnotationGroup[] };
+};
 
 type AnnotationGroup = {
 	/** Group name */
@@ -540,7 +535,7 @@ type AnnotationGroup = {
 	 * If you have no group that defines this, BlackLab will make one for you.
 	 */
 	addRemainingAnnotations?: boolean;
-}
+};
 
 /** How to group together metadata fields in the BlackLab Frontend search interface. */
 type MetadataFieldGroup = {
@@ -553,7 +548,7 @@ type MetadataFieldGroup = {
 	 * If you have no group that defines this, BlackLab will make one for you.
 	 */
 	addRemainingFields?: boolean;
-}
+};
 
 /**
  * @title Regex replace part of the value
@@ -567,7 +562,7 @@ type ProcessReplace = {
 	replace: string;
 	/** keep both before and after. For this, 'multipleValues' must be true. */
 	keep?: 'all';
-}
+};
 /**
  * @title Default value
  * @description Set a default value if there is none. The default value can be hardcoded, or retrieved from another metadata field.
@@ -577,7 +572,7 @@ type ProcessDefaultValue = {
 	action: 'default';
 	/** Default value to use if the value is empty. */
 	value: string;
-}
+};
 /**
  * @title Default value from another field
  * @description Set a default value if there is none. The default value can be retrieved from another metadata field.
@@ -587,7 +582,7 @@ type ProcessDefaultField = {
 	action: 'default';
 	/** Metadata Field to take the default value from. Make sure this field is further up in the configuration file, so it's already been indexed. */
 	field: string;
-}
+};
 /**
  * @title Value if empty
  * @description If current value is the empty string, set its value to either the specified value or the value of the specified field. If you refer to a field, make sure it is defined before this field (fields are processed in order). (NOTE: this processing step was previously called default)
@@ -595,7 +590,7 @@ type ProcessDefaultField = {
 type ProcessDefaultIfEmpty = {
 	action: 'ifempty';
 	value: string;
-}
+};
 /**
  * @title Value if empty
  * @description If current value is the empty string, set its value to either the specified value or the value of the specified field. If you refer to a field, make sure it is defined before this field (fields are processed in order). (NOTE: this processing step was previously called default)
@@ -603,7 +598,7 @@ type ProcessDefaultIfEmpty = {
 type ProcessDefaultFieldIfEmpty = {
 	action: 'ifempty';
 	field: string;
-}
+};
 /**
  * @title Append value
  * @description Append a string to all values.
@@ -616,7 +611,7 @@ type ProcessAppendValue = {
 	prefix?: string;
 	/** @deprecated Ignored when using a constant value, use 'prefix' for the old behavior, where the separator was inserted between the base value and the appended value. */
 	separator?: string;
-}
+};
 /**
  * @title Append value from another field
  * @description Append a value of another metadata field to all values.
@@ -629,7 +624,7 @@ type ProcessAppendField = {
 	separator?: string;
 	/** Separator between the original value and the to-be-appended values (after joining them). Defaults to '' */
 	prefix?: string;
-}
+};
 /**
  * @title Split values
  * @description Split the values and keep one or more parts.
@@ -639,8 +634,8 @@ type ProcessSplit = {
 	/** Regex to split on. Defaults to ';' */
 	separator?: string;
 	/** Which value(s) to keep. A 1-based integer. Defaults to the first value. Special value 'all' will keep all split values. Special value 'both' will keep all split values as well as the input values(s). For 'all' and 'both' to work, the field should have 'multipleValues=true'. */
-	keep?: number|'all'|'both';
-}
+	keep?: number | 'all' | 'both';
+};
 /**
  * @title strip characters
  * @description Strip specific characters from the start and end of values.
@@ -649,31 +644,30 @@ type ProcessStrip = {
 	action: 'strip';
 	/** List of characters to strip from beginning and end.. */
 	chars: string;
-}
-/** 
+};
+/**
  * @title Map values to other values before indexing
  * @description Map values to other values. The table is a map from input to output values. If the input value is not in the table, it is left unchanged.
  */
 type ProcessMap = {
 	action: 'map';
 	/** Map of original values to new values. If a value is not in the map, it is left unchanged. */
-	table: {[originalValue: string]: string};
-}
+	table: { [originalValue: string]: string };
+};
 /**
  * @title Sort values
  * @description Sort multiple values using the default collator. This may help to ensure that the first term (which is the one used for sorting and grouping) is more predictable.
  */
 type ProcessSort = {
 	action: 'sort';
-}
+};
 /**
  * @title Decuplicate values
  * @description Remove duplicate values from the field. You normally never need to do this as it is done automatically just before actually indexing the final terms.
  */
 type ProcessUnique = {
 	action: 'unique';
-}
-
+};
 
 /**
  * @title Parse part of speech
@@ -688,7 +682,7 @@ type ProcessParsePos = {
 	action: 'parsePos';
 	/** Field to extract. If omitted or '_', extract the main feature. Eg for NOU(a=b,c=d), the NOU portion. */
 	field: string;
-}
+};
 
 /**
  * @title Convert CHAT format age to months
@@ -696,7 +690,7 @@ type ProcessParsePos = {
  */
 type ProcessChatFormatAgeToMonths = {
 	action: 'chatFormatAgeToMonths';
-}
+};
 /**
  * @title Concatenate date fields
  * @description Concatenate multiple other metadata fields for year/month/day into a single value in the format yyyymmdd, so they can be sorted and grouped on, and searched using a range-query.
@@ -710,10 +704,24 @@ type ProcessConcatDate = {
 	/** Name of the other field containing the day. Ensure this is defined before this one, or if won't have been indexed yet. */
 	dayField: string;
 	/** If the month is missing, 'start' fills with 01 (januari), 'end' fills with 12 (december). If the day is missing, 'start' fills with 01, 'end' fills with the last day of the month (28-31 depending, takes into account leap years.). */
-	autofill?: 'start'|'end';
-}
+	autofill?: 'start' | 'end';
+};
 
+type Process =
+	| ProcessReplace
+	| ProcessDefaultValue
+	| ProcessDefaultField
+	| ProcessDefaultIfEmpty
+	| ProcessDefaultFieldIfEmpty
+	| ProcessAppendValue
+	| ProcessAppendField
+	| ProcessSplit
+	| ProcessStrip
+	| ProcessMap
+	| ProcessSort
+	| ProcessUnique
+	| ProcessParsePos
+	| ProcessChatFormatAgeToMonths
+	| ProcessConcatDate;
 
-type Process = ProcessReplace|ProcessDefaultValue|ProcessDefaultField|ProcessDefaultIfEmpty|ProcessDefaultFieldIfEmpty|ProcessAppendValue|ProcessAppendField|ProcessSplit|ProcessStrip|ProcessMap|ProcessSort|ProcessUnique|ProcessParsePos|ProcessChatFormatAgeToMonths|ProcessConcatDate;
-
-export type BLFSchema = BLFSchemaV1|BLFSchemaV2;
+export type BLFSchema = BLFSchemaV1 | BLFSchemaV2;

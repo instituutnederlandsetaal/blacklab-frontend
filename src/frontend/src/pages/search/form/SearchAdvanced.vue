@@ -8,9 +8,9 @@
 		<div v-else>
 			<!-- Parallel corpus -->
 			<div class="qb-par-wrap">
-				<label class="control-label" for="sourceVersion">{{$t('search.parallel.queryForSourceVersion')}}
-					<SelectPicker id="sourceVersion" :options="pSourceOptions"
-						v-model="pSourceValue" data-menu-width="grow" hideEmpty/>
+				<label class="control-label" for="sourceVersion"
+					>{{ $t('search.parallel.queryForSourceVersion') }}
+					<SelectPicker id="sourceVersion" :options="pSourceOptions" v-model="pSourceValue" data-menu-width="grow" hideEmpty />
 				</label>
 				<span v-if="errorNoParallelSourceVersion" class="error">
 					{{ $t('search.parallel.errorNoSourceVersion') }}
@@ -19,7 +19,8 @@
 			</div>
 
 			<div class="qb-par-wrap" v-for="(field, index) in pTargets" :key="field.value">
-				<label class="control-label" @click.prevent>{{$t('search.parallel.queryForTargetVersion')}}
+				<label class="control-label" @click.prevent
+					>{{ $t('search.parallel.queryForTargetVersion') }}
 					<button type="button" class="targetVersion" @click="removeTarget(field.value)" :title="$t('widgets.clickToRemove').toString()">
 						{{ field.label }}
 					</button>
@@ -35,30 +36,30 @@
 						 from the available options.
 						Deselecting happens in a list elsewhere in the UI.
 					-->
-					<SelectPicker :options="pTargetOptions" @update:modelValue="addTarget($event)" hideEmpty/>
+					<SelectPicker :options="pTargetOptions" @update:modelValue="addTarget($event)" hideEmpty />
 				</div>
 			</div>
 
 			<AlignBy v-if="pTargets.length" block />
 		</div>
 
-		<button type="button" class="btn btn-default btn-sm" @click="copyAdvancedQuery">{{$t('search.advanced.copyAdvancedQuery')}}</button>
+		<button type="button" class="btn btn-default btn-sm" @click="copyAdvancedQuery">{{ $t('search.advanced.copyAdvancedQuery') }}</button>
 	</div>
 </template>
 
 <script lang="ts">
+import { defineComponent } from 'vue';
+
+import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
+import { CqlGenerator } from '@/components/cql/cql-types';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
+import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 
 import CqlQueryBuilder from '@/components/cql/CqlQueryBuilder.vue';
 import MultiValuePicker from '@/components/MultiValuePicker.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
 import AlignBy from '@/pages/search/form/AlignBy.vue';
-
-import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
-import { CqlGenerator } from '@/components/cql/cql-types';
-import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
-import { defineComponent } from 'vue';
 
 export default defineComponent({
 	extends: ParallelFields,
@@ -66,7 +67,7 @@ export default defineComponent({
 		SelectPicker,
 		MultiValuePicker,
 		AlignBy,
-		CqlQueryBuilder
+		CqlQueryBuilder,
 	},
 	props: {
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
@@ -74,12 +75,18 @@ export default defineComponent({
 	computed: {
 		// The query (or source query, for parallel corpora)
 		mainQuery: {
-			get(): CqlQueryBuilderData { return PatternStore.getState().advanced.query; },
-			set(v: CqlQueryBuilderData) { PatternStore.actions.advanced.query(v); }
+			get(): CqlQueryBuilderData {
+				return PatternStore.getState().advanced.query;
+			},
+			set(v: CqlQueryBuilderData) {
+				PatternStore.actions.advanced.query(v);
+			},
 		},
 
 		// If this is a parallel corpus: the target queries
-		targetQueries(): CqlQueryBuilderData[] { return  PatternStore.getState().advanced.targetQueries; },
+		targetQueries(): CqlQueryBuilderData[] {
+			return PatternStore.getState().advanced.targetQueries;
+		},
 	},
 	methods: {
 		copyAdvancedQuery() {
@@ -88,20 +95,20 @@ export default defineComponent({
 			for (let i = 0; i < PatternStore.getState().advanced.targetQueries.length; i++) {
 				PatternStore.actions.expert.changeTargetQuery({
 					index: i,
-					value: CqlGenerator.rootCql(PatternStore.getState().advanced.targetQueries[i]) || ''
+					value: CqlGenerator.rootCql(PatternStore.getState().advanced.targetQueries[i]) || '',
 				});
 			}
 			InterfaceStore.actions.patternMode('expert');
 		},
 		changeTargetQuery(index: number, value: CqlQueryBuilderData) {
 			PatternStore.actions.advanced.changeTargetQuery({ index, value });
-		}
+		},
 	},
 });
 </script>
 
 <style lang="scss" scoped>
-@use "sass:color";
+@use 'sass:color';
 
 h3 .help {
 	font-size: 0.8em;
@@ -124,7 +131,8 @@ h3 .help {
 		resize: none;
 		margin: 0;
 	}
-	#sourceVersion, .targetVersion {
+	#sourceVersion,
+	.targetVersion {
 		font-weight: normal;
 	}
 	button.targetVersion {
@@ -150,5 +158,4 @@ h3 .help {
 		font-weight: bold;
 	}
 }
-
 </style>

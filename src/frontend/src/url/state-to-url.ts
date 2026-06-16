@@ -19,16 +19,16 @@ type UrlStateSlice = {
 
 export type UrlTransformInput = {
 	contextUrl: string;
-	indexId?: string|null;
+	indexId?: string | null;
 	params?: BLTypes.BLSearchParameters;
-	pattern?: string|null;
-	gapValue?: string|null;
-	searchField?: string|null;
+	pattern?: string | null;
+	gapValue?: string | null;
+	searchField?: string | null;
 	state: UrlStateSlice;
 };
 
 export type UrlTransformOutput = {
-	page: 'root'|'search'|'article';
+	page: 'root' | 'search' | 'article';
 	url: string;
 	fullUrl: string;
 	isTruncated: boolean;
@@ -36,9 +36,15 @@ export type UrlTransformOutput = {
 
 function cleanParams<T extends Record<string, unknown>>(params: T): Partial<T> {
 	return Object.entries(params).reduce((acc, [key, val]) => {
-		if (val == null) { return acc; }
-		if (typeof val === 'string' && val.length === 0) { return acc; }
-		if (Array.isArray(val) && val.length === 0) { return acc; }
+		if (val == null) {
+			return acc;
+		}
+		if (typeof val === 'string' && val.length === 0) {
+			return acc;
+		}
+		if (Array.isArray(val) && val.length === 0) {
+			return acc;
+		}
 		(acc as any)[key] = val;
 		return acc;
 	}, {} as Partial<T>);
@@ -49,13 +55,8 @@ function getContextSegments(contextUrl: string): string[] {
 }
 
 function toRelativeUrl(contextUrl: string, pathSegments: string[], queryParams: Record<string, unknown>): string {
-	return new URI()
-		.segment(getContextSegments(contextUrl).concat(pathSegments))
-		.host('').protocol('').port('')
-		.search(cleanParams(queryParams))
-		.toString();
+	return new URI().segment(getContextSegments(contextUrl).concat(pathSegments)).host('').protocol('').port('').search(cleanParams(queryParams)).toString();
 }
-
 
 export function corpusSearchUrl(contextUrl: string, indexId: string): string {
 	return toRelativeUrl(contextUrl, [indexId, 'search'], {});
@@ -92,12 +93,15 @@ export function searchStateToUrl(input: UrlTransformInput): UrlTransformOutput {
 	});
 
 	const fullUrl = toRelativeUrl(input.contextUrl, [input.indexId, 'search', viewedResults], queryParams as Record<string, unknown>);
-	const url = fullUrl.length <= MAX_URL_LENGTH ? fullUrl : toRelativeUrl(input.contextUrl, [input.indexId, 'search', viewedResults], {
-		...queryParams,
-		patt: undefined, 
-		pattgapdata: undefined,
-	});
-	
+	const url =
+		fullUrl.length <= MAX_URL_LENGTH
+			? fullUrl
+			: toRelativeUrl(input.contextUrl, [input.indexId, 'search', viewedResults], {
+					...queryParams,
+					patt: undefined,
+					pattgapdata: undefined,
+				});
+
 	return {
 		page: 'search',
 		fullUrl,
@@ -106,7 +110,7 @@ export function searchStateToUrl(input: UrlTransformInput): UrlTransformOutput {
 	};
 }
 
-export function articleStateToUrl(input: UrlTransformInput): UrlTransformOutput|null {
+export function articleStateToUrl(input: UrlTransformInput): UrlTransformOutput | null {
 	if (!input.indexId || !input.state.article.docId) {
 		return null;
 	}
