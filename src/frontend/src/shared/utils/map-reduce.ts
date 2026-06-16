@@ -1,9 +1,4 @@
-type KeysOfType<Base, Condition> = keyof Pick<
-	Base,
-	{
-		[Key in keyof Base]: Base[Key] extends Condition ? Key : never;
-	}[keyof Base]
->;
+import type { KeysOfType } from '@/types/helpers';
 
 /**
  * Returns a reducer function that will place all values into a map/object at the key defined by the passed string.
@@ -78,17 +73,4 @@ export function mapReduce<T, VT extends (t: T, i: number) => any = (t: T, i: num
  */
 export function multimapReduce<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(t: T[] | undefined | null, k: KeysOfType<T, string>, m?: V): Record<string, Array<ReturnType<V>>> {
 	return t ? t.reduce(makeMultimapReducer<T, V>(k, m), {}) : {};
-}
-
-export function filterDuplicates<T>(t: T[] | null | undefined, k: KeysOfType<T, string | number>): T[] {
-	const found = new Set<T[KeysOfType<T, string | number>]>();
-	return t
-		? t.filter(v => {
-				if (!found.has(v[k])) {
-					found.add(v[k]);
-					return true;
-				}
-				return false;
-			})
-		: [];
 }

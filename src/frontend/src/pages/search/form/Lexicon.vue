@@ -54,8 +54,8 @@ import * as api from '@/api';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import type { NormalizedAnnotation } from '@/types/apptypes';
-import { filterDuplicates } from '@/utils';
 
+import { filterDuplicates } from '@/shared/utils/array-utils';
 import { mapReduce } from '@/shared/utils/map-reduce';
 import { escapeRegex } from '@/shared/utils/string-utils';
 import useUid from '@/shared/utils/uid';

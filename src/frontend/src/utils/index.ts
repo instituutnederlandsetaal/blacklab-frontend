@@ -129,26 +129,6 @@ export function applyWithinClauses(query: string, withinClauses: Record<string, 
 	return query.length > 0 ? query : overlapClauses;
 }
 
-type KeysOfType<Base, Condition> = keyof Pick<
-	Base,
-	{
-		[Key in keyof Base]: Base[Key] extends Condition ? Key : never;
-	}[keyof Base]
->;
-
-export function filterDuplicates<T>(t: T[] | null | undefined, k: KeysOfType<T, string | number>): T[] {
-	const found = new Set<T[KeysOfType<T, string | number>]>();
-	return t
-		? t.filter(v => {
-				if (!found.has(v[k])) {
-					found.add(v[k]);
-					return true;
-				}
-				return false;
-			})
-		: [];
-}
-
 // --------------
 
 /** Groups always have at least one member, empty array is returned if no groups would have members. */
