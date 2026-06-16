@@ -53,7 +53,7 @@ import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import createBaseFilterComponent from '@/components/filters/Filter';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 import type { FilterDateValue, FilterDateMetadata as Metadata } from './filterValueFunctions';
 import { DateUtils } from './filterValueFunctions';

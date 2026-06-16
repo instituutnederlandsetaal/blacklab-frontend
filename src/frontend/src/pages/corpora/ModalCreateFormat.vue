@@ -88,7 +88,7 @@ import type { PropType } from 'vue';
 
 import * as Api from '@/api';
 import type { NormalizedFormat } from '@/types/apptypes';
-import type { Option, Options } from '@/utils/options';
+import type { Option, Options } from '@/shared/utils/options';
 
 import Modal from '@/components/Modal.vue';
 import SelectPicker from '@/components/SelectPicker.vue';

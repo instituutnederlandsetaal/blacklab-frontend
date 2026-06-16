@@ -22,7 +22,7 @@ import type { NormalizedIndex } from '@/types/apptypes';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
-import type { OptGroup } from '@/utils/options';
+import type { OptGroup } from '@/shared/utils/options';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 

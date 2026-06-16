@@ -108,7 +108,7 @@ import { getAnnotationSubset } from '@/utils';
 import type { Result } from '@/utils/bcql-json-interpreter';
 import { parseBcql } from '@/utils/bcql-json-interpreter';
 import { corpusCustomizations } from '@/utils/customization';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 import { getPatternStringFromCql, getPatternStringSearch } from '@/utils/pattern-utils';
 
 import ParallelFields from './parallel/ParallelFields';

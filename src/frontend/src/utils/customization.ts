@@ -4,9 +4,9 @@ import type { HighlightSection } from '@/pages/search/results/table/hit-highligh
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { spanFilterId } from '@/utils';
-import type { Translate } from '@/shared/i18n';
 
-import type { OptGroup, Option } from './options';
+import type { Translate } from '@/shared/i18n';
+import type { OptGroup, Option } from '@/shared/utils/options';
 
 const unwrappedImplementation = Symbol('unwrappedImplementation');
 const isProxiedSym = Symbol('proxyMark');

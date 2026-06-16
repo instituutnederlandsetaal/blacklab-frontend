@@ -2,36 +2,36 @@ import type { StyleValue } from 'vue';
 
 import { frontendPaths } from '@/api';
 import type {
-    HitContext,
-    HitToken,
-    NormalizedAnnotatedField,
-    NormalizedAnnotatedFieldParallel,
-    NormalizedAnnotation,
-    NormalizedAnnotationGroup,
-    NormalizedMetadataField,
-    TokenHighlight,
+	HitContext,
+	HitToken,
+	NormalizedAnnotatedField,
+	NormalizedAnnotatedFieldParallel,
+	NormalizedAnnotation,
+	NormalizedAnnotationGroup,
+	NormalizedMetadataField,
+	TokenHighlight,
 } from '@/types/apptypes';
 import type {
-    BLDoc,
-    BLDocFields,
-    BLDocGroupResult,
-    BLDocGroupResults,
-    BLDocInfo,
-    BLDocResults,
-    BLHit,
-    BLHitGroupResult,
-    BLHitGroupResults,
-    BLHitInOtherField,
-    BLHitResults,
-    BLHitSnippet,
-    BLHitSnippetPart,
-    BLSearchParameters,
-    BLSearchResult,
+	BLDoc,
+	BLDocFields,
+	BLDocGroupResult,
+	BLDocGroupResults,
+	BLDocInfo,
+	BLDocResults,
+	BLHit,
+	BLHitGroupResult,
+	BLHitGroupResults,
+	BLHitInOtherField,
+	BLHitResults,
+	BLHitSnippet,
+	BLHitSnippetPart,
+	BLSearchParameters,
+	BLSearchResult,
 } from '@/types/blacklabtypes';
 import { hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 import type { KeysOfType } from '@/types/helpers';
 import type { Translate } from '@/shared/i18n';
-import type { OptGroup, Option, Options } from '@/utils/options';
+import type { OptGroup, Option, Options } from '@/shared/utils/options';
 
 import * as Highlights from './hit-highlighting';
 

@@ -25,7 +25,8 @@ import SelectPicker from './SelectPicker.vue';
 void SelectPicker;
 
 import { splitIntoTerms } from '@/utils';
-import type { Option } from '@/utils/options';
+
+import type { Option } from '@/shared/utils/options';
 
 const modelValue = defineModel<string>({ default: '' });
 const props = withDefaults(

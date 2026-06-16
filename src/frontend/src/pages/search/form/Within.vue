@@ -40,7 +40,7 @@ import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import { corpusCustomizations } from '@/utils/customization';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 export default defineComponent({
 	emits: ['update:modelValue'],

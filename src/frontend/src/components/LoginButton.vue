@@ -20,7 +20,7 @@
 import { defineComponent } from 'vue';
 
 import * as LoginSystem from '@/utils/loginsystem';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 

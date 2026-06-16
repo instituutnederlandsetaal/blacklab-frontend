@@ -75,7 +75,7 @@ import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import UrlStateParserBase from '@/url/url-state-parser-base';
 import { debugLogCat } from '@/utils/debug';
-import type { OptGroup } from '@/utils/options';
+import type { OptGroup } from '@/shared/utils/options';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 

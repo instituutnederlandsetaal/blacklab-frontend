@@ -1,8 +1,8 @@
 export type SimpleOption = string;
 
 /** Generic object to represent an option in a dropdown multiple-choice, checkbox list, etc. */
-export type Option = {
-	value: string;
+export type Option<T extends string = string> = {
+	value: T;
 	label?: string;
 	title?: string | null;
 	disabled?: boolean;
@@ -71,9 +71,9 @@ export function optionValues(options: Options): string[] {
 	return values;
 }
 
-export function filterOptions(options: Array<SimpleOption | Option>, keep: Set<string>): [Array<SimpleOption | Option>, Array<SimpleOption | Option>];
-export function filterOptions(options: Options, keep: Set<string>): [Options, Options];
-export function filterOptions(options: Options, keep: Set<string>): [Options, Options] {
+export function filterOptions(options: Array<SimpleOption | Option>, keep: Set<string>): { matched: Array<SimpleOption | Option>; unmatched: Array<SimpleOption | Option> };
+export function filterOptions(options: Options, keep: Set<string>): { matched: Options; unmatched: Options };
+export function filterOptions(options: Options, keep: Set<string>): { matched: Options; unmatched: Options } {
 	const keptOptions: Options = [];
 	const removedOptions: Options = [];
 	for (const option of options) {
@@ -90,7 +90,7 @@ export function filterOptions(options: Options, keep: Set<string>): [Options, Op
 				removedOptions.push(option);
 			}
 		} else if (isOptGroup(option)) {
-			const [kept, removed] = filterOptions(option.options, keep);
+			const { matched: kept, unmatched: removed } = filterOptions(option.options, keep);
 			if (kept.length > 0) {
 				keptOptions.push({ ...option, options: kept });
 			}
@@ -99,5 +99,5 @@ export function filterOptions(options: Options, keep: Set<string>): [Options, Op
 			}
 		}
 	}
-	return [keptOptions, removedOptions];
+	return { matched: keptOptions, unmatched: removedOptions };
 }

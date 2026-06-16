@@ -25,7 +25,7 @@ import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
 import type { NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 

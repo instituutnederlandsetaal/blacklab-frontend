@@ -5,7 +5,7 @@ import type { FullFilterState } from '@/features/search/model/form/filter-state'
 import type { FilterValue } from '@/types/apptypes';
 import { cast, escapeLucene, mapReduce, spanFilterId, splitIntoTerms, unescapeLucene } from '@/utils';
 import { debugLog } from '@/utils/debug';
-import { findOption, optionLabel, optionValues, type Option } from '@/utils/options';
+import { findOption, optionLabel, optionValues, type Option } from '@/shared/utils/options';
 
 /** month (m) and day (d) may be empty strings. Month field starts at 1 instead of javascript Date's 0. */
 export type DateValue = {

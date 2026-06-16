@@ -1,5 +1,5 @@
 import type { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGroup } from '@/types/apptypes';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 export type Translate = {
 	$t: (key: string, params?: Record<string, unknown>) => string;

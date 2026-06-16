@@ -198,7 +198,7 @@ import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
 import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/utils/grouping';
 import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
-import { findOption, type OptGroup, type Option, type Options } from '@/utils/options';
+import { findOption, type OptGroup, type Option, type Options } from '@/shared/utils/options';
 
 import SelectPicker from '@/components/SelectPicker.vue';
 import Tabs from '@/components/Tabs.vue';

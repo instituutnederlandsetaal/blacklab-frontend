@@ -68,7 +68,7 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import UID from '@/mixins/uid';
 import type { NormalizedAnnotation } from '@/types/apptypes';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 import { useI18n } from '@/shared/i18n';
 

@@ -76,7 +76,7 @@ import * as GlobalViewSettings from '@/features/search/model/results/global-resu
 import * as ResultsViewSettings from '@/features/search/model/results/view-state';
 import debug, { debug_visible } from '@/utils/debug';
 import { localStorageSynced } from '@/utils/localstore';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 import Modal from '@/components/Modal.vue';
 import SelectPicker from '@/components/SelectPicker.vue';

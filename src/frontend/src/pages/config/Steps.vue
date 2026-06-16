@@ -26,7 +26,7 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 export default defineComponent({
 	emits: ['update:modelValue'],

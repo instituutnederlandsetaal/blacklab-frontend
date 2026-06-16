@@ -206,7 +206,7 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import { isSimpleOption, type Options, type SimpleOption, type OptGroup, isOption, isOptGroup, type Option } from '@/utils/options';
+import { isSimpleOption, type Options, type SimpleOption, type OptGroup, isOption, isOptGroup, type Option } from '@/shared/utils/options';
 
 type _uiOpt = {
 	type: 1;

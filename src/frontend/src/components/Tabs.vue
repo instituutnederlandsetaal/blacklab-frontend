@@ -40,7 +40,7 @@
 import type { PropType, StyleValue } from 'vue';
 import { defineComponent } from 'vue';
 
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 export type Tab = Option & {
 	class?: string | Record<string, boolean>;

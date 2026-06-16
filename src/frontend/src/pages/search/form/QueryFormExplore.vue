@@ -140,7 +140,7 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
-import type { OptGroup, Option } from '@/utils/options';
+import type { OptGroup, Option } from '@/shared/utils/options';
 
 import ParallelFields from './parallel/ParallelFields';
 

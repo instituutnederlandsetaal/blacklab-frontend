@@ -37,7 +37,7 @@
 import { defineComponent, type PropType } from 'vue';
 
 import createBaseFilterComponent from '@/components/filters/Filter';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 import type { FilterRangeMultipleFieldsMetadata, FilterRangeMultipleFieldsValue } from './filterValueFunctions';
 

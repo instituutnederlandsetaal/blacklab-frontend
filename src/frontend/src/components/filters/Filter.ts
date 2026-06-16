@@ -3,7 +3,7 @@ import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import type { FilterDefinition } from '@/types/apptypes';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 export default function createBaseFilterComponent<T, M = never>(valuePropType: true | PropType<T> | null | undefined, valuePropDefault?: () => NonNullable<T>) {
 	const component = defineComponent({

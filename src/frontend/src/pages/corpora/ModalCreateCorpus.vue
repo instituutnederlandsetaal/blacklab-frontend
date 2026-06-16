@@ -36,7 +36,7 @@ import { defineComponent } from 'vue';
 import * as Api from '@/api';
 import type { NormalizedFormat } from '@/types/apptypes';
 import type { BLUser } from '@/types/blacklabtypes';
-import type { Options } from '@/utils/options';
+import type { Options } from '@/shared/utils/options';
 
 import Modal from '@/components/Modal.vue';
 import SelectPicker from '@/components/SelectPicker.vue';

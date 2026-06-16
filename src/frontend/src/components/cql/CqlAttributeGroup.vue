@@ -42,7 +42,7 @@ import { computed } from 'vue';
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
 import { isCqlAttributeData, isCqlAttributeGroupData } from '@/components/cql/cql-types';
 import uid from '@/mixins/uid';
-import type { Option } from '@/utils/options';
+import type { Option } from '@/shared/utils/options';
 
 import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
 import CqlAttribute from './CqlAttribute.vue';
