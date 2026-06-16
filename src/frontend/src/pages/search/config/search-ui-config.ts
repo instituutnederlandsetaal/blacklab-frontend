@@ -18,9 +18,14 @@ export type SearchUiConfig = {
 			searchMetadataIds: string[];
 		};
 	};
+	explore: {
+		/** Default selection in Group documents by metadata" (Corpora tab), available options are defined by results.shared.groupMetadataIds */
+		defaultGroupMetadataId: string;
+		groupMetadataIds: string[];
+	};
 };
 
-type SearchUiDeclarations = Pick<ModuleRootState, 'search'>;
+type SearchUiDeclarations = Pick<ModuleRootState, 'search' | 'explore' | 'results'>;
 
 type MainAnnotationGroup = NormalizedAnnotationGroup & { annotatedFieldId: string };
 
@@ -104,6 +109,12 @@ export function resolveSearchUiConfig(index: NormalizedIndex, declarations?: Sea
 		}
 		throw new Error(`None of the following annotation ids were valid: ${ids.join(', ')}`);
 	}
+	function firstValidMetadata(...ids: (string | undefined)[]): string {
+		for (const id of ids) {
+			if (id && metadataFields[id]) return id;
+		}
+		throw new Error(`None of the following metadata field ids were valid: ${ids.join(', ')}`);
+	}
 
 	return {
 		search: {
@@ -121,6 +132,10 @@ export function resolveSearchUiConfig(index: NormalizedIndex, declarations?: Sea
 			shared: {
 				searchMetadataIds: metadataIds,
 			},
+		},
+		explore: {
+			defaultGroupMetadataId: firstValidMetadata(...(declarations?.results.shared.groupMetadataIds ?? []), metadataIds[0]),
+			groupMetadataIds: configuredOrDefault(validIds(declarations?.results.shared.groupMetadataIds ?? [], metadataFields, 'metadata field'), metadataIds),
 		},
 	};
 }

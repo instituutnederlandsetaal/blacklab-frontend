@@ -7,7 +7,7 @@ import { isObject } from '@vueuse/core';
 import { nextTick } from 'vue';
 
 import type { CorpusContext } from '@/entities/corpus/model/corpus-context';
-import type { HighlightSection } from '@/pages/search/lib/hit-highlighting';
+import type { HighlightSection } from '@/pages/results/lib/hit-highlighting';
 import type { FilterDefinition, NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
 import type { BLHitResults, BLHitGroupResults, BLDoc, BLHit, BLHitInOtherField, BLHitSnippet } from '@/types/blacklabtypes';
 

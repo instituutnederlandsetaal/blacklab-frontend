@@ -151,7 +151,6 @@ export function combineQueries(artifacts: QueryIR[], combine: QueryCombineMode =
 		filter: combineFilters(nonEmpty.map(artifact => artifact.filter).filter(isNonNull), combine === 'or' ? 'or' : 'and'),
 		wrappers: nonEmpty.flatMap(artifact => artifact.wrappers),
 		searchfield: nonEmpty.find(artifact => artifact.searchfield)?.searchfield ?? null,
-		// resultPreset = Object.assign({}, ...nonEmpty.map(artifact => artifact.resultPreset)) as Partial<ResultPreset>;
 	});
 }
 
@@ -377,16 +376,7 @@ function emitRepeat(pattern: Extract<CqlPattern, { type: 'repeat' }>): string {
 function emitTokenPredicate(expr: TokenPredicate, parentOperator?: BooleanType): string {
 	if (expr.type === 'predicate') {
 		const literalFlag = expr.match === 'equals' ? 'l' : '';
-		const caseFlag =
-			expr.caseMode === 'sensitive'
-				? '(?-i)'
-				: expr.caseMode === 'insensitive'
-					? '(?i)'
-					: expr.caseMode === 'default'
-						? ''
-						: expr.caseSensitive
-							? ''
-							: '(?i)';
+		const caseFlag = expr.caseMode === 'sensitive' ? '(?-i)' : expr.caseMode === 'insensitive' ? '(?i)' : expr.caseMode === 'default' ? '' : expr.caseSensitive ? '' : '(?i)';
 
 		const escapedValue =
 			expr.match === 'regex'

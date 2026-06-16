@@ -341,6 +341,29 @@ function verifyIndexPresent(corpus: CorpusContext): asserts corpus is FilledCorp
 	}
 }
 
+function buildExploreTab(index: NormalizedIndex, builder: FormBuilder, translate: Translate, searchUi: SearchUiConfig) {
+	const exploreTab = builder.newContainer('explore', ContainerRenderer, {
+		variant: 'tabs',
+		title: computed(() => translate.$t(`explore.heading`)),
+	});
+
+	exploreTab.addChildren(
+		builder.newForm('explore.corpora', ContainerRenderer, {
+			// todo needs to be built by fields?
+			// Since it needs to be mutable in the UI
+			resultPreset: {},
+		}),
+		builder.newForm('explore.n-grams', ContainerRenderer, {}),
+		builder.newForm('explore.frequencies', ContainerRenderer, {}),
+		// .addChildren(
+		// 	builder.newField('explore.corpora.field', ExploreCorporaFieldController, ExploreCorpora, {
+		// 		metadataGroupByOptions: searchUi.explore.groupMetadataIds,
+		// 	}),
+		// ),
+	);
+	return exploreTab;
+}
+
 export function createSearchFormDefinition(corpus: CorpusContext, searchUi: SearchUiConfig, api: BlackLabApi, translate: Translate): FormBuilder {
 	verifyIndexPresent(corpus);
 	const index = corpus.index;
@@ -352,13 +375,8 @@ export function createSearchFormDefinition(corpus: CorpusContext, searchUi: Sear
 		variant: 'tabs',
 		title: computed(() => translate.$t(`search.heading`)),
 	});
-	root.addChildren(
-		searchTab,
-		builder.newContainer('explore', ContainerRenderer, {
-			variant: 'tabs',
-			title: computed(() => translate.$t(`explore.heading`)),
-		}),
-	);
+
+	root.addChildren(searchTab, buildExploreTab(index, builder, translate, searchUi));
 
 	const sharedFilters = createSharedFilters(builder, index, searchUi, translate, api);
 	const sharedWithin = createWithinField(builder, index, translate);
