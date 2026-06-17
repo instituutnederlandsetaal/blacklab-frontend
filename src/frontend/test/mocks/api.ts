@@ -1,7 +1,7 @@
 import type { ApiModule, BlackLabApi, FrontendApi, ParsePatternResponse } from '@/api';
 import type { CFPageConfig, Tagset } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
-import { CancelableRequest } from '@/utils/loadable-streams';
+import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 function resolvedRequest<T>(value: T): CancelableRequest<T> {
 	return new CancelableRequest(Promise.resolve(value), () => {});

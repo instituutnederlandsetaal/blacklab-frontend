@@ -63,7 +63,7 @@ import { type PropType } from 'vue';
 
 import * as ArticleStore from '@/features/article/model/article-state';
 import type * as BLTypes from '@/types/blacklabtypes';
-import type { Loadable } from '@/utils/loadable-streams';
+import type { Loadable } from '@/shared/utils/loadable/loadable';
 
 import Spinner from '@/components/Spinner.vue';
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';

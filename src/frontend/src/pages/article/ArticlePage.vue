@@ -135,7 +135,6 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
 import { fieldSubset } from '@/utils';
-import { loadableFromStream } from '@/utils/loadable-streams';
 // TODO
 // import initTooltips from '@/modules/expandable-tooltips';
 // initTooltips({
@@ -153,6 +152,8 @@ import { loadableFromStream } from '@/utils/loadable-streams';
 // Need to fix url-parsing
 
 import { contents$, hitToHighlight$, hits$, input$, metadata$, snippetAndDocument$, validPaginationParameters$ } from './article';
+
+import { loadableFromStream } from '@/shared/utils/loadable/loadable-streams';
 
 // import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
 // import ArticlePageParallel from '@/pages/article/ArticlePageParallel.vue';
@@ -237,12 +238,12 @@ watch(
 );
 
 onUnmounted(() => {
-	metadata.dispose();
-	contents.dispose();
-	hits.dispose();
-	hitToHighlight.dispose();
-	validPaginationInfo.dispose();
-	snippetAndDocument.dispose();
+	metadata.stop();
+	contents.stop();
+	hits.stop();
+	hitToHighlight.stop();
+	validPaginationInfo.stop();
+	snippetAndDocument.stop();
 });
 </script>
 

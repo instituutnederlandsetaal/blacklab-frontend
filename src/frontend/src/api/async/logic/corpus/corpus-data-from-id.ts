@@ -6,7 +6,9 @@ import { processTagset } from '@/features/corpus/model/tagset-state';
 import type { ApiError, CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
 import type { BLIndexMetadata, BLRelationInfo } from '@/types/blacklabtypes';
 import { normalizeIndex } from '@/utils/blacklabutils';
-import { combineLoadableStreamsIncludingEmpty, EMPTY_LOADABLE_STREAM, InteractiveLoadable, mapLoaded, type Loadable } from '@/utils/loadable-streams';
+
+import type { Loadable } from '@/shared/utils/loadable/loadable';
+import { combineLoadableStreamsIncludingEmpty, EMPTY_LOADABLE_STREAM, InteractiveLoadable, mapLoaded } from '@/shared/utils/loadable/loadable-streams';
 
 export type CorpusChange = {
 	index: NormalizedIndex | undefined;

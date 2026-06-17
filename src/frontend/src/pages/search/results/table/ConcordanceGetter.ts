@@ -1,6 +1,6 @@
 import { reactive } from 'vue';
 
-import type { CancelableRequest } from '@/utils/loadable-streams';
+import type { CancelableRequest } from '@/shared/api/lib/api-types';
 
 /** A class that can retrieve items in a paginated way and exposes them along with an error and loading state. */
 export default class PaginatedGetter<T> {

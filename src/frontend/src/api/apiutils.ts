@@ -4,7 +4,7 @@ import axios from 'axios';
 
 import { ApiError } from '@/types/apptypes';
 import { isBLError } from '@/types/blacklabtypes';
-import { CancelableRequest } from '@/utils/loadable-streams';
+import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 const settings = {
 	// use a builtin delay to simulate network latency (in ms)

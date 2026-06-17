@@ -4,9 +4,11 @@ import type { ObservableInput } from 'rxjs/internal/types';
 
 import type { BlackLabApi } from '@/api';
 import type { NormalizedIndex } from '@/types/apptypes';
-import { InteractiveLoadable, Loadable } from '@/utils/loadable-streams';
 
 import { getCorpusTotals, getTotals } from './result-count-helpers';
+
+import { Loadable } from '@/shared/utils/loadable/loadable';
+import { InteractiveLoadable } from '@/shared/utils/loadable/loadable-streams';
 
 export type SubcorpusInput = {
 	index: NormalizedIndex;

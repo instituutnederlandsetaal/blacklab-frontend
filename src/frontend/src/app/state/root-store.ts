@@ -23,8 +23,9 @@ import * as ViewModule from '@/features/search/model/results/view-state';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
-import { Loadable } from '@/utils/loadable-streams';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
+
+import { Loadable } from '@/shared/utils/loadable/loadable';
 
 // separate, because while the corpusloader might have settled, store init is async
 // and we don't want to report being done while submodules are still initializing

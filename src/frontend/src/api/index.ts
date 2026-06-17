@@ -9,7 +9,8 @@ import { ApiError } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { isHitParams } from '@/utils';
 import { normalizeFormat, normalizeIndex, normalizeIndexBase } from '@/utils/blacklabutils';
-import { CancelableRequest } from '@/utils/loadable-streams';
+
+import { CancelableRequest } from '@/shared/api/lib/api-types';
 
 /** How many values to return per attribute when requesting /relations */
 const RELATIONS_LIMITVALUES = 1000;

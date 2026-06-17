@@ -11,7 +11,7 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import type { Loadable } from '@/utils/loadable-streams';
+import type { Loadable } from '@/shared/utils/loadable/loadable';
 
 import Spinner from './Spinner.vue';
 

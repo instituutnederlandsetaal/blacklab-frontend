@@ -129,10 +129,11 @@ import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/I
 import type { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { debugLog } from '@/utils/debug';
-import type { CancelableRequest } from '@/utils/loadable-streams';
 
 import type { HitRowData } from './table-layout';
 import { snippetParts } from './table-layout';
+
+import type { CancelableRequest } from '@/shared/api/lib/api-types';
 
 import Spinner from '@/components/Spinner.vue';
 import DepTree from '@/pages/search/results/table/DepTree.vue';

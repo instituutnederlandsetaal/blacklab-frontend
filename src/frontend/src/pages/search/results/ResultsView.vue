@@ -132,7 +132,7 @@ import { isHitParams } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import debug, { debugLog, debugLogCat } from '@/utils/debug';
 import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
-import type { CancelableRequest } from '@/utils/loadable-streams';
+import type { CancelableRequest } from '@/shared/api/lib/api-types';
 import { localStorageSynced } from '@/shared/utils/localstore';
 
 import Pagination from '@/components/Pagination.vue';

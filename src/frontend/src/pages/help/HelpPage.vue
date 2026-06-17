@@ -9,7 +9,8 @@ import { computed } from 'vue';
 import { ApiError, frontend } from '@/api';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
-import { Loadable } from '@/utils/loadable-streams';
+
+import { Loadable } from '@/shared/utils/loadable/loadable';
 
 import ServerRenderedContentPage from '@/components/ServerRenderedContentPage.vue';
 
