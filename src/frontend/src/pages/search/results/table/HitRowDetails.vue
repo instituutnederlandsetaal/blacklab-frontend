@@ -122,7 +122,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-import * as Api from '@/api';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';
@@ -133,13 +132,16 @@ import { debugLog } from '@/utils/debug';
 import type { HitRowData } from './table-layout';
 import { snippetParts } from './table-layout';
 
-import type { CancelableRequest } from '@/shared/api/lib/api-types';
+import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
+import { useBlackLabApi } from '@/shared/api';
 
 import Spinner from '@/components/Spinner.vue';
 import DepTree from '@/pages/search/results/table/DepTree.vue';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
 
 // TODO disconnect from the store?
+
+const blacklab = useBlackLabApi();
 
 defineOptions({ name: 'HitRowDetails' });
 const props = withDefaults(defineProps<IRowProps<HitRowData>>(), IRowDefaultProps);
@@ -177,7 +179,7 @@ function loadSentence() {
 	// Need to track this, because results pay be paginated and this component may be reused across renders
 	// We should probably use asyncComputed or something but that's for later.
 	const nonce = props.row.hit;
-	const request = Api.blacklab.getSnippet(CorpusStore.get.indexId()!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, context);
+	const request = blacklab.getSnippet(CorpusStore.get.indexId()!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, context);
 	sentenceRequest.value = request;
 	request
 		// check if hit hasn't changed in the meantime (due to component reuse)
@@ -204,7 +206,7 @@ function loadSnippet() {
 	const concordanceSize = UIStore.getState().results.shared.concordanceSize;
 
 	const nonce = props.row.hit;
-	const request = Api.blacklab.getSnippet(CorpusStore.get.indexId()!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, concordanceSize);
+	const request = blacklab.getSnippet(CorpusStore.get.indexId()!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, concordanceSize);
 	snippetRequest.value = request;
 	request
 		.then(s => {
@@ -248,7 +250,7 @@ function loadSnippet() {
 				})
 				.filter(a => a != null);
 		})
-		.catch((err: Api.ApiError) => {
+		.catch((err: ApiError) => {
 			if (nonce !== props.row.hit) return; // hit has changed in the meantime.
 			error.value = formatError(err, 'snippet');
 			if (err.stack) debugLog(err.stack);

@@ -91,7 +91,6 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import { blacklabPaths } from '@/api';
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
@@ -111,6 +110,7 @@ import { getPatternStringFromCql, getPatternStringSearch } from '@/utils/pattern
 
 import ParallelFields from './parallel/ParallelFields';
 
+import { useBlackLabApi, useBlackLabPaths } from '@/shared/api';
 import type { Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid';
 
@@ -198,7 +198,7 @@ export default defineComponent({
 			};
 		},
 		simpleSearchAnnotationAutoCompleteUrl(): string {
-			return blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id);
+			return useBlackLabPaths().autocompleteAnnotation(CorpusStore.get.indexId()!, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id);
 		},
 		textDirection: CorpusStore.get.textDirection,
 		withinOptions(): Option[] {
@@ -263,7 +263,7 @@ export default defineComponent({
 			);
 			let parsed: Result[] | null = null;
 			try {
-				parsed = await parseBcql(CorpusStore.get.indexId()!, builtQuery, mainAnnotationId);
+				parsed = await parseBcql(useBlackLabApi(), CorpusStore.get.indexId()!, builtQuery, mainAnnotationId);
 			} catch {}
 			if (!parsed) {
 				this.parseQueryError = 'The querybuilder could not parse your query.';

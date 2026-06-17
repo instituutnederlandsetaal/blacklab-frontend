@@ -58,11 +58,12 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import * as Api from '@/api';
 import { IterativeResultCountLoader } from '@/api/async/logic/result-count/result-count-from-query';
 import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
 import type * as BLTypes from '@/types/blacklabtypes';
 
+import type { ApiError } from '@/shared/api/lib/api-types';
+import { useBlackLabApi } from '@/shared/api';
 import { frac2Percent } from '@/shared/utils/number-utils';
 
 import Spinner from '@/components/Spinner.vue';
@@ -101,14 +102,14 @@ export default defineComponent({
 					operation: this.type,
 					results: this.initialResults,
 				},
-				Api.blacklab,
+				useBlackLabApi(),
 			);
 		},
 
 		value(): TotalsOutput | undefined {
 			return this.totals.isLoaded() ? this.totals.value : undefined;
 		},
-		error(): Api.ApiError | undefined {
+		error(): ApiError | undefined {
 			return this.totals.isError() ? this.totals.error : undefined;
 		},
 		isCounting(): boolean {

@@ -116,8 +116,9 @@
 import { useVModel } from '@vueuse/core';
 import { computed, ref } from 'vue';
 
-import { blacklabPaths } from '@/api';
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
+
+import { useBlackLabPaths } from '@/shared/api';
 // import useModel from './useModel';
 import { escapeRegex } from '@/shared/utils/string-utils';
 
@@ -145,7 +146,7 @@ const showModal = ref(false);
 const currentAnnotation = computed(() => props.options.allAnnotationsMap[model.value.annotationId]);
 const autocompleteUrl = computed(() => {
 	if (!currentAnnotation.value) return '';
-	return blacklabPaths.autocompleteAnnotation(props.options.indexId, currentAnnotation.value.annotatedFieldId, currentAnnotation.value.id);
+	return useBlackLabPaths().autocompleteAnnotation(props.options.indexId, currentAnnotation.value.annotatedFieldId, currentAnnotation.value.id);
 });
 const hasUploadedValue = computed(() => !!model.value.uploadedValue);
 const uploadedValuesSummary = computed(() => {

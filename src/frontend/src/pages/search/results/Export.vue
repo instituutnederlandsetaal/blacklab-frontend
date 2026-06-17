@@ -43,13 +43,14 @@ import cloneDeep from 'clone-deep';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import * as Api from '@/api';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';
-import { ensureCompleteFieldName } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import { debugLog } from '@/utils/debug';
+
+import { useBlackLabApi } from '@/shared/api';
+import { ensureCompleteFieldName } from '@/shared/blacklab-helpers/parallel-helper';
 
 export default defineComponent({
 	props: {
@@ -79,9 +80,9 @@ export default defineComponent({
 			if (this.downloadInProgress || !this.results) {
 				return;
 			}
-
+			const blacklab = useBlackLabApi();
 			this.downloadInProgress = true;
-			const apiCall = this.type === 'hits' ? Api.blacklab.getHitsCsv : Api.blacklab.getDocsCsv;
+			const apiCall = this.type === 'hits' ? blacklab.getHitsCsv : blacklab.getDocsCsv;
 			const params = cloneDeep(this.results.summary.searchParam);
 			if (this.annotations) params.listvalues = this.annotations!.join(',');
 			if (this.metadata) params.listmetadatavalues = this.metadata.join(',');

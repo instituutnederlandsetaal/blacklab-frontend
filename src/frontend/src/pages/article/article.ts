@@ -1,10 +1,9 @@
 import type { Observable } from 'rxjs';
 import { combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareReplay } from 'rxjs';
 
-import { blacklab, frontend } from '@/api';
 import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
-import { binarySearch } from '@/utils';
 
+import { binarySearch } from '@/shared/utils/array-utils';
 import type { Loadable } from '@/shared/utils/loadable/loadable';
 import {
 	combineLoadables,

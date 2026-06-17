@@ -179,7 +179,6 @@ import type { PropType } from 'vue';
 import { defineComponent, nextTick } from 'vue';
 import Slider from 'vue-3-slider-component';
 
-import { blacklab } from '@/api';
 import * as SearchModule from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
@@ -192,12 +191,14 @@ import { getHighlightColors, mergeMatchInfos } from '@/pages/search/results/tabl
 import { snippetParts } from '@/pages/search/results/table/table-layout';
 import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
 import type { BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
-import { hasPatternInfo, isHitResults } from '@/types/blacklabtypes';
-import { getAnnotationSubset, getMetadataSubset, isHitParams, spanFilterId } from '@/utils';
+import { hasPatternInfo, isHitParams, isHitResults } from '@/types/blacklabtypes';
+import { getAnnotationSubset, getMetadataSubset, spanFilterId } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
 import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/utils/grouping';
 import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
+
+import { useBlackLabApi } from '@/shared/api';
 import { findOption, type OptGroup, type Option, type Options } from '@/shared/utils/options';
 
 import SelectPicker from '@/components/SelectPicker.vue';
@@ -965,14 +966,16 @@ export default defineComponent({
 
 				this.hits = undefined;
 				if (this.firstHitPreviewQuery && this.type === 'hits') {
-					blacklab.getHits(CorpusStore.get.indexId()!, this.firstHitPreviewQuery).request.then(r => {
-						const data = r as BLHitResults;
-						if (isHitResults(data)) {
-							// Make sure the target hits (otherFields) 'know' they are the target of a relation.
-							mergeMatchInfos(data);
-						}
-						this.hits = data;
-					});
+					useBlackLabApi()
+						.getHits(CorpusStore.get.indexId()!, this.firstHitPreviewQuery)
+						.request.then(r => {
+							const data = r as BLHitResults;
+							if (isHitResults(data)) {
+								// Make sure the target hits (otherFields) 'know' they are the target of a relation.
+								mergeMatchInfos(data);
+							}
+							this.hits = data;
+						});
 				}
 			},
 		},

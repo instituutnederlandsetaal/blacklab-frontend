@@ -6,13 +6,16 @@
 import { useAsyncState } from '@vueuse/core';
 import { computed } from 'vue';
 
-import { ApiError, frontend } from '@/api';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
 
+import { useFrontendApi } from '@/shared/api';
+import { ApiError } from '@/shared/api/lib/api-types';
 import { Loadable } from '@/shared/utils/loadable/loadable';
 
 import ServerRenderedContentPage from '@/components/ServerRenderedContentPage.vue';
+
+const frontend = useFrontendApi();
 
 const contentInput = useAsyncState(frontend.getHelp(CorpusStore.get.indexId() ?? undefined).request, '', { immediate: true });
 const content = computed<Loadable<string>>(() => {

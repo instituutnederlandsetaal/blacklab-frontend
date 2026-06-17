@@ -17,8 +17,9 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import { blacklab } from '@/api';
 import type { NormalizedIndex, NormalizedIndexBase } from '@/types/apptypes';
+
+import { useBlackLabApi } from '@/shared/api/index.ts';
 
 import CorpusConfig from './CorpusConfig.vue';
 
@@ -39,7 +40,7 @@ export default defineComponent({
 			}
 			this.loading = true;
 
-			blacklab
+			useBlackLabApi()
 				.getCorpora()
 				.then(c => (this.corpora = c))
 				.catch(e => (this.error = e.message))

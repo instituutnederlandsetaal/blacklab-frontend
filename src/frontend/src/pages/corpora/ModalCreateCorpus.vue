@@ -33,9 +33,11 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import * as Api from '@/api';
 import type { NormalizedFormat } from '@/types/apptypes';
 import type { BLUser } from '@/types/blacklabtypes';
+
+import { useBlackLabApi } from '@/shared/api';
+import type { ApiError } from '@/shared/api/lib/api-types';
 import type { Options } from '@/shared/utils/options';
 
 import Modal from '@/components/Modal.vue';
@@ -78,13 +80,13 @@ export default defineComponent({
 			const indexName = this.user.id + ':' + this.corpusName.replace(/[\s\\/:]+/g, '_');
 			const displayName = this.corpusName;
 
-			Api.blacklab
+			useBlackLabApi()
 				.postCorpus(indexName, displayName, this.documentType)
 				.then(() => {
 					this.$emit('create');
 					this.$emit('success', `Corpus "${displayName}" created.`);
 				})
-				.catch((e: Api.ApiError) => this.$emit('error', `Could not create corpus "${displayName}": ${e.message}`))
+				.catch((e: ApiError) => this.$emit('error', `Could not create corpus "${displayName}": ${e.message}`))
 				.finally(() => this.$emit('close'));
 		},
 	},

@@ -70,11 +70,12 @@
 import Axios from 'axios';
 import { defineComponent, nextTick } from 'vue';
 
-import { blacklab } from '@/api';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import UrlStateParserBase from '@/url/url-state-parser-base';
 import { debugLogCat } from '@/utils/debug';
+
+import { useBlackLabApi } from '@/shared/api';
 import type { OptGroup } from '@/shared/utils/options';
 
 import SelectPicker from '@/components/SelectPicker.vue';
@@ -159,6 +160,7 @@ export default defineComponent({
 			this.retryError = null;
 
 			this.isLoadingCorpora = true;
+			const blacklab = useBlackLabApi();
 			Promise.all([blacklab.getCorpora(), blacklab.getUser()])
 				.then(([corpora, user]) => {
 					this.blacklabData.corpora = corpora;
@@ -202,6 +204,7 @@ export default defineComponent({
 
 			const id = `${this.blacklabData.user!.id}:${this.newCorpusName.replace(/[^\w-]/g, '_')}`;
 			this.isCreatingCorpus = true;
+			const blacklab = useBlackLabApi();
 			blacklab
 				.postCorpus(id, this.newCorpusName, this.urlParams!.format)
 				.then(() => {
@@ -269,6 +272,7 @@ export default defineComponent({
 			try {
 				await new Promise<void>((resolve, reject) => {
 					let resolved = false;
+					const blacklab = useBlackLabApi();
 					const { request, cancel } = blacklab.postDocuments(this.selectedCorpus!.id, [file], undefined, p => {
 						if (p >= 100) {
 							resolve();
@@ -295,6 +299,7 @@ export default defineComponent({
 			}
 
 			try {
+				const blacklab = useBlackLabApi();
 				let r: AppTypes.NormalizedIndexBase;
 				while ((r = await blacklab.getCorpusStatus(this.selectedCorpus!.id)) && r.indexProgress && !indexError) {
 					const { filesProcessed: files, docsDone: docs, tokensProcessed: tokens } = r.indexProgress!;

@@ -1,12 +1,12 @@
 import type { User } from 'oidc-client-ts';
 import { pipe, switchMap, tap, type Observable } from 'rxjs';
 
-import type { BlackLabApi, FrontendApi } from '@/api';
 import { processTagset } from '@/features/corpus/model/tagset-state';
-import type { ApiError, CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
+import type { CFPageConfig, NormalizedIndex, Tagset } from '@/types/apptypes';
 import type { BLIndexMetadata, BLRelationInfo } from '@/types/blacklabtypes';
-import { normalizeIndex } from '@/utils/blacklabutils';
 
+import type { ApiError, BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
+import { normalizeIndex } from '@/shared/blacklab-helpers/normalize-responses';
 import type { Loadable } from '@/shared/utils/loadable/loadable';
 import { combineLoadableStreamsIncludingEmpty, EMPTY_LOADABLE_STREAM, InteractiveLoadable, mapLoaded } from '@/shared/utils/loadable/loadable-streams';
 
@@ -22,7 +22,7 @@ function indexIdToResponses(blacklab: BlackLabApi, frontend: FrontendApi, indexI
 		// Requesting config is valid for null index, will return the builtin default config (with customizations if applicable).
 		config: frontend.getConfig(indexId),
 
-		index: indexId ? frontend.getCorpus(indexId) : EMPTY_LOADABLE_STREAM,
+		index: indexId ? blacklab.getCorpus(indexId) : EMPTY_LOADABLE_STREAM,
 		relations: indexId ? blacklab.getRelations(indexId) : EMPTY_LOADABLE_STREAM,
 		tagset: indexId
 			? frontend.getTagset(indexId).catch((e: ApiError) => {

@@ -359,35 +359,6 @@ export type Tagset = {
 };
 // #endregion docslinktagset
 
-export class ApiError extends Error {
-	public readonly title: string;
-	public readonly message: string;
-	/** Message representing the httpCode, like "Not Found" for 404 */
-	public readonly statusText: string;
-	/** Http code, -1 if generic network error, http code otherwise, or none if no network error at all. */
-	public readonly httpCode: number | undefined;
-
-	public static CANCELLED = new ApiError('Request Cancelled', 'The request was cancelled by the user.', 'Cancelled', -1);
-
-	constructor(title: string, message: string, statusText: string, httpCode: number | undefined) {
-		super(message);
-		this.title = title;
-		this.message = message;
-		this.statusText = statusText;
-		this.httpCode = httpCode;
-	}
-
-	get isCancelledRequest() {
-		return this === ApiError.CANCELLED;
-	}
-
-	public static wrap(error: any): ApiError {
-		if (error instanceof ApiError) return error;
-		if (error instanceof Error) return new ApiError('Unknown Error', `${error.message}`, 'Error', undefined);
-		return new ApiError(error?.title ?? 'Unknown Error', error?.message ?? `${JSON.stringify(error)}`, error?.statusText ?? 'Error', error?.httpCode ?? undefined);
-	}
-}
-
 export type CFCustomJsEntry = {
 	/** For global customJs, which index it should have on the page (for runtime dependency order) */
 	index: number;

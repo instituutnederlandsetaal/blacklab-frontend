@@ -303,28 +303,6 @@ export function getAnnotationSubset(
 	}
 }
 
-/**
- * Find a the index of a value in the array using binary search.
- * @param a the array to search in
- * @param compare compare the current element, should return a negative number if the wanted element comes before the current element, a positive number if it comes after, and 0 if it is the wanted element.
- * @returns the index of the element in the array, or the negative index where it should be inserted.
- */
-export function binarySearch<T>(a: T[], compare: (el: T) => number) {
-	let low = 0;
-	let high = a.length - 1;
-
-	while (low <= high) {
-		let mid = Math.floor(low + (high - low) / 2);
-		let midVal = a[mid];
-
-		const cmp = compare(midVal);
-		if (cmp > 0) low = mid + 1;
-		else if (cmp < 0) high = mid - 1;
-		else return mid; // key found
-	}
-	return -low; // key not found.
-}
-
 /** Compile time checking: ensure the passed parameter is of the template type and return it (no-op).
  * Can use while setting variables initial value for example. */
 export function cast<T>(t: T): T {
@@ -343,65 +321,6 @@ export const uiTypeSupport: { [key: string]: { [key: string]: Array<AppTypes.Nor
 
 export function getCorrectUiType<T extends AppTypes.NormalizedAnnotation['uiType']>(allowed: T[], actual: T): T {
 	return allowed.includes(actual) ? actual : ('text' as any);
-}
-
-// Must be here to avoid recursive dependencies
-export const PARALLEL_FIELD_SEPARATOR = '__';
-
-/**
- * Given a parallel field name, return the prefix and version parts separately.
- *
- * For example, for field name "contents__en", will return prefix "contents" and
- * version "en".
- *
- * For a non-parallel field name, the version part will be an empty string.
- *
- * @param fieldName parallel field name
- * @returns an object containing the prefix and version.
- */
-export function getParallelFieldParts(fieldName: string) {
-	const parts = fieldName.split(PARALLEL_FIELD_SEPARATOR, 2);
-	if (parts.length === 1) {
-		// non-parallel field; return empty string as version
-		parts.push('');
-	}
-	return {
-		/** The base field, e.g. "contents" */
-		prefix: parts[0],
-		/** The suffix, e.g. "en" or "nl". Empty string when the field is not parallel. */
-		version: parts[1],
-	};
-}
-
-/** Get the full name of a parallel annotatedField, consisting of the base name/prefix and the version (e.g. "en", "nl") */
-export function getParallelFieldName(prefix: string, version: string) {
-	return `${prefix}${PARALLEL_FIELD_SEPARATOR}${version}`;
-}
-
-/** If passed only a version name: prefix it with the field name from defaultFieldName.
- *
- *  So:
- *  <code>ensureCompleteFieldName('en',          'contents__nl') === 'contents__en'</code>
- *  <code>ensureCompleteFieldName('contents_en', 'contents__nl') === 'contents__en'</code>
- */
-export function ensureCompleteFieldName(fieldOrVersion: string, defaultFieldName: string) {
-	if (isParallelField(fieldOrVersion)) {
-		return fieldOrVersion;
-	} else {
-		// Prefix with the field name
-		const parts = getParallelFieldParts(defaultFieldName);
-		return getParallelFieldName(parts.prefix, fieldOrVersion);
-	}
-}
-
-/** Does the specified field name denote a field in a parallel corpus? */
-export function isParallelField(fieldName: string) {
-	return fieldName.includes(PARALLEL_FIELD_SEPARATOR);
-}
-
-/** Are these valid parameters with a pattern that will yield results with hits? */
-export function isHitParams(params: BLTypes.BLSearchParameters | null | undefined): params is BLTypes.BLSearchParameters {
-	return !!(params && params.patt);
 }
 
 /**

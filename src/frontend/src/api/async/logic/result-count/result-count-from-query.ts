@@ -2,9 +2,9 @@ import { concat, EMPTY, expand, filter, lastValueFrom, of, switchMap, takeUntil,
 
 import { type BLSearchResult } from '@/types/blacklabtypes';
 
-import type { BlackLabApi } from '../../..';
 import { getTotals, type TotalsOutput } from './result-count-helpers';
 
+import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { Loaded, type Loadable } from '@/shared/utils/loadable/loadable';
 import { InteractiveLoadable, mapLoaded } from '@/shared/utils/loadable/loadable-streams';
 

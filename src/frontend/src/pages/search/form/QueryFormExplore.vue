@@ -132,7 +132,6 @@
 <script lang="ts">
 import { defineComponent, watch } from 'vue';
 
-import { blacklabPaths } from '@/api';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
@@ -140,9 +139,11 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
-import type { OptGroup, Option } from '@/shared/utils/options';
 
 import ParallelFields from './parallel/ParallelFields';
+
+import { useBlackLabPaths } from '@/shared/api';
+import type { OptGroup, Option } from '@/shared/utils/options';
 
 import Autocomplete from '@/components/Autocomplete.vue';
 import SelectPicker from '@/components/SelectPicker.vue';
@@ -290,7 +291,7 @@ export default defineComponent({
 			});
 		},
 		autocompleteUrl(annot: CorpusStore.NormalizedAnnotation) {
-			return blacklabPaths.autocompleteAnnotation(CorpusStore.get.indexId()!, annot.annotatedFieldId, annot.id);
+			return useBlackLabPaths().autocompleteAnnotation(CorpusStore.get.indexId()!, annot.annotatedFieldId, annot.id);
 		},
 	},
 	created() {

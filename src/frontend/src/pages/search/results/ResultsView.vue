@@ -117,7 +117,6 @@ import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 import type { TranslateResult } from 'vue-i18n';
 
-import * as Api from '@/api';
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
@@ -128,11 +127,12 @@ import type { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, Disp
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
 import type { NormalizedIndex } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
-import { isHitParams } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import debug, { debugLog, debugLogCat } from '@/utils/debug';
 import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
-import type { CancelableRequest } from '@/shared/api/lib/api-types';
+
+import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
+import { useBlackLabApi } from '@/shared/api';
 import { localStorageSynced } from '@/shared/utils/localstore';
 
 import Pagination from '@/components/Pagination.vue';
@@ -203,6 +203,7 @@ export default defineComponent({
 			}
 		},
 		refresh() {
+			const blacklab = useBlackLabApi();
 			this.isDirty = false;
 			debugLogCat('results', 'this is when the search should be refreshed');
 
@@ -237,7 +238,7 @@ export default defineComponent({
 			const params = RootStore.get.blacklabParameters()!;
 			const axiosParams = { headers: { 'Cache-Control': 'no-cache' } };
 			debugLog('starting search', this.id, params);
-			const r = this.id === 'hits' ? Api.blacklab.getHits(this.indexId, params, axiosParams) : Api.blacklab.getDocs(this.indexId, params, axiosParams);
+			const r = this.id === 'hits' ? blacklab.getHits(this.indexId, params, axiosParams) : blacklab.getDocs(this.indexId, params, axiosParams);
 			this.request = r;
 
 			setTimeout(() => this.scrollToResults(), 1500);
@@ -273,7 +274,7 @@ export default defineComponent({
 			this.results = markRaw(data);
 			this.paginationResults = markRaw(data);
 		},
-		setError(data: Api.ApiError, isGrouped?: boolean) {
+		setError(data: ApiError, isGrouped?: boolean) {
 			if (!data.isCancelledRequest) {
 				debugLogCat('results', 'Request failed: ', data);
 				this.error = UIStore.getState().global.errorMessage(data, isGrouped ? 'groups' : (this.id as 'hits' | 'docs'));
@@ -487,7 +488,7 @@ export default defineComponent({
 		},
 
 		valid(): boolean {
-			return this.id !== 'hits' || isHitParams(RootStore.get.blacklabParameters());
+			return this.id !== 'hits' || BLTypes.isHitParams(RootStore.get.blacklabParameters());
 		},
 		loadedResults(): BLTypes.BLSearchResult {
 			return this.results!;

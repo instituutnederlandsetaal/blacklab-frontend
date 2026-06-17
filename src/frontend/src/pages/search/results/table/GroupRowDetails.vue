@@ -41,7 +41,6 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 
-import { blacklab } from '@/api';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
@@ -49,11 +48,15 @@ import type { GroupRowData, Rows } from '@/pages/search/results/table/table-layo
 import { makeRows } from '@/pages/search/results/table/table-layout';
 import type { BLDocResults, BLHitResults, BLSearchParameters } from '@/types/blacklabtypes';
 
+import { useBlackLabApi } from '@/shared/api';
+
 import Spinner from '@/components/Spinner.vue';
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
 
 defineOptions({ name: 'GroupRowDetails' });
 const props = withDefaults(defineProps<IRowProps<GroupRowData>>(), IRowDefaultProps);
+
+const blacklab = useBlackLabApi();
 
 // NOTE: was initially created using a watcher on props.row only,
 // but that leaves the type as T|undefined, so computed it is

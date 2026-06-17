@@ -50,9 +50,9 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import { blacklab } from '@/api';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
+import { useBlackLabApi } from '@/shared/api/index.ts';
 import { mapReduce } from '@/shared/utils/map-reduce.ts';
 
 import type { StepState } from './POS.vue';
@@ -159,7 +159,7 @@ export const step = defineComponent({
 
 			if (!this.v.main) {
 				// skip if already loaded
-				const mainPosValues = await blacklab.getTermFrequencies(this.modelValue.index.id, this.main.id, undefined, undefined, 100);
+				const mainPosValues = await useBlackLabApi().getTermFrequencies(this.modelValue.index.id, this.main.id, undefined, undefined, 100);
 
 				const values = Object.keys(mainPosValues.termFreq).filter(v => !!v.trim());
 				this.v.main = mapReduce(values, () => ({
@@ -180,7 +180,7 @@ export const step = defineComponent({
 					++i;
 					continue;
 				}
-				const r = await blacklab.getTermFrequencies(this.modelValue.index.id, subAnnot.id, undefined, undefined, 100);
+				const r = await useBlackLabApi().getTermFrequencies(this.modelValue.index.id, subAnnot.id, undefined, undefined, 100);
 				const subValues = Object.keys(r.termFreq).filter(v => !!v.trim());
 
 				this.currentStep = `[${++i}/${numAnnotations}] Getting available options for annotations...`;
@@ -228,7 +228,7 @@ export const step = defineComponent({
 						this.currentStep = `[${++i}/${totalCombinations}] Resolving available combinations in the corpus... ${mainPosValue} + ${subAnnotationId}=${subAnnotationValue}`;
 
 						state.loading = true;
-						const r = await blacklab.getHits(indexId, {
+						const r = await useBlackLabApi().getHits(indexId, {
 							number: 0,
 							first: 0,
 							patt: `[${mainPosId}="${mainPosValue}" & ${subAnnotationId}="${subAnnotationValue}"${this.exclusionClause}]`,

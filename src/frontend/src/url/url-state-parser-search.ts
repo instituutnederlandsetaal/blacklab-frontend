@@ -22,7 +22,7 @@ import type * as PatternModule from '@/features/search/model/form/pattern-state'
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
-import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, getParallelFieldName, spanFilterId, uiTypeSupport, unparenQueryPart } from '@/utils';
+import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, spanFilterId, uiTypeSupport, unparenQueryPart } from '@/utils';
 import type { Condition, Result, Token } from '@/utils/bcql-json-interpreter';
 import { parseBcql } from '@/utils/bcql-json-interpreter';
 import { corpusCustomizations } from '@/utils/customization';
@@ -31,6 +31,8 @@ import parseLucene from '@/utils/luceneparser';
 
 import BaseUrlStateParser from './url-state-parser-base';
 
+import { useBlackLabApi } from '@/shared/api';
+import { getParallelFieldName } from '@/shared/blacklab-helpers/parallel-helper';
 import { mapReduce } from '@/shared/utils/map-reduce';
 import { unescapeRegex } from '@/shared/utils/string-utils';
 
@@ -782,7 +784,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		try {
 			// Let BlackLab parse it, then try to interpret the parse tree
 			// for use in the simple, extended or advanced search forms.
-			this._parsedCql = bcql == null ? null : await parseBcql(this.paths[0], bcql, CorpusModule.get.firstMainAnnotation().id);
+			this._parsedCql = bcql == null ? null : await parseBcql(useBlackLabApi(), this.paths[0], bcql, CorpusModule.get.firstMainAnnotation().id);
 			if (this._parsedCql && this._parsedCql.length === 0) this._parsedCql = null;
 			if (this._parsedCql && this._parsedCql.length > 1) {
 				const relType = this._parsedCql[1].relationType;

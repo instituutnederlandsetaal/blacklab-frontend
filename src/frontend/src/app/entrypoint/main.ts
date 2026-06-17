@@ -7,7 +7,6 @@ import FloatingVue from 'floating-vue';
 import HighchartsVue from 'highcharts-vue';
 import { createApp, watchEffect } from 'vue';
 
-import { init as initApi } from '@/api';
 import Filters from '@/components/filters';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import { startCorpusBootstrapEffect } from '@/features/corpus/effects/corpus-bootstrap.effect';
@@ -18,6 +17,7 @@ import { indexId } from '@/navigation/route-context';
 import router from '@/navigation/router';
 import * as LoginSystem from '@/utils/loginsystem';
 
+import { createApi } from '@/shared/api';
 import { createI18n } from '@/shared/i18n';
 
 import AppRoot from '@/App.vue';
@@ -26,20 +26,17 @@ import DebugComponent from '@/components/Debug.vue';
 
 async function start() {
 	const user = await LoginSystem.user;
+	const api = await createApi({ blacklab: { baseUrl: BLS_URL, user }, frontend: { baseUrl: CONTEXT_URL, user } });
 	const i18n = createI18n();
-
-	initApi('blacklab', BLS_URL, user);
-	initApi('frontend', CONTEXT_URL, user);
 	installHooksGlobal();
 	installLegacyStoreGlobals();
 
 	const app = createApp(AppRoot);
-
+	app.use(api);
 	app.use(i18n);
 	app.use(Filters);
 	app.use(FloatingVue);
 	app.use(router);
-	app.use(i18n);
 	app.use(HighchartsVue);
 
 	app.component('Debug', DebugComponent);

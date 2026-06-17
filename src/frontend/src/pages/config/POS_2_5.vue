@@ -61,7 +61,7 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import { blacklab } from '@/api';
+import { useBlackLabApi } from '@/shared/api/index.ts';
 import type { Option } from '@/shared/utils/options';
 
 import type { ExclusionRule, StepState } from './POS.vue';
@@ -139,7 +139,7 @@ export const step = defineComponent({
 			this.loadingValues[annotationId] = true;
 
 			try {
-				const result = await blacklab.getTermFrequencies(this.modelValue.index.id, annotationId, undefined, undefined, 100);
+				const result = await useBlackLabApi().getTermFrequencies(this.modelValue.index.id, annotationId, undefined, undefined, 100);
 
 				const values = Object.keys(result.termFreq)
 					.filter(v => !!v.trim())

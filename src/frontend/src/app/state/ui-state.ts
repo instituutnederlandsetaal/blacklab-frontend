@@ -15,8 +15,10 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as ViewsStore from '@/features/search/model/results/view-state';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
-import { normalizeAnnotationUIType } from '@/utils/blacklabutils';
 import { corpusCustomizations } from '@/utils/customization';
+
+import type { ApiError } from '@/shared/api/lib/api-types';
+import { normalizeAnnotationUIType } from '@/shared/blacklab-helpers/normalize-responses';
 
 type CustomView = {
 	id: string;
@@ -236,7 +238,7 @@ type ModuleRootState = {
 		 * @param e the error
 		 * @param context snippet = large context around a hit, concordances = hits within a group. NOTE: context may be expanded in the future.
 		 */
-		errorMessage(e: AppTypes.ApiError, context: 'snippet' | 'concordances' | 'hits' | 'docs' | 'groups'): string;
+		errorMessage(e: ApiError, context: 'snippet' | 'concordances' | 'hits' | 'docs' | 'groups'): string;
 	};
 };
 

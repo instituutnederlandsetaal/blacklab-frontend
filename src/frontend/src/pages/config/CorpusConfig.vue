@@ -16,8 +16,9 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import { blacklab } from '@/api';
 import type { NormalizedIndex } from '@/types/apptypes';
+
+import { useBlackLabApi } from '@/shared/api/index.ts';
 
 import POS from './POS.vue';
 
@@ -39,7 +40,7 @@ export default defineComponent({
 	methods: {
 		load() {
 			this.loading = true;
-			blacklab
+			useBlackLabApi()
 				.getCorpus(this.id)
 				.then(c => (this.index = c))
 				.catch(e => (this.error = e.message))

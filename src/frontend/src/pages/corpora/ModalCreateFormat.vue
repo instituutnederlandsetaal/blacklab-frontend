@@ -86,8 +86,10 @@ import type * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import * as Api from '@/api';
 import type { NormalizedFormat } from '@/types/apptypes';
+
+import { useBlackLabApi } from '@/shared/api';
+import type { ApiError } from '@/shared/api/lib/api-types';
 import type { Option, Options } from '@/shared/utils/options';
 
 import Modal from '@/components/Modal.vue';
@@ -155,7 +157,7 @@ export default defineComponent({
 			const presetName = this.formatPresetName;
 			this.downloading = true;
 
-			Api.blacklab
+			useBlackLabApi()
 				.getFormatContent(this.formatPresetName)
 				.then(data => {
 					let configFileType = data.configFileType.toLowerCase();
@@ -168,7 +170,7 @@ export default defineComponent({
 					if (!this.formatName) this.formatName = presetName.split(':')[1] || presetName; // default to the preset name
 					this.dirty = false;
 				})
-				.catch((e: Api.ApiError) => (this.error = e.message))
+				.catch((e: ApiError) => (this.error = e.message))
 				.finally(() => (this.downloading = false));
 		},
 		loadFormatFromDisk(e: Event) {
@@ -229,7 +231,7 @@ export default defineComponent({
 		},
 		uploadFormat() {
 			this.uploading = true;
-			Api.blacklab
+			useBlackLabApi()
 				.postFormat(`${this.formatName}.blf.${this.formatLanguage.toLowerCase()}`, this.formatContents)
 				.then(data => {
 					this.$emit('create');
@@ -237,7 +239,7 @@ export default defineComponent({
 					this.dirty = false;
 					this.error = '';
 				})
-				.catch((e: Api.ApiError) => (this.error = e.message))
+				.catch((e: ApiError) => (this.error = e.message))
 				.finally(() => (this.uploading = false));
 		},
 	},

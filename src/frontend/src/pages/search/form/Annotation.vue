@@ -63,11 +63,11 @@
 import { computed, ref, watch } from 'vue';
 import { useTemplateRef } from 'vue';
 
-import { blacklabPaths } from '@/api';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
+import { useBlackLabPaths } from '@/shared/api';
 import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid';
@@ -139,7 +139,7 @@ const displayName = computed(() => translate.$tAnnotDisplayName(props.annotation
 const description = computed(() => translate.$tAnnotDescription(props.annotation));
 const options = computed<Option[]>(() => props.annotation.values || []);
 const autocomplete = computed(() => props.annotation.uiType === 'combobox' && props.annotation.annotatedFieldId !== '');
-const autocompleteUrl = computed(() => blacklabPaths.autocompleteAnnotation(CorpusStore.getState()!.id, props.annotation.annotatedFieldId, props.annotation.id));
+const autocompleteUrl = computed(() => useBlackLabPaths().autocompleteAnnotation(CorpusStore.getState()!.id, props.annotation.annotatedFieldId, props.annotation.id));
 
 function onFileChanged(event: Event) {
 	const fileInput = event.target as HTMLInputElement;

@@ -6,8 +6,9 @@ import type { ModuleRootState as ModuleRootStateExplore } from '@/features/searc
 import type { ModuleRootState as ModuleRootStateFilters } from '@/features/search/model/form/filter-state';
 import type { ModuleRootState as ModuleRootStatePatterns } from '@/features/search/model/form/pattern-state';
 import type * as AppTypes from '@/types/apptypes';
-import { applyWithinClauses, elementAndAttributeNameFromFilterId, getCorrectUiType, getParallelFieldParts, parenQueryPartParallel, uiTypeSupport } from '@/utils';
+import { applyWithinClauses, elementAndAttributeNameFromFilterId, getCorrectUiType, parenQueryPartParallel, uiTypeSupport } from '@/utils';
 
+import { getParallelFieldParts } from '@/shared/blacklab-helpers/parallel-helper';
 import { escapeRegex, tokenizeString, type RegexEscapeOptions } from '@/shared/utils/string-utils';
 
 /** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */

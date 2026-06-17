@@ -1,6 +1,5 @@
 import type { StyleValue } from 'vue';
 
-import { frontendPaths } from '@/api';
 import type {
 	HitContext,
 	HitToken,
@@ -30,10 +29,12 @@ import type {
 } from '@/types/blacklabtypes';
 import { hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 import type { KeysOfType } from '@/types/helpers';
-import type { Translate } from '@/shared/i18n';
-import type { OptGroup, Option, Options } from '@/shared/utils/options';
 
 import * as Highlights from './hit-highlighting';
+
+import { frontendPaths } from '@/shared/api/frontendApi';
+import type { Translate } from '@/shared/i18n';
+import type { OptGroup, Option, Options } from '@/shared/utils/options';
 
 /**
  * The columns can display various computed data, such as relative group size, or relative frequency.
@@ -477,7 +478,7 @@ function makeDocRow(p: Result<any>, info: DisplaySettingsForRows, indexInRequest
 			indexId: info.indexId,
 			pid: p.doc.docPid,
 			fieldName: info.sourceField.id,
-			searchField: undefined,
+			searchfield: undefined,
 			patt: p.query.patt,
 			pattgapdata: p.query.pattgapdata,
 		}),
@@ -521,7 +522,7 @@ function makeHitRow(
 			indexId: info.indexId,
 			pid: p.doc.docPid,
 			fieldName: field.id,
-			searchField: info.sourceField.id,
+			searchfield: info.sourceField.id,
 			patt: p.query.patt,
 			pattgapdata: p.query.pattgapdata,
 			findhit: start(p.hit),

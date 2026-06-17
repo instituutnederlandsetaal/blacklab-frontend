@@ -74,10 +74,12 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import * as Api from '@/api';
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 import type { BLServer } from '@/types/blacklabtypes';
-import { normalizeIndexBase } from '@/utils/blacklabutils';
+
+import { useBlackLabApi } from '@/shared/api/index.ts';
+import { ApiError } from '@/shared/api/lib/api-types.ts';
+import { normalizeIndexBase } from '@/shared/blacklab-helpers/normalize-responses.ts';
 
 import CorpusTable from './CorpusTable.vue';
 import FormatsTable from './FormatsTable.vue';
@@ -154,29 +156,30 @@ export default defineComponent({
 		},
 		refreshCorpora() {
 			this.loadingCorpora = true;
-			Api.blacklab
+			useBlackLabApi()
 				.getCorpora()
 				.then(corpora => (this.corpora = corpora.sort((a, b) => a.displayName.localeCompare(b.displayName))))
-				.catch((e: Api.ApiError) => (this.errorMessage = e.message))
+				.catch((e: ApiError) => (this.errorMessage = e.message))
 				.finally(() => (this.loadingCorpora = false));
 		},
 		refreshFormats() {
 			this.loadingFormats = true;
-			Api.blacklab
+			useBlackLabApi()
 				.getFormats()
 				.then(formats => (this.formats = formats.sort((a, b) => a.displayName.localeCompare(b.displayName))))
-				.catch((e: Api.ApiError) => (this.errorMessage = e.message))
+				.catch((e: ApiError) => (this.errorMessage = e.message))
 				.finally(() => (this.loadingFormats = false));
 		},
 		/** Begin periodically refreshing the corpus for as long as the status is indexing. */
 		async refreshCorpus(indexId: string) {
 			if (this.refreshingCorpora.has(indexId)) return;
 			this.refreshingCorpora.add(indexId);
+			const blacklab = useBlackLabApi();
 
 			const displayName = this.corpora.find(c => c.id === indexId)?.displayName || indexId;
 			try {
 				while (true) {
-					const newCorpusState = await Api.blacklab.getCorpusStatus(indexId);
+					const newCorpusState = await blacklab.getCorpusStatus(indexId);
 					let corpus = this.corpora.find(c => c.id === indexId);
 					if (!corpus) break; // corpus was deleted?
 					Object.assign(corpus, newCorpusState);
@@ -220,13 +223,13 @@ export default defineComponent({
 			this.confirmAction = () => {
 				this.close();
 				this.loadingCorpora = true;
-				Api.blacklab
+				useBlackLabApi()
 					.deleteCorpus(indexId)
 					.then(r => {
 						this.successMessage = r.status.message;
 						this.corpora = this.corpora.filter(c => c.id !== indexId);
 					})
-					.catch((e: Api.ApiError) => (this.errorMessage = `Could not delete corpus "${corpus.displayName}": ${e.message}`))
+					.catch((e: ApiError) => (this.errorMessage = `Could not delete corpus "${corpus.displayName}": ${e.message}`))
 					.finally(() => {
 						this.confirmAction = undefined;
 						this.loadingCorpora = false;
@@ -242,13 +245,13 @@ export default defineComponent({
 			this.confirmAction = () => {
 				this.close();
 				this.loadingFormats = true;
-				Api.blacklab
+				useBlackLabApi()
 					.deleteFormat(format.id)
 					.then(r => {
 						this.successMessage = r.status.message;
 						this.formats = this.formats.filter(f => f.id !== format.id);
 					})
-					.catch((e: Api.ApiError) => (this.errorMessage = `Could not delete format "${format.displayName}": ${e.message}`))
+					.catch((e: ApiError) => (this.errorMessage = `Could not delete format "${format.displayName}": ${e.message}`))
 					.finally(() => {
 						this.confirmAction = undefined;
 						this.loadingFormats = false;
@@ -259,8 +262,9 @@ export default defineComponent({
 	async created() {
 		try {
 			this.loadingFormats = this.loadingCorpora = this.loadingServerInfo = true;
+			const blacklab = useBlackLabApi();
 			try {
-				this.serverInfo = await Api.blacklab.getServerInfo();
+				this.serverInfo = await blacklab.getServerInfo();
 			} catch (e) {
 				// @ts-expect-error message not in unknown
 				this.errorMessage = `Error loading BlackLab info: ${e.message}`;
@@ -275,7 +279,7 @@ export default defineComponent({
 			this.loadingCorpora = false;
 			this.refreshFormats();
 		} catch (error) {
-			if (error instanceof Api.ApiError) this.errorMessage = error.message;
+			if (error instanceof ApiError) this.errorMessage = error.message;
 			else this.errorMessage = 'An unknown error occurred: ' + JSON.stringify(error);
 			this.loadingCorpora = this.loadingFormats = this.loadingServerInfo = false;
 		}

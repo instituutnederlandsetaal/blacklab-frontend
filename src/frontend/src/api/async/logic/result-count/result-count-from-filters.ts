@@ -2,11 +2,11 @@ import { of } from 'rxjs';
 import { switchMap } from 'rxjs/internal/operators/switchMap';
 import type { ObservableInput } from 'rxjs/internal/types';
 
-import type { BlackLabApi } from '@/api';
 import type { NormalizedIndex } from '@/types/apptypes';
 
 import { getCorpusTotals, getTotals } from './result-count-helpers';
 
+import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { Loadable } from '@/shared/utils/loadable/loadable';
 import { InteractiveLoadable } from '@/shared/utils/loadable/loadable-streams';
 

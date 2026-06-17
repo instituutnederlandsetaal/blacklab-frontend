@@ -1,6 +1,5 @@
 import { reactive } from 'vue';
 
-import { blacklabPaths } from '@/api';
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
 /**
