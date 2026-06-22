@@ -1,7 +1,5 @@
 import cloneDeep from 'clone-deep';
 
-// Article
-import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
@@ -15,16 +13,18 @@ import * as GlobalResultsModule from '@/features/search/model/results/global-res
 import * as ViewModule from '@/features/search/model/results/view-state';
 
 import BaseUrlStateParser from './url-state-parser-base';
+import type { ArticleUrlState } from './state-to-url';
+import { emptyArticleUrlState } from './state-to-url';
 
 /**
  * Decode the current url into a state payload for the article page.
  * Search form/results state is kept at defaults, while article state is restored from url.
  */
-export default class UrlStateParserArticle extends BaseUrlStateParser<HistoryModule.HistoryEntry & { article: ArticleStore.HistoryState }> {
-	public async get(): Promise<HistoryModule.HistoryEntry & { article: ArticleStore.HistoryState }> {
+export default class UrlStateParserArticle extends BaseUrlStateParser<HistoryModule.HistoryEntry & { article: ArticleUrlState }> {
+	public async get(): Promise<HistoryModule.HistoryEntry & { article: ArticleUrlState }> {
 		const pattern = this.getString('patt') || this.getString('query') || null;
 		// TODO figure out and document what is the canonical value, is 'field' legacy, I think so, but we need to look at the git history and document this. It was introduced when we implemented parallel search/documents.
-		const sourceFromUrl = this.getString('searchField') || this.getString('field');
+		const sourceFromUrl = this.getString('searchfield') || this.getString('searchField') || this.getString('field');
 		const allAnnotatedFields = CorpusModule.get.allAnnotatedFieldsMap();
 		const source = sourceFromUrl && allAnnotatedFields[sourceFromUrl] ? sourceFromUrl : PatternModule.defaults.shared.source;
 
@@ -58,10 +58,10 @@ export default class UrlStateParserArticle extends BaseUrlStateParser<HistoryMod
 		};
 	}
 
-	private get article(): ArticleStore.HistoryState {
+	private get article(): ArticleUrlState {
 		const [, page, docId] = this.paths;
 		if (!(page === 'docs' && docId)) {
-			return cloneDeep(ArticleStore.initialHistoryState);
+			return { ...emptyArticleUrlState };
 		}
 		return {
 			docId: page === 'docs' && docId ? docId : null,
@@ -69,6 +69,9 @@ export default class UrlStateParserArticle extends BaseUrlStateParser<HistoryMod
 			wordend: this.getNumber('wordend'),
 			wordstart: this.getNumber('wordstart'),
 			findhit: this.getNumber('findhit'),
+			pattern: this.getString('patt') || this.getString('query') || null,
+			pattgapdata: this.getString('pattgapdata'),
+			searchfield: this.getString('searchfield') || this.getString('searchField') || this.getString('field'),
 		};
 	}
 }

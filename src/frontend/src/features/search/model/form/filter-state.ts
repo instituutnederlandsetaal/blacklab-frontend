@@ -1,6 +1,6 @@
 import { reactive } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
 /**
  * This module contains a single entry for every metadata field in this corpus.
@@ -154,7 +154,7 @@ const actions = {
 	},
 };
 
-const init = (state: CorpusChange) => {
+const init = (state: CorpusContext) => {
 	if (!state.index) {
 		getState().filters = {};
 		getState().filterGroups = [];

@@ -6,8 +6,8 @@
 import cloneDeep from 'clone-deep';
 import { reactive, ref } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as UIStore from '@/app/state/ui-state';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
@@ -260,7 +260,7 @@ const actions = {
 };
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = (state: CorpusChange) => {
+const init = (state: CorpusContext) => {
 	if (!state.index) {
 		Object.assign(getState(), cloneDeep(initialState));
 		return;

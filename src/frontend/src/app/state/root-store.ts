@@ -1,8 +1,8 @@
 import cloneDeep from 'clone-deep';
 import { shallowRef } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as UIModule from '@/app/state/ui-state';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 // Results
 // Article
 import * as ArticleModule from '@/features/article/model/article-state';
@@ -20,6 +20,7 @@ import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import type * as BLTypes from '@/types/blacklabtypes';
+import type { ArticleUrlState } from '@/url/state-to-url';
 import { corpusCustomizations } from '@/utils/customization';
 import debug from '@/utils/debug';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
@@ -29,7 +30,7 @@ import { Loadable } from '@/shared/utils/loadable/loadable';
 // separate, because while the corpusloader might have settled, store init is async
 // and we don't want to report being done while submodules are still initializing
 // (We should solve this better in the future)
-const loadingState = shallowRef<Loadable<CorpusChange>>(Loadable.Empty());
+const loadingState = shallowRef<Loadable<CorpusContext>>(Loadable.Empty());
 
 const get = {
 	loadingState: () => loadingState,
@@ -231,16 +232,12 @@ const actions = {
 		FormManager.actions.reset();
 		ViewModule.actions.resetAllViews({ resetGroupBy: true });
 		QueryModule.actions.reset();
-		ArticleModule.actions.reset();
 	},
 
-	replace: (payload: HistoryModule.HistoryEntry & { article?: ArticleModule.HistoryState }) => {
+	replace: (payload: HistoryModule.HistoryEntry & { article?: ArticleUrlState }) => {
 		FormManager.actions.replace(payload);
 		GlobalResultsModule.actions.replace(payload.global);
 		ViewModule.actions.resetAllViews({ resetGroupBy: true });
-		if (payload.article) {
-			ArticleModule.actions.replace(payload.article);
-		}
 		if (payload.interface.viewedResults != null) {
 			const viewName = payload.interface.viewedResults;
 			ViewModule.actions.replaceView({ view: viewName, data: payload.view });
@@ -266,7 +263,7 @@ const actions = {
 	},
 };
 
-const init = async (state: CorpusChange) => {
+const init = async (state: CorpusContext) => {
 	loadingState.value = Loadable.Loading();
 	console.log('Initializing store with new corpus data', state);
 	await CorpusModule.init(state);

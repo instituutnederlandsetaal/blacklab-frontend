@@ -9,8 +9,8 @@ import jsonStableStringify from 'json-stable-stringify';
 import URI from 'urijs';
 import { markRaw, shallowRef } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as UIModule from '@/app/state/ui-state';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
@@ -209,7 +209,7 @@ const actions = {
 	},
 };
 
-const init = (change: CorpusChange) => {
+const init = (change: CorpusContext) => {
 	corpus = change.index ?? null;
 	state.value = readFromLocalStorage();
 };

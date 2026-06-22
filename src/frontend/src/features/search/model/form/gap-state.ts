@@ -5,7 +5,7 @@
 
 import { reactive } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 
 type ModuleRootState = {
 	value: string | null;
@@ -39,7 +39,7 @@ const actions = {
 };
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = (_state: CorpusChange) => {
+const init = (_state: CorpusContext) => {
 	actions.reset();
 };
 

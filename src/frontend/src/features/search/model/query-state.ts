@@ -23,8 +23,8 @@
 import cloneDeep from 'clone-deep';
 import { reactive } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as UIModule from '@/app/state/ui-state';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
@@ -146,7 +146,7 @@ const actions = {
 	replace: (payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)),
 };
 
-const init = (_payload: CorpusChange) => {
+const init = (_payload: CorpusContext) => {
 	actions.reset();
 };
 

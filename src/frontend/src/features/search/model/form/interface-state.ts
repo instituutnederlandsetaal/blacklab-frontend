@@ -7,7 +7,7 @@
 import cloneDeep from 'clone-deep';
 import { reactive } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type { ModuleRootState as ExploreModuleRootState } from '@/features/search/model/form/explore-state';
 import type { ModuleRootState as PatternModuleRootState } from '@/features/search/model/form/pattern-state';
 
@@ -53,7 +53,7 @@ const actions = {
 	replace: (payload: ModuleRootState) => Object.assign(state, payload),
 };
 
-const init = (_state: CorpusChange) => {
+const init = (_state: CorpusContext) => {
 	actions.reset();
 };
 

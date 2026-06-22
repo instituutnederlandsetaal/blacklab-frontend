@@ -5,10 +5,9 @@ import { filter, map, mergeMap } from 'rxjs/operators';
 // Define a few pipelines to perform actions on streams of data
 import URI from 'urijs';
 import { watch } from 'vue';
-import type { Router } from 'vue-router';
+import type { LocationQueryValue, RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
-import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
@@ -20,6 +19,7 @@ import * as GlobalResultsStore from '@/features/search/model/results/global-resu
 import * as ViewStore from '@/features/search/model/results/view-state';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { stateToUrl } from '@/url/state-to-url';
+import type { ArticleUrlState } from '@/url/state-to-url';
 import UrlStateParserArticle from '@/url/url-state-parser-article';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 import { debugLogCat } from '@/utils/debug';
@@ -32,11 +32,11 @@ type QueryState = {
 		interface: InterfaceStore.ModuleRootState;
 		global: GlobalResultsStore.ModuleRootState;
 		views: ViewStore.ModuleRootState;
-		article: ArticleStore.ModuleRootState;
 	};
+	article?: ArticleUrlState | null;
 };
 
-type BrowserHistoryEntry = HistoryStore.HistoryEntry & { article: ArticleStore.HistoryState };
+type BrowserHistoryEntry = HistoryStore.HistoryEntry & { article?: ArticleUrlState };
 const HISTORY_STATE_KEY = 'cfHistoryState';
 
 const urlInputParameters$ = new ReplaySubject<QueryState>(1);
@@ -50,12 +50,52 @@ function isUrlManagedRoute(routeName: string | null): routeName is UrlManagedRou
 	return routeName === 'search' || routeName === 'article';
 }
 
-function decodeStateFromCurrentUrl(): Promise<HistoryStore.HistoryEntry & { article: ArticleStore.HistoryState }> {
+function decodeStateFromCurrentUrl(): Promise<BrowserHistoryEntry> {
 	const pathSegments = new URI().segmentCoded().filter(s => !!s);
 	const contextSegments = new URI(CONTEXT_URL).segmentCoded().filter(s => !!s);
 	const relativeSegments = pathSegments.slice(contextSegments.length);
 	const isArticleRoute = relativeSegments[1] === 'docs' && !!relativeSegments[2];
 	return (isArticleRoute ? new UrlStateParserArticle() : new UrlStateParserSearch()).get();
+}
+
+function firstQueryValue(value: LocationQueryValue | LocationQueryValue[]): string | null {
+	const raw = Array.isArray(value) ? value[0] : value;
+	return typeof raw === 'string' && raw.length > 0 ? raw : null;
+}
+
+function getStringFromQuery(route: RouteLocationNormalizedLoaded, ...keys: string[]): string | null {
+	for (const key of keys) {
+		const value = firstQueryValue(route.query[key]);
+		if (value != null) return value;
+	}
+	return null;
+}
+
+function getNumberFromQuery(route: RouteLocationNormalizedLoaded, key: string): number | null {
+	const value = getStringFromQuery(route, key);
+	if (value == null) return null;
+	const parsed = Number.parseInt(value, 10);
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getArticleUrlStateFromRoute(route: RouteLocationNormalizedLoaded): ArticleUrlState | null {
+	if (route.name !== 'article') {
+		return null;
+	}
+	const docId = typeof route.params.docId === 'string' && route.params.docId.length > 0 ? route.params.docId : null;
+	if (!docId) {
+		return null;
+	}
+	return {
+		docId,
+		viewField: getStringFromQuery(route, 'field'),
+		wordstart: getNumberFromQuery(route, 'wordstart'),
+		wordend: getNumberFromQuery(route, 'wordend'),
+		findhit: getNumberFromQuery(route, 'findhit'),
+		pattern: getStringFromQuery(route, 'patt', 'query'),
+		pattgapdata: getStringFromQuery(route, 'pattgapdata'),
+		searchfield: getStringFromQuery(route, 'searchfield', 'searchField', 'field'),
+	};
 }
 
 function getStoredHistoryEntry(state: unknown): BrowserHistoryEntry | null {
@@ -127,7 +167,8 @@ function createStoreToUrlSubscription(router: Router) {
 					params: v.params,
 					pattern: QueryStore.get.patternString(),
 					gapValue: QueryStore.getState().gap?.value || null,
-					searchField: QueryStore.get.sourceField().id,
+					searchfield: QueryStore.get.sourceField().id,
+					article: v.article,
 					state: v.state,
 				});
 				return {
@@ -135,6 +176,7 @@ function createStoreToUrlSubscription(router: Router) {
 					isTruncated: full.isTruncated,
 					state: v.state,
 					params: v.params,
+					article: v.article,
 				};
 			}),
 			filter(v => {
@@ -196,13 +238,7 @@ function createStoreToUrlSubscription(router: Router) {
 							activeFilterTab: v.state.interface.activeFilterTab,
 						},
 						gap: query.gap || GapStore.defaults,
-						article: {
-							docId: v.state.article.docId,
-							viewField: v.state.article.viewField,
-							wordstart: v.state.article.wordstart,
-							wordend: v.state.article.wordend,
-							findhit: v.state.article.findhit,
-						},
+						article: v.article || undefined,
 					};
 					return {
 						indexId: v.indexId,
@@ -210,6 +246,7 @@ function createStoreToUrlSubscription(router: Router) {
 						entry,
 						state: v.state,
 						params: v.params,
+						article: v.article,
 					};
 				},
 			),
@@ -254,10 +291,10 @@ function startStoreToUrlReflection(router: Router, initialUrlStateApplied: Promi
 			routeName: typeof router.currentRoute.value.name === 'string' ? router.currentRoute.value.name : null,
 			indexId: CorpusStore.get.indexId(),
 			params: RootStore.get.blacklabParameters(),
+			article: getArticleUrlStateFromRoute(router.currentRoute.value),
 			state: {
 				views: ViewStore.getState(),
 				global: GlobalResultsStore.getState(),
-				article: ArticleStore.getState(),
 				interface: InterfaceStore.getState(),
 				query: QueryStore.getState(),
 			},

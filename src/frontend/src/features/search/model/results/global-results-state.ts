@@ -6,7 +6,7 @@
 import { useLocalStorage } from '@vueuse/core';
 import { reactive } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import * as ViewModule from '@/features/search/model/results/view-state';
 
 const defaults = {
@@ -106,7 +106,7 @@ const actions = {
 };
 
 // Reset on corpus change, defaults are already synced with storage
-const init = (_state: CorpusChange) => {
+const init = (_state: CorpusContext) => {
 	actions.reset();
 };
 

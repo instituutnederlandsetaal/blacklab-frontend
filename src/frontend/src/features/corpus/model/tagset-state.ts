@@ -7,7 +7,7 @@
 
 import { ref } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 type ModuleRootState = Tagset | null;
@@ -17,7 +17,7 @@ const getState = () => state.value;
 
 const get = {};
 
-const init = (payload: CorpusChange) => {
+const init = (payload: CorpusContext) => {
 	state.value = payload.tagset ?? null;
 };
 

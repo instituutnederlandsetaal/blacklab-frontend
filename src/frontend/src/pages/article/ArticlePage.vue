@@ -128,11 +128,12 @@
 <script setup lang="ts">
 import { UseDraggable } from '@vueuse/components';
 import { computed, onUnmounted, watch } from 'vue';
+import { useRoute, useRouter, type LocationQueryRaw, type LocationQueryValue } from 'vue-router';
 
 import * as UIStore from '@/app/state/ui-state';
 import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
-import * as QueryStore from '@/features/search/model/query-state';
+import { useCfPageConfig } from '@/app/state/useCorpusContext';
 import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
 import { fieldSubset } from '@/utils';
 // TODO
@@ -165,6 +166,9 @@ import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 
 const articleStreams = createArticleStreams(useBlackLabApi(), useFrontendApi());
 const { contents$, hitToHighlight$, hits$, input$, metadata$, snippetAndDocument$, validPaginationParameters$ } = articleStreams;
+const route = useRoute();
+const router = useRouter();
+const cfPageConfig = useCfPageConfig();
 
 const metadata = loadableFromStream(metadata$);
 const contents = loadableFromStream(contents$);
@@ -174,19 +178,23 @@ const validPaginationInfo = loadableFromStream(validPaginationParameters$);
 const snippetAndDocument = loadableFromStream(snippetAndDocument$);
 
 const inputs = computed(() => {
+	const annotatedFields = CorpusStore.get.allAnnotatedFieldsMap();
+	const viewField = getAnnotatedFieldFromQuery('field') ?? CorpusStore.get.mainAnnotatedField();
+	const searchfield = getAnnotatedFieldFromQuery('searchfield', 'searchField', 'field') ?? CorpusStore.get.mainAnnotatedField();
+
 	return {
-		indexId: CorpusStore.get.indexId()!,
-		docId: ArticleStore.getState().docId,
+		indexId: CorpusStore.get.indexId(),
+		docId: getRouteParamString(route.params.docId),
 
-		viewField: ArticleStore.getState().viewField,
-		searchField: QueryStore.get.sourceField().id,
+		viewField: annotatedFields[viewField] ? viewField : CorpusStore.get.mainAnnotatedField(),
+		searchfield: annotatedFields[searchfield] ? searchfield : CorpusStore.get.mainAnnotatedField(),
 
-		wordstart: ArticleStore.get.wordstart(),
-		wordend: ArticleStore.get.wordend(),
-		pageSize: ArticleStore.get.pageSize(),
-		findhit: ArticleStore.get.findhit(),
-		patt: QueryStore.get.patternString(),
-		pattgapdata: QueryStore.getState().gap?.value,
+		wordstart: getNumberFromQuery('wordstart'),
+		wordend: getNumberFromQuery('wordend'),
+		pageSize: cfPageConfig.value.pageSize,
+		findhit: getNumberFromQuery('findhit'),
+		patt: getStringFromQuery('patt') ?? getStringFromQuery('query'),
+		pattgapdata: getStringFromQuery('pattgapdata'),
 	};
 });
 
@@ -212,13 +220,60 @@ function stringifyWithHtml(v: any): string {
 }
 function handlePageNavigation(page: number) {
 	if (!validPaginationInfo.isLoaded()) return;
-	ArticleStore.actions.page({
+	void updateArticleQuery({
 		wordstart: page * validPaginationInfo.value.pageSize,
 		wordend: (page + 1) * validPaginationInfo.value.pageSize,
+		findhit: undefined,
 	});
 }
 function handleHitNavigation(hitStart: number) {
-	ArticleStore.actions.findhit(hitStart);
+	void updateArticleQuery({
+		wordstart: undefined,
+		wordend: undefined,
+		findhit: hitStart,
+	});
+}
+
+function getRouteParamString(value: unknown): string | null {
+	return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
+function firstQueryValue(value: LocationQueryValue | LocationQueryValue[]): string | null {
+	const raw = Array.isArray(value) ? value[0] : value;
+	return typeof raw === 'string' && raw.length > 0 ? raw : null;
+}
+
+function getStringFromQuery(...keys: string[]): string | null {
+	for (const key of keys) {
+		const value = firstQueryValue(route.query[key]);
+		if (value != null) return value;
+	}
+	return null;
+}
+
+function getNumberFromQuery(key: string): number | null {
+	const value = getStringFromQuery(key);
+	if (value == null) return null;
+	const parsed = Number.parseInt(value, 10);
+	return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getAnnotatedFieldFromQuery(...keys: string[]): string | null {
+	const value = getStringFromQuery(...keys);
+	return value && CorpusStore.get.allAnnotatedFieldsMap()[value] ? value : null;
+}
+
+function updateArticleQuery(patch: Record<string, string | number | null | undefined>) {
+	const query: LocationQueryRaw = {
+		...route.query,
+	};
+
+	for (const [key, value] of Object.entries(patch)) {
+		if (value == null) delete query[key];
+		else query[key] = String(value);
+	}
+
+	return router.push({ name: route.name ?? undefined, params: route.params, query });
 }
 
 watch(

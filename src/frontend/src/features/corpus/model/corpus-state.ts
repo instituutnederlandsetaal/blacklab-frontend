@@ -7,7 +7,7 @@
 
 import { ref } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type {
 	NormalizedAnnotatedField,
 	NormalizedAnnotatedFieldParallel,
@@ -101,7 +101,7 @@ const get = {
 
 const actions = {};
 
-const init = (payload: CorpusChange) => (state.value = payload.index);
+const init = (payload: CorpusContext) => (state.value = payload.index);
 
 export { actions, get, getState, init };
 export type { ModuleRootState, NormalizedAnnotatedField, NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField };

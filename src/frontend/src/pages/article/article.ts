@@ -28,7 +28,7 @@ export type HitsInput = {
 	indexId: string;
 	docId: string;
 	patt: string;
-	searchField?: string | undefined;
+	searchfield?: string | undefined;
 	pattgapdata?: string | undefined;
 };
 
@@ -60,7 +60,7 @@ type ValidPaginationAndDocDisplayParameters = {
 	patt?: string;
 	pattgapdata?: string;
 
-	searchField: string;
+	searchfield: string;
 	viewField: string;
 };
 
@@ -85,7 +85,7 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 			indexId: i.indexId,
 			docpid: i.docId, // NOTE: blacklab requires docpid (lowercased), not docId!
 			patt: i.patt,
-			searchField: i.searchField || undefined,
+			searchfield: i.searchfield || undefined,
 			pattgapdata: i.pattgapdata || undefined,
 		})),
 		distinctUntilChanged(compareAsSortedJson),
@@ -141,7 +141,7 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 			indexId: input.indexId,
 			docId: input.docId,
 			viewField: input.viewField,
-			searchField: input.searchField,
+			searchfield: input.searchfield,
 			patt: input.patt,
 			pattgapdata: input.pattgapdata,
 			wordstart: input.wordstart,
@@ -269,7 +269,7 @@ function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPag
 		page: Math.floor(wordstart / pageSize),
 		maxPage: Math.floor(docLength / pageSize),
 
-		searchField: input.searchField!,
+		searchfield: input.searchfield!,
 		viewField: input.viewField!,
 	};
 }

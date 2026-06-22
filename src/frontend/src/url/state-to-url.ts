@@ -1,6 +1,5 @@
 import URI from 'urijs';
 
-import type * as ArticleStore from '@/features/article/model/article-state';
 import type * as InterfaceStore from '@/features/search/model/form/interface-state';
 import type * as QueryStore from '@/features/search/model/query-state';
 import type * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
@@ -14,7 +13,25 @@ type UrlStateSlice = {
 	interface: InterfaceStore.ModuleRootState;
 	global: GlobalResultsStore.ModuleRootState;
 	views: ViewStore.ModuleRootState;
-	article: ArticleStore.ModuleRootState;
+};
+
+export type ArticleUrlState = {
+	docId: string | null;
+	viewField: string | null;
+	wordstart: number | null;
+	wordend: number | null;
+	findhit: number | null;
+	pattern?: string | null;
+	pattgapdata?: string | null;
+	searchfield?: string | null;
+};
+
+export const emptyArticleUrlState: ArticleUrlState = {
+	docId: null,
+	viewField: null,
+	wordstart: null,
+	wordend: null,
+	findhit: null,
 };
 
 export type UrlTransformInput = {
@@ -23,7 +40,8 @@ export type UrlTransformInput = {
 	params?: BLTypes.BLSearchParameters;
 	pattern?: string | null;
 	gapValue?: string | null;
-	searchField?: string | null;
+	searchfield?: string | null;
+	article?: ArticleUrlState | null;
 	state: UrlStateSlice;
 };
 
@@ -110,25 +128,25 @@ export function searchStateToUrl(input: UrlTransformInput): UrlTransformOutput {
 	};
 }
 
-export function articleStateToUrl(input: UrlTransformInput): UrlTransformOutput | null {
-	if (!input.indexId || !input.state.article.docId) {
+export function articleUrlStateToUrl(input: UrlTransformInput): UrlTransformOutput | null {
+	if (!input.indexId || !input.article?.docId) {
 		return null;
 	}
 
-	const pattern = input.pattern ?? input.params?.patt ?? null;
-	const gapValue = input.gapValue ?? input.params?.pattgapdata ?? null;
+	const pattern = input.article.pattern ?? input.pattern ?? input.params?.patt ?? null;
+	const gapValue = input.article.pattgapdata ?? input.gapValue ?? input.params?.pattgapdata ?? null;
 
 	const queryParams = {
 		query: pattern,
 		pattgapdata: gapValue,
-		searchField: input.searchField || undefined,
-		field: input.state.article.viewField || undefined,
-		wordstart: input.state.article.wordstart,
-		wordend: input.state.article.wordend,
-		findhit: input.state.article.findhit,
+		searchfield: input.article.searchfield || input.searchfield || undefined,
+		field: input.article.viewField || undefined,
+		wordstart: input.article.wordstart,
+		wordend: input.article.wordend,
+		findhit: input.article.findhit,
 	};
 
-	const fullUrl = toRelativeUrl(input.contextUrl, [input.indexId, 'docs', input.state.article.docId], queryParams);
+	const fullUrl = toRelativeUrl(input.contextUrl, [input.indexId, 'docs', input.article.docId], queryParams);
 	if (fullUrl.length <= MAX_URL_LENGTH) {
 		return {
 			page: 'article',
@@ -141,7 +159,7 @@ export function articleStateToUrl(input: UrlTransformInput): UrlTransformOutput 
 	return {
 		page: 'article',
 		fullUrl,
-		url: toRelativeUrl(input.contextUrl, [input.indexId, 'docs', input.state.article.docId], {
+		url: toRelativeUrl(input.contextUrl, [input.indexId, 'docs', input.article.docId], {
 			...queryParams,
 			query: undefined,
 			pattgapdata: undefined,
@@ -151,5 +169,5 @@ export function articleStateToUrl(input: UrlTransformInput): UrlTransformOutput 
 }
 
 export function stateToUrl(input: UrlTransformInput): UrlTransformOutput {
-	return articleStateToUrl(input) || searchStateToUrl(input);
+	return articleUrlStateToUrl(input) || searchStateToUrl(input);
 }

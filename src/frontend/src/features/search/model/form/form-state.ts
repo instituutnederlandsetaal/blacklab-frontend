@@ -1,4 +1,4 @@
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
@@ -35,7 +35,7 @@ const actions = {
 	},
 };
 
-const init = (state: CorpusChange) => {
+const init = (state: CorpusContext) => {
 	ExploreModule.init(state);
 	FilterModule.init(state);
 	InterfaceModule.init(state);

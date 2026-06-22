@@ -5,9 +5,10 @@
 
 import { reactive, ref } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as UIStore from '@/app/state/ui-state';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { memoize } from '@/features/search/model/form/reactive-store';
+
 import { escapeRegex } from '@/shared/utils/string-utils';
 
 type Token = {
@@ -175,7 +176,7 @@ const actions = {
 
 const resetSignal = ref(0);
 
-const init = (_state: CorpusChange) => {
+const init = (_state: CorpusContext) => {
 	actions.reset();
 };
 

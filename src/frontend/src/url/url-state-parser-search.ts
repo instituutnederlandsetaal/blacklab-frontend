@@ -7,8 +7,6 @@ import * as UIStore from '@/app/state/ui-state';
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-// Article
-import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import type * as HistoryModule from '@/features/history/model/query-history-state';
@@ -30,6 +28,8 @@ import { debugLog } from '@/utils/debug';
 import parseLucene from '@/utils/luceneparser';
 
 import BaseUrlStateParser from './url-state-parser-base';
+import type { ArticleUrlState } from './state-to-url';
+import { emptyArticleUrlState } from './state-to-url';
 
 import { useBlackLabApi } from '@/shared/api';
 import { getParallelFieldName } from '@/shared/blacklab-helpers/parallel-helper';
@@ -57,7 +57,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	}
 
 	@memoize
-	public async get(): Promise<HistoryModule.HistoryEntry & { article: ArticleStore.HistoryState }> {
+	public async get(): Promise<HistoryModule.HistoryEntry & { article: ArticleUrlState }> {
 		// Make sure our parsed cql is up to date (used to be a memoized getter, but we need it to be async)
 		const cql = this.getString('patt') || this.getString('query') || null;
 		await this.updateParsedCql(cql);
@@ -609,12 +609,12 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		In our state, "source" is the field we're searching in.
 		The field we're viewing (in article/document view) is "viewField".
 
-		In BlackLab, it can be either "field" or "searchField", where "searchField" overrides "field" if set.
-		We only pass "searchField"  if we're viewing a document in a different parallel version/field than we searched in.
-		Which means that if "searchField" is set, we should use that. If not, we should use "field".
+		In BlackLab, it can be either "field" or "searchfield", where "searchfield" overrides "field" if set.
+		We only pass "searchfield" if we're viewing a document in a different parallel version/field than we searched in.
+		Which means that if "searchfield" is set, we should use that. If not, we should use "field".
 		See also "viewField" in the article module (which is "field" in BlackLab terms.)
 		*/
-		let source = this.getString('searchField') || this.getString('searchfield') || this.getString('field');
+		let source = this.getString('searchfield') || this.getString('searchField') || this.getString('field');
 		if (source && !parallelFieldsMap[source]) source = null;
 		const targets = this._parsedCql ? this._parsedCql.slice(1).map(result => (result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '')) : [];
 
@@ -740,15 +740,18 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	}
 
 	@memoize
-	private get article(): ArticleStore.HistoryState {
+	private get article(): ArticleUrlState {
 		const [_indexId, page, docId] = this.paths;
-		if (!(page === 'docs' && docId)) return ArticleStore.initialHistoryState;
+		if (!(page === 'docs' && docId)) return { ...emptyArticleUrlState };
 		return {
 			docId: page === 'docs' && docId ? docId : null,
-			viewField: this.getString('field', null, v => v || null), // See also "searchField" in shared.
+			viewField: this.getString('field', null, v => v || null), // See also "searchfield" in shared.
 			wordend: this.getNumber('wordend'), // No validation/defaults here for wordstart/wordend/findhit. It's complicated. Solve in article api/getters.
 			wordstart: this.getNumber('wordstart'),
 			findhit: this.getNumber('findhit'),
+			pattern: this.getString('patt') || this.getString('query') || null,
+			pattgapdata: this.getString('pattgapdata'),
+			searchfield: this.getString('searchfield') || this.getString('searchField') || this.getString('field'),
 		};
 	}
 

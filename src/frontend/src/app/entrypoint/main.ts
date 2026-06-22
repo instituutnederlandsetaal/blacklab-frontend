@@ -7,7 +7,7 @@ import FloatingVue from 'floating-vue';
 import HighchartsVue from 'highcharts-vue';
 import { createApp } from 'vue';
 
-import { createCorpusState } from '@/app/state/useCorpusContext';
+import { createCorpusContext } from '@/app/state/useCorpusContext';
 import Filters from '@/components/filters';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import { startCorpusBootstrapEffect } from '@/features/corpus/effects/corpus-bootstrap.effect';
@@ -30,7 +30,7 @@ async function start() {
 	const user = await LoginSystem.user;
 	const api = await createApi({ blacklab: { baseUrl: BLS_URL, user }, frontend: { baseUrl: CONTEXT_URL, user } });
 	const router = createBlfRouter();
-	const corpusState = createCorpusState(api.blacklabApi, api.frontendApi, router.corpusId);
+	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId);
 	const i18n = createI18n(router.corpusId);
 
 	// initCorpusDataLoader(api.blacklabApi, api.frontendApi);

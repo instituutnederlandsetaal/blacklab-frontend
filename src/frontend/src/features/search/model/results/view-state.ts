@@ -7,7 +7,7 @@
 import cloneDeep from 'clone-deep';
 import { markRaw, reactive, shallowReactive } from 'vue';
 
-import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
+import type { CorpusContext } from '@/app/state/useCorpusContext';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 
 type ModuleRootState = Record<string, ViewRootState>;
@@ -158,7 +158,7 @@ const actions = {
 
 const get = {};
 
-const init = async (_state: CorpusChange) => {
+const init = async (_state: CorpusContext) => {
 	// Clear all views so the default result modules can be recreated for the new corpus.
 	Object.keys(moduleCache).forEach(key => {
 		delete moduleCache[key];
