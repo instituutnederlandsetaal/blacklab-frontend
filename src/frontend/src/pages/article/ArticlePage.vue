@@ -1,14 +1,6 @@
 <template>
 	<!-- TODO: i18n -->
 	<div class="container article" v-if="inputs">
-		<template v-for="(value, key) in { contents, metadata, hits, hitToHighlight, validPaginationInfo, snippetAndDocument }">
-			<details>
-				<summary>{{ key }}</summary>
-				<pre>{{ stringifyWithHtml(value) }}</pre>
-			</details>
-		</template>
-		<!-- {{ JSON.stringify({...$data, subs: undefined}, undefined, 2) }} -->
-
 		<UseDraggable>
 			<div class="article-pagination" title="Hold to drag">
 				<template v-if="validPaginationInfo.isLoaded()">
@@ -27,6 +19,7 @@
 						<Pagination
 							showTotal
 							:page="hitToHighlight.value.hitIndexToHighlight"
+							:page-active="hitToHighlight.value.isHitVisible"
 							:maxPage="hitToHighlight.value.totalHits - 1"
 							:editable="false"
 							:showOffsets="false"
@@ -45,12 +38,12 @@
 		</UseDraggable>
 
 		<ul id="articleTabs" class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
-			<li class="active"><a href="#content" data-toggle="tab">Content</a></li>
-			<li><a href="#metadata" data-toggle="tab">Metadata</a></li>
-			<li v-if="statisticsEnabled"><a href="#statistics" data-toggle="tab">Statistics</a></li>
+			<li :class="{ active: activeArticleTab === 'content' }"><a href="#content" @click.prevent="activeArticleTab = 'content'">Content</a></li>
+			<li :class="{ active: activeArticleTab === 'metadata' }"><a href="#metadata" @click.prevent="activeArticleTab = 'metadata'">Metadata</a></li>
+			<li v-if="statisticsEnabled" :class="{ active: activeArticleTab === 'statistics' }"><a href="#statistics" @click.prevent="activeArticleTab = 'statistics'">Statistics</a></li>
 		</ul>
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px">
-			<div id="content" class="tab-pane active">
+			<div id="content" class="tab-pane" :class="{ active: activeArticleTab === 'content' }">
 				<h2 v-if="isParallel" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
 				<Spinner v-if="contents.isLoading()" />
 				<div v-else-if="contents.isError()">
@@ -64,7 +57,7 @@
 				<InstancedHtml v-if="contents.isLoaded()" :value="contents.value.container" />
 			</div>
 
-			<div id="metadata" class="tab-pane">
+			<div id="metadata" class="tab-pane" :class="{ active: activeArticleTab === 'metadata' }">
 				<Spinner v-if="metadata.isLoading()" />
 				<div v-if="metadata.isError()">
 					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#metadata_error" aria-expanded="false" aria-controls="metadata_error"> Click here to see errors </a><br />
@@ -74,12 +67,15 @@
 						</div>
 					</div>
 				</div>
-				<template v-else-if="metadata.isLoaded()">
-					<h2 v-if="metadata.value.docFields.titleField" style="word-break: break-all">
-						{{ metadata.value.docInfo[metadata.value.docFields.titleField]?.join(', ') || $t('results.groupBy.groupNameWithoutValue') }}
+				<template v-if="metadata.isLoaded()">
+					<h2 v-if="metadata.value.json.docFields.titleField" style="word-break: break-all">
+						{{ metadata.value.json.docInfo[metadata.value.json.docFields.titleField]?.join(', ') || $t('results.groupBy.groupNameWithoutValue') }}
 						<template v-if="isParallel">{{ viewField ? $tAnnotatedFieldDisplayName(viewField) : 'Error: missing viewfield.' }}</template>
 					</h2>
+					<InstancedHtml :value="metadata.value.html" />
+				</template>
 
+				<template v-else-if="metadata.isLoaded()">
 					<table class="table-striped">
 						<tbody>
 							<tr v-if="!hits.isEmpty()">
@@ -103,23 +99,36 @@
 										{{ $tMetaDisplayName(f) }}<debug> [{{ f.id }}]</debug>
 									</td>
 									<td>
-										<template v-if="metadata.value.docInfo[f.id]?.length">{{ metadata.value.docInfo[f.id].join(', ') }}</template>
+										<template v-if="metadata.value.json.docInfo[f.id]?.length">{{ metadata.value.json.docInfo[f.id].join(', ') }}</template>
 										<em v-else class="text-muted">{{ $t('results.groupBy.groupNameWithoutValue') }}</em>
 									</td>
 								</tr>
 							</template>
 							<tr>
 								<td>Document length (tokens)</td>
-								<td id="docLengthTokens">{{ metadata.value.docInfo.tokenCounts?.find(tc => tc.fieldName === inputs!.viewField)?.tokenCount }}</td>
+								<td id="docLengthTokens">{{ metadata.value.json.docInfo.tokenCounts?.find(tc => tc.fieldName === inputs!.viewField)?.tokenCount }}</td>
 							</tr>
 						</tbody>
 					</table>
 				</template>
 			</div>
 
-			<div id="statistics" class="tab-pane" v-if="statisticsEnabled">
-				<Spinner v-if="snippetAndDocument.isLoading()" />
-				<ArticlePageStatistics v-else-if="snippetAndDocument.isLoaded()" :data="snippetAndDocument" />
+			<div id="statistics" class="tab-pane" :class="{ active: activeArticleTab === 'statistics' }" v-if="statisticsEnabled && activeArticleTab === 'statistics'">
+				<h4 v-if="!statisticsEnabled" class="text-muted text-center">
+					<!-- TODO i18n -->
+					<em>No statistics have been configured for this corpus.</em>
+				</h4>
+				<Spinner v-else-if="statistics.isLoading()" center size="60px" />
+				<div v-else-if="statistics.isError()" class="text-center">
+					<h3 class="text-danger">
+						<em>{{ statistics.error.message }}</em>
+					</h3>
+					<br />
+					<!-- TODO retry mechanic -->
+					<!-- <button type="button" class="btn btn-lg btn-default" @click="error = null; load()">Retry</button> -->
+				</div>
+
+				<ArticlePageStatistics v-else-if="statistics.isLoaded()" :snippet="statistics.value[0]" :document="statistics.value[1].json" :is-paginated="cfPageConfig.pageSize != null" />
 			</div>
 		</div>
 	</div>
@@ -127,15 +136,14 @@
 
 <script setup lang="ts">
 import { UseDraggable } from '@vueuse/components';
-import { computed, onUnmounted, watch } from 'vue';
+import { computed, onUnmounted, ref, watch, watchEffect } from 'vue';
 import { useRoute, useRouter, type LocationQueryRaw, type LocationQueryValue } from 'vue-router';
 
 import * as UIStore from '@/app/state/ui-state';
+import { useCfPageConfig } from '@/app/state/useCorpusContext';
 import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
-import { useCfPageConfig } from '@/app/state/useCorpusContext';
 import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
-import { fieldSubset } from '@/utils';
 // TODO
 // import initTooltips from '@/modules/expandable-tooltips';
 // initTooltips({
@@ -151,11 +159,12 @@ import { fieldSubset } from '@/utils';
 // issues with this page:
 // data comes from all manner of places (store, url, etc)
 // Need to fix url-parsing
+import { fieldSubset } from '@/utils';
 
 import { createArticleStreams } from './article';
 
 import { useBlackLabApi, useFrontendApi } from '@/shared/api';
-import { loadableFromStream } from '@/shared/utils/loadable/loadable-streams';
+import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-streams';
 
 // import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
 // import ArticlePageParallel from '@/pages/article/ArticlePageParallel.vue';
@@ -164,18 +173,22 @@ import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 
-const articleStreams = createArticleStreams(useBlackLabApi(), useFrontendApi());
-const { contents$, hitToHighlight$, hits$, input$, metadata$, snippetAndDocument$, validPaginationParameters$ } = articleStreams;
+const blacklab = useBlackLabApi();
+const articleStreams = createArticleStreams(blacklab, useFrontendApi());
+const { contents$, hitToHighlight$, hits$, input$, metadata$, validPaginationParameters$, currentPageSnippet$, retrieveSnippetToggle$ } = articleStreams;
 const route = useRoute();
 const router = useRouter();
 const cfPageConfig = useCfPageConfig();
+const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 
 const metadata = loadableFromStream(metadata$);
 const contents = loadableFromStream(contents$);
 const hits = loadableFromStream(hits$);
 const hitToHighlight = loadableFromStream(hitToHighlight$);
 const validPaginationInfo = loadableFromStream(validPaginationParameters$);
-const snippetAndDocument = loadableFromStream(snippetAndDocument$);
+const statistics = loadableFromStream(combineLoadableStreams([currentPageSnippet$, metadata$] as const));
+
+watchEffect(() => retrieveSnippetToggle$.next(activeArticleTab.value === 'statistics' && statisticsEnabled.value));
 
 const inputs = computed(() => {
 	const annotatedFields = CorpusStore.get.allAnnotatedFieldsMap();
@@ -205,6 +218,10 @@ const metadataFieldsToShow = computed(() =>
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
 const isParallel = computed(() => CorpusStore.get.isParallelCorpus());
 const viewField = computed(() => CorpusStore.get.allAnnotatedFieldsMap()[inputs.value?.viewField ?? '']);
+
+watchEffect(() => {
+	if (!statisticsEnabled.value && activeArticleTab.value === 'statistics') activeArticleTab.value = 'content';
+});
 
 useMarkPageBootstrapSettledWhen(computed(() => (contents.isLoaded() || contents.isError()) && (metadata.isLoaded() || metadata.isError())));
 
@@ -298,7 +315,7 @@ onUnmounted(() => {
 	hits.stop();
 	hitToHighlight.stop();
 	validPaginationInfo.stop();
-	snippetAndDocument.stop();
+	statistics.stop();
 });
 </script>
 

@@ -1,24 +1,18 @@
 <template>
-	<div></div>
+	<div ref="content"></div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
-export default defineComponent({
-	props: {
-		value: null as any as () => HTMLElement | null | undefined | string,
-	},
-	watch: {
-		value: {
-			immediate: true,
-			handler() {
-				this.$nextTick(() => {
-					// wait for mount
-					if (typeof this.value === 'string') this.$el.innerHTML = '';
-					else if (this.value) this.$el.replaceChildren(this.value);
-				});
-			},
-		},
-	},
+<script setup lang="ts">
+import { useTemplateRef, watchEffect } from 'vue';
+
+const props = defineProps<{
+	value: HTMLElement | null | undefined | string;
+}>();
+
+const content = useTemplateRef<HTMLDivElement>('content');
+
+watchEffect(() => {
+	if (props.value) content.value?.replaceChildren(props.value);
+	else content.value?.replaceChildren();
 });
 </script>

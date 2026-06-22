@@ -1,11 +1,11 @@
 import type { Observable } from 'rxjs';
-import { combineLatest, distinctUntilChanged, map, of, ReplaySubject, shareReplay } from 'rxjs';
+import { BehaviorSubject, combineLatest, distinctUntilChanged, map, mergeMap, of, ReplaySubject, shareReplay } from 'rxjs';
 
 import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 
 import type { BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
 import { binarySearch } from '@/shared/utils/array-utils';
-import type { Loadable } from '@/shared/utils/loadable/loadable';
+import { Loadable } from '@/shared/utils/loadable/loadable';
 import {
 	combineLoadables,
 	combineLoadableStreams,
@@ -13,7 +13,6 @@ import {
 	compareAsSortedJson,
 	mapLoaded,
 	switchMapLoaded,
-	toObservable,
 	withRequiredKeys,
 } from '@/shared/utils/loadable/loadable-streams';
 import { clamp } from '@/shared/utils/number-utils';
@@ -69,12 +68,30 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 	const inputsFromStore$ = new ReplaySubject<Input>(1);
 	const input$ = inputsFromStore$.pipe(distinctUntilChanged(compareAsSortedJson), shareReplay(1));
 
-	// Document metadata
+	const retrieveSnippetToggle$ = new BehaviorSubject<boolean>(false);
+
+	// Document metadata, both as JSON and HTML.
+	// The HTML is used to display the document metadata in the UI, and has the backend XSLT transformations applied,
+	// while the JSON is used to extract the document length for pagination purposes.
 	const metadata$ = input$.pipe(
 		map(withRequiredKeys('indexId', 'docId')),
 		mapLoaded(i => ({ indexId: i.indexId, docId: i.docId })),
 		distinctUntilChanged(compareAsSortedJson),
-		switchMapLoaded(i => blacklab.getDocumentInfo(i.indexId, i.docId).toObservable()),
+		switchMapLoaded(i =>
+			combineLoadableStreams({
+				json: blacklab.getDocumentInfo(i.indexId, i.docId).toObservable(),
+				html: frontend
+					.getDocumentMetadata(i.indexId, i.docId)
+					.toObservable()
+					.pipe(
+						mapLoaded(html => {
+							const container = document.createElement('div');
+							container.innerHTML = html;
+							return container;
+						}),
+					),
+			}),
+		),
 		shareReplay(1),
 	);
 
@@ -111,7 +128,7 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 	 */
 	const validPaginationParameters$: Observable<Loadable<ValidPaginationAndDocDisplayParameters>> = metadata$.pipe(
 		switchMapLoaded(m => combineLoadableStreamsIncludingEmpty({ doc: of(m), input: input$, hits: hits$ })),
-		mapLoaded(({ input, doc, hits }) => fixInput(input, doc, hits)),
+		mapLoaded(({ input, doc, hits }) => fixInput(input, doc.json, hits)),
 		distinctUntilChanged(compareAsSortedJson),
 		shareReplay(1),
 	);
@@ -164,44 +181,36 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 			const firstVisibleHitIndex = Math.abs(binarySearch(hits, h => pagination.wordstart - h[0]));
 			const hitIndexToHighlight = pagination.findhit ? binarySearch(hits, h => pagination.findhit! - h[0]) : firstVisibleHitIndex;
 			const localHitIndexToHighlight = hitIndexToHighlight - firstVisibleHitIndex;
+			const hl = highlights[localHitIndexToHighlight] as HTMLElement | undefined;
 			return {
 				totalHits: hits.length,
 				hitIndexToHighlight,
 				firstVisibleHitIndex,
 				localHitIndexToHighlight,
-				hl: highlights[localHitIndexToHighlight] as HTMLElement | undefined, // when out of bounds, this will be undefined
+				hl,
+				isHitVisible: hl != null,
 				container,
 			};
 		}),
 		shareReplay(1),
 	);
 
-	const snippet$ = validPaginationParameters$.pipe(
-		switchMapLoaded(p =>
-			toObservable(
-				blacklab.getSnippet(
-					p.indexId,
-					p.docId,
-					p.viewField,
-					0, // start
-					p.docLength, // end
-					0, // context
-				),
-			),
-		),
+	const currentPageSnippet$ = combineLatest([validPaginationParameters$, retrieveSnippetToggle$] as const).pipe(
+		mergeMap(([pagination, enabled]) => (enabled ? of(pagination) : of(Loadable.Empty()))),
+		switchMapLoaded(pagination => blacklab.getSnippet(pagination.indexId, pagination.docId, pagination.viewField, pagination.wordstart, pagination.wordend, 0).toObservable()),
 		shareReplay(1),
 	);
-	const snippetAndDocument$ = combineLoadableStreams([snippet$, metadata$] as const);
 
 	return {
 		input$: inputsFromStore$,
+		currentPageSnippet$,
+		retrieveSnippetToggle$,
 		metadata$,
 		hits$,
 		validPaginationParameters$,
 		correctionsForStore$,
 		contents$,
 		hitToHighlight$,
-		snippetAndDocument$,
 	};
 }
 

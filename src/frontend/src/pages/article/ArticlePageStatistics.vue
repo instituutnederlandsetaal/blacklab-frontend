@@ -1,55 +1,40 @@
 <template>
 	<div class="row">
-		<Spinner v-if="data.isLoading()" center size="60px" />
-		<div v-else-if="data.isError()" class="text-center">
-			<h3 class="text-danger">
-				<em>{{ data.error.message }}</em>
-			</h3>
-			<br />
-			<!-- TODO retry mechanic -->
-			<!-- <button type="button" class="btn btn-lg btn-default" @click="error = null; load()">Retry</button> -->
+		<div
+			v-if="statisticsTableData"
+			:class="{
+				'col-xs-12': true,
+				'col-md-6': !!statisticsTableData,
+			}"
+		>
+			<table class="table" style="table-layout: auto; width: 100%">
+				<thead>
+					<tr>
+						<th colspan="2" class="text-center">Document Statistics<template v-if="isPaginated"> (current page)</template></th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr v-for="(value, key) in statisticsTableData" :key="key">
+						<td>
+							<strong>{{ key }}</strong>
+						</td>
+						<td>{{ value }}</td>
+					</tr>
+				</tbody>
+			</table>
 		</div>
-		<h4 v-else-if="!isEnabled" class="text-muted text-center">
-			<!-- TODO i18n -->
-			<em>No statistics have been configured for this corpus.</em>
-		</h4>
-		<template v-else-if="data.isLoaded()">
-			<div
-				v-if="statisticsTableData"
-				:class="{
-					'col-xs-12': true,
-					'col-md-6': !!statisticsTableData,
-				}"
-			>
-				<table class="table" style="table-layout: auto; width: 100%">
-					<thead>
-						<tr>
-							<th colspan="2" class="text-center">Document Statistics</th>
-						</tr>
-					</thead>
-					<tbody>
-						<tr v-for="(value, key) in statisticsTableData" :key="key">
-							<td>
-								<strong>{{ key }}</strong>
-							</td>
-							<td>{{ value }}</td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
 
-			<AnnotationDistributions
-				v-if="distributionData"
-				:class="{
-					'col-xs-12': true,
-					'col-md-6': !!statisticsTableData,
-				}"
-				:snippet="data.value[0]"
-				v-bind="distributionData"
-			/>
+		<AnnotationDistributions
+			v-if="distributionData"
+			:class="{
+				'col-xs-12': true,
+				'col-md-6': !!statisticsTableData,
+			}"
+			:snippet
+			v-bind="distributionData"
+		/>
 
-			<AnnotationGrowths v-if="growthData" class="col-xs-12" :snippet="data.value[0]" v-bind="growthData" />
-		</template>
+		<AnnotationGrowths v-if="growthData" class="col-xs-12" :snippet v-bind="growthData" />
 	</div>
 </template>
 
@@ -63,7 +48,6 @@ import { type PropType } from 'vue';
 
 import * as ArticleStore from '@/features/article/model/article-state';
 import type * as BLTypes from '@/types/blacklabtypes';
-import type { Loadable } from '@/shared/utils/loadable/loadable';
 
 import Spinner from '@/components/Spinner.vue';
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
@@ -86,15 +70,16 @@ export default defineComponent({
 		AnnotationGrowths,
 	},
 	props: {
-		data: { type: Object as PropType<Loadable<readonly [BLTypes.BLHitSnippet, BLTypes.BLDocument]>>, required: true },
+		snippet: { type: Object as PropType<BLTypes.BLHitSnippet>, required: true },
+		document: { type: Object as PropType<BLTypes.BLDocument>, required: true },
+		isPaginated: Boolean,
 	},
 	computed: {
-		isEnabled: ArticleStore.get.statisticsEnabled,
 		baseColor: ArticleStore.get.baseColor,
 
-		getStatistics: ArticleStore.get.statisticsTableFn,
 		statisticsTableData(): any {
-			return this.getStatistics && this.data.isLoaded() ? this.getStatistics(this.data.value[1], this.data.value[0]) : null;
+			const fn = ArticleStore.get.statisticsTableFn();
+			return fn && fn(this.document, this.snippet);
 		},
 		distributionData(): any {
 			const data = ArticleStore.get.distributionAnnotation();
