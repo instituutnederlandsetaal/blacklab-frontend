@@ -13,7 +13,7 @@
 			</div>
 
 			<div class="navbar-content-container">
-				<!-- <router-link class="navbar-brand" :to="indexId ? {name: 'search', params: {corpus: indexId}} : {name: 'corpora'}" >{{ indexDisplayName }}</router-link> -->
+				<router-link class="navbar-brand" :to="indexId ? { name: 'search', params: { corpus: indexId } } : { name: 'corpora' }">{{ indexDisplayName }}</router-link>
 
 				<ul class="nav navbar-nav navbar-collapse" :class="{ visible: !collapsed }">
 					<li v-for="link in links" :key="link.attributes.href">
@@ -39,6 +39,7 @@ import { defineComponent } from 'vue';
 import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
+
 import { localStorageSynced } from '@/shared/utils/localstore';
 
 import LoginButton from '@/components/LoginButton.vue';
@@ -63,7 +64,7 @@ export default defineComponent({
 		// A little speficic, but this way on purpose, since the config and index are loaded async, and we want to show something asap.
 		// If no index is loaded at all, show the default corpus-frontend name.
 		indexDisplayName(): string {
-			return this.config.displayName || this.index?.displayName || this.indexId || 'Corpus-Frontend';
+			return this.config.displayName || this.index?.displayName || this.indexId || 'BlackLab Frontend';
 		},
 		links(): Array<{ label: string; attributes: Record<string, string>; isExternal: boolean }> {
 			return this.config.navbarLinks.map(l => {

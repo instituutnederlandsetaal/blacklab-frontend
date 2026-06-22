@@ -48,6 +48,7 @@
 			<SelectPicker
 				v-else-if="currentAnnotation?.values"
 				data-attribute-role="value"
+				data-width="auto"
 				:options="currentAnnotation.values.map(v => ({ ...v, value: escapeRegex(v.value) }))"
 				multiple
 				searchable
@@ -63,6 +64,7 @@
 				v-else
 				data-attribute-role="value"
 				type="text"
+				data-width="auto"
 				data-class="form-control input-sm bl-no-border-radius bl-token-attribute-main-input"
 				:dir="options.textDirection"
 				:url="autocompleteUrl"

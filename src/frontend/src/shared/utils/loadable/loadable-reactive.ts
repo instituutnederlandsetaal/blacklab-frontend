@@ -201,7 +201,7 @@ export function combineLoadablesReactive<T extends MaybeRefLoadablesArrayOrObjec
 	loadables: T,
 	options: { includeEmpty?: boolean } = {},
 ): LoadableFromRequest<ResolvedLoadedValues<T> | ResolvedLoadedValuesIncludingEmpty<T>> {
-	return options.includeEmpty ? loadableFromLoadables(loadables, { includeEmpty: true }) : loadableFromLoadables(loadables);
+	return options.includeEmpty ? combineLoadables(loadables, { includeEmpty: true }) : combineLoadables(loadables);
 }
 
 export function mapLoadableReactive<T, U, S extends LoadableState.loaded>(loadable: MaybeRefLoadable<T>, state: S, mapper: (value: T) => U): LoadableFromRequest<U>;
@@ -239,7 +239,7 @@ export function mapLoadedReactive<T extends MaybeRefLoadablesArrayOrObject, U>(
 ): LoadableFromRequest<U> {
 	return isSingleLoadableInput(loadables)
 		? mapLoadableReactive(loadables, LoadableState.loaded, mapper as (value: ResolvedLoadedValues<T>) => U)
-		: mapLoadableReactive(loadableFromLoadables(loadables), LoadableState.loaded, mapper);
+		: mapLoadableReactive(combineLoadables(loadables), LoadableState.loaded, mapper);
 }
 
 export function flatMapLoadedReactive<T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: T) => MaybeRefLoadable<U>): LoadableFromRequest<U>;
@@ -250,12 +250,12 @@ export function flatMapLoadedReactive<T extends MaybeRefLoadablesArrayOrObject, 
 ): LoadableFromRequest<U> {
 	return isSingleLoadableInput(loadables)
 		? flatMapLoadableReactive(loadables, LoadableState.loaded, mapper as (value: ResolvedLoadedValues<T>) => MaybeRefLoadable<U>)
-		: flatMapLoadableReactive(loadableFromLoadables(loadables), LoadableState.loaded, mapper);
+		: flatMapLoadableReactive(combineLoadables(loadables), LoadableState.loaded, mapper);
 }
 
-export function loadableFromLoadables<T extends MaybeRefLoadablesArrayOrObject>(loadables: T): LoadableFromRequest<ResolvedLoadedValues<T>>;
-export function loadableFromLoadables<T extends MaybeRefLoadablesArrayOrObject>(loadables: T, options: { includeEmpty: true }): LoadableFromRequest<ResolvedLoadedValuesIncludingEmpty<T>>;
-export function loadableFromLoadables<T extends MaybeRefLoadablesArrayOrObject>(
+export function combineLoadables<T extends MaybeRefLoadablesArrayOrObject>(loadables: T): LoadableFromRequest<ResolvedLoadedValues<T>>;
+export function combineLoadables<T extends MaybeRefLoadablesArrayOrObject>(loadables: T, options: { includeEmpty: true }): LoadableFromRequest<ResolvedLoadedValuesIncludingEmpty<T>>;
+export function combineLoadables<T extends MaybeRefLoadablesArrayOrObject>(
 	loadables: T,
 	options: { includeEmpty?: boolean } = {},
 ): LoadableFromRequest<ResolvedLoadedValues<T> | ResolvedLoadedValuesIncludingEmpty<T>> {

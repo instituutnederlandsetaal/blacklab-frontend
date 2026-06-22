@@ -131,8 +131,8 @@ import { corpusCustomizations } from '@/utils/customization';
 import debug, { debugLog, debugLogCat } from '@/utils/debug';
 import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
-import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { useBlackLabApi } from '@/shared/api';
+import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { localStorageSynced } from '@/shared/utils/localstore';
 
 import Pagination from '@/components/Pagination.vue';
@@ -189,6 +189,7 @@ export default defineComponent({
 		showTitles: localStorageSynced('cf/results/showTitles', true),
 
 		debug,
+		blacklab: useBlackLabApi(),
 	}),
 	methods: {
 		markDirty() {
@@ -203,7 +204,6 @@ export default defineComponent({
 			}
 		},
 		refresh() {
-			const blacklab = useBlackLabApi();
 			this.isDirty = false;
 			debugLogCat('results', 'this is when the search should be refreshed');
 
@@ -238,7 +238,7 @@ export default defineComponent({
 			const params = RootStore.get.blacklabParameters()!;
 			const axiosParams = { headers: { 'Cache-Control': 'no-cache' } };
 			debugLog('starting search', this.id, params);
-			const r = this.id === 'hits' ? blacklab.getHits(this.indexId, params, axiosParams) : blacklab.getDocs(this.indexId, params, axiosParams);
+			const r = this.id === 'hits' ? this.blacklab.getHits(this.indexId, params, axiosParams) : this.blacklab.getDocs(this.indexId, params, axiosParams);
 			this.request = r;
 
 			setTimeout(() => this.scrollToResults(), 1500);

@@ -2,13 +2,6 @@
 	<div :class="wideView.value ? 'container-fluid' : 'container'" v-if="storeLoadingState.value?.index">
 		<QueryForm />
 		<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary" />
-		<!-- <Debug v-if="resultsVisible">
-			<div style="margin: 0 -15px; margin-bottom: 40px;">
-				<div>{{ $t('searchPage.fullQuery') }}: </div>
-				<pre><template v-for="(v, k) in debugQuery"><template v-if="v != null && v !== ''">{{k}}: {{ v }}<br></template></template></pre>
-			</div>
-		</Debug> -->
-		<pre>{{ { resultsVisible } }}</pre>
 
 		<Results v-show="resultsVisible" id="results" />
 	</div>

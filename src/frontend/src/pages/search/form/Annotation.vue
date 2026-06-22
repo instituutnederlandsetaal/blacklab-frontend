@@ -19,6 +19,7 @@
 			<Lexicon v-else-if="annotation.uiType === 'lexicon'" :annotationId="annotation.id" :definition="annotation" v-model="value" ref="reset" />
 			<div v-else :class="bare ? undefined : 'input-group'">
 				<Autocomplete
+					data-width="100%"
 					useQuoteAsWordBoundary
 					:id="inputId"
 					:name="inputId"
@@ -26,7 +27,7 @@
 					:disabled="annotation.uiType === 'pos'"
 					:dir="textDirection"
 					:autocomplete="autocomplete"
-					:url="autocompleteUrl"
+					:getData="autocompleteFn"
 					v-model="value"
 				/>
 				<div v-if="!bare" class="input-group-btn">
@@ -67,7 +68,7 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
-import { useBlackLabPaths } from '@/shared/api';
+import { useBlackLabApi } from '@/shared/api';
 import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid';
@@ -89,6 +90,7 @@ const props = defineProps<{
 }>();
 const translate = useI18n();
 
+const blacklab = useBlackLabApi();
 const uid = useUid();
 const posOpen = ref(false);
 
@@ -139,7 +141,7 @@ const displayName = computed(() => translate.$tAnnotDisplayName(props.annotation
 const description = computed(() => translate.$tAnnotDescription(props.annotation));
 const options = computed<Option[]>(() => props.annotation.values || []);
 const autocomplete = computed(() => props.annotation.uiType === 'combobox' && props.annotation.annotatedFieldId !== '');
-const autocompleteUrl = computed(() => useBlackLabPaths().autocompleteAnnotation(CorpusStore.getState()!.id, props.annotation.annotatedFieldId, props.annotation.id));
+const autocompleteFn = (term: string) => blacklab.getTermAutocomplete(CorpusStore.getState()!.id, props.annotation.annotatedFieldId, props.annotation.id, term);
 
 function onFileChanged(event: Event) {
 	const fileInput = event.target as HTMLInputElement;

@@ -1,16 +1,19 @@
 import { watchEffect } from 'vue';
 
-import { blacklab } from '@/api';
 import { FilteredResultCountLoader } from '@/api/async/logic/result-count/result-count-from-filters';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as QueryStore from '@/features/search/model/query-state';
+import type { BlackLabApi } from '@/shared/api/lib/api-types';
 
-export const selectedSubcorpusLoader = new FilteredResultCountLoader(blacklab);
+export let selectedSubcorpusLoader: FilteredResultCountLoader;
 
-watchEffect(() => {
-	const index = CorpusStore.getState();
-	if (!index) return;
-	const annotatedFieldId = QueryStore.get.sourceField().id;
-	const filter = QueryStore.get.filterString();
-	selectedSubcorpusLoader.next({ index, annotatedFieldId, filter });
-});
+export function initSelectedSubcorpusLoader(blacklab: BlackLabApi) {
+	selectedSubcorpusLoader = new FilteredResultCountLoader(blacklab);
+	watchEffect(() => {
+		const index = CorpusStore.getState();
+		if (!index) return;
+		const annotatedFieldId = QueryStore.get.sourceField().id;
+		const filter = QueryStore.get.filterString();
+		selectedSubcorpusLoader.next({ index, annotatedFieldId, filter });
+	});
+}

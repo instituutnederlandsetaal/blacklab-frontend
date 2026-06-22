@@ -1,22 +1,21 @@
-import { onScopeDispose, watch } from 'vue';
+import { watch, type App } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
-import { corpusDataLoader } from '@/features/corpus/resources/corpus-resource';
+import { useCorpusContextLoader } from '@/app/state/useCorpusContext';
 import { setCurrentCorpusDataGlobal } from '@/interop/window-globals';
 
-let started = false;
-export function startCorpusBootstrapEffect() {
-	if (started) return;
-	started = true;
-	watch(
-		() => corpusDataLoader.value,
-		corpusData => {
-			setCurrentCorpusDataGlobal(corpusDataLoader);
-			if (corpusData) {
-				void RootStore.init(corpusData);
-			}
-		},
-		{ immediate: true },
-	);
-	onScopeDispose(() => (started = false));
+export function startCorpusBootstrapEffect(app: App) {
+	app.runWithContext(() => {
+		const corpusContext = useCorpusContextLoader();
+		watch(
+			() => corpusContext.value,
+			context => {
+				setCurrentCorpusDataGlobal(context);
+				if (context) {
+					void RootStore.init(context);
+				}
+			},
+			{ immediate: true },
+		);
+	});
 }

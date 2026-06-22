@@ -115,6 +115,9 @@ export default defineConfig({
 	// 	},
 	// },
 	test: {
+		coverage: {
+			provider: 'v8', // or 'istanbul'
+		},
 		projects: [
 			{
 				extends: true,

@@ -6,7 +6,8 @@
 	"license": "Apache-2.0",
 	"author": "INT",
 	"scripts": {
-		"test": "vitest",
+		"test": "vitest --run --coverage",
+		"test:watch": "vitest --watch",
 		"build": "npm run build:blfschema && npm run build:source",
 		"build:blfschema": "cd assets && node compile-schema.js && cd ..",
 		"build:source": "vite build",

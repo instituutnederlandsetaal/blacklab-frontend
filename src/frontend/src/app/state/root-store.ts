@@ -1,7 +1,6 @@
 import cloneDeep from 'clone-deep';
 import { shallowRef } from 'vue';
 
-import { corpusDataLoader } from '@/api/async/instances/corpus-data';
 import type { CorpusChange } from '@/api/async/logic/corpus/corpus-data-from-id';
 import * as UIModule from '@/app/state/ui-state';
 // Results
@@ -97,8 +96,6 @@ const get = {
 };
 
 const actions = {
-	retryLoading: () => corpusDataLoader.retry(),
-
 	searchFromSubmit: () => {
 		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
 			actions.searchSplitBatches();

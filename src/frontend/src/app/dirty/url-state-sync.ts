@@ -5,6 +5,7 @@ import { filter, map, mergeMap } from 'rxjs/operators';
 // Define a few pipelines to perform actions on streams of data
 import URI from 'urijs';
 import { watch } from 'vue';
+import type { Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
 import * as ArticleStore from '@/features/article/model/article-state';
@@ -17,7 +18,6 @@ import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
-import router, { initialUrlStateApplied } from '@/navigation/router';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { stateToUrl } from '@/url/state-to-url';
 import UrlStateParserArticle from '@/url/url-state-parser-article';
@@ -90,7 +90,7 @@ function isNavigationDuplicated(err: unknown): boolean {
 	return maybeError.name === 'NavigationDuplicated' || (maybeError.message || '').includes('Avoided redundant navigation');
 }
 
-async function pushUrlWithHistoryState(url: string, state: BrowserHistoryEntry): Promise<void> {
+async function pushUrlWithHistoryState(router: Router, url: string, state: BrowserHistoryEntry): Promise<void> {
 	const target = toRouterPath(url);
 	try {
 		await router.push(target);
@@ -111,7 +111,7 @@ async function pushUrlWithHistoryState(url: string, state: BrowserHistoryEntry):
 	);
 }
 
-function createStoreToUrlSubscription() {
+function createStoreToUrlSubscription(router: Router) {
 	return urlInputParameters$
 		.pipe(
 			map<
@@ -231,13 +231,13 @@ function createStoreToUrlSubscription() {
 				url: v.url,
 			});
 			debugLogCat('history', `Calling router.push (then replaceState) with entry:`, v.entry, `and url:`, v.url);
-			pushUrlWithHistoryState(v.url, v.entry).catch(e => {
+			pushUrlWithHistoryState(router, v.url, v.entry).catch(e => {
 				console.error('Failed to push URL through router', e);
 			});
 		});
 }
 
-export function startStoreToUrlReflection() {
+function startStoreToUrlReflection(router: Router, initialUrlStateApplied: Promise<void>) {
 	if (stopStoreToUrlReflectionHandle) {
 		return stopStoreToUrlReflectionHandle;
 	}
@@ -248,7 +248,7 @@ export function startStoreToUrlReflection() {
 	let reflectionReady = false;
 	let latestManagedState: QueryState | null = null;
 
-	const storeToUrlSubscription = createStoreToUrlSubscription();
+	const storeToUrlSubscription = createStoreToUrlSubscription(router);
 	const stopWatch = watch(
 		(): SyncWatchState => ({
 			routeName: typeof router.currentRoute.value.name === 'string' ? router.currentRoute.value.name : null,
@@ -306,7 +306,7 @@ export function startStoreToUrlReflection() {
 	return stopStoreToUrlReflectionHandle;
 }
 
-export function startBrowserHistoryRestore() {
+function startBrowserHistoryRestore() {
 	if (stopBrowserHistoryRestoreHandle) {
 		return stopBrowserHistoryRestoreHandle;
 	}
@@ -330,12 +330,12 @@ export function startBrowserHistoryRestore() {
 	return stopBrowserHistoryRestoreHandle;
 }
 
-export default () => {
-	const stopStoreToUrl = startStoreToUrlReflection();
+export default function startUrlSync(router: Router, initialUrlStateApplied: Promise<void>) {
+	const stopStoreToUrl = startStoreToUrlReflection(router, initialUrlStateApplied);
 	const stopHistoryRestore = startBrowserHistoryRestore();
 
 	return () => {
 		stopStoreToUrl();
 		stopHistoryRestore();
 	};
-};
+}

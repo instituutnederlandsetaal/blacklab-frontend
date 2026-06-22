@@ -311,7 +311,8 @@ class I18nManager {
 		function processFetchResult(r: Promise<Response>): Promise<Record<string, any>> {
 			return r
 				.then<string>(async response => {
-					if (response.status === 404) throw `Custom messages for locale '${localeId}' not found. If this is unintentional, please place them in static/locales/${localeId}.json`;
+					if (response.status === 404)
+						throw `Custom messages for locale '${localeId}' not found. If this is unintentional, ensure ${indexId ? `${indexId}` : '<corporaInterfaceDefault>'}/static/locales/${localeId}.json exists and is readable.`;
 					if (!response.ok)
 						throw new Error(`Custom messages for locale '${localeId}' coult not be loaded:\n\tReceived ${response.status} ${response.statusText} while fetching: ${await response.text()}`);
 					return response.text();

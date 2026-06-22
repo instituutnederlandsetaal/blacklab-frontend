@@ -1,5 +1,5 @@
 import { tryOnScopeDispose } from '@vueuse/core';
-import { watch, type ObjectPlugin } from 'vue';
+import { toRef, watch, type MaybeRefOrGetter, type ObjectPlugin } from 'vue';
 import { createI18n as createVueI18n } from 'vue-i18n';
 
 import { createTranslate, provideTranslate } from './translate';
@@ -92,10 +92,11 @@ function bridgeManagerToVueI18n(manager: I18nManager, i18n: VueI18nBridge) {
 	return cleanup;
 }
 
-export function createI18n(): AppI18n {
+export function createI18n(indexId: MaybeRefOrGetter<string | undefined | null>): AppI18n {
 	const manager = new I18nManager(LOCALE_STORAGE_KEY);
 	registerDefaultLocales(manager);
 	void manager.setFallbackLocale('en-us');
+	watch(toRef(indexId), newId => manager.setIndexId(newId));
 
 	const vueI18nPlugin = createVueI18n({
 		legacy: false,

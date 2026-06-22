@@ -47,7 +47,6 @@
 						<!-- if not grouping on a label but on a specific position, then show the position picker. -->
 						<i18n-t v-if="selectedCriteriumAsPositional" keypath="results.groupBy.in_this_location_with_text">
 							<template #in_this_location>
-								<!-- doesn't seem to work if we don't wrap the selectpicker in a template. -->
 								<SelectPicker v-model="positionValue" hideEmpty data-width="auto" data-menu-width="auto" :options="positionOptions" />
 							</template>
 						</i18n-t>
@@ -252,6 +251,7 @@ export default defineComponent({
 		hits: undefined as undefined | BLHitResults,
 
 		active: false,
+		blacklab: useBlackLabApi(),
 	}),
 	computed: {
 		storeModule(): ResultsStore.ViewModule {
@@ -966,16 +966,14 @@ export default defineComponent({
 
 				this.hits = undefined;
 				if (this.firstHitPreviewQuery && this.type === 'hits') {
-					useBlackLabApi()
-						.getHits(CorpusStore.get.indexId()!, this.firstHitPreviewQuery)
-						.request.then(r => {
-							const data = r as BLHitResults;
-							if (isHitResults(data)) {
-								// Make sure the target hits (otherFields) 'know' they are the target of a relation.
-								mergeMatchInfos(data);
-							}
-							this.hits = data;
-						});
+					this.blacklab.getHits(CorpusStore.get.indexId()!, this.firstHitPreviewQuery).request.then(r => {
+						const data = r as BLHitResults;
+						if (isHitResults(data)) {
+							// Make sure the target hits (otherFields) 'know' they are the target of a relation.
+							mergeMatchInfos(data);
+						}
+						this.hits = data;
+					});
 				}
 			},
 		},

@@ -14,6 +14,7 @@ import type { FilterDefinition } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
 import { debugLogCat } from '@/utils/debug';
 
+import type { BlackLabPaths } from '@/shared/api/lib/api-types';
 import { mapReduce } from '@/shared/utils/map-reduce';
 
 export type FilterState = {
@@ -53,6 +54,11 @@ const initialState: ModuleRootState = {
 
 const state = reactive(structuredClone(initialState));
 const getState = () => state;
+let blacklabPaths: BlackLabPaths;
+
+export function setBlackLabPaths(paths: BlackLabPaths) {
+	blacklabPaths = paths;
+}
 
 const get = {
 	/** Return all filters holding a value */

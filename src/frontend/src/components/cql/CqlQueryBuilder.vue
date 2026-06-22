@@ -33,7 +33,7 @@ import { computed, watch } from 'vue';
 import * as UIStore from '@/app/state/ui-state';
 import type { CqlQueryBuilderData, CqlQueryBuilderOptions, CqlTokenData } from '@/components/cql/cql-types';
 import { COMPARATORS, OPERATORS } from '@/components/cql/cql-types';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import * as CorpusStore from '@/features/corpus/model/corpus-state.ts';
 import { getAnnotationSubset } from '@/utils';
 
 import { useI18n } from '@/shared/i18n/';

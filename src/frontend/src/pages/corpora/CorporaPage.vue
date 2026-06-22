@@ -112,6 +112,8 @@ export default defineComponent({
 		formatId: null as null | string,
 
 		refreshingCorpora: new Set() as Set<string>,
+
+		blacklab: useBlackLabApi(),
 	}),
 
 	computed: {
@@ -156,7 +158,7 @@ export default defineComponent({
 		},
 		refreshCorpora() {
 			this.loadingCorpora = true;
-			useBlackLabApi()
+			this.blacklab
 				.getCorpora()
 				.then(corpora => (this.corpora = corpora.sort((a, b) => a.displayName.localeCompare(b.displayName))))
 				.catch((e: ApiError) => (this.errorMessage = e.message))
@@ -164,7 +166,7 @@ export default defineComponent({
 		},
 		refreshFormats() {
 			this.loadingFormats = true;
-			useBlackLabApi()
+			this.blacklab
 				.getFormats()
 				.then(formats => (this.formats = formats.sort((a, b) => a.displayName.localeCompare(b.displayName))))
 				.catch((e: ApiError) => (this.errorMessage = e.message))
@@ -174,12 +176,11 @@ export default defineComponent({
 		async refreshCorpus(indexId: string) {
 			if (this.refreshingCorpora.has(indexId)) return;
 			this.refreshingCorpora.add(indexId);
-			const blacklab = useBlackLabApi();
 
 			const displayName = this.corpora.find(c => c.id === indexId)?.displayName || indexId;
 			try {
 				while (true) {
-					const newCorpusState = await blacklab.getCorpusStatus(indexId);
+					const newCorpusState = await this.blacklab.getCorpusStatus(indexId);
 					let corpus = this.corpora.find(c => c.id === indexId);
 					if (!corpus) break; // corpus was deleted?
 					Object.assign(corpus, newCorpusState);
@@ -223,7 +224,7 @@ export default defineComponent({
 			this.confirmAction = () => {
 				this.close();
 				this.loadingCorpora = true;
-				useBlackLabApi()
+				this.blacklab
 					.deleteCorpus(indexId)
 					.then(r => {
 						this.successMessage = r.status.message;
@@ -245,7 +246,7 @@ export default defineComponent({
 			this.confirmAction = () => {
 				this.close();
 				this.loadingFormats = true;
-				useBlackLabApi()
+				this.blacklab
 					.deleteFormat(format.id)
 					.then(r => {
 						this.successMessage = r.status.message;
@@ -262,9 +263,8 @@ export default defineComponent({
 	async created() {
 		try {
 			this.loadingFormats = this.loadingCorpora = this.loadingServerInfo = true;
-			const blacklab = useBlackLabApi();
 			try {
-				this.serverInfo = await blacklab.getServerInfo();
+				this.serverInfo = await this.blacklab.getServerInfo();
 			} catch (e) {
 				// @ts-expect-error message not in unknown
 				this.errorMessage = `Error loading BlackLab info: ${e.message}`;

@@ -1055,22 +1055,31 @@ export default defineComponent({
 	}
 }
 
-.combobox {
-	text-align: left;
-	&[dir='rtl'] {
-		text-align: right;
-	}
-
+.input-group .combobox {
+	width: unset;
 	// Bootstrap helper
-	&:not(.input-group-btn):not(.input-group-addon) {
+	&:not(.input-group-btn, .input-group-addon) {
 		position: relative;
+		display: inline-block;
+		width: 100%;
 
 		> .menu-button {
 			width: 100%;
 		}
 	}
+}
+
+.combobox {
+	text-align: left;
+	display: inline-block;
+	position: relative;
+	width: 220px; // standard default width
+	&[dir='rtl'] {
+		text-align: right;
+	}
 
 	> .menu-button {
+		width: 100%;
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;

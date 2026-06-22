@@ -5,7 +5,8 @@ import { map } from 'rxjs';
 import { describe, expect, test } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 
-import { InteractiveLoadable, Loadable } from '@/utils/loadable-streams';
+import { Loadable } from '@/shared/utils/loadable/loadable';
+import { InteractiveLoadable } from '@/shared/utils/loadable/loadable-streams';
 
 describe('InteractiveLoadable Vue template interop', () => {
 	test('renders .value from a component template', async () => {

@@ -1,11 +1,11 @@
 import { computed, watchEffect } from 'vue';
 import { useRoute } from 'vue-router';
 
-import { corpusDataLoader } from '@/features/corpus/resources/corpus-resource';
+import { useCorpusContextLoader } from '@/app/state/useCorpusContext';
 import { useCustomCss, useCustomJs, useFavicon, useTitle } from '@/interop/page-customization';
 import { setLegacyIndexIdGlobal } from '@/interop/window-globals';
 import { isRouteBootstrapSettled } from '@/navigation/page-bootstrap';
-import type { CustomRouteMeta } from '@/navigation/router';
+import { useCorpusId, useRouteMeta } from '@/navigation/router';
 import type { CFCustomCssEntry, CFCustomJsEntry } from '@/types/apptypes';
 
 function sortCustomizationEntries<T extends CFCustomCssEntry | CFCustomJsEntry>(entries: T[]): T[] {
@@ -14,25 +14,28 @@ function sortCustomizationEntries<T extends CFCustomCssEntry | CFCustomJsEntry>(
 
 export function startCustomizationInterop() {
 	const route = useRoute();
-	const routeMeta = computed(() => route.meta as CustomRouteMeta);
+	// since this is persistent and runs on all pages, make sure we use the true context, not the one that pretends it's loaded.
+	const context = useCorpusContextLoader();
+	const routeMeta = useRouteMeta();
+	const indexId = useCorpusId();
 	const pageName = computed(() => routeMeta.value?.name ?? '');
-	const displayName = computed(() => corpusDataLoader.value?.config.displayName ?? '');
+	const displayName = computed(() => (context.isLoaded() ? (context.value.index?.displayName ?? '') : ''));
 
 	// Set this one up first, so the variable is guaranteed to be set before dependent custom js is executed.
-	watchEffect(() => setLegacyIndexIdGlobal((route.params.indexId as string) || ''));
+	watchEffect(() => setLegacyIndexIdGlobal(indexId.value || ''));
 
-	useTitle(computed(() => routeMeta.value?.getTitle?.(displayName.value) ?? displayName.value));
+	useTitle(computed(() => routeMeta.value?.getTitle?.(displayName.value) ?? displayName.value ?? 'BlackLab Frontend'));
 
 	const _css = useCustomCss(
 		computed(() => {
-			const css = corpusDataLoader.value?.config.customCss ?? {};
+			const css = context.value?.config.customCss ?? {};
 			return sortCustomizationEntries([...(css[''] ?? []), ...(pageName.value ? (css[pageName.value] ?? []) : [])]);
 		}),
 	);
 
 	const js = useCustomJs(
 		computed(() => {
-			const js = corpusDataLoader.value?.config.customJs ?? {};
+			const js = context.value?.config.customJs ?? {};
 			return sortCustomizationEntries([...(js[''] ?? []), ...(pageName.value ? (js[pageName.value] ?? []) : [])]);
 		}),
 		{ immediate: false },
@@ -40,7 +43,7 @@ export function startCustomizationInterop() {
 
 	const _fav = useFavicon(
 		computed(() => {
-			const path = corpusDataLoader.value?.config?.faviconDir;
+			const path = context.value?.config.faviconDir;
 			return path ? `${path}/favicon.ico` : '';
 		}),
 		{

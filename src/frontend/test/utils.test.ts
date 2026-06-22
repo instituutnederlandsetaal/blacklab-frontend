@@ -1,12 +1,13 @@
 import { describe, expect, test } from 'vitest';
 
-import { tokenizeString } from '@/shared/utils/string-utils';
+import { escapeRegex, tokenizeString, unescapeRegex, type RegexEscapeOptions } from '@/shared/utils/string-utils';
 
 type ExpectedPart = {
 	start: number;
 	end: number;
 	value: string;
 	isQuoted?: boolean;
+	sourceValue?: string;
 };
 
 const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
@@ -114,6 +115,39 @@ const cases: Array<{ value: string; expect: ExpectedPart[] }> = [
 			},
 		],
 	},
+	{
+		value: String.raw`"keeps \"quotes\" literal" after`,
+		expect: [
+			{
+				start: 0,
+				end: 26,
+				value: 'keeps "quotes" literal',
+				sourceValue: String.raw`keeps \"quotes\" literal`,
+				isQuoted: true,
+			},
+			{
+				start: 27,
+				end: 32,
+				value: 'after',
+			},
+		],
+	},
+	{
+		value: String.raw`keeps\"quote literal`,
+		expect: [
+			{
+				start: 0,
+				end: 12,
+				value: 'keeps"quote',
+				sourceValue: String.raw`keeps\"quote`,
+			},
+			{
+				start: 13,
+				end: 20,
+				value: 'literal',
+			},
+		],
+	},
 ];
 
 describe('tokenizeString', () => {
@@ -122,14 +156,130 @@ describe('tokenizeString', () => {
 		expect(split).toHaveLength(expected.length);
 
 		split.forEach((part, index) => {
-			const { start, end, value, isQuoted } = expected[index];
+			const { start, end, value, sourceValue, isQuoted } = expected[index];
 			expect(part.start).toBe(start);
 			expect(part.end).toBe(end);
 			expect(part.isQuoted).toBe(isQuoted ?? false);
 			expect(part.value).toBe(value);
 
 			const expand = part.isQuoted ? 1 : 0;
-			expect(fullValue.substring(part.start + expand, part.end - expand)).toBe(value);
+			expect(fullValue.substring(part.start + expand, part.end - expand)).toBe(sourceValue ?? value);
 		});
+	});
+});
+
+const regexEscapeCases: Array<{
+	name: string;
+	value: string;
+	settings: RegexEscapeOptions;
+	expected: string;
+}> = [
+	{
+		name: 'quotes: escapes raw value when escaping is enabled',
+		value: '"raw quotes"',
+		settings: { escapeQuotes: true },
+		expected: String.raw`\"raw quotes\"`,
+	},
+	{
+		name: 'quotes: leaves raw value alone when escaping is disabled',
+		value: '"raw quotes"',
+		settings: { escapeQuotes: false },
+		expected: '"raw quotes"',
+	},
+	{
+		name: 'quotes: does not treat existing backslash+character pair as pre-escaped when escaping is enabled',
+		value: String.raw`\"pre-escaped quotes\"`,
+		settings: { escapeQuotes: true },
+		expected: String.raw`\\\"pre-escaped quotes\\\"`,
+	},
+	{
+		name: 'quotes: keeps pre-escaped value escaped when escaping is disabled',
+		value: String.raw`\"pre-escaped quotes\"`,
+		settings: { escapeQuotes: false },
+		expected: String.raw`\"pre-escaped quotes\"`,
+	},
+	{
+		name: 'pipes: escapes raw value when escaping is enabled',
+		value: 'a|b',
+		settings: { escapePipes: true },
+		expected: String.raw`a\|b`,
+	},
+	{
+		name: 'pipes: leaves raw value alone when escaping is disabled',
+		value: 'a|b',
+		settings: { escapePipes: false },
+		expected: 'a|b',
+	},
+	{
+		name: 'pipes: does not treat existing backslash+character pair as pre-escaped when escaping is enabled',
+		value: String.raw`a\|b`,
+		settings: { escapePipes: true },
+		expected: String.raw`a\\\|b`,
+	},
+	{
+		name: 'pipes: keeps pre-escaped value escaped when escaping is disabled',
+		value: String.raw`a\|b`,
+		settings: { escapePipes: false },
+		expected: String.raw`a\|b`,
+	},
+	{
+		name: 'stars: escapes raw value when wildcard escaping is enabled',
+		value: 'a*b',
+		settings: { escapeWildcards: true },
+		expected: String.raw`a\*b`,
+	},
+	{
+		name: 'stars: activates raw value when wildcard escaping is disabled',
+		value: 'a*b',
+		settings: { escapeWildcards: false },
+		expected: 'a.*b',
+	},
+	{
+		name: 'stars: does not treat existing backslash+character pair as pre-escaped when wildcard escaping is enabled',
+		value: String.raw`a\*b`,
+		settings: { escapeWildcards: true },
+		expected: String.raw`a\\\*b`,
+	},
+	{
+		name: 'stars: keeps pre-escaped value escaped when wildcard escaping is disabled',
+		value: String.raw`a\*b`,
+		settings: { escapeWildcards: false },
+		expected: String.raw`a\*b`,
+	},
+	{
+		name: 'question marks: escapes raw value when wildcard escaping is enabled',
+		value: 'a?b',
+		settings: { escapeWildcards: true },
+		expected: String.raw`a\?b`,
+	},
+	{
+		name: 'question marks: activates raw value when wildcard escaping is disabled',
+		value: 'a?b',
+		settings: { escapeWildcards: false },
+		expected: 'a.b',
+	},
+	{
+		name: 'question marks: does not treat existing backslash+character pair as pre-escaped when wildcard escaping is enabled',
+		value: String.raw`a\?b`,
+		settings: { escapeWildcards: true },
+		expected: String.raw`a\\\?b`,
+	},
+	{
+		name: 'question marks: keeps pre-escaped value escaped when wildcard escaping is disabled',
+		value: String.raw`a\?b`,
+		settings: { escapeWildcards: false },
+		expected: String.raw`a\?b`,
+	},
+];
+
+describe('escapeRegex', () => {
+	test.each(regexEscapeCases)('$name', ({ value, settings, expected }) => {
+		expect(escapeRegex(value, settings)).toBe(expected);
+	});
+});
+
+describe('unescapeRegex', () => {
+	test.each(regexEscapeCases)('$name', ({ value, settings, expected }) => {
+		expect(unescapeRegex(expected, settings)).toBe(value);
 	});
 });

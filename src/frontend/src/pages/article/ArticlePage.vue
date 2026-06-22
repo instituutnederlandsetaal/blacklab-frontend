@@ -151,8 +151,9 @@ import { fieldSubset } from '@/utils';
 // data comes from all manner of places (store, url, etc)
 // Need to fix url-parsing
 
-import { contents$, hitToHighlight$, hits$, input$, metadata$, snippetAndDocument$, validPaginationParameters$ } from './article';
+import { createArticleStreams } from './article';
 
+import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import { loadableFromStream } from '@/shared/utils/loadable/loadable-streams';
 
 // import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
@@ -162,6 +163,9 @@ import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 
+const articleStreams = createArticleStreams(useBlackLabApi(), useFrontendApi());
+const { contents$, hitToHighlight$, hits$, input$, metadata$, snippetAndDocument$, validPaginationParameters$ } = articleStreams;
+
 const metadata = loadableFromStream(metadata$);
 const contents = loadableFromStream(contents$);
 const hits = loadableFromStream(hits$);
@@ -170,10 +174,6 @@ const validPaginationInfo = loadableFromStream(validPaginationParameters$);
 const snippetAndDocument = loadableFromStream(snippetAndDocument$);
 
 const inputs = computed(() => {
-	if (!CorpusStore.get.corpus()) {
-		return undefined;
-	}
-
 	return {
 		indexId: CorpusStore.get.indexId()!,
 		docId: ArticleStore.getState().docId,
@@ -226,7 +226,7 @@ watch(
 	v => {
 		if (v) input$.next(v);
 	},
-	{ immediate: true },
+	{ immediate: true, deep: true },
 );
 watch(
 	() => hitToHighlight.value,
