@@ -68,7 +68,7 @@
 				</div>
 				<template v-if="metadata.isLoaded()">
 					<h2 v-if="metadata.value.json.docFields.titleField" style="word-break: break-all">
-						{{ metadata.value.json.docInfo[metadata.value.json.docFields.titleField]?.join(', ') || $t('results.groupBy.groupNameWithoutValue') }}
+						{{ getMetadataFieldValues(metadata.value.json.docInfo, metadata.value.json.docFields.titleField)?.join(', ') || $t('results.groupBy.groupNameWithoutValue') }}
 						<template v-if="isParallel">{{ viewField ? $tAnnotatedFieldDisplayName(viewField) : 'Error: missing viewfield.' }}</template>
 					</h2>
 					<InstancedHtml :value="metadata.value.html" />
@@ -98,7 +98,7 @@
 										{{ $tMetaDisplayName(f) }}<debug> [{{ f.id }}]</debug>
 									</td>
 									<td>
-										<template v-if="metadata.value.json.docInfo[f.id]?.length">{{ metadata.value.json.docInfo[f.id].join(', ') }}</template>
+										<template v-if="getMetadataFieldValues(metadata.value.json.docInfo, f.id)?.length">{{ getMetadataFieldValues(metadata.value.json.docInfo, f.id)?.join(', ') }}</template>
 										<em v-else class="text-muted">{{ $t('results.groupBy.groupNameWithoutValue') }}</em>
 									</td>
 								</tr>
@@ -156,6 +156,7 @@ import InstancedHtml from '@/components/InstancedHtml.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
+import { getMetadataFieldValues } from '@/types/blacklabtypes';
 
 const initialPaginationPosition: Position = {
 	x: Math.max(0, window.innerWidth * 0.9 - 250),

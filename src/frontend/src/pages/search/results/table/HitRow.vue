@@ -22,7 +22,7 @@
 				@hover="emit('hover', $event)"
 				@unhover="emit('unhover')"
 			/>
-			<td v-else-if="col.field === 'metadata'" :key="col.key + col.metadata.id" :class="col.class" :style="col.style">{{ row.doc.docInfo[col.metadata.id]?.join(', ') || '' }}</td>
+			<td v-else-if="col.field === 'metadata'" :key="col.key + col.metadata.id" :class="col.class" :style="col.style">{{ getMetadataFieldValues(row.doc.docInfo, col.metadata.id)?.join(', ') || '' }}</td>
 		</template>
 	</tr>
 </template>
@@ -32,6 +32,7 @@ import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/I
 import type { HitRowData } from '@/pages/search/results/table/table-layout';
 
 import HitContext from '@/pages/search/results/table/HitContext.vue';
+import { getMetadataFieldValues } from '@/types/blacklabtypes';
 
 defineOptions({ name: 'HitRow' });
 withDefaults(defineProps<IRowProps<HitRowData>>(), IRowDefaultProps);

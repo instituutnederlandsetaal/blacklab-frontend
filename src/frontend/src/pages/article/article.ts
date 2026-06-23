@@ -178,8 +178,8 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 	const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$, contents$]).pipe(
 		map(combineLoadables),
 		mapLoaded(([pagination, hits, { container, highlights }]) => {
-			const firstVisibleHitIndex = Math.abs(binarySearch(hits, h => pagination.wordstart - h[0]));
-			const hitIndexToHighlight = pagination.findhit ? binarySearch(hits, h => pagination.findhit! - h[0]) : firstVisibleHitIndex;
+			const firstVisibleHitIndex = hits.length ? clamp(Math.abs(binarySearch(hits, h => pagination.wordstart - h[0])), 0, hits.length - 1) : 0;
+			const hitIndexToHighlight = pagination.findhit != null ? binarySearch(hits, h => pagination.findhit! - h[0]) : firstVisibleHitIndex;
 			const localHitIndexToHighlight = hitIndexToHighlight - firstVisibleHitIndex;
 			const hl = highlights[localHitIndexToHighlight] as HTMLElement | undefined;
 			return {
@@ -235,7 +235,7 @@ function getDefaultPagination(input: Input, doclength: number): { wordstart: num
  * @returns
  */
 function getValidfindhit(findhit: number | undefined | null, hits?: [number, number][]): number | undefined {
-	if (!findhit || !hits) return undefined;
+	if (findhit == null || !hits) return undefined;
 	const hitIndex = binarySearch(hits, h => findhit - h[0]);
 	return hitIndex >= 0 ? findhit : undefined;
 }
@@ -245,7 +245,7 @@ function fixPagination({ wordstart, wordend, pageSize, findhit, docLength }: { w
 	wordstart: number;
 	wordend: number;
 } {
-	if (!findhit || (findhit >= wordstart && findhit < wordend)) return { wordstart, wordend };
+	if (findhit == null || (findhit >= wordstart && findhit < wordend)) return { wordstart, wordend };
 	const newPageStart = Math.floor(findhit / pageSize) * pageSize;
 	return {
 		wordstart: newPageStart,

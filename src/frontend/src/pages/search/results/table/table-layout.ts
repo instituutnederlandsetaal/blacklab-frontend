@@ -27,7 +27,7 @@ import type {
 	BLSearchParameters,
 	BLSearchResult,
 } from '@/types/blacklabtypes';
-import { hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
+import { getMetadataFieldValues, hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 import type { KeysOfType } from '@/types/helpers';
 
 import * as Highlights from './hit-highlighting';
@@ -491,10 +491,11 @@ function makeDocRow(p: Result<any>, info: DisplaySettingsForRows, indexInRequest
 
 /** Extract the document's own text director (for mixed corpora). See https://github.com/instituutnederlandsetaal/blacklab-frontend/issues/520 */
 function docDir(doc: BLDoc, corpusNativeDir: 'ltr' | 'rtl'): 'ltr' | 'rtl' {
-	switch (doc.docInfo.textDirection?.[0]) {
+	const textDirection = getMetadataFieldValues(doc.docInfo, 'textDirection')?.[0];
+	switch (textDirection) {
 		case 'ltr':
 		case 'rtl':
-			return doc.docInfo.textDirection[0];
+			return textDirection;
 		default:
 			return corpusNativeDir;
 	}

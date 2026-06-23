@@ -15,6 +15,7 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as ViewsStore from '@/features/search/model/results/view-state';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
+import { getMetadataFieldValues } from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
 
 import type { ApiError } from '@/shared/api/lib/api-types';
@@ -321,7 +322,8 @@ const initialState: ModuleRootState = {
 			getDocumentSummary: (doc: BLTypes.BLDocInfo, fields: BLTypes.BLDocFields): string => {
 				let { titleField = '', authorField = '' } = fields;
 				titleField = titleField || 'fromInputFile';
-				const { [titleField]: title = [], [authorField]: author = [] } = doc;
+				const title = getMetadataFieldValues(doc, titleField) ?? [];
+				const author = getMetadataFieldValues(doc, authorField) ?? [];
 				return (title[0] || 'UNKNOWN') + (author.length ? ' by ' + author.join(', ') : '');
 			},
 			detailedAnnotationIds: null,
