@@ -147,7 +147,7 @@ import createTooltips, { type TooltipContext } from '@/modules/expandable-toolti
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { fieldSubset } from '@/utils';
 
-import { createArticleStreams } from './article';
+import { createArticleStreams, type Input } from './article';
 
 import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-streams';
@@ -180,26 +180,21 @@ const statistics = loadableFromStream(combineLoadableStreams([currentPageSnippet
 
 watchEffect(() => retrieveSnippetToggle$.next(activeArticleTab.value === 'statistics' && statisticsEnabled.value));
 
-const inputs = computed(() => {
-	const annotatedFields = CorpusStore.get.allAnnotatedFieldsMap();
-	const viewField = getAnnotatedFieldFromQuery('field') ?? CorpusStore.get.mainAnnotatedField();
-	const searchfield = getAnnotatedFieldFromQuery('searchfield', 'searchField', 'field') ?? CorpusStore.get.mainAnnotatedField();
+const inputs = computed<Input>(() => ({
+	indexId: CorpusStore.get.indexId(),
+	docId: getRouteParamString(route.params.docId),
 
-	return {
-		indexId: CorpusStore.get.indexId(),
-		docId: getRouteParamString(route.params.docId),
+	viewField: getAnnotatedFieldFromQuery('field') ?? CorpusStore.get.mainAnnotatedField(),
+	// we canonically use 'searchfield' nowadays, but we used to use field/searchField, so keep those as fallbacks for backwards compatibility
+	searchfield: getAnnotatedFieldFromQuery('searchfield', 'searchField', 'field') ?? CorpusStore.get.mainAnnotatedField(),
 
-		viewField: annotatedFields[viewField] ? viewField : CorpusStore.get.mainAnnotatedField(),
-		searchfield: annotatedFields[searchfield] ? searchfield : CorpusStore.get.mainAnnotatedField(),
-
-		wordstart: getNumberFromQuery('wordstart'),
-		wordend: getNumberFromQuery('wordend'),
-		pageSize: cfPageConfig.value.pageSize,
-		findhit: getNumberFromQuery('findhit'),
-		patt: getStringFromQuery('patt') ?? getStringFromQuery('query'),
-		pattgapdata: getStringFromQuery('pattgapdata'),
-	};
-});
+	wordstart: getNumberFromQuery('wordstart'),
+	wordend: getNumberFromQuery('wordend'),
+	pageSize: cfPageConfig.value.pageSize,
+	findhit: getNumberFromQuery('findhit'),
+	patt: getStringFromQuery('patt') ?? getStringFromQuery('query'),
+	pattgapdata: getStringFromQuery('pattgapdata'),
+}));
 
 const metadataFieldsToShow = computed(() =>
 	fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(CorpusStore.get.allMetadataFieldsMap()), CorpusStore.get.metadataGroups(), CorpusStore.get.allMetadataFieldsMap()),
@@ -219,16 +214,6 @@ watchEffect(() => {
 	}
 });
 
-function stringifyWithHtml(v: any): string {
-	return JSON.stringify(
-		v,
-		(key, value) => {
-			if (value instanceof HTMLElement) return `<${value.tagName}/>`;
-			return value;
-		},
-		2,
-	);
-}
 function handlePageNavigation(page: number) {
 	if (!validPaginationInfo.isLoaded()) return;
 	void updateArticleQuery({
