@@ -18,9 +18,9 @@ import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import { createBlfRouter } from '@/navigation/router';
-import * as LoginSystem from '@/utils/loginsystem';
 
 import { createApi } from '@/shared/api';
+import * as LoginSystem from '@/shared/auth/loginsystem';
 import { createI18n } from '@/shared/i18n';
 
 import AppRoot from '@/App.vue';
