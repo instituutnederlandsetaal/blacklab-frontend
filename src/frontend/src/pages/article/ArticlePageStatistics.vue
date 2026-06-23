@@ -57,12 +57,6 @@ HighchartsExporting(Highcharts);
 HighchartsExportingData(Highcharts);
 HighchartsBoost(Highcharts);
 
-function _preventClicks(e: Event) {
-	e.preventDefault();
-	e.stopPropagation();
-	return false;
-}
-
 export default defineComponent({
 	components: {
 		Spinner,

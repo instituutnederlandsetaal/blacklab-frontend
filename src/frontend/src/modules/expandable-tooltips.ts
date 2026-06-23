@@ -2,7 +2,7 @@ import '@/modules/expandable-tooltips.scss';
 
 import type { PopperOptions } from 'popper.js';
 import Popper from 'popper.js';
-import { asyncScheduler, fromEvent, merge } from 'rxjs';
+import { asyncScheduler, fromEvent, merge, type Observable } from 'rxjs';
 import { distinctUntilChanged, filter, map, throttleTime } from 'rxjs/operators';
 
 type ConfigCommon = {
@@ -15,7 +15,7 @@ type ConfigCommon = {
 };
 
 /** Get the tooltip's content and preview from data- attributes */
-type ConfigContentAttributes = {
+export type ConfigAttributes = ConfigCommon & {
 	mode: 'attributes';
 	previewAttribute?: string;
 	contentAttribute: string;
@@ -27,7 +27,7 @@ type ConfigContentAttributes = {
  * Has one special fallback where if there is no 'title', and only one other 'data-*' attribute,
  * that attribute is used as preview.
  */
-type ConfigTitle = {
+export type ConfigTitle = ConfigCommon & {
 	mode: 'title';
 	/** Query selector to find the elements on which to attach a tooltip (such as '[data-tooltip]') */
 	tooltippableSelector: string;
@@ -35,100 +35,132 @@ type ConfigTitle = {
 	excludeAttributes: string[];
 };
 
-export type Config = ConfigCommon & (ConfigContentAttributes | ConfigTitle);
-
-export default function init(_config: Config) {
-	const _config2 = Object.assign(
-		{
-			tooltipClass: 'tooltip-hover',
-			tooltipPreviewClass: 'preview',
-			tooltipExpandedClass: 'expanded',
-		},
-		_config,
-	);
-
-	const settings = {
-		..._config2,
-
-		// Query selector for the tooltip bubble
-		tooltipSelector:
-			'.' +
-			_config2
-				.tooltipClass!.split(/\s+/g)
-				.filter(c => !!c)
-				.join('.'),
-		// Query selector for the element to which it is attached.
-		tooltippableSelector:
-			_config2.mode === 'title'
-				? _config2.tooltippableSelector
-				: [_config2.contentAttribute, _config2.previewAttribute]
-						.filter(attributeName => !!attributeName)
-						.map(attributeName => `*[${attributeName}]`)
-						.join(', '),
-
-		popperOptions: {
-			removeOnDestroy: true,
-			placement: 'top',
-			modifiers: {
-				preventOverflow: {
-					boundariesElement: 'viewport',
-					padding: {
-						top: 100,
-						bottom: 25,
-						left: 25,
-						right: 25,
-					},
-				},
-			},
-		} as PopperOptions,
-
-		// state
-		activeTooltip: null as null | InstanceType<typeof Popper>,
-		explicitlyOpened: false,
-	};
-
-	const event$ = merge(fromEvent<MouseEvent>(document, 'mouseover'), fromEvent<MouseEvent>(document, 'click'));
-	const activeTooltippable$ = event$.pipe(
+let sharedEventListener: Observable<{ eventType: 'click' | 'mouseover'; element: HTMLElement | null }> | null = null;
+function getSharedEventListener() {
+	return (sharedEventListener ??= merge(fromEvent<MouseEvent>(document, 'mouseover'), fromEvent<MouseEvent>(document, 'click')).pipe(
 		throttleTime(25, asyncScheduler, { leading: true, trailing: true }),
 		map(e => ({
 			eventType: e.type as 'click' | 'mouseover',
 			element: e.target && (e.target as HTMLElement).closest ? (e.target as HTMLElement) : null,
 		})),
+	));
+}
+
+const ContextSymbol = Symbol('ExpandableTooltipContext');
+
+export type TooltipContext = {
+	[ContextSymbol]: true;
+	/** Stop the tooltip system; destroys all tooltips in the context and stops listening for events. */
+	(): void;
+};
+
+type TooltipContextPrivate = TooltipContext & {
+	activeTooltip: InstanceType<typeof Popper> | null;
+	explicitlyOpened: boolean;
+	listeners: Array<() => void>;
+};
+
+function destroyTooltip(ctx: TooltipContextPrivate) {
+	if (!ctx.activeTooltip) return;
+	(ctx.activeTooltip.reference as HTMLElement).classList.remove('tooltip-open');
+	ctx.activeTooltip.destroy();
+	ctx.activeTooltip = null;
+	ctx.explicitlyOpened = false;
+}
+
+function createContext(existingContext?: TooltipContext): TooltipContextPrivate {
+	if (existingContext && (existingContext as TooltipContextPrivate)[ContextSymbol]) {
+		return existingContext as TooltipContextPrivate;
+	}
+
+	console.log('Creating new tooltip context');
+	const listeners: Array<() => void> = [];
+	function teardown() {
+		console.log('Destroying tooltip context');
+		listeners.forEach(l => l());
+	}
+	teardown.listeners = listeners;
+	teardown.activeTooltip = null;
+	teardown.explicitlyOpened = false;
+	teardown[ContextSymbol] = true as const;
+	return teardown;
+}
+
+/**
+ * Create tooltips for elements on the page, based on title attributes or data-* attributes.
+ * Multiple configurations can be initialized, and can share a context, which means that only one tooltip in the context will be shown at a time.
+ *
+ * @param config the config for the tooltip system, either using title attributes or data-* attributes
+ * @param context an optional context to share between multiple tooltip systems; if not provided, a new context is created and returned.
+ * @returns the context, which also serves as the teardown function to stop the tooltip system and destroy all tooltips in the context.
+ */
+export default function createTooltips(config: ConfigTitle | ConfigAttributes, context?: TooltipContext): TooltipContext {
+	const ctx = createContext(context);
+
+	const tooltipClasses = (config.tooltipClass ?? 'tooltip-hover').split(/\s+/).filter(s => !!s);
+	const tooltipPreviewClasses = (config.tooltipClass ?? 'preview').split(/\s+/).filter(s => !!s);
+	const tooltipExpandedClasses = (config.tooltipExpandedClass ?? 'expanded').split(/\s+/).filter(s => !!s);
+	const tooltipSelector = tooltipClasses.map(c => `.${c}`).join('');
+	const eligibleElementSelector =
+		config.mode === 'title'
+			? config.tooltippableSelector
+			: [config.contentAttribute, config.previewAttribute]
+					.filter(s => !!s)
+					.map(att => `[${CSS.escape(att!)}]`)
+					.join(',');
+
+	const popperOptions: PopperOptions = {
+		removeOnDestroy: true,
+		placement: 'top',
+		modifiers: {
+			preventOverflow: {
+				boundariesElement: 'viewport',
+				padding: {
+					top: 100,
+					bottom: 25,
+					left: 25,
+					right: 25,
+				},
+			},
+		},
+	};
+
+	const activeTooltippable$ = getSharedEventListener().pipe(
 		// not clicking/hovering over the tooltip itself
-		filter(e => !(e.element && e.element.closest(settings.tooltipSelector))),
+		filter(e => !e.element?.closest(tooltipSelector)),
 		map(e => ({
-			element: e.element ? (e.element.closest(settings.tooltippableSelector) as HTMLElement) : null,
+			element: e.element?.closest<HTMLElement>(eligibleElementSelector),
 			eventType: e.eventType,
 		})),
 		distinctUntilChanged((a, b) => a.element === b.element && a.eventType === b.eventType),
 	);
 
-	activeTooltippable$.subscribe(({ element, eventType }) => {
-		const destroyExistingTooltip = !settings.explicitlyOpened || (settings.explicitlyOpened && eventType === 'click');
-		if (settings.activeTooltip && destroyExistingTooltip) {
-			(settings.activeTooltip?.reference as HTMLElement)?.classList.toggle('tooltip-open', false);
-			settings.activeTooltip.destroy();
-			settings.activeTooltip = null;
-			settings.explicitlyOpened = false;
-		}
-
-		if (settings.activeTooltip) {
+	const unsubscribe = activeTooltippable$.subscribe(({ element, eventType }) => {
+		const destroyExistingTooltip = !ctx.explicitlyOpened || (ctx.explicitlyOpened && eventType === 'click');
+		if (ctx.activeTooltip) {
+			if (destroyExistingTooltip) {
+				destroyTooltip(ctx);
+			}
 			return;
 		}
 
-		settings.activeTooltip = createNewTooltip(element);
-		settings.explicitlyOpened = eventType === 'click';
-		(settings.activeTooltip?.reference as HTMLElement)?.classList.toggle('tooltip-open', true);
+		if (element) {
+			ctx.activeTooltip = createNewTooltip(element);
+			ctx.explicitlyOpened = eventType === 'click';
+			(ctx.activeTooltip?.reference as HTMLElement)?.classList.toggle('tooltip-open', true);
+		}
 	});
 
 	function createNewTooltip(element: HTMLElement | null) {
 		if (!element) {
 			return null;
 		}
+		const { content, preview } = getTooltipContent(config, element);
+		const tooltip = createElement(`<div">${preview}</div>`);
+		let tooltipInstance: InstanceType<typeof Popper> | null = null;
 
-		const { content, preview } = getTooltipContent(settings, element);
-
-		const tooltip = createElement(`<div class="${settings.tooltipClass} ${settings.tooltipPreviewClass}">${preview}</div>`);
+		tooltipClasses.forEach(c => tooltip.classList.add(c));
+		tooltipPreviewClasses.forEach(c => tooltip.classList.add(c));
 		if (content) {
 			const openFullTooltip = createElement<HTMLFormElement>(`
 				<form class="tooltip-expand" style="display:inline-block;">
@@ -141,21 +173,29 @@ export default function init(_config: Config) {
 				'submit',
 				(submit: Event) => {
 					tooltip.innerHTML = content;
-					[...settings.tooltipPreviewClass.split(/\s+/g), ...settings.tooltipExpandedClass.split(/\s+/g)].filter(c => !!c).forEach(c => tooltip.classList.toggle(c));
+					tooltipPreviewClasses.forEach(c => tooltip.classList.toggle(c, false));
+					tooltipExpandedClasses.forEach(c => tooltip.classList.toggle(c, true));
 
 					submit.preventDefault();
 					submit.stopPropagation();
-					settings.activeTooltip!.scheduleUpdate();
-					settings.explicitlyOpened = true;
+					tooltipInstance!.scheduleUpdate();
+					ctx.explicitlyOpened = true;
 				},
 				{ once: true },
 			);
 		}
-		tooltip.addEventListener('click', () => (settings.explicitlyOpened = true), { once: true });
+		tooltip.addEventListener('click', () => (ctx.explicitlyOpened = true), { once: true });
 
 		document.body.appendChild(tooltip);
-		return new Popper(element, tooltip, settings.popperOptions);
+		tooltipInstance = new Popper(element, tooltip, popperOptions);
+		return tooltipInstance;
 	}
+
+	ctx.listeners.push(() => {
+		unsubscribe.unsubscribe();
+		destroyTooltip(ctx);
+	});
+	return ctx;
 }
 
 function createElement<T extends HTMLElement = HTMLElement>(s: string) {
@@ -177,7 +217,7 @@ function getDataAttributes(element: Element) {
 }
 
 function getTooltipContent(
-	config: Config,
+	config: ConfigTitle | ConfigAttributes,
 	el: HTMLElement,
 ): {
 	preview: string | undefined;

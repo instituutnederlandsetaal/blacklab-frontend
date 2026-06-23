@@ -143,22 +143,8 @@ import * as UIStore from '@/app/state/ui-state';
 import { useCfPageConfig } from '@/app/state/useCorpusContext';
 import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import createTooltips, { type TooltipContext } from '@/modules/expandable-tooltips';
 import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
-// TODO
-// import initTooltips from '@/modules/expandable-tooltips';
-// initTooltips({
-// 	mode: 'attributes',
-// 	contentAttribute: 'data-tooltip-content',
-// 	previewAttribute: 'data-tooltip-preview'
-// });
-// initTooltips({
-// 	mode: 'title',
-// 	excludeAttributes: ['toggle', 'tooltip-content', 'tooltip-preview'],
-// 	tooltippableSelector: '.word[data-toggle="tooltip"]'
-// });
-// issues with this page:
-// data comes from all manner of places (store, url, etc)
-// Need to fix url-parsing
 import { fieldSubset } from '@/utils';
 
 import { createArticleStreams } from './article';
@@ -166,8 +152,6 @@ import { createArticleStreams } from './article';
 import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-streams';
 
-// import ArticlePagePagination from '@/pages/article/ArticlePagePagination.vue';
-// import ArticlePageParallel from '@/pages/article/ArticlePageParallel.vue';
 import InstancedHtml from '@/components/InstancedHtml.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
@@ -309,7 +293,35 @@ watch(
 	{ immediate: true },
 );
 
+const tooltipContext = ref<TooltipContext | null>(null);
+watch(
+	() => contents.value,
+	c => {
+		if (tooltipContext.value) {
+			tooltipContext.value();
+			tooltipContext.value = null;
+		}
+		if (c?.container) {
+			tooltipContext.value = createTooltips({
+				mode: 'attributes',
+				contentAttribute: 'data-tooltip-content',
+				previewAttribute: 'data-tooltip-preview',
+			});
+			createTooltips(
+				{
+					mode: 'title',
+					excludeAttributes: ['toggle', 'tooltip-content', 'tooltip-preview'],
+					tooltippableSelector: '.word[data-toggle="tooltip"]',
+				},
+				tooltipContext.value,
+			);
+		}
+	},
+	{ immediate: true },
+);
+
 onUnmounted(() => {
+	tooltipContext.value?.();
 	metadata.stop();
 	contents.stop();
 	hits.stop();
