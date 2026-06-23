@@ -16,6 +16,7 @@ import { setBlackLabPaths } from '@/features/search/model/form/filter-state';
 import { initSelectedSubcorpusLoader } from '@/features/search/resources/selected-subcorpus-count.resource';
 import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
+import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import { createBlfRouter } from '@/navigation/router';
 import * as LoginSystem from '@/utils/loginsystem';
 
@@ -29,7 +30,8 @@ import DebugComponent from '@/components/Debug.vue';
 async function start() {
 	const user = await LoginSystem.user;
 	const api = await createApi({ blacklab: { baseUrl: BLS_URL, user }, frontend: { baseUrl: CONTEXT_URL, user } });
-	const router = createBlfRouter();
+	const pageBootstrap = createPageBootstrapContext();
+	const router = createBlfRouter(pageBootstrap);
 	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId);
 	const i18n = createI18n(router.corpusId);
 
@@ -40,6 +42,7 @@ async function start() {
 	installLegacyStoreGlobals();
 
 	const app = createApp(AppRoot);
+	app.use(pageBootstrap);
 	app.use(api);
 	app.use(i18n);
 	app.use(Filters);

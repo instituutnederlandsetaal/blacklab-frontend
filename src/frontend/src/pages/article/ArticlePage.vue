@@ -144,7 +144,7 @@ import { useCfPageConfig } from '@/app/state/useCorpusContext';
 import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import createTooltips, { type TooltipContext } from '@/modules/expandable-tooltips';
-import { useMarkPageBootstrapSettledWhen } from '@/navigation/page-bootstrap';
+import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { fieldSubset } from '@/utils';
 
 import { createArticleStreams } from './article';
@@ -158,6 +158,7 @@ import Spinner from '@/components/Spinner.vue';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 
 const blacklab = useBlackLabApi();
+const pageBootstrap = usePageBootstrap();
 const articleStreams = createArticleStreams(blacklab, useFrontendApi());
 const { contents$, hitToHighlight$, hits$, input$, metadata$, validPaginationParameters$, currentPageSnippet$, retrieveSnippetToggle$ } = articleStreams;
 const route = useRoute();
@@ -207,7 +208,11 @@ watchEffect(() => {
 	if (!statisticsEnabled.value && activeArticleTab.value === 'statistics') activeArticleTab.value = 'content';
 });
 
-useMarkPageBootstrapSettledWhen(computed(() => (contents.isLoaded() || contents.isError()) && (metadata.isLoaded() || metadata.isError())));
+watchEffect(() => {
+	if (contents.isLoaded() || contents.isError()) {
+		pageBootstrap.markSettled();
+	}
+});
 
 function stringifyWithHtml(v: any): string {
 	return JSON.stringify(
