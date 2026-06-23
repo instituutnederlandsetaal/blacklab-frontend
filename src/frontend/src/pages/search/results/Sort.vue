@@ -19,8 +19,9 @@ import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import type { NormalizedIndex } from '@/types/apptypes';
-import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
+
+import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
 import debug from '@/shared/debug/debug';
 import type { OptGroup } from '@/shared/utils/options';
 
@@ -98,7 +99,6 @@ export default defineComponent({
 						this.corpus.annotatedFields[this.corpus.mainAnnotatedField].annotations,
 						'Sort',
 						this,
-						this.corpus.textDirection,
 						debug.value,
 						this.annotationGroupLabels,
 					),

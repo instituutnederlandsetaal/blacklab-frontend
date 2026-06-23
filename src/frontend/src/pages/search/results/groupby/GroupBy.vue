@@ -191,12 +191,12 @@ import { snippetParts } from '@/pages/search/results/table/table-layout';
 import type { CaptureAndRelation, HitToken, TokenHighlight } from '@/types/apptypes';
 import type { BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchResult, BLSummaryMatchInfo } from '@/types/blacklabtypes';
 import { hasPatternInfo, isHitParams, isHitResults } from '@/types/blacklabtypes';
-import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/utils/grouping';
 import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
 import { useBlackLabApi } from '@/shared/api';
+import { getMetadataSubset, getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';
 import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import debug from '@/shared/debug/debug';
 import { findOption, type OptGroup, type Option, type Options } from '@/shared/utils/options';
@@ -308,7 +308,6 @@ export default defineComponent({
 				this.annotationsMap,
 				'Search',
 				this,
-				CorpusStore.get.textDirection(),
 				debug.value, // is debug enabled - i.e. show debug labels in dropdown
 				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible,
 			)

@@ -11,7 +11,7 @@ import { getCorrectUiType, uiTypeSupport } from '@/utils';
 import { applyWithinClauses, parenQueryPartParallel } from '@/shared/blacklab-helpers/cql/bcql-pattern-helpers';
 import { getParallelFieldParts } from '@/shared/blacklab-helpers/parallel-helper';
 import { elementAndAttributeNameFromFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
-import { escapeRegex, tokenizeString, type RegexEscapeOptions } from '@/shared/utils/string-utils';
+import { escapeRegex, tokenizeString, unescapeRegex, type RegexEscapeOptions } from '@/shared/utils/string-utils';
 
 /** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */
 export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): string[] => {
@@ -221,3 +221,54 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
 	}
 	return [withinClauses, withinClausesNoWithinWidget];
 }
+
+/**
+ * Decode a value as passed to BlackLab back into a value for the UI.
+ * @param value the value to be parsed
+ * @param type the type that the value should be parsed to, see uiType in the annotation object. Different annotation search widgets have different escaping properties (i.e. can they contain multiple values, or just one, etc.)
+ */
+export const decodeAnnotationValue = (value: string | string[], type: Required<AppTypes.AnnotationValue>['type']): { case: boolean; value: string } => {
+	function isCase(v: string) {
+		return v.startsWith('(?-i)') || v.startsWith('(?c)');
+	}
+	function stripCase(v: string) {
+		return v.substr(v.startsWith('(?-i)') ? 5 : 4);
+	}
+	switch (type) {
+		case 'text':
+		case 'lexicon':
+		case 'combobox': {
+			let caseSensitive = false;
+			const annotationValue = [value]
+				.flat()
+				.map(v => {
+					if (isCase(v)) {
+						v = stripCase(v);
+						caseSensitive = true;
+					}
+					v = unescapeRegex(v, { escapePipes: false, escapeWildcards: false });
+					// Only surround with quotes when we're joining multiple values into one string and this sub-value contains whitespace
+					return Array.isArray(value) && v.match(/\s+/) ? `"${v}"` : v;
+				})
+				.join(' ');
+
+			return {
+				case: caseSensitive,
+				value: annotationValue,
+			};
+		}
+		case 'select': {
+			value = Array.isArray(value) ? value[0] : value;
+			const caseSensitive = isCase(value);
+			value = caseSensitive ? stripCase(value) : value;
+			value = unescapeRegex(value);
+			return {
+				case: caseSensitive,
+				value,
+			};
+		}
+		case 'pos': // pos is handled separately (url-state-parser)
+		default:
+			throw new Error('Unimplemented uitype query decoder');
+	}
+};

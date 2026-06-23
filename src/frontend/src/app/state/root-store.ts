@@ -23,7 +23,7 @@ import type * as BLTypes from '@/types/blacklabtypes';
 import type { ArticleUrlState } from '@/url/state-to-url';
 import { corpusCustomizations } from '@/utils/customization';
 import debug, { debugLog } from '@/shared/debug/debug';
-import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
+import { getPatternString, getWithinClausesFromFilters } from '@/shared/blacklab-helpers/pattern-utils';
 
 import { Loadable } from '@/shared/utils/loadable/loadable';
 

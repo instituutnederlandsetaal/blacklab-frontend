@@ -34,8 +34,8 @@ import * as UIStore from '@/app/state/ui-state';
 import type { CqlQueryBuilderData, CqlQueryBuilderOptions, CqlTokenData } from '@/components/cql/cql-types';
 import { COMPARATORS, OPERATORS } from '@/components/cql/cql-types';
 import * as CorpusStore from '@/features/corpus/model/corpus-state.ts';
-import { getAnnotationSubset } from '@/utils';
 
+import { getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups.ts';
 import { useI18n } from '@/shared/i18n/';
 import useUid from '@/shared/utils/uid.ts';
 
@@ -64,7 +64,7 @@ const options = computed<CqlQueryBuilderOptions>(() => {
 	const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
 	const searchAnnotationIds = UIStore.getState().search.advanced.searchAnnotationIds;
 
-	const annotationGroups = getAnnotationSubset(searchAnnotationIds, CorpusStore.get.annotationGroups(), allAnnotationsMap, 'Search', translate, textDirection, false, false);
+	const annotationGroups = getAnnotationSubset(searchAnnotationIds, CorpusStore.get.annotationGroups(), allAnnotationsMap, 'Search', translate, false, false);
 
 	const annotationOptions = (annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options)) as any;
 

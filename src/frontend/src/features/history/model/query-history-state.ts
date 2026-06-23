@@ -22,7 +22,7 @@ import type * as GlobalModule from '@/features/search/model/results/global-resul
 import type * as ViewModule from '@/features/search/model/results/view-state';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 import { debugLog } from '@/shared/debug/debug';
-import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
+import { getPatternSummaryExplore, getPatternSummarySearch } from '@/shared/blacklab-helpers/pattern-utils';
 
 import { hashJavaDJB2 } from '@/shared/utils/string-utils';
 

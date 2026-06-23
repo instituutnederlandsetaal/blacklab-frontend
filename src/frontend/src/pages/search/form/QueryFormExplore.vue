@@ -136,13 +136,13 @@ import * as UIStore from '@/app/state/ui-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
-import debug from '@/shared/debug/debug';
 
 import ParallelFields from './parallel/ParallelFields';
 
 import { useBlackLabPaths } from '@/shared/api';
+import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
+import debug from '@/shared/debug/debug';
 import type { OptGroup, Option } from '@/shared/utils/options';
 
 import Autocomplete from '@/components/Autocomplete.vue';
@@ -213,7 +213,6 @@ export default defineComponent({
 				CorpusStore.get.allAnnotationsMap(),
 				'Search',
 				this,
-				CorpusStore.get.textDirection(),
 				debug.value,
 				false,
 			);
@@ -226,7 +225,6 @@ export default defineComponent({
 				CorpusStore.get.allAnnotationsMap(),
 				'Search', // we don't want the before hit/after hit context options, just do search mode, it'll be fine
 				this,
-				CorpusStore.get.textDirection(),
 				debug.value,
 				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible,
 			);

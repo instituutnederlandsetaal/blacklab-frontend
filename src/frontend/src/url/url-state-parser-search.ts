@@ -20,9 +20,10 @@ import type * as PatternModule from '@/features/search/model/form/pattern-state'
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
-import { decodeAnnotationValue, getCorrectUiType, uiTypeSupport } from '@/utils';
+import { getCorrectUiType, uiTypeSupport } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import parseLucene from '@/utils/luceneparser';
+import { decodeAnnotationValue } from '@/shared/blacklab-helpers/pattern-utils';
 
 import type { ArticleUrlState } from './state-to-url';
 import { emptyArticleUrlState } from './state-to-url';

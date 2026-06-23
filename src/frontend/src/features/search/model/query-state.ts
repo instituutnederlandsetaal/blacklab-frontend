@@ -32,7 +32,7 @@ import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as PatternModule from '@/features/search/model/form/pattern-state';
 import type { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
-import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
+import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/shared/blacklab-helpers/pattern-utils';
 
 // todo migrate these weirdo state shapes to mapped types?
 // might be a cleaner way of doing this...

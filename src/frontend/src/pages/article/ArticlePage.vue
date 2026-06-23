@@ -145,18 +145,18 @@ import * as ArticleStore from '@/features/article/model/article-state';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import createTooltips, { type TooltipContext } from '@/modules/expandable-tooltips';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
-import { fieldSubset } from '@/utils';
+import { getMetadataFieldValues } from '@/types/blacklabtypes';
 
 import { createArticleStreams, type Input } from './article';
 
 import { useBlackLabApi, useFrontendApi } from '@/shared/api';
+import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-streams';
 
 import InstancedHtml from '@/components/InstancedHtml.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
-import { getMetadataFieldValues } from '@/types/blacklabtypes';
 
 const initialPaginationPosition: Position = {
 	x: Math.max(0, window.innerWidth * 0.9 - 250),
