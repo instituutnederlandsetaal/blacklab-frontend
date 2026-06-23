@@ -22,7 +22,8 @@ import { stateToUrl } from '@/url/state-to-url';
 import type { ArticleUrlState } from '@/url/state-to-url';
 import UrlStateParserArticle from '@/url/url-state-parser-article';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
-import { debugLogCat } from '@/utils/debug';
+
+import { debugLog } from '@/shared/debug/debug';
 
 type QueryState = {
 	indexId?: string | null;
@@ -252,7 +253,7 @@ function createStoreToUrlSubscription(router: Router) {
 			),
 		)
 		.subscribe(v => {
-			debugLogCat('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', v.url, v.entry);
+			debugLog('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', v.url, v.entry);
 			const entryForQueryHistory: HistoryStore.HistoryEntry = {
 				filters: v.entry.filters,
 				global: v.entry.global,
@@ -267,7 +268,7 @@ function createStoreToUrlSubscription(router: Router) {
 				pattern: v.params && v.params.patt,
 				url: v.url,
 			});
-			debugLogCat('history', `Calling router.push (then replaceState) with entry:`, v.entry, `and url:`, v.url);
+			debugLog('history', `Calling router.push (then replaceState) with entry:`, v.entry, `and url:`, v.url);
 			pushUrlWithHistoryState(router, v.url, v.entry).catch(e => {
 				console.error('Failed to push URL through router', e);
 			});
@@ -279,7 +280,7 @@ function startStoreToUrlReflection(router: Router, initialUrlStateApplied: Promi
 		return stopStoreToUrlReflectionHandle;
 	}
 
-	debugLogCat('init', 'Begin attaching store to URL reflection.');
+	debugLog('init', 'Begin attaching store to URL reflection.');
 
 	let stopped = false;
 	let reflectionReady = false;
@@ -337,7 +338,7 @@ function startStoreToUrlReflection(router: Router, initialUrlStateApplied: Promi
 		stopWatch();
 		storeToUrlSubscription.unsubscribe();
 		stopStoreToUrlReflectionHandle = null;
-		debugLogCat('init', 'Stopped store to URL reflection.');
+		debugLog('init', 'Stopped store to URL reflection.');
 	};
 
 	return stopStoreToUrlReflectionHandle;
@@ -348,7 +349,7 @@ function startBrowserHistoryRestore() {
 		return stopBrowserHistoryRestoreHandle;
 	}
 
-	debugLogCat('init', 'Begin attaching browser history restore.');
+	debugLog('init', 'Begin attaching browser history restore.');
 	const historyRestoreSubscription = fromEvent<PopStateEvent>(window, 'popstate')
 		.pipe(
 			mergeMap(evt => {
@@ -361,7 +362,7 @@ function startBrowserHistoryRestore() {
 	stopBrowserHistoryRestoreHandle = () => {
 		historyRestoreSubscription.unsubscribe();
 		stopBrowserHistoryRestoreHandle = null;
-		debugLogCat('init', 'Stopped browser history restore.');
+		debugLog('init', 'Stopped browser history restore.');
 	};
 
 	return stopBrowserHistoryRestoreHandle;

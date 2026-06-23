@@ -12,7 +12,7 @@ import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
 import type { FilterDefinition } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
-import { debugLogCat } from '@/utils/debug';
+import { debugLog } from '@/shared/debug/debug';
 
 import type { BlackLabPaths } from '@/shared/api/lib/api-types';
 import { mapReduce } from '@/shared/utils/map-reduce';
@@ -229,7 +229,7 @@ const init = (state: CorpusContext) => {
 			});
 		});
 
-	debugLogCat('init', 'Finished initializing filter module state shape');
+	debugLog('init', 'Finished initializing filter module state shape');
 };
 
 export { actions, get, getState, init };

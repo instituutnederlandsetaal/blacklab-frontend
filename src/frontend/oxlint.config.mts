@@ -76,6 +76,12 @@ const config: OxlintConfig = {
 		'typescript/await-thenable': 'off',
 		'eslint/no-async-promise-executor': 'off',
 		'eslint/no-debugger': 'warn',
+		'eslint/no-console': [
+			'warn',
+			{
+				allow: ['debug', 'info', 'warn', 'error'],
+			},
+		],
 		'typescript/restrict-template-expressions': [
 			'error',
 			{

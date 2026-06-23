@@ -46,7 +46,7 @@ function allValuesFrom<T>(o: Observable<T>): Promise<T[]> {
 			next: v => values.push(v),
 			complete: () => resolve(values),
 			error: e => {
-				console.log('Error in allValuesFrom', e);
+				console.error('Error in allValuesFrom', e);
 				reject(e);
 			},
 		});

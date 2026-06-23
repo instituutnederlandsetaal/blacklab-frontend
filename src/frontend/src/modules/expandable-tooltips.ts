@@ -5,6 +5,8 @@ import Popper from 'popper.js';
 import { asyncScheduler, fromEvent, merge, type Observable } from 'rxjs';
 import { distinctUntilChanged, filter, map, throttleTime } from 'rxjs/operators';
 
+import { debugLog } from '@/shared/debug/debug';
+
 type ConfigCommon = {
 	/** Class(es) to apply to the tooltip bubble. Defaults to 'tooltip-hover' */
 	tooltipClass?: string;
@@ -73,10 +75,10 @@ function createContext(existingContext?: TooltipContext): TooltipContextPrivate 
 		return existingContext as TooltipContextPrivate;
 	}
 
-	console.log('Creating new tooltip context');
+	debugLog('tooltip', 'Creating new tooltip context');
 	const listeners: Array<() => void> = [];
 	function teardown() {
-		console.log('Destroying tooltip context');
+		debugLog('tooltip', 'Destroying tooltip context');
 		listeners.forEach(l => l());
 	}
 	teardown.listeners = listeners;

@@ -24,6 +24,7 @@ import SelectPicker from './SelectPicker.vue';
 
 void SelectPicker;
 
+import { debugLog } from '@/shared/debug/debug';
 import type { Option } from '@/shared/utils/options';
 import { tokenizeString } from '@/shared/utils/string-utils.ts';
 
@@ -50,7 +51,7 @@ const emit = defineEmits<{
 const options = ref<string[]>([]);
 const autocompleteRef = useTemplateRef<typeof SelectPicker>('input');
 const inputElement = computed<HTMLInputElement | null>(() => {
-	console.log('getting input element');
+	debugLog('autocomplete', 'getting input element');
 	const el = autocompleteRef.value?.$el;
 	if (!el) {
 		// console.warn(`Could not find 'input' template ref`);
@@ -71,7 +72,6 @@ const inputElement = computed<HTMLInputElement | null>(() => {
 let lastSearchValue = '';
 
 function _refreshList() {
-	// console.log('refreshing list');
 	if (!props.url && !props.getData) return;
 
 	const input = inputElement.value;

@@ -128,7 +128,7 @@ import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout
 import type { NormalizedIndex } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
-import debug, { debugLog, debugLogCat } from '@/utils/debug';
+import debug, { debugLog } from '@/shared/debug/debug';
 import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
 import { useBlackLabApi } from '@/shared/api';
@@ -195,7 +195,7 @@ export default defineComponent({
 		markDirty() {
 			this.isDirty = true;
 			if (this.request) {
-				debugLogCat('results', 'cancelling search request');
+				debugLog('results', 'cancelling search request');
 				this.request.cancel();
 				this.request = null;
 			}
@@ -205,10 +205,10 @@ export default defineComponent({
 		},
 		refresh() {
 			this.isDirty = false;
-			debugLogCat('results', 'this is when the search should be refreshed');
+			debugLog('results', 'this is when the search should be refreshed');
 
 			if (this.request) {
-				debugLogCat('results', 'cancelling previous search request');
+				debugLog('results', 'cancelling previous search request');
 				this.request.cancel();
 				this.request = null;
 			}
@@ -237,7 +237,7 @@ export default defineComponent({
 
 			const params = RootStore.get.blacklabParameters()!;
 			const axiosParams = { headers: { 'Cache-Control': 'no-cache' } };
-			debugLog('starting search', this.id, params);
+			debugLog('results', 'starting search', this.id, params);
 			const r = this.id === 'hits' ? this.blacklab.getHits(this.indexId, params, axiosParams) : this.blacklab.getDocs(this.indexId, params, axiosParams);
 			this.request = r;
 
@@ -255,7 +255,7 @@ export default defineComponent({
 						// We simply remove the offending grouping clause and try again.
 						if (e.title === 'UNKNOWN_MATCH_INFO' && this.groupBy.length > 0) {
 							// remove the group on label.
-							debugLogCat('results', 'grouping failed, clearing groupBy');
+							debugLog('results', 'grouping failed, clearing groupBy');
 							const okayGroups = parseGroupBy(this.groupBy, this.results ?? undefined).filter(
 								g => !((g.type === 'context' && g.context.type === 'label') || (g.type === 'metadata' && g.metadata.type === 'span-attribute')),
 							);
@@ -268,7 +268,7 @@ export default defineComponent({
 			).finally(() => this.scrollToResults());
 		},
 		setSuccess(data: BLTypes.BLSearchResult) {
-			debugLogCat('results', 'search results', data);
+			debugLog('results', 'search results', data);
 			this.error = null;
 			this.request = null;
 			this.results = markRaw(data);
@@ -276,7 +276,7 @@ export default defineComponent({
 		},
 		setError(data: ApiError, isGrouped?: boolean) {
 			if (!data.isCancelledRequest) {
-				debugLogCat('results', 'Request failed: ', data);
+				debugLog('results', 'Request failed: ', data);
 				this.error = UIStore.getState().global.errorMessage(data, isGrouped ? 'groups' : (this.id as 'hits' | 'docs'));
 				this.results = null;
 				this.paginationResults = null;

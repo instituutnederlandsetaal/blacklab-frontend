@@ -22,7 +22,7 @@ import * as ViewModule from '@/features/search/model/results/view-state';
 import type * as BLTypes from '@/types/blacklabtypes';
 import type { ArticleUrlState } from '@/url/state-to-url';
 import { corpusCustomizations } from '@/utils/customization';
-import debug from '@/utils/debug';
+import debug, { debugLog } from '@/shared/debug/debug';
 import { getPatternString, getWithinClausesFromFilters } from '@/utils/pattern-utils';
 
 import { Loadable } from '@/shared/utils/loadable/loadable';
@@ -265,7 +265,7 @@ const actions = {
 
 const init = async (state: CorpusContext) => {
 	loadingState.value = Loadable.Loading();
-	console.log('Initializing store with new corpus data', state);
+	debugLog('store', 'Initializing store with new corpus data', state);
 	await CorpusModule.init(state);
 	await UIModule.init(state);
 

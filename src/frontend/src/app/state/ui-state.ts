@@ -19,6 +19,7 @@ import { corpusCustomizations } from '@/utils/customization';
 
 import type { ApiError } from '@/shared/api/lib/api-types';
 import { normalizeAnnotationUIType } from '@/shared/blacklab-helpers/normalize-responses';
+import { debugLog } from '@/shared/debug/debug';
 
 type CustomView = {
 	id: string;
@@ -1364,30 +1365,32 @@ function printCustomizations() {
 	(annotationData.find(g => g.id === defaultGroupName) || { entries: [] as { id: string }[] }).entries.sort((a, b) => a.id.localeCompare(b.id));
 	(metadataData.find(g => g.id === defaultGroupName) || { entries: [] as { id: string }[] }).entries.sort((a, b) => a.id.localeCompare(b.id));
 
-	// tslint:disable-next-line
-	console.log(html`
-		var x = true; var ui = vuexModules.ui.actions; ui.helpers.configureAnnotations([ [${' '.repeat(longestAnnotId + 2)},${annotationCells.map(c => c.header).join(',')}],
-		${annotationData.flatMap(g => [
-			'',
-			`// ${g.id}`,
-			...g.entries.map(
-				v => stripIndent`
-					['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestAnnotId - v.id.length)},${annotationCells.map(c => (v.checkmarks[c.propName] ? c.checked : c.unchecked)).join(',')}],
-				`,
-			),
-		])}
-		]); ui.helpers.configureMetadata([ [${' '.repeat(longestMetadataId + 2)},${metadataCells.map(c => c.header).join(',')}],
-		${metadataData.flatMap(g => [
-			'',
-			`// ${g.id}`,
-			...g.entries.map(
-				v => stripIndent`
-					['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestMetadataId - v.id.length)},${metadataCells.map(c => (v.checkmarks[c.propName] ? c.checked : c.unchecked)).join(',')}],
-				`,
-			),
-		])}
-		]);
-	`);
+	debugLog(
+		'ui',
+		html`
+			var x = true; var ui = vuexModules.ui.actions; ui.helpers.configureAnnotations([ [${' '.repeat(longestAnnotId + 2)},${annotationCells.map(c => c.header).join(',')}],
+			${annotationData.flatMap(g => [
+				'',
+				`// ${g.id}`,
+				...g.entries.map(
+					v => stripIndent`
+						['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestAnnotId - v.id.length)},${annotationCells.map(c => (v.checkmarks[c.propName] ? c.checked : c.unchecked)).join(',')}],
+					`,
+				),
+			])}
+			]); ui.helpers.configureMetadata([ [${' '.repeat(longestMetadataId + 2)},${metadataCells.map(c => c.header).join(',')}],
+			${metadataData.flatMap(g => [
+				'',
+				`// ${g.id}`,
+				...g.entries.map(
+					v => stripIndent`
+						['${v.id.replaceAll("'", "\\'")}'${' '.repeat(longestMetadataId - v.id.length)},${metadataCells.map(c => (v.checkmarks[c.propName] ? c.checked : c.unchecked)).join(',')}],
+					`,
+				),
+			])}
+			]);
+		`,
+	);
 }
 
 /** This lets custom JS files call frontend.customize((corpus) => { ... });

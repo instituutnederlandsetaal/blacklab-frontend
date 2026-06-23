@@ -21,11 +21,12 @@ import { createBlfRouter } from '@/navigation/router';
 
 import { createApi } from '@/shared/api';
 import { createLoginSystem, type LoginSystemConfig } from '@/shared/auth/loginsystem';
+import { createDebugSystem } from '@/shared/debug/debug';
 import { createI18n } from '@/shared/i18n';
 
 import AppRoot from '@/App.vue';
 import AudioPlayer from '@/components/AudioPlayer.vue';
-import DebugComponent from '@/components/Debug.vue';
+import DebugComponent from '@/shared/debug/Debug.vue';
 
 function getLoginSystemConfig(): LoginSystemConfig {
 	if (OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL) {
@@ -46,6 +47,10 @@ function getLoginSystemConfig(): LoginSystemConfig {
 
 async function start() {
 	const loginSystem = await createLoginSystem(getLoginSystemConfig());
+	const debugSystem = createDebugSystem({
+		enabledByDefault: import.meta.env.DEV,
+		visible: DEBUG_INFO_VISIBLE,
+	});
 	const api = await createApi({
 		blacklab: { baseUrl: BLS_URL, user: loginSystem.user, apiVersion: loginSystem.apiVersion },
 		frontend: { baseUrl: CONTEXT_URL, user: loginSystem.user },
@@ -63,6 +68,7 @@ async function start() {
 
 	const app = createApp(AppRoot);
 	app.use(loginSystem);
+	app.use(debugSystem);
 	app.use(pageBootstrap);
 	app.use(api);
 	app.use(i18n);

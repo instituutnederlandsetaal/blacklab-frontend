@@ -127,7 +127,7 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';
 import type { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
-import { debugLog } from '@/utils/debug';
+import { debugLog } from '@/shared/debug/debug';
 
 import type { HitRowData } from './table-layout';
 import { snippetParts } from './table-layout';
@@ -253,7 +253,7 @@ function loadSnippet() {
 		.catch((err: ApiError) => {
 			if (nonce !== props.row.hit) return; // hit has changed in the meantime.
 			error.value = formatError(err, 'snippet');
-			if (err.stack) debugLog(err.stack);
+			if (err.stack) debugLog('article', err.stack);
 		})
 		.finally(() => {
 			if (snippetRequest.value === request) snippetRequest.value = null;

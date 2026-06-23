@@ -102,7 +102,7 @@ import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import { type NormalizedFormat, type NormalizedIndexBase } from '@/types/apptypes';
-import debug from '@/utils/debug';
+import debug from '@/shared/debug/debug';
 
 import Spinner from '@/components/Spinner.vue';
 

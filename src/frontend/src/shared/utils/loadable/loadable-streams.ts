@@ -17,7 +17,7 @@
  *   // From the request/canceler, create a stream that emits loading, loaded, and error states.
  *   switchMap(request => asObservable(request)),
  *   // Every time the stream emits a value (loading, loaded, error), log it.
- *   tap(loadable => console.log(loadable))
+ *   tap(loadable => console.debug(loadable))
  * )
  */
 

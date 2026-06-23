@@ -47,7 +47,7 @@ import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
-import { debugLog } from '@/utils/debug';
+import { debugLog } from '@/shared/debug/debug';
 
 import { useBlackLabApi } from '@/shared/api';
 import { ensureCompleteFieldName } from '@/shared/blacklab-helpers/parallel-helper';
@@ -100,14 +100,14 @@ export default defineComponent({
 
 			const apir = apiCall(CorpusStore.get.indexId()!, params);
 
-			debugLog('starting csv download', this.type, params);
+			debugLog('export', 'starting csv download', this.type, params);
 			apiCall(CorpusStore.get.indexId()!, params)
 				.request.then(
 					async blob => {
 						const { saveAs } = await import('file-saver');
 						saveAs(blob, 'data.csv');
 					},
-					error => debugLog('Error downloading csv file', error),
+					error => debugLog('export', 'Error downloading csv file', error),
 				)
 				.finally(() => (this.downloadInProgress = false));
 		},

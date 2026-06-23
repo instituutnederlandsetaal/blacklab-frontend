@@ -60,6 +60,24 @@
 				<label for="debug" class="text-muted"><input type="checkbox" id="debug" name="debug" v-model="debug" />{{ $t('setting.debug') }}</label>
 			</div>
 			<br />
+			<div v-if="debug_visible && debugCategories.length" class="debug-log-categories">
+				<label class="text-muted">{{ $t('setting.debugLogCategories') }}</label>
+				<div>
+					<button
+						v-for="category in debugCategories"
+						:key="category"
+						type="button"
+						class="btn btn-xs btn-default"
+						:class="{ active: activeDebugCategories.has(category) }"
+						@click="surfaceDebugCategory(category)"
+					>
+						{{ category }}
+					</button>
+					<button type="button" class="btn btn-xs btn-default" @click="surfaceAllDebugCategories">
+						{{ $t('setting.debugLogCategoriesAll') }}
+					</button>
+				</div>
+			</div>
 			<button type="button" class="btn btn-sm btn-default" @click="debug_visible = debug = false">
 				{{ $t('setting.hideDebugUntilReload') }}
 			</button>
@@ -74,7 +92,7 @@ import { defineComponent } from 'vue';
 import * as RootStore from '@/app/state/root-store';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
 import * as ResultsViewSettings from '@/features/search/model/results/view-state';
-import debug, { debug_visible } from '@/utils/debug';
+import { useDebugSystem } from '@/shared/debug/debug';
 import { localStorageSynced } from '@/shared/utils/localstore';
 import type { Option } from '@/shared/utils/options';
 
@@ -98,10 +116,19 @@ export default defineComponent({
 		SelectPicker,
 		Modal,
 	},
+	setup() {
+		const debugSystem = useDebugSystem();
+		return {
+			debug: debugSystem.debug,
+			debug_visible: debugSystem.debug_visible,
+			debugCategories: debugSystem.knownCategories,
+			activeDebugCategories: debugSystem.activeCategories,
+			surfaceDebugCategory: debugSystem.surfaceCategory,
+			surfaceAllDebugCategories: debugSystem.surfaceAllCategories,
+		};
+	},
 	data: () => ({
-		debug,
 		wideView,
-		debug_visible,
 	}),
 	computed: {
 		viewedResultsSettings: RootStore.get.viewedResultsSettings,
@@ -189,3 +216,13 @@ export default defineComponent({
 	},
 });
 </script>
+
+<style lang="scss" scoped>
+.debug-log-categories {
+	margin: 8px 0;
+
+	.btn {
+		margin: 0 4px 4px 0;
+	}
+}
+</style>

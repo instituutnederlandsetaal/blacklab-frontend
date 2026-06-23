@@ -138,7 +138,7 @@ import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { getAnnotationSubset, getMetadataSubset } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
-import debug from '@/utils/debug';
+import debug from '@/shared/debug/debug';
 
 import ParallelFields from './parallel/ParallelFields';
 

@@ -24,7 +24,7 @@ import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, spanFilter
 import type { Condition, Result, Token } from '@/utils/bcql-json-interpreter';
 import { parseBcql } from '@/utils/bcql-json-interpreter';
 import { corpusCustomizations } from '@/utils/customization';
-import { debugLog } from '@/utils/debug';
+import { debugLog } from '@/shared/debug/debug';
 import parseLucene from '@/utils/luceneparser';
 
 import BaseUrlStateParser from './url-state-parser-base';
@@ -211,7 +211,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				});
 			return filterValues;
 		} catch (error) {
-			debugLog('Cannot decode lucene query ', luceneString, error);
+			debugLog('url', 'Cannot decode lucene query ', luceneString, error);
 			return {};
 		}
 	}
@@ -477,7 +477,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 					if (expr.type === 'condition') {
 						const name = expr.name;
 						if (knownAnnotations[name] == null) {
-							debugLog(`Encountered unknown cql field ${name} while decoding query from url, ignoring.`);
+							debugLog('url', `Encountered unknown cql field ${name} while decoding query from url, ignoring.`);
 							continue;
 						}
 
@@ -486,7 +486,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 						if (isTagsetAnnotation) {
 							// add value as original cql-query substring to the main tagset annotation under which the values should be stored.
-							debugLog('Relocating value for annotation ' + name + ' to tagset annotation(s) ' + tagsetInfo!.mainAnnotations);
+							debugLog('url', 'Relocating value for annotation ' + name + ' to tagset annotation(s) ' + tagsetInfo!.mainAnnotations);
 							const originalValue = `${name}="${expr.value}"`;
 
 							for (const id of tagsetInfo!.mainAnnotations) {
@@ -522,7 +522,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				const annot = knownAnnotations[id];
 				if (tagsetInfo && tagsetInfo.mainAnnotations.includes(id)) {
 					// use value as-is, already contains cql and should not have wildcards substituted.
-					debugLog('Mapping tagset annotation back to cql: ' + id + ' with values ' + values);
+					debugLog('url', 'Mapping tagset annotation back to cql: ' + id + ' with values ' + values);
 
 					return {
 						id,
@@ -538,7 +538,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			});
 			return mapReduce(decodedValues, 'id');
 		} catch (error) {
-			debugLog('Cql query could not be placed in simple/extended view', error);
+			debugLog('url', 'Cql query could not be placed in simple/extended view', error);
 			return undefined;
 		}
 	}

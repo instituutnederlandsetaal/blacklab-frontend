@@ -73,7 +73,7 @@ import { defineComponent, nextTick } from 'vue';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import UrlStateParserBase from '@/url/url-state-parser-base';
-import { debugLogCat } from '@/utils/debug';
+import { debugLog } from '@/shared/debug/debug';
 
 import { useBlackLabApi } from '@/shared/api';
 import type { OptGroup } from '@/shared/utils/options';
@@ -152,7 +152,7 @@ export default defineComponent({
 
 	methods: {
 		log(...args: any[]) {
-			console.log(...args);
+			debugLog('remote-index', ...args);
 		},
 
 		init() {
@@ -327,7 +327,7 @@ export default defineComponent({
 			this.action = 'Finished! Opening search page...';
 			window.setTimeout(() => {
 				const url = CONTEXT_URL + '/' + this.selectedCorpus!.id + '/search/';
-				debugLogCat('history', `Setting window.location.href to ${url}`);
+				debugLog('history', `Setting window.location.href to ${url}`);
 				window.location.href = url;
 			}, 5000);
 		},
@@ -336,7 +336,7 @@ export default defineComponent({
 		this.urlParams = await new UrlStateParser().get();
 		if (!this.urlParams.file) {
 			this.error = 'No file specified, redirecting...';
-			debugLogCat('history', `Setting window.location.href to ${CONTEXT_URL}`);
+			debugLog('history', `Setting window.location.href to ${CONTEXT_URL}`);
 			window.location.href = CONTEXT_URL;
 			return;
 		}

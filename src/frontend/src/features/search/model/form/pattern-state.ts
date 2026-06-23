@@ -12,7 +12,7 @@ import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
 import type { AnnotationValue } from '@/types/apptypes';
-import { debugLogCat } from '@/utils/debug';
+import { debugLog } from '@/shared/debug/debug';
 
 type ModuleRootState = {
 	// Parallel fields (shared between multiple states, e.g. simple, extended, etc.)
@@ -119,7 +119,7 @@ const actions = {
 			return (state.shared.source = payload);
 		},
 		addTarget: (version: string) => {
-			debugLogCat('parallel', `shared.addTargetVersion: Adding '${version}'`);
+			debugLog('parallel', `shared.addTargetVersion: Adding '${version}'`);
 			if (!version) {
 				console.warn('Tried to add null target version');
 				return;
@@ -132,7 +132,7 @@ const actions = {
 				return;
 			}
 
-			debugLogCat('parallel', `parallelFields.removeTargetVersion: Removing '${version}'`);
+			debugLog('parallel', `parallelFields.removeTargetVersion: Removing '${version}'`);
 			const index = state.shared.targets.indexOf(version);
 			if (index < 0) {
 				console.warn(`Tried to remove a target version ('${version}') that is not currently selected`);
@@ -166,7 +166,7 @@ const actions = {
 		withinAttributes: (payload: Record<string, string>) => (state.shared.withinAttributes = payload),
 		reset: () => {
 			const defaultSourceField = CorpusStore.get.parallelAnnotatedFields()[0]?.id;
-			debugLogCat('shared', `shared.reset: Selecting default source version '${defaultSourceField}'`);
+			debugLog('shared', `shared.reset: Selecting default source version '${defaultSourceField}'`);
 			state.shared.source = defaultSourceField;
 			state.shared.targets = [];
 			state.shared.alignBy = UIStore.getState().search.shared.alignBy.defaultValue;
@@ -269,7 +269,7 @@ const init = (state: CorpusContext) => {
 	const parallelFields = CorpusStore.get.parallelAnnotatedFields();
 	const defaultParallelVersion = parallelFields[0]?.id ?? null;
 
-	debugLogCat('parallel', `init: Set default parallel version: ${defaultParallelVersion}`);
+	debugLog('parallel', `init: Set default parallel version: ${defaultParallelVersion}`);
 	privateActions.initShared({
 		source: defaultParallelVersion,
 		targets: [],
@@ -294,7 +294,7 @@ const init = (state: CorpusContext) => {
 		},
 	});
 
-	debugLogCat('init', 'Finished initializing pattern module state shape');
+	debugLog('init', 'Finished initializing pattern module state shape');
 };
 
 const resetSignal = ref(0);

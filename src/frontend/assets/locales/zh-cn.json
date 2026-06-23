@@ -3,22 +3,7 @@
 		"learnMore": "Learn more",
 		"clickToRemove": "Click to remove",
 		"selectValue": "Select a value...",
-		"selectValues": "Select value(s)...",
-		"caseSensitive": "区分大小写和变音符号"
-	},
-	"form": {
-		"summary": {
-			"heading": "摘要",
-			"empty": "没有活动输入。",
-			"none": "无"
-		},
-		"totals": {
-			"heading": "子语料库总计",
-			"documents": "文档",
-			"tokens": "Tokens",
-			"filtered": "预览使用当前筛选器。",
-			"unfiltered": "没有活动筛选器。"
-		}
+		"selectValues": "Select value(s)..."
 	},
 	"search": {
 		"heading": "搜索方式",
@@ -34,16 +19,12 @@
 			"copyAdvancedQuery": "复制到CQL编辑器",
 
 			"queryBuilder": {
-				"$comment": "we use underscores here because mustachejs keys cannot contain dots",
-
 				"createTokenButton_label": "插入另一个标记",
 
 				"modalEditor_title": "编辑",
 				"modalEditor_clear": "清除",
 				"modalEditor_cancel": "取消",
 				"modalEditor_save": "保存更改",
-
-				"withinSelect_label": "范围:",
 
 				"token_head_move_right_title": "将此标记向右移动一个位置",
 				"token_head_move_left_title": "将此标记向左移动一个位置",
@@ -68,7 +49,6 @@
 
 				"attribute_file_upload_button_title": "上传值列表",
 				"attribute_file_upload_edit_button_title": "编辑上传的值",
-				"attribute_file_upload_clear_button_title": "清除上传的值",
 
 				"attribute_create_button_title": "添加另一个属性",
 
@@ -103,9 +83,6 @@
 			"queryForSourceVersion": "源版本查询",
 			"queryForTargetVersion": "目标版本查询",
 			"addTargetVersion": "添加另一个目标版本"
-		},
-		"within": {
-			"document": "文档"
 		}
 	},
 	"filter": {
@@ -155,6 +132,8 @@
 		"context": "上下文大小",
 		"wideView": "宽视图",
 		"debug": "调试信息",
+		"debugLogCategories": "调试日志类别",
+		"debugLogCategoriesAll": "全部",
 		"hideDebugUntilReload": "在重新加载之前隐藏“显示调试信息”复选框",
 		"close": "关闭"
 	},
@@ -165,9 +144,6 @@
 		"history": "历史"
 	},
 	"partOfSpeech": {
-		"cancel": "取消",
-		"edit": "编辑",
-		"noneSelected": "未选择词性",
 		"noOptions": "没有选项",
 		"submit": "确定",
 		"reset": "重置"
@@ -195,7 +171,6 @@
 			"close": "关闭",
 			"clear": "清除",
 			"apply": "应用",
-			"invalidGrouping": "此分组无效。",
 
 			"parallelCorpusVersion": "查看版本",
 			"iWantToGroupOnAnnotation": "我想使用注释 {this_annotation} 对 {in_this_location_with_text} {some_words} 进行分组.",
@@ -235,7 +210,22 @@
 			"clickButtonsToStart": "在此窗口中，您可以对结果应用分组。单击左侧的按钮创建分组标准以开始。",
 			"metadata": "元数据",
 			"annotation": "标注",
-			"specify": "待填"
+			"specify": "待填",
+
+			"summary": {
+				"indexedWord": "{field} [{index}] {position}",
+				"firstWord": "第一个 {field} {position}",
+				"allWords": "{field} {position}",
+				"labelledWord": "{field} 上的标签 {label}",
+				"metadata": "文档 {field}",
+
+				"position": {
+					"before": "命中前",
+					"hit": "命中内",
+					"after": "命中后",
+					"end": "命中内"
+				}
+			}
 		},
 		"table": {
 			"showFullSentence": "显示整个句子",
@@ -291,7 +281,6 @@
 				"randomSample": "随机样本 ({sample})"
 			},
 
-			"backToGroupOverview": "返回分组概览",
 			"noResultsFound": "未找到结果。",
 			"inactiveView": "此视图不活跃，因为未指定单词的搜索条件。",
 			"tryAgainTitle": "使用当前搜索设置重试",
@@ -314,6 +303,9 @@
 		},
 		"sort": {
 			"sortBy": "分类依据"
+		},
+		"shared": {
+			"spanAttribute": "标签 {span}，属性 {attribute}"
 		}
 	},
 	"history": {
@@ -337,9 +329,6 @@
 		"clear": "清除",
 		"cancel": "取消"
 	},
-	"searchPage": {
-		"fullQuery": "完整查询"
-	},
 	"remoteIndex": {
 		"loadingCorpora": "正在加载您的语料库...",
 		"pickCorpus": "请选择一个语料库",
@@ -348,7 +337,33 @@
 		"createNewCorpus": "或创建一个新语料库并添加到其中...",
 		"name": "名称",
 		"create": "创建",
+		"select": "选择",
 		"illegalCorpusName": "非法语料库名称。语料库名称必须在3到30个字符之间，不能包含特殊字符。",
 		"retry": "重试"
+	},
+	"index": {
+		"annotatedFields": {
+			"$exampleAnnotatedField": "Translated display name for annotated field $exampleAnnotatedField",
+			"$exampleAnnotatedField_description": "Translated description for annotated field $exampleAnnotatedField"
+		},
+		"annotations": {
+			"$exampleAnnotation": "Translated display name for annotation $exampleAnnotation",
+			"$exampleAnnotation_description": "Translated description for annotation $exampleAnnotation"
+		},
+		"annotationGroups": {
+			"$exampleAnnotationGroup": "Translated display name for annotation group $exampleAnnotationGroup"
+		},
+		"metadata": {
+			"$exampleMetadataField": "Translated display name for metadata field $exampleMetadataField"
+		},
+		"metadataGroups": {
+			"$exampleMetadataGroup": "Translated display name for metadata group $exampleMetadataGroup"
+		},
+		"within": {
+			"$exampleWithinValue": "Translated display name for within value $exampleWithinValue"
+		},
+		"alignBy": {
+			"$exampleAlignByValue": "Translated display name for align by relation $exampleAlignByValue"
+		}
 	}
 }

@@ -4,7 +4,7 @@ import type { ASTNode, ASTRange } from 'lucene-query-parser';
 import type { FullFilterState } from '@/features/search/model/form/filter-state';
 import type { FilterValue } from '@/types/apptypes';
 import { cast, spanFilterId } from '@/utils';
-import { debugLog } from '@/utils/debug';
+import { debugLog } from '@/shared/debug/debug';
 
 import { mapReduce } from '@/shared/utils/map-reduce';
 import { findOption, optionLabel, optionValues, type Option } from '@/shared/utils/options';
@@ -267,7 +267,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			const availableValues = filterValues[id]?.values?.map(unescapeLucene).filter(value => {
 				const valueIsPossible = allowedValues.has(value);
 				if (!valueIsPossible) {
-					debugLog(`Filter ${id} ignoring requested value ${value} while decoding - value is not in the available options.`);
+					debugLog('filter', `Filter ${id} ignoring requested value ${value} while decoding - value is not in the available options.`);
 				}
 				return valueIsPossible;
 			});
@@ -298,11 +298,11 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			let chosenValue: string | null = null;
 			selectedValues?.forEach((value, i) => {
 				if (!availableValues.has(value)) {
-					debugLog(`Filter ${id} ignoring filter value ${value} while decoding - value is not in the available options.`);
+					debugLog('filter', `Filter ${id} ignoring filter value ${value} while decoding - value is not in the available options.`);
 					return;
 				}
 				if (chosenValue != null) {
-					debugLog(`Filter ${id} has multiple values while decoding - only the first one will be used.`);
+					debugLog('filter', `Filter ${id} has multiple values while decoding - only the first one will be used.`);
 					return;
 				}
 				chosenValue = unescapeLucene(value);
@@ -393,7 +393,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			const availableValues = filterValues[id]?.values?.map(unescapeLucene).filter(value => {
 				const valueIsPossible = filterMetadata.find(option => option.value === value);
 				if (!valueIsPossible) {
-					debugLog(`Filter ${id} ignoring requested value ${value} while decoding - value is not in the available options.`);
+					debugLog('filter', `Filter ${id} ignoring requested value ${value} while decoding - value is not in the available options.`);
 				}
 				return valueIsPossible;
 			});

@@ -193,7 +193,7 @@ import type { BLHitResults, BLMatchInfoRelation, BLSearchParameters, BLSearchRes
 import { hasPatternInfo, isHitParams, isHitResults } from '@/types/blacklabtypes';
 import { getAnnotationSubset, getMetadataSubset, spanFilterId } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
-import debug from '@/utils/debug';
+import debug from '@/shared/debug/debug';
 import type { ContextLabel, ContextPositional, GroupBy, GroupByContext } from '@/utils/grouping';
 import { humanizeGroupByOrSortBy, isValidGroupBy, parseGroupBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 

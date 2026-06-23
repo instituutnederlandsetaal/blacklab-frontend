@@ -1,27 +1,9 @@
 {
-	"navbar": {
-		"myCorpora": "My corpora"
-	},
 	"widgets": {
 		"learnMore": "Learn more",
 		"clickToRemove": "Click to remove",
 		"selectValue": "Select a value...",
-		"selectValues": "Select value(s)...",
-		"caseSensitive": "Case- and diacritics-sensitive"
-	},
-	"form": {
-		"summary": {
-			"heading": "Summary",
-			"empty": "No active inputs.",
-			"none": "None"
-		},
-		"totals": {
-			"heading": "Subcorpus totals",
-			"documents": "Documents",
-			"tokens": "Tokens",
-			"filtered": "Preview uses the current filter projection.",
-			"unfiltered": "No filters active."
-		}
+		"selectValues": "Select value(s)..."
 	},
 	"search": {
 		"heading": "Search for …",
@@ -37,16 +19,12 @@
 			"copyAdvancedQuery": "Copy to CQL editor",
 
 			"queryBuilder": {
-				"$comment": "we use underscores here because mustachejs keys cannot contain dots",
-
 				"createTokenButton_label": "Insert another token",
 
 				"modalEditor_title": "Edit",
 				"modalEditor_clear": "Clear",
 				"modalEditor_cancel": "Cancel",
 				"modalEditor_save": "Save changes",
-
-				"withinSelect_label": "Within:",
 
 				"token_head_move_right_title": "Move this token one position to the right",
 				"token_head_move_left_title": "Move this token one position to the left",
@@ -71,7 +49,6 @@
 
 				"attribute_file_upload_button_title": "Upload a list of values",
 				"attribute_file_upload_edit_button_title": "Edit your uploaded values",
-				"attribute_file_upload_clear_button_title": "Clear uploaded values",
 
 				"attribute_create_button_title": "Add another attribute",
 
@@ -106,9 +83,6 @@
 			"queryForSourceVersion": "Query for source version",
 			"queryForTargetVersion": "Query for target version",
 			"addTargetVersion": "Add another target version"
-		},
-		"within": {
-			"document": "Document"
 		}
 	},
 	"filter": {
@@ -158,6 +132,8 @@
 		"context": "Context size",
 		"wideView": "Wide View",
 		"debug": "Debug info",
+		"debugLogCategories": "Debug log categories",
+		"debugLogCategoriesAll": "All",
 		"hideDebugUntilReload": "Hide debug checkbox until next reload",
 		"close": "Close"
 	},
@@ -168,9 +144,6 @@
 		"history": "History"
 	},
 	"partOfSpeech": {
-		"cancel": "Cancel",
-		"edit": "Edit",
-		"noneSelected": "No part of speech selected",
 		"noOptions": "No options",
 		"submit": "Ok",
 		"reset": "Reset"
@@ -198,7 +171,6 @@
 			"close": "Close",
 			"clear": "Clear",
 			"apply": "Group",
-			"invalidGrouping": "This grouping is not valid.",
 
 			"parallelCorpusVersion": "Looking at version ",
 			"iWantToGroupOnAnnotation": "I want to group on {some_words} {in_this_location_with_text} using annotation {this_annotation}.",
@@ -245,7 +217,6 @@
 				"firstWord": "first {field} {position}",
 				"allWords": "{field} {position}",
 				"labelledWord": "label {label} on {field}",
-				"spanAttribute": "tag {span}, attribute {attribute}",
 				"metadata": "Document {field}",
 
 				"position": {
@@ -332,6 +303,9 @@
 		},
 		"sort": {
 			"sortBy": "Sort by…"
+		},
+		"shared": {
+			"spanAttribute": "tag {span}, attribute {attribute}"
 		}
 	},
 	"history": {
@@ -354,9 +328,6 @@
 		"clearSearchHistoryConfirmation": "Are you sure you want to clear your search history?",
 		"clear": "Clear",
 		"cancel": "Cancel"
-	},
-	"searchPage": {
-		"fullQuery": "Full query"
 	},
 	"remoteIndex": {
 		"loadingCorpora": "Loading your corpora...",

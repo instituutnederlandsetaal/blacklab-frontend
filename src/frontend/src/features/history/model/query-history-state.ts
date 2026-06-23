@@ -21,7 +21,7 @@ import type * as PatternModule from '@/features/search/model/form/pattern-state'
 import type * as GlobalModule from '@/features/search/model/results/global-results-state';
 import type * as ViewModule from '@/features/search/model/results/view-state';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
-import { debugLog } from '@/utils/debug';
+import { debugLog } from '@/shared/debug/debug';
 import { getPatternSummaryExplore, getPatternSummarySearch } from '@/utils/pattern-utils';
 
 import { hashJavaDJB2 } from '@/shared/utils/string-utils';
@@ -136,7 +136,7 @@ const get = {
 						url: originalEntry.url,
 					});
 				} catch (e) {
-					debugLog('Cannot import query from file: ', f.name, e);
+					debugLog('history', 'Cannot import query from file: ', f.name, e);
 					reject(e);
 				}
 			};
@@ -234,18 +234,18 @@ const readFromLocalStorage = (): ModuleRootState => {
 	try {
 		const stored: LocalStorageState = JSON.parse(historyJson);
 		if (stored.indexLastModified !== corpus.timeModified) {
-			debugLog('Index was modified in between saving and loading history, clearing history.');
+			debugLog('history', 'Index was modified in between saving and loading history, clearing history.');
 			window.localStorage.removeItem(key);
 			return [];
 		}
 		if (stored.version !== version) {
-			debugLog(`History out of date: read version ${stored.version}, current version ${version}, clearing history.`);
+			debugLog('history', `History out of date: read version ${stored.version}, current version ${version}, clearing history.`);
 			window.localStorage.removeItem(key);
 			return [];
 		}
 		return stored.history;
 	} catch (e) {
-		debugLog('Could not read search history from localstorage', e);
+		debugLog('history', 'Could not read search history from localstorage', e);
 		return [];
 	}
 };

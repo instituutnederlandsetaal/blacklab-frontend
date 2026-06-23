@@ -1,7 +1,8 @@
 import luceneQueryParser from 'lucene-query-parser';
 
 import type { FilterValue } from '@/types/apptypes';
-import { debugLog } from '@/utils/debug';
+
+import { debugLog } from '@/shared/debug/debug';
 
 /** Parse the expression into an array of filter fields for easy displaying. Throws error if the query is too complex or contains errors. */
 export default (luceneQuery?: string): FilterValue[] => {
@@ -9,7 +10,7 @@ export default (luceneQuery?: string): FilterValue[] => {
 		return [];
 	}
 
-	debugLog('parsing filter string', luceneQuery);
+	debugLog('query', 'parsing filter string', luceneQuery);
 
 	/**
 	 * Since the parsed query is a tree-like structure (to allow expression like 'field:("value1" OR ("value3" OR "value4"))' )
@@ -53,7 +54,7 @@ export default (luceneQuery?: string): FilterValue[] => {
 			} else if (context != null && val.field && val.field !== '<implicit>') {
 				// this is weird, and it should probably never happen
 				// it would mean we're going to define terms for a field while we're already inside the term list expression for another field
-				debugLog('Got a node with a field, but already have context, ignoring.', context);
+				debugLog('query', 'Got a node with a field, but already have context, ignoring.', context);
 				return;
 			}
 		}
@@ -94,7 +95,7 @@ export default (luceneQuery?: string): FilterValue[] => {
 
 		if (createdContext) {
 			if (context == null) {
-				debugLog("We started a context but didn't end with one, some other function pushed it, that shouldn't happen...");
+				debugLog('query', "We started a context but didn't end with one, some other function pushed it, that shouldn't happen...");
 			} else {
 				parsedValues.push(context);
 				context = null;
@@ -121,7 +122,7 @@ export default (luceneQuery?: string): FilterValue[] => {
 			};
 			createdContext = true;
 		} else if (context != null && val.field && val.field !== '<implicit>') {
-			debugLog('Got field', field, ' with an explicit name, but we already have a context?');
+			debugLog('query', 'Got field', field, ' with an explicit name, but we already have a context?');
 			return;
 		} // else have context and field is implicit, just add the term value to the list
 
@@ -139,7 +140,7 @@ export default (luceneQuery?: string): FilterValue[] => {
 
 		if (context != null) {
 			// mixed terms and ranges for the same field, can't handle.
-			debugLog('Entered a range expression, but context is not null, might happen? cannot handle in interface');
+			debugLog('query', 'Entered a range expression, but context is not null, might happen? cannot handle in interface');
 			return;
 		}
 		if (val.field === '<implicit>') {
