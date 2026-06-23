@@ -1,17 +1,17 @@
 import type {
-	NormalizedIndex,
-	NormalizedAnnotation,
-	NormalizedAnnotatedField,
-	NormalizedMetadataField,
-	NormalizedFormat,
-	NormalizedMetadataGroup,
-	NormalizedAnnotationGroup,
-	NormalizedIndexBase,
+    NormalizedIndex,
+    NormalizedAnnotation,
+    NormalizedAnnotatedField,
+    NormalizedMetadataField,
+    NormalizedFormat,
+    NormalizedMetadataGroup,
+    NormalizedAnnotationGroup,
+    NormalizedIndexBase,
 } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 
 import { getParallelFieldParts, PARALLEL_FIELD_SEPARATOR } from '@/shared/blacklab-helpers/parallel-helper';
-import { mapReduce } from '@/shared/utils/map-reduce';
+import { mapReduce } from '@/shared/utils/array-utils';
 
 /** Find the annotation that contains annotationId as on of its subAnnotations. */
 function findParentAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string): string | undefined {

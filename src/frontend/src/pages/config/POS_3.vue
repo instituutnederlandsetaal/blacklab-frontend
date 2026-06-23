@@ -53,7 +53,7 @@ import type { PropType } from 'vue';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
 import { useBlackLabApi } from '@/shared/api/index.ts';
-import { mapReduce } from '@/shared/utils/map-reduce.ts';
+import { mapReduce } from '@/shared/utils/array-utils.ts';
 
 import type { StepState } from './POS.vue';
 import SelectPicker from '@/components/SelectPicker.vue';

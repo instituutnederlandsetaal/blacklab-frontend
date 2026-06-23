@@ -6,7 +6,7 @@ import type { FilterValue } from '@/types/apptypes';
 import { cast, spanFilterId } from '@/utils';
 import { debugLog } from '@/shared/debug/debug';
 
-import { mapReduce } from '@/shared/utils/map-reduce';
+import { mapReduce } from '@/shared/utils/array-utils';
 import { findOption, optionLabel, optionValues, type Option } from '@/shared/utils/options';
 import { unescapeLucene, escapeLucene, tokenizeString } from '@/shared/utils/string-utils';
 

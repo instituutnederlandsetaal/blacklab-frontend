@@ -67,7 +67,7 @@ import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { corpusCustomizations } from '@/utils/customization';
 
-import { mapReduce } from '@/shared/utils/map-reduce';
+import { mapReduce } from '@/shared/utils/array-utils';
 
 import FilterOverview from '@/pages/search/form/FilterOverview.vue';
 

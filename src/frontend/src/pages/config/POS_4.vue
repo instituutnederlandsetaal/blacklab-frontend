@@ -30,7 +30,7 @@ import type { PropType } from 'vue';
 
 import type { Tagset } from '@/types/apptypes';
 
-import { mapReduce } from '@/shared/utils/map-reduce.ts';
+import { mapReduce } from '@/shared/utils/array-utils.ts';
 
 import type { StepState } from './POS.vue';
 

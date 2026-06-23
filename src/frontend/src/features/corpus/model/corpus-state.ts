@@ -9,16 +9,16 @@ import { ref } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type {
-	NormalizedAnnotatedField,
-	NormalizedAnnotatedFieldParallel,
-	NormalizedAnnotation,
-	NormalizedAnnotationGroup,
-	NormalizedIndex,
-	NormalizedMetadataField,
-	NormalizedMetadataGroup,
+    NormalizedAnnotatedField,
+    NormalizedAnnotatedFieldParallel,
+    NormalizedAnnotation,
+    NormalizedAnnotationGroup,
+    NormalizedIndex,
+    NormalizedMetadataField,
+    NormalizedMetadataGroup,
 } from '@/types/apptypes';
 
-import { mapReduce } from '@/shared/utils/map-reduce';
+import { mapReduce } from '@/shared/utils/array-utils';
 
 type ModuleRootState = NormalizedIndex | undefined;
 

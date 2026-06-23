@@ -15,7 +15,7 @@ import { corpusCustomizations } from '@/utils/customization';
 import { debugLog } from '@/shared/debug/debug';
 
 import type { BlackLabPaths } from '@/shared/api/lib/api-types';
-import { mapReduce } from '@/shared/utils/map-reduce';
+import { mapReduce } from '@/shared/utils/array-utils';
 
 export type FilterState = {
 	value: unknown;

@@ -33,7 +33,7 @@ import { emptyArticleUrlState } from './state-to-url';
 
 import { useBlackLabApi } from '@/shared/api';
 import { getParallelFieldName } from '@/shared/blacklab-helpers/parallel-helper';
-import { mapReduce } from '@/shared/utils/map-reduce';
+import { mapReduce } from '@/shared/utils/array-utils';
 import { unescapeRegex } from '@/shared/utils/string-utils';
 
 /**

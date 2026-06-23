@@ -56,7 +56,7 @@ import type { NormalizedAnnotation } from '@/types/apptypes';
 
 import { useBlackLabApi } from '@/shared/api';
 import { filterDuplicates } from '@/shared/utils/array-utils';
-import { mapReduce } from '@/shared/utils/map-reduce';
+import { mapReduce } from '@/shared/utils/array-utils';
 import { escapeRegex } from '@/shared/utils/string-utils';
 import useUid from '@/shared/utils/uid';
 
