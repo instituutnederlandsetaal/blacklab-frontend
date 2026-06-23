@@ -33,6 +33,7 @@
 				<span v-if="editable" class="fa fa-pencil"></span>
 			</template>
 			<a v-else-if="!pageActive" role="button" @click.prevent="changePage(page)">{{ currentPageLabel }}</a>
+			<a v-else-if="!disabled" role="button" @click.prevent="activatePage">{{ currentPageLabel }}</a>
 			<span v-else>{{ currentPageLabel }}</span>
 		</li>
 		<template v-if="showOffsets"
@@ -65,6 +66,7 @@ export type PaginationInfo = {
 
 /** Renders pagination controls, inputs are 0-based, meaning page === 0 will render as 1 on the label */
 export default defineComponent({
+	emits: ['change', 'active'],
 	props: {
 		/** 0-indexed. The interface will display this number + 1 */
 		page: { type: Number, required: true },
@@ -180,6 +182,11 @@ export default defineComponent({
 		changePage(page: any) {
 			if (!this.disabled && this.isValid(page)) {
 				this.$emit('change', page);
+			}
+		},
+		activatePage() {
+			if (!this.disabled) {
+				this.$emit('active', this.page);
 			}
 		},
 	},

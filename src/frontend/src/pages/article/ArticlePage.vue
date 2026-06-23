@@ -1,40 +1,39 @@
 <template>
 	<!-- TODO: i18n -->
 	<div class="container article" v-if="inputs">
-		<UseDraggable>
-			<div class="article-pagination" title="Hold to drag">
-				<template v-if="validPaginationInfo.isLoaded()">
-					<div class="pagination-container">
-						<label>Page</label>
-						<div class="pagination-wrapper">
-							<Pagination showTotal :page="validPaginationInfo.value.page" :maxPage="validPaginationInfo.value.maxPage" :editable="false" :showOffsets="false" @change="handlePageNavigation" />
-						</div>
-					</div>
-					<hr v-if="!hitToHighlight.isEmpty()" />
-				</template>
-
-				<div v-if="hitToHighlight.isLoaded()" class="pagination-container">
-					<label>Hit</label>
+		<UseDraggable class="article-pagination" title="Hold to drag" :initial-value="initialPaginationPosition">
+			<template v-if="validPaginationInfo.isLoaded()">
+				<div class="pagination-container">
+					<label>Page</label>
 					<div class="pagination-wrapper">
-						<Pagination
-							showTotal
-							:page="hitToHighlight.value.hitIndexToHighlight"
-							:page-active="hitToHighlight.value.isHitVisible"
-							:maxPage="hitToHighlight.value.totalHits - 1"
-							:editable="false"
-							:showOffsets="false"
-							@change="hits.isLoaded() ? handleHitNavigation(hits.value[$event][0]) : void 0"
-						/>
+						<Pagination showTotal :page="validPaginationInfo.value.page" :maxPage="validPaginationInfo.value.maxPage" :editable="false" :showOffsets="false" @change="handlePageNavigation" />
 					</div>
 				</div>
-				<template v-else-if="hitToHighlight.isLoading()">
-					<Spinner size="20" />
-					<label>Loading hits...</label>
-				</template>
-				<template v-else-if="hitToHighlight.isError()">
-					<label>Error loading hits</label>
-				</template>
+				<hr v-if="!hitToHighlight.isEmpty()" />
+			</template>
+
+			<div v-if="hitToHighlight.isLoaded()" class="pagination-container">
+				<label>Hit</label>
+				<div class="pagination-wrapper">
+					<Pagination
+						showTotal
+						:page="hitToHighlight.value.hitIndexToHighlight"
+						:page-active="hitToHighlight.value.isHitVisible"
+						:maxPage="hitToHighlight.value.totalHits - 1"
+						:editable="false"
+						:showOffsets="false"
+						@change="hits.isLoaded() ? handleHitNavigation(hits.value[$event][0]) : void 0"
+						@active="scrollCurrentHitIntoView"
+					/>
+				</div>
 			</div>
+			<template v-else-if="hitToHighlight.isLoading()">
+				<Spinner size="20" />
+				<label>Loading hits...</label>
+			</template>
+			<template v-else-if="hitToHighlight.isError()">
+				<label>Error loading hits</label>
+			</template>
 		</UseDraggable>
 
 		<ul id="articleTabs" class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
@@ -136,6 +135,7 @@
 
 <script setup lang="ts">
 import { UseDraggable } from '@vueuse/components';
+import type { Position } from '@vueuse/core';
 import { computed, onUnmounted, ref, watch, watchEffect } from 'vue';
 import { useRoute, useRouter, type LocationQueryRaw, type LocationQueryValue } from 'vue-router';
 
@@ -156,6 +156,11 @@ import InstancedHtml from '@/components/InstancedHtml.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
+
+const initialPaginationPosition: Position = {
+	x: Math.max(0, window.innerWidth * 0.9 - 250),
+	y: window.innerHeight * 0.1,
+};
 
 const blacklab = useBlackLabApi();
 const pageBootstrap = usePageBootstrap();
@@ -238,6 +243,13 @@ function handleHitNavigation(hitStart: number) {
 		wordend: undefined,
 		findhit: hitStart,
 	});
+}
+function scrollCurrentHitIntoView() {
+	const hit = hitToHighlight.isLoaded() ? hitToHighlight.value.hl : null;
+	if (!hit) return;
+
+	activeArticleTab.value = 'content';
+	window.requestAnimationFrame(() => hit.scrollIntoView({ block: 'center', behavior: 'smooth' }));
 }
 
 function getRouteParamString(value: unknown): string | null {
@@ -338,12 +350,8 @@ onUnmounted(() => {
 
 <style lang="scss">
 .article-pagination {
-	&:not([style]) {
-		top: 10%;
-		right: 10%;
-	}
 	position: fixed;
-	z-index: 1000;
+	z-index: 100;
 	border: 1px solid #ccc;
 	background: white;
 	box-shadow: 0px 3px 12px -2px rgba(0, 0, 0, 0.6);
