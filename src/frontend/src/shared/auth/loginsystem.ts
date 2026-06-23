@@ -1,33 +1,59 @@
 import axios from 'axios';
 import type { User } from 'oidc-client-ts';
 import { Log, UserManager } from 'oidc-client-ts';
+import type { App } from 'vue';
 
 import type { BLServer } from '@/types/blacklabtypes';
 
-// TODO unify duplicate UserManager instantiation code in callback.ts and here.
-export const userManager =
-	OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL
-		? new UserManager({
-				checkSessionIntervalInSeconds: 10,
-				prompt: 'login',
-				redirect_uri: window.location.origin + CONTEXT_URL + '/callback',
-				// prevent hitting timeouts while debugging. Don't set this ridiculously high, or the system breaks and timeout hits instantly.
-				silentRequestTimeoutInSeconds: import.meta.env.MODE === 'development' ? 300 : 10,
-				authority: OIDC_AUTHORITY,
-				client_id: OIDC_CLIENT_ID,
-				metadataUrl: OIDC_METADATA_URL,
-			})
-		: null;
+import useInjectable from '@/shared/utils/useInjectable';
 
-if (import.meta.env.MODE === 'development') Log.setLogger(console);
+export type OidcLoginSystemConfig = {
+	mode: 'oidc';
+	authority: string;
+	clientId: string;
+	metadataUrl: string;
+	contextUrl: string;
+};
 
-export const user: Promise<User | null> = new Promise(async (resolve, reject) => {
-	if (!userManager) {
-		return resolve(null);
-	}
+export type BlackLabLoginSystemConfig = {
+	mode: 'blacklab';
+	blacklabBaseUrl: string;
+};
 
+export type LoginSystemConfig = OidcLoginSystemConfig | BlackLabLoginSystemConfig;
+
+export type LoginSystem = {
+	userManager: UserManager | null;
+	user: User | null;
+	username: string | null;
+	apiVersion: string | null;
+	login(): void;
+	logout(): void;
+};
+
+const [_loginSystemInjectionKey, provideLoginSystem, useLoginSystem] = useInjectable<LoginSystem>('loginSystem');
+
+function getOidcUsername(user: User | null): string | null {
+	return user?.profile.preferred_username || user?.profile.email || user?.profile.sub || null;
+}
+
+function createUserManager(config: OidcLoginSystemConfig): UserManager {
+	return new UserManager({
+		checkSessionIntervalInSeconds: 10,
+		prompt: 'login',
+		redirect_uri: window.location.origin + config.contextUrl + '/callback',
+		// prevent hitting timeouts while debugging. Don't set this ridiculously high, or the system breaks and timeout hits instantly.
+		silentRequestTimeoutInSeconds: import.meta.env.MODE === 'development' ? 300 : 10,
+		authority: config.authority,
+		client_id: config.clientId,
+		metadataUrl: config.metadataUrl,
+	});
+}
+
+async function completeOidcLogin(userManager: UserManager): Promise<User | null> {
 	const url = new URL(window.location.href);
 	let user: User | null | void = null;
+
 	if (url.searchParams.has('code') || url.searchParams.has('error')) {
 		// seems we're in a callback
 		try {
@@ -59,24 +85,50 @@ export const user: Promise<User | null> = new Promise(async (resolve, reject) =>
 			// not logged in.
 		}
 	}
-	resolve(user ?? null);
-});
-export const userName = user.then(u => {
-	if (u) return u.profile.preferred_username || u.profile.email || u.profile.sub;
-	else
-		return axios
-			.get<BLServer>(BLS_URL, { headers: { Accept: 'application/json' } }) // use axios as API is not initialized at this point.
-			.then(r => r.data)
-			.then(r => r.user.id ?? null)
-			.catch(e => {
-				console.error('Failed to get username from fallbackUsernameGetter', e);
-				return null;
-			});
-});
 
-export function login() {
-	void userManager?.signinRedirect({ redirect_uri: window.location.href });
+	return user ?? null;
 }
-export function logout() {
-	void userManager?.signoutRedirect({ post_logout_redirect_uri: window.location.href });
+
+async function getBlackLabLoginData(blacklabBaseUrl: string): Promise<{ username: string | null; apiVersion: string | null }> {
+	try {
+		const response = await axios.get<BLServer>(blacklabBaseUrl, { headers: { Accept: 'application/json' } });
+		return {
+			username: response.data.user.id ?? null,
+			apiVersion: response.data.apiVersion ?? null,
+		};
+	} catch (e) {
+		console.error('Failed to get username from BlackLab', e);
+		return { username: null, apiVersion: null };
+	}
 }
+
+export async function createLoginSystem(config: LoginSystemConfig) {
+	if (import.meta.env.MODE === 'development') Log.setLogger(console);
+
+	const userManager = config.mode === 'oidc' ? createUserManager(config) : null;
+	const user = userManager ? await completeOidcLogin(userManager) : null;
+	const blacklabLoginData = config.mode === 'blacklab' ? await getBlackLabLoginData(config.blacklabBaseUrl) : { username: null, apiVersion: null };
+	const username = userManager ? getOidcUsername(user) : blacklabLoginData.username;
+
+	const context: LoginSystem = {
+		userManager,
+		user,
+		username,
+		apiVersion: blacklabLoginData.apiVersion,
+		login() {
+			void userManager?.signinRedirect({ redirect_uri: window.location.href });
+		},
+		logout() {
+			void userManager?.signoutRedirect({ post_logout_redirect_uri: window.location.href });
+		},
+	};
+
+	return {
+		...context,
+		install(app: App) {
+			provideLoginSystem(app, context);
+		},
+	};
+}
+
+export { useLoginSystem };

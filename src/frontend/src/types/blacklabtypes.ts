@@ -192,6 +192,7 @@ export interface BLFormats {
 }
 
 export interface BLServer {
+	apiVersion: string;
 	blacklabBuildTime: string;
 	blacklabVersion: string;
 	cacheStatus?: BLCacheStatus;

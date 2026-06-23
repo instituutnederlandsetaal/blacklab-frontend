@@ -16,50 +16,37 @@
 	/>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed } from 'vue';
 
-import * as LoginSystem from '@/shared/auth/loginsystem';
+import { useLoginSystem } from '@/shared/auth/loginsystem';
 import type { Option } from '@/shared/utils/options';
 
-import SelectPicker from '@/shared/ui/SelectPicker.vue';
+import SelectPicker from '@/components/SelectPicker.vue';
 
-export default defineComponent({
-	components: { SelectPicker },
-	data: () => ({
-		username: null as string | null,
-	}),
-	computed: {
-		canLogin(): boolean {
-			return !!LoginSystem.userManager;
-		},
-		enabled(): boolean {
-			return this.canLogin || !!this.username;
-		},
-		options(): Option[] {
-			const r: Option[] = [];
-			if (this.canLogin && !this.username) {
-				r.push({ label: 'Log in', value: 'login' });
-			}
-			if (this.canLogin && this.username) {
-				r.push({ label: 'Log out', value: 'logout' });
-			}
-			return r;
-		},
-	},
-	methods: {
-		handle(value: string) {
-			if (value === 'login') {
-				LoginSystem.login();
-			} else if (value === 'logout') {
-				LoginSystem.logout();
-			}
-		},
-	},
-	created() {
-		LoginSystem.userName.then(username => (this.username = username));
-	},
+const loginSystem = useLoginSystem();
+
+const username = computed(() => loginSystem.username);
+const canLogin = computed(() => !!loginSystem.userManager);
+const enabled = computed(() => canLogin.value || !!username.value);
+const options = computed<Option[]>(() => {
+	const r: Option[] = [];
+	if (canLogin.value && !username.value) {
+		r.push({ label: 'Log in', value: 'login' });
+	}
+	if (canLogin.value && username.value) {
+		r.push({ label: 'Log out', value: 'logout' });
+	}
+	return r;
 });
+
+function handle(value: string) {
+	if (value === 'login') {
+		loginSystem.login();
+	} else if (value === 'logout') {
+		loginSystem.logout();
+	}
+}
 </script>
 
 <style lang="scss">

@@ -20,16 +20,36 @@ import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import { createBlfRouter } from '@/navigation/router';
 
 import { createApi } from '@/shared/api';
-import * as LoginSystem from '@/shared/auth/loginsystem';
+import { createLoginSystem, type LoginSystemConfig } from '@/shared/auth/loginsystem';
 import { createI18n } from '@/shared/i18n';
 
 import AppRoot from '@/App.vue';
 import AudioPlayer from '@/components/AudioPlayer.vue';
 import DebugComponent from '@/components/Debug.vue';
 
+function getLoginSystemConfig(): LoginSystemConfig {
+	if (OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL) {
+		return {
+			mode: 'oidc',
+			authority: OIDC_AUTHORITY,
+			clientId: OIDC_CLIENT_ID,
+			metadataUrl: OIDC_METADATA_URL,
+			contextUrl: CONTEXT_URL,
+		};
+	}
+
+	return {
+		mode: 'blacklab',
+		blacklabBaseUrl: BLS_URL,
+	};
+}
+
 async function start() {
-	const user = await LoginSystem.user;
-	const api = await createApi({ blacklab: { baseUrl: BLS_URL, user }, frontend: { baseUrl: CONTEXT_URL, user } });
+	const loginSystem = await createLoginSystem(getLoginSystemConfig());
+	const api = await createApi({
+		blacklab: { baseUrl: BLS_URL, user: loginSystem.user, apiVersion: loginSystem.apiVersion },
+		frontend: { baseUrl: CONTEXT_URL, user: loginSystem.user },
+	});
 	const pageBootstrap = createPageBootstrapContext();
 	const router = createBlfRouter(pageBootstrap);
 	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId);
@@ -42,6 +62,7 @@ async function start() {
 	installLegacyStoreGlobals();
 
 	const app = createApp(AppRoot);
+	app.use(loginSystem);
 	app.use(pageBootstrap);
 	app.use(api);
 	app.use(i18n);

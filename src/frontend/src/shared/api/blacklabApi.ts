@@ -106,7 +106,22 @@ const blacklabPathsV5: BlackLabPaths = {
 	termFrequencies: (indexId: string) => `corpora/${indexId}/termfreq/`,
 };
 
-async function getBlackLabVersion(endpoint: string): Promise<'4' | '5'> {
+type BlackLabApiSettings = EndpointSettings & {
+	apiVersion?: string | null;
+};
+
+function getMajorBlackLabVersion(apiVersion: string): '4' | '5' {
+	if (apiVersion.startsWith('4')) return '4';
+	if (apiVersion.startsWith('5')) return '5';
+	console.warn('Unsupported BlackLab version: ' + apiVersion);
+	// best effort? Just to prevent a potential compatible version bump in the future from
+	// retroactively breaking all old frontends
+	return '5';
+}
+
+async function getBlackLabVersion(endpoint: string, apiVersion?: string | null): Promise<'4' | '5'> {
+	if (apiVersion) return getMajorBlackLabVersion(apiVersion);
+
 	const { origin, pathname, searchParams } = new URL(endpoint, window.location.origin);
 	searchParams.set('outputformat', 'json');
 	const url = `${origin}${pathname}?${searchParams.toString()}`;
@@ -119,19 +134,14 @@ async function getBlackLabVersion(endpoint: string): Promise<'4' | '5'> {
 	if (!response.apiVersion) {
 		throw new Error('Invalid response from BlackLab server: missing apiVersion');
 	}
-	if (response.apiVersion.startsWith('4')) return '4';
-	if (response.apiVersion.startsWith('5')) return '5';
-	console.warn('Unsupported BlackLab version: ' + response.apiVersion);
-	// best effort? Just to prevent a potential compatible version bump in the future from
-	// retroactively breaking all old frontends
-	return '5';
+	return getMajorBlackLabVersion(response.apiVersion);
 }
 
 /**
  * Blacklab api
  */
-export const createBlackLabApi = async (settings: EndpointSettings): Promise<{ api: BlackLabApi; paths: BlackLabPaths }> => {
-	const version = await getBlackLabVersion(settings.baseUrl);
+export const createBlackLabApi = async (settings: BlackLabApiSettings): Promise<{ api: BlackLabApi; paths: BlackLabPaths }> => {
+	const version = await getBlackLabVersion(settings.baseUrl, settings.apiVersion);
 	const paths = version === '4' ? blacklabPathsV4 : blacklabPathsV5;
 
 	const endpoint = createEndpoint(settings);

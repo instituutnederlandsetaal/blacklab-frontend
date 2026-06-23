@@ -15,7 +15,7 @@ const [_blacklabPathsInjectionKey, provideBlackLabPaths, useBlackLabPaths] = use
  */
 const createApi = async (options: {
 	frontend: { baseUrl: string; user: MaybeRef<User | null> };
-	blacklab: { baseUrl: string; user: MaybeRef<User | null> };
+	blacklab: { baseUrl: string; user: MaybeRef<User | null>; apiVersion?: string | null };
 }): Promise<ObjectPlugin & { blacklabApi: BlackLabApi; frontendApi: FrontendApi; blacklabPaths: BlackLabPaths }> => {
 	const frontendApi = createFrontendApi(options.frontend);
 	const { api: blacklabApi, paths: blacklabPaths } = await createBlackLabApi({ ...options.blacklab });

@@ -42,7 +42,7 @@ import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
 
 import { localStorageSynced } from '@/shared/utils/localstore';
 
-import LoginButton from '@/components/LoginButton.vue';
+import LoginButton from '@/shared/auth/LoginButton.vue';
 import LocaleSelector from '@/shared/i18n/LocaleSelector.vue';
 
 export default defineComponent({
