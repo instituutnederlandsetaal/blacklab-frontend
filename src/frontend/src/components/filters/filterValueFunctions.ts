@@ -3,9 +3,9 @@ import type { ASTNode, ASTRange } from 'lucene-query-parser';
 // @ts-ignore - weird this doesn't work during builds
 import type { FullFilterState } from '@/features/search/model/form/filter-state';
 import type { FilterValue } from '@/types/apptypes';
-import { cast, spanFilterId } from '@/utils';
-import { debugLog } from '@/shared/debug/debug';
 
+import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
+import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/array-utils';
 import { findOption, optionLabel, optionValues, type Option } from '@/shared/utils/options';
 import { unescapeLucene, escapeLucene, tokenizeString } from '@/shared/utils/string-utils';
@@ -235,8 +235,8 @@ export const DateUtils = {
 /**
  * Separate from the components so we can easily call these functions from other places.
  */
-export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
-	'filter-autocomplete': cast<FilterValueFunctions<never, string>>({
+export const valueFunctions: Record<string, FilterValueFunctions<unknown, unknown>> = {
+	'filter-autocomplete': {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			return (
 				(filterValues[id]?.values || [])
@@ -260,8 +260,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return this.luceneQuery(id, filterMetadata, value) !== null;
 		},
-	}),
-	'filter-checkbox': cast<FilterValueFunctions<Option[], Record<string, boolean>>>({
+	} satisfies FilterValueFunctions<never, string>,
+	'filter-checkbox': {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			const allowedValues = new Set(optionValues(filterMetadata ?? []));
 			const availableValues = filterValues[id]?.values?.map(unescapeLucene).filter(value => {
@@ -290,8 +290,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return this.luceneQuery(id, filterMetadata, value) !== null;
 		},
-	}),
-	'filter-radio': cast<FilterValueFunctions<Option[], string>>({
+	} satisfies FilterValueFunctions<Option[], Record<string, boolean>>,
+	'filter-radio': {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			const selectedValues = filterValues[id]?.values;
 			const availableValues = new Set(optionValues(filterMetadata ?? []));
@@ -318,8 +318,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return this.luceneQuery(id, filterMetadata, value) !== null;
 		},
-	}),
-	'filter-range': cast<FilterValueFunctions<never, { low: string; high: string }>>({
+	} satisfies FilterValueFunctions<Option[], string>,
+	'filter-range': {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			const v = filterValues[id];
 			if (!v || !v.values.length) {
@@ -340,8 +340,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return this.luceneQuery(id, filterMetadata, value) !== null;
 		},
-	}),
-	'filter-range-multiple-fields': cast<FilterValueFunctions<{ low: string; high: string }, { low: string; high: string; mode: 'permissive' | 'strict' }>>({
+	} satisfies FilterValueFunctions<never, { low: string; high: string }>,
+	'filter-range-multiple-fields': {
 		decodeInitialState(id, filterMetadata, filterValues, ast) {
 			const { low, high } = filterMetadata;
 			const s = getFieldValues(ast, low, high);
@@ -387,8 +387,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return this.luceneQuery(id, filterMetadata, value) !== null;
 		},
-	}),
-	'filter-select': cast<FilterValueFunctions<Option[], string[]>>({
+	} satisfies FilterValueFunctions<{ low: string; high: string }, { low: string; high: string; mode: 'permissive' | 'strict' }>,
+	'filter-select': {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			const availableValues = filterValues[id]?.values?.map(unescapeLucene).filter(value => {
 				const valueIsPossible = filterMetadata.find(option => option.value === value);
@@ -412,8 +412,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return this.luceneQuery(id, filterMetadata, value) !== null;
 		},
-	}),
-	'filter-text': cast<FilterValueFunctions<never, string>>({
+	} satisfies FilterValueFunctions<Option[], string[]>,
+	'filter-text': {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			return (
 				(filterValues[id]?.values || [])
@@ -437,8 +437,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return this.luceneQuery(id, filterMetadata, value) !== null;
 		},
-	}),
-	'filter-date': cast<FilterValueFunctions<FilterDateMetadata, FilterDateValue>>({
+	} satisfies FilterValueFunctions<never, string>,
+	'filter-date': {
 		decodeInitialState(id, filterMetadata, filterValues, ast) {
 			const minDate = DateUtils.dateValueToLucene(DateUtils.normalizeBoundaryDate(filterMetadata.min), 'start');
 			const maxDate = DateUtils.dateValueToLucene(DateUtils.normalizeBoundaryDate(filterMetadata.max), 'end');
@@ -508,8 +508,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 		isActive(id, filterMetadata, value) {
 			return this.luceneQuery(id, filterMetadata, value) !== null;
 		},
-	}),
-	'span-text': cast<FilterValueFunctions<{ name?: string; attribute?: string }, string>>({
+	} satisfies FilterValueFunctions<FilterDateMetadata, FilterDateValue>,
+	'span-text': {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			const name = filterMetadata.name || 'span';
 			const attribute = filterMetadata.attribute || 'value';
@@ -525,8 +525,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			return !!value;
 		},
 		isSpanFilter: true,
-	}),
-	'span-select': cast<FilterValueFunctions<{ name?: string; attribute?: string; options: Option[] } | Option[], string[]>>({
+	} satisfies FilterValueFunctions<{ name?: string; attribute?: string }, string>,
+	'span-select': {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
 			const name = filterMetadata.name || 'span';
@@ -548,8 +548,8 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			return !!(value && value.length > 0);
 		},
 		isSpanFilter: true,
-	}),
-	'span-range': cast<FilterValueFunctions<{ name?: string; attribute?: string }, { low: number | null; high: number | null }>>({
+	} satisfies FilterValueFunctions<{ name?: string; attribute?: string; options: Option[] } | Option[], string[]>,
+	'span-range': {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			const name = filterMetadata.name || 'span';
 			const attribute = filterMetadata.attribute || 'value';
@@ -570,7 +570,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<any, any>> = {
 			return !!(values && (values.low || values.high));
 		},
 		isSpanFilter: true,
-	}),
+	} satisfies FilterValueFunctions<{ name?: string; attribute?: string }, { low: number | null; high: number | null }>,
 };
 
 /** Get the right set of functions for a filter, based on its

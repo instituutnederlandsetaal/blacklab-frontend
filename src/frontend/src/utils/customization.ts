@@ -3,8 +3,8 @@ import { isObject } from '@vueuse/core';
 import type { HighlightSection } from '@/pages/search/results/table/hit-highlighting';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
-import { spanFilterId } from '@/utils';
 
+import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import type { Translate } from '@/shared/i18n';
 import type { OptGroup, Option } from '@/shared/utils/options';
 

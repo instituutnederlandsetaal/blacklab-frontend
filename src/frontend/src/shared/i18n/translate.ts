@@ -1,9 +1,8 @@
 import type { App } from 'vue';
 
-import { elementAndAttributeNameFromFilterId } from '@/utils';
-
 import type { Translate } from './types';
 
+import { elementAndAttributeNameFromFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import useInjectable from '@/shared/utils/useInjectable';
 
 type TranslateRuntime = {

@@ -20,7 +20,7 @@ import type * as PatternModule from '@/features/search/model/form/pattern-state'
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
-import { decodeAnnotationValue, getCorrectUiType, spanFilterId, uiTypeSupport } from '@/utils';
+import { decodeAnnotationValue, getCorrectUiType, uiTypeSupport } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import parseLucene from '@/utils/luceneparser';
 
@@ -33,6 +33,7 @@ import type { Condition, Result, Token } from '@/shared/blacklab-helpers/cql/bcq
 import { parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { unparenQueryPart, applyWithinClauses } from '@/shared/blacklab-helpers/cql/bcql-pattern-helpers';
 import { getParallelFieldName } from '@/shared/blacklab-helpers/parallel-helper';
+import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/array-utils';
 import { unescapeRegex } from '@/shared/utils/string-utils';
