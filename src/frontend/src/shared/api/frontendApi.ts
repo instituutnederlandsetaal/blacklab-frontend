@@ -25,7 +25,7 @@ export const frontendPaths = {
 	}) => {
 		const url = new URL(`${CONTEXT_URL}/${p.indexId}/docs/${p.pid}`, window.location.origin);
 
-		if (p.patt) url.searchParams.append('query', p.patt); // TODO support patt, like the regular search page.
+		if (p.patt) url.searchParams.append('patt', p.patt);
 		if (p.pattgapdata) url.searchParams.append('pattgapdata', p.pattgapdata);
 		if (p.findhit !== undefined) url.searchParams.append('findhit', p.findhit.toString());
 		if (p.searchfield) url.searchParams.append('searchfield', p.searchfield);
