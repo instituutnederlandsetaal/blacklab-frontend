@@ -6,8 +6,9 @@ import type { ModuleRootState as ModuleRootStateExplore } from '@/features/searc
 import type { ModuleRootState as ModuleRootStateFilters } from '@/features/search/model/form/filter-state';
 import type { ModuleRootState as ModuleRootStatePatterns } from '@/features/search/model/form/pattern-state';
 import type * as AppTypes from '@/types/apptypes';
-import { applyWithinClauses, elementAndAttributeNameFromFilterId, getCorrectUiType, parenQueryPartParallel, uiTypeSupport } from '@/utils';
+import { elementAndAttributeNameFromFilterId, getCorrectUiType, uiTypeSupport } from '@/utils';
 
+import { applyWithinClauses, parenQueryPartParallel } from '@/shared/blacklab-helpers/cql/bcql-pattern-helpers';
 import { getParallelFieldParts } from '@/shared/blacklab-helpers/parallel-helper';
 import { escapeRegex, tokenizeString, type RegexEscapeOptions } from '@/shared/utils/string-utils';
 

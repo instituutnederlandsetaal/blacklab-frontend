@@ -1,31 +1,10 @@
 // TODO split this file into patternUtils (DONE - JN), groupUtils and generic utils.
 
 import type * as AppTypes from '@/types/apptypes';
-import type * as BLTypes from '@/types/blacklabtypes';
 
 import type { Translate } from '@/shared/i18n';
 import type { OptGroup, Option } from '@/shared/utils/options';
 import { unescapeRegex } from '@/shared/utils/string-utils';
-
-/**
- * @param context
- * @param prop - property to retrieve
- * @param doPunctBefore - add the leading punctuation?
- * @param addPunctAfter - trailing punctuation to append
- * @returns concatenated values of the property, interleaved with punctuation from context['punt']
- */
-export function words(context: BLTypes.BLHitSnippetPart, prop: string, doPunctBefore: boolean, addPunctAfter: string): string {
-	const parts = [] as string[];
-	const n = context[prop] ? context[prop].length : 0;
-	for (let i = 0; i < n; i++) {
-		if ((i === 0 && doPunctBefore) || i > 0) {
-			parts.push(context.punct[i]);
-		}
-		parts.push(context[prop][i]);
-	}
-	parts.push(addPunctAfter);
-	return parts.join('');
-}
 
 /**
  * Decode a value as passed to BlackLab back into a value for the UI.
@@ -77,57 +56,6 @@ export const decodeAnnotationValue = (value: string | string[], type: Required<A
 			throw new Error('Unimplemented uitype query decoder');
 	}
 };
-
-/** Parenthesize part of a BCQL query if it's not already */
-export function parenQueryPart(query: string, exceptions: string[] = []) {
-	query = query.trim();
-	if (query.match(/^\(.+\)$/) || query.match(/^\[[^\]]*\]$/) || exceptions.includes(query)) {
-		return query;
-	}
-	return `(${query})`;
-}
-
-export function parenQueryPartParallel(query: string) {
-	const parenExceptions = ['[]*', '_'];
-	return parenQueryPart(query === '[]*' ? '_' : query, parenExceptions);
-}
-
-/** Remove parentheses from a BCQL query part if it's parenthesized and doesn't
- *  contain nested parens.
- */
-export function unparenQueryPart(query?: string) {
-	if (query) {
-		query = query.trim();
-		while (query.match(/^\([^()]*\)$/)) {
-			query = query.substring(1, query.length - 1).trim();
-		}
-	}
-	return query;
-}
-
-export function applyWithinClauses(query: string, withinClauses: Record<string, Record<string, any>>) {
-	const overlapClauses = Object.entries(withinClauses)
-		.map(([elName, attributes]) => {
-			const attr = attributes
-				? Object.entries(attributes)
-						.filter(([k, v]) => !!v)
-						.map(([k, v]) => {
-							if (typeof v === 'string') {
-								// Regex query
-								return ` ${k}="${v.replace(/"/g, '\\"')}"`;
-							} else if (v.low || v.high) {
-								// Range query
-								return ` ${k}=in[${v.low || 0},${v.high || 9999}]`;
-							} else return '';
-						})
-						.join('')
-				: '';
-			return `<${elName}${attr}/>`;
-		})
-		.join(' overlap ');
-	if (query.length > 0 && overlapClauses.length > 0) return `(${query}) within ${overlapClauses}`;
-	return query.length > 0 ? query : overlapClauses;
-}
 
 // --------------
 

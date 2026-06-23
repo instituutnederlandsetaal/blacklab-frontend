@@ -11,6 +11,7 @@
  * https://blacklab.ivdnt.org/server/rest-api/corpus/parse-pattern/get.html#json-query-structure
  */
 
+import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import type {
 	BCQLAndNode,
 	BCQLCompareNode,
@@ -21,9 +22,7 @@ import type {
 	BCQLTagAttributeExpressionNode,
 	BCQLTextPatternNode,
 	BCQLTextPatternStruct,
-} from '@/types/blacklabcql';
-
-import type { BlackLabApi } from '@/shared/api/lib/api-types';
+} from '@/shared/blacklab-helpers/cql/bcql-json-ast';
 
 export type XmlTag = {
 	type: 'xml';
@@ -118,11 +117,11 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 		return {
 			type: 'booleanOp',
 			operator: type === 'and' ? '&' : '|',
-			clauses: clauses.map(_tokenExpression).filter(c => c != null),
+			clauses: clauses.map(_TokenPredicateession).filter(c => c != null),
 		};
 	}
 
-	function _tokenExpression(input: BCQLTextPatternNode): BooleanOp | Condition | null {
+	function _TokenPredicateession(input: BCQLTextPatternNode): BooleanOp | Condition | null {
 		switch (input.type) {
 			case 'regex':
 				return _regex(input);
@@ -171,7 +170,10 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 		if (!attributes) return r;
 		for (const [k, v] of Object.entries(attributes)) {
 			if (v.type === 'int-range') {
-				r[k] = { low: v.min == 0 ? '' : v.min.toString(), high: v.max == 9999 ? '' : v.max.toString() };
+				r[k] = {
+					low: v.min == 0 ? '' : v.min.toString(),
+					high: v.max == 9999 ? '' : v.max.toString(),
+				};
 			} else if (v.type === 'string' || v.type === 'integer' || v.type === 'boolean') {
 				r[k] = v.value.toString();
 			} else {
@@ -283,7 +285,7 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 
 			default:
 				// Excluded any special token-level nodes; must be a token expression
-				const expression = _tokenExpression(input);
+				const expression = _TokenPredicateession(input);
 				if (expression === null) {
 					return null;
 				}

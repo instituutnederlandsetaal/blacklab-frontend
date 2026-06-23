@@ -20,19 +20,20 @@ import type * as PatternModule from '@/features/search/model/form/pattern-state'
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 import type { AnnotationValue, FilterValue } from '@/types/apptypes';
-import { applyWithinClauses, decodeAnnotationValue, getCorrectUiType, spanFilterId, uiTypeSupport, unparenQueryPart } from '@/utils';
-import type { Condition, Result, Token } from '@/utils/bcql-json-interpreter';
-import { parseBcql } from '@/utils/bcql-json-interpreter';
+import { decodeAnnotationValue, getCorrectUiType, spanFilterId, uiTypeSupport } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
-import { debugLog } from '@/shared/debug/debug';
 import parseLucene from '@/utils/luceneparser';
 
-import BaseUrlStateParser from './url-state-parser-base';
 import type { ArticleUrlState } from './state-to-url';
 import { emptyArticleUrlState } from './state-to-url';
+import BaseUrlStateParser from './url-state-parser-base';
 
 import { useBlackLabApi } from '@/shared/api';
+import type { Condition, Result, Token } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
+import { parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
+import { unparenQueryPart, applyWithinClauses } from '@/shared/blacklab-helpers/cql/bcql-pattern-helpers';
 import { getParallelFieldName } from '@/shared/blacklab-helpers/parallel-helper';
+import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/array-utils';
 import { unescapeRegex } from '@/shared/utils/string-utils';
 

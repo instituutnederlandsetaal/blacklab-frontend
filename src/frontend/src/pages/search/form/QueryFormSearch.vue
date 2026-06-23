@@ -103,8 +103,8 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import type * as AppTypes from '@/types/apptypes';
 import { getAnnotationSubset } from '@/utils';
-import type { Result } from '@/utils/bcql-json-interpreter';
-import { parseBcql } from '@/utils/bcql-json-interpreter';
+import type { Result } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
+import { parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { corpusCustomizations } from '@/utils/customization';
 import { getPatternStringFromCql, getPatternStringSearch } from '@/utils/pattern-utils';
 
