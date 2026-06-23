@@ -28,7 +28,8 @@
 **/Dockerfile
 **/*.dockerfile
 **/.dockerignore
-/docker/
+/docker/*
+!/docker/RelaxTomcatQueryChars.java
 
 # Frontend build stuff
 **/node_modules/
