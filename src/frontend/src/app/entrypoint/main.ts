@@ -55,16 +55,26 @@ async function start() {
 		blacklab: { baseUrl: BLS_URL, user: loginSystem.user, apiVersion: loginSystem.apiVersion },
 		frontend: { baseUrl: CONTEXT_URL, user: loginSystem.user },
 	});
-	const pageBootstrap = createPageBootstrapContext();
-	const router = createBlfRouter(pageBootstrap);
-	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId);
-	const i18n = createI18n(router.corpusId);
 
 	// initCorpusDataLoader(api.blacklabApi, api.frontendApi);
 	setBlackLabPaths(api.blacklabPaths);
 	installHooksGlobal();
 
 	const app = createApp(AppRoot);
+
+	const pageBootstrap = createPageBootstrapContext();
+	const router = createBlfRouter(pageBootstrap);
+
+	// Init the router early so the corpusId has fully settled
+	// Not doing this would init the i18n and corpus context with a momentary null in corpusId,
+	// even if we're currently on a URL where that isn't true.
+	// It would make then fetch the base config data for nothing, then quickly swap it out once the route loads properly.
+	// Which would be wasteful and cause a brief flash of the wrong data.
+	app.use(router);
+	await router.router.isReady();
+	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId);
+	const i18n = createI18n(router.corpusId);
+
 	app.use(loginSystem);
 	app.use(debugSystem);
 	app.use(pageBootstrap);
@@ -72,7 +82,6 @@ async function start() {
 	app.use(i18n);
 	app.use(Filters);
 	app.use(FloatingVue);
-	app.use(router);
 	app.use(corpusState);
 	app.use(HighchartsVue);
 
