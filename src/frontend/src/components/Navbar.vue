@@ -81,6 +81,10 @@ const links = computed<Array<{ label: string; attributes: Record<string, string>
 function hideBanner() {
 	bannerFromLocalStorage.value = config.value.bannerMessage!;
 }
+
+router.afterEach(() => {
+	collapsed.value = true;
+});
 </script>
 
 <style lang="scss">
