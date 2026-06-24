@@ -241,11 +241,11 @@ public class MainServlet extends HttpServlet {
                 corpus = null;
                 pathParameters = new ArrayList<>(pathParts);
             } else if (pathParts.isEmpty()) {
-                // Didn't match a page, and there's nothing else. Redirect to search page. E.g. /blacklab-frontend/corpus
-                logger.fine(String.format("Unknown page '%s' requested - might be a corpus, redirecting to search page", part1));
-                response.setStatus(HttpServletResponse.SC_MOVED_PERMANENTLY);
-                response.setHeader("location", this.config.get(Keys.CF_URL_ON_CLIENT) + "/" + part1 + "/search/");
-                return;
+                // Didn't match a backend page, and there's nothing else. Serve the app shell and let the frontend router decide.
+                // E.g. /blacklab-frontend/corpus redirects to /corpus/search there, while /help and /about stay global pages.
+                responseClass = DEFAULT_PAGE;
+                corpus = null;
+                pathParameters = new ArrayList<>();
             } else {
                 // Didn't match a page, and there's more parts. This is a corpus, the second part is the page. E.g. /blacklab-frontend/corpus/search
                 corpus = part1;

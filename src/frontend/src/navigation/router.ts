@@ -22,14 +22,12 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 			{
 				name: 'global-help',
 				path: '/help',
-				alias: '/help/:pathMatch(.*)*',
 				meta: { name: 'help', getTitle: (displayName: string) => displayName + ' Help', customScriptTiming: 'after-page-bootstrap' },
 				component: () => import('@/pages/help/HelpPage.vue'),
 			},
 			{
 				name: 'global-about',
 				path: '/about',
-				alias: '/about/:pathMatch(.*)*',
 				meta: { name: 'about', getTitle: () => 'About', customScriptTiming: 'after-page-bootstrap' },
 				component: () => import('@/pages/about/AboutPage.vue'),
 			},
