@@ -1,15 +1,17 @@
 type Hook = (() => Promise<unknown>) | Promise<unknown>;
 type HookStore = Record<string, Hook[]>;
 type HookRegistration = ((fn: Hook) => void) & Hook[];
-type HookRegistry = Record<string, HookRegistration>;
+type HookRegistry = Record<string | symbol, HookRegistration>;
 type HooksGlobal = typeof globalThis & {
 	hooks?: HookRegistry;
 	__cfHooksStore?: HookStore;
 };
 
+const canary = Symbol('canaryHook');
+
 export function installHooksGlobal(): HookRegistry {
 	const hookGlobal = globalThis as HooksGlobal;
-	if (hookGlobal.hooks) {
+	if (hookGlobal.hooks?.[canary]) {
 		return hookGlobal.hooks;
 	}
 
