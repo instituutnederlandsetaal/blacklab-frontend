@@ -23,8 +23,10 @@
         -->
 
         <!-- When a DisplayName has been set, it will be shown in stead of the raw corpus name.
-        If omitted, we will fall back to the displayName configured in BlackLab-Server,
-        if that is not configured either, the internal corpus name is shown. -->
+        If omitted, we will fall back to the displayName for the corpus as provided by BlackLab,
+        if that is not configured either the corpus ID is shown. 
+        If we're on a page without a corpus (e.g. the homepage, or global help/about pages), we'll show the BlackLab frontend displayName.
+        -->
         <!--<DisplayName>BlackLab AutoSearch Corpus Search</DisplayName>-->
 
 

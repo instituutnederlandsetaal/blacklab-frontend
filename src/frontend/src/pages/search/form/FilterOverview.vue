@@ -34,8 +34,8 @@
 import { defineComponent } from 'vue';
 
 import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 
@@ -51,9 +51,9 @@ export default defineComponent({
 	computed: {
 		indexAndFilter() {
 			return {
-				index: CorpusStore.getState()!,
+				index: useCorpus().value,
 				filter: FilterStore.get.luceneQuery(),
-				annotatedFieldId: PatternStore.get.shared().source || CorpusStore.get.mainAnnotatedField(),
+				annotatedFieldId: PatternStore.get.shared().source || useCorpus().value.mainAnnotatedField,
 			};
 		},
 		activeFilters: FilterStore.get.activeFilters,
@@ -70,10 +70,10 @@ export default defineComponent({
 		},
 
 		totalCorpusTokens(): number {
-			return CorpusStore.getState()!.tokenCount;
+			return useCorpus().value.tokenCount;
 		},
 		totalCorpusDocs(): number {
-			return CorpusStore.getState()!.documentCount;
+			return useCorpus().value.documentCount;
 		},
 	},
 	methods: {

@@ -1,6 +1,6 @@
 import { reactive } from 'vue';
 
-import type { CorpusContext } from '@/app/state/useCorpusContext';
+import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
 /**
  * This module contains a single entry for every metadata field in this corpus.
@@ -8,13 +8,12 @@ import { getFilterString, getFilterSummary, getValueFunctions } from '@/componen
  *
  * When the user actually executes the query a snapshot of the state is copied to the query module.
  */
-import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
 import type { FilterDefinition } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
-import { debugLog } from '@/shared/debug/debug';
 
 import type { BlackLabPaths } from '@/shared/api/lib/api-types';
+import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/array-utils';
 
 export type FilterState = {
@@ -162,7 +161,7 @@ const init = (state: CorpusContext) => {
 	}
 
 	// Take care to copy the order of metadatagroups and their fields here!
-	CorpusModule.get.metadataGroups().forEach(g => {
+	useCorpus().value.metadataGroups.forEach(g => {
 		actions.registerFilterGroup({
 			filterIds: [],
 			id: g.id,

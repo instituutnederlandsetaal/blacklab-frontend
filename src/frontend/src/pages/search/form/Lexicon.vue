@@ -51,7 +51,7 @@ import { catchError, debounceTime, filter, map, mergeMap, switchMap, toArray } f
 import { defineComponent, type PropType } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
 import { useBlackLabApi } from '@/shared/api';
@@ -136,6 +136,8 @@ export default defineComponent({
 		posOptions: {} as Record<string, boolean>,
 
 		displayValue: '',
+
+		blacklab: useBlackLabApi(),
 	}),
 	computed: {
 		/** Lexicon database to use */
@@ -226,7 +228,7 @@ export default defineComponent({
 						lemmata.forEach(l => (l.pos = `${l.lemma} (${l.pos || 'unknown'})`));
 
 						// Request occurance counts in the corpus from blacklab. Note we also request occurance count for the entered search term.
-						const { termFreq: frequencies } = await useBlackLabApi().getTermFrequencies(CorpusStore.get.indexId()!, this.annotationId, lemmata.flatMap(r => r.wordforms).concat(term));
+						const { termFreq: frequencies } = await this.blacklab.getTermFrequencies(useCorpus().value.id!, this.annotationId, lemmata.flatMap(r => r.wordforms).concat(term));
 
 						const options: Record<string, WordOption> = {};
 						lemmata.forEach(({ pos, wordforms, lemma }) => {

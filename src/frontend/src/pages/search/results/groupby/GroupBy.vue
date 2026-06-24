@@ -39,13 +39,13 @@
 			<template v-if="selectedCriterium?.type === 'context'">
 				<span v-if="isParallel">{{ $t('results.groupBy.parallelCorpusVersion') }}</span>
 				<SelectPicker v-if="isParallel" :options="parallelVersionOptions" v-model="fieldName" allowUnknownValues data-width="auto" data-menu-width="auto" hideEmpty />
-				<i18n-t keypath="results.groupBy.iWantToGroupOnAnnotation" tag="div">
+				<i18n-t keypath="results.groupBy.iWantToGroupOnAnnotation" tag="div" scope="global">
 					<!-- allow unknown values here. If grouping on a capture group/relation, they're not always available immediately (we need the first hit to decode them). -->
 					<template #some_words><SelectPicker :options="contextOptions" v-model="contextValue" allowUnknownValues data-width="auto" data-menu-width="auto" hideEmpty allowHtml /></template>
 					<!-- Specific layout, we want to hide the selectpicker, but there might be surrounding text that also needs to be hidden... -->
 					<template #in_this_location_with_text>
 						<!-- if not grouping on a label but on a specific position, then show the position picker. -->
-						<i18n-t v-if="selectedCriteriumAsPositional" keypath="results.groupBy.in_this_location_with_text">
+						<i18n-t v-if="selectedCriteriumAsPositional" keypath="results.groupBy.in_this_location_with_text" scope="global">
 							<template #in_this_location>
 								<SelectPicker v-model="positionValue" hideEmpty data-width="auto" data-menu-width="auto" :options="positionOptions" />
 							</template>
@@ -180,8 +180,8 @@ import Slider from 'vue-3-slider-component';
 
 import * as SearchModule from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalSearchSettingsStore from '@/features/search/model/results/global-results-state';
@@ -264,16 +264,16 @@ export default defineComponent({
 		},
 
 		metadataGroups() {
-			return CorpusStore.get.metadataGroups();
+			return useCorpus().value.metadataGroups;
 		},
 		metadataFieldsMap() {
-			return CorpusStore.get.allMetadataFieldsMap();
+			return useCorpus().value.allMetadataFieldsMap;
 		},
 		annotationGroups() {
-			return CorpusStore.get.annotationGroups();
+			return useCorpus().value.annotationGroups;
 		},
 		annotationsMap() {
-			return CorpusStore.get.allAnnotationsMap();
+			return useCorpus().value.allAnnotationsMap;
 		},
 		defaultAnnotation(): string {
 			// sometimes grouping by the shown annotation itself isn't allowed (e.g. when it contains inline HTML)
@@ -422,8 +422,8 @@ export default defineComponent({
 				// Offer all span filters as grouping options, with a reference to the list,
 				// (e.g. with-spans[ab] to mean "group on the ab tag in the with-spans list")
 				const listName = listEntry[0];
-				if (CorpusStore.get.corpus().relations.spans) {
-					Object.entries(CorpusStore.get.corpus().relations.spans!).forEach(([tagName, spanInfo]) => {
+				if (useCorpus().value.relations.spans) {
+					Object.entries(useCorpus().value.relations.spans!).forEach(([tagName, spanInfo]) => {
 						if (spanInfo.attributes) {
 							options = [];
 							const attr = Object.keys(spanInfo.attributes);
@@ -447,7 +447,7 @@ export default defineComponent({
 						const sourceInThisField = this.relationSourceInThisField(matchInfo);
 						if (sourceInThisField) {
 							options = [];
-							const spanInfo = CorpusStore.get.corpus().relations.spans![tagName];
+							const spanInfo = useCorpus().value.relations.spans![tagName];
 							const attr = Object.keys(spanInfo?.attributes ?? {});
 							attr.forEach(attributeName => {
 								optAdd(tagName, attributeName);
@@ -803,7 +803,7 @@ export default defineComponent({
 		},
 
 		isParallel(): boolean {
-			return CorpusStore.get.isParallelCorpus() ?? false;
+			return useCorpus().value.isParallelCorpus ?? false;
 		},
 
 		parallelVersionOptions(): Option[] {
@@ -814,7 +814,7 @@ export default defineComponent({
 			const patt = hasPatternInfo(summary) ? summary.pattern : undefined;
 			const fields = patt ? [patt.fieldName, ...(patt.otherFields ?? [])] : [];
 			return fields
-				.map(fieldName => CorpusStore.get.parallelAnnotatedFieldsMap()[fieldName])
+				.map(fieldName => useCorpus().value.parallelAnnotatedFieldsMap[fieldName])
 				.map(field => ({
 					value: field.id,
 					label: this.$tAnnotatedFieldDisplayName(field),
@@ -966,7 +966,7 @@ export default defineComponent({
 
 				this.hits = undefined;
 				if (this.firstHitPreviewQuery && this.type === 'hits') {
-					this.blacklab.getHits(CorpusStore.get.indexId()!, this.firstHitPreviewQuery).request.then(r => {
+					this.blacklab.getHits(useCorpus().value.id!, this.firstHitPreviewQuery).request.then(r => {
 						const data = r as BLHitResults;
 						if (isHitResults(data)) {
 							// Make sure the target hits (otherFields) 'know' they are the target of a relation.

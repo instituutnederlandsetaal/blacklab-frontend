@@ -123,17 +123,17 @@
 import { computed, ref, watch } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';
 import type { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
-import { debugLog } from '@/shared/debug/debug';
 
 import type { HitRowData } from './table-layout';
 import { snippetParts } from './table-layout';
 
-import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { useBlackLabApi } from '@/shared/api';
+import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
+import { debugLog } from '@/shared/debug/debug';
 
 import Spinner from '@/components/Spinner.vue';
 import DepTree from '@/pages/search/results/table/DepTree.vue';
@@ -159,7 +159,7 @@ const addons = ref<Array<ReturnType<UIStore.ModuleRootState['results']['hits']['
 // For this to be available, the sentenceElement must be set (in the ui store)
 const sentenceShown = ref(false);
 
-const hasRelations = computed(CorpusStore.get.hasRelations);
+const hasRelations = computed(() => useCorpus().value.hasRelations);
 /** Exact surrounding sentence can only be loaded if we the start location of the current hit, and when the boundery element has been set. */
 const sentenceAvailable = computed(() => hasRelations.value && !!UIStore.getState().search.shared.within.sentenceElement && 'start' in props.row.hit);
 
@@ -179,7 +179,7 @@ function loadSentence() {
 	// Need to track this, because results pay be paginated and this component may be reused across renders
 	// We should probably use asyncComputed or something but that's for later.
 	const nonce = props.row.hit;
-	const request = blacklab.getSnippet(CorpusStore.get.indexId()!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, context);
+	const request = blacklab.getSnippet(useCorpus().value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, context);
 	sentenceRequest.value = request;
 	request
 		// check if hit hasn't changed in the meantime (due to component reuse)
@@ -206,7 +206,7 @@ function loadSnippet() {
 	const concordanceSize = UIStore.getState().results.shared.concordanceSize;
 
 	const nonce = props.row.hit;
-	const request = blacklab.getSnippet(CorpusStore.get.indexId()!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, concordanceSize);
+	const request = blacklab.getSnippet(useCorpus().value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, concordanceSize);
 	snippetRequest.value = request;
 	request
 		.then(s => {
@@ -233,7 +233,7 @@ function loadSnippet() {
 					try {
 						return a({
 							docId: props.row.doc.docPid,
-							corpus: CorpusStore.get.indexId()!,
+							corpus: useCorpus().value.id!,
 							document: props.row.doc.docInfo,
 							documentUrl: props.row.href || '',
 							wordAnnotationId: props.info.mainAnnotation.id,

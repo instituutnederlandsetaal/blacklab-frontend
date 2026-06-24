@@ -4,10 +4,10 @@ import memoize from 'memoize-decorator';
 
 import * as UIModule from '@/app/state/ui-state';
 import * as UIStore from '@/app/state/ui-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import type * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
@@ -23,7 +23,6 @@ import type { AnnotationValue, FilterValue } from '@/types/apptypes';
 import { getCorrectUiType, uiTypeSupport } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import parseLucene from '@/utils/luceneparser';
-import { decodeAnnotationValue } from '@/shared/blacklab-helpers/pattern-utils';
 
 import type { ArticleUrlState } from './state-to-url';
 import { emptyArticleUrlState } from './state-to-url';
@@ -34,6 +33,7 @@ import type { Condition, Result, Token } from '@/shared/blacklab-helpers/cql/bcq
 import { parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { unparenQueryPart, applyWithinClauses } from '@/shared/blacklab-helpers/cql/bcql-pattern-helpers';
 import { getParallelFieldName } from '@/shared/blacklab-helpers/parallel-helper';
+import { decodeAnnotationValue } from '@/shared/blacklab-helpers/pattern-utils';
 import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/array-utils';
@@ -174,7 +174,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		}
 
 		try {
-			const metadataFields = CorpusModule.get.allMetadataFieldsMap();
+			const metadataFields = useCorpus().value.allMetadataFieldsMap;
 			const filterDefinitions = FilterModule.getState().filters;
 			/*
 				IMPORTANT: every metadata field has a corresponding filter instance,
@@ -235,7 +235,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		}
 
 		const annotationId = group.substring(4);
-		if (!CorpusModule.get.allAnnotationsMap().hasOwnProperty(annotationId)) {
+		if (!useCorpus().value.allAnnotationsMap.hasOwnProperty(annotationId)) {
 			return null;
 		}
 
@@ -346,7 +346,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	 */
 	@memoize
 	private get ngrams(): null | ExploreModule.ModuleRootState['ngram'] {
-		const allAnnotations = CorpusModule.get.allAnnotationsMap();
+		const allAnnotations = useCorpus().value.allAnnotationsMap;
 
 		if (this.groupBy.length === 0) {
 			return null;
@@ -439,9 +439,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		const tagsetState = TagsetModule.getState();
 		const tagsetInfo = tagsetState
 			? {
-					mainAnnotations: CorpusModule.get
-						.allAnnotations()
-						.filter(a => a.uiType === 'pos')
+					mainAnnotations: useCorpus()
+						.value.allAnnotations.filter(a => a.uiType === 'pos')
 						.map(a => a.id),
 					subAnnotations: Object.keys(tagsetState.subAnnotations),
 				}
@@ -464,7 +463,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			 *
 			 * Store the values here while parsing.
 			 */
-			const knownAnnotations = CorpusModule.get.allAnnotationsMap();
+			const knownAnnotations = useCorpus().value.allAnnotationsMap;
 
 			const annotationValues: { [key: string]: string[] } = {};
 			for (let i = 0; i < result.tokens.length; ++i) {
@@ -568,7 +567,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		const allAttributes = within ? (this.withinClausesWithoutSpanFilters[within] ?? {}) : {};
 
 		// Which, if any, attribute filter fields should be displayed for this element?
-		const availableAttr = within ? Object.keys(CorpusModule.getState()!.relations.spans?.[within].attributes ?? {}) : [];
+		const availableAttr = within ? Object.keys(useCorpus().value.relations.spans?.[within].attributes ?? {}) : [];
 		const attr = within ? availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(within, attrName)).map(a => ({ value: a })) || [] : [];
 
 		const attributesAcceptedByWithinWidget = within ? attr.map(el => (typeof el === 'string' ? { value: el } : el)) : [];
@@ -604,9 +603,9 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		// The query typically doesn't contain the entire parallel field name.
 		// BlackLab allows passing just "en" instead of "contents__en" in some spots
 		// So we need to reconstruct the full field name from the query here.
-		const prefix = CorpusModule.get.parallelFieldPrefix();
+		const prefix = useCorpus().value.parallelFieldPrefix;
 
-		const parallelFieldsMap = CorpusModule.get.parallelAnnotatedFieldsMap();
+		const parallelFieldsMap = useCorpus().value.parallelAnnotatedFieldsMap;
 
 		/*
 		In our state, "source" is the field we're searching in.
@@ -790,7 +789,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		try {
 			// Let BlackLab parse it, then try to interpret the parse tree
 			// for use in the simple, extended or advanced search forms.
-			this._parsedCql = bcql == null ? null : await parseBcql(useBlackLabApi(), this.paths[0], bcql, CorpusModule.get.firstMainAnnotation().id);
+			this._parsedCql = bcql == null ? null : await parseBcql(useBlackLabApi(), this.paths[0], bcql, useCorpus().value.firstMainAnnotation.id);
 			if (this._parsedCql && this._parsedCql.length === 0) this._parsedCql = null;
 			if (this._parsedCql && this._parsedCql.length > 1) {
 				const relType = this._parsedCql[1].relationType;

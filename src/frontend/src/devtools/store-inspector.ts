@@ -3,8 +3,8 @@ import { isRef, toRaw, unref, watch, type App } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import * as ArticleStore from '@/features/article/model/article-state';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
@@ -63,7 +63,7 @@ const STORE_GROUPS: StoreGroup[] = [
 		id: 'group:core',
 		label: 'Core',
 		children: [
-			{ id: 'store:corpus', label: 'Corpus', readState: CorpusStore.getState, readGetters: () => CorpusStore.get },
+			{ id: 'store:corpus', label: 'Corpus', readState: () => useCorpus().value, readGetters: () => {} },
 			{ id: 'store:history', label: 'History', readState: HistoryStore.getState, readGetters: () => HistoryStore.get },
 			{ id: 'store:query', label: 'Query', readState: QueryStore.getState, readGetters: () => QueryStore.get },
 			{ id: 'store:tagset', label: 'Tagset', readState: TagsetStore.getState, readGetters: () => TagsetStore.get },

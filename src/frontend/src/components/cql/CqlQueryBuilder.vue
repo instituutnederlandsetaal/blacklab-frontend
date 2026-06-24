@@ -31,9 +31,9 @@ import { useVModel } from '@vueuse/core';
 import { computed, watch } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
+import { useCorpus } from '@/app/state/useCorpusContext.ts';
 import type { CqlQueryBuilderData, CqlQueryBuilderOptions, CqlTokenData } from '@/components/cql/cql-types';
 import { COMPARATORS, OPERATORS } from '@/components/cql/cql-types';
-import * as CorpusStore from '@/features/corpus/model/corpus-state.ts';
 
 import { getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups.ts';
 import { useI18n } from '@/shared/i18n/';
@@ -59,12 +59,12 @@ const model = useVModel(props, 'modelValue', emit, {
 const translate = useI18n();
 
 const options = computed<CqlQueryBuilderOptions>(() => {
-	const indexId = CorpusStore.get.indexId()!;
-	const textDirection = CorpusStore.get.textDirection();
-	const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
+	const indexId = useCorpus().value.id!;
+	const textDirection = useCorpus().value.textDirection;
+	const allAnnotationsMap = useCorpus().value.allAnnotationsMap;
 	const searchAnnotationIds = UIStore.getState().search.advanced.searchAnnotationIds;
 
-	const annotationGroups = getAnnotationSubset(searchAnnotationIds, CorpusStore.get.annotationGroups(), allAnnotationsMap, 'Search', translate, false, false);
+	const annotationGroups = getAnnotationSubset(searchAnnotationIds, useCorpus().value.annotationGroups, allAnnotationsMap, 'Search', translate, false, false);
 
 	const annotationOptions = (annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(g => g.options)) as any;
 

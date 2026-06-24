@@ -1,24 +1,24 @@
 <template>
-	<ServerRenderedContentPage :content="content" />
+	<HtmlRenderer :content="content" execute-scripts parse-string-as-html />
 </template>
 
 <script setup lang="ts">
 import { useAsyncState } from '@vueuse/core';
 import { computed, watchEffect } from 'vue';
 
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
+import { useCorpusId } from '@/navigation/page-context';
 
 import { useFrontendApi } from '@/shared/api';
 import { ApiError } from '@/shared/api/lib/api-types';
 import { Loadable } from '@/shared/utils/loadable/loadable';
 
-import ServerRenderedContentPage from '@/components/ServerRenderedContentPage.vue';
+import HtmlRenderer from '@/components/HtmlRenderer.vue';
 
 const frontend = useFrontendApi();
 const pageBootstrap = usePageBootstrap();
 
-const contentInput = useAsyncState(frontend.getHelp(CorpusStore.get.indexId() ?? undefined).request, '', { immediate: true });
+const contentInput = useAsyncState(frontend.getHelp(useCorpusId().value).request, '', { immediate: true });
 const content = computed<Loadable<string>>(() => {
 	if (contentInput.isLoading.value) return Loadable.Loading();
 	if (contentInput.error.value) return Loadable.LoadingError(ApiError.wrap(contentInput.error.value));

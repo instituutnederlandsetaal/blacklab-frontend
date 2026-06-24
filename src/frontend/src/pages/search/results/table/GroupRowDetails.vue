@@ -41,7 +41,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import PaginatedGetter from '@/pages/search/results/table/ConcordanceGetter';
 import { IRowDefaultProps, type IRowProps } from '@/pages/search/results/table/IRow';
 import type { GroupRowData, Rows } from '@/pages/search/results/table/table-layout';
@@ -72,10 +72,10 @@ const concordances = computed(
 				first,
 				viewgroup: props.row.id,
 				// if parallel corpus, show aligned hits first. (if not, we don't care about order)
-				sort: CorpusStore.get.isParallelCorpus() ? 'alignments' : undefined,
+				sort: useCorpus().value.isParallelCorpus ? 'alignments' : undefined,
 			};
 
-			const indexId = CorpusStore.get.indexId()!;
+			const indexId = useCorpus().value.id!;
 			const r = props.type === 'hits' ? blacklab.getHits<BLHitResults>(indexId, requestParameters) : blacklab.getDocs<BLDocResults>(indexId, requestParameters);
 
 			return r

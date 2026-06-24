@@ -1,4 +1,5 @@
 import type { NormalizedAnnotatedField, NormalizedAnnotation, NormalizedAnnotationGroup } from '@/types/apptypes';
+
 import type { Option } from '@/shared/utils/options';
 
 export type Translate = {

@@ -61,10 +61,8 @@ async function start() {
 	const i18n = createI18n(router.corpusId);
 
 	// initCorpusDataLoader(api.blacklabApi, api.frontendApi);
-	initSelectedSubcorpusLoader(api.blacklabApi);
 	setBlackLabPaths(api.blacklabPaths);
 	installHooksGlobal();
-	installLegacyStoreGlobals();
 
 	const app = createApp(AppRoot);
 	app.use(loginSystem);
@@ -77,6 +75,9 @@ async function start() {
 	app.use(router);
 	app.use(corpusState);
 	app.use(HighchartsVue);
+
+	initSelectedSubcorpusLoader(api.blacklabApi);
+	installLegacyStoreGlobals(app);
 
 	app.component('Debug', DebugComponent);
 	app.component('AudioPlayer', AudioPlayer);

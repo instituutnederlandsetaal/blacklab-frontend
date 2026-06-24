@@ -408,6 +408,7 @@ export type CFPageConfig = {
 	bannerMessage: string | null;
 	customCss: Record<string, CFCustomCssEntry[]>;
 	customJs: Record<string, CFCustomJsEntry[]>;
+	/** Overridden display name for the corpus, if any */
 	displayName: string | null;
 	faviconDir: string;
 	navbarLinks: CFNavbarLink[];

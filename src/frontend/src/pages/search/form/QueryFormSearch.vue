@@ -93,9 +93,9 @@ import { defineComponent } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
 import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
@@ -156,7 +156,7 @@ export default defineComponent({
 			return this.tabs.length > 1;
 		},
 		tabs(): Array<{ label: string; id: string; entries: AppTypes.NormalizedAnnotation[] }> {
-			const result = getAnnotationSubset(UIStore.getState().search.extended.searchAnnotationIds, CorpusStore.get.annotationGroups(), CorpusStore.get.allAnnotationsMap(), 'Search', this).map(
+			const result = getAnnotationSubset(UIStore.getState().search.extended.searchAnnotationIds, useCorpus().value.annotationGroups, useCorpus().value.allAnnotationsMap, 'Search', this).map(
 				group => ({
 					...group,
 					label: group.label!,
@@ -166,8 +166,8 @@ export default defineComponent({
 			if (this.isParallelCorpus) {
 				// Make sure we have the correct field, so autosuggest works properly
 				const versionSelected = PatternStore.getState().shared.source !== null;
-				const field = PatternStore.getState().shared.source ?? CorpusStore.get.mainAnnotatedField();
-				const fieldId = CorpusStore.get.allAnnotatedFieldsMap()[field]?.id;
+				const field = PatternStore.getState().shared.source ?? useCorpus().value.mainAnnotatedField;
+				const fieldId = useCorpus().value.allAnnotatedFieldsMap[field]?.id;
 				if (fieldId) {
 					result.forEach(tab => {
 						tab.entries = tab.entries.map(e => ({
@@ -183,19 +183,21 @@ export default defineComponent({
 			return this.tabs.flatMap(tab => tab.entries);
 		},
 		simpleSearchAnnotation(): AppTypes.NormalizedAnnotation {
-			const field = this.isParallelCorpus ? PatternStore.getState().shared.source : CorpusStore.get.mainAnnotatedField();
+			const field = this.isParallelCorpus ? PatternStore.getState().shared.source : useCorpus().value.mainAnnotatedField;
 			const id = UIStore.getState().search.simple.searchAnnotationId;
-			const annotField = field ?? CorpusStore.get.mainAnnotatedField();
-			const result = CorpusStore.get.allAnnotatedFieldsMap()[annotField]?.annotations[id] || CorpusStore.get.firstMainAnnotation();
+			const annotField = field ?? useCorpus().value.mainAnnotatedField;
+			const result = useCorpus().value.allAnnotatedFieldsMap[annotField]?.annotations[id] || useCorpus().value.firstMainAnnotation;
 			return {
 				...result,
 				annotatedFieldId: field ?? '', // no autocomplete if no parallel version selected
 			};
 		},
 		simpleSearchAnnotationAutoCompleteUrl(): string {
-			return useBlackLabPaths().autocompleteAnnotation(CorpusStore.get.indexId()!, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id);
+			return useBlackLabPaths().autocompleteAnnotation(useCorpus().value.id!, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id);
 		},
-		textDirection: CorpusStore.get.textDirection,
+		textDirection() {
+			return useCorpus().value.textDirection;
+		},
 		withinOptions(): Option[] {
 			const { enabled, elements } = UIStore.getState().search.shared.within;
 			return enabled ? elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
@@ -248,7 +250,7 @@ export default defineComponent({
 
 			// Can't just use the string, we need to generate the query when this is a parallel corpus
 
-			const mainAnnotationId = CorpusStore.get.firstMainAnnotation().id;
+			const mainAnnotationId = useCorpus().value.firstMainAnnotation.id;
 			const builtQuery = getPatternStringFromCql(
 				PatternStore.getState().expert.query || '',
 				{}, // skip within for now?
@@ -258,7 +260,7 @@ export default defineComponent({
 			);
 			let parsed: Result[] | null = null;
 			try {
-				parsed = await parseBcql(useBlackLabApi(), CorpusStore.get.indexId()!, builtQuery, mainAnnotationId);
+				parsed = await parseBcql(useBlackLabApi(), useCorpus().value.id!, builtQuery, mainAnnotationId);
 			} catch {}
 			if (!parsed) {
 				this.parseQueryError = 'The querybuilder could not parse your query.';

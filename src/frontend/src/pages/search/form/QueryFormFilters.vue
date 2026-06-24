@@ -61,8 +61,8 @@ import { defineComponent } from 'vue';
 import { watch } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import { corpusCustomizations } from '@/utils/customization';
@@ -98,7 +98,7 @@ export default defineComponent({
 			},
 		},
 		textDirection(): string {
-			return CorpusStore.get.textDirection();
+			return useCorpus().value.textDirection;
 		},
 		allFilters(): FilterStore.FullFilterState[] {
 			const seenIds = new Set<string>();
@@ -112,7 +112,7 @@ export default defineComponent({
 				});
 		},
 		tabs(): FilterStore.FilterGroupType[] {
-			const availableBuiltinFilters = CorpusStore.get.allMetadataFieldsMap();
+			const availableBuiltinFilters = useCorpus().value.allMetadataFieldsMap;
 			const builtinFiltersToShow = UIStore.getState().search.shared.searchMetadataIds;
 			const customFilters = Object.keys(FilterStore.getState().filters).filter(id => !availableBuiltinFilters[id]);
 			const allIdsToShow = new Set(builtinFiltersToShow.concat(customFilters));

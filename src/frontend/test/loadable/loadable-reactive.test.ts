@@ -684,4 +684,20 @@ describe("flatMapLoadedReactive variants", () => {
     expect(loadable.isError()).toBe(true);
     expect(loadable.isLoaded()).toBe(false);
   });
+
+  test("loadableFromRefs exposes mapper instance functions", () => {
+    const state = ref(LoadableState.loaded);
+    const value = ref<number | undefined>(42);
+    const error = ref<ApiError | undefined>(undefined);
+    const loadable = loadableFromRefs(state, value, error);
+
+    expect(loadable.map(v => v + 1)).toEqual(Loadable.Loaded(43));
+
+    state.value = LoadableState.error;
+    value.value = undefined;
+    error.value = new ApiError("title", "message", "status", 500);
+
+    expect(loadable.recover(() => 7)).toEqual(Loadable.Loaded(7));
+    expect(loadable.flatMapError(() => Loadable.Empty<number>())).toEqual(Loadable.Empty());
+  });
 });

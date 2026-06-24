@@ -37,9 +37,10 @@
 import { defineComponent, type PropType } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import { corpusCustomizations } from '@/utils/customization';
+
 import type { Option } from '@/shared/utils/options';
 
 export default defineComponent({
@@ -65,7 +66,7 @@ export default defineComponent({
 			if (!option) return [];
 
 			// Which, if any, attribute filter fields should be displayed for this element?
-			const availableAttr = Object.keys(CorpusStore.getState()!.relations.spans?.[option.value].attributes ?? {});
+			const availableAttr = Object.keys(useCorpus().value.relations.spans?.[option.value].attributes ?? {});
 			const attr = availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(option.value, attrName)).map(a => ({ value: a })) || [];
 
 			return attr.map(el => (typeof el === 'string' ? { value: el } : el));

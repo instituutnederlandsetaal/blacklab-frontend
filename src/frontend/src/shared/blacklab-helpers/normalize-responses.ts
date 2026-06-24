@@ -1,12 +1,12 @@
 import type {
-    NormalizedIndex,
-    NormalizedAnnotation,
-    NormalizedAnnotatedField,
-    NormalizedMetadataField,
-    NormalizedFormat,
-    NormalizedMetadataGroup,
-    NormalizedAnnotationGroup,
-    NormalizedIndexBase,
+	NormalizedIndex,
+	NormalizedAnnotation,
+	NormalizedAnnotatedField,
+	NormalizedMetadataField,
+	NormalizedFormat,
+	NormalizedMetadataGroup,
+	NormalizedAnnotationGroup,
+	NormalizedIndexBase,
 } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 

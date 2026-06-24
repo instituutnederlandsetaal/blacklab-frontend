@@ -133,9 +133,10 @@
 import { defineComponent, watch } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import type { NormalizedAnnotation } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
 
 import ParallelFields from './parallel/ParallelFields';
@@ -184,7 +185,7 @@ export default defineComponent({
 		},
 
 		ngramTokens() {
-			const allAnnotations = CorpusStore.get.allAnnotationsMap();
+			const allAnnotations = useCorpus().value.allAnnotationsMap;
 			return ExploreStore.get.ngram.tokens().map(tok => ({
 				...tok,
 				annotation: allAnnotations[tok.id],
@@ -209,8 +210,8 @@ export default defineComponent({
 		annotationSearchOptions(): Option[] | OptGroup[] {
 			const optGroups = getAnnotationSubset(
 				UIStore.getState().explore.searchAnnotationIds,
-				CorpusStore.get.annotationGroups(),
-				CorpusStore.get.allAnnotationsMap(),
+				useCorpus().value.annotationGroups,
+				useCorpus().value.allAnnotationsMap,
 				'Search',
 				this,
 				debug.value,
@@ -221,8 +222,8 @@ export default defineComponent({
 		annotationGroupByOptions(): Option[] | OptGroup[] {
 			const optGroups = getAnnotationSubset(
 				UIStore.getState().results.shared.groupAnnotationIds,
-				CorpusStore.get.annotationGroups(),
-				CorpusStore.get.allAnnotationsMap(),
+				useCorpus().value.annotationGroups,
+				useCorpus().value.allAnnotationsMap,
 				'Search', // we don't want the before hit/after hit context options, just do search mode, it'll be fine
 				this,
 				debug.value,
@@ -244,8 +245,8 @@ export default defineComponent({
 
 			const optGroups = getMetadataSubset(
 				UIStore.getState().results.shared.groupMetadataIds,
-				CorpusStore.get.metadataGroups(),
-				CorpusStore.get.allMetadataFieldsMap(),
+				useCorpus().value.metadataGroups,
+				useCorpus().value.allMetadataFieldsMap,
 				'Group',
 				this,
 				debug.value,
@@ -273,7 +274,9 @@ export default defineComponent({
 			];
 		},
 
-		mainTokenTextDirection: CorpusStore.get.textDirection,
+		mainTokenTextDirection() {
+			return useCorpus().value.textDirection;
+		},
 	},
 	methods: {
 		updateTokenAnnotation(index: number, id: string) {
@@ -288,8 +291,8 @@ export default defineComponent({
 				token: { value },
 			});
 		},
-		autocompleteUrl(annot: CorpusStore.NormalizedAnnotation) {
-			return useBlackLabPaths().autocompleteAnnotation(CorpusStore.get.indexId()!, annot.annotatedFieldId, annot.id);
+		autocompleteUrl(annot: NormalizedAnnotation) {
+			return useBlackLabPaths().autocompleteAnnotation(useCorpus().value.id!, annot.annotatedFieldId, annot.id);
 		},
 	},
 	created() {

@@ -2,11 +2,10 @@ import cloneDeep from 'clone-deep';
 import { shallowRef } from 'vue';
 
 import * as UIModule from '@/app/state/ui-state';
-import type { CorpusContext } from '@/app/state/useCorpusContext';
+import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 // Results
 // Article
 import * as ArticleModule from '@/features/article/model/article-state';
-import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
@@ -22,9 +21,9 @@ import * as ViewModule from '@/features/search/model/results/view-state';
 import type * as BLTypes from '@/types/blacklabtypes';
 import type { ArticleUrlState } from '@/url/state-to-url';
 import { corpusCustomizations } from '@/utils/customization';
-import debug, { debugLog } from '@/shared/debug/debug';
-import { getPatternString, getWithinClausesFromFilters } from '@/shared/blacklab-helpers/pattern-utils';
 
+import { getPatternString, getWithinClausesFromFilters } from '@/shared/blacklab-helpers/pattern-utils';
+import debug, { debugLog } from '@/shared/debug/debug';
 import { Loadable } from '@/shared/utils/loadable/loadable';
 
 // separate, because while the corpusloader might have settled, store init is async
@@ -91,7 +90,7 @@ const get = {
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: globalState.context != null ? globalState.context : undefined,
 			adjusthits: true,
-			withspans: corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (FilterModule.get.hasSpanFilters() || CorpusModule.get.hasRelations()),
+			withspans: corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (FilterModule.get.hasSpanFilters() || useCorpus().value.hasRelations),
 		};
 	},
 };
@@ -266,7 +265,7 @@ const actions = {
 const init = async (state: CorpusContext) => {
 	loadingState.value = Loadable.Loading();
 	debugLog('store', 'Initializing store with new corpus data', state);
-	await CorpusModule.init(state);
+
 	await UIModule.init(state);
 
 	await FormManager.init(state);

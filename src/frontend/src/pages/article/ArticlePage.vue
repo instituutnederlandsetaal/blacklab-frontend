@@ -44,72 +44,67 @@
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px">
 			<div id="content" class="tab-pane" :class="{ active: activeArticleTab === 'content' }">
 				<h2 v-if="isParallel" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
-				<Spinner v-if="contents.isLoading()" />
-				<div v-else-if="contents.isError()">
-					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#content_error" aria-expanded="false" aria-controls="content_error"> Click here to see errors </a><br />
-					<div class="collapse" id="content_error">
-						<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
-							{{ contents.error.message }}
+				<HtmlRenderer :content="contentsHtml">
+					<template #error="{ error }">
+						<div>
+							<a class="btn btn-primary" role="button" data-toggle="collapse" href="#content_error" aria-expanded="false" aria-controls="content_error"> Click here to see errors </a><br />
+							<div class="collapse" id="content_error">
+								<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
+									{{ error.message }}
+								</div>
+							</div>
 						</div>
-					</div>
-				</div>
-				<InstancedHtml v-if="contents.isLoaded()" :value="contents.value.container" />
+					</template>
+				</HtmlRenderer>
 			</div>
 
 			<div id="metadata" class="tab-pane" :class="{ active: activeArticleTab === 'metadata' }">
-				<Spinner v-if="metadata.isLoading()" />
-				<div v-if="metadata.isError()">
-					<a class="btn btn-primary" role="button" data-toggle="collapse" href="#metadata_error" aria-expanded="false" aria-controls="metadata_error"> Click here to see errors </a><br />
-					<div class="collapse" id="metadata_error">
-						<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
-							{{ metadata.error.message }}
+				<HtmlRenderer :content="metadataHtml">
+					<template #error="{ error }">
+						<a class="btn btn-primary" role="button" data-toggle="collapse" href="#metadata_error" aria-expanded="false" aria-controls="metadata_error"> Click here to see errors </a><br />
+						<div class="collapse" id="metadata_error">
+							<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
+								{{ error.message }}
+							</div>
 						</div>
-					</div>
-				</div>
-				<template v-if="metadata.isLoaded()">
-					<h2 v-if="metadata.value.json.docFields.titleField" style="word-break: break-all">
-						{{ getMetadataFieldValues(metadata.value.json.docInfo, metadata.value.json.docFields.titleField)?.join(', ') || $t('results.groupBy.groupNameWithoutValue') }}
-						<template v-if="isParallel">{{ viewField ? $tAnnotatedFieldDisplayName(viewField) : 'Error: missing viewfield.' }}</template>
-					</h2>
-					<InstancedHtml :value="metadata.value.html" />
-				</template>
-
-				<template v-else-if="metadata.isLoaded()">
-					<table class="table-striped">
-						<tbody>
-							<tr v-if="!hits.isEmpty()">
-								<td>Hits in document:</td>
-								<td>
-									<Spinner v-if="hits.isLoading()" inline sm />
-									<template v-else-if="hits.isLoaded()">{{ hits.value.length }}</template>
-								</td>
-							</tr>
-
-							<template v-for="g in metadataFieldsToShow">
-								<tr>
-									<td colspan="2">
-										<b
-											>{{ $tMetaGroupName(g) }} <debug>[{{ g.id }}]</debug>:</b
-										>
-									</td>
-								</tr>
-								<tr v-for="f in g.entries">
-									<td style="padding-left: 0.5em">
-										{{ $tMetaDisplayName(f) }}<debug> [{{ f.id }}]</debug>
-									</td>
+					</template>
+					<template #empty>
+						<table v-if="metadata.isLoaded()" class="table-striped">
+							<tbody>
+								<tr v-if="!hits.isEmpty()">
+									<td>Hits in document:</td>
 									<td>
-										<template v-if="getMetadataFieldValues(metadata.value.json.docInfo, f.id)?.length">{{ getMetadataFieldValues(metadata.value.json.docInfo, f.id)?.join(', ') }}</template>
-										<em v-else class="text-muted">{{ $t('results.groupBy.groupNameWithoutValue') }}</em>
+										<Spinner v-if="hits.isLoading()" inline sm />
+										<template v-else-if="hits.isLoaded()">{{ hits.value.length }}</template>
 									</td>
 								</tr>
-							</template>
-							<tr>
-								<td>Document length (tokens)</td>
-								<td id="docLengthTokens">{{ metadata.value.json.docInfo.tokenCounts?.find(tc => tc.fieldName === inputs!.viewField)?.tokenCount }}</td>
-							</tr>
-						</tbody>
-					</table>
-				</template>
+
+								<template v-for="g in metadataFieldsToShow">
+									<tr>
+										<td colspan="2">
+											<b>
+												{{ $tMetaGroupName(g) }}<debug> [{{ g.id }}]</debug>:
+											</b>
+										</td>
+									</tr>
+									<tr v-for="f in g.entries">
+										<td style="padding-left: 0.5em">
+											{{ $tMetaDisplayName(f) }}<debug> [{{ f.id }}]</debug>
+										</td>
+										<td>
+											<template v-if="getMetadataFieldValues(metadata.value.json.docInfo, f.id)?.length">{{ getMetadataFieldValues(metadata.value.json.docInfo, f.id)?.join(', ') }}</template>
+											<em v-else class="text-muted">{{ $t('results.groupBy.groupNameWithoutValue') }}</em>
+										</td>
+									</tr>
+								</template>
+								<tr>
+									<td>Document length (tokens)</td>
+									<td id="docLengthTokens">{{ metadata.value.json.docInfo.tokenCounts?.find(tc => tc.fieldName === inputs!.viewField)?.tokenCount }}</td>
+								</tr>
+							</tbody>
+						</table>
+					</template>
+				</HtmlRenderer>
 			</div>
 
 			<div id="statistics" class="tab-pane" :class="{ active: activeArticleTab === 'statistics' }" v-if="statisticsEnabled && activeArticleTab === 'statistics'">
@@ -140,9 +135,8 @@ import { computed, onUnmounted, ref, watch, watchEffect } from 'vue';
 import { useRoute, useRouter, type LocationQueryRaw, type LocationQueryValue } from 'vue-router';
 
 import * as UIStore from '@/app/state/ui-state';
-import { useCfPageConfig } from '@/app/state/useCorpusContext';
+import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
 import * as ArticleStore from '@/features/article/model/article-state';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import createTooltips, { type TooltipContext } from '@/modules/expandable-tooltips';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
@@ -153,7 +147,7 @@ import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-streams';
 
-import InstancedHtml from '@/components/InstancedHtml.vue';
+import HtmlRenderer from '@/components/HtmlRenderer.vue';
 import Pagination from '@/components/Pagination.vue';
 import Spinner from '@/components/Spinner.vue';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
@@ -173,7 +167,9 @@ const cfPageConfig = useCfPageConfig();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 
 const metadata = loadableFromStream(metadata$);
+const metadataHtml = computed(() => metadata.map(m => m.html));
 const contents = loadableFromStream(contents$);
+const contentsHtml = computed(() => contents.map(c => c.container));
 const hits = loadableFromStream(hits$);
 const hitToHighlight = loadableFromStream(hitToHighlight$);
 const validPaginationInfo = loadableFromStream(validPaginationParameters$);
@@ -182,12 +178,12 @@ const statistics = loadableFromStream(combineLoadableStreams([currentPageSnippet
 watchEffect(() => retrieveSnippetToggle$.next(activeArticleTab.value === 'statistics' && statisticsEnabled.value));
 
 const inputs = computed<Input>(() => ({
-	indexId: CorpusStore.get.indexId(),
+	indexId: useCorpus().value.id,
 	docId: getRouteParamString(route.params.docId),
 
-	viewField: getAnnotatedFieldFromQuery('field') ?? CorpusStore.get.mainAnnotatedField(),
+	viewField: getAnnotatedFieldFromQuery('field') ?? useCorpus().value.mainAnnotatedField,
 	// we canonically use 'searchfield' nowadays, but we used to use field/searchField, so keep those as fallbacks for backwards compatibility
-	searchfield: getAnnotatedFieldFromQuery('searchfield', 'searchField', 'field') ?? CorpusStore.get.mainAnnotatedField(),
+	searchfield: getAnnotatedFieldFromQuery('searchfield', 'searchField', 'field') ?? useCorpus().value.mainAnnotatedField,
 
 	wordstart: getNumberFromQuery('wordstart'),
 	wordend: getNumberFromQuery('wordend'),
@@ -198,12 +194,12 @@ const inputs = computed<Input>(() => ({
 }));
 
 const metadataFieldsToShow = computed(() =>
-	fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(CorpusStore.get.allMetadataFieldsMap()), CorpusStore.get.metadataGroups(), CorpusStore.get.allMetadataFieldsMap()),
+	fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(useCorpus().value.allMetadataFieldsMap), useCorpus().value.metadataGroups, useCorpus().value.allMetadataFieldsMap),
 );
 
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
-const isParallel = computed(() => CorpusStore.get.isParallelCorpus());
-const viewField = computed(() => CorpusStore.get.allAnnotatedFieldsMap()[inputs.value?.viewField ?? '']);
+const isParallel = computed(() => useCorpus().value.isParallelCorpus);
+const viewField = computed(() => useCorpus().value.allAnnotatedFieldsMap[inputs.value?.viewField ?? '']);
 
 watchEffect(() => {
 	if (!statisticsEnabled.value && activeArticleTab.value === 'statistics') activeArticleTab.value = 'content';
@@ -264,7 +260,7 @@ function getNumberFromQuery(key: string): number | null {
 
 function getAnnotatedFieldFromQuery(...keys: string[]): string | null {
 	const value = getStringFromQuery(...keys);
-	return value && CorpusStore.get.allAnnotatedFieldsMap()[value] ? value : null;
+	return value && useCorpus().value.allAnnotatedFieldsMap[value] ? value : null;
 }
 
 function updateArticleQuery(patch: Record<string, string | number | null | undefined>) {

@@ -10,8 +10,7 @@ import cloneDeep from 'clone-deep';
 import { html, stripIndent } from 'common-tags';
 import { reactive } from 'vue';
 
-import type { CorpusContext } from '@/app/state/useCorpusContext';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 import * as ViewsStore from '@/features/search/model/results/view-state';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
@@ -232,8 +231,6 @@ type ModuleRootState = {
 	};
 
 	global: {
-		config: AppTypes.CFPageConfig;
-
 		/** Database to use in the lexicon service component. To allow switching early dutch/middle dutch etc. */
 		lexiconDb: string;
 		/**
@@ -348,19 +345,6 @@ const initialState: ModuleRootState = {
 		},
 	},
 	global: {
-		config: {
-			analytics: {
-				google: null,
-				plausible: null,
-			},
-			bannerMessage: null,
-			customCss: {},
-			customJs: {},
-			displayName: null,
-			faviconDir: '',
-			navbarLinks: [],
-			pageSize: null,
-		},
 		lexiconDb: 'lexiconservice_mnw_wnt',
 		errorMessage: (e, c) => {
 			switch (c) {
@@ -473,7 +457,7 @@ const actions = {
 			within: {
 				enable: (payload: boolean) => (state.search.shared.within.enabled = payload),
 				elements: (payload: ModuleRootState['search']['shared']['within']['elements']) => {
-					const relations = CorpusStore.get.corpus().relations;
+					const relations = useCorpus().value.relations;
 					const validElements = payload.filter(v => relations.spans?.[v.value]);
 					if (!validElements.find(v => v.value === '')) {
 						validElements.unshift({
@@ -721,7 +705,7 @@ const actions = {
 				/** It's possible to show multiple feats by passing multiple annotations here. */
 				feats: string | null | string[];
 			}) => {
-				const allAnnotations = CorpusStore.get.allAnnotationsMap();
+				const allAnnotations = useCorpus().value.allAnnotationsMap;
 				const storeIsInitialized = Object.keys(allAnnotations).length > 0;
 
 				const validate = (id: string | null, key: string): string | null => {
@@ -817,7 +801,7 @@ const actions = {
 		moveAnnotationToGroup: (annotationId: string, targetGroupName: string, removeFromExistingGroup = true) => {
 			// NOTE: is frozen object, though not deeply.
 			// Need to reassign to trigger reactivity.
-			const corpus = CorpusStore.getState();
+			const corpus = useCorpus().value;
 			if (!corpus) {
 				console.warn(`[moveAnnotationToGroup] - Trying to move annotation '${annotationId}' to group '${targetGroupName}', but the corpus is not loaded yet!`);
 				return;
@@ -840,7 +824,7 @@ const actions = {
 		moveMetadataToGroup: (metadataFieldId: string, targetGroupName: string, removeFromExistingGroup = true) => {
 			// NOTE: is frozen object, though not deeply.
 			// Need to reassign to trigger reactivity.
-			const corpus = CorpusStore.getState();
+			const corpus = useCorpus().value;
 			if (!corpus) {
 				console.warn(`[moveMetadataToGroup] - Trying to move metadata field '${metadataFieldId}' to group '${targetGroupName}', but the corpus is not loaded yet!`);
 				return;
@@ -891,17 +875,14 @@ const init = (state: CorpusContext) => {
 	if (!state.index) {
 		// Reset to completely blank slate if no corpus loaded.
 		Object.assign(getState(), cloneDeep(initialState));
-		getState().global.config = state.config;
 		return;
 	}
 
-	getState().global.config = state.config;
-
 	// Call the customize function(s) defined in custom.js (if any)
-	corpusCustomizations._corpus = CorpusStore.getState()!;
+	corpusCustomizations._corpus = useCorpus().value;
 	corpusCustomizations.customizeFunctions.forEach(f => f(corpusCustomizations));
 	// Update uiTypes for annotations where necessary
-	CorpusStore.get.allAnnotatedFields().forEach(field => {
+	useCorpus().value.allAnnotatedFields.forEach(field => {
 		Object.values(field.annotations).forEach(annotation => {
 			const uiType = corpusCustomizations.search.pattern.uiType(annotation.annotatedFieldId, annotation.id);
 			if (uiType) {
@@ -936,10 +917,10 @@ const init = (state: CorpusContext) => {
 	// Set up some defaults
 	// ====================
 
-	const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
-	const annotationGroups = CorpusStore.get.annotationGroups();
-	const metadataGroups = CorpusStore.get.metadataGroups();
-	const mainAnnotation = CorpusStore.get.firstMainAnnotation();
+	const allAnnotationsMap = useCorpus().value.allAnnotationsMap;
+	const annotationGroups = useCorpus().value.annotationGroups;
+	const metadataGroups = useCorpus().value.metadataGroups;
+	const mainAnnotation = useCorpus().value.firstMainAnnotation;
 
 	// Annotations (extended, advanced, explore [n-grams], sorting, grouping, hit details)
 	// If unconfigured, show the following annotations:
@@ -1055,7 +1036,7 @@ const init = (state: CorpusContext) => {
 		// (dependency, parallel) relations as well. We could get the list of values for this annotation and
 		// decode them, but this makes us depend on implementation details. The new /relations endpoint gives
 		// us the same information in a portable way.
-		const relations = CorpusStore.get.corpus()!.relations;
+		const relations = useCorpus().value.relations;
 		setValuesForWithin(Object.keys(relations.spans || {}).map(v => ({ value: v, label: v, title: null })));
 
 		// Set default sentence boundary element. For use with dependency trees and getting the sentence around a hit.
@@ -1124,7 +1105,7 @@ const init = (state: CorpusContext) => {
 
 	// Docs table: Show the date column if it is configured
 	if (!getState().results.docs.shownMetadataIds.length) {
-		const dateField = CorpusStore.get.corpus()!.fieldInfo.dateField;
+		const dateField = useCorpus().value.fieldInfo.dateField;
 		if (dateField) {
 			actions.results.docs.shownMetadataIds([dateField]);
 		}
@@ -1251,13 +1232,13 @@ function createConfigurator<T extends Record<string, string[]>>(proppaths: T) {
 let alwaysCallbackAfterValidating = false;
 /** Validate all ids, triggering callbacks for failed ids, and triggering a final callback if there is any valid annotation. */
 function validateAnnotations(ids: string[], missing: (id: string) => string, validate: (a: AppTypes.NormalizedAnnotation) => boolean, invalid: (id: string) => string, cb: (ids: string[]) => void) {
-	if (!CorpusStore.getState()) {
+	if (!useCorpus().value) {
 		// not loaded yet
 		cb(ids);
 		return;
 		// we will re-check this on init()?
 	}
-	const all = CorpusStore.get.allAnnotationsMap();
+	const all = useCorpus().value.allAnnotationsMap;
 	const results = ids.filter(id => {
 		if (!all[id]) {
 			console.warn(missing(id));
@@ -1278,13 +1259,13 @@ function validateAnnotations(ids: string[], missing: (id: string) => string, val
 
 /** Validate all ids, triggering callbacks for failed ids, and triggering a final callback if there is any valid annotation. */
 function validateMetadata(ids: string[], missing: (id: string) => string, validate: (m: AppTypes.NormalizedMetadataField) => boolean, invalid: (id: string) => string, cb: (ids: string[]) => void) {
-	if (!CorpusStore.getState()) {
+	if (!useCorpus().value) {
 		cb(ids);
 		return;
 		// assume we will re-check this on init()?
 	}
 
-	const all = CorpusStore.get.allMetadataFieldsMap();
+	const all = useCorpus().value.allMetadataFieldsMap;
 	const results = ids.filter(id => {
 		if (!all[id]) {
 			console.warn(missing(id));
@@ -1356,8 +1337,8 @@ function printCustomizations() {
 	const metadataColumns = actions.helpers.configureMetadata.config;
 
 	// output stuff
-	const annotationData = getCheckmarks(annotColumns, CorpusStore.get.annotationGroups(), defaultGroupName);
-	const metadataData = getCheckmarks(metadataColumns, CorpusStore.get.metadataGroups(), defaultGroupName);
+	const annotationData = getCheckmarks(annotColumns, useCorpus().value.annotationGroups, defaultGroupName);
+	const metadataData = getCheckmarks(metadataColumns, useCorpus().value.metadataGroups, defaultGroupName);
 	const annotationCells = getCells(Object.keys(annotColumns));
 	const metadataCells = getCells(Object.keys(metadataColumns));
 	const longestAnnotId = annotationData.flatMap(g => g.entries).reduce((longest, cur) => Math.max(longest, cur.id.length), 0);

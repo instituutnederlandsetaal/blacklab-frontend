@@ -97,7 +97,7 @@ import URI from 'urijs';
 import { defineComponent, nextTick } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
@@ -155,7 +155,7 @@ export default defineComponent({
 			this.$emit('close');
 		},
 		humanize(g: string[]): string[] {
-			return humanizeSerializedGroupBy(this, g, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap());
+			return humanizeSerializedGroupBy(this, g, useCorpus().value.allAnnotationsMap, useCorpus().value.allMetadataFieldsMap);
 		},
 
 		async importFromUrl() {

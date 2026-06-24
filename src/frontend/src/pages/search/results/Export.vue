@@ -43,14 +43,14 @@ import cloneDeep from 'clone-deep';
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import type { BLSearchResult } from '@/types/blacklabtypes';
 import { hasPatternInfo } from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
-import { debugLog } from '@/shared/debug/debug';
 
 import { useBlackLabApi } from '@/shared/api';
 import { ensureCompleteFieldName } from '@/shared/blacklab-helpers/parallel-helper';
+import { debugLog } from '@/shared/debug/debug';
 
 export default defineComponent({
 	props: {
@@ -66,7 +66,7 @@ export default defineComponent({
 	}),
 	computed: {
 		spanAttributesToExport(): string[] {
-			const spans = Object.entries(CorpusStore.get.corpus()!.relations.spans || {});
+			const spans = Object.entries(useCorpus().value.relations.spans || {});
 			return spans.flatMap(([spanName, spanInfo]) =>
 				Object.keys(spanInfo.attributes || {})
 					.map(attrName => [spanName, attrName])
@@ -91,17 +91,17 @@ export default defineComponent({
 			(params as any).csvsummary = true;
 			const fieldDisplayName = (name: string, baseFieldName: string = '') => {
 				const summary = this.results?.summary;
-				const defaultField = (hasPatternInfo(summary) ? summary.pattern?.fieldName : undefined) ?? CorpusStore.get.mainAnnotatedField();
+				const defaultField = (hasPatternInfo(summary) ? summary.pattern?.fieldName : undefined) ?? useCorpus().value.mainAnnotatedField;
 				name = ensureCompleteFieldName(name, defaultField); // don't just pass version name
-				const field = CorpusStore.get.allAnnotatedFieldsMap()[name];
+				const field = useCorpus().value.allAnnotatedFieldsMap[name];
 				return this.$tAnnotatedFieldDisplayName(field);
 			};
 			(params as any).csvdescription = corpusCustomizations.results.export.description(this.results.summary, fieldDisplayName) || '';
 
-			const apir = apiCall(CorpusStore.get.indexId()!, params);
+			const apir = apiCall(useCorpus().value.id!, params);
 
 			debugLog('export', 'starting csv download', this.type, params);
-			apiCall(CorpusStore.get.indexId()!, params)
+			apiCall(useCorpus().value.id!, params)
 				.request.then(
 					async blob => {
 						const { saveAs } = await import('file-saver');

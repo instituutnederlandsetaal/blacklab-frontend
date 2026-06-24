@@ -7,11 +7,11 @@ import cloneDeep from 'clone-deep';
 import { reactive, ref } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
-import type { CorpusContext } from '@/app/state/useCorpusContext';
+import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
 import { memoize } from '@/features/search/model/form/reactive-store';
 import type { AnnotationValue } from '@/types/apptypes';
+
 import { debugLog } from '@/shared/debug/debug';
 
 type ModuleRootState = {
@@ -112,7 +112,7 @@ const privateActions = {
 const actions = {
 	shared: {
 		sourceField: (payload: string | null) => {
-			if (payload && !CorpusStore.get.parallelAnnotatedFieldsMap()[payload]) {
+			if (payload && !useCorpus().value.parallelAnnotatedFieldsMap[payload]) {
 				console.error(`Tried to set source version to non-existent or non-parallel annotated field ('${payload}'). Ignoring`);
 				return;
 			}
@@ -127,7 +127,7 @@ const actions = {
 			return actions.shared.targetFields([...state.shared.targets, version]);
 		},
 		removeTarget: (version: string) => {
-			if (!CorpusStore.get.parallelAnnotatedFieldsMap()[version]) {
+			if (!useCorpus().value.parallelAnnotatedFieldsMap[version]) {
 				console.error(`Tried to remove non-existent or non-parallel target version ('${version}')`);
 				return;
 			}
@@ -145,7 +145,7 @@ const actions = {
 		/** Replace the entire set of selected target fields at once. */
 		targetFields: (payload: string[]) => {
 			// sanity check:
-			const nonexistentFields = payload.filter(annotatedFieldId => !CorpusStore.get.parallelAnnotatedFieldsMap()[annotatedFieldId]);
+			const nonexistentFields = payload.filter(annotatedFieldId => !useCorpus().value.parallelAnnotatedFieldsMap[annotatedFieldId]);
 			if (nonexistentFields.length) {
 				console.error(`Tried to set target fields to non-existent annotated field(s): ${nonexistentFields}, maybe mixup between version and annotatedField`);
 				return state.shared.targets;
@@ -165,7 +165,7 @@ const actions = {
 		within: (payload: string | null) => (state.shared.within = payload),
 		withinAttributes: (payload: Record<string, string>) => (state.shared.withinAttributes = payload),
 		reset: () => {
-			const defaultSourceField = CorpusStore.get.parallelAnnotatedFields()[0]?.id;
+			const defaultSourceField = useCorpus().value.parallelAnnotatedFields[0]?.id;
 			debugLog('shared', `shared.reset: Selecting default source version '${defaultSourceField}'`);
 			state.shared.source = defaultSourceField;
 			state.shared.targets = [];
@@ -266,7 +266,7 @@ const init = (state: CorpusContext) => {
 		return;
 	}
 
-	const parallelFields = CorpusStore.get.parallelAnnotatedFields();
+	const parallelFields = useCorpus().value.parallelAnnotatedFields;
 	const defaultParallelVersion = parallelFields[0]?.id ?? null;
 
 	debugLog('parallel', `init: Set default parallel version: ${defaultParallelVersion}`);
@@ -277,7 +277,7 @@ const init = (state: CorpusContext) => {
 		within: null,
 		withinAttributes: {},
 	});
-	CorpusStore.get.allAnnotations().forEach(({ id, uiType }) => {
+	useCorpus().value.allAnnotations.forEach(({ id, uiType }) => {
 		privateActions.initExtendedAnnotation({
 			id,
 			value: '',
@@ -287,10 +287,10 @@ const init = (state: CorpusContext) => {
 	});
 	privateActions.initSimpleAnnotation({
 		annotationValue: {
-			id: CorpusStore.get.firstMainAnnotation().id,
+			id: useCorpus().value.firstMainAnnotation.id,
 			value: '',
 			case: false,
-			type: CorpusStore.get.firstMainAnnotation().uiType,
+			type: useCorpus().value.firstMainAnnotation.uiType,
 		},
 	});
 

@@ -13,9 +13,12 @@
 			</div>
 
 			<div class="navbar-content-container">
-				<router-link class="navbar-brand" :to="indexId ? { name: 'search', params: { corpus: indexId } } : { name: 'corpora' }">{{ indexDisplayName }}</router-link>
+				<router-link class="navbar-brand" :to="indexId ? { name: 'search', params: { corpus: indexId } } : { name: 'corpora' }">{{ displayNameInNavbar }}</router-link>
 
 				<ul class="nav navbar-nav navbar-collapse" :class="{ visible: !collapsed }">
+					<debug
+						><li v-if="$route.name !== 'corpora'"><router-link :to="{ name: 'corpora' }">[Corpora]</router-link></li></debug
+					>
 					<li v-for="link in links" :key="link.attributes.href">
 						<component :is="link.isExternal ? 'a' : 'router-link'" v-bind="link.attributes">{{ link.label }}</component>
 					</li>
@@ -33,69 +36,51 @@
 	</div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
-import * as UIStore from '@/app/state/ui-state';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
-import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
+import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
+import { useCorpusId } from '@/navigation/page-context';
 
 import { localStorageSynced } from '@/shared/utils/localstore';
 
 import LoginButton from '@/shared/auth/LoginButton.vue';
 import LocaleSelector from '@/shared/i18n/LocaleSelector.vue';
 
-export default defineComponent({
-	components: { LocaleSelector, LoginButton },
-	data() {
+const router = useRouter();
+
+const collapsed = ref(true);
+const bannerFromLocalStorage = localStorageSynced<string>('cf/banner-hidden', '', false, 24 * 7 * 3600);
+const showBanner = computed(() => !!config.value.bannerMessage && bannerFromLocalStorage.value !== config.value.bannerMessage);
+const config = useCfPageConfig();
+const indexId = useCorpusId();
+const index = useCorpus({ IAcknowledgeItCanBeUndefined: true });
+const displayNameInNavbar = computed(() => config.value.displayName || index.value?.displayName || indexId.value || 'BlackLab Frontend');
+const links = computed<Array<{ label: string; attributes: Record<string, string>; isExternal: boolean }>>(() =>
+	config.value.navbarLinks.map(l => {
+		const parsed = new URL(l.attributes.href, window.location.origin);
+		const routerBase = router.options.history.base || '/';
+		const isExternal = parsed.origin !== window.location.origin || !parsed.pathname.startsWith(routerBase);
+		if (isExternal) return { ...l, isExternal };
+		// else we need to remove the router's base from the link, or it will double up
+		// so reconstruct the link..
+		// Also we need to make sure that 'href' is not in the attributes (or router-link will not add the href attribute to its <a> at all???)
+		const { href, target, ...attributesWithoutHref } = l.attributes;
 		return {
-			collapsed: true,
-			bannerFromLocalStorage: localStorageSynced<string>('cf/banner-hidden', '', false, 24 * 7 * 3600),
+			isExternal,
+			...l,
+			attributes: {
+				...attributesWithoutHref,
+				to: parsed.pathname.substring(routerBase.length) + parsed.search + parsed.hash,
+			},
 		};
-	},
-	computed: {
-		indexId: CorpusStore.get.indexId, // separate from index - the ID is available before the index is loaded
-		index(): NormalizedIndex | undefined {
-			return CorpusStore.getState();
-		},
-		config(): CFPageConfig {
-			return UIStore.getState().global.config;
-		},
-		// A little speficic, but this way on purpose, since the config and index are loaded async, and we want to show something asap.
-		// If no index is loaded at all, show the default corpus-frontend name.
-		indexDisplayName(): string {
-			return this.config.displayName || this.index?.displayName || this.indexId || 'BlackLab Frontend';
-		},
-		links(): Array<{ label: string; attributes: Record<string, string>; isExternal: boolean }> {
-			return this.config.navbarLinks.map(l => {
-				const parsed = new URL(l.attributes.href, window.location.origin);
-				const routerBase = this.$router.options.history.base || '/';
-				const isExternal = parsed.origin !== window.location.origin || !parsed.pathname.startsWith(routerBase);
-				if (isExternal) return { ...l, isExternal };
-				// else we need to remove the router's base from the link, or it will double up
-				// so reconstruct the link..
-				// Also we need to make sure that 'href' is not in the attributes (or router-link will not add the href attribute to its <a> at all???)
-				const { href, target, ...attributesWithoutHref } = l.attributes;
-				return {
-					isExternal,
-					...l,
-					attributes: {
-						...attributesWithoutHref,
-						to: parsed.pathname.substring(routerBase.length) + parsed.search + parsed.hash,
-					},
-				};
-			});
-		},
-		showBanner(): boolean {
-			return !!this.config.bannerMessage && this.bannerFromLocalStorage.value !== this.config.bannerMessage;
-		},
-	},
-	methods: {
-		hideBanner() {
-			this.bannerFromLocalStorage.value = this.config.bannerMessage!;
-		},
-	},
-});
+	}),
+);
+
+function hideBanner() {
+	bannerFromLocalStorage.value = config.value.bannerMessage!;
+}
 </script>
 
 <style lang="scss">

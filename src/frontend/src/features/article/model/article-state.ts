@@ -1,7 +1,7 @@
 import { reactive } from 'vue';
 
-import type * as BLTypes from '@/types/blacklabtypes';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
+import type * as BLTypes from '@/types/blacklabtypes';
 
 type ModuleRootState = {
 	distributionAnnotation: null | {

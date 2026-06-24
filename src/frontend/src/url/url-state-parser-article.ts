@@ -1,6 +1,6 @@
 import cloneDeep from 'clone-deep';
 
-import * as CorpusModule from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import type * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
@@ -12,9 +12,9 @@ import * as PatternModule from '@/features/search/model/form/pattern-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
 
-import BaseUrlStateParser from './url-state-parser-base';
 import type { ArticleUrlState } from './state-to-url';
 import { emptyArticleUrlState } from './state-to-url';
+import BaseUrlStateParser from './url-state-parser-base';
 
 /**
  * Decode the current url into a state payload for the article page.
@@ -25,7 +25,7 @@ export default class UrlStateParserArticle extends BaseUrlStateParser<HistoryMod
 		const pattern = this.getString('patt') || this.getString('query') || null;
 		// TODO figure out and document what is the canonical value, is 'field' legacy, I think so, but we need to look at the git history and document this. It was introduced when we implemented parallel search/documents.
 		const sourceFromUrl = this.getString('searchfield') || this.getString('searchField') || this.getString('field');
-		const allAnnotatedFields = CorpusModule.get.allAnnotatedFieldsMap();
+		const allAnnotatedFields = useCorpus().value.allAnnotatedFieldsMap;
 		const source = sourceFromUrl && allAnnotatedFields[sourceFromUrl] ? sourceFromUrl : PatternModule.defaults.shared.source;
 
 		return {

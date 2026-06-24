@@ -19,11 +19,11 @@
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true,
 		"noUncheckedSideEffectImports": true,
-		"types": ["vitest"],
+		"types": ["vitest", "vite/client"],
 
 		"paths": {
 			"@/*": ["./src/*"]
 		}
 	},
-	"include": ["test/**/*.ts"]
+	"include": ["test/**/*.ts", "src/**/*.d.ts"]
 }

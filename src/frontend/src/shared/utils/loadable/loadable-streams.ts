@@ -30,8 +30,8 @@ import { markRaw, ref, shallowRef, type Ref } from 'vue';
 
 import type { MarkRequiredAndNotNull } from '@/types/helpers';
 
-import type { Empty, LoadableLike, Loaded, Loading, LoadingError, Val, ValEmpty, ValueTypeFromLoadableOrObservable } from './loadable';
-import { isEmpty, isError, isLoaded, isLoading, Loadable, LoadableState } from './loadable';
+import type { LoadableLike, Val, ValEmpty, ValueTypeFromLoadableOrObservable } from './loadable';
+import { getLoadableStateValue, isEmpty, isError, isLoadableLike, isLoaded, isLoading, Loadable, LoadableState } from './loadable';
 import { loadableFromRefs, type LoadableFromRequest } from './loadable-reactive';
 
 import { ApiError } from '@/shared/api/lib/api-types';
@@ -54,9 +54,7 @@ export function mapLoadable<T, U, S extends LoadableState.loading>(state: S, map
 export function mapLoadable<T, U, S extends LoadableState>(state: S, mapper: (v: T | ApiError | undefined) => U): OperatorFunction<Loadable<T>, Loadable<U | T>> {
 	return map(v => {
 		if (v.state !== state) return v;
-		if (v.isError()) return Loadable.Loaded(mapper(v.error));
-		if (v.isLoaded()) return Loadable.Loaded(mapper(v.value));
-		return Loadable.Loaded(mapper(undefined));
+		return Loadable.Loaded(mapper(getLoadableStateValue(v, state)));
 	});
 }
 export const mapLoaded = (mapLoadable.Loaded = <T, U>(mapper: (v: T) => U) => mapLoadable(LoadableState.loaded, mapper));
@@ -85,9 +83,7 @@ export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableSt
 export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableState>(state: S, mapper: (v: T | ApiError | undefined) => U): OperatorFunction<Loadable<T>, U | Loadable<T>> {
 	return map(v => {
 		if (v.state !== state) return v;
-		if (v.isError()) return mapper(v.error);
-		if (v.isLoaded()) return mapper(v.value);
-		return mapper(undefined);
+		return mapper(getLoadableStateValue(v, state));
 	});
 }
 export const flatMapLoaded = (flatMapLoadable.Loaded = <T, U extends Loadable<any>>(mapper: (v: T) => U) => flatMapLoadable(LoadableState.loaded, mapper));
@@ -106,9 +102,7 @@ export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableS
 export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableState>(state: S, mapper: (v: any) => ObservableInput<U>): OperatorFunction<Loadable<T>, U | Loadable<T>> {
 	return mergeMap(v => {
 		if (v.state !== state) return of(v);
-		if (v.isError()) return mapper(v.error);
-		if (v.isLoaded()) return mapper(v.value);
-		return mapper(undefined);
+		return mapper(getLoadableStateValue(v, state));
 	});
 }
 export const mergeMapLoaded = (mergeMapLoadable.Loaded = <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => mergeMapLoadable(LoadableState.loaded, mapper));
@@ -127,9 +121,7 @@ export function switchMapLoadable<T, U extends Loadable<any>, S extends Loadable
 export function switchMapLoadable<T, U extends Loadable<any>, S extends LoadableState>(state: S, mapper: (v: any) => ObservableInput<U>): OperatorFunction<Loadable<T>, U | Loadable<T>> {
 	return switchMap(v => {
 		if (v.state !== state) return of(v);
-		if (v.isError()) return mapper(v.error);
-		if (v.isLoaded()) return mapper(v.value);
-		return mapper(undefined);
+		return mapper(getLoadableStateValue(v, state));
 	});
 }
 export const switchMapLoaded = (switchMapLoadable.Loaded = <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => switchMapLoadable(LoadableState.loaded, mapper));
@@ -192,6 +184,20 @@ type ValueTypeFromLoadableOrObservableIncludingEmpty<T> = ValEmpty<T extends Arr
 
 export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => jsonStableStringify(a) === jsonStableStringify(b);
 
+function valuesOf<T extends readonly any[] | Record<string, any>>(t: T): any[] {
+	return Array.isArray(t) ? [...t] : Object.values(t);
+}
+
+function mapShape<T extends readonly any[] | Record<string, any>>(t: T, mapper: (value: any) => any): { [K in keyof T]: any } {
+	return (Array.isArray(t) ? t.map(mapper) : Object.fromEntries(Object.entries(t).map(([key, value]) => [key, mapper(value)]))) as { [K in keyof T]: any };
+}
+
+function combineLoadableValues<T extends readonly any[] | Record<string, any>>(t: T, includeEmpty: boolean): Loadable<{ [K in keyof T]: any }> {
+	const blocking = valuesOf(t).find(v => isLoadableLike(v) && !isLoaded(v) && (!includeEmpty || !isEmpty(v)));
+	if (blocking) return Loadable.wrap(blocking);
+	return Loadable.Loaded(mapShape(t, v => (isLoaded(v) ? v.value : includeEmpty && isEmpty(v) ? undefined : v)));
+}
+
 /**
  * Combine the values of a bunch of Loadables or other values into a single Loadable.
  * If any of the values are Loading, Empty, or Error, return that state instead.
@@ -203,12 +209,8 @@ export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => jsonStableStringify
  * E.g. {a: Loaded<T>, b: {a: number}, c: Loaded<U>} -> Loaded<{a: T, b: {a: number}, c: U}>
  */
 export function combineLoadables<T extends readonly any[] | Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: Val<T[K]> }> {
-	const isUnloadedLoadable = (v: any): v is Loadable<any> => Loadable.isLoadable(v) && !Loadable.isLoaded(v);
 	if (t == null) return Loadable.Empty();
-	const loadingOrErrorOrEmpty: Loadable<any> | undefined = (Array.isArray(t) ? t : Object.values(t)).find(isUnloadedLoadable);
-	if (loadingOrErrorOrEmpty) return loadingOrErrorOrEmpty;
-	if (Array.isArray(t)) return Loadable.Loaded(t.map(v => (Loadable.isLoaded(v) ? v.value : v)) as any);
-	else return Loadable.Loaded(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, Loadable.isLoaded(v) ? v.value : v])) as any);
+	return combineLoadableValues(t, false) as Loadable<{ [K in keyof T]: Val<T[K]> }>;
 }
 /**
  * Same as combineLoadables, but also includes Empty states. So if an Empty is present, this will return Loaded<undefined> instead of Empty.
@@ -216,10 +218,7 @@ export function combineLoadables<T extends readonly any[] | Record<string, any>>
  */
 export function combineLoadablesIncludingEmpty<T extends readonly any[] | Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: ValEmpty<T[K]> }> {
 	if (t == null) return Loadable.Empty();
-	const loadingOrError: Loadable<any> | undefined = (Array.isArray(t) ? t : Object.values(t)).find(v => Loadable.isLoadable(v) && !Loadable.isLoaded(v) && !Loadable.isEmpty(v));
-	if (loadingOrError) return loadingOrError;
-	if (Array.isArray(t)) return Loadable.Loaded(t.map(v => (Loadable.isLoaded(v) ? v.value : Loadable.isEmpty(v) ? undefined : v)) as any);
-	else return Loadable.Loaded(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, Loadable.isLoaded(v) ? v.value : Loadable.isEmpty(v) ? undefined : v])) as any);
+	return combineLoadableValues(t, true) as Loadable<{ [K in keyof T]: ValEmpty<T[K]> }>;
 }
 
 type InteractiveLoadableSettings<TInput> = {
@@ -265,6 +264,8 @@ const defaultInteractiveLoadableSettings: InteractiveLoadableSettings<any> = {
  * };
  * ```
  */
+// eslint-disable-next-line no-unsafe-declaration-merging no-unused-vars
+export interface InteractiveLoadable<TInput, TOutput> extends Loadable<TOutput> {}
 export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 	private readonly i$: Subject<TInput> = markRaw(new Subject());
 	private readonly unsubs: Subscription[] = markRaw([]);
@@ -316,8 +317,8 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 			o$.subscribe({
 				next: v => {
 					this.state = v.state;
-					if (!v.isLoading()) this.value = v.value;
-					if (!v.isError()) this.error = v.error;
+					if (!isLoading(v)) this.value = v.value;
+					if (!isError(v)) this.error = v.error;
 				},
 				error: e => {
 					this.state = LoadableState.error;
@@ -332,19 +333,6 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 			}),
 		);
 	}
-	public isLoading(): this is Loading<TOutput> {
-		return Loadable.isLoading(this);
-	}
-	public isLoaded(): this is Loaded<TOutput> {
-		return Loadable.isLoaded(this);
-	}
-	public isError(): this is LoadingError<TOutput> {
-		return Loadable.isError(this);
-	}
-	public isEmpty(): this is Empty<TOutput> {
-		return Loadable.isEmpty(this);
-	}
-
 	public next(i: TInput) {
 		this.i$.next(i);
 	}
@@ -376,6 +364,8 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 		this.refs.error.value = v;
 	}
 }
+
+Object.assign(InteractiveLoadable.prototype, Loadable.loadableMethods);
 
 export interface LoadableFromStream<T> extends Loadable<T> {
 	dispose: () => void;
@@ -458,7 +448,7 @@ export function loadableFromStream<T>(
  * @param loadableStream
  * @returns a promise that will contain the first non-Loading state of the stream.
  */
-export function promiseFromLoadableStream<T>(loadableStream: Observable<LoadableLike<T>>, title?: string): Promise<T | undefined> {
+export function promiseFromLoadableStream<T>(loadableStream: Observable<LoadableLike<T>>, _title?: string): Promise<T | undefined> {
 	return new Promise((resolve, reject) =>
 		loadableStream
 			.pipe(
@@ -502,8 +492,8 @@ function combineLoadableStreamsImpl(
 		map(values => combiner(values)),
 		distinctUntilChanged((prev, curr) => {
 			if (prev.state !== curr.state) return false;
-			if (prev.isLoaded() && curr.isLoaded()) return prev.value === curr.value;
-			if (prev.isError() && curr.isError()) return prev.error === curr.error;
+			if (isLoaded(prev) && isLoaded(curr)) return prev.value === curr.value;
+			if (isError(prev) && isError(curr)) return prev.error === curr.error;
 			return true; // both empty or both loading -> equal
 		}),
 	);

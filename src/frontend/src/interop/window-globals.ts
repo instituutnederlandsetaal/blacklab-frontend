@@ -1,9 +1,9 @@
-import type { App } from 'vue';
+import { type App } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import * as UIModule from '@/app/state/ui-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import * as ArticleModule from '@/features/article/model/article-state';
-import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
@@ -15,6 +15,7 @@ import * as PatternModule from '@/features/search/model/form/pattern-state';
 import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
+import { createCorpusStoreAdapter } from '@/interop/legacy-store-adapters/corpus';
 
 type InteropWindow = Window & {
 	vueApp?: App;
@@ -39,8 +40,10 @@ function createResultsInterop() {
 	};
 }
 
-export function installLegacyStoreGlobals() {
-	(globalThis as InteropGlobal).vuexModules = {
+export function installLegacyStoreGlobals(app: App) {
+	const corpus = app.runWithContext(() => createCorpusStoreAdapter(useCorpus()));
+
+	const vuexModules = {
 		root: {
 			get: {
 				...RootStore.get,
@@ -53,7 +56,7 @@ export function installLegacyStoreGlobals() {
 			},
 			init: RootStore.init,
 		},
-		corpus: CorpusModule,
+		corpus,
 		history: HistoryModule,
 		query: QueryModule,
 		tagset: TagsetModule,
@@ -69,6 +72,8 @@ export function installLegacyStoreGlobals() {
 		views: ViewModule,
 		global: GlobalResultsModule,
 	};
+
+	(globalThis as InteropGlobal).vuexModules = vuexModules;
 }
 
 export function setMountedVueGlobals(app: App, root: unknown) {

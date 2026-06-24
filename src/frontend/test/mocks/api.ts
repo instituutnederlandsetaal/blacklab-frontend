@@ -1,7 +1,13 @@
-import type { ApiModule, BlackLabApi, FrontendApi, ParsePatternResponse } from '@/api';
+import type { BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
 import type { CFPageConfig, Tagset } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
+
 import { CancelableRequest } from '@/shared/api/lib/api-types';
+
+type ApiMock = {
+	blacklab: BlackLabApi;
+	frontend: FrontendApi;
+};
 
 function resolvedRequest<T>(value: T): CancelableRequest<T> {
 	return new CancelableRequest(Promise.resolve(value), () => {});
@@ -40,7 +46,7 @@ function createBlackLabApiMock(): BlackLabApi {
 		deleteCorpus: () => unimplemented('blacklab.deleteCorpus'),
 		getDocumentInfo: () => unimplemented('blacklab.getDocumentInfo'),
 		getRelations: () => unimplemented('blacklab.getRelations'),
-		getParsePattern: () => unimplemented<ParsePatternResponse>('blacklab.getParsePattern'),
+		getParsePattern: () => unimplemented<BLTypes.BLParsePatternResponse>('blacklab.getParsePattern'),
 		getHits: <T extends BLTypes.BLHitResults | BLTypes.BLHitGroupResults>() => unimplemented<T>('blacklab.getHits'),
 		getHitsCsv: () => unimplemented<Blob>('blacklab.getHitsCsv'),
 		getDocsCsv: () => unimplemented<Blob>('blacklab.getDocsCsv'),
@@ -48,12 +54,12 @@ function createBlackLabApiMock(): BlackLabApi {
 		getSnippet: () => unimplemented('blacklab.getSnippet'),
 		getTermFrequencies: () => unimplemented('blacklab.getTermFrequencies'),
 		getTermAutocomplete: () => unimplemented<string[]>('blacklab.getTermAutocomplete'),
+		getMetadataAutocomplete: () => unimplemented<string[]>('blacklab.getMetadataAutocomplete'),
 	};
 }
 
 function createFrontendApiMock(): FrontendApi {
 	return {
-		getCorpus: () => unimplemented('frontend.getCorpus'),
 		getConfig: () => unimplemented<CFPageConfig>('frontend.getConfig'),
 		getDocumentContents: () => unimplemented<string>('frontend.getDocumentContents'),
 		getDocumentMetadata: () => unimplemented<string>('frontend.getDocumentMetadata'),
@@ -63,7 +69,7 @@ function createFrontendApiMock(): FrontendApi {
 	};
 }
 
-export function createApiMock(overrides: ApiMockOverrides = {}): ApiModule {
+export function createApiMock(overrides: ApiMockOverrides = {}): ApiMock {
 	return {
 		blacklab: {
 			...createBlackLabApiMock(),

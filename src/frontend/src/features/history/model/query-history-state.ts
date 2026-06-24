@@ -10,9 +10,8 @@ import URI from 'urijs';
 import { markRaw, shallowRef } from 'vue';
 
 import * as UIModule from '@/app/state/ui-state';
-import type { CorpusContext } from '@/app/state/useCorpusContext';
+import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
-import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
@@ -20,10 +19,11 @@ import type * as InterfaceModule from '@/features/search/model/form/interface-st
 import type * as PatternModule from '@/features/search/model/form/pattern-state';
 import type * as GlobalModule from '@/features/search/model/results/global-results-state';
 import type * as ViewModule from '@/features/search/model/results/view-state';
+import type { NormalizedIndex } from '@/types/apptypes';
 import UrlStateParserSearch from '@/url/url-state-parser-search';
-import { debugLog } from '@/shared/debug/debug';
-import { getPatternSummaryExplore, getPatternSummarySearch } from '@/shared/blacklab-helpers/pattern-utils';
 
+import { getPatternSummaryExplore, getPatternSummarySearch } from '@/shared/blacklab-helpers/pattern-utils';
+import { debugLog } from '@/shared/debug/debug';
 import { hashJavaDJB2 } from '@/shared/utils/string-utils';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
@@ -76,7 +76,7 @@ type LocalStorageState = {
 };
 
 // Track current corpus for localStorage keying
-let corpus: CorpusModule.NormalizedIndex | null = null;
+let corpus: NormalizedIndex | null = null;
 
 // Shallow ref: entries are frozen+markRaw, so no deep reactivity needed.
 // We replace the array reference when entries change.
@@ -158,7 +158,7 @@ const actions = {
 			entry.interface.form === 'search'
 				? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy, entry.filters)
 				: entry.interface.form === 'explore'
-					? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, CorpusModule.get.allAnnotationsMap())
+					? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, useCorpus().value.allAnnotationsMap)
 					: undefined;
 
 		// Should only contain items that uniquely identify a query

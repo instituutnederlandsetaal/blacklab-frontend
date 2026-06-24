@@ -8,7 +8,7 @@ import { watch } from 'vue';
 import type { LocationQueryValue, RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
@@ -290,7 +290,7 @@ function startStoreToUrlReflection(router: Router, initialUrlStateApplied: Promi
 	const stopWatch = watch(
 		(): SyncWatchState => ({
 			routeName: typeof router.currentRoute.value.name === 'string' ? router.currentRoute.value.name : null,
-			indexId: CorpusStore.get.indexId(),
+			indexId: useCorpus().value.id,
 			params: RootStore.get.blacklabParameters(),
 			article: getArticleUrlStateFromRoute(router.currentRoute.value),
 			state: {

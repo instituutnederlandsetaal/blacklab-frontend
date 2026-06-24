@@ -1,4 +1,4 @@
-import { isLoaded, Loadable, type LoadableLike } from '@/shared/utils/loadable/loadable';
+import { isEmpty, isLoaded, Loadable, type LoadableLike } from '@/shared/utils/loadable/loadable';
 
 export type MaybeLoadable<T> = LoadableLike<T> | Loadable<T>;
 export type MaybeLoadablesArray = MaybeLoadable<unknown>[];
@@ -11,6 +11,10 @@ export type LoadablesInput = LoadablesArray | LoadablesObject;
 
 export type LoadedValues<T extends MaybeLoadablesArrayOrObject> = {
 	[K in keyof T]: T[K] extends MaybeLoadable<infer V> ? V : never;
+};
+
+export type LoadedValuesIncludingEmpty<T extends MaybeLoadablesArrayOrObject> = {
+	[K in keyof T]: T[K] extends MaybeLoadable<infer V> ? V | undefined : never;
 };
 
 export type PassthroughFrom<T extends MaybeLoadablesArrayOrObject> = T extends MaybeLoadable<unknown>[] ? T[number] : T[keyof T];
@@ -31,12 +35,37 @@ export function extractLoadedValues<T extends MaybeLoadablesArrayOrObject>(loada
 	return Object.fromEntries(Object.entries(loadables).map(([k, v]) => [k, v.value])) as LoadedValues<T>;
 }
 
+/** Return the first loadable that is neither Loaded nor Empty. Empty values are considered settled. */
+export function firstNonLoadedOrEmpty<T extends MaybeLoadablesArrayOrObject>(loadables: T): PassthroughFrom<T> | undefined {
+	if (Array.isArray(loadables)) return loadables.find(v => !isLoaded(v) && !isEmpty(v)) as PassthroughFrom<T> | undefined;
+	for (const key in loadables as MaybeLoadablesObject) {
+		const loadable = (loadables as MaybeLoadablesObject)[key];
+		if (!isLoaded(loadable) && !isEmpty(loadable)) return loadable as PassthroughFrom<T>;
+	}
+	return undefined;
+}
+
+export function extractLoadedValuesIncludingEmpty<T extends MaybeLoadablesArrayOrObject>(loadables: T): LoadedValuesIncludingEmpty<T> {
+	if (Array.isArray(loadables)) {
+		return loadables.map(v => (isLoaded(v) ? v.value : undefined)) as LoadedValuesIncludingEmpty<T>;
+	}
+	return Object.fromEntries(Object.entries(loadables).map(([k, v]) => [k, isLoaded(v) ? v.value : undefined])) as LoadedValuesIncludingEmpty<T>;
+}
+
 export function combineLoadablesValue<T extends LoadablesInput>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValues<T>>;
 export function combineLoadablesValue<T extends MaybeLoadablesArrayOrObject>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValues<T>>;
 export function combineLoadablesValue<T extends MaybeLoadablesArrayOrObject>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValues<T>> {
 	const nonLoaded = firstNonLoaded(loadables);
 	if (nonLoaded) return nonLoaded;
 	return Loadable.Loaded(extractLoadedValues(loadables));
+}
+
+export function combineLoadablesValueIncludingEmpty<T extends LoadablesInput>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValuesIncludingEmpty<T>>;
+export function combineLoadablesValueIncludingEmpty<T extends MaybeLoadablesArrayOrObject>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValuesIncludingEmpty<T>>;
+export function combineLoadablesValueIncludingEmpty<T extends MaybeLoadablesArrayOrObject>(loadables: T): PassthroughFrom<T> | Loadable<LoadedValuesIncludingEmpty<T>> {
+	const nonLoadedOrEmpty = firstNonLoadedOrEmpty(loadables);
+	if (nonLoadedOrEmpty) return nonLoadedOrEmpty;
+	return Loadable.Loaded(extractLoadedValuesIncludingEmpty(loadables));
 }
 
 /**

@@ -13,6 +13,8 @@
 		"build:source": "vite build",
 		"start": "vite --host 0.0.0.0 --port 5173",
 		"node": "node",
+		"format": "oxfmt --config oxfmt.config.mts ./src/",
+		"lint": "oxlint --config oxlint.config.mts ./src/ ./test/",
 		"storybook": "storybook dev -p 6006",
 		"build-storybook": "storybook build"
 	},

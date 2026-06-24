@@ -62,8 +62,8 @@ import { IterativeResultCountLoader } from '@/api/async/logic/result-count/resul
 import type { TotalsOutput } from '@/api/async/logic/result-count/result-count-helpers';
 import type * as BLTypes from '@/types/blacklabtypes';
 
-import type { ApiError } from '@/shared/api/lib/api-types';
 import { useBlackLabApi } from '@/shared/api';
+import type { ApiError } from '@/shared/api/lib/api-types';
 import { frac2Percent } from '@/shared/utils/number-utils';
 
 import Spinner from '@/components/Spinner.vue';

@@ -3,7 +3,6 @@ import type { ObjectPlugin } from 'vue';
 import { provideTranslate } from './translate';
 import type { Translate } from './types';
 
-
 export const createMockTranslate = (overrides: Partial<Translate> = {}): Translate => ({
 	$t(key: string) {
 		return key;

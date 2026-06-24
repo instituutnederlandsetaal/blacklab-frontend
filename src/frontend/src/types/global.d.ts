@@ -4,7 +4,7 @@ declare global {
 	// ---------------------------
 	// valid on all pages
 	// ---------------------------
-	// const CorpusStore.get.indexId(): string;
+	// const useCorpus().value.id: string;
 
 	const WITH_CREDENTIALS: boolean;
 

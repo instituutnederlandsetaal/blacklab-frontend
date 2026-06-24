@@ -64,7 +64,7 @@
 import { computed, ref, watch } from 'vue';
 import { useTemplateRef } from 'vue';
 
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
@@ -133,7 +133,7 @@ const value = computed<string>({
 	},
 });
 
-const textDirection = computed<string | undefined>(() => (props.annotation.isMainAnnotation ? CorpusStore.get.textDirection() : undefined));
+const textDirection = computed<string | undefined>(() => (props.annotation.isMainAnnotation ? useCorpus().value.textDirection : undefined));
 const inputId = computed(() => props.htmlId + '_value');
 const fileInputId = computed(() => props.htmlId + '_file');
 const caseInputId = computed(() => props.htmlId + '_case');
@@ -141,7 +141,7 @@ const displayName = computed(() => translate.$tAnnotDisplayName(props.annotation
 const description = computed(() => translate.$tAnnotDescription(props.annotation));
 const options = computed<Option[]>(() => props.annotation.values || []);
 const autocomplete = computed(() => props.annotation.uiType === 'combobox' && props.annotation.annotatedFieldId !== '');
-const autocompleteFn = (term: string) => blacklab.getTermAutocomplete(CorpusStore.getState()!.id, props.annotation.annotatedFieldId, props.annotation.id, term);
+const autocompleteFn = (term: string) => blacklab.getTermAutocomplete(useCorpus().value.id, props.annotation.annotatedFieldId, props.annotation.id, term);
 
 function onFileChanged(event: Event) {
 	const fileInput = event.target as HTMLInputElement;

@@ -64,9 +64,10 @@
 <script lang="ts">
 import { defineComponent, type PropType } from 'vue';
 
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import * as TagsetStore from '@/features/corpus/model/tagset-state';
-import type { Tagset } from '@/types/apptypes';
+import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
+
 import { escapeRegex } from '@/shared/utils/string-utils';
 
 import Modal from '@/components/Modal.vue';
@@ -77,7 +78,7 @@ export default defineComponent({
 	},
 	emits: ['close', 'submit'],
 	props: {
-		annotation: { type: Object as PropType<CorpusStore.NormalizedAnnotation>, required: true },
+		annotation: { type: Object as PropType<NormalizedAnnotation>, required: true },
 		open: { type: Boolean, default: true },
 	},
 	data: () => ({
@@ -85,7 +86,9 @@ export default defineComponent({
 		selected: {} as { [key: string]: boolean },
 	}),
 	computed: {
-		allAnnotations: CorpusStore.get.allAnnotationsMap,
+		allAnnotations() {
+			return useCorpus().value.allAnnotationsMap;
+		},
 		tagset: TagsetStore.getState,
 		query(): string {
 			if (!this.tagset || !this.annotationValue) return '';

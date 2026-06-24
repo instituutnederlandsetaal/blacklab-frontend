@@ -119,20 +119,20 @@ import type { TranslateResult } from 'vue-i18n';
 
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalStore from '@/features/search/model/results/global-results-state';
 import * as ResultsStore from '@/features/search/model/results/view-state';
 import type { ColumnDefs, DisplaySettingsCommon, DisplaySettingsForColumns, DisplaySettingsForRendering, DisplaySettingsForRows, Rows } from '@/pages/search/results/table/table-layout';
 import { makeColumns, makeRows } from '@/pages/search/results/table/table-layout';
-import type { NormalizedIndex } from '@/types/apptypes';
+import type { NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
 import * as BLTypes from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
-import debug, { debugLog } from '@/shared/debug/debug';
 import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parseSortBy, serializeSortByOrGroupBy } from '@/utils/grouping';
 
 import { useBlackLabApi } from '@/shared/api';
 import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
+import debug, { debugLog } from '@/shared/debug/debug';
 import { localStorageSynced } from '@/shared/utils/localstore';
 
 import Pagination from '@/components/Pagination.vue';
@@ -231,7 +231,7 @@ export default defineComponent({
 			// If we're querying a parallel corpus, and no sort was chosen yet,
 			// sort by alignments (so aligned hits appear first).
 			const viewModule = ResultsStore.getOrCreateModule('hits');
-			if (this.id === 'hits' && (this.groupBy.length === 0 || this.viewGroup) && CorpusStore.get.isParallelCorpus() && viewModule.getState().sort == null) {
+			if (this.id === 'hits' && (this.groupBy.length === 0 || this.viewGroup) && useCorpus().value.isParallelCorpus && viewModule.getState().sort == null) {
 				viewModule.actions.sort('alignments');
 			}
 
@@ -362,13 +362,13 @@ export default defineComponent({
 		},
 
 		corpus(): NormalizedIndex {
-			return CorpusStore.get.corpus()!;
+			return useCorpus().value;
 		},
 		sourceAnnotatedFieldId(): string {
 			return QueryStore.get.sourceField()!.id;
 		},
-		concordanceAnnotationOptions(): CorpusStore.NormalizedAnnotation[] {
-			return UIStore.getState().results.shared.concordanceAnnotationIdOptions.map(id => CorpusStore.get.allAnnotationsMap()[id]);
+		concordanceAnnotationOptions(): NormalizedAnnotation[] {
+			return UIStore.getState().results.shared.concordanceAnnotationIdOptions.map(id => useCorpus().value.allAnnotationsMap[id]);
 		},
 		concordanceAnnotationId: {
 			get(): string {
@@ -495,7 +495,7 @@ export default defineComponent({
 		},
 		// simple view variables
 		indexId(): string {
-			return CorpusStore.get.indexId()!;
+			return useCorpus().value.id!;
 		},
 		isHits(): boolean {
 			return BLTypes.isHitResults(this.results);
@@ -506,7 +506,9 @@ export default defineComponent({
 		isGroups(): boolean {
 			return BLTypes.isGroups(this.results);
 		},
-		isParallelCorpus: CorpusStore.get.isParallelCorpus,
+		isParallelCorpus() {
+			return useCorpus().value.isParallelCorpus;
+		},
 
 		viewGroupName(): string {
 			if (this.viewGroup == null) {
@@ -544,7 +546,7 @@ export default defineComponent({
 			if (this.groupBy.length > 0) {
 				r.push({
 					label: this.$t('results.resultsView.navigation.groupedBy', {
-						group: humanizeSerializedGroupBy(this, this.groupBy, CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap()).join(', '),
+						group: humanizeSerializedGroupBy(this, this.groupBy, useCorpus().value.allAnnotationsMap, useCorpus().value.allMetadataFieldsMap).join(', '),
 					}),
 					title: this.$t('results.resultsView.navigation.backToGroupedResults'),
 					deactivate: () => {
@@ -572,7 +574,7 @@ export default defineComponent({
 			if (this.sort) {
 				r.push({
 					label: this.$t('results.resultsView.navigation.sortedBy', {
-						sort: humanizeGroupByOrSortBy(this, parseSortBy(this.sort), CorpusStore.get.allAnnotationsMap(), CorpusStore.get.allMetadataFieldsMap()),
+						sort: humanizeGroupByOrSortBy(this, parseSortBy(this.sort), useCorpus().value.allAnnotationsMap, useCorpus().value.allMetadataFieldsMap),
 					}),
 					title: '',
 					deactivate: () => (this.sort = null),
@@ -631,10 +633,10 @@ export default defineComponent({
 			const summaryOtherFields = BLTypes.hasPatternInfo(this.results?.summary) ? (this.results.summary.pattern.otherFields ?? []) : [];
 			const { first, number, requestedRange } = this.store.getState();
 			return {
-				dir: CorpusStore.get.textDirection(),
+				dir: useCorpus().value.textDirection,
 				i18n: this,
-				specialFields: CorpusStore.getState()!.fieldInfo,
-				targetFields: summaryOtherFields.map(name => CorpusStore.get.parallelAnnotatedFieldsMap()[name]),
+				specialFields: useCorpus().value.fieldInfo,
+				targetFields: summaryOtherFields.map(name => useCorpus().value.parallelAnnotatedFieldsMap[name]),
 				first,
 				number,
 				requestedRange,
@@ -644,7 +646,7 @@ export default defineComponent({
 		rowDisplaySettings(): DisplaySettingsForRows {
 			return {
 				...this.commonDisplaySettings,
-				indexId: CorpusStore.get.indexId()!,
+				indexId: useCorpus().value.id!,
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
 				sourceField: QueryStore.get.sourceField()!, // if no field, there would be no results...
 				getCustomHitInfo: corpusCustomizations.results.customHitInfo,
@@ -666,25 +668,25 @@ export default defineComponent({
 			return {
 				...this.commonDisplaySettings,
 				groupDisplayMode: (this.groupDisplayMode as any) || (BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
-				mainAnnotation: CorpusStore.get.allAnnotationsMap()[this.concordanceAnnotationId],
+				mainAnnotation: useCorpus().value.allAnnotationsMap[this.concordanceAnnotationId],
 				// If groups, don't show any metadata columns. Automatically append sort column if not already shown.
-				metadata: metadataIdsToShow.map(id => CorpusStore.get.allMetadataFieldsMap()[id]),
+				metadata: metadataIdsToShow.map(id => useCorpus().value.allMetadataFieldsMap[id]),
 				// If groups, don't show any annotation columns. Automatically append sort column if not already shown.
-				otherAnnotations: annotationIdsToShow.map(id => CorpusStore.get.allAnnotationsMap()[id]),
-				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => CorpusStore.get.allAnnotationsMap()[id]),
-				annotationGroups: CorpusStore.get.annotationGroups(),
+				otherAnnotations: annotationIdsToShow.map(id => useCorpus().value.allAnnotationsMap[id]),
+				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => useCorpus().value.allAnnotationsMap[id]),
+				annotationGroups: useCorpus().value.annotationGroups,
 				hasCustomHitInfoColumn: (results, isParallelCoprus) =>
 					BLTypes.isHitResults(results) || BLTypes.isHitGroups(results) ? corpusCustomizations.results.hasCustomHitInfoColumn(results, isParallelCoprus) : false,
 			};
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {
-			const allAnnotationsMap = CorpusStore.get.allAnnotationsMap();
+			const allAnnotationsMap = useCorpus().value.allAnnotationsMap;
 			return {
 				...this.rowDisplaySettings,
 				...this.columnDisplaySettings,
 				// Don't show details table in expanded rows when showing groups or hits in docs.
 				detailedAnnotations: this.isHits
-					? (UIStore.getState().results.shared.detailedAnnotationIds?.map(id => allAnnotationsMap[id]) ?? CorpusStore.get.allAnnotations().filter(a => !a.isInternal && a.hasForwardIndex))
+					? (UIStore.getState().results.shared.detailedAnnotationIds?.map(id => allAnnotationsMap[id]) ?? useCorpus().value.allAnnotations.filter(a => !a.isInternal && a.hasForwardIndex))
 					: [],
 				depTreeAnnotations: Object.fromEntries(
 					Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null]),

@@ -19,12 +19,17 @@ export function startCustomizationInterop() {
 	// const routeMeta = usePageMeta();
 	const indexId = useCorpusId();
 	const pageName = computed(() => pageBootstrap.page.value?.name ?? '');
-	const displayName = computed(() => (context.isLoaded() ? (context.value.index?.displayName ?? '') : ''));
+	const displayName = computed(() => {
+		if (!context.isLoaded()) return '';
+		const config = context.value.config;
+		const corpus = context.value.index;
+		return config.displayName || corpus?.displayName || indexId.value || 'Blacklab Frontend';
+	});
 
 	// Set this one up first, so the variable is guaranteed to be set before dependent custom js is executed.
 	watchEffect(() => setLegacyIndexIdGlobal(indexId.value || ''));
 
-	useTitle(computed(() => pageBootstrap.page.value?.getTitle?.(displayName.value) ?? displayName.value ?? 'BlackLab Frontend'));
+	useTitle(computed(() => pageBootstrap.page.value?.getTitle?.(displayName.value) ?? displayName.value));
 
 	const _css = useCustomCss(
 		computed(() => {

@@ -2,7 +2,7 @@ import { EMPTY, map, Observable, of, Subject } from 'rxjs';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
-import { isLoadable, isError, isLoading, isEmpty, Loadable, LoadableState } from '@/shared/utils/loadable/loadable';
+import { isLoadable, isError, isLoading, isEmpty, Loadable, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable';
 import {
 	combineLoadables,
 	combineLoadablesIncludingEmpty,
@@ -20,10 +20,10 @@ import {
 } from '@/shared/utils/loadable/loadable-streams';
 
 const apiError: ApiError = new ApiError('', '', '', 0);
-const loading = Loadable.Loading();
+const loading = Loadable.Loading<number>();
 const loaded = Loadable.Loaded(1);
-const error = Loadable.LoadingError(apiError);
-const empty = Loadable.Empty();
+const error = Loadable.LoadingError<number>(apiError);
+const empty = Loadable.Empty<number>();
 const dummyObject = { a: 1 };
 
 const eachState = [
@@ -73,6 +73,89 @@ describe('value checks', () => {
 	test('loading contains no error', () => expect(loading.error).toBe(undefined));
 });
 
+describe('Loadable helpers', () => {
+	const otherError: ApiError = new ApiError('other', 'other', 'other', 500);
+
+	test('map maps loaded values and passes through other states', () => {
+		const mapper = vi.fn((value: number) => value + 1);
+
+		expect(Loadable.map(loaded, mapper)).toEqual(Loadable.Loaded(2));
+		expect(loading.map(mapper)).toBe(loading);
+		expect(error.map(mapper)).toBe(error);
+		expect(empty.map(mapper)).toBe(empty);
+		expect(mapper).toHaveBeenCalledTimes(1);
+	});
+
+	test('mapError maps errors and passes through other states', () => {
+		const mapper = vi.fn(() => otherError);
+
+		expect(Loadable.mapError(error, mapper)).toEqual(Loadable.LoadingError(otherError));
+		expect(loaded.mapError(mapper)).toBe(loaded);
+		expect(loading.mapError(mapper)).toBe(loading);
+		expect(empty.mapError(mapper)).toBe(empty);
+		expect(mapper).toHaveBeenCalledTimes(1);
+	});
+
+	test('recover maps errors into loaded values', () => {
+		const mapper = vi.fn(() => 2);
+
+		expect(Loadable.recover(error, mapper)).toEqual(Loadable.Loaded(2));
+		expect(loaded.recover(mapper)).toBe(loaded);
+		expect(loading.recover(mapper)).toBe(loading);
+		expect(empty.recover(mapper)).toBe(empty);
+		expect(mapper).toHaveBeenCalledTimes(1);
+	});
+
+	test('flatMap maps loaded values into loadables and passes through other states', () => {
+		const mapper = vi.fn((value: number) => Loadable.Loaded(String(value + 1)));
+
+		expect(Loadable.flatMap(loaded, mapper)).toEqual(Loadable.Loaded('2'));
+		expect(loading.flatMap(mapper)).toBe(loading);
+		expect(error.flatMap(mapper)).toBe(error);
+		expect(empty.flatMap(mapper)).toBe(empty);
+		expect(mapper).toHaveBeenCalledTimes(1);
+	});
+
+	test('flatMapError maps errors into loadables and passes through other states', () => {
+		const mapper = vi.fn(() => Loadable.Loaded('recovered'));
+
+		expect(Loadable.flatMapError(error, mapper)).toEqual(Loadable.Loaded('recovered'));
+		expect(loaded.flatMapError(mapper)).toBe(loaded);
+		expect(loading.flatMapError(mapper)).toBe(loading);
+		expect(empty.flatMapError(mapper)).toBe(empty);
+		expect(mapper).toHaveBeenCalledTimes(1);
+	});
+
+	test('or maps empty values into loadables and treats nullish values as empty', () => {
+		const mapper = vi.fn(() => 2);
+
+		expect(Loadable.or(empty, mapper)).toEqual(Loadable.Loaded(2));
+		expect(Loadable.Empty<number>().or(() => null)).toEqual(Loadable.Empty());
+		expect(Loadable.Empty<number>().or(() => undefined)).toEqual(Loadable.Empty());
+		expect(loaded.or(mapper)).toBe(loaded);
+		expect(loading.or(mapper)).toBe(loading);
+		expect(error.or(mapper)).toBe(error);
+		expect(mapper).toHaveBeenCalledTimes(1);
+	});
+
+	test('plain LoadableLike pass-throughs are not promoted to full Loadables', () => {
+		const loadingLike: LoadableLike<number> = {
+			state: LoadableState.loading,
+			value: undefined,
+			error: undefined,
+		};
+
+		const result = Loadable.map(loadingLike, value => value + 1);
+
+		expect(result).toBe(loadingLike);
+		expect(Loadable.isLoadable(result)).toBe(false);
+		expect(() => {
+			// @ts-expect-error plain LoadableLike results should not expose full Loadable instance methods
+			result.map(() => 1);
+		}).toThrow('result.map is not a function');
+	});
+});
+
 describe('combineLoadables', () => {
 	function sharedCombineTests(name: string, combiner: typeof combineLoadables | typeof combineLoadablesIncludingEmpty) {
 		test(name + ' should return proper value when used with an array', () => {
@@ -96,6 +179,18 @@ describe('combineLoadables', () => {
 			const combinedObj = combiner({ a: loading, b: dummyObject, c: loaded });
 			expect(combinedObj.isLoading()).toBe(true);
 			expect(combinedObj.value).toBe(undefined);
+		});
+		test(name + ' should treat plain LoadableLike values as loadables', () => {
+			const loadingLike: LoadableLike<number> = { state: LoadableState.loading, value: undefined, error: undefined };
+			const loadedLike: LoadableLike<number> = { state: LoadableState.loaded, value: 2, error: undefined };
+
+			const blocked = combiner({ a: loadingLike, b: loaded });
+			const combined = combiner({ a: loadedLike, b: dummyObject });
+
+			expect(blocked.isLoading()).toBe(true);
+			expect(Loadable.isLoadable(blocked)).toBe(true);
+			expect(combined.isLoaded()).toBe(true);
+			expect(combined.value).toEqual({ a: 2, b: dummyObject });
 		});
 		test(name + ' with an error value should return the error state', () => {
 			const combinedObj = combiner({ a: error, b: dummyObject, c: loaded });
@@ -299,8 +394,10 @@ describe('InteractiveLoadable', () => {
 		const loadable = new InteractiveLoadable<number, number>(input$ => input$.pipe(map(value => Loadable.Loaded(value))), { debounce: value => (value < 0 ? 20 : 0) });
 
 		loadable.next(1);
+		expect(Loadable.isLoadable(loadable)).toBe(true);
 		expect(loadable.isLoaded()).toBe(true);
 		expect(loadable.value).toBe(1);
+		expect(loadable.map(value => value + 1)).toEqual(Loadable.Loaded(2));
 
 		loadable.next(-1);
 		expect(loadable.isLoaded()).toBe(true);

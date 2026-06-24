@@ -24,14 +24,14 @@ import cloneDeep from 'clone-deep';
 import { reactive } from 'vue';
 
 import * as UIModule from '@/app/state/ui-state';
-import type { CorpusContext } from '@/app/state/useCorpusContext';
+import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
-import * as CorpusModule from '@/features/corpus/model/corpus-state';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
 import type * as PatternModule from '@/features/search/model/form/pattern-state';
-import type { NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
+import type { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
+
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/shared/blacklab-helpers/pattern-utils';
 
 // todo migrate these weirdo state shapes to mapped types?
@@ -83,12 +83,12 @@ const state = reactive<ModuleRootState>(Object.assign({}, initialState));
 const getState = () => state;
 
 const get = {
-	sourceField: (): CorpusModule.NormalizedAnnotatedField => {
-		const fieldName = state.shared?.source || CorpusModule.get.mainAnnotatedField();
-		return CorpusModule.get.allAnnotatedFieldsMap()[fieldName];
+	sourceField: (): NormalizedAnnotatedField => {
+		const fieldName = state.shared?.source || useCorpus().value.mainAnnotatedField;
+		return useCorpus().value.allAnnotatedFieldsMap[fieldName];
 	},
 	targetFields: (): NormalizedAnnotatedFieldParallel[] => {
-		const allFields = CorpusModule.get.allAnnotatedFieldsMap();
+		const allFields = useCorpus().value.allAnnotatedFieldsMap;
 		return state.shared?.targets?.map(t => allFields[t]).filter(f => f.isParallel) ?? [];
 	},
 
@@ -99,7 +99,7 @@ const get = {
 			[state.subForm as string]: state.formState,
 			shared: state.shared,
 		} as Partial<ModuleRootStateSearch<keyof PatternModule.ModuleRootState>>;
-		const annotations = CorpusModule.get.allAnnotationsMap();
+		const annotations = useCorpus().value.allAnnotationsMap;
 		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
 		switch (state.form) {
 			case 'search':
@@ -121,7 +121,7 @@ const get = {
 			case 'search':
 				return getPatternSummarySearch(state.subForm, formState, defaultAlignBy, state.filters);
 			case 'explore':
-				return getPatternSummaryExplore(state.subForm, formState, CorpusModule.get.allAnnotationsMap());
+				return getPatternSummaryExplore(state.subForm, formState, useCorpus().value.allAnnotationsMap);
 			default:
 				return undefined;
 		}

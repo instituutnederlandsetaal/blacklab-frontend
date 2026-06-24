@@ -68,7 +68,7 @@ import { defineComponent } from 'vue';
 
 import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
 import * as RootStore from '@/app/state/root-store';
-import * as CorpusStore from '@/features/corpus/model/corpus-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 
@@ -113,7 +113,7 @@ export default defineComponent({
 			RootStore.actions.reset();
 		},
 		submit() {
-			if (CorpusStore.get.isParallelCorpus() && PatternStore.getState().shared.source === null) {
+			if (useCorpus().value.isParallelCorpus && PatternStore.getState().shared.source === null) {
 				// No source version selected. Required for most operations.
 				const needsSource = this.activeForm === 'search' || (this.activeForm === 'explore' && (this.exploreMode === 'ngram' || this.exploreMode === 'frequency'));
 				if (needsSource) {

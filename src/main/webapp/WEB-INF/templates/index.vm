@@ -22,11 +22,6 @@
             var OIDC_CLIENT_ID = "$esc.javascript($OIDC_CLIENT_ID)";
 
             var DEBUG_INFO_VISIBLE = $debugInfo;
-
-            // Place to register CustomJS hook functions
-            // See search.tsx for which hooks are available
-            // Currently not used on other pages.
-            var hooks = {};
         </script>
     </head>
     <body>

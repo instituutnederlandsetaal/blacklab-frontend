@@ -1,9 +1,9 @@
 import { tryOnScopeDispose } from '@vueuse/core';
 import axios from 'axios';
-import { reactive, ref, shallowRef, toRef, toValue, unref, watch, watchEffect, type MaybeRef, type ShallowUnwrapRef } from 'vue';
+import { reactive, ref, shallowRef, toRef, toValue, unref, watch, watchEffect, type MaybeRef, type Ref } from 'vue';
 
-import { isEmpty, isLoaded, isLoadableLike, Loadable, LoadableState, thisIsEmpty, thisIsError, thisIsLoaded, thisIsLoading } from './loadable';
-import { combineLoadablesValue, type MaybeLoadable, type MaybeLoadablesArrayOrObject } from './loadable-operators';
+import { getLoadableStateValue, isLoaded, isLoadableLike, Loadable, LoadableState, withLoadableMethods, type LoadableLike, type LoadableStateValue } from './loadable';
+import { combineLoadablesValue, combineLoadablesValueIncludingEmpty, type MaybeLoadable, type MaybeLoadablesArrayOrObject } from './loadable-operators';
 
 import { ApiError, type CancelableRequest } from '@/shared/api/lib/api-types';
 
@@ -11,9 +11,10 @@ type MaybeRefLoadable<T> = MaybeRef<MaybeLoadable<T>>;
 type MaybeRefLoadablesArray = readonly MaybeRefLoadable<unknown>[];
 type MaybeRefLoadablesObject = Record<string, MaybeRefLoadable<unknown>>;
 type MaybeRefLoadablesArrayOrObject = MaybeRefLoadablesArray | MaybeRefLoadablesObject;
+type ResolvedMaybeRef<T> = T extends Ref<infer V> ? V : T;
 
 type ResolvedLoadables<T extends MaybeRefLoadablesArrayOrObject> = {
-	[K in keyof T]: ShallowUnwrapRef<T[K]>;
+	[K in keyof T]: ResolvedMaybeRef<T[K]>;
 };
 
 type ResolvedLoadedValues<T extends MaybeRefLoadablesArrayOrObject> = {
@@ -43,17 +44,6 @@ function forEachResolvedLoadable(loadables: MaybeLoadablesArrayOrObject, callbac
 	(Array.isArray(loadables) ? loadables : Object.values(loadables)).forEach(callback);
 }
 
-function combineLoadablesValueIncludingEmpty<T extends MaybeLoadablesArrayOrObject>(loadables: T): Loadable<ResolvedLoadedValuesIncludingEmpty<T>> {
-	const unresolved = (Array.isArray(loadables) ? loadables : Object.values(loadables)).find(loadable => !isLoaded(loadable) && !isEmpty(loadable));
-	if (unresolved) return Loadable.wrap(unresolved) as Loadable<ResolvedLoadedValuesIncludingEmpty<T>>;
-
-	if (Array.isArray(loadables)) {
-		return Loadable.Loaded(loadables.map(loadable => (isLoaded(loadable) ? loadable.value : undefined)) as ResolvedLoadedValuesIncludingEmpty<T>);
-	}
-
-	return Loadable.Loaded(Object.fromEntries(Object.entries(loadables).map(([key, loadable]) => [key, isLoaded(loadable) ? loadable.value : undefined])) as ResolvedLoadedValuesIncludingEmpty<T>);
-}
-
 function reuseLoadableValueIfUnchanged<T>(previousValue: T | undefined, nextValue: T | undefined): T | undefined {
 	if (previousValue == null || nextValue == null) return nextValue;
 
@@ -81,30 +71,71 @@ function forEachUniqueRetryableLoadable(loadables: (MaybeLoadable<unknown> | und
 	}
 }
 
-type LoadableStateValue<T, S extends LoadableState> = S extends LoadableState.loaded ? T : S extends LoadableState.error ? ApiError : undefined;
 type LoadableStateMapResult<T, U, S extends LoadableState> = S extends LoadableState.loaded ? U : U | T;
-
-function getLoadableStateValue<T, S extends LoadableState>(loadable: MaybeLoadable<T>, state: S): LoadableStateValue<T, S> {
-	if (state === LoadableState.loaded) return loadable.value as LoadableStateValue<T, S>;
-	if (state === LoadableState.error) return loadable.error as LoadableStateValue<T, S>;
-	return undefined as LoadableStateValue<T, S>;
-}
 
 function isSingleLoadableInput<T>(value: MaybeRefLoadable<T> | MaybeRefLoadablesArrayOrObject): value is MaybeRefLoadable<T> {
 	return isLoadableLike(unref(value as MaybeRef<unknown>));
 }
 
-export const loadableFromRefs = <T, E extends object = {}>(state: MaybeRef<LoadableState>, value?: MaybeRef<T | undefined>, error?: MaybeRef<ApiError | undefined>, extra?: E): Loadable<T> & E =>
-	reactive({
-		...(extra as any),
-		state,
-		value,
-		error,
-		isLoading: thisIsLoading,
-		isLoaded: thisIsLoaded,
-		isError: thisIsError,
-		isEmpty: thisIsEmpty,
+type LoadableRequestControls = { retry: () => void; stop: () => void };
+type WritableLoadableRefs<T> = {
+	state: Ref<LoadableState>;
+	value: Ref<T | undefined>;
+	error: Ref<ApiError | undefined>;
+};
+
+function reactiveLoadableFromRefs<T, E extends object>(refs: WritableLoadableRefs<T>, extra: E): Loadable<T> & E {
+	const r = reactive({
+		...(extra as E),
+		state: refs.state,
+		value: refs.value,
+		error: refs.error,
 	});
+	return withLoadableMethods<T, LoadableLike<T> & E>(r as LoadableLike<T> & E);
+}
+
+function applyLoadableToRefs<T>(refs: WritableLoadableRefs<T>, loadable: MaybeLoadable<T>, options: { reuseLoadedValue?: boolean } = {}) {
+	const nextState = loadable.state;
+	const nextValue = isLoaded(loadable) ? (options.reuseLoadedValue ? reuseLoadableValueIfUnchanged(refs.value.value, loadable.value) : loadable.value) : undefined;
+	const nextError = nextState === LoadableState.error ? loadable.error : undefined;
+
+	if (Object.is(refs.state.value, nextState) && Object.is(refs.value.value, nextValue) && Object.is(refs.error.value, nextError)) return;
+
+	if (refs.state.value === nextState) {
+		refs.value.value = nextValue;
+		refs.error.value = nextError;
+		return;
+	}
+
+	if (nextState === LoadableState.loaded) {
+		refs.value.value = nextValue;
+		refs.state.value = nextState;
+		refs.error.value = undefined;
+		return;
+	}
+
+	if (nextState === LoadableState.error) {
+		refs.error.value = nextError;
+		refs.state.value = nextState;
+		refs.value.value = undefined;
+		return;
+	}
+
+	refs.state.value = nextState;
+	refs.value.value = undefined;
+	refs.error.value = undefined;
+}
+
+export const loadableFromRefs = <T, E extends object = {}>(state: MaybeRef<LoadableState>, value?: MaybeRef<T | undefined>, error?: MaybeRef<ApiError | undefined>, extra?: E): Loadable<T> & E => {
+	return reactiveLoadableFromRefs<T, E>(
+		{
+			state: toRef(state) as Ref<LoadableState>,
+			value: (value == null ? ref<T>() : toRef(value)) as Ref<T | undefined>,
+			error: (error == null ? ref<ApiError>() : toRef(error)) as Ref<ApiError | undefined>,
+		},
+		extra as E,
+	);
+};
 
 export type LoadableFromRequest<T> = Loadable<T> & { retry: () => void; stop: () => void };
 
@@ -112,23 +143,12 @@ function createDerivedLoadable<T>(
 	startWatching: (applyLoadable: (loadable: MaybeLoadable<T>) => void) => () => void,
 	getRetryables: () => (MaybeLoadable<unknown> | undefined)[],
 ): LoadableFromRequest<T> {
-	const current = shallowRef<Loadable<T>>(Loadable.Empty<T>());
-
-	let lastState = current.value.state;
-	let lastValue = current.value.value;
-	let lastError = current.value.error;
-
-	const applyLoadable = (loadable: MaybeLoadable<T>) => {
-		const nextState = loadable.state;
-		const nextValue = isLoaded(loadable) ? reuseLoadableValueIfUnchanged(lastValue, loadable.value) : undefined;
-		const nextError = nextState === LoadableState.error ? loadable.error : undefined;
-		if (Object.is(lastState, nextState) && Object.is(lastValue, nextValue) && Object.is(lastError, nextError)) return;
-
-		lastState = nextState;
-		lastValue = nextValue;
-		lastError = nextError;
-		current.value = Loadable.loadable<T>(nextState, nextValue, nextError);
+	const refs: WritableLoadableRefs<T> = {
+		state: shallowRef(LoadableState.empty),
+		value: shallowRef<T | undefined>(),
+		error: shallowRef<ApiError | undefined>(),
 	};
+	const applyLoadable = (loadable: MaybeLoadable<T>) => applyLoadableToRefs(refs, loadable, { reuseLoadedValue: true });
 
 	const stopWatching = startWatching(applyLoadable);
 
@@ -143,23 +163,7 @@ function createDerivedLoadable<T>(
 
 	tryOnScopeDispose(stop);
 
-	return reactive({
-		retry,
-		stop,
-		get state() {
-			return current.value.state;
-		},
-		get value() {
-			return current.value.value as T | undefined;
-		},
-		get error() {
-			return current.value.error;
-		},
-		isLoading: thisIsLoading,
-		isLoaded: thisIsLoaded,
-		isError: thisIsError,
-		isEmpty: thisIsEmpty,
-	}) as LoadableFromRequest<T>;
+	return reactiveLoadableFromRefs<T, LoadableRequestControls>(refs, { retry, stop }) as LoadableFromRequest<T>;
 }
 
 function flatMapSingleLoadableReactive<T, U, S extends LoadableState>(

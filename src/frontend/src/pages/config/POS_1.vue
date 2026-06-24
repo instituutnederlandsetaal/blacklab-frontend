@@ -19,6 +19,7 @@ import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
 import type { NormalizedAnnotation } from '@/types/apptypes';
+
 import type { Option } from '@/shared/utils/options';
 
 import type { StepState } from './POS.vue';
