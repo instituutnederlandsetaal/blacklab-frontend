@@ -1,6 +1,7 @@
 @use 'sass:color';
 @import 'bootstrap/dist/css/bootstrap.css';
-@import 'font-awesome/css/font-awesome.min.css';
+@import '@fortawesome/fontawesome-free/css/all.min.css';
+@import '@fortawesome/fontawesome-free/css/v4-shims.min.css';
 @import 'floating-vue/dist/style.css';
 
 $panel-color: #337ab7;
