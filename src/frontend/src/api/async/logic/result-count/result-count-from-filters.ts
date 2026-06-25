@@ -7,8 +7,8 @@ import type { NormalizedIndex } from '@/types/apptypes';
 import { getCorpusTotals, getTotals } from './result-count-helpers';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
-import { Loadable } from '@/shared/utils/loadable/loadable';
-import { InteractiveLoadable } from '@/shared/utils/loadable/loadable-streams';
+import { Loadable } from '@/shared/utils/loadable/loadable-core';
+import { InteractiveLoadable } from '@/shared/utils/loadable/loadable-stream';
 
 export type SubcorpusInput = {
 	index: NormalizedIndex;

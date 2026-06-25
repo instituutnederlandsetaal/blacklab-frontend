@@ -12,9 +12,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, useTemplateRef, watch } from 'vue';
+import { computed, useTemplateRef, watchEffect } from 'vue';
 
-import { Loadable } from '@/shared/utils/loadable/loadable';
+import { Loadable } from '@/shared/utils/loadable/loadable-core';
 
 import Spinner from './Spinner.vue';
 
@@ -63,17 +63,9 @@ function renderContent(container: HTMLElement, value: RenderableContent) {
 	if (props.executeScripts) runScriptElements(container);
 }
 
-let nonce = 0;
-watch(
-	() => [loadableContent.value, props.executeScripts, props.parseStringAsHtml] as const,
-	async ([state]) => {
-		const version = ++nonce;
-		await nextTick();
-
-		if (version !== nonce || !loadableContent.value.isLoaded() || !contentContainer.value) return;
-
+watchEffect(() => {
+	if (loadableContent.value.isLoaded() && contentContainer.value) {
 		renderContent(contentContainer.value, loadableContent.value.value);
-	},
-	{ immediate: true },
-);
+	}
+});
 </script>

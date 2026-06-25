@@ -1,7 +1,7 @@
 <template>
 	<!-- TODO: i18n -->
 	<div class="container article" v-if="inputs">
-		<UseDraggable class="article-pagination" title="Hold to drag" :initial-value="initialPaginationPosition">
+		<UseDraggable class="article-pagination" title="Hold to drag" :initial-value="initialPaginationPosition" storage-key="article-page-pagination-screen-position">
 			<template v-if="validPaginationInfo.isLoaded()">
 				<div class="pagination-container">
 					<label>Page</label>
@@ -145,7 +145,7 @@ import { createArticleStreams, type Input } from './article';
 
 import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
-import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-streams';
+import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 
 import HtmlRenderer from '@/components/HtmlRenderer.vue';
 import Pagination from '@/components/Pagination.vue';
@@ -167,9 +167,11 @@ const cfPageConfig = useCfPageConfig();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 
 const metadata = loadableFromStream(metadata$);
-const metadataHtml = computed(() => metadata.map(m => m.html));
+const metadataHtml = metadata.map(m => m.html);
+
 const contents = loadableFromStream(contents$);
-const contentsHtml = computed(() => contents.map(c => c.container));
+const contentsHtml = contents.map(c => c.html);
+
 const hits = loadableFromStream(hits$);
 const hitToHighlight = loadableFromStream(hitToHighlight$);
 const validPaginationInfo = loadableFromStream(validPaginationParameters$);
@@ -300,7 +302,7 @@ watch(
 			tooltipContext.value();
 			tooltipContext.value = null;
 		}
-		if (c?.container) {
+		if (c?.html) {
 			tooltipContext.value = createTooltips({
 				mode: 'attributes',
 				contentAttribute: 'data-tooltip-content',

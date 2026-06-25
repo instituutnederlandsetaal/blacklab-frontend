@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
 import { nextTick } from 'vue';
 
-import { Loadable } from '@/shared/utils/loadable/loadable';
+import { Loadable } from '@/shared/utils/loadable/loadable-core';
 
 import HtmlRenderer from '@/components/HtmlRenderer.vue';
 

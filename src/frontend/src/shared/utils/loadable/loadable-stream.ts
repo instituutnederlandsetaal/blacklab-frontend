@@ -30,9 +30,10 @@ import { markRaw, ref, shallowRef, type Ref } from 'vue';
 
 import type { MarkRequiredAndNotNull } from '@/types/helpers';
 
-import type { LoadableLike, Val, ValEmpty, ValueTypeFromLoadableOrObservable } from './loadable';
-import { getLoadableStateValue, isEmpty, isError, isLoadableLike, isLoaded, isLoading, Loadable, LoadableState } from './loadable';
-import { loadableFromRefs, type LoadableFromRequest } from './loadable-reactive';
+import { combine, combineOptional } from './loadable-combine';
+import type { LoadableLike, Val, ValEmpty, ValueTypeFromLoadableOrObservable } from './loadable-core';
+import { getLoadableStateValue, isEmpty, isError, isLoaded, isLoading, Loadable, LoadableState } from './loadable-core';
+import { loadableReactive } from './loadable-reactive';
 
 import { ApiError } from '@/shared/api/lib/api-types';
 
@@ -184,20 +185,6 @@ type ValueTypeFromLoadableOrObservableIncludingEmpty<T> = ValEmpty<T extends Arr
 
 export const compareAsSortedJson = <T1, T2>(a: T1, b: T2) => jsonStableStringify(a) === jsonStableStringify(b);
 
-function valuesOf<T extends readonly any[] | Record<string, any>>(t: T): any[] {
-	return Array.isArray(t) ? [...t] : Object.values(t);
-}
-
-function mapShape<T extends readonly any[] | Record<string, any>>(t: T, mapper: (value: any) => any): { [K in keyof T]: any } {
-	return (Array.isArray(t) ? t.map(mapper) : Object.fromEntries(Object.entries(t).map(([key, value]) => [key, mapper(value)]))) as { [K in keyof T]: any };
-}
-
-function combineLoadableValues<T extends readonly any[] | Record<string, any>>(t: T, includeEmpty: boolean): Loadable<{ [K in keyof T]: any }> {
-	const blocking = valuesOf(t).find(v => isLoadableLike(v) && !isLoaded(v) && (!includeEmpty || !isEmpty(v)));
-	if (blocking) return Loadable.wrap(blocking);
-	return Loadable.Loaded(mapShape(t, v => (isLoaded(v) ? v.value : includeEmpty && isEmpty(v) ? undefined : v)));
-}
-
 /**
  * Combine the values of a bunch of Loadables or other values into a single Loadable.
  * If any of the values are Loading, Empty, or Error, return that state instead.
@@ -210,7 +197,7 @@ function combineLoadableValues<T extends readonly any[] | Record<string, any>>(t
  */
 export function combineLoadables<T extends readonly any[] | Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: Val<T[K]> }> {
 	if (t == null) return Loadable.Empty();
-	return combineLoadableValues(t, false) as Loadable<{ [K in keyof T]: Val<T[K]> }>;
+	return Loadable.wrap(combine(t)) as Loadable<{ [K in keyof T]: Val<T[K]> }>;
 }
 /**
  * Same as combineLoadables, but also includes Empty states. So if an Empty is present, this will return Loaded<undefined> instead of Empty.
@@ -218,7 +205,7 @@ export function combineLoadables<T extends readonly any[] | Record<string, any>>
  */
 export function combineLoadablesIncludingEmpty<T extends readonly any[] | Record<string, any>>(t?: T): Loadable<{ [K in keyof T]: ValEmpty<T[K]> }> {
 	if (t == null) return Loadable.Empty();
-	return combineLoadableValues(t, true) as Loadable<{ [K in keyof T]: ValEmpty<T[K]> }>;
+	return Loadable.wrap(combineOptional(t)) as Loadable<{ [K in keyof T]: ValEmpty<T[K]> }>;
 }
 
 type InteractiveLoadableSettings<TInput> = {
@@ -250,7 +237,7 @@ const defaultInteractiveLoadableSettings: InteractiveLoadableSettings<any> = {
  * </div>
  * ```
  * ```typescript
- * import { InteractiveLoadable } from '@/utils/loadable-streams';
+ * import { InteractiveLoadable } from '@/utils/loadable-stream';
  * export default {
  * 	data: () => ({
  * 		loadable: new InteractiveLoadable(map(i => Loaded(i + 1)))
@@ -368,6 +355,7 @@ export class InteractiveLoadable<TInput, TOutput> implements Loadable<TOutput> {
 Object.assign(InteractiveLoadable.prototype, Loadable.loadableMethods);
 
 export interface LoadableFromStream<T> extends Loadable<T> {
+	stop: () => void;
 	dispose: () => void;
 	toJSON(): { state: LoadableState; value: T | undefined; error: ApiError | undefined };
 }
@@ -390,7 +378,7 @@ export function loadableFromStream<T>(
 		/** Defaults to false */
 		deepReactiveValue?: boolean;
 	} = { loadingOnStart: false, keepValueAfterCompletion: true, deepReactiveValue: false },
-): LoadableFromRequest<ValueTypeFromLoadableOrObservable<T>> {
+): LoadableFromStream<ValueTypeFromLoadableOrObservable<T>> {
 	settings = {
 		loadingOnStart: false,
 		keepValueAfterCompletion: true,
@@ -404,14 +392,24 @@ export function loadableFromStream<T>(
 
 	const unsub = stream$.pipe(map(Loadable.wrap)).subscribe({
 		next: v => {
-			state.value = v.state;
-			value.value = v.value;
-			error.value = v.error;
+			if (isLoaded(v)) {
+				value.value = v.value;
+				state.value = v.state;
+				error.value = undefined;
+			} else if (isError(v)) {
+				error.value = v.error;
+				state.value = v.state;
+				value.value = undefined;
+			} else {
+				state.value = v.state;
+				value.value = undefined;
+				error.value = undefined;
+			}
 		},
 		error: e => {
+			error.value = ApiError.wrap(e);
 			state.value = LoadableState.error;
 			value.value = undefined;
-			error.value = ApiError.wrap(e);
 		},
 		complete: () => {
 			if (state.value === LoadableState.loading) {
@@ -427,11 +425,14 @@ export function loadableFromStream<T>(
 		},
 	});
 
-	tryOnScopeDispose(() => unsub.unsubscribe());
+	const stop = () => unsub.unsubscribe();
 
-	return loadableFromRefs(state, value, error, {
-		retry: () => {},
-		stop: () => unsub.unsubscribe(),
+	tryOnScopeDispose(stop);
+
+	return loadableReactive(state, value, error, {
+		stop,
+		dispose: stop,
+		toJSON: () => ({ state: state.value, value: value.value, error: error.value }),
 	});
 }
 

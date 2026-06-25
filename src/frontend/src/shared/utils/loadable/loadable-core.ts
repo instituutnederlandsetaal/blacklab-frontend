@@ -15,9 +15,11 @@ export interface LoadableBase<T> {
 	isError(): this is LoadingError<T>;
 	isEmpty(): this is Empty<T>;
 	map<U>(mapper: (value: T) => U): Loadable<U>;
+	mapOptional<U>(mapper: (value: T | undefined) => U): Loadable<U>;
 	mapError(mapper: (error: ApiError) => ApiError): Loadable<T>;
 	recover(mapper: (error: ApiError) => T): Loadable<T>;
 	flatMap<U>(mapper: (value: T) => Loadable<U>): Loadable<U>;
+	flatMapOptional<U>(mapper: (value: T | undefined) => Loadable<U>): Loadable<U>;
 	flatMapError<U>(mapper: (error: ApiError) => Loadable<U>): Loadable<T | U>;
 	or(mapper: () => T | null | undefined): Loadable<T>;
 }
@@ -130,6 +132,14 @@ export function map<T, U>(v: LoadableLike<T>, mapper: (value: T) => U): Loadable
 	return passthrough<T, U>(v);
 }
 
+export function mapOptional<T, U>(v: Loadable<T>, mapper: (value: T | undefined) => U): Loadable<U>;
+export function mapOptional<T, U>(v: LoadableLike<T>, mapper: (value: T | undefined) => U): LoadableLike<U>;
+export function mapOptional<T, U>(v: LoadableLike<T>, mapper: (value: T | undefined) => U): LoadableLike<U> {
+	if (isLoaded(v)) return Loaded(mapper(v.value));
+	if (isEmpty(v)) return Loaded(mapper(undefined));
+	return passthrough<T, U>(v);
+}
+
 export function mapError<T>(v: Loadable<T>, mapper: (error: ApiError) => ApiError): Loadable<T>;
 export function mapError<T>(v: LoadableLike<T>, mapper: (error: ApiError) => ApiError): LoadableLike<T>;
 export function mapError<T>(v: LoadableLike<T>, mapper: (error: ApiError) => ApiError): LoadableLike<T> {
@@ -146,6 +156,14 @@ export function flatMap<T, U>(v: Loadable<T>, mapper: (value: T) => Loadable<U>)
 export function flatMap<T, U>(v: LoadableLike<T>, mapper: (value: T) => Loadable<U>): LoadableLike<U>;
 export function flatMap<T, U>(v: LoadableLike<T>, mapper: (value: T) => Loadable<U>): LoadableLike<U> {
 	if (isLoaded(v)) return mapper(v.value);
+	return passthrough<T, U>(v);
+}
+
+export function flatMapOptional<T, U>(v: Loadable<T>, mapper: (value: T | undefined) => Loadable<U>): Loadable<U>;
+export function flatMapOptional<T, U>(v: LoadableLike<T>, mapper: (value: T | undefined) => Loadable<U>): LoadableLike<U>;
+export function flatMapOptional<T, U>(v: LoadableLike<T>, mapper: (value: T | undefined) => Loadable<U>): LoadableLike<U> {
+	if (isLoaded(v)) return mapper(v.value);
+	if (isEmpty(v)) return mapper(undefined);
 	return passthrough<T, U>(v);
 }
 
@@ -167,6 +185,10 @@ export function thisMap<T, U>(this: Loadable<T>, mapper: (value: T) => U): Loada
 	return map(this, mapper);
 }
 
+export function thisMapOptional<T, U>(this: Loadable<T>, mapper: (value: T | undefined) => U): Loadable<U> {
+	return mapOptional(this, mapper);
+}
+
 export function thisMapError<T>(this: Loadable<T>, mapper: (error: ApiError) => ApiError): Loadable<T> {
 	return mapError(this, mapper);
 }
@@ -177,6 +199,10 @@ export function thisRecover<T>(this: Loadable<T>, mapper: (error: ApiError) => T
 
 export function thisFlatMap<T, U>(this: Loadable<T>, mapper: (value: T) => Loadable<U>): Loadable<U> {
 	return flatMap(this, mapper);
+}
+
+export function thisFlatMapOptional<T, U>(this: Loadable<T>, mapper: (value: T | undefined) => Loadable<U>): Loadable<U> {
+	return flatMapOptional(this, mapper);
 }
 
 export function thisFlatMapError<T, U>(this: Loadable<T>, mapper: (error: ApiError) => Loadable<U>): Loadable<T | U> {
@@ -193,9 +219,11 @@ export const loadableMethods = {
 	isError: thisIsError,
 	isEmpty: thisIsEmpty,
 	map: thisMap,
+	mapOptional: thisMapOptional,
 	mapError: thisMapError,
 	recover: thisRecover,
 	flatMap: thisFlatMap,
+	flatMapOptional: thisFlatMapOptional,
 	flatMapError: thisFlatMapError,
 	or: thisOr,
 } satisfies LoadableBase<any>;
@@ -235,9 +263,11 @@ export const Loadable = {
 	wrap,
 	getLoadableStateValue,
 	map,
+	mapOptional,
 	mapError,
 	recover,
 	flatMap,
+	flatMapOptional,
 	flatMapError,
 	or,
 	thisIsLoading,
@@ -245,9 +275,11 @@ export const Loadable = {
 	thisIsError,
 	thisIsEmpty,
 	thisMap,
+	thisMapOptional,
 	thisMapError,
 	thisRecover,
 	thisFlatMap,
+	thisFlatMapOptional,
 	thisFlatMapError,
 	thisOr,
 	loadableMethods,

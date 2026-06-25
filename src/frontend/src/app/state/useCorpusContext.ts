@@ -16,8 +16,10 @@ import type {
 import type { BlackLabApi, CancelableRequest, FrontendApi } from '@/shared/api/lib/api-types';
 import { resolvedRequest } from '@/shared/api/lib/api-utils';
 import { mapReduce } from '@/shared/utils/array-utils';
-import { LoadableState } from '@/shared/utils/loadable/loadable';
-import { combineLoadables, loadableFromRequest, mapLoadableReactive, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-reactive';
+import { LoadableState } from '@/shared/utils/loadable/loadable-core';
+import { combineLoadables } from '@/shared/utils/loadable/loadable-combine-reactive';
+import { loadableFromRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
+import { mapLoadableReactive } from '@/shared/utils/loadable/loadable-reactive';
 import useInjectable from '@/shared/utils/useInjectable';
 
 type CorpusContext = {

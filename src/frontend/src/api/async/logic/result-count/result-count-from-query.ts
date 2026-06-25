@@ -5,8 +5,8 @@ import { type BLSearchResult } from '@/types/blacklabtypes';
 import { getTotals, type TotalsOutput } from './result-count-helpers';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
-import { Loaded, type Loadable } from '@/shared/utils/loadable/loadable';
-import { InteractiveLoadable, mapLoaded } from '@/shared/utils/loadable/loadable-streams';
+import { Loaded, type Loadable } from '@/shared/utils/loadable/loadable-core';
+import { InteractiveLoadable, mapLoaded } from '@/shared/utils/loadable/loadable-stream';
 
 export type TotalsInput = {
 	indexId: string;

@@ -5,7 +5,7 @@ import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 
 import type { BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
 import { binarySearch } from '@/shared/utils/array-utils';
-import { Loadable } from '@/shared/utils/loadable/loadable';
+import { Loadable } from '@/shared/utils/loadable/loadable-core';
 import {
 	combineLoadables,
 	combineLoadableStreams,
@@ -14,7 +14,7 @@ import {
 	mapLoaded,
 	switchMapLoaded,
 	withRequiredKeys,
-} from '@/shared/utils/loadable/loadable-streams';
+} from '@/shared/utils/loadable/loadable-stream';
 import { clamp } from '@/shared/utils/number-utils';
 
 // Define some input/intermediate types and utils.
@@ -167,17 +167,17 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 		distinctUntilChanged(compareAsSortedJson),
 		switchMapLoaded(input => frontend.getDocumentContents(input).toObservable()),
 		mapLoaded(v => {
-			const container = document.createElement('div');
-			container.innerHTML = v;
-			const highlights = Array.from(container.querySelectorAll('.hl')) as HTMLElement[];
-			return { container, highlights };
+			const html = document.createElement('div');
+			html.innerHTML = v;
+			const highlights = Array.from(html.querySelectorAll('.hl')) as HTMLElement[];
+			return { html, highlights };
 		}),
 		shareReplay(1),
 	);
 
 	const hitToHighlight$ = combineLatest([validPaginationParameters$, hits$, contents$]).pipe(
 		map(combineLoadables),
-		mapLoaded(([pagination, hits, { container, highlights }]) => {
+		mapLoaded(([pagination, hits, { html: container, highlights }]) => {
 			const firstVisibleHitIndex = hits.length ? clamp(Math.abs(binarySearch(hits, h => pagination.wordstart - h[0])), 0, hits.length - 1) : 0;
 			const hitIndexToHighlight = pagination.findhit != null ? binarySearch(hits, h => pagination.findhit! - h[0]) : firstVisibleHitIndex;
 			const localHitIndexToHighlight = hitIndexToHighlight - firstVisibleHitIndex;

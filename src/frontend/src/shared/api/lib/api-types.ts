@@ -21,8 +21,8 @@ import type {
 	BLUser,
 } from '@/types/blacklabtypes';
 
-import type { Loadable } from '@/shared/utils/loadable/loadable';
-import { toObservable } from '@/shared/utils/loadable/loadable-streams';
+import type { Loadable } from '@/shared/utils/loadable/loadable-core';
+import { toObservable } from '@/shared/utils/loadable/loadable-stream';
 
 export type ApiEndpoint<ResponseType = never, Params extends any[] = []> = (...args: [...Params, requestParameters?: AxiosRequestConfig]) => CancelableRequest<ResponseType>;
 

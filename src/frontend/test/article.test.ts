@@ -3,8 +3,8 @@ import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 import type { Input } from '@/pages/article/article';
 import { createArticleStreams } from '@/pages/article/article';
 import { ApiError, CancelableRequest, type BlackLabApi, type FrontendApi } from '@/shared/api/lib/api-types';
-import { Loadable, LoadableState } from '@/shared/utils/loadable/loadable';
-import { loadableFromStream, promiseFromLoadableStream } from '@/shared/utils/loadable/loadable-streams';
+import { LoadableState } from '@/shared/utils/loadable/loadable-core';
+import { loadableFromStream, promiseFromLoadableStream } from '@/shared/utils/loadable/loadable-stream';
 
 const ids = {
 	MOCK_INDEX_ID: 'test',
@@ -118,7 +118,8 @@ describe('hits$', () => {
 		input$.next(baseInputs);
 		await promiseFromLoadableStream(hits$);
 
-		expect(hitsOutput).toMatchObject(Loadable.Loaded(values.MOCK_HITS.hits.map(h => [h.start, h.end])));
+		expect(hitsOutput.state).toBe(LoadableState.loaded);
+		expect(hitsOutput.value).toEqual(values.MOCK_HITS.hits.map(h => [h.start, h.end]));
 		hitsOutput.stop();
 	});
 
@@ -129,7 +130,9 @@ describe('hits$', () => {
 		input$.next({ ...baseInputs, docId: undefined });
 		await promiseFromLoadableStream(hits$);
 
-		expect(hitsOutput).toMatchObject(Loadable.Empty());
+		expect(hitsOutput.state).toBe(LoadableState.empty);
+		expect(hitsOutput.value).toBeUndefined();
+		expect(hitsOutput.error).toBeUndefined();
 		hitsOutput.stop();
 	});
 
@@ -140,7 +143,9 @@ describe('hits$', () => {
 		input$.next({ ...baseInputs, indexId: undefined });
 		await promiseFromLoadableStream(hits$);
 
-		expect(hitsOutput).toMatchObject(Loadable.Empty());
+		expect(hitsOutput.state).toBe(LoadableState.empty);
+		expect(hitsOutput.value).toBeUndefined();
+		expect(hitsOutput.error).toBeUndefined();
 		hitsOutput.stop();
 	});
 });
@@ -153,7 +158,9 @@ describe('metadata$', () => {
 		input$.next({});
 		await promiseFromLoadableStream(metadata$);
 
-		expect(output).toMatchObject(Loadable.Empty());
+		expect(output.state).toBe(LoadableState.empty);
+		expect(output.value).toBeUndefined();
+		expect(output.error).toBeUndefined();
 		output.stop();
 	});
 
@@ -179,7 +186,9 @@ describe('validPaginationParameters$', () => {
 
 		input$.next({});
 
-		expect(output).toMatchObject(Loadable.Empty());
+		expect(output.state).toBe(LoadableState.empty);
+		expect(output.value).toBeUndefined();
+		expect(output.error).toBeUndefined();
 		output.stop();
 	});
 

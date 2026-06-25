@@ -24,7 +24,7 @@ import { corpusCustomizations } from '@/utils/customization';
 
 import { getPatternString, getWithinClausesFromFilters } from '@/shared/blacklab-helpers/pattern-utils';
 import debug, { debugLog } from '@/shared/debug/debug';
-import { Loadable } from '@/shared/utils/loadable/loadable';
+import { Loadable } from '@/shared/utils/loadable/loadable-core';
 
 // separate, because while the corpusloader might have settled, store init is async
 // and we don't want to report being done while submodules are still initializing
