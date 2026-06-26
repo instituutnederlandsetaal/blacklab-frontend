@@ -56,7 +56,7 @@ import { useBlackLabApi } from '@/shared/api/index.ts';
 import { mapReduce } from '@/shared/utils/array-utils.ts';
 
 import type { StepState } from './POS.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export const value = 'Generate';
 export const label = value;

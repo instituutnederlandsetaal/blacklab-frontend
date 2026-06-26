@@ -23,7 +23,7 @@ import type { NormalizedAnnotation } from '@/types/apptypes';
 import type { Option } from '@/shared/utils/options';
 
 import type { StepState } from './POS.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export const value = 'Choose main';
 export const label = value;

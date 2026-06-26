@@ -20,20 +20,15 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue';
 
-import SelectPicker from './SelectPicker.vue';
-
-void SelectPicker;
-
-import { debugLog } from '@/shared/debug/debug';
 import type { Option } from '@/shared/utils/options';
-import { tokenizeString } from '@/shared/utils/string-utils.ts';
+import { tokenizeString } from '@/shared/utils/string-utils';
+
+import SelectPicker from './SelectPicker.vue';
 
 const modelValue = defineModel<string>({ default: '' });
 const props = withDefaults(
 	defineProps<{
-		url?: string;
-		/** alternative to url, use this to get the data yourself. */
-		getData?: (term: string) => Promise<string[]>;
+		getData: (term: string) => Promise<string[]>;
 		autocomplete?: boolean;
 		useQuoteAsWordBoundary?: boolean;
 	}>(),
@@ -51,7 +46,6 @@ const emit = defineEmits<{
 const options = ref<string[]>([]);
 const autocompleteRef = useTemplateRef<typeof SelectPicker>('input');
 const inputElement = computed<HTMLInputElement | null>(() => {
-	debugLog('autocomplete', 'getting input element');
 	const el = autocompleteRef.value?.$el;
 	if (!el) {
 		// console.warn(`Could not find 'input' template ref`);
@@ -72,7 +66,8 @@ const inputElement = computed<HTMLInputElement | null>(() => {
 let lastSearchValue = '';
 
 function _refreshList() {
-	if (!props.url && !props.getData) return;
+	// console.log('refreshing list');
+	if (!props.getData) return;
 
 	const input = inputElement.value;
 	if (!input) return;
@@ -83,23 +78,7 @@ function _refreshList() {
 	lastSearchValue = v;
 	if (!v.length) return;
 
-	let r: Promise<string[]> | undefined;
-	if (props.getData) {
-		r = props.getData(v);
-	} else if (props.url) {
-		const url = new URL(props.url);
-		const qs = new URLSearchParams(url.search);
-		qs.set('term', v);
-		qs.set('api', '4');
-		r = fetch(`${url.protocol}//${url.host}${url.pathname}?${qs.toString()}`, {
-			method: 'GET',
-			credentials: WITH_CREDENTIALS ? 'include' : 'same-origin',
-			headers: {
-				Accept: 'application/json',
-			},
-		}).then(res => res.json());
-	}
-
+	let r: Promise<string[]> = props.getData(v);
 	if (!r) return;
 	r.then(suggestions => {
 		if (v === lastSearchValue) options.value = suggestions;
@@ -127,7 +106,7 @@ function _getWordAroundCursor(inputElement: HTMLInputElement, lookForward: boole
 
 	if (start === end) {
 		// just a caret; no selection, find whitespace boundaries around cursor
-		// start - 1 because tokenizeString takes quotes into consideration by default, but we do not.
+		// start - 1 because splitIntoTerms takes quotes into consideration by default, but we do not.
 		const term = tokenizeString(value, props.useQuoteAsWordBoundary).find(t => t.end >= start - 1);
 		if (!term) {
 			return nothingFound;

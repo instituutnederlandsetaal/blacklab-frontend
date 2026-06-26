@@ -1,21 +1,27 @@
 <template>
-	<div :class="classes" tabindex="-1" role="dialog">
-		<div class="modal-content" :class="{ container: !size }">
-			<div class="modal-header">
-				<button v-if="close" type="button" :disabled="!closeEnabled" class="close" @click="$emit('close')">×</button>
-				<slot name="title"
-					><h4 class="modal-title">{{ title }}</h4></slot
-				>
-				<slot name="header"></slot>
-			</div>
-			<div class="modal-body">
-				<slot name="body"></slot>
-				<slot name="default"></slot>
-			</div>
-			<div class="modal-footer">
-				<slot name="footer"></slot>
-				<button v-if="close" type="button" class="btn" :class="closeClass" :disabled="!closeEnabled" @click="$emit('close')">{{ closeMessage }}</button>
-				<button v-if="confirm" type="button" class="btn" :class="confirmClass" :disabled="!confirmEnabled" @click="$emit('confirm')">{{ confirmMessage }}</button>
+	<div :class="classes" tabindex="-1" role="dialog" @click.self="$emit('close')">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button v-if="close" type="button" :disabled="!closeEnabled" class="close" @click="$emit('close')">×</button>
+					<slot name="title"
+						><h4 class="modal-title">{{ title }}</h4></slot
+					>
+					<slot name="header"></slot>
+				</div>
+				<div class="modal-body">
+					<slot name="body"></slot>
+					<slot name="default"></slot>
+				</div>
+				<div class="modal-footer">
+					<slot name="footer"></slot>
+					<button v-if="close" type="button" class="btn" :class="closeClass" :disabled="!closeEnabled" @click="$emit('close')">
+						{{ closeMessage }}
+					</button>
+					<button v-if="confirm" type="button" class="btn" :class="confirmClass" :disabled="!confirmEnabled" @click="$emit('confirm')">
+						{{ confirmMessage }}
+					</button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -106,38 +112,42 @@ export default defineComponent({
 		padding-bottom: 0;
 	}
 
-	> .modal-content {
+	> .modal-dialog {
 		display: flex;
 		flex-direction: column;
 		max-height: 100%;
+		margin: 0;
 
-		&.container {
-			padding: 0;
-		}
-
-		> .modal-body {
+		> .modal-content {
+			display: flex;
 			flex: 1;
-			overflow-y: auto;
+			flex-direction: column;
+			max-height: 100%;
+
+			> .modal-body {
+				flex: 1;
+				overflow-y: auto;
+			}
 		}
 	}
 
-	&.xs > .modal-content {
+	&.xs > .modal-dialog {
 		width: 600px;
 	}
-	&.sm > .modal-content {
+	&.sm > .modal-dialog {
 		width: 750px;
 	}
-	&.md > .modal-content {
+	&.md > .modal-dialog {
 		width: 970px;
 	}
-	&.lg > .modal-content {
+	&.lg > .modal-dialog {
 		width: 1170px;
 	}
-	&.auto > .modal-content {
+	&.auto > .modal-dialog {
 		width: auto;
 		max-width: 1170px;
 	}
-	&.fullscreen > .modal-content {
+	&.fullscreen > .modal-dialog {
 		width: 100%;
 		height: 100%;
 	}

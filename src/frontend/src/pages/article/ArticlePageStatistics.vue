@@ -49,7 +49,7 @@ import { type PropType } from 'vue';
 import * as ArticleStore from '@/features/article/model/article-state';
 import type * as BLTypes from '@/types/blacklabtypes';
 
-import Spinner from '@/components/Spinner.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 import AnnotationDistributions from '@/pages/article/AnnotationDistributions.vue';
 import AnnotationGrowths from '@/pages/article/AnnotationGrowths.vue';
 

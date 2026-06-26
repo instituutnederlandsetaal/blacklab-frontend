@@ -65,7 +65,7 @@ import { useBlackLabApi } from '@/shared/api/index.ts';
 import type { Option } from '@/shared/utils/options';
 
 import type { ExclusionRule, StepState } from './POS.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export const value = 'Exclusions';
 export const label = value;

@@ -41,7 +41,7 @@ import * as PatternStore from '@/features/search/model/form/pattern-state';
 
 import { frac2Percent } from '@/shared/utils/number-utils';
 
-import Spinner from '@/components/Spinner.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 
 export default defineComponent({
 	components: { Spinner },

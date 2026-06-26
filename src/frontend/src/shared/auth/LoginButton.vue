@@ -22,7 +22,7 @@ import { computed } from 'vue';
 import { useLoginSystem } from '@/shared/auth/loginsystem';
 import type { Option } from '@/shared/utils/options';
 
-import SelectPicker from '@/components/SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 const loginSystem = useLoginSystem();
 

@@ -104,7 +104,7 @@ import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
 import useUid from '@/shared/utils/uid';
 
-import Modal from '@/components/Modal.vue';
+import Modal from '@/shared/ui/Modal.vue';
 
 export default defineComponent({
 	components: {

@@ -30,7 +30,7 @@ import { defineComponent } from 'vue';
 
 import type { NormalizedFormat } from '@/types/apptypes';
 
-import Spinner from '@/components/Spinner.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 export default defineComponent({
 	components: { Spinner },
 	props: {

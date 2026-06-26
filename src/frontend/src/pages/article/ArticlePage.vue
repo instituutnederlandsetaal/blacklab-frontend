@@ -147,9 +147,9 @@ import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 
-import HtmlRenderer from '@/components/HtmlRenderer.vue';
-import Pagination from '@/components/Pagination.vue';
-import Spinner from '@/components/Spinner.vue';
+import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
+import Pagination from '@/shared/ui/Pagination.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 
 const initialPaginationPosition: Position = {

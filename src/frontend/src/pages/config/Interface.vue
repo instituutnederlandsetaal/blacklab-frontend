@@ -28,7 +28,7 @@ import type { NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
 
 import type { Option } from '@/shared/utils/options';
 
-import SelectPicker from '@/components/SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 const component = defineComponent({
 	components: {

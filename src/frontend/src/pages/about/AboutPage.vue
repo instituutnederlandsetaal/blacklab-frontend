@@ -13,7 +13,7 @@ import { useFrontendApi } from '@/shared/api';
 import { ApiError } from '@/shared/api/lib/api-types';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
 
-import HtmlRenderer from '@/components/HtmlRenderer.vue';
+import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
 
 const frontend = useFrontendApi();
 const pageBootstrap = usePageBootstrap();

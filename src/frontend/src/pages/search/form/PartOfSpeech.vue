@@ -70,7 +70,7 @@ import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import { escapeRegex } from '@/shared/utils/string-utils';
 
-import Modal from '@/components/Modal.vue';
+import Modal from '@/shared/ui/Modal.vue';
 
 export default defineComponent({
 	components: {

@@ -25,7 +25,7 @@ import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helper
 import debug from '@/shared/debug/debug';
 import type { OptGroup } from '@/shared/utils/options';
 
-import SelectPicker from '@/components/SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export default defineComponent({
 	components: {

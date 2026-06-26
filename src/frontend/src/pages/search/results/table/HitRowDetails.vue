@@ -135,7 +135,7 @@ import { useBlackLabApi } from '@/shared/api';
 import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { debugLog } from '@/shared/debug/debug';
 
-import Spinner from '@/components/Spinner.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 import DepTree from '@/pages/search/results/table/DepTree.vue';
 import HitContext from '@/pages/search/results/table/HitContext.vue';
 

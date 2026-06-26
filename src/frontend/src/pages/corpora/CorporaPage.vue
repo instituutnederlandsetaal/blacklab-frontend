@@ -83,8 +83,8 @@ import { normalizeIndexBase } from '@/shared/blacklab-helpers/normalize-response
 
 import CorpusTable from './CorpusTable.vue';
 import FormatsTable from './FormatsTable.vue';
-import Modal from '@/components/Modal.vue';
-import Spinner from '@/components/Spinner.vue';
+import Modal from '@/shared/ui/Modal.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 import ModalCreateCorpus from '@/pages/corpora/ModalCreateCorpus.vue';
 import ModalCreateFormat from '@/pages/corpora/ModalCreateFormat.vue';
 import ModalShareCorpus from '@/pages/corpora/ModalShare.vue';

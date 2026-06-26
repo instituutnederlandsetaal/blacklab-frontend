@@ -23,7 +23,7 @@ import type { NormalizedIndexBase } from '@/types/apptypes';
 import { useBlackLabApi } from '@/shared/api';
 import type { ApiError } from '@/shared/api/lib/api-types';
 
-import Modal from '@/components/Modal.vue';
+import Modal from '@/shared/ui/Modal.vue';
 export default defineComponent({
 	components: { Modal },
 	props: {

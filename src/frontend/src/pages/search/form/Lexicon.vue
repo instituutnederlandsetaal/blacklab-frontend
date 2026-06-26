@@ -60,7 +60,7 @@ import { mapReduce } from '@/shared/utils/array-utils';
 import { escapeRegex } from '@/shared/utils/string-utils';
 import useUid from '@/shared/utils/uid';
 
-import SelectPicker from '@/components/SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 type LexiconParams1 = { lemma: string } | { wordform: string };
 type LexiconParams = LexiconParams1 & {

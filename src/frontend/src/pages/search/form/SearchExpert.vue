@@ -60,8 +60,8 @@ import { defineComponent } from 'vue';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 
-import MultiValuePicker from '@/components/MultiValuePicker.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
+import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 import AlignBy from '@/pages/search/form/AlignBy.vue';
 
 export default defineComponent({

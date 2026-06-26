@@ -13,7 +13,7 @@ import { defineComponent } from 'vue';
 import * as RootStore from '@/app/state/root-store';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 
-import Spinner from '@/components/Spinner.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 import QueryForm from '@/pages/search/form/QueryForm.vue';
 import { wideView } from '@/pages/search/form/QueryFormSettings.vue';
 import QuerySummary from '@/pages/search/results/QuerySummary.vue';

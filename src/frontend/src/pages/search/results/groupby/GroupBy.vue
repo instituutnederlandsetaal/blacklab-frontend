@@ -201,8 +201,8 @@ import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import debug from '@/shared/debug/debug';
 import { findOption, type OptGroup, type Option, type Options } from '@/shared/utils/options';
 
-import SelectPicker from '@/components/SelectPicker.vue';
-import Tabs from '@/components/Tabs.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
+import Tabs from '@/shared/ui/Tabs.vue';
 
 // What we prefix the tag attribute grouping option with so we can recognize it
 const OPT_PREFIX_SPAN_ATTRIBUTE = '$TAGATTR:';

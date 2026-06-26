@@ -7,7 +7,7 @@
 			><label class="col-xs-12">(id: {{ id }})</label></Debug
 		>
 		<div class="col-xs-12">
-			<Autocomplete type="text" useQuoteAsWordBoundary :id="inputId" :placeholder="displayName" :dir="textDirection" :url="autocompleteUrl" v-model="vmodel" />
+			<Autocomplete type="text" useQuoteAsWordBoundary :id="inputId" :placeholder="displayName" :dir="textDirection" :getData="term => autocomplete(term)" v-model="vmodel" />
 		</div>
 		<div class="col-xs-12" v-if="description">
 			<small class="text-muted description"
@@ -20,23 +20,33 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import Autocomplete from '@/components/Autocomplete.vue';
-import FilterText from '@/components/filters/FilterText.vue';
+import { useCorpus } from '@/app/state/useCorpusContext';
+import createBaseFilterComponent from '@/components/filters/Filter';
+
+import { useBlackLabApi } from '@/shared/api';
+
+import Autocomplete from '@/shared/ui/Autocomplete.vue';
 
 export default defineComponent({
-	extends: FilterText,
+	extends: createBaseFilterComponent<string, string>([String, null], () => ''),
 	components: { Autocomplete },
+	data: () => ({
+		blacklab: useBlackLabApi(),
+	}),
 	computed: {
-		autocompleteUrl(): string {
-			return this.definition.metadata as string;
-		},
 		vmodel: {
-			get(): string {
+			get() {
 				return this.modelValue;
 			},
-			set(v: string) {
-				this.e_input(v);
+			set(value: string) {
+				this.e_input(value);
 			},
+		},
+	},
+	methods: {
+		autocomplete(term: string): Promise<string[]> {
+			const corpus = useCorpus().value;
+			return this.blacklab.getMetadataAutocomplete(corpus.id, this.definition.metadata, term);
 		},
 	},
 });

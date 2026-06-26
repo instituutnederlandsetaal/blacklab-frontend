@@ -20,7 +20,7 @@ import { watchEffect } from 'vue';
 import { useCorpusContextLoader } from '@/app/state/useCorpusContext';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 
-import Spinner from '@/components/Spinner.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 
 const pageBootstrap = usePageBootstrap();
 const loadingState = useCorpusContextLoader();

@@ -12,7 +12,6 @@ import { memoize } from '@/features/search/model/form/reactive-store';
 import type { FilterDefinition } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
 
-import type { BlackLabPaths } from '@/shared/api/lib/api-types';
 import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/array-utils';
 
@@ -53,11 +52,6 @@ const initialState: ModuleRootState = {
 
 const state = reactive(structuredClone(initialState));
 const getState = () => state;
-let blacklabPaths: BlackLabPaths;
-
-export function setBlackLabPaths(paths: BlackLabPaths) {
-	blacklabPaths = paths;
-}
 
 const get = {
 	/** Return all filters holding a value */
@@ -177,7 +171,7 @@ const init = (state: CorpusContext) => {
 					break;
 				case 'combobox':
 					componentName = 'filter-autocomplete';
-					metadata = blacklabPaths.autocompleteMetadata(state.index!.id, f.id);
+					metadata = f.id;
 					break;
 				case 'radio':
 					componentName = 'filter-radio';

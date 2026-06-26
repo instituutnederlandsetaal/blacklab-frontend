@@ -6,7 +6,7 @@ import { nextTick } from 'vue';
 
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
 
-import HtmlRenderer from '@/components/HtmlRenderer.vue';
+import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
 
 async function settleContentRender() {
 	await nextTick();

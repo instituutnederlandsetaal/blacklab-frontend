@@ -12,7 +12,6 @@ import Filters from '@/components/filters';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import { startCorpusBootstrapEffect } from '@/features/corpus/effects/corpus-bootstrap.effect';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
-import { setBlackLabPaths } from '@/features/search/model/form/filter-state';
 import { initSelectedSubcorpusLoader } from '@/features/search/resources/selected-subcorpus-count.resource';
 import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
@@ -25,8 +24,8 @@ import { createDebugSystem } from '@/shared/debug/debug';
 import { createI18n } from '@/shared/i18n';
 
 import AppRoot from '@/App.vue';
-import AudioPlayer from '@/components/AudioPlayer.vue';
 import DebugComponent from '@/shared/debug/Debug.vue';
+import AudioPlayer from '@/shared/ui/AudioPlayer.vue';
 
 function getLoginSystemConfig(): LoginSystemConfig {
 	if (OIDC_AUTHORITY && OIDC_CLIENT_ID && OIDC_METADATA_URL) {
@@ -56,8 +55,6 @@ async function start() {
 		frontend: { baseUrl: CONTEXT_URL, user: loginSystem.user },
 	});
 
-	// initCorpusDataLoader(api.blacklabApi, api.frontendApi);
-	setBlackLabPaths(api.blacklabPaths);
 	installHooksGlobal();
 
 	const app = createApp(AppRoot);

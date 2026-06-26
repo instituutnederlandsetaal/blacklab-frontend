@@ -66,7 +66,7 @@ import { useBlackLabApi } from '@/shared/api';
 import type { ApiError } from '@/shared/api/lib/api-types';
 import { frac2Percent } from '@/shared/utils/number-utils';
 
-import Spinner from '@/components/Spinner.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 
 /**
  * Emits update events that contain the new set of totals, so we can update the pagination through our parent components

@@ -78,7 +78,7 @@ import { useBlackLabApi } from '@/shared/api';
 import { debugLog } from '@/shared/debug/debug';
 import type { OptGroup } from '@/shared/utils/options';
 
-import SelectPicker from '@/components/SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 class UrlStateParser extends UrlStateParserBase<{
 	file: string;

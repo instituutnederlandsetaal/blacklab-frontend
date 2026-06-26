@@ -24,7 +24,7 @@ import * as Step3 from './POS_3.vue';
 import * as Step4 from './POS_4.vue';
 import * as Step5 from './POS_5.vue';
 import Steps from './Steps.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export type ExclusionRule = {
 	annotationId: string;

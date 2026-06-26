@@ -105,7 +105,7 @@ import { type NormalizedFormat, type NormalizedIndexBase } from '@/types/apptype
 
 import debug from '@/shared/debug/debug';
 
-import Spinner from '@/components/Spinner.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 
 type IndexWithExtraInfo = NormalizedIndexBase & {
 	canSearch: boolean;

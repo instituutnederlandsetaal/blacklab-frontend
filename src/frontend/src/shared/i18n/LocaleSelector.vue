@@ -31,8 +31,8 @@
 <script setup lang="ts">
 import { useI18nManager } from '@/shared/i18n';
 
-import SelectPicker from '@/components/SelectPicker.vue';
-import Spinner from '@/components/Spinner.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 
 const i18n = useI18nManager();
 </script>

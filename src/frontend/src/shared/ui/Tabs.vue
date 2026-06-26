@@ -2,22 +2,21 @@
 	<div class="tabs" :class="{ vertical, flexy, wrap }">
 		<div
 			v-for="(tab, index) in tabsModel"
-			:class="{
-				active: index === selectedTab.index,
-				tab: true,
-				disabled: tab.disabled,
-				'text-primary': index !== selectedTab.index,
-				'text-body': index === selectedTab.index,
-				...(function () {
-					if (typeof tab.class === 'string') return { [tab.class]: true };
-					else return tab.class;
-				})(),
-			}"
+			:class="[
+				'tab',
+				tab.class,
+				{
+					active: index === selectedTab.index,
+					disabled: tab.disabled,
+					'text-primary': index !== selectedTab.index,
+					'text-body': index === selectedTab.index,
+				},
+			]"
 			:style="tab.style"
 			@click.middle="$emit('middlemouse', { tab, index })"
 		>
-			<slot name="default" :tab="tab" :i="index">
-				<slot name="before" :tab="tab" :i="index"></slot>
+			<slot name="default" :tab :i="index">
+				<slot name="before" :tab :i="index"></slot>
 				<button
 					type="button"
 					:class="{
@@ -30,7 +29,7 @@
 				>
 					{{ tab.label ?? tab.value }}
 				</button>
-				<slot name="after" :tab="tab" :i="index"></slot>
+				<slot name="after" :tab :i="index"></slot>
 			</slot>
 		</div>
 	</div>
@@ -51,10 +50,14 @@ export default defineComponent({
 	emits: ['update:modelValue', 'middlemouse'],
 	props: {
 		modelValue: { type: [String, Number, null] as PropType<string | number | null>, default: null },
-		tabs: { type: Array as PropType<Array<string | (Option & { class?: string | Record<string, boolean>; style?: StyleValue })>>, required: true },
+		tabs: {
+			type: Array as PropType<Array<string | (Option & { class?: string | Record<string, boolean>; style?: StyleValue })>>,
+			required: true,
+		},
 		vertical: Boolean,
 		flexy: Boolean,
 		wrap: Boolean,
+		small: Boolean,
 	},
 	data: () => ({
 		internalModel: -1,

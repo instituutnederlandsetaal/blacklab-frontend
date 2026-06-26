@@ -22,7 +22,7 @@ import { defineComponent, type PropType } from 'vue';
 
 import createBaseFilterComponent from '@/components/filters/Filter';
 
-import SelectPicker from '../SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export default defineComponent({
 	extends: createBaseFilterComponent([Array, null] as PropType<null | string[]>, () => []),

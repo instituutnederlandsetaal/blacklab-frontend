@@ -67,7 +67,7 @@
 				data-width="auto"
 				data-class="form-control input-sm bl-no-border-radius bl-token-attribute-main-input"
 				:dir="options.textDirection"
-				:url="autocompleteUrl"
+				:getData="autocomplete"
 				useQuoteAsWordBoundary
 				v-model="textValue"
 			/>
@@ -120,14 +120,14 @@ import { computed, ref } from 'vue';
 
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
 
-import { useBlackLabPaths } from '@/shared/api';
+import { useBlackLabApi } from '@/shared/api';
 // import useModel from './useModel';
 import { escapeRegex } from '@/shared/utils/string-utils';
 
-import Autocomplete from '@/components/Autocomplete.vue';
 import CqlAddAttributeButton from '@/components/cql/CqlAddAttributeButton.vue';
-import Modal from '@/components/Modal.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
+import Autocomplete from '@/shared/ui/Autocomplete.vue';
+import Modal from '@/shared/ui/Modal.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 const props = defineProps<{
 	options: CqlQueryBuilderOptions;
@@ -144,12 +144,16 @@ const model = useVModel(props, 'modelValue', emit, {
 	passive: true,
 	clone: true,
 });
+
+const blacklab = useBlackLabApi();
+
 const showModal = ref(false);
 const currentAnnotation = computed(() => props.options.allAnnotationsMap[model.value.annotationId]);
-const autocompleteUrl = computed(() => {
-	if (!currentAnnotation.value) return '';
-	return useBlackLabPaths().autocompleteAnnotation(props.options.indexId, currentAnnotation.value.annotatedFieldId, currentAnnotation.value.id);
-});
+
+function autocomplete(term: string) {
+	if (!currentAnnotation.value) return Promise.resolve([]);
+	return blacklab.getTermAutocomplete(props.options.indexId, currentAnnotation.value.annotatedFieldId, currentAnnotation.value.id, term);
+}
 const hasUploadedValue = computed(() => !!model.value.uploadedValue);
 const uploadedValuesSummary = computed(() => {
 	if (!hasUploadedValue.value) return '';

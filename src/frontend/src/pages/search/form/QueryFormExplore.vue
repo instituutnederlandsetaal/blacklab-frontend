@@ -108,7 +108,7 @@
 							:placeholder="$tAnnotDisplayName(token.annotation)"
 							:dir="token.annotation.isMainAnnotation ? mainTokenTextDirection : undefined"
 							:disabled="index >= ngramSize"
-							:url="autocompleteUrl(token.annotation)"
+							:getData="term => autocomplete(token.annotation, term)"
 							:value="token.value"
 							@change="updateTokenValue(index, $event)"
 						/>
@@ -141,15 +141,15 @@ import { corpusCustomizations } from '@/utils/customization';
 
 import ParallelFields from './parallel/ParallelFields';
 
-import { useBlackLabPaths } from '@/shared/api';
+import { useBlackLabApi } from '@/shared/api';
 import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
 import debug from '@/shared/debug/debug';
 import type { OptGroup, Option } from '@/shared/utils/options';
 
-import Autocomplete from '@/components/Autocomplete.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import ParallelSource from '@/pages/search/form/ParallelSource.vue';
+import Autocomplete from '@/shared/ui/Autocomplete.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export default defineComponent({
 	extends: ParallelFields,
@@ -165,6 +165,7 @@ export default defineComponent({
 	data: () => ({
 		debug,
 		subscriptions: [] as Array<() => void>,
+		blacklab: useBlackLabApi(),
 	}),
 	computed: {
 		exploreMode: {
@@ -291,8 +292,8 @@ export default defineComponent({
 				token: { value },
 			});
 		},
-		autocompleteUrl(annot: NormalizedAnnotation) {
-			return useBlackLabPaths().autocompleteAnnotation(useCorpus().value.id!, annot.annotatedFieldId, annot.id);
+		autocomplete(annot: NormalizedAnnotation, term: string) {
+			return this.blacklab.getTermAutocomplete(useCorpus().value.id!, annot.annotatedFieldId, annot.id, term);
 		},
 	},
 	created() {

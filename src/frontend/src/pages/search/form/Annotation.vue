@@ -73,8 +73,8 @@ import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid';
 
-import Autocomplete from '@/components/Autocomplete.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
+import Autocomplete from '@/shared/ui/Autocomplete.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import PartOfSpeech from '@/pages/search/form/PartOfSpeech.vue';
 

@@ -135,8 +135,8 @@ import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import debug, { debugLog } from '@/shared/debug/debug';
 import { localStorageSynced } from '@/shared/utils/localstore';
 
-import Pagination from '@/components/Pagination.vue';
-import Spinner from '@/components/Spinner.vue';
+import Pagination from '@/shared/ui/Pagination.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
 import Export from '@/pages/search/results/Export.vue';
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';

@@ -40,8 +40,8 @@ import { useBlackLabApi } from '@/shared/api';
 import type { ApiError } from '@/shared/api/lib/api-types';
 import type { Options } from '@/shared/utils/options';
 
-import Modal from '@/components/Modal.vue';
-import SelectPicker from '@/components/SelectPicker.vue';
+import Modal from '@/shared/ui/Modal.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 export default defineComponent({
 	components: { Modal, SelectPicker },
