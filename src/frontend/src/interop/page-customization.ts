@@ -60,6 +60,7 @@ export const useCustomJs = (js: MaybeRefOrGetter<CFCustomJsEntry[]>, options?: {
 			jsEntries.forEach(js => {
 				const script = document.createElement('script');
 				Object.entries(js.attributes).forEach(([k, v]) => v && script.setAttribute(k, v.toString()));
+				if (!script.hasAttribute('async')) script.async = false;
 				script.setAttribute(jsElementMarker, '');
 				document?.body?.appendChild(script);
 			});
