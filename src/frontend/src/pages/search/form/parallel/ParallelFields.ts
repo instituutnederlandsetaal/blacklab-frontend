@@ -7,14 +7,16 @@ import type { Option } from '@/shared/utils/options';
 
 /** Helper class to factor out some repeated fields and calculations from various parts of the UI that require knowledge of parallel fields (e.g. query input form sections). */
 const BaseParallelInfo = defineComponent({
+	data: () => ({
+		corpus: useCorpus(),
+	}),
 	computed: {
 		isParallelCorpus() {
-			return useCorpus().value.isParallelCorpus;
+			return this.corpus.isParallelCorpus;
 		},
 		/** If this is a parallel corpus: the vailable source version options (all except current targets) */
 		pSourceOptions(): Option[] {
-			const opt = useCorpus()
-				.value.parallelAnnotatedFields.filter(f => !this.pTargetValue.includes(f.id))
+			const opt = this.corpus.parallelAnnotatedFields.filter(f => !this.pTargetValue.includes(f.id))
 				.map(f => ({
 					value: f.id,
 					label: this.$tAnnotatedFieldDisplayName(f),
@@ -27,8 +29,7 @@ const BaseParallelInfo = defineComponent({
 		},
 		/** If this is a parallel corpus: the available target version options (all except current source) */
 		pTargetOptionsWithCurrent(): Option[] {
-			const opt = useCorpus()
-				.value.parallelAnnotatedFields.filter(f => f.id !== this.pSourceValue)
+			const opt = this.corpus.parallelAnnotatedFields.filter(f => f.id !== this.pSourceValue)
 				.map(f => ({
 					value: f.id,
 					label: this.$tAnnotatedFieldDisplayName(f),
@@ -37,7 +38,7 @@ const BaseParallelInfo = defineComponent({
 		},
 		/** For rendering, contains the localized display name as label and the field's id as value. */
 		pSource(): Option | undefined {
-			const sourceField = useCorpus().value.parallelAnnotatedFieldsMap[this.pSourceValue!];
+			const sourceField = this.corpus.parallelAnnotatedFieldsMap[this.pSourceValue!];
 			return (
 				sourceField && {
 					value: sourceField.id,
@@ -47,7 +48,7 @@ const BaseParallelInfo = defineComponent({
 		},
 		/** For rendering, contains the localized display name as label and the field's id as value. */
 		pTargets(): Option[] {
-			const parallelFields = useCorpus().value.parallelAnnotatedFieldsMap;
+			const parallelFields = this.corpus.parallelAnnotatedFieldsMap;
 			return this.pTargetValue.map(targetFieldId => ({
 				value: targetFieldId,
 				label: this.$tAnnotatedFieldDisplayName(parallelFields[targetFieldId]),

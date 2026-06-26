@@ -1,8 +1,8 @@
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
-import type { BooleanOp, Condition } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
-import { type Result as CqlParseResult } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
+import { type BooleanOp, type Condition, type Result as CqlParseResult } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import type { OptGroup, Option, Options } from '@/shared/utils/options';
+import useUid from '@/shared/utils/uid';
 
 // Updated types for the Vue implementation of CQL Query Builder
 
@@ -52,7 +52,6 @@ export interface CqlTokenData {
 
 export interface CqlQueryBuilderData {
 	tokens: CqlTokenData[];
-	within: string;
 }
 
 export const COMPARATORS: CqlAnnotationValueComparator[][] = [
@@ -62,7 +61,45 @@ export const COMPARATORS: CqlAnnotationValueComparator[][] = [
 
 export const OPERATORS: CqlAnnotationCombinator[] = ['&', '|'];
 
-// Options type for CQL Query Builder - contains all precomputed store data
+export function createDefaultCqlAttribute(defaultAnnotationId: string): CqlAttributeData {
+	return {
+		id: `attr_${useUid()}`,
+		annotationId: defaultAnnotationId,
+		comparator: COMPARATORS[0][0],
+		values: [''],
+		caseSensitive: false,
+	};
+}
+
+export function createDefaultCqlAttributeGroup(defaultAnnotationId: string): CqlAttributeGroupData {
+	return {
+		id: `group_${useUid()}`,
+		operator: OPERATORS[0],
+		entries: [createDefaultCqlAttribute(defaultAnnotationId)],
+	};
+}
+
+export function createDefaultCqlToken(defaultAnnotationId: string): CqlTokenData {
+	return {
+		id: `token_${useUid()}`,
+		properties: {
+			optional: false,
+			minRepeats: 1,
+			maxRepeats: 1,
+			beginOfSentence: false,
+			endOfSentence: false,
+		},
+		rootAttributeGroup: createDefaultCqlAttributeGroup(defaultAnnotationId),
+	};
+}
+
+export function createDefaultCqlQueryBuilderData(defaultAnnotationId: string): CqlQueryBuilderData {
+	return {
+		tokens: [createDefaultCqlToken(defaultAnnotationId)],
+	};
+}
+
+// Options type for CQL Query Builder - contains all that is needed for it to do its thing
 export interface CqlQueryBuilderOptions {
 	indexId: string;
 	// Store-derived values (language-agnostic)
@@ -70,6 +107,7 @@ export interface CqlQueryBuilderOptions {
 	// searchAnnotationIds: string[];
 	textDirection: 'ltr' | 'rtl';
 	allAnnotationsMap: Record<string, NormalizedAnnotation>;
+	autocomplete: (annot: NormalizedAnnotation, query: string) => Promise<string[]>;
 
 	// Precomputed options (language-agnostic)
 	annotationOptions: Options;
@@ -85,11 +123,7 @@ function rootCql(data: CqlQueryBuilderData): string | null {
 	const tokenCqlParts: string[] = [];
 	data.tokens.map(tokenCql).forEach(cql => cql && tokenCqlParts.push(cql));
 	if (tokenCqlParts.length === 0) return null;
-	let result = tokenCqlParts.join(' ');
-	if (data.within) {
-		result = `<${data.within}/> containing ${result}`;
-	}
-	return result;
+	return tokenCqlParts.join(' ');
 }
 
 function tokenCql(token: CqlTokenData): string {
@@ -182,12 +216,6 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 		const generateId = () => `generated_${nextId++}`;
 
 		const tokens = parsedQuery.tokens || [];
-		const withinClauses = parsedQuery.withinClauses || {};
-
-		// Extract within element and attributes
-		const withinElements = Object.keys(withinClauses);
-		const within = withinElements.length > 0 ? withinElements[0] : '';
-
 		const parsedTokens = tokens.map(token => {
 			const tokenData: CqlTokenData = {
 				id: generateId(),
@@ -221,7 +249,6 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 
 		return {
 			tokens: parsedTokens,
-			within,
 		};
 	};
 
@@ -298,7 +325,6 @@ export function getQueryBuilderStateFromParsedQuery(queries: CqlParseResult[]): 
 		? parseQuery(sourceQuery)
 		: {
 				tokens: [],
-				within: '',
 			};
 
 	// Parse target queries

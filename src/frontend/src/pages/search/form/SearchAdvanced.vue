@@ -3,7 +3,7 @@
 		<template v-if="!isParallelCorpus">
 			<!-- Regular (non-parallel) corpus -->
 			<!-- <div class="querybuilder"></div> -->
-			<CqlQueryBuilder :model-value="mainQuery" @update:model-value="mainQuery = $event" />
+			<CqlQueryBuilder :model-value="mainQuery" @update:model-value="mainQuery = $event" :options="queryBuilderOptions" />
 		</template>
 		<div v-else>
 			<!-- Parallel corpus -->
@@ -15,7 +15,7 @@
 				<span v-if="errorNoParallelSourceVersion" class="error">
 					{{ $t('search.parallel.errorNoSourceVersion') }}
 				</span>
-				<CqlQueryBuilder :model-value="mainQuery" @update:model-value="mainQuery = $event" />
+				<CqlQueryBuilder :model-value="mainQuery" @update:model-value="mainQuery = $event" :options="queryBuilderOptions" />
 			</div>
 
 			<div class="qb-par-wrap" v-for="(field, index) in pTargets" :key="field.value">
@@ -25,7 +25,7 @@
 						{{ field.label }}
 					</button>
 				</label>
-				<CqlQueryBuilder :key="field.value" :model-value="targetQueries[index]" @update:model-value="changeTargetQuery(index, $event)" />
+				<CqlQueryBuilder :key="field.value" :model-value="targetQueries[index]" @update:model-value="changeTargetQuery(index, $event)" :options="queryBuilderOptions" />
 			</div>
 
 			<div v-if="pTargetOptions.length" class="add-target-version form-group">
@@ -50,16 +50,21 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
-import { CqlGenerator } from '@/components/cql/cql-types';
+import * as UIStore from '@/app/state/ui-state';
+import { useCorpus } from '@/app/state/useCorpusContext';
+import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
+import { CqlGenerator } from '@/features/cql-query-builder/model';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
+import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 
-import CqlQueryBuilder from '@/components/cql/CqlQueryBuilder.vue';
+import { useBlackLabApi } from '@/shared/api';
+
+import CqlQueryBuilder from '@/features/cql-query-builder/CqlQueryBuilder.vue';
+import AlignBy from '@/pages/search/form/AlignBy.vue';
 import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
-import AlignBy from '@/pages/search/form/AlignBy.vue';
 
 export default defineComponent({
 	extends: ParallelFields,
@@ -72,7 +77,20 @@ export default defineComponent({
 	props: {
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
+	data: () => ({
+		blacklab: useBlackLabApi(),
+		corpus: useCorpus(),
+	}),
 	computed: {
+		queryBuilderOptions(): CqlQueryBuilderOptions {
+			return createQueryBuilderOptions({
+				index: this.corpus,
+				api: this.blacklab,
+				searchUi: UIStore.getState(),
+				translate: this,
+			});
+		},
+
 		// The query (or source query, for parallel corpora)
 		mainQuery: {
 			get(): CqlQueryBuilderData {

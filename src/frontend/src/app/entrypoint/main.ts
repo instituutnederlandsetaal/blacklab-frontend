@@ -82,7 +82,7 @@ async function start() {
 	app.use(corpusState);
 	app.use(HighchartsVue);
 
-	initSelectedSubcorpusLoader(api.blacklabApi);
+	initSelectedSubcorpusLoader(api.blacklabApi, corpusState.corpus);
 	installLegacyStoreGlobals(app);
 
 	app.component('Debug', DebugComponent);

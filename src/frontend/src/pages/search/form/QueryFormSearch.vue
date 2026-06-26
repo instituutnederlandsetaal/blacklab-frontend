@@ -93,25 +93,22 @@ import { defineComponent } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
-import { useCorpus } from '@/app/state/useCorpusContext';
-import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
-import { getQueryBuilderStateFromParsedQuery } from '@/components/cql/cql-types';
+import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
+import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import type * as AppTypes from '@/types/apptypes';
-import { corpusCustomizations } from '@/utils/customization';
 
 import ParallelFields from './parallel/ParallelFields';
 
-import { useBlackLabApi, useBlackLabPaths } from '@/shared/api';
+import { useBlackLabApi } from '@/shared/api';
 import type { Result } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';
 import { getPatternStringFromCql, getPatternStringSearch } from '@/shared/blacklab-helpers/pattern-utils';
-import type { Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid';
 
 import Annotation from '@/pages/search/form/Annotation.vue';
@@ -156,18 +153,16 @@ export default defineComponent({
 			return this.tabs.length > 1;
 		},
 		tabs(): Array<{ label: string; id: string; entries: AppTypes.NormalizedAnnotation[] }> {
-			const result = getAnnotationSubset(UIStore.getState().search.extended.searchAnnotationIds, useCorpus().value.annotationGroups, useCorpus().value.allAnnotationsMap, 'Search', this).map(
-				group => ({
-					...group,
-					label: group.label!,
-					id: group.label!.replace(/[^\w]/g, '_') + '_annotations',
-				}),
-			);
+			const result = getAnnotationSubset(UIStore.getState().search.extended.searchAnnotationIds, this.corpus.annotationGroups, this.corpus.allAnnotationsMap, 'Search', this).map(group => ({
+				...group,
+				label: group.label!,
+				id: group.label!.replace(/[^\w]/g, '_') + '_annotations',
+			}));
 			if (this.isParallelCorpus) {
 				// Make sure we have the correct field, so autosuggest works properly
 				const versionSelected = PatternStore.getState().shared.source !== null;
-				const field = PatternStore.getState().shared.source ?? useCorpus().value.mainAnnotatedField;
-				const fieldId = useCorpus().value.allAnnotatedFieldsMap[field]?.id;
+				const field = PatternStore.getState().shared.source ?? this.corpus.mainAnnotatedField;
+				const fieldId = this.corpus.allAnnotatedFieldsMap[field]?.id;
 				if (fieldId) {
 					result.forEach(tab => {
 						tab.entries = tab.entries.map(e => ({
@@ -183,24 +178,14 @@ export default defineComponent({
 			return this.tabs.flatMap(tab => tab.entries);
 		},
 		simpleSearchAnnotation(): AppTypes.NormalizedAnnotation {
-			const field = this.isParallelCorpus ? PatternStore.getState().shared.source : useCorpus().value.mainAnnotatedField;
+			const field = this.isParallelCorpus ? PatternStore.getState().shared.source : this.corpus.mainAnnotatedField;
 			const id = UIStore.getState().search.simple.searchAnnotationId;
-			const annotField = field ?? useCorpus().value.mainAnnotatedField;
-			const result = useCorpus().value.allAnnotatedFieldsMap[annotField]?.annotations[id] || useCorpus().value.firstMainAnnotation;
+			const annotField = field ?? this.corpus.mainAnnotatedField;
+			const result = this.corpus.allAnnotatedFieldsMap[annotField]?.annotations[id] || this.corpus.firstMainAnnotation;
 			return {
 				...result,
 				annotatedFieldId: field ?? '', // no autocomplete if no parallel version selected
 			};
-		},
-		simpleSearchAnnotationAutoCompleteUrl(): string {
-			return useBlackLabPaths().autocompleteAnnotation(useCorpus().value.id!, this.simpleSearchAnnotation.annotatedFieldId, this.simpleSearchAnnotation.id);
-		},
-		textDirection() {
-			return useCorpus().value.textDirection;
-		},
-		withinOptions(): Option[] {
-			const { enabled, elements } = UIStore.getState().search.shared.within;
-			return enabled ? elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
 		},
 		within: {
 			get(): string | null {
@@ -250,7 +235,7 @@ export default defineComponent({
 
 			// Can't just use the string, we need to generate the query when this is a parallel corpus
 
-			const mainAnnotationId = useCorpus().value.firstMainAnnotation.id;
+			const mainAnnotationId = this.corpus.firstMainAnnotation.id;
 			const builtQuery = getPatternStringFromCql(
 				PatternStore.getState().expert.query || '',
 				{}, // skip within for now?
@@ -260,7 +245,7 @@ export default defineComponent({
 			);
 			let parsed: Result[] | null = null;
 			try {
-				parsed = await parseBcql(useBlackLabApi(), useCorpus().value.id!, builtQuery, mainAnnotationId);
+				parsed = await parseBcql(useBlackLabApi(), this.corpus.id!, builtQuery, mainAnnotationId);
 			} catch {}
 			if (!parsed) {
 				this.parseQueryError = 'The querybuilder could not parse your query.';

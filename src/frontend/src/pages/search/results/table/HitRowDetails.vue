@@ -142,6 +142,7 @@ import HitContext from '@/pages/search/results/table/HitContext.vue';
 // TODO disconnect from the store?
 
 const blacklab = useBlackLabApi();
+const corpus = useCorpus();
 
 defineOptions({ name: 'HitRowDetails' });
 const props = withDefaults(defineProps<IRowProps<HitRowData>>(), IRowDefaultProps);
@@ -159,7 +160,7 @@ const addons = ref<Array<ReturnType<UIStore.ModuleRootState['results']['hits']['
 // For this to be available, the sentenceElement must be set (in the ui store)
 const sentenceShown = ref(false);
 
-const hasRelations = computed(() => useCorpus().value.hasRelations);
+const hasRelations = computed(() => corpus.value.hasRelations);
 /** Exact surrounding sentence can only be loaded if we the start location of the current hit, and when the boundery element has been set. */
 const sentenceAvailable = computed(() => hasRelations.value && !!UIStore.getState().search.shared.within.sentenceElement && 'start' in props.row.hit);
 
@@ -179,7 +180,7 @@ function loadSentence() {
 	// Need to track this, because results pay be paginated and this component may be reused across renders
 	// We should probably use asyncComputed or something but that's for later.
 	const nonce = props.row.hit;
-	const request = blacklab.getSnippet(useCorpus().value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, context);
+	const request = blacklab.getSnippet(corpus.value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, context);
 	sentenceRequest.value = request;
 	request
 		// check if hit hasn't changed in the meantime (due to component reuse)
@@ -206,7 +207,7 @@ function loadSnippet() {
 	const concordanceSize = UIStore.getState().results.shared.concordanceSize;
 
 	const nonce = props.row.hit;
-	const request = blacklab.getSnippet(useCorpus().value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, concordanceSize);
+	const request = blacklab.getSnippet(corpus.value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, concordanceSize);
 	snippetRequest.value = request;
 	request
 		.then(s => {
@@ -233,7 +234,7 @@ function loadSnippet() {
 					try {
 						return a({
 							docId: props.row.doc.docPid,
-							corpus: useCorpus().value.id!,
+							corpus: corpus.value.id!,
 							document: props.row.doc.docInfo,
 							documentUrl: props.row.href || '',
 							wordAnnotationId: props.info.mainAnnotation.id,

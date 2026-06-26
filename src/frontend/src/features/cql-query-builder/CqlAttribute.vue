@@ -15,6 +15,7 @@
 				data-menu-width="auto"
 				container="body"
 				data-class="btn btn-sm btn-default bl-no-border-radius-right"
+				:disabled
 				v-model="model.annotationId"
 			/>
 
@@ -28,6 +29,7 @@
 				hideCaret
 				container="body"
 				data-class="btn btn-sm btn-primary bl-no-border-radius"
+				:disabled
 				v-model="model.comparator"
 			/>
 
@@ -39,6 +41,7 @@
 				class="btn btn-default btn-sm bl-no-border-radius bl-token-attribute-main-input"
 				style="text-align: auto"
 				:title="$t('search.advanced.queryBuilder.attribute_file_upload_edit_button_title').toString()"
+				:disabled
 				@click="openModalEditor"
 			>
 				<span class="glyphicon glyphicon-edit"></span>
@@ -48,7 +51,6 @@
 			<SelectPicker
 				v-else-if="currentAnnotation?.values"
 				data-attribute-role="value"
-				data-width="auto"
 				:options="currentAnnotation.values.map(v => ({ ...v, value: escapeRegex(v.value) }))"
 				multiple
 				searchable
@@ -56,6 +58,7 @@
 				data-menu-width="auto"
 				data-class="btn btn-default btn-sm bl-no-border-radius bl-token-attribute-main-input"
 				class="bl-token-attribute-main-input"
+				:disabled
 				:modelValue="model.values"
 				@update:modelValue="model.values = $event || [] /* workaround for querbuilder emitting null sometimes */"
 			/>
@@ -64,10 +67,10 @@
 				v-else
 				data-attribute-role="value"
 				type="text"
-				data-width="auto"
 				data-class="form-control input-sm bl-no-border-radius bl-token-attribute-main-input"
 				:dir="options.textDirection"
 				:getData="autocomplete"
+				:disabled
 				useQuoteAsWordBoundary
 				v-model="textValue"
 			/>
@@ -77,20 +80,21 @@
 			<label
 				v-if="!hasUploadedValue"
 				class="btn btn-sm btn-default bl-no-border-radius bl-input-upload-button"
+				:class="{ disabled }"
 				:title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title').toString()"
 			>
-				<input type="file" accept="text/*" style="display: none" :title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title')" @change="handleFileUpload" />
+				<input type="file" accept="text/*" style="display: none" :title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title')" :disabled @change="handleFileUpload" />
 				<span class="glyphicon glyphicon-open"></span>
 				<span class="sr-only">{{ $t('search.advanced.queryBuilder.attribute_file_upload_button_title').toString() }}</span>
 			</label>
 
 			<!-- Add Controls -->
-			<CqlAddAttributeButton @click="emit('add-attribute-group', $event)" :options="options" />
+			<CqlAddAttributeButton @click="emit('add-attribute-group', $event)" :options :disabled />
 		</div>
 
 		<!-- Case Sensitive Checkbox -->
 		<label v-if="currentAnnotation && currentAnnotation.caseSensitive" class="bl-token-attribute-case-and-diacritics-sensitive">
-			<input type="checkbox" v-model="model.caseSensitive" />
+			<input type="checkbox" v-model="model.caseSensitive" :disabled />
 			{{ $t('search.advanced.queryBuilder.attribute_caseAndDiacriticsSensitive') }}
 		</label>
 		<Modal
@@ -103,7 +107,7 @@
 			@confirm="confirmModalEditor"
 		>
 			<template #body>
-				<textarea v-model="model.uploadedValue" class="form-control" rows="10" style="width: 100%; overflow: auto; resize: none; white-space: pre"></textarea>
+				<textarea v-model="model.uploadedValue" class="form-control" rows="10" style="width: 100%; overflow: auto; resize: none; white-space: pre" :disabled></textarea>
 			</template>
 			<template #footer>
 				<button type="button" class="btn btn-danger pull-left" @click="clearModalEditor">
@@ -117,14 +121,13 @@
 <script setup lang="ts">
 import { useVModel } from '@vueuse/core';
 import { computed, ref } from 'vue';
-
-import type { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
-
-import { useBlackLabApi } from '@/shared/api';
 // import useModel from './useModel';
+
+import type { CqlAnnotationCombinator, CqlAttributeData, CqlQueryBuilderOptions } from './model';
+
 import { escapeRegex } from '@/shared/utils/string-utils';
 
-import CqlAddAttributeButton from '@/components/cql/CqlAddAttributeButton.vue';
+import CqlAddAttributeButton from './CqlAddAttributeButton.vue';
 import Autocomplete from '@/shared/ui/Autocomplete.vue';
 import Modal from '@/shared/ui/Modal.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
@@ -132,6 +135,7 @@ import SelectPicker from '@/shared/ui/SelectPicker.vue';
 const props = defineProps<{
 	options: CqlQueryBuilderOptions;
 	modelValue: CqlAttributeData;
+	disabled?: boolean;
 }>();
 const emit = defineEmits<{
 	'update:modelValue': [value: CqlAttributeData];
@@ -144,15 +148,11 @@ const model = useVModel(props, 'modelValue', emit, {
 	passive: true,
 	clone: true,
 });
-
-const blacklab = useBlackLabApi();
-
 const showModal = ref(false);
 const currentAnnotation = computed(() => props.options.allAnnotationsMap[model.value.annotationId]);
-
-function autocomplete(term: string) {
+function autocomplete(term: string): Promise<string[]> {
 	if (!currentAnnotation.value) return Promise.resolve([]);
-	return blacklab.getTermAutocomplete(props.options.indexId, currentAnnotation.value.annotatedFieldId, currentAnnotation.value.id, term);
+	return props.options.autocomplete(currentAnnotation.value, term);
 }
 const hasUploadedValue = computed(() => !!model.value.uploadedValue);
 const uploadedValuesSummary = computed(() => {
@@ -176,6 +176,7 @@ function parseUploadedFile(contents: string): string[] {
 		.filter(line => line);
 }
 function handleFileUpload(event: Event) {
+	if (props.disabled) return;
 	const target = event.target as HTMLInputElement;
 	const file = target.files?.[0];
 	if (!file) return;
@@ -193,15 +194,18 @@ function handleFileUpload(event: Event) {
 }
 
 function confirmModalEditor() {
+	if (props.disabled) return;
 	model.value.values = parseUploadedFile(model.value.uploadedValue!);
 	closeModalEditor();
 }
 function clearModalEditor() {
+	if (props.disabled) return;
 	model.value.uploadedValue = undefined;
 	model.value.values = [''];
 	closeModalEditor();
 }
 function openModalEditor() {
+	if (props.disabled) return;
 	showModal.value = true;
 }
 function closeModalEditor() {

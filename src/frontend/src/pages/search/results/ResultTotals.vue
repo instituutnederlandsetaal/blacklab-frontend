@@ -93,6 +93,9 @@ export default defineComponent({
 			type: String,
 		},
 	},
+	data: () => ({
+		blacklab: useBlackLabApi(),
+	}),
 	computed: {
 		totals(): IterativeResultCountLoader {
 			return new IterativeResultCountLoader(
@@ -102,7 +105,7 @@ export default defineComponent({
 					operation: this.type,
 					results: this.initialResults,
 				},
-				useBlackLabApi(),
+				this.blacklab,
 			);
 		},
 

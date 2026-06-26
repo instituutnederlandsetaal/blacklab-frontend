@@ -253,6 +253,7 @@ export default defineComponent({
 
 		active: false,
 		blacklab: useBlackLabApi(),
+		corpus: useCorpus(),
 	}),
 	computed: {
 		storeModule(): ResultsStore.ViewModule {
@@ -264,16 +265,16 @@ export default defineComponent({
 		},
 
 		metadataGroups() {
-			return useCorpus().value.metadataGroups;
+			return this.corpus.metadataGroups;
 		},
 		metadataFieldsMap() {
-			return useCorpus().value.allMetadataFieldsMap;
+			return this.corpus.allMetadataFieldsMap;
 		},
 		annotationGroups() {
-			return useCorpus().value.annotationGroups;
+			return this.corpus.annotationGroups;
 		},
 		annotationsMap() {
-			return useCorpus().value.allAnnotationsMap;
+			return this.corpus.allAnnotationsMap;
 		},
 		defaultAnnotation(): string {
 			// sometimes grouping by the shown annotation itself isn't allowed (e.g. when it contains inline HTML)
@@ -422,8 +423,8 @@ export default defineComponent({
 				// Offer all span filters as grouping options, with a reference to the list,
 				// (e.g. with-spans[ab] to mean "group on the ab tag in the with-spans list")
 				const listName = listEntry[0];
-				if (useCorpus().value.relations.spans) {
-					Object.entries(useCorpus().value.relations.spans!).forEach(([tagName, spanInfo]) => {
+				if (this.corpus.relations.spans) {
+					Object.entries(this.corpus.relations.spans!).forEach(([tagName, spanInfo]) => {
 						if (spanInfo.attributes) {
 							options = [];
 							const attr = Object.keys(spanInfo.attributes);
@@ -447,7 +448,7 @@ export default defineComponent({
 						const sourceInThisField = this.relationSourceInThisField(matchInfo);
 						if (sourceInThisField) {
 							options = [];
-							const spanInfo = useCorpus().value.relations.spans![tagName];
+							const spanInfo = this.corpus.relations.spans![tagName];
 							const attr = Object.keys(spanInfo?.attributes ?? {});
 							attr.forEach(attributeName => {
 								optAdd(tagName, attributeName);
@@ -803,7 +804,7 @@ export default defineComponent({
 		},
 
 		isParallel(): boolean {
-			return useCorpus().value.isParallelCorpus ?? false;
+			return this.corpus.isParallelCorpus ?? false;
 		},
 
 		parallelVersionOptions(): Option[] {
@@ -814,7 +815,7 @@ export default defineComponent({
 			const patt = hasPatternInfo(summary) ? summary.pattern : undefined;
 			const fields = patt ? [patt.fieldName, ...(patt.otherFields ?? [])] : [];
 			return fields
-				.map(fieldName => useCorpus().value.parallelAnnotatedFieldsMap[fieldName])
+				.map(fieldName => this.corpus.parallelAnnotatedFieldsMap[fieldName])
 				.map(field => ({
 					value: field.id,
 					label: this.$tAnnotatedFieldDisplayName(field),
@@ -966,7 +967,7 @@ export default defineComponent({
 
 				this.hits = undefined;
 				if (this.firstHitPreviewQuery && this.type === 'hits') {
-					this.blacklab.getHits(useCorpus().value.id!, this.firstHitPreviewQuery).request.then(r => {
+					this.blacklab.getHits(this.corpus.id!, this.firstHitPreviewQuery).request.then(r => {
 						const data = r as BLHitResults;
 						if (isHitResults(data)) {
 							// Make sure the target hits (otherFields) 'know' they are the target of a relation.

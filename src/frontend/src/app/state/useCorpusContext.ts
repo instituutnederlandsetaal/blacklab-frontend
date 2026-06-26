@@ -1,4 +1,4 @@
-import { computed, hasInjectionContext, toValue, type MaybeRefOrGetter, type ObjectPlugin, type Ref } from 'vue';
+import { computed, hasInjectionContext, toValue, type FunctionPlugin, type MaybeRefOrGetter, type Ref } from 'vue';
 
 import { processTagset } from '@/features/corpus/model/tagset-state';
 import type {
@@ -16,8 +16,8 @@ import type {
 import type { BlackLabApi, CancelableRequest, FrontendApi } from '@/shared/api/lib/api-types';
 import { resolvedRequest } from '@/shared/api/lib/api-utils';
 import { mapReduce } from '@/shared/utils/array-utils';
-import { LoadableState } from '@/shared/utils/loadable/loadable-core';
 import { combineLoadables } from '@/shared/utils/loadable/loadable-combine-reactive';
+import { LoadableState } from '@/shared/utils/loadable/loadable-core';
 import { loadableFromRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
 import { mapLoadableReactive } from '@/shared/utils/loadable/loadable-reactive';
 import useInjectable from '@/shared/utils/useInjectable';
@@ -185,7 +185,12 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 	const tagsetValue: Ref<Tagset | undefined> = computed(() => tagsetLoadable.value.value);
 
 	return {
-		install(app) {
+		contextLoader: combinedLoadable,
+		context: combinedValue,
+		corpus: corpusValue,
+		config: configValue,
+		tagset: tagsetValue,
+		install: (app => {
 			provideCorpusContextLoader(app, combinedLoadable);
 			provideCorpusContext(app, combinedValue);
 			provideCfPageConfig(app, configValue);
@@ -193,8 +198,8 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 			// The value can be undefined in reality, so this is a lie, but usage is supposed to be gated to where the corpus is loaded.
 			installedCorpus = corpusValue as Ref<Corpus>;
 			provideCorpus(app, corpusValue as Ref<Corpus>);
-		},
-	} satisfies ObjectPlugin;
+		}) satisfies FunctionPlugin,
+	};
 }
 
 export {

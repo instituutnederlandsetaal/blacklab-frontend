@@ -43,6 +43,7 @@ const config: OxlintConfig = {
 	// They're generally grouped by type of check they perform, e.g. 'typescript' for rules that involve typescript-specific things, 'vue' for rules specific to Vue files, etc.
 	// the 'oxc' plugin is sort of the standard library of rules.
 	plugins: ['typescript', 'oxc', 'vue', 'vitest'],
+	jsPlugins: ['./lint-rules/no-use-in-computed.mjs'],
 	categories: {
 		// enables all rules in the "correctness" category.
 		correctness: 'error',
@@ -89,6 +90,7 @@ const config: OxlintConfig = {
 			},
 		],
 		'vitest/require-mock-type-parameters': 'allow',
+		'blacklab/no-use-in-computed': 'error',
 	},
 };
 

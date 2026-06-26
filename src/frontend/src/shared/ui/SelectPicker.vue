@@ -207,6 +207,7 @@ import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
 import { isSimpleOption, type Options, type SimpleOption, type OptGroup, isOption, isOptGroup, type Option } from '@/shared/utils/options';
+import useUid from '@/shared/utils/uid';
 
 type _uiOpt = {
 	type: 1;
@@ -341,7 +342,7 @@ export default defineComponent({
 		// (as container might be a parent element that hasn't fully mounted yet when we init)
 		containerEl: null as null | HTMLElement,
 
-		uid: nextMenuId++,
+		uid: useUid(),
 	}),
 	computed: {
 		searchableModel(): boolean {

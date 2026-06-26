@@ -7,6 +7,7 @@
 				type="button"
 				class="btn btn-xs btn-default"
 				:title="$t('search.advanced.queryBuilder.token_head_move_left_title').toString()"
+				:disabled
 				@click="emit('move-token-left', model.id)"
 			>
 				<span class="glyphicon glyphicon-chevron-left"></span>
@@ -16,6 +17,7 @@
 				type="button"
 				class="btn btn-xs btn-default"
 				:title="$t('search.advanced.queryBuilder.token_head_move_right_title').toString()"
+				:disabled
 				@click="emit('move-token-right', model.id)"
 			>
 				<span class="glyphicon glyphicon-chevron-right"></span>
@@ -25,7 +27,7 @@
 			<span :id="model.id + '_cql_preview'" class="bl-token-cql-preview">{{ tokenCql }}</span>
 
 			<!-- Delete Button -->
-			<button type="button" class="close" area-label="delete" :title="$t('search.advanced.queryBuilder.token_head_deleteButton_title').toString()" @click="emit('delete-token', model.id)">
+			<button type="button" class="close" area-label="delete" :title="$t('search.advanced.queryBuilder.token_head_deleteButton_title').toString()" :disabled @click="emit('delete-token', model.id)">
 				<span aria-hidden="true">&times;</span>
 			</button>
 		</div>
@@ -46,36 +48,36 @@
 			<div class="tab-content">
 				<!-- Attributes Tab -->
 				<div :id="model.id + '_tab_attributes'" class="tab-pane" :class="{ active: activeTab === 'attributes' }" style="padding: 15px">
-					<CqlAttributeGroup :is-root="true" :model-value="model.rootAttributeGroup" :options="options" @update:model-value="model.rootAttributeGroup = $event" />
+					<CqlAttributeGroup :is-root="true" :model-value="model.rootAttributeGroup" :options :disabled @update:model-value="model.rootAttributeGroup = $event" />
 				</div>
 
 				<!-- Properties Tab -->
 				<div :id="model.id + '_tab_properties'" class="tab-pane" :class="{ active: activeTab === 'properties' }" style="padding: 15px">
 					<div class="checkbox">
 						<label :title="$t('search.advanced.queryBuilder.body_tab_properties_optional_title').toString()">
-							<input type="checkbox" :id="model.id + '_property_optional'" v-model="model.properties.optional" />
+							<input type="checkbox" :id="model.id + '_property_optional'" v-model="model.properties.optional" :disabled />
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_optional') }}
 						</label>
 					</div>
 					<div class="checkbox">
 						<label :title="$t('search.advanced.queryBuilder.body_tab_properties_beginOfSentence_title').toString()">
-							<input type="checkbox" :id="model.id + '_property_sentence_start'" v-model="model.properties.beginOfSentence" />
+							<input type="checkbox" :id="model.id + '_property_sentence_start'" v-model="model.properties.beginOfSentence" :disabled />
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_beginOfSentence') }}
 						</label>
 					</div>
 					<div class="checkbox">
 						<label :title="$t('search.advanced.queryBuilder.body_tab_properties_endOfSentence_title').toString()">
-							<input type="checkbox" :id="model.id + '_property_sentence_end'" v-model="model.properties.endOfSentence" />
+							<input type="checkbox" :id="model.id + '_property_sentence_end'" v-model="model.properties.endOfSentence" :disabled />
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_endOfSentence') }}
 						</label>
 					</div>
 					<div class="input-group" style="width: 318px">
 						<span class="input-group-addon">{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_label') }}</span>
-						<input type="text" class="form-control" :id="model.id + '_property_repeats_min'" v-model.number="model.properties.minRepeats" />
+						<input type="text" class="form-control" :id="model.id + '_property_repeats_min'" v-model.number="model.properties.minRepeats" :disabled />
 						<span class="input-group-addon" style="border-left-width: 0px; border-right-width: 0px">
 							{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_to') }}
 						</span>
-						<input type="text" class="form-control" :id="model.id + '_property_repeats_max'" v-model.number="model.properties.maxRepeats" />
+						<input type="text" class="form-control" :id="model.id + '_property_repeats_max'" v-model.number="model.properties.maxRepeats" :disabled />
 						<span class="input-group-addon">{{ $t('search.advanced.queryBuilder.body_tab_properties_repeats_times') }}</span>
 					</div>
 				</div>
@@ -88,8 +90,8 @@
 import { useVModel } from '@vueuse/core';
 import { computed, ref } from 'vue';
 
-import type { CqlTokenData, CqlQueryBuilderOptions } from '@/components/cql/cql-types';
-import { CqlGenerator } from '@/components/cql/cql-types';
+import type { CqlTokenData, CqlQueryBuilderOptions } from './model';
+import { CqlGenerator } from './model';
 
 import CqlAttributeGroup from './CqlAttributeGroup.vue';
 
@@ -97,10 +99,12 @@ const props = withDefaults(
 	defineProps<{
 		options: CqlQueryBuilderOptions;
 		modelValue: CqlTokenData;
+		disabled?: boolean;
 		canMoveLeft?: boolean;
 		canMoveRight?: boolean;
 	}>(),
 	{
+		disabled: false,
 		canMoveLeft: false,
 		canMoveRight: false,
 	},

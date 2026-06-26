@@ -76,6 +76,7 @@ export default defineComponent({
 		FilterOverview,
 	},
 	data: () => ({
+		corpus: useCorpus(),
 		cancelFilterWatch: [] as Array<() => void>,
 	}),
 	methods: {
@@ -98,7 +99,7 @@ export default defineComponent({
 			},
 		},
 		textDirection(): string {
-			return useCorpus().value.textDirection;
+			return this.corpus.textDirection;
 		},
 		allFilters(): FilterStore.FullFilterState[] {
 			const seenIds = new Set<string>();
@@ -112,7 +113,7 @@ export default defineComponent({
 				});
 		},
 		tabs(): FilterStore.FilterGroupType[] {
-			const availableBuiltinFilters = useCorpus().value.allMetadataFieldsMap;
+			const availableBuiltinFilters = this.corpus.allMetadataFieldsMap;
 			const builtinFiltersToShow = UIStore.getState().search.shared.searchMetadataIds;
 			const customFilters = Object.keys(FilterStore.getState().filters).filter(id => !availableBuiltinFilters[id]);
 			const allIdsToShow = new Set(builtinFiltersToShow.concat(customFilters));

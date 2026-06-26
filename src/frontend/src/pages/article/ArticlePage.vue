@@ -164,6 +164,7 @@ const { contents$, hitToHighlight$, hits$, input$, metadata$, validPaginationPar
 const route = useRoute();
 const router = useRouter();
 const cfPageConfig = useCfPageConfig();
+const corpus = useCorpus();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 
 const metadata = loadableFromStream(metadata$);
@@ -180,12 +181,12 @@ const statistics = loadableFromStream(combineLoadableStreams([currentPageSnippet
 watchEffect(() => retrieveSnippetToggle$.next(activeArticleTab.value === 'statistics' && statisticsEnabled.value));
 
 const inputs = computed<Input>(() => ({
-	indexId: useCorpus().value.id,
+	indexId: corpus.value.id,
 	docId: getRouteParamString(route.params.docId),
 
-	viewField: getAnnotatedFieldFromQuery('field') ?? useCorpus().value.mainAnnotatedField,
+	viewField: getAnnotatedFieldFromQuery('field') ?? corpus.value.mainAnnotatedField,
 	// we canonically use 'searchfield' nowadays, but we used to use field/searchField, so keep those as fallbacks for backwards compatibility
-	searchfield: getAnnotatedFieldFromQuery('searchfield', 'searchField', 'field') ?? useCorpus().value.mainAnnotatedField,
+	searchfield: getAnnotatedFieldFromQuery('searchfield', 'searchField', 'field') ?? corpus.value.mainAnnotatedField,
 
 	wordstart: getNumberFromQuery('wordstart'),
 	wordend: getNumberFromQuery('wordend'),
@@ -196,12 +197,12 @@ const inputs = computed<Input>(() => ({
 }));
 
 const metadataFieldsToShow = computed(() =>
-	fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(useCorpus().value.allMetadataFieldsMap), useCorpus().value.metadataGroups, useCorpus().value.allMetadataFieldsMap),
+	fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(corpus.value.allMetadataFieldsMap), corpus.value.metadataGroups, corpus.value.allMetadataFieldsMap),
 );
 
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());
-const isParallel = computed(() => useCorpus().value.isParallelCorpus);
-const viewField = computed(() => useCorpus().value.allAnnotatedFieldsMap[inputs.value?.viewField ?? '']);
+const isParallel = computed(() => corpus.value.isParallelCorpus);
+const viewField = computed(() => corpus.value.allAnnotatedFieldsMap[inputs.value?.viewField ?? '']);
 
 watchEffect(() => {
 	if (!statisticsEnabled.value && activeArticleTab.value === 'statistics') activeArticleTab.value = 'content';
@@ -262,7 +263,7 @@ function getNumberFromQuery(key: string): number | null {
 
 function getAnnotatedFieldFromQuery(...keys: string[]): string | null {
 	const value = getStringFromQuery(...keys);
-	return value && useCorpus().value.allAnnotatedFieldsMap[value] ? value : null;
+	return value && corpus.value.allAnnotatedFieldsMap[value] ? value : null;
 }
 
 function updateArticleQuery(patch: Record<string, string | number | null | undefined>) {

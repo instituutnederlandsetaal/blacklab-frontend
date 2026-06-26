@@ -1,7 +1,7 @@
 import cloneDeep from 'clone-deep';
 
-import { CqlGenerator } from '@/components/cql/cql-types';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
+import { CqlGenerator } from '@/features/cql-query-builder/model';
 import type { ModuleRootState as ModuleRootStateExplore } from '@/features/search/model/form/explore-state';
 import type { ModuleRootState as ModuleRootStateFilters } from '@/features/search/model/form/filter-state';
 import type { ModuleRootState as ModuleRootStatePatterns } from '@/features/search/model/form/pattern-state';

@@ -73,10 +73,10 @@ import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid';
 
-import Autocomplete from '@/shared/ui/Autocomplete.vue';
-import SelectPicker from '@/shared/ui/SelectPicker.vue';
 import Lexicon from '@/pages/search/form/Lexicon.vue';
 import PartOfSpeech from '@/pages/search/form/PartOfSpeech.vue';
+import Autocomplete from '@/shared/ui/Autocomplete.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 const props = defineProps<{
 	annotation: NormalizedAnnotation;
@@ -92,6 +92,7 @@ const translate = useI18n();
 
 const blacklab = useBlackLabApi();
 const uid = useUid();
+const corpus = useCorpus();
 const posOpen = ref(false);
 
 const caseSensitive = computed<boolean>({
@@ -133,7 +134,7 @@ const value = computed<string>({
 	},
 });
 
-const textDirection = computed<string | undefined>(() => (props.annotation.isMainAnnotation ? useCorpus().value.textDirection : undefined));
+const textDirection = computed<string | undefined>(() => (props.annotation.isMainAnnotation ? corpus.value.textDirection : undefined));
 const inputId = computed(() => props.htmlId + '_value');
 const fileInputId = computed(() => props.htmlId + '_file');
 const caseInputId = computed(() => props.htmlId + '_case');
@@ -141,7 +142,7 @@ const displayName = computed(() => translate.$tAnnotDisplayName(props.annotation
 const description = computed(() => translate.$tAnnotDescription(props.annotation));
 const options = computed<Option[]>(() => props.annotation.values || []);
 const autocomplete = computed(() => props.annotation.uiType === 'combobox' && props.annotation.annotatedFieldId !== '');
-const autocompleteFn = (term: string) => blacklab.getTermAutocomplete(useCorpus().value.id, props.annotation.annotatedFieldId, props.annotation.id, term);
+const autocompleteFn = (term: string) => blacklab.getTermAutocomplete(corpus.value.id, props.annotation.annotatedFieldId, props.annotation.id, term);
 
 function onFileChanged(event: Event) {
 	const fileInput = event.target as HTMLInputElement;

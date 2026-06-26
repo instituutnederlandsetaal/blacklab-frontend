@@ -8,7 +8,7 @@ import { reactive, ref } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
-import type { CqlQueryBuilderData } from '@/components/cql/cql-types';
+import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { memoize } from '@/features/search/model/form/reactive-store';
 import type { AnnotationValue } from '@/types/apptypes';
 
@@ -79,7 +79,7 @@ const initialState: ModuleRootState = {
 		splitBatch: false,
 	},
 	advanced: {
-		query: { tokens: [], within: '' },
+		query: { tokens: [] },
 		targetQueries: [],
 	},
 	expert: {
@@ -153,7 +153,7 @@ const actions = {
 
 			if (payload?.length) {
 				while (state.advanced.targetQueries.length < payload.length) {
-					state.advanced.targetQueries.push({ tokens: [], within: '' });
+					state.advanced.targetQueries.push({ tokens: [] });
 				}
 				while (state.expert.targetQueries.length < payload.length) {
 					state.expert.targetQueries.push('');

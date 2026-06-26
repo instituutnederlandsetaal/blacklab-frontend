@@ -48,6 +48,9 @@ export default defineComponent({
 	props: {
 		modelValue: { type: [String, null] as PropType<string | null>, default: null },
 	},
+	data: () => ({
+		corpus: useCorpus(),
+	}),
 	computed: {
 		model: {
 			get(): string | null | undefined {
@@ -66,7 +69,7 @@ export default defineComponent({
 			if (!option) return [];
 
 			// Which, if any, attribute filter fields should be displayed for this element?
-			const availableAttr = Object.keys(useCorpus().value.relations.spans?.[option.value].attributes ?? {});
+			const availableAttr = Object.keys(this.corpus.relations.spans?.[option.value].attributes ?? {});
 			const attr = availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(option.value, attrName)).map(a => ({ value: a })) || [];
 
 			return attr.map(el => (typeof el === 'string' ? { value: el } : el));

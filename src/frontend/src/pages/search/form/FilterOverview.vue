@@ -46,14 +46,15 @@ import Spinner from '@/shared/ui/Spinner.vue';
 export default defineComponent({
 	components: { Spinner },
 	data: () => ({
+		corpus: useCorpus(),
 		subcorpus: selectedSubcorpusLoader,
 	}),
 	computed: {
 		indexAndFilter() {
 			return {
-				index: useCorpus().value,
+				index: this.corpus,
 				filter: FilterStore.get.luceneQuery(),
-				annotatedFieldId: PatternStore.get.shared().source || useCorpus().value.mainAnnotatedField,
+				annotatedFieldId: PatternStore.get.shared().source || this.corpus.mainAnnotatedField,
 			};
 		},
 		activeFilters: FilterStore.get.activeFilters,
@@ -70,10 +71,10 @@ export default defineComponent({
 		},
 
 		totalCorpusTokens(): number {
-			return useCorpus().value.tokenCount;
+			return this.corpus.tokenCount;
 		},
 		totalCorpusDocs(): number {
-			return useCorpus().value.documentCount;
+			return this.corpus.documentCount;
 		},
 	},
 	methods: {

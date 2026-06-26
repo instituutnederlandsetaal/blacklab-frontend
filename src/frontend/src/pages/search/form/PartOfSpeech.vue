@@ -82,12 +82,13 @@ export default defineComponent({
 		open: { type: Boolean, default: true },
 	},
 	data: () => ({
+		corpus: useCorpus(),
 		annotationValue: null as null | Tagset['values'][string],
 		selected: {} as { [key: string]: boolean },
 	}),
 	computed: {
 		allAnnotations() {
-			return useCorpus().value.allAnnotationsMap;
+			return this.corpus.allAnnotationsMap;
 		},
 		tagset: TagsetStore.getState,
 		query(): string {

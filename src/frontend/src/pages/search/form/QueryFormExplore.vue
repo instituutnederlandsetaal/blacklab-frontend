@@ -186,7 +186,7 @@ export default defineComponent({
 		},
 
 		ngramTokens() {
-			const allAnnotations = useCorpus().value.allAnnotationsMap;
+			const allAnnotations = this.corpus.allAnnotationsMap;
 			return ExploreStore.get.ngram.tokens().map(tok => ({
 				...tok,
 				annotation: allAnnotations[tok.id],
@@ -211,8 +211,8 @@ export default defineComponent({
 		annotationSearchOptions(): Option[] | OptGroup[] {
 			const optGroups = getAnnotationSubset(
 				UIStore.getState().explore.searchAnnotationIds,
-				useCorpus().value.annotationGroups,
-				useCorpus().value.allAnnotationsMap,
+				this.corpus.annotationGroups,
+				this.corpus.allAnnotationsMap,
 				'Search',
 				this,
 				debug.value,
@@ -223,8 +223,8 @@ export default defineComponent({
 		annotationGroupByOptions(): Option[] | OptGroup[] {
 			const optGroups = getAnnotationSubset(
 				UIStore.getState().results.shared.groupAnnotationIds,
-				useCorpus().value.annotationGroups,
-				useCorpus().value.allAnnotationsMap,
+				this.corpus.annotationGroups,
+				this.corpus.allAnnotationsMap,
 				'Search', // we don't want the before hit/after hit context options, just do search mode, it'll be fine
 				this,
 				debug.value,
@@ -246,8 +246,8 @@ export default defineComponent({
 
 			const optGroups = getMetadataSubset(
 				UIStore.getState().results.shared.groupMetadataIds,
-				useCorpus().value.metadataGroups,
-				useCorpus().value.allMetadataFieldsMap,
+				this.corpus.metadataGroups,
+				this.corpus.allMetadataFieldsMap,
 				'Group',
 				this,
 				debug.value,
@@ -276,7 +276,7 @@ export default defineComponent({
 		},
 
 		mainTokenTextDirection() {
-			return useCorpus().value.textDirection;
+			return this.corpus.textDirection;
 		},
 	},
 	methods: {
@@ -293,7 +293,7 @@ export default defineComponent({
 			});
 		},
 		autocomplete(annot: NormalizedAnnotation, term: string) {
-			return this.blacklab.getTermAutocomplete(useCorpus().value.id!, annot.annotatedFieldId, annot.id, term);
+			return this.blacklab.getTermAutocomplete(this.corpus.id!, annot.annotatedFieldId, annot.id, term);
 		},
 	},
 	created() {

@@ -57,6 +57,7 @@ defineOptions({ name: 'GroupRowDetails' });
 const props = withDefaults(defineProps<IRowProps<GroupRowData>>(), IRowDefaultProps);
 
 const blacklab = useBlackLabApi();
+const corpus = useCorpus();
 
 // NOTE: was initially created using a watcher on props.row only,
 // but that leaves the type as T|undefined, so computed it is
@@ -72,10 +73,10 @@ const concordances = computed(
 				first,
 				viewgroup: props.row.id,
 				// if parallel corpus, show aligned hits first. (if not, we don't care about order)
-				sort: useCorpus().value.isParallelCorpus ? 'alignments' : undefined,
+				sort: corpus.value.isParallelCorpus ? 'alignments' : undefined,
 			};
 
-			const indexId = useCorpus().value.id!;
+			const indexId = corpus.value.id!;
 			const r = props.type === 'hits' ? blacklab.getHits<BLHitResults>(indexId, requestParameters) : blacklab.getDocs<BLDocResults>(indexId, requestParameters);
 
 			return r

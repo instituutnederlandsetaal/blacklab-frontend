@@ -62,11 +62,12 @@ export default defineComponent({
 		disabled: Boolean,
 	},
 	data: () => ({
+		corpus: useCorpus(),
 		downloadInProgress: false,
 	}),
 	computed: {
 		spanAttributesToExport(): string[] {
-			const spans = Object.entries(useCorpus().value.relations.spans || {});
+			const spans = Object.entries(this.corpus.relations.spans || {});
 			return spans.flatMap(([spanName, spanInfo]) =>
 				Object.keys(spanInfo.attributes || {})
 					.map(attrName => [spanName, attrName])
@@ -91,17 +92,17 @@ export default defineComponent({
 			(params as any).csvsummary = true;
 			const fieldDisplayName = (name: string, baseFieldName: string = '') => {
 				const summary = this.results?.summary;
-				const defaultField = (hasPatternInfo(summary) ? summary.pattern?.fieldName : undefined) ?? useCorpus().value.mainAnnotatedField;
+				const defaultField = (hasPatternInfo(summary) ? summary.pattern?.fieldName : undefined) ?? this.corpus.mainAnnotatedField;
 				name = ensureCompleteFieldName(name, defaultField); // don't just pass version name
-				const field = useCorpus().value.allAnnotatedFieldsMap[name];
+				const field = this.corpus.allAnnotatedFieldsMap[name];
 				return this.$tAnnotatedFieldDisplayName(field);
 			};
 			(params as any).csvdescription = corpusCustomizations.results.export.description(this.results.summary, fieldDisplayName) || '';
 
-			const apir = apiCall(useCorpus().value.id!, params);
+			const apir = apiCall(this.corpus.id!, params);
 
 			debugLog('export', 'starting csv download', this.type, params);
-			apiCall(useCorpus().value.id!, params)
+			apiCall(this.corpus.id!, params)
 				.request.then(
 					async blob => {
 						const { saveAs } = await import('file-saver');

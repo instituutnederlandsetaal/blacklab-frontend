@@ -1,3 +1,5 @@
+import { type VNodeProps, type AllowedComponentProps, type ComponentCustomProps, type Component } from 'vue';
+
 /** Recursively make all fields optional */
 export type RecursivePartial<T> = {
 	[P in keyof T]?: T[P] extends Array<infer U> ? Array<RecursivePartial<U>> : T[P] extends object ? RecursivePartial<T[P]> : T[P];
@@ -7,15 +9,15 @@ export type RecursiveRequired<T> = {
 	[P in keyof T]-?: T[P] extends Array<infer U> ? Array<RecursiveRequired<U>> : T[P] extends object ? RecursiveRequired<T[P]> : Required<T>[P];
 };
 
-export type NonNullableObject<T> = {
-	[P in keyof T]: P extends undefined ? P[] : T[P];
-};
-
-type RequiredNotNull<T> = {
+type NonNullableObject<T> = {
 	[P in keyof T]: NonNullable<T[P]>;
 };
 
-export type MarkRequiredAndNotNull<T, K extends keyof T = keyof T> = T extends string | number | boolean ? T : T extends undefined | null ? never : T & Required<RequiredNotNull<Pick<T, K>>>;
+export type MarkRequiredAndNotNull<T, K extends keyof T = keyof T> = T extends string | number | boolean
+	? T
+	: T extends undefined | null
+		? never
+		: Omit<T, K> & Required<Pick<NonNullableObject<T>, K>>;
 
 /** Keep only those properties assignable to T  */
 export type FilterProps<TObj, T> = {
@@ -50,5 +52,42 @@ export namespace UnionHelpers {
 	 * type C = Merge<A|B>; //  {a: string|number|undefined, b: string|undefined}
 	 * ```
 	 */
-	export type Merge<T extends object> = { [k in CommonKeys<T>]: PickTypeOf<T, k> } & { [k in NonCommonKeys<T>]?: PickTypeOf<T, k> };
+	export type Merge<T extends object> = { [k in CommonKeys<T>]: PickTypeOf<T, k> } & {
+		[k in NonCommonKeys<T>]?: PickTypeOf<T, k>;
+	};
 }
+
+type IsKeyOptional<T, Keys extends keyof T> = { [Key in Keys]?: T[Key] } extends Pick<T, Keys> ? true : false;
+
+export type AreAllPropertiesOptional<T> = IsKeyOptional<T, keyof T> extends true ? true : false;
+
+type RequiredKeys<T> = {
+	[K in keyof T]-?: {} extends Pick<T, K> ? never : K;
+}[keyof T];
+
+type SharedKeys<A, B> = Extract<keyof A, keyof B>;
+
+type MissingRequiredKeys<Node extends object, Props extends object> = {
+	[K in RequiredKeys<Props>]: K extends keyof Node ? ({} extends Pick<Node, K> ? K : Node[K] extends Props[K] ? never : K) : K;
+}[RequiredKeys<Props>];
+
+type IncompatibleSharedKeys<Node extends object, Props extends object> = {
+	[K in SharedKeys<Node, Props>]: Node[K] extends Props[K] ? never : K;
+}[SharedKeys<Node, Props>];
+
+export type AnyVueComponent = new (...args: any) => { $props: any };
+
+type VueBuiltinPropKeys = keyof (VNodeProps & AllowedComponentProps & ComponentCustomProps);
+
+export type PublicPropsOf<C extends AnyVueComponent> = Omit<InstanceType<C>['$props'], VueBuiltinPropKeys>;
+
+export type ConstrainComponentToProvidedProps<C extends AnyVueComponent, ProvidedProps extends object> =
+	MissingRequiredKeys<ProvidedProps, PublicPropsOf<C>> extends never
+		? IncompatibleSharedKeys<ProvidedProps, PublicPropsOf<C>> extends never
+			? C
+			: Component<Partial<ProvidedProps>>
+		: Component<Partial<ProvidedProps>>;
+
+export type DistributiveOmit<T, Keys extends PropertyKey> = T extends unknown ? Omit<T, Keys> : never;
+
+export type NoExtraProperties<Expected, Actual extends Expected> = Expected extends unknown ? (Actual extends Expected ? Actual & Record<Exclude<keyof Actual, keyof Expected>, never> : never) : never;
