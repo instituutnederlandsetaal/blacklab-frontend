@@ -135,6 +135,7 @@
 		"debugLogCategories": "Debug log categories",
 		"debugLogCategoriesAll": "All",
 		"hideDebugUntilReload": "Hide debug checkbox until next reload",
+		"useNewSearchForm": "Use new search form",
 		"close": "Close"
 	},
 	"queryForm": {

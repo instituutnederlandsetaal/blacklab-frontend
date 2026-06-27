@@ -17,12 +17,15 @@
 		</ul>
 		<div class="tab-content" :class="{ parallel: isParallelCorpus }">
 			<div :class="['tab-pane form-horizontal', { active: activePattern === 'simple' }]" id="simple">
-				<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
-				<!-- TODO render the full annotation instance? requires some changes to bind to store correctly and apply appropriate classes though -->
-				<div class="form-group form-group-lg">
-					<label class="control-label" :for="simpleSearchAnnotation.id + '_' + uid" :title="$tAnnotDescription(simpleSearchAnnotation)">{{ $tAnnotDisplayName(simpleSearchAnnotation) }} </label>
-					<Annotation :key="'simple/' + simpleSearchAnnotation.id" :htmlId="'simple/' + simpleSearchAnnotation.id" :annotation="simpleSearchAnnotation" bare simple />
-				</div>
+				<template v-if="newForm"> Rendering new simple search </template>
+				<template v-else>
+					<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+					<!-- TODO render the full annotation instance? requires some changes to bind to store correctly and apply appropriate classes though -->
+					<div class="form-group form-group-lg">
+						<label class="control-label" :for="simpleSearchAnnotation.id + '_' + uid" :title="$tAnnotDescription(simpleSearchAnnotation)">{{ $tAnnotDisplayName(simpleSearchAnnotation) }} </label>
+						<Annotation :key="'simple/' + simpleSearchAnnotation.id" :htmlId="'simple/' + simpleSearchAnnotation.id" :annotation="simpleSearchAnnotation" bare simple />
+					</div>
+				</template>
 			</div>
 			<div :class="['tab-pane form-horizontal', { active: activePattern === 'extended' }]" id="extended">
 				<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
@@ -100,6 +103,7 @@ import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
+import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
 import type * as AppTypes from '@/types/apptypes';
 
 import ParallelFields from './parallel/ParallelFields';
@@ -137,6 +141,9 @@ export default defineComponent({
 		subscriptions: [] as Array<() => void>,
 	}),
 	computed: {
+		newForm(): boolean {
+			return GlobalViewSettings.getState().useNewSearchForm;
+		},
 		activePattern: {
 			get(): string {
 				return InterfaceStore.getState().patternMode;

@@ -135,6 +135,7 @@
 		"debugLogCategories": "Debuglog-categorieen",
 		"debugLogCategoriesAll": "Alles",
 		"hideDebugUntilReload": "Verberg debug-informatie checkbox gedurende deze sessie",
+		"useNewSearchForm": "Gebruik nieuw zoekformulier",
 		"close": "Sluiten"
 	},
 	"queryForm": {

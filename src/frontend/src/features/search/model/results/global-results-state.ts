@@ -21,9 +21,11 @@ type ModuleRootState = {
 	sampleSize: number | null;
 	/** context can be a string or number in BlackLab, but for now in the form we only allow numbers. */
 	context: number | string | null;
+
+	useNewSearchForm: boolean;
 };
 
-type ExternalModuleRootState = Omit<ModuleRootState, 'pageSize'>;
+type ExternalModuleRootState = Omit<ModuleRootState, 'pageSize' | 'useNewSearchForm'>;
 
 // Create state directly from defaults,
 // so we don't have to sync with local storage twice on initialization.
@@ -33,6 +35,7 @@ const state: ModuleRootState = reactive({
 	sampleSeed: null,
 	sampleSize: null,
 	context: null,
+	useNewSearchForm: useLocalStorage('cf/useNewSearchForm', true),
 });
 const getState = () => state;
 
@@ -87,6 +90,9 @@ const actions = {
 	},
 	context: (payload: number | string | null) => {
 		state.context = payload;
+	},
+	useNewSearchForm: (payload: boolean) => {
+		state.useNewSearchForm = payload;
 	},
 
 	reset: () => {

@@ -1,0 +1,37 @@
+import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
+import { queryFragment } from '@/features/form/model/compile/query-artifact';
+import { createFieldController } from '@/features/form/model/types/form-controllers';
+
+import type { Options } from '@/shared/utils/options';
+
+export type ExploreCorporaFieldState = {
+	corporaGroupBy: string | null;
+	corporaGroupDisplayMode: string | null;
+};
+
+export const createDefaultExploreCorporaFieldState = (): ExploreCorporaFieldState => ({
+	corporaGroupBy: null,
+	corporaGroupDisplayMode: null,
+});
+
+export type ExploreCorporaFieldUiConfig = GenericFieldUiConfig & {
+	metadataGroupByOptions: Options;
+};
+
+// todo controller
+export const ExplorerCorporaFieldController = createFieldController<'explore-corpora', ExploreCorporaFieldState, ExploreCorporaFieldUiConfig>({
+	kind: 'explore-corpora',
+	affectsBlackLabParameters: [],
+	createDefaultState: createDefaultExploreCorporaFieldState,
+	getQueryContribution: (config, runtime, state) => {
+		// no explicit query
+		// TODO return groupby mode and groupby display mode as query contribution, if set
+		return queryFragment({});
+	},
+	getPersistKey: (config, runtime) => `explore-corpora`,
+	// TODO
+	encode: (state, config, runtime) => {},
+	restore: (payload, config, runtime) => {
+		return createDefaultExploreCorporaFieldState();
+	},
+});

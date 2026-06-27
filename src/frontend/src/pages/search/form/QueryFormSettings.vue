@@ -50,19 +50,24 @@
 			</div>
 		</div>
 		<hr />
-		<div class="checkbox-inline">
+		<div class="checkbox">
 			<label for="wide-view"><input type="checkbox" id="wide-view" name="wide-view" v-model="wideView.value" />{{ $t('setting.wideView') }}</label>
 		</div>
-		<br />
+		<div class="checkbox">
+			<label for="use-new-search-form"> <input type="checkbox" id="use-new-search-form" name="use-new-search-form" v-model="useNewSearchForm" />{{ $t('setting.useNewSearchForm') }} </label>
+		</div>
 
 		<template v-if="debug_visible || debug">
-			<div class="checkbox-inline">
-				<label for="debug" class="text-muted"><input type="checkbox" id="debug" name="debug" v-model="debug" />{{ $t('setting.debug') }}</label>
+			<div class="checkbox">
+				<label for="debug" class="text-muted">
+					<input type="checkbox" id="debug" name="debug" v-model="debug" />
+					{{ $t('setting.debug') }}</label
+				>
 			</div>
 			<br />
 			<div v-if="debug_visible && debugCategories.length" class="debug-log-categories">
 				<label class="text-muted">{{ $t('setting.debugLogCategories') }}</label>
-				<div>
+				<div class="btn-group">
 					<button
 						v-for="category in debugCategories"
 						:key="category"
@@ -201,6 +206,14 @@ export default defineComponent({
 			},
 			set(v: string) {
 				GlobalViewSettings.actions.context(this.atoi(v));
+			},
+		},
+		useNewSearchForm: {
+			get(): boolean {
+				return GlobalViewSettings.getState().useNewSearchForm;
+			},
+			set(v: boolean) {
+				GlobalViewSettings.actions.useNewSearchForm(v);
 			},
 		},
 	},

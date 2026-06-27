@@ -135,6 +135,7 @@
 		"debugLogCategories": "调试日志类别",
 		"debugLogCategoriesAll": "全部",
 		"hideDebugUntilReload": "在重新加载之前隐藏“显示调试信息”复选框",
+		"useNewSearchForm": "使用新版搜索表单",
 		"close": "关闭"
 	},
 	"queryForm": {

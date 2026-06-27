@@ -1,0 +1,111 @@
+{
+	"values": {
+		"AA": {
+			"value": "AA",
+			"displayName": "Adjective-Adverb",
+			"subAnnotationIds": []
+		},
+		"ADP": {
+			"value": "ADP",
+			"displayName": "Adposition",
+			"subAnnotationIds": []
+		},
+		"ADV": {
+			"value": "ADV",
+			"displayName": "Adverb",
+			"subAnnotationIds": []
+		},
+		"CONJ": {
+			"value": "CONJ",
+			"displayName": "Conjunction",
+			"subAnnotationIds": []
+		},
+		"INT": {
+			"value": "INT",
+			"displayName": "Interjection",
+			"subAnnotationIds": []
+		},
+		"NOU-C": {
+			"value": "NOU-C",
+			"displayName": "Common Noun",
+			"subAnnotationIds": []
+		},
+		"NOU-P": {
+			"value": "NOU-P",
+			"displayName": "Proper Noun",
+			"subAnnotationIds": ["pos_type"]
+		},
+		"NUM": {
+			"value": "NUM",
+			"displayName": "Numeral",
+			"subAnnotationIds": []
+		},
+		"PD": {
+			"value": "PD",
+			"displayName": "Pronoun",
+			"subAnnotationIds": ["pos_subtype"]
+		},
+		"RES": {
+			"value": "RES",
+			"displayName": "Residual",
+			"subAnnotationIds": ["pos_type"]
+		},
+		"VRB": {
+			"value": "VRB",
+			"displayName": "Verb",
+			"subAnnotationIds": []
+		}
+	},
+	"subAnnotations": {
+		"pos_type": {
+			"id": "pos_type",
+			"values": [
+				{
+					"value": "per",
+					"displayName": "Person",
+					"pos": ["NOU-P"]
+				},
+				{
+					"value": "loc",
+					"displayName": "Location",
+					"pos": ["NOU-P"]
+				},
+				{
+					"value": "org",
+					"displayName": "Organisation",
+					"pos": ["NOU-P"]
+				},
+				{
+					"value": "oth",
+					"displayName": "Other",
+					"pos": ["NOU-P", "RES"]
+				},
+				{
+					"value": "for",
+					"displayName": "Foreign",
+					"pos": ["RES"]
+				},
+				{
+					"value": "uncl",
+					"displayName": "Unclear",
+					"pos": ["RES"]
+				}
+			]
+		},
+		"pos_subtype": {
+			"id": "pos_subtype",
+			"values": [
+				{
+					"value": "art",
+					"displayName": "Article",
+					"pos": ["PD"]
+				},
+				{
+					"value": "oth",
+					"displayName": "Other",
+					"pos": ["PD"]
+				}
+			]
+		}
+	}
+}
