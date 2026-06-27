@@ -22,7 +22,8 @@
 		"types": ["vitest", "vite/client"],
 
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": ["./src/*"],
+			"@test/*": ["./test/*"]
 		}
 	},
 	"include": ["test/**/*.ts", "src/**/*.d.ts"]
