@@ -17,6 +17,7 @@ import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import { createBlfRouter } from '@/navigation/router';
+import startUrlSync from '@/url/url-state-sync';
 
 import { createApi } from '@/shared/api';
 import { createLoginSystem, type LoginSystemConfig } from '@/shared/auth/loginsystem';
@@ -90,7 +91,7 @@ async function start() {
 
 	installStoreInspectorDevtools(app);
 	startCorpusBootstrapEffect(app);
-	// startStoreToUrlReflection(),
+	app.runWithContext(() => startUrlSync(router.router));
 	app.runWithContext(() => startCustomizationInterop());
 
 	const instance = app.mount('#vue-root'); // mount early, so that the app is available for interop code (e.g. customjs) to use.

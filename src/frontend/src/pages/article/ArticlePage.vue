@@ -132,7 +132,7 @@
 import { UseDraggable } from '@vueuse/components';
 import type { Position } from '@vueuse/core';
 import { computed, onUnmounted, ref, watch, watchEffect } from 'vue';
-import { useRoute, useRouter, type LocationQueryRaw, type LocationQueryValue } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import * as UIStore from '@/app/state/ui-state';
 import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
@@ -140,6 +140,7 @@ import * as ArticleStore from '@/features/article/model/article-state';
 import createTooltips, { type TooltipContext } from '@/modules/expandable-tooltips';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
+import { getAnnotatedFieldFromRouteQuery, getNumberFromRouteQuery, getRouteParamString, getStringFromRouteQuery, updateRouteQuery } from '@/url/route-query';
 
 import { createArticleStreams, type Input } from './article';
 
@@ -184,16 +185,16 @@ const inputs = computed<Input>(() => ({
 	indexId: corpus.value.id,
 	docId: getRouteParamString(route.params.docId),
 
-	viewField: getAnnotatedFieldFromQuery('field') ?? corpus.value.mainAnnotatedField,
+	viewField: getAnnotatedFieldFromRouteQuery(route, corpus.value.allAnnotatedFieldsMap, 'field') ?? corpus.value.mainAnnotatedField,
 	// we canonically use 'searchfield' nowadays, but we used to use field/searchField, so keep those as fallbacks for backwards compatibility
-	searchfield: getAnnotatedFieldFromQuery('searchfield', 'searchField', 'field') ?? corpus.value.mainAnnotatedField,
+	searchfield: getAnnotatedFieldFromRouteQuery(route, corpus.value.allAnnotatedFieldsMap, 'searchfield', 'searchField', 'field') ?? corpus.value.mainAnnotatedField,
 
-	wordstart: getNumberFromQuery('wordstart'),
-	wordend: getNumberFromQuery('wordend'),
+	wordstart: getNumberFromRouteQuery(route, 'wordstart'),
+	wordend: getNumberFromRouteQuery(route, 'wordend'),
 	pageSize: cfPageConfig.value.pageSize,
-	findhit: getNumberFromQuery('findhit'),
-	patt: getStringFromQuery('patt') ?? getStringFromQuery('query'),
-	pattgapdata: getStringFromQuery('pattgapdata'),
+	findhit: getNumberFromRouteQuery(route, 'findhit'),
+	patt: getStringFromRouteQuery(route, 'patt', 'query'),
+	pattgapdata: getStringFromRouteQuery(route, 'pattgapdata'),
 }));
 
 const metadataFieldsToShow = computed(() =>
@@ -237,46 +238,8 @@ function scrollCurrentHitIntoView() {
 	window.requestAnimationFrame(() => hit.scrollIntoView({ block: 'center', behavior: 'smooth' }));
 }
 
-function getRouteParamString(value: unknown): string | null {
-	return typeof value === 'string' && value.length > 0 ? value : null;
-}
-
-function firstQueryValue(value: LocationQueryValue | LocationQueryValue[]): string | null {
-	const raw = Array.isArray(value) ? value[0] : value;
-	return typeof raw === 'string' && raw.length > 0 ? raw : null;
-}
-
-function getStringFromQuery(...keys: string[]): string | null {
-	for (const key of keys) {
-		const value = firstQueryValue(route.query[key]);
-		if (value != null) return value;
-	}
-	return null;
-}
-
-function getNumberFromQuery(key: string): number | null {
-	const value = getStringFromQuery(key);
-	if (value == null) return null;
-	const parsed = Number.parseInt(value, 10);
-	return Number.isFinite(parsed) ? parsed : null;
-}
-
-function getAnnotatedFieldFromQuery(...keys: string[]): string | null {
-	const value = getStringFromQuery(...keys);
-	return value && corpus.value.allAnnotatedFieldsMap[value] ? value : null;
-}
-
 function updateArticleQuery(patch: Record<string, string | number | null | undefined>) {
-	const query: LocationQueryRaw = {
-		...route.query,
-	};
-
-	for (const [key, value] of Object.entries(patch)) {
-		if (value == null) delete query[key];
-		else query[key] = String(value);
-	}
-
-	return router.push({ name: route.name ?? undefined, params: route.params, query });
+	return updateRouteQuery(router, route, patch);
 }
 
 watch(
