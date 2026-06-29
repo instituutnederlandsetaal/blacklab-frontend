@@ -1,0 +1,526 @@
+// @vitest-environment jsdom
+
+import { mount, type VueWrapper } from '@vue/test-utils';
+import { describe, expect, test } from 'vitest';
+import { computed, defineComponent, h, nextTick, ref } from 'vue';
+
+import {
+	type FormBuilder,
+	annotationTextController,
+	expertQueryController,
+	filterTextController,
+	parallelController,
+	withinController,
+	type FormBoundaryNode,
+	type FormFieldNode,
+	type FormViewNode,
+	type SummaryEntry,
+} from '@/features/form';
+import { provideFormSystemRuntime, provideParentForm } from '@/features/form/model/runtime';
+
+import { createTestBuilder } from './helpers';
+
+import TextField from '@/features/form/fields/generic/TextField.vue';
+import ParallelField from '@/features/form/fields/ParallelField.vue';
+import RawCqlField from '@/features/form/fields/RawCqlField.vue';
+import WithinField from '@/features/form/fields/WithinField.vue';
+import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
+import HeadingView from '@/features/form/views/HeadingView.vue';
+import SummaryView from '@/features/form/views/SummaryView.vue';
+import TotalsView from '@/features/form/views/TotalsView.vue';
+import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
+
+type FieldExpectation = {
+	state: unknown;
+	summaries: SummaryEntry[];
+};
+
+type FieldPlacement = 'direct' | 'container' | 'nested-container';
+type FormSystemRuntime = FormBuilder;
+
+type FieldHarness<TField extends FormFieldNode = FormFieldNode> = {
+	field: TField;
+	form: FormBoundaryNode;
+	runtime: FormSystemRuntime;
+	wrapper: VueWrapper<any>;
+};
+
+type RuntimeFieldHarness<TField extends FormFieldNode = FormFieldNode> = Omit<FieldHarness<TField>, 'wrapper'>;
+
+const languageOptions = [
+	{
+		id: 'contents__de',
+		defaultDisplayName: 'German',
+	},
+	{
+		id: 'contents__en',
+		defaultDisplayName: 'English',
+	},
+	{
+		id: 'contents__nl',
+		defaultDisplayName: 'Dutch',
+	},
+];
+
+const withinOptions = [
+	{ value: '', label: 'shouldNotEndUpInSummaryValue.within.document' },
+	{
+		value: 'within-state.element.selected',
+		label: 'shouldEndUpInSummaryValue.within',
+		attributes: [
+			{
+				value: 'shouldEndUpInState.within.attribute',
+				label: 'shouldEndUpInState.within.attribute.label',
+			},
+		],
+	},
+	{ value: 'within-state.element.other', label: 'shouldNotEndUpInSummaryValue.within.other' },
+];
+
+const fieldExpectations = {
+	annotation: {
+		state: { value: 'shouldEndUpInSummaryValue.annotation', caseSensitive: true },
+		summaries: [
+			{
+				id: 'shouldEndUpInSummaryId.annotation',
+				label: 'shouldEndUpInSummaryLabel.annotation',
+				value: 'shouldEndUpInSummaryValue.annotation',
+				group: 'shouldEndUpInSummaryGroup.annotation',
+			},
+		],
+	},
+	metadataFilter: {
+		state: { value: 'shouldEndUpInSummaryValue.metadata', caseSensitive: false },
+		summaries: [
+			{
+				id: 'shouldEndUpInSummaryId.metadata.node',
+				label: 'shouldEndUpInSummaryLabel.metadata',
+				value: 'shouldEndUpInSummaryValue.metadata',
+			},
+		],
+	},
+	parallel: {
+		state: {
+			source: 'contents__en',
+			targets: ['contents__nl'],
+			alignBy: 'parallel-state.align.selected',
+			sourceState: '[lemma="house"]',
+			targetStates: {
+				contents__nl: '[lemma="huis"]',
+			},
+		},
+		summaries: [
+			{
+				id: 'shouldEndUpInSummaryId.parallel.node.source',
+				label: 'search.parallel.searchSourceVersion',
+				value: 'English',
+			},
+			{
+				id: 'shouldEndUpInSummaryId.parallel.node.targets',
+				label: 'search.parallel.andCompareWithTargetVersions',
+				value: 'Dutch',
+			},
+			{
+				id: 'shouldEndUpInSummaryId.parallel.node.alignBy',
+				label: 'search.parallel.alignBy',
+				value: 'parallel-state.align.selected',
+			},
+		],
+	},
+	rawCql: {
+		state: '[summaryField="shouldEndUpInSummaryValue.raw-cql"]',
+		summaries: [
+			{
+				id: 'shouldEndUpInSummaryId.raw-cql.node',
+				label: 'search.expert.corpusQueryLanguage',
+				value: '[summaryField="shouldEndUpInSummaryValue.raw-cql"]',
+			},
+		],
+	},
+	within: {
+		state: {
+			element: 'within-state.element.selected',
+			attributes: {
+				'shouldEndUpInState.within.attribute': 'shouldEndUpInState.within.attribute.value',
+			},
+		},
+		summaries: [
+			{
+				id: 'shouldEndUpInSummaryId.within.node',
+				label: 'search.extended.within',
+				value: 'shouldEndUpInSummaryValue.within',
+			},
+		],
+	},
+} satisfies Record<string, FieldExpectation>;
+
+const summaryViewExpectation = {
+	entryLabel: 'shouldRenderSummaryLabel.summary-view',
+	entryValue: 'shouldRenderSummaryValue.summary-view',
+	emptyText: 'form.summary.empty',
+	title: 'shouldRenderSummaryTitle.summary-view',
+};
+
+const totalsViewExpectation = {
+	activeHint: 'form.totals.filtered',
+	filteredDocuments: '380',
+	filteredTokens: '760',
+	inactiveHint: 'form.totals.unfiltered',
+	initialDocuments: '1000',
+	initialTokens: '2000',
+};
+
+function createHostHarness(node: FormFieldNode | FormViewNode, form: FormBoundaryNode, runtime: FormSystemRuntime, _host: 'field' | 'view') {
+	return defineComponent({
+		setup() {
+			provideFormSystemRuntime(runtime);
+			provideParentForm(ref(form.id));
+			const renderable = runtime.renderableNode(node, form);
+
+			return () => h(renderable.is, renderable.props);
+		},
+	});
+}
+
+function addFieldToForm(builder: FormBuilder, form: ReturnType<FormBuilder['newForm']>, field: FormFieldNode, placement: FieldPlacement) {
+	if (placement === 'direct') {
+		form.addChildren(field);
+		return;
+	}
+
+	const container = builder.newContainer(`${field.id}.container`, ContainerRenderer, {
+		combine: 'and',
+	});
+	if (placement === 'container') {
+		container.addChildren(field);
+		form.addChildren(container);
+		return;
+	}
+
+	const nestedContainer = builder.newContainer(`${field.id}.nested`, ContainerRenderer, {
+		combine: 'and',
+	});
+	nestedContainer.addChildren(field);
+	container.addChildren(nestedContainer);
+	form.addChildren(container);
+}
+
+function createFieldRuntime<TField extends FormFieldNode>(
+	buildField: (builder: FormBuilder, form: ReturnType<FormBuilder['newForm']>) => TField,
+	placement: FieldPlacement = 'direct',
+): RuntimeFieldHarness<TField> {
+	const builder = createTestBuilder();
+	const form = builder.newForm('harness.form', ContainerRenderer, { title: 'Harness' });
+	const field = buildField(builder, form);
+	addFieldToForm(builder, form, field, placement);
+	const runtime = builder;
+
+	return { field, form, runtime };
+}
+
+function mountFieldHarness<TField extends FormFieldNode>(
+	buildField: (builder: FormBuilder, form: ReturnType<FormBuilder['newForm']>) => TField,
+	placement: FieldPlacement = 'direct',
+): FieldHarness<TField> {
+	const harness = createFieldRuntime(buildField, placement);
+	const wrapper = mount(createHostHarness(harness.field, harness.form, harness.runtime, 'field'));
+
+	return { ...harness, wrapper };
+}
+
+function mountViewHarness<TExtra, TView extends FormViewNode>(
+	buildView: (
+		builder: FormBuilder,
+		form: ReturnType<FormBuilder['newForm']>,
+	) => {
+		extra: TExtra;
+		view: TView;
+	},
+) {
+	const builder = createTestBuilder();
+	const form = builder.newForm('harness.form', ContainerRenderer, { title: 'Harness' });
+	const { extra, view } = buildView(builder, form);
+	const runtime = builder;
+	const wrapper = mount(createHostHarness(view, form, runtime, 'view'));
+
+	return { extra, form, runtime, view, wrapper };
+}
+
+function findButtonByText(wrapper: VueWrapper<any>, label: string) {
+	const button = wrapper.findAll('button').find(candidate => candidate.text() === label);
+	if (!button) throw new Error(`No button found with label ${label}`);
+	return button;
+}
+
+function expectFieldState(runtime: FormSystemRuntime, fieldId: string, controllerState: unknown) {
+	expect(runtime.state.state.value[fieldId]).toEqual(controllerState);
+}
+
+function expectFormSummaries(runtime: FormSystemRuntime, expected: SummaryEntry[]) {
+	expect(runtime.compile('harness.form').summaries).toEqual(expected);
+}
+
+function normalizedText(wrapper: VueWrapper<any>) {
+	return wrapper.text().replace(/[\s.,]/g, '');
+}
+
+describe('builtin controller hosts', () => {
+	test('renders computed generic field text passed through a node', async () => {
+		const label = ref('Initial annotation label');
+		const harness = mountFieldHarness(builder =>
+			builder.newField('computed-label.annotation.node', annotationTextController, TextField, {
+				annotationId: 'computed-label.annotation',
+				displayName: computed(() => label.value),
+			}),
+		);
+
+		expect(harness.wrapper.get('label').text()).toContain('Initial annotation label');
+		expect(harness.wrapper.get('input[type="text"]').attributes('placeholder')).toBe('Initial annotation label');
+
+		label.value = 'Updated annotation label';
+		await nextTick();
+
+		expect(harness.wrapper.get('label').text()).toContain('Updated annotation label');
+		expect(harness.wrapper.get('input[type="text"]').attributes('placeholder')).toBe('Updated annotation label');
+	});
+
+	test('updates annotation controller state from the host', async () => {
+		const harness = mountFieldHarness(builder =>
+			builder.newField('shouldNotEndUpInSummaryId.annotation.node', annotationTextController, TextField, {
+				annotationId: 'shouldEndUpInSummaryId.annotation',
+				caseSensitive: true,
+				displayName: 'shouldEndUpInSummaryLabel.annotation',
+				groupId: 'shouldEndUpInSummaryGroup.annotation',
+			}),
+		);
+
+		await harness.wrapper.get('input[type="text"]').setValue('shouldEndUpInSummaryValue.annotation');
+		await harness.wrapper.get('input[type="checkbox"]').setValue(true);
+
+		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.annotation.state);
+	});
+
+	test('updates metadata filter state from the host', async () => {
+		const harness = mountFieldHarness(builder =>
+			builder.newField('shouldEndUpInSummaryId.metadata.node', filterTextController, TextField, {
+				displayName: 'shouldEndUpInSummaryLabel.metadata',
+				metadataFieldId: 'shouldNotEndUpInSummaryId.metadata.field',
+			}),
+		);
+
+		await harness.wrapper.get('input[type="text"]').setValue('shouldEndUpInSummaryValue.metadata');
+
+		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.metadataFilter.state);
+	});
+
+	test('updates parallel controller state from the host', async () => {
+		const harness = mountFieldHarness(builder =>
+			builder.newField('shouldEndUpInSummaryId.parallel.node', parallelController, ParallelField, {
+				alignByOptions: ['parallel-state.align.other', 'parallel-state.align.selected'],
+				child: {
+					id: 'query',
+					controller: expertQueryController,
+					component: RawCqlField,
+					config: {},
+				},
+				fieldOptions: languageOptions,
+			}),
+		);
+
+		harness.wrapper.findComponent(SelectPicker).vm.$emit('update:modelValue', 'contents__en');
+		await nextTick();
+		await harness.wrapper.get('textarea').setValue('[lemma="house"]');
+		harness.wrapper.findComponent(MultiValuePicker).vm.$emit('update:modelValue', ['contents__nl']);
+		await nextTick();
+		await harness.wrapper.findAll('textarea')[1].setValue('[lemma="huis"]');
+		await findButtonByText(harness.wrapper, 'parallel-state.align.selected').trigger('click');
+
+		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.parallel.state);
+	});
+
+	test('updates raw cql state from the host', async () => {
+		const harness = mountFieldHarness(builder => builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {}));
+
+		await harness.wrapper.get('textarea').setValue('[summaryField="shouldEndUpInSummaryValue.raw-cql"]');
+
+		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.rawCql.state);
+	});
+
+	test('renders the raw cql help link', () => {
+		const harness = mountFieldHarness(builder => builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {}));
+
+		expect(harness.wrapper.get('a.help').attributes('href')).toBe('https://blacklab.ivdnt.org/guide/corpus-query-language.html');
+	});
+
+	test('updates within controller state from the host', async () => {
+		const harness = mountFieldHarness(builder =>
+			builder.newField('shouldEndUpInSummaryId.within.node', withinController, WithinField, {
+				options: withinOptions,
+			}),
+		);
+
+		await findButtonByText(harness.wrapper, 'shouldEndUpInSummaryValue.within').trigger('click');
+		await harness.wrapper.get('input[type="text"]').setValue('shouldEndUpInState.within.attribute.value');
+
+		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.within.state);
+		expect(harness.runtime.compile(harness.form.id)).toEqual({
+			formId: 'harness.form',
+			encoded: {
+				'f.form': 'harness.form',
+				'f.within': 'element=within-state.element.selected;attr.shouldEndUpInState.within.attribute=shouldEndUpInState.within.attribute.value',
+			},
+			patt: '<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState\\.within\\.attribute\\.value"/>',
+			filter: null,
+			searchfield: null,
+			summaries: fieldExpectations.within.summaries,
+		});
+	});
+});
+
+describe('builtin controller summaries', () => {
+	test('uses the annotation config id in summaries for direct form children', () => {
+		const harness = createFieldRuntime(builder =>
+			builder.newField('shouldNotEndUpInSummaryId.annotation.node', annotationTextController, TextField, {
+				annotationId: 'shouldEndUpInSummaryId.annotation',
+				caseSensitive: true,
+				displayName: 'shouldEndUpInSummaryLabel.annotation',
+				groupId: 'shouldEndUpInSummaryGroup.annotation',
+			}),
+		);
+
+		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.annotation.state;
+
+		expectFormSummaries(harness.runtime, fieldExpectations.annotation.summaries);
+	});
+
+	test('uses the field node id in metadata summaries through a container', () => {
+		const harness = createFieldRuntime(
+			builder =>
+				builder.newField('shouldEndUpInSummaryId.metadata.node', filterTextController, TextField, {
+					displayName: 'shouldEndUpInSummaryLabel.metadata',
+					metadataFieldId: 'shouldNotEndUpInSummaryId.metadata.field',
+				}),
+			'container',
+		);
+
+		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.metadataFilter.state;
+
+		expectFormSummaries(harness.runtime, fieldExpectations.metadataFilter.summaries);
+	});
+
+	test('uses derived node-based ids in parallel summaries through nested containers', () => {
+		const harness = createFieldRuntime(
+			builder =>
+				builder.newField('shouldEndUpInSummaryId.parallel.node', parallelController, ParallelField, {
+					alignByOptions: ['parallel-state.align.other', 'parallel-state.align.selected'],
+					child: {
+						id: 'query',
+						controller: expertQueryController,
+						component: RawCqlField,
+						config: {},
+					},
+					fieldOptions: languageOptions,
+				}),
+			'nested-container',
+		);
+
+		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.parallel.state;
+
+		expectFormSummaries(harness.runtime, fieldExpectations.parallel.summaries);
+	});
+
+	test('uses the field node id in raw cql summaries for direct form children', () => {
+		const harness = createFieldRuntime(builder => builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {}));
+
+		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.rawCql.state;
+
+		expectFormSummaries(harness.runtime, fieldExpectations.rawCql.summaries);
+	});
+
+	test('uses the field node id in within summaries through a container', () => {
+		const harness = createFieldRuntime(
+			builder =>
+				builder.newField('shouldEndUpInSummaryId.within.node', withinController, WithinField, {
+					options: withinOptions,
+				}),
+			'container',
+		);
+
+		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.within.state;
+
+		expectFormSummaries(harness.runtime, fieldExpectations.within.summaries);
+	});
+});
+
+describe('builtin view hosts', () => {
+	test('renders the heading view host', () => {
+		const harness = mountViewHarness((builder, form) => {
+			const view = builder.newView('harness.heading', HeadingView, {
+				description: 'Overview of the current form slice.',
+				title: 'Search heading',
+			});
+			form.addChildren(view);
+			return { extra: {}, view };
+		});
+
+		expect(harness.wrapper.get('h3').text()).toBe('Search heading');
+		expect(harness.wrapper.get('p').text()).toBe('Overview of the current form slice.');
+	});
+
+	test('renders the summary view host against provided parent-form state', async () => {
+		const harness = mountViewHarness((builder, form) => {
+			const field = builder.newField('harness.summary.field', annotationTextController, TextField, {
+				annotationId: 'shouldEndUpInSummaryId.summary-view',
+				displayName: summaryViewExpectation.entryLabel,
+			});
+			const view = builder.newView('harness.summary', SummaryView, {
+				title: summaryViewExpectation.title,
+			});
+			form.addChildren(field, view);
+			return { extra: { fieldId: field.id }, view };
+		});
+
+		expect(harness.wrapper.text()).toContain(summaryViewExpectation.emptyText);
+
+		harness.runtime.state.state.value[harness.extra.fieldId] = {
+			value: summaryViewExpectation.entryValue,
+			caseSensitive: false,
+		};
+		await nextTick();
+
+		expect(harness.wrapper.text()).toContain(summaryViewExpectation.title);
+		expect(harness.wrapper.text()).toContain(summaryViewExpectation.entryLabel);
+		expect(harness.wrapper.text()).toContain(summaryViewExpectation.entryValue);
+	});
+
+	test('renders the totals view host against provided parent-form state', async () => {
+		const harness = mountViewHarness((builder, form) => {
+			const field = builder.newField('harness.filter', filterTextController, TextField, {
+				displayName: 'shouldActivateTotalsProjection.filter',
+				metadataFieldId: 'shouldActivateTotalsProjection.metadata-field',
+			});
+			const view = builder.newView('harness.totals', TotalsView, {
+				baseDocuments: 1000,
+				baseTokens: 2000,
+				title: 'Totals',
+			});
+			form.addChildren(field, view);
+			return { extra: { fieldId: field.id }, view };
+		});
+
+		expect(normalizedText(harness.wrapper)).toContain(totalsViewExpectation.initialDocuments);
+		expect(normalizedText(harness.wrapper)).toContain(totalsViewExpectation.initialTokens);
+		expect(harness.wrapper.text()).toContain(totalsViewExpectation.inactiveHint);
+
+		harness.runtime.state.state.value[harness.extra.fieldId] = {
+			value: 'shouldActivateTotalsProjection.value',
+			caseSensitive: false,
+		};
+		await nextTick();
+
+		expect(normalizedText(harness.wrapper)).toContain(totalsViewExpectation.filteredDocuments);
+		expect(normalizedText(harness.wrapper)).toContain(totalsViewExpectation.filteredTokens);
+		expect(harness.wrapper.text()).toContain(totalsViewExpectation.activeHint);
+	});
+});
