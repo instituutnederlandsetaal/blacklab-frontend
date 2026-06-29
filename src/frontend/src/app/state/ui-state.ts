@@ -163,7 +163,7 @@ type ModuleRootState = {
 			/** Size of the details hit (number of words loaded before/after the hit when expanding a hit result). Max 1000 */
 			concordanceSize: number;
 			concordanceAsHtml: boolean;
-			getDocumentSummary: (doc: BLTypes.BLDocInfo, fields: BLTypes.BLDocFields) => string;
+			getDocumentSummary: (doc: BLTypes.BLDocInfo, fields: BLTypes.BLDocFieldsV4) => string;
 
 			/**
 			 * Annotations IDs to include in expanded hit rows (meaning in the table there), and csv exports containing hits.
@@ -316,7 +316,7 @@ const initialState: ModuleRootState = {
 			concordanceSize: 50,
 			transformSnippets: null,
 			concordanceAsHtml: false,
-			getDocumentSummary: (doc: BLTypes.BLDocInfo, fields: BLTypes.BLDocFields): string => {
+			getDocumentSummary: (doc: BLTypes.BLDocInfo, fields: BLTypes.BLDocFieldsV4): string => {
 				let { titleField = '', authorField = '' } = fields;
 				titleField = titleField || 'fromInputFile';
 				const title = getMetadataFieldValues(doc, titleField) ?? [];

@@ -30,10 +30,10 @@
 	</div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed, watchEffect } from 'vue';
 
-import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
+import { selectedSubcorpusLoader as subcorpus } from '@/api/async/instances/result-count';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import * as FilterStore from '@/features/search/model/form/filter-state';
@@ -43,53 +43,27 @@ import { frac2Percent } from '@/shared/utils/number-utils';
 
 import Spinner from '@/shared/ui/Spinner.vue';
 
-export default defineComponent({
-	components: { Spinner },
-	data: () => ({
-		corpus: useCorpus(),
-		subcorpus: selectedSubcorpusLoader,
-	}),
-	computed: {
-		indexAndFilter() {
-			return {
-				index: this.corpus,
-				filter: FilterStore.get.luceneQuery(),
-				annotatedFieldId: PatternStore.get.shared().source || this.corpus.mainAnnotatedField,
-			};
-		},
-		activeFilters: FilterStore.get.activeFilters,
+const corpus = useCorpus();
 
-		summaryMap(): Record<string, string> {
-			const r: Record<string, string> = {};
-			this.activeFilters.forEach(f => {
-				const summary = getValueFunctions(f).luceneQuerySummary(f.id, f.metadata, f.value);
-				if (summary) {
-					r[f.id] = summary;
-				}
-			});
-			return r;
-		},
-
-		totalCorpusTokens(): number {
-			return this.corpus.tokenCount;
-		},
-		totalCorpusDocs(): number {
-			return this.corpus.documentCount;
-		},
-	},
-	methods: {
-		frac2Percent,
-	},
-	watch: {
-		indexAndFilter: {
-			handler() {
-				this.subcorpus.next(this.indexAndFilter);
-			},
-			immediate: true,
-			deep: true,
-		},
-	},
+const activeFilters = computed(FilterStore.get.activeFilters);
+const summaryMap = computed(() => {
+	const r: Record<string, string> = {};
+	activeFilters.value.forEach(f => {
+		const summary = getValueFunctions(f).luceneQuerySummary(f.id, f.metadata, f.value);
+		if (summary) {
+			r[f.id] = summary;
+		}
+	});
+	return r;
 });
+
+watchEffect(() =>
+	subcorpus.next({
+		index: corpus.value,
+		filter: FilterStore.get.luceneQuery(),
+		annotatedFieldId: PatternStore.get.shared().source || corpus.value.mainAnnotatedField,
+	}),
+);
 </script>
 
 <style lang="scss" scoped>

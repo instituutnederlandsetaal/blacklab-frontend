@@ -156,7 +156,7 @@ export type NormalizedIndex = NormalizedIndexBase & {
 	/** If -1, the blacklab version is too old to support this property, and it needs to be requested from the server. (we do this on app startup, see corpusStore). */
 	documentCount: number;
 
-	fieldInfo: BLTypes.BLDocFields;
+	fieldInfo: BLTypes.BLDocFieldsV4;
 
 	/**
 	 * If no groups are defined by blacklab itself, all metadata fields are placed in a single group called 'Metadata'.

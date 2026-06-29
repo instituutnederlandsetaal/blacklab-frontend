@@ -75,7 +75,7 @@
 import { defineComponent } from 'vue';
 
 import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
-import type { BLServer } from '@/types/blacklabtypes';
+import { isServerV4, type BLServer } from '@/types/blacklabtypes';
 
 import { useBlackLabApi } from '@/shared/api/index.ts';
 import { ApiError } from '@/shared/api/lib/api-types.ts';
@@ -83,12 +83,12 @@ import { normalizeIndexBase } from '@/shared/blacklab-helpers/normalize-response
 
 import CorpusTable from './CorpusTable.vue';
 import FormatsTable from './FormatsTable.vue';
-import Modal from '@/shared/ui/Modal.vue';
-import Spinner from '@/shared/ui/Spinner.vue';
 import ModalCreateCorpus from '@/pages/corpora/ModalCreateCorpus.vue';
 import ModalCreateFormat from '@/pages/corpora/ModalCreateFormat.vue';
 import ModalShareCorpus from '@/pages/corpora/ModalShare.vue';
 import ModalUpload from '@/pages/corpora/ModalUpload.vue';
+import Modal from '@/shared/ui/Modal.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 
 export default defineComponent({
 	components: { Spinner, CorpusTable, FormatsTable, ModalCreateCorpus, ModalCreateFormat, ModalUpload, ModalShareCorpus, Modal },
@@ -273,7 +273,7 @@ export default defineComponent({
 			}
 
 			this.loadingServerInfo = false;
-			this.corpora = Object.entries({ ...this.serverInfo.corpora, ...this.serverInfo.indices })
+			this.corpora = (isServerV4(this.serverInfo) ? Object.entries(this.serverInfo.indices) : Object.entries(this.serverInfo.corpora))
 				.map(([id, index]) => normalizeIndexBase(index, id))
 				.sort((a, b) => a.displayName.localeCompare(b.displayName));
 			this.loadingCorpora = false;

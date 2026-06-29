@@ -59,10 +59,9 @@ export type BLSearchParameters = {
 	withspans?: boolean;
 };
 
-// --------------
-// Base responses
-// --------------
+// #region Base responses
 
+/** Shared interface between all acknowledgement responses to post/delete requests */
 export interface BLResponse {
 	status: {
 		code: string;
@@ -70,6 +69,7 @@ export interface BLResponse {
 	};
 }
 
+/** Shared error interface for all error responses */
 export interface BLError {
 	error: {
 		code: string;
@@ -78,9 +78,48 @@ export interface BLError {
 	};
 }
 
-// ------------------------
-// Index status/server info
-// ------------------------
+export interface BLUser {
+	/** When !loggedIn: false, when loggedIn, true/false depending on whether user has hit the private corpora limit. */
+	canCreateIndex: boolean;
+	/** Only available when loggedIn */
+	id?: string;
+	loggedIn: boolean;
+	debugMode?: boolean;
+}
+
+export interface BLCacheStatus {
+	maxNumberOfSearches: number;
+	maxSearchAgeSec: number;
+	maxSizeBytes: number;
+	numberOfSearches: number;
+	sizeBytes: number;
+}
+
+/** Base response */
+interface BLServerBase {
+	/** Generally 4/5/4.0/5.0 */
+	apiVersion: string;
+	blacklabBuildTime: string;
+	blacklabVersion: string;
+	blacklabScmRevision: (string & {}) | 'unknown';
+	cacheStatus?: BLCacheStatus;
+	helpPageUrl: string;
+	user: BLUser;
+}
+export type BLServerV4 = BLServerBase & {
+	indices: Record<string, BLIndexV4>;
+};
+export type BLServerV5 = BLServerBase & {
+	corpora: Record<string, BLIndexV5>;
+};
+export type BLServer = BLServerV4 | BLServerV5;
+export const isServerV5 = (v: BLServer): v is BLServerV5 => (v as BLServerV5).corpora != null;
+export const isServerV4 = (v: BLServer): v is BLServerV4 => !isServerV5(v);
+
+// #endregion
+
+// #region Base corpus info, used in /blacklab-server/ and /blacklab-server/corpora/
+// =================
 
 export interface BLIndexProgress {
 	/** Number of documents finished in this indexing action so far. */
@@ -91,34 +130,155 @@ export interface BLIndexProgress {
 	tokensProcessed: number;
 }
 
-// Optional values have the null type added as that allows us to
-// set them to null when they're missing.
-export interface BLIndex {
-	description: string;
-	displayName: string;
-	/** key of a BLFormat */
-	documentFormat?: string;
-	/** Only available when status === 'indexing' */
-	indexProgress?: BLIndexProgress;
+/** V5 */
+type BLCount = {
+	tokens: number;
+	documents: number;
+	docVersions?: number;
+};
+
+/** The base structure for an index in the multi-index overview response (e.g. /blacklab-server/ | /blacklab-server/corpora/) */
+interface BLIndexBase {
 	/** status opening is currently unused, but should be treated as generally unavailable */
 	status: 'empty' | 'available' | 'indexing' | 'opening';
+	/** key of a BLFormat */
+	documentFormat?: string;
 	/** yyyy-mm-dd hh:mm:ss */
 	timeModified: string;
-	/**
-	 * Number of tokens and docs in this index (excluding those tokens added in any currently running indexing action).
-	 * Api V5 only:
-	 */
-	count?: {
-		tokens: number;
-		documents: number;
-	};
-	/** Api V4 only */
+	/** Only available when status === 'indexing' */
+	indexProgress?: BLIndexProgress;
+}
+
+export type BLIndexV4 = BLIndexBase & {
 	tokenCount?: number;
 	/**
-	 * Api V4 only. Only when requesting full indexmetadata
-	 * Number of documents in this index (excluding any added in a currently running indexing action). Not present pre-v4 */
+	 * Only when requesting full indexmetadata
+	 * Number of documents in this index (excluding any added in a currently running indexing action).
+	 */
 	documentCount?: number;
+};
+
+export type BLIndexV5 = BLIndexBase & {
+	/** Number of tokens and docs in this index (excluding those tokens added in any currently running indexing action). */
+	count: BLCount;
+};
+
+export type BLIndex = BLIndexV4 | BLIndexV5;
+export const isIndexV5 = (v: BLIndex): v is BLIndexV5 => (v as BLIndexV5).count != null;
+export const isIndexV4 = (v: BLIndex): v is BLIndexV4 => !isIndexV5(v);
+
+// #endregion
+
+// # region fieldgroups
+
+export type BLAnnotationGroupV4 = {
+	name: string;
+	annotations: string[];
+};
+export type BLAnnotationGroupV5 = {
+	groupName: string;
+	annotations: string[];
+	addRemainingAnnotations: boolean;
+};
+export type BLAnnotationGroup = BLAnnotationGroupV4 | BLAnnotationGroupV5;
+export const isAnnotationGroupV5 = (v: BLAnnotationGroup): v is BLAnnotationGroupV5 => 'groupName' in v && v.groupName != null;
+export const isAnnotationGroupV4 = (v: BLAnnotationGroup): v is BLAnnotationGroupV4 => !isAnnotationGroupV5(v);
+
+export type BLMetadataGroupV4 = {
+	name: string;
+	fields: string[];
+};
+export type BLMetadataGroupV5 = {
+	name: string;
+	fieldNamesInGroup: string[];
+	addRemainingFields: boolean;
+};
+export type BLMetadataGroup = BLMetadataGroupV4 | BLMetadataGroupV5;
+export const isMetadataGroupV5 = (v: BLMetadataGroup): v is BLMetadataGroupV5 => 'fieldNamesInGroup' in v && v.fieldNamesInGroup != null;
+export const isMetadataGroupV4 = (v: BLMetadataGroup): v is BLMetadataGroupV4 => !isMetadataGroupV5(v);
+
+// #endregion
+
+// #region Expanded corpus info, used in /blacklab-server/corpora/:corpus | /blacklab-server/:corpus
+
+export type BLDocFieldsV4 = {
+	/** Key to a field in BLDocInfo, missing if unknown */
+	authorField?: string;
+	/** Key to a field in BLDocInfo, missing if unknown */
+	dateField?: string;
+	/** Key to a field in BLDocInfo, missing if unknown */
+	pidField?: string;
+	/** Key to a field in BLDocInfo, missing if unknown */
+	titleField?: string;
+};
+
+/** Contains information about the internal structure of the index - which fields exist for tokens, which metadata fields exist for documents, etc */
+interface BLIndexMetadataBase {
+	contentViewable: boolean;
+	corpusName?: string;
+	/** key of a BLFormat */
+	documentFormat?: string;
+	indexName?: string;
+	/** Key into annotatedFields */
+	mainAnnotatedField: string;
+	name?: string;
+	status: 'empty' | 'available' | 'indexing' | 'opening';
+	/** Only available when status === 'indexing' */
+	indexProgress?: BLIndexProgress;
+	versionInfo: {
+		/** e.g. "2026-02-02T11:36:45Z" */
+		blacklabBuildTime: string;
+		blacklabScmRevision: string;
+		blacklabVersion: string;
+		indexFormat: '4' | '5';
+		/** yyyy-mm-dd hh:mm:ss */
+		timeCreated: string;
+		/** yyyy-mm-dd hh:mm:ss */
+		timeModified: string;
+	};
 }
+
+type BLIndexMetadataCustomBase = {
+	description?: string;
+	displayName?: string;
+	textDirection: 'ltr' | 'rtl';
+	unknownCondition?: string;
+	unknownValue?: string;
+};
+
+export type BLIndexMetadataV4 = BLIndexMetadataBase &
+	BLIndexMetadataCustomBase & {
+		annotatedFields: Record<string, BLAnnotatedFieldV4>;
+		annotationGroups: { [annotatedFieldId: string]: BLAnnotationGroupV4[] };
+
+		metadataFields: Record<string, BLMetadataFieldV4>;
+		metadataFieldGroups: BLMetadataGroupV4[];
+
+		fieldInfo: BLDocFieldsV4;
+		tokenCount: number;
+		documentCount: number;
+	};
+export type BLIndexMetadataV5 = BLIndexMetadataBase & {
+	annotatedFields: Record<string, BLAnnotatedFieldV5>;
+	metadataFields: Record<string, BLMetadataFieldV5>;
+	pidField: string;
+	custom?: BLIndexMetadataCustomBase & {
+		/** Key to a field in BLDocInfo, missing if unknown */
+		titleField?: string;
+		/** Key to a field in BLDocInfo, missing if unknown */
+		authorField?: string;
+		/** Key to a field in BLDocInfo, missing if unknown */
+		dateField?: string;
+		annotationGroups: { [annotatedFieldId: string]: BLAnnotationGroupV5[] };
+		metadataFieldGroups: BLMetadataGroupV5[];
+	};
+	count: BLCount;
+};
+export type BLIndexMetadata = BLIndexMetadataV4 | BLIndexMetadataV5;
+export const isBLIndexMetadataV5 = (v: BLIndexMetadata): v is BLIndexMetadataV5 => (v as BLIndexMetadataV5).count != null;
+export const isBLIndexMetadataV4 = (v: BLIndexMetadata): v is BLIndexMetadataV4 => !isBLIndexMetadataV5(v);
+
+// #endregion
 
 export interface BLSpanInfo {
 	/** Number of occurances of this span in the corpus. */
@@ -145,24 +305,8 @@ export interface BLRelationInfo {
 	relations?: Record<string, Record<string, number>>; // {relClass: {relType: count}}
 }
 
-export interface BLUser {
-	/** When !loggedIn: false, when loggedIn, true/false depending on whether user has hit the private corpora limit. */
-	canCreateIndex: boolean;
-	/** Only available when loggedIn */
-	id?: string;
-	loggedIn: boolean;
-}
-
 /** Info about users an index is shared with, entries are usernames */
 export type BLShareInfo = string[];
-
-export interface BLCacheStatus {
-	maxNumberOfSearches: number;
-	maxSearchAgeSec: number;
-	maxSizeBytes: number;
-	numberOfSearches: number;
-	sizeBytes: number;
-}
 
 export interface BLFormat {
 	configurationBased: boolean;
@@ -191,18 +335,6 @@ export interface BLFormats {
 	};
 }
 
-export interface BLServer {
-	apiVersion: string;
-	blacklabBuildTime: string;
-	blacklabVersion: string;
-	cacheStatus?: BLCacheStatus;
-	helpPageUrl: string;
-	// Interop with older servers.
-	corpora?: Record<string, BLIndex>;
-	indices?: Record<string, BLIndex>;
-	user: BLUser;
-}
-
 export type BLParsePatternResponse = {
 	parsed: {
 		bcql: string;
@@ -210,221 +342,148 @@ export type BLParsePatternResponse = {
 	};
 };
 
-// ----------------------------
-// IndexStructure/IndexMetadata
-// ----------------------------
-
-export type BLDocFields = {
-	/** Key to a field in BLDocInfo, missing if unknown */
-	authorField?: string;
-	/** Key to a field in BLDocInfo, missing if unknown */
-	dateField?: string;
-	/** Key to a field in BLDocInfo, missing if unknown */
-	pidField?: string;
-	/** Key to a field in BLDocInfo, missing if unknown */
-	titleField?: string;
-};
-
-export type BLMetadataGroup = {
-	name: string;
-	/** Legacy (v4) - Keys in metadataFields. Moved to fieldNamesInGroup in v5 */
-	fields?: string[];
-	/** v5 - Keys in metadataFields group */
-	fieldNamesInGroup?: string[];
-};
-
-export type BLAnnotationGroup = {
-	/** Legacy (V4) - moved to GroupName. */
-	name?: string;
-	/** v5 - name of the group */
-	groupName?: string;
-	/** Refers to BLAnnotatedField.annotations keys */
-	annotations: string[];
-	/**
-	 * Add all annotations not in any other group.
-	 * If omitted, the frontend creates its own remainder group.
-	 */
-	addRemainingAnnotations?: boolean;
-};
-
-export type BLAnnotationGroupMap = {
-	[annotatedFieldId: string]: BLAnnotationGroup[];
-};
+// #region Annotation
+// ============================
 
 /** Property of a word, usually 'lemma', 'pos', 'word' */
-export interface BLAnnotation {
-	/** Legacy top-level ui config. New schema stores this under custom. */
-	description?: string;
-	/** Legacy top-level ui config. New schema stores this under custom. */
-	displayName?: string;
+interface BLAnnotationBase {
 	hasForwardIndex: boolean;
 	isInternal: boolean;
+
 	offsetsAlternative: string;
 	sensitivity: 'SENSITIVE_AND_INSENSITIVE' | 'ONLY_SENSITIVE' | 'ONLY_INSENSITIVE' | 'CASE_AND_DIACRITICS_SEPARATE';
+
 	/** Contains ids of other BLAnnotations in the parent annotatedField if this field has subannotations. */
 	subannotations?: string[];
-	/** Legacy top-level ui config. New schema stores this under custom. */
-	uiType?: (string & {}) | 'select' | 'combobox' | 'text' | 'pos' | 'dropdown' | 'autocomplete';
-	custom?: {
-		description: string;
-		displayName: string;
-		uiType: (string & {}) | 'select' | 'combobox' | 'text' | 'pos' | 'dropdown' | 'autocomplete';
-	};
-	/** Only when the indexMetadata was requested with ?listvalues=annotationId,annotationId etc. */
-	values?: string[];
-	/** Only when values present. */
+
+	/** Only when values present. Whether the terms/values property contains all values. */
 	valueListComplete?: boolean;
 }
 
-/** A set of annotations that form one data set on a token, usually there is only one of these in an index, called 'contents' */
-interface BLAnnotatedFieldInternal {
-	/** Legacy top-level ui config. New schema stores this under custom. */
-	description?: string;
-	/** Legacy top-level ui config. New schema stores this under custom. */
-	displayName?: string;
-	/** Identical to key for this annotatedField. No longer present in new schema. */
-	fieldName?: string;
-	hasContentStore: boolean;
-	hasLengthTokens?: boolean;
-	hasXmlTags: boolean;
-	isAnnotatedField?: boolean;
-	tokenCount?: number;
-	documentCount?: number;
-	custom?: {
-		description: string;
-		displayName: string;
-		displayOrder?: string[];
-	};
-}
-type BLAnnotatedFieldV1 = BLAnnotatedFieldInternal & {
-	/** Indexed token properties/annotations for this field */
-	properties: { [key: string]: BLAnnotation };
-	/** If a cql query is fired that is just "searchterm", this is the annotation that is searched, usually 'word' - key in annotations */
-	mainProperty: string;
+type BLAnnotationCustom = {
+	description: string;
+	displayName: string;
+	/** Only supported values listed - but open-ended */
+	uiType?: (string & {}) | 'select' | 'combobox' | 'text' | 'pos' | 'dropdown' | 'autocomplete';
 };
-type BLAnnotatedFieldV2 = BLAnnotatedFieldInternal & {
-	/** Indexed token properties/annotations for this field */
-	annotations: { [key: string]: BLAnnotation };
-	/** Legacy top-level order. New schema stores this under custom.displayOrder */
-	displayOrder?: string[];
+
+export type BLAnnotationV4 = BLAnnotationBase &
+	BLAnnotationCustom & {
+		/** Only when the indexMetadata was requested with ?listvalues=annotationId,annotationId etc. */
+		values?: string[];
+	};
+
+export type BLAnnotationV5 = BLAnnotationBase & {
+	/** Only included when ?custom=true was passed with the index metadata request */
+	custom?: BLAnnotationCustom;
+	/** Replacement for the 'values' property in V4, contains the counts as well. */
+	terms?: Record<string, number>;
+};
+
+export type BLAnnotation = BLAnnotationV4 | BLAnnotationV5;
+export const isBLAnnotationV5 = (v: BLAnnotation): v is BLAnnotationV5 => ('custom' in v && v.custom != null) || ('terms' in v && v.terms != null);
+export const isBLAnnotationV4 = (v: BLAnnotation): v is BLAnnotationV4 => !isBLAnnotationV5(v);
+
+// #endregion
+
+// #region AnnotatedField
+
+/** A set of annotations that form one data set on a token, usually there is only one of these in an index, called 'contents' */
+interface BLAnnotatedFieldBase {
+	// annotations split
+	// description in custom
+	// displayname in custom
+	// displayorder in custom(?)
+	// documentcount in count
+	// count in v5
+	// custom in v5
+
+	fieldName: string;
+	hasContentStore: boolean;
+	isAnnotatedField: true;
 	/** If a cql query is fired that is just "searchterm", this is the annotation that is searched, usually 'word' - key in annotations */
 	mainAnnotation: string;
-};
-export type BLAnnotatedField = BLAnnotatedFieldV1 | BLAnnotatedFieldV2;
-export function isAnnotatedFieldV1(v: BLAnnotatedField): v is BLAnnotatedFieldV1 {
-	return (v as any).properties != null;
+	// relations always present in v5, not present in v4 (needs separate request)
+
+	/** Only when present */
+	hasXmlTags?: boolean;
+
+	/** Indexed token properties/annotations for this field */
+	// annotations: { [key: string]: BLAnnotation };
 }
 
-export interface BLMetadataField {
-	analyzer: string;
-	/** Legacy top-level ui config. New schema stores this under custom. */
-	description?: string;
-	/** Legacy top-level ui config. New schema stores this under custom. */
-	displayName?: string;
-	/** Legacy top-level ui config. New schema stores this under custom. */
-	displayValues?: {
-		/** Alternate display names/values for values in this field. */
-		[key: string]: string;
+export type BLAnnotatedFieldCustom = {
+	description: string;
+	displayName: string;
+	displayOrder: string[];
+};
+
+export type BLAnnotatedFieldV4 = BLAnnotatedFieldBase &
+	BLAnnotatedFieldCustom & {
+		annotations: Record<string, BLAnnotationV4>;
+		tokenCount?: number;
+		documentCount?: number;
 	};
-	/** Key of this metadataField. No longer present in new schema. */
-	fieldName?: string;
-	fieldValues: {
-		/** Keys are the values for this field, whereas the value for each key is the number of occurances */
-		[key: string]: number | string;
-	};
-	isAnnotatedField?: boolean;
-	type: 'TOKENIZED' | 'UNTOKENIZED' | 'NUMERIC';
-	/** All the types we support are listed here, though the types are user-defined so in anything can show up. */
-	uiType?: (string & {}) | 'select' | 'range' | 'combobox' | 'text' | 'checkbox' | 'radio' | 'autocomplete' | 'dropdown';
-	custom?: {
-		description: string;
-		displayName: string;
-		displayValues?: {
-			/** Alternate display names/values for values in this field. */
-			[key: string]: string;
+export type BLAnnotatedFieldV5 = BLAnnotatedFieldBase & {
+	annotations: Record<string, BLAnnotationV5>;
+	custom: BLAnnotatedFieldCustom;
+	count: BLCount;
+	relations: {
+		spans: {
+			[spanName: string]: BLSpanInfo;
 		};
-		uiType: (string & {}) | 'select' | 'range' | 'combobox' | 'text' | 'checkbox' | 'radio' | 'autocomplete' | 'dropdown';
+		// other relations here?
+		// e.g. relClass: {relType: count}
 	};
-	/** Internal blacklab property: when the unknownValue is used as the value for a document where the metadata for this field was unknown when indexing */
-	unknownCondition: 'NEVER' | 'MISSING' | 'EMPTY' | 'MISSING_OR_EMPTY';
-	/** Internal blacklab property: what default value is substituted during indexing for document that are missing this metadata (depending on unknownCondition) */
-	unknownValue: string;
+};
+export type BLAnnotatedField = BLAnnotatedFieldV4 | BLAnnotatedFieldV5;
+
+export const isAnnotatedFieldV5 = (v: BLAnnotatedField): v is BLAnnotatedFieldV5 => 'count' in v && v.count != null;
+export const isAnnotatedFieldV4 = (v: BLAnnotatedField): v is BLAnnotatedFieldV4 => !isAnnotatedFieldV5(v);
+
+// #endregion
+
+// #region Metadata
+
+interface BLMetadataFieldBase {
+	analyzer: string;
+	fieldName: string;
+	/** Keys are the values for this field, whereas the value for each key is the number of occurances, type is number, but blacklab reported this as strings for a while. */
+	fieldValues: Record<string, number | string>;
+	isAnnotatedField: false;
+	type: 'TOKENIZED' | 'UNTOKENIZED' | 'NUMERIC';
 	/** Are all values contained within the fieldValues */
 	valueListComplete: boolean;
 }
 
-/** Contains information about the internal structure of the index - which fields exist for tokens, which metadata fields exist for documents, etc */
-export interface BLIndexMetadata {
-	/** V5 - name of the index. */
-	corpusName?: string;
-	/** Legacy name. */
-	name?: string;
-	/** Legacy name, kept for compatibility. */
-	indexName?: string;
-
-	tokenCount?: number;
-	documentCount: number;
-	/** yyyy-mm-dd hh:mm:ss */
-	timeCreated?: string;
-	/** yyyy-mm-dd hh:mm:ss */
-	timeModified: string;
-	/** pulled up from specialFields/pidField */
-	pidField?: string;
-	contentViewable: boolean;
-	/** Only available when status === 'indexing' */
-	indexProgress?: BLIndexProgress;
-	/** pulled up from versionInfo/indexFormat */
-	indexFormat?: string;
-	createdBy?: {
-		implementation: string;
-		version: string;
-		buildTime: string;
-	};
-
-	custom?: {
-		displayName: string;
-		description: string;
-		/** key of a BLFormat */
-		documentFormat?: string;
-		textDirection: 'ltr' | 'rtl';
-		specialFields: BLDocFields;
-		metadataFieldGroups?: BLMetadataGroup[];
-		annotationGroups?: BLAnnotationGroupMap;
-	};
-
-	/** Legacy top-level custom UI info, moved under custom in the new schema. */
-	annotationGroups?: BLAnnotationGroupMap;
-	/** Legacy top-level custom UI info, moved under custom in the new schema. */
-	metadataFieldGroups?: BLMetadataGroup[];
-	/** Legacy top-level custom UI info, moved under custom in the new schema. */
+type BLMetadataFieldCustom = {
+	/** Only present when provided in the blf.yaml */
 	description?: string;
-	/** Legacy top-level custom UI info, moved under custom in the new schema. */
+	/** Only present when provided in the blf.yaml */
 	displayName?: string;
-	/** Legacy top-level custom UI info, moved under custom in the new schema. */
-	documentFormat?: string;
-	/** Legacy top-level custom UI info, moved under custom in the new schema. */
-	fieldInfo?: BLDocFields;
+	/** Always present in v5, only when configured explicitly in blf.yaml in v4 - same type though */
+	displayOrder?: string[];
+	/** Alternate display names/values for values in this field.*/
+	displayValues?: Record<string, string>;
+	/** All the types we support are listed here, though the types are user-defined so in anything can show up. */
+	uiType?: (string & {}) | 'select' | 'range' | 'combobox' | 'text' | 'checkbox' | 'radio' | 'autocomplete' | 'dropdown';
 
-	metadataFields: { [key: string]: BLMetadataField };
-	status: 'empty' | 'available' | 'indexing' | 'opening';
-	/** Legacy top-level custom UI info, moved under custom in the new schema. */
-	textDirection?: 'ltr' | 'rtl';
-	versionInfo?: {
-		blackLabBuildTime: string;
-		/** BlackLab version when the index was created. In Maven format */
-		blackLabVersion: string;
-		/** major.minor */
-		indexFormat: string;
-		/** yyyy-mm-dd hh:mm:ss */
-		timeCreated: string;
-		/** yyyy-mm-dd hh:mm:ss */
-		timeModified: string;
-	};
+	/** Internal blacklab property: when the unknownValue is used as the value for a document where the metadata for this field was unknown when indexing */
+	unknownCondition: 'NEVER' | 'MISSING' | 'EMPTY' | 'MISSING_OR_EMPTY';
+	/** Internal blacklab property: what default value is substituted during indexing for document that are missing this metadata (depending on unknownCondition) */
+	unknownValue: string;
+};
 
-	annotatedFields: { [id: string]: BLAnnotatedFieldV2 };
-	/** key into annotatedFields */
-	mainAnnotatedField?: string;
-}
+/** For now, only properties have been moved - no changes to types */
+export type BLMetadataFieldV4 = BLMetadataFieldBase & BLMetadataFieldCustom;
+export type BLMetadataFieldV5 = BLMetadataFieldBase & {
+	custom: BLMetadataFieldCustom;
+};
+export type BLMetadataField = BLMetadataFieldV4 | BLMetadataFieldV5;
+export const isMetadataFieldV5 = (v: BLMetadataField): v is BLMetadataFieldV5 => 'custom' in v && v.custom != null;
+export const isMetadataFieldV4 = (v: BLMetadataField): v is BLMetadataFieldV4 => !isMetadataFieldV5(v);
+
+// #endregion
 
 // --------------
 // Search results
@@ -454,7 +513,7 @@ export type BLSearchSummary = {
 	actualWindowSize: number;
 	countTime?: number;
 	/** These fields have a special meaning in the BLDocResult.docInfo */
-	docFields: BLDocFields;
+	docFields: BLDocFieldsV4;
 	requestedWindowSize: number;
 	searchParam: BLSearchParameters;
 	searchTime: number;
@@ -749,7 +808,7 @@ export type BLDoc = {
 export type BLDocument = {
 	docPid: string;
 	docInfo: BLDocInfo;
-	docFields: BLDocFields;
+	docFields: BLDocFieldsV4;
 };
 
 /** Blacklab response to a query for documents without grouping */

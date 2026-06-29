@@ -5,7 +5,7 @@
  */
 
 import type { NormalizedIndex } from '@/types/apptypes';
-import { hasGroupInfo, hasPatternInfo, type BLSearchResult, type BLSearchSummary } from '@/types/blacklabtypes';
+import { hasGroupInfo, hasPatternInfo, type BLSearchResult, type BLSearchSummary, type BLSearchSummaryGrouped, type BLSearchSummaryPattern } from '@/types/blacklabtypes';
 
 import type { SubcorpusOutput } from './result-count-from-filters';
 
@@ -33,7 +33,26 @@ type SummaryWithAnnotatedFieldSubcorpus = {
 			tokens: number;
 		}>;
 	};
+	resultsStats?: {
+		status?: 'counting' | 'finished' | 'limited' | 'paused';
+		hits?: number;
+		hitsRetrieved?: number;
+		documents?: number;
+		documentsRetrieved?: number;
+		timeMs?: number;
+		subcorpusSize?: {
+			documents: number;
+			tokens: number;
+			annotatedFields?: Array<{
+				fieldName: string;
+				documents: number;
+				tokens: number;
+			}>;
+		};
+	};
 };
+
+type SearchSummaryWithResultStats = BLSearchSummary & Partial<BLSearchSummaryPattern> & Partial<BLSearchSummaryGrouped> & SummaryWithAnnotatedFieldSubcorpus;
 
 export function getCorpusTotals(index: NormalizedIndex, annotatedFieldId: string): SubcorpusOutput {
 	return {
@@ -47,24 +66,27 @@ export function getCorpusTotals(index: NormalizedIndex, annotatedFieldId: string
 export function getTotals(r: BLSearchResult, annotatedFieldId: string): TotalsOutput {
 	const hasPatternInfo_ = hasPatternInfo(r);
 	const hasGroupInfo_ = hasGroupInfo(r);
-	const fieldSubcorpusSize = annotatedFieldId ? getAnnotatedFieldSubcorpusSize(r.summary, annotatedFieldId) : null;
+	const summary = r.summary as SearchSummaryWithResultStats;
+	const fieldSubcorpusSize = annotatedFieldId ? getAnnotatedFieldSubcorpusSize(summary, annotatedFieldId) : null;
+	const resultsStats = summary.resultsStats;
 
 	return {
 		results: r,
-		docsRetrieved: r.summary.numberOfDocsRetrieved,
-		docsCounted: r.summary.numberOfDocs,
-		hitsRetrieved: hasPatternInfo_ ? r.summary.numberOfHitsRetrieved : 0,
-		hitsCounted: hasPatternInfo_ ? r.summary.numberOfHits : 0,
-		groups: hasGroupInfo_ ? r.summary.numberOfGroups : undefined,
-		searchTime: r.summary.searchTime,
-		tokensInMatchingDocuments: fieldSubcorpusSize?.tokens ?? r.summary.tokensInMatchingDocuments ?? 0,
-		numberOfMatchingDocuments: fieldSubcorpusSize?.documents ?? r.summary.numberOfDocs ?? 0,
-		state: r.summary.stillCounting ? 'counting' : hasPatternInfo_ && r.summary.stoppedCountingHits ? 'limited' : 'finished',
+		docsRetrieved: summary.numberOfDocsRetrieved ?? resultsStats?.documentsRetrieved ?? 0,
+		docsCounted: summary.numberOfDocs ?? resultsStats?.documents ?? 0,
+		hitsRetrieved: hasPatternInfo_ ? (summary.numberOfHitsRetrieved ?? resultsStats?.hitsRetrieved ?? 0) : 0,
+		hitsCounted: hasPatternInfo_ ? (summary.numberOfHits ?? resultsStats?.hits ?? 0) : 0,
+		groups: hasGroupInfo_ ? summary.numberOfGroups : undefined,
+		searchTime: summary.searchTime ?? (resultsStats?.timeMs != null ? resultsStats.timeMs / 1000 : 0),
+		tokensInMatchingDocuments: fieldSubcorpusSize?.tokens ?? summary.tokensInMatchingDocuments ?? 0,
+		numberOfMatchingDocuments: fieldSubcorpusSize?.documents ?? summary.numberOfDocs ?? resultsStats?.documents ?? 0,
+		state: resultsStats?.status ?? (summary.stillCounting ? 'counting' : hasPatternInfo_ && summary.stoppedCountingHits ? 'limited' : 'finished'),
 	};
 }
 
 export function getAnnotatedFieldSubcorpusSize(summary: BLSearchSummary | BLSearchResult['summary'], annotatedFieldId: string) {
-	const subcorpusSize = (summary as SummaryWithAnnotatedFieldSubcorpus).subcorpusSize;
+	const summaryWithSubcorpus = summary as SummaryWithAnnotatedFieldSubcorpus;
+	const subcorpusSize = summaryWithSubcorpus.subcorpusSize ?? summaryWithSubcorpus.resultsStats?.subcorpusSize;
 	if (!subcorpusSize) return null;
 	const annotatedField = subcorpusSize.annotatedFields?.find(field => field.fieldName === annotatedFieldId);
 	if (annotatedField) {

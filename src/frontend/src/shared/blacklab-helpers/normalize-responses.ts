@@ -15,8 +15,8 @@ import { mapReduce } from '@/shared/utils/array-utils';
 
 /** Find the annotation that contains annotationId as on of its subAnnotations. */
 function findParentAnnotation(annotatedField: BLTypes.BLAnnotatedField, annotationId: string): string | undefined {
-	const annotations = BLTypes.isAnnotatedFieldV1(annotatedField) ? Object.entries(annotatedField.properties) : Object.entries(annotatedField.annotations);
-	const parent: [string, BLTypes.BLAnnotation] | undefined = annotations.find(a => (a[1].subannotations ? a[1].subannotations!.includes(annotationId) : false));
+	const annotations = Object.entries(annotatedField.annotations);
+	const parent = annotations.find(([, annotation]) => (annotation.subannotations ? annotation.subannotations.includes(annotationId) : false));
 	return parent ? parent[0] : undefined;
 }
 
@@ -44,45 +44,44 @@ export function getCorrectUiType<T extends NormalizedAnnotation['uiType']>(allow
 }
 
 function getAnnotationDisplayName(annotation: BLTypes.BLAnnotation, annotationId: string): string {
-	return annotation.custom?.displayName || annotation.displayName || annotationId;
+	return BLTypes.isBLAnnotationV5(annotation) ? annotation.custom?.displayName || annotationId : annotation.displayName || annotationId;
 }
 
 function getAnnotationDescription(annotation: BLTypes.BLAnnotation): string {
-	return annotation.custom?.description || annotation.description || '';
+	return BLTypes.isBLAnnotationV5(annotation) ? annotation.custom?.description || '' : annotation.description || '';
 }
 
 function getAnnotationUiType(field: BLTypes.BLAnnotation | NormalizedAnnotation): string {
-	const customUiType = (field as BLTypes.BLAnnotation).custom?.uiType;
-	return (customUiType || field.uiType || '').trim().toLowerCase();
+	if ('id' in field) return (field.uiType || '').trim().toLowerCase();
+	return (BLTypes.isBLAnnotationV5(field) ? field.custom?.uiType || '' : field.uiType || '').trim().toLowerCase();
 }
 
 function getMetadataDisplayName(field: BLTypes.BLMetadataField, fieldId: string): string {
-	return field.custom?.displayName || field.displayName || fieldId;
+	return BLTypes.isMetadataFieldV5(field) ? field.custom.displayName || fieldId : field.displayName || fieldId;
 }
 
 function getMetadataDescription(field: BLTypes.BLMetadataField): string {
-	return field.custom?.description || field.description || '';
+	return BLTypes.isMetadataFieldV5(field) ? field.custom.description || '' : field.description || '';
 }
 
 function getMetadataDisplayValues(field: BLTypes.BLMetadataField): Record<string, string> {
-	return field.custom?.displayValues || field.displayValues || {};
+	return BLTypes.isMetadataFieldV5(field) ? field.custom.displayValues || {} : field.displayValues || {};
 }
 
 function getMetadataUiType(field: BLTypes.BLMetadataField): string {
-	return (field.custom?.uiType || field.uiType || '').trim().toLowerCase();
+	return (BLTypes.isMetadataFieldV5(field) ? field.custom.uiType || '' : field.uiType || '').trim().toLowerCase();
 }
 
 function getAnnotatedFieldDisplayName(field: BLTypes.BLAnnotatedField, fieldId: string): string {
-	return field.custom?.displayName || field.displayName || fieldId;
+	return BLTypes.isAnnotatedFieldV5(field) ? field.custom.displayName || fieldId : field.displayName || fieldId;
 }
 
 function getAnnotatedFieldDescription(field: BLTypes.BLAnnotatedField): string {
-	return field.custom?.description || field.description || '';
+	return BLTypes.isAnnotatedFieldV5(field) ? field.custom.description || '' : field.description || '';
 }
 
 function getAnnotatedFieldDisplayOrder(field: BLTypes.BLAnnotatedField): string[] | undefined {
-	if (BLTypes.isAnnotatedFieldV1(field)) return undefined;
-	return field.custom?.displayOrder || field.displayOrder;
+	return BLTypes.isAnnotatedFieldV5(field) ? field.custom.displayOrder : field.displayOrder;
 }
 
 function normalizeMetadataUIType(field: BLTypes.BLMetadataField): NormalizedMetadataField['uiType'] {
@@ -116,10 +115,11 @@ export function normalizeAnnotationUIType(field: BLTypes.BLAnnotation | Normaliz
 
 	// valueListComplete only present on non-normalized annotation
 	// if the field is normalized, and we have a values property, we can assume that the list is complete.
-	const hasAllValues = field.values && ('valueListComplete' in field ? !!field.valueListComplete : true);
+	const values = 'id' in field ? field.values : BLTypes.isBLAnnotationV4(field) ? field.values?.map(value => ({ label: value, value, title: null })) : Object.keys(field.terms ?? {}).map(value => ({ label: value, value, title: null }));
+	const hasAllValues = values && ('valueListComplete' in field ? !!field.valueListComplete : true);
 
 	if (!uiType) {
-		return field.values ? (hasAllValues ? 'select' : 'combobox') : 'text';
+		return values?.length ? (hasAllValues ? 'select' : 'combobox') : 'text';
 	}
 
 	switch (uiType) {
@@ -138,7 +138,7 @@ export function normalizeAnnotationUIType(field: BLTypes.BLAnnotation | Normaliz
 }
 
 function normalizeAnnotation(annotatedFieldId: string, annotatedField: BLTypes.BLAnnotatedField, annotationId: string, annotation: BLTypes.BLAnnotation): NormalizedAnnotation {
-	const mainAnnotationId = BLTypes.isAnnotatedFieldV1(annotatedField) ? annotatedField.mainProperty : annotatedField.mainAnnotation;
+	const values = BLTypes.isBLAnnotationV5(annotation) ? Object.keys(annotation.terms ?? {}) : annotation.values;
 
 	return {
 		annotatedFieldId,
@@ -148,12 +148,12 @@ function normalizeAnnotation(annotatedFieldId: string, annotatedField: BLTypes.B
 		hasForwardIndex: annotation.hasForwardIndex,
 		id: annotationId,
 		isInternal: annotation.isInternal,
-		isMainAnnotation: annotationId === mainAnnotationId,
+		isMainAnnotation: annotationId === annotatedField.mainAnnotation,
 		offsetsAlternative: annotation.offsetsAlternative,
 		subAnnotations: annotation.subannotations,
 		parentAnnotationId: findParentAnnotation(annotatedField, annotationId),
 		uiType: normalizeAnnotationUIType(annotation),
-		values: annotation.valueListComplete && annotation.values && annotation.values.length > 0 ? annotation.values.map(v => ({ label: v, value: v, title: null })) : undefined,
+		values: annotation.valueListComplete && values && values.length > 0 ? values.map(value => ({ label: value, value, title: null })) : undefined,
 	};
 }
 
@@ -180,8 +180,9 @@ function normalizeMetadata(fieldId: string, field: BLTypes.BLMetadataField): Nor
 }
 
 function normalizeAnnotatedField(fieldId: string, field: BLTypes.BLAnnotatedField): NormalizedAnnotatedField {
-	const annotations: Array<[string, BLTypes.BLAnnotation]> = BLTypes.isAnnotatedFieldV1(field) ? Object.entries(field.properties) : Object.entries(field.annotations);
-	const mainAnnotationId: string = BLTypes.isAnnotatedFieldV1(field) ? field.mainProperty : field.mainAnnotation;
+	const annotations: Array<[string, BLTypes.BLAnnotation]> = Object.entries(field.annotations);
+	const tokenCount = BLTypes.isAnnotatedFieldV5(field) ? field.count.tokens : field.tokenCount;
+	const documentCount = BLTypes.isAnnotatedFieldV5(field) ? field.count.documents : field.documentCount;
 
 	const isParallel = fieldId.includes(PARALLEL_FIELD_SEPARATOR);
 	const parallelFieldParts = getParallelFieldParts(fieldId);
@@ -193,24 +194,24 @@ function normalizeAnnotatedField(fieldId: string, field: BLTypes.BLAnnotatedFiel
 		defaultDescription: getAnnotatedFieldDescription(field),
 		defaultDisplayName: getAnnotatedFieldDisplayName(field, fieldId),
 		hasContentStore: field.hasContentStore,
-		hasLengthTokens: !!field.hasLengthTokens,
-		hasXmlTags: field.hasXmlTags,
+		hasLengthTokens: false,
+		hasXmlTags: !!field.hasXmlTags,
 		id: fieldId,
 		isAnnotatedField: field.isAnnotatedField ?? true,
-		mainAnnotationId,
+		mainAnnotationId: field.mainAnnotation,
 		isParallel,
 		prefix: parallelFieldParts.prefix,
 		version: parallelFieldParts.version,
-		tokenCount: field.tokenCount,
-		documentCount: field.documentCount,
+		tokenCount,
+		documentCount,
 	};
 }
 
 function normalizeAnnotationGroups(blIndex: BLTypes.BLIndexMetadata): NormalizedAnnotationGroup[] {
 	const fieldId = blIndex.mainAnnotatedField || Object.keys(blIndex.annotatedFields)[0];
 	const field = blIndex.annotatedFields[fieldId];
-	const annotationGroups = blIndex.custom?.annotationGroups || blIndex.annotationGroups;
-	const annotations = BLTypes.isAnnotatedFieldV1(field) ? field.properties : field.annotations;
+	const annotationGroups = BLTypes.isBLIndexMetadataV5(blIndex) ? blIndex.custom?.annotationGroups : blIndex.annotationGroups;
+	const annotations = field.annotations;
 
 	const seenAnnotations = new Set<string>();
 
@@ -218,7 +219,7 @@ function normalizeAnnotationGroups(blIndex: BLTypes.BLIndexMetadata): Normalized
 	const normalized =
 		annotationGroups?.[fieldId]?.map<NormalizedAnnotationGroup>(group => {
 			const g = {
-				id: group.groupName ?? group.name!,
+				id: BLTypes.isAnnotationGroupV5(group) ? group.groupName : group.name,
 				annotatedFieldId: fieldId,
 				entries: group.annotations.filter(annotationName => {
 					// mark seen:
@@ -229,7 +230,7 @@ function normalizeAnnotationGroups(blIndex: BLTypes.BLIndexMetadata): Normalized
 				// even when addRemainingAnnotations is set, we will create a separate remainder group for dangling annotations.
 				isRemainderGroup: false,
 			};
-			if (group.addRemainingAnnotations) remainderGroup ??= g;
+			if (BLTypes.isAnnotationGroupV5(group) && group.addRemainingAnnotations) remainderGroup ??= g;
 			return g;
 		}) ?? [];
 
@@ -269,16 +270,16 @@ function normalizeAnnotationGroups(blIndex: BLTypes.BLIndexMetadata): Normalized
 function normalizeMetadataGroups(blIndex: BLTypes.BLIndexMetadata): NormalizedMetadataGroup[] {
 	const metadataGroupsNormalized: NormalizedMetadataGroup[] = [];
 	const idsNotInGroups = new Set(Object.keys(blIndex.metadataFields));
-	const metadataGroups = blIndex.custom?.metadataFieldGroups || blIndex.metadataFieldGroups;
+	const metadataGroups = BLTypes.isBLIndexMetadataV5(blIndex) ? blIndex.custom?.metadataFieldGroups : blIndex.metadataFieldGroups;
 
 	let hasUserDefinedGroup = false;
 
 	// Copy predefined groups, removing nonexistant fields and empty groups
 	for (const group of metadataGroups ?? []) {
-		const fields = group.fields ?? group.fieldNamesInGroup;
+		const fields = BLTypes.isMetadataGroupV5(group) ? group.fieldNamesInGroup : group.fields;
 
 		const normalizedGroup: NormalizedMetadataGroup = {
-			entries: fields!.filter(id => blIndex.metadataFields[id] != null),
+			entries: fields.filter(id => blIndex.metadataFields[id] != null),
 			isRemainderGroup: false,
 			id: group.name,
 		};
@@ -304,28 +305,36 @@ function normalizeMetadataGroups(blIndex: BLTypes.BLIndexMetadata): NormalizedMe
 // -------------
 
 export function normalizeIndexBase(blIndex: BLTypes.BLIndex, id: string): NormalizedIndexBase {
+	const tokenCount = BLTypes.isIndexV5(blIndex) ? blIndex.count.tokens : blIndex.tokenCount;
+	const documentCount = BLTypes.isIndexV5(blIndex) ? blIndex.count.documents : blIndex.documentCount;
+
 	return {
-		description: blIndex.description || '',
-		displayName: blIndex.displayName || id.split(':')[1] || id,
+		description: '',
+		displayName: id.split(':')[1] || id,
 		documentFormat: blIndex.documentFormat,
 		id,
 		indexProgress: blIndex.indexProgress || null,
 		owner: id.substring(0, id.indexOf(':')) || null,
 		status: blIndex.status,
 		timeModified: blIndex.timeModified,
-		tokenCount: blIndex.count?.tokens || blIndex.tokenCount || 0,
-		documentCount: blIndex.count?.documents || blIndex.documentCount || 0,
+		tokenCount: tokenCount || 0,
+		documentCount: documentCount || 0,
 	};
 }
 
 export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata, relations: BLTypes.BLRelationInfo): NormalizedIndex {
 	const annotationGroupsNormalized = normalizeAnnotationGroups(blIndex);
 	const metadataGroupsNormalized = normalizeMetadataGroups(blIndex);
-	const indexId = blIndex.name ?? blIndex.indexName ?? blIndex.corpusName;
+	const indexId = 'name' in blIndex ? blIndex.name : 'indexName' in blIndex ? blIndex.indexName : 'corpusName' in blIndex ? blIndex.corpusName : undefined;
 	if (!indexId) throw new Error('Index metadata is missing an id (name, indexName or corpusName)');
 	const annotatedFields: Array<[string, BLTypes.BLAnnotatedField]> = Object.entries(blIndex.annotatedFields);
-	const custom = blIndex.custom;
-	const fieldInfo = custom?.specialFields || blIndex.fieldInfo || (blIndex.pidField ? { pidField: blIndex.pidField } : {});
+	const isV5 = BLTypes.isBLIndexMetadataV5(blIndex);
+	const fieldInfo = isV5 ? { pidField: blIndex.pidField, titleField: blIndex.custom?.titleField, authorField: blIndex.custom?.authorField, dateField: blIndex.custom?.dateField } : blIndex.fieldInfo;
+	const tokenCount = isV5 ? blIndex.count.tokens : blIndex.tokenCount;
+	const documentCount = isV5 ? blIndex.count.documents : blIndex.documentCount;
+	const description = isV5 ? blIndex.custom?.description : blIndex.description;
+	const displayName = isV5 ? blIndex.custom?.displayName : blIndex.displayName;
+	const textDirection = isV5 ? blIndex.custom?.textDirection : blIndex.textDirection;
 
 	return {
 		annotatedFields: mapReduce(
@@ -334,13 +343,13 @@ export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata, relations: BLTy
 		),
 		annotationGroups: annotationGroupsNormalized,
 		contentViewable: blIndex.contentViewable,
-		description: custom?.description || blIndex.description || '',
-		displayName: custom?.displayName || blIndex.displayName || getCorpusIdWithoutOwner(indexId),
+		description: description || '',
+		displayName: displayName || getCorpusIdWithoutOwner(indexId),
 		// If BlackLab is an old format, this property doesn't exist
 		// If BlackLab is new, and the property is still missing, it's 0 (tokenCount and documentCount are always omitted when 0)
 		// Encode this in the fallback value, then later request the actual number of documents
-		documentCount: blIndex.documentCount || 0,
-		documentFormat: custom?.documentFormat || blIndex.documentFormat,
+		documentCount: documentCount ?? 0,
+		documentFormat: blIndex.documentFormat,
 		fieldInfo,
 		id: indexId,
 		metadataFieldGroups: metadataGroupsNormalized,
@@ -349,9 +358,9 @@ export function normalizeIndex(blIndex: BLTypes.BLIndexMetadata, relations: BLTy
 			'id',
 		),
 		owner: getCorpusOwner(indexId),
-		textDirection: custom?.textDirection || blIndex.textDirection || 'ltr',
-		timeModified: blIndex.timeModified || blIndex.versionInfo?.timeModified || '',
-		tokenCount: blIndex.tokenCount || 0,
+		textDirection: textDirection || 'ltr',
+		timeModified: blIndex.versionInfo?.timeModified || '',
+		tokenCount: tokenCount ?? 0,
 		status: blIndex.status,
 		indexProgress: blIndex.indexProgress || null,
 		mainAnnotatedField: blIndex.mainAnnotatedField || Object.keys(blIndex.annotatedFields)[0],

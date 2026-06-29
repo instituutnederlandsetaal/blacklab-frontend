@@ -12,7 +12,7 @@ import type {
 } from '@/types/apptypes';
 import type {
 	BLDoc,
-	BLDocFields,
+	BLDocFieldsV4,
 	BLDocGroupResult,
 	BLDocGroupResults,
 	BLDocInfo,
@@ -370,9 +370,9 @@ export type DisplaySettingsForRendering = {
 	targetFields: NormalizedAnnotatedFieldParallel[];
 
 	/** Required to compute document title/summary. */
-	specialFields: BLDocFields;
+	specialFields: BLDocFieldsV4;
 	/** Document title/summary can be customized, so a callback is required. */
-	getSummary: (doc: BLDocInfo, specialFields: BLDocFields) => string;
+	getSummary: (doc: BLDocInfo, specialFields: BLDocFieldsV4) => string;
 
 	/** Main text direction of the corpus */
 	dir: 'ltr' | 'rtl';

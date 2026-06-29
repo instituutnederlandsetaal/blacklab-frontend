@@ -3,6 +3,7 @@ import { stripIndent } from 'common-tags';
 
 import {
 	isHitParams,
+	isServerV5,
 	type BLAnnotatedField,
 	type BLDocGroupResults,
 	type BLDocResults,
@@ -151,7 +152,7 @@ export const createBlackLabApi = async (settings: BlackLabApiSettings): Promise<
 		getUser: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer>(paths.root(), undefined, requestParameters).then(r => r.user),
 
 		getCorpora: (requestParameters?: AxiosRequestConfig) =>
-			endpoint.getCancelable<BLServer>(paths.root(), undefined, requestParameters).then(r => Object.entries({ ...r.corpora, ...r.indices }).map(([id, c]) => normalizeIndexBase(c, id))),
+			endpoint.getCancelable<BLServer>(paths.root(), undefined, requestParameters).then(r => Object.entries(isServerV5(r) ? r.corpora : r.indices).map(([id, c]) => normalizeIndexBase(c, id))),
 
 		getCorpusStatus: (id: string, requestParamers?: AxiosRequestConfig) => endpoint.getCancelable<BLIndex>(paths.indexStatus(id), undefined, requestParamers).then(r => normalizeIndexBase(r, id)),
 
