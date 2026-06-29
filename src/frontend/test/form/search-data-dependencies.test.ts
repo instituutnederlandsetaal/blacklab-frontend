@@ -5,9 +5,9 @@ import { describe, expect, test, vi } from 'vitest';
 import type { ModuleRootState } from '@/app/state/ui-state';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 import { normalizeIndex } from '@/shared/blacklab-helpers/normalize-responses';
-import { createMockTranslate } from '@/shared/i18n/mock';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField } from '@/types/apptypes';
 import { createMockApi } from '@test/mocks/api';
+import { createMockTranslate } from '@test/mocks/i18n';
 
 function annotation(id: string, overrides: Partial<NormalizedAnnotation> = {}): NormalizedAnnotation {
 	return {

@@ -1,7 +1,5 @@
-import type { ObjectPlugin } from 'vue';
-
-import { provideTranslate } from './translate';
-import type { Translate } from './types';
+import { createI18nPlugin, type I18nPlugin } from '@/shared/i18n/plugin';
+import type { Translate } from '@/shared/i18n/types';
 
 export const createMockTranslate = (overrides: Partial<Translate> = {}): Translate => ({
 	$t(key: string) {
@@ -47,13 +45,4 @@ export const createMockTranslate = (overrides: Partial<Translate> = {}): Transla
 	...overrides,
 });
 
-export const createMockI18n = (overrides: Partial<Translate> = {}): ObjectPlugin & { translate: Translate } => {
-	const translate = createMockTranslate(overrides);
-
-	return {
-		install(app) {
-			provideTranslate(app, translate);
-		},
-		translate,
-	};
-};
+export const createMockI18n = (overrides: Partial<Translate> = {}): I18nPlugin => createI18nPlugin({ translate: createMockTranslate(overrides) });

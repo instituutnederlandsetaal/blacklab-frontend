@@ -21,8 +21,7 @@ import type { AnnotationPosFieldConfig, AnnotationReference } from '@/features/f
 import type { FieldPresentation } from '@/features/form/model/types/form-shape.ts';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import type { Tagset } from '@/types/apptypes';
-
-import { createMockI18n } from '@/shared/i18n/mock.ts';
+import { useI18n, type Translate } from '@/shared/i18n';
 
 import AnnotationPosField from '../fields/AnnotationPosField.vue';
 import CheckboxField from '../fields/generic/CheckboxField.vue';
@@ -64,7 +63,6 @@ const meta = {
 export default meta;
 type Story = StoryObj<StoryArgs>;
 
-const translate = createMockI18n().translate;
 const posTagset: Tagset = sampleTagsetJson;
 const posAnnotation: AnnotationReference = {
 	id: 'pos',
@@ -100,7 +98,7 @@ function normalizeVariantArg(value: FieldVariantArg): FieldPresentation | FieldP
 	return value;
 }
 
-function createStoryContext(indexId: string): FormRuntimeContext {
+function createStoryContext(indexId: string, translate: Translate): FormRuntimeContext {
 	return {
 		corpus: {
 			indexId,
@@ -125,7 +123,7 @@ function createFieldStory<State>(buildField: (builder: FormBuilder) => FormField
 		render: args => ({
 			components: { FormSystemStoryHarness },
 			setup() {
-				const definition = new FormBuilder(createStoryContext('Storybook Example index'));
+				const definition = new FormBuilder(createStoryContext('Storybook Example index', useI18n()));
 				const field = buildField(definition);
 				definition.newForm('root', ContainerRenderer, { title: 'Field preview' }).addChildren(
 					definition.newView('root.heading', HeadingView, {

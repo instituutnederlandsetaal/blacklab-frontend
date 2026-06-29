@@ -17,8 +17,7 @@ import type { BlackLabParameters } from '@/features/form/model/types/blacklab-pa
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
-
-import { createMockI18n } from '@/shared/i18n/mock';
+import { useI18n, type Translate } from '@/shared/i18n';
 
 import FormSystemStoryHarness from './FormSystemStoryHarness.vue';
 
@@ -71,13 +70,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<OverrideStoryArgs>;
 
-function createOverrideStoryModel(): OverrideStoryModel {
+function createOverrideStoryModel(translate: Translate): OverrideStoryModel {
 	const definition = new FormBuilder({
 		corpus: {
 			indexId: 'storybook-raw-overrides',
 			textDirection: 'ltr',
 		},
-		translate: createMockI18n().translate,
+		translate,
 	});
 
 	definition.newForm('raw-overrides.demo', ContainerRenderer, { title: 'Raw override locking' }).addChildren(
@@ -156,7 +155,7 @@ export const RawOverridesLockFields: Story = {
 	render: args => ({
 		components: { FormSystemStoryHarness },
 		setup() {
-			const model = createOverrideStoryModel();
+			const model = createOverrideStoryModel(useI18n());
 			watchEffect(() => applyRawOverrides(model.definition, args));
 			return model;
 		},

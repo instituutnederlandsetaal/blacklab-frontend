@@ -6,7 +6,7 @@ import 'floating-vue/dist/style.css';
 import { setup, type Preview } from '@storybook/vue3-vite';
 import { defineComponent } from 'vue';
 
-import { createMockI18n } from '../src/shared/i18n';
+import { createMockI18n } from '../test/mocks/i18n';
 
 const DebugStub = defineComponent({
 	name: 'debug',

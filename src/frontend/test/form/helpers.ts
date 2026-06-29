@@ -4,7 +4,7 @@ import { FormBuilder, useFormSystemRuntime, useParentForm, type FormRuntimeConte
 import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
-import { createMockI18n } from '@/shared/i18n';
+import { createMockI18n } from '@test/mocks/i18n';
 
 export type TestTextFieldState = {
 	value: string;

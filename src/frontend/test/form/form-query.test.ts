@@ -6,7 +6,7 @@ import { annotationTextController, booleanExpr, expertQueryController, parallelC
 import { combineQueryFragments, compileQueryIR, cqlRaw, queryFragment, queryIR, rawFilter, termFilter, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import type { AnnotationTextFieldConfig } from '@/features/form/model/controllers/annotation-controller';
 
-import { createMockTranslate } from '@/shared/i18n/mock';
+import { createMockTranslate } from '@test/mocks/i18n';
 
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 

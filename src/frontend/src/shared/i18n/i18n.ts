@@ -1,9 +1,9 @@
 import { tryOnScopeDispose } from '@vueuse/core';
-import { toRef, watch, type MaybeRefOrGetter, type ObjectPlugin } from 'vue';
+import { toRef, watch, type MaybeRefOrGetter } from 'vue';
 import { createI18n as createVueI18n } from 'vue-i18n';
 
-import { createTranslate, provideTranslate } from './translate';
-import type { Translate } from './types';
+import { createI18nPlugin, type I18nPlugin } from './plugin';
+import { createTranslate } from './translate';
 
 import { I18nManager } from '@/shared/i18n/i18n-manager';
 import useInjectable from '@/shared/utils/useInjectable';
@@ -22,9 +22,8 @@ const [_i18nManagerInjectionKey, provideI18nManager, useI18nManager] = useInject
 
 export { useI18nManager };
 
-export type AppI18n = ObjectPlugin & {
+export type AppI18n = I18nPlugin & {
 	manager: I18nManager;
-	translate: Translate;
 	init: Promise<void>;
 	registerLocale: I18nManager['registerLocale'];
 	removeLocale: I18nManager['removeLocale'];
@@ -106,17 +105,18 @@ export function createI18n(indexId: MaybeRefOrGetter<string | undefined | null>)
 	});
 	const vueI18n = vueI18nPlugin.global as unknown as VueI18nBridge;
 	const translate = createTranslate(vueI18nPlugin.global as Parameters<typeof createTranslate>[0]);
+	const translatePlugin = createI18nPlugin({ translate });
 
 	const api: AppI18n = {
+		...translatePlugin,
 		install(app) {
 			const stopBridge = bridgeManagerToVueI18n(manager, vueI18n);
 			app.onUnmount(stopBridge);
 			app.use(vueI18nPlugin);
-			provideTranslate(app, translate);
+			translatePlugin.install(app);
 			provideI18nManager(app, manager);
 		},
 		manager,
-		translate,
 		init: createInitPromise(manager),
 		registerLocale: manager.registerLocale.bind(manager),
 		removeLocale: manager.removeLocale.bind(manager),

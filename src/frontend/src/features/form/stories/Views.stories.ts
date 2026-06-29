@@ -14,8 +14,7 @@ import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
 import TotalsView from '@/features/form/views/TotalsView.vue';
-
-import { createMockI18n } from '@/shared/i18n/mock';
+import { useI18n, type Translate } from '@/shared/i18n';
 
 import FormSystemStoryHarness from './FormSystemStoryHarness.vue';
 
@@ -35,13 +34,13 @@ const meta = {
 export default meta;
 type Story = StoryObj;
 
-function createViewStoryModel(): ViewStoryModel {
+function createViewStoryModel(translate: Translate): ViewStoryModel {
 	const definition = new FormBuilder({
 		corpus: {
 			indexId: 'storybook-views',
 			textDirection: 'ltr',
 		},
-		translate: createMockI18n().translate,
+		translate,
 	});
 	const root = definition.newContainer('view-catalog', ContainerRenderer, {
 		title: 'Built-in views',
@@ -118,7 +117,9 @@ function createViewStoryModel(): ViewStoryModel {
 export const BuiltInViews: Story = {
 	render: () => ({
 		components: { FormSystemStoryHarness },
-		setup: createViewStoryModel,
+		setup() {
+			return createViewStoryModel(useI18n());
+		},
 		template: '<FormSystemStoryHarness :definition :initial-state="initialState" :initial-submitted="initialSubmitted" />',
 	}),
 };
