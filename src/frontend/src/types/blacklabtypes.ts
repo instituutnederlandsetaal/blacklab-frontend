@@ -16,7 +16,7 @@ export type BLSearchParameters = {
 	context?: number | string;
 	/** How to filter results: a lucene query */
 	filter?: string;
-	/** How to sort results, comma-separated list of field:${someMetadataFieldId} or (wordleft|hit|wordright):${someAnnotationId} */
+	/** How to sort results, comma-separated list of field:${someMetadataFieldId} or (before|hit|afdter):${someAnnotationId}[:${someNumberOfTokens}] */
 	group?: string;
 	/** Annotated field to return the snippet or left/match/right/start/end/captureGroups for. (defaults to main version) */
 	field?: string;
@@ -30,14 +30,14 @@ export type BLSearchParameters = {
 	 * See https://blacklab.ivdnt.org//blacklab-server-overview.html#requests
 	 */
 	pattgapdata?: string;
-	/** How to sort results, comma-separated list of field:${someMetadataFieldId} or (wordleft|hit|wordright):${someAnnotationId} */
+	/** How to sort results, comma-separated list of field:${someMetadataFieldId} or (before|hit|after):${someAnnotationId}[:${someNumberOfTokens}] */
 	sort?: string;
 	/** Also return results within this specific group (only when 'group' specified) */
 	viewgroup?: string;
 
 	// additionals that aren't used often
-	/** Include the total number of tokens in documents containing matches */
-	includetokencount?: boolean;
+	/** V5 only: Include the size of subcorpus. Use 'includetokencount' in V4 */
+	subcorpussize?: boolean;
 	/** Block until all results have been found */
 	waitfortotal?: boolean;
 	/** List of comma-separated annotation IDs to include in the kwic data. */

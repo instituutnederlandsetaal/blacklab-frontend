@@ -25,7 +25,7 @@ import {
 	type BLTermOccurances,
 } from '@/types/blacklabtypes';
 
-import { type EndpointSettings, createEndpoint } from '@/shared/api/lib/api-endpoint';
+import { type EndpointSettings, type QueryParamsMapper, type QueryParamsMapperReturn, createEndpoint } from '@/shared/api/lib/api-endpoint';
 import { ApiError, CancelableRequest, type BlackLabApi, type BlackLabPaths } from '@/shared/api/lib/api-types';
 import { rejectedRequest } from '@/shared/api/lib/api-utils';
 import { normalizeFormat, normalizeIndex, normalizeIndexBase } from '@/shared/blacklab-helpers/normalize-responses';
@@ -138,14 +138,25 @@ async function getBlackLabVersion(endpoint: string, apiVersion?: string | null):
 	return getMajorBlackLabVersion(response.apiVersion);
 }
 
+/** Map some renamed query params from V5 to V4 */
+export const v4QueryParamsAdapter: QueryParamsMapper<BLSearchParameters> = v => {
+	const r: QueryParamsMapperReturn = { ...v };
+	delete r.subcorpussize;
+	r.includetokencount = v.subcorpussize;
+	return r;
+};
+
 /**
  * Blacklab api
  */
-export const createBlackLabApi = async (settings: BlackLabApiSettings): Promise<{ api: BlackLabApi; paths: BlackLabPaths }> => {
+export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'mapQueryParams'>): Promise<{ api: BlackLabApi; paths: BlackLabPaths }> => {
 	const version = await getBlackLabVersion(settings.baseUrl, settings.apiVersion);
 	const paths = version === '4' ? blacklabPathsV4 : blacklabPathsV5;
 
-	const endpoint = createEndpoint(settings);
+	const endpoint = createEndpoint({
+		...settings,
+		mapQueryParams: version === '4' ? v4QueryParamsAdapter : undefined,
+	});
 	const api: BlackLabApi = {
 		getServerInfo: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer>(paths.root(), undefined, requestParameters),
 

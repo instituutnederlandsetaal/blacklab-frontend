@@ -19,19 +19,23 @@ export type Endpoint = Omit<AxiosInstance, 'get' | 'post' | 'delete'> & {
 	delete<T>(url: string, config?: AxiosRequestConfig): Promise<T>;
 };
 
+type NaiveQueryParamValue = string | string[] | boolean | number | undefined | null;
+export type QueryParamsMapperReturn = Record<string, NaiveQueryParamValue>;
+export type QueryParamsMapper<T extends QueryParamsMapperReturn = QueryParamsMapperReturn> = (params: T) => QueryParamsMapperReturn;
+
 export type EndpointSettings = {
 	baseUrl: string;
 	user: MaybeRef<User | null>;
 	headers?: Record<string, string>;
 	axiosOptions?: Omit<AxiosRequestConfig, 'baseURL' | 'headers'>;
+	mapQueryParams?: QueryParamsMapper<any>;
 };
-
 export function createEndpoint(p: EndpointSettings): Endpoint {
 	const endpoint = axios.create({
 		...p.axiosOptions,
 		baseURL: p.baseUrl.replace(/\/*$/, '/'),
 		headers: p.headers,
-		paramsSerializer: params => new URLSearchParams(cleanQueryParams(params)).toString(),
+		paramsSerializer: params => new URLSearchParams(cleanQueryParams(p.mapQueryParams?.(params) ?? params)).toString(),
 		// whether to set withCredentials in axios settings
 		// This will send cookies with requests, which is required for authentication
 		// HOWEVER, it requires a very specific setup to work, either of the following must be true:

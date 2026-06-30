@@ -199,6 +199,7 @@ function parseCriterium(criterium: string, results?: BLSearchResult): SortingOrG
 				},
 			});
 		}
+		// legacy; these are now before/after, but we still parse them for backwards compatibility.
 		case 'wordleft':
 		case 'wordright':
 			return cast<GroupByContext>({
