@@ -7,13 +7,13 @@ import type { BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
 import { binarySearch } from '@/shared/utils/array-utils';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
 import {
-	combineLoadables,
-	combineLoadableStreams,
-	combineLoadableStreamsIncludingEmpty,
-	compareAsSortedJson,
-	mapLoaded,
-	switchMapLoaded,
-	withRequiredKeys,
+    combineLoadables,
+    combineLoadableStreams,
+    combineLoadableStreamsIncludingEmpty,
+    compareAsSortedJson,
+    mapLoaded,
+    switchMapLoaded,
+    withRequiredKeys,
 } from '@/shared/utils/loadable/loadable-stream';
 import { clamp } from '@/shared/utils/number-utils';
 

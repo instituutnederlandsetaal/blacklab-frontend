@@ -18,7 +18,7 @@ import type {
 	BLDocInfo,
 	BLDocResults,
 	BLHit,
-	BLHitGroupResult,
+	BLHitGroup,
 	BLHitGroupResults,
 	BLHitInOtherField,
 	BLHitResults,
@@ -600,7 +600,7 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 	const max = new MaxCounter<GroupRowData>();
 	const defaultGroupName = info.i18n.$t('results.groupBy.groupNameWithoutValue').toString();
 
-	const mapHitGroup = (g: BLHitGroupResult, summary: BLHitGroupResults['summary']) =>
+	const mapHitGroup = (g: BLHitGroup, summary: BLHitGroupResults['summary']) =>
 		({
 			type: 'group',
 			id: g.identity || defaultGroupName,

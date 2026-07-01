@@ -16,7 +16,7 @@ export type BLSearchParameters = {
 	context?: number | string;
 	/** How to filter results: a lucene query */
 	filter?: string;
-	/** How to sort results, comma-separated list of field:${someMetadataFieldId} or (before|hit|afdter):${someAnnotationId}[:${someNumberOfTokens}] */
+	/** How to sort results, comma-separated list of field:${someMetadataFieldId} or (before|hit|after):${someAnnotationId}[:${someNumberOfTokens}] */
 	group?: string;
 	/** Annotated field to return the snippet or left/match/right/start/end/captureGroups for. (defaults to main version) */
 	field?: string;
@@ -40,9 +40,9 @@ export type BLSearchParameters = {
 	subcorpussize?: boolean;
 	/** Block until all results have been found */
 	waitfortotal?: boolean;
-	/** List of comma-separated annotation IDs to include in the kwic data. */
+	/** List of comma-separated annotation IDs to include in the kwic data. Use '*' to return values for all fields. */
 	listvalues?: string;
-	/** List of comma-separated metadata IDs to include in document info. */
+	/** List of comma-separated metadata IDs to include in document info. Use '*' to return values for all fields. */
 	listmetadatavalues?: string;
 	/** List of comma-separated span attribute IDs (e.g. speech.speaker) to include in the kwic data. */
 	listspanattributes?: string;
@@ -81,8 +81,8 @@ export interface BLError {
 export interface BLUser {
 	/** When !loggedIn: false, when loggedIn, true/false depending on whether user has hit the private corpora limit. */
 	canCreateIndex: boolean;
-	/** Only available when loggedIn */
-	id?: string;
+	/** Only available when loggedIn. Older versions omitted the property entirely, new versions set this to null */
+	id?: string | null;
 	loggedIn: boolean;
 	debugMode?: boolean;
 }
@@ -109,12 +109,11 @@ interface BLServerBase {
 export type BLServerV4 = BLServerBase & {
 	indices: Record<string, BLIndexV4>;
 };
-export type BLServerV5 = BLServerBase & {
-	corpora: Record<string, BLIndexV5>;
+export type BLServer = BLServerBase & {
+	corpora: Record<string, BLIndex>;
 };
-export type BLServer = BLServerV4 | BLServerV5;
-export const isServerV5 = (v: BLServer): v is BLServerV5 => (v as BLServerV5).corpora != null;
-export const isServerV4 = (v: BLServer): v is BLServerV4 => !isServerV5(v);
+export const isServerV5 = (v: BLServer | BLServerV4): v is BLServer => (v as BLServer).corpora != null && !v.apiVersion?.startsWith('4');
+export const isServerV4 = (v: BLServer | BLServerV4): v is BLServerV4 => !isServerV5(v);
 
 // #endregion
 
@@ -130,10 +129,10 @@ export interface BLIndexProgress {
 	tokensProcessed: number;
 }
 
-/** V5 */
 type BLCount = {
 	tokens: number;
 	documents: number;
+	/** Parallel only: Total number aggregated across all documents and all their versions. Strictly >= documents */
 	docVersions?: number;
 };
 
@@ -150,56 +149,42 @@ interface BLIndexBase {
 }
 
 export type BLIndexV4 = BLIndexBase & {
-	tokenCount?: number;
-	/**
-	 * Only when requesting full indexmetadata
-	 * Number of documents in this index (excluding any added in a currently running indexing action).
-	 */
-	documentCount?: number;
+	tokenCount: number;
+	documentCount: number;
 };
 
-export type BLIndexV5 = BLIndexBase & {
+export type BLIndex = BLIndexBase & {
 	/** Number of tokens and docs in this index (excluding those tokens added in any currently running indexing action). */
 	count: BLCount;
 };
 
-export type BLIndex = BLIndexV4 | BLIndexV5;
-export const isIndexV5 = (v: BLIndex): v is BLIndexV5 => (v as BLIndexV5).count != null;
-export const isIndexV4 = (v: BLIndex): v is BLIndexV4 => !isIndexV5(v);
-
 // #endregion
 
-// # region fieldgroups
+// # region annotation/metadata groups
 
 export type BLAnnotationGroupV4 = {
 	name: string;
 	annotations: string[];
 };
-export type BLAnnotationGroupV5 = {
+export type BLAnnotationGroup = {
 	groupName: string;
 	annotations: string[];
 	addRemainingAnnotations: boolean;
 };
-export type BLAnnotationGroup = BLAnnotationGroupV4 | BLAnnotationGroupV5;
-export const isAnnotationGroupV5 = (v: BLAnnotationGroup): v is BLAnnotationGroupV5 => 'groupName' in v && v.groupName != null;
-export const isAnnotationGroupV4 = (v: BLAnnotationGroup): v is BLAnnotationGroupV4 => !isAnnotationGroupV5(v);
 
 export type BLMetadataGroupV4 = {
 	name: string;
 	fields: string[];
 };
-export type BLMetadataGroupV5 = {
+export type BLMetadataGroup = {
 	name: string;
 	fieldNamesInGroup: string[];
 	addRemainingFields: boolean;
 };
-export type BLMetadataGroup = BLMetadataGroupV4 | BLMetadataGroupV5;
-export const isMetadataGroupV5 = (v: BLMetadataGroup): v is BLMetadataGroupV5 => 'fieldNamesInGroup' in v && v.fieldNamesInGroup != null;
-export const isMetadataGroupV4 = (v: BLMetadataGroup): v is BLMetadataGroupV4 => !isMetadataGroupV5(v);
 
 // #endregion
 
-// #region Expanded corpus info, used in /blacklab-server/corpora/:corpus | /blacklab-server/:corpus
+// #region Corpus Info, used in /blacklab-server/corpora/:corpus | /blacklab-server/:corpus
 
 export type BLDocFieldsV4 = {
 	/** Key to a field in BLDocInfo, missing if unknown */
@@ -215,13 +200,10 @@ export type BLDocFieldsV4 = {
 /** Contains information about the internal structure of the index - which fields exist for tokens, which metadata fields exist for documents, etc */
 interface BLIndexMetadataBase {
 	contentViewable: boolean;
-	corpusName?: string;
 	/** key of a BLFormat */
 	documentFormat?: string;
-	indexName?: string;
 	/** Key into annotatedFields */
 	mainAnnotatedField: string;
-	name?: string;
 	status: 'empty' | 'available' | 'indexing' | 'opening';
 	/** Only available when status === 'indexing' */
 	indexProgress?: BLIndexProgress;
@@ -248,6 +230,8 @@ type BLIndexMetadataCustomBase = {
 
 export type BLIndexMetadataV4 = BLIndexMetadataBase &
 	BLIndexMetadataCustomBase & {
+		indexName: string;
+
 		annotatedFields: Record<string, BLAnnotatedFieldV4>;
 		annotationGroups: { [annotatedFieldId: string]: BLAnnotationGroupV4[] };
 
@@ -258,9 +242,11 @@ export type BLIndexMetadataV4 = BLIndexMetadataBase &
 		tokenCount: number;
 		documentCount: number;
 	};
-export type BLIndexMetadataV5 = BLIndexMetadataBase & {
-	annotatedFields: Record<string, BLAnnotatedFieldV5>;
-	metadataFields: Record<string, BLMetadataFieldV5>;
+export type BLIndexMetadata = BLIndexMetadataBase & {
+	corpusName: string;
+
+	annotatedFields: Record<string, BLAnnotatedField>;
+	metadataFields: Record<string, BLMetadataField>;
 	pidField: string;
 	custom?: BLIndexMetadataCustomBase & {
 		/** Key to a field in BLDocInfo, missing if unknown */
@@ -269,14 +255,13 @@ export type BLIndexMetadataV5 = BLIndexMetadataBase & {
 		authorField?: string;
 		/** Key to a field in BLDocInfo, missing if unknown */
 		dateField?: string;
-		annotationGroups: { [annotatedFieldId: string]: BLAnnotationGroupV5[] };
-		metadataFieldGroups: BLMetadataGroupV5[];
+		annotationGroups: { [annotatedFieldId: string]: BLAnnotationGroup[] };
+		metadataFieldGroups: BLMetadataGroup[];
 	};
 	count: BLCount;
 };
-export type BLIndexMetadata = BLIndexMetadataV4 | BLIndexMetadataV5;
-export const isBLIndexMetadataV5 = (v: BLIndexMetadata): v is BLIndexMetadataV5 => (v as BLIndexMetadataV5).count != null;
-export const isBLIndexMetadataV4 = (v: BLIndexMetadata): v is BLIndexMetadataV4 => !isBLIndexMetadataV5(v);
+export const isBLIndexMetadataV5 = (v: BLIndexMetadata | BLIndexMetadataV4): v is BLIndexMetadata => (v as BLIndexMetadata).count != null;
+export const isBLIndexMetadataV4 = (v: BLIndexMetadata | BLIndexMetadataV4): v is BLIndexMetadataV4 => !isBLIndexMetadataV5(v);
 
 // #endregion
 
@@ -361,8 +346,8 @@ interface BLAnnotationBase {
 }
 
 type BLAnnotationCustom = {
-	description: string;
-	displayName: string;
+	description?: string;
+	displayName?: string;
 	/** Only supported values listed - but open-ended */
 	uiType?: (string & {}) | 'select' | 'combobox' | 'text' | 'pos' | 'dropdown' | 'autocomplete';
 };
@@ -373,16 +358,12 @@ export type BLAnnotationV4 = BLAnnotationBase &
 		values?: string[];
 	};
 
-export type BLAnnotationV5 = BLAnnotationBase & {
+export type BLAnnotation = BLAnnotationBase & {
 	/** Only included when ?custom=true was passed with the index metadata request */
 	custom?: BLAnnotationCustom;
 	/** Replacement for the 'values' property in V4, contains the counts as well. */
 	terms?: Record<string, number>;
 };
-
-export type BLAnnotation = BLAnnotationV4 | BLAnnotationV5;
-export const isBLAnnotationV5 = (v: BLAnnotation): v is BLAnnotationV5 => ('custom' in v && v.custom != null) || ('terms' in v && v.terms != null);
-export const isBLAnnotationV4 = (v: BLAnnotation): v is BLAnnotationV4 => !isBLAnnotationV5(v);
 
 // #endregion
 
@@ -390,32 +371,19 @@ export const isBLAnnotationV4 = (v: BLAnnotation): v is BLAnnotationV4 => !isBLA
 
 /** A set of annotations that form one data set on a token, usually there is only one of these in an index, called 'contents' */
 interface BLAnnotatedFieldBase {
-	// annotations split
-	// description in custom
-	// displayname in custom
-	// displayorder in custom(?)
-	// documentcount in count
-	// count in v5
-	// custom in v5
-
 	fieldName: string;
 	hasContentStore: boolean;
 	isAnnotatedField: true;
 	/** If a cql query is fired that is just "searchterm", this is the annotation that is searched, usually 'word' - key in annotations */
 	mainAnnotation: string;
-	// relations always present in v5, not present in v4 (needs separate request)
-
 	/** Only when present */
 	hasXmlTags?: boolean;
-
-	/** Indexed token properties/annotations for this field */
-	// annotations: { [key: string]: BLAnnotation };
 }
 
 export type BLAnnotatedFieldCustom = {
-	description: string;
-	displayName: string;
-	displayOrder: string[];
+	description?: string;
+	displayName?: string;
+	displayOrder?: string[];
 };
 
 export type BLAnnotatedFieldV4 = BLAnnotatedFieldBase &
@@ -424,9 +392,9 @@ export type BLAnnotatedFieldV4 = BLAnnotatedFieldBase &
 		tokenCount?: number;
 		documentCount?: number;
 	};
-export type BLAnnotatedFieldV5 = BLAnnotatedFieldBase & {
-	annotations: Record<string, BLAnnotationV5>;
-	custom: BLAnnotatedFieldCustom;
+export type BLAnnotatedField = BLAnnotatedFieldBase & {
+	annotations: Record<string, BLAnnotation>;
+	custom?: BLAnnotatedFieldCustom;
 	count: BLCount;
 	relations: {
 		spans: {
@@ -436,10 +404,6 @@ export type BLAnnotatedFieldV5 = BLAnnotatedFieldBase & {
 		// e.g. relClass: {relType: count}
 	};
 };
-export type BLAnnotatedField = BLAnnotatedFieldV4 | BLAnnotatedFieldV5;
-
-export const isAnnotatedFieldV5 = (v: BLAnnotatedField): v is BLAnnotatedFieldV5 => 'count' in v && v.count != null;
-export const isAnnotatedFieldV4 = (v: BLAnnotatedField): v is BLAnnotatedFieldV4 => !isAnnotatedFieldV5(v);
 
 // #endregion
 
@@ -476,13 +440,9 @@ type BLMetadataFieldCustom = {
 
 /** For now, only properties have been moved - no changes to types */
 export type BLMetadataFieldV4 = BLMetadataFieldBase & BLMetadataFieldCustom;
-export type BLMetadataFieldV5 = BLMetadataFieldBase & {
-	custom: BLMetadataFieldCustom;
+export type BLMetadataField = BLMetadataFieldBase & {
+	custom?: BLMetadataFieldCustom;
 };
-export type BLMetadataField = BLMetadataFieldV4 | BLMetadataFieldV5;
-export const isMetadataFieldV5 = (v: BLMetadataField): v is BLMetadataFieldV5 => 'custom' in v && v.custom != null;
-export const isMetadataFieldV4 = (v: BLMetadataField): v is BLMetadataFieldV4 => !isMetadataFieldV5(v);
-
 // #endregion
 
 // --------------
@@ -491,7 +451,7 @@ export const isMetadataFieldV4 = (v: BLMetadataField): v is BLMetadataFieldV4 =>
 
 // #region docssearchsummary
 
-export type BLSearchSummarySampleSettings =
+export type BLSearchSummarySampleV4 =
 	| {}
 	| {
 			samplePercentage: number;
@@ -505,11 +465,13 @@ export type BLSearchSummarySampleSettings =
 /** Match info definition in summary */
 export type BLSummaryMatchInfo = {
 	type: 'span' | 'tag' | 'relation' | 'list';
-	fieldName?: string; // field this capture is in (if not default field)
-	targetField?: string; // field the relation target is in (if not default field)
+	/** field this capture is in (if not default field) */
+	fieldName?: string;
+	/** field the relation target is in (if not default field) */
+	targetField?: string;
 };
 
-export type BLSearchSummary = {
+export type BLSearchSummaryV4 = {
 	actualWindowSize: number;
 	countTime?: number;
 	/** These fields have a special meaning in the BLDocResult.docInfo */
@@ -529,29 +491,98 @@ export type BLSearchSummary = {
 	numberOfDocsRetrieved: number;
 	/** Is any counting ongoing, generally true unless blacklab finished counting all results or results exceed the count limit (stoppedCountingHits = true) */
 	stillCounting: boolean;
-} & BLSearchSummarySampleSettings;
+} & BLSearchSummarySampleV4;
+
+export type BLSearchSummaryWindowV5 = {
+	firstResult: number;
+	requestedSize: number;
+	actualSize: number;
+	hasPrevious: boolean;
+	hasNext: boolean;
+};
+
+export type BLSearchResultsStatsV5 = {
+	/** When status === finished, see stoppedBecauseTooMany for the reason */
+	status: 'finished' | 'working';
+	hits: number;
+	documents: number;
+	timeMs: number;
+	/** Always present, but never true unless status === 'finished' (even then - only when there were more results but BlackLab stopped the search due to configured limits) */
+	stoppedBecauseTooMany: boolean;
+};
+
+export type BLSearchResultsSample = BLSearchSummarySampleV4;
+
+type SummaryParams = {
+	pattern: boolean;
+	grouped: boolean;
+	subcorpora: boolean;
+	sampled: boolean;
+};
+
+type BLSubcorpusSize = {
+	documents: number;
+	tokens: number;
+	annotatedFields?: Array<{
+		fieldName: string;
+		documents: number;
+		tokens: number;
+	}>;
+};
+
+export type BLSearchSummaryV5<T extends SummaryParams> = {
+	params: BLSearchParameters;
+	pattern: T['pattern'] extends true ? BLSearchSummaryPatternInfo : undefined;
+	results: {
+		/** Always present, but mostly empty when  */
+		window: BLSearchSummaryWindowV5;
+		stats: {
+			processed: BLSearchResultsStatsV5;
+			counted: BLSearchResultsStatsV5;
+			numberOfGroups: T['grouped'] extends true ? number : undefined;
+			largestGroupSize: T['grouped'] extends true ? number : undefined;
+			/** Subcorpus across the whole query; i.e. what would be matched if pattern wasn't present */
+			subcorpusSize?: T['subcorpora'] extends true ? BLSubcorpusSize : undefined;
+		};
+		sample: T['sampled'] extends true
+			?
+					| {
+							sample: number;
+							seed: number;
+					  }
+					| {
+							percentage: number;
+							seed: number;
+					  }
+			: undefined;
+	};
+};
+
+export type BLSearchSummaryPatternInfoV4 = {
+	/** The serialization of the query object BlackLab actually executed. */
+	bcql: string;
+	/** The main annotatedField that was searched. This is the full name of the field e.g. "contents__en" */
+	fieldName: string;
+	/** Any other annotatedFields involved in the search (in case of parallel corpora). These are the full names e.g. ["contents__en"] */
+	otherFields?: string[];
+	/** Json representation of the query. Not present when requesting results as xml output. */
+	json?: unknown;
+	/* MatchInfos only available when hits are returned (i.e. not a docs request, not grouped) */
+	matchInfos?: {
+		[key: string]: BLSummaryMatchInfo;
+	};
+};
+
+export type BLSearchSummaryPatternInfo = BLSearchSummaryPatternInfoV4;
 
 /**
  * Properties in the search summary that are only available if a pattern was passed.
  * Irrespective of whether docs or hits were requested.
  * If a pattern was passed, the summary will contain a pattern object with these properties.
  */
-export type BLSearchSummaryPattern = {
+export type BLSearchSummaryPatternV4 = {
 	/** Only for queries with a pattern. */
-	pattern: {
-		/** The serialization of the query object BlackLab actually executed. */
-		bcql: string;
-		/** The main annotatedField that was searched. This is the full name of the field e.g. "contents__en" */
-		fieldName: string;
-		/** Any other annotatedFields involved in the search (in case of parallel corpora). These are the full names e.g. ["contents__en"] */
-		otherFields?: string[];
-		/** Json representation of the query. Not present when requesting results as xml output. */
-		json?: any;
-		/* MatchInfos only available when hits are returned (i.e. not a docs request, not grouped) */
-		matchInfos?: {
-			[key: string]: BLSummaryMatchInfo;
-		};
-	};
+	pattern: BLSearchSummaryPatternInfoV4;
 	/** Total number of counted hits (so far), -1 if some error occured */
 	numberOfHits: number;
 	/** Total number of retrieved hits (so far) */
@@ -572,7 +603,7 @@ export type BLSearchSummaryPattern = {
 };
 
 /** Only when results have been grouped. */
-export interface BLSearchSummaryGrouped {
+export interface BLSearchSummaryGroupedV4 {
 	largestGroupSize: number;
 	numberOfGroups: number;
 
@@ -593,7 +624,7 @@ export interface BLSearchSummaryGrouped {
 // #endregion docssearchsummary
 
 /** Single group of either hits or documents */
-export interface BLGroupResult {
+export type BLGroupV4 = {
 	identity: string;
 	identityDisplay: string;
 	size: number;
@@ -602,41 +633,52 @@ export interface BLGroupResult {
 		name: string;
 		value: string;
 	}>;
-}
+};
 
-export interface BLHitGroupResult extends BLGroupResult {
+// NOTE: unchanged, but for completeness' sake
+/** Single group of either hits or documents */
+export type BLGroup = BLGroupV4;
+
+export type BLHitGroupV4 = BLGroupV4 & {
 	/** When grouped on annotation + metadata */
 	numberOfDocs: number;
-	/** Present when grouped on at least one metadata field, otherwise use subcorpusSize in the main results summary. */
-	subcorpusSize?: {
-		/** Number of documents this group including those documents that do not contain a hit. Might be 0 when grouped by metadata and this is the 'no value' group. */
-		documents: number;
-		/** Total number of tokens in those documents. Might be 0 when grouped by metadata and this is the 'no value' group. */
-		tokens: number;
-	};
-}
+	/** Present when grouped on at least one metadata field, and subcorpussize=true was in the request. If not present and subcorpussize=true was passed, use the main summary. */
+	subcorpusSize?: BLSubcorpusSize;
+};
 
-export interface BLDocGroupResult extends BLGroupResult {
+// TODO subcorpus
+export type BLHitGroup = BLGroupV4;
+
+export type BLDocGroupV4 = BLGroupV4 & {
 	/** Total number of tokens across all documents in this group */
 	numberOfTokens: number;
-	subcorpusSize?: {
-		/** Number of documents this group including those documents that do not contain a hit. Might be 0 when grouped by metadata and this is the 'no value' group. */
-		documents: number;
-		/** Total number of tokens in those documents. Might be 0 when grouped by metadata and this is the 'no value' group. */
-		tokens: number;
-	};
-}
+	/** Present when grouped on at least one metadata field, and subcorpussize=true was in the request. If not present and subcorpussize=true was passed, use the main summary. */
+	subcorpusSize?: BLSubcorpusSize;
+};
+
+export type BLDocGroup = BLDocGroupV4;
 
 /** Blacklab response for a query for hits with grouping enabled */
-export interface BLHitGroupResults {
-	hitGroups: BLHitGroupResult[];
-	summary: BLSearchSummary & BLSearchSummaryPattern & BLSearchSummaryGrouped;
+export interface BLHitGroupResultsV4 {
+	hitGroups: BLHitGroupV4[];
+	summary: BLSearchSummaryV4 & BLSearchSummaryPatternV4 & BLSearchSummaryGroupedV4;
+}
+
+export type BLHitGroupResults = {
+	hitGroups: BLHitGroup[];
+	summary: BLSearchSummaryV5<{ grouped: true; pattern: true; subcorpora: true; sampled: boolean }>;
+};
+
+/** Blacklab response for a query for documents with grouping enabled */
+export interface BLDocGroupResultsV4 {
+	docGroups: BLDocGroupV4[];
+	summary: BLSearchSummaryV4 & BLSearchSummaryGroupedV4;
 }
 
 /** Blacklab response for a query for documents with grouping enabled */
 export interface BLDocGroupResults {
-	docGroups: BLDocGroupResult[];
-	summary: BLSearchSummary & BLSearchSummaryGrouped;
+	docGroups: BLDocGroup[];
+	summary: BLSearchSummaryV5<{ grouped: true; pattern: boolean; subcorpora: true; sampled: boolean }>;
 }
 
 // #region docssnippettypes
@@ -646,7 +688,7 @@ export interface BLDocGroupResults {
  * deconstructed into the individual annotations/properties, such as lemma, pos, word,
  * always contains punctuation in between tokens
  */
-export interface BLHitSnippetPart {
+export type BLHitSnippetPart = {
 	/**
 	 * Punctuation always exists (even if only an empty string or a space).
 	 * Punctuation at a token comes BEFORE the word.
@@ -655,16 +697,12 @@ export interface BLHitSnippetPart {
 	 * Likewise, punctuation at the end of the hit is contained in the "after" context at index 0.
 	 */
 	punct: string[];
+} &
 	/** Usually this contains fields like lemma, word, pos */
-	[key: string]: string[];
-}
+	Record<string, string[]>;
 
-/** A subset of a BLHit, returned in document requests (/docs) when there are also hits. */
+/** Shared between v4/v5 - A subset of a BLHit, returned in document requests (/docs) when there are also hits. */
 export type BLHitSnippet = {
-	/** Omitted if snippet is at start of document */
-	left?: BLHitSnippetPart;
-	/** Omitted if snippet is at end of document */
-	right?: BLHitSnippetPart;
 	match: BLHitSnippetPart;
 };
 
@@ -741,8 +779,7 @@ export type BLMatchInfo = BLMatchInfoSpan | BLMatchInfoRelation | BLMatchInfoTag
 /** One of the otherFields hits (parallel corpus query, hit in one of the target fields) */
 export type BLHitInOtherField = Omit<BLHit, 'otherFields' | 'docPid'>;
 
-/** A hit in the BlackLab hits response. */
-export type BLHit = BLHitSnippet & {
+type BLHitBase = BLHitSnippet & {
 	start: number;
 	end: number;
 	/**
@@ -768,6 +805,21 @@ export type BLHit = BLHitSnippet & {
 	otherFields?: Record<string, BLHitInOtherField>; //
 };
 
+export type BLHitV4 = BLHitBase & {
+	/** Omitted if hit is at start of document */
+	left?: BLHitSnippetPart;
+	/** Omitted if hit is at end of document */
+	right?: BLHitSnippetPart;
+};
+
+/** A hit in the BlackLab hits response. */
+export type BLHit = BLHitBase & {
+	/** Always present in hits, never in /snippet requests */
+	before?: BLHitSnippetPart;
+	/** Always present in hits, never in /snippet requests */
+	after?: BLHitSnippetPart;
+};
+
 export function hitHasParallelInfo(h: BLHit | BLHitSnippet): h is Required<BLHit> {
 	return !!(h as BLHit).matchInfos && !!(h as BLHit).otherFields;
 }
@@ -780,19 +832,34 @@ export interface BLTermOccurances {
 }
 
 /** Contains all metadata for a document. Fields without indexed values are omitted! */
-export type BLDocInfo = {
+export type BLDocInfoV4 = {
 	lengthInTokens: number;
 	tokenCounts?: Array<{ fieldName: string; tokenCount: number }>;
 	mayView: boolean;
-} & Record<string, unknown>;
+} & Record<string, string | string[]>;
 
-export function getMetadataFieldValues(docInfo: BLDocInfo, fieldId: string | null | undefined): string[] | undefined {
+export type BLDocInfo = {
+	metadata: Record<string, string[]>;
+	tokenCounts: Array<{ fieldName: string; tokenCount: number }>;
+	mayView: boolean;
+};
+
+export function getMetadataFieldValues(docInfo: BLDocInfo | BLDocInfoV4, fieldId: string | null | undefined): string[] | undefined {
 	if (!fieldId) return undefined;
-
-	const value = docInfo[fieldId];
-	if (!Array.isArray(value)) return undefined;
-	return value.every((v): v is string => typeof v === 'string') ? value : undefined;
+	const value: string | string[] | undefined = 'metadata' in docInfo ? (docInfo as BLDocInfo).metadata[fieldId] : (docInfo as BLDocInfoV4)[fieldId];
+	if (typeof value === 'string') return [value];
+	return value;
 }
+
+/** Info returned when getting hits or documents. */
+export type BLDocV4 = {
+	docInfo: BLDocInfoV4;
+	docPid: string;
+	/* Only when query was performed with a cql pattern */
+	numberOfHits?: number;
+	/* Only when query was performed with a cql pattern */
+	snippets?: BLHitSnippet[];
+};
 
 /** Info returned when getting hits or documents. */
 export type BLDoc = {
@@ -812,22 +879,35 @@ export type BLDocument = {
 };
 
 /** Blacklab response to a query for documents without grouping */
-export interface BLDocResults {
-	docs: BLDoc[];
+export interface BLDocResultsV4 {
+	docs: BLDocV4[];
 	/** All of the hit properties exist or none of them do, depending on whether a pattern was supplied */
-	summary: BLSearchSummary;
+	summary: BLSearchSummaryV4;
 }
+
+/** Blacklab response to a query for documents without grouping */
+export type BLDocResults = {
+	docs: BLDoc[];
+	summary: BLSearchSummaryV5<{ grouped: false; pattern: boolean; subcorpora: true; sampled: boolean }>;
+};
 
 /** Blacklab response to a query for hits without grouping */
-export interface BLHitResults {
-	docInfos: Record<string, BLDocInfo>;
-	hits: BLHit[];
-	summary: BLSearchSummary & BLSearchSummaryPattern;
+export interface BLHitResultsV4 {
+	docInfos: Record<string, BLDocInfoV4>;
+	hits: BLHitV4[];
+	summary: BLSearchSummaryV4 & BLSearchSummaryPatternV4;
 }
 
+export type BLHitResults = {
+	docInfo: Record<string, BLDocInfo>;
+	hits: BLHit[];
+	summary: BLSearchSummaryV5<{ grouped: false; pattern: true; subcorpora: true; sampled: boolean }>;
+};
+
+export type BLSearchResultV4 = BLHitResultsV4 | BLDocResultsV4 | BLHitGroupResultsV4 | BLDocGroupResultsV4;
 export type BLSearchResult = BLHitResults | BLDocResults | BLHitGroupResults | BLDocGroupResults;
 
-export const isHitResults = (d: any): d is BLHitResults => !!(d && d.docInfos && d.hits);
+export const isHitResults = (d: BLSearchResult | BLSearchResultV4): d is BLHitResults => !!(d && d.docInfos && d.hits);
 export const isDocResults = (d: any): d is BLDocResults => !!(d && d.docs);
 export const isHitGroups = (d: any): d is BLHitGroupResults => !!(d && d.hitGroups);
 export const isDocGroups = (d: any): d is BLDocGroupResults => !!(d && d.docGroups);
