@@ -74,12 +74,10 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import type { NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
-import { isServerV4, type BLServer } from '@/types/blacklabtypes';
+import type { NormalizedBlacklabServer, NormalizedFormat, NormalizedIndexBase } from '@/types/apptypes';
 
 import { useBlackLabApi } from '@/shared/api/index.ts';
 import { ApiError } from '@/shared/api/lib/api-types.ts';
-import { normalizeIndexBase } from '@/shared/blacklab-helpers/normalize-responses.ts';
 
 import CorpusTable from './CorpusTable.vue';
 import FormatsTable from './FormatsTable.vue';
@@ -95,7 +93,7 @@ export default defineComponent({
 	data: () => ({
 		corpora: [] as NormalizedIndexBase[],
 		formats: [] as NormalizedFormat[],
-		serverInfo: undefined as any as BLServer,
+		serverInfo: undefined as any as NormalizedBlacklabServer,
 		errorMessage: '',
 		successMessage: '',
 		confirmMessage: '',
@@ -273,9 +271,7 @@ export default defineComponent({
 			}
 
 			this.loadingServerInfo = false;
-			this.corpora = (isServerV4(this.serverInfo) ? Object.entries(this.serverInfo.indices) : Object.entries(this.serverInfo.corpora))
-				.map(([id, index]) => normalizeIndexBase(index, id))
-				.sort((a, b) => a.displayName.localeCompare(b.displayName));
+			this.corpora = Object.values(this.serverInfo.corpora).sort((a, b) => a.displayName.localeCompare(b.displayName));
 			this.loadingCorpora = false;
 			this.refreshFormats();
 		} catch (error) {

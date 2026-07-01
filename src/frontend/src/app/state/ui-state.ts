@@ -18,7 +18,7 @@ import { getMetadataFieldValues } from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
 
 import type { ApiError } from '@/shared/api/lib/api-types';
-import { normalizeAnnotationUIType } from '@/shared/blacklab-helpers/normalize-responses';
+import { normalizeAnnotationUIType } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
 import { debugLog } from '@/shared/debug/debug';
 
 type CustomView = {

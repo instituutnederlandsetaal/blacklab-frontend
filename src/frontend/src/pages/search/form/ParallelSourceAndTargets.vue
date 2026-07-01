@@ -26,9 +26,9 @@ import { defineComponent } from 'vue';
 
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 
+import AlignBy from '@/pages/search/form/AlignBy.vue';
 import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
-import AlignBy from '@/pages/search/form/AlignBy.vue';
 
 export default defineComponent({
 	extends: ParallelFields,

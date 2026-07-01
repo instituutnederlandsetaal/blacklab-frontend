@@ -1,8 +1,8 @@
 import type { BLDocGroupResults, BLDocResults, BLHitGroupResults, BLHitResults } from '@/types/blacklabtypes';
 
-import { createApiPlugin, type ApiPlugin, type ApiPluginParts } from '@/shared/api/plugin';
-import { rejectedRequest as rejectedApiRequest, resolvedRequest } from '@/shared/api/lib/api-utils';
 import { ApiError, type BlackLabApi, type BlackLabPaths, type CancelableRequest, type FrontendApi } from '@/shared/api/lib/api-types';
+import { rejectedRequest as rejectedApiRequest, resolvedRequest } from '@/shared/api/lib/api-utils';
+import { createApiPlugin, type ApiPlugin, type ApiPluginParts } from '@/shared/api/plugin';
 
 type ApiMethodReturnValue<TMethod> = TMethod extends (...args: any[]) => CancelableRequest<infer Value> ? Value : never;
 
@@ -33,12 +33,7 @@ type ApiMockOverrides = {
 const hasOwn = <T extends object>(object: T, key: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(object, key);
 
 function unconfiguredMockApiError(methodName: string): ApiError {
-	return new ApiError(
-		'Mock API method not configured',
-		`Mock API method "${methodName}" was called without a configured return value.`,
-		'Mock API',
-		undefined,
-	);
+	return new ApiError('Mock API method not configured', `Mock API method "${methodName}" was called without a configured return value.`, 'Mock API', undefined);
 }
 
 export function rejectedRequest<T>(error: string | ApiError): CancelableRequest<T> {
@@ -55,7 +50,8 @@ function mockResponse<TApi, Method extends keyof TApi>(apiName: string, returnVa
 }
 
 export function createMockBlackLabApi(returnValues: MockApiReturnValues<BlackLabApi> = {}, overrides: Partial<BlackLabApi> = {}): BlackLabApi {
-	const response = <Method extends keyof BlackLabApi>(method: Method): CancelableRequest<ApiMethodReturnValue<BlackLabApi[Method]>> => mockResponse<BlackLabApi, Method>('blacklab', returnValues, method);
+	const response = <Method extends keyof BlackLabApi>(method: Method): CancelableRequest<ApiMethodReturnValue<BlackLabApi[Method]>> =>
+		mockResponse<BlackLabApi, Method>('blacklab', returnValues, method);
 	const api = {
 		getServerInfo: () => response('getServerInfo'),
 		getUser: () => response('getUser'),
@@ -93,7 +89,8 @@ export function createMockBlackLabApi(returnValues: MockApiReturnValues<BlackLab
 }
 
 export function createMockFrontendApi(returnValues: MockApiReturnValues<FrontendApi> = {}, overrides: Partial<FrontendApi> = {}): FrontendApi {
-	const response = <Method extends keyof FrontendApi>(method: Method): CancelableRequest<ApiMethodReturnValue<FrontendApi[Method]>> => mockResponse<FrontendApi, Method>('frontend', returnValues, method);
+	const response = <Method extends keyof FrontendApi>(method: Method): CancelableRequest<ApiMethodReturnValue<FrontendApi[Method]>> =>
+		mockResponse<FrontendApi, Method>('frontend', returnValues, method);
 	const api = {
 		getConfig: () => response('getConfig'),
 		getDocumentContents: () => response('getDocumentContents'),

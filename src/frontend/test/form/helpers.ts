@@ -1,10 +1,9 @@
+import { createMockI18n } from '@test/mocks/i18n';
 import { defineComponent, h, type PropType } from 'vue';
 
 import { FormBuilder, useFormSystemRuntime, useParentForm, type FormRuntimeContext } from '@/features/form';
 import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
-
-import { createMockI18n } from '@test/mocks/i18n';
 
 export type TestTextFieldState = {
 	value: string;

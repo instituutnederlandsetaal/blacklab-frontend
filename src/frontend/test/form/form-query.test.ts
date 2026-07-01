@@ -1,12 +1,20 @@
 // @vitest-environment jsdom
 
+import { createMockTranslate } from '@test/mocks/i18n';
 import { describe, expect, test, vi } from 'vitest';
 
-import { annotationTextController, booleanExpr, expertQueryController, parallelController, type FieldController, type FieldControllerProps, type FormRuntimeContext, type QueryFragment } from '@/features/form';
+import {
+	annotationTextController,
+	booleanExpr,
+	expertQueryController,
+	parallelController,
+	type FieldController,
+	type FieldControllerProps,
+	type FormRuntimeContext,
+	type QueryFragment,
+} from '@/features/form';
 import { combineQueryFragments, compileQueryIR, cqlRaw, queryFragment, queryIR, rawFilter, termFilter, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import type { AnnotationTextFieldConfig } from '@/features/form/model/controllers/annotation-controller';
-
-import { createMockTranslate } from '@test/mocks/i18n';
 
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 
@@ -285,7 +293,7 @@ describe('generated query correctness', () => {
 		);
 
 		expect(compiled.patt).toBe('_ =word-alignment=>nl? _');
-		expect(warn).toHaveBeenCalledWith(expect.stringContaining("ignored nested parallel child contribution"));
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining('ignored nested parallel child contribution'));
 		warn.mockRestore();
 	});
 });

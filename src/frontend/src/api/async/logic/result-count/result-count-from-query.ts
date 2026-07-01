@@ -5,6 +5,7 @@ import { type BLSearchResult } from '@/types/blacklabtypes';
 import { getTotals, type TotalsOutput } from './result-count-helpers';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
+import { getSearchParameters } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import { Loaded, type Loadable } from '@/shared/utils/loadable/loadable-core';
 import { InteractiveLoadable, mapLoaded } from '@/shared/utils/loadable/loadable-stream';
 
@@ -34,7 +35,7 @@ export class IterativeResultCountLoader extends InteractiveLoadable<TotalsInput,
 		super(
 			switchMap(({ indexId, operation, results }) => {
 				// Override some settings from the original search, we're not interested in the results, but we need the totals.
-				const params = { ...results.summary.searchParam, number: 0, first: 0, includeTokenCount: true };
+				const params = { ...getSearchParameters(results), number: 0, first: 0, subcorpussize: true };
 				const recursiveTotal$ = of(Loaded(getTotals(results, initial.annotatedFieldId))).pipe(
 					expand((cur: Loadable<TotalsOutput>) => {
 						// Expand is recursive: called for each input + each of its own outputs.
@@ -77,6 +78,7 @@ export class IterativeResultCountLoader extends InteractiveLoadable<TotalsInput,
 				// prevent duplicate output of last value, once from the recursive stream and once from the mostRecentUnfinishedAsPaused.
 				return concat(recursiveTotal$, pausedOrFinishedState);
 			}),
+			{ debounce: 0 },
 		);
 		this.next(initial);
 	}

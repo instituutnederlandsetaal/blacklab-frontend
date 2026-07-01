@@ -209,15 +209,7 @@ export default defineComponent({
 		},
 
 		annotationSearchOptions(): Option[] | OptGroup[] {
-			const optGroups = getAnnotationSubset(
-				UIStore.getState().explore.searchAnnotationIds,
-				this.corpus.annotationGroups,
-				this.corpus.allAnnotationsMap,
-				'Search',
-				this,
-				debug.value,
-				false,
-			);
+			const optGroups = getAnnotationSubset(UIStore.getState().explore.searchAnnotationIds, this.corpus.annotationGroups, this.corpus.allAnnotationsMap, 'Search', this, debug.value, false);
 			return optGroups.length > 1 ? optGroups : optGroups.flatMap(g => g.options as Option[]);
 		},
 		annotationGroupByOptions(): Option[] | OptGroup[] {

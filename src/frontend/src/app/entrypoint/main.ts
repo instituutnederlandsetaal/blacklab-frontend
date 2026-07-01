@@ -91,7 +91,7 @@ async function start() {
 
 	installStoreInspectorDevtools(app);
 	startCorpusBootstrapEffect(app);
-	app.runWithContext(() => startUrlSync(router.router));
+	startUrlSync(router.router, { blacklabApi: api.blacklabApi, corpus: corpusState.corpus });
 	app.runWithContext(() => startCustomizationInterop());
 
 	const instance = app.mount('#vue-root'); // mount early, so that the app is available for interop code (e.g. customjs) to use.

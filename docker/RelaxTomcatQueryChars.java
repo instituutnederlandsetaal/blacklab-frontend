@@ -11,7 +11,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 public final class RelaxTomcatQueryChars {
-    private static final String REQUIRED_RELAXED_QUERY_CHARS = "[]";
+    private static final String REQUIRED_RELAXED_QUERY_CHARS = "< > [ \\ ] ^ ` { | }";
+    
 
     private RelaxTomcatQueryChars() {
     }

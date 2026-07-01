@@ -330,7 +330,7 @@ export default defineComponent({
 
 			params = { ...params }; // make a copy before modifying
 			if (!params.viewgroup) delete params.group;
-			delete params.includetokencount;
+			delete params.subcorpussize;
 			delete params.listvalues;
 			// Only available for doc queries, remove it if present
 			if (params.sort && params.sort.includes('numhits'))

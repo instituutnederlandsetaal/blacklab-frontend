@@ -1,9 +1,9 @@
 import {
-    buildAnnotationPosPattern,
-    createDefaultAnnotationPosFieldState,
-    summarizeAnnotationPosState,
-    type AnnotationPosFieldConfig,
-    type AnnotationPosFieldState,
+	buildAnnotationPosPattern,
+	createDefaultAnnotationPosFieldState,
+	summarizeAnnotationPosState,
+	type AnnotationPosFieldConfig,
+	type AnnotationPosFieldState,
 } from '@/features/form/fields/annotation-pos-field';
 import { cqlRaw, queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
 import { decodePersistRecord, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';

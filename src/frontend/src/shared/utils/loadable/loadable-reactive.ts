@@ -123,7 +123,12 @@ function applyLoadableToRefs<T>(refs: WritableLoadableRefs<T>, loadable: MaybeLo
 	refs.error.value = undefined;
 }
 
-export const loadableReactive = <T, E extends object = {}>(state: MaybeRef<LoadableState>, value?: MaybeRef<T | undefined>, error?: MaybeRef<ApiError | undefined>, extra?: E): ReactiveLoadable<T> & E => {
+export const loadableReactive = <T, E extends object = {}>(
+	state: MaybeRef<LoadableState>,
+	value?: MaybeRef<T | undefined>,
+	error?: MaybeRef<ApiError | undefined>,
+	extra?: E,
+): ReactiveLoadable<T> & E => {
 	return reactiveLoadableFromRefs<T, E>(
 		{
 			state: toRef(state) as Ref<LoadableState>,

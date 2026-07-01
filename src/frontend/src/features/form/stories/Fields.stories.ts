@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { computed, markRaw } from 'vue';
 
+import type { AnnotationPosFieldConfig, AnnotationReference } from '@/features/form/fields/annotation-pos-field';
 import {
 	annotationPosController,
 	annotationTextController,
@@ -17,10 +18,11 @@ import {
 	type FormFieldNode,
 	type FormRuntimeContext,
 } from '@/features/form/index.ts';
-import type { AnnotationPosFieldConfig, AnnotationReference } from '@/features/form/fields/annotation-pos-field';
 import type { FieldPresentation } from '@/features/form/model/types/form-shape.ts';
-import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import type { Tagset } from '@/types/apptypes';
+
+import sampleTagsetJson from './sample-tagset.json';
+
 import { useI18n, type Translate } from '@/shared/i18n';
 
 import AnnotationPosField from '../fields/AnnotationPosField.vue';
@@ -36,7 +38,7 @@ import WithinField from '../fields/WithinField.vue';
 import HeadingView from '../views/HeadingView.vue';
 import SummaryView from '../views/SummaryView.vue';
 import FormSystemStoryHarness from './FormSystemStoryHarness.vue';
-import sampleTagsetJson from './sample-tagset.json';
+import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
 const fieldVariantOptions = ['default', 'simple', 'large', 'small'] as const satisfies FieldPresentation[];
 type FieldVariantArg = FieldPresentation | FieldPresentation[] | undefined;

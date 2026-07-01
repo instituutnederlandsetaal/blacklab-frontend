@@ -1,8 +1,7 @@
+import { createMockI18n } from '@test/mocks/i18n';
 import { config } from '@vue/test-utils';
 import { beforeEach } from 'vitest';
 import { defineComponent, h } from 'vue';
-
-import { createMockI18n } from '@test/mocks/i18n';
 
 const DebugStub = defineComponent({
 	render: () => h('span'),

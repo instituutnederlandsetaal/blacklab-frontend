@@ -4,16 +4,17 @@ import { BehaviorSubject, combineLatest, distinctUntilChanged, map, mergeMap, of
 import type { BLDoc, BLHitResults } from '@/types/blacklabtypes';
 
 import type { BlackLabApi, FrontendApi } from '@/shared/api/lib/api-types';
+import { getDocumentLength } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import { binarySearch } from '@/shared/utils/array-utils';
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
 import {
-    combineLoadables,
-    combineLoadableStreams,
-    combineLoadableStreamsIncludingEmpty,
-    compareAsSortedJson,
-    mapLoaded,
-    switchMapLoaded,
-    withRequiredKeys,
+	combineLoadables,
+	combineLoadableStreams,
+	combineLoadableStreamsIncludingEmpty,
+	compareAsSortedJson,
+	mapLoaded,
+	switchMapLoaded,
+	withRequiredKeys,
 } from '@/shared/utils/loadable/loadable-stream';
 import { clamp } from '@/shared/utils/number-utils';
 
@@ -113,7 +114,6 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 					first: 0,
 					number: Math.pow(2, 31) - 1, // JAVA BACKEND: max_safe_integer is 2^31-1
 					context: 0,
-					includetokencount: false,
 					listvalues: '__do_not_send_anything__', // we don't need this info
 				})
 				.toObservable(),
@@ -254,10 +254,10 @@ function fixPagination({ wordstart, wordend, pageSize, findhit, docLength }: { w
 }
 
 function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPaginationAndDocDisplayParameters {
-	const docLength = doc.docInfo.lengthInTokens;
+	const docLength = getDocumentLength(doc.docInfo, input.viewField ?? undefined);
 	let { wordstart, wordend } = getDefaultPagination(input, docLength);
 	const findhit = getValidfindhit(input.findhit, hits);
-	const pageSize = input.pageSize || doc.docInfo.lengthInTokens;
+	const pageSize = input.pageSize || docLength;
 
 	({ wordstart, wordend } = fixPagination({ wordstart, wordend, pageSize, findhit, docLength }));
 

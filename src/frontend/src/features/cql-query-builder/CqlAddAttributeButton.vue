@@ -18,9 +18,9 @@
 import type { CqlAnnotationCombinator, CqlQueryBuilderOptions } from './model';
 const props = withDefaults(
 	defineProps<{
-	options: CqlQueryBuilderOptions;
-	disabled?: boolean;
-}>(),
+		options: CqlQueryBuilderOptions;
+		disabled?: boolean;
+	}>(),
 	{
 		disabled: false,
 	},

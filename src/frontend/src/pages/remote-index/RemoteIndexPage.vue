@@ -135,7 +135,7 @@ export default defineComponent({
 
 			return [
 				{
-					label: this.blacklabData.user!.id,
+					label: this.blacklabData.user!.id ?? '',
 					options: this.blacklabData.corpora
 						.filter(c => c.owner === this.blacklabData.user!.id && c.documentFormat === this.urlParams!.format)
 						.sort((a, b) => a.displayName.localeCompare(b.displayName))

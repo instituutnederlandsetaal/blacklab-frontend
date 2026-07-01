@@ -105,6 +105,7 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
 import type * as AppTypes from '@/types/apptypes';
+import { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
 import ParallelFields from './parallel/ParallelFields';
 
@@ -132,6 +133,12 @@ export default defineComponent({
 	},
 	props: {
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
+	},
+	setup() {
+		const blacklab = useBlackLabApi();
+		return {
+			blacklab,
+		};
 	},
 	data: () => ({
 		uid: useUid(),
@@ -252,7 +259,7 @@ export default defineComponent({
 			);
 			let parsed: Result[] | null = null;
 			try {
-				parsed = await parseBcql(useBlackLabApi(), this.corpus.id!, builtQuery, mainAnnotationId);
+				parsed = await parseBcql(this.blacklab, this.corpus.id!, builtQuery, mainAnnotationId);
 			} catch {}
 			if (!parsed) {
 				this.parseQueryError = 'The querybuilder could not parse your query.';
@@ -275,7 +282,13 @@ export default defineComponent({
 
 			const file = el.files[0];
 			HistoryStore.get
-				.fromFile(file)
+				.fromFile(
+					file,
+					createUrlStateParserSearchDependencies({
+						blacklabApi: this.blacklab,
+						corpus: this.corpus,
+					}),
+				)
 				.then(r => {
 					RootStore.actions.replace(r.entry);
 					this.importQueryError = null;

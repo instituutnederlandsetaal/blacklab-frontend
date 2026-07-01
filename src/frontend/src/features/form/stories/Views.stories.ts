@@ -1,22 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import {
-	annotationTextController,
-	createDefaultFormState,
-	filterCheckboxController,
-	FormBuilder,
-	type CompiledFormStateWithSummaries,
-	type NewFormState,
-} from '@/features/form';
+import { annotationTextController, createDefaultFormState, filterCheckboxController, FormBuilder, type CompiledFormStateWithSummaries, type NewFormState } from '@/features/form';
+
+import { useI18n, type Translate } from '@/shared/i18n';
+
+import FormSystemStoryHarness from './FormSystemStoryHarness.vue';
 import CheckboxField from '@/features/form/fields/generic/CheckboxField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
 import TotalsView from '@/features/form/views/TotalsView.vue';
-import { useI18n, type Translate } from '@/shared/i18n';
-
-import FormSystemStoryHarness from './FormSystemStoryHarness.vue';
 
 type ViewStoryModel = {
 	definition: FormBuilder;

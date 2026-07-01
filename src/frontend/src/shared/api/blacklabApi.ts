@@ -3,24 +3,31 @@ import { stripIndent } from 'common-tags';
 
 import {
 	isHitParams,
-	isServerV5,
 	type BLAnnotatedField,
+	type BLDocGroupResultsV4,
 	type BLDocGroupResults,
+	type BLDocResultsV4,
 	type BLDocResults,
 	type BLDocument,
+	type BLDocumentV4,
 	type BLFormatContent,
 	type BLFormats,
 	type BLHit,
+	type BLHitV4,
+	type BLHitGroupResultsV4,
 	type BLHitGroupResults,
+	type BLHitResultsV4,
 	type BLHitResults,
-	type BLHitSnippetPart,
 	type BLIndex,
+	type BLIndexV4,
 	type BLIndexMetadata,
+	type BLIndexMetadataV4,
 	type BLParsePatternResponse,
 	type BLRelationInfo,
 	type BLResponse,
 	type BLSearchParameters,
 	type BLServer,
+	type BLServerV4,
 	type BLShareInfo,
 	type BLTermOccurances,
 } from '@/types/blacklabtypes';
@@ -28,7 +35,8 @@ import {
 import { type EndpointSettings, type QueryParamsMapper, type QueryParamsMapperReturn, createEndpoint } from '@/shared/api/lib/api-endpoint';
 import { ApiError, CancelableRequest, type BlackLabApi, type BlackLabPaths } from '@/shared/api/lib/api-types';
 import { rejectedRequest } from '@/shared/api/lib/api-utils';
-import { normalizeFormat, normalizeIndex, normalizeIndexBase } from '@/shared/blacklab-helpers/normalize-responses';
+import { normalizeFormat, normalizeIndex, normalizeIndexBase, normalizeServerInfo } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
+import { normalizeDocResponse, normalizeDocument, normalizeHit, normalizeHitResponse } from '@/shared/blacklab-helpers/normalize/normalize-results';
 
 /** Contains url mappings for different requests to blacklab-server */
 const blacklabPathsV4: BlackLabPaths = {
@@ -158,17 +166,25 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 		mapQueryParams: version === '4' ? v4QueryParamsAdapter : undefined,
 	});
 	const api: BlackLabApi = {
-		getServerInfo: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer>(paths.root(), undefined, requestParameters),
+		getServerInfo: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer | BLServerV4>(paths.root(), undefined, requestParameters).then(normalizeServerInfo),
 
-		getUser: (requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLServer>(paths.root(), undefined, requestParameters).then(r => r.user),
+		getUser: (requestParameters?: AxiosRequestConfig) =>
+			endpoint
+				.getCancelable<BLServer | BLServerV4>(paths.root(), undefined, requestParameters)
+				.then(normalizeServerInfo)
+				.then(r => r.user),
 
 		getCorpora: (requestParameters?: AxiosRequestConfig) =>
-			endpoint.getCancelable<BLServer>(paths.root(), undefined, requestParameters).then(r => Object.entries(isServerV5(r) ? r.corpora : r.indices).map(([id, c]) => normalizeIndexBase(c, id))),
+			endpoint
+				.getCancelable<BLServer | BLServerV4>(paths.root(), undefined, requestParameters)
+				.then(normalizeServerInfo)
+				.then(r => Object.values(r.corpora)),
 
-		getCorpusStatus: (id: string, requestParamers?: AxiosRequestConfig) => endpoint.getCancelable<BLIndex>(paths.indexStatus(id), undefined, requestParamers).then(r => normalizeIndexBase(r, id)),
+		getCorpusStatus: (id: string, requestParamers?: AxiosRequestConfig) =>
+			endpoint.getCancelable<BLIndex | BLIndexV4>(paths.indexStatus(id), undefined, requestParamers).then(r => normalizeIndexBase(r, id)),
 
 		getCorpus: (id: string, requestParameters?: AxiosRequestConfig) => {
-			const indexRequest = endpoint.getCancelable<BLIndexMetadata>(paths.index(id), version === '5' ? { custom: true } : undefined, {
+			const indexRequest = endpoint.getCancelable<BLIndexMetadata | BLIndexMetadataV4>(paths.index(id), version === '5' ? { custom: true } : undefined, {
 				...requestParameters,
 				data: {
 					...requestParameters?.data,
@@ -301,7 +317,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 		deleteCorpus: (id: string, requestParameters?: AxiosRequestConfig) => endpoint.deleteCancelable<BLResponse>(paths.index(id), requestParameters),
 
 		getDocumentInfo: (indexId: string, documentId: string, params: { query?: string } = {}, requestParameters?: AxiosRequestConfig) =>
-			endpoint.getOrPostCancelable<BLDocument>(paths.docInfo(indexId, documentId), params, requestParameters),
+			endpoint.getOrPostCancelable<BLDocument | BLDocumentV4>(paths.docInfo(indexId, documentId), params, requestParameters).then(normalizeDocument),
 
 		getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => endpoint.getCancelable<BLRelationInfo>(paths.relations(indexId), { limitvalues: 1000 }, requestParameters),
 
@@ -317,7 +333,13 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 
 		getHits: <T extends BLHitResults | BLHitGroupResults = BLHitResults | BLHitGroupResults>(indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
 			if (!isHitParams(params)) return rejectedRequest(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
-			else return endpoint.getOrPostCancelable<T>(paths.hits(indexId), params, requestParameters);
+
+			const searchParams = { ...params, subcorpussize: true }; // always request this
+			return (
+				version === '4'
+					? endpoint.getOrPostCancelable<BLHitResultsV4 | BLHitGroupResultsV4>(paths.hits(indexId), searchParams, requestParameters)
+					: endpoint.getOrPostCancelable<BLHitResults | BLHitGroupResults>(paths.hits(indexId), searchParams, requestParameters)
+			).then(r => normalizeHitResponse(r) as T);
 		},
 
 		getHitsCsv: (indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
@@ -365,7 +387,12 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			params: BLSearchParameters,
 			requestParameters?: AxiosRequestConfig,
 		): CancelableRequest<T> => {
-			return endpoint.getOrPostCancelable<T>(paths.docs(indexId), params, requestParameters);
+			const searchParams = { ...params, subcorpussize: true }; // always request this
+			return (
+				version === '4'
+					? endpoint.getOrPostCancelable<BLDocResultsV4 | BLDocGroupResultsV4>(paths.docs(indexId), searchParams, requestParameters)
+					: endpoint.getOrPostCancelable<BLDocResults | BLDocGroupResults>(paths.docs(indexId), searchParams, requestParameters)
+			).then(r => normalizeDocResponse(r) as T);
 		},
 
 		/**
@@ -381,7 +408,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 		 */
 		getSnippet: (indexId: string, docId: string, field: string | undefined, hitstart: number, hitend: number, context?: string | number, requestParameters?: AxiosRequestConfig) => {
 			return endpoint
-				.getOrPostCancelable<BLHit>(
+				.getOrPostCancelable<BLHit | BLHitV4>(
 					paths.snippet(indexId, docId),
 					{
 						hitstart,
@@ -391,21 +418,7 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 					},
 					requestParameters,
 				)
-				.then(r => {
-					// BlackLab doesn't always return the left/right/before/after context fields (at document boundaries)
-					// Fill them in with blanks to simplify rendering code.
-					if (!r.left)
-						r.left = Object.entries(r.match).reduce((acc, [key, value]) => {
-							acc[key] = [];
-							return acc;
-						}, {} as BLHitSnippetPart);
-					if (!r.right)
-						r.right = Object.entries(r.match).reduce((acc, [key, value]) => {
-							acc[key] = [];
-							return acc;
-						}, {} as BLHitSnippetPart);
-					return r;
-				});
+				.then(normalizeHit);
 		},
 
 		getTermFrequencies: (indexId: string, annotationId: string, values?: string[], filter?: string, number = 20, requestParameters?: AxiosRequestConfig) => {

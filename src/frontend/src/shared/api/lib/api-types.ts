@@ -1,7 +1,7 @@
 import type { AxiosRequestConfig, Canceler } from 'axios';
 import type { InteropObservable, Observable } from 'rxjs';
 
-import type { CFPageConfig, NormalizedFormat, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
+import type { CFPageConfig, NormalizedBlacklabServer, NormalizedFormat, NormalizedIndex, NormalizedIndexBase, Tagset } from '@/types/apptypes';
 import type {
 	BLAnnotatedField,
 	BLDocGroupResults,
@@ -15,7 +15,6 @@ import type {
 	BLRelationInfo,
 	BLResponse,
 	BLSearchParameters,
-	BLServer,
 	BLShareInfo,
 	BLTermOccurances,
 	BLUser,
@@ -52,7 +51,7 @@ export interface FrontendApi {
 }
 
 export interface BlackLabApi {
-	getServerInfo: ApiEndpoint<BLServer>;
+	getServerInfo: ApiEndpoint<NormalizedBlacklabServer>;
 	getUser: ApiEndpoint<BLUser>;
 	getCorpora: ApiEndpoint<NormalizedIndexBase[]>;
 	getCorpusStatus: ApiEndpoint<NormalizedIndexBase, [id: string]>;

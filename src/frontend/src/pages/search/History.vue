@@ -99,9 +99,10 @@ import { defineComponent, nextTick } from 'vue';
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import UrlStateParserSearch from '@/url/url-state-parser-search';
+import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
+import { useBlackLabApi } from '@/shared/api';
 import useUid from '@/shared/utils/uid';
 
 import Modal from '@/shared/ui/Modal.vue';
@@ -109,6 +110,12 @@ import Modal from '@/shared/ui/Modal.vue';
 export default defineComponent({
 	components: {
 		Modal,
+	},
+	setup() {
+		return {
+			blacklab: useBlackLabApi(),
+			corpus: useCorpus(),
+		};
 	},
 	data: () => ({
 		sessionStart: new Date().getTime(),
@@ -155,7 +162,7 @@ export default defineComponent({
 			this.$emit('close');
 		},
 		humanize(g: string[]): string[] {
-			return humanizeSerializedGroupBy(this, g, useCorpus().value.allAnnotationsMap, useCorpus().value.allMetadataFieldsMap);
+			return humanizeSerializedGroupBy(this, g, this.corpus.allAnnotationsMap, this.corpus.allMetadataFieldsMap);
 		},
 
 		async importFromUrl() {
@@ -171,7 +178,13 @@ export default defineComponent({
 			}
 
 			const uri = new URI(importUrl);
-			const state = await new UrlStateParserSearch(uri).get();
+			const state = await new UrlStateParserSearch(
+				createUrlStateParserSearchDependencies({
+					blacklabApi: this.blacklab,
+					corpus: this.corpus,
+				}),
+				uri,
+			).get();
 			HistoryStore.actions.addEntry({
 				entry: state,
 				pattern: (uri.query(true) as any).patt,

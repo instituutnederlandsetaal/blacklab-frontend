@@ -141,6 +141,10 @@ export type NormalizedIndexBase = {
 	docVersions?: number;
 };
 
+export type NormalizedBlacklabServer = Omit<BLTypes.BLServer, 'corpora'> & {
+	corpora: Record<string, NormalizedIndexBase>;
+};
+
 /** Contains information about the internal structure of the index - which fields exist for tokens, which metadata fields exist for documents, etc */
 export type NormalizedIndex = NormalizedIndexBase & {
 	annotatedFields: { [id: string]: NormalizedAnnotatedField };

@@ -132,17 +132,18 @@ import { humanizeGroupByOrSortBy, humanizeSerializedGroupBy, parseGroupBy, parse
 
 import { useBlackLabApi } from '@/shared/api';
 import type { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
+import { getTotalAvailableResults, getSearchParameters } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import debug, { debugLog } from '@/shared/debug/debug';
 import { localStorageSynced } from '@/shared/utils/localstore';
 
-import Pagination from '@/shared/ui/Pagination.vue';
-import Spinner from '@/shared/ui/Spinner.vue';
 import BreadCrumbs from '@/pages/search/results/BreadCrumbs.vue';
 import Export from '@/pages/search/results/Export.vue';
 import GroupBy from '@/pages/search/results/groupby/GroupBy.vue';
 import Totals from '@/pages/search/results/ResultTotals.vue';
 import Sort from '@/pages/search/results/Sort.vue';
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
+import Pagination from '@/shared/ui/Pagination.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 
 export default defineComponent({
 	components: {
@@ -462,11 +463,7 @@ export default defineComponent({
 			// Check if this is an exact page (aligned to page boundaries)
 			const isExactPage = first % pageSize === 0 && number === pageSize;
 
-			const totalResults = BLTypes.isGroups(this.paginationResults)
-				? this.paginationResults.summary.numberOfGroups
-				: BLTypes.isHitResults(this.paginationResults)
-					? this.paginationResults.summary.numberOfHitsRetrieved
-					: this.paginationResults.summary.numberOfDocsRetrieved;
+			const totalResults = getTotalAvailableResults(this.paginationResults);
 
 			// Calculate max page (subtract one if exactly divisible to avoid empty last page)
 			const maxPage = Math.max(0, Math.floor((totalResults - 1) / pageSize));
@@ -619,7 +616,7 @@ export default defineComponent({
 				rows: this.rows,
 				info: this.renderDisplaySettings,
 
-				query: this.results.summary.searchParam,
+				query: getSearchParameters(this.results),
 				type: this.id,
 				sort: this.sort,
 				disabled: !!this.request,
@@ -627,7 +624,8 @@ export default defineComponent({
 		},
 
 		commonDisplaySettings(): DisplaySettingsCommon {
-			const summaryOtherFields = BLTypes.hasPatternInfo(this.results?.summary) ? (this.results.summary.pattern.otherFields ?? []) : [];
+			const summary = this.results?.summary;
+			const summaryOtherFields = summary && BLTypes.hasPatternInfo(summary) ? (summary.pattern.otherFields ?? []) : [];
 			const { first, number, requestedRange } = this.store.getState();
 			return {
 				dir: this.corpus.textDirection,

@@ -4,8 +4,9 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 import { defineComponent } from 'vue';
 
-import Debug from '@/shared/debug/Debug.vue';
 import { createDebugSystem } from '@/shared/debug/debug';
+
+import Debug from '@/shared/debug/Debug.vue';
 
 function mountDebug(template: string, enabled = true, setup?: () => Record<string, unknown>) {
 	const debugSystem = createDebugSystem({ enabledByDefault: enabled, visible: true });

@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 
+import { createMockApi } from '@test/mocks/api';
+import { createMockTranslate } from '@test/mocks/i18n';
 import { describe, expect, test, vi } from 'vitest';
 
 import type { ModuleRootState } from '@/app/state/ui-state';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
-import { normalizeIndex } from '@/shared/blacklab-helpers/normalize-responses';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField } from '@/types/apptypes';
-import { createMockApi } from '@test/mocks/api';
-import { createMockTranslate } from '@test/mocks/i18n';
+
+import { normalizeIndex } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
 
 function annotation(id: string, overrides: Partial<NormalizedAnnotation> = {}): NormalizedAnnotation {
 	return {
@@ -119,11 +120,12 @@ describe('search form data dependencies', () => {
 				annotatedFields: {
 					contents: {
 						annotations: {
-							word: { displayName: 'Word' },
-							lemma: { displayName: 'Lemma' },
-							pos: { displayName: 'Part of speech' },
+							word: { custom: { displayName: 'Word' } },
+							lemma: { custom: { displayName: 'Lemma' } },
+							pos: { custom: { displayName: 'Part of speech' } },
 						},
-						displayOrder: ['word', 'lemma', 'pos'],
+						count: { documents: 1, tokens: 1 },
+						custom: { displayOrder: ['word', 'lemma', 'pos'] },
 						hasContentStore: true,
 						hasXmlTags: true,
 						mainAnnotation: 'word',
@@ -132,20 +134,18 @@ describe('search form data dependencies', () => {
 				contentViewable: true,
 				custom: {
 					annotationGroups: {
-						contents: [{ name: 'Basics', annotations: [], addRemainingAnnotations: true }],
+						contents: [{ groupName: 'Basics', annotations: [], addRemainingAnnotations: true }],
 					},
 					description: '',
 					displayName: 'Test corpus',
-					specialFields: {},
 					textDirection: 'ltr',
 				},
-				documentCount: 1,
+				count: { documents: 1, tokens: 1 },
+				corpusName: 'test-corpus',
 				mainAnnotatedField: 'contents',
 				metadataFields: {},
-				name: 'test-corpus',
 				status: 'available',
 				timeModified: '',
-				tokenCount: 1,
 			} as any,
 			{ relations: {}, spans: {} },
 		);

@@ -109,8 +109,8 @@ export default defineComponent({
 					.filter((a): a is NormalizedAnnotation => !!a)
 					.map(a => a.id),
 			);
-			const { left, match, right } = this.context;
-			return flatten(left, extract).concat(flatten(match, extract)).concat(flatten(right, extract));
+			const { before, match, after } = this.context;
+			return flatten(before, extract).concat(flatten(match, extract)).concat(flatten(after, extract));
 		},
 
 		/**
@@ -121,8 +121,8 @@ export default defineComponent({
 			if (!this.hit || !this.context || !this.sensibleArray) return undefined;
 
 			const { start } = this.hit!;
-			const leftLength = this.context!.left?.punct?.length || 0;
-			const indexOffset = start - leftLength;
+			const beforeLength = this.context!.before?.punct?.length || 0;
+			const indexOffset = start - beforeLength;
 
 			const r: Array<{ parentIndex: number; label: string }> = [];
 			const doRelation = (v: BLMatchInfoRelation) => {

@@ -1,25 +1,19 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { markRaw, watchEffect } from 'vue';
 
-import {
-	annotationTextController,
-	expertQueryController,
-	filterTextController,
-	FormBuilder,
-	parallelController,
-	type NewFormState,
-} from '@/features/form';
-import TextField from '@/features/form/fields/generic/TextField.vue';
-import ParallelField from '@/features/form/fields/ParallelField.vue';
-import RawCqlField from '@/features/form/fields/RawCqlField.vue';
+import { annotationTextController, expertQueryController, filterTextController, FormBuilder, parallelController, type NewFormState } from '@/features/form';
 import { createDefaultFormState } from '@/features/form/model/state';
 import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
-import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
-import HeadingView from '@/features/form/views/HeadingView.vue';
-import SummaryView from '@/features/form/views/SummaryView.vue';
+
 import { useI18n, type Translate } from '@/shared/i18n';
 
 import FormSystemStoryHarness from './FormSystemStoryHarness.vue';
+import TextField from '@/features/form/fields/generic/TextField.vue';
+import ParallelField from '@/features/form/fields/ParallelField.vue';
+import RawCqlField from '@/features/form/fields/RawCqlField.vue';
+import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
+import HeadingView from '@/features/form/views/HeadingView.vue';
+import SummaryView from '@/features/form/views/SummaryView.vue';
 
 type OverrideStoryArgs = {
 	pattOverride: boolean;

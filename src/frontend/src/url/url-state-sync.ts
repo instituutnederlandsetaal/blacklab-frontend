@@ -3,11 +3,11 @@ import jsonStableStringify from 'json-stable-stringify';
 import { EMPTY, ReplaySubject, fromEvent, of } from 'rxjs';
 import { filter, map, mergeMap } from 'rxjs/operators';
 import URI from 'urijs';
-import { watch } from 'vue';
+import { watch, type Ref } from 'vue';
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
-import { useCorpus } from '@/app/state/useCorpusContext';
+import type { Corpus } from '@/app/state/useCorpusContext';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
@@ -19,9 +19,10 @@ import * as ViewStore from '@/features/search/model/results/view-state';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { getArticleUrlStateFromRoute } from '@/url/route-query';
 import { stateToUrl, type ArticleUrlState } from '@/url/state-to-url';
-import UrlStateParserArticle from '@/url/url-state-parser-article';
-import UrlStateParserSearch from '@/url/url-state-parser-search';
+import UrlStateParserArticle, { createUrlStateParserArticleDependencies, type UrlStateParserArticleDependencies } from '@/url/url-state-parser-article';
+import UrlStateParserSearch, { createUrlStateParserSearchDependencies, type UrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
+import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { debugLog } from '@/shared/debug/debug';
 
 type QueryState = {
@@ -39,6 +40,14 @@ type QueryState = {
 type BrowserHistoryEntry = HistoryStore.HistoryEntry & { article?: ArticleUrlState };
 type UrlManagedRouteName = 'search' | 'article';
 type SyncWatchState = QueryState & { routeName: string | null };
+type UrlStateSyncDependencies = {
+	blacklabApi: BlackLabApi;
+	corpus: Ref<Corpus | undefined>;
+};
+type UrlStateParserDependencies = {
+	article: UrlStateParserArticleDependencies;
+	search: UrlStateParserSearchDependencies;
+};
 
 const HISTORY_STATE_KEY = 'cfHistoryState';
 const urlInputParameters$ = new ReplaySubject<QueryState>(1);
@@ -64,9 +73,26 @@ function getUrlRouteNameFromLocation(): UrlManagedRouteName | null {
 	return null;
 }
 
-function decodeStateFromCurrentUrl(routeName = getUrlRouteNameFromLocation()): Promise<BrowserHistoryEntry> {
-	if (routeName === 'article') return new UrlStateParserArticle().get();
-	return new UrlStateParserSearch().get();
+function getCurrentCorpus(corpus: Ref<Corpus | undefined>): Corpus {
+	if (!corpus.value) throw new Error('Cannot parse URL state before corpus state is loaded.');
+	return corpus.value;
+}
+
+function createCurrentParserDependencies(dependencies: UrlStateSyncDependencies): UrlStateParserDependencies {
+	const corpus = getCurrentCorpus(dependencies.corpus);
+	return {
+		article: createUrlStateParserArticleDependencies({ corpus }),
+		search: createUrlStateParserSearchDependencies({
+			blacklabApi: dependencies.blacklabApi,
+			corpus,
+		}),
+	};
+}
+
+function decodeStateFromCurrentUrl(dependencies: UrlStateSyncDependencies, routeName = getUrlRouteNameFromLocation()): Promise<BrowserHistoryEntry> {
+	const parserDependencies = createCurrentParserDependencies(dependencies);
+	if (routeName === 'article') return new UrlStateParserArticle(parserDependencies.article).get();
+	return new UrlStateParserSearch(parserDependencies.search).get();
 }
 
 function getStoredHistoryEntry(state: unknown): BrowserHistoryEntry | null {
@@ -171,8 +197,7 @@ function shouldPushUrl(v: QueryState & { isTruncated: boolean; url: string }): b
 	}
 
 	return (
-		jsonStableStringify({ formState: v.state.query.formState, gap: v.state.query.gap }) !==
-		jsonStableStringify({ formState: lastState.patterns[lastState.interface.patternMode], gap: lastState.gap })
+		jsonStableStringify({ formState: v.state.query.formState, gap: v.state.query.gap }) !== jsonStableStringify({ formState: lastState.patterns[lastState.interface.patternMode], gap: lastState.gap })
 	);
 }
 
@@ -237,19 +262,17 @@ function addQueryHistoryEntry(v: QueryState & { entry: BrowserHistoryEntry; url:
 }
 
 function createStoreToUrlSubscription(router: Router) {
-	return urlInputParameters$
-		.pipe(map(toUrlPayload), filter(shouldPushUrl), map(toBrowserHistoryEntry))
-		.subscribe(v => {
-			debugLog('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', v.url, v.entry);
-			addQueryHistoryEntry(v);
-			debugLog('history', `Calling router.push (then replaceState) with entry:`, v.entry, `and url:`, v.url);
-			pushUrlWithHistoryState(router, v.url, v.entry).catch(e => {
-				console.error('Failed to push URL through router', e);
-			});
+	return urlInputParameters$.pipe(map(toUrlPayload), filter(shouldPushUrl), map(toBrowserHistoryEntry)).subscribe(v => {
+		debugLog('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', v.url, v.entry);
+		addQueryHistoryEntry(v);
+		debugLog('history', `Calling router.push (then replaceState) with entry:`, v.entry, `and url:`, v.url);
+		pushUrlWithHistoryState(router, v.url, v.entry).catch(e => {
+			console.error('Failed to push URL through router', e);
 		});
+	});
 }
 
-function startStoreToUrlReflection(router: Router, initialUrlStateApplied: Promise<void>) {
+function startStoreToUrlReflection(router: Router, initialUrlStateApplied: Promise<void>, corpus: Ref<Corpus | undefined>) {
 	if (stopStoreToUrlReflectionHandle) {
 		return stopStoreToUrlReflectionHandle;
 	}
@@ -259,8 +282,6 @@ function startStoreToUrlReflection(router: Router, initialUrlStateApplied: Promi
 	let stopped = false;
 	let reflectionReady = false;
 	let latestManagedState: QueryState | null = null;
-	const corpus = useCorpus({ IAcknowledgeItCanBeUndefined: true });
-
 	const storeToUrlSubscription = createStoreToUrlSubscription(router);
 	const stopWatch = watch(
 		(): SyncWatchState => ({
@@ -320,20 +341,20 @@ function startStoreToUrlReflection(router: Router, initialUrlStateApplied: Promi
 	return stopStoreToUrlReflectionHandle;
 }
 
-async function restoreCurrentUrlState(router: Router) {
+async function restoreCurrentUrlState(router: Router, dependencies: UrlStateSyncDependencies) {
 	const routeName = getRouteName(router.currentRoute.value);
 	if (!isUrlManagedRoute(routeName)) {
 		return;
 	}
 
 	try {
-		RootStore.actions.replace(await decodeStateFromCurrentUrl(routeName));
+		RootStore.actions.replace(await decodeStateFromCurrentUrl(dependencies, routeName));
 	} catch (e) {
 		console.error('Failed to restore URL state', e);
 	}
 }
 
-function applyInitialUrlStateWhenStoreIsReady(router: Router): Promise<void> {
+function applyInitialUrlStateWhenStoreIsReady(router: Router, dependencies: UrlStateSyncDependencies): Promise<void> {
 	if (initialUrlStateAppliedPromise) {
 		return initialUrlStateAppliedPromise;
 	}
@@ -341,7 +362,7 @@ function applyInitialUrlStateWhenStoreIsReady(router: Router): Promise<void> {
 	initialUrlStateAppliedPromise = new Promise<void>(resolve => {
 		const loadingState = RootStore.get.loadingState();
 		if (loadingState.value.isLoaded()) {
-			void restoreCurrentUrlState(router).finally(resolve);
+			void restoreCurrentUrlState(router, dependencies).finally(resolve);
 			return;
 		}
 
@@ -353,7 +374,7 @@ function applyInitialUrlStateWhenStoreIsReady(router: Router): Promise<void> {
 				}
 
 				stop();
-				void restoreCurrentUrlState(router).finally(resolve);
+				void restoreCurrentUrlState(router, dependencies).finally(resolve);
 			},
 		);
 	});
@@ -361,7 +382,7 @@ function applyInitialUrlStateWhenStoreIsReady(router: Router): Promise<void> {
 	return initialUrlStateAppliedPromise;
 }
 
-function startBrowserHistoryRestore() {
+function startBrowserHistoryRestore(dependencies: UrlStateSyncDependencies) {
 	if (stopBrowserHistoryRestoreHandle) {
 		return stopBrowserHistoryRestoreHandle;
 	}
@@ -374,7 +395,7 @@ function startBrowserHistoryRestore() {
 				if (fromState) return of(fromState);
 
 				const routeName = getUrlRouteNameFromLocation();
-				return routeName ? decodeStateFromCurrentUrl(routeName) : EMPTY;
+				return routeName ? decodeStateFromCurrentUrl(dependencies, routeName) : EMPTY;
 			}),
 		)
 		.subscribe(state => RootStore.actions.replace(state));
@@ -388,10 +409,10 @@ function startBrowserHistoryRestore() {
 	return stopBrowserHistoryRestoreHandle;
 }
 
-export default function startUrlSync(router: Router) {
-	const initialUrlStateApplied = applyInitialUrlStateWhenStoreIsReady(router);
-	const stopStoreToUrl = startStoreToUrlReflection(router, initialUrlStateApplied);
-	const stopHistoryRestore = startBrowserHistoryRestore();
+export default function startUrlSync(router: Router, dependencies: UrlStateSyncDependencies) {
+	const initialUrlStateApplied = applyInitialUrlStateWhenStoreIsReady(router, dependencies);
+	const stopStoreToUrl = startStoreToUrlReflection(router, initialUrlStateApplied, dependencies.corpus);
+	const stopHistoryRestore = startBrowserHistoryRestore(dependencies);
 
 	return () => {
 		stopStoreToUrl();

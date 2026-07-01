@@ -49,6 +49,7 @@ import { hasPatternInfo } from '@/types/blacklabtypes';
 import { corpusCustomizations } from '@/utils/customization';
 
 import { useBlackLabApi } from '@/shared/api';
+import { getSearchParameters } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import { ensureCompleteFieldName } from '@/shared/blacklab-helpers/parallel-helper';
 import { debugLog } from '@/shared/debug/debug';
 
@@ -84,7 +85,7 @@ export default defineComponent({
 			const blacklab = useBlackLabApi();
 			this.downloadInProgress = true;
 			const apiCall = this.type === 'hits' ? blacklab.getHitsCsv : blacklab.getDocsCsv;
-			const params = cloneDeep(this.results.summary.searchParam);
+			const params = cloneDeep(getSearchParameters(this.results));
 			if (this.annotations) params.listvalues = this.annotations!.join(',');
 			if (this.metadata) params.listmetadatavalues = this.metadata.join(',');
 			params.listspanattributes = this.spanAttributesToExport.join(',');
@@ -92,7 +93,7 @@ export default defineComponent({
 			(params as any).csvsummary = true;
 			const fieldDisplayName = (name: string, baseFieldName: string = '') => {
 				const summary = this.results?.summary;
-				const defaultField = (hasPatternInfo(summary) ? summary.pattern?.fieldName : undefined) ?? this.corpus.mainAnnotatedField;
+				const defaultField = (summary && hasPatternInfo(summary) ? summary.pattern.fieldName : undefined) ?? this.corpus.mainAnnotatedField;
 				name = ensureCompleteFieldName(name, defaultField); // don't just pass version name
 				const field = this.corpus.allAnnotatedFieldsMap[name];
 				return this.$tAnnotatedFieldDisplayName(field);

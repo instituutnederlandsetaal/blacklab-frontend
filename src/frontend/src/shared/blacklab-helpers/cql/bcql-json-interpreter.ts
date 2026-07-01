@@ -102,7 +102,8 @@ function interpretBcqlJson(bcql: string, json: BCQLTextPatternStruct, defaultAnn
 
 		const [compareWhat, compareWith] = clauses;
 
-		if (compareWhat.type !== 'defval' && compareWhat.type !== 'string') throw new Error('Cannot interpret compare left clause of type: ' + compareWhat.type);
+		if (compareWhat.type !== 'defval' && compareWhat.type !== 'string' && compareWhat.type !== 'symbol')
+			throw new Error('Cannot interpret compare left clause of type: ' + compareWhat.type);
 		if (compareWith.type !== 'string') throw new Error('Cannot interpret compare right clause of type: ' + compareWith.type);
 		let annotation = compareWhat.type === 'defval' ? defaultAnnotation : compareWhat.value;
 		return {

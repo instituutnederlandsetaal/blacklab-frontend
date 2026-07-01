@@ -3,12 +3,11 @@ import LuceneQueryParser from 'lucene-query-parser';
 import memoize from 'memoize-decorator';
 
 import * as UIModule from '@/app/state/ui-state';
-import * as UIStore from '@/app/state/ui-state';
-import { useCorpus } from '@/app/state/useCorpusContext';
-import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
-import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
+import type { Corpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
+import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
+import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
 import type * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
@@ -28,7 +27,7 @@ import type { ArticleUrlState } from './state-to-url';
 import { emptyArticleUrlState } from './state-to-url';
 import BaseUrlStateParser from './url-state-parser-base';
 
-import { useBlackLabApi } from '@/shared/api';
+import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import type { Condition, Result, Token } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { unparenQueryPart, applyWithinClauses } from '@/shared/blacklab-helpers/cql/bcql-pattern-helpers';
@@ -38,6 +37,28 @@ import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import { debugLog } from '@/shared/debug/debug';
 import { mapReduce } from '@/shared/utils/array-utils';
 import { unescapeRegex } from '@/shared/utils/string-utils';
+
+export type UrlStateParserSearchDependencies = {
+	blacklabApi: BlackLabApi;
+	corpus: Corpus;
+	filterState: FilterModule.FullModuleRootState;
+	globalResultsState: GlobalResultsModule.ModuleRootState;
+	tagsetState: TagsetModule.ModuleRootState;
+	uiState: UIModule.ModuleRootState;
+	customizations: typeof corpusCustomizations;
+};
+
+export function createUrlStateParserSearchDependencies(options: { blacklabApi: BlackLabApi; corpus: Corpus }): UrlStateParserSearchDependencies {
+	return {
+		blacklabApi: options.blacklabApi,
+		corpus: options.corpus,
+		filterState: FilterModule.getState(),
+		globalResultsState: GlobalResultsModule.getState(),
+		tagsetState: TagsetModule.getState(),
+		uiState: UIModule.getState(),
+		customizations: corpusCustomizations,
+	};
+}
 
 /**
  * Decode the current url into a valid page state configuration.
@@ -50,7 +71,10 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	 * So in order to decode the query, we need knowledge of which filters are configured.
 	 * This is done by the FilterModule, so we need that info here.
 	 */
-	constructor(uri?: URI) {
+	constructor(
+		private readonly dependencies: UrlStateParserSearchDependencies,
+		uri?: URI,
+	) {
 		super(uri);
 		try {
 			this._interfaceStateFromUrl = JSON.parse(this.getString('interface', null, v => (v.startsWith('{') ? v : null))!);
@@ -95,7 +119,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	@memoize
 	get spanFilters(): Record<string, FilterValue> {
 		const result: Record<string, FilterValue> = {};
-		const filters = FilterModule.getState().filters;
+		const filters = this.dependencies.filterState.filters;
 		Object.entries(this.withinClauses)
 			.flatMap(([elName, attrs]) => Object.entries(attrs).map(([attrName, attrValue]) => [elName, attrName, attrValue] as [string, string, any]))
 			// Now we have pairs of [elementname, attributename, attributevalue(s)] e.g. [speech, person, Einstein] for <speech person="Einstein"/>
@@ -143,7 +167,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 						// No attributes, so this might be the within widget selection.
 						return [spanName, { _MAYBE_WITHIN_: true } as Record<string, any>];
 					} else {
-						const filters = FilterModule.getState().filters;
+						const filters = this.dependencies.filterState.filters;
 						const filteredAttrs = Object.fromEntries(
 							Object.entries(attrs).filter(entry => {
 								const filter = filters[spanFilterId(spanName, entry[0])];
@@ -174,8 +198,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		}
 
 		try {
-			const metadataFields = useCorpus().value.allMetadataFieldsMap;
-			const filterDefinitions = FilterModule.getState().filters;
+			const metadataFields = this.dependencies.corpus.allMetadataFieldsMap;
+			const filterDefinitions = this.dependencies.filterState.filters;
 			/*
 				IMPORTANT: every metadata field has a corresponding filter instance,
 				but in addition to that, there might be special filters that don't correspond directly 1-to-1 to a metadata field,
@@ -235,7 +259,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		}
 
 		const annotationId = group.substring(4);
-		if (!useCorpus().value.allAnnotationsMap.hasOwnProperty(annotationId)) {
+		if (!this.dependencies.corpus.allAnnotationsMap.hasOwnProperty(annotationId)) {
 			return null;
 		}
 
@@ -249,7 +273,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			if (!uiStateFromUrl) {
 				throw new Error('No url ui state, falling back to determining from rest of parameters.');
 			}
-			if (!UIModule.getState().search.advanced.enabled && uiStateFromUrl.form === 'search' && uiStateFromUrl.patternMode === 'advanced') {
+			if (!this.dependencies.uiState.search.advanced.enabled && uiStateFromUrl.form === 'search' && uiStateFromUrl.patternMode === 'advanced') {
 				uiStateFromUrl.patternMode = 'expert';
 			}
 			return {
@@ -273,7 +297,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				ui.patternMode = 'simple';
 			} else if (this.extendedPattern && !hasGapValue) {
 				ui.patternMode = 'extended';
-			} else if (this.advancedPattern?.query.tokens.length && !hasGapValue && UIModule.getState().search.advanced.enabled) {
+			} else if (this.advancedPattern?.query.tokens.length && !hasGapValue && this.dependencies.uiState.search.advanced.enabled) {
 				ui.patternMode = 'advanced';
 			} else if (this.expertPattern.query) {
 				ui.patternMode = 'expert';
@@ -346,7 +370,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	 */
 	@memoize
 	private get ngrams(): null | ExploreModule.ModuleRootState['ngram'] {
-		const allAnnotations = useCorpus().value.allAnnotationsMap;
+		const allAnnotations = this.dependencies.corpus.allAnnotationsMap;
 
 		if (this.groupBy.length === 0) {
 			return null;
@@ -436,11 +460,10 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		}
 
 		// How we parse the cql pattern depends on whether a tagset is available for this corpus, and whether it's enabled in the ui
-		const tagsetState = TagsetModule.getState();
+		const tagsetState = this.dependencies.tagsetState;
 		const tagsetInfo = tagsetState
 			? {
-					mainAnnotations: useCorpus()
-						.value.allAnnotations.filter(a => a.uiType === 'pos')
+					mainAnnotations: this.dependencies.corpus.allAnnotations.filter(a => a.uiType === 'pos')
 						.map(a => a.id),
 					subAnnotations: Object.keys(tagsetState.subAnnotations),
 				}
@@ -463,7 +486,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			 *
 			 * Store the values here while parsing.
 			 */
-			const knownAnnotations = useCorpus().value.allAnnotationsMap;
+			const knownAnnotations = this.dependencies.corpus.allAnnotationsMap;
 
 			const annotationValues: { [key: string]: string[] } = {};
 			for (let i = 0; i < result.tokens.length; ++i) {
@@ -548,7 +571,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	@memoize
 	private get withinElementName(): string | null {
 		// Determine selected option in within widget from within clauses in the query
-		const withinUi = UIStore.getState().search.shared.within;
+		const withinUi = this.dependencies.uiState.search.shared.within;
 		// Note that the first withinOption we find that is in withinClauses is assumed to be the
 		// selected within option.
 		// FIXME: It's possible that we select the wrong withinOption this way. If we do, and there's
@@ -556,7 +579,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		// part of the query gets dropped on page reload, breaking the user's query...
 		// Complex additional logic might improve this slightly, but the real fix is to change the URL to describe
 		// the frontend's interface state, not the query we send to BLS.
-		const withinOptions = withinUi.enabled ? withinUi.elements.filter(element => corpusCustomizations.search.within.includeSpan(element.value)) : [];
+		const withinOptions = withinUi.enabled ? withinUi.elements.filter(element => this.dependencies.customizations.search.within.includeSpan(element.value)) : [];
 		return withinOptions.find(opt => !!this.withinClausesWithoutSpanFilters[opt.value])?.value ?? null;
 	}
 
@@ -567,8 +590,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		const allAttributes = within ? (this.withinClausesWithoutSpanFilters[within] ?? {}) : {};
 
 		// Which, if any, attribute filter fields should be displayed for this element?
-		const availableAttr = within ? Object.keys(useCorpus().value.relations.spans?.[within].attributes ?? {}) : [];
-		const attr = within ? availableAttr.filter(attrName => corpusCustomizations.search.within.includeAttribute(within, attrName)).map(a => ({ value: a })) || [] : [];
+		const availableAttr = within ? Object.keys(this.dependencies.corpus.relations.spans?.[within].attributes ?? {}) : [];
+		const attr = within ? availableAttr.filter(attrName => this.dependencies.customizations.search.within.includeAttribute(within, attrName)).map(a => ({ value: a })) || [] : [];
 
 		const attributesAcceptedByWithinWidget = within ? attr.map(el => (typeof el === 'string' ? { value: el } : el)) : [];
 		const withinAttributes = Object.fromEntries(
@@ -603,9 +626,9 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		// The query typically doesn't contain the entire parallel field name.
 		// BlackLab allows passing just "en" instead of "contents__en" in some spots
 		// So we need to reconstruct the full field name from the query here.
-		const prefix = useCorpus().value.parallelFieldPrefix;
+		const prefix = this.dependencies.corpus.parallelFieldPrefix;
 
-		const parallelFieldsMap = useCorpus().value.parallelAnnotatedFieldsMap;
+		const parallelFieldsMap = this.dependencies.corpus.parallelAnnotatedFieldsMap;
 
 		/*
 		In our state, "source" is the field we're searching in.
@@ -621,7 +644,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		const targets = this._parsedCql ? this._parsedCql.slice(1).map(result => (result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '')) : [];
 
 		// Determine align by (relation type in BCQL query, e.g. for "the" -word-alignment->nl _ it would be "word-alignment")
-		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
+		const defaultAlignBy = this.dependencies.uiState.search.shared.alignBy.defaultValue;
 		const alignBy = (this._parsedCql ? this._parsedCql[1]?.relationType : defaultAlignBy) ?? defaultAlignBy;
 
 		return {
@@ -637,7 +660,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	private get simplePattern(): { annotationValue: AnnotationValue } | undefined {
 		// Simple view is just a single annotation without any within query or filters
 		// NOTE: do not use extendedPattern, as the annotation used for simple may not be available for extended searching!\
-		const id = UIModule.getState().search.simple.searchAnnotationId;
+		const id = this.dependencies.uiState.search.simple.searchAnnotationId;
 		if (!this.annotationValues?.[id]) return undefined;
 		return {
 			annotationValue: this.annotationValues[id],
@@ -646,7 +669,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 	@memoize
 	private get extendedPattern() {
-		const annotationsInInterface = mapReduce(UIModule.getState().search.extended.searchAnnotationIds);
+		const annotationsInInterface = mapReduce(this.dependencies.uiState.search.extended.searchAnnotationIds);
 		const parsedAnnotationValues = cloneDeep(this.annotationValues || {});
 		Object.keys(parsedAnnotationValues).forEach(annotId => {
 			if (!annotationsInInterface[annotId]) {
@@ -776,7 +799,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			viewGroup: this.getString('viewgroup', undefined, v => (v && this.groupBy.length > 0 ? v : null)),
 			groupDisplayMode: this.getString('groupDisplayMode', null, v => (v ? v : null)),
 			first: this.getNumber('first', null, v => (v != null && v >= 0 ? v : null)) ?? 0,
-			number: this.getNumber('number', GlobalResultsModule.getState().pageSize, v => (v != null && v > 0 ? v : null)) ?? 20,
+			number: this.getNumber('number', this.dependencies.globalResultsState.pageSize, v => (v != null && v > 0 ? v : null)) ?? 20,
 			requestedRange: null,
 		};
 	}
@@ -789,12 +812,12 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		try {
 			// Let BlackLab parse it, then try to interpret the parse tree
 			// for use in the simple, extended or advanced search forms.
-			this._parsedCql = bcql == null ? null : await parseBcql(useBlackLabApi(), this.paths[0], bcql, useCorpus().value.firstMainAnnotation.id);
+			this._parsedCql = bcql == null ? null : await parseBcql(this.dependencies.blacklabApi, this.paths[0], bcql, this.dependencies.corpus.firstMainAnnotation.id);
 			if (this._parsedCql && this._parsedCql.length === 0) this._parsedCql = null;
 			if (this._parsedCql && this._parsedCql.length > 1) {
 				const relType = this._parsedCql[1].relationType;
 				// Check if this is a valid alignBy type
-				const alignBy = UIModule.getState().search.shared.alignBy.elements.find(v => v.value === relType);
+				const alignBy = this.dependencies.uiState.search.shared.alignBy.elements.find(v => v.value === relType);
 				const optional = this._parsedCql[1].optional ?? false;
 				if (!alignBy || !optional) {
 					// Not a valid align by type, or a required alignment match; just put the whole query in the first expert box

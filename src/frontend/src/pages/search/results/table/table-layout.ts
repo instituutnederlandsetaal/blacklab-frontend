@@ -13,7 +13,7 @@ import type {
 import type {
 	BLDoc,
 	BLDocFieldsV4,
-	BLDocGroupResult,
+	BLDocGroup,
 	BLDocGroupResults,
 	BLDocInfo,
 	BLDocResults,
@@ -33,6 +33,7 @@ import type { KeysOfType } from '@/types/helpers';
 import * as Highlights from './hit-highlighting';
 
 import { frontendPaths } from '@/shared/api/frontendApi';
+import { getLargestGroupSize, getMatchingDocuments, getMatchingHits, getSearchParameters, getSubcorpusSize } from '@/shared/blacklab-helpers/normalize/result-helpers';
 import type { Translate } from '@/shared/i18n';
 import type { OptGroup, Option, Options } from '@/shared/utils/options';
 
@@ -307,9 +308,9 @@ function flatten(part: BLHitSnippetPart | undefined, punctuationSettings: { punc
 export function snippetParts(hit: BLHit | BLHitSnippet, colors?: Record<string, TokenHighlight>): HitContext {
 	// NOTE: the original BLS API was designed before RTL support and uses left/right to mean before/after.
 	//       the new BLS API correctly uses before/after, which makes sense for both LTR and RTL languages.
-	const before = flatten(hit.left, { punctAfterLastWord: hit.match.punct?.[0] ?? '' });
+	const before = flatten((hit as BLHit).before, { punctAfterLastWord: hit.match.punct?.[0] ?? '' });
 	const match = flatten(hit.match, {});
-	const after = flatten(hit.right, { firstPunct: true });
+	const after = flatten((hit as BLHit).after, { firstPunct: true });
 
 	// Only extract captures if have the necessary info to do so.
 	if (!('start' in hit) || !hit.matchInfos || !colors) return { before, match, after };
@@ -568,7 +569,7 @@ function makeRowsForHit(
 
 /** For a set of document results, create all rows. */
 function makeDocRows(results: BLDocResults, info: DisplaySettingsForRows): DocRowData[] {
-	return results.docs.map((doc, i) => makeDocRow({ doc, query: results.summary.searchParam } as Result<undefined>, info, i));
+	return results.docs.map((doc, i) => makeDocRow({ doc, query: getSearchParameters(results) } as Result<undefined>, info, i));
 }
 
 /** For a set of hit results, create all rows. */
@@ -583,7 +584,7 @@ function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array
 		const hit = results.hits[i];
 		if (prevRes?.doc.docPid !== hit.docPid) {
 			// every time the doc changes, add a new doc title row.
-			prevRes = { doc: { docInfo: results.docInfos[hit.docPid], docPid: hit.docPid }, query: results.summary.searchParam } as Result<undefined>;
+			prevRes = { doc: { docInfo: results.docInfo[hit.docPid], docPid: hit.docPid }, query: getSearchParameters(results) } as Result<undefined>;
 			r.push(makeDocRow(prevRes, info, i));
 		}
 		prevRes.hit = hit;
@@ -599,6 +600,7 @@ const GROUP_PROP_SEPARATOR = ' • '; // WAS: '·'
 function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: DisplaySettingsForRows): { rows: GroupRowData[]; maxima: Maxima } {
 	const max = new MaxCounter<GroupRowData>();
 	const defaultGroupName = info.i18n.$t('results.groupBy.groupNameWithoutValue').toString();
+	const summarySubcorpus = getSubcorpusSize(results) ?? { documents: 0, tokens: 0 };
 
 	const mapHitGroup = (g: BLHitGroup, summary: BLHitGroupResults['summary']) =>
 		({
@@ -607,34 +609,34 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 			size: g.size,
 			displayname: g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
 
-			'r.d': summary.numberOfDocs,
+			'r.d': getMatchingDocuments(summary),
 			// When a pattern was used (which is always when we have hits), we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
 			'r.t': undefined, // TODO wait for jan. Should be total tokens in all docs with a hit.
-			'r.h': summary.numberOfHits,
+			'r.h': getMatchingHits(summary),
 
-			'gr.d': g.numberOfDocs,
+			'gr.d': g.numberOfDocs ?? 0,
 			'gr.t': undefined, // TODO wait for jan, is more specific than subcorpusSize, since should only account for docs with hits.
 			'gr.h': g.size,
 
 			// When group doesn't specify subcorpus, it is the same as the total search space.
 			// (this happens when not grouping by metadata)
-			'gsc.d': g.subcorpusSize?.documents ?? results.summary.subcorpusSize.documents,
-			'gsc.t': g.subcorpusSize?.tokens ?? results.summary.subcorpusSize.tokens,
+			'gsc.d': g.subcorpusSize?.documents ?? summarySubcorpus.documents,
+			'gsc.t': g.subcorpusSize?.tokens ?? summarySubcorpus.tokens,
 
-			'sc.d': summary.subcorpusSize.documents,
-			'sc.t': summary.subcorpusSize.tokens,
+			'sc.d': summarySubcorpus.documents,
+			'sc.t': summarySubcorpus.tokens,
 		}) as const;
-	const mapDocGroup = (g: BLDocGroupResult, summary: BLDocGroupResults['summary']) =>
+	const mapDocGroup = (g: BLDocGroup, summary: BLDocGroupResults['summary']) =>
 		({
 			type: 'group',
 			id: g.identity,
 			size: g.size,
 			displayname: g.properties.map(v => v.value).join(GROUP_PROP_SEPARATOR) || defaultGroupName,
 
-			'r.d': summary.numberOfDocs,
+			'r.d': getMatchingDocuments(summary),
 			// When a pattern was used, we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
-			'r.t': summary.searchParam.patt ? undefined : summary.subcorpusSize.tokens,
-			'r.h': hasPatternInfo(summary) ? summary.numberOfHits : undefined,
+			'r.t': getSearchParameters(summary).patt ? undefined : summarySubcorpus.tokens,
+			'r.h': getMatchingHits(summary),
 
 			'gr.d': g.size,
 			'gr.t': g.numberOfTokens,
@@ -643,13 +645,13 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 			'gsc.d': g.subcorpusSize?.documents ?? g.size,
 			'gsc.t': g.subcorpusSize?.tokens ?? g.numberOfTokens,
 
-			'sc.d': summary.subcorpusSize.documents,
-			'sc.t': summary.subcorpusSize.tokens,
+			'sc.d': summarySubcorpus.documents,
+			'sc.t': summarySubcorpus.tokens,
 		}) as const;
 
 	const stage1 = isHitGroups(results) ? results.hitGroups.map(g => mapHitGroup(g, results.summary)) : isDocGroups(results) ? results.docGroups.map(g => mapDocGroup(g, results.summary)) : [];
 	// we know the global maximum of this property, so might as well use it.
-	max.add(isHitGroups(results) ? 'gr.h' : 'gr.d', results.summary.largestGroupSize);
+	max.add(isHitGroups(results) ? 'gr.h' : 'gr.d', getLargestGroupSize(results));
 
 	const rows = stage1.map<GroupRowData>((row, i) => {
 		const r: GroupRowData = {
@@ -666,7 +668,7 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 			'relative frequency (tokens) [gr.t/sc.t]': row['gr.t'] && row['sc.t'] ? row['gr.t'] / row['sc.t'] : undefined,
 
 			'average document length [gr.t/gr.d]': row['gr.t'] ? Math.ceil(row['gr.t'] / row['gr.d']) : undefined,
-			muted: isOutsideRequestedResults(i, info.requestedRange, results.summary.searchParam.first),
+			muted: isOutsideRequestedResults(i, info.requestedRange, getSearchParameters(results).first),
 		};
 
 		for (const key of Object.keys(r) as Array<keyof GroupRowData>) {
@@ -689,8 +691,9 @@ export type Rows = {
 
 export function makeRows(results: BLSearchResult, info: DisplaySettingsForRows): Rows {
 	// Fix: BL sends back all params as strings, but we need numbers for calculations.
-	results.summary.searchParam.first = Number(results.summary.searchParam.first) || 0;
-	results.summary.searchParam.number = Number(results.summary.searchParam.number) || 10;
+	const params = getSearchParameters(results);
+	params.first = Number(params.first) || 0;
+	params.number = Number(params.number) || 10;
 
 	if (isDocResults(results)) return { rows: makeDocRows(results, info) };
 	else if (isHitResults(results)) return { rows: makeHitRows(results, info) };
@@ -905,7 +908,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 
 	if (!isGroups(results)) return { hitColumns, docColumns, groupColumns, groupModeOptions: [] };
 	const groupType = isDocGroups(results) ? 'docs' : 'hits';
-	const groupedBy = results.summary.searchParam.group!.match(/field:|decade/) ? 'metadata' : 'annotation';
+	const groupedBy = getSearchParameters(results).group!.match(/field:|decade/) ? 'metadata' : 'annotation';
 	let availableDisplayModes = Object.keys(displayModes[groupType][groupedBy]) as DisplaySettingsForColumns['groupDisplayMode'][];
 
 	// Hide the relative tokens view when results are filtered based on a cql pattern

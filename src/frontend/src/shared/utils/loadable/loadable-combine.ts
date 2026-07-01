@@ -23,9 +23,7 @@ function valuesOf<T extends LoadableShape>(loadables: T): unknown[] {
 }
 
 function mapShape<T extends LoadableShape>(loadables: T, mapper: (value: unknown) => unknown): { [K in keyof T]: unknown } {
-	return (Array.isArray(loadables)
-		? loadables.map(mapper)
-		: Object.fromEntries(Object.entries(loadables).map(([key, value]) => [key, mapper(value)]))) as { [K in keyof T]: unknown };
+	return (Array.isArray(loadables) ? loadables.map(mapper) : Object.fromEntries(Object.entries(loadables).map(([key, value]) => [key, mapper(value)]))) as { [K in keyof T]: unknown };
 }
 
 /** Return the first non-loaded loadable from the passed array or object. Plain values are considered settled. */

@@ -82,7 +82,8 @@ export function createEndpoint(p: EndpointSettings): Endpoint {
 		// Server has issues with long urls in GET requests, so use POST instead when the query string is too long.
 		// (only works with BlackLab currently)
 		getOrPostCancelable<T>(url: string, queryParameters?: any, settings?: AxiosRequestConfig): CancelableRequest<T> {
-			const queryString = queryParameters ? new URLSearchParams(cleanQueryParams(queryParameters)).toString() : '';
+			const mappedQueryParameters = queryParameters ? (p.mapQueryParams?.(queryParameters) ?? queryParameters) : undefined;
+			const queryString = mappedQueryParameters ? new URLSearchParams(cleanQueryParams(mappedQueryParameters)).toString() : '';
 			const usePost = queryString.length > 1000;
 			if (usePost) {
 				settings = settings || {};
@@ -91,9 +92,9 @@ export function createEndpoint(p: EndpointSettings): Endpoint {
 
 				// override the default-set outputformat if another is provided.
 				// Or it will be sent in both the request body and the query string causing unpredictable behavior in what is actually returned.
-				if (queryParameters.outputformat) {
+				if (mappedQueryParameters?.outputformat) {
 					settings.params = settings.params || {};
-					settings.params.outputformat = queryParameters.outputformat;
+					settings.params.outputformat = mappedQueryParameters.outputformat;
 				}
 
 				return this.postCancelable<T>(url, queryString, settings);

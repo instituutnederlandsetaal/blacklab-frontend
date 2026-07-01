@@ -50,8 +50,8 @@ import type { BLDocResults, BLHitResults, BLSearchParameters } from '@/types/bla
 
 import { useBlackLabApi } from '@/shared/api';
 
-import Spinner from '@/shared/ui/Spinner.vue';
 import GenericTable from '@/pages/search/results/table/GenericTable.vue';
+import Spinner from '@/shared/ui/Spinner.vue';
 
 defineOptions({ name: 'GroupRowDetails' });
 const props = withDefaults(defineProps<IRowProps<GroupRowData>>(), IRowDefaultProps);

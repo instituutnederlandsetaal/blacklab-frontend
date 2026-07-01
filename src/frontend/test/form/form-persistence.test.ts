@@ -3,6 +3,7 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 
+import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
 import {
 	annotationSelectController,
 	annotationTextController,
@@ -27,7 +28,6 @@ import {
 } from '@/features/form';
 import { queryFragment, rawFilter } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, decodePersistSelection, encodePersistObject, joinPersistValues } from '@/features/form/model/controllers/persistence-codec';
-import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
 
 import { TestTextField, createTestBuilder, createTestContext, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 

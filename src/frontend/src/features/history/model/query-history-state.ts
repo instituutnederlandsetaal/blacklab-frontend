@@ -20,7 +20,7 @@ import type * as PatternModule from '@/features/search/model/form/pattern-state'
 import type * as GlobalModule from '@/features/search/model/results/global-results-state';
 import type * as ViewModule from '@/features/search/model/results/view-state';
 import type { NormalizedIndex } from '@/types/apptypes';
-import UrlStateParserSearch from '@/url/url-state-parser-search';
+import UrlStateParserSearch, { type UrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
 import { getPatternSummaryExplore, getPatternSummarySearch } from '@/shared/blacklab-helpers/pattern-utils';
 import { debugLog } from '@/shared/debug/debug';
@@ -111,7 +111,7 @@ const get = {
 		const file = new Blob([fileContents], { type: 'text/plain;charset=utf-8' });
 		return { file, fileName };
 	},
-	fromFile: (f: File) =>
+	fromFile: (f: File, dependencies: UrlStateParserSearchDependencies) =>
 		new Promise<{ entry: HistoryEntry; pattern: string; url: string }>((resolve, reject) => {
 			const fr = new FileReader();
 			fr.onload = async function () {
@@ -128,7 +128,7 @@ const get = {
 					}
 
 					// Roundtrip from url if not compatible.
-					const entry = originalEntry.version === version ? originalEntry : await new UrlStateParserSearch(new URI(originalEntry.url)).get();
+					const entry = originalEntry.version === version ? originalEntry : await new UrlStateParserSearch(dependencies, new URI(originalEntry.url)).get();
 
 					resolve({
 						entry,

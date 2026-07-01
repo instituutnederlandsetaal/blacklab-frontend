@@ -1,7 +1,7 @@
+import { createMockApi, resolvedRequest } from '@test/mocks/api';
 import { describe, expect, test } from 'vitest';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
-import { createMockApi, resolvedRequest } from '@test/mocks/api';
 
 describe('createMockApi', () => {
 	test('returns an installable plugin with rejected default API methods', async () => {

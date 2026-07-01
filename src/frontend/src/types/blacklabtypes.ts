@@ -157,6 +157,8 @@ export type BLIndex = BLIndexBase & {
 	/** Number of tokens and docs in this index (excluding those tokens added in any currently running indexing action). */
 	count: BLCount;
 };
+export const isIndexV5 = (v: BLIndex | BLIndexV4): v is BLIndex => (v as BLIndex).count != null;
+export const isIndexV4 = (v: BLIndex | BLIndexV4): v is BLIndexV4 => !isIndexV5(v);
 
 // #endregion
 
@@ -171,6 +173,8 @@ export type BLAnnotationGroup = {
 	annotations: string[];
 	addRemainingAnnotations: boolean;
 };
+export const isAnnotationGroupV5 = (v: BLAnnotationGroup | BLAnnotationGroupV4): v is BLAnnotationGroup => (v as BLAnnotationGroup).groupName != null;
+export const isAnnotationGroupV4 = (v: BLAnnotationGroup | BLAnnotationGroupV4): v is BLAnnotationGroupV4 => !isAnnotationGroupV5(v);
 
 export type BLMetadataGroupV4 = {
 	name: string;
@@ -181,6 +185,8 @@ export type BLMetadataGroup = {
 	fieldNamesInGroup: string[];
 	addRemainingFields: boolean;
 };
+export const isMetadataGroupV5 = (v: BLMetadataGroup | BLMetadataGroupV4): v is BLMetadataGroup => (v as BLMetadataGroup).fieldNamesInGroup != null;
+export const isMetadataGroupV4 = (v: BLMetadataGroup | BLMetadataGroupV4): v is BLMetadataGroupV4 => !isMetadataGroupV5(v);
 
 // #endregion
 
@@ -364,6 +370,8 @@ export type BLAnnotation = BLAnnotationBase & {
 	/** Replacement for the 'values' property in V4, contains the counts as well. */
 	terms?: Record<string, number>;
 };
+export const isBLAnnotationV5 = (v: BLAnnotation | BLAnnotationV4): v is BLAnnotation => (v as BLAnnotation).custom != null || (v as BLAnnotation).terms != null;
+export const isBLAnnotationV4 = (v: BLAnnotation | BLAnnotationV4): v is BLAnnotationV4 => !isBLAnnotationV5(v);
 
 // #endregion
 
@@ -404,6 +412,8 @@ export type BLAnnotatedField = BLAnnotatedFieldBase & {
 		// e.g. relClass: {relType: count}
 	};
 };
+export const isAnnotatedFieldV5 = (v: BLAnnotatedField | BLAnnotatedFieldV4): v is BLAnnotatedField => (v as BLAnnotatedField).count != null;
+export const isAnnotatedFieldV4 = (v: BLAnnotatedField | BLAnnotatedFieldV4): v is BLAnnotatedFieldV4 => !isAnnotatedFieldV5(v);
 
 // #endregion
 
@@ -443,6 +453,8 @@ export type BLMetadataFieldV4 = BLMetadataFieldBase & BLMetadataFieldCustom;
 export type BLMetadataField = BLMetadataFieldBase & {
 	custom?: BLMetadataFieldCustom;
 };
+export const isMetadataFieldV5 = (v: BLMetadataField | BLMetadataFieldV4): v is BLMetadataField => (v as BLMetadataField).custom != null;
+export const isMetadataFieldV4 = (v: BLMetadataField | BLMetadataFieldV4): v is BLMetadataFieldV4 => !isMetadataFieldV5(v);
 // #endregion
 
 // --------------
@@ -520,7 +532,7 @@ type SummaryParams = {
 	sampled: boolean;
 };
 
-type BLSubcorpusSize = {
+export type BLSubcorpusSize = {
 	documents: number;
 	tokens: number;
 	annotatedFields?: Array<{
@@ -530,31 +542,33 @@ type BLSubcorpusSize = {
 	}>;
 };
 
+type IfSummaryFlag<Flag extends boolean, Value> = true extends Flag ? (false extends Flag ? Value | undefined : Value) : undefined;
+
 export type BLSearchSummaryV5<T extends SummaryParams> = {
 	params: BLSearchParameters;
-	pattern: T['pattern'] extends true ? BLSearchSummaryPatternInfo : undefined;
+	pattern: IfSummaryFlag<T['pattern'], BLSearchSummaryPatternInfo>;
 	results: {
 		/** Always present, but mostly empty when  */
 		window: BLSearchSummaryWindowV5;
 		stats: {
 			processed: BLSearchResultsStatsV5;
 			counted: BLSearchResultsStatsV5;
-			numberOfGroups: T['grouped'] extends true ? number : undefined;
-			largestGroupSize: T['grouped'] extends true ? number : undefined;
+			numberOfGroups: IfSummaryFlag<T['grouped'], number>;
+			largestGroupSize: IfSummaryFlag<T['grouped'], number>;
 			/** Subcorpus across the whole query; i.e. what would be matched if pattern wasn't present */
-			subcorpusSize?: T['subcorpora'] extends true ? BLSubcorpusSize : undefined;
+			subcorpusSize?: IfSummaryFlag<T['subcorpora'], BLSubcorpusSize>;
 		};
-		sample: T['sampled'] extends true
-			?
-					| {
-							sample: number;
-							seed: number;
-					  }
-					| {
-							percentage: number;
-							seed: number;
-					  }
-			: undefined;
+		sample: IfSummaryFlag<
+			T['sampled'],
+			| {
+					sample: number;
+					seed: number;
+			  }
+			| {
+					percentage: number;
+					seed: number;
+			  }
+		>;
 	};
 };
 
@@ -646,8 +660,12 @@ export type BLHitGroupV4 = BLGroupV4 & {
 	subcorpusSize?: BLSubcorpusSize;
 };
 
-// TODO subcorpus
-export type BLHitGroup = BLGroupV4;
+export type BLHitGroup = BLGroupV4 & {
+	/** Total number of documents represented in this hit group, if BlackLab returned it. */
+	numberOfDocs?: number;
+	/** Present when grouped on at least one metadata field, and subcorpussize=true was in the request. */
+	subcorpusSize?: BLSubcorpusSize;
+};
 
 export type BLDocGroupV4 = BLGroupV4 & {
 	/** Total number of tokens across all documents in this group */
@@ -836,7 +854,8 @@ export type BLDocInfoV4 = {
 	lengthInTokens: number;
 	tokenCounts?: Array<{ fieldName: string; tokenCount: number }>;
 	mayView: boolean;
-} & Record<string, string | string[]>;
+	[metadataField: string]: string | string[] | number | boolean | Array<{ fieldName: string; tokenCount: number }> | undefined;
+};
 
 export type BLDocInfo = {
 	metadata: Record<string, string[]>;
@@ -846,9 +865,10 @@ export type BLDocInfo = {
 
 export function getMetadataFieldValues(docInfo: BLDocInfo | BLDocInfoV4, fieldId: string | null | undefined): string[] | undefined {
 	if (!fieldId) return undefined;
-	const value: string | string[] | undefined = 'metadata' in docInfo ? (docInfo as BLDocInfo).metadata[fieldId] : (docInfo as BLDocInfoV4)[fieldId];
+	const value = 'metadata' in docInfo ? (docInfo as BLDocInfo).metadata[fieldId] : (docInfo as BLDocInfoV4)[fieldId];
 	if (typeof value === 'string') return [value];
-	return value;
+	if (Array.isArray(value) && value.every(v => typeof v === 'string')) return value;
+	return undefined;
 }
 
 /** Info returned when getting hits or documents. */
@@ -876,6 +896,14 @@ export type BLDocument = {
 	docPid: string;
 	docInfo: BLDocInfo;
 	docFields: BLDocFieldsV4;
+};
+
+export type BLDocumentV4 = {
+	docPid: string;
+	docInfo: BLDocInfoV4;
+	docFields: BLDocFieldsV4;
+	metadataFieldGroups: BLMetadataGroupV4[];
+	metadataFieldDisplayNames: Record<string, string>;
 };
 
 /** Blacklab response to a query for documents without grouping */
@@ -907,7 +935,19 @@ export type BLHitResults = {
 export type BLSearchResultV4 = BLHitResultsV4 | BLDocResultsV4 | BLHitGroupResultsV4 | BLDocGroupResultsV4;
 export type BLSearchResult = BLHitResults | BLDocResults | BLHitGroupResults | BLDocGroupResults;
 
-export const isHitResults = (d: BLSearchResult | BLSearchResultV4): d is BLHitResults => !!(d && d.docInfos && d.hits);
+export type BLSearchSummary = BLSearchResult['summary'];
+export type BLSearchSummaryPattern = BLSearchSummary & { pattern: BLSearchSummaryPatternInfo };
+export type BLSearchSummaryGrouped = BLSearchSummary & {
+	results: BLSearchSummary['results'] & {
+		stats: BLSearchSummary['results']['stats'] & {
+			numberOfGroups: number;
+			largestGroupSize: number;
+		};
+	};
+};
+
+export const isHitResultsV4 = (d: any): d is BLHitResultsV4 => !!(d && d.docInfos && d.hits);
+export const isHitResults = (d: any): d is BLHitResults => !!(d && d.docInfo && d.hits);
 export const isDocResults = (d: any): d is BLDocResults => !!(d && d.docs);
 export const isHitGroups = (d: any): d is BLHitGroupResults => !!(d && d.hitGroups);
 export const isDocGroups = (d: any): d is BLDocGroupResults => !!(d && d.docGroups);
@@ -916,12 +956,14 @@ export const isDocGroupsOrResults = (d: any): d is BLDocResults | BLDocGroupResu
 export const isGroups = (d: any): d is BLHitGroupResults | BLDocGroupResults => isHitGroups(d) || isDocGroups(d);
 export const isBLError = (e: any): e is BLError => !!(e && e.error && e.error.code && e.error.message);
 
-export function hasPatternInfo(e?: BLSearchResult): e is BLSearchResult & { summary: BLSearchSummary & BLSearchSummaryPattern };
-export function hasPatternInfo(e?: BLSearchSummary): e is BLSearchSummary & BLSearchSummaryPattern;
-export function hasPatternInfo(e?: BLSearchResult | BLSearchSummary) {
-	return e != null && (('summary' in e && 'numberOfHits' in e.summary) || 'numberOfHits' in e);
+export function hasPatternInfo(e?: BLSearchResult | null): e is BLSearchResult & { summary: BLSearchSummaryPattern };
+export function hasPatternInfo(e?: BLSearchSummary | null): e is BLSearchSummaryPattern;
+export function hasPatternInfo(e?: BLSearchResult | BLSearchSummary | null) {
+	if (e == null) return false;
+	const summary = 'summary' in e ? e.summary : e;
+	return summary.pattern != null;
 }
-export const hasGroupInfo = <T extends BLSearchResult>(e?: T): e is T & { summary: T['summary'] & BLSearchSummaryGrouped } => e != null && 'numberOfGroups' in e.summary;
+export const hasGroupInfo = <T extends BLSearchResult>(e?: T | null): e is T & { summary: T['summary'] & BLSearchSummaryGrouped } => e != null && e.summary.results.stats.numberOfGroups != null;
 
 /** Are these valid parameters with a pattern that will yield results with hits? */
 export function isHitParams(params: BLSearchParameters | null | undefined): params is BLSearchParameters {

@@ -53,6 +53,7 @@ import type { PropType } from 'vue';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
 import { useBlackLabApi } from '@/shared/api/index.ts';
+import { getMatchingHits } from '@/shared/blacklab-helpers/normalize/result-helpers.ts';
 import { mapReduce } from '@/shared/utils/array-utils.ts';
 
 import type { StepState } from './POS.vue';
@@ -236,7 +237,7 @@ export const step = defineComponent({
 							maxcount: 1,
 						}).request;
 
-						state.occurances = r.summary.numberOfHits;
+						state.occurances = getMatchingHits(r) ?? 0;
 						state.loading = false;
 					}
 					if (performedWork) {

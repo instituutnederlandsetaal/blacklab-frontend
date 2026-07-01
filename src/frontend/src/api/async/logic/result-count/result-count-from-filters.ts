@@ -25,7 +25,7 @@ export type SubcorpusOutput = {
 
 export function getFilteredSubcorpus(api: BlackLabApi, input: SubcorpusInput & { filter: string }) {
 	return api
-		.getDocs(input.index.id, { filter: input.filter, first: 0, number: 0, includetokencount: true, waitfortotal: true })
+		.getDocs(input.index.id, { filter: input.filter, first: 0, number: 0, subcorpussize: true, waitfortotal: true })
 		.then(r => getTotals(r, input.annotatedFieldId))
 		.then(totals => ({
 			numberOfMatchingDocuments: totals.numberOfMatchingDocuments,

@@ -31,9 +31,9 @@
 			</div>
 		</div>
 
-		<div v-if="error" class="totals-message text-danger" @click="totals.continueCounting" :title="error.message">
+		<div v-if="error" class="totals-message text-danger" @click="totals.continueCounting()" :title="error.message">
 			<span class="fa fa-exclamation-triangle text-danger" /> {{ $t('results.resultsTotals.networkError') }}!
-			<button type="button" class="totals-button" @click="totals.continueCounting"><span class="fa fa-rotate-right text-danger"></span> {{ $t('results.resultsTotals.retry') }}</button>
+			<button type="button" class="totals-button" @click="totals.continueCounting()"><span class="fa fa-rotate-right text-danger"></span> {{ $t('results.resultsTotals.retry') }}</button>
 		</div>
 		<div
 			v-else-if="isLimited"

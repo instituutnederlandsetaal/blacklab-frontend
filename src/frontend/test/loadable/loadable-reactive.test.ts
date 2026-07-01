@@ -4,29 +4,29 @@ import { nextTick, ref, shallowRef, watch, type Ref } from 'vue';
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { combine, combineOptional, combineLoadablesValue, mapLoadedValue, flatMapLoadedValue } from '@/shared/utils/loadable/loadable-combine';
 import {
-  combineOptionalReactive,
-  combineReactive,
-  combineLoadablesReactive,
-  flatMapLoadedReactive,
-  combineLoadables,
-  mapLoadedReactive,
-  unwrapLoadableRefs,
+	combineOptionalReactive,
+	combineReactive,
+	combineLoadablesReactive,
+	flatMapLoadedReactive,
+	combineLoadables,
+	mapLoadedReactive,
+	unwrapLoadableRefs,
 } from '@/shared/utils/loadable/loadable-combine-reactive';
 import { Loadable, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
 import { loadableFromComputedRequest, loadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
 import {
-  flatMapEmptyReactive,
-  flatMapErrorReactive,
-  flatMapOptionalReactive,
-  flatMapLoadingReactive,
-  loadableFromRefs,
-  loadableReactive,
-  mapEmptyReactive,
-  mapErrorReactive,
-  flatMapReactive,
-  mapOptionalReactive,
-  mapReactive,
-  mapLoadingReactive,
+	flatMapEmptyReactive,
+	flatMapErrorReactive,
+	flatMapOptionalReactive,
+	flatMapLoadingReactive,
+	loadableFromRefs,
+	loadableReactive,
+	mapEmptyReactive,
+	mapErrorReactive,
+	flatMapReactive,
+	mapOptionalReactive,
+	mapReactive,
+	mapLoadingReactive,
 } from '@/shared/utils/loadable/loadable-reactive';
 
 function createControlledLoadable<T>(initial: Loadable<T>, extra: Partial<{ retry: () => void; stop: () => void }> = {}) {
