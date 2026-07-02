@@ -1,5 +1,5 @@
 import type { CaptureAndRelation, TokenHighlight } from '@/types/apptypes';
-import type { BLHit, BLHitInOtherField, BLHitResults, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummaryPattern } from '@/types/blacklabtypes';
+import type { BLHit, BLHitInOtherField, BLHitResults, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummaryV5 } from '@/types/blacklabtypes';
 // TODO this is a bit dirty, make it a function argument if possible
 import type { UnionHelpers } from '@/types/helpers';
 import { corpusCustomizations } from '@/utils/customization';
@@ -275,7 +275,7 @@ export function mergeMatchInfos(data: BLHitResults): BLHitResults {
  *
  * We use this for highlighting the hits in the UI.
  */
-export function getHighlightColors(summary: BLSearchSummaryPattern): Record<string, TokenHighlight> {
+export function getHighlightColors(summary: BLSearchSummaryV5): Record<string, TokenHighlight> {
 	return Object.fromEntries(
 		Object.keys(summary.pattern?.matchInfos ?? {})
 			.sort()

@@ -253,7 +253,7 @@ export const corpusCustomizations = wrapWithErrorHandling({
 		 *  In the case of non-parallel corpora, this will always be the main annotated field.
 		 * @param docInfo document metadata
 		 */
-		customHitInfo: (hit: BLTypes.BLHit | BLTypes.BLHitSnippet | BLTypes.BLHitInOtherField, annotatedFieldDisplayName: string | null, docInfo: BLTypes.BLDoc): string | null => {
+		customHitInfo: (hit: BLTypes.BLHitInContext, annotatedFieldDisplayName: string | null, docInfo: BLTypes.BLDoc): string | null => {
 			return annotatedFieldDisplayName;
 		},
 		// #endregion docscustomhitinfocolumn

@@ -180,7 +180,7 @@ function loadSentence() {
 	// Need to track this, because results pay be paginated and this component may be reused across renders
 	// We should probably use asyncComputed or something but that's for later.
 	const nonce = props.row.hit;
-	const request = blacklab.getSnippet(corpus.value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, context);
+	const request = blacklab.getSnippet(corpus.value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start!, props.row.hit.end!, context);
 	sentenceRequest.value = request;
 	request
 		// check if hit hasn't changed in the meantime (due to component reuse)
@@ -207,7 +207,7 @@ function loadSnippet() {
 	const concordanceSize = UIStore.getState().results.shared.concordanceSize;
 
 	const nonce = props.row.hit;
-	const request = blacklab.getSnippet(corpus.value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start, props.row.hit.end, concordanceSize);
+	const request = blacklab.getSnippet(corpus.value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start!, props.row.hit.end!, concordanceSize);
 	snippetRequest.value = request;
 	request
 		.then(s => {

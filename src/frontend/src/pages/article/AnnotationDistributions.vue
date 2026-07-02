@@ -10,7 +10,7 @@ import type * as BLTypes from '@/types/blacklabtypes';
 
 export default defineComponent({
 	props: {
-		snippet: Object as () => BLTypes.BLHitSnippet,
+		snippet: Object as () => BLTypes.BLHitInDoc,
 		baseColor: String,
 		annotationId: String,
 		chartTitle: String,

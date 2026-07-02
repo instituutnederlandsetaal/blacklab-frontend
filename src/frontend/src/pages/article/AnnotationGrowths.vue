@@ -12,7 +12,7 @@ import type * as BLTypes from '@/types/blacklabtypes';
 
 export default defineComponent({
 	props: {
-		snippet: { type: Object as PropType<BLTypes.BLHitSnippet>, required: true },
+		snippet: { type: Object as PropType<BLTypes.BLHitInDoc>, required: true },
 		annotations: Array as () => Array<{
 			id: string;
 			displayName?: string;

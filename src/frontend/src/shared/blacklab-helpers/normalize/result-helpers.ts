@@ -1,89 +1,64 @@
-import {
-	isGroups,
-	isHitGroups,
-	isHitResults,
-	type BLDocInfo,
-	type BLSearchParameters,
-	type BLSearchResult,
-	type BLSearchResultsStatsV5,
-	type BLSearchSummary,
-	type BLSearchSummaryWindowV5,
-	type BLSubcorpusSize,
-} from '@/types/blacklabtypes';
+import { isGroups, isHitResults, type BLDocInfo, type BLSearchParameters, type BLSearchResult, type BLSearchResultsStatsV5, type BLSearchSummaryV5, type BLSubcorpusSize } from '@/types/blacklabtypes';
 
-function summaryFrom(input: BLSearchResult | BLSearchSummary): BLSearchSummary {
+function summaryFrom(input: BLSearchResult | BLSearchSummaryV5): BLSearchSummaryV5 {
 	return 'summary' in input ? input.summary : input;
 }
 
-export function getSearchParameters(input: BLSearchResult | BLSearchSummary): BLSearchParameters {
+export function getSearchParameters(input: BLSearchResult | BLSearchSummaryV5): BLSearchParameters {
 	return summaryFrom(input).params;
 }
 
-export function getSearchWindow(input: BLSearchResult | BLSearchSummary): BLSearchSummaryWindowV5 {
-	return summaryFrom(input).results.window;
-}
-
-export function getProcessedStats(input: BLSearchResult | BLSearchSummary): BLSearchResultsStatsV5 {
+export function getProcessedStats(input: BLSearchResult | BLSearchSummaryV5): BLSearchResultsStatsV5 {
 	return summaryFrom(input).results.stats.processed;
 }
 
-export function getCountedStats(input: BLSearchResult | BLSearchSummary): BLSearchResultsStatsV5 {
+export function getCountedStats(input: BLSearchResult | BLSearchSummaryV5): BLSearchResultsStatsV5 {
 	return summaryFrom(input).results.stats.counted;
 }
 
-export function getNumberOfGroups(input: BLSearchResult | BLSearchSummary): number | undefined {
+export function getNumberOfGroups(input: BLSearchResult | BLSearchSummaryV5): number | undefined {
 	return summaryFrom(input).results.stats.numberOfGroups;
 }
 
-export function getLargestGroupSize(input: BLSearchResult | BLSearchSummary): number | undefined {
+export function getLargestGroupSize(input: BLSearchResult | BLSearchSummaryV5): number | undefined {
 	return summaryFrom(input).results.stats.largestGroupSize;
 }
 
-export function getSubcorpusSize(input: BLSearchResult | BLSearchSummary): BLSubcorpusSize | undefined {
+export function getSubcorpusSize(input: BLSearchResult | BLSearchSummaryV5): BLSubcorpusSize | undefined {
 	return summaryFrom(input).results.stats.subcorpusSize;
 }
 
-export function getAnnotatedFieldSubcorpusSize(input: BLSearchResult | BLSearchSummary, annotatedFieldId: string): Pick<BLSubcorpusSize, 'documents' | 'tokens'> | null {
-	const subcorpusSize = getSubcorpusSize(input);
-	if (!subcorpusSize) return null;
-	const annotatedField = subcorpusSize.annotatedFields?.find(field => field.fieldName === annotatedFieldId);
-	if (annotatedField) {
-		return {
-			documents: annotatedField.documents,
-			tokens: annotatedField.tokens,
-		};
-	}
-	return {
-		documents: subcorpusSize.documents,
-		tokens: subcorpusSize.tokens,
-	};
+export function getAnnotatedFieldSubcorpusSize(input: BLSearchResult | BLSearchSummaryV5, annotatedFieldId: string): Pick<BLSubcorpusSize, 'documents' | 'tokens'> | null {
+	const found = getSubcorpusSize(input);
+	const specific = found?.annotatedFields?.find(field => field.fieldName === annotatedFieldId) ?? found;
+	return specific ? { documents: specific.documents, tokens: specific.tokens } : null;
 }
 
 export function getTotalResults(input: BLSearchResult): number {
 	if (isGroups(input)) return getNumberOfGroups(input) ?? 0;
-	if (isHitResults(input) || isHitGroups(input)) return getCountedStats(input).hits;
+	if (isHitResults(input)) return getCountedStats(input).hits!;
 	return getCountedStats(input).documents;
 }
 
 export function getTotalAvailableResults(input: BLSearchResult): number {
 	if (isGroups(input)) return getNumberOfGroups(input) ?? 0;
-	if (isHitResults(input) || isHitGroups(input)) return getProcessedStats(input).hits;
+	if (isHitResults(input)) return getProcessedStats(input).hits!;
 	return getProcessedStats(input).documents;
 }
 
-export function getMatchingDocuments(input: BLSearchResult | BLSearchSummary): number {
+export function getMatchingDocuments(input: BLSearchResult | BLSearchSummaryV5): number {
 	return getCountedStats(input).documents;
 }
 
-export function getMatchingHits(input: BLSearchResult | BLSearchSummary): number | undefined {
+export function getMatchingHits(input: BLSearchResult | BLSearchSummaryV5): number | undefined {
 	return summaryFrom(input).pattern != null ? getCountedStats(input).hits : undefined;
 }
 
-export function getSearchTimeMs(input: BLSearchResult | BLSearchSummary): number {
+export function getSearchTimeMs(input: BLSearchResult | BLSearchSummaryV5): number {
 	return getCountedStats(input).timeMs || getProcessedStats(input).timeMs || 0;
 }
 
-export function getSearchState(input: BLSearchResult | BLSearchSummary): 'counting' | 'finished' | 'limited' {
+export function getSearchState(input: BLSearchResult | BLSearchSummaryV5): 'counting' | 'finished' | 'limited' {
 	const counted = getCountedStats(input);
 	if (counted.status === 'working') return 'counting';
 	if (counted.stoppedBecauseTooMany) return 'limited';

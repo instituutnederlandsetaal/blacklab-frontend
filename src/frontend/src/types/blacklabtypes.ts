@@ -516,7 +516,7 @@ export type BLSearchSummaryWindowV5 = {
 export type BLSearchResultsStatsV5 = {
 	/** When status === finished, see stoppedBecauseTooMany for the reason */
 	status: 'finished' | 'working';
-	hits: number;
+	hits: number | undefined; // when no pattern, no hits.
 	documents: number;
 	timeMs: number;
 	/** Always present, but never true unless status === 'finished' (even then - only when there were more results but BlackLab stopped the search due to configured limits) */
@@ -524,13 +524,6 @@ export type BLSearchResultsStatsV5 = {
 };
 
 export type BLSearchResultsSample = BLSearchSummarySampleV4;
-
-type SummaryParams = {
-	pattern: boolean;
-	grouped: boolean;
-	subcorpora: boolean;
-	sampled: boolean;
-};
 
 export type BLSubcorpusSize = {
 	documents: number;
@@ -542,24 +535,20 @@ export type BLSubcorpusSize = {
 	}>;
 };
 
-type IfSummaryFlag<Flag extends boolean, Value> = true extends Flag ? (false extends Flag ? Value | undefined : Value) : undefined;
-
-export type BLSearchSummaryV5<T extends SummaryParams> = {
+export type BLSearchSummaryV5 = {
 	params: BLSearchParameters;
-	pattern: IfSummaryFlag<T['pattern'], BLSearchSummaryPatternInfo>;
+	pattern?: BLSearchSummaryPatternInfo;
 	results: {
 		/** Always present, but mostly empty when  */
 		window: BLSearchSummaryWindowV5;
 		stats: {
 			processed: BLSearchResultsStatsV5;
 			counted: BLSearchResultsStatsV5;
-			numberOfGroups: IfSummaryFlag<T['grouped'], number>;
-			largestGroupSize: IfSummaryFlag<T['grouped'], number>;
 			/** Subcorpus across the whole query; i.e. what would be matched if pattern wasn't present */
-			subcorpusSize?: IfSummaryFlag<T['subcorpora'], BLSubcorpusSize>;
-		};
-		sample: IfSummaryFlag<
-			T['sampled'],
+			subcorpusSize?: BLSubcorpusSize;
+		} & ({ numberOfGroups: undefined; largestGroupSize: undefined } | { numberOfGroups: number; largestGroupSize: number });
+
+		sample:
 			| {
 					sample: number;
 					seed: number;
@@ -568,7 +557,11 @@ export type BLSearchSummaryV5<T extends SummaryParams> = {
 					percentage: number;
 					seed: number;
 			  }
-		>;
+			| {
+					percentage: undefined;
+					seed: undefined;
+					sample: undefined;
+			  };
 	};
 };
 
@@ -660,12 +653,7 @@ export type BLHitGroupV4 = BLGroupV4 & {
 	subcorpusSize?: BLSubcorpusSize;
 };
 
-export type BLHitGroup = BLGroupV4 & {
-	/** Total number of documents represented in this hit group, if BlackLab returned it. */
-	numberOfDocs?: number;
-	/** Present when grouped on at least one metadata field, and subcorpussize=true was in the request. */
-	subcorpusSize?: BLSubcorpusSize;
-};
+export type BLHitGroup = BLHitGroupV4;
 
 export type BLDocGroupV4 = BLGroupV4 & {
 	/** Total number of tokens across all documents in this group */
@@ -684,7 +672,7 @@ export interface BLHitGroupResultsV4 {
 
 export type BLHitGroupResults = {
 	hitGroups: BLHitGroup[];
-	summary: BLSearchSummaryV5<{ grouped: true; pattern: true; subcorpora: true; sampled: boolean }>;
+	summary: BLSearchSummaryV5;
 };
 
 /** Blacklab response for a query for documents with grouping enabled */
@@ -696,7 +684,7 @@ export interface BLDocGroupResultsV4 {
 /** Blacklab response for a query for documents with grouping enabled */
 export interface BLDocGroupResults {
 	docGroups: BLDocGroup[];
-	summary: BLSearchSummaryV5<{ grouped: true; pattern: boolean; subcorpora: true; sampled: boolean }>;
+	summary: BLSearchSummaryV5;
 }
 
 // #region docssnippettypes
@@ -718,11 +706,6 @@ export type BLHitSnippetPart = {
 } &
 	/** Usually this contains fields like lemma, word, pos */
 	Record<string, string[]>;
-
-/** Shared between v4/v5 - A subset of a BLHit, returned in document requests (/docs) when there are also hits. */
-export type BLHitSnippet = {
-	match: BLHitSnippetPart;
-};
 
 // #endregion docssnippettypes
 
@@ -794,12 +777,16 @@ export interface BLMatchInfoList {
 
 export type BLMatchInfo = BLMatchInfoSpan | BLMatchInfoRelation | BLMatchInfoTag | BLMatchInfoList;
 
-/** One of the otherFields hits (parallel corpus query, hit in one of the target fields) */
-export type BLHitInOtherField = Omit<BLHit, 'otherFields' | 'docPid'>;
-
-type BLHitBase = BLHitSnippet & {
+/** Raw V5 hit returned by BlackLab. Use BLHit inside app code. */
+export type BLHitV5 = {
+	docPid: string;
+	before?: BLHitSnippetPart;
+	match: BLHitSnippetPart;
+	after?: BLHitSnippetPart;
 	start: number;
 	end: number;
+	/** parallel corpus: aligned hits in other (requested) versions. Keyed by the full id of the annotatedField e.g. "contents__en" */
+	otherFields?: Record<string, BLHitInOtherFieldV5>;
 	/**
 	 * Contains the relevant info about <br>
 	 * A) capture groups: tokens with a label in the query, such as a:[pos="..."] would result in {a: {start: x, end: y, type: 'span'}})
@@ -818,29 +805,52 @@ type BLHitBase = BLHitSnippet & {
 	 *  }
 	 */
 	matchInfos?: Record<string, BLMatchInfo>;
-	docPid: string;
-	/** parallel corpus: aligned hits in other (requested) versions. Keyed by te full id of the annotatedField e.g. "contents__en" */
-	otherFields?: Record<string, BLHitInOtherField>; //
 };
 
-export type BLHitV4 = BLHitBase & {
-	/** Omitted if hit is at start of document */
+/** Raw V4 hit returned by BlackLab. Use BLHit inside app code. */
+export type BLHitV4 = Pick<BLHitV5, 'docPid' | 'start' | 'end' | 'match' | 'matchInfos'> & {
 	left?: BLHitSnippetPart;
-	/** Omitted if hit is at end of document */
 	right?: BLHitSnippetPart;
+
+	/** parallel corpus: aligned hits in other (requested) versions. Keyed by the full id of the annotatedField e.g. "contents__en" */
+	otherFields?: Record<string, BLHitInOtherFieldV4>;
 };
 
-/** A hit in the BlackLab hits response. */
-export type BLHit = BLHitBase & {
-	/** Always present in hits, never in /snippet requests */
-	before?: BLHitSnippetPart;
-	/** Always present in hits, never in /snippet requests */
-	after?: BLHitSnippetPart;
+/** Raw V4 snippet embedded in document results. Use BLHitInDoc inside app code. */
+export type BLHitInDocV4 = Pick<BLHitV4, 'left' | 'match' | 'right'>;
+
+/** Raw V5 snippet embedded in document results. Use BLHitInDoc inside app code. */
+export type BLHitInDocV5 = Pick<BLHitV5, 'before' | 'match' | 'after'>;
+
+/** Raw V4 hit in another annotated field. Use BLHitInOtherField inside app code. */
+export type BLHitInOtherFieldV4 = Omit<BLHitV4, 'otherFields' | 'docPid'>;
+
+/** Raw V5 hit in another annotated field. Use BLHitInOtherField inside app code. */
+export type BLHitInOtherFieldV5 = Omit<BLHitV5, 'otherFields' | 'docPid'>;
+
+/** Canonical normalized snippet shape used inside the app. */
+export type BLHitInDoc = {
+	before: BLHitSnippetPart;
+	match: BLHitSnippetPart;
+	after: BLHitSnippetPart;
 };
 
-export function hitHasParallelInfo(h: BLHit | BLHitSnippet): h is Required<BLHit> {
-	return !!(h as BLHit).matchInfos && !!(h as BLHit).otherFields;
-}
+/** Canonical normalized hit shape used inside the app. */
+export type BLHit = BLHitInDoc & {
+	docPid: string;
+
+	start: number;
+	end: number;
+
+	otherFields?: Record<string, BLHitInOtherField>;
+	matchInfos?: Record<string, BLMatchInfo>;
+};
+
+/** Canonical normalized hit in another annotated field used inside the app. */
+export type BLHitInOtherField = Omit<BLHit, 'otherFields' | 'docPid'>;
+
+/** Canonical normalized snippet/hit data that may not include document/position metadata. */
+export type BLHitInContext = BLHitInDoc & Partial<Pick<BLHit, 'docPid' | 'start' | 'end' | 'otherFields' | 'matchInfos'>>;
 
 /** Contains occurance counts of terms in the index */
 export interface BLTermOccurances {
@@ -857,6 +867,7 @@ export type BLDocInfoV4 = {
 	[metadataField: string]: string | string[] | number | boolean | Array<{ fieldName: string; tokenCount: number }> | undefined;
 };
 
+/** DocInfo in a hits response - Fields without indexed values are omitted! */
 export type BLDocInfo = {
 	metadata: Record<string, string[]>;
 	tokenCounts: Array<{ fieldName: string; tokenCount: number }>;
@@ -878,7 +889,17 @@ export type BLDocV4 = {
 	/* Only when query was performed with a cql pattern */
 	numberOfHits?: number;
 	/* Only when query was performed with a cql pattern */
-	snippets?: BLHitSnippet[];
+	snippets?: BLHitInDocV4[];
+};
+
+/** Raw V5 document result returned by BlackLab. Use BLDoc inside app code. */
+export type BLDocV5 = {
+	docInfo: BLDocInfo;
+	docPid: string;
+	/* Only when query was performed with a cql pattern */
+	numberOfHits?: number;
+	/* Only when query was performed with a cql pattern */
+	snippets?: BLHitInDocV5[];
 };
 
 /** Info returned when getting hits or documents. */
@@ -888,7 +909,7 @@ export type BLDoc = {
 	/* Only when query was performed with a cql pattern */
 	numberOfHits?: number;
 	/* Only when query was performed with a cql pattern */
-	snippets?: BLHitSnippet[];
+	snippets?: BLHitInDoc[];
 };
 
 /** Info returned when getting a document's metadata directly. */
@@ -913,10 +934,16 @@ export interface BLDocResultsV4 {
 	summary: BLSearchSummaryV4;
 }
 
+/** Raw V5 BlackLab response to a query for documents without grouping. Use BLDocResults inside app code. */
+export type BLDocResultsV5 = {
+	docs: BLDocV5[];
+	summary: BLSearchSummaryV5;
+};
+
 /** Blacklab response to a query for documents without grouping */
 export type BLDocResults = {
 	docs: BLDoc[];
-	summary: BLSearchSummaryV5<{ grouped: false; pattern: boolean; subcorpora: true; sampled: boolean }>;
+	summary: BLSearchSummaryV5;
 };
 
 /** Blacklab response to a query for hits without grouping */
@@ -926,44 +953,40 @@ export interface BLHitResultsV4 {
 	summary: BLSearchSummaryV4 & BLSearchSummaryPatternV4;
 }
 
+export type BLHitResultsV5 = {
+	docInfos: Record<string, BLDocInfo>;
+	hits: BLHitV5[];
+	summary: BLSearchSummaryV5;
+};
+
+/** Normalized version */
 export type BLHitResults = {
-	docInfo: Record<string, BLDocInfo>;
-	hits: BLHit[];
-	summary: BLSearchSummaryV5<{ grouped: false; pattern: true; subcorpora: true; sampled: boolean }>;
+	docInfos: Record<string, BLDocInfo>;
+	hits: Array<BLHit>;
+	summary: BLSearchSummaryV5;
 };
 
 export type BLSearchResultV4 = BLHitResultsV4 | BLDocResultsV4 | BLHitGroupResultsV4 | BLDocGroupResultsV4;
+export type BLSearchResultV5 = BLHitResultsV5 | BLDocResultsV5 | BLHitGroupResults | BLDocGroupResults;
 export type BLSearchResult = BLHitResults | BLDocResults | BLHitGroupResults | BLDocGroupResults;
 
-export type BLSearchSummary = BLSearchResult['summary'];
-export type BLSearchSummaryPattern = BLSearchSummary & { pattern: BLSearchSummaryPatternInfo };
-export type BLSearchSummaryGrouped = BLSearchSummary & {
-	results: BLSearchSummary['results'] & {
-		stats: BLSearchSummary['results']['stats'] & {
-			numberOfGroups: number;
-			largestGroupSize: number;
-		};
-	};
-};
+export const isSearchResultV4 = (d: any): d is BLSearchResultV4 => (d as Partial<BLSearchResultV4> | undefined)?.summary?.numberOfDocs != null;
+export const isHitResultsV4 = (d: BLSearchResultV4): d is BLHitResultsV4 => (d as Partial<BLHitResultsV4>).hits != null;
+export const isDocResultsV4 = (d: BLSearchResultV4): d is BLDocResultsV4 => (d as Partial<BLDocResultsV4>).docs != null;
+export const isHitGroupResultsV4 = (d: BLSearchResultV4): d is BLHitGroupResultsV4 => (d as Partial<BLHitGroupResultsV4>).hitGroups != null;
+export const isDocGroupResultsV4 = (d: BLSearchResultV4): d is BLDocGroupResultsV4 => (d as Partial<BLDocGroupResultsV4>).docGroups != null;
+export const isGroupsV4 = (d: BLSearchResultV4): d is BLHitGroupResultsV4 | BLDocGroupResultsV4 => isHitGroupResultsV4(d) || isDocGroupResultsV4(d);
 
-export const isHitResultsV4 = (d: any): d is BLHitResultsV4 => !!(d && d.docInfos && d.hits);
-export const isHitResults = (d: any): d is BLHitResults => !!(d && d.docInfo && d.hits);
-export const isDocResults = (d: any): d is BLDocResults => !!(d && d.docs);
-export const isHitGroups = (d: any): d is BLHitGroupResults => !!(d && d.hitGroups);
-export const isDocGroups = (d: any): d is BLDocGroupResults => !!(d && d.docGroups);
-export const isHitGroupsOrResults = (d: any): d is BLHitResults | BLHitGroupResults => isHitGroups(d) || isHitResults(d);
-export const isDocGroupsOrResults = (d: any): d is BLDocResults | BLDocGroupResults => isDocGroups(d) || isDocResults(d);
-export const isGroups = (d: any): d is BLHitGroupResults | BLDocGroupResults => isHitGroups(d) || isDocGroups(d);
+export const isSearchResult = (d: any): d is BLSearchResult => (d as Partial<BLSearchResult> | undefined)?.summary?.results != null;
+export const isHitResults = (d: BLSearchResult | null | undefined): d is BLHitResults => (d as Partial<BLHitResults> | null | undefined)?.hits != null;
+export const isDocResults = (d: BLSearchResult | null | undefined): d is BLDocResults => (d as Partial<BLDocResults> | null | undefined)?.docs != null;
+export const isHitGroups = (d: BLSearchResult | null | undefined): d is BLHitGroupResults => (d as Partial<BLHitGroupResults> | null | undefined)?.hitGroups != null;
+export const isDocGroups = (d: BLSearchResult | null | undefined): d is BLDocGroupResults => (d as Partial<BLDocGroupResults> | null | undefined)?.docGroups != null;
+export const isGroups = (d: BLSearchResult | null | undefined): d is BLHitGroupResults | BLDocGroupResults => isHitGroups(d) || isDocGroups(d);
+
+export const hasPatternInfo = (summary: BLSearchSummaryV5 | null | undefined): summary is BLSearchSummaryV5 & { pattern: BLSearchSummaryPatternInfo } => summary?.pattern != null;
+
 export const isBLError = (e: any): e is BLError => !!(e && e.error && e.error.code && e.error.message);
-
-export function hasPatternInfo(e?: BLSearchResult | null): e is BLSearchResult & { summary: BLSearchSummaryPattern };
-export function hasPatternInfo(e?: BLSearchSummary | null): e is BLSearchSummaryPattern;
-export function hasPatternInfo(e?: BLSearchResult | BLSearchSummary | null) {
-	if (e == null) return false;
-	const summary = 'summary' in e ? e.summary : e;
-	return summary.pattern != null;
-}
-export const hasGroupInfo = <T extends BLSearchResult>(e?: T | null): e is T & { summary: T['summary'] & BLSearchSummaryGrouped } => e != null && e.summary.results.stats.numberOfGroups != null;
 
 /** Are these valid parameters with a pattern that will yield results with hits? */
 export function isHitParams(params: BLSearchParameters | null | undefined): params is BLSearchParameters {

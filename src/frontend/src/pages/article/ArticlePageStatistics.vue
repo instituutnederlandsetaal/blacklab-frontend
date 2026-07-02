@@ -64,7 +64,7 @@ export default defineComponent({
 		AnnotationGrowths,
 	},
 	props: {
-		snippet: { type: Object as PropType<BLTypes.BLHitSnippet>, required: true },
+		snippet: { type: Object as PropType<BLTypes.BLHit>, required: true },
 		document: { type: Object as PropType<BLTypes.BLDocument>, required: true },
 		isPaginated: Boolean,
 	},

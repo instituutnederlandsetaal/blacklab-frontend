@@ -132,7 +132,7 @@ type ModuleRootState = {
 			 * The 'content' is provided as content for the default slot when rendering a component, and provided as v-html for the div.
 			 */
 			addons: Array<
-				(context: { corpus: string; docId: string; document: BLTypes.BLDocInfo; documentUrl: string; wordAnnotationId: string; dir: 'ltr' | 'rtl'; citation: BLTypes.BLHitSnippet }) => {
+				(context: { corpus: string; docId: string; document: BLTypes.BLDocInfo; documentUrl: string; wordAnnotationId: string; dir: 'ltr' | 'rtl'; citation: BLTypes.BLHit }) => {
 					name: string;
 					component?: string;
 					element?: string;
@@ -159,7 +159,7 @@ type ModuleRootState = {
 			/** What annotation to use for displaying of [before, hit, after] and snippets. Conventionally the main annotation. */
 			concordanceAnnotationId: string;
 			/** Optionally run a function on all retrieved snippets to arbitrarily process the data (we use this to format the values in some annotations for display purposes). */
-			transformSnippets: null | ((snippet: BLTypes.BLHitSnippet) => void);
+			transformSnippets: null | ((snippet: BLTypes.BLHit) => void);
 			/** Size of the details hit (number of words loaded before/after the hit when expanding a hit result). Max 1000 */
 			concordanceSize: number;
 			concordanceAsHtml: boolean;
@@ -596,7 +596,7 @@ const actions = {
 				),
 			concordanceAsHtml: (enable: boolean) => (state.results.shared.concordanceAsHtml = enable),
 			concordanceSize: (size: number) => (state.results.shared.concordanceSize = Math.min(Math.max(0, size), 1000)),
-			transformSnippets: (transform: (snippet: BLTypes.BLHitSnippet) => void) => (state.results.shared.transformSnippets = transform),
+			transformSnippets: (transform: (snippet: BLTypes.BLHit) => void) => (state.results.shared.transformSnippets = transform),
 
 			detailedAnnotationIds: (ids: string[] | null) => {
 				if (ids != null) {

@@ -21,7 +21,7 @@ type ModuleRootState = {
 		}>;
 	};
 	/** Injectable function to calculate whichever properties about a document */
-	statisticsTableFn: null | ((document: BLTypes.BLDocument, snippet: BLTypes.BLHitSnippet) => { [key: string]: string });
+	statisticsTableFn: null | ((document: BLTypes.BLDocument, snippet: BLTypes.BLHit) => { [key: string]: string });
 
 	baseColor: string; // TODO make ui store shared.
 };

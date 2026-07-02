@@ -9,7 +9,9 @@ import type { PropType } from 'vue';
 
 import type { DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
 import type { NormalizedAnnotation } from '@/types/apptypes';
-import type { BLHit, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
+import type { BLHit, BLHitInContext, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
+
+type HitWithStart = BLHitInContext & { start: number };
 
 /* https://universaldependencies.org/format.html
 Sentences consist of one or more word lines, and word lines contain the following fields:
@@ -90,11 +92,11 @@ export default defineComponent({
 		},
 
 		// We only need this to know where our hit starts and ends.
-		hit(): BLHit | undefined {
-			return 'start' in this.data.hit ? this.data.hit : undefined;
+		hit(): HitWithStart | undefined {
+			return typeof this.data.hit.start === 'number' ? (this.data.hit as HitWithStart) : undefined;
 		},
 		// The full sentence is the context in which the hit was found. Unless we don't have the sentence (yet), then it's the same hit ;)
-		context(): BLHit | undefined {
+		context(): BLHitInContext | undefined {
 			return this.fullSentence || this.hit;
 		},
 

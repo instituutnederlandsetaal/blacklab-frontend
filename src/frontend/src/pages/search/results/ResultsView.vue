@@ -492,13 +492,13 @@ export default defineComponent({
 			return this.corpus.id!;
 		},
 		isHits(): boolean {
-			return BLTypes.isHitResults(this.results);
+			return !!this.results && BLTypes.isHitResults(this.results);
 		},
 		isDocs(): boolean {
-			return BLTypes.isDocResults(this.results);
+			return !!this.results && BLTypes.isDocResults(this.results);
 		},
 		isGroups(): boolean {
-			return BLTypes.isGroups(this.results);
+			return !!this.results && BLTypes.isGroups(this.results);
 		},
 		isParallelCorpus() {
 			return this.corpus.isParallelCorpus;
@@ -625,7 +625,7 @@ export default defineComponent({
 
 		commonDisplaySettings(): DisplaySettingsCommon {
 			const summary = this.results?.summary;
-			const summaryOtherFields = summary && BLTypes.hasPatternInfo(summary) ? (summary.pattern.otherFields ?? []) : [];
+			const summaryOtherFields = summary?.pattern?.otherFields ?? [];
 			const { first, number, requestedRange } = this.store.getState();
 			return {
 				dir: this.corpus.textDirection,
@@ -662,7 +662,7 @@ export default defineComponent({
 
 			return {
 				...this.commonDisplaySettings,
-				groupDisplayMode: (this.groupDisplayMode as any) || (BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
+				groupDisplayMode: (this.groupDisplayMode as any) || (!!this.results && BLTypes.isHitGroups(this.results) ? 'hits' : 'docs'),
 				mainAnnotation: this.corpus.allAnnotationsMap[this.concordanceAnnotationId],
 				// If groups, don't show any metadata columns. Automatically append sort column if not already shown.
 				metadata: metadataIdsToShow.map(id => this.corpus.allMetadataFieldsMap[id]),

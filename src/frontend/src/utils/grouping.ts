@@ -1,7 +1,6 @@
 import * as FilterModule from '@/features/search/model/form/filter-state';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 import type { BLSearchResult } from '@/types/blacklabtypes';
-import { hasPatternInfo } from '@/types/blacklabtypes';
 
 import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import type { Translate } from '@/shared/i18n';
@@ -91,8 +90,8 @@ function never(x: never): never {
 }
 
 function determineRelationPartField(results: BLSearchResult | undefined, label: string, relationPart: string | undefined, overriddenFieldName: string | undefined) {
-	const defaultFieldName = overriddenFieldName ?? (hasPatternInfo(results) ? results.summary.pattern.fieldName : '');
-	const matchInfoDef = hasPatternInfo(results) ? results.summary.pattern.matchInfos?.[label] : undefined;
+	const defaultFieldName = overriddenFieldName ?? results?.summary.pattern?.fieldName ?? '';
+	const matchInfoDef = results?.summary.pattern?.matchInfos?.[label];
 	if (matchInfoDef) {
 		// Make sure we return the correct field if we're referencing a crossfield relation target
 		if (relationPart === 'target') return matchInfoDef.targetField ?? defaultFieldName;

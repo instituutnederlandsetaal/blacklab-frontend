@@ -17,17 +17,16 @@ import type {
 	BLDocGroupResults,
 	BLDocInfo,
 	BLDocResults,
-	BLHit,
+	BLHitInContext,
 	BLHitGroup,
 	BLHitGroupResults,
 	BLHitInOtherField,
 	BLHitResults,
-	BLHitSnippet,
 	BLHitSnippetPart,
 	BLSearchParameters,
 	BLSearchResult,
 } from '@/types/blacklabtypes';
-import { getMetadataFieldValues, hasPatternInfo, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
+import { getMetadataFieldValues, isDocGroups, isDocResults, isGroups, isHitGroups, isHitResults } from '@/types/blacklabtypes';
 import type { KeysOfType } from '@/types/helpers';
 
 import * as Highlights from './hit-highlighting';
@@ -305,21 +304,18 @@ function flatten(part: BLHitSnippetPart | undefined, punctuationSettings: { punc
  *
  * @returns the hit split into before, match, and after parts, with capture and relation info added to the tokens. The punct is to be shown after the word.
  */
-export function snippetParts(hit: BLHit | BLHitSnippet, colors?: Record<string, TokenHighlight>): HitContext {
-	// NOTE: the original BLS API was designed before RTL support and uses left/right to mean before/after.
-	//       the new BLS API correctly uses before/after, which makes sense for both LTR and RTL languages.
-	const before = flatten((hit as BLHit).before, { punctAfterLastWord: hit.match.punct?.[0] ?? '' });
+export function snippetParts(hit: BLHitInContext, colors?: Record<string, TokenHighlight>): HitContext {
+	const before = flatten(hit.before, { punctAfterLastWord: hit.match.punct?.[0] ?? '' });
 	const match = flatten(hit.match, {});
-	const after = flatten((hit as BLHit).after, { firstPunct: true });
+	const after = flatten(hit.after, { firstPunct: true });
 
 	// Only extract captures if have the necessary info to do so.
-	if (!('start' in hit) || !hit.matchInfos || !colors) return { before, match, after };
-
+	if (!hit.matchInfos || hit.start == null || hit.end == null || !colors) return { before, match, after };
 	const highlights = Highlights.getHighlightSections(hit.matchInfos);
 	if (highlights.length) {
-		before.forEach((token, i) => (token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.start - before.length, colors)));
-		match.forEach((token, i) => (token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.start, colors)));
-		after.forEach((token, i) => (token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.end, colors)));
+		before.forEach((token, i) => (token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.start! - before.length, colors)));
+		match.forEach((token, i) => (token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.start!, colors)));
+		after.forEach((token, i) => (token.captureAndRelation = Highlights.findHighlightsByTokenIndex(highlights, i + hit.end!, colors)));
 	}
 	return { before, match, after };
 }
@@ -387,7 +383,7 @@ export type DisplaySettingsForRendering = {
 	/** See hasCustomHitInfo in the UI store. we don't use the store directly to simplify unit-testing. */
 	hasCustomHitInfoColumn: (results: BLSearchResult, isParallelCoprus: boolean) => boolean;
 	/** See getCustomHitInfo in UI store. We don't use the store directly to simplify unit-testing. */
-	getCustomHitInfo: (hit: BLHit | BLHitSnippet | BLHitInOtherField, annotatedFieldDisplayName: string, doc: BLDoc) => string | null;
+	getCustomHitInfo: (hit: BLHitInContext, annotatedFieldDisplayName: string, doc: BLDoc) => string | null;
 
 	/** User's configured page size (global store) */
 	pageSize: number;
@@ -405,7 +401,7 @@ export type DisplaySettingsForColumns = DisplaySettingsCommon &
 	Pick<DisplaySettingsForRendering, 'mainAnnotation' | 'otherAnnotations' | 'sortableAnnotations' | 'annotationGroups' | 'metadata' | 'groupDisplayMode' | 'hasCustomHitInfoColumn'>;
 
 /** Helper type, data for which we're computing a hitrow or docrow. */
-type Result<HitType extends BLHit | BLHitSnippet | BLHitInOtherField | undefined> = {
+type Result<HitType extends BLHitInContext | undefined> = {
 	doc: BLDoc;
 	hit: HitType;
 	/** Query that created this result. Required for generating links to the hit/document with the proper results highlighted. */
@@ -422,7 +418,7 @@ type Result<HitType extends BLHit | BLHitSnippet | BLHitInOtherField | undefined
 export type HitRowData = {
 	type: 'hit';
 	doc: BLDoc;
-	hit: BLHit | BLHitSnippet;
+	hit: BLHitInContext;
 
 	first_of_hit: boolean;
 	last_of_hit: boolean;
@@ -459,18 +455,6 @@ export type DocRowData = {
 	muted: boolean;
 };
 
-function start(hit: BLHit): number;
-function start(hit: BLHitSnippet | undefined): undefined;
-function start(hit: BLHitSnippet | BLHit | undefined): number | undefined {
-	return (hit as BLHit & BLHitSnippet)?.start;
-}
-
-function end(hit: BLHit): number;
-function end(hit: BLHitSnippet | undefined): undefined;
-function end(hit: BLHitSnippet | BLHit | undefined): number | undefined {
-	return (hit as BLHit & BLHitSnippet)?.end;
-}
-
 /** Create the title row for a document, plus - when the document has them - nested rows for the hits in that document. */
 function makeDocRow(p: Result<any>, info: DisplaySettingsForRows, indexInRequestedResults: number): DocRowData {
 	return {
@@ -504,7 +488,7 @@ function docDir(doc: BLDoc, corpusNativeDir: 'ltr' | 'rtl'): 'ltr' | 'rtl' {
 
 /** Make a row that shows a single snippet context, i.e. a single instance of before/match/after. */
 function makeHitRow(
-	p: Result<BLHitInOtherField | BLHit | BLHitSnippet>,
+	p: Result<BLHitInContext>,
 	info: DisplaySettingsForRows,
 	highlightColors: Record<string, TokenHighlight> | undefined,
 	field: NormalizedAnnotatedField,
@@ -527,7 +511,7 @@ function makeHitRow(
 			searchfield: info.sourceField.id,
 			patt: p.query.patt,
 			pattgapdata: p.query.pattgapdata,
-			findhit: start(p.hit),
+			findhit: p.hit.start,
 		}),
 		isForeign: field !== info.sourceField,
 		annotatedField: field,
@@ -539,25 +523,19 @@ function makeHitRow(
 }
 
 /** Create all rows for hit. For parallel corpora, a 'hit' may represent multiple rows, one for every version of the document it was found it (i.e. dutch + english). */
-function makeRowsForHit(
-	p: Result<BLHit | BLHitSnippet | BLHitInOtherField>,
-	info: DisplaySettingsForRows,
-	highlightColors: Record<string, TokenHighlight> | undefined,
-	indexInRequestedResults: number,
-): HitRowData[] {
+function makeRowsForHit(p: Result<BLHitInContext>, info: DisplaySettingsForRows, highlightColors: Record<string, TokenHighlight> | undefined, indexInRequestedResults: number): HitRowData[] {
 	const r: HitRowData[] = [];
 	p.first_of_hit = true;
 	p.last_of_hit = false;
-	p.hit_id = p.doc.docPid + start(p.hit) + end(p.hit);
+	p.hit_id = p.doc.docPid + (p.hit.start ?? indexInRequestedResults) + (p.hit.end ?? '');
 	r.push(makeHitRow(p, info, highlightColors, info.sourceField, indexInRequestedResults));
 
-	const h = p.hit as BLHit;
-	const parallelHits = info.targetFields.map(f => [h.otherFields?.[f.id], f] as const).filter((h): h is [BLHitInOtherField, NormalizedAnnotatedFieldParallel] => h[0] !== undefined);
+	const parallelHits = info.targetFields.map(f => [p.hit.otherFields?.[f.id], f] as const).filter((h): h is [BLHitInOtherField, NormalizedAnnotatedFieldParallel] => h[0] !== undefined);
 	for (let i = 0; i < parallelHits.length; i++) {
 		p.hit = parallelHits[i][0];
 		p.first_of_hit = false;
 		p.last_of_hit = i === parallelHits.length - 1;
-		r.push(makeHitRow(p, info, highlightColors, info.targetFields[i], indexInRequestedResults));
+		r.push(makeHitRow(p, info, highlightColors, parallelHits[i][1], indexInRequestedResults));
 	}
 	if (info.targetFields.length === 0) {
 		// we use first/last to draw borders between parallel hit, and we don't want borders
@@ -584,7 +562,7 @@ function makeHitRows(results: BLHitResults, info: DisplaySettingsForRows): Array
 		const hit = results.hits[i];
 		if (prevRes?.doc.docPid !== hit.docPid) {
 			// every time the doc changes, add a new doc title row.
-			prevRes = { doc: { docInfo: results.docInfo[hit.docPid], docPid: hit.docPid }, query: getSearchParameters(results) } as Result<undefined>;
+			prevRes = { doc: { docInfo: results.docInfos[hit.docPid], docPid: hit.docPid }, query: getSearchParameters(results) } as Result<undefined>;
 			r.push(makeDocRow(prevRes, info, i));
 		}
 		prevRes.hit = hit;
@@ -779,7 +757,8 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 		);
 	}
 
-	if (!isHitResults(results) && hasPatternInfo(results)) {
+	if (!isHitResults(results) && results.summary.pattern) {
+		// we have hits if there's a pattern
 		docColumns.push({
 			key: 'doc_hits',
 			field: 'hits',
@@ -912,7 +891,7 @@ export function makeColumns(results: BLSearchResult, info: DisplaySettingsForCol
 	let availableDisplayModes = Object.keys(displayModes[groupType][groupedBy]) as DisplaySettingsForColumns['groupDisplayMode'][];
 
 	// Hide the relative tokens view when results are filtered based on a cql pattern
-	if (groupType === 'docs' && hasPatternInfo(results)) {
+	if (groupType === 'docs' && results.summary.pattern) {
 		availableDisplayModes = availableDisplayModes.filter(o => o !== 'tokens');
 	}
 	let displayMode = info.groupDisplayMode;
