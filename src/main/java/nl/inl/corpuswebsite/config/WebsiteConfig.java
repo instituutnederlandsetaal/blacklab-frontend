@@ -94,6 +94,11 @@ public class WebsiteConfig {
             return StringUtils.trimToNull(config.globalConfig.get(Keys.BANNER_MESSAGE));
         }
 
+        @JsonProperty("footerMessage")
+        public String footerMessage() {
+            return StringUtils.trimToNull(config.globalConfig.get(Keys.FOOTER_MESSAGE));
+        }
+
         @JsonProperty("customJs")
         public Map<String, List<ElementOnPage>> customJs() {
             return config.getAllCustomJs();

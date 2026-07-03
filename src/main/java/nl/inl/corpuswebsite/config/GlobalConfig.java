@@ -91,6 +91,11 @@ public class GlobalConfig implements ServletContextListener {
          * NULL if not set.
          */
         BANNER_MESSAGE("bannerMessage"),
+        /**
+         * Message to display at the bottom of the page. Note that this may contain HTML.
+         * NULL if not set.
+         */
+        FOOTER_MESSAGE("footerMessage"),
         /** Url to reach blacklab-server from this application. Never ends with a slash. */
         BLS_URL_ON_SERVER("blsUrl"),
         /** Url to reach blacklab-server from the browser. Never ends with a slash. */
@@ -359,6 +364,7 @@ public class GlobalConfig implements ServletContextListener {
 
         // perform some final checks, such as removing any trailing slash (just to be consistent)
         if (StringUtils.isBlank(get(instanceProps, Keys.BANNER_MESSAGE))) remove(instanceProps, Keys.BANNER_MESSAGE);
+        if (StringUtils.isBlank(get(instanceProps, Keys.FOOTER_MESSAGE))) remove(instanceProps, Keys.FOOTER_MESSAGE);
         set(instanceProps, Keys.BLS_URL_ON_SERVER, StringUtils.stripEnd(get(instanceProps, Keys.BLS_URL_ON_SERVER), "/\\"));
         set(instanceProps, Keys.BLS_URL_ON_CLIENT, StringUtils.stripEnd(get(instanceProps, Keys.BLS_URL_ON_CLIENT), "/\\"));
         set(instanceProps, Keys.CORPUS_CONFIG_DIR, StringUtils.stripEnd(get(instanceProps, Keys.CORPUS_CONFIG_DIR), "/\\"));

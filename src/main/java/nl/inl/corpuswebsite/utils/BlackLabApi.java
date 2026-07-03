@@ -39,7 +39,7 @@ public class BlackLabApi {
 		return req;
 	}
 
-	public Result<String, QueryException> getDocumentMetadata(String corpus, String documentId) {
+	public Result<String, HttpException> getDocumentMetadata(String corpus, String documentId) {
 		return authRequest()
 				.url(config.get(Keys.BLS_URL_ON_SERVER), corpus, "docs", documentId)
 				.query("outputformat", "xml")
@@ -61,13 +61,13 @@ public class BlackLabApi {
 				);
 	}
 
-	public Result<String, QueryException> getStylesheet(String formatName) {
+	public Result<String, HttpException> getStylesheet(String formatName) {
 		return authRequest()
 				.url(config.get(Keys.BLS_URL_ON_SERVER), "input-formats", formatName, "xslt")
 				.request(true);
 	}
 
-	public Result<String, QueryException> getDocumentContents(
+	public Result<String, HttpException> getDocumentContents(
 			String corpus,
 			String docId,
 			Optional<String> field,

@@ -148,15 +148,18 @@ export class ApiError extends Error {
 	public readonly statusText: string;
 	/** Http code, -1 if generic network error, http code otherwise, or none if no network error at all. */
 	public readonly httpCode: number | undefined;
+	/** Full technical details, if available, for expandable diagnostics. */
+	public readonly diagnostics: string | undefined;
 
 	public static CANCELLED = new ApiError('Request Cancelled', 'The request was cancelled by the user.', 'Cancelled', -1);
 
-	constructor(title: string, message: string, statusText: string, httpCode: number | undefined) {
+	constructor(title: string, message: string, statusText: string, httpCode: number | undefined, diagnostics?: string) {
 		super(message);
 		this.title = title;
 		this.message = message;
 		this.statusText = statusText;
 		this.httpCode = httpCode;
+		this.diagnostics = diagnostics;
 	}
 
 	get isCancelledRequest() {
@@ -166,6 +169,6 @@ export class ApiError extends Error {
 	public static wrap(error: any): ApiError {
 		if (error instanceof ApiError) return error;
 		if (error instanceof Error) return new ApiError('Unknown Error', `${error.message}`, 'Error', undefined);
-		return new ApiError(error?.title ?? 'Unknown Error', error?.message ?? `${JSON.stringify(error)}`, error?.statusText ?? 'Error', error?.httpCode ?? undefined);
+		return new ApiError(error?.title ?? 'Unknown Error', error?.message ?? `${JSON.stringify(error)}`, error?.statusText ?? 'Error', error?.httpCode ?? undefined, error?.diagnostics);
 	}
 }

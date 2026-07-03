@@ -267,9 +267,9 @@ public class MainServlet extends HttpServlet {
                 br.completeRequest();
             } catch (HttpException e) {
                 if (e.getHttpStatusCode() != HttpServletResponse.SC_OK) {
-                    response.sendError(e.getHttpStatusCode(), e.getBody());
+                    response.sendError(e.getHttpStatusCode(), e.getMessage());
                 } else {
-                    response.getWriter().write(e.getBody());
+                    response.getWriter().write(e.getMessage());
                 }
             }
         } catch (Exception e) {

@@ -3,56 +3,47 @@ package nl.inl.corpuswebsite.utils;
 import jakarta.servlet.http.HttpServletResponse;
 
 public class HttpException extends RuntimeException {
-	int code;
-	String body;
+	private final int code;
 
+	public static HttpException wrap(Exception cause) {
+		if (cause instanceof HttpException) return (HttpException) cause;
+		return new HttpException(cause, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+	}
 
-	// A extends RTE
-	// B extends A
-	// catch B will not catch A
-
-	// So what we need is for B to be QueryException
-	// A should be ReturnToClientException
-
-	// We catch B everywhere, which A will skip?
-	// Oh yeah, if you catch very wide exceptions, that's fine. 
-	
-	
-	public HttpException(Exception e) {
-		super(e);
-		if (e instanceof HttpException) {
-			this.code = ((HttpException) e ).getHttpStatusCode();
-			this.body = ((HttpException) e).getBody();
-		} else {
-			this.code = HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-			this.body = e.getMessage();
+	public static HttpException wrap(Exception cause, String message) {
+		if (cause instanceof HttpException) {
+			HttpException other = (HttpException) cause;
+			return new HttpException(other.getCause(), other.getHttpStatusCode(), message + ": " + other.getMessage());
 		}
-	}
-	public HttpException(int code, String body) {
-		super(body);
-		this.code = code;
-		this.body = body;
-	}
-	public HttpException(int code) {
-		this(code, "");
-	}
-	public HttpException(String body) {
-		this(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, body);
-	}
-	public HttpException() {
-		this(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "");
+		return new HttpException(cause, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
 	}
 
+	public static HttpException wrap(Exception cause, String message, int code) {
+		if (cause instanceof HttpException) {
+			HttpException other = (HttpException) cause;
+			return new HttpException(other.getCause(), code, message + ": " + other.getMessage());
+		}
+		return new HttpException(cause, code, message);
+	}
+
+	public HttpException(int code, String message) {
+		super(message);
+		this.code = code;
+	}
+	
+	protected HttpException(Throwable e, int code, String message) {
+		super(message, e);
+		assert !(e instanceof HttpException);
+		this.code = code;
+	}
+
+	protected HttpException(Throwable e, int code) {
+		super(e);
+		assert !(e instanceof HttpException);
+		this.code = code;
+	}
+	
 	public int getHttpStatusCode() {
 		return code;
-	}
-
-	public String getBody() {
-		return body;
-	}
-
-	public static HttpException wrap(Exception e) {
-		if (e instanceof HttpException) return (HttpException) e;
-		else return new HttpException(e);
 	}
 }

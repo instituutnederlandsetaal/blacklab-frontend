@@ -46,9 +46,10 @@
 				<h2 v-if="isParallel" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
 				<HtmlRenderer :content="contentsHtml">
 					<template #error="{ error }">
-						<Collapsible id="content_error" button-class="btn btn-primary" label="Click here to see errors">
+						<div class="alert alert-danger">Could not load document contents. {{ error.message }}</div>
+						<Collapsible id="content_error" button-class="btn btn-default" label="Show full diagnostics">
 							<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
-								{{ error.message }}
+								{{ errorDiagnostics(error) }}
 							</div>
 						</Collapsible>
 					</template>
@@ -58,9 +59,10 @@
 			<div id="metadata" class="tab-pane" :class="{ active: activeArticleTab === 'metadata' }">
 				<HtmlRenderer :content="metadataHtml">
 					<template #error="{ error }">
-						<Collapsible id="metadata_error" button-class="btn btn-primary" label="Click here to see errors">
+						<div class="alert alert-danger">Could not load document metadata. {{ error.message }}</div>
+						<Collapsible id="metadata_error" button-class="btn btn-default" label="Show full diagnostics">
 							<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
-								{{ error.message }}
+								{{ errorDiagnostics(error) }}
 							</div>
 						</Collapsible>
 					</template>
@@ -141,6 +143,7 @@ import { getAnnotatedFieldFromRouteQuery, getNumberFromRouteQuery, getRouteParam
 import { createArticleStreams, type Input } from './article';
 
 import { useBlackLabApi, useFrontendApi } from '@/shared/api';
+import type { ApiError } from '@/shared/api/lib/api-types';
 import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 
@@ -233,6 +236,10 @@ function scrollCurrentHitIntoView() {
 
 	activeArticleTab.value = 'content';
 	window.requestAnimationFrame(() => hit.scrollIntoView({ block: 'center', behavior: 'smooth' }));
+}
+
+function errorDiagnostics(error: ApiError) {
+	return error.diagnostics || error.message;
 }
 
 function updateArticleQuery(patch: Record<string, string | number | null | undefined>) {

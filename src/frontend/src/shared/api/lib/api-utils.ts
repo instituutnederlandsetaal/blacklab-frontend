@@ -51,12 +51,20 @@ export async function handleError(error: AxiosError): Promise<never> {
 	// Something else is going on, assume it's a blacklab-server error
 	const contentType: string = response.headers['content-type'] || '';
 	if (isBLError(response.data)) {
+		const diagnostics = [
+			response.data.error.code,
+			response.data.error.message,
+			response.data.error.stackTrace ? `Stack Trace:\n${response.data.error.stackTrace}` : undefined,
+		]
+			.filter(Boolean)
+			.join('\n');
 		return Promise.reject(
 			new ApiError(
 				response.data.error.code,
-				response.data.error.message + (response.data.error.stackTrace ? '\nStack Trace:\n' + response.data.error.stackTrace : ''),
+				response.data.error.message,
 				response.statusText,
 				response.status,
+				diagnostics,
 			),
 		);
 	} else if (contentType.match(/xml/i) && typeof response.data === 'string' && response.data.length) {
@@ -77,7 +85,8 @@ export async function handleError(error: AxiosError): Promise<never> {
 			const stackTrace = xml.querySelector('stackTrace');
 
 			if (code && message) {
-				return Promise.reject(new ApiError(code.textContent!, message.textContent! + (stackTrace ? '\nStack Trace:\n' + stackTrace.textContent : ''), response.statusText, response.status));
+				const diagnostics = [code.textContent, message.textContent, stackTrace ? `Stack Trace:\n${stackTrace.textContent}` : undefined].filter(Boolean).join('\n');
+				return Promise.reject(new ApiError(code.textContent!, message.textContent!, response.statusText, response.status, diagnostics));
 			} else {
 				return Promise.reject(
 					new ApiError(
@@ -100,7 +109,8 @@ export async function handleError(error: AxiosError): Promise<never> {
 			);
 		}
 	} else {
-		return Promise.reject(new ApiError(`Server returned an unexpected error at: ${response.config.url}`, response.data, response.statusText, response.status));
+		const message = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+		return Promise.reject(new ApiError(`Server returned an unexpected error at: ${response.config.url}`, message, response.statusText, response.status, message));
 	}
 }
 

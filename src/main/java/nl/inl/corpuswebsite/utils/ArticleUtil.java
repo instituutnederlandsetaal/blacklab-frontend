@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import nl.inl.corpuswebsite.MainServlet;
 import nl.inl.corpuswebsite.config.CorpusConfig;
@@ -53,22 +54,22 @@ public class ArticleUtil {
         this.response = response;
     }
 
-    public Result<String, QueryException> getDocumentMetadata(WebsiteConfig corpus, GlobalConfig config, String docId) {
+    public Result<String, HttpException> getDocumentMetadata(WebsiteConfig corpus, GlobalConfig config, String docId) {
         return new BlackLabApi(request, response, config)
                 .getDocumentMetadata(corpus.getCorpusId().orElseThrow(), docId)
                 .mapError(e -> {
                     // when blacklab returns 401, we need to return a 401 to the user (unauthorized - IE you can't do this unless you log in - please log in and try again)
                     // when blacklab returns 403, we need to also return 403, (forbidden - IE you're logged in, but you're still not allowed.)
-                    if (e.getHttpStatusCode() == HttpServletResponse.SC_UNAUTHORIZED) return new QueryException(HttpServletResponse.SC_UNAUTHORIZED, "Please log in to view this document.");
-                    if (e.getHttpStatusCode() == HttpServletResponse.SC_FORBIDDEN) return new QueryException(HttpServletResponse.SC_FORBIDDEN, "Administrator has restricted access to this document.");
-                    else return new QueryException(e.getHttpStatusCode(), "An error occurred while retrieving document contents from BlackLab: \n" + e.getMessage());
+                    if (e.getHttpStatusCode() == HttpServletResponse.SC_UNAUTHORIZED) return new HttpException(HttpServletResponse.SC_UNAUTHORIZED, "Please log in to view this document.");
+                    if (e.getHttpStatusCode() == HttpServletResponse.SC_FORBIDDEN) return new HttpException(HttpServletResponse.SC_FORBIDDEN, "Administrator has restricted access to this document.");
+                    else return new HttpException(e.getHttpStatusCode(), "An error occurred while retrieving document contents from BlackLab: \n" + e.getMessage());
                 });
     }
 
     /**
      * Retrieve the document contents from BlackLab.
-     * Network errors are caught and returned as a QueryException.
-     * Permission errors are caught and returned as a QueryException.
+     * Network errors are caught and returned as a HttpException.
+     * Permission errors are caught and returned as a HttpException.
      *
      * @param corpusConfig
      * @param config
@@ -76,7 +77,7 @@ public class ArticleUtil {
      * @param page
      * @return
      */
-    public Result<String, QueryException> getDocumentContent(WebsiteConfig corpusConfig, GlobalConfig config, String docId, PaginationInfo page) {
+    public Result<String, HttpException> getDocumentContent(WebsiteConfig corpusConfig, GlobalConfig config, String docId, PaginationInfo page) {
         // Search a different field than the one we're displaying content from?
         // (used for parallel corpora, where a query can return hits from a different field than the one that was searched,
         //  e.g. search the contents__en field using query rfield('the' -->nl _, 'nl') to find the Dutch translation of 'the')
@@ -98,9 +99,9 @@ public class ArticleUtil {
             .mapError(e -> {
                 // when blacklab returns 401, we need to return a 401 to the user (unauthorized - IE you can't do this unless you log in - please log in and try again)
                 // when blacklab returns 403, we need to also return 403, (forbidden - IE you're logged in, but you're still not allowed.)
-                if (e.getHttpStatusCode() == HttpServletResponse.SC_UNAUTHORIZED) return new QueryException(HttpServletResponse.SC_UNAUTHORIZED, "Please log in to view this document.");
-                if (e.getHttpStatusCode() == HttpServletResponse.SC_FORBIDDEN) return new QueryException(HttpServletResponse.SC_FORBIDDEN, "Documents in this corpus cannot be displayed, because the owner has disabled this feature.");
-                else return new QueryException(e.getHttpStatusCode(), "An error occurred while retrieving document contents from BlackLab: \n" + e.getMessage());
+                if (e.getHttpStatusCode() == HttpServletResponse.SC_UNAUTHORIZED) return new HttpException(HttpServletResponse.SC_UNAUTHORIZED, "Please log in to view this document.");
+                if (e.getHttpStatusCode() == HttpServletResponse.SC_FORBIDDEN) return new HttpException(HttpServletResponse.SC_FORBIDDEN, "Documents in this corpus cannot be displayed, because the owner has disabled this feature.");
+                else return new HttpException(e.getHttpStatusCode(), "An error occurred while retrieving document contents from BlackLab: \n" + e.getMessage());
             });
     }
 
@@ -132,7 +133,7 @@ public class ArticleUtil {
      * @param corpus
      * @param metadata
      */
-    private void addStandardXsltParameters(XslTransformer trans, GlobalConfig config, WebsiteConfig corpus, Result<String, QueryException> metadata) {
+    private void addStandardXsltParameters(XslTransformer trans, GlobalConfig config, WebsiteConfig corpus, Result<String, HttpException> metadata) {
         String baseUrl = config.get(Keys.CF_URL_ON_CLIENT);
         String corpusId = corpus.getCorpusId().orElseThrow();
         String corpusUrl = baseUrl + "/" + corpus.getCorpusId().orElseThrow();
@@ -159,7 +160,7 @@ public class ArticleUtil {
      * Return the document snippet, transformed into html.
      * Pagination is automatically retrieved from the request.
      * If everything went well, the transformed document is returned.
-     * If an error occurred at any point, a QueryException is returned. The message contains a formatted error message (containing a stacktrace if useful).
+     * If an error occurred at any point, a HttpException is returned. The message contains a formatted error message (containing a stacktrace if useful).
      *
      *</pre>
      * @param corpus required for page size
@@ -169,35 +170,35 @@ public class ArticleUtil {
      * @param docMetadata required for pagination (need to know document length). Will be retrieved if not provided.
      * @return the transformed document contents or an exception if the transformation failed, network failed, etc.
      */
-    public Result<String, QueryException> getTransformedDocument(
+    public Result<String, HttpException> getTransformedDocument(
             WebsiteConfig corpus,
             CorpusConfig corpusMetadata,
             GlobalConfig config,
             String docId,
-            Result<String, QueryException> docMetadata
+            Result<String, HttpException> docMetadata
     ) {
         // Metadata required for pagination (need to know document length)
-        Result<String, QueryException> metadata = docMetadata.or(() -> getDocumentMetadata(corpus, config, docId));
+        Result<String, HttpException> metadata = docMetadata.or(() -> getDocumentMetadata(corpus, config, docId));
         PaginationInfo pagination = getPaginationInfo(corpus, request, metadata);
-        Result<String, QueryException> contents = getDocumentContent(corpus, config, docId, pagination);
+        Result<String, HttpException> contents = getDocumentContent(corpus, config, docId, pagination);
         return transformDocument(corpus, corpusMetadata, config, contents, metadata);
     }
 
-    public Result<String, QueryException> getTransformedMetadata(
+    public Result<String, HttpException> getTransformedMetadata(
         CorpusConfig corpus,
         WebsiteConfig corpusConfig,
         GlobalConfig config,
         String docId
     ) {
-        Result<String, QueryException> meta = getDocumentMetadata(corpusConfig, config, docId);
+        Result<String, HttpException> meta = getDocumentMetadata(corpusConfig, config, docId);
         return transformMetadata(corpus, corpusConfig, config, meta);
     }
 
     /**
      * Transform the contents into html.
-     * Errors during transformation are returned as a QueryException containing a formatted error message and stacktrace.
+     * Errors during transformation are returned as a HttpException containing a formatted error message and stacktrace.
      */
-    private Result<String, QueryException> transformDocument(WebsiteConfig corpus, CorpusConfig corpusMetadata, GlobalConfig config, Result<String, QueryException> contents, Result<String, QueryException> metadata) {
+    private Result<String, HttpException> transformDocument(WebsiteConfig corpus, CorpusConfig corpusMetadata, GlobalConfig config, Result<String, HttpException> contents, Result<String, HttpException> metadata) {
         return contents.flatMap(c -> {
             // If the document contents aren't xml, don't bother with the transformer.
             if (!XML_TAG_PATTERN.matcher(c).find()) {
@@ -212,22 +213,20 @@ public class ArticleUtil {
             return servlet.getStylesheet(corpusMetadata, "article", request, response)
                     .tap(trans -> this.addStandardXsltParameters(trans, config, corpus, metadata))
                     .mapWithErrorHandling(trans -> trans.transform(c))
-                    .mapError(e ->
-                        new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                                "Error transforming document: " + e.getMessage()));
+                    .mapError(e -> HttpException.wrap(e, "Error transforming document: " + e.getMessage()));
         });
     }
 
     /**
      * Transform the contents into html.
-     * Errors during transformation are returned as a QueryException containing a formatted error message and stacktrace.
+     * Errors during transformation are returned as a HttpException containing a formatted error message and stacktrace.
      */
-    public Result<String, QueryException> transformMetadata(CorpusConfig corpus, WebsiteConfig corpusConfig, GlobalConfig config, Result<String, QueryException> metadata) {
+    public Result<String, HttpException> transformMetadata(CorpusConfig corpus, WebsiteConfig corpusConfig, GlobalConfig config, Result<String, HttpException> metadata) {
         return metadata.flatMap(md ->
             servlet.getStylesheet(corpus,"meta",request, response)
             .tap(trans -> this.addStandardXsltParameters(trans, config, corpusConfig, null))
             .mapWithErrorHandling(trans -> trans.transform(md))
-            .mapError(e -> new QueryException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Error transforming metadata: " + e.getMessage()))
+            .mapError(e -> HttpException.wrap(e, "Error transforming metadata: " + e.getMessage()))
         );
     }
 
@@ -246,7 +245,7 @@ public class ArticleUtil {
         });
     }
 
-    public static PaginationInfo getPaginationInfo(WebsiteConfig corpusConfig, HttpServletRequest request, Result<String, QueryException> documentMetadata) {
+    public static PaginationInfo getPaginationInfo(WebsiteConfig corpusConfig, HttpServletRequest request, Result<String, HttpException> documentMetadata) {
         Optional<Integer> pageSize = corpusConfig.getPageSize();
         Optional<Integer> pageStart = getIntParameter("wordstart", request);
         Optional<Integer> pageEnd = getIntParameter("wordend", request);

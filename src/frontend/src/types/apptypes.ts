@@ -415,6 +415,7 @@ export type CFPageConfig = {
 	/** Overridden display name for the corpus, if any */
 	displayName: string | null;
 	faviconDir: string;
+	footerMessage: string | null;
 	navbarLinks: CFNavbarLink[];
 	/** Page size of the document view (in tokens). */
 	pageSize: number | null;

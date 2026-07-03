@@ -1,6 +1,10 @@
 package nl.inl.corpuswebsite.response;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -13,7 +17,7 @@ import nl.inl.corpuswebsite.http.HttpResourceResponder;
 import nl.inl.corpuswebsite.http.HttpResourceType;
 import nl.inl.corpuswebsite.http.InMemoryHttpResource;
 import nl.inl.corpuswebsite.utils.ArticleUtil;
-import nl.inl.corpuswebsite.utils.QueryException;
+import nl.inl.corpuswebsite.utils.HttpException;
 import nl.inl.corpuswebsite.utils.Result;
 import nl.inl.corpuswebsite.utils.ReturnToClientException;
 import nl.inl.corpuswebsite.velocity.TemplateUtils;
@@ -37,53 +41,65 @@ public class ApiResponse extends BaseResponse {
     }
 
     @Override
-    protected void completeRequest() throws QueryException {
-        if (pathParameters.isEmpty()) throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "No endpoint specified");
+    protected void completeRequest() throws HttpException {
+        if (pathParameters.isEmpty()) throw new HttpException(HttpServletResponse.SC_NOT_FOUND, "No endpoint specified");
         String operation = pathParameters.get(0);
         if (operation.equalsIgnoreCase("docs")) docs();
         else if (operation.equalsIgnoreCase("info")) indexMetadata();
         else if (operation.equalsIgnoreCase("config")) siteConfig();
         else if (operation.equalsIgnoreCase("help")) help();
         else if (operation.equalsIgnoreCase("about")) about();
-        else throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint " + operation);
+        else throw new HttpException(HttpServletResponse.SC_NOT_FOUND, "Unknown endpoint " + operation);
     }
 
-     public void docs() throws QueryException {
-        if (pathParameters.size() < 2) throw new QueryException(HttpServletResponse.SC_NOT_FOUND, "No document specified. Expected ${corpus}/docs/${docId}[/contents]");
+     public void docs() throws HttpException {
+        if (pathParameters.size() < 2) throw new HttpException(HttpServletResponse.SC_NOT_FOUND, "No document specified. Expected ${corpus}/docs/${docId}[/contents]");
         String document = pathParameters.get(1);
         boolean isContents = pathParameters.size() > 2 && pathParameters.get(2).equalsIgnoreCase("contents");
         if (isContents) documentContents(document);
         else documentMetadata(document);
     }
 
-    public void documentContents(String docId) throws QueryException {
-        if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
-        new ArticleUtil(servlet, request, response).getTransformedDocument(
-            servlet.getWebsiteConfig(corpus),
-            servlet.getCorpusConfig(corpus, request, response).mapError(QueryException::wrap).getOrThrow(),
-            servlet.getGlobalConfig(),
-            docId,
-            Result.empty()
+    public void documentContents(String docId) throws HttpException {
+        if (this.corpus.isEmpty()) {
+            sendResult(Result.error(new HttpException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified")), "text/html; charset=utf-8");
+            return;
+        }
+        servlet.getCorpusConfig(corpus, request, response)
+        .mapError(HttpException::wrap)
+        .flatMap(corpusConfig -> new ArticleUtil(servlet, request, response).getTransformedDocument(
+                servlet.getWebsiteConfig(corpus),
+                corpusConfig,
+                servlet.getGlobalConfig(),
+                docId,
+                Result.empty()
+            )
         )
         .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
     }
 
-    public void documentMetadata(String docId) throws QueryException {
-        if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
-        new ArticleUtil(servlet, request, response).getTransformedMetadata(
-            servlet.getCorpusConfig(corpus, request, response).mapError(QueryException::wrap).getOrThrow(),
-            servlet.getWebsiteConfig(corpus),
-            servlet.getGlobalConfig(),
-            docId
+    public void documentMetadata(String docId) throws HttpException {
+        if (this.corpus.isEmpty()) {
+            sendResult(Result.error(new HttpException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified")), "text/html; charset=utf-8");
+            return;
+        }
+        servlet.getCorpusConfig(corpus, request, response)
+        .mapError(HttpException::wrap)
+        .flatMap(corpusConfig -> new ArticleUtil(servlet, request, response).getTransformedMetadata(
+                corpusConfig,
+                servlet.getWebsiteConfig(corpus),
+                servlet.getGlobalConfig(),
+                docId
+            )
         )
         .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
     }
 
-    public void indexMetadata() {
-        if (this.corpus.isEmpty()) throw new QueryException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
+    public void indexMetadata() throws HttpException {
+        if (this.corpus.isEmpty()) throw new HttpException(HttpServletResponse.SC_BAD_REQUEST, "No corpus specified");
 
         servlet.getCorpusConfig(corpus, request, response)
-            .mapError(QueryException::wrap)
+            .mapError(HttpException::wrap)
             .map(CorpusConfig::getJsonUnescaped)
             .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
     }
@@ -96,25 +112,25 @@ public class ApiResponse extends BaseResponse {
                 mapper.enable(SerializationFeature.INDENT_OUTPUT);
                 return mapper.writeValueAsString(config);
             })
-            .mapError(QueryException::wrap)
+            .mapError(HttpException::wrap)
             .tapSelf(r -> sendResult(r, "application/json; charset=utf-8"));
     }
 
     public void help() {
         Result.attempt(() -> servlet.getHelpPage(corpus))
                 .mapWithErrorHandling(templateFile -> TemplateUtils.renderTemplateToString(templateFile, model))
-                .mapError(QueryException::wrap)
+                .mapError(HttpException::wrap)
                 .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
     }
 
     public void about() {
         Result.attempt(() -> servlet.getAboutPage(corpus))
                 .mapWithErrorHandling(templateFile -> TemplateUtils.renderTemplateToString(templateFile, model))
-                .mapError(QueryException::wrap)
+                .mapError(HttpException::wrap)
                 .tapSelf(r -> sendResult(r, "text/html; charset=utf-8"));
     }
 
-    protected void sendResult(Result<String, QueryException> r, String contentType) {
+    protected void sendResult(Result<String, HttpException> r, String contentType) {
         r.tap(contents -> {
             boolean isPublic = servlet.useCache(request);
             HttpResourceType resourceType = isPublic ? HttpResourceType.API_PUBLIC : HttpResourceType.API_PRIVATE;
@@ -125,7 +141,38 @@ public class ApiResponse extends BaseResponse {
                 throw new ReturnToClientException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
             }
         }).tapError(error -> {
-            throw ReturnToClientException.wrap(error);
+            sendApiError(error);
         });
+    }
+
+    private void sendApiError(HttpException error) {
+        response.setStatus(error.getHttpStatusCode());
+        response.setContentType("application/json; charset=utf-8");
+        try {
+            new ObjectMapper().writeValue(response.getWriter(), blackLabError(error));
+        } catch (IOException e) {
+            throw new ReturnToClientException(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+    }
+
+    private Map<String, Object> blackLabError(HttpException error) {
+        Map<String, Object> errorBody = new LinkedHashMap<>();
+        errorBody.put("code", errorCode(error.getHttpStatusCode()));
+        errorBody.put("message", error.getMessage());
+        errorBody.put("stackTrace", ExceptionUtils.getStackTrace(error));
+
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", errorBody);
+        return body;
+    }
+
+    private String errorCode(int status) {
+        return switch (status) {
+            case HttpServletResponse.SC_BAD_REQUEST -> "BAD_REQUEST";
+            case HttpServletResponse.SC_UNAUTHORIZED -> "UNAUTHORIZED";
+            case HttpServletResponse.SC_FORBIDDEN -> "FORBIDDEN";
+            case HttpServletResponse.SC_NOT_FOUND -> "NOT_FOUND";
+            default -> "INTERNAL_ERROR";
+        };
     }
 }

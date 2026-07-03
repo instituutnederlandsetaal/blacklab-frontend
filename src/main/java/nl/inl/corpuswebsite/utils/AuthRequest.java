@@ -178,7 +178,7 @@ class URLBuilder<T extends URLBuilder<T>> {
                 + (hash != null ? "#" + URLEncoder.encode(hash, StandardCharsets.UTF_8) : "");
     }
 
-    public HttpURLConnection connect() throws QueryException {
+    public HttpURLConnection connect() throws HttpException {
         try {
             URL urlObj = new URL(getUrl());
             HttpURLConnection connection = (HttpURLConnection) urlObj.openConnection();
@@ -197,7 +197,7 @@ class URLBuilder<T extends URLBuilder<T>> {
             connection.connect();
             return connection;
         } catch (IOException e) {
-            throw QueryException.wrap(e);
+            throw HttpException.wrap(e);
         }
     }
 }
@@ -255,18 +255,18 @@ public class AuthRequest extends URLBuilder<AuthRequest> {
      *
      * A 401 might still be returned if the content is restricted for another reason rather than missing auth (or when invalid authentication is supplied).
      *
-     * @param hardFailOnMissingAuth iff true and the upstream returns a 401 not authorized, it will be forwarded as-is to the client. If false, a regular 401 QueryException will be returned in the Result.
+     * @param hardFailOnMissingAuth iff true and the upstream returns a 401 not authorized, it will be forwarded as-is to the client. If false, a regular 401 HttpException will be returned in the Result.
      *
      * @throws ReturnToClientException when authentication is required but not provided. The response is modified to add the www-authorization header prior to throwing.
      */
-    public Result<String, QueryException> request(boolean hardFailOnMissingAuth) {
+    public Result<String, HttpException> request(boolean hardFailOnMissingAuth) {
         try {
             HttpURLConnection r = connect();
             int redirects = 0;
             while (redirects < 10) {
                 int code = r.getResponseCode();
                 if (code == -1)
-                    return Result.error(new QueryException(-1, "Unexpected response from url " + url));
+                    return Result.error(new HttpException(-1, "Unexpected response from url " + url));
 
                 // redirect is not followed into other protocol ex. http to https
                 // see https://stackoverflow.com/a/1884427
@@ -295,29 +295,29 @@ public class AuthRequest extends URLBuilder<AuthRequest> {
 
                 return decode(r);
             }
-            return Result.error(new QueryException(HttpServletResponse.SC_BAD_GATEWAY, "Too many redirects"));
-        } catch (IOException | QueryException e) {
-            return Result.error(QueryException.wrap(e));
+            return Result.error(new HttpException(HttpServletResponse.SC_BAD_GATEWAY, "Too many redirects"));
+        } catch (IOException | HttpException e) {
+            return Result.error(HttpException.wrap(e));
         }
     }
 
     /**
      * Decode the result (or error), returning the contents in the String if it's a success.
-     * Returns a queryException containing the httpcode and body if it's an error.
-     * If an ioerror occurs, it's wrapped in a queryexception with code 500.
+     * Returns a HttpException containing the httpcode and body if it's an error.
+     * If an ioerror occurs, it's wrapped in a HttpException with code 500.
      *
      * @param conn the connection holding the response.
      *
      * @return the result of the above.
      */
-    protected static Result<String, QueryException> decode(HttpURLConnection conn) {
+    protected static Result<String, HttpException> decode(HttpURLConnection conn) {
         try {
             int code = conn.getResponseCode();
             if (conn.getErrorStream() != null) {
                 String body = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8)).lines().collect(Collectors.joining("\n"));
-                return Result.error(new QueryException(code, body));
+                return Result.error(new HttpException(code, body));
             } else if (code < 200 || code >= 300) {
-                return Result.error(new QueryException(code, "Unexpected response (http " + code + ") from url " + conn.getURL()));
+                return Result.error(new HttpException(code, "Unexpected response (http " + code + ") from url " + conn.getURL()));
             } else if (code == 204) {
                 return Result.success("");
             } else {
@@ -325,7 +325,7 @@ public class AuthRequest extends URLBuilder<AuthRequest> {
                 return Result.success(body);
             }
         } catch (IOException e) {
-            return Result.error(QueryException.wrap(e));
+            return Result.error(HttpException.wrap(e));
         }
     }
 }

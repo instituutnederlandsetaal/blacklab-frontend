@@ -119,8 +119,8 @@ public class CorpusFileUtil {
                 .or(() -> getProjectFile(filesDir, Optional.of(corpus.getCorpusId()), fallbackDirectory, fallbackFilename));
 
         // Dance around types, since the API uses Result<> but file resolving uses Optional<>
-        Result<File, QueryException> fileResult = Result.from(file);
-        Result<String, QueryException> blacklabResult = Result.empty();
+        Result<File, HttpException> fileResult = Result.from(file);
+        Result<String, HttpException> blacklabResult = Result.empty();
 
         // TODO: bit of a hack.
         // The builtin "article.xsl" is now loaded if there is no dedicated article file for the corpus

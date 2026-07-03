@@ -27,7 +27,7 @@ import org.apache.velocity.tools.generic.EscapeTool;
 import nl.inl.corpuswebsite.config.GlobalConfig;
 import nl.inl.corpuswebsite.config.WebsiteConfig;
 import nl.inl.corpuswebsite.config.GlobalConfig.Keys;
-import nl.inl.corpuswebsite.utils.QueryException;
+import nl.inl.corpuswebsite.utils.HttpException;
 import nl.inl.corpuswebsite.utils.ReturnToClientException;
 
 public abstract class BaseResponse {
@@ -176,9 +176,9 @@ public abstract class BaseResponse {
     /**
      * @throws IOException On general IO problems (i.e. not our code).
      * @throws ReturnToClientException When flow was aborted somewhere deep in the code, and we just want to abort completely. But we do want to pass a message and status code.
-     * @throws QueryException When some error occurred that might be recoverable further up the stack (such as BlackLab not having a certain index).
+     * @throws HttpException When some error occurred that might be recoverable further up the stack (such as BlackLab not having a certain index).
      */
-    protected abstract void completeRequest() throws IOException, ReturnToClientException, QueryException;
+    protected abstract void completeRequest() throws IOException, ReturnToClientException, HttpException;
 
     public boolean isCorpusRequired() {
         return requiresCorpus;

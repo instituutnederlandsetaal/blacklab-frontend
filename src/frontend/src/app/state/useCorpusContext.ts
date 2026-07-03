@@ -57,6 +57,7 @@ const defaultConfig = {
 	customJs: {},
 	displayName: null,
 	faviconDir: '',
+	footerMessage: null,
 	navbarLinks: [],
 	pageSize: null,
 };
