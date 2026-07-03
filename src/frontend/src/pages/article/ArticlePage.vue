@@ -46,14 +46,11 @@
 				<h2 v-if="isParallel" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
 				<HtmlRenderer :content="contentsHtml">
 					<template #error="{ error }">
-						<div>
-							<a class="btn btn-primary" role="button" data-toggle="collapse" href="#content_error" aria-expanded="false" aria-controls="content_error"> Click here to see errors </a><br />
-							<div class="collapse" id="content_error">
-								<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
-									{{ error.message }}
-								</div>
+						<Collapsible id="content_error" button-class="btn btn-primary" label="Click here to see errors">
+							<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
+								{{ error.message }}
 							</div>
-						</div>
+						</Collapsible>
 					</template>
 				</HtmlRenderer>
 			</div>
@@ -61,12 +58,11 @@
 			<div id="metadata" class="tab-pane" :class="{ active: activeArticleTab === 'metadata' }">
 				<HtmlRenderer :content="metadataHtml">
 					<template #error="{ error }">
-						<a class="btn btn-primary" role="button" data-toggle="collapse" href="#metadata_error" aria-expanded="false" aria-controls="metadata_error"> Click here to see errors </a><br />
-						<div class="collapse" id="metadata_error">
+						<Collapsible id="metadata_error" button-class="btn btn-primary" label="Click here to see errors">
 							<div class="well" style="overflow: auto; max-height: 300px; white-space: pre-line">
 								{{ error.message }}
 							</div>
-						</div>
+						</Collapsible>
 					</template>
 					<template #empty>
 						<table v-if="metadata.isLoaded()" class="table-striped">
@@ -149,6 +145,7 @@ import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 
 import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
+import Collapsible from '@/shared/ui/Collapsible.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
 import Pagination from '@/shared/ui/Pagination.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
