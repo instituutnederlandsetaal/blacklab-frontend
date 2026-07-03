@@ -6,7 +6,9 @@
 	"license": "Apache-2.0",
 	"author": "INT",
 	"scripts": {
-		"test": "vitest --run --coverage",
+		"test": "npm run test:unit:coverage && npm run test:storybook",
+		"test:unit:coverage": "vitest --run --project unit --coverage",
+		"test:storybook": "vitest --run --project storybook",
 		"test:watch": "vitest --watch",
 		"build": "npm run build:blfschema && npm run build:source",
 		"build:blfschema": "cd assets && node compile-schema.js && cd ..",

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { createMockApi } from '@test/mocks/api';
+import { createMockApi, resolvedRequest } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { describe, expect, test, vi } from 'vitest';
 
@@ -156,12 +156,10 @@ describe('search form data dependencies', () => {
 	test('creates querybuilder options outside Vue app context', async () => {
 		const index = createIndex();
 		const searchUi = createSearchUiConfig();
-		const getTermAutocomplete = vi.fn(() => createMockApi({ blacklab: { getTermAutocomplete: ['water'] } }).blacklabApi.getTermAutocomplete('', '', '', ''));
+		const getTermAutocomplete = vi.fn(() => resolvedRequest(['water']));
 		const api = createMockApi({
-			overrides: {
-				blacklab: {
-					getTermAutocomplete,
-				},
+			blacklab: {
+				getTermAutocomplete,
 			},
 		}).blacklabApi;
 

@@ -1,23 +1,17 @@
-import type { BLDocGroupResults, BLDocResults, BLHitGroupResults, BLHitResults } from '@/types/blacklabtypes';
-
 import { ApiError, type BlackLabApi, type BlackLabPaths, type CancelableRequest, type FrontendApi } from '@/shared/api/lib/api-types';
 import { rejectedRequest as rejectedApiRequest, resolvedRequest } from '@/shared/api/lib/api-utils';
 import { createApiPlugin, type ApiPlugin, type ApiPluginParts } from '@/shared/api/plugin';
 
-type ApiMethodReturnValue<TMethod> = TMethod extends (...args: any[]) => CancelableRequest<infer Value> ? Value : never;
+type MockApiValue<TMethod> = TMethod extends (...args: infer Args) => CancelableRequest<infer Value> ? Value | ((...args: Args) => CancelableRequest<Value>) : never;
 
 export type MockApiReturnValues<TApi> = Partial<{
-	[Method in keyof TApi]: ApiMethodReturnValue<TApi[Method]>;
+	[Method in keyof TApi]: MockApiValue<TApi[Method]>;
 }>;
 
 export type MockApiOptions = {
 	blacklab?: MockApiReturnValues<BlackLabApi>;
 	frontend?: MockApiReturnValues<FrontendApi>;
 	blacklabPaths?: Partial<BlackLabPaths>;
-	overrides?: {
-		blacklab?: Partial<BlackLabApi>;
-		frontend?: Partial<FrontendApi>;
-	};
 };
 
 type ApiMock = {
@@ -25,9 +19,9 @@ type ApiMock = {
 	frontend: FrontendApi;
 };
 
-type ApiMockOverrides = {
-	blacklab?: Partial<BlackLabApi>;
-	frontend?: Partial<FrontendApi>;
+type ApiMockOptions = {
+	blacklab?: MockApiReturnValues<BlackLabApi>;
+	frontend?: MockApiReturnValues<FrontendApi>;
 };
 
 const hasOwn = <T extends object>(object: T, key: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(object, key);
@@ -41,109 +35,48 @@ export function rejectedRequest<T>(error: string | ApiError): CancelableRequest<
 	return rejectedApiRequest(apiError);
 }
 
-function mockResponse<TApi, Method extends keyof TApi>(apiName: string, returnValues: MockApiReturnValues<TApi>, method: Method): CancelableRequest<ApiMethodReturnValue<TApi[Method]>> {
-	if (hasOwn(returnValues, method)) {
-		return resolvedRequest(returnValues[method] as ApiMethodReturnValue<TApi[Method]>);
-	}
+function createMockApiProxy<TApi extends object>(apiName: string, returnValues: MockApiReturnValues<TApi> = {}): TApi {
+	return new Proxy(
+		{},
+		{
+			get: (_target, property) => {
+				if (typeof property === 'symbol') return undefined;
+				return (...args: any[]) => {
+					if (hasOwn(returnValues, property)) {
+						const value = returnValues[property as keyof TApi] as any;
+						return typeof value === 'function' ? value(...args) : resolvedRequest(value);
+					}
 
-	return rejectedRequest(unconfiguredMockApiError(`${apiName}.${String(method)}`));
+					const methodName = `${apiName}.${property}`;
+					console.warn(`Mock API method "${methodName}" was called without a configured return value.`);
+					return rejectedRequest(unconfiguredMockApiError(methodName));
+				};
+			},
+		},
+	) as TApi;
 }
 
-export function createMockBlackLabApi(returnValues: MockApiReturnValues<BlackLabApi> = {}, overrides: Partial<BlackLabApi> = {}): BlackLabApi {
-	const response = <Method extends keyof BlackLabApi>(method: Method): CancelableRequest<ApiMethodReturnValue<BlackLabApi[Method]>> =>
-		mockResponse<BlackLabApi, Method>('blacklab', returnValues, method);
-	const api = {
-		getServerInfo: () => response('getServerInfo'),
-		getUser: () => response('getUser'),
-		getCorpora: () => response('getCorpora'),
-		getCorpusStatus: () => response('getCorpusStatus'),
-		getCorpus: () => response('getCorpus'),
-		getAnnotatedField: () => response('getAnnotatedField'),
-		getShares: () => response('getShares'),
-		getFormats: () => response('getFormats'),
-		getFormatContent: () => response('getFormatContent'),
-		getFormatXslt: () => response('getFormatXslt'),
-		postShares: () => response('postShares'),
-		postFormat: () => response('postFormat'),
-		postCorpus: () => response('postCorpus'),
-		postDocuments: () => response('postDocuments'),
-		deleteFormat: () => response('deleteFormat'),
-		deleteCorpus: () => response('deleteCorpus'),
-		getDocumentInfo: () => response('getDocumentInfo'),
-		getRelations: () => response('getRelations'),
-		getParsePattern: () => response('getParsePattern'),
-		getHits: <T extends BLHitResults | BLHitGroupResults = BLHitResults | BLHitGroupResults>() => response('getHits') as CancelableRequest<T>,
-		getHitsCsv: () => response('getHitsCsv'),
-		getDocsCsv: () => response('getDocsCsv'),
-		getDocs: <T extends BLDocResults | BLDocGroupResults = BLDocResults | BLDocGroupResults>() => response('getDocs') as CancelableRequest<T>,
-		getSnippet: () => response('getSnippet'),
-		getTermFrequencies: () => response('getTermFrequencies'),
-		getTermAutocomplete: () => response('getTermAutocomplete'),
-		getMetadataAutocomplete: () => response('getMetadataAutocomplete'),
-	} satisfies BlackLabApi;
-
-	return {
-		...api,
-		...overrides,
-	};
+export function createMockBlackLabApi(returnValues: MockApiReturnValues<BlackLabApi> = {}): BlackLabApi {
+	return createMockApiProxy<BlackLabApi>('blacklab', returnValues);
 }
 
-export function createMockFrontendApi(returnValues: MockApiReturnValues<FrontendApi> = {}, overrides: Partial<FrontendApi> = {}): FrontendApi {
-	const response = <Method extends keyof FrontendApi>(method: Method): CancelableRequest<ApiMethodReturnValue<FrontendApi[Method]>> =>
-		mockResponse<FrontendApi, Method>('frontend', returnValues, method);
-	const api = {
-		getConfig: () => response('getConfig'),
-		getDocumentContents: () => response('getDocumentContents'),
-		getDocumentMetadata: () => response('getDocumentMetadata'),
-		getHelp: () => response('getHelp'),
-		getAbout: () => response('getAbout'),
-		getTagset: () => response('getTagset'),
-	} satisfies FrontendApi;
-
-	return {
-		...api,
-		...overrides,
-	};
-}
-
-function mockPath(name: string): (...parts: unknown[]) => string {
-	return (...parts: unknown[]) => [name, ...parts.map(String)].join('/');
+export function createMockFrontendApi(returnValues: MockApiReturnValues<FrontendApi> = {}): FrontendApi {
+	return createMockApiProxy<FrontendApi>('frontend', returnValues);
 }
 
 export function createMockBlackLabPaths(overrides: Partial<BlackLabPaths> = {}): BlackLabPaths {
-	const paths = {
-		root: mockPath('root'),
-		index: mockPath('index'),
-		indexStatus: mockPath('indexStatus'),
-		field: mockPath('field'),
-		relations: mockPath('relations'),
-		documentUpload: mockPath('documentUpload'),
-		shares: mockPath('shares'),
-		formats: mockPath('formats'),
-		formatContent: mockPath('formatContent'),
-		formatXslt: mockPath('formatXslt'),
-		docInfo: mockPath('docInfo'),
-		hits: mockPath('hits'),
-		hitsCsv: mockPath('hitsCsv'),
-		docs: mockPath('docs'),
-		docsCsv: mockPath('docsCsv'),
-		snippet: mockPath('snippet'),
-		parsePattern: mockPath('parsePattern'),
-		autocompleteAnnotation: mockPath('autocompleteAnnotation'),
-		autocompleteMetadata: mockPath('autocompleteMetadata'),
-		termFrequencies: mockPath('termFrequencies'),
-	} satisfies BlackLabPaths;
-
-	return {
-		...paths,
-		...overrides,
-	};
+	return new Proxy(overrides, {
+		get: (target, property) => {
+			if (typeof property === 'symbol') return undefined;
+			return property in target ? target[property as keyof BlackLabPaths] : (...parts: unknown[]) => [property, ...parts.map(String)].join('/');
+		},
+	}) as BlackLabPaths;
 }
 
 export function createMockApiParts(options: MockApiOptions = {}): ApiPluginParts {
 	return {
-		blacklabApi: createMockBlackLabApi(options.blacklab, options.overrides?.blacklab),
-		frontendApi: createMockFrontendApi(options.frontend, options.overrides?.frontend),
+		blacklabApi: createMockBlackLabApi(options.blacklab),
+		frontendApi: createMockFrontendApi(options.frontend),
 		blacklabPaths: createMockBlackLabPaths(options.blacklabPaths),
 	};
 }
@@ -152,10 +85,10 @@ export function createMockApi(options: MockApiOptions = {}): ApiPlugin {
 	return createApiPlugin(createMockApiParts(options));
 }
 
-export function createApiMock(overrides: ApiMockOverrides = {}): ApiMock {
+export function createApiMock(mockValues: ApiMockOptions = {}): ApiMock {
 	return {
-		blacklab: createMockBlackLabApi({}, overrides.blacklab),
-		frontend: createMockFrontendApi({}, overrides.frontend),
+		blacklab: createMockBlackLabApi(mockValues.blacklab),
+		frontend: createMockFrontendApi(mockValues.frontend),
 	};
 }
 

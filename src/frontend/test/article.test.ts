@@ -1,9 +1,11 @@
+import { createMockApi, rejectedRequest, resolvedRequest } from '@test/mocks/api';
 import { afterAll, beforeAll, describe, expect, test, vi } from 'vitest';
 
 import type { Input } from '@/pages/article/article';
 import { createArticleStreams } from '@/pages/article/article';
+import { type BLDocInfo, type BLHitInDoc, type BLHitResults, type BLDocument } from '@/types/blacklabtypes';
 
-import { ApiError, CancelableRequest, type BlackLabApi, type FrontendApi } from '@/shared/api/lib/api-types';
+import { ApiError } from '@/shared/api/lib/api-types';
 import { LoadableState } from '@/shared/utils/loadable/loadable-core';
 import { loadableFromStream, promiseFromLoadableStream } from '@/shared/utils/loadable/loadable-stream';
 
@@ -11,8 +13,6 @@ const ids = {
 	MOCK_INDEX_ID: 'test',
 	MOCK_DOC_ID: 'test',
 };
-
-type MockDocument = Awaited<ReturnType<BlackLabApi['getDocumentInfo']>>;
 
 beforeAll(() => {
 	vi.stubGlobal('document', {
@@ -26,67 +26,95 @@ beforeAll(() => {
 afterAll(() => {
 	vi.unstubAllGlobals();
 });
+const mock_hit_in_doc: BLHitInDoc = {
+	after: { punct: [] },
+	before: { punct: [] },
+	match: { punct: [] },
+};
 
-const mockMetadataFields = {
-	pid: [ids.MOCK_DOC_ID],
-	title: [''],
-	date: [''],
-} satisfies Record<string, string[]>;
-
-const mockDocInfo = {
+const mock_doc_info: BLDocInfo = {
 	tokenCounts: [{ fieldName: 'contents', tokenCount: 246 }],
-	lengthInTokens: 246,
 	mayView: true,
-	...mockMetadataFields,
-} satisfies MockDocument['docInfo'];
+	metadata: {
+		pid: [ids.MOCK_DOC_ID],
+		title: [''],
+		date: [''],
+	},
+};
 
 const values = {
 	MOCK_HITS: {
 		hits: [
-			{ docPid: ids.MOCK_DOC_ID, start: 53, end: 54, left: {}, match: {}, right: {} },
-			{ docPid: ids.MOCK_DOC_ID, start: 125, end: 126, left: {}, match: {}, right: {} },
-			{ docPid: ids.MOCK_DOC_ID, start: 187, end: 188, left: {}, match: {}, right: {} },
+			{ docPid: ids.MOCK_DOC_ID, start: 53, end: 54, ...mock_hit_in_doc },
+			{ docPid: ids.MOCK_DOC_ID, start: 125, end: 126, ...mock_hit_in_doc },
+			{ docPid: ids.MOCK_DOC_ID, start: 187, end: 188, ...mock_hit_in_doc },
 		],
 		docInfos: {
-			[ids.MOCK_DOC_ID]: {
-				tokenCounts: [{ fieldName: 'contents', tokenCount: 246 }],
-				lengthInTokens: 246,
-				mayView: true,
+			[ids.MOCK_DOC_ID]: mock_doc_info,
+		},
+		summary: {
+			params: {
+				number: 3,
+			},
+			results: {
+				window: {
+					firstResult: 0,
+					requestedSize: 0,
+					actualSize: 0,
+					hasPrevious: false,
+					hasNext: false,
+				},
+				stats: {
+					processed: {
+						status: 'finished',
+						hits: undefined,
+						documents: 0,
+						timeMs: 0,
+						stoppedBecauseTooMany: false,
+					},
+					counted: {
+						status: 'finished',
+						hits: undefined,
+						documents: 0,
+						timeMs: 0,
+						stoppedBecauseTooMany: false,
+					},
+					numberOfGroups: undefined,
+					largestGroupSize: undefined,
+					subcorpusSize: undefined,
+				},
+				sample: {
+					sample: 0,
+					seed: 0,
+				},
 			},
 		},
-	},
+	} satisfies BLHitResults,
 	MOCK_DOC: {
 		docPid: ids.MOCK_DOC_ID,
-		docInfo: mockDocInfo,
+		docInfo: mock_doc_info,
 		docFields: {
 			pidField: 'pid',
 			titleField: 'title',
 			dateField: 'date',
 		},
-	} satisfies MockDocument,
+	} satisfies BLDocument,
 
 	MOCK_ERROR: new ApiError('test', 'test', 'test', undefined),
 };
 
-function r<T>(v: T): (..._params: unknown[]) => CancelableRequest<T> {
-	return () => new CancelableRequest(Promise.resolve(v), () => {});
-}
-
-function e<T>(): CancelableRequest<T> {
-	return new CancelableRequest(Promise.reject(values.MOCK_ERROR), () => {});
-}
-
 function createTestStreams() {
-	const blacklab = {
-		getHits: r(values.MOCK_HITS),
-		getDocumentInfo: (_indexId: string, docId: string) => (docId === values.MOCK_DOC.docPid ? r(values.MOCK_DOC)() : e()),
-		getSnippet: r(values.MOCK_HITS.hits[0]),
-	} as Partial<BlackLabApi> as BlackLabApi;
-
-	const frontend = {
-		getDocumentContents: r(''),
-		getDocumentMetadata: r('<dl><dt>title</dt><dd>Test</dd></dl>'),
-	} as Partial<FrontendApi> as FrontendApi;
+	const { blacklabApi: blacklab, frontendApi: frontend } = createMockApi({
+		blacklab: {
+			getHits: values.MOCK_HITS,
+			getDocumentInfo: (_indexId, docId) => (docId === values.MOCK_DOC.docPid ? resolvedRequest(values.MOCK_DOC) : rejectedRequest(values.MOCK_ERROR)),
+			getSnippet: values.MOCK_HITS.hits[0],
+		},
+		frontend: {
+			getDocumentContents: '',
+			getDocumentMetadata: '<dl><dt>title</dt><dd>Test</dd></dl>',
+		},
+	});
 
 	return createArticleStreams(blacklab, frontend);
 }
@@ -250,7 +278,7 @@ describe('validPaginationParameters$', () => {
 		});
 		await promiseFromLoadableStream(validPaginationParameters$);
 
-		expect(output.value).toMatchObject({ wordend: values.MOCK_DOC.docInfo.lengthInTokens });
+		expect(output.value).toMatchObject({ wordend: values.MOCK_DOC.docInfo.tokenCounts[0].tokenCount });
 		output.stop();
 	});
 

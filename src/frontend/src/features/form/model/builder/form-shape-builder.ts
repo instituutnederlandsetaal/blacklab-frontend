@@ -1,4 +1,4 @@
-import { computed, markRaw, reactive, ref, toRaw, toRefs, type Ref } from 'vue';
+import { computed, markRaw, reactive, ref, toRaw, toRefs, type Ref, type ToRefs } from 'vue';
 
 import { getAllNodes, isContainerNode, isFieldNode } from '@/features/form/model/form-utils';
 import { compileFormState } from '@/features/form/model/persistence';
@@ -135,6 +135,12 @@ interface AddChildNodes {
 
 export type FormRegistrationCallback = (api: FormBuilder) => RealContainerNode<unknown, AnyVueComponent> | RealFormNode<unknown, AnyVueComponent> | void;
 
+function toRefsWithout<T extends object>(value: T, ...omittedKeys: readonly (keyof T)[]): Omit<ToRefs<T>, (typeof omittedKeys)[number]> {
+	const refs = toRefs(value);
+	for (const key of omittedKeys) delete refs[key];
+	return refs;
+}
+
 export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode, NewViewNode {
 	public constructor(public context: FormRuntimeContext) {}
 
@@ -150,12 +156,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 
 	public renderableNode(node: FormNode, parentNode: FormNode | null): any {
 		const idSuffix = useUid();
-		const commonExtraComponentsProps = {
-			// remove these from the component props
-			component: undefined,
-			controller: undefined,
-			// add these to the component props
-
+		const fieldRuntimeProps = {
 			disabled: computed(() => {
 				if (node.kind !== 'field') return false;
 				const affects = node.controller.affectsBlackLabParameters;
@@ -166,18 +167,22 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 			}),
 
 			htmlId: computed(() => `${node.id}_${idSuffix}`),
+		} satisfies Record<string, Ref<any>>;
+
+		const containerRuntimeProps = {
 			hideTitle: computed(() => isContainerNode(parentNode) && (parentNode.variant === 'tabs' || parentNode.variant === 'small-tabs')),
-		} satisfies Record<string, undefined | Ref<any>>;
+		} satisfies Record<string, Ref<any>>;
 
 		if (node.kind === 'container' || node.kind === 'form') {
 			return {
 				is: markRaw(node.component ?? ContainerRenderer),
 				// this is a bit of a hack - to avoid losing reactivty,
-				// and to avoid repetitive recomputation of the object
-				// first convert to refs, then add our overrides/additions/removals, then convert _that_ back to reactive
+				// map every individual property to a ref - then remove some that shouldn't be passed to the component
+				// then map the refs back to a reactive object
+				// basically memoize the props object, while removing and adding some properties
 				props: reactive({
-					...toRefs(node),
-					...commonExtraComponentsProps,
+					...toRefsWithout(node, 'component'),
+					...containerRuntimeProps,
 
 					children: computed(() => node.children.map(child => this.renderableNode(child, node))),
 				}),
@@ -186,8 +191,8 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 			return {
 				is: markRaw(node.component),
 				props: reactive({
-					...toRefs(node),
-					...commonExtraComponentsProps,
+					...toRefsWithout(node, 'kind', 'component', 'controller'),
+					...fieldRuntimeProps,
 					...this.state.getVModel(node.id),
 				}),
 			};
@@ -195,8 +200,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 			return {
 				is: markRaw(node.component),
 				props: reactive({
-					...toRefs(node),
-					...commonExtraComponentsProps,
+					...toRefsWithout(node, 'kind', 'component'),
 				}),
 			};
 		}
