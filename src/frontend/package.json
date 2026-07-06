@@ -75,6 +75,7 @@
 		"axios-mock-adapter": "^2.1.0",
 		"globals": "^17.4.0",
 		"jsdom": "^29.0.2",
+		"less": "^4.6.7",
 		"oxfmt": "^0.44.0",
 		"oxlint": "^1.64.0",
 		"oxlint-tsgolint": "^0.22.1",
