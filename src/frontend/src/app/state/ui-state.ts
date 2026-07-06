@@ -194,9 +194,6 @@ type ModuleRootState = {
 			/** Available metadata options for sorting in the hits+docs results. Sorted by global metadata order. */
 			sortMetadataIds: string[];
 
-			/** Used for calculating page offsets in links to documents */
-			pageSize: number | undefined;
-
 			/** Are the export buttons allowed in the interface */
 			exportEnabled: boolean;
 
@@ -329,8 +326,6 @@ const initialState: ModuleRootState = {
 			groupMetadataIds: [],
 			sortAnnotationIds: [],
 			sortMetadataIds: [],
-			// TODO SPA: set page size when changing corpus.
-			pageSize: 1000,
 			exportEnabled: true,
 
 			totalsTimeoutDurationMs: 90_000,
