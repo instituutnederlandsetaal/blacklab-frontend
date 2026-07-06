@@ -17,16 +17,9 @@ import type { BlackLabApi, CancelableRequest, FrontendApi } from '@/shared/api/l
 import { resolvedRequest } from '@/shared/api/lib/api-utils';
 import { mapReduce } from '@/shared/utils/array-utils';
 import { combineLoadables } from '@/shared/utils/loadable/loadable-combine-reactive';
-import { LoadableState } from '@/shared/utils/loadable/loadable-core';
 import { loadableFromRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
-import { mapLoadableReactive } from '@/shared/utils/loadable/loadable-reactive';
 import useInjectable from '@/shared/utils/useInjectable';
 
-type CorpusContext = {
-	index: NormalizedIndex | undefined;
-	config: CFPageConfig;
-	tagset: Tagset | undefined;
-};
 // Utils we add for convenience on top of the base index.
 type Corpus = NormalizedIndex & {
 	allAnnotatedFields: NormalizedAnnotatedField[];
@@ -45,6 +38,11 @@ type Corpus = NormalizedIndex & {
 	annotationGroups: Array<NormalizedAnnotationGroup & { fields: NormalizedAnnotation[] }>;
 	textDirection: 'ltr' | 'rtl';
 	hasRelations: boolean;
+};
+type CorpusContext = {
+	index: Corpus | undefined;
+	config: CFPageConfig;
+	tagset: Tagset | undefined;
 };
 
 const defaultConfig = {
@@ -155,12 +153,10 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 	const getConfig = (id: string | undefined | null): CancelableRequest<CFPageConfig> => frontend.getConfig(id ?? null);
 	const getTagset = (id: string | undefined | null): CancelableRequest<Tagset | undefined> => (id ? frontend.getTagset(id) : resolvedRequest<Tagset | undefined>(undefined));
 
-	const corpusLoadable = computed(() => loadableFromRequest(() => getCorpus(toValue(corpusId))));
+	const corpusLoadable = computed(() => loadableFromRequest(() => getCorpus(toValue(corpusId)).then(index => (index ? createCorpusValue(index) : undefined))));
 	const configLoadable = computed(() => loadableFromRequest(() => getConfig(toValue(corpusId))));
 	const tagsetLoadable = computed(() => loadableFromRequest(() => getTagset(toValue(corpusId))));
-	const combinedLoadableSource: LoadableFromRequest<CorpusContext> = combineLoadables({ index: corpusLoadable, config: configLoadable, tagset: tagsetLoadable });
-
-	const combinedLoadable = mapLoadableReactive(combinedLoadableSource, LoadableState.loaded, ({ index, config, tagset }) => {
+	const combinedLoadable: LoadableFromRequest<CorpusContext> = combineLoadables({ index: corpusLoadable, config: configLoadable, tagset: tagsetLoadable }).map(({ index, config, tagset }) => {
 		if (index) {
 			if (tagset) {
 				const annots = index.annotatedFields[index.mainAnnotatedField].annotations;
@@ -181,7 +177,7 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 	// this makes makes it easier to use the data in various components where it's guaranteed we'll have the data available
 	// In practice, the corpusPage component guards the loading and error state
 	const combinedValue: Ref<CorpusContext> = computed(() => combinedLoadable.value!);
-	const corpusValue: Ref<Corpus | undefined> = computed(() => (corpusLoadable.value.value ? createCorpusValue(corpusLoadable.value.value) : undefined));
+	const corpusValue: Ref<Corpus | undefined> = computed(() => corpusLoadable.value.value);
 	const configValue: Ref<CFPageConfig> = computed(() => configLoadable.value.value || defaultConfig);
 	const tagsetValue: Ref<Tagset | undefined> = computed(() => tagsetLoadable.value.value);
 
