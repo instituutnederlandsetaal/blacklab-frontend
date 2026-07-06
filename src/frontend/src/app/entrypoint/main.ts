@@ -5,7 +5,6 @@ import '@/bootstrap.less';
 import '@/global.scss';
 
 import FloatingVue from 'floating-vue';
-import HighchartsVue from 'highcharts-vue';
 import { createApp } from 'vue';
 
 import { createCorpusContext } from '@/app/state/useCorpusContext';
@@ -82,7 +81,6 @@ async function start() {
 	app.use(Filters);
 	app.use(FloatingVue);
 	app.use(corpusState);
-	app.use(HighchartsVue);
 
 	initSelectedSubcorpusLoader(api.blacklabApi, corpusState.corpus);
 	installLegacyStoreGlobals(app);

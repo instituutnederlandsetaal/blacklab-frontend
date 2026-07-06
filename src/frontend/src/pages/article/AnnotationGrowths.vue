@@ -1,16 +1,20 @@
 <template>
-	<highcharts v-if="snippet" :options="chartOptions" />
+	<Chart v-if="snippet" :options="chartOptions" />
 </template>
 
 <script lang="ts">
 import { stripIndent } from 'common-tags';
 import * as Highcharts from 'highcharts';
+import { Chart } from 'highcharts-vue';
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
 import type * as BLTypes from '@/types/blacklabtypes';
 
 export default defineComponent({
+	components: {
+		Chart,
+	},
 	props: {
 		snippet: { type: Object as PropType<BLTypes.BLHitInDoc>, required: true },
 		annotations: Array as () => Array<{

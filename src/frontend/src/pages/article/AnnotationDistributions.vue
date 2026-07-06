@@ -1,14 +1,18 @@
 <template>
-	<highcharts v-if="distribution?.length" :options="chartOptions" />
+	<Chart v-if="chartOptions" :options="chartOptions" />
 </template>
 
 <script lang="ts">
 import * as Highcharts from 'highcharts';
+import { Chart } from 'highcharts-vue';
 import { defineComponent } from 'vue';
 
 import type * as BLTypes from '@/types/blacklabtypes';
 
 export default defineComponent({
+	components: {
+		Chart,
+	},
 	props: {
 		snippet: Object as () => BLTypes.BLHitInDoc,
 		baseColor: String,
