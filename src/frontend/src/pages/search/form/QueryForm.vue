@@ -91,6 +91,7 @@ export default defineComponent({
 		settingsOpen: false,
 		historyOpen: false,
 		errorNoParallelSourceVersion: false,
+		corpus: useCorpus(),
 	}),
 	computed: {
 		queryBuilderVisible(): boolean {
@@ -113,7 +114,7 @@ export default defineComponent({
 			RootStore.actions.reset();
 		},
 		submit() {
-			if (useCorpus().value.isParallelCorpus && PatternStore.getState().shared.source === null) {
+			if (this.corpus.isParallelCorpus && PatternStore.getState().shared.source === null) {
 				// No source version selected. Required for most operations.
 				const needsSource = this.activeForm === 'search' || (this.activeForm === 'explore' && (this.exploreMode === 'ngram' || this.exploreMode === 'frequency'));
 				if (needsSource) {

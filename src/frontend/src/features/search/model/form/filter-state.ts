@@ -1,6 +1,6 @@
 import { reactive } from 'vue';
 
-import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
+import { type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary, getValueFunctions } from '@/components/filters/filterValueFunctions';
 /**
  * This module contains a single entry for every metadata field in this corpus.
@@ -155,7 +155,7 @@ const init = (state: CorpusContext) => {
 	}
 
 	// Take care to copy the order of metadatagroups and their fields here!
-	useCorpus().value.metadataGroups.forEach(g => {
+	state.index.metadataGroups.forEach(g => {
 		actions.registerFilterGroup({
 			filterIds: [],
 			id: g.id,

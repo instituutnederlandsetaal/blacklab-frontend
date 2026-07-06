@@ -24,7 +24,7 @@ import cloneDeep from 'clone-deep';
 import { reactive } from 'vue';
 
 import * as UIModule from '@/app/state/ui-state';
-import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
+import { type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
@@ -82,13 +82,17 @@ const initialState: ModuleRootStateNone = {
 const state = reactive<ModuleRootState>(Object.assign({}, initialState));
 const getState = () => state;
 
+// TODO - hack ; need to revise global state management to avoid this
+let context: CorpusContext;
+const useCorpus = () => context!.index!;
+
 const get = {
 	sourceField: (): NormalizedAnnotatedField => {
-		const fieldName = state.shared?.source || useCorpus().value.mainAnnotatedField;
-		return useCorpus().value.allAnnotatedFieldsMap[fieldName];
+		const fieldName = state.shared?.source || useCorpus().mainAnnotatedField;
+		return useCorpus().allAnnotatedFieldsMap[fieldName];
 	},
 	targetFields: (): NormalizedAnnotatedFieldParallel[] => {
-		const allFields = useCorpus().value.allAnnotatedFieldsMap;
+		const allFields = useCorpus().allAnnotatedFieldsMap;
 		return state.shared?.targets?.map(t => allFields[t]).filter(f => f.isParallel) ?? [];
 	},
 
@@ -99,7 +103,7 @@ const get = {
 			[state.subForm as string]: state.formState,
 			shared: state.shared,
 		} as Partial<ModuleRootStateSearch<keyof PatternModule.ModuleRootState>>;
-		const annotations = useCorpus().value.allAnnotationsMap;
+		const annotations = useCorpus().allAnnotationsMap;
 		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
 		switch (state.form) {
 			case 'search':
@@ -121,7 +125,7 @@ const get = {
 			case 'search':
 				return getPatternSummarySearch(state.subForm, formState, defaultAlignBy, state.filters);
 			case 'explore':
-				return getPatternSummaryExplore(state.subForm, formState, useCorpus().value.allAnnotationsMap);
+				return getPatternSummaryExplore(state.subForm, formState, useCorpus().allAnnotationsMap);
 			default:
 				return undefined;
 		}
@@ -147,6 +151,7 @@ const actions = {
 };
 
 const init = (_payload: CorpusContext) => {
+	context = _payload;
 	actions.reset();
 };
 
