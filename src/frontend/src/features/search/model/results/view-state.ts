@@ -158,14 +158,14 @@ const actions = {
 
 const get = {};
 
-const init = async (_state: CorpusContext) => {
+const init = (_state: CorpusContext) => {
 	// Clear all views so the default result modules can be recreated for the new corpus.
 	Object.keys(moduleCache).forEach(key => {
 		delete moduleCache[key];
 	});
 	getOrCreateModule('hits');
 	getOrCreateModule('docs');
-	await actions.resetAllViews({ resetGroupBy: true });
+	actions.resetAllViews({ resetGroupBy: true });
 };
 
 /** Get a snapshot of all view states as a record keyed by view name. */

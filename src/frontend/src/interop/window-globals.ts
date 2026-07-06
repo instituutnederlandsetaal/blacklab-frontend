@@ -2,7 +2,7 @@ import { type App } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
 import * as UIModule from '@/app/state/ui-state';
-import { useCorpus } from '@/app/state/useCorpusContext';
+import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import * as HistoryModule from '@/features/history/model/query-history-state';
@@ -24,7 +24,7 @@ type InteropWindow = Window & {
 };
 
 type InteropGlobal = typeof globalThis & {
-	currentCorpusData?: unknown;
+	currentCorpusData?: CorpusContext;
 	vuexModules?: unknown;
 };
 
@@ -81,7 +81,7 @@ export function setMountedVueGlobals(app: App, root: unknown) {
 	(window as InteropWindow).vueRoot = root;
 }
 
-export function setCurrentCorpusDataGlobal(value: unknown) {
+export function setCurrentCorpusDataGlobal(value: CorpusContext) {
 	(globalThis as InteropGlobal).currentCorpusData = value;
 }
 

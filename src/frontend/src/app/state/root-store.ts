@@ -1,5 +1,4 @@
 import cloneDeep from 'clone-deep';
-import { shallowRef } from 'vue';
 
 import * as UIModule from '@/app/state/ui-state';
 import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
@@ -24,16 +23,8 @@ import { corpusCustomizations } from '@/utils/customization';
 
 import { getPatternString, getWithinClausesFromFilters } from '@/shared/blacklab-helpers/pattern-utils';
 import debug, { debugLog } from '@/shared/debug/debug';
-import { Loadable } from '@/shared/utils/loadable/loadable-core';
-
-// separate, because while the corpusloader might have settled, store init is async
-// and we don't want to report being done while submodules are still initializing
-// (We should solve this better in the future)
-const loadingState = shallowRef<Loadable<CorpusContext>>(Loadable.Empty());
 
 const get = {
-	loadingState: () => loadingState,
-
 	viewedResultsSettings: () => {
 		const viewName = InterfaceModule.get.viewedResults();
 		return viewName ? ViewModule.getOrCreateModule(viewName).getState() : null;
@@ -262,22 +253,20 @@ const actions = {
 	},
 };
 
-const init = async (state: CorpusContext) => {
-	loadingState.value = Loadable.Loading();
+const init = (state: CorpusContext) => {
 	debugLog('store', 'Initializing store with new corpus data', state);
 
-	await UIModule.init(state);
+	UIModule.init(state);
 
-	await FormManager.init(state);
-	await ViewModule.init(state);
-	await GlobalResultsModule.init(state);
+	FormManager.init(state);
+	ViewModule.init(state);
+	GlobalResultsModule.init(state);
 
-	await TagsetModule.init(state);
-	await HistoryModule.init(state);
-	await QueryModule.init(state);
+	TagsetModule.init(state);
+	HistoryModule.init(state);
+	QueryModule.init(state);
 
-	await ArticleModule.init(state);
-	loadingState.value = Loadable.Loaded(state);
+	ArticleModule.init(state);
 };
 
 export { actions, get, init };

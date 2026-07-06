@@ -55,7 +55,7 @@ const ROOT_STORE: StoreLeaf = {
 	id: ROOT_STORE_ID,
 	label: 'Root Store',
 	readGetters: () => RootStore.get,
-	watchState: () => RootStore.get.loadingState().value,
+	// watchState: () => RootStore.get.loadingState().value,
 };
 
 const STORE_GROUPS: StoreGroup[] = [

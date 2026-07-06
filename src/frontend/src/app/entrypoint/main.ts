@@ -10,9 +10,8 @@ import { createApp } from 'vue';
 import { createCorpusContext } from '@/app/state/useCorpusContext';
 import Filters from '@/components/filters';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
-import { startCorpusBootstrapEffect } from '@/features/corpus/effects/corpus-bootstrap.effect';
+import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
-import { initSelectedSubcorpusLoader } from '@/features/search/resources/selected-subcorpus-count.resource';
 import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
@@ -82,14 +81,14 @@ async function start() {
 	app.use(FloatingVue);
 	app.use(corpusState);
 
-	initSelectedSubcorpusLoader(api.blacklabApi, corpusState.corpus);
-	installLegacyStoreGlobals(app);
-
 	app.component('Debug', DebugComponent);
 	app.component('AudioPlayer', AudioPlayer);
 
+	startGlobalCorpusDependentEffects(corpusState.contextLoader, api.blacklabApi);
+
 	installStoreInspectorDevtools(app);
-	startCorpusBootstrapEffect(app);
+	installLegacyStoreGlobals(app);
+
 	startUrlSync(router.router, { blacklabApi: api.blacklabApi, corpus: corpusState.corpus });
 	app.runWithContext(() => startCustomizationInterop());
 

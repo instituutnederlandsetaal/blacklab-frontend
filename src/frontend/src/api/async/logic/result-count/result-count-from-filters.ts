@@ -39,15 +39,15 @@ export function getFilteredSubcorpus(api: BlackLabApi, input: SubcorpusInput & {
  * Given the active filters, retrieve the total amount of matched docs/tokens.
  * Can be passed a new set of filters at any time, and after debouncing, will retrieve and emit the updated count.
  */
-export class FilteredResultCountLoader extends InteractiveLoadable<SubcorpusInput, SubcorpusOutput> {
-	constructor(api: BlackLabApi, debounceMs = 1000) {
+export class FilteredResultCountLoader extends InteractiveLoadable<SubcorpusInput & { blacklab: BlackLabApi }, SubcorpusOutput> {
+	constructor(debounceMs = 1000) {
 		super(
-			switchMap<SubcorpusInput, ObservableInput<Loadable<SubcorpusOutput>>>(input => {
+			switchMap<SubcorpusInput & { blacklab: BlackLabApi }, ObservableInput<Loadable<SubcorpusOutput>>>(input => {
 				if (!input.filter) {
 					return of(Loadable.Loaded(getCorpusTotals(input.index, input.annotatedFieldId)));
 				}
 
-				return getFilteredSubcorpus(api, { ...input, filter: input.filter }).toObservable();
+				return getFilteredSubcorpus(input.blacklab, { ...input, filter: input.filter }).toObservable();
 			}),
 			{
 				debounce: input => (input.filter ? debounceMs : 0),

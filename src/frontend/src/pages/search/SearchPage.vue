@@ -1,5 +1,5 @@
 <template>
-	<div :class="wideView.value ? 'container-fluid' : 'container'" v-if="storeLoadingState.value?.index">
+	<div :class="wideView.value ? 'container-fluid' : 'container'">
 		<QueryForm />
 		<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary" />
 
@@ -28,7 +28,6 @@ export default defineComponent({
 	},
 	data: () => ({
 		wideView,
-		storeLoadingState: RootStore.get.loadingState(),
 	}),
 	computed: {
 		resultsVisible(): boolean {
