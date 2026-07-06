@@ -1,8 +1,8 @@
 <template>
 	<div v-if="position" :class="`cf-spinner-${position}`">
-		<div class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style>&ZeroWidthSpace;</div>
+		<div class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style></div>
 	</div>
-	<div v-else class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style>&ZeroWidthSpace;</div>
+	<div v-else class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style></div>
 </template>
 
 <script lang="ts">
@@ -110,5 +110,7 @@ export default defineComponent({
 		font-size: 120px;
 		padding: 20px;
 	}
+	--fa-width: 1em;
+	box-sizing: content-box;
 }
 </style>
