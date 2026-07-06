@@ -2,7 +2,7 @@
 	<!-- TODO: i18n -->
 	<div class="container article" v-if="inputs">
 		<UseDraggable class="article-pagination" title="Hold to drag" :initial-value="initialPaginationPosition" storage-key="article-page-pagination-screen-position">
-			<template v-if="validPaginationInfo.isLoaded()">
+			<template v-if="validPaginationInfo.isLoaded() && validPaginationInfo.value.pageSize != null">
 				<div class="pagination-container">
 					<label>Page</label>
 					<div class="pagination-wrapper">
@@ -44,7 +44,7 @@
 		<div class="tab-content cf-panel-tab-body cf-panel-lg" style="padding-top: 35px">
 			<div id="content" class="tab-pane" :class="{ active: activeArticleTab === 'content' }">
 				<h2 v-if="isParallel" style="word-break: break-all">{{ $tAnnotatedFieldDisplayName(viewField) }}</h2>
-				<HtmlRenderer :content="contentsHtml">
+				<HtmlRenderer :content="contentsHtml" @ready="scrollCurrentHitIntoView">
 					<template #error="{ error }">
 						<div class="alert alert-danger">Could not load document contents. {{ error.message }}</div>
 						<Collapsible id="content_error" button-class="btn btn-default" label="Show full diagnostics">
@@ -129,7 +129,7 @@
 <script setup lang="ts">
 import { UseDraggable } from '@vueuse/components';
 import type { Position } from '@vueuse/core';
-import { computed, onUnmounted, ref, watch, watchEffect } from 'vue';
+import { computed, defineAsyncComponent, onUnmounted, ref, watch, watchEffect } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import * as UIStore from '@/app/state/ui-state';
@@ -147,11 +147,12 @@ import type { ApiError } from '@/shared/api/lib/api-types';
 import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
 
-import ArticlePageStatistics from '@/pages/article/ArticlePageStatistics.vue';
 import Collapsible from '@/shared/ui/Collapsible.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
 import Pagination from '@/shared/ui/Pagination.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
+
+const ArticlePageStatistics = defineAsyncComponent(() => import('@/pages/article/ArticlePageStatistics.vue'));
 
 const initialPaginationPosition: Position = {
 	x: Math.max(0, window.innerWidth * 0.9 - 250),
@@ -216,7 +217,7 @@ watchEffect(() => {
 });
 
 function handlePageNavigation(page: number) {
-	if (!validPaginationInfo.isLoaded()) return;
+	if (!validPaginationInfo.isLoaded() || validPaginationInfo.value.pageSize == null) return;
 	void updateArticleQuery({
 		wordstart: page * validPaginationInfo.value.pageSize,
 		wordend: (page + 1) * validPaginationInfo.value.pageSize,
@@ -342,5 +343,57 @@ onUnmounted(() => {
 	position: sticky;
 	top: 50px;
 	z-index: 1;
+}
+
+.hl {
+	--bg-color: #337ab7;
+
+	font-weight: bold;
+	background-color: hsl(from var(--bg-color) h min(s * 1.2, 100) 92.5);
+	color: black;
+	border-radius: 3px;
+	padding: 0 2px;
+	font-size: 105%;
+
+	&.active {
+		/*text-decoration: underline;*/
+
+		text-shadow:
+			-1px -1px 0 white,
+			1px -1px 0 white,
+			-1px 1px 0 white,
+			1px 1px 0 white;
+		color: black;
+		background-color: var(--bg-color);
+		box-shadow: 0 0 10px var(--bg-color);
+	}
+}
+
+.word,
+.tooltip-hover {
+	// Defined in main.css in the main webapp
+	font-family: 'Helvetica Neue', 'Helvetica', 'Arial,sans-serif', 'Inl vmnw wnt';
+}
+.tooltip-open {
+	text-decoration: underline;
+}
+.tooltip-hover {
+	box-shadow: 0px 1px 7px -1px rgba(0, 0, 0, 0.2);
+}
+
+.p,
+.paragraph {
+	display: block;
+	margin: 0 0 10px;
+}
+
+// Metadata table
+#metadata td,
+#metadata th {
+	vertical-align: top;
+}
+
+#content-title:empty {
+	display: none !important;
 }
 </style>

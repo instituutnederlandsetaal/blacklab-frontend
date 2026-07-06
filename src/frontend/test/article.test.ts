@@ -5,7 +5,7 @@ import type { Input } from '@/pages/article/article';
 import { createArticleStreams } from '@/pages/article/article';
 import { type BLDocInfo, type BLHitInDoc, type BLHitResults, type BLDocument } from '@/types/blacklabtypes';
 
-import { ApiError } from '@/shared/api/lib/api-types';
+import { ApiError, type DocumentContentsParameters } from '@/shared/api/lib/api-types';
 import { LoadableState } from '@/shared/utils/loadable/loadable-core';
 import { loadableFromStream, promiseFromLoadableStream } from '@/shared/utils/loadable/loadable-stream';
 
@@ -268,7 +268,7 @@ describe('validPaginationParameters$', () => {
 		output.stop();
 	});
 
-	test('Should set the pageSize to the doclength if not provided', async () => {
+	test('Should disable pagination if the pageSize is not provided', async () => {
 		const { validPaginationParameters$, input$ } = createTestStreams();
 		const output = loadableFromStream(validPaginationParameters$);
 
@@ -278,7 +278,33 @@ describe('validPaginationParameters$', () => {
 		});
 		await promiseFromLoadableStream(validPaginationParameters$);
 
-		expect(output.value).toMatchObject({ wordend: values.MOCK_DOC.docInfo.tokenCounts[0].tokenCount });
+		expect(output.value).toMatchObject({
+			pageSize: null,
+			wordstart: 0,
+			wordend: values.MOCK_DOC.docInfo.tokenCounts[0].tokenCount,
+			page: 0,
+			maxPage: 0,
+		});
+		output.stop();
+	});
+
+	test('Should not add a phantom page when the document length is an exact multiple of pageSize', async () => {
+		const { validPaginationParameters$, input$ } = createTestStreams();
+		const output = loadableFromStream(validPaginationParameters$);
+
+		input$.next({
+			...baseInputs,
+			findhit: undefined,
+			pageSize: 123,
+			wordstart: 0,
+			wordend: 123,
+		});
+		await promiseFromLoadableStream(validPaginationParameters$);
+
+		expect(output.value).toMatchObject({
+			page: 0,
+			maxPage: 1,
+		});
 		output.stop();
 	});
 
@@ -317,5 +343,34 @@ describe('hitToHighlight$', () => {
 			isHitVisible: false,
 		});
 		output.stop();
+	});
+});
+
+describe('contents$', () => {
+	test('Should request unbounded document contents when pagination is disabled', async () => {
+		const getDocumentContents = vi.fn((_params: DocumentContentsParameters) => resolvedRequest(''));
+		const { blacklabApi: blacklab, frontendApi: frontend } = createMockApi({
+			blacklab: {
+				getHits: values.MOCK_HITS,
+				getDocumentInfo: values.MOCK_DOC,
+			},
+			frontend: {
+				getDocumentContents,
+				getDocumentMetadata: '<dl><dt>title</dt><dd>Test</dd></dl>',
+			},
+		});
+		const { contents$, input$ } = createArticleStreams(blacklab, frontend);
+
+		input$.next({
+			...baseInputs,
+			pageSize: null,
+			wordstart: 10,
+			wordend: 20,
+		});
+		await promiseFromLoadableStream(contents$);
+
+		const params = getDocumentContents.mock.calls[0][0];
+		expect(params).not.toHaveProperty('wordstart');
+		expect(params).not.toHaveProperty('wordend');
 	});
 });

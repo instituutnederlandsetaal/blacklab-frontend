@@ -36,7 +36,7 @@ export type PageInput = {
 	wordstart: number;
 	wordend: number;
 	findhit?: number;
-	pageSize: number;
+	pageSize: number | null;
 	viewField: string;
 };
 
@@ -49,7 +49,7 @@ type ValidPaginationAndDocDisplayParameters = {
 	docLength: number;
 	wordstart: number;
 	wordend: number;
-	pageSize: number;
+	pageSize: number | null;
 	/** 0-indexed */
 	page: number;
 	/** 0-indexed. Inclusive */
@@ -153,17 +153,25 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 	);
 
 	const contents$ = validPaginationParameters$.pipe(
-		mapLoaded(input => ({
+		mapLoaded(input => {
 			// only let through the necessary parameters, otherwise we might refresh unnecessarily
-			indexId: input.indexId,
-			docId: input.docId,
-			viewField: input.viewField,
-			searchfield: input.searchfield,
-			patt: input.patt,
-			pattgapdata: input.pattgapdata,
-			wordstart: input.wordstart,
-			wordend: input.wordend,
-		})),
+			const request = {
+				indexId: input.indexId,
+				docId: input.docId,
+				viewField: input.viewField,
+				searchfield: input.searchfield,
+				patt: input.patt,
+				pattgapdata: input.pattgapdata,
+			};
+
+			return input.pageSize == null
+				? request
+				: {
+						...request,
+						wordstart: input.wordstart,
+						wordend: input.wordend,
+					};
+		}),
 		distinctUntilChanged(compareAsSortedJson),
 		switchMapLoaded(input => frontend.getDocumentContents(input).toObservable()),
 		mapLoaded(v => {
@@ -216,6 +224,11 @@ export function createArticleStreams(blacklab: BlackLabApi, frontend: FrontendAp
 
 /** Given unvalidated pagination parameters and the size of the document, return the validated/fixed pagination parameters. */
 function getDefaultPagination(input: Input, doclength: number): { wordstart: number; wordend: number } {
+	const pageSize = getValidPageSize(input.pageSize);
+	if (pageSize == null) {
+		return { wordstart: 0, wordend: doclength };
+	}
+
 	// Defaults.
 	let wordstart = input.wordstart ?? 0;
 	let wordend = input.wordend ?? doclength;
@@ -224,8 +237,12 @@ function getDefaultPagination(input: Input, doclength: number): { wordstart: num
 	// Fix bounds.
 	return {
 		wordstart: clamp(wordstart, 0, doclength),
-		wordend: clamp(wordend, 0, input.pageSize ? wordstart + input.pageSize : doclength),
+		wordend: clamp(wordend, 0, wordstart + pageSize),
 	};
+}
+
+function getValidPageSize(pageSize: number | null | undefined): number | null {
+	return pageSize != null && pageSize > 0 ? pageSize : null;
 }
 
 /**
@@ -257,9 +274,11 @@ function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPag
 	const docLength = getDocumentLength(doc.docInfo, input.viewField ?? undefined);
 	let { wordstart, wordend } = getDefaultPagination(input, docLength);
 	const findhit = getValidfindhit(input.findhit, hits);
-	const pageSize = input.pageSize || docLength;
+	const pageSize = getValidPageSize(input.pageSize);
 
-	({ wordstart, wordend } = fixPagination({ wordstart, wordend, pageSize, findhit, docLength }));
+	if (pageSize != null) {
+		({ wordstart, wordend } = fixPagination({ wordstart, wordend, pageSize, findhit, docLength }));
+	}
 
 	return {
 		indexId: input.indexId!,
@@ -275,8 +294,8 @@ function fixInput(input: Input, doc: BLDoc, hits?: [number, number][]): ValidPag
 		// We wouldn't have gotten here if these were missing
 
 		pageSize,
-		page: Math.floor(wordstart / pageSize),
-		maxPage: Math.floor(docLength / pageSize),
+		page: pageSize == null ? 0 : Math.floor(wordstart / pageSize),
+		maxPage: pageSize == null ? 0 : Math.max(0, Math.ceil(docLength / pageSize) - 1),
 
 		searchfield: input.searchfield!,
 		viewField: input.viewField!,

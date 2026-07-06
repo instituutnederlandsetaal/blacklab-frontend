@@ -25,6 +25,10 @@ defineOptions({
 	name: 'HtmlRenderer',
 });
 
+const emit = defineEmits<{
+	ready: [];
+}>();
+
 const props = withDefaults(
 	defineProps<{
 		content: Content;
@@ -61,6 +65,7 @@ function renderContent(container: HTMLElement, value: RenderableContent) {
 	else container.replaceChildren();
 
 	if (props.executeScripts) runScriptElements(container);
+	emit('ready');
 }
 
 watchEffect(() => {
