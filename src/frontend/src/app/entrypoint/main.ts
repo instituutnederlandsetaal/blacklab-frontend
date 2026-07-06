@@ -89,7 +89,13 @@ async function start() {
 	installStoreInspectorDevtools(app);
 	installLegacyStoreGlobals(app);
 
-	startUrlSync(router.router, { blacklabApi: api.blacklabApi, corpus: corpusState.corpus });
+	startUrlSync(router.router, {
+		blacklabApi: api.blacklabApi,
+		corpusContext: corpusState.contextLoader,
+		indexId: router.corpusId,
+		pageMeta: router.pageMeta,
+	});
+
 	app.runWithContext(() => startCustomizationInterop());
 
 	const instance = app.mount('#vue-root'); // mount early, so that the app is available for interop code (e.g. customjs) to use.

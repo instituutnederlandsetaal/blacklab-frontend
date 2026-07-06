@@ -1,13 +1,11 @@
 import cloneDeep from 'clone-deep';
 import jsonStableStringify from 'json-stable-stringify';
-import { EMPTY, ReplaySubject, fromEvent, of } from 'rxjs';
-import { filter, map, mergeMap } from 'rxjs/operators';
 import URI from 'urijs';
-import { watch, type Ref } from 'vue';
+import { computed, nextTick, ref, watch, type Ref } from 'vue';
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
-import type { Corpus } from '@/app/state/useCorpusContext';
+import type { Corpus, CorpusContext } from '@/app/state/useCorpusContext';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
@@ -16,14 +14,16 @@ import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
+import type { PageMeta } from '@/navigation/page-context';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { getArticleUrlStateFromRoute } from '@/url/route-query';
 import { stateToUrl, type ArticleUrlState } from '@/url/state-to-url';
-import UrlStateParserArticle, { createUrlStateParserArticleDependencies, type UrlStateParserArticleDependencies } from '@/url/url-state-parser-article';
-import UrlStateParserSearch, { createUrlStateParserSearchDependencies, type UrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
+import UrlStateParserArticle, { createUrlStateParserArticleDependencies } from '@/url/url-state-parser-article';
+import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { debugLog } from '@/shared/debug/debug';
+import type { LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
 
 type QueryState = {
 	indexId?: string | null;
@@ -39,60 +39,18 @@ type QueryState = {
 
 type BrowserHistoryEntry = HistoryStore.HistoryEntry & { article?: ArticleUrlState };
 type UrlManagedRouteName = 'search' | 'article';
-type SyncWatchState = QueryState & { routeName: string | null };
 type UrlStateSyncDependencies = {
 	blacklabApi: BlackLabApi;
-	corpus: Ref<Corpus | undefined>;
-};
-type UrlStateParserDependencies = {
-	article: UrlStateParserArticleDependencies;
-	search: UrlStateParserSearchDependencies;
+	corpusContext: LoadableFromRequest<CorpusContext>;
+	indexId: Ref<string | undefined>;
+	pageMeta: Ref<PageMeta | null>;
 };
 
 const HISTORY_STATE_KEY = 'cfHistoryState';
-const urlInputParameters$ = new ReplaySubject<QueryState>(1);
 
-let stopStoreToUrlReflectionHandle: (() => void) | null = null;
-let stopBrowserHistoryRestoreHandle: (() => void) | null = null;
-let initialUrlStateAppliedPromise: Promise<void> | null = null;
-
-function isUrlManagedRoute(routeName: string | null): routeName is UrlManagedRouteName {
-	return routeName === 'search' || routeName === 'article';
-}
-
-function getRouteName(route: RouteLocationNormalizedLoaded): string | null {
-	return typeof route.name === 'string' ? route.name : null;
-}
-
-function getUrlRouteNameFromLocation(): UrlManagedRouteName | null {
-	const pathSegments = new URI().segmentCoded().filter(s => !!s);
-	const contextSegments = new URI(CONTEXT_URL).segmentCoded().filter(s => !!s);
-	const relativeSegments = pathSegments.slice(contextSegments.length);
-	if (relativeSegments[1] === 'docs' && !!relativeSegments[2]) return 'article';
-	if (relativeSegments[1] === 'search') return 'search';
-	return null;
-}
-
-function getCurrentCorpus(corpus: Ref<Corpus | undefined>): Corpus {
-	if (!corpus.value) throw new Error('Cannot parse URL state before corpus state is loaded.');
-	return corpus.value;
-}
-
-function createCurrentParserDependencies(dependencies: UrlStateSyncDependencies): UrlStateParserDependencies {
-	const corpus = getCurrentCorpus(dependencies.corpus);
-	return {
-		article: createUrlStateParserArticleDependencies({ corpus }),
-		search: createUrlStateParserSearchDependencies({
-			blacklabApi: dependencies.blacklabApi,
-			corpus,
-		}),
-	};
-}
-
-function decodeStateFromCurrentUrl(dependencies: UrlStateSyncDependencies, routeName = getUrlRouteNameFromLocation()): Promise<BrowserHistoryEntry> {
-	const parserDependencies = createCurrentParserDependencies(dependencies);
-	if (routeName === 'article') return new UrlStateParserArticle(parserDependencies.article).get();
-	return new UrlStateParserSearch(parserDependencies.search).get();
+function getManagedRouteName(pageMeta: PageMeta | null, route: RouteLocationNormalizedLoaded): UrlManagedRouteName | null {
+	const routeName = pageMeta?.name || (typeof route.name === 'string' ? route.name : null);
+	return routeName === 'search' || routeName === 'article' ? routeName : null;
 }
 
 function getStoredHistoryEntry(state: unknown): BrowserHistoryEntry | null {
@@ -110,312 +68,233 @@ function getStoredHistoryEntry(state: unknown): BrowserHistoryEntry | null {
 	return null;
 }
 
-function toRouterPath(url: string): string {
-	const context = (CONTEXT_URL || '').replace(/\/+$/, '');
-	if (!context || !url.startsWith(context)) {
-		return url;
-	}
-	const relative = url.slice(context.length);
-	return relative.length ? relative : '/';
-}
+export default function startUrlSync(router: Router, dependencies: UrlStateSyncDependencies) {
+	const loadedCorpus = computed<Corpus | null>(() => (dependencies.corpusContext.isLoaded() ? dependencies.corpusContext.value.index || null : null));
+	const readyNavigationKey = ref<string | null>(null);
+	const pendingSelfNavigation = ref<{ fullPath: string; state: { [HISTORY_STATE_KEY]: BrowserHistoryEntry } } | null>(null);
+	let latestUrlApplyRun = 0;
 
-function isNavigationDuplicated(err: unknown): boolean {
-	if (!err || typeof err !== 'object') {
-		return false;
-	}
-	const maybeError = err as { name?: string; message?: string };
-	return maybeError.name === 'NavigationDuplicated' || (maybeError.message || '').includes('Avoided redundant navigation');
-}
-
-async function pushUrlWithHistoryState(router: Router, url: string, state: BrowserHistoryEntry): Promise<void> {
-	const target = toRouterPath(url);
-	try {
-		await router.push(target);
-	} catch (e) {
-		if (!isNavigationDuplicated(e)) {
-			throw e;
-		}
-	}
-
-	const existingState = history.state && typeof history.state === 'object' ? (history.state as Record<string, unknown>) : {};
-	history.replaceState(
-		{
-			...existingState,
-			[HISTORY_STATE_KEY]: state,
-		},
-		'',
-		undefined,
-	);
-}
-
-function currentUrlWithoutOrigin(): string {
-	return new URI().host('').protocol('').port('').toString().replace(/\/+$/, '');
-}
-
-function getSearchfieldForUrl(): string | null {
-	try {
-		return QueryStore.get.sourceField().id;
-	} catch {
-		return null;
-	}
-}
-
-function toUrlPayload(v: QueryState): QueryState & { isTruncated: boolean; url: string } {
-	const full = stateToUrl({
-		contextUrl: CONTEXT_URL,
-		indexId: v.indexId,
-		params: v.params,
-		pattern: QueryStore.get.patternString(),
-		gapValue: QueryStore.getState().gap?.value || null,
-		searchfield: getSearchfieldForUrl(),
-		article: v.article,
-		state: v.state,
-	});
-	return {
-		url: full.url,
-		isTruncated: full.isTruncated,
-		state: v.state,
-		params: v.params,
-		article: v.article,
-	};
-}
-
-function shouldPushUrl(v: QueryState & { isTruncated: boolean; url: string }): boolean {
-	if (currentUrlWithoutOrigin() !== v.url) {
-		return true;
-	}
-	if (!v.isTruncated) {
-		return false;
-	}
-
-	const lastState = getStoredHistoryEntry(history.state);
-	if (lastState == null) {
-		return false;
-	}
-	if (!lastState.interface || !lastState.patterns || !lastState.gap) {
-		return true;
-	}
-
-	return (
-		jsonStableStringify({ formState: v.state.query.formState, gap: v.state.query.gap }) !== jsonStableStringify({ formState: lastState.patterns[lastState.interface.patternMode], gap: lastState.gap })
-	);
-}
-
-function toBrowserHistoryEntry(v: QueryState & { url: string }): QueryState & { entry: BrowserHistoryEntry; url: string } {
-	const { query, views, global } = v.state;
-	const activeView = v.state.interface.viewedResults ? views[v.state.interface.viewedResults] : undefined;
-	const entry: BrowserHistoryEntry = {
-		filters: query.filters || {},
-		global,
-		view: activeView || cloneDeep(ViewStore.initialViewState),
-		explore:
-			query.form === 'explore'
+	const stopUrlToStore = watch(
+		() => {
+			const route = router.currentRoute.value;
+			const routeName = getManagedRouteName(dependencies.pageMeta.value, route);
+			const corpus = loadedCorpus.value;
+			const indexId = dependencies.indexId.value;
+			return routeName && corpus && indexId
 				? {
-						...ExploreStore.defaults,
-						[query.subForm]: query.formState,
+						key: `${routeName}:${indexId}:${route.fullPath}`,
+						routeName,
+						route,
+						corpus,
 					}
-				: ExploreStore.defaults,
-		patterns:
-			query.form === 'search'
-				? {
-						...PatternStore.defaults,
-						[query.subForm]: query.formState,
-						shared: query.shared,
-					}
-				: PatternStore.defaults,
-		interface: {
-			form: query.form ? query.form : 'search',
-			exploreMode: query.form === 'explore' ? query.subForm : 'ngram',
-			patternMode: query.form === 'search' ? query.subForm : 'simple',
-			viewedResults: v.state.interface.viewedResults,
-			activeAnnotationTab: v.state.interface.activeAnnotationTab,
-			activeFilterTab: v.state.interface.activeFilterTab,
+				: null;
 		},
-		gap: query.gap || GapStore.defaults,
-		article: v.article || undefined,
-	};
-	return {
-		indexId: v.indexId,
-		url: v.url,
-		entry,
-		state: v.state,
-		params: v.params,
-		article: v.article,
-	};
-}
-
-function addQueryHistoryEntry(v: QueryState & { entry: BrowserHistoryEntry; url: string }) {
-	const entryForQueryHistory: HistoryStore.HistoryEntry = {
-		filters: v.entry.filters,
-		global: v.entry.global,
-		view: v.entry.view,
-		explore: v.entry.explore,
-		patterns: v.entry.patterns,
-		interface: v.entry.interface,
-		gap: v.entry.gap,
-	};
-	HistoryStore.actions.addEntry({
-		entry: entryForQueryHistory,
-		pattern: v.params && v.params.patt,
-		url: v.url,
-	});
-}
-
-function createStoreToUrlSubscription(router: Router) {
-	return urlInputParameters$.pipe(map(toUrlPayload), filter(shouldPushUrl), map(toBrowserHistoryEntry)).subscribe(v => {
-		debugLog('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', v.url, v.entry);
-		addQueryHistoryEntry(v);
-		debugLog('history', `Calling router.push (then replaceState) with entry:`, v.entry, `and url:`, v.url);
-		pushUrlWithHistoryState(router, v.url, v.entry).catch(e => {
-			console.error('Failed to push URL through router', e);
-		});
-	});
-}
-
-function startStoreToUrlReflection(router: Router, initialUrlStateApplied: Promise<void>, corpus: Ref<Corpus | undefined>) {
-	if (stopStoreToUrlReflectionHandle) {
-		return stopStoreToUrlReflectionHandle;
-	}
-
-	debugLog('init', 'Begin attaching store to URL reflection.');
-
-	let stopped = false;
-	let reflectionReady = false;
-	let latestManagedState: QueryState | null = null;
-	const storeToUrlSubscription = createStoreToUrlSubscription(router);
-	const stopWatch = watch(
-		(): SyncWatchState => ({
-			routeName: getRouteName(router.currentRoute.value),
-			indexId: corpus.value?.id,
-			params: RootStore.get.blacklabParameters(),
-			article: getArticleUrlStateFromRoute(router.currentRoute.value),
-			state: {
-				views: ViewStore.getState(),
-				global: GlobalResultsStore.getState(),
-				interface: InterfaceStore.getState(),
-				query: QueryStore.getState(),
-			},
-		}),
-		cur => {
-			if (!isUrlManagedRoute(cur.routeName) || !cur.indexId) {
-				latestManagedState = null;
+		async current => {
+			const run = ++latestUrlApplyRun;
+			readyNavigationKey.value = null;
+			if (!current) {
 				return;
 			}
 
-			latestManagedState = cloneDeep({
-				indexId: cur.indexId,
-				params: cur.params,
-				article: cur.article,
-				state: cur.state,
-			});
+			const selfNavigation = pendingSelfNavigation.value;
+			if (selfNavigation?.fullPath === current.route.fullPath) {
+				const existingState = history.state && typeof history.state === 'object' ? (history.state as Record<string, unknown>) : {};
+				history.replaceState({ ...existingState, ...selfNavigation.state }, '', undefined);
+				pendingSelfNavigation.value = null;
+				readyNavigationKey.value = current.key;
+				return;
+			}
 
-			if (reflectionReady) {
-				urlInputParameters$.next(cloneDeep(latestManagedState));
+			const stateFromHistory = getStoredHistoryEntry(history.state);
+			let state = stateFromHistory;
+
+			if (!state) {
+				try {
+					state =
+						current.routeName === 'article'
+							? await new UrlStateParserArticle(createUrlStateParserArticleDependencies({ corpus: current.corpus })).get()
+							: await new UrlStateParserSearch(createUrlStateParserSearchDependencies({ blacklabApi: dependencies.blacklabApi, corpus: current.corpus })).get();
+				} catch (e) {
+					console.error('Failed to restore URL state', e);
+					return;
+				}
+			}
+
+			if (run !== latestUrlApplyRun) {
+				return;
+			}
+
+			debugLog('history', stateFromHistory ? 'Restoring state from browser history.' : 'Restoring state from URL.', current.route.fullPath, state);
+			RootStore.actions.replace(state);
+			await nextTick();
+			if (run === latestUrlApplyRun) {
+				readyNavigationKey.value = current.key;
 			}
 		},
 		{
 			immediate: true,
-			deep: true,
+			flush: 'post',
 		},
 	);
 
-	void initialUrlStateApplied.then(() => {
-		if (stopped) {
-			return;
-		}
+	const stopStoreToUrl = watch(
+		() => {
+			const route = router.currentRoute.value;
+			const routeName = getManagedRouteName(dependencies.pageMeta.value, route);
+			const indexId = dependencies.indexId.value;
+			if (!routeName || !loadedCorpus.value || !indexId || readyNavigationKey.value !== `${routeName}:${indexId}:${route.fullPath}`) {
+				return null;
+			}
 
-		reflectionReady = true;
-		if (latestManagedState) {
-			urlInputParameters$.next(cloneDeep(latestManagedState));
-		}
-	});
+			return cloneDeep({
+				indexId,
+				params: RootStore.get.blacklabParameters(),
+				article: getArticleUrlStateFromRoute(route),
+				state: {
+					views: ViewStore.getState(),
+					global: GlobalResultsStore.getState(),
+					interface: InterfaceStore.getState(),
+					query: QueryStore.getState(),
+				},
+			}) satisfies QueryState;
+		},
+		value => {
+			if (!value) {
+				return;
+			}
 
-	stopStoreToUrlReflectionHandle = () => {
-		stopped = true;
-		stopWatch();
-		storeToUrlSubscription.unsubscribe();
-		stopStoreToUrlReflectionHandle = null;
-		debugLog('init', 'Stopped store to URL reflection.');
-	};
+			let searchfield: string | null = null;
+			try {
+				searchfield = QueryStore.get.sourceField().id;
+			} catch {
+				searchfield = null;
+			}
 
-	return stopStoreToUrlReflectionHandle;
-}
+			const urlPayload = stateToUrl({
+				contextUrl: CONTEXT_URL,
+				indexId: value.indexId,
+				params: value.params,
+				pattern: QueryStore.get.patternString(),
+				gapValue: QueryStore.getState().gap?.value || null,
+				searchfield,
+				article: value.article,
+				state: value.state,
+			});
 
-async function restoreCurrentUrlState(router: Router, dependencies: UrlStateSyncDependencies) {
-	const routeName = getRouteName(router.currentRoute.value);
-	if (!isUrlManagedRoute(routeName)) {
-		return;
-	}
+			const currentUrl = new URI().host('').protocol('').port('').toString().replace(/\/+$/, '');
+			const lastState = getStoredHistoryEntry(history.state);
+			const urlAlreadyCorrect = currentUrl === urlPayload.url;
+			const truncatedStateAlreadyCorrect =
+				urlPayload.isTruncated &&
+				lastState?.interface &&
+				lastState.patterns &&
+				lastState.gap &&
+				jsonStableStringify({ formState: value.state.query.formState, gap: value.state.query.gap }) ===
+					jsonStableStringify({ formState: lastState.patterns[lastState.interface.patternMode], gap: lastState.gap });
 
-	try {
-		RootStore.actions.replace(await decodeStateFromCurrentUrl(dependencies, routeName));
-	} catch (e) {
-		console.error('Failed to restore URL state', e);
-	}
-}
+			if (urlAlreadyCorrect && (!urlPayload.isTruncated || !lastState || truncatedStateAlreadyCorrect)) {
+				return;
+			}
 
-function applyInitialUrlStateWhenStoreIsReady(router: Router, dependencies: UrlStateSyncDependencies): Promise<void> {
-	if (initialUrlStateAppliedPromise) {
-		return initialUrlStateAppliedPromise;
-	}
+			const { query, views, global } = value.state;
+			const activeView = value.state.interface.viewedResults ? views[value.state.interface.viewedResults] : undefined;
+			const entry: BrowserHistoryEntry = {
+				filters: query.filters || {},
+				global,
+				view: activeView || cloneDeep(ViewStore.initialViewState),
+				explore:
+					query.form === 'explore'
+						? {
+								...ExploreStore.defaults,
+								[query.subForm]: query.formState,
+							}
+						: ExploreStore.defaults,
+				patterns:
+					query.form === 'search'
+						? {
+								...PatternStore.defaults,
+								[query.subForm]: query.formState,
+								shared: query.shared,
+							}
+						: PatternStore.defaults,
+				interface: {
+					form: query.form ? query.form : 'search',
+					exploreMode: query.form === 'explore' ? query.subForm : 'ngram',
+					patternMode: query.form === 'search' ? query.subForm : 'simple',
+					viewedResults: value.state.interface.viewedResults,
+					activeAnnotationTab: value.state.interface.activeAnnotationTab,
+					activeFilterTab: value.state.interface.activeFilterTab,
+				},
+				gap: query.gap || GapStore.defaults,
+				article: value.article || undefined,
+			};
 
-	initialUrlStateAppliedPromise = new Promise<void>(resolve => {
-		const loadingState = RootStore.get.loadingState();
-		if (loadingState.value.isLoaded()) {
-			void restoreCurrentUrlState(router, dependencies).finally(resolve);
-			return;
-		}
+			HistoryStore.actions.addEntry({
+				entry: {
+					filters: entry.filters,
+					global: entry.global,
+					view: entry.view,
+					explore: entry.explore,
+					patterns: entry.patterns,
+					interface: entry.interface,
+					gap: entry.gap,
+				},
+				pattern: value.params && value.params.patt,
+				url: urlPayload.url,
+			});
 
-		const stop = watch(
-			() => loadingState.value,
-			state => {
-				if (!state.isLoaded()) {
-					return;
-				}
+			const context = (CONTEXT_URL || '').replace(/\/+$/, '');
+			const routerPath = !context || !urlPayload.url.startsWith(context) ? urlPayload.url : urlPayload.url.slice(context.length) || '/';
+			const resolvedTarget = router.resolve(routerPath);
+			const historyState = {
+				[HISTORY_STATE_KEY]: entry,
+			};
+			pendingSelfNavigation.value = {
+				fullPath: resolvedTarget.fullPath,
+				state: historyState,
+			};
 
-				stop();
-				void restoreCurrentUrlState(router, dependencies).finally(resolve);
-			},
-		);
-	});
+			debugLog('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', urlPayload.url, entry);
+			debugLog('history', `Calling router.push with entry:`, entry, `and url:`, urlPayload.url);
 
-	return initialUrlStateAppliedPromise;
-}
-
-function startBrowserHistoryRestore(dependencies: UrlStateSyncDependencies) {
-	if (stopBrowserHistoryRestoreHandle) {
-		return stopBrowserHistoryRestoreHandle;
-	}
-
-	debugLog('init', 'Begin attaching browser history restore.');
-	const historyRestoreSubscription = fromEvent<PopStateEvent>(window, 'popstate')
-		.pipe(
-			mergeMap(evt => {
-				const fromState = getStoredHistoryEntry(evt.state);
-				if (fromState) return of(fromState);
-
-				const routeName = getUrlRouteNameFromLocation();
-				return routeName ? decodeStateFromCurrentUrl(dependencies, routeName) : EMPTY;
-			}),
-		)
-		.subscribe(state => RootStore.actions.replace(state));
-
-	stopBrowserHistoryRestoreHandle = () => {
-		historyRestoreSubscription.unsubscribe();
-		stopBrowserHistoryRestoreHandle = null;
-		debugLog('init', 'Stopped browser history restore.');
-	};
-
-	return stopBrowserHistoryRestoreHandle;
-}
-
-export default function startUrlSync(router: Router, dependencies: UrlStateSyncDependencies) {
-	const initialUrlStateApplied = applyInitialUrlStateWhenStoreIsReady(router, dependencies);
-	const stopStoreToUrl = startStoreToUrlReflection(router, initialUrlStateApplied, dependencies.corpus);
-	const stopHistoryRestore = startBrowserHistoryRestore(dependencies);
+			router
+				.push({
+					path: resolvedTarget.path,
+					query: resolvedTarget.query,
+					hash: resolvedTarget.hash,
+					state: historyState as any,
+				})
+				.then(
+					() => {
+						const existingState = history.state && typeof history.state === 'object' ? (history.state as Record<string, unknown>) : {};
+						history.replaceState({ ...existingState, ...historyState }, '', undefined);
+					},
+					e => {
+						const maybeError = e as { name?: string; message?: string } | null;
+						if (maybeError?.name === 'NavigationDuplicated' || (maybeError?.message || '').includes('Avoided redundant navigation')) {
+							if (pendingSelfNavigation.value?.fullPath === resolvedTarget.fullPath) {
+								pendingSelfNavigation.value = null;
+							}
+							const existingState = history.state && typeof history.state === 'object' ? (history.state as Record<string, unknown>) : {};
+							history.replaceState({ ...existingState, ...historyState }, '', undefined);
+							return;
+						}
+						if (pendingSelfNavigation.value?.fullPath === resolvedTarget.fullPath) {
+							pendingSelfNavigation.value = null;
+						}
+						console.error('Failed to push URL through router', e);
+					},
+				);
+		},
+		{
+			immediate: true,
+			deep: true,
+			flush: 'post',
+		},
+	);
 
 	return () => {
+		stopUrlToStore();
 		stopStoreToUrl();
-		stopHistoryRestore();
 	};
 }
