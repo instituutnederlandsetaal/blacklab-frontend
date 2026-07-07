@@ -1,0 +1,156 @@
+import { computed, type App, type ComputedRef, type Ref } from 'vue';
+
+import type { Corpus } from '@/app/state/useCorpusContext';
+import * as UIStore from '@/app/state/ui-state';
+import {
+	annotationPosController,
+	annotationSelectController,
+	annotationTextController,
+	FormBuilder,
+	parallelController,
+	type FormFieldNode,
+	type FormRuntimeContext,
+} from '@/features/form';
+import type { ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
+import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
+
+import type { BlackLabApi } from '@/shared/api/lib/api-types';
+import type { Translate } from '@/shared/i18n';
+import useInjectable from '@/shared/utils/useInjectable';
+
+import AnnotationPosField from '@/features/form/fields/AnnotationPosField.vue';
+import ParallelField from '@/features/form/fields/ParallelField.vue';
+import SelectField from '@/features/form/fields/generic/SelectField.vue';
+import TextField from '@/features/form/fields/generic/TextField.vue';
+import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
+
+export type SearchFormSystem = {
+	definition: ComputedRef<FormBuilder | null>;
+	getDefinition: () => FormBuilder | null;
+};
+
+type CreateSearchFormSystemOptions = {
+	blacklabApi: BlackLabApi;
+	corpus: Ref<Corpus | undefined>;
+	tagset: Ref<Tagset | undefined>;
+	translate: Translate;
+};
+
+const [_searchFormSystemKey, provideSearchFormSystem, useSearchFormSystem] = useInjectable<SearchFormSystem>('searchFormSystem');
+
+function createAnnotationField(builder: FormBuilder, nodeId: string, annotation: NormalizedAnnotation, corpus: Corpus, tagset: Tagset | undefined, blacklabApi: BlackLabApi, translate: Translate): FormFieldNode {
+	const displayName = computed(() => translate.$tAnnotDisplayName(annotation));
+	const description = computed(() => translate.$tAnnotDescription(annotation));
+	const textDirection = annotation.isMainAnnotation ? corpus.textDirection : undefined;
+
+	if (annotation.uiType === 'pos' && tagset) {
+		return builder.newField(nodeId, annotationPosController, AnnotationPosField, {
+			annotation,
+			showQueryPreview: true,
+			subAnnotations: Object.fromEntries(
+				(annotation.subAnnotations ?? [])
+					.map(subAnnotationId => [subAnnotationId, corpus.allAnnotatedFieldsMap[annotation.annotatedFieldId]?.annotations[subAnnotationId]])
+					.filter((entry): entry is [string, NormalizedAnnotation] => !!entry[1]),
+			),
+			tagset,
+		});
+	}
+
+	if ((annotation.uiType === 'select' || annotation.uiType === 'combobox') && annotation.values?.length) {
+		return builder.newField(nodeId, annotationSelectController, SelectField, {
+			annotationId: annotation.id,
+			description,
+			displayName,
+			multiple: true,
+			options: annotation.values,
+			textDirection,
+		});
+	}
+
+	return builder.newField(nodeId, annotationTextController, TextField, {
+		annotationId: annotation.id,
+		autocomplete:
+			annotation.uiType === 'combobox' && annotation.annotatedFieldId
+				? (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term)
+				: undefined,
+		caseSensitive: annotation.caseSensitive,
+		description,
+		displayName,
+		textDirection,
+		variant: 'large',
+	});
+}
+
+function getSimpleSearchAnnotation(corpus: Corpus): NormalizedAnnotation {
+	const simpleAnnotationId = UIStore.getState().search.simple.searchAnnotationId;
+	const annotatedFieldId = corpus.isParallelCorpus ? corpus.parallelAnnotatedFields[0]?.id : corpus.mainAnnotatedField;
+	const sourceField = annotatedFieldId ?? corpus.mainAnnotatedField;
+	const annotation = corpus.allAnnotatedFieldsMap[sourceField]?.annotations[simpleAnnotationId] || corpus.firstMainAnnotation;
+	return {
+		...annotation,
+		annotatedFieldId: corpus.isParallelCorpus ? '' : sourceField,
+	};
+}
+
+function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, blacklabApi: BlackLabApi, translate: Translate): FormBuilder {
+	const context: FormRuntimeContext = {
+		corpus: {
+			indexId: corpus.id,
+			textDirection: corpus.textDirection,
+		},
+		translate,
+	};
+	const builder = new FormBuilder(context);
+	const annotation = getSimpleSearchAnnotation(corpus);
+	const form = builder.newForm('search.simple', ContainerRenderer, {
+		title: translate.$t('search.simple.heading'),
+	});
+
+	if (corpus.isParallelCorpus) {
+		const childConfig = {
+			annotationId: annotation.id,
+			caseSensitive: annotation.caseSensitive,
+			description: computed(() => translate.$tAnnotDescription(annotation)),
+			displayName: computed(() => translate.$tAnnotDisplayName(annotation)),
+			textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
+			variant: 'large' as const,
+		};
+		const field = builder.newField('search.simple.parallel', parallelController, ParallelField, {
+			alignByOptions: UIStore.getState().search.shared.alignBy.elements.map(option => option.value).filter((value): value is string => typeof value === 'string'),
+			child: {
+				id: 'query',
+				controller: annotationTextController,
+				component: TextField,
+				config: childConfig,
+			},
+			fieldOptions: corpus.parallelAnnotatedFields,
+		});
+		form.addChildren(field);
+
+		const state = builder.state.state.value[field.id] as ParallelFieldState;
+		state.source = corpus.parallelAnnotatedFields[0]?.id ?? null;
+	} else {
+		form.addChildren(createAnnotationField(builder, 'search.simple.annotation', annotation, corpus, tagset, blacklabApi, translate));
+	}
+
+	return builder;
+}
+
+export function createSearchFormSystem(options: CreateSearchFormSystemOptions): SearchFormSystem {
+	const definition = computed(() => {
+		const corpus = options.corpus.value;
+		if (!corpus) return null;
+		return createSearchFormDefinition(corpus, options.tagset.value, options.blacklabApi, options.translate);
+	});
+
+	return {
+		definition,
+		getDefinition: () => definition.value,
+	};
+}
+
+export function provideSearchFormSystemPlugin(app: App, system: SearchFormSystem) {
+	provideSearchFormSystem(app, system);
+}
+
+export { useSearchFormSystem };

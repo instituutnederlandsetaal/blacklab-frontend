@@ -16,6 +16,7 @@ import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import { createBlfRouter } from '@/navigation/router';
+import { createSearchFormSystem, provideSearchFormSystemPlugin } from '@/features/search/model/search-form-system';
 import startUrlSync from '@/url/url-state-sync';
 
 import { createApi } from '@/shared/api';
@@ -71,6 +72,12 @@ async function start() {
 	await router.router.isReady();
 	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId);
 	const i18n = createI18n(router.corpusId);
+	const searchFormSystem = createSearchFormSystem({
+		blacklabApi: api.blacklabApi,
+		corpus: corpusState.corpus,
+		tagset: corpusState.tagset,
+		translate: i18n.translate,
+	});
 
 	app.use(loginSystem);
 	app.use(debugSystem);
@@ -80,6 +87,7 @@ async function start() {
 	app.use(Filters);
 	app.use(FloatingVue);
 	app.use(corpusState);
+	provideSearchFormSystemPlugin(app, searchFormSystem);
 
 	app.component('Debug', DebugComponent);
 	app.component('AudioPlayer', AudioPlayer);
@@ -94,6 +102,7 @@ async function start() {
 		corpusContext: corpusState.contextLoader,
 		indexId: router.corpusId,
 		pageMeta: router.pageMeta,
+		searchForms: searchFormSystem,
 	});
 
 	app.runWithContext(() => startCustomizationInterop());

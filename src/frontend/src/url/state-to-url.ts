@@ -38,6 +38,7 @@ export type UrlTransformInput = {
 	contextUrl: string;
 	indexId?: string | null;
 	params?: BLTypes.BLSearchParameters;
+	scopedFormQuery?: Record<string, string | string[]> | null;
 	pattern?: string | null;
 	gapValue?: string | null;
 	searchfield?: string | null;
@@ -109,6 +110,7 @@ export function searchStateToUrl(input: UrlTransformInput): UrlTransformOutput {
 		first: view?.first,
 		number: view?.number,
 	});
+	Object.assign(queryParams, input.scopedFormQuery ?? {});
 
 	const fullUrl = toRelativeUrl(input.contextUrl, [input.indexId, 'search', viewedResults], queryParams as Record<string, unknown>);
 	const url =

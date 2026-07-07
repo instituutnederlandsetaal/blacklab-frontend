@@ -39,11 +39,13 @@ import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 
+import { useBlackLabApi } from '@/shared/api';
 import { frac2Percent } from '@/shared/utils/number-utils';
 
 import Spinner from '@/shared/ui/Spinner.vue';
 
 const corpus = useCorpus();
+const blacklab = useBlackLabApi();
 
 const activeFilters = computed(FilterStore.get.activeFilters);
 const summaryMap = computed(() => {
@@ -62,6 +64,7 @@ watchEffect(() =>
 		index: corpus.value,
 		filter: FilterStore.get.luceneQuery(),
 		annotatedFieldId: PatternStore.get.shared().source || corpus.value.mainAnnotatedField,
+		blacklab,
 	}),
 );
 </script>

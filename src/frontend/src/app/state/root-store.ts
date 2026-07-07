@@ -6,6 +6,7 @@ import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 // Article
 import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
+import type { CompiledFormStateWithSummaries } from '@/features/form';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
@@ -61,6 +62,8 @@ const get = {
 		const numberOfResults = Math.ceil((activeView.first + activeView.number - lowerPageBoundary) / pageSize) * pageSize;
 
 		const globalState = GlobalResultsModule.getState();
+		const usesNewForm = QueryModule.get.usesNewForm();
+		const searchfield = QueryModule.get.searchfield() ?? (usesNewForm ? QueryModule.get.sourceField().id : undefined);
 		return {
 			...debugParams,
 
@@ -68,7 +71,8 @@ const get = {
 			number: numberOfResults,
 
 			filter: QueryModule.get.filterString(),
-			field: QueryModule.get.sourceField().id,
+			field: usesNewForm ? undefined : QueryModule.get.sourceField().id,
+			searchfield,
 			patt,
 			pattgapdata: QueryModule.get.patternString() && QueryModule.getState().gap ? QueryModule.getState().gap!.value || undefined : undefined,
 
@@ -129,6 +133,38 @@ const actions = {
 		}
 
 		InterfaceModule.actions.viewedResults(newView);
+	},
+
+	searchFromNewFormSubmit: (snapshot: CompiledFormStateWithSummaries) => {
+		ViewModule.actions.resetAllViews({ resetGroupBy: false });
+		InterfaceModule.actions.form('search');
+		InterfaceModule.actions.patternMode('simple');
+
+		const oldPattern = QueryModule.get.patternString();
+		QueryModule.actions.searchNewForm({
+			form: 'search',
+			subForm: 'simple',
+			filters: {},
+			formState: cloneDeep(PatternModule.getState().simple),
+			shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
+			gap: GapModule.defaults,
+			newForm: snapshot,
+		});
+		const newPattern = snapshot.patt || undefined;
+
+		let newView = InterfaceModule.get.viewedResults();
+		if (newView == null) {
+			newView = newPattern ? 'hits' : 'docs';
+		} else if (newView === 'hits' && !newPattern) {
+			newView = 'docs';
+		} else if (oldPattern == null && newPattern != null) {
+			newView = 'hits';
+		}
+
+		InterfaceModule.actions.viewedResults(newView);
+		if (document.activeElement) {
+			(document.activeElement as HTMLInputElement).blur();
+		}
 	},
 
 	searchAfterRestore: () => {

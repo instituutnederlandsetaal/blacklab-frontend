@@ -127,8 +127,8 @@ const get = {
 						throw new Error('Cannot import: file does not appear to be a valid query.');
 					}
 
-					// Roundtrip from url if not compatible.
-					const entry = originalEntry.version === version ? originalEntry : await new UrlStateParserSearch(dependencies, new URI(originalEntry.url)).get();
+					// Roundtrip from url if not compatible, or when the new form runtime needs scoped f.* state restored.
+					const entry = originalEntry.version === version && !dependencies.newSearchForm ? originalEntry : await new UrlStateParserSearch(dependencies, new URI(originalEntry.url)).get();
 
 					resolve({
 						entry,
@@ -182,7 +182,7 @@ const actions = {
 				timestamp: new Date().getTime(),
 				displayValues: {
 					filters: filterSummary || '-',
-					pattern: patternSummary || '-',
+					pattern: patternSummary || pattern || '-',
 				},
 			}),
 		);

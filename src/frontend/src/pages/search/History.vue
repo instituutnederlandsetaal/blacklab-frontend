@@ -99,6 +99,7 @@ import { defineComponent, nextTick } from 'vue';
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import * as HistoryStore from '@/features/history/model/query-history-state';
+import { useSearchFormSystem } from '@/features/search/model/search-form-system';
 import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
@@ -112,9 +113,11 @@ export default defineComponent({
 		Modal,
 	},
 	setup() {
+		const searchFormSystem = useSearchFormSystem();
 		return {
 			blacklab: useBlackLabApi(),
 			corpus: useCorpus(),
+			searchFormDefinition: searchFormSystem.definition,
 		};
 	},
 	data: () => ({
@@ -157,8 +160,20 @@ export default defineComponent({
 			});
 		},
 
-		load(entry: HistoryStore.HistoryEntry) {
-			RootStore.actions.replace(entry);
+		async load(entry: HistoryStore.HistoryEntry | HistoryStore.FullHistoryEntry) {
+			if ('url' in entry && entry.url && this.searchFormDefinition) {
+				const parsed = await new UrlStateParserSearch(
+					createUrlStateParserSearchDependencies({
+						blacklabApi: this.blacklab,
+						corpus: this.corpus,
+						newSearchForm: this.searchFormDefinition,
+					}),
+					new URI(entry.url),
+				).get();
+				RootStore.actions.replace(parsed);
+			} else {
+				RootStore.actions.replace(entry);
+			}
 			this.$emit('close');
 		},
 		humanize(g: string[]): string[] {
@@ -182,6 +197,7 @@ export default defineComponent({
 				createUrlStateParserSearchDependencies({
 					blacklabApi: this.blacklab,
 					corpus: this.corpus,
+					newSearchForm: this.searchFormDefinition,
 				}),
 				uri,
 			).get();

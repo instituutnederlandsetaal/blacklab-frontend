@@ -26,6 +26,7 @@ import { reactive } from 'vue';
 import * as UIModule from '@/app/state/ui-state';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
+import type { CompiledFormStateWithSummaries, ScopedFormQuery, SummaryEntry } from '@/features/form';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
@@ -33,6 +34,15 @@ import type * as PatternModule from '@/features/search/model/form/pattern-state'
 import type { NormalizedAnnotatedField, NormalizedAnnotatedFieldParallel } from '@/types/apptypes';
 
 import { getPatternStringExplore, getPatternStringSearch, getPatternSummaryExplore, getPatternSummarySearch } from '@/shared/blacklab-helpers/pattern-utils';
+
+type NewFormQuerySnapshot = {
+	patt: string | null;
+	filter: string | null;
+	searchfield: string | null;
+	encoded: ScopedFormQuery;
+	summaries: SummaryEntry[];
+	formId: string;
+};
 
 // todo migrate these weirdo state shapes to mapped types?
 // might be a cleaner way of doing this...
@@ -47,6 +57,7 @@ type ModuleRootStateSearch<K extends keyof PatternModule.ModuleRootState> = {
 	shared: PatternModule.ModuleRootState['shared'];
 	filters: FilterModule.ModuleRootState;
 	gap: GapModule.ModuleRootState;
+	newForm?: NewFormQuerySnapshot | null;
 };
 
 type ModuleRootStateExplore<K extends keyof ExploreModule.ModuleRootState> = {
@@ -88,8 +99,9 @@ const useCorpus = () => context!.index!;
 
 const get = {
 	sourceField: (): NormalizedAnnotatedField => {
-		const fieldName = state.shared?.source || useCorpus().mainAnnotatedField;
-		return useCorpus().allAnnotatedFieldsMap[fieldName];
+		const corpus = useCorpus();
+		const fieldName = state.form === 'search' && state.newForm?.searchfield ? state.newForm.searchfield : state.shared?.source || corpus.mainAnnotatedField;
+		return corpus.allAnnotatedFieldsMap[fieldName] ?? corpus.allAnnotatedFieldsMap[corpus.mainAnnotatedField];
 	},
 	targetFields: (): NormalizedAnnotatedFieldParallel[] => {
 		const allFields = useCorpus().allAnnotatedFieldsMap;
@@ -98,6 +110,7 @@ const get = {
 
 	patternString: (): string | undefined => {
 		if (!state.subForm) return undefined;
+		if (state.form === 'search' && state.newForm) return state.newForm.patt || undefined;
 
 		const formState = {
 			[state.subForm as string]: state.formState,
@@ -116,6 +129,9 @@ const get = {
 	},
 	/** Human-readable version of the query for use in history, summaries, etc. */
 	patternSummary: (): string | undefined => {
+		if (state.form === 'search' && state.newForm) {
+			return state.newForm.summaries.map(summary => `${summary.label}: ${summary.value}`).join(', ') || undefined;
+		}
 		const formState = {
 			[state.subForm as string]: state.formState,
 			shared: state.shared,
@@ -134,7 +150,17 @@ const get = {
 		if (!state.form) {
 			return undefined;
 		}
+		if (state.form === 'search' && state.newForm) return state.newForm.filter || undefined;
 		return getFilterString(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
+	},
+	searchfield: (): string | undefined => {
+		return state.form === 'search' && state.newForm?.searchfield ? state.newForm.searchfield : undefined;
+	},
+	usesNewForm: (): boolean => {
+		return state.form === 'search' && !!state.newForm;
+	},
+	scopedFormQuery: (): ScopedFormQuery | undefined => {
+		return state.form === 'search' && state.newForm ? state.newForm.encoded : undefined;
 	},
 	filterSummary: (): string | undefined => {
 		if (!state.form) {
@@ -144,8 +170,27 @@ const get = {
 	},
 };
 
+function toNewFormQuerySnapshot(snapshot: CompiledFormStateWithSummaries): NewFormQuerySnapshot {
+	return {
+		patt: snapshot.patt,
+		filter: snapshot.filter,
+		searchfield: snapshot.searchfield,
+		encoded: cloneDeep(snapshot.encoded),
+		summaries: cloneDeep(snapshot.summaries),
+		formId: snapshot.formId,
+	};
+}
+
 const actions = {
 	search: (payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)),
+	searchNewForm: (payload: Omit<ModuleRootStateSearch<'simple'>, 'newForm'> & { newForm: CompiledFormStateWithSummaries }) =>
+		Object.assign(
+			state,
+			cloneDeep({
+				...payload,
+				newForm: toNewFormQuerySnapshot(payload.newForm),
+			}),
+		),
 	reset: () => Object.assign(state, Object.assign({}, initialState)),
 	replace: (payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)),
 };
@@ -156,4 +201,4 @@ const init = (_payload: CorpusContext) => {
 };
 
 export { actions, get, getState, init };
-export type { ModuleRootState };
+export type { ModuleRootState, NewFormQuerySnapshot };

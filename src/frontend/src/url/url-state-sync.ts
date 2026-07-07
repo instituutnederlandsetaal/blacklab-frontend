@@ -14,6 +14,7 @@ import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
+import type { SearchFormSystem } from '@/features/search/model/search-form-system';
 import type { PageMeta } from '@/navigation/page-context';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { getArticleUrlStateFromRoute } from '@/url/route-query';
@@ -44,6 +45,7 @@ type UrlStateSyncDependencies = {
 	corpusContext: LoadableFromRequest<CorpusContext>;
 	indexId: Ref<string | undefined>;
 	pageMeta: Ref<PageMeta | null>;
+	searchForms?: SearchFormSystem;
 };
 
 const HISTORY_STATE_KEY = 'cfHistoryState';
@@ -105,7 +107,8 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 				return;
 			}
 
-			const stateFromHistory = getStoredHistoryEntry(history.state);
+			const shouldParseSearchUrl = current.routeName === 'search' && !!dependencies.searchForms?.getDefinition();
+			const stateFromHistory = shouldParseSearchUrl ? null : getStoredHistoryEntry(history.state);
 			let state = stateFromHistory;
 
 			if (!state) {
@@ -113,7 +116,13 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 					state =
 						current.routeName === 'article'
 							? await new UrlStateParserArticle(createUrlStateParserArticleDependencies({ corpus: current.corpus })).get()
-							: await new UrlStateParserSearch(createUrlStateParserSearchDependencies({ blacklabApi: dependencies.blacklabApi, corpus: current.corpus })).get();
+							: await new UrlStateParserSearch(
+									createUrlStateParserSearchDependencies({
+										blacklabApi: dependencies.blacklabApi,
+										corpus: current.corpus,
+										newSearchForm: dependencies.searchForms?.getDefinition() ?? null,
+									}),
+								).get();
 				} catch (e) {
 					console.error('Failed to restore URL state', e);
 					return;
@@ -174,6 +183,7 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 				contextUrl: CONTEXT_URL,
 				indexId: value.indexId,
 				params: value.params,
+				scopedFormQuery: QueryStore.get.scopedFormQuery(),
 				pattern: QueryStore.get.patternString(),
 				gapValue: QueryStore.getState().gap?.value || null,
 				searchfield,

@@ -17,7 +17,7 @@
 		</ul>
 		<div class="tab-content" :class="{ parallel: isParallelCorpus }">
 			<div :class="['tab-pane form-horizontal', { active: activePattern === 'simple' }]" id="simple">
-				<template v-if="newForm"> Rendering new simple search </template>
+				<FormSystem v-if="newForm && searchFormDefinition" :definition="searchFormDefinition" @submit="submitNewForm" @reset="resetNewForm" />
 				<template v-else>
 					<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					<!-- TODO render the full annotation instance? requires some changes to bind to store correctly and apply appropriate classes though -->
@@ -98,11 +98,13 @@ import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
+import { FormSystem, type CompiledFormStateWithSummaries } from '@/features/form';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
+import { useSearchFormSystem } from '@/features/search/model/search-form-system';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
 import type * as AppTypes from '@/types/apptypes';
 import { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
@@ -125,6 +127,7 @@ import Within from '@/pages/search/form/Within.vue';
 export default defineComponent({
 	extends: ParallelFields,
 	components: {
+		FormSystem,
 		ParallelSourceAndTargets,
 		Annotation,
 		SearchAdvanced,
@@ -136,8 +139,10 @@ export default defineComponent({
 	},
 	setup() {
 		const blacklab = useBlackLabApi();
+		const searchFormSystem = useSearchFormSystem();
 		return {
 			blacklab,
+			searchFormDefinition: searchFormSystem.definition,
 		};
 	},
 	data: () => ({
@@ -237,6 +242,12 @@ export default defineComponent({
 		},
 	},
 	methods: {
+		submitNewForm(_formId: string, snapshot: CompiledFormStateWithSummaries) {
+			RootStore.actions.searchFromNewFormSubmit(snapshot);
+		},
+		resetNewForm() {
+			RootStore.actions.reset();
+		},
 		copyExtendedQuery() {
 			const patternState = PatternStore.getState();
 			const filterState = FilterStore.getState();
@@ -287,6 +298,7 @@ export default defineComponent({
 					createUrlStateParserSearchDependencies({
 						blacklabApi: this.blacklab,
 						corpus: this.corpus,
+						newSearchForm: this.searchFormDefinition,
 					}),
 				)
 				.then(r => {
