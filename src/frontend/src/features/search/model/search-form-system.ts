@@ -103,7 +103,7 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	const builder = new FormBuilder(context);
 	const annotation = getSimpleSearchAnnotation(corpus);
 	const form = builder.newForm('search.simple', ContainerRenderer, {
-		title: translate.$t('search.simple.heading'),
+		title: computed(() => translate.$t('search.simple.heading')),
 	});
 
 	if (corpus.isParallelCorpus) {
