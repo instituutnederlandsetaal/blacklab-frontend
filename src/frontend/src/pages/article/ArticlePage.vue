@@ -1,7 +1,7 @@
 <template>
 	<!-- TODO: i18n -->
 	<div class="container article" v-if="inputs">
-		<UseDraggable class="article-pagination" title="Hold to drag" :initial-value="initialPaginationPosition" storage-key="article-page-pagination-screen-position">
+		<div ref="article-pagination" title="Hold to drag" class="article-pagination" :style="paginationDraggable.style.value">
 			<template v-if="validPaginationInfo.isLoaded() && validPaginationInfo.value.pageSize != null">
 				<div class="pagination-container">
 					<label>Page</label>
@@ -34,7 +34,7 @@
 			<template v-else-if="hitToHighlight.isError()">
 				<label>Error loading hits</label>
 			</template>
-		</UseDraggable>
+		</div>
 
 		<ul id="articleTabs" class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
 			<li :class="{ active: activeArticleTab === 'content' }"><a href="#content" @click.prevent="activeArticleTab = 'content'">Content</a></li>
@@ -127,9 +127,8 @@
 </template>
 
 <script setup lang="ts">
-import { UseDraggable } from '@vueuse/components';
-import type { Position } from '@vueuse/core';
-import { computed, defineAsyncComponent, onUnmounted, ref, watch, watchEffect } from 'vue';
+import { useDraggable, useLocalStorage, useWindowSize } from '@vueuse/core';
+import { computed, defineAsyncComponent, onUnmounted, ref, useTemplateRef, watch, watchEffect } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import * as UIStore from '@/app/state/ui-state';
@@ -146,6 +145,7 @@ import { useBlackLabApi, useFrontendApi } from '@/shared/api';
 import type { ApiError } from '@/shared/api/lib/api-types';
 import { fieldSubset } from '@/shared/blacklab-helpers/field-groups';
 import { combineLoadableStreams, loadableFromStream } from '@/shared/utils/loadable/loadable-stream';
+import { clamp } from '@/shared/utils/number-utils';
 
 import Collapsible from '@/shared/ui/Collapsible.vue';
 import HtmlRenderer from '@/shared/ui/HtmlRenderer.vue';
@@ -153,11 +153,6 @@ import Pagination from '@/shared/ui/Pagination.vue';
 import Spinner from '@/shared/ui/Spinner.vue';
 
 const ArticlePageStatistics = defineAsyncComponent(() => import('@/pages/article/ArticlePageStatistics.vue'));
-
-const initialPaginationPosition: Position = {
-	x: Math.max(0, window.innerWidth * 0.9 - 250),
-	y: window.innerHeight * 0.1,
-};
 
 const blacklab = useBlackLabApi();
 const pageBootstrap = usePageBootstrap();
@@ -289,6 +284,22 @@ watch(
 	},
 	{ immediate: true },
 );
+
+const draggablePosition = useLocalStorage('article-page-pagination-screen-position', {
+	x: Math.max(0, window.innerWidth * 0.9 - 150),
+	y: window.innerHeight * 0.1,
+});
+const paginationDraggable = useDraggable(useTemplateRef('article-pagination'), {
+	initialValue: useLocalStorage('article-page-pagination-screen-position', {
+		x: Math.max(0, window.innerWidth * 0.9 - 150),
+		y: window.innerHeight * 0.1,
+	}),
+});
+const viewport = useWindowSize();
+watchEffect(() => {
+	paginationDraggable.x.value = draggablePosition.value.x = clamp(paginationDraggable.x.value, 0, viewport.width.value - 150);
+	paginationDraggable.y.value = draggablePosition.value.y = clamp(paginationDraggable.y.value, 50, viewport.height.value - 50);
+});
 
 onUnmounted(() => {
 	tooltipContext.value?.();

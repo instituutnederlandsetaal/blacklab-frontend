@@ -271,6 +271,7 @@ export default defineComponent({
 		},
 		setSuccess(data: BLTypes.BLSearchResult) {
 			debugLog('results', 'search results', data);
+			this.clearResults = false;
 			this.error = null;
 			this.request = null;
 			this.results = markRaw(data);
@@ -282,6 +283,7 @@ export default defineComponent({
 				this.error = UIStore.getState().global.errorMessage(data, isGrouped ? 'groups' : (this.id as 'hits' | 'docs'));
 				this.results = null;
 				this.paginationResults = null;
+				this.clearResults = false;
 			}
 			this.request = null;
 		},

@@ -21,7 +21,7 @@
  */
 
 import cloneDeep from 'clone-deep';
-import { reactive } from 'vue';
+import { reactive, toRaw } from 'vue';
 
 import * as UIModule from '@/app/state/ui-state';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
@@ -170,17 +170,6 @@ const get = {
 	},
 };
 
-function toNewFormQuerySnapshot(snapshot: CompiledFormStateWithSummaries): NewFormQuerySnapshot {
-	return {
-		patt: snapshot.patt,
-		filter: snapshot.filter,
-		searchfield: snapshot.searchfield,
-		encoded: cloneDeep(snapshot.encoded),
-		summaries: cloneDeep(snapshot.summaries),
-		formId: snapshot.formId,
-	};
-}
-
 const actions = {
 	search: (payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)),
 	searchNewForm: (payload: Omit<ModuleRootStateSearch<'simple'>, 'newForm'> & { newForm: CompiledFormStateWithSummaries }) =>
@@ -188,7 +177,7 @@ const actions = {
 			state,
 			cloneDeep({
 				...payload,
-				newForm: toNewFormQuerySnapshot(payload.newForm),
+				newForm: structuredClone(toRaw(payload.newForm)),
 			}),
 		),
 	reset: () => Object.assign(state, Object.assign({}, initialState)),
