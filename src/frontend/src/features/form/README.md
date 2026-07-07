@@ -68,11 +68,11 @@ Build forms with `new FormBuilder(context)` and the builder methods:
 const builder = new FormBuilder({ corpus, translate });
 
 builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(
-  builder.newField('search.simple.word', annotationTextController, TextField, {
-    annotationId: 'word',
-    displayName: 'Word',
-  }),
-  builder.newView('search.simple.summary', SummaryView, { title: 'Summary' }),
+	builder.newField('search.simple.word', annotationTextController, TextField, {
+		annotationId: 'word',
+		displayName: 'Word',
+	}),
+	builder.newView('search.simple.summary', SummaryView, { title: 'Summary' }),
 );
 ```
 
@@ -118,9 +118,9 @@ semantic tabs, for example a tab that implicitly adds a filter.
 
 ```ts
 type NewFormState = {
-  state: Record<string, unknown>;
-  uiState: Record<string, string | null>;
-  rawOverrides: BlackLabParameters;
+	state: Record<string, unknown>;
+	uiState: Record<string, string | null>;
+	rawOverrides: BlackLabParameters;
 };
 ```
 
@@ -176,13 +176,13 @@ A field controller is the behavioral half of a field:
 
 ```ts
 type FieldController<Kind, State, Extra> = {
-  kind: Kind;
-  createDefaultState(config, runtime): State;
-  getQueryContribution(config, runtime, state): QueryFragment;
-  getPersistKey(config, runtime): string;
-  restore(payload, config, runtime): State | { state: State; warnings?: string[]; errors?: string[] };
-  encode(state, config, runtime): string | string[] | null | undefined;
-  affectsBlackLabParameters: BlackLabParameter[] | ((config, runtime) => BlackLabParameter[]);
+	kind: Kind;
+	createDefaultState(config, runtime): State;
+	getQueryContribution(config, runtime, state): QueryFragment;
+	getPersistKey(config, runtime): string;
+	restore(payload, config, runtime): State | { state: State; warnings?: string[]; errors?: string[] };
+	encode(state, config, runtime): string | string[] | null | undefined;
+	affectsBlackLabParameters: BlackLabParameter[] | ((config, runtime) => BlackLabParameter[]);
 };
 ```
 
@@ -254,9 +254,9 @@ simplifies the IR and emits:
 
 ```ts
 {
-  patt: string | null;
-  filter: string | null;
-  searchfield: string | null;
+	patt: string | null;
+	filter: string | null;
+	searchfield: string | null;
 }
 ```
 
@@ -362,7 +362,7 @@ than in the component. Components should stay focused on editing state.
 
 1. Compile the active form with `builder.compile(formId)`.
 2. If needed, inspect `buildQueryIR(formNode, builder.state.getRawState(),
-   builder.context)` before emission.
+builder.context)` before emission.
 3. Check whether a `rawOverrides` entry is replacing `patt`, `filter`, or
    `searchfield`.
 4. Check container `combine` mode and active tab state in `uiState`.

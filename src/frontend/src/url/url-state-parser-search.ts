@@ -8,9 +8,9 @@ import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
-import type * as HistoryModule from '@/features/history/model/query-history-state';
 import { FORM_QUERY_PREFIX, restoreScopedFormState, type FormBuilder } from '@/features/form';
 import { getAllNodes } from '@/features/form/model/form-utils';
+import type * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
@@ -510,8 +510,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		const tagsetState = this.dependencies.tagsetState;
 		const tagsetInfo = tagsetState
 			? {
-					mainAnnotations: this.dependencies.corpus.allAnnotations.filter(a => a.uiType === 'pos')
-						.map(a => a.id),
+					mainAnnotations: this.dependencies.corpus.allAnnotations.filter(a => a.uiType === 'pos').map(a => a.id),
 					subAnnotations: Object.keys(tagsetState.subAnnotations),
 				}
 			: null;

@@ -3,7 +3,6 @@ import type { Ref } from 'vue';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import type { NormalizedIndex, NormalizedAnnotatedField, NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 
-
 /**
  * This is an adapter that mimics the old corpus vuex store, as compatibility layer for external customization scripts
  * NOT to be used internally!

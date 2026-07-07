@@ -1,16 +1,8 @@
 import { computed, type App, type ComputedRef, type Ref } from 'vue';
 
-import type { Corpus } from '@/app/state/useCorpusContext';
 import * as UIStore from '@/app/state/ui-state';
-import {
-	annotationPosController,
-	annotationSelectController,
-	annotationTextController,
-	FormBuilder,
-	parallelController,
-	type FormFieldNode,
-	type FormRuntimeContext,
-} from '@/features/form';
+import type { Corpus } from '@/app/state/useCorpusContext';
+import { annotationPosController, annotationSelectController, annotationTextController, FormBuilder, parallelController, type FormFieldNode, type FormRuntimeContext } from '@/features/form';
 import type { ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
 import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
@@ -19,9 +11,9 @@ import type { Translate } from '@/shared/i18n';
 import useInjectable from '@/shared/utils/useInjectable';
 
 import AnnotationPosField from '@/features/form/fields/AnnotationPosField.vue';
-import ParallelField from '@/features/form/fields/ParallelField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
+import ParallelField from '@/features/form/fields/ParallelField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
 export type SearchFormSystem = {
@@ -38,7 +30,15 @@ type CreateSearchFormSystemOptions = {
 
 const [_searchFormSystemKey, provideSearchFormSystem, useSearchFormSystem] = useInjectable<SearchFormSystem>('searchFormSystem');
 
-function createAnnotationField(builder: FormBuilder, nodeId: string, annotation: NormalizedAnnotation, corpus: Corpus, tagset: Tagset | undefined, blacklabApi: BlackLabApi, translate: Translate): FormFieldNode {
+function createAnnotationField(
+	builder: FormBuilder,
+	nodeId: string,
+	annotation: NormalizedAnnotation,
+	corpus: Corpus,
+	tagset: Tagset | undefined,
+	blacklabApi: BlackLabApi,
+	translate: Translate,
+): FormFieldNode {
 	const displayName = computed(() => translate.$tAnnotDisplayName(annotation));
 	const description = computed(() => translate.$tAnnotDescription(annotation));
 	const textDirection = annotation.isMainAnnotation ? corpus.textDirection : undefined;
@@ -70,9 +70,7 @@ function createAnnotationField(builder: FormBuilder, nodeId: string, annotation:
 	return builder.newField(nodeId, annotationTextController, TextField, {
 		annotationId: annotation.id,
 		autocomplete:
-			annotation.uiType === 'combobox' && annotation.annotatedFieldId
-				? (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term)
-				: undefined,
+			annotation.uiType === 'combobox' && annotation.annotatedFieldId ? (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term) : undefined,
 		caseSensitive: annotation.caseSensitive,
 		description,
 		displayName,
@@ -116,7 +114,9 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 			variant: 'large' as const,
 		};
 		const field = builder.newField('search.simple.parallel', parallelController, ParallelField, {
-			alignByOptions: UIStore.getState().search.shared.alignBy.elements.map(option => option.value).filter((value): value is string => typeof value === 'string'),
+			alignByOptions: UIStore.getState()
+				.search.shared.alignBy.elements.map(option => option.value)
+				.filter((value): value is string => typeof value === 'string'),
 			child: {
 				id: 'query',
 				controller: annotationTextController,

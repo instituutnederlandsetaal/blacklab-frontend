@@ -12,11 +12,11 @@ import Filters from '@/components/filters';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
+import { createSearchFormSystem, provideSearchFormSystemPlugin } from '@/features/search/model/search-form-system';
 import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
 import { createBlfRouter } from '@/navigation/router';
-import { createSearchFormSystem, provideSearchFormSystemPlugin } from '@/features/search/model/search-form-system';
 import startUrlSync from '@/url/url-state-sync';
 
 import { createApi } from '@/shared/api';

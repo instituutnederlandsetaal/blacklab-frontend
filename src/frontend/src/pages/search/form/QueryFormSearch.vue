@@ -104,8 +104,8 @@ import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-import { useSearchFormSystem } from '@/features/search/model/search-form-system';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
+import { useSearchFormSystem } from '@/features/search/model/search-form-system';
 import type * as AppTypes from '@/types/apptypes';
 import { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 

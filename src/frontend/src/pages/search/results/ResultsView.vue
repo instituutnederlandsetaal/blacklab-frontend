@@ -172,7 +172,7 @@ export default defineComponent({
 		results: null as null | BLTypes.BLSearchResult,
 		error: null as null | string,
 
-		_viewGroupName: null as string | null,
+		storedViewGroupName: null as string | null,
 
 		paginationResults: null as null | BLTypes.BLSearchResult,
 
@@ -318,7 +318,7 @@ export default defineComponent({
 				sort: this.sort,
 			};
 			this.viewGroup = groupId;
-			this._viewGroupName = groupDisplay;
+			this.storedViewGroupName = groupDisplay;
 		},
 	},
 	computed: {
@@ -508,7 +508,7 @@ export default defineComponent({
 			if (this.viewGroup == null) {
 				return '';
 			}
-			return this._viewGroupName ?? this.viewGroup.substring(this.viewGroup.indexOf(':') + 1) ?? this.$t('results.groupBy.groupNameWithoutValue').toString();
+			return this.storedViewGroupName ?? this.viewGroup.substring(this.viewGroup.indexOf(':') + 1) ?? this.$t('results.groupBy.groupNameWithoutValue').toString();
 		},
 
 		breadCrumbs(): Array<{

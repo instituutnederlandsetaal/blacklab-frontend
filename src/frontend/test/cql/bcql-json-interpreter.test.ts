@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 
-import { parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
+import { parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 
 describe('parseBcql', () => {
 	test('interprets BL5 compare nodes with a symbol annotation clause', async () => {

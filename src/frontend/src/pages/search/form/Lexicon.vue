@@ -28,8 +28,7 @@
 				:class="{ disabled: opt.count === 0 }"
 				:title="`${opt.word} (${opt.count})`"
 			>
-				<input type="checkbox" :value="opt" :disabled="opt.count === 0" v-model="opt.selected" /> {{ opt.word
-				}}<!-- ({{opt.count}})-->
+				<input type="checkbox" :value="opt" :disabled="opt.count === 0" v-model="opt.selected" /> {{ opt.word }}<!-- ({{opt.count}})-->
 			</label>
 		</div>
 		<template v-if="wordOptions && wordOptions.length">

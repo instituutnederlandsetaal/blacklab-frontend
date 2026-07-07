@@ -117,4 +117,3 @@ next migration steps, not as a full form-system reference.
 - Watch out for nested forms whenever a migrated form renders inside legacy
   search containers. Either let `FormSystem` own the submit boundary or make the
   legacy wrapper non-form for that mode.
-

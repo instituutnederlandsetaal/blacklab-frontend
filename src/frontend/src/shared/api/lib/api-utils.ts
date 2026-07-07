@@ -51,22 +51,10 @@ export async function handleError(error: AxiosError): Promise<never> {
 	// Something else is going on, assume it's a blacklab-server error
 	const contentType: string = response.headers['content-type'] || '';
 	if (isBLError(response.data)) {
-		const diagnostics = [
-			response.data.error.code,
-			response.data.error.message,
-			response.data.error.stackTrace ? `Stack Trace:\n${response.data.error.stackTrace}` : undefined,
-		]
+		const diagnostics = [response.data.error.code, response.data.error.message, response.data.error.stackTrace ? `Stack Trace:\n${response.data.error.stackTrace}` : undefined]
 			.filter(Boolean)
 			.join('\n');
-		return Promise.reject(
-			new ApiError(
-				response.data.error.code,
-				response.data.error.message,
-				response.statusText,
-				response.status,
-				diagnostics,
-			),
-		);
+		return Promise.reject(new ApiError(response.data.error.code, response.data.error.message, response.statusText, response.status, diagnostics));
 	} else if (contentType.match(/xml/i) && typeof response.data === 'string' && response.data.length) {
 		try {
 			const text = response.data;
