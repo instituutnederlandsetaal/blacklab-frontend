@@ -33,11 +33,15 @@ provideFormSystemRuntime(props.definition);
 
 watch(
 	() => props.definition,
-	(newForm, oldForm) => {
-		newForm.onSubmit((formId, snapshot) => {
+	(newForm, _oldForm, onCleanup) => {
+		const unsubscribeSubmit = newForm.onSubmit((formId, snapshot) => {
 			emit('submit', formId, snapshot);
 		});
-		newForm.onReset(() => emit('reset'));
+		const unsubscribeReset = newForm.onReset(() => emit('reset'));
+		onCleanup(() => {
+			unsubscribeSubmit();
+			unsubscribeReset();
+		});
 	},
 	{ immediate: true },
 );

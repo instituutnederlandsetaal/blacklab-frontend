@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 
 import { mount } from '@vue/test-utils';
-import { describe, expect, test } from 'vitest';
-import { nextTick } from 'vue';
+import { describe, expect, test, vi } from 'vitest';
+import { defineComponent, h, nextTick } from 'vue';
 
-import { filterTextController, FormSystem, type CompiledFormStateWithSummaries, type FormBuilder } from '@/features/form';
+import { annotationTextController, filterTextController, FormSystem, type CompiledFormStateWithSummaries, type FormBuilder } from '@/features/form';
 
 import { TestTextField, createTestBuilder, parentFormProbeView, testTextController } from './helpers';
 
@@ -28,6 +28,23 @@ function createSingleFormFixture(): FormFixture {
 			displayName: 'Word',
 		}),
 		builder.newView('search.simple.probe', parentFormProbeView, {}),
+	);
+
+	return {
+		definition: builder,
+	};
+}
+
+function createAutocompleteTextFixture(): FormFixture {
+	const builder = createTestBuilder();
+	const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+
+	form.addChildren(
+		builder.newField('search.simple.annotation', annotationTextController, TextField, {
+			annotationId: 'word',
+			autocomplete: vi.fn(async () => []),
+			displayName: 'Word',
+		}),
 	);
 
 	return {
@@ -146,6 +163,53 @@ describe('form system integration', () => {
 
 		expect(snapshot.patt).toBe('[word="(?i)water"]');
 		expect(snapshot.summaries).toEqual([{ id: 'search.simple.word', label: 'Word', value: 'water' }]);
+	});
+
+	test('editable autocomplete submits the latest input event without waiting for a tick', async () => {
+		const fixture = createAutocompleteTextFixture();
+		const wrapper = mount(FormSystem, {
+			props: fixture,
+		});
+		const input = wrapper.get('input[type="text"]').element as HTMLInputElement;
+
+		input.value = 'water';
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		await wrapper.get('form').trigger('submit');
+
+		const emitted = wrapper.emitted('submit') as Array<[string, CompiledFormStateWithSummaries]> | undefined;
+		expect(emitted).toHaveLength(1);
+		const [formId, snapshot] = emitted![0];
+
+		expect(formId).toBe('search.simple');
+		expect(snapshot.patt).toBe('[word="(?i)water"]');
+		expect(snapshot.encoded).toEqual({
+			'f.form': 'search.simple',
+			'f.word': 'water',
+		});
+	});
+
+	test('submit does not bubble to parent form handlers', async () => {
+		const fixture = createSingleFormFixture();
+		const parentSubmit = vi.fn();
+		const Harness = defineComponent({
+			setup() {
+				return () =>
+					h(
+						'div',
+						{
+							onSubmit: parentSubmit,
+						},
+						h(FormSystem, { definition: fixture.definition }),
+					);
+			},
+		});
+		const wrapper = mount(Harness);
+
+		await wrapper.get('input[aria-label="Word"]').setValue('water');
+		await wrapper.get('form').trigger('submit');
+
+		expect(wrapper.findComponent(FormSystem).emitted('submit')).toHaveLength(1);
+		expect(parentSubmit).not.toHaveBeenCalled();
 	});
 
 	test('replaceState updates rendered field state after mount', async () => {

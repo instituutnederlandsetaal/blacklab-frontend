@@ -9,6 +9,7 @@
 		"test": "npm run test:unit:coverage && npm run test:storybook",
 		"test:unit:coverage": "vitest --run --project unit --coverage",
 		"test:storybook": "vitest --run --project storybook",
+		"test:url-sync:smoke": "node scripts/url-sync-smoke.mjs",
 		"test:watch": "vitest --watch",
 		"check": "vue-tsc --noEmit -p tsconfig.app.json && oxlint --config oxlint.config.mts ./src/",
 		"build": "npm run build:blfschema && npm run check && npm run build:source",

@@ -35,9 +35,9 @@
 			@keydown.tab="doClose() /*focus shifts to next element, close menu*/"
 			@keydown.esc="doClose()"
 			@keydown.enter="doClose()"
-			@input.stop="emitChangeOnClose = true"
+			@input.stop="handleEditableInput"
 			@change.stop=""
-			v-model="inputValue"
+			:value="inputValue"
 			ref="focusOnEscClose"
 		/>
 		<button
@@ -794,6 +794,11 @@ export default defineComponent({
 			if (!this.multiple) {
 				this.doClose();
 			}
+		},
+		handleEditableInput(event: Event) {
+			this.emitChangeOnClose = true;
+			this.inputValue = (event.target as HTMLInputElement).value;
+			this.$emit('update:modelValue', this.inputValue);
 		},
 
 		//////////////////

@@ -1,3 +1,5 @@
+// oxlint-disable-next-line vue/prefer-import-from-vue -- pauseTracking/resetTracking are not exported by this Vue package entrypoint.
+import { pauseTracking, resetTracking } from '@vue/reactivity';
 import { computed, type App, type ComputedRef, type Ref } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
@@ -139,8 +141,15 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 export function createSearchFormSystem(options: CreateSearchFormSystemOptions): SearchFormSystem {
 	const definition = computed(() => {
 		const corpus = options.corpus.value;
+		const tagset = options.tagset.value;
 		if (!corpus) return null;
-		return createSearchFormDefinition(corpus, options.tagset.value, options.blacklabApi, options.translate);
+
+		pauseTracking();
+		try {
+			return createSearchFormDefinition(corpus, tagset, options.blacklabApi, options.translate);
+		} finally {
+			resetTracking();
+		}
 	});
 
 	return {

@@ -92,6 +92,7 @@
 </template>
 
 <script lang="ts">
+import URI from 'urijs';
 import { defineComponent } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
@@ -123,6 +124,12 @@ import ParallelSourceAndTargets from '@/pages/search/form/ParallelSourceAndTarge
 import SearchAdvanced from '@/pages/search/form/SearchAdvanced.vue';
 import SearchExpert from '@/pages/search/form/SearchExpert.vue';
 import Within from '@/pages/search/form/Within.vue';
+
+function toRouterPath(url: string): string {
+	const relativeUrl = new URI(url).host('').protocol('').port('').toString();
+	const context = (CONTEXT_URL || '').replace(/\/+$/, '');
+	return !context || !relativeUrl.startsWith(context) ? relativeUrl : relativeUrl.slice(context.length) || '/';
+}
 
 export default defineComponent({
 	extends: ParallelFields,
@@ -298,11 +305,11 @@ export default defineComponent({
 					createUrlStateParserSearchDependencies({
 						blacklabApi: this.blacklab,
 						corpus: this.corpus,
-						newSearchForm: this.searchFormDefinition,
 					}),
 				)
-				.then(r => {
-					RootStore.actions.replace(r.entry);
+				.then(async r => {
+					if (r.url) await this.$router.push(toRouterPath(r.url));
+					else RootStore.actions.replace(r.entry);
 					this.importQueryError = null;
 				})
 				.catch(e => (this.importQueryError = e.message))

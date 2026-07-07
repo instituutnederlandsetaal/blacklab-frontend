@@ -7,6 +7,7 @@ import '@/global.scss';
 import FloatingVue from 'floating-vue';
 import { createApp } from 'vue';
 
+import * as RootStore from '@/app/state/root-store';
 import { createCorpusContext } from '@/app/state/useCorpusContext';
 import Filters from '@/components/filters';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
@@ -78,6 +79,7 @@ async function start() {
 		tagset: corpusState.tagset,
 		translate: i18n.translate,
 	});
+	RootStore.actions.setSearchFormSystem(searchFormSystem);
 
 	app.use(loginSystem);
 	app.use(debugSystem);

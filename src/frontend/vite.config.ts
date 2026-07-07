@@ -8,6 +8,9 @@ import type { TestProjectConfiguration } from 'vitest/config';
 const dirname = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
 
 const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
+	const vitePort = Number(process.env.BLF_VITE_PORT || process.env.PORT || 5173);
+	const frontendProxyTarget = process.env.BLF_FRONTEND_PROXY_TARGET || 'http://localhost:8080';
+	const blacklabProxyTarget = process.env.BLF_BLACKLAB_PROXY_TARGET || 'http://localhost:8080';
 	const plugins: PluginOption[] = [vue()];
 	if (command === 'serve' && !process.env.VITEST) {
 		const { default: checker } = await import('vite-plugin-checker');
@@ -82,18 +85,18 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 		},
 		server: {
 			host: '0.0.0.0',
-			port: 5173,
+			port: vitePort,
 			// Ensure CSS url(...) assets resolve against the Vite dev server even when
 			// styles are consumed from another origin (e.g. Java backend on a different port).
-			origin: 'http://localhost:5173',
+			origin: `http://localhost:${vitePort}`,
 			strictPort: true,
 			cors: true,
 			headers: {
 				'Access-Control-Allow-Origin': '*',
 			},
 			proxy: {
-				'/blacklab-server': 'http://localhost:8080',
-				'/blacklab-frontend': 'http://localhost:8080',
+				'/blacklab-server': blacklabProxyTarget,
+				'/blacklab-frontend': frontendProxyTarget,
 			},
 		},
 		build: {

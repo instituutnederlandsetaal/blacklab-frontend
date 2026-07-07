@@ -15,8 +15,7 @@
 				:dir="textDirection"
 				:getData="autocomplete"
 				:disabled
-				:value
-				@update:model-value="value = $event"
+				v-model="value"
 			/>
 			<input
 				v-else

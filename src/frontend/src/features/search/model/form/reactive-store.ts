@@ -1,6 +1,6 @@
-import { computed } from 'vue';
+import { computed, type DebuggerOptions } from 'vue';
 
-export function memoize<T>(getter: () => T): () => T {
-	const value = computed(getter);
+export function memoize<T>(getter: () => T, debuggerOptions?: DebuggerOptions): () => T {
+	const value = computed(getter, debuggerOptions);
 	return () => value.value;
 }

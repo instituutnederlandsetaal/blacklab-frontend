@@ -335,9 +335,17 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 
 	onSubmit(callback: (formId: string, submitted: CompiledFormStateWithSummaries) => void) {
 		this.submitListeners.push(callback);
+		return () => {
+			const index = this.submitListeners.indexOf(callback);
+			if (index >= 0) this.submitListeners.splice(index, 1);
+		};
 	}
 	onReset(callback: () => void) {
 		this.resetListeners.push(callback);
+		return () => {
+			const index = this.resetListeners.indexOf(callback);
+			if (index >= 0) this.resetListeners.splice(index, 1);
+		};
 	}
 
 	shutdown() {

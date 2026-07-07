@@ -8,8 +8,6 @@ import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
-import { FORM_QUERY_PREFIX, restoreScopedFormState, type FormBuilder } from '@/features/form';
-import { getAllNodes } from '@/features/form/model/form-utils';
 import type * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
@@ -43,7 +41,6 @@ import { unescapeRegex } from '@/shared/utils/string-utils';
 export type UrlStateParserSearchDependencies = {
 	blacklabApi: BlackLabApi;
 	corpus: Corpus;
-	newSearchForm?: FormBuilder | null;
 	filterState: FilterModule.FullModuleRootState;
 	globalResultsState: GlobalResultsModule.ModuleRootState;
 	tagsetState: TagsetModule.ModuleRootState;
@@ -51,11 +48,10 @@ export type UrlStateParserSearchDependencies = {
 	customizations: typeof corpusCustomizations;
 };
 
-export function createUrlStateParserSearchDependencies(options: { blacklabApi: BlackLabApi; corpus: Corpus; newSearchForm?: FormBuilder | null }): UrlStateParserSearchDependencies {
+export function createUrlStateParserSearchDependencies(options: { blacklabApi: BlackLabApi; corpus: Corpus }): UrlStateParserSearchDependencies {
 	return {
 		blacklabApi: options.blacklabApi,
 		corpus: options.corpus,
-		newSearchForm: options.newSearchForm ?? null,
 		filterState: FilterModule.getState(),
 		globalResultsState: GlobalResultsModule.getState(),
 		tagsetState: TagsetModule.getState(),
@@ -78,7 +74,6 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	constructor(
 		private readonly dependencies: UrlStateParserSearchDependencies,
 		uri?: URI,
-		private readonly newSearchForm = dependencies.newSearchForm ?? null,
 	) {
 		super(uri);
 		try {
@@ -93,7 +88,6 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		// Make sure our parsed cql is up to date (used to be a memoized getter, but we need it to be async)
 		const cql = this.getString('patt') || this.getString('query') || null;
 		await this.updateParsedCql(cql);
-		this.restoreNewSearchFormState();
 
 		return {
 			explore: this.explore,
@@ -108,47 +102,6 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			article: this.article,
 			// submitted query not parsed from url: is restored from rest of state later.
 		};
-	}
-
-	private hasScopedFormQuery(): boolean {
-		return Object.keys(this.params).some(key => key.startsWith(FORM_QUERY_PREFIX));
-	}
-
-	private get canonicalFormParameters() {
-		return {
-			patt: this.getString('patt') || this.getString('query') || null,
-			filter: this.getString('filter', null, v => v || null),
-			searchfield: this.getString('searchfield') || this.getString('searchField') || this.getString('field') || null,
-		};
-	}
-
-	private get legacySimpleScopedFormQuery(): Record<string, unknown> | null {
-		if (!this.newSearchForm || this.hasScopedFormQuery()) return null;
-		if (this.interface.form !== 'search' || this.interface.patternMode !== 'simple') return null;
-		if (this.gap.value || Object.keys(this.filters).length) return null;
-
-		const simplePattern = this.simplePattern;
-		if (!simplePattern?.annotationValue.value) return null;
-
-		const simpleForm = this.newSearchForm.getForm('search.simple');
-		if (!simpleForm) return null;
-
-		const directField = getAllNodes(simpleForm, 'field').find(field => field.controller.getPersistKey(field, this.newSearchForm!.context) === simplePattern.annotationValue.id);
-		if (!directField) return null;
-
-		const value = simplePattern.annotationValue.case ? `${simplePattern.annotationValue.value};c=1` : simplePattern.annotationValue.value;
-		return {
-			[`${FORM_QUERY_PREFIX}form`]: simpleForm.id,
-			[`${FORM_QUERY_PREFIX}${directField.controller.getPersistKey(directField, this.newSearchForm.context)}`]: value,
-		};
-	}
-
-	private restoreNewSearchFormState() {
-		if (!this.newSearchForm) return;
-
-		const query = this.legacySimpleScopedFormQuery ?? this.params;
-		const restored = restoreScopedFormState(this.newSearchForm, query, this.canonicalFormParameters);
-		this.newSearchForm.state.replaceState(restored);
 	}
 
 	@memoize

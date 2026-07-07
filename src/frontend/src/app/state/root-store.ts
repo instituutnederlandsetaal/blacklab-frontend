@@ -1,7 +1,7 @@
 import cloneDeep from 'clone-deep';
 
 import * as UIModule from '@/app/state/ui-state';
-import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
+import { type CorpusContext } from '@/app/state/useCorpusContext';
 // Results
 // Article
 import * as ArticleModule from '@/features/article/model/article-state';
@@ -15,15 +15,48 @@ import * as FormManager from '@/features/search/model/form/form-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
 import * as InterfaceModule from '@/features/search/model/form/interface-state';
 import * as PatternModule from '@/features/search/model/form/pattern-state';
+import { memoize } from '@/features/search/model/form/reactive-store';
 import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
+import type { SearchFormSystem } from '@/features/search/model/search-form-system';
 import type * as BLTypes from '@/types/blacklabtypes';
 import type { ArticleUrlState } from '@/url/state-to-url';
 import { corpusCustomizations } from '@/utils/customization';
 
 import { getPatternString, getWithinClausesFromFilters } from '@/shared/blacklab-helpers/pattern-utils';
 import debug, { debugLog } from '@/shared/debug/debug';
+
+let searchFormSystem: SearchFormSystem | null = null;
+let localSearchIntentRevision = 0;
+
+let context: CorpusContext | null = null;
+const useCorpus = () => context?.index;
+
+function markLocalSearchIntent(): void {
+	localSearchIntentRevision += 1;
+}
+
+function getActiveNewSearchFormSnapshot(): CompiledFormStateWithSummaries | null {
+	if (!GlobalResultsModule.getState().useNewSearchForm) return null;
+	if (InterfaceModule.get.form() !== 'search') return null;
+
+	const definition = searchFormSystem?.getDefinition();
+	const form = definition?.getForm(`search.${InterfaceModule.get.patternMode()}`);
+	return definition && form ? definition.compile(form.id) : null;
+}
+
+function searchWithNewFormSnapshot(snapshot: CompiledFormStateWithSummaries): void {
+	QueryModule.actions.searchNewForm({
+		form: 'search',
+		subForm: 'simple',
+		filters: {},
+		formState: cloneDeep(PatternModule.getState().simple),
+		shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
+		gap: GapModule.defaults,
+		newForm: snapshot,
+	});
+}
 
 const get = {
 	viewedResultsSettings: () => {
@@ -41,7 +74,7 @@ const get = {
 		return InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'advanced';
 	},
 
-	blacklabParameters: (): BLTypes.BLSearchParameters | undefined => {
+	blacklabParameters: memoize((): BLTypes.BLSearchParameters | undefined => {
 		const activeView = get.viewedResultsSettings();
 		if (!activeView || !QueryModule.getState().form) return undefined;
 		if (GlobalResultsModule.getState().sampleSize && GlobalResultsModule.getState().sampleSeed == null) {
@@ -85,13 +118,19 @@ const get = {
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: globalState.context != null ? globalState.context : undefined,
 			adjusthits: true,
-			withspans: corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (FilterModule.get.hasSpanFilters() || useCorpus().value.hasRelations),
+			withspans: corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (FilterModule.get.hasSpanFilters() || !!useCorpus()?.hasRelations),
 		};
-	},
+	}),
+	localSearchIntentRevision: () => localSearchIntentRevision,
 };
 
 const actions = {
+	setSearchFormSystem: (system: SearchFormSystem | null) => {
+		searchFormSystem = system;
+	},
+
 	searchFromSubmit: () => {
+		markLocalSearchIntent();
 		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
 			actions.searchSplitBatches();
 			return;
@@ -136,20 +175,13 @@ const actions = {
 	},
 
 	searchFromNewFormSubmit: (snapshot: CompiledFormStateWithSummaries) => {
+		markLocalSearchIntent();
 		ViewModule.actions.resetAllViews({ resetGroupBy: false });
 		InterfaceModule.actions.form('search');
 		InterfaceModule.actions.patternMode('simple');
 
 		const oldPattern = QueryModule.get.patternString();
-		QueryModule.actions.searchNewForm({
-			form: 'search',
-			subForm: 'simple',
-			filters: {},
-			formState: cloneDeep(PatternModule.getState().simple),
-			shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
-			gap: GapModule.defaults,
-			newForm: snapshot,
-		});
+		searchWithNewFormSnapshot(snapshot);
 		const newPattern = snapshot.patt || undefined;
 
 		let newView = InterfaceModule.get.viewedResults();
@@ -185,6 +217,12 @@ const actions = {
 				break;
 			}
 			case 'search': {
+				const newFormSnapshot = getActiveNewSearchFormSnapshot();
+				if (newFormSnapshot) {
+					searchWithNewFormSnapshot(newFormSnapshot);
+					return;
+				}
+
 				const patternMode = InterfaceModule.get.patternMode();
 				submittedFormState = {
 					form: activeForm,
@@ -255,6 +293,7 @@ const actions = {
 	},
 
 	reset: () => {
+		markLocalSearchIntent();
 		FormManager.actions.reset();
 		ViewModule.actions.resetAllViews({ resetGroupBy: true });
 		QueryModule.actions.reset();
@@ -291,6 +330,7 @@ const actions = {
 
 const init = (state: CorpusContext) => {
 	debugLog('store', 'Initializing store with new corpus data', state);
+	context = state;
 
 	UIModule.init(state);
 

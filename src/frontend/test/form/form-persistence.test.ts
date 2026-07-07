@@ -232,6 +232,17 @@ describe('scoped form persistence', () => {
 		expect(restored.issues.map(issue => issue.key)).toEqual(['form', 'tab', 'removed']);
 	});
 
+	test('does not treat a form selector by itself as restorable query state', () => {
+		const fixture = createCanonicalFallbackFixture();
+
+		const restored = restoreScopedFormState(fixture.definition, { 'f.form': fixture.simple.id }, { patt: '[word="water"]' });
+
+		expect(restored.uiState.search).toBe(fixture.expert.id);
+		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
+		expect(restored.rawOverrides).toEqual({});
+		expect(restored.issues).toEqual([]);
+	});
+
 	test('uses valid scoped field state instead of canonical-only fallback', () => {
 		const fixture = createCanonicalFallbackFixture();
 

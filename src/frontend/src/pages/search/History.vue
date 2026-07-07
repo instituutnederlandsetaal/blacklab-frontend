@@ -99,7 +99,6 @@ import { defineComponent, nextTick } from 'vue';
 import * as RootStore from '@/app/state/root-store';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import * as HistoryStore from '@/features/history/model/query-history-state';
-import { useSearchFormSystem } from '@/features/search/model/search-form-system';
 import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 import { humanizeSerializedGroupBy } from '@/utils/grouping';
 
@@ -108,16 +107,20 @@ import useUid from '@/shared/utils/uid';
 
 import Modal from '@/shared/ui/Modal.vue';
 
+function toRouterPath(url: string): string {
+	const relativeUrl = new URI(url).host('').protocol('').port('').toString();
+	const context = (CONTEXT_URL || '').replace(/\/+$/, '');
+	return !context || !relativeUrl.startsWith(context) ? relativeUrl : relativeUrl.slice(context.length) || '/';
+}
+
 export default defineComponent({
 	components: {
 		Modal,
 	},
 	setup() {
-		const searchFormSystem = useSearchFormSystem();
 		return {
 			blacklab: useBlackLabApi(),
 			corpus: useCorpus(),
-			searchFormDefinition: searchFormSystem.definition,
 		};
 	},
 	data: () => ({
@@ -161,16 +164,8 @@ export default defineComponent({
 		},
 
 		async load(entry: HistoryStore.HistoryEntry | HistoryStore.FullHistoryEntry) {
-			if ('url' in entry && entry.url && this.searchFormDefinition) {
-				const parsed = await new UrlStateParserSearch(
-					createUrlStateParserSearchDependencies({
-						blacklabApi: this.blacklab,
-						corpus: this.corpus,
-						newSearchForm: this.searchFormDefinition,
-					}),
-					new URI(entry.url),
-				).get();
-				RootStore.actions.replace(parsed);
+			if ('url' in entry && entry.url) {
+				await this.$router.push(toRouterPath(entry.url));
 			} else {
 				RootStore.actions.replace(entry);
 			}
@@ -197,7 +192,6 @@ export default defineComponent({
 				createUrlStateParserSearchDependencies({
 					blacklabApi: this.blacklab,
 					corpus: this.corpus,
-					newSearchForm: this.searchFormDefinition,
 				}),
 				uri,
 			).get();

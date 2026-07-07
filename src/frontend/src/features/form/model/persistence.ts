@@ -265,7 +265,7 @@ export function restoreScopedFormState(builder: FormBuilder, query: Record<strin
 	if (scoped.keys.has('form')) {
 		consumed.add('form');
 		if (isFormNodeTheRequestedForm && requestedFormId) {
-			hasUsableScopedState = true;
+			// The form selector affects UI restoration, but does not carry query data by itself.
 		} else {
 			issues.push({
 				key: 'form',

@@ -1,11 +1,13 @@
 import cloneDeep from 'clone-deep';
 import jsonStableStringify from 'json-stable-stringify';
 import URI from 'urijs';
-import { computed, nextTick, ref, watch, type Ref } from 'vue';
-import type { RouteLocationNormalizedLoaded, Router } from 'vue-router';
+import { computed, nextTick, ref, shallowRef, watch, type Ref } from 'vue';
+import type { LocationQuery, RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
 import type { Corpus, CorpusContext } from '@/app/state/useCorpusContext';
+import { FORM_QUERY_PREFIX, restoreScopedFormState, type FormBuilder } from '@/features/form';
+import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
@@ -70,10 +72,88 @@ function getStoredHistoryEntry(state: unknown): BrowserHistoryEntry | null {
 	return null;
 }
 
+function getFirstQueryString(query: LocationQuery, ...keys: string[]): string | null {
+	for (const key of keys) {
+		const value = query[key];
+		const first = Array.isArray(value) ? value.find((item): item is string => typeof item === 'string' && item !== '') : value;
+		if (typeof first === 'string' && first !== '') return first;
+	}
+	return null;
+}
+
+export function getCanonicalFormParametersFromRoute(route: RouteLocationNormalizedLoaded, corpus: Pick<Corpus, 'isParallelCorpus'> | null = null): BlackLabParameters {
+	const searchfield = getFirstQueryString(route.query, 'searchfield', 'searchField', 'field');
+	return {
+		patt: getFirstQueryString(route.query, 'patt', 'query'),
+		filter: getFirstQueryString(route.query, 'filter'),
+		searchfield: corpus && !corpus.isParallelCorpus ? null : searchfield,
+	};
+}
+
+function hasScopedFormQuery(route: RouteLocationNormalizedLoaded): boolean {
+	return Object.keys(route.query).some(key => key.startsWith(FORM_QUERY_PREFIX));
+}
+
+function restoreNewSearchFormFromRoute(route: RouteLocationNormalizedLoaded, corpus: Corpus, definition: FormBuilder): void {
+	const canonical = getCanonicalFormParametersFromRoute(route, corpus);
+	const query = hasScopedFormQuery(route) ? (route.query as Record<string, unknown>) : {};
+	const restored = restoreScopedFormState(definition, query, canonical);
+	definition.state.replaceState(restored);
+	if (restored.issues.length) {
+		debugLog('url', 'New search form URL restore issues', restored.issues);
+	}
+}
+
+function getCurrentQueryState(indexId: string, route: RouteLocationNormalizedLoaded): QueryState {
+	return cloneDeep({
+		indexId,
+		params: RootStore.get.blacklabParameters(),
+		article: getArticleUrlStateFromRoute(route),
+		state: {
+			views: ViewStore.getState(),
+			global: GlobalResultsStore.getState(),
+			interface: InterfaceStore.getState(),
+			query: QueryStore.getState(),
+		},
+	}) satisfies QueryState;
+}
+
+function getSearchfieldFromStore(): string | null {
+	try {
+		return QueryStore.get.sourceField().id;
+	} catch {
+		return null;
+	}
+}
+
+function toRouterPath(url: string): string {
+	const context = (CONTEXT_URL || '').replace(/\/+$/, '');
+	return !context || !url.startsWith(context) ? url : url.slice(context.length) || '/';
+}
+
+function stateSnapshotToUrlPayload(value: QueryState) {
+	return stateToUrl({
+		contextUrl: CONTEXT_URL,
+		indexId: value.indexId,
+		params: value.params,
+		scopedFormQuery: QueryStore.get.scopedFormQuery(),
+		pattern: QueryStore.get.patternString(),
+		gapValue: value.state.query.gap?.value || null,
+		searchfield: getSearchfieldFromStore(),
+		article: value.article,
+		state: value.state,
+	});
+}
+
+function routeMatchesCurrentStoreUrl(router: Router, indexId: string, route: RouteLocationNormalizedLoaded): boolean {
+	const urlPayload = stateSnapshotToUrlPayload(getCurrentQueryState(indexId, route));
+	return router.resolve(toRouterPath(urlPayload.url)).fullPath === route.fullPath;
+}
+
 export default function startUrlSync(router: Router, dependencies: UrlStateSyncDependencies) {
 	const loadedCorpus = computed<Corpus | null>(() => (dependencies.corpusContext.isLoaded() ? dependencies.corpusContext.value.index || null : null));
 	const readyNavigationKey = ref<string | null>(null);
-	const pendingSelfNavigation = ref<{ fullPath: string; state: { [HISTORY_STATE_KEY]: BrowserHistoryEntry } } | null>(null);
+	const pendingSelfNavigation = shallowRef<{ fullPath: string; state: { [HISTORY_STATE_KEY]: BrowserHistoryEntry } } | null>(null);
 	let latestUrlApplyRun = 0;
 
 	const stopUrlToStore = watch(
@@ -84,10 +164,11 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 			const indexId = dependencies.indexId.value;
 			return routeName && corpus && indexId
 				? {
-						key: `${routeName}:${indexId}:${route.fullPath}`,
+						navigationKey: `${routeName}:${indexId}:${route.fullPath}`,
 						routeName,
 						route,
 						corpus,
+						indexId,
 					}
 				: null;
 		},
@@ -103,12 +184,19 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 				const existingState = history.state && typeof history.state === 'object' ? (history.state as Record<string, unknown>) : {};
 				history.replaceState({ ...existingState, ...selfNavigation.state }, '', undefined);
 				pendingSelfNavigation.value = null;
-				readyNavigationKey.value = current.key;
+				readyNavigationKey.value = current.navigationKey;
 				return;
 			}
 
-			const shouldParseSearchUrl = current.routeName === 'search' && !!dependencies.searchForms?.getDefinition();
+			if (current.routeName === 'search' && routeMatchesCurrentStoreUrl(router, current.indexId, current.route)) {
+				readyNavigationKey.value = current.navigationKey;
+				return;
+			}
+
+			const newSearchFormDefinition = current.routeName === 'search' ? (dependencies.searchForms?.getDefinition() ?? null) : null;
+			const shouldParseSearchUrl = current.routeName === 'search' && !!newSearchFormDefinition;
 			const stateFromHistory = shouldParseSearchUrl ? null : getStoredHistoryEntry(history.state);
+			const localSearchIntentRevision = RootStore.get.localSearchIntentRevision();
 			let state = stateFromHistory;
 
 			if (!state) {
@@ -120,7 +208,6 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 									createUrlStateParserSearchDependencies({
 										blacklabApi: dependencies.blacklabApi,
 										corpus: current.corpus,
-										newSearchForm: dependencies.searchForms?.getDefinition() ?? null,
 									}),
 								).get();
 				} catch (e) {
@@ -132,12 +219,20 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 			if (run !== latestUrlApplyRun) {
 				return;
 			}
+			if (RootStore.get.localSearchIntentRevision() !== localSearchIntentRevision) {
+				debugLog('history', 'Skipping stale URL restore because a local search action ran while URL state was loading.', current.route.fullPath);
+				readyNavigationKey.value = current.navigationKey;
+				return;
+			}
 
 			debugLog('history', stateFromHistory ? 'Restoring state from browser history.' : 'Restoring state from URL.', current.route.fullPath, state);
+			if (newSearchFormDefinition) {
+				restoreNewSearchFormFromRoute(current.route, current.corpus, newSearchFormDefinition);
+			}
 			RootStore.actions.replace(state);
 			await nextTick();
 			if (run === latestUrlApplyRun) {
-				readyNavigationKey.value = current.key;
+				readyNavigationKey.value = current.navigationKey;
 			}
 		},
 		{
@@ -155,41 +250,14 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 				return null;
 			}
 
-			return cloneDeep({
-				indexId,
-				params: RootStore.get.blacklabParameters(),
-				article: getArticleUrlStateFromRoute(route),
-				state: {
-					views: ViewStore.getState(),
-					global: GlobalResultsStore.getState(),
-					interface: InterfaceStore.getState(),
-					query: QueryStore.getState(),
-				},
-			}) satisfies QueryState;
+			return getCurrentQueryState(indexId, route);
 		},
 		value => {
 			if (!value) {
 				return;
 			}
 
-			let searchfield: string | null = null;
-			try {
-				searchfield = QueryStore.get.sourceField().id;
-			} catch {
-				searchfield = null;
-			}
-
-			const urlPayload = stateToUrl({
-				contextUrl: CONTEXT_URL,
-				indexId: value.indexId,
-				params: value.params,
-				scopedFormQuery: QueryStore.get.scopedFormQuery(),
-				pattern: QueryStore.get.patternString(),
-				gapValue: QueryStore.getState().gap?.value || null,
-				searchfield,
-				article: value.article,
-				state: value.state,
-			});
+			const urlPayload = stateSnapshotToUrlPayload(value);
 
 			const currentUrl = new URI().host('').protocol('').port('').toString().replace(/\/+$/, '');
 			const lastState = getStoredHistoryEntry(history.state);
@@ -253,9 +321,7 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 				url: urlPayload.url,
 			});
 
-			const context = (CONTEXT_URL || '').replace(/\/+$/, '');
-			const routerPath = !context || !urlPayload.url.startsWith(context) ? urlPayload.url : urlPayload.url.slice(context.length) || '/';
-			const resolvedTarget = router.resolve(routerPath);
+			const resolvedTarget = router.resolve(toRouterPath(urlPayload.url));
 			const historyState = {
 				[HISTORY_STATE_KEY]: entry,
 			};
