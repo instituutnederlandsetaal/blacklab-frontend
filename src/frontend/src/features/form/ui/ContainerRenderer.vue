@@ -1,5 +1,5 @@
 <template>
-	<Component :is="isForm ? 'form' : 'section'" :class="containerClasses" @submit.prevent="submit" @reset.prevent="reset">
+	<Component :is="isForm ? 'form' : 'section'" :class="containerClasses" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
 		<header v-if="title && !hideTitle" :class="isForm ? 'panel-heading blf-form-title' : 'blf-container-title'">
 			{{ title }}
 		</header>
