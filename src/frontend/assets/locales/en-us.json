@@ -3,7 +3,8 @@
 		"learnMore": "Learn more",
 		"clickToRemove": "Click to remove",
 		"selectValue": "Select a value...",
-		"selectValues": "Select value(s)..."
+		"selectValues": "Select value(s)...",
+		"caseSensitive": "@:annotation.caseSensitive"
 	},
 	"search": {
 		"heading": "Search for …",

@@ -1,44 +1,46 @@
 <template>
-	<div :class="formGroupClasses">
-		<label class="control-label" :for="`${htmlId}_picker`">{{ $t('search.parallel.searchSourceVersion') }}</label>
-		<SelectPicker :options="sourceOptions" v-model="sourceModel" data-menu-width="grow" hideEmpty :disabled :data-id="`${htmlId}_picker`" />
-		<transition name="flash">
-			<span v-if="errorNoParallelSourceVersion" class="error">
-				{{ $t('search.parallel.errorNoSourceVersion') }}
-			</span>
-		</transition>
-	</div>
+	<div :class="fieldClasses">
+		<div :class="formGroupClasses">
+			<label class="control-label" :for="`${htmlId}_picker`">{{ $t('search.parallel.searchSourceVersion') }}</label>
+			<SelectPicker :options="sourceOptions" v-model="sourceModel" data-menu-width="grow" hideEmpty :disabled :data-id="`${htmlId}_picker`" />
+			<transition name="flash">
+				<span v-if="errorNoParallelSourceVersion" class="error">
+					{{ $t('search.parallel.errorNoSourceVersion') }}
+				</span>
+			</transition>
+		</div>
 
-	<section class="blf-parallel-query">
-		<h4>{{ $t(`search.parallel.searchSourceVersion`) }}</h4>
-		<component :is="child.component" v-bind="sourceChildProps" @update:modelValue="updateSourceState" />
-	</section>
+		<section class="blf-parallel-query">
+			<h4>{{ $t(`search.parallel.searchSourceVersion`) }}</h4>
+			<component :is="child.component" v-bind="sourceChildProps" @update:modelValue="updateSourceState" />
+		</section>
 
-	<div :class="formGroupClasses">
-		<label class="control-label">{{ $t('search.parallel.andCompareWithTargetVersions') }}</label>
-		<MultiValuePicker :options="targetOptions" v-model="targetModel" :disabled />
-	</div>
-	<section v-for="field in selectedTargetOptions" :key="field.id" class="blf-parallel-query">
-		<h4>{{ $tAnnotatedFieldDisplayName(field) }}</h4>
-		<component :is="child.component" v-bind="targetChildProps(field.id)" @update:modelValue="updateTargetState(field.id, $event)" />
-	</section>
+		<div :class="formGroupClasses">
+			<label class="control-label">{{ $t('search.parallel.andCompareWithTargetVersions') }}</label>
+			<MultiValuePicker :options="targetOptions" v-model="targetModel" :disabled />
+		</div>
+		<section v-for="field in selectedTargetOptions" :key="field.id" class="blf-parallel-query">
+			<h4>{{ $tAnnotatedFieldDisplayName(field) }}</h4>
+			<component :is="child.component" v-bind="targetChildProps(field.id)" @update:modelValue="updateTargetState(field.id, $event)" />
+		</section>
 
-	<div v-if="alignByOptions?.length" :class="formGroupClasses">
-		<label class="control-label">{{ $t('search.parallel.alignBy') }}</label>
-		<div :class="buttonGroupClasses" style="display: block">
-			<button
-				v-for="option in alignByPickerOptions"
-				type="button"
-				:class="['btn', modelValue.alignBy === option.value ? 'active btn-primary' : 'btn-default']"
-				:key="option.value"
-				:value="option.value"
-				:title="option.title || option.value"
-				:disabled
-				@click="updateAlignBy(option.value)"
-			>
-				{{ option.label || option.value || 'document' }}
-			</button>
-			<!-- empty value searches across entire documents -->
+		<div v-if="alignByOptions?.length" :class="formGroupClasses">
+			<label class="control-label">{{ $t('search.parallel.alignBy') }}</label>
+			<div :class="buttonGroupClasses" style="display: block">
+				<button
+					v-for="option in alignByPickerOptions"
+					type="button"
+					:class="['btn', modelValue.alignBy === option.value ? 'active btn-primary' : 'btn-default']"
+					:key="option.value"
+					:value="option.value"
+					:title="option.title || option.value"
+					:disabled
+					@click="updateAlignBy(option.value)"
+				>
+					{{ option.label || option.value || 'document' }}
+				</button>
+				<!-- empty value searches across entire documents -->
+			</div>
 		</div>
 	</div>
 </template>
@@ -89,7 +91,7 @@ const sourceChildProps = computed(() => ({
 	htmlId: `${htmlId.value}_source_${props.child.id}`,
 	modelValue: props.modelValue.sourceState ?? createDefaultChildState('source'),
 	disabled: props.disabled,
-	variant: props.variant,
+	variant: childVariant.value,
 }));
 const sourceModel = computed({
 	get: () => props.modelValue.source ?? '',
@@ -146,9 +148,11 @@ function targetChildProps(target: string) {
 		htmlId: `${htmlId.value}_target_${safeHtmlId(target)}_${props.child.id}`,
 		modelValue: props.modelValue.targetStates[target] ?? createDefaultChildState(target),
 		disabled: props.disabled,
-		variant: props.variant,
+		variant: childVariant.value,
 	};
 }
+
+const childVariant = computed(() => (props.child.config as { variant?: typeof props.variant }).variant ?? props.variant);
 
 function createDefaultChildState(role: string) {
 	return props.child.controller.createDefaultState(
@@ -156,7 +160,7 @@ function createDefaultChildState(role: string) {
 			...props.child.config,
 			id: `${props.id}.${role}.${props.child.id}`,
 			kind: 'field',
-			variant: props.variant,
+			variant: childVariant.value,
 		},
 		runtime.context,
 	);
@@ -170,6 +174,10 @@ function safeHtmlId(value: string) {
 <style lang="scss" scoped>
 label {
 	font-weight: bold;
+}
+
+.blf-parallel-field {
+	text-align: left;
 }
 
 .error {

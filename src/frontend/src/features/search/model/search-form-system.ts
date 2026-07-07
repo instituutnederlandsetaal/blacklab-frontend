@@ -1,5 +1,5 @@
 // oxlint-disable-next-line vue/prefer-import-from-vue -- pauseTracking/resetTracking are not exported by this Vue package entrypoint.
-import { pauseTracking, resetTracking } from '@vue/reactivity';
+import { markRaw, pauseTracking, resetTracking } from '@vue/reactivity';
 import { computed, type App, type ComputedRef, type Ref } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
@@ -109,7 +109,7 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	if (corpus.isParallelCorpus) {
 		const childConfig = {
 			annotationId: annotation.id,
-			caseSensitive: annotation.caseSensitive,
+			caseSensitive: false,
 			description: computed(() => translate.$tAnnotDescription(annotation)),
 			displayName: computed(() => translate.$tAnnotDisplayName(annotation)),
 			textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
@@ -122,7 +122,7 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 			child: {
 				id: 'query',
 				controller: annotationTextController,
-				component: TextField,
+				component: markRaw(TextField),
 				config: childConfig,
 			},
 			fieldOptions: corpus.parallelAnnotatedFields,

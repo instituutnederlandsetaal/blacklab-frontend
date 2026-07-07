@@ -97,7 +97,7 @@ function createChildFieldConfig(config: FieldControllerProps<ParallelFieldConfig
 		...config.child.config,
 		id: childFieldId(config, namespace),
 		kind: 'field',
-		variant: config.variant,
+		variant: (config.child.config as { variant?: FieldControllerProps<ParallelFieldConfig>['variant'] }).variant ?? config.variant,
 	};
 }
 

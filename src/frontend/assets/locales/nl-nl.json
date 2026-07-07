@@ -3,7 +3,8 @@
 		"learnMore": "Meer informatie",
 		"clickToRemove": "Klik om te verwijderen",
 		"selectValue": "Selecteer een waarde...",
-		"selectValues": "Selecteer waarde(s)..."
+		"selectValues": "Selecteer waarde(s)...",
+		"caseSensitive": "@:annotation.caseSensitive"
 	},
 	"search": {
 		"heading": "Zoeken naar ...",
