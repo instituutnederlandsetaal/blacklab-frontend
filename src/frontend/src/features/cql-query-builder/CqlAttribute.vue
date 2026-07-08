@@ -218,6 +218,12 @@ function closeModalEditor() {
 	display: flex;
 	align-items: center;
 
+	.combobox {
+		width: unset;
+		flex-grow: 1;
+		display: inline-flex;
+	}
+
 	// Main input (either button, input, or dropdown)
 	@at-root .bl-token-attribute-main-input {
 		flex-grow: 1;
