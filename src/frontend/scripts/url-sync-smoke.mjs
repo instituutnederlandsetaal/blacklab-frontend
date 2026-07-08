@@ -463,6 +463,13 @@ async function submitSearch(page, selectorOverride, query, timeout) {
 	console.log(`ok search '${query}'`, summarizeUrl(state.url));
 }
 
+async function assertQueryInputValue(page, selectorOverride, expectedTerm, timeout, label) {
+	const input = await findQueryInput(page, selectorOverride, timeout);
+	const value = await input.inputValue();
+	assert(value === expectedTerm, `Expected the simple-search input to contain '${expectedTerm}' ${label}, got '${value}'.`, await snapshot(page));
+	console.log(`ok form input held '${expectedTerm}' ${label}`);
+}
+
 async function waitForResetState(page, selectorOverride, timeout) {
 	await page.waitForFunction(
 		() => {
@@ -478,7 +485,7 @@ async function waitForResetState(page, selectorOverride, timeout) {
 	assert((await input.inputValue()) === '', 'Expected the simple-search input to be empty after reset.', await snapshot(page));
 }
 
-async function restoreHistoryEntry(page, expectedTerm, timeout) {
+async function restoreHistoryEntry(page, selectorOverride, expectedTerm, timeout) {
 	const result = await page.evaluate(async term => {
 		const modules = window.vuexModules;
 		const entry = modules?.history?.getState?.().find(item => item.url && new URL(item.url, window.location.origin).searchParams.get('patt')?.includes(term));
@@ -494,7 +501,7 @@ async function restoreHistoryEntry(page, expectedTerm, timeout) {
 		const relativeUrl = `${parsed.pathname}${parsed.search}${parsed.hash}`;
 		const context = (window.CONTEXT_URL || '').replace(/\/+$/, '');
 		const routerPath = context && relativeUrl.startsWith(context) ? relativeUrl.slice(context.length) || '/' : relativeUrl;
-		const router = window.vueRoot?.$router;
+		const router = window.vueRoot?.$router || window.vueApp?.config?.globalProperties?.$router;
 		if (router?.push) {
 			await router.push(routerPath);
 			return { ok: true, url: entry.url, routerPath };
@@ -509,6 +516,7 @@ async function restoreHistoryEntry(page, expectedTerm, timeout) {
 		await waitForApp(page, timeout);
 	}
 	await waitForSearchState(page, expectedTerm, timeout);
+	await assertQueryInputValue(page, selectorOverride, expectedTerm, timeout, 'after history restore');
 	console.log(`ok restored history entry for '${expectedTerm}'`, result);
 }
 
@@ -531,6 +539,7 @@ async function run() {
 	const initialUrl = option(args, 'url', 'BLF_SMOKE_URL', `http://localhost:${vitePort}/blacklab-frontend/${corpus}/search/`);
 	const queryOne = option(args, 'queryOne', 'BLF_SMOKE_QUERY_ONE', uniqueWord('first'));
 	const queryTwo = option(args, 'queryTwo', 'BLF_SMOKE_QUERY_TWO', uniqueWord('second'));
+	const queryThree = option(args, 'queryThree', 'BLF_SMOKE_QUERY_THREE', uniqueWord('third'));
 	const selectorOverride = option(args, 'querySelector', 'BLF_SMOKE_QUERY_SELECTOR', null);
 	const timeout = numberOption(args, 'timeout', 'BLF_SMOKE_TIMEOUT', 20_000);
 	const headless = booleanOption(args, 'headless', 'BLF_SMOKE_HEADLESS', true);
@@ -594,16 +603,19 @@ async function run() {
 
 		await submitSearch(page, selectorOverride, queryOne, timeout);
 		await submitSearch(page, selectorOverride, queryTwo, timeout);
+		await submitSearch(page, selectorOverride, queryThree, timeout);
 
 		await page.goBack({ waitUntil: 'domcontentloaded', timeout });
-		await waitForSearchState(page, queryOne, timeout);
-		console.log(`ok browser back restored '${queryOne}'`);
+		await waitForSearchState(page, queryTwo, timeout);
+		await assertQueryInputValue(page, selectorOverride, queryTwo, timeout, 'after browser back');
+		console.log(`ok browser back restored '${queryTwo}'`);
 
 		await page.goForward({ waitUntil: 'domcontentloaded', timeout });
-		await waitForSearchState(page, queryTwo, timeout);
-		console.log(`ok browser forward restored '${queryTwo}'`);
+		await waitForSearchState(page, queryThree, timeout);
+		await assertQueryInputValue(page, selectorOverride, queryThree, timeout, 'after browser forward');
+		console.log(`ok browser forward restored '${queryThree}'`);
 
-		await restoreHistoryEntry(page, queryOne, timeout);
+		await restoreHistoryEntry(page, selectorOverride, queryOne, timeout);
 
 		await page.reload({ waitUntil: 'domcontentloaded', timeout });
 		await waitForApp(page, timeout);
