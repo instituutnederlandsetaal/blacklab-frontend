@@ -1,9 +1,8 @@
 import { tryOnScopeDispose } from '@vueuse/core';
 import { toRef, watch, type MaybeRefOrGetter } from 'vue';
-import { createI18n as createVueI18n } from 'vue-i18n';
 
-import { createI18nPlugin, type I18nPlugin } from './plugin';
-import { createTranslate } from './translate';
+import type { I18nPlugin } from './plugin';
+import { createVueI18nParts, installVueI18nParts, type VueI18nBridge } from './vue-i18n';
 
 import { I18nManager } from '@/shared/i18n/i18n-manager';
 import useInjectable from '@/shared/utils/useInjectable';
@@ -33,12 +32,6 @@ export type AppI18n = I18nPlugin & {
 	setLocale: I18nManager['setLocale'];
 	setDefaultLocale: (defaultLocale: string) => Promise<void>;
 	setIndexId: I18nManager['setIndexId'];
-};
-
-type VueI18nBridge = {
-	locale: { value: string };
-	fallbackLocale: { value: string };
-	setLocaleMessage: (locale: string, messages: Record<string, any>) => void;
 };
 
 function registerDefaultLocales(manager: I18nManager) {
@@ -97,23 +90,15 @@ export function createI18n(indexId: MaybeRefOrGetter<string | undefined | null>)
 	void manager.setFallbackLocale('en-us');
 	watch(toRef(indexId), newId => manager.setIndexId(newId));
 
-	const vueI18nPlugin = createVueI18n({
-		legacy: false,
-		globalInjection: false,
-		missingWarn: true,
-		fallbackWarn: true,
-	});
-	const vueI18n = vueI18nPlugin.global as unknown as VueI18nBridge;
-	const translate = createTranslate(vueI18nPlugin.global as Parameters<typeof createTranslate>[0]);
-	const translatePlugin = createI18nPlugin({ translate });
+	const i18nParts = createVueI18nParts();
+	const vueI18n = i18nParts.vueI18n;
 
 	const api: AppI18n = {
-		...translatePlugin,
+		...i18nParts.translatePlugin,
 		install(app) {
 			const stopBridge = bridgeManagerToVueI18n(manager, vueI18n);
 			app.onUnmount(stopBridge);
-			app.use(vueI18nPlugin);
-			translatePlugin.install(app);
+			installVueI18nParts(app, i18nParts);
 			provideI18nManager(app, manager);
 		},
 		manager,

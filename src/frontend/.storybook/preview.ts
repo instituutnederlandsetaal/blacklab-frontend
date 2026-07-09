@@ -4,10 +4,13 @@ import '@/bootstrap.less';
 import '@/global.scss';
 import 'floating-vue/dist/style.css';
 
+import enUsBundle from '@assets/locales/en-us.json?raw';
+import nlNlBundle from '@assets/locales/nl-nl.json?raw';
+import zhCnBundle from '@assets/locales/zh-cn.json?raw';
 import { setup, type Preview } from '@storybook/vue3-vite';
 import { defineComponent } from 'vue';
 
-import { createMockI18n } from '../test/mocks/i18n';
+import { createMockI18n } from '@test/mocks/i18n';
 
 const DebugStub = defineComponent({
 	name: 'debug',
@@ -15,7 +18,17 @@ const DebugStub = defineComponent({
 });
 
 setup(app => {
-	app.use(createMockI18n());
+	app.use(
+		createMockI18n({
+			locale: 'en-us',
+			fallbackLocale: 'en-us',
+			bundles: {
+				'en-us': enUsBundle,
+				'nl-nl': nlNlBundle,
+				'zh-cn': zhCnBundle,
+			},
+		}),
+	);
 	app.component('debug', DebugStub);
 	app.component('Debug', DebugStub);
 });
