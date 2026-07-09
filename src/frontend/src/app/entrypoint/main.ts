@@ -7,13 +7,12 @@ import '@/global.scss';
 import FloatingVue from 'floating-vue';
 import { createApp } from 'vue';
 
-import * as RootStore from '@/app/state/root-store';
 import { createCorpusContext } from '@/app/state/useCorpusContext';
 import Filters from '@/components/filters';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
-import { createSearchFormSystem, provideSearchFormSystemPlugin } from '@/features/search/model/search-form-system';
+import { createSearchFormSystem } from '@/features/search/model/search-form-system';
 import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
@@ -79,7 +78,6 @@ async function start() {
 		tagset: corpusState.tagset,
 		translate: i18n.translate,
 	});
-	RootStore.actions.setSearchFormSystem(searchFormSystem);
 
 	app.use(loginSystem);
 	app.use(debugSystem);
@@ -89,7 +87,7 @@ async function start() {
 	app.use(Filters);
 	app.use(FloatingVue);
 	app.use(corpusState);
-	provideSearchFormSystemPlugin(app, searchFormSystem);
+	app.use(searchFormSystem);
 
 	app.component('Debug', DebugComponent);
 	app.component('AudioPlayer', AudioPlayer);
@@ -104,7 +102,7 @@ async function start() {
 		corpusContext: corpusState.contextLoader,
 		indexId: router.corpusId,
 		pageMeta: router.pageMeta,
-		searchForms: searchFormSystem,
+		searchForms: searchFormSystem.definition,
 	});
 
 	app.runWithContext(() => startCustomizationInterop());

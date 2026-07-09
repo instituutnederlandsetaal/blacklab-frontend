@@ -6,24 +6,35 @@ import { isBLError } from '@/types/blacklabtypes';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 
+/** Normalize the query parameters recursively, removing null or undefined values, empty arrays and empty strings. */
+export function cleanQueryParams(params: null | undefined): undefined;
+export function cleanQueryParams<T extends Record<any, any>>(params: T): Partial<T>;
+export function cleanQueryParams(params: URLSearchParams): URLSearchParams;
+export function cleanQueryParams(params: any[]): any[] | undefined;
+export function cleanQueryParams(params: string): string | undefined;
 export function cleanQueryParams(params: any): any {
-	if (isObject(params))
-		return Object.fromEntries(
-			Object.entries(params)
-				.filter(([_, v]) => v != null)
-				.map(([k, v]) => [k, cleanQueryParams(v)]),
-		);
+	if (params == null) return undefined;
+	if (isObject(params)) {
+		const cleanEntries = Object.entries(params)
+			.map(([k, v]) => [k, cleanQueryParams(v)])
+			.filter(([_, v]) => v != null);
+		return cleanEntries.length ? Object.fromEntries(cleanEntries) : undefined;
+	}
 	if (params instanceof URLSearchParams) {
 		const cleaned = new URLSearchParams();
 		for (const [k, v] of params.entries()) {
-			if (v != null) {
-				cleaned.append(k, v);
+			const cleanedValue = cleanQueryParams(v);
+			if (cleanedValue) {
+				cleaned.append(k, cleanedValue);
 			}
 		}
 		return cleaned;
 	}
-	if (Array.isArray(params)) return params.filter(v => v != null).map(cleanQueryParams);
-	return params;
+	if (Array.isArray(params)) {
+		const cleaned = params.map(cleanQueryParams).filter(v => v != null);
+		return cleaned.length ? cleaned : undefined;
+	}
+	return typeof params === 'string' ? params || undefined : params;
 }
 
 /**

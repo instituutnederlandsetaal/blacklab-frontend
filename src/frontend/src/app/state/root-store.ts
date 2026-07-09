@@ -19,15 +19,12 @@ import { memoize } from '@/features/search/model/form/reactive-store';
 import * as QueryModule from '@/features/search/model/query-state';
 import * as GlobalResultsModule from '@/features/search/model/results/global-results-state';
 import * as ViewModule from '@/features/search/model/results/view-state';
-import type { SearchFormSystem } from '@/features/search/model/search-form-system';
 import type * as BLTypes from '@/types/blacklabtypes';
-import type { ArticleUrlState } from '@/url/state-to-url';
 import { corpusCustomizations } from '@/utils/customization';
 
 import { getPatternString, getWithinClausesFromFilters } from '@/shared/blacklab-helpers/pattern-utils';
 import debug, { debugLog } from '@/shared/debug/debug';
 
-let searchFormSystem: SearchFormSystem | null = null;
 let localSearchIntentRevision = 0;
 
 let context: CorpusContext | null = null;
@@ -35,27 +32,6 @@ const useCorpus = () => context?.index;
 
 function markLocalSearchIntent(): void {
 	localSearchIntentRevision += 1;
-}
-
-function getActiveNewSearchFormSnapshot(): CompiledFormStateWithSummaries | null {
-	if (!GlobalResultsModule.getState().useNewSearchForm) return null;
-	if (InterfaceModule.get.form() !== 'search') return null;
-
-	const definition = searchFormSystem?.getDefinition();
-	const form = definition?.getForm(`search.${InterfaceModule.get.patternMode()}`);
-	return definition && form ? definition.compile(form.id) : null;
-}
-
-function searchWithNewFormSnapshot(snapshot: CompiledFormStateWithSummaries): void {
-	QueryModule.actions.searchNewForm({
-		form: 'search',
-		subForm: 'simple',
-		filters: {},
-		formState: cloneDeep(PatternModule.getState().simple),
-		shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
-		gap: GapModule.defaults,
-		newForm: snapshot,
-	});
 }
 
 const get = {
@@ -81,8 +57,6 @@ const get = {
 			throw new Error('Should provide a sampleSeed when random sampling, or every new page of results will use a different seed');
 		}
 
-		const patt = QueryModule.get.patternString() ?? '';
-
 		const debugParams = debug.value
 			? {
 					explain: true,
@@ -95,8 +69,7 @@ const get = {
 		const numberOfResults = Math.ceil((activeView.first + activeView.number - lowerPageBoundary) / pageSize) * pageSize;
 
 		const globalState = GlobalResultsModule.getState();
-		const usesNewForm = QueryModule.get.usesNewForm();
-		const searchfield = QueryModule.get.searchfield() ?? (usesNewForm ? QueryModule.get.sourceField().id : undefined);
+		const patt = QueryModule.get.patternString();
 		return {
 			...debugParams,
 
@@ -104,10 +77,12 @@ const get = {
 			number: numberOfResults,
 
 			filter: QueryModule.get.filterString(),
-			field: usesNewForm ? undefined : QueryModule.get.sourceField().id,
-			searchfield,
+			// I think we could omit searchfield in the blacklab parameters, as it should default to field,
+			// but prefer to be explicit so everything is easy to reason about and all data is present everywhere and can be used to inform the UI etc.
+			field: QueryModule.get.sourceField(),
+			searchfield: QueryModule.get.sourceField(),
 			patt,
-			pattgapdata: QueryModule.get.patternString() && QueryModule.getState().gap ? QueryModule.getState().gap!.value || undefined : undefined,
+			pattgapdata: QueryModule.get.pattGap(),
 
 			sample: globalState.sampleMode === 'percentage' && globalState.sampleSize ? globalState.sampleSize : undefined,
 			samplenum: globalState.sampleMode === 'count' && globalState.sampleSize ? globalState.sampleSize : undefined,
@@ -118,127 +93,97 @@ const get = {
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: globalState.context != null ? globalState.context : undefined,
 			adjusthits: true,
-			withspans: corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (FilterModule.get.hasSpanFilters() || !!useCorpus()?.hasRelations),
+			withspans: patt ? (corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (FilterModule.get.hasSpanFilters() || !!useCorpus()?.hasRelations)) : undefined,
 		};
 	}),
 	localSearchIntentRevision: () => localSearchIntentRevision,
 };
 
-const actions = {
-	setSearchFormSystem: (system: SearchFormSystem | null) => {
-		searchFormSystem = system;
-	},
+/** Get the query that would be submitted if the user were to press submit right now.
+ * Requires the new form system's compiled state as argument because the store can't access it directly (the new form's state is outside the store singleton) */
+function getNextQueryState(newFormState?: CompiledFormStateWithSummaries | null): QueryModule.ModuleRootState {
+	if (newFormState)
+		return {
+			form: 'new',
+			state: newFormState,
+		};
 
-	searchFromSubmit: () => {
+	const sharedState = {
+		filters: get.filtersActive() ? cloneDeep(FilterModule.get.activeFiltersMap()) : {},
+		shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
+		gap: get.gapFillingActive() ? GapModule.getState() : GapModule.defaults,
+	};
+	const activeForm = InterfaceModule.get.form();
+	if (activeForm === 'explore') {
+		const base = { ...sharedState, form: 'explore' as const };
+
+		const exploreMode = InterfaceModule.get.exploreMode();
+		if (exploreMode === 'corpora')
+			return {
+				...base,
+				subForm: 'corpora',
+				formState: cloneDeep(ExploreModule.getState().corpora),
+			};
+		else if (exploreMode === 'frequency')
+			return {
+				...base,
+				subForm: 'frequency',
+				formState: cloneDeep(ExploreModule.getState().frequency),
+			};
+		else if (exploreMode === 'ngram')
+			return {
+				...base,
+				subForm: 'ngram',
+				formState: cloneDeep(ExploreModule.getState().ngram),
+			};
+		else throw new Error(`Unhandled explore mode ${exploreMode as any} while restoring submitted query`);
+	} else if (activeForm === 'search') {
+		const patternMode = InterfaceModule.get.patternMode();
+		const base = { ...sharedState, form: 'search' as const };
+		if (patternMode === 'simple')
+			return {
+				...base,
+				subForm: 'simple',
+				formState: cloneDeep(PatternModule.getState().simple),
+			};
+		else if (patternMode === 'advanced')
+			return {
+				...base,
+				subForm: 'advanced',
+				formState: cloneDeep(PatternModule.getState().advanced),
+			};
+		else if (patternMode === 'expert')
+			return {
+				...base,
+				subForm: 'expert',
+				formState: cloneDeep(PatternModule.getState().expert),
+			};
+		else if (patternMode === 'extended')
+			return {
+				...base,
+				subForm: 'extended',
+				formState: cloneDeep(PatternModule.getState().extended),
+			};
+		else throw new Error(`Unhandled pattern mode ${patternMode as any} while restoring submitted query`);
+	} else throw new Error(`Unhandled form ${activeForm as any} while restoring submitted query`);
+}
+
+const actions = {
+	searchFromSubmit: (snapshot?: CompiledFormStateWithSummaries | null) => {
 		markLocalSearchIntent();
 		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
 			actions.searchSplitBatches();
 			return;
 		}
+
+		const newQueryState = getNextQueryState(snapshot);
 		ViewModule.actions.resetAllViews({ resetGroupBy: false });
 
-		if (InterfaceModule.get.form() === 'explore') {
-			switch (InterfaceModule.get.exploreMode()) {
-				case 'corpora': {
-					InterfaceModule.actions.viewedResults('docs');
-					const m = ViewModule.getOrCreateModule('docs');
-					m.actions.groupDisplayMode(ExploreModule.getState().corpora.groupDisplayMode);
-					m.actions.groupBy(ExploreModule.getState().corpora.groupBy ? [ExploreModule.getState().corpora.groupBy] : []);
-					break;
-				}
-				case 'frequency':
-				case 'ngram': {
-					InterfaceModule.actions.viewedResults('hits');
-					const m = ViewModule.getOrCreateModule('hits');
-					m.actions.groupBy(InterfaceModule.get.exploreMode() === 'ngram' ? [ExploreModule.get.ngram.groupBy()] : [ExploreModule.get.frequency.groupBy()]);
-					break;
-				}
-				default:
-					throw new Error(`Unhandled explore mode ${InterfaceModule.get.exploreMode() as any} while submitting form`);
-			}
-		}
-
-		const oldPattern = QueryModule.get.patternString();
-		actions.searchAfterRestore();
+		QueryModule.actions.search(newQueryState);
 		const newPattern = QueryModule.get.patternString();
 
-		let newView = InterfaceModule.get.viewedResults();
-		if (newView == null) {
-			newView = newPattern ? 'hits' : 'docs';
-		} else if (newView === 'hits' && !newPattern) {
-			newView = 'docs';
-		} else if (oldPattern == null && newPattern != null) {
-			newView = 'hits';
-		}
-
-		InterfaceModule.actions.viewedResults(newView);
-	},
-
-	searchFromNewFormSubmit: (snapshot: CompiledFormStateWithSummaries) => {
-		markLocalSearchIntent();
-		ViewModule.actions.resetAllViews({ resetGroupBy: false });
-		InterfaceModule.actions.form('search');
-		InterfaceModule.actions.patternMode('simple');
-
-		const oldPattern = QueryModule.get.patternString();
-		searchWithNewFormSnapshot(snapshot);
-		const newPattern = snapshot.patt || undefined;
-
-		let newView = InterfaceModule.get.viewedResults();
-		if (newView == null) {
-			newView = newPattern ? 'hits' : 'docs';
-		} else if (newView === 'hits' && !newPattern) {
-			newView = 'docs';
-		} else if (oldPattern == null && newPattern != null) {
-			newView = 'hits';
-		}
-
-		InterfaceModule.actions.viewedResults(newView);
-		if (document.activeElement) {
-			(document.activeElement as HTMLInputElement).blur();
-		}
-	},
-
-	searchAfterRestore: () => {
-		let submittedFormState: QueryModule.ModuleRootState;
-
-		const activeForm = InterfaceModule.get.form();
-		switch (activeForm) {
-			case 'explore': {
-				const exploreMode = InterfaceModule.get.exploreMode();
-				submittedFormState = {
-					form: activeForm,
-					subForm: exploreMode,
-					filters: get.filtersActive() ? (cloneDeep(FilterModule.get.activeFiltersMap()) as ReturnType<(typeof FilterModule)['get']['activeFiltersMap']>) : {},
-					formState: cloneDeep(ExploreModule.getState()[exploreMode]) as ExploreModule.ModuleRootState[typeof exploreMode],
-					shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
-					gap: get.gapFillingActive() ? GapModule.getState() : GapModule.defaults,
-				};
-				break;
-			}
-			case 'search': {
-				const newFormSnapshot = getActiveNewSearchFormSnapshot();
-				if (newFormSnapshot) {
-					searchWithNewFormSnapshot(newFormSnapshot);
-					return;
-				}
-
-				const patternMode = InterfaceModule.get.patternMode();
-				submittedFormState = {
-					form: activeForm,
-					subForm: patternMode,
-					filters: get.filtersActive() ? (cloneDeep(FilterModule.get.activeFiltersMap()) as ReturnType<(typeof FilterModule)['get']['activeFiltersMap']>) : {},
-					formState: cloneDeep(PatternModule.getState()[patternMode]) as PatternModule.ModuleRootState[typeof patternMode],
-					shared: cloneDeep(PatternModule.get.shared()) as PatternModule.ModuleRootState['shared'],
-					gap: get.gapFillingActive() ? GapModule.getState() : GapModule.defaults,
-				};
-				break;
-			}
-			default: {
-				throw new Error('Form ' + activeForm + ' cannot generate blacklab query; not implemented!');
-			}
-		}
-		QueryModule.actions.search(submittedFormState);
+		const currentView = InterfaceModule.get.viewedResults();
+		InterfaceModule.actions.viewedResults(!newPattern ? 'docs' : (currentView ?? 'hits'));
 	},
 
 	searchSplitBatches: () => {
@@ -299,7 +244,7 @@ const actions = {
 		QueryModule.actions.reset();
 	},
 
-	replace: (payload: HistoryModule.HistoryEntry & { article?: ArticleUrlState }) => {
+	replace: (payload: HistoryModule.HistoryEntry) => {
 		FormManager.actions.replace(payload);
 		GlobalResultsModule.actions.replace(payload.global);
 		ViewModule.actions.resetAllViews({ resetGroupBy: true });
@@ -322,8 +267,11 @@ const actions = {
 				restoredView.actions.clearRequestedRange();
 			}
 		}
-		if ((payload.article?.docId != null && payload.patterns.expert) || payload.interface.viewedResults != null) {
-			actions.searchAfterRestore();
+
+		if (payload.interface.viewedResults != null) {
+			QueryModule.actions.search(getNextQueryState(payload.newForm));
+		} else {
+			QueryModule.actions.reset();
 		}
 	},
 };

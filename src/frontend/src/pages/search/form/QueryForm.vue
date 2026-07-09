@@ -8,7 +8,7 @@
 				<a href="#form-explore">{{ $t('queryForm.explore') }}</a>
 			</li>
 		</ul>
-		<Component :is="newSimpleSearchActive ? 'div' : 'form'" class="tab-content cf-panel-tab-body cf-panel-lg clearfix" style="padding-top: 0" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
+		<Component :is="newSearchFormActive ? 'div' : 'form'" class="tab-content cf-panel-tab-body cf-panel-lg clearfix" style="padding-top: 0" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
 			<QueryFormSearch
 				id="form-search"
 				v-show="activeForm === 'search'"
@@ -50,9 +50,9 @@
 				}"
 			/>
 			<div class="col-xs-12">
-				<hr v-if="!newSimpleSearchActive" />
-				<button v-if="!newSimpleSearchActive" type="submit" class="btn btn-primary btn-lg">{{ $t('queryForm.search') }}</button>
-				<button v-if="!newSimpleSearchActive" type="reset" class="btn btn-default btn-lg" title="Start a new search">{{ $t('queryForm.reset') }}</button>
+				<hr v-if="!newSearchFormActive" />
+				<button v-if="!newSearchFormActive" type="submit" class="btn btn-primary btn-lg">{{ $t('queryForm.search') }}</button>
+				<button v-if="!newSearchFormActive" type="reset" class="btn btn-default btn-lg" title="Start a new search">{{ $t('queryForm.reset') }}</button>
 				<button type="button" class="btn btn-lg btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
 				<button type="button" class="btn btn-lg btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
 			</div>
@@ -72,6 +72,7 @@ import { useCorpus } from '@/app/state/useCorpusContext';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
+import { hasNewSearchFormForPattern, useSearchFormSystem } from '@/features/search/model/search-form-system';
 
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';
 import QueryFormFilters from '@/pages/search/form/QueryFormFilters.vue';
@@ -93,6 +94,7 @@ export default defineComponent({
 		historyOpen: false,
 		errorNoParallelSourceVersion: false,
 		corpus: useCorpus(),
+		searchFormDefinition: useSearchFormSystem(),
 	}),
 	computed: {
 		queryBuilderVisible(): boolean {
@@ -101,8 +103,8 @@ export default defineComponent({
 		filtersVisible(): boolean {
 			return RootStore.get.filtersActive();
 		},
-		newSimpleSearchActive(): boolean {
-			return this.activeForm === 'search' && InterfaceStore.get.patternMode() === 'simple' && GlobalViewSettings.getState().useNewSearchForm;
+		newSearchFormActive(): boolean {
+			return this.activeForm === 'search' && GlobalViewSettings.getState().useNewSearchForm && hasNewSearchFormForPattern(this.searchFormDefinition, InterfaceStore.get.patternMode());
 		},
 		activeForm: {
 			get: InterfaceStore.get.form,

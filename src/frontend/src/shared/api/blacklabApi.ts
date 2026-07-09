@@ -334,11 +334,11 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 
 		getHits: <T extends BLHitResults | BLHitGroupResults = BLHitResults | BLHitGroupResults>(indexId: string, params: BLSearchParameters, requestParameters?: AxiosRequestConfig) => {
 			if (!isHitParams(params)) return rejectedRequest(new ApiError('Info', 'Cannot get hits without pattern.', 'No results', undefined));
-			params.subcorpussize = true; // always request this
+			const searchParams = { ...params, subcorpussize: true }; // always request this without mutating URL/store state
 			if (version === '4') {
-				return endpoint.getOrPostCancelable<BLHitResultsV4 | BLHitGroupResultsV4>(paths.hits(indexId), params, requestParameters).then(r => normalizeHitResponse(r) as T);
+				return endpoint.getOrPostCancelable<BLHitResultsV4 | BLHitGroupResultsV4>(paths.hits(indexId), searchParams, requestParameters).then(r => normalizeHitResponse(r) as T);
 			} else {
-				return endpoint.getOrPostCancelable<BLHitResultsV5 | BLHitGroupResults>(paths.hits(indexId), params, requestParameters).then(r => normalizeHitResponse(r) as T);
+				return endpoint.getOrPostCancelable<BLHitResultsV5 | BLHitGroupResults>(paths.hits(indexId), searchParams, requestParameters).then(r => normalizeHitResponse(r) as T);
 			}
 		},
 

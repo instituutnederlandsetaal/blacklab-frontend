@@ -12,7 +12,7 @@ export let selectedSubcorpusLoader = new FilteredResultCountLoader();
 export function initSelectedSubcorpusLoader(blacklab: BlackLabApi, context: Loadable<CorpusContext>) {
 	watchEffect(() => {
 		if (!context.value?.index) return;
-		const annotatedFieldId = QueryStore.get.sourceField().id;
+		const annotatedFieldId = QueryStore.get.sourceField();
 		const filter = QueryStore.get.filterString();
 		selectedSubcorpusLoader.next({ index: context.value.index, annotatedFieldId, filter, blacklab });
 	});

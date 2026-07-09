@@ -17,7 +17,7 @@
 		</ul>
 		<div class="tab-content" :class="{ parallel: isParallelCorpus }">
 			<div :class="['tab-pane form-horizontal', { active: activePattern === 'simple' }]" id="simple">
-				<FormSystem v-if="newForm && searchFormDefinition" :definition="searchFormDefinition" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('simple')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('simple')" @submit="submitNewForm" @reset="resetNewForm" />
 				<template v-else>
 					<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					<!-- TODO render the full annotation instance? requires some changes to bind to store correctly and apply appropriate classes though -->
@@ -28,64 +28,71 @@
 				</template>
 			</div>
 			<div :class="['tab-pane form-horizontal', { active: activePattern === 'extended' }]" id="extended">
-				<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
-				<template v-if="useTabs">
-					<ul class="nav nav-tabs subtabs" style="padding-left: 15px">
-						<li v-for="tab in tabs" :class="{ active: activeAnnotationTab === tab.id }" :key="tab.id">
-							<a :href="'#' + tab.id" @click.prevent="activeAnnotationTab = tab.id">{{ tab.label }}</a>
-						</li>
-					</ul>
-					<div class="tab-content">
-						<div v-for="tab in tabs" :class="['tab-pane', 'annotation-container', { active: activeAnnotationTab === tab.id }]" :key="tab.id" :id="tab.id">
-							<!-- 
-								The same annotation can be present in multiple tabs - make sure the htmlId is unique.
-								Note that we don't use annotatedFieldId in the key, because for parallel,
-								we can change the version, but we don't want that to affect the value of
-								the input field, only the autocomplete functionality. -->
-							<Annotation v-for="annotation in tab.entries" :key="tab.id + '/' + annotation.id" :htmlId="tab.id + '/' + annotation.id" :annotation="annotation" />
+				<FormSystem v-if="renderNewForm('extended')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('extended')" @submit="submitNewForm" @reset="resetNewForm" />
+				<template v-else>
+					<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+					<template v-if="useTabs">
+						<ul class="nav nav-tabs subtabs" style="padding-left: 15px">
+							<li v-for="tab in tabs" :class="{ active: activeAnnotationTab === tab.id }" :key="tab.id">
+								<a :href="'#' + tab.id" @click.prevent="activeAnnotationTab = tab.id">{{ tab.label }}</a>
+							</li>
+						</ul>
+						<div class="tab-content">
+							<div v-for="tab in tabs" :class="['tab-pane', 'annotation-container', { active: activeAnnotationTab === tab.id }]" :key="tab.id" :id="tab.id">
+								<!-- 
+									The same annotation can be present in multiple tabs - make sure the htmlId is unique.
+									Note that we don't use annotatedFieldId in the key, because for parallel,
+									we can change the version, but we don't want that to affect the value of
+									the input field, only the autocomplete functionality. -->
+								<Annotation v-for="annotation in tab.entries" :key="tab.id + '/' + annotation.id" :htmlId="tab.id + '/' + annotation.id" :annotation="annotation" />
+							</div>
+						</div>
+					</template>
+					<template v-else>
+						<Annotation v-for="annotation in allAnnotations" :key="annotation.id" :htmlId="annotation.id" :annotation="annotation" />
+					</template>
+
+					<Within v-model="within" />
+
+					<div v-if="splitBatchEnabled" class="form-group">
+						<div class="col-xs-12 col-md-9 col-md-push-3 checkbox">
+							<label for="extended_split_batch"> <input type="checkbox" name="extended_split_batch" id="extended_split_batch" v-model="splitBatch" /> {{ $t('search.extended.splitBatch') }} </label>
 						</div>
 					</div>
+
+					<button v-if="useTabs || allAnnotations.length > 1" type="button" class="btn btn-default btn-sm" @click="copyExtendedQuery">{{ $t('search.advanced.copyAdvancedQuery') }}</button>
 				</template>
-				<template v-else>
-					<Annotation v-for="annotation in allAnnotations" :key="annotation.id" :htmlId="annotation.id" :annotation="annotation" />
-				</template>
-
-				<Within v-model="within" />
-
-				<div v-if="splitBatchEnabled" class="form-group">
-					<div class="col-xs-12 col-md-9 col-md-push-3 checkbox">
-						<label for="extended_split_batch"> <input type="checkbox" name="extended_split_batch" id="extended_split_batch" v-model="splitBatch" /> {{ $t('search.extended.splitBatch') }} </label>
-					</div>
-				</div>
-
-				<button v-if="useTabs || allAnnotations.length > 1" type="button" class="btn btn-default btn-sm" @click="copyExtendedQuery">{{ $t('search.advanced.copyAdvancedQuery') }}</button>
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', { active: activePattern === 'advanced' }]" id="advanced">
-				<SearchAdvanced :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+				<FormSystem v-if="renderNewForm('advanced')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('advanced')" @submit="submitNewForm" @reset="resetNewForm" />
+				<SearchAdvanced v-else :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 			</div>
 			<div :class="['tab-pane', { active: activePattern === 'expert' }]" id="expert">
-				<SearchExpert :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+				<FormSystem v-if="renderNewForm('expert')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('expert')" @submit="submitNewForm" @reset="resetNewForm" />
+				<template v-else>
+					<SearchExpert :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 
-				<!-- Copy to builder, import, gap filling buttons -->
-				<button v-if="advancedEnabled" type="button" class="btn btn-sm btn-default" name="parseQuery" id="parseQuery" :title="$t('search.expert.parseQueryTitle').toString()" @click="parseQuery">
-					{{ $t('search.expert.parseQuery') }}
-				</button>
-				<label class="btn btn-sm btn-default file-input-button" for="importQuery">
-					{{ $t('search.expert.importQuery') }}
-					<input type="file" name="importQuery" id="importQuery" accept=".txt,text/plain" @change="importQuery" :title="$t('search.expert.importQueryTitle')" />
-				</label>
-				<div class="btn-group">
-					<label class="btn btn-sm btn-default file-input-button" for="gapFilling">
-						{{ $t('search.expert.gapFilling') }}
-						<input type="file" name="gapFilling" id="gapFilling" accept=".tsv,.csv,text/plain" @change="importGapFile" :title="$t('search.expert.gapFillingTitle')" />
-					</label>
-					<button v-if="gapValue != null" type="button" class="btn btn-default btn-sm" :title="$t('search.expert.clearGapValues').toString()" @click="gapValue = null">
-						<span class="fa fa-times"></span>
+					<!-- Copy to builder, import, gap filling buttons -->
+					<button v-if="advancedEnabled" type="button" class="btn btn-sm btn-default" name="parseQuery" id="parseQuery" :title="$t('search.expert.parseQueryTitle').toString()" @click="parseQuery">
+						{{ $t('search.expert.parseQuery') }}
 					</button>
-				</div>
-				<textarea type="area" v-if="gapValue != null" class="form-control gap-value-editor" v-model.lazy="gapValue" @keydown.tab.prevent="insertTabInText" />
-				<span v-show="parseQueryError" id="parseQueryError" class="text-danger"><span class="fa fa-exclamation-triangle"></span> {{ parseQueryError }}</span>
-				<span v-show="importQueryError" id="importQueryError" class="text-danger"><span class="fa fa-exclamation-triangle"></span> {{ importQueryError }}</span>
+					<label class="btn btn-sm btn-default file-input-button" for="importQuery">
+						{{ $t('search.expert.importQuery') }}
+						<input type="file" name="importQuery" id="importQuery" accept=".txt,text/plain" @change="importQuery" :title="$t('search.expert.importQueryTitle')" />
+					</label>
+					<div class="btn-group">
+						<label class="btn btn-sm btn-default file-input-button" for="gapFilling">
+							{{ $t('search.expert.gapFilling') }}
+							<input type="file" name="gapFilling" id="gapFilling" accept=".tsv,.csv,text/plain" @change="importGapFile" :title="$t('search.expert.gapFillingTitle')" />
+						</label>
+						<button v-if="gapValue != null" type="button" class="btn btn-default btn-sm" :title="$t('search.expert.clearGapValues').toString()" @click="gapValue = null">
+							<span class="fa fa-times"></span>
+						</button>
+					</div>
+					<textarea type="area" v-if="gapValue != null" class="form-control gap-value-editor" v-model.lazy="gapValue" @keydown.tab.prevent="insertTabInText" />
+					<span v-show="parseQueryError" id="parseQueryError" class="text-danger"><span class="fa fa-exclamation-triangle"></span> {{ parseQueryError }}</span>
+					<span v-show="importQueryError" id="importQueryError" class="text-danger"><span class="fa fa-exclamation-triangle"></span> {{ importQueryError }}</span>
+				</template>
 			</div>
 		</div>
 	</div>
@@ -99,14 +106,15 @@ import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
-import { FormSystem, type CompiledFormStateWithSummaries } from '@/features/form';
+import { FormSystem, type CompiledFormStateWithSummaries, type FormBuilder } from '@/features/form';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
-import { useSearchFormSystem } from '@/features/search/model/search-form-system';
+import { getNewSearchFormId, useSearchFormSystem } from '@/features/search/model/search-form-system';
 import type * as AppTypes from '@/types/apptypes';
 import { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
@@ -144,25 +152,16 @@ export default defineComponent({
 	props: {
 		errorNoParallelSourceVersion: { default: false, type: Boolean },
 	},
-	setup() {
-		const blacklab = useBlackLabApi();
-		const searchFormSystem = useSearchFormSystem();
-		return {
-			blacklab,
-			searchFormDefinition: searchFormSystem.definition,
-		};
-	},
 	data: () => ({
 		uid: useUid(),
 		parseQueryError: null as string | null,
 		importQueryError: null as string | null,
 
 		subscriptions: [] as Array<() => void>,
+		blacklab: useBlackLabApi(),
+		searchFormDefinition: useSearchFormSystem(),
 	}),
 	computed: {
-		newForm(): boolean {
-			return GlobalViewSettings.getState().useNewSearchForm;
-		},
 		activePattern: {
 			get(): string {
 				return InterfaceStore.getState().patternMode;
@@ -243,14 +242,25 @@ export default defineComponent({
 			},
 			set: PatternStore.actions.advanced.query,
 		},
+		checkedSearchFormDefinition(): FormBuilder {
+			if (!this.searchFormDefinition) throw new Error('New search form definition is not available.');
+			return this.searchFormDefinition;
+		},
 		gapValue: {
 			get: GapStore.get.gapValue,
 			set: GapStore.actions.gapValue,
 		},
 	},
 	methods: {
+		newSearchFormId(patternMode: PatternMode): string {
+			return getNewSearchFormId(patternMode);
+		},
+		renderNewForm(patternMode: PatternMode): boolean {
+			const isEnabled = GlobalViewSettings.getState().useNewSearchForm;
+			return isEnabled && this.searchFormDefinition?.getForm(getNewSearchFormId(patternMode)) != null;
+		},
 		submitNewForm(_formId: string, snapshot: CompiledFormStateWithSummaries) {
-			RootStore.actions.searchFromNewFormSubmit(snapshot);
+			RootStore.actions.searchFromSubmit(snapshot);
 		},
 		resetNewForm() {
 			RootStore.actions.reset();

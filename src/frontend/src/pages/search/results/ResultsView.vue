@@ -365,7 +365,7 @@ export default defineComponent({
 			},
 		},
 		sourceAnnotatedFieldId(): string {
-			return QueryStore.get.sourceField()!.id;
+			return QueryStore.get.sourceField();
 		},
 		concordanceAnnotationOptions(): NormalizedAnnotation[] {
 			return UIStore.getState().results.shared.concordanceAnnotationIdOptions.map(id => this.corpus.allAnnotationsMap[id]);
@@ -645,7 +645,7 @@ export default defineComponent({
 				...this.commonDisplaySettings,
 				indexId: this.corpus.id!,
 				getSummary: UIStore.getState().results.shared.getDocumentSummary,
-				sourceField: QueryStore.get.sourceField()!, // if no field, there would be no results...
+				sourceField: this.corpus.allAnnotatedFieldsMap[QueryStore.get.sourceField()], // if no field, there would be no results...
 				getCustomHitInfo: corpusCustomizations.results.customHitInfo,
 			};
 		},

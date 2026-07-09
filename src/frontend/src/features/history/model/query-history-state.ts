@@ -12,6 +12,7 @@ import { markRaw, shallowRef } from 'vue';
 import * as UIModule from '@/app/state/ui-state';
 import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
+import type { CompiledFormStateWithSummaries } from '@/features/form';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
 import type * as GapModule from '@/features/search/model/form/gap-state';
@@ -28,8 +29,10 @@ import { hashJavaDJB2 } from '@/shared/utils/string-utils';
 
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
-const version = 10;
+const version = 11;
 
+// TODO it would be better to store the submitted query here directly, then walk back to to the original form state?
+// Instead of what we do here, which is to store the form state and then reconstruct the submitted query from that during apply/restore.
 type HistoryEntry = {
 	// always set
 	filters: FilterModule.ModuleRootState;
@@ -46,6 +49,9 @@ type HistoryEntry = {
 	// (in order to reset inactive parts of the page)
 	patterns: PatternModule.ModuleRootState;
 	explore: ExploreModule.ModuleRootState;
+
+	/** Compiled state for queries submitted through the new form system. */
+	newForm?: CompiledFormStateWithSummaries | null;
 };
 
 /** Intermediate type between HistoryEntry and FullHistoryEntry used in a few places */
@@ -154,11 +160,13 @@ const actions = {
 		const filterSummary: string | undefined = getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
 		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
 		const patternSummary: string | undefined =
-			entry.interface.form === 'search'
-				? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy, entry.filters)
-				: entry.interface.form === 'explore'
-					? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, useCorpus().value.allAnnotationsMap)
-					: undefined;
+			entry.interface.form === 'search' && entry.newForm
+				? entry.newForm.summaries.map(summary => `${summary.label}: ${summary.value}`).join(', ') || undefined
+				: entry.interface.form === 'search'
+					? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy, entry.filters)
+					: entry.interface.form === 'explore'
+						? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, useCorpus().value.allAnnotationsMap)
+						: undefined;
 
 		// Should only contain items that uniquely identify a query
 		// Normally this would only be the pattern (including gap values) and filters,
@@ -168,6 +176,7 @@ const actions = {
 		const hashBase = {
 			filters: entry.filters,
 			fieldName: entry.patterns.shared.source,
+			newForm: entry.newForm?.encoded,
 			pattern,
 			gap: entry.gap,
 			groupBy: entry.view.groupBy.sort((l, r) => l.localeCompare(r)),

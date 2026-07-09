@@ -28,7 +28,7 @@ export default function startGlobalCorpusDependentEffects(context: Loadable<Corp
 		canUpdate => {
 			if (!canUpdate) return;
 
-			const annotatedFieldId = QueryStore.get.sourceField().id;
+			const annotatedFieldId = QueryStore.get.sourceField();
 			const filter = QueryStore.get.filterString();
 			selectedSubcorpusLoader.next({ index: context.value!.index!, annotatedFieldId, filter, blacklab });
 		},

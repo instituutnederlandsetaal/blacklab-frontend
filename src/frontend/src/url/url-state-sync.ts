@@ -1,11 +1,11 @@
 import cloneDeep from 'clone-deep';
 import jsonStableStringify from 'json-stable-stringify';
-import { computed, nextTick, watch, type Ref } from 'vue';
-import type { LocationQuery, RouteLocationNormalizedLoaded, RouteLocationResolvedGeneric, Router } from 'vue-router';
+import { computed, watch, type Ref } from 'vue';
+import type { LocationQuery, RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
 import type { Corpus, CorpusContext } from '@/app/state/useCorpusContext';
-import { FORM_QUERY_PREFIX, restoreScopedFormState, type FormBuilder } from '@/features/form';
+import { hasScopedFormState, restoreScopedFormState, type CompiledFormStateWithSummaries, type FormBuilder, type RestoredFormState } from '@/features/form';
 import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
@@ -15,41 +15,35 @@ import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
-import type { SearchFormSystem } from '@/features/search/model/search-form-system';
 import type { PageMeta } from '@/navigation/page-context';
-import type * as BLTypes from '@/types/blacklabtypes';
-import { getArticleUrlStateFromRoute } from '@/url/route-query';
-import { stateToUrl, type ArticleUrlState } from '@/url/state-to-url';
-import UrlStateParserArticle, { createUrlStateParserArticleDependencies } from '@/url/url-state-parser-article';
+import { getSubmittedInterfaceState, type SearchPageQueryParamsInput } from '@/url/state-to-url';
 import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
+import { cleanQueryParams } from '@/shared/api/lib/api-utils';
 import { debugLog } from '@/shared/debug/debug';
 import type { LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
 
 type QueryState = {
-	indexId?: string | null;
-	params?: BLTypes.BLSearchParameters;
-	state: {
-		query: QueryStore.ModuleRootState;
-		interface: InterfaceStore.ModuleRootState;
-		global: GlobalResultsStore.ModuleRootState;
-		views: ViewStore.ModuleRootState;
-	};
-	article?: ArticleUrlState | null;
+	query: QueryStore.ModuleRootState;
+	interface: InterfaceStore.ModuleRootState;
+	global: GlobalResultsStore.ModuleRootState;
+	views: ViewStore.ModuleRootState;
 };
 
-type BrowserHistoryEntry = HistoryStore.HistoryEntry & { article?: ArticleUrlState };
 type UrlManagedRouteName = 'search' | 'article';
 type UrlStateSyncDependencies = {
 	blacklabApi: BlackLabApi;
 	corpusContext: LoadableFromRequest<CorpusContext>;
 	indexId: Ref<string | undefined>;
 	pageMeta: Ref<PageMeta | null>;
-	searchForms?: SearchFormSystem;
+	searchForms: Ref<FormBuilder | null>;
 };
 
+/** Key under which we store the state snapshot in the browser history API's state object */
 const HISTORY_STATE_KEY = 'cfHistoryState';
+// Non-reactive race guard for async URL restores; each closure keeps the value it started with.
+let urlRestoreRevision = 0;
 
 type UrlSyncContext = {
 	routeName: UrlManagedRouteName;
@@ -61,21 +55,6 @@ type UrlSyncContext = {
 function getManagedRouteName(pageMeta: PageMeta | null, route: RouteLocationNormalizedLoaded): UrlManagedRouteName | null {
 	const routeName = pageMeta?.name || (typeof route.name === 'string' ? route.name : null);
 	return routeName === 'search' || routeName === 'article' ? routeName : null;
-}
-
-function getStoredHistoryEntry(state: unknown): BrowserHistoryEntry | null {
-	if (!state || typeof state !== 'object') {
-		return null;
-	}
-	const typed = state as Record<string, unknown>;
-	const nested = typed[HISTORY_STATE_KEY] as BrowserHistoryEntry | undefined;
-	if (nested && typeof nested === 'object') {
-		return nested;
-	}
-	if ('interface' in typed && 'patterns' in typed) {
-		return typed as unknown as BrowserHistoryEntry;
-	}
-	return null;
 }
 
 function getFirstQueryString(query: LocationQuery, ...keys: string[]): string | null {
@@ -96,103 +75,69 @@ export function getCanonicalFormParametersFromRoute(route: RouteLocationNormaliz
 	};
 }
 
-function hasScopedFormQuery(route: RouteLocationNormalizedLoaded): boolean {
-	return Object.keys(route.query).some(key => key.startsWith(FORM_QUERY_PREFIX));
-}
+type FrontendSearchPageExtraQueryParamsDecoded = {
+	interface?: Partial<InterfaceStore.ModuleRootState>;
+	groupDisplayMode?: string;
+	resultViewCustomState?: unknown;
+};
+type FrontendSearchPageExtraQueryParamsEncoded = Partial<Record<keyof FrontendSearchPageExtraQueryParamsDecoded, string>>;
 
-function restoreNewSearchFormFromRoute(route: RouteLocationNormalizedLoaded, corpus: Corpus, definition: FormBuilder): void {
-	const canonical = getCanonicalFormParametersFromRoute(route, corpus);
-	const query = hasScopedFormQuery(route) ? (route.query as Record<string, unknown>) : {};
-	const restored = restoreScopedFormState(definition, query, canonical);
-	definition.state.replaceState(restored);
-	if (restored.issues.length) {
-		debugLog('url', 'New search form URL restore issues', restored.issues);
-	}
-}
+type NavigationInput = {
+	/** The query params that represent submitted query/results state. Draft interface params are sampled only while pushing. */
+	query: Partial<BlackLabParameters & FrontendSearchPageExtraQueryParamsEncoded>;
+	/** Path in the url, starts with a / */
+	path: string;
+	/** Vue Router route path, without the history base. Used only for store/router equality checks. */
+	routePath: string;
 
-function getCurrentQueryState(indexId: string, route: RouteLocationNormalizedLoaded): QueryState {
-	return cloneDeep({
-		indexId,
-		params: RootStore.get.blacklabParameters(),
-		article: getArticleUrlStateFromRoute(route),
-		state: {
-			views: ViewStore.getState(),
-			global: GlobalResultsStore.getState(),
-			interface: InterfaceStore.getState(),
-			query: QueryStore.getState(),
-		},
-	}) satisfies QueryState;
-}
+	indexId: string;
+	resultsView: string | null;
+};
 
-function getSearchfieldFromStore(): string | null {
-	try {
-		return QueryStore.get.sourceField().id;
-	} catch {
-		return null;
-	}
-}
+type RealSearchPageQueryParamsInput = Omit<SearchPageQueryParamsInput, 'interface'>;
+type AdditionalSearchPageQueryParamsInput = Pick<SearchPageQueryParamsInput, 'query' | 'interface'>;
 
-function toRouterPath(url: string): string {
-	const context = (CONTEXT_URL || '').replace(/\/+$/, '');
-	return !context || !url.startsWith(context) ? url : url.slice(context.length) || '/';
-}
+function createRealBrowserQueryParams(p: RealSearchPageQueryParamsInput): NavigationInput['query'] {
+	const { blacklabParams, query, view } = p;
+	const viewQueryParams: FrontendSearchPageExtraQueryParamsEncoded = {
+		resultViewCustomState: view?.customState ? JSON.stringify(view.customState) : undefined,
+		groupDisplayMode: view?.groupDisplayMode || undefined,
+	};
 
-function stateSnapshotToUrlPayload(value: QueryState) {
-	return stateToUrl({
-		contextUrl: CONTEXT_URL,
-		indexId: value.indexId,
-		params: value.params,
-		scopedFormQuery: QueryStore.get.scopedFormQuery(),
-		pattern: QueryStore.get.patternString(),
-		gapValue: value.state.query.gap?.value || null,
-		searchfield: getSearchfieldFromStore(),
-		article: value.article,
-		state: value.state,
-	});
-}
+	const scopedFormState = query.form === 'new' ? query.state.encoded : undefined;
 
-function normalizeRouteQuery(query: LocationQuery): Record<string, string | string[] | null> {
-	const normalized: Record<string, string | string[] | null> = {};
-	for (const [key, value] of Object.entries(query)) {
-		if (Array.isArray(value)) {
-			normalized[key] = value.filter((item): item is string => typeof item === 'string');
-		} else {
-			normalized[key] = value ?? null;
-		}
-	}
-	return normalized;
-}
-
-function stableRouteUrl(route: Pick<RouteLocationNormalizedLoaded | RouteLocationResolvedGeneric, 'path' | 'query' | 'hash'>): string {
 	return (
-		jsonStableStringify({
-			hash: route.hash || '',
-			path: route.path,
-			query: normalizeRouteQuery(route.query),
-		}) ?? ''
+		cleanQueryParams({
+			// we just mimic blacklab's query parameters for most of our interface state
+			...blacklabParams,
+
+			// fix up first/number to be our frontend pagination numbers
+			first: view?.first != null ? String(view.first) : undefined,
+			number: view?.number != null ? String(view.number) : undefined,
+
+			...viewQueryParams,
+			...scopedFormState,
+		}) ?? {}
 	);
 }
 
-function getStoreGeneratedUrl(router: Router, indexId: string, route: RouteLocationNormalizedLoaded) {
-	const queryState = getCurrentQueryState(indexId, route);
-	const urlPayload = stateSnapshotToUrlPayload(queryState);
-	const resolvedRoute = router.resolve(toRouterPath(urlPayload.url));
-	return {
-		key: stableRouteUrl(resolvedRoute),
-		queryState,
-		resolvedRoute,
-		urlPayload,
-	};
+function createAdditionalBrowserQueryParams(p: AdditionalSearchPageQueryParamsInput): NavigationInput['query'] {
+	if (!p.interface.viewedResults) return {};
+	return (
+		cleanQueryParams({
+			interface: JSON.stringify(getSubmittedInterfaceState(p)),
+		}) ?? {}
+	);
 }
 
-function createBrowserHistoryEntry(value: QueryState): BrowserHistoryEntry {
-	const { query, views, global } = value.state;
-	const activeView = value.state.interface.viewedResults ? views[value.state.interface.viewedResults] : undefined;
+function createBrowserHistoryEntry(value: QueryState): HistoryStore.HistoryEntry {
+	const { query, views, global, interface: interfaceState } = value;
 
+	// contains defaults for all the properties that are not considered 'active' through the interface state
 	return {
-		filters: query.filters || {},
+		filters: query.form === 'new' ? {} : query.filters || {},
 		global,
-		view: activeView || cloneDeep(ViewStore.initialViewState),
+		view: interfaceState.viewedResults ? views[interfaceState.viewedResults] : ViewStore.initialViewState,
 		explore:
 			query.form === 'explore'
 				? {
@@ -208,59 +153,98 @@ function createBrowserHistoryEntry(value: QueryState): BrowserHistoryEntry {
 						shared: query.shared,
 					}
 				: PatternStore.defaults,
+		newForm: query.form === 'new' ? query.state : null,
 		interface: {
-			form: query.form ? query.form : 'search',
+			form: query.form === 'explore' ? 'explore' : 'search',
 			exploreMode: query.form === 'explore' ? query.subForm : 'ngram',
 			patternMode: query.form === 'search' ? query.subForm : 'simple',
-			viewedResults: value.state.interface.viewedResults,
-			activeAnnotationTab: value.state.interface.activeAnnotationTab,
-			activeFilterTab: value.state.interface.activeFilterTab,
+			viewedResults: interfaceState.viewedResults,
+			activeAnnotationTab: interfaceState.activeAnnotationTab,
+			activeFilterTab: interfaceState.activeFilterTab,
 		},
-		gap: query.gap || GapStore.defaults,
-		article: value.article || undefined,
+		gap: query.form === 'new' ? GapStore.defaults : query.gap || GapStore.defaults,
 	};
 }
 
-function pushStoreStateToRouter(router: Router, snapshot: ReturnType<typeof getStoreGeneratedUrl>) {
-	const entry = createBrowserHistoryEntry(snapshot.queryState);
-	HistoryStore.actions.addEntry({
-		entry: {
-			filters: entry.filters,
-			global: entry.global,
-			view: entry.view,
-			explore: entry.explore,
-			patterns: entry.patterns,
-			interface: entry.interface,
-			gap: entry.gap,
-		},
-		pattern: snapshot.queryState.params && snapshot.queryState.params.patt,
-		url: snapshot.urlPayload.url,
-	});
+function createCurrentBrowserHistoryEntry(resultsView: string | null): HistoryStore.HistoryEntry | null {
+	if (!resultsView) return null;
+	return cloneDeep(
+		createBrowserHistoryEntry({
+			global: GlobalResultsStore.getState(),
+			interface: InterfaceStore.getState(),
+			query: QueryStore.getState(),
+			views: ViewStore.getState(),
+		}),
+	);
+}
 
-	const historyState = {
-		[HISTORY_STATE_KEY]: entry,
-	};
+function pushStoreStateToRouter(router: Router, next: NavigationInput) {
+	const { path, indexId, resultsView } = next;
+	const additionalQuery = resultsView
+		? createAdditionalBrowserQueryParams({
+				interface: InterfaceStore.getState(),
+				query: QueryStore.getState(),
+			})
+		: {};
+	const query =
+		cleanQueryParams({
+			...next.query,
+			...additionalQuery,
+		}) ?? {};
+	const entry = createCurrentBrowserHistoryEntry(resultsView);
+	const searchParams = new URLSearchParams();
+	for (const [key, value] of Object.entries(query)) {
+		for (const item of Array.isArray(value) ? value : [value]) {
+			if (item != null) searchParams.append(key, String(item));
+		}
+	}
+	const queryString = searchParams.toString();
+	const url = queryString ? `${path}?${queryString}` : path;
+	if (entry) {
+		HistoryStore.actions.addEntry({
+			entry,
+			pattern: query.patt || undefined,
+			url,
+		});
+	}
 
-	debugLog('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', snapshot.urlPayload.url, entry);
-	debugLog('history', `Calling router.push with entry:`, entry, `and url:`, snapshot.urlPayload.url);
+	const historyState = entry ? { [HISTORY_STATE_KEY]: entry as any } : null;
 
+	debugLog('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', url, entry);
+	debugLog('history', `Calling router.push with entry:`, entry, `and url:`, url);
+
+	// history.pushState(historyState, path + '?' + new URLSearchParams(query as any).toString(), undefined);
 	router
 		.push({
-			path: snapshot.resolvedRoute.path,
-			query: snapshot.resolvedRoute.query,
-			hash: snapshot.resolvedRoute.hash,
-			state: historyState as any,
+			query: query,
+			name: 'search',
+			params: {
+				corpus: indexId,
+				...(resultsView ? { results: resultsView } : {}),
+			},
+			// NOTE: doesn't actually work?
+			// also trying to read it out in the .then() doesn't work, as the property is missing.
+			// see https://github.com/vuejs/rfcs/discussions/400
+			state: historyState ?? undefined,
 		})
 		.then(
 			() => {
 				const existingState = history.state && typeof history.state === 'object' ? (history.state as Record<string, unknown>) : {};
-				history.replaceState({ ...existingState, ...historyState }, '', undefined);
+				if (historyState) history.replaceState({ ...existingState, ...historyState }, '', undefined);
+				else {
+					delete existingState[HISTORY_STATE_KEY];
+					history.replaceState(existingState, '', undefined);
+				}
 			},
 			e => {
 				const maybeError = e as { name?: string; message?: string } | null;
 				if (maybeError?.name === 'NavigationDuplicated' || (maybeError?.message || '').includes('Avoided redundant navigation')) {
 					const existingState = history.state && typeof history.state === 'object' ? (history.state as Record<string, unknown>) : {};
-					history.replaceState({ ...existingState, ...historyState }, '', undefined);
+					if (historyState) history.replaceState({ ...existingState, ...historyState }, '', undefined);
+					else {
+						delete existingState[HISTORY_STATE_KEY];
+						history.replaceState(existingState, '', undefined);
+					}
 					return;
 				}
 				console.error('Failed to push URL through router', e);
@@ -268,9 +252,27 @@ function pushStoreStateToRouter(router: Router, snapshot: ReturnType<typeof getS
 		);
 }
 
+function createUrlForComparison(path: string, query: Record<string, any>, ignoredQueryKeys: ReadonlySet<string> = new Set()): string {
+	const normalizedQuery = Object.fromEntries(
+		Object.entries(query)
+			.filter(([key]) => !ignoredQueryKeys.has(key))
+			.map(([key, value]) => {
+				const values = (Array.isArray(value) ? value : [value])
+					.filter(value => value != null && value !== '')
+					.map(String)
+					.sort();
+				return values.length ? [key, values.length === 1 ? values[0] : values] : null;
+			})
+			.filter((entry): entry is [string, string | string[]] => entry != null),
+	);
+	return jsonStableStringify({ path, query: normalizedQuery });
+}
+
+// The legacy interface param contains draft tab/form state; it is sampled on push, but must not arbitrate direction.
+const DRAFT_URL_QUERY_KEYS = new Set(['interface']);
+
 export default function startUrlSync(router: Router, dependencies: UrlStateSyncDependencies) {
 	const loadedCorpus = computed<Corpus | null>(() => (dependencies.corpusContext.isLoaded() ? dependencies.corpusContext.value.index || null : null));
-	let latestUrlApplyRun = 0;
 
 	function getUrlSyncContext(): UrlSyncContext | null {
 		const route = router.currentRoute.value;
@@ -282,52 +284,111 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 
 	const routerUrl = computed(() => {
 		const context = getUrlSyncContext();
-		return context ? stableRouteUrl(context.route) : null;
+		return context ? createUrlForComparison(context.route.path, context.route.query, DRAFT_URL_QUERY_KEYS) : null;
 	});
 
-	const storeUrl = computed(() => {
+	const storeUrlInput = computed<NavigationInput | null>(() => {
 		const context = getUrlSyncContext();
-		return context ? getStoreGeneratedUrl(router, context.indexId, context.route).key : null;
+		if (!context) return null;
+		const viewedResults = InterfaceStore.get.viewedResults();
+
+		const basePath = CONTEXT_URL + '/' + encodeURIComponent(context.indexId) + '/search' + (viewedResults ? '/' + encodeURIComponent(viewedResults) : '');
+		const { pathname, hash, search } = new URL(basePath, window.location.origin);
+		const newUrl = pathname + search + hash;
+		const routePath = router.resolve({
+			name: 'search',
+			params: {
+				corpus: context.indexId,
+				...(viewedResults ? { results: viewedResults } : {}),
+			},
+		}).path;
+
+		if (!viewedResults) {
+			return {
+				query: {},
+				path: newUrl,
+				routePath,
+				indexId: context.indexId,
+				resultsView: null,
+			} satisfies NavigationInput;
+		}
+
+		return {
+			query: createRealBrowserQueryParams({
+				blacklabParams: RootStore.get.blacklabParameters()!,
+				query: QueryStore.getState(),
+				view: ViewStore.getState()[viewedResults],
+			}),
+			path: newUrl,
+			routePath,
+			indexId: context.indexId,
+			resultsView: viewedResults,
+		} satisfies NavigationInput;
 	});
 
-	async function applyRouterUrlToStore(context: UrlSyncContext, run: number) {
-		const newSearchFormDefinition = context.routeName === 'search' ? (dependencies.searchForms?.getDefinition() ?? null) : null;
-		const shouldParseSearchUrl = context.routeName === 'search' && !!newSearchFormDefinition;
-		const stateFromHistory = shouldParseSearchUrl ? null : getStoredHistoryEntry(history.state);
-		const localSearchIntentRevision = RootStore.get.localSearchIntentRevision();
-		let state = stateFromHistory;
+	const storeUrl = computed(() => (storeUrlInput.value ? createUrlForComparison(storeUrlInput.value.routePath, storeUrlInput.value.query) : null));
 
-		if (!state) {
-			try {
-				state =
-					context.routeName === 'article'
-						? await new UrlStateParserArticle(createUrlStateParserArticleDependencies({ corpus: context.corpus })).get()
-						: await new UrlStateParserSearch(
-								createUrlStateParserSearchDependencies({
-									blacklabApi: dependencies.blacklabApi,
-									corpus: context.corpus,
-								}),
-							).get();
-			} catch (e) {
-				console.error('Failed to restore URL state', e);
+	async function applyRouterUrlToStore(context: UrlSyncContext, restoreRevision: number) {
+		if (context.routeName !== 'search') {
+			return;
+		}
+		const localSearchIntentRevision = RootStore.get.localSearchIntentRevision();
+
+		try {
+			const restoredFromHistory = history.state?.[HISTORY_STATE_KEY] as HistoryStore.HistoryEntry | undefined;
+			const restored =
+				restoredFromHistory ??
+				(await new UrlStateParserSearch(
+					createUrlStateParserSearchDependencies({
+						blacklabApi: dependencies.blacklabApi,
+						corpus: context.corpus,
+					}),
+				).get());
+
+			if (restoreRevision !== urlRestoreRevision) return;
+			if (RootStore.get.localSearchIntentRevision() !== localSearchIntentRevision) {
+				debugLog('history', 'Skipping stale URL restore because a local search action ran while URL state was loading.', context.route.fullPath);
 				return;
 			}
-		}
 
-		if (run !== latestUrlApplyRun) {
+			debugLog('history', restoredFromHistory ? 'Restoring state from browser history.' : 'Restoring state from URL.', context.route.fullPath);
+
+			// Now sync with form system (which doesn't run through store)
+			const newSearchFormDefinition = dependencies.searchForms.value;
+			let newFormState: RestoredFormState | undefined;
+			let submittedNewForm: CompiledFormStateWithSummaries | null | undefined = restored.newForm;
+			if (newSearchFormDefinition) {
+				const canonical = getCanonicalFormParametersFromRoute(context.route, context.corpus);
+				const routeHasScopedFormState = hasScopedFormState(context.route.query);
+
+				// pass a blank object if there's no scoped form state in the url at all
+				// otherwise we will lock the form with the canonical parameters 'patt', 'filter' and 'searchfield'
+				// even when the form wasn't active to start with.
+				newFormState = restoreScopedFormState(newSearchFormDefinition, routeHasScopedFormState ? context.route.query : {}, canonical);
+				newSearchFormDefinition.state.replaceState(newFormState);
+				// Compile restored URL state directly; FormBuilder.submit() is the user-action path and emits submit listeners.
+				if (newFormState.activeFormId) submittedNewForm = newSearchFormDefinition.compile(newFormState.activeFormId);
+				else if (routeHasScopedFormState) submittedNewForm = null;
+				if (newFormState.issues.length) {
+					debugLog('url', 'New search form URL restore issues', newFormState.issues);
+				}
+			}
+
+			const restoredForStore = { ...restored, newForm: submittedNewForm ?? restored.newForm ?? null };
+			RootStore.actions.replace(restoredForStore);
+
+			// Initial URL restores need their decoded state in history.state without going through a reactive self-push.
+			const existingState = history.state && typeof history.state === 'object' ? (history.state as Record<string, unknown>) : {};
+			const entry = createCurrentBrowserHistoryEntry(restoredForStore.interface.viewedResults) ?? (restoredForStore.interface.viewedResults ? restoredForStore : null);
+			if (entry) history.replaceState({ ...existingState, [HISTORY_STATE_KEY]: cloneDeep(entry) as any }, '', undefined);
+			else {
+				delete existingState[HISTORY_STATE_KEY];
+				history.replaceState(existingState, '', undefined);
+			}
+		} catch (e) {
+			console.error('Failed to restore URL state', e);
 			return;
 		}
-		if (RootStore.get.localSearchIntentRevision() !== localSearchIntentRevision) {
-			debugLog('history', 'Skipping stale URL restore because a local search action ran while URL state was loading.', context.route.fullPath);
-			return;
-		}
-
-		debugLog('history', stateFromHistory ? 'Restoring state from browser history.' : 'Restoring state from URL.', context.route.fullPath, state);
-		if (newSearchFormDefinition) {
-			restoreNewSearchFormFromRoute(context.route, context.corpus, newSearchFormDefinition);
-		}
-		RootStore.actions.replace(state);
-		await nextTick();
 	}
 
 	const stopUrlSync = watch(
@@ -336,22 +397,22 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 			const context = getUrlSyncContext();
 			const [currentRouterUrl, currentStoreUrl] = current;
 			const [previousRouterUrl, previousStoreUrl] = previous ?? [null, null];
-			if (!context || !currentRouterUrl || !currentStoreUrl) return;
+			if (!context || !currentRouterUrl || currentRouterUrl === currentStoreUrl) return;
 
 			const routerChanged = currentRouterUrl !== previousRouterUrl;
 			const storeChanged = currentStoreUrl !== previousStoreUrl;
-			if (currentRouterUrl === currentStoreUrl) {
-				return;
-			}
+			if (!routerChanged && !storeChanged) return;
 
 			if (storeChanged && !routerChanged) {
-				latestUrlApplyRun += 1;
-				pushStoreStateToRouter(router, getStoreGeneratedUrl(router, context.indexId, context.route));
+				const next = storeUrlInput.value;
+				if (!next) return;
+				urlRestoreRevision += 1;
+				pushStoreStateToRouter(router, cloneDeep(next));
 				return;
 			}
 
-			const run = ++latestUrlApplyRun;
-			await applyRouterUrlToStore(context, run);
+			const restoreRevision = ++urlRestoreRevision;
+			await applyRouterUrlToStore(context, restoreRevision);
 		},
 		{
 			immediate: true,

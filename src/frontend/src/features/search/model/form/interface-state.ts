@@ -9,11 +9,11 @@ import { reactive } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type { ModuleRootState as ExploreModuleRootState } from '@/features/search/model/form/explore-state';
-import type { ModuleRootState as PatternModuleRootState } from '@/features/search/model/form/pattern-state';
+import type { PatternMode } from '@/features/search/model/form/pattern-state';
 
 type ModuleRootState = {
 	form: 'search' | 'explore';
-	patternMode: keyof PatternModuleRootState;
+	patternMode: PatternMode;
 	exploreMode: keyof ExploreModuleRootState;
 	viewedResults: null | string;
 	activeAnnotationTab: null | string;

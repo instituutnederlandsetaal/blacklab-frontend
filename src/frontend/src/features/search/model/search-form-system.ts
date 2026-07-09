@@ -1,11 +1,12 @@
 // oxlint-disable-next-line vue/prefer-import-from-vue -- pauseTracking/resetTracking are not exported by this Vue package entrypoint.
 import { markRaw, pauseTracking, resetTracking } from '@vue/reactivity';
-import { computed, type App, type ComputedRef, type Ref } from 'vue';
+import { computed, type ComputedRef, type ObjectPlugin, type Ref } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import { annotationPosController, annotationSelectController, annotationTextController, FormBuilder, parallelController, type FormFieldNode, type FormRuntimeContext } from '@/features/form';
 import type { ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
+import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
@@ -18,10 +19,7 @@ import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
-export type SearchFormSystem = {
-	definition: ComputedRef<FormBuilder | null>;
-	getDefinition: () => FormBuilder | null;
-};
+const SEARCH_FORM_ID_PREFIX = 'search.';
 
 type CreateSearchFormSystemOptions = {
 	blacklabApi: BlackLabApi;
@@ -30,7 +28,7 @@ type CreateSearchFormSystemOptions = {
 	translate: Translate;
 };
 
-const [_searchFormSystemKey, provideSearchFormSystem, useSearchFormSystem] = useInjectable<SearchFormSystem>('searchFormSystem');
+const [_searchFormSystemKey, provideSearchFormSystem, useSearchFormSystem] = useInjectable<ComputedRef<FormBuilder | null>>('searchFormSystem');
 
 function createAnnotationField(
 	builder: FormBuilder,
@@ -102,7 +100,7 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	};
 	const builder = new FormBuilder(context);
 	const annotation = getSimpleSearchAnnotation(corpus);
-	const form = builder.newForm('search.simple', ContainerRenderer, {
+	const form = builder.newForm(getNewSearchFormId('simple'), ContainerRenderer, {
 		title: computed(() => translate.$t('search.simple.heading')),
 	});
 
@@ -138,12 +136,23 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	return builder;
 }
 
-export function createSearchFormSystem(options: CreateSearchFormSystemOptions): SearchFormSystem {
+type SearchFormSystemPlugin = ObjectPlugin & {
+	definition: ComputedRef<FormBuilder | null>;
+};
+
+const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchFormSystemPlugin => {
 	const definition = computed(() => {
 		const corpus = options.corpus.value;
 		const tagset = options.tagset.value;
 		if (!corpus) return null;
 
+		// FIXME: this is a hack!
+		// we're creating the form definition in a computed,
+		// but the form definition is also mutable, and keeps internal (reactive) state (the form state)
+		// This means that we technically return a mutable object from a computed
+		// Additionally, the form was ending up in it own reactive dependencies,
+		// which means it creates an infinite computed loop if we don't suspend tracking while creating the form definition.
+		// All in all, poorly designed, and we really should work to separate out definition from state and runtime component graph
 		pauseTracking();
 		try {
 			return createSearchFormDefinition(corpus, tagset, options.blacklabApi, options.translate);
@@ -151,15 +160,18 @@ export function createSearchFormSystem(options: CreateSearchFormSystemOptions): 
 			resetTracking();
 		}
 	});
-
 	return {
+		install: app => provideSearchFormSystem(app, definition),
 		definition,
-		getDefinition: () => definition.value,
 	};
+};
+
+export function hasNewSearchFormForPattern(definition: FormBuilder | null | undefined, patternMode: PatternMode): boolean {
+	return !!definition?.getForm(getNewSearchFormId(patternMode));
 }
 
-export function provideSearchFormSystemPlugin(app: App, system: SearchFormSystem) {
-	provideSearchFormSystem(app, system);
+export function getNewSearchFormId(patternMode: PatternMode): string {
+	return `${SEARCH_FORM_ID_PREFIX}${patternMode}`;
 }
 
-export { useSearchFormSystem };
+export { useSearchFormSystem, createSearchFormSystem };

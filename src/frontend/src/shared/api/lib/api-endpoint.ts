@@ -62,7 +62,7 @@ export function createEndpoint(p: EndpointSettings): Endpoint {
 			const request = endpoint
 				.get<T>(url, {
 					...config,
-					params: cleanQueryParams(queryParams),
+					params: queryParams && cleanQueryParams(queryParams),
 					cancelToken: source.token,
 				})
 				.then(r => r.data, handleError);

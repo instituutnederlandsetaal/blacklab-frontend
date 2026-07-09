@@ -472,7 +472,7 @@ export default defineComponent({
 		},
 
 		mainSearchField(): string {
-			return QueryStore.get.sourceField().id;
+			return QueryStore.get.sourceField();
 		},
 
 		colors(): Record<string, TokenHighlight> {

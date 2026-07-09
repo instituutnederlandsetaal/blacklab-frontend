@@ -52,8 +52,7 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 				children: [
 					{
 						name: 'search',
-						path: 'search',
-						alias: 'search/:pathMatch(.*)*',
+						path: 'search/:results?',
 						meta: { name: 'search', getTitle: (displayName: string) => `${displayName} Search`, customScriptTiming: 'after-page-bootstrap' },
 						component: () => import('@/pages/search/SearchPage.vue'),
 					},

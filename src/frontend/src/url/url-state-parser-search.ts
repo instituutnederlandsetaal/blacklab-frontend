@@ -23,8 +23,6 @@ import { getCorrectUiType, uiTypeSupport } from '@/utils';
 import { corpusCustomizations } from '@/utils/customization';
 import parseLucene from '@/utils/luceneparser';
 
-import type { ArticleUrlState } from './state-to-url';
-import { emptyArticleUrlState } from './state-to-url';
 import BaseUrlStateParser from './url-state-parser-base';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
@@ -84,7 +82,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	}
 
 	@memoize
-	public async get(): Promise<HistoryModule.HistoryEntry & { article: ArticleUrlState }> {
+	public async get(): Promise<HistoryModule.HistoryEntry> {
 		// Make sure our parsed cql is up to date (used to be a memoized getter, but we need it to be async)
 		const cql = this.getString('patt') || this.getString('query') || null;
 		await this.updateParsedCql(cql);
@@ -99,8 +97,8 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			// settings for the active results view
 			view: this.view(this.interface.viewedResults),
 			global: this.global,
-			article: this.article,
 			// submitted query not parsed from url: is restored from rest of state later.
+			// new form state also not parsed here. done later at call site
 		};
 	}
 
@@ -761,22 +759,6 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			.split(',')
 			.map(g => g.trim())
 			.filter(g => !!g);
-	}
-
-	@memoize
-	private get article(): ArticleUrlState {
-		const [_indexId, page, docId] = this.paths;
-		if (!(page === 'docs' && docId)) return { ...emptyArticleUrlState };
-		return {
-			docId: page === 'docs' && docId ? docId : null,
-			viewField: this.getString('field', null, v => v || null), // See also "searchfield" in shared.
-			wordend: this.getNumber('wordend'), // No validation/defaults here for wordstart/wordend/findhit. It's complicated. Solve in article api/getters.
-			wordstart: this.getNumber('wordstart'),
-			findhit: this.getNumber('findhit'),
-			pattern: this.getString('patt') || this.getString('query') || null,
-			pattgapdata: this.getString('pattgapdata'),
-			searchfield: this.getString('searchfield') || this.getString('searchField') || this.getString('field'),
-		};
 	}
 
 	/**

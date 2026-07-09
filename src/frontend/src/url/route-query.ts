@@ -1,6 +1,5 @@
 import type { LocationQueryRaw, LocationQueryValue, RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
-import type { ArticleUrlState } from '@/url/state-to-url';
 
 export type RouteQueryPatch = Record<string, string | number | boolean | null | undefined>;
 
@@ -32,26 +31,6 @@ export function getNumberFromRouteQuery(route: RouteLocationNormalizedLoaded, ke
 export function getAnnotatedFieldFromRouteQuery(route: RouteLocationNormalizedLoaded, fields: Record<string, unknown>, ...keys: string[]): string | null {
 	const value = getStringFromRouteQuery(route, ...keys);
 	return value && fields[value] ? value : null;
-}
-
-export function getArticleUrlStateFromRoute(route: RouteLocationNormalizedLoaded): ArticleUrlState | null {
-	if (route.name !== 'article') {
-		return null;
-	}
-	const docId = getRouteParamString(route.params.docId);
-	if (!docId) {
-		return null;
-	}
-	return {
-		docId,
-		viewField: getStringFromRouteQuery(route, 'field'),
-		wordstart: getNumberFromRouteQuery(route, 'wordstart'),
-		wordend: getNumberFromRouteQuery(route, 'wordend'),
-		findhit: getNumberFromRouteQuery(route, 'findhit'),
-		pattern: getStringFromRouteQuery(route, 'patt', 'query'),
-		pattgapdata: getStringFromRouteQuery(route, 'pattgapdata'),
-		searchfield: getStringFromRouteQuery(route, 'searchfield', 'searchField', 'field'),
-	};
 }
 
 export function updateRouteQuery(router: Router, route: RouteLocationNormalizedLoaded, patch: RouteQueryPatch) {

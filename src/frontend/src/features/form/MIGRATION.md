@@ -41,7 +41,7 @@ next migration steps, not as a full form-system reference.
 
 1. `FormSystem` submits a `CompiledFormStateWithSummaries`.
 2. `RootStore.actions.searchFromNewFormSubmit(snapshot)` stores the compiled
-   snapshot on `QueryStore` as `query.newForm`.
+   snapshot on `QueryStore` as the distinct `form: 'new'` query branch.
 3. `RootStore.get.blacklabParameters()` reads compiled `patt`, `filter`, and
    `searchfield` from the snapshot. It suppresses legacy `field` for new-form
    submissions.
