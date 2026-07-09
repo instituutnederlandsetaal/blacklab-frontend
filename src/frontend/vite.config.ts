@@ -83,6 +83,9 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 		define: {
 			__VUE_PROD_DEVTOOLS__: false, // can enable for debugging prod builds, but larger bundle size
 		},
+		css: {
+			devSourcemap: true,
+		},
 		server: {
 			host: '0.0.0.0',
 			port: vitePort,
