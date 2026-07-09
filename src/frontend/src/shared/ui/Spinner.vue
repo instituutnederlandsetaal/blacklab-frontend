@@ -1,8 +1,8 @@
 <template>
-	<div v-if="position" :class="`cf-spinner-${position}`">
-		<div class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style></div>
+	<div v-if="position && !overlay" :class="`cf-spinner-${position}`">
+		<div ref="spinner" class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style></div>
 	</div>
-	<div v-else class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style></div>
+	<div v-else ref="spinner" class="fa fa-spinner fa-spin cf-spinner" :class="classes" :style></div>
 </template>
 
 <script lang="ts">
@@ -24,19 +24,20 @@ export default defineComponent({
 		left: Boolean,
 		center: Boolean,
 		right: Boolean,
+		inverted: Boolean,
 	},
 	data: () => ({ observer: null as ResizeObserver | null }),
 	computed: {
 		position(): 'left' | 'center' | 'right' | undefined {
 			if (this.left == null && this.right == null && this.center == null) return 'center';
-			if (this.inline || this.overlay) return undefined;
+			if (this.inline) return undefined;
 			if (this.left) return 'left';
 			if (this.right) return 'right';
 			if (this.center) return 'center';
 			return undefined;
 		},
 		classes(): any {
-			return { lg: this.lg, sm: this.sm, overlay: this.overlay, inline: this.inline, xs: this.xs };
+			return { lg: this.lg, sm: this.sm, overlay: this.overlay, inline: this.inline, xs: this.xs, inverted: this.inverted };
 		},
 		style(): any {
 			return {
@@ -46,25 +47,24 @@ export default defineComponent({
 	},
 	mounted() {
 		if (this.overlay) {
-			const parent = this.$el.parentElement as HTMLElement;
+			const spinner = this.$refs.spinner as HTMLElement;
+			const parent = spinner.parentElement as HTMLElement;
 			parent.style.position = 'relative';
 			// size observer and center spinner
 			this.observer = new ResizeObserver(() => {
 				const { width, height } = parent.getBoundingClientRect();
 				// don't use boundingClientRect for ourselves. It changes when the our element rotates
-				const ownWidth = this.$el.scrollWidth;
-				const ownHeight = this.$el.scrollHeight;
-				const left = width / 2 - ownWidth / 2;
+				const ownWidth = spinner.scrollWidth;
+				const ownHeight = spinner.scrollHeight;
+				const left = this.left ? 0 : this.right ? width - ownWidth : width / 2 - ownWidth / 2;
 				const top = height / 2 - ownHeight / 2;
-				// @ts-ignore
-				this.$el.style.left = `${left}px`;
-				// @ts-ignore
-				this.$el.style.top = `${top}px`;
+				spinner.style.left = `${left}px`;
+				spinner.style.top = `${top}px`;
 			});
 			this.observer.observe(parent);
 		}
 	},
-	onBeforeUnmount() {
+	beforeUnmount() {
 		if (this.observer) this.observer.disconnect();
 	},
 });
@@ -97,6 +97,11 @@ export default defineComponent({
 	&.inline {
 		display: inline-block;
 		font-size: 1em;
+	}
+	&.inverted {
+		color: black;
+		background-color: transparent;
+		opacity: 0.4;
 	}
 	&.xs {
 		font-size: 20px;
