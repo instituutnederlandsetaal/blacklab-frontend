@@ -15,6 +15,8 @@ import type { Translate } from '@/shared/i18n';
 import useInjectable from '@/shared/utils/useInjectable';
 
 import AnnotationPosField from '@/features/form/fields/AnnotationPosField.vue';
+import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
+import LexiconField from '@/features/form/fields/generic/LexiconField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
@@ -93,7 +95,19 @@ function createAnnotationField(
 			textDirection,
 		});
 	} else if (annotation.uiType === 'lexicon') {
-		throw new Error('todo implement');
+		return builder.newField(nodeId, annotationTextController, LexiconField, {
+			annotationId: annotation.id,
+			description,
+			displayName,
+			lookup: createLexiconLookup({
+				database: UIStore.getState().global.lexiconDb,
+				getTermFrequencies: async values => {
+					const response = await blacklabApi.getTermFrequencies(corpus.id, annotation.id, values);
+					return response.termFreq;
+				},
+			}),
+			textDirection,
+		});
 	} else {
 		return createAnnotationTextField(builder, nodeId, annotation, corpus, blacklabApi, translate);
 	}

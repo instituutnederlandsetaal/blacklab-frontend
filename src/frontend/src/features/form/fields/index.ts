@@ -22,4 +22,7 @@ export { default as SelectField } from './generic/SelectField.vue';
 export * from './generic/text-field.ts';
 export { default as TextField } from './generic/TextField.vue';
 
+export * from './generic/lexicon-field.ts';
+export { default as LexiconField } from './generic/LexiconField.vue';
+
 export * from './generic/shared-ui-config.ts';
