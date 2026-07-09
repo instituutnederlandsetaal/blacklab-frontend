@@ -10,6 +10,7 @@ import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
+import { debugLog } from '@/shared/debug/debug';
 import type { Translate } from '@/shared/i18n';
 import useInjectable from '@/shared/utils/useInjectable';
 
@@ -30,6 +31,26 @@ type CreateSearchFormSystemOptions = {
 
 const [_searchFormSystemKey, provideSearchFormSystem, useSearchFormSystem] = useInjectable<ComputedRef<FormBuilder | null>>('searchFormSystem');
 
+function createAnnotationTextField(
+	builder: FormBuilder,
+	nodeId: string,
+	annotation: NormalizedAnnotation,
+	corpus: Corpus,
+	blacklabApi: BlackLabApi,
+	translate: Translate,
+	isSimpleSearch?: boolean,
+): FormFieldNode {
+	return builder.newField(nodeId, annotationTextController, TextField, {
+		annotationId: annotation.id,
+		autocomplete: annotation.uiType !== 'text' ? (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term) : undefined,
+		caseSensitive: annotation.caseSensitive,
+		description: computed(() => translate.$tAnnotDescription(annotation)),
+		displayName: computed(() => translate.$tAnnotDisplayName(annotation)),
+		textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
+		variant: isSimpleSearch ? ['large', 'simple'] : undefined,
+	});
+}
+
 function createAnnotationField(
 	builder: FormBuilder,
 	nodeId: string,
@@ -43,7 +64,12 @@ function createAnnotationField(
 	const description = computed(() => translate.$tAnnotDescription(annotation));
 	const textDirection = annotation.isMainAnnotation ? corpus.textDirection : undefined;
 
-	if (annotation.uiType === 'pos' && tagset) {
+	if (annotation.uiType === 'pos') {
+		if (!tagset) {
+			debugLog('form-setup', 'No tagset provided for POS field, but annotation requires it. Falling back to autocomplete.', { annotation, corpus });
+			return createAnnotationTextField(builder, nodeId, annotation, corpus, blacklabApi, translate);
+		}
+
 		return builder.newField(nodeId, annotationPosController, AnnotationPosField, {
 			annotation,
 			showQueryPreview: true,
@@ -54,9 +80,10 @@ function createAnnotationField(
 			),
 			tagset,
 		});
-	}
-
-	if ((annotation.uiType === 'select' || annotation.uiType === 'combobox') && annotation.values?.length) {
+	} else if (annotation.uiType === 'select' || annotation.uiType === 'combobox') {
+		if (!annotation.values?.length) {
+			return createAnnotationTextField(builder, nodeId, annotation, corpus, blacklabApi, translate);
+		}
 		return builder.newField(nodeId, annotationSelectController, SelectField, {
 			annotationId: annotation.id,
 			description,
@@ -65,18 +92,11 @@ function createAnnotationField(
 			options: annotation.values,
 			textDirection,
 		});
+	} else if (annotation.uiType === 'lexicon') {
+		throw new Error('todo implement');
+	} else {
+		return createAnnotationTextField(builder, nodeId, annotation, corpus, blacklabApi, translate);
 	}
-
-	return builder.newField(nodeId, annotationTextController, TextField, {
-		annotationId: annotation.id,
-		autocomplete:
-			annotation.uiType === 'combobox' && annotation.annotatedFieldId ? (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term) : undefined,
-		caseSensitive: annotation.caseSensitive,
-		description,
-		displayName,
-		textDirection,
-		variant: 'large',
-	});
 }
 
 function getSimpleSearchAnnotation(corpus: Corpus): NormalizedAnnotation {

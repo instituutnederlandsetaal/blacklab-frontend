@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
-import '../src/global.scss';
+import '@/bootstrap.less';
+import '@/global.scss';
 import 'floating-vue/dist/style.css';
 
 import { setup, type Preview } from '@storybook/vue3-vite';
