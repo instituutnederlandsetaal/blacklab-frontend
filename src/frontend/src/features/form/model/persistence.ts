@@ -19,7 +19,7 @@ export type RestoreIssue = {
 	message: string;
 };
 
-export type RestoredFormState = NewFormState & { issues: RestoreIssue[] };
+export type RestoredFormState = NewFormState & { issues: RestoreIssue[]; activeFormId: string | null | undefined };
 
 type FieldCodecEntry = {
 	field: FormFieldNode;
@@ -233,6 +233,13 @@ function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, stat
 	return query;
 }
 
+export function hasScopedFormState(query: Record<string, unknown>): boolean {
+	for (const key in query) {
+		if (query.hasOwnProperty(key) && key.startsWith(FORM_QUERY_PREFIX)) return true;
+	}
+	return false;
+}
+
 export function compileFormState(node: FormNode, state: NewFormState, context: FormRuntimeContext, issues?: RestoreIssue[]): CompiledFormStateWithSummaries {
 	if (node.kind !== 'form') console.warn(`Compiling state non-form node '${node.id}'.`);
 
@@ -317,5 +324,6 @@ export function restoreScopedFormState(builder: FormBuilder, query: Record<strin
 	return {
 		...state,
 		issues,
+		activeFormId: isFormNodeTheRequestedForm ? requestedFormId : null,
 	};
 }

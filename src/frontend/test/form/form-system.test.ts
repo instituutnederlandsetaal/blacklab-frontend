@@ -52,6 +52,26 @@ function createAutocompleteTextFixture(): FormFixture {
 	};
 }
 
+function createSiblingFormsFixture(): FormFixture {
+	const builder = createTestBuilder();
+	builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(
+		builder.newField('search.simple.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Simple word',
+		}),
+	);
+	builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(
+		builder.newField('search.extended.lemma', testTextController, TestTextField, {
+			annotationId: 'lemma',
+			displayName: 'Extended lemma',
+		}),
+	);
+
+	return {
+		definition: builder,
+	};
+}
+
 function createSharedFieldTabsFixture(): FormFixture {
 	const builder = createTestBuilder();
 	const root = builder.newContainer('search', ContainerRenderer, {
@@ -125,6 +145,19 @@ function createFilterTabsFixture(): FormFixture {
 }
 
 describe('form system integration', () => {
+	test('can render a selected root form from a shared definition', () => {
+		const fixture = createSiblingFormsFixture();
+		const wrapper = mount(FormSystem, {
+			props: {
+				...fixture,
+				rootId: 'search.extended',
+			},
+		});
+
+		expect(wrapper.find('input[aria-label="Simple word"]').exists()).toBe(false);
+		expect(wrapper.find('input[aria-label="Extended lemma"]').exists()).toBe(true);
+	});
+
 	test('mounted views receive live parent-form projections', async () => {
 		const fixture = createSingleFormFixture();
 		const wrapper = mount(FormSystem, {

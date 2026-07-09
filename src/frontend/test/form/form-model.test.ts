@@ -150,4 +150,12 @@ describe('form model state', () => {
 			'search.simple.filters': 'search.simple.filters.bibliographic',
 		});
 	});
+
+	test('builder form registry includes registered sibling forms', () => {
+		const builder = createTestBuilder();
+		builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
+
+		expect(Object.keys(builder.formsById.value).sort()).toEqual(['search.extended', 'search.simple']);
+	});
 });

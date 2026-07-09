@@ -22,6 +22,7 @@ import { provideFormSystemRuntime } from '../model/runtime';
 
 const props = defineProps<{
 	definition: FormBuilder;
+	rootId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -54,7 +55,7 @@ const rawOverrideLabels: Record<BlackLabParameter, string> = {
 	searchfield: 'Restored search field',
 };
 
-const renderTree = computed(() => props.definition.renderableGraph());
+const renderTree = computed(() => (props.rootId ? props.definition.renderableGraph(props.rootId) : props.definition.renderableGraph()));
 
 const activeOverrides = computed(() =>
 	(Object.entries(props.definition.state.rawOverrides.value ?? {}) as Array<[BlackLabParameter, string | null | undefined]>)

@@ -253,14 +253,6 @@ function findButtonByText(wrapper: VueWrapper<any>, label: string) {
 	return button;
 }
 
-function expectFieldState(runtime: FormSystemRuntime, fieldId: string, controllerState: unknown) {
-	expect(runtime.state.state.value[fieldId]).toEqual(controllerState);
-}
-
-function expectFormSummaries(runtime: FormSystemRuntime, expected: SummaryEntry[]) {
-	expect(runtime.compile('harness.form').summaries).toEqual(expected);
-}
-
 function normalizedText(wrapper: VueWrapper<any>) {
 	return wrapper.text().replace(/[\s.,]/g, '');
 }
@@ -298,7 +290,7 @@ describe('builtin controller hosts', () => {
 		await harness.wrapper.get('input[type="text"]').setValue('shouldEndUpInSummaryValue.annotation');
 		await harness.wrapper.get('input[type="checkbox"]').setValue(true);
 
-		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.annotation.state);
+		expect(harness.runtime.state.state.value[harness.field.id]).toEqual(fieldExpectations.annotation.state);
 	});
 
 	test('updates metadata filter state from the host', async () => {
@@ -311,7 +303,7 @@ describe('builtin controller hosts', () => {
 
 		await harness.wrapper.get('input[type="text"]').setValue('shouldEndUpInSummaryValue.metadata');
 
-		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.metadataFilter.state);
+		expect(harness.runtime.state.state.value[harness.field.id]).toEqual(fieldExpectations.metadataFilter.state);
 	});
 
 	test('updates parallel controller state from the host', async () => {
@@ -336,7 +328,7 @@ describe('builtin controller hosts', () => {
 		await harness.wrapper.findAll('textarea')[1].setValue('[lemma="huis"]');
 		await findButtonByText(harness.wrapper, 'parallel-state.align.selected').trigger('click');
 
-		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.parallel.state);
+		expect(harness.runtime.state.state.value[harness.field.id]).toEqual(fieldExpectations.parallel.state);
 	});
 
 	test('updates raw cql state from the host', async () => {
@@ -344,7 +336,7 @@ describe('builtin controller hosts', () => {
 
 		await harness.wrapper.get('textarea').setValue('[summaryField="shouldEndUpInSummaryValue.raw-cql"]');
 
-		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.rawCql.state);
+		expect(harness.runtime.state.state.value[harness.field.id]).toEqual(fieldExpectations.rawCql.state);
 	});
 
 	test('renders the raw cql help link', () => {
@@ -363,7 +355,7 @@ describe('builtin controller hosts', () => {
 		await findButtonByText(harness.wrapper, 'shouldEndUpInSummaryValue.within').trigger('click');
 		await harness.wrapper.get('input[type="text"]').setValue('shouldEndUpInState.within.attribute.value');
 
-		expectFieldState(harness.runtime, harness.field.id, fieldExpectations.within.state);
+		expect(harness.runtime.state.state.value[harness.field.id]).toEqual(fieldExpectations.within.state);
 		expect(harness.runtime.compile(harness.form.id)).toEqual({
 			formId: 'harness.form',
 			encoded: {
@@ -391,7 +383,7 @@ describe('builtin controller summaries', () => {
 
 		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.annotation.state;
 
-		expectFormSummaries(harness.runtime, fieldExpectations.annotation.summaries);
+		expect(harness.runtime.compile('harness.form').summaries).toEqual(fieldExpectations.annotation.summaries);
 	});
 
 	test('uses the field node id in metadata summaries through a container', () => {
@@ -406,7 +398,7 @@ describe('builtin controller summaries', () => {
 
 		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.metadataFilter.state;
 
-		expectFormSummaries(harness.runtime, fieldExpectations.metadataFilter.summaries);
+		expect(harness.runtime.compile('harness.form').summaries).toEqual(fieldExpectations.metadataFilter.summaries);
 	});
 
 	test('uses derived node-based ids in parallel summaries through nested containers', () => {
@@ -427,15 +419,14 @@ describe('builtin controller summaries', () => {
 
 		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.parallel.state;
 
-		expectFormSummaries(harness.runtime, fieldExpectations.parallel.summaries);
+		expect(harness.runtime.compile('harness.form').summaries).toEqual(fieldExpectations.parallel.summaries);
 	});
 
 	test('uses the field node id in raw cql summaries for direct form children', () => {
 		const harness = createFieldRuntime(builder => builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {}));
 
 		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.rawCql.state;
-
-		expectFormSummaries(harness.runtime, fieldExpectations.rawCql.summaries);
+		expect(harness.runtime.compile('harness.form').summaries).toEqual(fieldExpectations.rawCql.summaries);
 	});
 
 	test('uses the field node id in within summaries through a container', () => {
@@ -449,7 +440,7 @@ describe('builtin controller summaries', () => {
 
 		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.within.state;
 
-		expectFormSummaries(harness.runtime, fieldExpectations.within.summaries);
+		expect(harness.runtime.compile('harness.form').summaries).toEqual(fieldExpectations.within.summaries);
 	});
 });
 

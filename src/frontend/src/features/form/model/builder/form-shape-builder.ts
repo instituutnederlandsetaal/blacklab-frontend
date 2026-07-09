@@ -1,6 +1,6 @@
 import { computed, markRaw, reactive, ref, toRaw, toRefs, type Ref, type ToRefs } from 'vue';
 
-import { getAllNodes, isContainerNode, isFieldNode } from '@/features/form/model/form-utils';
+import { isContainerNode, isFieldNode } from '@/features/form/model/form-utils';
 import { compileFormState } from '@/features/form/model/persistence';
 import createFormState from '@/features/form/model/state';
 import type { AnyFieldController, CompiledFormStateWithSummaries, FieldController, FormRuntimeContext } from '@/features/form/model/types';
@@ -12,6 +12,7 @@ import type {
 	BaseFieldNode,
 	BaseFormNode,
 	BaseViewNode,
+	FormBoundaryNode,
 	FormContainerLikeNode,
 	FormNode,
 	ImplicitContainerComponentProps,
@@ -208,10 +209,13 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 		return node;
 	}
 
-	public renderableGraph(): { is: AnyVueComponent; props: Record<string, unknown> } | undefined {
-		if (!this.root.value) return;
+	public renderableGraph(): { is: AnyVueComponent; props: Record<string, unknown> } | undefined;
+	public renderableGraph(rootId: string): { is: AnyVueComponent; props: Record<string, unknown> } | undefined;
+	public renderableGraph(rootId?: string): { is: AnyVueComponent; props: Record<string, unknown> } | undefined {
+		const root = rootId ? this.nodeMap[rootId] : this.root.value;
+		if (!root) return;
 
-		return this.renderableNode(this.root.value as FormNode, null);
+		return this.renderableNode(root as FormNode, null);
 	}
 
 	public hasNode(id: string): boolean {
@@ -310,7 +314,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 	}
 
 	// dirty dirty
-	public formsList = computed(() => (this.root.value ? getAllNodes(this.root.value as FormNode, 'form') : []));
+	public formsList = computed(() => Object.values(this.nodeMap).filter((node): node is FormBoundaryNode => node.kind === 'form'));
 	public formsById = computed(() => Object.fromEntries(this.formsList.value.map(form => [form.id, form])));
 	private submitListeners: ((formId: string, submitted: CompiledFormStateWithSummaries) => void)[] = [];
 	private resetListeners: (() => void)[] = [];
