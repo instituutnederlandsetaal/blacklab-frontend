@@ -1,14 +1,11 @@
 <template>
 	<div class="story-harness">
-		<div class="surface">
-			<FormSystem :definition @submit="handleSubmit" />
-		</div>
+		<FormSystem :definition @submit="handleSubmit" />
 		<aside class="inspector">
 			<section class="toggles">
-				<label v-for="output in outputs" :key="output.key">
-					<input v-model="output.visible" type="checkbox" />
-					{{ output.label }}
-				</label>
+				<div class="checkbox" v-for="output in outputs" :key="output.key">
+					<label><input v-model="output.visible" type="checkbox" />{{ output.label }} </label>
+				</div>
 			</section>
 			<section v-if="showLiveState">
 				<h3>Live state</h3>
@@ -81,15 +78,16 @@ function isOutputVisible(key: string) {
 
 <style lang="scss" scoped>
 .story-harness {
+	--story-harness-gap: 16px;
+
 	display: grid;
 	grid-template-columns: minmax(0, 1fr) minmax(320px, 430px);
-	gap: 18px;
+	gap: var(--story-harness-gap);
 	min-height: 100vh;
 	// background: #eef3f7;
-	padding: 18px;
+	padding: var(--story-harness-gap);
 }
 
-.surface,
 .inspector section {
 	border: 1px solid #ccd5df;
 	border-radius: 6px;
@@ -100,22 +98,18 @@ function isOutputVisible(key: string) {
 .inspector {
 	display: grid;
 	align-content: start;
-	gap: 12px;
+	gap: var(--story-harness-gap);
 }
 
 .toggles {
 	display: flex;
-	flex-wrap: wrap;
-	gap: 8px 14px;
-}
-
-.toggles label {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	margin: 0;
-	font-size: 13px;
-	font-weight: 400;
+	gap: var(--story-harness-gap);
+	// grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+	// gap: var(--story-harness-gap);
+	> .checkbox {
+		margin: 0;
+		padding: 0;
+	}
 }
 
 h3 {
