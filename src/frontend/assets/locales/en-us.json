@@ -148,7 +148,10 @@
 	"partOfSpeech": {
 		"noOptions": "No options",
 		"submit": "Ok",
-		"reset": "Reset"
+		"reset": "Reset",
+		"cancel": "Cancel",
+		"noneSelected": "No options selected",
+		"edit": "Edit Part of Speech selection"
 	},
 	"lexicon": {
 		"selectAll": "Select all",
@@ -361,8 +364,13 @@
 		"metadataGroups": {
 			"$exampleMetadataGroup": "Translated display name for metadata group $exampleMetadataGroup"
 		},
-		"within": {
-			"$exampleWithinValue": "Translated display name for within value $exampleWithinValue"
+		"spans": {
+			"$exampleSpanValue": "Translated display name for within value $exampleWithinValue"
+		},
+		"spanAttributes": {
+			"$exampleSpanValue": {
+				"$exampleSpanAttribute": "Translated display name for span attribute $exampleSpanAttribute of span value $exampleSpanValue"
+			}
 		},
 		"alignBy": {
 			"$exampleAlignByValue": "Translated display name for align by relation $exampleAlignByValue"

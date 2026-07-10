@@ -1,6 +1,5 @@
 import type { LocationQueryRaw, LocationQueryValue, RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
-
 export type RouteQueryPatch = Record<string, string | number | boolean | null | undefined>;
 
 export function getRouteParamString(value: unknown): string | null {

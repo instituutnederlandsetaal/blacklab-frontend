@@ -87,8 +87,8 @@ export function createMockI18n(options: MockI18nOptions = {}): MockI18n {
 	const firstLocale = messages ? Object.keys(messages)[0] : undefined;
 	if (messages && !firstLocale) throw new Error('createMockI18n requires at least one locale bundle when bundles are provided.');
 
-	const fallbackLocale = messages ? resolveAvailableLocale(options.fallbackLocale ?? 'en-us', messages) ?? firstLocale : options.fallbackLocale;
-	const locale = messages ? resolveAvailableLocale(options.locale ?? fallbackLocale, messages) ?? fallbackLocale : options.locale ?? fallbackLocale;
+	const fallbackLocale = messages ? (resolveAvailableLocale(options.fallbackLocale ?? 'en-us', messages) ?? firstLocale) : options.fallbackLocale;
+	const locale = messages ? (resolveAvailableLocale(options.locale ?? fallbackLocale, messages) ?? fallbackLocale) : (options.locale ?? fallbackLocale);
 	const i18nParts = createVueI18nParts({
 		locale,
 		fallbackLocale,

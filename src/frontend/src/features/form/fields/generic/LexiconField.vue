@@ -42,7 +42,12 @@
 			<template v-if="wordOptions && wordOptions.length">
 				<h4>{{ $t('lexicon.limit') }}</h4>
 				<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden">
-					<label v-for="(_checked, pos) in posOptions" :key="pos" style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap" :role="!disabled ? 'button' : undefined">
+					<label
+						v-for="(_checked, pos) in posOptions"
+						:key="pos"
+						style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
+						:role="!disabled ? 'button' : undefined"
+					>
 						<input type="checkbox" v-model="posOptions[pos]" :value="pos" :disabled /> {{ pos }}
 					</label>
 				</div>
@@ -59,8 +64,8 @@ import { computed, ref, toValue, watch } from 'vue';
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
 
-import type { TextFieldState } from './text-field';
 import { defaultLexiconLookupResult, type LexiconFieldUiConfig, type LexiconWordOption } from './lexicon-field';
+import type { TextFieldState } from './text-field';
 
 import Spinner from '@/shared/ui/Spinner.vue';
 

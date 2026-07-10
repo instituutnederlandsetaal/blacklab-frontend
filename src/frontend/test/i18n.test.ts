@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 
+import { createMockI18n } from '@test/mocks/i18n';
 import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 import { defineComponent, h } from 'vue';
-
-import { createMockI18n } from '@test/mocks/i18n';
 
 import { useI18n, useI18nManager } from '@/shared/i18n';
 
