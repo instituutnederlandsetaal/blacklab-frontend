@@ -1,8 +1,8 @@
 import { computed, markRaw, reactive, ref, toRaw, toRefs, type Ref, type ToRefs } from 'vue';
 
 import { isContainerNode, isFieldNode } from '@/features/form/model/form-utils';
-import { compileFormState } from '@/features/form/model/persistence';
-import createFormState from '@/features/form/model/state';
+import { compileFormNode } from '@/features/form/model/persistence';
+import createFormState, { createDefaultFormState } from '@/features/form/model/state';
 import type { AnyFieldController, CompiledFormStateWithSummaries, FieldController, FormRuntimeContext } from '@/features/form/model/types';
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
 import type {
@@ -149,13 +149,17 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 	private root = ref<BaseContainerNode | BaseFormNode | null>(null);
 
 	public getRoot(): FormContainerLikeNode {
-		if (!this.root.value) throw new Error('Root node is not set');
-		return this.root.value as FormContainerLikeNode;
+		const containers = Object.values(this.nodeMap).filter(isContainerNode);
+		const childIds = new Set(containers.flatMap(node => node.children.map(child => child.id)));
+		const graphRoots = containers.filter(node => !childIds.has(node.id));
+		const root = graphRoots[0] ?? this.root.value;
+		if (!root) throw new Error('Root node is not set');
+		return root as FormContainerLikeNode;
 	}
 
 	public state = createFormState();
 
-	public renderableNode(node: FormNode, parentNode: FormNode | null): any {
+	protected renderableNode(node: FormNode, parentNode: FormNode | null): any {
 		const idSuffix = useUid();
 		const fieldRuntimeProps = {
 			disabled: computed(() => {
@@ -212,7 +216,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 	public renderableGraph(): { is: AnyVueComponent; props: Record<string, unknown> } | undefined;
 	public renderableGraph(rootId: string): { is: AnyVueComponent; props: Record<string, unknown> } | undefined;
 	public renderableGraph(rootId?: string): { is: AnyVueComponent; props: Record<string, unknown> } | undefined {
-		const root = rootId ? this.nodeMap[rootId] : this.root.value;
+		const root = rootId ? this.nodeMap[rootId] : this.getRoot();
 		if (!root) return;
 
 		return this.renderableNode(root as FormNode, null);
@@ -225,8 +229,12 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 	private addNode<T extends AnyBaseFormNode>(node: T): T {
 		if (!this.nodeMap[node.id]) {
 			this.nodeMap[node.id] = node;
-			if (isFieldNode(node)) this.state.addNodeToState(node);
+			// A builder may create reusable fields/containers before its first form.
+			// Keep the first container as a provisional root, but let the first form
+			// take over once it is created.
 			if (isContainerNode(node) && !this.root.value) this.root.value = node;
+			if (node.kind === 'form' && (!this.root.value || this.root.value.kind === 'container')) this.root.value = node;
+			if (isFieldNode(node)) this.state.addNodeToState(node);
 		} else if (toRaw(this.nodeMap[node.id]) !== node) {
 			throw new Error(`Node with id ${node.id} already exists in this form builder`);
 		}
@@ -314,13 +322,15 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 	}
 
 	// dirty dirty
-	public formsList = computed(() => Object.values(this.nodeMap).filter((node): node is FormBoundaryNode => node.kind === 'form'));
-	public formsById = computed(() => Object.fromEntries(this.formsList.value.map(form => [form.id, form])));
+	public nodeList = computed(() => Object.values(this.nodeMap));
+	public containerList = computed(() => Object.values(this.nodeMap).filter(isContainerNode));
+	public formsList = computed(() => this.containerList.value.filter(n => n.kind === 'form'));
+	public formsMap = computed(() => this.formsList.value.reduce<Record<string, FormBoundaryNode>>((acc, f) => ((acc[f.id] = f), acc), {}));
 	private submitListeners: ((formId: string, submitted: CompiledFormStateWithSummaries) => void)[] = [];
 	private resetListeners: (() => void)[] = [];
 
 	public compile(formId: string) {
-		return compileFormState(this.nodeMap[formId] as FormNode, this.state.getReactiveState(), this.context);
+		return compileFormNode(this.nodeMap[formId] as FormNode, this.state.getReactiveState(), this.context);
 	}
 	public submit(formId: string) {
 		const compiled = this.compile(formId);
@@ -329,7 +339,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 	}
 
 	public reset() {
-		this.state.reset(this.root.value as FormNode, this.context);
+		this.state.replaceState(createDefaultFormState(this.context, ...(this.nodeList.value as FormNode[])));
 		this.resetListeners.forEach(callback => callback());
 	}
 

@@ -9,7 +9,7 @@ import {
 	annotationTextController,
 	annotationPosController,
 	createDefaultFormState,
-	compileFormState,
+	compileFormNode,
 	expertQueryController,
 	filterAutocompleteController,
 	filterCheckboxController,
@@ -82,26 +82,23 @@ function unwrapRestoreResult<T>(restored: RestoreFieldResult<T>): T {
 describe('scoped form persistence', () => {
 	test('encodes readable f.* state and ignores unscoped unknown query parameters when restoring', () => {
 		const fixture = createSingleTextForm();
-		const state = createDefaultFormState(fixture.definition.getRoot(), fixture.context);
+		const state = createDefaultFormState(fixture.context, fixture.definition.getRoot());
 		state.state[fixture.field.id] = { value: 'water' };
 
-		const encoded = compileFormState(fixture.form, state, fixture.context).encoded;
+		const encoded = compileFormNode(fixture.form, state, fixture.context).encoded;
 
 		expect(encoded).toEqual({
 			'f.form': 'search.extended',
 			'f.word': 'water',
 		});
 
-		const restored = restoreScopedFormState(
-			fixture.definition,
-			{
-				unknown: 'not-form-owned',
-				word: 'fire',
-				'f.form': 'search.extended',
-				'f.word': 'water',
-			},
-			{ patt: '[word="(?i)water"]' },
-		);
+		const restored = restoreScopedFormState(fixture.definition, {
+			unknown: 'not-form-owned',
+			word: 'fire',
+			'f.form': 'search.extended',
+			'f.word': 'water',
+			patt: '[word="(?i)water"]',
+		});
 
 		expect(restored.issues).toEqual([]);
 		expect(restored.state[fixture.field.id]).toEqual({ value: 'water' });
@@ -150,14 +147,11 @@ describe('scoped form persistence', () => {
 
 	test('activates a raw patt override when restored form output differs from canonical patt', async () => {
 		const fixture = createSingleTextForm();
-		const restored = restoreScopedFormState(
-			fixture.definition,
-			{
-				'f.form': 'extended',
-				'f.word': 'water',
-			},
-			{ patt: '[word="(?i)fire"]' },
-		);
+		const restored = restoreScopedFormState(fixture.definition, {
+			'f.form': 'extended',
+			'f.word': 'water',
+			patt: '[word="(?i)fire"]',
+		});
 
 		expect(restored.rawOverrides).toEqual({ patt: '[word="(?i)fire"]' });
 
@@ -197,7 +191,7 @@ describe('scoped form persistence', () => {
 		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(field);
 		const definition = builder;
 
-		const restored = restoreScopedFormState(definition, { 'f.word': 'water' }, { patt: '[word="(?i)water"]' });
+		const restored = restoreScopedFormState(definition, { 'f.word': 'water', patt: '[word="(?i)water"]' });
 
 		expect(restored.issues).toEqual([{ key: 'word', nodeId: field.id, message: 'Restored with a harmless adjustment.' }]);
 		expect(restored.rawOverrides).toEqual({});
@@ -206,7 +200,7 @@ describe('scoped form persistence', () => {
 	test('uses the expert CQL field for old raw URLs that only contain canonical patt', () => {
 		const fixture = createCanonicalFallbackFixture();
 
-		const restored = restoreScopedFormState(fixture.definition, {}, { patt: '[word="water"]' });
+		const restored = restoreScopedFormState(fixture.definition, { patt: '[word="water"]' });
 
 		expect(restored.uiState.search).toBe('search.expert');
 		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
@@ -216,15 +210,12 @@ describe('scoped form persistence', () => {
 	test('ignores unusable scoped noise when falling back to canonical patt', () => {
 		const fixture = createCanonicalFallbackFixture();
 
-		const restored = restoreScopedFormState(
-			fixture.definition,
-			{
-				'f.form': 'removed-form',
-				'f.tab': 'missing:child',
-				'f.removed': 'stale',
-			},
-			{ patt: '[word="water"]' },
-		);
+		const restored = restoreScopedFormState(fixture.definition, {
+			'f.form': 'removed-form',
+			'f.tab': 'missing:child',
+			'f.removed': 'stale',
+			patt: '[word="water"]',
+		});
 
 		expect(restored.uiState.search).toBe(fixture.expert.id);
 		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
@@ -235,7 +226,7 @@ describe('scoped form persistence', () => {
 	test('does not treat a form selector by itself as restorable query state', () => {
 		const fixture = createCanonicalFallbackFixture();
 
-		const restored = restoreScopedFormState(fixture.definition, { 'f.form': fixture.simple.id }, { patt: '[word="water"]' });
+		const restored = restoreScopedFormState(fixture.definition, { 'f.form': fixture.simple.id, patt: '[word="water"]' });
 
 		expect(restored.uiState.search).toBe(fixture.expert.id);
 		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
@@ -246,7 +237,7 @@ describe('scoped form persistence', () => {
 	test('uses valid scoped field state instead of canonical-only fallback', () => {
 		const fixture = createCanonicalFallbackFixture();
 
-		const restored = restoreScopedFormState(fixture.definition, { 'f.word': 'water' }, { patt: '[word="fire"]' });
+		const restored = restoreScopedFormState(fixture.definition, { 'f.word': 'water', patt: '[word="fire"]' });
 
 		expect(restored.uiState.search).toBe(fixture.simple.id);
 		expect(restored.state[fixture.simpleField.id]).toEqual({ value: 'water' });
@@ -275,16 +266,14 @@ describe('scoped form persistence', () => {
 		form.addChildren(filters);
 		const definition = builder;
 		const context = createTestContext();
-		const state = createDefaultFormState(definition.getRoot(), context);
+		const state = createDefaultFormState(context, definition.getRoot());
 		state.uiState[filters.id] = newspapers.id;
 
-		const encoded = compileFormState(form, state, context).encoded;
+		const encoded = compileFormNode(form, state, context).encoded;
 
 		expect(encoded['f.tab']).toEqual(['search.extended.filters:search.extended.filters.newspapers']);
 
-		const restored = restoreScopedFormState(definition, encoded, {
-			filter: 'category("newspaper")',
-		});
+		const restored = restoreScopedFormState(definition, { ...encoded, filter: 'category("newspaper")' });
 
 		expect(restored.uiState[filters.id]).toBe(newspapers.id);
 		expect(restored.rawOverrides).toEqual({});
@@ -316,7 +305,7 @@ describe('scoped form persistence', () => {
 		expect(restored.issues[2].message).contains('malformed');
 	});
 
-	test('throws during encode when field persistence keys are duplicate or reserved', () => {
+	test('raises issues during encode when field persistence keys are duplicate or reserved', () => {
 		const duplicateBuilder = createTestBuilder();
 		const duplicateForm = duplicateBuilder.newForm('search.extended', ContainerRenderer, {
 			title: 'Extended',
@@ -332,15 +321,15 @@ describe('scoped form persistence', () => {
 		duplicateForm.addChildren(firstDuplicateField, secondDuplicateField);
 		const duplicateDefinition = duplicateBuilder;
 		const duplicateContext = createTestContext();
-		const duplicateState = createDefaultFormState(duplicateDefinition.getRoot(), duplicateContext);
+		const duplicateState = createDefaultFormState(duplicateContext, duplicateDefinition.getRoot());
 		duplicateState.state[firstDuplicateField.id] = { value: 'water' };
 		duplicateState.state[secondDuplicateField.id] = { value: 'fire' };
 
-		expect(() => compileFormState(duplicateForm, duplicateState, duplicateContext)).toThrow(/Duplicate form persistence key 'word'/);
+		expect(compileFormNode(duplicateForm, duplicateState, duplicateContext).issues).length.greaterThanOrEqual(1);
 
-		const reservedController: FieldController<'reserved-text', TestTextFieldState, TestTextFieldConfig> = {
+		const reservedController: FieldController<'reserved-persistence-key', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
-			kind: 'reserved-text',
+			kind: 'reserved-persistence-key',
 			getPersistKey: () => 'form',
 		};
 		const builder = createTestBuilder();
@@ -354,7 +343,7 @@ describe('scoped form persistence', () => {
 		const reservedDefinition = builder;
 		const reservedContext = createTestContext();
 
-		expect(() => compileFormState(form, createDefaultFormState(reservedDefinition.getRoot(), reservedContext), reservedContext)).toThrow(/reserved form persistence key 'form'/);
+		expect(compileFormNode(form, createDefaultFormState(reservedContext, reservedDefinition.getRoot()), reservedContext).issues).length.greaterThanOrEqual(1);
 	});
 });
 

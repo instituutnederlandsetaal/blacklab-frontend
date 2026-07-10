@@ -12,16 +12,15 @@ export type NewFormState = {
 };
 
 /**
- * For every field in the form, create its initial state using its controller's createDefaultState function, and return an object containing all field states.
+ * Walk all nodes, look for field nodes, and create initial states for them using their controller's createDefaultState function, and return an object containing all field states.
  *
  * @param rootNode the root
  * @param context
  * @returns
  */
-
-function createInitialControllerStates(rootNode: FormNode, context: FormRuntimeContext): Record<string, unknown> {
+function createInitialControllerStates(context: FormRuntimeContext, ...rootNodes: FormNode[]): Record<string, unknown> {
 	const states: Record<string, unknown> = {};
-	for (const field of walkFormNodes(rootNode, 'field')) {
+	for (const field of walkFormNodes(rootNodes, 'field')) {
 		const initialState = field.controller.createDefaultState(field, context);
 		states[field.id] = initialState;
 	}
@@ -29,27 +28,30 @@ function createInitialControllerStates(rootNode: FormNode, context: FormRuntimeC
 }
 
 /**
- * For every container-like node in the form, find its first child (if any) and set that as the current active child.
- * This is used to set up the initial ui state of the form, so that tabs and similar container types will have an active child by default.
+ * Walk all nodes, look for container nodes, and create initial ui states for them by setting their active child to the first child in their children array (if any),
+ * so that tabs and similar container types will have an active child by default.
  *
  * @param definition the form graph
  * @returns the container ui map
  */
-function createInitialUiStates(rootNode: FormNode): Record<string, string | null> {
+function createInitialUiStates(...rootNodes: FormNode[]): Record<string, string | null> {
 	const activeContainers: Record<string, string | null> = {};
-	for (const node of walkFormNodes(rootNode)) {
-		if (isContainerNode(node)) {
-			const firstChild = node.children[0];
-			if (firstChild) activeContainers[node.id] = firstChild.id;
-		}
+	for (const node of walkFormNodes(rootNodes).filter(isContainerNode)) {
+		const firstChild = node.children[0];
+		if (firstChild) activeContainers[node.id] = firstChild.id;
 	}
 	return activeContainers;
 }
 
-export function createDefaultFormState(form: FormNode, context: FormRuntimeContext): NewFormState {
+export function createDefaultFormState(context: FormRuntimeContext, ...rootNodes: FormNode[]): NewFormState;
+/** @deprecated Use createDefaultFormState(context, ...rootNodes). */
+export function createDefaultFormState(rootNode: FormNode, context: FormRuntimeContext, ...rootNodes: FormNode[]): NewFormState;
+export function createDefaultFormState(first: FormRuntimeContext | FormNode, ...rest: Array<FormRuntimeContext | FormNode>): NewFormState {
+	const context = ('corpus' in first ? first : rest.shift()) as FormRuntimeContext;
+	const rootNodes = ('corpus' in first ? rest : [first, ...rest]) as FormNode[];
 	return {
-		state: createInitialControllerStates(form, context),
-		uiState: createInitialUiStates(form),
+		state: createInitialControllerStates(context, ...rootNodes),
+		uiState: createInitialUiStates(...rootNodes),
 		rawOverrides: {},
 	};
 }
@@ -60,8 +62,14 @@ export default function createFormState() {
 	const rawOverrides = ref<BlackLabParameters>({});
 
 	function replaceState(newState: NewFormState): void {
-		state.value = structuredClone(toRaw(newState.state));
-		uiState.value = structuredClone(toRaw(newState.uiState));
+		state.value = {
+			...structuredClone(toRaw(state.value)),
+			...structuredClone(toRaw(newState.state)),
+		};
+		uiState.value = {
+			...structuredClone(toRaw(uiState.value)),
+			...structuredClone(toRaw(newState.uiState)),
+		};
 		rawOverrides.value = structuredClone(toRaw(newState.rawOverrides));
 	}
 
@@ -97,19 +105,12 @@ export default function createFormState() {
 		return reactive({ state, uiState, rawOverrides });
 	}
 
-	function reset(form: FormNode, context: FormRuntimeContext) {
-		state.value = createInitialControllerStates(form, context);
-		uiState.value = createInitialUiStates(form);
-		rawOverrides.value = {};
-	}
-
 	return {
 		replaceState,
 		getRawState,
 		getVModel,
 		addNodeToState,
 		activateDefaultChild,
-		reset,
 		getReactiveState,
 		state,
 		uiState,

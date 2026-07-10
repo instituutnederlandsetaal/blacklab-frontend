@@ -2,9 +2,8 @@ import type { FormBuilder } from '@/features/form/model/builder/form-shape-build
 import { buildQueryIR } from '@/features/form/model/compile';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { expertQueryController } from '@/features/form/model/controllers';
-import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
-import type { NewFormState } from '@/features/form/model/state';
-import { createDefaultFormState } from '@/features/form/model/state';
+import { findPathToNode, getAllNodes, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
+import { createDefaultFormState, type NewFormState } from '@/features/form/model/state';
 import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import type { EncodedFieldValue, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormStateWithSummaries, ScopedFormQuery } from '@/features/form/model/types/form-query';
@@ -48,10 +47,8 @@ export function isReservedScopedFormKey(key: string): boolean {
 }
 
 function findExpertForm(builder: FormBuilder): { form: FormBoundaryNode; field: FormFieldNode } | null {
-	const root = builder.getRoot();
-	if (!root) return null;
-	for (const form of getAllNodes(root, 'form')) {
-		const field = getAllNodes(form, 'field').find(field => field.controller.kind === expertQueryController.kind);
+	for (const form of builder.formsList.value) {
+		const field = walkFormNodes(form, 'field').find(f => f.controller.kind === expertQueryController.kind);
 		if (field) return { form, field };
 	}
 	return null;
@@ -85,20 +82,16 @@ function buildFieldCodec(form: FormNode, context: FormRuntimeContext, issues: Re
 	return entries;
 }
 
-function throwCodecIssues(issues: RestoreIssue[]) {
-	if (!issues.length) return;
-	throw new Error(issues.map(issue => issue.message).join('\n'));
-}
-
-function setActivePath(root: FormNode, targetId: string, activeContainers: Record<string, string | null>): boolean {
-	if (!isContainerNode(root)) return root.id === targetId;
-	for (const child of root.children) {
-		if (child.id === targetId || setActivePath(child, targetId, activeContainers)) {
-			activeContainers[root.id] = child.id;
-			return true;
+function setActivePath(rootNodes: FormNode[], targetId: string, activeContainers: Record<string, string | null>): boolean {
+	const path = findPathToNode(rootNodes, targetId);
+	if (path) {
+		for (let i = 0; i < path.length - 1; i++) {
+			const containerId = path[i];
+			const childId = path[i + 1];
+			activeContainers[containerId] = childId;
 		}
 	}
-	return false;
+	return !!path;
 }
 
 function valueDiffers(left: string | null | undefined, right: string | null | undefined): boolean {
@@ -111,7 +104,7 @@ function hasPersistedValue(state: NewFormState, field: FormFieldNode, context: F
 	return JSON.stringify(current) !== JSON.stringify(defaults);
 }
 
-function inferActiveContainersFromValues(form: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext) {
+function inferActiveContainersFromValues(form: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext, explicitActiveContainers = new Set<string>()) {
 	const active = state.uiState;
 	const descendantsWithValues = new Set<string>();
 	for (const field of getAllNodes(form, 'field')) {
@@ -125,13 +118,19 @@ function inferActiveContainersFromValues(form: FormBoundaryNode, state: NewFormS
 		for (const child of node.children) {
 			if (visit(child) && !firstActiveChild) firstActiveChild = child.id;
 		}
-		if (firstActiveChild && !active[node.id]) active[node.id] = firstActiveChild;
+		if (firstActiveChild && !explicitActiveContainers.has(node.id)) active[node.id] = firstActiveChild;
 		return !!firstActiveChild;
 	}
 
 	visit(form);
 }
 
+/**
+ * Read the parameters that belong to the form state from a browser query params object.
+ * Does not read the canonical BlackLab parameters, which are handled separately.
+ *
+ * Returns the params stripped of the form query prefix, and a set of the keys that were found.
+ */
 function readScopedQuery(query: Record<string, unknown>): { keys: Set<string>; values: Record<string, EncodedFieldValue> } {
 	const keys = new Set<string>();
 	const scoped: Record<string, EncodedFieldValue> = {};
@@ -144,6 +143,15 @@ function readScopedQuery(query: Record<string, unknown>): { keys: Set<string>; v
 		scoped[unscoped] = values.length === 1 ? values[0] : values;
 	}
 	return { keys, values: scoped };
+}
+
+/** Read the canonical BlackLab parameters (the compiled BlackLab query) from a browser query params object. */
+function readCanonicalQuery(query: Record<string, unknown>): BlackLabParameters {
+	const canonical: BlackLabParameters = {};
+	for (const param of NATIVE_BLACKLAB_PARAMETERS) {
+		if (param in query && typeof query[param] === 'string' && query[param]) canonical[param] = query[param] as string;
+	}
+	return canonical;
 }
 
 function restoreField(entry: FieldCodecEntry, payload: EncodedFieldValue, context: FormRuntimeContext, state: NewFormState, issues: RestoreIssue[]): boolean {
@@ -175,8 +183,8 @@ function restoreField(entry: FieldCodecEntry, payload: EncodedFieldValue, contex
 	}
 }
 
-function applyTabState(form: FormBoundaryNode, payload: EncodedFieldValue | undefined, state: NewFormState, issues: RestoreIssue[]): number {
-	let applied = 0;
+function applyTabState(form: FormBoundaryNode, payload: EncodedFieldValue | undefined, state: NewFormState, issues: RestoreIssue[]): Set<string> {
+	const explicitActiveContainers = new Set<string>();
 	for (const tab of asArray(payload)) {
 		const [containerKey, childKey] = tab.split(':');
 		if (!containerKey || !childKey || tab.split(':').length !== 2) {
@@ -194,9 +202,9 @@ function applyTabState(form: FormBoundaryNode, payload: EncodedFieldValue | unde
 			continue;
 		}
 		state.uiState[container.id] = child.id;
-		applied += 1;
+		explicitActiveContainers.add(container.id);
 	}
-	return applied;
+	return explicitActiveContainers;
 }
 
 function queryAffectingTabParams(form: FormNode, state: NewFormState): string[] {
@@ -211,26 +219,18 @@ function queryAffectingTabParams(form: FormNode, state: NewFormState): string[] 
 	return tabs;
 }
 
-function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, state: NewFormState, issues?: RestoreIssue[]): ScopedFormQuery {
-	const codecIssues: RestoreIssue[] = [];
-	const codec = buildFieldCodec(form, context, codecIssues);
-	if (issues) issues.push(...codecIssues);
-	else throwCodecIssues(codecIssues);
-
-	const query: ScopedFormQuery = {
+function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, state: NewFormState): { encoded: ScopedFormQuery; issues?: RestoreIssue[] } {
+	const issues: RestoreIssue[] = [];
+	const values = buildFieldCodec(form, context, issues)
+		.map(({ field, key }) => ({ key, state: field.controller.encode(state.state[field.id], field, context) }))
+		.filter(({ state }) => state != null && (Array.isArray(state) ? state.length > 0 : state !== ''));
+	const r: ScopedFormQuery = {
 		[`${FORM_QUERY_PREFIX}form`]: form.id,
 	};
-
-	for (const { field, key } of codec) {
-		const encoded = field.controller.encode(state.state[field.id], field, context);
-		if (encoded == null || (Array.isArray(encoded) && !encoded.length) || encoded === '') continue;
-		query[`${FORM_QUERY_PREFIX}${key}`] = encoded;
-	}
-
+	for (const { key, state } of values) r[`${FORM_QUERY_PREFIX}${key}`] = state!;
 	const tabs = queryAffectingTabParams(form, state);
-	if (tabs.length) query[`${FORM_QUERY_PREFIX}tab`] = tabs;
-
-	return query;
+	if (tabs.length) r[`${FORM_QUERY_PREFIX}tab`] = tabs;
+	return { encoded: r, issues: issues.length ? issues : undefined };
 }
 
 export function hasScopedFormState(query: Record<string, unknown>): boolean {
@@ -240,10 +240,11 @@ export function hasScopedFormState(query: Record<string, unknown>): boolean {
 	return false;
 }
 
-export function compileFormState(node: FormNode, state: NewFormState, context: FormRuntimeContext, issues?: RestoreIssue[]): CompiledFormStateWithSummaries {
+export function compileFormNode(node: FormNode, state: NewFormState, context: FormRuntimeContext): CompiledFormStateWithSummaries {
 	if (node.kind !== 'form') console.warn(`Compiling state non-form node '${node.id}'.`);
 
 	// Compile what's in the form
+	const { encoded, issues } = encodeScopedFormState(node, context, state);
 	const { query, summaries } = buildQueryIR(node, state, context);
 	const compiled = compileQueryIR(query);
 	// overwrite with raw overrides
@@ -254,7 +255,8 @@ export function compileFormState(node: FormNode, state: NewFormState, context: F
 	return {
 		...compiled,
 		formId: node.id,
-		encoded: encodeScopedFormState(node, context, state, issues),
+		encoded,
+		issues,
 		summaries,
 	};
 }
@@ -262,10 +264,12 @@ export function compileFormState(node: FormNode, state: NewFormState, context: F
 export function restoreScopedFormState(builder: FormBuilder, query: Record<string, unknown>, canonical: BlackLabParameters = {}): RestoredFormState {
 	const issues: RestoreIssue[] = [];
 	const scoped = readScopedQuery(query);
+	const canonicalFromQuery = readCanonicalQuery(query);
+	const canonicalParameters = { ...canonicalFromQuery, ...canonical };
 	const consumed = new Set<string>();
-	const expert = findExpertForm(builder);
+
 	const requestedFormId = first(scoped.values.form);
-	let formNode = builder.formsById.value[requestedFormId as string] ?? builder.formsList.value[0];
+	let formNode = builder.formsMap.value[requestedFormId as string] ?? builder.formsList.value[0];
 	const isFormNodeTheRequestedForm = formNode?.id === requestedFormId;
 	let hasUsableScopedState = false;
 
@@ -280,9 +284,10 @@ export function restoreScopedFormState(builder: FormBuilder, query: Record<strin
 			});
 		}
 	}
+	const state = createDefaultFormState(builder.context, ...(builder.nodeList.value as FormNode[]));
 
-	const state = createDefaultFormState(builder.getRoot(), builder.context);
-	setActivePath(builder.getRoot(), formNode.id, state.uiState);
+	setActivePath([builder.getRoot()], formNode.id, state.uiState);
+	let explicitActiveContainers = new Set<string>();
 
 	const codec = buildFieldCodec(formNode, builder.context, issues);
 	const byKey = new Map(codec.map(entry => [entry.key, entry]));
@@ -300,24 +305,28 @@ export function restoreScopedFormState(builder: FormBuilder, query: Record<strin
 	if (scoped.keys.has('tab')) {
 		consumed.add('tab');
 		if (scoped.values.tab == null) issues.push({ key: 'tab', message: 'Persisted tab selection has no value.' });
-		else if (applyTabState(formNode, scoped.values.tab, state, issues) > 0) hasUsableScopedState = true;
+		else {
+			explicitActiveContainers = applyTabState(formNode, scoped.values.tab, state, issues);
+			if (explicitActiveContainers.size > 0) hasUsableScopedState = true;
+		}
 	}
 
 	for (const key of scoped.keys) {
 		if (!consumed.has(key)) issues.push({ key, message: `No current form field accepts persisted key '${key}'.` });
 	}
 
-	if (!hasUsableScopedState && isNonEmpty(canonical.patt) && expert) {
+	const expert = findExpertForm(builder);
+	if (!hasUsableScopedState && isNonEmpty(canonicalParameters.patt) && expert) {
 		formNode = expert.form;
-		setActivePath(builder.getRoot(), formNode.id, state.uiState);
-		state.state[expert.field.id] = canonical.patt;
+		setActivePath([builder.getRoot()], formNode.id, state.uiState);
+		state.state[expert.field.id] = canonicalParameters.patt;
 	}
 
-	inferActiveContainersFromValues(formNode, state, builder.context);
+	inferActiveContainersFromValues(formNode, state, builder.context, explicitActiveContainers);
 
 	const compiled = compileQueryIR(buildQueryIR(formNode, state, builder.context).query);
 	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
-		if (valueDiffers(compiled[parameter], canonical[parameter])) state.rawOverrides[parameter] = canonical[parameter] ?? null;
+		if (valueDiffers(compiled[parameter], canonicalParameters[parameter])) state.rawOverrides[parameter] = canonicalParameters[parameter] ?? null;
 		if (!isNonEmpty(state.rawOverrides[parameter])) delete state.rawOverrides[parameter];
 	}
 

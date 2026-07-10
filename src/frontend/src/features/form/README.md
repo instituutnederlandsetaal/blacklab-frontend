@@ -284,7 +284,7 @@ Common encoded keys:
 - `f.<fieldKey>`: controller-encoded field state.
 - `f.tab`: query-affecting tab selections, encoded as `containerId:childId`.
 
-`compileFormState(formNode, state, context)` returns compiled BlackLab params,
+`compileFormNode(formNode, state, context)` returns compiled BlackLab params,
 `formId`, `encoded`, and `summaries`. It also applies `rawOverrides` over the
 compiled params.
 
@@ -303,7 +303,7 @@ params plus optional canonical BlackLab params:
 
 Raw overrides are a compatibility mechanism for old URLs or URLs that contain
 BlackLab params the current form cannot reproduce. `FormSystem` displays them,
-`compileFormState` applies them, and affected fields are disabled until the user
+`compileFormNode` applies them, and affected fields are disabled until the user
 clears the override.
 
 Persistence keys must be unique within the active form. Duplicate keys or

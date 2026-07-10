@@ -1,3 +1,4 @@
+import type { RestoreIssue } from '@/features/form/model/persistence';
 import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 
 export type TokenPredicateMatch = 'equals' | 'regex' | 'wildcard';
@@ -164,6 +165,7 @@ export type ScopedFormQuery = Record<string, string | string[]>;
 export type CompiledFormState = CompiledBlackLabParameters & {
 	formId: string;
 	encoded: ScopedFormQuery;
+	issues?: RestoreIssue[];
 };
 export type CompiledFormStateWithSummaries = CompiledFormState & {
 	summaries: SummaryEntry[];

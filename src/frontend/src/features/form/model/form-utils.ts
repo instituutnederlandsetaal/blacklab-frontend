@@ -6,10 +6,17 @@ import type { AnyBaseFormNode, FormBoundaryNode, FormContainerLikeNode, FormFiel
 
 import { lenientIter } from '@/shared/utils/array-utils';
 
+export function isContainerNode(node: AnyBaseFormNode | null | undefined): node is FormContainerLikeNode {
+	return !!node && 'kind' in node && 'children' in node && Array.isArray(node.children);
+}
+export function isFieldNode(node: AnyBaseFormNode | null | undefined): node is FormFieldNode {
+	return !!node && node.kind === 'field' && 'controller' in node && typeof node.controller === 'object';
+}
+
 /** Iterate all nodes in the form graph, filtered by uniqueness. Duplicate nodes are skipped. */
-export function* walkFormNodes<K extends FormNodeKind>(root: FormNode, ...kind: K[]): Generator<NodeKindMap[K]> {
+export function* walkFormNodes<K extends FormNodeKind>(nodes: FormNode | FormNode[], ...kind: K[]): Generator<NodeKindMap[K]> {
 	const seen = new Set<FormNode>();
-	const stack = [root];
+	const stack = Array.isArray(nodes) ? [...nodes] : [nodes];
 	while (stack.length) {
 		const node = stack.pop()!;
 		if (seen.has(node)) continue;
@@ -76,11 +83,25 @@ export function checkNoLoops(root: AnyBaseFormNode, completedSubgraphs = new Set
 	visit(root);
 }
 
-export function isContainerNode(node: AnyBaseFormNode | null | undefined): node is FormContainerLikeNode {
-	return !!node && 'kind' in node && 'children' in node && Array.isArray(node.children);
+function findPathToNodeImpl(node: FormContainerLikeNode, targetId: string): string[] | null {
+	for (const child of node.children) {
+		if (child.id === targetId) return [node.id, child.id];
+		if (isContainerNode(child)) {
+			const path = findPathToNodeImpl(child, targetId);
+			if (path) return [node.id, ...path];
+		}
+	}
+	return null;
 }
-export function isFieldNode(node: AnyBaseFormNode | null | undefined): node is FormFieldNode {
-	return !!node && node.kind === 'field';
+
+export function findPathToNode(roots: FormNode[], targetId: string): string[] | null {
+	for (const root of roots) {
+		if (isContainerNode(root)) {
+			const path = findPathToNodeImpl(root, targetId);
+			if (path) return path;
+		}
+	}
+	return null;
 }
 
 /**

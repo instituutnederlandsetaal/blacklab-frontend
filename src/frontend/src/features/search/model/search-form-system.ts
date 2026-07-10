@@ -4,10 +4,28 @@ import { computed, type ComputedRef, type ObjectPlugin, type Ref } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
-import { annotationPosController, annotationSelectController, annotationTextController, FormBuilder, parallelController, type FormFieldNode, type FormRuntimeContext } from '@/features/form';
+import {
+	annotationPosController,
+	annotationSelectController,
+	annotationTextController,
+	DateField,
+	filterCheckboxController,
+	filterDateController,
+	filterRadioController,
+	filterRangeController,
+	filterSelectController,
+	filterTextController,
+	FormBuilder,
+	parallelController,
+	RangeField,
+	type FormFieldNode,
+	type FormRuntimeContext,
+	withinController,
+} from '@/features/form';
+import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
 import type { ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
-import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
+import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { debugLog } from '@/shared/debug/debug';
@@ -15,12 +33,17 @@ import type { Translate } from '@/shared/i18n';
 import useInjectable from '@/shared/utils/useInjectable';
 
 import AnnotationPosField from '@/features/form/fields/AnnotationPosField.vue';
-import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
+import CheckboxField from '@/features/form/fields/generic/CheckboxField.vue';
 import LexiconField from '@/features/form/fields/generic/LexiconField.vue';
+import RadioField from '@/features/form/fields/generic/RadioField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
+import WithinField from '@/features/form/fields/WithinField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
+import ContainerRendererFilters from '@/features/form/ui/ContainerRendererFilters.vue';
+import HeadingView from '@/features/form/views/HeadingView.vue';
+import SummaryView from '@/features/form/views/SummaryView.vue';
 
 const SEARCH_FORM_ID_PREFIX = 'search.';
 
@@ -33,6 +56,10 @@ type CreateSearchFormSystemOptions = {
 
 const [_searchFormSystemKey, provideSearchFormSystem, useSearchFormSystem] = useInjectable<ComputedRef<FormBuilder | null>>('searchFormSystem');
 
+function toSafeHtmlId(value: string): string {
+	return value.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'group';
+}
+
 function createAnnotationTextField(
 	builder: FormBuilder,
 	nodeId: string,
@@ -41,6 +68,7 @@ function createAnnotationTextField(
 	blacklabApi: BlackLabApi,
 	translate: Translate,
 	isSimpleSearch?: boolean,
+	groupId?: string,
 ): FormFieldNode {
 	return builder.newField(nodeId, annotationTextController, TextField, {
 		annotationId: annotation.id,
@@ -48,6 +76,7 @@ function createAnnotationTextField(
 		caseSensitive: annotation.caseSensitive,
 		description: computed(() => translate.$tAnnotDescription(annotation)),
 		displayName: computed(() => translate.$tAnnotDisplayName(annotation)),
+		groupId,
 		textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
 		variant: isSimpleSearch ? ['large', 'simple'] : undefined,
 	});
@@ -61,6 +90,7 @@ function createAnnotationField(
 	tagset: Tagset | undefined,
 	blacklabApi: BlackLabApi,
 	translate: Translate,
+	groupId?: string,
 ): FormFieldNode {
 	const displayName = computed(() => translate.$tAnnotDisplayName(annotation));
 	const description = computed(() => translate.$tAnnotDescription(annotation));
@@ -69,11 +99,12 @@ function createAnnotationField(
 	if (annotation.uiType === 'pos') {
 		if (!tagset) {
 			debugLog('form-setup', 'No tagset provided for POS field, but annotation requires it. Falling back to autocomplete.', { annotation, corpus });
-			return createAnnotationTextField(builder, nodeId, annotation, corpus, blacklabApi, translate);
+			return createAnnotationTextField(builder, nodeId, annotation, corpus, blacklabApi, translate, false, groupId);
 		}
 
 		return builder.newField(nodeId, annotationPosController, AnnotationPosField, {
 			annotation,
+			groupId,
 			showQueryPreview: true,
 			subAnnotations: Object.fromEntries(
 				(annotation.subAnnotations ?? [])
@@ -84,12 +115,13 @@ function createAnnotationField(
 		});
 	} else if (annotation.uiType === 'select' || annotation.uiType === 'combobox') {
 		if (!annotation.values?.length) {
-			return createAnnotationTextField(builder, nodeId, annotation, corpus, blacklabApi, translate);
+			return createAnnotationTextField(builder, nodeId, annotation, corpus, blacklabApi, translate, false, groupId);
 		}
 		return builder.newField(nodeId, annotationSelectController, SelectField, {
 			annotationId: annotation.id,
 			description,
 			displayName,
+			groupId,
 			multiple: true,
 			options: annotation.values,
 			textDirection,
@@ -99,6 +131,7 @@ function createAnnotationField(
 			annotationId: annotation.id,
 			description,
 			displayName,
+			groupId,
 			lookup: createLexiconLookup({
 				database: UIStore.getState().global.lexiconDb,
 				getTermFrequencies: async values => {
@@ -109,8 +142,174 @@ function createAnnotationField(
 			textDirection,
 		});
 	} else {
-		return createAnnotationTextField(builder, nodeId, annotation, corpus, blacklabApi, translate);
+		return createAnnotationTextField(builder, nodeId, annotation, corpus, blacklabApi, translate, false, groupId);
 	}
+}
+
+function createWithinField(builder: FormBuilder, corpus: Corpus, translate: Translate): FormFieldNode | null {
+	const spans = corpus.relations?.spans;
+	if (!UIStore.getState().search.shared.within.enabled || !spans || !Object.keys(spans).length) return null;
+
+	const configuredElements = UIStore.getState()
+		.search.shared.within.elements.map(option => option.value)
+		.filter(Boolean);
+	const spanNames = configuredElements.length ? configuredElements.filter(spanName => spans[spanName]) : Object.keys(spans);
+
+	if (!spanNames.length) return null;
+
+	const options = [
+		{ value: '' },
+		...spanNames
+			.sort((left, right) => translate.$tSpanDisplayName({ value: left, label: left }).localeCompare(translate.$tSpanDisplayName({ value: right, label: right })))
+			.map(spanName => ({
+				value: spanName,
+				label: spanName,
+				attributes: Object.keys(spans[spanName]?.attributes ?? {})
+					.sort((left, right) => translate.$tSpanAttributeDisplay(spanName, left).localeCompare(translate.$tSpanAttributeDisplay(spanName, right)))
+					.map(attribute => ({
+						value: attribute,
+						label: attribute,
+					})),
+			})),
+	];
+
+	return builder.newField('shared.within', withinController, WithinField, { options });
+}
+
+function createFilterField(builder: FormBuilder, nodeId: string, field: NormalizedMetadataField, corpus: Corpus, blacklabApi: BlackLabApi, translate: Translate, groupId?: string): FormFieldNode {
+	const common = {
+		description: computed(() => translate.$tMetaDescription(field)),
+		displayName: computed(() => translate.$tMetaDisplayName(field)),
+		groupId,
+		metadataFieldId: field.id,
+		textDirection: corpus.textDirection,
+	};
+
+	if (field.uiType === 'checkbox' && field.values?.length) {
+		return builder.newField(nodeId, filterCheckboxController, CheckboxField, {
+			...common,
+			options: field.values,
+		});
+	}
+	if (field.uiType === 'radio' && field.values?.length) {
+		return builder.newField(nodeId, filterRadioController, RadioField, {
+			...common,
+			options: field.values,
+		});
+	}
+	if ((field.uiType === 'select' || field.uiType === 'combobox') && field.values?.length) {
+		return builder.newField(nodeId, filterSelectController, SelectField, {
+			...common,
+			multiple: true,
+			options: field.values,
+		});
+	}
+	if (field.uiType === 'date') {
+		return builder.newField(nodeId, filterDateController, DateField, { ...common, range: true });
+	}
+	if (field.uiType === 'range') {
+		return builder.newField(nodeId, filterRangeController, RangeField, {
+			...common,
+			inputType: 'number',
+		});
+	}
+
+	return builder.newField(nodeId, filterTextController, TextField, {
+		...common,
+		autocomplete: field.uiType !== 'text' ? (term: string) => blacklabApi.getMetadataAutocomplete(corpus.id, field.id, term) : undefined,
+	});
+}
+
+function createSharedFilters(builder: FormBuilder, corpus: Corpus, blacklabApi: BlackLabApi, translate: Translate): ReturnType<FormBuilder['newContainer']> | null {
+	const filterIds = UIStore.getState().search.shared.searchMetadataIds;
+	const groups = corpus.metadataGroups
+		.map(group => ({
+			fields: group.fields.filter((field): field is NormalizedMetadataField => !!field && filterIds.includes(field.id)),
+			group,
+		}))
+		.filter(({ fields }) => fields.length);
+
+	if (!groups.length) return null;
+
+	const tabs = builder.newContainer('shared.filters', ContainerRendererFilters, {
+		title: computed(() => translate.$t('filter.heading')),
+		variant: 'tabs',
+	});
+
+	for (const { fields, group } of groups) {
+		const tab = builder.newContainer(`${tabs.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
+			title: computed(() => translate.$tMetaGroupName(group) || group.id),
+		});
+		for (const field of fields) {
+			const nodeId = `${tab.id}.${toSafeHtmlId(field.id)}`;
+			const node = builder.getField(nodeId) ?? createFilterField(builder, nodeId, field, corpus, blacklabApi, translate, group.id);
+			tab.addChildren(node);
+		}
+		tabs.addChildren(tab);
+	}
+
+	return builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
+		builder.newView('shared.filters.heading', HeadingView, {
+			title: computed(() => translate.$t('filter.heading')),
+		}),
+		tabs,
+		builder.newView('shared.filters.summary', SummaryView, {
+			showRaw: true,
+		}),
+	);
+}
+
+function createExtendedAnnotationTabs(
+	builder: FormBuilder,
+	corpus: Corpus,
+	tagset: Tagset | undefined,
+	blacklabApi: BlackLabApi,
+	translate: Translate,
+): ReturnType<FormBuilder['newContainer']> | null {
+	const annotationIds = UIStore.getState().search.extended.searchAnnotationIds;
+	const groups = corpus.annotationGroups
+		.filter(group => group.annotatedFieldId === corpus.mainAnnotatedField)
+		.map(group => ({
+			annotations: group.entries
+				.map(annotationId => corpus.allAnnotationsMap[annotationId])
+				.filter((annotation): annotation is NormalizedAnnotation => !!annotation && !annotation.isInternal && annotationIds.includes(annotation.id)),
+			group,
+		}))
+		.filter(({ annotations }) => annotations.length);
+
+	if (!groups.length) return null;
+
+	const populateTab = (tab: ReturnType<FormBuilder['newContainer']>, annotations: NormalizedAnnotation[], groupId?: string) => {
+		for (const annotation of annotations) {
+			const nodeId = `${tab.id}.${toSafeHtmlId(annotation.id)}`;
+			const node = builder.getField(nodeId) ?? createAnnotationField(builder, nodeId, annotation, corpus, tagset, blacklabApi, translate, groupId);
+			tab.addChildren(node);
+		}
+	};
+
+	if (groups.length === 1) {
+		const group = groups[0];
+		const single = builder.newContainer('search.extended.annotations', ContainerRenderer, {
+			variant: 'list',
+		});
+		populateTab(single, group.annotations, group.group.id);
+		return single;
+	}
+
+	const tabs = builder.newContainer('search.extended.annotations', ContainerRenderer, {
+		variant: 'small-tabs',
+	});
+
+	for (const { annotations, group } of groups) {
+		const tab = builder.newContainer(`${tabs.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
+			title: computed(() => translate.$tAnnotGroupName(group)),
+			variant: 'list',
+		});
+		populateTab(tab, annotations, group.id);
+		tabs.addChildren(tab);
+	}
+
+	return tabs;
 }
 
 function getSimpleSearchAnnotation(corpus: Corpus): NormalizedAnnotation {
@@ -134,6 +333,8 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	};
 	const builder = new FormBuilder(context);
 	const annotation = getSimpleSearchAnnotation(corpus);
+	const sharedWithin = createWithinField(builder, corpus, translate);
+	const sharedFilters = createSharedFilters(builder, corpus, blacklabApi, translate);
 	const form = builder.newForm(getNewSearchFormId('simple'), ContainerRenderer, {
 		title: computed(() => translate.$t('search.simple.heading')),
 	});
@@ -166,6 +367,21 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	} else {
 		form.addChildren(createAnnotationField(builder, 'search.simple.annotation', annotation, corpus, tagset, blacklabApi, translate));
 	}
+
+	const extendedForm = builder.newForm(getNewSearchFormId('extended'), ContainerRenderer, {
+		title: computed(() => translate.$t('search.extended.heading')),
+		variant: 'columns',
+	});
+	extendedForm.addChildren(
+		builder.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
+			builder.newView('search.extended.heading', HeadingView, {
+				title: computed(() => translate.$t('search.heading')),
+			}),
+			createExtendedAnnotationTabs(builder, corpus, tagset, blacklabApi, translate),
+			sharedWithin,
+		),
+		sharedFilters,
+	);
 
 	return builder;
 }

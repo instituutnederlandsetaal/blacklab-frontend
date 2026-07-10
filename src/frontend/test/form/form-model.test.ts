@@ -156,6 +156,6 @@ describe('form model state', () => {
 		builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
 		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 
-		expect(Object.keys(builder.formsById.value).sort()).toEqual(['search.extended', 'search.simple']);
+		expect(Object.keys(builder.formsMap.value).sort()).toEqual(['search.extended', 'search.simple']);
 	});
 });
