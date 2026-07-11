@@ -21,6 +21,7 @@
 	"oxc.enable": true,
 	"oxc.fixKind": "safe_fix",
 	"oxc.fmt.configPath": "src/frontend/oxfmt.config.mts",
+	"oxc.path.tsgolint": "src/frontend/node_modules/.bin",
 
 	"oxc.tsConfigPath": "src/frontend/tsconfig.app.json",
 	"oxc.typeAware": true
