@@ -1,18 +1,27 @@
 <template>
 	<section :class="containerClasses">
-		<header v-if="title && !hideTitle" class="blf-container-title">{{ title }}</header>
+		<header v-if="resolvedTitle && !hideTitle" class="blf-container-title">{{ resolvedTitle }}</header>
 
 		<template v-if="isTabbed">
 			<ul :class="['nav', 'nav-tabs', { 'nav-tabs-small': isSmallTabs }]" role="tablist">
-				<li v-for="child in children" :key="child.props.id" :class="{ active: activeChildId === child.props.id }" role="presentation">
-					<a href="#" role="tab" :aria-selected="activeChildId === child.props.id" @click.prevent="activeChildId = child.props.id">
-						{{ resolveTitle(child.props) }}
+				<li v-for="(child, index) in children" :key="child.props.id" :class="{ active: activeChildId === child.props.id }" role="presentation">
+					<a
+						:id="tabId(props.id, child.props.id)"
+						href="#"
+						role="tab"
+						:aria-controls="tabPanelId(props.id, child.props.id)"
+						:aria-selected="activeChildId === child.props.id"
+						:tabindex="activeChildId === child.props.id ? 0 : -1"
+						@click.prevent="activeChildId = child.props.id"
+						@keydown="handleTabKeydown($event, index, props.children, props.id, id => (activeChildId = id))"
+					>
+						{{ resolveNodeTitle(child.props) }}
 						<span v-if="activeSummaryCounts[child.props.id]" class="badge">{{ activeSummaryCounts[child.props.id] }}</span>
 					</a>
 				</li>
 			</ul>
 			<div class="tab-content">
-				<div v-if="activeChild" class="tab-pane active" role="tabpanel">
+				<div v-if="activeChild" :id="tabPanelId(props.id, activeChild.props.id)" class="tab-pane active" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)">
 					<Component :is="activeChild.is" v-bind="activeChild.props" />
 				</div>
 			</div>
@@ -29,8 +38,9 @@
 import { computed, toValue } from 'vue';
 
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
+import { handleTabKeydown, resolveNodeTitle, tabId, tabPanelId } from '@/features/form/ui/tab-utils';
 
-import type { FormNode, ImplicitContainerComponentProps } from '../model/types';
+import type { ImplicitContainerComponentProps } from '../model/types';
 
 defineOptions({ name: 'ContainerRendererFilters' });
 
@@ -39,10 +49,8 @@ const { runtime, presentation, activeChild, activeChildId } = containerRendererS
 const isTabbed = computed(() => !!(presentation.value.tabs || presentation.value['small-tabs']));
 const isSmallTabs = computed(() => !!presentation.value['small-tabs']);
 const containerClasses = computed(() => ['blf-container', presentation.value, props.class]);
+const resolvedTitle = computed(() => (props.title ? toValue(props.title) : ''));
 
-function resolveTitle(node: FormNode) {
-	return node.title ? toValue(node.title) : node.id;
-}
 function getSummariesForNode(nodeId: string) {
 	return runtime.compile(nodeId).summaries;
 }

@@ -9,6 +9,10 @@ namespace.
 Use this document as a map before editing `src/features/form`. The most useful
 examples are in `test/form-*.ts` and `src/features/form/stories/*.stories.ts`.
 
+To inspect the public type surface without implementation detail, run
+`npm run declarations:form`. It writes ignored declaration files to
+`tmp-types/features/form`.
+
 ## Mental model
 
 The system has four layers:
@@ -129,7 +133,7 @@ type NewFormState = {
 - `rawOverrides` contains restored canonical BlackLab params that cannot be
   represented exactly by the current scoped form state.
 
-Use `createDefaultFormState(root, context)` to build initial state for a graph.
+Use `createDefaultFormState(context, root)` to build initial state for a graph.
 Use `builder.state.replaceState(newState)` to atomically swap state; it clones
 the input so later mutations to the replacement object do not leak into the
 runtime.

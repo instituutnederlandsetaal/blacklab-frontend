@@ -19,6 +19,7 @@ import {
 	filterSelectController,
 	filterTextController,
 	FormSystem,
+	hasScopedFormState,
 	parallelController,
 	queryBuilderController,
 	restoreScopedFormState,
@@ -80,6 +81,12 @@ function unwrapRestoreResult<T>(restored: RestoreFieldResult<T>): T {
 }
 
 describe('scoped form persistence', () => {
+	test('recognizes scoped state on null-prototype query objects', () => {
+		const query = Object.assign(Object.create(null), { 'f.form': 'search.extended' }) as Record<string, unknown>;
+
+		expect(hasScopedFormState(query)).toBe(true);
+	});
+
 	test('encodes readable f.* state and ignores unscoped unknown query parameters when restoring', () => {
 		const fixture = createSingleTextForm();
 		const state = createDefaultFormState(fixture.context, fixture.definition.getRoot());

@@ -19,19 +19,25 @@ export type ExploreCorporaFieldUiConfig = GenericFieldUiConfig & {
 };
 
 // todo controller
-export const ExplorerCorporaFieldController = createFieldController<'explore-corpora', ExploreCorporaFieldState, ExploreCorporaFieldUiConfig>({
+export const exploreCorporaFieldController = createFieldController<'explore-corpora', ExploreCorporaFieldState, ExploreCorporaFieldUiConfig>({
 	kind: 'explore-corpora',
 	affectsBlackLabParameters: [],
 	createDefaultState: createDefaultExploreCorporaFieldState,
-	getQueryContribution: (config, runtime, state) => {
+	getQueryContribution: () => {
 		// no explicit query
 		// TODO return groupby mode and groupby display mode as query contribution, if set
 		return queryFragment({});
 	},
-	getPersistKey: (config, runtime) => `explore-corpora`,
-	// TODO
-	encode: (state, config, runtime) => {},
-	restore: (payload, config, runtime) => {
-		return createDefaultExploreCorporaFieldState();
+	getPersistKey: () => 'explore-corpora',
+	encode: state => {
+		if (!state.corporaGroupBy && !state.corporaGroupDisplayMode) return null;
+		return [state.corporaGroupBy ?? '', state.corporaGroupDisplayMode ?? ''];
+	},
+	restore: payload => {
+		const [corporaGroupBy = '', corporaGroupDisplayMode = ''] = Array.isArray(payload) ? payload : [payload];
+		return {
+			corporaGroupBy: corporaGroupBy || null,
+			corporaGroupDisplayMode: corporaGroupDisplayMode || null,
+		};
 	},
 });

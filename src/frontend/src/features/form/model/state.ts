@@ -62,14 +62,8 @@ export default function createFormState() {
 	const rawOverrides = ref<BlackLabParameters>({});
 
 	function replaceState(newState: NewFormState): void {
-		state.value = {
-			...structuredClone(toRaw(state.value)),
-			...structuredClone(toRaw(newState.state)),
-		};
-		uiState.value = {
-			...structuredClone(toRaw(uiState.value)),
-			...structuredClone(toRaw(newState.uiState)),
-		};
+		state.value = structuredClone(toRaw(newState.state));
+		uiState.value = structuredClone(toRaw(newState.uiState));
 		rawOverrides.value = structuredClone(toRaw(newState.rawOverrides));
 	}
 
@@ -82,8 +76,8 @@ export default function createFormState() {
 		};
 	}
 
-	function addNodeToState(node: AnyBaseFormNode): void {
-		if (isFieldNode(node)) state.value[node.id] = node.controller.createDefaultState(node, {} as any);
+	function addNodeToState(node: AnyBaseFormNode, context: FormRuntimeContext): void {
+		if (isFieldNode(node)) state.value[node.id] = node.controller.createDefaultState(node, context);
 		else if (isContainerNode(node)) uiState.value[node.id] = null;
 	}
 
@@ -95,9 +89,9 @@ export default function createFormState() {
 
 	function getRawState(): NewFormState {
 		return {
-			state: toRaw(state.value),
-			uiState: toRaw(uiState.value),
-			rawOverrides: toRaw(rawOverrides.value),
+			state: structuredClone(toRaw(state.value)),
+			uiState: structuredClone(toRaw(uiState.value)),
+			rawOverrides: structuredClone(toRaw(rawOverrides.value)),
 		};
 	}
 

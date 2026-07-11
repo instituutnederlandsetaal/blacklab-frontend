@@ -1,7 +1,10 @@
 export { default as ParallelField } from './ParallelField.vue';
 export { default as QueryBuilderField } from './QueryBuilderField.vue';
 export { default as RawCqlField } from './RawCqlField.vue';
+export { default as WithinField } from './WithinField.vue';
 export { default as AnnotationPosField } from './AnnotationPosField.vue';
+export { default as ExploreCorporaField } from './explore/ExploreCorpora.vue';
+export * from './explore/explore-corpora-field';
 export * from './annotation-pos-field.ts';
 
 export * from './generic/checkbox-field.ts';

@@ -21,7 +21,7 @@ export function* walkFormNodes<K extends FormNodeKind>(nodes: FormNode | FormNod
 		const node = stack.pop()!;
 		if (seen.has(node)) continue;
 		seen.add(node);
-		if (kind && kind.includes(node.kind as K)) yield node as any;
+		if (kind.length === 0 || kind.includes(node.kind as K)) yield node as any;
 		if (isContainerNode(node)) {
 			// Push in reverse order so traversal is in the order you would expect
 			for (let i = node.children.length - 1; i >= 0; i--) {

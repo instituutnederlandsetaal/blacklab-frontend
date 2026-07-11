@@ -6,7 +6,7 @@
 			<div :class="btnGroupClasses">
 				<button v-if="hasSelection" type="button" class="btn btn-default" :disabled @click="clearSelection">
 					<span class="fa fa-times fa-fw"></span>
-					<span class="sr-only">{{ $t('partO	fSpeech.reset') }}</span>
+					<span class="sr-only">{{ $t('partOfSpeech.reset') }}</span>
 				</button>
 				<button type="button" class="btn btn-default" :disabled @click="openEditor">
 					<span class="fa fa-pencil fa-fw"></span>

@@ -1,6 +1,6 @@
 <template>
 	<section class="blf-summary-view">
-		<header>{{ title || $t(`form.summary.heading`) }}</header>
+		<header>{{ resolvedTitle || $t(`form.summary.heading`) }}</header>
 		<div v-if="compiled.summaries.length" class="entries">
 			<div v-for="entry in compiled.summaries" :key="entry.id" class="entry">
 				<span class="label">{{ entry.label }}</span>
@@ -19,12 +19,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toValue } from 'vue';
 
 import { useFormSystemRuntime, useParentForm } from '../model/runtime';
 import type { SummaryViewConfig } from '../model/views/summary-view';
 
-defineProps<SummaryViewConfig>();
+const props = defineProps<SummaryViewConfig>();
+const resolvedTitle = computed(() => (props.title ? toValue(props.title) : ''));
 const parentForm = useParentForm();
 const runtime = useFormSystemRuntime();
 const compiled = computed(() => runtime.compile(parentForm.value));

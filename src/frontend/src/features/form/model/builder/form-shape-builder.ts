@@ -1,6 +1,6 @@
-import { computed, markRaw, reactive, ref, toRaw, toRefs, type Ref, type ToRefs } from 'vue';
+import { computed, markRaw, reactive, ref, toRaw } from 'vue';
 
-import { isContainerNode, isFieldNode } from '@/features/form/model/form-utils';
+import { getAllNodes, isContainerNode, isFieldNode } from '@/features/form/model/form-utils';
 import { compileFormNode } from '@/features/form/model/persistence';
 import createFormState, { createDefaultFormState } from '@/features/form/model/state';
 import type { AnyFieldController, CompiledFormStateWithSummaries, FieldController, FormRuntimeContext } from '@/features/form/model/types';
@@ -24,10 +24,8 @@ import type {
 	RealFormNode,
 	RealViewNode,
 } from '@/features/form/model/types/form-shape';
-import { ContainerRenderer } from '@/features/form/ui';
+import { renderFormNode, type RenderableFormNode } from '@/features/form/ui/renderable-graph';
 import type { AnyVueComponent, ConstrainComponentToProvidedProps, DistributiveOmit, NoExtraProperties, PublicPropsOf } from '@/types/helpers';
-
-import useUid from '@/shared/utils/uid';
 
 // Helpers
 // ==========================================================================================================================
@@ -136,12 +134,6 @@ interface AddChildNodes {
 
 export type FormRegistrationCallback = (api: FormBuilder) => RealContainerNode<unknown, AnyVueComponent> | RealFormNode<unknown, AnyVueComponent> | void;
 
-function toRefsWithout<T extends object>(value: T, ...omittedKeys: readonly (keyof T)[]): Omit<ToRefs<T>, (typeof omittedKeys)[number]> {
-	const refs = toRefs(value);
-	for (const key of omittedKeys) delete refs[key];
-	return refs;
-}
-
 export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode, NewViewNode {
 	public constructor(public context: FormRuntimeContext) {}
 
@@ -152,70 +144,20 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 		const containers = Object.values(this.nodeMap).filter(isContainerNode);
 		const childIds = new Set(containers.flatMap(node => node.children.map(child => child.id)));
 		const graphRoots = containers.filter(node => !childIds.has(node.id));
-		const root = graphRoots[0] ?? this.root.value;
+		const root = graphRoots.find(node => node === this.root.value) ?? graphRoots.find(node => node.kind === 'form') ?? graphRoots[0] ?? this.root.value;
 		if (!root) throw new Error('Root node is not set');
 		return root as FormContainerLikeNode;
 	}
 
 	public state = createFormState();
 
-	protected renderableNode(node: FormNode, parentNode: FormNode | null): any {
-		const idSuffix = useUid();
-		const fieldRuntimeProps = {
-			disabled: computed(() => {
-				if (node.kind !== 'field') return false;
-				const affects = node.controller.affectsBlackLabParameters;
-				const values = typeof affects === 'function' ? affects(node, this.context) : affects;
-
-				if (!values.length) return false;
-				return values.some(param => this.state.rawOverrides.value[param] !== undefined);
-			}),
-
-			htmlId: computed(() => `${node.id}_${idSuffix}`),
-		} satisfies Record<string, Ref<any>>;
-
-		const containerRuntimeProps = {
-			hideTitle: computed(() => isContainerNode(parentNode) && (parentNode.variant === 'tabs' || parentNode.variant === 'small-tabs')),
-		} satisfies Record<string, Ref<any>>;
-
-		if (node.kind === 'container' || node.kind === 'form') {
-			return {
-				is: markRaw(node.component ?? ContainerRenderer),
-				// this is a bit of a hack - to avoid losing reactivty,
-				// map every individual property to a ref - then remove some that shouldn't be passed to the component
-				// then map the refs back to a reactive object
-				// basically memoize the props object, while removing and adding some properties
-				props: reactive({
-					...toRefsWithout(node, 'component'),
-					...containerRuntimeProps,
-
-					children: computed(() => node.children.map(child => this.renderableNode(child, node))),
-				}),
-			};
-		} else if (node.kind === 'field') {
-			return {
-				is: markRaw(node.component),
-				props: reactive({
-					...toRefsWithout(node, 'kind', 'component', 'controller'),
-					...fieldRuntimeProps,
-					...this.state.getVModel(node.id),
-				}),
-			};
-		} else if (node.kind === 'view') {
-			return {
-				is: markRaw(node.component),
-				props: reactive({
-					...toRefsWithout(node, 'kind', 'component'),
-				}),
-			};
-		}
-
-		return node;
+	protected renderableNode(node: FormNode, parentNode: FormNode | null): RenderableFormNode {
+		return renderFormNode(node, parentNode, this);
 	}
 
-	public renderableGraph(): { is: AnyVueComponent; props: Record<string, unknown> } | undefined;
-	public renderableGraph(rootId: string): { is: AnyVueComponent; props: Record<string, unknown> } | undefined;
-	public renderableGraph(rootId?: string): { is: AnyVueComponent; props: Record<string, unknown> } | undefined {
+	public renderableGraph(): RenderableFormNode | undefined;
+	public renderableGraph(rootId: string): RenderableFormNode | undefined;
+	public renderableGraph(rootId?: string): RenderableFormNode | undefined {
 		const root = rootId ? this.nodeMap[rootId] : this.getRoot();
 		if (!root) return;
 
@@ -234,7 +176,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 			// take over once it is created.
 			if (isContainerNode(node) && !this.root.value) this.root.value = node;
 			if (node.kind === 'form' && (!this.root.value || this.root.value.kind === 'container')) this.root.value = node;
-			if (isFieldNode(node)) this.state.addNodeToState(node);
+			if (isFieldNode(node)) this.state.addNodeToState(node, this.context);
 		} else if (toRaw(this.nodeMap[node.id]) !== node) {
 			throw new Error(`Node with id ${node.id} already exists in this form builder`);
 		}
@@ -244,6 +186,11 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 	private addChildToNode<T extends AnyBaseFormNode & { children: AnyRealFormNode[] }>(node: T, ...children: Array<AnyRealFormNode | null | undefined>): T {
 		for (const child of children) {
 			if (!child) continue;
+			// Nodes stored in Vue's reactive map may be proxies, so object identity is
+			// not reliable here. Node IDs are unique within a builder.
+			if (getAllNodes(child).some(descendant => descendant.id === node.id)) {
+				throw new Error(`Adding '${child.id}' to '${node.id}' would create a form graph cycle`);
+			}
 			const wasEmpty = node.children.length === 0;
 			node.children.push(this.addNode(child));
 			if (wasEmpty && isContainerNode(node)) this.state.activateDefaultChild(node.id, child.id);

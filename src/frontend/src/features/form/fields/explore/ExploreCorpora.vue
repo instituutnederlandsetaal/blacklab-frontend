@@ -1,30 +1,32 @@
 <template>
 	<div class="form-group">
-		<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('explore.corpora.groupBy') }}</label>
+		<label v-if="showLabel" class="col-xs-4 col-md-2" :for="`${htmlId}_group-by`">{{ $t('explore.corpora.groupBy') }}</label>
 		<div class="col-xs-8">
 			<SelectPicker
 				:placeholder="`${$t('explore.corpora.groupBy')}...`"
-				data-id="corpora-group-by"
+				:data-id="`${htmlId}_group-by`"
 				data-width="100%"
 				style="max-width: 400px"
 				hideEmpty
 				allowHtml
-				:options="metadataGroupByOptions"
+				:options="props.metadataGroupByOptions"
+				:disabled
 				v-model="corporaGroupBy"
 			/>
 		</div>
 	</div>
 	<div class="form-group">
-		<label class="col-xs-4 col-md-2" for="corpora-display-mode">{{ $t('explore.corpora.showAs.heading') }}</label>
+		<label v-if="showLabel" class="col-xs-4 col-md-2" :for="`${htmlId}_display-mode`">{{ $t('explore.corpora.showAs.heading') }}</label>
 		<div class="col-xs-8">
 			<SelectPicker
 				:placeholder="$t('explore.corpora.showAs.heading')"
-				data-id="corpora-display-mode"
+				:data-id="`${htmlId}_display-mode`"
 				data-width="100%"
 				style="max-width: 400px"
 				hideEmpty
 				allowHtml
 				:options="corporaGroupDisplayModeOptions"
+				:disabled
 				v-model="corporaGroupDisplayMode"
 			/>
 		</div>
@@ -41,7 +43,7 @@ import type { ExploreCorporaFieldState, ExploreCorporaFieldUiConfig } from './ex
 import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 
-import SelectPicker from '@/components/ui/SelectPicker.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 const props = withDefaults(defineProps<ImplicitFieldComponentProps<ExploreCorporaFieldState> & ExploreCorporaFieldUiConfig & { showLabel?: boolean }>(), {
 	showLabel: true,
 	disabled: false,
@@ -72,20 +74,18 @@ const corporaGroupDisplayMode = computed<string | null>({
 	},
 });
 
-function corporaGroupDisplayModeOptions(): Option[] {
-	return [
-		{
-			value: 'table',
-			label: translate.$t('explore.corpora.showAs.table').toString(),
-		},
-		{
-			value: 'docs',
-			label: translate.$t('explore.corpora.showAs.docs').toString(),
-		},
-		{
-			value: 'tokens',
-			label: translate.$t('explore.corpora.showAs.tokens').toString(),
-		},
-	];
-}
+const corporaGroupDisplayModeOptions = computed<Option[]>(() => [
+	{
+		value: 'table',
+		label: translate.$t('explore.corpora.showAs.table').toString(),
+	},
+	{
+		value: 'docs',
+		label: translate.$t('explore.corpora.showAs.docs').toString(),
+	},
+	{
+		value: 'tokens',
+		label: translate.$t('explore.corpora.showAs.tokens').toString(),
+	},
+]);
 </script>

@@ -1,14 +1,18 @@
 <template>
 	<header class="blf-heading-view">
-		<h3>{{ title }}</h3>
-		<p v-if="description">{{ description }}</p>
+		<h3>{{ resolvedTitle }}</h3>
+		<p v-if="resolvedDescription">{{ resolvedDescription }}</p>
 	</header>
 </template>
 
 <script setup lang="ts">
+import { computed, toValue } from 'vue';
+
 import type { HeadingViewConfig } from '../model/views/heading-view';
 
-defineProps<HeadingViewConfig>();
+const props = defineProps<HeadingViewConfig>();
+const resolvedTitle = computed(() => toValue(props.title));
+const resolvedDescription = computed(() => (props.description ? toValue(props.description) : ''));
 </script>
 
 <style lang="scss" scoped>

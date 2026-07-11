@@ -302,6 +302,34 @@ describe('form system integration', () => {
 		expect(wrapper.get('[data-testid="parent-form-probe"] .summaries').text()).toBe('Lemma:water');
 	});
 
+	test('resolves getter titles and exposes linked, keyboard-operable tabs', async () => {
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.form', ContainerRenderer, { title: () => 'Computed form', variant: 'tabs' });
+		form.addChildren(
+			builder.newContainer('search.first', ContainerRenderer, { title: () => 'Computed first' }),
+			builder.newContainer('search.second', ContainerRenderer, { title: () => 'Computed second' }),
+		);
+		const wrapper = mount(FormSystem, { props: { definition: builder } });
+		const tabs = wrapper.findAll('.nav-tabs a');
+
+		expect(wrapper.get('.blf-form-title').text()).toBe('Computed form');
+		expect(tabs[0].text()).toBe('Computed first');
+		expect(tabs[0].attributes('aria-controls')).toBeTruthy();
+		expect(wrapper.get(`#${tabs[0].attributes('aria-controls')}`).attributes('aria-labelledby')).toBe(tabs[0].attributes('id'));
+
+		await tabs[0].trigger('keydown', { key: 'ArrowRight' });
+		expect(builder.state.uiState.value[form.id]).toBe('search.second');
+	});
+
+	test('array tab variants hide the active child container title', () => {
+		const builder = createTestBuilder();
+		const parent = builder.newContainer('search.tabs', ContainerRenderer, { variant: ['tabs'] });
+		parent.addChildren(builder.newContainer('search.tabs.child', ContainerRenderer, { title: 'Hidden child title' }));
+		const wrapper = mount(FormSystem, { props: { definition: builder } });
+
+		expect(wrapper.find('.blf-container-title').exists()).toBe(false);
+	});
+
 	test('filter tabs count active summaries through layout wrappers', async () => {
 		const fixture = createFilterTabsFixture();
 		const wrapper = mount(FormSystem, {

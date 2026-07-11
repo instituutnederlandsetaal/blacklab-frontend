@@ -1,6 +1,6 @@
 <template>
 	<section class="blf-totals-view">
-		<header>{{ title || $t(`form.totals.heading`) }}</header>
+		<header>{{ resolvedTitle || $t(`form.totals.heading`) }}</header>
 		<div class="totals-grid">
 			<span>{{ $t(`form.totals.documents`) }}</span>
 			<strong>{{ estimatedDocuments.toLocaleString() }}</strong>
@@ -12,12 +12,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toValue } from 'vue';
 
 import { useFormSystemRuntime, useParentForm } from '../model/runtime';
 import type { TotalsViewConfig } from '../model/views/totals-view';
 
 const props = defineProps<TotalsViewConfig>();
+const resolvedTitle = computed(() => (props.title ? toValue(props.title) : ''));
 const parentForm = useParentForm();
 const form = useFormSystemRuntime();
 

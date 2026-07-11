@@ -158,7 +158,7 @@ export type QueryFragment = {
 	summaries: SummaryEntry[];
 };
 
-export type CompiledBlackLabParameters = Required<BlackLabParameters>;
+export type CompiledBlackLabParameters = Record<keyof BlackLabParameters, string | null>;
 
 export type ScopedFormQuery = Record<string, string | string[]>;
 

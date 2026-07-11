@@ -25,6 +25,12 @@ type FieldCodecEntry = {
 	key: string;
 };
 
+type ScopedQuery = ReturnType<typeof readScopedQuery>;
+type RestoreTarget = {
+	form: FormBoundaryNode;
+	activeFormId: string | null;
+};
+
 function isNonEmpty(value: string | null | undefined): value is string {
 	return value != null && value !== '';
 }
@@ -48,7 +54,7 @@ export function isReservedScopedFormKey(key: string): boolean {
 
 function findExpertForm(builder: FormBuilder): { form: FormBoundaryNode; field: FormFieldNode } | null {
 	for (const form of builder.formsList.value) {
-		const field = walkFormNodes(form, 'field').find(f => f.controller.kind === expertQueryController.kind);
+		const field = Array.from(walkFormNodes(form, 'field')).find(f => f.controller.kind === expertQueryController.kind);
 		if (field) return { form, field };
 	}
 	return null;
@@ -207,6 +213,72 @@ function applyTabState(form: FormBoundaryNode, payload: EncodedFieldValue | unde
 	return explicitActiveContainers;
 }
 
+function resolveRestoreTarget(builder: FormBuilder, scoped: ScopedQuery, issues: RestoreIssue[]): RestoreTarget {
+	const requestedFormId = first(scoped.values.form);
+	const form = builder.formsMap.value[requestedFormId ?? ''] ?? builder.formsList.value[0];
+	if (!form) throw new Error('Cannot restore form state because the form builder has no form nodes.');
+
+	if (!scoped.keys.has('form')) return { form, activeFormId: null };
+	if (requestedFormId === form.id) return { form, activeFormId: requestedFormId };
+
+	issues.push({
+		key: 'form',
+		message: requestedFormId ? `No current form accepts persisted selector '${requestedFormId}'.` : 'Persisted form selector has no value.',
+	});
+	return { form, activeFormId: null };
+}
+
+function restoreScopedValues(form: FormBoundaryNode, scoped: ScopedQuery, context: FormRuntimeContext, state: NewFormState, issues: RestoreIssue[]) {
+	const consumed = new Set<string>(scoped.keys.has('form') ? ['form'] : []);
+	let hasUsableState = false;
+	const codec = buildFieldCodec(form, context, issues);
+
+	for (const entry of codec) {
+		if (!scoped.keys.has(entry.key)) continue;
+		consumed.add(entry.key);
+		const payload = scoped.values[entry.key];
+		if (payload == null) {
+			issues.push({ key: entry.key, nodeId: entry.field.id, message: `Persisted field '${entry.key}' has no value.` });
+			continue;
+		}
+		if (restoreField(entry, payload, context, state, issues)) hasUsableState = true;
+	}
+
+	let explicitActiveContainers = new Set<string>();
+	if (scoped.keys.has('tab')) {
+		consumed.add('tab');
+		if (scoped.values.tab == null) issues.push({ key: 'tab', message: 'Persisted tab selection has no value.' });
+		else {
+			explicitActiveContainers = applyTabState(form, scoped.values.tab, state, issues);
+			if (explicitActiveContainers.size > 0) hasUsableState = true;
+		}
+	}
+
+	for (const key of scoped.keys) {
+		if (!consumed.has(key)) issues.push({ key, message: `No current form field accepts persisted key '${key}'.` });
+	}
+
+	return { hasUsableState, explicitActiveContainers };
+}
+
+function applyCanonicalFallback(builder: FormBuilder, form: FormBoundaryNode, hasUsableScopedState: boolean, canonical: BlackLabParameters, state: NewFormState): FormBoundaryNode {
+	const expert = findExpertForm(builder);
+	if (hasUsableScopedState || !isNonEmpty(canonical.patt) || !expert) return form;
+
+	setActivePath([builder.getRoot()], expert.form.id, state.uiState);
+	state.state[expert.field.id] = canonical.patt;
+	return expert.form;
+}
+
+function applyRawOverrides(form: FormBoundaryNode, state: NewFormState, context: FormRuntimeContext, canonical: BlackLabParameters): void {
+	const compiled = compileQueryIR(buildQueryIR(form, state, context).query);
+	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
+		const canonicalValue = canonical[parameter];
+		if (valueDiffers(compiled[parameter], canonicalValue)) state.rawOverrides[parameter] = canonicalValue ?? null;
+		if (!isNonEmpty(state.rawOverrides[parameter])) delete state.rawOverrides[parameter];
+	}
+}
+
 function queryAffectingTabParams(form: FormNode, state: NewFormState): string[] {
 	const tabs: string[] = [];
 	for (const container of getAllNodes(form, 'container', 'form')) {
@@ -235,7 +307,7 @@ function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, stat
 
 export function hasScopedFormState(query: Record<string, unknown>): boolean {
 	for (const key in query) {
-		if (query.hasOwnProperty(key) && key.startsWith(FORM_QUERY_PREFIX)) return true;
+		if (Object.prototype.hasOwnProperty.call(query, key) && key.startsWith(FORM_QUERY_PREFIX)) return true;
 	}
 	return false;
 }
@@ -264,75 +336,18 @@ export function compileFormNode(node: FormNode, state: NewFormState, context: Fo
 export function restoreScopedFormState(builder: FormBuilder, query: Record<string, unknown>, canonical: BlackLabParameters = {}): RestoredFormState {
 	const issues: RestoreIssue[] = [];
 	const scoped = readScopedQuery(query);
-	const canonicalFromQuery = readCanonicalQuery(query);
-	const canonicalParameters = { ...canonicalFromQuery, ...canonical };
-	const consumed = new Set<string>();
-
-	const requestedFormId = first(scoped.values.form);
-	let formNode = builder.formsMap.value[requestedFormId as string] ?? builder.formsList.value[0];
-	const isFormNodeTheRequestedForm = formNode?.id === requestedFormId;
-	let hasUsableScopedState = false;
-
-	if (scoped.keys.has('form')) {
-		consumed.add('form');
-		if (isFormNodeTheRequestedForm && requestedFormId) {
-			// The form selector affects UI restoration, but does not carry query data by itself.
-		} else {
-			issues.push({
-				key: 'form',
-				message: requestedFormId ? `No current form accepts persisted selector '${requestedFormId}'.` : 'Persisted form selector has no value.',
-			});
-		}
-	}
+	const canonicalParameters = { ...readCanonicalQuery(query), ...canonical };
+	const target = resolveRestoreTarget(builder, scoped, issues);
 	const state = createDefaultFormState(builder.context, ...(builder.nodeList.value as FormNode[]));
-
-	setActivePath([builder.getRoot()], formNode.id, state.uiState);
-	let explicitActiveContainers = new Set<string>();
-
-	const codec = buildFieldCodec(formNode, builder.context, issues);
-	const byKey = new Map(codec.map(entry => [entry.key, entry]));
-	for (const [key, entry] of byKey) {
-		if (!scoped.keys.has(key)) continue;
-		consumed.add(key);
-		const payload = scoped.values[key];
-		if (payload == null) {
-			issues.push({ key, nodeId: entry.field.id, message: `Persisted field '${key}' has no value.` });
-			continue;
-		}
-		if (restoreField(entry, payload, builder.context, state, issues)) hasUsableScopedState = true;
-	}
-
-	if (scoped.keys.has('tab')) {
-		consumed.add('tab');
-		if (scoped.values.tab == null) issues.push({ key: 'tab', message: 'Persisted tab selection has no value.' });
-		else {
-			explicitActiveContainers = applyTabState(formNode, scoped.values.tab, state, issues);
-			if (explicitActiveContainers.size > 0) hasUsableScopedState = true;
-		}
-	}
-
-	for (const key of scoped.keys) {
-		if (!consumed.has(key)) issues.push({ key, message: `No current form field accepts persisted key '${key}'.` });
-	}
-
-	const expert = findExpertForm(builder);
-	if (!hasUsableScopedState && isNonEmpty(canonicalParameters.patt) && expert) {
-		formNode = expert.form;
-		setActivePath([builder.getRoot()], formNode.id, state.uiState);
-		state.state[expert.field.id] = canonicalParameters.patt;
-	}
-
-	inferActiveContainersFromValues(formNode, state, builder.context, explicitActiveContainers);
-
-	const compiled = compileQueryIR(buildQueryIR(formNode, state, builder.context).query);
-	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
-		if (valueDiffers(compiled[parameter], canonicalParameters[parameter])) state.rawOverrides[parameter] = canonicalParameters[parameter] ?? null;
-		if (!isNonEmpty(state.rawOverrides[parameter])) delete state.rawOverrides[parameter];
-	}
+	setActivePath([builder.getRoot()], target.form.id, state.uiState);
+	const restored = restoreScopedValues(target.form, scoped, builder.context, state, issues);
+	const form = applyCanonicalFallback(builder, target.form, restored.hasUsableState, canonicalParameters, state);
+	inferActiveContainersFromValues(form, state, builder.context, restored.explicitActiveContainers);
+	applyRawOverrides(form, state, builder.context, canonicalParameters);
 
 	return {
 		...state,
 		issues,
-		activeFormId: isFormNodeTheRequestedForm ? requestedFormId : null,
+		activeFormId: target.activeFormId,
 	};
 }

@@ -85,6 +85,41 @@ function createCompositionFixture(combine: QueryCombineMode) {
 }
 
 describe('form model state', () => {
+	test('field defaults receive the builder runtime both during registration and reset', () => {
+		const builder = createTestBuilder();
+		const contextAwareController = {
+			...testTextController,
+			createDefaultState: (_field: unknown, context: typeof builder.context) => ({ value: context.corpus.indexId ?? '' }),
+		};
+		const field = builder.newField('search.context-aware', contextAwareController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Context aware',
+		});
+		builder.newForm('search.form', ContainerRenderer, { title: 'Search' }).addChildren(field);
+
+		expect(builder.state.state.value[field.id]).toEqual({ value: 'test-corpus' });
+		builder.state.state.value[field.id] = { value: 'changed' };
+		builder.reset();
+		expect(builder.state.state.value[field.id]).toEqual({ value: 'test-corpus' });
+	});
+
+	test('prefers the first form root over earlier reusable orphan containers', () => {
+		const builder = createTestBuilder();
+		builder.newContainer('reusable.orphan', ContainerRenderer, {});
+		const form = builder.newForm('search.form', ContainerRenderer, { title: 'Search' });
+
+		expect(builder.getRoot().id).toBe(form.id);
+	});
+
+	test('rejects child edges that would create a graph cycle', () => {
+		const builder = createTestBuilder();
+		const first = builder.newContainer('first', ContainerRenderer, {});
+		const second = builder.newContainer('second', ContainerRenderer, {});
+		first.addChildren(second);
+
+		expect(() => second.addChildren(first)).toThrow('would create a form graph cycle');
+	});
+
 	test('createDefaultFormState initializes each reused field once', () => {
 		const builder = createTestBuilder();
 		const root = builder.newContainer('search', ContainerRenderer, { variant: 'tabs' });
@@ -157,5 +192,21 @@ describe('form model state', () => {
 		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 
 		expect(Object.keys(builder.formsMap.value).sort()).toEqual(['search.extended', 'search.simple']);
+	});
+
+	test('replaceState removes stale field and UI entries', () => {
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.form', ContainerRenderer, { title: 'Search' });
+		const field = builder.newField('search.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+		form.addChildren(field);
+		builder.state.state.value.stale = { value: 'stale' };
+		builder.state.uiState.value.stale = 'stale';
+
+		builder.state.replaceState({ state: { [field.id]: { value: 'water' } }, uiState: {}, rawOverrides: {} });
+
+		expect(builder.state.getRawState()).toEqual({ state: { [field.id]: { value: 'water' } }, uiState: {}, rawOverrides: {} });
 	});
 });

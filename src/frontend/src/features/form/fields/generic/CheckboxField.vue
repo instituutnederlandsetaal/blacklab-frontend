@@ -1,5 +1,5 @@
 <template>
-	<div class="form-group" :id="htmlId">
+	<div :class="['form-group', fieldClasses]" :id="htmlId">
 		<fieldset>
 			<legend v-if="showLabel">
 				{{ displayName }}<debug> [{{ id }}]</debug>
