@@ -13,6 +13,7 @@ import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
 import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
 import { createSearchFormSystem } from '@/features/search/model/search-form-builder';
+import { createLegacySearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import { installHooksGlobal } from '@/interop/hooks';
 import { installLegacyStoreGlobals, setMountedVueGlobals } from '@/interop/window-globals';
 import { createPageBootstrapContext } from '@/navigation/page-bootstrap';
@@ -74,6 +75,7 @@ async function start() {
 	const i18n = createI18n(router.corpusId);
 	const searchFormSystem = createSearchFormSystem({
 		blacklabApi: api.blacklabApi,
+		configuration: createLegacySearchFormConfiguration(),
 		corpus: corpusState.corpus,
 		tagset: corpusState.tagset,
 		translate: i18n.translate,

@@ -10,6 +10,7 @@ import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import { FormSystem, restoreScopedFormState } from '@/features/form';
 import { createSearchFormSystem, getNewSearchFormId, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
+import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 
 function annotation(id: string, overrides: Partial<NormalizedAnnotation> = {}): NormalizedAnnotation {
@@ -118,9 +119,54 @@ function createCorpus(): Corpus {
 	};
 }
 
+function createParallelCorpus(): Corpus {
+	const corpus = createCorpus();
+	const createParallelField = (version: string): Corpus['parallelAnnotatedFields'][number] => {
+		const id = `contents__${version}`;
+		const annotations = Object.fromEntries(Object.values(corpus.allAnnotationsMap).map(item => [item.id, { ...item, annotatedFieldId: id }]));
+		return {
+			annotations,
+			defaultDescription: '',
+			defaultDisplayName: version.toUpperCase(),
+			hasContentStore: true,
+			hasLengthTokens: true,
+			hasXmlTags: true,
+			id,
+			isAnnotatedField: true,
+			isParallel: true,
+			mainAnnotationId: 'word',
+			prefix: 'contents',
+			version,
+		};
+	};
+	const source = createParallelField('en');
+	const target = createParallelField('nl');
+
+	return {
+		...corpus,
+		allAnnotatedFields: [source, target],
+		allAnnotatedFieldsMap: { [source.id]: source, [target.id]: target },
+		allAnnotations: Object.values(source.annotations),
+		allAnnotationsMap: source.annotations,
+		annotatedFields: { [source.id]: source, [target.id]: target },
+		annotationGroups: corpus.annotationGroups.map(group => ({
+			...group,
+			annotatedFieldId: source.id,
+			fields: group.entries.map(id => source.annotations[id]),
+		})),
+		firstMainAnnotation: source.annotations.word,
+		isParallelCorpus: true,
+		mainAnnotatedField: source.id,
+		parallelAnnotatedFields: [source, target],
+		parallelAnnotatedFieldsMap: { [source.id]: source, [target.id]: target },
+		parallelFieldPrefix: 'contents',
+	};
+}
+
 function createDefinition(corpus = createCorpus()) {
 	return createSearchFormSystem({
 		blacklabApi: createMockApi().blacklabApi,
+		configuration: createLegacySearchFormConfiguration(),
 		corpus: ref(corpus),
 		tagset: ref(undefined),
 		translate: createMockTranslate(),
@@ -134,6 +180,9 @@ beforeEach(() => {
 	state.search.shared.searchMetadataIds = ['author', 'genre'];
 	state.search.shared.within.enabled = false;
 	state.search.shared.within.elements = [];
+	state.search.shared.alignBy.enabled = false;
+	state.search.shared.alignBy.elements = [];
+	state.search.shared.alignBy.defaultValue = '';
 });
 
 afterEach(() => {
@@ -174,6 +223,107 @@ describe('search form system', () => {
 			{ group: 'Basics', id: 'word', label: 'word', value: 'water', summaryType: ['patt'] },
 			{ group: 'Bibliographic', id: 'shared.filters.Bibliographic.author', label: 'author', value: 'Austen', summaryType: ['filter'] },
 			{ group: 'Classification', id: 'shared.filters.Classification.genre', label: 'genre', value: 'Fiction', summaryType: ['filter'] },
+		]);
+	});
+
+	test('simple form includes and compiles configured shared filters', () => {
+		const definition = createDefinition();
+
+		definition.state.state.value['search.simple.annotation'] = {
+			value: 'water',
+			caseSensitive: false,
+		};
+		definition.state.state.value['shared.filters.Bibliographic.author'] = {
+			value: 'Austen',
+			caseSensitive: false,
+		};
+
+		expect(definition.compile(getNewSearchFormId('simple'))).toMatchObject({
+			filter: 'author:(Austen)',
+			patt: '[word="(?i)water"]',
+		});
+	});
+
+	test('rebuilds from a new legacy configuration snapshot', () => {
+		const state = UIStore.getState();
+		const system = createSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			configuration: createLegacySearchFormConfiguration(),
+			corpus: ref(createCorpus()),
+			tagset: ref(undefined),
+			translate: createMockTranslate(),
+		});
+		const initialDefinition = system.definition.value!;
+
+		state.search.simple.searchAnnotationId = 'lemma';
+		state.search.extended.searchAnnotationIds = ['pos'];
+		state.search.shared.searchMetadataIds = ['genre'];
+
+		const configuredDefinition = system.definition.value!;
+		expect(configuredDefinition).not.toBe(initialDefinition);
+		expect((configuredDefinition.getField('search.simple.annotation') as unknown as { annotationId: string }).annotationId).toBe('lemma');
+		expect(configuredDefinition.getField('search.extended.annotations.Basics.word')).toBeNull();
+		expect(configuredDefinition.getField('search.extended.annotations.pos')).not.toBeNull();
+		expect(configuredDefinition.getField('shared.filters.Bibliographic.author')).toBeNull();
+		expect(configuredDefinition.getField('shared.filters.Classification.genre')).not.toBeNull();
+	});
+
+	test('takes an isolated copy of mutable legacy configuration values', () => {
+		const state = UIStore.getState();
+		state.search.shared.within.elements = [{ value: 's', label: 'Sentence', title: 'sentence title' }];
+		const snapshot = snapshotSearchFormConfiguration(state);
+
+		state.search.extended.searchAnnotationIds.push('word_or_lemma');
+		state.search.shared.within.elements[0].label = 'Changed';
+
+		expect(snapshot.extendedAnnotationIds).toEqual(['word', 'lemma', 'pos']);
+		expect(snapshot.within.elements).toEqual([{ value: 's', label: 'Sentence', title: 'sentence title' }]);
+	});
+
+	test('preserves configured within options, labels, and order', () => {
+		const corpus = createCorpus();
+		corpus.relations = {
+			relations: {},
+			spans: {
+				p: { count: 1 },
+				s: { count: 1 },
+			},
+		};
+		const state = UIStore.getState();
+		state.search.shared.within.enabled = true;
+		state.search.shared.within.elements = [
+			{ value: 'p', label: 'Custom paragraph', title: 'Paragraph title' },
+			{ value: 's', label: 'Custom sentence', title: null },
+		];
+
+		const within = createDefinition(corpus).getField('shared.within') as unknown as {
+			options: Array<{ value: string; label?: string; title?: string | null }>;
+		};
+
+		expect(within.options.map(option => option.value)).toEqual(['', 'p', 's']);
+		expect(within.options[1]).toMatchObject({ value: 'p', label: 'Custom paragraph', title: 'Paragraph title' });
+		expect(within.options[2]).toMatchObject({ value: 's', label: 'Custom sentence', title: null });
+	});
+
+	test('uses the configured align-by visibility, options, and default', () => {
+		const state = UIStore.getState();
+		state.search.shared.alignBy.elements = [
+			{ value: 'sentence-alignment', label: 'By sentence', title: 'Sentence alignment' },
+			{ value: 'word-alignment', label: 'By word', title: null },
+		];
+		state.search.shared.alignBy.defaultValue = 'sentence-alignment';
+
+		const hiddenDefinition = createDefinition(createParallelCorpus());
+		const hiddenField = hiddenDefinition.getField('search.simple.parallel') as unknown as { alignByOptions: unknown[] };
+		expect(hiddenField.alignByOptions).toEqual([]);
+		expect((hiddenDefinition.state.state.value['search.simple.parallel'] as { alignBy: string | null }).alignBy).toBe('sentence-alignment');
+
+		state.search.shared.alignBy.enabled = true;
+		const visibleDefinition = createDefinition(createParallelCorpus());
+		const visibleField = visibleDefinition.getField('search.simple.parallel') as unknown as { alignByOptions: unknown[] };
+		expect(visibleField.alignByOptions).toEqual([
+			{ value: 'sentence-alignment', label: 'By sentence', title: 'Sentence alignment' },
+			{ value: 'word-alignment', label: 'By word', title: null },
 		]);
 	});
 

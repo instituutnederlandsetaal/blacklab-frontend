@@ -54,7 +54,7 @@ import { useFormSystemRuntime } from '@/features/form/model/runtime';
 import type { ParallelFieldComponentProps, ParallelFieldState } from '../model/controllers/parallel-controller';
 
 import { useI18n } from '@/shared/i18n';
-import type { Option } from '@/shared/utils/options';
+import { isSimpleOption, type Option } from '@/shared/utils/options';
 
 import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
@@ -83,7 +83,15 @@ const sourceOptions = computed<Option[]>(() =>
 const targetOptions = computed<Option[]>(() =>
 	props.fieldOptions.filter(field => field.id !== props.modelValue.source).map(field => ({ value: field.id, label: translate.$tAnnotatedFieldDisplayName(field) })),
 );
-const alignByPickerOptions = computed<Option[]>(() => (props.alignByOptions ?? []).map(value => ({ value, label: translate.$tAlignByDisplayName({ value }) })));
+const alignByPickerOptions = computed<Option[]>(() =>
+	(props.alignByOptions ?? []).map(option => {
+		const normalized = isSimpleOption(option) ? { value: option } : option;
+		return {
+			...normalized,
+			label: translate.$tAlignByDisplayName(normalized),
+		};
+	}),
+);
 const selectedTargetOptions = computed(() => props.modelValue.targets.map(target => props.fieldOptions.find(field => field.id === target) ?? { id: target }));
 const sourceChildProps = computed(() => ({
 	...props.child.config,

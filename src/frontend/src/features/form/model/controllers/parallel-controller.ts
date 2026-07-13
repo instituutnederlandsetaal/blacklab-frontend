@@ -6,6 +6,7 @@ import type { ImplicitFieldComponentProps } from '@/features/form/model/types/fo
 import type { AnyVueComponent } from '@/types/helpers';
 
 import type { Translate } from '@/shared/i18n';
+import { findOption, optionValue, type Option, type SimpleOption } from '@/shared/utils/options';
 
 export type ParallelFieldState<ChildState = unknown> = {
 	source: string | null;
@@ -24,7 +25,9 @@ export type ParallelChildFieldConfig = {
 
 export type ParallelFieldConfig = {
 	fieldOptions: ParallelAnnotatedField[];
-	alignByOptions?: string[];
+	alignByOptions?: Array<SimpleOption | Option>;
+	/** Applied even when alignByOptions is empty, allowing a fixed relation type without rendering a picker. */
+	defaultAlignBy?: string | null;
 	child: ParallelChildFieldConfig;
 };
 
@@ -42,8 +45,8 @@ function translatedAnnotatedField(runtime: Parameters<NonNullable<FieldControlle
 	return runtime.translate.$tAnnotatedFieldDisplayName(field);
 }
 
-function translatedAlignBy(runtime: Parameters<NonNullable<FieldController['getQueryContribution']>>[1], alignBy: string) {
-	return runtime.translate.$tAlignByDisplayName({ value: alignBy });
+function translatedAlignBy(config: FieldControllerProps<ParallelFieldConfig>, runtime: Parameters<NonNullable<FieldController['getQueryContribution']>>[1], alignBy: string) {
+	return runtime.translate.$tAlignByDisplayName(findOption(config.alignByOptions ?? [], alignBy) ?? { value: alignBy });
 }
 
 function encodeChildNamespaceSegment(value: string, label: string) {
@@ -109,7 +112,7 @@ function createDefaultParallelFieldState(config: FieldControllerProps<ParallelFi
 	return {
 		source: null,
 		targets: [],
-		alignBy: config.alignByOptions?.[0] ?? null,
+		alignBy: config.defaultAlignBy ?? (config.alignByOptions?.[0] ? optionValue(config.alignByOptions[0]) : null),
 		sourceState: createDefaultChildState(config, runtime, { scope: SOURCE_CHILD_SCOPE }),
 		targetStates: {},
 	};
@@ -270,7 +273,7 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 			summaries.push({
 				id: `${config.id}.alignBy`,
 				label: runtime.translate.$t(`search.parallel.alignBy`),
-				value: translatedAlignBy(runtime, state.alignBy),
+				value: translatedAlignBy(config, runtime, state.alignBy),
 			});
 		return queryFragment({ query, summaries });
 	},

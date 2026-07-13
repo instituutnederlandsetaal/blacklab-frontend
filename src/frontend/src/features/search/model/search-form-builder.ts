@@ -2,7 +2,6 @@
 import { markRaw, pauseTracking, resetTracking } from '@vue/reactivity';
 import { computed, type ComputedRef, type ObjectPlugin, type Ref } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import {
 	annotationPosController,
@@ -25,6 +24,7 @@ import {
 import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
 import type { ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
+import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
@@ -48,6 +48,7 @@ const SEARCH_FORM_ID_PREFIX = 'search.';
 
 type CreateSearchFormSystemOptions = {
 	blacklabApi: BlackLabApi;
+	configuration: Ref<SearchFormConfiguration>;
 	corpus: Ref<Corpus | undefined>;
 	tagset: Ref<Tagset | undefined>;
 	translate: Translate;
@@ -88,6 +89,7 @@ function createAnnotationField(
 	corpus: Corpus,
 	tagset: Tagset | undefined,
 	blacklabApi: BlackLabApi,
+	configuration: SearchFormConfiguration,
 	translate: Translate,
 	groupId?: string,
 ): FormFieldNode {
@@ -132,7 +134,7 @@ function createAnnotationField(
 			displayName,
 			groupId,
 			lookup: createLexiconLookup({
-				database: UIStore.getState().global.lexiconDb,
+				database: configuration.lexiconDatabase,
 				getTermFrequencies: async values => {
 					const response = await blacklabApi.getTermFrequencies(corpus.id, annotation.id, values);
 					return response.termFreq;
@@ -145,32 +147,27 @@ function createAnnotationField(
 	}
 }
 
-function createWithinField(builder: FormBuilder, corpus: Corpus, translate: Translate): FormFieldNode | null {
+function createWithinField(builder: FormBuilder, corpus: Corpus, configuration: SearchFormConfiguration, translate: Translate): FormFieldNode | null {
 	const spans = corpus.relations?.spans;
-	if (!UIStore.getState().search.shared.within.enabled || !spans || !Object.keys(spans).length) return null;
+	if (!configuration.within.enabled || !spans || !Object.keys(spans).length) return null;
 
-	const configuredElements = UIStore.getState()
-		.search.shared.within.elements.map(option => option.value)
-		.filter(Boolean);
-	const spanNames = configuredElements.length ? configuredElements.filter(spanName => spans[spanName]) : Object.keys(spans);
-
-	if (!spanNames.length) return null;
-
-	const options = [
-		{ value: '' },
-		...spanNames
-			.sort((left, right) => translate.$tSpanDisplayName({ value: left, label: left }).localeCompare(translate.$tSpanDisplayName({ value: right, label: right })))
-			.map(spanName => ({
-				value: spanName,
-				label: spanName,
-				attributes: Object.keys(spans[spanName]?.attributes ?? {})
-					.sort((left, right) => translate.$tSpanAttributeDisplay(spanName, left).localeCompare(translate.$tSpanAttributeDisplay(spanName, right)))
+	const configuredElements = configuration.within.elements.filter(option => !option.value || spans[option.value]);
+	const elements = configuredElements.length
+		? configuredElements
+		: Object.keys(spans)
+				.sort((left, right) => translate.$tSpanDisplayName({ value: left, label: left }).localeCompare(translate.$tSpanDisplayName({ value: right, label: right })))
+				.map(value => ({ value, label: value }));
+	const options = (elements.some(option => !option.value) ? elements : [{ value: '' }, ...elements]).map(option => ({
+		...option,
+		attributes: option.value
+			? Object.keys(spans[option.value]?.attributes ?? {})
+					.sort((left, right) => translate.$tSpanAttributeDisplay(option.value, left).localeCompare(translate.$tSpanAttributeDisplay(option.value, right)))
 					.map(attribute => ({
 						value: attribute,
 						label: attribute,
-					})),
-			})),
-	];
+					}))
+			: [],
+	}));
 
 	return builder.newField('shared.within', withinController, WithinField, { options });
 }
@@ -219,8 +216,14 @@ function createFilterField(builder: FormBuilder, nodeId: string, field: Normaliz
 	});
 }
 
-function createSharedFilters(builder: FormBuilder, corpus: Corpus, blacklabApi: BlackLabApi, translate: Translate): ReturnType<FormBuilder['newContainer']> | null {
-	const filterIds = UIStore.getState().search.shared.searchMetadataIds;
+function createSharedFilters(
+	builder: FormBuilder,
+	corpus: Corpus,
+	configuration: SearchFormConfiguration,
+	blacklabApi: BlackLabApi,
+	translate: Translate,
+): ReturnType<FormBuilder['newContainer']> | null {
+	const filterIds = configuration.metadataFieldIds;
 	const groups = corpus.metadataGroups
 		.map(group => ({
 			fields: group.fields.filter((field): field is NormalizedMetadataField => !!field && filterIds.includes(field.id)),
@@ -263,10 +266,11 @@ function createExtendedAnnotationTabs(
 	builder: FormBuilder,
 	corpus: Corpus,
 	tagset: Tagset | undefined,
+	configuration: SearchFormConfiguration,
 	blacklabApi: BlackLabApi,
 	translate: Translate,
 ): ReturnType<FormBuilder['newContainer']> | null {
-	const annotationIds = UIStore.getState().search.extended.searchAnnotationIds;
+	const annotationIds = configuration.extendedAnnotationIds;
 	const groups = corpus.annotationGroups
 		.filter(group => group.annotatedFieldId === corpus.mainAnnotatedField)
 		.map(group => ({
@@ -282,7 +286,7 @@ function createExtendedAnnotationTabs(
 	const populateTab = (tab: ReturnType<FormBuilder['newContainer']>, annotations: NormalizedAnnotation[], groupId?: string) => {
 		for (const annotation of annotations) {
 			const nodeId = `${tab.id}.${toSafeHtmlId(annotation.id)}`;
-			const node = builder.getField(nodeId) ?? createAnnotationField(builder, nodeId, annotation, corpus, tagset, blacklabApi, translate, groupId);
+			const node = builder.getField(nodeId) ?? createAnnotationField(builder, nodeId, annotation, corpus, tagset, blacklabApi, configuration, translate, groupId);
 			tab.addChildren(node);
 		}
 	};
@@ -312,8 +316,8 @@ function createExtendedAnnotationTabs(
 	return tabs;
 }
 
-function getSimpleSearchAnnotation(corpus: Corpus): NormalizedAnnotation {
-	const simpleAnnotationId = UIStore.getState().search.simple.searchAnnotationId;
+function getSimpleSearchAnnotation(corpus: Corpus, configuration: SearchFormConfiguration): NormalizedAnnotation {
+	const simpleAnnotationId = configuration.simpleAnnotationId;
 	const annotatedFieldId = corpus.isParallelCorpus ? corpus.parallelAnnotatedFields[0]?.id : corpus.mainAnnotatedField;
 	const sourceField = annotatedFieldId ?? corpus.mainAnnotatedField;
 	const annotation = corpus.allAnnotatedFieldsMap[sourceField]?.annotations[simpleAnnotationId] || corpus.firstMainAnnotation;
@@ -323,7 +327,7 @@ function getSimpleSearchAnnotation(corpus: Corpus): NormalizedAnnotation {
 	};
 }
 
-function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, blacklabApi: BlackLabApi, translate: Translate): FormBuilder {
+function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, configuration: SearchFormConfiguration, blacklabApi: BlackLabApi, translate: Translate): FormBuilder {
 	const context: FormRuntimeContext = {
 		corpus: {
 			indexId: corpus.id,
@@ -332,12 +336,14 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 		translate,
 	};
 	const builder = new FormBuilder(context);
-	const annotation = getSimpleSearchAnnotation(corpus);
-	const sharedWithin = createWithinField(builder, corpus, translate);
-	const sharedFilters = createSharedFilters(builder, corpus, blacklabApi, translate);
+	const annotation = getSimpleSearchAnnotation(corpus, configuration);
+	const sharedWithin = createWithinField(builder, corpus, configuration, translate);
+	const sharedFilters = createSharedFilters(builder, corpus, configuration, blacklabApi, translate);
 	const form = builder.newForm(getNewSearchFormId('simple'), ContainerRenderer, {
 		title: computed(() => translate.$t('search.simple.heading')),
+		variant: sharedFilters ? 'columns' : undefined,
 	});
+	const simpleQuery = builder.newContainer('search.simple.query.wrapper', ContainerRenderer, { variant: 'list' });
 
 	if (corpus.isParallelCorpus) {
 		const childConfig = {
@@ -349,9 +355,8 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 			variant: 'large' as const,
 		};
 		const field = builder.newField('search.simple.parallel', parallelController, ParallelField, {
-			alignByOptions: UIStore.getState()
-				.search.shared.alignBy.elements.map(option => option.value)
-				.filter((value): value is string => typeof value === 'string'),
+			alignByOptions: configuration.alignBy.enabled ? configuration.alignBy.elements : [],
+			defaultAlignBy: configuration.alignBy.defaultValue || null,
 			child: {
 				id: 'query',
 				controller: annotationTextController,
@@ -360,13 +365,14 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 			},
 			fieldOptions: corpus.parallelAnnotatedFields,
 		});
-		form.addChildren(field);
+		simpleQuery.addChildren(field);
 
 		const state = builder.state.state.value[field.id] as ParallelFieldState;
 		state.source = corpus.parallelAnnotatedFields[0]?.id ?? null;
 	} else {
-		form.addChildren(createAnnotationField(builder, 'search.simple.annotation', annotation, corpus, tagset, blacklabApi, translate));
+		simpleQuery.addChildren(createAnnotationField(builder, 'search.simple.annotation', annotation, corpus, tagset, blacklabApi, configuration, translate));
 	}
+	form.addChildren(simpleQuery, sharedFilters);
 
 	const extendedForm = builder.newForm(getNewSearchFormId('extended'), ContainerRenderer, {
 		// title: computed(() => translate.$t('search.extended.heading')),
@@ -377,7 +383,7 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 			// builder.newView('search.extended.heading', HeadingView, {
 			// 	title: computed(() => translate.$t('search.heading')),
 			// }),
-			createExtendedAnnotationTabs(builder, corpus, tagset, blacklabApi, translate),
+			createExtendedAnnotationTabs(builder, corpus, tagset, configuration, blacklabApi, translate),
 			sharedWithin,
 		),
 		sharedFilters,
@@ -394,6 +400,7 @@ const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchF
 	const definition = computed(() => {
 		const corpus = options.corpus.value;
 		const tagset = options.tagset.value;
+		const configuration = options.configuration.value;
 		if (!corpus) return null;
 
 		// FIXME: this is a hack!
@@ -405,7 +412,7 @@ const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchF
 		// All in all, poorly designed, and we really should work to separate out definition from state and runtime component graph
 		pauseTracking();
 		try {
-			return createSearchFormDefinition(corpus, tagset, options.blacklabApi, options.translate);
+			return createSearchFormDefinition(corpus, tagset, configuration, options.blacklabApi, options.translate);
 		} finally {
 			resetTracking();
 		}
