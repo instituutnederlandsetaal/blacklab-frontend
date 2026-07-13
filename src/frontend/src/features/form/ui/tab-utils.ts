@@ -1,11 +1,23 @@
-import { nextTick, toValue } from 'vue';
+import { toValue } from 'vue';
 
 import type { BaseNode } from '@/features/form/model/types/form-shape';
+import type { Tab } from '@/shared/ui/Tabs.types';
 
-type TabChild = { props: Pick<BaseNode, 'id'> };
+type TabChild = { props: Pick<BaseNode, 'id' | 'title'> };
 
 function idPart(value: string): string {
-	return Array.from(value, character => character.codePointAt(0)!.toString(16)).join('_');
+	return Array.from(value, character => {
+		if (/^[A-Za-z0-9-]$/.test(character)) return character;
+		// Escape the escape marker itself so e.g. "a_2e" cannot collide with "a.".
+		if (character === '_') return '__';
+		return `_${character.codePointAt(0)!.toString(16)}`;
+	}).join('');
+}
+
+function childIdPart(parentId: string, childId: string): string {
+	const parentPrefix = `${parentId}.`;
+	if (childId.startsWith(parentPrefix)) return `r-${idPart(childId.slice(parentPrefix.length))}`;
+	return `a-${idPart(childId)}`;
 }
 
 export function resolveNodeTitle(node: Pick<BaseNode, 'id' | 'title'>): string {
@@ -13,24 +25,18 @@ export function resolveNodeTitle(node: Pick<BaseNode, 'id' | 'title'>): string {
 }
 
 export function tabId(parentId: string, childId: string): string {
-	return `form-tab-${idPart(parentId)}--${idPart(childId)}`;
+	return `form-tab-${idPart(parentId)}--${childIdPart(parentId, childId)}`;
 }
 
 export function tabPanelId(parentId: string, childId: string): string {
-	return `form-panel-${idPart(parentId)}--${idPart(childId)}`;
+	return `form-panel-${idPart(parentId)}--${childIdPart(parentId, childId)}`;
 }
 
-export function handleTabKeydown(event: KeyboardEvent, index: number, children: readonly TabChild[], parentId: string, activate: (id: string) => void): void {
-	let nextIndex: number | null = null;
-	if (event.key === 'ArrowRight') nextIndex = (index + 1) % children.length;
-	if (event.key === 'ArrowLeft') nextIndex = (index - 1 + children.length) % children.length;
-	if (event.key === 'Home') nextIndex = 0;
-	if (event.key === 'End') nextIndex = children.length - 1;
-	if (nextIndex == null) return;
-
-	event.preventDefault();
-	const child = children[nextIndex];
-	if (!child) return;
-	activate(child.props.id);
-	void nextTick(() => document.getElementById(tabId(parentId, child.props.id))?.focus());
+export function createTabs(parentId: string, children: readonly TabChild[]): Tab[] {
+	return children.map(child => ({
+		value: child.props.id,
+		label: resolveNodeTitle(child.props),
+		id: tabId(parentId, child.props.id),
+		controls: tabPanelId(parentId, child.props.id),
+	}));
 }

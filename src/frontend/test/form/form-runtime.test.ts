@@ -79,7 +79,7 @@ describe('form builder runtime', () => {
 
 		expect(builder.state.uiState.value[root.id]).toBe(firstForm.id);
 
-		await wrapper.findAll('.nav-tabs a')[1].trigger('click');
+		await wrapper.findAll('[role="tab"]')[1].trigger('click');
 
 		expect(builder.state.uiState.value[root.id]).toBe(secondForm.id);
 	});

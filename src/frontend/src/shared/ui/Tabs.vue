@@ -1,229 +1,162 @@
 <template>
-	<div class="tabs" :class="{ vertical, flexy, wrap }">
+	<div
+		ref="tabsElement"
+		class="tabs"
+		:class="{ vertical: props.vertical, flexy: props.flexy, wrap: props.wrap, small: props.small, large: props.large, empty: !tabsModel.length }"
+		role="tablist"
+		:aria-label="props.ariaLabel"
+		:aria-orientation="props.vertical ? 'vertical' : 'horizontal'"
+		v-bind="attrs"
+	>
 		<div
 			v-for="(tab, index) in tabsModel"
+			:key="tab.id ?? tab.value"
 			:class="[
 				'tab',
 				tab.class,
 				{
-					active: index === selectedTab.index,
+					active: index === selectedIndex,
 					disabled: tab.disabled,
-					'text-primary': index !== selectedTab.index,
-					'text-body': index === selectedTab.index,
+					'text-muted': tab.disabled,
+					'text-primary': !tab.disabled && index !== selectedIndex,
+					'text-body': index === selectedIndex,
 				},
 			]"
 			:style="tab.style"
-			@click.middle="$emit('middlemouse', { tab, index })"
+			@click.self="selectTab(index)"
+			@click.middle.prevent.stop="emit('middlemouse', { tab, index })"
 		>
-			<slot name="default" :tab :i="index">
-				<slot name="before" :tab :i="index"></slot>
+			<slot name="default" :tab :i="index" :selected="index === selectedIndex" :select="() => selectTab(index)">
+				<span v-if="$slots.before" class="tab-before">
+					<slot name="before" :tab :i="index"></slot>
+				</span>
 				<button
+					:id="tab.id"
 					type="button"
+					role="tab"
 					:class="{
-						'tab-content': true,
+						'tab-button': true,
 						disabled: tab.disabled,
 					}"
 					:title="tab.title || ''"
 					:disabled="tab.disabled"
-					@click="selectedTab = { tab, index }"
+					:aria-controls="tab.controls"
+					:aria-selected="index === selectedIndex"
+					:tabindex="index === focusableIndex ? 0 : -1"
+					@click="selectTab(index)"
+					@keydown="handleKeydown($event, index)"
 				>
-					{{ tab.label ?? tab.value }}
+					<slot name="label" :tab :i="index" :selected="index === selectedIndex">
+						{{ tab.label ?? tab.value }}
+					</slot>
 				</button>
-				<slot name="after" :tab :i="index"></slot>
+				<span v-if="$slots.after" class="tab-after">
+					<slot name="after" :tab :i="index"></slot>
+				</span>
 			</slot>
 		</div>
+		<div v-if="hasInvalidSelection" class="tab active invalid bg-warning text-warning">
+			<button class="tab-button" type="button" role="tab" disabled :aria-selected="true">{{ props.invalidTabLabel }}</button>
+		</div>
 	</div>
+	<p v-if="hasInvalidSelection" class="tabs-invalid text-warning" role="status">
+		<slot name="invalid" :model-value="props.modelValue">{{ props.invalidSelectionMessage }}</slot>
+	</p>
 </template>
 
-<script lang="ts">
-import type { PropType, StyleValue } from 'vue';
-import { defineComponent } from 'vue';
+<script setup lang="ts">
+import { computed, nextTick, ref, useAttrs } from 'vue';
 
-import type { Option } from '@/shared/utils/options';
+import type { Tab } from './Tabs.types';
 
-export type Tab = Option & {
-	class?: string | Record<string, boolean>;
-	style?: StyleValue;
-};
-
-export default defineComponent({
-	emits: ['update:modelValue', 'middlemouse'],
-	props: {
-		modelValue: { type: [String, Number, null] as PropType<string | number | null>, default: null },
-		tabs: {
-			type: Array as PropType<Array<string | (Option & { class?: string | Record<string, boolean>; style?: StyleValue })>>,
-			required: true,
-		},
-		vertical: Boolean,
-		flexy: Boolean,
-		wrap: Boolean,
-		small: Boolean,
-	},
-	data: () => ({
-		internalModel: -1,
-	}),
-	computed: {
-		tabsModel(): Tab[] {
-			return this.tabs.map((tab: Option | string) => {
-				if (typeof tab === 'string') {
-					return { label: tab, value: tab };
-				}
-				return tab as Tab;
-			});
-		},
-		selectedTab: {
-			get(): { tab?: Tab; index: number } {
-				if (typeof this.modelValue === 'number') {
-					return { tab: this.tabsModel[this.modelValue], index: this.modelValue };
-				}
-				if (typeof this.modelValue === 'string') {
-					const i = this.tabsModel.findIndex(tab => tab.value === this.modelValue);
-					return { tab: this.tabsModel[i], index: i };
-				} else {
-					return { tab: this.tabsModel[this.internalModel], index: this.internalModel };
-				}
-			},
-			set(value: { tab: Tab; index: number }) {
-				// emit either a number or a string, depending on what was put in.
-				const emitValue = typeof this.modelValue === 'string' ? value.tab.value : value.index;
-
-				this.$emit('update:modelValue', emitValue);
-				this.internalModel = value.index;
-			},
-		},
-	},
+defineOptions({
+	inheritAttrs: false,
 });
+
+const attrs = useAttrs();
+
+const props = withDefaults(
+	defineProps<{
+		modelValue?: string | number | null;
+		tabs: Array<string | Tab>;
+		vertical?: boolean;
+		flexy?: boolean;
+		wrap?: boolean;
+		small?: boolean;
+		large?: boolean;
+		/** Accessible label for the tab list. */
+		ariaLabel?: string;
+		/** Message displayed when a controlled modelValue does not match a tab. */
+		invalidSelectionMessage?: string;
+		/** Label used for the disabled placeholder tab shown for an unavailable selection. */
+		invalidTabLabel?: string;
+	}>(),
+	{
+		modelValue: null,
+		vertical: false,
+		flexy: false,
+		wrap: false,
+		small: false,
+		large: false,
+		ariaLabel: 'Tabs',
+		invalidSelectionMessage: 'The selected tab is unavailable.',
+		invalidTabLabel: 'Unavailable tab',
+	},
+);
+
+const emit = defineEmits<{
+	'update:modelValue': [value: string | number];
+	middlemouse: [payload: { tab: Tab; index: number }];
+}>();
+
+const tabsElement = ref<HTMLElement | null>(null);
+const internalModel = ref(-1);
+const tabsModel = computed<Tab[]>(() => props.tabs.map(tab => (typeof tab === 'string' ? { label: tab, value: tab } : tab)));
+const selectedIndex = computed(() => {
+	if (typeof props.modelValue === 'number') return tabsModel.value[props.modelValue] ? props.modelValue : -1;
+	if (typeof props.modelValue === 'string') return tabsModel.value.findIndex(tab => tab.value === props.modelValue);
+	return tabsModel.value[internalModel.value] ? internalModel.value : -1;
+});
+const enabledIndexes = computed(() => tabsModel.value.flatMap((tab, index) => (tab.disabled ? [] : [index])));
+const focusableIndex = computed(() => (enabledIndexes.value.includes(selectedIndex.value) ? selectedIndex.value : (enabledIndexes.value[0] ?? -1)));
+const hasInvalidSelection = computed(() => props.modelValue !== null && selectedIndex.value === -1);
+
+function selectTab(index: number) {
+	const tab = tabsModel.value[index];
+	if (!tab || tab.disabled) return;
+
+	// Emit either a number or a string, depending on what was put in.
+	emit('update:modelValue', typeof props.modelValue === 'string' ? tab.value : index);
+	internalModel.value = index;
+}
+
+function handleKeydown(event: KeyboardEvent, index: number) {
+	if (!enabledIndexes.value.length) return;
+
+	const backwards = props.vertical ? 'ArrowUp' : 'ArrowLeft';
+	const forwards = props.vertical ? 'ArrowDown' : 'ArrowRight';
+	let targetIndex: number | undefined;
+	const currentEnabledIndex = enabledIndexes.value.indexOf(index);
+	if (event.key === forwards) targetIndex = enabledIndexes.value[(currentEnabledIndex + 1 + enabledIndexes.value.length) % enabledIndexes.value.length];
+	if (event.key === backwards) targetIndex = enabledIndexes.value[(currentEnabledIndex - 1 + enabledIndexes.value.length) % enabledIndexes.value.length];
+	if (event.key === 'Home') targetIndex = enabledIndexes.value[0];
+	if (event.key === 'End') targetIndex = enabledIndexes.value[enabledIndexes.value.length - 1];
+	if (targetIndex == null) return;
+
+	event.preventDefault();
+	selectTab(targetIndex);
+	void nextTick(() => tabsElement.value?.querySelectorAll<HTMLElement>('[role="tab"]')[targetIndex]?.focus());
+}
 </script>
 
 <style lang="scss" scoped>
 .tabs {
-	--inactiveColor: #white;
+	--inactiveColor: transparent;
 	--activeColor: white;
 	--backgroundColor: white;
-	--disableColor: #eee;
 	--activeBorderColor: #ddd;
-}
-
-@mixin roundover-blocks($zindex, $color, $size, $radius) {
-	&:before,
-	&:after {
-		content: ' ';
-		position: absolute;
-		width: $size;
-		height: $size;
-		background: $color;
-		z-index: $zindex;
-		border-radius: $radius;
-	}
-
-	@at-root .tabs:not(.vertical) &:before {
-		bottom: 0;
-		left: -$size;
-	}
-
-	@at-root .tabs:not(.vertical) &:after {
-		bottom: 0;
-		right: -$size;
-	}
-
-	@at-root .tabs.vertical &:before {
-		right: 0;
-		top: -$size;
-	}
-
-	@at-root .tabs.vertical &:after {
-		right: 0;
-		bottom: -$size;
-	}
-}
-
-@mixin block($beforeAfter, $size, $color, $zindex) {
-	&:#{$beforeAfter} {
-		content: ' ';
-		position: absolute;
-		width: $size;
-		height: $size;
-		background: $color;
-		z-index: $zindex;
-		@content;
-	}
-}
-
-@mixin roundoverHorizontal($size, $active, $inactive) {
-	&:not(:first-child) {
-		@include block('before', $size, $inactive, 3) {
-			bottom: -1px;
-			left: -$size;
-			border-bottom-right-radius: 100%;
-			border-top-left-radius: 100%;
-			border-right: 1px solid var(--activeBorderColor);
-			border-bottom: 1px solid var(--activeBorderColor);
-		}
-		> *:first-child {
-			@include block('before', $size, $active, 2) {
-				bottom: -1px;
-				left: -$size;
-				border-top-left-radius: 100%;
-			}
-		}
-	}
-	&:not(:last-child) {
-		@include block('after', $size, $inactive, 3) {
-			bottom: -1px;
-			right: -$size;
-			border-bottom-left-radius: 100%;
-			border-top-right-radius: 100%;
-			border-left: 1px solid var(--activeBorderColor);
-			border-bottom: 1px solid var(--activeBorderColor);
-		}
-		> *:first-child {
-			@include block('after', $size, $active, 2) {
-				bottom: -1px;
-				right: -$size;
-				border-top-right-radius: 100%;
-			}
-		}
-	}
-}
-
-@mixin roundoverVertical($size, $active, $inactive) {
-	&:not(:first-child) {
-		// pill in front
-		@include block('before', $size, $inactive, 3) {
-			right: -1px;
-			top: -$size;
-			border-bottom-right-radius: 100%;
-			border-top-left-radius: 100%;
-			border-right: 1px solid var(--activeBorderColor);
-			border-bottom: 1px solid var(--activeBorderColor);
-		}
-		// square in back
-		> *:first-child {
-			@include block('before', $size, $active, 2) {
-				right: -1px;
-				top: -$size;
-				border-top-left-radius: 100%;
-			}
-		}
-	}
-
-	&:not(:last-child) {
-		@include block('after', $size, $inactive, 3) {
-			right: -1px;
-			bottom: -$size;
-			border-bottom-left-radius: 100%;
-			border-top-right-radius: 100%;
-			border-right: 1px solid var(--activeBorderColor);
-			border-top: 1px solid var(--activeBorderColor);
-		}
-		> *:first-child {
-			@include block('after', $size, $active, 2) {
-				right: -1px;
-				bottom: -$size;
-				border-bottom-left-radius: 100%;
-			}
-		}
-	}
+	--tab-padding-y: 10px;
+	--tab-padding-x: 15px;
 }
 
 $radius: 4px;
@@ -237,31 +170,81 @@ $radius: 4px;
 	}
 
 	.tab {
-		background: var(--inactiveColor);
-		padding: 5px 10px;
+		// Bootstrap's base button sizing.
 		display: flex;
-		border: 1px solid var(--backgroundColor);
+		align-items: center;
 
-		&:not(.active):hover {
-			background: #efefef;
-			border-color: #efefef;
+		&:not(.invalid) {
+			background: var(--inactiveColor);
 		}
 
-		> .tab-content {
-			padding: 0;
+		&:not(.active):not(.disabled):hover {
+			background: #efefef;
+		}
+
+		> .tab-button {
+			align-self: stretch;
+			padding: var(--tab-padding-y) var(--tab-padding-x);
 			background: none;
 			border-radius: 0;
 			border: none;
-			margin: none;
+			margin: 0;
 			text-decoration: none;
-			flex-grow: 1;
+			flex: 1 1 auto;
+			display: flex;
+			align-items: center;
 			white-space: nowrap;
 		}
 
-		&.active {
+		> .tab-before,
+		> .tab-after {
+			align-self: stretch;
+			display: flex;
+			align-items: center;
+			padding: 0;
+
+			// Common slot controls should feel like part of the tab. More complex
+			// slot content can provide its own layout styles from its parent.
+			// NOTE: this is vue's slotted selector, not the css ::slotted selector. See https://vuejs.org/api/sfc-css-features
+			> :slotted(a),
+			> :slotted(button) {
+				align-self: stretch;
+				display: inline-flex;
+				align-items: center;
+			}
+		}
+
+		> .tab-before:empty,
+		> .tab-after:empty {
+			display: none;
+		}
+
+		> .tab-before:not(:empty) {
+			padding-left: var(--tab-padding-x);
+		}
+
+		> .tab-after:not(:empty) {
+			padding-right: var(--tab-padding-x);
+		}
+
+		&:has(> .tab-before:not(:empty)) > .tab-button {
+			padding-left: 0;
+		}
+
+		&:has(> .tab-after:not(:empty)) > .tab-button {
+			padding-right: 0;
+		}
+
+		&.active:not(.invalid) {
 			background: var(--activeColor);
-			border: 1px solid var(--activeBorderColor);
-			position: relative;
+		}
+
+		&.disabled {
+			opacity: 0.65;
+
+			> .tab-button {
+				cursor: not-allowed;
+			}
 		}
 	}
 
@@ -272,60 +255,99 @@ $radius: 4px;
 		}
 	}
 
-	&:not(.vertical) {
-		border-bottom: 1px solid var(--activeBorderColor);
+	&.small .tab {
+		// 80%
+		--tab-padding-y: 8px;
+		--tab-padding-x: 12px;
+		font-size: 12px;
+	}
 
-		> .tab {
-			// border-top: 0;
-			// &:first-child { border-left: 0; }
-			&:last-child {
-				margin-right: -1px;
-			} // collapse border with container.
+	&.large .tab {
+		// 120%
+		--tab-padding-y: 12px;
+		--tab-padding-x: 18px;
+		font-size: 18px;
+	}
+}
 
-			border-top-left-radius: $radius;
-			border-top-right-radius: $radius;
-			margin-right: 4px;
+// Tab borders and the negative margins that make the active tab overlap them.
+.tabs {
+	.tab {
+		border: 1px solid var(--backgroundColor);
 
-			margin-bottom: -1px;
-			border-bottom: 1px solid transparent;
+		&:not(.active):not(.disabled):hover {
+			border-color: #efefef;
 		}
-		> .tab.active {
-			border-bottom: 1px solid var(--activeColor);
-			margin-bottom: -1px;
-			z-index: 2;
-			// @include roundoverHorizontal($radius, var(--activeColor), var(--inactiveColor));
+
+		&.active:not(.invalid) {
+			border-color: var(--activeBorderColor);
 		}
 	}
 
-	&.vertical {
+	// regular (horizontal) tabs have a 1px downshift to overlap the container's bottom border
+	// normally that's transparent, but for active tabs it's the bg color so it looks like there's no bottom border
+	&:not(.vertical):not(.empty) {
+		border-bottom: 1px solid var(--activeBorderColor);
+		padding: 0 5px;
+		margin-top: 5px;
+
+		> .tab {
+			border-radius: $radius $radius 0 0;
+			// margin: 0 4px -1px 0;
+			margin-top: 2px;
+			margin-bottom: -1px;
+			margin-right: 4px;
+			border-bottom: 1px solid transparent;
+
+			&:last-child {
+				margin-right: -1px; // Collapse border with container.
+			}
+
+			&.active {
+				border-bottom: 1px solid var(--backgroundColor);
+				z-index: 2;
+			}
+
+			&:not(.active) {
+				border-bottom-color: var(--activeBorderColor);
+			}
+		}
+	}
+
+	&.wrap > .tab {
+		margin-right: 0 !important;
+	}
+
+	&.vertical:not(.empty) {
 		display: inline-flex;
 		flex-direction: column;
 		border-right: 1px solid var(--activeBorderColor);
 
 		> .tab {
-			// border-left: 0;
-			&:first-child {
-				border-top: 0;
-			}
-			&:last-child {
-				margin-bottom: -1px;
-			} // collapse border with container.
-
 			text-align: right;
-			border-top-left-radius: $radius;
-			border-bottom-left-radius: $radius;
-			margin-bottom: 4px;
-
+			border-radius: $radius 0 0 $radius;
+			margin-top: 4px;
 			margin-right: -1px;
+
 			border-right: 1px solid transparent;
-		}
 
-		> .tab.active {
-			border-right: 1px solid var(--activeColor);
-			margin-right: -1px;
-			z-index: 2;
-			// @include roundoverVertical($radius, var(--activeColor), var(--inactiveColor));
+			&:first-child {
+				margin-top: -1px; // Collapse border with container.
+			}
+
+			&:last-child {
+				margin-bottom: -1px; // Collapse border with container.
+			}
+
+			&.active {
+				border-right: 1px solid var(--activeColor);
+				z-index: 2;
+			}
 		}
 	}
+}
+
+.tabs-invalid {
+	margin: 8px 0 0;
 }
 </style>

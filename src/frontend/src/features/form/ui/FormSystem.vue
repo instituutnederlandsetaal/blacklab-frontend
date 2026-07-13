@@ -123,11 +123,6 @@ const activeOverrides = computed(() =>
 	align-items: start;
 }
 
-.nav-tabs-small > li > a {
-	padding: 4px 15px;
-	font-size: 0.95em;
-}
-
 .blf-container > .tab-content {
 	min-width: 0;
 }

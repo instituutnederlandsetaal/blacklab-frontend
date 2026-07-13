@@ -11,6 +11,7 @@ import { TestTextField, createTestBuilder, parentFormProbeView, testTextControll
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import ContainerRendererFilters from '@/features/form/ui/ContainerRendererFilters.vue';
+import { tabId } from '@/features/form/ui/tab-utils';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
 
@@ -145,6 +146,14 @@ function createFilterTabsFixture(): FormFixture {
 }
 
 describe('form system integration', () => {
+	test('uses compact, unambiguous HTML ids for tabs', () => {
+		expect(tabId('search.extended.annotations', 'search.extended.annotations.Part-of-Speech-features')).toBe(
+			'form-tab-search_2eextended_2eannotations--r-Part-of-Speech-features',
+		);
+		expect(tabId('a.', 'child')).not.toBe(tabId('a_2e', 'child'));
+		expect(tabId('parent', 'child')).not.toBe(tabId('parent', 'parent.child'));
+	});
+
 	test('can render a selected root form from a shared definition', () => {
 		const fixture = createSiblingFormsFixture();
 		const wrapper = mount(FormSystem, {
@@ -272,7 +281,7 @@ describe('form system integration', () => {
 
 		await wrapper.get('input[aria-label="Shared word"]').setValue('water');
 
-		await wrapper.findAll('.nav-tabs a')[1].trigger('click');
+		await wrapper.findAll('[role="tab"]')[1].trigger('click');
 		await nextTick();
 
 		expect((wrapper.get('input[aria-label="Shared word"]').element as HTMLInputElement).value).toBe('water');
@@ -289,7 +298,7 @@ describe('form system integration', () => {
 		expect(wrapper.find('input[aria-label="Word"]').exists()).toBe(true);
 		expect(wrapper.find('input[aria-label="Lemma"]').exists()).toBe(false);
 
-		await wrapper.findAll('.nav-tabs a')[1].trigger('click');
+		await wrapper.findAll('[role="tab"]')[1].trigger('click');
 		await nextTick();
 
 		expect(wrapper.find('input[aria-label="Word"]').exists()).toBe(false);
@@ -310,15 +319,19 @@ describe('form system integration', () => {
 			builder.newContainer('search.second', ContainerRenderer, { title: () => 'Computed second' }),
 		);
 		const wrapper = mount(FormSystem, { props: { definition: builder } });
-		const tabs = wrapper.findAll('.nav-tabs a');
+		const tabs = wrapper.findAll('[role="tab"]');
 
 		expect(wrapper.get('.blf-form-title').text()).toBe('Computed form');
 		expect(tabs[0].text()).toBe('Computed first');
 		expect(tabs[0].attributes('aria-controls')).toBeTruthy();
 		expect(wrapper.get(`#${tabs[0].attributes('aria-controls')}`).attributes('aria-labelledby')).toBe(tabs[0].attributes('id'));
+		expect(tabs[0].attributes('tabindex')).toBe('0');
+		expect(tabs[1].attributes('tabindex')).toBe('-1');
 
 		await tabs[0].trigger('keydown', { key: 'ArrowRight' });
 		expect(builder.state.uiState.value[form.id]).toBe('search.second');
+		expect(tabs[0].attributes('tabindex')).toBe('-1');
+		expect(tabs[1].attributes('tabindex')).toBe('0');
 	});
 
 	test('array tab variants hide the active child container title', () => {
@@ -336,13 +349,13 @@ describe('form system integration', () => {
 			props: fixture,
 		});
 
-		expect(wrapper.find('.nav-tabs .badge').exists()).toBe(false);
+		expect(wrapper.find('[role="tab"] .badge').exists()).toBe(false);
 		expect(wrapper.find('.blf-summary-view .entry').exists()).toBe(false);
 
 		await wrapper.get('input[type="text"]').setValue('Austen');
 		await nextTick();
 
-		expect(wrapper.get('.nav-tabs .badge').text()).toBe('1');
+		expect(wrapper.get('[role="tab"] .badge').text()).toBe('1');
 		expect(wrapper.get('.blf-summary-view .entry .label').text()).toBe('Author');
 		expect(wrapper.get('.blf-summary-view .entry .value').text()).toBe('Austen');
 	});

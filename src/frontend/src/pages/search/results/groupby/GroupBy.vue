@@ -29,7 +29,7 @@
 			@middlemouse="$event.index < addedCriteria.length && removeGroup($event.index)"
 		>
 			<template #after="{ tab, i }">
-				<button type="button" @click="removeGroup(i)" class="btn btn-link remove-group-button" style="align-self: flex-start; margin-top: -0.25em; font-size: 150%">
+				<button type="button" @click="removeGroup(i)" class="btn btn-link remove-group-button" style="font-size: 150%; text-decoration: none">
 					<strong class="text-danger">&times;</strong>
 				</button>
 			</template>

@@ -5,21 +5,7 @@
 		</header>
 
 		<template v-if="presentation.tabs || presentation['small-tabs']">
-			<ul :class="['nav', 'nav-tabs', { 'nav-tabs-small': presentation['small-tabs'] }]" role="tablist">
-				<li v-for="(child, index) in children" :key="child.props.id" :class="{ active: activeChildId === child.props.id }" role="presentation">
-					<a
-						:id="tabId(props.id, child.props.id)"
-						href="#"
-						role="tab"
-						:aria-controls="tabPanelId(props.id, child.props.id)"
-						:aria-selected="activeChildId === child.props.id"
-						:tabindex="activeChildId === child.props.id ? 0 : -1"
-						@click.prevent="activeChildId = child.props.id"
-						@keydown="handleTabKeydown($event, index, props.children, props.id, id => (activeChildId = id))"
-						>{{ resolveNodeTitle(child.props) }}</a
-					>
-				</li>
-			</ul>
+			<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="resolvedTitle || 'Form sections'" />
 			<div :class="['tab-content', { 'panel-body': isForm }]">
 				<div v-if="activeChild" :id="tabPanelId(props.id, activeChild.props.id)" class="tab-pane active" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)">
 					<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" />
@@ -43,7 +29,8 @@ import { computed, toRef, toValue } from 'vue';
 
 import { provideParentForm } from '@/features/form/model/runtime';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
-import { handleTabKeydown, resolveNodeTitle, tabId, tabPanelId } from '@/features/form/ui/tab-utils';
+import { createTabs, tabId, tabPanelId } from '@/features/form/ui/tab-utils';
+import Tabs from '@/shared/ui/Tabs.vue';
 
 import type { ImplicitContainerComponentProps } from '../model/types';
 
@@ -55,6 +42,7 @@ const props = defineProps<ImplicitContainerComponentProps>();
 const { runtime, presentation, activeChildId, activeChild } = containerRendererSetup(props);
 const isForm = computed(() => props.kind === 'form');
 const resolvedTitle = computed(() => (props.title ? toValue(props.title) : ''));
+const tabs = computed(() => createTabs(props.id, props.children));
 
 const containerClasses = computed(() => ['blf-container', props.kind === 'form' ? 'blf-form panel panel-default' : null, presentation.value, props.class]);
 
