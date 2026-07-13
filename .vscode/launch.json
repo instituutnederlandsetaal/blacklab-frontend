@@ -2,10 +2,17 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+			"name": "Launch Chrome",
+			"request": "launch",
+			"type": "chrome",
+			"url": "http://localhost:5173/blacklab-frontend/",
+			"webRoot": "${workspaceFolder}/src/frontend"
+		},
+		{
 			"type": "editor-browser",
 			"request": "launch",
 			"name": "Launch in integrated browser",
-			"url": "http://localhost:8080/blacklab-frontend/",
+			"url": "http://localhost:5173/blacklab-frontend/",
 			"webRoot": "${workspaceFolder}/src/frontend"
 		},
 		{
