@@ -1,7 +1,7 @@
 <template>
-	<section class="blf-summary-view">
-		<header>{{ resolvedTitle || $t(`form.summary.heading`) }}</header>
-		<div v-if="compiled.summaries.length" class="entries">
+	<section class="blf-summary-view panel panel-default">
+		<header class="panel-body">{{ resolvedTitle || $t(`form.summary.heading`) }}</header>
+		<div v-if="compiled.summaries.length" class="entries panel-body">
 			<div v-for="entry in compiled.summaries" :key="entry.id" class="entry">
 				<span class="label">{{ entry.label }}</span>
 				<span class="value">{{ entry.value }}</span>

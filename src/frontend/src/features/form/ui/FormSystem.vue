@@ -1,18 +1,18 @@
 <template>
 	<div class="blf-form-system">
-		<section v-if="activeOverrides.length" class="blf-raw-overrides">
+		<section v-if="activeOverrides.length">
 			<div v-for="override in activeOverrides" :key="override.parameter" class="blf-raw-override">
 				<strong>{{ override.label }}</strong>
 				<code>{{ override.value }}</code>
 				<button type="button" class="btn btn-xs btn-default" @click="props.definition.clearRawOverride(override.parameter)">Clear</button>
 			</div>
 		</section>
-		<Component v-if="renderTree" :is="renderTree.is" v-bind="renderTree.props" />
+		<Component v-if="renderTree" :is="renderTree.is" v-bind="{ ...attrs, ...renderTree.props }" class="blf-form-system" />
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, watch } from 'vue';
+import { computed, onUnmounted, useAttrs, watch } from 'vue';
 
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
@@ -24,6 +24,8 @@ const props = defineProps<{
 	definition: FormBuilder;
 	rootId?: string;
 }>();
+
+const attrs = useAttrs();
 
 const emit = defineEmits<{
 	submit: [formId: string, snapshot: CompiledFormStateWithSummaries];
@@ -76,8 +78,6 @@ const activeOverrides = computed(() =>
 	--blf-border-strong: #adadad;
 	--blf-panel: #f7f9fb;
 	--blf-text-muted: #777;
-	color: #333;
-	font-size: 14px;
 }
 
 .blf-raw-overrides {

@@ -232,7 +232,7 @@ function createSharedFilters(builder: FormBuilder, corpus: Corpus, blacklabApi: 
 	if (!groups.length) return null;
 
 	const tabs = builder.newContainer('shared.filters', ContainerRendererFilters, {
-		title: computed(() => translate.$t('filter.heading')),
+		// title: computed(() => translate.$t('filter.heading')),
 		variant: 'tabs',
 	});
 
@@ -297,7 +297,7 @@ function createExtendedAnnotationTabs(
 	}
 
 	const tabs = builder.newContainer('search.extended.annotations', ContainerRenderer, {
-		variant: 'small-tabs',
+		variant: 'tabs',
 	});
 
 	for (const { annotations, group } of groups) {

@@ -1,7 +1,6 @@
 import { computed, markRaw, reactive, toRefs, type Ref, type ToRefs } from 'vue';
 
-import { decodeVariants, isContainerNode } from '@/features/form/model/form-utils';
-import type { FormRuntimeContext, FormNode, ImplicitContainerComponentProps } from '@/features/form/model/types';
+import type { FormRuntimeContext, FormNode } from '@/features/form/model/types';
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
 import type { AnyVueComponent } from '@/types/helpers';
 
@@ -28,11 +27,6 @@ function toRefsWithout<T extends object>(value: T, ...omittedKeys: readonly (key
 	return refs;
 }
 
-function isTabbed(variant: ImplicitContainerComponentProps['variant']): boolean {
-	const presentation = decodeVariants(variant);
-	return !!(presentation.tabs || presentation['small-tabs']);
-}
-
 /** Convert declarative form nodes into the component/props descriptors consumed by FormSystem. */
 export function renderFormNode(node: FormNode, parentNode: FormNode | null, runtime: FormRenderingRuntime): RenderableFormNode {
 	const idSuffix = useUid();
@@ -51,7 +45,6 @@ export function renderFormNode(node: FormNode, parentNode: FormNode | null, runt
 			is: markRaw(node.component ?? ContainerRenderer),
 			props: reactive({
 				...toRefsWithout(node, 'component'),
-				hideTitle: computed(() => isContainerNode(parentNode) && isTabbed(parentNode.variant)),
 				children: computed(() => node.children.map(child => renderFormNode(child, node, runtime))),
 			}),
 		};

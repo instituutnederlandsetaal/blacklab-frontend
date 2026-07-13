@@ -41,6 +41,7 @@
 				<hr />
 			</div>
 			<QueryFormFilters
+				v-if="filtersShown"
 				id="filtercontainer"
 				v-show="filtersVisible"
 				:class="{
@@ -72,7 +73,7 @@ import { useCorpus } from '@/app/state/useCorpusContext';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
-import { hasNewSearchFormForPattern, useSearchFormSystem } from '@/features/search/model/search-form-system';
+import { hasNewSearchFormForPattern, useSearchFormSystem } from '@/features/search/model/search-form-builder';
 
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';
 import QueryFormFilters from '@/pages/search/form/QueryFormFilters.vue';
@@ -101,7 +102,7 @@ export default defineComponent({
 			return RootStore.get.queryBuilderActive();
 		},
 		filtersVisible(): boolean {
-			return RootStore.get.filtersActive();
+			return RootStore.get.filtersActive() && !(GlobalViewSettings.getState().useNewSearchForm && hasNewSearchFormForPattern(this.searchFormDefinition, InterfaceStore.get.patternMode()));
 		},
 		newSearchFormActive(): boolean {
 			return this.activeForm === 'search' && GlobalViewSettings.getState().useNewSearchForm && hasNewSearchFormForPattern(this.searchFormDefinition, InterfaceStore.get.patternMode());

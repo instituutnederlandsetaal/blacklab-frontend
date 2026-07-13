@@ -16,20 +16,20 @@
 			</li>
 		</ul>
 		<div class="tab-content" :class="{ parallel: isParallelCorpus }">
-			<div :class="['tab-pane form-horizontal', { active: activePattern === 'simple' }]" id="simple">
+			<div :class="['tab-pane', { active: activePattern === 'simple' }]" id="simple">
 				<FormSystem v-if="renderNewForm('simple')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('simple')" @submit="submitNewForm" @reset="resetNewForm" />
-				<template v-else>
+				<div v-else class="form-horizontal">
 					<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					<!-- TODO render the full annotation instance? requires some changes to bind to store correctly and apply appropriate classes though -->
 					<div class="form-group form-group-lg">
 						<label class="control-label" :for="simpleSearchAnnotation.id + '_' + uid" :title="$tAnnotDescription(simpleSearchAnnotation)">{{ $tAnnotDisplayName(simpleSearchAnnotation) }} </label>
 						<Annotation :key="'simple/' + simpleSearchAnnotation.id" :htmlId="'simple/' + simpleSearchAnnotation.id" :annotation="simpleSearchAnnotation" bare simple />
 					</div>
-				</template>
+				</div>
 			</div>
-			<div :class="['tab-pane form-horizontal', { active: activePattern === 'extended' }]" id="extended">
+			<div :class="['tab-pane', { active: activePattern === 'extended' }]" id="extended">
 				<FormSystem v-if="renderNewForm('extended')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('extended')" @submit="submitNewForm" @reset="resetNewForm" />
-				<template v-else>
+				<div v-else class="form-horizontal">
 					<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					<template v-if="useTabs">
 						<ul class="nav nav-tabs subtabs" style="padding-left: 15px">
@@ -61,7 +61,7 @@
 					</div>
 
 					<button v-if="useTabs || allAnnotations.length > 1" type="button" class="btn btn-default btn-sm" @click="copyExtendedQuery">{{ $t('search.advanced.copyAdvancedQuery') }}</button>
-				</template>
+				</div>
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', { active: activePattern === 'advanced' }]" id="advanced">
 				<FormSystem v-if="renderNewForm('advanced')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('advanced')" @submit="submitNewForm" @reset="resetNewForm" />
@@ -114,7 +114,7 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
-import { getNewSearchFormId, useSearchFormSystem } from '@/features/search/model/search-form-system';
+import { getNewSearchFormId, useSearchFormSystem } from '@/features/search/model/search-form-builder';
 import type * as AppTypes from '@/types/apptypes';
 import { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 

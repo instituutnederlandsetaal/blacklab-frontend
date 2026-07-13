@@ -9,7 +9,7 @@ import { ref } from 'vue';
 import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import { FormSystem, restoreScopedFormState } from '@/features/form';
-import { createSearchFormSystem, getNewSearchFormId, hasNewSearchFormForPattern } from '@/features/search/model/search-form-system';
+import { createSearchFormSystem, getNewSearchFormId, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 
 function annotation(id: string, overrides: Partial<NormalizedAnnotation> = {}): NormalizedAnnotation {
