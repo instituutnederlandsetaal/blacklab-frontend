@@ -28,5 +28,16 @@ function getQueryContributionFromContainer(node: FormContainerLikeNode, formStat
 }
 
 function getQueryContributionFromField(node: FormFieldNode, context: FormRuntimeContext, formState: NewFormState): QueryFragment {
-	return node.controller.getQueryContribution?.(node, context, formState.state[node.id]) ?? queryFragment();
+	const contribution = node.controller.getQueryContribution?.(node, context, formState.state[node.id]) ?? queryFragment();
+	const affectedParameters = node.controller.affectsBlackLabParameters;
+	const summaryType = typeof affectedParameters === 'function' ? affectedParameters(node, context) : affectedParameters;
+
+	return {
+		...contribution,
+		summaries: contribution.summaries.map(summary => {
+			const typedSummary = { ...summary, summaryType: [...summaryType] };
+			if (typedSummary.group === undefined) delete typedSummary.group;
+			return typedSummary;
+		}),
+	};
 }

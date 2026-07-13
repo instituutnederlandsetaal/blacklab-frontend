@@ -86,6 +86,7 @@ const fieldExpectations = {
 				id: 'shouldEndUpInSummaryId.annotation',
 				label: 'shouldEndUpInSummaryLabel.annotation',
 				value: 'shouldEndUpInSummaryValue.annotation',
+				summaryType: ['patt'],
 				group: 'shouldEndUpInSummaryGroup.annotation',
 			},
 		],
@@ -97,6 +98,7 @@ const fieldExpectations = {
 				id: 'shouldEndUpInSummaryId.metadata.node',
 				label: 'shouldEndUpInSummaryLabel.metadata',
 				value: 'shouldEndUpInSummaryValue.metadata',
+				summaryType: ['filter'],
 			},
 		],
 	},
@@ -115,16 +117,19 @@ const fieldExpectations = {
 				id: 'shouldEndUpInSummaryId.parallel.node.source',
 				label: 'search.parallel.searchSourceVersion',
 				value: 'English',
+				summaryType: ['searchfield', 'patt'],
 			},
 			{
 				id: 'shouldEndUpInSummaryId.parallel.node.targets',
 				label: 'search.parallel.andCompareWithTargetVersions',
 				value: 'Dutch',
+				summaryType: ['searchfield', 'patt'],
 			},
 			{
 				id: 'shouldEndUpInSummaryId.parallel.node.alignBy',
 				label: 'search.parallel.alignBy',
 				value: 'parallel-state.align.selected',
+				summaryType: ['searchfield', 'patt'],
 			},
 		],
 	},
@@ -135,6 +140,7 @@ const fieldExpectations = {
 				id: 'shouldEndUpInSummaryId.raw-cql.node',
 				label: 'search.expert.corpusQueryLanguage',
 				value: '[summaryField="shouldEndUpInSummaryValue.raw-cql"]',
+				summaryType: ['patt'],
 			},
 		],
 	},
@@ -150,6 +156,7 @@ const fieldExpectations = {
 				id: 'shouldEndUpInSummaryId.within.node',
 				label: 'search.extended.within',
 				value: 'shouldEndUpInSummaryValue.within',
+				summaryType: ['patt'],
 			},
 		],
 	},
@@ -176,7 +183,7 @@ function createHostHarness(node: FormFieldNode | FormViewNode, form: FormBoundar
 		setup() {
 			provideFormSystemRuntime(runtime);
 			provideParentForm(ref(form.id));
-			const renderable = runtime.renderableNode(node, form);
+			const renderable = runtime.renderableGraph(node.id)!;
 
 			return () => h(renderable.is, renderable.props);
 		},
@@ -483,6 +490,33 @@ describe('builtin view hosts', () => {
 		expect(harness.wrapper.text()).toContain(summaryViewExpectation.title);
 		expect(harness.wrapper.text()).toContain(summaryViewExpectation.entryLabel);
 		expect(harness.wrapper.text()).toContain(summaryViewExpectation.entryValue);
+	});
+
+	test('filters summary entries by affected BlackLab parameter', async () => {
+		const harness = mountViewHarness((builder, form) => {
+			const annotation = builder.newField('harness.summary.annotation', annotationTextController, TextField, {
+				annotationId: 'word',
+				displayName: 'Pattern',
+			});
+			const filter = builder.newField('harness.summary.filter', filterTextController, TextField, {
+				displayName: 'Author',
+				metadataFieldId: 'author',
+			});
+			const view = builder.newView('harness.summary.filters', SummaryView, {
+				summaryType: 'filter',
+			});
+			form.addChildren(annotation, filter, view);
+			return { extra: { annotationId: annotation.id, filterId: filter.id }, view };
+		});
+
+		harness.runtime.state.state.value[harness.extra.annotationId] = { value: 'water', caseSensitive: false };
+		harness.runtime.state.state.value[harness.extra.filterId] = { value: 'Austen', caseSensitive: false };
+		await nextTick();
+
+		expect(harness.wrapper.text()).toContain('Author');
+		expect(harness.wrapper.text()).toContain('Austen');
+		expect(harness.wrapper.text()).not.toContain('Pattern');
+		expect(harness.wrapper.text()).not.toContain('water');
 	});
 
 	test('renders the totals view host against provided parent-form state', async () => {

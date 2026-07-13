@@ -136,7 +136,7 @@ function createFilterTabsFixture(): FormFixture {
 					),
 				),
 			),
-			builder.newView('shared.filters.summary', SummaryView, { title: 'Filter summary' }),
+			builder.newView('shared.filters.summary', SummaryView, { summaryType: 'filter', title: 'Filter summary' }),
 		),
 	);
 

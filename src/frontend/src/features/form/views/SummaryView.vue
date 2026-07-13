@@ -1,8 +1,8 @@
 <template>
 	<section class="blf-summary-view panel panel-default">
 		<header class="panel-body">{{ resolvedTitle || $t(`form.summary.heading`) }}</header>
-		<div v-if="compiled.summaries.length" class="entries panel-body">
-			<div v-for="entry in compiled.summaries" :key="entry.id" class="entry">
+		<div v-if="summaries.length" class="entries panel-body">
+			<div v-for="entry in summaries" :key="entry.id" class="entry">
 				<span class="label">{{ entry.label }}</span>
 				<span class="value">{{ entry.value }}</span>
 			</div>
@@ -29,6 +29,8 @@ const resolvedTitle = computed(() => (props.title ? toValue(props.title) : ''));
 const parentForm = useParentForm();
 const runtime = useFormSystemRuntime();
 const compiled = computed(() => runtime.compile(parentForm.value));
+const summaryTypes = computed(() => (props.summaryType ? (Array.isArray(props.summaryType) ? props.summaryType : [props.summaryType]) : null));
+const summaries = computed(() => (summaryTypes.value ? compiled.value.summaries.filter(entry => entry.summaryType?.some(type => summaryTypes.value?.includes(type))) : compiled.value.summaries));
 </script>
 
 <style lang="scss" scoped>

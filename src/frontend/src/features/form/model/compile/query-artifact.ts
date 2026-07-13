@@ -399,7 +399,8 @@ function hasContribution(contribution: QueryFragment): boolean {
 	return hasQueryContributions(contribution.query) || contribution.summaries.length > 0;
 }
 
-function hasQueryContributions(artifact: QueryIR): boolean {
+/** Whether a query fragment changes the generated BlackLab query. */
+export function hasQueryContributions(artifact: QueryIR): boolean {
 	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchfield);
 }
 

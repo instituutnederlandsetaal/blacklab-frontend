@@ -13,8 +13,8 @@ const sharedStateExpectation = {
 };
 
 const sharedSummaryExpectation = [
-	{ id: 'search.word', label: 'Word', value: 'water' },
-	{ id: 'search.lemma', label: 'Lemma', value: 'lopen' },
+	{ id: 'search.word', label: 'Word', value: 'water', summaryType: ['patt'] },
+	{ id: 'search.lemma', label: 'Lemma', value: 'lopen', summaryType: ['patt'] },
 ];
 
 const compositionExpectations: Array<{

@@ -171,9 +171,9 @@ describe('search form system', () => {
 		expect(compiled.patt).toBe('[word="(?i)water"]');
 		expect(compiled.filter).toBe('(author:(Austen) AND genre:(fiction))');
 		expect(compiled.summaries).toEqual([
-			{ group: 'Basics', id: 'word', label: 'word', value: 'water' },
-			{ group: 'Bibliographic', id: 'shared.filters.Bibliographic.author', label: 'author', value: 'Austen' },
-			{ group: 'Classification', id: 'shared.filters.Classification.genre', label: 'genre', value: 'Fiction' },
+			{ group: 'Basics', id: 'word', label: 'word', value: 'water', summaryType: ['patt'] },
+			{ group: 'Bibliographic', id: 'shared.filters.Bibliographic.author', label: 'author', value: 'Austen', summaryType: ['filter'] },
+			{ group: 'Classification', id: 'shared.filters.Classification.genre', label: 'genre', value: 'Fiction', summaryType: ['filter'] },
 		]);
 	});
 

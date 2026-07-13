@@ -1,5 +1,5 @@
 import type { RestoreIssue } from '@/features/form/model/persistence';
-import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
+import type { BlackLabParameter, BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 
 export type TokenPredicateMatch = 'equals' | 'regex' | 'wildcard';
 
@@ -150,6 +150,8 @@ export type SummaryEntry = {
 	id: string;
 	label: string;
 	value: string;
+	/** BlackLab parameters affected by the controller that produced this entry. */
+	summaryType?: BlackLabParameter[];
 	group?: string;
 };
 

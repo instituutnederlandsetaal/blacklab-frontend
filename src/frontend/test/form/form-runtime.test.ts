@@ -26,7 +26,7 @@ describe('form builder runtime', () => {
 
 		expect(submitted.formId).toBe(form.id);
 		expect(submitted.patt).toBe('[word="(?i)water"]');
-		expect(submitted.summaries).toEqual([{ id: field.id, label: 'Word', value: 'water' }]);
+		expect(submitted.summaries).toEqual([{ id: field.id, label: 'Word', value: 'water', summaryType: ['patt'] }]);
 		expect(builder.compile(form.id).patt).toBe('[word="(?i)fire"]');
 		expect(submitted.patt).toBe('[word="(?i)water"]');
 	});
