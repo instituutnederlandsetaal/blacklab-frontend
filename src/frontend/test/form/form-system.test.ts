@@ -5,19 +5,32 @@ import { describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick } from 'vue';
 
 import { annotationTextController, filterTextController, FormSystem, type CompiledFormStateWithSummaries, type FormBuilder } from '@/features/form';
+import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
+import { createFieldController } from '@/features/form/model/types/form-controllers';
+import { tabId } from '@/features/form/ui/tab-utils';
 
-import { TestTextField, createTestBuilder, parentFormProbeView, testTextController } from './helpers';
+import { TestTextField, createTestBuilder, parentFormProbeView, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
-import ContainerRendererFilters from '@/features/form/ui/ContainerRendererFilters.vue';
-import { tabId } from '@/features/form/ui/tab-utils';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
 
 type FormFixture = {
 	definition: FormBuilder;
 };
+
+const queryOnlyTextController = createFieldController<'query-only-text', TestTextFieldState, TestTextFieldConfig>({
+	kind: 'query-only-text',
+	createDefaultState: () => ({ value: '' }),
+	getPersistKey: config => config.annotationId,
+	affectsBlackLabParameters: ['patt'],
+	encode: state => state.value || null,
+	restore: payload => ({ value: Array.isArray(payload) ? (payload[0] ?? '') : payload }),
+	getQueryContribution(config, _runtime, state) {
+		return queryFragment(token(tokenPredicate('wildcard', config.annotationId, state.value, false)));
+	},
+});
 
 function createSingleFormFixture(): FormFixture {
 	const builder = createTestBuilder();
@@ -125,7 +138,7 @@ function createFilterTabsFixture(): FormFixture {
 	builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(
 		builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
 			builder.newView('shared.filters.heading', HeadingView, { title: 'Filter Search By...' }),
-			builder.newContainer('shared.filters', ContainerRendererFilters, { variant: 'tabs' }).addChildren(
+			builder.newContainer('shared.filters', ContainerRenderer, { variant: ['tabs', 'tab-badges'] }).addChildren(
 				builder.newContainer('shared.filters.bibliographic', ContainerRenderer, { title: 'Bibliographic' }).addChildren(
 					builder.newContainer('shared.filters.bibliographic.fields', ContainerRenderer, {}).addChildren(
 						builder.newField('shared.filters.bibliographic.author', filterTextController, TextField, {
@@ -147,9 +160,7 @@ function createFilterTabsFixture(): FormFixture {
 
 describe('form system integration', () => {
 	test('uses compact, unambiguous HTML ids for tabs', () => {
-		expect(tabId('search.extended.annotations', 'search.extended.annotations.Part-of-Speech-features')).toBe(
-			'form-tab-search_2eextended_2eannotations--r-Part-of-Speech-features',
-		);
+		expect(tabId('search.extended.annotations', 'search.extended.annotations.Part-of-Speech-features')).toBe('form-tab-search_2eextended_2eannotations--r-Part-of-Speech-features');
 		expect(tabId('a.', 'child')).not.toBe(tabId('a_2e', 'child'));
 		expect(tabId('parent', 'child')).not.toBe(tabId('parent', 'parent.child'));
 	});
@@ -199,12 +210,12 @@ describe('form system integration', () => {
 
 		expect(formId).toBe('search.simple');
 		expect(snapshot.patt).toBe('[word="(?i)water"]');
-		expect(snapshot.summaries).toEqual([{ id: 'search.simple.word', label: 'Word', value: 'water' }]);
+		expect(snapshot.summaries).toEqual([{ id: 'search.simple.word', label: 'Word', value: 'water', summaryType: ['patt'] }]);
 
 		await wrapper.get('input[aria-label="Word"]').setValue('fire');
 
 		expect(snapshot.patt).toBe('[word="(?i)water"]');
-		expect(snapshot.summaries).toEqual([{ id: 'search.simple.word', label: 'Word', value: 'water' }]);
+		expect(snapshot.summaries).toEqual([{ id: 'search.simple.word', label: 'Word', value: 'water', summaryType: ['patt'] }]);
 	});
 
 	test('editable autocomplete submits the latest input event without waiting for a tick', async () => {
@@ -343,7 +354,7 @@ describe('form system integration', () => {
 		expect(wrapper.find('.blf-container-title').exists()).toBe(false);
 	});
 
-	test('filter tabs count active summaries through layout wrappers', async () => {
+	test('tab badges count descendant controllers with query contributions through layout wrappers', async () => {
 		const fixture = createFilterTabsFixture();
 		const wrapper = mount(FormSystem, {
 			props: fixture,
@@ -358,5 +369,26 @@ describe('form system integration', () => {
 		expect(wrapper.get('[role="tab"] .badge').text()).toBe('1');
 		expect(wrapper.get('.blf-summary-view .entry .label').text()).toBe('Author');
 		expect(wrapper.get('.blf-summary-view .entry .value').text()).toBe('Austen');
+	});
+
+	test('tab badges count query contributions that have no summary', async () => {
+		const builder = createTestBuilder();
+		builder.newForm('search.query-only', ContainerRenderer, { variant: ['tabs', 'tab-badges'] }).addChildren(
+			builder.newContainer('search.query-only.tab', ContainerRenderer, { title: 'Query only' }).addChildren(
+				builder.newContainer('search.query-only.tab.wrapper', ContainerRenderer, {}).addChildren(
+					builder.newField('search.query-only.tab.field', queryOnlyTextController, TestTextField, {
+						annotationId: 'word',
+						displayName: 'Query only field',
+					}),
+				),
+			),
+		);
+		const wrapper = mount(FormSystem, { props: { definition: builder } });
+
+		await wrapper.get('input[aria-label="Query only field"]').setValue('water');
+		await nextTick();
+
+		expect(wrapper.get('[role="tab"] .badge').text()).toBe('1');
+		expect(builder.compile('search.query-only').summaries).toEqual([]);
 	});
 });

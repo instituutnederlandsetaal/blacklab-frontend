@@ -288,7 +288,7 @@ $radius: 4px;
 	// normally that's transparent, but for active tabs it's the bg color so it looks like there's no bottom border
 	&:not(.vertical):not(.empty) {
 		border-bottom: 1px solid var(--activeBorderColor);
-		padding: 0 5px;
+		padding: 0; // 5px;
 		margin-top: 5px;
 
 		> .tab {

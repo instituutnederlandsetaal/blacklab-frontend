@@ -151,8 +151,8 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 
 	public state = createFormState();
 
-	protected renderableNode(node: FormNode, parentNode: FormNode | null): RenderableFormNode {
-		return renderFormNode(node, parentNode, this);
+	protected renderableNode(node: FormNode): RenderableFormNode {
+		return renderFormNode(node, this);
 	}
 
 	public renderableGraph(): RenderableFormNode | undefined;
@@ -161,11 +161,14 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 		const root = rootId ? this.nodeMap[rootId] : this.getRoot();
 		if (!root) return;
 
-		return this.renderableNode(root as FormNode, null);
+		return this.renderableNode(root as FormNode);
 	}
 
 	public hasNode(id: string): boolean {
 		return !!this.nodeMap[id];
+	}
+	public getNode(id: string): FormNode | null {
+		return (this.nodeMap[id] as FormNode | undefined) ?? null;
 	}
 
 	private addNode<T extends AnyBaseFormNode>(node: T): T {

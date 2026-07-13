@@ -41,7 +41,6 @@
 				<hr />
 			</div>
 			<QueryFormFilters
-				v-if="filtersShown"
 				id="filtercontainer"
 				v-show="filtersVisible"
 				:class="{

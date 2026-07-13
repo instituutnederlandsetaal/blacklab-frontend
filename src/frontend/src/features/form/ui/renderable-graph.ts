@@ -28,7 +28,7 @@ function toRefsWithout<T extends object>(value: T, ...omittedKeys: readonly (key
 }
 
 /** Convert declarative form nodes into the component/props descriptors consumed by FormSystem. */
-export function renderFormNode(node: FormNode, parentNode: FormNode | null, runtime: FormRenderingRuntime): RenderableFormNode {
+export function renderFormNode(node: FormNode, runtime: FormRenderingRuntime): RenderableFormNode {
 	const idSuffix = useUid();
 	const fieldRuntimeProps = {
 		disabled: computed(() => {
@@ -45,7 +45,7 @@ export function renderFormNode(node: FormNode, parentNode: FormNode | null, runt
 			is: markRaw(node.component ?? ContainerRenderer),
 			props: reactive({
 				...toRefsWithout(node, 'component'),
-				children: computed(() => node.children.map(child => renderFormNode(child, node, runtime))),
+				children: computed(() => node.children.map(child => renderFormNode(child, runtime))),
 			}),
 		};
 	}

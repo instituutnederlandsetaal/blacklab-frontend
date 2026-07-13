@@ -55,8 +55,6 @@ components.
 - `ui/ContainerRenderer.vue`
   Default renderer for forms and containers. Handles list and tab
   presentations, form submit/reset buttons, and parent-form injection.
-- `ui/ContainerRendererFilters.vue`
-  Filter-oriented container renderer that counts active summaries in tabs.
 - `fields/*`
   Vue components and small field-state helpers.
 - `model/controllers/*`
@@ -325,14 +323,18 @@ usually has:
   id: string;
   label: string;
   value: string;
+  summaryType: BlackLabParameter[];
   group?: string;
 }
 ```
 
-`SummaryView` compiles the parent form and renders active summaries.
-`ContainerRendererFilters` compiles child nodes to count active summaries in tab
-badges. `TotalsView` uses the parent form/runtime and submitted state to display
-filtered/unfiltered totals.
+`summaryType` is populated from the originating controller's
+`affectsBlackLabParameters`. `SummaryView` compiles the parent form and renders
+active summaries; set `summaryType: 'filter'` (or an array of parameter names)
+to render only entries affecting those parameters.
+`ContainerRenderer` can use `variant: ['tabs', 'tab-badges']` to count descendant
+field controllers with a query contribution in each tab badge. `TotalsView` uses
+the parent form/runtime and submitted state to display filtered/unfiltered totals.
 
 If a field should appear in summaries, add the summary in the controller rather
 than in the component. Components should stay focused on editing state.

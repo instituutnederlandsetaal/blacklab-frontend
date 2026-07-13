@@ -41,7 +41,6 @@ import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
 import WithinField from '@/features/form/fields/WithinField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
-import ContainerRendererFilters from '@/features/form/ui/ContainerRendererFilters.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
 
@@ -231,9 +230,9 @@ function createSharedFilters(builder: FormBuilder, corpus: Corpus, blacklabApi: 
 
 	if (!groups.length) return null;
 
-	const tabs = builder.newContainer('shared.filters', ContainerRendererFilters, {
+	const tabs = builder.newContainer('shared.filters', ContainerRenderer, {
 		// title: computed(() => translate.$t('filter.heading')),
-		variant: 'tabs',
+		variant: ['tabs', 'tab-badges'],
 	});
 
 	for (const { fields, group } of groups) {
@@ -254,6 +253,7 @@ function createSharedFilters(builder: FormBuilder, corpus: Corpus, blacklabApi: 
 		}),
 		tabs,
 		builder.newView('shared.filters.summary', SummaryView, {
+			summaryType: 'filter',
 			showRaw: true,
 		}),
 	);
@@ -369,14 +369,14 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	}
 
 	const extendedForm = builder.newForm(getNewSearchFormId('extended'), ContainerRenderer, {
-		title: computed(() => translate.$t('search.extended.heading')),
+		// title: computed(() => translate.$t('search.extended.heading')),
 		variant: 'columns',
 	});
 	extendedForm.addChildren(
 		builder.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
-			builder.newView('search.extended.heading', HeadingView, {
-				title: computed(() => translate.$t('search.heading')),
-			}),
+			// builder.newView('search.extended.heading', HeadingView, {
+			// 	title: computed(() => translate.$t('search.heading')),
+			// }),
 			createExtendedAnnotationTabs(builder, corpus, tagset, blacklabApi, translate),
 			sharedWithin,
 		),
