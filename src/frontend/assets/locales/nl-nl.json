@@ -13,7 +13,8 @@
 		},
 		"extended": {
 			"heading": "Uitgebreid",
-			"within": "Binnen:"
+			"within": "Binnen:",
+			"withinDocument": "Document"
 		},
 		"advanced": {
 			"heading": "Geavanceerd",

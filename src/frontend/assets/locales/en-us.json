@@ -13,7 +13,8 @@
 		},
 		"extended": {
 			"heading": "Extended",
-			"within": "Within:"
+			"within": "Within:",
+			"withinDocument": "Document"
 		},
 		"advanced": {
 			"heading": "Advanced",

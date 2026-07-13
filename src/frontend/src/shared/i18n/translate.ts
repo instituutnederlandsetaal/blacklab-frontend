@@ -71,6 +71,7 @@ export function createTranslate(i18n: TranslateRuntime): Translate {
 			return $td(`index.metadataGroups.${originalName}`, originalName);
 		},
 		$tSpanDisplayName(span) {
+			if (!span.value) return span.label || translate.$t('search.extended.withinDocument');
 			return $td(`index.spans.${span.value}`, span.label || span.value);
 		},
 		$tSpanAttributeDisplay(span, attribute) {

@@ -1,6 +1,6 @@
 <template>
 	<div :class="fieldClasses">
-		<label>{{ $t(`search.extended.within`) }}</label>
+		<label>{{ $t(`search.extended.within`) }}&nbsp;</label>
 		<div class="btn-group">
 			<button
 				v-for="option in options"
@@ -11,7 +11,7 @@
 				:disabled
 				@click="selectElement(option.value)"
 			>
-				{{ option.value ? $tSpanDisplayName(option) : $t(`search.within.document`) }}
+				{{ $tSpanDisplayName(option) }}
 			</button>
 		</div>
 

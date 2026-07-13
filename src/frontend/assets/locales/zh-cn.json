@@ -13,7 +13,8 @@
 		},
 		"extended": {
 			"heading": "扩展级",
-			"within": "范围:"
+			"within": "范围:",
+			"withinDocument": "文档"
 		},
 		"advanced": {
 			"heading": "提高级",
