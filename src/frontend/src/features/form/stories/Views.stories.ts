@@ -1,6 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
+import { ref } from 'vue';
 
-import { annotationTextController, createDefaultFormState, filterCheckboxController, FormBuilder, type CompiledFormStateWithSummaries, type NewFormState } from '@/features/form';
+import {
+	annotationTextController,
+	createDefaultFormState,
+	filterCheckboxController,
+	FormBuilder,
+	type CompiledFormStateWithSummaries,
+	type NewFormState,
+	type SummaryTotalsInput,
+	type TotalsViewState,
+} from '@/features/form';
 
 import { useI18n, type Translate } from '@/shared/i18n';
 
@@ -10,7 +20,6 @@ import TextField from '@/features/form/fields/generic/TextField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
-import TotalsView from '@/features/form/views/TotalsView.vue';
 
 type ViewStoryModel = {
 	definition: FormBuilder;
@@ -69,27 +78,41 @@ function createViewStoryModel(translate: Translate): ViewStoryModel {
 			showRaw: true,
 		}),
 	);
-	const totalsForm = definition.newForm('view-catalog.totals', ContainerRenderer, { title: 'Totals' }).addChildren(
+	const filterSummaryForm = definition.newForm('view-catalog.filter-summary', ContainerRenderer, { title: 'Filter summary' }).addChildren(
 		definition.newView('view-catalog.totals.heading', HeadingView, {
-			title: 'Totals view',
-			description: 'Uses the active form state to estimate the scoped document and token totals.',
+			title: 'Filter summary view',
+			description: 'Combines active filter summaries with an injected document and token count.',
 		}),
 		definition.newField('view-catalog.totals.genre', filterCheckboxController, CheckboxField, {
 			metadataFieldId: 'genre',
 			displayName: 'Genre',
+			groupId: 'Bibliographic',
 			options: [
 				{ value: 'fiction', label: 'Fiction' },
 				{ value: 'essay', label: 'Essay' },
 				{ value: 'newspaper', label: 'Newspaper' },
 			],
 		}),
-		definition.newView('view-catalog.totals.output', TotalsView, {
-			title: 'Estimated totals',
-			baseDocuments: 128345,
-			baseTokens: 48291032,
+		definition.newView('view-catalog.totals.output', SummaryView, {
+			createTotals: () => {
+				const state = ref<TotalsViewState>({ status: 'loading' });
+				return {
+					state,
+					update: ({ filter }: SummaryTotalsInput) => {
+						state.value = {
+							status: 'loaded',
+							documents: filter ? 48321 : 128345,
+							tokens: filter ? 17650342 : 48291032,
+							totalDocuments: 128345,
+							totalTokens: 48291032,
+						};
+					},
+				};
+			},
+			summaryType: 'filter',
 		}),
 	);
-	root.addChildren(headingForm, summaryForm, totalsForm);
+	root.addChildren(headingForm, summaryForm, filterSummaryForm);
 
 	const initialState = createDefaultFormState(definition.getRoot(), definition.context);
 	initialState.uiState[root.id] = summaryForm.id;

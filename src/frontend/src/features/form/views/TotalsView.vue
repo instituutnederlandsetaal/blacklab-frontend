@@ -1,65 +1,58 @@
 <template>
-	<section class="blf-totals-view">
-		<header>{{ resolvedTitle || $t(`form.totals.heading`) }}</header>
-		<div class="totals-grid">
-			<span>{{ $t(`form.totals.documents`) }}</span>
-			<strong>{{ estimatedDocuments.toLocaleString() }}</strong>
-			<span>{{ $t(`form.totals.tokens`) }}</span>
-			<strong>{{ estimatedTokens.toLocaleString() }}</strong>
-		</div>
-		<small>{{ filterActive ? $t(`form.totals.filtered`) : $t(`form.totals.unfiltered`) }}</small>
-	</section>
+	<div class="sub-corpus-size">
+		<template v-if="totals.status === 'error'"> {{ $t('filterOverview.error') }}: {{ totals.message }} </template>
+		<template v-else-if="totals.status === 'loaded'">
+			{{ $t('filterOverview.subCorpus') }}:<br />
+			<span>
+				{{ $t('filterOverview.totalDocuments') }}:<br />
+				{{ $t('filterOverview.totalTokens') }}:
+			</span>
+			<span class="numbers">
+				{{ totals.documents.toLocaleString() }}<br />
+				{{ totals.tokens.toLocaleString() }}
+			</span>
+			<span class="numbers">
+				({{ percentage(totals.documents, totals.totalDocuments) }})<br />
+				({{ percentage(totals.tokens, totals.totalTokens) }})
+			</span>
+		</template>
+		<template v-else>
+			<Spinner xs inline />
+			{{ $t('filterOverview.calculating') }}
+		</template>
+	</div>
 </template>
 
 <script setup lang="ts">
 import { computed, toValue } from 'vue';
 
-import { useFormSystemRuntime, useParentForm } from '../model/runtime';
 import type { TotalsViewConfig } from '../model/views/totals-view';
 
-const props = defineProps<TotalsViewConfig>();
-const resolvedTitle = computed(() => (props.title ? toValue(props.title) : ''));
-const parentForm = useParentForm();
-const form = useFormSystemRuntime();
+import { frac2Percent } from '@/shared/utils/number-utils';
 
-// TODO make available directly, instead of requiring recompilation in multiple places.
-const filterProjection = computed(() => form.compile(parentForm.value).filter);
-const filterActive = computed(() => !!filterProjection.value);
-// TODO wire up properly, will need some fancy injections or otherwise connected imports
-// need a good abstraction for that so external components can use the functionality as well
-// and the whole remains testable and maintainable without tight coupling to the form implementation
-// Might use a composable to just provide it upfront, we can swap it out during dev, and test it in isolation as well.
-const estimateFactor = computed(() => (filterActive.value ? 0.38 : 1));
-const estimatedDocuments = computed(() => Math.max(0, Math.round(props.baseDocuments * estimateFactor.value)));
-const estimatedTokens = computed(() => Math.max(0, Math.round(props.baseTokens * estimateFactor.value)));
+import Spinner from '@/shared/ui/Spinner.vue';
+
+const props = defineProps<TotalsViewConfig>();
+const totals = computed(() => toValue(props.totals));
+
+function percentage(value: number, total: number): string {
+	return frac2Percent(total > 0 ? value / total : 0);
+}
 </script>
 
 <style lang="scss" scoped>
-.blf-totals-view {
-	display: grid;
-	gap: 8px;
-	border: 1px solid var(--blf-border);
-	border-radius: 5px;
-	background: #fff;
-	padding: 10px;
+.sub-corpus-size {
+	margin-top: 10px;
+	margin-left: 10px;
 }
 
-header {
-	font-weight: 700;
+span {
+	display: inline-block;
+	vertical-align: top;
 }
 
-.totals-grid {
-	display: grid;
-	grid-template-columns: max-content max-content;
-	gap: 4px 12px;
-}
-
-strong {
-	font-family: monospace;
+.numbers {
 	text-align: right;
-}
-
-small {
-	color: var(--blf-text-muted);
+	font-family: monospace;
 }
 </style>

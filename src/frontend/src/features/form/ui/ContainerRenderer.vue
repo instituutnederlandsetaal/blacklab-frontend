@@ -1,5 +1,5 @@
 <template>
-	<component v-if="isTabbed" :is="isForm ? 'form' : 'div'" :class="{ 'panel panel-default blf-form-container': isForm, ...variant }" @submit.prevent="submit" @reset.prevent="reset">
+	<component v-if="isTabbed" :is="isForm ? 'form' : 'div'" :class="{ 'panel panel-default blf-form-container': isForm, ...variant }" @submit.stop.prevent="submit" @reset.stop.prevent="reset">
 		<!-- todo variant classes? -->
 
 		<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="resolvedTitle || 'Form sections'" class="panel-heading blf-form-container-tabs">
@@ -14,7 +14,7 @@
 
 		<!-- <div class="panel-body blf-form-container-body"> -->
 		<!-- todo something with active class, and show/hide mode in the tabs? might need to wrap this in tab component so suspense can work? -->
-		<Component v-if="activeChild" :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle />
+		<Component v-if="activeChild" :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset" />
 		<!-- </div> -->
 
 		<!-- <div v-if="activeChild" :id="tabPanelId(props.id, activeChild.props.id)" class="tab-pane active" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)"> -->
@@ -28,7 +28,7 @@
 	</component>
 
 	<component v-else :is="isForm ? 'form' : 'div'" @submit.stop.prevent="submit" @reset.stop.prevent="reset" :class="['blf-form-container', variant]">
-		<Component v-for="child in children" :is="child.is" v-bind="child.props" :key="child.props.id" />
+		<Component v-for="child in children" :is="child.is" v-bind="child.props" :key="child.props.id" @submit="forwardSubmit" @reset="forwardReset" />
 
 		<div class="panel-footer blf-form-actions" v-if="isForm">
 			<button class="btn btn-primary" type="submit">{{ $t(`queryForm.search`) }}</button>
@@ -80,7 +80,7 @@ import { provideParentForm } from '@/features/form/model/runtime';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 import { createTabs } from '@/features/form/ui/tab-utils';
 
-import type { ImplicitContainerComponentProps } from '../model/types';
+import type { CompiledFormStateWithSummaries, ImplicitContainerComponentProps } from '../model/types';
 
 import Tabs from '@/shared/ui/Tabs.vue';
 
@@ -89,6 +89,10 @@ import Tabs from '@/shared/ui/Tabs.vue';
 defineOptions({ name: 'ContainerRenderer', inheritAttrs: false });
 
 const props = defineProps<ImplicitContainerComponentProps>();
+const emit = defineEmits<{
+	submit: [snapshot: CompiledFormStateWithSummaries];
+	reset: [];
+}>();
 const { runtime, presentation, activeChildId, activeChild } = containerRendererSetup(props);
 const resolvedTitle = computed(() => (props.title ? toValue(props.title) : ''));
 const tabs = computed(() => createTabs(props.id, props.children));
@@ -119,11 +123,21 @@ if (props.kind === 'form') {
 }
 
 function submit() {
-	if (props.kind === 'form') runtime.submit(props.id);
+	if (props.kind === 'form') emit('submit', runtime.submit(props.id));
 }
 
 function reset() {
-	if (props.kind === 'form') runtime.reset();
+	if (props.kind !== 'form') return;
+	runtime.reset();
+	emit('reset');
+}
+
+function forwardSubmit(snapshot: CompiledFormStateWithSummaries) {
+	emit('submit', snapshot);
+}
+
+function forwardReset() {
+	emit('reset');
 }
 </script>
 

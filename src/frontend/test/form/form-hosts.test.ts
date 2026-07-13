@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { computed, defineComponent, h, nextTick, ref } from 'vue';
 
 import {
@@ -15,6 +15,7 @@ import {
 	type FormFieldNode,
 	type FormViewNode,
 	type SummaryEntry,
+	type TotalsViewState,
 } from '@/features/form';
 import { provideFormSystemRuntime, provideParentForm } from '@/features/form/model/runtime';
 
@@ -27,7 +28,6 @@ import WithinField from '@/features/form/fields/WithinField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
-import TotalsView from '@/features/form/views/TotalsView.vue';
 import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
@@ -169,15 +169,6 @@ const summaryViewExpectation = {
 	title: 'shouldRenderSummaryTitle.summary-view',
 };
 
-const totalsViewExpectation = {
-	activeHint: 'form.totals.filtered',
-	filteredDocuments: '380',
-	filteredTokens: '760',
-	inactiveHint: 'form.totals.unfiltered',
-	initialDocuments: '1000',
-	initialTokens: '2000',
-};
-
 function createHostHarness(node: FormFieldNode | FormViewNode, form: FormBoundaryNode, runtime: FormSystemRuntime, _host: 'field' | 'view') {
 	return defineComponent({
 		setup() {
@@ -258,10 +249,6 @@ function findButtonByText(wrapper: VueWrapper<any>, label: string) {
 	const button = wrapper.findAll('button').find(candidate => candidate.text() === label);
 	if (!button) throw new Error(`No button found with label ${label}`);
 	return button;
-}
-
-function normalizedText(wrapper: VueWrapper<any>) {
-	return wrapper.text().replace(/[\s.,]/g, '');
 }
 
 describe('builtin controller hosts', () => {
@@ -519,33 +506,61 @@ describe('builtin view hosts', () => {
 		expect(harness.wrapper.text()).not.toContain('water');
 	});
 
-	test('renders the totals view host against provided parent-form state', async () => {
+	test('combines filter summaries with live subcorpus totals', async () => {
+		const totals = ref<TotalsViewState>({ status: 'loading' });
+		const update = vi.fn();
+		const dispose = vi.fn();
 		const harness = mountViewHarness((builder, form) => {
-			const field = builder.newField('harness.filter', filterTextController, TextField, {
-				displayName: 'shouldActivateTotalsProjection.filter',
-				metadataFieldId: 'shouldActivateTotalsProjection.metadata-field',
+			const field = builder.newField('harness.summary.filter', filterTextController, TextField, {
+				displayName: 'Author',
+				groupId: 'Bibliographic',
+				metadataFieldId: 'author',
 			});
-			const view = builder.newView('harness.totals', TotalsView, {
-				baseDocuments: 1000,
-				baseTokens: 2000,
-				title: 'Totals',
+			const view = builder.newView('harness.summary.filters-with-totals', SummaryView, {
+				createTotals: () => ({ state: totals, update, dispose }),
+				summaryType: 'filter',
 			});
 			form.addChildren(field, view);
 			return { extra: { fieldId: field.id }, view };
 		});
 
-		expect(normalizedText(harness.wrapper)).toContain(totalsViewExpectation.initialDocuments);
-		expect(normalizedText(harness.wrapper)).toContain(totalsViewExpectation.initialTokens);
-		expect(harness.wrapper.text()).toContain(totalsViewExpectation.inactiveHint);
+		expect(update).toHaveBeenLastCalledWith({ filter: null, searchfield: null });
+		expect(harness.wrapper.text()).toContain('filterOverview.calculating');
 
 		harness.runtime.state.state.value[harness.extra.fieldId] = {
-			value: 'shouldActivateTotalsProjection.value',
+			value: 'Austen',
 			caseSensitive: false,
 		};
 		await nextTick();
 
-		expect(normalizedText(harness.wrapper)).toContain(totalsViewExpectation.filteredDocuments);
-		expect(normalizedText(harness.wrapper)).toContain(totalsViewExpectation.filteredTokens);
-		expect(harness.wrapper.text()).toContain(totalsViewExpectation.activeHint);
+		expect(harness.wrapper.text()).toContain('Author');
+		expect(harness.wrapper.text()).toContain('Bibliographic');
+		expect(harness.wrapper.text()).toContain('Austen');
+		expect(update).toHaveBeenLastCalledWith({ filter: 'author:(Austen)', searchfield: null });
+
+		totals.value = {
+			status: 'loaded',
+			documents: 25,
+			tokens: 400,
+			totalDocuments: 100,
+			totalTokens: 1000,
+		};
+		await nextTick();
+
+		const text = harness.wrapper.text();
+		expect(text).toContain('filterOverview.subCorpus');
+		expect(text).toContain('filterOverview.totalDocuments');
+		expect(text).toContain('filterOverview.totalTokens');
+		expect(text).toContain('25');
+		expect(text).toContain('400');
+		expect(text).toContain('(25%)');
+		expect(text).toContain('(40%)');
+
+		totals.value = { status: 'error', message: 'Count failed' };
+		await nextTick();
+		expect(harness.wrapper.text()).toContain('filterOverview.error: Count failed');
+
+		harness.wrapper.unmount();
+		expect(dispose).toHaveBeenCalledOnce();
 	});
 });

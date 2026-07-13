@@ -33,7 +33,7 @@ components.
 
 - `model/builder/form-shape-builder.ts`
   Defines `FormBuilder`, node construction, renderable node conversion,
-  compile/submit/reset, form lookup, and listener management.
+  compile/submit/reset, and form lookup.
 - `model/types/form-shape.ts`
   Defines node types and the implicit props expected by field/container
   components.
@@ -157,12 +157,17 @@ override is cleared.
 <FormSystem :definition="builder" @submit="..." @reset="..." />
 ```
 
+`submit` emits one compiled snapshot, including its `formId`. `reset` has no
+payload. These events travel through the rendered component tree and are scoped
+to that `FormSystem` instance; the externally owned builder does not maintain
+component listener state.
+
 It provides the `FormBuilder` through `provideFormSystemRuntime`. Child code can
 call `useFormSystemRuntime()` to compile forms or inspect state.
 
 `ContainerRenderer` provides the active parent form id with `provideParentForm`
 when it renders a `form` node. Views can call `useParentForm()` to know which
-form they belong to. `SummaryView` and `TotalsView` use this pattern.
+form they belong to. `SummaryView` uses this pattern.
 
 The renderer path is:
 
@@ -333,8 +338,11 @@ usually has:
 active summaries; set `summaryType: 'filter'` (or an array of parameter names)
 to render only entries affecting those parameters.
 `ContainerRenderer` can use `variant: ['tabs', 'tab-badges']` to count descendant
-field controllers with a query contribution in each tab badge. `TotalsView` uses
-the parent form/runtime and submitted state to display filtered/unfiltered totals.
+field controllers with a query contribution in each tab badge. Pass a
+`createTotals` controller factory to `SummaryView` to append live document and
+token totals to those entries. The factory receives filter and search-field
+updates while keeping the API/store integration outside the generic form system;
+`TotalsView` is the presentational part embedded by that mode.
 
 If a field should appear in summaries, add the summary in the controller rather
 than in the component. Components should stay focused on editing state.

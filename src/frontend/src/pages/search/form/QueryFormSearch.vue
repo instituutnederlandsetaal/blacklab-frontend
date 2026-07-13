@@ -259,7 +259,7 @@ export default defineComponent({
 			const isEnabled = GlobalViewSettings.getState().useNewSearchForm;
 			return isEnabled && this.searchFormDefinition?.getForm(getNewSearchFormId(patternMode)) != null;
 		},
-		submitNewForm(_formId: string, snapshot: CompiledFormStateWithSummaries) {
+		submitNewForm(snapshot: CompiledFormStateWithSummaries) {
 			RootStore.actions.searchFromSubmit(snapshot);
 		},
 		resetNewForm() {

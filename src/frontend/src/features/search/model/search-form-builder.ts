@@ -25,6 +25,7 @@ import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-fiel
 import type { ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
+import { createSearchFormTotalsFactory } from '@/features/search/model/search-form-totals';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
@@ -256,8 +257,8 @@ function createSharedFilters(
 		}),
 		tabs,
 		builder.newView('shared.filters.summary', SummaryView, {
+			createTotals: createSearchFormTotalsFactory(corpus, blacklabApi),
 			summaryType: 'filter',
-			showRaw: true,
 		}),
 	);
 }

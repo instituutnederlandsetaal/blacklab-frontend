@@ -28,7 +28,7 @@ const props = defineProps<{
 const attrs = useAttrs();
 
 const emit = defineEmits<{
-	submit: [formId: string, snapshot: CompiledFormStateWithSummaries];
+	submit: [snapshot: CompiledFormStateWithSummaries];
 	reset: [];
 }>();
 
@@ -38,7 +38,7 @@ watch(
 	() => props.definition,
 	(newForm, _oldForm, onCleanup) => {
 		const unsubscribeSubmit = newForm.onSubmit((formId, snapshot) => {
-			emit('submit', formId, snapshot);
+			emit('submit', snapshot);
 		});
 		const unsubscribeReset = newForm.onReset(() => emit('reset'));
 		onCleanup(() => {

@@ -67,7 +67,7 @@ watchEffect(() => {
 	allFields.value.forEach(field => (field.variant = props.variant));
 });
 
-function handleSubmit(_formId: string, snapshot: CompiledFormStateWithSummaries) {
+function handleSubmit(snapshot: CompiledFormStateWithSummaries) {
 	submittedState.value = snapshot;
 }
 
