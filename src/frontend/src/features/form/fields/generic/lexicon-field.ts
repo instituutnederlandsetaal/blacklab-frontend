@@ -1,7 +1,7 @@
 import Axios from 'axios';
-import type { MaybeRefOrGetter } from 'vue';
 
 import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
+import type { FormValue } from '@/features/form/model/types/form-shape';
 
 import { filterDuplicates, mapReduce } from '@/shared/utils/array-utils';
 
@@ -45,7 +45,7 @@ export type LexiconLookupResult = {
 export type LexiconLookup = (term: string) => Promise<LexiconLookupResult>;
 
 export type LexiconFieldUiConfig = GenericFieldUiConfig & {
-	placeholder?: MaybeRefOrGetter<string | undefined>;
+	placeholder?: FormValue<string | undefined>;
 	textDirection?: 'ltr' | 'rtl';
 	lookup: LexiconLookup;
 };

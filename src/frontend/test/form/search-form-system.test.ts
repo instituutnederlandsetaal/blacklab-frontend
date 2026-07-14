@@ -8,7 +8,7 @@ import { ref } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
-import { FormSystem, restoreScopedFormState } from '@/features/form';
+import { FormSystem, restoreFormState } from '@/features/form';
 import { createSearchFormSystem, getNewSearchFormId, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
@@ -170,7 +170,7 @@ function createDefinition(corpus = createCorpus()) {
 		corpus: ref(corpus),
 		tagset: ref(undefined),
 		translate: createMockTranslate(),
-	}).definition.value!;
+	}).runtime.value!;
 }
 
 beforeEach(() => {
@@ -194,12 +194,12 @@ describe('search form system', () => {
 		const definition = createDefinition();
 
 		expect(hasNewSearchFormForPattern(definition, 'extended')).toBe(true);
-		expect(definition.getForm(getNewSearchFormId('extended'))).not.toBeNull();
-		expect(definition.getContainer('search.extended.annotations')).not.toBeNull();
-		expect(definition.getContainer('search.extended.annotations.Basics')).not.toBeNull();
-		expect(definition.getContainer('shared.filters')).not.toBeNull();
-		expect(definition.getField('shared.filters.Bibliographic.author')).not.toBeNull();
-		expect(definition.getField('shared.filters.Classification.genre')).not.toBeNull();
+		expect(definition.definition.getForm(getNewSearchFormId('extended'))).not.toBeNull();
+		expect(definition.definition.getContainer('search.extended.annotations')).not.toBeNull();
+		expect(definition.definition.getContainer('search.extended.annotations.Basics')).not.toBeNull();
+		expect(definition.definition.getContainer('shared.filters')).not.toBeNull();
+		expect(definition.definition.getField('shared.filters.Bibliographic.author')).not.toBeNull();
+		expect(definition.definition.getField('shared.filters.Classification.genre')).not.toBeNull();
 	});
 
 	test('extended form compiles annotation fields with shared filters', () => {
@@ -253,19 +253,93 @@ describe('search form system', () => {
 			tagset: ref(undefined),
 			translate: createMockTranslate(),
 		});
-		const initialDefinition = system.definition.value!;
+		const initialRuntime = system.runtime.value!;
+		const initialDefinition = initialRuntime.definition;
+		initialRuntime.state.state.value['search.simple.annotation'] = {
+			value: 'water',
+			caseSensitive: false,
+		};
+		initialRuntime.state.state.value['shared.filters.Bibliographic.author'] = {
+			value: 'Austen',
+			caseSensitive: false,
+		};
 
 		state.search.simple.searchAnnotationId = 'lemma';
 		state.search.extended.searchAnnotationIds = ['pos'];
 		state.search.shared.searchMetadataIds = ['genre'];
 
-		const configuredDefinition = system.definition.value!;
+		const configuredRuntime = system.runtime.value!;
+		const configuredDefinition = configuredRuntime.definition;
+		expect(configuredRuntime).not.toBe(initialRuntime);
 		expect(configuredDefinition).not.toBe(initialDefinition);
 		expect((configuredDefinition.getField('search.simple.annotation') as unknown as { annotationId: string }).annotationId).toBe('lemma');
 		expect(configuredDefinition.getField('search.extended.annotations.Basics.word')).toBeNull();
 		expect(configuredDefinition.getField('search.extended.annotations.pos')).not.toBeNull();
 		expect(configuredDefinition.getField('shared.filters.Bibliographic.author')).toBeNull();
 		expect(configuredDefinition.getField('shared.filters.Classification.genre')).not.toBeNull();
+		expect(configuredRuntime.state.state.value['search.simple.annotation']).toEqual({ value: 'water', caseSensitive: false });
+		expect(configuredRuntime.state.state.value['shared.filters.Bibliographic.author']).toBeUndefined();
+	});
+
+	test('preserves compatible simple, extended, and filter state when replacing the definition', () => {
+		const configuration = ref(snapshotSearchFormConfiguration(UIStore.getState()));
+		const system = createSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			configuration,
+			corpus: ref(createCorpus()),
+			tagset: ref(undefined),
+			translate: createMockTranslate(),
+		});
+		const initialRuntime = system.runtime.value!;
+		initialRuntime.state.state.value['search.simple.annotation'] = { value: 'water', caseSensitive: false };
+		initialRuntime.state.state.value['search.extended.annotations.Basics.word'] = { value: 'fire', caseSensitive: false };
+		initialRuntime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Austen', caseSensitive: false };
+		initialRuntime.state.uiState.value['shared.filters'] = 'shared.filters.Classification';
+
+		configuration.value = {
+			...configuration.value,
+			lexiconDatabase: 'replacement-database',
+		};
+
+		const replacementRuntime = system.runtime.value!;
+		expect(replacementRuntime).not.toBe(initialRuntime);
+		expect(replacementRuntime.state.state.value['search.simple.annotation']).toEqual({ value: 'water', caseSensitive: false });
+		expect(replacementRuntime.state.state.value['search.extended.annotations.Basics.word']).toEqual({ value: 'fire', caseSensitive: false });
+		expect(replacementRuntime.state.state.value['shared.filters.Bibliographic.author']).toEqual({ value: 'Austen', caseSensitive: false });
+		expect(replacementRuntime.state.uiState.value['shared.filters']).toBe('shared.filters.Classification');
+	});
+
+	test('keeps the definition and runtime stable when translations change', () => {
+		const corpus = createCorpus();
+		corpus.relations = {
+			relations: {},
+			spans: {
+				p: { count: 1 },
+				s: { count: 1 },
+			},
+		};
+		const state = UIStore.getState();
+		state.search.shared.within.enabled = true;
+		const locale = ref('en');
+		const baseTranslate = createMockTranslate();
+		const translate = {
+			...baseTranslate,
+			$tSpanDisplayName: (span: Parameters<typeof baseTranslate.$tSpanDisplayName>[0]) => `${locale.value}:${span.label || span.value}`,
+		};
+		const system = createSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			configuration: createLegacySearchFormConfiguration(),
+			corpus: ref(corpus),
+			tagset: ref(undefined),
+			translate,
+		});
+		const initialRuntime = system.runtime.value;
+		const initialDefinition = initialRuntime?.definition;
+
+		locale.value = 'nl';
+
+		expect(system.runtime.value).toBe(initialRuntime);
+		expect(system.runtime.value?.definition).toBe(initialDefinition);
 	});
 
 	test('takes an isolated copy of mutable legacy configuration values', () => {
@@ -296,7 +370,7 @@ describe('search form system', () => {
 			{ value: 's', label: 'Custom sentence', title: null },
 		];
 
-		const within = createDefinition(corpus).getField('shared.within') as unknown as {
+		const within = createDefinition(corpus).definition.getField('shared.within') as unknown as {
 			options: Array<{ value: string; label?: string; title?: string | null }>;
 		};
 
@@ -314,13 +388,13 @@ describe('search form system', () => {
 		state.search.shared.alignBy.defaultValue = 'sentence-alignment';
 
 		const hiddenDefinition = createDefinition(createParallelCorpus());
-		const hiddenField = hiddenDefinition.getField('search.simple.parallel') as unknown as { alignByOptions: unknown[] };
+		const hiddenField = hiddenDefinition.definition.getField('search.simple.parallel') as unknown as { alignByOptions: unknown[] };
 		expect(hiddenField.alignByOptions).toEqual([]);
 		expect((hiddenDefinition.state.state.value['search.simple.parallel'] as { alignBy: string | null }).alignBy).toBe('sentence-alignment');
 
 		state.search.shared.alignBy.enabled = true;
 		const visibleDefinition = createDefinition(createParallelCorpus());
-		const visibleField = visibleDefinition.getField('search.simple.parallel') as unknown as { alignByOptions: unknown[] };
+		const visibleField = visibleDefinition.definition.getField('search.simple.parallel') as unknown as { alignByOptions: unknown[] };
 		expect(visibleField.alignByOptions).toEqual([
 			{ value: 'sentence-alignment', label: 'By sentence', title: 'Sentence alignment' },
 			{ value: 'word-alignment', label: 'By word', title: null },
@@ -348,7 +422,7 @@ describe('search form system', () => {
 			{ value: 'p', label: 'Paragraph', title: null },
 		];
 		const definition = createDefinition(corpus);
-		const restored = restoreScopedFormState(definition, {
+		const restored = restoreFormState(definition.definition, {
 			'f.form': 'search.simple',
 			'f.word': 'schip',
 			patt: '[word_or_lemma="(?i)schip"]',
@@ -358,7 +432,7 @@ describe('search form system', () => {
 
 		mount(FormSystem, {
 			props: {
-				definition,
+				runtime: definition,
 				rootId: 'search.extended',
 			},
 		});
@@ -371,7 +445,7 @@ describe('search form system', () => {
 		const state = UIStore.getState();
 		state.search.extended.searchAnnotationIds = ['word_or_lemma', 'pos'];
 		const definition = createDefinition();
-		const restored = restoreScopedFormState(definition, {
+		const restored = restoreFormState(definition.definition, {
 			'f.form': 'search.extended',
 			'f.word_or_lemma': 'schip',
 			patt: '[word_or_lemma="(?i)schip"]',
@@ -380,7 +454,7 @@ describe('search form system', () => {
 		definition.state.replaceState(restored);
 
 		expect(restored.issues).toEqual([]);
-		expect(restored.activeFormId).toBe('search.extended');
+		expect(restored.submittedFormId).toBe('search.extended');
 		expect(definition.state.state.value['search.extended.annotations.Basics.word_or_lemma']).toEqual({
 			value: 'schip',
 			caseSensitive: false,
@@ -391,7 +465,7 @@ describe('search form system', () => {
 				'f.word_or_lemma': 'schip',
 			},
 			patt: '[word_or_lemma="(?i)schip"]',
-			searchfield: 'contents',
+			searchfield: null,
 		});
 	});
 
@@ -399,10 +473,7 @@ describe('search form system', () => {
 		const state = UIStore.getState();
 		state.search.extended.searchAnnotationIds = ['word_or_lemma', 'pos'];
 		const definition = createDefinition();
-		const restored = restoreScopedFormState(definition, {
-			'f.form': 'search.extended',
-			'f.pos': 'NOU',
-		});
+		const restored = restoreFormState(definition.definition, { 'f.form': 'search.extended', 'f.pos': 'NOU' });
 
 		expect(restored.uiState['search.extended.annotations']).toBe('search.extended.annotations.Grammar');
 		expect(restored.uiState['search.extended.annotations.Grammar']).toBe('search.extended.annotations.Grammar.pos');

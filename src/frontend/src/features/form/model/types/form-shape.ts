@@ -1,13 +1,14 @@
-import type { MaybeRefOrGetter } from 'vue';
-
 import type { FieldController } from '@/features/form/model/types/form-controllers';
 import type { BooleanType, QueryFragment } from '@/features/form/model/types/form-query';
 import type { AnyVueComponent } from '@/types/helpers';
 
+/** A plain value or a runtime resolver evaluated while rendering/compiling. */
+export type FormValue<T> = T | (() => T);
+
 /** The base for all form nodes */
 export type BaseNode = {
 	id: string;
-	title?: MaybeRefOrGetter<string>;
+	title?: FormValue<string>;
 	class?: string;
 };
 // Container

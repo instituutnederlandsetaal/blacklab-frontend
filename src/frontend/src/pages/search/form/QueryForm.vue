@@ -94,17 +94,17 @@ export default defineComponent({
 		historyOpen: false,
 		errorNoParallelSourceVersion: false,
 		corpus: useCorpus(),
-		searchFormDefinition: useSearchFormSystem(),
+		searchFormRuntime: useSearchFormSystem(),
 	}),
 	computed: {
 		queryBuilderVisible(): boolean {
 			return RootStore.get.queryBuilderActive();
 		},
 		filtersVisible(): boolean {
-			return RootStore.get.filtersActive() && !(GlobalViewSettings.getState().useNewSearchForm && hasNewSearchFormForPattern(this.searchFormDefinition, InterfaceStore.get.patternMode()));
+			return RootStore.get.filtersActive() && !(GlobalViewSettings.getState().useNewSearchForm && hasNewSearchFormForPattern(this.searchFormRuntime, InterfaceStore.get.patternMode()));
 		},
 		newSearchFormActive(): boolean {
-			return this.activeForm === 'search' && GlobalViewSettings.getState().useNewSearchForm && hasNewSearchFormForPattern(this.searchFormDefinition, InterfaceStore.get.patternMode());
+			return this.activeForm === 'search' && GlobalViewSettings.getState().useNewSearchForm && hasNewSearchFormForPattern(this.searchFormRuntime, InterfaceStore.get.patternMode());
 		},
 		activeForm: {
 			get: InterfaceStore.get.form,

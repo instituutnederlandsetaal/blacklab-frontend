@@ -1,6 +1,6 @@
 <template>
 	<div class="form-group" :id="htmlId">
-		<label v-if="showLabel" :for="inputId" class="control-label">{{ displayName }} </label>
+		<label v-if="showLabel" :for="inputId" class="control-label">{{ resolvedDisplayName }} </label>
 		<debug> [{{ id }}]</debug>
 		<SelectPicker
 			data-width="100%"
@@ -15,7 +15,7 @@
 			:disabled
 			v-model="pickerValue"
 		/>
-		<small v-if="description" class="help-block">{{ description }}</small>
+		<small v-if="resolvedDescription" class="help-block">{{ resolvedDescription }}</small>
 	</div>
 </template>
 
@@ -42,7 +42,9 @@ const emit = defineEmits<{
 
 const variant = computed(() => decodeVariants(props.variant));
 const inputId = computed(() => `${props.htmlId}_value`);
-const placeholderText = computed(() => props.placeholder ?? toValue(props.displayName));
+const resolvedDisplayName = computed(() => toValue(props.displayName));
+const resolvedDescription = computed(() => (props.description ? toValue(props.description) : undefined));
+const placeholderText = computed(() => (props.placeholder ? toValue(props.placeholder) : resolvedDisplayName.value));
 const textDirection = computed(() => props.textDirection ?? 'ltr');
 
 const btnClass = computed(() => (variant.value.large ? 'btn-lg' : variant.value.small ? 'btn-sm' : ''));

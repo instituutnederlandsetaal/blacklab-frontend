@@ -1,11 +1,11 @@
 import cloneDeep from 'clone-deep';
 import jsonStableStringify from 'json-stable-stringify';
 import { computed, watch, type Ref } from 'vue';
-import type { LocationQuery, RouteLocationNormalizedLoaded, Router } from 'vue-router';
+import type { RouteLocationNormalizedLoaded, Router } from 'vue-router';
 
 import * as RootStore from '@/app/state/root-store';
 import type { Corpus, CorpusContext } from '@/app/state/useCorpusContext';
-import { hasScopedFormState, restoreScopedFormState, type CompiledFormStateWithSummaries, type FormBuilder, type RestoredFormState } from '@/features/form';
+import { compileFormNode, restoreFormState, type FormRuntime } from '@/features/form';
 import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
@@ -37,7 +37,7 @@ type UrlStateSyncDependencies = {
 	corpusContext: LoadableFromRequest<CorpusContext>;
 	indexId: Ref<string | undefined>;
 	pageMeta: Ref<PageMeta | null>;
-	searchForms: Ref<FormBuilder | null>;
+	searchForms: Ref<FormRuntime | null>;
 };
 
 /** Key under which we store the state snapshot in the browser history API's state object */
@@ -55,24 +55,6 @@ type UrlSyncContext = {
 function getManagedRouteName(pageMeta: PageMeta | null, route: RouteLocationNormalizedLoaded): UrlManagedRouteName | null {
 	const routeName = pageMeta?.name || (typeof route.name === 'string' ? route.name : null);
 	return routeName === 'search' || routeName === 'article' ? routeName : null;
-}
-
-function getFirstQueryString(query: LocationQuery, ...keys: string[]): string | null {
-	for (const key of keys) {
-		const value = query[key];
-		const first = Array.isArray(value) ? value.find((item): item is string => typeof item === 'string' && item !== '') : value;
-		if (typeof first === 'string' && first !== '') return first;
-	}
-	return null;
-}
-
-export function getCanonicalFormParametersFromRoute(route: RouteLocationNormalizedLoaded, corpus: Pick<Corpus, 'isParallelCorpus'> | null = null): BlackLabParameters {
-	const searchfield = getFirstQueryString(route.query, 'searchfield', 'searchField', 'field');
-	return {
-		patt: getFirstQueryString(route.query, 'patt', 'query'),
-		filter: getFirstQueryString(route.query, 'filter'),
-		searchfield: corpus && !corpus.isParallelCorpus ? null : searchfield,
-	};
 }
 
 type FrontendSearchPageExtraQueryParamsDecoded = {
@@ -157,7 +139,7 @@ function createBrowserHistoryEntry(value: QueryState): HistoryStore.HistoryEntry
 		interface: {
 			form: query.form === 'explore' ? 'explore' : 'search',
 			exploreMode: query.form === 'explore' ? query.subForm : 'ngram',
-			patternMode: query.form === 'search' ? query.subForm : 'simple',
+			patternMode: query.form === 'search' ? query.subForm : query.form === 'new' ? interfaceState.patternMode : 'simple',
 			viewedResults: interfaceState.viewedResults,
 			activeAnnotationTab: interfaceState.activeAnnotationTab,
 			activeFilterTab: interfaceState.activeFilterTab,
@@ -180,16 +162,13 @@ function createCurrentBrowserHistoryEntry(resultsView: string | null): HistorySt
 
 function pushStoreStateToRouter(router: Router, next: NavigationInput) {
 	const { path, indexId, resultsView } = next;
-	const additionalQuery = resultsView
-		? createAdditionalBrowserQueryParams({
-				interface: InterfaceStore.getState(),
-				query: QueryStore.getState(),
-			})
-		: {};
 	const query =
 		cleanQueryParams({
 			...next.query,
-			...additionalQuery,
+			...createAdditionalBrowserQueryParams({
+				interface: InterfaceStore.getState(),
+				query: QueryStore.getState(),
+			}),
 		}) ?? {};
 	const entry = createCurrentBrowserHistoryEntry(resultsView);
 	const searchParams = new URLSearchParams();
@@ -213,7 +192,6 @@ function pushStoreStateToRouter(router: Router, next: NavigationInput) {
 	debugLog('history', 'Adding/updating query in query history, adding browser history entry, and reporting to ga', url, entry);
 	debugLog('history', `Calling router.push with entry:`, entry, `and url:`, url);
 
-	// history.pushState(historyState, path + '?' + new URLSearchParams(query as any).toString(), undefined);
 	router
 		.push({
 			query: query,
@@ -354,27 +332,22 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 			debugLog('history', restoredFromHistory ? 'Restoring state from browser history.' : 'Restoring state from URL.', context.route.fullPath);
 
 			// Now sync with form system (which doesn't run through store)
-			const newSearchFormDefinition = dependencies.searchForms.value;
-			let newFormState: RestoredFormState | undefined;
-			let submittedNewForm: CompiledFormStateWithSummaries | null | undefined = restored.newForm;
-			if (newSearchFormDefinition) {
-				const canonical = getCanonicalFormParametersFromRoute(context.route, context.corpus);
-				const routeHasScopedFormState = hasScopedFormState(context.route.query);
-
-				// pass a blank object if there's no scoped form state in the url at all
-				// otherwise we will lock the form with the canonical parameters 'patt', 'filter' and 'searchfield'
-				// even when the form wasn't active to start with.
-				newFormState = restoreScopedFormState(newSearchFormDefinition, routeHasScopedFormState ? context.route.query : {}, canonical);
-				newSearchFormDefinition.state.replaceState(newFormState);
-				// Compile restored URL state directly; FormBuilder.submit() is the user-action path and emits submit listeners.
-				if (newFormState.activeFormId) submittedNewForm = newSearchFormDefinition.compile(newFormState.activeFormId);
-				else if (routeHasScopedFormState) submittedNewForm = null;
+			const newSearchFormRuntime = dependencies.searchForms.value;
+			let submittedNewForm = restored.newForm ?? null;
+			if (newSearchFormRuntime) {
+				const newFormState = restoreFormState(newSearchFormRuntime.definition, context.route.query);
+				if (newFormState.submittedFormId) {
+					const form = newSearchFormRuntime.definition.getForm(newFormState.submittedFormId);
+					if (!form) throw new Error(`Cannot compile unknown restored form '${newFormState.submittedFormId}'.`);
+					submittedNewForm = compileFormNode(form, newFormState, newSearchFormRuntime.definition.context);
+				}
+				newSearchFormRuntime.state.replaceState(newFormState);
 				if (newFormState.issues.length) {
 					debugLog('url', 'New search form URL restore issues', newFormState.issues);
 				}
 			}
 
-			const restoredForStore = { ...restored, newForm: submittedNewForm ?? restored.newForm ?? null };
+			const restoredForStore = { ...restored, newForm: submittedNewForm };
 			RootStore.actions.replace(restoredForStore);
 
 			// Initial URL restores need their decoded state in history.state without going through a reactive self-push.

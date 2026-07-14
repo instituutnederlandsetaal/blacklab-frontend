@@ -2,10 +2,11 @@
 
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
-import { computed, defineComponent, h, nextTick, ref } from 'vue';
+import { defineComponent, h, nextTick, ref } from 'vue';
 
 import {
 	type FormBuilder,
+	type FormRuntime,
 	annotationTextController,
 	expertQueryController,
 	filterTextController,
@@ -19,7 +20,7 @@ import {
 } from '@/features/form';
 import { provideFormSystemRuntime, provideParentForm } from '@/features/form/model/runtime';
 
-import { createTestBuilder } from './helpers';
+import { createTestBuilder, createTestRuntime } from './helpers';
 
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
@@ -37,7 +38,7 @@ type FieldExpectation = {
 };
 
 type FieldPlacement = 'direct' | 'container' | 'nested-container';
-type FormSystemRuntime = FormBuilder;
+type FormSystemRuntime = FormRuntime;
 
 type FieldHarness<TField extends FormFieldNode = FormFieldNode> = {
 	field: TField;
@@ -212,7 +213,7 @@ function createFieldRuntime<TField extends FormFieldNode>(
 	const form = builder.newForm('harness.form', ContainerRenderer, { title: 'Harness' });
 	const field = buildField(builder, form);
 	addFieldToForm(builder, form, field, placement);
-	const runtime = builder;
+	const runtime = createTestRuntime(builder);
 
 	return { field, form, runtime };
 }
@@ -239,7 +240,7 @@ function mountViewHarness<TExtra, TView extends FormViewNode>(
 	const builder = createTestBuilder();
 	const form = builder.newForm('harness.form', ContainerRenderer, { title: 'Harness' });
 	const { extra, view } = buildView(builder, form);
-	const runtime = builder;
+	const runtime = createTestRuntime(builder);
 	const wrapper = mount(createHostHarness(view, form, runtime, 'view'));
 
 	return { extra, form, runtime, view, wrapper };
@@ -257,7 +258,7 @@ describe('builtin controller hosts', () => {
 		const harness = mountFieldHarness(builder =>
 			builder.newField('computed-label.annotation.node', annotationTextController, TextField, {
 				annotationId: 'computed-label.annotation',
-				displayName: computed(() => label.value),
+				displayName: () => label.value,
 			}),
 		);
 

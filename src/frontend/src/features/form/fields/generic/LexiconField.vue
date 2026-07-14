@@ -1,6 +1,6 @@
 <template>
 	<div :id="htmlId" class="form-group">
-		<label v-if="showLabel" class="control-label" :for="inputId">{{ displayName }} </label>
+		<label v-if="showLabel" class="control-label" :for="inputId">{{ resolvedDisplayName }} </label>
 		<debug> [{{ id }}]</debug>
 
 		<div class="lexicon">
@@ -54,7 +54,7 @@
 			</template>
 		</div>
 
-		<small v-if="description" class="help-block">{{ description }}</small>
+		<small v-if="resolvedDescription" class="help-block">{{ resolvedDescription }}</small>
 	</div>
 </template>
 
@@ -88,7 +88,9 @@ const variant = computed(() => decodeVariants(props.variant));
 const inputClass = computed(() => (variant.value.large ? 'input-lg' : variant.value.small ? 'input-sm' : ''));
 const btnClass = computed(() => (variant.value.large ? 'btn-lg' : variant.value.small ? 'btn-sm' : ''));
 const spinnerSize = computed(() => (variant.value.large ? 32 : 22));
-const placeholderText = computed(() => (props.placeholder && toValue(props.placeholder)) ?? toValue(props.displayName));
+const resolvedDisplayName = computed(() => toValue(props.displayName));
+const resolvedDescription = computed(() => (props.description ? toValue(props.description) : undefined));
+const placeholderText = computed(() => (props.placeholder && toValue(props.placeholder)) ?? resolvedDisplayName.value);
 const textDirection = computed(() => props.textDirection ?? 'ltr');
 
 const renderedWords = computed(() => (wordOptions.value ? wordOptions.value.filter(word => word.pos.some(pos => posOptions.value[pos])) : []));

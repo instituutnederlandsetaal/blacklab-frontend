@@ -105,10 +105,6 @@ function blackLabProxyOrigin(url) {
 	return `${parsed.protocol}//${parsed.host}`;
 }
 
-function uniqueWord(label) {
-	return `urlsync${label}${Date.now().toString(36)}`;
-}
-
 function assert(condition, message, details) {
 	if (condition) return;
 	const suffix = details == null ? '' : `\n${typeof details === 'string' ? details : JSON.stringify(details, null, 2)}`;
@@ -319,7 +315,7 @@ async function snapshot(page) {
 			bodyText: document.body?.innerText?.slice(0, 2000) ?? '',
 			hasVueRoot: !!document.querySelector('#vue-root'),
 			hasSearchForm: !!document.querySelector('#form-search'),
-			hasNewForm: !!document.querySelector('.blf-form'),
+			hasNewForm: !!document.querySelector('.blf-form-system'),
 			activeElement: document.activeElement
 				? {
 						tagName: document.activeElement.tagName,
@@ -340,7 +336,7 @@ async function snapshot(page) {
 					placeholder: input.placeholder,
 					disabled: input.disabled,
 					visible: !!(input.offsetWidth || input.offsetHeight || input.getClientRects().length),
-					inNewForm: !!input.closest('.blf-form'),
+					inNewForm: !!input.closest('.blf-form-system'),
 				})),
 			history: history.slice(0, 5).map(entry => ({
 				url: entry.url,
@@ -384,7 +380,7 @@ async function enableNewSearchForm(page, timeout) {
 		return previous;
 	});
 	await page.waitForFunction(() => window.vuexModules?.global?.getState?.().useNewSearchForm === true, null, { timeout });
-	await page.waitForSelector('.blf-form', { state: 'visible', timeout });
+	await page.waitForSelector('.blf-form-system', { state: 'visible', timeout });
 	return previousValue;
 }
 
@@ -395,13 +391,11 @@ async function restoreNewSearchFormPreference(page, previousValue) {
 	}, previousValue);
 }
 
-async function findQueryInput(page, selectorOverride, timeout) {
+async function findQueryInput(page, selectorOverride, timeout, mode = 'simple') {
 	const selectors = [
-		selectorOverride,
-		'#form-search .blf-form input[type="text"]:not([disabled])',
-		'#simple .blf-form input[type="text"]:not([disabled])',
-		'.blf-form input[type="text"]:not([disabled])',
-		'#simple input[type="text"]:not([disabled])',
+		mode === 'simple' ? selectorOverride : null,
+		`#${mode} .blf-form-system input[type="text"]:not([disabled])`,
+		`#${mode} input[type="text"]:not([disabled])`,
 	].filter(Boolean);
 
 	for (const selector of selectors) {
@@ -416,26 +410,55 @@ async function findQueryInput(page, selectorOverride, timeout) {
 	}
 
 	throw new Error(
-		`Could not find a visible simple-search text input. Set BLF_SMOKE_QUERY_SELECTOR if this corpus uses different markup.`,
+		`Could not find a visible ${mode}-search text input. Set BLF_SMOKE_QUERY_SELECTOR if this corpus uses different markup.`,
 	);
 }
 
-async function waitForSearchState(page, expectedTerm, timeout) {
+async function waitForVisibleSearchMode(page, mode, timeout) {
 	await page.waitForFunction(
-		term => {
+		expectedMode => {
+			const tab = document.querySelector(`#searchTabs a[href="#${expectedMode}"]`)?.closest('li');
+			const pane = document.querySelector(`#${expectedMode}`);
+			return tab?.classList.contains('active') && pane?.classList.contains('active');
+		},
+		mode,
+		{ timeout },
+	);
+}
+
+async function assertVisibleSearchMode(page, mode, timeout, label) {
+	try {
+		await waitForVisibleSearchMode(page, mode, timeout);
+	} catch (error) {
+		throw new Error(`Expected the ${mode} search form to be visible ${label}. Submitted state was restored, but the rendered form was not.`, { cause: error });
+	}
+}
+
+async function waitForSearchState(page, expectedTerm, timeout, expectedPatternMode = 'simple') {
+	await page.waitForFunction(
+		({ term, patternMode }) => {
 			const modules = window.vuexModules;
 			const params = modules?.root?.get?.blacklabParameters?.();
 			const interfaceState = modules?.interface?.getState?.();
+			const queryState = modules?.query?.getState?.();
 			const scopedFormQuery = modules?.query?.get?.scopedFormQuery?.();
 			const url = new URL(window.location.href);
+			let urlInterface = null;
+			try {
+				urlInterface = JSON.parse(url.searchParams.get('interface') || '{}');
+			} catch {
+				// The URL parser will report malformed interface state separately.
+			}
 			const scopedKeys = [...url.searchParams.keys()].filter(key => key.startsWith('f.'));
 			const scopedFieldKeys = scopedKeys.filter(key => key !== 'f.form' && key !== 'f.tab');
 			const history = modules?.history?.getState?.() ?? [];
 
 			return !!(
 				params?.patt?.includes(term) &&
-				interfaceState?.form === 'search' &&
-				interfaceState?.patternMode === 'simple' &&
+				queryState?.form === 'new' &&
+				queryState?.state?.formId === `search.${patternMode}` &&
+				urlInterface?.form === 'search' &&
+				urlInterface?.patternMode === patternMode &&
 				interfaceState?.viewedResults === 'hits' &&
 				url.pathname.endsWith('/search/hits') &&
 				url.searchParams.get('patt')?.includes(term) &&
@@ -445,26 +468,31 @@ async function waitForSearchState(page, expectedTerm, timeout) {
 				history.some(entry => entry.url && new URL(entry.url, window.location.origin).searchParams.get('patt')?.includes(term))
 			);
 		},
-		expectedTerm,
+		{ term: expectedTerm, patternMode: expectedPatternMode },
 		{ timeout },
 	);
 }
 
-async function submitSearch(page, selectorOverride, query, timeout) {
-	const input = await findQueryInput(page, selectorOverride, timeout);
+async function selectSearchMode(page, mode, timeout) {
+	await page.locator(`#searchTabs a[href="#${mode}"]`).click();
+	await waitForVisibleSearchMode(page, mode, timeout);
+}
+
+async function submitSearch(page, selectorOverride, query, timeout, mode = 'simple') {
+	const input = await findQueryInput(page, selectorOverride, timeout, mode);
 	await input.click();
 	await input.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
 	await input.press('Backspace');
 	await input.type(query);
 	assert((await input.inputValue()) === query, `Expected selected input to contain '${query}' before submit.`, await snapshot(page));
 	await input.press('Enter');
-	await waitForSearchState(page, query, timeout);
+	await waitForSearchState(page, query, timeout, mode);
 	const state = await snapshot(page);
-	console.log(`ok search '${query}'`, summarizeUrl(state.url));
+	console.log(`ok ${mode} search '${query}'`, summarizeUrl(state.url));
 }
 
-async function assertQueryInputValue(page, selectorOverride, expectedTerm, timeout, label) {
-	const input = await findQueryInput(page, selectorOverride, timeout);
+async function assertQueryInputValue(page, selectorOverride, expectedTerm, timeout, label, mode = 'simple') {
+	const input = await findQueryInput(page, selectorOverride, timeout, mode);
 	const value = await input.inputValue();
 	assert(value === expectedTerm, `Expected the simple-search input to contain '${expectedTerm}' ${label}, got '${value}'.`, await snapshot(page));
 	console.log(`ok form input held '${expectedTerm}' ${label}`);
@@ -537,9 +565,8 @@ async function run() {
 	const skipDockerBuild = booleanOption(args, 'skipDockerBuild', 'BLF_SMOKE_SKIP_DOCKER_BUILD', false);
 	const externalStack = booleanOption(args, 'externalStack', 'BLF_SMOKE_EXTERNAL_STACK', false);
 	const initialUrl = option(args, 'url', 'BLF_SMOKE_URL', `http://localhost:${vitePort}/blacklab-frontend/${corpus}/search/`);
-	const queryOne = option(args, 'queryOne', 'BLF_SMOKE_QUERY_ONE', uniqueWord('first'));
-	const queryTwo = option(args, 'queryTwo', 'BLF_SMOKE_QUERY_TWO', uniqueWord('second'));
-	const queryThree = option(args, 'queryThree', 'BLF_SMOKE_QUERY_THREE', uniqueWord('third'));
+	const queryOne = option(args, 'queryOne', 'BLF_SMOKE_QUERY_ONE', 'schip');
+	const queryTwo = option(args, 'queryTwo', 'BLF_SMOKE_QUERY_TWO', 'schaap');
 	const selectorOverride = option(args, 'querySelector', 'BLF_SMOKE_QUERY_SELECTOR', null);
 	const timeout = numberOption(args, 'timeout', 'BLF_SMOKE_TIMEOUT', 20_000);
 	const headless = booleanOption(args, 'headless', 'BLF_SMOKE_HEADLESS', true);
@@ -601,28 +628,30 @@ async function run() {
 		await waitForApp(page, timeout);
 		previousUseNewSearchForm = await enableNewSearchForm(page, timeout);
 
-		await submitSearch(page, selectorOverride, queryOne, timeout);
-		await submitSearch(page, selectorOverride, queryTwo, timeout);
-		await submitSearch(page, selectorOverride, queryThree, timeout);
+		await selectSearchMode(page, 'simple', timeout);
+		await submitSearch(page, selectorOverride, queryOne, timeout, 'simple');
+		await selectSearchMode(page, 'extended', timeout);
+		await submitSearch(page, selectorOverride, queryTwo, timeout, 'extended');
 
 		await page.goBack({ waitUntil: 'domcontentloaded', timeout });
-		await waitForSearchState(page, queryTwo, timeout);
-		await assertQueryInputValue(page, selectorOverride, queryTwo, timeout, 'after browser back');
-		console.log(`ok browser back restored '${queryTwo}'`);
+		await waitForSearchState(page, queryOne, timeout, 'simple');
+		await assertVisibleSearchMode(page, 'simple', timeout, 'after browser back');
+		console.log(`ok browser back restored '${queryOne}' in the simple form`);
 
 		await page.goForward({ waitUntil: 'domcontentloaded', timeout });
-		await waitForSearchState(page, queryThree, timeout);
-		await assertQueryInputValue(page, selectorOverride, queryThree, timeout, 'after browser forward');
-		console.log(`ok browser forward restored '${queryThree}'`);
+		await waitForSearchState(page, queryTwo, timeout, 'extended');
+		await assertVisibleSearchMode(page, 'extended', timeout, 'after browser forward');
+		console.log(`ok browser forward restored '${queryTwo}' in the extended form`);
 
 		await restoreHistoryEntry(page, selectorOverride, queryOne, timeout);
 
 		await page.reload({ waitUntil: 'domcontentloaded', timeout });
 		await waitForApp(page, timeout);
 		await waitForSearchState(page, queryOne, timeout);
+		await assertQueryInputValue(page, selectorOverride, queryOne, timeout, 'after reload');
 		console.log(`ok reload restored '${queryOne}' from the URL`);
 
-		await page.locator('.blf-form button[type="reset"]').first().click();
+		await page.locator('.blf-form-system button[type="reset"]').first().click();
 		await waitForResetState(page, selectorOverride, timeout);
 		console.log('ok reset cleared submitted query and scoped URL params');
 

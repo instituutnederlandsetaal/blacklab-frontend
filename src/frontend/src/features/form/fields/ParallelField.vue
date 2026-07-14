@@ -170,7 +170,7 @@ function createDefaultChildState(role: string) {
 			kind: 'field',
 			variant: childVariant.value,
 		},
-		runtime.context,
+		runtime.value.definition.context,
 	);
 }
 

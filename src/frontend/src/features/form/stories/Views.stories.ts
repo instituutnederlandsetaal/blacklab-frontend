@@ -6,8 +6,8 @@ import {
 	createDefaultFormState,
 	filterCheckboxController,
 	FormBuilder,
+	FormRuntime,
 	type CompiledFormStateWithSummaries,
-	type NewFormState,
 	type SummaryTotalsInput,
 	type TotalsViewState,
 } from '@/features/form';
@@ -22,8 +22,7 @@ import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
 
 type ViewStoryModel = {
-	definition: FormBuilder;
-	initialState: NewFormState;
+	runtime: FormRuntime;
 	initialSubmitted: CompiledFormStateWithSummaries;
 };
 
@@ -38,13 +37,14 @@ export default meta;
 type Story = StoryObj;
 
 function createViewStoryModel(translate: Translate): ViewStoryModel {
-	const definition = new FormBuilder({
+	const context = {
 		corpus: {
 			indexId: 'storybook-views',
-			textDirection: 'ltr',
+			textDirection: 'ltr' as const,
 		},
 		translate,
-	});
+	};
+	const definition = new FormBuilder(context);
 	const root = definition.newContainer('view-catalog', ContainerRenderer, {
 		title: 'Built-in views',
 		variant: 'tabs',
@@ -114,7 +114,7 @@ function createViewStoryModel(translate: Translate): ViewStoryModel {
 	);
 	root.addChildren(headingForm, summaryForm, filterSummaryForm);
 
-	const initialState = createDefaultFormState(definition.getRoot(), definition.context);
+	const initialState = createDefaultFormState(context, definition.getRoot());
 	initialState.uiState[root.id] = summaryForm.id;
 	initialState.state['view-catalog.summary.word'] = {
 		value: 'water',
@@ -123,11 +123,10 @@ function createViewStoryModel(translate: Translate): ViewStoryModel {
 	initialState.state['view-catalog.summary.genre'] = ['fiction'];
 	initialState.state['view-catalog.totals.genre'] = ['newspaper'];
 
-	definition.state.replaceState(initialState);
+	const runtime = new FormRuntime(definition, initialState);
 	return {
-		definition,
-		initialState,
-		initialSubmitted: definition.submit(summaryForm.id),
+		runtime,
+		initialSubmitted: runtime.compile(summaryForm.id),
 	};
 }
 
@@ -137,6 +136,6 @@ export const BuiltInViews: Story = {
 		setup() {
 			return createViewStoryModel(useI18n());
 		},
-		template: '<FormSystemStoryHarness :definition :initial-state="initialState" :initial-submitted="initialSubmitted" />',
+		template: '<FormSystemStoryHarness :runtime :initial-submitted="initialSubmitted" />',
 	}),
 };

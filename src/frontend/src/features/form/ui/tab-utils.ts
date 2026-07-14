@@ -1,6 +1,7 @@
 import { toValue } from 'vue';
 
 import type { BaseNode } from '@/features/form/model/types/form-shape';
+
 import type { Tab } from '@/shared/ui/Tabs.types';
 
 type TabChild = { props: Pick<BaseNode, 'id' | 'title'> };

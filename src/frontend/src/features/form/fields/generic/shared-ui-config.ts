@@ -1,11 +1,11 @@
-import type { MaybeRefOrGetter } from 'vue';
+import type { FormValue } from '@/features/form/model/types/form-shape';
 
 export type GenericFieldUiConfig = {
 	/** Access for debug rendering of the field */
 	id?: string;
 	groupId?: string;
-	displayName: MaybeRefOrGetter<string>;
-	description?: MaybeRefOrGetter<string | undefined>;
+	displayName: FormValue<string>;
+	description?: FormValue<string | undefined>;
 	textDirection?: 'ltr' | 'rtl';
 };
 

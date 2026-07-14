@@ -5,11 +5,11 @@ import { describe, expect, test } from 'vitest';
 
 import { FormSystem } from '@/features/form';
 
-import { TestTextField, createTestBuilder, testTextController } from './helpers';
+import { TestTextField, createTestBuilder, createTestRuntime, testTextController } from './helpers';
 
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
-describe('form builder runtime', () => {
+describe('form runtime', () => {
 	test('submit returns a snapshot isolated from later state changes', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
@@ -19,15 +19,16 @@ describe('form builder runtime', () => {
 		});
 		form.addChildren(field);
 
-		builder.state.state.value[field.id] = { value: 'water' };
+		const runtime = createTestRuntime(builder);
+		runtime.state.state.value[field.id] = { value: 'water' };
 
-		const submitted = builder.submit(form.id);
-		builder.state.state.value[field.id] = { value: 'fire' };
+		const submitted = runtime.compile(form.id);
+		runtime.state.state.value[field.id] = { value: 'fire' };
 
 		expect(submitted.formId).toBe(form.id);
 		expect(submitted.patt).toBe('[word="(?i)water"]');
 		expect(submitted.summaries).toEqual([{ id: field.id, label: 'Word', value: 'water', summaryType: ['patt'] }]);
-		expect(builder.compile(form.id).patt).toBe('[word="(?i)fire"]');
+		expect(runtime.compile(form.id).patt).toBe('[word="(?i)fire"]');
 		expect(submitted.patt).toBe('[word="(?i)water"]');
 	});
 
@@ -39,14 +40,15 @@ describe('form builder runtime', () => {
 			displayName: 'Word',
 		});
 		form.addChildren(field);
-		const replacement = structuredClone(builder.state.getRawState());
+		const runtime = createTestRuntime(builder);
+		const replacement = structuredClone(runtime.state.getRawState());
 		replacement.state[field.id] = { value: 'water' };
 
-		builder.state.replaceState(replacement);
+		runtime.state.replaceState(replacement);
 		replacement.state[field.id] = { value: 'changed later' };
 
-		expect(builder.state.state.value[field.id]).toEqual({ value: 'water' });
-		expect(builder.compile(form.id).patt).toBe('[word="(?i)water"]');
+		expect(runtime.state.state.value[field.id]).toEqual({ value: 'water' });
+		expect(runtime.compile(form.id).patt).toBe('[word="(?i)water"]');
 	});
 
 	test('switching form tabs updates container ui state', async () => {
@@ -71,16 +73,17 @@ describe('form builder runtime', () => {
 		);
 		root.addChildren(firstForm, secondForm);
 
+		const runtime = createTestRuntime(builder);
 		const wrapper = mount(FormSystem, {
 			props: {
-				definition: builder,
+				runtime,
 			},
 		});
 
-		expect(builder.state.uiState.value[root.id]).toBe(firstForm.id);
+		expect(runtime.state.uiState.value[root.id]).toBe(firstForm.id);
 
 		await wrapper.findAll('[role="tab"]')[1].trigger('click');
 
-		expect(builder.state.uiState.value[root.id]).toBe(secondForm.id);
+		expect(runtime.state.uiState.value[root.id]).toBe(secondForm.id);
 	});
 });

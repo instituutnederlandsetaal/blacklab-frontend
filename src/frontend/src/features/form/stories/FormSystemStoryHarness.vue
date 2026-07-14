@@ -1,6 +1,6 @@
 <template>
 	<div class="story-harness">
-		<FormSystem :definition @submit="handleSubmit" />
+		<FormSystem :runtime @submit="handleSubmit" />
 		<aside class="inspector">
 			<section class="toggles">
 				<div class="checkbox" v-for="output in outputs" :key="output.key">
@@ -32,16 +32,13 @@ import { computed, reactive, ref, watchEffect } from 'vue';
 
 import { getAllFields } from '@/features/form/model/form-utils';
 
-import { FormSystem, type CompiledFormStateWithSummaries, type FieldPresentation, type FormBuilder, type NewFormState } from '../index';
+import { FormSystem, type CompiledFormStateWithSummaries, type FieldPresentation, type FormRuntime } from '../index';
 
 const props = defineProps<{
-	definition: FormBuilder;
-	initialState?: NewFormState;
+	runtime: FormRuntime;
 	initialSubmitted?: CompiledFormStateWithSummaries | null;
 	variant?: FieldPresentation | FieldPresentation[];
 }>();
-
-if (props.initialState) props.definition.state.replaceState(props.initialState);
 
 const submittedState = ref<CompiledFormStateWithSummaries | null>(props.initialSubmitted ?? null);
 const outputs = reactive([
@@ -54,12 +51,12 @@ const showLiveState = computed(() => isOutputVisible('live-state'));
 const showCompiled = computed(() => isOutputVisible('compiled'));
 const showSubmitted = computed(() => isOutputVisible('submitted'));
 const showUrlCodec = computed(() => isOutputVisible('url-codec'));
-const allFields = computed(() => getAllFields(props.definition.getRoot()));
-const serializedState = computed(() => JSON.stringify(props.definition.state.state.value, undefined, 2));
+const allFields = computed(() => getAllFields(props.runtime.definition.getRoot()));
+const serializedState = computed(() => JSON.stringify(props.runtime.state.state.value, undefined, 2));
 const serializedSubmitted = computed(() => (submittedState.value ? JSON.stringify(submittedState.value, undefined, 2) : ''));
 const serializedCompiled = computed(() => {
-	const formIds = props.definition.formsList.value.map(form => form.id);
-	return formIds.length ? JSON.stringify(Object.fromEntries(formIds.map(id => [id, props.definition.compile(id)])), undefined, 2) : '';
+	const formIds = props.runtime.definition.formsList.map(form => form.id);
+	return formIds.length ? JSON.stringify(Object.fromEntries(formIds.map(id => [id, props.runtime.compile(id)])), undefined, 2) : '';
 });
 const encodedSubmitted = computed(() => submittedState.value?.encoded ?? null);
 

@@ -1,7 +1,7 @@
-import { toRaw, computed, ref, reactive } from 'vue';
+import { ref, toRaw } from 'vue';
 
-import { isContainerNode, isFieldNode, walkFormNodes } from '@/features/form/model/form-utils';
-import type { FormNode, AnyBaseFormNode } from '@/features/form/model/types';
+import { isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
+import type { FormNode } from '@/features/form/model/types';
 import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 
@@ -10,6 +10,32 @@ export type NewFormState = {
 	uiState: Record<string, string | null>;
 	rawOverrides: BlackLabParameters;
 };
+
+export type FormStateInput = {
+	readonly state: Readonly<Record<string, unknown>>;
+	readonly uiState: Readonly<Record<string, string | null>>;
+	readonly rawOverrides: Readonly<BlackLabParameters>;
+};
+
+export type DeepReadonly<T> = T extends (...args: any[]) => unknown
+	? T
+	: T extends readonly (infer Item)[]
+		? readonly DeepReadonly<Item>[]
+		: T extends object
+			? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+			: T;
+
+function freezeDeep<T>(value: T, seen = new WeakSet<object>()): DeepReadonly<T> {
+	if (value === null || typeof value !== 'object' || seen.has(value)) return value as DeepReadonly<T>;
+	seen.add(value);
+	for (const child of Object.values(value)) freezeDeep(child, seen);
+	return Object.freeze(value) as DeepReadonly<T>;
+}
+
+/** Create a detached, immutable value that can later be cloned into a runtime. */
+export function createFormStateSnapshot<T extends FormStateInput>(value: T): DeepReadonly<T> {
+	return freezeDeep(structuredClone(toRaw(value)));
+}
 
 /**
  * Walk all nodes, look for field nodes, and create initial states for them using their controller's createDefaultState function, and return an object containing all field states.
@@ -43,12 +69,7 @@ function createInitialUiStates(...rootNodes: FormNode[]): Record<string, string 
 	return activeContainers;
 }
 
-export function createDefaultFormState(context: FormRuntimeContext, ...rootNodes: FormNode[]): NewFormState;
-/** @deprecated Use createDefaultFormState(context, ...rootNodes). */
-export function createDefaultFormState(rootNode: FormNode, context: FormRuntimeContext, ...rootNodes: FormNode[]): NewFormState;
-export function createDefaultFormState(first: FormRuntimeContext | FormNode, ...rest: Array<FormRuntimeContext | FormNode>): NewFormState {
-	const context = ('corpus' in first ? first : rest.shift()) as FormRuntimeContext;
-	const rootNodes = ('corpus' in first ? rest : [first, ...rest]) as FormNode[];
+export function createDefaultFormState(context: FormRuntimeContext, ...rootNodes: FormNode[]): NewFormState {
 	return {
 		state: createInitialControllerStates(context, ...rootNodes),
 		uiState: createInitialUiStates(...rootNodes),
@@ -56,35 +77,15 @@ export function createDefaultFormState(first: FormRuntimeContext | FormNode, ...
 	};
 }
 
-export default function createFormState() {
-	const state = ref<Record<string, unknown>>({});
-	const uiState = ref<Record<string, string | null>>({});
-	const rawOverrides = ref<BlackLabParameters>({});
+export default function createFormState(initialState?: FormStateInput) {
+	const state = ref<Record<string, unknown>>(structuredClone(toRaw(initialState?.state ?? {})));
+	const uiState = ref<Record<string, string | null>>(structuredClone(toRaw(initialState?.uiState ?? {})));
+	const rawOverrides = ref<BlackLabParameters>(structuredClone(toRaw(initialState?.rawOverrides ?? {})));
 
-	function replaceState(newState: NewFormState): void {
+	function replaceState(newState: FormStateInput): void {
 		state.value = structuredClone(toRaw(newState.state));
 		uiState.value = structuredClone(toRaw(newState.uiState));
 		rawOverrides.value = structuredClone(toRaw(newState.rawOverrides));
-	}
-
-	function getVModel(id: string) {
-		return {
-			modelValue: computed(() => state.value[id]),
-			'onUpdate:modelValue': (value: unknown) => {
-				state.value[id] = value;
-			},
-		};
-	}
-
-	function addNodeToState(node: AnyBaseFormNode, context: FormRuntimeContext): void {
-		if (isFieldNode(node)) state.value[node.id] = node.controller.createDefaultState(node, context);
-		else if (isContainerNode(node)) uiState.value[node.id] = null;
-	}
-
-	function activateDefaultChild(containerId: string, childId: string): void {
-		if (uiState.value[containerId] == null) {
-			uiState.value[containerId] = childId;
-		}
 	}
 
 	function getRawState(): NewFormState {
@@ -96,15 +97,16 @@ export default function createFormState() {
 	}
 
 	function getReactiveState(): NewFormState {
-		return reactive({ state, uiState, rawOverrides });
+		return {
+			state: state.value,
+			uiState: uiState.value,
+			rawOverrides: rawOverrides.value,
+		};
 	}
 
 	return {
 		replaceState,
 		getRawState,
-		getVModel,
-		addNodeToState,
-		activateDefaultChild,
 		getReactiveState,
 		state,
 		uiState,

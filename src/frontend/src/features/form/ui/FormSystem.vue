@@ -4,24 +4,32 @@
 			<div v-for="override in activeOverrides" :key="override.parameter" class="blf-raw-override">
 				<strong>{{ override.label }}</strong>
 				<code>{{ override.value }}</code>
-				<button type="button" class="btn btn-xs btn-default" @click="props.definition.clearRawOverride(override.parameter)">Clear</button>
+				<button type="button" class="btn btn-xs btn-default" @click="props.runtime.clearRawOverride(override.parameter)">Clear</button>
 			</div>
 		</section>
-		<Component v-if="renderTree" :is="renderTree.is" v-bind="{ ...attrs, ...renderTree.props }" class="blf-form-system" />
+		<Component
+			v-if="renderTree"
+			:is="renderTree.is"
+			v-bind="{ ...attrs, ...renderTree.props }"
+			:key="runtimeRevision"
+			class="blf-form-system"
+			@submit="emit('submit', $event)"
+			@reset="emit('reset')"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, useAttrs, watch } from 'vue';
+import { computed, ref, toRef, useAttrs, watch } from 'vue';
 
-import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
+import type { FormRuntime } from '@/features/form/model/form-runtime';
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
 import type { CompiledFormStateWithSummaries } from '@/features/form/model/types/form-query';
 
 import { provideFormSystemRuntime } from '../model/runtime';
 
 const props = defineProps<{
-	definition: FormBuilder;
+	runtime: FormRuntime;
 	rootId?: string;
 }>();
 
@@ -32,24 +40,15 @@ const emit = defineEmits<{
 	reset: [];
 }>();
 
-provideFormSystemRuntime(props.definition);
+provideFormSystemRuntime(toRef(props, 'runtime'));
 
+// Runtime-bound views may allocate watchers/loaders during setup. Recreate the
+// rendered subtree when the session changes so none survive against old state.
+const runtimeRevision = ref(0);
 watch(
-	() => props.definition,
-	(newForm, _oldForm, onCleanup) => {
-		const unsubscribeSubmit = newForm.onSubmit((formId, snapshot) => {
-			emit('submit', snapshot);
-		});
-		const unsubscribeReset = newForm.onReset(() => emit('reset'));
-		onCleanup(() => {
-			unsubscribeSubmit();
-			unsubscribeReset();
-		});
-	},
-	{ immediate: true },
+	() => props.runtime,
+	() => runtimeRevision.value++,
 );
-
-onUnmounted(() => props.definition.shutdown());
 
 const rawOverrideLabels: Record<BlackLabParameter, string> = {
 	patt: 'Restored CQL',
@@ -57,10 +56,10 @@ const rawOverrideLabels: Record<BlackLabParameter, string> = {
 	searchfield: 'Restored search field',
 };
 
-const renderTree = computed(() => (props.rootId ? props.definition.renderableGraph(props.rootId) : props.definition.renderableGraph()));
+const renderTree = computed(() => props.runtime.renderableGraph(props.rootId));
 
 const activeOverrides = computed(() =>
-	(Object.entries(props.definition.state.rawOverrides.value ?? {}) as Array<[BlackLabParameter, string | null | undefined]>)
+	(Object.entries(props.runtime.state.rawOverrides.value ?? {}) as Array<[BlackLabParameter, string | null | undefined]>)
 		.filter((entry): entry is [BlackLabParameter, string] => !!entry[1])
 		.map(([parameter, value]) => ({
 			parameter,

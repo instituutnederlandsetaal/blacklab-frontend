@@ -1,7 +1,7 @@
 import { createMockI18n } from '@test/mocks/i18n';
 import { defineComponent, h, type PropType } from 'vue';
 
-import { FormBuilder, useFormSystemRuntime, useParentForm, type FormRuntimeContext } from '@/features/form';
+import { FormBuilder, FormRuntime, useFormSystemRuntime, useParentForm, type FormRuntimeContext } from '@/features/form';
 import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import { createFieldController } from '@/features/form/model/types/form-controllers';
 
@@ -92,16 +92,16 @@ const ParentFormProbe = defineComponent({
 		return () =>
 			h('section', { 'data-testid': 'parent-form-probe' }, [
 				h('span', { class: 'form-id' }, parentForm.value),
-				h('span', { class: 'cql' }, runtime.compile(parentForm.value).patt ?? ''),
+				h('span', { class: 'cql' }, runtime.value.compile(parentForm.value).patt ?? ''),
 				h(
 					'span',
 					{ class: 'summaries' },
-					runtime
+					runtime.value
 						.compile(parentForm.value)
 						.summaries.map(summary => `${summary.label}:${summary.value}`)
 						.join('|'),
 				),
-				h('span', { class: 'state' }, JSON.stringify(runtime.state.state.value)),
+				h('span', { class: 'state' }, JSON.stringify(runtime.value.state.state.value)),
 			]);
 	},
 });
@@ -115,6 +115,10 @@ export function createTestContext(): FormRuntimeContext {
 	};
 }
 
-export function createTestBuilder() {
-	return new FormBuilder(createTestContext());
+export function createTestBuilder(context = createTestContext()) {
+	return new FormBuilder(context);
+}
+
+export function createTestRuntime(definition: FormBuilder) {
+	return new FormRuntime(definition);
 }

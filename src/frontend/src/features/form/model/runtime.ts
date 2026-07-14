@@ -1,13 +1,15 @@
-import { inject, provide, type InjectionKey, type Ref } from 'vue';
+import { inject, provide, toRef, type InjectionKey, type Ref } from 'vue';
 
-import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
+import type { FormRuntime } from '@/features/form/model/form-runtime';
 
-const formSystemRuntimeKey: InjectionKey<FormBuilder> = Symbol('formSystemRuntime');
+export type FormRuntimeRef = Readonly<Ref<FormRuntime>>;
+
+const formSystemRuntimeKey: InjectionKey<FormRuntimeRef> = Symbol('formSystemRuntime');
 const parentFormRuntimeKey: InjectionKey<Ref<string>> = Symbol('parentFormRuntime');
-export function provideFormSystemRuntime(runtime: FormBuilder) {
-	provide(formSystemRuntimeKey, runtime);
+export function provideFormSystemRuntime(runtime: FormRuntime | FormRuntimeRef) {
+	provide(formSystemRuntimeKey, toRef(runtime) as FormRuntimeRef);
 }
-export function useFormSystemRuntime(): FormBuilder {
+export function useFormSystemRuntime(): FormRuntimeRef {
 	const runtime = inject(formSystemRuntimeKey);
 	if (!runtime) throw new Error('No form system runtime has been provided.');
 	return runtime;

@@ -1,6 +1,7 @@
 import type { MaybeRefOrGetter } from 'vue';
 
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
+import type { FormValue } from '@/features/form/model/types/form-shape';
 import type { TotalsViewState } from '@/features/form/model/views/totals-view';
 
 export type SummaryTotalsInput = {
@@ -15,7 +16,7 @@ export type SummaryTotalsController = {
 };
 
 export type SummaryViewConfig = {
-	title?: MaybeRefOrGetter<string>;
+	title?: FormValue<string>;
 	/** Show entries whose controller affects at least one of these parameters. */
 	summaryType?: BlackLabParameter | BlackLabParameter[];
 	showRaw?: boolean;

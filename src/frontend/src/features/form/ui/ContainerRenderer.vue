@@ -8,23 +8,16 @@
 				<span v-if="activeQueryContributionCounts[tab.value]" class="badge">{{ activeQueryContributionCounts[tab.value] }}</span>
 			</template>
 		</Tabs>
-		<!-- <div :class="['tab-content', { 'panel-body': isForm }]"> -->
 
-		<!-- We're a tabbed form, we should have the tab content inside a panel, with the footer outsid the panel, containing the submit buttons  -->
-
-		<!-- <div class="panel-body blf-form-container-body"> -->
 		<!-- todo something with active class, and show/hide mode in the tabs? might need to wrap this in tab component so suspense can work? -->
-		<Component v-if="activeChild" :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset" />
-		<!-- </div> -->
-
-		<!-- <div v-if="activeChild" :id="tabPanelId(props.id, activeChild.props.id)" class="tab-pane active" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)"> -->
-		<!-- </div> -->
+		<div v-if="activeChild" :id="tabPanelId(props.id, activeChild.props.id)" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)">
+			<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset" />
+		</div>
 
 		<div class="panel-footer blf-form-actions" v-if="isForm">
 			<button class="btn btn-primary" type="submit">{{ $t(`queryForm.search`) }}</button>
 			<button class="btn btn-default" type="reset">{{ $t(`queryForm.reset`) }}</button>
 		</div>
-		<!-- </div> -->
 	</component>
 
 	<component v-else :is="isForm ? 'form' : 'div'" @submit.stop.prevent="submit" @reset.stop.prevent="reset" :class="['blf-form-container', variant]">
@@ -35,40 +28,6 @@
 			<button class="btn btn-default" type="reset">{{ $t(`queryForm.reset`) }}</button>
 		</div>
 	</component>
-
-	<!-- </component> -->
-
-	<!-- 
-		# Implementation note, pseudocode
-
-		# need several different layouts depending on how we're rendered.
-		# if inside a tabbed container
-		  # if istabbed
-		  #   tabs
-		  #   content
-		  # else 
-		  #  content 
-		  #  
-
-		title if !hideTitle
-		tabs if isTabbed
-		
-		
-	 
-	-->
-
-	<!-- <Component :is="isForm ? 'form' : 'section'" :class="containerClasses" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
-		<template v-if="presentation.tabs || presentation['small-tabs']"> </template>
-
-		<div v-else :class="isForm ? 'panel-body blf-form-body' : 'blf-container-list'">
-			<Component v-for="child in children" :is="child.is" v-bind="child.props" :key="child.props.id" />
-		</div>
-
-		<footer v-if="isForm" class="panel-footer blf-form-actions">
-			<button class="btn btn-primary" type="submit">{{ $t(`queryForm.search`) }}</button>
-			<button class="btn btn-default" type="reset">{{ $t(`queryForm.reset`) }}</button>
-		</footer>
-	</Component> -->
 </template>
 
 <script setup lang="ts">
@@ -78,7 +37,7 @@ import { hasQueryContributions } from '@/features/form/model/compile/query-artif
 import { decodeVariants, getAllNodes } from '@/features/form/model/form-utils';
 import { provideParentForm } from '@/features/form/model/runtime';
 import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
-import { createTabs } from '@/features/form/ui/tab-utils';
+import { createTabs, tabId, tabPanelId } from '@/features/form/ui/tab-utils';
 
 import type { CompiledFormStateWithSummaries, ImplicitContainerComponentProps } from '../model/types';
 
@@ -104,9 +63,11 @@ const activeQueryContributionCounts = computed<Record<string, number>>(() => {
 
 	return Object.fromEntries(
 		props.children.map(child => {
-			const node = runtime.getNode(child.props.id);
+			const node = runtime.value.definition.getNode(child.props.id);
 			const count = node
-				? getAllNodes(node, 'field').filter(field => hasQueryContributions(field.controller.getQueryContribution(field, runtime.context, runtime.state.state.value[field.id]).query)).length
+				? getAllNodes(node, 'field').filter(field =>
+						hasQueryContributions(field.controller.getQueryContribution(field, runtime.value.definition.context, runtime.value.state.state.value[field.id]).query),
+					).length
 				: 0;
 			return [child.props.id, count];
 		}),
@@ -123,12 +84,12 @@ if (props.kind === 'form') {
 }
 
 function submit() {
-	if (props.kind === 'form') emit('submit', runtime.submit(props.id));
+	if (props.kind === 'form') emit('submit', runtime.value.compile(props.id));
 }
 
 function reset() {
 	if (props.kind !== 'form') return;
-	runtime.reset();
+	runtime.value.reset();
 	emit('reset');
 }
 
@@ -142,15 +103,6 @@ function forwardReset() {
 </script>
 
 <style lang="scss">
-.blf-form {
-	margin-bottom: 0;
-}
-
-.blf-form-title {
-	font-weight: 700;
-	font-size: 1.15em;
-}
-
 .blf-form-body {
 	display: grid;
 	gap: 16px;

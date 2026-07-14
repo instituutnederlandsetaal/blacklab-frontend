@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest';
+import { isReactive, reactive } from 'vue';
 
 import { buildQueryIR, createDefaultFormState, type QueryCombineMode } from '@/features/form';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 
-import { TestTextField, createTestBuilder, parentFormProbeView, testTextController } from './helpers';
+import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, parentFormProbeView, testTextController } from './helpers';
 
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
@@ -78,18 +79,38 @@ function createCompositionFixture(combine: QueryCombineMode) {
 		displayName: 'Lemma',
 	});
 	builder.newForm('search.form', ContainerRenderer, { title: 'Search' }).addChildren(builder.newContainer('search.group', ContainerRenderer, { combine }).addChildren(word, lemma));
-	builder.state.state.value[word.id] = sharedStateExpectation.word;
-	builder.state.state.value[lemma.id] = sharedStateExpectation.lemma;
+	const runtime = createTestRuntime(builder);
+	runtime.state.state.value[word.id] = sharedStateExpectation.word;
+	runtime.state.state.value[lemma.id] = sharedStateExpectation.lemma;
 
-	return builder;
+	return runtime;
 }
 
 describe('form model state', () => {
-	test('field defaults receive the builder runtime both during registration and reset', () => {
+	test('keeps the definition plain and runtime sessions isolated', () => {
+		const builder = createTestBuilder(reactive(createTestContext()));
+		const field = builder.newField('search.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+		builder.newForm('search.form', ContainerRenderer, { title: 'Search' }).addChildren(field);
+		const first = createTestRuntime(builder);
+		const second = createTestRuntime(builder);
+
+		expect(isReactive(builder.getRoot())).toBe(false);
+		expect(isReactive(builder.context)).toBe(false);
+		expect(isReactive(builder.context.corpus)).toBe(false);
+		expect('state' in builder).toBe(false);
+
+		first.state.state.value[field.id] = { value: 'water' };
+		expect(second.state.state.value[field.id]).toEqual({ value: '' });
+	});
+
+	test('field defaults receive definition context during runtime creation and reset', () => {
 		const builder = createTestBuilder();
 		const contextAwareController = {
 			...testTextController,
-			createDefaultState: (_field: unknown, context: typeof builder.context) => ({ value: context.corpus.indexId ?? '' }),
+			createDefaultState: (_field: unknown, context: ReturnType<typeof createTestContext>) => ({ value: context.corpus.indexId ?? '' }),
 		};
 		const field = builder.newField('search.context-aware', contextAwareController, TestTextField, {
 			annotationId: 'word',
@@ -97,10 +118,11 @@ describe('form model state', () => {
 		});
 		builder.newForm('search.form', ContainerRenderer, { title: 'Search' }).addChildren(field);
 
-		expect(builder.state.state.value[field.id]).toEqual({ value: 'test-corpus' });
-		builder.state.state.value[field.id] = { value: 'changed' };
-		builder.reset();
-		expect(builder.state.state.value[field.id]).toEqual({ value: 'test-corpus' });
+		const runtime = createTestRuntime(builder);
+		expect(runtime.state.state.value[field.id]).toEqual({ value: 'test-corpus' });
+		runtime.state.state.value[field.id] = { value: 'changed' };
+		runtime.reset();
+		expect(runtime.state.state.value[field.id]).toEqual({ value: 'test-corpus' });
 	});
 
 	test('prefers the first form root over earlier reusable orphan containers', () => {
@@ -132,7 +154,7 @@ describe('form model state', () => {
 			builder.newForm('search.second', ContainerRenderer, { title: 'Second' }).addChildren(sharedField),
 		);
 
-		expect(createDefaultFormState(builder.getRoot(), builder.context).state).toEqual({
+		expect(createDefaultFormState(createTestContext(), builder.getRoot()).state).toEqual({
 			'shared.word': { value: '' },
 		});
 	});
@@ -152,7 +174,7 @@ describe('form model state', () => {
 
 	test.each(compositionExpectations)('$name', ({ combine, expected }) => {
 		const fixture = createCompositionFixture(combine);
-		const { query, summaries } = buildQueryIR(fixture.getRoot(), fixture.state.getRawState(), fixture.context);
+		const { query, summaries } = buildQueryIR(fixture.definition.getRoot(), fixture.state.getRawState(), fixture.definition.context);
 		const compiled = compileQueryIR(query);
 
 		expect(compiled).toEqual(expected.compiled);
@@ -179,7 +201,8 @@ describe('form model state', () => {
 			builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }),
 		);
 
-		expect(builder.state.uiState.value).toEqual({
+		const runtime = createTestRuntime(builder);
+		expect(runtime.state.uiState.value).toEqual({
 			search: 'search.simple',
 			'search.simple': 'search.simple.filters',
 			'search.simple.filters': 'search.simple.filters.bibliographic',
@@ -191,7 +214,7 @@ describe('form model state', () => {
 		builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
 		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 
-		expect(Object.keys(builder.formsMap.value).sort()).toEqual(['search.extended', 'search.simple']);
+		expect(Object.keys(builder.formsMap).sort()).toEqual(['search.extended', 'search.simple']);
 	});
 
 	test('replaceState removes stale field and UI entries', () => {
@@ -202,11 +225,12 @@ describe('form model state', () => {
 			displayName: 'Word',
 		});
 		form.addChildren(field);
-		builder.state.state.value.stale = { value: 'stale' };
-		builder.state.uiState.value.stale = 'stale';
+		const runtime = createTestRuntime(builder);
+		runtime.state.state.value.stale = { value: 'stale' };
+		runtime.state.uiState.value.stale = 'stale';
 
-		builder.state.replaceState({ state: { [field.id]: { value: 'water' } }, uiState: {}, rawOverrides: {} });
+		runtime.state.replaceState({ state: { [field.id]: { value: 'water' } }, uiState: {}, rawOverrides: {} });
 
-		expect(builder.state.getRawState()).toEqual({ state: { [field.id]: { value: 'water' } }, uiState: {}, rawOverrides: {} });
+		expect(runtime.state.getRawState()).toEqual({ state: { [field.id]: { value: 'water' } }, uiState: {}, rawOverrides: {} });
 	});
 });

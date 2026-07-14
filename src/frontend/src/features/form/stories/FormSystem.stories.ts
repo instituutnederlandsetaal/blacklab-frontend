@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
-import { markRaw, watchEffect } from 'vue';
+import { watchEffect } from 'vue';
 
-import { annotationTextController, expertQueryController, filterTextController, FormBuilder, parallelController, type NewFormState } from '@/features/form';
+import { annotationTextController, expertQueryController, filterTextController, FormBuilder, FormRuntime, parallelController, type FormRuntimeContext } from '@/features/form';
 import { createDefaultFormState } from '@/features/form/model/state';
 import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 
@@ -22,8 +22,7 @@ type OverrideStoryArgs = {
 };
 
 type FormSystemStoryModel = {
-	definition: FormBuilder;
-	initialState: NewFormState;
+	runtime: FormRuntime;
 };
 
 const overrideValues = {
@@ -65,13 +64,14 @@ export default meta;
 type Story = StoryObj<OverrideStoryArgs>;
 
 function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
-	const definition = new FormBuilder({
+	const context: FormRuntimeContext = {
 		corpus: {
 			indexId: 'storybook-raw-overrides',
 			textDirection: 'ltr',
 		},
 		translate,
-	});
+	};
+	const definition = new FormBuilder(context);
 
 	definition.newForm('raw-overrides.demo', ContainerRenderer, { title: 'Raw override locking' }).addChildren(
 		definition.newView('raw-overrides.demo.heading', HeadingView, {
@@ -94,7 +94,7 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 			child: {
 				id: 'query',
 				controller: expertQueryController,
-				component: markRaw(RawCqlField),
+				component: RawCqlField,
 				config: {},
 			},
 			fieldOptions: [
@@ -110,7 +110,7 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 		}),
 	);
 
-	const initialState = createDefaultFormState(definition.getRoot(), definition.context);
+	const initialState = createDefaultFormState(context, definition.getRoot());
 	initialState.state['raw-overrides.demo.word'] = {
 		value: 'water',
 		caseSensitive: false,
@@ -130,19 +130,15 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 		},
 	};
 
-	definition.state.replaceState(initialState);
-	return {
-		definition,
-		initialState,
-	};
+	return { runtime: new FormRuntime(definition, initialState) };
 }
 
-function applyRawOverrides(definition: FormBuilder, args: OverrideStoryArgs) {
+function applyRawOverrides(runtime: FormRuntime, args: OverrideStoryArgs) {
 	const rawOverrides: BlackLabParameters = {};
 	if (args.pattOverride) rawOverrides.patt = overrideValues.patt;
 	if (args.filterOverride) rawOverrides.filter = overrideValues.filter;
 	if (args.searchfieldOverride) rawOverrides.searchfield = overrideValues.searchfield;
-	definition.state.rawOverrides.value = rawOverrides;
+	runtime.state.rawOverrides.value = rawOverrides;
 }
 
 export const RawOverridesLockFields: Story = {
@@ -150,21 +146,22 @@ export const RawOverridesLockFields: Story = {
 		components: { FormSystemStoryHarness },
 		setup() {
 			const model = createOverrideStoryModel(useI18n());
-			watchEffect(() => applyRawOverrides(model.definition, args));
+			watchEffect(() => applyRawOverrides(model.runtime, args));
 			return model;
 		},
-		template: '<FormSystemStoryHarness :definition :initial-state="initialState" />',
+		template: '<FormSystemStoryHarness :runtime />',
 	}),
 };
 
 function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryModel {
-	const definition = new FormBuilder({
+	const context: FormRuntimeContext = {
 		corpus: {
 			indexId: 'storybook-progressive-layouts',
 			textDirection: 'ltr',
 		},
 		translate,
-	});
+	};
+	const definition = new FormBuilder(context);
 
 	const root = definition.newContainer('layout-lab', ContainerRenderer, {
 		title: 'Form layout laboratory',
@@ -367,7 +364,7 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 
 	root.addChildren(directFieldsForm, listFieldsForm, tabbedForms, nestedTabs);
 
-	const initialState = createDefaultFormState(definition.getRoot(), definition.context);
+	const initialState = createDefaultFormState(context, definition.getRoot());
 	initialState.state['layout-lab.1-direct-fields.word'] = { value: 'river', caseSensitive: false };
 	initialState.state['layout-lab.1-direct-fields.lemma'] = { value: 'flow', caseSensitive: false };
 	initialState.state['layout-lab.2-list-fields.word'] = { value: 'water', caseSensitive: false };
@@ -381,8 +378,7 @@ function createProgressiveLayoutsModel(translate: Translate): FormSystemStoryMod
 	initialState.state['layout-lab.4-nested-tabs.forms.options.sections.details.title'] = { value: 'To the Lighthouse', caseSensitive: false };
 	initialState.state['layout-lab.4-nested-tabs.preview.keyword'] = { value: 'harbour', caseSensitive: false };
 
-	definition.state.replaceState(initialState);
-	return { definition, initialState };
+	return { runtime: new FormRuntime(definition, initialState) };
 }
 
 export const ProgressiveLayouts: Story = {
@@ -391,6 +387,6 @@ export const ProgressiveLayouts: Story = {
 		setup() {
 			return createProgressiveLayoutsModel(useI18n());
 		},
-		template: '<FormSystemStoryHarness :definition :initial-state="initialState" />',
+		template: '<FormSystemStoryHarness :runtime />',
 	}),
 };

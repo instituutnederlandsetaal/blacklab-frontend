@@ -6,10 +6,10 @@ next migration steps, not as a full form-system reference.
 
 ## Key Decisions
 
-- The new form system is integrated through one shared `FormBuilder` instance.
-  `createSearchFormSystem()` creates a computed definition from the loaded
-  corpus, tagset, BlackLab API, and i18n translator. The same definition is
-  used by the search UI and by URL parsing/restoration.
+- The new form system uses a computed, plain `FormBuilder` definition and a
+  separate shared `FormRuntime`. `createSearchFormSystem()` replaces the runtime
+  when corpus/configuration changes. The search UI and URL restoration share the
+  runtime session, while the definition remains free of Vue state.
 
 - The submitted query remains mostly legacy-shaped. A new-form submit is stored
   as normal `search/simple` query state with an attached compiled snapshot
@@ -52,15 +52,14 @@ next migration steps, not as a full form-system reference.
 
 ### URL To New Form
 
-1. `url-state-sync` constructs `UrlStateParserSearch` with the shared
-   `FormBuilder`.
+1. `url-state-sync` obtains the shared `FormRuntime`.
 2. `UrlStateParserSearch.get()` parses canonical CQL as before, then calls the
    new-form restore path.
-3. If `f.*` params exist, `restoreScopedFormState(builder, params, canonical)`
-   restores field state and records raw overrides for any canonical params the
-   form cannot reproduce.
+3. If `f.*` params exist,
+   `restoreFormState(runtime.definition, route.query)` restores field state and
+   records raw overrides for any canonical params the form cannot reproduce.
 4. If `f.*` params are absent but the legacy URL is a plain simple search, the
-   parser builds a minimal scoped query and restores that into the builder.
+   parser builds a minimal scoped query and restores that into the runtime.
 5. Otherwise, canonical params become raw overrides. The form remains useful as
    a display/submit host, but locked fields indicate that the URL contains query
    state outside the form's editable surface.
@@ -70,20 +69,20 @@ next migration steps, not as a full form-system reference.
 - When URL reflection pushes a search URL, `toBrowserHistoryEntry()` still
   creates a legacy-shaped history entry. The attached browser history state is
   useful for fast restore, but search routes with a new form are reparsed from
-  the URL on popstate so the shared builder receives the latest `f.*` state.
+  the URL on popstate so the shared runtime receives the latest `f.*` state.
 
 - Query history display uses the normal summary path. For new-form submissions,
   `QueryStore.get.patternSummary()` reads the submitted form summaries. If no
   summary is available, history falls back to the canonical pattern string.
 
 - Loading an entry from the history modal reparses the entry URL when available.
-  This ensures `f.*` params restore into the form builder instead of only
+  This ensures `f.*` params restore into the form runtime instead of only
   replacing legacy store state.
 
 - Importing saved query files also reparses the saved URL whenever a new form
   definition is available, even if the saved history version is current. This is
   necessary because the serialized history entry does not contain live
-  `FormBuilder` state.
+  `FormRuntime` state.
 
 ## Extending The Migration
 

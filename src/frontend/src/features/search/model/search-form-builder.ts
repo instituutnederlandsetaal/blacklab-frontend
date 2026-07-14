@@ -1,6 +1,4 @@
-// oxlint-disable-next-line vue/prefer-import-from-vue -- pauseTracking/resetTracking are not exported by this Vue package entrypoint.
-import { markRaw, pauseTracking, resetTracking } from '@vue/reactivity';
-import { computed, type ComputedRef, type ObjectPlugin, type Ref } from 'vue';
+import { computed, shallowRef, watch, type ObjectPlugin, type Ref, type ShallowRef } from 'vue';
 
 import type { Corpus } from '@/app/state/useCorpusContext';
 import {
@@ -14,15 +12,18 @@ import {
 	filterRangeController,
 	filterSelectController,
 	filterTextController,
+	createDefaultFormState,
 	FormBuilder,
+	FormRuntime,
 	parallelController,
 	RangeField,
 	type FormFieldNode,
-	type FormRuntimeContext,
+	type NewFormState,
 	withinController,
 } from '@/features/form';
 import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
-import type { ParallelFieldState } from '@/features/form/model/controllers/parallel-controller';
+import type { WithinFieldOption } from '@/features/form/model/controllers/within-controller';
+import { isContainerNode } from '@/features/form/model/form-utils';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import { createSearchFormTotalsFactory } from '@/features/search/model/search-form-totals';
@@ -45,6 +46,8 @@ import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
 
+// TODO integration customization.ts callback functions
+
 const SEARCH_FORM_ID_PREFIX = 'search.';
 
 type CreateSearchFormSystemOptions = {
@@ -55,7 +58,7 @@ type CreateSearchFormSystemOptions = {
 	translate: Translate;
 };
 
-const [_searchFormSystemKey, provideSearchFormSystem, useSearchFormSystem] = useInjectable<ComputedRef<FormBuilder | null>>('searchFormSystem');
+const [_searchFormSystemKey, provideSearchFormSystem, useSearchFormSystem] = useInjectable<Readonly<Ref<FormRuntime | null>>>('searchFormSystem');
 
 function toSafeHtmlId(value: string): string {
 	return value.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'group';
@@ -75,8 +78,8 @@ function createAnnotationTextField(
 		annotationId: annotation.id,
 		autocomplete: annotation.uiType !== 'text' ? (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term) : undefined,
 		caseSensitive: annotation.caseSensitive,
-		description: computed(() => translate.$tAnnotDescription(annotation)),
-		displayName: computed(() => translate.$tAnnotDisplayName(annotation)),
+		description: () => translate.$tAnnotDescription(annotation),
+		displayName: () => translate.$tAnnotDisplayName(annotation),
 		groupId,
 		textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
 		variant: isSimpleSearch ? ['large', 'simple'] : undefined,
@@ -94,8 +97,8 @@ function createAnnotationField(
 	translate: Translate,
 	groupId?: string,
 ): FormFieldNode {
-	const displayName = computed(() => translate.$tAnnotDisplayName(annotation));
-	const description = computed(() => translate.$tAnnotDescription(annotation));
+	const displayName = () => translate.$tAnnotDisplayName(annotation);
+	const description = () => translate.$tAnnotDescription(annotation);
 	const textDirection = annotation.isMainAnnotation ? corpus.textDirection : undefined;
 
 	if (annotation.uiType === 'pos') {
@@ -148,35 +151,35 @@ function createAnnotationField(
 	}
 }
 
-function createWithinField(builder: FormBuilder, corpus: Corpus, configuration: SearchFormConfiguration, translate: Translate): FormFieldNode | null {
+function createWithinField(builder: FormBuilder, corpus: Corpus, configuration: SearchFormConfiguration): FormFieldNode | null {
 	const spans = corpus.relations?.spans;
 	if (!configuration.within.enabled || !spans || !Object.keys(spans).length) return null;
 
+	// TODO use customization within.includeSpan. Null or true signifies include, false signifies exclude. If no customization is provided, include all spans.
 	const configuredElements = configuration.within.elements.filter(option => !option.value || spans[option.value]);
-	const elements = configuredElements.length
-		? configuredElements
-		: Object.keys(spans)
-				.sort((left, right) => translate.$tSpanDisplayName({ value: left, label: left }).localeCompare(translate.$tSpanDisplayName({ value: right, label: right })))
-				.map(value => ({ value, label: value }));
-	const options = (elements.some(option => !option.value) ? elements : [{ value: '' }, ...elements]).map(option => ({
+	const elements = configuredElements.length ? configuredElements : Object.keys(spans).map(value => ({ value, label: value }));
+	if (!elements.some(e => !e.value)) elements.unshift({ value: '', label: '' });
+	const options = elements.map<WithinFieldOption>(option => ({
 		...option,
+		// TODO customization within.includeAttribute
 		attributes: option.value
-			? Object.keys(spans[option.value]?.attributes ?? {})
-					.sort((left, right) => translate.$tSpanAttributeDisplay(option.value, left).localeCompare(translate.$tSpanAttributeDisplay(option.value, right)))
-					.map(attribute => ({
-						value: attribute,
-						label: attribute,
-					}))
+			? Object.keys(spans[option.value]?.attributes ?? {}).map(attribute => ({
+					value: attribute,
+					label: attribute,
+				}))
 			: [],
 	}));
 
-	return builder.newField('shared.within', withinController, WithinField, { options });
+	return builder.newField('shared.within', withinController, WithinField, {
+		options,
+		sortOptions: !configuredElements.length,
+	});
 }
 
 function createFilterField(builder: FormBuilder, nodeId: string, field: NormalizedMetadataField, corpus: Corpus, blacklabApi: BlackLabApi, translate: Translate, groupId?: string): FormFieldNode {
 	const common = {
-		description: computed(() => translate.$tMetaDescription(field)),
-		displayName: computed(() => translate.$tMetaDisplayName(field)),
+		description: () => translate.$tMetaDescription(field),
+		displayName: () => translate.$tMetaDisplayName(field),
 		groupId,
 		metadataFieldId: field.id,
 		textDirection: corpus.textDirection,
@@ -235,13 +238,12 @@ function createSharedFilters(
 	if (!groups.length) return null;
 
 	const tabs = builder.newContainer('shared.filters', ContainerRenderer, {
-		// title: computed(() => translate.$t('filter.heading')),
 		variant: ['tabs', 'tab-badges'],
 	});
 
 	for (const { fields, group } of groups) {
 		const tab = builder.newContainer(`${tabs.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
-			title: computed(() => translate.$tMetaGroupName(group) || group.id),
+			title: () => translate.$tMetaGroupName(group) || group.id,
 		});
 		for (const field of fields) {
 			const nodeId = `${tab.id}.${toSafeHtmlId(field.id)}`;
@@ -252,9 +254,7 @@ function createSharedFilters(
 	}
 
 	return builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
-		builder.newView('shared.filters.heading', HeadingView, {
-			title: computed(() => translate.$t('filter.heading')),
-		}),
+		builder.newView('shared.filters.heading', HeadingView, { title: () => translate.$t('filter.heading') }),
 		tabs,
 		builder.newView('shared.filters.summary', SummaryView, {
 			createTotals: createSearchFormTotalsFactory(corpus, blacklabApi),
@@ -307,7 +307,7 @@ function createExtendedAnnotationTabs(
 
 	for (const { annotations, group } of groups) {
 		const tab = builder.newContainer(`${tabs.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
-			title: computed(() => translate.$tAnnotGroupName(group)),
+			title: () => translate.$tAnnotGroupName(group),
 			variant: 'list',
 		});
 		populateTab(tab, annotations, group.id);
@@ -329,19 +329,19 @@ function getSimpleSearchAnnotation(corpus: Corpus, configuration: SearchFormConf
 }
 
 function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, configuration: SearchFormConfiguration, blacklabApi: BlackLabApi, translate: Translate): FormBuilder {
-	const context: FormRuntimeContext = {
+	const builder = new FormBuilder({
 		corpus: {
 			indexId: corpus.id,
+			isParallelCorpus: corpus.isParallelCorpus,
 			textDirection: corpus.textDirection,
 		},
 		translate,
-	};
-	const builder = new FormBuilder(context);
+	});
 	const annotation = getSimpleSearchAnnotation(corpus, configuration);
-	const sharedWithin = createWithinField(builder, corpus, configuration, translate);
+	const sharedWithin = createWithinField(builder, corpus, configuration);
 	const sharedFilters = createSharedFilters(builder, corpus, configuration, blacklabApi, translate);
 	const form = builder.newForm(getNewSearchFormId('simple'), ContainerRenderer, {
-		title: computed(() => translate.$t('search.simple.heading')),
+		title: () => translate.$t('search.simple.heading'),
 		variant: sharedFilters ? 'columns' : undefined,
 	});
 	const simpleQuery = builder.newContainer('search.simple.query.wrapper', ContainerRenderer, { variant: 'list' });
@@ -350,43 +350,36 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 		const childConfig = {
 			annotationId: annotation.id,
 			caseSensitive: false,
-			description: computed(() => translate.$tAnnotDescription(annotation)),
-			displayName: computed(() => translate.$tAnnotDisplayName(annotation)),
+			description: () => translate.$tAnnotDescription(annotation),
+			displayName: () => translate.$tAnnotDisplayName(annotation),
 			textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
 			variant: 'large' as const,
 		};
 		const field = builder.newField('search.simple.parallel', parallelController, ParallelField, {
 			alignByOptions: configuration.alignBy.enabled ? configuration.alignBy.elements : [],
 			defaultAlignBy: configuration.alignBy.defaultValue || null,
+			defaultSource: corpus.parallelAnnotatedFields[0]?.id ?? null,
 			child: {
 				id: 'query',
 				controller: annotationTextController,
-				component: markRaw(TextField),
+				component: TextField,
 				config: childConfig,
 			},
 			fieldOptions: corpus.parallelAnnotatedFields,
 		});
 		simpleQuery.addChildren(field);
-
-		const state = builder.state.state.value[field.id] as ParallelFieldState;
-		state.source = corpus.parallelAnnotatedFields[0]?.id ?? null;
 	} else {
 		simpleQuery.addChildren(createAnnotationField(builder, 'search.simple.annotation', annotation, corpus, tagset, blacklabApi, configuration, translate));
 	}
 	form.addChildren(simpleQuery, sharedFilters);
 
 	const extendedForm = builder.newForm(getNewSearchFormId('extended'), ContainerRenderer, {
-		// title: computed(() => translate.$t('search.extended.heading')),
 		variant: 'columns',
 	});
 	extendedForm.addChildren(
-		builder.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
-			// builder.newView('search.extended.heading', HeadingView, {
-			// 	title: computed(() => translate.$t('search.heading')),
-			// }),
-			createExtendedAnnotationTabs(builder, corpus, tagset, configuration, blacklabApi, translate),
-			sharedWithin,
-		),
+		builder
+			.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' })
+			.addChildren(createExtendedAnnotationTabs(builder, corpus, tagset, configuration, blacklabApi, translate), sharedWithin),
 		sharedFilters,
 	);
 
@@ -394,38 +387,70 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 }
 
 type SearchFormSystemPlugin = ObjectPlugin & {
-	definition: ComputedRef<FormBuilder | null>;
+	runtime: ShallowRef<FormRuntime | null>;
 };
+
+/**
+ * Create an initial state for the new form, then copy over all compatible fields and container states from the old form.
+ *
+ * @param definition the new form definition
+ * @param previousRuntime the old form definition + state
+ * @returns a new state object for the new form, with all compatible state copied over, and initial state for new and incompatible nodes
+ */
+function stateForReplacementDefinition(definition: FormBuilder, previousRuntime: FormRuntime | null): NewFormState {
+	const state = createDefaultFormState(definition.context, ...definition.nodeList);
+	if (!previousRuntime || previousRuntime.definition.context.corpus.indexId !== definition.context.corpus.indexId) return state;
+
+	const previousState = previousRuntime.state.getRawState();
+	for (const node of definition.nodeList) {
+		const previousNode = previousRuntime.definition.getNode(node.id);
+		if (node.kind === 'field') {
+			// A stable id alone is insufficient: a definition change may replace a
+			// text field with a controller whose state has a different shape.
+			if (previousNode?.kind === 'field' && previousNode.controller === node.controller && Object.hasOwn(previousState.state, node.id)) {
+				state.state[node.id] = previousState.state[node.id];
+			}
+			continue;
+		}
+
+		if (isContainerNode(node) && Object.hasOwn(previousState.uiState, node.id)) {
+			const activeChildId = previousState.uiState[node.id];
+			if (activeChildId === null || node.children.some(child => child.id === activeChildId)) state.uiState[node.id] = activeChildId;
+		}
+	}
+	state.rawOverrides = previousState.rawOverrides;
+	return state;
+}
 
 const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchFormSystemPlugin => {
 	const definition = computed(() => {
 		const corpus = options.corpus.value;
+		if (!corpus) return null;
 		const tagset = options.tagset.value;
 		const configuration = options.configuration.value;
-		if (!corpus) return null;
-
-		// FIXME: this is a hack!
-		// we're creating the form definition in a computed,
-		// but the form definition is also mutable, and keeps internal (reactive) state (the form state)
-		// This means that we technically return a mutable object from a computed
-		// Additionally, the form was ending up in it own reactive dependencies,
-		// which means it creates an infinite computed loop if we don't suspend tracking while creating the form definition.
-		// All in all, poorly designed, and we really should work to separate out definition from state and runtime component graph
-		pauseTracking();
-		try {
-			return createSearchFormDefinition(corpus, tagset, configuration, options.blacklabApi, options.translate);
-		} finally {
-			resetTracking();
-		}
+		return createSearchFormDefinition(corpus, tagset, configuration, options.blacklabApi, options.translate);
 	});
-	return {
-		install: app => provideSearchFormSystem(app, definition),
+	const runtime = shallowRef<FormRuntime | null>(null);
+	watch(
 		definition,
+		currentDefinition => {
+			if (!currentDefinition) {
+				runtime.value = null;
+				return;
+			}
+
+			runtime.value = new FormRuntime(currentDefinition, stateForReplacementDefinition(currentDefinition, runtime.value));
+		},
+		{ flush: 'sync', immediate: true },
+	);
+	return {
+		install: app => provideSearchFormSystem(app, runtime),
+		runtime,
 	};
 };
 
-export function hasNewSearchFormForPattern(definition: FormBuilder | null | undefined, patternMode: PatternMode): boolean {
-	return !!definition?.getForm(getNewSearchFormId(patternMode));
+export function hasNewSearchFormForPattern(runtime: FormRuntime | null | undefined, patternMode: PatternMode): boolean {
+	return !!runtime?.definition.getForm(getNewSearchFormId(patternMode));
 }
 
 export function getNewSearchFormId(patternMode: PatternMode): string {

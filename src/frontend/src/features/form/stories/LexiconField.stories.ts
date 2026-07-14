@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 
-import { annotationTextController, createLexiconLookup, FormBuilder } from '@/features/form';
+import { annotationTextController, createLexiconLookup, FormBuilder, FormRuntime } from '@/features/form';
 
 import { useI18n } from '@/shared/i18n';
 
@@ -26,13 +26,14 @@ export const ProductionLexiconService: Story = {
 		components: { FormSystemStoryHarness },
 		setup() {
 			const translate = useI18n();
-			const definition = new FormBuilder({
+			const context = {
 				corpus: {
 					indexId: 'storybook-lexicon',
-					textDirection: 'ltr',
+					textDirection: 'ltr' as const,
 				},
 				translate,
-			});
+			};
+			const definition = new FormBuilder(context);
 			const field = definition.newField('lexicon-demo', annotationTextController, LexiconField, {
 				annotationId: 'word',
 				displayName: 'Lexicon',
@@ -51,8 +52,8 @@ export const ProductionLexiconService: Story = {
 				}),
 			);
 
-			return { definition };
+			return { runtime: new FormRuntime(definition) };
 		},
-		template: '<FormSystemStoryHarness :definition />',
+		template: '<FormSystemStoryHarness :runtime />',
 	}),
 };

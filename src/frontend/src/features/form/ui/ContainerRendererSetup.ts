@@ -17,7 +17,7 @@ export default function containerRendererSetup(props: ImplicitContainerComponent
 
 	const activeChildId = computed({
 		get(): string | null {
-			return runtime.state.uiState.value[props.id] ?? props.children[0]?.props.id ?? null;
+			return runtime.value.state.uiState.value[props.id] ?? props.children[0]?.props.id ?? null;
 		},
 		set(value: string) {
 			const child = childrenById.value[value];
@@ -26,7 +26,7 @@ export default function containerRendererSetup(props: ImplicitContainerComponent
 				return;
 			}
 
-			runtime.state.uiState.value[props.id] = value;
+			runtime.value.state.uiState.value[props.id] = value;
 		},
 	});
 

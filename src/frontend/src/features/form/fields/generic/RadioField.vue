@@ -2,7 +2,7 @@
 	<div :class="fieldClasses" :id="htmlId">
 		<fieldset>
 			<legend v-if="showLabel">
-				{{ displayName }}<debug> [{{ id }}]</debug>
+				{{ resolvedDisplayName }}<debug> [{{ id }}]</debug>
 			</legend>
 			<div v-for="(option, index) in options" :key="index" class="radio">
 				<label :for="`${inputId}_${index}`" :title="option.title || ''">
@@ -20,12 +20,12 @@
 				</label>
 			</div>
 		</fieldset>
-		<small v-if="description" class="help-block">{{ description }}</small>
+		<small v-if="resolvedDescription" class="help-block">{{ resolvedDescription }}</small>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toValue } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
@@ -43,6 +43,8 @@ const emit = defineEmits<{
 
 const inputId = computed(() => `${props.htmlId}_value`);
 const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
+const resolvedDisplayName = computed(() => toValue(props.displayName));
+const resolvedDescription = computed(() => (props.description ? toValue(props.description) : undefined));
 
 function changeValue(event: Event, value: string) {
 	const target = event.target as HTMLInputElement | null;

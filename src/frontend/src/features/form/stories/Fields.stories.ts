@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
-import { computed, markRaw } from 'vue';
+import { computed } from 'vue';
 
 import type { AnnotationPosFieldConfig, AnnotationReference } from '@/features/form/fields/annotation-pos-field';
 import {
@@ -13,6 +13,7 @@ import {
 	filterRangeController,
 	filterSelectController,
 	FormBuilder,
+	FormRuntime,
 	parallelController,
 	withinController,
 	type FormFieldNode,
@@ -125,7 +126,8 @@ function createFieldStory<State>(buildField: (builder: FormBuilder) => FormField
 		render: args => ({
 			components: { FormSystemStoryHarness },
 			setup() {
-				const definition = new FormBuilder(createStoryContext('Storybook Example index', useI18n()));
+				const context = createStoryContext('Storybook Example index', useI18n());
+				const definition = new FormBuilder(context);
 				const field = buildField(definition);
 				definition.newForm('root', ContainerRenderer, { title: 'Field preview' }).addChildren(
 					definition.newView('root.heading', HeadingView, {
@@ -138,12 +140,13 @@ function createFieldStory<State>(buildField: (builder: FormBuilder) => FormField
 						showRaw: true,
 					}),
 				);
-				if (initialState !== undefined) definition.state.state.value[field.id] = structuredClone(initialState);
+				const runtime = new FormRuntime(definition);
+				if (initialState !== undefined) runtime.state.state.value[field.id] = structuredClone(initialState);
 
 				const variant = computed(() => normalizeVariantArg(args.variant));
-				return { definition, variant };
+				return { runtime, variant };
 			},
-			template: '<FormSystemStoryHarness :definition :variant />',
+			template: '<FormSystemStoryHarness :runtime :variant />',
 		}),
 	};
 }
@@ -260,7 +263,7 @@ export const Parallel: Story = createFieldStory(
 			child: {
 				id: 'query',
 				controller: expertQueryController,
-				component: markRaw(RawCqlField),
+				component: RawCqlField,
 				config: {},
 			},
 			fieldOptions: [

@@ -1,5 +1,3 @@
-import { markRaw } from 'vue';
-
 import { queryFragment } from '@/features/form/model/compile/query-artifact';
 import { decodePersistRecord, encodePersistObject } from '@/features/form/model/controllers/persistence-codec';
 import type { FieldController } from '@/features/form/model/types/form-controllers';
@@ -18,11 +16,13 @@ export type WithinFieldOption = Option & {
 
 export type WithinFieldConfig = {
 	options: WithinFieldOption[];
+	/** Sort generated span options by their translated labels; configured options retain their explicit order. */
+	sortOptions?: boolean;
 };
 
 export type WithFieldComponentProps = ImplicitFieldComponentProps<WithinFieldState> & WithinFieldConfig;
 
-export const withinController: FieldController<'within', WithinFieldState, Omit<WithinFieldConfig, 'htmlId'>> = markRaw({
+export const withinController: FieldController<'within', WithinFieldState, Omit<WithinFieldConfig, 'htmlId'>> = {
 	kind: 'within',
 	createDefaultState: () => ({ element: null, attributes: {} }),
 	getPersistKey: () => 'within',
@@ -53,5 +53,5 @@ export const withinController: FieldController<'within', WithinFieldState, Omit<
 			value: runtime.translate.$tSpanDisplayName(option),
 		});
 	},
-});
+};
 export default withinController;

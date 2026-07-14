@@ -17,7 +17,7 @@
 		</ul>
 		<div class="tab-content" :class="{ parallel: isParallelCorpus }">
 			<div :class="['tab-pane', { active: activePattern === 'simple' }]" id="simple">
-				<FormSystem v-if="renderNewForm('simple')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('simple')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('simple')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('simple')" @submit="submitNewForm" @reset="resetNewForm" />
 				<div v-else class="form-horizontal">
 					<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					<!-- TODO render the full annotation instance? requires some changes to bind to store correctly and apply appropriate classes though -->
@@ -28,7 +28,7 @@
 				</div>
 			</div>
 			<div :class="['tab-pane', { active: activePattern === 'extended' }]" id="extended">
-				<FormSystem v-if="renderNewForm('extended')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('extended')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('extended')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('extended')" @submit="submitNewForm" @reset="resetNewForm" />
 				<div v-else class="form-horizontal">
 					<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					<template v-if="useTabs">
@@ -64,11 +64,11 @@
 				</div>
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', { active: activePattern === 'advanced' }]" id="advanced">
-				<FormSystem v-if="renderNewForm('advanced')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('advanced')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('advanced')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('advanced')" @submit="submitNewForm" @reset="resetNewForm" />
 				<SearchAdvanced v-else :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 			</div>
 			<div :class="['tab-pane', { active: activePattern === 'expert' }]" id="expert">
-				<FormSystem v-if="renderNewForm('expert')" :definition="checkedSearchFormDefinition" :root-id="newSearchFormId('expert')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('expert')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('expert')" @submit="submitNewForm" @reset="resetNewForm" />
 				<template v-else>
 					<SearchExpert :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 
@@ -106,7 +106,7 @@ import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
-import { FormSystem, type CompiledFormStateWithSummaries, type FormBuilder } from '@/features/form';
+import { FormSystem, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
@@ -159,7 +159,7 @@ export default defineComponent({
 
 		subscriptions: [] as Array<() => void>,
 		blacklab: useBlackLabApi(),
-		searchFormDefinition: useSearchFormSystem(),
+		searchFormRuntime: useSearchFormSystem(),
 	}),
 	computed: {
 		activePattern: {
@@ -242,9 +242,9 @@ export default defineComponent({
 			},
 			set: PatternStore.actions.advanced.query,
 		},
-		checkedSearchFormDefinition(): FormBuilder {
-			if (!this.searchFormDefinition) throw new Error('New search form definition is not available.');
-			return this.searchFormDefinition;
+		checkedSearchFormRuntime(): FormRuntime {
+			if (!this.searchFormRuntime) throw new Error('New search form runtime is not available.');
+			return this.searchFormRuntime;
 		},
 		gapValue: {
 			get: GapStore.get.gapValue,
@@ -257,7 +257,7 @@ export default defineComponent({
 		},
 		renderNewForm(patternMode: PatternMode): boolean {
 			const isEnabled = GlobalViewSettings.getState().useNewSearchForm;
-			return isEnabled && this.searchFormDefinition?.getForm(getNewSearchFormId(patternMode)) != null;
+			return isEnabled && this.searchFormRuntime?.definition.getForm(getNewSearchFormId(patternMode)) != null;
 		},
 		submitNewForm(snapshot: CompiledFormStateWithSummaries) {
 			RootStore.actions.searchFromSubmit(snapshot);

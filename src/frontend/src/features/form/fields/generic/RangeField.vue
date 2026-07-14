@@ -1,6 +1,6 @@
 <template>
 	<div :class="formGroupClasses" :id="htmlId">
-		<label v-if="showLabel" :for="`${inputId}_lower`" class="control-label">{{ displayName }}</label>
+		<label v-if="showLabel" :for="`${inputId}_lower`" class="control-label">{{ resolvedDisplayName }}</label>
 		<debug>[{{ id }}]</debug>
 		<div class="blf-dual-input">
 			<input :id="`${inputId}_lower`" v-model="lower" :type="resolvedInputType" :placeholder="lowPlaceholder || $t(`filter.range.from`)" class="form-control" autocomplete="off" :disabled />
@@ -20,12 +20,12 @@
 				{{ mode.label }}
 			</button>
 		</div>
-		<small v-if="description" class="help-block">{{ description }}</small>
+		<small v-if="resolvedDescription" class="help-block">{{ resolvedDescription }}</small>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toValue } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
@@ -48,6 +48,8 @@ const emit = defineEmits<{
 }>();
 
 const inputId = computed(() => `${props.htmlId}_value`);
+const resolvedDisplayName = computed(() => toValue(props.displayName));
+const resolvedDescription = computed(() => (props.description ? toValue(props.description) : undefined));
 const variant = computed(() => decodeVariants(props.variant));
 const formGroupClasses = computed(() => ['form-group', variant.value.large ? 'form-group-lg' : variant.value.small ? 'form-group-sm' : '']);
 

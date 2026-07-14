@@ -104,7 +104,7 @@ async function start() {
 		corpusContext: corpusState.contextLoader,
 		indexId: router.corpusId,
 		pageMeta: router.pageMeta,
-		searchForms: searchFormSystem.definition,
+		searchForms: searchFormSystem.runtime,
 	});
 
 	app.runWithContext(() => startCustomizationInterop());

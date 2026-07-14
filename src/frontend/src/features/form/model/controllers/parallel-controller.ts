@@ -26,6 +26,7 @@ export type ParallelChildFieldConfig = {
 export type ParallelFieldConfig = {
 	fieldOptions: ParallelAnnotatedField[];
 	alignByOptions?: Array<SimpleOption | Option>;
+	defaultSource?: string | null;
 	/** Applied even when alignByOptions is empty, allowing a fixed relation type without rendering a picker. */
 	defaultAlignBy?: string | null;
 	child: ParallelChildFieldConfig;
@@ -110,7 +111,7 @@ function createDefaultChildState(config: FieldControllerProps<ParallelFieldConfi
 
 function createDefaultParallelFieldState(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext): ParallelFieldState {
 	return {
-		source: null,
+		source: config.defaultSource ?? null,
 		targets: [],
 		alignBy: config.defaultAlignBy ?? (config.alignByOptions?.[0] ? optionValue(config.alignByOptions[0]) : null),
 		sourceState: createDefaultChildState(config, runtime, { scope: SOURCE_CHILD_SCOPE }),

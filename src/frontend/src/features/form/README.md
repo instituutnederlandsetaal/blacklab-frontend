@@ -19,7 +19,8 @@ The system has four layers:
 
 1. **Shape graph**: `FormBuilder` creates a graph of nodes: `form`,
    `container`, `field`, and `view`.
-2. **Runtime state**: the builder owns `state`, `uiState`, and `rawOverrides`.
+2. **Runtime session**: `FormRuntime` creates reactive `state`, `uiState`, and
+   `rawOverrides` for one definition.
 3. **Controllers**: every field has a controller that creates defaults,
    compiles query contributions, and handles persistence.
 4. **Renderers**: Vue components render the graph and receive implicit runtime
@@ -32,8 +33,9 @@ components.
 ## Important files
 
 - `model/builder/form-shape-builder.ts`
-  Defines `FormBuilder`, node construction, renderable node conversion,
-  compile/submit/reset, and form lookup.
+  Defines `FormBuilder`, plain node construction, graph validation, and lookup.
+- `model/form-runtime.ts`
+  Owns one reactive form session: state, rendering, compilation, and reset.
 - `model/types/form-shape.ts`
   Defines node types and the implicit props expected by field/container
   components.
@@ -50,8 +52,8 @@ components.
   Encodes compiled form state to scoped URL params and restores scoped/canonical
   URL state.
 - `ui/FormSystem.vue`
-  Provides the builder runtime, renders the graph, displays raw override
-  banners, and emits submit/reset.
+  Provides a replaceable runtime reference, renders the graph, displays raw
+  override banners, and emits submit/reset through the component tree.
 - `ui/ContainerRenderer.vue`
   Default renderer for forms and containers. Handles list and tab
   presentations, form submit/reset buttons, and parent-form injection.
@@ -64,19 +66,26 @@ components.
 
 ## Graph shape
 
-Build forms with `new FormBuilder(context)` and the builder methods:
+Build the plain definition with its stable context, then create a runtime
+session:
 
 ```ts
-const builder = new FormBuilder({ corpus, translate });
+const definition = new FormBuilder({ corpus, translate });
 
-builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(
-	builder.newField('search.simple.word', annotationTextController, TextField, {
+definition.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(
+	definition.newField('search.simple.word', annotationTextController, TextField, {
 		annotationId: 'word',
 		displayName: 'Word',
 	}),
-	builder.newView('search.simple.summary', SummaryView, { title: 'Summary' }),
+	definition.newView('search.simple.summary', SummaryView, { title: 'Summary' }),
 );
+
+const runtime = new FormRuntime(definition);
 ```
+
+The definition owns the stable controller context required to create defaults,
+compile, and restore state. It contains no refs or mutable form state; translated
+labels are plain resolver functions and are only evaluated by a runtime consumer.
 
 Node ids are stable runtime keys. Fields store state under `state[field.id]`;
 containers/forms store active child ids under `uiState[container.id]`.
@@ -85,8 +94,8 @@ containers/forms store active child ids under `uiState[container.id]`.
 field node in multiple forms intentionally shares the same field state. Creating
 a different node with an existing id throws.
 
-The first container-like node created becomes the root. If a container/form gets
-its first child, that child is activated as the default active child. Tests in
+The first container-like node created becomes the root. Runtime construction
+derives each container's default active child from the completed graph. Tests in
 `form-model.test.ts` cover shared nodes and nested default tab activation.
 
 ## Node types
@@ -132,9 +141,10 @@ type NewFormState = {
   represented exactly by the current scoped form state.
 
 Use `createDefaultFormState(context, root)` to build initial state for a graph.
-Use `builder.state.replaceState(newState)` to atomically swap state; it clones
+Use `runtime.state.replaceState(newState)` to atomically swap state; it clones
 the input so later mutations to the replacement object do not leak into the
-runtime.
+runtime. Persistence restoration returns a deeply frozen snapshot, which can be
+passed directly to `replaceState` for hydration.
 
 Field components receive a normal Vue `v-model` contract through generated
 props:
@@ -154,16 +164,17 @@ override is cleared.
 `FormSystem` is the host component:
 
 ```vue
-<FormSystem :definition="builder" @submit="..." @reset="..." />
+<FormSystem :runtime="runtime" @submit="..." @reset="..." />
 ```
 
 `submit` emits one compiled snapshot, including its `formId`. `reset` has no
 payload. These events travel through the rendered component tree and are scoped
-to that `FormSystem` instance; the externally owned builder does not maintain
-component listener state.
+to that `FormSystem` instance; neither the definition nor runtime maintains
+component listener registries.
 
-It provides the `FormBuilder` through `provideFormSystemRuntime`. Child code can
-call `useFormSystemRuntime()` to compile forms or inspect state.
+It provides a reactive reference to `FormRuntime` through
+`provideFormSystemRuntime`. Child code can call `useFormSystemRuntime()` and use
+`.value` to compile forms or inspect the current session after replacement.
 
 `ContainerRenderer` provides the active parent form id with `provideParentForm`
 when it renders a `form` node. Views can call `useParentForm()` to know which
@@ -171,8 +182,8 @@ form they belong to. `SummaryView` uses this pattern.
 
 The renderer path is:
 
-1. `FormSystem` calls `builder.renderableGraph()`.
-2. `FormBuilder.renderableNode()` converts graph nodes into `{ is, props }`
+1. `FormSystem` calls `runtime.renderableGraph()`.
+2. The runtime renderer converts plain graph nodes into reactive `{ is, props }`
    render descriptors.
 3. Container components receive rendered child descriptors in `children`.
 4. Field components receive v-model and implicit runtime props.
@@ -206,8 +217,8 @@ When adding a controller, keep these contracts aligned:
   recoverable incompatibilities.
 - `affectsBlackLabParameters` drives raw-override locking, so keep it accurate.
 
-Prefer `createFieldController(...)` for new controllers. It marks the controller
-raw for Vue reactivity.
+Prefer `createFieldController(...)` for new controllers. It preserves the
+controller as a plain definition object.
 
 ## Built-in controllers and components
 
@@ -295,8 +306,10 @@ Common encoded keys:
 `formId`, `encoded`, and `summaries`. It also applies `rawOverrides` over the
 compiled params.
 
-`restoreScopedFormState(builder, query, canonical)` restores state from scoped
-params plus optional canonical BlackLab params:
+`restoreFormState(definition, query)` accepts the raw URL query record and
+returns an immutable state snapshot. Internally it decodes both the `f.*`
+persistence protocol and canonical BlackLab parameters into small, separate
+representations:
 
 1. Read only `f.*` keys; unscoped unknown keys are ignored.
 2. Select the requested `f.form` if available, otherwise use the first form.
@@ -369,14 +382,14 @@ than in the component. Components should stay focused on editing state.
 3. Decide which containers need `variant: 'tabs'` or `variant: 'small-tabs'`.
 4. Set `combine` only on containers that intentionally combine child query
    fragments differently.
-5. Use `createDefaultFormState` for initial values, then
-   `builder.state.replaceState` if you need seeded state.
+5. Use `createDefaultFormState` for initial values and pass it to `FormRuntime`,
+   or use `runtime.state.replaceState` to replace an existing session.
 
 ### Debug wrong query output
 
-1. Compile the active form with `builder.compile(formId)`.
-2. If needed, inspect `buildQueryIR(formNode, builder.state.getRawState(),
-builder.context)` before emission.
+1. Compile the active form with `runtime.compile(formId)`.
+2. If needed, inspect `buildQueryIR(formNode, runtime.state.getRawState(),
+runtime.definition.context)` before emission.
 3. Check whether a `rawOverrides` entry is replacing `patt`, `filter`, or
    `searchfield`.
 4. Check container `combine` mode and active tab state in `uiState`.

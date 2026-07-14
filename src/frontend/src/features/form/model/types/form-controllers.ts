@@ -1,5 +1,3 @@
-import { markRaw } from 'vue';
-
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
 import type { QueryFragment } from '@/features/form/model/types/form-query';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
@@ -7,13 +5,14 @@ import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 import type { Translate } from '@/shared/i18n';
 
 export type FormRuntimeCorpus = {
-	indexId?: string;
-	textDirection?: 'ltr' | 'rtl';
+	readonly indexId?: string;
+	readonly isParallelCorpus?: boolean;
+	readonly textDirection?: 'ltr' | 'rtl';
 };
 
 export type FormRuntimeContext = {
-	corpus: FormRuntimeCorpus;
-	translate: Translate;
+	readonly corpus: FormRuntimeCorpus;
+	readonly translate: Translate;
 };
 
 export type FieldControllerProps<Extra> = BaseFieldNode & Extra;
@@ -42,6 +41,7 @@ export type AnyFieldController = FieldController<string, any, any>;
 
 export type CreateFieldControllerInput<Kind extends string, State, Extra extends object> = FieldController<Kind, State, Extra>;
 
+/** Simple helper function to ensure the field controllers are correctly typed. Returns the object as-is. */
 export function createFieldController<Kind extends string, State, Extra extends object>(definition: CreateFieldControllerInput<Kind, State, Extra>): FieldController<Kind, State, Extra> {
-	return markRaw(definition);
+	return definition;
 }

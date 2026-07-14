@@ -1,7 +1,7 @@
 <template>
 	<div :class="formGroupClasses" :id="htmlId">
 		<label v-if="showLabel" :for="`${inputId}_year_from`" class="control-label">
-			{{ displayName }}
+			{{ resolvedDisplayName }}
 			<small v-if="minDateDisplay && maxDateDisplay" class="text-muted">({{ minDateDisplay }} to {{ maxDateDisplay }})</small>
 		</label>
 		<debug> [{{ id }}]</debug>
@@ -35,12 +35,12 @@
 				{{ mode.label }}
 			</button>
 		</div>
-		<small v-if="description" class="help-block">{{ description }}</small>
+		<small v-if="resolvedDescription" class="help-block">{{ resolvedDescription }}</small>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, toValue } from 'vue';
 
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
@@ -67,6 +67,8 @@ const formGroupClasses = computed(() => ['form-group', variant.value.large ? 'fo
 const btnGroupClasses = computed(() => ['btn-group', variant.value.large ? 'btn-group-lg' : variant.value.small ? 'btn-group-sm' : '']);
 
 const inputId = computed(() => `${props.htmlId}_value`);
+const resolvedDisplayName = computed(() => toValue(props.displayName));
+const resolvedDescription = computed(() => (props.description ? toValue(props.description) : undefined));
 const minDate = computed(() => DateUtils.normalizeBoundaryDate(props.min));
 const maxDate = computed(() => DateUtils.normalizeBoundaryDate(props.max));
 const minDateDisplay = computed(() => (minDate.value ? DateUtils.dateValueToDisplayString(minDate.value) : null));
