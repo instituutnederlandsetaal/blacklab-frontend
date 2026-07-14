@@ -306,13 +306,41 @@ describe('search form system', () => {
 		expect(configuredDefinition.getField('search.extended.annotations.Basics.word')).toBeNull();
 		expect(configuredDefinition.getField('search.extended.annotations.pos')).not.toBeNull();
 		expect((configuredDefinition.getField('search.advanced.query') as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('lemma');
+		const queryBuilderState = configuredRuntime.state.state.value['search.advanced.query'] as CqlQueryBuilderData;
+		const defaultAttribute = queryBuilderState.tokens[0].rootAttributeGroup.entries[0];
+		expect('annotationId' in defaultAttribute ? defaultAttribute.annotationId : null).toBe('lemma');
+		expect(configuredRuntime.compile(getNewSearchFormId('advanced')).patt).toBeNull();
 		expect(configuredDefinition.getField('shared.filters.Bibliographic.author')).toBeNull();
 		expect(configuredDefinition.getField('shared.filters.Classification.genre')).not.toBeNull();
-		expect(configuredRuntime.state.state.value['search.simple.annotation']).toEqual({ value: 'water', caseSensitive: false });
+		expect(configuredRuntime.state.state.value['search.simple.annotation']).toEqual({ value: '', caseSensitive: false });
 		expect(configuredRuntime.state.state.value['shared.filters.Bibliographic.author']).toBeUndefined();
 	});
 
-	test('preserves compatible simple, extended, and filter state when replacing the definition', () => {
+	test('creates parallel querybuilder defaults from the replacement definition', () => {
+		const configuration = ref(snapshotSearchFormConfiguration(UIStore.getState()));
+		const system = createSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			configuration,
+			corpus: ref(createParallelCorpus()),
+			tagset: ref(undefined),
+			translate: createMockTranslate(),
+		});
+
+		configuration.value = {
+			...configuration.value,
+			queryBuilder: {
+				annotationIds: ['lemma'],
+				defaultAnnotationId: 'lemma',
+			},
+		};
+
+		const replacementState = system.runtime.value!.state.state.value['search.advanced.parallel'] as ParallelFieldState<CqlQueryBuilderData>;
+		const defaultAttribute = replacementState.sourceState.tokens[0].rootAttributeGroup.entries[0];
+		expect('annotationId' in defaultAttribute ? defaultAttribute.annotationId : null).toBe('lemma');
+		expect(system.runtime.value!.compile(getNewSearchFormId('advanced')).patt).toBeNull();
+	});
+
+	test('discards draft state and restores the URL against the replacement definition', () => {
 		const configuration = ref(snapshotSearchFormConfiguration(UIStore.getState()));
 		const system = createSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
@@ -322,22 +350,48 @@ describe('search form system', () => {
 			translate: createMockTranslate(),
 		});
 		const initialRuntime = system.runtime.value!;
-		initialRuntime.state.state.value['search.simple.annotation'] = { value: 'water', caseSensitive: false };
-		initialRuntime.state.state.value['search.extended.annotations.Basics.word'] = { value: 'fire', caseSensitive: false };
 		initialRuntime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Austen', caseSensitive: false };
-		initialRuntime.state.uiState.value['shared.filters'] = 'shared.filters.Classification';
+		const queryBuilderState = initialRuntime.state.state.value['search.advanced.query'] as CqlQueryBuilderData;
+		const queryBuilderAttribute = queryBuilderState.tokens[0].rootAttributeGroup.entries[0];
+		if (!('annotationId' in queryBuilderAttribute)) throw new Error('Expected the default querybuilder attribute.');
+		queryBuilderAttribute.values = ['water'];
+		const committedUrlState = initialRuntime.compile(getNewSearchFormId('advanced'));
+
+		queryBuilderAttribute.values = ['fire'];
+		initialRuntime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Bronte', caseSensitive: false };
+		initialRuntime.state.state.value['search.simple.annotation'] = { value: 'draft', caseSensitive: false };
 
 		configuration.value = {
 			...configuration.value,
-			lexiconDatabase: 'replacement-database',
+			queryBuilder: {
+				annotationIds: ['lemma'],
+				defaultAnnotationId: 'word',
+			},
 		};
 
 		const replacementRuntime = system.runtime.value!;
 		expect(replacementRuntime).not.toBe(initialRuntime);
-		expect(replacementRuntime.state.state.value['search.simple.annotation']).toEqual({ value: 'water', caseSensitive: false });
-		expect(replacementRuntime.state.state.value['search.extended.annotations.Basics.word']).toEqual({ value: 'fire', caseSensitive: false });
+		expect(replacementRuntime.state.state.value['search.simple.annotation']).toEqual({ value: '', caseSensitive: false });
+		expect(replacementRuntime.state.state.value['shared.filters.Bibliographic.author']).toEqual({ value: '', caseSensitive: false });
+
+		const restored = restoreFormState(replacementRuntime.definition, {
+			...committedUrlState.encoded,
+			patt: committedUrlState.patt,
+			filter: committedUrlState.filter,
+		});
+		replacementRuntime.state.replaceState(restored);
+
+		expect(restored.issues).toContainEqual({
+			key: 'query',
+			nodeId: 'search.advanced.query',
+			message: "Cannot restore querybuilder annotation 'word' because it is not available in the current form.",
+		});
+		expect(restored.rawOverrides).toEqual({ patt: committedUrlState.patt });
 		expect(replacementRuntime.state.state.value['shared.filters.Bibliographic.author']).toEqual({ value: 'Austen', caseSensitive: false });
-		expect(replacementRuntime.state.uiState.value['shared.filters']).toBe('shared.filters.Classification');
+		expect(replacementRuntime.compile(getNewSearchFormId('advanced'))).toMatchObject({
+			patt: committedUrlState.patt,
+			filter: committedUrlState.filter,
+		});
 	});
 
 	test('keeps the definition and runtime stable when translations change', () => {

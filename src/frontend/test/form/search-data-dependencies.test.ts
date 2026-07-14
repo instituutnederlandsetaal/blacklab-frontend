@@ -168,4 +168,20 @@ describe('search form data dependencies', () => {
 		await expect(options.autocomplete(index.annotatedFields.contents.annotations.lemma, 'wat')).resolves.toEqual(['water']);
 		expect(getTermAutocomplete).toHaveBeenCalledWith('test-corpus', 'contents', 'lemma', 'wat');
 	});
+
+	test('uses an allowed querybuilder annotation when the configured default is stale', () => {
+		const index = createIndex();
+		const configuration = createSearchFormConfiguration();
+		configuration.queryBuilder.defaultAnnotationId = 'word';
+
+		const options = createQueryBuilderOptions({
+			index,
+			configuration,
+			api: createMockApi().blacklabApi,
+			translate: createMockTranslate(),
+		});
+
+		expect(options.annotationOptions).toEqual([{ label: 'lemma', title: 'lemma description', value: 'lemma' }]);
+		expect(options.defaultAnnotationId).toBe('lemma');
+	});
 });

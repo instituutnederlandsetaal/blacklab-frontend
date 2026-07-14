@@ -2,8 +2,10 @@ import { createDefaultCqlQueryBuilderData, isCqlAttributeData, isCqlAttributeGro
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry, CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
 import { anyToken, compileQueryIR, queryFragment, queryIR, repeat, token, tokenSequence, xmlTag } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
-import { createFieldController } from '@/features/form/model/types/form-controllers';
+import { createFieldController, type RestoreFieldResult } from '@/features/form/model/types/form-controllers';
 import { booleanExpr, type BooleanType, type CqlPattern, type TokenPredicate } from '@/features/form/model/types/form-query';
+
+import { findOption } from '@/shared/utils/options';
 
 export type QueryBuilderFieldConfig = {
 	options: CqlQueryBuilderOptions;
@@ -18,6 +20,18 @@ const ENTRY_GROUP_PREFIX = 'g:';
 
 function createDefaultState(config: QueryBuilderFieldConfig): QueryBuilderFieldState {
 	return createDefaultCqlQueryBuilderData(config.options.defaultAnnotationId);
+}
+
+function findUnavailableAnnotation(group: CqlAttributeGroupData, config: QueryBuilderFieldConfig): string | null {
+	for (const entry of group.entries) {
+		if (isCqlAttributeData(entry)) {
+			if (!findOption(config.options.annotationOptions, entry.annotationId)) return entry.annotationId;
+		} else {
+			const unavailable = findUnavailableAnnotation(entry, config);
+			if (unavailable) return unavailable;
+		}
+	}
+	return null;
 }
 
 function operatorToBoolean(operator: CqlAnnotationCombinator): BooleanType {
@@ -172,12 +186,22 @@ function encodeState(state: QueryBuilderFieldState): string | null {
 	});
 }
 
-function restoreState(payload: string | string[], config: QueryBuilderFieldConfig): QueryBuilderFieldState {
+function restoreState(payload: string | string[], config: QueryBuilderFieldConfig): RestoreFieldResult<QueryBuilderFieldState> {
 	const restored = decodePersistObject(payload);
 	if (restored.v !== CODEC_VERSION) throw new Error(`Cannot restore querybuilder value with unsupported version '${restored.v ?? ''}'.`);
-	return {
+	const state = {
 		tokens: restored.t ? splitPersistValue(restored.t, ';').map(token => decodeToken(token, config.options.defaultAnnotationId)) : [],
 	};
+	for (const token of state.tokens) {
+		const unavailable = findUnavailableAnnotation(token.rootAttributeGroup, config);
+		if (unavailable) {
+			return {
+				state: createDefaultState(config),
+				errors: [`Cannot restore querybuilder annotation '${unavailable}' because it is not available in the current form.`],
+			};
+		}
+	}
+	return state;
 }
 
 export const queryBuilderController = createFieldController<'cql-query-builder', QueryBuilderFieldState, QueryBuilderFieldConfig>({

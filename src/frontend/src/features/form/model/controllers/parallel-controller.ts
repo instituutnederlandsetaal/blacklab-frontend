@@ -146,9 +146,12 @@ function isRestoreObject<State>(result: RestoreFieldResult<State>): result is { 
 	return !!result && typeof result === 'object' && 'state' in result;
 }
 
-function restoredState<State>(result: RestoreFieldResult<State>, warnings: string[]): State {
+type RestoreMessages = { warnings: string[]; errors: string[] };
+
+function restoredState<State>(result: RestoreFieldResult<State>, messages: RestoreMessages): State {
 	if (isRestoreObject(result)) {
-		warnings.push(...(result.warnings ?? []), ...(result.errors ?? []));
+		messages.warnings.push(...(result.warnings ?? []));
+		messages.errors.push(...(result.errors ?? []));
 		return result.state;
 	}
 	return result;
@@ -185,7 +188,7 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 	restore(payload, config, runtime) {
 		const restored = decodePersistObject(payload);
 		const defaults = createDefaultParallelFieldState(config, runtime);
-		const warnings: string[] = [];
+		const messages: RestoreMessages = { warnings: [], errors: [] };
 		const fieldOptionIds = new Set(config.fieldOptions.map(option => option.id));
 		const sourceNamespace: ParallelChildNamespace = { scope: SOURCE_CHILD_SCOPE };
 		const sourceChildConfig = createChildFieldConfig(config, sourceNamespace);
@@ -193,7 +196,7 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 		const selectedTargets = splitPersistValue(restored.targets ?? '').filter(Boolean);
 		const validTargets = selectedTargets.filter(target => {
 			const valid = fieldOptionIds.has(target);
-			if (!valid) warnings.push(`Dropped restored target '${target}' because it is no longer present in the current parallel target options.`);
+			if (!valid) messages.warnings.push(`Dropped restored target '${target}' because it is no longer present in the current parallel target options.`);
 			return valid;
 		});
 		const targetStates: Record<string, unknown> = {};
@@ -203,28 +206,28 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 			const decoded = decodeChildPersistKey(key);
 			if (!decoded) continue;
 			if (!decoded.persistKey) {
-				warnings.push(`Ignored malformed restored parallel child key '${key}'.`);
+				messages.warnings.push(`Ignored malformed restored parallel child key '${key}'.`);
 				continue;
 			}
 
 			if (decoded.scope === SOURCE_CHILD_SCOPE) {
 				if (decoded.persistKey !== childPersistKey) {
-					warnings.push(`Ignored unsupported restored parallel source key '${key}'.`);
+					messages.warnings.push(`Ignored unsupported restored parallel source key '${key}'.`);
 					continue;
 				}
-				sourceState = restoredState(config.child.controller.restore(restored[key], sourceChildConfig, runtime), warnings);
+				sourceState = restoredState(config.child.controller.restore(restored[key], sourceChildConfig, runtime), messages);
 				continue;
 			}
 
 			if (!fieldOptionIds.has(decoded.fieldId)) {
-				warnings.push(`Dropped restored target state for '${decoded.fieldId}' because it is no longer present in the current parallel target options.`);
+				messages.warnings.push(`Dropped restored target state for '${decoded.fieldId}' because it is no longer present in the current parallel target options.`);
 				continue;
 			}
 			if (decoded.persistKey !== childPersistKey) {
-				warnings.push(`Ignored unsupported restored parallel target key '${key}'.`);
+				messages.warnings.push(`Ignored unsupported restored parallel target key '${key}'.`);
 				continue;
 			}
-			targetStates[decoded.fieldId] = restoredState(config.child.controller.restore(restored[key], createChildFieldConfig(config, decoded), runtime), warnings);
+			targetStates[decoded.fieldId] = restoredState(config.child.controller.restore(restored[key], createChildFieldConfig(config, decoded), runtime), messages);
 		}
 
 		const state = {
@@ -234,7 +237,13 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 			sourceState,
 			targetStates,
 		};
-		return warnings.length ? { state, warnings } : state;
+		return messages.warnings.length || messages.errors.length
+			? {
+					state,
+					warnings: messages.warnings.length ? messages.warnings : undefined,
+					errors: messages.errors.length ? messages.errors : undefined,
+				}
+			: state;
 	},
 	getQueryContribution(config, runtime, state) {
 		const selectedTargetPatterns = state.targets.map(fieldId => {

@@ -531,7 +531,10 @@ describe('controller persistence compatibility', () => {
 		defaultAnnotationId: 'word',
 		textDirection: 'ltr',
 		allAnnotationsMap: {},
-		annotationOptions: [],
+		annotationOptions: [
+			{ value: 'word', label: 'Word' },
+			{ value: 'lemma', label: 'Lemma' },
+		],
 		operatorOptions: [
 			{ value: '&', label: 'AND' },
 			{ value: '|', label: 'OR' },
@@ -793,6 +796,26 @@ describe('controller persistence compatibility', () => {
 
 		expect(stripQueryBuilderIds(restored)).toEqual(stripQueryBuilderIds(queryBuilderState));
 		expect(restored.tokens[0].id).not.toBe(queryBuilderState.tokens[0].id);
+	});
+
+	test('reports querybuilder annotations unavailable in the current form as decode errors', () => {
+		const encoded = queryBuilderController.encode(queryBuilderState, queryBuilderConfig, context);
+		const currentConfig = {
+			...queryBuilderConfig,
+			options: {
+				...queryBuilderConfig.options,
+				defaultAnnotationId: 'lemma',
+				annotationOptions: [{ value: 'lemma', label: 'Lemma' }],
+			},
+		};
+		const restored = queryBuilderController.restore(encoded!, currentConfig, context);
+
+		expect(restored).toMatchObject({
+			errors: ["Cannot restore querybuilder annotation 'word' because it is not available in the current form."],
+		});
+		if (!('state' in restored)) throw new Error('Expected a querybuilder decode error.');
+		const defaultAttribute = restored.state.tokens[0].rootAttributeGroup.entries[0];
+		expect('annotationId' in defaultAttribute ? defaultAttribute.annotationId : null).toBe('lemma');
 	});
 
 	test('omits default and uploaded querybuilder-only state from persistence', () => {

@@ -250,6 +250,8 @@ function createUrlForComparison(path: string, query: Record<string, any>, ignore
 const DRAFT_URL_QUERY_KEYS = new Set(['interface']);
 
 export default function startUrlSync(router: Router, dependencies: UrlStateSyncDependencies) {
+	let initialUrlReadStarted = false;
+	let initialUrlReadComplete = false;
 	const loadedCorpus = computed<Corpus | null>(() => (dependencies.corpusContext.isLoaded() ? dependencies.corpusContext.value.index || null : null));
 
 	function getUrlSyncContext(): UrlSyncContext | null {
@@ -365,18 +367,23 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 	}
 
 	const stopUrlSync = watch(
-		() => [routerUrl.value, storeUrl.value] as const,
+		() => [routerUrl.value, storeUrl.value, dependencies.searchForms.value] as const,
 		async (current, previous) => {
 			const context = getUrlSyncContext();
-			const [currentRouterUrl, currentStoreUrl] = current;
-			const [previousRouterUrl, previousStoreUrl] = previous ?? [null, null];
-			if (!context || !currentRouterUrl || currentRouterUrl === currentStoreUrl) return;
+			const [currentRouterUrl, currentStoreUrl, currentSearchForms] = current;
+			const [previousRouterUrl, previousStoreUrl, previousSearchForms] = previous ?? [null, null, null];
+			const formDefinitionChanged = currentSearchForms?.definition !== previousSearchForms?.definition;
+			if (!context || !currentRouterUrl || (currentRouterUrl === currentStoreUrl && !formDefinitionChanged)) return;
 
 			const routerChanged = currentRouterUrl !== previousRouterUrl;
 			const storeChanged = currentStoreUrl !== previousStoreUrl;
-			if (!routerChanged && !storeChanged) return;
+			if (!routerChanged && !storeChanged && !formDefinitionChanged) return;
+			// The in-flight initial read installs into the latest runtime after parsing.
+			// Restarting it for setup-time definition changes only creates duplicate work
+			// and can invalidate the restore that is already about to populate the form.
+			if (formDefinitionChanged && initialUrlReadStarted && !initialUrlReadComplete && !routerChanged) return;
 
-			if (storeChanged && !routerChanged) {
+			if (storeChanged && !routerChanged && !formDefinitionChanged) {
 				const next = storeUrlInput.value;
 				if (!next) return;
 				urlRestoreRevision += 1;
@@ -385,7 +392,9 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 			}
 
 			const restoreRevision = ++urlRestoreRevision;
+			initialUrlReadStarted = true;
 			await applyRouterUrlToStore(context, restoreRevision);
+			initialUrlReadComplete = true;
 		},
 		{
 			immediate: true,

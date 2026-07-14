@@ -12,21 +12,18 @@ import {
 	filterRangeController,
 	filterSelectController,
 	filterTextController,
-	createDefaultFormState,
 	FormBuilder,
 	FormRuntime,
 	parallelController,
 	type ParallelChildFieldConfig,
 	RangeField,
 	type FormFieldNode,
-	type NewFormState,
 	withinController,
 	queryBuilderController,
 	QueryBuilderField,
 } from '@/features/form';
 import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
 import type { WithinFieldOption } from '@/features/form/model/controllers/within-controller';
-import { isContainerNode } from '@/features/form/model/form-utils';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import { createSearchFormTotalsFactory } from '@/features/search/model/search-form-totals';
@@ -412,38 +409,6 @@ type SearchFormSystemPlugin = ObjectPlugin & {
 	runtime: ShallowRef<FormRuntime | null>;
 };
 
-/**
- * Create an initial state for the new form, then copy over all compatible fields and container states from the old form.
- *
- * @param definition the new form definition
- * @param previousRuntime the old form definition + state
- * @returns a new state object for the new form, with all compatible state copied over, and initial state for new and incompatible nodes
- */
-function stateForReplacementDefinition(definition: FormBuilder, previousRuntime: FormRuntime | null): NewFormState {
-	const state = createDefaultFormState(definition.context, ...definition.nodeList);
-	if (!previousRuntime || previousRuntime.definition.context.corpus.indexId !== definition.context.corpus.indexId) return state;
-
-	const previousState = previousRuntime.state.getRawState();
-	for (const node of definition.nodeList) {
-		const previousNode = previousRuntime.definition.getNode(node.id);
-		if (node.kind === 'field') {
-			// A stable id alone is insufficient: a definition change may replace a
-			// text field with a controller whose state has a different shape.
-			if (previousNode?.kind === 'field' && previousNode.controller === node.controller && Object.hasOwn(previousState.state, node.id)) {
-				state.state[node.id] = previousState.state[node.id];
-			}
-			continue;
-		}
-
-		if (isContainerNode(node) && Object.hasOwn(previousState.uiState, node.id)) {
-			const activeChildId = previousState.uiState[node.id];
-			if (activeChildId === null || node.children.some(child => child.id === activeChildId)) state.uiState[node.id] = activeChildId;
-		}
-	}
-	state.rawOverrides = previousState.rawOverrides;
-	return state;
-}
-
 const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchFormSystemPlugin => {
 	const definition = computed(() => {
 		const corpus = options.corpus.value;
@@ -461,7 +426,7 @@ const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchF
 				return;
 			}
 
-			runtime.value = new FormRuntime(currentDefinition, stateForReplacementDefinition(currentDefinition, runtime.value));
+			runtime.value = new FormRuntime(currentDefinition);
 		},
 		{ flush: 'sync', immediate: true },
 	);

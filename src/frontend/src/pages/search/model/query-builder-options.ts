@@ -5,6 +5,7 @@ import type { NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex }
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';
 import type { Translate } from '@/shared/i18n';
+import { optionValues } from '@/shared/utils/options';
 
 function getMainAnnotationGroups(index: NormalizedIndex): NormalizedAnnotationGroup[] {
 	return index.annotationGroups.filter(group => group.annotatedFieldId === index.mainAnnotatedField);
@@ -16,10 +17,12 @@ export function createQueryBuilderOptions(input: { index: NormalizedIndex; confi
 	const allAnnotationsMap = mainField.annotations;
 	const annotationGroups = getAnnotationSubset(configuration.queryBuilder.annotationIds, getMainAnnotationGroups(index), allAnnotationsMap, 'Search', translate, false, false);
 	const annotationOptions = annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(group => group.options);
+	const availableAnnotationIds = optionValues(annotationOptions);
+	const defaultAnnotationId = availableAnnotationIds.includes(configuration.queryBuilder.defaultAnnotationId) ? configuration.queryBuilder.defaultAnnotationId : (availableAnnotationIds[0] ?? '');
 
 	return {
 		indexId: index.id,
-		defaultAnnotationId: configuration.queryBuilder.defaultAnnotationId,
+		defaultAnnotationId,
 		textDirection: index.textDirection,
 		allAnnotationsMap,
 		annotationOptions,
