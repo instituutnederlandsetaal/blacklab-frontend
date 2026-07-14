@@ -11,7 +11,8 @@
 				data-attribute-role="type"
 				:options="options.annotationOptions"
 				hideEmpty
-				data-width="75px"
+				data-width="auto"
+				style="max-width: 125px"
 				data-menu-width="auto"
 				container="body"
 				data-class="btn btn-sm btn-default bl-no-border-radius-right"
