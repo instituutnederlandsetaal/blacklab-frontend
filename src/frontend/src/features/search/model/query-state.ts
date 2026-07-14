@@ -131,8 +131,14 @@ const get = {
 	},
 	/** Human-readable version of the query for use in history, summaries, etc. */
 	patternSummary: (): string | undefined => {
-		if (state.form === 'new') return state.state.summaries.map(summary => `${summary.label}: ${summary.value}`).join(', ') || undefined;
-
+		if (state.form === 'new') {
+			return (
+				state.state.summaries
+					.filter(s => !s.summaryType || s.summaryType.includes('patt'))
+					.map(summary => `${summary.label}: ${summary.value}`)
+					.join(', ') || undefined
+			);
+		}
 		const formState = {
 			[state.subForm as string]: state.formState,
 			shared: state.shared,
@@ -157,7 +163,16 @@ const get = {
 	},
 	filterSummary: (): string | undefined => {
 		if (!state.form) return undefined;
-		if (state.form === 'new') return state.state.summaries.map(summary => `${summary.label}: ${summary.value}`).join(', ') || undefined;
+
+		if (state.form === 'new') {
+			return (
+				state.state.summaries
+					.filter(s => !s.summaryType?.length || s.summaryType.includes('filter'))
+					.map(summary => `${summary.label}: ${summary.value}`)
+					.join(', ') || undefined
+			);
+		}
+
 		return getFilterSummary(Object.values(state.filters).sort((a, b) => a.id.localeCompare(b.id)));
 	},
 };
