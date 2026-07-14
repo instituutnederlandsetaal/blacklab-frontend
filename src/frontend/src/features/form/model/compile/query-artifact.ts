@@ -290,13 +290,21 @@ function combineTokens(tokens: Extract<CqlPattern, { type: 'token' }>[], operato
 function emitCqlWithWrappers(pattern: CqlPattern | null, wrappers: QueryWrapper[]): string | null {
 	let cql = emitCql(pattern);
 	for (const wrapper of wrappers) {
-		if (wrapper.type === 'within' && wrapper.element) {
+		if ((wrapper.type === 'within' || wrapper.type === 'containing') && wrapper.element) {
 			const attrs = Object.entries(wrapper.attributes)
 				.map(([key, value]) => (typeof value === 'string' && value.trim() ? `${key}="${escapeRegex(value)}"` : null))
 				.filter(isNonNull)
 				.join(' ');
 			const element = attrs ? `${wrapper.element} ${attrs}` : wrapper.element;
-			cql = cql ? `<${element}/> containing ${cql}` : `<${element}/>`;
+
+			if (!cql) cql = `<${element}/>`;
+			else if (wrapper.type === 'within') {
+				cql = `${cql} within <${element}/>`;
+			} else if (wrapper.type === 'containing') {
+				cql = `${cql} containing <${element}/>`;
+			}
+		} else if (wrapper.type === 'with-spans') {
+			if (wrapper.enabled && cql) cql = `with-spans(${cql})`;
 		}
 	}
 	return cql;

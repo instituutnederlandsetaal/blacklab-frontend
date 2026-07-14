@@ -114,7 +114,7 @@ export function isQueryFilterNode(node: any): node is QueryFilterNode {
 
 export type QueryWrapper =
 	| {
-			type: 'within';
+			type: 'within' | 'containing';
 			element: string;
 			attributes: Record<string, QueryFilterNode | string>;
 	  }
