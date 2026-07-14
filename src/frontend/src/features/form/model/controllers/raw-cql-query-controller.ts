@@ -4,7 +4,9 @@ import type { FieldController } from '@/features/form/model/types/form-controlle
 
 export type RawCqlQueryFieldState = string;
 
-export type RawCqlQueryFieldConfig = object;
+export type RawCqlQueryFieldConfig = {
+	hideLabel?: boolean;
+};
 
 export const expertQueryController: FieldController<'raw-cql-query', RawCqlQueryFieldState, RawCqlQueryFieldConfig> = {
 	kind: 'raw-cql-query',

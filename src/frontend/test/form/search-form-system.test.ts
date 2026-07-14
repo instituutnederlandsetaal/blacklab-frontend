@@ -253,6 +253,16 @@ describe('search form system', () => {
 			patt: '[lemma="water"] within <s/>',
 			filter: 'author:(Austen)',
 		});
+
+		const wrapper = mount(FormSystem, {
+			props: {
+				rootId: getNewSearchFormId('expert'),
+				runtime,
+			},
+		});
+		expect(wrapper.get('.blf-heading-view h3 a').attributes('href')).toBe('https://blacklab.ivdnt.org/guide/corpus-query-language.html');
+		expect(wrapper.find('.blf-expert-query-field > label').exists()).toBe(false);
+		expect(wrapper.get('.blf-expert-query-field textarea').attributes('aria-label')).toBe('search.expert.corpusQueryLanguage');
 	});
 
 	test('restores a canonical raw query into the expert form', () => {

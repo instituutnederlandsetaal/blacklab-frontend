@@ -409,13 +409,26 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 				id: 'query',
 				controller: expertQueryController,
 				component: RawCqlField,
-				config: {},
+				config: { hideLabel: true },
 			})
-		: builder.newField('search.expert.query', expertQueryController, RawCqlField, {});
+		: builder.newField('search.expert.query', expertQueryController, RawCqlField, { hideLabel: true });
 	const expertForm = builder.newForm(getNewSearchFormId('expert'), ContainerRenderer, {
 		variant: sharedFilters ? 'columns' : undefined,
 	});
-	expertForm.addChildren(builder.newContainer('search.expert.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(expertQuery, sharedWithin), sharedFilters);
+	expertForm.addChildren(
+		builder.newContainer('search.expert.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
+			builder.newView('search.expert.query.heading', HeadingView, {
+				help: {
+					href: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
+					title: () => translate.$t('widgets.learnMore'),
+				},
+				title: () => translate.$t('search.expert.corpusQueryLanguage'),
+			}),
+			expertQuery,
+			sharedWithin,
+		),
+		sharedFilters,
+	);
 
 	return builder;
 }

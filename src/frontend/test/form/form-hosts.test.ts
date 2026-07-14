@@ -444,14 +444,25 @@ describe('builtin view hosts', () => {
 		const harness = mountViewHarness((builder, form) => {
 			const view = builder.newView('harness.heading', HeadingView, {
 				description: 'Overview of the current form slice.',
+				help: {
+					href: 'https://example.com/help',
+					title: 'Learn more about this form',
+				},
 				title: 'Search heading',
 			});
 			form.addChildren(view);
 			return { extra: {}, view };
 		});
 
-		expect(harness.wrapper.get('h3').text()).toBe('Search heading');
+		expect(harness.wrapper.get('h3').text()).toContain('Search heading');
 		expect(harness.wrapper.get('p').text()).toBe('Overview of the current form slice.');
+		expect(harness.wrapper.get('h3 a').attributes()).toMatchObject({
+			'aria-label': 'Learn more about this form',
+			href: 'https://example.com/help',
+			rel: 'noopener noreferrer',
+			target: '_blank',
+			title: 'Learn more about this form',
+		});
 	});
 
 	test('renders the summary view host against provided parent-form state', async () => {

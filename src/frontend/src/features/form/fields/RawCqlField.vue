@@ -1,22 +1,31 @@
 <template>
 	<div :class="fieldClasses">
-		<label :for="`${htmlId}_query`">
+		<label v-if="!hideLabel" :for="`${htmlId}_query`">
 			{{ $t(`search.expert.corpusQueryLanguage`) }}
 			<a class="help" target="_blank" href="https://blacklab.ivdnt.org/guide/corpus-query-language.html" :title="$t(`widgets.learnMore`)">?</a>
 		</label>
-		<textarea class="form-control querybox" :id="`${htmlId}_query`" rows="7" :value="modelValue" :disabled @input="updateQuery(($event.target as HTMLTextAreaElement).value)" />
+		<textarea
+			class="form-control querybox"
+			:id="`${htmlId}_query`"
+			rows="7"
+			:value="modelValue"
+			:disabled
+			:aria-label="hideLabel ? $t(`search.expert.corpusQueryLanguage`) : undefined"
+			@input="updateQuery(($event.target as HTMLTextAreaElement).value)"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import type { RawCqlQueryFieldState } from '@/features/form/model/controllers/raw-cql-query-controller';
+import type { RawCqlQueryFieldConfig, RawCqlQueryFieldState } from '@/features/form/model/controllers/raw-cql-query-controller';
 import { decodeVariants } from '@/features/form/model/form-utils';
 import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
 
-const props = withDefaults(defineProps<ImplicitFieldComponentProps<RawCqlQueryFieldState>>(), {
+const props = withDefaults(defineProps<ImplicitFieldComponentProps<RawCqlQueryFieldState> & RawCqlQueryFieldConfig>(), {
 	disabled: false,
+	hideLabel: false,
 });
 
 const emit = defineEmits<{

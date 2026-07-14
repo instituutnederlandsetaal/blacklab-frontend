@@ -69,7 +69,7 @@
 							@hover="$emit('hover', $event)"
 							@unhover="$emit('unhover')"
 						/>
-						<a v-if="row.href" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank"><sup class="fa fa-link" style="margin-left: -5px"></sup></a>
+						<a v-if="row.href" :href="row.href" :title="$t('results.table.goToHitInDocument').toString()" target="_blank"><sup class="fa fa-link"></sup></a>
 						<HitContext
 							tag="span"
 							:dir="row.dir"
