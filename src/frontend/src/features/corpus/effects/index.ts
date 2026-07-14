@@ -16,9 +16,6 @@ export default function startGlobalCorpusDependentEffects(context: Loadable<Corp
 		() => context.value,
 		newContext => {
 			canUpdateSubcorpusLoader.value = !!newContext?.index;
-			if (!newContext) return;
-			setCurrentCorpusDataGlobal(newContext);
-			RootStore.init(newContext);
 		},
 		{ deep: false, immediate: true },
 	);
@@ -33,4 +30,10 @@ export default function startGlobalCorpusDependentEffects(context: Loadable<Corp
 			selectedSubcorpusLoader.next({ index: context.value!.index!, annotatedFieldId, filter, blacklab });
 		},
 	);
+}
+
+/** Bring non-context state to the same generation before the context is published. */
+export function initializeCorpusContextInterop(context: CorpusContext) {
+	setCurrentCorpusDataGlobal(context);
+	RootStore.init(context);
 }

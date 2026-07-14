@@ -10,7 +10,7 @@ import { createApp } from 'vue';
 import { createCorpusContext } from '@/app/state/useCorpusContext';
 import Filters from '@/components/filters';
 import { installStoreInspectorDevtools } from '@/devtools/store-inspector';
-import startGlobalCorpusDependentEffects from '@/features/corpus/effects';
+import startGlobalCorpusDependentEffects, { initializeCorpusContextInterop } from '@/features/corpus/effects';
 import { startCustomizationInterop } from '@/features/corpus/effects/page-customization.effect';
 import { createSearchFormSystem } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration } from '@/features/search/model/search-form-configuration';
@@ -71,7 +71,9 @@ async function start() {
 	// Which would be wasteful and cause a brief flash of the wrong data.
 	app.use(router);
 	await router.router.isReady();
-	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId);
+	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId, {
+		beforePublish: initializeCorpusContextInterop,
+	});
 	const i18n = createI18n(router.corpusId);
 	const searchFormSystem = createSearchFormSystem({
 		blacklabApi: api.blacklabApi,

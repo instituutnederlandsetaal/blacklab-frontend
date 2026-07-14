@@ -1,5 +1,5 @@
 import { tryOnScopeDispose } from '@vueuse/core';
-import { reactive, ref, shallowRef, toRef, unref, watchEffect, type MaybeRef, type Ref } from 'vue';
+import { reactive, ref, shallowRef, toRef, unref, watch, watchEffect, type MaybeRef, type Ref } from 'vue';
 
 import type { MaybeLoadable } from './loadable-combine';
 import {
@@ -166,6 +166,36 @@ export function createDerivedLoadable<T>(
 	tryOnScopeDispose(stop);
 
 	return reactiveLoadableFromRefs<T, ReactiveLoadableControls>(refs, { retry, stop }) as ControlledLoadable<T>;
+}
+
+/**
+ * Mirror a loadable, but run a synchronous checkpoint before publishing each
+ * newly loaded value. Reactive reads made by the checkpoint are intentionally
+ * not dependencies of the mirror.
+ */
+export function checkpointLoadedReactive<T>(source: ControlledLoadable<T>, checkpoint: (value: T) => void): ControlledLoadable<T> {
+	let hasCheckpointedValue = false;
+	let checkpointedValue: T | undefined;
+
+	return createDerivedLoadable<T>(
+		applyLoadable =>
+			watch(
+				() => [source.state, source.value, source.error] as const,
+				() => {
+					if (!isLoaded(source)) {
+						hasCheckpointedValue = false;
+						checkpointedValue = undefined;
+					} else if (!hasCheckpointedValue || !Object.is(checkpointedValue, source.value)) {
+						checkpoint(source.value);
+						hasCheckpointedValue = true;
+						checkpointedValue = source.value;
+					}
+					applyLoadable(source);
+				},
+				{ flush: 'sync', immediate: true },
+			),
+		() => [source],
+	);
 }
 
 function flatMapSingleLoadableReactive<T, U, S extends LoadableState>(

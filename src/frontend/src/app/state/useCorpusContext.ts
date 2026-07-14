@@ -18,6 +18,7 @@ import { resolvedRequest } from '@/shared/api/lib/api-utils';
 import { mapReduce } from '@/shared/utils/array-utils';
 import { combineLoadables } from '@/shared/utils/loadable/loadable-combine-reactive';
 import { loadableFromRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
+import { checkpointLoadedReactive } from '@/shared/utils/loadable/loadable-reactive';
 import useInjectable from '@/shared/utils/useInjectable';
 
 // Utils we add for convenience on top of the base index.
@@ -43,6 +44,19 @@ type CorpusContext = {
 	index: Corpus | undefined;
 	config: CFPageConfig;
 	tagset: Tagset | undefined;
+};
+
+type CorpusContextOptions = {
+	/**
+	 * Synchronous initialization that must finish before a newly loaded context is
+	 * visible through any of the public context refs.
+	 *
+	 * This is the interop checkpoint for state derived from the context but kept
+	 * outside it, such as the legacy stores. Keeping the raw loadables private
+	 * prevents consumers from observing a context generation before that state has
+	 * caught up.
+	 */
+	beforePublish?: (context: CorpusContext) => void;
 };
 
 const defaultConfig = {
@@ -148,7 +162,7 @@ function createCorpusValue(index: NormalizedIndex): Corpus {
 	};
 }
 
-function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpusId: MaybeRefOrGetter<string | null | undefined>) {
+function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpusId: MaybeRefOrGetter<string | null | undefined>, options: CorpusContextOptions = {}) {
 	const getCorpus = (id: string | undefined | null): CancelableRequest<NormalizedIndex | undefined> => (id ? blacklab.getCorpus(id) : resolvedRequest<NormalizedIndex | undefined>(undefined));
 	const getConfig = (id: string | undefined | null): CancelableRequest<CFPageConfig> => frontend.getConfig(id ?? null);
 	const getTagset = (id: string | undefined | null): CancelableRequest<Tagset | undefined> => (id ? frontend.getTagset(id) : resolvedRequest<Tagset | undefined>(undefined));
@@ -156,7 +170,7 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 	const corpusLoadable = computed(() => loadableFromRequest(() => getCorpus(toValue(corpusId)).then(index => (index ? createCorpusValue(index) : undefined))));
 	const configLoadable = computed(() => loadableFromRequest(() => getConfig(toValue(corpusId))));
 	const tagsetLoadable = computed(() => loadableFromRequest(() => getTagset(toValue(corpusId))));
-	const combinedLoadable: LoadableFromRequest<CorpusContext> = combineLoadables({ index: corpusLoadable, config: configLoadable, tagset: tagsetLoadable }).map(({ index, config, tagset }) => {
+	const loadedContext: LoadableFromRequest<CorpusContext> = combineLoadables({ index: corpusLoadable, config: configLoadable, tagset: tagsetLoadable }).map(({ index, config, tagset }) => {
 		if (index) {
 			if (tagset) {
 				const annots = index.annotatedFields[index.mainAnnotatedField].annotations;
@@ -170,25 +184,28 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 		}
 		return { index, config, tagset };
 	});
+	const publishedContext = checkpointLoadedReactive(loadedContext, context => {
+		options.beforePublish?.(context);
+	});
 
 	// pretend the value is always there (except for tagset, since that's actually optional)
 	// This isn't technically correct, but usage of the use* functions should be gated
 	// behind the data source being loaded
 	// this makes makes it easier to use the data in various components where it's guaranteed we'll have the data available
 	// In practice, the corpusPage component guards the loading and error state
-	const combinedValue: Ref<CorpusContext> = computed(() => combinedLoadable.value!);
-	const corpusValue: Ref<Corpus | undefined> = computed(() => corpusLoadable.value.value);
-	const configValue: Ref<CFPageConfig> = computed(() => configLoadable.value.value || defaultConfig);
-	const tagsetValue: Ref<Tagset | undefined> = computed(() => tagsetLoadable.value.value);
+	const combinedValue: Ref<CorpusContext> = computed(() => publishedContext.value!);
+	const corpusValue: Ref<Corpus | undefined> = computed(() => publishedContext.value?.index);
+	const configValue: Ref<CFPageConfig> = computed(() => publishedContext.value?.config ?? defaultConfig);
+	const tagsetValue: Ref<Tagset | undefined> = computed(() => publishedContext.value?.tagset);
 
 	return {
-		contextLoader: combinedLoadable,
+		contextLoader: publishedContext,
 		context: combinedValue,
 		corpus: corpusValue,
 		config: configValue,
 		tagset: tagsetValue,
 		install: (app => {
-			provideCorpusContextLoader(app, combinedLoadable);
+			provideCorpusContextLoader(app, publishedContext);
 			provideCorpusContext(app, combinedValue);
 			provideCfPageConfig(app, configValue);
 			provideTagset(app, tagsetValue);
@@ -209,4 +226,5 @@ export {
 	createCorpusContext,
 	type Corpus,
 	type CorpusContext,
+	type CorpusContextOptions,
 };

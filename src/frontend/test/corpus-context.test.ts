@@ -1,0 +1,134 @@
+import { createMockBlackLabApi, createMockFrontendApi } from '@test/mocks/api';
+import { describe, expect, test, vi } from 'vitest';
+import { nextTick, ref, watch } from 'vue';
+
+import { createCorpusContext } from '@/app/state/useCorpusContext';
+import type { CFPageConfig, NormalizedIndex } from '@/types/apptypes';
+
+import { CancelableRequest } from '@/shared/api/lib/api-types';
+
+function createDeferredRequest<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>(resolvePromise => {
+		resolve = resolvePromise;
+	});
+	return {
+		request: new CancelableRequest(promise, vi.fn()),
+		resolve,
+	};
+}
+
+async function settleReactivity() {
+	for (let i = 0; i < 4; i += 1) {
+		await Promise.resolve();
+		await nextTick();
+	}
+}
+
+function createIndex(): NormalizedIndex {
+	const word = {
+		custom: { displayName: 'Word' },
+		displayName: 'Word',
+		description: '',
+		hasForwardIndex: true,
+		isInternal: false,
+		offsetsAlternative: '',
+		sensitivity: 'sensitive_insensitive',
+		uiType: 'text',
+	};
+
+	return {
+		annotatedFields: {
+			contents: {
+				annotations: { word },
+				defaultDescription: '',
+				defaultDisplayName: 'Contents',
+				hasContentStore: true,
+				hasLengthTokens: true,
+				hasXmlTags: true,
+				id: 'contents',
+				isAnnotatedField: true,
+				isParallel: false,
+				mainAnnotationId: 'word',
+			},
+		},
+		annotationGroups: [{ annotatedFieldId: 'contents', entries: ['word'], id: 'Contents', isRemainderGroup: false }],
+		contentViewable: true,
+		description: '',
+		displayName: 'New corpus',
+		documentCount: 1,
+		fieldInfo: {},
+		id: 'new-corpus',
+		indexProgress: null,
+		mainAnnotatedField: 'contents',
+		metadataFieldGroups: [],
+		metadataFields: {},
+		owner: null,
+		relations: { relations: {}, spans: {} },
+		status: 'available',
+		textDirection: 'ltr',
+		timeModified: '',
+		tokenCount: 1,
+	} as unknown as NormalizedIndex;
+}
+
+function createConfig(): CFPageConfig {
+	return {
+		analytics: { google: null, plausible: null },
+		bannerMessage: null,
+		customCss: {},
+		customJs: {},
+		displayName: 'New configuration',
+		faviconDir: '',
+		footerMessage: null,
+		navbarLinks: [],
+		pageSize: null,
+	};
+}
+
+describe('corpus context publication', () => {
+	test('publishes one coherent generation after its initialization checkpoint', async () => {
+		const corpusRequest = createDeferredRequest<NormalizedIndex>();
+		const initializedCorpusIds: string[] = [];
+		let initializedCorpusId: string | undefined;
+		const interopRevision = ref(0);
+		const state = createCorpusContext(createMockBlackLabApi({ getCorpus: () => corpusRequest.request }), createMockFrontendApi({ getConfig: createConfig(), getTagset: undefined }), 'new-corpus', {
+			beforePublish: context => {
+				initializedCorpusId = context.index?.id;
+				initializedCorpusIds.push(initializedCorpusId ?? '');
+				interopRevision.value += 1;
+			},
+		});
+		const observations: Array<{ contextId: string; initializedCorpusId: string | undefined }> = [];
+		watch(
+			state.corpus,
+			corpus => {
+				if (corpus) observations.push({ contextId: corpus.id, initializedCorpusId });
+			},
+			{ flush: 'sync' },
+		);
+
+		await settleReactivity();
+
+		// Config has returned, but no public leaf exposes the new generation until
+		// the entire context can pass through the checkpoint.
+		expect(state.contextLoader.isLoaded()).toBe(false);
+		expect(state.config.value.displayName).toBeNull();
+		expect(state.corpus.value).toBeUndefined();
+		expect(initializedCorpusIds).toEqual([]);
+
+		corpusRequest.resolve(createIndex());
+		await settleReactivity();
+
+		expect(state.contextLoader.isLoaded()).toBe(true);
+		expect(state.config.value.displayName).toBe('New configuration');
+		expect(initializedCorpusIds).toEqual(['new-corpus']);
+		expect(observations).toEqual([{ contextId: 'new-corpus', initializedCorpusId: 'new-corpus' }]);
+
+		// Reading reactive legacy state in the checkpoint must not make later legacy
+		// changes re-run corpus initialization.
+		interopRevision.value += 1;
+		await settleReactivity();
+		expect(initializedCorpusIds).toEqual(['new-corpus']);
+	});
+});
