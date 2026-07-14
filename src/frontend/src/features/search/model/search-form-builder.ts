@@ -16,10 +16,13 @@ import {
 	FormBuilder,
 	FormRuntime,
 	parallelController,
+	type ParallelChildFieldConfig,
 	RangeField,
 	type FormFieldNode,
 	type NewFormState,
 	withinController,
+	queryBuilderController,
+	QueryBuilderField,
 } from '@/features/form';
 import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
 import type { WithinFieldOption } from '@/features/form/model/controllers/within-controller';
@@ -27,6 +30,7 @@ import { isContainerNode } from '@/features/form/model/form-utils';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import { createSearchFormTotalsFactory } from '@/features/search/model/search-form-totals';
+import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
@@ -328,6 +332,16 @@ function getSimpleSearchAnnotation(corpus: Corpus, configuration: SearchFormConf
 	};
 }
 
+function createParallelQueryField(builder: FormBuilder, id: string, corpus: Corpus, configuration: SearchFormConfiguration, child: ParallelChildFieldConfig): FormFieldNode {
+	return builder.newField(id, parallelController, ParallelField, {
+		alignByOptions: configuration.alignBy.enabled ? configuration.alignBy.elements : [],
+		defaultAlignBy: configuration.alignBy.defaultValue || null,
+		defaultSource: corpus.parallelAnnotatedFields[0]?.id ?? null,
+		child,
+		fieldOptions: corpus.parallelAnnotatedFields,
+	});
+}
+
 function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, configuration: SearchFormConfiguration, blacklabApi: BlackLabApi, translate: Translate): FormBuilder {
 	const builder = new FormBuilder({
 		corpus: {
@@ -355,17 +369,11 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 			textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
 			variant: 'large' as const,
 		};
-		const field = builder.newField('search.simple.parallel', parallelController, ParallelField, {
-			alignByOptions: configuration.alignBy.enabled ? configuration.alignBy.elements : [],
-			defaultAlignBy: configuration.alignBy.defaultValue || null,
-			defaultSource: corpus.parallelAnnotatedFields[0]?.id ?? null,
-			child: {
-				id: 'query',
-				controller: annotationTextController,
-				component: TextField,
-				config: childConfig,
-			},
-			fieldOptions: corpus.parallelAnnotatedFields,
+		const field = createParallelQueryField(builder, 'search.simple.parallel', corpus, configuration, {
+			id: 'query',
+			controller: annotationTextController,
+			component: TextField,
+			config: childConfig,
 		});
 		simpleQuery.addChildren(field);
 	} else {
@@ -382,6 +390,20 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 			.addChildren(createExtendedAnnotationTabs(builder, corpus, tagset, configuration, blacklabApi, translate), sharedWithin),
 		sharedFilters,
 	);
+
+	const queryBuilderConfig = {
+		options: createQueryBuilderOptions({ api: blacklabApi, configuration, index: corpus, translate }),
+	};
+	const advancedQuery = corpus.isParallelCorpus
+		? createParallelQueryField(builder, 'search.advanced.parallel', corpus, configuration, {
+				id: 'query',
+				controller: queryBuilderController,
+				component: QueryBuilderField,
+				config: queryBuilderConfig,
+			})
+		: builder.newField('search.advanced.query', queryBuilderController, QueryBuilderField, queryBuilderConfig);
+	const advancedForm = builder.newForm(getNewSearchFormId('advanced'), ContainerRenderer, { variant: 'list' });
+	advancedForm.addChildren(advancedQuery, sharedWithin, sharedFilters);
 
 	return builder;
 }

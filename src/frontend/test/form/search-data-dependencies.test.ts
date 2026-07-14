@@ -4,7 +4,7 @@ import { createMockApi, resolvedRequest } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { describe, expect, test, vi } from 'vitest';
 
-import type { ModuleRootState } from '@/app/state/ui-state';
+import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField } from '@/types/apptypes';
 
@@ -90,27 +90,19 @@ function createIndex(): NormalizedIndex {
 	};
 }
 
-function createSearchUiConfig(): ModuleRootState {
+function createSearchFormConfiguration(): SearchFormConfiguration {
 	return {
-		search: {
-			simple: { searchAnnotationId: 'word' },
-			extended: {
-				searchAnnotationIds: ['word'],
-				splitBatch: { enabled: true },
-			},
-			advanced: {
-				enabled: true,
-				searchAnnotationIds: ['lemma'],
-				defaultSearchAnnotationId: 'lemma',
-			},
-			expert: {},
-			shared: {
-				searchMetadataIds: ['title'],
-				within: { enabled: true, elements: [], sentenceElement: null },
-				alignBy: { enabled: true, elements: [], defaultValue: '' },
-			},
+		simpleAnnotationId: 'word',
+		extendedAnnotationIds: ['word'],
+		queryBuilder: {
+			annotationIds: ['lemma'],
+			defaultAnnotationId: 'lemma',
 		},
-	} as unknown as ModuleRootState;
+		metadataFieldIds: ['title'],
+		within: { enabled: true, elements: [] },
+		alignBy: { enabled: true, elements: [], defaultValue: '' },
+		lexiconDatabase: '',
+	};
 }
 
 describe('search form data dependencies', () => {
@@ -155,7 +147,7 @@ describe('search form data dependencies', () => {
 
 	test('creates querybuilder options outside Vue app context', async () => {
 		const index = createIndex();
-		const searchUi = createSearchUiConfig();
+		const configuration = createSearchFormConfiguration();
 		const getTermAutocomplete = vi.fn(() => resolvedRequest(['water']));
 		const api = createMockApi({
 			blacklab: {
@@ -165,7 +157,7 @@ describe('search form data dependencies', () => {
 
 		const options = createQueryBuilderOptions({
 			index,
-			searchUi,
+			configuration,
 			api,
 			translate: createMockTranslate(),
 		});

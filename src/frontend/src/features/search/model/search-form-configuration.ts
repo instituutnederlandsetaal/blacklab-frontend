@@ -7,6 +7,10 @@ import type { Option } from '@/shared/utils/options';
 export type SearchFormConfiguration = {
 	simpleAnnotationId: string;
 	extendedAnnotationIds: string[];
+	queryBuilder: {
+		annotationIds: string[];
+		defaultAnnotationId: string;
+	};
 	metadataFieldIds: string[];
 	within: {
 		enabled: boolean;
@@ -21,13 +25,17 @@ export type SearchFormConfiguration = {
 };
 
 /**
- * Copy the legacy UI configuration used by the simple and extended search forms.
+ * Copy the legacy UI configuration used by the search forms.
  * The returned value has no reactive references back to the legacy store.
  */
 export function snapshotSearchFormConfiguration(state: UIStore.ModuleRootState): SearchFormConfiguration {
 	return {
 		simpleAnnotationId: state.search.simple.searchAnnotationId,
 		extendedAnnotationIds: [...state.search.extended.searchAnnotationIds],
+		queryBuilder: {
+			annotationIds: [...state.search.advanced.searchAnnotationIds],
+			defaultAnnotationId: state.search.advanced.defaultSearchAnnotationId,
+		},
 		metadataFieldIds: [...state.search.shared.searchMetadataIds],
 		within: {
 			enabled: state.search.shared.within.enabled,

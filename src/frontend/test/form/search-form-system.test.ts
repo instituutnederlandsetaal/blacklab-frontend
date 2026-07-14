@@ -8,7 +8,8 @@ import { ref } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
-import { FormSystem, restoreFormState } from '@/features/form';
+import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
+import { FormSystem, parallelController, queryBuilderController, restoreFormState, type ParallelFieldState } from '@/features/form';
 import { createSearchFormSystem, getNewSearchFormId, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
@@ -177,6 +178,8 @@ beforeEach(() => {
 	const state = UIStore.getState();
 	state.search.simple.searchAnnotationId = 'word';
 	state.search.extended.searchAnnotationIds = ['word', 'lemma', 'pos'];
+	state.search.advanced.searchAnnotationIds = ['word', 'lemma', 'pos'];
+	state.search.advanced.defaultSearchAnnotationId = 'word';
 	state.search.shared.searchMetadataIds = ['author', 'genre'];
 	state.search.shared.within.enabled = false;
 	state.search.shared.within.elements = [];
@@ -200,6 +203,31 @@ describe('search form system', () => {
 		expect(definition.definition.getContainer('shared.filters')).not.toBeNull();
 		expect(definition.definition.getField('shared.filters.Bibliographic.author')).not.toBeNull();
 		expect(definition.definition.getField('shared.filters.Classification.genre')).not.toBeNull();
+	});
+
+	test('builds an advanced form with a configured querybuilder', () => {
+		const runtime = createDefinition();
+		const field = runtime.definition.getField('search.advanced.query');
+
+		expect(hasNewSearchFormForPattern(runtime, 'advanced')).toBe(true);
+		expect(field?.controller).toBe(queryBuilderController);
+		expect((field as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('word');
+	});
+
+	test('wraps the advanced querybuilder for a parallel corpus', () => {
+		const runtime = createDefinition(createParallelCorpus());
+		const field = runtime.definition.getField('search.advanced.parallel');
+		const state = runtime.state.state.value['search.advanced.parallel'] as ParallelFieldState<CqlQueryBuilderData>;
+		const attribute = state.sourceState.tokens[0].rootAttributeGroup.entries[0];
+		if ('annotationId' in attribute) attribute.values = ['water'];
+
+		expect(runtime.definition.getField('search.advanced.query')).toBeNull();
+		expect(field?.controller).toBe(parallelController);
+		expect((field as unknown as { child: { controller: unknown } }).child.controller).toBe(queryBuilderController);
+		expect(runtime.compile(getNewSearchFormId('advanced'))).toMatchObject({
+			patt: '[word="water"]',
+			searchfield: 'contents__en',
+		});
 	});
 
 	test('extended form compiles annotation fields with shared filters', () => {
@@ -266,6 +294,8 @@ describe('search form system', () => {
 
 		state.search.simple.searchAnnotationId = 'lemma';
 		state.search.extended.searchAnnotationIds = ['pos'];
+		state.search.advanced.searchAnnotationIds = ['lemma'];
+		state.search.advanced.defaultSearchAnnotationId = 'lemma';
 		state.search.shared.searchMetadataIds = ['genre'];
 
 		const configuredRuntime = system.runtime.value!;
@@ -275,6 +305,7 @@ describe('search form system', () => {
 		expect((configuredDefinition.getField('search.simple.annotation') as unknown as { annotationId: string }).annotationId).toBe('lemma');
 		expect(configuredDefinition.getField('search.extended.annotations.Basics.word')).toBeNull();
 		expect(configuredDefinition.getField('search.extended.annotations.pos')).not.toBeNull();
+		expect((configuredDefinition.getField('search.advanced.query') as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('lemma');
 		expect(configuredDefinition.getField('shared.filters.Bibliographic.author')).toBeNull();
 		expect(configuredDefinition.getField('shared.filters.Classification.genre')).not.toBeNull();
 		expect(configuredRuntime.state.state.value['search.simple.annotation']).toEqual({ value: 'water', caseSensitive: false });
@@ -348,9 +379,11 @@ describe('search form system', () => {
 		const snapshot = snapshotSearchFormConfiguration(state);
 
 		state.search.extended.searchAnnotationIds.push('word_or_lemma');
+		state.search.advanced.searchAnnotationIds.push('word_or_lemma');
 		state.search.shared.within.elements[0].label = 'Changed';
 
 		expect(snapshot.extendedAnnotationIds).toEqual(['word', 'lemma', 'pos']);
+		expect(snapshot.queryBuilder).toEqual({ annotationIds: ['word', 'lemma', 'pos'], defaultAnnotationId: 'word' });
 		expect(snapshot.within.elements).toEqual([{ value: 's', label: 'Sentence', title: 'sentence title' }]);
 	});
 

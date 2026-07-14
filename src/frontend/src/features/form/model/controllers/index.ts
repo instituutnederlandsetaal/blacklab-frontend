@@ -16,6 +16,7 @@ import expertQueryController from './raw-cql-query-controller';
 import withinController from './within-controller';
 
 export type { QueryBuilderFieldConfig, QueryBuilderFieldState } from './query-builder-controller';
+export type { ParallelChildFieldConfig, ParallelFieldConfig, ParallelFieldState } from './parallel-controller';
 
 export {
 	annotationPosController,

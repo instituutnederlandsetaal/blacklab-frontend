@@ -1,5 +1,5 @@
-import { type ModuleRootState as UIModuleState } from '@/app/state/ui-state';
 import { type CqlQueryBuilderOptions, OPERATORS, COMPARATORS } from '@/features/cql-query-builder/model';
+import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedIndex } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
@@ -10,16 +10,16 @@ function getMainAnnotationGroups(index: NormalizedIndex): NormalizedAnnotationGr
 	return index.annotationGroups.filter(group => group.annotatedFieldId === index.mainAnnotatedField);
 }
 
-export function createQueryBuilderOptions(input: { index: NormalizedIndex; searchUi: UIModuleState; api: BlackLabApi; translate: Translate }): CqlQueryBuilderOptions {
-	const { index, searchUi, api, translate } = input;
+export function createQueryBuilderOptions(input: { index: NormalizedIndex; configuration: SearchFormConfiguration; api: BlackLabApi; translate: Translate }): CqlQueryBuilderOptions {
+	const { index, configuration, api, translate } = input;
 	const mainField = index.annotatedFields[index.mainAnnotatedField];
 	const allAnnotationsMap = mainField.annotations;
-	const annotationGroups = getAnnotationSubset(searchUi.search.advanced.searchAnnotationIds, getMainAnnotationGroups(index), allAnnotationsMap, 'Search', translate, false, false);
+	const annotationGroups = getAnnotationSubset(configuration.queryBuilder.annotationIds, getMainAnnotationGroups(index), allAnnotationsMap, 'Search', translate, false, false);
 	const annotationOptions = annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(group => group.options);
 
 	return {
 		indexId: index.id,
-		defaultAnnotationId: searchUi.search.advanced.defaultSearchAnnotationId,
+		defaultAnnotationId: configuration.queryBuilder.defaultAnnotationId,
 		textDirection: index.textDirection,
 		allAnnotationsMap,
 		annotationOptions,

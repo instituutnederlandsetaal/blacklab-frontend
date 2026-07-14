@@ -56,6 +56,7 @@ import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql
 import { CqlGenerator } from '@/features/cql-query-builder/model';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
+import { snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import ParallelFields from '@/pages/search/form/parallel/ParallelFields';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 
@@ -86,7 +87,7 @@ export default defineComponent({
 			return createQueryBuilderOptions({
 				index: this.corpus,
 				api: this.blacklab,
-				searchUi: UIStore.getState(),
+				configuration: snapshotSearchFormConfiguration(UIStore.getState()),
 				translate: this,
 			});
 		},
