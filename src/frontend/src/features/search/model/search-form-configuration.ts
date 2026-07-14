@@ -21,6 +21,13 @@ export type SearchFormConfiguration = {
 		elements: Option[];
 		defaultValue: string;
 	};
+	explore: {
+		corpora: {
+			groupMetadataIds: string[];
+			defaultGroupMetadataId: string | null;
+			metadataGroupLabelsVisible: boolean;
+		};
+	};
 	lexiconDatabase: string;
 };
 
@@ -45,6 +52,13 @@ export function snapshotSearchFormConfiguration(state: UIStore.ModuleRootState):
 			enabled: state.search.shared.alignBy.enabled,
 			elements: state.search.shared.alignBy.elements.map(element => ({ ...element })),
 			defaultValue: state.search.shared.alignBy.defaultValue,
+		},
+		explore: {
+			corpora: {
+				groupMetadataIds: [...state.results.shared.groupMetadataIds],
+				defaultGroupMetadataId: state.explore.defaultGroupMetadataId || null,
+				metadataGroupLabelsVisible: state.dropdowns.groupBy.metadataGroupLabelsVisible,
+			},
 		},
 		lexiconDatabase: state.global.lexiconDb,
 	};

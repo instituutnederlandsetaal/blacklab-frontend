@@ -21,6 +21,10 @@ import {
 	FormSystem,
 	parallelController,
 	queryBuilderController,
+	resultGroupByController,
+	resultGroupDisplayModeController,
+	resultSortController,
+	resultViewedResultsController,
 	restoreFormState,
 	withinController,
 	type FieldController,
@@ -31,6 +35,7 @@ import { decodePersistObject, decodePersistSelection, encodePersistObject, joinP
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
+import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
@@ -83,6 +88,72 @@ function unwrapRestoreResult<T>(restored: RestoreFieldResult<T>): T {
 }
 
 describe('scoped form persistence', () => {
+	test('passes a field query contribution result preset into the compiled submission snapshot', () => {
+		const builder = createTestBuilder();
+		const resultPresetController: FieldController<'result-preset-text', TestTextFieldState, TestTextFieldConfig> = {
+			...testTextController,
+			kind: 'result-preset-text',
+			getQueryContribution: (_config, _runtime, state) =>
+				queryFragment({
+					resultPreset: {
+						viewedResults: 'docs',
+						groupBy: [state.value],
+						groupDisplayMode: 'table',
+						sort: null,
+					},
+				}),
+		};
+		const field = builder.newField('explore.corpora.options', resultPresetController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Options',
+		});
+		const form = builder.newForm('explore.corpora', ContainerRenderer, {}).addChildren(field);
+		const state = createDefaultFormState(builder.context, builder.getRoot());
+		state.state[field.id] = { value: 'field:date' };
+
+		const compiled = compileFormNode(form, state, builder.context);
+
+		expect(compiled.resultPreset).toEqual({
+			viewedResults: 'docs',
+			groupBy: ['field:date'],
+			groupDisplayMode: 'table',
+			sort: null,
+		});
+		(state.state[field.id] as TestTextFieldState).value = 'field:author';
+		expect(compiled.resultPreset?.groupBy).toEqual(['field:date']);
+	});
+
+	test('combines result-preset field query contributions', () => {
+		const builder = createTestBuilder();
+		const createResultField = (
+			id: string,
+			controller: typeof resultViewedResultsController | typeof resultGroupByController | typeof resultSortController | typeof resultGroupDisplayModeController,
+			defaultValue: string | string[],
+		) =>
+			builder.newField(id, controller, SelectField, {
+				displayName: id,
+				options: [],
+				defaultValue,
+				persistKey: id,
+			});
+		const viewedResults = createResultField('preset.view', resultViewedResultsController, 'docs');
+		const groupBy = createResultField('preset.group', resultGroupByController, ['field:date']);
+		const displayMode = createResultField('preset.display', resultGroupDisplayModeController, 'tokens');
+		const sort = createResultField('preset.sort', resultSortController, 'field:title');
+		const form = builder.newForm('explore.corpora', ContainerRenderer, {}).addChildren(viewedResults, groupBy, displayMode, sort);
+		const state = createDefaultFormState(builder.context, builder.getRoot());
+
+		const compiled = compileFormNode(form, state, builder.context);
+
+		expect(compiled.resultPreset).toEqual({
+			viewedResults: 'docs',
+			groupBy: ['field:date'],
+			groupDisplayMode: 'tokens',
+			sort: 'field:title',
+		});
+		expect(compiled.issues).toBeUndefined();
+	});
+
 	test('restores directly from a null-prototype raw query object', () => {
 		const fixture = createSingleTextForm();
 		const query = Object.assign(Object.create(null), { 'f.form': 'search.extended' }) as Record<string, unknown>;

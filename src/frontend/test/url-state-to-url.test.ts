@@ -58,7 +58,7 @@ describe('state-to-url helpers', () => {
 		});
 	});
 
-	test('keeps new-form submitted identity in scoped params instead of legacy interface mode', () => {
+	test('keeps new-form submitted identity in scoped params and uses the live interface state', () => {
 		const query = {
 			form: 'new',
 			state: {
@@ -82,6 +82,36 @@ describe('state-to-url helpers', () => {
 		expect(query.state.encoded['f.form']).toBe('search.extended');
 		expect(submittedInterface).toEqual({
 			form: 'search',
+			exploreMode: 'corpora',
+			patternMode: 'simple',
+			viewedResults: undefined,
+			activeAnnotationTab: 'Basics_annotations',
+			activeFilterTab: 'Letter',
+		});
+	});
+
+	test('uses the live Explore tab state for a new Documents form', () => {
+		const exploreInterfaceState: InterfaceStore.ModuleRootState = {
+			...liveInterfaceState,
+			form: 'explore',
+		};
+		const submittedInterface = getSubmittedInterfaceState({
+			interface: exploreInterfaceState,
+			query: {
+				form: 'new',
+				state: {
+					filter: null,
+					formId: 'explore.corpora',
+					encoded: { 'f.form': 'explore.corpora' },
+					patt: null,
+					searchfield: null,
+					summaries: [],
+				},
+			},
+		});
+
+		expect(submittedInterface).toEqual({
+			form: 'explore',
 			exploreMode: 'corpora',
 			patternMode: 'simple',
 			viewedResults: undefined,

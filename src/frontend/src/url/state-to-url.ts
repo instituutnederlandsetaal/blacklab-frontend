@@ -5,6 +5,7 @@ import type * as InterfaceStore from '@/features/search/model/form/interface-sta
 import type * as QueryStore from '@/features/search/model/query-state';
 import type * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import type * as ViewStore from '@/features/search/model/results/view-state';
+import { getLegacyFormNameFromNewFormId } from '@/features/search/model/search-form-builder';
 
 import { cleanQueryParams } from '@/shared/api/lib/api-utils';
 
@@ -69,11 +70,12 @@ export function getSubmittedInterfaceState({ query, interface: interfaceState }:
 		};
 	}
 
-	// new form is active, or no form is active at all (no query submitted?)
-	// return the live state instead of the snapshot.
+	// The new form is nested inside the normal Search/Explore tabs, so the interface
+	// store remains authoritative for its host and mode. The same applies when no
+	// query has been submitted yet.
 	return {
 		...shared,
-		form: interfaceState.form,
+		form: query.form === 'new' ? getLegacyFormNameFromNewFormId(query.state.formId) : 'search',
 		exploreMode: interfaceState.exploreMode,
 		patternMode: interfaceState.patternMode,
 	};

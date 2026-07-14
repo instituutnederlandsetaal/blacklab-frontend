@@ -13,10 +13,12 @@ import {
 import parallelController from './parallel-controller';
 import queryBuilderController from './query-builder-controller';
 import expertQueryController from './raw-cql-query-controller';
+import { resultGroupByController, resultGroupDisplayModeController, resultSortController, resultViewedResultsController } from './result-preset-controller';
 import withinController from './within-controller';
 
 export type { QueryBuilderFieldConfig, QueryBuilderFieldState } from './query-builder-controller';
 export type { ParallelChildFieldConfig, ParallelFieldConfig, ParallelFieldState } from './parallel-controller';
+export type { ResultPresetFieldConfig } from './result-preset-controller';
 
 export {
 	annotationPosController,
@@ -34,4 +36,8 @@ export {
 	expertQueryController,
 	parallelController,
 	queryBuilderController,
+	resultGroupByController,
+	resultGroupDisplayModeController,
+	resultSortController,
+	resultViewedResultsController,
 };

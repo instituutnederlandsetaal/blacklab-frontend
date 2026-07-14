@@ -1,6 +1,6 @@
 import {
 	booleanExpr,
-	type CompiledBlackLabParameters,
+	type CompiledQuery,
 	isCqlPattern,
 	isPartialQueryIR,
 	isQueryFilterNode,
@@ -11,6 +11,7 @@ import {
 	type QueryFragment,
 	type QueryIR,
 	type QueryWrapper,
+	type ResultPreset,
 	type SummaryEntry,
 	type TokenPredicate as expr,
 	type TokenPredicateMatch,
@@ -28,12 +29,20 @@ const EMPTY_PROJECTION = queryIR();
 // Builders
 // =========================================================================================================================
 
+function copyResultPreset(preset: ResultPreset): ResultPreset {
+	return {
+		...preset,
+		...(preset.groupBy ? { groupBy: [...preset.groupBy] } : {}),
+	};
+}
+
 export function queryIR(parts?: null | Partial<QueryIR>): QueryIR {
 	return {
 		pattern: parts?.pattern ?? null,
 		filter: parts?.filter ?? null,
 		wrappers: parts?.wrappers ?? [],
 		searchfield: parts?.searchfield ?? null,
+		...(parts?.resultPreset ? { resultPreset: copyResultPreset(parts.resultPreset) } : {}),
 	};
 }
 
@@ -135,22 +144,25 @@ export function withSearchField(artifact: QueryIR, searchfield: string | null): 
 // Pipeline
 // =========================================================================================================================
 
-export function compileQueryIR(artifact: QueryIR | QueryFragment): CompiledBlackLabParameters {
+export function compileQueryIR(artifact: QueryIR | QueryFragment): CompiledQuery {
 	const normalized = simplifyQueryIR('query' in artifact ? artifact.query : artifact);
 	return {
 		patt: emitCqlWithWrappers(normalized.pattern, normalized.wrappers),
 		filter: emitFilter(normalized.filter),
 		searchfield: normalized.searchfield,
+		...(normalized.resultPreset ? { resultPreset: copyResultPreset(normalized.resultPreset) } : {}),
 	};
 }
 
 export function combineQueries(artifacts: QueryIR[], combine: QueryCombineMode = 'and'): QueryIR {
 	const nonEmpty = artifacts.filter(artifact => hasQueryContributions(artifact));
+	const resultPreset = nonEmpty.reduce<ResultPreset>((combined, artifact) => ({ ...combined, ...artifact.resultPreset }), {});
 	return queryIR({
 		pattern: combineCql(nonEmpty.map(artifact => artifact.pattern).filter(isNonNull), combine),
 		filter: combineFilters(nonEmpty.map(artifact => artifact.filter).filter(isNonNull), combine === 'or' ? 'or' : 'and'),
 		wrappers: nonEmpty.flatMap(artifact => artifact.wrappers),
 		searchfield: nonEmpty.find(artifact => artifact.searchfield)?.searchfield ?? null,
+		resultPreset: Object.keys(resultPreset).length ? resultPreset : undefined,
 	});
 }
 
@@ -407,9 +419,9 @@ function hasContribution(contribution: QueryFragment): boolean {
 	return hasQueryContributions(contribution.query) || contribution.summaries.length > 0;
 }
 
-/** Whether a query fragment changes the generated BlackLab query. */
+/** Whether an IR node contributes submitted query or result state. */
 export function hasQueryContributions(artifact: QueryIR): boolean {
-	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchfield);
+	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchfield || (artifact.resultPreset && Object.keys(artifact.resultPreset).length));
 }
 
 function escapeLucene(value: string): string {

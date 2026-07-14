@@ -10,9 +10,12 @@ import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { expertQueryController, FormSystem, parallelController, queryBuilderController, restoreFormState, type ParallelFieldState } from '@/features/form';
-import { createSearchFormSystem, getNewSearchFormId, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
+import { createSearchFormSystem, getNewExploreFormId, getNewSearchFormId, hasNewExploreFormForMode, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
+import { corpusCustomizations } from '@/utils/customization';
+
+import { optionValues, type Options } from '@/shared/utils/options';
 
 function annotation(id: string, overrides: Partial<NormalizedAnnotation> = {}): NormalizedAnnotation {
 	return {
@@ -186,6 +189,9 @@ beforeEach(() => {
 	state.search.shared.alignBy.enabled = false;
 	state.search.shared.alignBy.elements = [];
 	state.search.shared.alignBy.defaultValue = '';
+	state.results.shared.groupMetadataIds = ['author', 'genre'];
+	state.explore.defaultGroupMetadataId = 'author';
+	state.dropdowns.groupBy.metadataGroupLabelsVisible = false;
 });
 
 afterEach(() => {
@@ -193,6 +199,67 @@ afterEach(() => {
 });
 
 describe('search form system', () => {
+	test('builds Documents as a form with configuration-backed defaults, shared filters, and a result preset', () => {
+		const runtime = createDefinition();
+		const groupByFieldId = 'explore.corpora.group-by';
+		const groupDisplayModeFieldId = 'explore.corpora.group-display-mode';
+
+		expect(hasNewExploreFormForMode(runtime, 'corpora')).toBe(true);
+		expect(runtime.definition.getForm(getNewExploreFormId('corpora'))).not.toBeNull();
+		expect(runtime.definition.getContainer('explore.corpora.result-preset')).not.toBeNull();
+		expect(runtime.definition.getField(groupByFieldId)).not.toBeNull();
+		expect(runtime.definition.getField(groupDisplayModeFieldId)).not.toBeNull();
+		expect(runtime.state.state.value[groupByFieldId]).toEqual(['field:author']);
+		expect(runtime.state.state.value[groupDisplayModeFieldId]).toEqual(['table']);
+
+		runtime.state.state.value[groupDisplayModeFieldId] = ['tokens'];
+		runtime.state.state.value['shared.filters.Classification.genre'] = ['fiction'];
+		expect(runtime.compile(getNewExploreFormId('corpora'))).toMatchObject({
+			encoded: {
+				'f.form': 'explore.corpora',
+				'f.explore-corpora-group-by': ['field:author'],
+				'f.explore-corpora-group-display-mode': 'tokens',
+			},
+			filter: 'genre:(fiction)',
+			patt: null,
+			resultPreset: {
+				groupBy: ['field:author'],
+				groupDisplayMode: 'tokens',
+			},
+		});
+	});
+
+	test('applies metadata visibility customization and falls back from a hidden configured default', () => {
+		vi.spyOn(corpusCustomizations.search.metadata, 'showField').mockImplementation(id => id !== 'author');
+		const runtime = createDefinition();
+		const field = runtime.definition.getField('explore.corpora.group-by') as unknown as { options: Options };
+
+		expect(optionValues(field.options)).toEqual(['field:genre']);
+		expect(runtime.state.state.value['explore.corpora.group-by']).toEqual(['field:genre']);
+	});
+
+	test('restores a scoped Documents URL through the shared form restore path', () => {
+		const runtime = createDefinition();
+		const restored = restoreFormState(runtime.definition, {
+			'f.form': 'explore.corpora',
+			'f.explore-corpora-group-by': 'field:genre',
+			'f.explore-corpora-group-display-mode': 'docs',
+			filter: 'author:Austen',
+		});
+		runtime.state.replaceState(restored);
+
+		expect(restored.submittedFormId).toBe('explore.corpora');
+		expect(runtime.state.state.value['explore.corpora.group-by']).toEqual(['field:genre']);
+		expect(runtime.state.state.value['explore.corpora.group-display-mode']).toEqual(['docs']);
+		expect(runtime.compile(getNewExploreFormId('corpora'))).toMatchObject({
+			filter: 'author:Austen',
+			resultPreset: {
+				groupBy: ['field:genre'],
+				groupDisplayMode: 'docs',
+			},
+		});
+	});
+
 	test('builds an extended search form with grouped annotation and shared filter nodes', () => {
 		const definition = createDefinition();
 
@@ -504,6 +571,11 @@ describe('search form system', () => {
 		expect(snapshot.extendedAnnotationIds).toEqual(['word', 'lemma', 'pos']);
 		expect(snapshot.queryBuilder).toEqual({ annotationIds: ['word', 'lemma', 'pos'], defaultAnnotationId: 'word' });
 		expect(snapshot.within.elements).toEqual([{ value: 's', label: 'Sentence', title: 'sentence title' }]);
+		expect(snapshot.explore.corpora).toEqual({
+			groupMetadataIds: ['author', 'genre'],
+			defaultGroupMetadataId: 'author',
+			metadataGroupLabelsVisible: false,
+		});
 	});
 
 	test('preserves configured within options, labels, and order', () => {

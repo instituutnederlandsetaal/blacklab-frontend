@@ -163,6 +163,32 @@ describe('generated query correctness', () => {
 		});
 	});
 
+	test('Preserves and combines result-preset-only query fragments', () => {
+		const combined = combineQueryFragments(
+			'and',
+			queryFragment({ resultPreset: { viewedResults: 'docs', sort: null } }),
+			queryFragment({ resultPreset: { groupBy: ['field:date'], groupDisplayMode: 'tokens' } }),
+		);
+
+		expect(combined.query.resultPreset).toEqual({
+			viewedResults: 'docs',
+			groupBy: ['field:date'],
+			groupDisplayMode: 'tokens',
+			sort: null,
+		});
+		expect(compileQueryIR(combined)).toEqual({
+			patt: null,
+			filter: null,
+			searchfield: null,
+			resultPreset: {
+				viewedResults: 'docs',
+				groupBy: ['field:date'],
+				groupDisplayMode: 'tokens',
+				sort: null,
+			},
+		});
+	});
+
 	const parallelField = {
 		id: 'parallel',
 		kind: 'field' as const,

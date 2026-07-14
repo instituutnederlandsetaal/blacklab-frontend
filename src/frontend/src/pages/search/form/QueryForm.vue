@@ -8,7 +8,7 @@
 				<a href="#form-explore">{{ $t('queryForm.explore') }}</a>
 			</li>
 		</ul>
-		<Component :is="newSearchFormActive ? 'div' : 'form'" class="tab-content cf-panel-tab-body cf-panel-lg clearfix" style="padding-top: 0" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
+		<Component :is="newFormActive ? 'div' : 'form'" class="tab-content cf-panel-tab-body cf-panel-lg clearfix" style="padding-top: 0" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
 			<QueryFormSearch
 				id="form-search"
 				v-show="activeForm === 'search'"
@@ -50,9 +50,9 @@
 				}"
 			/>
 			<div class="col-xs-12">
-				<hr v-if="!newSearchFormActive" />
-				<button v-if="!newSearchFormActive" type="submit" class="btn btn-primary btn-lg">{{ $t('queryForm.search') }}</button>
-				<button v-if="!newSearchFormActive" type="reset" class="btn btn-default btn-lg" title="Start a new search">{{ $t('queryForm.reset') }}</button>
+				<hr v-if="!newFormActive" />
+				<button v-if="!newFormActive" type="submit" class="btn btn-primary btn-lg">{{ $t('queryForm.search') }}</button>
+				<button v-if="!newFormActive" type="reset" class="btn btn-default btn-lg" title="Start a new search">{{ $t('queryForm.reset') }}</button>
 				<button type="button" class="btn btn-lg btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
 				<button type="button" class="btn btn-lg btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
 			</div>
@@ -72,7 +72,7 @@ import { useCorpus } from '@/app/state/useCorpusContext';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
-import { hasNewSearchFormForPattern, useSearchFormSystem } from '@/features/search/model/search-form-builder';
+import { hasNewExploreFormForMode, hasNewSearchFormForPattern, useSearchFormSystem } from '@/features/search/model/search-form-builder';
 
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';
 import QueryFormFilters from '@/pages/search/form/QueryFormFilters.vue';
@@ -98,13 +98,16 @@ export default defineComponent({
 	}),
 	computed: {
 		queryBuilderVisible(): boolean {
-			return RootStore.get.queryBuilderActive();
+			return RootStore.get.queryBuilderActive() && !this.newFormActive;
 		},
 		filtersVisible(): boolean {
-			return RootStore.get.filtersActive() && !(GlobalViewSettings.getState().useNewSearchForm && hasNewSearchFormForPattern(this.searchFormRuntime, InterfaceStore.get.patternMode()));
+			return RootStore.get.filtersActive() && !this.newFormActive;
 		},
-		newSearchFormActive(): boolean {
-			return this.activeForm === 'search' && GlobalViewSettings.getState().useNewSearchForm && hasNewSearchFormForPattern(this.searchFormRuntime, InterfaceStore.get.patternMode());
+		newFormActive(): boolean {
+			if (!GlobalViewSettings.getState().useNewSearchForm) return false;
+			return this.activeForm === 'search'
+				? hasNewSearchFormForPattern(this.searchFormRuntime, InterfaceStore.get.patternMode())
+				: hasNewExploreFormForMode(this.searchFormRuntime, InterfaceStore.get.exploreMode());
 		},
 		activeForm: {
 			get: InterfaceStore.get.form,
@@ -118,6 +121,20 @@ export default defineComponent({
 	methods: {
 		reset(_event?: Event) {
 			RootStore.actions.reset();
+		},
+		confirmLargeExploreSearch(): boolean {
+			if (this.activeForm !== 'explore' || !this.subcorpus.isLoaded() || this.subcorpus.value.tokensInMatchingDocuments <= 5000000) return true;
+			const msg = stripIndent`
+				You have selected a subcorpus of over ${(5000000).toLocaleString()} tokens.
+				Please note that this query, on first execution, may take a considerable amount of time to complete.
+				Proceed with caution.
+
+				Continue?`;
+
+			return confirm(msg);
+		},
+		blurActiveElement() {
+			if (document.activeElement) (document.activeElement as HTMLInputElement).blur();
 		},
 		submit() {
 			if (this.corpus.isParallelCorpus && PatternStore.getState().shared.source === null) {
@@ -135,21 +152,8 @@ export default defineComponent({
 				}
 			}
 
-			if (this.activeForm === 'explore' && this.subcorpus.isLoaded() && this.subcorpus.value.tokensInMatchingDocuments > 5000000) {
-				const msg = stripIndent`
-					You have selected a subcorpus of over ${(5000000).toLocaleString()} tokens.
-					Please note that this query, on first execution, may take a considerable amount of time to complete.
-					Proceed with caution.
-
-					Continue?`;
-
-				if (!confirm(msg)) {
-					return;
-				}
-			}
-			if (document.activeElement) {
-				(document.activeElement as HTMLInputElement).blur();
-			}
+			if (!this.confirmLargeExploreSearch()) return;
+			this.blurActiveElement();
 			RootStore.actions.searchFromSubmit();
 		},
 	},

@@ -6,7 +6,7 @@ import { type CorpusContext } from '@/app/state/useCorpusContext';
 // Article
 import * as ArticleModule from '@/features/article/model/article-state';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
-import type { CompiledFormStateWithSummaries } from '@/features/form';
+import type { CompiledFormStateWithSummaries, ResultPreset } from '@/features/form';
 import * as HistoryModule from '@/features/history/model/query-history-state';
 // Form
 import * as ExploreModule from '@/features/search/model/form/explore-state';
@@ -168,6 +168,39 @@ function getNextQueryState(newFormState?: CompiledFormStateWithSummaries | null)
 	} else throw new Error(`Unhandled form ${activeForm as any} while restoring submitted query`);
 }
 
+function applyResultPreset(viewedResults: string, preset?: ResultPreset): void {
+	if (!preset) return;
+	const view = ViewModule.getOrCreateModule(viewedResults);
+	if (preset.groupBy !== undefined) view.actions.groupBy(preset.groupBy);
+	if (preset.groupDisplayMode !== undefined) view.actions.groupDisplayMode(preset.groupDisplayMode);
+	// groupBy clears the sort, so an explicit preset sort must be applied last.
+	if (preset.sort !== undefined) view.actions.sort(preset.sort);
+}
+
+function applyLegacyExploreResultSettings(): boolean {
+	if (InterfaceModule.get.form() !== 'explore') return false;
+	switch (InterfaceModule.get.exploreMode()) {
+		case 'corpora': {
+			const groupBy = ExploreModule.get.corpora.groupBy();
+			InterfaceModule.actions.viewedResults('docs');
+			const view = ViewModule.getOrCreateModule('docs');
+			view.actions.groupDisplayMode(ExploreModule.get.corpora.groupDisplayMode());
+			view.actions.groupBy(groupBy ? [groupBy] : []);
+			return true;
+		}
+		case 'frequency': {
+			InterfaceModule.actions.viewedResults('hits');
+			ViewModule.getOrCreateModule('hits').actions.groupBy([ExploreModule.get.frequency.groupBy()]);
+			return true;
+		}
+		case 'ngram': {
+			InterfaceModule.actions.viewedResults('hits');
+			ViewModule.getOrCreateModule('hits').actions.groupBy([ExploreModule.get.ngram.groupBy()]);
+			return true;
+		}
+	}
+}
+
 const actions = {
 	searchFromSubmit: (snapshot?: CompiledFormStateWithSummaries | null) => {
 		markLocalSearchIntent();
@@ -180,10 +213,13 @@ const actions = {
 		ViewModule.actions.resetAllViews({ resetGroupBy: false });
 
 		QueryModule.actions.search(newQueryState);
-		const newPattern = QueryModule.get.patternString();
+		if (!snapshot && applyLegacyExploreResultSettings()) return;
 
+		const newPattern = QueryModule.get.patternString();
 		const currentView = InterfaceModule.get.viewedResults();
-		InterfaceModule.actions.viewedResults(!newPattern ? 'docs' : (currentView ?? 'hits'));
+		const viewedResults = snapshot?.resultPreset?.viewedResults ?? (!newPattern ? 'docs' : (currentView ?? 'hits'));
+		InterfaceModule.actions.viewedResults(viewedResults);
+		applyResultPreset(viewedResults, snapshot?.resultPreset);
 	},
 
 	searchSplitBatches: () => {

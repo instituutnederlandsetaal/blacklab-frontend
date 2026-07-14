@@ -18,6 +18,8 @@ import {
 	parallelController,
 	type ParallelChildFieldConfig,
 	RangeField,
+	resultGroupByController,
+	resultGroupDisplayModeController,
 	type FormFieldNode,
 	withinController,
 	queryBuilderController,
@@ -26,15 +28,19 @@ import {
 } from '@/features/form';
 import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
 import type { WithinFieldOption } from '@/features/form/model/controllers/within-controller';
+import type { ModuleRootState as ExploreFormState } from '@/features/search/model/form/explore-state';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import { createSearchFormTotalsFactory } from '@/features/search/model/search-form-totals';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
+import { corpusCustomizations } from '@/utils/customization';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
-import { debugLog } from '@/shared/debug/debug';
+import { getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
+import debug, { debugLog } from '@/shared/debug/debug';
 import type { Translate } from '@/shared/i18n';
+import { optionValues, type Options } from '@/shared/utils/options';
 import useInjectable from '@/shared/utils/useInjectable';
 
 import AnnotationPosField from '@/features/form/fields/AnnotationPosField.vue';
@@ -52,6 +58,7 @@ import SummaryView from '@/features/form/views/SummaryView.vue';
 // TODO integration customization.ts callback functions
 
 const SEARCH_FORM_ID_PREFIX = 'search.';
+const EXPLORE_FORM_ID_PREFIX = 'explore.';
 
 type CreateSearchFormSystemOptions = {
 	blacklabApi: BlackLabApi;
@@ -266,6 +273,57 @@ function createSharedFilters(
 	);
 }
 
+function createExploreCorporaForm(
+	builder: FormBuilder,
+	corpus: Corpus,
+	configuration: SearchFormConfiguration,
+	sharedFilters: ReturnType<FormBuilder['newContainer']> | null,
+	translate: Translate,
+): void {
+	const options: Options = getMetadataSubset(
+		configuration.explore.corpora.groupMetadataIds,
+		corpus.metadataGroups,
+		corpus.allMetadataFieldsMap,
+		'Group',
+		translate,
+		debug.value,
+		configuration.explore.corpora.metadataGroupLabelsVisible,
+		id => corpusCustomizations.search.metadata.showField(id),
+	)
+		.map(group => ({
+			...group,
+			options: group.options.map(option => (typeof option === 'string' ? `field:${option}` : { ...option, value: `field:${option.value}` })),
+		}))
+		.filter(group => group.options.length);
+	const availableGroupByValues = optionValues(options);
+	const configuredDefault = configuration.explore.corpora.defaultGroupMetadataId ? `field:${configuration.explore.corpora.defaultGroupMetadataId}` : null;
+	const defaultGroupBy = configuredDefault && availableGroupByValues.includes(configuredDefault) ? configuredDefault : (availableGroupByValues[0] ?? null);
+	const groupByField = builder.newField('explore.corpora.group-by', resultGroupByController, SelectField, {
+		displayName: () => translate.$t('explore.corpora.groupBy'),
+		options,
+		defaultValue: defaultGroupBy,
+		html: true,
+		hideEmpty: true,
+		persistKey: 'explore-corpora-group-by',
+		// resultPreset: { viewedResults: 'docs', sort: null },
+	});
+	const groupDisplayModeField = builder.newField('explore.corpora.group-display-mode', resultGroupDisplayModeController, SelectField, {
+		displayName: () => translate.$t('explore.corpora.showAs.heading'),
+		options: [
+			{ value: 'table', label: translate.$t('explore.corpora.showAs.table').toString() },
+			{ value: 'docs', label: translate.$t('explore.corpora.showAs.docs').toString() },
+			{ value: 'tokens', label: translate.$t('explore.corpora.showAs.tokens').toString() },
+		],
+		defaultValue: 'table',
+		html: true,
+		hideEmpty: true,
+		persistKey: 'explore-corpora-group-display-mode',
+	});
+	const resultPresetFields = builder.newContainer('explore.corpora.result-preset', ContainerRenderer, { variant: 'list' }).addChildren(groupByField, groupDisplayModeField);
+	const form = builder.newForm(getNewExploreFormId('corpora'), ContainerRenderer, { variant: sharedFilters ? 'columns' : undefined });
+	form.addChildren(resultPresetFields, sharedFilters);
+}
+
 function createExtendedAnnotationTabs(
 	builder: FormBuilder,
 	corpus: Corpus,
@@ -430,6 +488,8 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 		sharedFilters,
 	);
 
+	createExploreCorporaForm(builder, corpus, configuration, sharedFilters, translate);
+
 	return builder;
 }
 
@@ -470,6 +530,18 @@ export function hasNewSearchFormForPattern(runtime: FormRuntime | null | undefin
 
 export function getNewSearchFormId(patternMode: PatternMode): string {
 	return `${SEARCH_FORM_ID_PREFIX}${patternMode}`;
+}
+
+export function hasNewExploreFormForMode(runtime: FormRuntime | null | undefined, exploreMode: keyof ExploreFormState): boolean {
+	return !!runtime?.definition.getForm(getNewExploreFormId(exploreMode));
+}
+
+export function getNewExploreFormId(exploreMode: keyof ExploreFormState): string {
+	return `${EXPLORE_FORM_ID_PREFIX}${exploreMode}`;
+}
+
+export function getLegacyFormNameFromNewFormId(newFormId: string) {
+	return newFormId.startsWith(SEARCH_FORM_ID_PREFIX) ? 'search' : 'explore';
 }
 
 export { useSearchFormSystem, createSearchFormSystem };

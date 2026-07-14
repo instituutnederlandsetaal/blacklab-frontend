@@ -123,11 +123,20 @@ export type QueryWrapper =
 			enabled: boolean;
 	  };
 
+/** Initial result-view settings contributed by a submitted query. */
+export type ResultPreset = {
+	viewedResults?: string;
+	groupBy?: string[];
+	sort?: string | null;
+	groupDisplayMode?: string | null;
+};
+
 export type QueryIR = {
 	pattern: CqlPattern | null;
 	filter: QueryFilterNode | null;
 	wrappers: QueryWrapper[];
 	searchfield: string | null;
+	resultPreset?: ResultPreset;
 };
 export function isQueryIR(artifact: any): artifact is QueryIR {
 	// NOTE: if artifact is an array, 'filter' in artifact is true,
@@ -135,7 +144,12 @@ export function isQueryIR(artifact: any): artifact is QueryIR {
 	return !Array.isArray(artifact) && artifact && typeof artifact === 'object' && 'pattern' in artifact && 'filter' in artifact && 'wrappers' in artifact && 'searchfield' in artifact;
 }
 export function isPartialQueryIR(artifact: any): artifact is Partial<QueryIR> {
-	return !Array.isArray(artifact) && artifact && typeof artifact === 'object' && ('pattern' in artifact || 'filter' in artifact || 'wrappers' in artifact || 'searchfield' in artifact);
+	return (
+		!Array.isArray(artifact) &&
+		artifact &&
+		typeof artifact === 'object' &&
+		('pattern' in artifact || 'filter' in artifact || 'wrappers' in artifact || 'searchfield' in artifact || 'resultPreset' in artifact)
+	);
 }
 
 /**
@@ -162,9 +176,13 @@ export type QueryFragment = {
 
 export type CompiledBlackLabParameters = Record<keyof BlackLabParameters, string | null>;
 
+export type CompiledQuery = CompiledBlackLabParameters & {
+	resultPreset?: ResultPreset;
+};
+
 export type ScopedFormQuery = Record<string, string | string[]>;
 
-export type CompiledFormState = CompiledBlackLabParameters & {
+export type CompiledFormState = CompiledQuery & {
 	formId: string;
 	encoded: ScopedFormQuery;
 	issues?: RestoreIssue[];

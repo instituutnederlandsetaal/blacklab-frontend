@@ -14,35 +14,38 @@
 		</ul>
 
 		<div class="tab-content">
-			<div id="explore-corpora" :class="['tab-pane form-horizontal', { active: exploreMode === 'corpora' }]">
-				<div class="form-group">
-					<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('explore.corpora.groupBy') }}</label>
-					<div class="col-xs-8">
-						<SelectPicker
-							:placeholder="`${$t('explore.corpora.groupBy')}...`"
-							data-id="corpora-group-by"
-							data-width="100%"
-							style="max-width: 400px"
-							hideEmpty
-							allowHtml
-							:options="metadataGroupByOptions"
-							v-model="corporaGroupBy"
-						/>
+			<div id="explore-corpora" :class="['tab-pane', { active: exploreMode === 'corpora' }]">
+				<FormSystem v-if="renderNewForm('corpora')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('corpora')" @submit="submitNewForm" @reset="resetNewForm" />
+				<div v-else class="form-horizontal'">
+					<div class="form-group">
+						<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('explore.corpora.groupBy') }}</label>
+						<div class="col-xs-8">
+							<SelectPicker
+								:placeholder="`${$t('explore.corpora.groupBy')}...`"
+								data-id="corpora-group-by"
+								data-width="100%"
+								style="max-width: 400px"
+								hideEmpty
+								allowHtml
+								:options="metadataGroupByOptions"
+								v-model="corporaGroupBy"
+							/>
+						</div>
 					</div>
-				</div>
-				<div class="form-group">
-					<label class="col-xs-4 col-md-2" for="corpora-display-mode">{{ $t('explore.corpora.showAs.heading') }}</label>
-					<div class="col-xs-8">
-						<SelectPicker
-							:placeholder="$t('explore.corpora.showAs.heading')"
-							data-id="corpora-display-mode"
-							data-width="100%"
-							style="max-width: 400px"
-							hideEmpty
-							allowHtml
-							:options="corporaGroupDisplayModeOptions"
-							v-model="corporaGroupDisplayMode"
-						/>
+					<div class="form-group">
+						<label class="col-xs-4 col-md-2" for="corpora-display-mode">{{ $t('explore.corpora.showAs.heading') }}</label>
+						<div class="col-xs-8">
+							<SelectPicker
+								:placeholder="$t('explore.corpora.showAs.heading')"
+								data-id="corpora-display-mode"
+								data-width="100%"
+								style="max-width: 400px"
+								hideEmpty
+								allowHtml
+								:options="corporaGroupDisplayModeOptions"
+								v-model="corporaGroupDisplayMode"
+							/>
+						</div>
 					</div>
 				</div>
 			</div>
@@ -130,12 +133,17 @@
 </template>
 
 <script lang="ts">
+import { stripIndent } from 'common-tags';
 import { defineComponent, watch } from 'vue';
 
+import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
+import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
-import { useCorpus } from '@/app/state/useCorpusContext';
+import { FormSystem, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
+import { getNewExploreFormId, useSearchFormSystem } from '@/features/search/model/search-form-builder';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
 
@@ -154,6 +162,7 @@ import SelectPicker from '@/shared/ui/SelectPicker.vue';
 export default defineComponent({
 	extends: ParallelFields,
 	components: {
+		FormSystem,
 		ParallelSource,
 		SelectPicker,
 		Autocomplete,
@@ -164,10 +173,16 @@ export default defineComponent({
 	},
 	data: () => ({
 		debug,
+		subcorpus: selectedSubcorpusLoader,
 		subscriptions: [] as Array<() => void>,
 		blacklab: useBlackLabApi(),
+		searchFormRuntime: useSearchFormSystem(),
 	}),
 	computed: {
+		checkedSearchFormRuntime(): FormRuntime {
+			if (!this.searchFormRuntime) throw new Error('New search form runtime is not available.');
+			return this.searchFormRuntime;
+		},
 		exploreMode: {
 			get(): string {
 				return InterfaceStore.getState().exploreMode;
@@ -272,6 +287,31 @@ export default defineComponent({
 		},
 	},
 	methods: {
+		newExploreFormId(exploreMode: keyof ExploreStore.ModuleRootState): string {
+			return getNewExploreFormId(exploreMode);
+		},
+		renderNewForm(exploreMode: keyof ExploreStore.ModuleRootState): boolean {
+			const isEnabled = GlobalViewSettings.getState().useNewSearchForm;
+			return isEnabled && this.searchFormRuntime?.definition.getForm(getNewExploreFormId(exploreMode)) != null;
+		},
+		confirmLargeExploreSearch(): boolean {
+			if (!this.subcorpus.isLoaded() || this.subcorpus.value.tokensInMatchingDocuments <= 5000000) return true;
+			const msg = stripIndent`
+				You have selected a subcorpus of over ${(5000000).toLocaleString()} tokens.
+				Please note that this query, on first execution, may take a considerable amount of time to complete.
+				Proceed with caution.
+
+				Continue?`;
+
+			return confirm(msg);
+		},
+		submitNewForm(snapshot: CompiledFormStateWithSummaries) {
+			if (!this.confirmLargeExploreSearch()) return;
+			RootStore.actions.searchFromSubmit(snapshot);
+		},
+		resetNewForm() {
+			RootStore.actions.reset();
+		},
 		updateTokenAnnotation(index: number, id: string) {
 			ExploreStore.actions.ngram.token({
 				index,

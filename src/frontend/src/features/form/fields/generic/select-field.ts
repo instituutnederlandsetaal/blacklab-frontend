@@ -10,4 +10,6 @@ export type SelectFieldUiConfig = GenericFieldUiConfig & {
 	options: Options;
 	placeholder?: string;
 	multiple?: boolean;
+	html?: boolean;
+	hideEmpty?: boolean;
 };

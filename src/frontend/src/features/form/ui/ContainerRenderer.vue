@@ -5,7 +5,10 @@
 		<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="resolvedTitle || 'Form sections'" class="panel-heading blf-form-container-tabs">
 			<template v-if="presentation['tab-badges']" #label="{ tab }">
 				{{ tab.label }}
-				<span v-if="activeQueryContributionCounts[tab.value]" class="badge">{{ activeQueryContributionCounts[tab.value] }}</span>
+				<template v-if="activeQueryContributionCounts[tab.value]">
+					&nbsp;
+					<span class="badge">{{ activeQueryContributionCounts[tab.value] }}</span>
+				</template>
 			</template>
 		</Tabs>
 

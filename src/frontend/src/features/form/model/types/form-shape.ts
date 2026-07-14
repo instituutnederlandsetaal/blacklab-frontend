@@ -35,17 +35,8 @@ export type RealContainerNode<Extra, C extends AnyVueComponent> = BaseContainerN
 // Form boundary - specialization of container
 // ==========================================================================================================================
 
-/** When submitting a form, the form can indicate some initial result displaying settings. */
-export type ResultPreset = {
-	viewedResults?: string;
-	groupBy?: string[];
-	sort?: string | null;
-	groupDisplayMode?: string | null;
-};
-
 export type BaseFormNode = Omit<BaseContainerNode, 'kind' | 'combine'> & {
 	kind: 'form';
-	resultPreset?: Partial<ResultPreset>;
 };
 export type RealFormNode<Extra, C extends AnyVueComponent> = BaseFormNode & Extra & { component: C };
 

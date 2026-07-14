@@ -136,14 +136,17 @@ function createBrowserHistoryEntry(value: QueryState): HistoryStore.HistoryEntry
 					}
 				: PatternStore.defaults,
 		newForm: query.form === 'new' ? query.state : null,
-		interface: {
-			form: query.form === 'explore' ? 'explore' : 'search',
-			exploreMode: query.form === 'explore' ? query.subForm : 'ngram',
-			patternMode: query.form === 'search' ? query.subForm : query.form === 'new' ? interfaceState.patternMode : 'simple',
-			viewedResults: interfaceState.viewedResults,
-			activeAnnotationTab: interfaceState.activeAnnotationTab,
-			activeFilterTab: interfaceState.activeFilterTab,
-		},
+		interface:
+			query.form === 'new'
+				? { ...interfaceState }
+				: {
+						form: query.form ?? 'search',
+						exploreMode: query.form === 'explore' ? query.subForm : 'ngram',
+						patternMode: query.form === 'search' ? query.subForm : 'simple',
+						viewedResults: interfaceState.viewedResults,
+						activeAnnotationTab: interfaceState.activeAnnotationTab,
+						activeFilterTab: interfaceState.activeFilterTab,
+					},
 		gap: query.form === 'new' ? GapStore.defaults : query.gap || GapStore.defaults,
 	};
 }

@@ -12,6 +12,8 @@
 			:placeholder="placeholderText"
 			:dir="textDirection"
 			:options
+			:allow-html="html"
+			:hide-empty="hideEmpty"
 			:disabled
 			v-model="pickerValue"
 		/>

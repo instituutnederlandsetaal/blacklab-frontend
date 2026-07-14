@@ -102,8 +102,7 @@ derives each container's default active child from the completed graph. Tests in
 
 - `form`
   A submit boundary and specialized container. Forms render as `<form>` with
-  submit/reset actions in the default renderer. A form may carry a
-  `resultPreset`.
+  submit/reset actions in the default renderer.
 - `container`
   Groups children and controls presentation. Supported internal variants include
   `list`, `tabs`, and `small-tabs`.
@@ -264,6 +263,7 @@ The IR can represent:
 - Lucene filter nodes: raw, term, range, boolean `and`/`or`.
 - Wrappers, currently including `within`.
 - `searchfield`.
+- Initial result-view settings through `resultPreset`.
 - Summary entries for UI views.
 
 `buildQueryIR(formNode, state, context)` walks fields and containers.
@@ -275,6 +275,7 @@ simplifies the IR and emits:
 	patt: string | null;
 	filter: string | null;
 	searchfield: string | null;
+	resultPreset?: ResultPreset;
 }
 ```
 
@@ -303,8 +304,9 @@ Common encoded keys:
 - `f.tab`: query-affecting tab selections, encoded as `containerId:childId`.
 
 `compileFormNode(formNode, state, context)` returns compiled BlackLab params,
-`formId`, `encoded`, and `summaries`. It also applies `rawOverrides` over the
-compiled params.
+`formId`, `encoded`, `summaries`, and the `resultPreset` composed through the
+query IR. It also
+applies `rawOverrides` over the compiled params.
 
 `restoreFormState(definition, query)` accepts the raw URL query record and
 returns an immutable state snapshot. Internally it decodes both the `f.*`
