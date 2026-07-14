@@ -6,6 +6,7 @@ import {
 	annotationSelectController,
 	annotationTextController,
 	DateField,
+	expertQueryController,
 	filterCheckboxController,
 	filterDateController,
 	filterRadioController,
@@ -21,6 +22,7 @@ import {
 	withinController,
 	queryBuilderController,
 	QueryBuilderField,
+	RawCqlField,
 } from '@/features/form';
 import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
 import type { WithinFieldOption } from '@/features/form/model/controllers/within-controller';
@@ -401,6 +403,19 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 		: builder.newField('search.advanced.query', queryBuilderController, QueryBuilderField, queryBuilderConfig);
 	const advancedForm = builder.newForm(getNewSearchFormId('advanced'), ContainerRenderer, { variant: 'list' });
 	advancedForm.addChildren(advancedQuery, sharedWithin, sharedFilters);
+
+	const expertQuery = corpus.isParallelCorpus
+		? createParallelQueryField(builder, 'search.expert.parallel', corpus, configuration, {
+				id: 'query',
+				controller: expertQueryController,
+				component: RawCqlField,
+				config: {},
+			})
+		: builder.newField('search.expert.query', expertQueryController, RawCqlField, {});
+	const expertForm = builder.newForm(getNewSearchFormId('expert'), ContainerRenderer, {
+		variant: sharedFilters ? 'columns' : undefined,
+	});
+	expertForm.addChildren(builder.newContainer('search.expert.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(expertQuery, sharedWithin), sharedFilters);
 
 	return builder;
 }

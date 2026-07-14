@@ -9,7 +9,7 @@ import { ref } from 'vue';
 import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
-import { FormSystem, parallelController, queryBuilderController, restoreFormState, type ParallelFieldState } from '@/features/form';
+import { expertQueryController, FormSystem, parallelController, queryBuilderController, restoreFormState, type ParallelFieldState } from '@/features/form';
 import { createSearchFormSystem, getNewSearchFormId, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
@@ -226,6 +226,61 @@ describe('search form system', () => {
 		expect((field as unknown as { child: { controller: unknown } }).child.controller).toBe(queryBuilderController);
 		expect(runtime.compile(getNewSearchFormId('advanced'))).toMatchObject({
 			patt: '[word="water"]',
+			searchfield: 'contents__en',
+		});
+	});
+
+	test('builds an expert form with raw CQL, within, and shared filters', () => {
+		const corpus = createCorpus();
+		corpus.relations = {
+			relations: {},
+			spans: { s: { count: 1 } },
+		};
+		const state = UIStore.getState();
+		state.search.shared.within.enabled = true;
+		const runtime = createDefinition(corpus);
+
+		expect(hasNewSearchFormForPattern(runtime, 'expert')).toBe(true);
+		expect(runtime.definition.getField('search.expert.query')?.controller).toBe(expertQueryController);
+		expect(runtime.definition.getField('shared.within')).not.toBeNull();
+		expect(runtime.definition.getContainer('shared.filters')).not.toBeNull();
+
+		runtime.state.state.value['search.expert.query'] = '[lemma="water"]';
+		runtime.state.state.value['shared.within'] = { element: 's', attributes: {} };
+		runtime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Austen', caseSensitive: false };
+
+		expect(runtime.compile(getNewSearchFormId('expert'))).toMatchObject({
+			patt: '[lemma="water"] within <s/>',
+			filter: 'author:(Austen)',
+		});
+	});
+
+	test('restores a canonical raw query into the expert form', () => {
+		const runtime = createDefinition();
+		const restored = restoreFormState(runtime.definition, {
+			patt: '[lemma="water"]',
+		});
+		runtime.state.replaceState(restored);
+
+		expect(restored.issues).toEqual([]);
+		expect(runtime.state.state.value['search.expert.query']).toBe('[lemma="water"]');
+		expect(runtime.compile(getNewSearchFormId('expert')).patt).toBe('[lemma="water"]');
+	});
+
+	test('wraps the expert query for a parallel corpus', () => {
+		const runtime = createDefinition(createParallelCorpus());
+		const field = runtime.definition.getField('search.expert.parallel');
+		const state = runtime.state.state.value['search.expert.parallel'] as ParallelFieldState<string>;
+
+		expect(runtime.definition.getField('search.expert.query')).toBeNull();
+		expect(field?.controller).toBe(parallelController);
+		expect((field as unknown as { child: { controller: unknown } }).child.controller).toBe(expertQueryController);
+
+		state.sourceState = '[lemma="water"]';
+		state.targets = ['contents__nl'];
+		state.targetStates.contents__nl = '[lemma="water"]';
+		expect(runtime.compile(getNewSearchFormId('expert'))).toMatchObject({
+			patt: '[lemma="water"] ==>nl? [lemma="water"]',
 			searchfield: 'contents__en',
 		});
 	});
