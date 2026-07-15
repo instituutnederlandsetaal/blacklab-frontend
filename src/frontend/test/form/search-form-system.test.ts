@@ -281,6 +281,16 @@ describe('search form system', () => {
 		expect((field as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('word');
 	});
 
+	test('applies the large simple-search presentation to regular and parallel query fields', () => {
+		const regularField = createDefinition().definition.getField('search.simple.annotation');
+		const parallelField = createDefinition(createParallelCorpus()).definition.getField('search.simple.parallel') as unknown as {
+			child: { config: { variant?: unknown } };
+		};
+
+		expect(regularField?.variant).toEqual(['large', 'simple']);
+		expect(parallelField.child.config.variant).toEqual(['large', 'simple']);
+	});
+
 	test('wraps the advanced querybuilder for a parallel corpus', () => {
 		const runtime = createDefinition(createParallelCorpus());
 		const field = runtime.definition.getField('search.advanced.parallel');
@@ -386,7 +396,7 @@ describe('search form system', () => {
 		]);
 	});
 
-	test('simple form includes and compiles configured shared filters', () => {
+	test('simple form excludes configured shared filters', () => {
 		const definition = createDefinition();
 
 		definition.state.state.value['search.simple.annotation'] = {
@@ -399,7 +409,7 @@ describe('search form system', () => {
 		};
 
 		expect(definition.compile(getNewSearchFormId('simple'))).toMatchObject({
-			filter: 'author:(Austen)',
+			filter: null,
 			patt: '[word="(?i)water"]',
 		});
 	});
