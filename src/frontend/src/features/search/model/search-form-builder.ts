@@ -411,11 +411,10 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	const annotation = getSimpleSearchAnnotation(corpus, configuration);
 	const sharedWithin = createWithinField(builder, corpus, configuration);
 	const sharedFilters = createSharedFilters(builder, corpus, configuration, blacklabApi, translate);
-	const form = builder.newForm(getNewSearchFormId('simple'), ContainerRenderer, {
+	const simpleForm = builder.newForm(getNewSearchFormId('simple'), ContainerRenderer, {
 		title: () => translate.$t('search.simple.heading'),
-		variant: sharedFilters ? 'columns' : undefined,
 	});
-	const simpleQuery = builder.newContainer('search.simple.query.wrapper', ContainerRenderer, { variant: 'list' });
+	// const simpleQuery = builder.newContainer('search.simple.query.wrapper', ContainerRenderer, { variant: 'list' });
 
 	if (corpus.isParallelCorpus) {
 		const childConfig = {
@@ -432,11 +431,11 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 			component: TextField,
 			config: childConfig,
 		});
-		simpleQuery.addChildren(field);
+		simpleForm.addChildren(field);
 	} else {
-		simpleQuery.addChildren(createAnnotationField(builder, 'search.simple.annotation', annotation, corpus, tagset, blacklabApi, configuration, translate));
+		simpleForm.addChildren(createAnnotationField(builder, 'search.simple.annotation', annotation, corpus, tagset, blacklabApi, configuration, translate));
 	}
-	form.addChildren(simpleQuery, sharedFilters);
+	// simpleForm.addChildren(simpleQuery);
 
 	const extendedForm = builder.newForm(getNewSearchFormId('extended'), ContainerRenderer, {
 		variant: 'columns',
