@@ -22,6 +22,11 @@ export type SearchFormConfiguration = {
 		defaultValue: string;
 	};
 	explore: {
+		searchAnnotationIds: string[];
+		defaultSearchAnnotationId: string | null;
+		groupAnnotationIds: string[];
+		defaultGroupAnnotationId: string | null;
+		annotationGroupLabelsVisible: boolean;
 		corpora: {
 			groupMetadataIds: string[];
 			defaultGroupMetadataId: string | null;
@@ -54,6 +59,11 @@ export function snapshotSearchFormConfiguration(state: UIStore.ModuleRootState):
 			defaultValue: state.search.shared.alignBy.defaultValue,
 		},
 		explore: {
+			searchAnnotationIds: [...state.explore.searchAnnotationIds],
+			defaultSearchAnnotationId: state.explore.defaultSearchAnnotationId || null,
+			groupAnnotationIds: [...state.results.shared.groupAnnotationIds],
+			defaultGroupAnnotationId: state.explore.defaultGroupAnnotationId || null,
+			annotationGroupLabelsVisible: state.dropdowns.groupBy.annotationGroupLabelsVisible,
 			corpora: {
 				groupMetadataIds: [...state.results.shared.groupMetadataIds],
 				defaultGroupMetadataId: state.explore.defaultGroupMetadataId || null,

@@ -35,7 +35,10 @@ function getQueryContributionFromField(node: FormFieldNode, context: FormRuntime
 	return {
 		...contribution,
 		summaries: contribution.summaries.map(summary => {
-			const typedSummary = { ...summary, summaryType: [...summaryType] };
+			const typedSummary = {
+				...summary,
+				summaryType: summary.summaryType === undefined ? [...summaryType] : [...summary.summaryType],
+			};
 			if (typedSummary.group === undefined) delete typedSummary.group;
 			return typedSummary;
 		}),

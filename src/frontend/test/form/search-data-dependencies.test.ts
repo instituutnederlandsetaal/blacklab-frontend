@@ -102,6 +102,11 @@ function createSearchFormConfiguration(): SearchFormConfiguration {
 		within: { enabled: true, elements: [] },
 		alignBy: { enabled: true, elements: [], defaultValue: '' },
 		explore: {
+			searchAnnotationIds: [],
+			defaultSearchAnnotationId: null,
+			groupAnnotationIds: [],
+			defaultGroupAnnotationId: null,
+			annotationGroupLabelsVisible: false,
 			corpora: {
 				groupMetadataIds: [],
 				defaultGroupMetadataId: null,

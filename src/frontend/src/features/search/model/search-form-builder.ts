@@ -7,6 +7,7 @@ import {
 	annotationTextController,
 	DateField,
 	expertQueryController,
+	frequencyAnnotationController,
 	filterCheckboxController,
 	filterDateController,
 	filterRadioController,
@@ -15,12 +16,18 @@ import {
 	filterTextController,
 	FormBuilder,
 	FormRuntime,
+	ngramGroupAnnotationController,
+	ngramTokenSelectController,
+	ngramTokenTextController,
 	parallelController,
+	parallelSourceController,
 	type BaseFieldNode,
 	type ParallelChildFieldConfig,
 	RangeField,
 	resultGroupByController,
 	resultGroupDisplayModeController,
+	tokenSequenceController,
+	type TokenSequenceChildFieldConfig,
 	type FormFieldNode,
 	withinController,
 	queryBuilderController,
@@ -38,7 +45,7 @@ import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/ty
 import { corpusCustomizations } from '@/utils/customization';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
-import { getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
+import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
 import debug, { debugLog } from '@/shared/debug/debug';
 import type { Translate } from '@/shared/i18n';
 import { optionValues, type Options } from '@/shared/utils/options';
@@ -51,6 +58,7 @@ import RadioField from '@/features/form/fields/generic/RadioField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
+import TokenSequenceField from '@/features/form/fields/TokenSequenceField.vue';
 import WithinField from '@/features/form/fields/WithinField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
@@ -61,6 +69,7 @@ import SummaryView from '@/features/form/views/SummaryView.vue';
 const SEARCH_FORM_ID_PREFIX = 'search.';
 const EXPLORE_FORM_ID_PREFIX = 'explore.';
 const SIMPLE_SEARCH_VARIANT: NonNullable<BaseFieldNode['variant']> = ['large', 'simple'];
+const EXPLORE_NGRAM_MAX_SIZE = 5;
 
 type CreateSearchFormSystemOptions = {
 	blacklabApi: BlackLabApi;
@@ -287,6 +296,165 @@ function createExploreCorporaForm({ builder, configuration, corpus, translate }:
 	form.addChildren(resultPresetFields, sharedFilters);
 }
 
+function createExploreAnnotationOptions(context: BuildContext, annotationIds: string[], showGroupLabels: boolean): Options {
+	const groups = getAnnotationSubset(annotationIds, context.corpus.annotationGroups, context.corpus.allAnnotationsMap, 'Search', context.translate, debug.value, showGroupLabels).filter(
+		group => group.options.length,
+	);
+	return groups.length > 1 ? groups : groups.flatMap(group => group.options);
+}
+
+function configuredDefaultValue(configuredValue: string | null, availableValues: string[]): string | null {
+	return configuredValue && availableValues.includes(configuredValue) ? configuredValue : (availableValues[0] ?? null);
+}
+
+function createAnnotationLabels(context: BuildContext, annotationIds: string[]): Record<string, string> {
+	return Object.fromEntries(
+		annotationIds
+			.map(annotationId => context.corpus.allAnnotationsMap[annotationId])
+			.filter((annotation): annotation is NormalizedAnnotation => !!annotation)
+			.map(annotation => [annotation.id, context.translate.$tAnnotDisplayName(annotation)]),
+	);
+}
+
+function createExploreParallelSourceField(context: BuildContext, mode: 'ngram' | 'frequency'): FormFieldNode | null {
+	const { builder, corpus, translate } = context;
+	if (!corpus.isParallelCorpus) return null;
+	const options: Options = corpus.parallelAnnotatedFields.map(field => ({
+		value: field.id,
+		label: translate.$tAnnotatedFieldDisplayName(field),
+	}));
+	return builder.newField(`explore.${mode}.source`, parallelSourceController, SelectField, {
+		defaultSource: corpus.parallelAnnotatedFields[0]?.id ?? null,
+		displayName: () => translate.$t('search.parallel.searchSourceVersion'),
+		hideEmpty: true,
+		html: true,
+		options,
+		persistKey: `explore-${mode}-source`,
+	});
+}
+
+function createNgramTokenField(context: BuildContext, annotation: NormalizedAnnotation): TokenSequenceChildFieldConfig {
+	const { blacklabApi, configuration, corpus, translate } = context;
+	const common = {
+		description: () => translate.$tAnnotDescription(annotation),
+		displayName: () => translate.$tAnnotDisplayName(annotation),
+		showLabel: false,
+		textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
+		variant: 'simple' as const,
+	};
+	const controllerConfig = {
+		annotationId: annotation.id,
+		persistKey: 'value',
+	};
+	if ((annotation.uiType === 'select' || annotation.uiType === 'pos') && annotation.values?.length) {
+		return {
+			id: annotation.id,
+			controller: ngramTokenSelectController,
+			component: SelectField,
+			config: {
+				...common,
+				...controllerConfig,
+				escapeWildcards: annotation.uiType === 'select',
+				hideEmpty: true,
+				html: true,
+				multiple: false,
+				options: annotation.values,
+			},
+		};
+	}
+	if (annotation.uiType === 'lexicon') {
+		return {
+			id: annotation.id,
+			controller: ngramTokenTextController,
+			component: LexiconField,
+			config: {
+				...common,
+				...controllerConfig,
+				lookup: createLexiconLookup({
+					database: configuration.lexiconDatabase,
+					getTermFrequencies: async values => {
+						const response = await blacklabApi.getTermFrequencies(corpus.id, annotation.id, values);
+						return response.termFreq;
+					},
+				}),
+			},
+		};
+	}
+	return {
+		id: annotation.id,
+		controller: ngramTokenTextController,
+		component: TextField,
+		config: {
+			...common,
+			...controllerConfig,
+			autocomplete: (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term),
+			caseSensitive: false,
+		},
+	};
+}
+
+function createExploreNgramForm(context: BuildContext, sharedFilters: ReturnType<FormBuilder['newContainer']> | null): void {
+	const { builder, configuration, corpus, translate } = context;
+	const selectorOptions = createExploreAnnotationOptions(context, configuration.explore.searchAnnotationIds, false);
+	const selectorValues = optionValues(selectorOptions);
+	const defaultFieldId = configuredDefaultValue(configuration.explore.defaultSearchAnnotationId, selectorValues);
+	const groupOptions = createExploreAnnotationOptions(context, configuration.explore.groupAnnotationIds, configuration.explore.annotationGroupLabelsVisible);
+	const groupAnnotationValues = optionValues(groupOptions);
+	const defaultGroupAnnotationId = configuredDefaultValue(configuration.explore.defaultGroupAnnotationId, groupAnnotationValues);
+	if (!defaultFieldId || !defaultGroupAnnotationId) return;
+
+	const tokenFields = selectorValues
+		.map(annotationId => corpus.allAnnotationsMap[annotationId])
+		.filter((annotation): annotation is NormalizedAnnotation => !!annotation)
+		.map(annotation => createNgramTokenField(context, annotation));
+	if (!tokenFields.length) return;
+
+	const groupBy = builder.newField('explore.ngram.group-by', ngramGroupAnnotationController, SelectField, {
+		annotationLabels: createAnnotationLabels(context, groupAnnotationValues),
+		defaultAnnotationId: defaultGroupAnnotationId,
+		displayName: () => translate.$t('explore.ngram.ngramType'),
+		hideEmpty: true,
+		html: true,
+		options: groupOptions,
+		persistKey: 'explore-ngram-group-by',
+	});
+	const tokens = builder.newField('explore.ngram.tokens', tokenSequenceController, TokenSequenceField, {
+		defaultFieldId,
+		defaultLength: EXPLORE_NGRAM_MAX_SIZE,
+		fields: tokenFields,
+		lengthDisplayName: translate.$t('explore.ngram.ngramSize').toString(),
+		maxLength: EXPLORE_NGRAM_MAX_SIZE,
+		minLength: 1,
+		persistKey: 'explore-ngram-tokens',
+		selectorDisplayName: 'Property',
+		selectorOptions,
+		selectorPlaceholder: 'Property',
+	});
+	const controls = builder.newContainer('explore.ngram.controls', ContainerRenderer, { variant: 'list' }).addChildren(createExploreParallelSourceField(context, 'ngram'), groupBy, tokens);
+	// Keep the five-token row full-width; the shared filters follow underneath.
+	const form = builder.newForm(getNewExploreFormId('ngram'), ContainerRenderer, {});
+	form.addChildren(controls, sharedFilters);
+}
+
+function createExploreFrequencyForm(context: BuildContext, sharedFilters: ReturnType<FormBuilder['newContainer']> | null): void {
+	const { builder, configuration, translate } = context;
+	const options = createExploreAnnotationOptions(context, configuration.explore.groupAnnotationIds, configuration.explore.annotationGroupLabelsVisible);
+	const defaultAnnotationId = configuredDefaultValue(configuration.explore.defaultGroupAnnotationId, optionValues(options));
+	if (!defaultAnnotationId) return;
+	const annotation = builder.newField('explore.frequency.annotation', frequencyAnnotationController, SelectField, {
+		annotationLabels: createAnnotationLabels(context, optionValues(options)),
+		defaultAnnotationId,
+		displayName: () => translate.$t('explore.frequency.frequencyType'),
+		hideEmpty: true,
+		html: true,
+		options,
+		persistKey: 'explore-frequency-annotation',
+	});
+	const controls = builder.newContainer('explore.frequency.controls', ContainerRenderer, { variant: 'list' }).addChildren(createExploreParallelSourceField(context, 'frequency'), annotation);
+	const form = builder.newForm(getNewExploreFormId('frequency'), ContainerRenderer, { variant: sharedFilters ? 'columns' : undefined });
+	form.addChildren(controls, sharedFilters);
+}
+
 function createExtendedAnnotationTabs(context: BuildContext): ReturnType<FormBuilder['newContainer']> | null {
 	const { builder, configuration, corpus, translate } = context;
 	const annotationIds = configuration.extendedAnnotationIds;
@@ -438,6 +606,8 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	);
 
 	createExploreCorporaForm(context, sharedFilters);
+	createExploreNgramForm(context, sharedFilters);
+	createExploreFrequencyForm(context, sharedFilters);
 
 	return builder;
 }

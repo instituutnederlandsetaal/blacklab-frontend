@@ -274,8 +274,16 @@ Annotation/query controllers:
   Converts structured CQL builder data to the query IR.
 - `parallelController` + `ParallelField`
   Wraps a child field controller for parallel corpus source/target searches.
+- `tokenSequenceController` + `TokenSequenceField`
+  Owns a bounded, ordered list of anonymous child fields. Growing the sequence
+  creates child defaults, shrinking tears child state down, and empty children
+  compile as any-token positions.
 - `withinController` + `WithinField`
   Adds `within` wrappers around the emitted pattern.
+
+Generic field components include `NumberField`, whose scalar numeric model is
+normalized against optional `min`, `max`, and `step` bounds. Composite fields
+can render it directly without adding mutable nodes to the static form graph.
 
 Metadata filter controllers:
 

@@ -11,6 +11,9 @@ export * from './annotation-pos-field';
 export { default as AnnotationPosField } from './AnnotationPosField.vue';
 export * from './field-presentation';
 
+export * from './token-sequence-field';
+export { default as TokenSequenceField } from './TokenSequenceField.vue';
+
 export * from './generic/checkbox-field';
 export { default as CheckboxField } from './generic/CheckboxField.vue';
 
@@ -31,6 +34,9 @@ export { default as TextField } from './generic/TextField.vue';
 
 export * from './generic/lexicon-field';
 export { default as LexiconField } from './generic/LexiconField.vue';
+
+export * from './generic/number-field';
+export { default as NumberField } from './generic/NumberField.vue';
 
 export * from './generic/range-mode';
 export type {

@@ -9,10 +9,27 @@ import { ref } from 'vue';
 import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
-import { expertQueryController, FormSystem, parallelController, queryBuilderController, restoreFormState, type ParallelFieldState } from '@/features/form';
+import {
+	expertQueryController,
+	FormSystem,
+	frequencyAnnotationController,
+	ngramGroupAnnotationController,
+	parallelController,
+	parallelSourceController,
+	queryBuilderController,
+	restoreFormState,
+	tokenSequenceController,
+	type ParallelFieldState,
+	type TokenSequenceFieldState,
+} from '@/features/form';
+import * as ExploreStore from '@/features/search/model/form/explore-state';
+import * as InterfaceStore from '@/features/search/model/form/interface-state';
+import * as PatternStore from '@/features/search/model/form/pattern-state';
+import * as ViewStore from '@/features/search/model/results/view-state';
 import { createSearchFormSystem, getNewExploreFormId, getNewSearchFormId, hasNewExploreFormForMode, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
+import { withLegacyExploreFormState, type LegacyExploreRestoreState } from '@/url/legacy-explore-form-restore';
 import { corpusCustomizations } from '@/utils/customization';
 
 import { optionValues, type Options } from '@/shared/utils/options';
@@ -177,6 +194,16 @@ function createDefinition(corpus = createCorpus()) {
 	}).runtime.value!;
 }
 
+function createLegacyExploreRestoreState(mode: 'ngram' | 'frequency'): LegacyExploreRestoreState {
+	return {
+		explore: structuredClone(ExploreStore.defaults),
+		filters: {},
+		interface: { ...InterfaceStore.defaults, form: 'explore', exploreMode: mode },
+		patterns: structuredClone(PatternStore.defaults),
+		view: { ...ViewStore.initialViewState, groupBy: [] },
+	};
+}
+
 beforeEach(() => {
 	const state = UIStore.getState();
 	state.search.simple.searchAnnotationId = 'word';
@@ -189,8 +216,13 @@ beforeEach(() => {
 	state.search.shared.alignBy.enabled = false;
 	state.search.shared.alignBy.elements = [];
 	state.search.shared.alignBy.defaultValue = '';
+	state.explore.searchAnnotationIds = ['word', 'lemma', 'pos'];
+	state.explore.defaultSearchAnnotationId = 'word';
+	state.results.shared.groupAnnotationIds = ['word', 'lemma', 'pos'];
+	state.explore.defaultGroupAnnotationId = 'word';
 	state.results.shared.groupMetadataIds = ['author', 'genre'];
 	state.explore.defaultGroupMetadataId = 'author';
+	state.dropdowns.groupBy.annotationGroupLabelsVisible = false;
 	state.dropdowns.groupBy.metadataGroupLabelsVisible = false;
 });
 
@@ -258,6 +290,236 @@ describe('search form system', () => {
 				groupDisplayMode: 'docs',
 			},
 		});
+	});
+
+	test('builds Frequency with configured annotations, shared filters, and a hits result preset', () => {
+		const runtime = createDefinition();
+		const annotationFieldId = 'explore.frequency.annotation';
+
+		expect(hasNewExploreFormForMode(runtime, 'frequency')).toBe(true);
+		expect(runtime.definition.getField(annotationFieldId)?.controller).toBe(frequencyAnnotationController);
+		expect(runtime.state.state.value[annotationFieldId]).toEqual(['word']);
+
+		runtime.state.state.value[annotationFieldId] = ['lemma'];
+		runtime.state.state.value['shared.filters.Classification.genre'] = ['fiction'];
+		expect(runtime.compile(getNewExploreFormId('frequency'))).toMatchObject({
+			encoded: {
+				'f.form': 'explore.frequency',
+				'f.explore-frequency-annotation': 'lemma',
+			},
+			filter: 'genre:(fiction)',
+			patt: '[]',
+			resultPreset: {
+				groupBy: ['hit:lemma'],
+				viewedResults: 'hits',
+			},
+		});
+	});
+
+	test('falls back to the first configured Explore annotation when stored defaults are unavailable', () => {
+		const state = UIStore.getState();
+		state.explore.searchAnnotationIds = ['lemma'];
+		state.explore.defaultSearchAnnotationId = 'removed';
+		state.results.shared.groupAnnotationIds = ['pos'];
+		state.explore.defaultGroupAnnotationId = 'removed';
+		const runtime = createDefinition();
+
+		expect(runtime.state.state.value['explore.frequency.annotation']).toEqual(['pos']);
+		expect(runtime.state.state.value['explore.ngram.group-by']).toEqual(['pos']);
+		expect(runtime.state.state.value['explore.ngram.tokens']).toEqual(Array.from({ length: 5 }, () => ({ fieldId: 'lemma', fieldState: { value: '', caseSensitive: false } })));
+	});
+
+	test('builds a bounded N-gram sequence with independently selected token and grouping annotations', () => {
+		const runtime = createDefinition();
+		const tokensFieldId = 'explore.ngram.tokens';
+		const groupByFieldId = 'explore.ngram.group-by';
+
+		expect(hasNewExploreFormForMode(runtime, 'ngram')).toBe(true);
+		expect(runtime.definition.getField(tokensFieldId)?.controller).toBe(tokenSequenceController);
+		expect(runtime.definition.getField(groupByFieldId)?.controller).toBe(ngramGroupAnnotationController);
+		expect(runtime.state.state.value[tokensFieldId] as TokenSequenceFieldState).toHaveLength(5);
+
+		runtime.state.state.value[tokensFieldId] = [
+			{ fieldId: 'word', fieldState: { value: 'wat*', caseSensitive: false } },
+			{ fieldId: 'pos', fieldState: ['NOU|VRB?'] },
+			{ fieldId: 'lemma', fieldState: { value: '', caseSensitive: false } },
+		] satisfies TokenSequenceFieldState;
+		runtime.state.state.value[groupByFieldId] = ['lemma'];
+		runtime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Austen', caseSensitive: false };
+
+		expect(runtime.compile(getNewExploreFormId('ngram'))).toMatchObject({
+			encoded: {
+				'f.form': 'explore.ngram',
+				'f.explore-ngram-group-by': 'lemma',
+			},
+			filter: 'author:(Austen)',
+			patt: '[word="wat.*"] [pos="NOU\\|VRB\\?"] []',
+			resultPreset: {
+				groupBy: ['hit:lemma'],
+				viewedResults: 'hits',
+			},
+		});
+		expect(runtime.compile(getNewExploreFormId('ngram')).summaries).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ id: groupByFieldId, summaryType: ['patt'], value: 'lemma' }),
+				expect.objectContaining({ id: `${tokensFieldId}.length`, summaryType: ['patt'], value: '3' }),
+			]),
+		);
+	});
+
+	test('drops a restored N-gram grouping annotation that is no longer configured', () => {
+		const runtime = createDefinition();
+		const restored = restoreFormState(runtime.definition, {
+			'f.form': getNewExploreFormId('ngram'),
+			'f.explore-ngram-group-by': 'removed',
+		});
+
+		expect(restored.state['explore.ngram.group-by']).toEqual(['word']);
+		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ nodeId: 'explore.ngram.group-by', message: expect.stringContaining("'removed'") })]));
+	});
+
+	test('renders the N-gram length bounds and five active token editors', () => {
+		const runtime = createDefinition();
+		const wrapper = mount(FormSystem, {
+			props: {
+				rootId: getNewExploreFormId('ngram'),
+				runtime,
+			},
+		});
+		const length = wrapper.get('.blf-token-sequence-field input[type="number"]');
+
+		expect(length.attributes()).toMatchObject({ min: '1', max: '5', step: '1' });
+		expect(wrapper.findAll('.blf-token-sequence-token')).toHaveLength(5);
+	});
+
+	test('keeps legacy wildcard semantics when a POS annotation is rendered as an N-gram select', () => {
+		const corpus = createCorpus();
+		corpus.allAnnotationsMap.pos.uiType = 'pos';
+		const runtime = createDefinition(corpus);
+		runtime.state.state.value['explore.ngram.tokens'] = [{ fieldId: 'pos', fieldState: ['NOU|VRB?'] }] satisfies TokenSequenceFieldState;
+
+		expect(runtime.compile(getNewExploreFormId('ngram')).patt).toBe('[pos="NOU|VRB."]');
+	});
+
+	test.each(['ngram', 'frequency'] as const)('adds a source-only searchfield selector to parallel Explore %s', mode => {
+		const runtime = createDefinition(createParallelCorpus());
+		const sourceFieldId = `explore.${mode}.source`;
+
+		expect(runtime.definition.getField(sourceFieldId)?.controller).toBe(parallelSourceController);
+		expect(runtime.state.state.value[sourceFieldId]).toEqual(['contents__en']);
+		runtime.state.state.value[sourceFieldId] = ['contents__nl'];
+
+		const compiled = runtime.compile(getNewExploreFormId(mode));
+		expect(compiled.searchfield).toBe('contents__nl');
+		expect(compiled.patt).not.toContain('=>');
+	});
+
+	test('restores a scoped N-gram URL including active anonymous token state', () => {
+		const runtime = createDefinition();
+		runtime.state.state.value['explore.ngram.tokens'] = [
+			{ fieldId: 'lemma', fieldState: { value: 'run?', caseSensitive: false } },
+			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
+		] satisfies TokenSequenceFieldState;
+		runtime.state.state.value['explore.ngram.group-by'] = ['pos'];
+		const submitted = runtime.compile(getNewExploreFormId('ngram'));
+		const restored = restoreFormState(runtime.definition, submitted.encoded);
+		runtime.state.replaceState(restored);
+
+		expect(runtime.state.state.value['explore.ngram.tokens']).toEqual([
+			{ fieldId: 'lemma', fieldState: { value: 'run?', caseSensitive: false } },
+			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
+		]);
+		expect(runtime.compile(getNewExploreFormId('ngram'))).toMatchObject({
+			patt: '[lemma="run."] []',
+			resultPreset: { groupBy: ['hit:pos'], viewedResults: 'hits' },
+		});
+	});
+
+	test('upgrades a canonical legacy N-gram URL into editable scoped token, grouping, filter, and source state', () => {
+		const corpus = createParallelCorpus();
+		const runtime = createDefinition(corpus);
+		const legacy = createLegacyExploreRestoreState('ngram');
+		legacy.explore.ngram = {
+			groupAnnotationId: 'lemma',
+			maxSize: 5,
+			size: 2,
+			tokens: [
+				{ id: 'lemma', value: 'run?' },
+				{ id: 'word', value: '' },
+			],
+		};
+		legacy.filters.author = { id: 'author', value: 'Austen' } as never;
+		legacy.patterns.shared.source = 'contents__nl';
+		legacy.view.groupBy = ['hit:lemma'];
+		const canonical = {
+			filter: 'author:(Austen)',
+			patt: '[lemma="run."][]',
+			searchfield: 'contents__nl',
+		};
+
+		const adapted = withLegacyExploreFormState(runtime.definition, canonical, legacy, corpus);
+		const restored = restoreFormState(runtime.definition, adapted);
+		runtime.state.replaceState(restored);
+
+		expect(adapted).toMatchObject({
+			'f.form': 'explore.ngram',
+			'f.explore-ngram-group-by': 'lemma',
+			'f.author': 'Austen',
+			'f.explore-ngram-source': 'contents__nl',
+			patt: '[lemma="run."] []',
+		});
+		expect(adapted['f.explore-ngram-tokens']).toEqual(expect.any(String));
+		expect(restored.submittedFormId).toBe('explore.ngram');
+		expect(restored.rawOverrides.patt).toBeUndefined();
+		expect(runtime.state.state.value['explore.ngram.group-by']).toEqual(['lemma']);
+		expect(runtime.state.state.value['explore.ngram.tokens']).toEqual([
+			{ fieldId: 'lemma', fieldState: { value: 'run?', caseSensitive: false } },
+			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
+		]);
+		expect(runtime.state.state.value['shared.filters.Bibliographic.author']).toEqual({ value: 'Austen', caseSensitive: false });
+		expect(runtime.compile('explore.ngram')).toMatchObject({
+			filter: 'author:(Austen)',
+			patt: '[lemma="run."] []',
+			searchfield: 'contents__nl',
+			resultPreset: { groupBy: ['hit:lemma'], viewedResults: 'hits' },
+		});
+	});
+
+	test('upgrades a canonical legacy Frequency URL and keeps existing scoped or unrepresentable URLs authoritative', () => {
+		const corpus = createParallelCorpus();
+		const runtime = createDefinition(corpus);
+		const legacy = createLegacyExploreRestoreState('frequency');
+		legacy.explore.frequency.annotationId = 'pos';
+		legacy.filters.genre = { id: 'genre', value: ['fiction'] } as never;
+		legacy.patterns.shared.source = 'contents__nl';
+		legacy.view.groupBy = ['hit:pos'];
+		const canonical = {
+			filter: 'genre:(fiction)',
+			patt: '[] ',
+			searchfield: 'contents__nl',
+		};
+
+		const adapted = withLegacyExploreFormState(runtime.definition, canonical, legacy, corpus);
+		const restored = restoreFormState(runtime.definition, adapted);
+
+		expect(adapted).toMatchObject({
+			'f.form': 'explore.frequency',
+			'f.explore-frequency-annotation': 'pos',
+			'f.genre': 'fiction',
+			'f.explore-frequency-source': 'contents__nl',
+		});
+		expect(restored.state['explore.frequency.annotation']).toEqual(['pos']);
+		expect(restored.state['shared.filters.Classification.genre']).toEqual(['fiction']);
+		expect(restored.state['explore.frequency.source']).toEqual(['contents__nl']);
+		expect(restored.rawOverrides.patt).toBeUndefined();
+
+		const scoped = { ...canonical, 'f.form': 'explore.frequency', 'f.explore-frequency-annotation': 'lemma' };
+		expect(withLegacyExploreFormState(runtime.definition, scoped, legacy, corpus)).toBe(scoped);
+
+		legacy.interface.exploreMode = 'ngram';
+		legacy.explore.ngram = { groupAnnotationId: 'pos', maxSize: 5, size: 1, tokens: [{ id: 'word', value: 'water' }] };
+		const complex = { patt: '[word="water"] within <s/>', group: 'hit:pos' };
+		expect(withLegacyExploreFormState(runtime.definition, complex, legacy, corpus)).toBe(complex);
 	});
 
 	test('builds an extended search form with grouped annotation and shared filter nodes', () => {
@@ -576,10 +838,14 @@ describe('search form system', () => {
 
 		state.search.extended.searchAnnotationIds.push('word_or_lemma');
 		state.search.advanced.searchAnnotationIds.push('word_or_lemma');
+		state.explore.searchAnnotationIds.push('word_or_lemma');
+		state.results.shared.groupAnnotationIds.push('word_or_lemma');
 		state.search.shared.within.elements[0].label = 'Changed';
 
 		expect(snapshot.extendedAnnotationIds).toEqual(['word', 'lemma', 'pos']);
 		expect(snapshot.queryBuilder).toEqual({ annotationIds: ['word', 'lemma', 'pos'], defaultAnnotationId: 'word' });
+		expect(snapshot.explore.searchAnnotationIds).toEqual(['word', 'lemma', 'pos']);
+		expect(snapshot.explore.groupAnnotationIds).toEqual(['word', 'lemma', 'pos']);
 		expect(snapshot.within.elements).toEqual([{ value: 's', label: 'Sentence', title: 'sentence title' }]);
 		expect(snapshot.explore.corpora).toEqual({
 			groupMetadataIds: ['author', 'genre'],

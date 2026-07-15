@@ -157,16 +157,23 @@ const actions = {
 		}
 
 		// Order needs to be consistent or hash will be different.
-		const filterSummary: string | undefined = getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
+		const filterSummary: string | undefined = entry.newForm
+			? entry.newForm.summaries
+					.filter(summary => summary.summaryType?.includes('filter'))
+					.map(summary => `${summary.label}: ${summary.value}`)
+					.join(', ') || undefined
+			: getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
 		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
-		const patternSummary: string | undefined =
-			entry.interface.form === 'search' && entry.newForm
-				? entry.newForm.summaries.map(summary => `${summary.label}: ${summary.value}`).join(', ') || undefined
-				: entry.interface.form === 'search'
-					? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy, entry.filters)
-					: entry.interface.form === 'explore'
-						? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, useCorpus().value.allAnnotationsMap)
-						: undefined;
+		const patternSummary: string | undefined = entry.newForm
+			? entry.newForm.summaries
+					.filter(summary => !summary.summaryType?.length || summary.summaryType.includes('patt'))
+					.map(summary => `${summary.label}: ${summary.value}`)
+					.join(', ') || undefined
+			: entry.interface.form === 'search'
+				? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy, entry.filters)
+				: entry.interface.form === 'explore'
+					? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, useCorpus().value.allAnnotationsMap)
+					: undefined;
 
 		// Should only contain items that uniquely identify a query
 		// Normally this would only be the pattern (including gap values) and filters,

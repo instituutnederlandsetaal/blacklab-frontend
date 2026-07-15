@@ -49,83 +49,89 @@
 					</div>
 				</div>
 			</div>
-			<div id="explore-n-grams" :class="['tab-pane form-horizontal', { active: exploreMode === 'ngram' }]">
-				<div class="form-group" v-if="isParallelCorpus">
-					<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('search.parallel.searchSourceVersion') }}</label>
-					<div class="col-xs-8">
-						<ParallelSource block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+			<div id="explore-n-grams" :class="['tab-pane', { active: exploreMode === 'ngram' }]">
+				<FormSystem v-if="renderNewForm('ngram')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('ngram')" @submit="submitNewForm" @reset="resetNewForm" />
+				<div v-else class="form-horizontal">
+					<div class="form-group" v-if="isParallelCorpus">
+						<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('search.parallel.searchSourceVersion') }}</label>
+						<div class="col-xs-8">
+							<ParallelSource block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+						</div>
 					</div>
-				</div>
-				<div class="form-group">
-					<label class="col-xs-4 col-md-2" for="n-gram-size">{{ $t('explore.ngram.ngramSize') }}</label>
-					<div class="col-xs-8 col-md-5">
-						<input class="form-control" name="n-gram-size" id="n-gram-size" type="number" min="1" :max="ngramSizeMax" v-model.number="ngramSize" />
+					<div class="form-group">
+						<label class="col-xs-4 col-md-2" for="n-gram-size">{{ $t('explore.ngram.ngramSize') }}</label>
+						<div class="col-xs-8 col-md-5">
+							<input class="form-control" name="n-gram-size" id="n-gram-size" type="number" min="1" :max="ngramSizeMax" v-model.number="ngramSize" />
+						</div>
 					</div>
-				</div>
-				<div class="form-group">
-					<label class="col-xs-4 col-md-2" for="n-gram-type">{{ $t('explore.ngram.ngramType') }}</label>
+					<div class="form-group">
+						<label class="col-xs-4 col-md-2" for="n-gram-type">{{ $t('explore.ngram.ngramType') }}</label>
 
-					<div class="col-xs-8 col-md-5">
-						<SelectPicker data-name="n-gram-type" data-id="n-gram-type" data-width="100%" hideEmpty allowHtml :options="annotationGroupByOptions" v-model="ngramType" />
+						<div class="col-xs-8 col-md-5">
+							<SelectPicker data-name="n-gram-type" data-id="n-gram-type" data-width="100%" hideEmpty allowHtml :options="annotationGroupByOptions" v-model="ngramType" />
+						</div>
 					</div>
-				</div>
 
-				<div class="n-gram-container">
-					<div v-for="(token, index) in ngramTokens" :key="index" class="n-gram-token">
-						<SelectPicker
-							data-width="100%"
-							data-menu-width="grow"
-							:options="annotationSearchOptions"
-							:disabled="index >= ngramSize"
-							:modelValue="token.id"
-							placeholder="Property"
-							hideEmpty
-							allowHtml
-							@change="updateTokenAnnotation(index, $event /* custom component - custom event values */)"
-						/>
-						<input v-if="!token.annotation" type="text" disabled title="Please select an annotation to edit." class="form-control" :value="token.value" />
-						<SelectPicker
-							v-else-if="token.annotation.uiType === 'select' || (token.annotation.uiType === 'pos' && token.annotation.values)"
-							data-width="100%"
-							data-class="btn btn-default"
-							data-menu-width="grow"
-							:placeholder="$tAnnotDisplayName(token.annotation)"
-							:data-dir="token.annotation.isMainAnnotation ? mainTokenTextDirection : undefined"
-							:options="token.annotation.values"
-							:disabled="index >= ngramSize"
-							:modelValue="token.value"
-							@change="updateTokenValue(index, $event)"
-						/>
-						<Lexicon
-							v-else-if="token.annotation.uiType === 'lexicon'"
-							:annotationId="token.annotation.id"
-							:definition="token.annotation"
-							:modelValue="token.value"
-							@update:modelValue="updateTokenValue(index, $event)"
-							ref="reset"
-						/>
+					<div class="n-gram-container">
+						<div v-for="(token, index) in ngramTokens" :key="index" class="n-gram-token">
+							<SelectPicker
+								data-width="100%"
+								data-menu-width="grow"
+								:options="annotationSearchOptions"
+								:disabled="index >= ngramSize"
+								:modelValue="token.id"
+								placeholder="Property"
+								hideEmpty
+								allowHtml
+								@change="updateTokenAnnotation(index, $event /* custom component - custom event values */)"
+							/>
+							<input v-if="!token.annotation" type="text" disabled title="Please select an annotation to edit." class="form-control" :value="token.value" />
+							<SelectPicker
+								v-else-if="token.annotation.uiType === 'select' || (token.annotation.uiType === 'pos' && token.annotation.values)"
+								data-width="100%"
+								data-class="btn btn-default"
+								data-menu-width="grow"
+								:placeholder="$tAnnotDisplayName(token.annotation)"
+								:data-dir="token.annotation.isMainAnnotation ? mainTokenTextDirection : undefined"
+								:options="token.annotation.values"
+								:disabled="index >= ngramSize"
+								:modelValue="token.value"
+								@change="updateTokenValue(index, $event)"
+							/>
+							<Lexicon
+								v-else-if="token.annotation.uiType === 'lexicon'"
+								:annotationId="token.annotation.id"
+								:definition="token.annotation"
+								:modelValue="token.value"
+								@update:modelValue="updateTokenValue(index, $event)"
+								ref="reset"
+							/>
 
-						<Autocomplete
-							v-else
-							useQuoteAsWordBoundary
-							:placeholder="$tAnnotDisplayName(token.annotation)"
-							:dir="token.annotation.isMainAnnotation ? mainTokenTextDirection : undefined"
-							:disabled="index >= ngramSize"
-							:getData="term => autocomplete(token.annotation, term)"
-							:value="token.value"
-							@change="updateTokenValue(index, $event)"
-						/>
+							<Autocomplete
+								v-else
+								useQuoteAsWordBoundary
+								:placeholder="$tAnnotDisplayName(token.annotation)"
+								:dir="token.annotation.isMainAnnotation ? mainTokenTextDirection : undefined"
+								:disabled="index >= ngramSize"
+								:getData="term => autocomplete(token.annotation, term)"
+								:value="token.value"
+								@change="updateTokenValue(index, $event)"
+							/>
+						</div>
 					</div>
 				</div>
 			</div>
-			<div id="explore-frequency" :class="['tab-pane form-horizontal', { active: exploreMode === 'frequency' }]">
-				<div v-if="isParallelCorpus" class="form-group form-group-lg" style="margin: 0">
-					<label class="control-label">{{ $t('search.parallel.searchSourceVersion') }}</label>
-					<ParallelSource block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
-				</div>
-				<div class="form-group form-group-lg" style="margin: 0">
-					<label for="frequency-type" class="control-label">{{ $t('explore.frequency.frequencyType') }}</label>
-					<SelectPicker data-id="frequency-type" data-name="frequency-type" data-width="100%" hideEmpty allowHtml :options="annotationGroupByOptions" v-model="frequencyType" />
+			<div id="explore-frequency" :class="['tab-pane', { active: exploreMode === 'frequency' }]">
+				<FormSystem v-if="renderNewForm('frequency')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('frequency')" @submit="submitNewForm" @reset="resetNewForm" />
+				<div v-else class="form-horizontal">
+					<div v-if="isParallelCorpus" class="form-group form-group-lg" style="margin: 0">
+						<label class="control-label">{{ $t('search.parallel.searchSourceVersion') }}</label>
+						<ParallelSource block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+					</div>
+					<div class="form-group form-group-lg" style="margin: 0">
+						<label for="frequency-type" class="control-label">{{ $t('explore.frequency.frequencyType') }}</label>
+						<SelectPicker data-id="frequency-type" data-name="frequency-type" data-width="100%" hideEmpty allowHtml :options="annotationGroupByOptions" v-model="frequencyType" />
+					</div>
 				</div>
 			</div>
 		</div>

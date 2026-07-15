@@ -164,7 +164,7 @@ export type SummaryEntry = {
 	id: string;
 	label: string;
 	value: string;
-	/** BlackLab parameters affected by the controller that produced this entry. */
+	/** BlackLab parameters represented by this summary. Defaults to those affected by its controller. */
 	summaryType?: BlackLabParameter[];
 	group?: string;
 };
