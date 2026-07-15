@@ -251,7 +251,7 @@
 			"sort_alignments": "alignments",
 			"groupBy": "Group by {field}",
 			"sortByDocument": "Sort by document title",
-			"moreHiddenHits": "more hidden hits",
+			"moreHiddenHits": "{count} more hidden hits",
 			"close": "close",
 			"hide": "Hide",
 			"show": "Show",

@@ -248,7 +248,7 @@
 			"sort_alignments": "alignments",
 			"groupBy": "分组依据：{field}",
 			"sortByDocument": "分类依据：文章标题",
-			"moreHiddenHits": "更多隐藏的命中",
+			"moreHiddenHits": "还有 {count} 个隐藏命中",
 			"close": "关闭",
 			"hide": "隐藏",
 			"show": "显示",

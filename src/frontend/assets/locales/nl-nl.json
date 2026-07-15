@@ -248,7 +248,7 @@
 			"sort_alignments": "parallelle hits",
 			"groupBy": "Groeperen op {field}",
 			"sortByDocument": "Sorteer op documenttitel",
-			"moreHiddenHits": "meer verborgen hits",
+			"moreHiddenHits": "Nog {count} verborgen hits",
 			"close": "sluiten",
 			"hide": "Verberg",
 			"show": "Toon",

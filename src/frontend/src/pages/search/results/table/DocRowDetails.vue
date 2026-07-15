@@ -3,7 +3,7 @@
 		<td colspan="100" style="padding: 0.75em">
 			<GenericTable type="hits" :rows="{ rows: row.hits }" :cols="cols" :info="info" :header="cols.hitColumns" :disableDetails="true" />
 			<div v-if="row.doc.numberOfHits && row.doc.numberOfHits > row.hits.length" class="text-muted clearfix col-xs-12 text-center">
-				( {{ row.doc.numberOfHits - row.hits.length }} {{ $t('results.table.moreHiddenHits') }})
+				({{ $t('results.table.moreHiddenHits', { count: row.doc.numberOfHits - row.hits.length }) }})
 			</div>
 		</td>
 	</tr>
