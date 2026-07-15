@@ -1,6 +1,7 @@
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
 import type { QueryFragment } from '@/features/form/model/types/form-query';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
+import type { AnyFieldDefinition, FieldNodeProps, FieldState } from '@/features/form/model/field-component-props';
 
 import type { Translate } from '@/shared/i18n';
 
@@ -39,9 +40,19 @@ export type FieldController<Kind extends string = string, State = any, Extra = o
 };
 export type AnyFieldController = FieldController<string, any, any>;
 
-export type CreateFieldControllerInput<Kind extends string, State, Extra extends object> = FieldController<Kind, State, Extra>;
+/** Controller config derived from a field contract, plus controller-only node props. */
+export type FieldControllerConfig<Definition extends AnyFieldDefinition, Extra extends object = object> = FieldNodeProps<Definition> & Extra;
 
-/** Simple helper function to ensure the field controllers are correctly typed. Returns the object as-is. */
-export function createFieldController<Kind extends string, State, Extra extends object>(definition: CreateFieldControllerInput<Kind, State, Extra>): FieldController<Kind, State, Extra> {
+/** A controller whose state and field props come from one field contract. */
+export type FieldControllerFor<Kind extends string, Definition extends AnyFieldDefinition, Extra extends object = object> = FieldController<
+	Kind,
+	FieldState<Definition>,
+	FieldControllerConfig<Definition, Extra>
+>;
+
+/** Define a controller against a field contract instead of repeating its state and node props. */
+export function defineFieldController<Kind extends string, Definition extends AnyFieldDefinition, Extra extends object = object>(
+	definition: FieldControllerFor<Kind, Definition, Extra>,
+): FieldControllerFor<Kind, Definition, Extra> {
 	return definition;
 }

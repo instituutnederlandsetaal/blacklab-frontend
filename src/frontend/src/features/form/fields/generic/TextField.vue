@@ -1,43 +1,43 @@
 <template>
-	<div :id="htmlId" class="form-group">
-		<label v-if="showLabel" class="control-label" :for="inputId">{{ resolvedDisplayName }} </label>
+	<div v-bind="field.rootAttrs">
+		<label v-if="showLabel" class="control-label" :for="field.inputId">{{ displayName }} </label>
 		<debug> [{{ id }}]</debug>
 
-		<div :class="!variant.simple ? 'input-group' : ''">
+		<div :class="!field.variants.simple ? 'input-group' : ''">
 			<Autocomplete
 				v-if="autocomplete"
 				data-width="100%"
-				:data-class="['form-control', inputClass]"
+				:data-class="['form-control', field.inputClass]"
 				useQuoteAsWordBoundary
-				:data-id="inputId"
-				:data-name="inputId"
-				:placeholder="placeholderText"
-				:dir="textDirection"
+				:data-id="field.inputId"
+				:data-name="field.inputId"
+				:placeholder="placeholder || displayName"
+				:dir="textDirection || 'ltr'"
 				:getData="autocomplete"
 				:disabled
 				v-model="value"
 			/>
 			<input
 				v-else
-				:id="inputId"
-				:class="['form-control', inputClass]"
+				:id="field.inputId"
+				:class="['form-control', field.inputClass]"
 				type="text"
-				:placeholder="placeholderText"
-				:dir="textDirection"
+				:placeholder="placeholder || displayName"
+				:dir="textDirection || 'ltr'"
 				:disabled
 				:value
 				@input="value = ($event.target as HTMLInputElement).value"
 			/>
 
-			<div v-if="!variant.simple" class="input-group-btn">
-				<label :class="['btn', 'btn-default', 'file-input-button', btnClass, { disabled }]" :for="`${inputId}_file`">
+			<div v-if="!field.variants.simple" class="input-group-btn">
+				<label :class="['btn', 'btn-default', 'file-input-button', field.buttonClass, { disabled }]" :for="`${field.inputId}_file`">
 					<span class="fa fa-upload fa-fw"></span>
-					<input type="file" title="Upload a list of values" :id="`${inputId}_file`" @change="onFileChanged" :disabled />
+					<input type="file" title="Upload a list of values" :id="`${field.inputId}_file`" @change="onFileChanged" :disabled />
 				</label>
 			</div>
 		</div>
 
-		<small v-if="resolvedDescription" class="help-block">{{ resolvedDescription }}</small>
+		<small v-if="description" class="help-block">{{ description }}</small>
 
 		<div class="checkbox" :class="{ disabled }" v-if="caseSensitive">
 			<label>
@@ -49,16 +49,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, toValue } from 'vue';
+import { computed } from 'vue';
 
-import { decodeVariants } from '@/features/form/model/form-utils';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
-
-import type { TextFieldState, TextFieldUiConfig } from './text-field';
+import { useFieldPresentation } from '../field-presentation';
+import type { TextFieldComponentProps, TextFieldState } from './text-field';
 
 import Autocomplete from '@/shared/ui/Autocomplete.vue';
 
-const props = withDefaults(defineProps<ImplicitFieldComponentProps<TextFieldState> & TextFieldUiConfig & { showLabel?: boolean }>(), {
+const props = withDefaults(defineProps<TextFieldComponentProps>(), {
 	showLabel: true,
 	disabled: false,
 });
@@ -66,15 +64,7 @@ const emit = defineEmits<{
 	'update:modelValue': [value: TextFieldState];
 }>();
 
-const inputId = computed(() => `${props.htmlId}_value`);
-const variant = computed(() => decodeVariants(props.variant));
-const inputClass = computed(() => (variant.value.large ? 'input-lg' : variant.value.small ? 'input-sm' : ''));
-const btnClass = computed(() => (variant.value.large ? 'btn-lg' : variant.value.small ? 'btn-sm' : ''));
-
-const resolvedDisplayName = computed(() => toValue(props.displayName));
-const resolvedDescription = computed(() => (props.description ? toValue(props.description) : undefined));
-const placeholderText = computed(() => (props.placeholder && toValue(props.placeholder)) ?? resolvedDisplayName.value);
-const textDirection = computed(() => props.textDirection ?? 'ltr');
+const field = useFieldPresentation(props);
 
 const value = computed({
 	get: () => props.modelValue.value,

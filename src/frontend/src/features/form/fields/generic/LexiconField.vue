@@ -1,30 +1,30 @@
 <template>
-	<div :id="htmlId" class="form-group">
-		<label v-if="showLabel" class="control-label" :for="inputId">{{ resolvedDisplayName }} </label>
+	<div v-bind="field.rootAttrs">
+		<label v-if="showLabel" class="control-label" :for="field.inputId">{{ displayName }} </label>
 		<debug> [{{ id }}]</debug>
 
 		<div class="lexicon">
 			<div class="lexicon-input">
 				<input
 					type="text"
-					:class="['form-control', inputClass, { loading: wordOptions === null }]"
+					:class="['form-control', field.inputClass, { loading: wordOptions === null }]"
 					autocomplete="off"
-					:id="inputId"
-					:name="inputId"
-					:placeholder="placeholderText"
-					:dir="textDirection"
+					:id="field.inputId"
+					:name="field.inputId"
+					:placeholder="placeholder || displayName"
+					:dir="textDirection || 'ltr'"
 					:disabled
 					:value="value"
 					@input="value = ($event.target as HTMLInputElement).value"
 				/>
-				<Spinner v-if="wordOptions === null" overlay right inverted :size="spinnerSize" class="lexicon-spinner" />
+				<Spinner v-if="wordOptions === null" overlay right inverted :size="field.variants.large ? 32 : 22" class="lexicon-spinner" />
 			</div>
 
 			<div v-if="wordOptions && wordOptions.length" style="display: flex; flex-wrap: wrap; gap: 0.25em; margin: 10px 0">
-				<button type="button" :class="['btn', 'btn-default', btnClass]" :disabled="disabled || selectedWords.length === renderedWords.length" @click="selectAll">
+				<button type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled="disabled || selectedWords.length === renderedWords.length" @click="selectAll">
 					{{ $t('lexicon.selectAll') }}
 				</button>
-				<button type="button" :class="['btn', 'btn-default', btnClass]" :disabled="disabled || !selectedWords.length" @click="deselectAll">{{ $t('lexicon.deselectAll') }}</button>
+				<button type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled="disabled || !selectedWords.length" @click="deselectAll">{{ $t('lexicon.deselectAll') }}</button>
 			</div>
 
 			<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden">
@@ -54,22 +54,20 @@
 			</template>
 		</div>
 
-		<small v-if="resolvedDescription" class="help-block">{{ resolvedDescription }}</small>
+		<small v-if="description" class="help-block">{{ description }}</small>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, toValue, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
-import { decodeVariants } from '@/features/form/model/form-utils';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
-
-import { defaultLexiconLookupResult, type LexiconFieldUiConfig, type LexiconWordOption } from './lexicon-field';
+import { useFieldPresentation } from '../field-presentation';
+import { defaultLexiconLookupResult, type LexiconFieldComponentProps, type LexiconWordOption } from './lexicon-field';
 import type { TextFieldState } from './text-field';
 
 import Spinner from '@/shared/ui/Spinner.vue';
 
-const props = withDefaults(defineProps<ImplicitFieldComponentProps<TextFieldState> & LexiconFieldUiConfig & { showLabel?: boolean }>(), {
+const props = withDefaults(defineProps<LexiconFieldComponentProps>(), {
 	showLabel: true,
 	disabled: false,
 });
@@ -83,15 +81,7 @@ const requestSerial = ref(0);
 const suppressNextValueLookup = ref(false);
 let debounceHandle: ReturnType<typeof setTimeout> | undefined;
 
-const inputId = computed(() => `${props.htmlId}_value`);
-const variant = computed(() => decodeVariants(props.variant));
-const inputClass = computed(() => (variant.value.large ? 'input-lg' : variant.value.small ? 'input-sm' : ''));
-const btnClass = computed(() => (variant.value.large ? 'btn-lg' : variant.value.small ? 'btn-sm' : ''));
-const spinnerSize = computed(() => (variant.value.large ? 32 : 22));
-const resolvedDisplayName = computed(() => toValue(props.displayName));
-const resolvedDescription = computed(() => (props.description ? toValue(props.description) : undefined));
-const placeholderText = computed(() => (props.placeholder && toValue(props.placeholder)) ?? resolvedDisplayName.value);
-const textDirection = computed(() => props.textDirection ?? 'ltr');
+const field = useFieldPresentation(props);
 
 const renderedWords = computed(() => (wordOptions.value ? wordOptions.value.filter(word => word.pos.some(pos => posOptions.value[pos])) : []));
 const selectedWords = computed(() => renderedWords.value.filter(word => word.selected));

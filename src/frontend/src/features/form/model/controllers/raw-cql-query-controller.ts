@@ -1,14 +1,9 @@
+import type { RawCqlQueryFieldDefinition } from '@/features/form/fields/raw-cql-field';
 import { cqlRaw, queryFragment } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, singleEncodedValue } from '@/features/form/model/controllers/persistence-codec';
-import type { FieldController } from '@/features/form/model/types/form-controllers';
+import { defineFieldController } from '@/features/form/model/types/form-controllers';
 
-export type RawCqlQueryFieldState = string;
-
-export type RawCqlQueryFieldConfig = {
-	hideLabel?: boolean;
-};
-
-export const expertQueryController: FieldController<'raw-cql-query', RawCqlQueryFieldState, RawCqlQueryFieldConfig> = {
+export const expertQueryController = defineFieldController<'raw-cql-query', RawCqlQueryFieldDefinition>({
 	kind: 'raw-cql-query',
 	createDefaultState: () => '',
 	getPersistKey: () => 'query',
@@ -33,5 +28,4 @@ export const expertQueryController: FieldController<'raw-cql-query', RawCqlQuery
 				: null,
 		);
 	},
-};
-export default expertQueryController;
+});

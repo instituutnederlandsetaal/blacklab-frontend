@@ -1,14 +1,14 @@
 <template>
-	<div :class="formGroupClasses" :id="htmlId">
+	<div v-bind="field.rootAttrs">
 		<label v-if="showLabel" :for="buttonId">{{ $tAnnotDisplayName(annotation) }}</label>
 		<div class="input-group">
-			<input :id="buttonId" type="text" class="form-control" :value="selectionSummary" readonly :placeholder="$t('partOfSpeech.noneSelected')" />
-			<div :class="btnGroupClasses">
-				<button v-if="hasSelection" type="button" class="btn btn-default" :disabled @click="clearSelection">
+			<input :id="buttonId" type="text" :class="['form-control', field.inputClass]" :value="selectionSummary" readonly :placeholder="$t('partOfSpeech.noneSelected')" />
+			<div class="input-group-btn">
+				<button v-if="hasSelection" type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled @click="clearSelection">
 					<span class="fa fa-times fa-fw"></span>
 					<span class="sr-only">{{ $t('partOfSpeech.reset') }}</span>
 				</button>
-				<button type="button" class="btn btn-default" :disabled @click="openEditor">
+				<button type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled @click="openEditor">
 					<span class="fa fa-pencil fa-fw"></span>
 					<span class="sr-only">{{ $t('partOfSpeech.edit') }}</span>
 				</button>
@@ -80,8 +80,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-import { decodeVariants } from '@/features/form/model/form-utils';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
+import { useFieldPresentation } from '@/features/form/fields/field-presentation';
 
 import {
 	buildAnnotationPosQueryPreview,
@@ -91,7 +90,7 @@ import {
 	findTagsetValue,
 	getVisibleSubAnnotationValues,
 	summarizeAnnotationPosState,
-	type AnnotationPosFieldConfig,
+	type AnnotationPosFieldComponentProps,
 	type AnnotationPosFieldState,
 } from './annotation-pos-field';
 
@@ -99,7 +98,7 @@ import { useI18n } from '@/shared/i18n';
 
 import Modal from '@/shared/ui/Modal.vue';
 
-const props = withDefaults(defineProps<ImplicitFieldComponentProps<AnnotationPosFieldState> & AnnotationPosFieldConfig & { showLabel?: boolean }>(), {
+const props = withDefaults(defineProps<AnnotationPosFieldComponentProps>(), {
 	showLabel: true,
 	disabled: false,
 });
@@ -122,10 +121,7 @@ watch(
 	{ deep: true },
 );
 
-const variant = computed(() => decodeVariants(props.variant));
-const formGroupClasses = computed(() => ['form-group', variant.value.large ? 'form-group-lg' : variant.value.small ? 'form-group-sm' : '']);
-const btnGroupClasses = computed(() => ['input-group-btn', variant.value.large ? 'btn-group-lg' : variant.value.small ? 'btn-group-sm' : '']);
-
+const field = useFieldPresentation(props);
 const buttonId = computed(() => `${props.htmlId}_editor`);
 const mainValues = computed(() => Object.values(props.tagset.values));
 const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value.annotationValue));

@@ -2,6 +2,7 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
+import { nextTick, ref } from 'vue';
 
 import { FormSystem } from '@/features/form';
 
@@ -85,5 +86,26 @@ describe('form runtime', () => {
 		await wrapper.findAll('[role="tab"]')[1].trigger('click');
 
 		expect(runtime.state.uiState.value[root.id]).toBe(secondForm.id);
+	});
+
+	test('lazy display props update without rebuilding the form graph', async () => {
+		const displayName = ref('Word');
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+		form.addChildren(
+			builder.newField('search.simple.word', testTextController, TestTextField, {
+				annotationId: 'word',
+				displayName: () => displayName.value,
+			}),
+		);
+		const runtime = createTestRuntime(builder);
+		const wrapper = mount(FormSystem, { props: { runtime } });
+
+		expect(wrapper.get('input').attributes('aria-label')).toBe('Word');
+
+		displayName.value = 'Woord';
+		await nextTick();
+
+		expect(wrapper.get('input').attributes('aria-label')).toBe('Woord');
 	});
 });

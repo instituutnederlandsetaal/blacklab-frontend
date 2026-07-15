@@ -1,11 +1,11 @@
 <template>
-	<div :class="fieldClasses">
+	<div v-bind="field.rootAttrs">
 		<label v-if="!hideLabel" :for="`${htmlId}_query`">
 			{{ $t(`search.expert.corpusQueryLanguage`) }}
 			<a class="help" target="_blank" href="https://blacklab.ivdnt.org/guide/corpus-query-language.html" :title="$t(`widgets.learnMore`)">?</a>
 		</label>
 		<textarea
-			class="form-control querybox"
+			:class="['form-control', 'querybox', field.inputClass]"
 			:id="`${htmlId}_query`"
 			rows="7"
 			:value="modelValue"
@@ -17,13 +17,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { useFieldPresentation } from '@/features/form/fields/field-presentation';
+import type { RawCqlQueryFieldComponentProps, RawCqlQueryFieldState } from '@/features/form/fields/raw-cql-field';
 
-import type { RawCqlQueryFieldConfig, RawCqlQueryFieldState } from '@/features/form/model/controllers/raw-cql-query-controller';
-import { decodeVariants } from '@/features/form/model/form-utils';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
-
-const props = withDefaults(defineProps<ImplicitFieldComponentProps<RawCqlQueryFieldState> & RawCqlQueryFieldConfig>(), {
+const props = withDefaults(defineProps<RawCqlQueryFieldComponentProps>(), {
 	disabled: false,
 	hideLabel: false,
 });
@@ -32,8 +29,7 @@ const emit = defineEmits<{
 	'update:modelValue': [value: RawCqlQueryFieldState];
 }>();
 
-const fieldClasses = computed(() => ['blf-field', 'blf-expert-query-field', decodeVariants(props.variant)]);
-const htmlId = computed(() => props.htmlId);
+const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-expert-query-field' });
 
 function updateQuery(query: string) {
 	emit('update:modelValue', query);

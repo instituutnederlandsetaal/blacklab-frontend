@@ -1,28 +1,11 @@
+import type { WithinFieldDefinition } from '@/features/form/fields/within-field';
 import { queryFragment } from '@/features/form/model/compile/query-artifact';
 import { decodePersistRecord, encodePersistObject } from '@/features/form/model/controllers/persistence-codec';
-import type { FieldController } from '@/features/form/model/types/form-controllers';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
+import { defineFieldController } from '@/features/form/model/types/form-controllers';
 
-import { findOption, type Option } from '@/shared/utils/options';
+import { findOption } from '@/shared/utils/options';
 
-export type WithinFieldState = {
-	element: string | null;
-	attributes: Record<string, string>;
-};
-
-export type WithinFieldOption = Option & {
-	attributes?: Option[];
-};
-
-export type WithinFieldConfig = {
-	options: WithinFieldOption[];
-	/** Sort generated span options by their translated labels; configured options retain their explicit order. */
-	sortOptions?: boolean;
-};
-
-export type WithFieldComponentProps = ImplicitFieldComponentProps<WithinFieldState> & WithinFieldConfig;
-
-export const withinController: FieldController<'within', WithinFieldState, Omit<WithinFieldConfig, 'htmlId'>> = {
+export const withinController = defineFieldController<'within', WithinFieldDefinition>({
 	kind: 'within',
 	createDefaultState: () => ({ element: null, attributes: {} }),
 	getPersistKey: () => 'within',
@@ -53,5 +36,4 @@ export const withinController: FieldController<'within', WithinFieldState, Omit<
 			value: runtime.translate.$tSpanDisplayName(option),
 		});
 	},
-};
-export default withinController;
+});

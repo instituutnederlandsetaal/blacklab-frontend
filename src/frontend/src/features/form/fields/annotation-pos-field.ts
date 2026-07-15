@@ -1,23 +1,26 @@
 import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
+import type { FieldComponentProps, FieldDefinition } from '@/features/form/model/field-component-props';
 
 import type { Translate } from '@/shared/i18n';
 import { escapeRegex } from '@/shared/utils/string-utils';
 
 export type AnnotationReference = Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName' | 'defaultDescription'>;
 
-export type AnnotationPosFieldConfig = {
-	annotation: AnnotationReference;
-	subAnnotations?: Record<string, AnnotationReference>;
-	tagset: Tagset;
-	groupId?: string;
-	modalSize?: 'xs' | 'sm' | 'md' | 'lg' | 'auto' | 'fullscreen';
-	showQueryPreview?: boolean;
-};
-
 export type AnnotationPosFieldState = {
 	annotationValue: string | null;
 	selected: Record<string, boolean>;
 };
+export type AnnotationPosFieldExtraProps = {
+	annotation: AnnotationReference;
+	subAnnotations?: Record<string, AnnotationReference>;
+	tagset: Tagset;
+	modalSize?: 'xs' | 'sm' | 'md' | 'lg' | 'auto' | 'fullscreen';
+	showQueryPreview?: boolean;
+};
+export type AnnotationPosFieldDefinition = FieldDefinition<AnnotationPosFieldState, AnnotationPosFieldExtraProps>;
+export type AnnotationPosFieldConfig = AnnotationPosFieldDefinition['nodeProps'];
+/** Materialized for Vue's runtime prop extraction; equivalent to `AnnotationPosFieldDefinition['componentProps']`. */
+export type AnnotationPosFieldComponentProps = FieldComponentProps<AnnotationPosFieldState> & AnnotationPosFieldExtraProps;
 
 const EMPTY_SUBANNOTATION_VALUES: Tagset['subAnnotations'][string]['values'] = [];
 

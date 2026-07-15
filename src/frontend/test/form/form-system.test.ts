@@ -4,12 +4,11 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick, shallowRef } from 'vue';
 
-import { annotationTextController, filterTextController, FormSystem, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
+import { annotationTextController, defineFieldController, filterTextController, FormSystem, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
 import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
-import { createFieldController } from '@/features/form/model/types/form-controllers';
 import { tabId } from '@/features/form/ui/tab-utils';
 
-import { TestTextField, createTestBuilder, createTestRuntime, parentFormProbeView, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
+import { TestTextField, createTestBuilder, createTestRuntime, parentFormProbeView, testTextController, type TestTextFieldDefinition } from './helpers';
 
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
@@ -20,7 +19,7 @@ type FormFixture = {
 	runtime: FormRuntime;
 };
 
-const queryOnlyTextController = createFieldController<'query-only-text', TestTextFieldState, TestTextFieldConfig>({
+const queryOnlyTextController = defineFieldController<'query-only-text', TestTextFieldDefinition>({
 	kind: 'query-only-text',
 	createDefaultState: () => ({ value: '' }),
 	getPersistKey: config => config.annotationId,

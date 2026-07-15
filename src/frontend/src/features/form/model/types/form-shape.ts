@@ -63,12 +63,6 @@ export type RealFieldNode<Extra, C extends AnyVueComponent> = BaseFieldNode &
 		component: C;
 	};
 
-export type ImplicitFieldComponentProps<State> = BaseNode & {
-	htmlId: string;
-	modelValue: State;
-	disabled?: boolean;
-	variant?: BaseFieldNode['variant'];
-};
 export type FormControllerProps<Extra> = BaseNode & Extra;
 
 // View

@@ -1,11 +1,14 @@
-import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
+import type { NamedFieldComponentProps, NamedFieldDefinition } from '@/features/form/model/field-component-props';
 
 import type { Option } from '@/shared/utils/options';
 
 export type RadioFieldState = string;
-
-export const createDefaultRadioFieldState = (): RadioFieldState => '';
-
-export type RadioFieldUiConfig = GenericFieldUiConfig & {
+export type RadioFieldExtraProps = {
 	options: Option[];
 };
+export type RadioFieldDefinition = NamedFieldDefinition<RadioFieldState, RadioFieldExtraProps>;
+
+export const createDefaultRadioFieldState = (): RadioFieldState => '';
+export type RadioFieldConfig = RadioFieldDefinition['nodeProps'];
+/** Materialized for Vue's runtime prop extraction; equivalent to `RadioFieldDefinition['componentProps']`. */
+export type RadioFieldComponentProps = NamedFieldComponentProps<RadioFieldState> & RadioFieldExtraProps;

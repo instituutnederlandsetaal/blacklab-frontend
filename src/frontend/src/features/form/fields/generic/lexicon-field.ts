@@ -1,7 +1,7 @@
 import Axios from 'axios';
 
-import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
-import type { FormValue } from '@/features/form/model/types/form-shape';
+import type { TextFieldState } from '@/features/form/fields/generic/text-field';
+import type { NamedFieldComponentProps, NamedFieldDefinition } from '@/features/form/model/field-component-props';
 
 import { filterDuplicates, mapReduce } from '@/shared/utils/array-utils';
 
@@ -44,11 +44,15 @@ export type LexiconLookupResult = {
 
 export type LexiconLookup = (term: string) => Promise<LexiconLookupResult>;
 
-export type LexiconFieldUiConfig = GenericFieldUiConfig & {
-	placeholder?: FormValue<string | undefined>;
-	textDirection?: 'ltr' | 'rtl';
+export type LexiconFieldExtraProps = {
+	placeholder?: string;
 	lookup: LexiconLookup;
 };
+export type LexiconFieldDefinition = NamedFieldDefinition<TextFieldState, LexiconFieldExtraProps, 'placeholder'>;
+
+export type LexiconFieldConfig = LexiconFieldDefinition['nodeProps'];
+/** Materialized for Vue's runtime prop extraction; equivalent to `LexiconFieldDefinition['componentProps']`. */
+export type LexiconFieldComponentProps = NamedFieldComponentProps<TextFieldState> & LexiconFieldExtraProps;
 
 export const defaultLexiconLookupResult: LexiconLookupResult = {
 	posOptions: {},

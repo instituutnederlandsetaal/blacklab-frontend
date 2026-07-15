@@ -1,3 +1,4 @@
+import type { DefineFieldComponentProps, FieldComponentProps, FieldRuntimeComponentProps, ResolveFieldComponentProps } from '@/features/form/model/field-component-props';
 import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
 import type { AnyFieldController, FieldController, FormRuntimeContext } from '@/features/form/model/types';
 import type {
@@ -11,7 +12,6 @@ import type {
 	FormContainerLikeNode,
 	FormNode,
 	ImplicitContainerComponentProps,
-	ImplicitFieldComponentProps,
 	NodeKind,
 	NodeKindMap,
 	RealContainerNode,
@@ -24,16 +24,23 @@ import type { AnyVueComponent, ConstrainComponentToProvidedProps, DistributiveOm
 // Helpers
 // ==========================================================================================================================
 
-type ForbiddenConfigKeys = 'id' | 'children' | 'kind' | 'component' | 'controller' | 'htmlId' | 'modelValue';
-type ImplicitComponentPropKeys = keyof ImplicitFieldComponentProps<unknown>;
+type BuilderManagedNodeKeys = 'children' | 'kind' | 'component' | 'controller';
+type ForbiddenConfigKeys = BuilderManagedNodeKeys | keyof FieldRuntimeComponentProps<unknown>;
 type ImplicitContainerComponentPropKeys = keyof ImplicitContainerComponentProps;
 
 type ConstrainComponentFromController<C extends AnyVueComponent, Controller> =
-	Controller extends FieldController<string, infer State, infer Extra> ? ConstrainComponentToProvidedProps<C, ImplicitFieldComponentProps<State> & Extra> : never;
+	Controller extends FieldController<string, infer State, infer Extra> ? ConstrainComponentToProvidedProps<C, ResolveFieldComponentProps<FieldComponentProps<State> & Extra>> : never;
 
-type ExtractExtraPropsFromComponent<C extends AnyVueComponent, ImplicitKeys extends PropertyKey = ImplicitComponentPropKeys> = Omit<PublicPropsOf<C>, ImplicitKeys>;
+type ExtractExtraPropsFromComponent<C extends AnyVueComponent, ImplicitKeys extends PropertyKey> = Omit<PublicPropsOf<C>, ImplicitKeys>;
 type ExtractExtraPropsFromController<Controller> = Controller extends FieldController<string, any, infer Extra> ? Extra : never;
 type ExtractExtraPropsFromConfig<Config> = Omit<Config, ForbiddenConfigKeys>;
+
+/** Prefer the field/controller contract, retaining only genuinely component-specific and fallback base props. */
+type MergeFieldConfigProps<ControllerProps, ComponentProps> = ControllerProps extends object
+	? ComponentProps extends object
+		? ControllerProps & Omit<ComponentProps, keyof ControllerProps> & Omit<BaseFieldNode, keyof ControllerProps | keyof ComponentProps>
+		: never
+	: never;
 
 // Container
 // ==========================================================================================================================
@@ -76,7 +83,10 @@ interface NewFormNode {
 // ==========================================================================================================================
 
 type NewFieldNodeFnConfig<C extends AnyVueComponent, Controller extends AnyFieldController> = DistributiveOmit<
-	ExtractExtraPropsFromController<Controller> & ExtractExtraPropsFromComponent<C> & BaseFieldNode,
+	MergeFieldConfigProps<
+		ExtractExtraPropsFromController<Controller>,
+		DefineFieldComponentProps<ExtractExtraPropsFromComponent<C, keyof FieldComponentProps<unknown> | keyof FieldRuntimeComponentProps<unknown>>>
+	>,
 	ForbiddenConfigKeys
 >;
 type NewFieldNodeFnReturn<C extends AnyVueComponent, Config extends NewFieldNodeFnConfig<C, AnyFieldController>> = RealFieldNode<ExtractExtraPropsFromConfig<Config>, C>;
@@ -100,11 +110,11 @@ interface NewFieldNode {
 // View
 // ==========================================================================================================================
 
-type NewViewNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFromComponent<C> & BaseViewNode, ForbiddenConfigKeys>;
+type NewViewNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFromComponent<C, keyof BaseViewNode> & BaseViewNode, ForbiddenConfigKeys>;
 type NewViewNodeFnReturn<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>> = RealViewNode<ExtractExtraPropsFromConfig<Config>, C>;
 type NewViewNodeFnArgs<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>> = [
 	id: string,
-	component: ConstrainComponentToProvidedProps<C, ImplicitFieldComponentProps<never> & ExtractExtraPropsFromConfig<Config>>,
+	component: ConstrainComponentToProvidedProps<C, FieldComponentProps<never> & ExtractExtraPropsFromConfig<Config>>,
 	config: NoExtraProperties<NewViewNodeFnConfig<C>, Config>,
 ];
 

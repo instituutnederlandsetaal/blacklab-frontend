@@ -1,40 +1,16 @@
+import type {
+	ParallelAnnotatedField,
+	ParallelFieldConfig,
+	ParallelFieldDefinition,
+	ParallelFieldState,
+} from '@/features/form/fields/parallel-field';
 import { queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
-import type { EncodedFieldValue, FieldController, FieldControllerProps, FormRuntimeContext, RestoreFieldResult } from '@/features/form/model/types/form-controllers';
+import { defineFieldController, type EncodedFieldValue, type FieldController, type FieldControllerProps, type FormRuntimeContext, type RestoreFieldResult } from '@/features/form/model/types/form-controllers';
 import type { CqlPattern, SummaryEntry } from '@/features/form/model/types/form-query';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types/form-shape';
-import type { AnyVueComponent } from '@/types/helpers';
 
-import type { Translate } from '@/shared/i18n';
-import { findOption, optionValue, type Option, type SimpleOption } from '@/shared/utils/options';
+import { findOption, optionValue } from '@/shared/utils/options';
 
-export type ParallelFieldState<ChildState = unknown> = {
-	source: string | null;
-	targets: string[];
-	alignBy: string | null;
-	sourceState: ChildState;
-	targetStates: Record<string, ChildState>;
-};
-
-export type ParallelChildFieldConfig = {
-	id: string;
-	controller: FieldController<string, any, any>;
-	component: AnyVueComponent;
-	config: object;
-};
-
-export type ParallelFieldConfig = {
-	fieldOptions: ParallelAnnotatedField[];
-	alignByOptions?: Array<SimpleOption | Option>;
-	defaultSource?: string | null;
-	/** Applied even when alignByOptions is empty, allowing a fixed relation type without rendering a picker. */
-	defaultAlignBy?: string | null;
-	child: ParallelChildFieldConfig;
-};
-
-export type ParallelFieldComponentProps = ImplicitFieldComponentProps<ParallelFieldState> & ParallelFieldConfig;
-
-type ParallelAnnotatedField = Parameters<Translate['$tAnnotatedFieldDisplayName']>[0];
 type ParallelChildNamespace = { scope: 'source' } | { scope: 'target'; fieldId: string };
 type DecodedChildPersistKey = ParallelChildNamespace & { persistKey: string };
 
@@ -157,7 +133,7 @@ function restoredState<State>(result: RestoreFieldResult<State>, messages: Resto
 	return result;
 }
 
-export const parallelController: FieldController<'parallel', ParallelFieldState, ParallelFieldConfig> = {
+export const parallelController = defineFieldController<'parallel', ParallelFieldDefinition>({
 	kind: 'parallel',
 	createDefaultState: createDefaultParallelFieldState,
 	getPersistKey: () => 'parallel',
@@ -287,5 +263,4 @@ export const parallelController: FieldController<'parallel', ParallelFieldState,
 			});
 		return queryFragment({ query, summaries });
 	},
-};
-export default parallelController;
+});

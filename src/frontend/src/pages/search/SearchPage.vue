@@ -1,10 +1,10 @@
 <template>
-	<div :class="wideView.value ? 'container-fluid' : 'container'">
-		<QueryForm />
-		<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary" />
+	<!-- <div :class="wideView.value ? 'container-fluid' : 'container'"> -->
+	<QueryForm />
+	<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary" />
 
-		<Results v-show="resultsVisible" id="results" />
-	</div>
+	<Results v-show="resultsVisible" id="results" />
+	<!-- </div> -->
 </template>
 
 <script lang="ts">

@@ -1,6 +1,5 @@
-import type { GenericFieldUiConfig, RangeMode } from '@/features/form/fields/generic/shared-ui-config';
-
-export type { RangeMode } from '@/features/form/fields/generic/shared-ui-config';
+import type { RangeMode } from '@/features/form/fields/generic/range-mode';
+import type { NamedFieldComponentProps, NamedFieldDefinition } from '@/features/form/model/field-component-props';
 
 export type DateValue = {
 	d: string;
@@ -13,6 +12,14 @@ export type DateFieldState = {
 	endDate: DateValue;
 	mode: RangeMode;
 };
+export type DateFieldExtraProps = {
+	range: boolean;
+	min?: string | Date | DateValue;
+	max?: string | Date | DateValue;
+	/** Lock the mode to a fixed value if present. */
+	mode?: RangeMode;
+};
+export type DateFieldDefinition = NamedFieldDefinition<DateFieldState, DateFieldExtraProps>;
 
 export const createDefaultDateFieldState = (): DateFieldState => ({
 	startDate: { y: '', m: '', d: '' },
@@ -66,10 +73,6 @@ export const DateUtils = {
 	},
 };
 
-export type DateFieldUiConfig = GenericFieldUiConfig & {
-	range: boolean;
-	min?: string | Date | DateValue;
-	max?: string | Date | DateValue;
-	/** Lock the mode to a fixed value if present. */
-	mode?: RangeMode;
-};
+export type DateFieldConfig = DateFieldDefinition['nodeProps'];
+/** Materialized for Vue's runtime prop extraction; equivalent to `DateFieldDefinition['componentProps']`. */
+export type DateFieldComponentProps = NamedFieldComponentProps<DateFieldState> & DateFieldExtraProps;

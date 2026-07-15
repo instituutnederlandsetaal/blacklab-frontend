@@ -90,4 +90,5 @@ export type ConstrainComponentToProvidedProps<C extends AnyVueComponent, Provide
 
 export type DistributiveOmit<T, Keys extends PropertyKey> = T extends unknown ? Omit<T, Keys> : never;
 
+/** A util type that ensures the Actual type is exactly the Expected type, and doesn't allow extra unlisted properties.  */
 export type NoExtraProperties<Expected, Actual extends Expected> = Expected extends unknown ? (Actual extends Expected ? Actual & Record<Exclude<keyof Actual, keyof Expected>, never> : never) : never;

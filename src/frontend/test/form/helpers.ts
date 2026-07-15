@@ -1,18 +1,18 @@
 import { createMockI18n } from '@test/mocks/i18n';
-import { defineComponent, h, type PropType } from 'vue';
+import { defineComponent, h, toValue, type PropType } from 'vue';
 
-import { FormBuilder, FormRuntime, useFormSystemRuntime, useParentForm, type FormRuntimeContext } from '@/features/form';
+import { FormBuilder, FormRuntime, defineFieldController, useFormSystemRuntime, useParentForm, type FormRuntimeContext, type NamedFieldDefinition } from '@/features/form';
 import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
-import { createFieldController } from '@/features/form/model/types/form-controllers';
 
 export type TestTextFieldState = {
 	value: string;
 };
 
-export type TestTextFieldConfig = {
+export type TestTextFieldExtraProps = {
 	annotationId: string;
-	displayName: string;
 };
+export type TestTextFieldDefinition = NamedFieldDefinition<TestTextFieldState, TestTextFieldExtraProps>;
+export type TestTextFieldConfig = TestTextFieldDefinition['nodeProps'];
 
 export const TestTextField = defineComponent({
 	props: {
@@ -56,7 +56,7 @@ export const TestTextField = defineComponent({
 	},
 });
 
-export const testTextController = createFieldController<'test-text', TestTextFieldState, TestTextFieldConfig>({
+export const testTextController = defineFieldController<'test-text', TestTextFieldDefinition>({
 	kind: 'test-text',
 	createDefaultState: () => ({ value: '' }),
 	getPersistKey: config => config.annotationId,
@@ -76,7 +76,7 @@ export const testTextController = createFieldController<'test-text', TestTextFie
 			state.value
 				? {
 						id: config.id,
-						label: config.displayName,
+						label: toValue(config.displayName),
 						value: state.value,
 					}
 				: null,

@@ -1,19 +1,21 @@
-import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
-import type { FormValue } from '@/features/form/model/types/form-shape';
+import type { NamedFieldComponentProps, NamedFieldDefinition } from '@/features/form/model/field-component-props';
 
 export type TextFieldState = {
 	value: string;
 	caseSensitive: boolean;
 };
+export type TextFieldExtraProps = {
+	placeholder?: string;
+	autocomplete?: (term: string) => Promise<string[]>;
+	/** Does the field have the option to toggle case-sensitivity. */
+	caseSensitive?: boolean;
+};
+export type TextFieldDefinition = NamedFieldDefinition<TextFieldState, TextFieldExtraProps, 'placeholder'>;
 
 export const createDefaultTextFieldState = (): TextFieldState => ({
 	value: '',
 	caseSensitive: false,
 });
-
-export type TextFieldUiConfig = GenericFieldUiConfig & {
-	placeholder?: FormValue<string | undefined>;
-	autocomplete?: (term: string) => Promise<string[]>;
-	/** Does the field have the option to toggle case-sensitivity */
-	caseSensitive?: boolean;
-};
+export type TextFieldConfig = TextFieldDefinition['nodeProps'];
+/** Materialized for Vue's runtime prop extraction; equivalent to `TextFieldDefinition['componentProps']`. */
+export type TextFieldComponentProps = NamedFieldComponentProps<TextFieldState> & TextFieldExtraProps;

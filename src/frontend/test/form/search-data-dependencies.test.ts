@@ -101,6 +101,13 @@ function createSearchFormConfiguration(): SearchFormConfiguration {
 		metadataFieldIds: ['title'],
 		within: { enabled: true, elements: [] },
 		alignBy: { enabled: true, elements: [], defaultValue: '' },
+		explore: {
+			corpora: {
+				groupMetadataIds: [],
+				defaultGroupMetadataId: null,
+				metadataGroupLabelsVisible: false,
+			},
+		},
 		lexiconDatabase: '',
 	};
 }

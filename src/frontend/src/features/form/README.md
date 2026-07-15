@@ -41,7 +41,7 @@ components.
   components.
 - `model/types/form-controllers.ts`
   Defines `FieldController`, `FormRuntimeContext`, persistence value types, and
-  `createFieldController`.
+  `defineFieldController`.
 - `model/state.ts`
   Creates default state and the mutable runtime state object.
 - `model/compile/index.ts`
@@ -158,6 +158,45 @@ The `disabled` prop is computed from `controller.affectsBlackLabParameters`.
 When a raw override exists for one of those params, the field is locked until the
 override is cleared.
 
+## Declaring field props
+
+Every built-in field declares one `FieldDefinition` type. The declaration is the
+source of truth for state and props: extra props are written in their resolved
+component form, while the third type argument lists which of those props may be
+lazy `FormValue`s on a node.
+
+```ts
+export type ExampleFieldState = { value: string };
+export type ExampleFieldExtraProps = {
+	placeholder?: string;
+	options: Option[];
+};
+export type ExampleFieldDefinition = NamedFieldDefinition<ExampleFieldState, ExampleFieldExtraProps, 'placeholder'>;
+
+export type ExampleFieldConfig = ExampleFieldDefinition['nodeProps'];
+// Keep this intersection concrete so Vue can generate runtime prop declarations.
+export type ExampleFieldComponentProps = NamedFieldComponentProps<ExampleFieldState> & ExampleFieldExtraProps;
+```
+
+The contract exposes `state`, `baseProps`, `extraProps`, `nodeProps`, and
+`componentProps` for code which needs a particular side. The explicit component
+intersection above is equivalent to `ExampleFieldDefinition['componentProps']`;
+it works around Vue's restricted type-to-runtime prop extraction.
+
+Use `NamedFieldDefinition` when `displayName` is required. It promotes the
+existing base prop in both the node and component contracts; it does not make
+`displayName` an extra prop.
+
+Define built-in controllers with `defineFieldController`; it derives the
+controller state and standard node props from the same field declaration:
+
+```ts
+export const exampleController = defineFieldController<'example', ExampleFieldDefinition, { persistKey: string }>({
+	kind: 'example',
+	// ...
+});
+```
+
 ## Rendering and injection
 
 `FormSystem` is the host component:
@@ -216,8 +255,8 @@ When adding a controller, keep these contracts aligned:
   recoverable incompatibilities.
 - `affectsBlackLabParameters` drives raw-override locking, so keep it accurate.
 
-Prefer `createFieldController(...)` for new controllers. It preserves the
-controller as a plain definition object.
+Use `defineFieldController(...)` so controller state and standard node props are
+derived from its field definition while the controller remains a plain object.
 
 ## Built-in controllers and components
 

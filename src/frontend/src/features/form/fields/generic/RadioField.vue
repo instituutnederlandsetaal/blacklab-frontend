@@ -1,16 +1,16 @@
 <template>
-	<div :class="fieldClasses" :id="htmlId">
+	<div v-bind="field.rootAttrs">
 		<fieldset>
 			<legend v-if="showLabel">
-				{{ resolvedDisplayName }}<debug> [{{ id }}]</debug>
+				{{ displayName }}<debug> [{{ id }}]</debug>
 			</legend>
 			<div v-for="(option, index) in options" :key="index" class="radio">
-				<label :for="`${inputId}_${index}`" :title="option.title || ''">
+				<label :for="`${field.inputId}_${index}`" :title="option.title || ''">
 					<input
 						type="radio"
 						:value="option.value"
-						:name="inputId"
-						:id="`${inputId}_${index}`"
+						:name="field.inputId"
+						:id="`${field.inputId}_${index}`"
 						:checked="modelValue === option.value"
 						:disabled
 						@click="changeValue($event, option.value)"
@@ -20,19 +20,15 @@
 				</label>
 			</div>
 		</fieldset>
-		<small v-if="resolvedDescription" class="help-block">{{ resolvedDescription }}</small>
+		<small v-if="description" class="help-block">{{ description }}</small>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, toValue } from 'vue';
+import { useFieldPresentation } from '../field-presentation';
+import type { RadioFieldComponentProps, RadioFieldState } from './radio-field';
 
-import { decodeVariants } from '@/features/form/model/form-utils';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
-
-import type { RadioFieldState, RadioFieldUiConfig } from './radio-field';
-
-const props = withDefaults(defineProps<ImplicitFieldComponentProps<RadioFieldState> & RadioFieldUiConfig & { showLabel?: boolean }>(), {
+const props = withDefaults(defineProps<RadioFieldComponentProps>(), {
 	showLabel: true,
 	disabled: false,
 });
@@ -41,10 +37,7 @@ const emit = defineEmits<{
 	'update:modelValue': [value: RadioFieldState];
 }>();
 
-const inputId = computed(() => `${props.htmlId}_value`);
-const fieldClasses = computed(() => ['blf-field', decodeVariants(props.variant)]);
-const resolvedDisplayName = computed(() => toValue(props.displayName));
-const resolvedDescription = computed(() => (props.description ? toValue(props.description) : undefined));
+const field = useFieldPresentation(props);
 
 function changeValue(event: Event, value: string) {
 	const target = event.target as HTMLInputElement | null;

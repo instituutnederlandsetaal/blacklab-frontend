@@ -1,6 +1,6 @@
 <template>
-	<div :class="fieldClasses">
-		<div :class="formGroupClasses">
+	<div v-bind="field.rootAttrs">
+		<div :class="field.formGroupClass">
 			<label class="control-label" :for="`${htmlId}_picker`">{{ $t('search.parallel.searchSourceVersion') }}</label>
 			<SelectPicker :options="sourceOptions" v-model="sourceModel" data-menu-width="grow" hideEmpty :disabled :data-id="`${htmlId}_picker`" />
 			<transition name="flash">
@@ -15,7 +15,7 @@
 			<component :is="child.component" v-bind="sourceChildProps" @update:modelValue="updateSourceState" />
 		</section>
 
-		<div :class="formGroupClasses">
+		<div :class="field.formGroupClass">
 			<label class="control-label">{{ $t('search.parallel.andCompareWithTargetVersions') }}</label>
 			<MultiValuePicker :options="targetOptions" v-model="targetModel" :disabled />
 		</div>
@@ -24,9 +24,9 @@
 			<component :is="child.component" v-bind="targetChildProps(field.id)" @update:modelValue="updateTargetState(field.id, $event)" />
 		</section>
 
-		<div v-if="alignByOptions?.length" :class="formGroupClasses">
+		<div v-if="alignByOptions?.length" :class="field.formGroupClass">
 			<label class="control-label">{{ $t('search.parallel.alignBy') }}</label>
-			<div :class="buttonGroupClasses" style="display: block">
+			<div :class="['btn-group', field.buttonGroupClass]" style="display: block">
 				<button
 					v-for="option in alignByPickerOptions"
 					type="button"
@@ -48,10 +48,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-import { decodeVariants } from '@/features/form/model/form-utils';
+import { useFieldPresentation } from '@/features/form/fields/field-presentation';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
 
-import type { ParallelFieldComponentProps, ParallelFieldState } from '../model/controllers/parallel-controller';
+import type { ParallelFieldComponentProps, ParallelFieldState } from './parallel-field';
 
 import { useI18n } from '@/shared/i18n';
 import { isSimpleOption, type Option } from '@/shared/utils/options';
@@ -59,11 +59,7 @@ import { isSimpleOption, type Option } from '@/shared/utils/options';
 import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-const props = defineProps<
-	ParallelFieldComponentProps & {
-		errorNoParallelSourceVersion?: boolean;
-	}
->();
+const props = defineProps<ParallelFieldComponentProps>();
 const runtime = useFormSystemRuntime();
 const translate = useI18n();
 
@@ -71,12 +67,7 @@ const emit = defineEmits<{
 	'update:modelValue': [value: ParallelFieldState];
 }>();
 
-const variants = computed(() => decodeVariants(props.variant));
-const formGroupClasses = computed(() => ['form-group', variants.value.large ? 'form-group-lg' : variants.value.small ? 'form-group-sm' : '']);
-const buttonGroupClasses = computed(() => ['btn-group', variants.value.large ? 'btn-group-lg' : variants.value.small ? 'btn-group-sm' : '']);
-
-const fieldClasses = computed(() => ['blf-field', 'blf-parallel-field', decodeVariants(props.variant)]);
-const htmlId = computed(() => props.htmlId);
+const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-parallel-field' });
 const sourceOptions = computed<Option[]>(() =>
 	props.fieldOptions.filter(field => !props.modelValue.targets.includes(field.id)).map(field => ({ value: field.id, label: translate.$tAnnotatedFieldDisplayName(field) })),
 );
@@ -96,7 +87,7 @@ const selectedTargetOptions = computed(() => props.modelValue.targets.map(target
 const sourceChildProps = computed(() => ({
 	...props.child.config,
 	id: `${props.id}.source.${props.child.id}`,
-	htmlId: `${htmlId.value}_source_${props.child.id}`,
+	htmlId: `${props.htmlId}_source_${props.child.id}`,
 	modelValue: props.modelValue.sourceState ?? createDefaultChildState('source'),
 	disabled: props.disabled,
 	variant: childVariant.value,
@@ -153,7 +144,7 @@ function targetChildProps(target: string) {
 	return {
 		...props.child.config,
 		id: `${props.id}.${target}.${props.child.id}`,
-		htmlId: `${htmlId.value}_target_${safeHtmlId(target)}_${props.child.id}`,
+		htmlId: `${props.htmlId}_target_${safeHtmlId(target)}_${props.child.id}`,
 		modelValue: props.modelValue.targetStates[target] ?? createDefaultChildState(target),
 		disabled: props.disabled,
 		variant: childVariant.value,

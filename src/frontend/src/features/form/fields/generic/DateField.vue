@@ -1,7 +1,7 @@
 <template>
-	<div :class="formGroupClasses" :id="htmlId">
-		<label v-if="showLabel" :for="`${inputId}_year_from`" class="control-label">
-			{{ resolvedDisplayName }}
+	<div v-bind="field.rootAttrs">
+		<label v-if="showLabel" :for="`${field.inputId}_year_from`" class="control-label">
+			{{ displayName }}
 			<small v-if="minDateDisplay && maxDateDisplay" class="text-muted">({{ minDateDisplay }} to {{ maxDateDisplay }})</small>
 		</label>
 		<debug> [{{ id }}]</debug>
@@ -9,19 +9,29 @@
 		<div>
 			<div class="dates">
 				<label v-if="range">{{ $t(`filter.range.from`) }}: </label>
-				<input class="form-control" :id="`${inputId}_year_from`" type="number" title="year" placeholder="year" v-model="yearFrom" :min="minYear" :max="maxYear" :disabled />
-				<input class="form-control" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" :disabled />
-				<input class="form-control" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" :disabled />
+				<input
+					:class="['form-control', field.inputClass]"
+					:id="`${field.inputId}_year_from`"
+					type="number"
+					title="year"
+					placeholder="year"
+					v-model="yearFrom"
+					:min="minYear"
+					:max="maxYear"
+					:disabled
+				/>
+				<input :class="['form-control', field.inputClass]" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" :disabled />
+				<input :class="['form-control', field.inputClass]" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" :disabled />
 			</div>
 			<div v-if="range" class="dates">
 				<label>{{ $t(`filter.range.to`) }}: </label>
-				<input class="form-control" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" :disabled />
-				<input class="form-control" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" :disabled />
-				<input class="form-control" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" :disabled />
+				<input :class="['form-control', field.inputClass]" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" :disabled />
+				<input :class="['form-control', field.inputClass]" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" :disabled />
+				<input :class="['form-control', field.inputClass]" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" :disabled />
 			</div>
 		</div>
 
-		<div v-if="!lockedMode && range" :class="btnGroupClasses">
+		<div v-if="!lockedMode && range" :class="['btn-group', field.buttonGroupClass]">
 			<button
 				v-for="mode in modes"
 				type="button"
@@ -35,24 +45,23 @@
 				{{ mode.label }}
 			</button>
 		</div>
-		<small v-if="resolvedDescription" class="help-block">{{ resolvedDescription }}</small>
+		<small v-if="description" class="help-block">{{ description }}</small>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed, toValue } from 'vue';
+import { computed } from 'vue';
 
-import { decodeVariants } from '@/features/form/model/form-utils';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
-
-import { DateUtils, type RangeMode, type DateFieldState, type DateFieldUiConfig } from './date-field';
+import { useFieldPresentation } from '../field-presentation';
+import { DateUtils, type DateFieldComponentProps, type DateFieldState } from './date-field';
+import type { RangeMode } from './range-mode';
 
 import { useI18n } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 
 type ModeOption = Option<RangeMode>;
 
-const props = withDefaults(defineProps<ImplicitFieldComponentProps<DateFieldState> & DateFieldUiConfig & { showLabel?: boolean }>(), {
+const props = withDefaults(defineProps<DateFieldComponentProps>(), {
 	showLabel: true,
 	disabled: false,
 });
@@ -62,13 +71,7 @@ const emit = defineEmits<{
 	'update:modelValue': [value: DateFieldState];
 }>();
 
-const variant = computed(() => decodeVariants(props.variant));
-const formGroupClasses = computed(() => ['form-group', variant.value.large ? 'form-group-lg' : variant.value.small ? 'form-group-sm' : '']);
-const btnGroupClasses = computed(() => ['btn-group', variant.value.large ? 'btn-group-lg' : variant.value.small ? 'btn-group-sm' : '']);
-
-const inputId = computed(() => `${props.htmlId}_value`);
-const resolvedDisplayName = computed(() => toValue(props.displayName));
-const resolvedDescription = computed(() => (props.description ? toValue(props.description) : undefined));
+const field = useFieldPresentation(props);
 const minDate = computed(() => DateUtils.normalizeBoundaryDate(props.min));
 const maxDate = computed(() => DateUtils.normalizeBoundaryDate(props.max));
 const minDateDisplay = computed(() => (minDate.value ? DateUtils.dateValueToDisplayString(minDate.value) : null));

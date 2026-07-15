@@ -1,5 +1,6 @@
 import { shallowReactive } from 'vue';
 
+import { createRenderedNodeProps } from '@/features/form/model/field-component-props';
 import type { FormRuntimeContext, FormNode } from '@/features/form/model/types';
 import type { AnyVueComponent } from '@/types/helpers';
 
@@ -20,13 +21,8 @@ type FormRenderingRuntime = {
 	};
 };
 
-function createNodeProps(node: FormNode, omittedKeys: readonly string[]): Record<string, unknown> {
-	const props: Record<string, unknown> = {};
-	for (const [key, value] of Object.entries(node)) {
-		if (omittedKeys.includes(key)) continue;
-		props[key] = value;
-	}
-	return props;
+function createMutableRuntimeProps(source: object, omittedKeys: readonly string[]): Record<string, unknown> {
+	return createRenderedNodeProps(source, omittedKeys) as Record<string, unknown>;
 }
 
 /** Convert declarative form nodes into the component/props descriptors consumed by FormSystem. */
@@ -43,7 +39,7 @@ export function renderFormNode(node: FormNode, runtime: FormRenderingRuntime): R
 	};
 
 	if (node.kind === 'container' || node.kind === 'form') {
-		const props = createNodeProps(node, ['addChildren', 'component', 'children']);
+		const props = createMutableRuntimeProps(node, ['addChildren', 'component', 'children']);
 		props.children = node.children.map(child => renderFormNode(child, runtime));
 		return {
 			is: node.component ?? ContainerRenderer,
@@ -52,7 +48,7 @@ export function renderFormNode(node: FormNode, runtime: FormRenderingRuntime): R
 	}
 
 	if (node.kind === 'field') {
-		const props = createNodeProps(node, ['component', 'controller', 'kind']);
+		const props = createMutableRuntimeProps(node, ['component', 'controller', 'kind']);
 		Object.defineProperties(props, Object.getOwnPropertyDescriptors(fieldRuntimeProps));
 		Object.defineProperties(props, {
 			modelValue: {
@@ -76,6 +72,6 @@ export function renderFormNode(node: FormNode, runtime: FormRenderingRuntime): R
 
 	return {
 		is: node.component,
-		props: shallowReactive(createNodeProps(node, ['component', 'kind'])),
+		props: shallowReactive(createMutableRuntimeProps(node, ['component', 'kind'])),
 	};
 }

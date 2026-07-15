@@ -28,7 +28,7 @@ import {
 	RawCqlField,
 } from '@/features/form';
 import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
-import type { WithinFieldOption } from '@/features/form/model/controllers/within-controller';
+import type { WithinFieldOption } from '@/features/form/fields/within-field';
 import type { ModuleRootState as ExploreFormState } from '@/features/search/model/form/explore-state';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';

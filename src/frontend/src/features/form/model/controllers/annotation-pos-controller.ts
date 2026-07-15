@@ -2,15 +2,14 @@ import {
 	buildAnnotationPosPattern,
 	createDefaultAnnotationPosFieldState,
 	summarizeAnnotationPosState,
-	type AnnotationPosFieldConfig,
-	type AnnotationPosFieldState,
+	type AnnotationPosFieldDefinition,
 } from '@/features/form/fields/annotation-pos-field';
 import { cqlRaw, queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
 import { decodePersistRecord, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
 import type { QueryFragment } from '@/features/form/model/types';
-import { createFieldController } from '@/features/form/model/types/form-controllers';
+import { defineFieldController } from '@/features/form/model/types/form-controllers';
 
-export const annotationPosController = createFieldController<'annotation-pos', AnnotationPosFieldState, AnnotationPosFieldConfig>({
+export const annotationPosController = defineFieldController<'annotation-pos', AnnotationPosFieldDefinition>({
 	kind: 'annotation-pos',
 	createDefaultState: createDefaultAnnotationPosFieldState,
 	getPersistKey: config => config.annotation.id,

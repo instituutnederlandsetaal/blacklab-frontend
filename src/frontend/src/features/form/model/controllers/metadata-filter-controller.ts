@@ -1,12 +1,11 @@
 import { toValue } from 'vue';
 
-import { createDefaultCheckboxFieldState, type CheckboxFieldState, type CheckboxFieldUiConfig } from '@/features/form/fields/generic/checkbox-field';
-import { createDefaultDateFieldState, DateUtils, type DateFieldState, type DateFieldUiConfig } from '@/features/form/fields/generic/date-field';
-import { createDefaultRadioFieldState, type RadioFieldState, type RadioFieldUiConfig } from '@/features/form/fields/generic/radio-field';
-import { createDefaultRangeFieldState, type RangeFieldState, type RangeFieldUiConfig } from '@/features/form/fields/generic/range-field';
-import { createDefaultSelectFieldState, type SelectFieldState, type SelectFieldUiConfig } from '@/features/form/fields/generic/select-field';
-import type { GenericFieldUiConfig } from '@/features/form/fields/generic/shared-ui-config';
-import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
+import { createDefaultCheckboxFieldState, type CheckboxFieldDefinition } from '@/features/form/fields/generic/checkbox-field';
+import { createDefaultDateFieldState, DateUtils, type DateFieldDefinition, type DateFieldState } from '@/features/form/fields/generic/date-field';
+import { createDefaultRadioFieldState, type RadioFieldDefinition } from '@/features/form/fields/generic/radio-field';
+import { createDefaultRangeFieldState, type RangeFieldDefinition, type RangeFieldState } from '@/features/form/fields/generic/range-field';
+import { createDefaultSelectFieldState, type SelectFieldConfig, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
+import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
 import { queryFragment, queryIR, rawFilter, termFilter, withSummary } from '@/features/form/model/compile/query-artifact';
 import {
 	decodePersistRecord,
@@ -19,8 +18,9 @@ import {
 	splitPersistValue,
 	unknownOptionWarnings,
 } from '@/features/form/model/controllers/persistence-codec';
+import type { NamedFieldDefinitionProps } from '@/features/form/model/field-component-props';
 import type { SummaryEntry } from '@/features/form/model/types';
-import { createFieldController, type EncodedFieldValue } from '@/features/form/model/types/form-controllers';
+import { defineFieldController, type EncodedFieldValue, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
 
 import { findOption, optionLabel } from '@/shared/utils/options';
 import { escapeLucene, tokenizeString } from '@/shared/utils/string-utils';
@@ -36,13 +36,13 @@ export type MetadataFilterRangeMultipleFieldsControllerConfig = {
 	highField: string;
 };
 
-export type MetadataFilterTextConfig = MetadataFilterControllerConfig & TextFieldUiConfig;
-export type MetadataFilterCheckboxConfig = MetadataFilterControllerConfig & CheckboxFieldUiConfig;
-export type MetadataFilterRadioConfig = MetadataFilterControllerConfig & RadioFieldUiConfig;
-export type MetadataFilterDateConfig = MetadataFilterDateControllerConfig & DateFieldUiConfig;
-export type MetadataFilterRangeConfig = MetadataFilterControllerConfig & RangeFieldUiConfig;
-export type MetadataFilterRangeMultipleFieldsConfig = MetadataFilterRangeMultipleFieldsControllerConfig & RangeFieldUiConfig;
-export type MetadataFilterSelectConfig = MetadataFilterControllerConfig & SelectFieldUiConfig;
+export type MetadataFilterTextConfig = FieldControllerConfig<TextFieldDefinition, MetadataFilterControllerConfig>;
+export type MetadataFilterCheckboxConfig = FieldControllerConfig<CheckboxFieldDefinition, MetadataFilterControllerConfig>;
+export type MetadataFilterRadioConfig = FieldControllerConfig<RadioFieldDefinition, MetadataFilterControllerConfig>;
+export type MetadataFilterDateConfig = FieldControllerConfig<DateFieldDefinition, MetadataFilterDateControllerConfig>;
+export type MetadataFilterRangeConfig = FieldControllerConfig<RangeFieldDefinition, MetadataFilterControllerConfig>;
+export type MetadataFilterRangeMultipleFieldsConfig = FieldControllerConfig<RangeFieldDefinition, MetadataFilterRangeMultipleFieldsControllerConfig>;
+export type MetadataFilterSelectConfig = FieldControllerConfig<SelectFieldDefinition, MetadataFilterControllerConfig>;
 
 export type MetadataFilterConfig =
 	| MetadataFilterTextConfig
@@ -53,7 +53,7 @@ export type MetadataFilterConfig =
 	| MetadataFilterRangeMultipleFieldsConfig
 	| MetadataFilterSelectConfig;
 
-function createSummaryEntry(annotationOrFieldOrNodeId: string, config: GenericFieldUiConfig, value: string | null): SummaryEntry | null {
+function createSummaryEntry(annotationOrFieldOrNodeId: string, config: NamedFieldDefinitionProps, value: string | null): SummaryEntry | null {
 	return value
 		? {
 				id: annotationOrFieldOrNodeId,
@@ -64,7 +64,7 @@ function createSummaryEntry(annotationOrFieldOrNodeId: string, config: GenericFi
 		: null;
 }
 
-function createRawFilterQuery(annotationOrFieldOrNodeId: string, config: GenericFieldUiConfig, lucene: string | null, summary: string | null) {
+function createRawFilterQuery(annotationOrFieldOrNodeId: string, config: NamedFieldDefinitionProps, lucene: string | null, summary: string | null) {
 	return withSummary(queryIR({ filter: rawFilter(lucene) }), createSummaryEntry(annotationOrFieldOrNodeId, config, summary));
 }
 
@@ -84,7 +84,7 @@ function summarizeTextField(state: TextFieldState | null): string | null {
 	return split.map(term => (term.isQuoted || split.length > 1 ? `"${term.value}"` : term.value)).join(', ') || null;
 }
 
-function summarizeSelectField(config: SelectFieldUiConfig, values: string[]): string | null {
+function summarizeSelectField(config: SelectFieldConfig, values: string[]): string | null {
 	const labels = values.map(value => optionLabel(findOption(config.options, value) ?? value));
 	return summarizeValues(labels);
 }
@@ -136,7 +136,7 @@ function persistToDateValue(value: string | undefined) {
 	return { y, m, d };
 }
 
-export const filterAutocompleteController = createFieldController<'metadata-filter-autocomplete', TextFieldState, MetadataFilterTextConfig>({
+export const filterAutocompleteController = defineFieldController<'metadata-filter-autocomplete', TextFieldDefinition, MetadataFilterControllerConfig>({
 	kind: 'metadata-filter-autocomplete',
 	createDefaultState: createDefaultTextFieldState,
 	getPersistKey: metadataPersistKey,
@@ -149,7 +149,7 @@ export const filterAutocompleteController = createFieldController<'metadata-filt
 	},
 });
 
-export const filterCheckboxController = createFieldController<'metadata-filter-checkbox', CheckboxFieldState, MetadataFilterCheckboxConfig>({
+export const filterCheckboxController = defineFieldController<'metadata-filter-checkbox', CheckboxFieldDefinition, MetadataFilterControllerConfig>({
 	kind: 'metadata-filter-checkbox',
 	createDefaultState: createDefaultCheckboxFieldState,
 	getPersistKey: metadataPersistKey,
@@ -171,7 +171,7 @@ export const filterCheckboxController = createFieldController<'metadata-filter-c
 	},
 });
 
-export const filterDateController = createFieldController<'metadata-filter-date', DateFieldState, MetadataFilterDateConfig>({
+export const filterDateController = defineFieldController<'metadata-filter-date', DateFieldDefinition, MetadataFilterDateControllerConfig>({
 	kind: 'metadata-filter-date',
 	createDefaultState: createDefaultDateFieldState,
 	getPersistKey: metadataDatePersistKey,
@@ -217,7 +217,7 @@ export const filterDateController = createFieldController<'metadata-filter-date'
 	},
 });
 
-export const filterRadioController = createFieldController<'metadata-filter-radio', RadioFieldState, MetadataFilterRadioConfig>({
+export const filterRadioController = defineFieldController<'metadata-filter-radio', RadioFieldDefinition, MetadataFilterControllerConfig>({
 	kind: 'metadata-filter-radio',
 	createDefaultState: createDefaultRadioFieldState,
 	getPersistKey: metadataPersistKey,
@@ -237,7 +237,7 @@ export const filterRadioController = createFieldController<'metadata-filter-radi
 	},
 });
 
-export const filterRangeController = createFieldController<'metadata-filter-range', RangeFieldState, MetadataFilterRangeConfig>({
+export const filterRangeController = defineFieldController<'metadata-filter-range', RangeFieldDefinition, MetadataFilterControllerConfig>({
 	kind: 'metadata-filter-range',
 	createDefaultState: createDefaultRangeFieldState,
 	getPersistKey: metadataPersistKey,
@@ -251,7 +251,11 @@ export const filterRangeController = createFieldController<'metadata-filter-rang
 	},
 });
 
-export const filterRangeMultipleFieldsController = createFieldController<'metadata-filter-range-multiple-fields', RangeFieldState, MetadataFilterRangeMultipleFieldsConfig>({
+export const filterRangeMultipleFieldsController = defineFieldController<
+	'metadata-filter-range-multiple-fields',
+	RangeFieldDefinition,
+	MetadataFilterRangeMultipleFieldsControllerConfig
+>({
 	kind: 'metadata-filter-range-multiple-fields',
 	createDefaultState: createDefaultRangeFieldState,
 	getPersistKey: config => `${config.lowField}-${config.highField}`,
@@ -287,7 +291,7 @@ export const filterRangeMultipleFieldsController = createFieldController<'metada
 	},
 });
 
-export const filterSelectController = createFieldController<'metadata-filter-select', SelectFieldState, MetadataFilterSelectConfig>({
+export const filterSelectController = defineFieldController<'metadata-filter-select', SelectFieldDefinition, MetadataFilterControllerConfig>({
 	kind: 'metadata-filter-select',
 	createDefaultState: createDefaultSelectFieldState,
 	getPersistKey: metadataPersistKey,
@@ -320,7 +324,7 @@ export const filterSelectController = createFieldController<'metadata-filter-sel
 	},
 });
 
-export const filterTextController = createFieldController<'metadata-filter-text', TextFieldState, MetadataFilterTextConfig>({
+export const filterTextController = defineFieldController<'metadata-filter-text', TextFieldDefinition, MetadataFilterControllerConfig>({
 	kind: 'metadata-filter-text',
 	createDefaultState: createDefaultTextFieldState,
 	getPersistKey: metadataPersistKey,

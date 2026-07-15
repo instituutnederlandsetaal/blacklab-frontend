@@ -1,21 +1,22 @@
-import type { SelectFieldState, SelectFieldUiConfig } from '@/features/form/fields/generic/select-field';
+import type { SelectFieldDefinition, SelectFieldState } from '@/features/form/fields/generic/select-field';
 import { queryFragment } from '@/features/form/model/compile/query-artifact';
-import { createFieldController, type FieldController } from '@/features/form/model/types/form-controllers';
+import { defineFieldController, type FieldControllerConfig, type FieldControllerFor } from '@/features/form/model/types/form-controllers';
 import type { ResultPreset } from '@/features/form/model/types/form-query';
 
-export type ResultPresetFieldConfig = SelectFieldUiConfig & {
+export type ResultPresetControllerConfig = {
 	defaultValue?: string | string[] | null;
 	persistKey: string;
 	resultPreset?: ResultPreset;
 };
+export type ResultPresetFieldConfig = FieldControllerConfig<SelectFieldDefinition, ResultPresetControllerConfig>;
 
 function createDefaultState(config: ResultPresetFieldConfig): SelectFieldState {
 	if (!config.defaultValue) return [];
 	return Array.isArray(config.defaultValue) ? [...config.defaultValue] : [config.defaultValue];
 }
 
-function createResultPresetController<Kind extends string>(kind: Kind, property: keyof ResultPreset): FieldController<Kind, SelectFieldState, ResultPresetFieldConfig> {
-	return createFieldController<Kind, SelectFieldState, ResultPresetFieldConfig>({
+function createResultPresetController<Kind extends string>(kind: Kind, property: keyof ResultPreset): FieldControllerFor<Kind, SelectFieldDefinition, ResultPresetControllerConfig> {
+	return defineFieldController<Kind, SelectFieldDefinition, ResultPresetControllerConfig>({
 		kind,
 		affectsBlackLabParameters: [],
 		createDefaultState,

@@ -1,18 +1,14 @@
+import { toValue } from 'vue';
+
 import { createDefaultCqlQueryBuilderData, isCqlAttributeData, isCqlAttributeGroupData } from '@/features/cql-query-builder/model';
-import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry, CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql-query-builder/model';
+import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry } from '@/features/cql-query-builder/model';
+import type { QueryBuilderFieldConfig, QueryBuilderFieldDefinition, QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
 import { anyToken, compileQueryIR, queryFragment, queryIR, repeat, token, tokenSequence, xmlTag } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
-import { createFieldController, type RestoreFieldResult } from '@/features/form/model/types/form-controllers';
+import { defineFieldController, type RestoreFieldResult } from '@/features/form/model/types/form-controllers';
 import { booleanExpr, type BooleanType, type CqlPattern, type TokenPredicate } from '@/features/form/model/types/form-query';
 
 import { findOption } from '@/shared/utils/options';
-
-export type QueryBuilderFieldConfig = {
-	options: CqlQueryBuilderOptions;
-	displayName?: string;
-};
-
-export type QueryBuilderFieldState = CqlQueryBuilderData;
 
 const CODEC_VERSION = '1';
 const ENTRY_ATTRIBUTE_PREFIX = 'a:';
@@ -204,7 +200,7 @@ function restoreState(payload: string | string[], config: QueryBuilderFieldConfi
 	return state;
 }
 
-export const queryBuilderController = createFieldController<'cql-query-builder', QueryBuilderFieldState, QueryBuilderFieldConfig>({
+export const queryBuilderController = defineFieldController<'cql-query-builder', QueryBuilderFieldDefinition>({
 	kind: 'cql-query-builder',
 	createDefaultState,
 	getPersistKey: () => 'query',
@@ -215,8 +211,6 @@ export const queryBuilderController = createFieldController<'cql-query-builder',
 		const pattern = stateToPattern(state);
 		const query = queryIR({ pattern });
 		const cql = compileQueryIR(query).patt;
-		return queryFragment(query, cql ? { id: config.id, label: config.displayName ?? runtime.translate.$t('search.advanced.queryBuilder'), value: cql } : null);
+		return queryFragment(query, cql ? { id: config.id, label: toValue(config.displayName) ?? runtime.translate.$t('search.advanced.queryBuilder'), value: cql } : null);
 	},
 });
-
-export default queryBuilderController;

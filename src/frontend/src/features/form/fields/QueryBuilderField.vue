@@ -1,19 +1,16 @@
 <template>
-	<div :class="fieldClasses">
+	<div v-bind="field.rootAttrs">
 		<CqlQueryBuilder :model-value="modelValue" :options :disabled @update:model-value="emit('update:modelValue', $event)" />
 	</div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-
-import type { QueryBuilderFieldConfig, QueryBuilderFieldState } from '@/features/form/model/controllers/query-builder-controller';
-import { decodeVariants } from '@/features/form/model/form-utils';
-import type { ImplicitFieldComponentProps } from '@/features/form/model/types';
+import { useFieldPresentation } from '@/features/form/fields/field-presentation';
+import type { QueryBuilderFieldComponentProps, QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
 
 import CqlQueryBuilder from '@/features/cql-query-builder/CqlQueryBuilder.vue';
 
-const props = withDefaults(defineProps<ImplicitFieldComponentProps<QueryBuilderFieldState> & QueryBuilderFieldConfig>(), {
+const props = withDefaults(defineProps<QueryBuilderFieldComponentProps>(), {
 	disabled: false,
 });
 
@@ -21,5 +18,5 @@ const emit = defineEmits<{
 	'update:modelValue': [value: QueryBuilderFieldState];
 }>();
 
-const fieldClasses = computed(() => ['blf-field', 'blf-query-builder-field', decodeVariants(props.variant)]);
+const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-query-builder-field' });
 </script>

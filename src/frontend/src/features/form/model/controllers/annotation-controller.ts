@@ -1,11 +1,11 @@
 import { toValue } from 'vue';
 
-import { createDefaultSelectFieldState, type SelectFieldState, type SelectFieldUiConfig } from '@/features/form/fields/generic/select-field';
-import { createDefaultTextFieldState, type TextFieldState, type TextFieldUiConfig } from '@/features/form/fields/generic/text-field';
+import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
+import { createDefaultTextFieldState, type TextFieldDefinition } from '@/features/form/fields/generic/text-field';
 import { queryFragment, queryIR, token, tokenPredicate, tokenSequence } from '@/features/form/model/compile/query-artifact';
 import { decodePersistSelection, joinPersistValues, singleEncodedValue, splitPersistValue, unknownOptionWarnings } from '@/features/form/model/controllers/persistence-codec';
 import { booleanExpr, type QueryFragment } from '@/features/form/model/types';
-import { createFieldController } from '@/features/form/model/types/form-controllers';
+import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
 
 import { findOptions, optionValues } from '@/shared/utils/options';
 import { tokenizeString } from '@/shared/utils/string-utils';
@@ -15,8 +15,8 @@ export type AnnotationControllerConfig = {
 	annotatedFieldId?: string;
 };
 
-export type AnnotationTextFieldConfig = AnnotationControllerConfig & TextFieldUiConfig;
-export type AnnotationSelectFieldConfig = AnnotationControllerConfig & SelectFieldUiConfig;
+export type AnnotationTextFieldConfig = FieldControllerConfig<TextFieldDefinition, AnnotationControllerConfig>;
+export type AnnotationSelectFieldConfig = FieldControllerConfig<SelectFieldDefinition, AnnotationControllerConfig>;
 
 /**
  * Controller that tokenizes the input string.
@@ -28,7 +28,7 @@ export type AnnotationSelectFieldConfig = AnnotationControllerConfig & SelectFie
  * "this is" a?|example sentence* => ["this is", "a?|example", "sentence*"]
  *
  */
-export const annotationTextController = createFieldController<'annotation-text', TextFieldState, AnnotationTextFieldConfig>({
+export const annotationTextController = defineFieldController<'annotation-text', TextFieldDefinition, AnnotationControllerConfig>({
 	kind: 'annotation-text',
 	createDefaultState: createDefaultTextFieldState,
 	getPersistKey: config => config.annotationId,
@@ -67,7 +67,7 @@ export const annotationTextController = createFieldController<'annotation-text',
 	},
 });
 
-export const annotationSelectController = createFieldController<'annotation-select', SelectFieldState, AnnotationSelectFieldConfig>({
+export const annotationSelectController = defineFieldController<'annotation-select', SelectFieldDefinition, AnnotationControllerConfig>({
 	kind: 'annotation-select',
 	createDefaultState: createDefaultSelectFieldState,
 	getPersistKey: config => config.annotationId,
