@@ -1,0 +1,12 @@
+{
+	"extends": "./tsconfig.app.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"noCheck": true,
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"rootDir": "./src",
+		"outDir": "./tmp-types"
+	},
+	"include": ["src/features/form/**/*.ts", "src/features/form/**/*.vue"]
+}
