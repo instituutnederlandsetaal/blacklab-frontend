@@ -80,11 +80,21 @@
 
 			<label
 				v-if="!hasUploadedValue"
-				class="btn btn-sm btn-default bl-no-border-radius bl-input-upload-button"
-				:class="{ disabled }"
+				:for="`${model.id}-file-upload`"
+				class="btn btn-sm btn-default bl-no-border-radius bl-input-upload-button file-input-button"
+				:class="{ disabled, focus: fileUploadHasFocus }"
 				:title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title').toString()"
 			>
-				<input type="file" accept="text/*" style="display: none" :title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title')" :disabled @change="handleFileUpload" />
+				<input
+					:id="`${model.id}-file-upload`"
+					type="file"
+					accept="text/*"
+					:title="$t('search.advanced.queryBuilder.attribute_file_upload_button_title')"
+					:disabled
+					@focus="fileUploadHasFocus = true"
+					@blur="fileUploadHasFocus = false"
+					@change="handleFileUpload"
+				/>
 				<span class="glyphicon glyphicon-open"></span>
 				<span class="sr-only">{{ $t('search.advanced.queryBuilder.attribute_file_upload_button_title').toString() }}</span>
 			</label>
@@ -150,6 +160,7 @@ const model = useVModel(props, 'modelValue', emit, {
 	clone: true,
 });
 const showModal = ref(false);
+const fileUploadHasFocus = ref(false);
 const currentAnnotation = computed(() => props.options.allAnnotationsMap[model.value.annotationId]);
 function autocomplete(term: string): Promise<string[]> {
 	if (!currentAnnotation.value) return Promise.resolve([]);
