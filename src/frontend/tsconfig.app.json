@@ -52,5 +52,5 @@
 	// (this is basically anything that's used in Vite and linters/compilers).
 	// This is to prevent the typescript compiler from complaining about missing nodejs types.
 	// And likewise, to prevent nodejs global functions/types from being autocompleted/polluting files containing code meant to run in the browser.
-	"exclude": ["dist", "vite.config.ts", "eslint.config.js", "*.test.ts"]
+	"exclude": ["dist", "vite.config.ts", "eslint.config.js", "*.test.ts", "tmp-types/**/*"]
 }

@@ -38,7 +38,7 @@ const getCrossLayerOverrides = (): OxlintOverride[] =>
 	}));
 
 const config: OxlintConfig = {
-	ignorePatterns: ['storybook-static/**', 'dist/**', 'blf-schema.json'],
+	ignorePatterns: ['storybook-static/**', 'dist/**', 'tmp-types/**', 'blf-schema.json'],
 	// Plugins contain sets of rules/extensions that will be loaded/become available.
 	// They're generally grouped by type of check they perform, e.g. 'typescript' for rules that involve typescript-specific things, 'vue' for rules specific to Vue files, etc.
 	// the 'oxc' plugin is sort of the standard library of rules.
