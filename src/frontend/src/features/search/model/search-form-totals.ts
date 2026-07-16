@@ -10,7 +10,7 @@ export function createSearchFormTotalsFactory(corpus: Corpus, blacklab: BlackLab
 	return () => {
 		const loader = new FilteredResultCountLoader();
 		const state = computed<TotalsViewState>(() => {
-			if (loader.isError()) return { status: 'error', message: loader.error.message };
+			if (loader.isError()) return { status: 'error', message: loader.error?.message ?? 'Could not load result totals.' };
 			if (!loader.isLoaded()) return { status: 'loading' };
 
 			return {

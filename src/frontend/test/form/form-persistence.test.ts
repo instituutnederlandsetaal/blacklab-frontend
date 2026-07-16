@@ -9,6 +9,7 @@ import {
 	annotationTextController,
 	annotationPosController,
 	createDefaultFormState,
+	createFormFieldNode,
 	compileFormNode,
 	expertQueryController,
 	filterAutocompleteController,
@@ -28,7 +29,6 @@ import {
 	restoreFormState,
 	withinController,
 	type FieldController,
-	type RestoreFieldResult,
 } from '@/features/form';
 import { queryFragment, rawFilter } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, decodePersistSelection, encodePersistObject, joinPersistValues } from '@/features/form/model/controllers/persistence-codec';
@@ -80,11 +80,6 @@ function createCanonicalFallbackFixture(isParallelCorpus?: boolean) {
 		simple,
 		simpleField,
 	};
-}
-
-function unwrapRestoreResult<T>(restored: RestoreFieldResult<T>): T {
-	if (restored && typeof restored === 'object' && 'state' in restored) return restored.state;
-	return restored;
 }
 
 describe('scoped form persistence', () => {
@@ -297,27 +292,35 @@ describe('scoped form persistence', () => {
 		expect((wrapper.get('input[aria-label="Word"]').element as HTMLInputElement).disabled).toBe(false);
 	});
 
-	test('keeps controller warnings informational when canonical comparison succeeds', () => {
-		const warningController: FieldController<'warning-text', TestTextFieldState, TestTextFieldConfig> = {
+	test('continues restoring other fields after one controller rejects its payload', () => {
+		const rejectingController: FieldController<'rejecting-text', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
-			kind: 'warning-text',
-			restore(payload) {
-				return {
-					state: { value: Array.isArray(payload) ? (payload[0] ?? '') : payload },
-					warnings: ['Restored with a harmless adjustment.'],
-				};
+			kind: 'rejecting-text',
+			restore() {
+				throw new Error('Invalid word state.');
 			},
 		};
 		const builder = createTestBuilder();
-		const field = builder.newField('search.extended.word', warningController, TestTextField, {
+		const word = builder.newField('search.extended.word', rejectingController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
 		});
-		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(field);
-		const restored = restoreFormState(builder, { 'f.word': 'water', patt: '[word="(?i)water"]' });
+		const author = builder.newField('search.extended.author', filterTextController, TestTextField, {
+			displayName: 'Author',
+			metadataFieldId: 'author',
+		});
+		builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(word, author);
+		const restored = restoreFormState(builder, {
+			'f.form': 'search.extended',
+			'f.word': 'water',
+			'f.author': 'Austen',
+			filter: 'author:(Austen)',
+			patt: '[word="(?i)water"]',
+		});
 
-		expect(restored.issues).toEqual([{ key: 'word', nodeId: field.id, message: 'Restored with a harmless adjustment.' }]);
-		expect(restored.rawOverrides).toEqual({});
+		expect(restored.issues).toEqual([{ key: 'word', nodeId: word.id, message: 'Invalid word state.' }]);
+		expect(restored.state[author.id]).toEqual({ value: 'Austen', caseSensitive: false });
+		expect(restored.rawOverrides).toEqual({ patt: '[word="(?i)water"]' });
 	});
 
 	test('uses the expert CQL field for old raw URLs that only contain canonical patt', () => {
@@ -565,7 +568,7 @@ describe('scoped form persistence', () => {
 	});
 });
 
-describe('controller persistence compatibility', () => {
+describe('controller persistence codecs', () => {
 	const context = createTestContext();
 	const options = [
 		{ value: 'one', label: 'One' },
@@ -588,12 +591,7 @@ describe('controller persistence compatibility', () => {
 	const parallelConfig = {
 		kind: 'field' as const,
 		id: 'parallel',
-		child: {
-			id: 'query',
-			controller: expertQueryController,
-			component: RawCqlField,
-			config: {},
-		},
+		childFieldTemplate: createFormFieldNode('parallel.query', expertQueryController, RawCqlField, {}),
 		fieldOptions: [{ id: 'contents__en' }, { id: 'contents__nl' }, { id: 'contents__de' }],
 		alignByOptions: ['word-alignment'],
 	};
@@ -686,22 +684,10 @@ describe('controller persistence compatibility', () => {
 	}
 
 	test('shares scalar and selection representations across compatible controllers', () => {
-		expect(filterSelectController.restore('one', selectConfig, context)).toEqual({
-			state: ['one'],
-			warnings: [],
-		});
-		expect(filterCheckboxController.restore('one,two', selectConfig, context)).toEqual({
-			state: ['one', 'two'],
-			warnings: [],
-		});
-		expect(annotationSelectController.restore('one,two', annotationConfig, context)).toEqual({
-			state: ['one', 'two'],
-			warnings: [],
-		});
-		expect(filterRadioController.restore('one', selectConfig, context)).toEqual({
-			state: 'one',
-			warnings: [],
-		});
+		expect(filterSelectController.restore('one', selectConfig, context)).toEqual(['one']);
+		expect(filterCheckboxController.restore('one,two', selectConfig, context)).toEqual(['one', 'two']);
+		expect(annotationSelectController.restore('one,two', annotationConfig, context)).toEqual(['one', 'two']);
+		expect(filterRadioController.restore('one', selectConfig, context)).toBe('one');
 	});
 
 	test('rejects ambiguous multiple values for single-value controllers', () => {
@@ -711,11 +697,8 @@ describe('controller persistence compatibility', () => {
 		expect(() => annotationTextController.restore(['one', 'two'], annotationConfig, context)).toThrow(/multiple URL values/);
 	});
 
-	test('preserves structurally valid stale options with warnings', () => {
-		expect(filterSelectController.restore('one,removed', selectConfig, context)).toEqual({
-			state: ['one', 'removed'],
-			warnings: ['Restored values no longer present in the current options: removed.'],
-		});
+	test('rejects options that are no longer available', () => {
+		expect(() => filterSelectController.restore('one,removed', selectConfig, context)).toThrow(/removed/);
 	});
 
 	test('only restores ranges from their structured representation', () => {
@@ -762,13 +745,8 @@ describe('controller persistence compatibility', () => {
 				'source=contents;targets=translation;align=sentence',
 				{
 					id: 'parallel',
-					child: {
-						id: 'query',
-						controller: expertQueryController,
-						component: RawCqlField,
-						config: {},
-					},
-					fieldOptions: [{ id: 'default' }, { id: 'translation' }],
+					childFieldTemplate: createFormFieldNode('parallel.query', expertQueryController, RawCqlField, {}),
+					fieldOptions: [{ id: 'contents' }, { id: 'default' }, { id: 'translation' }],
 					alignByOptions: ['word'],
 				} as never,
 				context,
@@ -777,10 +755,11 @@ describe('controller persistence compatibility', () => {
 			source: 'contents',
 			targets: ['translation'],
 			alignBy: 'sentence',
-			sourceState: '',
-			targetStates: {},
+			childStates: {
+				contents: '',
+				translation: '',
+			},
 		});
-		expect(expertQueryController.restore('query=[word="water"];targets=[word="water"]', {} as never, context)).toBe('[word="water"]');
 	});
 
 	test('persists parallel wrapper child source and selected target payloads under namespaced keys', () => {
@@ -789,8 +768,8 @@ describe('controller persistence compatibility', () => {
 				source: 'contents__en',
 				targets: ['contents__nl'],
 				alignBy: 'word-alignment',
-				sourceState: '[lemma="test"]',
-				targetStates: {
+				childStates: {
+					contents__en: '[lemma="test"]',
 					contents__nl: '[lemma="proef"]',
 					contents__de: '[lemma="Test"]',
 				},
@@ -802,8 +781,8 @@ describe('controller persistence compatibility', () => {
 		expect(decodePersistObject(encoded!)).toEqual({
 			source: 'contents__en',
 			targets: 'contents__nl',
-			'source.query': '[lemma="test"]',
-			'target.contents__nl.query': '[lemma="proef"]',
+			'parallel.contents__en': '[lemma="test"]',
+			'parallel.contents__nl': '[lemma="proef"]',
 		});
 	});
 
@@ -812,42 +791,31 @@ describe('controller persistence compatibility', () => {
 			source: 'contents__en',
 			targets: 'contents__nl',
 			align: 'word-alignment',
-			'source.query': '[lemma="test"]',
-			'target.contents__nl.query': '[lemma="proef"]',
-		});
-
-		expect(parallelController.restore(encoded!, parallelConfig, context)).toEqual({
-			source: 'contents__en',
-			targets: ['contents__nl'],
-			alignBy: 'word-alignment',
-			sourceState: '[lemma="test"]',
-			targetStates: {
-				contents__nl: '[lemma="proef"]',
-			},
-		});
-	});
-
-	test('drops unknown restored parallel target states with warnings', () => {
-		const encoded = encodePersistObject({
-			targets: 'contents__fr',
-			'target.contents__fr.query': '[lemma="essai"]',
+			'parallel.contents__en': '[lemma="test"]',
+			'parallel.contents__nl': '[lemma="proef"]',
 		});
 
 		const restored = parallelController.restore(encoded!, parallelConfig, context);
-
 		expect(restored).toEqual({
-			state: {
-				source: null,
-				targets: [],
-				alignBy: 'word-alignment',
-				sourceState: '',
-				targetStates: {},
+			source: 'contents__en',
+			targets: ['contents__nl'],
+			alignBy: 'word-alignment',
+			childStates: {
+				contents__en: '[lemma="test"]',
+				contents__nl: '[lemma="proef"]',
 			},
-			warnings: [
-				"Dropped restored target 'contents__fr' because it is no longer present in the current parallel target options.",
-				"Dropped restored target state for 'contents__fr' because it is no longer present in the current parallel target options.",
-			],
 		});
+		const reencoded = parallelController.encode(restored, parallelConfig, context);
+		expect(parallelController.restore(reencoded!, parallelConfig, context)).toEqual(restored);
+	});
+
+	test('rejects unknown restored parallel target states', () => {
+		const encoded = encodePersistObject({
+			targets: 'contents__fr',
+			'parallel.contents__fr': '[lemma="essai"]',
+		});
+
+		expect(() => parallelController.restore(encoded!, parallelConfig, context)).toThrow(/contents__fr/);
 	});
 
 	test('round-trips escaped separators in selections and records', () => {
@@ -863,7 +831,7 @@ describe('controller persistence compatibility', () => {
 		const encoded = queryBuilderController.encode(queryBuilderState, queryBuilderConfig, context);
 		expect(encoded).toEqual(expect.stringContaining('v=1'));
 
-		const restored = unwrapRestoreResult(queryBuilderController.restore(encoded!, queryBuilderConfig, context));
+		const restored = queryBuilderController.restore(encoded!, queryBuilderConfig, context);
 
 		expect(stripQueryBuilderIds(restored)).toEqual(stripQueryBuilderIds(queryBuilderState));
 		expect(restored.tokens[0].id).not.toBe(queryBuilderState.tokens[0].id);
@@ -879,14 +847,7 @@ describe('controller persistence compatibility', () => {
 				annotationOptions: [{ value: 'lemma', label: 'Lemma' }],
 			},
 		};
-		const restored = queryBuilderController.restore(encoded!, currentConfig, context);
-
-		expect(restored).toMatchObject({
-			errors: ["Cannot restore querybuilder annotation 'word' because it is not available in the current form."],
-		});
-		if (!('state' in restored)) throw new Error('Expected a querybuilder decode error.');
-		const defaultAttribute = restored.state.tokens[0].rootAttributeGroup.entries[0];
-		expect('annotationId' in defaultAttribute ? defaultAttribute.annotationId : null).toBe('lemma');
+		expect(() => queryBuilderController.restore(encoded!, currentConfig, context)).toThrow(/annotation 'word'/);
 	});
 
 	test('omits default and uploaded querybuilder-only state from persistence', () => {
@@ -894,7 +855,7 @@ describe('controller persistence compatibility', () => {
 		expect(queryBuilderController.encode(defaultState, queryBuilderConfig, context)).toBeNull();
 
 		const encoded = queryBuilderController.encode(queryBuilderState, queryBuilderConfig, context);
-		const restored = unwrapRestoreResult(queryBuilderController.restore(encoded!, queryBuilderConfig, context));
+		const restored = queryBuilderController.restore(encoded!, queryBuilderConfig, context);
 		const restoredAttribute = restored.tokens[0].rootAttributeGroup.entries[0];
 
 		expect('annotationId' in restoredAttribute ? restoredAttribute.uploadedValue : null).toBeUndefined();
@@ -904,20 +865,15 @@ describe('controller persistence compatibility', () => {
 	test('round-trips querybuilder state through the parallel wrapper child payloads', () => {
 		const config = {
 			...parallelConfig,
-			child: {
-				id: 'query',
-				controller: queryBuilderController,
-				component: QueryBuilderField,
-				config: queryBuilderConfig,
-			},
+			childFieldTemplate: createFormFieldNode('parallel.querybuilder', queryBuilderController, QueryBuilderField, queryBuilderConfig),
 		};
 		const encoded = parallelController.encode(
 			{
 				source: 'contents__en',
 				targets: ['contents__nl'],
 				alignBy: 'word-alignment',
-				sourceState: queryBuilderState,
-				targetStates: {
+				childStates: {
+					contents__en: queryBuilderState,
 					contents__nl: queryBuilderState,
 				},
 			},
@@ -927,16 +883,15 @@ describe('controller persistence compatibility', () => {
 
 		expect(decodePersistObject(encoded!)).toEqual(
 			expect.objectContaining({
-				'source.query': expect.stringContaining('v=1'),
-				'target.contents__nl.query': expect.stringContaining('v=1'),
+				'parallel.contents__en': expect.stringContaining('v=1'),
+				'parallel.contents__nl': expect.stringContaining('v=1'),
 			}),
 		);
 
 		const restored = parallelController.restore(encoded!, config, context);
-		const restoredState = 'state' in restored ? restored.state : restored;
 
-		expect(stripQueryBuilderIds(restoredState.sourceState as CqlQueryBuilderData)).toEqual(stripQueryBuilderIds(queryBuilderState));
-		expect(stripQueryBuilderIds(restoredState.targetStates.contents__nl as CqlQueryBuilderData)).toEqual(stripQueryBuilderIds(queryBuilderState));
+		expect(stripQueryBuilderIds(restored.childStates.contents__en as CqlQueryBuilderData)).toEqual(stripQueryBuilderIds(queryBuilderState));
+		expect(stripQueryBuilderIds(restored.childStates.contents__nl as CqlQueryBuilderData)).toEqual(stripQueryBuilderIds(queryBuilderState));
 	});
 
 	test('rejects duplicate and unsupported structured record keys', () => {

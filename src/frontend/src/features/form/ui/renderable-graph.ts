@@ -1,12 +1,13 @@
 import { shallowReactive } from 'vue';
 
 import { createRenderedNodeProps } from '@/features/form/model/field-component-props';
-import type { FormRuntimeContext, FormNode } from '@/features/form/model/types';
+import type { FormNode } from '@/features/form/model/types';
 import type { AnyVueComponent } from '@/types/helpers';
 
 import useUid from '@/shared/utils/uid';
 
 import ContainerRenderer from './ContainerRenderer.vue';
+import FieldRenderer from './FieldRenderer.vue';
 
 export type RenderableFormNode = {
 	is: AnyVueComponent;
@@ -14,9 +15,7 @@ export type RenderableFormNode = {
 };
 
 type FormRenderingRuntime = {
-	context: FormRuntimeContext;
 	state: {
-		rawOverrides: { value: Record<string, string | null | undefined> };
 		state: { value: Record<string, unknown> };
 	};
 };
@@ -28,15 +27,6 @@ function createMutableRuntimeProps(source: object, omittedKeys: readonly string[
 /** Convert declarative form nodes into the component/props descriptors consumed by FormSystem. */
 export function renderFormNode(node: FormNode, runtime: FormRenderingRuntime): RenderableFormNode {
 	const idSuffix = useUid();
-	const fieldRuntimeProps = {
-		get disabled() {
-			if (node.kind !== 'field') return false;
-			const affects = node.controller.affectsBlackLabParameters;
-			const parameters = typeof affects === 'function' ? affects(node, runtime.context) : affects;
-			return parameters.some(parameter => runtime.state.rawOverrides.value[parameter] !== undefined);
-		},
-		htmlId: `${node.id}_${idSuffix}`,
-	};
 
 	if (node.kind === 'container' || node.kind === 'form') {
 		const props = createMutableRuntimeProps(node, ['addChildren', 'component', 'children']);
@@ -48,24 +38,18 @@ export function renderFormNode(node: FormNode, runtime: FormRenderingRuntime): R
 	}
 
 	if (node.kind === 'field') {
-		const props = createMutableRuntimeProps(node, ['component', 'controller', 'kind']);
-		Object.defineProperties(props, Object.getOwnPropertyDescriptors(fieldRuntimeProps));
-		Object.defineProperties(props, {
-			modelValue: {
-				enumerable: true,
-				get() {
-					return runtime.state.state.value[node.id];
-				},
+		const props: Record<string, unknown> = {
+			field: node,
+			htmlId: `${node.id}_${idSuffix}`,
+			get modelValue() {
+				return runtime.state.state.value[node.id];
 			},
-			'onUpdate:modelValue': {
-				enumerable: true,
-				value: (value: unknown) => {
-					runtime.state.state.value[node.id] = value;
-				},
+			'onUpdate:modelValue': (value: unknown) => {
+				runtime.state.state.value[node.id] = value;
 			},
-		});
+		};
 		return {
-			is: node.component,
+			is: FieldRenderer,
 			props: shallowReactive(props),
 		};
 	}

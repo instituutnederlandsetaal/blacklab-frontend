@@ -3,7 +3,7 @@ import { toValue } from 'vue';
 import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldDefinition } from '@/features/form/fields/generic/text-field';
 import { queryFragment, queryIR, token, tokenPredicate, tokenSequence } from '@/features/form/model/compile/query-artifact';
-import { decodePersistSelection, joinPersistValues, singleEncodedValue, splitPersistValue, unknownOptionWarnings } from '@/features/form/model/controllers/persistence-codec';
+import { assertKnownOptions, decodePersistSelection, joinPersistValues, singleEncodedValue, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
 import { booleanExpr, type QueryFragment } from '@/features/form/model/types';
 import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
 
@@ -55,7 +55,6 @@ export const annotationTextController = defineFieldController<'annotation-text',
 			summaries: state.value
 				? [
 						{
-							id: config.annotationId,
 							label: toValue(config.displayName),
 							value: state.value,
 							group: config.groupId,
@@ -77,15 +76,12 @@ export const annotationSelectController = defineFieldController<'annotation-sele
 	},
 	restore(payload, config) {
 		const values = decodePersistSelection(payload);
-		return {
-			state: values,
-			warnings: unknownOptionWarnings(values, config.options),
-		};
+		assertKnownOptions(values, config.options);
+		return values;
 	},
 	getQueryContribution(config, _runtime, state) {
 		if (!state.length) return queryFragment();
 		return queryFragment(token(booleanExpr('or', ...state.map(v => tokenPredicate('equals', config.annotationId, v)))), {
-			id: config.annotationId,
 			label: toValue(config.displayName),
 			value: optionValues(findOptions(config.options, state)).join(', '),
 		});

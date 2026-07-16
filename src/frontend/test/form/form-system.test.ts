@@ -209,12 +209,12 @@ describe('form system integration', () => {
 
 		expect(snapshot.formId).toBe('search.simple');
 		expect(snapshot.patt).toBe('[word="(?i)water"]');
-		expect(snapshot.summaries).toEqual([{ id: 'search.simple.word', label: 'Word', value: 'water', summaryType: ['patt'] }]);
+		expect(snapshot.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
 
 		await wrapper.get('input[aria-label="Word"]').setValue('fire');
 
 		expect(snapshot.patt).toBe('[word="(?i)water"]');
-		expect(snapshot.summaries).toEqual([{ id: 'search.simple.word', label: 'Word', value: 'water', summaryType: ['patt'] }]);
+		expect(snapshot.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
 	});
 
 	test('editable autocomplete submits the latest input event without waiting for a tick', async () => {

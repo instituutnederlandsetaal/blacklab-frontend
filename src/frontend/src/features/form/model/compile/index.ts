@@ -7,13 +7,13 @@ import type { FormContainerLikeNode, FormFieldNode, FormNode } from '@/features/
 
 export function buildQueryIR(node: FormNode, formState: FormStateInput, context: FormRuntimeContext): QueryFragment {
 	if (isContainerNode(node)) return getQueryContributionFromContainer(node, formState, context);
-	if (node.kind === 'field') return getQueryContributionFromField(node, context, formState);
+	if (node.kind === 'field') return getFieldQueryContribution(node, context, formState.state[node.id]);
 	return queryFragment();
 }
 
 function getQueryContributionFromContainer(node: FormContainerLikeNode, formState: FormStateInput, context: FormRuntimeContext): QueryFragment {
 	const childContributions = node.children.reduce<QueryFragment[]>((acc, child) => {
-		if (child.kind === 'field') acc.push(getQueryContributionFromField(child, context, formState));
+		if (child.kind === 'field') acc.push(getFieldQueryContribution(child, context, formState.state[child.id]));
 		else if (isContainerNode(child)) {
 			acc.push(getQueryContributionFromContainer(child, formState, context));
 			if (child.activeQueryContribution && formState.uiState[node.id] === child.id) {
@@ -27,8 +27,8 @@ function getQueryContributionFromContainer(node: FormContainerLikeNode, formStat
 	return combineQueryFragments(combineMode, ...childContributions);
 }
 
-function getQueryContributionFromField(node: FormFieldNode, context: FormRuntimeContext, formState: FormStateInput): QueryFragment {
-	const contribution = node.controller.getQueryContribution?.(node, context, formState.state[node.id]) ?? queryFragment();
+export function getFieldQueryContribution(node: FormFieldNode, context: FormRuntimeContext, state: unknown): QueryFragment {
+	const contribution = node.controller.getQueryContribution(node, context, state);
 	const affectedParameters = node.controller.affectsBlackLabParameters;
 	const summaryType = typeof affectedParameters === 'function' ? affectedParameters(node, context) : affectedParameters;
 

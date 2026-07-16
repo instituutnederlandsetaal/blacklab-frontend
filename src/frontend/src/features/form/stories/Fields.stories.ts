@@ -5,6 +5,7 @@ import type { AnnotationPosFieldConfig, AnnotationReference } from '@/features/f
 import {
 	annotationPosController,
 	annotationTextController,
+	createFormFieldNode,
 	expertQueryController,
 	filterAutocompleteController,
 	filterCheckboxController,
@@ -260,12 +261,7 @@ export const PartOfSpeech: Story = createFieldStory(builder => builder.newField(
 export const Parallel: Story = createFieldStory(
 	builder =>
 		builder.newField('generic-parallel', parallelController, ParallelField, {
-			child: {
-				id: 'query',
-				controller: expertQueryController,
-				component: RawCqlField,
-				config: {},
-			},
+			childFieldTemplate: createFormFieldNode('generic-parallel.query', expertQueryController, RawCqlField, {}),
 			fieldOptions: [
 				{ id: 'contents__en', defaultDisplayName: 'English' },
 				{ id: 'contents__nl', defaultDisplayName: 'Dutch' },
@@ -277,8 +273,8 @@ export const Parallel: Story = createFieldStory(
 		source: 'contents__en',
 		targets: ['contents__nl'],
 		alignBy: 's',
-		sourceState: '[lemma="water"]',
-		targetStates: {
+		childStates: {
+			contents__en: '[lemma="water"]',
 			contents__nl: '[lemma="water"]',
 		},
 	},

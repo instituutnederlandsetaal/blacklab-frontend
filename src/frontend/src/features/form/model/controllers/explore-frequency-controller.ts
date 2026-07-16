@@ -33,10 +33,7 @@ export const frequencyAnnotationController = defineFieldController<'explore-freq
 		const annotationId = decodePersistSingleSelection(payload);
 		if (!annotationId) return defaultState(config);
 		if (findOption(config.options, annotationId)) return [annotationId];
-		return {
-			state: defaultState(config),
-			warnings: [`Dropped restored frequency annotation '${annotationId}' because it is no longer present in the current options.`],
-		};
+		throw new Error(`Cannot restore frequency annotation '${annotationId}' because it is not present in the current options.`);
 	},
 	getQueryContribution(config, _runtime, state) {
 		const annotationId = state[0];
@@ -51,7 +48,6 @@ export const frequencyAnnotationController = defineFieldController<'explore-freq
 				},
 			},
 			{
-				id: config.id,
 				label: toValue(config.displayName),
 				value: config.annotationLabels[annotationId] ?? optionLabel(option ?? annotationId),
 			},

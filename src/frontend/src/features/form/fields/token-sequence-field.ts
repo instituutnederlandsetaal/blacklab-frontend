@@ -1,28 +1,22 @@
 import type { FieldComponentProps, FieldDefinition } from '@/features/form/model/field-component-props';
-import type { FieldController, FieldControllerProps, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
-import type { AnyVueComponent } from '@/types/helpers';
+import type { FormFieldNodeOptions } from '@/features/form/model/form-field-node';
+import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import type { BaseFieldNode, FormFieldNode } from '@/features/form/model/types/form-shape';
 
-import type { Options } from '@/shared/utils/options';
+import { optionValues, type Options } from '@/shared/utils/options';
 
-export type TokenSequenceTokenState<ChildState = unknown> = {
+export type TokenSequenceTokenState = {
 	fieldId: string;
-	fieldState: ChildState;
+	fieldState: unknown;
 };
 
 /** The array contains exactly the currently active tokens, in query order. */
 export type TokenSequenceFieldState = TokenSequenceTokenState[];
 
-/** A field rendered and controlled inside a token without becoming a form-graph node. */
-export type TokenSequenceChildFieldConfig = {
-	id: string;
-	controller: FieldController<string, any, any>;
-	component: AnyVueComponent;
-	config: object;
-};
+export type TokenSequenceCreateField = (options: FormFieldNodeOptions & { annotationId: string }) => FormFieldNode;
 
 export type TokenSequenceFieldExtraProps = {
-	fields: TokenSequenceChildFieldConfig[];
+	createField: TokenSequenceCreateField;
 	selectorOptions: Options;
 	defaultFieldId: string;
 	minLength: number;
@@ -39,7 +33,7 @@ export type TokenSequenceFieldConfig = TokenSequenceFieldDefinition['nodeProps']
 /** Materialized for Vue's runtime prop extraction; equivalent to `TokenSequenceFieldDefinition['componentProps']`. */
 export type TokenSequenceFieldComponentProps = FieldComponentProps<TokenSequenceFieldState> & TokenSequenceFieldExtraProps;
 
-type TokenSequenceConfigLike = TokenSequenceFieldExtraProps & {
+export type TokenSequenceConfigLike = TokenSequenceFieldExtraProps & {
 	id: string;
 	variant?: BaseFieldNode['variant'];
 };
@@ -70,25 +64,31 @@ export function clampTokenSequenceLength(value: number, bounds: TokenSequenceLen
 	return Math.min(bounds.max, Math.max(bounds.min, normalized));
 }
 
-export function getTokenSequenceChild(config: Pick<TokenSequenceFieldExtraProps, 'fields' | 'defaultFieldId'>, fieldId?: string | null): TokenSequenceChildFieldConfig {
-	const child = config.fields.find(field => field.id === fieldId) ?? config.fields.find(field => field.id === config.defaultFieldId) ?? config.fields[0];
-	if (!child) throw new Error('Token sequence requires at least one selectable child field.');
-	return child;
+export function resolveTokenSequenceFieldId(config: Pick<TokenSequenceFieldExtraProps, 'selectorOptions' | 'defaultFieldId'>, requestedFieldId?: string | null): string {
+	const available = optionValues(config.selectorOptions);
+	const fieldId = (requestedFieldId && available.includes(requestedFieldId) ? requestedFieldId : null) ?? (available.includes(config.defaultFieldId) ? config.defaultFieldId : available[0]);
+	if (!fieldId) throw new Error('Token sequence requires at least one selectable child field.');
+	return fieldId;
 }
 
-export function createTokenSequenceChildConfig(config: TokenSequenceConfigLike, child: TokenSequenceChildFieldConfig, index: number): FieldControllerProps<any> {
-	return {
-		...child.config,
-		id: `${config.id}.${index}.${child.id}`,
-		kind: 'field',
-		variant: (child.config as { variant?: BaseFieldNode['variant'] }).variant ?? config.variant,
-	};
+export function createTokenSequenceFieldNode(config: TokenSequenceConfigLike, index: number, annotationId: string): FormFieldNode {
+	return config.createField({
+		annotationId,
+		id: `${config.id}.token.${index}.${annotationId}`,
+		inheritedVariant: config.variant,
+	});
 }
 
-export function createDefaultTokenSequenceToken(config: TokenSequenceConfigLike, runtime: FormRuntimeContext, index: number, fieldId: string = config.defaultFieldId): TokenSequenceTokenState {
-	const child = getTokenSequenceChild(config, fieldId);
+export function createDefaultTokenSequenceToken(
+	config: TokenSequenceConfigLike,
+	runtime: FormRuntimeContext,
+	index: number,
+	requestedFieldId: string = config.defaultFieldId,
+): TokenSequenceTokenState {
+	const selectedFieldId = resolveTokenSequenceFieldId(config, requestedFieldId);
+	const field = createTokenSequenceFieldNode(config, index, selectedFieldId);
 	return {
-		fieldId: child.id,
-		fieldState: child.controller.createDefaultState(createTokenSequenceChildConfig(config, child, index), runtime),
+		fieldId: selectedFieldId,
+		fieldState: field.controller.createDefaultState(field, runtime),
 	};
 }

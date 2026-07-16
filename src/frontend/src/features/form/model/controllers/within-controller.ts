@@ -31,7 +31,6 @@ export const withinController = defineFieldController<'within', WithinFieldDefin
 		if (!state.element) return queryFragment();
 		const option = findOption(config.options, state.element) ?? { value: state.element };
 		return queryFragment([{ type: 'within', element: state.element, attributes: state.attributes }], {
-			id: config.id,
 			label: runtime.translate.$t(`search.extended.within`),
 			value: runtime.translate.$tSpanDisplayName(option),
 		});

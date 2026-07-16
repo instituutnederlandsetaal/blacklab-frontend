@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { watchEffect } from 'vue';
 
-import { annotationTextController, expertQueryController, filterTextController, FormBuilder, FormRuntime, parallelController, type FormRuntimeContext } from '@/features/form';
+import { annotationTextController, createFormFieldNode, expertQueryController, filterTextController, FormBuilder, FormRuntime, parallelController, type FormRuntimeContext } from '@/features/form';
 import { createDefaultFormState } from '@/features/form/model/state';
 import type { BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 
@@ -91,12 +91,7 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 			placeholder: 'Metadata filter field',
 		}),
 		definition.newField('raw-overrides.demo.parallel', parallelController, ParallelField, {
-			child: {
-				id: 'query',
-				controller: expertQueryController,
-				component: RawCqlField,
-				config: {},
-			},
+			childFieldTemplate: createFormFieldNode('raw-overrides.demo.parallel.query', expertQueryController, RawCqlField, {}),
 			fieldOptions: [
 				{ id: 'contents__en', defaultDisplayName: 'English' },
 				{ id: 'contents__nl', defaultDisplayName: 'Dutch' },
@@ -124,8 +119,8 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 		source: 'contents__en',
 		targets: ['contents__nl'],
 		alignBy: 's',
-		sourceState: '[lemma="water"]',
-		targetStates: {
+		childStates: {
+			contents__en: '[lemma="water"]',
 			contents__nl: '[lemma="water"]',
 		},
 	};

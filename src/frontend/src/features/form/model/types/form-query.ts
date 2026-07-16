@@ -161,7 +161,6 @@ export function isPartialQueryIR(artifact: any): artifact is Partial<QueryIR> {
  * That might make the summary UI confusing.
  */
 export type SummaryEntry = {
-	id: string;
 	label: string;
 	value: string;
 	/** BlackLab parameters represented by this summary. Defaults to those affected by its controller. */

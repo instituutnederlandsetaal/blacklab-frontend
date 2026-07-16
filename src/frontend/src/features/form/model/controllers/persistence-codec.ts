@@ -70,9 +70,9 @@ export function decodePersistSingleSelection(payload: EncodedFieldValue): string
 	return values[0] ?? '';
 }
 
-export function unknownOptionWarnings(values: string[], options: Options): string[] {
+export function assertKnownOptions(values: string[], options: Options): void {
 	const unknown = values.filter(value => !findOption(options, value));
-	return unknown.length ? [`Restored values no longer present in the current options: ${unknown.join(', ')}.`] : [];
+	if (unknown.length) throw new Error(`Cannot restore values no longer present in the current options: ${unknown.join(', ')}.`);
 }
 
 export function encodePersistObject(values: Record<string, string | null | undefined | boolean>): string | null {

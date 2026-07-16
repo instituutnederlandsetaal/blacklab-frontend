@@ -16,7 +16,6 @@ import * as QueryStore from '@/features/search/model/query-state';
 import * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
 import type { PageMeta } from '@/navigation/page-context';
-import { withLegacyExploreFormState } from '@/url/legacy-explore-form-restore';
 import { getSubmittedInterfaceState, type SearchPageQueryParamsInput } from '@/url/state-to-url';
 import UrlStateParserSearch, { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
@@ -341,8 +340,7 @@ export default function startUrlSync(router: Router, dependencies: UrlStateSyncD
 			const newSearchFormRuntime = dependencies.searchForms.value;
 			let submittedNewForm = restored.newForm ?? null;
 			if (newSearchFormRuntime) {
-				const formQuery = withLegacyExploreFormState(newSearchFormRuntime.definition, context.route.query, restored, context.corpus);
-				const newFormState = restoreFormState(newSearchFormRuntime.definition, formQuery);
+				const newFormState = restoreFormState(newSearchFormRuntime.definition, context.route.query);
 				if (newFormState.submittedFormId) {
 					const form = newSearchFormRuntime.definition.getForm(newFormState.submittedFormId);
 					if (!form) throw new Error(`Cannot compile unknown restored form '${newFormState.submittedFormId}'.`);

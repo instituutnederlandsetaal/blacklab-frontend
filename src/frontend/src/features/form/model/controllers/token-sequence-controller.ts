@@ -1,32 +1,21 @@
 import {
 	createDefaultTokenSequenceToken,
-	createTokenSequenceChildConfig,
-	getTokenSequenceChild,
+	createTokenSequenceFieldNode,
+	resolveTokenSequenceFieldId,
 	tokenSequenceLengthBounds,
-	type TokenSequenceChildFieldConfig,
 	type TokenSequenceFieldConfig,
 	type TokenSequenceFieldDefinition,
 	type TokenSequenceFieldState,
 	type TokenSequenceTokenState,
 } from '@/features/form/fields/token-sequence-field';
+import { getFieldQueryContribution } from '@/features/form/model/compile';
 import { anyToken, combineQueries, queryFragment, queryIR, tokenSequence } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, encodePersistObject, joinPersistValues } from '@/features/form/model/controllers/persistence-codec';
-import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
-import { defineFieldController, type EncodedFieldValue, type FieldControllerProps, type FormRuntimeContext, type RestoreFieldResult } from '@/features/form/model/types/form-controllers';
+import { defineFieldController, type EncodedFieldValue, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 
 const LENGTH_KEY = 'length';
 const TOKEN_KEY_PREFIX = 'token';
 const FIELD_ID_KEY = 'field';
-
-type RestoreMessages = {
-	warnings: string[];
-	errors: string[];
-};
-
-function childKeySegment(value: string, label: string): string {
-	if (!value) throw new Error(`Cannot encode empty token sequence child ${label}.`);
-	return encodeURIComponent(value).replace(/\./g, '%2E');
-}
 
 function tokenKey(index: number, key: string): string {
 	return `${TOKEN_KEY_PREFIX}.${index}.${key}`;
@@ -37,7 +26,8 @@ function tokenFieldKey(index: number): string {
 }
 
 function tokenChildKey(index: number, persistKey: string): string {
-	return tokenKey(index, childKeySegment(persistKey, 'persist key'));
+	if (!persistKey) throw new Error('Cannot encode an empty token sequence child persistence key.');
+	return tokenKey(index, persistKey);
 }
 
 function nestedEncodedValue(value: EncodedFieldValue | null | undefined): string | undefined {
@@ -46,145 +36,73 @@ function nestedEncodedValue(value: EncodedFieldValue | null | undefined): string
 	return value;
 }
 
-function isRestoreObject<State>(result: RestoreFieldResult<State>): result is { state: State; warnings?: string[]; errors?: string[] } {
-	return !!result && typeof result === 'object' && 'state' in result;
-}
-
-function restoredChildState<State>(result: RestoreFieldResult<State>, messages: RestoreMessages): State {
-	if (!isRestoreObject(result)) return result;
-	messages.warnings.push(...(result.warnings ?? []));
-	messages.errors.push(...(result.errors ?? []));
-	return result.state;
-}
-
 function createDefaultState(config: FieldControllerProps<TokenSequenceFieldConfig>, runtime: FormRuntimeContext): TokenSequenceFieldState {
 	const bounds = tokenSequenceLengthBounds(config);
 	return Array.from({ length: bounds.defaultValue }, (_, index) => createDefaultTokenSequenceToken(config, runtime, index));
 }
 
-function normalizeRuntimeState(
-	state: TokenSequenceFieldState,
-	config: FieldControllerProps<TokenSequenceFieldConfig>,
-	runtime: FormRuntimeContext,
-): Array<{ child: TokenSequenceChildFieldConfig; token: TokenSequenceTokenState }> {
-	const bounds = tokenSequenceLengthBounds(config);
-	const runtimeTokens = Array.isArray(state) ? state : [];
-	const length = Math.min(bounds.max, Math.max(bounds.min, Array.isArray(state) ? state.length : bounds.defaultValue));
-	return Array.from({ length }, (_, index) => {
-		const token = runtimeTokens[index];
-		const child = getTokenSequenceChild(config, token?.fieldId);
-		const validToken = token && token.fieldId === child.id;
-		return {
-			child,
-			token: validToken ? token : createDefaultTokenSequenceToken(config, runtime, index, child.id),
-		};
-	});
-}
-
-function restoredLength(restored: Record<string, string>, config: FieldControllerProps<TokenSequenceFieldConfig>, messages: RestoreMessages): number {
+function restoredLength(restored: Record<string, string>, config: FieldControllerProps<TokenSequenceFieldConfig>): number {
 	const bounds = tokenSequenceLengthBounds(config);
 	const rawLength = restored[LENGTH_KEY];
-	if (rawLength == null) {
-		const indices = Object.keys(restored)
-			.map(key => key.match(/^token\.(\d+)\./)?.[1])
-			.filter((value): value is string => value != null)
-			.map(Number);
-		if (!indices.length) {
-			messages.warnings.push(`Restored token sequence did not contain a valid '${LENGTH_KEY}' value; used the configured default length ${bounds.defaultValue}.`);
-			return bounds.defaultValue;
-		}
-		const inferred = Math.max(...indices) + 1;
-		const length = Math.min(bounds.max, Math.max(bounds.min, inferred));
-		messages.warnings.push(`Restored token sequence omitted '${LENGTH_KEY}'; inferred length ${length} from its token entries.`);
-		return length;
-	}
-
-	if (!/^-?\d+$/.test(rawLength)) {
-		messages.warnings.push(`Restored token sequence length '${rawLength}' is not an integer; used the configured default length ${bounds.defaultValue}.`);
-		return bounds.defaultValue;
-	}
-
-	const requested = Number(rawLength);
-	const length = Math.min(bounds.max, Math.max(bounds.min, requested));
-	if (length !== requested) messages.warnings.push(`Restored token sequence length ${requested} was outside ${bounds.min}-${bounds.max}; used ${length}.`);
+	if (rawLength == null || !/^\d+$/.test(rawLength)) throw new Error(`Cannot restore token sequence without a valid '${LENGTH_KEY}'.`);
+	const length = Number(rawLength);
+	if (length < bounds.min || length > bounds.max) throw new Error(`Cannot restore token sequence length ${length}; expected ${bounds.min}-${bounds.max}.`);
 	return length;
 }
 
-function restoreToken(
-	index: number,
-	restored: Record<string, string>,
-	config: FieldControllerProps<TokenSequenceFieldConfig>,
-	runtime: FormRuntimeContext,
-	messages: RestoreMessages,
-): TokenSequenceTokenState {
-	const requestedFieldId = restored[tokenFieldKey(index)] ?? config.defaultFieldId;
-	const child = getTokenSequenceChild(config, requestedFieldId);
-	if (child.id !== requestedFieldId) messages.warnings.push(`Restored token ${index + 1} field '${requestedFieldId}' is no longer available; used '${child.id}'.`);
+function restoreToken(index: number, restored: Record<string, string>, config: FieldControllerProps<TokenSequenceFieldConfig>, runtime: FormRuntimeContext): TokenSequenceTokenState {
+	const requestedFieldId = restored[tokenFieldKey(index)];
+	if (!requestedFieldId) throw new Error(`Cannot restore token ${index + 1} without a selected field.`);
+	const selectedFieldId = resolveTokenSequenceFieldId(config, requestedFieldId);
+	if (selectedFieldId !== requestedFieldId) throw new Error(`Cannot restore token ${index + 1} field '${requestedFieldId}' because it is not available.`);
 
-	const childConfig = createTokenSequenceChildConfig(config, child, index);
-	const persistKey = child.controller.getPersistKey(childConfig, runtime);
+	const field = createTokenSequenceFieldNode(config, index, selectedFieldId);
+	const persistKey = field.controller.getPersistKey(field, runtime);
 	const expectedChildKey = tokenChildKey(index, persistKey);
-	const defaultToken = createDefaultTokenSequenceToken(config, runtime, index, child.id);
-	const prefix = `${TOKEN_KEY_PREFIX}.${index}.`;
-	const unknownKeys = Object.keys(restored).filter(key => key.startsWith(prefix) && key !== tokenFieldKey(index) && key !== expectedChildKey);
-	if (unknownKeys.length) messages.warnings.push(`Ignored unsupported restored payload for token ${index + 1}: ${unknownKeys.join(', ')}.`);
-
+	const defaultToken = createDefaultTokenSequenceToken(config, runtime, index, selectedFieldId);
 	const payload = restored[expectedChildKey];
 	if (payload == null) return defaultToken;
-	try {
-		return {
-			fieldId: child.id,
-			fieldState: restoredChildState(child.controller.restore(payload, childConfig, runtime), messages),
-		};
-	} catch (error) {
-		messages.errors.push(`Could not restore token ${index + 1} field '${child.id}': ${error instanceof Error ? error.message : String(error)}`);
-		return defaultToken;
-	}
+	return {
+		fieldId: selectedFieldId,
+		fieldState: field.controller.restore(payload, field, runtime),
+	};
 }
 
 export const tokenSequenceController = defineFieldController<'token-sequence', TokenSequenceFieldDefinition>({
 	kind: 'token-sequence',
 	createDefaultState,
 	getPersistKey: config => config.persistKey,
-	affectsBlackLabParameters(config, runtime) {
-		const affected = new Set<BlackLabParameter>(['patt']);
-		for (const child of config.fields) {
-			const childConfig = createTokenSequenceChildConfig(config, child, 0);
-			const childAffected =
-				typeof child.controller.affectsBlackLabParameters === 'function' ? child.controller.affectsBlackLabParameters(childConfig, runtime) : child.controller.affectsBlackLabParameters;
-			for (const parameter of childAffected) affected.add(parameter);
-		}
-		return [...affected];
-	},
+	affectsBlackLabParameters: ['patt'],
 	encode(state, config, runtime) {
-		const tokens = normalizeRuntimeState(state, config, runtime);
 		const values: Record<string, string | null | undefined | boolean> = {
-			[LENGTH_KEY]: String(tokens.length),
+			[LENGTH_KEY]: String(state.length),
 		};
-		for (const [index, { child, token }] of tokens.entries()) {
-			const childConfig = createTokenSequenceChildConfig(config, child, index);
-			const persistKey = child.controller.getPersistKey(childConfig, runtime);
-			values[tokenFieldKey(index)] = child.id;
-			values[tokenChildKey(index, persistKey)] = nestedEncodedValue(child.controller.encode(token.fieldState, childConfig, runtime));
+		for (const [index, token] of state.entries()) {
+			const field = createTokenSequenceFieldNode(config, index, token.fieldId);
+			const persistKey = field.controller.getPersistKey(field, runtime);
+			values[tokenFieldKey(index)] = token.fieldId;
+			values[tokenChildKey(index, persistKey)] = nestedEncodedValue(field.controller.encode(token.fieldState, field, runtime));
 		}
 		return encodePersistObject(values);
 	},
 	restore(payload, config, runtime) {
 		const restored = decodePersistObject(payload);
-		const messages: RestoreMessages = { warnings: [], errors: [] };
-		const length = restoredLength(restored, config, messages);
-		const state = Array.from({ length }, (_, index) => restoreToken(index, restored, config, runtime, messages));
-		return messages.warnings.length || messages.errors.length
-			? {
-					state,
-					warnings: messages.warnings.length ? messages.warnings : undefined,
-					errors: messages.errors.length ? messages.errors : undefined,
-				}
-			: state;
+		const state = Array.from({ length: restoredLength(restored, config) }, (_, index) => restoreToken(index, restored, config, runtime));
+		const supportedKeys = new Set([LENGTH_KEY]);
+		for (const [index, token] of state.entries()) {
+			const field = createTokenSequenceFieldNode(config, index, token.fieldId);
+			supportedKeys.add(tokenFieldKey(index));
+			supportedKeys.add(tokenChildKey(index, field.controller.getPersistKey(field, runtime)));
+		}
+		const unknownKeys = Object.keys(restored).filter(key => !supportedKeys.has(key));
+		if (unknownKeys.length) throw new Error(`Cannot restore token sequence with unsupported keys: ${unknownKeys.join(', ')}.`);
+		return state;
 	},
 	getQueryContribution(config, runtime, state) {
-		const tokens = normalizeRuntimeState(state, config, runtime);
-		const contributions = tokens.map(({ child, token }, index) => child.controller.getQueryContribution(createTokenSequenceChildConfig(config, child, index), runtime, token.fieldState));
+		const contributions = state.map((token, index) => {
+			const field = createTokenSequenceFieldNode(config, index, token.fieldId);
+			return getFieldQueryContribution(field, runtime, token.fieldState);
+		});
 		const combined = combineQueries(
 			contributions.map(contribution => contribution.query),
 			'and',
@@ -196,9 +114,8 @@ export const tokenSequenceController = defineFieldController<'token-sequence', T
 			}),
 			summaries: [
 				{
-					id: `${config.id}.length`,
 					label: config.lengthDisplayName,
-					value: String(tokens.length),
+					value: String(state.length),
 				},
 				...contributions.flatMap(contribution => contribution.summaries),
 			],

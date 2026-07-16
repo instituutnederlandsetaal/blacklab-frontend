@@ -75,7 +75,6 @@ export const testTextController = defineFieldController<'test-text', TestTextFie
 			pattern,
 			state.value
 				? {
-						id: config.id,
 						label: toValue(config.displayName),
 						value: state.value,
 					}

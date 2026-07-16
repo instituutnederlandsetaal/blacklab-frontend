@@ -1,0 +1,150 @@
+import type { Corpus } from '@/app/state/useCorpusContext';
+import {
+	annotationPosController,
+	annotationSelectController,
+	annotationTextController,
+	createFormFieldNode,
+	filterCheckboxController,
+	filterDateController,
+	filterRadioController,
+	filterRangeController,
+	filterSelectController,
+	filterTextController,
+	type BaseFieldNode,
+	type FormFieldNodeOptions,
+	type FormFieldNode,
+} from '@/features/form';
+import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
+import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
+import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
+
+import type { BlackLabApi } from '@/shared/api/lib/api-types';
+import { debugLog } from '@/shared/debug/debug';
+import type { Translate } from '@/shared/i18n';
+
+import AnnotationPosField from '@/features/form/fields/AnnotationPosField.vue';
+import CheckboxField from '@/features/form/fields/generic/CheckboxField.vue';
+import DateField from '@/features/form/fields/generic/DateField.vue';
+import LexiconField from '@/features/form/fields/generic/LexiconField.vue';
+import RadioField from '@/features/form/fields/generic/RadioField.vue';
+import RangeField from '@/features/form/fields/generic/RangeField.vue';
+import SelectField from '@/features/form/fields/generic/SelectField.vue';
+import TextField from '@/features/form/fields/generic/TextField.vue';
+
+type SearchFormFieldOptions = FormFieldNodeOptions & {
+	groupId?: string;
+	variant?: BaseFieldNode['variant'];
+	showLabel?: boolean;
+};
+
+type SearchFormNodeFactory = {
+	annotation(annotation: NormalizedAnnotation, options: SearchFormFieldOptions): FormFieldNode;
+	metadata(field: NormalizedMetadataField, options: SearchFormFieldOptions): FormFieldNode;
+};
+
+export function createSearchFormNodeFactory({
+	blacklabApi,
+	configuration,
+	corpus,
+	tagset,
+	translate,
+}: {
+	blacklabApi: BlackLabApi;
+	configuration: SearchFormConfiguration;
+	corpus: Corpus;
+	tagset: Tagset | undefined;
+	translate: Translate;
+}): SearchFormNodeFactory {
+	function annotationCommon(annotation: NormalizedAnnotation, options: SearchFormFieldOptions) {
+		return {
+			description: () => translate.$tAnnotDescription(annotation),
+			displayName: () => translate.$tAnnotDisplayName(annotation),
+			groupId: options.groupId,
+			showLabel: options.showLabel,
+			textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
+			variant: options.variant,
+		};
+	}
+
+	function annotationText(annotation: NormalizedAnnotation, options: SearchFormFieldOptions) {
+		return createFormFieldNode(options, annotationTextController, TextField, {
+			...annotationCommon(annotation, options),
+			annotationId: annotation.id,
+			autocomplete: annotation.uiType !== 'text' ? (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term) : undefined,
+			caseSensitive: annotation.caseSensitive,
+		});
+	}
+
+	return {
+		annotation(annotation, options) {
+			const common = annotationCommon(annotation, options);
+			if (annotation.uiType === 'pos') {
+				if (!tagset) {
+					debugLog('form-setup', 'No tagset provided for POS field, but annotation requires it. Falling back to autocomplete.', { annotation, corpus });
+					return annotationText(annotation, options);
+				}
+				return createFormFieldNode(options, annotationPosController, AnnotationPosField, {
+					annotation,
+					groupId: options.groupId,
+					showLabel: options.showLabel,
+					showQueryPreview: true,
+					subAnnotations: Object.fromEntries(
+						(annotation.subAnnotations ?? [])
+							.map(subAnnotationId => [subAnnotationId, corpus.allAnnotatedFieldsMap[annotation.annotatedFieldId]?.annotations[subAnnotationId]])
+							.filter((entry): entry is [string, NormalizedAnnotation] => !!entry[1]),
+					),
+					tagset,
+					variant: options.variant,
+				});
+			}
+			if (annotation.uiType === 'select' || annotation.uiType === 'combobox') {
+				if (!annotation.values?.length) return annotationText(annotation, options);
+				return createFormFieldNode(options, annotationSelectController, SelectField, {
+					...common,
+					annotationId: annotation.id,
+					multiple: true,
+					options: annotation.values,
+				});
+			}
+			if (annotation.uiType === 'lexicon') {
+				return createFormFieldNode(options, annotationTextController, LexiconField, {
+					...common,
+					annotationId: annotation.id,
+					lookup: createLexiconLookup({
+						database: configuration.lexiconDatabase,
+						getTermFrequencies: async values => {
+							const response = await blacklabApi.getTermFrequencies(corpus.id, annotation.id, values);
+							return response.termFreq;
+						},
+					}),
+				});
+			}
+			return annotationText(annotation, options);
+		},
+
+		metadata(field, options) {
+			const common = {
+				description: () => translate.$tMetaDescription(field),
+				displayName: () => translate.$tMetaDisplayName(field),
+				groupId: options.groupId,
+				metadataFieldId: field.id,
+				showLabel: options.showLabel,
+				textDirection: corpus.textDirection,
+				variant: options.variant,
+			};
+
+			if (field.values?.length) {
+				const config = { ...common, options: field.values };
+				if (field.uiType === 'checkbox') return createFormFieldNode(options, filterCheckboxController, CheckboxField, config);
+				if (field.uiType === 'radio') return createFormFieldNode(options, filterRadioController, RadioField, config);
+				if (field.uiType === 'select' || field.uiType === 'combobox') return createFormFieldNode(options, filterSelectController, SelectField, { ...config, multiple: true });
+			}
+			if (field.uiType === 'date') return createFormFieldNode(options, filterDateController, DateField, { ...common, range: true });
+			if (field.uiType === 'range') return createFormFieldNode(options, filterRangeController, RangeField, { ...common, inputType: 'number' });
+			return createFormFieldNode(options, filterTextController, TextField, {
+				...common,
+				autocomplete: field.uiType !== 'text' ? (term: string) => blacklabApi.getMetadataAutocomplete(corpus.id, field.id, term) : undefined,
+			});
+		},
+	};
+}

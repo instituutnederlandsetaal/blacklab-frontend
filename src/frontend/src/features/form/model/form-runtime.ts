@@ -27,7 +27,7 @@ export class FormRuntime {
 
 	public renderableGraph(rootId?: string): RenderableFormNode | undefined {
 		const root = rootId ? this.definition.getNode(rootId) : this.definition.getRoot();
-		return root ? renderFormNode(root, { context: this.definition.context, state: this.state }) : undefined;
+		return root ? renderFormNode(root, { state: this.state }) : undefined;
 	}
 
 	public compile(formId: string) {

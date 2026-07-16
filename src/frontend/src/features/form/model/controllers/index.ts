@@ -14,7 +14,6 @@ export {
 } from './metadata-filter-controller';
 export { parallelController } from './parallel-controller';
 export { parallelSourceController, type ParallelSourceFieldConfig } from './parallel-source-controller';
-export { ngramTokenSelectController, ngramTokenTextController, type NgramTokenSelectControllerConfig, type NgramTokenTextControllerConfig } from './ngram-token-controller';
 export { queryBuilderController } from './query-builder-controller';
 export { expertQueryController } from './raw-cql-query-controller';
 export { resultGroupByController, resultGroupDisplayModeController, resultSortController, resultViewedResultsController, type ResultPresetFieldConfig } from './result-preset-controller';

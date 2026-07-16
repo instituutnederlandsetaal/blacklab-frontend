@@ -1,0 +1,62 @@
+import type { DefineFieldComponentProps, FieldComponentProps, FieldRuntimeComponentProps, ResolveFieldComponentProps } from '@/features/form/model/field-component-props';
+import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
+import type { AnyFieldController, FieldController, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import type { BaseFieldNode, FormFieldNode, RealFieldNode } from '@/features/form/model/types/form-shape';
+import type { AnyVueComponent, ConstrainComponentToProvidedProps, DistributiveOmit, NoExtraProperties, PublicPropsOf } from '@/types/helpers';
+
+type ManagedFieldKeys = 'kind' | 'component' | 'controller';
+type ForbiddenFieldConfigKeys = ManagedFieldKeys | keyof FieldRuntimeComponentProps<unknown>;
+
+type ConstrainComponentFromController<Component extends AnyVueComponent, Controller> =
+	Controller extends FieldController<string, infer State, infer Extra> ? ConstrainComponentToProvidedProps<Component, ResolveFieldComponentProps<FieldComponentProps<State> & Extra>> : never;
+
+type ExtractExtraPropsFromComponent<Component extends AnyVueComponent> = Omit<PublicPropsOf<Component>, keyof FieldComponentProps<unknown> | keyof FieldRuntimeComponentProps<unknown>>;
+type ExtractExtraPropsFromController<Controller> = Controller extends FieldController<string, any, infer Extra> ? Extra : never;
+type ExtractExtraPropsFromConfig<Config> = Omit<Config, ForbiddenFieldConfigKeys>;
+
+/** Prefer the field/controller contract, retaining only genuinely component-specific and fallback base props. */
+type MergeFieldConfigProps<ControllerProps, ComponentProps> = ControllerProps extends object
+	? ComponentProps extends object
+		? ControllerProps & Omit<ComponentProps, keyof ControllerProps> & Omit<BaseFieldNode, keyof ControllerProps | keyof ComponentProps>
+		: never
+	: never;
+
+export type FormFieldConfig<Component extends AnyVueComponent, Controller extends AnyFieldController> = DistributiveOmit<
+	MergeFieldConfigProps<ExtractExtraPropsFromController<Controller>, DefineFieldComponentProps<ExtractExtraPropsFromComponent<Component>>>,
+	ForbiddenFieldConfigKeys
+>;
+
+export type ConstrainedFieldComponent<Component extends AnyVueComponent, Controller extends AnyFieldController> = ConstrainComponentFromController<Component, Controller>;
+
+export type FormFieldNodeOptions = {
+	id: string;
+	inheritedVariant?: BaseFieldNode['variant'];
+};
+
+export type CreatedFormField<Component extends AnyVueComponent, Config extends object> = RealFieldNode<ExtractExtraPropsFromConfig<Config>, Component>;
+
+export interface CreateFormFieldNode {
+	<Controller extends AnyFieldController, Component extends AnyVueComponent, Config extends FormFieldConfig<Component, Controller>>(
+		options: string | FormFieldNodeOptions,
+		controller: Controller,
+		component: ConstrainedFieldComponent<Component, Controller>,
+		config: NoExtraProperties<FormFieldConfig<Component, Controller>, Config>,
+	): CreatedFormField<Component, Config>;
+}
+
+export const createFormFieldNode: CreateFormFieldNode = (options, controller, component, config) => {
+	const { id, inheritedVariant } = typeof options === 'string' ? { id: options, inheritedVariant: undefined } : options;
+	return {
+		...config,
+		variant: config.variant ?? inheritedVariant,
+		component,
+		controller,
+		kind: 'field',
+		id,
+	} as any;
+};
+
+export function getFieldAffectedBlackLabParameters(field: FormFieldNode, context: FormRuntimeContext): BlackLabParameter[] {
+	const affected = field.controller.affectsBlackLabParameters;
+	return typeof affected === 'function' ? affected(field, context) : affected;
+}

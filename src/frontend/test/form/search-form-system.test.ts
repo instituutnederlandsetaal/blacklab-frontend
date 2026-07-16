@@ -22,14 +22,9 @@ import {
 	type ParallelFieldState,
 	type TokenSequenceFieldState,
 } from '@/features/form';
-import * as ExploreStore from '@/features/search/model/form/explore-state';
-import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import * as PatternStore from '@/features/search/model/form/pattern-state';
-import * as ViewStore from '@/features/search/model/results/view-state';
 import { createSearchFormSystem, getNewExploreFormId, getNewSearchFormId, hasNewExploreFormForMode, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
-import { withLegacyExploreFormState, type LegacyExploreRestoreState } from '@/url/legacy-explore-form-restore';
 import { corpusCustomizations } from '@/utils/customization';
 
 import { optionValues, type Options } from '@/shared/utils/options';
@@ -194,16 +189,6 @@ function createDefinition(corpus = createCorpus()) {
 	}).runtime.value!;
 }
 
-function createLegacyExploreRestoreState(mode: 'ngram' | 'frequency'): LegacyExploreRestoreState {
-	return {
-		explore: structuredClone(ExploreStore.defaults),
-		filters: {},
-		interface: { ...InterfaceStore.defaults, form: 'explore', exploreMode: mode },
-		patterns: structuredClone(PatternStore.defaults),
-		view: { ...ViewStore.initialViewState, groupBy: [] },
-	};
-}
-
 beforeEach(() => {
 	const state = UIStore.getState();
 	state.search.simple.searchAnnotationId = 'word';
@@ -341,7 +326,7 @@ describe('search form system', () => {
 
 		runtime.state.state.value[tokensFieldId] = [
 			{ fieldId: 'word', fieldState: { value: 'wat*', caseSensitive: false } },
-			{ fieldId: 'pos', fieldState: ['NOU|VRB?'] },
+			{ fieldId: 'pos', fieldState: ['NOU', 'VRB'] },
 			{ fieldId: 'lemma', fieldState: { value: '', caseSensitive: false } },
 		] satisfies TokenSequenceFieldState;
 		runtime.state.state.value[groupByFieldId] = ['lemma'];
@@ -353,17 +338,14 @@ describe('search form system', () => {
 				'f.explore-ngram-group-by': 'lemma',
 			},
 			filter: 'author:(Austen)',
-			patt: '[word="wat.*"] [pos="NOU\\|VRB\\?"] []',
+			patt: '[word="(?i)wat.*"] [pos=l"(?i)NOU" | pos=l"(?i)VRB"] []',
 			resultPreset: {
 				groupBy: ['hit:lemma'],
 				viewedResults: 'hits',
 			},
 		});
 		expect(runtime.compile(getNewExploreFormId('ngram')).summaries).toEqual(
-			expect.arrayContaining([
-				expect.objectContaining({ id: groupByFieldId, summaryType: ['patt'], value: 'lemma' }),
-				expect.objectContaining({ id: `${tokensFieldId}.length`, summaryType: ['patt'], value: '3' }),
-			]),
+			expect.arrayContaining([expect.objectContaining({ summaryType: ['patt'], value: 'lemma' }), expect.objectContaining({ summaryType: ['patt'], value: '3' })]),
 		);
 	});
 
@@ -392,13 +374,13 @@ describe('search form system', () => {
 		expect(wrapper.findAll('.blf-token-sequence-token')).toHaveLength(5);
 	});
 
-	test('keeps legacy wildcard semantics when a POS annotation is rendered as an N-gram select', () => {
+	test('uses the regular missing-tagset fallback when a POS annotation is rendered in an N-gram', () => {
 		const corpus = createCorpus();
 		corpus.allAnnotationsMap.pos.uiType = 'pos';
 		const runtime = createDefinition(corpus);
-		runtime.state.state.value['explore.ngram.tokens'] = [{ fieldId: 'pos', fieldState: ['NOU|VRB?'] }] satisfies TokenSequenceFieldState;
+		runtime.state.state.value['explore.ngram.tokens'] = [{ fieldId: 'pos', fieldState: { value: 'NOU|VRB?', caseSensitive: false } }] satisfies TokenSequenceFieldState;
 
-		expect(runtime.compile(getNewExploreFormId('ngram')).patt).toBe('[pos="NOU|VRB."]');
+		expect(runtime.compile(getNewExploreFormId('ngram')).patt).toBe('[pos="(?i)NOU|VRB."]');
 	});
 
 	test.each(['ngram', 'frequency'] as const)('adds a source-only searchfield selector to parallel Explore %s', mode => {
@@ -430,96 +412,9 @@ describe('search form system', () => {
 			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
 		]);
 		expect(runtime.compile(getNewExploreFormId('ngram'))).toMatchObject({
-			patt: '[lemma="run."] []',
+			patt: '[lemma="(?i)run."] []',
 			resultPreset: { groupBy: ['hit:pos'], viewedResults: 'hits' },
 		});
-	});
-
-	test('upgrades a canonical legacy N-gram URL into editable scoped token, grouping, filter, and source state', () => {
-		const corpus = createParallelCorpus();
-		const runtime = createDefinition(corpus);
-		const legacy = createLegacyExploreRestoreState('ngram');
-		legacy.explore.ngram = {
-			groupAnnotationId: 'lemma',
-			maxSize: 5,
-			size: 2,
-			tokens: [
-				{ id: 'lemma', value: 'run?' },
-				{ id: 'word', value: '' },
-			],
-		};
-		legacy.filters.author = { id: 'author', value: 'Austen' } as never;
-		legacy.patterns.shared.source = 'contents__nl';
-		legacy.view.groupBy = ['hit:lemma'];
-		const canonical = {
-			filter: 'author:(Austen)',
-			patt: '[lemma="run."][]',
-			searchfield: 'contents__nl',
-		};
-
-		const adapted = withLegacyExploreFormState(runtime.definition, canonical, legacy, corpus);
-		const restored = restoreFormState(runtime.definition, adapted);
-		runtime.state.replaceState(restored);
-
-		expect(adapted).toMatchObject({
-			'f.form': 'explore.ngram',
-			'f.explore-ngram-group-by': 'lemma',
-			'f.author': 'Austen',
-			'f.explore-ngram-source': 'contents__nl',
-			patt: '[lemma="run."] []',
-		});
-		expect(adapted['f.explore-ngram-tokens']).toEqual(expect.any(String));
-		expect(restored.submittedFormId).toBe('explore.ngram');
-		expect(restored.rawOverrides.patt).toBeUndefined();
-		expect(runtime.state.state.value['explore.ngram.group-by']).toEqual(['lemma']);
-		expect(runtime.state.state.value['explore.ngram.tokens']).toEqual([
-			{ fieldId: 'lemma', fieldState: { value: 'run?', caseSensitive: false } },
-			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
-		]);
-		expect(runtime.state.state.value['shared.filters.Bibliographic.author']).toEqual({ value: 'Austen', caseSensitive: false });
-		expect(runtime.compile('explore.ngram')).toMatchObject({
-			filter: 'author:(Austen)',
-			patt: '[lemma="run."] []',
-			searchfield: 'contents__nl',
-			resultPreset: { groupBy: ['hit:lemma'], viewedResults: 'hits' },
-		});
-	});
-
-	test('upgrades a canonical legacy Frequency URL and keeps existing scoped or unrepresentable URLs authoritative', () => {
-		const corpus = createParallelCorpus();
-		const runtime = createDefinition(corpus);
-		const legacy = createLegacyExploreRestoreState('frequency');
-		legacy.explore.frequency.annotationId = 'pos';
-		legacy.filters.genre = { id: 'genre', value: ['fiction'] } as never;
-		legacy.patterns.shared.source = 'contents__nl';
-		legacy.view.groupBy = ['hit:pos'];
-		const canonical = {
-			filter: 'genre:(fiction)',
-			patt: '[] ',
-			searchfield: 'contents__nl',
-		};
-
-		const adapted = withLegacyExploreFormState(runtime.definition, canonical, legacy, corpus);
-		const restored = restoreFormState(runtime.definition, adapted);
-
-		expect(adapted).toMatchObject({
-			'f.form': 'explore.frequency',
-			'f.explore-frequency-annotation': 'pos',
-			'f.genre': 'fiction',
-			'f.explore-frequency-source': 'contents__nl',
-		});
-		expect(restored.state['explore.frequency.annotation']).toEqual(['pos']);
-		expect(restored.state['shared.filters.Classification.genre']).toEqual(['fiction']);
-		expect(restored.state['explore.frequency.source']).toEqual(['contents__nl']);
-		expect(restored.rawOverrides.patt).toBeUndefined();
-
-		const scoped = { ...canonical, 'f.form': 'explore.frequency', 'f.explore-frequency-annotation': 'lemma' };
-		expect(withLegacyExploreFormState(runtime.definition, scoped, legacy, corpus)).toBe(scoped);
-
-		legacy.interface.exploreMode = 'ngram';
-		legacy.explore.ngram = { groupAnnotationId: 'pos', maxSize: 5, size: 1, tokens: [{ id: 'word', value: 'water' }] };
-		const complex = { patt: '[word="water"] within <s/>', group: 'hit:pos' };
-		expect(withLegacyExploreFormState(runtime.definition, complex, legacy, corpus)).toBe(complex);
 	});
 
 	test('builds an extended search form with grouped annotation and shared filter nodes', () => {
@@ -544,25 +439,26 @@ describe('search form system', () => {
 	});
 
 	test('applies the large simple-search presentation to regular and parallel query fields', () => {
-		const regularField = createDefinition().definition.getField('search.simple.annotation');
-		const parallelField = createDefinition(createParallelCorpus()).definition.getField('search.simple.parallel') as unknown as {
-			child: { config: { variant?: unknown } };
+		const regularField = createDefinition().definition.getField('search.simple.query');
+		const parallelField = createDefinition(createParallelCorpus()).definition.getField('search.simple.query.parallel') as unknown as {
+			childFieldTemplate: { variant?: unknown };
 		};
 
 		expect(regularField?.variant).toEqual(['large', 'simple']);
-		expect(parallelField.child.config.variant).toEqual(['large', 'simple']);
+		expect(parallelField.childFieldTemplate.variant).toEqual(['large', 'simple']);
 	});
 
 	test('wraps the advanced querybuilder for a parallel corpus', () => {
 		const runtime = createDefinition(createParallelCorpus());
-		const field = runtime.definition.getField('search.advanced.parallel');
-		const state = runtime.state.state.value['search.advanced.parallel'] as ParallelFieldState<CqlQueryBuilderData>;
-		const attribute = state.sourceState.tokens[0].rootAttributeGroup.entries[0];
+		const field = runtime.definition.getField('search.advanced.query.parallel');
+		const state = runtime.state.state.value['search.advanced.query.parallel'] as ParallelFieldState;
+		const sourceState = state.childStates.contents__en as CqlQueryBuilderData;
+		const attribute = sourceState.tokens[0].rootAttributeGroup.entries[0];
 		if ('annotationId' in attribute) attribute.values = ['water'];
 
 		expect(runtime.definition.getField('search.advanced.query')).toBeNull();
 		expect(field?.controller).toBe(parallelController);
-		expect((field as unknown as { child: { controller: unknown } }).child.controller).toBe(queryBuilderController);
+		expect((field as unknown as { childFieldTemplate: { controller: unknown } }).childFieldTemplate.controller).toBe(queryBuilderController);
 		expect(runtime.compile(getNewSearchFormId('advanced'))).toMatchObject({
 			patt: '[word="water"]',
 			searchfield: 'contents__en',
@@ -618,16 +514,16 @@ describe('search form system', () => {
 
 	test('wraps the expert query for a parallel corpus', () => {
 		const runtime = createDefinition(createParallelCorpus());
-		const field = runtime.definition.getField('search.expert.parallel');
-		const state = runtime.state.state.value['search.expert.parallel'] as ParallelFieldState<string>;
+		const field = runtime.definition.getField('search.expert.query.parallel');
+		const state = runtime.state.state.value['search.expert.query.parallel'] as ParallelFieldState;
 
 		expect(runtime.definition.getField('search.expert.query')).toBeNull();
 		expect(field?.controller).toBe(parallelController);
-		expect((field as unknown as { child: { controller: unknown } }).child.controller).toBe(expertQueryController);
+		expect((field as unknown as { childFieldTemplate: { controller: unknown } }).childFieldTemplate.controller).toBe(expertQueryController);
 
-		state.sourceState = '[lemma="water"]';
+		state.childStates.contents__en = '[lemma="water"]';
 		state.targets = ['contents__nl'];
-		state.targetStates.contents__nl = '[lemma="water"]';
+		state.childStates.contents__nl = '[lemma="water"]';
 		expect(runtime.compile(getNewSearchFormId('expert'))).toMatchObject({
 			patt: '[lemma="water"] ==>nl? [lemma="water"]',
 			searchfield: 'contents__en',
@@ -652,16 +548,16 @@ describe('search form system', () => {
 		expect(compiled.patt).toBe('[word="(?i)water"]');
 		expect(compiled.filter).toBe('(author:(Austen) AND genre:(fiction))');
 		expect(compiled.summaries).toEqual([
-			{ group: 'Basics', id: 'word', label: 'word', value: 'water', summaryType: ['patt'] },
-			{ group: 'Bibliographic', id: 'shared.filters.Bibliographic.author', label: 'author', value: 'Austen', summaryType: ['filter'] },
-			{ group: 'Classification', id: 'shared.filters.Classification.genre', label: 'genre', value: 'Fiction', summaryType: ['filter'] },
+			{ group: 'Basics', label: 'word', value: 'water', summaryType: ['patt'] },
+			{ group: 'Bibliographic', label: 'author', value: 'Austen', summaryType: ['filter'] },
+			{ group: 'Classification', label: 'genre', value: 'Fiction', summaryType: ['filter'] },
 		]);
 	});
 
 	test('simple form excludes configured shared filters', () => {
 		const definition = createDefinition();
 
-		definition.state.state.value['search.simple.annotation'] = {
+		definition.state.state.value['search.simple.query'] = {
 			value: 'water',
 			caseSensitive: false,
 		};
@@ -687,7 +583,7 @@ describe('search form system', () => {
 		});
 		const initialRuntime = system.runtime.value!;
 		const initialDefinition = initialRuntime.definition;
-		initialRuntime.state.state.value['search.simple.annotation'] = {
+		initialRuntime.state.state.value['search.simple.query'] = {
 			value: 'water',
 			caseSensitive: false,
 		};
@@ -706,7 +602,7 @@ describe('search form system', () => {
 		const configuredDefinition = configuredRuntime.definition;
 		expect(configuredRuntime).not.toBe(initialRuntime);
 		expect(configuredDefinition).not.toBe(initialDefinition);
-		expect((configuredDefinition.getField('search.simple.annotation') as unknown as { annotationId: string }).annotationId).toBe('lemma');
+		expect((configuredDefinition.getField('search.simple.query') as unknown as { annotationId: string }).annotationId).toBe('lemma');
 		expect(configuredDefinition.getField('search.extended.annotations.Basics.word')).toBeNull();
 		expect(configuredDefinition.getField('search.extended.annotations.pos')).not.toBeNull();
 		expect((configuredDefinition.getField('search.advanced.query') as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('lemma');
@@ -716,7 +612,7 @@ describe('search form system', () => {
 		expect(configuredRuntime.compile(getNewSearchFormId('advanced')).patt).toBeNull();
 		expect(configuredDefinition.getField('shared.filters.Bibliographic.author')).toBeNull();
 		expect(configuredDefinition.getField('shared.filters.Classification.genre')).not.toBeNull();
-		expect(configuredRuntime.state.state.value['search.simple.annotation']).toEqual({ value: '', caseSensitive: false });
+		expect(configuredRuntime.state.state.value['search.simple.query']).toEqual({ value: '', caseSensitive: false });
 		expect(configuredRuntime.state.state.value['shared.filters.Bibliographic.author']).toBeUndefined();
 	});
 
@@ -738,8 +634,9 @@ describe('search form system', () => {
 			},
 		};
 
-		const replacementState = system.runtime.value!.state.state.value['search.advanced.parallel'] as ParallelFieldState<CqlQueryBuilderData>;
-		const defaultAttribute = replacementState.sourceState.tokens[0].rootAttributeGroup.entries[0];
+		const replacementState = system.runtime.value!.state.state.value['search.advanced.query.parallel'] as ParallelFieldState;
+		const replacementSourceState = replacementState.childStates.contents__en as CqlQueryBuilderData;
+		const defaultAttribute = replacementSourceState.tokens[0].rootAttributeGroup.entries[0];
 		expect('annotationId' in defaultAttribute ? defaultAttribute.annotationId : null).toBe('lemma');
 		expect(system.runtime.value!.compile(getNewSearchFormId('advanced')).patt).toBeNull();
 	});
@@ -763,7 +660,7 @@ describe('search form system', () => {
 
 		queryBuilderAttribute.values = ['fire'];
 		initialRuntime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Bronte', caseSensitive: false };
-		initialRuntime.state.state.value['search.simple.annotation'] = { value: 'draft', caseSensitive: false };
+		initialRuntime.state.state.value['search.simple.query'] = { value: 'draft', caseSensitive: false };
 
 		configuration.value = {
 			...configuration.value,
@@ -775,7 +672,7 @@ describe('search form system', () => {
 
 		const replacementRuntime = system.runtime.value!;
 		expect(replacementRuntime).not.toBe(initialRuntime);
-		expect(replacementRuntime.state.state.value['search.simple.annotation']).toEqual({ value: '', caseSensitive: false });
+		expect(replacementRuntime.state.state.value['search.simple.query']).toEqual({ value: '', caseSensitive: false });
 		expect(replacementRuntime.state.state.value['shared.filters.Bibliographic.author']).toEqual({ value: '', caseSensitive: false });
 
 		const restored = restoreFormState(replacementRuntime.definition, {
@@ -888,13 +785,13 @@ describe('search form system', () => {
 		state.search.shared.alignBy.defaultValue = 'sentence-alignment';
 
 		const hiddenDefinition = createDefinition(createParallelCorpus());
-		const hiddenField = hiddenDefinition.definition.getField('search.simple.parallel') as unknown as { alignByOptions: unknown[] };
+		const hiddenField = hiddenDefinition.definition.getField('search.simple.query.parallel') as unknown as { alignByOptions: unknown[] };
 		expect(hiddenField.alignByOptions).toEqual([]);
-		expect((hiddenDefinition.state.state.value['search.simple.parallel'] as { alignBy: string | null }).alignBy).toBe('sentence-alignment');
+		expect((hiddenDefinition.state.state.value['search.simple.query.parallel'] as { alignBy: string | null }).alignBy).toBe('sentence-alignment');
 
 		state.search.shared.alignBy.enabled = true;
 		const visibleDefinition = createDefinition(createParallelCorpus());
-		const visibleField = visibleDefinition.definition.getField('search.simple.parallel') as unknown as { alignByOptions: unknown[] };
+		const visibleField = visibleDefinition.definition.getField('search.simple.query.parallel') as unknown as { alignByOptions: unknown[] };
 		expect(visibleField.alignByOptions).toEqual([
 			{ value: 'sentence-alignment', label: 'By sentence', title: 'Sentence alignment' },
 			{ value: 'word-alignment', label: 'By word', title: null },

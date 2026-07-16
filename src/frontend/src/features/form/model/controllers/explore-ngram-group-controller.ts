@@ -34,10 +34,7 @@ export const ngramGroupAnnotationController = defineFieldController<'explore-ngr
 		const annotationId = decodePersistSingleSelection(payload);
 		if (!annotationId) return defaultState(config);
 		if (findOption(config.options, annotationId)) return [annotationId];
-		return {
-			state: defaultState(config),
-			warnings: [`Dropped restored n-gram grouping annotation '${annotationId}' because it is no longer present in the current options.`],
-		};
+		throw new Error(`Cannot restore n-gram grouping annotation '${annotationId}' because it is not present in the current options.`);
 	},
 	getQueryContribution(config, _runtime, state) {
 		const annotationId = state[0];
@@ -51,7 +48,6 @@ export const ngramGroupAnnotationController = defineFieldController<'explore-ngr
 				},
 			},
 			{
-				id: config.id,
 				label: toValue(config.displayName),
 				summaryType: ['patt'],
 				value: config.annotationLabels[annotationId] ?? optionLabel(option ?? annotationId),

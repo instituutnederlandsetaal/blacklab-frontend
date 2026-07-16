@@ -16,9 +16,9 @@ describe('new-form query history summaries', () => {
 			patt: '[] []',
 			searchfield: null,
 			summaries: [
-				{ id: 'explore.ngram.group-by', label: 'N-gram type', summaryType: ['patt'], value: 'Lemma' },
-				{ id: 'explore.ngram.tokens.length', label: 'N-gram size', summaryType: ['patt'], value: '2' },
-				{ id: 'author', label: 'Author', summaryType: ['filter'], value: 'Austen' },
+				{ label: 'N-gram type', summaryType: ['patt'], value: 'Lemma' },
+				{ label: 'N-gram size', summaryType: ['patt'], value: '2' },
+				{ label: 'Author', summaryType: ['filter'], value: 'Austen' },
 			],
 		};
 		const entry = {

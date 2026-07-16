@@ -33,10 +33,7 @@ export const parallelSourceController = defineFieldController<'parallel-source',
 		const source = decodePersistSingleSelection(payload);
 		if (!source) return defaultState(config);
 		if (findOption(config.options, source)) return [source];
-		return {
-			state: defaultState(config),
-			warnings: [`Dropped restored parallel source '${source}' because it is no longer present in the current options.`],
-		};
+		throw new Error(`Cannot restore parallel source '${source}' because it is not present in the current options.`);
 	},
 	getQueryContribution(config, _runtime, state) {
 		const source = state[0];
@@ -45,7 +42,6 @@ export const parallelSourceController = defineFieldController<'parallel-source',
 		return queryFragment(
 			{ searchfield: source },
 			{
-				id: config.id,
 				label: toValue(config.displayName),
 				value: optionLabel(option ?? source),
 			},

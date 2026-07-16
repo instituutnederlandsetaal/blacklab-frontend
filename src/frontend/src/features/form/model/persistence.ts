@@ -197,31 +197,16 @@ function fieldRestoreIssue(entry: FieldCodecEntry, message: string): RestoreIssu
 	return { key: entry.key, nodeId: entry.field.id, message };
 }
 
-function decodeFieldState(
-	entry: FieldCodecEntry,
-	payload: EncodedFieldValue,
-	context: FormRuntimeContext,
-): { restored: true; state: unknown; issues: RestoreIssue[] } | { restored: false; issues: RestoreIssue[] } {
-	if (!entry.field.controller.restore) {
-		return {
-			restored: false,
-			issues: [fieldRestoreIssue(entry, `Field '${entry.field.id}' cannot restore persisted value '${entry.key}'.`)],
-		};
-	}
+function decodeFieldState(entry: FieldCodecEntry, payload: EncodedFieldValue, context: FormRuntimeContext): { restored: true; state: unknown } | { restored: false; issue: RestoreIssue } {
 	try {
-		const restored = entry.field.controller.restore(payload, entry.field, context);
-		if (restored && typeof restored === 'object' && 'state' in restored) {
-			return {
-				restored: true,
-				state: restored.state,
-				issues: [...(restored.warnings ?? []), ...(restored.errors ?? [])].map(message => fieldRestoreIssue(entry, message)),
-			};
-		}
-		return { restored: true, state: restored, issues: [] };
+		return {
+			restored: true,
+			state: entry.field.controller.restore(payload, entry.field, context),
+		};
 	} catch (error) {
 		return {
 			restored: false,
-			issues: [fieldRestoreIssue(entry, error instanceof Error ? error.message : `Could not restore field '${entry.field.id}'.`)],
+			issue: fieldRestoreIssue(entry, error instanceof Error ? error.message : `Could not restore field '${entry.field.id}'.`),
 		};
 	}
 }
@@ -240,9 +225,8 @@ function restorePersistedFields(entries: FieldCodecEntry[], persistedFields: Rea
 		}
 
 		const decoded = decodeFieldState(entry, payload, context);
-		issues.push(...decoded.issues);
-		if (!decoded.restored) continue;
-		state[entry.field.id] = decoded.state;
+		if (decoded.restored) state[entry.field.id] = decoded.state;
+		else issues.push(decoded.issue);
 	}
 
 	const unrecognizedIssues = [...persistedFields.keys()].filter(key => !knownKeys.has(key)).map(key => ({ key, message: `No current form field accepts persisted key '${key}'.` }));

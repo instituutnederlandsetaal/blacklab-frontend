@@ -16,9 +16,9 @@
 		<div class="blf-token-sequence-tokens">
 			<div v-for="(token, index) in modelValue" :key="index" class="blf-token-sequence-token">
 				<SelectField
-					:id="`${id}.${index}.selector`"
+					:id="`${id}.token.${index}.selector`"
 					:html-id="`${htmlId}_${index}_selector`"
-					:model-value="[resolvedChild(token.fieldId).id]"
+					:model-value="[token.fieldId]"
 					:display-name="selectorDisplayName"
 					:placeholder="selectorPlaceholder"
 					:options="selectorOptions"
@@ -30,10 +30,11 @@
 					@update:model-value="updateTokenField(index, $event)"
 				/>
 
-				<component
-					:is="resolvedChild(token.fieldId).component"
-					:key="resolvedChild(token.fieldId).id"
-					v-bind="childComponentProps(token, index)"
+				<FieldRenderer
+					:field="fieldNode(token, index)"
+					:model-value="token.fieldState"
+					:html-id="`${htmlId}_${index}_${safeHtmlId(token.fieldId)}`"
+					:disabled
 					@update:model-value="updateTokenState(index, $event)"
 				/>
 			</div>
@@ -45,21 +46,22 @@
 import { computed } from 'vue';
 
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
-import { createRenderedNodeProps } from '@/features/form/model/field-component-props';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
 
 import {
 	clampTokenSequenceLength,
 	createDefaultTokenSequenceToken,
-	createTokenSequenceChildConfig,
-	getTokenSequenceChild,
+	createTokenSequenceFieldNode,
+	resolveTokenSequenceFieldId,
 	tokenSequenceLengthBounds,
 	type TokenSequenceFieldComponentProps,
+	type TokenSequenceFieldState,
 	type TokenSequenceTokenState,
 } from './token-sequence-field';
 
 import NumberField from '@/features/form/fields/generic/NumberField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
+import FieldRenderer from '@/features/form/ui/FieldRenderer.vue';
 
 defineOptions({ name: 'TokenSequenceField', inheritAttrs: false });
 
@@ -67,51 +69,39 @@ const props = withDefaults(defineProps<TokenSequenceFieldComponentProps>(), {
 	disabled: false,
 });
 const emit = defineEmits<{
-	'update:modelValue': [value: TokenSequenceTokenState[]];
+	'update:modelValue': [value: TokenSequenceFieldState];
 }>();
 
 const runtime = useFormSystemRuntime();
 const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-token-sequence-field' });
 const lengthBounds = computed(() => tokenSequenceLengthBounds(props));
 
-function resolvedChild(fieldId?: string | null) {
-	return getTokenSequenceChild(props, fieldId);
-}
-
 function updateLength(requestedLength: number) {
 	const length = clampTokenSequenceLength(requestedLength, lengthBounds.value);
-	const tokens = props.modelValue.slice(0, length);
-	while (tokens.length < length) tokens.push(createDefaultTokenSequenceToken(props, runtime.value.definition.context, tokens.length));
-	emit('update:modelValue', tokens);
+	const nextTokens = props.modelValue.slice(0, length);
+	while (nextTokens.length < length) nextTokens.push(createDefaultTokenSequenceToken(props, runtime.value.definition.context, nextTokens.length));
+	emit('update:modelValue', nextTokens);
 }
 
 function updateTokenField(index: number, selection: string[]) {
-	const child = resolvedChild(selection[0]);
-	const tokens = props.modelValue.slice();
-	if (!tokens[index] || tokens[index].fieldId === child.id) return;
-	tokens[index] = createDefaultTokenSequenceToken(props, runtime.value.definition.context, index, child.id);
-	emit('update:modelValue', tokens);
+	const selectedFieldId = resolveTokenSequenceFieldId(props, selection[0]);
+	const current = props.modelValue[index];
+	if (!current || current.fieldId === selectedFieldId) return;
+	const nextTokens = props.modelValue.slice();
+	nextTokens[index] = createDefaultTokenSequenceToken(props, runtime.value.definition.context, index, selectedFieldId);
+	emit('update:modelValue', nextTokens);
 }
 
 function updateTokenState(index: number, fieldState: unknown) {
 	const current = props.modelValue[index];
 	if (!current) return;
-	const tokens = props.modelValue.slice();
-	tokens[index] = { ...current, fieldState };
-	emit('update:modelValue', tokens);
+	const nextTokens = props.modelValue.slice();
+	nextTokens[index] = { ...current, fieldState };
+	emit('update:modelValue', nextTokens);
 }
 
-function childComponentProps(token: TokenSequenceTokenState, index: number) {
-	const child = resolvedChild(token.fieldId);
-	const childConfig = createTokenSequenceChildConfig(props, child, index);
-	const config = createRenderedNodeProps(childConfig, ['kind']);
-	return {
-		...config,
-		htmlId: `${props.htmlId}_${index}_${safeHtmlId(child.id)}`,
-		modelValue: token.fieldId === child.id ? token.fieldState : createDefaultTokenSequenceToken(props, runtime.value.definition.context, index, child.id).fieldState,
-		disabled: props.disabled,
-		showLabel: false,
-	};
+function fieldNode(token: TokenSequenceTokenState, index: number) {
+	return createTokenSequenceFieldNode(props, index, token.fieldId);
 }
 
 function safeHtmlId(value: string) {

@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 
 import { createMockTranslate } from '@test/mocks/i18n';
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
 import {
 	annotationTextController,
 	booleanExpr,
+	createFormFieldNode,
 	expertQueryController,
 	parallelController,
-	type FieldController,
 	type FieldControllerProps,
 	type FormRuntimeContext,
 	type QueryFragment,
@@ -198,12 +198,7 @@ describe('generated query correctness', () => {
 			{ id: 'contents__de', defaultDisplayName: 'German' },
 		],
 		alignByOptions: ['word-alignment'],
-		child: {
-			id: 'query',
-			controller: expertQueryController,
-			component: RawCqlField,
-			config: {},
-		},
+		childFieldTemplate: createFormFieldNode('parallel.query', expertQueryController, RawCqlField, {}),
 	};
 
 	test('Parallel wrapper emits a source-only query in the selected source field', () => {
@@ -212,8 +207,9 @@ describe('generated query correctness', () => {
 				source: 'contents__en',
 				targets: [],
 				alignBy: 'word-alignment',
-				sourceState: '[lemma="test"]',
-				targetStates: {},
+				childStates: {
+					contents__en: '[lemma="test"]',
+				},
 			}).query,
 		);
 
@@ -230,8 +226,8 @@ describe('generated query correctness', () => {
 				source: 'contents__en',
 				targets: ['contents__nl'],
 				alignBy: 'word-alignment',
-				sourceState: '[lemma="test"]',
-				targetStates: {
+				childStates: {
+					contents__en: '[lemma="test"]',
 					contents__nl: '[lemma="proef"]',
 				},
 			}).query,
@@ -247,8 +243,8 @@ describe('generated query correctness', () => {
 				source: 'contents__en',
 				targets: ['contents__nl', 'contents__de'],
 				alignBy: 'word-alignment',
-				sourceState: '[lemma="test"]',
-				targetStates: {
+				childStates: {
+					contents__en: '[lemma="test"]',
 					contents__nl: '[lemma="proef"]',
 					contents__de: '[lemma="test"]',
 				},
@@ -264,62 +260,13 @@ describe('generated query correctness', () => {
 				source: 'contents__en',
 				targets: ['contents__nl'],
 				alignBy: 'word-alignment',
-				sourceState: '',
-				targetStates: {
+				childStates: {
+					contents__en: '',
 					contents__nl: '',
 				},
 			}).query,
 		);
 
 		expect(compiled.patt).toBe('_ =word-alignment=>nl? _');
-	});
-
-	test('Parallel wrapper skips nested parallel child output', () => {
-		const nestedParallelChildController: FieldController<'nested-parallel-child', unknown, object> = {
-			kind: 'nested-parallel-child',
-			createDefaultState: () => ({}),
-			getPersistKey: () => 'query',
-			affectsBlackLabParameters: ['patt'],
-			encode: () => null,
-			restore: () => ({}),
-			getQueryContribution: () =>
-				queryFragment(
-					queryIR({
-						pattern: {
-							type: 'parallel',
-							source: cqlRaw('[word="nested"]')!,
-							targets: [],
-						},
-					}),
-				),
-		};
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-		const compiled = compileQueryIR(
-			parallelController.getQueryContribution(
-				{
-					...parallelField,
-					child: {
-						id: 'nested',
-						controller: nestedParallelChildController,
-						component: RawCqlField,
-						config: {},
-					},
-				},
-				context,
-				{
-					source: 'contents__en',
-					targets: ['contents__nl'],
-					alignBy: 'word-alignment',
-					sourceState: {},
-					targetStates: {
-						contents__nl: {},
-					},
-				},
-			).query,
-		);
-
-		expect(compiled.patt).toBe('_ =word-alignment=>nl? _');
-		expect(warn).toHaveBeenCalledWith(expect.stringContaining('ignored nested parallel child contribution'));
-		warn.mockRestore();
 	});
 });

@@ -1,11 +1,11 @@
-import type { DefineFieldComponentProps, FieldComponentProps, FieldRuntimeComponentProps, ResolveFieldComponentProps } from '@/features/form/model/field-component-props';
+import type { FieldComponentProps, FieldRuntimeComponentProps } from '@/features/form/model/field-component-props';
+import { createFormFieldNode, type ConstrainedFieldComponent, type CreatedFormField, type FormFieldConfig } from '@/features/form/model/form-field-node';
 import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
-import type { AnyFieldController, FieldController, FormRuntimeContext } from '@/features/form/model/types';
+import type { AnyFieldController, FormRuntimeContext } from '@/features/form/model/types';
 import type {
 	AnyBaseFormNode,
 	AnyRealFormNode,
 	BaseContainerNode,
-	BaseFieldNode,
 	BaseFormNode,
 	BaseViewNode,
 	FormBoundaryNode,
@@ -15,11 +15,10 @@ import type {
 	NodeKind,
 	NodeKindMap,
 	RealContainerNode,
-	RealFieldNode,
 	RealFormNode,
 	RealViewNode,
 } from '@/features/form/model/types/form-shape';
-import type { AnyVueComponent, ConstrainComponentToProvidedProps, DistributiveOmit, NoExtraProperties, PublicPropsOf } from '@/types/helpers';
+import type { AnyVueComponent, ConstrainComponentToProvidedProps, NoExtraProperties, PublicPropsOf } from '@/types/helpers';
 
 // Helpers
 // ==========================================================================================================================
@@ -28,19 +27,8 @@ type BuilderManagedNodeKeys = 'children' | 'kind' | 'component' | 'controller';
 type ForbiddenConfigKeys = BuilderManagedNodeKeys | keyof FieldRuntimeComponentProps<unknown>;
 type ImplicitContainerComponentPropKeys = keyof ImplicitContainerComponentProps;
 
-type ConstrainComponentFromController<C extends AnyVueComponent, Controller> =
-	Controller extends FieldController<string, infer State, infer Extra> ? ConstrainComponentToProvidedProps<C, ResolveFieldComponentProps<FieldComponentProps<State> & Extra>> : never;
-
 type ExtractExtraPropsFromComponent<C extends AnyVueComponent, ImplicitKeys extends PropertyKey> = Omit<PublicPropsOf<C>, ImplicitKeys>;
-type ExtractExtraPropsFromController<Controller> = Controller extends FieldController<string, any, infer Extra> ? Extra : never;
 type ExtractExtraPropsFromConfig<Config> = Omit<Config, ForbiddenConfigKeys>;
-
-/** Prefer the field/controller contract, retaining only genuinely component-specific and fallback base props. */
-type MergeFieldConfigProps<ControllerProps, ComponentProps> = ControllerProps extends object
-	? ComponentProps extends object
-		? ControllerProps & Omit<ComponentProps, keyof ControllerProps> & Omit<BaseFieldNode, keyof ControllerProps | keyof ComponentProps>
-		: never
-	: never;
 
 // Container
 // ==========================================================================================================================
@@ -82,22 +70,15 @@ interface NewFormNode {
 // Field
 // ==========================================================================================================================
 
-type NewFieldNodeFnConfig<C extends AnyVueComponent, Controller extends AnyFieldController> = DistributiveOmit<
-	MergeFieldConfigProps<
-		ExtractExtraPropsFromController<Controller>,
-		DefineFieldComponentProps<ExtractExtraPropsFromComponent<C, keyof FieldComponentProps<unknown> | keyof FieldRuntimeComponentProps<unknown>>>
-	>,
-	ForbiddenConfigKeys
->;
-type NewFieldNodeFnReturn<C extends AnyVueComponent, Config extends NewFieldNodeFnConfig<C, AnyFieldController>> = RealFieldNode<ExtractExtraPropsFromConfig<Config>, C>;
-type NewFieldNodeFnArgs<C extends AnyVueComponent, Controller extends AnyFieldController, Config extends NewFieldNodeFnConfig<C, Controller>> = [
+type NewFieldNodeFnReturn<C extends AnyVueComponent, Config extends FormFieldConfig<C, AnyFieldController>> = CreatedFormField<C, Config>;
+type NewFieldNodeFnArgs<C extends AnyVueComponent, Controller extends AnyFieldController, Config extends FormFieldConfig<C, Controller>> = [
 	id: string,
 	controller: Controller,
-	component: ConstrainComponentFromController<C, Controller>,
-	config: NoExtraProperties<NewFieldNodeFnConfig<C, Controller>, Config>,
+	component: ConstrainedFieldComponent<C, Controller>,
+	config: NoExtraProperties<FormFieldConfig<C, Controller>, Config>,
 ];
 interface NewFieldNodeFn {
-	<Controller extends AnyFieldController, C extends AnyVueComponent, Config extends NewFieldNodeFnConfig<C, Controller>>(
+	<Controller extends AnyFieldController, C extends AnyVueComponent, Config extends FormFieldConfig<C, Controller>>(
 		...args: NewFieldNodeFnArgs<C, Controller, Config>
 	): NewFieldNodeFnReturn<C, Config>;
 }
@@ -230,13 +211,7 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 	};
 
 	newField: NewFieldNodeFn = (id, controller, component, config) => {
-		return this.addNode({
-			...config,
-			component,
-			controller,
-			kind: 'field' as const,
-			id,
-		}) as any;
+		return this.addNode(createFormFieldNode({ id }, controller, component, config)) as any;
 	};
 
 	newView: NewViewNodeFn = (id, component, config) => {

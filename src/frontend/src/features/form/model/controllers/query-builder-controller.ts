@@ -5,7 +5,7 @@ import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, 
 import type { QueryBuilderFieldConfig, QueryBuilderFieldDefinition, QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
 import { anyToken, compileQueryIR, queryFragment, queryIR, repeat, token, tokenSequence, xmlTag } from '@/features/form/model/compile/query-artifact';
 import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
-import { defineFieldController, type RestoreFieldResult } from '@/features/form/model/types/form-controllers';
+import { defineFieldController } from '@/features/form/model/types/form-controllers';
 import { booleanExpr, type BooleanType, type CqlPattern, type TokenPredicate } from '@/features/form/model/types/form-query';
 
 import { findOption } from '@/shared/utils/options';
@@ -182,7 +182,7 @@ function encodeState(state: QueryBuilderFieldState): string | null {
 	});
 }
 
-function restoreState(payload: string | string[], config: QueryBuilderFieldConfig): RestoreFieldResult<QueryBuilderFieldState> {
+function restoreState(payload: string | string[], config: QueryBuilderFieldConfig): QueryBuilderFieldState {
 	const restored = decodePersistObject(payload);
 	if (restored.v !== CODEC_VERSION) throw new Error(`Cannot restore querybuilder value with unsupported version '${restored.v ?? ''}'.`);
 	const state = {
@@ -190,12 +190,7 @@ function restoreState(payload: string | string[], config: QueryBuilderFieldConfi
 	};
 	for (const token of state.tokens) {
 		const unavailable = findUnavailableAnnotation(token.rootAttributeGroup, config);
-		if (unavailable) {
-			return {
-				state: createDefaultState(config),
-				errors: [`Cannot restore querybuilder annotation '${unavailable}' because it is not available in the current form.`],
-			};
-		}
+		if (unavailable) throw new Error(`Cannot restore querybuilder annotation '${unavailable}' because it is not available in the current form.`);
 	}
 	return state;
 }
@@ -211,6 +206,6 @@ export const queryBuilderController = defineFieldController<'cql-query-builder',
 		const pattern = stateToPattern(state);
 		const query = queryIR({ pattern });
 		const cql = compileQueryIR(query).patt;
-		return queryFragment(query, cql ? { id: config.id, label: toValue(config.displayName) ?? runtime.translate.$t('search.advanced.queryBuilder'), value: cql } : null);
+		return queryFragment(query, cql ? { label: toValue(config.displayName) ?? runtime.translate.$t('search.advanced.queryBuilder'), value: cql } : null);
 	},
 });

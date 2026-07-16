@@ -2,43 +2,31 @@ import { computed, shallowRef, watch, type ObjectPlugin, type Ref, type ShallowR
 
 import type { Corpus } from '@/app/state/useCorpusContext';
 import {
-	annotationPosController,
-	annotationSelectController,
-	annotationTextController,
-	DateField,
+	createFormFieldNode,
 	expertQueryController,
 	frequencyAnnotationController,
-	filterCheckboxController,
-	filterDateController,
-	filterRadioController,
-	filterRangeController,
-	filterSelectController,
-	filterTextController,
 	FormBuilder,
 	FormRuntime,
 	ngramGroupAnnotationController,
-	ngramTokenSelectController,
-	ngramTokenTextController,
 	parallelController,
 	parallelSourceController,
 	type BaseFieldNode,
-	type ParallelChildFieldConfig,
-	RangeField,
 	resultGroupByController,
 	resultGroupDisplayModeController,
 	tokenSequenceController,
-	type TokenSequenceChildFieldConfig,
 	type FormFieldNode,
+	type TokenSequenceCreateField,
 	withinController,
 	queryBuilderController,
 	QueryBuilderField,
 	RawCqlField,
+	type FormNode,
 } from '@/features/form';
-import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
 import type { WithinFieldOption } from '@/features/form/fields/within-field';
 import type { ModuleRootState as ExploreFormState } from '@/features/search/model/form/explore-state';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
+import { createSearchFormNodeFactory } from '@/features/search/model/search-form-node-factory';
 import { createSearchFormTotalsFactory } from '@/features/search/model/search-form-totals';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
@@ -46,17 +34,12 @@ import { corpusCustomizations } from '@/utils/customization';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
-import debug, { debugLog } from '@/shared/debug/debug';
+import debug from '@/shared/debug/debug';
 import type { Translate } from '@/shared/i18n';
 import { optionValues, type Options } from '@/shared/utils/options';
 import useInjectable from '@/shared/utils/useInjectable';
 
-import AnnotationPosField from '@/features/form/fields/AnnotationPosField.vue';
-import CheckboxField from '@/features/form/fields/generic/CheckboxField.vue';
-import LexiconField from '@/features/form/fields/generic/LexiconField.vue';
-import RadioField from '@/features/form/fields/generic/RadioField.vue';
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
-import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
 import TokenSequenceField from '@/features/form/fields/TokenSequenceField.vue';
 import WithinField from '@/features/form/fields/WithinField.vue';
@@ -84,7 +67,7 @@ type BuildContext = {
 	builder: FormBuilder;
 	configuration: SearchFormConfiguration;
 	corpus: Corpus;
-	tagset: Tagset | undefined;
+	fields: ReturnType<typeof createSearchFormNodeFactory>;
 	translate: Translate;
 };
 
@@ -94,73 +77,8 @@ function toSafeHtmlId(value: string): string {
 	return value.replace(/[^\w-]+/g, '-').replace(/^-+|-+$/g, '') || 'group';
 }
 
-function createAnnotationFieldConfig({ corpus, translate }: BuildContext, annotation: NormalizedAnnotation, variant?: BaseFieldNode['variant'], groupId?: string) {
-	return {
-		description: () => translate.$tAnnotDescription(annotation),
-		displayName: () => translate.$tAnnotDisplayName(annotation),
-		groupId,
-		textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
-		variant,
-	};
-}
-
-function createAnnotationTextFieldConfig(context: BuildContext, annotation: NormalizedAnnotation, variant?: BaseFieldNode['variant'], groupId?: string) {
-	const { blacklabApi, corpus } = context;
-	return {
-		...createAnnotationFieldConfig(context, annotation, variant, groupId),
-		annotationId: annotation.id,
-		autocomplete: annotation.uiType !== 'text' ? (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term) : undefined,
-		caseSensitive: annotation.caseSensitive,
-	};
-}
-
 function createAnnotationField(context: BuildContext, nodeId: string, annotation: NormalizedAnnotation, groupId?: string, variant?: BaseFieldNode['variant']): FormFieldNode {
-	const { blacklabApi, builder, configuration, corpus, tagset } = context;
-	const common = createAnnotationFieldConfig(context, annotation, variant, groupId);
-	const textField = () => builder.newField(nodeId, annotationTextController, TextField, createAnnotationTextFieldConfig(context, annotation, variant, groupId));
-
-	if (annotation.uiType === 'pos') {
-		if (!tagset) {
-			debugLog('form-setup', 'No tagset provided for POS field, but annotation requires it. Falling back to autocomplete.', { annotation, corpus });
-			return textField();
-		}
-
-		return builder.newField(nodeId, annotationPosController, AnnotationPosField, {
-			annotation,
-			groupId,
-			showQueryPreview: true,
-			subAnnotations: Object.fromEntries(
-				(annotation.subAnnotations ?? [])
-					.map(subAnnotationId => [subAnnotationId, corpus.allAnnotatedFieldsMap[annotation.annotatedFieldId]?.annotations[subAnnotationId]])
-					.filter((entry): entry is [string, NormalizedAnnotation] => !!entry[1]),
-			),
-			tagset,
-			variant,
-		});
-	}
-	if (annotation.uiType === 'select' || annotation.uiType === 'combobox') {
-		if (!annotation.values?.length) return textField();
-		return builder.newField(nodeId, annotationSelectController, SelectField, {
-			...common,
-			annotationId: annotation.id,
-			multiple: true,
-			options: annotation.values,
-		});
-	}
-	if (annotation.uiType === 'lexicon') {
-		return builder.newField(nodeId, annotationTextController, LexiconField, {
-			...common,
-			annotationId: annotation.id,
-			lookup: createLexiconLookup({
-				database: configuration.lexiconDatabase,
-				getTermFrequencies: async values => {
-					const response = await blacklabApi.getTermFrequencies(corpus.id, annotation.id, values);
-					return response.termFreq;
-				},
-			}),
-		});
-	}
-	return textField();
+	return context.fields.annotation(annotation, { id: nodeId, groupId, variant });
 }
 
 function createWithinField({ builder, configuration, corpus }: BuildContext): FormFieldNode | null {
@@ -188,30 +106,8 @@ function createWithinField({ builder, configuration, corpus }: BuildContext): Fo
 	});
 }
 
-function createFilterField({ blacklabApi, builder, corpus, translate }: BuildContext, nodeId: string, field: NormalizedMetadataField, groupId?: string): FormFieldNode {
-	const common = {
-		description: () => translate.$tMetaDescription(field),
-		displayName: () => translate.$tMetaDisplayName(field),
-		groupId,
-		metadataFieldId: field.id,
-		textDirection: corpus.textDirection,
-	};
-
-	if (field.values?.length) {
-		const options = { ...common, options: field.values };
-		if (field.uiType === 'checkbox') return builder.newField(nodeId, filterCheckboxController, CheckboxField, options);
-		if (field.uiType === 'radio') return builder.newField(nodeId, filterRadioController, RadioField, options);
-		if (field.uiType === 'select' || field.uiType === 'combobox') return builder.newField(nodeId, filterSelectController, SelectField, { ...options, multiple: true });
-	}
-	if (field.uiType === 'date') {
-		return builder.newField(nodeId, filterDateController, DateField, { ...common, range: true });
-	}
-	if (field.uiType === 'range') return builder.newField(nodeId, filterRangeController, RangeField, { ...common, inputType: 'number' });
-
-	return builder.newField(nodeId, filterTextController, TextField, {
-		...common,
-		autocomplete: field.uiType !== 'text' ? (term: string) => blacklabApi.getMetadataAutocomplete(corpus.id, field.id, term) : undefined,
-	});
+function createFilterField(context: BuildContext, nodeId: string, field: NormalizedMetadataField, groupId?: string): FormFieldNode {
+	return context.fields.metadata(field, { id: nodeId, groupId });
 }
 
 function createSharedFilters(context: BuildContext): ReturnType<FormBuilder['newContainer']> | null {
@@ -333,67 +229,7 @@ function createExploreParallelSourceField(context: BuildContext, mode: 'ngram' |
 	});
 }
 
-function createNgramTokenField(context: BuildContext, annotation: NormalizedAnnotation): TokenSequenceChildFieldConfig {
-	const { blacklabApi, configuration, corpus, translate } = context;
-	const common = {
-		description: () => translate.$tAnnotDescription(annotation),
-		displayName: () => translate.$tAnnotDisplayName(annotation),
-		showLabel: false,
-		textDirection: annotation.isMainAnnotation ? corpus.textDirection : undefined,
-		variant: 'simple' as const,
-	};
-	const controllerConfig = {
-		annotationId: annotation.id,
-		persistKey: 'value',
-	};
-	if ((annotation.uiType === 'select' || annotation.uiType === 'pos') && annotation.values?.length) {
-		return {
-			id: annotation.id,
-			controller: ngramTokenSelectController,
-			component: SelectField,
-			config: {
-				...common,
-				...controllerConfig,
-				escapeWildcards: annotation.uiType === 'select',
-				hideEmpty: true,
-				html: true,
-				multiple: false,
-				options: annotation.values,
-			},
-		};
-	}
-	if (annotation.uiType === 'lexicon') {
-		return {
-			id: annotation.id,
-			controller: ngramTokenTextController,
-			component: LexiconField,
-			config: {
-				...common,
-				...controllerConfig,
-				lookup: createLexiconLookup({
-					database: configuration.lexiconDatabase,
-					getTermFrequencies: async values => {
-						const response = await blacklabApi.getTermFrequencies(corpus.id, annotation.id, values);
-						return response.termFreq;
-					},
-				}),
-			},
-		};
-	}
-	return {
-		id: annotation.id,
-		controller: ngramTokenTextController,
-		component: TextField,
-		config: {
-			...common,
-			...controllerConfig,
-			autocomplete: (term: string) => blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term),
-			caseSensitive: false,
-		},
-	};
-}
-
-function createExploreNgramForm(context: BuildContext, sharedFilters: ReturnType<FormBuilder['newContainer']> | null): void {
+function createExploreNgramForm(context: BuildContext, sharedFilters: FormNode | null): void {
 	const { builder, configuration, corpus, translate } = context;
 	const selectorOptions = createExploreAnnotationOptions(context, configuration.explore.searchAnnotationIds, false);
 	const selectorValues = optionValues(selectorOptions);
@@ -402,12 +238,6 @@ function createExploreNgramForm(context: BuildContext, sharedFilters: ReturnType
 	const groupAnnotationValues = optionValues(groupOptions);
 	const defaultGroupAnnotationId = configuredDefaultValue(configuration.explore.defaultGroupAnnotationId, groupAnnotationValues);
 	if (!defaultFieldId || !defaultGroupAnnotationId) return;
-
-	const tokenFields = selectorValues
-		.map(annotationId => corpus.allAnnotationsMap[annotationId])
-		.filter((annotation): annotation is NormalizedAnnotation => !!annotation)
-		.map(annotation => createNgramTokenField(context, annotation));
-	if (!tokenFields.length) return;
 
 	const groupBy = builder.newField('explore.ngram.group-by', ngramGroupAnnotationController, SelectField, {
 		annotationLabels: createAnnotationLabels(context, groupAnnotationValues),
@@ -419,9 +249,13 @@ function createExploreNgramForm(context: BuildContext, sharedFilters: ReturnType
 		persistKey: 'explore-ngram-group-by',
 	});
 	const tokens = builder.newField('explore.ngram.tokens', tokenSequenceController, TokenSequenceField, {
+		createField: (options: Parameters<TokenSequenceCreateField>[0]) => {
+			const annotation = corpus.allAnnotationsMap[options.annotationId];
+			if (!annotation) throw new Error(`Cannot create n-gram token field for unknown annotation '${options.annotationId}'.`);
+			return context.fields.annotation(annotation, { ...options, showLabel: false, variant: 'simple' });
+		},
 		defaultFieldId,
 		defaultLength: EXPLORE_NGRAM_MAX_SIZE,
-		fields: tokenFields,
 		lengthDisplayName: translate.$t('explore.ngram.ngramSize').toString(),
 		maxLength: EXPLORE_NGRAM_MAX_SIZE,
 		minLength: 1,
@@ -510,23 +344,23 @@ function getSimpleSearchAnnotation(corpus: Corpus, configuration: SearchFormConf
 	const annotation = corpus.allAnnotatedFieldsMap[sourceField]?.annotations[simpleAnnotationId] || corpus.firstMainAnnotation;
 	return {
 		...annotation,
-		annotatedFieldId: corpus.isParallelCorpus ? '' : sourceField,
+		annotatedFieldId: sourceField,
 	};
 }
 
-function createParallelQueryField({ builder, configuration, corpus }: BuildContext, id: string, child: ParallelChildFieldConfig): FormFieldNode {
+function createParallelQueryField({ builder, configuration, corpus }: BuildContext, id: string, childFieldTemplate: FormFieldNode): FormFieldNode {
 	return builder.newField(id, parallelController, ParallelField, {
 		alignByOptions: configuration.alignBy.enabled ? configuration.alignBy.elements : [],
 		defaultAlignBy: configuration.alignBy.defaultValue || null,
 		defaultSource: corpus.parallelAnnotatedFields[0]?.id ?? null,
-		child,
+		childFieldTemplate,
 		fieldOptions: corpus.parallelAnnotatedFields,
 	});
 }
 
-function createQueryField(context: BuildContext, mode: 'simple' | 'advanced' | 'expert', child: ParallelChildFieldConfig, createRegular?: () => FormFieldNode): FormFieldNode {
-	if (context.corpus.isParallelCorpus) return createParallelQueryField(context, `search.${mode}.parallel`, child);
-	return createRegular?.() ?? context.builder.newField(`search.${mode}.query`, child.controller, child.component, child.config);
+function wrapParallel(context: BuildContext, field: FormFieldNode): FormFieldNode {
+	if (context.corpus.isParallelCorpus) return createParallelQueryField(context, `${field.id}.parallel`, field);
+	return field;
 }
 
 function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, configuration: SearchFormConfiguration, blacklabApi: BlackLabApi, translate: Translate): FormBuilder {
@@ -538,31 +372,17 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 		},
 		translate,
 	});
-	const context: BuildContext = { blacklabApi, builder, configuration, corpus, tagset, translate };
+	const fields = createSearchFormNodeFactory({ blacklabApi, configuration, corpus, tagset, translate });
+	const context: BuildContext = { blacklabApi, builder, configuration, corpus, fields, translate };
 	const annotation = getSimpleSearchAnnotation(corpus, configuration);
 	const sharedWithin = createWithinField(context);
 	const sharedFilters = createSharedFilters(context);
-	const simpleForm = builder.newForm(getNewSearchFormId('simple'), ContainerRenderer, {
-		title: () => translate.$t('search.simple.heading'),
-	});
 
-	simpleForm.addChildren(
-		createQueryField(
-			context,
-			'simple',
-			{
-				id: 'query',
-				controller: annotationTextController,
-				component: TextField,
-				config: createAnnotationTextFieldConfig(context, annotation, SIMPLE_SEARCH_VARIANT),
-			},
-			() => createAnnotationField(context, 'search.simple.annotation', annotation, undefined, SIMPLE_SEARCH_VARIANT),
-		),
-	);
+	const simpleForm = builder.newForm(getNewSearchFormId('simple'), ContainerRenderer, { title: () => translate.$t('search.simple.heading') });
+	const simpleQuery = wrapParallel(context, createAnnotationField(context, 'search.simple.query', annotation, undefined, SIMPLE_SEARCH_VARIANT));
+	simpleForm.addChildren(simpleQuery);
 
-	const extendedForm = builder.newForm(getNewSearchFormId('extended'), ContainerRenderer, {
-		variant: 'columns',
-	});
+	const extendedForm = builder.newForm(getNewSearchFormId('extended'), ContainerRenderer, { variant: 'columns' });
 	extendedForm.addChildren(
 		builder.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(createExtendedAnnotationTabs(context), sharedWithin),
 		sharedFilters,
@@ -571,25 +391,15 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	const queryBuilderConfig = {
 		options: createQueryBuilderOptions({ api: blacklabApi, configuration, index: corpus, translate }),
 	};
-	const advancedQuery = createQueryField(context, 'advanced', {
-		id: 'query',
-		controller: queryBuilderController,
-		component: QueryBuilderField,
-		config: queryBuilderConfig,
-	});
+
 	const advancedForm = builder.newForm(getNewSearchFormId('advanced'), ContainerRenderer, { variant: 'list' });
+	const advancedQuery = wrapParallel(context, createFormFieldNode('search.advanced.query', queryBuilderController, QueryBuilderField, queryBuilderConfig));
 	advancedForm.addChildren(advancedQuery, sharedWithin, sharedFilters);
 
 	const expertConfig = { hideLabel: true };
-	const expertQuery = createQueryField(context, 'expert', {
-		id: 'query',
-		controller: expertQueryController,
-		component: RawCqlField,
-		config: expertConfig,
-	});
-	const expertForm = builder.newForm(getNewSearchFormId('expert'), ContainerRenderer, {
-		variant: sharedFilters ? 'columns' : undefined,
-	});
+	const expertQuery = wrapParallel(context, createFormFieldNode('search.expert.query', expertQueryController, RawCqlField, expertConfig));
+	const expertForm = builder.newForm(getNewSearchFormId('expert'), ContainerRenderer, { variant: sharedFilters ? 'columns' : undefined });
+
 	expertForm.addChildren(
 		builder.newContainer('search.expert.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
 			builder.newView('search.expert.query.heading', HeadingView, {

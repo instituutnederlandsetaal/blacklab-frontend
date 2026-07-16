@@ -10,18 +10,31 @@
 			</transition>
 		</div>
 
-		<section class="blf-parallel-query">
+		<section class="blf-parallel-query" v-if="sourceModel">
 			<h4>{{ $t(`search.parallel.searchSourceVersion`) }}</h4>
-			<component :is="child.component" v-bind="sourceChildProps" @update:modelValue="updateSourceState" />
+			<FieldRenderer
+				:field="childFieldTemplate"
+				:html-id="`${htmlId}_source_${safeHtmlId(sourceModel ?? 'none')}`"
+				:disabled
+				:model-value="getValueForChildState(sourceModel)"
+				@update:model-value="setValueForChildState(sourceModel, $event)"
+			/>
 		</section>
+		<span v-else class="error">{{ $t('search.parallel.errorNoSourceVersion') }}</span>
 
 		<div :class="field.formGroupClass">
 			<label class="control-label">{{ $t('search.parallel.andCompareWithTargetVersions') }}</label>
 			<MultiValuePicker :options="targetOptions" v-model="targetModel" :disabled />
 		</div>
-		<section v-for="field in selectedTargetOptions" :key="field.id" class="blf-parallel-query">
-			<h4>{{ $tAnnotatedFieldDisplayName(field) }}</h4>
-			<component :is="child.component" v-bind="targetChildProps(field.id)" @update:modelValue="updateTargetState(field.id, $event)" />
+		<section v-for="target in selectedTargetOptions" :key="target.id" class="blf-parallel-query">
+			<h4>{{ $tAnnotatedFieldDisplayName(target) }}</h4>
+			<FieldRenderer
+				:field="childFieldTemplate"
+				:model-value="getValueForChildState(target.id)"
+				:html-id="`${htmlId}_target_${safeHtmlId(target.id)}`"
+				:disabled
+				@update:model-value="setValueForChildState(target.id, $event)"
+			/>
 		</section>
 
 		<div v-if="alignByOptions?.length" :class="field.formGroupClass">
@@ -30,12 +43,12 @@
 				<button
 					v-for="option in alignByPickerOptions"
 					type="button"
-					:class="['btn', modelValue.alignBy === option.value ? 'active btn-primary' : 'btn-default']"
+					:class="['btn', alignByModel === option.value ? 'active btn-primary' : 'btn-default']"
 					:key="option.value"
 					:value="option.value"
 					:title="option.title || option.value"
 					:disabled
-					@click="updateAlignBy(option.value)"
+					@click="alignByModel = option.value"
 				>
 					{{ option.label || option.value || 'document' }}
 				</button>
@@ -49,13 +62,13 @@
 import { computed } from 'vue';
 
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
+import { createDefaultParallelChildState, type ParallelFieldComponentProps, type ParallelFieldState } from '@/features/form/fields/parallel-field';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
-
-import type { ParallelFieldComponentProps, ParallelFieldState } from './parallel-field';
 
 import { useI18n } from '@/shared/i18n';
 import { isSimpleOption, type Option } from '@/shared/utils/options';
 
+import FieldRenderer from '@/features/form/ui/FieldRenderer.vue';
 import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
@@ -69,10 +82,10 @@ const emit = defineEmits<{
 
 const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-parallel-field' });
 const sourceOptions = computed<Option[]>(() =>
-	props.fieldOptions.filter(field => !props.modelValue.targets.includes(field.id)).map(field => ({ value: field.id, label: translate.$tAnnotatedFieldDisplayName(field) })),
+	props.fieldOptions.filter(option => !props.modelValue.targets.includes(option.id)).map(option => ({ value: option.id, label: translate.$tAnnotatedFieldDisplayName(option) })),
 );
 const targetOptions = computed<Option[]>(() =>
-	props.fieldOptions.filter(field => field.id !== props.modelValue.source).map(field => ({ value: field.id, label: translate.$tAnnotatedFieldDisplayName(field) })),
+	props.fieldOptions.filter(option => option.id !== props.modelValue.source).map(option => ({ value: option.id, label: translate.$tAnnotatedFieldDisplayName(option) })),
 );
 const alignByPickerOptions = computed<Option[]>(() =>
 	(props.alignByOptions ?? []).map(option => {
@@ -83,86 +96,54 @@ const alignByPickerOptions = computed<Option[]>(() =>
 		};
 	}),
 );
-const selectedTargetOptions = computed(() => props.modelValue.targets.map(target => props.fieldOptions.find(field => field.id === target) ?? { id: target }));
-const sourceChildProps = computed(() => ({
-	...props.child.config,
-	id: `${props.id}.source.${props.child.id}`,
-	htmlId: `${props.htmlId}_source_${props.child.id}`,
-	modelValue: props.modelValue.sourceState ?? createDefaultChildState('source'),
-	disabled: props.disabled,
-	variant: childVariant.value,
-}));
-const sourceModel = computed({
-	get: () => props.modelValue.source ?? '',
-	set: updateSource,
+const selectedTargetOptions = computed(() => props.modelValue.targets.map(target => props.fieldOptions.find(option => option.id === target) ?? { id: target }));
+
+/** The source selected source field, as model */
+const sourceModel = computed<string | null>({
+	get: () => props.modelValue.source,
+	set: (source: string | null) => {
+		const childStates = { ...props.modelValue.childStates };
+		if (source != null) childStates[source] ??= createDefaultParallelChildState(props, runtime.value.definition.context);
+		emit('update:modelValue', {
+			...props.modelValue,
+			source,
+			targets: props.modelValue.targets.filter(target => target !== source),
+			childStates,
+		});
+	},
 });
 const targetModel = computed<string[]>({
 	get: () => props.modelValue.targets,
-	set: updateTargets,
+	set: (targets: string[]) => {
+		const selectedTargets = [...new Set(targets.filter(target => target !== props.modelValue.source))];
+		const childStates = { ...props.modelValue.childStates };
+		for (const target of selectedTargets) childStates[target] ??= createDefaultParallelChildState(props, runtime.value.definition.context);
+		emit('update:modelValue', {
+			...props.modelValue,
+			targets: selectedTargets,
+			childStates,
+		});
+	},
 });
 
-function updateSource(source: string) {
+const alignByModel = computed<string | null>({
+	get: () => props.modelValue.alignBy,
+	set: (alignBy: string | null) => {
+		emit('update:modelValue', { ...props.modelValue, alignBy });
+	},
+});
+
+function getValueForChildState(stateKey: string) {
+	return props.modelValue.childStates[stateKey] ?? null;
+}
+function setValueForChildState(stateKey: string, value: unknown) {
 	emit('update:modelValue', {
 		...props.modelValue,
-		source: source || null,
-		targets: props.modelValue.targets.filter(target => target !== source),
-	});
-}
-
-function updateTargets(targets: string[] | null) {
-	const selectedTargets = (targets ?? []).filter(target => target !== props.modelValue.source);
-	const targetStates = { ...props.modelValue.targetStates };
-	for (const target of selectedTargets) {
-		targetStates[target] ??= createDefaultChildState(target);
-	}
-	emit('update:modelValue', {
-		...props.modelValue,
-		targets: selectedTargets,
-		targetStates,
-	});
-}
-
-function updateAlignBy(alignBy: string) {
-	emit('update:modelValue', { ...props.modelValue, alignBy: alignBy || null });
-}
-
-function updateSourceState(sourceState: unknown) {
-	emit('update:modelValue', { ...props.modelValue, sourceState });
-}
-
-function updateTargetState(target: string, targetState: unknown) {
-	emit('update:modelValue', {
-		...props.modelValue,
-		targetStates: {
-			...props.modelValue.targetStates,
-			[target]: targetState,
+		childStates: {
+			...props.modelValue.childStates,
+			[stateKey]: value,
 		},
 	});
-}
-
-function targetChildProps(target: string) {
-	return {
-		...props.child.config,
-		id: `${props.id}.${target}.${props.child.id}`,
-		htmlId: `${props.htmlId}_target_${safeHtmlId(target)}_${props.child.id}`,
-		modelValue: props.modelValue.targetStates[target] ?? createDefaultChildState(target),
-		disabled: props.disabled,
-		variant: childVariant.value,
-	};
-}
-
-const childVariant = computed(() => (props.child.config as { variant?: typeof props.variant }).variant ?? props.variant);
-
-function createDefaultChildState(role: string) {
-	return props.child.controller.createDefaultState(
-		{
-			...props.child.config,
-			id: `${props.id}.${role}.${props.child.id}`,
-			kind: 'field',
-			variant: childVariant.value,
-		},
-		runtime.value.definition.context,
-	);
 }
 
 function safeHtmlId(value: string) {

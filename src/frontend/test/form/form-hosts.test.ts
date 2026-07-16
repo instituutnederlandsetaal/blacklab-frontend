@@ -8,6 +8,7 @@ import {
 	type FormBuilder,
 	type FormRuntime,
 	annotationTextController,
+	createFormFieldNode,
 	expertQueryController,
 	filterTextController,
 	parallelController,
@@ -84,7 +85,6 @@ const fieldExpectations = {
 		state: { value: 'shouldEndUpInSummaryValue.annotation', caseSensitive: true },
 		summaries: [
 			{
-				id: 'shouldEndUpInSummaryId.annotation',
 				label: 'shouldEndUpInSummaryLabel.annotation',
 				value: 'shouldEndUpInSummaryValue.annotation',
 				summaryType: ['patt'],
@@ -96,7 +96,6 @@ const fieldExpectations = {
 		state: { value: 'shouldEndUpInSummaryValue.metadata', caseSensitive: false },
 		summaries: [
 			{
-				id: 'shouldEndUpInSummaryId.metadata.node',
 				label: 'shouldEndUpInSummaryLabel.metadata',
 				value: 'shouldEndUpInSummaryValue.metadata',
 				summaryType: ['filter'],
@@ -108,29 +107,36 @@ const fieldExpectations = {
 			source: 'contents__en',
 			targets: ['contents__nl'],
 			alignBy: 'parallel-state.align.selected',
-			sourceState: '[lemma="house"]',
-			targetStates: {
+			childStates: {
+				contents__en: '[lemma="house"]',
 				contents__nl: '[lemma="huis"]',
 			},
 		},
 		summaries: [
 			{
-				id: 'shouldEndUpInSummaryId.parallel.node.source',
 				label: 'search.parallel.searchSourceVersion',
 				value: 'English',
 				summaryType: ['searchfield', 'patt'],
 			},
 			{
-				id: 'shouldEndUpInSummaryId.parallel.node.targets',
 				label: 'search.parallel.andCompareWithTargetVersions',
 				value: 'Dutch',
 				summaryType: ['searchfield', 'patt'],
 			},
 			{
-				id: 'shouldEndUpInSummaryId.parallel.node.alignBy',
 				label: 'search.parallel.alignBy',
 				value: 'parallel-state.align.selected',
 				summaryType: ['searchfield', 'patt'],
+			},
+			{
+				label: 'search.expert.corpusQueryLanguage',
+				value: '[lemma="house"]',
+				summaryType: ['patt'],
+			},
+			{
+				label: 'search.expert.corpusQueryLanguage',
+				value: '[lemma="huis"]',
+				summaryType: ['patt'],
 			},
 		],
 	},
@@ -138,7 +144,6 @@ const fieldExpectations = {
 		state: '[summaryField="shouldEndUpInSummaryValue.raw-cql"]',
 		summaries: [
 			{
-				id: 'shouldEndUpInSummaryId.raw-cql.node',
 				label: 'search.expert.corpusQueryLanguage',
 				value: '[summaryField="shouldEndUpInSummaryValue.raw-cql"]',
 				summaryType: ['patt'],
@@ -154,7 +159,6 @@ const fieldExpectations = {
 		},
 		summaries: [
 			{
-				id: 'shouldEndUpInSummaryId.within.node',
 				label: 'search.extended.within',
 				value: 'shouldEndUpInSummaryValue.within',
 				summaryType: ['patt'],
@@ -305,12 +309,7 @@ describe('builtin controller hosts', () => {
 		const harness = mountFieldHarness(builder =>
 			builder.newField('shouldEndUpInSummaryId.parallel.node', parallelController, ParallelField, {
 				alignByOptions: ['parallel-state.align.other', 'parallel-state.align.selected'],
-				child: {
-					id: 'query',
-					controller: expertQueryController,
-					component: RawCqlField,
-					config: {},
-				},
+				childFieldTemplate: createFormFieldNode('shouldEndUpInSummaryId.parallel.node.query', expertQueryController, RawCqlField, {}),
 				fieldOptions: languageOptions,
 			}),
 		);
@@ -366,7 +365,7 @@ describe('builtin controller hosts', () => {
 });
 
 describe('builtin controller summaries', () => {
-	test('uses the annotation config id in summaries for direct form children', () => {
+	test('uses annotation labels and groups for direct form children', () => {
 		const harness = createFieldRuntime(builder =>
 			builder.newField('shouldNotEndUpInSummaryId.annotation.node', annotationTextController, TextField, {
 				annotationId: 'shouldEndUpInSummaryId.annotation',
@@ -381,7 +380,7 @@ describe('builtin controller summaries', () => {
 		expect(harness.runtime.compile('harness.form').summaries).toEqual(fieldExpectations.annotation.summaries);
 	});
 
-	test('uses the field node id in metadata summaries through a container', () => {
+	test('uses metadata labels through a container', () => {
 		const harness = createFieldRuntime(
 			builder =>
 				builder.newField('shouldEndUpInSummaryId.metadata.node', filterTextController, TextField, {
@@ -396,17 +395,12 @@ describe('builtin controller summaries', () => {
 		expect(harness.runtime.compile('harness.form').summaries).toEqual(fieldExpectations.metadataFilter.summaries);
 	});
 
-	test('uses derived node-based ids in parallel summaries through nested containers', () => {
+	test('includes wrapper and child summaries for parallel fields', () => {
 		const harness = createFieldRuntime(
 			builder =>
 				builder.newField('shouldEndUpInSummaryId.parallel.node', parallelController, ParallelField, {
 					alignByOptions: ['parallel-state.align.other', 'parallel-state.align.selected'],
-					child: {
-						id: 'query',
-						controller: expertQueryController,
-						component: RawCqlField,
-						config: {},
-					},
+					childFieldTemplate: createFormFieldNode('shouldEndUpInSummaryId.parallel.node.query', expertQueryController, RawCqlField, {}),
 					fieldOptions: languageOptions,
 				}),
 			'nested-container',
@@ -417,14 +411,14 @@ describe('builtin controller summaries', () => {
 		expect(harness.runtime.compile('harness.form').summaries).toEqual(fieldExpectations.parallel.summaries);
 	});
 
-	test('uses the field node id in raw cql summaries for direct form children', () => {
+	test('summarizes raw CQL for direct form children', () => {
 		const harness = createFieldRuntime(builder => builder.newField('shouldEndUpInSummaryId.raw-cql.node', expertQueryController, RawCqlField, {}));
 
 		harness.runtime.state.state.value[harness.field.id] = fieldExpectations.rawCql.state;
 		expect(harness.runtime.compile('harness.form').summaries).toEqual(fieldExpectations.rawCql.summaries);
 	});
 
-	test('uses the field node id in within summaries through a container', () => {
+	test('summarizes within fields through a container', () => {
 		const harness = createFieldRuntime(
 			builder =>
 				builder.newField('shouldEndUpInSummaryId.within.node', withinController, WithinField, {

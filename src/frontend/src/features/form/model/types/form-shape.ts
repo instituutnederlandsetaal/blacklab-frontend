@@ -59,7 +59,7 @@ export type BaseFieldNode = BaseNode & {
 };
 export type RealFieldNode<Extra, C extends AnyVueComponent> = BaseFieldNode &
 	Extra & {
-		controller: FieldController<string, any, any>;
+		controller: FieldController<string, unknown, object>;
 		component: C;
 	};
 

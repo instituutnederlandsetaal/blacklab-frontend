@@ -1,7 +1,7 @@
 <template>
 	<section :class="['blf-summary-view', totals ? 'filter-overview' : 'panel panel-default']">
 		<template v-if="totals">
-			<div v-for="entry in summaries" :key="entry.id">
+			<div v-for="(entry, index) in summaries" :key="index">
 				{{ entry.label }}<small v-if="entry.group"> ({{ entry.group }})</small>: <i>{{ entry.value }}</i>
 			</div>
 			<TotalsView :totals />
@@ -9,7 +9,7 @@
 		<template v-else>
 			<header class="panel-body">{{ resolvedTitle || $t(`form.summary.heading`) }}</header>
 			<div v-if="summaries.length" class="entries panel-body">
-				<div v-for="entry in summaries" :key="entry.id" class="entry">
+				<div v-for="(entry, index) in summaries" :key="index" class="entry">
 					<span class="label">{{ entry.label }}</span>
 					<span class="value">{{ entry.value }}</span>
 				</div>

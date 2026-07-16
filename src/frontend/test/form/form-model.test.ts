@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { isReactive, reactive } from 'vue';
 
-import { buildQueryIR, createDefaultFormState, type QueryCombineMode } from '@/features/form';
+import { buildQueryIR, createDefaultFormState, createFormFieldNode, getFieldAffectedBlackLabParameters, getFieldQueryContribution, type QueryCombineMode } from '@/features/form';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, parentFormProbeView, testTextController } from './helpers';
@@ -14,8 +14,8 @@ const sharedStateExpectation = {
 };
 
 const sharedSummaryExpectation = [
-	{ id: 'search.word', label: 'Word', value: 'water', summaryType: ['patt'] },
-	{ id: 'search.lemma', label: 'Lemma', value: 'lopen', summaryType: ['patt'] },
+	{ label: 'Word', value: 'water', summaryType: ['patt'] },
+	{ label: 'Lemma', value: 'lopen', summaryType: ['patt'] },
 ];
 
 const compositionExpectations: Array<{
@@ -170,6 +170,52 @@ describe('form model state', () => {
 		expect('config' in view).toBe(false);
 		expect(view.component).toBe(parentFormProbeView);
 		expect('view' in view).toBe(false);
+	});
+
+	test('constructs complete fields without registering them in a form graph', () => {
+		const builder = createTestBuilder();
+		const field = createFormFieldNode({ id: 'search.word' }, testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+
+		expect(field).toMatchObject({
+			id: 'search.word',
+			kind: 'field',
+			controller: testTextController,
+			component: TestTextField,
+		});
+		expect(builder.nodeList).toEqual([]);
+		expect(createDefaultFormState(builder.context, ...builder.nodeList).state).toEqual({});
+
+		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(field);
+		expect(builder.getField(field.id)).toBe(field);
+		expect(createDefaultFormState(builder.context, form).state).toEqual({
+			'search.word': { value: '' },
+		});
+	});
+
+	test('uses the same complete field node for local defaults, query summaries, and persistence', () => {
+		const builder = createTestBuilder();
+		const field = createFormFieldNode({ id: 'composite.token.0.word', inheritedVariant: 'simple' }, testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+
+		expect(field.variant).toBe('simple');
+		expect(builder.nodeList).toEqual([]);
+		expect(field.controller.createDefaultState(field, builder.context)).toEqual({ value: '' });
+		expect(getFieldAffectedBlackLabParameters(field, builder.context)).toEqual(['patt']);
+		expect(field.controller.getPersistKey(field, builder.context)).toBe('word');
+		expect(field.controller.encode({ value: 'water' }, field, builder.context)).toBe('water');
+		expect(field.controller.restore('water', field, builder.context)).toEqual({ value: 'water' });
+		expect(getFieldQueryContribution(field, builder.context, { value: 'water' }).summaries).toEqual([
+			{
+				label: 'Word',
+				value: 'water',
+				summaryType: ['patt'],
+			},
+		]);
 	});
 
 	test.each(compositionExpectations)('$name', ({ combine, expected }) => {
