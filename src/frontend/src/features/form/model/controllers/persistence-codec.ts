@@ -75,9 +75,9 @@ export function assertKnownOptions(values: string[], options: Options): void {
 	if (unknown.length) throw new Error(`Cannot restore values no longer present in the current options: ${unknown.join(', ')}.`);
 }
 
-export function encodePersistObject(values: Record<string, string | null | undefined | boolean>): string | null {
+export function encodePersistObject(values: Record<string, string | null | undefined | boolean>, keepEmpty = false): string | null {
 	const parts = Object.entries(values)
-		.filter(([, value]) => value != null && value !== '' && value !== false)
+		.filter(([, value]) => value != null && (keepEmpty || value !== '') && value !== false)
 		.map(([key, value]) => `${key}=${escapePersistValue(value === true ? '1' : String(value))}`);
 	return parts.length ? parts.join(';') : null;
 }

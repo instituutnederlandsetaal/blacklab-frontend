@@ -7,7 +7,7 @@ import {
 } from '@/features/form/fields/parallel-field';
 import { getFieldQueryContribution } from '@/features/form/model/compile';
 import { queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import { decodePersistObject, encodePersistObject, joinPersistValues } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { SummaryEntry } from '@/features/form/model/types/form-query';
 
@@ -41,15 +41,14 @@ export const parallelController = defineFieldController<'parallel', ParallelFiel
 		const defaultState = createDefaultParallelFieldState(config, runtime);
 		const values: Record<string, string | null | undefined> = {
 			source: state.source !== defaultState.source ? state.source : undefined,
-			targets: state.targets.length ? joinPersistValues(state.targets) : undefined,
 			align: state.alignBy !== defaultState.alignBy ? state.alignBy : undefined,
 		};
 		for (const fieldId of new Set([state.source, ...state.targets].filter((id): id is string => id != null))) {
 			const encoded = childConfig.controller.encode(state.childStates[fieldId] ?? createDefaultParallelChildState(config, runtime), childConfig, runtime);
 			const value = Array.isArray(encoded) ? joinPersistValues(encoded) : encoded;
-			if (value) values[childPersistKey(fieldId)] = value;
+			if (value || state.targets.includes(fieldId)) values[childPersistKey(fieldId)] = value ?? '';
 		}
-		return encodePersistObject(values);
+		return encodePersistObject(values, true);
 	},
 	restore(payload, config, runtime) {
 		const fields = new Set(config.fieldOptions.map(option => option.id));
@@ -57,20 +56,20 @@ export const parallelController = defineFieldController<'parallel', ParallelFiel
 		const restored = decodePersistObject(payload);
 		const source = restored.source ?? defaults.source;
 		if (source != null && !fields.has(source)) throw new Error(`Cannot restore parallel source '${source}' because it is not present in the current field options.`);
-		const targets = splitPersistValue(restored.targets ?? '').filter(Boolean);
-		if (new Set(targets).size !== targets.length) throw new Error('Cannot restore duplicate parallel targets.');
-		for (const target of targets) {
-			if (target === source) throw new Error(`Cannot restore parallel target '${target}' because it is also the selected source.`);
-			if (!fields.has(target)) throw new Error(`Cannot restore parallel target '${target}' because it is not present in the current field options.`);
-		}
-		const activeFields = [source, ...targets].filter((fieldId): fieldId is string => fieldId != null);
-		const supportedKeys = new Set(['source', 'targets', 'align', ...activeFields.map(childPersistKey)]);
-		const unknownKeys = Object.keys(restored).filter(key => !supportedKeys.has(key));
+		const unknownKeys = Object.keys(restored).filter(key => key !== 'source' && key !== 'align' && !key.startsWith(CHILD_PREFIX));
 		if (unknownKeys.length) throw new Error(`Cannot restore parallel field with unsupported keys: ${unknownKeys.join(', ')}.`);
+		const persistedFields = Object.keys(restored)
+			.filter(key => key.startsWith(CHILD_PREFIX))
+			.map(key => key.slice(CHILD_PREFIX.length));
+		for (const fieldId of persistedFields) {
+			if (!fields.has(fieldId)) throw new Error(`Cannot restore parallel field '${fieldId}' because it is not present in the current field options.`);
+		}
+		const targets = persistedFields.filter(fieldId => fieldId !== source);
+		const activeFields = [source, ...targets].filter((fieldId): fieldId is string => fieldId != null);
 		const childStates = Object.fromEntries(
 			activeFields.map(fieldId => {
 				const childPayload = restored[childPersistKey(fieldId)];
-				return [fieldId, childPayload == null ? createDefaultParallelChildState(config, runtime) : config.childFieldTemplate.controller.restore(childPayload, config.childFieldTemplate, runtime)];
+				return [fieldId, childPayload ? config.childFieldTemplate.controller.restore(childPayload, config.childFieldTemplate, runtime) : createDefaultParallelChildState(config, runtime)];
 			}),
 		);
 		return {

@@ -36,6 +36,7 @@ import { decodePersistObject, decodePersistSelection, encodePersistObject, joinP
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
+import TextField from '@/features/form/fields/generic/TextField.vue';
 import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
@@ -305,7 +306,7 @@ describe('scoped form persistence', () => {
 			annotationId: 'word',
 			displayName: 'Word',
 		});
-		const author = builder.newField('search.extended.author', filterTextController, TestTextField, {
+		const author = builder.newField('search.extended.author', filterTextController, TextField, {
 			displayName: 'Author',
 			metadataFieldId: 'author',
 		});
@@ -742,7 +743,7 @@ describe('controller persistence codecs', () => {
 		});
 		expect(
 			parallelController.restore(
-				'source=contents;targets=translation;align=sentence',
+				'source=contents;align=sentence;parallel.translation=',
 				{
 					id: 'parallel',
 					childFieldTemplate: createFormFieldNode('parallel.query', expertQueryController, RawCqlField, {}),
@@ -780,7 +781,6 @@ describe('controller persistence codecs', () => {
 
 		expect(decodePersistObject(encoded!)).toEqual({
 			source: 'contents__en',
-			targets: 'contents__nl',
 			'parallel.contents__en': '[lemma="test"]',
 			'parallel.contents__nl': '[lemma="proef"]',
 		});
@@ -789,7 +789,6 @@ describe('controller persistence codecs', () => {
 	test('restores parallel wrapper child source and target payloads', () => {
 		const encoded = encodePersistObject({
 			source: 'contents__en',
-			targets: 'contents__nl',
 			align: 'word-alignment',
 			'parallel.contents__en': '[lemma="test"]',
 			'parallel.contents__nl': '[lemma="proef"]',
@@ -811,11 +810,30 @@ describe('controller persistence codecs', () => {
 
 	test('rejects unknown restored parallel target states', () => {
 		const encoded = encodePersistObject({
-			targets: 'contents__fr',
 			'parallel.contents__fr': '[lemma="essai"]',
 		});
 
 		expect(() => parallelController.restore(encoded!, parallelConfig, context)).toThrow(/contents__fr/);
+	});
+
+	test('preserves selected parallel targets with default child state', () => {
+		const config = { ...parallelConfig, defaultSource: 'contents__en' };
+		const state = {
+			source: 'contents__en',
+			targets: ['contents__nl'],
+			alignBy: 'word-alignment',
+			childStates: {
+				contents__en: '',
+				contents__nl: '',
+			},
+		};
+
+		const encoded = parallelController.encode(state, config, context);
+
+		expect(decodePersistObject(encoded!)).toEqual({
+			'parallel.contents__nl': '',
+		});
+		expect(parallelController.restore(encoded!, config, context)).toEqual(state);
 	});
 
 	test('round-trips escaped separators in selections and records', () => {
