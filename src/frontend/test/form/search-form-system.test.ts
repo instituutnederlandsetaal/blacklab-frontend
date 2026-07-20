@@ -4,10 +4,11 @@ import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { ref } from 'vue';
+import { nextTick, ref } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
+import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import {
 	expertQueryController,
@@ -216,6 +217,31 @@ afterEach(() => {
 });
 
 describe('search form system', () => {
+	test('keeps the live form runtime when reactive translations change', async () => {
+		const locale = ref('en');
+		const translate = createMockTranslate();
+		const translated = {
+			...translate,
+			$t: (key: string) => `${locale.value}:${key}`,
+			$tAnnotDisplayName: (value: Pick<NormalizedAnnotation, 'id'>) => `${locale.value}:${value.id}`,
+		};
+		const system = createSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			configuration: createLegacySearchFormConfiguration(),
+			corpus: ref(createCorpus()),
+			tagset: ref(undefined),
+			translate: translated,
+		});
+		const runtime = system.runtime.value!;
+		runtime.state.state.value['search.simple.query'] = { value: 'ship', caseSensitive: false };
+
+		locale.value = 'nl';
+		await nextTick();
+
+		expect(system.runtime.value).toBe(runtime);
+		expect(system.runtime.value!.state.state.value['search.simple.query']).toEqual({ value: 'ship', caseSensitive: false });
+	});
+
 	test('builds Documents as a form with configuration-backed defaults, shared filters, and a result preset', () => {
 		const runtime = createDefinition();
 		const groupByFieldId = 'explore.corpora.group-by';
@@ -243,6 +269,56 @@ describe('search form system', () => {
 				groupDisplayMode: 'tokens',
 			},
 		});
+	});
+
+	test('flattens a singular metadata group instead of rendering one filter tab', () => {
+		const corpus = createCorpus();
+		corpus.metadataGroups = [corpus.metadataGroups[0]];
+		corpus.metadataFieldGroups = [corpus.metadataFieldGroups[0]];
+		const runtime = createDefinition(corpus);
+		const filters = runtime.definition.getContainer('shared.filters');
+		const onlyGroup = runtime.definition.getContainer('shared.filters.Bibliographic');
+
+		expect(filters?.variant).toBeUndefined();
+		expect(onlyGroup?.title).toBeUndefined();
+		expect(onlyGroup?.variant).toBe('list');
+		expect(runtime.definition.getField('shared.filters.Bibliographic.author')).not.toBeNull();
+	});
+
+	test('uses tagset-declared subannotations and their display names in POS fields', () => {
+		const corpus = createCorpus();
+		const pos = corpus.allAnnotationsMap.pos;
+		pos.uiType = 'pos';
+		pos.subAnnotations = undefined;
+		const number = annotation('number', { defaultDisplayName: 'Number from corpus', parentAnnotationId: 'pos' });
+		corpus.allAnnotations.push(number);
+		corpus.allAnnotationsMap.number = number;
+		corpus.allAnnotatedFieldsMap.contents.annotations.number = number;
+		const tagset = {
+			values: {
+				NOU: { value: 'NOU', displayName: 'Noun', subAnnotationIds: ['number'] },
+			},
+			subAnnotations: {
+				number: {
+					id: 'number',
+					displayName: 'Grammatical number',
+					values: [{ value: 'sg', displayName: 'Singular', pos: ['NOU'] }],
+				},
+			},
+		};
+		const normalizedTagset = normalizeTagset(pos, corpus.allAnnotatedFieldsMap.contents.annotations, tagset);
+		const runtime = createSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			configuration: createLegacySearchFormConfiguration(),
+			corpus: ref(corpus),
+			tagset: ref(normalizedTagset),
+			translate: createMockTranslate(),
+		}).runtime.value!;
+		const field = runtime.definition.getField('search.extended.annotations.Grammar.pos') as unknown as {
+			subAnnotations: Record<string, { defaultDisplayName: string }>;
+		};
+
+		expect(field.subAnnotations.number.defaultDisplayName).toBe('Grammatical number');
 	});
 
 	test('applies metadata visibility customization and falls back from a hidden configured default', () => {

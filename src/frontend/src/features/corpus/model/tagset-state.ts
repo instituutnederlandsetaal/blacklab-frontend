@@ -21,154 +21,122 @@ const init = (payload: CorpusContext) => {
 	state.value = payload.tagset ?? null;
 };
 
+type TagsetAnnotation = { displayName?: string; values: Array<{ value: string; displayName: string; pos?: string[] }> };
+
+const usefulName = (name: string | undefined, raw: string) => (name && name !== raw ? name : undefined);
+
+function sameCorpusValues(left: NormalizedAnnotation['values'], right: NonNullable<NormalizedAnnotation['values']>) {
+	return left?.length === right.length && left.every((value, index) => value.value === right[index].value && value.label === right[index].label && value.title === right[index].title);
+}
+
+function tagsetFromCorpus(main: NormalizedAnnotation, annotations: Record<string, NormalizedAnnotation>): Tagset {
+	const subAnnotationIds = [
+		...new Set([
+			...(main.subAnnotations ?? []),
+			...Object.values(annotations)
+				.filter(a => a.parentAnnotationId === main.id)
+				.map(a => a.id),
+		]),
+	].filter(id => annotations[id]);
+	return {
+		values: Object.fromEntries((main.values ?? []).map(({ value, label }) => [value, { value, displayName: usefulName(label, value) ?? value, subAnnotationIds: [...subAnnotationIds] }])),
+		subAnnotations: Object.fromEntries(
+			subAnnotationIds.map(id => {
+				const annotation = annotations[id];
+				return [
+					id,
+					{
+						id,
+						displayName: usefulName(annotation.defaultDisplayName, id) ?? id,
+						values: (annotation.values ?? []).map(({ value, label }) => ({ value, displayName: usefulName(label, value) ?? value })),
+					},
+				];
+			}),
+		),
+	};
+}
+
 /**
- * Process a tagset: validate it against the corpus, normalize case, and merge values into corpus annotations.
+ * Return one form-ready tagset.
  *
- * This function performs three tasks in one pass per annotation:
- * 1. Validates that all annotations and values referenced in the tagset exist in the corpus
- * 2. Normalizes tagset values to match corpus case-sensitivity settings
- * 3. Merges tagset values and displaynames into corpus annotations, collapsing case variants
+ * When a configured tagset exists, it is authoritative for the tagset's value
+ * membership, order, subannotation structure, and POS constraints. Otherwise the
+ * tagset is generated from the corpus POS annotation and its subannotations,
+ * preserving their value order.
  *
- * Case-insensitive matching is used throughout:
- * - If the tagset contains a value (e.g. 'Nou'), and the corpus has differently-cased variants (e.g. 'NOU', 'nou'),
- *   they are collapsed to use the tagset's value as the canonical form with its displayName.
- * - If the corpus has case variants but no tagset match, they remain distinct.
+ * Display names are merged in this order:
+ * 1. meaningful corpus annotation/value names (names unequal to their ID/raw value)
+ * 2. meaningful configured tagset names, which override corpus names
+ * 3. for case-insensitive annotations without an explicit value name, a cased
+ *    raw spelling from either source (tagset wins ties) is used as the display name
+ * 4. the annotation ID or normalized raw value as the final fallback
  *
- * @param mainAnnot The main annotation (with uiType 'pos') that the tagset is attached to.
- * @param corpusAnnotations All annotations in the corpus.
- * @param tagset The tagset to process (will be mutated for case normalization).
+ * The resolved names and normalized value casing are written to the returned
+ * tagset and back to the matching corpus annotations. Corpus-only values remain
+ * available on corpus annotations but are not added to a configured tagset;
+ * configured tagset-only values are appended to the corpus annotation values.
  */
-export function processTagset(mainAnnot: NormalizedAnnotation, corpusAnnotations: Record<string, NormalizedAnnotation>, tagset: Tagset) {
-	const mainAnnotationCS = mainAnnot.caseSensitive;
+export function normalizeTagset(main: NormalizedAnnotation, annotations: Record<string, NormalizedAnnotation>, configured?: Tagset): Tagset {
+	const source = configured ?? tagsetFromCorpus(main, annotations);
+	const tagset: Tagset = {
+		values: Object.fromEntries(Object.entries(source.values).map(([key, value]) => [key, { ...value, subAnnotationIds: [...value.subAnnotationIds] }])),
+		subAnnotations: Object.fromEntries(
+			Object.entries(source.subAnnotations).map(([key, annotation]) => [key, { ...annotation, values: annotation.values.map(value => ({ ...value, ...(value.pos ? { pos: [...value.pos] } : {}) })) }]),
+		),
+	};
 
-	// Build a case-insensitive lookup for main tagset values (for validating pos references in subannotations)
-	const tagsetValuesLower = new Set(Object.keys(tagset.values).map(k => k.toLowerCase()));
-
-	// Validate that the main annotation doesn't reference any subannotations that don't exist
-	Object.values(tagset.values).forEach(({ value, subAnnotationIds }) => {
-		const subAnnotsNotInTagset = subAnnotationIds.filter(id => tagset.subAnnotations[id] == null);
-		if (subAnnotsNotInTagset.length) {
-			throw new Error(`Value "${value}" declares subAnnotation(s) "${subAnnotsNotInTagset}" that do not exist in the tagset.`);
-		}
-		const subAnnotsNotInCorpus = subAnnotationIds.filter(subId => corpusAnnotations[subId] == null);
-		if (subAnnotsNotInCorpus.length) {
-			throw new Error(`Value "${value}" declares subAnnotation(s) "${subAnnotsNotInCorpus}" that do not exist in the corpus.`);
-		}
-	});
-
-	/**
-	 * Process a single annotation: validate, normalize case in tagset, and merge into corpus.
-	 */
-	function processAnnotation(annotationId: string, tagsetValues: Array<{ value: string; displayName: string; pos?: string[] }>, isCaseSensitive: boolean) {
-		const annotationInCorpus = corpusAnnotations[annotationId];
-		if (!annotationInCorpus) {
-			console.error(`Annotation "${annotationId}" does not exist in the corpus, but is referenced in the tagset.`);
-			return;
-		}
-
-		// Build case-insensitive lookup of corpus values for validation
-		const corpusValuesLower = new Set(annotationInCorpus.values?.map(v => v.value.toLowerCase()) ?? []);
-
-		if (!annotationInCorpus.values?.length) {
-			console.warn(`Annotation "${annotationId}" does not have any known values in the corpus, but is referenced in the tagset.`);
-		}
-
-		// Validate and normalize tagset values
-		for (const tv of tagsetValues) {
-			// Validate: warn if value doesn't exist in corpus
-			if (corpusValuesLower.size > 0 && !corpusValuesLower.has(tv.value.toLowerCase())) {
-				console.warn(`Annotation "${annotationId}" may have value "${tv.value}" which does not exist in the corpus.`);
-			}
-
-			// Validate pos references (for subannotations)
-			if (tv.pos) {
-				const unknownPosList = tv.pos.filter(pos => !tagsetValuesLower.has(pos.toLowerCase()));
-				if (unknownPosList.length > 0) {
-					console.warn(`SubAnnotation '${annotationId}' value '${tv.value}' declares unknown main-pos value(s): ${unknownPosList.toString()}`);
-				}
-				// Normalize pos references if main annotation is case-insensitive
-				if (!mainAnnotationCS) {
-					tv.pos = tv.pos.map(v => v.toLowerCase());
-				}
-			}
-
-			// Normalize value case if annotation is case-insensitive
-			if (!isCaseSensitive) {
-				tv.value = tv.value.toLowerCase();
-			}
-		}
-
-		// Build case-insensitive lookup from (now normalized) tagset values
-		const tagsetByLower: Record<string, { value: string; displayName: string }> = {};
-		for (const tv of tagsetValues) {
-			tagsetByLower[tv.value.toLowerCase()] = tv;
-		}
-
-		// Merge: collapse corpus values to tagset canonical forms where applicable
-		const resultValues: Record<string, { value: string; label: string; title: string | null }> = {};
-
-		// Process original corpus values
-		if (annotationInCorpus.values) {
-			for (const origValue of annotationInCorpus.values) {
-				const lowerValue = origValue.value.toLowerCase();
-				const tagsetMatch = tagsetByLower[lowerValue];
-
-				if (tagsetMatch) {
-					// Collapse to tagset's canonical value
-					const canonicalValue = tagsetMatch.value;
-					if (!resultValues[canonicalValue]) {
-						resultValues[canonicalValue] = {
-							value: canonicalValue,
-							label: tagsetMatch.displayName || canonicalValue,
-							title: origValue.title,
-						};
-					}
-				} else {
-					// No tagset match - keep original
-					if (!resultValues[origValue.value]) {
-						resultValues[origValue.value] = {
-							value: origValue.value,
-							label: origValue.label,
-							title: origValue.title,
-						};
-					}
-				}
-			}
-		}
-
-		// Add any tagset values not already present
-		for (const tv of tagsetValues) {
-			if (!resultValues[tv.value]) {
-				resultValues[tv.value] = {
-					value: tv.value,
-					label: tv.displayName || tv.value,
-					title: null,
-				};
-			}
-		}
-
-		// Sort: preserve original order where possible, new values at the end
-		const originalValues = annotationInCorpus.values;
-		annotationInCorpus.values = Object.values(resultValues).sort((a, b) => {
-			if (!originalValues) return 0;
-			const aIdx = originalValues.findIndex(v => v.value.toLowerCase() === a.value.toLowerCase());
-			const bIdx = originalValues.findIndex(v => v.value.toLowerCase() === b.value.toLowerCase());
-			return (aIdx === -1 ? Infinity : aIdx) - (bIdx === -1 ? Infinity : bIdx);
-		});
-
-		// With exhaustive values, we can use a select UI
-		if (annotationInCorpus.uiType === 'text') {
-			annotationInCorpus.uiType = 'select';
-		}
+	for (const { value, subAnnotationIds } of Object.values(tagset.values)) {
+		const unknown = subAnnotationIds.filter(id => !tagset.subAnnotations[id] || !annotations[id]);
+		if (unknown.length) throw new Error(`Value "${value}" declares unknown subAnnotation(s) "${unknown}".`);
 	}
 
-	// Process main annotation and subannotations within the store mutation
-	processAnnotation(mainAnnot.id, Object.values(tagset.values), mainAnnotationCS);
-	for (const subId in tagset.subAnnotations) {
-		const sub = tagset.subAnnotations[subId];
-		const subAnnot = corpusAnnotations[sub.id];
-		processAnnotation(sub.id, sub.values, subAnnot?.caseSensitive ?? false);
+	const merge = (annotation: NormalizedAnnotation, tagAnnotation: TagsetAnnotation) => {
+		const corpusValues = annotation.values ?? [];
+		const names = new Map<string, string>();
+		const inferredNames = new Map<string, string>();
+		for (const value of corpusValues) {
+			const key = value.value.toLowerCase();
+			const name = usefulName(value.label, value.value);
+			if (name) names.set(key, name);
+			else if (!annotation.caseSensitive && value.value !== key) inferredNames.set(key, value.value);
+		}
+		for (const value of tagAnnotation.values) {
+			const key = value.value.toLowerCase();
+			const name = usefulName(value.displayName, value.value);
+			if (name) names.set(key, name);
+			else if (!annotation.caseSensitive && value.value !== key) inferredNames.set(key, value.value);
+			value.value = annotation.caseSensitive ? value.value : key;
+		}
+
+		const tagValues = new Map(tagAnnotation.values.map(value => [value.value.toLowerCase(), value]));
+		const merged = new Map<string, NonNullable<NormalizedAnnotation['values']>[number]>();
+		for (const value of corpusValues) {
+			const key = value.value.toLowerCase();
+			const canonical = tagValues.get(key)?.value ?? value.value;
+			if (!merged.has(canonical)) merged.set(canonical, { value: canonical, label: names.get(key) ?? inferredNames.get(key) ?? canonical, title: value.title });
+		}
+		for (const value of tagAnnotation.values) {
+			const key = value.value.toLowerCase();
+			value.displayName = names.get(key) ?? inferredNames.get(key) ?? value.value;
+			if (!merged.has(value.value)) merged.set(value.value, { value: value.value, label: value.displayName, title: null });
+		}
+		const mergedValues = [...merged.values()];
+		if (!sameCorpusValues(annotation.values, mergedValues)) annotation.values = mergedValues;
+		if (annotation.uiType === 'text') annotation.uiType = 'select';
+
+		const displayName = usefulName(tagAnnotation.displayName, annotation.id) ?? usefulName(annotation.defaultDisplayName, annotation.id) ?? annotation.id;
+		annotation.defaultDisplayName = tagAnnotation.displayName = displayName;
+	};
+
+	merge(main, { values: Object.values(tagset.values) });
+	const mainValues = new Map(Object.values(tagset.values).map(value => [value.value.toLowerCase(), value.value]));
+	for (const sub of Object.values(tagset.subAnnotations)) {
+		const annotation = annotations[sub.id];
+		if (!annotation) continue;
+		for (const value of sub.values) value.pos = value.pos?.map(pos => mainValues.get(pos.toLowerCase()) ?? pos);
+		merge(annotation, sub);
 	}
+	return tagset;
 }
 
 const actions = {

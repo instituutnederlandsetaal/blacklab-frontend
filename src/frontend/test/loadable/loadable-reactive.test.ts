@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from 'vitest';
-import { nextTick, ref, shallowRef, watch, type Ref } from 'vue';
+import { nextTick, reactive, ref, shallowRef, watch, type Ref } from 'vue';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
 import { combine, combineOptional, combineLoadablesValue, mapLoadedValue, flatMapLoadedValue } from '@/shared/utils/loadable/loadable-combine';
@@ -24,6 +24,7 @@ import {
 	mapEmptyReactive,
 	mapErrorReactive,
 	flatMapReactive,
+	checkpointLoadedReactive,
 	mapOptionalReactive,
 	mapReactive,
 	mapLoadingReactive,
@@ -431,6 +432,88 @@ describe('mapLoadedReactive', () => {
 		expect(result.state).toBe(LoadableState.loaded);
 		expect(result.value).toBe(3);
 	});
+
+	test('does not collect dependencies from synchronous consumers during publication', async () => {
+		const source = createControlledLoadable(Loadable.Loading<{ values: string[] }>());
+		const mapper = vi.fn((value: { values: string[] }) => ({ value }));
+		const mapped = mapReactive(source.loadable, mapper);
+		const published = checkpointLoadedReactive(mapped, context => {
+			context.value.values = [...context.value.values];
+		});
+
+		source.value.value = { values: ['NOU'] };
+		source.state.value = LoadableState.loaded;
+		await nextTick();
+
+		expect(published.isLoaded()).toBe(true);
+		expect(mapper).toHaveBeenCalledTimes(1);
+
+		published.value!.value.values = [...published.value!.value.values, 'VRB'];
+		await nextTick();
+		expect(mapper).toHaveBeenCalledTimes(1);
+	});
+
+	test('tracks only the declared loadable source, not reactive reads inside the mapper', async () => {
+		const source: Ref<Loadable<number>> = ref(Loadable.Loaded(2));
+		const incidental = ref(10);
+		const mapper = vi.fn((value: number) => value + incidental.value);
+		const mapped = mapReactive(source, mapper);
+
+		expect(mapped.value).toBe(12);
+		incidental.value = 20;
+		await nextTick();
+		expect(mapper).toHaveBeenCalledTimes(1);
+		expect(mapped.value).toBe(12);
+
+		source.value = Loadable.Loaded(3);
+		await nextTick();
+		expect(mapper).toHaveBeenCalledTimes(2);
+		expect(mapped.value).toBe(23);
+	});
+
+	test('tracks nested input changes only when deep is enabled', async () => {
+		const value = reactive({ count: 1 });
+		const source: Ref<Loadable<{ count: number }>> = ref(Loadable.Loaded(value));
+		const shallowMapper = vi.fn((input: { count: number }) => input.count);
+		const deepMapper = vi.fn((input: { count: number }) => input.count);
+		const shallowMapped = mapReactive(source, shallowMapper);
+		const deepMapped = mapReactive(source, deepMapper, { deep: true });
+
+		value.count = 2;
+		await nextTick();
+
+		expect(shallowMapper).toHaveBeenCalledTimes(1);
+		expect(shallowMapped.value).toBe(1);
+		expect(deepMapper).toHaveBeenCalledTimes(2);
+		expect(deepMapped.value).toBe(2);
+	});
+
+	test('publishes state, value, and error as one synchronous snapshot', async () => {
+		const source = createControlledLoadable(Loadable.Loading<number>());
+		const mapped = mapReactive(source.loadable, value => value + 1);
+		const snapshots: Array<readonly [LoadableState, number | undefined, ApiError | undefined]> = [];
+
+		watch(
+			() => [mapped.state, mapped.value, mapped.error] as const,
+			snapshot => snapshots.push(snapshot),
+			{ immediate: true, flush: 'sync' },
+		);
+
+		source.value.value = 1;
+		source.state.value = LoadableState.loaded;
+		await nextTick();
+
+		const failure = new ApiError('boom', 'boom', 'broken', 500);
+		source.error.value = failure;
+		source.state.value = LoadableState.error;
+		await nextTick();
+
+		expect(snapshots).toEqual([
+			[LoadableState.loading, undefined, undefined],
+			[LoadableState.loaded, 2, undefined],
+			[LoadableState.error, undefined, failure],
+		]);
+	});
 });
 
 describe('state-specific reactive mappers', () => {
@@ -579,20 +662,22 @@ describe('loadableFromRequest', () => {
 });
 
 describe('loadableFromComputedRequest', () => {
-	test('retries when the request ref changes', async () => {
+	test('clears the previous generation and retries when the request ref changes', async () => {
 		const first = createDeferredRequest<number>();
 		const second = createDeferredRequest<number>();
 		const request = shallowRef(first.request);
 		const loadable = loadableFromComputedRequest(request);
 
+		first.resolve(1);
+		await flushPromises();
+		expect(loadable.value).toBe(1);
+
 		request.value = second.request;
 		await nextTick();
 
 		expect(first.cancel).toHaveBeenCalledTimes(1);
-
-		first.resolve(1);
-		await flushPromises();
 		expect(loadable.state).toBe(LoadableState.empty);
+		expect(loadable.value).toBeUndefined();
 
 		second.resolve(2);
 		await flushPromises();

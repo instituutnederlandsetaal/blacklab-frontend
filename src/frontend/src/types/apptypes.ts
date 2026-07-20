@@ -347,6 +347,8 @@ export type Tagset = {
 	subAnnotations: {
 		[key: string]: {
 			id: string;
+			/** Display name for the subannotation itself. */
+			displayName?: string;
 			/** The known values for the subannotation */
 			values: Array<{
 				value: string;

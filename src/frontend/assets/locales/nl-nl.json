@@ -149,7 +149,10 @@
 	"partOfSpeech": {
 		"noOptions": "Geen opties",
 		"submit": "Ok",
-		"reset": "Wissen"
+		"reset": "Wissen",
+		"cancel": "Annuleren",
+		"noneSelected": "Geen woordsoort geselecteerd",
+		"edit": "Bewerken"
 	},
 	"lexicon": {
 		"selectAll": "Alles selecteren",

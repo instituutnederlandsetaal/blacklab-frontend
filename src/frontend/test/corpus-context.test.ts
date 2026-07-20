@@ -1,4 +1,4 @@
-import { createMockBlackLabApi, createMockFrontendApi } from '@test/mocks/api';
+import { createMockBlackLabApi, createMockFrontendApi, resolvedRequest } from '@test/mocks/api';
 import { describe, expect, test, vi } from 'vitest';
 import { nextTick, ref, watch } from 'vue';
 
@@ -25,7 +25,7 @@ async function settleReactivity() {
 	}
 }
 
-function createIndex(): NormalizedIndex {
+function createIndex(id = 'new-corpus'): NormalizedIndex {
 	const word = {
 		custom: { displayName: 'Word' },
 		displayName: 'Word',
@@ -58,7 +58,7 @@ function createIndex(): NormalizedIndex {
 		displayName: 'New corpus',
 		documentCount: 1,
 		fieldInfo: {},
-		id: 'new-corpus',
+		id,
 		indexProgress: null,
 		mainAnnotatedField: 'contents',
 		metadataFieldGroups: [],
@@ -84,6 +84,43 @@ function createConfig(): CFPageConfig {
 		navbarLinks: [],
 		pageSize: null,
 	};
+}
+
+function createPosIndex(): NormalizedIndex {
+	const index = createIndex();
+	index.annotatedFields.contents.annotations = {
+		pos: {
+			annotatedFieldId: 'contents',
+			caseSensitive: false,
+			defaultDescription: '',
+			defaultDisplayName: 'Part of speech',
+			hasForwardIndex: true,
+			id: 'pos',
+			isInternal: false,
+			isMainAnnotation: true,
+			offsetsAlternative: '',
+			subAnnotations: ['number'],
+			uiType: 'pos',
+			values: [{ value: 'NOU', label: 'Noun', title: null }],
+		},
+		number: {
+			annotatedFieldId: 'contents',
+			caseSensitive: false,
+			defaultDescription: '',
+			defaultDisplayName: 'Number',
+			hasForwardIndex: true,
+			id: 'number',
+			isInternal: false,
+			isMainAnnotation: false,
+			offsetsAlternative: '',
+			parentAnnotationId: 'pos',
+			uiType: 'select',
+			values: [{ value: 'SG', label: 'Singular', title: null }],
+		},
+	} as NormalizedIndex['annotatedFields'][string]['annotations'];
+	index.annotatedFields.contents.mainAnnotationId = 'pos';
+	index.annotationGroups = [{ annotatedFieldId: 'contents', entries: ['pos', 'number'], id: 'Contents', isRemainderGroup: false }];
+	return index;
 }
 
 describe('corpus context publication', () => {
@@ -130,5 +167,43 @@ describe('corpus context publication', () => {
 		interopRevision.value += 1;
 		await settleReactivity();
 		expect(initializedCorpusIds).toEqual(['new-corpus']);
+	});
+
+	test('normalizes POS data exactly once before publishing the context', async () => {
+		const beforePublish = vi.fn();
+		const state = createCorpusContext(createMockBlackLabApi({ getCorpus: createPosIndex() }), createMockFrontendApi({ getConfig: createConfig(), getTagset: undefined }), 'new-corpus', {
+			beforePublish,
+		});
+
+		await settleReactivity();
+		await settleReactivity();
+
+		expect(state.contextLoader.isLoaded()).toBe(true);
+		expect(beforePublish).toHaveBeenCalledTimes(1);
+		expect(state.tagset.value?.values).toEqual({ NOU: { value: 'nou', displayName: 'Noun', subAnnotationIds: ['number'] } });
+		expect(state.corpus.value?.annotatedFields.contents.annotations.pos.values).toEqual([{ value: 'nou', label: 'Noun', title: null }]);
+	});
+
+	test('publishes distinct corpus-id generations through stable request loadables', async () => {
+		const corpusId = ref('first');
+		const publishedIds: string[] = [];
+		const getCorpus = vi.fn((id: string) => resolvedRequest(createIndex(id)));
+		const getConfig = vi.fn(() => resolvedRequest(createConfig()));
+		const getTagset = vi.fn(() => resolvedRequest(undefined));
+		const state = createCorpusContext(createMockBlackLabApi({ getCorpus }), createMockFrontendApi({ getConfig, getTagset }), corpusId, {
+			beforePublish: context => publishedIds.push(context.index!.id),
+		});
+
+		await settleReactivity();
+		expect(state.corpus.value?.id).toBe('first');
+
+		corpusId.value = 'second';
+		await settleReactivity();
+
+		expect(state.corpus.value?.id).toBe('second');
+		expect(publishedIds).toEqual(['first', 'second']);
+		expect(getCorpus.mock.calls.map(([id]) => id)).toEqual(['first', 'second']);
+		expect(getConfig).toHaveBeenCalledTimes(2);
+		expect(getTagset).toHaveBeenCalledTimes(2);
 	});
 });

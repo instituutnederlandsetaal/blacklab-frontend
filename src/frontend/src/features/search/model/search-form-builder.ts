@@ -1,4 +1,4 @@
-import { computed, shallowRef, watch, type ObjectPlugin, type Ref, type ShallowRef } from 'vue';
+import { shallowRef, watch, type ObjectPlugin, type Ref, type ShallowRef } from 'vue';
 
 import type { Corpus } from '@/app/state/useCorpusContext';
 import {
@@ -122,25 +122,26 @@ function createSharedFilters(context: BuildContext): ReturnType<FormBuilder['new
 
 	if (!groups.length) return null;
 
-	const tabs = builder.newContainer('shared.filters', ContainerRenderer, {
-		variant: ['tabs', 'tab-badges'],
+	const filters = builder.newContainer('shared.filters', ContainerRenderer, {
+		variant: groups.length > 1 ? ['tabs', 'tab-badges'] : undefined,
 	});
 
 	for (const { fields, group } of groups) {
-		const tab = builder.newContainer(`${tabs.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
-			title: () => translate.$tMetaGroupName(group) || group.id,
+		const groupContainer = builder.newContainer(`${filters.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
+			title: groups.length > 1 ? () => translate.$tMetaGroupName(group) || group.id : undefined,
+			variant: groups.length === 1 ? 'list' : undefined,
 		});
 		for (const field of fields) {
-			const nodeId = `${tab.id}.${toSafeHtmlId(field.id)}`;
+			const nodeId = `${groupContainer.id}.${toSafeHtmlId(field.id)}`;
 			const node = builder.getField(nodeId) ?? createFilterField(context, nodeId, field, group.id);
-			tab.addChildren(node);
+			groupContainer.addChildren(node);
 		}
-		tabs.addChildren(tab);
+		filters.addChildren(groupContainer);
 	}
 
 	return builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
 		builder.newView('shared.filters.heading', HeadingView, { title: () => translate.$t('filter.heading') }),
-		tabs,
+		filters,
 		builder.newView('shared.filters.summary', SummaryView, {
 			createTotals: createSearchFormTotalsFactory(corpus, blacklabApi),
 			summaryType: 'filter',
@@ -427,23 +428,19 @@ type SearchFormSystemPlugin = ObjectPlugin & {
 };
 
 const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchFormSystemPlugin => {
-	const definition = computed(() => {
-		const corpus = options.corpus.value;
-		if (!corpus) return null;
-		const tagset = options.tagset.value;
-		const configuration = options.configuration.value;
-		return createSearchFormDefinition(corpus, tagset, configuration, options.blacklabApi, options.translate);
-	});
 	const runtime = shallowRef<FormRuntime | null>(null);
 	watch(
-		definition,
-		currentDefinition => {
-			if (!currentDefinition) {
+		[options.corpus, options.tagset, options.configuration],
+		([corpus, tagset, configuration]) => {
+			if (!corpus) {
 				runtime.value = null;
 				return;
 			}
 
-			runtime.value = new FormRuntime(currentDefinition);
+			// Building the definition reads translations for option labels. Keep those
+			// reads out of the structural dependencies: a locale change must update the
+			// rendered labels, not replace the live form session and all of its state.
+			runtime.value = new FormRuntime(createSearchFormDefinition(corpus, tagset, configuration, options.blacklabApi, options.translate));
 		},
 		{ flush: 'sync', immediate: true },
 	);

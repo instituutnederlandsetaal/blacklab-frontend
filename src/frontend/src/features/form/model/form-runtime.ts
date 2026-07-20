@@ -10,9 +10,10 @@ import { renderFormNode } from '@/features/form/ui/renderable-graph';
 /**
  * A reactive form session for one static definition.
  *
- * The definition has no Vue state and can safely be rebuilt by a computed value.
- * All mutable state used by mounted components lives here; restoration produces
- * immutable snapshots that are cloned during hydration.
+ * The definition has no Vue state. All mutable state used by mounted components
+ * lives here, so the runtime should only be replaced when structural definition
+ * inputs change. Restoration produces immutable snapshots that are cloned during
+ * hydration.
  */
 export class FormRuntime {
 	public readonly state;

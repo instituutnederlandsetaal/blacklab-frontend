@@ -1,8 +1,8 @@
-import { unref, watchEffect, type MaybeRef, type UnwrapRef } from 'vue';
+import { unref, type DebuggerOptions, type MaybeRef, type UnwrapRef } from 'vue';
 
 import { combineLoadablesValue, combineLoadablesValueIncludingEmpty, type MaybeLoadable, type MaybeLoadablesArrayOrObject } from './loadable-combine';
 import { Loadable } from './loadable-core';
-import { createDerivedLoadable, mapReactive, flatMapReactive, type ControlledLoadable, type MaybeRefLoadable } from './loadable-reactive';
+import { createDerivedLoadable, mapReactive, flatMapReactive, type ControlledLoadable, type LoadableReactiveOptions, type MaybeRefLoadable } from './loadable-reactive';
 
 type MaybeRefLoadablesArray = readonly MaybeRefLoadable<unknown>[];
 type MaybeRefLoadablesObject = Record<string, MaybeRefLoadable<unknown>>;
@@ -36,36 +36,37 @@ function resolveMaybeRefLoadablesInput<T extends MaybeRefLoadablesArrayOrObject>
 	return unwrapLoadableRefs(loadables) as UnwrapLoadableRefs<T> & MaybeLoadablesArrayOrObject;
 }
 
-function forEachResolvedLoadable(loadables: MaybeLoadablesArrayOrObject, callback: (loadable: MaybeLoadable<unknown>) => void) {
-	(Array.isArray(loadables) ? loadables : Object.values(loadables)).forEach(callback);
+function loadableDependencies(loadables: MaybeRefLoadablesArrayOrObject): readonly MaybeRefLoadable<unknown>[] {
+	return Array.isArray(loadables) ? loadables : Object.values(loadables);
 }
 
+type CombineReactiveOptions = LoadableReactiveOptions & { includeEmpty?: boolean; debuggerOptions?: DebuggerOptions };
+
 export function combineReactive<T extends MaybeRefLoadablesArrayOrObject>(loadables: T): ControlledLoadable<ResolvedLoadedValues<T>>;
-export function combineReactive<T extends MaybeRefLoadablesArrayOrObject>(loadables: T, options: { includeEmpty: true }): ControlledLoadable<ResolvedLoadedValuesIncludingEmpty<T>>;
+export function combineReactive<T extends MaybeRefLoadablesArrayOrObject>(loadables: T, options: CombineReactiveOptions & { includeEmpty?: false }): ControlledLoadable<ResolvedLoadedValues<T>>;
 export function combineReactive<T extends MaybeRefLoadablesArrayOrObject>(
 	loadables: T,
-	options: { includeEmpty?: boolean } = {},
+	options: CombineReactiveOptions & { includeEmpty: true },
+): ControlledLoadable<ResolvedLoadedValuesIncludingEmpty<T>>;
+export function combineReactive<T extends MaybeRefLoadablesArrayOrObject>(
+	loadables: T,
+	options: CombineReactiveOptions = {},
 ): ControlledLoadable<ResolvedLoadedValues<T> | ResolvedLoadedValuesIncludingEmpty<T>> {
+	const { includeEmpty = false, debuggerOptions, ...reactiveOptions } = options;
 	return createDerivedLoadable<ResolvedLoadedValues<T> | ResolvedLoadedValuesIncludingEmpty<T>>(
-		applyLoadable =>
-			watchEffect(() => {
-				const resolved = resolveMaybeRefLoadablesInput(loadables);
-				const combined = (options.includeEmpty ? combineLoadablesValueIncludingEmpty(resolved) : Loadable.wrap(combineLoadablesValue(resolved))) as MaybeLoadable<
-					ResolvedLoadedValues<T> | ResolvedLoadedValuesIncludingEmpty<T>
-				>;
-				applyLoadable(combined);
-			}),
+		() => loadableDependencies(loadables),
 		() => {
 			const resolved = resolveMaybeRefLoadablesInput(loadables);
-			const retryables: MaybeLoadable<unknown>[] = [];
-			forEachResolvedLoadable(resolved, loadable => retryables.push(loadable));
-			return retryables;
+			return (includeEmpty ? combineLoadablesValueIncludingEmpty(resolved) : Loadable.wrap(combineLoadablesValue(resolved))) as MaybeLoadable<
+				ResolvedLoadedValues<T> | ResolvedLoadedValuesIncludingEmpty<T>
+			>;
 		},
+		{ ...debuggerOptions, ...reactiveOptions },
 	);
 }
 
-export function combineOptionalReactive<T extends MaybeRefLoadablesArrayOrObject>(loadables: T): ControlledLoadable<ResolvedLoadedValuesIncludingEmpty<T>> {
-	return combineReactive(loadables, { includeEmpty: true });
+export function combineOptionalReactive<T extends MaybeRefLoadablesArrayOrObject>(loadables: T, options?: LoadableReactiveOptions): ControlledLoadable<ResolvedLoadedValuesIncludingEmpty<T>> {
+	return combineReactive(loadables, { includeEmpty: true, ...options });
 }
 
 export const combineLoadables = combineReactive;

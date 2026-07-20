@@ -89,9 +89,17 @@ export function createSearchFormNodeFactory({
 					showLabel: options.showLabel,
 					showQueryPreview: true,
 					subAnnotations: Object.fromEntries(
-						(annotation.subAnnotations ?? [])
-							.map(subAnnotationId => [subAnnotationId, corpus.allAnnotatedFieldsMap[annotation.annotatedFieldId]?.annotations[subAnnotationId]])
-							.filter((entry): entry is [string, NormalizedAnnotation] => !!entry[1]),
+						[...new Set([...(annotation.subAnnotations ?? []), ...Object.keys(tagset.subAnnotations)])].map(subAnnotationId => {
+							const corpusAnnotation = corpus.allAnnotatedFieldsMap[annotation.annotatedFieldId]?.annotations[subAnnotationId];
+							return [
+								subAnnotationId,
+								corpusAnnotation ?? {
+									id: subAnnotationId,
+									defaultDisplayName: tagset.subAnnotations[subAnnotationId]?.displayName ?? subAnnotationId,
+									defaultDescription: '',
+								},
+							];
+						}),
 					),
 					tagset,
 					variant: options.variant,

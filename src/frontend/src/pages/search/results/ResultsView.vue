@@ -403,20 +403,10 @@ export default defineComponent({
 		},
 
 		refreshParameters(): string {
-			/*
-				NOTE: we return this as a string so we can remove properties
-				If we don't the watcher on this computed will fire regardless
-				because some property somewhere in the object is a new instance and thus not equal...
-				This would cause new results to be requested even when just changing the table display mode...
-			*/
-			return jsonStableStringify({
-				global: GlobalStore.getState(),
-				self: {
-					...this.store.getState(),
-					groupDisplayMode: null, // ignore this property
-				} as Partial<ResultsStore.ViewRootState>,
-				query: QueryStore.getState(),
-			});
+			// Refresh only when the request sent to BlackLab changes. The submitted
+			// form snapshot also contains presentation data (localized summaries and
+			// encoded form state), none of which changes the result set.
+			return jsonStableStringify(RootStore.get.blacklabParameters());
 		},
 
 		/** When these change, the form has been resubmitted, so we need to initiate a scroll event */

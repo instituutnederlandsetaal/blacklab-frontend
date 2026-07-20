@@ -1,6 +1,6 @@
 import { computed, hasInjectionContext, toValue, type FunctionPlugin, type MaybeRefOrGetter, type Ref } from 'vue';
 
-import { processTagset } from '@/features/corpus/model/tagset-state';
+import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type {
 	CFPageConfig,
 	NormalizedAnnotatedField,
@@ -17,7 +17,7 @@ import type { BlackLabApi, CancelableRequest, FrontendApi } from '@/shared/api/l
 import { resolvedRequest } from '@/shared/api/lib/api-utils';
 import { mapReduce } from '@/shared/utils/array-utils';
 import { combineLoadables } from '@/shared/utils/loadable/loadable-combine-reactive';
-import { loadableFromRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
+import { loadableFromComputedRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
 import { checkpointLoadedReactive } from '@/shared/utils/loadable/loadable-reactive';
 import useInjectable from '@/shared/utils/useInjectable';
 
@@ -167,24 +167,19 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 	const getConfig = (id: string | undefined | null): CancelableRequest<CFPageConfig> => frontend.getConfig(id ?? null);
 	const getTagset = (id: string | undefined | null): CancelableRequest<Tagset | undefined> => (id ? frontend.getTagset(id) : resolvedRequest<Tagset | undefined>(undefined));
 
-	const corpusLoadable = computed(() => loadableFromRequest(() => getCorpus(toValue(corpusId)).then(index => (index ? createCorpusValue(index) : undefined))));
-	const configLoadable = computed(() => loadableFromRequest(() => getConfig(toValue(corpusId))));
-	const tagsetLoadable = computed(() => loadableFromRequest(() => getTagset(toValue(corpusId))));
-	const loadedContext: LoadableFromRequest<CorpusContext> = combineLoadables({ index: corpusLoadable, config: configLoadable, tagset: tagsetLoadable }).map(({ index, config, tagset }) => {
-		if (index) {
-			if (tagset) {
-				const annots = index.annotatedFields[index.mainAnnotatedField].annotations;
-				// `TODO the 'pos' annotation should probably be sourced from the tagset, but our current tagset does't contain that info
-				// so we need to rely on the uiType, which we eventually want to remove from BlackLab if possible.
-				const mainAnnot = Object.values(annots).find(a => a.uiType === 'pos');
-				if (mainAnnot) {
-					processTagset(mainAnnot, annots, tagset);
-				}
-			}
-		}
-		return { index, config, tagset };
-	});
+	// These loadables retain their identity for the lifetime of the context. A corpus
+	// id change replaces only their request, so downstream combiners never have to
+	// subscribe to computed factories that create and discard reactive loadables.
+	const corpusLoadable = loadableFromComputedRequest(computed(() => getCorpus(toValue(corpusId)).then(index => (index ? createCorpusValue(index) : undefined))));
+	const configLoadable = loadableFromComputedRequest(computed(() => getConfig(toValue(corpusId))));
+	const tagsetLoadable = loadableFromComputedRequest(computed(() => getTagset(toValue(corpusId))));
+	const loadedContext: LoadableFromRequest<CorpusContext> = combineLoadables({ index: corpusLoadable, config: configLoadable, tagset: tagsetLoadable });
 	const publishedContext = checkpointLoadedReactive(loadedContext, context => {
+		if (context.index) {
+			const annotations = context.index.annotatedFields[context.index.mainAnnotatedField].annotations;
+			const mainAnnotation = Object.values(annotations).find(annotation => annotation.uiType === 'pos');
+			if (mainAnnotation) context.tagset = normalizeTagset(mainAnnotation, annotations, context.tagset);
+		}
 		options.beforePublish?.(context);
 	});
 
