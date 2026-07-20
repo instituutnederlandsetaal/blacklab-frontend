@@ -714,11 +714,11 @@ describe('controller persistence codecs', () => {
 		expect(encoded).toBe('r.c=1;r.v={a:b;c:d\\;e;escaped:x\\\\y}');
 		expect(codec.decode(encoded, undefined)).toEqual(state);
 		expect(scalar().mapped({ strict: 's', permissive: 'p' }).decode('p', undefined)).toBe('permissive');
-		expect(() => scalar().mapped({ one: 'x', two: 'x' })).toThrow();
+		expect(() => scalar().mapped({ one: 'x', two: 'x' })).throws();
 		const keyCodec = record(scalar()).mapKeys({ firstName: 'f', lastName: 'l' });
 		expect(keyCodec.encode({ firstName: 'Ada', lastName: 'Lovelace' }, undefined)).toBe('f:Ada;l:Lovelace');
 		expect(keyCodec.decode('f:Ada;l:Lovelace', undefined)).toEqual({ firstName: 'Ada', lastName: 'Lovelace' });
-		expect(() => keyCodec.decode('unknown:value', undefined)).toThrow();
+		expect(() => keyCodec.decode('unknown:value', undefined)).throws();
 	});
 
 	test('supports rest properties, cloned defaults, custom omission, and strict object errors', () => {
@@ -737,10 +737,12 @@ describe('controller persistence codecs', () => {
 		expect(restoredUnusualKeys).toEqual(unusualKeys);
 		expect(Object.getPrototypeOf(restoredUnusualKeys)).toBe(Object.prototype);
 		expect(Object.hasOwn(restoredUnusualKeys, '__proto__')).toBe(true);
-		const scopedRestCodec = object({ known: scalar().default('').at('k') }).restProperties(scalar()).scoped('r');
+		const scopedRestCodec = object({ known: scalar().default('').at('k') })
+			.restProperties(scalar())
+			.scoped('r');
 		expect(scopedRestCodec.decode(scopedRestCodec.encode(unusualKeys, undefined), undefined)).toEqual(unusualKeys);
-		expect(() => codec.encode({ known: 'yes', k: 'collision' }, undefined)).toThrow();
-		expect(() => codec.decode('k=yes;known=collision', undefined)).toThrow();
+		expect(() => codec.encode({ known: 'yes', k: 'collision' }, undefined)).throws();
+		expect(() => codec.decode('k=yes;known=collision', undefined)).throws();
 
 		const prototypeRecord = Object.fromEntries([['__proto__', 'value']]);
 		const restoredPrototypeRecord = record(scalar()).decode(record(scalar()).encode(prototypeRecord, undefined), undefined);
@@ -764,11 +766,11 @@ describe('controller persistence codecs', () => {
 			.transform<{ value: string }>({ encode: value => value, decode: value => value })
 			.scoped('r');
 		expect(transformedScope.encode({ value: 'yes' }, undefined)).toBe('r.v=yes');
-		expect(() => object({ value: scalar().at('v') }).decode('v=one;v=two', undefined)).toThrow();
-		expect(() => object({ first: scalar().at('v'), second: scalar().at('v') })).toThrow();
-		expect(() => object({ value: scalar().at('v') }).decode('v=one;unknown=one', undefined)).toThrow();
-		expect(() => object({ value: scalar().at('v') }).decode('v=a{;unknown=x}', undefined)).toThrow();
-		expect(() => array(scalar()).decode('one\\', undefined)).toThrow();
+		expect(() => object({ value: scalar().at('v') }).decode('v=one;v=two', undefined)).throws();
+		expect(() => object({ first: scalar().at('v'), second: scalar().at('v') })).throws();
+		expect(() => object({ value: scalar().at('v') }).decode('v=one;unknown=one', undefined)).throws();
+		expect(() => object({ value: scalar().at('v') }).decode('v=a{;unknown=x}', undefined)).throws();
+		expect(() => array(scalar()).decode('one\\', undefined)).throws();
 	});
 
 	test('shares scalar and selection representations across compatible controllers', () => {
@@ -776,17 +778,17 @@ describe('controller persistence codecs', () => {
 		expect(restore(filterCheckboxController, 'one,two', selectConfig)).toEqual(['one', 'two']);
 		expect(restore(annotationSelectController, 'one,two', annotationConfig)).toEqual(['one', 'two']);
 		expect(restore(filterRadioController, 'one', selectConfig)).toBe('one');
-		expect(() => restore(filterSelectController, 'one,removed', selectConfig)).toThrow();
+		expect(() => restore(filterSelectController, 'one,removed', selectConfig)).throws();
 	});
 
 	test('rejects repeated controller query values centrally', () => {
-		expect(() => restore(filterRadioController, ['one', 'two'], selectConfig)).toThrow();
+		expect(() => restore(filterRadioController, ['one', 'two'], selectConfig)).throws();
 	});
 
 	test('uses compact structured codecs for ranges, dates, part-of-speech, and within state', () => {
 		const rangeConfig = { kind: 'field' as const, id: 'range', displayName: 'Range', metadataFieldId: 'range' };
 		expect(restore(filterRangeController, 'l=10;h=20', rangeConfig)).toEqual({ low: '10', high: '20', mode: 'strict' });
-		expect(() => restore(filterRangeController, '10', rangeConfig)).toThrow();
+		expect(() => restore(filterRangeController, '10', rangeConfig)).throws();
 
 		const dateConfig = { kind: 'field' as const, id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true };
 		expect(restore(filterDateController, 's=2020-01-02;e=2021-03-04;m=p', dateConfig)).toEqual({
@@ -794,8 +796,8 @@ describe('controller persistence codecs', () => {
 			endDate: { y: '2021', m: '03', d: '04' },
 			mode: 'permissive',
 		});
-		expect(() => restore(filterDateController, 's=2020;m=unknown', dateConfig)).toThrow();
-		expect(() => restore(filterDateController, 's=2020-01-02-extra', dateConfig)).toThrow();
+		expect(() => restore(filterDateController, 's=2020;m=unknown', dateConfig)).throws();
+		expect(() => restore(filterDateController, 's=2020-01-02-extra', dateConfig)).throws();
 		expect(restore(annotationPosController, 'v=VERB;s={past,plural}', {} as never)).toEqual({ annotationValue: 'VERB', selected: { past: true, plural: true } });
 		const withinConfig = {
 			kind: 'field' as const,
@@ -803,8 +805,8 @@ describe('controller persistence codecs', () => {
 			options: [{ value: 's', label: 'Sentence', attributes: [{ value: 'type', label: 'Type' }] }],
 		};
 		expect(restore(withinController, 'e=s;a={type:quote}', withinConfig)).toEqual({ element: 's', attributes: { type: 'quote' } });
-		expect(() => restore(withinController, 'e=removed', withinConfig)).toThrow();
-		expect(() => restore(withinController, 'e=s;a={removed:value}', withinConfig)).toThrow();
+		expect(() => restore(withinController, 'e=removed', withinConfig)).throws();
+		expect(() => restore(withinController, 'e=s;a={removed:value}', withinConfig)).throws();
 	});
 
 	test('round-trips parallel state with explicit targets and nested controller payloads', () => {
@@ -821,8 +823,8 @@ describe('controller persistence codecs', () => {
 		const restored = restore(parallelController, encoded!, parallelConfig);
 		expect(restored).toEqual({ ...state, childStates: { contents__en: '[lemma="test"]', contents__nl: '[lemma="proef"]' } });
 		expect(restore(parallelController, encode(parallelController, restored, parallelConfig)!, parallelConfig)).toEqual(restored);
-		expect(() => restore(parallelController, 't={contents__fr}', parallelConfig)).toThrow();
-		expect(() => restore(parallelController, 'a=removed', parallelConfig)).toThrow();
+		expect(() => restore(parallelController, 't={contents__fr}', parallelConfig)).throws();
+		expect(() => restore(parallelController, 'a=removed', parallelConfig)).throws();
 	});
 
 	test('preserves selected parallel targets with default child state', () => {
@@ -846,10 +848,10 @@ describe('controller persistence codecs', () => {
 			...queryBuilderConfig,
 			options: { ...queryBuilderConfig.options, defaultAnnotationId: 'lemma', annotationOptions: [{ value: 'lemma', label: 'Lemma' }] },
 		};
-		expect(() => restore(queryBuilderController, encoded!, currentConfig)).toThrow();
-		expect(() => restore(queryBuilderController, encoded!.replace('x=3', 'x=-1'), queryBuilderConfig)).toThrow();
-		expect(() => restore(queryBuilderController, encoded!.replace('x=3', 'x=1.5'), queryBuilderConfig)).toThrow();
-		expect(() => restore(queryBuilderController, encoded!.replace('x=3', 'x=0'), queryBuilderConfig)).toThrow();
+		expect(() => restore(queryBuilderController, encoded!, currentConfig)).throws();
+		expect(() => restore(queryBuilderController, encoded!.replace('x=3', 'x=-1'), queryBuilderConfig)).throws();
+		expect(() => restore(queryBuilderController, encoded!.replace('x=3', 'x=1.5'), queryBuilderConfig)).throws();
+		expect(() => restore(queryBuilderController, encoded!.replace('x=3', 'x=0'), queryBuilderConfig)).throws();
 		expect(encode(queryBuilderController, queryBuilderController.createDefaultState(queryBuilderConfig, context), queryBuilderConfig)).toBeNull();
 	});
 
@@ -880,6 +882,6 @@ describe('controller persistence codecs', () => {
 			range: true,
 		};
 
-		expect(() => restore(filterDateController, 's=2020;unexpected=value', dateConfig)).toThrow();
+		expect(() => restore(filterDateController, 's=2020;unexpected=value', dateConfig)).throws();
 	});
 });
