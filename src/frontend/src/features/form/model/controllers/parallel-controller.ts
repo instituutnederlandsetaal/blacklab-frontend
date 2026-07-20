@@ -7,8 +7,9 @@ import {
 } from '@/features/form/fields/parallel-field';
 import { getFieldQueryContribution } from '@/features/form/model/compile';
 import { queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, encodePersistObject, joinPersistValues } from '@/features/form/model/controllers/persistence-codec';
-import { defineFieldController, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import { array, object, record, scalar } from '@/features/form/model/controllers/persistence-codec';
+import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import type { ParallelFieldState } from '@/features/form/fields/parallel-field';
 import type { SummaryEntry } from '@/features/form/model/types/form-query';
 
 import { findOption } from '@/shared/utils/options';
@@ -21,64 +22,75 @@ function translatedAlignBy(config: FieldControllerProps<ParallelFieldConfig>, ru
 	return runtime.translate.$tAlignByDisplayName(findOption(config.alignByOptions ?? [], alignBy) ?? { value: alignBy });
 }
 
-const CHILD_PREFIX = 'parallel.';
-
-function childPersistKey(fieldId: string): string {
-	return `${CHILD_PREFIX}${fieldId}`;
-}
-
 function getParallelChildContribution(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown) {
 	return getFieldQueryContribution(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime));
 }
 
+type PersistedParallelState = {
+	source: string | null;
+	alignBy: string | null;
+	targets: string[];
+	childPayloads: Record<string, string>;
+};
+
+const nullableScalar = scalar().transform<string | null>({ encode: value => value ?? '', decode: value => value || null });
+
+const persistedParallelCodec = object({
+	source: nullableScalar.default(({ config, runtime }) => createDefaultParallelFieldState(config, runtime).source).at('s'),
+	alignBy: nullableScalar.default(({ config, runtime }) => createDefaultParallelFieldState(config, runtime).alignBy).at('a'),
+	targets: array(scalar()).default([]).at('t'),
+	childPayloads: record(scalar()).default({}).at('q'),
+});
+
+const parallelPersistenceCodec = persistedParallelCodec
+	.transform<ParallelFieldState>({
+		encode(state, { config, runtime }): PersistedParallelState {
+			const childPayloads: Record<string, string> = {};
+			for (const fieldId of new Set([state.source, ...state.targets].filter((id): id is string => id != null))) {
+				const childState = state.childStates[fieldId] ?? createDefaultParallelChildState(config, runtime);
+				const payload = encodeFieldState(config.childFieldTemplate, childState, runtime);
+				if (payload) childPayloads[fieldId] = payload;
+			}
+			return { source: state.source, alignBy: state.alignBy, targets: state.targets, childPayloads };
+		},
+		decode(state, { config, runtime }) {
+			const availableFields = new Set(config.fieldOptions.map((option: ParallelAnnotatedField) => option.id));
+			if (state.source != null && !availableFields.has(state.source)) {
+				throw new Error(`Cannot restore parallel source '${state.source}' because it is not present in the current field options.`);
+			}
+			if (new Set(state.targets).size !== state.targets.length) throw new Error('Cannot restore duplicate parallel targets.');
+			for (const target of state.targets) {
+				if (target === state.source) throw new Error(`Cannot restore parallel target '${target}' because it is also the selected source.`);
+				if (!availableFields.has(target)) throw new Error(`Cannot restore parallel field '${target}' because it is not present in the current field options.`);
+			}
+			if (state.alignBy != null && state.alignBy !== config.defaultAlignBy && !findOption(config.alignByOptions ?? [], state.alignBy)) {
+				throw new Error(`Cannot restore parallel alignment '${state.alignBy}' because it is not available in the current form.`);
+			}
+			const activeFields = [state.source, ...state.targets].filter((fieldId): fieldId is string => fieldId != null);
+			const unexpectedPayload = Object.keys(state.childPayloads).find(fieldId => !activeFields.includes(fieldId));
+			if (unexpectedPayload) throw new Error(`Cannot restore inactive parallel field '${unexpectedPayload}'.`);
+			return {
+				source: state.source,
+				targets: state.targets,
+				alignBy: state.alignBy,
+				childStates: Object.fromEntries(
+					activeFields.map(fieldId => [
+						fieldId,
+						state.childPayloads[fieldId] != null
+							? restoreFieldState(config.childFieldTemplate, state.childPayloads[fieldId], runtime)
+							: createDefaultParallelChildState(config, runtime),
+					]),
+				),
+			};
+		},
+	})
+	.default(({ config, runtime }) => createDefaultParallelFieldState(config, runtime));
+
 export const parallelController = defineFieldController<'parallel', ParallelFieldDefinition>({
 	kind: 'parallel',
 	createDefaultState: createDefaultParallelFieldState,
-	getPersistKey: () => 'parallel',
+	persistence: { key: () => 'parallel', codec: parallelPersistenceCodec },
 	affectsBlackLabParameters: ['searchfield', 'patt'],
-	encode(state, config, runtime) {
-		const childConfig = config.childFieldTemplate;
-		const defaultState = createDefaultParallelFieldState(config, runtime);
-		const values: Record<string, string | null | undefined> = {
-			source: state.source !== defaultState.source ? state.source : undefined,
-			align: state.alignBy !== defaultState.alignBy ? state.alignBy : undefined,
-		};
-		for (const fieldId of new Set([state.source, ...state.targets].filter((id): id is string => id != null))) {
-			const encoded = childConfig.controller.encode(state.childStates[fieldId] ?? createDefaultParallelChildState(config, runtime), childConfig, runtime);
-			const value = Array.isArray(encoded) ? joinPersistValues(encoded) : encoded;
-			if (value || state.targets.includes(fieldId)) values[childPersistKey(fieldId)] = value ?? '';
-		}
-		return encodePersistObject(values, true);
-	},
-	restore(payload, config, runtime) {
-		const fields = new Set(config.fieldOptions.map(option => option.id));
-		const defaults = createDefaultParallelFieldState(config, runtime);
-		const restored = decodePersistObject(payload);
-		const source = restored.source ?? defaults.source;
-		if (source != null && !fields.has(source)) throw new Error(`Cannot restore parallel source '${source}' because it is not present in the current field options.`);
-		const unknownKeys = Object.keys(restored).filter(key => key !== 'source' && key !== 'align' && !key.startsWith(CHILD_PREFIX));
-		if (unknownKeys.length) throw new Error(`Cannot restore parallel field with unsupported keys: ${unknownKeys.join(', ')}.`);
-		const persistedFields = Object.keys(restored)
-			.filter(key => key.startsWith(CHILD_PREFIX))
-			.map(key => key.slice(CHILD_PREFIX.length));
-		for (const fieldId of persistedFields) {
-			if (!fields.has(fieldId)) throw new Error(`Cannot restore parallel field '${fieldId}' because it is not present in the current field options.`);
-		}
-		const targets = persistedFields.filter(fieldId => fieldId !== source);
-		const activeFields = [source, ...targets].filter((fieldId): fieldId is string => fieldId != null);
-		const childStates = Object.fromEntries(
-			activeFields.map(fieldId => {
-				const childPayload = restored[childPersistKey(fieldId)];
-				return [fieldId, childPayload ? config.childFieldTemplate.controller.restore(childPayload, config.childFieldTemplate, runtime) : createDefaultParallelChildState(config, runtime)];
-			}),
-		);
-		return {
-			source: source ?? null,
-			targets,
-			alignBy: restored.align ?? defaults.alignBy,
-			childStates,
-		};
-	},
 	getQueryContribution(config, runtime, state) {
 		const sourceContribution = state.source != null ? getParallelChildContribution(config, runtime, state.childStates[state.source]) : null;
 		const targetContributions = state.targets.map(fieldId => ({

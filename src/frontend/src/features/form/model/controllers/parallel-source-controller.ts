@@ -1,9 +1,9 @@
 import { toValue } from 'vue';
 
-import type { SelectFieldDefinition, SelectFieldState } from '@/features/form/fields/generic/select-field';
+import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { queryFragment } from '@/features/form/model/compile/query-artifact';
-import { decodePersistSingleSelection } from '@/features/form/model/controllers/persistence-codec';
-import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
+import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
+import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 
 import { findOption, optionLabel, optionValues } from '@/shared/utils/options';
 
@@ -12,31 +12,27 @@ export type ParallelSourceControllerConfig = {
 	/** Stable and unique within the containing form. */
 	persistKey: string;
 };
-export type ParallelSourceFieldConfig = FieldControllerConfig<SelectFieldDefinition, ParallelSourceControllerConfig>;
+export type ParallelSourceFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, ParallelSourceControllerConfig>;
 
-function defaultState(config: ParallelSourceFieldConfig): SelectFieldState {
+function defaultState(config: ParallelSourceFieldConfig): string {
 	const values = optionValues(config.options);
 	const source = config.defaultSource && values.includes(config.defaultSource) ? config.defaultSource : (values[0] ?? null);
-	return source ? [source] : [];
+	return source ?? '';
 }
 
+const persistenceCodec = stringPersistenceCodec(({ config }: FieldPersistenceContext<ParallelSourceFieldConfig>) => defaultState(config))
+	.refine((value, { config }) => {
+		return !value || findOption(config.options, value) ? undefined : `Cannot restore parallel source '${value}' because it is not present in the current options.`;
+	});
+
 /** Source-version selector for Explore forms; it contributes no CQL pattern. */
-export const parallelSourceController = defineFieldController<'parallel-source', SelectFieldDefinition, ParallelSourceControllerConfig>({
+export const parallelSourceController = defineFieldController<'parallel-source', SingleSelectFieldDefinition, ParallelSourceControllerConfig>({
 	kind: 'parallel-source',
 	createDefaultState: defaultState,
-	getPersistKey: config => config.persistKey,
+	persistence: { key: config => config.persistKey, codec: persistenceCodec },
 	affectsBlackLabParameters: ['searchfield'],
-	encode(state) {
-		return state[0] || null;
-	},
-	restore(payload, config) {
-		const source = decodePersistSingleSelection(payload);
-		if (!source) return defaultState(config);
-		if (findOption(config.options, source)) return [source];
-		throw new Error(`Cannot restore parallel source '${source}' because it is not present in the current options.`);
-	},
 	getQueryContribution(config, _runtime, state) {
-		const source = state[0];
+		const source = state;
 		if (!source) return queryFragment();
 		const option = findOption(config.options, source);
 		return queryFragment(

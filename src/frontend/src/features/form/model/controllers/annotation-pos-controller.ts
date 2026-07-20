@@ -1,34 +1,28 @@
 import { buildAnnotationPosPattern, createDefaultAnnotationPosFieldState, summarizeAnnotationPosState, type AnnotationPosFieldDefinition } from '@/features/form/fields/annotation-pos-field';
 import { cqlRaw, queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
-import { decodePersistRecord, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import { array, object, scalar } from '@/features/form/model/controllers/persistence-codec';
 import type { QueryFragment } from '@/features/form/model/types';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
+
+const persistenceCodec = object({
+	annotationValue: scalar()
+		.transform<string | null>({ encode: value => value ?? '', decode: value => value || null })
+		.default(null)
+		.at('v'),
+	selected: array(scalar())
+		.transform<Record<string, boolean>>({
+			encode: selected => Object.entries(selected).filter(([, value]) => value).map(([key]) => key),
+			decode: selected => Object.fromEntries(selected.map(key => [key, true])),
+		})
+		.default({})
+		.at('s'),
+}).default({ annotationValue: null, selected: {} });
 
 export const annotationPosController = defineFieldController<'annotation-pos', AnnotationPosFieldDefinition>({
 	kind: 'annotation-pos',
 	createDefaultState: createDefaultAnnotationPosFieldState,
-	getPersistKey: config => config.annotation.id,
+	persistence: { key: config => config.annotation.id, codec: persistenceCodec },
 	affectsBlackLabParameters: ['patt'],
-	encode(state) {
-		const selected = Object.entries(state.selected ?? {})
-			.filter(([, isSelected]) => isSelected)
-			.map(([key]) => key);
-		return encodePersistObject({
-			value: state.annotationValue,
-			selected: selected.length ? joinPersistValues(selected) : undefined,
-		});
-	},
-	restore(payload) {
-		const restored = decodePersistRecord(payload, ['value', 'selected'], 'part-of-speech field');
-		return {
-			annotationValue: restored.value || null,
-			selected: Object.fromEntries(
-				splitPersistValue(restored.selected ?? '')
-					.filter(Boolean)
-					.map(key => [key, true]),
-			),
-		};
-	},
 	getQueryContribution(config, runtime, state) {
 		const pattern = buildAnnotationPosPattern(config, state);
 		if (!pattern) return queryFragment();

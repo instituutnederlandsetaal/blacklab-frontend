@@ -1,7 +1,7 @@
 import { createMockI18n } from '@test/mocks/i18n';
 import { defineComponent, h, toValue, type PropType } from 'vue';
 
-import { FormBuilder, FormRuntime, defineFieldController, useFormSystemRuntime, useParentForm, type FormRuntimeContext, type NamedFieldDefinition } from '@/features/form';
+import { FormBuilder, FormRuntime, defineFieldController, object, scalar, useFormSystemRuntime, useParentForm, type FormRuntimeContext, type NamedFieldDefinition } from '@/features/form';
 import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 
 export type TestTextFieldState = {
@@ -59,16 +59,11 @@ export const TestTextField = defineComponent({
 export const testTextController = defineFieldController<'test-text', TestTextFieldDefinition>({
 	kind: 'test-text',
 	createDefaultState: () => ({ value: '' }),
-	getPersistKey: config => config.annotationId,
+	persistence: {
+		key: config => config.annotationId,
+		codec: object({ value: scalar().default('').atRoot() }).default({ value: '' }),
+	},
 	affectsBlackLabParameters: ['patt'],
-	encode(state) {
-		return state.value || null;
-	},
-	restore(payload) {
-		return {
-			value: Array.isArray(payload) ? (payload[0] ?? '') : payload,
-		};
-	},
 	getQueryContribution(config, _runtime, state) {
 		const pattern = token(tokenPredicate('wildcard', config.annotationId, state.value, false));
 		return queryFragment(

@@ -4,11 +4,10 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
 import { nextTick } from 'vue';
 
-import { createFormFieldNode, defineFieldController, FormRuntime, FormSystem } from '@/features/form';
+import { createFormFieldNode, defineFieldController, FormRuntime, FormSystem, object, restoreControllerState, scalar } from '@/features/form';
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
-import type { TokenSequenceFieldState } from '@/features/form/fields/token-sequence-field';
+import type { TokenSequenceCreateField, TokenSequenceFieldState } from '@/features/form/fields/token-sequence-field';
 import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, encodePersistObject } from '@/features/form/model/controllers/persistence-codec';
 import { tokenSequenceController } from '@/features/form/model/controllers/token-sequence-controller';
 
 import { createTestBuilder } from './helpers';
@@ -27,14 +26,19 @@ type ChildControllerConfig = {
 const childController = defineFieldController<'token-sequence-test-child', TextFieldDefinition, ChildControllerConfig>({
 	kind: 'token-sequence-test-child',
 	createDefaultState: createDefaultTextFieldState,
-	getPersistKey: config => config.persistKey,
-	affectsBlackLabParameters: ['patt'],
-	encode: state => state.value || null,
-	restore(payload) {
-		const value = Array.isArray(payload) ? (payload[0] ?? '') : payload;
-		if (value === 'invalid') throw new Error('nested child error');
-		return { value, caseSensitive: false };
+	persistence: {
+		key: config => config.persistKey,
+		codec: object({
+			value: scalar()
+				.default('')
+				.atRoot()
+				.refine(value => {
+					if (value === 'invalid') throw new Error('nested child error');
+				}),
+			caseSensitive: scalar().transform<boolean>({ encode: value => (value ? '1' : '0'), decode: value => value === '1' }).default(false).at('c'),
+		}).default(createDefaultTextFieldState()),
 	},
+	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state) {
 		if (!state.value) return queryFragment();
 		return queryFragment(token(tokenPredicate('wildcard', config.annotationId, state.value, state.caseSensitive)));
@@ -44,13 +48,13 @@ const childController = defineFieldController<'token-sequence-test-child', TextF
 function createFixture() {
 	const builder = createTestBuilder();
 	const sequence = builder.newField('explore.ngram.tokens', tokenSequenceController, TokenSequenceField, {
-		createField: ({ annotationId, ...binding }) =>
+		createField: (({ annotationId, ...binding }) =>
 			createFormFieldNode(binding, childController, TextField, {
 				annotationId,
 				displayName: annotationId === 'word' ? 'Word' : 'Lemma',
 				persistKey: `${annotationId}-value`,
 				showLabel: false,
-			}),
+			})) satisfies TokenSequenceCreateField,
 		selectorOptions: [
 			{ value: 'word', label: 'Word' },
 			{ value: 'lemma', label: 'Lemma' },
@@ -134,15 +138,10 @@ describe('token sequence composite field', () => {
 		] satisfies TokenSequenceFieldState;
 		const encoded = runtime.compile('explore.ngram').encoded['f.ngram-tokens'];
 		expect(typeof encoded).toBe('string');
-		expect(decodePersistObject(encoded!)).toEqual({
-			length: '2',
-			'token.0.field': 'word',
-			'token.0.word-value': 'a,b;c=d',
-			'token.1.field': 'lemma',
-			'token.1.lemma-value': 'lopen',
-		});
+		expect(encoded).toContain('f=word');
+		expect(encoded).toContain('f=lemma');
 
-		const restored = tokenSequenceController.restore(encoded!, runtime.definition.getField('explore.ngram.tokens') as never, runtime.definition.context);
+		const restored = restoreControllerState(tokenSequenceController, encoded!, runtime.definition.getField('explore.ngram.tokens') as never, runtime.definition.context);
 		expect(restored).toEqual([
 			{ fieldId: 'word', fieldState: { value: 'a,b;c=d', caseSensitive: false } },
 			{ fieldId: 'lemma', fieldState: { value: 'lopen', caseSensitive: false } },
@@ -152,32 +151,25 @@ describe('token sequence composite field', () => {
 	test('throws on incompatible composite and nested child state', () => {
 		const { runtime, sequence } = createFixture();
 		expect(() =>
-			tokenSequenceController.restore(
-				encodePersistObject({
-					length: '9',
-					'token.0.field': 'word',
-				})!,
+			restoreControllerState(
+				tokenSequenceController,
+				Array.from({ length: 9 }, () => '{f=word}').join(','),
 				sequence,
 				runtime.definition.context,
 			),
 		).toThrow(/expected 1-5/);
 		expect(() =>
-			tokenSequenceController.restore(
-				encodePersistObject({
-					length: '1',
-					'token.0.field': 'removed',
-				})!,
+			restoreControllerState(
+				tokenSequenceController,
+				'{f=removed}',
 				sequence,
 				runtime.definition.context,
 			),
 		).toThrow(/not available/);
 		expect(() =>
-			tokenSequenceController.restore(
-				encodePersistObject({
-					length: '1',
-					'token.0.field': 'word',
-					'token.0.word-value': 'invalid',
-				})!,
+			restoreControllerState(
+				tokenSequenceController,
+				'{f=word;v=invalid}',
 				sequence,
 				runtime.definition.context,
 			),

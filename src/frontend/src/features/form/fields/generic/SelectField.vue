@@ -25,7 +25,7 @@
 import { computed } from 'vue';
 
 import { useFieldPresentation } from '../field-presentation';
-import type { SelectFieldComponentProps, SelectFieldState } from './select-field';
+import type { SelectFieldComponentProps, SelectFieldState, SingleSelectFieldState } from './select-field';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
@@ -37,7 +37,7 @@ const props = withDefaults(defineProps<SelectFieldComponentProps>(), {
 });
 
 const emit = defineEmits<{
-	'update:modelValue': [value: SelectFieldState];
+	'update:modelValue': [value: SelectFieldState | SingleSelectFieldState];
 }>();
 
 const field = useFieldPresentation(props);
@@ -45,14 +45,13 @@ const field = useFieldPresentation(props);
 const pickerValue = computed<SelectPickerModelValue>({
 	get() {
 		if (props.multiple) {
-			return props.modelValue;
+			return Array.isArray(props.modelValue) ? props.modelValue : props.modelValue ? [props.modelValue] : [];
 		}
 
-		return props.modelValue[0] ?? '';
+		return Array.isArray(props.modelValue) ? (props.modelValue[0] ?? '') : props.modelValue;
 	},
 	set(value) {
-		if (!Array.isArray(value)) value = value ? [value] : [];
-		emit('update:modelValue', value);
+		emit('update:modelValue', props.multiple ? (Array.isArray(value) ? value : value ? [value] : []) : Array.isArray(value) ? (value[0] ?? '') : (value ?? ''));
 	},
 });
 </script>

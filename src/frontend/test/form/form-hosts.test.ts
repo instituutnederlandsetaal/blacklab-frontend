@@ -354,8 +354,9 @@ describe('builtin controller hosts', () => {
 			formId: 'harness.form',
 			encoded: {
 				'f.form': 'harness.form',
-				'f.within': 'element=within-state.element.selected;attr.shouldEndUpInState.within.attribute=shouldEndUpInState.within.attribute.value',
+				'f.within': 'e=within-state.element.selected;a={shouldEndUpInState.within.attribute:shouldEndUpInState.within.attribute.value}',
 			},
+			issues: undefined,
 			patt: '<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState\\.within\\.attribute\\.value"/>',
 			filter: null,
 			searchfield: null,

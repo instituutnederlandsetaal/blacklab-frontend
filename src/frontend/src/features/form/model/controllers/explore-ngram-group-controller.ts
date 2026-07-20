@@ -1,9 +1,9 @@
 import { toValue } from 'vue';
 
-import type { SelectFieldDefinition, SelectFieldState } from '@/features/form/fields/generic/select-field';
+import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { queryFragment } from '@/features/form/model/compile/query-artifact';
-import { decodePersistSingleSelection } from '@/features/form/model/controllers/persistence-codec';
-import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
+import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
+import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 
 import { findOption, optionLabel, optionValues } from '@/shared/utils/options';
 
@@ -13,31 +13,29 @@ export type NgramGroupAnnotationControllerConfig = {
 	/** Stable and unique within the containing form. */
 	persistKey: string;
 };
-export type NgramGroupAnnotationFieldConfig = FieldControllerConfig<SelectFieldDefinition, NgramGroupAnnotationControllerConfig>;
+export type NgramGroupAnnotationFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, NgramGroupAnnotationControllerConfig>;
 
-function defaultState(config: NgramGroupAnnotationFieldConfig): SelectFieldState {
+function defaultState(config: NgramGroupAnnotationFieldConfig): string {
 	const values = optionValues(config.options);
 	const annotationId = config.defaultAnnotationId && values.includes(config.defaultAnnotationId) ? config.defaultAnnotationId : (values[0] ?? null);
-	return annotationId ? [annotationId] : [];
+	return annotationId ?? '';
 }
 
+const persistenceCodec = stringPersistenceCodec(({ config }: FieldPersistenceContext<NgramGroupAnnotationFieldConfig>) => defaultState(config))
+	.refine((value, { config }) => {
+		return !value || findOption(config.options, value)
+			? undefined
+			: `Cannot restore n-gram grouping annotation '${value}' because it is not present in the current options.`;
+	});
+
 /** N-gram grouping selector. The state remains an annotation id; only the result preset receives the `hit:` prefix. */
-export const ngramGroupAnnotationController = defineFieldController<'explore-ngram-group-annotation', SelectFieldDefinition, NgramGroupAnnotationControllerConfig>({
+export const ngramGroupAnnotationController = defineFieldController<'explore-ngram-group-annotation', SingleSelectFieldDefinition, NgramGroupAnnotationControllerConfig>({
 	kind: 'explore-ngram-group-annotation',
 	createDefaultState: defaultState,
-	getPersistKey: config => config.persistKey,
+	persistence: { key: config => config.persistKey, codec: persistenceCodec },
 	affectsBlackLabParameters: [],
-	encode(state) {
-		return state[0] || null;
-	},
-	restore(payload, config) {
-		const annotationId = decodePersistSingleSelection(payload);
-		if (!annotationId) return defaultState(config);
-		if (findOption(config.options, annotationId)) return [annotationId];
-		throw new Error(`Cannot restore n-gram grouping annotation '${annotationId}' because it is not present in the current options.`);
-	},
 	getQueryContribution(config, _runtime, state) {
-		const annotationId = state[0];
+		const annotationId = state;
 		if (!annotationId) return queryFragment();
 		const option = findOption(config.options, annotationId);
 		return queryFragment(

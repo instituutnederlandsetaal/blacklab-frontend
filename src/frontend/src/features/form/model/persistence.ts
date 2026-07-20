@@ -5,7 +5,7 @@ import { expertQueryController } from '@/features/form/model/controllers';
 import { findPathToNode, getAllNodes, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import { createDefaultFormState, createFormStateSnapshot, type DeepReadonly, type FormStateInput, type NewFormState } from '@/features/form/model/state';
 import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameters } from '@/features/form/model/types/blacklab-params';
-import type { EncodedFieldValue, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import { encodeFieldState, getFieldPersistKey, restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
 import type { CompiledFormStateWithSummaries, ScopedFormQuery } from '@/features/form/model/types/form-query';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 
@@ -83,7 +83,7 @@ function buildFieldCodec(form: FormNode, context: FormRuntimeContext): { entries
 	const issues: RestoreIssue[] = [];
 
 	for (const field of getAllNodes(form, 'field')) {
-		const key = field.controller.getPersistKey(field, context);
+		const key = getFieldPersistKey(field, context);
 		if (isReservedScopedFormKey(key)) {
 			issues.push({
 				key,
@@ -125,7 +125,7 @@ function inferUiStateFromPersistedFields(definition: FormBuilder, persistedField
 
 	function visit(node: FormNode, path: PathEntry[]): void {
 		if (node.kind === 'field') {
-			const persistKey = node.controller.getPersistKey(node, definition.context);
+			const persistKey = getFieldPersistKey(node, definition.context);
 			if (!persistedFields.has(persistKey)) return;
 
 			for (const { containerId, childId } of path) {
@@ -201,7 +201,7 @@ function decodeFieldState(entry: FieldCodecEntry, payload: EncodedFieldValue, co
 	try {
 		return {
 			restored: true,
-			state: entry.field.controller.restore(payload, entry.field, context),
+			state: restoreFieldState(entry.field, payload, context),
 		};
 	} catch (error) {
 		return {
@@ -326,8 +326,8 @@ function queryAffectingTabParams(form: FormNode, state: FormStateInput): string[
 function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, state: FormStateInput): { encoded: ScopedFormQuery; issues?: RestoreIssue[] } {
 	const codec = buildFieldCodec(form, context);
 	const values = codec.entries
-		.map(({ field, key }) => ({ key, state: field.controller.encode(state.state[field.id], field, context) }))
-		.filter(({ state }) => state != null && (Array.isArray(state) ? state.length > 0 : state !== ''));
+		.map(({ field, key }) => ({ key, state: encodeFieldState(field, state.state[field.id], context) }))
+		.filter(({ state }) => state != null && state !== '');
 	const r: ScopedFormQuery = {
 		[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.formSelector}`]: form.id,
 	};

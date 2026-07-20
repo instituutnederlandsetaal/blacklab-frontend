@@ -4,15 +4,13 @@ import { createDefaultCqlQueryBuilderData, isCqlAttributeData, isCqlAttributeGro
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry } from '@/features/cql-query-builder/model';
 import type { QueryBuilderFieldConfig, QueryBuilderFieldDefinition, QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
 import { anyToken, compileQueryIR, queryFragment, queryIR, repeat, token, tokenSequence, xmlTag } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, encodePersistObject, joinPersistValues, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import { array, bool, lazy, number, object, scalar, variant, type PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
 import { booleanExpr, type BooleanType, type CqlPattern, type TokenPredicate } from '@/features/form/model/types/form-query';
 
 import { findOption } from '@/shared/utils/options';
 
-const CODEC_VERSION = '1';
-const ENTRY_ATTRIBUTE_PREFIX = 'a:';
-const ENTRY_GROUP_PREFIX = 'g:';
+const CODEC_VERSION = '2';
 
 function createDefaultState(config: QueryBuilderFieldConfig): QueryBuilderFieldState {
 	return createDefaultCqlQueryBuilderData(config.options.defaultAnnotationId);
@@ -28,6 +26,17 @@ function findUnavailableAnnotation(group: CqlAttributeGroupData, config: QueryBu
 		}
 	}
 	return null;
+}
+
+function validateRepeatBounds(token: QueryBuilderFieldState['tokens'][number]): string | undefined {
+	const { minRepeats, maxRepeats } = token.properties;
+	for (const [name, value] of [
+		['minimum', minRepeats],
+		['maximum', maxRepeats],
+	] as const) {
+		if (!Number.isNaN(value) && (!Number.isInteger(value) || value < 0)) return `Querybuilder repeat ${name} must be a non-negative integer.`;
+	}
+	if (!Number.isNaN(minRepeats) && !Number.isNaN(maxRepeats) && minRepeats > maxRepeats) return 'Querybuilder repeat minimum cannot exceed its maximum.';
 }
 
 function operatorToBoolean(operator: CqlAnnotationCombinator): BooleanType {
@@ -89,119 +98,97 @@ function stateToPattern(state: QueryBuilderFieldState): CqlPattern | null {
 	return tokenSequence(state.tokens.map(tokenToPattern));
 }
 
-function encodeAttribute(attribute: CqlAttributeData): string {
-	return encodePersistObject({
-		a: attribute.annotationId,
-		cmp: attribute.comparator !== '=' ? attribute.comparator : undefined,
-		v: attribute.values.length ? joinPersistValues(attribute.values, ';') : undefined,
-		cs: attribute.caseSensitive,
-	})!;
-}
-
-function encodeGroup(group: CqlAttributeGroupData): string {
-	return encodePersistObject({
-		op: group.operator !== '&' ? group.operator : undefined,
-		e: group.entries.length ? joinPersistValues(group.entries.map(encodeEntry), ';') : undefined,
-	})!;
-}
-
-function encodeEntry(entry: CqlGroupEntry): string {
-	if (isCqlAttributeData(entry)) return `${ENTRY_ATTRIBUTE_PREFIX}${encodeAttribute(entry)}`;
-	return `${ENTRY_GROUP_PREFIX}${encodeGroup(entry)}`;
-}
-
-function encodeToken(token: QueryBuilderFieldState['tokens'][number]): string {
-	return encodePersistObject({
-		o: token.properties.optional,
-		min: token.properties.minRepeats !== 1 ? String(token.properties.minRepeats) : undefined,
-		max: token.properties.maxRepeats !== 1 ? String(token.properties.maxRepeats) : undefined,
-		b: token.properties.beginOfSentence,
-		e: token.properties.endOfSentence,
-		g: encodeGroup(token.rootAttributeGroup),
-	})!;
-}
-
-function parseNumber(value: string | undefined, fallback: number): number {
-	if (value == null || value === '') return fallback;
-	const parsed = Number(value);
-	return Number.isNaN(parsed) ? fallback : parsed;
-}
-
 let nextRestoredId = 0;
 function restoredId(prefix: string): string {
 	nextRestoredId += 1;
 	return `${prefix}_restored_${nextRestoredId}`;
 }
 
-function decodeAttribute(encoded: string, defaultAnnotationId: string): CqlAttributeData {
-	const restored = decodePersistObject(encoded);
-	return {
-		id: restoredId('attr'),
-		annotationId: restored.a || defaultAnnotationId,
-		comparator: restored.cmp === '!=' || restored.cmp === 'startsWith' || restored.cmp === 'endsWith' ? restored.cmp : '=',
-		values: restored.v != null ? splitPersistValue(restored.v, ';') : [''],
-		caseSensitive: restored.cs === '1',
-	};
-}
+const comparatorCodec = scalar().mapped({ '=': 'e', '!=': 'n', startsWith: 's', endsWith: 'd' });
+const operatorCodec = scalar().mapped({ '&': 'a', '|': 'o' });
 
-function decodeGroup(encoded: string, defaultAnnotationId: string): CqlAttributeGroupData {
-	const restored = decodePersistObject(encoded);
-	return {
-		id: restoredId('group'),
-		operator: restored.op === '|' ? '|' : '&',
-		entries: restored.e ? splitPersistValue(restored.e, ';').map(entry => decodeEntry(entry, defaultAnnotationId)) : [],
-	};
-}
+const attributeCodec = object({
+	annotationId: scalar().at('a'),
+	comparator: comparatorCodec.default('=').at('c'),
+	values: array(scalar()).default(['']).at('v'),
+	caseSensitive: bool().default(false).at('s'),
+}).transform<CqlAttributeData>({
+	encode: attribute => ({
+		annotationId: attribute.annotationId,
+		comparator: attribute.comparator,
+		values: attribute.values.filter(value => value !== ''),
+		caseSensitive: attribute.caseSensitive,
+	}),
+	decode: attribute => ({ ...attribute, id: restoredId('attr') }),
+});
 
-function decodeEntry(encoded: string, defaultAnnotationId: string): CqlGroupEntry {
-	if (encoded.startsWith(ENTRY_ATTRIBUTE_PREFIX)) return decodeAttribute(encoded.slice(ENTRY_ATTRIBUTE_PREFIX.length), defaultAnnotationId);
-	if (encoded.startsWith(ENTRY_GROUP_PREFIX)) return decodeGroup(encoded.slice(ENTRY_GROUP_PREFIX.length), defaultAnnotationId);
-	throw new Error('Cannot restore querybuilder entry with unsupported type.');
-}
+const entryCodec: PersistenceCodec<CqlGroupEntry> = lazy(() =>
+	variant<CqlGroupEntry>(
+		{
+			a: attributeCodec,
+			g: groupCodec,
+		},
+		entry => (isCqlAttributeData(entry) ? 'a' : 'g'),
+	),
+);
 
-function decodeToken(encoded: string, defaultAnnotationId: string): QueryBuilderFieldState['tokens'][number] {
-	const restored = decodePersistObject(encoded);
-	return {
+const groupCodec: PersistenceCodec<CqlAttributeGroupData> = lazy(() =>
+	object({
+		operator: operatorCodec.default('&').at('o'),
+		entries: array(entryCodec).default([]).at('e'),
+	}).transform<CqlAttributeGroupData>({
+		encode: group => ({ operator: group.operator, entries: group.entries }),
+		decode: group => ({ ...group, id: restoredId('group') }),
+	}),
+);
+
+const repeatCodec = number().default(1).omitWhen(Number.isNaN);
+const tokenCodec = object({
+	optional: bool().default(false).at('o'),
+	minRepeats: repeatCodec.at('n'),
+	maxRepeats: repeatCodec.at('x'),
+	beginOfSentence: bool().default(false).at('b'),
+	endOfSentence: bool().default(false).at('e'),
+	rootAttributeGroup: groupCodec.at('g'),
+}).transform<QueryBuilderFieldState['tokens'][number]>({
+	encode: token => ({ ...token.properties, rootAttributeGroup: token.rootAttributeGroup }),
+	decode: token => ({
 		id: restoredId('token'),
 		properties: {
-			optional: restored.o === '1',
-			minRepeats: parseNumber(restored.min, 1),
-			maxRepeats: parseNumber(restored.max, 1),
-			beginOfSentence: restored.b === '1',
-			endOfSentence: restored.e === '1',
+			optional: token.optional,
+			minRepeats: token.minRepeats,
+			maxRepeats: token.maxRepeats,
+			beginOfSentence: token.beginOfSentence,
+			endOfSentence: token.endOfSentence,
 		},
-		rootAttributeGroup: restored.g ? decodeGroup(restored.g, defaultAnnotationId) : { id: restoredId('group'), operator: '&', entries: [] },
-	};
-}
+		rootAttributeGroup: token.rootAttributeGroup,
+	}),
+});
 
-function encodeState(state: QueryBuilderFieldState): string | null {
-	if (!stateToPattern(state)) return null;
-	return encodePersistObject({
-		v: CODEC_VERSION,
-		t: joinPersistValues(state.tokens.map(encodeToken), ';'),
+const queryBuilderPersistenceCodec = object({
+	version: scalar().refine(value => (value === CODEC_VERSION ? undefined : `Cannot restore querybuilder value with unsupported version '${value}'.`)).at('v'),
+	tokens: array(tokenCodec).default([]).at('t'),
+})
+	.transform<QueryBuilderFieldState>({
+		encode: state => ({ version: CODEC_VERSION, tokens: state.tokens }),
+		decode: state => ({ tokens: state.tokens }),
+	})
+	.default(({ config }) => createDefaultState(config))
+	.omitWhen(state => !stateToPattern(state))
+	.refine((state, { config }) => {
+		for (const token of state.tokens) {
+			const invalidRepeat = validateRepeatBounds(token);
+			if (invalidRepeat) return invalidRepeat;
+			const unavailable = findUnavailableAnnotation(token.rootAttributeGroup, config);
+			if (unavailable) return `Cannot restore querybuilder annotation '${unavailable}' because it is not available in the current form.`;
+		}
 	});
-}
-
-function restoreState(payload: string | string[], config: QueryBuilderFieldConfig): QueryBuilderFieldState {
-	const restored = decodePersistObject(payload);
-	if (restored.v !== CODEC_VERSION) throw new Error(`Cannot restore querybuilder value with unsupported version '${restored.v ?? ''}'.`);
-	const state = {
-		tokens: restored.t ? splitPersistValue(restored.t, ';').map(token => decodeToken(token, config.options.defaultAnnotationId)) : [],
-	};
-	for (const token of state.tokens) {
-		const unavailable = findUnavailableAnnotation(token.rootAttributeGroup, config);
-		if (unavailable) throw new Error(`Cannot restore querybuilder annotation '${unavailable}' because it is not available in the current form.`);
-	}
-	return state;
-}
 
 export const queryBuilderController = defineFieldController<'cql-query-builder', QueryBuilderFieldDefinition>({
 	kind: 'cql-query-builder',
 	createDefaultState,
-	getPersistKey: () => 'query',
+	persistence: { key: () => 'query', codec: queryBuilderPersistenceCodec },
 	affectsBlackLabParameters: ['patt'],
-	encode: encodeState,
-	restore: restoreState,
 	getQueryContribution(config, runtime, state) {
 		const pattern = stateToPattern(state);
 		const query = queryIR({ pattern });

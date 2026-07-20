@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick, shallowRef } from 'vue';
 
-import { annotationTextController, defineFieldController, filterTextController, FormSystem, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
+import { annotationTextController, defineFieldController, filterTextController, FormSystem, object, scalar, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
 import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import { tabId } from '@/features/form/ui/tab-utils';
 
@@ -22,10 +22,8 @@ type FormFixture = {
 const queryOnlyTextController = defineFieldController<'query-only-text', TestTextFieldDefinition>({
 	kind: 'query-only-text',
 	createDefaultState: () => ({ value: '' }),
-	getPersistKey: config => config.annotationId,
+	persistence: { key: config => config.annotationId, codec: object({ value: scalar().default('').atRoot() }).default({ value: '' }) },
 	affectsBlackLabParameters: ['patt'],
-	encode: state => state.value || null,
-	restore: payload => ({ value: Array.isArray(payload) ? (payload[0] ?? '') : payload }),
 	getQueryContribution(config, _runtime, state) {
 		return queryFragment(token(tokenPredicate('wildcard', config.annotationId, state.value, false)));
 	},

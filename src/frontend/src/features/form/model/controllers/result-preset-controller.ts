@@ -1,51 +1,44 @@
-import type { SelectFieldDefinition, SelectFieldState } from '@/features/form/fields/generic/select-field';
+import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { queryFragment } from '@/features/form/model/compile/query-artifact';
-import { defineFieldController, type FieldControllerConfig, type FieldControllerFor } from '@/features/form/model/types/form-controllers';
+import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
+import { defineFieldController, type FieldControllerConfig, type FieldControllerFor, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 import type { ResultPreset } from '@/features/form/model/types/form-query';
 
 export type ResultPresetControllerConfig = {
-	defaultValue?: string | string[] | null;
+	defaultValue?: string | null;
 	persistKey: string;
 	resultPreset?: ResultPreset;
 };
-export type ResultPresetFieldConfig = FieldControllerConfig<SelectFieldDefinition, ResultPresetControllerConfig>;
+export type ResultPresetFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, ResultPresetControllerConfig>;
 
-function createDefaultState(config: ResultPresetFieldConfig): SelectFieldState {
-	if (!config.defaultValue) return [];
-	return Array.isArray(config.defaultValue) ? [...config.defaultValue] : [config.defaultValue];
+function createDefaultState(config: ResultPresetFieldConfig): string {
+	return config.defaultValue ?? '';
 }
 
-function createResultPresetController<Kind extends string>(kind: Kind, property: keyof ResultPreset): FieldControllerFor<Kind, SelectFieldDefinition, ResultPresetControllerConfig> {
-	return defineFieldController<Kind, SelectFieldDefinition, ResultPresetControllerConfig>({
+function createResultPresetController<Kind extends string>(kind: Kind, property: keyof ResultPreset): FieldControllerFor<Kind, SingleSelectFieldDefinition, ResultPresetControllerConfig> {
+	const codec = stringPersistenceCodec(({ config }: FieldPersistenceContext<ResultPresetFieldConfig>) => createDefaultState(config));
+	return defineFieldController<Kind, SingleSelectFieldDefinition, ResultPresetControllerConfig>({
 		kind,
 		affectsBlackLabParameters: [],
 		createDefaultState,
-		getPersistKey: config => config.persistKey,
+		persistence: { key: config => config.persistKey, codec },
 		getQueryContribution: (config, _runtime, state) => {
 			let statePreset: ResultPreset;
-			switch (property) {
+				switch (property) {
 				case 'viewedResults':
-					statePreset = state[0] ? { viewedResults: state[0] } : {};
+					statePreset = state ? { viewedResults: state } : {};
 					break;
 				case 'groupBy':
-					statePreset = { groupBy: [...state] };
+					statePreset = { groupBy: state ? [state] : [] };
 					break;
 				case 'sort':
-					statePreset = { sort: state[0] ?? null };
+					statePreset = { sort: state || null };
 					break;
 				case 'groupDisplayMode':
-					statePreset = { groupDisplayMode: state[0] ?? null };
+					statePreset = { groupDisplayMode: state || null };
 					break;
 			}
 			return queryFragment({ resultPreset: { ...config.resultPreset, ...statePreset } });
-		},
-		encode: state => {
-			if (!state.length) return null;
-			return property === 'groupBy' ? state : state[0];
-		},
-		restore: payload => {
-			const values = (Array.isArray(payload) ? payload : [payload]).filter(Boolean);
-			return property === 'groupBy' ? values : values.slice(0, 1);
 		},
 	});
 }

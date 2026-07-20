@@ -11,6 +11,7 @@ import {
 	createDefaultFormState,
 	createFormFieldNode,
 	compileFormNode,
+	encodeControllerState,
 	expertQueryController,
 	filterAutocompleteController,
 	filterCheckboxController,
@@ -26,12 +27,18 @@ import {
 	resultGroupDisplayModeController,
 	resultSortController,
 	resultViewedResultsController,
+	restoreControllerState,
 	restoreFormState,
+	array,
+	bool,
+	object,
+	record,
+	scalar,
 	withinController,
 	type FieldController,
+	type FieldControllerProps,
 } from '@/features/form';
 import { queryFragment, rawFilter } from '@/features/form/model/compile/query-artifact';
-import { decodePersistObject, decodePersistSelection, encodePersistObject, joinPersistValues } from '@/features/form/model/controllers/persistence-codec';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
@@ -124,7 +131,7 @@ describe('scoped form persistence', () => {
 		const createResultField = (
 			id: string,
 			controller: typeof resultViewedResultsController | typeof resultGroupByController | typeof resultSortController | typeof resultGroupDisplayModeController,
-			defaultValue: string | string[],
+			defaultValue: string,
 		) =>
 			builder.newField(id, controller, SelectField, {
 				displayName: id,
@@ -133,7 +140,7 @@ describe('scoped form persistence', () => {
 				persistKey: id,
 			});
 		const viewedResults = createResultField('preset.view', resultViewedResultsController, 'docs');
-		const groupBy = createResultField('preset.group', resultGroupByController, ['field:date']);
+		const groupBy = createResultField('preset.group', resultGroupByController, 'field:date');
 		const displayMode = createResultField('preset.display', resultGroupDisplayModeController, 'tokens');
 		const sort = createResultField('preset.sort', resultSortController, 'field:title');
 		const form = builder.newForm('explore.corpora', ContainerRenderer, {}).addChildren(viewedResults, groupBy, displayMode, sort);
@@ -217,8 +224,11 @@ describe('scoped form persistence', () => {
 		const throwingController: FieldController<'throwing-text', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
 			kind: 'throwing-text',
-			restore() {
-				throw new Error('Unsupported historical value.');
+			persistence: {
+				...testTextController.persistence,
+				codec: testTextController.persistence.codec.refine(() => {
+					throw new Error('Unsupported historical value.');
+				}),
 			},
 		};
 		const builder = createTestBuilder();
@@ -252,9 +262,15 @@ describe('scoped form persistence', () => {
 				calls.push('default');
 				return { value: '' };
 			},
-			restore: payload => {
-				calls.push('restore');
-				return { value: Array.isArray(payload) ? (payload[0] ?? '') : payload };
+			persistence: {
+				...testTextController.persistence,
+				codec: testTextController.persistence.codec.transform({
+					encode: value => value,
+					decode: value => {
+						calls.push('restore');
+						return value;
+					},
+				}),
 			},
 		};
 		const builder = createTestBuilder();
@@ -297,8 +313,11 @@ describe('scoped form persistence', () => {
 		const rejectingController: FieldController<'rejecting-text', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
 			kind: 'rejecting-text',
-			restore() {
-				throw new Error('Invalid word state.');
+			persistence: {
+				...testTextController.persistence,
+				codec: testTextController.persistence.codec.refine(() => {
+					throw new Error('Invalid word state.');
+				}),
 			},
 		};
 		const builder = createTestBuilder();
@@ -552,7 +571,7 @@ describe('scoped form persistence', () => {
 		const reservedController: FieldController<'reserved-persistence-key', TestTextFieldState, TestTextFieldConfig> = {
 			...testTextController,
 			kind: 'reserved-persistence-key',
-			getPersistKey: () => 'form',
+			persistence: { ...testTextController.persistence, key: () => 'form' },
 		};
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.reserved', ContainerRenderer, { title: 'Reserved' });
@@ -637,7 +656,7 @@ describe('controller persistence codecs', () => {
 							id: 'attr_original',
 							annotationId: 'word',
 							comparator: '=',
-							values: ['water;ship', 'literal,comma', 'literal=equals', 'literal\\slash'],
+							values: ['water;ship', 'literal,comma', 'literal=equals', 'literal\\slash', 'literal{brace}'],
 							caseSensitive: false,
 							uploadedValue: 'water;ship\nliteral,comma\nliteral=equals\nliteral\\slash',
 						},
@@ -684,235 +703,184 @@ describe('controller persistence codecs', () => {
 		};
 	}
 
+	const encode = <Kind extends string, State, Extra>(controller: FieldController<Kind, State, Extra>, state: State, config: FieldControllerProps<Extra>) =>
+		encodeControllerState(controller, state, config, context);
+	const restore = <Kind extends string, State, Extra>(controller: FieldController<Kind, State, Extra>, payload: string | string[], config: FieldControllerProps<Extra>) =>
+		restoreControllerState(controller, payload, config, context);
+
+	test('composes scoped objects, records, mappings, defaults, and escaped values', () => {
+		const codec = object({
+			value: scalar().default('').atRoot(),
+			caseSensitive: bool().default(false).at('c'),
+			values: record(scalar()).default({}).at('v'),
+		}).scoped('r');
+		const state = { value: '', caseSensitive: true, values: { a: 'b', c: 'd;e', escaped: 'x\\y' } };
+		const encoded = codec.encode(state, undefined);
+
+		expect(encoded).toBe('r.c=1;r.v={a:b;c:d\\;e;escaped:x\\\\y}');
+		expect(codec.decode(encoded, undefined)).toEqual(state);
+		expect(scalar().mapped({ strict: 's', permissive: 'p' }).decode('p', undefined)).toBe('permissive');
+		expect(() => scalar().mapped({ one: 'x', two: 'x' })).toThrow(/not bijective/);
+		const keyCodec = record(scalar()).mapKeys({ firstName: 'f', lastName: 'l' });
+		expect(keyCodec.encode({ firstName: 'Ada', lastName: 'Lovelace' }, undefined)).toBe('f:Ada;l:Lovelace');
+		expect(keyCodec.decode('f:Ada;l:Lovelace', undefined)).toEqual({ firstName: 'Ada', lastName: 'Lovelace' });
+		expect(() => keyCodec.decode('unknown:value', undefined)).toThrow(/unmapped key/);
+	});
+
+	test('supports rest properties, cloned defaults, custom omission, and strict object errors', () => {
+		const codec = object({ known: scalar().default('').at('k') }).restProperties(scalar());
+		expect(codec.decode('k=yes;extra=value', undefined)).toEqual({ known: 'yes', extra: 'value' });
+		const unusualKeys = Object.fromEntries([
+			['known', 'yes'],
+			['semi;key', 'semicolon'],
+			['brace{key}', 'braces'],
+			['equals=key', 'equals'],
+			['slash\\key', 'slash'],
+			['__proto__', 'prototype'],
+		]) as { known: string } & Record<string, string>;
+		const unusualPayload = codec.encode(unusualKeys, undefined);
+		const restoredUnusualKeys = codec.decode(unusualPayload, undefined);
+		expect(restoredUnusualKeys).toEqual(unusualKeys);
+		expect(Object.getPrototypeOf(restoredUnusualKeys)).toBe(Object.prototype);
+		expect(Object.hasOwn(restoredUnusualKeys, '__proto__')).toBe(true);
+		const scopedRestCodec = object({ known: scalar().default('').at('k') }).restProperties(scalar()).scoped('r');
+		expect(scopedRestCodec.decode(scopedRestCodec.encode(unusualKeys, undefined), undefined)).toEqual(unusualKeys);
+		expect(() => codec.encode({ known: 'yes', k: 'collision' }, undefined)).toThrow(/collides with a fixed/);
+		expect(() => codec.decode('k=yes;known=collision', undefined)).toThrow(/collides with a fixed/);
+
+		const prototypeRecord = Object.fromEntries([['__proto__', 'value']]);
+		const restoredPrototypeRecord = record(scalar()).decode(record(scalar()).encode(prototypeRecord, undefined), undefined);
+		expect(restoredPrototypeRecord).toEqual(prototypeRecord);
+		expect(Object.getPrototypeOf(restoredPrototypeRecord)).toBe(Object.prototype);
+		expect(Object.hasOwn(restoredPrototypeRecord, '__proto__')).toBe(true);
+
+		const defaultValue = { known: '', nested: { value: 'default' } };
+		const defaultCodec = object({ known: scalar().default('') })
+			.transform<typeof defaultValue>({ encode: value => ({ known: value.known }), decode: value => ({ ...value, nested: { value: 'default' } }) })
+			.default(defaultValue)
+			.omitWhen(value => !value.known.trim());
+		expect(defaultCodec.encode({ known: '  ', nested: { value: 'changed' } }, undefined)).toBeNull();
+		const restoredDefault = defaultCodec.decode(null, undefined);
+		restoredDefault.nested.value = 'changed';
+		expect(defaultCodec.decode(null, undefined).nested.value).toBe('default');
+		const contextual = scalar<{ fallback: string }>().default(({ fallback }) => fallback);
+		expect(contextual.encode('configured', { fallback: 'configured' })).toBeNull();
+		expect(contextual.decode(null, { fallback: 'configured' })).toBe('configured');
+		const transformedScope = object({ value: scalar().at('v') })
+			.transform<{ value: string }>({ encode: value => value, decode: value => value })
+			.scoped('r');
+		expect(transformedScope.encode({ value: 'yes' }, undefined)).toBe('r.v=yes');
+		expect(() => object({ value: scalar().at('v') }).decode('v=one;v=two', undefined)).toThrow(/Duplicate object key/);
+		expect(() => object({ first: scalar().at('v'), second: scalar().at('v') })).toThrow(/mapped more than once/);
+		expect(() => object({ value: scalar().at('v') }).decode('v=one;unknown=one', undefined)).toThrow(/Unsupported object key/);
+		expect(() => object({ value: scalar().at('v') }).decode('v=a{;unknown=x}', undefined)).toThrow(/unescaped reserved character/);
+		expect(() => array(scalar()).decode('one\\', undefined)).toThrow(/incomplete escape/);
+	});
+
 	test('shares scalar and selection representations across compatible controllers', () => {
-		expect(filterSelectController.restore('one', selectConfig, context)).toEqual(['one']);
-		expect(filterCheckboxController.restore('one,two', selectConfig, context)).toEqual(['one', 'two']);
-		expect(annotationSelectController.restore('one,two', annotationConfig, context)).toEqual(['one', 'two']);
-		expect(filterRadioController.restore('one', selectConfig, context)).toBe('one');
+		expect(restore(filterSelectController, 'one', selectConfig)).toEqual(['one']);
+		expect(restore(filterCheckboxController, 'one,two', selectConfig)).toEqual(['one', 'two']);
+		expect(restore(annotationSelectController, 'one,two', annotationConfig)).toEqual(['one', 'two']);
+		expect(restore(filterRadioController, 'one', selectConfig)).toBe('one');
+		expect(() => restore(filterSelectController, 'one,removed', selectConfig)).toThrow(/removed/);
 	});
 
-	test('rejects ambiguous multiple values for single-value controllers', () => {
-		expect(() => filterRadioController.restore('one,two', selectConfig, context)).toThrow(/single-choice/);
-		expect(() => filterTextController.restore(['one', 'two'], selectConfig, context)).toThrow(/multiple URL values/);
-		expect(() => filterAutocompleteController.restore(['one', 'two'], selectConfig, context)).toThrow(/multiple URL values/);
-		expect(() => annotationTextController.restore(['one', 'two'], annotationConfig, context)).toThrow(/multiple URL values/);
+	test('rejects repeated controller query values centrally', () => {
+		expect(() => restore(filterRadioController, ['one', 'two'], selectConfig)).toThrow(/multiple URL values/);
+		expect(() => restore(filterTextController, ['one', 'two'], selectConfig)).toThrow(/multiple URL values/);
+		expect(() => restore(filterAutocompleteController, ['one', 'two'], selectConfig)).toThrow(/multiple URL values/);
+		expect(() => restore(annotationTextController, ['one', 'two'], annotationConfig)).toThrow(/multiple URL values/);
 	});
 
-	test('rejects options that are no longer available', () => {
-		expect(() => filterSelectController.restore('one,removed', selectConfig, context)).toThrow(/removed/);
-	});
+	test('uses compact structured codecs for ranges, dates, part-of-speech, and within state', () => {
+		const rangeConfig = { kind: 'field' as const, id: 'range', displayName: 'Range', metadataFieldId: 'range' };
+		expect(restore(filterRangeController, 'l=10;h=20', rangeConfig)).toEqual({ low: '10', high: '20', mode: 'strict' });
+		expect(() => restore(filterRangeController, '10', rangeConfig)).toThrow(/unsupported root/i);
 
-	test('only restores ranges from their structured representation', () => {
-		const rangeConfig = {
-			kind: 'field' as const,
-			id: 'range',
-			displayName: 'Range',
-			metadataFieldId: 'range',
-		};
-		expect(filterRangeController.restore('low=10;high=20', rangeConfig, context)).toEqual({
-			low: '10',
-			high: '20',
-			mode: 'strict',
-		});
-		expect(() => filterRangeController.restore('10', rangeConfig, context)).toThrow(/incompatible persisted value/);
-	});
-
-	test('restores dates and specialized records only through supported representations', () => {
-		const dateConfig = {
-			kind: 'field' as const,
-			id: 'date',
-			displayName: 'Date',
-			metadataFieldId: 'date',
-			range: true,
-		};
-
-		expect(filterDateController.restore('start=2020-01-02;end=2021-03-04;mode=permissive', dateConfig, context)).toEqual({
+		const dateConfig = { kind: 'field' as const, id: 'date', displayName: 'Date', metadataFieldId: 'date', range: true };
+		expect(restore(filterDateController, 's=2020-01-02;e=2021-03-04;m=p', dateConfig)).toEqual({
 			startDate: { y: '2020', m: '01', d: '02' },
 			endDate: { y: '2021', m: '03', d: '04' },
 			mode: 'permissive',
 		});
-		expect(() => filterDateController.restore('start=2020;mode=unknown', dateConfig, context)).toThrow(/unknown range mode/);
-
-		expect(annotationPosController.restore('value=VERB;selected=past,plural', {} as never, context)).toEqual({
-			annotationValue: 'VERB',
-			selected: { past: true, plural: true },
-		});
-		expect(withinController.restore('element=s;attr.type=quote', {} as never, context)).toEqual({
-			element: 's',
-			attributes: { type: 'quote' },
-		});
-		expect(
-			parallelController.restore(
-				'source=contents;align=sentence;parallel.translation=',
-				{
-					id: 'parallel',
-					childFieldTemplate: createFormFieldNode('parallel.query', expertQueryController, RawCqlField, {}),
-					fieldOptions: [{ id: 'contents' }, { id: 'default' }, { id: 'translation' }],
-					alignByOptions: ['word'],
-				} as never,
-				context,
-			),
-		).toEqual({
-			source: 'contents',
-			targets: ['translation'],
-			alignBy: 'sentence',
-			childStates: {
-				contents: '',
-				translation: '',
-			},
-		});
+		expect(() => restore(filterDateController, 's=2020;m=unknown', dateConfig)).toThrow(/unmapped value/);
+		expect(() => restore(filterDateController, 's=2020-01-02-extra', dateConfig)).toThrow(/more than three components/);
+		expect(restore(annotationPosController, 'v=VERB;s={past,plural}', {} as never)).toEqual({ annotationValue: 'VERB', selected: { past: true, plural: true } });
+		const withinConfig = {
+			kind: 'field' as const,
+			id: 'within',
+			options: [{ value: 's', label: 'Sentence', attributes: [{ value: 'type', label: 'Type' }] }],
+		};
+		expect(restore(withinController, 'e=s;a={type:quote}', withinConfig)).toEqual({ element: 's', attributes: { type: 'quote' } });
+		expect(() => restore(withinController, 'e=removed', withinConfig)).toThrow(/element 'removed'/);
+		expect(() => restore(withinController, 'e=s;a={removed:value}', withinConfig)).toThrow(/attribute 'removed'/);
 	});
 
-	test('persists parallel wrapper child source and selected target payloads under namespaced keys', () => {
-		const encoded = parallelController.encode(
-			{
-				source: 'contents__en',
-				targets: ['contents__nl'],
-				alignBy: 'word-alignment',
-				childStates: {
-					contents__en: '[lemma="test"]',
-					contents__nl: '[lemma="proef"]',
-					contents__de: '[lemma="Test"]',
-				},
-			},
-			parallelConfig,
-			context,
-		);
-
-		expect(decodePersistObject(encoded!)).toEqual({
-			source: 'contents__en',
-			'parallel.contents__en': '[lemma="test"]',
-			'parallel.contents__nl': '[lemma="proef"]',
-		});
-	});
-
-	test('restores parallel wrapper child source and target payloads', () => {
-		const encoded = encodePersistObject({
-			source: 'contents__en',
-			align: 'word-alignment',
-			'parallel.contents__en': '[lemma="test"]',
-			'parallel.contents__nl': '[lemma="proef"]',
-		});
-
-		const restored = parallelController.restore(encoded!, parallelConfig, context);
-		expect(restored).toEqual({
-			source: 'contents__en',
-			targets: ['contents__nl'],
-			alignBy: 'word-alignment',
-			childStates: {
-				contents__en: '[lemma="test"]',
-				contents__nl: '[lemma="proef"]',
-			},
-		});
-		const reencoded = parallelController.encode(restored, parallelConfig, context);
-		expect(parallelController.restore(reencoded!, parallelConfig, context)).toEqual(restored);
-	});
-
-	test('rejects unknown restored parallel target states', () => {
-		const encoded = encodePersistObject({
-			'parallel.contents__fr': '[lemma="essai"]',
-		});
-
-		expect(() => parallelController.restore(encoded!, parallelConfig, context)).toThrow(/contents__fr/);
-	});
-
-	test('preserves selected parallel targets with default child state', () => {
-		const config = { ...parallelConfig, defaultSource: 'contents__en' };
+	test('round-trips parallel state with explicit targets and nested controller payloads', () => {
 		const state = {
 			source: 'contents__en',
 			targets: ['contents__nl'],
 			alignBy: 'word-alignment',
-			childStates: {
-				contents__en: '',
-				contents__nl: '',
-			},
+			childStates: { contents__en: '[lemma="test"]', contents__nl: '[lemma="proef"]', contents__de: '[lemma="ignored"]' },
 		};
-
-		const encoded = parallelController.encode(state, config, context);
-
-		expect(decodePersistObject(encoded!)).toEqual({
-			'parallel.contents__nl': '',
-		});
-		expect(parallelController.restore(encoded!, config, context)).toEqual(state);
+		const encoded = encode(parallelController, state, parallelConfig);
+		expect(encoded).toContain('s=contents__en');
+		expect(encoded).toContain('t={contents__nl}');
+		expect(encoded).toContain('q=');
+		const restored = restore(parallelController, encoded!, parallelConfig);
+		expect(restored).toEqual({ ...state, childStates: { contents__en: '[lemma="test"]', contents__nl: '[lemma="proef"]' } });
+		expect(restore(parallelController, encode(parallelController, restored, parallelConfig)!, parallelConfig)).toEqual(restored);
+		expect(() => restore(parallelController, 't={contents__fr}', parallelConfig)).toThrow(/contents__fr/);
+		expect(() => restore(parallelController, 'a=removed', parallelConfig)).toThrow(/alignment 'removed'/);
 	});
 
-	test('round-trips escaped separators in selections and records', () => {
-		const selection = ['literal,comma', 'literal;semicolon', 'literal=equals', 'literal\\slash'];
-		expect(decodePersistSelection(joinPersistValues(selection))).toEqual(selection);
-
-		const record = encodePersistObject({ value: 'a;b,c=d\\e' });
-		expect(record).not.toBeNull();
-		expect(decodePersistObject(record!)).toEqual({ value: 'a;b,c=d\\e' });
+	test('preserves selected parallel targets with default child state', () => {
+		const config = { ...parallelConfig, defaultSource: 'contents__en' };
+		const state = { source: 'contents__en', targets: ['contents__nl'], alignBy: 'word-alignment', childStates: { contents__en: '', contents__nl: '' } };
+		const encoded = encode(parallelController, state, config);
+		expect(encoded).toBe('t={contents__nl}');
+		expect(restore(parallelController, encoded!, config)).toEqual(state);
 	});
 
-	test('persists querybuilder state as a compact structured value and restores generated ids', () => {
-		const encoded = queryBuilderController.encode(queryBuilderState, queryBuilderConfig, context);
-		expect(encoded).toEqual(expect.stringContaining('v=1'));
-
-		const restored = queryBuilderController.restore(encoded!, queryBuilderConfig, context);
-
+	test('persists recursive querybuilder state, regenerates ids, and omits UI-only state', () => {
+		const encoded = encode(queryBuilderController, queryBuilderState, queryBuilderConfig);
+		expect(encoded).toContain('v=2');
+		const restored = restore(queryBuilderController, encoded!, queryBuilderConfig) as CqlQueryBuilderData;
 		expect(stripQueryBuilderIds(restored)).toEqual(stripQueryBuilderIds(queryBuilderState));
 		expect(restored.tokens[0].id).not.toBe(queryBuilderState.tokens[0].id);
-	});
+		const restoredAttribute = restored.tokens[0].rootAttributeGroup.entries[0];
+		expect('annotationId' in restoredAttribute ? restoredAttribute.uploadedValue : null).toBeUndefined();
 
-	test('reports querybuilder annotations unavailable in the current form as decode errors', () => {
-		const encoded = queryBuilderController.encode(queryBuilderState, queryBuilderConfig, context);
 		const currentConfig = {
 			...queryBuilderConfig,
-			options: {
-				...queryBuilderConfig.options,
-				defaultAnnotationId: 'lemma',
-				annotationOptions: [{ value: 'lemma', label: 'Lemma' }],
-			},
+			options: { ...queryBuilderConfig.options, defaultAnnotationId: 'lemma', annotationOptions: [{ value: 'lemma', label: 'Lemma' }] },
 		};
-		expect(() => queryBuilderController.restore(encoded!, currentConfig, context)).toThrow(/annotation 'word'/);
+		expect(() => restore(queryBuilderController, encoded!, currentConfig)).toThrow(/annotation 'word'/);
+		expect(() => restore(queryBuilderController, encoded!.replace('x=3', 'x=-1'), queryBuilderConfig)).toThrow(/non-negative integer/);
+		expect(() => restore(queryBuilderController, encoded!.replace('x=3', 'x=1.5'), queryBuilderConfig)).toThrow(/non-negative integer/);
+		expect(() => restore(queryBuilderController, encoded!.replace('x=3', 'x=0'), queryBuilderConfig)).toThrow(/minimum cannot exceed/);
+		expect(encode(queryBuilderController, queryBuilderController.createDefaultState(queryBuilderConfig, context), queryBuilderConfig)).toBeNull();
 	});
 
-	test('omits default and uploaded querybuilder-only state from persistence', () => {
-		const defaultState = queryBuilderController.createDefaultState(queryBuilderConfig, context);
-		expect(queryBuilderController.encode(defaultState, queryBuilderConfig, context)).toBeNull();
-
-		const encoded = queryBuilderController.encode(queryBuilderState, queryBuilderConfig, context);
-		const restored = queryBuilderController.restore(encoded!, queryBuilderConfig, context);
-		const restoredAttribute = restored.tokens[0].rootAttributeGroup.entries[0];
-
-		expect('annotationId' in restoredAttribute ? restoredAttribute.uploadedValue : null).toBeUndefined();
-		expect('annotationId' in restoredAttribute ? restoredAttribute.values : null).toEqual(['water;ship', 'literal,comma', 'literal=equals', 'literal\\slash']);
-	});
-
-	test('round-trips querybuilder state through the parallel wrapper child payloads', () => {
-		const config = {
-			...parallelConfig,
-			childFieldTemplate: createFormFieldNode('parallel.querybuilder', queryBuilderController, QueryBuilderField, queryBuilderConfig),
-		};
-		const encoded = parallelController.encode(
+	test('round-trips querybuilder state through parallel child payloads', () => {
+		const config = { ...parallelConfig, childFieldTemplate: createFormFieldNode('parallel.querybuilder', queryBuilderController, QueryBuilderField, queryBuilderConfig) };
+		const encoded = encode(
+			parallelController,
 			{
 				source: 'contents__en',
 				targets: ['contents__nl'],
 				alignBy: 'word-alignment',
-				childStates: {
-					contents__en: queryBuilderState,
-					contents__nl: queryBuilderState,
-				},
+				childStates: { contents__en: queryBuilderState, contents__nl: queryBuilderState },
 			},
 			config,
-			context,
 		);
-
-		expect(decodePersistObject(encoded!)).toEqual(
-			expect.objectContaining({
-				'parallel.contents__en': expect.stringContaining('v=1'),
-				'parallel.contents__nl': expect.stringContaining('v=1'),
-			}),
-		);
-
-		const restored = parallelController.restore(encoded!, config, context);
-
-		expect(stripQueryBuilderIds(restored.childStates.contents__en as CqlQueryBuilderData)).toEqual(stripQueryBuilderIds(queryBuilderState));
-		expect(stripQueryBuilderIds(restored.childStates.contents__nl as CqlQueryBuilderData)).toEqual(stripQueryBuilderIds(queryBuilderState));
+		expect(encoded).toContain('v=2');
+		const restored = restore(parallelController, encoded!, config) as { childStates: Record<string, CqlQueryBuilderData> };
+		expect(stripQueryBuilderIds(restored.childStates.contents__en)).toEqual(stripQueryBuilderIds(queryBuilderState));
+		expect(stripQueryBuilderIds(restored.childStates.contents__nl)).toEqual(stripQueryBuilderIds(queryBuilderState));
 	});
 
-	test('rejects duplicate and unsupported structured record keys', () => {
+	test('rejects duplicate and unsupported structured keys', () => {
 		const dateConfig = {
 			kind: 'field' as const,
 			id: 'date',
@@ -921,7 +889,6 @@ describe('controller persistence codecs', () => {
 			range: true,
 		};
 
-		expect(() => decodePersistObject('value=one;value=two')).toThrow(/duplicate key 'value'/);
-		expect(() => filterDateController.restore('start=2020;unexpected=value', dateConfig, context)).toThrow(/unsupported persisted keys: unexpected/);
+		expect(() => restore(filterDateController, 's=2020;unexpected=value', dateConfig)).toThrow(/Unsupported object key 'unexpected'/);
 	});
 });

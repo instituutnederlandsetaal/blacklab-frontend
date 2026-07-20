@@ -226,15 +226,14 @@ describe('search form system', () => {
 		expect(runtime.definition.getContainer('explore.corpora.result-preset')).not.toBeNull();
 		expect(runtime.definition.getField(groupByFieldId)).not.toBeNull();
 		expect(runtime.definition.getField(groupDisplayModeFieldId)).not.toBeNull();
-		expect(runtime.state.state.value[groupByFieldId]).toEqual(['field:author']);
-		expect(runtime.state.state.value[groupDisplayModeFieldId]).toEqual(['table']);
+		expect(runtime.state.state.value[groupByFieldId]).toBe('field:author');
+		expect(runtime.state.state.value[groupDisplayModeFieldId]).toBe('table');
 
-		runtime.state.state.value[groupDisplayModeFieldId] = ['tokens'];
+		runtime.state.state.value[groupDisplayModeFieldId] = 'tokens';
 		runtime.state.state.value['shared.filters.Classification.genre'] = ['fiction'];
 		expect(runtime.compile(getNewExploreFormId('corpora'))).toMatchObject({
 			encoded: {
 				'f.form': 'explore.corpora',
-				'f.explore-corpora-group-by': ['field:author'],
 				'f.explore-corpora-group-display-mode': 'tokens',
 			},
 			filter: 'genre:(fiction)',
@@ -252,7 +251,7 @@ describe('search form system', () => {
 		const field = runtime.definition.getField('explore.corpora.group-by') as unknown as { options: Options };
 
 		expect(optionValues(field.options)).toEqual(['field:genre']);
-		expect(runtime.state.state.value['explore.corpora.group-by']).toEqual(['field:genre']);
+		expect(runtime.state.state.value['explore.corpora.group-by']).toBe('field:genre');
 	});
 
 	test('restores a scoped Documents URL through the shared form restore path', () => {
@@ -266,8 +265,8 @@ describe('search form system', () => {
 		runtime.state.replaceState(restored);
 
 		expect(restored.submittedFormId).toBe('explore.corpora');
-		expect(runtime.state.state.value['explore.corpora.group-by']).toEqual(['field:genre']);
-		expect(runtime.state.state.value['explore.corpora.group-display-mode']).toEqual(['docs']);
+		expect(runtime.state.state.value['explore.corpora.group-by']).toBe('field:genre');
+		expect(runtime.state.state.value['explore.corpora.group-display-mode']).toBe('docs');
 		expect(runtime.compile(getNewExploreFormId('corpora'))).toMatchObject({
 			filter: 'author:Austen',
 			resultPreset: {
@@ -283,9 +282,9 @@ describe('search form system', () => {
 
 		expect(hasNewExploreFormForMode(runtime, 'frequency')).toBe(true);
 		expect(runtime.definition.getField(annotationFieldId)?.controller).toBe(frequencyAnnotationController);
-		expect(runtime.state.state.value[annotationFieldId]).toEqual(['word']);
+		expect(runtime.state.state.value[annotationFieldId]).toBe('word');
 
-		runtime.state.state.value[annotationFieldId] = ['lemma'];
+		runtime.state.state.value[annotationFieldId] = 'lemma';
 		runtime.state.state.value['shared.filters.Classification.genre'] = ['fiction'];
 		expect(runtime.compile(getNewExploreFormId('frequency'))).toMatchObject({
 			encoded: {
@@ -309,8 +308,8 @@ describe('search form system', () => {
 		state.explore.defaultGroupAnnotationId = 'removed';
 		const runtime = createDefinition();
 
-		expect(runtime.state.state.value['explore.frequency.annotation']).toEqual(['pos']);
-		expect(runtime.state.state.value['explore.ngram.group-by']).toEqual(['pos']);
+		expect(runtime.state.state.value['explore.frequency.annotation']).toBe('pos');
+		expect(runtime.state.state.value['explore.ngram.group-by']).toBe('pos');
 		expect(runtime.state.state.value['explore.ngram.tokens']).toEqual(Array.from({ length: 5 }, () => ({ fieldId: 'lemma', fieldState: { value: '', caseSensitive: false } })));
 	});
 
@@ -329,7 +328,7 @@ describe('search form system', () => {
 			{ fieldId: 'pos', fieldState: ['NOU', 'VRB'] },
 			{ fieldId: 'lemma', fieldState: { value: '', caseSensitive: false } },
 		] satisfies TokenSequenceFieldState;
-		runtime.state.state.value[groupByFieldId] = ['lemma'];
+		runtime.state.state.value[groupByFieldId] = 'lemma';
 		runtime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Austen', caseSensitive: false };
 
 		expect(runtime.compile(getNewExploreFormId('ngram'))).toMatchObject({
@@ -356,7 +355,7 @@ describe('search form system', () => {
 			'f.explore-ngram-group-by': 'removed',
 		});
 
-		expect(restored.state['explore.ngram.group-by']).toEqual(['word']);
+		expect(restored.state['explore.ngram.group-by']).toBe('word');
 		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ nodeId: 'explore.ngram.group-by', message: expect.stringContaining("'removed'") })]));
 	});
 
@@ -388,8 +387,8 @@ describe('search form system', () => {
 		const sourceFieldId = `explore.${mode}.source`;
 
 		expect(runtime.definition.getField(sourceFieldId)?.controller).toBe(parallelSourceController);
-		expect(runtime.state.state.value[sourceFieldId]).toEqual(['contents__en']);
-		runtime.state.state.value[sourceFieldId] = ['contents__nl'];
+		expect(runtime.state.state.value[sourceFieldId]).toBe('contents__en');
+		runtime.state.state.value[sourceFieldId] = 'contents__nl';
 
 		const compiled = runtime.compile(getNewExploreFormId(mode));
 		expect(compiled.searchfield).toBe('contents__nl');
@@ -402,7 +401,7 @@ describe('search form system', () => {
 			{ fieldId: 'lemma', fieldState: { value: 'run?', caseSensitive: false } },
 			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
 		] satisfies TokenSequenceFieldState;
-		runtime.state.state.value['explore.ngram.group-by'] = ['pos'];
+		runtime.state.state.value['explore.ngram.group-by'] = 'pos';
 		const submitted = runtime.compile(getNewExploreFormId('ngram'));
 		const restored = restoreFormState(runtime.definition, submitted.encoded);
 		runtime.state.replaceState(restored);

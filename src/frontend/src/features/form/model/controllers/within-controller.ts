@@ -1,32 +1,31 @@
-import type { WithinFieldDefinition } from '@/features/form/fields/within-field';
+import type { WithinFieldDefinition, WithinFieldOption } from '@/features/form/fields/within-field';
 import { queryFragment } from '@/features/form/model/compile/query-artifact';
-import { decodePersistRecord, encodePersistObject } from '@/features/form/model/controllers/persistence-codec';
+import { object, record, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
 
 import { findOption } from '@/shared/utils/options';
 
+const persistenceCodec = object({
+	element: scalar()
+		.transform<string | null>({ encode: value => value ?? '', decode: value => value || null })
+		.default(null)
+		.at('e'),
+	attributes: record(scalar().default('')).default({}).at('a'),
+})
+	.default({ element: null, attributes: {} })
+	.refine((state, { config }) => {
+		const option = state.element == null ? null : config.options.find((candidate: WithinFieldOption) => candidate.value === state.element);
+		if (state.element != null && !option) return `Cannot restore within element '${state.element}' because it is not available in the current form.`;
+		const availableAttributes = option?.attributes ?? [];
+		const unavailableAttribute = Object.keys(state.attributes).find(attribute => !findOption(availableAttributes, attribute));
+		if (unavailableAttribute) return `Cannot restore within attribute '${unavailableAttribute}' because it is not available for element '${state.element ?? ''}'.`;
+	});
+
 export const withinController = defineFieldController<'within', WithinFieldDefinition>({
 	kind: 'within',
 	createDefaultState: () => ({ element: null, attributes: {} }),
-	getPersistKey: () => 'within',
+	persistence: { key: () => 'within', codec: persistenceCodec },
 	affectsBlackLabParameters: ['patt'],
-	encode(state) {
-		return encodePersistObject({
-			element: state.element,
-			...Object.fromEntries(Object.entries(state.attributes ?? {}).map(([key, value]) => [`attr.${key}`, value])),
-		});
-	},
-	restore(payload) {
-		const restored = decodePersistRecord(payload, ['element'], 'within field', { allowUnknownKeys: key => key === 'element' || key.startsWith('attr.') });
-		return {
-			element: restored.element || null,
-			attributes: Object.fromEntries(
-				Object.entries(restored)
-					.filter(([key]) => key.startsWith('attr.'))
-					.map(([key, value]) => [key.slice(5), value]),
-			),
-		};
-	},
 	getQueryContribution(config, runtime, state) {
 		if (!state.element) return queryFragment();
 		const option = findOption(config.options, state.element) ?? { value: state.element };

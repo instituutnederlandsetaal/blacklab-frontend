@@ -3,6 +3,7 @@ import type { NamedFieldComponentProps, NamedFieldDefinition } from '@/features/
 import type { Options } from '@/shared/utils/options';
 
 export type SelectFieldState = string[];
+export type SingleSelectFieldState = string;
 export type SelectFieldExtraProps = {
 	options: Options;
 	placeholder?: string;
@@ -10,9 +11,10 @@ export type SelectFieldExtraProps = {
 	html?: boolean;
 	hideEmpty?: boolean;
 };
-export type SelectFieldDefinition = NamedFieldDefinition<SelectFieldState, SelectFieldExtraProps, 'placeholder'>;
+export type SelectFieldDefinition<State extends string | string[] = SelectFieldState> = NamedFieldDefinition<State, SelectFieldExtraProps, 'placeholder'>;
+export type SingleSelectFieldDefinition = SelectFieldDefinition<SingleSelectFieldState>;
 
 export const createDefaultSelectFieldState = (): SelectFieldState => [];
 export type SelectFieldConfig = SelectFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `SelectFieldDefinition['componentProps']`. */
-export type SelectFieldComponentProps = NamedFieldComponentProps<SelectFieldState> & SelectFieldExtraProps;
+export type SelectFieldComponentProps = NamedFieldComponentProps<SelectFieldState | SingleSelectFieldState> & SelectFieldExtraProps;

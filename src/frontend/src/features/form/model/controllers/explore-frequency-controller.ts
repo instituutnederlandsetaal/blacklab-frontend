@@ -1,9 +1,9 @@
 import { toValue } from 'vue';
 
-import type { SelectFieldDefinition, SelectFieldState } from '@/features/form/fields/generic/select-field';
+import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { anyToken, queryFragment } from '@/features/form/model/compile/query-artifact';
-import { decodePersistSingleSelection } from '@/features/form/model/controllers/persistence-codec';
-import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
+import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
+import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 
 import { findOption, optionLabel, optionValues } from '@/shared/utils/options';
 
@@ -13,30 +13,28 @@ export type FrequencyAnnotationControllerConfig = {
 	/** Stable and unique within the containing form. */
 	persistKey: string;
 };
-export type FrequencyAnnotationFieldConfig = FieldControllerConfig<SelectFieldDefinition, FrequencyAnnotationControllerConfig>;
+export type FrequencyAnnotationFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, FrequencyAnnotationControllerConfig>;
 
-function defaultState(config: FrequencyAnnotationFieldConfig): SelectFieldState {
+function defaultState(config: FrequencyAnnotationFieldConfig): string {
 	const values = optionValues(config.options);
 	const annotationId = config.defaultAnnotationId && values.includes(config.defaultAnnotationId) ? config.defaultAnnotationId : (values[0] ?? null);
-	return annotationId ? [annotationId] : [];
+	return annotationId ?? '';
 }
 
-export const frequencyAnnotationController = defineFieldController<'explore-frequency-annotation', SelectFieldDefinition, FrequencyAnnotationControllerConfig>({
+const persistenceCodec = stringPersistenceCodec(({ config }: FieldPersistenceContext<FrequencyAnnotationFieldConfig>) => defaultState(config))
+	.refine((value, { config }) => {
+		return !value || findOption(config.options, value)
+			? undefined
+			: `Cannot restore frequency annotation '${value}' because it is not present in the current options.`;
+	});
+
+export const frequencyAnnotationController = defineFieldController<'explore-frequency-annotation', SingleSelectFieldDefinition, FrequencyAnnotationControllerConfig>({
 	kind: 'explore-frequency-annotation',
 	createDefaultState: defaultState,
-	getPersistKey: config => config.persistKey,
+	persistence: { key: config => config.persistKey, codec: persistenceCodec },
 	affectsBlackLabParameters: ['patt'],
-	encode(state) {
-		return state[0] || null;
-	},
-	restore(payload, config) {
-		const annotationId = decodePersistSingleSelection(payload);
-		if (!annotationId) return defaultState(config);
-		if (findOption(config.options, annotationId)) return [annotationId];
-		throw new Error(`Cannot restore frequency annotation '${annotationId}' because it is not present in the current options.`);
-	},
 	getQueryContribution(config, _runtime, state) {
-		const annotationId = state[0];
+		const annotationId = state;
 		if (!annotationId) return queryFragment();
 		const option = findOption(config.options, annotationId);
 		return queryFragment(

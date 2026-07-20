@@ -1,7 +1,17 @@
 import { describe, expect, test } from 'vitest';
 import { isReactive, reactive } from 'vue';
 
-import { buildQueryIR, createDefaultFormState, createFormFieldNode, getFieldAffectedBlackLabParameters, getFieldQueryContribution, type QueryCombineMode } from '@/features/form';
+import {
+	buildQueryIR,
+	createDefaultFormState,
+	createFormFieldNode,
+	encodeFieldState,
+	getFieldAffectedBlackLabParameters,
+	getFieldPersistKey,
+	getFieldQueryContribution,
+	restoreFieldState,
+	type QueryCombineMode,
+} from '@/features/form';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, parentFormProbeView, testTextController } from './helpers';
@@ -206,9 +216,9 @@ describe('form model state', () => {
 		expect(builder.nodeList).toEqual([]);
 		expect(field.controller.createDefaultState(field, builder.context)).toEqual({ value: '' });
 		expect(getFieldAffectedBlackLabParameters(field, builder.context)).toEqual(['patt']);
-		expect(field.controller.getPersistKey(field, builder.context)).toBe('word');
-		expect(field.controller.encode({ value: 'water' }, field, builder.context)).toBe('water');
-		expect(field.controller.restore('water', field, builder.context)).toEqual({ value: 'water' });
+		expect(getFieldPersistKey(field, builder.context)).toBe('word');
+		expect(encodeFieldState(field, { value: 'water' }, builder.context)).toBe('water');
+		expect(restoreFieldState(field, 'water', builder.context)).toEqual({ value: 'water' });
 		expect(getFieldQueryContribution(field, builder.context, { value: 'water' }).summaries).toEqual([
 			{
 				label: 'Word',

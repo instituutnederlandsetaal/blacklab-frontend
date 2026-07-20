@@ -3,7 +3,7 @@ import { toValue } from 'vue';
 import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldDefinition } from '@/features/form/fields/generic/text-field';
 import { queryFragment, queryIR, token, tokenPredicate, tokenSequence } from '@/features/form/model/compile/query-artifact';
-import { assertKnownOptions, decodePersistSelection, joinPersistValues, singleEncodedValue, splitPersistValue } from '@/features/form/model/controllers/persistence-codec';
+import { array, bool, object, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { booleanExpr, type QueryFragment } from '@/features/form/model/types';
 import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
 
@@ -18,6 +18,18 @@ export type AnnotationControllerConfig = {
 export type AnnotationTextFieldConfig = FieldControllerConfig<TextFieldDefinition, AnnotationControllerConfig>;
 export type AnnotationSelectFieldConfig = FieldControllerConfig<SelectFieldDefinition, AnnotationControllerConfig>;
 
+const annotationTextCodec = object({
+	value: scalar().default('').atRoot(),
+	caseSensitive: bool().default(false).at('c'),
+})
+	.default({ value: '', caseSensitive: false })
+	.omitWhen(state => !state.value.trim() && !state.caseSensitive);
+
+const annotationSelectionCodec = array(scalar()).default([]).refine((values, { config }) => {
+	const unknown = values.filter(value => !findOptions(config.options, [value]).length);
+	return unknown.length ? `Cannot restore values no longer present in the current options: ${unknown.join(', ')}.` : undefined;
+});
+
 /**
  * Controller that tokenizes the input string.
  * Quotes suppress tokenization within them.
@@ -31,20 +43,8 @@ export type AnnotationSelectFieldConfig = FieldControllerConfig<SelectFieldDefin
 export const annotationTextController = defineFieldController<'annotation-text', TextFieldDefinition, AnnotationControllerConfig>({
 	kind: 'annotation-text',
 	createDefaultState: createDefaultTextFieldState,
-	getPersistKey: config => config.annotationId,
+	persistence: { key: config => config.annotationId, codec: annotationTextCodec },
 	affectsBlackLabParameters: ['patt'],
-	encode(state) {
-		const value = state.value.trim();
-		if (!value) return null;
-		return state.caseSensitive ? `${joinPersistValues([value], ';')};c=1` : value;
-	},
-	restore(payload) {
-		const parts = splitPersistValue(singleEncodedValue(payload, 'annotation text'), ';');
-		return {
-			value: parts[0] ?? '',
-			caseSensitive: parts.includes('c=1'),
-		};
-	},
 	getQueryContribution(config, _runtime, state) {
 		if (!state.value.trim()) return queryFragment();
 
@@ -69,16 +69,8 @@ export const annotationTextController = defineFieldController<'annotation-text',
 export const annotationSelectController = defineFieldController<'annotation-select', SelectFieldDefinition, AnnotationControllerConfig>({
 	kind: 'annotation-select',
 	createDefaultState: createDefaultSelectFieldState,
-	getPersistKey: config => config.annotationId,
+	persistence: { key: config => config.annotationId, codec: annotationSelectionCodec },
 	affectsBlackLabParameters: ['patt'],
-	encode(state) {
-		return state.length ? joinPersistValues(state) : null;
-	},
-	restore(payload, config) {
-		const values = decodePersistSelection(payload);
-		assertKnownOptions(values, config.options);
-		return values;
-	},
 	getQueryContribution(config, _runtime, state) {
 		if (!state.length) return queryFragment();
 		return queryFragment(token(booleanExpr('or', ...state.map(v => tokenPredicate('equals', config.annotationId, v)))), {

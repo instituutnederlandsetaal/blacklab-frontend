@@ -13,6 +13,7 @@ export {
 	filterTextController,
 } from './metadata-filter-controller';
 export { parallelController } from './parallel-controller';
+export * from './persistence-codec';
 export { parallelSourceController, type ParallelSourceFieldConfig } from './parallel-source-controller';
 export { queryBuilderController } from './query-builder-controller';
 export { expertQueryController } from './raw-cql-query-controller';

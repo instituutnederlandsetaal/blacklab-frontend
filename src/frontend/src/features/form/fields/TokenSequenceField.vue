@@ -83,7 +83,8 @@ function updateLength(requestedLength: number) {
 	emit('update:modelValue', nextTokens);
 }
 
-function updateTokenField(index: number, selection: string[]) {
+function updateTokenField(index: number, selection: string | string[]) {
+	if (!Array.isArray(selection)) selection = selection ? [selection] : [];
 	const selectedFieldId = resolveTokenSequenceFieldId(props, selection[0]);
 	const current = props.modelValue[index];
 	if (!current || current.fieldId === selectedFieldId) return;
