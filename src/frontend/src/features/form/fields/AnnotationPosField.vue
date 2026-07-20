@@ -98,7 +98,13 @@ import { useI18n } from '@/shared/i18n';
 
 import Modal from '@/shared/ui/Modal.vue';
 
-const props = withDefaults(defineProps<AnnotationPosFieldComponentProps>(), {
+// Vue's type-to-runtime conversion otherwise follows `annotationValue` and
+// generates a String validator for this structured field state.
+type AnnotationPosFieldProps = Omit<AnnotationPosFieldComponentProps, 'modelValue'> & {
+	modelValue: AnnotationPosFieldState;
+};
+
+const props = withDefaults(defineProps<AnnotationPosFieldProps>(), {
 	showLabel: true,
 	disabled: false,
 });
