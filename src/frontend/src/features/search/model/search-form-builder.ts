@@ -323,7 +323,7 @@ function createExtendedAnnotationTabs(context: BuildContext): ReturnType<FormBui
 	}
 
 	const tabs = builder.newContainer('search.extended.annotations', ContainerRenderer, {
-		variant: 'tabs',
+		variant: 'small-tabs',
 	});
 
 	for (const { annotations, group } of groups) {
