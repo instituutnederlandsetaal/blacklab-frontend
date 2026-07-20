@@ -113,7 +113,7 @@ function safeHtmlId(value: string) {
 <style lang="scss" scoped>
 .blf-token-sequence-field {
 	display: grid;
-	gap: 14px;
+	// gap: 15px;
 }
 
 .blf-token-sequence-tokens {
@@ -125,8 +125,9 @@ function safeHtmlId(value: string) {
 .blf-token-sequence-token {
 	display: grid;
 	flex: 1 1 0;
-	gap: 8px;
+	// gap: 8px;
 	min-width: 0;
+	align-content: start;
 }
 
 @media (max-width: 760px) {
