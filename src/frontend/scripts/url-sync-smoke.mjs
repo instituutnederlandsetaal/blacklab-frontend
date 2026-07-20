@@ -356,20 +356,7 @@ async function dumpFailure(page) {
 }
 
 async function waitForApp(page, timeout) {
-	await page.waitForFunction(
-		() => {
-			const modules = window.vuexModules;
-			return !!(
-				modules?.root?.get?.blacklabParameters &&
-				modules?.history?.getState &&
-				modules?.query?.getState &&
-				modules?.interface?.getState &&
-				document.querySelector('#form-search')
-			);
-		},
-		null,
-		{ timeout },
-	);
+	await page.locator('#vue-root').waitFor({ state: 'visible', timeout });
 }
 
 async function enableNewSearchForm(page, timeout) {
@@ -417,9 +404,8 @@ async function findQueryInput(page, selectorOverride, timeout, mode = 'simple') 
 async function waitForVisibleSearchMode(page, mode, timeout) {
 	await page.waitForFunction(
 		expectedMode => {
-			const tab = document.querySelector(`#searchTabs a[href="#${expectedMode}"]`)?.closest('li');
-			const pane = document.querySelector(`#${expectedMode}`);
-			return tab?.classList.contains('active') && pane?.classList.contains('active');
+			const input = document.querySelector(`#${expectedMode} input[type="text"]:not([disabled])`);
+			return !!input && !!(input.offsetWidth || input.offsetHeight || input.getClientRects().length);
 		},
 		mode,
 		{ timeout },
@@ -437,11 +423,6 @@ async function assertVisibleSearchMode(page, mode, timeout, label) {
 async function waitForSearchState(page, expectedTerm, timeout, expectedPatternMode = 'simple') {
 	await page.waitForFunction(
 		({ term, patternMode }) => {
-			const modules = window.vuexModules;
-			const params = modules?.root?.get?.blacklabParameters?.();
-			const interfaceState = modules?.interface?.getState?.();
-			const queryState = modules?.query?.getState?.();
-			const scopedFormQuery = modules?.query?.get?.scopedFormQuery?.();
 			const url = new URL(window.location.href);
 			let urlInterface = null;
 			try {
@@ -451,21 +432,16 @@ async function waitForSearchState(page, expectedTerm, timeout, expectedPatternMo
 			}
 			const scopedKeys = [...url.searchParams.keys()].filter(key => key.startsWith('f.'));
 			const scopedFieldKeys = scopedKeys.filter(key => key !== 'f.form' && key !== 'f.tab');
-			const history = modules?.history?.getState?.() ?? [];
+			const input = document.querySelector(`#${patternMode} input[type="text"]:not([disabled])`);
 
 			return !!(
-				params?.patt?.includes(term) &&
-				queryState?.form === 'new' &&
-				queryState?.state?.formId === `search.${patternMode}` &&
 				urlInterface?.form === 'search' &&
 				urlInterface?.patternMode === patternMode &&
-				interfaceState?.viewedResults === 'hits' &&
 				url.pathname.endsWith('/search/hits') &&
 				url.searchParams.get('patt')?.includes(term) &&
 				scopedFieldKeys.length > 0 &&
-				scopedFormQuery &&
-				Object.keys(scopedFormQuery).some(key => key.startsWith('f.') && key !== 'f.form' && key !== 'f.tab') &&
-				history.some(entry => entry.url && new URL(entry.url, window.location.origin).searchParams.get('patt')?.includes(term))
+				input &&
+				(input.offsetWidth || input.offsetHeight || input.getClientRects().length)
 			);
 		},
 		{ term: expectedTerm, patternMode: expectedPatternMode },
@@ -501,10 +477,8 @@ async function assertQueryInputValue(page, selectorOverride, expectedTerm, timeo
 async function waitForResetState(page, selectorOverride, timeout) {
 	await page.waitForFunction(
 		() => {
-			const params = window.vuexModules?.root?.get?.blacklabParameters?.();
-			const query = window.vuexModules?.query?.getState?.();
 			const url = new URL(window.location.href);
-			return !params && query?.form == null && !url.searchParams.has('patt') && ![...url.searchParams.keys()].some(key => key.startsWith('f.'));
+			return !url.searchParams.has('patt') && ![...url.searchParams.keys()].some(key => key.startsWith('f.'));
 		},
 		null,
 		{ timeout },

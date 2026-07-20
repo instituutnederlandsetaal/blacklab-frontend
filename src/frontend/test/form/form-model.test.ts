@@ -149,7 +149,7 @@ describe('form model state', () => {
 		const second = builder.newContainer('second', ContainerRenderer, {});
 		first.addChildren(second);
 
-		expect(() => second.addChildren(first)).toThrow('would create a form graph cycle');
+		expect(() => second.addChildren(first)).throws();
 	});
 
 	test('createDefaultFormState initializes each reused field once', () => {

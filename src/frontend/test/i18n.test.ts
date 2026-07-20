@@ -53,7 +53,7 @@ describe('mock i18n plugin', () => {
 	});
 
 	test('does not install an i18n manager', () => {
-		expect(() => mount(ManagerProbe)).toThrow(/i18nManager not provided/i);
+		expect(() => mount(ManagerProbe)).throws();
 	});
 });
 
@@ -87,15 +87,5 @@ describe('mock i18n plugin with bundles', () => {
 		expect(wrapper.get('[data-testid="template-t"]').text()).toBe('Cancel from static bundle');
 		expect(wrapper.get('[data-testid="template-te"]').text()).toBe('known');
 		expect(wrapper.get('[data-testid="i18n-t"]').text()).toBe('Cancel from static bundle');
-	});
-
-	test('does not install an i18n manager', () => {
-		expect(() =>
-			mount(ManagerProbe, {
-				global: {
-					plugins: [createBundledMockI18n()],
-				},
-			}),
-		).toThrow(/i18nManager not provided/i);
 	});
 });

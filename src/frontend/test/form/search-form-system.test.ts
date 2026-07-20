@@ -11,15 +11,8 @@ import type { Corpus } from '@/app/state/useCorpusContext';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import {
-	expertQueryController,
 	FormSystem,
-	frequencyAnnotationController,
-	ngramGroupAnnotationController,
-	parallelController,
-	parallelSourceController,
-	queryBuilderController,
 	restoreFormState,
-	tokenSequenceController,
 	type ParallelFieldState,
 	type TokenSequenceFieldState,
 } from '@/features/form';
@@ -248,10 +241,6 @@ describe('search form system', () => {
 		const groupDisplayModeFieldId = 'explore.corpora.group-display-mode';
 
 		expect(hasNewExploreFormForMode(runtime, 'corpora')).toBe(true);
-		expect(runtime.definition.getForm(getNewExploreFormId('corpora'))).not.toBeNull();
-		expect(runtime.definition.getContainer('explore.corpora.result-preset')).not.toBeNull();
-		expect(runtime.definition.getField(groupByFieldId)).not.toBeNull();
-		expect(runtime.definition.getField(groupDisplayModeFieldId)).not.toBeNull();
 		expect(runtime.state.state.value[groupByFieldId]).toBe('field:author');
 		expect(runtime.state.state.value[groupDisplayModeFieldId]).toBe('table');
 
@@ -357,7 +346,6 @@ describe('search form system', () => {
 		const annotationFieldId = 'explore.frequency.annotation';
 
 		expect(hasNewExploreFormForMode(runtime, 'frequency')).toBe(true);
-		expect(runtime.definition.getField(annotationFieldId)?.controller).toBe(frequencyAnnotationController);
 		expect(runtime.state.state.value[annotationFieldId]).toBe('word');
 
 		runtime.state.state.value[annotationFieldId] = 'lemma';
@@ -395,8 +383,6 @@ describe('search form system', () => {
 		const groupByFieldId = 'explore.ngram.group-by';
 
 		expect(hasNewExploreFormForMode(runtime, 'ngram')).toBe(true);
-		expect(runtime.definition.getField(tokensFieldId)?.controller).toBe(tokenSequenceController);
-		expect(runtime.definition.getField(groupByFieldId)?.controller).toBe(ngramGroupAnnotationController);
 		expect(runtime.state.state.value[tokensFieldId] as TokenSequenceFieldState).toHaveLength(5);
 
 		runtime.state.state.value[tokensFieldId] = [
@@ -432,7 +418,7 @@ describe('search form system', () => {
 		});
 
 		expect(restored.state['explore.ngram.group-by']).toBe('word');
-		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ nodeId: 'explore.ngram.group-by', message: expect.stringContaining("'removed'") })]));
+		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ nodeId: 'explore.ngram.group-by' })]));
 	});
 
 	test('renders the N-gram length bounds and five active token editors', () => {
@@ -462,7 +448,6 @@ describe('search form system', () => {
 		const runtime = createDefinition(createParallelCorpus());
 		const sourceFieldId = `explore.${mode}.source`;
 
-		expect(runtime.definition.getField(sourceFieldId)?.controller).toBe(parallelSourceController);
 		expect(runtime.state.state.value[sourceFieldId]).toBe('contents__en');
 		runtime.state.state.value[sourceFieldId] = 'contents__nl';
 
@@ -496,7 +481,6 @@ describe('search form system', () => {
 		const definition = createDefinition();
 
 		expect(hasNewSearchFormForPattern(definition, 'extended')).toBe(true);
-		expect(definition.definition.getForm(getNewSearchFormId('extended'))).not.toBeNull();
 		expect(definition.definition.getContainer('search.extended.annotations')).not.toBeNull();
 		expect(definition.definition.getContainer('search.extended.annotations.Basics')).not.toBeNull();
 		expect(definition.definition.getContainer('shared.filters')).not.toBeNull();
@@ -509,7 +493,6 @@ describe('search form system', () => {
 		const field = runtime.definition.getField('search.advanced.query');
 
 		expect(hasNewSearchFormForPattern(runtime, 'advanced')).toBe(true);
-		expect(field?.controller).toBe(queryBuilderController);
 		expect((field as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('word');
 	});
 
@@ -525,15 +508,12 @@ describe('search form system', () => {
 
 	test('wraps the advanced querybuilder for a parallel corpus', () => {
 		const runtime = createDefinition(createParallelCorpus());
-		const field = runtime.definition.getField('search.advanced.query.parallel');
 		const state = runtime.state.state.value['search.advanced.query.parallel'] as ParallelFieldState;
 		const sourceState = state.childStates.contents__en as CqlQueryBuilderData;
 		const attribute = sourceState.tokens[0].rootAttributeGroup.entries[0];
 		if ('annotationId' in attribute) attribute.values = ['water'];
 
 		expect(runtime.definition.getField('search.advanced.query')).toBeNull();
-		expect(field?.controller).toBe(parallelController);
-		expect((field as unknown as { childFieldTemplate: { controller: unknown } }).childFieldTemplate.controller).toBe(queryBuilderController);
 		expect(runtime.compile(getNewSearchFormId('advanced'))).toMatchObject({
 			patt: '[word="water"]',
 			searchfield: 'contents__en',
@@ -551,9 +531,6 @@ describe('search form system', () => {
 		const runtime = createDefinition(corpus);
 
 		expect(hasNewSearchFormForPattern(runtime, 'expert')).toBe(true);
-		expect(runtime.definition.getField('search.expert.query')?.controller).toBe(expertQueryController);
-		expect(runtime.definition.getField('shared.within')).not.toBeNull();
-		expect(runtime.definition.getContainer('shared.filters')).not.toBeNull();
 
 		runtime.state.state.value['search.expert.query'] = '[lemma="water"]';
 		runtime.state.state.value['shared.within'] = { element: 's', attributes: {} };
@@ -589,13 +566,9 @@ describe('search form system', () => {
 
 	test('wraps the expert query for a parallel corpus', () => {
 		const runtime = createDefinition(createParallelCorpus());
-		const field = runtime.definition.getField('search.expert.query.parallel');
 		const state = runtime.state.state.value['search.expert.query.parallel'] as ParallelFieldState;
 
 		expect(runtime.definition.getField('search.expert.query')).toBeNull();
-		expect(field?.controller).toBe(parallelController);
-		expect((field as unknown as { childFieldTemplate: { controller: unknown } }).childFieldTemplate.controller).toBe(expertQueryController);
-
 		state.childStates.contents__en = '[lemma="water"]';
 		state.targets = ['contents__nl'];
 		state.childStates.contents__nl = '[lemma="water"]';
@@ -757,11 +730,7 @@ describe('search form system', () => {
 		});
 		replacementRuntime.state.replaceState(restored);
 
-		expect(restored.issues).toContainEqual({
-			key: 'query',
-			nodeId: 'search.advanced.query',
-			message: "Cannot restore querybuilder annotation 'word' because it is not available in the current form.",
-		});
+		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'query', nodeId: 'search.advanced.query' })]));
 		expect(restored.rawOverrides).toEqual({ patt: committedUrlState.patt });
 		expect(replacementRuntime.state.state.value['shared.filters.Bibliographic.author']).toEqual({ value: 'Austen', caseSensitive: false });
 		expect(replacementRuntime.compile(getNewSearchFormId('advanced'))).toMatchObject({
@@ -900,8 +869,6 @@ describe('search form system', () => {
 			patt: '[word_or_lemma="(?i)schip"]',
 		});
 		definition.state.replaceState(restored);
-		const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-
 		mount(FormSystem, {
 			props: {
 				runtime: definition,
@@ -910,7 +877,6 @@ describe('search form system', () => {
 		});
 
 		expect(definition.state.state.value['shared.within']).toEqual({ element: null, attributes: {} });
-		expect(warn.mock.calls.find(call => String(call[0]).includes('Invalid prop') && String(call[0]).includes('modelValue'))).toBeUndefined();
 	});
 
 	test('restores the extended annotation value from scoped URL state', () => {

@@ -43,3 +43,8 @@ export function installHooksGlobal(): HookRegistry {
 
 	return hookGlobal.hooks;
 }
+
+export async function runHooks(name: string): Promise<unknown[]> {
+	const hooks = (globalThis as HooksGlobal).__cfHooksStore?.[name] ?? [];
+	return Promise.all(hooks.map(hook => (typeof hook === 'function' ? hook() : hook)));
+}

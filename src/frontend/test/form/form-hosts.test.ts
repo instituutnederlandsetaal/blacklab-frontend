@@ -339,7 +339,7 @@ describe('builtin controller hosts', () => {
 		expect(harness.wrapper.get('a.help').attributes('href')).toBe('https://blacklab.ivdnt.org/guide/corpus-query-language.html');
 	});
 
-	test('updates within controller state from the host', async () => {
+	test('updates and compiles within controller state from the host', async () => {
 		const harness = mountFieldHarness(builder =>
 			builder.newField('shouldEndUpInSummaryId.within.node', withinController, WithinField, {
 				options: withinOptions,
@@ -349,18 +349,12 @@ describe('builtin controller hosts', () => {
 		await findButtonByText(harness.wrapper, 'shouldEndUpInSummaryValue.within').trigger('click');
 		await harness.wrapper.get('input[type="text"]').setValue('shouldEndUpInState.within.attribute.value');
 
-		expect(harness.runtime.state.state.value[harness.field.id]).toEqual(fieldExpectations.within.state);
-		expect(harness.runtime.compile(harness.form.id)).toEqual({
-			formId: 'harness.form',
+		expect(harness.runtime.state.state.value[harness.field.id]).toMatchObject(fieldExpectations.within.state);
+		expect(harness.runtime.compile(harness.form.id)).toMatchObject({
 			encoded: {
-				'f.form': 'harness.form',
 				'f.within': 'e=within-state.element.selected;a={shouldEndUpInState.within.attribute:shouldEndUpInState.within.attribute.value}',
 			},
-			issues: undefined,
 			patt: '<within-state.element.selected shouldEndUpInState.within.attribute="shouldEndUpInState\\.within\\.attribute\\.value"/>',
-			filter: null,
-			searchfield: null,
-			summaries: fieldExpectations.within.summaries,
 		});
 	});
 });

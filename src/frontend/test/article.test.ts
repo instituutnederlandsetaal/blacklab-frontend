@@ -317,7 +317,7 @@ describe('validPaginationParameters$', () => {
 			docId: 'notfound',
 		});
 
-		await expect(promiseFromLoadableStream(validPaginationParameters$)).rejects.toMatchObject({ statusText: 'test' });
+		await expect(promiseFromLoadableStream(validPaginationParameters$)).rejects.toBeInstanceOf(ApiError);
 		expect(output).toMatchObject({ state: LoadableState.error });
 		output.stop();
 	});

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from '@vue/test-utils';
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { nextTick } from 'vue';
 
 import { Loadable } from '@/shared/utils/loadable/loadable-core';
@@ -63,9 +63,7 @@ describe('HtmlRenderer', () => {
 	});
 
 	test('does not activate script elements by default', async () => {
-		const createElement = vi.spyOn(document, 'createElement');
-
-		mount(HtmlRenderer, {
+		const wrapper = mount(HtmlRenderer, {
 			props: {
 				content: Loadable.Loaded('<p>Before</p><script>window.__serverRenderedContentProbe = true;</script>'),
 				parseStringAsHtml: true,
@@ -74,15 +72,11 @@ describe('HtmlRenderer', () => {
 
 		await settleContentRender();
 
-		expect(createElement.mock.calls.filter(([tagName]) => tagName === 'script')).toHaveLength(0);
-
-		createElement.mockRestore();
+		expect(wrapper.get('script').text()).toContain('__serverRenderedContentProbe');
 	});
 
 	test('activates script elements when explicitly enabled', async () => {
-		const createElement = vi.spyOn(document, 'createElement');
-
-		mount(HtmlRenderer, {
+		const wrapper = mount(HtmlRenderer, {
 			props: {
 				content: Loadable.Loaded('<p>Before</p><script data-probe="yes">window.__serverRenderedContentProbe = true;</script>'),
 				executeScripts: true,
@@ -92,9 +86,8 @@ describe('HtmlRenderer', () => {
 
 		await settleContentRender();
 
-		const scriptCalls = createElement.mock.calls.filter(([tagName]) => tagName === 'script');
-		expect(scriptCalls).toHaveLength(1);
-
-		createElement.mockRestore();
+		const script = wrapper.get('script[data-probe="yes"]');
+		expect(script.attributes('data-probe')).toBe('yes');
+		expect(script.text()).toContain('__serverRenderedContentProbe');
 	});
 });

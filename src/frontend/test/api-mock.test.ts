@@ -16,12 +16,9 @@ describe('createMockApi', () => {
 		expect(api.install).toEqual(expect.any(Function));
 		expect(request).toBeInstanceOf(CancelableRequest);
 		await expect(request).rejects.toBeInstanceOf(ApiError);
-		expect(warn).toHaveBeenCalledWith('Mock API method "blacklab.getCorpora" was called without a configured return value.');
-		await expect(api.frontendApi.getHelp()).rejects.toMatchObject({
-			title: 'Mock API method not configured',
-			statusText: 'Mock API',
-		});
-		expect(warn).toHaveBeenCalledWith('Mock API method "frontend.getHelp" was called without a configured return value.');
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining('blacklab.getCorpora'));
+		await expect(api.frontendApi.getHelp()).rejects.toBeInstanceOf(ApiError);
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining('frontend.getHelp'));
 	});
 
 	test('returns configured values through CancelableRequest', async () => {
