@@ -1,6 +1,5 @@
 import type { CaptureAndRelation, TokenHighlight } from '@/types/apptypes';
 import type { BLHit, BLHitInOtherField, BLHitResults, BLMatchInfo, BLMatchInfoList, BLMatchInfoRelation, BLMatchInfoSpan, BLSearchSummaryV5 } from '@/types/blacklabtypes';
-// TODO this is a bit dirty, make it a function argument if possible
 import type { UnionHelpers } from '@/types/helpers';
 import { corpusCustomizations } from '@/utils/customization';
 

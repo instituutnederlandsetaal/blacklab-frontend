@@ -589,11 +589,11 @@ function makeGroupRows(results: BLDocGroupResults | BLHitGroupResults, info: Dis
 
 			'r.d': getMatchingDocuments(summary),
 			// When a pattern was used (which is always when we have hits), we can't know this (should be tokensInMatchedDocuments, but that't not returned for grouped queries)
-			'r.t': undefined, // TODO wait for jan. Should be total tokens in all docs with a hit.
+			'r.t': undefined, // TODO Verify for v5 api, might exist nowadays. Should be total tokens in all docs with a hit.
 			'r.h': getMatchingHits(summary),
 
 			'gr.d': g.numberOfDocs ?? 0,
-			'gr.t': undefined, // TODO wait for jan, is more specific than subcorpusSize, since should only account for docs with hits.
+			'gr.t': undefined, // TODO Verify for v5 api, is more specific than subcorpusSize, since should only account for docs with hits.
 			'gr.h': g.size,
 
 			// When group doesn't specify subcorpus, it is the same as the total search space.

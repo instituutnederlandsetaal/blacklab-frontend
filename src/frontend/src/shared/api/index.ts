@@ -15,11 +15,6 @@ const createApi = async (options: {
 }): Promise<ApiPlugin> => {
 	const frontendApi = createFrontendApi(options.frontend);
 
-	// TODO allow forcing v4 api.
-	// it should append an 'api=4' query param to all requests.
-	// this because the v5 api changes, and we target the most recent version
-	// so old in-dev v5 versions don't work with the frontend
-	// in those causes you want to fall back to v4.
 	const { api: blacklabApi, paths: blacklabPaths } = await createBlackLabApi({ ...options.blacklab });
 	return createApiPlugin({
 		frontendApi,

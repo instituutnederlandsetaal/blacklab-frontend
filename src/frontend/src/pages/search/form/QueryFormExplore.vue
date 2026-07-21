@@ -271,7 +271,6 @@ export default defineComponent({
 			return optGroups;
 		},
 		corporaGroupDisplayModeOptions(): Option[] {
-			// TODO
 			return [
 				{
 					value: 'table',

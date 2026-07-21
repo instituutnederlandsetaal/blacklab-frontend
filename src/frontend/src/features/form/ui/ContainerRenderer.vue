@@ -1,7 +1,5 @@
 <template>
 	<component v-if="isTabbed" :is="isForm ? 'form' : 'div'" :class="{ 'panel panel-default blf-form-container': isForm, ...variant }" @submit.stop.prevent="submit" @reset.stop.prevent="reset">
-		<!-- todo variant classes? -->
-
 		<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="resolvedTitle || 'Form sections'" class="panel-heading blf-form-container-tabs">
 			<template v-if="presentation['tab-badges']" #label="{ tab }">
 				{{ tab.label }}

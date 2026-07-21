@@ -20,7 +20,6 @@
 				<FormSystem v-if="renderNewForm('simple')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('simple')" @submit="submitNewForm" @reset="resetNewForm" />
 				<div v-else class="form-horizontal">
 					<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
-					<!-- TODO render the full annotation instance? requires some changes to bind to store correctly and apply appropriate classes though -->
 					<div class="form-group form-group-lg">
 						<label class="control-label" :for="simpleSearchAnnotation.id + '_' + uid" :title="$tAnnotDescription(simpleSearchAnnotation)">{{ $tAnnotDisplayName(simpleSearchAnnotation) }} </label>
 						<Annotation :key="'simple/' + simpleSearchAnnotation.id" :htmlId="'simple/' + simpleSearchAnnotation.id" :annotation="simpleSearchAnnotation" bare simple />
