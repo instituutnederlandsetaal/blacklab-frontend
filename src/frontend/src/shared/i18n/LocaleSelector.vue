@@ -41,8 +41,7 @@ const i18n = useI18nManager();
 .locale-select {
 	display: inline-block;
 }
-/* .locale .placeholder {
-	color: transparent!important;
-	text-shadow: 0px 0px inherit;
-} */
+:deep(button) {
+	border: none !important;
+}
 </style>

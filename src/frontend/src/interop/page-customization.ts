@@ -10,6 +10,20 @@ export type HeadElementDefinition = {
 const cssElementMarker = 'data-page-customization-css';
 const jsElementMarker = 'data-page-customization-js';
 const headElementMarker = 'data-page-customization-head';
+export const customCssChangedEvent = 'page-customization-css-changed';
+const pendingCssLoadHandlers = new WeakMap<HTMLLinkElement, () => void>();
+
+function notifyCustomCssChanged() {
+	window.dispatchEvent(new Event(customCssChangedEvent));
+}
+
+function stopWaitingForCss(link: HTMLLinkElement) {
+	const handler = pendingCssLoadHandlers.get(link);
+	if (!handler) return;
+	link.removeEventListener('load', handler);
+	link.removeEventListener('error', handler);
+	pendingCssLoadHandlers.delete(link);
+}
 
 function _useInsertableContent<T>(p: { insert: (content: T[]) => void; remove: () => void; content: MaybeRefOrGetter<T[]>; immediate?: boolean }) {
 	const enabled = ref(p.immediate ?? true);
@@ -41,14 +55,30 @@ export const useCustomCss = (css: MaybeRefOrGetter<CFCustomCssEntry[]>, options?
 		content: css,
 		immediate: options?.immediate,
 		insert: cssEntries => {
+			let remaining = cssEntries.length;
 			cssEntries.forEach(css => {
 				const link = document.createElement('link');
 				Object.entries(css.attributes).forEach(([k, v]) => v && link.setAttribute(k, v.toString()));
 				link.setAttribute(cssElementMarker, '');
+				const handleSettled = () => {
+					stopWaitingForCss(link);
+					if (--remaining === 0) notifyCustomCssChanged();
+				};
+				pendingCssLoadHandlers.set(link, handleSettled);
+				link.addEventListener('load', handleSettled);
+				link.addEventListener('error', handleSettled);
 				document?.head?.appendChild(link);
 			});
 		},
-		remove: () => document?.head?.querySelectorAll?.(`link[${cssElementMarker}]`)?.forEach(e => e.remove()),
+		remove: () => {
+			const links = document?.head?.querySelectorAll?.<HTMLLinkElement>(`link[${cssElementMarker}]`);
+			if (!links?.length) return;
+			links.forEach(link => {
+				stopWaitingForCss(link);
+				link.remove();
+			});
+			notifyCustomCssChanged();
+		},
 	});
 };
 
