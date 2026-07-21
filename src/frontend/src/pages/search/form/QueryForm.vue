@@ -19,8 +19,8 @@
 				:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
 			>
 				<template #actions>
-					<button type="button" class="btn btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
-					<button type="button" class="btn btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
+					<button type="button" class="btn btn-default btn-lg" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
+					<button type="button" class="btn btn-default btn-lg" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
 				</template>
 			</QueryFormSearch>
 			<QueryFormExplore
@@ -32,8 +32,8 @@
 				:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
 			>
 				<template #actions>
-					<button type="button" class="btn btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
-					<button type="button" class="btn btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
+					<button type="button" class="btn btn-default btn-lg" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
+					<button type="button" class="btn btn-default btn-lg" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
 				</template>
 			</QueryFormExplore>
 

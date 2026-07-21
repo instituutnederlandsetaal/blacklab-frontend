@@ -99,7 +99,7 @@ describe('form runtime', () => {
 			},
 		});
 
-		const actions = wrapper.get('.blf-form-actions');
+		const actions = wrapper.get('.blf-form-actions btn-toolbar');
 		expect(actions.find('[type="submit"]').exists()).toBe(true);
 		expect(actions.find('[type="reset"]').exists()).toBe(true);
 		expect(actions.get('.legacy-action').attributes('type')).toBe('button');

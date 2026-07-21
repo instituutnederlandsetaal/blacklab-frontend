@@ -343,3 +343,15 @@ hr {
 .progress-bar {
 	text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.8);
 }
+
+.btn-toolbar {
+	display: flex;
+	gap: 0.25em;
+	> * {
+		margin: 0 !important;
+	}
+	&:before,
+	&:after {
+		display: none;
+	}
+}

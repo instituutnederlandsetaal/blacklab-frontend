@@ -15,9 +15,9 @@
 			<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset" />
 		</div>
 
-		<div class="panel-footer blf-form-actions" v-if="isForm">
-			<button class="btn btn-primary" type="submit">{{ $t(`queryForm.search`) }}</button>
-			<button class="btn btn-default" type="reset">{{ $t(`queryForm.reset`) }}</button>
+		<div class="blf-form-actions btn-toolbar" v-if="isForm">
+			<button class="btn btn-primary btn-lg" type="submit">{{ $t(`queryForm.search`) }}</button>
+			<button class="btn btn-default btn-lg" type="reset">{{ $t(`queryForm.reset`) }}</button>
 			<slot name="actions" />
 		</div>
 	</component>
@@ -25,9 +25,9 @@
 	<component v-else :is="isForm ? 'form' : 'div'" @submit.stop.prevent="submit" @reset.stop.prevent="reset" :class="['blf-form-container', variant]">
 		<Component v-for="child in children" :is="child.is" v-bind="child.props" :key="child.props.id" @submit="forwardSubmit" @reset="forwardReset" />
 
-		<div class="panel-footer blf-form-actions" v-if="isForm">
-			<button class="btn btn-primary" type="submit">{{ $t(`queryForm.search`) }}</button>
-			<button class="btn btn-default" type="reset">{{ $t(`queryForm.reset`) }}</button>
+		<div class="blf-form-actions btn-toolbar" v-if="isForm">
+			<button class="btn btn-primary btn-lg" type="submit">{{ $t(`queryForm.search`) }}</button>
+			<button class="btn btn-default btn-lg" type="reset">{{ $t(`queryForm.reset`) }}</button>
 			<slot name="actions" />
 		</div>
 	</component>
@@ -112,9 +112,7 @@ function forwardReset() {
 }
 
 .blf-form-actions {
-	display: flex;
-	gap: 8px;
-	justify-content: flex-start;
+	margin-top: 15px;
 }
 
 .blf-form-container.columns {
