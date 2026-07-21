@@ -21,12 +21,9 @@ function defaultState(config: FrequencyAnnotationFieldConfig): string {
 	return annotationId ?? '';
 }
 
-const persistenceCodec = stringPersistenceCodec(({ config }: FieldPersistenceContext<FrequencyAnnotationFieldConfig>) => defaultState(config))
-	.refine((value, { config }) => {
-		return !value || findOption(config.options, value)
-			? undefined
-			: `Cannot restore frequency annotation '${value}' because it is not present in the current options.`;
-	});
+const persistenceCodec = stringPersistenceCodec(({ config }: FieldPersistenceContext<FrequencyAnnotationFieldConfig>) => defaultState(config)).refine((value, { config }) => {
+	return !value || findOption(config.options, value) ? undefined : `Cannot restore frequency annotation '${value}' because it is not present in the current options.`;
+});
 
 export const frequencyAnnotationController = defineFieldController<'explore-frequency-annotation', SingleSelectFieldDefinition, FrequencyAnnotationControllerConfig>({
 	kind: 'explore-frequency-annotation',

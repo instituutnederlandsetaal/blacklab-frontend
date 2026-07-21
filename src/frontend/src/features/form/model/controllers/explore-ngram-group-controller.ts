@@ -21,12 +21,9 @@ function defaultState(config: NgramGroupAnnotationFieldConfig): string {
 	return annotationId ?? '';
 }
 
-const persistenceCodec = stringPersistenceCodec(({ config }: FieldPersistenceContext<NgramGroupAnnotationFieldConfig>) => defaultState(config))
-	.refine((value, { config }) => {
-		return !value || findOption(config.options, value)
-			? undefined
-			: `Cannot restore n-gram grouping annotation '${value}' because it is not present in the current options.`;
-	});
+const persistenceCodec = stringPersistenceCodec(({ config }: FieldPersistenceContext<NgramGroupAnnotationFieldConfig>) => defaultState(config)).refine((value, { config }) => {
+	return !value || findOption(config.options, value) ? undefined : `Cannot restore n-gram grouping annotation '${value}' because it is not present in the current options.`;
+});
 
 /** N-gram grouping selector. The state remains an annotation id; only the result preset receives the `hit:` prefix. */
 export const ngramGroupAnnotationController = defineFieldController<'explore-ngram-group-annotation', SingleSelectFieldDefinition, NgramGroupAnnotationControllerConfig>({

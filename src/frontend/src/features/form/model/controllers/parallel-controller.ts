@@ -5,11 +5,11 @@ import {
 	type ParallelFieldConfig,
 	type ParallelFieldDefinition,
 } from '@/features/form/fields/parallel-field';
+import type { ParallelFieldState } from '@/features/form/fields/parallel-field';
 import { getFieldQueryContribution } from '@/features/form/model/compile';
 import { queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
 import { array, object, record, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { ParallelFieldState } from '@/features/form/fields/parallel-field';
 import type { SummaryEntry } from '@/features/form/model/types/form-query';
 
 import { findOption } from '@/shared/utils/options';
@@ -76,9 +76,7 @@ const parallelPersistenceCodec = persistedParallelCodec
 				childStates: Object.fromEntries(
 					activeFields.map(fieldId => [
 						fieldId,
-						state.childPayloads[fieldId] != null
-							? restoreFieldState(config.childFieldTemplate, state.childPayloads[fieldId], runtime)
-							: createDefaultParallelChildState(config, runtime),
+						state.childPayloads[fieldId] != null ? restoreFieldState(config.childFieldTemplate, state.childPayloads[fieldId], runtime) : createDefaultParallelChildState(config, runtime),
 					]),
 				),
 			};

@@ -166,7 +166,9 @@ const tokenCodec = object({
 });
 
 const queryBuilderPersistenceCodec = object({
-	version: scalar().refine(value => (value === CODEC_VERSION ? undefined : `Cannot restore querybuilder value with unsupported version '${value}'.`)).at('v'),
+	version: scalar()
+		.refine(value => (value === CODEC_VERSION ? undefined : `Cannot restore querybuilder value with unsupported version '${value}'.`))
+		.at('v'),
 	tokens: array(tokenCodec).default([]).at('t'),
 })
 	.transform<QueryBuilderFieldState>({

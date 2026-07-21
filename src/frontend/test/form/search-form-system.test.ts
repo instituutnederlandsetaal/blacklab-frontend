@@ -10,12 +10,7 @@ import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
-import {
-	FormSystem,
-	restoreFormState,
-	type ParallelFieldState,
-	type TokenSequenceFieldState,
-} from '@/features/form';
+import { FormSystem, restoreFormState, type ParallelFieldState, type TokenSequenceFieldState } from '@/features/form';
 import { createSearchFormSystem, getNewExploreFormId, getNewSearchFormId, hasNewExploreFormForMode, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';

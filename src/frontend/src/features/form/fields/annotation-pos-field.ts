@@ -1,5 +1,5 @@
-import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 import type { FieldComponentProps, FieldDefinition } from '@/features/form/model/field-component-props';
+import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import type { Translate } from '@/shared/i18n';
 import { escapeRegex } from '@/shared/utils/string-utils';

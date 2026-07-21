@@ -24,7 +24,7 @@ function createResultPresetController<Kind extends string>(kind: Kind, property:
 		persistence: { key: config => config.persistKey, codec },
 		getQueryContribution: (config, _runtime, state) => {
 			let statePreset: ResultPreset;
-				switch (property) {
+			switch (property) {
 				case 'viewedResults':
 					statePreset = state ? { viewedResults: state } : {};
 					break;

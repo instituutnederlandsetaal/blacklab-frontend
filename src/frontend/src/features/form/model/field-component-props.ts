@@ -91,11 +91,12 @@ export type FieldDefinition<
 };
 
 /** A field contract whose common `displayName` prop is required. */
-export type NamedFieldDefinition<
+export type NamedFieldDefinition<State, ExtraProps extends object = object, FormValueKeys extends Extract<keyof ExtraProps, FieldFormValueProp> = never> = FieldDefinition<
 	State,
-	ExtraProps extends object = object,
-	FormValueKeys extends Extract<keyof ExtraProps, FieldFormValueProp> = never,
-> = FieldDefinition<State, ExtraProps, FormValueKeys, 'displayName'>;
+	ExtraProps,
+	FormValueKeys,
+	'displayName'
+>;
 
 export type AnyFieldDefinition = {
 	state: any;
@@ -113,10 +114,7 @@ export type ResolvedFieldProps<Definition extends AnyFieldDefinition> = Definiti
 export type RenderedNodeProps<Source extends object, OmittedKey extends PropertyKey = never> = ResolveFieldComponentProps<Omit<Source, Extract<OmittedKey, keyof Source>>>;
 
 /** @internal Copy node properties while exposing lazy UI values as live accessor properties. */
-export function createRenderedNodeProps<Source extends object, const OmittedKeys extends readonly string[]>(
-	source: Source,
-	omittedKeys: OmittedKeys,
-): RenderedNodeProps<Source, OmittedKeys[number]>;
+export function createRenderedNodeProps<Source extends object, const OmittedKeys extends readonly string[]>(source: Source, omittedKeys: OmittedKeys): RenderedNodeProps<Source, OmittedKeys[number]>;
 export function createRenderedNodeProps(source: object, omittedKeys: readonly string[]): Record<string, unknown> {
 	const props: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(source)) {

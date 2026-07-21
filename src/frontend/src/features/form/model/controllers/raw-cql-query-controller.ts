@@ -6,7 +6,12 @@ import { defineFieldController } from '@/features/form/model/types/form-controll
 export const expertQueryController = defineFieldController<'raw-cql-query', RawCqlQueryFieldDefinition>({
 	kind: 'raw-cql-query',
 	createDefaultState: () => '',
-	persistence: { key: () => 'query', codec: scalar().default('').omitWhen(value => !value.trim()) },
+	persistence: {
+		key: () => 'query',
+		codec: scalar()
+			.default('')
+			.omitWhen(value => !value.trim()),
+	},
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, runtime, state) {
 		return queryFragment(

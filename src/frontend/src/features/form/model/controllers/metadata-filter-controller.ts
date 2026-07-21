@@ -109,8 +109,9 @@ const selectionPersistenceCodec = array(scalar())
 		return unknown.length ? `Cannot restore values no longer present in the current options: ${unknown.join(', ')}.` : undefined;
 	});
 
-const radioPersistenceCodec = stringPersistenceCodec<FieldPersistenceContext<MetadataFilterRadioConfig>>()
-	.refine((value, { config }) => (!value || findOption(config.options, value) ? undefined : `Cannot restore values no longer present in the current options: ${value}.`));
+const radioPersistenceCodec = stringPersistenceCodec<FieldPersistenceContext<MetadataFilterRadioConfig>>().refine((value, { config }) =>
+	!value || findOption(config.options, value) ? undefined : `Cannot restore values no longer present in the current options: ${value}.`,
+);
 
 const modeCodec = scalar().mapped({ strict: 's', permissive: 'p' });
 

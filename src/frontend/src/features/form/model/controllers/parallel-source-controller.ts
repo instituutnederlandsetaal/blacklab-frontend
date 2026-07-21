@@ -20,10 +20,9 @@ function defaultState(config: ParallelSourceFieldConfig): string {
 	return source ?? '';
 }
 
-const persistenceCodec = stringPersistenceCodec(({ config }: FieldPersistenceContext<ParallelSourceFieldConfig>) => defaultState(config))
-	.refine((value, { config }) => {
-		return !value || findOption(config.options, value) ? undefined : `Cannot restore parallel source '${value}' because it is not present in the current options.`;
-	});
+const persistenceCodec = stringPersistenceCodec(({ config }: FieldPersistenceContext<ParallelSourceFieldConfig>) => defaultState(config)).refine((value, { config }) => {
+	return !value || findOption(config.options, value) ? undefined : `Cannot restore parallel source '${value}' because it is not present in the current options.`;
+});
 
 /** Source-version selector for Explore forms; it contributes no CQL pattern. */
 export const parallelSourceController = defineFieldController<'parallel-source', SingleSelectFieldDefinition, ParallelSourceControllerConfig>({

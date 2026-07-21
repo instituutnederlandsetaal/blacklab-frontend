@@ -11,7 +11,10 @@ const persistenceCodec = object({
 		.at('v'),
 	selected: array(scalar())
 		.transform<Record<string, boolean>>({
-			encode: selected => Object.entries(selected).filter(([, value]) => value).map(([key]) => key),
+			encode: selected =>
+				Object.entries(selected)
+					.filter(([, value]) => value)
+					.map(([key]) => key),
 			decode: selected => Object.fromEntries(selected.map(key => [key, true])),
 		})
 		.default({})

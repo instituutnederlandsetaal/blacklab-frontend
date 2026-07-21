@@ -325,9 +325,7 @@ function queryAffectingTabParams(form: FormNode, state: FormStateInput): string[
 
 function encodeScopedFormState(form: FormNode, context: FormRuntimeContext, state: FormStateInput): { encoded: ScopedFormQuery; issues?: RestoreIssue[] } {
 	const codec = buildFieldCodec(form, context);
-	const values = codec.entries
-		.map(({ field, key }) => ({ key, state: encodeFieldState(field, state.state[field.id], context) }))
-		.filter(({ state }) => state != null && state !== '');
+	const values = codec.entries.map(({ field, key }) => ({ key, state: encodeFieldState(field, state.state[field.id], context) })).filter(({ state }) => state != null && state !== '');
 	const r: ScopedFormQuery = {
 		[`${FORM_QUERY_PREFIX}${SCOPED_FORM_KEYS.formSelector}`]: form.id,
 	};

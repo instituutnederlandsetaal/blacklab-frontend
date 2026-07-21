@@ -25,10 +25,12 @@ const annotationTextCodec = object({
 	.default({ value: '', caseSensitive: false })
 	.omitWhen(state => !state.value.trim() && !state.caseSensitive);
 
-const annotationSelectionCodec = array(scalar()).default([]).refine((values, { config }) => {
-	const unknown = values.filter(value => !findOptions(config.options, [value]).length);
-	return unknown.length ? `Cannot restore values no longer present in the current options: ${unknown.join(', ')}.` : undefined;
-});
+const annotationSelectionCodec = array(scalar())
+	.default([])
+	.refine((values, { config }) => {
+		const unknown = values.filter(value => !findOptions(config.options, [value]).length);
+		return unknown.length ? `Cannot restore values no longer present in the current options: ${unknown.join(', ')}.` : undefined;
+	});
 
 /**
  * Controller that tokenizes the input string.

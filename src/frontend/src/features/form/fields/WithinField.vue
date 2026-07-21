@@ -31,7 +31,6 @@
 </template>
 
 <script setup lang="ts">
-
 import { computed } from 'vue';
 
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
