@@ -125,7 +125,7 @@ const actions = {
 		//@ts-ignore
 		filter.defaultDescription = filter.defaultDescription || filter.description;
 
-		state.filters[filter.id] = { ...filter, value: null };
+		state.filters[filter.id] = { ...filter, value: undefined };
 	},
 
 	filterValue: ({ id, value }: Pick<FullFilterState, 'id' | 'value'>) => {
@@ -133,12 +133,12 @@ const actions = {
 		if (!filterObj) {
 			console.error(`Filter ${id} does not exist`);
 		}
-		return (filterObj.value = value != null ? value : null);
+		return (filterObj.value = value != null ? value : undefined);
 	},
 
 	reset: () =>
 		Object.keys(state.filters).forEach(k => {
-			state.filters[k].value = null;
+			state.filters[k].value = undefined;
 		}),
 
 	replace: (payload: ExternalModuleRootState) => {
