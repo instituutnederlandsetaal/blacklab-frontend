@@ -61,10 +61,12 @@
 			/>
 			<div v-if="!newFormActive" class="col-xs-12">
 				<hr />
-				<button type="submit" class="btn btn-primary btn-lg">{{ $t('queryForm.search') }}</button>
-				<button type="reset" class="btn btn-default btn-lg" title="Start a new search">{{ $t('queryForm.reset') }}</button>
-				<button type="button" class="btn btn-lg btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
-				<button type="button" class="btn btn-lg btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
+				<div class="btn-toolbar">
+					<button type="submit" class="btn btn-primary btn-lg">{{ $t('queryForm.search') }}</button>
+					<button type="reset" class="btn btn-default btn-lg" title="Start a new search">{{ $t('queryForm.reset') }}</button>
+					<button type="button" class="btn btn-lg btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
+					<button type="button" class="btn btn-lg btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
+				</div>
 			</div>
 		</Component>
 		<QueryFormSettings v-if="settingsOpen" id="settings" @close="settingsOpen = false" />
