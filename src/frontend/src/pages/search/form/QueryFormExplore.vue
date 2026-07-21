@@ -15,7 +15,9 @@
 
 		<div class="tab-content">
 			<div id="explore-corpora" :class="['tab-pane', { active: exploreMode === 'corpora' }]">
-				<FormSystem v-if="renderNewForm('corpora')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('corpora')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('corpora')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('corpora')" @submit="submitNewForm" @reset="resetNewForm">
+					<template #actions><slot name="actions" /></template>
+				</FormSystem>
 				<div v-else class="form-horizontal'">
 					<div class="form-group">
 						<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('explore.corpora.groupBy') }}</label>
@@ -50,7 +52,9 @@
 				</div>
 			</div>
 			<div id="explore-n-grams" :class="['tab-pane', { active: exploreMode === 'ngram' }]">
-				<FormSystem v-if="renderNewForm('ngram')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('ngram')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('ngram')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('ngram')" @submit="submitNewForm" @reset="resetNewForm">
+					<template #actions><slot name="actions" /></template>
+				</FormSystem>
 				<div v-else class="form-horizontal">
 					<div class="form-group" v-if="isParallelCorpus">
 						<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('search.parallel.searchSourceVersion') }}</label>
@@ -122,7 +126,9 @@
 				</div>
 			</div>
 			<div id="explore-frequency" :class="['tab-pane', { active: exploreMode === 'frequency' }]">
-				<FormSystem v-if="renderNewForm('frequency')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('frequency')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('frequency')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('frequency')" @submit="submitNewForm" @reset="resetNewForm">
+					<template #actions><slot name="actions" /></template>
+				</FormSystem>
 				<div v-else class="form-horizontal">
 					<div v-if="isParallelCorpus" class="form-group form-group-lg" style="margin: 0">
 						<label class="control-label">{{ $t('search.parallel.searchSourceVersion') }}</label>

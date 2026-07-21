@@ -17,7 +17,12 @@
 					'col-md-6': filtersVisible && !queryBuilderVisible,
 				}"
 				:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
-			/>
+			>
+				<template #actions>
+					<button type="button" class="btn btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
+					<button type="button" class="btn btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
+				</template>
+			</QueryFormSearch>
 			<QueryFormExplore
 				id="form-explore"
 				v-show="activeForm === 'explore'"
@@ -25,7 +30,12 @@
 					'col-xs-12': true,
 				}"
 				:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
-			/>
+			>
+				<template #actions>
+					<button type="button" class="btn btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
+					<button type="button" class="btn btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
+				</template>
+			</QueryFormExplore>
 
 			<!-- TODO this is a bit dumb, only show the hr when the filters and pattern form are below each other, but that's rather conditional... -->
 			<div
@@ -49,10 +59,10 @@
 					'col-md-9': activeForm === 'explore' || queryBuilderVisible,
 				}"
 			/>
-			<div class="col-xs-12">
-				<hr v-if="!newFormActive" />
-				<button v-if="!newFormActive" type="submit" class="btn btn-primary btn-lg">{{ $t('queryForm.search') }}</button>
-				<button v-if="!newFormActive" type="reset" class="btn btn-default btn-lg" title="Start a new search">{{ $t('queryForm.reset') }}</button>
+			<div v-if="!newFormActive" class="col-xs-12">
+				<hr />
+				<button type="submit" class="btn btn-primary btn-lg">{{ $t('queryForm.search') }}</button>
+				<button type="reset" class="btn btn-default btn-lg" title="Start a new search">{{ $t('queryForm.reset') }}</button>
 				<button type="button" class="btn btn-lg btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
 				<button type="button" class="btn btn-lg btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
 			</div>

@@ -7,15 +7,9 @@
 				<button type="button" class="btn btn-xs btn-default" @click="props.runtime.clearRawOverride(override.parameter)">Clear</button>
 			</div>
 		</section>
-		<Component
-			v-if="renderTree"
-			:is="renderTree.is"
-			v-bind="{ ...attrs, ...renderTree.props }"
-			:key="runtimeRevision"
-			class="blf-form-system"
-			@submit="emit('submit', $event)"
-			@reset="emit('reset')"
-		/>
+		<Component v-if="renderTree" :is="renderTree.is" v-bind="{ ...attrs, ...renderTree.props }" :key="runtimeRevision" class="blf-form-system" @submit="emit('submit', $event)" @reset="emit('reset')">
+			<template #actions><slot name="actions" /></template>
+		</Component>
 	</div>
 </template>
 

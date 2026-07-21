@@ -18,6 +18,7 @@
 		<div class="panel-footer blf-form-actions" v-if="isForm">
 			<button class="btn btn-primary" type="submit">{{ $t(`queryForm.search`) }}</button>
 			<button class="btn btn-default" type="reset">{{ $t(`queryForm.reset`) }}</button>
+			<slot name="actions" />
 		</div>
 	</component>
 
@@ -27,6 +28,7 @@
 		<div class="panel-footer blf-form-actions" v-if="isForm">
 			<button class="btn btn-primary" type="submit">{{ $t(`queryForm.search`) }}</button>
 			<button class="btn btn-default" type="reset">{{ $t(`queryForm.reset`) }}</button>
+			<slot name="actions" />
 		</div>
 	</component>
 </template>

@@ -39,7 +39,7 @@
 
 		<small v-if="description" class="help-block">{{ description }}</small>
 
-		<div class="checkbox" :class="{ disabled }" v-if="caseSensitive">
+		<div class="checkbox" :class="{ disabled }" v-if="caseSensitive && !field.variants.simple">
 			<label>
 				<input type="checkbox" :checked="modelValue.caseSensitive" :disabled @change="updateCaseSensitive(($event.target as HTMLInputElement).checked)" />
 				{{ $t(`widgets.caseSensitive`) }}

@@ -17,7 +17,9 @@
 		</ul>
 		<div class="tab-content" :class="{ parallel: isParallelCorpus }">
 			<div :class="['tab-pane', { active: activePattern === 'simple' }]" id="simple">
-				<FormSystem v-if="renderNewForm('simple')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('simple')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('simple')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('simple')" @submit="submitNewForm" @reset="resetNewForm">
+					<template #actions><slot name="actions" /></template>
+				</FormSystem>
 				<div v-else class="form-horizontal">
 					<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					<div class="form-group form-group-lg">
@@ -27,7 +29,9 @@
 				</div>
 			</div>
 			<div :class="['tab-pane', { active: activePattern === 'extended' }]" id="extended">
-				<FormSystem v-if="renderNewForm('extended')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('extended')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('extended')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('extended')" @submit="submitNewForm" @reset="resetNewForm">
+					<template #actions><slot name="actions" /></template>
+				</FormSystem>
 				<div v-else class="form-horizontal">
 					<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					<template v-if="useTabs">
@@ -63,11 +67,15 @@
 				</div>
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', { active: activePattern === 'advanced' }]" id="advanced">
-				<FormSystem v-if="renderNewForm('advanced')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('advanced')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('advanced')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('advanced')" @submit="submitNewForm" @reset="resetNewForm">
+					<template #actions><slot name="actions" /></template>
+				</FormSystem>
 				<SearchAdvanced v-else :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 			</div>
 			<div :class="['tab-pane', { active: activePattern === 'expert' }]" id="expert">
-				<FormSystem v-if="renderNewForm('expert')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('expert')" @submit="submitNewForm" @reset="resetNewForm" />
+				<FormSystem v-if="renderNewForm('expert')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('expert')" @submit="submitNewForm" @reset="resetNewForm">
+					<template #actions><slot name="actions" /></template>
+				</FormSystem>
 				<template v-else>
 					<SearchExpert :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 

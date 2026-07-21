@@ -88,6 +88,23 @@ describe('form runtime', () => {
 		expect(runtime.state.uiState.value[root.id]).toBe(secondForm.id);
 	});
 
+	test('renders supplied actions alongside a form submit and reset', () => {
+		const builder = createTestBuilder();
+		builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+		const runtime = createTestRuntime(builder);
+		const wrapper = mount(FormSystem, {
+			props: { runtime },
+			slots: {
+				actions: '<button type="button" class="legacy-action">History</button>',
+			},
+		});
+
+		const actions = wrapper.get('.blf-form-actions');
+		expect(actions.find('[type="submit"]').exists()).toBe(true);
+		expect(actions.find('[type="reset"]').exists()).toBe(true);
+		expect(actions.get('.legacy-action').attributes('type')).toBe('button');
+	});
+
 	test('lazy display props update without rebuilding the form graph', async () => {
 		const displayName = ref('Word');
 		const builder = createTestBuilder();
