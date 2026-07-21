@@ -2,7 +2,9 @@
 	<div>
 		<h3>
 			{{ $t('search.expert.corpusQueryLanguage') + (isParallelCorpus ? '' : ':') }}
-			<a class="help" target="_blank" href="https://blacklab.ivdnt.org/guide/corpus-query-language.html" :title="$t('widgets.learnMore').toString()">🛈</a>
+			<a class="help" target="_blank" href="https://blacklab.ivdnt.org/guide/corpus-query-language.html" :title="$t(`widgets.learnMore`)">
+				<span class="fa fa-info-circle" aria-hidden="true"></span>
+			</a>
 		</h3>
 		<template v-if="!isParallelCorpus">
 			<!-- Regular (non-parallel) corpus -->

@@ -257,7 +257,7 @@ $radius: 4px;
 
 	&.small .tab {
 		// 80%
-		--tab-padding-y: 8px;
+		--tab-padding-y: 6px;
 		--tab-padding-x: 12px;
 		font-size: 12px;
 	}

@@ -5,7 +5,7 @@
 			<button
 				v-for="option in sortedOptions"
 				type="button"
-				:class="['btn', 'btn-default', field.buttonClass, { active: state.element === option.value || (!state.element && !option.value) }]"
+				:class="['btn', state.element === option.value || (!state.element && !option.value) ? 'active btn-primary' : 'btn-default', field.buttonClass]"
 				:key="option.value"
 				:title="option.title || undefined"
 				:disabled
@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+
 import { computed } from 'vue';
 
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';

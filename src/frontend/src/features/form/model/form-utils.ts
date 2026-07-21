@@ -4,7 +4,7 @@ import { computed, reactive, toRaw } from 'vue';
 import type { NewFormState } from '@/features/form/model/state';
 import type { AnyBaseFormNode, FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeBase, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 
-import { lenientIter } from '@/shared/utils/array-utils';
+import { lenientIter, type LenientArray } from '@/shared/utils/array-utils';
 
 export function isContainerNode(node: AnyBaseFormNode | null | undefined): node is FormContainerLikeNode {
 	return !!node && 'kind' in node && 'children' in node && Array.isArray(node.children);
@@ -143,7 +143,7 @@ export function reactivePickActiveFormState(form: FormBoundaryNode, formState: N
 	});
 }
 
-export function decodeVariants<Variant extends string>(variants: Variant | undefined | null | Array<Variant | undefined | null>): Partial<Record<Variant, boolean>> {
+export function decodeVariants<Variant extends string>(variants: LenientArray<Variant>): Partial<Record<Variant, boolean>> {
 	const r: Partial<Record<Variant, boolean>> = {};
 	for (const v of lenientIter(variants)) r[v] = true;
 	return r;

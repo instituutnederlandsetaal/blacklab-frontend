@@ -121,12 +121,19 @@ function forwardReset() {
 	flex-wrap: wrap;
 	gap: 30px;
 
-	> * {
-		flex: 1;
-		flex-basis: auto;
+	> :not(.blf-form-actions):not([class^='col-']):not([class*=' col-']) {
+		flex: 1 1 320px;
+		min-width: 320px;
+	}
+
+	> [class^='col-'],
+	> [class*=' col-'] {
+		flex: 0 0 auto;
+		min-width: 0;
 	}
 
 	> .blf-form-actions {
+		flex: 0 0 100%;
 		width: 100%;
 	}
 }
