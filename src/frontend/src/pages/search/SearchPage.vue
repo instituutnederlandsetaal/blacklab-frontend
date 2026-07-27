@@ -1,9 +1,9 @@
 <template>
 	<!-- <div :class="wideView.value ? 'container-fluid' : 'container'"> -->
 	<QueryForm />
-	<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg" id="summary" />
+	<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg container" id="summary" />
 
-	<Results v-show="resultsVisible" id="results" />
+	<Results v-show="resultsVisible" id="results" class="container" />
 	<!-- </div> -->
 </template>
 

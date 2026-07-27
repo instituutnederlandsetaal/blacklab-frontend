@@ -1,75 +1,73 @@
 <template>
-	<div>
-		<FormSystem v-if="newForm" :runtime="newForm" @submit="submitNewForm" @reset="resetNewForm">
-			<template #actions>
-				<button type="button" class="btn btn-default btn-lg" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
-				<button type="button" class="btn btn-default btn-lg" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
-			</template>
-		</FormSystem>
-		<template v-else>
-			<ul class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
-				<li :class="{ active: activeForm === 'search' }" @click.prevent="activeForm = 'search'">
-					<a href="#form-search">{{ $t('queryForm.search') }}</a>
-				</li>
-				<li :class="{ active: activeForm === 'explore' }" @click.prevent="activeForm = 'explore'">
-					<a href="#form-explore">{{ $t('queryForm.explore') }}</a>
-				</li>
-			</ul>
-			<form class="tab-content cf-panel-tab-body cf-panel-lg clearfix" style="padding-top: 0" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
-				<QueryFormSearch
-					id="form-search"
-					v-show="activeForm === 'search'"
-					:class="{
-						'col-xs-12': true,
-						'col-md-6': filtersVisible && !queryBuilderVisible,
-					}"
-					:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
-				/>
-				<QueryFormExplore
-					id="form-explore"
-					v-show="activeForm === 'explore'"
-					:class="{
-						'col-xs-12': true,
-					}"
-					:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
-				/>
-
-				<!-- TODO this is a bit dumb, only show the hr when the filters and pattern form are below each other, but that's rather conditional... -->
-				<div
-					v-if="filtersVisible"
-					:class="{
-						'col-xs-12': true,
-						'visible-xs': true,
-						'visible-sm': true,
-						'visible-md': queryBuilderVisible || activeForm === 'explore',
-						'visible-lg': queryBuilderVisible || activeForm === 'explore',
-					}"
-				>
-					<hr />
-				</div>
-				<QueryFormFilters
-					id="filtercontainer"
-					v-show="filtersVisible"
-					:class="{
-						'col-xs-12': true,
-						'col-md-6': activeForm === 'search' && !queryBuilderVisible,
-						'col-md-9': activeForm === 'explore' || queryBuilderVisible,
-					}"
-				/>
-				<div class="col-xs-12">
-					<hr />
-					<div class="btn-toolbar">
-						<button type="submit" class="btn btn-primary btn-lg">{{ $t('queryForm.search') }}</button>
-						<button type="reset" class="btn btn-default btn-lg" title="Start a new search">{{ $t('queryForm.reset') }}</button>
-						<button type="button" class="btn btn-lg btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
-						<button type="button" class="btn btn-lg btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
-					</div>
-				</div>
-			</form>
+	<FormSystem v-if="newForm" :runtime="newForm" @submit="submitNewForm" @reset="resetNewForm" class="container">
+		<template #actions>
+			<button type="button" class="btn btn-default btn-lg" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
+			<button type="button" class="btn btn-default btn-lg" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
 		</template>
-		<QueryFormSettings v-if="settingsOpen" id="settings" @close="settingsOpen = false" />
-		<History v-if="historyOpen" id="history" @close="historyOpen = false" />
+	</FormSystem>
+	<div v-else>
+		<ul class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
+			<li :class="{ active: activeForm === 'search' }" @click.prevent="activeForm = 'search'">
+				<a href="#form-search">{{ $t('queryForm.search') }}</a>
+			</li>
+			<li :class="{ active: activeForm === 'explore' }" @click.prevent="activeForm = 'explore'">
+				<a href="#form-explore">{{ $t('queryForm.explore') }}</a>
+			</li>
+		</ul>
+		<form class="tab-content cf-panel-tab-body cf-panel-lg clearfix" style="padding-top: 0" @submit.prevent.stop="submit" @reset.prevent.stop="reset">
+			<QueryFormSearch
+				id="form-search"
+				v-show="activeForm === 'search'"
+				:class="{
+					'col-xs-12': true,
+					'col-md-6': filtersVisible && !queryBuilderVisible,
+				}"
+				:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
+			/>
+			<QueryFormExplore
+				id="form-explore"
+				v-show="activeForm === 'explore'"
+				:class="{
+					'col-xs-12': true,
+				}"
+				:errorNoParallelSourceVersion="errorNoParallelSourceVersion"
+			/>
+
+			<!-- TODO this is a bit dumb, only show the hr when the filters and pattern form are below each other, but that's rather conditional... -->
+			<div
+				v-if="filtersVisible"
+				:class="{
+					'col-xs-12': true,
+					'visible-xs': true,
+					'visible-sm': true,
+					'visible-md': queryBuilderVisible || activeForm === 'explore',
+					'visible-lg': queryBuilderVisible || activeForm === 'explore',
+				}"
+			>
+				<hr />
+			</div>
+			<QueryFormFilters
+				id="filtercontainer"
+				v-show="filtersVisible"
+				:class="{
+					'col-xs-12': true,
+					'col-md-6': activeForm === 'search' && !queryBuilderVisible,
+					'col-md-9': activeForm === 'explore' || queryBuilderVisible,
+				}"
+			/>
+			<div class="col-xs-12">
+				<hr />
+				<div class="btn-toolbar">
+					<button type="submit" class="btn btn-primary btn-lg">{{ $t('queryForm.search') }}</button>
+					<button type="reset" class="btn btn-default btn-lg" title="Start a new search">{{ $t('queryForm.reset') }}</button>
+					<button type="button" class="btn btn-lg btn-default" @click="historyOpen = true">{{ $t('queryForm.history') }}</button>
+					<button type="button" class="btn btn-lg btn-default" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
+				</div>
+			</div>
+		</form>
 	</div>
+	<QueryFormSettings v-if="settingsOpen" id="settings" @close="settingsOpen = false" />
+	<History v-if="historyOpen" id="history" @close="historyOpen = false" />
 </template>
 
 <script lang="ts">

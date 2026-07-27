@@ -100,7 +100,6 @@ const containerClasses = computed(() => [
 ]);
 const tabClasses = computed(() => [
 	'blf-form-container-tabs',
-	'tabs-form',
 	props.class,
 	presentation.value['panel-tabs'] ? 'blf-form-surface-tabs' : null,
 ]);

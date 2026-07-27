@@ -29,6 +29,7 @@ type TabsStoryArgs = {
 	wrap: boolean;
 	small: boolean;
 	large: boolean;
+	class?: string;
 };
 
 const meta = {
@@ -58,6 +59,15 @@ const meta = {
 
 export default meta;
 type Story = StoryObj<TabsStoryArgs>;
+
+const renderInteractive = (args: TabsStoryArgs) => ({
+	components: { Tabs },
+	setup() {
+		const selected = ref(args.modelValue);
+		return { args, selected };
+	},
+	template: '<Tabs v-bind="args" v-model="selected" />',
+});
 
 export const Showcase: Story = {
 	render: args => {
@@ -135,4 +145,19 @@ export const Showcase: Story = {
 			},
 		},
 	},
+};
+
+export const PrimaryHorizontal: Story = {
+	args: {
+		class: 'tabs-primary',
+	},
+	render: renderInteractive,
+};
+
+export const PrimaryVertical: Story = {
+	args: {
+		class: 'tabs-primary',
+		vertical: true,
+	},
+	render: renderInteractive,
 };

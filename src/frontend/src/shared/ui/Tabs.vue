@@ -150,20 +150,56 @@ function handleKeydown(event: KeyboardEvent, index: number) {
 </script>
 
 <style lang="scss" scoped>
+$tab-radius: 4px;
+
 .tabs {
-	--inactiveColor: transparent;
-	--activeColor: white;
-	--backgroundColor: white;
-	--activeBorderColor: #ddd;
 	--tab-padding-y: 10px;
 	--tab-padding-x: 15px;
-}
 
-$radius: 4px;
+	--tabs-background-color: #fff;
+	--tabs-border-color: #ddd;
+	--tab-background-color: transparent;
+	--tab-active-background-color: #fff;
+	--tab-hover-background-color: #efefef;
+	--tab-active-border-color: #ddd;
+
+	&.small {
+		--tab-padding-y: 6px;
+		--tab-padding-x: 12px;
+	}
+
+	&.large {
+		--tab-padding-y: 12px;
+		--tab-padding-x: 18px;
+	}
+
+	&.tabs-primary {
+		--tabs-background-color: var(--tabs-primary-color, #337ab7);
+		--tabs-border-color: transparent;
+		--tab-active-border-color: var(--tabs-primary-color, #337ab7);
+		--tab-inactive-color: #fff;
+		--tab-active-color: #555;
+
+		&.text-primary {
+			--tabs-background-color: var(--tabs-primary-color, currentColor);
+		}
+	}
+
+	&.tabs-primary > .tab:not(.active):not(.disabled) {
+		color: var(--tab-inactive-color);
+	}
+
+	&.tabs-primary > .tab:not(.active):not(.disabled):hover,
+	&.tabs-primary > .tab.active {
+		color: var(--tab-active-color);
+	}
+}
 
 .tabs {
 	display: flex;
-	background: var(--backgroundColor);
+	background: var(--tabs-background-color);
+	border-top-left-radius: $tab-radius;
+	border-top-right-radius: $tab-radius;
 
 	&.wrap {
 		flex-wrap: wrap;
@@ -175,11 +211,18 @@ $radius: 4px;
 		align-items: center;
 
 		&:not(.invalid) {
-			background: var(--inactiveColor);
+			background: var(--tab-background-color);
 		}
 
 		&:not(.active):not(.disabled):hover {
-			background: #efefef;
+			background: var(--tab-hover-background-color);
+		}
+
+		border: 1px solid transparent;
+
+		&.active,
+		&.invalid {
+			border-color: var(--tab-active-border-color);
 		}
 
 		> .tab-button {
@@ -236,11 +279,11 @@ $radius: 4px;
 		}
 
 		&.active:not(.invalid) {
-			background: var(--activeColor);
+			background: var(--tab-active-background-color);
 		}
 
 		&.disabled {
-			opacity: 0.65;
+			// opacity: 0.65;
 
 			> .tab-button {
 				cursor: not-allowed;
@@ -256,80 +299,53 @@ $radius: 4px;
 	}
 
 	&.small .tab {
-		// 80%
-		--tab-padding-y: 6px;
-		--tab-padding-x: 12px;
 		font-size: 12px;
 	}
 
 	&.large .tab {
-		// 120%
-		--tab-padding-y: 12px;
-		--tab-padding-x: 18px;
 		font-size: 18px;
 	}
 }
 
-// Tab borders and the negative margins that make the active tab overlap them.
+// The tab list owns the separator. A selected tab owns its outline and overlaps
+// the separator with its background on the side where the two meet.
 .tabs {
-	.tab {
-		border: 1px solid var(--backgroundColor);
-
-		&:not(.active):not(.disabled):hover {
-			border-color: #efefef;
-		}
-
-		&.active:not(.invalid) {
-			border-color: var(--activeBorderColor);
-		}
-	}
-
-	// regular (horizontal) tabs have a 1px downshift to overlap the container's bottom border
-	// normally that's transparent, but for active tabs it's the bg color so it looks like there's no bottom border
 	&:not(.vertical):not(.empty) {
-		border-bottom: 1px solid var(--activeBorderColor);
-		padding: 0; // 5px;
-		margin-top: 5px;
+		border-bottom: 1px solid var(--tabs-border-color);
 
 		> .tab {
-			border-radius: $radius $radius 0 0;
-			// margin: 0 4px -1px 0;
-			margin-top: 2px;
-			margin-bottom: -1px;
-			margin-right: 4px;
-			border-bottom: 1px solid transparent;
+			border-radius: $tab-radius $tab-radius 0 0;
+			margin: 0 4px -1px 0;
 
 			&:last-child {
 				margin-right: -1px; // Collapse border with container.
 			}
 
 			&.active {
-				border-bottom: 1px solid var(--activeColor);
-				z-index: 2;
+				border-bottom-color: var(--tab-active-border-color);
 			}
 
-			&:not(.active) {
-				border-bottom-color: var(--activeBorderColor);
+			&.active:not(.invalid) {
+				border-bottom-color: var(--tab-active-background-color);
+				z-index: 2;
 			}
 		}
 	}
 
 	&.wrap > .tab {
 		margin-right: 0 !important;
+		margin-top: 2px;
 	}
 
 	&.vertical:not(.empty) {
 		display: inline-flex;
 		flex-direction: column;
-		border-right: 1px solid var(--activeBorderColor);
+		border-right: 1px solid var(--tabs-border-color);
 
 		> .tab {
 			text-align: right;
-			border-radius: $radius 0 0 $radius;
-			margin-top: 4px;
-			margin-right: -1px;
-
-			border-right: 1px solid transparent;
+			border-radius: $tab-radius 0 0 $tab-radius;
+			margin: 4px -1px 0 0;
 
 			&:first-child {
 				margin-top: -1px; // Collapse border with container.
@@ -340,54 +356,14 @@ $radius: 4px;
 			}
 
 			&.active {
-				border-right: 1px solid var(--activeColor);
+				border-right-color: var(--tab-active-border-color);
+			}
+
+			&.active:not(.invalid) {
+				border-right-color: var(--tab-active-background-color);
 				z-index: 2;
 			}
 		}
-	}
-}
-
-.tabs.tabs-primary {
-	--backgroundColor: var(--tabs-primary-color, #337ab7);
-
-	> .tab:not(.active):not(.disabled) {
-		color: #fff;
-		border-color: transparent;
-	}
-
-	> .tab:not(.active):not(.disabled):hover,
-	> .tab.active {
-		color: #555;
-		border-left-color: var(--tabs-primary-color, #337ab7);
-		border-right-color: var(--tabs-primary-color, #337ab7);
-	}
-
-	&:not(.vertical):not(.empty) {
-		border-bottom-color: transparent;
-
-		> .tab:not(.active) {
-			border-bottom-color: transparent;
-		}
-	}
-}
-
-.tabs.tabs-primary.text-primary {
-	--backgroundColor: var(--tabs-primary-color, currentColor);
-
-	> .tab:not(.active):not(.disabled):hover,
-	> .tab.active {
-		// Older generated corpus styles do not define --tabs-primary-color yet.
-		// Keep their seams neutral until the style template is regenerated.
-		border-left-color: var(--tabs-primary-color, transparent);
-		border-right-color: var(--tabs-primary-color, transparent);
-	}
-}
-
-.tabs.tabs-form:not(.vertical):not(.empty) {
-	margin-top: 0;
-
-	> .tab {
-		margin-top: 0;
 	}
 }
 
