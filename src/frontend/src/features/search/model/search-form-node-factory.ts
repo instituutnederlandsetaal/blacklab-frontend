@@ -37,7 +37,7 @@ type SearchFormFieldOptions = FormFieldNodeOptions & {
 	showLabel?: boolean;
 };
 
-type SearchFormNodeFactory = {
+export type SearchFormNodeFactory = {
 	annotation(annotation: NormalizedAnnotation, options: SearchFormFieldOptions): FormFieldNode;
 	metadata(field: NormalizedMetadataField, options: SearchFormFieldOptions): FormFieldNode;
 };

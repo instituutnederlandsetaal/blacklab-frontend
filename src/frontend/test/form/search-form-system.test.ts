@@ -11,7 +11,7 @@ import type { Corpus } from '@/app/state/useCorpusContext';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { FormSystem, restoreFormState, type ParallelFieldState, type TokenSequenceFieldState } from '@/features/form';
-import { createSearchFormSystem, getNewExploreFormId, getNewSearchFormId, hasNewExploreFormForMode, hasNewSearchFormForPattern } from '@/features/search/model/search-form-builder';
+import { createSearchFormSystem, getNewExploreFormId, getNewSearchFormId } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
@@ -182,6 +182,7 @@ beforeEach(() => {
 	const state = UIStore.getState();
 	state.search.simple.searchAnnotationId = 'word';
 	state.search.extended.searchAnnotationIds = ['word', 'lemma', 'pos'];
+	state.search.advanced.enabled = true;
 	state.search.advanced.searchAnnotationIds = ['word', 'lemma', 'pos'];
 	state.search.advanced.defaultSearchAnnotationId = 'word';
 	state.search.shared.searchMetadataIds = ['author', 'genre'];
@@ -235,7 +236,7 @@ describe('search form system', () => {
 		const groupByFieldId = 'explore.corpora.group-by';
 		const groupDisplayModeFieldId = 'explore.corpora.group-display-mode';
 
-		expect(hasNewExploreFormForMode(runtime, 'corpora')).toBe(true);
+		expect(runtime.definition.getForm(getNewExploreFormId('corpora'))).not.toBeNull();
 		expect(runtime.state.state.value[groupByFieldId]).toBe('field:author');
 		expect(runtime.state.state.value[groupDisplayModeFieldId]).toBe('table');
 
@@ -340,7 +341,7 @@ describe('search form system', () => {
 		const runtime = createDefinition();
 		const annotationFieldId = 'explore.frequency.annotation';
 
-		expect(hasNewExploreFormForMode(runtime, 'frequency')).toBe(true);
+		expect(runtime.definition.getForm(getNewExploreFormId('frequency'))).not.toBeNull();
 		expect(runtime.state.state.value[annotationFieldId]).toBe('word');
 
 		runtime.state.state.value[annotationFieldId] = 'lemma';
@@ -377,7 +378,7 @@ describe('search form system', () => {
 		const tokensFieldId = 'explore.ngram.tokens';
 		const groupByFieldId = 'explore.ngram.group-by';
 
-		expect(hasNewExploreFormForMode(runtime, 'ngram')).toBe(true);
+		expect(runtime.definition.getForm(getNewExploreFormId('ngram'))).not.toBeNull();
 		expect(runtime.state.state.value[tokensFieldId] as TokenSequenceFieldState).toHaveLength(5);
 
 		runtime.state.state.value[tokensFieldId] = [
@@ -442,8 +443,10 @@ describe('search form system', () => {
 	test.each(['ngram', 'frequency'] as const)('adds a source-only searchfield selector to parallel Explore %s', mode => {
 		const runtime = createDefinition(createParallelCorpus());
 		const sourceFieldId = `explore.${mode}.source`;
+		const sourceField = runtime.definition.getField(sourceFieldId);
 
 		expect(runtime.state.state.value[sourceFieldId]).toBe('contents__en');
+		expect(sourceField?.variant).toBe(mode === 'ngram' ? 'horizontal' : undefined);
 		runtime.state.state.value[sourceFieldId] = 'contents__nl';
 
 		const compiled = runtime.compile(getNewExploreFormId(mode));
@@ -475,7 +478,7 @@ describe('search form system', () => {
 	test('builds an extended search form with grouped annotation and shared filter nodes', () => {
 		const definition = createDefinition();
 
-		expect(hasNewSearchFormForPattern(definition, 'extended')).toBe(true);
+		expect(definition.definition.getForm(getNewSearchFormId('extended'))).not.toBeNull();
 		expect(definition.definition.getContainer('search.extended.annotations')).not.toBeNull();
 		expect(definition.definition.getContainer('search.extended.annotations.Basics')).not.toBeNull();
 		expect(definition.definition.getContainer('shared.filters')).not.toBeNull();
@@ -487,8 +490,21 @@ describe('search form system', () => {
 		const runtime = createDefinition();
 		const field = runtime.definition.getField('search.advanced.query');
 
-		expect(hasNewSearchFormForPattern(runtime, 'advanced')).toBe(true);
+		expect(runtime.definition.getForm(getNewSearchFormId('advanced'))).not.toBeNull();
 		expect((field as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('word');
+	});
+
+	test('omits the advanced form when the legacy configuration disables it', () => {
+		UIStore.getState().search.advanced.enabled = false;
+
+		const runtime = createDefinition();
+
+		expect(runtime.definition.getForm(getNewSearchFormId('advanced'))).toBeNull();
+		expect(runtime.definition.getContainer('patterns.forms')?.children.map(child => child.id)).toEqual([
+			getNewSearchFormId('simple'),
+			getNewSearchFormId('extended'),
+			getNewSearchFormId('expert'),
+		]);
 	});
 
 	test('applies the large simple-search presentation to regular and parallel query fields', () => {
@@ -525,7 +541,7 @@ describe('search form system', () => {
 		state.search.shared.within.enabled = true;
 		const runtime = createDefinition(corpus);
 
-		expect(hasNewSearchFormForPattern(runtime, 'expert')).toBe(true);
+		expect(runtime.definition.getForm(getNewSearchFormId('expert'))).not.toBeNull();
 
 		runtime.state.state.value['search.expert.query'] = '[lemma="water"]';
 		runtime.state.state.value['shared.within'] = { element: 's', attributes: {} };
@@ -672,6 +688,7 @@ describe('search form system', () => {
 		configuration.value = {
 			...configuration.value,
 			queryBuilder: {
+				enabled: true,
 				annotationIds: ['lemma'],
 				defaultAnnotationId: 'lemma',
 			},
@@ -708,6 +725,7 @@ describe('search form system', () => {
 		configuration.value = {
 			...configuration.value,
 			queryBuilder: {
+				enabled: true,
 				annotationIds: ['lemma'],
 				defaultAnnotationId: 'word',
 			},
@@ -779,7 +797,7 @@ describe('search form system', () => {
 		state.search.shared.within.elements[0].label = 'Changed';
 
 		expect(snapshot.extendedAnnotationIds).toEqual(['word', 'lemma', 'pos']);
-		expect(snapshot.queryBuilder).toEqual({ annotationIds: ['word', 'lemma', 'pos'], defaultAnnotationId: 'word' });
+		expect(snapshot.queryBuilder).toEqual({ enabled: true, annotationIds: ['word', 'lemma', 'pos'], defaultAnnotationId: 'word' });
 		expect(snapshot.explore.searchAnnotationIds).toEqual(['word', 'lemma', 'pos']);
 		expect(snapshot.explore.groupAnnotationIds).toEqual(['word', 'lemma', 'pos']);
 		expect(snapshot.within.elements).toEqual([{ value: 's', label: 'Sentence', title: 'sentence title' }]);

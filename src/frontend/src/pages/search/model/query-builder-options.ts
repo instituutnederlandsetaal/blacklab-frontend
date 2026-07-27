@@ -11,19 +11,19 @@ function getMainAnnotationGroups(index: NormalizedIndex): NormalizedAnnotationGr
 	return index.annotationGroups.filter(group => group.annotatedFieldId === index.mainAnnotatedField);
 }
 
-export function createQueryBuilderOptions(input: { index: NormalizedIndex; configuration: SearchFormConfiguration; api: BlackLabApi; translate: Translate }): CqlQueryBuilderOptions {
-	const { index, configuration, api, translate } = input;
-	const mainField = index.annotatedFields[index.mainAnnotatedField];
+export function createQueryBuilderOptions(input: { blacklabApi: BlackLabApi; configuration: SearchFormConfiguration; corpus: NormalizedIndex; translate: Translate }): CqlQueryBuilderOptions {
+	const { corpus, configuration, blacklabApi, translate } = input;
+	const mainField = corpus.annotatedFields[corpus.mainAnnotatedField];
 	const allAnnotationsMap = mainField.annotations;
-	const annotationGroups = getAnnotationSubset(configuration.queryBuilder.annotationIds, getMainAnnotationGroups(index), allAnnotationsMap, 'Search', translate, false, false);
+	const annotationGroups = getAnnotationSubset(configuration.queryBuilder.annotationIds, getMainAnnotationGroups(corpus), allAnnotationsMap, 'Search', translate, false, false);
 	const annotationOptions = annotationGroups.length > 1 ? annotationGroups : annotationGroups.flatMap(group => group.options);
 	const availableAnnotationIds = optionValues(annotationOptions);
 	const defaultAnnotationId = availableAnnotationIds.includes(configuration.queryBuilder.defaultAnnotationId) ? configuration.queryBuilder.defaultAnnotationId : (availableAnnotationIds[0] ?? '');
 
 	return {
-		indexId: index.id,
+		indexId: corpus.id,
 		defaultAnnotationId,
-		textDirection: index.textDirection,
+		textDirection: corpus.textDirection,
 		allAnnotationsMap,
 		annotationOptions,
 		operatorOptions: OPERATORS.map(op => ({
@@ -38,7 +38,7 @@ export function createQueryBuilderOptions(input: { index: NormalizedIndex; confi
 			})),
 		})),
 		autocomplete(annotation: NormalizedAnnotation, term: string): Promise<string[]> {
-			return api.getTermAutocomplete(index.id, annotation.annotatedFieldId, annotation.id, term);
+			return blacklabApi.getTermAutocomplete(corpus.id, annotation.annotatedFieldId, annotation.id, term);
 		},
 	};
 }

@@ -95,6 +95,7 @@ function createSearchFormConfiguration(): SearchFormConfiguration {
 		simpleAnnotationId: 'word',
 		extendedAnnotationIds: ['word'],
 		queryBuilder: {
+			enabled: true,
 			annotationIds: ['lemma'],
 			defaultAnnotationId: 'lemma',
 		},
@@ -168,9 +169,9 @@ describe('search form data dependencies', () => {
 		}).blacklabApi;
 
 		const options = createQueryBuilderOptions({
-			index,
+			corpus: index,
 			configuration,
-			api,
+			blacklabApi: api,
 			translate: createMockTranslate(),
 		});
 
@@ -187,9 +188,9 @@ describe('search form data dependencies', () => {
 		configuration.queryBuilder.defaultAnnotationId = 'word';
 
 		const options = createQueryBuilderOptions({
-			index,
+			corpus: index,
 			configuration,
-			api: createMockApi().blacklabApi,
+			blacklabApi: createMockApi().blacklabApi,
 			translate: createMockTranslate(),
 		});
 

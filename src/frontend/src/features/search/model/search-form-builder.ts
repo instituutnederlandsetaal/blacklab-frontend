@@ -26,7 +26,7 @@ import type { WithinFieldOption } from '@/features/form/fields/within-field';
 import type { ModuleRootState as ExploreFormState } from '@/features/search/model/form/explore-state';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
-import { createSearchFormNodeFactory } from '@/features/search/model/search-form-node-factory';
+import { createSearchFormNodeFactory, type SearchFormNodeFactory } from '@/features/search/model/search-form-node-factory';
 import { createSearchFormTotalsFactory } from '@/features/search/model/search-form-totals';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
@@ -67,7 +67,7 @@ type BuildContext = {
 	builder: FormBuilder;
 	configuration: SearchFormConfiguration;
 	corpus: Corpus;
-	fields: ReturnType<typeof createSearchFormNodeFactory>;
+	fields: SearchFormNodeFactory;
 	translate: Translate;
 };
 
@@ -103,6 +103,7 @@ function createWithinField({ builder, configuration, corpus }: BuildContext): Fo
 	return builder.newField('shared.within', withinController, WithinField, {
 		options,
 		sortOptions: !configuredElements.length,
+		variant: 'horizontal',
 	});
 }
 
@@ -110,7 +111,7 @@ function createFilterField(context: BuildContext, nodeId: string, field: Normali
 	return context.fields.metadata(field, { id: nodeId, groupId });
 }
 
-function createSharedFilters(context: BuildContext): ReturnType<FormBuilder['newContainer']> | null {
+function createSharedFilters(context: BuildContext): FormNode | null {
 	const { blacklabApi, builder, configuration, corpus, translate } = context;
 	const filterIds = configuration.metadataFieldIds;
 	const groups = corpus.metadataGroups
@@ -149,7 +150,7 @@ function createSharedFilters(context: BuildContext): ReturnType<FormBuilder['new
 	);
 }
 
-function createExploreCorporaForm({ builder, configuration, corpus, translate }: BuildContext, sharedFilters: ReturnType<FormBuilder['newContainer']> | null): void {
+function createExploreCorporaForm({ builder, configuration, corpus, translate }: BuildContext, sharedFilters: FormNode | null): FormNode {
 	const options: Options = getMetadataSubset(
 		configuration.explore.corpora.groupMetadataIds,
 		corpus.metadataGroups,
@@ -175,6 +176,7 @@ function createExploreCorporaForm({ builder, configuration, corpus, translate }:
 		html: true,
 		hideEmpty: true,
 		persistKey: 'explore-corpora-group-by',
+		variant: 'horizontal',
 	});
 	const groupDisplayModeField = builder.newField('explore.corpora.group-display-mode', resultGroupDisplayModeController, SelectField, {
 		displayName: () => translate.$t('explore.corpora.showAs.heading'),
@@ -187,10 +189,15 @@ function createExploreCorporaForm({ builder, configuration, corpus, translate }:
 		html: true,
 		hideEmpty: true,
 		persistKey: 'explore-corpora-group-display-mode',
+		variant: 'horizontal',
 	});
 	const resultPresetFields = builder.newContainer('explore.corpora.result-preset', ContainerRenderer, { variant: 'list' }).addChildren(groupByField, groupDisplayModeField);
-	const form = builder.newForm(getNewExploreFormId('corpora'), ContainerRenderer, { variant: sharedFilters ? 'columns' : undefined });
+	const form = builder.newForm(getNewExploreFormId('corpora'), ContainerRenderer, {
+		title: () => translate.$t('explore.corpora.heading'),
+		variant: sharedFilters ? 'columns' : undefined,
+	});
 	form.addChildren(resultPresetFields, sharedFilters);
+	return form;
 }
 
 function createExploreAnnotationOptions(context: BuildContext, annotationIds: string[], showGroupLabels: boolean): Options {
@@ -227,10 +234,11 @@ function createExploreParallelSourceField(context: BuildContext, mode: 'ngram' |
 		html: true,
 		options,
 		persistKey: `explore-${mode}-source`,
+		variant: mode === 'ngram' ? 'horizontal' : undefined,
 	});
 }
 
-function createExploreNgramForm(context: BuildContext, sharedFilters: FormNode | null): void {
+function createExploreNgramForm(context: BuildContext, sharedFilters: FormNode | null): FormNode | null {
 	const { builder, configuration, corpus, translate } = context;
 	const selectorOptions = createExploreAnnotationOptions(context, configuration.explore.searchAnnotationIds, false);
 	const selectorValues = optionValues(selectorOptions);
@@ -238,7 +246,7 @@ function createExploreNgramForm(context: BuildContext, sharedFilters: FormNode |
 	const groupOptions = createExploreAnnotationOptions(context, configuration.explore.groupAnnotationIds, configuration.explore.annotationGroupLabelsVisible);
 	const groupAnnotationValues = optionValues(groupOptions);
 	const defaultGroupAnnotationId = configuredDefaultValue(configuration.explore.defaultGroupAnnotationId, groupAnnotationValues);
-	if (!defaultFieldId || !defaultGroupAnnotationId) return;
+	if (!defaultFieldId || !defaultGroupAnnotationId) return null;
 
 	const groupBy = builder.newField('explore.ngram.group-by', ngramGroupAnnotationController, SelectField, {
 		annotationLabels: createAnnotationLabels(context, groupAnnotationValues),
@@ -248,6 +256,7 @@ function createExploreNgramForm(context: BuildContext, sharedFilters: FormNode |
 		html: true,
 		options: groupOptions,
 		persistKey: 'explore-ngram-group-by',
+		variant: 'horizontal',
 	});
 	const tokens = builder.newField('explore.ngram.tokens', tokenSequenceController, TokenSequenceField, {
 		createField: (options: Parameters<TokenSequenceCreateField>[0]) => {
@@ -267,15 +276,16 @@ function createExploreNgramForm(context: BuildContext, sharedFilters: FormNode |
 	});
 	const controls = builder.newContainer('explore.ngram.controls', ContainerRenderer, { variant: 'list' }).addChildren(createExploreParallelSourceField(context, 'ngram'), groupBy, tokens);
 	// Keep the five-token row full-width; the shared filters follow underneath.
-	const form = builder.newForm(getNewExploreFormId('ngram'), ContainerRenderer, {});
+	const form = builder.newForm(getNewExploreFormId('ngram'), ContainerRenderer, { title: () => translate.$t('explore.ngram.heading') });
 	form.addChildren(controls, sharedFilters);
+	return form;
 }
 
-function createExploreFrequencyForm(context: BuildContext, sharedFilters: ReturnType<FormBuilder['newContainer']> | null): void {
+function createExploreFrequencyForm(context: BuildContext, sharedFilters: FormNode | null): FormNode | null {
 	const { builder, configuration, translate } = context;
 	const options = createExploreAnnotationOptions(context, configuration.explore.groupAnnotationIds, configuration.explore.annotationGroupLabelsVisible);
 	const defaultAnnotationId = configuredDefaultValue(configuration.explore.defaultGroupAnnotationId, optionValues(options));
-	if (!defaultAnnotationId) return;
+	if (!defaultAnnotationId) return null;
 	const annotation = builder.newField('explore.frequency.annotation', frequencyAnnotationController, SelectField, {
 		annotationLabels: createAnnotationLabels(context, optionValues(options)),
 		defaultAnnotationId,
@@ -286,11 +296,15 @@ function createExploreFrequencyForm(context: BuildContext, sharedFilters: Return
 		persistKey: 'explore-frequency-annotation',
 	});
 	const controls = builder.newContainer('explore.frequency.controls', ContainerRenderer, { variant: 'list' }).addChildren(createExploreParallelSourceField(context, 'frequency'), annotation);
-	const form = builder.newForm(getNewExploreFormId('frequency'), ContainerRenderer, { variant: sharedFilters ? 'columns' : undefined });
+	const form = builder.newForm(getNewExploreFormId('frequency'), ContainerRenderer, {
+		title: () => translate.$t('explore.frequency.heading'),
+		variant: sharedFilters ? 'columns' : undefined,
+	});
 	form.addChildren(controls, sharedFilters);
+	return form;
 }
 
-function createExtendedAnnotationTabs(context: BuildContext): ReturnType<FormBuilder['newContainer']> | null {
+function createExtendedAnnotationTabs(context: BuildContext): FormNode | null {
 	const { builder, configuration, corpus, translate } = context;
 	const annotationIds = configuration.extendedAnnotationIds;
 	const groups = corpus.annotationGroups
@@ -308,7 +322,7 @@ function createExtendedAnnotationTabs(context: BuildContext): ReturnType<FormBui
 	const populateTab = (tab: ReturnType<FormBuilder['newContainer']>, annotations: NormalizedAnnotation[], groupId?: string) => {
 		for (const annotation of annotations) {
 			const nodeId = `${tab.id}.${toSafeHtmlId(annotation.id)}`;
-			const node = builder.getField(nodeId) ?? createAnnotationField(context, nodeId, annotation, groupId);
+			const node = builder.getField(nodeId) ?? createAnnotationField(context, nodeId, annotation, groupId, 'horizontal');
 			tab.addChildren(node);
 		}
 	};
@@ -373,52 +387,35 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 		},
 		translate,
 	});
+
+	// top-level
+	const root = builder.newContainer('root', ContainerRenderer, { variant: ['tabs', 'panel-tabs'], class: 'tabs-primary text-primary' });
+	const patternFormsContainer = builder.newContainer('patterns.forms', ContainerRenderer, { variant: ['tabs'] });
+	const exploreFormsContainer = builder.newContainer('explore.forms', ContainerRenderer, { variant: ['tabs'] });
+
+	// One container + heading for forms and explore both
+	root.addChildren(
+		builder
+			.newContainer('patterns', ContainerRenderer, { title: () => translate.$t('queryForm.search'), variant: 'list' })
+			.addChildren(builder.newView('patterns.heading', HeadingView, { title: () => translate.$t('search.heading') }), patternFormsContainer),
+		builder
+			.newContainer('explore', ContainerRenderer, { title: () => translate.$t('queryForm.explore'), variant: 'list' })
+			.addChildren(builder.newView('explore.heading', HeadingView, { title: () => translate.$t('explore.heading') }), exploreFormsContainer),
+	);
+
 	const fields = createSearchFormNodeFactory({ blacklabApi, configuration, corpus, tagset, translate });
 	const context: BuildContext = { blacklabApi, builder, configuration, corpus, fields, translate };
-	const annotation = getSimpleSearchAnnotation(corpus, configuration);
 	const sharedWithin = createWithinField(context);
 	const sharedFilters = createSharedFilters(context);
 
-	const simpleForm = builder.newForm(getNewSearchFormId('simple'), ContainerRenderer, { title: () => translate.$t('search.simple.heading') });
-	const simpleQuery = wrapParallel(context, createAnnotationField(context, 'search.simple.query', annotation, undefined, SIMPLE_SEARCH_VARIANT));
-	simpleForm.addChildren(simpleQuery);
-
-	const extendedForm = builder.newForm(getNewSearchFormId('extended'), ContainerRenderer, { variant: 'columns' });
-	extendedForm.addChildren(
-		builder.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(createExtendedAnnotationTabs(context), sharedWithin),
-		sharedFilters,
+	patternFormsContainer.addChildren(
+		createSimplePatternForm(context, getSimpleSearchAnnotation(corpus, configuration)),
+		createExtendedPatternForm(context, sharedWithin, sharedFilters),
+		configuration.queryBuilder.enabled ? createAdvancedPatternForm(context, sharedWithin, sharedFilters) : null,
+		createExpertPatternForm(context, sharedWithin, sharedFilters),
 	);
 
-	const queryBuilderConfig = {
-		options: createQueryBuilderOptions({ api: blacklabApi, configuration, index: corpus, translate }),
-	};
-
-	const advancedForm = builder.newForm(getNewSearchFormId('advanced'), ContainerRenderer, { variant: 'list' });
-	const advancedQuery = wrapParallel(context, createFormFieldNode('search.advanced.query', queryBuilderController, QueryBuilderField, queryBuilderConfig));
-	advancedForm.addChildren(advancedQuery, sharedWithin, sharedFilters);
-
-	const expertConfig = { hideLabel: true };
-	const expertQuery = wrapParallel(context, createFormFieldNode('search.expert.query', expertQueryController, RawCqlField, expertConfig));
-	const expertForm = builder.newForm(getNewSearchFormId('expert'), ContainerRenderer, { variant: sharedFilters ? 'columns' : undefined });
-
-	expertForm.addChildren(
-		builder.newContainer('search.expert.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
-			builder.newView('search.expert.query.heading', HeadingView, {
-				help: {
-					href: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
-					title: () => translate.$t('widgets.learnMore'),
-				},
-				title: () => translate.$t('search.expert.corpusQueryLanguage'),
-			}),
-			expertQuery,
-			sharedWithin,
-		),
-		sharedFilters,
-	);
-
-	createExploreCorporaForm(context, sharedFilters);
-	createExploreNgramForm(context, sharedFilters);
-	createExploreFrequencyForm(context, sharedFilters);
+	exploreFormsContainer.addChildren(createExploreCorporaForm(context, sharedFilters), createExploreNgramForm(context, sharedFilters), createExploreFrequencyForm(context, sharedFilters));
 
 	return builder;
 }
@@ -450,14 +447,72 @@ const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchF
 	};
 };
 
+// Kept while the legacy search-form hosts still select individual new-form roots.
 export function hasNewSearchFormForPattern(runtime: FormRuntime | null | undefined, patternMode: PatternMode): boolean {
 	return !!runtime?.definition.getForm(getNewSearchFormId(patternMode));
+}
+
+function createExpertPatternForm(context: BuildContext, sharedWithin: FormFieldNode | null, sharedFilters: FormNode | null) {
+	const { translate, builder } = context;
+	const expertConfig = { hideLabel: true };
+	const expertQuery = wrapParallel(context, createFormFieldNode('search.expert.query', expertQueryController, RawCqlField, expertConfig));
+	const expertForm = builder.newForm(getNewSearchFormId('expert'), ContainerRenderer, {
+		title: () => translate.$t('search.expert.heading'),
+		variant: sharedFilters ? 'columns' : undefined,
+	});
+
+	expertForm.addChildren(
+		builder.newContainer('search.expert.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(
+			builder.newView('search.expert.query.heading', HeadingView, {
+				help: {
+					href: 'https://blacklab.ivdnt.org/guide/corpus-query-language.html',
+					title: () => translate.$t('widgets.learnMore'),
+				},
+				title: () => translate.$t('search.expert.corpusQueryLanguage'),
+			}),
+			expertQuery,
+			sharedWithin,
+		),
+		sharedFilters,
+	);
+	return expertForm;
+}
+
+function createAdvancedPatternForm(context: BuildContext, sharedWithin: FormFieldNode | null, sharedFilters: FormNode | null) {
+	const queryBuilderConfig = { options: createQueryBuilderOptions(context) };
+	const advancedForm = context.builder.newForm(getNewSearchFormId('advanced'), ContainerRenderer, {
+		title: () => context.translate.$t('search.advanced.heading'),
+		variant: 'list',
+	});
+	const advancedQuery = wrapParallel(context, createFormFieldNode('search.advanced.query', queryBuilderController, QueryBuilderField, queryBuilderConfig));
+	advancedForm.addChildren(advancedQuery, sharedWithin, sharedFilters);
+	return advancedForm;
+}
+
+function createExtendedPatternForm(context: BuildContext, sharedWithin: FormFieldNode | null, sharedFilters: FormNode | null) {
+	const extendedForm = context.builder.newForm(getNewSearchFormId('extended'), ContainerRenderer, {
+		title: () => context.translate.$t('search.extended.heading'),
+		variant: 'columns',
+	});
+	extendedForm.addChildren(
+		context.builder.newContainer('search.extended.query.wrapper', ContainerRenderer, { variant: 'list' }).addChildren(createExtendedAnnotationTabs(context), sharedWithin),
+		sharedFilters,
+	);
+	return extendedForm;
+}
+
+function createSimplePatternForm(context: BuildContext, annotation: NormalizedAnnotation) {
+	const simpleForm = context.builder.newForm(getNewSearchFormId('simple'), ContainerRenderer, { title: () => context.translate.$t('search.simple.heading') });
+	const simpleQuery = wrapParallel(context, createAnnotationField(context, 'search.simple.query', annotation, undefined, SIMPLE_SEARCH_VARIANT));
+	simpleForm.addChildren(simpleQuery);
+	return simpleForm;
 }
 
 export function getNewSearchFormId(patternMode: PatternMode): string {
 	return `${SEARCH_FORM_ID_PREFIX}${patternMode}`;
 }
 
+// Kept while the legacy search-form hosts still select individual new-form roots.
 export function hasNewExploreFormForMode(runtime: FormRuntime | null | undefined, exploreMode: keyof ExploreFormState): boolean {
 	return !!runtime?.definition.getForm(getNewExploreFormId(exploreMode));
 }

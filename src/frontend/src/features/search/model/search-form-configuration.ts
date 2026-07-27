@@ -8,6 +8,7 @@ export type SearchFormConfiguration = {
 	simpleAnnotationId: string;
 	extendedAnnotationIds: string[];
 	queryBuilder: {
+		enabled: boolean;
 		annotationIds: string[];
 		defaultAnnotationId: string;
 	};
@@ -45,6 +46,7 @@ export function snapshotSearchFormConfiguration(state: UIStore.ModuleRootState):
 		simpleAnnotationId: state.search.simple.searchAnnotationId,
 		extendedAnnotationIds: [...state.search.extended.searchAnnotationIds],
 		queryBuilder: {
+			enabled: state.search.advanced.enabled,
 			annotationIds: [...state.search.advanced.searchAnnotationIds],
 			defaultAnnotationId: state.search.advanced.defaultSearchAnnotationId,
 		},

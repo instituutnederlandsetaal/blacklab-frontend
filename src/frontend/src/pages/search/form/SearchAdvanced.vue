@@ -85,8 +85,8 @@ export default defineComponent({
 	computed: {
 		queryBuilderOptions(): CqlQueryBuilderOptions {
 			return createQueryBuilderOptions({
-				index: this.corpus,
-				api: this.blacklab,
+				corpus: this.corpus,
+				blacklabApi: this.blacklab,
 				configuration: snapshotSearchFormConfiguration(UIStore.getState()),
 				translate: this,
 			});
