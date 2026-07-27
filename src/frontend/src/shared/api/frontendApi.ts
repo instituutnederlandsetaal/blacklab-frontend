@@ -34,7 +34,6 @@ export const frontendPaths = {
 	},
 
 	// The following paths are only for use with the api endpoint (they don't contain the context url - the endpoint will add it)
-	indexInfo: (indexId: string) => `${indexId}/api/info`,
 	config: (indexId: string | null) => (indexId ? `${indexId}/api/config` : `api/config`),
 	tagset: (indexId: string) => `${indexId}/static/tagset.json`,
 	documentContents: (indexId: string, pid: string) => `${indexId}/api/docs/${pid}/contents`,

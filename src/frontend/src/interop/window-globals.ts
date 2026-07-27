@@ -24,7 +24,7 @@ type InteropWindow = Window & {
 };
 
 type InteropGlobal = typeof globalThis & {
-	currentCorpusData?: CorpusContext;
+	corpus?: CorpusContext;
 	vuexModules?: unknown;
 };
 
@@ -82,7 +82,7 @@ export function setMountedVueGlobals(app: App, root: unknown) {
 }
 
 export function setCurrentCorpusDataGlobal(value: CorpusContext) {
-	(globalThis as InteropGlobal).currentCorpusData = value;
+	(globalThis as InteropGlobal).corpus = value;
 }
 
 export function setLegacyIndexIdGlobal(value: string) {

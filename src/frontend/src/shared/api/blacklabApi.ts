@@ -183,12 +183,8 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			endpoint.getCancelable<BLIndex | BLIndexV4>(paths.indexStatus(id), undefined, requestParamers).then(r => normalizeIndexBase(r, id)),
 
 		getCorpus: (id: string, requestParameters?: AxiosRequestConfig) => {
-			const indexRequest = endpoint.getCancelable<BLIndexMetadata | BLIndexMetadataV4>(paths.index(id), version === '5' ? { custom: true } : undefined, {
+			const indexRequest = endpoint.getCancelable<BLIndexMetadata | BLIndexMetadataV4>(paths.index(id), version === '5' ? { custom: true, listValues: '*' } : undefined, {
 				...requestParameters,
-				data: {
-					...requestParameters?.data,
-					listValues: '*', // blacklab 5 allows this, 4 doesn't respect it, but doesn't harm
-				},
 			});
 			const relationsRequest = api.getRelations(id, requestParameters);
 			return new CancelableRequest(Promise.all([indexRequest, relationsRequest]), () => {
