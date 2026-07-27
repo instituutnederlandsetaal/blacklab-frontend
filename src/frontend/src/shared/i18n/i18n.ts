@@ -23,7 +23,6 @@ export { useI18nManager };
 
 export type AppI18n = I18nPlugin & {
 	manager: I18nManager;
-	init: Promise<void>;
 	registerLocale: I18nManager['registerLocale'];
 	removeLocale: I18nManager['removeLocale'];
 	getFallbackLocale: I18nManager['getFallbackLocale'];
@@ -38,22 +37,6 @@ function registerDefaultLocales(manager: I18nManager) {
 	manager.registerLocale('en-us', 'English');
 	manager.registerLocale('zh-cn', '中文');
 	manager.registerLocale('nl-nl', 'Nederlands');
-}
-
-function createInitPromise(manager: I18nManager) {
-	return new Promise<void>(resolve => {
-		if (!manager.loading.value) {
-			resolve();
-			return;
-		}
-
-		const cancel = setInterval(() => {
-			if (!manager.loading.value) {
-				clearInterval(cancel);
-				resolve();
-			}
-		}, 10);
-	});
 }
 
 function bridgeManagerToVueI18n(manager: I18nManager, i18n: VueI18nBridge) {
@@ -102,7 +85,6 @@ export function createI18n(indexId: MaybeRefOrGetter<string | undefined | null>)
 			provideI18nManager(app, manager);
 		},
 		manager,
-		init: createInitPromise(manager),
 		registerLocale: manager.registerLocale.bind(manager),
 		removeLocale: manager.removeLocale.bind(manager),
 		getFallbackLocale: manager.getFallbackLocale.bind(manager),
