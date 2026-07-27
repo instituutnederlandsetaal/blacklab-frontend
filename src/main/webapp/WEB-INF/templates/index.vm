@@ -21,6 +21,11 @@
             var OIDC_METADATA_URL = "$esc.javascript($OIDC_METADATA_URL)";
             var OIDC_CLIENT_ID = "$esc.javascript($OIDC_CLIENT_ID)";
 
+            const BLF_VERSION = "$esc.javascript($version)";
+            const BLF_COMMIT_HASH = "$esc.javascript($commitHash)";
+            const BLF_COMMIT_TIME = "$esc.javascript($commitTime)";
+            const BLF_COMMIT_MESSAGE = "$esc.javascript($commitMessage)";
+
             var DEBUG_INFO_VISIBLE = $debugInfo;
         </script>
     </head>

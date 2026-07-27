@@ -17,6 +17,13 @@ declare global {
 	const OIDC_CLIENT_ID: string | null;
 	const OIDC_AUTHORITY: string | null;
 
+	/** Version of the frontend, supplied by the Java app shell. */
+	const BLF_VERSION: string;
+	/** Git commit metadata for the frontend build, supplied by the Java app shell. */
+	const BLF_COMMIT_HASH: string;
+	const BLF_COMMIT_TIME: string;
+	const BLF_COMMIT_MESSAGE: string;
+
 	// ---------------------------
 	// only valid on the article page (/docs/...)
 	// ---------------------------
