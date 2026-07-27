@@ -46,10 +46,7 @@ export type SearchPageQueryParamsInput = {
 	view: ViewStore.ViewRootState;
 };
 
-export function getSubmittedInterfaceState({
-	query,
-	interface: interfaceState,
-}: Pick<SearchPageQueryParamsInput, 'query' | 'interface'>): Partial<InterfaceStore.ModuleRootState> | undefined {
+export function getSubmittedInterfaceState({ query, interface: interfaceState }: Pick<SearchPageQueryParamsInput, 'query' | 'interface'>): Partial<InterfaceStore.ModuleRootState> | undefined {
 	if (query.form === 'new') {
 		// The new form persists its own UI state separately. Omitting the legacy
 		// interface parameter also lets older frontends infer a graceful fallback.

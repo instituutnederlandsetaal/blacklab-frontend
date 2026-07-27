@@ -500,11 +500,7 @@ describe('search form system', () => {
 		const runtime = createDefinition();
 
 		expect(runtime.definition.getForm(getNewSearchFormId('advanced'))).toBeNull();
-		expect(runtime.definition.getContainer('patterns.forms')?.children.map(child => child.id)).toEqual([
-			getNewSearchFormId('simple'),
-			getNewSearchFormId('extended'),
-			getNewSearchFormId('expert'),
-		]);
+		expect(runtime.definition.getContainer('patterns.forms')?.children.map(child => child.id)).toEqual([getNewSearchFormId('simple'), getNewSearchFormId('extended'), getNewSearchFormId('expert')]);
 	});
 
 	test('applies the large simple-search presentation to regular and parallel query fields', () => {

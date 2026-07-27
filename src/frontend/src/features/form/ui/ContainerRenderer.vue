@@ -11,13 +11,7 @@
 		</Tabs>
 
 		<!-- todo something with active class, and show/hide mode in the tabs? might need to wrap this in tab component so suspense can work? -->
-		<div
-			v-if="activeChild"
-			:id="tabPanelId(props.id, activeChild.props.id)"
-			role="tabpanel"
-			:aria-labelledby="tabId(props.id, activeChild.props.id)"
-			:class="panelBodyClasses"
-		>
+		<div v-if="activeChild" :id="tabPanelId(props.id, activeChild.props.id)" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)" :class="panelBodyClasses">
 			<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset">
 				<template #actions><slot name="actions" /></template>
 			</Component>
@@ -98,11 +92,7 @@ const containerClasses = computed(() => [
 	variant.value,
 	!isTabbed.value ? props.class : null,
 ]);
-const tabClasses = computed(() => [
-	'blf-form-container-tabs',
-	props.class,
-	presentation.value['panel-tabs'] ? 'blf-form-surface-tabs' : null,
-]);
+const tabClasses = computed(() => ['blf-form-container-tabs', props.class, presentation.value['panel-tabs'] ? 'blf-form-surface-tabs' : null]);
 const panelBodyClasses = computed(() => ['blf-form-tab-body', presentation.value['panel-tabs'] ? 'blf-form-surface-body' : null]);
 
 if (props.kind === 'form') {
@@ -145,7 +135,6 @@ function forwardReset() {
 	border-radius: 4px;
 	background: rgba(255, 255, 255, 0.8);
 	margin-bottom: 35px;
-	overflow: hidden;
 	transition:
 		0.25s border-color,
 		0.4s background-color;
