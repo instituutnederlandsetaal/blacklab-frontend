@@ -19,6 +19,11 @@ const defaultBlackLabUrl = 'https://corpusgysseling.ivdnt.org/blacklab-server/';
 const defaultDockerImage = 'blacklab-frontend-url-sync-smoke:local';
 const defaultDockerfile = 'docker/frontend-proxy.dockerfile';
 const reservedScopedKeys = new Set(['f.form', 'f.tab']);
+const legacyFormUiKeys = new Set(['form', 'patternMode', 'exploreMode', 'activeAnnotationTab', 'activeFilterTab']);
+const searchModeFormIds = {
+	simple: 'search.simple',
+	extended: 'search.extended',
+};
 
 function parseArgs(argv) {
 	const options = {};
@@ -295,15 +300,39 @@ function summarizeUrl(url) {
 		url,
 		pathname: parsed.pathname,
 		patt: parsed.searchParams.get('patt'),
+		submittedForm: parsed.searchParams.get('f.form'),
 		scopedKeys,
 		scopedFieldKeys,
+		legacyFormUiKeys: findLegacyFormUiKeys(parsed),
 	};
+}
+
+function findLegacyFormUiKeys(url) {
+	const parsed = url instanceof URL ? url : new URL(url);
+	const found = [...legacyFormUiKeys].filter(key => parsed.searchParams.has(key));
+	const encodedInterface = parsed.searchParams.get('interface');
+	if (!encodedInterface) return found;
+
+	try {
+		const interfaceState = JSON.parse(encodedInterface);
+		if (interfaceState && typeof interfaceState === 'object' && !Array.isArray(interfaceState)) {
+			for (const key of legacyFormUiKeys) {
+				if (Object.prototype.hasOwnProperty.call(interfaceState, key)) found.push(`interface.${key}`);
+			}
+		}
+	} catch {
+		found.push('interface (malformed)');
+	}
+	return found;
 }
 
 async function snapshot(page) {
 	return page.evaluate(() => {
 		const modules = window.vuexModules;
 		const history = modules?.history?.getState?.() ?? [];
+		const formSystem = document.querySelector('.blf-form-system');
+		const isVisible = element => !!element && !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+		const activeForm = formSystem ? [...formSystem.querySelectorAll('form')].find(isVisible) : null;
 		return {
 			url: window.location.href,
 			params: modules?.root?.get?.blacklabParameters?.() ?? null,
@@ -314,8 +343,14 @@ async function snapshot(page) {
 			title: document.title,
 			bodyText: document.body?.innerText?.slice(0, 2000) ?? '',
 			hasVueRoot: !!document.querySelector('#vue-root'),
-			hasSearchForm: !!document.querySelector('#form-search'),
-			hasNewForm: !!document.querySelector('.blf-form-system'),
+			hasNewForm: !!formSystem,
+			hasActiveNewForm: !!activeForm,
+			selectedTabs: formSystem
+				? [...formSystem.querySelectorAll('[role="tab"][aria-selected="true"]')].map(tab => ({
+						name: tab.textContent?.trim() ?? '',
+						controls: tab.getAttribute('aria-controls'),
+					}))
+				: [],
 			activeElement: document.activeElement
 				? {
 						tagName: document.activeElement.tagName,
@@ -325,19 +360,18 @@ async function snapshot(page) {
 						value: 'value' in document.activeElement ? document.activeElement.value : undefined,
 					}
 				: null,
-			inputs: [...document.querySelectorAll('#form-search input')]
-				.slice(0, 20)
-				.map(input => ({
-					id: input.id,
-					name: input.name,
-					type: input.type,
-					className: input.className,
-					value: input.value,
-					placeholder: input.placeholder,
-					disabled: input.disabled,
-					visible: !!(input.offsetWidth || input.offsetHeight || input.getClientRects().length),
-					inNewForm: !!input.closest('.blf-form-system'),
-				})),
+			inputs: activeForm
+				? [...activeForm.querySelectorAll('input')].slice(0, 20).map(input => ({
+						id: input.id,
+						name: input.name,
+						type: input.type,
+						className: input.className,
+						value: input.value,
+						placeholder: input.placeholder,
+						disabled: input.disabled,
+						visible: isVisible(input),
+					}))
+				: [],
 			history: history.slice(0, 5).map(entry => ({
 				url: entry.url,
 				viewedResults: entry.interface?.viewedResults,
@@ -378,38 +412,62 @@ async function restoreNewSearchFormPreference(page, previousValue) {
 	}, previousValue);
 }
 
-async function findQueryInput(page, selectorOverride, timeout, mode = 'simple') {
-	const selectors = [
-		mode === 'simple' ? selectorOverride : null,
-		`#${mode} .blf-form-system input[type="text"]:not([disabled])`,
-		`#${mode} input[type="text"]:not([disabled])`,
-	].filter(Boolean);
+function newFormRoot(page) {
+	return page.locator('.blf-form-system').first();
+}
 
-	for (const selector of selectors) {
-		const locator = page.locator(selector).first();
-		if ((await locator.count()) === 0) continue;
-		try {
-			await locator.waitFor({ state: 'visible', timeout: Math.min(timeout, 1500) });
-			return locator;
-		} catch {
-			// Try the next selector.
+function formNodeIdPart(value) {
+	return Array.from(value, character => {
+		if (/^[A-Za-z0-9-]$/.test(character)) return character;
+		if (character === '_') return '__';
+		return `_${character.codePointAt(0).toString(16)}`;
+	}).join('');
+}
+
+function formNodeTab(root, nodeId) {
+	return root.locator(`[role="tab"][aria-controls$="--a-${formNodeIdPart(nodeId)}"]`).first();
+}
+
+async function activeNewForm(page, timeout) {
+	const root = newFormRoot(page);
+	await root.waitFor({ state: 'visible', timeout });
+	const form = root.locator('form:visible').first();
+	await form.waitFor({ state: 'visible', timeout });
+	return form;
+}
+
+async function findQueryInput(page, selectorOverride, timeout) {
+	if (selectorOverride) {
+		const override = page.locator(selectorOverride).first();
+		if ((await override.count()) > 0) {
+			try {
+				await override.waitFor({ state: 'visible', timeout: Math.min(timeout, 1500) });
+				if (await override.isEditable()) return override;
+			} catch {
+				// Fall through to the active form's semantic textbox lookup.
+			}
 		}
 	}
 
-	throw new Error(
-		`Could not find a visible ${mode}-search text input. Set BLF_SMOKE_QUERY_SELECTOR if this corpus uses different markup.`,
-	);
+	const form = await activeNewForm(page, timeout);
+	const textboxes = form.getByRole('textbox');
+	for (let index = 0; index < (await textboxes.count()); index += 1) {
+		const textbox = textboxes.nth(index);
+		if ((await textbox.isVisible()) && (await textbox.isEditable())) return textbox;
+	}
+
+	throw new Error('Could not find an editable textbox in the active new-form form. Set BLF_SMOKE_QUERY_SELECTOR if this corpus uses different markup.');
 }
 
 async function waitForVisibleSearchMode(page, mode, timeout) {
-	await page.waitForFunction(
-		expectedMode => {
-			const input = document.querySelector(`#${expectedMode} input[type="text"]:not([disabled])`);
-			return !!input && !!(input.offsetWidth || input.offsetHeight || input.getClientRects().length);
-		},
-		mode,
-		{ timeout },
-	);
+	const formId = searchModeFormIds[mode];
+	assert(formId, `No form node is configured for search mode '${mode}'.`);
+	const tab = formNodeTab(newFormRoot(page), formId);
+	await tab.waitFor({ state: 'visible', timeout });
+	const tabElement = await tab.elementHandle();
+	assert(tabElement, `Could not resolve the ${mode} search-mode tab.`);
+	await page.waitForFunction(element => element?.getAttribute('aria-selected') === 'true', tabElement, { timeout });
+	await activeNewForm(page, timeout);
 }
 
 async function assertVisibleSearchMode(page, mode, timeout, label) {
@@ -421,41 +479,61 @@ async function assertVisibleSearchMode(page, mode, timeout, label) {
 }
 
 async function waitForSearchState(page, expectedTerm, timeout, expectedPatternMode = 'simple') {
+	const expectedFormId = `search.${expectedPatternMode}`;
 	await page.waitForFunction(
-		({ term, patternMode }) => {
+		({ term, formId, legacyKeys }) => {
 			const url = new URL(window.location.href);
-			let urlInterface = null;
+			let interfaceState = {};
 			try {
-				urlInterface = JSON.parse(url.searchParams.get('interface') || '{}');
+				interfaceState = JSON.parse(url.searchParams.get('interface') || '{}');
 			} catch {
 				// The URL parser will report malformed interface state separately.
+				return false;
 			}
 			const scopedKeys = [...url.searchParams.keys()].filter(key => key.startsWith('f.'));
 			const scopedFieldKeys = scopedKeys.filter(key => key !== 'f.form' && key !== 'f.tab');
-			const input = document.querySelector(`#${patternMode} input[type="text"]:not([disabled])`);
+			const hasLegacyUiState =
+				legacyKeys.some(key => url.searchParams.has(key)) ||
+				(interfaceState && typeof interfaceState === 'object' && !Array.isArray(interfaceState) && legacyKeys.some(key => Object.prototype.hasOwnProperty.call(interfaceState, key)));
+			const root = document.querySelector('.blf-form-system');
+			const visible = element => !!element && !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length);
+			const activeForm = root ? [...root.querySelectorAll('form')].find(visible) : null;
+			const input = activeForm ? [...activeForm.querySelectorAll('input[type="text"], input:not([type]), textarea')].find(element => visible(element) && !element.disabled && !element.readOnly) : null;
+			const queryState = window.vuexModules?.query?.getState?.();
 
 			return !!(
-				urlInterface?.form === 'search' &&
-				urlInterface?.patternMode === patternMode &&
 				url.pathname.endsWith('/search/hits') &&
 				url.searchParams.get('patt')?.includes(term) &&
+				url.searchParams.get('f.form') === formId &&
 				scopedFieldKeys.length > 0 &&
+				!hasLegacyUiState &&
+				queryState?.form === 'new' &&
+				queryState?.state?.formId === formId &&
 				input &&
-				(input.offsetWidth || input.offsetHeight || input.getClientRects().length)
+				input.value === term
 			);
 		},
-		{ term: expectedTerm, patternMode: expectedPatternMode },
+		{ term: expectedTerm, formId: expectedFormId, legacyKeys: [...legacyFormUiKeys] },
 		{ timeout },
 	);
 }
 
 async function selectSearchMode(page, mode, timeout) {
-	await page.locator(`#searchTabs a[href="#${mode}"]`).click();
+	const root = newFormRoot(page);
+	const searchTab = formNodeTab(root, 'patterns');
+	await searchTab.waitFor({ state: 'visible', timeout });
+	if ((await searchTab.getAttribute('aria-selected')) !== 'true') await searchTab.click();
+
+	const formId = searchModeFormIds[mode];
+	assert(formId, `No form node is configured for search mode '${mode}'.`);
+	const modeTab = formNodeTab(root, formId);
+	await modeTab.waitFor({ state: 'visible', timeout });
+	if ((await modeTab.getAttribute('aria-selected')) !== 'true') await modeTab.click();
 	await waitForVisibleSearchMode(page, mode, timeout);
 }
 
 async function submitSearch(page, selectorOverride, query, timeout, mode = 'simple') {
-	const input = await findQueryInput(page, selectorOverride, timeout, mode);
+	const input = await findQueryInput(page, selectorOverride, timeout);
 	await input.click();
 	await input.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
 	await input.press('Backspace');
@@ -464,13 +542,15 @@ async function submitSearch(page, selectorOverride, query, timeout, mode = 'simp
 	await input.press('Enter');
 	await waitForSearchState(page, query, timeout, mode);
 	const state = await snapshot(page);
+	const legacyKeys = findLegacyFormUiKeys(state.url);
+	assert(legacyKeys.length === 0, 'Expected the new-form URL to omit legacy form/tab UI state.', { legacyKeys, url: state.url });
 	console.log(`ok ${mode} search '${query}'`, summarizeUrl(state.url));
 }
 
-async function assertQueryInputValue(page, selectorOverride, expectedTerm, timeout, label, mode = 'simple') {
-	const input = await findQueryInput(page, selectorOverride, timeout, mode);
+async function assertQueryInputValue(page, selectorOverride, expectedTerm, timeout, label) {
+	const input = await findQueryInput(page, selectorOverride, timeout);
 	const value = await input.inputValue();
-	assert(value === expectedTerm, `Expected the simple-search input to contain '${expectedTerm}' ${label}, got '${value}'.`, await snapshot(page));
+	assert(value === expectedTerm, `Expected the active new-form query input to contain '${expectedTerm}' ${label}, got '${value}'.`, await snapshot(page));
 	console.log(`ok form input held '${expectedTerm}' ${label}`);
 }
 

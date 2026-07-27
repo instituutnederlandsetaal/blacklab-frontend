@@ -105,9 +105,11 @@ function createRealBrowserQueryParams(p: RealSearchPageQueryParamsInput): Naviga
 
 function createAdditionalBrowserQueryParams(p: AdditionalSearchPageQueryParamsInput): NavigationInput['query'] {
 	if (!p.interface.viewedResults) return {};
+	const submittedInterfaceState = getSubmittedInterfaceState(p);
+	if (!submittedInterfaceState) return {};
 	return (
 		cleanQueryParams({
-			interface: JSON.stringify(getSubmittedInterfaceState(p)),
+			interface: JSON.stringify(submittedInterfaceState),
 		}) ?? {}
 	);
 }

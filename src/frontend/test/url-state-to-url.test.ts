@@ -58,7 +58,7 @@ describe('state-to-url helpers', () => {
 		});
 	});
 
-	test('keeps new-form submitted identity in scoped params and uses the live interface state', () => {
+	test('keeps new-form submitted identity only in scoped params', () => {
 		const query = {
 			form: 'new',
 			state: {
@@ -80,17 +80,10 @@ describe('state-to-url helpers', () => {
 		});
 
 		expect(query.state.encoded['f.form']).toBe('search.extended');
-		expect(submittedInterface).toEqual({
-			form: 'search',
-			exploreMode: 'corpora',
-			patternMode: 'simple',
-			viewedResults: undefined,
-			activeAnnotationTab: 'Basics_annotations',
-			activeFilterTab: 'Letter',
-		});
+		expect(submittedInterface).toBeUndefined();
 	});
 
-	test('uses the live Explore tab state for a new Documents form', () => {
+	test('omits legacy Explore tab state for a new Documents form', () => {
 		const exploreInterfaceState: InterfaceStore.ModuleRootState = {
 			...liveInterfaceState,
 			form: 'explore',
@@ -110,13 +103,6 @@ describe('state-to-url helpers', () => {
 			},
 		});
 
-		expect(submittedInterface).toEqual({
-			form: 'explore',
-			exploreMode: 'corpora',
-			patternMode: 'simple',
-			viewedResults: undefined,
-			activeAnnotationTab: 'Basics_annotations',
-			activeFilterTab: 'Letter',
-		});
+		expect(submittedInterface).toBeUndefined();
 	});
 });

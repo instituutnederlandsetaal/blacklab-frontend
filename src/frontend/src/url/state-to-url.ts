@@ -5,7 +5,6 @@ import type * as InterfaceStore from '@/features/search/model/form/interface-sta
 import type * as QueryStore from '@/features/search/model/query-state';
 import type * as GlobalResultsStore from '@/features/search/model/results/global-results-state';
 import type * as ViewStore from '@/features/search/model/results/view-state';
-import { getLegacyFormNameFromNewFormId } from '@/features/search/model/search-form-builder';
 
 import { cleanQueryParams } from '@/shared/api/lib/api-utils';
 
@@ -47,7 +46,16 @@ export type SearchPageQueryParamsInput = {
 	view: ViewStore.ViewRootState;
 };
 
-export function getSubmittedInterfaceState({ query, interface: interfaceState }: Pick<SearchPageQueryParamsInput, 'query' | 'interface'>): Partial<InterfaceStore.ModuleRootState> {
+export function getSubmittedInterfaceState({
+	query,
+	interface: interfaceState,
+}: Pick<SearchPageQueryParamsInput, 'query' | 'interface'>): Partial<InterfaceStore.ModuleRootState> | undefined {
+	if (query.form === 'new') {
+		// The new form persists its own UI state separately. Omitting the legacy
+		// interface parameter also lets older frontends infer a graceful fallback.
+		return undefined;
+	}
+
 	const shared = {
 		viewedResults: undefined,
 		activeAnnotationTab: interfaceState.activeAnnotationTab || undefined,
@@ -70,12 +78,10 @@ export function getSubmittedInterfaceState({ query, interface: interfaceState }:
 		};
 	}
 
-	// The new form is nested inside the normal Search/Explore tabs, so the interface
-	// store remains authoritative for its host and mode. The same applies when no
-	// query has been submitted yet.
+	// No query has been submitted yet, so keep using the live legacy form state.
 	return {
 		...shared,
-		form: query.form === 'new' ? getLegacyFormNameFromNewFormId(query.state.formId) : 'search',
+		form: 'search',
 		exploreMode: interfaceState.exploreMode,
 		patternMode: interfaceState.patternMode,
 	};
