@@ -73,6 +73,33 @@ const activeOverrides = computed(() =>
 	--blf-text-muted: #777;
 }
 
+.blf-field-horizontal {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	min-width: 0;
+
+	> .blf-field-label,
+	> .blf-field-controls {
+		grid-column: 1;
+		min-width: 0;
+	}
+}
+
+@media (min-width: 992px) {
+	.blf-field-horizontal {
+		grid-template-columns: minmax(125px, 140px) minmax(0, 1fr);
+		column-gap: 15px;
+
+		> .blf-field-label {
+			grid-column: 1;
+		}
+
+		> .blf-field-controls {
+			grid-column: 2;
+		}
+	}
+}
+
 .blf-raw-overrides {
 	display: grid;
 	gap: 8px;

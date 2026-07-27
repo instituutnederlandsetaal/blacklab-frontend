@@ -1,18 +1,20 @@
 <template>
 	<div v-bind="field.rootAttrs">
-		<label v-if="!hideLabel" :for="`${htmlId}_query`">
+		<label v-if="!hideLabel" :for="`${htmlId}_query`" :class="field.labelClass">
 			{{ $t(`search.expert.corpusQueryLanguage`) }}
 			<a class="help" target="_blank" href="https://blacklab.ivdnt.org/guide/corpus-query-language.html" :title="$t(`widgets.learnMore`)">?</a>
 		</label>
-		<textarea
-			:class="['form-control', 'querybox', field.inputClass]"
-			:id="`${htmlId}_query`"
-			rows="7"
-			:value="modelValue"
-			:disabled
-			:aria-label="hideLabel ? $t(`search.expert.corpusQueryLanguage`) : undefined"
-			@input="updateQuery(($event.target as HTMLTextAreaElement).value)"
-		/>
+		<div :class="field.controlsClass">
+			<textarea
+				:class="['form-control', 'querybox', field.inputClass]"
+				:id="`${htmlId}_query`"
+				rows="7"
+				:value="modelValue"
+				:disabled
+				:aria-label="hideLabel ? $t(`search.expert.corpusQueryLanguage`) : undefined"
+				@input="updateQuery(($event.target as HTMLTextAreaElement).value)"
+			/>
+		</div>
 	</div>
 </template>
 

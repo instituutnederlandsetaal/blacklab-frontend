@@ -63,6 +63,10 @@ a,
 	background-color: $block-bg-2 !important;
 }
 
+.tabs-primary {
+	--tabs-primary-color: #{$block-bg-1};
+}
+
 ul.nav-tabs.cf-panel-tab-header {
 	background-color: $block-bg-1 !important;
 	border-top-color: $block-bg-1 !important;

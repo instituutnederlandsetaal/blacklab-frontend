@@ -1,21 +1,23 @@
 <template>
 	<div v-bind="field.rootAttrs">
-		<label v-if="showLabel" :for="buttonId">{{ $tAnnotDisplayName(annotation) }}</label>
-		<div class="input-group">
-			<input :id="buttonId" type="text" :class="['form-control', field.inputClass]" :value="selectionSummary" readonly :placeholder="$t('partOfSpeech.noneSelected')" />
-			<div class="input-group-btn">
-				<button v-if="hasSelection" type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled @click="clearSelection">
-					<span class="fa fa-times fa-fw"></span>
-					<span class="sr-only">{{ $t('partOfSpeech.reset') }}</span>
-				</button>
-				<button type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled @click="openEditor">
-					<span class="fa fa-pencil fa-fw"></span>
-					<span class="sr-only">{{ $t('partOfSpeech.edit') }}</span>
-				</button>
+		<label v-if="showLabel" :for="buttonId" :class="field.labelClass">{{ $tAnnotDisplayName(annotation) }}</label>
+		<div :class="field.controlsClass">
+			<div class="input-group">
+				<input :id="buttonId" type="text" :class="['form-control', field.inputClass]" :value="selectionSummary" readonly :placeholder="$t('partOfSpeech.noneSelected')" />
+				<div class="input-group-btn">
+					<button v-if="hasSelection" type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled @click="clearSelection">
+						<span class="fa fa-times fa-fw"></span>
+						<span class="sr-only">{{ $t('partOfSpeech.reset') }}</span>
+					</button>
+					<button type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled @click="openEditor">
+						<span class="fa fa-pencil fa-fw"></span>
+						<span class="sr-only">{{ $t('partOfSpeech.edit') }}</span>
+					</button>
+				</div>
 			</div>
-		</div>
 
-		<small class="help-block">{{ $tAnnotDescription(annotation) }}</small>
+			<small class="help-block">{{ $tAnnotDescription(annotation) }}</small>
+		</div>
 
 		<Modal
 			v-if="editorOpen"

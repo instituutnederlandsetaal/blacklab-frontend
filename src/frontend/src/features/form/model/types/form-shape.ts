@@ -14,7 +14,7 @@ export type BaseNode = {
 // Container
 // ==========================================================================================================================
 
-export type ContainerPresentation = 'list' | 'tabs' | 'small-tabs' | 'tab-badges' | 'columns' | (string & {}); // open-ended but with some fixed types we support internally.
+export type ContainerPresentation = 'list' | 'tabs' | 'small-tabs' | 'tab-badges' | 'columns' | 'panel-tabs' | (string & {}); // open-ended but with some fixed types we support internally.
 export type QueryCombineMode = BooleanType | 'sequence';
 
 export type BaseContainerNode = BaseNode & {
@@ -50,7 +50,7 @@ export type ImplicitContainerComponentProps = BaseNode & {
 // Field
 // ==========================================================================================================================
 
-export type FieldPresentation = 'simple' | 'large' | 'small' | 'default' | (string & {}); // open-ended but with some fixed types we support internally.
+export type FieldPresentation = 'simple' | 'large' | 'small' | 'horizontal' | 'default' | (string & {}); // open-ended but with some fixed types we support internally.
 
 export type BaseFieldNode = BaseNode & {
 	kind: 'field';

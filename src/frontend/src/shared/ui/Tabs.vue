@@ -304,7 +304,7 @@ $radius: 4px;
 			}
 
 			&.active {
-				border-bottom: 1px solid var(--backgroundColor);
+				border-bottom: 1px solid var(--activeColor);
 				z-index: 2;
 			}
 
@@ -344,6 +344,50 @@ $radius: 4px;
 				z-index: 2;
 			}
 		}
+	}
+}
+
+.tabs.tabs-primary {
+	--backgroundColor: var(--tabs-primary-color, #337ab7);
+
+	> .tab:not(.active):not(.disabled) {
+		color: #fff;
+		border-color: transparent;
+	}
+
+	> .tab:not(.active):not(.disabled):hover,
+	> .tab.active {
+		color: #555;
+		border-left-color: var(--tabs-primary-color, #337ab7);
+		border-right-color: var(--tabs-primary-color, #337ab7);
+	}
+
+	&:not(.vertical):not(.empty) {
+		border-bottom-color: transparent;
+
+		> .tab:not(.active) {
+			border-bottom-color: transparent;
+		}
+	}
+}
+
+.tabs.tabs-primary.text-primary {
+	--backgroundColor: var(--tabs-primary-color, currentColor);
+
+	> .tab:not(.active):not(.disabled):hover,
+	> .tab.active {
+		// Older generated corpus styles do not define --tabs-primary-color yet.
+		// Keep their seams neutral until the style template is regenerated.
+		border-left-color: var(--tabs-primary-color, transparent);
+		border-right-color: var(--tabs-primary-color, transparent);
+	}
+}
+
+.tabs.tabs-form:not(.vertical):not(.empty) {
+	margin-top: 0;
+
+	> .tab {
+		margin-top: 0;
 	}
 }
 

@@ -1,6 +1,6 @@
 <template>
-	<component v-if="isTabbed" :is="isForm ? 'form' : 'div'" :class="{ 'panel panel-default blf-form-container': isForm, ...variant }" @submit.stop.prevent="submit" @reset.stop.prevent="reset">
-		<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="resolvedTitle || 'Form sections'" class="panel-heading blf-form-container-tabs">
+	<component v-if="isTabbed" :is="isForm ? 'form' : 'div'" :class="containerClasses" @submit.stop.prevent="submit" @reset.stop.prevent="reset">
+		<Tabs v-model="activeChildId" :tabs="tabs" :small="presentation['small-tabs']" :aria-label="resolvedTitle || 'Form sections'" :class="tabClasses">
 			<template v-if="presentation['tab-badges']" #label="{ tab }">
 				{{ tab.label }}
 				<template v-if="activeQueryContributionCounts[tab.value]">
@@ -11,8 +11,16 @@
 		</Tabs>
 
 		<!-- todo something with active class, and show/hide mode in the tabs? might need to wrap this in tab component so suspense can work? -->
-		<div v-if="activeChild" :id="tabPanelId(props.id, activeChild.props.id)" role="tabpanel" :aria-labelledby="tabId(props.id, activeChild.props.id)">
-			<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset" />
+		<div
+			v-if="activeChild"
+			:id="tabPanelId(props.id, activeChild.props.id)"
+			role="tabpanel"
+			:aria-labelledby="tabId(props.id, activeChild.props.id)"
+			:class="panelBodyClasses"
+		>
+			<Component :is="activeChild.is" v-bind="activeChild.props" :key="activeChildId" hideTitle @submit="forwardSubmit" @reset="forwardReset">
+				<template #actions><slot name="actions" /></template>
+			</Component>
 		</div>
 
 		<div class="blf-form-actions btn-toolbar" v-if="isForm">
@@ -22,8 +30,12 @@
 		</div>
 	</component>
 
-	<component v-else :is="isForm ? 'form' : 'div'" @submit.stop.prevent="submit" @reset.stop.prevent="reset" :class="['blf-form-container', variant]">
-		<Component v-for="child in children" :is="child.is" v-bind="child.props" :key="child.props.id" @submit="forwardSubmit" @reset="forwardReset" />
+	<component v-else :is="isForm ? 'form' : 'div'" @submit.stop.prevent="submit" @reset.stop.prevent="reset" :class="containerClasses">
+		<div class="blf-form-content">
+			<Component v-for="child in children" :is="child.is" v-bind="child.props" :key="child.props.id" @submit="forwardSubmit" @reset="forwardReset">
+				<template #actions><slot name="actions" /></template>
+			</Component>
+		</div>
 
 		<div class="blf-form-actions btn-toolbar" v-if="isForm">
 			<button class="btn btn-primary btn-lg" type="submit">{{ $t(`queryForm.search`) }}</button>
@@ -79,8 +91,20 @@ const activeQueryContributionCounts = computed<Record<string, number>>(() => {
 
 const isForm = computed(() => props.kind === 'form');
 const isTabbed = computed(() => presentation.value['tabs'] || presentation.value['small-tabs']);
-
-// const containerClasses = computed(() => ['blf-container', props.kind === 'form' ? 'blf-form panel panel-default' : null, presentation.value, props.class]);
+const containerClasses = computed(() => [
+	'blf-form-container',
+	isForm.value ? 'blf-form' : null,
+	presentation.value['panel-tabs'] ? 'blf-form-surface' : null,
+	variant.value,
+	!isTabbed.value ? props.class : null,
+]);
+const tabClasses = computed(() => [
+	'blf-form-container-tabs',
+	'tabs-form',
+	props.class,
+	presentation.value['panel-tabs'] ? 'blf-form-surface-tabs' : null,
+]);
+const panelBodyClasses = computed(() => ['blf-form-tab-body', presentation.value['panel-tabs'] ? 'blf-form-surface-body' : null]);
 
 if (props.kind === 'form') {
 	provideParentForm(toRef(props, 'id'));
@@ -111,17 +135,56 @@ function forwardReset() {
 	gap: 16px;
 }
 
-.blf-form-actions {
-	margin-top: 15px;
+.blf-form-container,
+.blf-form-content,
+.blf-form-tab-body {
+	min-width: 0;
 }
 
-.blf-form-container.columns {
+.blf-form-surface {
+	border: 1px solid var(--blf-border, #ccc);
+	border-radius: 4px;
+	background: rgba(255, 255, 255, 0.8);
+	margin-bottom: 35px;
+	overflow: hidden;
+	transition:
+		0.25s border-color,
+		0.4s background-color;
+}
+
+.blf-form-surface:hover {
+	border-color: var(--blf-border-strong, #adadad);
+	background: #fff;
+}
+
+.blf-form-surface-body {
+	padding: 20px 30px 30px;
+}
+
+.blf-form-actions {
+	border-top: 1px solid #eee;
+	margin-top: 20px;
+	padding-top: 20px;
+}
+
+.blf-form-container.list > .blf-form-content {
+	display: grid;
+	gap: 15px;
+	align-content: start;
+}
+
+.blf-form-container.list > .blf-form-content > .blf-field {
+	margin-bottom: 0;
+}
+
+.blf-form-container.columns > .blf-form-content {
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
-	gap: 30px;
+	column-gap: 30px;
+	row-gap: 20px;
 
-	> :not(.blf-form-actions):not([class^='col-']):not([class*=' col-']) {
+	> :not([class^='col-']):not([class*=' col-']) {
 		flex: 1 1 320px;
 		min-width: 320px;
 	}
@@ -131,14 +194,28 @@ function forwardReset() {
 		flex: 0 0 auto;
 		min-width: 0;
 	}
-
-	> .blf-form-actions {
-		flex: 0 0 100%;
-		width: 100%;
-	}
 }
 
 .blf-form-container-tabs {
 	margin-bottom: 10px;
+}
+
+.blf-form-container-tabs.blf-form-surface-tabs {
+	margin-bottom: 0;
+}
+
+@media (max-width: 767px) {
+	.blf-form-surface-body {
+		padding: 15px;
+	}
+
+	.blf-form-container.columns > .blf-form-content {
+		row-gap: 15px;
+
+		> * {
+			flex-basis: 100%;
+			min-width: 0;
+		}
+	}
 }
 </style>

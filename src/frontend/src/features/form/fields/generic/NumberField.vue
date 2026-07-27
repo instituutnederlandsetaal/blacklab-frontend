@@ -1,9 +1,26 @@
 <template>
 	<div v-bind="field.rootAttrs">
-		<label v-if="showLabel" :for="field.inputId" class="control-label">{{ displayName }}</label>
-		<debug> [{{ id }}]</debug>
-		<input :id="field.inputId" :class="['form-control', field.inputClass]" type="number" :value="modelValue" :min="finiteMin" :max="finiteMax" :step="normalizedStep" :disabled @input="updateValue" />
-		<small v-if="description" class="help-block">{{ description }}</small>
+		<label v-if="showLabel" :for="field.inputId" :class="['control-label', field.labelClass]">
+			{{ displayName }}
+			<Debug> [{{ id }}]</Debug>
+		</label>
+		<Debug v-else>
+			<label :class="['control-label', field.labelClass]">[{{ id }}]</label>
+		</Debug>
+		<div :class="field.controlsClass">
+			<input
+				:id="field.inputId"
+				:class="['form-control', field.inputClass]"
+				type="number"
+				:value="modelValue"
+				:min="finiteMin"
+				:max="finiteMax"
+				:step="normalizedStep"
+				:disabled
+				@input="updateValue"
+			/>
+			<small v-if="description" class="help-block">{{ description }}</small>
+		</div>
 	</div>
 </template>
 

@@ -1,31 +1,33 @@
 <template>
 	<div v-bind="field.rootAttrs">
-		<label>{{ $t(`search.extended.within`) }}&nbsp;</label>
-		<div class="btn-group">
-			<button
-				v-for="option in sortedOptions"
-				type="button"
-				:class="['btn', state.element === option.value || (!state.element && !option.value) ? 'active btn-primary' : 'btn-default', field.buttonClass]"
-				:key="option.value"
-				:title="option.title || undefined"
-				:disabled
-				@click="selectElement(option.value)"
-			>
-				{{ option.label }}
-			</button>
-		</div>
+		<label :class="field.labelClass">{{ $t(`search.extended.within`) }}&nbsp;</label>
+		<div :class="field.controlsClass">
+			<div class="btn-group">
+				<button
+					v-for="option in sortedOptions"
+					type="button"
+					:class="['btn', state.element === option.value || (!state.element && !option.value) ? 'active btn-primary' : 'btn-default', field.buttonClass]"
+					:key="option.value"
+					:title="option.title || undefined"
+					:disabled
+					@click="selectElement(option.value)"
+				>
+					{{ option.label }}
+				</button>
+			</div>
 
-		<div class="blf-within-attributes" v-for="attr in selectedAttributes" :key="attr.value">
-			<label :for="`${htmlId}_${attr.value}`">{{ attr.label }}</label>
-			<input
-				:class="['form-control', field.inputClass]"
-				type="text"
-				:id="`${htmlId}_${attr.value}`"
-				:title="attr.title || undefined"
-				:value="state.attributes[attr.value] || ''"
-				:disabled
-				@input="changeWithinAttribute(attr.value, ($event.target as HTMLInputElement).value)"
-			/>
+			<div class="blf-within-attributes" v-for="attr in selectedAttributes" :key="attr.value">
+				<label :for="`${htmlId}_${attr.value}`">{{ attr.label }}</label>
+				<input
+					:class="['form-control', field.inputClass]"
+					type="text"
+					:id="`${htmlId}_${attr.value}`"
+					:title="attr.title || undefined"
+					:value="state.attributes[attr.value] || ''"
+					:disabled
+					@input="changeWithinAttribute(attr.value, ($event.target as HTMLInputElement).value)"
+				/>
+			</div>
 		</div>
 	</div>
 </template>

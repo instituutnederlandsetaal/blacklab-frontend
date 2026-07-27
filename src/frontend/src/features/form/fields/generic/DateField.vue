@@ -1,51 +1,56 @@
 <template>
 	<div v-bind="field.rootAttrs">
-		<label v-if="showLabel" :for="`${field.inputId}_year_from`" class="control-label">
+		<label v-if="showLabel" :for="`${field.inputId}_year_from`" :class="['control-label', field.labelClass]">
 			{{ displayName }}
 			<small v-if="minDateDisplay && maxDateDisplay" class="text-muted">({{ minDateDisplay }} to {{ maxDateDisplay }})</small>
+			<Debug> [{{ id }}]</Debug>
 		</label>
-		<debug> [{{ id }}]</debug>
+		<Debug v-else>
+			<label :class="['control-label', field.labelClass]">[{{ id }}]</label>
+		</Debug>
 
-		<div>
-			<div class="dates">
-				<label v-if="range">{{ $t(`filter.range.from`) }}: </label>
-				<input
-					:class="['form-control', field.inputClass]"
-					:id="`${field.inputId}_year_from`"
-					type="number"
-					title="year"
-					placeholder="year"
-					v-model="yearFrom"
-					:min="minYear"
-					:max="maxYear"
+		<div :class="field.controlsClass">
+			<div>
+				<div class="dates">
+					<label v-if="range">{{ $t(`filter.range.from`) }}: </label>
+					<input
+						:class="['form-control', field.inputClass]"
+						:id="`${field.inputId}_year_from`"
+						type="number"
+						title="year"
+						placeholder="year"
+						v-model="yearFrom"
+						:min="minYear"
+						:max="maxYear"
+						:disabled
+					/>
+					<input :class="['form-control', field.inputClass]" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" :disabled />
+					<input :class="['form-control', field.inputClass]" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" :disabled />
+				</div>
+				<div v-if="range" class="dates">
+					<label>{{ $t(`filter.range.to`) }}: </label>
+					<input :class="['form-control', field.inputClass]" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" :disabled />
+					<input :class="['form-control', field.inputClass]" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" :disabled />
+					<input :class="['form-control', field.inputClass]" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" :disabled />
+				</div>
+			</div>
+
+			<div v-if="!lockedMode && range" :class="['btn-group', field.buttonGroupClass]">
+				<button
+					v-for="mode in modes"
+					type="button"
+					:class="['btn btn-default', { active: modelValue.mode === mode.value }]"
+					:key="mode.value"
+					:value="mode.value"
+					:title="mode.title || ''"
 					:disabled
-				/>
-				<input :class="['form-control', field.inputClass]" type="number" title="month" placeholder="month" v-model="monthFrom" min="1" max="12" :disabled />
-				<input :class="['form-control', field.inputClass]" type="number" title="day" placeholder="day" v-model="dayFrom" min="1" :max="startMonthLength" :disabled />
+					@click="updateMode(mode.value)"
+				>
+					{{ mode.label }}
+				</button>
 			</div>
-			<div v-if="range" class="dates">
-				<label>{{ $t(`filter.range.to`) }}: </label>
-				<input :class="['form-control', field.inputClass]" type="number" title="year" placeholder="year" v-model="yearTo" :min="minYear" :max="maxYear" :disabled />
-				<input :class="['form-control', field.inputClass]" type="number" title="month" placeholder="month" v-model="monthTo" min="1" max="12" :disabled />
-				<input :class="['form-control', field.inputClass]" type="number" title="day" placeholder="day" v-model="dayTo" min="1" :max="endMonthLength" :disabled />
-			</div>
+			<small v-if="description" class="help-block">{{ description }}</small>
 		</div>
-
-		<div v-if="!lockedMode && range" :class="['btn-group', field.buttonGroupClass]">
-			<button
-				v-for="mode in modes"
-				type="button"
-				:class="['btn btn-default', { active: modelValue.mode === mode.value }]"
-				:key="mode.value"
-				:value="mode.value"
-				:title="mode.title || ''"
-				:disabled
-				@click="updateMode(mode.value)"
-			>
-				{{ mode.label }}
-			</button>
-		</div>
-		<small v-if="description" class="help-block">{{ description }}</small>
 	</div>
 </template>
 

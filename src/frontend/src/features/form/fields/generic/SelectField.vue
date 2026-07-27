@@ -1,23 +1,30 @@
 <template>
 	<div v-bind="field.rootAttrs">
-		<label v-if="showLabel" :for="field.inputId" class="control-label">{{ displayName }} </label>
-		<debug> [{{ id }}]</debug>
-		<SelectPicker
-			data-width="100%"
-			:multiple
-			container="body"
-			:data-id="field.inputId"
-			:data-name="field.inputId"
-			:data-class="['btn btn-default', field.buttonClass]"
-			:placeholder="placeholder || displayName"
-			:dir="textDirection || 'ltr'"
-			:options
-			:allow-html="html"
-			:hide-empty="hideEmpty"
-			:disabled
-			v-model="pickerValue"
-		/>
-		<small v-if="description" class="help-block">{{ description }}</small>
+		<label v-if="showLabel" :for="field.inputId" :class="['control-label', field.labelClass]">
+			{{ displayName }}
+			<Debug> [{{ id }}]</Debug>
+		</label>
+		<Debug v-else>
+			<label :class="['control-label', field.labelClass]">[{{ id }}]</label>
+		</Debug>
+		<div :class="field.controlsClass">
+			<SelectPicker
+				data-width="100%"
+				:multiple
+				container="body"
+				:data-id="field.inputId"
+				:data-name="field.inputId"
+				:data-class="['btn btn-default', field.buttonClass]"
+				:placeholder="placeholder || displayName"
+				:dir="textDirection || 'ltr'"
+				:options
+				:allow-html="html"
+				:hide-empty="hideEmpty"
+				:disabled
+				v-model="pickerValue"
+			/>
+			<small v-if="description" class="help-block">{{ description }}</small>
+		</div>
 	</div>
 </template>
 

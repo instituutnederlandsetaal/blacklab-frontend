@@ -99,10 +99,34 @@ describe('form runtime', () => {
 			},
 		});
 
-		const actions = wrapper.get('.blf-form-actions btn-toolbar');
+		const actions = wrapper.get('.blf-form-actions.btn-toolbar');
 		expect(actions.find('[type="submit"]').exists()).toBe(true);
 		expect(actions.find('[type="reset"]').exists()).toBe(true);
 		expect(actions.get('.legacy-action').attributes('type')).toBe('button');
+	});
+
+	test('forwards supplied actions through nested containers to the active form', () => {
+		const builder = createTestBuilder();
+		const root = builder.newContainer('root', ContainerRenderer, { class: 'tabs-primary text-primary', variant: ['tabs', 'panel-tabs'] });
+		const section = builder.newContainer('root.search', ContainerRenderer, { title: 'Search', variant: 'list' });
+		const forms = builder.newContainer('root.search.forms', ContainerRenderer, { variant: 'tabs' });
+		forms.addChildren(builder.newForm('root.search.simple', ContainerRenderer, { title: 'Simple' }));
+		section.addChildren(forms);
+		root.addChildren(section);
+
+		const wrapper = mount(FormSystem, {
+			props: { runtime: createTestRuntime(builder) },
+			slots: {
+				actions: '<button type="button" class="legacy-action">History</button>',
+			},
+		});
+
+		expect(wrapper.get('[role="tablist"]').classes()).toEqual(expect.arrayContaining(['tabs-primary', 'text-primary', 'blf-form-surface-tabs']));
+		expect(wrapper.get('[role="tabpanel"]').classes()).toEqual(expect.arrayContaining(['blf-form-tab-body', 'blf-form-surface-body']));
+		expect(wrapper.get('.blf-form-surface').classes()).not.toContain('panel');
+		expect(wrapper.get('form.blf-form').classes()).not.toContain('panel-default');
+		expect(wrapper.get('form.blf-form > .blf-form-content').exists()).toBe(true);
+		expect(wrapper.get('.blf-form-actions').get('.legacy-action').text()).toBe('History');
 	});
 
 	test('lazy display props update without rebuilding the form graph', async () => {

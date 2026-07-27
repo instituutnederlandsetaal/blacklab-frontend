@@ -1,9 +1,9 @@
 <template>
-	<div v-bind="field.rootAttrs">
-		<fieldset>
-			<legend v-if="showLabel">
-				{{ displayName }}<debug> [{{ id }}]</debug>
-			</legend>
+	<fieldset v-bind="field.rootAttrs">
+		<legend v-if="showLabel" :class="field.labelClass">
+			{{ displayName }}<Debug> [{{ id }}]</Debug>
+		</legend>
+		<div :class="field.controlsClass">
 			<div v-for="(option, index) in options" :key="index" class="radio">
 				<label :for="`${field.inputId}_${index}`" :title="option.title || ''">
 					<input
@@ -19,9 +19,9 @@
 					{{ option.label || option.value }}
 				</label>
 			</div>
-		</fieldset>
-		<small v-if="description" class="help-block">{{ description }}</small>
-	</div>
+			<small v-if="description" class="help-block">{{ description }}</small>
+		</div>
+	</fieldset>
 </template>
 
 <script setup lang="ts">

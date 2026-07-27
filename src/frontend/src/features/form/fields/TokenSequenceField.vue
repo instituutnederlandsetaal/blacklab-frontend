@@ -9,7 +9,7 @@
 			:max="lengthBounds.max"
 			:step="1"
 			:disabled
-			:variant
+			:variant="lengthVariant"
 			@update:model-value="updateLength"
 		/>
 
@@ -23,7 +23,7 @@
 					:placeholder="selectorPlaceholder"
 					:options="selectorOptions"
 					:disabled
-					:variant
+					:variant="tokenVariant"
 					:show-label="false"
 					hide-empty
 					html
@@ -47,6 +47,7 @@ import { computed } from 'vue';
 
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
+import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import {
 	clampTokenSequenceLength,
@@ -73,8 +74,16 @@ const emit = defineEmits<{
 }>();
 
 const runtime = useFormSystemRuntime();
-const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-token-sequence-field' });
+const field = useFieldPresentation(props, { formGroup: false, horizontal: false, rootClass: 'blf-token-sequence-field' });
 const lengthBounds = computed(() => tokenSequenceLengthBounds(props));
+const tokenVariant = computed<BaseFieldNode['variant']>(() => {
+	const variants = (Array.isArray(props.variant) ? props.variant : [props.variant]).filter((variant): variant is NonNullable<typeof variant> => !!variant && variant !== 'horizontal');
+	return variants.length > 1 ? variants : variants[0];
+});
+const lengthVariant = computed<BaseFieldNode['variant']>(() => {
+	const variants = tokenVariant.value == null ? [] : Array.isArray(tokenVariant.value) ? tokenVariant.value : [tokenVariant.value];
+	return [...variants, 'horizontal'];
+});
 
 function updateLength(requestedLength: number) {
 	const length = clampTokenSequenceLength(requestedLength, lengthBounds.value);
@@ -102,7 +111,7 @@ function updateTokenState(index: number, fieldState: unknown) {
 }
 
 function fieldNode(token: TokenSequenceTokenState, index: number) {
-	return createTokenSequenceFieldNode(props, index, token.fieldId);
+	return createTokenSequenceFieldNode({ ...props, variant: tokenVariant.value }, index, token.fieldId);
 }
 
 function safeHtmlId(value: string) {

@@ -1,49 +1,56 @@
 <template>
 	<div v-bind="field.rootAttrs">
-		<label v-if="showLabel" class="control-label" :for="field.inputId">{{ displayName }} </label>
-		<debug> [{{ id }}]</debug>
+		<label v-if="showLabel" :class="['control-label', field.labelClass]" :for="field.inputId">
+			{{ displayName }}
+			<Debug> [{{ id }}]</Debug>
+		</label>
+		<Debug v-else>
+			<label :class="['control-label', field.labelClass]">[{{ id }}]</label>
+		</Debug>
 
-		<div :class="!field.variants.simple ? 'input-group' : ''">
-			<Autocomplete
-				v-if="autocomplete"
-				data-width="100%"
-				:data-class="['form-control', field.inputClass]"
-				useQuoteAsWordBoundary
-				:data-id="field.inputId"
-				:data-name="field.inputId"
-				:placeholder="placeholder || displayName"
-				:dir="textDirection || 'ltr'"
-				:getData="autocomplete"
-				:disabled
-				v-model="value"
-			/>
-			<input
-				v-else
-				:id="field.inputId"
-				:class="['form-control', field.inputClass]"
-				type="text"
-				:placeholder="placeholder || displayName"
-				:dir="textDirection || 'ltr'"
-				:disabled
-				:value
-				@input="value = ($event.target as HTMLInputElement).value"
-			/>
+		<div :class="field.controlsClass">
+			<div :class="!field.variants.simple ? 'input-group' : ''">
+				<Autocomplete
+					v-if="autocomplete"
+					data-width="100%"
+					:data-class="['form-control', field.inputClass]"
+					useQuoteAsWordBoundary
+					:data-id="field.inputId"
+					:data-name="field.inputId"
+					:placeholder="placeholder || displayName"
+					:dir="textDirection || 'ltr'"
+					:getData="autocomplete"
+					:disabled
+					v-model="value"
+				/>
+				<input
+					v-else
+					:id="field.inputId"
+					:class="['form-control', field.inputClass]"
+					type="text"
+					:placeholder="placeholder || displayName"
+					:dir="textDirection || 'ltr'"
+					:disabled
+					:value
+					@input="value = ($event.target as HTMLInputElement).value"
+				/>
 
-			<div v-if="!field.variants.simple" class="input-group-btn">
-				<label :class="['btn', 'btn-default', 'file-input-button', field.buttonClass, { disabled }]" :for="`${field.inputId}_file`">
-					<span class="fa fa-upload fa-fw"></span>
-					<input type="file" title="Upload a list of values" :id="`${field.inputId}_file`" @change="onFileChanged" :disabled />
+				<div v-if="!field.variants.simple" class="input-group-btn">
+					<label :class="['btn', 'btn-default', 'file-input-button', field.buttonClass, { disabled }]" :for="`${field.inputId}_file`">
+						<span class="fa fa-upload fa-fw"></span>
+						<input type="file" title="Upload a list of values" :id="`${field.inputId}_file`" @change="onFileChanged" :disabled />
+					</label>
+				</div>
+			</div>
+
+			<small v-if="description" class="help-block">{{ description }}</small>
+
+			<div class="checkbox" :class="{ disabled }" v-if="caseSensitive && !field.variants.simple">
+				<label>
+					<input type="checkbox" :checked="modelValue.caseSensitive" :disabled @change="updateCaseSensitive(($event.target as HTMLInputElement).checked)" />
+					{{ $t(`widgets.caseSensitive`) }}
 				</label>
 			</div>
-		</div>
-
-		<small v-if="description" class="help-block">{{ description }}</small>
-
-		<div class="checkbox" :class="{ disabled }" v-if="caseSensitive && !field.variants.simple">
-			<label>
-				<input type="checkbox" :checked="modelValue.caseSensitive" :disabled @change="updateCaseSensitive(($event.target as HTMLInputElement).checked)" />
-				{{ $t(`widgets.caseSensitive`) }}
-			</label>
 		</div>
 	</div>
 </template>

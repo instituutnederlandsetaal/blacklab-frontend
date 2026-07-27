@@ -1,60 +1,67 @@
 <template>
 	<div v-bind="field.rootAttrs">
-		<label v-if="showLabel" class="control-label" :for="field.inputId">{{ displayName }} </label>
-		<debug> [{{ id }}]</debug>
+		<label v-if="showLabel" :class="['control-label', field.labelClass]" :for="field.inputId">
+			{{ displayName }}
+			<Debug> [{{ id }}]</Debug>
+		</label>
+		<Debug v-else>
+			<label :class="['control-label', field.labelClass]">[{{ id }}]</label>
+		</Debug>
 
-		<div class="lexicon">
-			<div class="lexicon-input">
-				<input
-					type="text"
-					:class="['form-control', field.inputClass, { loading: wordOptions === null }]"
-					autocomplete="off"
-					:id="field.inputId"
-					:name="field.inputId"
-					:placeholder="placeholder || displayName"
-					:dir="textDirection || 'ltr'"
-					:disabled
-					:value="value"
-					@input="value = ($event.target as HTMLInputElement).value"
-				/>
-				<Spinner v-if="wordOptions === null" overlay right inverted :size="field.variants.large ? 32 : 22" class="lexicon-spinner" />
-			</div>
+		<div :class="field.controlsClass">
+			<div class="lexicon">
+				<div class="lexicon-input">
+					<input
+						type="text"
+						:class="['form-control', field.inputClass, { loading: wordOptions === null }]"
+						autocomplete="off"
+						:id="field.inputId"
+						:name="field.inputId"
+						:placeholder="placeholder || displayName"
+						:dir="textDirection || 'ltr'"
+						:disabled
+						:value="value"
+						@input="value = ($event.target as HTMLInputElement).value"
+					/>
+					<Spinner v-if="wordOptions === null" overlay right inverted :size="field.variants.large ? 32 : 22" class="lexicon-spinner" />
+				</div>
 
-			<div v-if="wordOptions && wordOptions.length" style="display: flex; flex-wrap: wrap; gap: 0.25em; margin: 10px 0">
-				<button type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled="disabled || selectedWords.length === renderedWords.length" @click="selectAll">
-					{{ $t('lexicon.selectAll') }}
-				</button>
-				<button type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled="disabled || !selectedWords.length" @click="deselectAll">{{ $t('lexicon.deselectAll') }}</button>
-			</div>
+				<div v-if="wordOptions && wordOptions.length" style="display: flex; flex-wrap: wrap; gap: 0.25em; margin: 10px 0">
+					<button type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled="disabled || selectedWords.length === renderedWords.length" @click="selectAll">
+						{{ $t('lexicon.selectAll') }}
+					</button>
+					<button type="button" :class="['btn', 'btn-default', field.buttonClass]" :disabled="disabled || !selectedWords.length" @click="deselectAll">{{ $t('lexicon.deselectAll') }}</button>
+				</div>
 
-			<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden">
-				<label
-					v-for="opt in renderedWords"
-					:key="opt.word"
-					style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
-					:role="opt.count > 0 && !disabled ? 'button' : undefined"
-					:class="{ disabled: disabled || opt.count === 0 }"
-					:title="`${opt.word} (${opt.count})`"
-				>
-					<input type="checkbox" :disabled="disabled || opt.count === 0" v-model="opt.selected" /> {{ opt.word }}
-				</label>
-			</div>
-			<template v-if="wordOptions && wordOptions.length">
-				<h4>{{ $t('lexicon.limit') }}</h4>
 				<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden">
 					<label
-						v-for="(_checked, pos) in posOptions"
-						:key="pos"
+						v-for="opt in renderedWords"
+						:key="opt.word"
 						style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
-						:role="!disabled ? 'button' : undefined"
+						:role="opt.count > 0 && !disabled ? 'button' : undefined"
+						:class="{ disabled: disabled || opt.count === 0 }"
+						:title="`${opt.word} (${opt.count})`"
 					>
-						<input type="checkbox" v-model="posOptions[pos]" :value="pos" :disabled /> {{ pos }}
+						<input type="checkbox" :disabled="disabled || opt.count === 0" v-model="opt.selected" /> {{ opt.word }}
 					</label>
 				</div>
-			</template>
-		</div>
+				<template v-if="wordOptions && wordOptions.length">
+					<h4>{{ $t('lexicon.limit') }}</h4>
+					<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden">
+						<label
+							v-for="(_checked, pos) in posOptions"
+							:key="pos"
+							style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
+							:role="!disabled ? 'button' : undefined"
+						>
+							<input type="checkbox" v-model="posOptions[pos]" :value="pos" :disabled /> {{ pos }}
+						</label>
+					</div>
+				</template>
+			</div>
 
-		<small v-if="description" class="help-block">{{ description }}</small>
+			<small v-if="description" class="help-block">{{ description }}</small>
+		</div>
 	</div>
 </template>
 

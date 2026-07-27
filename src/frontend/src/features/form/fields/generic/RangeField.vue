@@ -1,42 +1,49 @@
 <template>
 	<div v-bind="field.rootAttrs">
-		<label v-if="showLabel" :for="`${field.inputId}_lower`" class="control-label">{{ displayName }}</label>
-		<debug>[{{ id }}]</debug>
-		<div class="blf-dual-input">
-			<input
-				:id="`${field.inputId}_lower`"
-				v-model="lower"
-				:type="resolvedInputType"
-				:placeholder="lowPlaceholder || $t(`filter.range.from`)"
-				:class="['form-control', field.inputClass]"
-				autocomplete="off"
-				:disabled
-			/>
-			<input
-				:id="`${field.inputId}_upper`"
-				v-model="upper"
-				:type="resolvedInputType"
-				:placeholder="highPlaceholder || $t(`filter.range.to`)"
-				:class="['form-control', field.inputClass]"
-				autocomplete="off"
-				:disabled
-			/>
+		<label v-if="showLabel" :for="`${field.inputId}_lower`" :class="['control-label', field.labelClass]">
+			{{ displayName }}
+			<Debug> [{{ id }}]</Debug>
+		</label>
+		<Debug v-else>
+			<label :class="['control-label', field.labelClass]">[{{ id }}]</label>
+		</Debug>
+		<div :class="field.controlsClass">
+			<div class="blf-dual-input">
+				<input
+					:id="`${field.inputId}_lower`"
+					v-model="lower"
+					:type="resolvedInputType"
+					:placeholder="lowPlaceholder || $t(`filter.range.from`)"
+					:class="['form-control', field.inputClass]"
+					autocomplete="off"
+					:disabled
+				/>
+				<input
+					:id="`${field.inputId}_upper`"
+					v-model="upper"
+					:type="resolvedInputType"
+					:placeholder="highPlaceholder || $t(`filter.range.to`)"
+					:class="['form-control', field.inputClass]"
+					autocomplete="off"
+					:disabled
+				/>
+			</div>
+			<div v-if="showModeSelector" :class="['btn-group', 'blf-range-modes', field.buttonGroupClass]">
+				<button
+					v-for="mode in modes"
+					type="button"
+					:class="['btn btn-default', { active: currentMode === mode.value }]"
+					:key="mode.value"
+					:value="mode.value"
+					:title="mode.title || ''"
+					:disabled
+					@click="updateMode(mode.value)"
+				>
+					{{ mode.label }}
+				</button>
+			</div>
+			<small v-if="description" class="help-block">{{ description }}</small>
 		</div>
-		<div v-if="showModeSelector" :class="['btn-group', 'blf-range-modes', field.buttonGroupClass]">
-			<button
-				v-for="mode in modes"
-				type="button"
-				:class="['btn btn-default', { active: currentMode === mode.value }]"
-				:key="mode.value"
-				:value="mode.value"
-				:title="mode.title || ''"
-				:disabled
-				@click="updateMode(mode.value)"
-			>
-				{{ mode.label }}
-			</button>
-		</div>
-		<small v-if="description" class="help-block">{{ description }}</small>
 	</div>
 </template>
 

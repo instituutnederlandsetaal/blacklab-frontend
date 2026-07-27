@@ -9,6 +9,7 @@ import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldSt
 import type { TokenSequenceCreateField, TokenSequenceFieldState } from '@/features/form/fields/token-sequence-field';
 import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import { tokenSequenceController } from '@/features/form/model/controllers/token-sequence-controller';
+import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import { createTestBuilder } from './helpers';
 
@@ -48,7 +49,7 @@ const childController = defineFieldController<'token-sequence-test-child', TextF
 	},
 });
 
-function createFixture() {
+function createFixture(variant: BaseFieldNode['variant'] = 'large') {
 	const builder = createTestBuilder();
 	const sequence = builder.newField('explore.ngram.tokens', tokenSequenceController, TokenSequenceField, {
 		createField: (({ annotationId, ...binding }) =>
@@ -70,7 +71,7 @@ function createFixture() {
 		selectorDisplayName: 'Property',
 		selectorPlaceholder: 'Choose a property',
 		persistKey: 'ngram-tokens',
-		variant: 'large',
+		variant,
 	});
 	builder.newForm('explore.ngram', ContainerRenderer, {}).addChildren(sequence);
 	return { builder, runtime: new FormRuntime(builder), sequence };
@@ -95,6 +96,26 @@ describe('token sequence composite field', () => {
 
 		state[1].fieldState = { value: 'run*', caseSensitive: true } satisfies TextFieldState;
 		expect(runtime.compile('explore.ngram').patt).toBe('[word="(?i)water"] [lemma="run.*"]');
+	});
+
+	test('lays out only the length control horizontally', () => {
+		const { runtime } = createFixture(['large', 'horizontal']);
+		const wrapper = mount(FormSystem, {
+			props: {
+				runtime,
+				rootId: 'explore.ngram',
+			},
+		});
+
+		const length = wrapper.findComponent(NumberField);
+		expect(length.props('variant')).toEqual(['large', 'horizontal']);
+		expect(length.get('.blf-field-horizontal').exists()).toBe(true);
+		expect(wrapper.get('.blf-token-sequence-field').classes()).not.toContain('blf-field-horizontal');
+
+		const selectors = wrapper.findAllComponents(SelectField);
+		expect(selectors.every(selector => selector.props('variant') === 'large')).toBe(true);
+		expect(selectors.every(selector => !selector.classes().includes('blf-field-horizontal'))).toBe(true);
+		expect(wrapper.findAllComponents(TextField).every(editor => editor.props('variant') === 'large')).toBe(true);
 	});
 
 	test('grows, shrinks, and resets child state when its selector changes', async () => {
