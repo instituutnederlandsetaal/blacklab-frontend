@@ -72,7 +72,13 @@ import FieldRenderer from '@/features/form/ui/FieldRenderer.vue';
 import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-const props = defineProps<ParallelFieldComponentProps>();
+// Vue's type-to-runtime conversion otherwise follows `annotationValue` and
+// generates a String validator for this structured field state.
+type ParallelFieldProps = Omit<ParallelFieldComponentProps, 'modelValue'> & {
+	modelValue: ParallelFieldState;
+};
+
+const props = defineProps<ParallelFieldProps>();
 const runtime = useFormSystemRuntime();
 const translate = useI18n();
 
@@ -82,7 +88,12 @@ const emit = defineEmits<{
 
 const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-parallel-field' });
 const sourceOptions = computed<Option[]>(() =>
-	props.fieldOptions.filter(option => !props.modelValue.targets.includes(option.id)).map(option => ({ value: option.id, label: translate.$tAnnotatedFieldDisplayName(option) })),
+	props.fieldOptions
+		.filter(option => !props.modelValue.targets.includes(option.id))
+		.map(option => {
+			debugger;
+			return { value: option.id, label: translate.$tAnnotatedFieldDisplayName(option) };
+		}),
 );
 const targetOptions = computed<Option[]>(() =>
 	props.fieldOptions.filter(option => option.id !== props.modelValue.source).map(option => ({ value: option.id, label: translate.$tAnnotatedFieldDisplayName(option) })),
