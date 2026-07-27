@@ -71,7 +71,7 @@ export function createI18n(indexId: MaybeRefOrGetter<string | undefined | null>)
 	const manager = new I18nManager(LOCALE_STORAGE_KEY);
 	registerDefaultLocales(manager);
 	void manager.setFallbackLocale('en-us');
-	watch(toRef(indexId), newId => manager.setIndexId(newId));
+	watch(toRef(indexId), newId => manager.setIndexId(newId), { immediate: true });
 
 	const i18nParts = createVueI18nParts();
 	const vueI18n = i18nParts.vueI18n;
@@ -96,7 +96,8 @@ export function createI18n(indexId: MaybeRefOrGetter<string | undefined | null>)
 	};
 
 	// Legacy interop, we used to expose this surface (for customjs), so keep it intact for now.
-	(globalThis as typeof globalThis & { i18n: AppI18n }).i18n = api;
+	// @ts-ignore
+	globalThis.i18n = { ...api, vueI18n };
 
 	return api;
 }
