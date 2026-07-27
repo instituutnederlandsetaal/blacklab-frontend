@@ -204,7 +204,12 @@ function applyLegacyExploreResultSettings(): boolean {
 const actions = {
 	searchFromSubmit: (snapshot?: CompiledFormStateWithSummaries | null) => {
 		markLocalSearchIntent();
-		if (InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
+		if (
+			!snapshot &&
+			InterfaceModule.get.form() === 'search' &&
+			InterfaceModule.get.patternMode() === 'extended' &&
+			PatternModule.getState().extended.splitBatch
+		) {
 			actions.searchSplitBatches();
 			return;
 		}

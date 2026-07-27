@@ -62,6 +62,25 @@ describe('root-store result presets', () => {
 		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: snapshot });
 	});
 
+	test('ignores stale legacy split-batch state for a new-form submit', () => {
+		resetStores();
+		InterfaceStore.actions.form('search');
+		InterfaceStore.actions.patternMode('extended');
+		PatternStore.actions.extended.splitBatch(true);
+		const snapshot: CompiledFormStateWithSummaries = {
+			filter: null,
+			formId: 'search.simple',
+			encoded: { 'f.form': 'search.simple' },
+			patt: '[word="water"]',
+			searchfield: null,
+			summaries: [],
+		};
+
+		RootStore.actions.searchFromSubmit(snapshot);
+
+		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: snapshot });
+	});
+
 	test('keeps legacy Documents result handling separate from new-form presets', () => {
 		resetStores();
 		InterfaceStore.actions.form('explore');

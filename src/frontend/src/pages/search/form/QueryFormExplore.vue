@@ -15,10 +15,7 @@
 
 		<div class="tab-content">
 			<div id="explore-corpora" :class="['tab-pane', { active: exploreMode === 'corpora' }]">
-				<FormSystem v-if="renderNewForm('corpora')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('corpora')" @submit="submitNewForm" @reset="resetNewForm">
-					<template #actions><slot name="actions" /></template>
-				</FormSystem>
-				<div v-else class="form-horizontal'">
+				<div class="form-horizontal">
 					<div class="form-group">
 						<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('explore.corpora.groupBy') }}</label>
 						<div class="col-xs-8">
@@ -52,10 +49,7 @@
 				</div>
 			</div>
 			<div id="explore-n-grams" :class="['tab-pane', { active: exploreMode === 'ngram' }]">
-				<FormSystem v-if="renderNewForm('ngram')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('ngram')" @submit="submitNewForm" @reset="resetNewForm">
-					<template #actions><slot name="actions" /></template>
-				</FormSystem>
-				<div v-else class="form-horizontal">
+				<div class="form-horizontal">
 					<div class="form-group" v-if="isParallelCorpus">
 						<label class="col-xs-4 col-md-2" for="corpora-group-by">{{ $t('search.parallel.searchSourceVersion') }}</label>
 						<div class="col-xs-8">
@@ -126,10 +120,7 @@
 				</div>
 			</div>
 			<div id="explore-frequency" :class="['tab-pane', { active: exploreMode === 'frequency' }]">
-				<FormSystem v-if="renderNewForm('frequency')" :runtime="checkedSearchFormRuntime" :root-id="newExploreFormId('frequency')" @submit="submitNewForm" @reset="resetNewForm">
-					<template #actions><slot name="actions" /></template>
-				</FormSystem>
-				<div v-else class="form-horizontal">
+				<div class="form-horizontal">
 					<div v-if="isParallelCorpus" class="form-group form-group-lg" style="margin: 0">
 						<label class="control-label">{{ $t('search.parallel.searchSourceVersion') }}</label>
 						<ParallelSource block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
@@ -145,17 +136,11 @@
 </template>
 
 <script lang="ts">
-import { stripIndent } from 'common-tags';
 import { defineComponent, watch } from 'vue';
 
-import { selectedSubcorpusLoader } from '@/api/async/instances/result-count';
-import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
-import { FormSystem, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
-import { getNewExploreFormId, useSearchFormSystem } from '@/features/search/model/search-form-builder';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
 
@@ -174,7 +159,6 @@ import SelectPicker from '@/shared/ui/SelectPicker.vue';
 export default defineComponent({
 	extends: ParallelFields,
 	components: {
-		FormSystem,
 		ParallelSource,
 		SelectPicker,
 		Autocomplete,
@@ -185,16 +169,10 @@ export default defineComponent({
 	},
 	data: () => ({
 		debug,
-		subcorpus: selectedSubcorpusLoader,
 		subscriptions: [] as Array<() => void>,
 		blacklab: useBlackLabApi(),
-		searchFormRuntime: useSearchFormSystem(),
 	}),
 	computed: {
-		checkedSearchFormRuntime(): FormRuntime {
-			if (!this.searchFormRuntime) throw new Error('New search form runtime is not available.');
-			return this.searchFormRuntime;
-		},
 		exploreMode: {
 			get(): string {
 				return InterfaceStore.getState().exploreMode;
@@ -298,31 +276,6 @@ export default defineComponent({
 		},
 	},
 	methods: {
-		newExploreFormId(exploreMode: keyof ExploreStore.ModuleRootState): string {
-			return getNewExploreFormId(exploreMode);
-		},
-		renderNewForm(exploreMode: keyof ExploreStore.ModuleRootState): boolean {
-			const isEnabled = GlobalViewSettings.getState().useNewSearchForm;
-			return isEnabled && this.searchFormRuntime?.definition.getForm(getNewExploreFormId(exploreMode)) != null;
-		},
-		confirmLargeExploreSearch(): boolean {
-			if (!this.subcorpus.isLoaded() || this.subcorpus.value.tokensInMatchingDocuments <= 5000000) return true;
-			const msg = stripIndent`
-				You have selected a subcorpus of over ${(5000000).toLocaleString()} tokens.
-				Please note that this query, on first execution, may take a considerable amount of time to complete.
-				Proceed with caution.
-
-				Continue?`;
-
-			return confirm(msg);
-		},
-		submitNewForm(snapshot: CompiledFormStateWithSummaries) {
-			if (!this.confirmLargeExploreSearch()) return;
-			RootStore.actions.searchFromSubmit(snapshot);
-		},
-		resetNewForm() {
-			RootStore.actions.reset();
-		},
 		updateTokenAnnotation(index: number, id: string) {
 			ExploreStore.actions.ngram.token({
 				index,

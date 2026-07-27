@@ -17,10 +17,7 @@
 		</ul>
 		<div class="tab-content" :class="{ parallel: isParallelCorpus }">
 			<div :class="['tab-pane', { active: activePattern === 'simple' }]" id="simple">
-				<FormSystem v-if="renderNewForm('simple')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('simple')" @submit="submitNewForm" @reset="resetNewForm">
-					<template #actions><slot name="actions" /></template>
-				</FormSystem>
-				<div v-else class="form-horizontal">
+				<div class="form-horizontal">
 					<ParallelSourceAndTargets v-if="isParallelCorpus" block lg :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					<div class="form-group form-group-lg">
 						<label class="control-label" :for="simpleSearchAnnotation.id + '_' + uid" :title="$tAnnotDescription(simpleSearchAnnotation)">{{ $tAnnotDisplayName(simpleSearchAnnotation) }} </label>
@@ -29,10 +26,7 @@
 				</div>
 			</div>
 			<div :class="['tab-pane', { active: activePattern === 'extended' }]" id="extended">
-				<FormSystem v-if="renderNewForm('extended')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('extended')" @submit="submitNewForm" @reset="resetNewForm">
-					<template #actions><slot name="actions" /></template>
-				</FormSystem>
-				<div v-else class="form-horizontal">
+				<div class="form-horizontal">
 					<ParallelSourceAndTargets v-if="isParallelCorpus" :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 					<template v-if="useTabs">
 						<ul class="nav nav-tabs subtabs" style="padding-left: 15px">
@@ -67,16 +61,10 @@
 				</div>
 			</div>
 			<div v-if="advancedEnabled" :class="['tab-pane', { active: activePattern === 'advanced' }]" id="advanced">
-				<FormSystem v-if="renderNewForm('advanced')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('advanced')" @submit="submitNewForm" @reset="resetNewForm">
-					<template #actions><slot name="actions" /></template>
-				</FormSystem>
-				<SearchAdvanced v-else :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
+				<SearchAdvanced :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 			</div>
 			<div :class="['tab-pane', { active: activePattern === 'expert' }]" id="expert">
-				<FormSystem v-if="renderNewForm('expert')" :runtime="checkedSearchFormRuntime" :root-id="newSearchFormId('expert')" @submit="submitNewForm" @reset="resetNewForm">
-					<template #actions><slot name="actions" /></template>
-				</FormSystem>
-				<template v-else>
+				<template>
 					<SearchExpert :errorNoParallelSourceVersion="errorNoParallelSourceVersion" />
 
 					<!-- Copy to builder, import, gap filling buttons -->
@@ -113,15 +101,11 @@ import * as RootStore from '@/app/state/root-store';
 import * as UIStore from '@/app/state/ui-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
-import { FormSystem, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
 import * as HistoryStore from '@/features/history/model/query-history-state';
 import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
-import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
-import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
-import { getNewSearchFormId, useSearchFormSystem } from '@/features/search/model/search-form-builder';
 import type * as AppTypes from '@/types/apptypes';
 import { createUrlStateParserSearchDependencies } from '@/url/url-state-parser-search';
 
@@ -149,7 +133,6 @@ function toRouterPath(url: string): string {
 export default defineComponent({
 	extends: ParallelFields,
 	components: {
-		FormSystem,
 		ParallelSourceAndTargets,
 		Annotation,
 		SearchAdvanced,
@@ -166,7 +149,6 @@ export default defineComponent({
 
 		subscriptions: [] as Array<() => void>,
 		blacklab: useBlackLabApi(),
-		searchFormRuntime: useSearchFormSystem(),
 	}),
 	computed: {
 		activePattern: {
@@ -249,29 +231,12 @@ export default defineComponent({
 			},
 			set: PatternStore.actions.advanced.query,
 		},
-		checkedSearchFormRuntime(): FormRuntime {
-			if (!this.searchFormRuntime) throw new Error('New search form runtime is not available.');
-			return this.searchFormRuntime;
-		},
 		gapValue: {
 			get: GapStore.get.gapValue,
 			set: GapStore.actions.gapValue,
 		},
 	},
 	methods: {
-		newSearchFormId(patternMode: PatternMode): string {
-			return getNewSearchFormId(patternMode);
-		},
-		renderNewForm(patternMode: PatternMode): boolean {
-			const isEnabled = GlobalViewSettings.getState().useNewSearchForm;
-			return isEnabled && this.searchFormRuntime?.definition.getForm(getNewSearchFormId(patternMode)) != null;
-		},
-		submitNewForm(snapshot: CompiledFormStateWithSummaries) {
-			RootStore.actions.searchFromSubmit(snapshot);
-		},
-		resetNewForm() {
-			RootStore.actions.reset();
-		},
 		copyExtendedQuery() {
 			const patternState = PatternStore.getState();
 			const filterState = FilterStore.getState();

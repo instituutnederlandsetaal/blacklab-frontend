@@ -447,11 +447,6 @@ const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchF
 	};
 };
 
-// Kept while the legacy search-form hosts still select individual new-form roots.
-export function hasNewSearchFormForPattern(runtime: FormRuntime | null | undefined, patternMode: PatternMode): boolean {
-	return !!runtime?.definition.getForm(getNewSearchFormId(patternMode));
-}
-
 function createExpertPatternForm(context: BuildContext, sharedWithin: FormFieldNode | null, sharedFilters: FormNode | null) {
 	const { translate, builder } = context;
 	const expertConfig = { hideLabel: true };
@@ -510,11 +505,6 @@ function createSimplePatternForm(context: BuildContext, annotation: NormalizedAn
 
 export function getNewSearchFormId(patternMode: PatternMode): string {
 	return `${SEARCH_FORM_ID_PREFIX}${patternMode}`;
-}
-
-// Kept while the legacy search-form hosts still select individual new-form roots.
-export function hasNewExploreFormForMode(runtime: FormRuntime | null | undefined, exploreMode: keyof ExploreFormState): boolean {
-	return !!runtime?.definition.getForm(getNewExploreFormId(exploreMode));
 }
 
 export function getNewExploreFormId(exploreMode: keyof ExploreFormState): string {
