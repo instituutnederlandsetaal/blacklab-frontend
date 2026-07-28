@@ -145,8 +145,8 @@ const datePersistenceCodec = object({
 	})
 	.default(({ config }) => ({ ...createDefaultDateFieldState(), mode: config.mode ?? 'strict' }));
 
-export const filterAutocompleteController = defineFieldController<'metadata-filter-autocomplete', TextFieldDefinition, MetadataFilterControllerConfig>({
-	kind: 'metadata-filter-autocomplete',
+export const filterTextController = defineFieldController<'metadata-filter-text', TextFieldDefinition, MetadataFilterControllerConfig>({
+	kind: 'metadata-filter-text',
 	createDefaultState: createDefaultTextFieldState,
 	persistence: { key: metadataPersistKey, codec: textPersistenceCodec },
 	affectsBlackLabParameters: ['filter'],
@@ -261,16 +261,5 @@ export const filterSelectController = defineFieldController<'metadata-filter-sel
 					}
 				: null,
 		);
-	},
-});
-
-export const filterTextController = defineFieldController<'metadata-filter-text', TextFieldDefinition, MetadataFilterControllerConfig>({
-	kind: 'metadata-filter-text',
-	createDefaultState: createDefaultTextFieldState,
-	persistence: { key: metadataPersistKey, codec: textPersistenceCodec },
-	affectsBlackLabParameters: ['filter'],
-	getQueryContribution(config, _runtime, state) {
-		const lucene = buildTextLucene(config.metadataFieldId, state);
-		return createRawFilterQuery(config, lucene, summarizeTextField(state));
 	},
 });

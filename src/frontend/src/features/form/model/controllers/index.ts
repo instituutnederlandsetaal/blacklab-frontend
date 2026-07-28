@@ -3,7 +3,6 @@ export { annotationPosController } from './annotation-pos-controller';
 export { frequencyAnnotationController, type FrequencyAnnotationFieldConfig } from './explore-frequency-controller';
 export { ngramGroupAnnotationController, type NgramGroupAnnotationFieldConfig } from './explore-ngram-group-controller';
 export {
-	filterAutocompleteController,
 	filterCheckboxController,
 	filterDateController,
 	filterRadioController,

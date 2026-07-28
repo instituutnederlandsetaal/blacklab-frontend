@@ -7,12 +7,12 @@ import {
 	annotationTextController,
 	createFormFieldNode,
 	expertQueryController,
-	filterAutocompleteController,
 	filterCheckboxController,
 	filterDateController,
 	filterRadioController,
 	filterRangeController,
 	filterSelectController,
+	filterTextController,
 	FormBuilder,
 	FormRuntime,
 	parallelController,
@@ -169,7 +169,7 @@ export const Text: Story = createFieldStory(
 
 export const Autocomplete: Story = createFieldStory(
 	builder =>
-		builder.newField('generic-autocomplete', filterAutocompleteController, TextField, {
+		builder.newField('generic-autocomplete', filterTextController, TextField, {
 			displayName: 'Author',
 			description: 'Autocomplete suggestions use the same generic text widget.',
 			placeholder: 'Start typing a name',
