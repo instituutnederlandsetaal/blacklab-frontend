@@ -111,19 +111,19 @@ export const corpusCustomizations = wrapWithErrorHandling({
 			/** Should we add _within-spans(...) around the query,
 			    so all tags are captured and we can group on them?
 				[Default: only if there's span filters defined] */
-			shouldAddWithSpans(q: string) {
+			shouldAddWithSpans(q: string): boolean | null {
 				return null;
 			},
 		},
 
 		within: {
 			/** Should we include this span in the within widget? (default: all) */
-			includeSpan(spanName: string) {
-				return true;
+			includeSpan(spanName: string): boolean | null {
+				return true; // default behaviour
 			},
 
 			/** Should we include this span attribute in the within widget? (default: none) */
-			includeAttribute(spanName: string, attrName: string) {
+			includeAttribute(spanName: string, attrName: string): boolean | null {
 				return null;
 			},
 		},
