@@ -29,9 +29,19 @@ export type Translate = {
 	$tMetaDescription: (metadata: { id: string; defaultDescription?: string }) => string | undefined;
 	/** Get the localized display name of a metadata group or the default value  */
 	$tMetaGroupName: <T extends string | undefined | null>(group: { id: string } | T) => T | string;
-	/** Get the localized display name for a span (the target of 'within' queries, e.g. 'sentence' for a span of 's', meaning an <s/> element in XML documents) */
+	/** Get the localized display name for an element used in a within query. */
+	$tWithinElementDisplayName: (element: Option) => string;
+	/** Get the localized display name for an attribute constrained by a within query. */
+	$tWithinAttributeDisplayName: (element: string, attribute: string, defaultDisplayName?: string) => string;
+	/**
+	 * Get the localized display name for a span.
+	 * @deprecated Use `$tWithinElementDisplayName`.
+	 */
 	$tSpanDisplayName: (span: Option) => string;
-	/** Get the localized display name for a span attribute or the default value. I.e. an attribute of a span element. Like 'speaker' on a sentence (<s speaker=.../>) */
+	/**
+	 * Get the localized display name for a span attribute.
+	 * @deprecated Use `$tWithinAttributeDisplayName`.
+	 */
 	$tSpanAttributeDisplay: (span: string, attribute: string) => string;
 	/** Align works with spans, TODO check if these shouldn't use the same function? */
 	$tAlignByDisplayName: (alignBy: Option) => string;

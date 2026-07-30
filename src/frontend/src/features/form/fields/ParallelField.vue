@@ -88,12 +88,7 @@ const emit = defineEmits<{
 
 const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-parallel-field' });
 const sourceOptions = computed<Option[]>(() =>
-	props.fieldOptions
-		.filter(option => !props.modelValue.targets.includes(option.id))
-		.map(option => {
-			debugger;
-			return { value: option.id, label: translate.$tAnnotatedFieldDisplayName(option) };
-		}),
+	props.fieldOptions.filter(option => !props.modelValue.targets.includes(option.id)).map(option => ({ value: option.id, label: translate.$tAnnotatedFieldDisplayName(option) })),
 );
 const targetOptions = computed<Option[]>(() =>
 	props.fieldOptions.filter(option => option.id !== props.modelValue.source).map(option => ({ value: option.id, label: translate.$tAnnotatedFieldDisplayName(option) })),

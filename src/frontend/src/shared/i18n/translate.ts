@@ -3,6 +3,7 @@ import type { App } from 'vue';
 import type { Translate } from './types';
 
 import { elementAndAttributeNameFromFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
+import type { Option } from '@/shared/utils/options';
 import useInjectable from '@/shared/utils/useInjectable';
 
 type TranslateRuntime = {
@@ -35,6 +36,16 @@ export function createTranslate(i18n: TranslateRuntime): Translate {
 		}
 
 		return defaultText;
+	}
+
+	function $tWithinElementDisplayName(element: Option): string {
+		if (!element.value) return element.label || String(i18n.t('search.extended.withinDocument'));
+		return $td(`index.spans.${element.value}`, element.label || element.value);
+	}
+
+	function $tWithinAttributeDisplayName(element: string, attribute: string, defaultDisplayName?: string): string {
+		const defaultValue = defaultDisplayName ?? String(i18n.t('results.shared.spanAttribute', { span: element, attribute }));
+		return $td(`index.spanAttributes.${element}.${attribute}`, defaultValue);
 	}
 
 	const translate: Translate = {
@@ -70,14 +81,10 @@ export function createTranslate(i18n: TranslateRuntime): Translate {
 			if (!originalName) return undefined as T;
 			return $td(`index.metadataGroups.${originalName}`, originalName);
 		},
-		$tSpanDisplayName(span) {
-			if (!span.value) return span.label || translate.$t('search.extended.withinDocument');
-			return $td(`index.spans.${span.value}`, span.label || span.value);
-		},
-		$tSpanAttributeDisplay(span, attribute) {
-			const defaultValue = translate.$t('results.shared.spanAttribute', { span, attribute });
-			return $td(`index.spanAttributes.${span}.${attribute}`, defaultValue);
-		},
+		$tWithinElementDisplayName,
+		$tWithinAttributeDisplayName,
+		$tSpanDisplayName: $tWithinElementDisplayName,
+		$tSpanAttributeDisplay: $tWithinAttributeDisplayName,
 		$tAlignByDisplayName(alignBy) {
 			return $td(`index.alignBy.${alignBy.value}`, alignBy.label || alignBy.value);
 		},

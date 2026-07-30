@@ -55,9 +55,9 @@ const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-wi
 const sortedOptions = computed(() => {
 	const translatedOptions = props.options.map(option => ({
 		...option,
-		label: translate.$tSpanDisplayName(option),
+		label: translate.$tWithinElementDisplayName(option),
 		attributes: [...(option.attributes ?? [])]
-			.map(attribute => ({ ...attribute, label: translate.$tSpanAttributeDisplay(option.value, attribute.value) }))
+			.map(attribute => ({ ...attribute, label: translate.$tWithinAttributeDisplayName(option.value, attribute.value) }))
 			.sort((left, right) => left.label.localeCompare(right.label)),
 	}));
 	if (!props.sortOptions) return translatedOptions;
