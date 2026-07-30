@@ -250,7 +250,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<unknown, unknow
 				return null;
 			}
 			return `${id}:(${tokenizeString(value, true)
-				.map(t => escapeLucene(t.value, !t.isQuoted))
+				.map(t => escapeLucene(t.value, { escapeWildcards: t.isQuoted }))
 				.join(' ')})`;
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
@@ -277,7 +277,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<unknown, unknow
 		luceneQuery(id, filterMetadata, filterValue) {
 			const selected = Object.entries(filterValue || {})
 				.filter(([value, isSelected]) => isSelected)
-				.map(([value, isSelected]) => escapeLucene(value, false));
+				.map(([value, isSelected]) => escapeLucene(value));
 			return selected.length ? `${id}:(${selected.join(' ')})` : null;
 		},
 		luceneQuerySummary(id, filterMetadata, filterValue) {
@@ -310,7 +310,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<unknown, unknow
 			return chosenValue;
 		},
 		luceneQuery(id, filterMetadata, value) {
-			return value ? `${id}:(${escapeLucene(value, false)})` : null;
+			return value ? `${id}:(${escapeLucene(value)})` : null;
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
 			return optionLabel((value && findOption(filterMetadata, value)) ?? '');
@@ -401,7 +401,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<unknown, unknow
 			return availableValues?.length ? availableValues : null;
 		},
 		luceneQuery(id, filterMetadata, value) {
-			return value && value.length ? `${id}:(${value.map(v => escapeLucene(v, false)).join(' ')})` : null;
+			return value && value.length ? `${id}:(${value.map(v => escapeLucene(v)).join(' ')})` : null;
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
 			const asDisplayValues = (value || []).map(v => {
@@ -427,7 +427,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<unknown, unknow
 				return null;
 			}
 			return `${id}:(${tokenizeString(value, true)
-				.map(t => escapeLucene(t.value, !t.isQuoted))
+				.map(t => escapeLucene(t.value, { escapeWildcards: t.isQuoted }))
 				.join(' ')})`;
 		},
 		luceneQuerySummary(id, filterMetadata, value) {

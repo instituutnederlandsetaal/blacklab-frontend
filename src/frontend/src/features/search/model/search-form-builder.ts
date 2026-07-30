@@ -26,6 +26,7 @@ import type { WithinFieldOption } from '@/features/form/fields/within-field';
 import type { ModuleRootState as ExploreFormState } from '@/features/search/model/form/explore-state';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
+import type { SearchFormWithinAttribute } from '@/features/search/model/search-form-customization';
 import { createSearchFormNodeFactory, type SearchFormNodeFactory } from '@/features/search/model/search-form-node-factory';
 import { createSearchFormTotalsFactory } from '@/features/search/model/search-form-totals';
 import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-options';
@@ -85,18 +86,24 @@ function createWithinField({ builder, configuration, corpus }: BuildContext): Fo
 	const spans = corpus.relations?.spans;
 	if (!configuration.within.enabled || !spans || !Object.keys(spans).length) return null;
 
-	// TODO use customization within.includeSpan. Null or true signifies include, false signifies exclude. If no customization is provided, include all spans.
-	const configuredElements = configuration.within.elements.filter(option => !option.value || spans[option.value]);
-	const elements = configuredElements.length ? configuredElements : Object.keys(spans).map(value => ({ value, label: value }));
+	const includeElement = configuration.customization.within.includeElement ?? (() => true);
+	const includeAttribute = configuration.customization.within.includeAttribute ?? (() => false);
+	const configuredElements = configuration.within.elements.filter(option => !option.value || (spans[option.value] && includeElement(option.value)));
+	const elements = configuredElements.length
+		? configuredElements
+		: Object.keys(spans)
+				.filter(includeElement)
+				.map(value => ({ value, label: value }));
 	if (!elements.some(e => !e.value)) elements.unshift({ value: '', label: '' });
 	const options = elements.map<WithinFieldOption>(option => ({
 		...option,
-		// TODO customization within.includeAttribute
 		attributes: option.value
-			? Object.keys(spans[option.value]?.attributes ?? {}).map(attribute => ({
-					value: attribute,
-					label: attribute,
-				}))
+			? Object.keys(spans[option.value]?.attributes ?? {})
+					.filter(attribute => includeAttribute(option.value, attribute))
+					.map(attribute => ({
+						value: attribute,
+						label: attribute,
+					}))
 			: [],
 	}));
 
@@ -112,14 +119,22 @@ function createFilterField(context: BuildContext, nodeId: string, field: Normali
 }
 
 function createSharedFilters(context: BuildContext): FormNode | null {
-	const { blacklabApi, builder, configuration, corpus, translate } = context;
-	const filterIds = configuration.metadataFieldIds;
-	const groups = corpus.metadataGroups
-		.map(group => ({
-			fields: group.fields.filter((field): field is NormalizedMetadataField => !!field && filterIds.includes(field.id)),
-			group,
-		}))
-		.filter(({ fields }) => fields.length);
+	const { blacklabApi, builder, configuration, corpus, fields, translate } = context;
+	const groupIds = [...new Set([...corpus.metadataGroups.map(group => group.id), ...configuration.customization.withinAttributes.map(attribute => attribute.groupId ?? 'Filters')])];
+	const groups = groupIds
+		.map(id => {
+			const metadataGroup = corpus.metadataGroups.find(group => group.id === id);
+			const entries: Array<NormalizedMetadataField | SearchFormWithinAttribute> =
+				metadataGroup?.fields.filter((field): field is NormalizedMetadataField => !!field && configuration.metadataFieldIds.includes(field.id)) ?? [];
+			for (const attribute of configuration.customization.withinAttributes.filter(attribute => (attribute.groupId ?? 'Filters') === id)) {
+				const existing = entries.findIndex(entry => entry.id === attribute.id);
+				if (existing !== -1) entries.splice(existing, 1);
+				const before = attribute.insertBefore ? entries.findIndex(entry => entry.id === attribute.insertBefore) : -1;
+				entries.splice(before === -1 ? entries.length : before, 0, attribute);
+			}
+			return { id, entries, metadataGroup };
+		})
+		.filter(group => group.entries.length);
 
 	if (!groups.length) return null;
 
@@ -127,14 +142,14 @@ function createSharedFilters(context: BuildContext): FormNode | null {
 		variant: groups.length > 1 ? ['tabs', 'tab-badges'] : undefined,
 	});
 
-	for (const { fields, group } of groups) {
+	for (const group of groups) {
 		const groupContainer = builder.newContainer(`${filters.id}.${toSafeHtmlId(group.id)}`, ContainerRenderer, {
-			title: groups.length > 1 ? () => translate.$tMetaGroupName(group) || group.id : undefined,
+			title: groups.length > 1 ? () => translate.$tMetaGroupName(group.metadataGroup ?? group.id) || group.id : undefined,
 			variant: groups.length === 1 ? 'list' : undefined,
 		});
-		for (const field of fields) {
-			const nodeId = `${groupContainer.id}.${toSafeHtmlId(field.id)}`;
-			const node = builder.getField(nodeId) ?? createFilterField(context, nodeId, field, group.id);
+		for (const entry of group.entries) {
+			const nodeId = `${groupContainer.id}.${toSafeHtmlId(entry.id)}`;
+			const node = builder.getField(nodeId) ?? ('elementName' in entry ? fields.withinAttribute(entry, { id: nodeId, groupId: group.id }) : createFilterField(context, nodeId, entry, group.id));
 			groupContainer.addChildren(node);
 		}
 		filters.addChildren(groupContainer);

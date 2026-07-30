@@ -10,9 +10,11 @@ import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
-import { FormSystem, restoreFormState, type ParallelFieldState, type TokenSequenceFieldState } from '@/features/form';
+import { FormSystem, RangeField, restoreFormState, SelectField, TextField, type ParallelFieldState, type TokenSequenceFieldState } from '@/features/form';
+import { adaptLegacySearchFormCustomizations } from '@/features/search/model/legacy-search-form-customization';
 import { createSearchFormSystem, getNewExploreFormId, getNewSearchFormId } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
+import { resolveSearchFormCustomizations } from '@/features/search/model/search-form-customization';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
 
@@ -544,8 +546,9 @@ describe('search form system', () => {
 		runtime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Austen', caseSensitive: false };
 
 		expect(runtime.compile(getNewSearchFormId('expert'))).toMatchObject({
-			patt: '[lemma="water"] within <s/>',
+			patt: '([lemma="water"]) within <s/>',
 			filter: 'author:(Austen)',
+			resultPreset: { withSpans: true },
 		});
 
 		const wrapper = mount(FormSystem, {
@@ -557,6 +560,98 @@ describe('search form system', () => {
 		expect(wrapper.get('.blf-heading-view h3 a').attributes('href')).toBe('https://blacklab.ivdnt.org/guide/corpus-query-language.html');
 		expect(wrapper.find('.blf-expert-query-field > label').exists()).toBe(false);
 		expect(wrapper.get('.blf-expert-query-field textarea').attributes('aria-label')).toBe('search.expert.corpusQueryLanguage');
+	});
+
+	test('builds customized within attributes with generic field components and placement', () => {
+		const customization = resolveSearchFormCustomizations([
+			form => {
+				form.addWithinAttribute({
+					groupId: 'Bibliographic',
+					insertBefore: 'author',
+					id: 'span:speech:person',
+					elementName: 'speech',
+					attributeName: 'person',
+					control: 'text',
+					defaultDisplayName: 'Speaker',
+				});
+				form.addWithinAttribute({
+					groupId: 'Span filters',
+					id: 'span:speech:role',
+					elementName: 'speech',
+					attributeName: 'role',
+					control: { type: 'select', options: [{ value: 'host', label: 'Host' }] },
+					defaultDisplayName: 'Role',
+				});
+				form.addWithinAttribute({
+					groupId: 'Span filters',
+					id: 'span:p:n',
+					elementName: 'p',
+					attributeName: 'n',
+					control: 'range',
+					defaultDisplayName: 'Paragraph',
+				});
+			},
+		]);
+		const configuration = snapshotSearchFormConfiguration(UIStore.getState(), customization);
+		const system = createSearchFormSystem({
+			blacklabApi: createMockApi().blacklabApi,
+			configuration: ref(configuration),
+			corpus: ref(createCorpus()),
+			tagset: ref(undefined),
+			translate: createMockTranslate(),
+		});
+		const runtime = system.runtime.value!;
+		const personFieldId = 'shared.filters.Bibliographic.span-speech-person';
+
+		expect(runtime.definition.getContainer('shared.filters.Bibliographic')?.children.map(node => node.id)).toEqual([personFieldId, 'shared.filters.Bibliographic.author']);
+		expect(runtime.definition.getField(personFieldId)?.component).toBe(TextField);
+		expect(runtime.definition.getField('shared.filters.Span-filters.span-speech-role')?.component).toBe(SelectField);
+		expect(runtime.definition.getField('shared.filters.Span-filters.span-p-n')?.component).toBe(RangeField);
+
+		runtime.state.state.value['search.expert.query'] = '[lemma="water"]';
+		expect(runtime.compile(getNewSearchFormId('expert')).resultPreset?.withSpans).toBeUndefined();
+		runtime.state.state.value[personFieldId] = { value: 'Alice*', caseSensitive: false };
+		const compiled = runtime.compile(getNewSearchFormId('expert'));
+
+		expect(compiled).toMatchObject({
+			patt: '([lemma="water"]) within <speech person="Alice.*"/>',
+			resultPreset: { withSpans: true },
+			encoded: {
+				'f.within:speech:person': 'Alice*',
+			},
+		});
+		expect(compiled.summaries).toContainEqual({ label: 'Speaker', value: 'Alice*', group: 'Bibliographic', summaryType: ['filter'] });
+	});
+
+	test('adapts old span-filter definitions through the new customization API', () => {
+		const customization = resolveSearchFormCustomizations([
+			adaptLegacySearchFormCustomizations(
+				[
+					{
+						name: 'Span filters',
+						fields: [
+							{
+								id: 'span:speech:role',
+								componentName: 'filter-select',
+								behaviourName: 'span-select',
+								defaultDisplayName: 'Role',
+								metadata: { options: ['host', 'guest'] },
+							},
+						],
+					},
+				],
+				corpusCustomizations.search.within,
+			),
+		]);
+
+		expect(customization.withinAttributes).toMatchObject([
+			{
+				id: 'span:speech:role',
+				elementName: 'speech',
+				attributeName: 'role',
+				control: { type: 'select', options: [{ value: 'host' }, { value: 'guest' }] },
+			},
+		]);
 	});
 
 	test('restores a canonical raw query into the expert form', () => {
@@ -763,7 +858,7 @@ describe('search form system', () => {
 		const baseTranslate = createMockTranslate();
 		const translate = {
 			...baseTranslate,
-			$tSpanDisplayName: (span: Parameters<typeof baseTranslate.$tSpanDisplayName>[0]) => `${locale.value}:${span.label || span.value}`,
+			$tWithinElementDisplayName: (element: Parameters<typeof baseTranslate.$tWithinElementDisplayName>[0]) => `${locale.value}:${element.label || element.value}`,
 		};
 		const system = createSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
@@ -827,6 +922,33 @@ describe('search form system', () => {
 		expect(within.options.map(option => option.value)).toEqual(['', 'p', 's']);
 		expect(within.options[1]).toMatchObject({ value: 'p', label: 'Custom paragraph', title: 'Paragraph title' });
 		expect(within.options[2]).toMatchObject({ value: 's', label: 'Custom sentence', title: null });
+	});
+
+	test('normalizes legacy within visibility hooks through the customization adapter', () => {
+		const corpus = createCorpus();
+		corpus.relations = {
+			relations: {},
+			spans: {
+				p: { count: 1 },
+				s: {
+					count: 1,
+					attributes: {
+						role: { valueListComplete: true, values: { narrator: 1 } },
+						speaker: { valueListComplete: true, values: { Alice: 1 } },
+					},
+				},
+			},
+		};
+		UIStore.getState().search.shared.within.enabled = true;
+		vi.spyOn(corpusCustomizations.search.within, 'includeSpan').mockImplementation(element => (element === 'p' ? false : null));
+		vi.spyOn(corpusCustomizations.search.within, 'includeAttribute').mockImplementation((_element, attribute) => (attribute === 'speaker' ? true : null));
+
+		const within = createDefinition(corpus).definition.getField('shared.within') as unknown as {
+			options: Array<{ value: string; attributes: Array<{ value: string }> }>;
+		};
+
+		expect(within.options.map(option => option.value)).toEqual(['', 's']);
+		expect(within.options[1].attributes).toEqual([{ value: 'speaker', label: 'speaker' }]);
 	});
 
 	test('uses the configured align-by visibility, options, and default', () => {

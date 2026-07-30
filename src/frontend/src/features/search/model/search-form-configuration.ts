@@ -1,6 +1,10 @@
+import cloneDeep from 'clone-deep';
 import { computed, type ComputedRef } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
+import { adaptLegacySearchFormCustomizations } from '@/features/search/model/legacy-search-form-customization';
+import { resolveSearchFormCustomizations, searchFormCustomizationCallbacks, type SearchFormCustomization } from '@/features/search/model/search-form-customization';
+import { corpusCustomizations } from '@/utils/customization';
 
 import type { Option } from '@/shared/utils/options';
 
@@ -13,6 +17,7 @@ export type SearchFormConfiguration = {
 		defaultAnnotationId: string;
 	};
 	metadataFieldIds: string[];
+	customization: SearchFormCustomization;
 	within: {
 		enabled: boolean;
 		elements: Option[];
@@ -41,7 +46,7 @@ export type SearchFormConfiguration = {
  * Copy the legacy UI configuration used by the search forms.
  * The returned value has no reactive references back to the legacy store.
  */
-export function snapshotSearchFormConfiguration(state: UIStore.ModuleRootState): SearchFormConfiguration {
+export function snapshotSearchFormConfiguration(state: UIStore.ModuleRootState, customization: SearchFormCustomization = { withinAttributes: [], within: {} }): SearchFormConfiguration {
 	return {
 		simpleAnnotationId: state.search.simple.searchAnnotationId,
 		extendedAnnotationIds: [...state.search.extended.searchAnnotationIds],
@@ -51,6 +56,7 @@ export function snapshotSearchFormConfiguration(state: UIStore.ModuleRootState):
 			defaultAnnotationId: state.search.advanced.defaultSearchAnnotationId,
 		},
 		metadataFieldIds: [...state.search.shared.searchMetadataIds],
+		customization: cloneDeep(customization),
 		within: {
 			enabled: state.search.shared.within.enabled,
 			elements: state.search.shared.within.elements.map(element => ({ ...element })),
@@ -82,5 +88,11 @@ export function snapshotSearchFormConfiguration(state: UIStore.ModuleRootState):
  * can invalidate the definition and the URL restore can consume the latest shape.
  */
 export function createLegacySearchFormConfiguration(): ComputedRef<SearchFormConfiguration> {
-	return computed(() => snapshotSearchFormConfiguration(UIStore.getState()));
+	return computed(() => {
+		const customization = resolveSearchFormCustomizations([
+			adaptLegacySearchFormCustomizations(corpusCustomizations.search.metadata._customTabs, corpusCustomizations.search.within),
+			...searchFormCustomizationCallbacks.value,
+		]);
+		return snapshotSearchFormConfiguration(UIStore.getState(), customization);
+	});
 }

@@ -13,7 +13,7 @@ import {
 	type FormRuntimeContext,
 	type QueryFragment,
 } from '@/features/form';
-import { combineQueryFragments, compileQueryIR, cqlRaw, queryFragment, queryIR, rawFilter, termFilter, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
+import { combineQueryFragments, compileQueryIR, cqlRaw, queryFragment, queryIR, rawFilter, simplifyQueryIR, termFilter, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import type { AnnotationTextFieldConfig } from '@/features/form/model/controllers/annotation-controller';
 
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
@@ -167,7 +167,7 @@ describe('generated query correctness', () => {
 		const combined = combineQueryFragments(
 			'and',
 			queryFragment({ resultPreset: { viewedResults: 'docs', sort: null } }),
-			queryFragment({ resultPreset: { groupBy: ['field:date'], groupDisplayMode: 'tokens' } }),
+			queryFragment({ resultPreset: { groupBy: ['field:date'], groupDisplayMode: 'tokens', withSpans: true } }),
 		);
 
 		expect(combined.query.resultPreset).toEqual({
@@ -175,6 +175,7 @@ describe('generated query correctness', () => {
 			groupBy: ['field:date'],
 			groupDisplayMode: 'tokens',
 			sort: null,
+			withSpans: true,
 		});
 		expect(compileQueryIR(combined)).toEqual({
 			patt: null,
@@ -185,8 +186,44 @@ describe('generated query correctness', () => {
 				groupBy: ['field:date'],
 				groupDisplayMode: 'tokens',
 				sort: null,
+				withSpans: true,
 			},
 		});
+	});
+
+	test('merges span filters by element and overlaps distinct elements', () => {
+		const query = queryIR({
+			pattern: cqlRaw('[word="water"]'),
+			wrappers: [
+				{ type: 'within', element: 'speech', attributes: { person: ['Alice*'] } },
+				{ type: 'within', element: 'speech', attributes: { role: ['host', 'guest'] } },
+				{ type: 'within', element: 'p', attributes: { n: { low: '3', high: '5' } } },
+			],
+		});
+
+		expect(simplifyQueryIR(query).wrappers).toEqual([
+			{
+				type: 'within',
+				element: 'speech',
+				attributes: { person: ['Alice*'], role: ['host', 'guest'] },
+			},
+			{ type: 'within', element: 'p', attributes: { n: { low: '3', high: '5' } } },
+		]);
+		expect(compileQueryIR(query).patt).toBe('([word="water"]) within <speech person="Alice.*" role="host|guest"/> overlap <p n=in[3,5]/>');
+	});
+
+	test('emits CQL-safe values, open ranges, and empty tags', () => {
+		expect(
+			compileQueryIR(
+				queryIR({
+					wrappers: [
+						{ type: 'within', element: 'speech', attributes: { person: ['A"B', 'C?'] } },
+						{ type: 'within', element: 'p', attributes: { n: { high: '5' } } },
+						{ type: 'within', element: 'div', attributes: { type: [] } },
+					],
+				}),
+			).patt,
+		).toBe(String.raw`<speech person="A\\"B|C."/> overlap <p n=in[0,5]/> overlap <div/>`);
 	});
 
 	const parallelField = {

@@ -15,7 +15,10 @@ function createDefaultState(config: ResultPresetFieldConfig): string {
 	return config.defaultValue ?? '';
 }
 
-function createResultPresetController<Kind extends string>(kind: Kind, property: keyof ResultPreset): FieldControllerFor<Kind, SingleSelectFieldDefinition, ResultPresetControllerConfig> {
+function createResultPresetController<Kind extends string>(
+	kind: Kind,
+	property: Exclude<keyof ResultPreset, 'withSpans'>,
+): FieldControllerFor<Kind, SingleSelectFieldDefinition, ResultPresetControllerConfig> {
 	const codec = stringPersistenceCodec(({ config }: FieldPersistenceContext<ResultPresetFieldConfig>) => createDefaultState(config));
 	return defineFieldController<Kind, SingleSelectFieldDefinition, ResultPresetControllerConfig>({
 		kind,

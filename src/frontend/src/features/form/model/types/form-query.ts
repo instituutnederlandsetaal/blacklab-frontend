@@ -112,23 +112,22 @@ export function isQueryFilterNode(node: any): node is QueryFilterNode {
 	}
 }
 
-export type QueryWrapper =
-	| {
-			type: 'within' | 'containing';
-			element: string;
-			attributes: Record<string, QueryFilterNode | string>;
-	  }
-	| {
-			type: 'with-spans';
-			enabled: boolean;
-	  };
+export type QueryWithinAttribute = string | string[] | { low?: string; high?: string };
+export type QueryWithinWrapper = {
+	type: 'within';
+	element: string;
+	attributes: Record<string, QueryWithinAttribute>;
+};
+export type QueryWrapper = QueryWithinWrapper | { type: 'containing'; element: string; attributes: Record<string, string> } | { type: 'with-spans' };
 
-/** Initial result-view settings contributed by a submitted query. */
+/** Result-view and request settings contributed by a submitted query. */
 export type ResultPreset = {
 	viewedResults?: string;
 	groupBy?: string[];
 	sort?: string | null;
 	groupDisplayMode?: string | null;
+	/** Value for BlackLab's `withspans` query parameter. */
+	withSpans?: boolean;
 };
 
 export type QueryIR = {

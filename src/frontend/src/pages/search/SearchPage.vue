@@ -1,10 +1,18 @@
 <template>
-	<!-- <div :class="wideView.value ? 'container-fluid' : 'container'"> -->
 	<QueryForm />
 	<QuerySummary v-if="resultsVisible" class="cf-panel cf-panel-lg container" id="summary" />
-
+	<Debug v-if="resultsVisible" is="div" class="cf-panel cf-panel-lg container" style="background: #f5f5f5 !important; color: 333">
+		Full query:
+		<table class="table" style="margin: 0; table-layout: auto">
+			<template v-for="(v, k) in debugQuery">
+				<tr v-if="v != undefined && v != ''">
+					<th>{{ k }}</th>
+					<td style="white-space: pre">{{ v }}</td>
+				</tr>
+			</template>
+		</table>
+	</Debug>
 	<Results v-show="resultsVisible" id="results" class="container" />
-	<!-- </div> -->
 </template>
 
 <script lang="ts">

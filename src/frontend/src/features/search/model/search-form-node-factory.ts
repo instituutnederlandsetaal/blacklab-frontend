@@ -10,12 +10,16 @@ import {
 	filterRangeController,
 	filterSelectController,
 	filterTextController,
+	withinAttributeRangeController,
+	withinAttributeSelectController,
+	withinAttributeTextController,
 	type BaseFieldNode,
 	type FormFieldNodeOptions,
 	type FormFieldNode,
 } from '@/features/form';
 import { createLexiconLookup } from '@/features/form/fields/generic/lexicon-field';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
+import type { SearchFormWithinAttribute } from '@/features/search/model/search-form-customization';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
 
 import type { BlackLabApi } from '@/shared/api/lib/api-types';
@@ -40,6 +44,7 @@ type SearchFormFieldOptions = FormFieldNodeOptions & {
 export type SearchFormNodeFactory = {
 	annotation(annotation: NormalizedAnnotation, options: SearchFormFieldOptions): FormFieldNode;
 	metadata(field: NormalizedMetadataField, options: SearchFormFieldOptions): FormFieldNode;
+	withinAttribute(attribute: SearchFormWithinAttribute, options: SearchFormFieldOptions): FormFieldNode;
 };
 
 export function createSearchFormNodeFactory({
@@ -75,7 +80,7 @@ export function createSearchFormNodeFactory({
 		});
 	}
 
-	return {
+	const factory: SearchFormNodeFactory = {
 		annotation(annotation, options) {
 			const common = annotationCommon(annotation, options);
 			if (annotation.uiType === 'pos') {
@@ -154,5 +159,22 @@ export function createSearchFormNodeFactory({
 				autocomplete: field.uiType !== 'text' ? (term: string) => blacklabApi.getMetadataAutocomplete(corpus.id, field.id, term) : undefined,
 			});
 		},
+		withinAttribute(attribute, options) {
+			const common = {
+				description: () => translate.$tMetaDescription(attribute),
+				displayName: () => translate.$tWithinAttributeDisplayName(attribute.elementName, attribute.attributeName, attribute.defaultDisplayName || attribute.id),
+				groupId: options.groupId,
+				elementName: attribute.elementName,
+				attributeName: attribute.attributeName,
+				textDirection: corpus.textDirection,
+				variant: options.variant,
+			};
+			if (typeof attribute.control === 'object') {
+				return createFormFieldNode(options, withinAttributeSelectController, SelectField, { ...common, multiple: true, options: attribute.control.options });
+			}
+			if (attribute.control === 'range') return createFormFieldNode(options, withinAttributeRangeController, RangeField, { ...common, inputType: 'text' });
+			return createFormFieldNode(options, withinAttributeTextController, TextField, common);
+		},
 	};
+	return factory;
 }

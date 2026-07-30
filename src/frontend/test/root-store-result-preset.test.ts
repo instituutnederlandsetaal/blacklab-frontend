@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import * as RootStore from '@/app/state/root-store';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
@@ -12,6 +12,7 @@ import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
+import { corpusCustomizations } from '@/utils/customization';
 
 function resetStores() {
 	const context = {
@@ -19,6 +20,7 @@ function resetStores() {
 			allAnnotations: [],
 			allAnnotationsMap: {},
 			firstMainAnnotation: { id: 'word', uiType: 'text' },
+			hasRelations: false,
 			mainAnnotatedField: 'contents',
 			parallelAnnotatedFields: [],
 			parallelAnnotatedFieldsMap: {},
@@ -31,7 +33,10 @@ function resetStores() {
 	ViewStore.init({} as CorpusContext);
 }
 
-afterEach(resetStores);
+afterEach(() => {
+	vi.restoreAllMocks();
+	resetStores();
+});
 
 describe('root-store result presets', () => {
 	test('applies a compiled preset to the selected view on fresh submit', () => {
@@ -79,6 +84,74 @@ describe('root-store result presets', () => {
 		RootStore.actions.searchFromSubmit(snapshot);
 
 		expect(QueryStore.getState()).toMatchObject({ form: 'new', state: snapshot });
+	});
+
+	test('requests spans for a new-form submission that contains within-attribute controls', () => {
+		resetStores();
+		const snapshot: CompiledFormStateWithSummaries = {
+			filter: null,
+			formId: 'search.expert',
+			encoded: { 'f.form': 'search.expert' },
+			patt: '[word="water"]',
+			resultPreset: { withSpans: true },
+			searchfield: null,
+			summaries: [],
+		};
+
+		RootStore.actions.searchFromSubmit(snapshot);
+
+		expect(RootStore.get.blacklabParameters()?.withspans).toBe(true);
+	});
+
+	test('does not request spans for an inactive new-form within control', () => {
+		resetStores();
+		const snapshot: CompiledFormStateWithSummaries = {
+			filter: null,
+			formId: 'search.expert',
+			encoded: { 'f.form': 'search.expert' },
+			patt: '[word="water"]',
+			searchfield: null,
+			summaries: [],
+		};
+
+		RootStore.actions.searchFromSubmit(snapshot);
+
+		expect(RootStore.get.blacklabParameters()?.withspans).toBeUndefined();
+	});
+
+	test('lets an explicit legacy withspans customization override the new-form preset', () => {
+		resetStores();
+		vi.spyOn(corpusCustomizations.search.pattern, 'shouldAddWithSpans').mockReturnValue(false);
+		const snapshot: CompiledFormStateWithSummaries = {
+			filter: null,
+			formId: 'search.expert',
+			encoded: { 'f.form': 'search.expert' },
+			patt: '[word="water"]',
+			resultPreset: { withSpans: true },
+			searchfield: null,
+			summaries: [],
+		};
+
+		RootStore.actions.searchFromSubmit(snapshot);
+
+		expect(RootStore.get.blacklabParameters()?.withspans).toBe(false);
+	});
+
+	test('lets an explicit legacy withspans customization enable spans without a form preset', () => {
+		resetStores();
+		vi.spyOn(corpusCustomizations.search.pattern, 'shouldAddWithSpans').mockReturnValue(true);
+		const snapshot: CompiledFormStateWithSummaries = {
+			filter: null,
+			formId: 'search.expert',
+			encoded: { 'f.form': 'search.expert' },
+			patt: '[word="water"]',
+			searchfield: null,
+			summaries: [],
+		};
+
+		RootStore.actions.searchFromSubmit(snapshot);
+
+		expect(RootStore.get.blacklabParameters()?.withspans).toBe(true);
 	});
 
 	test('keeps legacy Documents result handling separate from new-form presets', () => {

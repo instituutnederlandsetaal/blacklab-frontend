@@ -70,6 +70,8 @@ const get = {
 
 		const globalState = GlobalResultsModule.getState();
 		const patt = QueryModule.get.patternString();
+		const queryState = QueryModule.getState();
+		const defaultWithSpans = queryState.form === 'new' ? queryState.state.resultPreset?.withSpans : FilterModule.get.hasSpanFilters();
 		return {
 			...debugParams,
 
@@ -93,7 +95,7 @@ const get = {
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: globalState.context != null ? globalState.context : undefined,
 			adjusthits: true,
-			withspans: patt ? (corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (FilterModule.get.hasSpanFilters() || !!useCorpus()?.hasRelations)) : undefined,
+			withspans: patt ? (corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (defaultWithSpans || !!useCorpus()?.hasRelations || undefined)) : undefined,
 		};
 	}),
 	localSearchIntentRevision: () => localSearchIntentRevision,

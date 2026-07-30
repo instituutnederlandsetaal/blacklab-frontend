@@ -10,6 +10,7 @@ export {
 	filterSelectController,
 	filterTextController,
 } from './metadata-filter-controller';
+export { withinAttributeRangeController, withinAttributeSelectController, withinAttributeTextController } from './within-attribute-controller';
 export { parallelController } from './parallel-controller';
 export * from './persistence-codec';
 export { parallelSourceController, type ParallelSourceFieldConfig } from './parallel-source-controller';

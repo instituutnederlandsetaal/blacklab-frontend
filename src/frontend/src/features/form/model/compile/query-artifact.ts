@@ -10,6 +10,8 @@ import {
 	type QueryFilterNode,
 	type QueryFragment,
 	type QueryIR,
+	type QueryWithinAttribute,
+	type QueryWithinWrapper,
 	type QueryWrapper,
 	type ResultPreset,
 	type SummaryEntry,
@@ -185,7 +187,26 @@ export function simplifyQueryIR(artifact: QueryIR): QueryIR {
 		...artifact,
 		pattern: simplifyCql(artifact.pattern),
 		filter: simplifyFilter(artifact.filter),
+		wrappers: simplifyWrappers(artifact.wrappers),
 	});
+}
+
+/**
+ * Multiple 'within' clauses require some specific logic to avoid generating inverted clauses,
+ * e.g. "within <parent/> within <child/>" would never return anything
+ * so distinct elements are emitted using the order-independent "overlap" operator.
+ */
+function simplifyWrappers(wrappers: QueryWrapper[]): QueryWrapper[] {
+	const within = new Map<string, QueryWithinWrapper>();
+	for (const wrapper of wrappers) {
+		if (wrapper.type !== 'within' || !wrapper.element) continue;
+		const existing = within.get(wrapper.element);
+		within.set(wrapper.element, {
+			...wrapper,
+			attributes: { ...existing?.attributes, ...wrapper.attributes },
+		});
+	}
+	return [...wrappers.filter(wrapper => wrapper.type === 'containing' && wrapper.element), wrappers.find(wrapper => wrapper.type === 'with-spans'), ...within.values()].filter(isNonNull);
 }
 
 function simplifyCql(pattern: CqlPattern | null): CqlPattern | null {
@@ -302,24 +323,40 @@ function combineTokens(tokens: Extract<CqlPattern, { type: 'token' }>[], operato
 function emitCqlWithWrappers(pattern: CqlPattern | null, wrappers: QueryWrapper[]): string | null {
 	let cql = emitCql(pattern);
 	for (const wrapper of wrappers) {
-		if ((wrapper.type === 'within' || wrapper.type === 'containing') && wrapper.element) {
-			const attrs = Object.entries(wrapper.attributes)
-				.map(([key, value]) => (typeof value === 'string' && value.trim() ? `${key}="${escapeRegex(value)}"` : null))
-				.filter(isNonNull)
-				.join(' ');
-			const element = attrs ? `${wrapper.element} ${attrs}` : wrapper.element;
-
-			if (!cql) cql = `<${element}/>`;
-			else if (wrapper.type === 'within') {
-				cql = `${cql} within <${element}/>`;
-			} else if (wrapper.type === 'containing') {
-				cql = `${cql} containing <${element}/>`;
-			}
+		if (wrapper.type === 'containing') {
+			const containingClause = emitElementClause(wrapper);
+			if (containingClause) cql = cql ? `${containingClause} containing (${cql})` : containingClause;
 		} else if (wrapper.type === 'with-spans') {
-			if (wrapper.enabled && cql) cql = `with-spans(${cql})`;
+			if (cql) cql = `with-spans(${cql})`;
 		}
 	}
+	const within = wrappers
+		.filter((wrapper): wrapper is QueryWithinWrapper => wrapper.type === 'within')
+		.map(emitElementClause)
+		.filter(isNonNull)
+		.join(' overlap ');
+	if (within) cql = cql ? `(${cql}) within ${within}` : within;
 	return cql;
+}
+
+function emitElementClause(wrapper: Extract<QueryWrapper, { element: string }>): string | null {
+	if (!wrapper.element) return null;
+	const emittedAttributes = Object.entries(wrapper.attributes)
+		.map(([name, constraint]) => emitWithinAttribute(name, constraint))
+		.filter(isNonNull)
+		.join('');
+	return `<${wrapper.element}${emittedAttributes}/>`;
+}
+
+function emitWithinAttribute(name: string, attribute: QueryWithinAttribute): string | null {
+	if (!Array.isArray(attribute) && typeof attribute !== 'string') {
+		if (!attribute.low && !attribute.high) return null;
+		return ` ${name}=in[${attribute.low ?? '0'},${attribute.high ?? '9999'}]`;
+	}
+	const values = typeof attribute === 'string' ? [escapeRegex(attribute)] : attribute.map(item => escapeRegex(item, { escapeWildcards: false }));
+	const value = values.join('|');
+	if (!value) return null;
+	return ` ${name}="${value.replace(/"/g, '\\"')}"`;
 }
 
 function emitCql(pattern: CqlPattern | null): string | null {

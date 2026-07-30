@@ -100,6 +100,7 @@ function createSearchFormConfiguration(): SearchFormConfiguration {
 			defaultAnnotationId: 'lemma',
 		},
 		metadataFieldIds: ['title'],
+		customization: { withinAttributes: [], within: {} },
 		within: { enabled: true, elements: [] },
 		alignBy: { enabled: true, elements: [], defaultValue: '' },
 		explore: {

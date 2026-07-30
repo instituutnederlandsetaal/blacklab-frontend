@@ -12,6 +12,7 @@ import { reactive } from 'vue';
 
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import * as ViewsStore from '@/features/search/model/results/view-state';
+import { registerSearchFormCustomization, type SearchFormCustomizationCallback } from '@/features/search/model/search-form-customization';
 import type * as AppTypes from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
 import { getMetadataFieldValues } from '@/types/blacklabtypes';
@@ -1393,6 +1394,9 @@ function printCustomizations() {
 (window as any).frontend = {
 	customize(callback: (corpus: any) => void) {
 		corpusCustomizations.customizeFunctions.push(callback);
+	},
+	customizeSearchForm(callback: SearchFormCustomizationCallback) {
+		return registerSearchFormCustomization(callback);
 	},
 };
 
