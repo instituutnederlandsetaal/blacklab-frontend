@@ -2,7 +2,7 @@ import { combineQueryFragments, queryFragment } from '@/features/form/model/comp
 import { isContainerNode } from '@/features/form/model/form-utils';
 import type { FormStateInput } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { QueryFragment } from '@/features/form/model/types/form-query';
+import type { QueryFragment } from '@/features/form/model/types/form-query-ir';
 import type { FormContainerLikeNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 
 export function buildQueryIR(node: FormNode, formState: FormStateInput, context: FormRuntimeContext): QueryFragment {

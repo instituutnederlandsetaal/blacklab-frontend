@@ -1,5 +1,5 @@
 import type { WithinFieldDefinition, WithinFieldOption } from '@/features/form/fields/within-field';
-import { queryFragment } from '@/features/form/model/compile/query-artifact';
+import { predicateValue, queryFragment } from '@/features/form/model/compile/query-artifact';
 import { object, record, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
 
@@ -31,7 +31,13 @@ export const withinController = defineFieldController<'within', WithinFieldDefin
 		const option = findOption(config.options, state.element) ?? { value: state.element };
 		return queryFragment(
 			{
-				wrappers: [{ type: 'within', element: state.element, attributes: state.attributes }],
+				wrappers: [
+					{
+						type: 'within',
+						element: state.element,
+						attributes: Object.fromEntries(Object.entries(state.attributes).map(([name, value]) => [name, { type: 'values' as const, values: [predicateValue('wildcard', value)] }])),
+					},
+				],
 				resultPreset: { withSpans: true },
 			},
 			{

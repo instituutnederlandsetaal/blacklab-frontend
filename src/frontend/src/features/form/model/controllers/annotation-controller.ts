@@ -75,7 +75,7 @@ export const annotationSelectController = defineFieldController<'annotation-sele
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state) {
 		if (!state.length) return queryFragment();
-		return queryFragment(token(booleanExpr('or', ...state.map(v => tokenPredicate('equals', config.annotationId, v)))), {
+		return queryFragment(token(booleanExpr('or', ...state.map(v => tokenPredicate('literal', config.annotationId, v)))), {
 			label: toValue(config.displayName),
 			value: optionValues(findOptions(config.options, state)).join(', '),
 		});

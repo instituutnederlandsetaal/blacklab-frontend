@@ -83,8 +83,8 @@ const minDateDisplay = computed(() => (minDate.value ? DateUtils.dateValueToDisp
 const maxDateDisplay = computed(() => (maxDate.value ? DateUtils.dateValueToDisplayString(maxDate.value) : null));
 const minYear = computed(() => minDate.value?.y);
 const maxYear = computed(() => maxDate.value?.y);
-const startMonthLength = computed(() => DateUtils.dateValueToLucene({ ...props.modelValue.startDate, d: '' }, 'end').substring(6, 8));
-const endMonthLength = computed(() => DateUtils.dateValueToLucene({ ...props.modelValue.endDate, d: '' }, 'end').substring(6, 8));
+const startMonthLength = computed(() => DateUtils.dateValueToString({ ...props.modelValue.startDate, d: '' }, 'end').substring(6, 8));
+const endMonthLength = computed(() => DateUtils.dateValueToString({ ...props.modelValue.endDate, d: '' }, 'end').substring(6, 8));
 const lockedMode = computed(() => props.mode ?? null);
 
 const modes = computed<ModeOption[]>(() => [

@@ -1,7 +1,7 @@
 import type { PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import type { AnyFieldDefinition, FieldNodeProps, FieldState } from '@/features/form/model/field-component-props';
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
-import type { QueryFragment } from '@/features/form/model/types/form-query';
+import type { QueryFragment } from '@/features/form/model/types/form-query-ir';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import type { Translate } from '@/shared/i18n';

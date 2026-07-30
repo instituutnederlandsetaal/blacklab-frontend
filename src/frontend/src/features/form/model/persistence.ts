@@ -6,7 +6,7 @@ import { findPathToNode, getAllNodes, isContainerNode, walkFormNodes } from '@/f
 import { createDefaultFormState, createFormStateSnapshot, type DeepReadonly, type FormStateInput, type NewFormState } from '@/features/form/model/state';
 import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 import { encodeFieldState, getFieldPersistKey, restoreFieldState, type EncodedFieldValue, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { CompiledFormStateWithSummaries, ScopedFormQuery } from '@/features/form/model/types/form-query';
+import type { CompiledFormStateWithSummaries, ScopedFormQuery } from '@/features/form/model/types/form-query-ir';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 
 export const FORM_QUERY_PREFIX = 'f.';

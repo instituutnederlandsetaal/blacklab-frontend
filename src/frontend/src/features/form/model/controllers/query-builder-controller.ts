@@ -6,7 +6,7 @@ import type { QueryBuilderFieldConfig, QueryBuilderFieldDefinition, QueryBuilder
 import { anyToken, compileQueryIR, queryFragment, queryIR, repeat, token, tokenSequence, xmlTag } from '@/features/form/model/compile/query-artifact';
 import { array, bool, lazy, number, object, scalar, variant, type PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
-import { booleanExpr, type BooleanType, type CqlPattern, type TokenPredicate } from '@/features/form/model/types/form-query';
+import { booleanExpr, type BooleanType, type CqlPattern, type TokenPredicate } from '@/features/form/model/types/form-query-ir';
 
 import { findOption } from '@/shared/utils/options';
 

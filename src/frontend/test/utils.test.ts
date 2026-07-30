@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { escapeRegex, tokenizeString, unescapeRegex, type RegexEscapeOptions } from '@/shared/utils/string-utils';
+import { escapeLucene, escapeRegex, tokenizeString, unescapeLucene, unescapeRegex, type LuceneEscapeOptions, type RegexEscapeOptions } from '@/shared/utils/string-utils';
 
 type ExpectedPart = {
 	start: number;
@@ -281,5 +281,56 @@ describe('escapeRegex', () => {
 describe('unescapeRegex', () => {
 	test.each(regexEscapeCases)('$name', ({ value, settings, expected }) => {
 		expect(unescapeRegex(expected, settings)).toBe(value);
+	});
+});
+
+const luceneEscapeCases: Array<{
+	name: string;
+	value: string;
+	options?: LuceneEscapeOptions;
+	expected: string;
+}> = [
+	{
+		name: 'escapes literal wildcard and Lucene operator characters',
+		value: 'a*b?+c',
+		expected: String.raw`a\*b\?\+c`,
+	},
+	{
+		name: 'preserves active wildcards',
+		value: 'a*b?',
+		options: { escapeWildcards: false },
+		expected: 'a*b?',
+	},
+	{
+		name: 'preserves pre-escaped wildcards when wildcard semantics are active',
+		value: String.raw`a\*b\?`,
+		options: { escapeWildcards: false },
+		expected: String.raw`a\*b\?`,
+	},
+	{
+		name: 'treats backslashes as literal input when wildcard semantics are inactive',
+		value: String.raw`a\*b`,
+		expected: String.raw`a\\\*b`,
+	},
+	{
+		name: 'quotes whitespace and encodes quote and backslash delimiters',
+		value: String.raw`a "b\c"`,
+		expected: String.raw`"a \"b\\c\""`,
+	},
+	{
+		name: 'emits regex syntax and escapes only unescaped delimiters',
+		value: String.raw`a/.+\/b`,
+		options: { escapeRegex: false },
+		expected: String.raw`/a\/.+\/b/`,
+	},
+];
+
+describe('escapeLucene', () => {
+	test.each(luceneEscapeCases)('$name', ({ value, options, expected }) => {
+		expect(escapeLucene(value, options)).toBe(expected);
+	});
+
+	test.each(luceneEscapeCases.filter(testCase => testCase.options?.escapeRegex !== false && testCase.options?.escapeWildcards !== false))('roundtrips $name', ({ value, options }) => {
+		expect(unescapeLucene(escapeLucene(value, options))).toBe(value);
 	});
 });

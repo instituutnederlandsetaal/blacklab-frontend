@@ -1,7 +1,7 @@
 import type { RestoreIssue } from '@/features/form/model/persistence';
 import type { BlackLabParameter, BlackLabParameters } from '@/features/form/model/types/blacklab-params';
 
-export type TokenPredicateMatch = 'equals' | 'regex' | 'wildcard';
+// #region boolean nodes
 
 export type BooleanType = 'and' | 'or';
 export type BooleanExpr<TLeaf> = { type: BooleanType; children: Array<BooleanExpr<TLeaf> | TLeaf> };
@@ -28,11 +28,20 @@ export function simplifyBooleanExpr<TLeaf>(expr: BooleanExpr<TLeaf> | TLeaf, rem
 	return { ...expr, children };
 }
 
-type TokenPredicateLeaf = {
-	type: 'predicate';
-	match: TokenPredicateMatch;
-	annotation: string;
+// #endregion
+
+// Shared value bearer for predicates in lucene and cql.
+export type PredicateValueMatch = 'literal' | 'regex' | 'wildcard';
+export type PredicateValue = {
+	match: PredicateValueMatch;
 	value: string;
+};
+
+// #region CQL query nodes
+
+type TokenPredicateLeaf = PredicateValue & {
+	type: 'predicate';
+	annotation: string;
 	caseSensitive?: boolean;
 	operator?: '=' | '!=';
 	caseMode?: 'default' | 'insensitive' | 'sensitive';
@@ -92,33 +101,41 @@ export function isQueryParallelTargetPattern(node: any): node is QueryParallelTa
 	);
 }
 
-type QueryFilterNodeLeaf = { type: 'term'; field: string; values: string[] } | { type: 'range'; field: string; low?: string; high?: string } | { type: 'raw'; lucene: string };
-export type QueryFilterNode = QueryFilterNodeLeaf | BooleanExpr<QueryFilterNodeLeaf>;
+// #endregion
 
-export function isQueryFilterNode(node: any): node is QueryFilterNode {
-	if (!node || typeof node !== 'object' || !('type' in node)) return false;
-	switch (node.type as QueryFilterNode['type']) {
+// #region lucene filter nodes
+
+export type QueryValue = { type: 'values'; values: PredicateValue[] } | { type: 'range'; low?: string; high?: string };
+
+type FilterPredicateLeaf = (QueryValue & { field: string }) | { type: 'raw'; lucene: string };
+export type QueryFilterNode = FilterPredicateLeaf | BooleanExpr<FilterPredicateLeaf>;
+
+type QueryFilterNodeCandidate = CqlPattern | QueryFilterNode | Partial<QueryIR> | QueryWrapper[] | { query?: Partial<QueryIR>; summaries?: unknown } | null | undefined;
+
+export function isQueryFilterNode(node: QueryFilterNodeCandidate): node is QueryFilterNode {
+	if (!node || Array.isArray(node) || !('type' in node)) return false;
+	switch (node.type) {
 		case 'and':
 		case 'or':
-			return 'children' in node && Array.isArray(node.children) && node.children.every(isQueryFilterNode);
-		case 'term':
-			return 'field' in node && typeof node.field === 'string' && 'values' in node && Array.isArray(node.values) && node.values.every((v: unknown) => typeof v === 'string');
+			return node.children.every(isQueryFilterNode);
+		case 'values':
 		case 'range':
-			return 'field' in node && typeof node.field === 'string' && ('low' in node ? typeof node.low === 'string' : true) && ('high' in node ? typeof node.high === 'string' : true);
+			return true;
 		case 'raw':
-			return 'lucene' in node && typeof node.lucene === 'string';
+			return 'lucene' in node;
 		default:
 			return false;
 	}
 }
 
-export type QueryWithinAttribute = string | string[] | { low?: string; high?: string };
+// #endregion
+
 export type QueryWithinWrapper = {
 	type: 'within';
 	element: string;
-	attributes: Record<string, QueryWithinAttribute>;
+	attributes: Record<string, QueryValue>;
 };
-export type QueryWrapper = QueryWithinWrapper | { type: 'containing'; element: string; attributes: Record<string, string> } | { type: 'with-spans' };
+export type QueryWrapper = QueryWithinWrapper | { type: 'containing'; element: string; attributes: Record<string, QueryValue> } | { type: 'with-spans' };
 
 /** Result-view and request settings contributed by a submitted query. */
 export type ResultPreset = {

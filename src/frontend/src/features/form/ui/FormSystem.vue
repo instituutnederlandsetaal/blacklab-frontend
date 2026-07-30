@@ -18,7 +18,7 @@ import { computed, ref, toRef, useAttrs, watch } from 'vue';
 
 import type { FormRuntime } from '@/features/form/model/form-runtime';
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
-import type { CompiledFormStateWithSummaries } from '@/features/form/model/types/form-query';
+import type { CompiledFormStateWithSummaries } from '@/features/form/model/types/form-query-ir';
 
 import { provideFormSystemRuntime } from '../model/runtime';
 

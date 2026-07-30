@@ -3,11 +3,11 @@ import { toValue } from 'vue';
 import { createDefaultRangeFieldState, type RangeFieldDefinition, type RangeFieldState } from '@/features/form/fields/generic/range-field';
 import { createDefaultSelectFieldState, type SelectFieldConfig, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
-import { queryFragment } from '@/features/form/model/compile/query-artifact';
+import { predicateValue, queryFragment } from '@/features/form/model/compile/query-artifact';
 import { array, bool, object, scalar } from '@/features/form/model/controllers/persistence-codec';
 import type { NamedFieldDefinitionProps } from '@/features/form/model/field-component-props';
 import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
-import type { QueryWithinAttribute, SummaryEntry } from '@/features/form/model/types/form-query';
+import type { QueryValue, SummaryEntry } from '@/features/form/model/types/form-query-ir';
 
 import { findOption, optionLabel } from '@/shared/utils/options';
 
@@ -33,7 +33,7 @@ function createSummaryEntry(config: NamedFieldDefinitionProps, value: string | n
 		: null;
 }
 
-function createWithinAttributeQuery(config: WithinAttributeControllerConfig & NamedFieldDefinitionProps, value: QueryWithinAttribute | null, summary: string | null) {
+function createWithinAttributeQuery(config: WithinAttributeControllerConfig & NamedFieldDefinitionProps, value: QueryValue | null, summary: string | null) {
 	return queryFragment(
 		value === null
 			? null
@@ -87,7 +87,7 @@ export const withinAttributeTextController = defineFieldController<'within-attri
 	getQueryContribution(config, _runtime, state: TextFieldState) {
 		const value = state.value.trim();
 		// Attribute text controls use wildcard semantics, like their select counterparts.
-		return createWithinAttributeQuery(config, value ? [value] : null, value || null);
+		return createWithinAttributeQuery(config, value ? { type: 'values', values: [predicateValue('wildcard', value)] } : null, value || null);
 	},
 });
 
@@ -98,7 +98,7 @@ export const withinAttributeSelectController = defineFieldController<'within-att
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state) {
 		const values = state.filter(value => value.trim());
-		return createWithinAttributeQuery(config, values.length ? values : null, summarizeSelectField(config, values));
+		return createWithinAttributeQuery(config, values.length ? { type: 'values', values: values.map(value => predicateValue('wildcard', value)) } : null, summarizeSelectField(config, values));
 	},
 });
 
@@ -111,7 +111,7 @@ export const withinAttributeRangeController = defineFieldController<'within-attr
 		const active = state.low || state.high;
 		return createWithinAttributeQuery(
 			config,
-			active ? { low: state.low || undefined, high: state.high || undefined } : null,
+			active ? { type: 'range', low: state.low || undefined, high: state.high || undefined } : null,
 			active ? `${state.low || '0'}-${state.high || '9999'}` : null,
 		);
 	},

@@ -2,7 +2,7 @@ import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic
 import { queryFragment } from '@/features/form/model/compile/query-artifact';
 import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerConfig, type FieldControllerFor, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
-import type { ResultPreset } from '@/features/form/model/types/form-query';
+import type { ResultPreset } from '@/features/form/model/types/form-query-ir';
 
 export type ResultPresetControllerConfig = {
 	defaultValue?: string | null;

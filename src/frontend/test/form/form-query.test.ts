@@ -8,12 +8,27 @@ import {
 	booleanExpr,
 	createFormFieldNode,
 	expertQueryController,
+	filterDateController,
+	filterTextController,
 	parallelController,
 	type FieldControllerProps,
 	type FormRuntimeContext,
 	type QueryFragment,
 } from '@/features/form';
-import { combineQueryFragments, compileQueryIR, cqlRaw, queryFragment, queryIR, rawFilter, simplifyQueryIR, termFilter, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
+import {
+	combineQueryFragments,
+	compileQueryIR,
+	cqlRaw,
+	predicateValue,
+	queryFragment,
+	queryIR,
+	rawFilter,
+	simplifyQueryIR,
+	termFilter,
+	token,
+	tokenPredicate,
+	valueFilter,
+} from '@/features/form/model/compile/query-artifact';
 import type { AnnotationTextFieldConfig } from '@/features/form/model/controllers/annotation-controller';
 
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
@@ -54,6 +69,50 @@ describe('generated query correctness', () => {
 		const expected = String.raw`[lemma="a\*b"] [lemma="c\?d"] [lemma="e\\\\f"]`;
 
 		expect(compiled).toBe(expected);
+	});
+
+	test('Metadata text controllers preserve parsed value intent in filter IR', () => {
+		const contribution = filterTextController.getQueryContribution!(
+			{
+				kind: 'field',
+				id: 'author',
+				displayName: 'Author',
+				metadataFieldId: 'author',
+			},
+			context,
+			{ value: String.raw`Alice* "Bob?"`, caseSensitive: false },
+		);
+
+		expect(contribution.query.filter).toEqual({
+			type: 'values',
+			field: 'author',
+			values: [predicateValue('wildcard', 'Alice*'), predicateValue('literal', 'Bob?')],
+		});
+		expect(compileQueryIR(contribution).filter).toBe(String.raw`author:(Alice* Bob\?)`);
+	});
+
+	test('Date controllers compose structured range nodes across bifields', () => {
+		const contribution = filterDateController.getQueryContribution!(
+			{
+				kind: 'field',
+				id: 'publication-period',
+				displayName: 'Publication period',
+				fromField: 'startYear',
+				toField: 'endYear',
+				range: true,
+			},
+			context,
+			{
+				startDate: { y: '2020', m: '', d: '' },
+				endDate: { y: '2021', m: '', d: '' },
+				mode: 'permissive',
+			},
+		);
+
+		expect(contribution.query.filter).toEqual(
+			booleanExpr('or', { type: 'range', field: 'startYear', low: '20200101', high: '20211231' }, { type: 'range', field: 'endYear', low: '20200101', high: '20211231' }),
+		);
+		expect(compileQueryIR(contribution).filter).toBe('(startYear:[20200101 TO 20211231] OR endYear:[20200101 TO 20211231])');
 	});
 
 	test('Pre-escaped quotes are preserved and do not suppress tokenization', () => {
@@ -191,13 +250,15 @@ describe('generated query correctness', () => {
 		});
 	});
 
-	test('merges span filters by element and overlaps distinct elements', () => {
+	const wildcardValues = (...values: string[]) => ({ type: 'values' as const, values: values.map(value => predicateValue('wildcard', value)) });
+
+	test('merges within attributes by element and overlaps distinct elements', () => {
 		const query = queryIR({
 			pattern: cqlRaw('[word="water"]'),
 			wrappers: [
-				{ type: 'within', element: 'speech', attributes: { person: ['Alice*'] } },
-				{ type: 'within', element: 'speech', attributes: { role: ['host', 'guest'] } },
-				{ type: 'within', element: 'p', attributes: { n: { low: '3', high: '5' } } },
+				{ type: 'within', element: 'speech', attributes: { person: wildcardValues('Alice*') } },
+				{ type: 'within', element: 'speech', attributes: { role: wildcardValues('host', 'guest') } },
+				{ type: 'within', element: 'p', attributes: { n: { type: 'range', low: '3', high: '5' } } },
 			],
 		});
 
@@ -205,9 +266,9 @@ describe('generated query correctness', () => {
 			{
 				type: 'within',
 				element: 'speech',
-				attributes: { person: ['Alice*'], role: ['host', 'guest'] },
+				attributes: { person: wildcardValues('Alice*'), role: wildcardValues('host', 'guest') },
 			},
-			{ type: 'within', element: 'p', attributes: { n: { low: '3', high: '5' } } },
+			{ type: 'within', element: 'p', attributes: { n: { type: 'range', low: '3', high: '5' } } },
 		]);
 		expect(compileQueryIR(query).patt).toBe('([word="water"]) within <speech person="Alice.*" role="host|guest"/> overlap <p n=in[3,5]/>');
 	});
@@ -217,13 +278,26 @@ describe('generated query correctness', () => {
 			compileQueryIR(
 				queryIR({
 					wrappers: [
-						{ type: 'within', element: 'speech', attributes: { person: ['A"B', 'C?'] } },
-						{ type: 'within', element: 'p', attributes: { n: { high: '5' } } },
-						{ type: 'within', element: 'div', attributes: { type: [] } },
+						{ type: 'within', element: 'speech', attributes: { person: wildcardValues('A"B', 'C?') } },
+						{ type: 'within', element: 'p', attributes: { n: { type: 'range', high: '5' } } },
+						{ type: 'within', element: 'div', attributes: { type: wildcardValues() } },
 					],
 				}),
 			).patt,
 		).toBe(String.raw`<speech person="A\\"B|C."/> overlap <p n=in[0,5]/> overlap <div/>`);
+	});
+
+	test('emits shared literal, wildcard, and regex value intent for CQL and Lucene', () => {
+		const values = [predicateValue('literal', 'A*'), predicateValue('wildcard', 'B*'), predicateValue('wildcard', String.raw`D\*`), predicateValue('regex', 'C/.+')];
+
+		expect(compileQueryIR(queryIR({ filter: valueFilter('speaker', values) })).filter).toBe(String.raw`speaker:(A\* B* D\* /C\/.+/)`);
+		expect(
+			compileQueryIR(
+				queryIR({
+					wrappers: [{ type: 'within', element: 'speech', attributes: { person: { type: 'values', values } } }],
+				}),
+			).patt,
+		).toBe(String.raw`<speech person="A\*|B.*|D\*|C/.+"/>`);
 	});
 
 	const parallelField = {

@@ -10,21 +10,21 @@ import {
 	type QueryFilterNode,
 	type QueryFragment,
 	type QueryIR,
-	type QueryWithinAttribute,
+	type PredicateValue,
+	type PredicateValueMatch,
+	type QueryValue,
 	type QueryWithinWrapper,
 	type QueryWrapper,
 	type ResultPreset,
 	type SummaryEntry,
-	type TokenPredicate as expr,
-	type TokenPredicateMatch,
 	type TokenPredicate,
-} from '@/features/form/model/types/form-query';
+} from '@/features/form/model/types/form-query-ir';
 import type { QueryCombineMode } from '@/features/form/model/types/form-shape';
 
 import { parenQueryPartParallel } from '@/shared/blacklab-helpers/cql/bcql-pattern-helpers';
 import { getParallelFieldParts } from '@/shared/blacklab-helpers/parallel-helper';
 import { unwrapLenientArray } from '@/shared/utils/array-utils';
-import { escapeRegex } from '@/shared/utils/string-utils';
+import { escapeLucene, escapeRegex } from '@/shared/utils/string-utils';
 
 const EMPTY_PROJECTION = queryIR();
 
@@ -78,17 +78,21 @@ export function cqlRaw(cql: string | null | undefined): CqlPattern | null {
 	return value ? { type: 'raw', cql: value } : null;
 }
 
-export function tokenPredicate(match: TokenPredicateMatch, annotation: string, value: string, caseSensitive?: boolean): expr {
+export function predicateValue(match: PredicateValueMatch, value: string): PredicateValue {
+	return { match, value };
+}
+
+export function tokenPredicate(match: PredicateValueMatch, annotation: string, value: string, caseSensitive?: boolean): TokenPredicate {
 	return {
 		type: 'predicate',
-		match,
 		annotation,
+		match,
 		value,
 		caseSensitive,
 	};
 }
 
-export function token(predicate: expr | null): CqlPattern | null {
+export function token(predicate: TokenPredicate | null): CqlPattern | null {
 	return predicate ? { type: 'token', predicate } : null;
 }
 
@@ -115,9 +119,16 @@ export function rawFilter(lucene: string | null | undefined): QueryFilterNode | 
 	return value ? { type: 'raw', lucene: value } : null;
 }
 
+export function valueFilter(field: string, values: PredicateValue[]): QueryFilterNode | null {
+	const activeValues = values.filter(value => value.value.trim());
+	return activeValues.length ? { type: 'values', field, values: activeValues } : null;
+}
+
 export function termFilter(field: string, values: string[]): QueryFilterNode | null {
-	const activeValues = values.filter(value => value.trim());
-	return activeValues.length ? { type: 'term', field, values: activeValues } : null;
+	return valueFilter(
+		field,
+		values.map(value => predicateValue('literal', value)),
+	);
 }
 
 export function rangeFilter(field: string, low?: string, high?: string): QueryFilterNode | null {
@@ -259,7 +270,7 @@ function simplifyCql(pattern: CqlPattern | null): CqlPattern | null {
 function simplifyFilter(filter: QueryFilterNode | null): QueryFilterNode | null {
 	if (!filter) return null;
 	if (filter.type === 'raw') return rawFilter(filter.lucene);
-	if (filter.type === 'term') return termFilter(filter.field, filter.values);
+	if (filter.type === 'values') return valueFilter(filter.field, filter.values);
 	if (filter.type === 'range') return rangeFilter(filter.field, filter.low, filter.high);
 
 	return simplifyBooleanExpr({
@@ -268,13 +279,13 @@ function simplifyFilter(filter: QueryFilterNode | null): QueryFilterNode | null 
 	}) as QueryFilterNode | null;
 }
 
-function simplifyTokenPredicate(expr: expr): expr | null {
+function simplifyTokenPredicate(expr: TokenPredicate): TokenPredicate | null {
 	if (expr.type === 'predicate') return expr.value.trim() ? expr : null;
 
 	return simplifyBooleanExpr({
 		...expr,
 		children: expr.children.map(simplifyTokenPredicate).filter(isNonNull),
-	}) as expr | null;
+	});
 }
 
 function combineCql(patterns: CqlPattern[], combine: QueryCombineMode): CqlPattern | null {
@@ -348,15 +359,25 @@ function emitElementClause(wrapper: Extract<QueryWrapper, { element: string }>):
 	return `<${wrapper.element}${emittedAttributes}/>`;
 }
 
-function emitWithinAttribute(name: string, attribute: QueryWithinAttribute): string | null {
-	if (!Array.isArray(attribute) && typeof attribute !== 'string') {
+function emitWithinAttribute(name: string, attribute: QueryValue): string | null {
+	if (attribute.type === 'range') {
 		if (!attribute.low && !attribute.high) return null;
 		return ` ${name}=in[${attribute.low ?? '0'},${attribute.high ?? '9999'}]`;
 	}
-	const values = typeof attribute === 'string' ? [escapeRegex(attribute)] : attribute.map(item => escapeRegex(item, { escapeWildcards: false }));
-	const value = values.join('|');
+	const value = attribute.values.map(emitCqlPredicateValue).join('|');
 	if (!value) return null;
 	return ` ${name}="${value.replace(/"/g, '\\"')}"`;
+}
+
+function emitCqlPredicateValue(value: PredicateValue): string {
+	switch (value.match) {
+		case 'literal':
+			return escapeRegex(value.value);
+		case 'wildcard':
+			return escapeRegex(value.value, { escapePipes: false, escapeWildcards: false, escapeQuotes: true });
+		case 'regex':
+			return value.value;
+	}
 }
 
 function emitCql(pattern: CqlPattern | null): string | null {
@@ -406,8 +427,8 @@ function emitRequiredFilter(filter: QueryFilterNode): string {
 	switch (filter.type) {
 		case 'raw':
 			return filter.lucene;
-		case 'term':
-			return `${filter.field}:(${filter.values.map(value => escapeLucene(value)).join(' ')})`;
+		case 'values':
+			return `${filter.field}:(${filter.values.map(emitLucenePredicateValue).join(' ')})`;
 		case 'range':
 			return `${filter.field}:[${filter.low || '*'} TO ${filter.high || '*'}]`;
 		case 'or':
@@ -432,19 +453,9 @@ function emitRepeat(pattern: Extract<CqlPattern, { type: 'repeat' }>): string {
 
 function emitTokenPredicate(expr: TokenPredicate, parentOperator?: BooleanType): string {
 	if (expr.type === 'predicate') {
-		const literalFlag = expr.match === 'equals' ? 'l' : '';
+		const literalFlag = expr.match === 'literal' ? 'l' : '';
 		const caseFlag = expr.caseMode === 'sensitive' ? '(?-i)' : expr.caseMode === 'insensitive' ? '(?i)' : expr.caseMode === 'default' ? '' : expr.caseSensitive ? '' : '(?i)';
-
-		const escapedValue =
-			expr.match === 'regex'
-				? expr.value
-				: expr.match === 'wildcard'
-					? escapeRegex(expr.value, { escapePipes: false, escapeWildcards: false, escapeQuotes: true })
-					: expr.match === 'equals'
-						? escapeRegex(expr.value)
-						: expr.value; // Should not happen, but just return the raw value if an unknown match is encountered
-
-		return `${expr.annotation}${expr.operator ?? '='}${literalFlag}"${caseFlag}${escapedValue}"`;
+		return `${expr.annotation}${expr.operator ?? '='}${literalFlag}"${caseFlag}${emitCqlPredicateValue(expr)}"`;
 	}
 
 	const operator = expr.type === 'and' ? ' & ' : ' | ';
@@ -461,8 +472,11 @@ export function hasQueryContributions(artifact: QueryIR): boolean {
 	return !!(artifact.pattern || artifact.filter || artifact.wrappers.length || artifact.searchfield || (artifact.resultPreset && Object.keys(artifact.resultPreset).length));
 }
 
-function escapeLucene(value: string): string {
-	return value.match(/\s/) ? `"${value.replace(/"/g, '\\"')}"` : value.replace(/([+\-&|!(){}[\]^"~*?:\\/])/g, '\\$1');
+function emitLucenePredicateValue(value: PredicateValue): string {
+	return escapeLucene(value.value, {
+		escapeWildcards: value.match !== 'wildcard',
+		escapeRegex: value.match !== 'regex',
+	});
 }
 
 function isNonNull<T>(value: T | null | undefined): value is T {

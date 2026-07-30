@@ -34,7 +34,7 @@ export const DateUtils = {
 	 * Null dates or dates with invalid years return an empty string.
 	 * Works for years in the range 0000-9999.
 	 */
-	dateValueToLucene(date: DateValue | null | undefined, mode: 'start' | 'end'): string {
+	dateValueToString(date: DateValue | null | undefined, mode: 'start' | 'end'): string {
 		if (!date) return '';
 		let { y, m, d } = date;
 		if (!y.length || !y.match(/^[0-9]{1,4}$/)) return '';

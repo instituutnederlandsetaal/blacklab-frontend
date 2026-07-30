@@ -1,5 +1,5 @@
 import type { FieldController } from '@/features/form/model/types/form-controllers';
-import type { BooleanType, QueryFragment } from '@/features/form/model/types/form-query';
+import type { BooleanType, QueryFragment } from '@/features/form/model/types/form-query-ir';
 import type { AnyVueComponent } from '@/types/helpers';
 
 /** A plain value or a runtime resolver evaluated while rendering/compiling. */

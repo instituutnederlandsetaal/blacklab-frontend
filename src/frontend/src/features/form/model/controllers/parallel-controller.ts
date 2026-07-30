@@ -10,7 +10,7 @@ import { getFieldQueryContribution } from '@/features/form/model/compile';
 import { queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
 import { array, object, record, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { SummaryEntry } from '@/features/form/model/types/form-query';
+import type { SummaryEntry } from '@/features/form/model/types/form-query-ir';
 
 import { findOption } from '@/shared/utils/options';
 

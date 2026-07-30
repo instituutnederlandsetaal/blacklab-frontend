@@ -81,25 +81,64 @@ export function unescapeRegex(value: string, settings: RegexEscapeOptions = {}) 
 	return result;
 }
 
+const defaultLuceneEscapeOptions = {
+	/** Defaults to true. If false, unescaped * and ? retain their wildcard meaning. */
+	escapeWildcards: true,
+	/** Defaults to true. If false, the value is emitted as a Lucene regular expression. */
+	escapeRegex: true,
+};
+export type LuceneEscapeOptions = Partial<typeof defaultLuceneEscapeOptions>;
+
+const luceneSpecialChars = new Set(['+', '-', '&', '|', '!', '(', ')', '{', '}', '[', ']', '^', '"', '~', ':', '\\', '/']);
+const preservedLuceneEscapes = new Set(['*', '?']);
+
 /**
- * Escapes the lucene term. This is done by surrounding it by quotes, unless wildcards (* and ?) should be preserved,
- * in which case characters are escaped on an individual basis.
- * Preserving wildcards is only possible when the string does not contain whitespace, as that is the term delimited and cannot be escaped
- * except by surrounding the term with quotes, which implicitly escapes wildcards.
+ * Escape a value for use as one Lucene query-parser term.
  *
- * The resultant string should NOT need to be be surrounded by quotes again.
+ * Values containing whitespace are quoted and therefore cannot retain wildcard
+ * semantics. Regex values are wrapped in Lucene's /.../ delimiters, with only
+ * unescaped delimiters encoded.
  */
-export function escapeLucene(original: string, preserveWildcards: boolean) {
-	if (!preserveWildcards || original.match(/\s+/)) {
-		return `"${original.replace(/(")/g, '\\$1')}"`;
+export function escapeLucene(value: string, options: LuceneEscapeOptions = {}) {
+	const settings = { ...defaultLuceneEscapeOptions, ...options };
+	if (!settings.escapeRegex) return `/${escapeLuceneRegexDelimiter(value)}/`;
+	if (value.match(/\s+/)) return `"${value.replace(/([\\"])/g, '\\$1')}"`;
+
+	const escapeChar = (char: string) => {
+		if (char === '*' || char === '?') return settings.escapeWildcards ? `\\${char}` : char;
+		return luceneSpecialChars.has(char) ? `\\${char}` : char;
+	};
+	const shouldEscape = (char: string) => (char === '*' || char === '?' ? settings.escapeWildcards : luceneSpecialChars.has(char));
+
+	let result = '';
+	for (let index = 0; index < value.length; index += 1) {
+		const char = value[index];
+		const next = value[index + 1];
+		if (char === '\\' && preservedLuceneEscapes.has(next) && !shouldEscape(next)) {
+			result += `\\${next}`;
+			index += 1;
+			continue;
+		}
+		result += escapeChar(char);
 	}
-	return original.replace(/(\+|-|&&|\|\||!|\(|\)|{|}|\[|]|\^|"|~|:|\\|\/)/g, '\\$1');
+	return result;
+}
+
+function escapeLuceneRegexDelimiter(value: string): string {
+	let result = '';
+	let precedingBackslashes = 0;
+	for (const char of value) {
+		if (char === '/' && precedingBackslashes % 2 === 0) result += '\\';
+		result += char;
+		precedingBackslashes = char === '\\' ? precedingBackslashes + 1 : 0;
+	}
+	return result;
 }
 
 /** Unescapes every lucene special character including double quotes, except wildcards */
 export function unescapeLucene(original: string) {
 	if (original.startsWith('"') && original.endsWith('"') && !original.endsWith('\\"')) {
-		return original.substr(1, original.length - 2).replace(/\\(")/g, '$1');
+		return original.substring(1, original.length - 1).replace(/\\(["\\])/g, '$1');
 	}
 
 	return original.replace(/\\(\+|-|&&|\|\||!|\(|\)|{|}|\[|]|\^|"|~|:|\\|\/|\*|\?)/g, '$1');
