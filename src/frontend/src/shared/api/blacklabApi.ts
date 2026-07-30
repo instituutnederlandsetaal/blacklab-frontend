@@ -183,58 +183,76 @@ export const createBlackLabApi = async (settings: Omit<BlackLabApiSettings, 'map
 			endpoint.getCancelable<BLIndex | BLIndexV4>(paths.indexStatus(id), undefined, requestParamers).then(r => normalizeIndexBase(r, id)),
 
 		getCorpus: (id: string, requestParameters?: AxiosRequestConfig) => {
-			const indexRequest = endpoint.getCancelable<BLIndexMetadata | BLIndexMetadataV4>(paths.index(id), version === '5' ? { custom: true, listValues: '*' } : undefined, {
-				...requestParameters,
-			});
-			const relationsRequest = api.getRelations(id, requestParameters);
-			return new CancelableRequest(Promise.all([indexRequest, relationsRequest]), () => {
-				indexRequest.cancel();
-				relationsRequest.cancel();
-			})
-				.then(([index, relations]) => normalizeIndex(index, relations))
-				.catch<never>(e => {
-					if (!(e instanceof ApiError)) {
-						// Should never happen - API always returns ApiError, but just in case...
-						throw new ApiError(e?.name ?? 'Unknown error', e?.message ?? 'An unknown error occurred.', 'Unknown error', undefined);
-					} else if (e.httpCode === 401) {
-						throw new ApiError('Not allowed', 'You need to be logged in to access this corpus.', 'Not allowed', 401);
-					} else if (e.httpCode === 403) {
-						throw new ApiError('Not allowed', 'You do not have permission to access this corpus.', 'Not allowed', 403);
-					} else if (e.httpCode === 404) {
-						// Not found. May not be configured correctly.
-						console.error(`ApiError: ${JSON.stringify(e)}`);
-						if (e.title === 'CANNOT_OPEN_INDEX' || e.message.indexOf('CANNOT_OPEN_INDEX') !== -1) {
-							// TODO i18n
-							throw new ApiError(
-								'Corpus not found',
-								stripIndent`
+			let indexRequest = endpoint.getCancelable<BLIndexMetadata | BLIndexMetadataV4>(paths.index(id), version === '5' ? { custom: true, listValues: '*' } : undefined, requestParameters);
+			// append listvalues, as bl4 doesn't support wildcard
+			if (version === '4') {
+				indexRequest = (indexRequest as CancelableRequest<BLIndexMetadataV4>).then(i => {
+					const annots = Object.entries(i.annotatedFields[i.mainAnnotatedField].annotations)
+						.filter(([k, v]) => v.hasForwardIndex)
+						.map(([k]) => k)
+						.join(',');
+					return endpoint.getCancelable<BLIndexMetadataV4>(paths.index(id), { listvalues: annots }, requestParameters);
+				});
+			}
+
+			const corpusRequest =
+				version === '4'
+					? (() => {
+							const relationsRequest = api.getRelations(id, requestParameters);
+							return new CancelableRequest(Promise.all([indexRequest, relationsRequest]), () => {
+								indexRequest.cancel();
+								relationsRequest.cancel();
+							}).then(([index, relations]) => normalizeIndex(index, relations));
+						})()
+					: indexRequest.then(index => {
+							const v5Index = index as BLIndexMetadata;
+							const relations = v5Index.annotatedFields[v5Index.mainAnnotatedField]?.relations as BLRelationInfo | undefined;
+							return normalizeIndex(v5Index, relations ?? {});
+						});
+
+			return corpusRequest.catch<never>(e => {
+				if (!(e instanceof ApiError)) {
+					// Should never happen - API always returns ApiError, but just in case...
+					throw new ApiError(e?.name ?? 'Unknown error', e?.message ?? 'An unknown error occurred.', 'Unknown error', undefined);
+				} else if (e.httpCode === 401) {
+					throw new ApiError('Not allowed', 'You need to be logged in to access this corpus.', 'Not allowed', 401);
+				} else if (e.httpCode === 403) {
+					throw new ApiError('Not allowed', 'You do not have permission to access this corpus.', 'Not allowed', 403);
+				} else if (e.httpCode === 404) {
+					// Not found. May not be configured correctly.
+					console.error(`ApiError: ${JSON.stringify(e)}`);
+					if (e.title === 'CANNOT_OPEN_INDEX' || e.message.indexOf('CANNOT_OPEN_INDEX') !== -1) {
+						// TODO i18n
+						throw new ApiError(
+							'Corpus not found',
+							stripIndent`
 								Corpus '${id}' not found.<br>
 								Please check the spelling, or go to <a href="${CONTEXT_URL}">${CONTEXT_URL}</a> to get a list of available corpora.<br>
 								If it's not there, refer to the documentation at <a href="https://blacklab.ivdnt.org" target="_blank">https://blacklab.ivdnt.org</a> and check your configuration.`,
-								e.statusText,
-								e.httpCode,
-							);
-						} else {
-							// No blacklab response; something isn't configured correctly.
-							throw new ApiError(
-								'Corpus not found',
-								stripIndent`
+							e.statusText,
+							e.httpCode,
+						);
+					} else {
+						// No blacklab response; something isn't configured correctly.
+						throw new ApiError(
+							'Corpus not found',
+							stripIndent`
 								Unable to contact BlackLab Server (or blacklab-frontend's own server component).<br> 
 								Make sure both .war applications have been deployed, and your properties file<br>
 								is in the correct location and has the correct name.<br>
 								Refer to the documentation at <a href="https://blacklab.ivdnt.org" target="_blank">https://blacklab.ivdnt.org</a>`,
-								e.statusText,
-								e.httpCode,
-							);
-						}
-					} else if (e.message.indexOf('blacklabResponse') !== -1) {
-						// Some other blacklab error.
-						throw new ApiError('BlackLab error', e.message, e.statusText, e.httpCode);
-					} else {
-						// Some other API error. Show message.
-						throw e;
+							e.statusText,
+							e.httpCode,
+						);
 					}
-				});
+				} else if (e.message.indexOf('blacklabResponse') !== -1) {
+					// Some other blacklab error.
+					throw new ApiError('BlackLab error', e.message, e.statusText, e.httpCode);
+				} else {
+					// Some other API error. Show message.
+					throw e;
+				}
+			});
 		},
 
 		getAnnotatedField: (indexId: string, fieldName: string, requestParameters?: AxiosRequestConfig) =>
