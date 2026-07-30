@@ -37,8 +37,12 @@ export type FieldController<Kind extends string = string, State = any, Extra = o
 	createDefaultState: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => State;
 	getQueryContribution: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => QueryFragment;
 	persistence: FieldPersistence<State, Extra>;
-	/** BlackLab query parameters this field may affect. Used for locking controls while raw overrides are active. */
-	affectsBlackLabParameters: BlackLabParameter[] | ((config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => BlackLabParameter[]);
+	/**
+	 * BlackLab query parameters this field may affect.
+	 * Used to make UI readonly/disabled while the parameter is in an overridden state (I.e. could not be parsed into the form successfully and has been preserved in its raw state).
+	 * Also used as a category catalog for the query summary entries.
+	 */
+	affectsBlackLabParameters: BlackLabParameter[];
 };
 
 export type AnyFieldController = FieldController<string, any, any>;

@@ -19,19 +19,18 @@ export type MetadataFilterControllerConfig = {
 	metadataFieldId: string;
 };
 
-export type MetadataFilterDateControllerConfig = MetadataFilterControllerConfig | { fromField: string; toField: string };
-
-export type MetadataFilterRangeMultipleFieldsControllerConfig = {
-	lowField: string;
-	highField: string;
+type BiMetadataFilterControllerConfig = {
+	fromField: string;
+	toField: string;
 };
+
+const isBiFieldConfig = (config: MetadataFilterControllerConfig | BiMetadataFilterControllerConfig): config is BiMetadataFilterControllerConfig => 'fromField' in config && 'toField' in config;
 
 export type MetadataFilterTextConfig = FieldControllerConfig<TextFieldDefinition, MetadataFilterControllerConfig>;
 export type MetadataFilterCheckboxConfig = FieldControllerConfig<CheckboxFieldDefinition, MetadataFilterControllerConfig>;
 export type MetadataFilterRadioConfig = FieldControllerConfig<RadioFieldDefinition, MetadataFilterControllerConfig>;
-export type MetadataFilterDateConfig = FieldControllerConfig<DateFieldDefinition, MetadataFilterDateControllerConfig>;
-export type MetadataFilterRangeConfig = FieldControllerConfig<RangeFieldDefinition, MetadataFilterControllerConfig>;
-export type MetadataFilterRangeMultipleFieldsConfig = FieldControllerConfig<RangeFieldDefinition, MetadataFilterRangeMultipleFieldsControllerConfig>;
+export type MetadataFilterDateConfig = FieldControllerConfig<DateFieldDefinition, MetadataFilterControllerConfig | BiMetadataFilterControllerConfig>;
+export type MetadataFilterRangeConfig = FieldControllerConfig<RangeFieldDefinition, MetadataFilterControllerConfig | BiMetadataFilterControllerConfig>;
 export type MetadataFilterSelectConfig = FieldControllerConfig<SelectFieldDefinition, MetadataFilterControllerConfig>;
 
 export type MetadataFilterConfig =
@@ -40,7 +39,6 @@ export type MetadataFilterConfig =
 	| MetadataFilterRadioConfig
 	| MetadataFilterDateConfig
 	| MetadataFilterRangeConfig
-	| MetadataFilterRangeMultipleFieldsConfig
 	| MetadataFilterSelectConfig;
 
 function createSummaryEntry(config: NamedFieldDefinitionProps, value: string | null): SummaryEntry | null {
@@ -61,6 +59,10 @@ function summarizeValues(values: string[]): string | null {
 	return values.length >= 2 ? values.map(value => `"${value}"`).join(', ') : values[0] || null;
 }
 
+function summarizeSelectField(config: SelectFieldConfig, values: string[]): string | null {
+	return summarizeValues(values.map(value => optionLabel(findOption(config.options, value) ?? value)));
+}
+
 function buildTextLucene(metadataFieldId: string, state: TextFieldState | null): string | null {
 	if (!state?.value.trim()) return null;
 	return `${metadataFieldId}:(${tokenizeString(state.value, true)
@@ -73,17 +75,8 @@ function summarizeTextField(state: TextFieldState | null): string | null {
 	return split.map(term => (term.isQuoted || split.length > 1 ? `"${term.value}"` : term.value)).join(', ') || null;
 }
 
-function summarizeSelectField(config: SelectFieldConfig, values: string[]): string | null {
-	const labels = values.map(value => optionLabel(findOption(config.options, value) ?? value));
-	return summarizeValues(labels);
-}
-
-function metadataPersistKey(config: MetadataFilterControllerConfig) {
-	return config.metadataFieldId;
-}
-
-function metadataDatePersistKey(config: MetadataFilterDateControllerConfig) {
-	return 'metadataFieldId' in config ? config.metadataFieldId : `${config.fromField}-${config.toField}`;
+function metadataPersistKey(config: MetadataFilterControllerConfig | BiMetadataFilterControllerConfig) {
+	return isBiFieldConfig(config) ? `${config.fromField}-${config.toField}` : config.metadataFieldId;
 }
 
 function dateValueToPersist(value: DateFieldState['startDate']) {
@@ -168,10 +161,10 @@ export const filterCheckboxController = defineFieldController<'metadata-filter-c
 	},
 });
 
-export const filterDateController = defineFieldController<'metadata-filter-date', DateFieldDefinition, MetadataFilterDateControllerConfig>({
+export const filterDateController = defineFieldController<'metadata-filter-date', DateFieldDefinition, MetadataFilterControllerConfig | BiMetadataFilterControllerConfig>({
 	kind: 'metadata-filter-date',
 	createDefaultState: createDefaultDateFieldState,
-	persistence: { key: metadataDatePersistKey, codec: datePersistenceCodec },
+	persistence: { key: metadataPersistKey, codec: datePersistenceCodec },
 	affectsBlackLabParameters: ['filter'],
 	getQueryContribution(config, _runtime, state) {
 		let start = DateUtils.dateValueToLucene(state.startDate, 'start');
@@ -193,7 +186,6 @@ export const filterDateController = defineFieldController<'metadata-filter-date'
 			}
 			summary = [start && DateUtils.dateValueToDisplayString(state.startDate), end && DateUtils.dateValueToDisplayString(state.endDate)].filter(Boolean).join(' - ') || null;
 		}
-
 		return createRawFilterQuery(config, lucene, summary);
 	},
 });
@@ -210,34 +202,25 @@ export const filterRadioController = defineFieldController<'metadata-filter-radi
 	},
 });
 
-export const filterRangeController = defineFieldController<'metadata-filter-range', RangeFieldDefinition, MetadataFilterControllerConfig>({
+export const filterRangeController = defineFieldController<'metadata-filter-range', RangeFieldDefinition, MetadataFilterControllerConfig | BiMetadataFilterControllerConfig>({
 	kind: 'metadata-filter-range',
 	createDefaultState: createDefaultRangeFieldState,
 	persistence: { key: metadataPersistKey, codec: rangePersistenceCodec },
 	affectsBlackLabParameters: ['filter'],
 	getQueryContribution(config, _runtime, state) {
-		const lucene = state.low || state.high ? `${config.metadataFieldId}:[${state.low || '0'} TO ${state.high || '9999'}]` : null;
-		const summary = state.low || state.high ? `${state.low || '0'} - ${state.high || '9999'}` : null;
-		return createRawFilterQuery(config, lucene, summary);
-	},
-});
+		if (!state.low && !state.high) return createRawFilterQuery(config, null, null);
 
-export const filterRangeMultipleFieldsController = defineFieldController<'metadata-filter-range-multiple-fields', RangeFieldDefinition, MetadataFilterRangeMultipleFieldsControllerConfig>({
-	kind: 'metadata-filter-range-multiple-fields',
-	createDefaultState: createDefaultRangeFieldState,
-	persistence: { key: config => `${config.lowField}-${config.highField}`, codec: rangePersistenceCodec },
-	affectsBlackLabParameters: ['filter'],
-	getQueryContribution(config, _runtime, state) {
-		const lucene =
-			state.low || state.high
-				? (() => {
-						const lowPadded = state.low ? state.low.padStart(4, '0') : '0';
-						const highPadded = state.high ? state.high.padStart(4, '0') : '9999';
-						const op = (config.mode ?? state.mode) === 'permissive' ? 'OR' : 'AND';
-						return `(${config.lowField}:[${lowPadded} TO ${highPadded}] ${op} ${config.highField}:[${lowPadded} TO ${highPadded}])`;
-					})()
-				: null;
-		const summary = state.low || state.high ? `${state.low || '0'} - ${state.high || '9999'}` : null;
+		const lowPadded = state.low ? state.low.padStart(4, '0') : '0';
+		const highPadded = state.high ? state.high.padStart(4, '0') : '9999';
+		const summary = `${state.low || '0'} - ${state.high || '9999'}`;
+
+		if (isBiFieldConfig(config)) {
+			const op = (config.mode ?? state.mode) === 'permissive' ? 'OR' : 'AND';
+			const lucene = `(${config.fromField}:[${lowPadded} TO ${highPadded}] ${op} ${config.toField}:[${lowPadded} TO ${highPadded}])`;
+			return createRawFilterQuery(config, lucene, summary);
+		}
+
+		const lucene = `${config.metadataFieldId}:[${state.low || '0'} TO ${state.high || '9999'}]`;
 		return createRawFilterQuery(config, lucene, summary);
 	},
 });
@@ -251,15 +234,6 @@ export const filterSelectController = defineFieldController<'metadata-filter-sel
 		const selectedValues = state.filter(value => value.trim());
 		const summary = summarizeSelectField(config, selectedValues);
 
-		return queryFragment(
-			termFilter(config.metadataFieldId, selectedValues),
-			summary
-				? {
-						label: toValue(config.displayName),
-						value: summary,
-						group: config.groupId,
-					}
-				: null,
-		);
+		return queryFragment(termFilter(config.metadataFieldId, selectedValues), createSummaryEntry(config, summary));
 	},
 });

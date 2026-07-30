@@ -30,7 +30,7 @@ export type FieldDefinitionProps = {
 	showLabel?: boolean;
 };
 
-/** Common props as seen by a mounted field component. Lazy definition values are resolved. */
+/** Common props as seen by a mounted field component. Lazy definition values are resolved. Mapped from DefinitionProps + state + things computed based on form state. */
 export type FieldComponentProps<State> = {
 	id: string;
 	title?: string;

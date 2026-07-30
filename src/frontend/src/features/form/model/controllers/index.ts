@@ -7,7 +7,6 @@ export {
 	filterDateController,
 	filterRadioController,
 	filterRangeController,
-	filterRangeMultipleFieldsController,
 	filterSelectController,
 	filterTextController,
 } from './metadata-filter-controller';

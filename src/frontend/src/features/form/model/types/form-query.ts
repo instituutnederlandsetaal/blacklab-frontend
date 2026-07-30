@@ -152,19 +152,22 @@ export function isPartialQueryIR(artifact: any): artifact is Partial<QueryIR> {
 	);
 }
 
+/** Which of the output query parameters is affected by this controller */
+export type SummaryType = BlackLabParameter;
+
 /**
  * A human-readable summary for a field in the form.
  * The ID maps to the field that generated it.
  * The Label is the localized name of the field,
  * the value is the human-readable value of the field.
- * This might need some more fine-tuning because we'd be putting filters, span-filters, and other things in the same collection.
+ * This might need some more fine-tuning because we'd be putting document filters, within-attribute controls, and other things in the same collection.
  * That might make the summary UI confusing.
  */
 export type SummaryEntry = {
 	label: string;
 	value: string;
 	/** BlackLab parameters represented by this summary. Defaults to those affected by its controller. */
-	summaryType?: BlackLabParameter[];
+	summaryType?: SummaryType[];
 	group?: string;
 };
 
