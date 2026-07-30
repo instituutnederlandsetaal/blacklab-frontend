@@ -29,8 +29,7 @@ function getQueryContributionFromContainer(node: FormContainerLikeNode, formStat
 
 export function getFieldQueryContribution(node: FormFieldNode, context: FormRuntimeContext, state: unknown): QueryFragment {
 	const contribution = node.controller.getQueryContribution(node, context, state);
-	const affectedParameters = node.controller.affectsBlackLabParameters;
-	const summaryType = typeof affectedParameters === 'function' ? affectedParameters(node, context) : affectedParameters;
+	const summaryType = node.controller.affectsBlackLabParameters;
 
 	return {
 		...contribution,

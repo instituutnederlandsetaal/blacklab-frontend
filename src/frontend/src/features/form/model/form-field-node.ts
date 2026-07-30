@@ -56,7 +56,6 @@ export const createFormFieldNode: CreateFormFieldNode = (options, controller, co
 	} as any;
 };
 
-export function getFieldAffectedBlackLabParameters(field: FormFieldNode, context: FormRuntimeContext): BlackLabParameter[] {
-	const affected = field.controller.affectsBlackLabParameters;
-	return typeof affected === 'function' ? affected(field, context) : affected;
+export function getFieldAffectedBlackLabParameters(field: FormFieldNode, _context: FormRuntimeContext): BlackLabParameter[] {
+	return field.controller.affectsBlackLabParameters;
 }
