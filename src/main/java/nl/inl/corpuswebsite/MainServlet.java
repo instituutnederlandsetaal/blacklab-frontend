@@ -211,11 +211,25 @@ public class MainServlet extends HttpServlet {
 
         // Contact blacklab-server for the config xml file if we have a corpus
         Function<String, Result<CorpusConfig, Exception>> gen = c -> new BlackLabApi(request, response, this.config).getCorpusConfig(c);
-        synchronized (configCache) {
-            return Result
-                    .from(corpus)
-                    .flatMap(c -> useCache(request) ? configCache.computeIfAbsent(c, gen) : gen.apply(c))
-                    .orError(() -> new FileNotFoundException("No corpus specified"));
+        return Result
+                .from(corpus)
+                .flatMap(c -> useCache(request) ? getCachedResult(configCache, c, gen) : gen.apply(c))
+                .orError(() -> new FileNotFoundException("No corpus specified"));
+    }
+
+    /**
+     * Get a successful result from a cache. Authentication failures and other errors
+     * must be retried on a later request.
+     */
+    private static <T, E extends Exception> Result<T, E> getCachedResult(
+            Map<String, Result<T, E>> cache, String key, Function<String, Result<T, E>> gen) {
+        synchronized (cache) {
+            Result<T, E> cached = cache.get(key);
+            if (cached != null && cached.hasResult()) return cached;
+
+            Result<T, E> result = gen.apply(key);
+            if (result.hasResult()) cache.put(key, result);
+            return result;
         }
     }
 
@@ -299,14 +313,16 @@ public class MainServlet extends HttpServlet {
                 br.completeRequest();
             } catch (QueryException e) {
                 if (e.getHttpStatusCode() != HttpServletResponse.SC_OK) {
+                    response.setHeader("Cache-Control", "no-store");
                     response.sendError(e.getHttpStatusCode(), e.getMessage());
                 } else {
                     response.getWriter().write(e.getMessage());
                 }
             } catch (ReturnToClientException e) {
-                if (e.getCode() != HttpServletResponse.SC_OK)
+                if (e.getCode() != HttpServletResponse.SC_OK) {
+                    response.setHeader("Cache-Control", "no-store");
                     response.sendError(e.getCode(), e.getMessage());
-                else if (e.getMessage() != null)
+                } else if (e.getMessage() != null)
                     response.getWriter().write(e.getMessage());
             }
         } catch (Exception e) {
@@ -330,7 +346,7 @@ public class MainServlet extends HttpServlet {
         // need to use corpus name in the cache map
         // because corpora can define their own xsl files in their own data directory
         String key = corpus.getCorpusId() + "_" + corpusDataFormat.orElse("missing-format") + "_" + name;
-        return this.useCache(request) ? articleTransformers.computeIfAbsent(key, gen) : gen.apply(key);
+        return this.useCache(request) ? getCachedResult(articleTransformers, key, gen) : gen.apply(key);
     }
 
     public Optional<File> getProjectFile(Optional<String> corpus, String file) {
