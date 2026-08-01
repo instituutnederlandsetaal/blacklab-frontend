@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig } from 'axios';
+import type { AxiosRequestConfig, AxiosResponse } from 'axios';
 import { probeLocalStorageSynced } from '@/utils/localstore';
 import { debugLog } from './debug';
 
@@ -74,39 +74,9 @@ function computeFallbackEtag(data: unknown): string {
 }
 
 /**
- * Check if the user is currently authenticated.
- * When authenticated, we should NOT use localStorage caching to prevent
- * leaking private data to other users or sessions.
- */
-function isAuthenticated(): boolean {
-	// Check for OIDC token in sessionStorage (used by oidc-client-ts)
-	// The key format is oidc.user:<authority>:<client_id>
-	for (let i = 0; i < sessionStorage.length; i++) {
-		const key = sessionStorage.key(i);
-		if (key?.startsWith('oidc.user:')) {
-			try {
-				const data = JSON.parse(sessionStorage.getItem(key) || '{}');
-				if (data.access_token) {
-					return true;
-				}
-			} catch { /* ignore parse errors */ }
-		}
-	}
-	return false;
-}
-
-interface CachedRequestOptions {
-	baseURL: string;
-	url: string;
-	withCredentials?: boolean;
-	config?: AxiosRequestConfig;
-}
-
-/**
  * Make a cached request with ETag validation.
  * 
- * IMPORTANT: localStorage caching is ONLY used for unauthenticated (public) requests.
- * For authenticated requests, we skip localStorage entirely to prevent data leakage.
+ * localStorage caching must be explicitly enabled for public requests only.
  * The browser's native HTTP cache (controlled by Cache-Control headers) still applies.
  * 
  * Flow for PUBLIC requests:
@@ -123,13 +93,19 @@ interface CachedRequestOptions {
  * 2. Browser's HTTP cache handles caching (with Cache-Control: private from server)
  * 
  * @param key - Unique cache key for localStorage
- * @param options - Request configuration
+ * @param request - Receives cache-specific Axios configuration and performs the request
+ * @param useLocalStorageCache - Enable only for explicitly public responses
  * @returns Promise resolving to cached or fetched data
  */
-export function cachedRequest<T>(key: string, options: CachedRequestOptions): Promise<T> {
-	// Don't use localStorage caching for authenticated requests
-	// This prevents leaking private data to other users
-	const useLocalStorageCache = !isAuthenticated();
+export function cachedRequest<T>(
+	key: string,
+	request: (config: AxiosRequestConfig) => Promise<AxiosResponse<T>>,
+	useLocalStorageCache = false
+): Promise<T> {
+	if (!useLocalStorageCache) {
+		// Remove a public entry that may have been created before this request became authenticated.
+		cacheStore.clear(key);
+	}
 	
 	const { value: cached, isFromStorage } = useLocalStorageCache 
 		? cacheStore.get<T>(key)
@@ -142,15 +118,13 @@ export function cachedRequest<T>(key: string, options: CachedRequestOptions): Pr
 	}
 	
 	// Build request config
-	const config: AxiosRequestConfig = {
-		...options.config,
-		withCredentials: options.withCredentials,
+	const cacheConfig: AxiosRequestConfig = {
 		validateStatus: status => (status >= 200 && status < 300) || status === 304,
-		headers: cachedEtag ? { ...options.config?.headers, 'If-None-Match': cachedEtag } : options.config?.headers,
+		headers: cachedEtag ? { 'If-None-Match': cachedEtag } : undefined,
 	};
 	
 	// Fire off the request
-	const requestPromise = axios.get<T>(options.baseURL + options.url, config)
+	const requestPromise = request(cacheConfig)
 		.then(response => {
 			if (response.status === 304) {
 				// Cache is still valid
@@ -163,8 +137,15 @@ export function cachedRequest<T>(key: string, options: CachedRequestOptions): Pr
 			const serverEtag = response.headers['etag'];
 			const newEtag = serverEtag || computeFallbackEtag(response.data);
 			
-			// Only store in localStorage for public requests
+			// Never persist a response the server marked private or no-store.
 			if (useLocalStorageCache) {
+				const cacheControl = (response.headers['cache-control'] || '').toLowerCase();
+				if (/\b(no-store|private)\b/.test(cacheControl)) {
+					cacheStore.clear(key);
+					validationQueue.complete(key, isFromStorage && cached !== null);
+					return response.data;
+				}
+
 				cacheStore.set(key, response.data, newEtag);
 				
 				// Check if data actually changed (for servers without ETag support)
@@ -177,8 +158,14 @@ export function cachedRequest<T>(key: string, options: CachedRequestOptions): Pr
 			return response.data;
 		})
 		.catch(error => {
-			// On error, complete without staleness flag
-			if (useLocalStorageCache) validationQueue.complete(key, false);
+			const status = error?.response?.status;
+			if (useLocalStorageCache) {
+				// Never keep serving a cached value after an authentication failure.
+				if (status === 401 || status === 403) cacheStore.clear(key);
+				validationQueue.complete(key, false);
+			}
+
+			if (status === 401 || status === 403) throw error;
 			
 			// If we have cached data, use it as fallback
 			if (isFromStorage && cached !== null) return cached;
@@ -196,31 +183,3 @@ export function cachedRequest<T>(key: string, options: CachedRequestOptions): Pr
 	// No cache - must wait for the request
 	return requestPromise;
 }
-
-/**
- * Create a cached endpoint wrapper.
- * Returns a function that makes cached requests to the specified endpoint.
- * 
- * @example
- * ```ts
- * const getCorpusInfo = cachedEndpoint<CorpusInfo>('corpus-info', {
- *   baseURL: '/api/',
- *   url: 'corpus/info'
- * });
- * 
- * // First call: returns cached data immediately (if any), validates in background
- * const info = await getCorpusInfo();
- * ```
- */
-export const cachedEndpoint = <T>(
-	keyPrefix: string,
-	options: CachedRequestOptions
-) => (keySuffix?: string) => cachedRequest<T>(
-	keySuffix ? `${keyPrefix}-${keySuffix}` : keyPrefix,
-	options
-);
-
-/**
- * Manually clear a cache entry.
- */
-export const clearCache = (key: string) => cacheStore.clear(key);

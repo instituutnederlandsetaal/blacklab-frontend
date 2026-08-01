@@ -17,6 +17,19 @@ const RELATIONS_LIMITVALUES = 1000;
 
 type API = ReturnType<typeof createEndpoint>;
 
+/** Let the endpoint own its request configuration; the cache adds only cache-specific options. */
+function endpointRequest<T>(endpoint: API, url: string, overrides: AxiosRequestConfig = {}) {
+	return (cacheConfig: AxiosRequestConfig) => endpoint.request<T>({
+		...overrides,
+		...cacheConfig,
+		url,
+		headers: {
+			...(overrides.headers || {}),
+			...(cacheConfig.headers || {})
+		}
+	});
+}
+
 const endpoints = {
 
 	// Communicates with the BlackLab Server instance
@@ -150,22 +163,13 @@ export const blacklab = {
 		.get<BLTypes.BLIndex>(blacklabPaths.indexStatus(id), undefined, requestParamers)
 		.then(r => normalizeIndexBase(r, id)),
 
-	/**
-	 * Get corpus metadata and relations with automatic caching.
-	 * Uses ETag-based validation (with fallback hash for BlackLab which doesn't send ETags).
-	 * Returns cached data immediately if available, validates in background.
-	 */
-	getCorpus: (id: string, _requestParameters?: AxiosRequestConfig) => {
-		const baseURL = endpoints.blacklab.defaults.baseURL as string;
-		const withCredentials = endpoints.blacklab.defaults.withCredentials;
-
+	getCorpus: (id: string, requestParameters?: AxiosRequestConfig) => {
 		return Promise.all([
-			cachedRequest<BLTypes.BLIndexMetadata>(`blacklab-index-${id}`, {
-				baseURL,
-				url: blacklabPaths.index(id),
-				withCredentials
-			}),
-			blacklab.getRelations(id)
+			cachedRequest(
+				`blacklab-index-${id}`,
+				endpointRequest<BLTypes.BLIndexMetadata>(endpoints.blacklab, blacklabPaths.index(id), requestParameters)
+			),
+			blacklab.getRelations(id, requestParameters)
 		]).then(([index, relations]) => normalizeIndex(index, relations));
 	},
 
@@ -262,11 +266,10 @@ export const blacklab = {
 	getDocumentInfo: (indexId: string, documentId: string, params: { query?: string; } = {}, requestParameters?: AxiosRequestConfig) => endpoints.blacklab
 		.getOrPost<BLTypes.BLDocument>(blacklabPaths.docInfo(indexId, documentId), params, requestParameters),
 
-	getRelations: (indexId: string) => cachedRequest<BLTypes.BLRelationInfo>(`blacklab-relations-${indexId}`, {
-		baseURL: endpoints.blacklab.defaults.baseURL as string,
-		url: blacklabPaths.relations(indexId) + `?limitvalues=${RELATIONS_LIMITVALUES}&api=4`,
-		withCredentials: endpoints.blacklab.defaults.withCredentials
-	}),
+	getRelations: (indexId: string, requestParameters?: AxiosRequestConfig) => cachedRequest(
+		`blacklab-relations-${indexId}`,
+		endpointRequest<BLTypes.BLRelationInfo>(endpoints.blacklab, blacklabPaths.relations(indexId) + `?limitvalues=${RELATIONS_LIMITVALUES}`, requestParameters)
+	),
 
 	getParsePattern: (indexId: string, pattern: string, requestParameters?: AxiosRequestConfig) => {
 		let request: Promise<{ parsed: { bcql: string, json: any } }>;
@@ -427,16 +430,10 @@ export const blacklab = {
  * API for blacklab-frontend's own webservice
  */
 export const frontend = {
-	/**
-	 * Get corpus info with automatic ETag-based caching.
-	 * Returns cached data immediately if available, validates in background.
-	 * If cache was stale, page will refresh after all validations complete.
-	 */
-	getCorpus: () => cachedRequest<BLTypes.BLIndexMetadata>(`corpus-info-${INDEX_ID}`, {
-		baseURL: endpoints.cf.defaults.baseURL as string,
-		url: frontendPaths.indexInfo(),
-		withCredentials: endpoints.cf.defaults.withCredentials
-	}),
+	getCorpus: () => cachedRequest(
+		`corpus-info-${INDEX_ID}`,
+		endpointRequest<BLTypes.BLIndexMetadata>(endpoints.cf, frontendPaths.indexInfo())
+	),
 
 	getDocumentContents: (pid: string, params: {
 		patt?: string,

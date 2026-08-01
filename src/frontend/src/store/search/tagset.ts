@@ -70,14 +70,15 @@ const init = async () => {
 	// load the tagset.
 
 	internalActions.state({state: 'loading', message: 'Loading tagset...'});
-	return cachedRequest<Tagset>(`tagset-${state.url}`, {
-		baseURL: '',
-		url: state.url,
-		config: {
+	return cachedRequest(
+		`tagset-${state.url}`,
+		cacheConfig => Axios.request<Tagset>({
+			url: state.url!,
+			...cacheConfig,
 			// Remove comment-lines in the returned json. (that's not strictly allowed by JSON, but we chose to support it)
 			transformResponse: [(r: string) => r.replace(/\/\/.*[\r\n]+/g, '')].concat(Axios.defaults.transformResponse!)
-		}
-	})
+		})
+	)
 	.then(tagset => {
 		const annots = CorpusStore.get.allAnnotationsMap();
 		const mainAnnot = Object.values(annots).flat().find(a => a.uiType === 'pos');
