@@ -1,3 +1,4 @@
+
 import {
 	createDefaultTokenSequenceToken,
 	createTokenSequenceFieldNode,
@@ -9,9 +10,10 @@ import {
 	type TokenSequenceTokenState,
 } from '@/features/form/fields/token-sequence-field';
 import { getFieldQueryContribution } from '@/features/form/model/compile';
-import { anyToken, combineQueries, queryFragment, queryIR, tokenSequence } from '@/features/form/model/compile/query-artifact';
+import { combineQueries } from '@/features/form/model/compile/query-artifact';
 import { array, object, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
+import { anyToken, queryFragment, sequence, summary } from '@/features/form/model/types/form-query-ir';
 
 function createDefaultState(config: FieldControllerProps<TokenSequenceFieldConfig>, runtime: FormRuntimeContext): TokenSequenceFieldState {
 	const bounds = tokenSequenceLengthBounds(config);
@@ -72,22 +74,11 @@ export const tokenSequenceController = defineFieldController<'token-sequence', T
 			const field = createTokenSequenceFieldNode(config, index, token.fieldId);
 			return getFieldQueryContribution(field, runtime, token.fieldState);
 		});
-		const combined = combineQueries(
-			contributions.map(contribution => contribution.query),
-			'and',
-		);
+		const combined = combineQueries(contributions, 'and');
 		return queryFragment({
-			query: queryIR({
-				...combined,
-				pattern: tokenSequence(contributions.map(contribution => contribution.query.pattern ?? anyToken())),
-			}),
-			summaries: [
-				{
-					label: config.lengthDisplayName,
-					value: String(state.length),
-				},
-				...contributions.flatMap(contribution => contribution.summaries),
-			],
+			...combined,
+			pattern: sequence(contributions.map(contribution => contribution.pattern ?? anyToken())),
+			summaries: [summary(config.lengthDisplayName, state.length.toLocaleString(), this.affectsBlackLabParameters, config.groupId), ...contributions.flatMap(contribution => contribution.summaries)],
 		});
 	},
 });

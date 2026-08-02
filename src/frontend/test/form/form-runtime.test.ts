@@ -27,10 +27,10 @@ describe('form runtime', () => {
 		runtime.state.state.value[field.id] = { value: 'fire' };
 
 		expect(submitted.formId).toBe(form.id);
-		expect(submitted.patt).toBe('[word="(?i)water"]');
+		expect(submitted.patt).toBe('[word="water"]');
 		expect(submitted.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
-		expect(runtime.compile(form.id).patt).toBe('[word="(?i)fire"]');
-		expect(submitted.patt).toBe('[word="(?i)water"]');
+		expect(runtime.compile(form.id).patt).toBe('[word="fire"]');
+		expect(submitted.patt).toBe('[word="water"]');
 	});
 
 	test('replaceState atomically replaces runtime state with an isolated clone', () => {
@@ -49,7 +49,7 @@ describe('form runtime', () => {
 		replacement.state[field.id] = { value: 'changed later' };
 
 		expect(runtime.state.state.value[field.id]).toEqual({ value: 'water' });
-		expect(runtime.compile(form.id).patt).toBe('[word="(?i)water"]');
+		expect(runtime.compile(form.id).patt).toBe('[word="water"]');
 	});
 
 	test('switching form tabs updates container ui state', async () => {

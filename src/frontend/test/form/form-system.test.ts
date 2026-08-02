@@ -5,7 +5,7 @@ import { describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick, shallowRef } from 'vue';
 
 import { annotationTextController, defineFieldController, filterTextController, FormSystem, object, scalar, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
-import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
+import { annotation, queryFragment } from '@/features/form/model/types/form-query-ir';
 import { tabId } from '@/features/form/ui/tab-utils';
 
 import { TestTextField, createTestBuilder, createTestRuntime, parentFormProbeView, testTextController, type TestTextFieldDefinition } from './helpers';
@@ -25,7 +25,7 @@ const queryOnlyTextController = defineFieldController<'query-only-text', TestTex
 	persistence: { key: config => config.annotationId, codec: object({ value: scalar().default('').atRoot() }).default({ value: '' }) },
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state) {
-		return queryFragment(token(tokenPredicate('wildcard', config.annotationId, state.value, false)));
+		return queryFragment(annotation(config.annotationId, 'wildcard', state.value));
 	},
 });
 
@@ -187,7 +187,7 @@ describe('form system integration', () => {
 		await wrapper.get('input[aria-label="Word"]').setValue('water');
 		await nextTick();
 
-		expect(wrapper.get('[data-testid="parent-form-probe"] .cql').text()).toBe('[word="(?i)water"]');
+		expect(wrapper.get('[data-testid="parent-form-probe"] .cql').text()).toBe('[word="water"]');
 		expect(wrapper.get('[data-testid="parent-form-probe"] .summaries').text()).toBe('Word:water');
 		expect(wrapper.get('[data-testid="parent-form-probe"] .state').text()).toContain('water');
 	});
@@ -206,12 +206,12 @@ describe('form system integration', () => {
 		const [snapshot] = emitted![0];
 
 		expect(snapshot.formId).toBe('search.simple');
-		expect(snapshot.patt).toBe('[word="(?i)water"]');
+		expect(snapshot.patt).toBe('[word="water"]');
 		expect(snapshot.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
 
 		await wrapper.get('input[aria-label="Word"]').setValue('fire');
 
-		expect(snapshot.patt).toBe('[word="(?i)water"]');
+		expect(snapshot.patt).toBe('[word="water"]');
 		expect(snapshot.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
 	});
 
@@ -231,7 +231,7 @@ describe('form system integration', () => {
 		const [snapshot] = emitted![0];
 
 		expect(snapshot.formId).toBe('search.simple');
-		expect(snapshot.patt).toBe('[word="(?i)water"]');
+		expect(snapshot.patt).toBe('[word="water"]');
 		expect(snapshot.encoded).toEqual({
 			'f.form': 'search.simple',
 			'f.word': 'water',

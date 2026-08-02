@@ -175,6 +175,12 @@ const regexEscapeCases: Array<{
 	expected: string;
 }> = [
 	{
+		name: 'escapes regular-expression and Lucene automaton operators',
+		value: String.raw`a.^$#@&~<>+(){}[]`,
+		settings: {},
+		expected: String.raw`a\.\^\$\#\@\&\~\<\>\+\(\)\{\}\[\]`,
+	},
+	{
 		name: 'quotes: escapes raw value when escaping is enabled',
 		value: '"raw quotes"',
 		settings: { escapeQuotes: true },

@@ -1,15 +1,14 @@
 import { toValue } from 'vue';
 
 import { createDefaultRangeFieldState, type RangeFieldDefinition, type RangeFieldState } from '@/features/form/fields/generic/range-field';
-import { createDefaultSelectFieldState, type SelectFieldConfig, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
+import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
-import { predicateValue, queryFragment } from '@/features/form/model/compile/query-artifact';
 import { array, bool, object, scalar } from '@/features/form/model/controllers/persistence-codec';
-import type { NamedFieldDefinitionProps } from '@/features/form/model/field-component-props';
 import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
-import type { QueryValue, SummaryEntry } from '@/features/form/model/types/form-query-ir';
+import { queryFragment, summary, within, withinAttribute, withinAttributeRange } from '@/features/form/model/types/form-query-ir';
 
-import { findOption, optionLabel } from '@/shared/utils/options';
+import { findOption } from '@/shared/utils/options';
+import { tokenizedStringValues } from '@/shared/utils/string-utils';
 
 /** Configuration shared by controls that constrain an attribute of a CQL within clause. */
 export type WithinAttributeControllerConfig = {
@@ -20,38 +19,6 @@ export type WithinAttributeControllerConfig = {
 export type WithinAttributeTextConfig = FieldControllerConfig<TextFieldDefinition, WithinAttributeControllerConfig>;
 export type WithinAttributeSelectConfig = FieldControllerConfig<SelectFieldDefinition, WithinAttributeControllerConfig>;
 export type WithinAttributeRangeConfig = FieldControllerConfig<RangeFieldDefinition, WithinAttributeControllerConfig>;
-
-function createSummaryEntry(config: NamedFieldDefinitionProps, value: string | null): SummaryEntry | null {
-	return value
-		? {
-				label: toValue(config.displayName),
-				value,
-				group: config.groupId,
-				// Span constraints are part of patt, but are shown alongside document filters.
-				summaryType: ['filter'],
-			}
-		: null;
-}
-
-function createWithinAttributeQuery(config: WithinAttributeControllerConfig & NamedFieldDefinitionProps, value: QueryValue | null, summary: string | null) {
-	return queryFragment(
-		value === null
-			? null
-			: {
-					wrappers: [{ type: 'within', element: config.elementName, attributes: { [config.attributeName]: value } }],
-					resultPreset: { withSpans: true },
-				},
-		createSummaryEntry(config, summary),
-	);
-}
-
-function summarizeValues(values: string[]): string | null {
-	return values.length >= 2 ? values.map(value => `"${value}"`).join(', ') : values[0] || null;
-}
-
-function summarizeSelectField(config: SelectFieldConfig, values: string[]): string | null {
-	return summarizeValues(values.map(value => optionLabel(findOption(config.options, value) ?? value)));
-}
 
 const textPersistenceCodec = object({
 	value: scalar().default('').atRoot(),
@@ -85,9 +52,13 @@ export const withinAttributeTextController = defineFieldController<'within-attri
 	persistence: { key: withinAttributePersistKey, codec: textPersistenceCodec },
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state: TextFieldState) {
-		const value = state.value.trim();
-		// Attribute text controls use wildcard semantics, like their select counterparts.
-		return createWithinAttributeQuery(config, value ? { type: 'values', values: [predicateValue('wildcard', value)] } : null, value || null);
+		const value = tokenizedStringValues(state.value, true);
+		if (!value.length) return null;
+		return queryFragment({
+			wrappers: within(config.elementName, withinAttribute(config.attributeName, 'wildcard', value)),
+			resultPreset: { withSpans: true },
+			summaries: summary(toValue(config.displayName), value, ['filter'], config.groupId),
+		});
 	},
 });
 
@@ -97,8 +68,13 @@ export const withinAttributeSelectController = defineFieldController<'within-att
 	persistence: { key: withinAttributePersistKey, codec: selectionPersistenceCodec },
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state) {
-		const values = state.filter(value => value.trim());
-		return createWithinAttributeQuery(config, values.length ? { type: 'values', values: values.map(value => predicateValue('wildcard', value)) } : null, summarizeSelectField(config, values));
+		const value = state.filter(value => value.trim());
+		if (!value.length) return null;
+		return queryFragment({
+			wrappers: within(config.elementName, withinAttribute(config.attributeName, 'literal', value)),
+			resultPreset: { withSpans: true },
+			summaries: summary(toValue(config.displayName), value, ['filter'], config.groupId, config.options),
+		});
 	},
 });
 
@@ -108,11 +84,11 @@ export const withinAttributeRangeController = defineFieldController<'within-attr
 	persistence: { key: withinAttributePersistKey, codec: rangePersistenceCodec },
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state: RangeFieldState) {
-		const active = state.low || state.high;
-		return createWithinAttributeQuery(
-			config,
-			active ? { type: 'range', low: state.low || undefined, high: state.high || undefined } : null,
-			active ? `${state.low || '0'}-${state.high || '9999'}` : null,
-		);
+		if (!state.low && !state.high) return null;
+		return queryFragment({
+			wrappers: within(config.elementName, withinAttributeRange(config.attributeName, state)),
+			resultPreset: { withSpans: true },
+			summaries: summary(toValue(config.displayName), state, ['filter'], config.groupId),
+		});
 	},
 });

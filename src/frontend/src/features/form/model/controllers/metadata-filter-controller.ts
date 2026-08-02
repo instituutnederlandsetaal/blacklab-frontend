@@ -4,15 +4,13 @@ import { createDefaultCheckboxFieldState, type CheckboxFieldDefinition } from '@
 import { createDefaultDateFieldState, DateUtils, type DateFieldDefinition, type DateFieldState } from '@/features/form/fields/generic/date-field';
 import { createDefaultRadioFieldState, type RadioFieldDefinition } from '@/features/form/fields/generic/radio-field';
 import { createDefaultRangeFieldState, type RangeFieldDefinition } from '@/features/form/fields/generic/range-field';
-import { createDefaultSelectFieldState, type SelectFieldConfig, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
-import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
-import { predicateValue, queryFragment, rangeFilter, termFilter, valueFilter } from '@/features/form/model/compile/query-artifact';
+import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
+import { createDefaultTextFieldState, type TextFieldDefinition } from '@/features/form/fields/generic/text-field';
 import { array, bool, object, scalar, stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
-import type { NamedFieldDefinitionProps } from '@/features/form/model/field-component-props';
-import { booleanExpr, type QueryFilterNode, type SummaryEntry } from '@/features/form/model/types';
+import { booleanNode, filter, filterRange, queryFragment, summary, type LuceneNode } from '@/features/form/model/types';
 import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 
-import { findOption, optionLabel } from '@/shared/utils/options';
+import { findOption } from '@/shared/utils/options';
 import { tokenizeString } from '@/shared/utils/string-utils';
 
 export type MetadataFilterControllerConfig = {
@@ -40,41 +38,6 @@ export type MetadataFilterConfig =
 	| MetadataFilterDateConfig
 	| MetadataFilterRangeConfig
 	| MetadataFilterSelectConfig;
-
-function createSummaryEntry(config: NamedFieldDefinitionProps, value: string | null): SummaryEntry | null {
-	return value
-		? {
-				label: toValue(config.displayName),
-				value,
-				group: config.groupId,
-			}
-		: null;
-}
-
-function createFilterQuery(config: NamedFieldDefinitionProps, filter: QueryFilterNode | null, summary: string | null) {
-	return queryFragment(filter, createSummaryEntry(config, summary));
-}
-
-function summarizeValues(values: string[]): string | null {
-	return values.length >= 2 ? values.map(value => `"${value}"`).join(', ') : values[0] || null;
-}
-
-function summarizeSelectField(config: SelectFieldConfig, values: string[]): string | null {
-	return summarizeValues(values.map(value => optionLabel(findOption(config.options, value) ?? value)));
-}
-
-function buildTextFilter(metadataFieldId: string, state: TextFieldState | null): QueryFilterNode | null {
-	if (!state?.value.trim()) return null;
-	return valueFilter(
-		metadataFieldId,
-		tokenizeString(state.value, true).map(term => predicateValue(term.isQuoted ? 'literal' : 'wildcard', term.value)),
-	);
-}
-
-function summarizeTextField(state: TextFieldState | null): string | null {
-	const split = state?.value ? tokenizeString(state.value, true) : [];
-	return split.map(term => (term.isQuoted || split.length > 1 ? `"${term.value}"` : term.value)).join(', ') || null;
-}
 
 function metadataPersistKey(config: MetadataFilterControllerConfig | BiMetadataFilterControllerConfig) {
 	return isBiFieldConfig(config) ? `${config.fromField}-${config.toField}` : config.metadataFieldId;
@@ -145,7 +108,19 @@ export const filterTextController = defineFieldController<'metadata-filter-text'
 	persistence: { key: metadataPersistKey, codec: textPersistenceCodec },
 	affectsBlackLabParameters: ['filter'],
 	getQueryContribution(config, _runtime, state) {
-		return createFilterQuery(config, buildTextFilter(config.metadataFieldId, state), summarizeTextField(state));
+		const terms = tokenizeString(state.value, true);
+		return queryFragment<LuceneNode>(
+			booleanNode(
+				'or',
+				terms.map(term => filter(config.metadataFieldId, term.isQuoted ? 'literal' : 'wildcard', term.value)!),
+			),
+			summary(
+				toValue(config.displayName),
+				terms.map(term => term.value),
+				this.affectsBlackLabParameters,
+				config.groupId,
+			),
+		);
 	},
 });
 
@@ -155,8 +130,7 @@ export const filterCheckboxController = defineFieldController<'metadata-filter-c
 	persistence: { key: metadataPersistKey, codec: selectionPersistenceCodec },
 	affectsBlackLabParameters: ['filter'],
 	getQueryContribution(config, _runtime, state) {
-		const summary = summarizeValues(state.map(value => optionLabel(findOption(config.options, value) ?? value)));
-		return createFilterQuery(config, termFilter(config.metadataFieldId, state), summary);
+		return queryFragment<LuceneNode>(filter(config.metadataFieldId, 'literal', state), summary(toValue(config.displayName), state, this.affectsBlackLabParameters, config.groupId, config.options));
 	},
 });
 
@@ -168,17 +142,32 @@ export const filterDateController = defineFieldController<'metadata-filter-date'
 	getQueryContribution(config, _runtime, state) {
 		const enteredStart = DateUtils.dateValueToString(state.startDate, 'start');
 		const enteredEnd = DateUtils.dateValueToString(config.range ? state.endDate : state.startDate, 'end');
-		if (!enteredStart && !enteredEnd) return createFilterQuery(config, null, null);
+		if (!enteredStart && !enteredEnd) return null;
 
 		const start = enteredStart || DateUtils.dateValueToString({ d: '1', m: '1', y: '0' }, 'start');
 		const end = enteredEnd || DateUtils.dateValueToString({ d: '31', m: '12', y: '9999' }, 'end');
-		const createDateFilter = (field: string) => (start === end ? termFilter(field, [start])! : rangeFilter(field, start, end)!);
-		const filter = isBiFieldConfig(config)
-			? booleanExpr((config.mode ?? state.mode) === 'permissive' ? 'or' : 'and', createDateFilter(config.fromField), createDateFilter(config.toField))
-			: createDateFilter(config.metadataFieldId);
-		const summary =
+		const filterNode = isBiFieldConfig(config)
+			? booleanNode(
+					(config.mode ?? state.mode) === 'permissive' ? 'or' : 'and',
+					(start === end ? filter(config.fromField, 'literal', start) : filterRange(config.fromField, start, end))!,
+					(start === end ? filter(config.toField, 'literal', start) : filterRange(config.toField, start, end))!,
+				)
+			: start === end
+				? filter(config.metadataFieldId, 'literal', start)
+				: filterRange(config.metadataFieldId, start, end);
+		const summaryValue =
 			[enteredStart && DateUtils.dateValueToDisplayString(state.startDate), config.range && enteredEnd && DateUtils.dateValueToDisplayString(state.endDate)].filter(Boolean).join(' - ') || null;
-		return createFilterQuery(config, filter, summary);
+		return queryFragment<LuceneNode>(
+			filterNode,
+			summaryValue
+				? {
+						label: toValue(config.displayName),
+						value: summaryValue,
+						summaryType: this.affectsBlackLabParameters,
+						group: config.groupId,
+					}
+				: null,
+		);
 	},
 });
 
@@ -188,8 +177,8 @@ export const filterRadioController = defineFieldController<'metadata-filter-radi
 	persistence: { key: metadataPersistKey, codec: radioPersistenceCodec },
 	affectsBlackLabParameters: ['filter'],
 	getQueryContribution(config, _runtime, state) {
-		const summary = state ? optionLabel(findOption(config.options, state) ?? state) : null;
-		return createFilterQuery(config, termFilter(config.metadataFieldId, state ? [state] : []), summary);
+		if (!state) return null;
+		return queryFragment<LuceneNode>(filter(config.metadataFieldId, 'literal', state), summary(toValue(config.displayName), state, this.affectsBlackLabParameters, config.groupId, config.options));
 	},
 });
 
@@ -199,22 +188,32 @@ export const filterRangeController = defineFieldController<'metadata-filter-rang
 	persistence: { key: metadataPersistKey, codec: rangePersistenceCodec },
 	affectsBlackLabParameters: ['filter'],
 	getQueryContribution(config, _runtime, state) {
-		if (!state.low && !state.high) return createFilterQuery(config, null, null);
+		if (!state.low && !state.high) return null;
 
 		const lowPadded = state.low ? state.low.padStart(4, '0') : '0';
 		const highPadded = state.high ? state.high.padStart(4, '0') : '9999';
-		const summary = `${state.low || '0'} - ${state.high || '9999'}`;
+		const summaryValue = `${state.low || '0'} - ${state.high || '9999'}`;
 
 		if (isBiFieldConfig(config)) {
-			const filter = booleanExpr(
+			const filterNode = booleanNode(
 				(config.mode ?? state.mode) === 'permissive' ? 'or' : 'and',
-				rangeFilter(config.fromField, lowPadded, highPadded)!,
-				rangeFilter(config.toField, lowPadded, highPadded)!,
+				filterRange(config.fromField, lowPadded, highPadded)!,
+				filterRange(config.toField, lowPadded, highPadded)!,
 			);
-			return createFilterQuery(config, filter, summary);
+			return queryFragment<LuceneNode>(filterNode, {
+				label: toValue(config.displayName),
+				value: summaryValue,
+				summaryType: this.affectsBlackLabParameters,
+				group: config.groupId,
+			});
 		}
 
-		return createFilterQuery(config, rangeFilter(config.metadataFieldId, state.low || '0', state.high || '9999'), summary);
+		return queryFragment<LuceneNode>(filterRange(config.metadataFieldId, state.low || '0', state.high || '9999'), {
+			label: toValue(config.displayName),
+			value: summaryValue,
+			summaryType: this.affectsBlackLabParameters,
+			group: config.groupId,
+		});
 	},
 });
 
@@ -224,9 +223,8 @@ export const filterSelectController = defineFieldController<'metadata-filter-sel
 	persistence: { key: metadataPersistKey, codec: selectionPersistenceCodec },
 	affectsBlackLabParameters: ['filter'],
 	getQueryContribution(config, _runtime, state) {
-		const selectedValues = state.filter(value => value.trim());
-		const summary = summarizeSelectField(config, selectedValues);
-
-		return queryFragment(termFilter(config.metadataFieldId, selectedValues), createSummaryEntry(config, summary));
+		const values = state.filter(value => value.trim());
+		if (!values.length) return null;
+		return queryFragment<LuceneNode>(filter(config.metadataFieldId, 'literal', values), summary(toValue(config.displayName), values, this.affectsBlackLabParameters, config.groupId, config.options));
 	},
 });

@@ -36,7 +36,7 @@
 						:key="value.value"
 						:class="{
 							'list-group-item': true,
-							active: draftState.annotationValue === value.value,
+							active: draftState[annotation.id]?.[0] === value.value,
 						}"
 						@click="toggleAnnotationValue(value.value)"
 						:disabled
@@ -52,11 +52,7 @@
 						</li>
 						<li class="list-group-item category-value" v-for="subValue in visibleSubAnnotationValues(subId)" :key="subValue.value">
 							<label>
-								<input
-									type="checkbox"
-									:checked="isDraftSelectionChecked(currentAnnotationValue.value, subId, subValue.value)"
-									@change="handleSelectionChange(currentAnnotationValue.value, subId, subValue.value, $event)"
-								/>
+								<input type="checkbox" :checked="isDraftSelectionChecked(subId, subValue.value)" @change="handleSelectionChange(subId, subValue.value, $event)" />
 								{{ subValue.displayName }}
 							</label>
 						</li>
@@ -64,12 +60,10 @@
 					<em v-if="currentAnnotationValue.subAnnotationIds.length === 0">{{ $t('partOfSpeech.noOptions') }}</em>
 				</div>
 			</div>
-
-			<template v-if="queryPreview">
+			<template v-if="selectionSummary">
 				<hr />
-				<div>{{ queryPreview }}</div>
+				<div>{{ selectionSummary }}</div>
 			</template>
-
 			<template #footer>
 				<button type="button" class="btn btn-default" @click="resetDraft">
 					{{ $t('partOfSpeech.reset') }}
@@ -85,9 +79,7 @@ import { computed, ref, watch } from 'vue';
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
 
 import {
-	buildAnnotationPosQueryPreview,
 	cloneAnnotationPosFieldState,
-	createAnnotationPosSelectionKey,
 	createDefaultAnnotationPosFieldState,
 	findTagsetValue,
 	getVisibleSubAnnotationValues,
@@ -100,8 +92,6 @@ import { useI18n } from '@/shared/i18n';
 
 import Modal from '@/shared/ui/Modal.vue';
 
-// Vue's type-to-runtime conversion otherwise follows `annotationValue` and
-// generates a String validator for this structured field state.
 type AnnotationPosFieldProps = Omit<AnnotationPosFieldComponentProps, 'modelValue'> & {
 	modelValue: AnnotationPosFieldState;
 };
@@ -132,11 +122,10 @@ watch(
 const field = useFieldPresentation(props);
 const buttonId = computed(() => `${props.htmlId}_editor`);
 const mainValues = computed(() => Object.values(props.tagset.values));
-const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value.annotationValue));
+const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value[props.annotation.id]?.[0]));
 const modalSize = computed(() => props.modalSize ?? 'lg');
-const queryPreview = computed(() => (props.showQueryPreview === false ? '' : buildAnnotationPosQueryPreview(props, draftState.value)));
-const selectionSummary = computed(() => summarizeAnnotationPosState(props, props.modelValue, i18n));
-const hasSelection = computed(() => !!props.modelValue.annotationValue);
+const selectionSummary = computed(() => summarizeAnnotationPosState(props, draftState.value, i18n));
+const hasSelection = computed(() => !!props.modelValue[props.annotation.id]?.[0]);
 
 function openEditor() {
 	draftState.value = cloneAnnotationPosFieldState(props.modelValue);
@@ -165,11 +154,11 @@ function resetDraft() {
 }
 
 function toggleAnnotationValue(value: string) {
-	draftState.value.annotationValue = draftState.value.annotationValue === value ? null : value;
+	draftState.value = draftState.value[props.annotation.id]?.[0] === value ? {} : { [props.annotation.id]: [value] };
 }
 
 function visibleSubAnnotationValues(subAnnotationId: string) {
-	return getVisibleSubAnnotationValues(props.tagset, draftState.value.annotationValue, subAnnotationId);
+	return getVisibleSubAnnotationValues(props.tagset, draftState.value[props.annotation.id]?.[0], subAnnotationId);
 }
 
 function subAnnotationLabel(subAnnotationId: string): string {
@@ -181,13 +170,16 @@ function subAnnotationLabel(subAnnotationId: string): string {
 	return i18n.$tAnnotDisplayName(subAnnotation);
 }
 
-function isDraftSelectionChecked(annotationValue: string, subAnnotationId: string, subAnnotationValue: string): boolean {
-	return !!draftState.value.selected[createAnnotationPosSelectionKey(annotationValue, subAnnotationId, subAnnotationValue)];
+function isDraftSelectionChecked(subAnnotationId: string, subAnnotationValue: string): boolean {
+	return draftState.value[subAnnotationId]?.includes(subAnnotationValue) ?? false;
 }
 
-function handleSelectionChange(annotationValue: string, subAnnotationId: string, subAnnotationValue: string, event: Event) {
+function handleSelectionChange(subAnnotationId: string, subAnnotationValue: string, event: Event) {
 	const target = event.target as HTMLInputElement;
-	draftState.value.selected[createAnnotationPosSelectionKey(annotationValue, subAnnotationId, subAnnotationValue)] = target.checked;
+	const values = draftState.value[subAnnotationId] ?? [];
+	const updatedValues = target.checked ? [...new Set([...values, subAnnotationValue])] : values.filter(value => value !== subAnnotationValue);
+	if (updatedValues.length) draftState.value[subAnnotationId] = updatedValues;
+	else delete draftState.value[subAnnotationId];
 }
 </script>
 

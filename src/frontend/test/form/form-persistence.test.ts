@@ -36,7 +36,7 @@ import {
 	type FieldController,
 	type FieldControllerProps,
 } from '@/features/form';
-import { queryFragment, rawFilter } from '@/features/form/model/compile/query-artifact';
+import { filter, queryFragment } from '@/features/form/model/types/form-query-ir';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
@@ -186,7 +186,7 @@ describe('scoped form persistence', () => {
 			word: 'fire',
 			'f.form': 'search.extended',
 			'f.word': 'water',
-			patt: '[word="(?i)water"]',
+			patt: '[word="water"]',
 		});
 
 		expect(restored.issues).toEqual([]);
@@ -425,7 +425,7 @@ describe('scoped form persistence', () => {
 		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 		const newspapers = builder.newContainer('search.extended.filters.newspapers', ContainerRenderer, {
 			title: 'Newspapers',
-			activeQueryContribution: queryFragment(rawFilter('category("newspaper")')),
+			activeQueryContribution: queryFragment(filter('category', 'literal', 'newspaper'))!,
 		});
 		const filters = builder
 			.newContainer('search.extended.filters', ContainerRenderer, {
@@ -448,7 +448,7 @@ describe('scoped form persistence', () => {
 
 		expect(encoded['f.tab']).toEqual(['search.extended.filters:search.extended.filters.newspapers']);
 
-		const restored = restoreFormState(definition, { ...encoded, filter: 'category("newspaper")' });
+		const restored = restoreFormState(definition, { ...encoded, filter: 'category:(newspaper)' });
 
 		expect(restored.uiState[filters.id]).toBe(newspapers.id);
 		expect(restored.rawOverrides).toEqual({});
@@ -798,7 +798,9 @@ describe('controller persistence codecs', () => {
 		});
 		expect(() => restore(filterDateController, 's=2020;m=unknown', dateConfig)).throws();
 		expect(() => restore(filterDateController, 's=2020-01-02-extra', dateConfig)).throws();
-		expect(restore(annotationPosController, 'v=VERB;s={past,plural}', {} as never)).toEqual({ annotationValue: 'VERB', selected: { past: true, plural: true } });
+		const posState = { pos: ['VERB'], number: ['singular', 'plural'] };
+		expect(encode(annotationPosController, posState, {} as never)).toBe('pos:{VERB};number:{singular,plural}');
+		expect(restore(annotationPosController, 'pos:{VERB};number:{singular,plural}', {} as never)).toEqual(posState);
 		const withinConfig = {
 			kind: 'field' as const,
 			id: 'within',

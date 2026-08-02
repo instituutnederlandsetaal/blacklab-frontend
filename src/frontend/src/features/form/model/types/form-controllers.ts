@@ -1,7 +1,7 @@
 import type { PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import type { AnyFieldDefinition, FieldNodeProps, FieldState } from '@/features/form/model/field-component-props';
 import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
-import type { QueryFragment } from '@/features/form/model/types/form-query-ir';
+import type { QueryIR } from '@/features/form/model/types/form-query-ir';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import type { Translate } from '@/shared/i18n';
@@ -35,7 +35,7 @@ export type FieldController<Kind extends string = string, State = any, Extra = o
 	/** Unique key for this controller. */
 	kind: Kind;
 	createDefaultState: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => State;
-	getQueryContribution: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => QueryFragment;
+	getQueryContribution: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext, state: State) => QueryIR | null;
 	persistence: FieldPersistence<State, Extra>;
 	/**
 	 * BlackLab query parameters this field may affect.

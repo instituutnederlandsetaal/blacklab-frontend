@@ -45,7 +45,7 @@ const compositionExpectations: Array<{
 		name: 'and folds child token fields into one token projection',
 		expected: {
 			compiled: {
-				patt: '[word="(?i)water" & lemma="(?i)lopen"]',
+				patt: '[word="water" & lemma="lopen"]',
 				filter: null,
 				searchfield: null,
 			},
@@ -57,7 +57,7 @@ const compositionExpectations: Array<{
 		name: 'or folds child token fields into one token projection',
 		expected: {
 			compiled: {
-				patt: '[word="(?i)water" | lemma="(?i)lopen"]',
+				patt: '[word="water" | lemma="lopen"]',
 				filter: null,
 				searchfield: null,
 			},
@@ -69,7 +69,7 @@ const compositionExpectations: Array<{
 		name: 'sequence preserves child order when composing the query projection',
 		expected: {
 			compiled: {
-				patt: '[word="(?i)water"] [lemma="(?i)lopen"]',
+				patt: '[word="water"] [lemma="lopen"]',
 				filter: null,
 				searchfield: null,
 			},
@@ -230,11 +230,11 @@ describe('form model state', () => {
 
 	test.each(compositionExpectations)('$name', ({ combine, expected }) => {
 		const fixture = createCompositionFixture(combine);
-		const { query, summaries } = buildQueryIR(fixture.definition.getRoot(), fixture.state.getRawState(), fixture.definition.context);
+		const query = buildQueryIR(fixture.definition.getRoot(), fixture.state.getRawState(), fixture.definition.context);
 		const compiled = compileQueryIR(query);
 
 		expect(compiled).toEqual(expected.compiled);
-		expect(summaries).toEqual(expected.summaries);
+		expect(query.summaries).toEqual(expected.summaries);
 	});
 
 	test('builder state picks the first active branch for nested container-like nodes', () => {

@@ -74,9 +74,10 @@ const activeQueryContributionCounts = computed<Record<string, number>>(() => {
 		props.children.map(child => {
 			const node = runtime.value.definition.getNode(child.props.id);
 			const count = node
-				? getAllNodes(node, 'field').filter(field =>
-						hasQueryContributions(field.controller.getQueryContribution(field, runtime.value.definition.context, runtime.value.state.state.value[field.id]).query),
-					).length
+				? getAllNodes(node, 'field').filter(field => {
+						const contribution = field.controller.getQueryContribution(field, runtime.value.definition.context, runtime.value.state.state.value[field.id]);
+						return contribution ? hasQueryContributions(contribution) : false;
+					}).length
 				: 0;
 			return [child.props.id, count];
 		}),

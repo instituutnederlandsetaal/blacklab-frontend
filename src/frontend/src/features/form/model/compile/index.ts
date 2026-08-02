@@ -1,18 +1,18 @@
-import { combineQueryFragments, queryFragment } from '@/features/form/model/compile/query-artifact';
+import { combineQueries } from '@/features/form/model/compile/query-artifact';
 import { isContainerNode } from '@/features/form/model/form-utils';
 import type { FormStateInput } from '@/features/form/model/state';
 import type { FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { QueryFragment } from '@/features/form/model/types/form-query-ir';
+import { queryIR, type QueryIR } from '@/features/form/model/types/form-query-ir';
 import type { FormContainerLikeNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 
-export function buildQueryIR(node: FormNode, formState: FormStateInput, context: FormRuntimeContext): QueryFragment {
+export function buildQueryIR(node: FormNode, formState: FormStateInput, context: FormRuntimeContext): QueryIR {
 	if (isContainerNode(node)) return getQueryContributionFromContainer(node, formState, context);
 	if (node.kind === 'field') return getFieldQueryContribution(node, context, formState.state[node.id]);
-	return queryFragment();
+	return queryIR();
 }
 
-function getQueryContributionFromContainer(node: FormContainerLikeNode, formState: FormStateInput, context: FormRuntimeContext): QueryFragment {
-	const childContributions = node.children.reduce<QueryFragment[]>((acc, child) => {
+function getQueryContributionFromContainer(node: FormContainerLikeNode, formState: FormStateInput, context: FormRuntimeContext): QueryIR {
+	const childContributions = node.children.reduce<QueryIR[]>((acc, child) => {
 		if (child.kind === 'field') acc.push(getFieldQueryContribution(child, context, formState.state[child.id]));
 		else if (isContainerNode(child)) {
 			acc.push(getQueryContributionFromContainer(child, formState, context));
@@ -21,14 +21,14 @@ function getQueryContributionFromContainer(node: FormContainerLikeNode, formStat
 			}
 		}
 		return acc;
-	}, [] as QueryFragment[]);
+	}, [] as QueryIR[]);
 
 	const combineMode = node.kind === 'container' ? node.combine : undefined;
-	return combineQueryFragments(combineMode, ...childContributions);
+	return combineQueries(childContributions, combineMode);
 }
 
-export function getFieldQueryContribution(node: FormFieldNode, context: FormRuntimeContext, state: unknown): QueryFragment {
-	const contribution = node.controller.getQueryContribution(node, context, state);
+export function getFieldQueryContribution(node: FormFieldNode, context: FormRuntimeContext, state: unknown): QueryIR {
+	const contribution = node.controller.getQueryContribution(node, context, state) ?? queryIR();
 	const summaryType = node.controller.affectsBlackLabParameters;
 
 	return {

@@ -340,7 +340,7 @@ export function compileFormNode(node: FormNode, state: FormStateInput, context: 
 
 	// Compile what's in the form
 	const { encoded, issues } = encodeScopedFormState(node, context, state);
-	const { query, summaries } = buildQueryIR(node, state, context);
+	const query = buildQueryIR(node, state, context);
 	const compiled = compileQueryIR(query);
 	// overwrite with raw overrides
 	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
@@ -352,7 +352,7 @@ export function compileFormNode(node: FormNode, state: FormStateInput, context: 
 		formId: node.id,
 		encoded,
 		issues,
-		summaries,
+		summaries: query.summaries,
 	};
 }
 
@@ -376,7 +376,7 @@ export function restoreFormState(definition: FormBuilder, query: Record<string, 
 		uiState: buildRestoredUiState(definition, scopedParams.fields, target.selectedFormId, persistedTabs.uiState, expertFallback?.form ?? null),
 		rawOverrides: {},
 	};
-	const compiledParams = compileQueryIR(buildQueryIR(formToCompile, restoredState, definition.context).query);
+	const compiledParams = compileQueryIR(buildQueryIR(formToCompile, restoredState, definition.context));
 	const rawOverrides = findUnrepresentableCanonicalParams(compiledParams, canonicalParams);
 	const issues = [...target.issues, ...codec.issues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues];
 

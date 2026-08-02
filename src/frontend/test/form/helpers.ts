@@ -2,7 +2,7 @@ import { createMockI18n } from '@test/mocks/i18n';
 import { defineComponent, h, toValue, type PropType } from 'vue';
 
 import { FormBuilder, FormRuntime, defineFieldController, object, scalar, useFormSystemRuntime, useParentForm, type FormRuntimeContext, type NamedFieldDefinition } from '@/features/form';
-import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
+import { annotation, queryFragment } from '@/features/form/model/types/form-query-ir';
 
 export type TestTextFieldState = {
 	value: string;
@@ -65,9 +65,8 @@ export const testTextController = defineFieldController<'test-text', TestTextFie
 	},
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state) {
-		const pattern = token(tokenPredicate('wildcard', config.annotationId, state.value, false));
 		return queryFragment(
-			pattern,
+			annotation(config.annotationId, 'wildcard', state.value),
 			state.value
 				? {
 						label: toValue(config.displayName),

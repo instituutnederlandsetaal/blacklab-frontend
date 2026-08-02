@@ -7,8 +7,8 @@ import { nextTick } from 'vue';
 import { createFormFieldNode, defineFieldController, FormRuntime, FormSystem, object, restoreControllerState, scalar } from '@/features/form';
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
 import type { TokenSequenceCreateField, TokenSequenceFieldState } from '@/features/form/fields/token-sequence-field';
-import { queryFragment, token, tokenPredicate } from '@/features/form/model/compile/query-artifact';
 import { tokenSequenceController } from '@/features/form/model/controllers/token-sequence-controller';
+import { annotation, queryFragment } from '@/features/form/model/types/form-query-ir';
 import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import { createTestBuilder } from './helpers';
@@ -44,8 +44,8 @@ const childController = defineFieldController<'token-sequence-test-child', TextF
 	},
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state) {
-		if (!state.value) return queryFragment();
-		return queryFragment(token(tokenPredicate('wildcard', config.annotationId, state.value, state.caseSensitive)));
+		if (!state.value) return null;
+		return queryFragment(annotation(config.annotationId, 'wildcard', state.value, state.caseSensitive ? { caseSensitive: true } : undefined));
 	},
 });
 
@@ -92,10 +92,10 @@ describe('token sequence composite field', () => {
 
 		state[0].fieldState = { value: 'water', caseSensitive: false } satisfies TextFieldState;
 		state[1] = { fieldId: 'lemma', fieldState: { value: '', caseSensitive: false } satisfies TextFieldState };
-		expect(runtime.compile('explore.ngram').patt).toBe('[word="(?i)water"] []');
+		expect(runtime.compile('explore.ngram').patt).toBe('[word="water"] []');
 
 		state[1].fieldState = { value: 'run*', caseSensitive: true } satisfies TextFieldState;
-		expect(runtime.compile('explore.ngram').patt).toBe('[word="(?i)water"] [lemma="run.*"]');
+		expect(runtime.compile('explore.ngram').patt).toBe('[word="water"] [lemma="(?-i)run.*"]');
 	});
 
 	test('lays out only the length control horizontally', () => {

@@ -19,7 +19,7 @@ const defaultRegexEscapeOptions = {
 };
 export type RegexEscapeOptions = Partial<typeof defaultRegexEscapeOptions>;
 
-const regexSpecialChars = new Set(['\\', '^', '$', '#', '@', '&', '+', '.', '(', ')', '{', '}', '[', ']']);
+const regexSpecialChars = new Set(['\\', '^', '$', '#', '@', '&', '~', '<', '>', '+', '.', '(', ')', '{', '}', '[', ']']);
 const preservedRegexEscapes = new Set(['|', '*', '?', '"']);
 
 /** Escape special characters in a string for use in a regular expression, the default escaping options are to escape wildcards, pipes, and quotes */
@@ -217,6 +217,12 @@ export const tokenizeString = (value: string, useQuoteDelimiters: boolean): Spli
 	}
 	return segs;
 };
+/**
+ * See {@link tokenizeString}
+ */
+export function tokenizedStringValues(value: string, useQuoteDelimiters: boolean): string[] {
+	return tokenizeString(value, useQuoteDelimiters).map(seg => seg.value);
+}
 
 function isEscapedAt(value: string, index: number): boolean {
 	let backslashes = 0;

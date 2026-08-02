@@ -397,7 +397,7 @@ describe('search form system', () => {
 				'f.explore-ngram-group-by': 'lemma',
 			},
 			filter: 'author:(Austen)',
-			patt: '[word="(?i)wat.*"] [pos=l"(?i)NOU" | pos=l"(?i)VRB"] []',
+			patt: '[word="wat.*"] [pos="NOU|VRB"] []',
 			resultPreset: {
 				groupBy: ['hit:lemma'],
 				viewedResults: 'hits',
@@ -439,7 +439,7 @@ describe('search form system', () => {
 		const runtime = createDefinition(corpus);
 		runtime.state.state.value['explore.ngram.tokens'] = [{ fieldId: 'pos', fieldState: { value: 'NOU|VRB?', caseSensitive: false } }] satisfies TokenSequenceFieldState;
 
-		expect(runtime.compile(getNewExploreFormId('ngram')).patt).toBe('[pos="(?i)NOU|VRB."]');
+		expect(runtime.compile(getNewExploreFormId('ngram')).patt).toBe('[pos="NOU|VRB."]');
 	});
 
 	test.each(['ngram', 'frequency'] as const)('adds a source-only searchfield selector to parallel Explore %s', mode => {
@@ -472,7 +472,7 @@ describe('search form system', () => {
 			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
 		]);
 		expect(runtime.compile(getNewExploreFormId('ngram'))).toMatchObject({
-			patt: '[lemma="(?i)run."] []',
+			patt: '[lemma="run."] []',
 			resultPreset: { groupBy: ['hit:pos'], viewedResults: 'hits' },
 		});
 	});
@@ -695,7 +695,7 @@ describe('search form system', () => {
 
 		const compiled = definition.compile(getNewSearchFormId('extended'));
 
-		expect(compiled.patt).toBe('[word="(?i)water"]');
+		expect(compiled.patt).toBe('[word="water"]');
 		expect(compiled.filter).toBe('(author:(Austen) AND genre:(fiction))');
 		expect(compiled.summaries).toEqual([
 			{ group: 'Basics', label: 'word', value: 'water', summaryType: ['patt'] },
@@ -718,7 +718,7 @@ describe('search form system', () => {
 
 		expect(definition.compile(getNewSearchFormId('simple'))).toMatchObject({
 			filter: null,
-			patt: '[word="(?i)water"]',
+			patt: '[word="water"]',
 		});
 	});
 

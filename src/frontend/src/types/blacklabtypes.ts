@@ -370,7 +370,8 @@ export type BLAnnotation = BLAnnotationBase & {
 	/** Replacement for the 'values' property in V4, contains the counts as well. */
 	terms?: Record<string, number>;
 };
-export const isBLAnnotationV5 = (v: BLAnnotation | BLAnnotationV4): v is BLAnnotation => (v as BLAnnotation).custom != null || (v as BLAnnotation).terms != null;
+/** V4 also includes `terms` when list values were requested, so only V5's `custom` container distinguishes the shapes. */
+export const isBLAnnotationV5 = (v: BLAnnotation | BLAnnotationV4): v is BLAnnotation => (v as BLAnnotation).custom != null;
 export const isBLAnnotationV4 = (v: BLAnnotation | BLAnnotationV4): v is BLAnnotationV4 => !isBLAnnotationV5(v);
 
 // #endregion

@@ -1,25 +1,10 @@
-import { buildAnnotationPosPattern, createDefaultAnnotationPosFieldState, summarizeAnnotationPosState, type AnnotationPosFieldDefinition } from '@/features/form/fields/annotation-pos-field';
-import { cqlRaw, queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
-import { array, object, scalar } from '@/features/form/model/controllers/persistence-codec';
-import type { QueryFragment } from '@/features/form/model/types';
+import { createDefaultAnnotationPosFieldState, type AnnotationPosFieldDefinition } from '@/features/form/fields/annotation-pos-field';
+import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
+import { array, record, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
+import { annotation, booleanNode, queryFragment, queryIR } from '@/features/form/model/types/form-query-ir';
 
-const persistenceCodec = object({
-	annotationValue: scalar()
-		.transform<string | null>({ encode: value => value ?? '', decode: value => value || null })
-		.default(null)
-		.at('v'),
-	selected: array(scalar())
-		.transform<Record<string, boolean>>({
-			encode: selected =>
-				Object.entries(selected)
-					.filter(([, value]) => value)
-					.map(([key]) => key),
-			decode: selected => Object.fromEntries(selected.map(key => [key, true])),
-		})
-		.default({})
-		.at('s'),
-}).default({ annotationValue: null, selected: {} });
+const persistenceCodec = record(array(scalar())).default({});
 
 export const annotationPosController = defineFieldController<'annotation-pos', AnnotationPosFieldDefinition>({
 	kind: 'annotation-pos',
@@ -27,20 +12,21 @@ export const annotationPosController = defineFieldController<'annotation-pos', A
 	persistence: { key: config => config.annotation.id, codec: persistenceCodec },
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, runtime, state) {
-		const pattern = buildAnnotationPosPattern(config, state);
-		if (!pattern) return queryFragment();
-		const r: QueryFragment = {
-			query: queryIR({ pattern: cqlRaw(pattern) }),
-			summaries: state.annotationValue
-				? [
-						{
-							label: runtime.translate.$tAnnotDisplayName(config.annotation),
-							value: summarizeAnnotationPosState(config, state, runtime.translate) || state.annotationValue || '',
-							group: config.groupId,
-						},
-					]
-				: [],
-		};
-		return r;
+		const [annotationValue] = state[config.annotation.id] ?? [];
+		if (!annotationValue) return null;
+
+		const query = queryIR({
+			pattern: booleanNode(
+				'and',
+				Object.entries(state)
+					.filter(([, values]) => values.length)
+					.map(([annotationId, values]) => annotation(annotationId, 'literal', values)!),
+			),
+		});
+		return queryFragment(query, {
+			label: runtime.translate.$tAnnotDisplayName(config.annotation),
+			value: compileQueryIR(query).patt ?? annotationValue,
+			group: config.groupId,
+		});
 	},
 });

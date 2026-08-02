@@ -5,31 +5,19 @@ import { describe, expect, test } from 'vitest';
 
 import {
 	annotationTextController,
-	booleanExpr,
 	createFormFieldNode,
 	expertQueryController,
 	filterDateController,
+	filterRadioController,
+	filterSelectController,
 	filterTextController,
 	parallelController,
 	type FieldControllerProps,
 	type FormRuntimeContext,
-	type QueryFragment,
 } from '@/features/form';
-import {
-	combineQueryFragments,
-	compileQueryIR,
-	cqlRaw,
-	predicateValue,
-	queryFragment,
-	queryIR,
-	rawFilter,
-	simplifyQueryIR,
-	termFilter,
-	token,
-	tokenPredicate,
-	valueFilter,
-} from '@/features/form/model/compile/query-artifact';
+import { combineQueries, compileQueryIR, simplifyQueryIR } from '@/features/form/model/compile/query-artifact';
 import type { AnnotationTextFieldConfig } from '@/features/form/model/controllers/annotation-controller';
+import { annotation, booleanNode, filter, filterRange, queryFragment, queryIR, rangePredicate, rawCql, textPredicate, within, type QueryIR } from '@/features/form/model/types/form-query-ir';
 
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 
@@ -39,7 +27,7 @@ describe('generated query correctness', () => {
 		translate: createMockTranslate(),
 	};
 
-	function contribForAnnotation(annotId: string, value: string, caseSensitive = false): QueryFragment {
+	function contribForAnnotation(annotId: string, value: string, caseSensitive = false): QueryIR {
 		const field: FieldControllerProps<AnnotationTextFieldConfig> = {
 			annotationId: annotId,
 			displayName: '',
@@ -47,32 +35,32 @@ describe('generated query correctness', () => {
 			kind: 'field',
 		};
 
-		return annotationTextController.getQueryContribution!(field, context, {
+		return annotationTextController.getQueryContribution(field, context, {
 			caseSensitive,
 			value,
-		});
+		})!;
 	}
 
 	function compileValueForAnnotation(annotId: string, value: string, caseSensitive = false) {
-		return compileQueryIR(contribForAnnotation(annotId, value, caseSensitive).query).patt;
+		return compileQueryIR(contribForAnnotation(annotId, value, caseSensitive)).patt;
 	}
 
 	test('Text field controller tokenizes input and treats wildcards correctly', () => {
 		const compiled = compileValueForAnnotation('lemma', `"this is" a?|example sentence* `, false);
-		const expected = [`[lemma="(?i)this is"]`, `[lemma="(?i)a.|example"]`, `[lemma="(?i)sentence.*"]`].join(' ');
+		const expected = [`[lemma="this is"]`, `[lemma="a.|example"]`, `[lemma="sentence.*"]`].join(' ');
 
 		expect(compiled).toBe(expected);
 	});
 
 	test('Text field controller handles escaped wildcards correctly', () => {
 		const compiled = compileValueForAnnotation('lemma', String.raw`a\*b c\?d e\\f`, true);
-		const expected = String.raw`[lemma="a\*b"] [lemma="c\?d"] [lemma="e\\\\f"]`;
+		const expected = String.raw`[lemma="(?-i)a\*b"] [lemma="(?-i)c\?d"] [lemma="(?-i)e\\\\f"]`;
 
 		expect(compiled).toBe(expected);
 	});
 
 	test('Metadata text controllers preserve parsed value intent in filter IR', () => {
-		const contribution = filterTextController.getQueryContribution!(
+		const contribution = filterTextController.getQueryContribution(
 			{
 				kind: 'field',
 				id: 'author',
@@ -81,18 +69,16 @@ describe('generated query correctness', () => {
 			},
 			context,
 			{ value: String.raw`Alice* "Bob?"`, caseSensitive: false },
-		);
+		)!;
 
-		expect(contribution.query.filter).toEqual({
-			type: 'values',
-			field: 'author',
-			values: [predicateValue('wildcard', 'Alice*'), predicateValue('literal', 'Bob?')],
-		});
-		expect(compileQueryIR(contribution).filter).toBe(String.raw`author:(Alice* Bob\?)`);
+		expect(contribution.filter).toEqual(
+			booleanNode('or', { type: 'lucene-field', field: 'author', ...textPredicate('wildcard', 'Alice*') }, { type: 'lucene-field', field: 'author', ...textPredicate('literal', 'Bob?') }),
+		);
+		expect(compileQueryIR(contribution).filter).toBe(String.raw`author:(/Alice.*|Bob\?/)`);
 	});
 
 	test('Date controllers compose structured range nodes across bifields', () => {
-		const contribution = filterDateController.getQueryContribution!(
+		const contribution = filterDateController.getQueryContribution(
 			{
 				kind: 'field',
 				id: 'publication-period',
@@ -107,39 +93,58 @@ describe('generated query correctness', () => {
 				endDate: { y: '2021', m: '', d: '' },
 				mode: 'permissive',
 			},
-		);
+		)!;
 
-		expect(contribution.query.filter).toEqual(
-			booleanExpr('or', { type: 'range', field: 'startYear', low: '20200101', high: '20211231' }, { type: 'range', field: 'endYear', low: '20200101', high: '20211231' }),
-		);
+		expect(contribution.filter).toEqual(booleanNode('or', filterRange('startYear', '20200101', '20211231')!, filterRange('endYear', '20200101', '20211231')!));
 		expect(compileQueryIR(contribution).filter).toBe('(startYear:[20200101 TO 20211231] OR endYear:[20200101 TO 20211231])');
+		expect(contribution.summaries).toEqual([expect.objectContaining({ value: '2020-00-00 - 2021-00-00' })]);
+	});
+
+	test('Empty choice filters do not create phantom query contributions', () => {
+		const config = {
+			kind: 'field' as const,
+			id: 'genre',
+			displayName: 'Genre',
+			metadataFieldId: 'genre',
+			options: [
+				{ value: 'fiction', label: 'Fiction' },
+				{ value: 'essay', label: 'Essay' },
+			],
+		};
+
+		expect(filterRadioController.getQueryContribution(config, context, '')).toBeNull();
+		expect(filterSelectController.getQueryContribution(config, context, ['', '  '])).toBeNull();
+
+		const contribution = filterSelectController.getQueryContribution(config, context, ['', 'fiction', '  '])!;
+		expect(contribution.filter).toEqual(filter('genre', 'literal', 'fiction'));
+		expect(contribution.summaries).toEqual([expect.objectContaining({ value: 'Fiction' })]);
 	});
 
 	test('Pre-escaped quotes are preserved and do not suppress tokenization', () => {
 		const compiled = compileValueForAnnotation('word', String.raw`sentence with \"pre-escaped quotes\"`, true);
-		const expected = String.raw`[word="sentence"] [word="with"] [word="\"pre-escaped"] [word="quotes\""]`;
+		const expected = String.raw`[word="(?-i)sentence"] [word="(?-i)with"] [word="(?-i)\"pre-escaped"] [word="(?-i)quotes\""]`;
 
 		expect(compiled).toBe(expected);
 	});
 
 	test('Combines multiple text controllers per-token', () => {
-		const compiled = compileQueryIR(combineQueryFragments('and', contribForAnnotation('lemma', 'example sentence', true), contribForAnnotation('word', 'example sentence', true)).query).patt;
+		const compiled = compileQueryIR(combineQueries([contribForAnnotation('lemma', 'example sentence', true), contribForAnnotation('word', 'example sentence', true)], 'and')).patt;
 
-		const expected = String.raw`[lemma="example" & word="example"] [lemma="sentence" & word="sentence"]`;
+		const expected = String.raw`[lemma="(?-i)example" & word="(?-i)example"] [lemma="(?-i)sentence" & word="(?-i)sentence"]`;
 		expect(compiled).toBe(expected);
 	});
 
 	test('Combines multiple text controllers per-token with trailing unmatched tokens', () => {
-		const compiled = compileQueryIR(combineQueryFragments('and', contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)).query).patt;
+		const compiled = compileQueryIR(combineQueries([contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)], 'and')).patt;
 
-		const expected = String.raw`[word="a" & lemma="c"] [word="b" & lemma="d"] [lemma="e"]`;
+		const expected = String.raw`[word="(?-i)a" & lemma="(?-i)c"] [word="(?-i)b" & lemma="(?-i)d"] [lemma="(?-i)e"]`;
 		expect(compiled).toBe(expected);
 	});
 
 	test('Combines or text controllers per-token', () => {
-		const compiled = compileQueryIR(combineQueryFragments('or', contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)).query).patt;
+		const compiled = compileQueryIR(combineQueries([contribForAnnotation('word', 'a b', true), contribForAnnotation('lemma', 'c d e', true)], 'or')).patt;
 
-		const expected = String.raw`[word="a" | lemma="c"] [word="b" | lemma="d"] [lemma="e"]`;
+		const expected = String.raw`[word="(?-i)a" | lemma="(?-i)c"] [word="(?-i)b" | lemma="(?-i)d"] [lemma="(?-i)e"]`;
 		expect(compiled).toBe(expected);
 	});
 
@@ -155,24 +160,22 @@ describe('generated query correctness', () => {
 	];
 	test.each(combiners)('Simplifies matching token joiners while combining per-token conditions: $mode', ({ mode, insert }) => {
 		const compiled = compileQueryIR(
-			combineQueryFragments(
+			combineQueries(
+				[queryIR({ pattern: booleanNode(mode, annotation('word', 'wildcard', 'a')!, annotation('word', 'wildcard', 'b')!) }), queryIR({ pattern: annotation('lemma', 'wildcard', 'c') })],
 				mode,
-				queryFragment(token(booleanExpr(mode, tokenPredicate('wildcard', 'word', 'a', true), tokenPredicate('wildcard', 'word', 'b', true)))),
-				queryFragment(token(tokenPredicate('wildcard', 'lemma', 'c', true))),
-			).query,
+			),
 		);
 
-		const expected = `[word="a" ${insert} word="b" ${insert} lemma="c"]`;
+		const expected = mode === 'or' ? `[word="a|b" | lemma="c"]` : `[word="a" ${insert} word="b" ${insert} lemma="c"]`;
 		expect(compiled.patt).toBe(expected);
 	});
 
 	test('Preserves precedence when combining or per-token conditions with different joiners', () => {
 		const compiled = compileQueryIR(
-			combineQueryFragments(
+			combineQueries(
+				[queryIR({ pattern: booleanNode('and', annotation('word', 'wildcard', 'a')!, annotation('word', 'wildcard', 'b')!) }), queryIR({ pattern: annotation('lemma', 'wildcard', 'c') })],
 				'or',
-				queryFragment(token(booleanExpr('and', tokenPredicate('wildcard', 'word', 'a', true), tokenPredicate('wildcard', 'word', 'b', true)))),
-				queryFragment(token(tokenPredicate('wildcard', 'lemma', 'c', true))),
-			).query,
+			),
 		).patt;
 
 		const expected = String.raw`[(word="a" & word="b") | lemma="c"]`;
@@ -181,21 +184,96 @@ describe('generated query correctness', () => {
 
 	test('Preserves precedence when combining per-token conditions with different joiners', () => {
 		const compiled = compileQueryIR(
-			combineQueryFragments(
+			combineQueries(
+				[queryIR({ pattern: booleanNode('or', annotation('word', 'wildcard', 'a')!, annotation('word', 'wildcard', 'b')!) }), queryIR({ pattern: annotation('lemma', 'wildcard', 'c') })],
 				'and',
-				queryFragment(token(booleanExpr('or', tokenPredicate('wildcard', 'word', 'a', true), tokenPredicate('wildcard', 'word', 'b', true)))),
-				queryFragment(token(tokenPredicate('wildcard', 'lemma', 'c', true))),
-			).query,
+			),
 		).patt;
 
-		const expected = String.raw`[(word="a" | word="b") & lemma="c"]`;
+		const expected = String.raw`[word="a|b" & lemma="c"]`;
 		expect(compiled).toBe(expected);
+	});
+
+	test('Preserves mixed-target predicate grouping', () => {
+		const compiled = compileQueryIR(
+			queryIR({
+				pattern: booleanNode('or', annotation('word', 'wildcard', 'koe')!, booleanNode('and', annotation('lemma', 'wildcard', 'kip')!, annotation('word', 'wildcard', 'kip')!)!),
+			}),
+		).patt;
+
+		expect(compiled).toBe('[word="koe" | (lemma="kip" & word="kip")]');
+	});
+
+	test('Bashes compatible token values and leaves incompatible or non-adjacent values separate', () => {
+		const compiled = compileQueryIR(
+			queryIR({
+				pattern: booleanNode(
+					'or',
+					annotation('word', 'literal', 'a|b')!,
+					annotation('word', 'wildcard', 'c*')!,
+					annotation('word', 'wildcard', String.raw`d\*`)!,
+					annotation('word', 'regex', 'e.*')!,
+					annotation('lemma', 'literal', 'x')!,
+					annotation('word', 'literal', 'f')!,
+				),
+			}),
+		).patt;
+
+		expect(compiled).toBe(String.raw`[word="a\|b|c.*|d\*" | word="e.*" | lemma=l"x" | word=l"f"]`);
+	});
+
+	test('Normalizes CQL and Lucene alternatives to the same scalar regex value shape', () => {
+		const simplified = simplifyQueryIR(
+			queryIR({
+				pattern: booleanNode('or', booleanNode('or', annotation('word', 'literal', 'a*')!, annotation('word', 'wildcard', 'b*')!)!, annotation('word', 'literal', 'c?')!),
+				filter: booleanNode('or', filter('speaker', 'literal', 'A*')!, filter('speaker', 'wildcard', 'B*')!),
+			}),
+		);
+
+		expect(simplified.pattern).toEqual(annotation('word', 'regex', String.raw`a\*|b.*|c\?`));
+		expect(simplified.filter).toEqual({ type: 'lucene-field', field: 'speaker', ...textPredicate('regex', String.raw`A\*|B.*`) });
+	});
+
+	test('Keeps same-target token values with different comparison semantics separate', () => {
+		const compiled = compileQueryIR(
+			queryIR({
+				pattern: booleanNode(
+					'or',
+					annotation('word', 'literal', 'a', { caseSensitive: true })!,
+					annotation('word', 'literal', 'b', { caseSensitive: false })!,
+					annotation('word', 'literal', 'c', { caseSensitive: false, operator: '!=' })!,
+				),
+			}),
+		).patt;
+
+		expect(compiled).toBe('[word=l"(?-i)a" | word=l"(?i)b" | word!=l"(?i)c"]');
+	});
+
+	test('Bashes compatible negative token predicates under AND', () => {
+		const options = { caseSensitive: true, operator: '!=' as const };
+		const compiled = compileQueryIR(
+			queryIR({
+				pattern: booleanNode('and', annotation('word', 'literal', 'a', options)!, annotation('word', 'wildcard', 'b*', options)!),
+			}),
+		).patt;
+
+		expect(compiled).toBe('[word!="(?-i)a|b.*"]');
+	});
+
+	test('Bashes only adjacent compatible Lucene values for the same field', () => {
+		const compiled = compileQueryIR(
+			queryIR({
+				filter: booleanNode('or', filter('author', 'literal', 'A|B')!, filter('author', 'wildcard', 'C*')!, filter('title', 'literal', 'D')!, filter('author', 'literal', 'E')!),
+			}),
+		).filter;
+
+		expect(compiled).toBe(String.raw`(author:(/A\|B|C.*/) OR title:(D) OR author:(E))`);
 	});
 
 	test('Simplifies matching CQL pattern joiners', () => {
 		const compiled = compileQueryIR(
 			queryIR({
-				pattern: booleanExpr('and', cqlRaw('[word="a"]')!, booleanExpr('and', cqlRaw('[lemma="b"]')!, cqlRaw('[pos="N"]')!)),
+				pattern: booleanNode('and', rawCql('[word="a"]'), booleanNode('and', rawCql('[lemma="b"]'), rawCql('[pos="N"]'))!),
 			}),
 		).patt;
 
@@ -205,15 +283,15 @@ describe('generated query correctness', () => {
 	test('Simplifies matching filter joiners', () => {
 		const compiled = compileQueryIR(
 			queryIR({
-				filter: booleanExpr('and', termFilter('author', ['alice'])!, booleanExpr('and', termFilter('title', ['water'])!, rawFilter(' year:2020 ')!)),
+				filter: booleanNode('and', filter('author', 'literal', 'alice')!, booleanNode('and', filter('title', 'literal', 'water')!, filter('year', 'literal', '2020')!)!),
 			}),
 		).filter;
 
-		expect(compiled).toBe('(author:(alice) AND title:(water) AND year:2020)');
+		expect(compiled).toBe('(author:(alice) AND title:(water) AND year:(2020))');
 	});
 
 	test('Preserves searchfield-only query fragments', () => {
-		const compiled = compileQueryIR(queryFragment({ searchfield: 'contents__nl' }));
+		const compiled = compileQueryIR(queryFragment({ searchfield: 'contents__nl' })!);
 
 		expect(compiled).toEqual({
 			patt: null,
@@ -223,13 +301,12 @@ describe('generated query correctness', () => {
 	});
 
 	test('Preserves and combines result-preset-only query fragments', () => {
-		const combined = combineQueryFragments(
+		const combined = combineQueries(
+			[queryFragment({ resultPreset: { viewedResults: 'docs', sort: null } })!, queryFragment({ resultPreset: { groupBy: ['field:date'], groupDisplayMode: 'tokens', withSpans: true } })!],
 			'and',
-			queryFragment({ resultPreset: { viewedResults: 'docs', sort: null } }),
-			queryFragment({ resultPreset: { groupBy: ['field:date'], groupDisplayMode: 'tokens', withSpans: true } }),
 		);
 
-		expect(combined.query.resultPreset).toEqual({
+		expect(combined.resultPreset).toEqual({
 			viewedResults: 'docs',
 			groupBy: ['field:date'],
 			groupDisplayMode: 'tokens',
@@ -250,25 +327,21 @@ describe('generated query correctness', () => {
 		});
 	});
 
-	const wildcardValues = (...values: string[]) => ({ type: 'values' as const, values: values.map(value => predicateValue('wildcard', value)) });
+	const wildcardValues = (...values: string[]) =>
+		booleanNode(
+			'or',
+			values.map(value => textPredicate('wildcard', value)),
+		);
 
 	test('merges within attributes by element and overlaps distinct elements', () => {
 		const query = queryIR({
-			pattern: cqlRaw('[word="water"]'),
-			wrappers: [
-				{ type: 'within', element: 'speech', attributes: { person: wildcardValues('Alice*') } },
-				{ type: 'within', element: 'speech', attributes: { role: wildcardValues('host', 'guest') } },
-				{ type: 'within', element: 'p', attributes: { n: { type: 'range', low: '3', high: '5' } } },
-			],
+			pattern: rawCql('[word="water"]'),
+			wrappers: [within('speech', { person: wildcardValues('Alice*')! }), within('speech', { role: wildcardValues('host', 'guest')! }), within('p', { n: rangePredicate('3', '5') })],
 		});
 
 		expect(simplifyQueryIR(query).wrappers).toEqual([
-			{
-				type: 'within',
-				element: 'speech',
-				attributes: { person: wildcardValues('Alice*'), role: wildcardValues('host', 'guest') },
-			},
-			{ type: 'within', element: 'p', attributes: { n: { type: 'range', low: '3', high: '5' } } },
+			within('speech', { person: wildcardValues('Alice*')!, role: textPredicate('regex', 'host|guest') }),
+			within('p', { n: rangePredicate('3', '5') }),
 		]);
 		expect(compileQueryIR(query).patt).toBe('([word="water"]) within <speech person="Alice.*" role="host|guest"/> overlap <p n=in[3,5]/>');
 	});
@@ -277,27 +350,30 @@ describe('generated query correctness', () => {
 		expect(
 			compileQueryIR(
 				queryIR({
-					wrappers: [
-						{ type: 'within', element: 'speech', attributes: { person: wildcardValues('A"B', 'C?') } },
-						{ type: 'within', element: 'p', attributes: { n: { type: 'range', high: '5' } } },
-						{ type: 'within', element: 'div', attributes: { type: wildcardValues() } },
-					],
+					wrappers: [within('speech', { person: wildcardValues('A"B', 'C?')! }), within('p', { n: rangePredicate(undefined, '5') }), within('div')],
 				}),
 			).patt,
 		).toBe(String.raw`<speech person="A\\"B|C."/> overlap <p n=in[0,5]/> overlap <div/>`);
 	});
 
 	test('emits shared literal, wildcard, and regex value intent for CQL and Lucene', () => {
-		const values = [predicateValue('literal', 'A*'), predicateValue('wildcard', 'B*'), predicateValue('wildcard', String.raw`D\*`), predicateValue('regex', 'C/.+')];
+		const values = [textPredicate('literal', 'A*'), textPredicate('wildcard', 'B*'), textPredicate('wildcard', String.raw`D\*`), textPredicate('regex', 'C/.+')];
+		const alternatives = booleanNode('or', values)!;
 
-		expect(compileQueryIR(queryIR({ filter: valueFilter('speaker', values) })).filter).toBe(String.raw`speaker:(A\* B* D\* /C\/.+/)`);
 		expect(
 			compileQueryIR(
 				queryIR({
-					wrappers: [{ type: 'within', element: 'speech', attributes: { person: { type: 'values', values } } }],
+					filter: booleanNode('or', filter('speaker', 'literal', 'A*')!, filter('speaker', 'wildcard', ['B*', String.raw`D\*`])!, filter('speaker', 'regex', 'C/.+')!),
+				}),
+			).filter,
+		).toBe(String.raw`(speaker:(/A\*|B.*|D\*/) OR speaker:(/C\/.+/))`);
+		expect(
+			compileQueryIR(
+				queryIR({
+					wrappers: within('speech', { person: alternatives }),
 				}),
 			).patt,
-		).toBe(String.raw`<speech person="A\*|B.*|D\*|C/.+"/>`);
+		).toBe(String.raw`<speech (person="A\*|B.*|D\*" | person="C/.+")/>`);
 	});
 
 	const parallelField = {
@@ -321,7 +397,7 @@ describe('generated query correctness', () => {
 				childStates: {
 					contents__en: '[lemma="test"]',
 				},
-			}).query,
+			})!,
 		);
 
 		expect(compiled).toEqual({
@@ -341,7 +417,7 @@ describe('generated query correctness', () => {
 					contents__en: '[lemma="test"]',
 					contents__nl: '[lemma="proef"]',
 				},
-			}).query,
+			})!,
 		);
 
 		expect(compiled.patt).toBe('[lemma="test"] =word-alignment=>nl? [lemma="proef"]');
@@ -359,7 +435,7 @@ describe('generated query correctness', () => {
 					contents__nl: '[lemma="proef"]',
 					contents__de: '[lemma="test"]',
 				},
-			}).query,
+			})!,
 		);
 
 		expect(compiled.patt).toBe('[lemma="test"] =word-alignment=>nl? [lemma="proef"] ; =word-alignment=>de? [lemma="test"]');
@@ -375,7 +451,7 @@ describe('generated query correctness', () => {
 					contents__en: '',
 					contents__nl: '',
 				},
-			}).query,
+			})!,
 		);
 
 		expect(compiled.patt).toBe('_ =word-alignment=>nl? _');

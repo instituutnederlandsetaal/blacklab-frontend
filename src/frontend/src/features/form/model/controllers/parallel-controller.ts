@@ -7,10 +7,9 @@ import {
 } from '@/features/form/fields/parallel-field';
 import type { ParallelFieldState } from '@/features/form/fields/parallel-field';
 import { getFieldQueryContribution } from '@/features/form/model/compile';
-import { queryFragment, queryIR } from '@/features/form/model/compile/query-artifact';
 import { array, object, record, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, encodeFieldState, restoreFieldState, type FieldControllerProps, type FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { SummaryEntry } from '@/features/form/model/types/form-query-ir';
+import { parallelQuery, parallelQueryTarget, queryFragment, type SummaryEntry } from '@/features/form/model/types/form-query-ir';
 
 import { findOption } from '@/shared/utils/options';
 
@@ -19,7 +18,8 @@ function translatedAnnotatedField(runtime: FormRuntimeContext, field: ParallelAn
 }
 
 function translatedAlignBy(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, alignBy: string) {
-	return runtime.translate.$tAlignByDisplayName(findOption(config.alignByOptions ?? [], alignBy) ?? { value: alignBy });
+	const option = findOption(config.alignByOptions ?? [], alignBy);
+	return runtime.translate.$tAlignByDisplayName(typeof option === 'string' ? { value: option } : (option ?? { value: alignBy }));
 }
 
 function getParallelChildContribution(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown) {
@@ -95,23 +95,6 @@ export const parallelController = defineFieldController<'parallel', ParallelFiel
 			fieldId,
 			contribution: getParallelChildContribution(config, runtime, state.childStates[fieldId]),
 		}));
-		const query = queryIR({
-			searchfield: state.source,
-			pattern:
-				sourceContribution && targetContributions.length
-					? {
-							type: 'parallel',
-							source: sourceContribution.query.pattern,
-							targets: targetContributions.map(({ fieldId, contribution }) => ({
-								fieldId,
-								relationType: state.alignBy,
-								pattern: contribution.query.pattern,
-							})),
-						}
-					: sourceContribution
-						? sourceContribution.query.pattern
-						: null,
-		});
 		const summaries: SummaryEntry[] = [];
 		if (state.source)
 			summaries.push({
@@ -135,6 +118,16 @@ export const parallelController = defineFieldController<'parallel', ParallelFiel
 		if (sourceContribution) summaries.push(...sourceContribution.summaries);
 		for (const { contribution } of targetContributions) summaries.push(...contribution.summaries);
 
-		return queryFragment({ query, summaries });
+		return queryFragment({
+			searchfield: state.source,
+			pattern:
+				sourceContribution && targetContributions.length
+					? parallelQuery(
+							sourceContribution.pattern,
+							targetContributions.map(({ fieldId, contribution }) => parallelQueryTarget(fieldId, state.alignBy, contribution.pattern)),
+						)
+					: (sourceContribution?.pattern ?? null),
+			summaries,
+		});
 	},
 });

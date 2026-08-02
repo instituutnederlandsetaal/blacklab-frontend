@@ -1,11 +1,11 @@
 import { toValue } from 'vue';
 
 import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic/select-field';
-import { anyToken, queryFragment } from '@/features/form/model/compile/query-artifact';
 import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
+import { anyToken, queryFragment, summary } from '@/features/form/model/types/form-query-ir';
 
-import { findOption, optionLabel, optionValues } from '@/shared/utils/options';
+import { findOption, optionValues } from '@/shared/utils/options';
 
 export type FrequencyAnnotationControllerConfig = {
 	annotationLabels: Readonly<Record<string, string>>;
@@ -32,8 +32,7 @@ export const frequencyAnnotationController = defineFieldController<'explore-freq
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state) {
 		const annotationId = state;
-		if (!annotationId) return queryFragment();
-		const option = findOption(config.options, annotationId);
+		if (!annotationId) return null;
 		return queryFragment(
 			{
 				pattern: anyToken(),
@@ -42,10 +41,7 @@ export const frequencyAnnotationController = defineFieldController<'explore-freq
 					groupBy: [`hit:${annotationId}`],
 				},
 			},
-			{
-				label: toValue(config.displayName),
-				value: config.annotationLabels[annotationId] ?? optionLabel(option ?? annotationId),
-			},
+			summary(toValue(config.displayName), annotationId, this.affectsBlackLabParameters, config.groupId, config.options),
 		);
 	},
 });

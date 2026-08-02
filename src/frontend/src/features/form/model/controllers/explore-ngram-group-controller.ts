@@ -1,9 +1,9 @@
 import { toValue } from 'vue';
 
 import type { SingleSelectFieldDefinition } from '@/features/form/fields/generic/select-field';
-import { queryFragment } from '@/features/form/model/compile/query-artifact';
 import { stringPersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
+import { queryFragment } from '@/features/form/model/types/form-query-ir';
 
 import { findOption, optionLabel, optionValues } from '@/shared/utils/options';
 
@@ -33,7 +33,7 @@ export const ngramGroupAnnotationController = defineFieldController<'explore-ngr
 	affectsBlackLabParameters: [],
 	getQueryContribution(config, _runtime, state) {
 		const annotationId = state;
-		if (!annotationId) return queryFragment();
+		if (!annotationId) return null;
 		const option = findOption(config.options, annotationId);
 		return queryFragment(
 			{

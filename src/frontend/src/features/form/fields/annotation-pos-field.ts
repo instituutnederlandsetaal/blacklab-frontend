@@ -2,19 +2,17 @@ import type { FieldComponentProps, FieldDefinition } from '@/features/form/model
 import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
 import type { Translate } from '@/shared/i18n';
-import { escapeRegex } from '@/shared/utils/string-utils';
 
 export type AnnotationReference = Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName' | 'defaultDescription'>;
 
-export type AnnotationPosFieldState = {
-	annotationValue: string | null;
-	selected: Record<string, boolean>;
-};
+/** Annotation predicates joined by `&` in the generated CQL. */
+export type AnnotationPosFieldState = Record<string, string[]>;
 export type AnnotationPosFieldExtraProps = {
 	annotation: AnnotationReference;
 	subAnnotations?: Record<string, AnnotationReference>;
 	tagset: Tagset;
 	modalSize?: 'xs' | 'sm' | 'md' | 'lg' | 'auto' | 'fullscreen';
+	/** @deprecated Query previews are now provided by the compiled query summary. */
 	showQueryPreview?: boolean;
 };
 export type AnnotationPosFieldDefinition = FieldDefinition<AnnotationPosFieldState, AnnotationPosFieldExtraProps>;
@@ -25,21 +23,11 @@ export type AnnotationPosFieldComponentProps = FieldComponentProps<AnnotationPos
 const EMPTY_SUBANNOTATION_VALUES: Tagset['subAnnotations'][string]['values'] = [];
 
 export function createDefaultAnnotationPosFieldState(): AnnotationPosFieldState {
-	return {
-		annotationValue: null,
-		selected: {},
-	};
+	return {};
 }
 
 export function cloneAnnotationPosFieldState(state: AnnotationPosFieldState): AnnotationPosFieldState {
-	return {
-		annotationValue: state.annotationValue,
-		selected: { ...state.selected },
-	};
-}
-
-export function createAnnotationPosSelectionKey(annotationValue: string, subAnnotationId: string, subAnnotationValue: string): string {
-	return `${annotationValue}/${subAnnotationId}/${subAnnotationValue}`;
+	return Object.fromEntries(Object.entries(state).map(([annotationId, values]) => [annotationId, [...values]]));
 }
 
 export function findTagsetValue(tagset: Tagset, value: string | null | undefined) {
@@ -57,61 +45,14 @@ export function getVisibleSubAnnotationValues(tagset: Tagset, annotationValue: s
 	return subAnnotation.values.filter(subValue => !subValue.pos || subValue.pos.includes(selectedValue.value));
 }
 
-type AnnotationPosQueryPart = {
-	annotationId: string;
-	value: string;
-};
-
-function formatQueryPart(part: AnnotationPosQueryPart): string {
-	return `${part.annotationId}="${part.value}"`;
-}
-
-export function getAnnotationPosQueryParts(config: AnnotationPosFieldConfig, state: AnnotationPosFieldState): AnnotationPosQueryPart[] {
-	const selectedValue = findTagsetValue(config.tagset, state.annotationValue);
-	if (!selectedValue) return [];
-
-	const parts: AnnotationPosQueryPart[] = [
-		{
-			annotationId: config.annotation.id,
-			value: escapeRegex(selectedValue.value),
-		},
-	];
-
-	selectedValue.subAnnotationIds.forEach(subAnnotationId => {
-		const selectedValues = getVisibleSubAnnotationValues(config.tagset, selectedValue.value, subAnnotationId)
-			.filter(subValue => state.selected[createAnnotationPosSelectionKey(selectedValue.value, subAnnotationId, subValue.value)])
-			.map(subValue => escapeRegex(subValue.value));
-
-		if (selectedValues.length) {
-			parts.push({
-				annotationId: subAnnotationId,
-				value: selectedValues.join('|'),
-			});
-		}
-	});
-
-	return parts;
-}
-
-export function buildAnnotationPosQueryPreview(config: AnnotationPosFieldConfig, state: AnnotationPosFieldState): string {
-	return getAnnotationPosQueryParts(config, state).map(formatQueryPart).join('&');
-}
-
-export function buildAnnotationPosPattern(config: AnnotationPosFieldConfig, state: AnnotationPosFieldState): string | null {
-	const parts = getAnnotationPosQueryParts(config, state);
-	if (!parts.length) return null;
-	return `[${parts.map(formatQueryPart).join(' & ')}]`;
-}
-
 export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, state: AnnotationPosFieldState, translate: Translate): string {
-	const selectedValue = findTagsetValue(config.tagset, state.annotationValue);
+	const [annotationValue] = state[config.annotation.id] ?? [];
+	const selectedValue = findTagsetValue(config.tagset, annotationValue);
 	if (!selectedValue) return '';
 
 	const detailParts = selectedValue.subAnnotationIds
 		.map(subAnnotationId => {
-			const selectedValues = getVisibleSubAnnotationValues(config.tagset, selectedValue.value, subAnnotationId).filter(
-				subValue => state.selected[createAnnotationPosSelectionKey(selectedValue.value, subAnnotationId, subValue.value)],
-			);
+			const selectedValues = getVisibleSubAnnotationValues(config.tagset, selectedValue.value, subAnnotationId).filter(subValue => state[subAnnotationId]?.includes(subValue.value));
 
 			if (!selectedValues.length) return null;
 

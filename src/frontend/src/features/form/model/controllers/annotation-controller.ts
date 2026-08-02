@@ -2,12 +2,11 @@ import { toValue } from 'vue';
 
 import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldDefinition } from '@/features/form/fields/generic/text-field';
-import { queryFragment, queryIR, token, tokenPredicate, tokenSequence } from '@/features/form/model/compile/query-artifact';
 import { array, bool, object, scalar } from '@/features/form/model/controllers/persistence-codec';
-import { booleanExpr, type QueryFragment } from '@/features/form/model/types';
 import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
+import { annotation, queryFragment, sequence, summary } from '@/features/form/model/types/form-query-ir';
 
-import { findOptions, optionValues } from '@/shared/utils/options';
+import { findOption } from '@/shared/utils/options';
 import { tokenizeString } from '@/shared/utils/string-utils';
 
 export type AnnotationControllerConfig = {
@@ -28,7 +27,7 @@ const annotationTextCodec = object({
 const annotationSelectionCodec = array(scalar())
 	.default([])
 	.refine((values, { config }) => {
-		const unknown = values.filter(value => !findOptions(config.options, [value]).length);
+		const unknown = values.filter(value => !findOption(config.options, value));
 		return unknown.length ? `Cannot restore values no longer present in the current options: ${unknown.join(', ')}.` : undefined;
 	});
 
@@ -48,23 +47,12 @@ export const annotationTextController = defineFieldController<'annotation-text',
 	persistence: { key: config => config.annotationId, codec: annotationTextCodec },
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state) {
-		if (!state.value.trim()) return queryFragment();
-
-		const r: QueryFragment = {
-			query: queryIR({
-				pattern: tokenSequence(tokenizeString(state.value, true).map(term => token(tokenPredicate('wildcard', config.annotationId, term.value, state.caseSensitive)))),
-			}),
-			summaries: state.value
-				? [
-						{
-							label: toValue(config.displayName),
-							value: state.value,
-							group: config.groupId,
-						},
-					]
-				: [],
-		};
-		return r;
+		if (!state.value.trim()) return null;
+		return queryFragment(sequence(tokenizeString(state.value, true).map(term => annotation(config.annotationId, 'wildcard', term.value, state.caseSensitive ? { caseSensitive: true } : undefined))), {
+			label: toValue(config.displayName),
+			value: state.value,
+			group: config.groupId,
+		});
 	},
 });
 
@@ -74,10 +62,7 @@ export const annotationSelectController = defineFieldController<'annotation-sele
 	persistence: { key: config => config.annotationId, codec: annotationSelectionCodec },
 	affectsBlackLabParameters: ['patt'],
 	getQueryContribution(config, _runtime, state) {
-		if (!state.length) return queryFragment();
-		return queryFragment(token(booleanExpr('or', ...state.map(v => tokenPredicate('literal', config.annotationId, v)))), {
-			label: toValue(config.displayName),
-			value: optionValues(findOptions(config.options, state)).join(', '),
-		});
+		if (!state.length) return null;
+		return queryFragment(annotation(config.annotationId, 'literal', state), summary(toValue(config.displayName), state, this.affectsBlackLabParameters, config.groupId, config.options));
 	},
 });

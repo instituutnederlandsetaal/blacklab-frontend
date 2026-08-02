@@ -3,10 +3,10 @@ import { toValue } from 'vue';
 import { createDefaultCqlQueryBuilderData, isCqlAttributeData, isCqlAttributeGroupData } from '@/features/cql-query-builder/model';
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry } from '@/features/cql-query-builder/model';
 import type { QueryBuilderFieldConfig, QueryBuilderFieldDefinition, QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
-import { anyToken, compileQueryIR, queryFragment, queryIR, repeat, token, tokenSequence, xmlTag } from '@/features/form/model/compile/query-artifact';
+import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { array, bool, lazy, number, object, scalar, variant, type PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
-import { booleanExpr, type BooleanType, type CqlPattern, type TokenPredicate } from '@/features/form/model/types/form-query-ir';
+import { annotation, anyToken, booleanNode, queryFragment, queryIR, repeat, sequence, xmlTag, type BooleanType, type CqlAnnotationNode } from '@/features/form/model/types/form-query-ir';
 
 import { findOption } from '@/shared/utils/options';
 
@@ -51,30 +51,26 @@ function comparatorValue(attribute: CqlAttributeData): string {
 	return value;
 }
 
-function attributeToPredicate(attribute: CqlAttributeData): TokenPredicate | null {
+function attributeToPredicate(attribute: CqlAttributeData): CqlAnnotationNode | null {
 	const value = comparatorValue(attribute);
 	if (!value) return null;
-	return {
-		type: 'predicate',
-		match: 'regex',
-		annotation: attribute.annotationId,
-		value,
+	return annotation(attribute.annotationId, 'regex', value, {
 		operator: attribute.comparator === '!=' ? '!=' : '=',
-		caseMode: attribute.caseSensitive ? 'sensitive' : 'default',
-	};
+		caseSensitive: attribute.caseSensitive || undefined,
+	});
 }
 
-function groupEntryToPredicate(entry: CqlGroupEntry): TokenPredicate | null {
+function groupEntryToPredicate(entry: CqlGroupEntry): CqlAnnotationNode | null {
 	if (isCqlAttributeData(entry)) return attributeToPredicate(entry);
 	if (isCqlAttributeGroupData(entry)) return groupToPredicate(entry);
 	return null;
 }
 
-function groupToPredicate(group: CqlAttributeGroupData): TokenPredicate | null {
-	const children = group.entries.map(groupEntryToPredicate).filter((child): child is TokenPredicate => child != null);
+function groupToPredicate(group: CqlAttributeGroupData): CqlAnnotationNode | null {
+	const children = group.entries.map(groupEntryToPredicate).filter((child): child is CqlAnnotationNode => child != null);
 	if (!children.length) return null;
 	if (children.length === 1) return children[0];
-	return booleanExpr(operatorToBoolean(group.operator), ...children);
+	return booleanNode(operatorToBoolean(group.operator), ...children);
 }
 
 function hasRepeat(properties: QueryBuilderFieldState['tokens'][number]['properties']): boolean {
@@ -84,18 +80,25 @@ function hasRepeat(properties: QueryBuilderFieldState['tokens'][number]['propert
 	return optional || minRepeats !== 1 || maxRepeats !== 1;
 }
 
-function tokenToPattern(builderToken: QueryBuilderFieldState['tokens'][number]): CqlPattern | null {
+function tokenToPatternParts(builderToken: QueryBuilderFieldState['tokens'][number]) {
 	const predicate = groupToPredicate(builderToken.rootAttributeGroup);
 	const hasTokenBody = predicate || hasRepeat(builderToken.properties);
-	if (!hasTokenBody && !builderToken.properties.beginOfSentence && !builderToken.properties.endOfSentence) return null;
+	if (!hasTokenBody && !builderToken.properties.beginOfSentence && !builderToken.properties.endOfSentence) return [];
 
-	const body = predicate ? token(predicate)! : anyToken();
-	const repeated = hasRepeat(builderToken.properties) ? repeat(body, builderToken.properties.minRepeats, builderToken.properties.maxRepeats, builderToken.properties.optional) : body;
-	return tokenSequence([builderToken.properties.beginOfSentence ? xmlTag('s') : null, repeated, builderToken.properties.endOfSentence ? xmlTag('s', true) : null]);
+	const body = predicate ?? anyToken();
+	const repeated = hasRepeat(builderToken.properties)
+		? repeat({
+				child: body,
+				minRepeats: builderToken.properties.minRepeats,
+				maxRepeats: builderToken.properties.maxRepeats,
+				optional: builderToken.properties.optional,
+			})
+		: body;
+	return [builderToken.properties.beginOfSentence ? xmlTag('s') : null, repeated, builderToken.properties.endOfSentence ? xmlTag('s', true) : null];
 }
 
-function stateToPattern(state: QueryBuilderFieldState): CqlPattern | null {
-	return tokenSequence(state.tokens.map(tokenToPattern));
+function stateToPattern(state: QueryBuilderFieldState) {
+	return sequence(state.tokens.flatMap(tokenToPatternParts));
 }
 
 let nextRestoredId = 0;
