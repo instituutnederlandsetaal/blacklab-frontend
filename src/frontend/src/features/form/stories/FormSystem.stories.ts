@@ -72,6 +72,11 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 		translate,
 	};
 	const definition = new FormBuilder(context);
+	const parallelFieldOptions = [
+		{ id: 'contents__en', defaultDisplayName: 'English' },
+		{ id: 'contents__nl', defaultDisplayName: 'Dutch' },
+		{ id: 'contents__de', defaultDisplayName: 'German' },
+	].map(field => ({ ...field, label: () => translate.$tAnnotatedFieldDisplayName(field) }));
 
 	definition.newForm('raw-overrides.demo', ContainerRenderer, { title: 'Raw override locking' }).addChildren(
 		definition.newView('raw-overrides.demo.heading', HeadingView, {
@@ -92,12 +97,8 @@ function createOverrideStoryModel(translate: Translate): FormSystemStoryModel {
 		}),
 		definition.newField('raw-overrides.demo.parallel', parallelController, ParallelField, {
 			childFieldTemplate: createFormFieldNode('raw-overrides.demo.parallel.query', expertQueryController, RawCqlField, {}),
-			fieldOptions: [
-				{ id: 'contents__en', defaultDisplayName: 'English' },
-				{ id: 'contents__nl', defaultDisplayName: 'Dutch' },
-				{ id: 'contents__de', defaultDisplayName: 'German' },
-			],
-			alignByOptions: ['s', 'p'],
+			fieldOptions: parallelFieldOptions,
+			alignByOptions: ['s', 'p'].map(value => ({ value, label: () => translate.$tAlignByDisplayName({ value }) })),
 		}),
 		definition.newView('raw-overrides.demo.summary', SummaryView, {
 			title: 'Live query preview',

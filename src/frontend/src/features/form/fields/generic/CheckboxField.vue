@@ -5,7 +5,7 @@
 		</legend>
 		<div :class="field.controlsClass">
 			<div v-for="(option, index) in options" :key="index" class="checkbox">
-				<label :for="`${field.inputId}_${index}`" :title="option.title || ''">
+				<label :for="`${field.inputId}_${index}`" :title="optionText(option.title) || ''">
 					<input
 						type="checkbox"
 						:value="option.value"
@@ -15,7 +15,7 @@
 						:disabled
 						@change="toggleCheckbox(option.value, ($event.target as HTMLInputElement).checked)"
 					/>
-					{{ option.label || option.value }}
+					{{ optionLabel(option) }}
 				</label>
 			</div>
 			<small v-if="description" class="help-block">{{ description }}</small>
@@ -26,6 +26,8 @@
 <script setup lang="ts">
 import { useFieldPresentation } from '../field-presentation';
 import type { CheckboxFieldComponentProps, CheckboxFieldState } from './checkbox-field';
+
+import { optionLabel, optionText } from '@/shared/utils/options';
 
 const props = withDefaults(defineProps<CheckboxFieldComponentProps>(), {
 	showLabel: true,

@@ -39,13 +39,12 @@ import { useFieldPresentation } from '@/features/form/fields/field-presentation'
 
 import type { WithinFieldComponentProps, WithinFieldState } from './within-field';
 
-import { useI18n } from '@/shared/i18n';
+import { optionLabel, optionText } from '@/shared/utils/options';
 
 const props = withDefaults(defineProps<WithinFieldComponentProps>(), {
 	disabled: false,
 });
 const state = defineModel<WithinFieldState>({ required: true });
-const translate = useI18n();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: WithinFieldState];
@@ -53,16 +52,17 @@ const emit = defineEmits<{
 
 const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-within-field' });
 const sortedOptions = computed(() => {
-	const translatedOptions = props.options.map(option => ({
+	const resolvedOptions = props.options.map(option => ({
 		...option,
-		label: translate.$tWithinElementDisplayName(option),
+		label: optionLabel(option),
+		title: optionText(option.title),
 		attributes: [...(option.attributes ?? [])]
-			.map(attribute => ({ ...attribute, label: translate.$tWithinAttributeDisplayName(option.value, attribute.value) }))
+			.map(attribute => ({ ...attribute, label: optionLabel(attribute), title: optionText(attribute.title) }))
 			.sort((left, right) => left.label.localeCompare(right.label)),
 	}));
-	if (!props.sortOptions) return translatedOptions;
-	const documentOption = translatedOptions.filter(option => !option.value);
-	const spanOptions = translatedOptions.filter(option => option.value).sort((left, right) => left.label.localeCompare(right.label));
+	if (!props.sortOptions) return resolvedOptions;
+	const documentOption = resolvedOptions.filter(option => !option.value);
+	const spanOptions = resolvedOptions.filter(option => option.value).sort((left, right) => left.label.localeCompare(right.label));
 	return [...documentOption, ...spanOptions];
 });
 const selectedAttributes = computed(() => sortedOptions.value.find(option => option.value === state.value.element)?.attributes ?? []);

@@ -18,7 +18,7 @@
 						@click="changeValue($event, option.value) /* clear if clicked again */"
 						@input.space="changeValue($event, option.value) /* clear if clicked again */"
 					/>
-					{{ option.label || option.value }}</label
+					{{ optionLabel(option) }}</label
 				>
 			</div>
 		</div>
@@ -35,10 +35,12 @@ import { defineComponent, type PropType } from 'vue';
 
 import createBaseFilterComponent from '@/components/filters/Filter';
 
+import { optionLabel } from '@/shared/utils/options';
+
 export default defineComponent({
 	extends: createBaseFilterComponent(Object as PropType<string | undefined>),
-
 	methods: {
+		optionLabel,
 		changeValue(event: Event, value: string) {
 			const t = event.target as HTMLInputElement;
 			this.e_input(t.checked ? value : undefined);

@@ -1,3 +1,4 @@
+import { toValue } from 'vue';
 
 import {
 	createDefaultTokenSequenceToken,
@@ -78,7 +79,10 @@ export const tokenSequenceController = defineFieldController<'token-sequence', T
 		return queryFragment({
 			...combined,
 			pattern: sequence(contributions.map(contribution => contribution.pattern ?? anyToken())),
-			summaries: [summary(config.lengthDisplayName, state.length.toLocaleString(), this.affectsBlackLabParameters, config.groupId), ...contributions.flatMap(contribution => contribution.summaries)],
+			summaries: [
+				summary(toValue(config.lengthDisplayName), state.length.toLocaleString(), this.affectsBlackLabParameters, config.groupId),
+				...contributions.flatMap(contribution => contribution.summaries),
+			],
 		});
 	},
 });

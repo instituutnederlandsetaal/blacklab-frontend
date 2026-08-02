@@ -6,18 +6,18 @@
 				:key="s.value"
 				type="button"
 				class="btn btn-default step"
-				:title="s.title || ''"
+				:title="optionText(s.title) || ''"
 				:class="{
 					active: modelValue > i,
 					active2: modelValue === i,
 				}"
 				@click="$emit('update:modelValue', i)"
 			>
-				{{ s.label }}
+				{{ optionText(s.label) }}
 			</button>
 		</div>
 		<div>
-			<em class="text-muted">{{ steps[modelValue].title }}</em>
+			<em class="text-muted">{{ optionText(steps[modelValue].title) }}</em>
 		</div>
 	</div>
 </template>
@@ -26,10 +26,13 @@
 import type { PropType } from 'vue';
 import { defineComponent } from 'vue';
 
-import type { Option } from '@/shared/utils/options';
+import { optionText, type Option } from '@/shared/utils/options';
 
 export default defineComponent({
 	emits: ['update:modelValue'],
+	methods: {
+		optionText,
+	},
 	props: {
 		steps: { type: Array as PropType<Option[]>, required: true },
 		modelValue: { type: Number, required: true },

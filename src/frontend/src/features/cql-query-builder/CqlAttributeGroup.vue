@@ -4,7 +4,7 @@
 		<template v-for="(entry, index) in model.entries" class="bl-attribute-entry-wrapper">
 			<!-- Operator Label (shown before each entry except the first one) -->
 			<div v-if="index > 0" :key="`operator-${entry.id}`" class="bl-token-attribute-group-label">
-				{{ currentOperatorOption.label }}
+				{{ optionLabel(currentOperatorOption) }}
 			</div>
 
 			<!-- Attribute Entry -->
@@ -44,7 +44,7 @@ import { computed } from 'vue';
 import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry, CqlQueryBuilderOptions } from './model';
 import { isCqlAttributeData, isCqlAttributeGroupData } from './model';
 
-import type { Option } from '@/shared/utils/options';
+import { optionLabel, type Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid.ts';
 
 import CqlAddAttributeButton from './CqlAddAttributeButton.vue';

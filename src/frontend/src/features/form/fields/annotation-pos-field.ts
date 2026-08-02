@@ -1,9 +1,12 @@
 import type { FieldComponentProps, FieldDefinition } from '@/features/form/model/field-component-props';
 import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
 
-import type { Translate } from '@/shared/i18n';
+import { optionText, type OptionText } from '@/shared/utils/options';
 
-export type AnnotationReference = Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName' | 'defaultDescription'>;
+export type AnnotationReference = Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName' | 'defaultDescription'> & {
+	/** Deferred display label, supplied by graph builders that support localization. */
+	label?: OptionText;
+};
 
 /** Annotation predicates joined by `&` in the generated CQL. */
 export type AnnotationPosFieldState = Record<string, string[]>;
@@ -45,7 +48,11 @@ export function getVisibleSubAnnotationValues(tagset: Tagset, annotationValue: s
 	return subAnnotation.values.filter(subValue => !subValue.pos || subValue.pos.includes(selectedValue.value));
 }
 
-export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, state: AnnotationPosFieldState, translate: Translate): string {
+export function annotationReferenceLabel(annotation: AnnotationReference): string {
+	return optionText(annotation.label) ?? annotation.defaultDisplayName ?? annotation.id;
+}
+
+export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, state: AnnotationPosFieldState): string {
 	const [annotationValue] = state[config.annotation.id] ?? [];
 	const selectedValue = findTagsetValue(config.tagset, annotationValue);
 	if (!selectedValue) return '';
@@ -59,10 +66,10 @@ export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, st
 			const subAnnotation = config.subAnnotations?.[subAnnotationId] ?? {
 				id: subAnnotationId,
 				defaultDisplayName: subAnnotationId,
-				defaultDescription: undefined,
+				defaultDescription: '',
 			};
 
-			const label = translate.$tAnnotDisplayName(subAnnotation);
+			const label = annotationReferenceLabel(subAnnotation);
 			const values = selectedValues.map(value => value.displayName || value.value).join(', ');
 			return `${label}: ${values}`;
 		})

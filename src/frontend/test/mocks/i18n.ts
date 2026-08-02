@@ -3,6 +3,7 @@ import stripJsonComments from 'strip-json-comments';
 import type { I18nPlugin } from '@/shared/i18n/plugin';
 import type { Translate } from '@/shared/i18n/types';
 import { createVueI18nParts, installVueI18nParts, type LocaleMessageBundles, type LocaleMessages, type VueI18nParts } from '@/shared/i18n/vue-i18n';
+import { optionText } from '@/shared/utils/options';
 
 export type MockLocaleBundle = string | LocaleMessages;
 export type MockLocaleBundles = Record<string, MockLocaleBundle>;
@@ -16,7 +17,7 @@ export type MockI18nOptions = {
 export type MockI18n = I18nPlugin & Pick<VueI18nParts, 'vueI18nPlugin' | 'vueI18n'>;
 
 export const createMockTranslate = (): Translate => {
-	const $tWithinElementDisplayName: Translate['$tWithinElementDisplayName'] = element => element.label || element.value;
+	const $tWithinElementDisplayName: Translate['$tWithinElementDisplayName'] = element => optionText(element.label) || element.value;
 	const $tWithinAttributeDisplayName: Translate['$tWithinAttributeDisplayName'] = (element, attribute, defaultDisplayName) => defaultDisplayName || `${element} ${attribute}`;
 
 	return {
@@ -56,7 +57,7 @@ export const createMockTranslate = (): Translate => {
 		$tSpanDisplayName: $tWithinElementDisplayName,
 		$tSpanAttributeDisplay: $tWithinAttributeDisplayName,
 		$tAlignByDisplayName(alignBy) {
-			return alignBy.label || alignBy.value;
+			return optionText(alignBy.label) || alignBy.value;
 		},
 	};
 };

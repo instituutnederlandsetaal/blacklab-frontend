@@ -1,6 +1,16 @@
 import type { BaseFieldNode, FormValue } from '@/features/form/model/types/form-shape';
 
-const renderedValuePropNames = ['title', 'displayName', 'description', 'placeholder', 'lowPlaceholder', 'highPlaceholder'] as const;
+const renderedValuePropNames = [
+	'title',
+	'displayName',
+	'description',
+	'placeholder',
+	'lowPlaceholder',
+	'highPlaceholder',
+	'lengthDisplayName',
+	'selectorDisplayName',
+	'selectorPlaceholder',
+] as const;
 export type FieldFormValueProp = (typeof renderedValuePropNames)[number];
 type RenderedValueProp = FieldFormValueProp;
 const renderedValueProps = new Set<RenderedValueProp>(renderedValuePropNames);

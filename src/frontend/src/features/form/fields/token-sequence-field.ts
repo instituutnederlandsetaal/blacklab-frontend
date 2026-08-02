@@ -28,12 +28,12 @@ export type TokenSequenceFieldExtraProps = {
 	persistKey: string;
 };
 
-export type TokenSequenceFieldDefinition = FieldDefinition<TokenSequenceFieldState, TokenSequenceFieldExtraProps>;
+export type TokenSequenceFieldDefinition = FieldDefinition<TokenSequenceFieldState, TokenSequenceFieldExtraProps, 'lengthDisplayName' | 'selectorDisplayName' | 'selectorPlaceholder'>;
 export type TokenSequenceFieldConfig = TokenSequenceFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `TokenSequenceFieldDefinition['componentProps']`. */
 export type TokenSequenceFieldComponentProps = FieldComponentProps<TokenSequenceFieldState> & TokenSequenceFieldExtraProps;
 
-export type TokenSequenceConfigLike = TokenSequenceFieldExtraProps & {
+export type TokenSequenceConfigLike = Pick<TokenSequenceFieldConfig, 'createField' | 'selectorOptions' | 'defaultFieldId'> & {
 	id: string;
 	variant?: BaseFieldNode['variant'];
 };

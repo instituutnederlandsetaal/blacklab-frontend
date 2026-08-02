@@ -37,7 +37,7 @@ import type { BlackLabApi } from '@/shared/api/lib/api-types';
 import { getAnnotationSubset, getMetadataSubset } from '@/shared/blacklab-helpers/field-groups';
 import debug from '@/shared/debug/debug';
 import type { Translate } from '@/shared/i18n';
-import { optionValues, type Options } from '@/shared/utils/options';
+import { optionValues, type Options, type OptionText } from '@/shared/utils/options';
 import useInjectable from '@/shared/utils/useInjectable';
 
 import SelectField from '@/features/form/fields/generic/SelectField.vue';
@@ -82,7 +82,7 @@ function createAnnotationField(context: BuildContext, nodeId: string, annotation
 	return context.fields.annotation(annotation, { id: nodeId, groupId, variant });
 }
 
-function createWithinField({ builder, configuration, corpus }: BuildContext): FormFieldNode | null {
+function createWithinField({ builder, configuration, corpus, translate }: BuildContext): FormFieldNode | null {
 	const spans = corpus.relations?.spans;
 	if (!configuration.within.enabled || !spans || !Object.keys(spans).length) return null;
 
@@ -97,12 +97,13 @@ function createWithinField({ builder, configuration, corpus }: BuildContext): Fo
 	if (!elements.some(e => !e.value)) elements.unshift({ value: '', label: '' });
 	const options = elements.map<WithinFieldOption>(option => ({
 		...option,
+		label: () => translate.$tWithinElementDisplayName(option),
 		attributes: option.value
 			? Object.keys(spans[option.value]?.attributes ?? {})
 					.filter(attribute => includeAttribute(option.value, attribute))
 					.map(attribute => ({
 						value: attribute,
-						label: attribute,
+						label: () => translate.$tWithinAttributeDisplayName(option.value, attribute),
 					}))
 			: [],
 	}));
@@ -172,7 +173,7 @@ function createExploreCorporaForm({ builder, configuration, corpus, translate }:
 		corpus.allMetadataFieldsMap,
 		'Group',
 		translate,
-		debug.value,
+		debug,
 		configuration.explore.corpora.metadataGroupLabelsVisible,
 		id => corpusCustomizations.search.metadata.showField(id),
 	)
@@ -196,9 +197,9 @@ function createExploreCorporaForm({ builder, configuration, corpus, translate }:
 	const groupDisplayModeField = builder.newField('explore.corpora.group-display-mode', resultGroupDisplayModeController, SelectField, {
 		displayName: () => translate.$t('explore.corpora.showAs.heading'),
 		options: [
-			{ value: 'table', label: translate.$t('explore.corpora.showAs.table').toString() },
-			{ value: 'docs', label: translate.$t('explore.corpora.showAs.docs').toString() },
-			{ value: 'tokens', label: translate.$t('explore.corpora.showAs.tokens').toString() },
+			{ value: 'table', label: () => translate.$t('explore.corpora.showAs.table') },
+			{ value: 'docs', label: () => translate.$t('explore.corpora.showAs.docs') },
+			{ value: 'tokens', label: () => translate.$t('explore.corpora.showAs.tokens') },
 		],
 		defaultValue: 'table',
 		html: true,
@@ -216,7 +217,7 @@ function createExploreCorporaForm({ builder, configuration, corpus, translate }:
 }
 
 function createExploreAnnotationOptions(context: BuildContext, annotationIds: string[], showGroupLabels: boolean): Options {
-	const groups = getAnnotationSubset(annotationIds, context.corpus.annotationGroups, context.corpus.allAnnotationsMap, 'Search', context.translate, debug.value, showGroupLabels).filter(
+	const groups = getAnnotationSubset(annotationIds, context.corpus.annotationGroups, context.corpus.allAnnotationsMap, 'Search', context.translate, debug, showGroupLabels).filter(
 		group => group.options.length,
 	);
 	return groups.length > 1 ? groups : groups.flatMap(group => group.options);
@@ -226,12 +227,12 @@ function configuredDefaultValue(configuredValue: string | null, availableValues:
 	return configuredValue && availableValues.includes(configuredValue) ? configuredValue : (availableValues[0] ?? null);
 }
 
-function createAnnotationLabels(context: BuildContext, annotationIds: string[]): Record<string, string> {
+function createAnnotationLabels(context: BuildContext, annotationIds: string[]): Record<string, OptionText> {
 	return Object.fromEntries(
 		annotationIds
 			.map(annotationId => context.corpus.allAnnotationsMap[annotationId])
 			.filter((annotation): annotation is NormalizedAnnotation => !!annotation)
-			.map(annotation => [annotation.id, context.translate.$tAnnotDisplayName(annotation)]),
+			.map(annotation => [annotation.id, () => context.translate.$tAnnotDisplayName(annotation)]),
 	);
 }
 
@@ -240,7 +241,7 @@ function createExploreParallelSourceField(context: BuildContext, mode: 'ngram' |
 	if (!corpus.isParallelCorpus) return null;
 	const options: Options = corpus.parallelAnnotatedFields.map(field => ({
 		value: field.id,
-		label: translate.$tAnnotatedFieldDisplayName(field),
+		label: () => translate.$tAnnotatedFieldDisplayName(field),
 	}));
 	return builder.newField(`explore.${mode}.source`, parallelSourceController, SelectField, {
 		defaultSource: corpus.parallelAnnotatedFields[0]?.id ?? null,
@@ -281,13 +282,13 @@ function createExploreNgramForm(context: BuildContext, sharedFilters: FormNode |
 		},
 		defaultFieldId,
 		defaultLength: EXPLORE_NGRAM_MAX_SIZE,
-		lengthDisplayName: translate.$t('explore.ngram.ngramSize').toString(),
+		lengthDisplayName: () => translate.$t('explore.ngram.ngramSize'),
 		maxLength: EXPLORE_NGRAM_MAX_SIZE,
 		minLength: 1,
 		persistKey: 'explore-ngram-tokens',
-		selectorDisplayName: 'Property',
+		selectorDisplayName: () => translate.$t('results.table.property'),
 		selectorOptions,
-		selectorPlaceholder: 'Property',
+		selectorPlaceholder: () => translate.$t('results.table.property'),
 	});
 	const controls = builder.newContainer('explore.ngram.controls', ContainerRenderer, { variant: 'list' }).addChildren(createExploreParallelSourceField(context, 'ngram'), groupBy, tokens);
 	// Keep the five-token row full-width; the shared filters follow underneath.
@@ -378,13 +379,21 @@ function getSimpleSearchAnnotation(corpus: Corpus, configuration: SearchFormConf
 	};
 }
 
-function createParallelQueryField({ builder, configuration, corpus }: BuildContext, id: string, childFieldTemplate: FormFieldNode): FormFieldNode {
+function createParallelQueryField({ builder, configuration, corpus, translate }: BuildContext, id: string, childFieldTemplate: FormFieldNode): FormFieldNode {
 	return builder.newField(id, parallelController, ParallelField, {
-		alignByOptions: configuration.alignBy.enabled ? configuration.alignBy.elements : [],
+		alignByOptions: configuration.alignBy.enabled
+			? configuration.alignBy.elements.map(option => ({
+					...option,
+					label: () => translate.$tAlignByDisplayName(option),
+				}))
+			: [],
 		defaultAlignBy: configuration.alignBy.defaultValue || null,
 		defaultSource: corpus.parallelAnnotatedFields[0]?.id ?? null,
 		childFieldTemplate,
-		fieldOptions: corpus.parallelAnnotatedFields,
+		fieldOptions: corpus.parallelAnnotatedFields.map(field => ({
+			...field,
+			label: () => translate.$tAnnotatedFieldDisplayName(field),
+		})),
 	});
 }
 
@@ -449,9 +458,9 @@ const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchF
 				return;
 			}
 
-			// Building the definition reads translations for option labels. Keep those
-			// reads out of the structural dependencies: a locale change must update the
-			// rendered labels, not replace the live form session and all of its state.
+			// Localized graph values are deferred getters. Keep locale and debug out of
+			// the structural dependencies so they update labels without replacing the
+			// live form session and all of its state.
 			runtime.value = new FormRuntime(createSearchFormDefinition(corpus, tagset, configuration, options.blacklabApi, options.translate));
 		},
 		{ flush: 'sync', immediate: true },

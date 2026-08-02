@@ -6,6 +6,7 @@ import {
 	annotationPosController,
 	annotationTextController,
 	createFormFieldNode,
+	createRangeModeOptions,
 	expertQueryController,
 	filterCheckboxController,
 	filterDateController,
@@ -230,6 +231,7 @@ export const Date: Story = createFieldStory(
 			range: true,
 			min: '16000101',
 			max: '20251231',
+			modeOptions: createRangeModeOptions(builder.context.translate),
 		}),
 	{
 		startDate: { y: '1800', m: '01', d: '01' },
@@ -247,6 +249,7 @@ export const Range: Story = createFieldStory(
 			inputType: 'number',
 			lowPlaceholder: 'From year',
 			highPlaceholder: 'To year',
+			modeOptions: createRangeModeOptions(builder.context.translate),
 			showMode: true,
 		}),
 	{
@@ -259,16 +262,18 @@ export const Range: Story = createFieldStory(
 export const PartOfSpeech: Story = createFieldStory(builder => builder.newField('generic-pos', annotationPosController, AnnotationPosField, createAnnotationPosConfig()));
 
 export const Parallel: Story = createFieldStory(
-	builder =>
-		builder.newField('generic-parallel', parallelController, ParallelField, {
+	builder => {
+		const fieldOptions = [
+			{ id: 'contents__en', defaultDisplayName: 'English' },
+			{ id: 'contents__nl', defaultDisplayName: 'Dutch' },
+			{ id: 'contents__de', defaultDisplayName: 'German' },
+		].map(field => ({ ...field, label: () => builder.context.translate.$tAnnotatedFieldDisplayName(field) }));
+		return builder.newField('generic-parallel', parallelController, ParallelField, {
 			childFieldTemplate: createFormFieldNode('generic-parallel.query', expertQueryController, RawCqlField, {}),
-			fieldOptions: [
-				{ id: 'contents__en', defaultDisplayName: 'English' },
-				{ id: 'contents__nl', defaultDisplayName: 'Dutch' },
-				{ id: 'contents__de', defaultDisplayName: 'German' },
-			],
-			alignByOptions: ['s', 'p'],
-		}),
+			fieldOptions,
+			alignByOptions: ['s', 'p'].map(value => ({ value, label: () => builder.context.translate.$tAlignByDisplayName({ value }) })),
+		});
+	},
 	{
 		source: 'contents__en',
 		targets: ['contents__nl'],

@@ -7,7 +7,7 @@
 			<li v-for="op in options.operatorOptions" :key="op.value">
 				<a href="#" @click.prevent="emitClick(op.value as CqlAnnotationCombinator)">
 					<span class="glyphicon glyphicon-plus-sign text-success"></span>
-					{{ op.label }}
+					{{ optionLabel(op) }}
 				</a>
 			</li>
 		</ul>
@@ -16,6 +16,8 @@
 
 <script setup lang="ts">
 import type { CqlAnnotationCombinator, CqlQueryBuilderOptions } from './model';
+
+import { optionLabel } from '@/shared/utils/options';
 const props = withDefaults(
 	defineProps<{
 		options: CqlQueryBuilderOptions;

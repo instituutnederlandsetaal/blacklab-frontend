@@ -1,4 +1,4 @@
-import type { RangeMode } from '@/features/form/fields/generic/range-mode';
+import type { RangeMode, RangeModeOption } from '@/features/form/fields/generic/range-mode';
 import type { NamedFieldComponentProps, NamedFieldDefinition } from '@/features/form/model/field-component-props';
 
 export type DateValue = {
@@ -16,6 +16,8 @@ export type DateFieldExtraProps = {
 	range: boolean;
 	min?: string | Date | DateValue;
 	max?: string | Date | DateValue;
+	/** Deferred labels and descriptions for the strict/permissive selector. */
+	modeOptions?: RangeModeOption[];
 	/** Lock the mode to a fixed value if present. */
 	mode?: RangeMode;
 };

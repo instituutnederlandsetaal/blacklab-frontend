@@ -2,12 +2,49 @@
 
 import { mount } from '@vue/test-utils';
 import { describe, expect, test } from 'vitest';
+import { nextTick, ref } from 'vue';
 
 import { RawCqlField, TextField, WithinField } from '@/features/form';
 
 import NumberField from '@/features/form/fields/generic/NumberField.vue';
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 describe('field presentation', () => {
+	test('reactively resolves deferred select option and group text', async () => {
+		const locale = ref('en');
+		const wrapper = mount(SelectPicker, {
+			props: {
+				modelValue: 'value',
+				options: [
+					{
+						label: () => `${locale.value}:group`,
+						title: () => `${locale.value}:group-title`,
+						options: [
+							{
+								value: 'value',
+								label: () => `${locale.value}:label`,
+								title: () => `${locale.value}:title`,
+							},
+						],
+					},
+				],
+			},
+		});
+
+		expect(wrapper.get('.menu-button .menu-value').text()).toBe('en:label');
+		expect(wrapper.get('.menu-group').text()).toBe('en:group');
+		expect(wrapper.get('.menu-group').attributes('title')).toBe('en:group-title');
+		expect(wrapper.get('.menu-option[data-value="value"]').attributes('title')).toBe('en:title');
+
+		locale.value = 'nl';
+		await nextTick();
+
+		expect(wrapper.get('.menu-button .menu-value').text()).toBe('nl:label');
+		expect(wrapper.get('.menu-group').text()).toBe('nl:group');
+		expect(wrapper.get('.menu-group').attributes('title')).toBe('nl:group-title');
+		expect(wrapper.get('.menu-option[data-value="value"]').attributes('title')).toBe('nl:title');
+	});
+
 	test('applies base attributes and variant sizing consistently', () => {
 		const wrapper = mount(TextField, {
 			props: {
@@ -160,7 +197,7 @@ describe('field presentation', () => {
 		expect(wrapper.emitted('update:modelValue')).toEqual([[0.5]]);
 	});
 
-	test('translates and sorts within options before rendering', () => {
+	test('resolves and sorts within options before rendering', () => {
 		const wrapper = mount(WithinField, {
 			props: {
 				id: 'within',
@@ -176,7 +213,7 @@ describe('field presentation', () => {
 		});
 
 		expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Paragraph', 'Sentence']);
-		expect(wrapper.get('.blf-within-attributes label').text()).toBe('s type');
+		expect(wrapper.get('.blf-within-attributes label').text()).toBe('Type');
 		expect(wrapper.get('button').classes()).toContain('btn-lg');
 		expect(wrapper.get('input').classes()).toContain('input-lg');
 	});

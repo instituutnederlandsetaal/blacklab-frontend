@@ -3,6 +3,7 @@ import {
 	annotationPosController,
 	annotationSelectController,
 	annotationTextController,
+	createRangeModeOptions,
 	createFormFieldNode,
 	filterCheckboxController,
 	filterDateController,
@@ -60,6 +61,8 @@ export function createSearchFormNodeFactory({
 	tagset: Tagset | undefined;
 	translate: Translate;
 }): SearchFormNodeFactory {
+	const modeOptions = createRangeModeOptions(translate);
+
 	function annotationCommon(annotation: NormalizedAnnotation, options: SearchFormFieldOptions) {
 		return {
 			description: () => translate.$tAnnotDescription(annotation),
@@ -89,25 +92,27 @@ export function createSearchFormNodeFactory({
 					return annotationText(annotation, options);
 				}
 				return createFormFieldNode(options, annotationPosController, AnnotationPosField, {
+					...common,
 					annotation,
-					groupId: options.groupId,
-					showLabel: options.showLabel,
 					showQueryPreview: true,
 					subAnnotations: Object.fromEntries(
 						[...new Set([...(annotation.subAnnotations ?? []), ...Object.keys(tagset.subAnnotations)])].map(subAnnotationId => {
 							const corpusAnnotation = corpus.allAnnotatedFieldsMap[annotation.annotatedFieldId]?.annotations[subAnnotationId];
+							const subAnnotation = corpusAnnotation ?? {
+								id: subAnnotationId,
+								defaultDisplayName: tagset.subAnnotations[subAnnotationId]?.displayName ?? subAnnotationId,
+								defaultDescription: '',
+							};
 							return [
 								subAnnotationId,
-								corpusAnnotation ?? {
-									id: subAnnotationId,
-									defaultDisplayName: tagset.subAnnotations[subAnnotationId]?.displayName ?? subAnnotationId,
-									defaultDescription: '',
+								{
+									...subAnnotation,
+									label: () => translate.$tAnnotDisplayName(subAnnotation),
 								},
 							];
 						}),
 					),
 					tagset,
-					variant: options.variant,
 				});
 			}
 			if (annotation.uiType === 'select' || annotation.uiType === 'combobox') {
@@ -152,8 +157,8 @@ export function createSearchFormNodeFactory({
 				if (field.uiType === 'radio') return createFormFieldNode(options, filterRadioController, RadioField, config);
 				if (field.uiType === 'select' || field.uiType === 'combobox') return createFormFieldNode(options, filterSelectController, SelectField, { ...config, multiple: true });
 			}
-			if (field.uiType === 'date') return createFormFieldNode(options, filterDateController, DateField, { ...common, range: true });
-			if (field.uiType === 'range') return createFormFieldNode(options, filterRangeController, RangeField, { ...common, inputType: 'number' });
+			if (field.uiType === 'date') return createFormFieldNode(options, filterDateController, DateField, { ...common, range: true, modeOptions });
+			if (field.uiType === 'range') return createFormFieldNode(options, filterRangeController, RangeField, { ...common, inputType: 'number', modeOptions });
 			return createFormFieldNode(options, filterTextController, TextField, {
 				...common,
 				autocomplete: field.uiType !== 'text' ? (term: string) => blacklabApi.getMetadataAutocomplete(corpus.id, field.id, term) : undefined,
@@ -172,7 +177,7 @@ export function createSearchFormNodeFactory({
 			if (typeof attribute.control === 'object') {
 				return createFormFieldNode(options, withinAttributeSelectController, SelectField, { ...common, multiple: true, options: attribute.control.options });
 			}
-			if (attribute.control === 'range') return createFormFieldNode(options, withinAttributeRangeController, RangeField, { ...common, inputType: 'text' });
+			if (attribute.control === 'range') return createFormFieldNode(options, withinAttributeRangeController, RangeField, { ...common, inputType: 'text', modeOptions });
 			return createFormFieldNode(options, withinAttributeTextController, TextField, common);
 		},
 	};

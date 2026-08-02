@@ -206,7 +206,7 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import { isSimpleOption, type Options, type SimpleOption, type OptGroup, isOption, isOptGroup, type Option } from '@/shared/utils/options';
+import { isSimpleOption, type Options, type SimpleOption, type OptGroup, isOption, isOptGroup, optionLabel, optionText, type Option } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid';
 
 type _uiOpt = {
@@ -379,26 +379,29 @@ export default defineComponent({
 				lowerLabel: o.toLowerCase(),
 			});
 
-			const mapOption = (o: Option, group?: OptGroup): _uiOpt => ({
-				type: 1,
-				id: id++,
+			const mapOption = (o: Option, group?: OptGroup): _uiOpt => {
+				const label = optionLabel(o);
+				return {
+					type: 1,
+					id: id++,
 
-				...o,
-				value: o.value,
-				label: o.label || o.value,
-				title: o.title != null ? o.title : undefined,
+					...o,
+					value: o.value,
+					label,
+					title: optionText(o.title) ?? undefined,
 
-				disabled: o.disabled || (group && group.disabled),
+					disabled: o.disabled || (group && group.disabled),
 
-				lowerValue: o.value.toLowerCase(),
-				lowerLabel: (o.label || o.value).toLowerCase(),
-			});
+					lowerValue: o.value.toLowerCase(),
+					lowerLabel: label.toLowerCase(),
+				};
+			};
 
 			const mapGroup = (o: OptGroup): _uiOptGroup => ({
 				type: 2,
 				id: id++,
-				label: o.label,
-				title: o.title != null ? o.title : undefined,
+				label: optionText(o.label),
+				title: optionText(o.title) ?? undefined,
 				disabled: o.disabled,
 			});
 

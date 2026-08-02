@@ -2,6 +2,8 @@
  * Helper functions to return groups of fields, e.g. for dropdown options or partitioning of widgets in the UI, etc.
  */
 
+import { toValue, type MaybeRefOrGetter } from 'vue';
+
 import type { NormalizedAnnotation, NormalizedAnnotationGroup, NormalizedMetadataGroup } from '@/types/apptypes';
 
 import type { Translate } from '@/shared/i18n';
@@ -52,7 +54,7 @@ export function fieldSubset<T extends { id: string }>(
  * @param metadata all metadata fields in the corpus
  * @param operation What section of the interface to generate the options list for: 'Sort' will generate additional entries to sort in reverse order, and 'Group' is just to generate appropriate option labels "Group by ...".
  * @param i18n the translation facade to use for i18n
- * @param debug is debug mode enabled? print raw IDS in suffix labels
+ * @param debug is debug mode enabled? Accepts a ref/getter so deferred labels react to toggles.
  * @param showGroupLabels show little group name suffixes at the end of options?
  * @param showFieldFunction a function that returns whether a field should be shown in the list of options. If not provided, all requested fields are shown. For 'customization' (see customization.ts).
  */
@@ -62,7 +64,7 @@ export function getMetadataSubset<T extends { id: string; defaultDisplayName?: s
 	metadata: Record<string, T>,
 	operation: 'Sort' | 'Group',
 	i18n: Translate,
-	debug = false,
+	debug: MaybeRefOrGetter<boolean> = false,
 	/* show the <small/> labels at the end of options labels? */
 	showGroupLabels = true,
 	showFieldFunction?: (id: string) => boolean | null,
@@ -72,33 +74,37 @@ export function getMetadataSubset<T extends { id: string; defaultDisplayName?: s
 	// Map a metadata field's id + displayname + group to an option for rendering a groupby or sortby dropdown.
 	// This will map the value to be the string required for blacklab to sort/group by the field
 	// and the label to be the human-readable display name of the field.
-	function mapToOptions(value: string, displayName: string, groupId: string): Option[] {
-		const displayIdHtml = debug ? `<small><strong>[id: ${value}]</strong></small>` : '';
-		const displayNameHtml = displayName || value;
-		const displaySuffixHtml = showGroupLabels && groupId ? `<small class="text-muted">${groupId}</small>` : '';
+	function createOptionLabel(field: T, groupId: string, key: string) {
+		return () => {
+			const displayIdHtml = toValue(debug) ? `<small><strong>[id: ${field.id}]</strong></small>` : '';
+			const displayNameHtml = i18n.$tMetaDisplayName(field) || field.id;
+			const localizedGroupId = i18n.$tMetaGroupName(groupId);
+			const displaySuffixHtml = showGroupLabels && localizedGroupId ? `<small class="text-muted">${localizedGroupId}</small>` : '';
+			return i18n.$t(key, { field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}` });
+		};
+	}
+
+	function mapToOptions(field: T, groupId: string): Option[] {
+		const value = field.id;
 		const r: Option[] = [];
 		const labelI18nKey = operation === 'Sort' ? 'results.table.sortBy' : 'results.table.groupBy';
 		r.push({
 			value: operation === 'Sort' ? `field:${value}` : value, // groupby prepends field: on its own
-			label: i18n.$t(labelI18nKey, { field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}` }).toString(),
+			label: createOptionLabel(field, groupId, labelI18nKey),
 		});
 		if (operation === 'Sort') {
 			r.push({
 				value: `-field:${value}`,
-				label: i18n
-					.$t('results.table.sortByDescending', {
-						field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`,
-					})
-					.toString(),
+				label: createOptionLabel(field, groupId, 'results.table.sortByDescending'),
 			});
 		}
 		return r;
 	}
 
 	const r = subset.map<OptGroup & { entries: T[] }>(group => ({
-		options: group.entries.filter(e => showFieldFunction?.(e.id) ?? true).flatMap(e => mapToOptions(e.id, i18n.$tMetaDisplayName(e), i18n.$tMetaGroupName(group.id))),
+		options: group.entries.filter(e => showFieldFunction?.(e.id) ?? true).flatMap(e => mapToOptions(e, group.id)),
 		entries: group.entries,
-		label: i18n.$tMetaGroupName(group.id),
+		label: () => i18n.$tMetaGroupName(group.id),
 	}));
 
 	return r;
@@ -111,7 +117,7 @@ export function getMetadataSubset<T extends { id: string; defaultDisplayName?: s
  * @param annotations all annotations in the corpus
  * @param operation What section of the interface to generate the options list for: 'Search' will output every annotation only once per group, 'Sort' will generate additional entries to sort in reverse order, and 'Group' is just to generate appropriate option labels "Group by ...".
  * @param corpusTextDirection important for the order of left/right context sorting
- * @param debug is debug mode enabled? print raw annotation IDS in labels
+ * @param debug is debug mode enabled? Accepts a ref/getter so deferred labels react to toggles.
  * @param showGroupLabels show little group name suffixes at the end of options?
  */
 export function getAnnotationSubset(
@@ -120,7 +126,7 @@ export function getAnnotationSubset(
 	annotations: Record<string, NormalizedAnnotation>,
 	operation: 'Search' | 'Sort',
 	i18n: Translate,
-	debug = false,
+	debug: MaybeRefOrGetter<boolean> = false,
 	showGroupLabels = false,
 ): Array<OptGroup & { entries: NormalizedAnnotation[] }> {
 	function findAnnotatedFieldId(groupId: string) {
@@ -136,29 +142,38 @@ export function getAnnotationSubset(
 				id: group.id,
 				isRemainderGroup: false,
 			};
-			const groupNameLocalized = i18n.$tAnnotGroupName(annotationGroupMock);
-
 			return {
 				entries: group.entries,
 				options: group.entries.map(a => ({
 					value: a.id,
-					label: i18n.$tAnnotDisplayName(a) + (showGroupLabels ? ` <small class="text-muted">${groupNameLocalized}</small>` : '') + (debug ? ` <small><strong>[id: ${a.id}]</strong></small>` : ''),
-					title: i18n.$tAnnotDescription(a),
+					label: () =>
+						i18n.$tAnnotDisplayName(a) +
+						(showGroupLabels ? ` <small class="text-muted">${i18n.$tAnnotGroupName(annotationGroupMock)}</small>` : '') +
+						(toValue(debug) ? ` <small><strong>[id: ${a.id}]</strong></small>` : ''),
+					title: () => i18n.$tAnnotDescription(a),
 				})),
 				// hack, when using a default group we need to come up with an annotated field
 				// So just use the first annotated field we come across.
-				label: i18n.$tAnnotGroupName({
-					id: group.id,
-					annotatedFieldId: findAnnotatedFieldId(group.id),
-					entries: [],
-					isRemainderGroup: false,
-				}),
+				label: () =>
+					i18n.$tAnnotGroupName({
+						id: group.id,
+						annotatedFieldId: findAnnotatedFieldId(group.id),
+						entries: [],
+						isRemainderGroup: false,
+					}),
 			};
 		});
 	} else {
 		// Generate options for sorting by annotation.
 		// I.e. 6 options per annotation. 3 for each position: before, hit, after
 		// and 2 per postion: ascending and descending.
+		const createSortLabel = (id: string, suffix: string, key: string) => () => {
+			const displayIdHtml = toValue(debug) ? `<small><strong>[id: ${id}]</strong></small>` : '';
+			const displayNameHtml = i18n.$tAnnotDisplayName(annotations[id]);
+			const displaySuffixHtml = showGroupLabels && suffix ? `<small class="text-muted">${suffix}</small>` : '';
+			return i18n.$t(key, { field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}` });
+		};
+
 		return [
 			['hit:', 'Hit', ''],
 			['before:', 'Before hit', 'before'],
@@ -167,26 +182,13 @@ export function getAnnotationSubset(
 			label: groupname,
 			entries: subset[0].entries,
 			options: ids.flatMap<Option>(id => {
-				// in debug mode - show IDs
-				const displayIdHtml = debug ? `<small><strong>[id: ${id}]</strong></small>` : '';
-				const displayNameHtml = i18n.$tAnnotDisplayName(annotations[id]);
-				const displaySuffixHtml = showGroupLabels && suffix ? `<small class="text-muted">${suffix}</small>` : '';
-
 				return [
 					{
-						label: i18n
-							.$t('results.table.sortBy', {
-								field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`,
-							})
-							.toString(),
+						label: createSortLabel(id, suffix, 'results.table.sortBy'),
 						value: `${prefix}${id}`,
 					},
 					{
-						label: i18n
-							.$t('results.table.sortByDescending', {
-								field: `${displayNameHtml} ${displayIdHtml} ${displaySuffixHtml}`,
-							})
-							.toString(),
+						label: createSortLabel(id, suffix, 'results.table.sortByDescending'),
 						value: `-${prefix}${id}`,
 					},
 				];

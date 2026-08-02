@@ -19,10 +19,10 @@
 				:class="['btn btn-default', { active: modelValue.mode === mode.value }]"
 				:key="mode.value"
 				:value="mode.value"
-				:title="mode.title || ''"
+				:title="optionText(mode.title) || ''"
 				@click="e_input({ ...modelValue, mode: mode.value })"
 			>
-				{{ mode.label }}
+				{{ optionText(mode.label) }}
 			</button>
 		</div>
 		<div class="col-xs-12" v-if="description">
@@ -40,7 +40,7 @@ import createBaseFilterComponent from '@/components/filters/Filter';
 
 import type { FilterRangeMultipleFieldsMetadata, FilterRangeMultipleFieldsValue } from './filterValueFunctions';
 
-import type { Option } from '@/shared/utils/options';
+import { optionText, type Option } from '@/shared/utils/options';
 
 type ModeOption = Option & { value: FilterRangeMultipleFieldsValue['mode'] };
 
@@ -50,6 +50,9 @@ export default defineComponent({
 		high: '',
 		mode: 'strict',
 	})),
+	methods: {
+		optionText,
+	},
 	computed: {
 		fields(): FilterRangeMultipleFieldsMetadata {
 			return this.definition.metadata;

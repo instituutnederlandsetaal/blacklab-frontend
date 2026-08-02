@@ -25,6 +25,7 @@ import { createTestBuilder, createTestRuntime } from './helpers';
 
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ParallelField from '@/features/form/fields/ParallelField.vue';
+import type { ParallelFieldState } from '@/features/form/fields/parallel-field';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import WithinField from '@/features/form/fields/WithinField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
@@ -323,6 +324,60 @@ describe('builtin controller hosts', () => {
 		await findButtonByText(harness.wrapper, 'parallel-state.align.selected').trigger('click');
 
 		expect(harness.runtime.state.state.value[harness.field.id]).toEqual(fieldExpectations.parallel.state);
+	});
+
+	test('reactively resolves graph-owned parallel labels and keeps raw fallbacks', async () => {
+		const locale = ref('en');
+		const harness = mountFieldHarness(builder => {
+			builder.context.translate.$tAnnotatedFieldDisplayName = vi.fn(option => `${locale.value}:late-field:${option.id}`);
+			builder.context.translate.$tAlignByDisplayName = vi.fn(option => `${locale.value}:late-align:${option.value}`);
+			return builder.newField('parallel-localization.node', parallelController, ParallelField, {
+				alignByOptions: [
+					{ value: 'raw-align' },
+					{ value: 'graph-align', label: () => `${locale.value}:graph-align` },
+				],
+				childFieldTemplate: createFormFieldNode('parallel-localization.node.query', expertQueryController, RawCqlField, {}),
+				defaultAlignBy: 'raw-align',
+				defaultSource: 'raw-field',
+				fieldOptions: [
+					{ id: 'raw-field', defaultDisplayName: 'Raw field' },
+					{ id: 'graph-field', label: () => `${locale.value}:graph-field` },
+				],
+			});
+		});
+
+		const sourcePicker = harness.wrapper.findComponent(SelectPicker);
+		expect(sourcePicker.get('.menu-button .menu-value').text()).toBe('Raw field');
+		expect(harness.wrapper.findAll('.menu-option[data-value="graph-field"]').map(option => option.text())).toEqual(expect.arrayContaining(['en:graph-field']));
+		expect(findButtonByText(harness.wrapper, 'raw-align').exists()).toBe(true);
+		expect(findButtonByText(harness.wrapper, 'en:graph-align').exists()).toBe(true);
+
+		const currentState = harness.runtime.state.state.value[harness.field.id] as ParallelFieldState;
+		harness.runtime.state.state.value[harness.field.id] = {
+			...currentState,
+			alignBy: 'graph-align',
+			childStates: {
+				...currentState.childStates,
+				'graph-field': '',
+			},
+			targets: ['graph-field'],
+		};
+		expect(harness.runtime.compile(harness.form.id).summaries.map(summary => summary.value)).toEqual(
+			expect.arrayContaining(['Raw field', 'en:graph-field', 'en:graph-align']),
+		);
+
+		locale.value = 'nl';
+		await nextTick();
+
+		expect(sourcePicker.get('.menu-button .menu-value').text()).toBe('Raw field');
+		expect(harness.wrapper.findAll('h4').map(heading => heading.text())).toEqual(expect.arrayContaining(['nl:graph-field']));
+		expect(findButtonByText(harness.wrapper, 'raw-align').exists()).toBe(true);
+		expect(findButtonByText(harness.wrapper, 'nl:graph-align').exists()).toBe(true);
+		expect(harness.runtime.compile(harness.form.id).summaries.map(summary => summary.value)).toEqual(
+			expect.arrayContaining(['Raw field', 'nl:graph-field', 'nl:graph-align']),
+		);
+		expect(harness.runtime.definition.context.translate.$tAnnotatedFieldDisplayName).not.toHaveBeenCalled();
+		expect(harness.runtime.definition.context.translate.$tAlignByDisplayName).not.toHaveBeenCalled();
 	});
 
 	test('updates raw cql state from the host', async () => {

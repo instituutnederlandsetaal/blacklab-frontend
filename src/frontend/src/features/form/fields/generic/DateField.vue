@@ -42,11 +42,11 @@
 					:class="['btn btn-default', { active: modelValue.mode === mode.value }]"
 					:key="mode.value"
 					:value="mode.value"
-					:title="mode.title || ''"
+					:title="optionText(mode.title) || ''"
 					:disabled
 					@click="updateMode(mode.value)"
 				>
-					{{ mode.label }}
+					{{ optionLabel(mode) }}
 				</button>
 			</div>
 			<small v-if="description" class="help-block">{{ description }}</small>
@@ -59,18 +59,14 @@ import { computed } from 'vue';
 
 import { useFieldPresentation } from '../field-presentation';
 import { DateUtils, type DateFieldComponentProps, type DateFieldState } from './date-field';
-import type { RangeMode } from './range-mode';
+import { rawRangeModeOptions, type RangeMode } from './range-mode';
 
-import { useI18n } from '@/shared/i18n';
-import type { Option } from '@/shared/utils/options';
-
-type ModeOption = Option<RangeMode>;
+import { optionLabel, optionText } from '@/shared/utils/options';
 
 const props = withDefaults(defineProps<DateFieldComponentProps>(), {
 	showLabel: true,
 	disabled: false,
 });
-const i18n = useI18n();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: DateFieldState];
@@ -86,19 +82,7 @@ const maxYear = computed(() => maxDate.value?.y);
 const startMonthLength = computed(() => DateUtils.dateValueToString({ ...props.modelValue.startDate, d: '' }, 'end').substring(6, 8));
 const endMonthLength = computed(() => DateUtils.dateValueToString({ ...props.modelValue.endDate, d: '' }, 'end').substring(6, 8));
 const lockedMode = computed(() => props.mode ?? null);
-
-const modes = computed<ModeOption[]>(() => [
-	{
-		value: 'permissive',
-		label: i18n.$t(`filter.range.permissive`),
-		title: i18n.$t(`filter.range.permissiveDescription`),
-	},
-	{
-		value: 'strict',
-		label: i18n.$t(`filter.range.strict`),
-		title: i18n.$t(`filter.range.strictDescription`),
-	},
-]);
+const modes = computed(() => props.modeOptions ?? rawRangeModeOptions);
 
 const yearFrom = computed({
 	get: () => props.modelValue.startDate.y,

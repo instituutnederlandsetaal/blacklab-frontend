@@ -3,7 +3,7 @@ import type { App } from 'vue';
 import type { Translate } from './types';
 
 import { elementAndAttributeNameFromFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
-import type { Option } from '@/shared/utils/options';
+import { optionText, type Option } from '@/shared/utils/options';
 import useInjectable from '@/shared/utils/useInjectable';
 
 type TranslateRuntime = {
@@ -39,8 +39,9 @@ export function createTranslate(i18n: TranslateRuntime): Translate {
 	}
 
 	function $tWithinElementDisplayName(element: Option): string {
-		if (!element.value) return element.label || String(i18n.t('search.extended.withinDocument'));
-		return $td(`index.spans.${element.value}`, element.label || element.value);
+		const defaultLabel = optionText(element.label);
+		if (!element.value) return defaultLabel || String(i18n.t('search.extended.withinDocument'));
+		return $td(`index.spans.${element.value}`, defaultLabel || element.value);
 	}
 
 	function $tWithinAttributeDisplayName(element: string, attribute: string, defaultDisplayName?: string): string {
@@ -86,7 +87,7 @@ export function createTranslate(i18n: TranslateRuntime): Translate {
 		$tSpanDisplayName: $tWithinElementDisplayName,
 		$tSpanAttributeDisplay: $tWithinAttributeDisplayName,
 		$tAlignByDisplayName(alignBy) {
-			return $td(`index.alignBy.${alignBy.value}`, alignBy.label || alignBy.value);
+			return $td(`index.alignBy.${alignBy.value}`, optionText(alignBy.label) || alignBy.value);
 		},
 	};
 

@@ -8,10 +8,10 @@
 				:class="['btn', alignBy === option.value ? 'active btn-primary' : 'btn-default']"
 				:key="option.value"
 				:value="option.value"
-				:title="option.title || option.value"
+				:title="optionText(option.title) || option.value"
 				@click="alignBy = option.value"
 			>
-				{{ option.label || option.value || 'document' }}
+				{{ optionLabel(option) || 'document' }}
 			</button>
 			<!-- empty value searches across entire documents -->
 		</div>
@@ -24,11 +24,15 @@ import { defineComponent } from 'vue';
 import * as UIStore from '@/app/state/ui-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 
-import type { Option } from '@/shared/utils/options';
+import { optionLabel, optionText, type Option } from '@/shared/utils/options';
 export default defineComponent({
 	props: {
 		block: { default: false, type: Boolean },
 		lg: { default: false, type: Boolean },
+	},
+	methods: {
+		optionLabel,
+		optionText,
 	},
 	computed: {
 		alignByOptions(): Option[] {

@@ -1,6 +1,8 @@
 import {
 	createDefaultParallelChildState,
 	createDefaultParallelFieldState,
+	parallelAlignByLabel,
+	parallelAnnotatedFieldLabel,
 	type ParallelAnnotatedField,
 	type ParallelFieldConfig,
 	type ParallelFieldDefinition,
@@ -13,13 +15,9 @@ import { parallelQuery, parallelQueryTarget, queryFragment, type SummaryEntry } 
 
 import { findOption } from '@/shared/utils/options';
 
-function translatedAnnotatedField(runtime: FormRuntimeContext, field: ParallelAnnotatedField) {
-	return runtime.translate.$tAnnotatedFieldDisplayName(field);
-}
-
-function translatedAlignBy(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, alignBy: string) {
+function alignByLabel(config: FieldControllerProps<ParallelFieldConfig>, alignBy: string) {
 	const option = findOption(config.alignByOptions ?? [], alignBy);
-	return runtime.translate.$tAlignByDisplayName(typeof option === 'string' ? { value: option } : (option ?? { value: alignBy }));
+	return parallelAlignByLabel(option ?? alignBy);
 }
 
 function getParallelChildContribution(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown) {
@@ -99,19 +97,19 @@ export const parallelController = defineFieldController<'parallel', ParallelFiel
 		if (state.source)
 			summaries.push({
 				label: runtime.translate.$t(`search.parallel.searchSourceVersion`),
-				value: translatedAnnotatedField(runtime, config.fieldOptions.find(field => field.id === state.source) ?? { id: state.source }),
+				value: parallelAnnotatedFieldLabel(config.fieldOptions.find(field => field.id === state.source) ?? { id: state.source }),
 				summaryType: ['searchfield', 'patt'],
 			});
 		if (state.targets.length)
 			summaries.push({
 				label: runtime.translate.$t(`search.parallel.andCompareWithTargetVersions`),
-				value: state.targets.map(target => translatedAnnotatedField(runtime, config.fieldOptions.find(field => field.id === target) ?? { id: target })).join(', '),
+				value: state.targets.map(target => parallelAnnotatedFieldLabel(config.fieldOptions.find(field => field.id === target) ?? { id: target })).join(', '),
 				summaryType: ['searchfield', 'patt'],
 			});
 		if (state.alignBy)
 			summaries.push({
 				label: runtime.translate.$t(`search.parallel.alignBy`),
-				value: translatedAlignBy(config, runtime, state.alignBy),
+				value: alignByLabel(config, state.alignBy),
 				summaryType: ['searchfield', 'patt'],
 			});
 

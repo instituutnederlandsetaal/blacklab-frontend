@@ -9,6 +9,7 @@ import { createQueryBuilderOptions } from '@/pages/search/model/query-builder-op
 import type { NormalizedAnnotation, NormalizedIndex, NormalizedMetadataField } from '@/types/apptypes';
 
 import { normalizeIndex } from '@/shared/blacklab-helpers/normalize/normalize-corpus';
+import { findOption, optionLabel, optionText, optionValues } from '@/shared/utils/options';
 
 function annotation(id: string, overrides: Partial<NormalizedAnnotation> = {}): NormalizedAnnotation {
 	return {
@@ -178,7 +179,11 @@ describe('search form data dependencies', () => {
 
 		expect(options.indexId).toBe('test-corpus');
 		expect(options.defaultAnnotationId).toBe('lemma');
-		expect(options.annotationOptions).toEqual([{ label: 'lemma', title: 'lemma description', value: 'lemma' }]);
+		expect(optionValues(options.annotationOptions)).toEqual(['lemma']);
+		const annotationOption = findOption(options.annotationOptions, 'lemma');
+		if (!annotationOption || typeof annotationOption === 'string') throw new Error('Expected a query-builder annotation option.');
+		expect(optionLabel(annotationOption)).toBe('lemma');
+		expect(optionText(annotationOption.title)).toBe('lemma description');
 		await expect(options.autocomplete(index.annotatedFields.contents.annotations.lemma, 'wat')).resolves.toEqual(['water']);
 		expect(getTermAutocomplete).toHaveBeenCalledWith('test-corpus', 'contents', 'lemma', 'wat');
 	});
@@ -195,7 +200,11 @@ describe('search form data dependencies', () => {
 			translate: createMockTranslate(),
 		});
 
-		expect(options.annotationOptions).toEqual([{ label: 'lemma', title: 'lemma description', value: 'lemma' }]);
+		expect(optionValues(options.annotationOptions)).toEqual(['lemma']);
+		const annotationOption = findOption(options.annotationOptions, 'lemma');
+		if (!annotationOption || typeof annotationOption === 'string') throw new Error('Expected a query-builder annotation option.');
+		expect(optionLabel(annotationOption)).toBe('lemma');
+		expect(optionText(annotationOption.title)).toBe('lemma description');
 		expect(options.defaultAnnotationId).toBe('lemma');
 	});
 });

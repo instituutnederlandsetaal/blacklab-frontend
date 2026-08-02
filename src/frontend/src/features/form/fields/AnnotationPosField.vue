@@ -1,6 +1,6 @@
 <template>
 	<div v-bind="field.rootAttrs">
-		<label v-if="showLabel" :for="buttonId" :class="field.labelClass">{{ $tAnnotDisplayName(annotation) }}</label>
+		<label v-if="showLabel" :for="buttonId" :class="field.labelClass">{{ annotationLabel }}</label>
 		<div :class="field.controlsClass">
 			<div class="input-group">
 				<input :id="buttonId" type="text" :class="['form-control', field.inputClass]" :value="selectionSummary" readonly :placeholder="$t('partOfSpeech.noneSelected')" />
@@ -16,12 +16,12 @@
 				</div>
 			</div>
 
-			<small class="help-block">{{ $tAnnotDescription(annotation) }}</small>
+			<small class="help-block">{{ annotationDescription }}</small>
 		</div>
 
 		<Modal
 			v-if="editorOpen"
-			:title="$tAnnotDisplayName(annotation)"
+			:title="annotationLabel"
 			:confirm-message="$t('partOfSpeech.submit')"
 			:close-message="$t('partOfSpeech.cancel')"
 			:size="modalSize"
@@ -79,6 +79,7 @@ import { computed, ref, watch } from 'vue';
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
 
 import {
+	annotationReferenceLabel,
 	cloneAnnotationPosFieldState,
 	createDefaultAnnotationPosFieldState,
 	findTagsetValue,
@@ -87,8 +88,6 @@ import {
 	type AnnotationPosFieldComponentProps,
 	type AnnotationPosFieldState,
 } from './annotation-pos-field';
-
-import { useI18n } from '@/shared/i18n';
 
 import Modal from '@/shared/ui/Modal.vue';
 
@@ -105,7 +104,6 @@ const emit = defineEmits<{
 	'update:modelValue': [value: AnnotationPosFieldState];
 }>();
 
-const i18n = useI18n();
 const editorOpen = ref(false);
 const draftState = ref(cloneAnnotationPosFieldState(props.modelValue));
 
@@ -121,10 +119,12 @@ watch(
 
 const field = useFieldPresentation(props);
 const buttonId = computed(() => `${props.htmlId}_editor`);
+const annotationLabel = computed(() => props.displayName ?? annotationReferenceLabel(props.annotation));
+const annotationDescription = computed(() => props.description ?? props.annotation.defaultDescription);
 const mainValues = computed(() => Object.values(props.tagset.values));
 const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value[props.annotation.id]?.[0]));
 const modalSize = computed(() => props.modalSize ?? 'lg');
-const selectionSummary = computed(() => summarizeAnnotationPosState(props, draftState.value, i18n));
+const selectionSummary = computed(() => summarizeAnnotationPosState(props, draftState.value));
 const hasSelection = computed(() => !!props.modelValue[props.annotation.id]?.[0]);
 
 function openEditor() {
@@ -165,9 +165,9 @@ function subAnnotationLabel(subAnnotationId: string): string {
 	const subAnnotation = props.subAnnotations?.[subAnnotationId] ?? {
 		id: subAnnotationId,
 		defaultDisplayName: subAnnotationId,
-		defaultDescription: undefined,
+		defaultDescription: '',
 	};
-	return i18n.$tAnnotDisplayName(subAnnotation);
+	return annotationReferenceLabel(subAnnotation);
 }
 
 function isDraftSelectionChecked(subAnnotationId: string, subAnnotationValue: string): boolean {

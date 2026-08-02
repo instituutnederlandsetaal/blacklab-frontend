@@ -116,6 +116,7 @@ import type { Result } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter
 import { parseBcql } from '@/shared/blacklab-helpers/cql/bcql-json-interpreter';
 import { getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';
 import { getPatternStringFromCql, getPatternStringSearch } from '@/shared/blacklab-helpers/pattern-utils';
+import { optionText } from '@/shared/utils/options';
 import useUid from '@/shared/utils/uid';
 
 import Annotation from '@/pages/search/form/Annotation.vue';
@@ -167,11 +168,14 @@ export default defineComponent({
 			return this.tabs.length > 1;
 		},
 		tabs(): Array<{ label: string; id: string; entries: AppTypes.NormalizedAnnotation[] }> {
-			const result = getAnnotationSubset(UIStore.getState().search.extended.searchAnnotationIds, this.corpus.annotationGroups, this.corpus.allAnnotationsMap, 'Search', this).map(group => ({
-				...group,
-				label: group.label!,
-				id: group.label!.replace(/[^\w]/g, '_') + '_annotations',
-			}));
+			const result = getAnnotationSubset(UIStore.getState().search.extended.searchAnnotationIds, this.corpus.annotationGroups, this.corpus.allAnnotationsMap, 'Search', this).map(group => {
+				const label = optionText(group.label) ?? '';
+				return {
+					...group,
+					label,
+					id: label.replace(/[^\w]/g, '_') + '_annotations',
+				};
+			});
 			if (this.isParallelCorpus) {
 				// Make sure we have the correct field, so autosuggest works properly
 				const versionSelected = PatternStore.getState().shared.source !== null;

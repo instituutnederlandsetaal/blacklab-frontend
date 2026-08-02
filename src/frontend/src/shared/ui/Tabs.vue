@@ -38,7 +38,7 @@
 						'tab-button': true,
 						disabled: tab.disabled,
 					}"
-					:title="tab.title || ''"
+					:title="optionText(tab.title) || ''"
 					:disabled="tab.disabled"
 					:aria-controls="tab.controls"
 					:aria-selected="index === selectedIndex"
@@ -47,7 +47,7 @@
 					@keydown="handleKeydown($event, index)"
 				>
 					<slot name="label" :tab :i="index" :selected="index === selectedIndex">
-						{{ tab.label ?? tab.value }}
+						{{ optionLabel(tab) }}
 					</slot>
 				</button>
 				<span v-if="$slots.after" class="tab-after">
@@ -68,6 +68,8 @@
 import { computed, nextTick, ref, useAttrs } from 'vue';
 
 import type { Tab } from './Tabs.types';
+
+import { optionLabel, optionText } from '@/shared/utils/options';
 
 defineOptions({
 	inheritAttrs: false,

@@ -199,7 +199,7 @@ import { useBlackLabApi } from '@/shared/api';
 import { getMetadataSubset, getAnnotationSubset } from '@/shared/blacklab-helpers/field-groups';
 import { spanFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
 import debug from '@/shared/debug/debug';
-import { findOption, type OptGroup, type Option, type Options } from '@/shared/utils/options';
+import { findOption, optionText, type OptGroup, type Option, type Options } from '@/shared/utils/options';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 import Tabs from '@/shared/ui/Tabs.vue';
@@ -300,7 +300,7 @@ export default defineComponent({
 			)
 				.concat(this.tagAttributes)
 				.map(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
-				.flatMap<Options[number]>(optGroup => (optGroup.label ? optGroup : optGroup.options));
+				.flatMap<Options[number]>(optGroup => (optionText(optGroup.label) ? optGroup : optGroup.options));
 		},
 		annotationDropdownOptions(): Options {
 			return getAnnotationSubset(
@@ -313,7 +313,7 @@ export default defineComponent({
 				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible,
 			)
 				.flatMap(optGroup => corpusCustomizations.group.customize(optGroup, this) ?? optGroup)
-				.flatMap<Options[number]>(optGroup => (optGroup.label ? optGroup : optGroup.options));
+				.flatMap<Options[number]>(optGroup => (optionText(optGroup.label) ? optGroup : optGroup.options));
 		},
 
 		tabs(): Option[] {

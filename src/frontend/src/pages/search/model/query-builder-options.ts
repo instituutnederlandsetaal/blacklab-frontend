@@ -27,13 +27,13 @@ export function createQueryBuilderOptions(input: { blacklabApi: BlackLabApi; con
 		allAnnotationsMap,
 		annotationOptions,
 		operatorOptions: OPERATORS.map(op => ({
-			label: translate.$t(`search.advanced.queryBuilder.boolean_operators.${op}`),
+			label: () => translate.$t(`search.advanced.queryBuilder.boolean_operators.${op}`),
 			value: op,
 		})),
 		comparatorOptions: COMPARATORS.map(comparators => ({
 			label: '',
 			options: comparators.map(comparator => ({
-				label: translate.$t(`search.advanced.queryBuilder.comparators.${comparator}`),
+				label: () => translate.$t(`search.advanced.queryBuilder.comparators.${comparator}`),
 				value: comparator,
 			})),
 		})),

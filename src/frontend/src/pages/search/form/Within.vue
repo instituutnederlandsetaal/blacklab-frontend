@@ -11,7 +11,7 @@
 				:class="['btn', model === option.value || (model === null && option.value === '') ? 'active btn-primary' : 'btn-default']"
 				:key="option.value"
 				:value="option.value"
-				:title="option.title || undefined"
+				:title="optionText(option.title) || undefined"
 				@click="model = option.value"
 			>
 				{{ $tSpanDisplayName(option)
@@ -28,7 +28,7 @@
 					<b>[{{ attr.value }}]</b></debug
 				></label
 			>
-			<input class="form-control" type="text" :title="attr.title || undefined" :value="withinAttributeValue(attr)" @change="changeWithinAttribute(attr, $event)" />
+			<input class="form-control" type="text" :title="optionText(attr.title) || undefined" :value="withinAttributeValue(attr)" @change="changeWithinAttribute(attr, $event)" />
 		</div>
 	</div>
 </template>
@@ -41,7 +41,7 @@ import { useCorpus } from '@/app/state/useCorpusContext';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import { corpusCustomizations } from '@/utils/customization';
 
-import type { Option } from '@/shared/utils/options';
+import { optionText, type Option } from '@/shared/utils/options';
 
 export default defineComponent({
 	emits: ['update:modelValue'],
@@ -76,6 +76,7 @@ export default defineComponent({
 		},
 	},
 	methods: {
+		optionText,
 		withinAttributeValue(option: Option) {
 			if (this.modelValue === null) return '';
 			const within = PatternStore.getState().shared.withinAttributes;

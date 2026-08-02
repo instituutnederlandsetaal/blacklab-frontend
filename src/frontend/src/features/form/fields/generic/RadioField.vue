@@ -5,7 +5,7 @@
 		</legend>
 		<div :class="field.controlsClass">
 			<div v-for="(option, index) in options" :key="index" class="radio">
-				<label :for="`${field.inputId}_${index}`" :title="option.title || ''">
+				<label :for="`${field.inputId}_${index}`" :title="optionText(option.title) || ''">
 					<input
 						type="radio"
 						:value="option.value"
@@ -16,7 +16,7 @@
 						@click="changeValue($event, option.value)"
 						@input.space="changeValue($event, option.value)"
 					/>
-					{{ option.label || option.value }}
+					{{ optionLabel(option) }}
 				</label>
 			</div>
 			<small v-if="description" class="help-block">{{ description }}</small>
@@ -27,6 +27,8 @@
 <script setup lang="ts">
 import { useFieldPresentation } from '../field-presentation';
 import type { RadioFieldComponentProps, RadioFieldState } from './radio-field';
+
+import { optionLabel, optionText } from '@/shared/utils/options';
 
 const props = withDefaults(defineProps<RadioFieldComponentProps>(), {
 	showLabel: true,

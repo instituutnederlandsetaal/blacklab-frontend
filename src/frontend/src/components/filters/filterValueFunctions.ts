@@ -283,7 +283,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<unknown, unknow
 		luceneQuerySummary(id, filterMetadata, filterValue) {
 			const selected = Object.entries(filterValue || {})
 				.filter(([value, isSelected]) => isSelected)
-				.map(([value, isSelected]) => filterMetadata.find(option => option.value === value)?.label || value);
+				.map(([value]) => optionLabel(findOption(filterMetadata, value) ?? value) || value);
 
 			return selected.length >= 2 ? selected.map(v => `"${v}"`).join(', ') : selected[0] || null;
 		},
@@ -404,9 +404,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<unknown, unknow
 			return value && value.length ? `${id}:(${value.map(v => escapeLucene(v)).join(' ')})` : null;
 		},
 		luceneQuerySummary(id, filterMetadata, value) {
-			const asDisplayValues = (value || []).map(v => {
-				return filterMetadata.find(option => option.value === v)?.label || v;
-			});
+			const asDisplayValues = (value || []).map(v => optionLabel(findOption(filterMetadata, v) ?? v) || v);
 			return asDisplayValues.length >= 2 ? asDisplayValues.map(v => `"${v}"`).join(', ') : asDisplayValues[0] || null;
 		},
 		isActive(id, filterMetadata, value) {
@@ -539,9 +537,7 @@ export const valueFunctions: Record<string, FilterValueFunctions<unknown, unknow
 		luceneQuerySummary(id, filterMetadata, value) {
 			filterMetadata = Array.isArray(filterMetadata) ? { options: filterMetadata } : filterMetadata;
 			const options: Option[] = filterMetadata.options;
-			const asDisplayValues = (value || []).map(v => {
-				return options.find(option => option.value === v)?.label || v;
-			});
+			const asDisplayValues = (value || []).map(v => optionLabel(findOption(options, v) ?? v) || v);
 			return asDisplayValues.length >= 2 ? asDisplayValues.map(v => `"${v}"`).join(', ') : asDisplayValues[0] || null;
 		},
 		isActive(id, filterMetadata, value) {

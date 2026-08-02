@@ -27,7 +27,7 @@
 			<MultiValuePicker :options="targetOptions" v-model="targetModel" :disabled />
 		</div>
 		<section v-for="target in selectedTargetOptions" :key="target.id" class="blf-parallel-query">
-			<h4>{{ $tAnnotatedFieldDisplayName(target) }}</h4>
+			<h4>{{ fieldOptionLabel(target) }}</h4>
 			<FieldRenderer
 				:field="childFieldTemplate"
 				:model-value="getValueForChildState(target.id)"
@@ -46,11 +46,11 @@
 					:class="['btn', alignByModel === option.value ? 'active btn-primary' : 'btn-default']"
 					:key="option.value"
 					:value="option.value"
-					:title="option.title || option.value"
+					:title="optionText(option.title) || option.value"
 					:disabled
 					@click="alignByModel = option.value"
 				>
-					{{ option.label || option.value || 'document' }}
+					{{ optionLabel(option) || 'document' }}
 				</button>
 				<!-- empty value searches across entire documents -->
 			</div>
@@ -62,11 +62,16 @@
 import { computed } from 'vue';
 
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
-import { createDefaultParallelChildState, type ParallelFieldComponentProps, type ParallelFieldState } from '@/features/form/fields/parallel-field';
+import {
+	createDefaultParallelChildState,
+	parallelAnnotatedFieldLabel,
+	type ParallelAnnotatedField,
+	type ParallelFieldComponentProps,
+	type ParallelFieldState,
+} from '@/features/form/fields/parallel-field';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
 
-import { useI18n } from '@/shared/i18n';
-import { isSimpleOption, type Option } from '@/shared/utils/options';
+import { isSimpleOption, optionLabel, optionText, type Option } from '@/shared/utils/options';
 
 import FieldRenderer from '@/features/form/ui/FieldRenderer.vue';
 import MultiValuePicker from '@/shared/ui/MultiValuePicker.vue';
@@ -80,7 +85,6 @@ type ParallelFieldProps = Omit<ParallelFieldComponentProps, 'modelValue'> & {
 
 const props = defineProps<ParallelFieldProps>();
 const runtime = useFormSystemRuntime();
-const translate = useI18n();
 
 const emit = defineEmits<{
 	'update:modelValue': [value: ParallelFieldState];
@@ -88,21 +92,17 @@ const emit = defineEmits<{
 
 const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-parallel-field' });
 const sourceOptions = computed<Option[]>(() =>
-	props.fieldOptions.filter(option => !props.modelValue.targets.includes(option.id)).map(option => ({ value: option.id, label: translate.$tAnnotatedFieldDisplayName(option) })),
+	props.fieldOptions.filter(option => !props.modelValue.targets.includes(option.id)).map(option => ({ value: option.id, label: option.label ?? parallelAnnotatedFieldLabel(option) })),
 );
 const targetOptions = computed<Option[]>(() =>
-	props.fieldOptions.filter(option => option.id !== props.modelValue.source).map(option => ({ value: option.id, label: translate.$tAnnotatedFieldDisplayName(option) })),
+	props.fieldOptions.filter(option => option.id !== props.modelValue.source).map(option => ({ value: option.id, label: option.label ?? parallelAnnotatedFieldLabel(option) })),
 );
-const alignByPickerOptions = computed<Option[]>(() =>
-	(props.alignByOptions ?? []).map(option => {
-		const normalized = isSimpleOption(option) ? { value: option } : option;
-		return {
-			...normalized,
-			label: translate.$tAlignByDisplayName(normalized),
-		};
-	}),
-);
+const alignByPickerOptions = computed<Option[]>(() => (props.alignByOptions ?? []).map(option => (isSimpleOption(option) ? { value: option } : option)));
 const selectedTargetOptions = computed(() => props.modelValue.targets.map(target => props.fieldOptions.find(option => option.id === target) ?? { id: target }));
+
+function fieldOptionLabel(option: ParallelAnnotatedField): string {
+	return parallelAnnotatedFieldLabel(option);
+}
 
 /** The source selected source field, as model */
 const sourceModel = computed<string | null>({

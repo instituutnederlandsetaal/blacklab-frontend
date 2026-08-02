@@ -4,13 +4,23 @@ import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
 import { mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { nextTick, ref } from 'vue';
+import { nextTick, ref, toValue } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
-import { FormSystem, RangeField, restoreFormState, SelectField, TextField, type ParallelFieldState, type TokenSequenceFieldState } from '@/features/form';
+import {
+	FormSystem,
+	RangeField,
+	restoreFormState,
+	SelectField,
+	summarizeAnnotationPosState,
+	TextField,
+	type AnnotationPosFieldConfig,
+	type ParallelFieldState,
+	type TokenSequenceFieldState,
+} from '@/features/form';
 import { adaptLegacySearchFormCustomizations } from '@/features/search/model/legacy-search-form-customization';
 import { createSearchFormSystem, getNewExploreFormId, getNewSearchFormId } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
@@ -18,7 +28,10 @@ import { resolveSearchFormCustomizations } from '@/features/search/model/search-
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
 
-import { optionValues, type Options } from '@/shared/utils/options';
+import debug from '@/shared/debug/debug';
+import { findOption, optionLabel, optionText, optionTitle, optionValues, type Options, type OptionText } from '@/shared/utils/options';
+
+import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
 function annotation(id: string, overrides: Partial<NormalizedAnnotation> = {}): NormalizedAnnotation {
 	return {
@@ -181,6 +194,7 @@ function createDefinition(corpus = createCorpus()) {
 }
 
 beforeEach(() => {
+	debug.value = false;
 	const state = UIStore.getState();
 	state.search.simple.searchAnnotationId = 'word';
 	state.search.extended.searchAnnotationIds = ['word', 'lemma', 'pos'];
@@ -208,13 +222,20 @@ afterEach(() => {
 });
 
 describe('search form system', () => {
-	test('keeps the live form runtime when reactive translations change', async () => {
+	test('updates deferred locale and debug option labels without replacing the live form runtime', async () => {
 		const locale = ref('en');
 		const translate = createMockTranslate();
 		const translated = {
 			...translate,
-			$t: (key: string) => `${locale.value}:${key}`,
+			$t: (key: string, params?: Record<string, unknown>) => `${locale.value}:${key}${typeof params?.field === 'string' ? `:${params.field}` : ''}`,
 			$tAnnotDisplayName: (value: Pick<NormalizedAnnotation, 'id'>) => `${locale.value}:${value.id}`,
+			$tAnnotDescription: (value: Pick<NormalizedAnnotation, 'id'>) => `${locale.value}:${value.id}:description`,
+			$tAnnotGroupName: (value: { id: string }) => `${locale.value}:${value.id}`,
+			$tMetaDisplayName: (value: { id: string }) => `${locale.value}:${value.id}`,
+			$tMetaGroupName: <T extends string | undefined | null>(value: { id: string } | T) => {
+				if (!value) return undefined as T;
+				return `${locale.value}:${typeof value === 'string' ? value : value.id}`;
+			},
 		};
 		const system = createSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
@@ -225,12 +246,61 @@ describe('search form system', () => {
 		});
 		const runtime = system.runtime.value!;
 		runtime.state.state.value['search.simple.query'] = { value: 'ship', caseSensitive: false };
+		const annotationOptions = (runtime.definition.getField('explore.ngram.group-by') as unknown as { options: Options }).options;
+		const metadataOptions = (runtime.definition.getField('explore.corpora.group-by') as unknown as { options: Options }).options;
+		const annotationOption = findOption(annotationOptions, 'word');
+		const metadataOption = findOption(metadataOptions, 'field:author');
+		const tokenSequence = runtime.definition.getField('explore.ngram.tokens') as unknown as {
+			selectorDisplayName: string | (() => string);
+			selectorPlaceholder: string | (() => string);
+		};
+		if (!annotationOption || !metadataOption) throw new Error('Expected deferred Explore options.');
+		const picker = mount(SelectPicker, {
+			props: { allowHtml: true, hideEmpty: true, modelValue: 'word', options: annotationOptions },
+		});
+
+		expect(optionLabel(annotationOption)).toContain('en:word');
+		expect(optionTitle(annotationOption)).toBe('en:word:description');
+		expect(optionLabel(metadataOption)).toContain('en:author');
+		expect(toValue(tokenSequence.selectorDisplayName)).toBe('en:results.table.property');
+		expect(toValue(tokenSequence.selectorPlaceholder)).toBe('en:results.table.property');
+		expect(optionLabel(annotationOption)).not.toContain('[id: word]');
+		expect(optionLabel(metadataOption)).not.toContain('[id: author]');
+		expect(picker.get('.menu-button').text()).toContain('en:word');
+		expect(picker.get('.menu-button').text()).not.toContain('[id: word]');
+		expect(runtime.compile(getNewExploreFormId('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'en:explore.ngram.ngramType', value: 'en:word' }));
+		expect(runtime.compile(getNewExploreFormId('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'en:explore.frequency.frequencyType', value: 'en:word' }));
 
 		locale.value = 'nl';
 		await nextTick();
 
 		expect(system.runtime.value).toBe(runtime);
 		expect(system.runtime.value!.state.state.value['search.simple.query']).toEqual({ value: 'ship', caseSensitive: false });
+		expect(optionLabel(annotationOption)).toContain('nl:word');
+		expect(optionTitle(annotationOption)).toBe('nl:word:description');
+		expect(optionLabel(metadataOption)).toContain('nl:author');
+		expect(toValue(tokenSequence.selectorDisplayName)).toBe('nl:results.table.property');
+		expect(toValue(tokenSequence.selectorPlaceholder)).toBe('nl:results.table.property');
+		expect(picker.get('.menu-button').text()).toContain('nl:word');
+		expect(runtime.compile(getNewExploreFormId('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.ngram.ngramType', value: 'nl:word' }));
+		expect(runtime.compile(getNewExploreFormId('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.frequency.frequencyType', value: 'nl:word' }));
+
+		debug.value = true;
+		await nextTick();
+		expect(system.runtime.value).toBe(runtime);
+		expect(optionLabel(annotationOption)).toContain('[id: word]');
+		expect(optionLabel(metadataOption)).toContain('[id: author]');
+		expect(picker.get('.menu-button').text()).toContain('[id: word]');
+		expect(runtime.compile(getNewExploreFormId('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.ngram.ngramType', value: 'nl:word' }));
+		expect(runtime.compile(getNewExploreFormId('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.frequency.frequencyType', value: 'nl:word' }));
+
+		debug.value = false;
+		await nextTick();
+		expect(system.runtime.value).toBe(runtime);
+		expect(optionLabel(annotationOption)).not.toContain('[id: word]');
+		expect(optionLabel(metadataOption)).not.toContain('[id: author]');
+		expect(picker.get('.menu-button').text()).not.toContain('[id: word]');
+		expect(runtime.state.state.value['search.simple.query']).toEqual({ value: 'ship', caseSensitive: false });
 	});
 
 	test('builds Documents as a form with configuration-backed defaults, shared filters, and a result preset', () => {
@@ -272,7 +342,7 @@ describe('search form system', () => {
 		expect(runtime.definition.getField('shared.filters.Bibliographic.author')).not.toBeNull();
 	});
 
-	test('uses tagset-declared subannotations and their display names in POS fields', () => {
+	test('keeps tagset-declared POS annotation labels live without replacing the form runtime', async () => {
 		const corpus = createCorpus();
 		const pos = corpus.allAnnotationsMap.pos;
 		pos.uiType = 'pos';
@@ -294,18 +364,47 @@ describe('search form system', () => {
 			},
 		};
 		const normalizedTagset = normalizeTagset(pos, corpus.allAnnotatedFieldsMap.contents.annotations, tagset);
-		const runtime = createSearchFormSystem({
+		const locale = ref('en');
+		const translate = createMockTranslate();
+		const translated = {
+			...translate,
+			$tAnnotDisplayName: (value: Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName'>) => `${locale.value}:${value.defaultDisplayName || value.id}`,
+			$tAnnotDescription: (value: Pick<NormalizedAnnotation, 'id' | 'defaultDescription'>) => `${locale.value}:${value.defaultDescription || value.id}`,
+		};
+		const system = createSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
 			configuration: createLegacySearchFormConfiguration(),
 			corpus: ref(corpus),
 			tagset: ref(normalizedTagset),
-			translate: createMockTranslate(),
-		}).runtime.value!;
-		const field = runtime.definition.getField('search.extended.annotations.Grammar.pos') as unknown as {
-			subAnnotations: Record<string, { defaultDisplayName: string }>;
+			translate: translated,
+		});
+		const runtime = system.runtime.value!;
+		const fieldId = 'search.extended.annotations.Grammar.pos';
+		const field = runtime.definition.getField(fieldId) as unknown as AnnotationPosFieldConfig & {
+			subAnnotations: NonNullable<AnnotationPosFieldConfig['subAnnotations']>;
 		};
+		const selection = { pos: ['NOU'], number: ['sg'] };
 
 		expect(field.subAnnotations.number.defaultDisplayName).toBe('Grammatical number');
+		expect(toValue(field.displayName)).toBe('en:pos');
+		expect(toValue(field.description)).toBe('en:pos description');
+		expect(optionText(field.subAnnotations.number.label)).toBe('en:Grammatical number');
+		expect(summarizeAnnotationPosState(field, selection)).toBe('Noun; en:Grammatical number: Singular');
+
+		runtime.state.state.value[fieldId] = selection;
+		runtime.state.uiState.value['search.extended.annotations'] = 'search.extended.annotations.Grammar';
+		runtime.state.uiState.value['search.extended.annotations.Grammar'] = fieldId;
+		expect(runtime.compile(getNewSearchFormId('extended')).summaries).toContainEqual(expect.objectContaining({ label: 'en:pos' }));
+
+		locale.value = 'nl';
+		await nextTick();
+
+		expect(system.runtime.value).toBe(runtime);
+		expect(toValue(field.displayName)).toBe('nl:pos');
+		expect(toValue(field.description)).toBe('nl:pos description');
+		expect(optionText(field.subAnnotations.number.label)).toBe('nl:Grammatical number');
+		expect(summarizeAnnotationPosState(field, selection)).toBe('Noun; nl:Grammatical number: Singular');
+		expect(runtime.compile(getNewSearchFormId('extended')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:pos' }));
 	});
 
 	test('applies metadata visibility customization and falls back from a hidden configured default', () => {
@@ -858,7 +957,7 @@ describe('search form system', () => {
 		const baseTranslate = createMockTranslate();
 		const translate = {
 			...baseTranslate,
-			$tWithinElementDisplayName: (element: Parameters<typeof baseTranslate.$tWithinElementDisplayName>[0]) => `${locale.value}:${element.label || element.value}`,
+			$tWithinElementDisplayName: (element: Parameters<typeof baseTranslate.$tWithinElementDisplayName>[0]) => `${locale.value}:${optionText(element.label) || element.value}`,
 		};
 		const system = createSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
@@ -916,12 +1015,12 @@ describe('search form system', () => {
 		];
 
 		const within = createDefinition(corpus).definition.getField('shared.within') as unknown as {
-			options: Array<{ value: string; label?: string; title?: string | null }>;
+			options: Array<{ value: string; label?: OptionText; title?: OptionText | null }>;
 		};
 
 		expect(within.options.map(option => option.value)).toEqual(['', 'p', 's']);
-		expect(within.options[1]).toMatchObject({ value: 'p', label: 'Custom paragraph', title: 'Paragraph title' });
-		expect(within.options[2]).toMatchObject({ value: 's', label: 'Custom sentence', title: null });
+		expect(within.options.map(optionLabel)).toEqual(['', 'Custom paragraph', 'Custom sentence']);
+		expect(within.options.map(option => optionText(option.title))).toEqual([undefined, 'Paragraph title', null]);
 	});
 
 	test('normalizes legacy within visibility hooks through the customization adapter', () => {
@@ -944,11 +1043,12 @@ describe('search form system', () => {
 		vi.spyOn(corpusCustomizations.search.within, 'includeAttribute').mockImplementation((_element, attribute) => (attribute === 'speaker' ? true : null));
 
 		const within = createDefinition(corpus).definition.getField('shared.within') as unknown as {
-			options: Array<{ value: string; attributes: Array<{ value: string }> }>;
+			options: Array<{ value: string; attributes: Array<{ value: string; label?: OptionText }> }>;
 		};
 
 		expect(within.options.map(option => option.value)).toEqual(['', 's']);
-		expect(within.options[1].attributes).toEqual([{ value: 'speaker', label: 'speaker' }]);
+		expect(within.options[1].attributes.map(option => option.value)).toEqual(['speaker']);
+		expect(within.options[1].attributes.map(optionLabel)).toEqual(['s speaker']);
 	});
 
 	test('uses the configured align-by visibility, options, and default', () => {
@@ -966,11 +1066,12 @@ describe('search form system', () => {
 
 		state.search.shared.alignBy.enabled = true;
 		const visibleDefinition = createDefinition(createParallelCorpus());
-		const visibleField = visibleDefinition.definition.getField('search.simple.query.parallel') as unknown as { alignByOptions: unknown[] };
-		expect(visibleField.alignByOptions).toEqual([
-			{ value: 'sentence-alignment', label: 'By sentence', title: 'Sentence alignment' },
-			{ value: 'word-alignment', label: 'By word', title: null },
-		]);
+		const visibleField = visibleDefinition.definition.getField('search.simple.query.parallel') as unknown as {
+			alignByOptions: Array<{ value: string; label?: OptionText; title?: OptionText | null }>;
+		};
+		expect(visibleField.alignByOptions.map(option => option.value)).toEqual(['sentence-alignment', 'word-alignment']);
+		expect(visibleField.alignByOptions.map(optionLabel)).toEqual(['By sentence', 'By word']);
+		expect(visibleField.alignByOptions.map(option => optionText(option.title))).toEqual(['Sentence alignment', null]);
 	});
 
 	test('keeps within field defaults when rendering after a simple-search URL restore', () => {

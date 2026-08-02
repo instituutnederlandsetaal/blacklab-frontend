@@ -1,4 +1,6 @@
-import { createDefaultAnnotationPosFieldState, type AnnotationPosFieldDefinition } from '@/features/form/fields/annotation-pos-field';
+import { toValue } from 'vue';
+
+import { annotationReferenceLabel, createDefaultAnnotationPosFieldState, type AnnotationPosFieldDefinition } from '@/features/form/fields/annotation-pos-field';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { array, record, scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
@@ -11,7 +13,7 @@ export const annotationPosController = defineFieldController<'annotation-pos', A
 	createDefaultState: createDefaultAnnotationPosFieldState,
 	persistence: { key: config => config.annotation.id, codec: persistenceCodec },
 	affectsBlackLabParameters: ['patt'],
-	getQueryContribution(config, runtime, state) {
+	getQueryContribution(config, _runtime, state) {
 		const [annotationValue] = state[config.annotation.id] ?? [];
 		if (!annotationValue) return null;
 
@@ -24,7 +26,7 @@ export const annotationPosController = defineFieldController<'annotation-pos', A
 			),
 		});
 		return queryFragment(query, {
-			label: runtime.translate.$tAnnotDisplayName(config.annotation),
+			label: toValue(config.displayName) ?? annotationReferenceLabel(config.annotation),
 			value: compileQueryIR(query).patt ?? annotationValue,
 			group: config.groupId,
 		});

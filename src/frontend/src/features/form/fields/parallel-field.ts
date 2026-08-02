@@ -3,7 +3,7 @@ import type { FormRuntimeContext } from '@/features/form/model/types/form-contro
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
 import type { Translate } from '@/shared/i18n';
-import { optionValue, type Option, type SimpleOption } from '@/shared/utils/options';
+import { optionLabel, optionText, optionValue, type Option, type OptionText, type SimpleOption } from '@/shared/utils/options';
 
 export type ParallelFieldState = {
 	source: string | null;
@@ -12,7 +12,7 @@ export type ParallelFieldState = {
 	childStates: Record<string, unknown>;
 };
 
-export type ParallelAnnotatedField = Parameters<Translate['$tAnnotatedFieldDisplayName']>[0];
+export type ParallelAnnotatedField = Parameters<Translate['$tAnnotatedFieldDisplayName']>[0] & { label?: OptionText };
 export type ParallelFieldExtraProps = {
 	fieldOptions: ParallelAnnotatedField[];
 	alignByOptions?: Array<SimpleOption | Option>;
@@ -30,6 +30,14 @@ export type ParallelFieldDefinition = FieldDefinition<ParallelFieldState, Parall
 export type ParallelFieldConfig = ParallelFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `ParallelFieldDefinition['componentProps']`. */
 export type ParallelFieldComponentProps = FieldComponentProps<ParallelFieldState> & ParallelFieldExtraProps;
+
+export function parallelAnnotatedFieldLabel(field: ParallelAnnotatedField): string {
+	return optionText(field.label) ?? (field.isParallel ? field.version || field.id : field.defaultDisplayName || field.id);
+}
+
+export function parallelAlignByLabel(option: SimpleOption | Option): string {
+	return optionLabel(option);
+}
 
 export function createDefaultParallelFieldState(config: ParallelFieldConfig, runtime: FormRuntimeContext): ParallelFieldState {
 	const source = config.defaultSource ?? null;

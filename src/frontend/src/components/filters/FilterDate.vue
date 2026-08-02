@@ -34,10 +34,10 @@
 				:class="['btn btn-default', { active: model.mode === mode.value }]"
 				:key="mode.value"
 				:value="mode.value"
-				:title="mode.title || ''"
+				:title="optionText(mode.title) || ''"
 				@click="e_input({ ...model, mode: mode.value })"
 			>
-				{{ mode.label }}
+				{{ optionText(mode.label) }}
 			</button>
 		</div>
 		<div class="col-xs-12" v-if="description">
@@ -57,7 +57,7 @@ import createBaseFilterComponent from '@/components/filters/Filter';
 import type { FilterDateValue, FilterDateMetadata as Metadata } from './filterValueFunctions';
 import { DateUtils } from './filterValueFunctions';
 
-import type { Option } from '@/shared/utils/options';
+import { optionText, type Option } from '@/shared/utils/options';
 
 type ModeOption = Option & { value: FilterDateValue['mode'] };
 
@@ -91,6 +91,9 @@ export default defineComponent({
 		 */
 		isDefaultValue: true,
 	})),
+	methods: {
+		optionText,
+	},
 	computed: {
 		model(): FilterDateValue & { isDefaultValue?: boolean } {
 			return this.modelValue;

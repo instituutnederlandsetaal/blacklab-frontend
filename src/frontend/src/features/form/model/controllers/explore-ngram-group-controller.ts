@@ -5,10 +5,10 @@ import { stringPersistenceCodec } from '@/features/form/model/controllers/persis
 import { defineFieldController, type FieldControllerConfig, type FieldPersistenceContext } from '@/features/form/model/types/form-controllers';
 import { queryFragment } from '@/features/form/model/types/form-query-ir';
 
-import { findOption, optionLabel, optionValues } from '@/shared/utils/options';
+import { findOption, optionLabel, optionText, optionValues, type OptionText } from '@/shared/utils/options';
 
 export type NgramGroupAnnotationControllerConfig = {
-	annotationLabels: Readonly<Record<string, string>>;
+	annotationLabels: Readonly<Record<string, OptionText>>;
 	defaultAnnotationId: string | null;
 	/** Stable and unique within the containing form. */
 	persistKey: string;
@@ -45,7 +45,7 @@ export const ngramGroupAnnotationController = defineFieldController<'explore-ngr
 			{
 				label: toValue(config.displayName),
 				summaryType: ['patt'],
-				value: config.annotationLabels[annotationId] ?? optionLabel(option ?? annotationId),
+				value: optionText(config.annotationLabels[annotationId]) ?? optionLabel(option ?? annotationId),
 			},
 		);
 	},

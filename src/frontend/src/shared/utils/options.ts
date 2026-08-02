@@ -1,16 +1,20 @@
+import { toValue, type MaybeRefOrGetter } from 'vue';
+
 export type SimpleOption = string;
+/** Plain or deferred UI text. Resolve it inside a render/computed context so reactive i18n dependencies stay live. */
+export type OptionText = MaybeRefOrGetter<string>;
 
 /** Generic object to represent an option in a dropdown multiple-choice, checkbox list, etc. */
 export type Option<T extends string = string> = {
 	value: T;
-	label?: string;
-	title?: string | null;
+	label?: OptionText;
+	title?: OptionText | null;
 	disabled?: boolean;
 };
-/** Generic object to represent a group of Options in a dropdown multiple-choide, checkbox list, etc. */
+/** Generic object to represent a group of options in a dropdown, multiple-choice picker, checkbox list, etc. */
 export type OptGroup = {
-	label?: string;
-	title?: string | null;
+	label?: OptionText;
+	title?: OptionText | null;
 	disabled?: boolean;
 	options: Array<string | Option>;
 };
@@ -24,7 +28,15 @@ export function isOption(e: any): e is Option {
 	return e && isSimpleOption(e.value);
 }
 export function isOptGroup(e: any): e is OptGroup {
-	return e && typeof e.label === 'string' && Array.isArray(e.options);
+	return e && Array.isArray(e.options);
+}
+
+export function optionText(value: OptionText): string;
+export function optionText(value: OptionText | null): string | null;
+export function optionText(value: OptionText | undefined): string | undefined;
+export function optionText(value: OptionText | null | undefined): string | null | undefined;
+export function optionText(value: OptionText | null | undefined): string | null | undefined {
+	return value == null ? value : toValue(value);
 }
 
 export function* eachOption(options: IterOptions): Generator<Option | SimpleOption, void, never> {
@@ -43,10 +55,10 @@ export function optionValue(option: SimpleOption | Option): string {
 	return isSimpleOption(option) ? option : option.value;
 }
 export function optionLabel(option: SimpleOption | Option): string {
-	return isSimpleOption(option) ? option : (option.label ?? option.value);
+	return isSimpleOption(option) ? option : (optionText(option.label) ?? option.value);
 }
 export function optionTitle(option: SimpleOption | Option): string {
-	return isSimpleOption(option) ? option : (option.title ?? option.label ?? option.value);
+	return isSimpleOption(option) ? option : (optionText(option.title) ?? optionText(option.label) ?? option.value);
 }
 export function optionDisabled(option: SimpleOption | Option): boolean {
 	return isSimpleOption(option) ? false : !!option.disabled;

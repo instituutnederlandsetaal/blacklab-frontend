@@ -3,7 +3,7 @@ import { object, record, scalar } from '@/features/form/model/controllers/persis
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
 import { queryFragment, textPredicate, within } from '@/features/form/model/types/form-query-ir';
 
-import { findOption } from '@/shared/utils/options';
+import { findOption, optionLabel } from '@/shared/utils/options';
 
 const persistenceCodec = object({
 	element: scalar()
@@ -42,7 +42,7 @@ export const withinController = defineFieldController<'within', WithinFieldDefin
 			resultPreset: { withSpans: true },
 			summaries: {
 				label: runtime.translate.$t(`search.extended.within`),
-				value: runtime.translate.$tWithinElementDisplayName(option),
+				value: optionLabel(option),
 				summaryType: this.affectsBlackLabParameters,
 			},
 		});
