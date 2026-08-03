@@ -51,5 +51,12 @@ footer {
 			margin-inline: 0 !important;
 		}
 	}
+
+	.container:not(.container-fluid) {
+		@media (max-width: 767px) {
+			width: auto;
+			margin-inline: 15px !important;
+		}
+	}
 }
 </style>

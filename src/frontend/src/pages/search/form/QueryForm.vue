@@ -5,7 +5,7 @@
 			<button type="button" class="btn btn-default btn-lg" @click="settingsOpen = true"><span class="glyphicon glyphicon-cog" style="vertical-align: text-top"></span></button>
 		</template>
 	</FormSystem>
-	<div v-else>
+	<div v-else class="container">
 		<ul class="nav nav-tabs cf-panel-tab-header cf-panel-lg">
 			<li :class="{ active: activeForm === 'search' }" @click.prevent="activeForm = 'search'">
 				<a href="#form-search">{{ $t('queryForm.search') }}</a>
