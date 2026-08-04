@@ -237,6 +237,29 @@ describe('form model state', () => {
 		expect(query.summaries).toEqual(expected.summaries);
 	});
 
+	test('reused fields contribute at every structural occurrence but summarize shared state once', () => {
+		const builder = createTestBuilder();
+		const sharedField = builder.newField('shared.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+		const sequence = builder
+			.newContainer('search.sequence', ContainerRenderer, { combine: 'sequence' })
+			.addChildren(
+				builder.newContainer('search.sequence.first', ContainerRenderer, {}).addChildren(sharedField),
+				builder.newContainer('search.sequence.second', ContainerRenderer, {}).addChildren(sharedField),
+			);
+		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(sequence);
+		const runtime = createTestRuntime(builder);
+		runtime.state.state.value[sharedField.id] = { value: 'water' };
+
+		const compiled = runtime.compile(form.id);
+
+		expect(compiled.patt).toBe('[word="water"] [word="water"]');
+		expect(compiled.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
+		expect(compiled.encoded).toMatchObject({ 'f.form': form.id, 'f.word': 'water' });
+	});
+
 	test('builder state picks the first active branch for nested container-like nodes', () => {
 		const builder = createTestBuilder();
 		builder.newContainer('search', ContainerRenderer, { variant: 'tabs' }).addChildren(
