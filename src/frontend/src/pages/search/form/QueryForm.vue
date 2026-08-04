@@ -81,7 +81,8 @@ import type { CompiledFormStateWithSummaries, FormRuntime } from '@/features/for
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as GlobalViewSettings from '@/features/search/model/results/global-results-state';
-import { getLegacyFormNameFromNewFormId, useSearchFormSystem } from '@/features/search/model/search-form-builder';
+import { useSearchFormSystem } from '@/features/search/model/search-form-builder';
+import { searchFormIds } from '@/features/search/model/search-form-ids';
 
 import FormSystem from '@/features/form/ui/FormSystem.vue';
 import QueryFormExplore from '@/pages/search/form/QueryFormExplore.vue';
@@ -169,7 +170,7 @@ export default defineComponent({
 		},
 
 		submitNewForm(snapshot: CompiledFormStateWithSummaries) {
-			if (!this.confirmLargeExploreSearch(getLegacyFormNameFromNewFormId(snapshot.formId))) return;
+			if (!this.confirmLargeExploreSearch(searchFormIds.formKind(snapshot.formId) ?? undefined)) return;
 			this.blurActiveElement();
 			RootStore.actions.searchFromSubmit(snapshot);
 		},

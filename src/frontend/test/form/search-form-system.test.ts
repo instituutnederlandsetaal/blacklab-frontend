@@ -22,9 +22,10 @@ import {
 	type TokenSequenceFieldState,
 } from '@/features/form';
 import { adaptLegacySearchFormCustomizations } from '@/features/search/model/legacy-search-form-customization';
-import { createSearchFormSystem, getNewExploreFormId, getNewSearchFormId } from '@/features/search/model/search-form-builder';
+import { createSearchFormSystem } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
 import { resolveSearchFormCustomizations } from '@/features/search/model/search-form-customization';
+import { searchFormIds as ids } from '@/features/search/model/search-form-ids';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
 
@@ -245,12 +246,12 @@ describe('search form system', () => {
 			translate: translated,
 		});
 		const runtime = system.runtime.value!;
-		runtime.state.state.value['search.simple.query'] = { value: 'ship', caseSensitive: false };
-		const annotationOptions = (runtime.definition.getField('explore.ngram.group-by') as unknown as { options: Options }).options;
-		const metadataOptions = (runtime.definition.getField('explore.corpora.group-by') as unknown as { options: Options }).options;
+		runtime.state.state.value[ids.queryField('simple')] = { value: 'ship', caseSensitive: false };
+		const annotationOptions = (runtime.definition.getField(ids.exploreNgramGroupBy()) as unknown as { options: Options }).options;
+		const metadataOptions = (runtime.definition.getField(ids.exploreCorporaGroupBy()) as unknown as { options: Options }).options;
 		const annotationOption = findOption(annotationOptions, 'word');
 		const metadataOption = findOption(metadataOptions, 'field:author');
-		const tokenSequence = runtime.definition.getField('explore.ngram.tokens') as unknown as {
+		const tokenSequence = runtime.definition.getField(ids.exploreNgramTokens()) as unknown as {
 			selectorDisplayName: string | (() => string);
 			selectorPlaceholder: string | (() => string);
 		};
@@ -268,22 +269,22 @@ describe('search form system', () => {
 		expect(optionLabel(metadataOption)).not.toContain('[id: author]');
 		expect(picker.get('.menu-button').text()).toContain('en:word');
 		expect(picker.get('.menu-button').text()).not.toContain('[id: word]');
-		expect(runtime.compile(getNewExploreFormId('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'en:explore.ngram.ngramType', value: 'en:word' }));
-		expect(runtime.compile(getNewExploreFormId('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'en:explore.frequency.frequencyType', value: 'en:word' }));
+		expect(runtime.compile(ids.exploreForm('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'en:explore.ngram.ngramType', value: 'en:word' }));
+		expect(runtime.compile(ids.exploreForm('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'en:explore.frequency.frequencyType', value: 'en:word' }));
 
 		locale.value = 'nl';
 		await nextTick();
 
 		expect(system.runtime.value).toBe(runtime);
-		expect(system.runtime.value!.state.state.value['search.simple.query']).toEqual({ value: 'ship', caseSensitive: false });
+		expect(system.runtime.value!.state.state.value[ids.queryField('simple')]).toEqual({ value: 'ship', caseSensitive: false });
 		expect(optionLabel(annotationOption)).toContain('nl:word');
 		expect(optionTitle(annotationOption)).toBe('nl:word:description');
 		expect(optionLabel(metadataOption)).toContain('nl:author');
 		expect(toValue(tokenSequence.selectorDisplayName)).toBe('nl:results.table.property');
 		expect(toValue(tokenSequence.selectorPlaceholder)).toBe('nl:results.table.property');
 		expect(picker.get('.menu-button').text()).toContain('nl:word');
-		expect(runtime.compile(getNewExploreFormId('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.ngram.ngramType', value: 'nl:word' }));
-		expect(runtime.compile(getNewExploreFormId('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.frequency.frequencyType', value: 'nl:word' }));
+		expect(runtime.compile(ids.exploreForm('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.ngram.ngramType', value: 'nl:word' }));
+		expect(runtime.compile(ids.exploreForm('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.frequency.frequencyType', value: 'nl:word' }));
 
 		debug.value = true;
 		await nextTick();
@@ -291,8 +292,8 @@ describe('search form system', () => {
 		expect(optionLabel(annotationOption)).toContain('[id: word]');
 		expect(optionLabel(metadataOption)).toContain('[id: author]');
 		expect(picker.get('.menu-button').text()).toContain('[id: word]');
-		expect(runtime.compile(getNewExploreFormId('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.ngram.ngramType', value: 'nl:word' }));
-		expect(runtime.compile(getNewExploreFormId('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.frequency.frequencyType', value: 'nl:word' }));
+		expect(runtime.compile(ids.exploreForm('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.ngram.ngramType', value: 'nl:word' }));
+		expect(runtime.compile(ids.exploreForm('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.frequency.frequencyType', value: 'nl:word' }));
 
 		debug.value = false;
 		await nextTick();
@@ -300,23 +301,23 @@ describe('search form system', () => {
 		expect(optionLabel(annotationOption)).not.toContain('[id: word]');
 		expect(optionLabel(metadataOption)).not.toContain('[id: author]');
 		expect(picker.get('.menu-button').text()).not.toContain('[id: word]');
-		expect(runtime.state.state.value['search.simple.query']).toEqual({ value: 'ship', caseSensitive: false });
+		expect(runtime.state.state.value[ids.queryField('simple')]).toEqual({ value: 'ship', caseSensitive: false });
 	});
 
 	test('builds Documents as a form with configuration-backed defaults, shared filters, and a result preset', () => {
 		const runtime = createDefinition();
-		const groupByFieldId = 'explore.corpora.group-by';
-		const groupDisplayModeFieldId = 'explore.corpora.group-display-mode';
+		const groupByFieldId = ids.exploreCorporaGroupBy();
+		const groupDisplayModeFieldId = ids.exploreCorporaGroupDisplayMode();
 
-		expect(runtime.definition.getForm(getNewExploreFormId('corpora'))).not.toBeNull();
+		expect(runtime.definition.getForm(ids.exploreForm('corpora'))).not.toBeNull();
 		expect(runtime.state.state.value[groupByFieldId]).toBe('field:author');
 		expect(runtime.state.state.value[groupDisplayModeFieldId]).toBe('table');
 
 		runtime.state.state.value[groupDisplayModeFieldId] = 'tokens';
-		runtime.state.state.value['shared.filters.Classification.genre'] = ['fiction'];
-		expect(runtime.compile(getNewExploreFormId('corpora'))).toMatchObject({
+		runtime.state.state.value[ids.metadataFilter('genre')] = ['fiction'];
+		expect(runtime.compile(ids.exploreForm('corpora'))).toMatchObject({
 			encoded: {
-				'f.form': 'explore.corpora',
+				'f.form': ids.exploreForm('corpora'),
 				'f.explore-corpora-group-display-mode': 'tokens',
 			},
 			filter: 'genre:(fiction)',
@@ -333,13 +334,13 @@ describe('search form system', () => {
 		corpus.metadataGroups = [corpus.metadataGroups[0]];
 		corpus.metadataFieldGroups = [corpus.metadataFieldGroups[0]];
 		const runtime = createDefinition(corpus);
-		const filters = runtime.definition.getContainer('shared.filters');
-		const onlyGroup = runtime.definition.getContainer('shared.filters.Bibliographic');
+		const filters = runtime.definition.getContainer(ids.sharedFilters());
+		const onlyGroup = runtime.definition.getContainer(ids.filterTab('Bibliographic'));
 
 		expect(filters?.variant).toBeUndefined();
 		expect(onlyGroup?.title).toBeUndefined();
 		expect(onlyGroup?.variant).toBe('list');
-		expect(runtime.definition.getField('shared.filters.Bibliographic.author')).not.toBeNull();
+		expect(runtime.definition.getField(ids.metadataFilter('author'))).not.toBeNull();
 	});
 
 	test('keeps tagset-declared POS annotation labels live without replacing the form runtime', async () => {
@@ -379,7 +380,7 @@ describe('search form system', () => {
 			translate: translated,
 		});
 		const runtime = system.runtime.value!;
-		const fieldId = 'search.extended.annotations.Grammar.pos';
+		const fieldId = ids.annotationField('extended', 'contents', 'pos');
 		const field = runtime.definition.getField(fieldId) as unknown as AnnotationPosFieldConfig & {
 			subAnnotations: NonNullable<AnnotationPosFieldConfig['subAnnotations']>;
 		};
@@ -392,9 +393,9 @@ describe('search form system', () => {
 		expect(summarizeAnnotationPosState(field, selection)).toBe('Noun; en:Grammatical number: Singular');
 
 		runtime.state.state.value[fieldId] = selection;
-		runtime.state.uiState.value['search.extended.annotations'] = 'search.extended.annotations.Grammar';
-		runtime.state.uiState.value['search.extended.annotations.Grammar'] = fieldId;
-		expect(runtime.compile(getNewSearchFormId('extended')).summaries).toContainEqual(expect.objectContaining({ label: 'en:pos' }));
+		runtime.state.uiState.value[ids.annotationTabs()] = ids.annotationTab('Grammar');
+		runtime.state.uiState.value[ids.annotationTab('Grammar')] = fieldId;
+		expect(runtime.compile(ids.searchForm('extended')).summaries).toContainEqual(expect.objectContaining({ label: 'en:pos' }));
 
 		locale.value = 'nl';
 		await nextTick();
@@ -404,32 +405,32 @@ describe('search form system', () => {
 		expect(toValue(field.description)).toBe('nl:pos description');
 		expect(optionText(field.subAnnotations.number.label)).toBe('nl:Grammatical number');
 		expect(summarizeAnnotationPosState(field, selection)).toBe('Noun; nl:Grammatical number: Singular');
-		expect(runtime.compile(getNewSearchFormId('extended')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:pos' }));
+		expect(runtime.compile(ids.searchForm('extended')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:pos' }));
 	});
 
 	test('applies metadata visibility customization and falls back from a hidden configured default', () => {
 		vi.spyOn(corpusCustomizations.search.metadata, 'showField').mockImplementation(id => id !== 'author');
 		const runtime = createDefinition();
-		const field = runtime.definition.getField('explore.corpora.group-by') as unknown as { options: Options };
+		const field = runtime.definition.getField(ids.exploreCorporaGroupBy()) as unknown as { options: Options };
 
 		expect(optionValues(field.options)).toEqual(['field:genre']);
-		expect(runtime.state.state.value['explore.corpora.group-by']).toBe('field:genre');
+		expect(runtime.state.state.value[ids.exploreCorporaGroupBy()]).toBe('field:genre');
 	});
 
 	test('restores a scoped Documents URL through the shared form restore path', () => {
 		const runtime = createDefinition();
 		const restored = restoreFormState(runtime.definition, {
-			'f.form': 'explore.corpora',
+			'f.form': ids.exploreForm('corpora'),
 			'f.explore-corpora-group-by': 'field:genre',
 			'f.explore-corpora-group-display-mode': 'docs',
 			filter: 'author:Austen',
 		});
 		runtime.state.replaceState(restored);
 
-		expect(restored.submittedFormId).toBe('explore.corpora');
-		expect(runtime.state.state.value['explore.corpora.group-by']).toBe('field:genre');
-		expect(runtime.state.state.value['explore.corpora.group-display-mode']).toBe('docs');
-		expect(runtime.compile(getNewExploreFormId('corpora'))).toMatchObject({
+		expect(restored.submittedFormId).toBe(ids.exploreForm('corpora'));
+		expect(runtime.state.state.value[ids.exploreCorporaGroupBy()]).toBe('field:genre');
+		expect(runtime.state.state.value[ids.exploreCorporaGroupDisplayMode()]).toBe('docs');
+		expect(runtime.compile(ids.exploreForm('corpora'))).toMatchObject({
 			filter: 'author:Austen',
 			resultPreset: {
 				groupBy: ['field:genre'],
@@ -440,16 +441,16 @@ describe('search form system', () => {
 
 	test('builds Frequency with configured annotations, shared filters, and a hits result preset', () => {
 		const runtime = createDefinition();
-		const annotationFieldId = 'explore.frequency.annotation';
+		const annotationFieldId = ids.exploreFrequencyAnnotation();
 
-		expect(runtime.definition.getForm(getNewExploreFormId('frequency'))).not.toBeNull();
+		expect(runtime.definition.getForm(ids.exploreForm('frequency'))).not.toBeNull();
 		expect(runtime.state.state.value[annotationFieldId]).toBe('word');
 
 		runtime.state.state.value[annotationFieldId] = 'lemma';
-		runtime.state.state.value['shared.filters.Classification.genre'] = ['fiction'];
-		expect(runtime.compile(getNewExploreFormId('frequency'))).toMatchObject({
+		runtime.state.state.value[ids.metadataFilter('genre')] = ['fiction'];
+		expect(runtime.compile(ids.exploreForm('frequency'))).toMatchObject({
 			encoded: {
-				'f.form': 'explore.frequency',
+				'f.form': ids.exploreForm('frequency'),
 				'f.explore-frequency-annotation': 'lemma',
 			},
 			filter: 'genre:(fiction)',
@@ -469,17 +470,17 @@ describe('search form system', () => {
 		state.explore.defaultGroupAnnotationId = 'removed';
 		const runtime = createDefinition();
 
-		expect(runtime.state.state.value['explore.frequency.annotation']).toBe('pos');
-		expect(runtime.state.state.value['explore.ngram.group-by']).toBe('pos');
-		expect(runtime.state.state.value['explore.ngram.tokens']).toEqual(Array.from({ length: 5 }, () => ({ fieldId: 'lemma', fieldState: { value: '', caseSensitive: false } })));
+		expect(runtime.state.state.value[ids.exploreFrequencyAnnotation()]).toBe('pos');
+		expect(runtime.state.state.value[ids.exploreNgramGroupBy()]).toBe('pos');
+		expect(runtime.state.state.value[ids.exploreNgramTokens()]).toEqual(Array.from({ length: 5 }, () => ({ fieldId: 'lemma', fieldState: { value: '', caseSensitive: false } })));
 	});
 
 	test('builds a bounded N-gram sequence with independently selected token and grouping annotations', () => {
 		const runtime = createDefinition();
-		const tokensFieldId = 'explore.ngram.tokens';
-		const groupByFieldId = 'explore.ngram.group-by';
+		const tokensFieldId = ids.exploreNgramTokens();
+		const groupByFieldId = ids.exploreNgramGroupBy();
 
-		expect(runtime.definition.getForm(getNewExploreFormId('ngram'))).not.toBeNull();
+		expect(runtime.definition.getForm(ids.exploreForm('ngram'))).not.toBeNull();
 		expect(runtime.state.state.value[tokensFieldId] as TokenSequenceFieldState).toHaveLength(5);
 
 		runtime.state.state.value[tokensFieldId] = [
@@ -488,11 +489,11 @@ describe('search form system', () => {
 			{ fieldId: 'lemma', fieldState: { value: '', caseSensitive: false } },
 		] satisfies TokenSequenceFieldState;
 		runtime.state.state.value[groupByFieldId] = 'lemma';
-		runtime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Austen', caseSensitive: false };
+		runtime.state.state.value[ids.metadataFilter('author')] = { value: 'Austen', caseSensitive: false };
 
-		expect(runtime.compile(getNewExploreFormId('ngram'))).toMatchObject({
+		expect(runtime.compile(ids.exploreForm('ngram'))).toMatchObject({
 			encoded: {
-				'f.form': 'explore.ngram',
+				'f.form': ids.exploreForm('ngram'),
 				'f.explore-ngram-group-by': 'lemma',
 			},
 			filter: 'author:(Austen)',
@@ -502,7 +503,7 @@ describe('search form system', () => {
 				viewedResults: 'hits',
 			},
 		});
-		expect(runtime.compile(getNewExploreFormId('ngram')).summaries).toEqual(
+		expect(runtime.compile(ids.exploreForm('ngram')).summaries).toEqual(
 			expect.arrayContaining([expect.objectContaining({ summaryType: ['patt'], value: 'lemma' }), expect.objectContaining({ summaryType: ['patt'], value: '3' })]),
 		);
 	});
@@ -510,19 +511,19 @@ describe('search form system', () => {
 	test('drops a restored N-gram grouping annotation that is no longer configured', () => {
 		const runtime = createDefinition();
 		const restored = restoreFormState(runtime.definition, {
-			'f.form': getNewExploreFormId('ngram'),
+			'f.form': ids.exploreForm('ngram'),
 			'f.explore-ngram-group-by': 'removed',
 		});
 
-		expect(restored.state['explore.ngram.group-by']).toBe('word');
-		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ nodeId: 'explore.ngram.group-by' })]));
+		expect(restored.state[ids.exploreNgramGroupBy()]).toBe('word');
+		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ nodeId: ids.exploreNgramGroupBy() })]));
 	});
 
 	test('renders the N-gram length bounds and five active token editors', () => {
 		const runtime = createDefinition();
 		const wrapper = mount(FormSystem, {
 			props: {
-				rootId: getNewExploreFormId('ngram'),
+				rootId: ids.exploreForm('ngram'),
 				runtime,
 			},
 		});
@@ -536,41 +537,41 @@ describe('search form system', () => {
 		const corpus = createCorpus();
 		corpus.allAnnotationsMap.pos.uiType = 'pos';
 		const runtime = createDefinition(corpus);
-		runtime.state.state.value['explore.ngram.tokens'] = [{ fieldId: 'pos', fieldState: { value: 'NOU|VRB?', caseSensitive: false } }] satisfies TokenSequenceFieldState;
+		runtime.state.state.value[ids.exploreNgramTokens()] = [{ fieldId: 'pos', fieldState: { value: 'NOU|VRB?', caseSensitive: false } }] satisfies TokenSequenceFieldState;
 
-		expect(runtime.compile(getNewExploreFormId('ngram')).patt).toBe('[pos="NOU|VRB."]');
+		expect(runtime.compile(ids.exploreForm('ngram')).patt).toBe('[pos="NOU|VRB."]');
 	});
 
 	test.each(['ngram', 'frequency'] as const)('adds a source-only searchfield selector to parallel Explore %s', mode => {
 		const runtime = createDefinition(createParallelCorpus());
-		const sourceFieldId = `explore.${mode}.source`;
+		const sourceFieldId = ids.exploreParallelSource(mode);
 		const sourceField = runtime.definition.getField(sourceFieldId);
 
 		expect(runtime.state.state.value[sourceFieldId]).toBe('contents__en');
 		expect(sourceField?.variant).toBe(mode === 'ngram' ? 'horizontal' : undefined);
 		runtime.state.state.value[sourceFieldId] = 'contents__nl';
 
-		const compiled = runtime.compile(getNewExploreFormId(mode));
+		const compiled = runtime.compile(ids.exploreForm(mode));
 		expect(compiled.searchfield).toBe('contents__nl');
 		expect(compiled.patt).not.toContain('=>');
 	});
 
 	test('restores a scoped N-gram URL including active anonymous token state', () => {
 		const runtime = createDefinition();
-		runtime.state.state.value['explore.ngram.tokens'] = [
+		runtime.state.state.value[ids.exploreNgramTokens()] = [
 			{ fieldId: 'lemma', fieldState: { value: 'run?', caseSensitive: false } },
 			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
 		] satisfies TokenSequenceFieldState;
-		runtime.state.state.value['explore.ngram.group-by'] = 'pos';
-		const submitted = runtime.compile(getNewExploreFormId('ngram'));
+		runtime.state.state.value[ids.exploreNgramGroupBy()] = 'pos';
+		const submitted = runtime.compile(ids.exploreForm('ngram'));
 		const restored = restoreFormState(runtime.definition, submitted.encoded);
 		runtime.state.replaceState(restored);
 
-		expect(runtime.state.state.value['explore.ngram.tokens']).toEqual([
+		expect(runtime.state.state.value[ids.exploreNgramTokens()]).toEqual([
 			{ fieldId: 'lemma', fieldState: { value: 'run?', caseSensitive: false } },
 			{ fieldId: 'word', fieldState: { value: '', caseSensitive: false } },
 		]);
-		expect(runtime.compile(getNewExploreFormId('ngram'))).toMatchObject({
+		expect(runtime.compile(ids.exploreForm('ngram'))).toMatchObject({
 			patt: '[lemma="run."] []',
 			resultPreset: { groupBy: ['hit:pos'], viewedResults: 'hits' },
 		});
@@ -579,19 +580,19 @@ describe('search form system', () => {
 	test('builds an extended search form with grouped annotation and shared filter nodes', () => {
 		const definition = createDefinition();
 
-		expect(definition.definition.getForm(getNewSearchFormId('extended'))).not.toBeNull();
-		expect(definition.definition.getContainer('search.extended.annotations')).not.toBeNull();
-		expect(definition.definition.getContainer('search.extended.annotations.Basics')).not.toBeNull();
-		expect(definition.definition.getContainer('shared.filters')).not.toBeNull();
-		expect(definition.definition.getField('shared.filters.Bibliographic.author')).not.toBeNull();
-		expect(definition.definition.getField('shared.filters.Classification.genre')).not.toBeNull();
+		expect(definition.definition.getForm(ids.searchForm('extended'))).not.toBeNull();
+		expect(definition.definition.getContainer(ids.annotationTabs())).not.toBeNull();
+		expect(definition.definition.getContainer(ids.annotationTab('Basics'))).not.toBeNull();
+		expect(definition.definition.getContainer(ids.sharedFilters())).not.toBeNull();
+		expect(definition.definition.getField(ids.metadataFilter('author'))).not.toBeNull();
+		expect(definition.definition.getField(ids.metadataFilter('genre'))).not.toBeNull();
 	});
 
 	test('builds an advanced form with a configured querybuilder', () => {
 		const runtime = createDefinition();
-		const field = runtime.definition.getField('search.advanced.query');
+		const field = runtime.definition.getField(ids.queryField('advanced'));
 
-		expect(runtime.definition.getForm(getNewSearchFormId('advanced'))).not.toBeNull();
+		expect(runtime.definition.getForm(ids.searchForm('advanced'))).not.toBeNull();
 		expect((field as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('word');
 	});
 
@@ -600,13 +601,13 @@ describe('search form system', () => {
 
 		const runtime = createDefinition();
 
-		expect(runtime.definition.getForm(getNewSearchFormId('advanced'))).toBeNull();
-		expect(runtime.definition.getContainer('patterns.forms')?.children.map(child => child.id)).toEqual([getNewSearchFormId('simple'), getNewSearchFormId('extended'), getNewSearchFormId('expert')]);
+		expect(runtime.definition.getForm(ids.searchForm('advanced'))).toBeNull();
+		expect(runtime.definition.getContainer(ids.searchFormsContainer())?.children.map(child => child.id)).toEqual([ids.searchForm('simple'), ids.searchForm('extended'), ids.searchForm('expert')]);
 	});
 
 	test('applies the large simple-search presentation to regular and parallel query fields', () => {
-		const regularField = createDefinition().definition.getField('search.simple.query');
-		const parallelField = createDefinition(createParallelCorpus()).definition.getField('search.simple.query.parallel') as unknown as {
+		const regularField = createDefinition().definition.getField(ids.queryField('simple'));
+		const parallelField = createDefinition(createParallelCorpus()).definition.getField(ids.queryField('simple')) as unknown as {
 			childFieldTemplate: { variant?: unknown };
 		};
 
@@ -616,13 +617,14 @@ describe('search form system', () => {
 
 	test('wraps the advanced querybuilder for a parallel corpus', () => {
 		const runtime = createDefinition(createParallelCorpus());
-		const state = runtime.state.state.value['search.advanced.query.parallel'] as ParallelFieldState;
+		const state = runtime.state.state.value[ids.queryField('advanced')] as ParallelFieldState;
 		const sourceState = state.childStates.contents__en as CqlQueryBuilderData;
 		const attribute = sourceState.tokens[0].rootAttributeGroup.entries[0];
 		if ('annotationId' in attribute) attribute.values = ['water'];
 
-		expect(runtime.definition.getField('search.advanced.query')).toBeNull();
-		expect(runtime.compile(getNewSearchFormId('advanced'))).toMatchObject({
+		expect(runtime.definition.getField(ids.queryField('advanced'))).not.toBeNull();
+		expect(runtime.definition.getField(ids.queryFieldTemplate('advanced'))).toBeNull();
+		expect(runtime.compile(ids.searchForm('advanced'))).toMatchObject({
 			patt: '[word="water"]',
 			searchfield: 'contents__en',
 		});
@@ -638,13 +640,13 @@ describe('search form system', () => {
 		state.search.shared.within.enabled = true;
 		const runtime = createDefinition(corpus);
 
-		expect(runtime.definition.getForm(getNewSearchFormId('expert'))).not.toBeNull();
+		expect(runtime.definition.getForm(ids.searchForm('expert'))).not.toBeNull();
 
-		runtime.state.state.value['search.expert.query'] = '[lemma="water"]';
-		runtime.state.state.value['shared.within'] = { element: 's', attributes: {} };
-		runtime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Austen', caseSensitive: false };
+		runtime.state.state.value[ids.queryField('expert')] = '[lemma="water"]';
+		runtime.state.state.value[ids.withinField()] = { element: 's', attributes: {} };
+		runtime.state.state.value[ids.metadataFilter('author')] = { value: 'Austen', caseSensitive: false };
 
-		expect(runtime.compile(getNewSearchFormId('expert'))).toMatchObject({
+		expect(runtime.compile(ids.searchForm('expert'))).toMatchObject({
 			patt: '([lemma="water"]) within <s/>',
 			filter: 'author:(Austen)',
 			resultPreset: { withSpans: true },
@@ -652,7 +654,7 @@ describe('search form system', () => {
 
 		const wrapper = mount(FormSystem, {
 			props: {
-				rootId: getNewSearchFormId('expert'),
+				rootId: ids.searchForm('expert'),
 				runtime,
 			},
 		});
@@ -700,17 +702,17 @@ describe('search form system', () => {
 			translate: createMockTranslate(),
 		});
 		const runtime = system.runtime.value!;
-		const personFieldId = 'shared.filters.Bibliographic.span-speech-person';
+		const personFieldId = ids.withinFilter('speech', 'person');
 
-		expect(runtime.definition.getContainer('shared.filters.Bibliographic')?.children.map(node => node.id)).toEqual([personFieldId, 'shared.filters.Bibliographic.author']);
+		expect(runtime.definition.getContainer(ids.filterTab('Bibliographic'))?.children.map(node => node.id)).toEqual([personFieldId, ids.metadataFilter('author')]);
 		expect(runtime.definition.getField(personFieldId)?.component).toBe(TextField);
-		expect(runtime.definition.getField('shared.filters.Span-filters.span-speech-role')?.component).toBe(SelectField);
-		expect(runtime.definition.getField('shared.filters.Span-filters.span-p-n')?.component).toBe(RangeField);
+		expect(runtime.definition.getField(ids.withinFilter('speech', 'role'))?.component).toBe(SelectField);
+		expect(runtime.definition.getField(ids.withinFilter('p', 'n'))?.component).toBe(RangeField);
 
-		runtime.state.state.value['search.expert.query'] = '[lemma="water"]';
-		expect(runtime.compile(getNewSearchFormId('expert')).resultPreset?.withSpans).toBeUndefined();
+		runtime.state.state.value[ids.queryField('expert')] = '[lemma="water"]';
+		expect(runtime.compile(ids.searchForm('expert')).resultPreset?.withSpans).toBeUndefined();
 		runtime.state.state.value[personFieldId] = { value: 'Alice*', caseSensitive: false };
-		const compiled = runtime.compile(getNewSearchFormId('expert'));
+		const compiled = runtime.compile(ids.searchForm('expert'));
 
 		expect(compiled).toMatchObject({
 			patt: '([lemma="water"]) within <speech person="Alice.*"/>',
@@ -761,19 +763,20 @@ describe('search form system', () => {
 		runtime.state.replaceState(restored);
 
 		expect(restored.issues).toEqual([]);
-		expect(runtime.state.state.value['search.expert.query']).toBe('[lemma="water"]');
-		expect(runtime.compile(getNewSearchFormId('expert')).patt).toBe('[lemma="water"]');
+		expect(runtime.state.state.value[ids.queryField('expert')]).toBe('[lemma="water"]');
+		expect(runtime.compile(ids.searchForm('expert')).patt).toBe('[lemma="water"]');
 	});
 
 	test('wraps the expert query for a parallel corpus', () => {
 		const runtime = createDefinition(createParallelCorpus());
-		const state = runtime.state.state.value['search.expert.query.parallel'] as ParallelFieldState;
+		const state = runtime.state.state.value[ids.queryField('expert')] as ParallelFieldState;
 
-		expect(runtime.definition.getField('search.expert.query')).toBeNull();
+		expect(runtime.definition.getField(ids.queryField('expert'))).not.toBeNull();
+		expect(runtime.definition.getField(ids.queryFieldTemplate('expert'))).toBeNull();
 		state.childStates.contents__en = '[lemma="water"]';
 		state.targets = ['contents__nl'];
 		state.childStates.contents__nl = '[lemma="water"]';
-		expect(runtime.compile(getNewSearchFormId('expert'))).toMatchObject({
+		expect(runtime.compile(ids.searchForm('expert'))).toMatchObject({
 			patt: '[lemma="water"] ==>nl? [lemma="water"]',
 			searchfield: 'contents__en',
 		});
@@ -782,17 +785,17 @@ describe('search form system', () => {
 	test('extended form compiles annotation fields with shared filters', () => {
 		const definition = createDefinition();
 
-		definition.state.state.value['search.extended.annotations.Basics.word'] = {
+		definition.state.state.value[ids.annotationField('extended', 'contents', 'word')] = {
 			value: 'water',
 			caseSensitive: false,
 		};
-		definition.state.state.value['shared.filters.Bibliographic.author'] = {
+		definition.state.state.value[ids.metadataFilter('author')] = {
 			value: 'Austen',
 			caseSensitive: false,
 		};
-		definition.state.state.value['shared.filters.Classification.genre'] = ['fiction'];
+		definition.state.state.value[ids.metadataFilter('genre')] = ['fiction'];
 
-		const compiled = definition.compile(getNewSearchFormId('extended'));
+		const compiled = definition.compile(ids.searchForm('extended'));
 
 		expect(compiled.patt).toBe('[word="water"]');
 		expect(compiled.filter).toBe('(author:(Austen) AND genre:(fiction))');
@@ -806,16 +809,16 @@ describe('search form system', () => {
 	test('simple form excludes configured shared filters', () => {
 		const definition = createDefinition();
 
-		definition.state.state.value['search.simple.query'] = {
+		definition.state.state.value[ids.queryField('simple')] = {
 			value: 'water',
 			caseSensitive: false,
 		};
-		definition.state.state.value['shared.filters.Bibliographic.author'] = {
+		definition.state.state.value[ids.metadataFilter('author')] = {
 			value: 'Austen',
 			caseSensitive: false,
 		};
 
-		expect(definition.compile(getNewSearchFormId('simple'))).toMatchObject({
+		expect(definition.compile(ids.searchForm('simple'))).toMatchObject({
 			filter: null,
 			patt: '[word="water"]',
 		});
@@ -832,11 +835,11 @@ describe('search form system', () => {
 		});
 		const initialRuntime = system.runtime.value!;
 		const initialDefinition = initialRuntime.definition;
-		initialRuntime.state.state.value['search.simple.query'] = {
+		initialRuntime.state.state.value[ids.queryField('simple')] = {
 			value: 'water',
 			caseSensitive: false,
 		};
-		initialRuntime.state.state.value['shared.filters.Bibliographic.author'] = {
+		initialRuntime.state.state.value[ids.metadataFilter('author')] = {
 			value: 'Austen',
 			caseSensitive: false,
 		};
@@ -851,18 +854,18 @@ describe('search form system', () => {
 		const configuredDefinition = configuredRuntime.definition;
 		expect(configuredRuntime).not.toBe(initialRuntime);
 		expect(configuredDefinition).not.toBe(initialDefinition);
-		expect((configuredDefinition.getField('search.simple.query') as unknown as { annotationId: string }).annotationId).toBe('lemma');
-		expect(configuredDefinition.getField('search.extended.annotations.Basics.word')).toBeNull();
-		expect(configuredDefinition.getField('search.extended.annotations.pos')).not.toBeNull();
-		expect((configuredDefinition.getField('search.advanced.query') as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('lemma');
-		const queryBuilderState = configuredRuntime.state.state.value['search.advanced.query'] as CqlQueryBuilderData;
+		expect((configuredDefinition.getField(ids.queryField('simple')) as unknown as { annotationId: string }).annotationId).toBe('lemma');
+		expect(configuredDefinition.getField(ids.annotationField('extended', 'contents', 'word'))).toBeNull();
+		expect(configuredDefinition.getField(ids.annotationField('extended', 'contents', 'pos'))).not.toBeNull();
+		expect((configuredDefinition.getField(ids.queryField('advanced')) as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('lemma');
+		const queryBuilderState = configuredRuntime.state.state.value[ids.queryField('advanced')] as CqlQueryBuilderData;
 		const defaultAttribute = queryBuilderState.tokens[0].rootAttributeGroup.entries[0];
 		expect('annotationId' in defaultAttribute ? defaultAttribute.annotationId : null).toBe('lemma');
-		expect(configuredRuntime.compile(getNewSearchFormId('advanced')).patt).toBeNull();
-		expect(configuredDefinition.getField('shared.filters.Bibliographic.author')).toBeNull();
-		expect(configuredDefinition.getField('shared.filters.Classification.genre')).not.toBeNull();
-		expect(configuredRuntime.state.state.value['search.simple.query']).toEqual({ value: '', caseSensitive: false });
-		expect(configuredRuntime.state.state.value['shared.filters.Bibliographic.author']).toBeUndefined();
+		expect(configuredRuntime.compile(ids.searchForm('advanced')).patt).toBeNull();
+		expect(configuredDefinition.getField(ids.metadataFilter('author'))).toBeNull();
+		expect(configuredDefinition.getField(ids.metadataFilter('genre'))).not.toBeNull();
+		expect(configuredRuntime.state.state.value[ids.queryField('simple')]).toEqual({ value: '', caseSensitive: false });
+		expect(configuredRuntime.state.state.value[ids.metadataFilter('author')]).toBeUndefined();
 	});
 
 	test('creates parallel querybuilder defaults from the replacement definition', () => {
@@ -884,11 +887,11 @@ describe('search form system', () => {
 			},
 		};
 
-		const replacementState = system.runtime.value!.state.state.value['search.advanced.query.parallel'] as ParallelFieldState;
+		const replacementState = system.runtime.value!.state.state.value[ids.queryField('advanced')] as ParallelFieldState;
 		const replacementSourceState = replacementState.childStates.contents__en as CqlQueryBuilderData;
 		const defaultAttribute = replacementSourceState.tokens[0].rootAttributeGroup.entries[0];
 		expect('annotationId' in defaultAttribute ? defaultAttribute.annotationId : null).toBe('lemma');
-		expect(system.runtime.value!.compile(getNewSearchFormId('advanced')).patt).toBeNull();
+		expect(system.runtime.value!.compile(ids.searchForm('advanced')).patt).toBeNull();
 	});
 
 	test('discards draft state and restores the URL against the replacement definition', () => {
@@ -901,16 +904,16 @@ describe('search form system', () => {
 			translate: createMockTranslate(),
 		});
 		const initialRuntime = system.runtime.value!;
-		initialRuntime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Austen', caseSensitive: false };
-		const queryBuilderState = initialRuntime.state.state.value['search.advanced.query'] as CqlQueryBuilderData;
+		initialRuntime.state.state.value[ids.metadataFilter('author')] = { value: 'Austen', caseSensitive: false };
+		const queryBuilderState = initialRuntime.state.state.value[ids.queryField('advanced')] as CqlQueryBuilderData;
 		const queryBuilderAttribute = queryBuilderState.tokens[0].rootAttributeGroup.entries[0];
 		if (!('annotationId' in queryBuilderAttribute)) throw new Error('Expected the default querybuilder attribute.');
 		queryBuilderAttribute.values = ['water'];
-		const committedUrlState = initialRuntime.compile(getNewSearchFormId('advanced'));
+		const committedUrlState = initialRuntime.compile(ids.searchForm('advanced'));
 
 		queryBuilderAttribute.values = ['fire'];
-		initialRuntime.state.state.value['shared.filters.Bibliographic.author'] = { value: 'Bronte', caseSensitive: false };
-		initialRuntime.state.state.value['search.simple.query'] = { value: 'draft', caseSensitive: false };
+		initialRuntime.state.state.value[ids.metadataFilter('author')] = { value: 'Bronte', caseSensitive: false };
+		initialRuntime.state.state.value[ids.queryField('simple')] = { value: 'draft', caseSensitive: false };
 
 		configuration.value = {
 			...configuration.value,
@@ -923,8 +926,8 @@ describe('search form system', () => {
 
 		const replacementRuntime = system.runtime.value!;
 		expect(replacementRuntime).not.toBe(initialRuntime);
-		expect(replacementRuntime.state.state.value['search.simple.query']).toEqual({ value: '', caseSensitive: false });
-		expect(replacementRuntime.state.state.value['shared.filters.Bibliographic.author']).toEqual({ value: '', caseSensitive: false });
+		expect(replacementRuntime.state.state.value[ids.queryField('simple')]).toEqual({ value: '', caseSensitive: false });
+		expect(replacementRuntime.state.state.value[ids.metadataFilter('author')]).toEqual({ value: '', caseSensitive: false });
 
 		const restored = restoreFormState(replacementRuntime.definition, {
 			...committedUrlState.encoded,
@@ -933,10 +936,10 @@ describe('search form system', () => {
 		});
 		replacementRuntime.state.replaceState(restored);
 
-		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'query', nodeId: 'search.advanced.query' })]));
+		expect(restored.issues).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'query', nodeId: ids.queryField('advanced') })]));
 		expect(restored.rawOverrides).toEqual({ patt: committedUrlState.patt });
-		expect(replacementRuntime.state.state.value['shared.filters.Bibliographic.author']).toEqual({ value: 'Austen', caseSensitive: false });
-		expect(replacementRuntime.compile(getNewSearchFormId('advanced'))).toMatchObject({
+		expect(replacementRuntime.state.state.value[ids.metadataFilter('author')]).toEqual({ value: 'Austen', caseSensitive: false });
+		expect(replacementRuntime.compile(ids.searchForm('advanced'))).toMatchObject({
 			patt: committedUrlState.patt,
 			filter: committedUrlState.filter,
 		});
@@ -1014,7 +1017,7 @@ describe('search form system', () => {
 			{ value: 's', label: 'Custom sentence', title: null },
 		];
 
-		const within = createDefinition(corpus).definition.getField('shared.within') as unknown as {
+		const within = createDefinition(corpus).definition.getField(ids.withinField()) as unknown as {
 			options: Array<{ value: string; label?: OptionText; title?: OptionText | null }>;
 		};
 
@@ -1042,7 +1045,7 @@ describe('search form system', () => {
 		vi.spyOn(corpusCustomizations.search.within, 'includeSpan').mockImplementation(element => (element === 'p' ? false : null));
 		vi.spyOn(corpusCustomizations.search.within, 'includeAttribute').mockImplementation((_element, attribute) => (attribute === 'speaker' ? true : null));
 
-		const within = createDefinition(corpus).definition.getField('shared.within') as unknown as {
+		const within = createDefinition(corpus).definition.getField(ids.withinField()) as unknown as {
 			options: Array<{ value: string; attributes: Array<{ value: string; label?: OptionText }> }>;
 		};
 
@@ -1060,13 +1063,13 @@ describe('search form system', () => {
 		state.search.shared.alignBy.defaultValue = 'sentence-alignment';
 
 		const hiddenDefinition = createDefinition(createParallelCorpus());
-		const hiddenField = hiddenDefinition.definition.getField('search.simple.query.parallel') as unknown as { alignByOptions: unknown[] };
+		const hiddenField = hiddenDefinition.definition.getField(ids.queryField('simple')) as unknown as { alignByOptions: unknown[] };
 		expect(hiddenField.alignByOptions).toEqual([]);
-		expect((hiddenDefinition.state.state.value['search.simple.query.parallel'] as { alignBy: string | null }).alignBy).toBe('sentence-alignment');
+		expect((hiddenDefinition.state.state.value[ids.queryField('simple')] as { alignBy: string | null }).alignBy).toBe('sentence-alignment');
 
 		state.search.shared.alignBy.enabled = true;
 		const visibleDefinition = createDefinition(createParallelCorpus());
-		const visibleField = visibleDefinition.definition.getField('search.simple.query.parallel') as unknown as {
+		const visibleField = visibleDefinition.definition.getField(ids.queryField('simple')) as unknown as {
 			alignByOptions: Array<{ value: string; label?: OptionText; title?: OptionText | null }>;
 		};
 		expect(visibleField.alignByOptions.map(option => option.value)).toEqual(['sentence-alignment', 'word-alignment']);
@@ -1096,7 +1099,7 @@ describe('search form system', () => {
 		];
 		const definition = createDefinition(corpus);
 		const restored = restoreFormState(definition.definition, {
-			'f.form': 'search.simple',
+			'f.form': ids.searchForm('simple'),
 			'f.word': 'schip',
 			patt: '[word_or_lemma="(?i)schip"]',
 		});
@@ -1104,11 +1107,11 @@ describe('search form system', () => {
 		mount(FormSystem, {
 			props: {
 				runtime: definition,
-				rootId: 'search.extended',
+				rootId: ids.searchForm('extended'),
 			},
 		});
 
-		expect(definition.state.state.value['shared.within']).toEqual({ element: null, attributes: {} });
+		expect(definition.state.state.value[ids.withinField()]).toEqual({ element: null, attributes: {} });
 	});
 
 	test('restores the extended annotation value from scoped URL state', () => {
@@ -1116,7 +1119,7 @@ describe('search form system', () => {
 		state.search.extended.searchAnnotationIds = ['word_or_lemma', 'pos'];
 		const definition = createDefinition();
 		const restored = restoreFormState(definition.definition, {
-			'f.form': 'search.extended',
+			'f.form': ids.searchForm('extended'),
 			'f.word_or_lemma': 'schip',
 			patt: '[word_or_lemma="(?i)schip"]',
 			searchfield: 'contents',
@@ -1124,14 +1127,14 @@ describe('search form system', () => {
 		definition.state.replaceState(restored);
 
 		expect(restored.issues).toEqual([]);
-		expect(restored.submittedFormId).toBe('search.extended');
-		expect(definition.state.state.value['search.extended.annotations.Basics.word_or_lemma']).toEqual({
+		expect(restored.submittedFormId).toBe(ids.searchForm('extended'));
+		expect(definition.state.state.value[ids.annotationField('extended', 'contents', 'word_or_lemma')]).toEqual({
 			value: 'schip',
 			caseSensitive: false,
 		});
-		expect(definition.compile('search.extended')).toMatchObject({
+		expect(definition.compile(ids.searchForm('extended'))).toMatchObject({
 			encoded: {
-				'f.form': 'search.extended',
+				'f.form': ids.searchForm('extended'),
 				'f.word_or_lemma': 'schip',
 			},
 			patt: '[word_or_lemma="(?i)schip"]',
@@ -1143,9 +1146,9 @@ describe('search form system', () => {
 		const state = UIStore.getState();
 		state.search.extended.searchAnnotationIds = ['word_or_lemma', 'pos'];
 		const definition = createDefinition();
-		const restored = restoreFormState(definition.definition, { 'f.form': 'search.extended', 'f.pos': 'NOU' });
+		const restored = restoreFormState(definition.definition, { 'f.form': ids.searchForm('extended'), 'f.pos': 'NOU' });
 
-		expect(restored.uiState['search.extended.annotations']).toBe('search.extended.annotations.Grammar');
-		expect(restored.uiState['search.extended.annotations.Grammar']).toBe('search.extended.annotations.Grammar.pos');
+		expect(restored.uiState[ids.annotationTabs()]).toBe(ids.annotationTab('Grammar'));
+		expect(restored.uiState[ids.annotationTab('Grammar')]).toBe(ids.annotationField('extended', 'contents', 'pos'));
 	});
 });
