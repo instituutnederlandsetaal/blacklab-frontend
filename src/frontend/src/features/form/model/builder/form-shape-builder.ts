@@ -2,6 +2,7 @@ import type { FieldComponentProps, FieldRuntimeComponentProps } from '@/features
 import { createFormFieldNode, type ConstrainedFieldComponent, type CreatedFormField, type FormFieldConfig } from '@/features/form/model/form-field-node';
 import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
 import type { AnyFieldController, FormRuntimeContext } from '@/features/form/model/types';
+import type { QueryIR } from '@/features/form/model/types/form-query-ir';
 import type {
 	AnyBaseFormNode,
 	AnyRealFormNode,
@@ -23,7 +24,7 @@ import type { AnyVueComponent, ConstrainComponentToProvidedProps, NoExtraPropert
 // Helpers
 // ==========================================================================================================================
 
-type BuilderManagedNodeKeys = 'children' | 'kind' | 'component' | 'controller';
+type BuilderManagedNodeKeys = 'children' | 'kind' | 'component' | 'controller' | 'activeChildQueryContributions';
 type ForbiddenConfigKeys = BuilderManagedNodeKeys | keyof FieldRuntimeComponentProps<unknown>;
 type ImplicitContainerComponentPropKeys = keyof ImplicitContainerComponentProps;
 
@@ -110,7 +111,12 @@ interface NewViewNode {
 // Children
 // ==========================================================================================================================
 
+type AddChildOptions = {
+	queryWhenActive?: QueryIR;
+};
+
 interface AddChildNodes {
+	addChild(child: AnyRealFormNode, options?: AddChildOptions): this;
 	addChildren(...children: Array<AnyRealFormNode | null | undefined>): this;
 }
 
@@ -167,14 +173,20 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 		return node;
 	}
 
-	private addChildToNode<T extends AnyBaseFormNode & { children: AnyRealFormNode[] }>(node: T, ...children: Array<AnyRealFormNode | null | undefined>): T {
-		for (const child of children) {
-			if (!child) continue;
-			if (getAllNodes(child).some(descendant => descendant.id === node.id)) {
-				throw new Error(`Adding '${child.id}' to '${node.id}' would create a form graph cycle`);
-			}
-			node.children.push(this.addNode(child));
+	private addChildToNode<T extends BaseContainerNode | BaseFormNode>(node: T, child: AnyRealFormNode, options?: AddChildOptions): T {
+		if (getAllNodes(child).some(descendant => descendant.id === node.id)) {
+			throw new Error(`Adding '${child.id}' to '${node.id}' would create a form graph cycle`);
 		}
+		node.children.push(this.addNode(child));
+		if (options?.queryWhenActive) {
+			node.activeChildQueryContributions ??= {};
+			node.activeChildQueryContributions[child.id] = options.queryWhenActive;
+		}
+		return node;
+	}
+
+	private addChildrenToNode<T extends BaseContainerNode | BaseFormNode>(node: T, ...children: Array<AnyRealFormNode | null | undefined>): T {
+		for (const child of children) if (child) this.addChildToNode(node, child);
 		return node;
 	}
 
@@ -189,7 +201,8 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 			id,
 			children: [],
 			component: component as C,
-			addChildren: (...children: Array<AnyRealFormNode | null | undefined>) => this.addChildToNode(node, ...children),
+			addChild: (child: AnyRealFormNode, options?: AddChildOptions) => this.addChildToNode(node, child, options),
+			addChildren: (...children: Array<AnyRealFormNode | null | undefined>) => this.addChildrenToNode(node, ...children),
 		};
 		return this.addNode(node);
 	};
@@ -205,7 +218,8 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 			id,
 			children: [],
 			component: component as C,
-			addChildren: (...children: Array<AnyRealFormNode | null | undefined>) => this.addChildToNode(node, ...children),
+			addChild: (child: AnyRealFormNode, options?: AddChildOptions) => this.addChildToNode(node, child, options),
+			addChildren: (...children: Array<AnyRealFormNode | null | undefined>) => this.addChildrenToNode(node, ...children),
 		};
 		return this.addNode(node);
 	};

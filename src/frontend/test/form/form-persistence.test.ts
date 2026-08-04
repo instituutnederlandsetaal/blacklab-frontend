@@ -425,7 +425,6 @@ describe('scoped form persistence', () => {
 		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' });
 		const newspapers = builder.newContainer('search.extended.filters.newspapers', ContainerRenderer, {
 			title: 'Newspapers',
-			activeQueryContribution: queryFragment(filter('category', 'literal', 'newspaper'))!,
 		});
 		const filters = builder
 			.newContainer('search.extended.filters', ContainerRenderer, {
@@ -436,8 +435,8 @@ describe('scoped form persistence', () => {
 				builder.newContainer('search.extended.filters.shared', ContainerRenderer, {
 					title: 'Shared',
 				}),
-				newspapers,
-			);
+			)
+			.addChild(newspapers, { queryWhenActive: queryFragment(filter('category', 'literal', 'newspaper'))! });
 		form.addChildren(filters);
 		const definition = builder;
 		const context = createTestContext();
@@ -452,6 +451,12 @@ describe('scoped form persistence', () => {
 
 		expect(restored.uiState[filters.id]).toBe(newspapers.id);
 		expect(restored.rawOverrides).toEqual({});
+		expect(compileFormNode(form, restored, context)).toMatchObject({
+			filter: 'category:(newspaper)',
+			encoded: {
+				'f.tab': ['search.extended.filters:search.extended.filters.newspapers'],
+			},
+		});
 	});
 
 	test('retains valid tab selections and reports invalid entries', () => {

@@ -314,10 +314,9 @@ function buildRestoredUiState(
 function queryAffectingTabParams(form: FormNode, state: FormStateInput): string[] {
 	const tabs: string[] = [];
 	for (const container of getAllNodes(form, 'container', 'form')) {
-		if (!container.children.some(child => isContainerNode(child) && child.activeQueryContribution)) continue;
 		const activeChildId = state.uiState[container.id];
 		const activeChild = container.children.find(child => child.id === activeChildId);
-		if (!activeChild || !isContainerNode(activeChild) || !activeChild.activeQueryContribution) continue;
+		if (!activeChild || !container.activeChildQueryContributions?.[activeChild.id]) continue;
 		tabs.push(`${container.id}:${activeChild.id}`);
 	}
 	return tabs;

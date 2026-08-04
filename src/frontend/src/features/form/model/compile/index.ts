@@ -27,12 +27,13 @@ function getQueryContributionFromContainer(node: FormContainerLikeNode, formStat
 			}
 		} else if (isContainerNode(child)) {
 			acc.push(getQueryContributionFromContainer(child, formState, context, summarizedFields));
-			if (child.activeQueryContribution && formState.uiState[node.id] === child.id) {
-				acc.push(typeof child.activeQueryContribution === 'function' ? child.activeQueryContribution(child) : child.activeQueryContribution);
-			}
 		}
 		return acc;
 	}, [] as QueryIR[]);
+
+	const selectedChild = node.children.find(child => child.id === formState.uiState[node.id]);
+	const activeChildContribution = selectedChild ? node.activeChildQueryContributions?.[selectedChild.id] : undefined;
+	if (activeChildContribution) childContributions.push(activeChildContribution);
 
 	const combineMode = node.kind === 'container' ? node.combine : undefined;
 	return combineQueries(childContributions, combineMode);

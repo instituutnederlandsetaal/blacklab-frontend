@@ -25,10 +25,12 @@ export type BaseContainerNode = BaseNode & {
 	/** Defaults to 'and' if unset */
 	combine?: QueryCombineMode;
 	/**
-	 * Optional query contribution applied only while this container/form is the active child of its parent.
-	 * This provisions semantic tabs such as "newspapers" adding an implicit filter.
+	 * Optional query contributions keyed by direct child ID and applied while that
+	 * child is selected. This provisions semantic tabs such as "newspapers"
+	 * adding an implicit filter without attaching parent-specific behavior to the
+	 * child node itself.
 	 */
-	activeQueryContribution?: QueryIR | ((activeNode: BaseContainerNode | BaseFormNode) => QueryIR);
+	activeChildQueryContributions?: Record<string, QueryIR>;
 };
 export type RealContainerNode<Extra, C extends AnyVueComponent> = BaseContainerNode & Extra & { component: C };
 

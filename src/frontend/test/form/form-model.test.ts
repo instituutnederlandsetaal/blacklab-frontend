@@ -13,6 +13,7 @@ import {
 	type QueryCombineMode,
 } from '@/features/form';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
+import { annotation, filter, queryFragment } from '@/features/form/model/types/form-query-ir';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, parentFormProbeView, testTextController } from './helpers';
 
@@ -258,6 +259,57 @@ describe('form model state', () => {
 		expect(compiled.patt).toBe('[word="water"] [word="water"]');
 		expect(compiled.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
 		expect(compiled.encoded).toMatchObject({ 'f.form': form.id, 'f.word': 'water' });
+	});
+
+	test('parents assign independent active-child contributions to a shared child', () => {
+		const builder = createTestBuilder();
+		const shared = builder.newContainer('shared.tab', ContainerRenderer, { title: 'Shared' });
+		const firstAlternative = builder.newContainer('first.alternative', ContainerRenderer, { title: 'First alternative' });
+		const secondAlternative = builder.newContainer('second.alternative', ContainerRenderer, { title: 'Second alternative' });
+		const first = builder
+			.newContainer('first.tabs', ContainerRenderer, {})
+			.addChild(shared, { queryWhenActive: queryFragment(filter('category', 'literal', 'newspaper'))! })
+			.addChildren(firstAlternative);
+		const second = builder
+			.newContainer('second.tabs', ContainerRenderer, {})
+			.addChild(shared, { queryWhenActive: queryFragment(filter('category', 'literal', 'book'))! })
+			.addChildren(secondAlternative);
+		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(first, second);
+		const state = createDefaultFormState(builder.context, builder.getRoot());
+
+		expect(compileQueryIR(buildQueryIR(form, state, builder.context)).filter).toBe('(category:(newspaper) AND category:(book))');
+
+		state.uiState[first.id] = firstAlternative.id;
+		expect(compileQueryIR(buildQueryIR(form, state, builder.context)).filter).toBe('category:(book)');
+	});
+
+	test('active-child contributions preserve nested parent combine modes', () => {
+		const builder = createTestBuilder();
+		const word = builder.newField('search.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
+		const lemma = builder.newField('search.lemma', testTextController, TestTextField, {
+			annotationId: 'lemma',
+			displayName: 'Lemma',
+		});
+		const semanticTab = builder.newContainer('search.semantic', ContainerRenderer, {});
+		const alternatives = builder
+			.newContainer('search.alternatives', ContainerRenderer, {
+				combine: 'or',
+			})
+			.addChildren(lemma)
+			.addChild(semanticTab, { queryWhenActive: queryFragment(annotation('pos', 'wildcard', 'N'))! });
+		const sequence = builder.newContainer('search.sequence', ContainerRenderer, { combine: 'sequence' }).addChildren(word, alternatives);
+		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(sequence);
+		const state = createDefaultFormState(builder.context, builder.getRoot());
+		state.state[word.id] = { value: 'water' };
+		state.state[lemma.id] = { value: 'lopen' };
+		state.uiState[alternatives.id] = semanticTab.id;
+
+		const compiled = compileQueryIR(buildQueryIR(form, state, builder.context));
+
+		expect(compiled.patt).toBe('[word="water"] [lemma="lopen" | pos="N"]');
 	});
 
 	test('builder state picks the first active branch for nested container-like nodes', () => {
