@@ -1,6 +1,6 @@
 import type { FieldComponentProps, FieldRuntimeComponentProps } from '@/features/form/model/field-component-props';
 import { createFormFieldNode, type ConstrainedFieldComponent, type CreatedFormField, type FormFieldConfig } from '@/features/form/model/form-field-node';
-import { getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
+import { checkNoLoops, getAllNodes, isContainerNode } from '@/features/form/model/form-utils';
 import type { AnyFieldController, FormRuntimeContext } from '@/features/form/model/types';
 import type { QueryIR } from '@/features/form/model/types/form-query-ir';
 import type {
@@ -11,6 +11,7 @@ import type {
 	BaseViewNode,
 	FormBoundaryNode,
 	FormContainerLikeNode,
+	FormFieldNode,
 	FormNode,
 	ImplicitContainerComponentProps,
 	NodeKind,
@@ -24,9 +25,35 @@ import type { AnyVueComponent, ConstrainComponentToProvidedProps, NoExtraPropert
 // Helpers
 // ==========================================================================================================================
 
-type BuilderManagedNodeKeys = 'children' | 'kind' | 'component' | 'controller' | 'activeChildQueryContributions';
+type BuilderManagedNodeKeys = 'id' | 'children' | 'kind' | 'component' | 'controller' | 'activeChildQueryContributions';
 type ForbiddenConfigKeys = BuilderManagedNodeKeys | keyof FieldRuntimeComponentProps<unknown>;
 type ImplicitContainerComponentPropKeys = keyof ImplicitContainerComponentProps;
+
+type MutableContainerGraphFields = {
+	children: AnyRealFormNode[];
+	activeChildQueryContributions?: Record<string, QueryIR>;
+};
+
+/**
+ * Node topology is readonly to consumers so extension code has to use the
+ * validated editor API. The builder owns the underlying plain objects during
+ * definition construction, making this narrow cast its deliberate mutation
+ * boundary. This is compile-time protection, not runtime immutability.
+ */
+function mutableGraphFields(node: BaseContainerNode | BaseFormNode): MutableContainerGraphFields {
+	return node as unknown as MutableContainerGraphFields;
+}
+
+/** Assign all extension properties without exposing them to object spread/enumeration. */
+function assignNonEnumerable<Target extends object, Properties extends object>(target: Target, properties: Properties): Target & Properties {
+	for (const key of Reflect.ownKeys(properties)) {
+		Object.defineProperty(target, key, {
+			...Object.getOwnPropertyDescriptor(properties, key)!,
+			enumerable: false,
+		});
+	}
+	return target as Target & Properties;
+}
 
 type ExtractExtraPropsFromComponent<C extends AnyVueComponent, ImplicitKeys extends PropertyKey> = Omit<PublicPropsOf<C>, ImplicitKeys>;
 type ExtractExtraPropsFromConfig<Config> = Omit<Config, ForbiddenConfigKeys>;
@@ -111,24 +138,50 @@ interface NewViewNode {
 // Children
 // ==========================================================================================================================
 
-type AddChildOptions = {
+export type AddChildOptions = {
 	queryWhenActive?: QueryIR;
 };
 
-interface AddChildNodes {
+export type FormNodeReference = FormNode | string;
+
+export interface ParentFormNodeEditor {
+	appendChild<Child extends AnyRealFormNode>(child: Child, options?: AddChildOptions): Child;
+	prependChild<Child extends AnyRealFormNode>(child: Child, options?: AddChildOptions): Child;
+	insertBefore<Child extends AnyRealFormNode>(newChild: Child, referenceChild: FormNodeReference, options?: AddChildOptions): Child;
+	replaceChild<Child extends AnyRealFormNode>(newChild: Child, oldChild: FormNodeReference, options?: AddChildOptions): FormNode;
+	removeChild(child: FormNodeReference): FormNode;
+}
+
+export interface AddChildNodes extends ParentFormNodeEditor {
 	addChild(child: AnyRealFormNode, options?: AddChildOptions): this;
 	addChildren(...children: Array<AnyRealFormNode | null | undefined>): this;
 }
 
+export type BuilderContainerNode = FormContainerLikeNode & AddChildNodes;
+export type BuilderFormNode = FormBoundaryNode & AddChildNodes;
+export type BuilderNode = BuilderContainerNode | FormFieldNode | NodeKindMap['view'];
+
 // Builder
 // ==========================================================================================================================
 
+/**
+ * A build-time extension callback. Nodes are owned by the builder that creates
+ * or first adopts them and must not be transplanted between builders.
+ */
 export type FormRegistrationCallback = (api: FormBuilder) => RealContainerNode<unknown, AnyVueComponent> | RealFormNode<unknown, AnyVueComponent> | void;
 
 /**
  * Builds the static form graph. Runtime state and Vue rendering deliberately live
  * outside this class so a definition can be recreated, inspected, and shared
  * without becoming part of a reactive dependency graph.
+ *
+ * Structural edits are supported only while constructing/customizing a
+ * definition. A node belongs to one builder for its lifetime; sharing nodes
+ * within that builder is supported, but transplanting them between builders is
+ * not. This ownership rule is a caller contract rather than a runtime check.
+ * Treat `id`, `kind`, component/controller identity, children, and active-child
+ * contributions as builder-owned and use the editor methods rather than mutating
+ * them directly.
  */
 export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode, NewViewNode {
 	public readonly context: FormRuntimeContext;
@@ -144,18 +197,36 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 	private root: BaseContainerNode | BaseFormNode | null = null;
 
 	public getRoot(): FormContainerLikeNode {
-		const containers = Object.values(this.nodeMap).filter(isContainerNode);
-		const childIds = new Set(containers.flatMap(node => node.children.map(child => child.id)));
-		const graphRoots = containers.filter(node => !childIds.has(node.id));
-		const root = graphRoots.find(node => node === this.root) ?? graphRoots.find(node => node.kind === 'form') ?? graphRoots[0] ?? this.root;
-		if (!root) throw new Error('Root node is not set');
-		return root as FormContainerLikeNode;
+		if (!this.root) throw new Error('Root node is not set');
+		return this.root as FormContainerLikeNode;
 	}
 
 	public hasNode(id: string): boolean {
 		return !!this.nodeMap[id];
 	}
 	public getNode(id: string): FormNode | null {
+		return (this.nodeMap[id] as FormNode | undefined) ?? null;
+	}
+	public getElementById(id: string): BuilderNode | null {
+		return (this.nodeMap[id] as BuilderNode | undefined) ?? null;
+	}
+
+	public getParents(nodeOrId: FormNodeReference): BuilderContainerNode[] {
+		const node = this.resolveNode(nodeOrId);
+		if (!node) return [];
+		return this.containerList.filter(parent => parent.children.some(child => child === node)) as BuilderContainerNode[];
+	}
+
+	/** Like DOM `Node.contains`, a node contains itself. */
+	public contains(ancestor: FormNodeReference, descendant: FormNodeReference): boolean {
+		const resolvedAncestor = this.resolveNode(ancestor);
+		const resolvedDescendant = this.resolveNode(descendant);
+		if (!resolvedAncestor || !resolvedDescendant) return false;
+		return getAllNodes(resolvedAncestor).includes(resolvedDescendant);
+	}
+
+	private resolveNode(nodeOrId: FormNodeReference): FormNode | null {
+		const id = typeof nodeOrId === 'string' ? nodeOrId : nodeOrId.id;
 		return (this.nodeMap[id] as FormNode | undefined) ?? null;
 	}
 
@@ -166,28 +237,129 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 			// Keep the first container as a provisional root, but let the first form
 			// take over once it is created.
 			if (isContainerNode(node) && !this.root) this.root = node;
-			if (node.kind === 'form' && (!this.root || this.root.kind === 'container')) this.root = node;
+			// Prefer a first form over an unused provisional container. Once a
+			// container has structure, it is an intentional graph root.
+			if (node.kind === 'form' && this.root?.kind === 'container' && !this.root.children.length) this.root = node;
 		} else if (this.nodeMap[node.id] !== node) {
 			throw new Error(`Node with id ${node.id} already exists in this form builder`);
 		}
 		return node;
 	}
 
-	private addChildToNode<T extends BaseContainerNode | BaseFormNode>(node: T, child: AnyRealFormNode, options?: AddChildOptions): T {
-		if (getAllNodes(child).some(descendant => descendant.id === node.id)) {
-			throw new Error(`Adding '${child.id}' to '${node.id}' would create a form graph cycle`);
-		}
-		node.children.push(this.addNode(child));
-		if (options?.queryWhenActive) {
-			node.activeChildQueryContributions ??= {};
-			node.activeChildQueryContributions[child.id] = options.queryWhenActive;
-		}
-		return node;
+	private assertRegisteredParent(node: BaseContainerNode | BaseFormNode): void {
+		if (this.nodeMap[node.id] !== node) throw new Error(`Parent node '${node.id}' is not registered in this form builder`);
 	}
 
-	private addChildrenToNode<T extends BaseContainerNode | BaseFormNode>(node: T, ...children: Array<AnyRealFormNode | null | undefined>): T {
-		for (const child of children) if (child) this.addChildToNode(node, child);
-		return node;
+	private validateSubgraph(node: AnyRealFormNode, replacedNode?: FormNode): FormNode[] {
+		checkNoLoops(node);
+		const nodes = getAllNodes(node);
+		const nodesById = new Map<string, FormNode>();
+		for (const candidate of nodes) {
+			const duplicate = nodesById.get(candidate.id);
+			if (duplicate && duplicate !== candidate) throw new Error(`Form graph contains different nodes with the same id '${candidate.id}'`);
+			nodesById.set(candidate.id, candidate);
+
+			const registered = this.nodeMap[candidate.id];
+			if (registered && registered !== candidate && registered !== replacedNode) {
+				throw new Error(`Node with id ${candidate.id} already exists in this form builder`);
+			}
+			if (isContainerNode(candidate)) {
+				const childIds = new Set<string>();
+				for (const child of candidate.children) {
+					if (childIds.has(child.id)) throw new Error(`Parent '${candidate.id}' already contains child '${child.id}'`);
+					childIds.add(child.id);
+				}
+			}
+		}
+		return nodes;
+	}
+
+	private registerNodes(nodes: FormNode[], excludedNode?: FormNode): void {
+		for (const candidate of nodes) {
+			if (candidate === excludedNode) continue;
+			if (isContainerNode(candidate)) this.attachGraphFunctions(candidate);
+			this.addNode(candidate);
+		}
+	}
+
+	private setActiveChildContribution(node: BaseContainerNode | BaseFormNode, childId: string, contribution?: QueryIR): void {
+		const graph = mutableGraphFields(node);
+		if (contribution) {
+			graph.activeChildQueryContributions ??= {};
+			graph.activeChildQueryContributions[childId] = contribution;
+			return;
+		}
+		if (!graph.activeChildQueryContributions) return;
+		delete graph.activeChildQueryContributions[childId];
+		if (!Object.keys(graph.activeChildQueryContributions).length) delete graph.activeChildQueryContributions;
+	}
+
+	private prepareChild<Child extends AnyRealFormNode>(node: BaseContainerNode | BaseFormNode, child: Child): Child {
+		this.assertRegisteredParent(node);
+		if (node.children.some(existing => existing.id === child.id)) throw new Error(`Parent '${node.id}' already contains child '${child.id}'`);
+		const childNodes = this.validateSubgraph(child);
+		if (childNodes.some(descendant => descendant.id === node.id)) {
+			throw new Error(`Adding '${child.id}' to '${node.id}' would create a form graph cycle`);
+		}
+		this.registerNodes(childNodes);
+		return child;
+	}
+
+	private linkChild(node: BaseContainerNode | BaseFormNode, child: AnyRealFormNode, options?: AddChildOptions): void {
+		this.setActiveChildContribution(node, child.id, options?.queryWhenActive);
+		if (this.root === child) this.root = node;
+	}
+
+	private insertChildAt<Child extends AnyRealFormNode>(node: BaseContainerNode | BaseFormNode, child: Child, index: number, options?: AddChildOptions): Child {
+		mutableGraphFields(node).children.splice(index, 0, this.prepareChild(node, child));
+		this.linkChild(node, child, options);
+		return child;
+	}
+
+	private getDirectChildIndex(node: BaseContainerNode | BaseFormNode, child: FormNodeReference): number {
+		const id = typeof child === 'string' ? child : child.id;
+		const index = node.children.findIndex(candidate => candidate.id === id);
+		if (index === -1) throw new Error(`Node '${id}' is not a child of '${node.id}'`);
+		return index;
+	}
+
+	private replaceChildInNode<Child extends AnyRealFormNode>(node: BaseContainerNode | BaseFormNode, newChild: Child, oldChild: FormNodeReference, options?: AddChildOptions): FormNode {
+		this.assertRegisteredParent(node);
+		const index = this.getDirectChildIndex(node, oldChild);
+		const removed = node.children[index] as FormNode;
+		if (removed.id === newChild.id) throw new Error(`Parent '${node.id}' already contains child '${newChild.id}'`);
+		mutableGraphFields(node).children.splice(index, 1, this.prepareChild(node, newChild));
+		this.setActiveChildContribution(node, removed.id);
+		this.linkChild(node, newChild, options);
+		return removed;
+	}
+
+	private detachChildAt(node: BaseContainerNode | BaseFormNode, index: number): FormNode {
+		const [removed] = mutableGraphFields(node).children.splice(index, 1) as FormNode[];
+		this.setActiveChildContribution(node, removed.id);
+		return removed;
+	}
+
+	private attachGraphFunctions<T extends BaseContainerNode | BaseFormNode>(node: T): T & AddChildNodes {
+		return assignNonEnumerable(node, {
+			addChild: (child: AnyRealFormNode, options?: AddChildOptions) => {
+				this.insertChildAt(node, child, node.children.length, options);
+				return node;
+			},
+			addChildren: (...children: Array<AnyRealFormNode | null | undefined>) => {
+				for (const child of children) if (child) this.insertChildAt(node, child, node.children.length);
+				return node;
+			},
+			appendChild: <Child extends AnyRealFormNode>(child: Child, options?: AddChildOptions) => this.insertChildAt(node, child, node.children.length, options),
+			prependChild: <Child extends AnyRealFormNode>(child: Child, options?: AddChildOptions) => this.insertChildAt(node, child, 0, options),
+			insertBefore: <Child extends AnyRealFormNode>(newChild: Child, referenceChild: FormNodeReference, options?: AddChildOptions) =>
+				this.insertChildAt(node, newChild, this.getDirectChildIndex(node, referenceChild), options),
+			replaceChild: <Child extends AnyRealFormNode>(newChild: Child, oldChild: FormNodeReference, options?: AddChildOptions) => this.replaceChildInNode(node, newChild, oldChild, options),
+			removeChild: (child: FormNodeReference) => {
+				this.assertRegisteredParent(node);
+				return this.detachChildAt(node, this.getDirectChildIndex(node, child));
+			},
+		}) as unknown as T & AddChildNodes;
 	}
 
 	newContainer: NewContainerNodeFn = <C extends AnyVueComponent, Config extends NewContainerNodeFnConfig<C>>(
@@ -195,15 +367,13 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 		component: ConstrainComponentToProvidedProps<C, ImplicitContainerComponentProps & ExtractExtraPropsFromConfig<Config>>,
 		config: NoExtraProperties<NewContainerNodeFnConfig<C>, Config>,
 	) => {
-		const node: NewContainerNodeFnReturn<C, Config> = {
+		const node = this.attachGraphFunctions({
 			...config,
 			kind: 'container',
 			id,
 			children: [],
 			component: component as C,
-			addChild: (child: AnyRealFormNode, options?: AddChildOptions) => this.addChildToNode(node, child, options),
-			addChildren: (...children: Array<AnyRealFormNode | null | undefined>) => this.addChildrenToNode(node, ...children),
-		};
+		}) as NewContainerNodeFnReturn<C, Config>;
 		return this.addNode(node);
 	};
 
@@ -212,15 +382,13 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 		component: ConstrainComponentToProvidedProps<C, ImplicitContainerComponentProps & ExtractExtraPropsFromConfig<Config>>,
 		config: NoExtraProperties<NewFormNodeFnConfig<C>, Config>,
 	) => {
-		const node: AddChildNodes & RealFormNode<ExtractExtraPropsFromConfig<Config>, C> = {
+		const node = this.attachGraphFunctions({
 			...config,
 			kind: 'form',
 			id,
 			children: [],
 			component: component as C,
-			addChild: (child: AnyRealFormNode, options?: AddChildOptions) => this.addChildToNode(node, child, options),
-			addChildren: (...children: Array<AnyRealFormNode | null | undefined>) => this.addChildrenToNode(node, ...children),
-		};
+		}) as AddChildNodes & RealFormNode<ExtractExtraPropsFromConfig<Config>, C>;
 		return this.addNode(node);
 	};
 
@@ -244,10 +412,61 @@ export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode,
 		return this.getTypedNode(id, 'view');
 	}
 	getForm(id: string) {
-		return this.getTypedNode(id, 'form');
+		return this.getTypedNode(id, 'form') as BuilderFormNode | null;
 	}
 	getContainer(id: string) {
-		return this.getTypedNode(id, 'container');
+		return this.getTypedNode(id, 'container') as BuilderContainerNode | null;
+	}
+
+	/**
+	 * Replace a node without changing any of its incoming graph edges. Every
+	 * parent keeps the same child position and ID-keyed edge contribution, while
+	 * the replacement supplies the complete outgoing subtree whose descendants
+	 * are recursively adopted into this builder.
+	 */
+	public replaceNode(id: string, replacement: AnyRealFormNode): FormNode {
+		const current = this.getNode(id);
+		if (!current) throw new Error(`Node '${id}' does not exist in this form builder`);
+		if (replacement.id !== id) throw new Error(`Replacement node must preserve id '${id}', received '${replacement.id}'`);
+		if (replacement === current) return current;
+		if (current === this.root && !isContainerNode(replacement)) throw new Error(`Root node '${id}' must remain a container or form`);
+
+		const replacementNodes = this.validateSubgraph(replacement, current);
+		const parentEdges = this.getParents(current).map(parent => ({ parent, index: this.getDirectChildIndex(parent, current) }));
+		for (const { parent } of parentEdges) {
+			if (replacementNodes.includes(parent)) throw new Error(`Replacing '${id}' would create a form graph cycle through '${parent.id}'`);
+		}
+
+		if (isContainerNode(replacement)) this.attachGraphFunctions(replacement);
+		this.registerNodes(replacementNodes, replacement);
+		for (const { parent, index } of parentEdges) {
+			mutableGraphFields(parent).children.splice(index, 1, replacement);
+		}
+		this.nodeMap[id] = replacement;
+		if (this.root === current) this.root = replacement as BaseContainerNode | BaseFormNode;
+		return current;
+	}
+
+	public removeNode(id: string): FormNode {
+		const node = this.getNode(id);
+		if (!node) throw new Error(`Node '${id}' does not exist in this form builder`);
+		for (const parent of this.getParents(node)) this.detachChildAt(parent, this.getDirectChildIndex(parent, node));
+		delete this.nodeMap[id];
+		if (this.root === node) this.root = null;
+		return node;
+	}
+
+	public pruneDetachedNodes(): FormNode[] {
+		const root = this.getRoot();
+		const reachable = new Set(getAllNodes(root));
+		const removed: FormNode[] = [];
+		for (const node of this.nodeList) {
+			if (reachable.has(node)) continue;
+			removed.push(node);
+			delete this.nodeMap[node.id];
+		}
+		this.root = root;
+		return removed;
 	}
 
 	private getTypedNode<Kind extends NodeKind>(id: string, type: Kind): NodeKindMap[Kind] | null {

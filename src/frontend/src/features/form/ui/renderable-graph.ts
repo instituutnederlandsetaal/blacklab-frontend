@@ -29,7 +29,7 @@ export function renderFormNode(node: FormNode, runtime: FormRenderingRuntime): R
 	const idSuffix = useUid();
 
 	if (node.kind === 'container' || node.kind === 'form') {
-		const props = createMutableRuntimeProps(node, ['addChildren', 'component', 'children']);
+		const props = createMutableRuntimeProps(node, ['component', 'children']);
 		props.children = node.children.map(child => renderFormNode(child, runtime));
 		return {
 			is: node.component ?? ContainerRenderer,

@@ -13,7 +13,8 @@ import { renderFormNode } from '@/features/form/ui/renderable-graph';
  * The definition has no Vue state. All mutable state used by mounted components
  * lives here, so the runtime should only be replaced when structural definition
  * inputs change. Restoration produces immutable snapshots that are cloned during
- * hydration.
+ * hydration. Finish all builder/customization edits before constructing a
+ * runtime; structural mutation afterward is unsupported.
  */
 export class FormRuntime {
 	public readonly state;

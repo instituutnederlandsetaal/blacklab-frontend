@@ -52,8 +52,9 @@ import type { CompiledFormStateWithSummaries, ImplicitContainerComponentProps } 
 
 import Tabs from '@/shared/ui/Tabs.vue';
 
-// InheritAttrs false to prevent rendering extra properties in dom, such as functions passed as props
-// Due to how we pass props, this component would otherwise render a lot of unwanted attributes on the container element, such as util methods on the form node object etc.
+// Controllers and interchangeable components intentionally accept overlapping,
+// but not necessarily identical, node configuration. Keep valid controller-only
+// configuration from falling through as attributes on the container DOM element.
 defineOptions({ name: 'ContainerRenderer', inheritAttrs: false });
 
 const props = defineProps<ImplicitContainerComponentProps>();

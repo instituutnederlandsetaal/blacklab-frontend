@@ -4,7 +4,7 @@ import type { AnyFieldController, FieldController, FormRuntimeContext } from '@/
 import type { BaseFieldNode, FormFieldNode, RealFieldNode } from '@/features/form/model/types/form-shape';
 import type { AnyVueComponent, ConstrainComponentToProvidedProps, DistributiveOmit, NoExtraProperties, PublicPropsOf } from '@/types/helpers';
 
-type ManagedFieldKeys = 'kind' | 'component' | 'controller';
+type ManagedFieldKeys = 'id' | 'kind' | 'component' | 'controller';
 type ForbiddenFieldConfigKeys = ManagedFieldKeys | keyof FieldRuntimeComponentProps<unknown>;
 
 type ConstrainComponentFromController<Component extends AnyVueComponent, Controller> =

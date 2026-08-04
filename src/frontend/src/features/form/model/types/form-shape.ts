@@ -7,7 +7,7 @@ export type FormValue<T> = T | (() => T);
 
 /** The base for all form nodes */
 export type BaseNode = {
-	id: string;
+	readonly id: string;
 	title?: FormValue<string>;
 	class?: string;
 };
@@ -18,10 +18,11 @@ export type ContainerPresentation = 'list' | 'tabs' | 'small-tabs' | 'tab-badges
 export type QueryCombineMode = BooleanType | 'sequence';
 
 export type BaseContainerNode = BaseNode & {
-	kind: 'container';
+	readonly kind: 'container';
 	/** Defaults to list if unset */
 	variant?: ContainerPresentation | ContainerPresentation[];
-	children: AnyRealFormNode[];
+	/** Ordered graph edges; mutate through the builder's parent editor methods. */
+	readonly children: readonly AnyRealFormNode[];
 	/** Defaults to 'and' if unset */
 	combine?: QueryCombineMode;
 	/**
@@ -30,17 +31,17 @@ export type BaseContainerNode = BaseNode & {
 	 * adding an implicit filter without attaching parent-specific behavior to the
 	 * child node itself.
 	 */
-	activeChildQueryContributions?: Record<string, QueryIR>;
+	readonly activeChildQueryContributions?: Readonly<Record<string, QueryIR>>;
 };
-export type RealContainerNode<Extra, C extends AnyVueComponent> = BaseContainerNode & Extra & { component: C };
+export type RealContainerNode<Extra, C extends AnyVueComponent> = BaseContainerNode & Extra & { readonly component: C };
 
 // Form boundary - specialization of container
 // ==========================================================================================================================
 
 export type BaseFormNode = Omit<BaseContainerNode, 'kind' | 'combine'> & {
-	kind: 'form';
+	readonly kind: 'form';
 };
-export type RealFormNode<Extra, C extends AnyVueComponent> = BaseFormNode & Extra & { component: C };
+export type RealFormNode<Extra, C extends AnyVueComponent> = BaseFormNode & Extra & { readonly component: C };
 
 export type ImplicitContainerComponentProps = BaseNode & {
 	kind: BaseContainerNode['kind'] | BaseFormNode['kind'];
@@ -55,14 +56,14 @@ export type ImplicitContainerComponentProps = BaseNode & {
 export type FieldPresentation = 'simple' | 'large' | 'small' | 'horizontal' | 'default' | (string & {}); // open-ended but with some fixed types we support internally.
 
 export type BaseFieldNode = BaseNode & {
-	kind: 'field';
+	readonly kind: 'field';
 	/** Defaults to default if unset */
 	variant?: FieldPresentation | FieldPresentation[];
 };
 export type RealFieldNode<Extra, C extends AnyVueComponent> = BaseFieldNode &
 	Extra & {
-		controller: FieldController<string, unknown, object>;
-		component: C;
+		readonly controller: FieldController<string, unknown, object>;
+		readonly component: C;
 	};
 
 export type FormControllerProps<Extra> = BaseNode & Extra;
@@ -71,9 +72,9 @@ export type FormControllerProps<Extra> = BaseNode & Extra;
 // ==========================================================================================================================
 
 export type BaseViewNode = BaseNode & {
-	kind: 'view';
+	readonly kind: 'view';
 };
-export type RealViewNode<Extra, C extends AnyVueComponent> = BaseViewNode & Extra & { component: C };
+export type RealViewNode<Extra, C extends AnyVueComponent> = BaseViewNode & Extra & { readonly component: C };
 
 export type AnyBaseFormNode = BaseContainerNode | BaseFormNode | BaseFieldNode | BaseViewNode;
 export type AnyRealFormNode = RealContainerNode<unknown, any> | RealFormNode<unknown, any> | RealFieldNode<unknown, any> | RealViewNode<unknown, any>;
