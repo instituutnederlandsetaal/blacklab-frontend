@@ -190,6 +190,7 @@ const init = (state: CorpusContext) => {
 					metadata = {
 						field: f.id,
 					};
+					break;
 				case 'text':
 				default:
 					componentName = 'filter-text';
