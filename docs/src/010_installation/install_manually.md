@@ -17,8 +17,8 @@ order: 2
    We will likely perform this migration in version `4.1`.
 
    Using older versions of `Tomcat` will cause some [warnings from dependencies](https://bz.apache.org/bugzilla/show_bug.cgi?id=60688). 
-- An instance of [BlackLab Server](https://github.com/instituutnederlandsetaal/BlackLab/).  
-   While we do our best to make the frontend work with older versions of BlackLab, use a matching version of BlackLab (so `blacklab-frontend v2.0` with `blacklab-server v2.0`).
+  - An instance of [BlackLab Server](https://blacklab.ivdnt.org/server/).  
+     While we do our best to make the frontend work with older versions of BlackLab, matching major versions is safest, so e.g.`blacklab-frontend v4.2.12` with `blacklab-server v4.1.1`. The `dev` versions should work together as well.
 
 ## Steps
 

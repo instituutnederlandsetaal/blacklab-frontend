@@ -6,7 +6,7 @@ order: -1
 
 # BlackLab Frontend
 
-The BlackLab Frontend is a webinterface for publishing and searching through text corpora, powered by [BlackLab](https://github.com/instituutnederlandsetaal/BlackLab/).
+The BlackLab Frontend is a webinterface for publishing and searching through text corpora, powered by [BlackLab](https://blacklab.ivdnt.org/).
 It is developed by the [Dutch Language Institute](https://ivdnt.org/) and is used to provide a user-friendly interface for searching through linguistic corpora.
 
 At the [Dutch Language Institute](https://ivdnt.org/), we use it to publish our corpora such as [CHN](https://chn.ivdnt.org/) (CLARIN login required), [Letters as Loot](https://brievenalsbuit.ivdnt.org/). We also host an instance where you can try it out by uploading your own corpus data (privately), called [AutoSearch](https://portal.clarin.inl.nl/autocorp/) (CLARIN login required).
