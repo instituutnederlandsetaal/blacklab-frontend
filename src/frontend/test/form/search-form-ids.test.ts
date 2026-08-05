@@ -3,8 +3,8 @@ import { describe, expect, test } from 'vitest';
 import { searchFormIds as ids } from '@/features/search/model/search-form-ids';
 
 describe('standard search-form IDs', () => {
-	test('covers every standard node family with readable IDs', () => {
-		expect({
+	test('emits stable namespaced paths for every standard node ID helper', () => {
+		const generated = {
 			root: ids.root(),
 			searchSection: ids.searchSection(),
 			searchSectionHeading: ids.searchSectionHeading(),
@@ -37,7 +37,14 @@ describe('standard search-form IDs', () => {
 			exploreNgramGroupBy: ids.exploreNgramGroupBy(),
 			exploreNgramTokens: ids.exploreNgramTokens(),
 			exploreFrequencyAnnotation: ids.exploreFrequencyAnnotation(),
-		}).toMatchInlineSnapshot(`
+		};
+
+		expect(Object.keys(generated).sort()).toEqual(
+			Object.keys(ids)
+				.filter(key => key !== 'formKind')
+				.sort(),
+		);
+		expect(generated).toMatchInlineSnapshot(`
 			{
 			  "annotationField": "standard-search-form/annotation-field/extended/contents__nl/pos",
 			  "annotationTab": "standard-search-form/annotation-tab/Grammar",

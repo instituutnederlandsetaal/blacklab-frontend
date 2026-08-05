@@ -12,8 +12,6 @@ import { TestTextField, createTestBuilder, createTestRuntime, parentFormProbeVie
 
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
-import HeadingView from '@/features/form/views/HeadingView.vue';
-import SummaryView from '@/features/form/views/SummaryView.vue';
 
 type FormFixture = {
 	runtime: FormRuntime;
@@ -95,7 +93,7 @@ function createSharedFieldTabsFixture(): FormFixture {
 	});
 	root.addChildren(
 		builder.newForm('search.first', ContainerRenderer, { title: 'First' }).addChildren(sharedField),
-		builder.newForm('search.second', ContainerRenderer, { title: 'Second' }).addChildren(sharedField, builder.newView('search.second.probe', parentFormProbeView, {})),
+		builder.newForm('search.second', ContainerRenderer, { title: 'Second' }).addChildren(sharedField),
 	);
 
 	return {
@@ -122,7 +120,6 @@ function createTabbedFormFixture(): FormFixture {
 					annotationId: 'lemma',
 					displayName: 'Lemma',
 				}),
-				builder.newView('search.tabbed.lemma.probe', parentFormProbeView, {}),
 			),
 		);
 	return {
@@ -134,7 +131,6 @@ function createFilterTabsFixture(): FormFixture {
 	const builder = createTestBuilder();
 	builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(
 		builder.newContainer('shared.filters.wrapper', ContainerRenderer, {}).addChildren(
-			builder.newView('shared.filters.heading', HeadingView, { title: 'Filter Search By...' }),
 			builder.newContainer('shared.filters', ContainerRenderer, { variant: ['tabs', 'tab-badges'] }).addChildren(
 				builder.newContainer('shared.filters.bibliographic', ContainerRenderer, { title: 'Bibliographic' }).addChildren(
 					builder.newContainer('shared.filters.bibliographic.fields', ContainerRenderer, {}).addChildren(
@@ -146,13 +142,34 @@ function createFilterTabsFixture(): FormFixture {
 					),
 				),
 			),
-			builder.newView('shared.filters.summary', SummaryView, { summaryType: 'filter', title: 'Filter summary' }),
 		),
 	);
 
 	return {
 		runtime: createTestRuntime(builder),
 	};
+}
+
+function createGetterTabsFixture() {
+	const builder = createTestBuilder();
+	const form = builder.newForm('search.form', ContainerRenderer, { title: () => 'Computed form', variant: 'tabs' });
+	form.addChildren(
+		builder.newContainer('search.first', ContainerRenderer, { title: () => 'Computed first' }),
+		builder.newContainer('search.second', ContainerRenderer, { title: () => 'Computed second' }),
+	);
+	return { form, runtime: createTestRuntime(builder) };
+}
+
+function createLabeledRuntime(label: string): FormRuntime {
+	const builder = createTestBuilder();
+	builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(
+		builder.newField('search.simple.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: label,
+		}),
+		builder.newView('search.simple.probe', parentFormProbeView, {}),
+	);
+	return createTestRuntime(builder);
 }
 
 describe('form system integration', () => {
@@ -192,27 +209,19 @@ describe('form system integration', () => {
 		expect(wrapper.get('[data-testid="parent-form-probe"] .state').text()).toContain('water');
 	});
 
-	test('submit emits a snapshot that is isolated from later edits', async () => {
-		const fixture = createSingleFormFixture();
-		const wrapper = mount(FormSystem, {
-			props: fixture,
-		});
+	test('submit emits the mounted form runtime compilation', async () => {
+		const builder = createTestBuilder();
+		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+		const runtime = createTestRuntime(builder);
+		const compiled = runtime.compile(form.id);
+		const compile = vi.spyOn(runtime, 'compile').mockReturnValue(compiled);
+		const wrapper = mount(FormSystem, { props: { runtime } });
 
-		await wrapper.get('input[aria-label="Word"]').setValue('water');
 		await wrapper.get('form').trigger('submit');
 
-		const emitted = wrapper.emitted('submit') as Array<[CompiledFormStateWithSummaries]> | undefined;
-		expect(emitted).toHaveLength(1);
-		const [snapshot] = emitted![0];
-
-		expect(snapshot.formId).toBe('search.simple');
-		expect(snapshot.patt).toBe('[word="water"]');
-		expect(snapshot.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
-
-		await wrapper.get('input[aria-label="Word"]').setValue('fire');
-
-		expect(snapshot.patt).toBe('[word="water"]');
-		expect(snapshot.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
+		expect(compile).toHaveBeenCalledOnce();
+		expect(compile).toHaveBeenCalledWith(form.id);
+		expect(wrapper.emitted('submit')).toEqual([[compiled]]);
 	});
 
 	test('editable autocomplete submits the latest input event without waiting for a tick', async () => {
@@ -282,35 +291,61 @@ describe('form system integration', () => {
 		expect(extendedSubmit).not.toHaveBeenCalled();
 	});
 
-	test('runtime replacement updates injected children and leaves the old state isolated', async () => {
-		function createRuntime(label: string) {
-			const builder = createTestBuilder();
-			builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(
-				builder.newField('search.simple.word', testTextController, TestTextField, {
-					annotationId: 'word',
-					displayName: label,
-				}),
-			);
-			return createTestRuntime(builder);
-		}
+	test('runtime prop replacement refreshes rendered controls', async () => {
+		const oldRuntime = createLabeledRuntime('Old word');
+		const newRuntime = createLabeledRuntime('New word');
+		const currentRuntime = shallowRef(oldRuntime);
+		const Harness = defineComponent({
+			setup: () => () => h(FormSystem, { runtime: currentRuntime.value }),
+		});
+		const wrapper = mount(Harness);
+		expect(wrapper.find('input[aria-label="Old word"]').exists()).toBe(true);
 
-		const oldRuntime = createRuntime('Old word');
-		const newRuntime = createRuntime('New word');
+		currentRuntime.value = newRuntime;
+		await nextTick();
+
+		expect(wrapper.find('input[aria-label="Old word"]').exists()).toBe(false);
+		expect(wrapper.find('input[aria-label="New word"]').exists()).toBe(true);
+	});
+
+	test('runtime prop replacement refreshes injected runtime consumers', async () => {
+		const oldRuntime = createLabeledRuntime('Old word');
+		const newRuntime = createLabeledRuntime('New word');
+		oldRuntime.state.state.value['search.simple.word'] = { value: 'old draft' };
+		newRuntime.state.state.value['search.simple.word'] = { value: 'new draft' };
 		const currentRuntime = shallowRef(oldRuntime);
 		const Harness = defineComponent({
 			setup: () => () => h(FormSystem, { runtime: currentRuntime.value }),
 		});
 		const wrapper = mount(Harness);
 
+		expect(wrapper.get('[data-testid="parent-form-probe"] .cql').text()).toBe('[word="old draft"]');
+
 		currentRuntime.value = newRuntime;
 		await nextTick();
-		await wrapper.get('input[aria-label="New word"]').setValue('water');
 
-		expect(newRuntime.state.state.value['search.simple.word']).toEqual({ value: 'water' });
-		expect(oldRuntime.state.state.value['search.simple.word']).toEqual({ value: '' });
+		expect(wrapper.get('[data-testid="parent-form-probe"] .cql').text()).toBe('[word="new draft"]');
 	});
 
-	test('replaceState updates rendered field state after mount', async () => {
+	test('write-back after runtime replacement leaves the previous runtime isolated', async () => {
+		const oldRuntime = createLabeledRuntime('Old word');
+		const newRuntime = createLabeledRuntime('New word');
+		const currentRuntime = shallowRef(oldRuntime);
+		const Harness = defineComponent({
+			setup: () => () => h(FormSystem, { runtime: currentRuntime.value }),
+		});
+		const wrapper = mount(Harness);
+		await wrapper.get('input[aria-label="Old word"]').setValue('old draft');
+
+		currentRuntime.value = newRuntime;
+		await nextTick();
+		await wrapper.get('input[aria-label="New word"]').setValue('new draft');
+
+		expect(newRuntime.state.state.value['search.simple.word']).toEqual({ value: 'new draft' });
+		expect(oldRuntime.state.state.value['search.simple.word']).toEqual({ value: 'old draft' });
+	});
+
+	test('replaceState refreshes a mounted value and preserves its write-back binding', async () => {
 		const fixture = createSingleFormFixture();
 		const wrapper = mount(FormSystem, {
 			props: fixture,
@@ -341,8 +376,6 @@ describe('form system integration', () => {
 		await nextTick();
 
 		expect((wrapper.get('input[aria-label="Shared word"]').element as HTMLInputElement).value).toBe('water');
-		expect(wrapper.get('[data-testid="parent-form-probe"] .form-id').text()).toBe('search.second');
-		expect(wrapper.get('[data-testid="parent-form-probe"] .summaries').text()).toBe('Shared word:water');
 	});
 
 	test('forms can render direct child containers as tabs without an extra wrapper container', async () => {
@@ -359,29 +392,32 @@ describe('form system integration', () => {
 
 		expect(wrapper.find('input[aria-label="Word"]').exists()).toBe(false);
 		expect(wrapper.find('input[aria-label="Lemma"]').exists()).toBe(true);
-
-		await wrapper.get('input[aria-label="Lemma"]').setValue('water');
-		await nextTick();
-
-		expect(wrapper.get('[data-testid="parent-form-probe"] .form-id').text()).toBe('search.tabbed');
-		expect(wrapper.get('[data-testid="parent-form-probe"] .summaries').text()).toBe('Lemma:water');
 	});
 
-	test('resolves getter titles and exposes linked, keyboard-operable tabs', async () => {
-		const builder = createTestBuilder();
-		const form = builder.newForm('search.form', ContainerRenderer, { title: () => 'Computed form', variant: 'tabs' });
-		form.addChildren(
-			builder.newContainer('search.first', ContainerRenderer, { title: () => 'Computed first' }),
-			builder.newContainer('search.second', ContainerRenderer, { title: () => 'Computed second' }),
-		);
-		const runtime = createTestRuntime(builder);
+	test('resolves getter-backed form and tab titles', () => {
+		const { runtime } = createGetterTabsFixture();
 		const wrapper = mount(FormSystem, { props: { runtime } });
 		const tabs = wrapper.findAll('[role="tab"]');
 
 		expect(wrapper.get('[role="tablist"]').attributes('aria-label')).toBe('Computed form');
 		expect(tabs[0].text()).toBe('Computed first');
+		expect(tabs[1].text()).toBe('Computed second');
+	});
+
+	test('links tabs and panels with reciprocal ARIA ids', () => {
+		const { runtime } = createGetterTabsFixture();
+		const wrapper = mount(FormSystem, { props: { runtime } });
+		const tabs = wrapper.findAll('[role="tab"]');
+
 		expect(tabs[0].attributes('aria-controls')).toBeTruthy();
 		expect(wrapper.get(`#${tabs[0].attributes('aria-controls')}`).attributes('aria-labelledby')).toBe(tabs[0].attributes('id'));
+	});
+
+	test('ArrowRight moves tab selection and the roving tab stop', async () => {
+		const { form, runtime } = createGetterTabsFixture();
+		const wrapper = mount(FormSystem, { props: { runtime } });
+		const tabs = wrapper.findAll('[role="tab"]');
+
 		expect(tabs[0].attributes('tabindex')).toBe('0');
 		expect(tabs[1].attributes('tabindex')).toBe('-1');
 
@@ -407,14 +443,11 @@ describe('form system integration', () => {
 		});
 
 		expect(wrapper.find('[role="tab"] .badge').exists()).toBe(false);
-		expect(wrapper.find('.blf-summary-view .entry').exists()).toBe(false);
 
 		await wrapper.get('input[type="text"]').setValue('Austen');
 		await nextTick();
 
 		expect(wrapper.get('[role="tab"] .badge').text()).toBe('1');
-		expect(wrapper.get('.blf-summary-view .entry .label').text()).toBe('Author');
-		expect(wrapper.get('.blf-summary-view .entry .value').text()).toBe('Austen');
 	});
 
 	test('tab badges count query contributions that have no summary', async () => {

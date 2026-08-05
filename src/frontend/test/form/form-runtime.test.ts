@@ -5,35 +5,80 @@ import { describe, expect, test } from 'vitest';
 import { nextTick, ref } from 'vue';
 
 import { FormSystem } from '@/features/form';
+import { annotation, queryFragment } from '@/features/form/model/types/form-query-ir';
 
 import { TestTextField, createTestBuilder, createTestRuntime, testTextController } from './helpers';
 
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 
+function createNestedFormRuntime() {
+	const builder = createTestBuilder();
+	const root = builder.newContainer('root', ContainerRenderer, { class: 'tabs-primary text-primary', variant: ['tabs', 'panel-tabs'] });
+	const section = builder.newContainer('root.search', ContainerRenderer, { title: 'Search', variant: 'list' });
+	const forms = builder.newContainer('root.search.forms', ContainerRenderer, { variant: 'tabs' });
+	forms.addChildren(builder.newForm('root.search.simple', ContainerRenderer, { title: 'Simple' }));
+	section.addChildren(forms);
+	root.addChildren(section);
+	return createTestRuntime(builder);
+}
+
 describe('form runtime', () => {
-	test('submit returns a snapshot isolated from later state changes', () => {
+	test('compile detaches nested summaries, encoded tabs, and result presets from later runtime edits', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
-		const field = builder.newField('search.simple.word', testTextController, TestTextField, {
+		const snapshotController = {
+			...testTextController,
+			getQueryContribution(config, _context, state) {
+				const snapshotState = state as typeof state & { groupBy: string[]; summaryTypes: Array<'filter' | 'patt'> };
+				if (!snapshotState.value) return null;
+				return queryFragment(
+					{
+						pattern: annotation(config.annotationId, 'wildcard', snapshotState.value),
+						resultPreset: { groupBy: snapshotState.groupBy },
+					},
+					{ label: 'Word', value: snapshotState.value, summaryType: snapshotState.summaryTypes },
+				);
+			},
+		} satisfies typeof testTextController;
+		const field = builder.newField('search.simple.word', snapshotController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
 		});
-		form.addChildren(field);
+		const alternative = builder.newContainer('search.simple.alternative', ContainerRenderer, {});
+		const tabs = builder
+			.newContainer('search.simple.tabs', ContainerRenderer, {})
+			.addChild(field, { queryWhenActive: queryFragment({ searchfield: 'contents' })! })
+			.addChild(alternative, { queryWhenActive: queryFragment({ searchfield: 'alternative' })! });
+		form.addChildren(tabs);
 
 		const runtime = createTestRuntime(builder);
-		runtime.state.state.value[field.id] = { value: 'water' };
+		const callerOwnedState = { value: 'water', groupBy: ['water'], summaryTypes: ['patt'] as Array<'filter' | 'patt'> };
+		runtime.state.state.value[field.id] = callerOwnedState;
 
 		const submitted = runtime.compile(form.id);
-		runtime.state.state.value[field.id] = { value: 'fire' };
+		callerOwnedState.value = 'fire';
+		callerOwnedState.groupBy[0] = 'fire';
+		callerOwnedState.summaryTypes[0] = 'filter';
+		runtime.state.uiState.value[tabs.id] = alternative.id;
 
-		expect(submitted.formId).toBe(form.id);
-		expect(submitted.patt).toBe('[word="water"]');
-		expect(submitted.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
-		expect(runtime.compile(form.id).patt).toBe('[word="fire"]');
-		expect(submitted.patt).toBe('[word="water"]');
+		expect(runtime.compile(form.id)).toMatchObject({
+			encoded: { 'f.tab': [`${tabs.id}:${alternative.id}`] },
+			resultPreset: { groupBy: ['fire'] },
+			summaries: [{ label: 'Word', value: 'fire', summaryType: ['filter'] }],
+		});
+		expect(submitted).toMatchObject({
+			patt: '[word="water"]',
+			encoded: {
+				'f.form': form.id,
+				'f.tab': [`${tabs.id}:${field.id}`],
+				'f.word': 'water',
+			},
+			resultPreset: { groupBy: ['water'] },
+			summaries: [{ label: 'Word', value: 'water', summaryType: ['patt'] }],
+		});
 	});
 
-	test('replaceState atomically replaces runtime state with an isolated clone', () => {
+	test('replaceState clones caller-owned nested field state', () => {
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
 		const field = builder.newField('search.simple.word', testTextController, TestTextField, {
@@ -43,13 +88,28 @@ describe('form runtime', () => {
 		form.addChildren(field);
 		const runtime = createTestRuntime(builder);
 		const replacement = structuredClone(runtime.state.getRawState());
-		replacement.state[field.id] = { value: 'water' };
+		const callerOwned = {
+			value: 'water',
+			composite: {
+				tokens: [{ value: 'nested water', modifiers: ['literal'] }],
+				settings: { caseSensitive: false },
+			},
+		};
+		replacement.state[field.id] = callerOwned;
 
 		runtime.state.replaceState(replacement);
-		replacement.state[field.id] = { value: 'changed later' };
+		callerOwned.value = 'changed later';
+		callerOwned.composite.tokens[0].value = 'changed nested value';
+		callerOwned.composite.tokens[0].modifiers.push('case-sensitive');
+		callerOwned.composite.settings.caseSensitive = true;
 
-		expect(runtime.state.state.value[field.id]).toEqual({ value: 'water' });
-		expect(runtime.compile(form.id).patt).toBe('[word="water"]');
+		expect(runtime.state.state.value[field.id]).toEqual({
+			value: 'water',
+			composite: {
+				tokens: [{ value: 'nested water', modifiers: ['literal'] }],
+				settings: { caseSensitive: false },
+			},
+		});
 	});
 
 	test('switching form tabs updates container ui state', async () => {
@@ -106,19 +166,19 @@ describe('form runtime', () => {
 	});
 
 	test('forwards supplied actions through nested containers to the active form', () => {
-		const builder = createTestBuilder();
-		const root = builder.newContainer('root', ContainerRenderer, { class: 'tabs-primary text-primary', variant: ['tabs', 'panel-tabs'] });
-		const section = builder.newContainer('root.search', ContainerRenderer, { title: 'Search', variant: 'list' });
-		const forms = builder.newContainer('root.search.forms', ContainerRenderer, { variant: 'tabs' });
-		forms.addChildren(builder.newForm('root.search.simple', ContainerRenderer, { title: 'Simple' }));
-		section.addChildren(forms);
-		root.addChildren(section);
-
 		const wrapper = mount(FormSystem, {
-			props: { runtime: createTestRuntime(builder) },
+			props: { runtime: createNestedFormRuntime() },
 			slots: {
 				actions: '<button type="button" class="legacy-action">History</button>',
 			},
+		});
+
+		expect(wrapper.get('.blf-form-actions').get('.legacy-action').text()).toBe('History');
+	});
+
+	test('applies panel-tab surface classes without legacy panel classes', () => {
+		const wrapper = mount(FormSystem, {
+			props: { runtime: createNestedFormRuntime() },
 		});
 
 		expect(wrapper.get('[role="tablist"]').classes()).toEqual(expect.arrayContaining(['tabs-primary', 'text-primary', 'blf-form-surface-tabs']));
@@ -126,10 +186,9 @@ describe('form runtime', () => {
 		expect(wrapper.get('.blf-form-surface').classes()).not.toContain('panel');
 		expect(wrapper.get('form.blf-form').classes()).not.toContain('panel-default');
 		expect(wrapper.find('form.blf-form > .blf-form-content').exists()).toBe(true);
-		expect(wrapper.get('.blf-form-actions').get('.legacy-action').text()).toBe('History');
 	});
 
-	test('lazy display props update without rebuilding the form graph', async () => {
+	test('resolves deferred display props reactively', async () => {
 		const displayName = ref('Word');
 		const builder = createTestBuilder();
 		const form = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });

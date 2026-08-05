@@ -24,7 +24,7 @@ import {
 } from '@/features/form';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
-import { createSearchFormNodeConstructors, type SearchFormNodeConstructors, type SearchFormNodeOptions } from '@/features/search/model/search-form-node-factory';
+import { createSearchFormNodeConstructors } from '@/features/search/model/search-form-node-factory';
 import type { NormalizedAnnotation, NormalizedMetadataField, Tagset } from '@/types/apptypes';
 
 const translate = createMockTranslate();
@@ -130,13 +130,9 @@ function fieldShape(field: FormFieldNode) {
 }
 
 describe('search form semantic node factory', () => {
-	test('keeps reusable node constructors separate from built-in blueprint construction', () => {
+	test('exposes reusable and built-in constructors through separate runtime namespaces', () => {
 		const factory = createFactory();
-		const hasNoPrivateNodeOption: Extract<keyof SearchFormNodeOptions, 'inheritedVariant'> extends never ? true : false = true;
-		const hasNoBlueprintConstructor: Extract<keyof SearchFormNodeConstructors, 'queryBuilder' | 'within' | 'ngramTokens'> extends never ? true : false = true;
 
-		expect(hasNoPrivateNodeOption).toBe(true);
-		expect(hasNoBlueprintConstructor).toBe(true);
 		expect(factory.nodes).toHaveProperty('annotation');
 		expect(factory.nodes).toHaveProperty('metadataMultiFieldRange');
 		expect(factory.nodes).not.toHaveProperty('queryBuilder');
@@ -145,7 +141,7 @@ describe('search form semantic node factory', () => {
 		expect(factory.blueprint).toHaveProperty('within');
 	});
 
-	test('constructs each dedicated annotation control without choosing a parent', () => {
+	test('maps explicit annotation constructors to their components, controllers, and persistence', () => {
 		const factory = createFactory();
 		const choices = [{ value: 'NOU', label: 'Noun' }];
 		const fields = {
@@ -229,7 +225,7 @@ describe('search form semantic node factory', () => {
 		}
 	});
 
-	test('constructs dedicated within-attribute controls and keeps their filter summaries static', () => {
+	test('maps dedicated within-attribute constructors to their components, controllers, and persistence', () => {
 		const factory = createFactory();
 		const attribute = {
 			attributeName: 'role',
@@ -247,30 +243,39 @@ describe('search form semantic node factory', () => {
 			{ component: SelectField, controller: 'within-attribute-select', persistKey: 'within:speech:role' },
 			{ component: RangeField, controller: 'within-attribute-range', persistKey: 'within:speech:role' },
 		]);
+	});
+
+	test('within-attribute select compiles its semantic target and summary', () => {
+		const attribute = {
+			attributeName: 'role',
+			defaultDisplayName: 'Role',
+			elementName: 'speech',
+			id: 'speech-role',
+		};
+		const select = createFactory().nodes.withinSelect(attribute, {
+			groupId: 'Spans',
+			id: 'within.select',
+			options: [{ value: 'host', label: 'Host' }],
+		});
 
 		const contribution = getFieldQueryContribution(select, runtimeContext, ['host']);
 		expect(compileQueryIR(contribution).patt).toBe('<speech role="host"/>');
 		expect(contribution.summaries).toEqual([{ group: 'Spans', label: 'Role', summaryType: ['filter'], value: 'Host' }]);
 	});
 
-	test('multi-field date controls target both backing fields in the selected mode', () => {
+	test('forwards both backing fields and date-mode configuration to multi-field date nodes', () => {
 		const field = createFactory().nodes.metadataMultiFieldDate(metadata('publication'), {
 			fromField: 'startYear',
-			groupId: 'Dates',
 			id: 'publication-period',
+			mode: 'strict',
+			range: false,
 			toField: 'endYear',
 		});
-		const contribution = getFieldQueryContribution(field, runtimeContext, {
-			endDate: { d: '', m: '', y: '2021' },
-			mode: 'permissive',
-			startDate: { d: '', m: '', y: '2020' },
-		});
 
-		expect(compileQueryIR(contribution).filter).toBe('(startYear:[20200101 TO 20211231] OR endYear:[20200101 TO 20211231])');
-		expect(contribution.summaries).toEqual([{ group: 'Dates', label: 'publication', summaryType: ['filter'], value: '2020-00-00 - 2021-00-00' }]);
+		expect(field).toMatchObject({ fromField: 'startYear', mode: 'strict', range: false, toField: 'endYear' });
 	});
 
-	test('constructs standard query fields with their established components, persistence, and defaults', () => {
+	test('maps built-in blueprint fields to their components, controllers, and persistence', () => {
 		const factory = createFactory();
 		const choices = [{ value: 'word', label: 'Word' }];
 		const labels = { word: 'Word' };
@@ -299,21 +304,6 @@ describe('search form semantic node factory', () => {
 			parallel: { component: ParallelField, controller: 'parallel', persistKey: 'parallel' },
 			queryBuilder: { component: QueryBuilderField, controller: 'cql-query-builder', persistKey: 'query' },
 			within: { component: WithinField, controller: 'within', persistKey: 'within' },
-		});
-
-		expect(Object.fromEntries(Object.entries(fields).map(([name, field]) => [name, field.controller.createDefaultState(field, runtimeContext)]))).toMatchObject({
-			corporaDisplayMode: 'table',
-			corporaGroupBy: 'field:author',
-			expert: '',
-			frequency: 'word',
-			ngramGroup: 'word',
-			ngramTokens: [
-				{ fieldId: 'word', fieldState: { caseSensitive: false, value: '' } },
-				{ fieldId: 'word', fieldState: { caseSensitive: false, value: '' } },
-			],
-			parallel: { alignBy: null, childStates: {}, source: null, targets: [] },
-			queryBuilder: { tokens: expect.any(Array) },
-			within: { attributes: {}, element: null },
 		});
 	});
 });

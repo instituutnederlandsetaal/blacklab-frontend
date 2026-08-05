@@ -59,7 +59,7 @@ describe('generated query correctness', () => {
 		expect(compiled).toBe(expected);
 	});
 
-	test('Metadata text controllers preserve parsed value intent in filter IR', () => {
+	test('metadata text controller preserves parsed value intent in filter IR', () => {
 		const contribution = filterTextController.getQueryContribution(
 			{
 				kind: 'field',
@@ -74,10 +74,19 @@ describe('generated query correctness', () => {
 		expect(contribution.filter).toEqual(
 			booleanNode('or', { type: 'lucene-field', field: 'author', ...textPredicate('wildcard', 'Alice*') }, { type: 'lucene-field', field: 'author', ...textPredicate('literal', 'Bob?') }),
 		);
-		expect(compileQueryIR(contribution).filter).toBe(String.raw`author:(/Alice.*|Bob\?/)`);
 	});
 
-	test('Date controllers compose structured range nodes across bifields', () => {
+	test('Lucene emission distinguishes wildcard and literal alternatives', () => {
+		const filterNode = booleanNode(
+			'or',
+			{ type: 'lucene-field' as const, field: 'author', ...textPredicate('wildcard', 'Alice*') },
+			{ type: 'lucene-field' as const, field: 'author', ...textPredicate('literal', 'Bob?') },
+		);
+
+		expect(compileQueryIR(queryIR({ filter: filterNode })).filter).toBe(String.raw`author:(/Alice.*|Bob\?/)`);
+	});
+
+	test('date controller composes structured range nodes across bifields', () => {
 		const contribution = filterDateController.getQueryContribution(
 			{
 				kind: 'field',
@@ -96,11 +105,36 @@ describe('generated query correctness', () => {
 		)!;
 
 		expect(contribution.filter).toEqual(booleanNode('or', filterRange('startYear', '20200101', '20211231')!, filterRange('endYear', '20200101', '20211231')!));
-		expect(compileQueryIR(contribution).filter).toBe('(startYear:[20200101 TO 20211231] OR endYear:[20200101 TO 20211231])');
+	});
+
+	test('Lucene emission preserves an OR of bifield date ranges', () => {
+		const filterNode = booleanNode('or', filterRange('startYear', '20200101', '20211231')!, filterRange('endYear', '20200101', '20211231')!);
+
+		expect(compileQueryIR(queryIR({ filter: filterNode })).filter).toBe('(startYear:[20200101 TO 20211231] OR endYear:[20200101 TO 20211231])');
+	});
+
+	test('date controller summarizes partial-year ranges', () => {
+		const contribution = filterDateController.getQueryContribution(
+			{
+				kind: 'field',
+				id: 'publication-period',
+				displayName: 'Publication period',
+				fromField: 'startYear',
+				toField: 'endYear',
+				range: true,
+			},
+			context,
+			{
+				startDate: { y: '2020', m: '', d: '' },
+				endDate: { y: '2021', m: '', d: '' },
+				mode: 'permissive',
+			},
+		)!;
+
 		expect(contribution.summaries).toEqual([expect.objectContaining({ value: '2020-00-00 - 2021-00-00' })]);
 	});
 
-	test('Empty choice filters do not create phantom query contributions', () => {
+	test('empty radio selection contributes no query', () => {
 		const config = {
 			kind: 'field' as const,
 			id: 'genre',
@@ -113,10 +147,52 @@ describe('generated query correctness', () => {
 		};
 
 		expect(filterRadioController.getQueryContribution(config, context, '')).toBeNull();
+	});
+
+	test('select values containing only whitespace contribute no query', () => {
+		const config = {
+			kind: 'field' as const,
+			id: 'genre',
+			displayName: 'Genre',
+			metadataFieldId: 'genre',
+			options: [
+				{ value: 'fiction', label: 'Fiction' },
+				{ value: 'essay', label: 'Essay' },
+			],
+		};
+
 		expect(filterSelectController.getQueryContribution(config, context, ['', '  '])).toBeNull();
+	});
+
+	test('select controller removes blank values before creating its filter', () => {
+		const config = {
+			kind: 'field' as const,
+			id: 'genre',
+			displayName: 'Genre',
+			metadataFieldId: 'genre',
+			options: [
+				{ value: 'fiction', label: 'Fiction' },
+				{ value: 'essay', label: 'Essay' },
+			],
+		};
 
 		const contribution = filterSelectController.getQueryContribution(config, context, ['', 'fiction', '  '])!;
 		expect(contribution.filter).toEqual(filter('genre', 'literal', 'fiction'));
+	});
+
+	test('select controller summarizes selected option labels', () => {
+		const config = {
+			kind: 'field' as const,
+			id: 'genre',
+			displayName: 'Genre',
+			metadataFieldId: 'genre',
+			options: [
+				{ value: 'fiction', label: 'Fiction' },
+				{ value: 'essay', label: 'Essay' },
+			],
+		};
+		const contribution = filterSelectController.getQueryContribution(config, context, ['fiction'])!;
+
 		expect(contribution.summaries).toEqual([expect.objectContaining({ value: 'Fiction' })]);
 	});
 
@@ -204,22 +280,32 @@ describe('generated query correctness', () => {
 		expect(compiled).toBe('[word="koe" | (lemma="kip" & word="kip")]');
 	});
 
-	test('Bashes compatible token values and leaves incompatible or non-adjacent values separate', () => {
-		const compiled = compileQueryIR(
+	test('merges adjacent compatible token values into one regex predicate', () => {
+		const simplified = simplifyQueryIR(
 			queryIR({
-				pattern: booleanNode(
-					'or',
-					annotation('word', 'literal', 'a|b')!,
-					annotation('word', 'wildcard', 'c*')!,
-					annotation('word', 'wildcard', String.raw`d\*`)!,
-					annotation('word', 'regex', 'e.*')!,
-					annotation('lemma', 'literal', 'x')!,
-					annotation('word', 'literal', 'f')!,
-				),
+				pattern: booleanNode('or', annotation('word', 'literal', 'a|b')!, annotation('word', 'wildcard', 'c*')!, annotation('word', 'wildcard', String.raw`d\*`)!),
 			}),
-		).patt;
+		).pattern;
 
-		expect(compiled).toBe(String.raw`[word="a\|b|c.*|d\*" | word="e.*" | lemma=l"x" | word=l"f"]`);
+		expect(simplified).toEqual(annotation('word', 'regex', String.raw`a\|b|c.*|d\*`));
+	});
+
+	test('does not merge explicit regex predicates with literal predicates', () => {
+		const pattern = booleanNode('or', annotation('word', 'literal', 'a')!, annotation('word', 'regex', 'e.*')!);
+
+		expect(simplifyQueryIR(queryIR({ pattern })).pattern).toEqual(pattern);
+	});
+
+	test('does not merge token predicates for different annotations', () => {
+		const pattern = booleanNode('or', annotation('word', 'literal', 'a')!, annotation('lemma', 'literal', 'x')!);
+
+		expect(simplifyQueryIR(queryIR({ pattern })).pattern).toEqual(pattern);
+	});
+
+	test('does not merge compatible token predicates separated by another annotation', () => {
+		const pattern = booleanNode('or', annotation('word', 'literal', 'a')!, annotation('lemma', 'literal', 'x')!, annotation('word', 'literal', 'f')!);
+
+		expect(simplifyQueryIR(queryIR({ pattern })).pattern).toEqual(pattern);
 	});
 
 	test('Normalizes CQL and Lucene alternatives to the same scalar regex value shape', () => {
@@ -300,7 +386,7 @@ describe('generated query correctness', () => {
 		});
 	});
 
-	test('Preserves and combines result-preset-only query fragments', () => {
+	test('combines result-preset-only query fragments', () => {
 		const combined = combineQueries(
 			[queryFragment({ resultPreset: { viewedResults: 'docs', sort: null } })!, queryFragment({ resultPreset: { groupBy: ['field:date'], groupDisplayMode: 'tokens', withSpans: true } })!],
 			'and',
@@ -313,7 +399,20 @@ describe('generated query correctness', () => {
 			sort: null,
 			withSpans: true,
 		});
-		expect(compileQueryIR(combined)).toEqual({
+	});
+
+	test('preserves a result-preset-only query during compilation', () => {
+		const query = queryFragment({
+			resultPreset: {
+				viewedResults: 'docs',
+				groupBy: ['field:date'],
+				groupDisplayMode: 'tokens',
+				sort: null,
+				withSpans: true,
+			},
+		})!;
+
+		expect(compileQueryIR(query)).toEqual({
 			patt: null,
 			filter: null,
 			searchfield: null,

@@ -1,9 +1,10 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { isReactive, reactive } from 'vue';
 
-import { buildQueryIR, createDefaultFormState, createFormFieldNode, encodeFieldState, getFieldPersistKey, getFieldQueryContribution, restoreFieldState, type QueryCombineMode } from '@/features/form';
+import { buildQueryIR, createDefaultFormState, createFormFieldNode, type QueryCombineMode } from '@/features/form';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { annotation, filter, queryFragment } from '@/features/form/model/types/form-query-ir';
+import type { ContainerNode, FormBoundaryNode, FormViewNode } from '@/features/form/model/types/form-shape';
 
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, parentFormProbeView, testTextController } from './helpers';
 
@@ -14,58 +15,25 @@ const sharedStateExpectation = {
 	word: { value: 'water' },
 };
 
-const sharedSummaryExpectation = [
-	{ label: 'Word', value: 'water', summaryType: ['patt'] },
-	{ label: 'Lemma', value: 'lopen', summaryType: ['patt'] },
-];
-
 const compositionExpectations: Array<{
 	combine: QueryCombineMode;
 	name: string;
-	expected: {
-		compiled: {
-			patt: string;
-			filter: null;
-			searchfield: null;
-		};
-		summaries: typeof sharedSummaryExpectation;
-	};
+	expectedPatt: string;
 }> = [
 	{
 		combine: 'and',
 		name: 'and folds child token fields into one token projection',
-		expected: {
-			compiled: {
-				patt: '[word="water" & lemma="lopen"]',
-				filter: null,
-				searchfield: null,
-			},
-			summaries: sharedSummaryExpectation,
-		},
+		expectedPatt: '[word="water" & lemma="lopen"]',
 	},
 	{
 		combine: 'or',
 		name: 'or folds child token fields into one token projection',
-		expected: {
-			compiled: {
-				patt: '[word="water" | lemma="lopen"]',
-				filter: null,
-				searchfield: null,
-			},
-			summaries: sharedSummaryExpectation,
-		},
+		expectedPatt: '[word="water" | lemma="lopen"]',
 	},
 	{
 		combine: 'sequence',
 		name: 'sequence preserves child order when composing the query projection',
-		expected: {
-			compiled: {
-				patt: '[word="water"] [lemma="lopen"]',
-				filter: null,
-				searchfield: null,
-			},
-			summaries: sharedSummaryExpectation,
-		},
+		expectedPatt: '[word="water"] [lemma="lopen"]',
 	},
 ];
 
@@ -87,43 +55,180 @@ function createCompositionFixture(combine: QueryCombineMode) {
 	return runtime;
 }
 
+function createContextDefaultFixture() {
+	let generation = 0;
+	const createDefaultState = vi.fn((_field: unknown, context: ReturnType<typeof createTestContext>) => ({
+		value: `${context.corpus.indexId}:${++generation}`,
+	}));
+	const builder = createTestBuilder();
+	const controller = { ...testTextController, createDefaultState };
+	const field = builder.newField('search.context-aware', controller, TestTextField, {
+		annotationId: 'word',
+		displayName: 'Context aware',
+	});
+	builder.newForm('search.form', ContainerRenderer, { title: 'Search' }).addChildren(field);
+	return { builder, createDefaultState, field };
+}
+
+function createReusedFieldFixture(controller = testTextController) {
+	const builder = createTestBuilder();
+	const sharedField = builder.newField('shared.word', controller, TestTextField, {
+		annotationId: 'word',
+		displayName: 'Word',
+	});
+	const sequence = builder
+		.newContainer('search.sequence', ContainerRenderer, { combine: 'sequence' })
+		.addChildren(
+			builder.newContainer('search.sequence.first', ContainerRenderer, {}).addChildren(sharedField),
+			builder.newContainer('search.sequence.second', ContainerRenderer, {}).addChildren(sharedField),
+		);
+	const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(sequence);
+	return { builder, form, sharedField };
+}
+
+function createNonReactiveBoundaryFixture() {
+	const builder = createTestBuilder(reactive(createTestContext()));
+	const createdController = { ...testTextController };
+	const root = builder.newForm('created.form', ContainerRenderer, { title: 'Search' });
+	const createdField = builder.newField('created.field', createdController, TestTextField, {
+		annotationId: 'word',
+		displayName: 'Word',
+	});
+	const createdView = builder.newView('created.view', parentFormProbeView, {});
+	const createdContainer = builder.newContainer('created.container', ContainerRenderer, {}).addChildren(createdField, createdView);
+	root.addChildren(createdContainer);
+
+	const adoptedController = { ...testTextController };
+	const adoptedField = createFormFieldNode('adopted.field', adoptedController, TestTextField, {
+		annotationId: 'lemma',
+		displayName: 'Lemma',
+	});
+	const adoptedView = { id: 'adopted.view', kind: 'view', component: parentFormProbeView } satisfies FormViewNode;
+	const adoptedContainer = {
+		id: 'adopted.container',
+		kind: 'container',
+		component: ContainerRenderer,
+		children: [adoptedField, adoptedView],
+	} satisfies ContainerNode;
+	const adoptedForm = { id: 'adopted.form', kind: 'form', component: ContainerRenderer, children: [] } satisfies FormBoundaryNode;
+	root.addChildren(adoptedContainer, adoptedForm);
+
+	return builder;
+}
+
+const createdBoundaryNodeIds = ['created.form', 'created.field', 'created.view', 'created.container'];
+const adoptedBoundaryNodeIds = ['adopted.field', 'adopted.view', 'adopted.container', 'adopted.form'];
+
 describe('form model state', () => {
-	test('keeps the definition plain and runtime sessions isolated', () => {
-		const builder = createTestBuilder(reactive(createTestContext()));
-		const field = builder.newField('search.word', testTextController, TestTextField, {
+	test('keeps builder-created and adopted graph nodes non-reactive', () => {
+		const builder = createNonReactiveBoundaryFixture();
+		const registeredCreatedNodes = createdBoundaryNodeIds.map(id => builder.getNode(id));
+		const registeredAdoptedNodes = adoptedBoundaryNodeIds.map(id => builder.getNode(id));
+
+		expect(registeredCreatedNodes.every(node => node != null && !isReactive(node))).toBe(true);
+		expect(registeredAdoptedNodes.every(node => node != null && !isReactive(node))).toBe(true);
+	});
+
+	test('keeps field controllers non-reactive after node attachment', () => {
+		const builder = createNonReactiveBoundaryFixture();
+		const registeredCreatedController = builder.getField('created.field')?.controller;
+		const registeredAdoptedController = builder.getField('adopted.field')?.controller;
+
+		expect(registeredCreatedController).toBeDefined();
+		expect(registeredAdoptedController).toBeDefined();
+		expect(isReactive(registeredCreatedController)).toBe(false);
+		expect(isReactive(registeredAdoptedController)).toBe(false);
+	});
+
+	test('keeps components non-reactive after node attachment', () => {
+		const builder = createNonReactiveBoundaryFixture();
+		const registeredComponents = [...createdBoundaryNodeIds, ...adoptedBoundaryNodeIds].map(id => builder.getNode(id)?.component);
+
+		expect(registeredComponents.every(component => component != null && !isReactive(component))).toBe(true);
+	});
+
+	test('copies a reactive definition context into a non-reactive snapshot', () => {
+		const source = reactive(createTestContext());
+		const builder = createTestBuilder(source);
+
+		expect(isReactive(source)).toBe(true);
+		expect(isReactive(source.corpus)).toBe(true);
+		expect(isReactive(builder.context)).toBe(false);
+		expect(isReactive(builder.context.corpus)).toBe(false);
+	});
+
+	test('keeps mutable runtime state off the builder definition', () => {
+		const builder = createTestBuilder();
+		builder.newForm('search.form', ContainerRenderer, {});
+
+		expect('state' in builder).toBe(false);
+	});
+
+	test('isolates every mutable state partition between runtimes from one definition', () => {
+		const builder = createTestBuilder();
+		const nestedController = {
+			...testTextController,
+			createDefaultState: () => ({
+				value: '',
+				composite: {
+					tokens: [{ value: '', modifiers: ['literal'] }],
+					settings: { caseSensitive: false },
+				},
+			}),
+		};
+		const field = builder.newField('search.word', nestedController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
 		});
-		builder.newForm('search.form', ContainerRenderer, { title: 'Search' }).addChildren(field);
+		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(field);
 		const first = createTestRuntime(builder);
 		const second = createTestRuntime(builder);
+		type NestedState = ReturnType<typeof nestedController.createDefaultState>;
+		const firstFieldState = first.state.state.value[field.id] as NestedState;
 
-		expect(isReactive(builder.getRoot())).toBe(false);
-		expect(isReactive(builder.context)).toBe(false);
-		expect(isReactive(builder.context.corpus)).toBe(false);
-		expect('state' in builder).toBe(false);
+		firstFieldState.value = 'water';
+		firstFieldState.composite.tokens[0].value = 'nested water';
+		firstFieldState.composite.tokens[0].modifiers.push('case-sensitive');
+		firstFieldState.composite.settings.caseSensitive = true;
+		first.state.uiState.value[form.id] = null;
+		first.state.rawOverrides.value.patt = '[word="water"]';
 
-		first.state.state.value[field.id] = { value: 'water' };
-		expect(second.state.state.value[field.id]).toEqual({ value: '' });
+		expect(second.state.getRawState()).toEqual({
+			state: {
+				[field.id]: {
+					value: '',
+					composite: {
+						tokens: [{ value: '', modifiers: ['literal'] }],
+						settings: { caseSensitive: false },
+					},
+				},
+			},
+			uiState: { [form.id]: field.id },
+			rawOverrides: {},
+		});
 	});
 
-	test('field defaults receive definition context during runtime creation and reset', () => {
-		const builder = createTestBuilder();
-		const contextAwareController = {
-			...testTextController,
-			createDefaultState: (_field: unknown, context: ReturnType<typeof createTestContext>) => ({ value: context.corpus.indexId ?? '' }),
-		};
-		const field = builder.newField('search.context-aware', contextAwareController, TestTextField, {
-			annotationId: 'word',
-			displayName: 'Context aware',
-		});
-		builder.newForm('search.form', ContainerRenderer, { title: 'Search' }).addChildren(field);
+	test('runtime construction passes the field and definition context to createDefaultState', () => {
+		const { builder, createDefaultState, field } = createContextDefaultFixture();
 
 		const runtime = createTestRuntime(builder);
-		expect(runtime.state.state.value[field.id]).toEqual({ value: 'test-corpus' });
+
+		expect(createDefaultState).toHaveBeenCalledOnce();
+		expect(createDefaultState).toHaveBeenCalledWith(field, builder.context);
+		expect(runtime.state.state.value[field.id]).toEqual({ value: 'test-corpus:1' });
+	});
+
+	test('reset recalculates field defaults with the definition context', () => {
+		const { builder, createDefaultState, field } = createContextDefaultFixture();
+		const runtime = createTestRuntime(builder);
 		runtime.state.state.value[field.id] = { value: 'changed' };
+		createDefaultState.mockClear();
+
 		runtime.reset();
-		expect(runtime.state.state.value[field.id]).toEqual({ value: 'test-corpus' });
+
+		expect(createDefaultState).toHaveBeenCalledOnce();
+		expect(createDefaultState).toHaveBeenCalledWith(field, builder.context);
+		expect(runtime.state.state.value[field.id]).toEqual({ value: 'test-corpus:2' });
 	});
 
 	test('prefers the first form root over earlier reusable orphan containers', () => {
@@ -134,47 +239,31 @@ describe('form model state', () => {
 		expect(builder.getRoot().id).toBe(form.id);
 	});
 
-	test('rejects child edges that would create a graph cycle', () => {
-		const builder = createTestBuilder();
-		const first = builder.newContainer('first', ContainerRenderer, {});
-		const second = builder.newContainer('second', ContainerRenderer, {});
-		first.addChildren(second);
+	test('createDefaultFormState calls a reused field default creator once', () => {
+		const createDefaultState = vi.fn(testTextController.createDefaultState);
+		const { builder, sharedField } = createReusedFieldFixture({ ...testTextController, createDefaultState });
 
-		expect(() => second.addChildren(first)).throws();
+		const state = createDefaultFormState(builder.context, builder.getRoot());
+
+		expect(createDefaultState).toHaveBeenCalledOnce();
+		expect(createDefaultState).toHaveBeenCalledWith(sharedField, builder.context);
+		expect(state.state[sharedField.id]).toEqual({ value: '' });
 	});
 
-	test('createDefaultFormState initializes each reused field once', () => {
+	test('flattens form and view configuration onto their nodes', () => {
 		const builder = createTestBuilder();
-		const root = builder.newContainer('search', ContainerRenderer, { variant: 'tabs' });
-		const sharedField = builder.newField('shared.word', testTextController, TestTextField, {
-			annotationId: 'word',
-			displayName: 'Shared word',
-		});
-		root.addChildren(
-			builder.newForm('search.first', ContainerRenderer, { title: 'First' }).addChildren(sharedField),
-			builder.newForm('search.second', ContainerRenderer, { title: 'Second' }).addChildren(sharedField),
-		);
-
-		expect(createDefaultFormState(createTestContext(), builder.getRoot()).state).toEqual({
-			'shared.word': { value: '' },
-		});
-	});
-
-	test('builders materialize flat runtime view nodes with default config objects', () => {
-		const builder = createTestBuilder();
-		const form = builder.newForm('search.form', ContainerRenderer, { title: 'Search' });
-		const view = builder.newView('search.form.probe', parentFormProbeView, {});
+		const form = builder.newForm('search.form', ContainerRenderer, { title: 'Search', class: 'search-form' });
+		const view = builder.newView('search.form.probe', parentFormProbeView, { title: 'Probe', class: 'probe-view' });
 
 		form.addChildren(view);
 
+		expect(form).toMatchObject({ title: 'Search', class: 'search-form' });
+		expect(view).toMatchObject({ title: 'Probe', class: 'probe-view', component: parentFormProbeView });
 		expect('config' in form).toBe(false);
 		expect('config' in view).toBe(false);
-		expect(view.component).toBe(parentFormProbeView);
-		expect('view' in view).toBe(false);
 	});
 
-	test('constructs complete fields without registering them in a form graph', () => {
-		const builder = createTestBuilder();
+	test('createFormFieldNode constructs a complete standalone field', () => {
 		const field = createFormFieldNode({ id: 'search.word' }, testTextController, TestTextField, {
 			annotationId: 'word',
 			displayName: 'Word',
@@ -185,19 +274,27 @@ describe('form model state', () => {
 			kind: 'field',
 			controller: testTextController,
 			component: TestTextField,
+			annotationId: 'word',
+			displayName: 'Word',
 		});
-		expect(builder.nodeList).toEqual([]);
-		expect(createDefaultFormState(builder.context, ...builder.nodeList).state).toEqual({});
+	});
+
+	test('adding a standalone field adopts it into the graph and default state', () => {
+		const builder = createTestBuilder();
+		const field = createFormFieldNode('search.word', testTextController, TestTextField, {
+			annotationId: 'word',
+			displayName: 'Word',
+		});
 
 		const form = builder.newForm('search.form', ContainerRenderer, {}).addChildren(field);
+
 		expect(builder.getField(field.id)).toBe(field);
 		expect(createDefaultFormState(builder.context, form).state).toEqual({
 			'search.word': { value: '' },
 		});
 	});
 
-	test('uses the same complete field node for local defaults, query summaries, and persistence', () => {
-		const builder = createTestBuilder();
+	test('uses inheritedVariant when field configuration has no variant', () => {
 		const field = createFormFieldNode(
 			{
 				id: 'composite.token.0.word',
@@ -212,49 +309,37 @@ describe('form model state', () => {
 		);
 
 		expect(field.variant).toBe('simple');
-		expect(field.controller.createDefaultState(field, builder.context)).toEqual({ value: '' });
-		expect(getFieldPersistKey(field, builder.context)).toBe('word');
-		expect(encodeFieldState(field, { value: 'water' }, builder.context)).toBe('water');
-		expect(restoreFieldState(field, 'water', builder.context)).toEqual({ value: 'water' });
-		expect(getFieldQueryContribution(field, builder.context, { value: 'water' }).summaries).toEqual([
-			{
-				label: 'Word',
-				value: 'water',
-				summaryType: ['patt'],
-			},
-		]);
 	});
 
-	test.each(compositionExpectations)('$name', ({ combine, expected }) => {
+	test.each(compositionExpectations)('$name', ({ combine, expectedPatt }) => {
 		const fixture = createCompositionFixture(combine);
 		const query = buildQueryIR(fixture.definition.getRoot(), fixture.state.getRawState(), fixture.definition.context);
 		const compiled = compileQueryIR(query);
 
-		expect(compiled).toEqual(expected.compiled);
-		expect(query.summaries).toEqual(expected.summaries);
+		expect(compiled.patt).toBe(expectedPatt);
 	});
 
-	test('reused fields contribute at every structural occurrence but summarize shared state once', () => {
-		const builder = createTestBuilder();
-		const sharedField = builder.newField('shared.word', testTextController, TestTextField, {
-			annotationId: 'word',
-			displayName: 'Word',
-		});
-		const sequence = builder
-			.newContainer('search.sequence', ContainerRenderer, { combine: 'sequence' })
-			.addChildren(
-				builder.newContainer('search.sequence.first', ContainerRenderer, {}).addChildren(sharedField),
-				builder.newContainer('search.sequence.second', ContainerRenderer, {}).addChildren(sharedField),
-			);
-		const form = builder.newForm('search.extended', ContainerRenderer, { title: 'Extended' }).addChildren(sequence);
+	test('evaluates and includes a reused field query once per graph occurrence', () => {
+		const getQueryContribution = vi.fn(testTextController.getQueryContribution);
+		const { builder, form, sharedField } = createReusedFieldFixture({ ...testTextController, getQueryContribution });
+		const runtime = createTestRuntime(builder);
+		runtime.state.state.value[sharedField.id] = { value: 'water' };
+		getQueryContribution.mockClear();
+
+		const compiled = runtime.compile(form.id);
+
+		expect(getQueryContribution).toHaveBeenCalledTimes(2);
+		expect(compiled.patt).toBe('[word="water"] [word="water"]');
+	});
+
+	test('emits one summary for a reused field reached through multiple graph paths', () => {
+		const { builder, form, sharedField } = createReusedFieldFixture();
 		const runtime = createTestRuntime(builder);
 		runtime.state.state.value[sharedField.id] = { value: 'water' };
 
 		const compiled = runtime.compile(form.id);
 
-		expect(compiled.patt).toBe('[word="water"] [word="water"]');
 		expect(compiled.summaries).toEqual([{ label: 'Word', value: 'water', summaryType: ['patt'] }]);
-		expect(compiled.encoded).toMatchObject({ 'f.form': form.id, 'f.word': 'water' });
 	});
 
 	test('parents assign independent active-child contributions to a shared child', () => {
@@ -308,7 +393,7 @@ describe('form model state', () => {
 		expect(compiled.patt).toBe('[word="water"] [lemma="lopen" | pos="N"]');
 	});
 
-	test('builder state picks the first active branch for nested container-like nodes', () => {
+	test('default runtime UI state selects the first child of each nested container', () => {
 		const builder = createTestBuilder();
 		builder.newContainer('search', ContainerRenderer, { variant: 'tabs' }).addChildren(
 			builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' }).addChildren(

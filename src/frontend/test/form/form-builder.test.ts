@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 
 import { createFormFieldNode } from '@/features/form';
-import type { ContainerNode } from '@/features/form/model/types/form-shape';
 import { filter, queryFragment } from '@/features/form/model/types/form-query-ir';
+import type { ContainerNode } from '@/features/form/model/types/form-shape';
 
 import { TestTextField, createTestBuilder, createTestRuntime, testTextController } from './helpers';
 
@@ -26,6 +26,18 @@ function ownFunctionKeys(node: object): PropertyKey[] {
 	return Reflect.ownKeys(node).filter(key => key !== 'component' && typeof Reflect.get(node, key) === 'function');
 }
 
+function createSharedFieldGraph() {
+	const builder = createTestBuilder();
+	const root = builder.newForm('root', ContainerRenderer, {});
+	const left = builder.newContainer('left', ContainerRenderer, {});
+	const right = builder.newContainer('right', ContainerRenderer, {});
+	const shared = newTextField(builder, 'shared');
+	left.addChild(shared);
+	right.addChild(shared);
+	root.addChildren(left, right);
+	return { builder, left, right, root, shared };
+}
+
 describe('form graph builder editing', () => {
 	test('keeps every attached editor function non-enumerable and out of rendered props', () => {
 		const builder = createTestBuilder();
@@ -38,25 +50,62 @@ describe('form graph builder editing', () => {
 		expect(editorKeys.filter(key => Object.hasOwn(rendered.props, key))).toEqual([]);
 	});
 
-	test('supports DOM-like insertion, replacement, and removal order', () => {
+	test('appendChild appends and returns the child', () => {
+		const builder = createTestBuilder();
+		const parent = builder.newForm('root', ContainerRenderer, {});
+		const child = newTextField(builder, 'child');
+
+		expect(parent.appendChild(child)).toBe(child);
+		expect(parent.children).toEqual([child]);
+	});
+
+	test('prependChild inserts before existing children and returns the child', () => {
 		const builder = createTestBuilder();
 		const parent = builder.newForm('root', ContainerRenderer, {});
 		const first = newTextField(builder, 'first');
 		const prepended = newTextField(builder, 'prepended');
-		const inserted = newTextField(builder, 'inserted');
-		const replacement = newTextField(builder, 'replacement');
+		parent.addChild(first);
 
-		expect(parent.appendChild(first)).toBe(first);
 		expect(parent.prependChild(prepended)).toBe(prepended);
-		expect(parent.insertBefore(inserted, first)).toBe(inserted);
-		expect(parent.children.map(node => node.id)).toEqual(['prepended', 'inserted', 'first']);
-
-		expect(parent.replaceChild(replacement, inserted)).toBe(inserted);
-		expect(parent.removeChild(prepended)).toBe(prepended);
-		expect(parent.children.map(node => node.id)).toEqual(['replacement', 'first']);
+		expect(parent.children).toEqual([prepended, first]);
 	});
 
-	test('looks up nodes and parents and checks transitive containment', () => {
+	test('insertBefore inserts at the referenced child and returns the child', () => {
+		const builder = createTestBuilder();
+		const parent = builder.newForm('root', ContainerRenderer, {});
+		const first = newTextField(builder, 'first');
+		const second = newTextField(builder, 'second');
+		const inserted = newTextField(builder, 'inserted');
+		parent.addChildren(first, second);
+
+		expect(parent.insertBefore(inserted, second)).toBe(inserted);
+		expect(parent.children).toEqual([first, inserted, second]);
+	});
+
+	test('replaceChild preserves position and returns the displaced child', () => {
+		const builder = createTestBuilder();
+		const parent = builder.newForm('root', ContainerRenderer, {});
+		const first = newTextField(builder, 'first');
+		const displaced = newTextField(builder, 'displaced');
+		const replacement = newTextField(builder, 'replacement');
+		parent.addChildren(first, displaced);
+
+		expect(parent.replaceChild(replacement, displaced)).toBe(displaced);
+		expect(parent.children).toEqual([first, replacement]);
+	});
+
+	test('removeChild removes only the requested child and returns it', () => {
+		const builder = createTestBuilder();
+		const parent = builder.newForm('root', ContainerRenderer, {});
+		const removed = newTextField(builder, 'removed');
+		const retained = newTextField(builder, 'retained');
+		parent.addChildren(removed, retained);
+
+		expect(parent.removeChild(removed)).toBe(removed);
+		expect(parent.children).toEqual([retained]);
+	});
+
+	test('looks up registered nodes by id and kind', () => {
 		const builder = createTestBuilder();
 		const root = builder.newForm('root', ContainerRenderer, {});
 		const group = builder.newContainer('group', ContainerRenderer, {});
@@ -67,35 +116,62 @@ describe('form graph builder editing', () => {
 		expect(builder.getField(field.id)).toBe(field);
 		expect(builder.getContainer(group.id)).toBe(group);
 		expect(builder.getForm(root.id)).toBe(root);
-		expect(builder.getParents(field)).toEqual([group]);
-		expect(builder.getParents(group.id)).toEqual([root]);
-		expect(builder.contains(root, field.id)).toBe(true);
-		expect(builder.contains(field, field)).toBe(true);
-		expect(builder.contains(field, root)).toBe(false);
 		expect(builder.getElementById('missing')).toBeNull();
+	});
+
+	test('returns every direct parent of a shared node', () => {
+		const { builder, left, right, shared } = createSharedFieldGraph();
+
+		expect(builder.getParents(shared)).toEqual([left, right]);
 		expect(builder.getParents('missing')).toEqual([]);
 	});
 
-	test('replaces every occurrence and adopts the replacement descendants', () => {
+	test('contains is reflexive, transitive, and directional', () => {
 		const builder = createTestBuilder();
 		const root = builder.newForm('root', ContainerRenderer, {});
-		const left = builder.newContainer('left', ContainerRenderer, {});
-		const right = builder.newContainer('right', ContainerRenderer, {});
-		const shared = newTextField(builder, 'shared');
-		const contribution = queryFragment(filter('type', 'literal', 'selected'))!;
-		left.addChild(shared, { queryWhenActive: contribution });
-		right.addChild(shared, { queryWhenActive: contribution });
-		root.addChildren(left, right);
+		const group = builder.newContainer('group', ContainerRenderer, {});
+		const field = newTextField(builder, 'field');
+		root.addChild(group.addChild(field));
 
+		expect(builder.contains(root, field.id)).toBe(true);
+		expect(builder.contains(field, field)).toBe(true);
+		expect(builder.contains(field, root)).toBe(false);
+	});
+
+	test('replaceNode rewrites every incoming edge and adopts replacement descendants', () => {
+		const { builder, left, right, shared } = createSharedFieldGraph();
 		const descendant = replacementTextField('descendant');
 		const replacement = { id: shared.id, kind: 'container', component: ContainerRenderer, children: [descendant] } satisfies ContainerNode;
+
 		expect(builder.replaceNode(shared.id, replacement)).toBe(shared);
 		expect(builder.getContainer(shared.id)).toBe(replacement);
 		expect(left.children[0]).toBe(replacement);
 		expect(right.children[0]).toBe(replacement);
 		expect(builder.getField(descendant.id)).toBe(descendant);
-		expect(left.activeChildQueryContributions?.[shared.id]).toBe(contribution);
-		expect(right.activeChildQueryContributions?.[shared.id]).toBe(contribution);
+	});
+
+	test('replaceNode preserves each incoming edge contribution', () => {
+		const builder = createTestBuilder();
+		const root = builder.newForm('root', ContainerRenderer, {});
+		const left = builder.newContainer('left', ContainerRenderer, {});
+		const right = builder.newContainer('right', ContainerRenderer, {});
+		const shared = newTextField(builder, 'shared');
+		const leftContribution = queryFragment(filter('type', 'literal', 'left-selected'))!;
+		const rightContribution = queryFragment(filter('type', 'literal', 'right-selected'))!;
+		left.addChild(shared, { queryWhenActive: leftContribution });
+		right.addChild(shared, { queryWhenActive: rightContribution });
+		root.addChildren(left, right);
+
+		builder.replaceNode(shared.id, replacementTextField(shared.id));
+
+		expect(left.activeChildQueryContributions?.[shared.id]).toBe(leftContribution);
+		expect(right.activeChildQueryContributions?.[shared.id]).toBe(rightContribution);
+	});
+
+	test('replaceNode rejects a replacement with a different id', () => {
+		const builder = createTestBuilder();
+		const shared = newTextField(builder, 'shared');
+
 		expect(() => builder.replaceNode(shared.id, replacementTextField('different-id'))).toThrow(/preserve id/);
 	});
 
@@ -141,7 +217,16 @@ describe('form graph builder editing', () => {
 		expect(builder.getParents(shared)).toEqual([left, right]);
 	});
 
-	test('rejects duplicate direct edges and cycles through parent-scoped edits', () => {
+	test('rejects a duplicate direct edge', () => {
+		const builder = createTestBuilder();
+		const parent = builder.newContainer('parent', ContainerRenderer, {});
+		const child = builder.newContainer('child', ContainerRenderer, {});
+		parent.addChild(child);
+
+		expect(() => parent.appendChild(child)).toThrow(/already contains child/);
+	});
+
+	test('rejects a parent-scoped edit that would create a cycle', () => {
 		const builder = createTestBuilder();
 		const root = builder.newForm('root', ContainerRenderer, {});
 		const parent = builder.newContainer('parent', ContainerRenderer, {});
@@ -149,7 +234,6 @@ describe('form graph builder editing', () => {
 		root.addChild(parent);
 		parent.addChild(child);
 
-		expect(() => parent.appendChild(child)).toThrow(/already contains child/);
 		expect(() => child.appendChild(root)).toThrow(/cycle/);
 	});
 });

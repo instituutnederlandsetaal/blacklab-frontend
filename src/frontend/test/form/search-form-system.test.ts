@@ -200,6 +200,138 @@ function createDefinition(corpus = createCorpus()) {
 	}).runtime.value!;
 }
 
+function createLocalizedSearchSystem() {
+	const locale = ref('en');
+	const translate = createMockTranslate();
+	const translated = {
+		...translate,
+		$t: (key: string, params?: Record<string, unknown>) => `${locale.value}:${key}${typeof params?.field === 'string' ? `:${params.field}` : ''}`,
+		$tAnnotDisplayName: (value: Pick<NormalizedAnnotation, 'id'>) => `${locale.value}:${value.id}`,
+		$tAnnotDescription: (value: Pick<NormalizedAnnotation, 'id'>) => `${locale.value}:${value.id}:description`,
+		$tAnnotGroupName: (value: { id: string }) => `${locale.value}:${value.id}`,
+		$tMetaDisplayName: (value: { id: string }) => `${locale.value}:${value.id}`,
+		$tMetaGroupName: <T extends string | undefined | null>(value: { id: string } | T) => {
+			if (!value) return undefined as T;
+			return `${locale.value}:${typeof value === 'string' ? value : value.id}`;
+		},
+	};
+	const system = createScopedSearchFormSystem({
+		blacklabApi: createMockApi().blacklabApi,
+		configuration: createLegacySearchFormConfiguration(),
+		corpus: ref(createCorpus()),
+		tagset: ref(undefined),
+		translate: translated,
+	});
+	const runtime = system.runtime.value!;
+	const annotationOptions = (runtime.definition.getField(ids.exploreNgramGroupBy()) as unknown as { options: Options }).options;
+	const metadataOptions = (runtime.definition.getField(ids.exploreCorporaGroupBy()) as unknown as { options: Options }).options;
+	const annotationOption = findOption(annotationOptions, 'word');
+	const metadataOption = findOption(metadataOptions, 'field:author');
+	const tokenSequence = runtime.definition.getField(ids.exploreNgramTokens()) as unknown as {
+		selectorDisplayName: string | (() => string);
+		selectorPlaceholder: string | (() => string);
+	};
+	if (!annotationOption || !metadataOption) throw new Error('Expected deferred Explore options.');
+
+	return { annotationOption, annotationOptions, locale, metadataOption, metadataOptions, runtime, system, tokenSequence };
+}
+
+function createLocalizedPosSystem() {
+	const corpus = createCorpus();
+	const pos = corpus.allAnnotationsMap.pos;
+	pos.uiType = 'pos';
+	pos.subAnnotations = undefined;
+	const number = annotation('number', { defaultDisplayName: 'Number from corpus', parentAnnotationId: 'pos' });
+	corpus.allAnnotations.push(number);
+	corpus.allAnnotationsMap.number = number;
+	corpus.allAnnotatedFieldsMap.contents.annotations.number = number;
+	const normalizedTagset = normalizeTagset(pos, corpus.allAnnotatedFieldsMap.contents.annotations, {
+		values: {
+			NOU: { value: 'NOU', displayName: 'Noun', subAnnotationIds: ['number'] },
+		},
+		subAnnotations: {
+			number: {
+				id: 'number',
+				displayName: 'Grammatical number',
+				values: [{ value: 'sg', displayName: 'Singular', pos: ['NOU'] }],
+			},
+		},
+	});
+	const locale = ref('en');
+	const translate = createMockTranslate();
+	const system = createScopedSearchFormSystem({
+		blacklabApi: createMockApi().blacklabApi,
+		configuration: createLegacySearchFormConfiguration(),
+		corpus: ref(corpus),
+		tagset: ref(normalizedTagset),
+		translate: {
+			...translate,
+			$tAnnotDisplayName: (value: Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName'>) => `${locale.value}:${value.defaultDisplayName || value.id}`,
+			$tAnnotDescription: (value: Pick<NormalizedAnnotation, 'id' | 'defaultDescription'>) => `${locale.value}:${value.defaultDescription || value.id}`,
+		},
+	});
+	const runtime = system.runtime.value!;
+	const fieldId = ids.annotationField('extended', 'contents', 'pos');
+	const field = runtime.definition.getField(fieldId) as unknown as AnnotationPosFieldConfig & {
+		subAnnotations: NonNullable<AnnotationPosFieldConfig['subAnnotations']>;
+	};
+	const selection = { pos: ['NOU'], number: ['sg'] };
+
+	return { field, fieldId, locale, runtime, selection, system };
+}
+
+function createCustomizedWithinRuntime() {
+	const customization = resolveSearchFormCustomizations([
+		form => {
+			form.addWithinAttribute({
+				groupId: 'Bibliographic',
+				insertBefore: 'author',
+				id: 'span:speech:person',
+				elementName: 'speech',
+				attributeName: 'person',
+				control: 'text',
+				defaultDisplayName: 'Speaker',
+			});
+			form.addWithinAttribute({
+				groupId: 'Span filters',
+				id: 'span:speech:role',
+				elementName: 'speech',
+				attributeName: 'role',
+				control: { type: 'select', options: [{ value: 'host', label: 'Host' }] },
+				defaultDisplayName: 'Role',
+			});
+			form.addWithinAttribute({
+				groupId: 'Span filters',
+				id: 'span:p:n',
+				elementName: 'p',
+				attributeName: 'n',
+				control: 'range',
+				defaultDisplayName: 'Paragraph',
+			});
+		},
+	]);
+	const configuration = snapshotSearchFormConfiguration(UIStore.getState(), customization);
+	const runtime = createScopedSearchFormSystem({
+		blacklabApi: createMockApi().blacklabApi,
+		configuration: ref(configuration),
+		corpus: ref(createCorpus()),
+		tagset: ref(undefined),
+		translate: createMockTranslate(),
+	}).runtime.value!;
+
+	return { personFieldId: ids.withinFilter('speech', 'person'), runtime };
+}
+
+function createLegacyBackedSearchSystem() {
+	return createScopedSearchFormSystem({
+		blacklabApi: createMockApi().blacklabApi,
+		configuration: createLegacySearchFormConfiguration(),
+		corpus: ref(createCorpus()),
+		tagset: ref(undefined),
+		translate: createMockTranslate(),
+	});
+}
+
 beforeEach(() => {
 	testScope = effectScope();
 	debug.value = false;
@@ -233,68 +365,49 @@ afterEach(() => {
 enableAutoUnmount(afterEach);
 
 describe('search form system', () => {
-	test('updates deferred locale and debug option labels without replacing the live form runtime', async () => {
-		const locale = ref('en');
-		const translate = createMockTranslate();
-		const translated = {
-			...translate,
-			$t: (key: string, params?: Record<string, unknown>) => `${locale.value}:${key}${typeof params?.field === 'string' ? `:${params.field}` : ''}`,
-			$tAnnotDisplayName: (value: Pick<NormalizedAnnotation, 'id'>) => `${locale.value}:${value.id}`,
-			$tAnnotDescription: (value: Pick<NormalizedAnnotation, 'id'>) => `${locale.value}:${value.id}:description`,
-			$tAnnotGroupName: (value: { id: string }) => `${locale.value}:${value.id}`,
-			$tMetaDisplayName: (value: { id: string }) => `${locale.value}:${value.id}`,
-			$tMetaGroupName: <T extends string | undefined | null>(value: { id: string } | T) => {
-				if (!value) return undefined as T;
-				return `${locale.value}:${typeof value === 'string' ? value : value.id}`;
-			},
-		};
-		const system = createScopedSearchFormSystem({
-			blacklabApi: createMockApi().blacklabApi,
-			configuration: createLegacySearchFormConfiguration(),
-			corpus: ref(createCorpus()),
-			tagset: ref(undefined),
-			translate: translated,
-		});
-		const runtime = system.runtime.value!;
-		runtime.state.state.value[ids.queryField('simple')] = { value: 'ship', caseSensitive: false };
-		const annotationOptions = (runtime.definition.getField(ids.exploreNgramGroupBy()) as unknown as { options: Options }).options;
-		const metadataOptions = (runtime.definition.getField(ids.exploreCorporaGroupBy()) as unknown as { options: Options }).options;
-		const annotationOption = findOption(annotationOptions, 'word');
-		const metadataOption = findOption(metadataOptions, 'field:author');
-		const tokenSequence = runtime.definition.getField(ids.exploreNgramTokens()) as unknown as {
-			selectorDisplayName: string | (() => string);
-			selectorPlaceholder: string | (() => string);
-		};
-		if (!annotationOption || !metadataOption) throw new Error('Expected deferred Explore options.');
-		const picker = mount(SelectPicker, {
-			props: { allowHtml: true, hideEmpty: true, modelValue: 'word', options: annotationOptions },
-		});
-
+	test('updates deferred Explore option and selector text when locale changes', () => {
+		const { annotationOption, locale, metadataOption, tokenSequence } = createLocalizedSearchSystem();
 		expect(optionLabel(annotationOption)).toContain('en:word');
 		expect(optionTitle(annotationOption)).toBe('en:word:description');
 		expect(optionLabel(metadataOption)).toContain('en:author');
 		expect(toValue(tokenSequence.selectorDisplayName)).toBe('en:results.table.property');
 		expect(toValue(tokenSequence.selectorPlaceholder)).toBe('en:results.table.property');
-		expect(optionLabel(annotationOption)).not.toContain('[id: word]');
-		expect(optionLabel(metadataOption)).not.toContain('[id: author]');
-		expect(picker.get('.menu-button').text()).toContain('en:word');
-		expect(picker.get('.menu-button').text()).not.toContain('[id: word]');
-		expect(runtime.compile(ids.exploreForm('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'en:explore.ngram.ngramType', value: 'en:word' }));
-		expect(runtime.compile(ids.exploreForm('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'en:explore.frequency.frequencyType', value: 'en:word' }));
 
 		locale.value = 'nl';
-		await nextTick();
 
-		expect(system.runtime.value).toBe(runtime);
-		expect(system.runtime.value!.state.state.value[ids.queryField('simple')]).toEqual({ value: 'ship', caseSensitive: false });
 		expect(optionLabel(annotationOption)).toContain('nl:word');
 		expect(optionTitle(annotationOption)).toBe('nl:word:description');
 		expect(optionLabel(metadataOption)).toContain('nl:author');
 		expect(toValue(tokenSequence.selectorDisplayName)).toBe('nl:results.table.property');
 		expect(toValue(tokenSequence.selectorPlaceholder)).toBe('nl:results.table.property');
+	});
+
+	test('reactively renders deferred Explore labels without replacing runtime state', async () => {
+		const { annotationOptions, locale, runtime, system } = createLocalizedSearchSystem();
+		runtime.state.state.value[ids.queryField('simple')] = { value: 'ship', caseSensitive: false };
+		const stateBeforeLocaleChange = { ...(runtime.state.state.value[ids.queryField('simple')] as { value: string; caseSensitive: boolean }) };
+		const picker = mount(SelectPicker, {
+			props: { allowHtml: true, hideEmpty: true, modelValue: 'word', options: annotationOptions },
+		});
+		expect(picker.get('.menu-button').text()).toContain('en:word');
+
+		locale.value = 'nl';
+		await nextTick();
+
 		expect(picker.get('.menu-button').text()).toContain('nl:word');
-		expect(runtime.compile(ids.exploreForm('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.ngram.ngramType', value: 'nl:word' }));
-		expect(runtime.compile(ids.exploreForm('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.frequency.frequencyType', value: 'nl:word' }));
+		expect(system.runtime.value).toBe(runtime);
+		expect(runtime.state.state.value[ids.queryField('simple')]).toEqual(stateBeforeLocaleChange);
+	});
+
+	test('adds and removes debug IDs without replacing runtime state', async () => {
+		const { annotationOption, annotationOptions, metadataOption, runtime, system } = createLocalizedSearchSystem();
+		runtime.state.state.value[ids.queryField('simple')] = { value: 'ship', caseSensitive: false };
+		const stateBeforeDebugChange = { ...(runtime.state.state.value[ids.queryField('simple')] as { value: string; caseSensitive: boolean }) };
+		const picker = mount(SelectPicker, {
+			props: { allowHtml: true, hideEmpty: true, modelValue: 'word', options: annotationOptions },
+		});
+		expect(optionLabel(annotationOption)).not.toContain('[id: word]');
+		expect(optionLabel(metadataOption)).not.toContain('[id: author]');
 
 		debug.value = true;
 		await nextTick();
@@ -302,16 +415,26 @@ describe('search form system', () => {
 		expect(optionLabel(annotationOption)).toContain('[id: word]');
 		expect(optionLabel(metadataOption)).toContain('[id: author]');
 		expect(picker.get('.menu-button').text()).toContain('[id: word]');
-		expect(runtime.compile(ids.exploreForm('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.ngram.ngramType', value: 'nl:word' }));
-		expect(runtime.compile(ids.exploreForm('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.frequency.frequencyType', value: 'nl:word' }));
+		expect(runtime.state.state.value[ids.queryField('simple')]).toEqual(stateBeforeDebugChange);
 
 		debug.value = false;
 		await nextTick();
-		expect(system.runtime.value).toBe(runtime);
 		expect(optionLabel(annotationOption)).not.toContain('[id: word]');
 		expect(optionLabel(metadataOption)).not.toContain('[id: author]');
 		expect(picker.get('.menu-button').text()).not.toContain('[id: word]');
-		expect(runtime.state.state.value[ids.queryField('simple')]).toEqual({ value: 'ship', caseSensitive: false });
+		expect(system.runtime.value).toBe(runtime);
+		expect(runtime.state.state.value[ids.queryField('simple')]).toEqual(stateBeforeDebugChange);
+	});
+
+	test('resolves deferred locale labels in Explore summaries', () => {
+		const { locale, runtime } = createLocalizedSearchSystem();
+		expect(runtime.compile(ids.exploreForm('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'en:explore.ngram.ngramType', value: 'en:word' }));
+		expect(runtime.compile(ids.exploreForm('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'en:explore.frequency.frequencyType', value: 'en:word' }));
+
+		locale.value = 'nl';
+
+		expect(runtime.compile(ids.exploreForm('ngram')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.ngram.ngramType', value: 'nl:word' }));
+		expect(runtime.compile(ids.exploreForm('frequency')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:explore.frequency.frequencyType', value: 'nl:word' }));
 	});
 
 	test('builds Documents as a form with configuration-backed defaults, shared filters, and a result preset', () => {
@@ -353,53 +476,16 @@ describe('search form system', () => {
 		expect(runtime.definition.getField(ids.metadataFilter('author'))).not.toBeNull();
 	});
 
-	test('keeps tagset-declared POS annotation labels live without replacing the form runtime', async () => {
-		const corpus = createCorpus();
-		const pos = corpus.allAnnotationsMap.pos;
-		pos.uiType = 'pos';
-		pos.subAnnotations = undefined;
-		const number = annotation('number', { defaultDisplayName: 'Number from corpus', parentAnnotationId: 'pos' });
-		corpus.allAnnotations.push(number);
-		corpus.allAnnotationsMap.number = number;
-		corpus.allAnnotatedFieldsMap.contents.annotations.number = number;
-		const tagset = {
-			values: {
-				NOU: { value: 'NOU', displayName: 'Noun', subAnnotationIds: ['number'] },
-			},
-			subAnnotations: {
-				number: {
-					id: 'number',
-					displayName: 'Grammatical number',
-					values: [{ value: 'sg', displayName: 'Singular', pos: ['NOU'] }],
-				},
-			},
-		};
-		const normalizedTagset = normalizeTagset(pos, corpus.allAnnotatedFieldsMap.contents.annotations, tagset);
-		const locale = ref('en');
-		const translate = createMockTranslate();
-		const translated = {
-			...translate,
-			$tAnnotDisplayName: (value: Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName'>) => `${locale.value}:${value.defaultDisplayName || value.id}`,
-			$tAnnotDescription: (value: Pick<NormalizedAnnotation, 'id' | 'defaultDescription'>) => `${locale.value}:${value.defaultDescription || value.id}`,
-		};
-		const system = createScopedSearchFormSystem({
-			blacklabApi: createMockApi().blacklabApi,
-			configuration: createLegacySearchFormConfiguration(),
-			corpus: ref(corpus),
-			tagset: ref(normalizedTagset),
-			translate: translated,
-		});
-		const runtime = system.runtime.value!;
-		const fieldId = ids.annotationField('extended', 'contents', 'pos');
-		const field = runtime.definition.getField(fieldId) as unknown as AnnotationPosFieldConfig & {
-			subAnnotations: NonNullable<AnnotationPosFieldConfig['subAnnotations']>;
-		};
-		const selection = { pos: ['NOU'], number: ['sg'] };
-
+	test('uses tagset labels for POS field configuration', () => {
+		const { field } = createLocalizedPosSystem();
 		expect(field.subAnnotations.number.defaultDisplayName).toBe('Grammatical number');
 		expect(toValue(field.displayName)).toBe('en:pos');
 		expect(toValue(field.description)).toBe('en:pos description');
 		expect(optionText(field.subAnnotations.number.label)).toBe('en:Grammatical number');
+	});
+
+	test('resolves live tagset labels in POS field and form summaries', () => {
+		const { field, fieldId, locale, runtime, selection } = createLocalizedPosSystem();
 		expect(summarizeAnnotationPosState(field, selection)).toBe('Noun; en:Grammatical number: Singular');
 
 		runtime.state.state.value[fieldId] = selection;
@@ -408,14 +494,24 @@ describe('search form system', () => {
 		expect(runtime.compile(ids.searchForm('extended')).summaries).toContainEqual(expect.objectContaining({ label: 'en:pos' }));
 
 		locale.value = 'nl';
-		await nextTick();
 
-		expect(system.runtime.value).toBe(runtime);
 		expect(toValue(field.displayName)).toBe('nl:pos');
 		expect(toValue(field.description)).toBe('nl:pos description');
 		expect(optionText(field.subAnnotations.number.label)).toBe('nl:Grammatical number');
 		expect(summarizeAnnotationPosState(field, selection)).toBe('Noun; nl:Grammatical number: Singular');
 		expect(runtime.compile(ids.searchForm('extended')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:pos' }));
+	});
+
+	test('keeps POS runtime state intact when tagset labels change locale', async () => {
+		const { fieldId, locale, runtime, selection, system } = createLocalizedPosSystem();
+		runtime.state.state.value[fieldId] = selection;
+		const stateBeforeLocaleChange = { number: [...selection.number], pos: [...selection.pos] };
+
+		locale.value = 'nl';
+		await nextTick();
+
+		expect(system.runtime.value).toBe(runtime);
+		expect(runtime.state.state.value[fieldId]).toEqual(stateBeforeLocaleChange);
 	});
 
 	test('applies metadata visibility customization and falls back from a hidden configured default', () => {
@@ -587,17 +683,6 @@ describe('search form system', () => {
 		});
 	});
 
-	test('builds an extended search form with grouped annotation and shared filter nodes', () => {
-		const definition = createDefinition();
-
-		expect(definition.definition.getForm(ids.searchForm('extended'))).not.toBeNull();
-		expect(definition.definition.getContainer(ids.annotationTabs())).not.toBeNull();
-		expect(definition.definition.getContainer(ids.annotationTab('Basics'))).not.toBeNull();
-		expect(definition.definition.getContainer(ids.sharedFilters())).not.toBeNull();
-		expect(definition.definition.getField(ids.metadataFilter('author'))).not.toBeNull();
-		expect(definition.definition.getField(ids.metadataFilter('genre'))).not.toBeNull();
-	});
-
 	test('builds an advanced form with a configured querybuilder', () => {
 		const runtime = createDefinition();
 		const field = runtime.definition.getField(ids.queryField('advanced'));
@@ -640,7 +725,7 @@ describe('search form system', () => {
 		});
 	});
 
-	test('builds an expert form with raw CQL, within, and shared filters', () => {
+	test('expert form combines raw CQL, within state, and shared filters', () => {
 		const corpus = createCorpus();
 		corpus.relations = {
 			relations: {},
@@ -649,8 +734,6 @@ describe('search form system', () => {
 		const state = UIStore.getState();
 		state.search.shared.within.enabled = true;
 		const runtime = createDefinition(corpus);
-
-		expect(runtime.definition.getForm(ids.searchForm('expert'))).not.toBeNull();
 
 		runtime.state.state.value[ids.queryField('expert')] = '[lemma="water"]';
 		runtime.state.state.value[ids.withinField()] = { element: 's', attributes: {} };
@@ -661,6 +744,10 @@ describe('search form system', () => {
 			filter: 'author:(Austen)',
 			resultPreset: { withSpans: true },
 		});
+	});
+
+	test('configures the expert heading and raw CQL field presentation', () => {
+		const runtime = createDefinition();
 
 		const wrapper = mount(FormSystem, {
 			props: {
@@ -673,60 +760,30 @@ describe('search form system', () => {
 		expect(wrapper.get('.blf-expert-query-field textarea').attributes('aria-label')).toBe('search.expert.corpusQueryLanguage');
 	});
 
-	test('builds customized within attributes with generic field components and placement', () => {
-		const customization = resolveSearchFormCustomizations([
-			form => {
-				form.addWithinAttribute({
-					groupId: 'Bibliographic',
-					insertBefore: 'author',
-					id: 'span:speech:person',
-					elementName: 'speech',
-					attributeName: 'person',
-					control: 'text',
-					defaultDisplayName: 'Speaker',
-				});
-				form.addWithinAttribute({
-					groupId: 'Span filters',
-					id: 'span:speech:role',
-					elementName: 'speech',
-					attributeName: 'role',
-					control: { type: 'select', options: [{ value: 'host', label: 'Host' }] },
-					defaultDisplayName: 'Role',
-				});
-				form.addWithinAttribute({
-					groupId: 'Span filters',
-					id: 'span:p:n',
-					elementName: 'p',
-					attributeName: 'n',
-					control: 'range',
-					defaultDisplayName: 'Paragraph',
-				});
-			},
-		]);
-		const configuration = snapshotSearchFormConfiguration(UIStore.getState(), customization);
-		const system = createScopedSearchFormSystem({
-			blacklabApi: createMockApi().blacklabApi,
-			configuration: ref(configuration),
-			corpus: ref(createCorpus()),
-			tagset: ref(undefined),
-			translate: createMockTranslate(),
-		});
-		const runtime = system.runtime.value!;
-		const personFieldId = ids.withinFilter('speech', 'person');
-
+	test('places customized within attributes and maps their generic controls', () => {
+		const { personFieldId, runtime } = createCustomizedWithinRuntime();
 		expect(runtime.definition.getContainer(ids.filterTab('Bibliographic'))?.children.map(node => node.id)).toEqual([personFieldId, ids.metadataFilter('author')]);
 		expect(runtime.definition.getField(personFieldId)?.component).toBe(TextField);
 		expect(runtime.definition.getField(ids.withinFilter('speech', 'role'))?.component).toBe(SelectField);
 		expect(runtime.definition.getField(ids.withinFilter('p', 'n'))?.component).toBe(RangeField);
+	});
 
+	test('customized within attributes request span results only when populated', () => {
+		const { personFieldId, runtime } = createCustomizedWithinRuntime();
 		runtime.state.state.value[ids.queryField('expert')] = '[lemma="water"]';
 		expect(runtime.compile(ids.searchForm('expert')).resultPreset?.withSpans).toBeUndefined();
+		runtime.state.state.value[personFieldId] = { value: 'Alice*', caseSensitive: false };
+		expect(runtime.compile(ids.searchForm('expert')).resultPreset).toMatchObject({ withSpans: true });
+	});
+
+	test('compiles, persists, and summarizes a customized within attribute', () => {
+		const { personFieldId, runtime } = createCustomizedWithinRuntime();
+		runtime.state.state.value[ids.queryField('expert')] = '[lemma="water"]';
 		runtime.state.state.value[personFieldId] = { value: 'Alice*', caseSensitive: false };
 		const compiled = runtime.compile(ids.searchForm('expert'));
 
 		expect(compiled).toMatchObject({
 			patt: '([lemma="water"]) within <speech person="Alice.*"/>',
-			resultPreset: { withSpans: true },
 			encoded: {
 				'f.within:speech:person': 'Alice*',
 			},
@@ -834,25 +891,21 @@ describe('search form system', () => {
 		});
 	});
 
-	test('rebuilds from a new legacy configuration snapshot', () => {
+	test('replaces the runtime and definition when legacy configuration changes', () => {
 		const state = UIStore.getState();
-		const system = createScopedSearchFormSystem({
-			blacklabApi: createMockApi().blacklabApi,
-			configuration: createLegacySearchFormConfiguration(),
-			corpus: ref(createCorpus()),
-			tagset: ref(undefined),
-			translate: createMockTranslate(),
-		});
+		const system = createLegacyBackedSearchSystem();
 		const initialRuntime = system.runtime.value!;
 		const initialDefinition = initialRuntime.definition;
-		initialRuntime.state.state.value[ids.queryField('simple')] = {
-			value: 'water',
-			caseSensitive: false,
-		};
-		initialRuntime.state.state.value[ids.metadataFilter('author')] = {
-			value: 'Austen',
-			caseSensitive: false,
-		};
+
+		state.search.simple.searchAnnotationId = 'lemma';
+
+		expect(system.runtime.value).not.toBe(initialRuntime);
+		expect(system.runtime.value!.definition).not.toBe(initialDefinition);
+	});
+
+	test('builds replacement search fields from the latest legacy configuration', () => {
+		const state = UIStore.getState();
+		const system = createLegacyBackedSearchSystem();
 
 		state.search.simple.searchAnnotationId = 'lemma';
 		state.search.extended.searchAnnotationIds = ['pos'];
@@ -860,22 +913,46 @@ describe('search form system', () => {
 		state.search.advanced.defaultSearchAnnotationId = 'lemma';
 		state.search.shared.searchMetadataIds = ['genre'];
 
-		const configuredRuntime = system.runtime.value!;
-		const configuredDefinition = configuredRuntime.definition;
-		expect(configuredRuntime).not.toBe(initialRuntime);
-		expect(configuredDefinition).not.toBe(initialDefinition);
+		const configuredDefinition = system.runtime.value!.definition;
 		expect((configuredDefinition.getField(ids.queryField('simple')) as unknown as { annotationId: string }).annotationId).toBe('lemma');
 		expect(configuredDefinition.getField(ids.annotationField('extended', 'contents', 'word'))).toBeNull();
 		expect(configuredDefinition.getField(ids.annotationField('extended', 'contents', 'pos'))).not.toBeNull();
 		expect((configuredDefinition.getField(ids.queryField('advanced')) as unknown as { options: { defaultAnnotationId: string } }).options.defaultAnnotationId).toBe('lemma');
+		expect(configuredDefinition.getField(ids.metadataFilter('author'))).toBeNull();
+		expect(configuredDefinition.getField(ids.metadataFilter('genre'))).not.toBeNull();
+	});
+
+	test('creates querybuilder defaults from the replacement legacy configuration', () => {
+		const state = UIStore.getState();
+		const system = createLegacyBackedSearchSystem();
+
+		state.search.advanced.searchAnnotationIds = ['lemma'];
+		state.search.advanced.defaultSearchAnnotationId = 'lemma';
+
+		const configuredRuntime = system.runtime.value!;
 		const queryBuilderState = configuredRuntime.state.state.value[ids.queryField('advanced')] as CqlQueryBuilderData;
 		const defaultAttribute = queryBuilderState.tokens[0].rootAttributeGroup.entries[0];
 		expect('annotationId' in defaultAttribute ? defaultAttribute.annotationId : null).toBe('lemma');
 		expect(configuredRuntime.compile(ids.searchForm('advanced')).patt).toBeNull();
-		expect(configuredDefinition.getField(ids.metadataFilter('author'))).toBeNull();
-		expect(configuredDefinition.getField(ids.metadataFilter('genre'))).not.toBeNull();
-		expect(configuredRuntime.state.state.value[ids.queryField('simple')]).toEqual({ value: '', caseSensitive: false });
-		expect(configuredRuntime.state.state.value[ids.metadataFilter('author')]).toBeUndefined();
+	});
+
+	test('replacement runtimes do not inherit or write through to prior draft state', () => {
+		const state = UIStore.getState();
+		const system = createLegacyBackedSearchSystem();
+		const initialRuntime = system.runtime.value!;
+		initialRuntime.state.state.value[ids.queryField('simple')] = { value: 'water', caseSensitive: false };
+		initialRuntime.state.state.value[ids.metadataFilter('author')] = { value: 'Austen', caseSensitive: false };
+
+		state.search.simple.searchAnnotationId = 'lemma';
+
+		const replacementRuntime = system.runtime.value!;
+		expect(replacementRuntime.state.state.value[ids.queryField('simple')]).toEqual({ value: '', caseSensitive: false });
+		expect(replacementRuntime.state.state.value[ids.metadataFilter('author')]).toEqual({ value: '', caseSensitive: false });
+
+		replacementRuntime.state.state.value[ids.queryField('simple')] = { value: 'fire', caseSensitive: false };
+		replacementRuntime.state.state.value[ids.metadataFilter('author')] = { value: 'Bronte', caseSensitive: false };
+		expect(initialRuntime.state.state.value[ids.queryField('simple')]).toEqual({ value: 'water', caseSensitive: false });
+		expect(initialRuntime.state.state.value[ids.metadataFilter('author')]).toEqual({ value: 'Austen', caseSensitive: false });
 	});
 
 	test('creates parallel querybuilder defaults from the replacement definition', () => {
@@ -936,8 +1013,6 @@ describe('search form system', () => {
 
 		const replacementRuntime = system.runtime.value!;
 		expect(replacementRuntime).not.toBe(initialRuntime);
-		expect(replacementRuntime.state.state.value[ids.queryField('simple')]).toEqual({ value: '', caseSensitive: false });
-		expect(replacementRuntime.state.state.value[ids.metadataFilter('author')]).toEqual({ value: '', caseSensitive: false });
 
 		const restored = restoreFormState(replacementRuntime.definition, {
 			...committedUrlState.encoded,
@@ -953,39 +1028,6 @@ describe('search form system', () => {
 			patt: committedUrlState.patt,
 			filter: committedUrlState.filter,
 		});
-	});
-
-	test('keeps the definition and runtime stable when translations change', () => {
-		const corpus = createCorpus();
-		corpus.relations = {
-			relations: {},
-			spans: {
-				p: { count: 1 },
-				s: { count: 1 },
-			},
-		};
-		const state = UIStore.getState();
-		state.search.shared.within.enabled = true;
-		const locale = ref('en');
-		const baseTranslate = createMockTranslate();
-		const translate = {
-			...baseTranslate,
-			$tWithinElementDisplayName: (element: Parameters<typeof baseTranslate.$tWithinElementDisplayName>[0]) => `${locale.value}:${optionText(element.label) || element.value}`,
-		};
-		const system = createScopedSearchFormSystem({
-			blacklabApi: createMockApi().blacklabApi,
-			configuration: createLegacySearchFormConfiguration(),
-			corpus: ref(corpus),
-			tagset: ref(undefined),
-			translate,
-		});
-		const initialRuntime = system.runtime.value;
-		const initialDefinition = initialRuntime?.definition;
-
-		locale.value = 'nl';
-
-		expect(system.runtime.value).toBe(initialRuntime);
-		expect(system.runtime.value?.definition).toBe(initialDefinition);
 	});
 
 	test('takes an isolated copy of mutable legacy configuration values', () => {
@@ -1087,7 +1129,7 @@ describe('search form system', () => {
 		expect(visibleField.alignByOptions.map(option => optionText(option.title))).toEqual(['Sentence alignment', null]);
 	});
 
-	test('keeps within field defaults when rendering after a simple-search URL restore', () => {
+	test('mounting after a simple-search restore does not write through to within state', async () => {
 		const corpus = createCorpus();
 		corpus.relations = {
 			relations: {},
@@ -1114,14 +1156,19 @@ describe('search form system', () => {
 			patt: '[word_or_lemma="(?i)schip"]',
 		});
 		definition.state.replaceState(restored);
+		const currentWithinState = definition.state.state.value[ids.withinField()] as { element: string | null; attributes: Record<string, string> };
+		const withinStateBeforeMount = { element: currentWithinState.element, attributes: { ...currentWithinState.attributes } };
+		expect(withinStateBeforeMount).toEqual({ element: null, attributes: {} });
+
 		mount(FormSystem, {
 			props: {
 				runtime: definition,
 				rootId: ids.searchForm('extended'),
 			},
 		});
+		await nextTick();
 
-		expect(definition.state.state.value[ids.withinField()]).toEqual({ element: null, attributes: {} });
+		expect(definition.state.state.value[ids.withinField()]).toEqual(withinStateBeforeMount);
 	});
 
 	test('restores the extended annotation value from scoped URL state', () => {

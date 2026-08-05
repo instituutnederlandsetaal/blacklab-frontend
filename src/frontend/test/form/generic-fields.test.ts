@@ -197,7 +197,7 @@ describe('field presentation', () => {
 		expect(wrapper.emitted('update:modelValue')).toEqual([[0.5]]);
 	});
 
-	test('resolves and sorts within options before rendering', () => {
+	test('sorts within elements and applies large sizing to buttons and attribute inputs', () => {
 		const wrapper = mount(WithinField, {
 			props: {
 				id: 'within',
@@ -214,7 +214,8 @@ describe('field presentation', () => {
 
 		expect(wrapper.findAll('button').map(button => button.text())).toEqual(['Paragraph', 'Sentence']);
 		expect(wrapper.get('.blf-within-attributes label').text()).toBe('Type');
-		expect(wrapper.get('button').classes()).toContain('btn-lg');
+		expect(wrapper.findAll('button')).toHaveLength(2);
+		expect(wrapper.findAll('button').every(button => button.classes().includes('btn-lg'))).toBe(true);
 		expect(wrapper.get('input').classes()).toContain('input-lg');
 	});
 });

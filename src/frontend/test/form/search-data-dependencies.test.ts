@@ -160,30 +160,46 @@ describe('search form data dependencies', () => {
 		expect(index.annotationGroups).toEqual([{ annotatedFieldId: 'contents', id: 'Basics', entries: ['word', 'lemma', 'pos'], isRemainderGroup: false }]);
 	});
 
-	test('creates querybuilder options outside Vue app context', async () => {
+	test('creates querybuilder options outside Vue app context', () => {
 		const index = createIndex();
 		const configuration = createSearchFormConfiguration();
-		const getTermAutocomplete = vi.fn(() => resolvedRequest(['water']));
-		const api = createMockApi({
-			blacklab: {
-				getTermAutocomplete,
-			},
-		}).blacklabApi;
 
 		const options = createQueryBuilderOptions({
 			corpus: index,
 			configuration,
-			blacklabApi: api,
+			blacklabApi: createMockApi().blacklabApi,
 			translate: createMockTranslate(),
 		});
 
 		expect(options.indexId).toBe('test-corpus');
+	});
+
+	test('builds querybuilder annotation options from the configured corpus subset', () => {
+		const options = createQueryBuilderOptions({
+			corpus: createIndex(),
+			configuration: createSearchFormConfiguration(),
+			blacklabApi: createMockApi().blacklabApi,
+			translate: createMockTranslate(),
+		});
+
 		expect(options.defaultAnnotationId).toBe('lemma');
 		expect(optionValues(options.annotationOptions)).toEqual(['lemma']);
 		const annotationOption = findOption(options.annotationOptions, 'lemma');
 		if (!annotationOption || typeof annotationOption === 'string') throw new Error('Expected a query-builder annotation option.');
 		expect(optionLabel(annotationOption)).toBe('lemma');
 		expect(optionText(annotationOption.title)).toBe('lemma description');
+	});
+
+	test('delegates querybuilder autocomplete to BlackLab with the annotation target', async () => {
+		const index = createIndex();
+		const getTermAutocomplete = vi.fn(() => resolvedRequest(['water']));
+		const options = createQueryBuilderOptions({
+			corpus: index,
+			configuration: createSearchFormConfiguration(),
+			blacklabApi: createMockApi({ blacklab: { getTermAutocomplete } }).blacklabApi,
+			translate: createMockTranslate(),
+		});
+
 		await expect(options.autocomplete(index.annotatedFields.contents.annotations.lemma, 'wat')).resolves.toEqual(['water']);
 		expect(getTermAutocomplete).toHaveBeenCalledWith('test-corpus', 'contents', 'lemma', 'wat');
 	});
@@ -201,10 +217,6 @@ describe('search form data dependencies', () => {
 		});
 
 		expect(optionValues(options.annotationOptions)).toEqual(['lemma']);
-		const annotationOption = findOption(options.annotationOptions, 'lemma');
-		if (!annotationOption || typeof annotationOption === 'string') throw new Error('Expected a query-builder annotation option.');
-		expect(optionLabel(annotationOption)).toBe('lemma');
-		expect(optionText(annotationOption.title)).toBe('lemma description');
 		expect(options.defaultAnnotationId).toBe('lemma');
 	});
 });
