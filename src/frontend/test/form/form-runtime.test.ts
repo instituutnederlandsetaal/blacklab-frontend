@@ -125,7 +125,7 @@ describe('form runtime', () => {
 		expect(wrapper.get('[role="tabpanel"]').classes()).toEqual(expect.arrayContaining(['blf-form-tab-body', 'blf-form-surface-body']));
 		expect(wrapper.get('.blf-form-surface').classes()).not.toContain('panel');
 		expect(wrapper.get('form.blf-form').classes()).not.toContain('panel-default');
-		expect(wrapper.get('form.blf-form > .blf-form-content').exists()).toBe(true);
+		expect(wrapper.find('form.blf-form > .blf-form-content').exists()).toBe(true);
 		expect(wrapper.get('.blf-form-actions').get('.legacy-action').text()).toBe('History');
 	});
 

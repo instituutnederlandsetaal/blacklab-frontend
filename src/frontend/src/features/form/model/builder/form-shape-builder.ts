@@ -13,6 +13,7 @@ import type {
 	FormContainerLikeNode,
 	FormFieldNode,
 	FormNode,
+	FormViewNode,
 	ImplicitContainerComponentProps,
 	NodeKind,
 	NodeKindMap,
@@ -144,22 +145,19 @@ export type AddChildOptions = {
 
 export type FormNodeReference = FormNode | string;
 
-export interface ParentFormNodeEditor {
+export interface AddChildNodes {
 	appendChild<Child extends AnyRealFormNode>(child: Child, options?: AddChildOptions): Child;
 	prependChild<Child extends AnyRealFormNode>(child: Child, options?: AddChildOptions): Child;
 	insertBefore<Child extends AnyRealFormNode>(newChild: Child, referenceChild: FormNodeReference, options?: AddChildOptions): Child;
 	replaceChild<Child extends AnyRealFormNode>(newChild: Child, oldChild: FormNodeReference, options?: AddChildOptions): FormNode;
 	removeChild(child: FormNodeReference): FormNode;
-}
-
-export interface AddChildNodes extends ParentFormNodeEditor {
 	addChild(child: AnyRealFormNode, options?: AddChildOptions): this;
 	addChildren(...children: Array<AnyRealFormNode | null | undefined>): this;
 }
 
 export type BuilderContainerNode = FormContainerLikeNode & AddChildNodes;
 export type BuilderFormNode = FormBoundaryNode & AddChildNodes;
-export type BuilderNode = BuilderContainerNode | FormFieldNode | NodeKindMap['view'];
+export type BuilderNode = BuilderContainerNode | FormFieldNode | FormViewNode;
 
 // Builder
 // ==========================================================================================================================

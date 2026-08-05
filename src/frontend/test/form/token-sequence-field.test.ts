@@ -109,7 +109,7 @@ describe('token sequence composite field', () => {
 
 		const length = wrapper.findComponent(NumberField);
 		expect(length.props('variant')).toEqual(['large', 'horizontal']);
-		expect(length.get('.blf-field-horizontal').exists()).toBe(true);
+		expect(length.find('.blf-field-horizontal').exists()).toBe(true);
 		expect(wrapper.get('.blf-token-sequence-field').classes()).not.toContain('blf-field-horizontal');
 
 		const selectors = wrapper.findAllComponents(SelectField);

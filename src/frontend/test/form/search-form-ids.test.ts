@@ -89,8 +89,6 @@ describe('standard search-form IDs', () => {
 
 		expect(new Set(generated).size).toBe(values.length);
 		expect(ids.filterTab('Part of speech')).not.toBe(ids.filterTab('Part-of-speech'));
-		const annotField1 = ids.annotationField('a/b', 'c', '/d');
-		const annotField2 = ids.annotationField('a', 'b/c', 'd');
 		expect(ids.withinFilter('a/b', 'c')).not.toBe(ids.withinFilter('a', 'b/c'));
 		expect(ids.annotationField('a/b', 'c', 'd')).not.toBe(ids.annotationField('a', 'b/c', 'd'));
 		expect(ids.metadataFilter('same')).not.toBe(ids.filterTab('same'));

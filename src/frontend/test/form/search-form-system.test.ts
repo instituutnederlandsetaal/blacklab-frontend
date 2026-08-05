@@ -2,9 +2,9 @@
 
 import { createMockApi } from '@test/mocks/api';
 import { createMockTranslate } from '@test/mocks/i18n';
-import { mount } from '@vue/test-utils';
+import { enableAutoUnmount, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { nextTick, ref, toValue } from 'vue';
+import { effectScope, nextTick, ref, toValue, type EffectScope } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import type { Corpus } from '@/app/state/useCorpusContext';
@@ -184,8 +184,14 @@ function createParallelCorpus(): Corpus {
 	};
 }
 
+let testScope: EffectScope;
+
+function createScopedSearchFormSystem(options: Parameters<typeof createSearchFormSystem>[0]) {
+	return testScope.run(() => createSearchFormSystem(options))!;
+}
+
 function createDefinition(corpus = createCorpus()) {
-	return createSearchFormSystem({
+	return createScopedSearchFormSystem({
 		blacklabApi: createMockApi().blacklabApi,
 		configuration: createLegacySearchFormConfiguration(),
 		corpus: ref(corpus),
@@ -195,6 +201,7 @@ function createDefinition(corpus = createCorpus()) {
 }
 
 beforeEach(() => {
+	testScope = effectScope();
 	debug.value = false;
 	const state = UIStore.getState();
 	state.search.simple.searchAnnotationId = 'word';
@@ -219,8 +226,11 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+	testScope.stop();
 	vi.restoreAllMocks();
 });
+
+enableAutoUnmount(afterEach);
 
 describe('search form system', () => {
 	test('updates deferred locale and debug option labels without replacing the live form runtime', async () => {
@@ -238,7 +248,7 @@ describe('search form system', () => {
 				return `${locale.value}:${typeof value === 'string' ? value : value.id}`;
 			},
 		};
-		const system = createSearchFormSystem({
+		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
 			configuration: createLegacySearchFormConfiguration(),
 			corpus: ref(createCorpus()),
@@ -372,7 +382,7 @@ describe('search form system', () => {
 			$tAnnotDisplayName: (value: Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName'>) => `${locale.value}:${value.defaultDisplayName || value.id}`,
 			$tAnnotDescription: (value: Pick<NormalizedAnnotation, 'id' | 'defaultDescription'>) => `${locale.value}:${value.defaultDescription || value.id}`,
 		};
-		const system = createSearchFormSystem({
+		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
 			configuration: createLegacySearchFormConfiguration(),
 			corpus: ref(corpus),
@@ -694,7 +704,7 @@ describe('search form system', () => {
 			},
 		]);
 		const configuration = snapshotSearchFormConfiguration(UIStore.getState(), customization);
-		const system = createSearchFormSystem({
+		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
 			configuration: ref(configuration),
 			corpus: ref(createCorpus()),
@@ -826,7 +836,7 @@ describe('search form system', () => {
 
 	test('rebuilds from a new legacy configuration snapshot', () => {
 		const state = UIStore.getState();
-		const system = createSearchFormSystem({
+		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
 			configuration: createLegacySearchFormConfiguration(),
 			corpus: ref(createCorpus()),
@@ -870,7 +880,7 @@ describe('search form system', () => {
 
 	test('creates parallel querybuilder defaults from the replacement definition', () => {
 		const configuration = ref(snapshotSearchFormConfiguration(UIStore.getState()));
-		const system = createSearchFormSystem({
+		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
 			configuration,
 			corpus: ref(createParallelCorpus()),
@@ -896,7 +906,7 @@ describe('search form system', () => {
 
 	test('discards draft state and restores the URL against the replacement definition', () => {
 		const configuration = ref(snapshotSearchFormConfiguration(UIStore.getState()));
-		const system = createSearchFormSystem({
+		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
 			configuration,
 			corpus: ref(createCorpus()),
@@ -962,7 +972,7 @@ describe('search form system', () => {
 			...baseTranslate,
 			$tWithinElementDisplayName: (element: Parameters<typeof baseTranslate.$tWithinElementDisplayName>[0]) => `${locale.value}:${optionText(element.label) || element.value}`,
 		};
-		const system = createSearchFormSystem({
+		const system = createScopedSearchFormSystem({
 			blacklabApi: createMockApi().blacklabApi,
 			configuration: createLegacySearchFormConfiguration(),
 			corpus: ref(corpus),

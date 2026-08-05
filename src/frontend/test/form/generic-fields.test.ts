@@ -134,7 +134,7 @@ describe('field presentation', () => {
 		const root = wrapper.get('#expert_1');
 		expect(root.classes()).toEqual(expect.arrayContaining(['form-group', 'blf-field-horizontal', 'horizontal']));
 		expect(root.get('label').classes()).toContain('blf-field-label');
-		expect(root.get('.blf-field-controls').get('textarea').exists()).toBe(true);
+		expect(root.get('.blf-field-controls').find('textarea').exists()).toBe(true);
 	});
 
 	test('renders a scalar number field with bounds, integer steps, and shared presentation', () => {

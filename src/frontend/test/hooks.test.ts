@@ -21,7 +21,6 @@ describe('installHooksGlobal', () => {
 		const calledAfterInstall = () => Promise.resolve('called after install');
 		const assignedAfterInstall = () => Promise.resolve('assigned after install');
 
-		const hookGlobal = globalThis as HookTestGlobal;
 		const hooks = installHooksGlobal();
 		hooks.testHook(calledAfterInstall);
 		(hooks as unknown as Record<string, Hook>).otherHook = assignedAfterInstall;
