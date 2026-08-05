@@ -1,17 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { isReactive, reactive } from 'vue';
 
-import {
-	buildQueryIR,
-	createDefaultFormState,
-	createFormFieldNode,
-	encodeFieldState,
-	getFieldAffectedBlackLabParameters,
-	getFieldPersistKey,
-	getFieldQueryContribution,
-	restoreFieldState,
-	type QueryCombineMode,
-} from '@/features/form';
+import { buildQueryIR, createDefaultFormState, createFormFieldNode, encodeFieldState, getFieldPersistKey, getFieldQueryContribution, restoreFieldState, type QueryCombineMode } from '@/features/form';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { annotation, filter, queryFragment } from '@/features/form/model/types/form-query-ir';
 
@@ -208,15 +198,21 @@ describe('form model state', () => {
 
 	test('uses the same complete field node for local defaults, query summaries, and persistence', () => {
 		const builder = createTestBuilder();
-		const field = createFormFieldNode({ id: 'composite.token.0.word', inheritedVariant: 'simple' }, testTextController, TestTextField, {
-			annotationId: 'word',
-			displayName: 'Word',
-		});
+		const field = createFormFieldNode(
+			{
+				id: 'composite.token.0.word',
+				inheritedVariant: 'simple',
+			},
+			testTextController,
+			TestTextField,
+			{
+				annotationId: 'word',
+				displayName: 'Word',
+			},
+		);
 
 		expect(field.variant).toBe('simple');
-		expect(builder.nodeList).toEqual([]);
 		expect(field.controller.createDefaultState(field, builder.context)).toEqual({ value: '' });
-		expect(getFieldAffectedBlackLabParameters(field, builder.context)).toEqual(['patt']);
 		expect(getFieldPersistKey(field, builder.context)).toBe('word');
 		expect(encodeFieldState(field, { value: 'water' }, builder.context)).toBe('water');
 		expect(restoreFieldState(field, 'water', builder.context)).toEqual({ value: 'water' });

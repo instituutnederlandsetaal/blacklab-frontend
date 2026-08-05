@@ -2,11 +2,13 @@ import { readonly, shallowRef } from 'vue';
 
 import type { Option } from '@/shared/utils/options';
 
+export type SearchFormWithinControl = 'text' | 'range' | { type: 'select'; options: Option[] };
+
 export type SearchFormWithinAttribute = {
 	id: string;
 	elementName: string;
 	attributeName: string;
-	control: 'text' | 'range' | { type: 'select'; options: Option[] };
+	control: SearchFormWithinControl;
 	groupId?: string;
 	insertBefore?: string;
 	defaultDisplayName?: string;

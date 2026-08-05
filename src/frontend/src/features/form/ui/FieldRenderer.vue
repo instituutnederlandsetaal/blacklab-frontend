@@ -6,7 +6,6 @@
 import { computed } from 'vue';
 
 import { createRenderedNodeProps } from '@/features/form/model/field-component-props';
-import { getFieldAffectedBlackLabParameters } from '@/features/form/model/form-field-node';
 import { useFormSystemRuntime } from '@/features/form/model/runtime';
 import type { FormFieldNode } from '@/features/form/model/types/form-shape';
 
@@ -28,7 +27,7 @@ const emit = defineEmits<{
 const runtime = useFormSystemRuntime();
 const componentProps = computed(() => ({
 	...createRenderedNodeProps(props.field, ['component', 'controller', 'kind']),
-	disabled: props.disabled || getFieldAffectedBlackLabParameters(props.field, runtime.value.definition.context).some(parameter => runtime.value.state.rawOverrides.value[parameter] !== undefined),
+	disabled: props.disabled || props.field.controller.affectsBlackLabParameters.some(parameter => runtime.value.state.rawOverrides.value[parameter] !== undefined),
 	htmlId: props.htmlId,
 	modelValue: props.modelValue,
 	'onUpdate:modelValue': (value: unknown) => emit('update:modelValue', value),

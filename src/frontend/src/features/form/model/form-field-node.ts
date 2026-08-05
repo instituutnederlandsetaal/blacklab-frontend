@@ -1,7 +1,6 @@
 import type { DefineFieldComponentProps, FieldComponentProps, FieldRuntimeComponentProps, ResolveFieldComponentProps } from '@/features/form/model/field-component-props';
-import type { BlackLabParameter } from '@/features/form/model/types/blacklab-params';
-import type { AnyFieldController, FieldController, FormRuntimeContext } from '@/features/form/model/types/form-controllers';
-import type { BaseFieldNode, FormFieldNode, RealFieldNode } from '@/features/form/model/types/form-shape';
+import type { AnyFieldController, FieldController } from '@/features/form/model/types/form-controllers';
+import type { BaseFieldNode, RealFieldNode } from '@/features/form/model/types/form-shape';
 import type { AnyVueComponent, ConstrainComponentToProvidedProps, DistributiveOmit, NoExtraProperties, PublicPropsOf } from '@/types/helpers';
 
 type ManagedFieldKeys = 'id' | 'kind' | 'component' | 'controller';
@@ -44,6 +43,10 @@ export interface CreateFormFieldNode {
 	): CreatedFormField<Component, Config>;
 }
 
+/**
+ * Helper for constructing form nodes outside of the FormBuilder in a type-safe manner.
+ * Asserts that the controller and component are compatible, and that the config object does not contain any keys that are managed by the node or form system itself.
+ */
 export const createFormFieldNode: CreateFormFieldNode = (options, controller, component, config) => {
 	const { id, inheritedVariant } = typeof options === 'string' ? { id: options, inheritedVariant: undefined } : options;
 	return {
@@ -56,6 +59,3 @@ export const createFormFieldNode: CreateFormFieldNode = (options, controller, co
 	} as any;
 };
 
-export function getFieldAffectedBlackLabParameters(field: FormFieldNode, _context: FormRuntimeContext): BlackLabParameter[] {
-	return field.controller.affectsBlackLabParameters;
-}
