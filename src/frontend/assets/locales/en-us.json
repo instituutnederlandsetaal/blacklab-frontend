@@ -234,6 +234,7 @@
 			}
 		},
 		"table": {
+			"dependencySet": "Dependency set",
 			"showFullSentence": "Display sentence analysis",
 			"loading": "Loading...",
 			"loadMoreConcordances": "Load more concordances",

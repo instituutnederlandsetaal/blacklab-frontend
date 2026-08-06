@@ -231,6 +231,7 @@
 			}
 		},
 		"table": {
+			"dependencySet": "依存关系集",
 			"showFullSentence": "显示整个句子",
 			"loading": "加载中...",
 			"loadMoreConcordances": "加载更多索引",

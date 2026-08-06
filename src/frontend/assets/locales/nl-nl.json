@@ -234,6 +234,7 @@
 			}
 		},
 		"table": {
+			"dependencySet": "Afhankelijkhedenset",
 			"showFullSentence": "Toon zinsanalyse",
 			"loading": "Loading...",
 			"loadMoreConcordances": "Laad meer concordanties",

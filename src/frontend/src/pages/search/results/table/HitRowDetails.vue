@@ -20,7 +20,16 @@
 						 We always want to show those, even if the full sentence isn't yet available.
 						 So don't v-if the tree!
 						 -->
-						<DepTree :data="row" :fullSentence="sentenceShown ? sentence : null" :dir="row.dir" :mainAnnotation="info.mainAnnotation" :otherAnnotations="info.depTreeAnnotations" />
+						<DepTree
+							v-if="typeof row.hit.start === 'number'"
+							:context="sentenceShown && sentence ? snippetParts(sentence) : row.context"
+							:hit-start="row.hit.start"
+							:match-infos="sentenceShown && sentence ? sentence.matchInfos : row.hit.matchInfos"
+							:primary-annotation="info.mainAnnotation"
+							:secondary-annotations="info.dependencyAnnotations"
+							:dir="row.dir"
+							:preferred-relation-class="info.dependencyRelationClass"
+						/>
 					</template>
 					<p :dir="row.dir">
 						<template v-for="addon in addons">

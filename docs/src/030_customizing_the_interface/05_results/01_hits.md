@@ -181,6 +181,9 @@ We will try to show all dependencies in the sentence, or shown the explicitly se
 To change which annotations are shown in the dependency tree  
 ```js
 vuexModules.ui.actions.results.shared.dependencies({
+  // Preferred set when the corpus contains several relation classes.
+  // Users can still switch sets in the expanded hit row.
+  relationClass: 'dep',
   lemma: 'lemma',
   upos: 'upos',
   xpos: 'xpos',
@@ -202,6 +205,7 @@ vuexModules.ui.actions.search.shared.within.sentenceElement('s');
 ```
 
 :::
+
 
 ## Highlighting Concordances
 Marking parts of your query will highlight the corresponding parts in the hits table. This is useful to visually distinguish different parts of your query, such as the main search term and any modifiers.
@@ -372,4 +376,3 @@ vuexModules.ui.actions.results.shared.totalsRefreshIntervalMs(2000);  // 2 secon
 ![counting finished](./result_totals.png)
 
 :::
-

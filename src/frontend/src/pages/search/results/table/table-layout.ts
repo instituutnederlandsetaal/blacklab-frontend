@@ -343,8 +343,10 @@ export type DisplaySettingsForRendering = {
 	otherAnnotations: NormalizedAnnotation[];
 	/** Annotations shown in the expanded concordance. May be empty. */
 	detailedAnnotations: NormalizedAnnotation[];
-	/** What properties/annotations to show for tokens in the deptree, e.g. lemma, pos, etc. */
-	depTreeAnnotations: Record<'lemma' | 'upos' | 'xpos', NormalizedAnnotation | null> & Record<'feats', NormalizedAnnotation[] | null>;
+	/** Ordered secondary annotations to show below the primary token annotation in dependency trees. */
+	dependencyAnnotations: NormalizedAnnotation[];
+	/** Preferred relation class to show when a context contains multiple dependency sets. */
+	dependencyRelationClass: string | null;
 	/** What annotations should be offered up for sorting in the context (before,hit,after) column headers? */
 	sortableAnnotations: NormalizedAnnotation[];
 

@@ -668,6 +668,10 @@ export default defineComponent({
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {
 			const allAnnotationsMap = this.corpus.allAnnotationsMap;
+			const dependencySettings = UIStore.getState().results.shared.dependencies;
+			const dependencyAnnotationIds = [
+				...new Set([dependencySettings.lemma, dependencySettings.upos, dependencySettings.xpos, ...(dependencySettings.feats ?? [])].filter((id): id is string => !!id)),
+			];
 			return {
 				...this.rowDisplaySettings,
 				...this.columnDisplaySettings,
@@ -675,9 +679,8 @@ export default defineComponent({
 				detailedAnnotations: this.isHits
 					? (UIStore.getState().results.shared.detailedAnnotationIds?.map(id => allAnnotationsMap[id]) ?? this.corpus.allAnnotations.filter(a => !a.isInternal && a.hasForwardIndex))
 					: [],
-				depTreeAnnotations: Object.fromEntries(
-					Object.entries(UIStore.getState().results.shared.dependencies).map(([key, id]) => [key, Array.isArray(id) ? id.map(i => allAnnotationsMap[i]) : id ? allAnnotationsMap[id] : null]),
-				) as any,
+				dependencyAnnotations: dependencyAnnotationIds.map(id => allAnnotationsMap[id]).filter((annotation): annotation is NormalizedAnnotation => !!annotation),
+				dependencyRelationClass: dependencySettings.relationClass,
 				html: UIStore.getState().results.shared.concordanceAsHtml,
 			};
 		},

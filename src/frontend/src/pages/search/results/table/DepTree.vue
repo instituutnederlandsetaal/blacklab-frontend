@@ -1,240 +1,152 @@
 <template>
-	<div v-if="connlu" class="text-muted dep-tree-disabled">Dependency tree rendering is temporarily disabled during the Vue 3 migration.</div>
+	<div v-if="relationClasses.length" class="dependency-tree">
+		<label v-if="relationClasses.length > 1">
+			<span>{{ $t('results.table.dependencySet') }}</span>
+			<select v-model="relationClass" class="form-control input-sm">
+				<option v-for="value in relationClasses" :key="value" :value="value">{{ value }}</option>
+			</select>
+		</label>
+		<svg ref="svg" :aria-label="$t('results.table.showFullSentence')" :dir="dir" role="img" focusable="false" />
+	</div>
 </template>
 
-<script lang="ts">
-// https://github.com/kirianguiller/reactive-dep-tree/
-import { defineComponent } from 'vue';
-import type { PropType } from 'vue';
+<script setup lang="ts">
+import dependencyTree from 'dependencytreejs/lib';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import type { DisplaySettingsForRendering, HitRowData } from '@/pages/search/results/table/table-layout';
-import type { NormalizedAnnotation } from '@/types/apptypes';
-import type { BLHit, BLHitInContext, BLHitSnippetPart, BLMatchInfoRelation } from '@/types/blacklabtypes';
+import type { HitContext, NormalizedAnnotation } from '@/types/apptypes';
+import type { BLHit, BLMatchInfoRelation } from '@/types/blacklabtypes';
 
-type HitWithStart = BLHitInContext & { start: number };
+const props = withDefaults(
+	defineProps<{
+		context: HitContext;
+		hitStart: number;
+		matchInfos: BLHit['matchInfos'];
+		primaryAnnotation: NormalizedAnnotation;
+		secondaryAnnotations: NormalizedAnnotation[];
+		dir: 'ltr' | 'rtl';
+		preferredRelationClass?: string | null;
+	}>(),
+	{ preferredRelationClass: null },
+);
 
-/* https://universaldependencies.org/format.html
-Sentences consist of one or more word lines, and word lines contain the following fields:
+const svg = ref<SVGElement | null>(null);
+const selectedRelationClass = ref<string | null>(null);
+const tokens = computed(() => [...props.context.before, ...props.context.match, ...props.context.after]);
+const contextStart = computed(() => props.hitStart - props.context.before.length);
+const relationSets = computed(() => {
+	const positions = new Set(tokens.value.map((_, index) => contextStart.value + index));
+	const sets = new Map<string, Map<number, BLMatchInfoRelation>>();
+	const infos = Object.values(props.matchInfos ?? {}).flatMap(info => (info.type === 'list' ? info.infos : [info]));
 
-ID:     Word index, integer starting at 1 for each new sentence; may be a range for multiword tokens; may be a decimal number for empty nodes (decimal numbers can be lower than 1 but must be greater than 0).
-FORM:   Word form or punctuation symbol.
-LEMMA:  Lemma or stem of word form.
-UPOS:   Universal part-of-speech tag.
-XPOS:   Optional language-specific (or treebank-specific) part-of-speech / morphological tag; underscore if not available.
-FEATS:  List of morphological features from the universal feature inventory or from a defined language-specific extension; underscore if not available.
-HEAD:   Head of the current word, which is either a value of ID or zero (0).
-DEPREL: Universal dependency relation to the HEAD (root iff HEAD = 0) or a defined language-specific subtype of one.
-DEPS:   Enhanced dependency graph in the form of a list of head-deprel pairs.
-MISC:   Any other annotation.
-*/
-// const conllExample =
-// `# text = I am eating a pineapple
-// 1	I	_	PRON	_	_	2	suj	_	_
-// 2	am	_	AUX	_	_	0	root	_	_
-// 3	eating	_	VERB	_	_	2	aux	_	highlight=red
-// 4	a	_	DET	_	_	5	det	_	_
-// 5	pineapple	_	NOUN	_	_	3	obj	_	_`
+	for (const relation of infos) {
+		if (
+			relation.type !== 'relation' ||
+			relation.targetField ||
+			relation.targetEnd - relation.targetStart !== 1 ||
+			(relation.sourceStart != null && (relation.sourceEnd == null || relation.sourceEnd - relation.sourceStart !== 1)) ||
+			!positions.has(relation.targetStart) ||
+			(relation.sourceStart != null && !positions.has(relation.sourceStart))
+		)
+			continue;
 
-/**
- * Transform from arrays of strings to an array of objects with keys.
- * E.g: {
- *   word: ['I', 'am', 'eating', 'a', 'pineapple'],
- *   lemma: ['i', 'be', 'eat', 'a', 'pineapple'],
- * }
- * to
- * [{word: 'I', lemma: 'i'}, {word: 'am', lemma: 'be'}, ...]
- */
-function flatten(h?: BLHitSnippetPart, values?: string[]): Array<Record<string, string>> {
-	const r = [] as Array<Record<string, string>>;
-	if (!h) return r;
-	if (values) {
-		values.forEach(k => {
-			if (k in h) {
-				h[k].forEach((v, i) => {
-					r[i] = r[i] || {};
-					r[i][k] = v;
-				});
-			}
-		});
-	} else {
-		Object.entries(h).forEach(([k, v]) => {
-			v.forEach((vv, i) => {
-				r[i] = r[i] || {};
-				r[i][k] = vv;
-			});
-		});
+		const set = sets.get(relation.relClass) ?? new Map<number, BLMatchInfoRelation>();
+		if (!set.has(relation.targetStart)) set.set(relation.targetStart, relation);
+		sets.set(relation.relClass, set);
 	}
-	return r;
-}
 
-export default defineComponent({
-	props: {
-		data: { type: Object as PropType<HitRowData>, required: true },
-		fullSentence: { type: [Object, null] as PropType<BLHit | null>, default: null },
-
-		// TODO
-		dir: { type: String as PropType<'ltr' | 'rtl'>, required: true },
-		mainAnnotation: { type: Object as PropType<NormalizedAnnotation>, required: true },
-		otherAnnotations: { type: Object as PropType<DisplaySettingsForRendering['depTreeAnnotations']>, required: true },
+	return sets;
+});
+const relationClasses = computed(() => [...relationSets.value.keys()].sort((a, b) => a.localeCompare(b)));
+const relationClass = computed({
+	get() {
+		const classes = relationClasses.value;
+		if (selectedRelationClass.value && classes.includes(selectedRelationClass.value)) return selectedRelationClass.value;
+		if (props.preferredRelationClass && classes.includes(props.preferredRelationClass)) return props.preferredRelationClass;
+		return classes.includes('dep') ? 'dep' : (classes.find(value => !/^al(?:__|$)/i.test(value)) ?? classes[0] ?? null);
 	},
-	computed: {
-		shownFeatures(): string {
-			// FORM,LEMMA,UPOS,XPOS,FEATS.someFeat,FEATS.someOtherFeat (probably, we only provide 1 feat hardcoded to the name of the annotation, i.e. FEATS.annotationName)
-			// E.g. FEATS.some_annot, FEATS.some_other_annot
-			const featureAnnots = this.otherAnnotations.feats?.map(a => `FEATS.${a.id}`) || [];
-			// E.g. UPOS, XPOS, LEMMA
-			const regularAnnots = Object.entries(this.otherAnnotations)
-				.filter(([k, v]) => v != null && k !== 'feats')
-				.map(([k]) => k.toUpperCase());
-
-			// FORM is the word itself, so we always include it.
-			return ['FORM', ...regularAnnots, ...featureAnnots].join(',');
-		},
-
-		// We only need this to know where our hit starts and ends.
-		hit(): HitWithStart | undefined {
-			return typeof this.data.hit.start === 'number' ? (this.data.hit as HitWithStart) : undefined;
-		},
-		// The full sentence is the context in which the hit was found. Unless we don't have the sentence (yet), then it's the same hit ;)
-		context(): BLHitInContext | undefined {
-			return this.fullSentence || this.hit;
-		},
-
-		// Make the hit array make sense, since indexing into three non-0 indexed objects is a bit of a pain.
-		// Basically just make an array of key-value maps that contain the annotations for each token. e.g. [{word: 'I', lemma: 'i'}, {word: 'am', lemma: 'be'}, ...]
-		sensibleArray(): undefined | Array<Record<string, string>> {
-			if (!this.context?.matchInfos) return undefined;
-			/** Which annotations are we interested in, punct and the main annotation, but maybe more. */
-			const extract = ['punct', this.mainAnnotation.id].concat(
-				Object.values(this.otherAnnotations)
-					.flat()
-					.filter((a): a is NormalizedAnnotation => !!a)
-					.map(a => a.id),
-			);
-			const { before, match, after } = this.context;
-			return flatten(before, extract).concat(flatten(match, extract)).concat(flatten(after, extract));
-		},
-
-		/**
-		 * Convert BlackLab's returned relation object into something representing connl-u relations.
-		 * Meaning a list of "tokens" (i.e. positions in the sentence), pointing at their parent ("sourceIndex" property).
-		 */
-		relationInfo(): undefined | Array<undefined | { parentIndex: number; label: string }> {
-			if (!this.hit || !this.context || !this.sensibleArray) return undefined;
-
-			const { start } = this.hit!;
-			const beforeLength = this.context!.before?.punct?.length || 0;
-			const indexOffset = start - beforeLength;
-
-			const r: Array<{ parentIndex: number; label: string }> = [];
-			const doRelation = (v: BLMatchInfoRelation) => {
-				// Skip cross-field relations here as they don't make sense for the dependency tree.
-				//
-				// TODO: actually we should only gather relations with a single relClass.
-				// Probably:
-				// (1) an explicitly configured one in custom.js, or
-				// (2) fall back to "dep" if that class exists in this corpus, or
-				// (3) fall back to the first one alphabetically, skipping /^al__/ (parallel alignment)).
-				//
-				// Otherwise if our corpus e.g. contains both dependency and constituency relations,
-				// we might be trying to draw both as a single tree, which doesn't make sense.
-				if (v.targetField) return;
-
-				// CoNNL-U can only have one parent, so skip if the relation is not one-to-one
-				if (!(v.targetEnd - v.targetStart > 1) && (v.sourceStart == null || !(v.sourceEnd! - v.sourceStart > 1))) {
-					// translate the indices to something that makes sense
-					const sourceIndex = v.sourceStart != null ? v.sourceStart - indexOffset : -1; // 0 signifies root.
-					const targetIndex = v.targetStart - indexOffset;
-					// add the relation to the sensible array
-
-					r[targetIndex] = {
-						// might be undefined for root?
-						parentIndex: sourceIndex,
-						label: v.relType,
-					};
-				}
-			};
-
-			Object.values(this.context.matchInfos || {}).forEach(v => {
-				// Not interested in non-relation matches.
-				if (v.type === 'relation') {
-					doRelation(v);
-				} else if (v.type === 'list') {
-					v.infos.forEach(info => {
-						if (info.type === 'relation') doRelation(info);
-					});
-				}
-			});
-			return r.length ? r : undefined;
-		},
-		connlu(): string {
-			if (!this.relationInfo) return '';
-
-			/**
-			 * Connlu features look like feat1=val1|feat2=val2
-			 * We only map a single annotation, e.g. 'some_token_annotation' in BlackLab -> 'FEATS.some_token_annotation' in CoNNL-U shown-features,
-			 * and 'some_token_annotation=val1' in the feats column.
-			 */
-			function connluFeatValues(annotations: NormalizedAnnotation[], token: Record<string, string>): string {
-				return annotations
-					.map(a => [a.id, token[a.id]])
-					.map(([id, value]) => {
-						if (!value) return '_'; // no value for this feature.
-						if (value.includes('=')) return value; // If the value already contains an '=', we assume it's a feature and return it as is.
-						return `${id}=${value}`;
-					})
-					.join('|');
-			}
-
-			let header = '# text = ';
-			let rows: string[][] = [];
-
-			for (let i = 0; i < this.sensibleArray!.length; ++i) {
-				const rel = this.relationInfo[i];
-				const token = this.sensibleArray![i];
-				// Sometimes relations contains relations point outside the matched hit.
-				// We could compute the sensibleArray based on the hit snippet
-				// (which is larger and probably does contain the tokens), but then the tree component would end up rendering something like 50 tokens, which is way too wide.
-				if (!token) continue;
-
-				// ID   FORM     LEMMA   UPOS    XPOS     FEATS  HEAD    DEPREL   DEPS   MISC
-				// # text = I am eating a pineapple
-				// 1    I         _      PRON    _        _      2       suj      _      _
-				// 2    am        _      AUX     _        _      0       root     _      _
-				// 3    eating    _      VERB    _        _      2       aux      _      highlight=red
-				// 4    a         _      DET     _        _      5       det      _      _
-				// 5    pineapple _      NOUN    _        _      3       obj      _      _
-
-				// omit punctuation before first word of sentence.
-				if (i !== 0) header = header + token.punct;
-				header += token[this.mainAnnotation.id];
-
-				const row = [] as string[];
-				row.push((1 + i).toString()); // index
-				row.push(token[this.mainAnnotation.id]); // form (usually word)
-				if (this.otherAnnotations.lemma) row.push(token[this.otherAnnotations.lemma.id] || '_');
-				else row.push('_'); // lemma
-				if (this.otherAnnotations.upos) row.push(token[this.otherAnnotations.upos.id] || '_');
-				else row.push('_'); // upos
-				if (this.otherAnnotations.xpos) row.push(token[this.otherAnnotations.xpos.id] || '_');
-				else row.push('_'); // xpos
-				if (this.otherAnnotations.feats) row.push(connluFeatValues(this.otherAnnotations.feats, token));
-				else row.push('_'); // feats
-				row.push(rel && rel.parentIndex < this.sensibleArray!.length ? (rel.parentIndex + 1).toString() : '_'); // head
-				row.push(rel ? rel.label : '_'); // deprel
-				row.push('_'); // deps
-				row.push('_'); // highlight.
-				// row.push(i + this.indexOffset >= this.hit!.start && i + this.indexOffset < this.hit!.end ? `highlight=red` : '_'); // misc
-
-				rows.push(row);
-			}
-
-			if (!rows.length) return '';
-
-			return header + '\n' + rows.map(row => row.join('\t')).join('\n');
-		},
+	set(value: string | null) {
+		selectedRelationClass.value = value;
 	},
 });
+const secondaryAnnotations = computed(() => props.secondaryAnnotations.filter(annotation => annotation.id !== props.primaryAnnotation.id));
+
+type ReactiveSentence = InstanceType<(typeof dependencyTree)['ReactiveSentence']>;
+type SentenceSvg = InstanceType<(typeof dependencyTree)['SentenceSVG']>;
+let reactiveSentence: ReactiveSentence | null = null;
+let sentenceSvg: SentenceSvg | null = null;
+
+function clearTree() {
+	if (sentenceSvg) {
+		reactiveSentence?.detach(sentenceSvg);
+		sentenceSvg.clearTree();
+	}
+	reactiveSentence = null;
+	sentenceSvg = null;
+	svg.value?.replaceChildren();
+}
+
+function renderTree() {
+	clearTree();
+	const relations = relationClass.value ? relationSets.value.get(relationClass.value) : null;
+	if (!svg.value || !relations?.size) return;
+
+	const tokenIds = new Map(tokens.value.map((_, index) => [contextStart.value + index, index + 1]));
+	const nextReactiveSentence = new dependencyTree.ReactiveSentence();
+	nextReactiveSentence.state.metaJson.rtl = props.dir === 'rtl' ? 'yes' : 'no';
+
+	for (const [index, token] of tokens.value.entries()) {
+		const id = String(index + 1);
+		const relation = relations.get(contextStart.value + index);
+		nextReactiveSentence.state.treeJson.nodesJson[id] = {
+			ID: id,
+			FORM: token.annotations[props.primaryAnnotation.id] ?? '',
+			LEMMA: '',
+			UPOS: '',
+			XPOS: '',
+			FEATS: Object.fromEntries(secondaryAnnotations.value.map(annotation => [annotation.id, token.annotations[annotation.id]]).filter(([, value]) => value)),
+			HEAD: relation ? (relation.sourceStart == null ? 0 : (tokenIds.get(relation.sourceStart) ?? -1)) : -1,
+			DEPREL: relation?.relType ?? '',
+			DEPS: {},
+			MISC: {},
+		};
+	}
+
+	const nextSentenceSvg = new dependencyTree.SentenceSVG(svg.value, nextReactiveSentence, {
+		...dependencyTree.defaultSentenceSVGOptions(),
+		arcHeight: 40,
+		shownFeatures: ['FORM', ...secondaryAnnotations.value.map(annotation => `FEATS.${annotation.id}`)],
+		tokenSpacing: 40,
+	});
+	reactiveSentence = nextReactiveSentence;
+	sentenceSvg = nextSentenceSvg;
+}
+
+onMounted(renderTree);
+watch([tokens, relationSets, relationClass, secondaryAnnotations, () => props.primaryAnnotation, () => props.dir], renderTree, { deep: true, flush: 'post' });
+onBeforeUnmount(clearTree);
 </script>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+.dependency-tree {
+	margin: 0.5rem 0 1rem;
+
+	> label {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	select {
+		display: inline-block;
+		width: auto;
+	}
+
+	svg {
+		display: block;
+		max-width: none;
+		overflow: visible;
+	}
+}
+</style>

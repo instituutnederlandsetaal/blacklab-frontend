@@ -205,6 +205,7 @@ type ModuleRootState = {
 
 			/** Which annotations should be shown in the dependency tree. (for corpora with dependencies indexed) */
 			dependencies: {
+				relationClass: string | null;
 				lemma: string | null;
 				upos: string | null;
 				xpos: string | null;
@@ -335,6 +336,7 @@ const initialState: ModuleRootState = {
 			dependencies: {
 				feats: null,
 				lemma: null,
+				relationClass: null,
 				upos: null,
 				xpos: null,
 			},
@@ -697,6 +699,7 @@ const actions = {
 
 			/** Edit which annotations are shown in the dependency tree in the hits result table. */
 			dependencies: (payload: {
+				relationClass?: string | null;
 				lemma: string | null;
 				upos: string | null;
 				xpos: string | null;
@@ -723,6 +726,7 @@ const actions = {
 
 				state.results.shared.dependencies = {
 					lemma: validate(payload.lemma, 'lemma'),
+					relationClass: payload.relationClass === undefined ? state.results.shared.dependencies.relationClass : payload.relationClass,
 					upos: validate(payload.upos, 'upos'),
 					xpos: validate(payload.xpos, 'xpos'),
 					feats: validateArray([payload.feats].flat(), 'feats'),
@@ -1144,13 +1148,14 @@ const init = (state: CorpusContext) => {
 	if (!getState().results.shared.sortMetadataIds.length) actions.results.shared.sortMetadataIds(defaultMetadataToShow);
 
 	/* Validate the annotations shown in the dependency tree in the hits result table.
-	 * If none are set, search for likely annotations to map to the connlu properties in the tree.
+	 * If none are set, search for likely secondary token annotations.
 	 * find all likely matches, then dedupe them.
 	 * Null values won't shown anything.
 	 * The word property itself is hardcoded to be the same as the concordance (i.e. words shown in the hit), so we don't need to configure that.
 	 */
 	actions.results.shared.dependencies(customizedState.results.shared.dependencies);
-	if (!Object.values(customizedState.results.shared.dependencies).some(v => v != null)) {
+	const { lemma, upos, xpos, feats } = customizedState.results.shared.dependencies;
+	if (![lemma, upos, xpos, feats].some(v => v != null)) {
 		function findAnnotation(keywords: string[]): string[] {
 			// Annotations in the dependency tree need to be displayed - and for that they need a forward index.
 			const ids = Object.keys(allAnnotationsMap).filter(id => allAnnotationsMap[id].hasForwardIndex);
