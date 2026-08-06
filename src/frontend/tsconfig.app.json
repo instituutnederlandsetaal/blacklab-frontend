@@ -11,6 +11,7 @@
 		"strictNullChecks": true,
 		"noImplicitThis": true,
 		"noImplicitAny": true,
+		"noUnusedLocals": true,
 		/*
 			We use babel to transform jsx into vue render calls, see @babe/babel-preset-jsx in .babelrc
 			So the typescript compiler should just ignore it.

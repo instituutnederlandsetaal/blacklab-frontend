@@ -91,7 +91,7 @@
 							</tr>
 						</thead>
 						<tbody>
-							<tr v-for="(annot, index) in info.detailedAnnotations" :key="annot.id">
+							<tr v-for="annot in info.detailedAnnotations" :key="annot.id">
 								<th>{{ $tAnnotDisplayName(annot) }}</th>
 								<HitContext
 									v-for="(token, ti) in snippet.match"

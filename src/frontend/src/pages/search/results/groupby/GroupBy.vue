@@ -28,7 +28,7 @@
 			v-model="selectedCriteriumIndex"
 			@middlemouse="$event.index < addedCriteria.length && removeGroup($event.index)"
 		>
-			<template #after="{ tab, i }">
+			<template #after="{ i }">
 				<button type="button" @click="removeGroup(i)" class="btn btn-link remove-group-button" style="font-size: 150%; text-decoration: none">
 					<strong class="text-danger">&times;</strong>
 				</button>

@@ -273,7 +273,7 @@ export default defineComponent({
 				await new Promise<void>((resolve, reject) => {
 					let resolved = false;
 					const blacklab = useBlackLabApi();
-					const { request, cancel } = blacklab.postDocuments(this.selectedCorpus!.id, [file], undefined, p => {
+					const { request } = blacklab.postDocuments(this.selectedCorpus!.id, [file], undefined, p => {
 						if (p >= 100) {
 							resolve();
 							resolved = true;

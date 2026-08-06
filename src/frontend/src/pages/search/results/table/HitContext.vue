@@ -2,7 +2,7 @@
 	<!-- mind the whitespace, we don't want ANY whitespace between elements. -->
 	<component v-if="html" :is="tag" :style="{ fontWeight: bold ? 'bold' : undefined }"
 		><template v-if="before">…</template
-		><template v-for="({ text, punct, punctBefore, style, title, relationKeys }, i) in renderInfo"
+		><template v-for="{ text, punct, punctBefore, style, title, relationKeys } in renderInfo"
 			><span v-if="doPunct && punctBefore" v-html="punctBefore"></span
 			><span
 				v-if="style"
@@ -17,7 +17,7 @@
 		><template v-if="after">…</template></component
 	><component v-else :is="tag" :style="{ fontWeight: bold ? 'bold' : undefined }"
 		><template v-if="before">…</template
-		><template v-for="({ text, punct, punctBefore, style, title, relationKeys }, i) in renderInfo"
+		><template v-for="{ text, punct, punctBefore, style, title, relationKeys } in renderInfo"
 			><template v-if="doPunct && punctBefore">{{ punctBefore }}</template
 			><span
 				v-if="style"

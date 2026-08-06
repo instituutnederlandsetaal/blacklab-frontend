@@ -100,8 +100,6 @@ export default defineComponent({
 			};
 			(params as any).csvdescription = corpusCustomizations.results.export.description(this.results.summary, fieldDisplayName) || '';
 
-			const apir = apiCall(this.corpus.id!, params);
-
 			debugLog('export', 'starting csv download', this.type, params);
 			apiCall(this.corpus.id!, params)
 				.request.then(

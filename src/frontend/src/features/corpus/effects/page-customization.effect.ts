@@ -31,7 +31,7 @@ export function startCustomizationInterop() {
 
 	useTitle(computed(() => pageBootstrap.page.value?.getTitle?.(displayName.value) ?? displayName.value));
 
-	const _css = useCustomCss(
+	useCustomCss(
 		computed(() => {
 			const css = context.value?.config.customCss ?? {};
 			return sortCustomizationEntries([...(css[''] ?? []), ...(pageName.value ? (css[pageName.value] ?? []) : [])]);
@@ -46,7 +46,7 @@ export function startCustomizationInterop() {
 		{ immediate: false },
 	);
 
-	const _fav = useFavicon(
+	useFavicon(
 		computed(() => {
 			const path = context.value?.config.faviconDir;
 			return path ? `${path}/favicon.ico` : '';

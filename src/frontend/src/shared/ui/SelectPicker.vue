@@ -240,8 +240,6 @@ type NormalizedUiOptions = {
 /** Might also be any other valid css value for 'width', but these values have special behavior in the code */
 type MenuWidthMode = 'stretch' | 'shrink' | 'grow';
 
-let nextMenuId = 0;
-
 export default defineComponent({
 	emits: ['update:modelValue', 'change', 'select'],
 	props: {

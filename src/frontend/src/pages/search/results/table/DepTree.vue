@@ -155,8 +155,7 @@ export default defineComponent({
 				}
 			};
 
-			Object.entries(this.context.matchInfos || {}).forEach(mi => {
-				const [k, v] = mi;
+			Object.values(this.context.matchInfos || {}).forEach(v => {
 				// Not interested in non-relation matches.
 				if (v.type === 'relation') {
 					doRelation(v);

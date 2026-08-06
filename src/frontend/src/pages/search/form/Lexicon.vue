@@ -35,7 +35,7 @@
 			<!-- if we have wordOptions, we also have pos options -->
 			<h4>{{ $t('lexicon.limit') }}</h4>
 			<div style="max-height: 400px; overflow-y: auto; overflow-x: hidden">
-				<label v-for="(checked, pos) in posOptions" :key="pos" style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap" role="button">
+				<label v-for="(_, pos) in posOptions" :key="pos" style="width: 10vw; min-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap" role="button">
 					<input type="checkbox" v-model="posOptions[pos]" :value="pos" /> {{ pos }}
 				</label>
 			</div>
@@ -60,25 +60,6 @@ import { escapeRegex } from '@/shared/utils/string-utils';
 import useUid from '@/shared/utils/uid';
 
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
-
-type LexiconParams1 = { lemma: string } | { wordform: string };
-type LexiconParams = LexiconParams1 & {
-	database: string;
-
-	dataset?: string;
-	year_from?: string; // format to be determined (just yyyy?)
-	year_to?: string;
-	tweaked_queries?: boolean;
-	lemma_provenance?: string;
-	paradigm_provenance?: any; // not sure what this is?
-
-	/** only one pos per query supported */
-	pos?: string;
-	/** Return split part of speech tags in the lexicon service? */
-	split?: boolean;
-
-	case_sensitive: boolean;
-};
 
 type LexiconLemmaIdResponse = {
 	message: 'OK';
