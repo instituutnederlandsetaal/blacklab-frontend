@@ -16,7 +16,7 @@
 				</div>
 			</div>
 
-			<small class="help-block">{{ annotationDescription }}</small>
+			<small class="help-block">{{ description }}</small>
 		</div>
 
 		<Modal
@@ -36,7 +36,7 @@
 						:key="value.value"
 						:class="{
 							'list-group-item': true,
-							active: draftState[annotation.id]?.[0] === value.value,
+							active: draftState[annotationId]?.[0] === value.value,
 						}"
 						@click="toggleAnnotationValue(value.value)"
 						:disabled
@@ -79,15 +79,15 @@ import { computed, ref, watch } from 'vue';
 import { useFieldPresentation } from '@/features/form/fields/field-presentation';
 
 import {
-	annotationReferenceLabel,
 	cloneAnnotationPosFieldState,
-	createDefaultAnnotationPosFieldState,
 	findTagsetValue,
 	getVisibleSubAnnotationValues,
 	summarizeAnnotationPosState,
 	type AnnotationPosFieldComponentProps,
 	type AnnotationPosFieldState,
 } from './annotation-pos-field';
+
+import { optionText } from '@/shared/utils/options';
 
 import Modal from '@/shared/ui/Modal.vue';
 
@@ -119,13 +119,12 @@ watch(
 
 const field = useFieldPresentation(props);
 const buttonId = computed(() => `${props.htmlId}_editor`);
-const annotationLabel = computed(() => props.displayName ?? annotationReferenceLabel(props.annotation));
-const annotationDescription = computed(() => props.description ?? props.annotation.defaultDescription);
+const annotationLabel = computed(() => props.displayName ?? props.annotationId);
 const mainValues = computed(() => Object.values(props.tagset.values));
-const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value[props.annotation.id]?.[0]));
+const currentAnnotationValue = computed(() => findTagsetValue(props.tagset, draftState.value[props.annotationId]?.[0]));
 const modalSize = computed(() => props.modalSize ?? 'lg');
 const selectionSummary = computed(() => summarizeAnnotationPosState(props, draftState.value));
-const hasSelection = computed(() => !!props.modelValue[props.annotation.id]?.[0]);
+const hasSelection = computed(() => !!props.modelValue[props.annotationId]?.[0]);
 
 function openEditor() {
 	draftState.value = cloneAnnotationPosFieldState(props.modelValue);
@@ -143,31 +142,26 @@ function commitDraft() {
 }
 
 function clearSelection() {
-	emit('update:modelValue', createDefaultAnnotationPosFieldState());
+	emit('update:modelValue', {});
 	if (editorOpen.value) {
-		draftState.value = createDefaultAnnotationPosFieldState();
+		draftState.value = {};
 	}
 }
 
 function resetDraft() {
-	draftState.value = createDefaultAnnotationPosFieldState();
+	draftState.value = {};
 }
 
 function toggleAnnotationValue(value: string) {
-	draftState.value = draftState.value[props.annotation.id]?.[0] === value ? {} : { [props.annotation.id]: [value] };
+	draftState.value = draftState.value[props.annotationId]?.[0] === value ? {} : { [props.annotationId]: [value] };
 }
 
 function visibleSubAnnotationValues(subAnnotationId: string) {
-	return getVisibleSubAnnotationValues(props.tagset, draftState.value[props.annotation.id]?.[0], subAnnotationId);
+	return getVisibleSubAnnotationValues(props.tagset, draftState.value[props.annotationId]?.[0], subAnnotationId);
 }
 
 function subAnnotationLabel(subAnnotationId: string): string {
-	const subAnnotation = props.subAnnotations?.[subAnnotationId] ?? {
-		id: subAnnotationId,
-		defaultDisplayName: subAnnotationId,
-		defaultDescription: '',
-	};
-	return annotationReferenceLabel(subAnnotation);
+	return optionText(props.subAnnotationLabels?.[subAnnotationId]) ?? props.tagset.subAnnotations[subAnnotationId]?.displayName ?? subAnnotationId;
 }
 
 function isDraftSelectionChecked(subAnnotationId: string, subAnnotationValue: string): boolean {

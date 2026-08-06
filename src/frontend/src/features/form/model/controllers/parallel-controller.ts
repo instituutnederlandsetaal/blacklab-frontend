@@ -15,11 +15,6 @@ import { parallelQuery, parallelQueryTarget, queryFragment, type SummaryEntry } 
 
 import { findOption } from '@/shared/utils/options';
 
-function alignByLabel(config: FieldControllerProps<ParallelFieldConfig>, alignBy: string) {
-	const option = findOption(config.alignByOptions ?? [], alignBy);
-	return parallelAlignByLabel(option ?? alignBy);
-}
-
 function getParallelChildContribution(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown) {
 	return getFieldQueryContribution(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime));
 }
@@ -122,12 +117,14 @@ export const parallelController = defineFieldController<'parallel', ParallelFiel
 				value: state.targets.map(target => parallelAnnotatedFieldLabel(config.fieldOptions.find(field => field.id === target) ?? { id: target })).join(', '),
 				summaryType: ['searchfield', 'patt'],
 			});
-		if (state.alignBy)
+		if (state.alignBy) {
+			const alignBy = findOption(config.alignByOptions ?? [], state.alignBy) ?? state.alignBy;
 			summaries.push({
 				label: runtime.translate.$t(`search.parallel.alignBy`),
-				value: alignByLabel(config, state.alignBy),
+				value: parallelAlignByLabel(alignBy),
 				summaryType: ['searchfield', 'patt'],
 			});
+		}
 
 		if (sourceContribution) summaries.push(...sourceContribution.summaries);
 		for (const { contribution } of targetContributions) summaries.push(...contribution.summaries);

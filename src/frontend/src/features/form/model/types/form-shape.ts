@@ -83,7 +83,6 @@ export type FormContainerLikeNode = ContainerNode | FormBoundaryNode;
 export type FormFieldNode = RealFieldNode<unknown, any>;
 export type FormViewNode = RealViewNode<unknown, any>;
 export type FormNode = FormContainerLikeNode | FormFieldNode | FormViewNode;
-export type FormNodeBase = BaseNode;
 
 export type NodeKindMap = {
 	container: ContainerNode;

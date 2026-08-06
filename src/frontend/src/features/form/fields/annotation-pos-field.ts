@@ -1,22 +1,16 @@
 import type { FieldComponentProps, FieldDefinition } from '@/features/form/model/field-component-props';
-import type { NormalizedAnnotation, Tagset } from '@/types/apptypes';
+import type { Tagset } from '@/types/apptypes';
 
 import { optionText, type OptionText } from '@/shared/utils/options';
-
-export type AnnotationReference = Pick<NormalizedAnnotation, 'id' | 'defaultDisplayName' | 'defaultDescription'> & {
-	/** Deferred display label, supplied by graph builders that support localization. */
-	label?: OptionText;
-};
 
 /** Annotation predicates joined by `&` in the generated CQL. */
 export type AnnotationPosFieldState = Record<string, string[]>;
 export type AnnotationPosFieldExtraProps = {
-	annotation: AnnotationReference;
-	subAnnotations?: Record<string, AnnotationReference>;
+	annotationId: string;
+	/** Deferred display labels for tagset subannotations. */
+	subAnnotationLabels?: Readonly<Record<string, OptionText>>;
 	tagset: Tagset;
 	modalSize?: 'xs' | 'sm' | 'md' | 'lg' | 'auto' | 'fullscreen';
-	/** @deprecated Query previews are now provided by the compiled query summary. */
-	showQueryPreview?: boolean;
 };
 export type AnnotationPosFieldDefinition = FieldDefinition<AnnotationPosFieldState, AnnotationPosFieldExtraProps>;
 export type AnnotationPosFieldConfig = AnnotationPosFieldDefinition['nodeProps'];
@@ -24,10 +18,6 @@ export type AnnotationPosFieldConfig = AnnotationPosFieldDefinition['nodeProps']
 export type AnnotationPosFieldComponentProps = FieldComponentProps<AnnotationPosFieldState> & AnnotationPosFieldExtraProps;
 
 const EMPTY_SUBANNOTATION_VALUES: Tagset['subAnnotations'][string]['values'] = [];
-
-export function createDefaultAnnotationPosFieldState(): AnnotationPosFieldState {
-	return {};
-}
 
 export function cloneAnnotationPosFieldState(state: AnnotationPosFieldState): AnnotationPosFieldState {
 	return Object.fromEntries(Object.entries(state).map(([annotationId, values]) => [annotationId, [...values]]));
@@ -48,12 +38,8 @@ export function getVisibleSubAnnotationValues(tagset: Tagset, annotationValue: s
 	return subAnnotation.values.filter(subValue => !subValue.pos || subValue.pos.includes(selectedValue.value));
 }
 
-export function annotationReferenceLabel(annotation: AnnotationReference): string {
-	return optionText(annotation.label) ?? annotation.defaultDisplayName ?? annotation.id;
-}
-
 export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, state: AnnotationPosFieldState): string {
-	const [annotationValue] = state[config.annotation.id] ?? [];
+	const [annotationValue] = state[config.annotationId] ?? [];
 	const selectedValue = findTagsetValue(config.tagset, annotationValue);
 	if (!selectedValue) return '';
 
@@ -63,13 +49,7 @@ export function summarizeAnnotationPosState(config: AnnotationPosFieldConfig, st
 
 			if (!selectedValues.length) return null;
 
-			const subAnnotation = config.subAnnotations?.[subAnnotationId] ?? {
-				id: subAnnotationId,
-				defaultDisplayName: subAnnotationId,
-				defaultDescription: '',
-			};
-
-			const label = annotationReferenceLabel(subAnnotation);
+			const label = optionText(config.subAnnotationLabels?.[subAnnotationId]) ?? config.tagset.subAnnotations[subAnnotationId]?.displayName ?? subAnnotationId;
 			const values = selectedValues.map(value => value.displayName || value.value).join(', ');
 			return `${label}: ${values}`;
 		})

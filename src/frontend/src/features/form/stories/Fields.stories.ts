@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { computed } from 'vue';
 
-import type { AnnotationPosFieldConfig, AnnotationReference } from '@/features/form/fields/annotation-pos-field';
+import type { AnnotationPosFieldConfig } from '@/features/form/fields/annotation-pos-field';
 import {
 	annotationPosController,
 	annotationTextController,
@@ -69,22 +69,13 @@ export default meta;
 type Story = StoryObj<StoryArgs>;
 
 const posTagset: Tagset = sampleTagsetJson;
-const posAnnotation: AnnotationReference = {
-	id: 'pos',
-	defaultDisplayName: 'Part of speech',
-	defaultDescription: 'Filter by part of speech and compatible grammatical features.',
-};
-const posSubAnnotations = Object.fromEntries(
+const posSubAnnotationLabels = Object.fromEntries(
 	Object.keys(posTagset.subAnnotations).map(id => [
 		id,
-		{
-			id,
-			defaultDisplayName: id
-				.split(/[_-]+/)
-				.map(part => (part.toLowerCase() === 'pos' ? 'PoS' : part.charAt(0).toUpperCase() + part.slice(1)))
-				.join(' '),
-			defaultDescription: '',
-		} satisfies AnnotationReference,
+		id
+			.split(/[_-]+/)
+			.map(part => (part.toLowerCase() === 'pos' ? 'PoS' : part.charAt(0).toUpperCase() + part.slice(1)))
+			.join(' '),
 	]),
 );
 const languageOptions = [
@@ -115,10 +106,11 @@ function createStoryContext(indexId: string, translate: Translate): FormRuntimeC
 
 function createAnnotationPosConfig(overrides: Partial<AnnotationPosFieldConfig> = {}): AnnotationPosFieldConfig {
 	return {
-		annotation: posAnnotation,
-		subAnnotations: posSubAnnotations,
+		annotationId: 'pos',
+		displayName: 'Part of speech',
+		description: 'Filter by part of speech and compatible grammatical features.',
+		subAnnotationLabels: posSubAnnotationLabels,
 		tagset: posTagset,
-		showQueryPreview: true,
 		...overrides,
 	};
 }

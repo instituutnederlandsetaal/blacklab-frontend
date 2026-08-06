@@ -21,11 +21,6 @@ function createDefaultState(config: FieldControllerProps<TokenSequenceFieldConfi
 	return Array.from({ length: bounds.defaultValue }, (_, index) => createDefaultTokenSequenceToken(config, runtime, index));
 }
 
-function validateRestoredLength(length: number, config: FieldControllerProps<TokenSequenceFieldConfig>): void {
-	const bounds = tokenSequenceLengthBounds(config);
-	if (length < bounds.min || length > bounds.max) throw new Error(`Cannot restore token sequence length ${length}; expected ${bounds.min}-${bounds.max}.`);
-}
-
 type PersistedToken = { fieldId: string; payload: string };
 
 const persistedTokenCodec = object({
@@ -59,7 +54,8 @@ const tokenSequencePersistenceCodec = array(persistedTokenCodec)
 			});
 		},
 		decode(tokens, { config, runtime }) {
-			validateRestoredLength(tokens.length, config);
+			const bounds = tokenSequenceLengthBounds(config);
+			if (tokens.length < bounds.min || tokens.length > bounds.max) throw new Error(`Cannot restore token sequence length ${tokens.length}; expected ${bounds.min}-${bounds.max}.`);
 			return tokens.map((token, index) => restoreToken(index, token, config, runtime));
 		},
 	})

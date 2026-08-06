@@ -273,7 +273,7 @@ function createLocalizedPosSystem() {
 	const runtime = system.runtime.value!;
 	const fieldId = ids.annotationField('extended', 'contents', 'pos');
 	const field = runtime.definition.getField(fieldId) as unknown as AnnotationPosFieldConfig & {
-		subAnnotations: NonNullable<AnnotationPosFieldConfig['subAnnotations']>;
+		subAnnotationLabels: NonNullable<AnnotationPosFieldConfig['subAnnotationLabels']>;
 	};
 	const selection = { pos: ['NOU'], number: ['sg'] };
 
@@ -478,10 +478,9 @@ describe('search form system', () => {
 
 	test('uses tagset labels for POS field configuration', () => {
 		const { field } = createLocalizedPosSystem();
-		expect(field.subAnnotations.number.defaultDisplayName).toBe('Grammatical number');
 		expect(toValue(field.displayName)).toBe('en:pos');
 		expect(toValue(field.description)).toBe('en:pos description');
-		expect(optionText(field.subAnnotations.number.label)).toBe('en:Grammatical number');
+		expect(optionText(field.subAnnotationLabels.number)).toBe('en:Grammatical number');
 	});
 
 	test('resolves live tagset labels in POS field and form summaries', () => {
@@ -497,7 +496,7 @@ describe('search form system', () => {
 
 		expect(toValue(field.displayName)).toBe('nl:pos');
 		expect(toValue(field.description)).toBe('nl:pos description');
-		expect(optionText(field.subAnnotations.number.label)).toBe('nl:Grammatical number');
+		expect(optionText(field.subAnnotationLabels.number)).toBe('nl:Grammatical number');
 		expect(summarizeAnnotationPosState(field, selection)).toBe('Noun; nl:Grammatical number: Singular');
 		expect(runtime.compile(ids.searchForm('extended')).summaries).toContainEqual(expect.objectContaining({ label: 'nl:pos' }));
 	});

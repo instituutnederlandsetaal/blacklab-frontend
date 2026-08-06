@@ -1,7 +1,4 @@
-import { toRaw } from 'vue';
-
-import type { NewFormState } from '@/features/form/model/state';
-import type { AnyBaseFormNode, FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
+import type { AnyBaseFormNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 
 import { lenientIter, type LenientArray } from '@/shared/utils/array-utils';
 
@@ -25,15 +22,6 @@ export function* walkFormNodes<K extends FormNodeKind>(nodes: FormNode | FormNod
 		}
 	}
 }
-/** Iterate all child nodes of the given root node, filtered by uniqueness. The root node itself is skipped. */
-export function* walkFormNodeChildren(root: FormNode) {
-	const it = walkFormNodes(root);
-	it.next(); // skip root
-	for (const node of it) {
-		yield node;
-	}
-}
-
 /** Get all nodes in the form graph, deduplicated, and optionally filtered by kind. */
 export function getAllNodes(root: FormNode): FormNode[];
 export function getAllNodes<K extends FormNodeKind>(root: FormNode, ...kind: K[]): NodeKindMap[K][];
@@ -87,27 +75,6 @@ export function findPathToNode(roots: FormNode[], targetId: string): string[] | 
 		}
 	}
 	return null;
-}
-
-/**
- * Walk all fields and container-like nodes, picking only the active branches of the form tree, and copying their state.
- * @param form the form for which to pick the active descendant state.
- * @param formState the current state of the form.
- * @returns a new FormState object containing only the active branches.
- */
-export function pickActiveFormState(form: FormBoundaryNode, formState: NewFormState): NewFormState {
-	const r: NewFormState = {
-		state: {},
-		uiState: {},
-		rawOverrides: structuredClone(toRaw(formState.rawOverrides ?? {})),
-	};
-
-	for (const field of getAllNodes(form, 'field', 'container', 'form')) {
-		if (field.kind === 'field') r.state[field.id] = structuredClone(toRaw(formState.state[field.id]));
-		else r.uiState[field.id] = formState.uiState[field.id];
-	}
-
-	return r;
 }
 
 export function decodeVariants<Variant extends string>(variants: LenientArray<Variant>): Partial<Record<Variant, boolean>> {

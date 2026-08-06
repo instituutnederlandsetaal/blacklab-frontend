@@ -364,22 +364,13 @@ export function createSearchFormNodeConstructors({
 			if (!tagset) throw new Error(`Cannot create POS annotation field '${annotation.id}' without a tagset.`);
 			return createFormFieldNode(options.id, annotationPosController, AnnotationPosField, {
 				...annotationCommon(annotation, options),
-				annotation,
-				showQueryPreview: true,
-				subAnnotations: Object.fromEntries(
+				annotationId: annotation.id,
+				subAnnotationLabels: Object.fromEntries(
 					[...new Set([...(annotation.subAnnotations ?? []), ...Object.keys(tagset.subAnnotations)])].map(subAnnotationId => {
 						const corpusAnnotation = corpus.allAnnotatedFieldsMap[annotation.annotatedFieldId]?.annotations[subAnnotationId];
-						const subAnnotation = corpusAnnotation ?? {
-							id: subAnnotationId,
-							defaultDisplayName: tagset.subAnnotations[subAnnotationId]?.displayName ?? subAnnotationId,
-							defaultDescription: '',
-						};
 						return [
 							subAnnotationId,
-							{
-								...subAnnotation,
-								label: () => translate.$tAnnotDisplayName(subAnnotation),
-							},
+							() => translate.$tAnnotDisplayName(corpusAnnotation ?? { id: subAnnotationId, defaultDisplayName: tagset.subAnnotations[subAnnotationId]?.displayName ?? subAnnotationId }),
 						];
 					}),
 				),

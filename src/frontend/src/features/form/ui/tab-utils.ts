@@ -4,8 +4,6 @@ import type { BaseNode } from '@/features/form/model/types/form-shape';
 
 import type { Tab } from '@/shared/ui/Tabs.types';
 
-type TabChild = { props: Pick<BaseNode, 'id' | 'title'> };
-
 function idPart(value: string): string {
 	return Array.from(value, character => {
 		if (/^[A-Za-z0-9-]$/.test(character)) return character;
@@ -21,10 +19,6 @@ function childIdPart(parentId: string, childId: string): string {
 	return `a-${idPart(childId)}`;
 }
 
-export function resolveNodeTitle(node: Pick<BaseNode, 'id' | 'title'>): string {
-	return node.title ? toValue(node.title) : node.id;
-}
-
 export function tabId(parentId: string, childId: string): string {
 	return `form-tab-${idPart(parentId)}--${childIdPart(parentId, childId)}`;
 }
@@ -33,10 +27,10 @@ export function tabPanelId(parentId: string, childId: string): string {
 	return `form-panel-${idPart(parentId)}--${childIdPart(parentId, childId)}`;
 }
 
-export function createTabs(parentId: string, children: readonly TabChild[]): Tab[] {
+export function createTabs(parentId: string, children: readonly { props: Pick<BaseNode, 'id' | 'title'> }[]): Tab[] {
 	return children.map(child => ({
 		value: child.props.id,
-		label: resolveNodeTitle(child.props),
+		label: child.props.title ? toValue(child.props.title) : child.props.id,
 		id: tabId(parentId, child.props.id),
 		controls: tabPanelId(parentId, child.props.id),
 	}));

@@ -1,12 +1,12 @@
 import { toValue } from 'vue';
 
 import { createDefaultCqlQueryBuilderData, isCqlAttributeData, isCqlAttributeGroupData } from '@/features/cql-query-builder/model';
-import type { CqlAnnotationCombinator, CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry } from '@/features/cql-query-builder/model';
+import type { CqlAttributeData, CqlAttributeGroupData, CqlGroupEntry } from '@/features/cql-query-builder/model';
 import type { QueryBuilderFieldConfig, QueryBuilderFieldDefinition, QueryBuilderFieldState } from '@/features/form/fields/query-builder-field';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
 import { array, bool, lazy, number, object, scalar, variant, type PersistenceCodec } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
-import { annotation, anyToken, booleanNode, queryFragment, queryIR, repeat, sequence, xmlTag, type BooleanType, type CqlAnnotationNode } from '@/features/form/model/types/form-query-ir';
+import { annotation, anyToken, booleanNode, queryFragment, queryIR, repeat, sequence, xmlTag, type CqlAnnotationNode } from '@/features/form/model/types/form-query-ir';
 
 import { findOption } from '@/shared/utils/options';
 
@@ -39,20 +39,11 @@ function validateRepeatBounds(token: QueryBuilderFieldState['tokens'][number]): 
 	if (!Number.isNaN(minRepeats) && !Number.isNaN(maxRepeats) && minRepeats > maxRepeats) return 'Querybuilder repeat minimum cannot exceed its maximum.';
 }
 
-function operatorToBoolean(operator: CqlAnnotationCombinator): BooleanType {
-	return operator === '|' ? 'or' : 'and';
-}
-
-function comparatorValue(attribute: CqlAttributeData): string {
-	const values = attribute.values.filter(value => value !== '');
-	const value = values.join('|');
-	if (attribute.comparator === 'startsWith') return `${value}.*`;
-	if (attribute.comparator === 'endsWith') return `.*${value}`;
-	return value;
-}
-
 function attributeToPredicate(attribute: CqlAttributeData): CqlAnnotationNode | null {
-	const value = comparatorValue(attribute);
+	const values = attribute.values.filter(value => value !== '');
+	let value = values.join('|');
+	if (attribute.comparator === 'startsWith') value = `${value}.*`;
+	if (attribute.comparator === 'endsWith') value = `.*${value}`;
 	if (!value) return null;
 	return annotation(attribute.annotationId, 'regex', value, {
 		operator: attribute.comparator === '!=' ? '!=' : '=',
@@ -70,7 +61,7 @@ function groupToPredicate(group: CqlAttributeGroupData): CqlAnnotationNode | nul
 	const children = group.entries.map(groupEntryToPredicate).filter((child): child is CqlAnnotationNode => child != null);
 	if (!children.length) return null;
 	if (children.length === 1) return children[0];
-	return booleanNode(operatorToBoolean(group.operator), ...children);
+	return booleanNode(group.operator === '|' ? 'or' : 'and', ...children);
 }
 
 function hasRepeat(properties: QueryBuilderFieldState['tokens'][number]['properties']): boolean {

@@ -24,24 +24,9 @@ type BiMetadataFilterControllerConfig = {
 
 const isBiFieldConfig = (config: MetadataFilterControllerConfig | BiMetadataFilterControllerConfig): config is BiMetadataFilterControllerConfig => 'fromField' in config && 'toField' in config;
 
-export type MetadataFilterTextConfig = FieldControllerConfig<TextFieldDefinition, MetadataFilterControllerConfig>;
-export type MetadataFilterCheckboxConfig = FieldControllerConfig<CheckboxFieldDefinition, MetadataFilterControllerConfig>;
 export type MetadataFilterRadioConfig = FieldControllerConfig<RadioFieldDefinition, MetadataFilterControllerConfig>;
-export type MetadataFilterDateConfig = FieldControllerConfig<DateFieldDefinition, MetadataFilterControllerConfig | BiMetadataFilterControllerConfig>;
-export type MetadataFilterRangeConfig = FieldControllerConfig<RangeFieldDefinition, MetadataFilterControllerConfig | BiMetadataFilterControllerConfig>;
-export type MetadataFilterSelectConfig = FieldControllerConfig<SelectFieldDefinition, MetadataFilterControllerConfig>;
-
 function metadataPersistKey(config: MetadataFilterControllerConfig | BiMetadataFilterControllerConfig) {
 	return isBiFieldConfig(config) ? `${config.fromField}-${config.toField}` : config.metadataFieldId;
-}
-
-function dateValueToPersist(value: DateFieldState['startDate']) {
-	return [value.y, value.m, value.d].filter(Boolean).join('-');
-}
-
-function persistToDateValue(value: string | undefined) {
-	const [y = '', m = '', d = ''] = (value ?? '').split('-');
-	return { y, m, d };
 }
 
 const textPersistenceCodec = object({
@@ -72,7 +57,13 @@ const rangePersistenceCodec = object({
 
 const datePartCodec = scalar()
 	.refine(value => (value.split('-').length <= 3 ? undefined : `Cannot restore date value '${value}' with more than three components.`))
-	.transform<DateFieldState['startDate']>({ encode: dateValueToPersist, decode: value => persistToDateValue(value) })
+	.transform<DateFieldState['startDate']>({
+		encode: value => [value.y, value.m, value.d].filter(Boolean).join('-'),
+		decode(value) {
+			const [y = '', m = '', d = ''] = (value ?? '').split('-');
+			return { y, m, d };
+		},
+	})
 	.default({ y: '', m: '', d: '' });
 
 const datePersistenceCodec = object({

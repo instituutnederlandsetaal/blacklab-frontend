@@ -35,7 +35,7 @@ export { default as TextField } from './generic/TextField.vue';
 export * from './generic/lexicon-field';
 export { default as LexiconField } from './generic/LexiconField.vue';
 
-export * from './generic/number-field';
+export type * from './generic/number-field';
 export { default as NumberField } from './generic/NumberField.vue';
 
 export * from './generic/range-mode';

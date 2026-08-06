@@ -26,8 +26,7 @@ import type { AnyVueComponent, ConstrainComponentToProvidedProps, NoExtraPropert
 // Helpers
 // ==========================================================================================================================
 
-type BuilderManagedNodeKeys = 'id' | 'children' | 'kind' | 'component' | 'controller' | 'activeChildQueryContributions';
-type ForbiddenConfigKeys = BuilderManagedNodeKeys | keyof FieldRuntimeComponentProps<unknown>;
+type ForbiddenConfigKeys = 'id' | 'children' | 'kind' | 'component' | 'controller' | 'activeChildQueryContributions' | keyof FieldRuntimeComponentProps<unknown>;
 type ImplicitContainerComponentPropKeys = keyof ImplicitContainerComponentProps;
 
 type MutableContainerGraphFields = {
@@ -63,61 +62,19 @@ type ExtractExtraPropsFromConfig<Config> = Omit<Config, ForbiddenConfigKeys>;
 // ==========================================================================================================================
 
 type NewContainerNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFromComponent<C, ImplicitContainerComponentPropKeys> & BaseContainerNode, ForbiddenConfigKeys>;
-type NewContainerNodeFnReturn<C extends AnyVueComponent, Config extends NewContainerNodeFnConfig<C>> = AddChildNodes & RealContainerNode<ExtractExtraPropsFromConfig<Config>, C>;
-type NewContainerNodeFnArgs<C extends AnyVueComponent, Config extends NewContainerNodeFnConfig<C>> = [
-	id: string,
-	component: ConstrainComponentToProvidedProps<C, ImplicitContainerComponentProps & ExtractExtraPropsFromConfig<Config>>,
-	config: NoExtraProperties<NewContainerNodeFnConfig<C>, Config>,
-];
-
-interface NewContainerNodeFn {
-	<C extends AnyVueComponent, Config extends NewContainerNodeFnConfig<C>>(...args: NewContainerNodeFnArgs<C, Config>): NewContainerNodeFnReturn<C, Config>;
-}
 
 // Form
 // ==========================================================================================================================
 
 type NewFormNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFromComponent<C, ImplicitContainerComponentPropKeys> & BaseFormNode, ForbiddenConfigKeys>;
-type NewFormNodeFnArgs<C extends AnyVueComponent, Config extends NewFormNodeFnConfig<C>> = [
-	id: string,
-	component: ConstrainComponentToProvidedProps<C, ImplicitContainerComponentProps & ExtractExtraPropsFromConfig<Config>>,
-	config: NoExtraProperties<NewFormNodeFnConfig<C>, Config>,
-];
-
-interface NewFormNodeFn {
-	<C extends AnyVueComponent, Config extends NewFormNodeFnConfig<C>>(...args: NewFormNodeFnArgs<C, Config>): AddChildNodes & RealFormNode<ExtractExtraPropsFromConfig<Config>, C>;
-}
 
 // Field
 // ==========================================================================================================================
-
-type NewFieldNodeFnReturn<C extends AnyVueComponent, Config extends FormFieldConfig<C, AnyFieldController>> = CreatedFormField<C, Config>;
-type NewFieldNodeFnArgs<C extends AnyVueComponent, Controller extends AnyFieldController, Config extends FormFieldConfig<C, Controller>> = [
-	id: string,
-	controller: Controller,
-	component: ConstrainedFieldComponent<C, Controller>,
-	config: NoExtraProperties<FormFieldConfig<C, Controller>, Config>,
-];
-interface NewFieldNodeFn {
-	<Controller extends AnyFieldController, C extends AnyVueComponent, Config extends FormFieldConfig<C, Controller>>(
-		...args: NewFieldNodeFnArgs<C, Controller, Config>
-	): NewFieldNodeFnReturn<C, Config>;
-}
 
 // View
 // ==========================================================================================================================
 
 type NewViewNodeFnConfig<C extends AnyVueComponent> = Omit<ExtractExtraPropsFromComponent<C, keyof BaseViewNode> & BaseViewNode, ForbiddenConfigKeys>;
-type NewViewNodeFnReturn<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>> = RealViewNode<ExtractExtraPropsFromConfig<Config>, C>;
-type NewViewNodeFnArgs<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>> = [
-	id: string,
-	component: ConstrainComponentToProvidedProps<C, FieldComponentProps<never> & ExtractExtraPropsFromConfig<Config>>,
-	config: NoExtraProperties<NewViewNodeFnConfig<C>, Config>,
-];
-
-interface NewViewNodeFn {
-	<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>>(...args: NewViewNodeFnArgs<C, Config>): NewViewNodeFnReturn<C, Config>;
-}
 
 // Children
 // ==========================================================================================================================
@@ -139,7 +96,6 @@ export interface AddChildNodes {
 }
 
 export type BuilderContainerNode = FormContainerLikeNode & AddChildNodes;
-export type BuilderFormNode = FormBoundaryNode & AddChildNodes;
 export type BuilderNode = BuilderContainerNode | FormFieldNode | FormViewNode;
 
 // Builder
@@ -337,26 +293,26 @@ export class FormBuilder {
 		}) as unknown as T & AddChildNodes;
 	}
 
-	newContainer: NewContainerNodeFn = <C extends AnyVueComponent, Config extends NewContainerNodeFnConfig<C>>(
+	newContainer = <C extends AnyVueComponent, Config extends NewContainerNodeFnConfig<C>>(
 		id: string,
 		component: ConstrainComponentToProvidedProps<C, ImplicitContainerComponentProps & ExtractExtraPropsFromConfig<Config>>,
 		config: NoExtraProperties<NewContainerNodeFnConfig<C>, Config>,
-	) => {
+	): AddChildNodes & RealContainerNode<ExtractExtraPropsFromConfig<Config>, C> => {
 		const node = this.attachGraphFunctions({
 			...config,
 			kind: 'container',
 			id,
 			children: [],
 			component: component as C,
-		}) as NewContainerNodeFnReturn<C, Config>;
+		}) as AddChildNodes & RealContainerNode<ExtractExtraPropsFromConfig<Config>, C>;
 		return this.addNode(node);
 	};
 
-	newForm: NewFormNodeFn = <C extends AnyVueComponent, Config extends NewFormNodeFnConfig<C>>(
+	newForm = <C extends AnyVueComponent, Config extends NewFormNodeFnConfig<C>>(
 		id: string,
 		component: ConstrainComponentToProvidedProps<C, ImplicitContainerComponentProps & ExtractExtraPropsFromConfig<Config>>,
 		config: NoExtraProperties<NewFormNodeFnConfig<C>, Config>,
-	) => {
+	): AddChildNodes & RealFormNode<ExtractExtraPropsFromConfig<Config>, C> => {
 		const node = this.attachGraphFunctions({
 			...config,
 			kind: 'form',
@@ -367,11 +323,20 @@ export class FormBuilder {
 		return this.addNode(node);
 	};
 
-	newField: NewFieldNodeFn = (id, controller, component, config) => {
+	newField = <Controller extends AnyFieldController, C extends AnyVueComponent, Config extends FormFieldConfig<C, Controller>>(
+		id: string,
+		controller: Controller,
+		component: ConstrainedFieldComponent<C, Controller>,
+		config: NoExtraProperties<FormFieldConfig<C, Controller>, Config>,
+	): CreatedFormField<C, Config> => {
 		return this.addNode(createFormFieldNode({ id }, controller, component, config)) as any;
 	};
 
-	newView: NewViewNodeFn = (id, component, config) => {
+	newView = <C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>>(
+		id: string,
+		component: ConstrainComponentToProvidedProps<C, FieldComponentProps<never> & ExtractExtraPropsFromConfig<Config>>,
+		config: NoExtraProperties<NewViewNodeFnConfig<C>, Config>,
+	): RealViewNode<ExtractExtraPropsFromConfig<Config>, C> => {
 		return this.addNode({
 			...config,
 			component: component as any,
@@ -387,7 +352,7 @@ export class FormBuilder {
 		return this.getTypedNode(id, 'view');
 	}
 	getForm(id: string) {
-		return this.getTypedNode(id, 'form') as BuilderFormNode | null;
+		return this.getTypedNode(id, 'form') as (FormBoundaryNode & AddChildNodes) | null;
 	}
 	getContainer(id: string) {
 		return this.getTypedNode(id, 'container') as BuilderContainerNode | null;

@@ -31,11 +31,6 @@ type MutableRestoredFormState = NewFormState & {
 export type RestoredFormState = DeepReadonly<MutableRestoredFormState>;
 
 type DecodedScopedParameter = { present: false } | { present: true; value: EncodedFieldValue | undefined };
-type DecodedScopedFormParams = {
-	formSelector: DecodedScopedParameter;
-	tabSelections: DecodedScopedParameter;
-	fields: ReadonlyMap<string, EncodedFieldValue | undefined>;
-};
 
 type FieldCodecEntry = {
 	field: FormFieldNode;
@@ -49,14 +44,6 @@ function isNonEmpty(value: string | null | undefined): value is string {
 function asArray(value: unknown): string[] {
 	if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string');
 	return typeof value === 'string' ? [value] : [];
-}
-
-function stripPrefix(key: string): string | null {
-	return key.startsWith(FORM_QUERY_PREFIX) ? key.slice(FORM_QUERY_PREFIX.length) : null;
-}
-
-export function isReservedScopedFormKey(key: string): boolean {
-	return RESERVED_SCOPED_FORM_KEYS.has(key);
 }
 
 function findExpertFallback(definition: FormBuilder, canonicalPattern: string, canonicalSearchfield: string | null | undefined): { form: FormBoundaryNode; fieldId: string; state: unknown } | null {
@@ -86,7 +73,7 @@ function buildFieldCodec(form: FormNode, context: FormRuntimeContext): { entries
 
 	for (const field of getAllNodes(form, 'field')) {
 		const key = getFieldPersistKey(field, context);
-		if (isReservedScopedFormKey(key)) {
+		if (RESERVED_SCOPED_FORM_KEYS.has(key)) {
 			issues.push({
 				key,
 				nodeId: field.id,
@@ -151,10 +138,6 @@ function inferUiStateFromPersistedFields(definition: FormBuilder, persistedField
 	return activeContainers;
 }
 
-function getDefaultUiState(definition: FormBuilder): Record<string, string | null> {
-	return Object.fromEntries(definition.containerList.map(container => [container.id, container.children[0]?.id ?? null]));
-}
-
 function takeScopedParameter(fields: Map<string, EncodedFieldValue | undefined>, key: string): DecodedScopedParameter {
 	if (!fields.has(key)) return { present: false };
 	const value = fields.get(key);
@@ -163,11 +146,11 @@ function takeScopedParameter(fields: Map<string, EncodedFieldValue | undefined>,
 }
 
 /** Decode the form-owned URL parameters and separate control parameters from field values. */
-function decodeScopedFormParams(query: Record<string, unknown>): DecodedScopedFormParams {
+function decodeScopedFormParams(query: Record<string, unknown>) {
 	const fields = new Map<string, EncodedFieldValue | undefined>();
 	for (const [key, value] of Object.entries(query)) {
 		if (!key.startsWith(FORM_QUERY_PREFIX)) continue;
-		const unscoped = stripPrefix(key);
+		const unscoped = key.slice(FORM_QUERY_PREFIX.length);
 		if (!unscoped) continue;
 		const values = asArray(value);
 		fields.set(unscoped, values.length ? (values.length === 1 ? values[0] : values) : undefined);
@@ -195,24 +178,6 @@ function decodeCanonicalFormParams(query: Record<string, unknown>, context: Form
 	};
 }
 
-function fieldRestoreIssue(entry: FieldCodecEntry, message: string): RestoreIssue {
-	return { key: entry.key, nodeId: entry.field.id, message };
-}
-
-function decodeFieldState(entry: FieldCodecEntry, payload: EncodedFieldValue, context: FormRuntimeContext): { restored: true; state: unknown } | { restored: false; issue: RestoreIssue } {
-	try {
-		return {
-			restored: true,
-			state: restoreFieldState(entry.field, payload, context),
-		};
-	} catch (error) {
-		return {
-			restored: false,
-			issue: fieldRestoreIssue(entry, error instanceof Error ? error.message : `Could not restore field '${entry.field.id}'.`),
-		};
-	}
-}
-
 function restorePersistedFields(entries: FieldCodecEntry[], persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>, context: FormRuntimeContext) {
 	const state: Record<string, unknown> = {};
 	const issues: RestoreIssue[] = [];
@@ -226,9 +191,15 @@ function restorePersistedFields(entries: FieldCodecEntry[], persistedFields: Rea
 			continue;
 		}
 
-		const decoded = decodeFieldState(entry, payload, context);
-		if (decoded.restored) state[entry.field.id] = decoded.state;
-		else issues.push(decoded.issue);
+		try {
+			state[entry.field.id] = restoreFieldState(entry.field, payload, context);
+		} catch (error) {
+			issues.push({
+				key: entry.key,
+				nodeId: entry.field.id,
+				message: error instanceof Error ? error.message : `Could not restore field '${entry.field.id}'.`,
+			});
+		}
 	}
 
 	const unrecognizedIssues = [...persistedFields.keys()].filter(key => !knownKeys.has(key)).map(key => ({ key, message: `No current form field accepts persisted key '${key}'.` }));
@@ -351,7 +322,7 @@ export function restoreFormState(definition: FormBuilder, query: Record<string, 
 				...(expertFallback ? { [expertFallback.fieldId]: expertFallback.state } : {}),
 			},
 			uiState: {
-				...getDefaultUiState(definition),
+				...Object.fromEntries(definition.containerList.map(container => [container.id, container.children[0]?.id ?? null])),
 				...inferUiStateFromPersistedFields(definition, scopedParams.fields),
 				...persistedTabs.uiState,
 				...getUiStateForPath([definition.getRoot()], activeForm.id),

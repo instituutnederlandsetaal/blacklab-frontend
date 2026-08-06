@@ -12,7 +12,7 @@
 				:value="modelValue"
 				:disabled
 				:aria-label="hideLabel ? $t(`search.expert.corpusQueryLanguage`) : undefined"
-				@input="updateQuery(($event.target as HTMLTextAreaElement).value)"
+				@input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
 			/>
 		</div>
 	</div>
@@ -32,10 +32,6 @@ const emit = defineEmits<{
 }>();
 
 const field = useFieldPresentation(props, { formGroup: false, rootClass: 'blf-expert-query-field' });
-
-function updateQuery(query: string) {
-	emit('update:modelValue', query);
-}
 </script>
 
 <style lang="scss" scoped>
