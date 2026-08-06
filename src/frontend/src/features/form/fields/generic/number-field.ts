@@ -10,6 +10,5 @@ export type NumberFieldExtraProps = {
 export type NumberFieldDefinition = NamedFieldDefinition<NumberFieldState, NumberFieldExtraProps>;
 
 export const createDefaultNumberFieldState = (): NumberFieldState => 0;
-export type NumberFieldConfig = NumberFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `NumberFieldDefinition['componentProps']`. */
 export type NumberFieldComponentProps = NamedFieldComponentProps<NumberFieldState> & NumberFieldExtraProps;

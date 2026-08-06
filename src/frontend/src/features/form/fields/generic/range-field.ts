@@ -27,6 +27,5 @@ export const createDefaultRangeFieldState = (): RangeFieldState => ({
 	mode: 'strict',
 });
 
-export type RangeFieldConfig = RangeFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `RangeFieldDefinition['componentProps']`. */
 export type RangeFieldComponentProps = NamedFieldComponentProps<RangeFieldState> & RangeFieldExtraProps;

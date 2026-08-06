@@ -15,6 +15,5 @@ export type SelectFieldDefinition<State extends string | string[] = SelectFieldS
 export type SingleSelectFieldDefinition = SelectFieldDefinition<SingleSelectFieldState>;
 
 export const createDefaultSelectFieldState = (): SelectFieldState => [];
-export type SelectFieldConfig = SelectFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `SelectFieldDefinition['componentProps']`. */
 export type SelectFieldComponentProps = NamedFieldComponentProps<SelectFieldState | SingleSelectFieldState> & SelectFieldExtraProps;

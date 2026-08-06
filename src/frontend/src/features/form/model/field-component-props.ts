@@ -57,8 +57,6 @@ export type FieldBaseProp = Extract<keyof FieldDefinitionProps, keyof FieldCompo
 export type RequiredFieldDefinitionProps<Keys extends FieldBaseProp> = RequiredProps<FieldDefinitionProps, Keys>;
 export type RequiredFieldComponentProps<State, Keys extends FieldBaseProp> = RequiredProps<FieldComponentProps<State>, Keys>;
 
-/** Base definition props for fields which require a visible display name. */
-export type NamedFieldDefinitionProps = RequiredFieldDefinitionProps<'displayName'>;
 /** Base component props for fields which require a visible display name. */
 export type NamedFieldComponentProps<State> = FieldComponentProps<State> & { displayName: string };
 
@@ -106,10 +104,7 @@ export type AnyFieldDefinition = {
 	componentProps: object;
 };
 export type FieldState<Definition extends AnyFieldDefinition> = Definition['state'];
-export type FieldBaseProps<Definition extends AnyFieldDefinition> = Definition['baseProps'];
-export type FieldExtraProps<Definition extends AnyFieldDefinition> = Definition['extraProps'];
 export type FieldNodeProps<Definition extends AnyFieldDefinition> = Definition['nodeProps'];
-export type ResolvedFieldProps<Definition extends AnyFieldDefinition> = Definition['componentProps'];
 
 export type RenderedNodeProps<Source extends object, OmittedKey extends PropertyKey = never> = ResolveFieldComponentProps<Omit<Source, Extract<OmittedKey, keyof Source>>>;
 

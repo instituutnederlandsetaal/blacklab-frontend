@@ -75,6 +75,5 @@ export const DateUtils = {
 	},
 };
 
-export type DateFieldConfig = DateFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `DateFieldDefinition['componentProps']`. */
 export type DateFieldComponentProps = NamedFieldComponentProps<DateFieldState> & DateFieldExtraProps;

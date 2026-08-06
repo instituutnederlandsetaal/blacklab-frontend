@@ -73,10 +73,6 @@ type NewContainerNodeFnArgs<C extends AnyVueComponent, Config extends NewContain
 interface NewContainerNodeFn {
 	<C extends AnyVueComponent, Config extends NewContainerNodeFnConfig<C>>(...args: NewContainerNodeFnArgs<C, Config>): NewContainerNodeFnReturn<C, Config>;
 }
-// new container is a terminal operation - returning the container.
-interface NewContainerNode {
-	newContainer: NewContainerNodeFn;
-}
 
 // Form
 // ==========================================================================================================================
@@ -90,10 +86,6 @@ type NewFormNodeFnArgs<C extends AnyVueComponent, Config extends NewFormNodeFnCo
 
 interface NewFormNodeFn {
 	<C extends AnyVueComponent, Config extends NewFormNodeFnConfig<C>>(...args: NewFormNodeFnArgs<C, Config>): AddChildNodes & RealFormNode<ExtractExtraPropsFromConfig<Config>, C>;
-}
-// new form is a terminal operation - returning the form.
-interface NewFormNode {
-	newForm: NewFormNodeFn;
 }
 
 // Field
@@ -112,11 +104,6 @@ interface NewFieldNodeFn {
 	): NewFieldNodeFnReturn<C, Config>;
 }
 
-// new field is a terminal operation - returning the field.
-interface NewFieldNode {
-	newField: NewFieldNodeFn;
-}
-
 // View
 // ==========================================================================================================================
 
@@ -130,10 +117,6 @@ type NewViewNodeFnArgs<C extends AnyVueComponent, Config extends NewViewNodeFnCo
 
 interface NewViewNodeFn {
 	<C extends AnyVueComponent, Config extends NewViewNodeFnConfig<C>>(...args: NewViewNodeFnArgs<C, Config>): NewViewNodeFnReturn<C, Config>;
-}
-// new view is a terminal operation - returning the view.
-interface NewViewNode {
-	newView: NewViewNodeFn;
 }
 
 // Children
@@ -163,12 +146,6 @@ export type BuilderNode = BuilderContainerNode | FormFieldNode | FormViewNode;
 // ==========================================================================================================================
 
 /**
- * A build-time extension callback. Nodes are owned by the builder that creates
- * or first adopts them and must not be transplanted between builders.
- */
-export type FormRegistrationCallback = (api: FormBuilder) => RealContainerNode<unknown, AnyVueComponent> | RealFormNode<unknown, AnyVueComponent> | void;
-
-/**
  * Builds the static form graph. Runtime state and Vue rendering deliberately live
  * outside this class so a definition can be recreated, inspected, and shared
  * without becoming part of a reactive dependency graph.
@@ -181,7 +158,7 @@ export type FormRegistrationCallback = (api: FormBuilder) => RealContainerNode<u
  * contributions as builder-owned and use the editor methods rather than mutating
  * them directly.
  */
-export class FormBuilder implements NewContainerNode, NewFormNode, NewFieldNode, NewViewNode {
+export class FormBuilder {
 	public readonly context: FormRuntimeContext;
 
 	public constructor(context: FormRuntimeContext) {

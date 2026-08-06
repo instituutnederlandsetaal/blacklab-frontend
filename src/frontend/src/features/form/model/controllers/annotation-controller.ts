@@ -15,7 +15,6 @@ export type AnnotationControllerConfig = {
 };
 
 export type AnnotationTextFieldConfig = FieldControllerConfig<TextFieldDefinition, AnnotationControllerConfig>;
-export type AnnotationSelectFieldConfig = FieldControllerConfig<SelectFieldDefinition, AnnotationControllerConfig>;
 
 const annotationTextCodec = object({
 	value: scalar().default('').atRoot(),

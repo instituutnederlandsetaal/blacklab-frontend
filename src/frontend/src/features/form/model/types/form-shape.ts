@@ -66,8 +66,6 @@ export type RealFieldNode<Extra, C extends AnyVueComponent> = BaseFieldNode &
 		readonly component: C;
 	};
 
-export type FormControllerProps<Extra> = BaseNode & Extra;
-
 // View
 // ==========================================================================================================================
 

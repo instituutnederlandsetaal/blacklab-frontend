@@ -26,7 +26,3 @@ export function createRangeModeOptions(translate: Pick<Translate, '$t'>): RangeM
 		},
 	];
 }
-
-export function isRangeMode(value: unknown): value is RangeMode {
-	return value === 'strict' || value === 'permissive';
-}

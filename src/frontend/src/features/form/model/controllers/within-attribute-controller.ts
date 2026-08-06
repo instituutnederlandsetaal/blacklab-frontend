@@ -4,7 +4,7 @@ import { createDefaultRangeFieldState, type RangeFieldDefinition, type RangeFiel
 import { createDefaultSelectFieldState, type SelectFieldDefinition } from '@/features/form/fields/generic/select-field';
 import { createDefaultTextFieldState, type TextFieldDefinition, type TextFieldState } from '@/features/form/fields/generic/text-field';
 import { array, bool, object, scalar } from '@/features/form/model/controllers/persistence-codec';
-import { defineFieldController, type FieldControllerConfig } from '@/features/form/model/types/form-controllers';
+import { defineFieldController } from '@/features/form/model/types/form-controllers';
 import { queryFragment, summary, within, withinAttribute, withinAttributeRange } from '@/features/form/model/types/form-query-ir';
 
 import { findOption } from '@/shared/utils/options';
@@ -15,10 +15,6 @@ export type WithinAttributeControllerConfig = {
 	elementName: string;
 	attributeName: string;
 };
-
-export type WithinAttributeTextConfig = FieldControllerConfig<TextFieldDefinition, WithinAttributeControllerConfig>;
-export type WithinAttributeSelectConfig = FieldControllerConfig<SelectFieldDefinition, WithinAttributeControllerConfig>;
-export type WithinAttributeRangeConfig = FieldControllerConfig<RangeFieldDefinition, WithinAttributeControllerConfig>;
 
 const textPersistenceCodec = object({
 	value: scalar().default('').atRoot(),

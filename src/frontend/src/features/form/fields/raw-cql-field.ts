@@ -6,6 +6,5 @@ export type RawCqlQueryFieldExtraProps = {
 };
 export type RawCqlQueryFieldDefinition = FieldDefinition<RawCqlQueryFieldState, RawCqlQueryFieldExtraProps>;
 
-export type RawCqlQueryFieldConfig = RawCqlQueryFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `RawCqlQueryFieldDefinition['componentProps']`. */
 export type RawCqlQueryFieldComponentProps = FieldComponentProps<RawCqlQueryFieldState> & RawCqlQueryFieldExtraProps;

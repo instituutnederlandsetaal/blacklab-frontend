@@ -17,6 +17,5 @@ export type WithinFieldExtraProps = {
 };
 export type WithinFieldDefinition = FieldDefinition<WithinFieldState, WithinFieldExtraProps>;
 
-export type WithinFieldConfig = WithinFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `WithinFieldDefinition['componentProps']`. */
 export type WithinFieldComponentProps = FieldComponentProps<WithinFieldState> & WithinFieldExtraProps;

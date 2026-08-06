@@ -31,14 +31,6 @@ export type MetadataFilterDateConfig = FieldControllerConfig<DateFieldDefinition
 export type MetadataFilterRangeConfig = FieldControllerConfig<RangeFieldDefinition, MetadataFilterControllerConfig | BiMetadataFilterControllerConfig>;
 export type MetadataFilterSelectConfig = FieldControllerConfig<SelectFieldDefinition, MetadataFilterControllerConfig>;
 
-export type MetadataFilterConfig =
-	| MetadataFilterTextConfig
-	| MetadataFilterCheckboxConfig
-	| MetadataFilterRadioConfig
-	| MetadataFilterDateConfig
-	| MetadataFilterRangeConfig
-	| MetadataFilterSelectConfig;
-
 function metadataPersistKey(config: MetadataFilterControllerConfig | BiMetadataFilterControllerConfig) {
 	return isBiFieldConfig(config) ? `${config.fromField}-${config.toField}` : config.metadataFieldId;
 }

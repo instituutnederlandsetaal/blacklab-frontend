@@ -162,8 +162,6 @@ type CqlAnnotationNodeCompare = {
 type _CqlAnnotationNode = PredicateTextNode & CqlAnnotationNodeCompare & CqlBaseNode<'annotation'> & { annotation: string };
 export type CqlAnnotationNode = _CqlAnnotationNode | BooleanNode<_CqlAnnotationNode>;
 
-type CqlNodeToken = CqlAnnotationNode;
-
 export const annotation = (annotation: string, valueType: TextValueType, values: Values, p?: Partial<CqlAnnotationNodeCompare>): CqlAnnotationNode | null =>
 	booleanNode<_CqlAnnotationNode>('or', values, { type: 'cql-annotation', annotation, valueType, ...p });
 type CqlNodeAnyToken = CqlBaseNode<'any-token'>;
@@ -209,21 +207,16 @@ export const withinAttributeRange = (attribute: string, v: { low?: string; high?
 type CqlWrapperNodeContaining = CqlBaseNode<'containing'> & { element: string; attributes: Record<string, PredicateAttributeNode> };
 type CqlWrapperNodeWithSpans = CqlBaseNode<'with-spans'>;
 
-// Child node restriction helper types.
-type CqlNodeRepeatChildren = CqlNodeToken | CqlNodeAnyToken | CqlNodeRawExpression;
+// Child node restriction helper type.
+type CqlNodeRepeatChildren = CqlAnnotationNode | CqlNodeAnyToken | CqlNodeRawExpression;
 
 export type CqlWrapperNode = CqlWrapperNodeWithin | CqlWrapperNodeContaining | CqlWrapperNodeWithSpans;
 type CqlPatternLeafNode = _CqlAnnotationNode | CqlNodeAnyToken | CqlNodeRepeat | CqlNodeXmlTag | CqlNodeParallelQuery | CqlNodeRawExpression | CqlNodeSequence;
 export type CqlPatternNode = CqlPatternLeafNode | BooleanNode<CqlPatternLeafNode>;
-export type CqlNode = CqlPatternNode | CqlWrapperNode | CqlNodeParallelQueryTarget;
 
 export function isCqlPatternNode(node?: { type: string }): node is CqlPatternNode {
 	if (isBooleanNode<{ type: string }>(node)) return node.children.every(isCqlPatternNode);
 	return Boolean(node?.type.startsWith('cql-') && node.type !== 'cql-within' && node.type !== 'cql-containing' && node.type !== 'cql-with-spans' && node.type !== 'cql-target');
-}
-
-export function isCqlNode(node?: { type: string }): node is CqlNode {
-	return Boolean(isCqlPatternNode(node) || node?.type === 'cql-within' || node?.type === 'cql-containing' || node?.type === 'cql-with-spans' || node?.type === 'cql-target');
 }
 
 // #endregion
@@ -233,13 +226,9 @@ export function isCqlNode(node?: { type: string }): node is CqlNode {
 // The lucene part of the query is pretty limited in scope at the moment
 // Just singular clauses with various matching behavior, and boolean constructs of those clauses.
 
-type LuceneBaseNode<TName extends string> = {
-	type: `lucene-${TName}`;
+type _LuceneFieldNode = PredicateValueNode & { type: 'lucene-field' } & {
+	field: string;
 };
-type _LuceneFieldNode = PredicateValueNode &
-	LuceneBaseNode<'field'> & {
-		field: string;
-	};
 
 export type LuceneNode = _LuceneFieldNode | BooleanNode<_LuceneFieldNode>;
 export const filter = (field: string, valueType: TextValueType, values: Values): LuceneNode | null => booleanNode<_LuceneFieldNode>('or', values, { type: 'lucene-field', valueType, field });
@@ -310,10 +299,6 @@ export const queryIR = (parts?: null | Partial<QueryIRInput>): QueryIR => ({
 	resultPreset: parts?.resultPreset && resultPreset(parts.resultPreset), // keep undefined if not set, but copy the object if it is set
 	summaries: unwrapLenientArray(parts?.summaries),
 });
-export function isQueryIR(v: unknown): v is QueryIR {
-	// NOTE: check for arrays, or 'filter' would be in the object (Array.filter), but not a valid QueryIR.
-	return !Array.isArray(v) && v != null && typeof v === 'object' && 'pattern' in v && 'filter' in v && 'wrappers' in v && 'searchfield' in v;
-}
 export function isPartialQueryIR<T extends QueryIR | QueryIRInput>(v: unknown): v is Partial<T> {
 	// NOTE: check for arrays, or 'filter' would be in the object (Array.filter), but not a valid QueryIR.
 	return !Array.isArray(v) && v != null && typeof v === 'object' && ('pattern' in v || 'filter' in v || 'wrappers' in v || 'searchfield' in v || 'resultPreset' in v);
@@ -361,16 +346,13 @@ export const summary = (label: string, values: Values | { low?: string | null; h
 	return value ? { label, value, summaryType, group } : null;
 };
 
-// Helpe type
-type LenientSummaries = LenientArray<SummaryEntry>;
-
 // #endregion summaries
 
 // #region query assembly
 
 export function queryFragment<T extends Partial<QueryIRInput> | CqlPatternNode | CqlWrapperNode | CqlWrapperNode[] | LuceneNode = QueryIRInput>(
 	query?: T | null,
-	summary?: LenientSummaries,
+	summary?: LenientArray<SummaryEntry>,
 ): QueryIR | null {
 	const summaries = unwrapLenientArray(summary);
 
@@ -388,19 +370,15 @@ export function queryFragment<T extends Partial<QueryIRInput> | CqlPatternNode |
 
 // #endregion
 
-export type CompiledBlackLabParameters = Record<keyof BlackLabParameters, string | null>;
-
-export type CompiledQuery = CompiledBlackLabParameters & {
+export type CompiledQuery = Record<keyof BlackLabParameters, string | null> & {
 	resultPreset?: ResultPreset;
 };
 
 export type ScopedFormQuery = Record<string, string | string[]>;
 
-export type CompiledFormState = CompiledQuery & {
+export type CompiledFormStateWithSummaries = CompiledQuery & {
 	formId: string;
 	encoded: ScopedFormQuery;
 	issues?: RestoreIssue[];
-};
-export type CompiledFormStateWithSummaries = CompiledFormState & {
 	summaries: SummaryEntry[];
 };

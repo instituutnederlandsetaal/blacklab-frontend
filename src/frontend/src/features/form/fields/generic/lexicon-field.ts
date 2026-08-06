@@ -50,7 +50,6 @@ export type LexiconFieldExtraProps = {
 };
 export type LexiconFieldDefinition = NamedFieldDefinition<TextFieldState, LexiconFieldExtraProps, 'placeholder'>;
 
-export type LexiconFieldConfig = LexiconFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `LexiconFieldDefinition['componentProps']`. */
 export type LexiconFieldComponentProps = NamedFieldComponentProps<TextFieldState> & LexiconFieldExtraProps;
 

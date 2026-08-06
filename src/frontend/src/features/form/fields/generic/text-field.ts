@@ -16,6 +16,5 @@ export const createDefaultTextFieldState = (): TextFieldState => ({
 	value: '',
 	caseSensitive: false,
 });
-export type TextFieldConfig = TextFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `TextFieldDefinition['componentProps']`. */
 export type TextFieldComponentProps = NamedFieldComponentProps<TextFieldState> & TextFieldExtraProps;

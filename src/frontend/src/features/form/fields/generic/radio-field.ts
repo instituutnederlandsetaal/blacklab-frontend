@@ -9,6 +9,5 @@ export type RadioFieldExtraProps = {
 export type RadioFieldDefinition = NamedFieldDefinition<RadioFieldState, RadioFieldExtraProps>;
 
 export const createDefaultRadioFieldState = (): RadioFieldState => '';
-export type RadioFieldConfig = RadioFieldDefinition['nodeProps'];
 /** Materialized for Vue's runtime prop extraction; equivalent to `RadioFieldDefinition['componentProps']`. */
 export type RadioFieldComponentProps = NamedFieldComponentProps<RadioFieldState> & RadioFieldExtraProps;

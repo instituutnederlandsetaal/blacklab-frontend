@@ -41,11 +41,9 @@ export { default as NumberField } from './generic/NumberField.vue';
 export * from './generic/range-mode';
 export type {
 	AnyFieldDefinition,
-	FieldBaseProps,
 	FieldComponentProps,
 	FieldDefinition,
 	FieldDefinitionProps,
-	FieldExtraProps,
 	FieldBaseProp,
 	FieldFormValueProp,
 	FieldNodeProps,
@@ -53,8 +51,6 @@ export type {
 	FieldState,
 	NamedFieldComponentProps,
 	NamedFieldDefinition,
-	NamedFieldDefinitionProps,
 	RequiredFieldComponentProps,
 	RequiredFieldDefinitionProps,
-	ResolvedFieldProps,
 } from '../model/field-component-props';

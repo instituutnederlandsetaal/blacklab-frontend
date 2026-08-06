@@ -1,18 +1,13 @@
-import { reactivePick } from '@vueuse/core';
-import { computed, reactive, toRaw } from 'vue';
+import { toRaw } from 'vue';
 
 import type { NewFormState } from '@/features/form/model/state';
-import type { AnyBaseFormNode, FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeBase, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
+import type { AnyBaseFormNode, FormBoundaryNode, FormContainerLikeNode, FormFieldNode, FormNode, FormNodeKind, NodeKindMap } from '@/features/form/model/types/form-shape';
 
 import { lenientIter, type LenientArray } from '@/shared/utils/array-utils';
 
 export function isContainerNode(node: AnyBaseFormNode | null | undefined): node is FormContainerLikeNode {
 	return !!node && 'kind' in node && 'children' in node && Array.isArray(node.children);
 }
-export function isFieldNode(node: AnyBaseFormNode | null | undefined): node is FormFieldNode {
-	return !!node && node.kind === 'field' && 'controller' in node && typeof node.controller === 'object';
-}
-
 /** Iterate all nodes in the form graph, filtered by uniqueness. Duplicate nodes are skipped. */
 export function* walkFormNodes<K extends FormNodeKind>(nodes: FormNode | FormNode[], ...kind: K[]): Generator<NodeKindMap[K]> {
 	const seen = new Set<FormNode>();
@@ -47,16 +42,6 @@ export function getAllNodes(root: FormNode, ...kind: FormNodeKind[]): FormNode[]
 }
 export function getAllFields(root: FormNode): FormFieldNode[] {
 	return getAllNodes(root, 'field');
-}
-
-export function getFormsWithFields(root: FormNode): { form: FormNodeBase; fields: FormNodeBase[] }[] {
-	const forms: { form: FormNodeBase; fields: FormNodeBase[] }[] = [];
-	for (const node of walkFormNodes(root)) {
-		if (node.kind === 'form') {
-			forms.push({ form: node, fields: getAllNodes(node, 'field') });
-		}
-	}
-	return forms;
 }
 
 export function checkNoLoops(root: AnyBaseFormNode, completedSubgraphs = new Set<AnyBaseFormNode>()): void {
@@ -123,24 +108,6 @@ export function pickActiveFormState(form: FormBoundaryNode, formState: NewFormSt
 	}
 
 	return r;
-}
-
-/**
- * Like pickActiveFormState, but the returned object is reactive and "writes through" to the source object.
- *
- * @param form
- * @param formState
- * @returns
- */
-export function reactivePickActiveFormState(form: FormBoundaryNode, formState: NewFormState): NewFormState {
-	const fieldsInForm = computed(() => new Set(getAllNodes(form, 'field').map(field => field.id)));
-	const containersInForm = computed(() => new Set([...walkFormNodes(form, 'field', 'container')].map(node => node.id)));
-
-	return reactive({
-		state: reactivePick(formState.state, (v, k) => fieldsInForm.value.has(k)),
-		uiState: reactivePick(formState.uiState, (v, k) => containersInForm.value.has(k)),
-		rawOverrides: formState.rawOverrides,
-	});
 }
 
 export function decodeVariants<Variant extends string>(variants: LenientArray<Variant>): Partial<Record<Variant, boolean>> {
