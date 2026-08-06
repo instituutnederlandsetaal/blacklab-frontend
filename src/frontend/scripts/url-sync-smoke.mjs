@@ -666,7 +666,7 @@ async function run() {
 						try {
 							return await arg.jsonValue();
 						} catch {
-							return arg.toString();
+							return JSON.stringify(arg);
 						}
 					}),
 				);

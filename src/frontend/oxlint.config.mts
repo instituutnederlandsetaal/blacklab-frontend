@@ -55,6 +55,14 @@ const config: OxlintConfig = {
 		typeAware: true,
 		typeCheck: true,
 	},
+	overrides: [
+		{
+			files: ['scripts/**/*'],
+			rules: {
+				'eslint/no-console': 'off',
+			},
+		},
+	],
 	// Disable feature-sliced-design layer enforcement for now.
 
 	// overrides: getCrossLayerOverrides(),
