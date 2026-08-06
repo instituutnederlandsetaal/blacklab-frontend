@@ -1,6 +1,6 @@
 # Config Files
 
-The default location of customization files is `/etc/projectconfigs/`  
+The default location of customization files is `/etc/blacklab/projectconfigs/`  
 The location can be changed using the `corporaInterfaceDataDir` setting in the [Global Settings File](/configuration/global_settings).
 
 <FileTree hl="1-12">

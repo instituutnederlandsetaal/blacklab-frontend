@@ -18,7 +18,7 @@ This is done by adding a `<FaviconDir>` element to the `search.xml` file. The fa
 
 ::: info File location
 <FileTree hl="5">
-/etc/projectConfigs
+/etc/blacklab/projectconfigs
   corpus-1 corpus name/id
     static
       icon

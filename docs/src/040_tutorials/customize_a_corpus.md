@@ -9,13 +9,13 @@ This tutorial shows how to customize a corpus in the BlackLab Frontend by adding
 ## Steps
 
 1. **Create the config directory for your corpus.**  
-   By default, this is `/etc/projectconfigs/`. If your corpus is called `example`, your config directory will be `/etc/projectconfigs/example/`. Use your custom paths if necessary.
+   By default, this is `/etc/blacklab/projectconfigs/`. If your corpus is called `example`, your config directory will be `/etc/blacklab/projectconfigs/example/`. Use your custom paths if necessary.
 
 2. **Copy the default `search.xml` into your corpus directory.**  
    You can find the default at `src/main/resources/interface-default/search.xml`.  
    Copy it to:  
    ```
-   /etc/projectconfigs/example/search.xml
+   /etc/blacklab/projectconfigs/example/search.xml
    ```
 
 3. **Add a config option to include a custom script on the `search` page.**  
@@ -27,7 +27,7 @@ This tutorial shows how to customize a corpus in the BlackLab Frontend by adding
 4. **Create a matching JavaScript file.**  
    Create the file:
    ```
-   /etc/projectconfigs/example/static/js/custom.search.js
+   /etc/blacklab/projectconfigs/example/static/js/custom.search.js
    ```
 
 5. **Add the following snippet to your `custom.search.js`:**
