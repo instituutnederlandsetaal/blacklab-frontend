@@ -24,6 +24,22 @@ function getParallelChildContribution(config: FieldControllerProps<ParallelField
 	return getFieldQueryContribution(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime));
 }
 
+export function restoreCanonicalPatternInParallelField(
+	config: FieldControllerProps<ParallelFieldConfig>,
+	runtime: FormRuntimeContext,
+	canonicalPattern: string,
+	canonicalSearchfield: string | null | undefined,
+): ParallelFieldState | null {
+	const defaultState = createDefaultParallelFieldState(config, runtime);
+	const source = config.fieldOptions.some(option => option.id === canonicalSearchfield) ? canonicalSearchfield : defaultState.source;
+	if (!source) return null;
+	return {
+		...defaultState,
+		source,
+		childStates: { ...defaultState.childStates, [source]: canonicalPattern },
+	};
+}
+
 type PersistedParallelState = {
 	source: string | null;
 	alignBy: string | null;

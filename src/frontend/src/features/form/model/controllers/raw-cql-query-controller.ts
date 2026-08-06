@@ -1,7 +1,11 @@
-import type { RawCqlQueryFieldDefinition } from '@/features/form/fields/raw-cql-field';
+import type { RawCqlQueryFieldDefinition, RawCqlQueryFieldState } from '@/features/form/fields/raw-cql-field';
 import { scalar } from '@/features/form/model/controllers/persistence-codec';
 import { defineFieldController } from '@/features/form/model/types/form-controllers';
 import { queryFragment, rawCql } from '@/features/form/model/types/form-query-ir';
+
+export function restoreCanonicalPatternInExpertField(canonicalPattern: string): RawCqlQueryFieldState {
+	return canonicalPattern;
+}
 
 export const expertQueryController = defineFieldController<'raw-cql-query', RawCqlQueryFieldDefinition>({
 	kind: 'raw-cql-query',

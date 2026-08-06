@@ -41,6 +41,7 @@ import { filter, queryFragment } from '@/features/form/model/types/form-query-ir
 import { TestTextField, createTestBuilder, createTestContext, createTestRuntime, testTextController, type TestTextFieldConfig, type TestTextFieldState } from './helpers';
 
 import TextField from '@/features/form/fields/generic/TextField.vue';
+import ParallelField from '@/features/form/fields/ParallelField.vue';
 import QueryBuilderField from '@/features/form/fields/QueryBuilderField.vue';
 import RawCqlField from '@/features/form/fields/RawCqlField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
@@ -155,14 +156,14 @@ describe('scoped form persistence', () => {
 		expect(contribution?.resultPreset).toEqual({ sort: 'field:title' });
 	});
 
-	test('restores directly from a null-prototype raw query object', () => {
+	test('uses properties when object prototype is null', () => {
 		const fixture = createSingleTextForm();
 		const query = Object.assign(Object.create(null), { 'f.form': 'search.extended' }) as Record<string, unknown>;
 
 		expect(restoreFormState(fixture.definition, query).submittedFormId).toBe('search.extended');
 	});
 
-	test('ignores inherited scoped parameters', () => {
+	test('ignores properties from modified object prototype', () => {
 		const fixture = createSingleTextForm();
 		const query = Object.create({ 'f.form': 'search.extended' }) as Record<string, unknown>;
 
@@ -196,6 +197,7 @@ describe('scoped form persistence', () => {
 		expect(restored.issues).toEqual([]);
 		expect(restored.state[fixture.field.id]).toEqual({ value: 'water' });
 		expect(restored.rawOverrides).toEqual({});
+		expect(restored.submittedFormId).toEqual('search.extended');
 	});
 
 	test('returns deeply frozen restoration snapshots', () => {
@@ -324,6 +326,36 @@ describe('scoped form persistence', () => {
 		expect(restored.rawOverrides).toEqual({});
 	});
 
+	test('uses an expert CQL field wrapped in a parallel field for canonical patt', () => {
+		const context = createTestContext();
+		const builder = createTestBuilder({
+			...context,
+			corpus: { ...context.corpus, isParallelCorpus: true },
+		});
+		const root = builder.newContainer('search', ContainerRenderer, { title: 'Search', variant: 'tabs' });
+		const simple = builder.newForm('search.simple', ContainerRenderer, { title: 'Simple' });
+		const expert = builder.newForm('search.expert', ContainerRenderer, { title: 'Expert' });
+		const parallelField = builder.newField('search.expert.parallel', parallelController, ParallelField, {
+			childFieldTemplate: createFormFieldNode('search.expert.parallel.query', expertQueryController, RawCqlField, {}),
+			defaultSource: 'contents__en',
+			fieldOptions: [{ id: 'contents__en' }, { id: 'contents__nl' }],
+		});
+		expert.addChildren(parallelField);
+		root.addChildren(simple, expert);
+
+		const restored = restoreFormState(builder, { patt: '[word="water"]' });
+
+		expect(restored.submittedFormId).toBeNull();
+		expect(restored.uiState.search).toBe(expert.id);
+		expect(restored.state[parallelField.id]).toEqual({
+			source: 'contents__en',
+			targets: [],
+			alignBy: null,
+			childStates: { contents__en: '[word="water"]' },
+		});
+		expect(restored.rawOverrides).toEqual({});
+	});
+
 	test('ignores unusable scoped noise when falling back to canonical patt', () => {
 		const fixture = createCanonicalFallbackFixture();
 
@@ -351,6 +383,17 @@ describe('scoped form persistence', () => {
 		expect(restored.state[fixture.rawField.id]).toBe('[word="water"]');
 		expect(restored.rawOverrides).toEqual({});
 		expect(restored.issues).toEqual([]);
+	});
+
+	test('keeps the scoped form active when a persisted tab selection conflicts with it', () => {
+		const fixture = createCanonicalFallbackFixture();
+
+		const restored = restoreFormState(fixture.definition, {
+			'f.form': fixture.simple.id,
+			'f.tab': `search:${fixture.expert.id}`,
+		});
+
+		expect(restored.uiState.search).toBe(fixture.simple.id);
 	});
 
 	test('uses valid scoped field state instead of canonical-only fallback', () => {

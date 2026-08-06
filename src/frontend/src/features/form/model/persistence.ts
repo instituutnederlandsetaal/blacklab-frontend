@@ -1,7 +1,8 @@
+import type { ParallelFieldConfig } from '@/features/form/fields/parallel-field';
 import type { FormBuilder } from '@/features/form/model/builder/form-shape-builder';
 import { buildQueryIR } from '@/features/form/model/compile';
 import { compileQueryIR } from '@/features/form/model/compile/query-artifact';
-import { expertQueryController } from '@/features/form/model/controllers';
+import { expertQueryController, parallelController, restoreCanonicalPatternInExpertField, restoreCanonicalPatternInParallelField } from '@/features/form/model/controllers';
 import { findPathToNode, getAllNodes, isContainerNode, walkFormNodes } from '@/features/form/model/form-utils';
 import { createDefaultFormState, createFormStateSnapshot, type DeepReadonly, type FormStateInput, type NewFormState } from '@/features/form/model/state';
 import { NATIVE_BLACKLAB_PARAMETERS, type BlackLabParameters } from '@/features/form/model/types/blacklab-params';
@@ -41,12 +42,6 @@ type FieldCodecEntry = {
 	key: string;
 };
 
-type RestoreTarget = {
-	form: FormBoundaryNode;
-	selectedFormId: string | null;
-	issues: RestoreIssue[];
-};
-
 function isNonEmpty(value: string | null | undefined): value is string {
 	return value != null && value !== '';
 }
@@ -54,10 +49,6 @@ function isNonEmpty(value: string | null | undefined): value is string {
 function asArray(value: unknown): string[] {
 	if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string');
 	return typeof value === 'string' ? [value] : [];
-}
-
-function first(value: unknown): string | null {
-	return asArray(value)[0] ?? null;
 }
 
 function stripPrefix(key: string): string | null {
@@ -68,10 +59,21 @@ export function isReservedScopedFormKey(key: string): boolean {
 	return RESERVED_SCOPED_FORM_KEYS.has(key);
 }
 
-function findExpertForm(definition: FormBuilder): { form: FormBoundaryNode; field: FormFieldNode } | null {
+function findExpertFallback(definition: FormBuilder, canonicalPattern: string, canonicalSearchfield: string | null | undefined): { form: FormBoundaryNode; fieldId: string; state: unknown } | null {
 	for (const form of definition.formsList) {
 		for (const f of walkFormNodes(form, 'field')) {
-			if (f.controller.kind === expertQueryController.kind) return { form, field: f };
+			if (f.controller.kind === expertQueryController.kind) return { form, fieldId: f.id, state: restoreCanonicalPatternInExpertField(canonicalPattern) };
+			if (f.controller.kind !== parallelController.kind) continue;
+
+			const parallelField = f as FormFieldNode & ParallelFieldConfig;
+			if (parallelField.childFieldTemplate.controller.kind !== expertQueryController.kind) continue;
+			const state = restoreCanonicalPatternInParallelField(parallelField, definition.context, canonicalPattern, canonicalSearchfield);
+			if (!state) continue;
+			return {
+				form,
+				fieldId: f.id,
+				state,
+			};
 		}
 	}
 	return null;
@@ -262,30 +264,6 @@ function decodePersistedTabSelections(definition: FormBuilder, persistedTabs: De
 	return { uiState, issues };
 }
 
-function selectRestoreForm(definition: FormBuilder, formSelector: DecodedScopedParameter): RestoreTarget {
-	const requestedFormId = formSelector.present ? first(formSelector.value) : null;
-	const form = definition.formsMap[requestedFormId ?? ''] ?? definition.formsList[0];
-	if (!form) throw new Error('Cannot restore form state because the form builder has no form nodes.');
-
-	if (!formSelector.present) return { form, selectedFormId: null, issues: [] };
-	if (requestedFormId === form.id) return { form, selectedFormId: requestedFormId, issues: [] };
-
-	return {
-		form,
-		selectedFormId: null,
-		issues: [
-			{
-				key: SCOPED_FORM_KEYS.formSelector,
-				message: requestedFormId ? `No current form accepts persisted selector '${requestedFormId}'.` : 'Persisted form selector has no value.',
-			},
-		],
-	};
-}
-
-function selectExpertFallback(definition: FormBuilder, canonicalPattern: string | null | undefined, hasUsableScopedState: boolean) {
-	return !hasUsableScopedState && isNonEmpty(canonicalPattern) ? findExpertForm(definition) : null;
-}
-
 function findUnrepresentableCanonicalParams(compiledParams: BlackLabParameters, canonicalParams: BlackLabParameters): BlackLabParameters {
 	const overrides: BlackLabParameters = {};
 	for (const parameter of NATIVE_BLACKLAB_PARAMETERS) {
@@ -293,22 +271,6 @@ function findUnrepresentableCanonicalParams(compiledParams: BlackLabParameters, 
 		if (isNonEmpty(canonicalValue) && compiledParams[parameter] !== canonicalValue) overrides[parameter] = canonicalValue;
 	}
 	return overrides;
-}
-
-function buildRestoredUiState(
-	definition: FormBuilder,
-	persistedFields: ReadonlyMap<string, EncodedFieldValue | undefined>,
-	selectedFormId: string | null,
-	persistedTabs: Record<string, string>,
-	expertForm: FormBoundaryNode | null,
-): Record<string, string | null> {
-	return {
-		...getDefaultUiState(definition),
-		...inferUiStateFromPersistedFields(definition, persistedFields),
-		...(selectedFormId ? getUiStateForPath([definition.getRoot()], selectedFormId) : {}),
-		...persistedTabs,
-		...(expertForm ? getUiStateForPath([definition.getRoot()], expertForm.id) : {}),
-	};
 }
 
 function queryAffectingTabParams(form: FormNode, state: FormStateInput): string[] {
@@ -356,33 +318,65 @@ export function compileFormNode(node: FormNode, state: FormStateInput, context: 
 }
 
 export function restoreFormState(definition: FormBuilder, query: Record<string, unknown>): RestoredFormState {
+	if (!definition.formsList.length) throw new Error('Cannot restore form state because the form builder has no form nodes.');
+
 	const scopedParams = decodeScopedFormParams(query);
 	const canonicalParams = decodeCanonicalFormParams(query, definition.context);
-	const target = selectRestoreForm(definition, scopedParams.formSelector);
+	const requestedFormId = scopedParams.formSelector.present ? (asArray(scopedParams.formSelector.value)[0] ?? null) : null;
+	const scopedForm = definition.formsMap[requestedFormId ?? ''] ?? definition.formsList[0];
+
+	let submittedFormId: string | null = null;
+	const formSelectorIssues: RestoreIssue[] = [];
+	if (scopedParams.formSelector.present) {
+		if (requestedFormId === scopedForm.id) submittedFormId = requestedFormId;
+		else {
+			formSelectorIssues.push({
+				key: SCOPED_FORM_KEYS.formSelector,
+				message: requestedFormId ? `No current form accepts persisted selector '${requestedFormId}'.` : 'Persisted form selector has no value.',
+			});
+		}
+	}
+
 	const defaults = createDefaultFormState(definition.context, ...definition.nodeList);
-	const codec = buildFieldCodec(target.form, definition.context);
+	const codec = buildFieldCodec(scopedForm, definition.context);
 	const restoredFields = restorePersistedFields(codec.entries, scopedParams.fields, definition.context);
 	const persistedTabs = decodePersistedTabSelections(definition, scopedParams.tabSelections);
-	const hasUsableScopedState = Object.keys(restoredFields.state).length > 0 || Object.keys(persistedTabs.uiState).length > 0;
-	const expertFallback = selectExpertFallback(definition, canonicalParams.patt, hasUsableScopedState);
-	const formToCompile = expertFallback?.form ?? target.form;
-	const restoredState: NewFormState = {
-		state: {
-			...defaults.state,
-			...restoredFields.state,
-			...(expertFallback ? { [expertFallback.field.id]: canonicalParams.patt } : {}),
-		},
-		uiState: buildRestoredUiState(definition, scopedParams.fields, target.selectedFormId, persistedTabs.uiState, expertFallback?.form ?? null),
-		rawOverrides: {},
-	};
-	const compiledParams = compileQueryIR(buildQueryIR(formToCompile, restoredState, definition.context));
-	const rawOverrides = findUnrepresentableCanonicalParams(compiledParams, canonicalParams);
-	const issues = [...target.issues, ...codec.issues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues];
+	const issues = [...formSelectorIssues, ...codec.issues, ...restoredFields.issues, ...persistedTabs.issues, ...restoredFields.unrecognizedIssues];
 
-	return createFormStateSnapshot({
-		...restoredState,
-		rawOverrides,
-		issues,
-		submittedFormId: expertFallback ? null : target.selectedFormId,
-	});
+	const finishRestore = (activeForm: FormBoundaryNode, finalSubmittedFormId: string | null, expertFallback: ReturnType<typeof findExpertFallback> = null): RestoredFormState => {
+		const restoredState: NewFormState = {
+			state: {
+				...defaults.state,
+				...restoredFields.state,
+				...(expertFallback ? { [expertFallback.fieldId]: expertFallback.state } : {}),
+			},
+			uiState: {
+				...getDefaultUiState(definition),
+				...inferUiStateFromPersistedFields(definition, scopedParams.fields),
+				...persistedTabs.uiState,
+				...getUiStateForPath([definition.getRoot()], activeForm.id),
+			},
+			rawOverrides: {},
+		};
+		const compiledParams = compileQueryIR(buildQueryIR(activeForm, restoredState, definition.context));
+
+		return createFormStateSnapshot({
+			...restoredState,
+			rawOverrides: findUnrepresentableCanonicalParams(compiledParams, canonicalParams),
+			issues,
+			submittedFormId: finalSubmittedFormId,
+		});
+	};
+
+	// Restored fields or tabs make the scoped form authoritative.
+	if (Object.keys(restoredFields.state).length > 0 || Object.keys(persistedTabs.uiState).length > 0) return finishRestore(scopedForm, submittedFormId);
+
+	// Without a canonical pattern, there is nothing to restore into an expert field.
+	if (!isNonEmpty(canonicalParams.patt)) return finishRestore(scopedForm, submittedFormId);
+
+	// Canonical-only URLs use an expert form when the definition has a compatible field.
+	const expertFallback = findExpertFallback(definition, canonicalParams.patt, canonicalParams.searchfield);
+	if (!expertFallback) return finishRestore(scopedForm, submittedFormId);
+
+	return finishRestore(expertFallback.form, null, expertFallback);
 }
