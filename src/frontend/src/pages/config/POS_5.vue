@@ -17,12 +17,12 @@ import type { Tagset } from '@/types/apptypes';
 
 import type { StepState } from './POS.vue';
 
-export const value = 'Download';
-export const label = value;
-export const title = 'Download results';
-export const defaultAction = (s: StepState): StepState => s;
+const value = 'Download';
+const label = value;
+const title = 'Download results';
+const defaultAction = (s: StepState): StepState => s;
 
-export const step = defineComponent({
+const step = defineComponent({
 	props: {
 		modelValue: { type: Object as PropType<StepState>, required: true },
 	},
@@ -108,5 +108,5 @@ export const step = defineComponent({
 	},
 });
 
-export default step;
+export default Object.assign(step, { value, label, title, defaultAction, step });
 </script>

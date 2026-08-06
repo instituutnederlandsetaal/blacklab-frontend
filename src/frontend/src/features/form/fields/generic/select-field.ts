@@ -4,7 +4,7 @@ import type { Options } from '@/shared/utils/options';
 
 export type SelectFieldState = string[];
 export type SingleSelectFieldState = string;
-export type SelectFieldExtraProps = {
+type SelectFieldExtraProps = {
 	options: Options;
 	placeholder?: string;
 	multiple?: boolean;

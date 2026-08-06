@@ -20,11 +20,11 @@ import { clamp } from '@/shared/utils/number-utils';
 
 // Define some input/intermediate types and utils.
 
-export type DocInput = {
+type DocInput = {
 	indexId: string;
 	docId: string;
 };
-export type HitsInput = {
+type HitsInput = {
 	indexId: string;
 	docId: string;
 	patt: string;
@@ -32,7 +32,7 @@ export type HitsInput = {
 	pattgapdata?: string | undefined;
 };
 
-export type PageInput = {
+type PageInput = {
 	wordstart: number;
 	wordend: number;
 	findhit?: number;

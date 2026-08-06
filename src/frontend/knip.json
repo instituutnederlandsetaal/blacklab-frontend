@@ -1,0 +1,7 @@
+{
+	"$schema": "https://unpkg.com/knip@6/schema.json",
+	"entry": ["src/app/entrypoint/*.ts", "src/**/*.stories.ts", "test/**/*.{test,spec}.ts", "scripts/**/*.mjs", "assets/compile-schema.js", "assets/blf-schema.ts", ".storybook/*.ts"],
+	"project": ["src/**/*.{ts,tsx,vue,scss,sass,less,mdx}", "test/**/*.ts", "assets/**/*.{ts,js}", ".storybook/**/*.ts", "scripts/**/*.mjs"],
+	"ignoreUnresolved": ["^\\./@assets/font/INLV.*\\.TTF$"],
+	"treatConfigHintsAsErrors": true
+}

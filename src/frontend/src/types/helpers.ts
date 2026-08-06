@@ -1,14 +1,5 @@
 import { type VNodeProps, type AllowedComponentProps, type ComponentCustomProps, type Component } from 'vue';
 
-/** Recursively make all fields optional */
-export type RecursivePartial<T> = {
-	[P in keyof T]?: T[P] extends Array<infer U> ? Array<RecursivePartial<U>> : T[P] extends object ? RecursivePartial<T[P]> : T[P];
-};
-
-export type RecursiveRequired<T> = {
-	[P in keyof T]-?: T[P] extends Array<infer U> ? Array<RecursiveRequired<U>> : T[P] extends object ? RecursiveRequired<T[P]> : Required<T>[P];
-};
-
 type NonNullableObject<T> = {
 	[P in keyof T]: NonNullable<T[P]>;
 };
@@ -20,7 +11,7 @@ export type MarkRequiredAndNotNull<T, K extends keyof T = keyof T> = T extends s
 		: Omit<T, K> & Required<Pick<NonNullableObject<T>, K>>;
 
 /** Keep only those properties assignable to T  */
-export type FilterProps<TObj, T> = {
+type FilterProps<TObj, T> = {
 	[K in keyof TObj as TObj[K] extends T ? K : never]: TObj[K];
 };
 
@@ -30,21 +21,20 @@ export type KeysOfType<TObj, T> = keyof FilterProps<Required<TObj>, T>;
 /** See https://dev.to/lucianbc/union-type-merging-in-typescript-9al */
 export namespace UnionHelpers {
 	/** Return only those keys that exist in all union members. */
-	export type CommonKeys<T extends object> = keyof T;
+	type CommonKeys<T extends object> = keyof T;
 	/** Return only those keys that exist in some but not all union members. */
-	export type NonCommonKeys<T extends object> = Subtract<AllKeys<T>, CommonKeys<T>>;
-	export type Subtract<A, C> = A extends C ? never : A;
+	type NonCommonKeys<T extends object> = Subtract<AllKeys<T>, CommonKeys<T>>;
+	type Subtract<A, C> = A extends C ? never : A;
 	/** Return full list of possible keys across all union members. */
-	export type AllKeys<T> = T extends any ? keyof T : never;
+	type AllKeys<T> = T extends any ? keyof T : never;
 	/**
 	 * Given T is a union, K is a key in some of the union members, return all possible types behind the key.
 	 * E.g. type A = {a: string}; type B = {a?: number; b: string}; type C = PickType<A|B, 'a'> = string|number|undefined, where string is from A, number is from B, and undefined is 'a' being optional in type B.
 	 */
-	export type PickType<T, K extends AllKeys<T>> = T extends { [k in K]?: any } ? T[K] : undefined;
+	type PickType<T, K extends AllKeys<T>> = T extends { [k in K]?: any } ? T[K] : undefined;
 
 	/** Non-restricted version of PickType, which allows any symbol instead of only known keys. */
-	export type PickTypeOf<T, K extends string | number | symbol> = K extends AllKeys<T> ? PickType<T, K> : never;
-
+	type PickTypeOf<T, K extends string | number | symbol> = K extends AllKeys<T> ? PickType<T, K> : never;
 	/** Merge union types. E.G.:
 	 * ```typescript
 	 * type A = {a: string};
@@ -56,10 +46,6 @@ export namespace UnionHelpers {
 		[k in NonCommonKeys<T>]?: PickTypeOf<T, k>;
 	};
 }
-
-type IsKeyOptional<T, Keys extends keyof T> = { [Key in Keys]?: T[Key] } extends Pick<T, Keys> ? true : false;
-
-export type AreAllPropertiesOptional<T> = IsKeyOptional<T, keyof T> extends true ? true : false;
 
 type RequiredKeys<T> = {
 	[K in keyof T]-?: {} extends Pick<T, K> ? never : K;

@@ -13,7 +13,7 @@ export type ParallelFieldState = {
 };
 
 export type ParallelAnnotatedField = Parameters<Translate['$tAnnotatedFieldDisplayName']>[0] & { label?: OptionText };
-export type ParallelFieldExtraProps = {
+type ParallelFieldExtraProps = {
 	fieldOptions: ParallelAnnotatedField[];
 	alignByOptions?: Array<SimpleOption | Option>;
 	defaultSource?: string | null;

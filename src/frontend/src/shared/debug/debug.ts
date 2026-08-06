@@ -3,22 +3,7 @@ import { computed, reactive, ref, type App, type ComputedRef, type Ref } from 'v
 
 import useInjectable from '@/shared/utils/useInjectable';
 
-export type BuiltInLogCategory =
-	| 'article'
-	| 'autocomplete'
-	| 'export'
-	| 'filter'
-	| 'history'
-	| 'init'
-	| 'parallel'
-	| 'query'
-	| 'remote-index'
-	| 'results'
-	| 'shared'
-	| 'store'
-	| 'tooltip'
-	| 'ui'
-	| 'url';
+type BuiltInLogCategory = 'article' | 'autocomplete' | 'export' | 'filter' | 'history' | 'init' | 'parallel' | 'query' | 'remote-index' | 'results' | 'shared' | 'store' | 'tooltip' | 'ui' | 'url';
 export type LogCategory = BuiltInLogCategory | (string & {});
 
 export type DebugSystemConfig = {
@@ -26,7 +11,7 @@ export type DebugSystemConfig = {
 	visible: boolean;
 };
 
-export type DebugSystem = {
+type DebugSystem = {
 	debug: Ref<boolean>;
 	debug_visible: Ref<boolean>;
 	knownCategories: ComputedRef<LogCategory[]>;
@@ -153,21 +138,5 @@ export function debugLog(category: LogCategory, ...args: any[]) {
 	}
 }
 
-export function enable() {
-	currentDebugSystem?.enable();
-}
-
-export function disable() {
-	currentDebugSystem?.disable();
-}
-
-export function show() {
-	currentDebugSystem?.show();
-}
-
-export function hide() {
-	currentDebugSystem?.hide();
-}
-
 export default debug;
-export { debug_visible, useDebugSystem };
+export { useDebugSystem };

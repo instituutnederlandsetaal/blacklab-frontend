@@ -87,7 +87,7 @@ export interface BLUser {
 	debugMode?: boolean;
 }
 
-export interface BLCacheStatus {
+interface BLCacheStatus {
 	maxNumberOfSearches: number;
 	maxSearchAgeSec: number;
 	maxSizeBytes: number;
@@ -113,7 +113,6 @@ export type BLServer = BLServerBase & {
 	corpora: Record<string, BLIndex>;
 };
 export const isServerV5 = (v: BLServer | BLServerV4): v is BLServer => (v as BLServer).corpora != null && !v.apiVersion?.startsWith('4');
-export const isServerV4 = (v: BLServer | BLServerV4): v is BLServerV4 => !isServerV5(v);
 
 // #endregion
 
@@ -158,35 +157,30 @@ export type BLIndex = BLIndexBase & {
 	count: BLCount;
 };
 export const isIndexV5 = (v: BLIndex | BLIndexV4): v is BLIndex => (v as BLIndex).count != null;
-export const isIndexV4 = (v: BLIndex | BLIndexV4): v is BLIndexV4 => !isIndexV5(v);
 
 // #endregion
 
 // # region annotation/metadata groups
 
-export type BLAnnotationGroupV4 = {
+type BLAnnotationGroupV4 = {
 	name: string;
 	annotations: string[];
 };
-export type BLAnnotationGroup = {
+type BLAnnotationGroup = {
 	groupName: string;
 	annotations: string[];
 	addRemainingAnnotations: boolean;
 };
-export const isAnnotationGroupV5 = (v: BLAnnotationGroup | BLAnnotationGroupV4): v is BLAnnotationGroup => (v as BLAnnotationGroup).groupName != null;
-export const isAnnotationGroupV4 = (v: BLAnnotationGroup | BLAnnotationGroupV4): v is BLAnnotationGroupV4 => !isAnnotationGroupV5(v);
 
-export type BLMetadataGroupV4 = {
+type BLMetadataGroupV4 = {
 	name: string;
 	fields: string[];
 };
-export type BLMetadataGroup = {
+type BLMetadataGroup = {
 	name: string;
 	fieldNamesInGroup: string[];
 	addRemainingFields: boolean;
 };
-export const isMetadataGroupV5 = (v: BLMetadataGroup | BLMetadataGroupV4): v is BLMetadataGroup => (v as BLMetadataGroup).fieldNamesInGroup != null;
-export const isMetadataGroupV4 = (v: BLMetadataGroup | BLMetadataGroupV4): v is BLMetadataGroupV4 => !isMetadataGroupV5(v);
 
 // #endregion
 
@@ -267,11 +261,10 @@ export type BLIndexMetadata = BLIndexMetadataBase & {
 	count: BLCount;
 };
 export const isBLIndexMetadataV5 = (v: BLIndexMetadata | BLIndexMetadataV4): v is BLIndexMetadata => (v as BLIndexMetadata).count != null;
-export const isBLIndexMetadataV4 = (v: BLIndexMetadata | BLIndexMetadataV4): v is BLIndexMetadataV4 => !isBLIndexMetadataV5(v);
 
 // #endregion
 
-export interface BLSpanInfo {
+interface BLSpanInfo {
 	/** Number of occurances of this span in the corpus. */
 	count: number;
 	attributes?: {
@@ -372,7 +365,6 @@ export type BLAnnotation = BLAnnotationBase & {
 };
 /** V4 also includes `terms` when list values were requested, so only V5's `custom` container distinguishes the shapes. */
 export const isBLAnnotationV5 = (v: BLAnnotation | BLAnnotationV4): v is BLAnnotation => (v as BLAnnotation).custom != null;
-export const isBLAnnotationV4 = (v: BLAnnotation | BLAnnotationV4): v is BLAnnotationV4 => !isBLAnnotationV5(v);
 
 // #endregion
 
@@ -389,7 +381,7 @@ interface BLAnnotatedFieldBase {
 	hasXmlTags?: boolean;
 }
 
-export type BLAnnotatedFieldCustom = {
+type BLAnnotatedFieldCustom = {
 	description?: string;
 	displayName?: string;
 	displayOrder?: string[];
@@ -413,8 +405,6 @@ export type BLAnnotatedField = BLAnnotatedFieldBase & {
 		// e.g. relClass: {relType: count}
 	};
 };
-export const isAnnotatedFieldV5 = (v: BLAnnotatedField | BLAnnotatedFieldV4): v is BLAnnotatedField => (v as BLAnnotatedField).count != null;
-export const isAnnotatedFieldV4 = (v: BLAnnotatedField | BLAnnotatedFieldV4): v is BLAnnotatedFieldV4 => !isAnnotatedFieldV5(v);
 
 // #endregion
 
@@ -454,8 +444,6 @@ export type BLMetadataFieldV4 = BLMetadataFieldBase & BLMetadataFieldCustom;
 export type BLMetadataField = BLMetadataFieldBase & {
 	custom?: BLMetadataFieldCustom;
 };
-export const isMetadataFieldV5 = (v: BLMetadataField | BLMetadataFieldV4): v is BLMetadataField => (v as BLMetadataField).custom != null;
-export const isMetadataFieldV4 = (v: BLMetadataField | BLMetadataFieldV4): v is BLMetadataFieldV4 => !isMetadataFieldV5(v);
 // #endregion
 
 // --------------
@@ -464,7 +452,7 @@ export const isMetadataFieldV4 = (v: BLMetadataField | BLMetadataFieldV4): v is 
 
 // #region docssearchsummary
 
-export type BLSearchSummarySampleV4 =
+type BLSearchSummarySampleV4 =
 	| {}
 	| {
 			samplePercentage: number;
@@ -524,8 +512,6 @@ export type BLSearchResultsStatsV5 = {
 	stoppedBecauseTooMany: boolean;
 };
 
-export type BLSearchResultsSample = BLSearchSummarySampleV4;
-
 export type BLSubcorpusSize = {
 	documents: number;
 	tokens: number;
@@ -566,7 +552,7 @@ export type BLSearchSummaryV5 = {
 	};
 };
 
-export type BLSearchSummaryPatternInfoV4 = {
+type BLSearchSummaryPatternInfoV4 = {
 	/** The serialization of the query object BlackLab actually executed. */
 	bcql: string;
 	/** The main annotatedField that was searched. This is the full name of the field e.g. "contents__en" */
@@ -632,7 +618,7 @@ export interface BLSearchSummaryGroupedV4 {
 // #endregion docssearchsummary
 
 /** Single group of either hits or documents */
-export type BLGroupV4 = {
+type BLGroupV4 = {
 	identity: string;
 	identityDisplay: string;
 	size: number;
@@ -643,11 +629,7 @@ export type BLGroupV4 = {
 	}>;
 };
 
-// NOTE: unchanged, but for completeness' sake
-/** Single group of either hits or documents */
-export type BLGroup = BLGroupV4;
-
-export type BLHitGroupV4 = BLGroupV4 & {
+type BLHitGroupV4 = BLGroupV4 & {
 	/** When grouped on annotation + metadata */
 	numberOfDocs: number;
 	/** Present when grouped on at least one metadata field, and subcorpussize=true was in the request. If not present and subcorpussize=true was passed, use the main summary. */
@@ -656,7 +638,7 @@ export type BLHitGroupV4 = BLGroupV4 & {
 
 export type BLHitGroup = BLHitGroupV4;
 
-export type BLDocGroupV4 = BLGroupV4 & {
+type BLDocGroupV4 = BLGroupV4 & {
 	/** Total number of tokens across all documents in this group */
 	numberOfTokens: number;
 	/** Present when grouped on at least one metadata field, and subcorpussize=true was in the request. If not present and subcorpussize=true was passed, use the main summary. */
@@ -719,7 +701,7 @@ export interface BLMatchInfoSpan {
 }
 
 /** Something like "within <s/>". Represents the start and end of the span surrounded with the <s/>. */
-export interface BLMatchInfoTag {
+interface BLMatchInfoTag {
 	/** Something like "within <s/>". Represents the start and end of the span surrounded with the <s/>. */
 	type: 'tag';
 	start: number;
@@ -967,18 +949,8 @@ export type BLHitResults = {
 	summary: BLSearchSummaryV5;
 };
 
-export type BLSearchResultV4 = BLHitResultsV4 | BLDocResultsV4 | BLHitGroupResultsV4 | BLDocGroupResultsV4;
-export type BLSearchResultV5 = BLHitResultsV5 | BLDocResultsV5 | BLHitGroupResults | BLDocGroupResults;
 export type BLSearchResult = BLHitResults | BLDocResults | BLHitGroupResults | BLDocGroupResults;
 
-export const isSearchResultV4 = (d: any): d is BLSearchResultV4 => (d as Partial<BLSearchResultV4> | undefined)?.summary?.numberOfDocs != null;
-export const isHitResultsV4 = (d: BLSearchResultV4): d is BLHitResultsV4 => (d as Partial<BLHitResultsV4>).hits != null;
-export const isDocResultsV4 = (d: BLSearchResultV4): d is BLDocResultsV4 => (d as Partial<BLDocResultsV4>).docs != null;
-export const isHitGroupResultsV4 = (d: BLSearchResultV4): d is BLHitGroupResultsV4 => (d as Partial<BLHitGroupResultsV4>).hitGroups != null;
-export const isDocGroupResultsV4 = (d: BLSearchResultV4): d is BLDocGroupResultsV4 => (d as Partial<BLDocGroupResultsV4>).docGroups != null;
-export const isGroupsV4 = (d: BLSearchResultV4): d is BLHitGroupResultsV4 | BLDocGroupResultsV4 => isHitGroupResultsV4(d) || isDocGroupResultsV4(d);
-
-export const isSearchResult = (d: any): d is BLSearchResult => (d as Partial<BLSearchResult> | undefined)?.summary?.results != null;
 export const isHitResults = (d: BLSearchResult | null | undefined): d is BLHitResults => (d as Partial<BLHitResults> | null | undefined)?.hits != null;
 export const isDocResults = (d: BLSearchResult | null | undefined): d is BLDocResults => (d as Partial<BLDocResults> | null | undefined)?.docs != null;
 export const isHitGroups = (d: BLSearchResult | null | undefined): d is BLHitGroupResults => (d as Partial<BLHitGroupResults> | null | undefined)?.hitGroups != null;

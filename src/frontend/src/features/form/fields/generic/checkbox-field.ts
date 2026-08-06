@@ -3,7 +3,7 @@ import type { NamedFieldComponentProps, NamedFieldDefinition } from '@/features/
 import type { Option } from '@/shared/utils/options';
 
 export type CheckboxFieldState = string[];
-export type CheckboxFieldExtraProps = {
+type CheckboxFieldExtraProps = {
 	options: Option[];
 };
 export type CheckboxFieldDefinition = NamedFieldDefinition<CheckboxFieldState, CheckboxFieldExtraProps>;

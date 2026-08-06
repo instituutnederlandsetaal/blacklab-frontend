@@ -5,7 +5,7 @@ import { optionText, type OptionText } from '@/shared/utils/options';
 
 /** Annotation predicates joined by `&` in the generated CQL. */
 export type AnnotationPosFieldState = Record<string, string[]>;
-export type AnnotationPosFieldExtraProps = {
+type AnnotationPosFieldExtraProps = {
 	annotationId: string;
 	/** Deferred display labels for tagset subannotations. */
 	subAnnotationLabels?: Readonly<Record<string, OptionText>>;

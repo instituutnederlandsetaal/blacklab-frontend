@@ -73,7 +73,7 @@ const getAfter = (hit: AnyRawSnippet): BLHitSnippetPart => {
 type RawOrNormalizedHitInDoc = BLHitInDocV4 | BLHitInDocV5 | BLHitInDoc;
 type RawOrNormalizedHit = BLHitV4 | BLHitInOtherFieldV4 | BLHitV5 | BLHitInOtherFieldV5 | BLHit;
 
-export function normalizeHitInDoc(hit: RawOrNormalizedHitInDoc): BLHitInDoc {
+function normalizeHitInDoc(hit: RawOrNormalizedHitInDoc): BLHitInDoc {
 	return {
 		after: getAfter(hit),
 		before: getBefore(hit),
@@ -183,10 +183,7 @@ function normalizeSearchSummary(summary: BLSearchSummaryV4 & Partial<BLSearchSum
 	return r;
 }
 
-type NormalizableSummary =
-	| BLSearchSummaryV5
-	| BLSearchSummaryV5Legacy
-	| (BLSearchSummaryV4 & Partial<BLSearchSummaryPatternV4> & Partial<BLSearchSummaryGroupedV4>);
+type NormalizableSummary = BLSearchSummaryV5 | BLSearchSummaryV5Legacy | (BLSearchSummaryV4 & Partial<BLSearchSummaryPatternV4> & Partial<BLSearchSummaryGroupedV4>);
 
 function normalizeSummary(summary: NormalizableSummary): BLSearchSummaryV5 {
 	if ('results' in summary) return summary;

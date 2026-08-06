@@ -3,7 +3,7 @@ import type { NamedFieldComponentProps, NamedFieldDefinition } from '@/features/
 import type { Option } from '@/shared/utils/options';
 
 export type RadioFieldState = string;
-export type RadioFieldExtraProps = {
+type RadioFieldExtraProps = {
 	options: Option[];
 };
 export type RadioFieldDefinition = NamedFieldDefinition<RadioFieldState, RadioFieldExtraProps>;

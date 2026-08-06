@@ -60,5 +60,4 @@ function createCorpusStoreAdapter(corpusRef: Ref<Corpus | undefined>) {
 	};
 }
 
-export { createCorpusStoreAdapter, namespace };
-export type { ModuleRootState };
+export { createCorpusStoreAdapter };

@@ -2,16 +2,8 @@ import { describe, expect, test, vi } from 'vitest';
 import { nextTick, reactive, ref, shallowRef, watch, type Ref } from 'vue';
 
 import { ApiError, CancelableRequest } from '@/shared/api/lib/api-types';
-import { combine, combineOptional, combineLoadablesValue, mapLoadedValue, flatMapLoadedValue } from '@/shared/utils/loadable/loadable-combine';
-import {
-	combineOptionalReactive,
-	combineReactive,
-	combineLoadablesReactive,
-	flatMapLoadedReactive,
-	combineLoadables,
-	mapLoadedReactive,
-	unwrapLoadableRefs,
-} from '@/shared/utils/loadable/loadable-combine-reactive';
+import { combine, combineOptional, mapLoadedValue, flatMapLoadedValue } from '@/shared/utils/loadable/loadable-combine';
+import { combineOptionalReactive, combineLoadables, unwrapLoadableRefs } from '@/shared/utils/loadable/loadable-combine-reactive';
 import { Loadable, LoadableState, type LoadableLike } from '@/shared/utils/loadable/loadable-core';
 import { loadableFromComputedRequest, loadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
 import {
@@ -19,7 +11,6 @@ import {
 	flatMapErrorReactive,
 	flatMapOptionalReactive,
 	flatMapLoadingReactive,
-	loadableFromRefs,
 	loadableReactive,
 	mapEmptyReactive,
 	mapErrorReactive,
@@ -39,7 +30,7 @@ function createControlledLoadable<T>(initial: Loadable<T>, extra: Partial<{ retr
 		state,
 		value,
 		error,
-		loadable: loadableFromRefs(state, value, error, {
+		loadable: loadableReactive(state, value, error, {
 			retry: vi.fn<() => void>(),
 			stop: vi.fn<() => void>(),
 			...extra,
@@ -70,15 +61,15 @@ async function flushPromises() {
 }
 
 describe('non-reactive loadable primitives', () => {
-	test('combineLoadablesValue combines loaded arrays', () => {
-		const result = combineLoadablesValue([Loadable.Loaded(1), Loadable.Loaded(2)] as const);
+	test('combine combines loaded arrays', () => {
+		const result = combine([Loadable.Loaded(1), Loadable.Loaded(2)] as const);
 
 		expect(result.state).toBe(LoadableState.loaded);
 		expect(result.value).toEqual([1, 2]);
 	});
 
-	test('combineLoadablesValue passes through first non-loaded state', () => {
-		const result = combineLoadablesValue([Loadable.Loaded(1), Loadable.Empty<number>(), Loadable.Loading()] as const);
+	test('combine passes through first non-loaded state', () => {
+		const result = combine([Loadable.Loaded(1), Loadable.Empty<number>(), Loadable.Loading()] as const);
 
 		expect(result.state).toBe(LoadableState.empty);
 	});
@@ -122,22 +113,22 @@ describe('non-reactive loadable primitives', () => {
 		expect(resolved.b.state).toBe(LoadableState.empty);
 	});
 
-	test('combineLoadablesValue accepts plain LoadableLike shape', () => {
+	test('combine accepts plain LoadableLike shape', () => {
 		const a: LoadableLike<number> = { state: LoadableState.loaded, value: 1, error: undefined };
 		const b: LoadableLike<number> = { state: LoadableState.loaded, value: 2, error: undefined };
-		const result = combineLoadablesValue([a, b] as const);
+		const result = combine([a, b] as const);
 
 		expect(result.state).toBe(LoadableState.loaded);
 		expect(result.value).toEqual([1, 2]);
 	});
 
-	test('combineLoadablesValue passes through original non-loaded LoadableLike', () => {
+	test('combine passes through original non-loaded LoadableLike', () => {
 		const loadingLike: LoadableLike<number> = {
 			state: LoadableState.loading,
 			value: undefined,
 			error: undefined,
 		};
-		const result = combineLoadablesValue([loadingLike, Loadable.Loaded(2)] as const);
+		const result = combine([loadingLike, Loadable.Loaded(2)] as const);
 
 		expect(result).toBe(loadingLike);
 	});
@@ -157,12 +148,12 @@ describe('non-reactive loadable primitives', () => {
 	});
 });
 
-describe('combineLoadablesReactive', () => {
+describe('combineLoadables', () => {
 	test('combines maybeRef loadables in arrays', async () => {
 		const a: Ref<Loadable<number>> = ref(Loadable.Loaded(1));
 		const b = Loadable.Loaded(2);
 
-		const combined = combineLoadablesReactive([a, b] as const);
+		const combined = combineLoadables([a, b] as const);
 
 		expect(combined.state).toBe(LoadableState.loaded);
 		expect(combined.value).toEqual([1, 2]);
@@ -176,7 +167,7 @@ describe('combineLoadablesReactive', () => {
 		const a: Ref<Loadable<string>> = ref(Loadable.Loaded('x'));
 		const b: Ref<Loadable<string>> = ref(Loadable.Loaded('y'));
 
-		const combined = combineLoadablesReactive({ a, b });
+		const combined = combineLoadables({ a, b });
 
 		expect(combined.state).toBe(LoadableState.loaded);
 		expect(combined.value).toEqual({ a: 'x', b: 'y' });
@@ -186,21 +177,21 @@ describe('combineLoadablesReactive', () => {
 		expect(combined.state).toBe(LoadableState.empty);
 	});
 
-	test('supports includeEmpty through the reactive alias', () => {
+	test('supports includeEmpty', () => {
 		const loaded: Ref<Loadable<number>> = ref(Loadable.Loaded(1));
 		const empty: Ref<Loadable<number>> = ref(Loadable.Empty());
 
-		const combined = combineLoadablesReactive([loaded, empty] as const, { includeEmpty: true });
+		const combined = combineLoadables([loaded, empty] as const, { includeEmpty: true });
 
 		expect(combined.state).toBe(LoadableState.loaded);
 		expect(combined.value).toEqual([1, undefined]);
 	});
 
-	test('new reactive combine names delegate to the existing reactive combiner', () => {
+	test('combineOptionalReactive includes empty values', () => {
 		const loaded: Ref<Loadable<number>> = ref(Loadable.Loaded(1));
 		const empty: Ref<Loadable<number>> = ref(Loadable.Empty());
 
-		const combined = combineReactive([loaded] as const);
+		const combined = combineLoadables([loaded] as const);
 		const optional = combineOptionalReactive([loaded, empty] as const);
 
 		expect(combined.value).toEqual([1]);
@@ -371,10 +362,10 @@ describe('loadableFromLoadables', () => {
 	});
 });
 
-describe('mapLoadedReactive', () => {
+describe('mapReactive', () => {
 	test('maps a single loadable input', () => {
 		const source: Ref<Loadable<number>> = ref(Loadable.Loaded(2));
-		const result = mapLoadedReactive(source, value => value + 1);
+		const result = mapReactive(source, value => value + 1);
 
 		expect(result.state).toBe(LoadableState.loaded);
 		expect(result.value).toBe(3);
@@ -385,7 +376,7 @@ describe('mapLoadedReactive', () => {
 		const second: Ref<Loadable<number>> = ref(Loadable.Loaded(2));
 		const mapper = vi.fn<(values: readonly [number, number]) => number>(([a, b]) => a + b);
 
-		const result = mapReactive(combineReactive([first, second] as const), mapper);
+		const result = mapReactive(combineLoadables([first, second] as const), mapper);
 
 		expect(result.state).toBe(LoadableState.loading);
 		expect(mapper).not.toHaveBeenCalled();
@@ -413,7 +404,7 @@ describe('mapLoadedReactive', () => {
 		const b: Ref<Loadable<string>> = ref(Loadable.Loaded('bar'));
 		const mapper = vi.fn<(values: { a: string; b: string }) => string>(({ a, b }) => `${a}-${b}`);
 
-		const result = combineReactive({ a, b }).map(mapper);
+		const result = combineLoadables({ a, b }).map(mapper);
 
 		expect(result.state).toBe(LoadableState.loaded);
 		expect(result.value).toBe('foo-bar');
@@ -686,23 +677,23 @@ describe('loadableFromComputedRequest', () => {
 	});
 });
 
-describe('flatMapLoadedReactive variants', () => {
-	test('flatMapLoadedReactive returns mapped loadable when all loaded', () => {
+describe('flatMapReactive variants', () => {
+	test('flatMapReactive returns mapped loadable when all loaded', () => {
 		const left: Ref<Loadable<number>> = ref(Loadable.Loaded(4));
 		const right: Ref<Loadable<number>> = ref(Loadable.Loaded(5));
 
-		const result = flatMapReactive(combineReactive([left, right] as const), ([a, b]) => Loadable.Loaded(a * b));
+		const result = flatMapReactive(combineLoadables([left, right] as const), ([a, b]) => Loadable.Loaded(a * b));
 
 		expect(result.state).toBe(LoadableState.loaded);
 		expect(result.value).toBe(20);
 	});
 
-	test('flatMapLoadedReactive passes through non-loaded states', async () => {
+	test('flatMapReactive passes through non-loaded states', async () => {
 		const first: Ref<Loadable<number>> = ref(Loadable.Empty<number>());
 		const second: Ref<Loadable<number>> = ref(Loadable.Loaded(2));
 		const mapper = vi.fn<(values: { first: number; second: number }) => Loadable<number>>(({ first, second }) => Loadable.Loaded(first + second));
 
-		const result = combineReactive({ first, second }).flatMap(mapper);
+		const result = combineLoadables({ first, second }).flatMap(mapper);
 
 		expect(result.state).toBe(LoadableState.empty);
 		expect(mapper).not.toHaveBeenCalled();
@@ -714,7 +705,7 @@ describe('flatMapLoadedReactive variants', () => {
 		expect(mapper).toHaveBeenCalledTimes(1);
 	});
 
-	test('flatMapLoadedReactive chains from a single loadable and preserves control fanout', () => {
+	test('flatMapReactive chains from a single loadable and preserves control fanout', () => {
 		const retrySource = vi.fn<() => void>();
 		const stopSource = vi.fn<() => void>();
 		const retryInner = vi.fn<() => void>();
@@ -728,7 +719,7 @@ describe('flatMapLoadedReactive variants', () => {
 			stop: stopInner,
 		});
 
-		const result = flatMapLoadedReactive(source.loadable, value => {
+		const result = flatMapReactive(source.loadable, value => {
 			expect(value).toBe(2);
 			return inner.loadable;
 		});
@@ -745,13 +736,13 @@ describe('flatMapLoadedReactive variants', () => {
 		expect(stopInner).toHaveBeenCalledTimes(1);
 	});
 
-	test('flatMapLoadedReactive stops the previous mapped loadable when source stops matching', async () => {
+	test('flatMapReactive stops the previous mapped loadable when source stops matching', async () => {
 		const stopInner = vi.fn<() => void>();
 		const source = createControlledLoadable(Loadable.Loaded(2));
 		const inner = createControlledLoadable(Loadable.Loaded(4), {
 			stop: stopInner,
 		});
-		const result = flatMapLoadedReactive(source.loadable, () => inner.loadable);
+		const result = flatMapReactive(source.loadable, () => inner.loadable);
 
 		source.state.value = LoadableState.loading;
 		await nextTick();
@@ -760,14 +751,14 @@ describe('flatMapLoadedReactive variants', () => {
 		expect(stopInner).toHaveBeenCalledTimes(1);
 	});
 
-	test('flatMapLoadedReactive stops the previous mapped loadable when mapping changes', async () => {
+	test('flatMapReactive stops the previous mapped loadable when mapping changes', async () => {
 		const stopFirstInner = vi.fn<() => void>();
 		const source: Ref<Loadable<number>> = ref(Loadable.Loaded(1));
 		const firstInner = createControlledLoadable(Loadable.Loaded(10), {
 			stop: stopFirstInner,
 		});
 		const secondInner = createControlledLoadable(Loadable.Loaded(20));
-		const result = flatMapLoadedReactive(source, value => (value === 1 ? firstInner.loadable : secondInner.loadable));
+		const result = flatMapReactive(source, value => (value === 1 ? firstInner.loadable : secondInner.loadable));
 
 		source.value = Loadable.Loaded(2);
 		await nextTick();
@@ -777,11 +768,11 @@ describe('flatMapLoadedReactive variants', () => {
 		expect(stopFirstInner).toHaveBeenCalledTimes(1);
 	});
 
-	test('loadableFromRefs state check functions work as expected', () => {
+	test('loadableReactive state check functions work as expected', () => {
 		const state = ref(LoadableState.loaded);
 		const value = ref(42);
 		const error = ref<ApiError | undefined>(undefined);
-		const loadable = loadableFromRefs(state, value, error);
+		const loadable = loadableReactive(state, value, error);
 		expect(loadable.state).toBe(LoadableState.loaded);
 		expect(loadable.value).toBe(42);
 		expect(loadable.error).toBeUndefined();
@@ -801,11 +792,11 @@ describe('flatMapLoadedReactive variants', () => {
 		expect(loadable.value).toBe(1);
 	});
 
-	test('loadableFromRefs exposes mapper instance functions', async () => {
+	test('loadableReactive exposes mapper instance functions', async () => {
 		const state = ref(LoadableState.loaded);
 		const value = ref<number | undefined>(42);
 		const error = ref<ApiError | undefined>(undefined);
-		const loadable = loadableFromRefs(state, value, error);
+		const loadable = loadableReactive(state, value, error);
 
 		const mapped = loadable.map(v => v + 1);
 		expect(mapped.state).toBe(LoadableState.loaded);

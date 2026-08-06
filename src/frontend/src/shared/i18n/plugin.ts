@@ -18,4 +18,4 @@ export function createI18nPlugin(parts: I18nPluginParts): I18nPlugin {
 	};
 }
 
-export { provideTranslate, useI18n };
+export { useI18n };

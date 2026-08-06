@@ -235,7 +235,7 @@ export const DateUtils = {
 /**
  * Separate from the components so we can easily call these functions from other places.
  */
-export const valueFunctions: Record<string, FilterValueFunctions<unknown, unknown>> = {
+const valueFunctions: Record<string, FilterValueFunctions<unknown, unknown>> = {
 	'filter-autocomplete': {
 		decodeInitialState(id, filterMetadata, filterValues) {
 			return (

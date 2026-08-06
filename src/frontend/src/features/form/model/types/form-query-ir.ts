@@ -214,7 +214,7 @@ export type CqlWrapperNode = CqlWrapperNodeWithin | CqlWrapperNodeContaining | C
 type CqlPatternLeafNode = _CqlAnnotationNode | CqlNodeAnyToken | CqlNodeRepeat | CqlNodeXmlTag | CqlNodeParallelQuery | CqlNodeRawExpression | CqlNodeSequence;
 export type CqlPatternNode = CqlPatternLeafNode | BooleanNode<CqlPatternLeafNode>;
 
-export function isCqlPatternNode(node?: { type: string }): node is CqlPatternNode {
+function isCqlPatternNode(node?: { type: string }): node is CqlPatternNode {
 	if (isBooleanNode<{ type: string }>(node)) return node.children.every(isCqlPatternNode);
 	return Boolean(node?.type.startsWith('cql-') && node.type !== 'cql-within' && node.type !== 'cql-containing' && node.type !== 'cql-with-spans' && node.type !== 'cql-target');
 }
@@ -240,7 +240,7 @@ export const filterRange = (field: string, low?: string, high?: string): LuceneN
 	high,
 });
 
-export function isLuceneNode(node?: { type: string }): node is LuceneNode {
+function isLuceneNode(node?: { type: string }): node is LuceneNode {
 	return Boolean(node?.type.startsWith('lucene-') || (isBooleanNode<{ type: string }>(node) && node.children.every(isLuceneNode)));
 }
 
@@ -299,7 +299,7 @@ export const queryIR = (parts?: null | Partial<QueryIRInput>): QueryIR => ({
 	resultPreset: parts?.resultPreset && resultPreset(parts.resultPreset), // keep undefined if not set, but copy the object if it is set
 	summaries: unwrapLenientArray(parts?.summaries),
 });
-export function isPartialQueryIR<T extends QueryIR | QueryIRInput>(v: unknown): v is Partial<T> {
+function isPartialQueryIR<T extends QueryIR | QueryIRInput>(v: unknown): v is Partial<T> {
 	// NOTE: check for arrays, or 'filter' would be in the object (Array.filter), but not a valid QueryIR.
 	return !Array.isArray(v) && v != null && typeof v === 'object' && ('pattern' in v || 'filter' in v || 'wrappers' in v || 'searchfield' in v || 'resultPreset' in v);
 }
@@ -328,14 +328,14 @@ export type SummaryEntry = {
 };
 
 const re_whitespace = /\s/;
-export const summarize = (values: Values, options?: Options): string | null => {
+const summarize = (values: Values, options?: Options): string | null => {
 	values = valuesToArray(values);
 	if (options) values = optionLabels(options, values);
 	if (values.length > 1) return values.map(value => `"${value}"`).join(', ');
 	if (values.length === 1) return values[0].match(re_whitespace) ? `"${values[0]}"` : values[0];
 	return null;
 };
-export const summarizeRange = (low?: string | null, high?: string | null): string | null => {
+const summarizeRange = (low?: string | null, high?: string | null): string | null => {
 	if (low && high) return `${low} - ${high}`;
 	if (low) return `≥ ${low}`;
 	if (high) return `≤ ${high}`;

@@ -1,11 +1,11 @@
 import { isEmpty, isLoadableLike, isLoaded, Loadable, type LoadableLike } from './loadable-core';
 
 export type MaybeLoadable<T> = LoadableLike<T> | Loadable<T>;
-export type LoadableShapeArray = readonly unknown[];
-export type LoadableShapeObject = Record<string, unknown>;
+type LoadableShapeArray = readonly unknown[];
+type LoadableShapeObject = Record<string, unknown>;
 export type LoadableShape = LoadableShapeArray | LoadableShapeObject;
-export type MaybeLoadablesArray = readonly MaybeLoadable<unknown>[];
-export type MaybeLoadablesObject = Record<string, MaybeLoadable<unknown>>;
+type MaybeLoadablesArray = readonly MaybeLoadable<unknown>[];
+type MaybeLoadablesObject = Record<string, MaybeLoadable<unknown>>;
 export type MaybeLoadablesArrayOrObject = MaybeLoadablesArray | MaybeLoadablesObject;
 
 export type LoadedValues<T extends LoadableShape> = {
@@ -27,20 +27,20 @@ function mapShape<T extends LoadableShape>(loadables: T, mapper: (value: unknown
 }
 
 /** Return the first non-loaded loadable from the passed array or object. Plain values are considered settled. */
-export function firstNonLoaded<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | undefined {
+function firstNonLoaded<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | undefined {
 	return valuesOf(loadables).find(v => isLoadableLike(v) && !isLoaded(v)) as PassthroughFrom<T> | undefined;
 }
 
-export function extractLoadedValues<T extends LoadableShape>(loadables: T): LoadedValues<T> {
+function extractLoadedValues<T extends LoadableShape>(loadables: T): LoadedValues<T> {
 	return mapShape(loadables, v => (isLoadableLike(v) ? v.value : v)) as LoadedValues<T>;
 }
 
 /** Return the first loadable that is neither Loaded nor Empty. Empty values are considered settled. */
-export function firstNonLoadedOrEmpty<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | undefined {
+function firstNonLoadedOrEmpty<T extends LoadableShape>(loadables: T): PassthroughFrom<T> | undefined {
 	return valuesOf(loadables).find(v => isLoadableLike(v) && !isLoaded(v) && !isEmpty(v)) as PassthroughFrom<T> | undefined;
 }
 
-export function extractLoadedValuesIncludingEmpty<T extends LoadableShape>(loadables: T): LoadedValuesIncludingEmpty<T> {
+function extractLoadedValuesIncludingEmpty<T extends LoadableShape>(loadables: T): LoadedValuesIncludingEmpty<T> {
 	return mapShape(loadables, v => (isLoadableLike(v) ? (isLoaded(v) ? v.value : undefined) : v)) as LoadedValuesIncludingEmpty<T>;
 }
 
@@ -55,9 +55,6 @@ export function combineOptional<T extends LoadableShape>(loadables: T): Passthro
 	if (nonLoadedOrEmpty) return nonLoadedOrEmpty;
 	return Loadable.Loaded(extractLoadedValuesIncludingEmpty(loadables));
 }
-
-export const combineLoadablesValue = combine;
-export const combineLoadablesValueIncludingEmpty = combineOptional;
 
 /**
  * Given an array or object of loadables, if all are loaded, return the result of applying the mapper to the loaded values.

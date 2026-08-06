@@ -248,14 +248,7 @@ const tableHeaders: {
 		},
 	},
 };
-// Helpers to compute the largest number in the currently displayed result set.
-// E.G. largest occurance of the RowData['gr.d'] property.
-// This is required to scale the bars in the horizontal barchart view. The largest occurance of a value there has 100% width.
-// NOTE: sometimes we know the absolute maximum across all groups (such as the size), because BlackLab tells us,
-// but sometimes we only have the maximum value in the currently displayed page (such as for properties we compute locally, such as relative sizes).
-// Fixing this would be a substantial amount of extra work for BlackLab.
-export type LocalMaxima = { [P in keyof GroupRowData]-?: number extends GroupRowData[P] ? number : never };
-export class MaxCounter<T, K extends T extends string ? T : KeysOfType<T, number> = T extends string ? T : KeysOfType<T, number>> {
+class MaxCounter<T, K extends T extends string ? T : KeysOfType<T, number> = T extends string ? T : KeysOfType<T, number>> {
 	public values: Record<K, number> = {} as any;
 
 	public add(key: K, v?: number) {
@@ -689,7 +682,7 @@ type ColumnDefBase = {
 	colspan?: number;
 };
 
-export type ColumnDefHit = ColumnDefBase &
+type ColumnDefHit = ColumnDefBase &
 	(
 		| {
 				/** Column shows the tokens of the hit, either the before/match/after, which get special treatment, or another annotation, but in that case the match is shown. */
@@ -707,7 +700,7 @@ export type ColumnDefHit = ColumnDefBase &
 		  }
 	);
 
-export type ColumnDefDoc = ColumnDefBase & {
+type ColumnDefDoc = ColumnDefBase & {
 	field: 'summary' | 'metadata' | 'hits';
 	metadata?: NormalizedMetadataField;
 };

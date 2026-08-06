@@ -8,7 +8,7 @@ export type ResultPresetControllerConfig = {
 	persistKey: string;
 	resultPreset?: ResultPreset;
 };
-export type ResultPresetFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, ResultPresetControllerConfig>;
+type ResultPresetFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, ResultPresetControllerConfig>;
 
 function createDefaultState(config: ResultPresetFieldConfig): string {
 	return config.defaultValue ?? '';

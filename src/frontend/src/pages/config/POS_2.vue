@@ -55,16 +55,16 @@ import type { NormalizedAnnotation } from '@/types/apptypes';
 
 import type { StepState } from './POS.vue';
 
-export const value = 'Choose sub';
-export const label = value;
-export const title = 'Select Part of Speech sub annotations';
+const value = 'Choose sub';
+const label = value;
+const title = 'Select Part of Speech sub annotations';
 
 // export const canActivate = () => true;
-export const defaultAction = (s: StepState): StepState => ({
+const defaultAction = (s: StepState): StepState => ({
 	...s,
 	subAnnotations: s.annotations.filter(a => a.parentAnnotationId === s.mainPosAnnotationId),
 });
-export const step = defineComponent({
+const step = defineComponent({
 	emits: ['update:modelValue', 'submit'],
 	props: {
 		modelValue: { type: Object as PropType<StepState>, required: true },
@@ -87,5 +87,5 @@ export const step = defineComponent({
 	},
 });
 
-export default step;
+export default Object.assign(step, { value, label, title, defaultAction, step });
 </script>

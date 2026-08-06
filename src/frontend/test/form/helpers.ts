@@ -8,7 +8,7 @@ export type TestTextFieldState = {
 	value: string;
 };
 
-export type TestTextFieldExtraProps = {
+type TestTextFieldExtraProps = {
 	annotationId: string;
 };
 export type TestTextFieldDefinition = NamedFieldDefinition<TestTextFieldState, TestTextFieldExtraProps>;

@@ -352,4 +352,4 @@ class I18nManager {
 	}
 }
 
-export { I18nManager, type LocaleState };
+export { I18nManager };

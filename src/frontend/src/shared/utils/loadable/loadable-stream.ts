@@ -59,9 +59,6 @@ export function mapLoadable<T, U, S extends LoadableState>(state: S, mapper: (v:
 	});
 }
 export const mapLoaded = (mapLoadable.Loaded = <T, U>(mapper: (v: T) => U) => mapLoadable(LoadableState.loaded, mapper));
-export const mapError = (mapLoadable.Error = <U>(mapper: (v: ApiError) => U) => mapLoadable(LoadableState.error, mapper));
-export const mapEmpty = (mapLoadable.Empty = <U>(mapper: (v: undefined) => U) => mapLoadable(LoadableState.empty, mapper));
-export const mapLoading = (mapLoadable.Loading = <U>(mapper: (v: undefined) => U) => mapLoadable(LoadableState.loading, mapper));
 
 /**
  * Like map, but only call the mapper for Loadables of state S. The mapper can directly return a Loadable<U>.
@@ -87,10 +84,6 @@ export function flatMapLoadable<T, U extends Loadable<any>, S extends LoadableSt
 		return mapper(getLoadableStateValue(v, state));
 	});
 }
-export const flatMapLoaded = (flatMapLoadable.Loaded = <T, U extends Loadable<any>>(mapper: (v: T) => U) => flatMapLoadable(LoadableState.loaded, mapper));
-export const flatMapError = (flatMapLoadable.Error = <U extends Loadable<any>>(mapper: (v: ApiError) => U) => flatMapLoadable(LoadableState.error, mapper));
-export const flatMapEmpty = (flatMapLoadable.Empty = <U extends Loadable<any>>(mapper: (v: undefined) => U) => flatMapLoadable(LoadableState.empty, mapper));
-export const flatMapLoading = (flatMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => U) => flatMapLoadable(LoadableState.loading, mapper));
 
 /**
  * Like mergeMap, but only call the mapper for Loadables of state S.
@@ -106,10 +99,6 @@ export function mergeMapLoadable<T, U extends Loadable<any>, S extends LoadableS
 		return mapper(getLoadableStateValue(v, state));
 	});
 }
-export const mergeMapLoaded = (mergeMapLoadable.Loaded = <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => mergeMapLoadable(LoadableState.loaded, mapper));
-export const mergeMapError = (mergeMapLoadable.Error = <U extends Loadable<any>>(mapper: (v: ApiError) => ObservableInput<U>) => mergeMapLoadable(LoadableState.error, mapper));
-export const mergeMapEmpty = (mergeMapLoadable.Empty = <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => mergeMapLoadable(LoadableState.empty, mapper));
-export const mergeMapLoading = (mergeMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => mergeMapLoadable(LoadableState.loading, mapper));
 
 /**
  * Like switchMap, but only call the mapper for Loadables of state S.
@@ -126,9 +115,6 @@ export function switchMapLoadable<T, U extends Loadable<any>, S extends Loadable
 	});
 }
 export const switchMapLoaded = (switchMapLoadable.Loaded = <T, U extends Loadable<any>>(mapper: (v: T) => ObservableInput<U>) => switchMapLoadable(LoadableState.loaded, mapper));
-export const switchMapError = (switchMapLoadable.Error = <U extends Loadable<any>>(mapper: (v: ApiError) => ObservableInput<U>) => switchMapLoadable(LoadableState.error, mapper));
-export const switchMapEmpty = (switchMapLoadable.Empty = <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => switchMapLoadable(LoadableState.empty, mapper));
-export const switchMapLoading = (switchMapLoadable.Loading = <U extends Loadable<any>>(mapper: (v: undefined) => ObservableInput<U>) => switchMapLoadable(LoadableState.loading, mapper));
 
 /**
  * Return a mapping function that converts an object into a Loaded<T> if all required keys are present and not null, and Empty otherwise.
@@ -550,8 +536,6 @@ export function combineLoadableStreamsIncludingEmpty(streams: ObservableInput<an
 /**
  * Util: repeat last output when notifier$ emits anything.
  */
-export function repeatLatestWhen<T>(notifier$: Observable<any>) {
+function repeatLatestWhen<T>(notifier$: Observable<any>) {
 	return (source: Observable<T>) => combineLatest([source, notifier$.pipe(startWith(null))]).pipe(map(([val]) => val));
 }
-
-export const EMPTY_LOADABLE_STREAM = of(Loadable.Empty());

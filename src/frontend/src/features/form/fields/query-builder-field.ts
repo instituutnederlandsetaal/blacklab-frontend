@@ -2,7 +2,7 @@ import type { CqlQueryBuilderData, CqlQueryBuilderOptions } from '@/features/cql
 import type { FieldComponentProps, FieldDefinition } from '@/features/form/model/field-component-props';
 
 export type QueryBuilderFieldState = CqlQueryBuilderData;
-export type QueryBuilderFieldExtraProps = {
+type QueryBuilderFieldExtraProps = {
 	options: CqlQueryBuilderOptions;
 };
 export type QueryBuilderFieldDefinition = FieldDefinition<QueryBuilderFieldState, QueryBuilderFieldExtraProps>;

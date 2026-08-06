@@ -17,12 +17,12 @@ import type { NormalizedAnnotation, NormalizedIndex } from '@/types/apptypes';
 
 import type { Option } from '@/shared/utils/options';
 
-import * as Step1 from './POS_1.vue';
-import * as Step2 from './POS_2.vue';
-import * as Step2_5 from './POS_2_5.vue';
-import * as Step3 from './POS_3.vue';
-import * as Step4 from './POS_4.vue';
-import * as Step5 from './POS_5.vue';
+import Step1 from './POS_1.vue';
+import Step2 from './POS_2.vue';
+import Step2_5 from './POS_2_5.vue';
+import Step3 from './POS_3.vue';
+import Step4 from './POS_4.vue';
+import Step5 from './POS_5.vue';
 import Steps from './Steps.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 

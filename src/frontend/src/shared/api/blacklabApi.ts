@@ -146,7 +146,7 @@ async function getBlackLabVersion(endpoint: string, apiVersion?: string | null):
 }
 
 /** Map some renamed query params from V5 to V4 */
-export const mapV5ParamsToV4: QueryParamsMapper<BLSearchParameters> = v => {
+const mapV5ParamsToV4: QueryParamsMapper<BLSearchParameters> = v => {
 	const r: QueryParamsMapperReturn = { ...v };
 	delete r.subcorpussize;
 	r.includetokencount = v.subcorpussize;

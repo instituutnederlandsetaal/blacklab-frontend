@@ -23,7 +23,7 @@ import type {
 import type { Loadable } from '@/shared/utils/loadable/loadable-core';
 import { toObservable } from '@/shared/utils/loadable/loadable-stream';
 
-export type ApiEndpoint<ResponseType = never, Params extends any[] = []> = (...args: [...Params, requestParameters?: AxiosRequestConfig]) => CancelableRequest<ResponseType>;
+type ApiEndpoint<ResponseType = never, Params extends any[] = []> = (...args: [...Params, requestParameters?: AxiosRequestConfig]) => CancelableRequest<ResponseType>;
 
 export type DocumentContentsParameters = {
 	indexId: string;

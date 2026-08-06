@@ -7,7 +7,7 @@ export function getRouteParamString(value: unknown): string | null {
 	return typeof raw === 'string' && raw.length > 0 ? raw : null;
 }
 
-export function firstRouteQueryValue(value: LocationQueryValue | LocationQueryValue[] | undefined): string | null {
+function firstRouteQueryValue(value: LocationQueryValue | LocationQueryValue[] | undefined): string | null {
 	const raw = Array.isArray(value) ? value[0] : value;
 	return typeof raw === 'string' && raw.length > 0 ? raw : null;
 }

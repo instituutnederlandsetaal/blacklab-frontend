@@ -12,31 +12,31 @@
  * later runtime validation fails.
  */
 
-export type NonEmptyArray<T> = [T, ...T[]];
+type NonEmptyArray<T> = [T, ...T[]];
 
-export type Pair<T> = [T, T];
+type Pair<T> = [T, T];
 
-export type MatchSensitivityCode = 's' | 'i' | 'ci' | 'di';
+type MatchSensitivityCode = 's' | 'i' | 'ci' | 'di';
 
-export type RelationDirectionCode = 'root' | 'forward' | 'backward' | 'both';
+type RelationDirectionCode = 'root' | 'forward' | 'backward' | 'both';
 
-export type RelationSpanModeCode = 'source' | 'target' | 'full' | 'all';
+type RelationSpanModeCode = 'source' | 'target' | 'full' | 'all';
 
-export type NonDefaultRelationDirectionCode = Exclude<RelationDirectionCode, 'both'>;
+type NonDefaultRelationDirectionCode = Exclude<RelationDirectionCode, 'both'>;
 
-export type NonDefaultRelationSpanModeCode = Exclude<RelationSpanModeCode, 'source'>;
+type NonDefaultRelationSpanModeCode = Exclude<RelationSpanModeCode, 'source'>;
 
-export type PositionFilterOperation = 'containing' | 'containing_at_start' | 'containing_at_end' | 'within' | 'starts_at' | 'ends_at' | 'matches' | 'has_overlap';
+type PositionFilterOperation = 'containing' | 'containing_at_start' | 'containing_at_end' | 'within' | 'starts_at' | 'ends_at' | 'matches' | 'has_overlap';
 
-export type CompareOperation = '=' | '!=' | '<' | '>' | '<=' | '>=';
+type CompareOperation = '=' | '!=' | '<' | '>' | '<=' | '>=';
 
-export type TagsAdjust = 'full_tag' | 'leading_edge' | 'trailing_edge';
+type TagsAdjust = 'full_tag' | 'leading_edge' | 'trailing_edge';
 
-export type LookWhere = 'ahead' | 'behind';
+type LookWhere = 'ahead' | 'behind';
 
-export type OverlappingOperation = 'overlap';
+type OverlappingOperation = 'overlap';
 
-export interface BCQLTextPatternBase<TType extends string> {
+interface BCQLTextPatternBase<TType extends string> {
 	bcqlFragment: string;
 	type: TType;
 }
@@ -45,12 +45,12 @@ export interface BCQLAndNode extends BCQLTextPatternBase<'and'> {
 	clauses: NonEmptyArray<BCQLQueryNode> | Pair<BCQLConstraintNode>;
 }
 
-export interface BCQLAnyTokenNode extends BCQLTextPatternBase<'anytoken'> {
+interface BCQLAnyTokenNode extends BCQLTextPatternBase<'anytoken'> {
 	min: number;
 	max?: number;
 }
 
-export interface BCQLCaptureNode extends BCQLTextPatternBase<'capture'> {
+interface BCQLCaptureNode extends BCQLTextPatternBase<'capture'> {
 	clause: BCQLQueryNode;
 	capture: string;
 }
@@ -60,24 +60,24 @@ export interface BCQLCompareNode extends BCQLTextPatternBase<'compare'> {
 	operation: CompareOperation;
 }
 
-export interface BCQLConstrainedNode extends BCQLTextPatternBase<'constrained'> {
+interface BCQLConstrainedNode extends BCQLTextPatternBase<'constrained'> {
 	clause: BCQLQueryNode;
 	constraint: BCQLConstraintNode;
 }
 
-export interface BCQLDefaultValueNode extends BCQLTextPatternBase<'defval'> {}
+interface BCQLDefaultValueNode extends BCQLTextPatternBase<'defval'> {}
 
-export interface BCQLLookNode extends BCQLTextPatternBase<'look'> {
+interface BCQLLookNode extends BCQLTextPatternBase<'look'> {
 	where: LookWhere;
 	negate: boolean;
 	clause: BCQLQueryNode;
 }
 
-export interface BCQLImplicationNode extends BCQLTextPatternBase<'implication'> {
+interface BCQLImplicationNode extends BCQLTextPatternBase<'implication'> {
 	clauses: Pair<BCQLQueryNode> | Pair<BCQLConstraintNode>;
 }
 
-export interface BCQLNotNode extends BCQLTextPatternBase<'not'> {
+interface BCQLNotNode extends BCQLTextPatternBase<'not'> {
 	clause: BCQLTextPatternNode;
 }
 
@@ -94,12 +94,12 @@ export interface BCQLPositionFilterNode extends BCQLTextPatternBase<'posfilter'>
 	adjustTrailing?: number;
 }
 
-export interface BCQLOverlappingNode extends BCQLTextPatternBase<'overlapping'> {
+interface BCQLOverlappingNode extends BCQLTextPatternBase<'overlapping'> {
 	clauses: Pair<BCQLQueryNode>;
 	operation: OverlappingOperation;
 }
 
-export interface BCQLFunctionCallNode extends BCQLTextPatternBase<'callfunc'> {
+interface BCQLFunctionCallNode extends BCQLTextPatternBase<'callfunc'> {
 	name: string;
 	args: BCQLTextPatternNode[];
 }
@@ -119,106 +119,106 @@ interface BCQLRelationTargetBase extends BCQLTextPatternBase<'reltarget'> {
 	targetVersion?: string;
 }
 
-export interface BCQLRegularRelationTargetNode extends BCQLRelationTargetBase {
+interface BCQLRegularRelationTargetNode extends BCQLRelationTargetBase {
 	negate?: true;
 	alignment?: never;
 	optional?: never;
 }
 
-export interface BCQLAlignedRelationTargetNode extends BCQLRelationTargetBase {
+interface BCQLAlignedRelationTargetNode extends BCQLRelationTargetBase {
 	alignment: true;
 	negate?: never;
 	optional?: true;
 	direction?: Exclude<NonDefaultRelationDirectionCode, 'root'>;
 }
 
-export type BCQLRootRelationTargetNode = BCQLRegularRelationTargetNode & {
+type BCQLRootRelationTargetNode = BCQLRegularRelationTargetNode & {
 	direction: 'root';
 };
 
-export type BCQLRelationTargetNode = BCQLRegularRelationTargetNode | BCQLAlignedRelationTargetNode;
+type BCQLRelationTargetNode = BCQLRegularRelationTargetNode | BCQLAlignedRelationTargetNode;
 
-export interface BCQLRootRelationMatchNode extends BCQLTextPatternBase<'relmatch'> {
+interface BCQLRootRelationMatchNode extends BCQLTextPatternBase<'relmatch'> {
 	parent?: never;
 	children: NonEmptyArray<BCQLRootRelationTargetNode>;
 }
 
-export interface BCQLRegularRelationMatchNode extends BCQLTextPatternBase<'relmatch'> {
+interface BCQLRegularRelationMatchNode extends BCQLTextPatternBase<'relmatch'> {
 	parent: BCQLQueryNode;
 	children: NonEmptyArray<BCQLRegularRelationTargetNode>;
 }
 
-export interface BCQLAlignedRelationMatchNode extends BCQLTextPatternBase<'relmatch'> {
+interface BCQLAlignedRelationMatchNode extends BCQLTextPatternBase<'relmatch'> {
 	parent: BCQLQueryNode;
 	children: NonEmptyArray<BCQLAlignedRelationTargetNode>;
 }
 
-export type BCQLRelationMatchNode = BCQLRootRelationMatchNode | BCQLRegularRelationMatchNode | BCQLAlignedRelationMatchNode;
+type BCQLRelationMatchNode = BCQLRootRelationMatchNode | BCQLRegularRelationMatchNode | BCQLAlignedRelationMatchNode;
 
-export interface BCQLRepeatNode extends BCQLTextPatternBase<'repeat'> {
+interface BCQLRepeatNode extends BCQLTextPatternBase<'repeat'> {
 	clause: BCQLQueryNode;
 	min: number;
 	max?: number;
 }
 
-export interface BCQLSequenceNode extends BCQLTextPatternBase<'sequence'> {
+interface BCQLSequenceNode extends BCQLTextPatternBase<'sequence'> {
 	clauses: BCQLQueryNode[];
 }
 
-export interface BCQLSettingsNode extends BCQLTextPatternBase<'settings'> {
+interface BCQLSettingsNode extends BCQLTextPatternBase<'settings'> {
 	clause: BCQLQueryNode;
 	settings: Record<string, string>;
 }
 
-export interface BCQLTagsNode extends BCQLTextPatternBase<'tags'> {
+interface BCQLTagsNode extends BCQLTextPatternBase<'tags'> {
 	name: string;
 	attributes?: Record<string, BCQLTagAttributeExpressionNode>;
 	adjust?: Exclude<TagsAdjust, 'full_tag'>;
 	capture?: string;
 }
 
-export interface BCQLTermNode extends BCQLTextPatternBase<'term'> {
+interface BCQLTermNode extends BCQLTextPatternBase<'term'> {
 	value: string;
 	annotation?: string;
 	sensitivity?: MatchSensitivityCode;
 }
 
-export interface BCQLStringValueNode extends BCQLTextPatternBase<'string'> {
+interface BCQLStringValueNode extends BCQLTextPatternBase<'string'> {
 	value: string;
 }
 
-export interface BCQLBooleanValueNode extends BCQLTextPatternBase<'boolean'> {
+interface BCQLBooleanValueNode extends BCQLTextPatternBase<'boolean'> {
 	value: boolean;
 }
 
-export interface BCQLIntegerValueNode extends BCQLTextPatternBase<'integer'> {
+interface BCQLIntegerValueNode extends BCQLTextPatternBase<'integer'> {
 	value: number;
 }
 
-export interface BCQLIntRangeValueNode extends BCQLTextPatternBase<'int-range'> {
+interface BCQLIntRangeValueNode extends BCQLTextPatternBase<'int-range'> {
 	min: number;
 	max: number;
 }
 
-export interface BCQLSymbolValueNode extends BCQLTextPatternBase<'symbol'> {
+interface BCQLSymbolValueNode extends BCQLTextPatternBase<'symbol'> {
 	value: string;
 }
 
-export interface BCQLUndefinedValueNode extends BCQLTextPatternBase<'undefined'> {}
+interface BCQLUndefinedValueNode extends BCQLTextPatternBase<'undefined'> {}
 
-export interface BCQLPropertySelectNode extends BCQLTextPatternBase<'prop-selector'> {
+interface BCQLPropertySelectNode extends BCQLTextPatternBase<'prop-selector'> {
 	capture: BCQLSymbolValueNode;
 	annotation: BCQLSymbolValueNode;
 }
 
-export type BCQLValueNode = BCQLStringValueNode | BCQLBooleanValueNode | BCQLIntegerValueNode | BCQLIntRangeValueNode | BCQLSymbolValueNode | BCQLUndefinedValueNode;
+type BCQLValueNode = BCQLStringValueNode | BCQLBooleanValueNode | BCQLIntegerValueNode | BCQLIntRangeValueNode | BCQLSymbolValueNode | BCQLUndefinedValueNode;
 
 export type BCQLTagAttributeExpressionNode = Exclude<BCQLValueNode, BCQLSymbolValueNode> | BCQLFunctionCallNode;
 
 /**
  * Nodes that can appear where Java evaluation calls toMatchFilter().
  */
-export type BCQLConstraintNode = BCQLAndNode | BCQLCompareNode | BCQLFunctionCallNode | BCQLImplicationNode | BCQLNotNode | BCQLOrNode | BCQLValueNode | BCQLPropertySelectNode;
+type BCQLConstraintNode = BCQLAndNode | BCQLCompareNode | BCQLFunctionCallNode | BCQLImplicationNode | BCQLNotNode | BCQLOrNode | BCQLValueNode | BCQLPropertySelectNode;
 
 /**
  * Nodes that can appear where Java evaluation calls toQuery().

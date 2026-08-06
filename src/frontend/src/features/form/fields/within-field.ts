@@ -10,7 +10,7 @@ export type WithinFieldState = {
 	element: string | null;
 	attributes: Record<string, string>;
 };
-export type WithinFieldExtraProps = {
+type WithinFieldExtraProps = {
 	options: WithinFieldOption[];
 	/** Sort generated span options by their translated labels; configured options retain their explicit order. */
 	sortOptions?: boolean;

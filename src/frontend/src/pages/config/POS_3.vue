@@ -59,11 +59,11 @@ import { mapReduce } from '@/shared/utils/array-utils.ts';
 import type { StepState } from './POS.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-export const value = 'Generate';
-export const label = value;
-export const title = 'Check all combinations with BlackLab to see which occur in the corpus';
+const value = 'Generate';
+const label = value;
+const title = 'Check all combinations with BlackLab to see which occur in the corpus';
 
-export const defaultAction = (s: StepState): StepState => {
+const defaultAction = (s: StepState): StepState => {
 	// check if all are loaded.
 	const annotations = s.step3.main && Object.values(s.step3.main);
 	if (!annotations?.length) throw new Error('Step 3 not completed');
@@ -78,7 +78,7 @@ export const defaultAction = (s: StepState): StepState => {
 	return s;
 };
 
-export const step = defineComponent({
+const step = defineComponent({
 	components: {
 		SelectPicker,
 	},
@@ -262,5 +262,5 @@ export const step = defineComponent({
 	},
 });
 
-export default step;
+export default Object.assign(step, { value, label, title, defaultAction, step });
 </script>

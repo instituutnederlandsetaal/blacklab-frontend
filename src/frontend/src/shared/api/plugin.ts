@@ -11,9 +11,9 @@ export type ApiPluginParts = {
 
 export type ApiPlugin = ObjectPlugin & ApiPluginParts;
 
-const [_frontendApiInjectionKey, provideFrontendApi, useFrontendApi] = useInjectable<FrontendApi>('frontendApi');
-const [_blacklabApiInjectionKey, provideBlackLabApi, useBlackLabApi] = useInjectable<BlackLabApi>('blacklabApi');
-const [_blacklabPathsInjectionKey, provideBlackLabPaths, useBlackLabPaths] = useInjectable<BlackLabPaths>('blacklabPaths');
+const [, provideFrontendApi, useFrontendApi] = useInjectable<FrontendApi>('frontendApi');
+const [, provideBlackLabApi, useBlackLabApi] = useInjectable<BlackLabApi>('blacklabApi');
+const [, provideBlackLabPaths] = useInjectable<BlackLabPaths>('blacklabPaths');
 
 export function createApiPlugin(parts: ApiPluginParts): ApiPlugin {
 	return {
@@ -26,4 +26,4 @@ export function createApiPlugin(parts: ApiPluginParts): ApiPlugin {
 	};
 }
 
-export { provideBlackLabApi, provideBlackLabPaths, provideFrontendApi, useBlackLabApi, useBlackLabPaths, useFrontendApi };
+export { useBlackLabApi, useFrontendApi };

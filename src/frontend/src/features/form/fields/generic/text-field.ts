@@ -4,7 +4,7 @@ export type TextFieldState = {
 	value: string;
 	caseSensitive: boolean;
 };
-export type TextFieldExtraProps = {
+type TextFieldExtraProps = {
 	placeholder?: string;
 	autocomplete?: (term: string) => Promise<string[]>;
 	/** Does the field have the option to toggle case-sensitivity. */

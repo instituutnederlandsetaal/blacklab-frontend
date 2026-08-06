@@ -24,7 +24,7 @@ type BiMetadataFilterControllerConfig = {
 
 const isBiFieldConfig = (config: MetadataFilterControllerConfig | BiMetadataFilterControllerConfig): config is BiMetadataFilterControllerConfig => 'fromField' in config && 'toField' in config;
 
-export type MetadataFilterRadioConfig = FieldControllerConfig<RadioFieldDefinition, MetadataFilterControllerConfig>;
+type MetadataFilterRadioConfig = FieldControllerConfig<RadioFieldDefinition, MetadataFilterControllerConfig>;
 function metadataPersistKey(config: MetadataFilterControllerConfig | BiMetadataFilterControllerConfig) {
 	return isBiFieldConfig(config) ? `${config.fromField}-${config.toField}` : config.metadataFieldId;
 }

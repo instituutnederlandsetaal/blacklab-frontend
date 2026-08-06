@@ -12,7 +12,7 @@ export type DateFieldState = {
 	endDate: DateValue;
 	mode: RangeMode;
 };
-export type DateFieldExtraProps = {
+type DateFieldExtraProps = {
 	range: boolean;
 	min?: string | Date | DateValue;
 	max?: string | Date | DateValue;

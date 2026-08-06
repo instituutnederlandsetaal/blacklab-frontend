@@ -14,16 +14,6 @@ export type MockApiOptions = {
 	blacklabPaths?: Partial<BlackLabPaths>;
 };
 
-type ApiMock = {
-	blacklab: BlackLabApi;
-	frontend: FrontendApi;
-};
-
-type ApiMockOptions = {
-	blacklab?: MockApiReturnValues<BlackLabApi>;
-	frontend?: MockApiReturnValues<FrontendApi>;
-};
-
 const hasOwn = <T extends object>(object: T, key: PropertyKey): boolean => Object.prototype.hasOwnProperty.call(object, key);
 
 function unconfiguredMockApiError(methodName: string): ApiError {
@@ -64,7 +54,7 @@ export function createMockFrontendApi(returnValues: MockApiReturnValues<Frontend
 	return createMockApiProxy<FrontendApi>('frontend', returnValues);
 }
 
-export function createMockBlackLabPaths(overrides: Partial<BlackLabPaths> = {}): BlackLabPaths {
+function createMockBlackLabPaths(overrides: Partial<BlackLabPaths> = {}): BlackLabPaths {
 	return new Proxy(overrides, {
 		get: (target, property) => {
 			if (typeof property === 'symbol') return undefined;
@@ -73,7 +63,7 @@ export function createMockBlackLabPaths(overrides: Partial<BlackLabPaths> = {}):
 	}) as BlackLabPaths;
 }
 
-export function createMockApiParts(options: MockApiOptions = {}): ApiPluginParts {
+function createMockApiParts(options: MockApiOptions = {}): ApiPluginParts {
 	return {
 		blacklabApi: createMockBlackLabApi(options.blacklab),
 		frontendApi: createMockFrontendApi(options.frontend),
@@ -83,13 +73,6 @@ export function createMockApiParts(options: MockApiOptions = {}): ApiPluginParts
 
 export function createMockApi(options: MockApiOptions = {}): ApiPlugin {
 	return createApiPlugin(createMockApiParts(options));
-}
-
-export function createApiMock(mockValues: ApiMockOptions = {}): ApiMock {
-	return {
-		blacklab: createMockBlackLabApi(mockValues.blacklab),
-		frontend: createMockFrontendApi(mockValues.frontend),
-	};
 }
 
 export { resolvedRequest };

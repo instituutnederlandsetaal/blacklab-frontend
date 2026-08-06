@@ -34,12 +34,6 @@ export function getAnnotatedFieldSubcorpusSize(input: BLSearchResult | BLSearchS
 	return specific ? { documents: specific.documents, tokens: specific.tokens } : null;
 }
 
-export function getTotalResults(input: BLSearchResult): number {
-	if (isGroups(input)) return getNumberOfGroups(input) ?? 0;
-	if (isHitResults(input)) return getCountedStats(input).hits!;
-	return getCountedStats(input).documents;
-}
-
 export function getTotalAvailableResults(input: BLSearchResult): number {
 	if (isGroups(input)) return getNumberOfGroups(input) ?? 0;
 	if (isHitResults(input)) return getProcessedStats(input).hits!;

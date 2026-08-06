@@ -67,16 +67,16 @@ import type { Option } from '@/shared/utils/options';
 import type { ExclusionRule, StepState } from './POS.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-export const value = 'Exclusions';
-export const label = value;
-export const title = 'Configure exclusion rules (optional)';
+const value = 'Exclusions';
+const label = value;
+const title = 'Configure exclusion rules (optional)';
 
-export const defaultAction = (s: StepState): StepState => {
+const defaultAction = (s: StepState): StepState => {
 	// No validation needed, exclusions are optional
 	return s;
 };
 
-export const step = defineComponent({
+const step = defineComponent({
 	components: { SelectPicker },
 	emits: ['update:modelValue', 'submit'],
 	props: {
@@ -196,5 +196,5 @@ export const step = defineComponent({
 	},
 });
 
-export default step;
+export default Object.assign(step, { value, label, title, defaultAction, step });
 </script>

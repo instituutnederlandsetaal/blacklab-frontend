@@ -14,7 +14,7 @@ import { elementAndAttributeNameFromFilterId } from '@/shared/blacklab-helpers/s
 import { escapeRegex, tokenizeString, unescapeRegex, type RegexEscapeOptions } from '@/shared/utils/string-utils';
 
 /** Turn an annotation object into a "pattern" (cql) string ready for BlackLab. */
-export const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): string[] => {
+const getAnnotationPatternString = (annotation: AppTypes.AnnotationValue): string[] => {
 	const { id, case: caseSensitive, value, type } = annotation;
 
 	if (!value.trim()) {

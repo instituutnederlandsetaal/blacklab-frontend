@@ -25,18 +25,18 @@ import type { Option } from '@/shared/utils/options';
 import type { StepState } from './POS.vue';
 import SelectPicker from '@/shared/ui/SelectPicker.vue';
 
-export const value = 'Choose main';
-export const label = value;
-export const title = 'Select annotation to use as Part of Speech root';
+const value = 'Choose main';
+const label = value;
+const title = 'Select annotation to use as Part of Speech root';
 
-export const defaultAction = (s: StepState): StepState => {
+const defaultAction = (s: StepState): StepState => {
 	let defaultPosAnnot = s.annotations.find(a => a.uiType === 'pos') || s.annotations.find(a => a.id.toLowerCase() === 'pos' || a.defaultDisplayName.toLowerCase() === 'part of speech');
 	if (!defaultPosAnnot) throw new Error('Cannot determine default pos annotation');
 
 	return { ...s, mainPosAnnotationId: defaultPosAnnot.id };
 };
 
-export const step = defineComponent({
+const step = defineComponent({
 	components: { SelectPicker },
 	emits: ['update:modelValue', 'submit'],
 	props: {
@@ -61,5 +61,5 @@ export const step = defineComponent({
 	created() {},
 });
 
-export default step;
+export default Object.assign(step, { value, label, title, defaultAction, step });
 </script>

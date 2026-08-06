@@ -3,7 +3,7 @@ import type { MaybeRef } from 'vue';
 
 import { createBlackLabApi } from '@/shared/api/blacklabApi';
 import { createFrontendApi } from '@/shared/api/frontendApi';
-import { createApiPlugin, type ApiPlugin, useBlackLabApi, useBlackLabPaths, useFrontendApi } from '@/shared/api/plugin';
+import { createApiPlugin, type ApiPlugin, useBlackLabApi, useFrontendApi } from '@/shared/api/plugin';
 
 /**
  * Create the BlackLab and Frontend api instances, return a plugin that can be installed on the vue app
@@ -22,6 +22,4 @@ const createApi = async (options: {
 		blacklabPaths,
 	});
 };
-
-export type { ApiPlugin } from '@/shared/api/plugin';
-export { createApi, useBlackLabApi, useFrontendApi, useBlackLabPaths };
+export { createApi, useBlackLabApi, useFrontendApi };

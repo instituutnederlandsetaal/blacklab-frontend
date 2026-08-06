@@ -10,7 +10,7 @@ import { encodeFieldState, getFieldPersistKey, restoreFieldState, type EncodedFi
 import type { CompiledFormStateWithSummaries, ScopedFormQuery } from '@/features/form/model/types/form-query-ir';
 import type { FormBoundaryNode, FormFieldNode, FormNode } from '@/features/form/model/types/form-shape';
 
-export const FORM_QUERY_PREFIX = 'f.';
+const FORM_QUERY_PREFIX = 'f.';
 const SCOPED_FORM_KEYS = {
 	formSelector: 'form',
 	tabSelections: 'tab',

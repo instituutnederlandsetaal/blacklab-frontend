@@ -25,7 +25,7 @@ export type SearchFormCustomization = {
 	within: WithinCustomization;
 };
 
-export type SearchFormCustomizationApi = {
+type SearchFormCustomizationApi = {
 	addWithinAttribute(attribute: SearchFormWithinAttribute): void;
 	configureWithin(customization: WithinCustomization): void;
 };

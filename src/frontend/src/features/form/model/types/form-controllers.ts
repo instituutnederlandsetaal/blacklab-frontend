@@ -6,7 +6,7 @@ import type { BaseFieldNode } from '@/features/form/model/types/form-shape';
 
 import type { Translate } from '@/shared/i18n';
 
-export type FormRuntimeCorpus = {
+type FormRuntimeCorpus = {
 	readonly indexId?: string;
 	readonly isParallelCorpus?: boolean;
 	readonly textDirection?: 'ltr' | 'rtl';
@@ -25,7 +25,7 @@ export type FieldPersistenceContext<Extra> = {
 	readonly runtime: FormRuntimeContext;
 };
 
-export type FieldPersistence<State, Extra> = {
+type FieldPersistence<State, Extra> = {
 	/** Short stable key used under the scoped f.* URL namespace. Must be unique within the active form. */
 	key: (config: FieldControllerProps<Extra>, runtime: FormRuntimeContext) => string;
 	codec: PersistenceCodec<State, FieldPersistenceContext<Extra>>;

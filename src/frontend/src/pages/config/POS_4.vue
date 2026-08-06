@@ -34,10 +34,10 @@ import { mapReduce } from '@/shared/utils/array-utils.ts';
 
 import type { StepState } from './POS.vue';
 
-export const value = 'Edit';
-export const label = value;
-export const title = 'Validate and add display values';
-export const defaultAction = (s: StepState): StepState => s;
+const value = 'Edit';
+const label = value;
+const title = 'Validate and add display values';
+const defaultAction = (s: StepState): StepState => s;
 
 function getDisplayNamesFromTagset(t: Tagset, mainAnnotationId: string, annotationCaseSensitivities: Record<string, boolean> = {}): Record<string, Record<string, string>> {
 	const r: Record<string, Record<string, string>> = {};
@@ -59,7 +59,7 @@ function getDisplayNamesFromTagset(t: Tagset, mainAnnotationId: string, annotati
 	return r;
 }
 
-export const step = defineComponent({
+const step = defineComponent({
 	emits: ['update:modelValue', 'submit'],
 	props: {
 		modelValue: { type: Object as PropType<StepState>, required: true },
@@ -151,7 +151,7 @@ export const step = defineComponent({
 	},
 });
 
-export default step;
+export default Object.assign(step, { value, label, title, defaultAction, step });
 </script>
 
 <style lang="scss">

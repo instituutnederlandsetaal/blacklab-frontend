@@ -24,7 +24,7 @@ import type {
 	BCQLTextPatternStruct,
 } from '@/shared/blacklab-helpers/cql/bcql-json-ast';
 
-export type XmlTag = {
+type XmlTag = {
 	type: 'xml';
 	/** xml token name excluding namespace, brackets, attributes etc */
 	name: string;

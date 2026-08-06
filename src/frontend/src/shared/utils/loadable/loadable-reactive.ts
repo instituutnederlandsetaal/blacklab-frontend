@@ -19,7 +19,7 @@ import type { ApiError } from '@/shared/api/lib/api-types';
 
 export type MaybeRefLoadable<T> = MaybeRef<MaybeLoadable<T>>;
 export type LoadableReactiveOptions = DebuggerOptions & { deep?: boolean };
-export type ReactiveLoadableControls = { retry: () => void; stop: () => void };
+type ReactiveLoadableControls = { retry: () => void; stop: () => void };
 export interface ReactiveLoadable<T> extends LoadableType<T> {
 	map<U>(mapper: (value: T) => U, options?: LoadableReactiveOptions): ControlledLoadable<U>;
 	mapOptional<U>(mapper: (value: T | undefined) => U, options?: LoadableReactiveOptions): ControlledLoadable<U>;
@@ -31,9 +31,6 @@ export interface ReactiveLoadable<T> extends LoadableType<T> {
 	or(mapper: () => T | null | undefined, options?: LoadableReactiveOptions): ControlledLoadable<T>;
 }
 export type ControlledLoadable<T> = ReactiveLoadable<T> & ReactiveLoadableControls;
-
-/** @deprecated Import LoadableFromRequest from loadable-datasource when the value is request-backed. */
-export type LoadableFromRequest<T> = ControlledLoadable<T>;
 
 type WritableLoadableRefs<T> = {
 	state: Ref<LoadableState>;
@@ -142,8 +139,6 @@ export const loadableReactive = <T, E extends object = {}>(
 		extra as E,
 	);
 };
-
-export const loadableFromRefs = loadableReactive;
 
 /**
  * Recompute a loadable from an explicit set of reactive loadable dependencies.
@@ -264,26 +259,26 @@ function flatMapOptionalSingleLoadableReactive<T, U>(loadable: MaybeRefLoadable<
 	);
 }
 
-export function mapLoadableReactive<T, U, S extends LoadableState.loaded>(loadable: MaybeRefLoadable<T>, state: S, mapper: (value: T) => U, options?: LoadableReactiveOptions): ControlledLoadable<U>;
-export function mapLoadableReactive<T, U, S extends LoadableState.error>(
+function mapLoadableReactive<T, U, S extends LoadableState.loaded>(loadable: MaybeRefLoadable<T>, state: S, mapper: (value: T) => U, options?: LoadableReactiveOptions): ControlledLoadable<U>;
+function mapLoadableReactive<T, U, S extends LoadableState.error>(
 	loadable: MaybeRefLoadable<T>,
 	state: S,
 	mapper: (value: ApiError) => U,
 	options?: LoadableReactiveOptions,
 ): ControlledLoadable<U | T>;
-export function mapLoadableReactive<T, U, S extends LoadableState.empty>(
+function mapLoadableReactive<T, U, S extends LoadableState.empty>(
 	loadable: MaybeRefLoadable<T>,
 	state: S,
 	mapper: (value: undefined) => U,
 	options?: LoadableReactiveOptions,
 ): ControlledLoadable<U | T>;
-export function mapLoadableReactive<T, U, S extends LoadableState.loading>(
+function mapLoadableReactive<T, U, S extends LoadableState.loading>(
 	loadable: MaybeRefLoadable<T>,
 	state: S,
 	mapper: (value: undefined) => U,
 	options?: LoadableReactiveOptions,
 ): ControlledLoadable<U | T>;
-export function mapLoadableReactive<T, U, S extends LoadableState>(
+function mapLoadableReactive<T, U, S extends LoadableState>(
 	loadable: MaybeRefLoadable<T>,
 	state: S,
 	mapper: (value: LoadableStateValue<T, S>) => U,
@@ -292,31 +287,31 @@ export function mapLoadableReactive<T, U, S extends LoadableState>(
 	return flatMapSingleLoadableReactive(loadable, state, value => Loadable.Loaded(mapper(value as LoadableStateValue<T, S>)), options);
 }
 
-export function flatMapLoadableReactive<T, U, S extends LoadableState.loaded>(
+function flatMapLoadableReactive<T, U, S extends LoadableState.loaded>(
 	loadable: MaybeRefLoadable<T>,
 	state: S,
 	mapper: (value: T) => MaybeRefLoadable<U>,
 	options?: LoadableReactiveOptions,
 ): ControlledLoadable<U>;
-export function flatMapLoadableReactive<T, U, S extends LoadableState.error>(
+function flatMapLoadableReactive<T, U, S extends LoadableState.error>(
 	loadable: MaybeRefLoadable<T>,
 	state: S,
 	mapper: (value: ApiError) => MaybeRefLoadable<U>,
 	options?: LoadableReactiveOptions,
 ): ControlledLoadable<U | T>;
-export function flatMapLoadableReactive<T, U, S extends LoadableState.empty>(
+function flatMapLoadableReactive<T, U, S extends LoadableState.empty>(
 	loadable: MaybeRefLoadable<T>,
 	state: S,
 	mapper: (value: undefined) => MaybeRefLoadable<U>,
 	options?: LoadableReactiveOptions,
 ): ControlledLoadable<U | T>;
-export function flatMapLoadableReactive<T, U, S extends LoadableState.loading>(
+function flatMapLoadableReactive<T, U, S extends LoadableState.loading>(
 	loadable: MaybeRefLoadable<T>,
 	state: S,
 	mapper: (value: undefined) => MaybeRefLoadable<U>,
 	options?: LoadableReactiveOptions,
 ): ControlledLoadable<U | T>;
-export function flatMapLoadableReactive<T, U, S extends LoadableState>(
+function flatMapLoadableReactive<T, U, S extends LoadableState>(
 	loadable: MaybeRefLoadable<T>,
 	state: S,
 	mapper: (value: LoadableStateValue<T, S>) => MaybeRefLoadable<U>,
@@ -333,11 +328,9 @@ export function flatMapReactive<T, U>(loadable: MaybeRefLoadable<T>, mapper: (va
 	return flatMapLoadableReactive(loadable, LoadableState.loaded, mapper, options);
 }
 
-export const mapLoadedReactive = mapReactive;
-export const flatMapLoadedReactive = flatMapReactive;
 export const mapErrorReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: ApiError) => U, options?: LoadableReactiveOptions) =>
 	mapLoadableReactive(loadable, LoadableState.error, mapper, options);
-export const transformErrorReactive = <T>(loadable: MaybeRefLoadable<T>, mapper: (error: ApiError) => ApiError, options?: LoadableReactiveOptions) =>
+const transformErrorReactive = <T>(loadable: MaybeRefLoadable<T>, mapper: (error: ApiError) => ApiError, options?: LoadableReactiveOptions) =>
 	flatMapLoadableReactive(loadable, LoadableState.error, error => Loadable.LoadingError<T>(mapper(error)), options);
 export const mapEmptyReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: undefined) => U, options?: LoadableReactiveOptions) =>
 	mapLoadableReactive(loadable, LoadableState.empty, mapper, options);
@@ -349,9 +342,8 @@ export const flatMapEmptyReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper
 	flatMapLoadableReactive(loadable, LoadableState.empty, mapper, options);
 export const flatMapLoadingReactive = <T, U>(loadable: MaybeRefLoadable<T>, mapper: (value: undefined) => MaybeRefLoadable<U>, options?: LoadableReactiveOptions) =>
 	flatMapLoadableReactive(loadable, LoadableState.loading, mapper, options);
-export const recoverReactive = <T>(loadable: MaybeRefLoadable<T>, mapper: (value: ApiError) => T, options?: LoadableReactiveOptions) =>
-	mapLoadableReactive(loadable, LoadableState.error, mapper, options);
-export const orReactive = <T>(loadable: MaybeRefLoadable<T>, mapper: () => T | null | undefined, options?: LoadableReactiveOptions) =>
+const recoverReactive = <T>(loadable: MaybeRefLoadable<T>, mapper: (value: ApiError) => T, options?: LoadableReactiveOptions) => mapLoadableReactive(loadable, LoadableState.error, mapper, options);
+const orReactive = <T>(loadable: MaybeRefLoadable<T>, mapper: () => T | null | undefined, options?: LoadableReactiveOptions) =>
 	flatMapEmptyReactive(
 		loadable,
 		() => {

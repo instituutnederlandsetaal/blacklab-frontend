@@ -1,7 +1,7 @@
 import type { BaseFieldNode, FormValue } from '@/features/form/model/types/form-shape';
 
 const renderedValuePropNames = ['title', 'displayName', 'description', 'placeholder', 'lowPlaceholder', 'highPlaceholder', 'lengthDisplayName', 'selectorDisplayName', 'selectorPlaceholder'] as const;
-export type FieldFormValueProp = (typeof renderedValuePropNames)[number];
+type FieldFormValueProp = (typeof renderedValuePropNames)[number];
 type RenderedValueProp = FieldFormValueProp;
 const renderedValueProps = new Set<RenderedValueProp>(renderedValuePropNames);
 
@@ -18,7 +18,7 @@ export type DefineFieldComponentProps<Props> = {
 };
 
 /** Common configurable values stored on every field node. */
-export type FieldDefinitionProps = {
+type FieldDefinitionProps = {
 	title?: FormValue<string>;
 	class?: string;
 	variant?: BaseFieldNode['variant'];
@@ -53,9 +53,9 @@ export type FieldRuntimeComponentProps<State> = Omit<FieldComponentProps<State>,
 };
 
 type RequiredProps<Props, Keys extends keyof Props> = Omit<Props, Keys> & Required<Pick<Props, Keys>>;
-export type FieldBaseProp = Extract<keyof FieldDefinitionProps, keyof FieldComponentProps<any>>;
-export type RequiredFieldDefinitionProps<Keys extends FieldBaseProp> = RequiredProps<FieldDefinitionProps, Keys>;
-export type RequiredFieldComponentProps<State, Keys extends FieldBaseProp> = RequiredProps<FieldComponentProps<State>, Keys>;
+type FieldBaseProp = Extract<keyof FieldDefinitionProps, keyof FieldComponentProps<any>>;
+type RequiredFieldDefinitionProps<Keys extends FieldBaseProp> = RequiredProps<FieldDefinitionProps, Keys>;
+type RequiredFieldComponentProps<State, Keys extends FieldBaseProp> = RequiredProps<FieldComponentProps<State>, Keys>;
 
 /** Base component props for fields which require a visible display name. */
 export type NamedFieldComponentProps<State> = FieldComponentProps<State> & { displayName: string };

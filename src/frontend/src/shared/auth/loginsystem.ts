@@ -15,14 +15,14 @@ export type OidcLoginSystemConfig = {
 	contextUrl: string;
 };
 
-export type BlackLabLoginSystemConfig = {
+type BlackLabLoginSystemConfig = {
 	mode: 'blacklab';
 	blacklabBaseUrl: string;
 };
 
 export type LoginSystemConfig = OidcLoginSystemConfig | BlackLabLoginSystemConfig;
 
-export type LoginSystem = {
+type LoginSystem = {
 	userManager: UserManager | null;
 	user: User | null;
 	username: string | null;

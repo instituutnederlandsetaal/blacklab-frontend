@@ -86,12 +86,8 @@ let installedCorpus: Ref<Corpus> | undefined;
 
 /** Returns the true value of the corpus context, including loading, error, empty states. When you just need the value, and you _know_ it's loaded, use useCorpusContext. */
 const useCorpusContextLoader = _useCorpusContextLoader;
-/** Ease-of-use function for locations where you _know_ the corpus state is loaded, such as in components on the search/article page. Use useCorpusContextLoader when you need the true source object with loading and error states. */
-const useCorpusContext = _useCorpusContext;
 /** Ease-of-use function for locations where you _know_ the CF page config is loaded, such as in components on the search/article page. Use useCorpusContextLoader when you need the true source object with loading and error states. */
 const useCfPageConfig = _useCfPageConfig;
-/** Ease-of-use function for locations where you _know_ the tagset is loaded, such as in components on the search/article page. Use useCorpusContextLoader when you need the true source object with loading and error states. */
-const useTagset = _useTagset;
 
 let warnedCount = 0;
 
@@ -214,12 +210,9 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 export {
 	/** Returns the true value of the corpus context, including loading, error, empty states */
 	useCorpusContextLoader,
-	useCorpusContext,
 	useCfPageConfig,
 	useCorpus,
-	useTagset,
 	createCorpusContext,
 	type Corpus,
 	type CorpusContext,
-	type CorpusContextOptions,
 };

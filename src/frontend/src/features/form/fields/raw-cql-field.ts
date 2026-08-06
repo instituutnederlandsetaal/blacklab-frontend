@@ -1,7 +1,7 @@
 import type { FieldComponentProps, FieldDefinition } from '@/features/form/model/field-component-props';
 
 export type RawCqlQueryFieldState = string;
-export type RawCqlQueryFieldExtraProps = {
+type RawCqlQueryFieldExtraProps = {
 	hideLabel?: boolean;
 };
 export type RawCqlQueryFieldDefinition = FieldDefinition<RawCqlQueryFieldState, RawCqlQueryFieldExtraProps>;

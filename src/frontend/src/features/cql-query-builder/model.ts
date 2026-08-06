@@ -9,7 +9,7 @@ import useUid from '@/shared/utils/uid';
 export type CqlAnnotationValueComparator = '=' | '!=' | 'startsWith' | 'endsWith';
 export type CqlAnnotationCombinator = '&' | '|';
 
-export interface CqlTokenProperties {
+interface CqlTokenProperties {
 	optional: boolean;
 	minRepeats: number;
 	maxRepeats: number;
@@ -61,7 +61,7 @@ export const COMPARATORS: CqlAnnotationValueComparator[][] = [
 
 export const OPERATORS: CqlAnnotationCombinator[] = ['&', '|'];
 
-export function createDefaultCqlAttribute(defaultAnnotationId: string): CqlAttributeData {
+function createDefaultCqlAttribute(defaultAnnotationId: string): CqlAttributeData {
 	return {
 		id: `attr_${useUid()}`,
 		annotationId: defaultAnnotationId,
@@ -71,7 +71,7 @@ export function createDefaultCqlAttribute(defaultAnnotationId: string): CqlAttri
 	};
 }
 
-export function createDefaultCqlAttributeGroup(defaultAnnotationId: string): CqlAttributeGroupData {
+function createDefaultCqlAttributeGroup(defaultAnnotationId: string): CqlAttributeGroupData {
 	return {
 		id: `group_${useUid()}`,
 		operator: OPERATORS[0],

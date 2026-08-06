@@ -36,21 +36,6 @@ export * from './generic/lexicon-field';
 export { default as LexiconField } from './generic/LexiconField.vue';
 
 export type * from './generic/number-field';
-export { default as NumberField } from './generic/NumberField.vue';
 
 export * from './generic/range-mode';
-export type {
-	AnyFieldDefinition,
-	FieldComponentProps,
-	FieldDefinition,
-	FieldDefinitionProps,
-	FieldBaseProp,
-	FieldFormValueProp,
-	FieldNodeProps,
-	FieldRuntimeComponentProps,
-	FieldState,
-	NamedFieldComponentProps,
-	NamedFieldDefinition,
-	RequiredFieldComponentProps,
-	RequiredFieldDefinitionProps,
-} from '../model/field-component-props';
+export type { NamedFieldDefinition } from '../model/field-component-props';

@@ -13,7 +13,7 @@ export type FrequencyAnnotationControllerConfig = {
 	/** Stable and unique within the containing form. */
 	persistKey: string;
 };
-export type FrequencyAnnotationFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, FrequencyAnnotationControllerConfig>;
+type FrequencyAnnotationFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, FrequencyAnnotationControllerConfig>;
 
 function defaultState(config: FrequencyAnnotationFieldConfig): string {
 	const values = optionValues(config.options);

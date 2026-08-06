@@ -10,5 +10,3 @@ const globalScope = globalThis as typeof globalThis & {
 globalScope.$ = $;
 globalScope.jQuery = $;
 globalScope.jquery = $;
-
-export default $;

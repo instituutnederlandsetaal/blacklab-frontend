@@ -35,28 +35,28 @@ export type GroupByContext<T extends ContextPositional | ContextLabel = ContextP
 };
 
 /** Document-level metadata */
-export type MetadataDocument = {
+type MetadataDocument = {
 	type: 'document';
 	field: string;
 	/** Sort/group by the decade of the year given in specified metadata field (rounds the value of the field down to the nearest multiple of 10, so 1976 becomes 1970). */
 	decade?: boolean;
 };
 /** Span-level metadata */
-export type MetadataSpanAttribute = {
+type MetadataSpanAttribute = {
 	type: 'span-attribute';
 	spanName: string;
 	attributeName: string;
 };
 
 /** Represents grouping by metadata (document-level or span-level) */
-export type GroupByMetadata<T extends MetadataDocument | MetadataSpanAttribute = MetadataDocument | MetadataSpanAttribute> = {
+type GroupByMetadata<T extends MetadataDocument | MetadataSpanAttribute = MetadataDocument | MetadataSpanAttribute> = {
 	type: 'metadata';
 	caseSensitive: boolean;
 
 	metadata: T;
 };
 
-export type SortByGroupProperty = {
+type SortByGroupProperty = {
 	type: 'group-property';
 	property: 'identity' | 'size';
 };
@@ -66,7 +66,7 @@ export type SortByGroupProperty = {
  * We just stick the raw string in the value field.
  * Should only occur from deserialization handcrafted urls, or when there are bugs in the parse code.
  */
-export type GroupByCustom = {
+type GroupByCustom = {
 	type: 'custom';
 	value: string;
 };

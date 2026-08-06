@@ -1,5 +1,5 @@
 /** Parenthesize part of a BCQL query if it's not already */
-export function parenQueryPart(query: string, exceptions: string[] = []) {
+function parenQueryPart(query: string, exceptions: string[] = []) {
 	query = query.trim();
 	if (query.match(/^\(.+\)$/) || query.match(/^\[[^\]]*\]$/) || exceptions.includes(query)) {
 		return query;

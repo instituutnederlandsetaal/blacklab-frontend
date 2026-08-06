@@ -2,14 +2,8 @@ import { onScopeDispose, readonly, ref, toValue, watch, type MaybeRefOrGetter } 
 
 import type { CFCustomCssEntry, CFCustomJsEntry } from '@/types/apptypes';
 
-export type HeadElementDefinition = {
-	tagName: 'link' | 'meta';
-	attributes: Record<string, string>;
-};
-
 const cssElementMarker = 'data-page-customization-css';
 const jsElementMarker = 'data-page-customization-js';
-const headElementMarker = 'data-page-customization-head';
 export const customCssChangedEvent = 'page-customization-css-changed';
 const pendingCssLoadHandlers = new WeakMap<HTMLLinkElement, () => void>();
 
@@ -96,22 +90,6 @@ export const useCustomJs = (js: MaybeRefOrGetter<CFCustomJsEntry[]>, options?: {
 			});
 		},
 		remove: () => document?.body?.querySelectorAll?.(`script[${jsElementMarker}]`)?.forEach(e => e.remove()),
-	});
-};
-
-export const useHeadElements = (elements: MaybeRefOrGetter<HeadElementDefinition[]>, options?: { immediate: boolean }) => {
-	return _useInsertableContent({
-		content: elements,
-		immediate: options?.immediate,
-		insert: entries => {
-			entries.forEach(({ tagName, attributes }) => {
-				const element = document.createElement(tagName);
-				Object.entries(attributes).forEach(([key, value]) => value && element.setAttribute(key, value));
-				element.setAttribute(headElementMarker, '');
-				document?.head?.appendChild(element);
-			});
-		},
-		remove: () => document?.head?.querySelectorAll?.(`[${headElementMarker}]`)?.forEach(e => e.remove()),
 	});
 };
 

@@ -1,7 +1,7 @@
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 
 export type ExploreFormMode = 'corpora' | 'ngram' | 'frequency';
-export type SearchFormSection = 'search' | 'explore';
+type SearchFormSection = 'search' | 'explore';
 export type SemanticId = string | { id: string };
 
 const NAMESPACE = 'standard-search-form';

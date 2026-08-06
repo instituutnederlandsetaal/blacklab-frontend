@@ -12,7 +12,7 @@ export type ParallelSourceControllerConfig = {
 	/** Stable and unique within the containing form. */
 	persistKey: string;
 };
-export type ParallelSourceFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, ParallelSourceControllerConfig>;
+type ParallelSourceFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, ParallelSourceControllerConfig>;
 
 function defaultState(config: ParallelSourceFieldConfig): string {
 	const values = optionValues(config.options);

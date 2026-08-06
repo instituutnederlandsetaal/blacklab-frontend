@@ -2,7 +2,7 @@ import { computed, type FunctionPlugin } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 
 import type { PageBootstrap } from '@/navigation/page-bootstrap';
-import { provideArticleId, provideCorpusId, providePageMeta, useArticleId, useCorpusId, usePageMeta, type PageMeta } from '@/navigation/page-context';
+import { provideArticleId, provideCorpusId, providePageMeta, useCorpusId, type PageMeta } from '@/navigation/page-context';
 
 // make sure we always have a route meta object
 declare module 'vue-router' {
@@ -130,4 +130,4 @@ function createBlfRouter(pageBootstrap: PageBootstrap) {
 	};
 }
 
-export { useCorpusId, useArticleId, usePageMeta, createBlfRouter, type PageMeta };
+export { useCorpusId, createBlfRouter };

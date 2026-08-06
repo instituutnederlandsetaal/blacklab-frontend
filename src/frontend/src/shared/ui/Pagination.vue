@@ -54,16 +54,6 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-export type PaginationInfo = {
-	page: number;
-	pageActive?: boolean;
-	maxPage?: number;
-	minPage?: number;
-	disabled?: boolean;
-	editable?: boolean;
-	showOffsets?: boolean;
-};
-
 /** Renders pagination controls, inputs are 0-based, meaning page === 0 will render as 1 on the label */
 export default defineComponent({
 	emits: ['change', 'active'],

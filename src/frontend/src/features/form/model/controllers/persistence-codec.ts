@@ -22,7 +22,7 @@
  */
 
 /** The error */
-export class PersistenceCodecError extends Error {
+class PersistenceCodecError extends Error {
 	constructor(message: string) {
 		super(message);
 		this.name = 'PersistenceCodecError';
@@ -365,7 +365,7 @@ export class PersistenceCodec<T, Context = any> {
 	}
 }
 
-export type CodecState<Codec> = Codec extends PersistenceCodec<infer State, any> ? State : never;
+type CodecState<Codec> = Codec extends PersistenceCodec<infer State, any> ? State : never;
 type CodecShape = Readonly<Record<string, PersistenceCodec<any, any>>>;
 type ShapeState<Shape extends CodecShape> = { [Key in keyof Shape]: CodecState<Shape[Key]> };
 

@@ -47,6 +47,6 @@ export function ensureCompleteFieldName(fieldOrVersion: string, defaultFieldName
 }
 
 /** Does the specified field name denote a field in a parallel corpus? */
-export function isParallelField(fieldName: string) {
+function isParallelField(fieldName: string) {
 	return fieldName.includes(PARALLEL_FIELD_SEPARATOR);
 }

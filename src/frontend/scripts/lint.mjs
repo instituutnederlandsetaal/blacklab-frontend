@@ -21,7 +21,9 @@ const checks = [
 	{ label: 'Oxlint', command: executable('oxlint'), args: ['--config', 'oxlint.config.mts', '.'] },
 ];
 
-await runChecks(checks);
+if (await runChecks(checks)) {
+	await runChecks([{ label: 'Knip', command: executable('knip'), args: [] }]);
+}
 
 async function runChecks(checks) {
 	const results = await Promise.all(checks.map(runCheck));

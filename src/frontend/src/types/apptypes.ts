@@ -62,7 +62,7 @@ export type NormalizedAnnotatedFieldParallel = NormalizedAnnotatedFieldBase & {
 	/** The version of the parallel field. e.g. "nl" or "en" */
 	version: string;
 };
-export type NormalizedAnnotatedFieldNotParallel = NormalizedAnnotatedFieldBase & {
+type NormalizedAnnotatedFieldNotParallel = NormalizedAnnotatedFieldBase & {
 	isParallel: false;
 };
 export type NormalizedAnnotatedField = NormalizedAnnotatedFieldParallel | NormalizedAnnotatedFieldNotParallel;
@@ -388,7 +388,7 @@ export type CFCustomCssEntry = {
 	};
 };
 
-export type CFNavbarLink = {
+type CFNavbarLink = {
 	label: string;
 	/** Not a complete set, as the backend passes through any attributes. But these make it so we can use it in templates on <a> and <router-link> elements */
 	attributes: {
@@ -398,10 +398,10 @@ export type CFNavbarLink = {
 	};
 };
 
-export type CFGoogleAnalyticsSettings = {
+type CFGoogleAnalyticsSettings = {
 	key: string;
 };
-export type CFPlausibleAnalyticsSettings = {
+type CFPlausibleAnalyticsSettings = {
 	apiHost: string;
 	domain: string;
 };

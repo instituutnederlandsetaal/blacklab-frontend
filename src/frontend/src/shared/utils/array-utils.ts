@@ -55,24 +55,13 @@ export function binarySearch<T>(a: T[], compare: (el: T) => number) {
  * @param k key to pick from the objects
  * @param m optional mapping function to transform the objects after picking the key
  */
-export function makeMapReducer<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(
+function makeMapReducer<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(
 	k: KeysOfType<T, string>,
 	m?: V,
 ): (m: Record<string, ReturnType<V>>, t: T, i: number) => Record<string, ReturnType<V>> {
 	return (acc: Record<string, ReturnType<V>>, v: T, i: number): Record<string, ReturnType<V>> => {
 		const kv = v[k] as any as string;
 		acc[kv] = m ? m(v, i) : v;
-		return acc;
-	};
-}
-
-export function makeMultimapReducer<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(
-	k: KeysOfType<T, string>,
-	m?: V,
-): (m: Record<string, Array<ReturnType<V>>>, t: T, i: number) => Record<string, Array<ReturnType<V>>> {
-	return (acc: Record<string, Array<ReturnType<V>>>, v: T, i: number): Record<string, Array<ReturnType<V>>> => {
-		const kv = v[k] as any as string;
-		(acc[kv] ??= []).push(m ? m(v, i) : v);
 		return acc;
 	};
 }
@@ -111,16 +100,4 @@ export function mapReduce<T, VT extends (t: T, i: number) => any = (t: T, i: num
 		const key = a as KeysOfType<T, string>;
 		return values ? values.reduce(makeMapReducer<T, VT>(key, b), {}) : {};
 	}
-}
-
-/**
- * Turn an array of type T[] into a map of type {[key: string]: T[]};
- * Duplicate keys will be pushed into the array at that key in order of appearance.
- *
- * @param t the array of objects to place in a map.
- * @param k a key in the objects to use as key in the map.
- * @param m (optional) a mapping function to apply to values.
- */
-export function multimapReduce<T, V extends (t: T, i: number) => any = (t: T, i: number) => T>(t: T[] | undefined | null, k: KeysOfType<T, string>, m?: V): Record<string, Array<ReturnType<V>>> {
-	return t ? t.reduce(makeMultimapReducer<T, V>(k, m), {}) : {};
 }

@@ -98,39 +98,3 @@ export function localStorageSynced<T>(storageKey: string, defaultValue: T, watch
 	if (watchStorage && typeof localStorage !== 'undefined') storageWatcher.addListener<ExpiringValue<T>>(storageKey, newValue => Object.assign(v, newValue));
 	return v;
 }
-
-export function watchStorage(key: string, callback: (newValue: any) => void, settings?: { immediate?: boolean }) {
-	storageWatcher.addListener(key, callback, settings);
-	return () => storageWatcher.removeListener(key);
-}
-
-/** Read the value written by localStorageSynced in the past, without setting up any reactivity */
-export function probeLocalStorageSynced<T>(storageKey: string, defaultValue: T): { value: T; isFromStorage: boolean } {
-	const v = { value: defaultValue, isFromStorage: false };
-	if (typeof localStorage === 'undefined') return v;
-	if (localStorage.getItem(storageKey)) {
-		try {
-			v.value = JSON.parse(localStorage.getItem(storageKey)!);
-			v.isFromStorage = true;
-		} catch {
-			console.error(`Failed to parse stored value for ${storageKey}`);
-		}
-	}
-	return v;
-}
-
-export function syncPropertyWithLocalStorage<T extends object, K extends keyof T>(storageKey: string, props: T, prop: K, watchStorage = false) {
-	if (typeof localStorage === 'undefined') return props;
-	if (localStorage.getItem(storageKey)) {
-		try {
-			props[prop] = JSON.parse(localStorage.getItem(storageKey) as string);
-		} catch {
-			console.error(`Failed to parse stored value for ${storageKey}`);
-		}
-	}
-
-	props = reactive(props) as T;
-	watch(() => props[prop], putNewValueInStorage(storageKey));
-	if (watchStorage) storageWatcher.addListener<T[K]>(storageKey, newValue => (props[prop] = newValue));
-	return props;
-}

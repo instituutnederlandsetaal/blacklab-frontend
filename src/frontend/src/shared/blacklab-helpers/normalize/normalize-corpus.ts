@@ -14,27 +14,11 @@ import * as BLTypes from '@/types/blacklabtypes';
 import { getParallelFieldParts, PARALLEL_FIELD_SEPARATOR } from '@/shared/blacklab-helpers/parallel-helper';
 import { mapReduce } from '@/shared/utils/array-utils';
 
-export const uiTypeSupport: {
-	[key: string]: { [key: string]: Array<NormalizedAnnotation['uiType']> };
-} = {
-	search: {
-		simple: ['combobox', 'select', 'lexicon'],
-		extended: ['combobox', 'select', 'pos'],
-	},
-	explore: {
-		ngram: ['combobox', 'select'],
-	},
-};
-
-export function getCorpusOwner(indexId: string): string | null {
+function getCorpusOwner(indexId: string): string | null {
 	return indexId.substring(0, indexId.indexOf(':')) || null;
 }
-export function getCorpusIdWithoutOwner(indexId: string): string {
+function getCorpusIdWithoutOwner(indexId: string): string {
 	return indexId.split(':')[1] || indexId;
-}
-
-export function getCorrectUiType<T extends NormalizedAnnotation['uiType']>(allowed: T[], actual: T): T {
-	return allowed.includes(actual) ? actual : ('text' as any);
 }
 
 function normalizeMetadataUIType(fieldValues: Record<string, number | string>, valueListComplete: boolean, configuredUiType?: string): NormalizedMetadataField['uiType'] {
@@ -526,8 +510,4 @@ export function normalizeFormat(id: string, format: BLTypes.BLFormat): Normalize
 		helpUrl: format.helpUrl || null,
 		description: format.description || null,
 	};
-}
-
-export function normalizeFormats(formats: BLTypes.BLFormats): NormalizedFormat[] {
-	return Object.entries(formats.supportedInputFormats).map(([key, value]) => normalizeFormat(key, value));
 }

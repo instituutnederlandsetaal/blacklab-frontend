@@ -19,7 +19,6 @@ export type OptGroup = {
 	options: Array<string | Option>;
 };
 export type Options = Array<SimpleOption | Option | OptGroup>;
-export type OptionsList = Array<SimpleOption | Option>;
 type IterOptions = Iterable<SimpleOption | Option | OptGroup>;
 export function isSimpleOption(e: any): e is SimpleOption {
 	return typeof e === 'string';
@@ -39,15 +38,12 @@ export function optionText(value: OptionText | null | undefined): string | null 
 	return value == null ? value : toValue(value);
 }
 
-export function* eachOption(options: IterOptions): Generator<Option | SimpleOption, void, never> {
+function* eachOption(options: IterOptions): Generator<Option | SimpleOption, void, never> {
 	for (const o of options)
 		if (isOptGroup(o)) yield* eachOption(o.options);
 		else yield o;
 }
 
-export function optionsMap(options: IterOptions): Map<string, Option | SimpleOption> {
-	return eachOption(options).reduce((m, o) => m.set(optionValue(o), o), new Map<string, Option | SimpleOption>());
-}
 export function findOption(options: IterOptions, value: string): Option | SimpleOption | null {
 	return eachOption(options).find(option => optionValue(option) === value) ?? null;
 }
@@ -59,9 +55,6 @@ export function optionLabel(option: SimpleOption | Option): string {
 }
 export function optionTitle(option: SimpleOption | Option): string {
 	return isSimpleOption(option) ? option : (optionText(option.title) ?? optionText(option.label) ?? option.value);
-}
-export function optionDisabled(option: SimpleOption | Option): boolean {
-	return isSimpleOption(option) ? false : !!option.disabled;
 }
 export function optionValues(options: IterOptions): string[] {
 	return Array.from(eachOption(options), optionValue);

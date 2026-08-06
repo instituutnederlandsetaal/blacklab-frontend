@@ -5,8 +5,8 @@ import type { Translate } from '@/shared/i18n/types';
 import { createVueI18nParts, installVueI18nParts, type LocaleMessageBundles, type LocaleMessages, type VueI18nParts } from '@/shared/i18n/vue-i18n';
 import { optionText } from '@/shared/utils/options';
 
-export type MockLocaleBundle = string | LocaleMessages;
-export type MockLocaleBundles = Record<string, MockLocaleBundle>;
+type MockLocaleBundle = string | LocaleMessages;
+type MockLocaleBundles = Record<string, MockLocaleBundle>;
 
 export type MockI18nOptions = {
 	locale?: string;

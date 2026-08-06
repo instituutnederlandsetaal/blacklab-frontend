@@ -119,6 +119,3 @@ export function resolvedRequest<T>(value: T): CancelableRequest<T> {
 export function rejectedRequest<T>(error: ApiError): CancelableRequest<T> {
 	return new CancelableRequest(Promise.reject(error), () => {});
 }
-export function combineRequests<T>(requests: Array<CancelableRequest<unknown>>, request: Promise<T>): CancelableRequest<T> {
-	return new CancelableRequest(request, () => requests.forEach(request => request.cancel()));
-}

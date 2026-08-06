@@ -33,10 +33,6 @@ export function frac2Percent(n: number, significants: number = 3): string {
 	return (significants > 0 ? ret.replace(/\.?0*$/, '') : ret) + '%';
 }
 
-export function NaNToNull(n: number) {
-	return isNaN(n) ? null : n;
-}
-
 export function clamp(value: number, min: number, max: number) {
 	return Math.min(Math.max(value, min), max);
 }

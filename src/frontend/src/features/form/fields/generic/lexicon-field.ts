@@ -1,7 +1,7 @@
 import Axios from 'axios';
 
 import type { TextFieldState } from '@/features/form/fields/generic/text-field';
-import type { NamedFieldComponentProps, NamedFieldDefinition } from '@/features/form/model/field-component-props';
+import type { NamedFieldComponentProps } from '@/features/form/model/field-component-props';
 
 import { filterDuplicates, mapReduce } from '@/shared/utils/array-utils';
 
@@ -44,11 +44,10 @@ export type LexiconLookupResult = {
 
 export type LexiconLookup = (term: string) => Promise<LexiconLookupResult>;
 
-export type LexiconFieldExtraProps = {
+type LexiconFieldExtraProps = {
 	placeholder?: string;
 	lookup: LexiconLookup;
 };
-export type LexiconFieldDefinition = NamedFieldDefinition<TextFieldState, LexiconFieldExtraProps, 'placeholder'>;
 
 /** Materialized for Vue's runtime prop extraction; equivalent to `LexiconFieldDefinition['componentProps']`. */
 export type LexiconFieldComponentProps = NamedFieldComponentProps<TextFieldState> & LexiconFieldExtraProps;
@@ -58,7 +57,7 @@ export const defaultLexiconLookupResult: LexiconLookupResult = {
 	wordList: [],
 };
 
-export const defaultLexiconServiceConfig = {
+const defaultLexiconServiceConfig = {
 	getLemmaIdFromWordform: `https://sk.taalbanknederlands.inl.nl/LexiconService/lexicon/get_lemma/`,
 	getLemmaIdFromLemma: `https://sk.taalbanknederlands.inl.nl/LexiconService/lexicon/get_lemma_id_from_lemma/`,
 	getWordformsFromLemmaId: `https://sk.taalbanknederlands.inl.nl/LexiconService/lexicon/get_wordforms_from_lemma_id/`,

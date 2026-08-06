@@ -6,7 +6,7 @@ export type RangeFieldState = {
 	high: string;
 	mode: RangeMode;
 };
-export type RangeFieldExtraProps = {
+type RangeFieldExtraProps = {
 	lowPlaceholder?: string;
 	highPlaceholder?: string;
 	inputType?: 'text' | 'number';

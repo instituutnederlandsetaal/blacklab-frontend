@@ -13,7 +13,7 @@ export type NgramGroupAnnotationControllerConfig = {
 	/** Stable and unique within the containing form. */
 	persistKey: string;
 };
-export type NgramGroupAnnotationFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, NgramGroupAnnotationControllerConfig>;
+type NgramGroupAnnotationFieldConfig = FieldControllerConfig<SingleSelectFieldDefinition, NgramGroupAnnotationControllerConfig>;
 
 function defaultState(config: NgramGroupAnnotationFieldConfig): string {
 	const values = optionValues(config.options);
