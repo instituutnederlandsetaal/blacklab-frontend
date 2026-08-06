@@ -7,6 +7,7 @@ const jsElementMarker = 'data-page-customization-js';
 export const customCssChangedEvent = 'page-customization-css-changed';
 const pendingCssLoadHandlers = new WeakMap<HTMLLinkElement, () => void>();
 
+/** Publish the single compatibility event used after customized styles settle or disappear. */
 function notifyCustomCssChanged() {
 	window.dispatchEvent(new Event(customCssChangedEvent));
 }

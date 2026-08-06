@@ -22,7 +22,10 @@ const checks = [
 ];
 
 if (await runChecks(checks)) {
-	await runChecks([{ label: 'Knip', command: executable('knip'), args: [] }]);
+	await runChecks([
+		{ label: 'Knip', command: executable('knip'), args: [] },
+		{ label: 'abstraction heuristic', command: process.execPath, args: ['scripts/lint-abstractions.mjs'] },
+	]);
 }
 
 async function runChecks(checks) {

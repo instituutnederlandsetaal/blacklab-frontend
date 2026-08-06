@@ -87,6 +87,7 @@ function reuseLoadableValueIfUnchanged<T>(previousValue: T | undefined, nextValu
 	return nextValue;
 }
 
+/** Attach both state-specific and reactive methods to a reactive loadable shell. */
 function withReactiveLoadableMethods<T, E extends object>(object: E): E & ReactiveLoadable<T> {
 	return Object.assign(withLoadableMethods<T, E>(object), reactiveLoadableMethods) as E & ReactiveLoadable<T>;
 }

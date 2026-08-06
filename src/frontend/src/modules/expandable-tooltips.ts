@@ -200,6 +200,7 @@ export default function createTooltips(config: ConfigTitle | ConfigAttributes, c
 	return ctx;
 }
 
+/** Parse trusted tooltip markup and return its typed root element. */
 function createElement<T extends HTMLElement = HTMLElement>(s: string) {
 	const html = new DOMParser().parseFromString(s, 'text/html');
 	return html.body.firstChild as T;

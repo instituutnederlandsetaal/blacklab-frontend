@@ -32,10 +32,6 @@ const debug_visible = ref(debug.value);
 const pendingCategoryLogs: Array<{ category: LogCategory; args: any[] }> = [];
 let currentDebugSystem: DebugSystem | null = null;
 
-function logToConsole(args: any[]) {
-	console.debug(...args);
-}
-
 export function createDebugSystem(config: DebugSystemConfig) {
 	if (config.enabledByDefault !== import.meta.env.DEV && (typeof localStorage === 'undefined' || localStorage.getItem('cf/debug') === null)) {
 		debug.value = config.enabledByDefault;
@@ -47,6 +43,7 @@ export function createDebugSystem(config: DebugSystemConfig) {
 	const categoryLogs = new Map<LogCategory, any[][]>();
 	const surfacedCategoryLogCounts = new Map<LogCategory, number>();
 
+	/** Keep category discovery and its retained-log buffer initialized together. */
 	function registerCategory(category: LogCategory) {
 		knownCategorySet.add(category);
 		if (!categoryLogs.has(category)) categoryLogs.set(category, []);
@@ -58,7 +55,7 @@ export function createDebugSystem(config: DebugSystemConfig) {
 		const entries = categoryLogs.get(category)!;
 		entries.push(logArgs);
 		if (activeCategories.has(category)) {
-			logToConsole(logArgs);
+			console.debug(...logArgs);
 			surfacedCategoryLogCounts.set(category, entries.length);
 		}
 	}
@@ -70,7 +67,7 @@ export function createDebugSystem(config: DebugSystemConfig) {
 		const entries = categoryLogs.get(category)!;
 		const firstUnsurfaced = surfacedCategoryLogCounts.get(category) ?? 0;
 		for (const entry of entries.slice(firstUnsurfaced)) {
-			logToConsole(entry);
+			console.debug(...entry);
 		}
 		surfacedCategoryLogCounts.set(category, entries.length);
 	}

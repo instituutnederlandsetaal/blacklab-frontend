@@ -30,10 +30,6 @@ let localSearchIntentRevision = 0;
 let context: CorpusContext | null = null;
 const useCorpus = () => context?.index;
 
-function markLocalSearchIntent(): void {
-	localSearchIntentRevision += 1;
-}
-
 const get = {
 	viewedResultsSettings: () => {
 		const viewName = InterfaceModule.get.viewedResults();
@@ -205,7 +201,7 @@ function applyLegacyExploreResultSettings(): boolean {
 
 const actions = {
 	searchFromSubmit: (snapshot?: CompiledFormStateWithSummaries | null) => {
-		markLocalSearchIntent();
+		localSearchIntentRevision += 1;
 		if (!snapshot && InterfaceModule.get.form() === 'search' && InterfaceModule.get.patternMode() === 'extended' && PatternModule.getState().extended.splitBatch) {
 			actions.searchSplitBatches();
 			return;
@@ -276,7 +272,7 @@ const actions = {
 	},
 
 	reset: () => {
-		markLocalSearchIntent();
+		localSearchIntentRevision += 1;
 		FormManager.actions.reset();
 		ViewModule.actions.resetAllViews({ resetGroupBy: true });
 		QueryModule.actions.reset();

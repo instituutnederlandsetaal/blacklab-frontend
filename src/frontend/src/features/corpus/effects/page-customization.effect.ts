@@ -7,6 +7,7 @@ import { usePageBootstrap } from '@/navigation/page-bootstrap';
 import { useCorpusId } from '@/navigation/router';
 import type { CFCustomCssEntry, CFCustomJsEntry } from '@/types/apptypes';
 
+/** Preserve the declared order after global and page-specific customization lists are merged. */
 function sortCustomizationEntries<T extends CFCustomCssEntry | CFCustomJsEntry>(entries: T[]): T[] {
 	return [...entries].sort((left, right) => left.index - right.index);
 }

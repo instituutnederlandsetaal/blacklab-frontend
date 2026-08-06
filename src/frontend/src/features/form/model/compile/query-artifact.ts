@@ -321,6 +321,7 @@ function emitRequiredCql(pattern: CqlPatternNode): string {
 	}
 }
 
+/** Group one emitted parallel branch as required by BlackLab's relation syntax. */
 function emitParallelPart(pattern: CqlPatternNode): string {
 	return parenQueryPartParallel(emitRequiredCql(pattern));
 }

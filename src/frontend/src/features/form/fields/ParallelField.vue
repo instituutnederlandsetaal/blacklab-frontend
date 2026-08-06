@@ -139,6 +139,7 @@ const alignByModel = computed<string | null>({
 	},
 });
 
+/** Read child state through a string-keyed accessor that is safe to call from the template. */
 function getValueForChildState(stateKey: string) {
 	return props.modelValue.childStates[stateKey] ?? null;
 }
@@ -152,6 +153,7 @@ function setValueForChildState(stateKey: string, value: unknown) {
 	});
 }
 
+/** Keep generated control IDs valid and stable for arbitrary corpus field IDs. */
 function safeHtmlId(value: string) {
 	return value.replace(/[^\w-]+/g, '_') || 'target';
 }

@@ -108,6 +108,7 @@ function normalizeDocInfo(docInfo: BLDocInfoV4): BLDocInfo {
 	};
 }
 
+/** Normalize legacy document info while preserving already-normalized objects by identity. */
 function normalizeDocInfoIfNeeded(docInfo: BLDocInfo | BLDocInfoV4): BLDocInfo {
 	return (docInfo as Partial<BLDocInfo>).metadata != null ? (docInfo as BLDocInfo) : normalizeDocInfo(docInfo as BLDocInfoV4);
 }

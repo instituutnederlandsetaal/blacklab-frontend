@@ -129,6 +129,7 @@ export function getAnnotationSubset(
 	debug: MaybeRefOrGetter<boolean> = false,
 	showGroupLabels = false,
 ): Array<OptGroup & { entries: NormalizedAnnotation[] }> {
+	/** Resolve a group's field while retaining the legacy fallback for synthetic groups. */
 	function findAnnotatedFieldId(groupId: string) {
 		return groups.find(g => g.id === groupId)?.annotatedFieldId || groups[0].annotatedFieldId;
 	}

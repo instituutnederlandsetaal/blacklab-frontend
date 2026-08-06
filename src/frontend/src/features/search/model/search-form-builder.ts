@@ -45,6 +45,7 @@ type BuildContext = {
 
 const [_searchFormSystemKey, provideSearchFormSystem, useSearchFormSystem] = useInjectable<Readonly<Ref<FormRuntime | null>>>('searchFormSystem');
 
+/** Construct annotation nodes from normalized corpus references through the shared factory. */
 function createAnnotationField(context: BuildContext, nodeId: string, annotation: NormalizedAnnotation, groupId?: string, variant?: BaseFieldNode['variant']): FormFieldNode {
 	return context.nodeConstructors.nodes.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: nodeId, groupId, variant });
 }

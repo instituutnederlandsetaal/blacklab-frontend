@@ -211,6 +211,7 @@ function isSpanAttributeOptionValue(value: string): boolean {
 	return value.startsWith(OPT_PREFIX_SPAN_ATTRIBUTE);
 }
 
+/** Encode span-attribute grouping as the stable value format shared by options and URL state. */
 function spanAttributeOptionValue(name: string, attrName: string, listName?: string): string {
 	const groupByName = listName ? `${listName}[${name}]` : name;
 	return `${OPT_PREFIX_SPAN_ATTRIBUTE}${JSON.stringify([groupByName, attrName])}`;

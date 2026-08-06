@@ -18,10 +18,12 @@ export type LoadedValuesIncludingEmpty<T extends LoadableShape> = {
 
 export type PassthroughFrom<T extends LoadableShape> = Extract<T extends readonly unknown[] ? T[number] : T[keyof T], MaybeLoadable<unknown>>;
 
+/** Read array and record loadable shapes through one ordered value view. */
 function valuesOf<T extends LoadableShape>(loadables: T): unknown[] {
 	return Array.isArray(loadables) ? [...loadables] : Object.values(loadables);
 }
 
+/** Map loadable arrays and records without changing their outer shape. */
 function mapShape<T extends LoadableShape>(loadables: T, mapper: (value: unknown) => unknown): { [K in keyof T]: unknown } {
 	return (Array.isArray(loadables) ? loadables.map(mapper) : Object.fromEntries(Object.entries(loadables).map(([key, value]) => [key, mapper(value)]))) as { [K in keyof T]: unknown };
 }

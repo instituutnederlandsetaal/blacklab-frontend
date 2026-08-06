@@ -15,6 +15,7 @@ import { parallelQuery, parallelQueryTarget, queryFragment, type SummaryEntry } 
 
 import { findOption } from '@/shared/utils/options';
 
+/** Apply the child template's default state before compiling a parallel branch. */
 function getParallelChildContribution(config: FieldControllerProps<ParallelFieldConfig>, runtime: FormRuntimeContext, state: unknown) {
 	return getFieldQueryContribution(config.childFieldTemplate, runtime, state ?? createDefaultParallelChildState(config, runtime));
 }

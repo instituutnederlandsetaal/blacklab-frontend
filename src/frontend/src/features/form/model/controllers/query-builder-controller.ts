@@ -88,11 +88,13 @@ function tokenToPatternParts(builderToken: QueryBuilderFieldState['tokens'][numb
 	return [builderToken.properties.beginOfSentence ? xmlTag('s') : null, repeated, builderToken.properties.endOfSentence ? xmlTag('s', true) : null];
 }
 
+/** Compile a complete query-builder state through the shared per-token conversion. */
 function stateToPattern(state: QueryBuilderFieldState) {
 	return sequence(state.tokens.flatMap(tokenToPatternParts));
 }
 
 let nextRestoredId = 0;
+/** Allocate unique IDs for nodes reconstructed from persistence payloads. */
 function restoredId(prefix: string): string {
 	nextRestoredId += 1;
 	return `${prefix}_restored_${nextRestoredId}`;

@@ -28,6 +28,7 @@ function mark(obj: any, marker: symbol) {
 function canAndShouldProxy(obj: any): obj is object {
 	return typeof obj === 'object' && obj !== null && !Object.isFrozen(obj) && !(isProxiedSym in obj) && !(dontProxyMe in obj);
 }
+/** Mark customization-owned state that must retain its original object identity. */
 function dontProxy<T>(obj: T): T {
 	return mark(obj, dontProxyMe);
 }

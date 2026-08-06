@@ -66,6 +66,7 @@ function equalPlain(left: unknown, right: unknown): boolean {
 	return false;
 }
 
+/** Resolve dynamic defaults and clone them before exposing them to mutable form state. */
 function resolveDefault<T, Context>(value: DefaultValue<T, Context>, context: Context): T {
 	// Never hand the codec's stored default object/array to mutable form state.
 	return structuredClone(typeof value === 'function' ? (value as (context: Context) => T)(context) : value);
@@ -635,6 +636,7 @@ export function variant<State, Context = any>(
 export function lazy<State, Context = any>(factory: () => PersistenceCodec<State, Context>): PersistenceCodec<State, Context> {
 	// Resolve once and only on first use, allowing recursive codec declarations.
 	let resolved: PersistenceCodec<State, Context> | undefined;
+	/** Cache the recursive codec without forcing its construction during declaration. */
 	const get = () => (resolved ??= factory());
 	return new PersistenceCodec(
 		{

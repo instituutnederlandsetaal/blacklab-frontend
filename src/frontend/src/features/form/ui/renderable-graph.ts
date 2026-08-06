@@ -20,16 +20,12 @@ type FormRenderingRuntime = {
 	};
 };
 
-function createMutableRuntimeProps(source: object, omittedKeys: readonly string[]): Record<string, unknown> {
-	return createRenderedNodeProps(source, omittedKeys) as Record<string, unknown>;
-}
-
 /** Convert declarative form nodes into the component/props descriptors consumed by FormSystem. */
 export function renderFormNode(node: FormNode, runtime: FormRenderingRuntime): RenderableFormNode {
 	const idSuffix = useUid();
 
 	if (node.kind === 'container' || node.kind === 'form') {
-		const props = createMutableRuntimeProps(node, ['component', 'children']);
+		const props = createRenderedNodeProps(node, ['component', 'children']) as Record<string, unknown>;
 		props.children = node.children.map(child => renderFormNode(child, runtime));
 		return {
 			is: node.component ?? ContainerRenderer,
@@ -56,6 +52,6 @@ export function renderFormNode(node: FormNode, runtime: FormRenderingRuntime): R
 
 	return {
 		is: node.component,
-		props: shallowReactive(createMutableRuntimeProps(node, ['component', 'kind'])),
+		props: shallowReactive(createRenderedNodeProps(node, ['component', 'kind']) as Record<string, unknown>),
 	};
 }

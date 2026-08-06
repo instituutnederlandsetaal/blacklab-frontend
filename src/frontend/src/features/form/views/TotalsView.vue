@@ -35,6 +35,7 @@ import Spinner from '@/shared/ui/Spinner.vue';
 const props = defineProps<TotalsViewConfig>();
 const totals = computed(() => toValue(props.totals));
 
+/** Format a safe percentage for the template, including empty corpora. */
 function percentage(value: number, total: number): string {
 	return frac2Percent(total > 0 ? value / total : 0);
 }

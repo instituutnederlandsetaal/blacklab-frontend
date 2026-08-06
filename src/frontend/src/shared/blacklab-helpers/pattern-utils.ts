@@ -228,9 +228,11 @@ export function getWithinClausesFromFilters(filtersState: ModuleRootStateFilters
  * @param type the type that the value should be parsed to, see uiType in the annotation object. Different annotation search widgets have different escaping properties (i.e. can they contain multiple values, or just one, etc.)
  */
 export const decodeAnnotationValue = (value: string | string[], type: Required<AppTypes.AnnotationValue>['type']): { case: boolean; value: string } => {
+	/** Recognize either BlackLab case-sensitivity prefix. */
 	function isCase(v: string) {
 		return v.startsWith('(?-i)') || v.startsWith('(?c)');
 	}
+	/** Remove the case prefix after isCase has recognized it. */
 	function stripCase(v: string) {
 		return v.substr(v.startsWith('(?-i)') ? 5 : 4);
 	}

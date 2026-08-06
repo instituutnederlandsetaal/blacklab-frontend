@@ -252,10 +252,6 @@ export function createSearchFormNodeConstructors({
 		return annotation;
 	}
 
-	function annotationReference(annotation: NormalizedAnnotation): SearchFormAnnotationReference {
-		return { id: annotation.id, annotatedFieldId: annotation.annotatedFieldId };
-	}
-
 	function resolveMetadataField(fieldId: string): NormalizedMetadataField {
 		const field = corpus.allMetadataFieldsMap[fieldId];
 		if (!field) throw new Error(`Cannot create metadata field for unknown corpus field '${fieldId}'.`);
@@ -317,7 +313,7 @@ export function createSearchFormNodeConstructors({
 	const nodes: SearchFormNodeConstructors = {
 		annotation(reference, options) {
 			const annotation = resolveAnnotation(reference);
-			const target = annotationReference(annotation);
+			const target: SearchFormAnnotationReference = { id: annotation.id, annotatedFieldId: annotation.annotatedFieldId };
 			if (annotation.uiType === 'pos') {
 				if (tagset) return nodes.annotationPos(target, options);
 				debugLog('form-setup', 'No tagset provided for POS field, but annotation requires it. Falling back to autocomplete.', { annotation, corpus });
@@ -584,7 +580,7 @@ export function createSearchFormNodeConstructors({
 				createField: (fieldOptions: Parameters<TokenSequenceCreateField>[0]) => {
 					const annotation = corpus.allAnnotationsMap[fieldOptions.annotationId];
 					if (!annotation) throw new Error(`Cannot create n-gram token field for unknown annotation '${fieldOptions.annotationId}'.`);
-					return nodes.annotation(annotationReference(annotation), { id: fieldOptions.id, showLabel: false, variant: 'simple' });
+					return nodes.annotation({ id: annotation.id, annotatedFieldId: annotation.annotatedFieldId }, { id: fieldOptions.id, showLabel: false, variant: 'simple' });
 				},
 				defaultFieldId: options.defaultFieldId,
 				defaultLength: options.defaultLength ?? EXPLORE_NGRAM_MAX_SIZE,

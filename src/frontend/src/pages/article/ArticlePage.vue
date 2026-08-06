@@ -234,10 +234,12 @@ function scrollCurrentHitIntoView() {
 	window.requestAnimationFrame(() => hit.scrollIntoView({ block: 'center', behavior: 'smooth' }));
 }
 
+/** Prefer server diagnostics while keeping a readable fallback for the template. */
 function errorDiagnostics(error: ApiError) {
 	return error.diagnostics || error.message;
 }
 
+/** Bind article navigation updates to this page's current router and route. */
 function updateArticleQuery(patch: Record<string, string | number | null | undefined>) {
 	return updateRouteQuery(router, route, patch);
 }

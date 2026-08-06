@@ -93,6 +93,7 @@ const getState = () => state;
 
 // TODO - hack ; need to revise global state management to avoid this
 let context: CorpusContext;
+/** Centralize the initialization assertion required by this legacy store module. */
 const useCorpus = () => context!.index!;
 
 const get = {
