@@ -12,7 +12,7 @@ Here is an example:
 
 :::details Directory structure
 <FileTree hl=3,5,6>
-/etc/projectConfigs/
+/etc/blacklab/projectconfigs/
   corpus-1/
     search.xml 
     static/
