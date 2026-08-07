@@ -104,7 +104,7 @@ export default defineComponent({
 	},
 	props: {
 		/** When clicking the pencil to edit an existing format. */
-		format: { type: Object as PropType<undefined | NormalizedFormat>, required: false },
+		format: { type: Object as PropType<undefined | NormalizedFormat | null>, required: false },
 		publicFormats: { type: Array as PropType<NormalizedFormat[]>, required: true },
 		privateFormats: { type: Array as PropType<NormalizedFormat[]>, required: true },
 		loading: { type: Boolean, required: true },
