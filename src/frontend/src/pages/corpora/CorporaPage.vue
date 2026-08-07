@@ -41,7 +41,7 @@
 
 			<!-- Modals -->
 			<ModalCreateFormat
-				v-if="modal === 'create-format' && format"
+				v-if="modal === 'create-format'"
 				:publicFormats="publicFormats"
 				:privateFormats="privateFormats"
 				:loading="loadingFormats"

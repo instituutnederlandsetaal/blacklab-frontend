@@ -78,7 +78,7 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 			dedupe: ['vue', 'vuex', 'jquery'],
 		},
 		optimizeDeps: {
-			include: ['jquery', 'bootstrap'],
+			include: ['jquery', 'bootstrap', 'monaco-yaml/yaml.worker.js'],
 		},
 		define: {
 			__VUE_PROD_DEVTOOLS__: false, // can enable for debugging prod builds, but larger bundle size
@@ -91,7 +91,7 @@ const createConfigAsync: UserConfigFnPromise = async ({ command }) => {
 			port: vitePort,
 			// Ensure CSS url(...) assets resolve against the Vite dev server even when
 			// styles are consumed from another origin (e.g. Java backend on a different port).
-			origin: `http://localhost:${vitePort}`,
+			origin: process.env.VITEST ? undefined : `http://localhost:${vitePort}`,
 			strictPort: true,
 			cors: true,
 			headers: {
