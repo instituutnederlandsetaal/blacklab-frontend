@@ -18,6 +18,7 @@ import SelectField from '@/features/form/fields/generic/SelectField.vue';
 import TextField from '@/features/form/fields/generic/TextField.vue';
 import TokenSequenceField from '@/features/form/fields/TokenSequenceField.vue';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
+import FieldRenderer from '@/features/form/ui/FieldRenderer.vue';
 
 type ChildControllerConfig = {
 	annotationId: string;
@@ -223,6 +224,28 @@ describe('token sequence composite field', () => {
 			fieldId: 'lemma',
 			fieldState: { exact: true, lemma: '' },
 		});
+	});
+
+	test('accepts scalar selector updates and writes nested field state immutably', async () => {
+		const { runtime } = createFixture();
+		const wrapper = mount(FormSystem, {
+			props: {
+				runtime,
+				rootId: 'explore.ngram',
+			},
+		});
+
+		wrapper.findAllComponents(SelectField)[0].vm.$emit('update:modelValue', 'lemma');
+		await nextTick();
+		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: true, lemma: '' } });
+
+		wrapper.findAllComponents(FieldRenderer)[1].vm.$emit('update:modelValue', { exact: false, lemma: 'walk' });
+		await nextTick();
+		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: false, lemma: 'walk' } });
+
+		wrapper.findAllComponents(SelectField)[0].vm.$emit('update:modelValue', 'lemma');
+		await nextTick();
+		expect(sequenceState(runtime)[0]).toEqual({ fieldId: 'lemma', fieldState: { exact: false, lemma: 'walk' } });
 	});
 
 	test('a patt override disables and clearing it re-enables nested token editors', async () => {

@@ -13,8 +13,8 @@
 						:id="`${field.inputId}_${index}`"
 						:checked="modelValue === option.value"
 						:disabled
-						@click="changeValue($event, option.value)"
-						@input.space="changeValue($event, option.value)"
+						@click="emit('update:modelValue', ($event.target as HTMLInputElement).checked ? option.value : '')"
+						@input.space="emit('update:modelValue', ($event.target as HTMLInputElement).checked ? option.value : '')"
 					/>
 					{{ optionLabel(option) }}
 				</label>
@@ -40,13 +40,4 @@ const emit = defineEmits<{
 }>();
 
 const field = useFieldPresentation(props);
-
-function changeValue(event: Event, value: string) {
-	const target = event.target as HTMLInputElement | null;
-	if (!target) {
-		return;
-	}
-
-	emit('update:modelValue', target.checked ? value : '');
-}
 </script>

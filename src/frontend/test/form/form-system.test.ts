@@ -5,7 +5,9 @@ import { describe, expect, test, vi } from 'vitest';
 import { defineComponent, h, nextTick, shallowRef } from 'vue';
 
 import { annotationTextController, defineFieldController, filterTextController, FormSystem, object, scalar, type CompiledFormStateWithSummaries, type FormRuntime } from '@/features/form';
+import { provideFormSystemRuntime } from '@/features/form/model/runtime';
 import { annotation, queryFragment } from '@/features/form/model/types/form-query-ir';
+import containerRendererSetup from '@/features/form/ui/ContainerRendererSetup';
 import { tabId } from '@/features/form/ui/tab-utils';
 
 import { TestTextField, createTestBuilder, createTestRuntime, parentFormProbeView, testTextController, type TestTextFieldDefinition } from './helpers';
@@ -179,6 +181,40 @@ describe('form system integration', () => {
 		expect(tabId('parent', 'child')).not.toBe(tabId('parent', 'parent.child'));
 	});
 
+	test('container setup rejects unknown active children without corrupting UI state', () => {
+		const builder = createTestBuilder();
+		builder
+			.newContainer('root.tabs', ContainerRenderer, { variant: 'tabs' })
+			.addChildren(builder.newContainer('root.tabs.first', ContainerRenderer, {}), builder.newContainer('root.tabs.second', ContainerRenderer, {}));
+		const runtime = createTestRuntime(builder);
+		const containerProps = runtime.renderableGraph('root.tabs')!.props;
+		const warn = vi.spyOn(console, 'warn');
+		const Probe = defineComponent({
+			props: { value: { type: Object, required: true } },
+			setup(props, { expose }) {
+				const result = containerRendererSetup(props.value as never);
+				expose(result);
+				return () => h('div');
+			},
+		});
+		const Host = defineComponent({
+			setup() {
+				provideFormSystemRuntime(runtime);
+				return () => h(Probe, { value: containerProps });
+			},
+		});
+		const wrapper = mount(Host);
+		const exposed = wrapper.findComponent(Probe).vm.$.exposed!;
+		const initialActiveChild = runtime.state.uiState.value['root.tabs'];
+
+		exposed.activeChildId.value = 'missing';
+		expect(warn).toHaveBeenCalledWith(expect.stringContaining('no such child exists'));
+		expect(runtime.state.uiState.value['root.tabs']).toBe(initialActiveChild);
+
+		exposed.activeChildId.value = 'root.tabs.second';
+		expect(runtime.state.uiState.value['root.tabs']).toBe('root.tabs.second');
+	});
+
 	test('can render a selected root form from a shared definition', () => {
 		const fixture = createSiblingFormsFixture();
 		const wrapper = mount(FormSystem, {
@@ -222,6 +258,17 @@ describe('form system integration', () => {
 		expect(compile).toHaveBeenCalledOnce();
 		expect(compile).toHaveBeenCalledWith(form.id);
 		expect(wrapper.emitted('submit')).toEqual([[compiled]]);
+	});
+
+	test('reset restores form state and emits one scoped reset event', async () => {
+		const fixture = createSingleFormFixture();
+		fixture.runtime.state.state.value['search.simple.word'] = { value: 'draft' };
+		const wrapper = mount(FormSystem, { props: fixture });
+
+		await wrapper.get('form').trigger('reset');
+
+		expect(fixture.runtime.state.state.value['search.simple.word']).toEqual({ value: '' });
+		expect(wrapper.emitted('reset')).toHaveLength(1);
 	});
 
 	test('editable autocomplete submits the latest input event without waiting for a tick', async () => {

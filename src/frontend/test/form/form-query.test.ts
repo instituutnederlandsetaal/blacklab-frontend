@@ -7,7 +7,9 @@ import {
 	annotationTextController,
 	createFormFieldNode,
 	expertQueryController,
+	filterCheckboxController,
 	filterDateController,
+	filterRangeController,
 	filterRadioController,
 	filterSelectController,
 	filterTextController,
@@ -147,6 +149,51 @@ describe('generated query correctness', () => {
 		};
 
 		expect(filterRadioController.getQueryContribution(config, context, '')).toBeNull();
+	});
+
+	test('metadata selection controllers contribute populated checkbox and radio values', () => {
+		const config = {
+			kind: 'field' as const,
+			id: 'genre',
+			displayName: 'Genre',
+			metadataFieldId: 'genre',
+			options: [
+				{ value: 'fiction', label: 'Fiction' },
+				{ value: 'essay', label: 'Essay' },
+			],
+		};
+
+		expect(filterCheckboxController.getQueryContribution(config, context, ['fiction'])?.filter).toEqual(filter('genre', 'literal', 'fiction'));
+		expect(filterRadioController.getQueryContribution(config, context, 'essay')?.filter).toEqual(filter('genre', 'literal', 'essay'));
+	});
+
+	test('metadata date controller handles empty, exact, and open-ended dates', () => {
+		const single = { kind: 'field' as const, id: 'date', displayName: 'Date', metadataFieldId: 'date', range: false };
+		const empty = { startDate: { y: '', m: '', d: '' }, endDate: { y: '', m: '', d: '' }, mode: 'strict' as const };
+		expect(filterDateController.getQueryContribution(single, context, empty)).toBeNull();
+
+		const exact = filterDateController.getQueryContribution(single, context, {
+			...empty,
+			startDate: { y: '2020', m: '02', d: '03' },
+		});
+		expect(exact?.filter).toEqual(filter('date', 'literal', '20200203'));
+
+		const bifield = { kind: 'field' as const, id: 'period', displayName: 'Period', fromField: 'from', toField: 'to', range: true, mode: 'strict' as const };
+		const openEnded = filterDateController.getQueryContribution(bifield, context, {
+			...empty,
+			endDate: { y: '2022', m: '', d: '' },
+		});
+		expect(openEnded?.filter).toEqual(booleanNode('and', filterRange('from', '00000101', '20221231')!, filterRange('to', '00000101', '20221231')!));
+	});
+
+	test('metadata range controller handles empty, single-field, and bifield bounds', () => {
+		const single = { kind: 'field' as const, id: 'year', displayName: 'Year', metadataFieldId: 'year' };
+		expect(filterRangeController.getQueryContribution(single, context, { low: '', high: '', mode: 'strict' })).toBeNull();
+		expect(filterRangeController.getQueryContribution(single, context, { low: '7', high: '', mode: 'strict' })?.filter).toEqual(filterRange('year', '7', '9999'));
+
+		const bifield = { kind: 'field' as const, id: 'period', displayName: 'Period', fromField: 'from', toField: 'to', mode: 'strict' as const };
+		const contribution = filterRangeController.getQueryContribution(bifield, context, { low: '', high: '8', mode: 'permissive' });
+		expect(contribution?.filter).toEqual(booleanNode('and', filterRange('from', '0', '0008')!, filterRange('to', '0', '0008')!));
 	});
 
 	test('select values containing only whitespace contribute no query', () => {
