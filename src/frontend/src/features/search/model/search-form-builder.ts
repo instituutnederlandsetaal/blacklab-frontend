@@ -4,7 +4,7 @@ import type { Corpus } from '@/app/state/useCorpusContext';
 import { FormBuilder, FormRuntime, type BaseFieldNode, type FormFieldNode, type FormNode } from '@/features/form';
 import type { PatternMode } from '@/features/search/model/form/pattern-state';
 import type { SearchFormConfiguration } from '@/features/search/model/search-form-configuration';
-import type { SearchFormWithinAttribute } from '@/features/search/model/search-form-customization';
+import { runSearchFormCustomizations, searchFormCustomizationCallbacks, type SearchFormCustomizationCallback, type SearchFormWithinAttribute } from '@/features/search/model/search-form-customization';
 import { searchFormIds as ids } from '@/features/search/model/search-form-ids';
 import { createSearchFormNodeConstructors } from '@/features/search/model/search-form-node-factory';
 import { createSearchFormTotalsFactory } from '@/features/search/model/search-form-totals';
@@ -21,8 +21,6 @@ import useInjectable from '@/shared/utils/useInjectable';
 import ContainerRenderer from '@/features/form/ui/ContainerRenderer.vue';
 import HeadingView from '@/features/form/views/HeadingView.vue';
 import SummaryView from '@/features/form/views/SummaryView.vue';
-
-// TODO integration customization.ts callback functions
 
 const SIMPLE_SEARCH_VARIANT: NonNullable<BaseFieldNode['variant']> = ['large', 'simple'];
 
@@ -281,7 +279,14 @@ function wrapParallel(context: BuildContext, mode: PatternMode, field: FormField
 	return field;
 }
 
-function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, configuration: SearchFormConfiguration, blacklabApi: BlackLabApi, translate: Translate): FormBuilder {
+function createSearchFormDefinition(
+	corpus: Corpus,
+	tagset: Tagset | undefined,
+	configuration: SearchFormConfiguration,
+	blacklabApi: BlackLabApi,
+	translate: Translate,
+	callbacks: readonly SearchFormCustomizationCallback[],
+): FormBuilder {
 	const builder = new FormBuilder({
 		corpus: {
 			indexId: corpus.id,
@@ -319,6 +324,19 @@ function createSearchFormDefinition(corpus: Corpus, tagset: Tagset | undefined, 
 	);
 
 	exploreFormsContainer.addChildren(createExploreCorporaForm(context, sharedFilters), createExploreNgramForm(context, sharedFilters), createExploreFrequencyForm(context, sharedFilters));
+	runSearchFormCustomizations(
+		{
+			...nodeConstructors.nodes,
+			corpus,
+			graph: builder,
+			ids,
+			newContainer: (id, config = {}) => builder.newContainer(id, ContainerRenderer, config),
+			newForm: (id, config = {}) => builder.newForm(id, ContainerRenderer, config),
+			tagset,
+			translate,
+		},
+		callbacks,
+	);
 
 	return builder;
 }
@@ -330,8 +348,8 @@ type SearchFormSystemPlugin = ObjectPlugin & {
 const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchFormSystemPlugin => {
 	const runtime = shallowRef<FormRuntime | null>(null);
 	watch(
-		[options.corpus, options.tagset, options.configuration],
-		([corpus, tagset, configuration]) => {
+		[options.corpus, options.tagset, options.configuration, searchFormCustomizationCallbacks],
+		([corpus, tagset, configuration, callbacks]) => {
 			if (!corpus) {
 				runtime.value = null;
 				return;
@@ -340,7 +358,7 @@ const createSearchFormSystem = (options: CreateSearchFormSystemOptions): SearchF
 			// Localized graph values are deferred getters. Keep locale and debug out of
 			// the structural dependencies so they update labels without replacing the
 			// live form session and all of its state.
-			runtime.value = new FormRuntime(createSearchFormDefinition(corpus, tagset, configuration, options.blacklabApi, options.translate));
+			runtime.value = new FormRuntime(createSearchFormDefinition(corpus, tagset, configuration, options.blacklabApi, options.translate, callbacks));
 		},
 		{ flush: 'sync', immediate: true },
 	);

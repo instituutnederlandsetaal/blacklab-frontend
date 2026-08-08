@@ -134,7 +134,7 @@ type ExploreParallelMode = 'frequency' | 'ngram';
  * Higher-level customization operations should resolve placement and delegate
  * here rather than reuse these low-level options as their own API.
  */
-type SearchFormNodeConstructors = {
+export type SearchFormNodeConstructors = {
 	/** Select the corpus-configured annotation control. */
 	annotation(annotation: SearchFormAnnotationReference, options: SearchFormNodeOptions): FormFieldNode;
 	annotationText(annotation: SearchFormAnnotationReference, options: SearchFormNodeOptions): FormFieldNode;

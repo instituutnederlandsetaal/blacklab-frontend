@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { effectScope, nextTick, ref, toValue, type EffectScope } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
-import type { Corpus } from '@/app/state/useCorpusContext';
+import type { Corpus, CorpusContext } from '@/app/state/useCorpusContext';
 import { normalizeTagset } from '@/features/corpus/model/tagset-state';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import {
@@ -24,7 +24,7 @@ import {
 import { adaptLegacySearchFormCustomizations } from '@/features/search/model/legacy-search-form-customization';
 import { createSearchFormSystem } from '@/features/search/model/search-form-builder';
 import { createLegacySearchFormConfiguration, snapshotSearchFormConfiguration } from '@/features/search/model/search-form-configuration';
-import { resolveSearchFormCustomizations } from '@/features/search/model/search-form-customization';
+import { registerSearchFormCustomization, resolveSearchFormCustomizations } from '@/features/search/model/search-form-customization';
 import { searchFormIds as ids } from '@/features/search/model/search-form-ids';
 import type { NormalizedAnnotation, NormalizedMetadataField } from '@/types/apptypes';
 import { corpusCustomizations } from '@/utils/customization';
@@ -900,6 +900,52 @@ describe('search form system', () => {
 
 		expect(system.runtime.value).not.toBe(initialRuntime);
 		expect(system.runtime.value!.definition).not.toBe(initialDefinition);
+	});
+
+	test('runs modern graph customization after applying legacy configuration', () => {
+		UIStore.getState().search.simple.searchAnnotationId = 'lemma';
+		const observedAnnotations: string[] = [];
+		const customFormId = 'custom/search-form';
+		const customContainerId = 'custom/search-form/fields';
+		const customFieldId = 'custom/search-form/lemma';
+		let registered = true;
+		const unregister = registerSearchFormCustomization(form => {
+			const id = form.ids.queryField('simple');
+			observedAnnotations.push(`${form.corpus.id}:${(form.graph.getField(id) as unknown as { annotationId: string }).annotationId}`);
+			expect(form).not.toHaveProperty('setAnnotationUiType');
+			form.graph.replaceNode(id, form.annotationSelect('lemma', { id, options: [{ value: 'run' }] }));
+			const fields = form.newContainer(customContainerId, { variant: 'list' }).addChildren(form.annotationText('lemma', { id: customFieldId }));
+			const customForm = form.newForm(customFormId, { title: () => form.translate.$t('search.simple.heading') }).addChildren(fields);
+			form.graph.getContainer(form.ids.searchFormsContainer())!.addChildren(customForm);
+		});
+
+		try {
+			const system = createLegacyBackedSearchSystem();
+			const customizedRuntime = system.runtime.value!;
+			expect(observedAnnotations).toEqual(['test-corpus:lemma']);
+			expect(customizedRuntime.definition.getField(ids.queryField('simple'))?.component).toBe(SelectField);
+			expect(customizedRuntime.definition.getForm(customFormId)).not.toBeNull();
+			expect(customizedRuntime.definition.getContainer(customContainerId)?.children.map(node => node.id)).toEqual([customFieldId]);
+
+			unregister();
+			registered = false;
+			expect(system.runtime.value).not.toBe(customizedRuntime);
+			expect(system.runtime.value!.definition.getField(ids.queryField('simple'))?.component).toBe(TextField);
+			expect(system.runtime.value!.definition.getForm(customFormId)).toBeNull();
+		} finally {
+			if (registered) unregister();
+		}
+	});
+
+	test('normalizes legacy annotation widget overrides before building the form', () => {
+		const corpus = createCorpus();
+		corpus.allAnnotationsMap.lemma.values = [{ value: 'run', label: 'Run', title: null }];
+		vi.spyOn(corpusCustomizations.search.pattern, 'uiType').mockImplementation((_field, annotationId) => (annotationId === 'lemma' ? ('dropdown' as 'select') : null));
+
+		UIStore.init({ index: corpus } as CorpusContext);
+
+		expect(corpus.allAnnotationsMap.lemma.uiType).toBe('select');
+		expect(createDefinition(corpus).definition.getField(ids.annotationField('extended', 'contents', 'lemma'))?.component).toBe(SelectField);
 	});
 
 	test('builds replacement search fields from the latest legacy configuration', () => {

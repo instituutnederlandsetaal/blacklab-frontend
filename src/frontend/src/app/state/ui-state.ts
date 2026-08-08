@@ -891,7 +891,7 @@ const init = (state: CorpusContext) => {
 			const uiType = corpusCustomizations.search.pattern.uiType(annotation.annotatedFieldId, annotation.id);
 			if (uiType) {
 				annotation.uiType = uiType;
-				normalizeAnnotationUIType(annotation);
+				annotation.uiType = normalizeAnnotationUIType(annotation);
 			}
 		});
 	});

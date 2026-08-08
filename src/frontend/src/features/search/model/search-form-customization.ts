@@ -1,5 +1,12 @@
 import { readonly, shallowRef } from 'vue';
 
+import type { Corpus } from '@/app/state/useCorpusContext';
+import type { BaseContainerNode, BaseFormNode, BuilderContainerNode, FormBuilder } from '@/features/form';
+import type { searchFormIds } from '@/features/search/model/search-form-ids';
+import type { SearchFormNodeConstructors } from '@/features/search/model/search-form-node-factory';
+import type { Tagset } from '@/types/apptypes';
+
+import type { Translate } from '@/shared/i18n';
 import type { Option } from '@/shared/utils/options';
 
 export type SearchFormWithinControl = 'text' | 'range' | { type: 'select'; options: Option[] };
@@ -25,9 +32,25 @@ export type SearchFormCustomization = {
 	within: WithinCustomization;
 };
 
-type SearchFormCustomizationApi = {
+type SearchFormConfigurationApi = {
 	addWithinAttribute(attribute: SearchFormWithinAttribute): void;
 	configureWithin(customization: WithinCustomization): void;
+};
+
+export type SearchFormConfigurationCallback = (form: SearchFormConfigurationApi) => void;
+
+type SearchFormCustomContainerOptions = Pick<BaseContainerNode, 'class' | 'combine' | 'title' | 'variant'>;
+type SearchFormCustomFormOptions = Pick<BaseFormNode, 'class' | 'title' | 'variant'>;
+
+/** Short-lived access to a completed definition before FormRuntime is created. */
+export type SearchFormCustomizationApi = SearchFormNodeConstructors & {
+	corpus: Readonly<Corpus>;
+	graph: FormBuilder;
+	ids: typeof searchFormIds;
+	newContainer(id: string, options?: SearchFormCustomContainerOptions): BuilderContainerNode;
+	newForm(id: string, options?: SearchFormCustomFormOptions): BuilderContainerNode;
+	tagset: Readonly<Tagset> | undefined;
+	translate: Translate;
 };
 
 export type SearchFormCustomizationCallback = (form: SearchFormCustomizationApi) => void;
@@ -40,9 +63,19 @@ export function registerSearchFormCustomization(callback: SearchFormCustomizatio
 	return () => (callbacks.value = callbacks.value.filter(current => current !== callback));
 }
 
-export function resolveSearchFormCustomizations(callbacksToRun: readonly SearchFormCustomizationCallback[]): SearchFormCustomization {
+export function runSearchFormCustomizations(form: SearchFormCustomizationApi, callbacksToRun: readonly SearchFormCustomizationCallback[]): void {
+	for (const callback of callbacksToRun) {
+		try {
+			callback(form);
+		} catch (error) {
+			console.error('Error in search form customization callback:', error);
+		}
+	}
+}
+
+export function resolveSearchFormCustomizations(callbacksToRun: readonly SearchFormConfigurationCallback[]): SearchFormCustomization {
 	const customization: SearchFormCustomization = { withinAttributes: [], within: {} };
-	const api: SearchFormCustomizationApi = {
+	const api: SearchFormConfigurationApi = {
 		addWithinAttribute: attribute => customization.withinAttributes.push({ ...attribute }),
 		configureWithin: within => Object.assign(customization.within, within),
 	};

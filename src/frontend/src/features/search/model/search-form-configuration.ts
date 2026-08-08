@@ -3,7 +3,7 @@ import { computed, type ComputedRef } from 'vue';
 
 import * as UIStore from '@/app/state/ui-state';
 import { adaptLegacySearchFormCustomizations } from '@/features/search/model/legacy-search-form-customization';
-import { resolveSearchFormCustomizations, searchFormCustomizationCallbacks, type SearchFormCustomization } from '@/features/search/model/search-form-customization';
+import { resolveSearchFormCustomizations, type SearchFormCustomization } from '@/features/search/model/search-form-customization';
 import { corpusCustomizations } from '@/utils/customization';
 
 import type { Option } from '@/shared/utils/options';
@@ -89,10 +89,7 @@ export function snapshotSearchFormConfiguration(state: UIStore.ModuleRootState, 
  */
 export function createLegacySearchFormConfiguration(): ComputedRef<SearchFormConfiguration> {
 	return computed(() => {
-		const customization = resolveSearchFormCustomizations([
-			adaptLegacySearchFormCustomizations(corpusCustomizations.search.metadata._customTabs, corpusCustomizations.search.within),
-			...searchFormCustomizationCallbacks.value,
-		]);
+		const customization = resolveSearchFormCustomizations([adaptLegacySearchFormCustomizations(corpusCustomizations.search.metadata._customTabs, corpusCustomizations.search.within)]);
 		return snapshotSearchFormConfiguration(UIStore.getState(), customization);
 	});
 }

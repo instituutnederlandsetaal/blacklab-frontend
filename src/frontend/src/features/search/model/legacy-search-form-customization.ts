@@ -1,4 +1,4 @@
-import type { SearchFormCustomizationCallback, SearchFormWithinAttribute } from '@/features/search/model/search-form-customization';
+import type { SearchFormConfigurationCallback, SearchFormWithinAttribute } from '@/features/search/model/search-form-customization';
 import type { FilterDefinition } from '@/types/apptypes';
 
 import { elementAndAttributeNameFromFilterId } from '@/shared/blacklab-helpers/span-filters-helper';
@@ -24,7 +24,7 @@ function options(metadata: any): Option[] {
  * Keep legacy names and data shapes on this side of the new customization API.
  * Metadata-filter parity can be added here when the new surface grows beyond spans.
  */
-export function adaptLegacySearchFormCustomizations(tabs: readonly LegacyTab[], within: LegacyWithin): SearchFormCustomizationCallback {
+export function adaptLegacySearchFormCustomizations(tabs: readonly LegacyTab[], within: LegacyWithin): SearchFormConfigurationCallback {
 	return form => {
 		form.configureWithin({
 			includeElement: element => within.includeSpan(element) !== false,
