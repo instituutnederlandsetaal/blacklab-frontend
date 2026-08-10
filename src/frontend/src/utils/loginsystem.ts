@@ -51,7 +51,7 @@ export async function awaitInit(settings: {
 		const userManager =  new UserManager({
 			checkSessionIntervalInSeconds: 10,
 			prompt: 'login',
-			redirect_uri: window.location.origin + CONTEXT_URL + '/callback',
+			redirect_uri: new URL(CONTEXT_URL + '/callback', window.location.origin).href,
 			// prevent hitting timeouts while debugging. Don't set this ridiculously high, or the system breaks and timeout hits instantly.
 			// @ts-ignore
 			silentRequestTimeoutInSeconds: process.env.NODE_ENV === 'development' ? 300 : 10,

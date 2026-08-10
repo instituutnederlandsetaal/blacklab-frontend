@@ -146,7 +146,17 @@ const get = {
 
 const internalActions = {
 	replace: b.commit((state, payload: ModuleRootState) => {
-		state.splice(0, state.length, ...payload.map(e => Object.freeze(markRaw(e))));
+		state.splice(0, state.length, ...payload.map(e => {
+			// Bugfix: the url was saved path only for a while, but this value is exposed in the UI and can be copied out, so we need to make sure it is a full url.
+			const mapped = new URL(e.url);
+			if (!mapped.host) {
+				mapped.port = window.location.port;
+				mapped.protocol = window.location.protocol;
+				mapped.host = window.location.host;
+				e.url = mapped.toString();
+			}
+			return Object.freeze(markRaw(e));
+		}));
 	}, 'replace')
 };
 
