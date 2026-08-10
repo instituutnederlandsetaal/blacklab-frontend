@@ -299,7 +299,7 @@ urlInputParameters$.pipe(
 			glosses: GlossStore.defaults,
 		};
 		return {
-			url: v.url,
+			url: new URL(v.url, window.location.origin).toString(), // make sure the URL includes the host/domain, so that exports and other things that need to know the full url can use it.
 			entry,
 			state: v.state,
 			params: v.params

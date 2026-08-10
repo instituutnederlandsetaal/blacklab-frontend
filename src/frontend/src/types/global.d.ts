@@ -8,7 +8,11 @@ declare global {
 
 	const WITH_CREDENTIALS: boolean;
 
-	/** URL for the root path of the frontend. Guaranteed NOT to end in a slash. */
+	/** 
+	 * URL for the root path of the frontend. 
+	 * May include a hostname (if cfUrlOnClient includes it), but it's not guaranteed. 
+	 * Guaranteed NOT to end in a slash. 
+	 */
 	const CONTEXT_URL: string;
 	/** Guaranteed to end in a slash. Does not contain the corpus id. */
 	const BLS_URL: string;
