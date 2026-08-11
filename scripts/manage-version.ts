@@ -328,9 +328,14 @@ const actions = {
         ]
       });
 
-      await setVersion(Version.fromString(nextVersion));
+      const updatedVersion = Version.fromString(nextVersion);
+      await setVersion(updatedVersion);
       await git.add(rootDir);
       await git.commit(`Bump version to ${nextVersion}`);
+
+      // Actions selected together share this object. Keep it in sync with the
+      // committed files so a following release uses the newly selected version.
+      p.maintenance_branch_version = updatedVersion;
       console.log(`Version updated to ${nextVersion}`);
       return nextVersion;
     },
