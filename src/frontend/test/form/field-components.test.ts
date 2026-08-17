@@ -155,7 +155,7 @@ describe('generic form field components', () => {
 		await wrapper.findAll('input')[0].setValue('2');
 		await wrapper.findAll('input')[1].setValue('8');
 		await wrapper.get('button[value="permissive"]').trigger('click');
-		expect(wrapper.emitted('update:modelValue')).toEqual([[{ ...modelValue, low: 2 }], [{ ...modelValue, high: 8 }], [{ ...modelValue, mode: 'permissive' }]]);
+		expect(wrapper.emitted('update:modelValue')).toEqual([[{ ...modelValue, low: '2' }], [{ ...modelValue, high: '8' }], [{ ...modelValue, mode: 'permissive' }]]);
 
 		const locked = mount(RangeField, {
 			props: { ...baseProps, modelValue, mode: 'strict', inputType: 'text', showLabel: false },

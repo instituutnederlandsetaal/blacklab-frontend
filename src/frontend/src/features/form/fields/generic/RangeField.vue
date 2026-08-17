@@ -74,20 +74,20 @@ const modes = computed(() => props.modeOptions ?? rawRangeModeOptions);
 
 const lower = computed({
 	get: () => props.modelValue.low,
-	set: (low: string) => {
+	set: low => {
 		emit('update:modelValue', {
 			...props.modelValue,
-			low,
+			low: String(low),
 		});
 	},
 });
 
 const upper = computed({
 	get: () => props.modelValue.high,
-	set: (high: string) => {
+	set: high => {
 		emit('update:modelValue', {
 			...props.modelValue,
-			high,
+			high: String(high),
 		});
 	},
 });
