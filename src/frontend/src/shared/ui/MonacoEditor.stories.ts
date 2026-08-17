@@ -2,8 +2,9 @@ import type { Meta, StoryObj } from '@storybook/vue3-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { nextTick, ref } from 'vue';
 
-import MonacoEditor from './MonacoEditor.vue';
 import monaco from './monacoEditor';
+
+import MonacoEditor from './MonacoEditor.vue';
 
 const meta = {
 	title: 'Shared/UI/MonacoEditor',

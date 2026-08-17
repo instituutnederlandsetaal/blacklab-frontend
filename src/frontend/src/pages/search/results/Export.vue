@@ -64,6 +64,7 @@ export default defineComponent({
 	},
 	data: () => ({
 		corpus: useCorpus(),
+		blacklab: useBlackLabApi(),
 		downloadInProgress: false,
 	}),
 	computed: {
@@ -82,9 +83,8 @@ export default defineComponent({
 			if (this.downloadInProgress || !this.results) {
 				return;
 			}
-			const blacklab = useBlackLabApi();
 			this.downloadInProgress = true;
-			const apiCall = this.type === 'hits' ? blacklab.getHitsCsv : blacklab.getDocsCsv;
+			const apiCall = this.type === 'hits' ? this.blacklab.getHitsCsv : this.blacklab.getDocsCsv;
 			const params = cloneDeep(getSearchParameters(this.results));
 			if (this.annotations) params.listvalues = this.annotations!.join(',');
 			if (this.metadata) params.listmetadatavalues = this.metadata.join(',');

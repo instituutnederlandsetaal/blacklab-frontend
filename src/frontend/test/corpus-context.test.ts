@@ -204,6 +204,10 @@ describe('corpus context publication', () => {
 		expect(publishedIds).toEqual(['first', 'second']);
 		expect(getCorpus.mock.calls.map(([id]) => id)).toEqual(['first', 'second']);
 		expect(getConfig).toHaveBeenCalledTimes(2);
+		expect(getConfig.mock.calls).toEqual([
+			['first', { headers: { 'Cache-Control': 'no-cache' } }],
+			['second', { headers: { 'Cache-Control': 'no-cache' } }],
+		]);
 		expect(getTagset).toHaveBeenCalledTimes(2);
 	});
 });

@@ -46,9 +46,9 @@ export const createFormFieldNode = <Controller extends AnyFieldController, Compo
 	return {
 		...config,
 		variant: config.variant ?? inheritedVariant,
-		component,
+		component: component as Component,
 		controller,
 		kind: 'field',
 		id,
-	} as any;
+	};
 };

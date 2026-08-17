@@ -206,11 +206,10 @@ export function createDerivedLoadable<T>(getDependencies: () => readonly Loadabl
 }
 
 /**
- * Mirror a loadable, but run a synchronous checkpoint before publishing each
- * newly loaded value. Reactive reads made by the checkpoint are intentionally
- * not dependencies of the mirror.
+ * Mirror a loadable, but run a callback before publishing each
+ * newly loaded value. The callback intentionally is not reactive, so it can be used to perform side effects without triggering additional reactive reads.
  */
-export function checkpointLoadedReactive<T>(source: ControlledLoadable<T>, checkpoint: (value: T) => void, options?: LoadableReactiveOptions): ControlledLoadable<T> {
+export function tapLoadedReactive<T>(source: ControlledLoadable<T>, cb: (value: T) => void, options?: LoadableReactiveOptions): ControlledLoadable<T> {
 	let hasCheckpointedValue = false;
 	let checkpointedValue: T | undefined;
 
@@ -221,7 +220,7 @@ export function checkpointLoadedReactive<T>(source: ControlledLoadable<T>, check
 				hasCheckpointedValue = false;
 				checkpointedValue = undefined;
 			} else if (!hasCheckpointedValue || !Object.is(checkpointedValue, source.value)) {
-				checkpoint(source.value);
+				cb(source.value);
 				hasCheckpointedValue = true;
 				checkpointedValue = source.value;
 			}

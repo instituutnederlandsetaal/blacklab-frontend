@@ -18,7 +18,7 @@ import { resolvedRequest } from '@/shared/api/lib/api-utils';
 import { mapReduce } from '@/shared/utils/array-utils';
 import { combineLoadables } from '@/shared/utils/loadable/loadable-combine-reactive';
 import { loadableFromComputedRequest, type LoadableFromRequest } from '@/shared/utils/loadable/loadable-datasource';
-import { checkpointLoadedReactive } from '@/shared/utils/loadable/loadable-reactive';
+import { tapLoadedReactive } from '@/shared/utils/loadable/loadable-reactive';
 import useInjectable from '@/shared/utils/useInjectable';
 
 // Utils we add for convenience on top of the base index.
@@ -160,7 +160,12 @@ function createCorpusValue(index: NormalizedIndex): Corpus {
 
 function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpusId: MaybeRefOrGetter<string | null | undefined>, options: CorpusContextOptions = {}) {
 	const getCorpus = (id: string | undefined | null): CancelableRequest<NormalizedIndex | undefined> => (id ? blacklab.getCorpus(id) : resolvedRequest<NormalizedIndex | undefined>(undefined));
-	const getConfig = (id: string | undefined | null): CancelableRequest<CFPageConfig> => frontend.getConfig(id ?? null);
+	const getConfig = (id: string | undefined | null): CancelableRequest<CFPageConfig> =>
+		frontend.getConfig(id ?? null, {
+			// The backend supplies ETags. Revalidate on each application load so a
+			// changed search.xml is not hidden by max-age/stale-while-revalidate.
+			headers: { 'Cache-Control': 'no-cache' },
+		});
 	const getTagset = (id: string | undefined | null): CancelableRequest<Tagset | undefined> => (id ? frontend.getTagset(id) : resolvedRequest<Tagset | undefined>(undefined));
 
 	// These loadables retain their identity for the lifetime of the context. A corpus
@@ -170,7 +175,7 @@ function createCorpusContext(blacklab: BlackLabApi, frontend: FrontendApi, corpu
 	const configLoadable = loadableFromComputedRequest(computed(() => getConfig(toValue(corpusId))));
 	const tagsetLoadable = loadableFromComputedRequest(computed(() => getTagset(toValue(corpusId))));
 	const loadedContext: LoadableFromRequest<CorpusContext> = combineLoadables({ index: corpusLoadable, config: configLoadable, tagset: tagsetLoadable });
-	const publishedContext = checkpointLoadedReactive(loadedContext, context => {
+	const publishedContext = tapLoadedReactive(loadedContext, context => {
 		if (context.index) {
 			const annotations = context.index.annotatedFields[context.index.mainAnnotatedField].annotations;
 			const mainAnnotation = Object.values(annotations).find(annotation => annotation.uiType === 'pos');

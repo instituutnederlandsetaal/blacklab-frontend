@@ -6,9 +6,9 @@
 </template>
 
 <script setup lang="ts">
+import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api.js';
 import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { PropType } from 'vue';
-import type * as Monaco from 'monaco-editor/esm/vs/editor/editor.api.js';
 
 import monaco from './monacoEditor';
 

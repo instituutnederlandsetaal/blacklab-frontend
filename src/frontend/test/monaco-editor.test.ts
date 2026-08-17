@@ -105,10 +105,7 @@ describe('MonacoEditor', () => {
 			}),
 		);
 		expect(mock.createModel).toHaveBeenCalledWith('version: 2', 'yaml', expect.anything());
-		expect(mock.create).toHaveBeenCalledWith(
-			wrapper.get('.monaco-editor-container').element,
-			expect.objectContaining({ ...options, model: mock.models[0], theme: 'vs' }),
-		);
+		expect(mock.create).toHaveBeenCalledWith(wrapper.get('.monaco-editor-container').element, expect.objectContaining({ ...options, model: mock.models[0], theme: 'vs' }));
 	});
 
 	test('emits edits and accepts external value updates without echoing them', async () => {

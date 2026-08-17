@@ -15,10 +15,10 @@ import {
 	mapEmptyReactive,
 	mapErrorReactive,
 	flatMapReactive,
-	checkpointLoadedReactive,
 	mapOptionalReactive,
 	mapReactive,
 	mapLoadingReactive,
+	tapLoadedReactive,
 } from '@/shared/utils/loadable/loadable-reactive';
 
 function createControlledLoadable<T>(initial: Loadable<T>, extra: Partial<{ retry: () => void; stop: () => void }> = {}) {
@@ -428,7 +428,7 @@ describe('mapReactive', () => {
 		const source = createControlledLoadable(Loadable.Loading<{ values: string[] }>());
 		const mapper = vi.fn((value: { values: string[] }) => ({ value }));
 		const mapped = mapReactive(source.loadable, mapper);
-		const published = checkpointLoadedReactive(mapped, context => {
+		const published = tapLoadedReactive(mapped, context => {
 			context.value.values = [...context.value.values];
 		});
 

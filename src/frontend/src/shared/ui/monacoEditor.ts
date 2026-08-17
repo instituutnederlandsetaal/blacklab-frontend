@@ -1,5 +1,3 @@
-import blfSchema from '@assets/blf-schema.json';
-
 import 'monaco-editor/esm/vs/editor/contrib/bracketMatching/browser/bracketMatching.js';
 import 'monaco-editor/esm/vs/editor/contrib/clipboard/browser/clipboard.js';
 import 'monaco-editor/esm/vs/editor/contrib/comment/browser/comment.js';
@@ -10,6 +8,8 @@ import 'monaco-editor/esm/vs/editor/contrib/multicursor/browser/multicursor.js';
 import 'monaco-editor/esm/vs/editor/contrib/suggest/browser/suggestController.js';
 import 'monaco-editor/esm/vs/language/json/monaco.contribution.js';
 import 'monaco-editor/esm/vs/basic-languages/yaml/yaml.contribution.js';
+
+import blfSchema from '@assets/blf-schema.json';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api.js';
 import editorWorkerUrl from 'monaco-editor/esm/vs/editor/editor.worker.js?worker&url';
 import jsonWorkerUrl from 'monaco-editor/esm/vs/language/json/json.worker.js?worker&url';
