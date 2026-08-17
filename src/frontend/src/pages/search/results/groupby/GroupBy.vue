@@ -179,7 +179,6 @@ import { defineComponent, nextTick } from 'vue';
 import Slider from 'vue-3-slider-component';
 
 import * as SearchModule from '@/app/state/root-store';
-import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
@@ -282,21 +281,21 @@ export default defineComponent({
 			// sometimes grouping by the shown annotation itself isn't allowed (e.g. when it contains inline HTML)
 			// in which case usually the corpus allows grouping on the plain version of that annotation.
 			// so check if this one's allowed, and if not, find the first allowed one.
-			const concordanceAnnotation = UIStore.getState().results.shared.concordanceAnnotationId;
-			const allowedAnnotations = UIStore.getState().results.shared.groupAnnotationIds;
+			const concordanceAnnotation = this.customizations.resultConcordanceAnnotationId();
+			const allowedAnnotations = this.customizations.resultGroupAnnotationIds();
 			return allowedAnnotations.includes(concordanceAnnotation) ? concordanceAnnotation : allowedAnnotations.length > 0 ? allowedAnnotations[0] : '';
 		},
 
 		metadataDropdownOptions(): Options {
 			return (
 				getMetadataSubset(
-					UIStore.getState().results.shared.groupMetadataIds,
+					this.customizations.resultGroupMetadataIds(),
 					this.metadataGroups,
 					this.metadataFieldsMap,
 					'Group',
 					this,
 					debug.value, // is debug enabled - i.e. show debug labels in dropdown
-					UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
+					this.customizations.resultGroupMetadataLabelsVisible(),
 					id => this.customizations.resultMetadataField(this.corpus.allMetadataFieldsMap[id]),
 				) as OptGroup[]
 			)
@@ -306,13 +305,13 @@ export default defineComponent({
 		},
 		annotationDropdownOptions(): Options {
 			return getAnnotationSubset(
-				UIStore.getState().results.shared.groupAnnotationIds,
+				this.customizations.resultGroupAnnotationIds(),
 				this.annotationGroups,
 				this.annotationsMap,
 				'Search',
 				this,
 				debug.value, // is debug enabled - i.e. show debug labels in dropdown
-				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible,
+				this.customizations.resultGroupAnnotationLabelsVisible(),
 			)
 				.flatMap(optGroup => this.customizations.groupOptionGroup(optGroup, this))
 				.flatMap<Options[number]>(optGroup => (optionText(optGroup.label) ? optGroup : optGroup.options));
@@ -547,8 +546,8 @@ export default defineComponent({
 				return [];
 			}
 
-			const wordAnnotation = UIStore.getState().results.shared.concordanceAnnotationId;
-			const wordAsHtml = UIStore.getState().results.shared.concordanceAsHtml;
+			const wordAnnotation = this.customizations.resultConcordanceAnnotationId();
+			const wordAsHtml = this.customizations.resultConcordanceAsHtml();
 
 			const firstHit = this.hits.hits.find(v => !!v.otherFields) ?? this.hits.hits[0];
 			const targetField = this.selectedCriterium?.fieldName;

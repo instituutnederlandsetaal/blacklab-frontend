@@ -76,7 +76,7 @@ async function start() {
 	await router.router.isReady();
 	const corpusState = createCorpusContext(api.blacklabApi, api.frontendApi, router.corpusId);
 	const customizationRegistry = createCustomizationRegistry(corpusState.corpus);
-	const customizations = createCustomizations(customizationRegistry, corpusState.corpus, UIStore.getState);
+	const customizations = createCustomizations(customizationRegistry, corpusState.corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId);
 	RootStore.setCustomizations(customizations);
 	corpusState.beforePublish(corpus => {
 		/**

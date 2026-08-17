@@ -131,8 +131,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
+import { useCustomizations, type ResultHitAddon } from '@/customization-api/internal/internal-api';
 import { type IRowProps, IRowDefaultProps } from '@/pages/search/results/table/IRow';
 import type { HitContext as ContextOfHit, TokenHighlight } from '@/types/apptypes';
 import type * as BLTypes from '@/types/blacklabtypes';
@@ -152,6 +152,7 @@ import Spinner from '@/shared/ui/Spinner.vue';
 
 const blacklab = useBlackLabApi();
 const corpus = useCorpus();
+const customizations = useCustomizations();
 
 defineOptions({ name: 'HitRowDetails' });
 const props = withDefaults(defineProps<IRowProps<HitRowData>>(), IRowDefaultProps);
@@ -163,7 +164,7 @@ const snippetRequest = ref<CancelableRequest<BLTypes.BLHit> | null>(null);
 const snippet = ref<ContextOfHit | null>(null);
 
 const error = ref<string | null>(null);
-const addons = ref<Array<ReturnType<UIStore.ModuleRootState['results']['hits']['addons'][number]>>>([]);
+const addons = ref<ResultHitAddon[]>([]);
 
 // whether full sentence is shown (instead of just n words before and after the hit)
 // For this to be available, the sentenceElement must be set (in the ui store)
@@ -171,7 +172,7 @@ const sentenceShown = ref(false);
 
 const hasRelations = computed(() => corpus.value.hasRelations);
 /** Exact surrounding sentence can only be loaded if we the start location of the current hit, and when the boundery element has been set. */
-const sentenceAvailable = computed(() => hasRelations.value && !!UIStore.getState().search.shared.within.sentenceElement && 'start' in props.row.hit);
+const sentenceAvailable = computed(() => hasRelations.value && !!customizations.searchFormSentenceElement() && 'start' in props.row.hit);
 
 /**
  * Separate from the snippet/context, as that can run over sentence boundaries, but this doesn't.
@@ -181,10 +182,8 @@ function loadSentence() {
 	// 'start' should always be true if this.sentenceAvailable is true, but typescript doesn't know this.
 	if (!sentenceAvailable.value || sentenceRequest.value || !('start' in props.row.hit)) return;
 
-	const context = UIStore.getState().search.shared.within.sentenceElement;
+	const context = customizations.searchFormSentenceElement();
 	if (!context) return; // unavailable.
-
-	const formatError = UIStore.getState().global.errorMessage;
 
 	// Need to track this, because results pay be paginated and this component may be reused across renders
 	// We should probably use asyncComputed or something but that's for later.
@@ -197,7 +196,7 @@ function loadSentence() {
 			if (nonce === props.row.hit) sentence.value = r;
 		})
 		.catch(e => {
-			if (nonce === props.row.hit) error.value = formatError(e, 'snippet');
+			if (nonce === props.row.hit) error.value = customizations.formatError(e, 'snippet');
 		})
 		.finally(() => {
 			if (sentenceRequest.value === request) sentenceRequest.value = null;
@@ -210,10 +209,8 @@ function loadSnippet() {
 	// The small table will still be shown.
 	if (snippetRequest.value || snippet.value || !('start' in props.row.hit)) return;
 
-	const transformSnippets = UIStore.getState().results.shared.transformSnippets;
-	const addonConstructors = UIStore.getState().results.hits.addons;
-	const formatError = UIStore.getState().global.errorMessage;
-	const concordanceSize = UIStore.getState().results.shared.concordanceSize;
+	const addonConstructors = customizations.resultHitAddons();
+	const concordanceSize = customizations.resultConcordanceSize();
 
 	const nonce = props.row.hit;
 	const request = blacklab.getSnippet(corpus.value.id!, props.row.doc.docPid, props.row.annotatedField?.id, props.row.hit.start!, props.row.hit.end!, concordanceSize);
@@ -222,7 +219,7 @@ function loadSnippet() {
 		.then(s => {
 			if (nonce !== props.row.hit) return; // hit has changed in the meantime.
 
-			transformSnippets?.(s);
+			customizations.transformResultSnippet(s);
 
 			// HACK! copy the colors from the existing hit. There's no easy way to get the entire Results object here to get the colors from there.
 			// At least there's never be more highlights in the surrounding snippet than in the hit itself, so this works...
@@ -263,7 +260,7 @@ function loadSnippet() {
 		})
 		.catch((err: ApiError) => {
 			if (nonce !== props.row.hit) return; // hit has changed in the meantime.
-			error.value = formatError(err, 'snippet');
+			error.value = customizations.formatError(err, 'snippet');
 			if (err.stack) debugLog('article', err.stack);
 		})
 		.finally(() => {

@@ -57,7 +57,7 @@ function startTestUrlSync(searchForms: Ref<FormRuntime | null>) {
 		indexId: ref('test-corpus'),
 		pageMeta: ref({ name: 'search' } as PageMeta),
 		searchForms,
-		customizations: createCustomizations(customizationRegistry, corpus, {} as never),
+		customizations: createCustomizations(customizationRegistry, corpus, {} as never, () => {}),
 	});
 }
 

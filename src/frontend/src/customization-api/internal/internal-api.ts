@@ -45,6 +45,9 @@ export type SearchFilterTab = {
 	query?: Record<string, string[]>;
 };
 
+export type ResultView = UIStore.CustomView;
+export type ResultHitAddon = ReturnType<UIStore.ModuleRootState['results']['hits']['addons'][number]>;
+
 function activeResultCustomizations(registry: CustomizationRegistry) {
 	return { legacy: registry.legacyApi.value!, results: registry.resultCustomizations.value };
 }
@@ -288,7 +291,12 @@ function collectSearchFormOverrides(registry: CustomizationRegistry, corpus: Cor
 	return overrides;
 }
 
-function createCustomizationApi(registry: CustomizationRegistry, corpus: MaybeRefOrGetter<Corpus>, uiState: MaybeRefOrGetter<UIStore.ModuleRootState>) {
+function createCustomizationApi(
+	registry: CustomizationRegistry,
+	corpus: MaybeRefOrGetter<Corpus>,
+	uiState: MaybeRefOrGetter<UIStore.ModuleRootState>,
+	setConcordanceAnnotationId: (id: string) => void,
+) {
 	// Configuration callbacks are imperative, so collect their writes once per
 	// registry/corpus change. The accessors below merge these sparse overrides
 	// with live UI-state defaults.
@@ -321,6 +329,7 @@ function createCustomizationApi(registry: CustomizationRegistry, corpus: MaybeRe
 			return { ...(currentCorpus.allAnnotatedFieldsMap[sourceField]?.annotations[annotationId] || currentCorpus.firstMainAnnotation), annotatedFieldId: sourceField };
 		},
 		searchFormExtendedAnnotationIds: () => searchFormOverrides.value.extendedAnnotationIds ?? state().search.extended.searchAnnotationIds,
+		searchFormSplitBatchEnabled: () => state().search.extended.splitBatch.enabled,
 		searchFormAnnotationControl(annotationId: string, annotatedFieldId?: string): Exclude<SearchFormAnnotationControl, 'auto'> | null {
 			return searchFormOverrides.value.annotationControls[searchFormAnnotationControlKey(annotationId, annotatedFieldId)] ?? null;
 		},
@@ -338,6 +347,7 @@ function createCustomizationApi(registry: CustomizationRegistry, corpus: MaybeRe
 		},
 		searchFormSpanFilters: () => searchFormOverrides.value.spanFilters,
 		searchFormWithinEnabled: () => searchFormOverrides.value.within.enabled ?? state().search.shared.within.enabled,
+		searchFormSentenceElement: () => state().search.shared.within.sentenceElement,
 		searchFormWithinOptions() {
 			const spans = toValue(corpus).relations.spans ?? {};
 			const configured = (searchFormOverrides.value.within.elements ?? state().search.shared.within.elements).filter(
@@ -388,6 +398,34 @@ function createCustomizationApi(registry: CustomizationRegistry, corpus: MaybeRe
 		},
 		searchFormExploreMetadataGroupLabelsVisible: () => searchFormOverrides.value.explore.metadataGroupLabelsVisible ?? state().dropdowns.groupBy.metadataGroupLabelsVisible,
 		searchFormLexiconDatabase: () => searchFormOverrides.value.lexiconDatabase ?? state().global.lexiconDb,
+
+		resultConcordanceAnnotationIdOptions: () => state().results.shared.concordanceAnnotationIdOptions,
+		resultConcordanceAnnotationId: () => state().results.shared.concordanceAnnotationId,
+		setResultConcordanceAnnotationId: setConcordanceAnnotationId,
+		resultConcordanceSize: () => state().results.shared.concordanceSize,
+		resultConcordanceAsHtml: () => state().results.shared.concordanceAsHtml,
+		resultDetailedAnnotationIds: () => state().results.shared.detailedAnnotationIds,
+		resultDetailedMetadataIds: () => state().results.shared.detailedMetadataIds,
+		resultGroupAnnotationIds: () => state().results.shared.groupAnnotationIds,
+		resultGroupMetadataIds: () => state().results.shared.groupMetadataIds,
+		resultSortAnnotationIds: () => state().results.shared.sortAnnotationIds,
+		resultSortMetadataIds: () => state().results.shared.sortMetadataIds,
+		resultExportEnabled: () => state().results.shared.exportEnabled,
+		resultDependencies: () => state().results.shared.dependencies,
+		resultGroupAnnotationLabelsVisible: () => state().dropdowns.groupBy.annotationGroupLabelsVisible,
+		resultGroupMetadataLabelsVisible: () => state().dropdowns.groupBy.metadataGroupLabelsVisible,
+		resultSortAnnotationLabelsVisible: () => state().dropdowns.sortBy.annotationGroupLabelsVisible,
+		resultSortMetadataLabelsVisible: () => state().dropdowns.sortBy.metadataGroupLabelsVisible,
+		resultShownAnnotationIds: () => state().results.hits.shownAnnotationIds,
+		resultShownMetadataIds: (kind: 'hits' | 'docs') => state().results[kind].shownMetadataIds,
+		resultViews: () => state().results.customViews,
+		resultHitAddons: () => state().results.hits.addons,
+		resultDocumentSummary: (...args: Parameters<UIStore.ModuleRootState['results']['shared']['getDocumentSummary']>) => state().results.shared.getDocumentSummary(...args),
+		transformResultSnippet(snippet: Parameters<NonNullable<UIStore.ModuleRootState['results']['shared']['transformSnippets']>>[0]) {
+			state().results.shared.transformSnippets?.(snippet);
+		},
+		formatError: (...args: Parameters<UIStore.ModuleRootState['global']['errorMessage']>) => state().global.errorMessage(...args),
+
 		customizeSearchForm(api: SearchFormCustomizationApi) {
 			for (const customize of registry.formCustomizers.value) {
 				try {
@@ -449,9 +487,6 @@ function createCustomizationApi(registry: CustomizationRegistry, corpus: MaybeRe
 				.filter(group => group.subtabs.length);
 		},
 
-		/** Legacy behavior: should this metadata field be shown outside the typed results-customization flow? */
-		legacyShouldShowMetadataField: (fieldId: string) => registry.legacyApi.value!.search.metadata.showField(fieldId),
-
 		/** Legacy behavior: should this span be available in the within widget? */
 		legacyShouldIncludeWithinSpan: (spanName: string) => registry.legacyApi.value!.search.within.includeSpan(spanName),
 
@@ -476,8 +511,13 @@ export function useCustomizations(): Customizations {
 	return injected.customizations;
 }
 
-export function createCustomizations(registry: CustomizationRegistry, corpus: MaybeRefOrGetter<Corpus | undefined>, uiState: MaybeRefOrGetter<UIStore.ModuleRootState>): CustomizationsPlugin {
-	const customizations = markRaw(createCustomizationApi(registry, corpus as MaybeRefOrGetter<Corpus>, uiState));
+export function createCustomizations(
+	registry: CustomizationRegistry,
+	corpus: MaybeRefOrGetter<Corpus | undefined>,
+	uiState: MaybeRefOrGetter<UIStore.ModuleRootState>,
+	setConcordanceAnnotationId: (id: string) => void,
+): CustomizationsPlugin {
+	const customizations = markRaw(createCustomizationApi(registry, corpus as MaybeRefOrGetter<Corpus>, uiState, setConcordanceAnnotationId));
 	return {
 		...customizations,
 		install(app) {

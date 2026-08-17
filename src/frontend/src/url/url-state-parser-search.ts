@@ -2,7 +2,6 @@ import cloneDeep from 'clone-deep';
 import LuceneQueryParser from 'lucene-query-parser';
 import memoize from 'memoize-decorator';
 
-import * as UIModule from '@/app/state/ui-state';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import type { Customizations } from '@/customization-api/internal/internal-api';
 import * as TagsetModule from '@/features/corpus/model/tagset-state';
@@ -42,7 +41,6 @@ export type UrlStateParserSearchDependencies = {
 	filterState: FilterModule.FullModuleRootState;
 	globalResultsState: GlobalResultsModule.ModuleRootState;
 	tagsetState: TagsetModule.ModuleRootState;
-	uiState: UIModule.ModuleRootState;
 	customizations: Customizations;
 };
 
@@ -53,7 +51,6 @@ export function createUrlStateParserSearchDependencies(options: { blacklabApi: B
 		filterState: FilterModule.getState(),
 		globalResultsState: GlobalResultsModule.getState(),
 		tagsetState: TagsetModule.getState(),
-		uiState: UIModule.getState(),
 		customizations: options.customizations,
 	};
 }
@@ -271,7 +268,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			if (!uiStateFromUrl) {
 				throw new Error('No url ui state, falling back to determining from rest of parameters.');
 			}
-			if (!this.dependencies.uiState.search.advanced.enabled && uiStateFromUrl.form === 'search' && uiStateFromUrl.patternMode === 'advanced') {
+			if (!this.dependencies.customizations.searchFormAdvancedEnabled() && uiStateFromUrl.form === 'search' && uiStateFromUrl.patternMode === 'advanced') {
 				uiStateFromUrl.patternMode = 'expert';
 			}
 			return {
@@ -295,7 +292,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 				ui.patternMode = 'simple';
 			} else if (this.extendedPattern && !hasGapValue) {
 				ui.patternMode = 'extended';
-			} else if (this.advancedPattern?.query.tokens.length && !hasGapValue && this.dependencies.uiState.search.advanced.enabled) {
+			} else if (this.advancedPattern?.query.tokens.length && !hasGapValue && this.dependencies.customizations.searchFormAdvancedEnabled()) {
 				ui.patternMode = 'advanced';
 			} else if (this.expertPattern.query) {
 				ui.patternMode = 'expert';
@@ -568,7 +565,6 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	@memoize
 	private get withinElementName(): string | null {
 		// Determine selected option in within widget from within clauses in the query
-		const withinUi = this.dependencies.uiState.search.shared.within;
 		// Note that the first withinOption we find that is in withinClauses is assumed to be the
 		// selected within option.
 		// FIXME: It's possible that we select the wrong withinOption this way. If we do, and there's
@@ -576,7 +572,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		// part of the query gets dropped on page reload, breaking the user's query...
 		// Complex additional logic might improve this slightly, but the real fix is to change the URL to describe
 		// the frontend's interface state, not the query we send to BLS.
-		const withinOptions = withinUi.enabled ? withinUi.elements.filter(element => this.dependencies.customizations.legacyShouldIncludeWithinSpan(element.value)) : [];
+		const withinOptions = this.dependencies.customizations.searchFormWithinEnabled() ? this.dependencies.customizations.searchFormWithinOptions().options : [];
 		return withinOptions.find(opt => !!this.withinClausesWithoutSpanFilters[opt.value])?.value ?? null;
 	}
 
@@ -587,10 +583,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		const allAttributes = within ? (this.withinClausesWithoutSpanFilters[within] ?? {}) : {};
 
 		// Which, if any, attribute filter fields should be displayed for this element?
-		const availableAttr = within ? Object.keys(this.dependencies.corpus.relations.spans?.[within].attributes ?? {}) : [];
-		const attr = within ? availableAttr.filter(attrName => this.dependencies.customizations.legacyShouldIncludeWithinAttribute(within, attrName)).map(a => ({ value: a })) || [] : [];
-
-		const attributesAcceptedByWithinWidget = within ? attr.map(el => (typeof el === 'string' ? { value: el } : el)) : [];
+		const attributesAcceptedByWithinWidget = within ? this.dependencies.customizations.searchFormWithinAttributes(within).map(value => ({ value })) : [];
 		const withinAttributes = Object.fromEntries(
 			Object.entries(allAttributes)
 				.filter(([attrName, _]) => {
@@ -641,7 +634,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 		const targets = this._parsedCql ? this._parsedCql.slice(1).map(result => (result.targetVersion ? getParallelFieldName(prefix, result.targetVersion) : '')) : [];
 
 		// Determine align by (relation type in BCQL query, e.g. for "the" -word-alignment->nl _ it would be "word-alignment")
-		const defaultAlignBy = this.dependencies.uiState.search.shared.alignBy.defaultValue;
+		const defaultAlignBy = this.dependencies.customizations.searchFormAlignByDefault();
 		const alignBy = (this._parsedCql ? this._parsedCql[1]?.relationType : defaultAlignBy) ?? defaultAlignBy;
 
 		return {
@@ -657,7 +650,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 	private get simplePattern(): { annotationValue: AnnotationValue } | undefined {
 		// Simple view is just a single annotation without any within query or filters
 		// NOTE: do not use extendedPattern, as the annotation used for simple may not be available for extended searching!\
-		const id = this.dependencies.uiState.search.simple.searchAnnotationId;
+		const id = this.dependencies.customizations.searchFormSimpleAnnotation().id;
 		if (!this.annotationValues?.[id]) return undefined;
 		return {
 			annotationValue: this.annotationValues[id],
@@ -666,7 +659,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 
 	@memoize
 	private get extendedPattern() {
-		const annotationsInInterface = mapReduce(this.dependencies.uiState.search.extended.searchAnnotationIds);
+		const annotationsInInterface = mapReduce(this.dependencies.customizations.searchFormExtendedAnnotationIds());
 		const parsedAnnotationValues = cloneDeep(this.annotationValues || {});
 		Object.keys(parsedAnnotationValues).forEach(annotId => {
 			if (!annotationsInInterface[annotId]) {
@@ -798,7 +791,7 @@ export default class UrlStateParserSearch extends BaseUrlStateParser<HistoryModu
 			if (this._parsedCql && this._parsedCql.length > 1) {
 				const relType = this._parsedCql[1].relationType;
 				// Check if this is a valid alignBy type
-				const alignBy = this.dependencies.uiState.search.shared.alignBy.elements.find(v => v.value === relType);
+				const alignBy = this.dependencies.customizations.searchFormAlignByElements().find(v => v.value === relType);
 				const optional = this._parsedCql[1].optional ?? false;
 				if (!alignBy || !optional) {
 					// Not a valid align by type, or a required alignment match; just put the whole query in the first expert box

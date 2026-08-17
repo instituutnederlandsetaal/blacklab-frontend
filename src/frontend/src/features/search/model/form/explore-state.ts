@@ -5,8 +5,8 @@
 
 import { reactive, ref } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
+import type { Customizations } from '@/customization-api/internal/internal-api';
 import { memoize } from '@/features/search/model/form/reactive-store';
 
 import { escapeRegex } from '@/shared/utils/string-utils';
@@ -37,8 +37,20 @@ type ModuleRootState = {
 	};
 };
 
-// NOTE: This state shape is invalid, we correct it on store initialization
-// We need some references to the UI store, which is not initialized yet.
+let customizations: Customizations | undefined;
+const defaultSearchAnnotationId = () => {
+	const ids = customizations?.searchFormExploreSearchAnnotationIds() ?? [];
+	return customizations?.searchFormExploreDefaultSearchAnnotationId(ids) ?? ids[0] ?? '';
+};
+const defaultGroupAnnotationId = () => {
+	const ids = customizations?.searchFormExploreGroupAnnotationIds() ?? [];
+	return customizations?.searchFormExploreDefaultGroupAnnotationId(ids) ?? ids[0] ?? '';
+};
+const defaultGroupMetadataId = () => {
+	const values = (customizations?.searchFormExploreGroupMetadataIds() ?? []).map(id => `field:${id}`);
+	return customizations?.searchFormExploreDefaultGroupMetadataId(values) ?? values[0] ?? '';
+};
+
 const defaults: ModuleRootState = {
 	ngram: {
 		/** 1-indexed */
@@ -49,26 +61,26 @@ const defaults: ModuleRootState = {
 			const ret: ModuleRootState['ngram']['tokens'] = [];
 			for (let i = 0; i < defaults.ngram.maxSize; ++i) {
 				ret.push({
-					id: UIStore.getState().explore.defaultSearchAnnotationId,
+					id: defaultSearchAnnotationId(),
 					value: '',
 				});
 			}
 			return ret;
 		},
 		get groupAnnotationId() {
-			return UIStore.getState().explore.defaultGroupAnnotationId;
+			return defaultGroupAnnotationId();
 		},
 	},
 
 	frequency: {
 		get annotationId() {
-			return UIStore.getState().explore.defaultGroupAnnotationId;
+			return defaultGroupAnnotationId();
 		},
 	},
 
 	corpora: {
 		get groupBy() {
-			return `field:${UIStore.getState().explore.defaultGroupMetadataId}`;
+			return defaultGroupMetadataId();
 		},
 		groupDisplayMode: 'table',
 	},
@@ -78,7 +90,7 @@ const state = reactive(structuredClone(defaults));
 const getState = () => state;
 
 const createDefaultToken = (): Token => ({
-	id: UIStore.getState().explore.defaultSearchAnnotationId,
+	id: defaultSearchAnnotationId(),
 	value: '',
 });
 
@@ -176,7 +188,8 @@ const actions = {
 
 const resetSignal = ref(0);
 
-const init = (_state: CorpusContext) => {
+const init = (_state: CorpusContext, customizationApi: Customizations) => {
+	customizations = customizationApi;
 	actions.reset();
 };
 

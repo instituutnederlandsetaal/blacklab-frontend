@@ -49,8 +49,8 @@ import * as Observable from 'rxjs';
 import { catchError, debounceTime, filter, map, mergeMap, switchMap, toArray } from 'rxjs/operators';
 import { defineComponent, type PropType } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import type { NormalizedAnnotation } from '@/types/apptypes';
 
 import { useBlackLabApi } from '@/shared/api';
@@ -118,11 +118,12 @@ export default defineComponent({
 		displayValue: '',
 
 		blacklab: useBlackLabApi(),
+		customizations: useCustomizations(),
 	}),
 	computed: {
 		/** Lexicon database to use */
 		database(): string {
-			return UIStore.getState().global.lexiconDb;
+			return this.customizations.searchFormLexiconDatabase();
 		},
 
 		inputId(): string {

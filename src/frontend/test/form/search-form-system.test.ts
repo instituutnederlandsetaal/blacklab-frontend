@@ -189,7 +189,7 @@ function createScopedSearchFormSystem(options: Omit<Parameters<typeof createSear
 	return testScope.run(() =>
 		createSearchFormSystem({
 			...options,
-			customizations: createCustomizations(customizationRegistry, options.corpus, UIStore.getState),
+			customizations: createCustomizations(customizationRegistry, options.corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId),
 		}),
 	)!;
 }
@@ -294,7 +294,7 @@ function createCustomizedWithinRuntime() {
 			createSearchFormSystem({
 				blacklabApi: createMockApi().blacklabApi,
 				corpus: ref(corpus),
-				customizations: createCustomizations(registry, corpus, UIStore.getState),
+				customizations: createCustomizations(registry, corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId),
 				tagset: ref(undefined),
 				translate: createMockTranslate(),
 			}).runtime.value!,
@@ -795,7 +795,7 @@ describe('search form system', () => {
 				},
 			],
 		});
-		const customizations = createCustomizations(registry, corpus, UIStore.getState);
+		const customizations = createCustomizations(registry, corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId);
 
 		expect(customizations.searchFormSpanFilters()).toMatchObject([
 			{

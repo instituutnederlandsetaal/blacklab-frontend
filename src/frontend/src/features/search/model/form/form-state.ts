@@ -1,4 +1,5 @@
 import type { CorpusContext } from '@/app/state/useCorpusContext';
+import type { Customizations } from '@/customization-api/internal/internal-api';
 import * as ExploreModule from '@/features/search/model/form/explore-state';
 import * as FilterModule from '@/features/search/model/form/filter-state';
 import * as GapModule from '@/features/search/model/form/gap-state';
@@ -35,11 +36,11 @@ const actions = {
 	},
 };
 
-const init = (state: CorpusContext) => {
-	ExploreModule.init(state);
+const init = (state: CorpusContext, customizations: Customizations) => {
+	ExploreModule.init(state, customizations);
 	FilterModule.init(state);
 	InterfaceModule.init(state);
-	PatternModule.init(state);
+	PatternModule.init(state, customizations);
 	GapModule.init(state);
 };
 

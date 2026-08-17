@@ -98,7 +98,6 @@ import URI from 'urijs';
 import { defineComponent } from 'vue';
 
 import * as RootStore from '@/app/state/root-store';
-import * as UIStore from '@/app/state/ui-state';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { getQueryBuilderStateFromParsedQuery } from '@/features/cql-query-builder/model';
@@ -170,7 +169,7 @@ export default defineComponent({
 			return this.tabs.length > 1;
 		},
 		tabs(): Array<{ label: string; id: string; entries: AppTypes.NormalizedAnnotation[] }> {
-			const result = getAnnotationSubset(UIStore.getState().search.extended.searchAnnotationIds, this.corpus.annotationGroups, this.corpus.allAnnotationsMap, 'Search', this).map(group => {
+			const result = getAnnotationSubset(this.customizations.searchFormExtendedAnnotationIds(), this.corpus.annotationGroups, this.corpus.allAnnotationsMap, 'Search', this).map(group => {
 				const label = optionText(group.label) ?? '';
 				return {
 					...group,
@@ -199,7 +198,7 @@ export default defineComponent({
 		},
 		simpleSearchAnnotation(): AppTypes.NormalizedAnnotation {
 			const field = this.isParallelCorpus ? PatternStore.getState().shared.source : this.corpus.mainAnnotatedField;
-			const id = UIStore.getState().search.simple.searchAnnotationId;
+			const id = this.customizations.searchFormSimpleAnnotation().id;
 			const annotField = field ?? this.corpus.mainAnnotatedField;
 			const result = this.corpus.allAnnotatedFieldsMap[annotField]?.annotations[id] || this.corpus.firstMainAnnotation;
 			return {
@@ -214,7 +213,7 @@ export default defineComponent({
 			set: PatternStore.actions.shared.within,
 		},
 		splitBatchEnabled(): boolean {
-			return UIStore.getState().search.extended.splitBatch.enabled && !this.isParallelCorpus; // hide for parallel
+			return this.customizations.searchFormSplitBatchEnabled() && !this.isParallelCorpus; // hide for parallel
 		},
 		splitBatch: {
 			get(): boolean {
@@ -229,7 +228,7 @@ export default defineComponent({
 			set: PatternStore.actions.simple.annotation,
 		},
 		advancedEnabled(): boolean {
-			return UIStore.getState().search.advanced.enabled;
+			return this.customizations.searchFormAdvancedEnabled();
 		},
 		advanced: {
 			get(): CqlQueryBuilderData | null {
@@ -246,7 +245,7 @@ export default defineComponent({
 		copyExtendedQuery() {
 			const patternState = PatternStore.getState();
 			const filterState = FilterStore.getState();
-			const q = getPatternStringSearch('extended', patternState, UIStore.getState().search.shared.alignBy.defaultValue, filterState.filters);
+			const q = getPatternStringSearch('extended', patternState, this.customizations.searchFormAlignByDefault(), filterState.filters);
 			PatternStore.actions.expert.query(q || '');
 			InterfaceStore.actions.patternMode('expert');
 		},

@@ -131,8 +131,8 @@ import { useDraggable, useLocalStorage, useWindowSize } from '@vueuse/core';
 import { computed, defineAsyncComponent, onUnmounted, ref, useTemplateRef, watch, watchEffect } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-import * as UIStore from '@/app/state/ui-state';
 import { useCfPageConfig, useCorpus } from '@/app/state/useCorpusContext';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as ArticleStore from '@/features/article/model/article-state';
 import createTooltips, { type TooltipContext } from '@/modules/expandable-tooltips';
 import { usePageBootstrap } from '@/navigation/page-bootstrap';
@@ -162,6 +162,7 @@ const route = useRoute();
 const router = useRouter();
 const cfPageConfig = useCfPageConfig();
 const corpus = useCorpus();
+const customizations = useCustomizations();
 const activeArticleTab = ref<'content' | 'metadata' | 'statistics'>('content');
 
 const metadata = loadableFromStream(metadata$);
@@ -194,7 +195,7 @@ const inputs = computed<Input>(() => ({
 }));
 
 const metadataFieldsToShow = computed(() =>
-	fieldSubset(UIStore.getState().results.shared.detailedMetadataIds || Object.keys(corpus.value.allMetadataFieldsMap), corpus.value.metadataGroups, corpus.value.allMetadataFieldsMap),
+	fieldSubset(customizations.resultDetailedMetadataIds() || Object.keys(corpus.value.allMetadataFieldsMap), corpus.value.metadataGroups, corpus.value.allMetadataFieldsMap),
 );
 
 const statisticsEnabled = computed(() => ArticleStore.get.statisticsEnabled());

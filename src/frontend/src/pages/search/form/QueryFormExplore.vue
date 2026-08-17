@@ -138,7 +138,6 @@
 <script lang="ts">
 import { defineComponent, watch } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
@@ -215,18 +214,26 @@ export default defineComponent({
 		},
 
 		annotationSearchOptions(): Option[] | OptGroup[] {
-			const optGroups = getAnnotationSubset(UIStore.getState().explore.searchAnnotationIds, this.corpus.annotationGroups, this.corpus.allAnnotationsMap, 'Search', this, debug.value, false);
+			const optGroups = getAnnotationSubset(
+				this.customizations.searchFormExploreSearchAnnotationIds(),
+				this.corpus.annotationGroups,
+				this.corpus.allAnnotationsMap,
+				'Search',
+				this,
+				debug.value,
+				false,
+			);
 			return optGroups.length > 1 ? optGroups : optGroups.flatMap(g => g.options as Option[]);
 		},
 		annotationGroupByOptions(): Option[] | OptGroup[] {
 			const optGroups = getAnnotationSubset(
-				UIStore.getState().results.shared.groupAnnotationIds,
+				this.customizations.searchFormExploreGroupAnnotationIds(),
 				this.corpus.annotationGroups,
 				this.corpus.allAnnotationsMap,
 				'Search', // we don't want the before hit/after hit context options, just do search mode, it'll be fine
 				this,
 				debug.value,
-				UIStore.getState().dropdowns.groupBy.annotationGroupLabelsVisible,
+				this.customizations.searchFormExploreAnnotationGroupLabelsVisible(),
 			);
 			return optGroups.length > 1 ? optGroups : optGroups.flatMap(g => g.options as Option[]);
 		},
@@ -243,14 +250,13 @@ export default defineComponent({
 			}
 
 			const optGroups = getMetadataSubset(
-				UIStore.getState().results.shared.groupMetadataIds,
+				this.customizations.searchFormExploreGroupMetadataIds(),
 				this.corpus.metadataGroups,
 				this.corpus.allMetadataFieldsMap,
 				'Group',
 				this,
 				debug.value,
-				UIStore.getState().dropdowns.groupBy.metadataGroupLabelsVisible,
-				this.customizations.legacyShouldShowMetadataField,
+				this.customizations.searchFormExploreMetadataGroupLabelsVisible(),
 			);
 			optGroups.forEach(fix);
 			return optGroups;

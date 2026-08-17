@@ -33,7 +33,7 @@ describe('customization registry corpus lifecycle', () => {
 	test('provides the registry and resolved customization API separately', () => {
 		const corpus = createCorpus('first');
 		const registry = createCustomizationRegistry(corpus);
-		const customizations = createCustomizations(registry, corpus, {} as never);
+		const customizations = createCustomizations(registry, corpus, {} as never, () => {});
 		const app = createApp({});
 		app.use(registry);
 		app.use(customizations);
@@ -45,7 +45,7 @@ describe('customization registry corpus lifecycle', () => {
 	test('useCustomizations gates access on corpus availability', () => {
 		const corpus = ref<Corpus>();
 		const registry = createCustomizationRegistry(corpus);
-		const customizations = createCustomizations(registry, corpus, {} as never);
+		const customizations = createCustomizations(registry, corpus, {} as never, () => {});
 		const app = createApp({});
 		app.use(customizations);
 
@@ -65,7 +65,7 @@ describe('customization registry corpus lifecycle', () => {
 			],
 		} as unknown as Corpus;
 		const registry = createCustomizationRegistry(corpus);
-		const customizations = createCustomizations(registry, corpus, {} as never);
+		const customizations = createCustomizations(registry, corpus, {} as never, () => {});
 		registry.applyLegacyCustomization(legacy => {
 			legacy.search.metadata.showField = id => (id === 'forced' ? true : id === 'author' ? false : null);
 			legacy.search.metadata.addCustomTab('Bibliography', [{ id: 'custom', componentName: 'filter-text', defaultDisplayName: 'Custom', metadata: undefined }]);

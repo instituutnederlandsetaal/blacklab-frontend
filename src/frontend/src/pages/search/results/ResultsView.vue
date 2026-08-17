@@ -118,7 +118,6 @@ import { defineComponent } from 'vue';
 import type { TranslateResult } from 'vue-i18n';
 
 import * as RootStore from '@/app/state/root-store';
-import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as QueryStore from '@/features/search/model/query-state';
@@ -281,7 +280,7 @@ export default defineComponent({
 		setError(data: ApiError, isGrouped?: boolean) {
 			if (!data.isCancelledRequest) {
 				debugLog('results', 'Request failed: ', data);
-				this.error = UIStore.getState().global.errorMessage(data, isGrouped ? 'groups' : (this.id as 'hits' | 'docs'));
+				this.error = this.customizations.formatError(data, isGrouped ? 'groups' : (this.id as 'hits' | 'docs'));
 				this.results = null;
 				this.paginationResults = null;
 				this.clearResults = false;
@@ -369,38 +368,38 @@ export default defineComponent({
 			return QueryStore.get.sourceField();
 		},
 		concordanceAnnotationOptions(): NormalizedAnnotation[] {
-			return UIStore.getState().results.shared.concordanceAnnotationIdOptions.map(id => this.corpus.allAnnotationsMap[id]);
+			return this.customizations.resultConcordanceAnnotationIdOptions().map(id => this.corpus.allAnnotationsMap[id]);
 		},
 		concordanceAnnotationId: {
 			get(): string {
-				return UIStore.getState().results.shared.concordanceAnnotationId;
+				return this.customizations.resultConcordanceAnnotationId();
 			},
 			set(v: string) {
-				UIStore.actions.results.shared.concordanceAnnotationId(v);
+				this.customizations.setResultConcordanceAnnotationId(v);
 			},
 		},
 
 		sortAnnotations(): string[] {
-			return UIStore.getState().results.shared.sortAnnotationIds;
+			return this.customizations.resultSortAnnotationIds();
 		},
 		sortAnnotationLabels(): boolean {
-			return UIStore.getState().dropdowns.sortBy.annotationGroupLabelsVisible;
+			return this.customizations.resultSortAnnotationLabelsVisible();
 		},
 		sortMetadata(): string[] {
-			return UIStore.getState().results.shared.sortMetadataIds;
+			return this.customizations.resultSortMetadataIds();
 		},
 		sortMetadataLabels(): boolean {
-			return UIStore.getState().dropdowns.sortBy.metadataGroupLabelsVisible;
+			return this.customizations.resultSortMetadataLabelsVisible();
 		},
 		exportAnnotations(): string[] | null {
-			return UIStore.getState().results.shared.detailedAnnotationIds;
+			return this.customizations.resultDetailedAnnotationIds();
 		},
 		exportMetadata(): string[] | null {
-			return UIStore.getState().results.shared.detailedMetadataIds;
+			return this.customizations.resultDetailedMetadataIds();
 		},
 
 		exportEnabled(): boolean {
-			return UIStore.getState().results.shared.exportEnabled;
+			return this.customizations.resultExportEnabled();
 		},
 
 		refreshParameters(): string {
@@ -635,7 +634,7 @@ export default defineComponent({
 			return {
 				...this.commonDisplaySettings,
 				indexId: this.corpus.id!,
-				getSummary: UIStore.getState().results.shared.getDocumentSummary,
+				getSummary: this.customizations.resultDocumentSummary,
 				sourceField: this.corpus.allAnnotatedFieldsMap[QueryStore.get.sourceField()], // if no field, there would be no results...
 				getCustomHitInfo: (hit, field, document) => this.customizations.hitInfoColumnContent(hit, field, document, this),
 				getMatchInfoHighlightStyle: this.customizations.matchInfoHighlightStyle,
@@ -648,10 +647,10 @@ export default defineComponent({
 			const sortMetadataId = parsedSort?.type === 'metadata' && parsedSort.metadata.type === 'document' ? parsedSort.metadata.field : undefined;
 
 			// Get shown columns and append sort column if not already shown
-			const shownAnnotationIds = this.isHits ? UIStore.getState().results.hits.shownAnnotationIds : [];
+			const shownAnnotationIds = this.isHits ? this.customizations.resultShownAnnotationIds() : [];
 			const annotationIdsToShow = sortAnnotationId && !shownAnnotationIds.includes(sortAnnotationId) ? shownAnnotationIds.concat(sortAnnotationId) : shownAnnotationIds;
 
-			const shownMetadataIds = this.isHits ? UIStore.getState().results.hits.shownMetadataIds : this.isDocs ? UIStore.getState().results.docs.shownMetadataIds : [];
+			const shownMetadataIds = this.isHits ? this.customizations.resultShownMetadataIds('hits') : this.isDocs ? this.customizations.resultShownMetadataIds('docs') : [];
 			const metadataIdsToShow = sortMetadataId && !shownMetadataIds.includes(sortMetadataId) ? shownMetadataIds.concat(sortMetadataId) : shownMetadataIds;
 
 			return {
@@ -662,7 +661,7 @@ export default defineComponent({
 				metadata: metadataIdsToShow.map(id => this.corpus.allMetadataFieldsMap[id]),
 				// If groups, don't show any annotation columns. Automatically append sort column if not already shown.
 				otherAnnotations: annotationIdsToShow.map(id => this.corpus.allAnnotationsMap[id]),
-				sortableAnnotations: UIStore.getState().results.shared.sortAnnotationIds.map(id => this.corpus.allAnnotationsMap[id]),
+				sortableAnnotations: this.customizations.resultSortAnnotationIds().map(id => this.corpus.allAnnotationsMap[id]),
 				annotationGroups: this.corpus.annotationGroups,
 				hasCustomHitInfoColumn: (results, isParallelCorpus) =>
 					BLTypes.isHitResults(results) || BLTypes.isHitGroups(results) ? this.customizations.hitInfoColumnVisible(results, isParallelCorpus) : false,
@@ -670,7 +669,7 @@ export default defineComponent({
 		},
 		renderDisplaySettings(): DisplaySettingsForRendering {
 			const allAnnotationsMap = this.corpus.allAnnotationsMap;
-			const dependencySettings = UIStore.getState().results.shared.dependencies;
+			const dependencySettings = this.customizations.resultDependencies();
 			const dependencyAnnotationIds = [
 				...new Set([dependencySettings.lemma, dependencySettings.upos, dependencySettings.xpos, ...(dependencySettings.feats ?? [])].filter((id): id is string => !!id)),
 			];
@@ -679,11 +678,11 @@ export default defineComponent({
 				...this.columnDisplaySettings,
 				// Don't show details table in expanded rows when showing groups or hits in docs.
 				detailedAnnotations: this.isHits
-					? (UIStore.getState().results.shared.detailedAnnotationIds?.map(id => allAnnotationsMap[id]) ?? this.corpus.allAnnotations.filter(a => !a.isInternal && a.hasForwardIndex))
+					? (this.customizations.resultDetailedAnnotationIds()?.map(id => allAnnotationsMap[id]) ?? this.corpus.allAnnotations.filter(a => !a.isInternal && a.hasForwardIndex))
 					: [],
 				dependencyAnnotations: dependencyAnnotationIds.map(id => allAnnotationsMap[id]).filter((annotation): annotation is NormalizedAnnotation => !!annotation),
 				dependencyRelationClass: dependencySettings.relationClass,
-				html: UIStore.getState().results.shared.concordanceAsHtml,
+				html: this.customizations.resultConcordanceAsHtml(),
 			};
 		},
 

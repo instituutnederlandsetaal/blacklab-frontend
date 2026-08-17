@@ -23,9 +23,9 @@
 import cloneDeep from 'clone-deep';
 import { reactive } from 'vue';
 
-import * as UIModule from '@/app/state/ui-state';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterString, getFilterSummary } from '@/components/filters/filterValueFunctions';
+import type { Customizations } from '@/customization-api/internal/internal-api';
 import type { CompiledFormStateWithSummaries, ScopedFormQuery } from '@/features/form';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
@@ -93,6 +93,7 @@ const getState = () => state;
 
 // TODO - hack ; need to revise global state management to avoid this
 let context: CorpusContext;
+let customizations: Customizations | undefined;
 /** Centralize the initialization assertion required by this legacy store module. */
 const useCorpus = () => context!.index!;
 
@@ -117,10 +118,10 @@ const get = {
 			shared: state.shared,
 		} as Partial<ModuleRootStateSearch<PatternMode>>;
 		const annotations = useCorpus().allAnnotationsMap;
-		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
+		const configuredAlignBy = customizations?.searchFormAlignByDefault() ?? '';
 		switch (state.form) {
 			case 'search':
-				return getPatternStringSearch(state.subForm, formState as any, defaultAlignBy, state.filters);
+				return getPatternStringSearch(state.subForm, formState as any, configuredAlignBy, state.filters);
 			case 'explore':
 				return getPatternStringExplore(state.subForm, formState as any, annotations);
 			default:
@@ -144,10 +145,10 @@ const get = {
 			[state.subForm as string]: state.formState,
 			shared: state.shared,
 		} as any;
-		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
+		const configuredAlignBy = customizations?.searchFormAlignByDefault() ?? '';
 		switch (state.form) {
 			case 'search':
-				return getPatternSummarySearch(state.subForm, formState, defaultAlignBy, state.filters);
+				return getPatternSummarySearch(state.subForm, formState, configuredAlignBy, state.filters);
 			case 'explore':
 				return getPatternSummaryExplore(state.subForm, formState, useCorpus().allAnnotationsMap);
 			default:
@@ -184,8 +185,9 @@ const actions = {
 	replace: (payload: ModuleRootState) => Object.assign(state, cloneDeep(payload)),
 };
 
-const init = (_payload: CorpusContext) => {
+const init = (_payload: CorpusContext, customizationApi: Customizations) => {
 	context = _payload;
+	customizations = customizationApi;
 	actions.reset();
 };
 

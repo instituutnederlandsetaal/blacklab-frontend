@@ -6,8 +6,8 @@
 import cloneDeep from 'clone-deep';
 import { reactive, ref } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
+import type { Customizations } from '@/customization-api/internal/internal-api';
 import type { CqlQueryBuilderData } from '@/features/cql-query-builder/model';
 import { memoize } from '@/features/search/model/form/reactive-store';
 import type { AnnotationValue } from '@/types/apptypes';
@@ -100,6 +100,7 @@ const state = reactive(structuredClone(initialState));
 const getState = () => state;
 
 let context: CorpusContext;
+let customizations: Customizations | undefined;
 const useCorpus = () => context!.index!;
 
 const get = {
@@ -172,7 +173,7 @@ const actions = {
 			}
 			return (state.shared.targets = payload);
 		},
-		alignBy: (payload: string | null) => (state.shared.alignBy = payload ?? UIStore.getState().search.shared.alignBy.defaultValue),
+		alignBy: (payload: string | null) => (state.shared.alignBy = payload ?? customizations?.searchFormAlignByDefault() ?? ''),
 		within: (payload: string | null) => (state.shared.within = payload),
 		withinAttributes: (payload: Record<string, string>) => (state.shared.withinAttributes = payload),
 		reset: () => {
@@ -180,7 +181,7 @@ const actions = {
 			debugLog('shared', `shared.reset: Selecting default source version '${defaultSourceField}'`);
 			state.shared.source = defaultSourceField;
 			state.shared.targets = [];
-			state.shared.alignBy = UIStore.getState().search.shared.alignBy.defaultValue;
+			state.shared.alignBy = customizations?.searchFormAlignByDefault() ?? '';
 			state.shared.within = null;
 			state.shared.withinAttributes = {};
 		},
@@ -271,7 +272,8 @@ const actions = {
 };
 
 /** We need to call some function from the module before creating the root store or this module won't be evaluated (e.g. none of this code will run) */
-const init = (state: CorpusContext) => {
+const init = (state: CorpusContext, customizationApi: Customizations) => {
+	customizations = customizationApi;
 	if (!state.index) {
 		Object.assign(getState(), cloneDeep(initialState));
 		return;

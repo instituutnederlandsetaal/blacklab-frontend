@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import * as RootStore from '@/app/state/root-store';
+import * as UIStore from '@/app/state/ui-state';
 import type { CorpusContext } from '@/app/state/useCorpusContext';
 import { createCustomizations } from '@/customization-api/internal/internal-api';
 import { createCustomizationRegistry } from '@/customization-api/registry';
@@ -16,9 +17,10 @@ import * as PatternStore from '@/features/search/model/form/pattern-state';
 import * as QueryStore from '@/features/search/model/query-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
 
-const corpus = { relations: { spans: {} } } as never;
+const corpus = { allMetadataFields: [], relations: { spans: {} } } as never;
 const customizationRegistry = createCustomizationRegistry(corpus);
-RootStore.setCustomizations(createCustomizations(customizationRegistry, corpus, {} as never));
+const customizations = createCustomizations(customizationRegistry, corpus, UIStore.getState, UIStore.actions.results.shared.concordanceAnnotationId);
+RootStore.setCustomizations(customizations);
 
 function resetStores() {
 	const context = {
@@ -35,8 +37,8 @@ function resetStores() {
 	InterfaceStore.actions.reset();
 	ExploreStore.actions.reset();
 	FilterStore.init({ index: undefined } as CorpusContext);
-	PatternStore.init(context);
-	QueryStore.init(context);
+	PatternStore.init(context, customizations);
+	QueryStore.init(context, customizations);
 	ViewStore.init({} as CorpusContext);
 }
 

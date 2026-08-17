@@ -59,7 +59,6 @@
 <script lang="ts">
 import { defineComponent, watch } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
 import { useCorpus } from '@/app/state/useCorpusContext';
 import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 import { useCustomizations, type SearchFilterTab } from '@/customization-api/internal/internal-api';
@@ -113,7 +112,7 @@ export default defineComponent({
 				});
 		},
 		tabs(): SearchFilterTab[] {
-			return this.customizations.searchFilterTabs(FilterStore.getState().filters, UIStore.getState().search.shared.searchMetadataIds, this);
+			return this.customizations.searchFilterTabs(FilterStore.getState().filters, this.customizations.searchFormMetadataFieldIds(), this);
 		},
 		filterMap(): Record<string, FilterStore.FullFilterState> {
 			return FilterStore.getState().filters;

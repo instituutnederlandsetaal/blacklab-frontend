@@ -9,9 +9,9 @@ import jsonStableStringify from 'json-stable-stringify';
 import URI from 'urijs';
 import { markRaw, shallowRef } from 'vue';
 
-import * as UIModule from '@/app/state/ui-state';
 import { useCorpus, type CorpusContext } from '@/app/state/useCorpusContext';
 import { getFilterSummary } from '@/components/filters/filterValueFunctions';
+import type { Customizations } from '@/customization-api/internal/internal-api';
 import type { CompiledFormStateWithSummaries } from '@/features/form';
 import type * as ExploreModule from '@/features/search/model/form/explore-state';
 import type * as FilterModule from '@/features/search/model/form/filter-state';
@@ -30,6 +30,8 @@ import { hashJavaDJB2 } from '@/shared/utils/string-utils';
 // Update the version whenever one of the properties in type HistoryEntry changes
 // That is enough to prevent loading out-of-date history.
 const version = 11;
+let customizations: Customizations | undefined;
+const defaultAlignBy = () => customizations?.searchFormAlignByDefault() ?? '';
 
 // TODO it would be better to store the submitted query here directly, then walk back to to the original form state?
 // Instead of what we do here, which is to store the form state and then reconstruct the submitted query from that during apply/restore.
@@ -163,14 +165,14 @@ const actions = {
 					.map(summary => `${summary.label}: ${summary.value}`)
 					.join(', ') || undefined
 			: getFilterSummary(Object.values(entry.filters).sort((l, r) => l.id.localeCompare(r.id)));
-		const defaultAlignBy = UIModule.getState().search.shared.alignBy.defaultValue;
+		const configuredAlignBy = defaultAlignBy();
 		const patternSummary: string | undefined = entry.newForm
 			? entry.newForm.summaries
 					.filter(summary => !summary.summaryType?.length || summary.summaryType.includes('patt'))
 					.map(summary => `${summary.label}: ${summary.value}`)
 					.join(', ') || undefined
 			: entry.interface.form === 'search'
-				? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, defaultAlignBy, entry.filters)
+				? getPatternSummarySearch(entry.interface.patternMode, entry.patterns, configuredAlignBy, entry.filters)
 				: entry.interface.form === 'explore'
 					? getPatternSummaryExplore(entry.interface.exploreMode, entry.explore, useCorpus().value.allAnnotationsMap)
 					: undefined;
@@ -224,7 +226,8 @@ const actions = {
 	},
 };
 
-const init = (change: CorpusContext) => {
+const init = (change: CorpusContext, customizationApi: Customizations) => {
+	customizations = customizationApi;
 	corpus = change.index ?? null;
 	state.value = readFromLocalStorage();
 };

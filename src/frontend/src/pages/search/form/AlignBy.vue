@@ -21,7 +21,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
+import { useCustomizations } from '@/customization-api/internal/internal-api';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
 
 import { optionLabel, optionText, type Option } from '@/shared/utils/options';
@@ -30,20 +30,21 @@ export default defineComponent({
 		block: { default: false, type: Boolean },
 		lg: { default: false, type: Boolean },
 	},
+	data: () => ({ customizations: useCustomizations() }),
 	methods: {
 		optionLabel,
 		optionText,
 	},
 	computed: {
 		alignByOptions(): Option[] {
-			return UIStore.getState().search.shared.alignBy.elements?.map(e => ({
+			return this.customizations.searchFormAlignByElements().map(e => ({
 				...e,
 				label: this.$tAlignByDisplayName(e),
 			}));
 		},
 		alignBy: {
 			get(): string {
-				return PatternStore.get.shared().alignBy || UIStore.getState().search.shared.alignBy.defaultValue;
+				return PatternStore.get.shared().alignBy || this.customizations.searchFormAlignByDefault();
 			},
 			set(value: string) {
 				PatternStore.actions.shared.alignBy(value === '' ? null : value);

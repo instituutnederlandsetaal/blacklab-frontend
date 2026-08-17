@@ -12,7 +12,7 @@ const corpusId = 'edges-results-api-test';
 const unregisterCallbacks: Array<() => void> = [];
 const initialCorpus = { id: corpusId, relations: { spans: {} } } as never;
 const customizationRegistry = createCustomizationRegistry(initialCorpus);
-const customizations = createCustomizations(customizationRegistry, initialCorpus, {} as never);
+const customizations = createCustomizations(customizationRegistry, initialCorpus, {} as never, () => {});
 const metadataFields = {
 	bookId: {
 		id: 'bookId',
@@ -136,7 +136,7 @@ describe('search results public DTO adapters', () => {
 				},
 			},
 		};
-		const contextCustomizations = createCustomizations(customizationRegistry, corpus as never, {} as never);
+		const contextCustomizations = createCustomizations(customizationRegistry, corpus as never, {} as never, () => {});
 		const field = {
 			id: 'contents__nl_1939',
 			isParallel: true,

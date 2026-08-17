@@ -15,7 +15,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue';
 
-import * as UIStore from '@/app/state/ui-state';
+import { useCustomizations, type ResultView } from '@/customization-api/internal/internal-api';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as ViewStore from '@/features/search/model/results/view-state';
 
@@ -25,6 +25,7 @@ export default defineComponent({
 	components: {
 		ResultsView,
 	},
+	data: () => ({ customizations: useCustomizations() }),
 	methods: {
 		showView(id: string) {
 			InterfaceStore.actions.viewedResults(id);
@@ -35,8 +36,8 @@ export default defineComponent({
 	},
 	computed: {
 		viewedResults: InterfaceStore.get.viewedResults,
-		customViews(): UIStore.CustomView[] {
-			return UIStore.getState().results.customViews;
+		customViews(): ResultView[] {
+			return this.customizations.resultViews();
 		},
 	},
 });

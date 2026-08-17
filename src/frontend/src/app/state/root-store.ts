@@ -265,7 +265,7 @@ const actions = {
 						},
 					},
 				},
-				pattern: getPatternString([a], withinClauses, PatternModule.getState().shared.targets, PatternModule.getState().shared.alignBy || UIModule.getState().search.shared.alignBy.defaultValue),
+				pattern: getPatternString([a], withinClauses, PatternModule.getState().shared.targets, PatternModule.getState().shared.alignBy || customizations?.searchFormAlignByDefault() || ''),
 				url: '',
 			}))
 			.map(v => cloneDeep(v));
@@ -326,13 +326,14 @@ const init = (state: CorpusContext) => {
 
 	UIModule.init(state);
 
-	FormManager.init(state);
+	if (!customizations) throw new Error('Root store initialized without customizations.');
+	FormManager.init(state, customizations);
 	ViewModule.init(state);
 	GlobalResultsModule.init(state);
 
 	TagsetModule.init(state);
-	HistoryModule.init(state);
-	QueryModule.init(state);
+	HistoryModule.init(state, customizations);
+	QueryModule.init(state, customizations);
 
 	ArticleModule.init(state);
 };
