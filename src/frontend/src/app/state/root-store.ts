@@ -2,6 +2,7 @@ import cloneDeep from 'clone-deep';
 
 import * as UIModule from '@/app/state/ui-state';
 import { type CorpusContext } from '@/app/state/useCorpusContext';
+import { getValueFunctions } from '@/components/filters/filterValueFunctions';
 // Results
 // Article
 import * as ArticleModule from '@/features/article/model/article-state';
@@ -67,7 +68,12 @@ const get = {
 		const globalState = GlobalResultsModule.getState();
 		const patt = QueryModule.get.patternString();
 		const queryState = QueryModule.getState();
-		const defaultWithSpans = queryState.form === 'new' ? queryState.state.resultPreset?.withSpans : FilterModule.get.hasSpanFilters();
+		const queryNeedsSpans =
+			queryState.form === 'new'
+				? queryState.state.resultPreset?.withSpans
+				: queryState.form === 'search'
+					? Object.values(queryState.filters).some(filter => getValueFunctions(filter).isSpanFilter)
+					: undefined;
 		return {
 			...debugParams,
 
@@ -91,7 +97,7 @@ const get = {
 			viewgroup: activeView.viewGroup != null ? activeView.viewGroup : undefined,
 			context: globalState.context != null ? globalState.context : undefined,
 			adjusthits: true,
-			withspans: patt ? (corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (defaultWithSpans || !!useCorpus()?.hasRelations || undefined)) : undefined,
+			withspans: patt ? (corpusCustomizations.search.pattern.shouldAddWithSpans(patt) ?? (queryNeedsSpans || !!useCorpus()?.hasRelations || undefined)) : undefined,
 		};
 	}),
 	localSearchIntentRevision: () => localSearchIntentRevision,

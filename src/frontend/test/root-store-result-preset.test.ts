@@ -7,6 +7,7 @@ import type { CorpusContext } from '@/app/state/useCorpusContext';
 import type { CompiledFormStateWithSummaries } from '@/features/form';
 import type { HistoryEntry } from '@/features/history/model/query-history-state';
 import * as ExploreStore from '@/features/search/model/form/explore-state';
+import * as FilterStore from '@/features/search/model/form/filter-state';
 import * as GapStore from '@/features/search/model/form/gap-state';
 import * as InterfaceStore from '@/features/search/model/form/interface-state';
 import * as PatternStore from '@/features/search/model/form/pattern-state';
@@ -28,6 +29,7 @@ function resetStores() {
 	} as any as CorpusContext;
 	InterfaceStore.actions.reset();
 	ExploreStore.actions.reset();
+	FilterStore.init({ index: undefined } as CorpusContext);
 	PatternStore.init(context);
 	QueryStore.init(context);
 	ViewStore.init({} as CorpusContext);
@@ -117,6 +119,32 @@ describe('root-store result presets', () => {
 		RootStore.actions.searchFromSubmit(snapshot);
 
 		expect(RootStore.get.blacklabParameters()?.withspans).toBeUndefined();
+	});
+
+	test('derives legacy withspans from the submitted active filters, not registered controls', () => {
+		resetStores();
+		InterfaceStore.actions.form('search');
+		InterfaceStore.actions.patternMode('expert');
+		PatternStore.actions.expert.query('[word="water"]');
+		FilterStore.actions.registerFilter({
+			filter: {
+				id: 'span:speech:person',
+				componentName: 'filter-text',
+				behaviourName: 'span-text',
+				defaultDisplayName: 'Speaker',
+				metadata: { name: 'speech', attribute: 'person' },
+			},
+		});
+
+		RootStore.actions.searchFromSubmit();
+		expect(RootStore.get.blacklabParameters()?.withspans).toBeUndefined();
+
+		FilterStore.actions.filterValue({ id: 'span:speech:person', value: 'Alice' });
+		RootStore.actions.searchFromSubmit();
+		expect(RootStore.get.blacklabParameters()).toMatchObject({
+			patt: '([word="water"]) within <speech person="Alice"/>',
+			withspans: true,
+		});
 	});
 
 	test('lets an explicit legacy withspans customization override the new-form preset', () => {
